@@ -107,7 +107,11 @@ fn every_rule_has_card_with_matching_metadata() {
         let text = match fs::read_to_string(&path) {
             Ok(t) => t,
             Err(_) => {
-                problems.push(format!("{}: KART DOSYASI YOK ({})", rule.id, path.display()));
+                problems.push(format!(
+                    "{}: KART DOSYASI YOK ({})",
+                    rule.id,
+                    path.display()
+                ));
                 continue;
             }
         };
@@ -128,7 +132,10 @@ fn every_rule_has_card_with_matching_metadata() {
             Some(v) if severity_display_to_debug(&v) == exp_sev => {}
             Some(v) => problems.push(format!(
                 "{}: Önem uyuşmuyor (kart '{}' → '{}', registry '{}')",
-                rule.id, v, severity_display_to_debug(&v), exp_sev
+                rule.id,
+                v,
+                severity_display_to_debug(&v),
+                exp_sev
             )),
             None => problems.push(format!("{}: künye 'Önem' satırı yok", rule.id)),
         }
@@ -215,14 +222,17 @@ fn kunye_and_score_match_registry() {
 
     for rule in RULES {
         let path = card_path(rule.id);
-        let Ok(text) = fs::read_to_string(&path) else { continue };
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
 
         // Skor tabanı == base_effort
         if let Some(v) = kunye_value(&text, "Skor tabanı") {
             match v.trim().parse::<u8>() {
                 Ok(n) if n == rule.base_effort => {}
                 _ => problems.push(format!(
-                    "{}: Skor tabanı '{}' ≠ base_effort {}", rule.id, v, rule.base_effort
+                    "{}: Skor tabanı '{}' ≠ base_effort {}",
+                    rule.id, v, rule.base_effort
                 )),
             }
         }
@@ -231,7 +241,10 @@ fn kunye_and_score_match_registry() {
         let exp_dedup = format!("{:?}", rule.dedup_level);
         if let Some(v) = kunye_value(&text, "Varlık") {
             if v.trim() != exp_dedup {
-                problems.push(format!("{}: Varlık '{}' ≠ dedup_level '{}'", rule.id, v, exp_dedup));
+                problems.push(format!(
+                    "{}: Varlık '{}' ≠ dedup_level '{}'",
+                    rule.id, v, exp_dedup
+                ));
             }
         }
 
@@ -242,7 +255,8 @@ fn kunye_and_score_match_registry() {
             let exp = rule.scope_key_field.unwrap_or("-");
             if card != exp {
                 problems.push(format!(
-                    "{}: Kimlik alanı '{}' ≠ scope_key '{}'", rule.id, card, exp
+                    "{}: Kimlik alanı '{}' ≠ scope_key '{}'",
+                    rule.id, card, exp
                 ));
             }
         }
@@ -254,7 +268,8 @@ fn kunye_and_score_match_registry() {
                 rule.blocks.iter().map(|s| s.to_string()).collect();
             if card != exp {
                 problems.push(format!(
-                    "{}: Bloke ettiği {:?} ≠ blocks {:?}", rule.id, card, exp
+                    "{}: Bloke ettiği {:?} ≠ blocks {:?}",
+                    rule.id, card, exp
                 ));
             }
         }
@@ -262,11 +277,15 @@ fn kunye_and_score_match_registry() {
         // Görünürlük R-seti == report_views
         if let Some(v) = kunye_value(&text, "Görünürlük") {
             let card = r_tokens(&v);
-            let exp: std::collections::BTreeSet<String> =
-                rule.report_views.iter().map(|r| format!("{:?}", r)).collect();
+            let exp: std::collections::BTreeSet<String> = rule
+                .report_views
+                .iter()
+                .map(|r| format!("{:?}", r))
+                .collect();
             if card != exp {
                 problems.push(format!(
-                    "{}: Görünürlük R-seti {:?} ≠ report_views {:?}", rule.id, card, exp
+                    "{}: Görünürlük R-seti {:?} ≠ report_views {:?}",
+                    rule.id, card, exp
                 ));
             }
         }
@@ -282,7 +301,10 @@ fn kunye_and_score_match_registry() {
             if let Ok(w) = num.parse::<f64>() {
                 if (w - rule.severity.weight()).abs() > 1e-9 {
                     problems.push(format!(
-                        "{}: severity.weight() yazımı {} ≠ gerçek {}", rule.id, w, rule.severity.weight()
+                        "{}: severity.weight() yazımı {} ≠ gerçek {}",
+                        rule.id,
+                        w,
+                        rule.severity.weight()
                     ));
                 }
             }
@@ -305,9 +327,9 @@ const THRESHOLDS: &[(&str, &str, &str)] = &[
     ("SHP_026", "5000", "crates/pipeline/src/k6_analytics.rs"),
     ("TRF_010", "3600", "crates/pipeline/src/k4_cross_ref.rs"),
     ("TRF_011", "2000", "crates/pipeline/src/k6_analytics.rs"),
-    ("SHP_012", "500",  "crates/pipeline/src/k6_analytics.rs"),
+    ("SHP_012", "500", "crates/pipeline/src/k6_analytics.rs"),
     ("VAT_001", "0.85", "crates/pipeline/src/k6_analytics.rs"),
-    ("FIN_017", "730",  "crates/pipeline/src/k6_analytics.rs"),
+    ("FIN_017", "730", "crates/pipeline/src/k6_analytics.rs"),
 ];
 
 #[test]
@@ -318,7 +340,11 @@ fn threshold_constants_match_code() {
         let card = fs::read_to_string(card_path(id)).unwrap_or_default();
         let src = fs::read_to_string(root.join(src_rel)).unwrap_or_default();
         if !card.contains(val) {
-            problems.push(format!("{id}: kart '{val}' eşiğini içermiyor", id = id, val = val));
+            problems.push(format!(
+                "{id}: kart '{val}' eşiğini içermiyor",
+                id = id,
+                val = val
+            ));
         }
         if !src.contains(val) {
             problems.push(format!(
@@ -327,7 +353,11 @@ fn threshold_constants_match_code() {
             ));
         }
     }
-    assert!(problems.is_empty(), "\nEşik uyuşmazlığı:\n{}\n", problems.join("\n"));
+    assert!(
+        problems.is_empty(),
+        "\nEşik uyuşmazlığı:\n{}\n",
+        problems.join("\n")
+    );
 }
 
 #[test]
@@ -382,7 +412,10 @@ fn code_references_point_to_rule() {
             if line_no == 0 || line_no > lines.len() {
                 problems.push(format!(
                     "{}: '{}#L{}' satır aralık dışı (dosya {} satır)",
-                    rule.id, src_rel, line_no, lines.len()
+                    rule.id,
+                    src_rel,
+                    line_no,
+                    lines.len()
                 ));
                 continue;
             }
@@ -399,7 +432,10 @@ fn code_references_point_to_rule() {
             if !found {
                 problems.push(format!(
                     "{}: '{}#L{}' ±3 penceresinde '{}' yok (satır içeriği: {:?})",
-                    rule.id, src_rel, line_no, rule.id,
+                    rule.id,
+                    src_rel,
+                    line_no,
+                    rule.id,
                     lines.get(line_no - 1).unwrap_or(&"").trim()
                 ));
             }
@@ -422,8 +458,15 @@ fn code_references_point_to_rule() {
 fn card_template_shape() {
     // (etiket, kartta aranan alt-dize)
     let kunye = [
-        "Grup", "Önem", "Sınıf", "Aşama", "Varlık",
-        "Kimlik alanı", "Skor tabanı", "Görünürlük", "Bloke ettiği kurallar",
+        "Grup",
+        "Önem",
+        "Sınıf",
+        "Aşama",
+        "Varlık",
+        "Kimlik alanı",
+        "Skor tabanı",
+        "Görünürlük",
+        "Bloke ettiği kurallar",
     ];
     // Başlık-seviyesinden bağımsız (## veya ###) aranan çekirdek bölümler.
     let sections = [
@@ -450,21 +493,28 @@ fn card_template_shape() {
         let mut missing: Vec<String> = Vec::new();
 
         // Başlık metinlerini topla (#/##/### fark etmez) — seviye-agnostik eşleşme.
-        let headings: Vec<String> = text.lines()
+        let headings: Vec<String> = text
+            .lines()
             .filter(|l| l.trim_start().starts_with('#'))
             .map(|l| l.trim_start_matches('#').trim().to_string())
             .collect();
 
         // Karar satırı — bold (`**Karar:**`) veya düz (`> Karar:`) kabul edilir;
         // korpus çoğunlukla düz kullanıyor, format churn'ü için zorlamıyoruz.
-        if !text.contains("Karar:") { missing.push("Karar".into()); }
+        if !text.contains("Karar:") {
+            missing.push("Karar".into());
+        }
         // Künye alanları
         for k in kunye {
-            if kunye_value(&text, k).is_none() { missing.push(format!("künye:{k}")); }
+            if kunye_value(&text, k).is_none() {
+                missing.push(format!("künye:{k}"));
+            }
         }
         // Çekirdek bölümler (başlık-seviyesi bağımsız)
         for s in sections {
-            if !headings.iter().any(|h| h.contains(s)) { missing.push(s.to_string()); }
+            if !headings.iter().any(|h| h.contains(s)) {
+                missing.push(s.to_string());
+            }
         }
 
         if !missing.is_empty() {
@@ -526,7 +576,9 @@ fn spec_rules_cite_field_anchor() {
         if SPEC_ANCHOR_ALLOWLIST.contains(&rule.id) {
             continue;
         }
-        let Ok(text) = fs::read_to_string(card_path(rule.id)) else { continue };
+        let Ok(text) = fs::read_to_string(card_path(rule.id)) else {
+            continue;
+        };
         if !has_gtfs_anchor(spec_ref_section(&text)) {
             problems.push(rule.id);
         }

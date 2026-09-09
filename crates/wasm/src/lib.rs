@@ -1,57 +1,51 @@
-use wasm_bindgen::prelude::*;
 use std::collections::HashSet;
+use wasm_bindgen::prelude::*;
 
 use gtfs_config::{merge_delta, ValidatorConfig};
-use gtfs_core::{FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus};
+use gtfs_core::{
+    FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
+};
 use gtfs_pipeline::{
     analyze_k6_with_files, build_derived_with_files, build_entity_map, build_name_index,
     check_cross_ref_with_files, collect_file_stats, parse_with_limits, report_k7,
-    validate_k2_with_jp_signal,
-    DerivedData, EntityRecords, FileAvailability, FileInfo, GTFS_JP_FILES,
+    validate_k2_with_jp_signal, DerivedData, EntityRecords, FileAvailability, FileInfo,
+    GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
 mod i18n;
 
 macro_rules! t_start {
-    ($label:expr) => {
-        {
-            #[cfg(not(feature = "quiet"))]
-            web_sys::console::time_with_label($label);
-        }
-    };
+    ($label:expr) => {{
+        #[cfg(not(feature = "quiet"))]
+        web_sys::console::time_with_label($label);
+    }};
 }
 macro_rules! t_end {
-    ($label:expr) => {
-        {
-            #[cfg(not(feature = "quiet"))]
-            web_sys::console::time_end_with_label($label);
-        }
-    };
+    ($label:expr) => {{
+        #[cfg(not(feature = "quiet"))]
+        web_sys::console::time_end_with_label($label);
+    }};
 }
 
 macro_rules! wasm_log {
-    ($value:expr) => {
+    ($value:expr) => {{
+        #[cfg(not(feature = "quiet"))]
         {
-            #[cfg(not(feature = "quiet"))]
-            {
-                let value: JsValue = ($value).into();
-                web_sys::console::log_1(&value);
-            }
+            let value: JsValue = ($value).into();
+            web_sys::console::log_1(&value);
         }
-    };
+    }};
 }
 
 macro_rules! wasm_warn {
-    ($value:expr) => {
+    ($value:expr) => {{
+        #[cfg(not(feature = "quiet"))]
         {
-            #[cfg(not(feature = "quiet"))]
-            {
-                let value: JsValue = ($value).into();
-                web_sys::console::warn_1(&value);
-            }
+            let value: JsValue = ($value).into();
+            web_sys::console::warn_1(&value);
         }
-    };
+    }};
 }
 
 #[wasm_bindgen(start)]
@@ -91,7 +85,6 @@ pub struct CachedState {
 }
 
 // ── Yardımcı: aşama callback çağrısı ─────────────────────────────────────────
-
 
 /// issue #133 — yayın kararı ve skor kapsam kaybını görmeli. Native `validate_bytes` ile
 /// AYNI ölçüt; WASM kendi orkestrasyonunu koştuğu için burada da hesaplanmak zorunda.
@@ -153,7 +146,10 @@ pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
         let (u, c) = (f.size(), f.compressed_size());
         calib.push((name.clone(), u, c));
         if name.ends_with(".txt") && !name.contains('/') && !name.contains('\\') {
-            entries.push(Entry { name, uncompressed_size: u });
+            entries.push(Entry {
+                name,
+                uncompressed_size: u,
+            });
         }
     }
     log_zip_ratio_report(&calib);
@@ -179,7 +175,11 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     let (mut max_u, mut max_u_name) = (0u64, String::new());
     let mut lines: Vec<String> = Vec::new();
     for (name, u, c) in &sorted {
-        let ratio = if *c == 0 { f64::INFINITY } else { *u as f64 / *c as f64 };
+        let ratio = if *c == 0 {
+            f64::INFINITY
+        } else {
+            *u as f64 / *c as f64
+        };
         total_u += *u;
         total_c += *c;
         if ratio.is_finite() && ratio > max_ratio {
@@ -192,10 +192,16 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
         }
         lines.push(format!(
             "  {name}: açılmış {:.1} MiB / sıkıştırılmış {:.1} MiB = {:.1}:1",
-            mib(*u), mib(*c), ratio
+            mib(*u),
+            mib(*c),
+            ratio
         ));
     }
-    let feed_ratio = if total_c == 0 { 0.0 } else { total_u as f64 / total_c as f64 };
+    let feed_ratio = if total_c == 0 {
+        0.0
+    } else {
+        total_u as f64 / total_c as f64
+    };
     let report = format!(
         "[zip-calib] #46 decompression-guard kalibrasyon (merkezi-dizin, decompress YOK)\n{}\n\
          — en yuksek oran: {max_ratio_name} = {:.1}:1  -> onerilen max_ratio ~ {} (x3)\n\
@@ -245,7 +251,13 @@ pub fn shape_coords_of(cache: &CachedState, shape_id: String) -> JsValue {
         .shapes
         .iter()
         .filter(|s| cache.records.shape_interns.id(s) == shape_id.as_str())
-        .filter_map(|s| Some((s.shape_pt_sequence().unwrap_or(0), s.shape_pt_lat()?, s.shape_pt_lon()?)))
+        .filter_map(|s| {
+            Some((
+                s.shape_pt_sequence().unwrap_or(0),
+                s.shape_pt_lat()?,
+                s.shape_pt_lon()?,
+            ))
+        })
         .take(MAX_SHAPE_COORDS + 1)
         .collect();
     if pts.len() > MAX_SHAPE_COORDS {
@@ -305,7 +317,11 @@ fn is_valid_yyyymmdd(v: u32) -> bool {
 /// K1–K5'i çalıştırır.
 /// `on_stage(name, elapsed_ms)`: K1/K2/K3/K4/K5 her biri bittikten sonra çağrılır.
 #[wasm_bindgen]
-pub fn prepare(zip_bytes: Vec<u8>, config_delta_json: String, on_stage: &js_sys::Function) -> Result<CachedState, JsValue> {
+pub fn prepare(
+    zip_bytes: Vec<u8>,
+    config_delta_json: String,
+    on_stage: &js_sys::Function,
+) -> Result<CachedState, JsValue> {
     prepare_with_today(zip_bytes, config_delta_json, on_stage, today_yyyymmdd())
 }
 
@@ -339,7 +355,11 @@ pub fn prepare_with_today(
 /// Önbellekten K6+K7'yi çalıştırır.
 /// `on_stage(name, elapsed_ms)`: K6 ve K7 bittikten sonra çağrılır.
 #[wasm_bindgen]
-pub fn rerun_k6_k7(cache: &CachedState, config_delta_json: String, on_stage: &js_sys::Function) -> JsValue {
+pub fn rerun_k6_k7(
+    cache: &CachedState,
+    config_delta_json: String,
+    on_stage: &js_sys::Function,
+) -> JsValue {
     rerun_k6_k7_with_today(cache, config_delta_json, on_stage, today_yyyymmdd())
 }
 
@@ -376,7 +396,13 @@ fn rerun_k6_k7_inner(
     let mut partial = cache.partial.clone();
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&cache.present_files, &unavailable_files);
-    let k6 = analyze_k6_with_files(&cache.records, &cache.derived, &config, today, &availability);
+    let k6 = analyze_k6_with_files(
+        &cache.records,
+        &cache.derived,
+        &config,
+        today,
+        &availability,
+    );
     if !partial.is_empty() {
         partial.extend_skipped_checks(k6.skipped_checks);
     }
@@ -386,12 +412,21 @@ fn rerun_k6_k7_inner(
     let mut all_notices = cache.k1_k5_notices.clone();
     let mut notice_budget_exceeded = false;
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
-    wasm_log!(format!("[mem] after-K6 (pre-cap): {} notices, {:.1} MB", all_notices.len(), mem_mb()));
-    wasm_log!(format!("[rules] after-K6 top: {}", top_rules_str(&all_notices)));
+    wasm_log!(format!(
+        "[mem] after-K6 (pre-cap): {} notices, {:.1} MB",
+        all_notices.len(),
+        mem_mb()
+    ));
+    wasm_log!(format!(
+        "[rules] after-K6 top: {}",
+        top_rules_str(&all_notices)
+    ));
 
     let real_totals = cap_per_rule(&mut all_notices);
     if notice_budget_exceeded {
-        wasm_warn!(format!("[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."));
+        wasm_warn!(format!(
+            "[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."
+        ));
     }
     #[cfg(feature = "sdk-en")]
     i18n::translate_notices(&mut all_notices);
@@ -406,7 +441,14 @@ fn rerun_k6_k7_inner(
 
     let t = js_sys::Date::now();
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7(all_notices, &cache.records, &cache.derived, cache.file_stats.clone(), true, coverage_complete);
+    let mut k7 = report_k7(
+        all_notices,
+        &cache.records,
+        &cache.derived,
+        cache.file_stats.clone(),
+        true,
+        coverage_complete,
+    );
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
@@ -414,7 +456,11 @@ fn rerun_k6_k7_inner(
     // Harita verisi notice'lara göre filtrelenir (büyük feed modu) → önce name_index.
     let name_index = build_name_index(&cache.records, &k7.notices);
     let result = ValidateResult::Ok(ValidationResult {
-        status: if partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
+        status: if partial.is_empty() {
+            ValidationStatus::Complete
+        } else {
+            ValidationStatus::Partial
+        },
         partial: (!partial.is_empty()).then_some(partial),
         notices: k7.notices,
         reports: k7.reports,
@@ -424,7 +470,10 @@ fn rerun_k6_k7_inner(
     });
     // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
     // bu satır basılıp sonrası gelmiyorsa OOM serialize'da demektir.
-    wasm_log!(format!("[mem] before to_js (serialize): {:.1} MB", mem_mb()));
+    wasm_log!(format!(
+        "[mem] before to_js (serialize): {:.1} MB",
+        mem_mb()
+    ));
     let js = to_js(&result);
     wasm_log!(format!("[mem] after to_js: {:.1} MB", mem_mb()));
     js
@@ -446,7 +495,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut partial = k1.partial;
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
-    let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|file| k1.present_files.contains(*file));
+    let has_gtfs_jp_file = GTFS_JP_FILES
+        .iter()
+        .any(|file| k1.present_files.contains(*file));
     let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
     t_end!("K1-parse");
     let mut file_stats = collect_file_stats(&k1.files);
@@ -469,7 +520,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
     // kullandığı için burada da çağrılmalı.
-    k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
+    k2.records
+        .stop_times_index
+        .normalize_service_day(config.service_day_start_hour);
     // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
     // Yeni bir dosya stream edildiğinde k2/mod.rs streaming_row_counts'a eklenmesi yeterli.
     for fi in file_stats.iter_mut() {
@@ -515,7 +568,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // Native pipeline K7'de dedup yaptığı için karşılaştırılabilir "gerçek" sayı bu noktadadır.
     let real_totals = cap_per_rule(&mut all_notices);
     if notice_budget_exceeded {
-        wasm_warn!(format!("[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."));
+        wasm_warn!(format!(
+            "[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."
+        ));
     }
     #[cfg(feature = "sdk-en")]
     i18n::translate_notices(&mut all_notices);
@@ -529,13 +584,24 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     }
 
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7(all_notices, &k2.records, &k5.derived, file_stats, true, coverage_complete);
+    let mut k7 = report_k7(
+        all_notices,
+        &k2.records,
+        &k5.derived,
+        file_stats,
+        true,
+        coverage_complete,
+    );
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
     let name_index = build_name_index(&k2.records, &k7.notices);
     ValidateResult::Ok(ValidationResult {
-        status: if partial.is_empty() { ValidationStatus::Complete } else { ValidationStatus::Partial },
+        status: if partial.is_empty() {
+            ValidationStatus::Complete
+        } else {
+            ValidationStatus::Partial
+        },
         partial: (!partial.is_empty()).then_some(partial),
         notices: k7.notices,
         reports: k7.reports,
@@ -551,7 +617,11 @@ fn run_k1_k5(
     on_stage: &js_sys::Function,
     today: u32,
 ) -> Result<CachedState, FatalError> {
-    wasm_log!(format!("[mem] K0-start (zip {:.1} MB): {:.1} MB", zip_bytes.len() as f64 / 1_048_576.0, mem_mb()));
+    wasm_log!(format!(
+        "[mem] K0-start (zip {:.1} MB): {:.1} MB",
+        zip_bytes.len() as f64 / 1_048_576.0,
+        mem_mb()
+    ));
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
@@ -567,7 +637,9 @@ fn run_k1_k5(
     let mut partial = k1.partial;
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
-    let has_gtfs_jp_file = GTFS_JP_FILES.iter().any(|file| k1.present_files.contains(*file));
+    let has_gtfs_jp_file = GTFS_JP_FILES
+        .iter()
+        .any(|file| k1.present_files.contains(*file));
     let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
     let mut file_stats = collect_file_stats(&k1.files);
 
@@ -588,7 +660,9 @@ fn run_k1_k5(
     t_end!("K2-validate");
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
-    k2.records.stop_times_index.normalize_service_day(config.service_day_start_hour);
+    k2.records
+        .stop_times_index
+        .normalize_service_day(config.service_day_start_hour);
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
     log_mem("after-K2-validate");
     // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
@@ -635,10 +709,19 @@ fn run_k1_k5(
     notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k4.notices);
     notice_budget_exceeded |= append_notices_bounded(&mut k1_k5_notices, k5.notices);
     if notice_budget_exceeded {
-        wasm_warn!(format!("[uyarı] K1-K5 notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."));
+        wasm_warn!(format!(
+            "[uyarı] K1-K5 notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."
+        ));
     }
-    wasm_log!(format!("[mem] K1-K5 done: {} notices, {:.1} MB", k1_k5_notices.len(), mem_mb()));
-    wasm_log!(format!("[rules] K1-K5 top: {}", top_rules_str(&k1_k5_notices)));
+    wasm_log!(format!(
+        "[mem] K1-K5 done: {} notices, {:.1} MB",
+        k1_k5_notices.len(),
+        mem_mb()
+    ));
+    wasm_log!(format!(
+        "[rules] K1-K5 top: {}",
+        top_rules_str(&k1_k5_notices)
+    ));
 
     Ok(CachedState {
         k1_k5_notices,
@@ -673,13 +756,19 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
 // kurallar HIGH_CAP_RULES listesinde 2000'e yükseltilmiştir.
 // Dönüş değeri: cap'e çarpan kuralların {rule_id → gerçek_toplam} haritası.
 fn cap_for_rule(rule_id: &str) -> usize {
-    if HIGH_CAP_RULES.contains(&rule_id) { HIGH_CAP } else { PER_RULE_CAP }
+    if HIGH_CAP_RULES.contains(&rule_id) {
+        HIGH_CAP
+    } else {
+        PER_RULE_CAP
+    }
 }
 
 #[cfg_attr(feature = "quiet", allow(dead_code))]
 fn count_totals(notices: &[gtfs_core::Notice]) -> std::collections::HashMap<String, u32> {
     let mut m = std::collections::HashMap::new();
-    for n in notices { *m.entry(n.rule_id.clone()).or_insert(0u32) += 1; }
+    for n in notices {
+        *m.entry(n.rule_id.clone()).or_insert(0u32) += 1;
+    }
     m
 }
 
@@ -689,20 +778,34 @@ fn top_rules_str(notices: &[gtfs_core::Notice]) -> String {
     let m = count_totals(notices);
     let mut v: Vec<(&String, &u32)> = m.iter().collect();
     v.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
-    v.iter().take(10).map(|(r, c)| format!("{r}={c}")).collect::<Vec<_>>().join(" ")
+    v.iter()
+        .take(10)
+        .map(|(r, c)| format!("{r}={c}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
-fn build_capped_totals(real_totals: &std::collections::HashMap<String, u32>) -> std::collections::BTreeMap<String, u32> {
-    real_totals.iter()
+fn build_capped_totals(
+    real_totals: &std::collections::HashMap<String, u32>,
+) -> std::collections::BTreeMap<String, u32> {
+    real_totals
+        .iter()
         .filter_map(|(rule_id, &total)| {
-            if total > cap_for_rule(rule_id) as u32 { Some((rule_id.clone(), total)) } else { None }
+            if total > cap_for_rule(rule_id) as u32 {
+                Some((rule_id.clone(), total))
+            } else {
+                None
+            }
         })
         .collect()
 }
 
 /// Cap'e çarpan kurallarda R9 score delta'larını gerçek notice sayısıyla orantılı ölçekler.
 /// Büyük sayılarda hiperbolik model lineerleşir; ölçekleme iyi bir yaklaşım sağlar.
-fn scale_r9_deltas(reports: &mut gtfs_core::ReportSet, real_totals: &std::collections::HashMap<String, u32>) {
+fn scale_r9_deltas(
+    reports: &mut gtfs_core::ReportSet,
+    real_totals: &std::collections::HashMap<String, u32>,
+) {
     for item in &mut reports.r9.items {
         if let Some(&real) = real_totals.get(&item.rule_id) {
             let cap = cap_for_rule(&item.rule_id) as u32;
@@ -723,10 +826,8 @@ fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashM
     // sayısı korunur). dedup içinde notice_order_key ile kararlı sıralama yapılır.
     // Dedup + cap tek geçişte yapılır: dedup edilmiş milyonlarca Notice için ikinci
     // bir tam boy Vec ayırmadan gerçek distinct toplamları korur.
-    let (kept, real_totals) = gtfs_pipeline::k7_reporting::dedup_and_cap_by_rule(
-        std::mem::take(notices),
-        cap_for_rule,
-    );
+    let (kept, real_totals) =
+        gtfs_pipeline::k7_reporting::dedup_and_cap_by_rule(std::mem::take(notices), cap_for_rule);
     *notices = kept;
     real_totals
 }
@@ -802,18 +903,33 @@ mod tests {
         // Yıl alanı: Unix epoch öncesi ve 4 hanenin altı
         assert!(!is_valid_yyyymmdd(19691231), "1970 öncesi reddedilmeli");
         assert!(!is_valid_yyyymmdd(0), "sıfır reddedilmeli");
-        assert!(!is_valid_yyyymmdd(20260716 / 10), "kısa/bozuk sayı reddedilmeli");
+        assert!(
+            !is_valid_yyyymmdd(20260716 / 10),
+            "kısa/bozuk sayı reddedilmeli"
+        );
     }
 
     fn trip_notice(id: &str) -> Notice {
         Notice {
-            id: id.to_string(), rule_id: "TRP_022".to_string(), severity: Severity::Yuksek,
-            rule_class: RuleClass::Spec, entity_type: EntityType::Trip,
-            entity_id: Some("trip-a".to_string()), scope_key: Some("trip-a".to_string()),
-            file: Some("trips.txt".to_string()), line: None, field: Some("block_id".to_string()),
-            observed_value: None, expected_value: None, details: None, title: "test".to_string(),
-            message: "test".to_string(), remediation: "test".to_string(), blocks: Vec::new(),
-            base_effort: 1, service_id: None,
+            id: id.to_string(),
+            rule_id: "TRP_022".to_string(),
+            severity: Severity::Yuksek,
+            rule_class: RuleClass::Spec,
+            entity_type: EntityType::Trip,
+            entity_id: Some("trip-a".to_string()),
+            scope_key: Some("trip-a".to_string()),
+            file: Some("trips.txt".to_string()),
+            line: None,
+            field: Some("block_id".to_string()),
+            observed_value: None,
+            expected_value: None,
+            details: None,
+            title: "test".to_string(),
+            message: "test".to_string(),
+            remediation: "test".to_string(),
+            blocks: Vec::new(),
+            base_effort: 1,
+            service_id: None,
         }
     }
 

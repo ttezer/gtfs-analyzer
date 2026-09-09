@@ -1,7 +1,7 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 
-use super::common::{get_raw_field,
-    build_row_map, get_trimmed_field, make_k2_notice, parse_service_date, parse_u32,
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_service_date, parse_u32,
     validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
@@ -18,7 +18,13 @@ pub struct CalendarRecord {
 }
 
 const DAY_FIELDS: [&str; 7] = [
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
 ];
 
 pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core::Notice>) {
@@ -30,14 +36,24 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let service_id = get_raw_field(&row_map, "service_id").unwrap_or("").to_string();
+        let service_id = get_raw_field(&row_map, "service_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!service_id.is_empty()).then_some(service_id.clone());
 
         // CAL_022: service_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "service_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
-                &mut counter, "CAL_022", EntityType::Service, None, Some(&row_map),
-                &file.name, Some(line), Some("service_id"), Some(String::new()), None,
+                &mut counter,
+                "CAL_022",
+                EntityType::Service,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("service_id"),
+                Some(String::new()),
+                None,
                 "service_id zorunludur.".to_string(),
                 "service_id alanını doldurun.",
             ));
@@ -64,9 +80,16 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     if let Some(val) = v {
                         if !validate_enum(&val.to_string(), &["0", "1"]) {
                             notices.push(make_k2_notice(
-                                &mut counter, "CAL_002", EntityType::Service, entity_id.clone(),
-                                Some(&row_map), &file.name, Some(line), Some(field),
-                                Some(val.to_string()), Some("0 or 1".to_string()),
+                                &mut counter,
+                                "CAL_002",
+                                EntityType::Service,
+                                entity_id.clone(),
+                                Some(&row_map),
+                                &file.name,
+                                Some(line),
+                                Some(field),
+                                Some(val.to_string()),
+                                Some("0 or 1".to_string()),
                                 format!("{field} alanı 0 veya 1 olmalıdır."),
                                 "Her gün alanını 0 veya 1 olarak ayarlayın.",
                             ));
@@ -79,10 +102,17 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                 }
                 Err(err) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "CAL_002", EntityType::Service, entity_id.clone(),
-                        Some(&row_map), &file.name, Some(line), Some(field),
+                        &mut counter,
+                        "CAL_002",
+                        EntityType::Service,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some(field),
                         get_trimmed_field(&row_map, field).map(str::to_string),
-                        Some("0 or 1".to_string()), err,
+                        Some("0 or 1".to_string()),
+                        err,
                         "Her gün alanını 0 veya 1 olarak ayarlayın.",
                     ));
                 }
@@ -109,9 +139,16 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             Ok(v) => {
                 if get_trimmed_field(&row_map, "start_date") == Some("") {
                     notices.push(make_k2_notice(
-                        &mut counter, "CAL_003", EntityType::Service, entity_id.clone(),
-                        Some(&row_map), &file.name, Some(line), Some("start_date"),
-                        Some(String::new()), None,
+                        &mut counter,
+                        "CAL_003",
+                        EntityType::Service,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("start_date"),
+                        Some(String::new()),
+                        None,
                         "start_date zorunludur.".to_string(),
                         "start_date alanını YYYYMMDD formatında doldurun.",
                     ));
@@ -120,10 +157,17 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "CAL_003", EntityType::Service, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("start_date"),
+                    &mut counter,
+                    "CAL_003",
+                    EntityType::Service,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("start_date"),
                     get_trimmed_field(&row_map, "start_date").map(str::to_string),
-                    Some("YYYYMMDD".to_string()), err,
+                    Some("YYYYMMDD".to_string()),
+                    err,
                     "start_date alanını YYYYMMDD formatında doldurun.",
                 ));
                 None
@@ -135,9 +179,16 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             Ok(v) => {
                 if get_trimmed_field(&row_map, "end_date") == Some("") {
                     notices.push(make_k2_notice(
-                        &mut counter, "CAL_004", EntityType::Service, entity_id.clone(),
-                        Some(&row_map), &file.name, Some(line), Some("end_date"),
-                        Some(String::new()), None,
+                        &mut counter,
+                        "CAL_004",
+                        EntityType::Service,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("end_date"),
+                        Some(String::new()),
+                        None,
                         "end_date zorunludur.".to_string(),
                         "end_date alanını YYYYMMDD formatında doldurun.",
                     ));
@@ -146,10 +197,17 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "CAL_004", EntityType::Service, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("end_date"),
+                    &mut counter,
+                    "CAL_004",
+                    EntityType::Service,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("end_date"),
                     get_trimmed_field(&row_map, "end_date").map(str::to_string),
-                    Some("YYYYMMDD".to_string()), err,
+                    Some("YYYYMMDD".to_string()),
+                    err,
                     "end_date alanını YYYYMMDD formatında doldurun.",
                 ));
                 None
@@ -162,9 +220,16 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             let ed = e.0 * 10000 + e.1 * 100 + e.2;
             if ed < sd {
                 notices.push(make_k2_notice(
-                    &mut counter, "CAL_005", EntityType::Service, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("end_date"),
-                    Some(format!("{}", ed)), Some(format!(">= {}", sd)),
+                    &mut counter,
+                    "CAL_005",
+                    EntityType::Service,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("end_date"),
+                    Some(format!("{}", ed)),
+                    Some(format!(">= {}", sd)),
                     format!("end_date ({ed}), start_date ({sd}) tarihinden önce."),
                     "end_date tarihini start_date tarihine eşit veya sonrasına ayarlayın.",
                 ));
@@ -193,16 +258,28 @@ mod tests {
         RawFile {
             name: "calendar.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
     fn all_headers() -> Vec<&'static str> {
         vec![
-            "service_id", "monday", "tuesday", "wednesday", "thursday",
-            "friday", "saturday", "sunday", "start_date", "end_date",
+            "service_id",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+            "start_date",
+            "end_date",
         ]
     }
 
@@ -210,18 +287,26 @@ mod tests {
     fn valid_calendar_produces_no_notices() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", "1","1","1","1","1","0","0", "20260101", "20271231"]],
+            vec![vec![
+                "SVC1", "1", "1", "1", "1", "1", "0", "0", "20260101", "20271231",
+            ]],
         );
         let (records, notices) = validate_calendar(&file);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli takvim notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli takvim notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn invalid_day_value_produces_cal_002() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", "2","1","1","1","1","0","0", "20260101", "20271231"]],
+            vec![vec![
+                "SVC1", "2", "1", "1", "1", "1", "0", "0", "20260101", "20271231",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_002"));
@@ -231,7 +316,9 @@ mod tests {
     fn all_zero_days_produces_cal_006() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", "0","0","0","0","0","0","0", "20260101", "20271231"]],
+            vec![vec![
+                "SVC1", "0", "0", "0", "0", "0", "0", "0", "20260101", "20271231",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_006"));
@@ -241,19 +328,25 @@ mod tests {
     fn whitespace_all_zero_days_still_produces_cal_006() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", " 0"," 0"," 0"," 0"," 0"," 0"," 0", "20260101", "20271231"]],
+            vec![vec![
+                "SVC1", " 0", " 0", " 0", " 0", " 0", " 0", " 0", "20260101", "20271231",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_006"));
-        assert!(!notices.iter().any(|n| n.rule_id == "CAL_002"),
-            "trim sonrası geçerli 0 değerleri CAL_002 üretmemeli: {notices:?}");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "CAL_002"),
+            "trim sonrası geçerli 0 değerleri CAL_002 üretmemeli: {notices:?}"
+        );
     }
 
     #[test]
     fn whitespace_weekday_one_keeps_cal_006_silent() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", " 1"," 0"," 0"," 0"," 0"," 0"," 0", "20260101", "20271231"]],
+            vec![vec![
+                "SVC1", " 1", " 0", " 0", " 0", " 0", " 0", " 0", "20260101", "20271231",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(!notices.iter().any(|n| n.rule_id == "CAL_006"));
@@ -263,19 +356,25 @@ mod tests {
     fn whitespace_invalid_weekday_keeps_cal_002() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", " 2"," 0"," 0"," 0"," 0"," 0"," 0", "20260101", "20271231"]],
+            vec![vec![
+                "SVC1", " 2", " 0", " 0", " 0", " 0", " 0", " 0", "20260101", "20271231",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_002"));
-        assert!(notices.iter().any(|n| n.rule_id == "CAL_006"),
-            "parse edilebilen diğer 0 değerleri bağımsız CAL_006'ı korumalı: {notices:?}");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "CAL_006"),
+            "parse edilebilen diğer 0 değerleri bağımsız CAL_006'ı korumalı: {notices:?}"
+        );
     }
 
     #[test]
     fn end_before_start_produces_cal_005() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", "1","0","0","0","0","0","0", "20271231", "20260101"]],
+            vec![vec![
+                "SVC1", "1", "0", "0", "0", "0", "0", "0", "20271231", "20260101",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_005"));
@@ -285,7 +384,9 @@ mod tests {
     fn missing_start_date_produces_cal_003() {
         let file = make_file(
             all_headers(),
-            vec![vec!["SVC1", "1","0","0","0","0","0","0", "", "20271231"]],
+            vec![vec![
+                "SVC1", "1", "0", "0", "0", "0", "0", "0", "", "20271231",
+            ]],
         );
         let (_, notices) = validate_calendar(&file);
         assert!(notices.iter().any(|n| n.rule_id == "CAL_003"));

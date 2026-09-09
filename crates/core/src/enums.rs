@@ -20,9 +20,9 @@ impl Severity {
         match self {
             Self::Kritik => 4.0,
             Self::Yuksek => 3.0,
-            Self::Orta   => 2.0,
-            Self::Dusuk  => 1.0,
-            Self::Bilgi  => 0.0,
+            Self::Orta => 2.0,
+            Self::Dusuk => 1.0,
+            Self::Bilgi => 0.0,
         }
     }
 }
@@ -104,21 +104,21 @@ impl EntityType {
     /// Debug formatının aksine enum variant yeniden adlandırılsa bile değişmez.
     pub fn stable_name(self) -> &'static str {
         match self {
-            Self::Feed        => "feed",
-            Self::File        => "file",
-            Self::Agency      => "agency",
-            Self::Stop        => "stop",
-            Self::Route       => "route",
-            Self::Trip        => "trip",
-            Self::Shape       => "shape",
-            Self::Service     => "service",
-            Self::Fare        => "fare",
-            Self::Transfer    => "transfer",
-            Self::Pathway     => "pathway",
-            Self::Level       => "level",
+            Self::Feed => "feed",
+            Self::File => "file",
+            Self::Agency => "agency",
+            Self::Stop => "stop",
+            Self::Route => "route",
+            Self::Trip => "trip",
+            Self::Shape => "shape",
+            Self::Service => "service",
+            Self::Fare => "fare",
+            Self::Transfer => "transfer",
+            Self::Pathway => "pathway",
+            Self::Level => "level",
             Self::Translation => "translation",
             Self::Attribution => "attribution",
-            Self::Row         => "row",
+            Self::Row => "row",
         }
     }
 }
@@ -178,7 +178,14 @@ pub enum DedupLevel {
 /// R6 rapor değil (PDF/HTML export aksiyonu); bu enum'da yer almaz.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReportId {
-    R1, R2, R3, R4, R5, R7, R8, R9,
+    R1,
+    R2,
+    R3,
+    R4,
+    R5,
+    R7,
+    R8,
+    R9,
 }
 
 /// R9 remediation queue etiketleri — koşullar architecture Bölüm 5'te tanımlı.

@@ -15,11 +15,17 @@ pub struct FileAvailability<'a> {
 
 impl<'a> FileAvailability<'a> {
     pub fn complete() -> FileAvailability<'static> {
-        FileAvailability { present: None, unavailable: &[] }
+        FileAvailability {
+            present: None,
+            unavailable: &[],
+        }
     }
 
     pub fn from_k1(present: &'a HashSet<String>, unavailable: &'a [String]) -> Self {
-        Self { present: Some(present), unavailable }
+        Self {
+            present: Some(present),
+            unavailable,
+        }
     }
 
     /// Dosya okunabilir durumda mı? Dosyanın hiç bulunmaması, opsiyonel bir dosya için

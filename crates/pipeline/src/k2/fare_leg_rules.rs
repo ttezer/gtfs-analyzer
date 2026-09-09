@@ -1,6 +1,8 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_u32, RowMap};
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32, RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -17,9 +19,7 @@ pub struct FareLegRuleRecord {
     pub line: u64,
 }
 
-pub fn validate_fare_leg_rules(
-    file: &RawFile,
-) -> (Vec<FareLegRuleRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_fare_leg_rules(file: &RawFile) -> (Vec<FareLegRuleRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
@@ -36,10 +36,17 @@ pub fn validate_fare_leg_rules(
             Ok(v) => v,
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "FLG_007", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("rule_priority"),
+                    &mut counter,
+                    "FLG_007",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("rule_priority"),
                     get_trimmed_field(&row_map, "rule_priority").map(str::to_string),
-                    Some(">= 0".to_string()), err,
+                    Some(">= 0".to_string()),
+                    err,
                     "rule_priority için negatif olmayan bir tam sayı girin.",
                 ));
                 None
@@ -63,7 +70,9 @@ pub fn validate_fare_leg_rules(
             to_timeframe_group_id: get_raw_field(&row_map, "to_timeframe_group_id")
                 .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            fare_product_id: get_raw_field(&row_map, "fare_product_id").unwrap_or("").to_string(),
+            fare_product_id: get_raw_field(&row_map, "fare_product_id")
+                .unwrap_or("")
+                .to_string(),
             rule_priority,
             row: row_map,
             line,

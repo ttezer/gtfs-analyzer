@@ -1,7 +1,9 @@
 use std::io::Write as _;
 use zip::write::SimpleFileOptions;
 
-use gtfs_pipeline::{k1_parse::parse, validate_bytes, FatalCode, GtfsJpProfile, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{
+    k1_parse::parse, validate_bytes, FatalCode, GtfsJpProfile, ValidateResult, ValidatorConfig,
+};
 
 // Tüm testler için sabit tarih — deterministik analytics çıktısı
 const TODAY: u32 = 20_260_515;
@@ -25,14 +27,10 @@ static AGENCY: &[u8] =
     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 static STOPS: &[u8] =
     b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
-static ROUTES: &[u8] =
-    b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n";
-static TRIPS: &[u8] =
-    b"route_id,service_id,trip_id\nR1,SVC1,T1\n";
-static TRIPS_DANGLING_ROUTE: &[u8] =
-    b"route_id,service_id,trip_id\nR9,SVC1,T1\n";
-static STOP_TIMES: &[u8] =
-    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n";
+static TRIPS: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\n";
+static TRIPS_DANGLING_ROUTE: &[u8] = b"route_id,service_id,trip_id\nR9,SVC1,T1\n";
+static STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
       T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n";
 static CALENDAR: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
@@ -40,12 +38,12 @@ static CALENDAR: &[u8] =
 
 fn base_files() -> Vec<(&'static str, &'static [u8])> {
     vec![
-        ("agency.txt",     AGENCY),
-        ("stops.txt",      STOPS),
-        ("routes.txt",     ROUTES),
-        ("trips.txt",      TRIPS),
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS),
         ("stop_times.txt", STOP_TIMES),
-        ("calendar.txt",   CALENDAR),
+        ("calendar.txt", CALENDAR),
     ]
 }
 
@@ -63,7 +61,12 @@ fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> Validate
 
 #[test]
 fn empty_gtfs_jp_file_still_activates_profile_detection() {
-    for file in ["agency_jp.txt", "office_jp.txt", "routes_jp.txt", "pattern_jp.txt"] {
+    for file in [
+        "agency_jp.txt",
+        "office_jp.txt",
+        "routes_jp.txt",
+        "pattern_jp.txt",
+    ] {
         let mut files = base_files();
         files.push((file, b"header_only\n"));
         match run(&files) {
@@ -74,7 +77,10 @@ fn empty_gtfs_jp_file_still_activates_profile_detection() {
                     Some("auto"),
                     "varsayılan profil kullanıcıya taşınmalı"
                 );
-                assert!(has(&vr, "JPN_007"), "{file} GTFS-JP profil kurallarını açmalı");
+                assert!(
+                    has(&vr, "JPN_007"),
+                    "{file} GTFS-JP profil kurallarını açmalı"
+                );
             }
             other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
         }
@@ -84,7 +90,10 @@ fn empty_gtfs_jp_file_still_activates_profile_detection() {
 #[test]
 fn selected_gtfs_jp_profile_is_exposed_without_version_inference() {
     let mut files = base_files();
-    files.push(("pattern_jp.txt", b"jp_pattern_id,route_update_date\nP1,20260825\n"));
+    files.push((
+        "pattern_jp.txt",
+        b"jp_pattern_id,route_update_date\nP1,20260825\n",
+    ));
 
     match run_with_profile(&files, GtfsJpProfile::V3) {
         ValidateResult::Ok(vr) => {
@@ -119,7 +128,11 @@ fn v4_required_field_findings_survive_feed_pipeline_dedup() {
                 .filter(|n| n.rule_id == "JPN_022")
                 .filter_map(|n| n.field.as_deref())
                 .collect();
-            assert_eq!(fields.len(), 5, "JPN_022 alan bazında beş bulguya ayrılmalı: {fields:?}");
+            assert_eq!(
+                fields.len(),
+                5,
+                "JPN_022 alan bazında beş bulguya ayrılmalı: {fields:?}"
+            );
             assert!(fields.contains("agency_lang"));
             assert!(fields.contains("location_type"));
             assert!(fields.contains("feed_start_date"));
@@ -163,8 +176,7 @@ fn v4_rejects_none_record_sub_id_in_general_and_jp_rules() {
 const LEGACY_TRANSLATIONS: &[u8] =
     b"trans_id,lang,translation\n1,EN,Example\n2,HE,\xD7\x93\xD7\x95\xD7\x92\xD7\x9E\xD7\x94\n";
 
-const MODERN_TRANSLATIONS: &[u8] =
-    b"table_name,field_name,language,translation,record_id\n\
+const MODERN_TRANSLATIONS: &[u8] = b"table_name,field_name,language,translation,record_id\n\
       stops,stop_name,tr,Durak,S1\n\
       stops,stop_name,tr,\xC4\xB0stasyon,S1\n";
 
@@ -271,8 +283,7 @@ fn rts022_route_name_feed(routes: &'static [u8]) -> Vec<(&'static str, &'static 
 
 #[test]
 fn rts022_flags_one_character_equality_once() {
-    static ROUTES: &[u8] =
-        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+    static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
           R1,1,A,A,3\n";
 
     match run(&rts022_route_name_feed(ROUTES)) {
@@ -287,8 +298,7 @@ fn rts022_flags_one_character_equality_once() {
 
 #[test]
 fn rts022_preserves_one_character_containment_guard() {
-    static ROUTES: &[u8] =
-        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+    static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
           R1,1,5,Route 5A,3\n";
 
     match run(&rts022_route_name_feed(ROUTES)) {
@@ -302,8 +312,7 @@ fn rts022_preserves_one_character_containment_guard() {
 
 #[test]
 fn rts022_keeps_multicharacter_containment() {
-    static ROUTES: &[u8] =
-        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+    static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
           R1,1,5A,5A Hatt\xC4\xB1,3\n";
 
     match run(&rts022_route_name_feed(ROUTES)) {
@@ -325,7 +334,8 @@ fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
         ValidateResult::Fatal(e) => assert_eq!(
             e.code,
             FatalCode::ZipUnreadable,
-            "Beklenen ZipUnreadable, alınan: {:?}", e.code,
+            "Beklenen ZipUnreadable, alınan: {:?}",
+            e.code,
         ),
         _ => panic!("Fatal(ZipUnreadable) beklendi"),
     }
@@ -345,10 +355,14 @@ fn arc004_missing_required_file_returns_partial_report() {
         ValidateResult::Ok(vr) => {
             assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
             let partial = vr.partial.expect("partial kapsamı raporlanmalı");
-            assert!(partial.unavailable_files.contains(&"routes.txt".to_string()));
+            assert!(partial
+                .unavailable_files
+                .contains(&"routes.txt".to_string()));
             assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
             assert!(partial.skipped_checks.contains(&"K4::routes".to_string()));
-            assert!(partial.skipped_checks.contains(&"K6::route_headway".to_string()));
+            assert!(partial
+                .skipped_checks
+                .contains(&"K6::route_headway".to_string()));
             assert!(vr.notices.iter().any(
                 |n| n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("routes.txt")
             ));
@@ -362,15 +376,22 @@ fn malformed_optional_file_is_skipped_with_partial_report() {
     // feed_info.txt opsiyoneldir; bozuk UTF-8 typed kayda dönüştürülmemeli,
     // fakat okunabilir feed'in bağımsız K1/K2 kapsamı korunmalıdır.
     let mut files = base_files();
-    files.push(("feed_info.txt", b"feed_publisher_name,feed_lang\nTest,\xFF\n"));
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_lang\nTest,\xFF\n",
+    ));
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
             assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
             let partial = vr.partial.expect("partial kapsamı raporlanmalı");
-            assert!(partial.unavailable_files.contains(&"feed_info.txt".to_string()));
+            assert!(partial
+                .unavailable_files
+                .contains(&"feed_info.txt".to_string()));
             assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
-            assert!(partial.skipped_checks.contains(&"K4::translations".to_string()));
+            assert!(partial
+                .skipped_checks
+                .contains(&"K4::translations".to_string()));
             assert!(partial.skipped_checks.contains(&"K6::FIN_019".to_string()));
             assert!(vr
                 .notices
@@ -383,7 +404,13 @@ fn malformed_optional_file_is_skipped_with_partial_report() {
             assert!(vr.notices.iter().all(|notice| {
                 !matches!(
                     notice.rule_id.as_str(),
-                    "FIN_010" | "FIN_016" | "FIN_017" | "FIN_018" | "FIN_019" | "FIN_020" | "CAL_020"
+                    "FIN_010"
+                        | "FIN_016"
+                        | "FIN_017"
+                        | "FIN_018"
+                        | "FIN_019"
+                        | "FIN_020"
+                        | "CAL_020"
                 )
             }));
         }
@@ -401,7 +428,9 @@ fn malformed_calendar_does_not_produce_dq_005() {
             assert_eq!(vr.status, gtfs_core::ValidationStatus::Partial);
             assert!(vr.notices.iter().all(|notice| notice.rule_id != "DQ_005"));
             let partial = vr.partial.expect("bozuk calendar PARTIAL üretmeli");
-            assert!(partial.unavailable_files.contains(&"calendar.txt".to_string()));
+            assert!(partial
+                .unavailable_files
+                .contains(&"calendar.txt".to_string()));
             assert!(partial.skipped_checks.contains(&"K6::DQ_005".to_string()));
         }
         other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
@@ -421,9 +450,13 @@ fn malformed_stop_times_does_not_produce_empty_stop_time_findings() {
                 .iter()
                 .all(|notice| !matches!(notice.rule_id.as_str(), "DQ_009" | "DQ_005b")));
             let partial = vr.partial.expect("bozuk stop_times PARTIAL üretmeli");
-            assert!(partial.unavailable_files.contains(&"stop_times.txt".to_string()));
+            assert!(partial
+                .unavailable_files
+                .contains(&"stop_times.txt".to_string()));
             assert!(partial.skipped_checks.contains(&"K6::DQ_009".to_string()));
-            assert!(partial.skipped_checks.contains(&"K6::remaining_analytics".to_string()));
+            assert!(partial
+                .skipped_checks
+                .contains(&"K6::remaining_analytics".to_string()));
         }
         other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
     }
@@ -446,7 +479,9 @@ fn malformed_stops_does_not_produce_stop_count_quality_findings() {
             let partial = vr.partial.expect("bozuk stops PARTIAL üretmeli");
             assert!(partial.unavailable_files.contains(&"stops.txt".to_string()));
             assert!(partial.skipped_checks.contains(&"K6::DQ_011".to_string()));
-            assert!(partial.skipped_checks.contains(&"K6::remaining_analytics".to_string()));
+            assert!(partial
+                .skipped_checks
+                .contains(&"K6::remaining_analytics".to_string()));
         }
         other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
     }
@@ -456,15 +491,22 @@ fn malformed_stops_does_not_produce_stop_count_quality_findings() {
 fn malformed_feed_info_keeps_independent_cross_ref_findings() {
     let mut files = base_files();
     files[3] = ("trips.txt", TRIPS_DANGLING_ROUTE);
-    files.push(("feed_info.txt", b"feed_publisher_name,feed_lang\nTest,\xFF\n"));
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_lang\nTest,\xFF\n",
+    ));
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
             let partial = vr.partial.expect("bozuk feed_info PARTIAL üretmeli");
-            assert!(partial.unavailable_files.contains(&"feed_info.txt".to_string()));
+            assert!(partial
+                .unavailable_files
+                .contains(&"feed_info.txt".to_string()));
             assert!(!partial.skipped_stages.contains(&"K4-cross-ref".to_string()));
-            assert!(vr.notices.iter().any(|n| n.rule_id == "TRP_002"),
-                "feed_info bağımsız trip/route cross-ref bulgusunu kapatmamalı");
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "TRP_002"),
+                "feed_info bağımsız trip/route cross-ref bulgusunu kapatmamalı"
+            );
         }
         other => panic!("Partial Ok bekleniyor, gelen: {other:?}"),
     }
@@ -505,13 +547,17 @@ fn stp_003_blocks_contain_geo_009() {
             assert!(
                 stp003.is_some(),
                 "STP_003 olmalı. Mevcut rule_id'ler: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
 
             let blocks = &stp003.unwrap().blocks;
             assert!(
                 blocks.iter().any(|b| b == "GEO_009"),
-                "STP_003.blocks GEO_009 içermeli. Mevcut blocks: {:?}", blocks,
+                "STP_003.blocks GEO_009 içermeli. Mevcut blocks: {:?}",
+                blocks,
             );
 
             // S1 koordinatsız → GEO_009 kök neden olarak ateşlenmemeli
@@ -542,17 +588,22 @@ fn trf_006_blocks_contain_trf_017_and_trf_018() {
             assert!(
                 trf006.is_some(),
                 "TRF_006 olmalı. Mevcut rule_id'ler: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
 
             let blocks = &trf006.unwrap().blocks;
             assert!(
                 blocks.iter().any(|b| b == "TRF_017"),
-                "TRF_006.blocks TRF_017 içermeli. Mevcut blocks: {:?}", blocks,
+                "TRF_006.blocks TRF_017 içermeli. Mevcut blocks: {:?}",
+                blocks,
             );
             assert!(
                 blocks.iter().any(|b| b == "TRF_018"),
-                "TRF_006.blocks TRF_018 içermeli. Mevcut blocks: {:?}", blocks,
+                "TRF_006.blocks TRF_018 içermeli. Mevcut blocks: {:?}",
+                blocks,
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -573,12 +624,18 @@ fn trp_019_fires_when_continuous_service_is_actually_active() {
             "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,{value}\n"
         );
         let mut files = base_files();
-        files[2] = ("routes.txt", Box::leak(routes.into_bytes().into_boxed_slice()));
+        files[2] = (
+            "routes.txt",
+            Box::leak(routes.into_bytes().into_boxed_slice()),
+        );
         match run(&files) {
             ValidateResult::Ok(vr) => assert!(
                 vr.notices.iter().any(|n| n.rule_id == "TRP_019"),
                 "continuous_pickup={value} sürekli servistir → TRP_019 beklenir: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             ),
             _ => panic!("ValidateResult::Ok beklendi"),
         }
@@ -594,7 +651,10 @@ fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
             "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,{value}\n"
         );
         let mut files = base_files();
-        files[2] = ("routes.txt", Box::leak(routes.into_bytes().into_boxed_slice()));
+        files[2] = (
+            "routes.txt",
+            Box::leak(routes.into_bytes().into_boxed_slice()),
+        );
         match run(&files) {
             ValidateResult::Ok(vr) => assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "TRP_019"),
@@ -604,7 +664,6 @@ fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
         }
     }
 }
-
 
 // ── Test 6: TRP_019 — continuous service yok → sessiz ────────────────────────
 // route'ta continuous_pickup/drop_off yok, stop_times'ta da yok → TRP_019 üretilmez.
@@ -616,7 +675,10 @@ fn trp_019_silent_when_no_continuous_service() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "TRP_019"),
                 "TRP_019 üretilmemeli (continuous service yok). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -670,7 +732,11 @@ fn rts_028_fires_when_route_has_flex_window_trip_and_continuous_pickup() {
                 vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
             );
             let n = n.unwrap();
-            assert_eq!(n.file.as_deref(), Some("routes.txt"), "ihlal routes.txt'te raporlanmalı");
+            assert_eq!(
+                n.file.as_deref(),
+                Some("routes.txt"),
+                "ihlal routes.txt'te raporlanmalı"
+            );
             assert_eq!(n.field.as_deref(), Some("continuous_pickup"));
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -691,7 +757,10 @@ fn rts_028_silent_when_route_has_no_flex_window() {
         ValidateResult::Ok(vr) => assert!(
             !vr.notices.iter().any(|n| n.rule_id == "RTS_028"),
             "Flex penceresi olmayan rotada RTS_028 üretilmemeli: {:?}",
-            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+            vr.notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>(),
         ),
         _ => panic!("ValidateResult::Ok beklendi"),
     }
@@ -712,7 +781,10 @@ fn rts_028_silent_when_continuous_is_one() {
         ValidateResult::Ok(vr) => assert!(
             !vr.notices.iter().any(|n| n.rule_id == "RTS_028"),
             "continuous_pickup=1 → RTS_028 üretilmemeli: {:?}",
-            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+            vr.notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>(),
         ),
         _ => panic!("ValidateResult::Ok beklendi"),
     }
@@ -721,15 +793,19 @@ fn rts_028_silent_when_continuous_is_one() {
 #[test]
 fn transfer_stop_requirements_cover_recommended_and_in_seat_types() {
     for transfer_type in ["0", "1", "2", "3"] {
-        let transfers = format!(
-            "from_stop_id,to_stop_id,transfer_type\n,,{transfer_type}\n"
-        );
+        let transfers = format!("from_stop_id,to_stop_id,transfer_type\n,,{transfer_type}\n");
         let mut files = base_files();
         files.push(("transfers.txt", transfers.as_bytes()));
         match run(&files) {
             ValidateResult::Ok(vr) => {
-                assert!(vr.notices.iter().any(|n| n.rule_id == "TRF_001"), "type={transfer_type}");
-                assert!(vr.notices.iter().any(|n| n.rule_id == "TRF_002"), "type={transfer_type}");
+                assert!(
+                    vr.notices.iter().any(|n| n.rule_id == "TRF_001"),
+                    "type={transfer_type}"
+                );
+                assert!(
+                    vr.notices.iter().any(|n| n.rule_id == "TRF_002"),
+                    "type={transfer_type}"
+                );
             }
             _ => panic!("ValidateResult::Ok beklendi"),
         }
@@ -788,7 +864,11 @@ fn pathway_recommendations_respect_mode_boundaries() {
                 .iter()
                 .filter(|n| n.rule_id == "PTH_028")
                 .collect::<Vec<_>>();
-            assert_eq!(wrong_mode.len(), 1, "yalnız elevator max_slope bağlam ihlali olmalı");
+            assert_eq!(
+                wrong_mode.len(),
+                1,
+                "yalnız elevator max_slope bağlam ihlali olmalı"
+            );
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_017"),
                 "geçerli sayılar PTH_017 (tip ihlali) üretmemeli"
@@ -824,7 +904,10 @@ fn pth_014_fires_for_cross_station_pathway() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_014"),
                 "PTH_014 olmalı (cross-station pathway). Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -856,7 +939,10 @@ fn pth_014_silent_for_same_station_pathway() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_014"),
                 "PTH_014 üretilmemeli (aynı istasyon). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -867,9 +953,8 @@ fn pth_014_silent_for_same_station_pathway() {
 
 #[test]
 fn stp_016_fires_for_stops_at_identical_coordinates() {
-    const STOPS_SAME_COORD: &[u8] =
-        b"stop_id,stop_name,stop_lat,stop_lon\n\
-          S1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n";  // S1 ve S2 aynı koordinat
+    const STOPS_SAME_COORD: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n"; // S1 ve S2 aynı koordinat
 
     let mut files = base_files();
     files[1] = ("stops.txt", STOPS_SAME_COORD);
@@ -879,7 +964,10 @@ fn stp_016_fires_for_stops_at_identical_coordinates() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "STP_016"),
                 "STP_016 olmalı. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -976,9 +1064,21 @@ fn trn_007_same_language_translations_aggregate_to_feed_summary() {
     files.push(("translations.txt", TR_JA));
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            let trn: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "TRN_007").collect();
-            assert_eq!(trn.len(), 1, "aynı dildeki çeviriler tek feed-özetinde toplanmalı");
-            assert_eq!(trn[0].observed_value.as_deref(), Some("2"), "etkilenen satır sayısı 2");
+            let trn: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRN_007")
+                .collect();
+            assert_eq!(
+                trn.len(),
+                1,
+                "aynı dildeki çeviriler tek feed-özetinde toplanmalı"
+            );
+            assert_eq!(
+                trn[0].observed_value.as_deref(),
+                Some("2"),
+                "etkilenen satır sayısı 2"
+            );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
     }
@@ -1013,7 +1113,10 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_012"),
                 "PTH_012 olmalı. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
             // PTH_013 kapsama bilgisi de üretilmeli
             assert!(
@@ -1052,12 +1155,18 @@ fn pth_013_silent_when_accessible_path_exists() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_013"),
                 "PTH_013 üretilmemeli (accessible path mevcut). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_012"),
                 "PTH_012 üretilmemeli (PLT erişilebilir). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1081,7 +1190,10 @@ fn pth_015_fires_when_speed_exceeds_3ms() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_015"),
                 "PTH_015 olmalı (hız=6.0 m/s). Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1105,7 +1217,10 @@ fn pth_015_silent_when_speed_within_limit() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_015"),
                 "PTH_015 üretilmemeli (hız≈1.67 m/s). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1132,7 +1247,10 @@ fn r9_priority_score_positive_for_critical_notice() {
             assert!(
                 vr.reports.r9.items.iter().any(|i| i.priority_score > 0.0),
                 "En az 1 R9 item priority_score > 0 olmalı. Items: {:?}",
-                vr.reports.r9.items.iter()
+                vr.reports
+                    .r9
+                    .items
+                    .iter()
                     .map(|i| (i.rule_id.as_str(), i.priority_score))
                     .collect::<Vec<_>>(),
             );
@@ -1148,16 +1266,14 @@ fn r9_priority_score_positive_for_critical_notice() {
 
 #[test]
 fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
-    const STOPS: &[u8] =
-        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+    const STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
           S1,Stop1,41.0,29.0,,\n\
           S2,Stop2,41.1,29.1,,\n\
           STA1,Station1,41.2,29.2,1,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1\n\
           GN1,GenericNode1,41.2,29.21,3,STA1\n";
     // Tek komşu (PLT_A), iki satır — biri gidiş biri dönüş.
-    const PATHWAYS: &[u8] =
-        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+    const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,GN1,1,0\n\
           PW2,GN1,PLT_A,1,0\n";
 
@@ -1170,7 +1286,10 @@ fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_019"),
                 "İki satır tek komşu demektir; PTH_019 ateşlemeli. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1181,16 +1300,14 @@ fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
 
 #[test]
 fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
-    const STOPS: &[u8] =
-        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+    const STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
           S1,Stop1,41.0,29.0,,\n\
           S2,Stop2,41.1,29.1,,\n\
           STA1,Station1,41.2,29.2,1,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1\n\
           PLT_B,PlatformB,41.2,29.22,0,STA1\n\
           GN1,GenericNode1,41.2,29.21,3,STA1\n";
-    const PATHWAYS: &[u8] =
-        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+    const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,GN1,1,0\n\
           PW2,GN1,PLT_B,1,0\n";
 
@@ -1203,7 +1320,10 @@ fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_019"),
                 "İki farklı komşu → çıkmaz değil. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1215,15 +1335,13 @@ fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
 
 #[test]
 fn pth_019_fires_for_dangling_generic_node() {
-    const STOPS: &[u8] =
-        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+    const STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
           S1,Stop1,41.0,29.0,,\n\
           S2,Stop2,41.1,29.1,,\n\
           STA1,Station1,41.2,29.2,1,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1\n\
           GN1,GenericNode1,41.2,29.21,3,STA1\n";
-    const PATHWAYS: &[u8] =
-        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+    const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,GN1,1,0\n";
 
     let mut files = base_files();
@@ -1235,7 +1353,10 @@ fn pth_019_fires_for_dangling_generic_node() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_019"),
                 "PTH_019 olmalı (dangling generic node). Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1247,16 +1368,14 @@ fn pth_019_fires_for_dangling_generic_node() {
 
 #[test]
 fn pth_019_silent_for_connected_generic_node() {
-    const STOPS: &[u8] =
-        b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+    const STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
           S1,Stop1,41.0,29.0,,\n\
           S2,Stop2,41.1,29.1,,\n\
           STA1,Station1,41.2,29.2,1,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1\n\
           PLT_B,PlatformB,41.2,29.25,0,STA1\n\
           GN1,GenericNode1,41.2,29.21,3,STA1\n";
-    const PATHWAYS: &[u8] =
-        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+    const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,GN1,1,0\n\
           PW2,GN1,PLT_B,1,0\n";
 
@@ -1269,7 +1388,10 @@ fn pth_019_silent_for_connected_generic_node() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "PTH_019"),
                 "PTH_019 üretilmemeli (connected generic node). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1288,8 +1410,7 @@ fn lvl_006_fires_when_elevator_stop_missing_level_id() {
           STA1,Station1,41.2,29.2,1,,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1,L1\n\
           ELV_STOP,ElevatorStop,41.2,29.21,0,STA1,\n";
-    const PATHWAYS: &[u8] =
-        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+    const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,ELV_STOP,5,1\n";
 
     let mut files = base_files();
@@ -1301,13 +1422,15 @@ fn lvl_006_fires_when_elevator_stop_missing_level_id() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "LVL_006"),
                 "LVL_006 olmalı (asansör stop level_id eksik). Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("Fatal hata"),
     }
 }
-
 
 // ── Test 19: LVL_006 — asansör pathway'inde level_id dolu → sessiz ────────────
 // PLT_A ve PLT_B her ikisinde de level_id var → LVL_006 üretilmez.
@@ -1321,8 +1444,7 @@ fn lvl_006_silent_when_elevator_stops_have_level_id() {
           STA1,Station1,41.2,29.2,1,,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1,L0\n\
           PLT_B,PlatformB,41.2,29.25,0,STA1,L1\n";
-    const PATHWAYS: &[u8] =
-        b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
+    const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,PLT_B,5,1\n";
 
     let mut files = base_files();
@@ -1334,7 +1456,10 @@ fn lvl_006_silent_when_elevator_stops_have_level_id() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "LVL_006"),
                 "LVL_006 üretilmemeli (level_id dolu). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1349,8 +1474,7 @@ fn xfl_019_fires_when_network_defined_in_both_files() {
     const ROUTES_WITH_NETWORK: &[u8] =
         b"route_id,agency_id,route_short_name,route_long_name,route_type,network_id\n\
           R1,A1,1,Route One,3,NET1\n";
-    const ROUTE_NETWORKS: &[u8] =
-        b"network_id,route_id\n\
+    const ROUTE_NETWORKS: &[u8] = b"network_id,route_id\n\
           NET1,R1\n";
 
     let mut files = base_files();
@@ -1362,7 +1486,10 @@ fn xfl_019_fires_when_network_defined_in_both_files() {
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "XFL_019"),
                 "XFL_019 olmalı (çift ağ tanımı). Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1374,8 +1501,7 @@ fn xfl_019_fires_when_network_defined_in_both_files() {
 
 #[test]
 fn xfl_019_silent_when_only_route_networks_file() {
-    const ROUTE_NETWORKS: &[u8] =
-        b"network_id,route_id\n\
+    const ROUTE_NETWORKS: &[u8] = b"network_id,route_id\n\
           NET1,R1\n";
 
     let mut files = base_files();
@@ -1386,7 +1512,10 @@ fn xfl_019_silent_when_only_route_networks_file() {
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "XFL_019"),
                 "XFL_019 üretilmemeli (sadece route_networks.txt). Notices: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>(),
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>(),
             );
         }
         _ => panic!("ValidateResult::Ok beklendi"),
@@ -1407,7 +1536,8 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
         ("C:\\agency.txt", evil),
     ]);
 
-    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("gecerli kok dosyalar mevcut oldugunda Ok donmeli");
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default())
+        .expect("gecerli kok dosyalar mevcut oldugunda Ok donmeli");
 
     assert_eq!(
         k1.files.len(),
@@ -1427,7 +1557,10 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
         );
     }
 
-    let agency = k1.files.get("agency.txt").expect("kok agency.txt islenmeli");
+    let agency = k1
+        .files
+        .get("agency.txt")
+        .expect("kok agency.txt islenmeli");
     let joined = agency
         .rows
         .iter()
@@ -1435,7 +1568,10 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
         .map(|s| s.as_str())
         .collect::<Vec<_>>()
         .join(",");
-    assert!(joined.contains("Test"), "kok agency.txt icerigi korunmali: {joined}");
+    assert!(
+        joined.contains("Test"),
+        "kok agency.txt icerigi korunmali: {joined}"
+    );
     assert!(
         !joined.contains("EVIL_TRAVERSAL"),
         "poison icerik canonical dosyaya sizmamali: {joined}",
@@ -1454,11 +1590,13 @@ fn nested_zip_is_reported_in_subdirectories_too() {
     // butun GTFS'ini ALT DIZINDEKI bir nested ZIP'te tasiyor. Eskiden ARC_023 yalnizca kok
     // dizini goruyordu; o feed'lerde tek cikti "zorunlu dosya eksik" oluyor, SEBEBI hicbir
     // bulguda gorunmuyordu. Konum kuralin hukmunu degistirmez.
-    let inner: &[u8] = b"PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    let inner: &[u8] =
+        b"PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     let mut files = base_files();
     files.extend([("root.zip", inner), ("GTFS_20250111/gtfs_data.zip", inner)]);
 
-    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("kok GTFS dosyalari mevcut");
+    let k1 =
+        parse(&make_zip(&files), &ValidatorConfig::default()).expect("kok GTFS dosyalari mevcut");
 
     let found: Vec<&str> = k1
         .notices
@@ -1472,7 +1610,9 @@ fn nested_zip_is_reported_in_subdirectories_too() {
         "kok VE alt dizindeki nested ZIP icin ARC_023 beklenir, bulunan: {found:?}",
     );
     assert!(
-        found.iter().any(|f| f.contains("GTFS_20250111/gtfs_data.zip")),
+        found
+            .iter()
+            .any(|f| f.contains("GTFS_20250111/gtfs_data.zip")),
         "alt dizindeki nested ZIP tam yoluyla raporlanmali: {found:?}",
     );
 }
@@ -1493,7 +1633,8 @@ fn gtfs_named_file_with_wrong_extension_is_reported_in_subdirectories() {
         ("sub/lib/main.dart", blob),
     ]);
 
-    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("kok GTFS dosyalari mevcut");
+    let k1 =
+        parse(&make_zip(&files), &ValidatorConfig::default()).expect("kok GTFS dosyalari mevcut");
 
     let found: Vec<&str> = k1
         .notices
@@ -1529,7 +1670,10 @@ fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
 
     let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("sarili feed acilmali");
 
-    let st = k1.files.get("stop_times.txt").expect("kok oneki dusulmus adla islenmeli");
+    let st = k1
+        .files
+        .get("stop_times.txt")
+        .expect("kok oneki dusulmus adla islenmeli");
     assert_eq!(
         st.zip_entry_name.as_deref(),
         Some("GTFS/stop_times.txt"),
@@ -1570,14 +1714,28 @@ fn empty_required_file_is_spec_critical_while_empty_optional_stays_informational
     files.push(("stops.txt", empty_stops));
     files.push(("frequencies.txt", empty_freq));
 
-    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal olmamali")
+    };
 
-    let arc035: Vec<&str> = vr.notices.iter().filter(|n| n.rule_id == "ARC_035")
-        .filter_map(|n| n.entity_id.as_deref()).collect();
-    assert_eq!(arc035, vec!["stops.txt"], "bos ZORUNLU dosya ARC_035 almali: {arc035:?}");
+    let arc035: Vec<&str> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "ARC_035")
+        .filter_map(|n| n.entity_id.as_deref())
+        .collect();
+    assert_eq!(
+        arc035,
+        vec!["stops.txt"],
+        "bos ZORUNLU dosya ARC_035 almali: {arc035:?}"
+    );
 
-    let arc009: Vec<&str> = vr.notices.iter().filter(|n| n.rule_id == "ARC_009")
-        .filter_map(|n| n.entity_id.as_deref()).collect();
+    let arc009: Vec<&str> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "ARC_009")
+        .filter_map(|n| n.entity_id.as_deref())
+        .collect();
     assert!(
         arc009.contains(&"frequencies.txt") && !arc009.contains(&"stops.txt"),
         "bos OPSIYONEL dosya ARC_009'da kalmali, zorunlu olan ARC_035'e gecmeli: {arc009:?}",
@@ -1597,19 +1755,30 @@ fn header_only_stream_files_are_not_silently_treated_as_present() {
     // Not: 0 baytlik hal K1'in `records.is_empty()` kolundan zaten yakalaniyordu;
     // gorunmeyen tam olarak "baslik var, veri yok" araligiydi.
     let mut files = base_files();
-    files.push(("shapes.txt", &b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n"[..]));
-    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+    files.push((
+        "shapes.txt",
+        &b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n"[..],
+    ));
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal olmamali")
+    };
     assert!(
-        vr.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("shapes.txt")),
+        vr.notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("shapes.txt")),
         "baslik-only shapes.txt ARC_009 uretmeli (opsiyonel dosya → Bilgi)",
     );
 
     let mut files = base_files();
     files.retain(|(n, _)| *n != "trips.txt");
     files.push(("trips.txt", &b"route_id,service_id,trip_id\n"[..]));
-    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal olmamali")
+    };
     assert!(
-        vr.notices.iter().any(|n| n.rule_id == "ARC_035" && n.file.as_deref() == Some("trips.txt")),
+        vr.notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_035" && n.file.as_deref() == Some("trips.txt")),
         "baslik-only trips.txt ARC_035 uretmeli (ZORUNLU dosya → Kritik·Spec)",
     );
 }
@@ -1623,18 +1792,26 @@ fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_ser
 
     let mut with_calendar = base_files();
     with_calendar.push(("calendar_dates.txt", empty_cd));
-    let ValidateResult::Ok(vr) = run(&with_calendar) else { panic!("fatal olmamali") };
+    let ValidateResult::Ok(vr) = run(&with_calendar) else {
+        panic!("fatal olmamali")
+    };
     assert!(
-        !vr.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt")),
+        !vr.notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt")),
         "calendar.txt servisi tasirken bos calendar_dates.txt bastirilmali",
     );
 
     let mut without_calendar = base_files();
     without_calendar.retain(|(n, _)| *n != "calendar.txt");
     without_calendar.push(("calendar_dates.txt", empty_cd));
-    let ValidateResult::Ok(vr) = run(&without_calendar) else { panic!("fatal olmamali") };
+    let ValidateResult::Ok(vr) = run(&without_calendar) else {
+        panic!("fatal olmamali")
+    };
     assert!(
-        vr.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt")),
+        vr.notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt")),
         "calendar.txt yokken bos calendar_dates.txt SUSMAMALI",
     );
 }
@@ -1654,11 +1831,20 @@ fn empty_required_file_alone_blocks_publication() {
         ("routes.txt", ROUTES),
         ("calendar.txt", CALENDAR),
         ("trips.txt", &b"route_id,service_id,trip_id\n"[..]),
-        ("stop_times.txt", &b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"[..]),
+        (
+            "stop_times.txt",
+            &b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"[..],
+        ),
     ];
-    let ValidateResult::Ok(vr) = run(&files) else { panic!("fatal olmamali") };
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("fatal olmamali")
+    };
 
-    let blockers: Vec<&str> = vr.reports.r1.blocker_notice_ids.iter()
+    let blockers: Vec<&str> = vr
+        .reports
+        .r1
+        .blocker_notice_ids
+        .iter()
         .filter_map(|id| vr.notices.iter().find(|n| &n.id == id))
         .map(|n| n.rule_id.as_str())
         .collect();
@@ -1670,7 +1856,11 @@ fn empty_required_file_alone_blocks_publication() {
         blockers.iter().all(|r| *r == "ARC_035"),
         "bu vakada TEK engel ARC_035 olmali (baska engel varsa test kendi iddiasini olcmuyor): {blockers:?}",
     );
-    assert_eq!(blockers.len(), 2, "trips.txt + stop_times.txt icin iki engel: {blockers:?}");
+    assert_eq!(
+        blockers.len(),
+        2,
+        "trips.txt + stop_times.txt icin iki engel: {blockers:?}"
+    );
 }
 
 // ── ARC_025: zorunlu sutun basligta hic yok (header-level) ────────────────────
@@ -1681,7 +1871,8 @@ fn missing_required_column_produces_arc_025() {
     let bad_agency: &[u8] = b"agency_id,agency_url,agency_timezone\n1,http://test.example,UTC\n";
     let mut files = base_files();
     files[0] = ("agency.txt", bad_agency);
-    let k1 = parse(&make_zip(&files), &ValidatorConfig::default()).expect("gecerli kok dosyalar Ok donmeli");
+    let k1 = parse(&make_zip(&files), &ValidatorConfig::default())
+        .expect("gecerli kok dosyalar Ok donmeli");
 
     let arc025_name = k1
         .notices
@@ -1705,9 +1896,13 @@ fn missing_required_column_produces_arc_025() {
 #[test]
 fn complete_headers_produce_no_arc_025() {
     // base_files tum zorunlu sutunlari icerir → hic ARC_025 olmamali.
-    let k1 = parse(&make_zip(&base_files()), &ValidatorConfig::default()).expect("gecerli kok dosyalar Ok donmeli");
+    let k1 = parse(&make_zip(&base_files()), &ValidatorConfig::default())
+        .expect("gecerli kok dosyalar Ok donmeli");
     let arc025 = k1.notices.iter().filter(|n| n.rule_id == "ARC_025").count();
-    assert_eq!(arc025, 0, "tam basliklarda ARC_025 cikmamali, bulunan: {arc025}");
+    assert_eq!(
+        arc025, 0,
+        "tam basliklarda ARC_025 cikmamali, bulunan: {arc025}"
+    );
 }
 
 // ── XFL_026/027: route-bazlı contactless EMV uygulanabilirliği ─────────────────
@@ -1729,13 +1924,23 @@ fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
 fn xfl027_route_cemv2_with_global_contactless() {
     // R1 cemv_support=2 (desteklenmiyor) ama leg rule GLOBAL (network/area yok) → her route kapsanır → celiski.
     let mut files = cemv_base();
-    files.push(("routes.txt", b"route_id,agency_id,route_short_name,route_type,cemv_support\nR1,A1,1,3,2\n"));
-    files.push(("fare_leg_rules.txt", b"leg_group_id,fare_product_id\nlg1,p_emv\n"));
+    files.push((
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type,cemv_support\nR1,A1,1,3,2\n",
+    ));
+    files.push((
+        "fare_leg_rules.txt",
+        b"leg_group_id,fare_product_id\nlg1,p_emv\n",
+    ));
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
             vr.notices.iter().any(|n| n.rule_id == "XFL_027"),
             "XFL_027 bekleniyor (cemv=2 + global contactless). Cikan: {:?}",
-            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+            vr.notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>()
+        ),
         other => panic!("Ok bekleniyordu: {other:?}"),
     }
 }
@@ -1744,14 +1949,24 @@ fn xfl027_route_cemv2_with_global_contactless() {
 fn xfl026_route_cemv1_network_mismatch() {
     // R1 cemv=1, network=N1; contactless leg rule network=N2 → R1 kapsanmiyor + cozulebilir → XFL_026.
     let mut files = cemv_base();
-    files.push(("routes.txt", b"route_id,agency_id,route_short_name,route_type,network_id,cemv_support\nR1,A1,1,3,N1,1\n"));
+    files.push((
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type,network_id,cemv_support\nR1,A1,1,3,N1,1\n",
+    ));
     files.push(("networks.txt", b"network_id,network_name\nN1,N1\nN2,N2\n"));
-    files.push(("fare_leg_rules.txt", b"leg_group_id,fare_product_id,network_id\nlg1,p_emv,N2\n"));
+    files.push((
+        "fare_leg_rules.txt",
+        b"leg_group_id,fare_product_id,network_id\nlg1,p_emv,N2\n",
+    ));
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
             vr.notices.iter().any(|n| n.rule_id == "XFL_026"),
             "XFL_026 bekleniyor (cemv=1 + network eslesmiyor). Cikan: {:?}",
-            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+            vr.notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>()
+        ),
         other => panic!("Ok bekleniyordu: {other:?}"),
     }
 }
@@ -1760,14 +1975,22 @@ fn xfl026_route_cemv1_network_mismatch() {
 fn xfl026_silent_when_route_coverage_unresolvable() {
     // R1 cemv=1, network_id BOS; contactless leg rule network-based → route kapsami cozulemez → FP guard SUSAR.
     let mut files = cemv_base();
-    files.push(("routes.txt", b"route_id,agency_id,route_short_name,route_type,cemv_support\nR1,A1,1,3,1\n"));
+    files.push((
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type,cemv_support\nR1,A1,1,3,1\n",
+    ));
     files.push(("networks.txt", b"network_id,network_name\nN1,N1\n"));
-    files.push(("fare_leg_rules.txt", b"leg_group_id,fare_product_id,network_id\nlg1,p_emv,N1\n"));
+    files.push((
+        "fare_leg_rules.txt",
+        b"leg_group_id,fare_product_id,network_id\nlg1,p_emv,N1\n",
+    ));
     match run(&files) {
         ValidateResult::Ok(vr) => {
             let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
-            assert!(!ids.contains(&"XFL_026") && !ids.contains(&"XFL_027"),
-                "FP guard susmali (network/area cozulemez). Cikan: {ids:?}");
+            assert!(
+                !ids.contains(&"XFL_026") && !ids.contains(&"XFL_027"),
+                "FP guard susmali (network/area cozulemez). Cikan: {ids:?}"
+            );
         }
         other => panic!("Ok bekleniyordu: {other:?}"),
     }
@@ -1792,7 +2015,9 @@ fn assert_decompression_limit(result: ValidateResult, ctx: &str) {
         ValidateResult::Fatal(e) => assert_eq!(
             e.code,
             FatalCode::DecompressionLimit,
-            "{ctx}: beklenen DecompressionLimit, alınan {:?} ({})", e.code, e.message,
+            "{ctx}: beklenen DecompressionLimit, alınan {:?} ({})",
+            e.code,
+            e.message,
         ),
         other => panic!("{ctx}: Fatal(DecompressionLimit) beklendi, alınan: {other:?}"),
     }
@@ -1855,7 +2080,9 @@ fn same_feed_twice_produces_identical_output() {
         S1,41.0,29.0,1\nS1,41.0,29.0,2\nS1,41.5,29.5,3\n\
         S2,40.0,28.0,1\nS2,40.0,28.0,2\nS2,40.9,28.9,3\n\
         S3,39.0,27.0,1\nS3,39.0,27.0,2\nS3,39.8,27.8,3\n" as &[u8];
-    let routes = b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,3\n" as &[u8];
+    let routes =
+        b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,3\n"
+            as &[u8];
     let trips = b"route_id,service_id,trip_id,shape_id\n\
         R1,SVC1,T1,S1\nR2,SVC1,T2,S2\nR3,SVC1,T3,S3\n" as &[u8];
     // T1: S1 durağı iki kez, aralarında başka durak → OPR_007 adayı (birden çok tekrar olası)
@@ -1878,8 +2105,9 @@ fn same_feed_twice_produces_identical_output() {
     // içerik aynıyken bayt farklıydı. Hepsi `BTreeMap`'e çevrildi; bu kapı o kazanımı korur.
     // Zayıflatma: bu karşılaştırmayı alan-alt-kümesine geri çekmek, sessizce kaybetmek demektir.
     let render = || match validate_bytes(&zip, &ValidatorConfig::default(), TODAY) {
-        ValidateResult::Ok(vr) => serde_json::to_string(&vr)
-            .expect("ValidationResult serialize edilebilmeli"),
+        ValidateResult::Ok(vr) => {
+            serde_json::to_string(&vr).expect("ValidationResult serialize edilebilmeli")
+        }
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     };
 
@@ -1890,7 +2118,10 @@ fn same_feed_twice_produces_identical_output() {
         let cur = render();
         if cur != first {
             // İlk ayrışan konumu göster: tam JSON'u basmak okunmaz olurdu.
-            let at = first.bytes().zip(cur.bytes()).position(|(a, b)| a != b)
+            let at = first
+                .bytes()
+                .zip(cur.bytes())
+                .position(|(a, b)| a != b)
                 .unwrap_or(first.len().min(cur.len()));
             let lo = at.saturating_sub(80);
             panic!(
@@ -1937,8 +2168,7 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
     // İlk durakta arrival var/departure yok → STM_015 DEĞİL (spec departure'ı zorunlu
     // kılmaz); bu vakayı STM_034 ("yalnız biri tanımlı") zaten karşılar.
     // Son durakta departure var/arrival yok → STM_016 (spec arrival'ı zorunlu kılar).
-    static EDGE_STOP_TIMES: &[u8] =
-        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+    static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,,S1,1\nT1,,08:10:00,S2,2\n";
     let mut files = base_files();
     files[4] = ("stop_times.txt", EDGE_STOP_TIMES);
@@ -1946,9 +2176,18 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
     match run(&files) {
         ValidateResult::Ok(vr) => {
             let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
-            assert!(!ids.contains(&"STM_015"), "ilk durakta arrival var → STM_015 olmamalı: {ids:?}");
-            assert!(ids.contains(&"STM_016"), "son durakta arrival yok → STM_016 bekleniyor: {ids:?}");
-            assert!(ids.contains(&"STM_034"), "departure tarafını STM_034 karşılamalı: {ids:?}");
+            assert!(
+                !ids.contains(&"STM_015"),
+                "ilk durakta arrival var → STM_015 olmamalı: {ids:?}"
+            );
+            assert!(
+                ids.contains(&"STM_016"),
+                "son durakta arrival yok → STM_016 bekleniyor: {ids:?}"
+            );
+            assert!(
+                ids.contains(&"STM_034"),
+                "departure tarafını STM_034 karşılamalı: {ids:?}"
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -1981,13 +2220,17 @@ fn flex_only_feed_without_stops_txt_is_not_fatal() {
     files.push(("locations.geojson", GEOJSON));
 
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
-        ValidateResult::Fatal(e) => panic!(
+        ValidateResult::Fatal(e) => {
+            panic!(
             "locations.geojson varken stops.txt eksikliği Fatal OLMAMALI (spec: koşullu zorunlu); \
-             alınan: {:?} — {}", e.code, e.message),
+             alınan: {:?} — {}", e.code, e.message)
+        }
         ValidateResult::Ok(vr) => {
             assert!(
-                !vr.notices.iter().any(|n| n.rule_id == "ARC_004"
-                    && n.observed_value.as_deref() == Some("stops.txt")),
+                !vr.notices
+                    .iter()
+                    .any(|n| n.rule_id == "ARC_004"
+                        && n.observed_value.as_deref() == Some("stops.txt")),
                 "stops.txt için ARC_004 üretilmemeli"
             );
         }
@@ -2003,8 +2246,12 @@ fn invalid_geojson_does_not_make_missing_stops_optional() {
 
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => {
-            let partial = vr.partial.expect("bozuk locations.geojson PARTIAL üretmeli");
-            assert!(partial.unavailable_files.contains(&"locations.geojson".to_string()));
+            let partial = vr
+                .partial
+                .expect("bozuk locations.geojson PARTIAL üretmeli");
+            assert!(partial
+                .unavailable_files
+                .contains(&"locations.geojson".to_string()));
             assert!(partial.unavailable_files.contains(&"stops.txt".to_string()));
             assert!(vr.notices.iter().any(|n| {
                 n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("stops.txt")
@@ -2054,24 +2301,36 @@ pickup_booking_rule_id,drop_off_booking_rule_id\n\
 
     let vr = match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(v) => v,
-        ValidateResult::Fatal(e) => panic!("Flex stop_times Fatal olmamalı: {:?} {}", e.code, e.message),
+        ValidateResult::Fatal(e) => {
+            panic!("Flex stop_times Fatal olmamalı: {:?} {}", e.code, e.message)
+        }
     };
     let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
-    assert!(!ids.contains(&"STM_006"), "location_id taşıyan satır stop_id istemez → STM_006 çıkmamalı");
-    assert!(!ids.contains(&"ARC_025"), "Flex dosyada stop_id sütunu beklenmez → ARC_025 çıkmamalı");
+    assert!(
+        !ids.contains(&"STM_006"),
+        "location_id taşıyan satır stop_id istemez → STM_006 çıkmamalı"
+    );
+    assert!(
+        !ids.contains(&"ARC_025"),
+        "Flex dosyada stop_id sütunu beklenmez → ARC_025 çıkmamalı"
+    );
     // 6 resmî Flex sütununun hiçbiri "bilinmeyen sütun" sayılmamalı.
-    let unknown: Vec<&str> = vr.notices.iter()
+    let unknown: Vec<&str> = vr
+        .notices
+        .iter()
         .filter(|n| n.rule_id == "ARC_017")
         .filter_map(|n| n.field.as_deref())
         .collect();
-    assert!(unknown.is_empty(), "resmî Flex sütunları ARC_017 üretmemeli: {unknown:?}");
+    assert!(
+        unknown.is_empty(),
+        "resmî Flex sütunları ARC_017 üretmemeli: {unknown:?}"
+    );
 }
 
 /// Daraltmanın bedeli olmamalı: Flex ALANI OLMAYAN bir satırda boş stop_id yine hatadır.
 #[test]
 fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
-    static BAD_STOP_TIMES: &[u8] =
-        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+    static BAD_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,08:00:00,,1\nT1,08:10:00,08:10:00,S2,2\n";
     let mut files = base_files();
     files.retain(|(n, _)| *n != "stop_times.txt");
@@ -2079,7 +2338,8 @@ fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
             vr.notices.iter().any(|n| n.rule_id == "STM_006"),
-            "Flex alanı olmayan satırda boş stop_id STM_006 üretmeli"),
+            "Flex alanı olmayan satırda boş stop_id STM_006 üretmeli"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2101,7 +2361,8 @@ fn xfl019_fires_when_networks_txt_is_used_with_routes_network_id() {
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
             vr.notices.iter().any(|n| n.rule_id == "XFL_019"),
-            "networks.txt + routes.network_id → XFL_019 çıkmalı"),
+            "networks.txt + routes.network_id → XFL_019 çıkmalı"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2117,7 +2378,8 @@ fn xfl019_silent_when_routes_network_id_is_used_alone() {
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
             !vr.notices.iter().any(|n| n.rule_id == "XFL_019"),
-            "ayrı ağ dosyası yokken routes.network_id geçerlidir → XFL_019 çıkmamalı"),
+            "ayrı ağ dosyası yokken routes.network_id geçerlidir → XFL_019 çıkmamalı"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2136,9 +2398,11 @@ fn dq021_detects_duplicate_composite_key_in_fare_leg_rules() {
     files.push(("fare_leg_rules.txt", FLR));
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "DQ_021"
-                && n.file.as_deref() == Some("fare_leg_rules.txt")),
-            "aynı bileşik anahtara sahip iki satır DQ_021 üretmeli"),
+            vr.notices
+                .iter()
+                .any(|n| n.rule_id == "DQ_021" && n.file.as_deref() == Some("fare_leg_rules.txt")),
+            "aynı bileşik anahtara sahip iki satır DQ_021 üretmeli"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2152,9 +2416,11 @@ fn dq021_silent_when_one_composite_field_differs() {
     files.push(("fare_leg_rules.txt", FLR));
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
-            !vr.notices.iter().any(|n| n.rule_id == "DQ_021"
-                && n.file.as_deref() == Some("fare_leg_rules.txt")),
-            "to_area_id farklı → ayrı anahtarlar, DQ_021 çıkmamalı"),
+            !vr.notices
+                .iter()
+                .any(|n| n.rule_id == "DQ_021" && n.file.as_deref() == Some("fare_leg_rules.txt")),
+            "to_area_id farklı → ayrı anahtarlar, DQ_021 çıkmamalı"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2168,12 +2434,18 @@ fn dq021_detects_duplicate_location_group_id_and_group_stop_row() {
     files.push(("location_group_stops.txt", LGS));
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => {
-            assert!(vr.notices.iter().any(|n| n.rule_id == "DQ_021"
-                && n.file.as_deref() == Some("location_groups.txt")),
-                "yinelenen location_group_id DQ_021 üretmeli");
-            assert!(vr.notices.iter().any(|n| n.rule_id == "DQ_021"
-                && n.file.as_deref() == Some("location_group_stops.txt")),
-                "yinelenen (location_group_id, stop_id) satırı DQ_021 üretmeli");
+            assert!(
+                vr.notices
+                    .iter()
+                    .any(|n| n.rule_id == "DQ_021"
+                        && n.file.as_deref() == Some("location_groups.txt")),
+                "yinelenen location_group_id DQ_021 üretmeli"
+            );
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "DQ_021"
+                    && n.file.as_deref() == Some("location_group_stops.txt")),
+                "yinelenen (location_group_id, stop_id) satırı DQ_021 üretmeli"
+            );
         }
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
@@ -2196,9 +2468,11 @@ fn xfl031_detects_location_group_id_clashing_with_stop_id() {
     files.push(("location_groups.txt", LG));
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "XFL_031"
-                && n.entity_id.as_deref() == Some("LG1")),
-            "stop_id ile çakışan location_group_id XFL_031 üretmeli"),
+            vr.notices
+                .iter()
+                .any(|n| n.rule_id == "XFL_031" && n.entity_id.as_deref() == Some("LG1")),
+            "stop_id ile çakışan location_group_id XFL_031 üretmeli"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2212,7 +2486,8 @@ fn xfl031_silent_when_ids_are_distinct() {
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
             !vr.notices.iter().any(|n| n.rule_id == "XFL_031"),
-            "ayrık kimliklerde XFL_031 çıkmamalı"),
+            "ayrık kimliklerde XFL_031 çıkmamalı"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2226,8 +2501,11 @@ fn xfl031_detects_geojson_id_clashing_with_stop_id() {
     files.push(("locations.geojson", GEOJSON));
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "XFL_031" && n.entity_id.as_deref() == Some("S1")),
-            "stops.txt'teki S1 ile çakışan geojson id XFL_031 üretmeli"),
+            vr.notices
+                .iter()
+                .any(|n| n.rule_id == "XFL_031" && n.entity_id.as_deref() == Some("S1")),
+            "stops.txt'teki S1 ile çakışan geojson id XFL_031 üretmeli"
+        ),
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
 }
@@ -2248,12 +2526,25 @@ fn loc008_009_010_detect_missing_required_feature_members() {
     // type yok · properties yok · coordinates yok
     static BAD: &[u8] = br#"{"type":"FeatureCollection","features":[
         {"id":"z1","geometry":{"type":"Polygon"}}]}"#;
-    match validate_bytes(&make_zip(&geojson_feed(BAD)), &ValidatorConfig::default(), TODAY) {
+    match validate_bytes(
+        &make_zip(&geojson_feed(BAD)),
+        &ValidatorConfig::default(),
+        TODAY,
+    ) {
         ValidateResult::Ok(vr) => {
             let ids: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str()).collect();
-            assert!(ids.contains(&"LOC_008"), "'type' eksik → LOC_008 çıkmalı: {ids:?}");
-            assert!(ids.contains(&"LOC_009"), "'properties' eksik → LOC_009 çıkmalı: {ids:?}");
-            assert!(ids.contains(&"LOC_010"), "'coordinates' eksik → LOC_010 çıkmalı: {ids:?}");
+            assert!(
+                ids.contains(&"LOC_008"),
+                "'type' eksik → LOC_008 çıkmalı: {ids:?}"
+            );
+            assert!(
+                ids.contains(&"LOC_009"),
+                "'properties' eksik → LOC_009 çıkmalı: {ids:?}"
+            );
+            assert!(
+                ids.contains(&"LOC_010"),
+                "'coordinates' eksik → LOC_010 çıkmalı: {ids:?}"
+            );
         }
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     }
@@ -2266,10 +2557,18 @@ fn loc008_009_010_silent_on_a_valid_feature() {
     static GOOD: &[u8] = br#"{"type":"FeatureCollection","features":[
         {"type":"Feature","id":"z1","properties":{},"geometry":{"type":"Polygon","coordinates":
         [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]}}]}"#;
-    match validate_bytes(&make_zip(&geojson_feed(GOOD)), &ValidatorConfig::default(), TODAY) {
+    match validate_bytes(
+        &make_zip(&geojson_feed(GOOD)),
+        &ValidatorConfig::default(),
+        TODAY,
+    ) {
         ValidateResult::Ok(vr) => {
-            let bad: Vec<&str> = vr.notices.iter().map(|n| n.rule_id.as_str())
-                .filter(|r| matches!(*r, "LOC_008" | "LOC_009" | "LOC_010")).collect();
+            let bad: Vec<&str> = vr
+                .notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .filter(|r| matches!(*r, "LOC_008" | "LOC_009" | "LOC_010"))
+                .collect();
             assert!(bad.is_empty(), "geçerli feature notice üretmemeli: {bad:?}");
         }
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
@@ -2295,8 +2594,14 @@ fn rule_priority_in_fare_transfer_rules_is_an_unknown_column() {
                     && n.file.as_deref() == Some("fare_transfer_rules.txt")
                     && n.field.as_deref() == Some("rule_priority")
             });
-            assert!(hit, "fare_transfer_rules.rule_priority ARC_017 üretmeli, emit: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+            assert!(
+                hit,
+                "fare_transfer_rules.rule_priority ARC_017 üretmeli, emit: {:?}",
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>()
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -2310,10 +2615,14 @@ fn rule_priority_in_fare_leg_rules_stays_a_known_column() {
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            let hit = vr.notices.iter().any(|n| {
-                n.rule_id == "ARC_017" && n.field.as_deref() == Some("rule_priority")
-            });
-            assert!(!hit, "fare_leg_rules.rule_priority resmî alandır, ARC_017 çıkmamalı");
+            let hit = vr
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_017" && n.field.as_deref() == Some("rule_priority"));
+            assert!(
+                !hit,
+                "fare_leg_rules.rule_priority resmî alandır, ARC_017 çıkmamalı"
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -2336,8 +2645,7 @@ static CAL_DISJOINT: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
       SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
       SVC3,0,0,0,0,0,1,1,20250101,20271231\n";
-static ST_THREE_TRIPS: &[u8] =
-    b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+static ST_THREE_TRIPS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
       T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
       T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n\
       T3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n";
@@ -2371,11 +2679,19 @@ fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
     );
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            assert!(has(&vr, "TRF_022"),
+            assert!(
+                has(&vr, "TRF_022"),
                 "TRF_022 olmalı. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>()
+            );
             // Ters yön ateşlememeli: T2 ve T3'ün her birine tek sefer bağlanıyor.
-            assert!(!has(&vr, "TRF_023"), "n-to-1 çelişkisi yok, TRF_023 çıkmamalı");
+            assert!(
+                !has(&vr, "TRF_023"),
+                "n-to-1 çelişkisi yok, TRF_023 çıkmamalı"
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -2391,8 +2707,10 @@ fn trf022_silent_when_continuation_trips_share_one_service_id() {
         b"from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n",
     );
     match run(&files) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "TRF_022"),
-            "Özdeş service_id geçerli 1-to-n devamlılıktır, TRF_022 çıkmamalı"),
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "TRF_022"),
+            "Özdeş service_id geçerli 1-to-n devamlılıktır, TRF_022 çıkmamalı"
+        ),
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
@@ -2408,9 +2726,14 @@ fn trf022_silent_when_separate_continuations_do_not_share_a_service_day() {
         b"from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n",
     );
     match run(&files) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "TRF_022"),
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "TRF_022"),
             "Çakışmayan takvimler ayrı devamlılıktır, TRF_022 çıkmamalı. Mevcut: {:?}",
-            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+            vr.notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>()
+        ),
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
@@ -2425,10 +2748,18 @@ fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
     );
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            assert!(has(&vr, "TRF_023"),
+            assert!(
+                has(&vr, "TRF_023"),
                 "TRF_023 olmalı. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
-            assert!(!has(&vr, "TRF_022"), "1-to-n çelişkisi yok, TRF_022 çıkmamalı");
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>()
+            );
+            assert!(
+                !has(&vr, "TRF_022"),
+                "1-to-n çelişkisi yok, TRF_022 çıkmamalı"
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -2440,18 +2771,23 @@ fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
 fn dq021_flags_calendar_dates_with_conflicting_exception_types() {
     // Aynı (service_id, date) hem exception_type=1 hem =2 → o günün servisi TANIMSIZ.
     // Birincil anahtar ihlalinin en ağır biçimi; hiçbir CLD_* kuralı bunu görmüyordu.
-    static CLD: &[u8] =
-        b"service_id,date,exception_type\nSVC1,20260701,1\nSVC1,20260701,2\n";
+    static CLD: &[u8] = b"service_id,date,exception_type\nSVC1,20260701,1\nSVC1,20260701,2\n";
     let mut files = base_files();
     files.push(("calendar_dates.txt", CLD));
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            let hit = vr.notices.iter().find(|n| {
-                n.rule_id == "DQ_021" && n.file.as_deref() == Some("calendar_dates.txt")
-            });
-            assert!(hit.is_some(),
+            let hit = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "DQ_021" && n.file.as_deref() == Some("calendar_dates.txt"));
+            assert!(
+                hit.is_some(),
                 "calendar_dates için DQ_021 olmalı. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>()
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -2459,8 +2795,7 @@ fn dq021_flags_calendar_dates_with_conflicting_exception_types() {
 
 #[test]
 fn dq021_silent_when_calendar_dates_keys_are_unique() {
-    static CLD: &[u8] =
-        b"service_id,date,exception_type\nSVC1,20260701,2\nSVC1,20260702,2\n";
+    static CLD: &[u8] = b"service_id,date,exception_type\nSVC1,20260701,2\nSVC1,20260702,2\n";
     let mut files = base_files();
     files.push(("calendar_dates.txt", CLD));
     match run(&files) {
@@ -2468,7 +2803,8 @@ fn dq021_silent_when_calendar_dates_keys_are_unique() {
             !vr.notices.iter().any(|n| {
                 n.rule_id == "DQ_021" && n.file.as_deref() == Some("calendar_dates.txt")
             }),
-            "Benzersiz (service_id, date) çiftlerinde DQ_021 çıkmamalı"),
+            "Benzersiz (service_id, date) çiftlerinde DQ_021 çıkmamalı"
+        ),
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
@@ -2487,14 +2823,20 @@ fn dq021_flags_duplicate_rows_in_stop_areas_and_fare_rules() {
     files.push(("fare_rules.txt", FARE_RULES));
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            let files_hit: Vec<&str> = vr.notices.iter()
+            let files_hit: Vec<&str> = vr
+                .notices
+                .iter()
                 .filter(|n| n.rule_id == "DQ_021")
                 .filter_map(|n| n.file.as_deref())
                 .collect();
-            assert!(files_hit.contains(&"stop_areas.txt"),
-                "stop_areas.txt için DQ_021 olmalı. DQ_021 dosyaları: {files_hit:?}");
-            assert!(files_hit.contains(&"fare_rules.txt"),
-                "fare_rules.txt için DQ_021 olmalı. DQ_021 dosyaları: {files_hit:?}");
+            assert!(
+                files_hit.contains(&"stop_areas.txt"),
+                "stop_areas.txt için DQ_021 olmalı. DQ_021 dosyaları: {files_hit:?}"
+            );
+            assert!(
+                files_hit.contains(&"fare_rules.txt"),
+                "fare_rules.txt için DQ_021 olmalı. DQ_021 dosyaları: {files_hit:?}"
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
@@ -2527,9 +2869,14 @@ fn pathway_files(stops: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
 #[test]
 fn pth031_flags_pathway_endpoint_with_stop_access_1() {
     match run(&pathway_files(STOPS_WITH_ACCESS)) {
-        ValidateResult::Ok(vr) => assert!(has(&vr, "PTH_031"),
+        ValidateResult::Ok(vr) => assert!(
+            has(&vr, "PTH_031"),
             "PTH_031 olmalı. Mevcut: {:?}",
-            vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>()),
+            vr.notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>()
+        ),
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
@@ -2539,16 +2886,17 @@ fn pth031_silent_when_endpoints_are_not_street_accessed() {
     // stop_access=0 = "sokaktan doğrudan erişilemez, pathway kullanılmalı" → tam da
     // pathway'in beklendiği hâl. Kural burada susmalı.
     match run(&pathway_files(STOPS_NO_ACCESS)) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "PTH_031"),
-            "stop_access=0 pathway'in beklendiği hâldir, PTH_031 çıkmamalı"),
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "PTH_031"),
+            "stop_access=0 pathway'in beklendiği hâldir, PTH_031 çıkmamalı"
+        ),
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }
 }
 
 #[test]
 fn stp024_k2_range_and_stp026_normative_enum_are_distinct() {
-    static STOPS_WITH_ENUMS: &[u8] =
-        b"stop_id,stop_name,stop_lat,stop_lon,stop_access\n\
+    static STOPS_WITH_ENUMS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon,stop_access\n\
           S1,Stop1,41.0,29.0,2\n\
           S2,Stop2,41.1,29.1,9\n";
     let mut files = base_files();
@@ -2584,7 +2932,8 @@ fn stp024_k2_range_and_stp026_normative_enum_are_distinct() {
 fn semicolon_delimited_files_are_rejected_pc3b911a6() {
     // Aynı içerik, ayraç NOKTALI VİRGÜL. Başlık tek sütuna çöker → zorunlu sütunlar
     // bulunamaz. Beklenen: ya Fatal(NoRequiredFiles) ya da ARC_025 (zorunlu sütun eksik).
-    static SEMI_STOPS: &[u8] = b"stop_id;stop_name;stop_lat;stop_lon\nS1;Stop1;41.0;29.0\nS2;Stop2;41.1;29.1\n";
+    static SEMI_STOPS: &[u8] =
+        b"stop_id;stop_name;stop_lat;stop_lon\nS1;Stop1;41.0;29.0\nS2;Stop2;41.1;29.1\n";
     let mut files = base_files();
     files.retain(|(n, _)| *n != "stops.txt");
     files.push(("stops.txt", SEMI_STOPS));
@@ -2592,13 +2941,22 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
     match run(&files) {
         ValidateResult::Fatal(e) => {
             // Zorunlu dosya sütunları çözülemedi → fatal. Hüküm ÖLÇÜLÜYOR.
-            assert_eq!(e.code, FatalCode::NoRequiredFiles,
-                "virgül olmayan ayraç fatal üretmeli, gelen: {:?}", e.code);
+            assert_eq!(
+                e.code,
+                FatalCode::NoRequiredFiles,
+                "virgül olmayan ayraç fatal üretmeli, gelen: {:?}",
+                e.code
+            );
         }
         ValidateResult::Ok(vr) => {
-            assert!(has(&vr, "ARC_025"),
+            assert!(
+                has(&vr, "ARC_025"),
                 "noktalı virgülle ayrılmış stops.txt ARC_025 üretmeli. Mevcut: {:?}",
-                vr.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+                vr.notices
+                    .iter()
+                    .map(|n| n.rule_id.as_str())
+                    .collect::<Vec<_>>()
+            );
         }
     }
 
@@ -2606,8 +2964,10 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
     // feed'de ateşliyorsa "ölçüm" bir şey kanıtlamaz. Aynı içerik VİRGÜLLE ayrılmış hâlde
     // sessiz kalmalı — fark, hükmün gerçekten ölçüldüğünü gösteren şeydir.
     match run(&base_files()) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "ARC_025"),
-            "virgülle ayrılmış aynı içerik ARC_025 ÜRETMEMELİ (kontrol)"),
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "ARC_025"),
+            "virgülle ayrılmış aynı içerik ARC_025 ÜRETMEMELİ (kontrol)"
+        ),
         other => panic!("kontrol girdisi Ok olmalı: {other:?}"),
     }
 }
@@ -2627,18 +2987,25 @@ S2,Stop2,41.1,29.1
 ";
     let mut files = base_files();
     for slot in files.iter_mut() {
-        if slot.0 == "stops.txt" { slot.1 = NO_HEADER; }
+        if slot.0 == "stops.txt" {
+            slot.1 = NO_HEADER;
+        }
     }
     let violating_fires = match run(&files) {
         ValidateResult::Fatal(e) => e.code == FatalCode::NoRequiredFiles,
         ValidateResult::Ok(vr) => has(&vr, "ARC_025"),
     };
-    assert!(violating_fires, "başlıksız dosya zorunlu sütun ihlali üretmeli");
+    assert!(
+        violating_fires,
+        "başlıksız dosya zorunlu sütun ihlali üretmeli"
+    );
 
     // KONTROL: aynı veri, başlık satırıyla → sessiz.
     match run(&base_files()) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "ARC_025"),
-            "başlığı olan aynı içerik ARC_025 ÜRETMEMELİ (kontrol)"),
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "ARC_025"),
+            "başlığı olan aynı içerik ARC_025 ÜRETMEMELİ (kontrol)"
+        ),
         other => panic!("kontrol girdisi Ok olmalı: {other:?}"),
     }
 }
@@ -2674,52 +3041,67 @@ fn loc011_fires(geometry: &str) -> bool {
 #[test]
 fn loc011_flags_holes_that_intersect_each_other() {
     // İki delik üst üste biniyor → 6.1.11 (3) "no two Rings cross".
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[10,10],[10,0],[0,0]],
              [[1,1],[1,5],[5,5],[5,1],[1,1]],
              [[3,3],[3,7],[7,7],[7,3],[3,3]]]}"#
-    ), "birbirini kesen iki delik LOC_011 üretmeli");
+        ),
+        "birbirini kesen iki delik LOC_011 üretmeli"
+    );
 }
 
 #[test]
 fn loc011_flags_hole_partially_outside_the_shell() {
     // Deliğin İLK NOKTASI kabuğun içinde ama gövdesi dışarı taşıyor. Eski predikat
     // yalnız ilk noktaya baktığı için bunu KAÇIRIYORDU.
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[10,10],[10,0],[0,0]],
              [[5,5],[5,15],[8,15],[8,5],[5,5]]]}"#
-    ), "kısmen dışarı taşan delik LOC_011 üretmeli");
+        ),
+        "kısmen dışarı taşan delik LOC_011 üretmeli"
+    );
 }
 
 #[test]
 fn loc011_flags_spike() {
     // Kabuk bir doğru boyunca çıkıp aynı doğrudan dönüyor → sıfır alanlı çıkıntı.
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[5,10],[20,10],[5,10],[10,10],[10,0],[0,0]]]}"#
-    ), "spike/cut line LOC_011 üretmeli");
+        ),
+        "spike/cut line LOC_011 üretmeli"
+    );
 }
 
 #[test]
 fn loc011_silent_on_valid_polygon_with_hole() {
     // Tamamen geçerli: delik kabuğun içinde, kesişme yok, spike yok.
-    assert!(!loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        !loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[10,10],[10,0],[0,0]],
              [[2,2],[2,4],[4,4],[4,2],[2,2]]]}"#
-    ), "geçerli poligon LOC_011 üretmemeli");
+        ),
+        "geçerli poligon LOC_011 üretmemeli"
+    );
 }
 
 #[test]
 fn loc011_silent_on_clockwise_shell() {
     // ⚠️ EN ÖNEMLİ TEST: ring yönü 6.1.11'in geçerlilik koşulu DEĞİLDİR. Saat yönünde
     // yazılmış kabuk GEÇERLİDİR; burada ateşlemek `PTH_017` hatasını tekrarlamak olurdu.
-    assert!(!loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        !loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[10,0],[10,10],[0,10],[0,0]]]}"#
-    ), "saat yönü kabuk 6.1.11'e göre GEÇERLİDİR, LOC_011 çıkmamalı");
+        ),
+        "saat yönü kabuk 6.1.11'e göre GEÇERLİDİR, LOC_011 çıkmamalı"
+    );
 }
 
 // ── STM_060: geojson bölgesi + pencere + davranış EŞZAMANLI örtüşmesi ──────────────
@@ -2775,7 +3157,10 @@ fn stm060_silent_when_time_windows_do_not_overlap() {
     // Bölgeler kesişiyor ama pencereler ardışık, çakışmıyor.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,10:00:00,12:00:00,2,2\n";
-    assert!(!stm060_fires(ST), "çakışmayan pencerelerde STM_060 çıkmamalı");
+    assert!(
+        !stm060_fires(ST),
+        "çakışmayan pencerelerde STM_060 çıkmamalı"
+    );
 }
 
 #[test]
@@ -2784,7 +3169,10 @@ fn stm060_silent_when_behaviour_does_not_overlap() {
     // pickup_type=1 → biniş yok · drop_off_type=1 → iniş yok.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,1\nT1,Z2,2,09:00:00,11:00:00,1,2\n";
-    assert!(!stm060_fires(ST), "davranış örtüşmesi yoksa STM_060 çıkmamalı");
+    assert!(
+        !stm060_fires(ST),
+        "davranış örtüşmesi yoksa STM_060 çıkmamalı"
+    );
 }
 
 #[test]
@@ -2808,8 +3196,10 @@ fn stm060_silent_for_two_records_in_the_same_zone() {
     // yasak saymak `PTH_017` hatasının aynısıdır.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,07:00:00,11:00:00,2,2\nT1,Z1,2,07:00:00,11:00:00,2,2\n";
-    assert!(!stm060_fires(ST),
-        "aynı bölgedeki iki kayıt bölge-içi seyahattir, STM_060 çıkmamalı");
+    assert!(
+        !stm060_fires(ST),
+        "aynı bölgedeki iki kayıt bölge-içi seyahattir, STM_060 çıkmamalı"
+    );
 }
 
 #[test]
@@ -2817,32 +3207,41 @@ fn loc011_flags_hole_touching_shell_at_two_points() {
     // OpenGIS 6.1.11 madde 5: iç kısım BAĞLANTILI olmalı. Delik dış ring'e İKİ noktada
     // dokunursa poligonun içi o temaslar arasında ikiye bölünür.
     // ⚠️ Madde 3 TEK noktada teğetliğe izin verir → aşağıdaki negatif test onu korur.
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[10,10],[10,0],[0,0]],
              [[0,3],[5,5],[0,7],[0,3]]]}"#
-    ), "kabuğa iki noktada dokunan delik iç kısmı böler → LOC_011");
+        ),
+        "kabuğa iki noktada dokunan delik iç kısmı böler → LOC_011"
+    );
 }
 
 #[test]
 fn loc011_silent_when_hole_touches_shell_at_one_point() {
     // Tek noktada teğetlik 6.1.11'in AÇIKÇA izin verdiği hâldir. Burada ateşlemek
     // `PTH_017` hatasını tekrarlamak olurdu.
-    assert!(!loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        !loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[10,10],[10,0],[0,0]],
              [[0,5],[3,7],[3,3],[0,5]]]}"#
-    ), "tek noktada teğet delik 6.1.11'e göre GEÇERLİDİR");
+        ),
+        "tek noktada teğet delik 6.1.11'e göre GEÇERLİDİR"
+    );
 }
 
 #[test]
 fn loc011_flags_two_holes_touching_at_two_points() {
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,20],[20,20],[20,0],[0,0]],
              [[2,2],[2,8],[8,8],[8,2],[2,2]],
              [[8,2],[8,8],[14,8],[14,2],[8,2]]]}"#
-    ), "iki noktada dokunan iki delik iç kısmı böler → LOC_011");
+        ),
+        "iki noktada dokunan iki delik iç kısmı böler → LOC_011"
+    );
 }
 
 // ── ARC_022: dosya satır sayısı eşiği — ÜÇ emit noktası ───────────────────────
@@ -2908,14 +3307,20 @@ fn arc022_fires_for(file: &str, n: usize) -> bool {
     if let Some(slot) = files.iter_mut().find(|(name, _)| *name == file) {
         slot.1 = Box::leak(body.clone().into_bytes().into_boxed_slice());
     } else {
-        files.push((Box::leak(file.to_string().into_boxed_str()),
-                    Box::leak(body.clone().into_bytes().into_boxed_slice())));
+        files.push((
+            Box::leak(file.to_string().into_boxed_str()),
+            Box::leak(body.clone().into_bytes().into_boxed_slice()),
+        ));
     }
-    let cfg = ValidatorConfig { max_file_rows: 10, ..ValidatorConfig::default() };
+    let cfg = ValidatorConfig {
+        max_file_rows: 10,
+        ..ValidatorConfig::default()
+    };
     match validate_bytes(&make_zip(&files), &cfg, TODAY) {
-        ValidateResult::Ok(vr) => vr.notices.iter().any(|n| {
-            n.rule_id == "ARC_022" && n.entity_id.as_deref() == Some(file)
-        }),
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_022" && n.entity_id.as_deref() == Some(file)),
         other => panic!("fatal beklenmiyordu: {other:?}"),
     }
 }
@@ -2923,21 +3328,27 @@ fn arc022_fires_for(file: &str, n: usize) -> bool {
 #[test]
 fn arc022_fires_on_k1_non_streamed_file() {
     // stops.txt akış-dışı okunur → eşik k1_parse'ta okunur.
-    assert!(arc022_fires_for("stops.txt", 11),
-        "11 satır > eşik 10 → stops.txt için ARC_022 çıkmalı");
+    assert!(
+        arc022_fires_for("stops.txt", 11),
+        "11 satır > eşik 10 → stops.txt için ARC_022 çıkmalı"
+    );
 }
 
 #[test]
 fn arc022_fires_on_k2_stop_times_stream() {
     // stop_times.txt K1'de stream edilir; ARC_022'yi K2 üretir (rows K1'de boştur).
-    assert!(arc022_fires_for("stop_times.txt", 11),
-        "11 satır > eşik 10 → stop_times.txt için ARC_022 çıkmalı");
+    assert!(
+        arc022_fires_for("stop_times.txt", 11),
+        "11 satır > eşik 10 → stop_times.txt için ARC_022 çıkmalı"
+    );
 }
 
 #[test]
 fn arc022_fires_on_k2_shapes_stream() {
-    assert!(arc022_fires_for("shapes.txt", 11),
-        "11 satır > eşik 10 → shapes.txt için ARC_022 çıkmalı");
+    assert!(
+        arc022_fires_for("shapes.txt", 11),
+        "11 satır > eşik 10 → shapes.txt için ARC_022 çıkmalı"
+    );
 }
 
 // ── issue #75: akış dosyalarının KALAN İKİSİ ────────────────────────────────
@@ -2947,22 +3358,34 @@ fn arc022_fires_on_k2_shapes_stream() {
 
 #[test]
 fn arc022_fires_on_k2_trips_stream() {
-    assert!(arc022_fires_for("trips.txt", 11),
-        "11 satır > eşik 10 → trips.txt için ARC_022 çıkmalı");
+    assert!(
+        arc022_fires_for("trips.txt", 11),
+        "11 satır > eşik 10 → trips.txt için ARC_022 çıkmalı"
+    );
 }
 
 #[test]
 fn arc022_fires_on_k2_calendar_dates_stream() {
-    assert!(arc022_fires_for("calendar_dates.txt", 11),
-        "11 satır > eşik 10 → calendar_dates.txt için ARC_022 çıkmalı");
+    assert!(
+        arc022_fires_for("calendar_dates.txt", 11),
+        "11 satır > eşik 10 → calendar_dates.txt için ARC_022 çıkmalı"
+    );
 }
 
 #[test]
 fn arc022_silent_at_the_threshold_on_every_path() {
     // Sınır: eşiğe EŞİT satır sayısı ihlal DEĞİLDİR (`>` karşılaştırması).
-    for file in ["stops.txt", "stop_times.txt", "shapes.txt", "trips.txt", "calendar_dates.txt"] {
-        assert!(!arc022_fires_for(file, 10),
-            "{file}: eşiğe eşit (10) satır ARC_022 üretmemeli");
+    for file in [
+        "stops.txt",
+        "stop_times.txt",
+        "shapes.txt",
+        "trips.txt",
+        "calendar_dates.txt",
+    ] {
+        assert!(
+            !arc022_fires_for(file, 10),
+            "{file}: eşiğe eşit (10) satır ARC_022 üretmemeli"
+        );
     }
 }
 
@@ -2981,18 +3404,27 @@ fn arc022_notice_order_is_stable_across_runs() {
             None => files.push((name, body)),
         }
     }
-    let cfg = ValidatorConfig { max_file_rows: 10, ..ValidatorConfig::default() };
+    let cfg = ValidatorConfig {
+        max_file_rows: 10,
+        ..ValidatorConfig::default()
+    };
     let zip = make_zip(&files);
     let order = |vr: &gtfs_core::ValidationResult| -> Vec<String> {
-        vr.notices.iter().filter(|n| n.rule_id == "ARC_022")
-            .map(|n| n.entity_id.clone().unwrap_or_default()).collect()
+        vr.notices
+            .iter()
+            .filter(|n| n.rule_id == "ARC_022")
+            .map(|n| n.entity_id.clone().unwrap_or_default())
+            .collect()
     };
     let first = match validate_bytes(&zip, &cfg, TODAY) {
         ValidateResult::Ok(vr) => order(&vr),
         other => panic!("fatal beklenmiyordu: {other:?}"),
     };
-    assert_eq!(first, vec!["calendar_dates.txt", "shapes.txt", "trips.txt"],
-        "ARC_022 bulguları dosya adına göre sıralı gelmeli");
+    assert_eq!(
+        first,
+        vec!["calendar_dates.txt", "shapes.txt", "trips.txt"],
+        "ARC_022 bulguları dosya adına göre sıralı gelmeli"
+    );
     for _ in 0..5 {
         let again = match validate_bytes(&zip, &cfg, TODAY) {
             ValidateResult::Ok(vr) => order(&vr),
@@ -3014,13 +3446,16 @@ fn loc011_flags_three_holes_touching_pairwise_in_a_chain() {
     // A–B, B–C, C–A: her temas TEK nokta (madde 3 tek tek hepsine izin verir) ama üçü
     // birlikte çevrim kapatır → aralarında kalan alan iç kısmın geri kalanından KOPAR.
     // Delikler kabuğa DOKUNMAZ; çevrim yalnız delikler arasındadır.
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,20],[20,20],[20,0],[0,0]],
              [[2,2],[12,2],[2,12],[2,2]],
              [[18,4],[18,12],[12,2],[18,4]],
              [[4,18],[2,12],[18,12],[4,18]]]}"#
-    ), "üçgen temas zinciri iç kısmı böler → LOC_011");
+        ),
+        "üçgen temas zinciri iç kısmı böler → LOC_011"
+    );
 }
 
 #[test]
@@ -3028,13 +3463,16 @@ fn loc011_silent_on_open_chain_of_single_point_contacts() {
     // A–B ve B–C birer noktada dokunuyor, C–A DOKUNMUYOR → grafik AĞAÇ, çevrim yok.
     // Kıstırma noktalarının etrafından dolaşılabildiği için iç kısım BAĞLANTILI kalır.
     // Bu, çevrim ölçütünün yanlış pozitife dönüşmediğinin kanıtıdır (`PTH_017` dersi).
-    assert!(!loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        !loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,20],[20,20],[20,0],[0,0]],
              [[2,2],[12,2],[2,12],[2,2]],
              [[18,4],[18,12],[12,2],[18,4]],
              [[4,18],[6,14],[18,12],[4,18]]]}"#
-    ), "kapanmayan temas zinciri iç kısmı bölmez, LOC_011 çıkmamalı");
+        ),
+        "kapanmayan temas zinciri iç kısmı bölmez, LOC_011 çıkmamalı"
+    );
 }
 
 #[test]
@@ -3042,10 +3480,13 @@ fn loc011_flags_ring_that_touches_itself() {
     // Sekiz şeklinde kabuk: (5,5) köşesine İKİ kez uğruyor. `ring_is_simple` bunu
     // göremez — teğetlik bilinçli olarak "kesişme" sayılmaz — ama iç kısım iki loba
     // ayrılır, yani madde 5 ihlalidir (temas grafiğinde ÖZ-DÖNGÜ).
-    assert!(loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[10,0],[5,5],[10,10],[0,10],[5,5],[0,0]]]}"#
-    ), "kendine dokunan ring iç kısmı böler → LOC_011");
+        ),
+        "kendine dokunan ring iç kısmı böler → LOC_011"
+    );
 }
 
 #[test]
@@ -3053,20 +3494,26 @@ fn loc011_silent_on_duplicate_consecutive_vertex() {
     // ARDIŞIK yinelenen koordinat (sıfır uzunluklu kenar) gerçek veride yaygındır ve
     // öz-temas DEĞİLDİR. Öz-temas denetimi komşu indeksleri atlamasaydı bu yaygın
     // özensizlik anında yanlış pozitif olurdu.
-    assert!(!loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        !loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,10],[0,10],[10,10],[10,0],[0,0]]]}"#
-    ), "ardışık yinelenen köşe öz-temas değildir, LOC_011 çıkmamalı");
+        ),
+        "ardışık yinelenen köşe öz-temas değildir, LOC_011 çıkmamalı"
+    );
 }
 
 #[test]
 fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
     // Düz kenar üzerindeki ara köşe ((0,5)) kendi komşu kenarlarının üstündedir;
     // öz-temas SAYILMAZ. Aksi hâlde her yoğunlaştırılmış (densified) sınır patlardı.
-    assert!(!loc011_fires(
-        r#"{"type":"Polygon","coordinates":[
+    assert!(
+        !loc011_fires(
+            r#"{"type":"Polygon","coordinates":[
              [[0,0],[0,5],[0,10],[10,10],[10,0],[0,0]]]}"#
-    ), "düz kenar üzerindeki ara köşe öz-temas değildir, LOC_011 çıkmamalı");
+        ),
+        "düz kenar üzerindeki ara köşe öz-temas değildir, LOC_011 çıkmamalı"
+    );
 }
 
 // ── ARC_033: RFC 4180 tırnak kuralı ────────────────────────────────────────────
@@ -3099,9 +3546,12 @@ fn arc033_fires(stops: &str) -> bool {
 
 #[test]
 fn arc033_flags_bare_quote_in_unquoted_field() {
-    assert!(arc033_fires(
-        "stop_id,stop_name,stop_lat,stop_lon\nS1,12\" Street,41.0,29.0\nS2,Stop2,41.1,29.1\n"
-    ), "tırnaksız alandaki tırnak RFC 4180 ihlalidir → ARC_033");
+    assert!(
+        arc033_fires(
+            "stop_id,stop_name,stop_lat,stop_lon\nS1,12\" Street,41.0,29.0\nS2,Stop2,41.1,29.1\n"
+        ),
+        "tırnaksız alandaki tırnak RFC 4180 ihlalidir → ARC_033"
+    );
 }
 
 #[test]
@@ -3133,9 +3583,12 @@ fn arc033_silent_on_quoted_value_containing_a_comma() {
 
 #[test]
 fn arc033_silent_on_a_feed_with_no_quotes_at_all() {
-    assert!(!arc033_fires(
-        "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n"
-    ), "tırnaksız temiz feed ARC_033 üretmemeli");
+    assert!(
+        !arc033_fires(
+            "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n"
+        ),
+        "tırnaksız temiz feed ARC_033 üretmemeli"
+    );
 }
 
 #[test]
@@ -3148,10 +3601,22 @@ fn arc033_reports_one_summary_per_file_not_one_per_row() {
     }
     match run(&arc033_feed(&stops)) {
         ValidateResult::Ok(vr) => {
-            let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "ARC_033").collect();
-            assert_eq!(hits.len(), 1, "dosya başına TEK özet bekleniyor, gelen: {}", hits.len());
+            let hits: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "ARC_033")
+                .collect();
+            assert_eq!(
+                hits.len(),
+                1,
+                "dosya başına TEK özet bekleniyor, gelen: {}",
+                hits.len()
+            );
             let observed = hits[0].observed_value.clone().unwrap_or_default();
-            assert!(observed.starts_with("5 rows"), "özet satır sayısını taşımalı: {observed}");
+            assert!(
+                observed.starts_with("5 rows"),
+                "özet satır sayısını taşımalı: {observed}"
+            );
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -3165,7 +3630,10 @@ fn arc033_covers_streamed_files_too() {
     let mut files = base_files();
     let trips: &'static [u8] = Box::leak(
         "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,5\" Line\n"
-            .to_string().into_bytes().into_boxed_slice());
+            .to_string()
+            .into_bytes()
+            .into_boxed_slice(),
+    );
     for slot in files.iter_mut() {
         if slot.0 == "trips.txt" {
             slot.1 = trips;
@@ -3173,8 +3641,11 @@ fn arc033_covers_streamed_files_too() {
     }
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "ARC_033" && n.entity_id.as_deref() == Some("trips.txt")),
-            "akış modundaki trips.txt için de ARC_033 çıkmalı"),
+            vr.notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_033" && n.entity_id.as_deref() == Some("trips.txt")),
+            "akış modundaki trips.txt için de ARC_033 çıkmalı"
+        ),
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
@@ -3207,12 +3678,18 @@ fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
 #[test]
 fn case_sensitivity_wrong_case_required_column_is_missing() {
     // `STOP_ID` ≠ `stop_id` → zorunlu sütun YOK (ARC_025) + bilinmeyen sütun (ARC_017).
-    let files = arc033_feed(
-        "STOP_ID,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
+    let files =
+        arc033_feed("STOP_ID,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            assert!(has(&vr, "ARC_025"), "yanlış-case zorunlu sütun ARC_025 üretmeli");
-            assert!(has(&vr, "ARC_017"), "yanlış-case sütun bilinmeyen sütun olarak da görünmeli");
+            assert!(
+                has(&vr, "ARC_025"),
+                "yanlış-case zorunlu sütun ARC_025 üretmeli"
+            );
+            assert!(
+                has(&vr, "ARC_017"),
+                "yanlış-case sütun bilinmeyen sütun olarak da görünmeli"
+            );
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -3221,8 +3698,8 @@ fn case_sensitivity_wrong_case_required_column_is_missing() {
 #[test]
 fn case_sensitivity_correct_case_stays_silent() {
     // Koruyucu: doğru yazım bu iki kuralı ÜRETMEMELİ.
-    let files = arc033_feed(
-        "stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
+    let files =
+        arc033_feed("stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
     match run(&files) {
         ValidateResult::Ok(vr) => {
             assert!(!has(&vr, "ARC_025"), "doğru yazımda ARC_025 çıkmamalı");
@@ -3264,7 +3741,8 @@ fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
             vr.notices.iter().any(|n| n.rule_id == "STM_002"),
-            "`A` referansı `\" A \"` durağıyla karşılanmamalı → STM_002 (stop_id stops.txt'te yok)"),
+            "`A` referansı `\" A \"` durağıyla karşılanmamalı → STM_002 (stop_id stops.txt'te yok)"
+        ),
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
@@ -3280,7 +3758,8 @@ fn id85_padded_and_bare_ids_are_not_duplicates() {
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
             !vr.notices.iter().any(|n| n.rule_id == "STP_001"),
-            "farklı sözlüksel kimlikler duplicate DEĞİLDİR"),
+            "farklı sözlüksel kimlikler duplicate DEĞİLDİR"
+        ),
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
@@ -3298,8 +3777,14 @@ fn id85_whitespace_only_id_still_reports_the_required_field() {
     );
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            assert!(has(&vr, "STP_002"), "yalnız boşluktan oluşan stop_id zorunlu-alan ihlalidir");
-            assert!(has(&vr, "DQ_016"), "fazladan boşluk AYRI kalite sinyali olarak kalmalı");
+            assert!(
+                has(&vr, "STP_002"),
+                "yalnız boşluktan oluşan stop_id zorunlu-alan ihlalidir"
+            );
+            assert!(
+                has(&vr, "DQ_016"),
+                "fazladan boşluk AYRI kalite sinyali olarak kalmalı"
+            );
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -3329,50 +3814,98 @@ fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() 
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            let routes_root = vr.notices.iter()
+            let routes_root = vr
+                .notices
+                .iter()
                 .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt"))
                 .expect("routes.txt için DQ_016 kök bulgusu");
-            let evidence = routes_root.details.as_ref()
+            let evidence = routes_root
+                .details
+                .as_ref()
                 .and_then(|d| d.get("raw_samples"))
                 .cloned()
                 .unwrap_or_default();
-            assert!(evidence.contains("route_type=\" 99\""),
-                "ham enum değeri korunmalı: {evidence}");
-            assert!(routes_root.details.as_ref()
-                .and_then(|d| d.get("suppressed_derivative_rules"))
-                .is_some_and(|rules| rules.contains("RTS_004")),
-                "typed route_type türevi audit özetinde görünmeli");
-            assert_eq!(vr.notices.iter().filter(|n| n.rule_id == "RTS_004").count(), 1,
-                "trim sonrası bağımsız geçersiz enum korunmalı, yalnız R2 türevi bastırılmalı");
-            assert!(vr.notices.iter().any(|n| n.rule_id == "RTS_005"),
-                "aynı route entity'deki bağımsız URL hatası korunmalı");
+            assert!(
+                evidence.contains("route_type=\" 99\""),
+                "ham enum değeri korunmalı: {evidence}"
+            );
+            assert!(
+                routes_root
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("suppressed_derivative_rules"))
+                    .is_some_and(|rules| rules.contains("RTS_004")),
+                "typed route_type türevi audit özetinde görünmeli"
+            );
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "RTS_004").count(),
+                1,
+                "trim sonrası bağımsız geçersiz enum korunmalı, yalnız R2 türevi bastırılmalı"
+            );
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "RTS_005"),
+                "aynı route entity'deki bağımsız URL hatası korunmalı"
+            );
 
-            let stops_root = vr.notices.iter()
+            let stops_root = vr
+                .notices
+                .iter()
                 .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("stops.txt"))
                 .expect("stops.txt için DQ_016 kök bulgusu");
-            assert!(stops_root.details.as_ref()
-                .and_then(|d| d.get("suppressed_derivative_rules"))
-                .is_some_and(|rules| rules.contains("STP_004")),
-                "numeric parse türevi audit özetinde görünmeli");
-            assert_eq!(vr.notices.iter().filter(|n| n.rule_id == "STP_004").count(), 1,
-                "trim sonrası bağımsız geçersiz enlem korunmalı, yalnız S2 türevi bastırılmalı");
-            assert!(vr.notices.iter().any(|n| n.rule_id == "STP_005"),
-                "aynı stop entity'deki bağımsız longitude aralık hatası korunmalı");
+            assert!(
+                stops_root
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("suppressed_derivative_rules"))
+                    .is_some_and(|rules| rules.contains("STP_004")),
+                "numeric parse türevi audit özetinde görünmeli"
+            );
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "STP_004").count(),
+                1,
+                "trim sonrası bağımsız geçersiz enlem korunmalı, yalnız S2 türevi bastırılmalı"
+            );
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "STP_005"),
+                "aynı stop entity'deki bağımsız longitude aralık hatası korunmalı"
+            );
 
-            let stop_times_root = vr.notices.iter()
+            let stop_times_root = vr
+                .notices
+                .iter()
                 .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("stop_times.txt"))
                 .expect("stop_times.txt için DQ_016 kök bulgusu");
             let stm_details = stop_times_root.details.as_ref().expect("audit details");
-            assert!(stm_details.get("raw_samples").is_some_and(|v| v.contains("stop_id=\" S1\"")),
-                "ham PK/FK değeri kanıtta korunmalı");
-            assert!(stm_details.get("suppressed_derivative_rules")
-                .is_some_and(|rules| rules.contains("STM_002")),
-                "FK türevi audit özetinde görünmeli");
-            let stm_fk: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_002").collect();
-            assert_eq!(stm_fk.len(), 1,
-                "trim edilmiş hedefin türevi bastırılmalı, bilinmeyen FK hatası korunmalı");
-            assert!(stm_fk[0].observed_value.as_deref().is_some_and(|v| v.contains("UNKNOWN")),
-                "korunan STM_002 bilinmeyen ham FK değerini göstermeli: {:?}", stm_fk[0]);
+            assert!(
+                stm_details
+                    .get("raw_samples")
+                    .is_some_and(|v| v.contains("stop_id=\" S1\"")),
+                "ham PK/FK değeri kanıtta korunmalı"
+            );
+            assert!(
+                stm_details
+                    .get("suppressed_derivative_rules")
+                    .is_some_and(|rules| rules.contains("STM_002")),
+                "FK türevi audit özetinde görünmeli"
+            );
+            let stm_fk: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "STM_002")
+                .collect();
+            assert_eq!(
+                stm_fk.len(),
+                1,
+                "trim edilmiş hedefin türevi bastırılmalı, bilinmeyen FK hatası korunmalı"
+            );
+            assert!(
+                stm_fk[0]
+                    .observed_value
+                    .as_deref()
+                    .is_some_and(|v| v.contains("UNKNOWN")),
+                "korunan STM_002 bilinmeyen ham FK değerini göstermeli: {:?}",
+                stm_fk[0]
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
@@ -3395,7 +3928,10 @@ fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            assert!(has(&vr, "DQ_016"), "pathways.txt whitespace kök bulgusu korunmalı");
+            assert!(
+                has(&vr, "DQ_016"),
+                "pathways.txt whitespace kök bulgusu korunmalı"
+            );
             for rule in ["PTH_004", "PTH_005", "PTH_006", "PTH_007", "PTH_010"] {
                 assert_eq!(
                     vr.notices.iter().filter(|n| n.rule_id == rule).count(),
@@ -3436,17 +3972,20 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
         }
         // get_col yolu: trim edilir, türev HİÇ doğmaz.
         if slot.0 == "trips.txt" {
-            slot.1 = b"route_id,service_id,trip_id,wheelchair_accessible\nR1,SV1,T1, 1 \n" as &[u8];
+            slot.1 =
+                b"route_id,service_id,trip_id,wheelchair_accessible\nR1,SV1,T1, 1 \n" as &[u8];
         }
     }
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
             let details = |file: &str| {
-                vr.notices.iter()
+                vr.notices
+                    .iter()
                     .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some(file))
                     .unwrap_or_else(|| panic!("{file} için DQ_016 kök bulgusu"))
-                    .details.as_ref()
+                    .details
+                    .as_ref()
                     .unwrap_or_else(|| panic!("{file} DQ_016 kanıt taşımalı"))
                     .clone()
             };
@@ -3455,16 +3994,26 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
             let trips = details("trips.txt");
 
             // Asimetri hâlâ VAR ve doğrudur: türev yalnız ham okuyan yolda doğar.
-            assert!(routes.contains_key("suppressed_derivative_rules"),
-                "ham okuyan yolda bastırılan türev kaydedilmeli: {routes:?}");
-            assert!(!trips.contains_key("suppressed_derivative_rules"),
-                "trim eden yolda bastırılacak türev yok: {trips:?}");
+            assert!(
+                routes.contains_key("suppressed_derivative_rules"),
+                "ham okuyan yolda bastırılan türev kaydedilmeli: {routes:?}"
+            );
+            assert!(
+                !trips.contains_key("suppressed_derivative_rules"),
+                "trim eden yolda bastırılacak türev yok: {trips:?}"
+            );
 
             // Kanıt ise artık İKİ rejimde de var — asimetriyi yanlış okumayı engelleyen şey bu.
-            assert_eq!(routes.get("typed_whitespace_fields").map(String::as_str),
-                Some("route_type"), "{routes:?}");
-            assert_eq!(trips.get("typed_whitespace_fields").map(String::as_str),
-                Some("wheelchair_accessible"), "{trips:?}");
+            assert_eq!(
+                routes.get("typed_whitespace_fields").map(String::as_str),
+                Some("route_type"),
+                "{routes:?}"
+            );
+            assert_eq!(
+                trips.get("typed_whitespace_fields").map(String::as_str),
+                Some("wheelchair_accessible"),
+                "{trips:?}"
+            );
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
@@ -3480,7 +4029,8 @@ fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
     let mut files = base_files();
     for slot in files.iter_mut() {
         if slot.0 == "stop_times.txt" {
-            slot.1 = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+            slot.1 =
+                b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
                        T1, 08:00:00 ,08:00:00,S1, 1 , 0.0 \n\
                        T1,08:10:00, 08:10:00 ,S2,2,100.0\n" as &[u8];
         }
@@ -3496,11 +4046,17 @@ fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
         ValidateResult::Ok(vr) => {
             assert!(has(&vr, "DQ_016"), "boşluk kök bulgusu görünür kalmalı");
             for n in vr.notices.iter().filter(|n| {
-                matches!(n.file.as_deref(), Some("stop_times.txt") | Some("shapes.txt"))
+                matches!(
+                    n.file.as_deref(),
+                    Some("stop_times.txt") | Some("shapes.txt")
+                )
             }) {
-                let Some(observed) = n.observed_value.as_deref() else { continue };
+                let Some(observed) = n.observed_value.as_deref() else {
+                    continue;
+                };
                 assert_eq!(
-                    observed, observed.trim(),
+                    observed,
+                    observed.trim(),
                     "{} akış yolunda çevresi boşluklu değer raporladı: {observed:?}",
                     n.rule_id
                 );
@@ -3529,35 +4085,47 @@ fn stream_quote_feed(stop_times: &'static str) -> Vec<(&'static str, &'static [u
 
 #[test]
 fn arc013_stream_body_unclosed_quote_is_reported() {
-    assert!(match run(&stream_quote_feed(
-        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+    assert!(
+        match run(&stream_quote_feed(
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
          T1,08:00:00,08:00:00,S1,1,\"Kapanmamis\n\
-         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
-        ValidateResult::Ok(vr) => has(&vr, "ARC_013"),
-        other => panic!("Ok beklendi: {other:?}"),
-    }, "akış gövdesindeki kapanmamış tırnak ARC_013 üretmeli");
+         T1,08:10:00,08:10:00,S2,2,Normal\n"
+        )) {
+            ValidateResult::Ok(vr) => has(&vr, "ARC_013"),
+            other => panic!("Ok beklendi: {other:?}"),
+        },
+        "akış gövdesindeki kapanmamış tırnak ARC_013 üretmeli"
+    );
 }
 
 #[test]
 fn arc013_stream_silent_on_valid_quoted_comma() {
-    assert!(match run(&stream_quote_feed(
-        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+    assert!(
+        match run(&stream_quote_feed(
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
          T1,08:00:00,08:00:00,S1,1,\"Merkez, Kuzey\"\n\
-         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
-        ValidateResult::Ok(vr) => !has(&vr, "ARC_013") && !has(&vr, "ARC_033"),
-        other => panic!("Ok beklendi: {other:?}"),
-    }, "tırnaklanmış virgül GEÇERLİDİR");
+         T1,08:10:00,08:10:00,S2,2,Normal\n"
+        )) {
+            ValidateResult::Ok(vr) => !has(&vr, "ARC_013") && !has(&vr, "ARC_033"),
+            other => panic!("Ok beklendi: {other:?}"),
+        },
+        "tırnaklanmış virgül GEÇERLİDİR"
+    );
 }
 
 #[test]
 fn arc013_stream_silent_on_valid_doubled_quote() {
-    assert!(match run(&stream_quote_feed(
-        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
+    assert!(
+        match run(&stream_quote_feed(
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
          T1,08:00:00,08:00:00,S1,1,\"5\"\" Hat\"\n\
-         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
-        ValidateResult::Ok(vr) => !has(&vr, "ARC_013") && !has(&vr, "ARC_033"),
-        other => panic!("Ok beklendi: {other:?}"),
-    }, "doğru kaçırılmış tırnak GEÇERLİDİR");
+         T1,08:10:00,08:10:00,S2,2,Normal\n"
+        )) {
+            ValidateResult::Ok(vr) => !has(&vr, "ARC_013") && !has(&vr, "ARC_033"),
+            other => panic!("Ok beklendi: {other:?}"),
+        },
+        "doğru kaçırılmış tırnak GEÇERLİDİR"
+    );
 }
 
 #[test]
@@ -3575,7 +4143,9 @@ fn arc013_stream_silent_when_quoted_final_field_ends_at_eof() {
                 "kapanış tırnağından sonra EOF geçerli CSV olduğundan shapes.txt ARC_013 üretmemeli"
             );
             assert!(
-                !vr.notices.iter().any(|n| n.rule_id == "ARC_033" && n.file.as_deref() == Some("shapes.txt")),
+                !vr.notices
+                    .iter()
+                    .any(|n| n.rule_id == "ARC_033" && n.file.as_deref() == Some("shapes.txt")),
                 "doğru kapanan/kaçırılan tırnaklar shapes.txt ARC_033 üretmemeli"
             );
         }
@@ -3593,7 +4163,9 @@ fn arc013_stream_reports_unclosed_final_quoted_field() {
 
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "ARC_013" && n.file.as_deref() == Some("shapes.txt")),
+            vr.notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_013" && n.file.as_deref() == Some("shapes.txt")),
             "kapanış tırnağı olmadan EOF shapes.txt ARC_013 üretmeli"
         ),
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -3607,10 +4179,14 @@ fn arc013_stream_bare_quote_is_arc033_not_arc013() {
     match run(&stream_quote_feed(
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
          T1,08:00:00,08:00:00,S1,1,5\" Hat\n\
-         T1,08:10:00,08:10:00,S2,2,Normal\n")) {
+         T1,08:10:00,08:10:00,S2,2,Normal\n",
+    )) {
         ValidateResult::Ok(vr) => {
             assert!(has(&vr, "ARC_033"), "çıplak tırnak ARC_033");
-            assert!(!has(&vr, "ARC_013"), "çıplak tırnak tokenization HATASI değildir");
+            assert!(
+                !has(&vr, "ARC_013"),
+                "çıplak tırnak tokenization HATASI değildir"
+            );
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -3627,27 +4203,37 @@ fn arc013_stream_bare_quote_is_arc033_not_arc013() {
 fn agency_url_feed(agency: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
     for slot in files.iter_mut() {
-        if slot.0 == "agency.txt" { slot.1 = agency.as_bytes(); }
+        if slot.0 == "agency.txt" {
+            slot.1 = agency.as_bytes();
+        }
     }
     files
 }
 
 #[test]
 fn url92_padded_url_does_not_satisfy_the_hard_predicate() {
-    assert!(match run(&agency_url_feed(
-        "agency_id,agency_name,agency_url,agency_timezone\n1,T,\" https://example.com \",UTC\n")) {
-        ValidateResult::Ok(vr) => has(&vr, "AGN_003"),
-        other => panic!("Ok beklendi: {other:?}"),
-    }, "kırpılınca geçerli olan URL sert predikatı KARŞILAMAMALI");
+    assert!(
+        match run(&agency_url_feed(
+            "agency_id,agency_name,agency_url,agency_timezone\n1,T,\" https://example.com \",UTC\n"
+        )) {
+            ValidateResult::Ok(vr) => has(&vr, "AGN_003"),
+            other => panic!("Ok beklendi: {other:?}"),
+        },
+        "kırpılınca geçerli olan URL sert predikatı KARŞILAMAMALI"
+    );
 }
 
 #[test]
 fn url92_clean_url_stays_valid() {
-    assert!(match run(&agency_url_feed(
-        "agency_id,agency_name,agency_url,agency_timezone\n1,T,https://example.com,UTC\n")) {
-        ValidateResult::Ok(vr) => !has(&vr, "AGN_003"),
-        other => panic!("Ok beklendi: {other:?}"),
-    }, "zaten kaçırılmış URL geçerli kalmalı");
+    assert!(
+        match run(&agency_url_feed(
+            "agency_id,agency_name,agency_url,agency_timezone\n1,T,https://example.com,UTC\n"
+        )) {
+            ValidateResult::Ok(vr) => !has(&vr, "AGN_003"),
+            other => panic!("Ok beklendi: {other:?}"),
+        },
+        "zaten kaçırılmış URL geçerli kalmalı"
+    );
 }
 
 #[test]
@@ -3655,12 +4241,19 @@ fn url92_whitespace_only_url_is_missing_not_invalid() {
     // 🔴 SINIR: `"   "` EKSİK alandır, "geçersiz URL" değil. Varlık teşhisi kırpar,
     // geçerlilik hamı görür — tek okumaya indirmek bu ayrımı yok ederdi.
     match run(&agency_url_feed(
-        "agency_id,agency_name,agency_url,agency_timezone\n1,T,\"   \",UTC\n")) {
+        "agency_id,agency_name,agency_url,agency_timezone\n1,T,\"   \",UTC\n",
+    )) {
         ValidateResult::Ok(vr) => {
-            let msg = vr.notices.iter().find(|n| n.rule_id == "AGN_003")
-                .map(|n| n.message.clone()).unwrap_or_default();
-            assert!(msg.contains("zorunludur"),
-                "boşluk-yalnız değer EKSİK alan olarak bildirilmeli, gelen: {msg}");
+            let msg = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "AGN_003")
+                .map(|n| n.message.clone())
+                .unwrap_or_default();
+            assert!(
+                msg.contains("zorunludur"),
+                "boşluk-yalnız değer EKSİK alan olarak bildirilmeli, gelen: {msg}"
+            );
         }
         other => panic!("Ok beklendi: {other:?}"),
     }
@@ -3680,10 +4273,14 @@ fn shp005_feed(shapes: &'static str) -> Vec<(&'static str, &'static [u8])> {
 #[test]
 fn shp005_detects_decrease_smaller_than_old_epsilon() {
     // issue #94'ün karşı-örneği birebir: azalma 5e-7.
-    match run(&shp005_feed("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
-        S1,41.0,29.0,1,1.0000005\nS1,41.1,29.1,2,1.0000000\n")) {
-        ValidateResult::Ok(vr) => assert!(has(&vr, "SHP_005"),
-            "1e-6'dan küçük azalma SHP_005 üretmeli (#94)"),
+    match run(&shp005_feed(
+        "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+        S1,41.0,29.0,1,1.0000005\nS1,41.1,29.1,2,1.0000000\n",
+    )) {
+        ValidateResult::Ok(vr) => assert!(
+            has(&vr, "SHP_005"),
+            "1e-6'dan küçük azalma SHP_005 üretmeli (#94)"
+        ),
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
@@ -3691,10 +4288,14 @@ fn shp005_detects_decrease_smaller_than_old_epsilon() {
 #[test]
 fn shp005_silent_on_tiny_increase_from_csv() {
     // Aynı ondalık basamak sayısı, ters yön → susmalı (tolerans kaldırma FP getirmemeli).
-    match run(&shp005_feed("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
-        S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000005\n")) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "SHP_005"),
-            "artan shape_dist_traveled SHP_005 üretmemeli"),
+    match run(&shp005_feed(
+        "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+        S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000005\n",
+    )) {
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "SHP_005"),
+            "artan shape_dist_traveled SHP_005 üretmemeli"
+        ),
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
@@ -3702,10 +4303,14 @@ fn shp005_silent_on_tiny_increase_from_csv() {
 #[test]
 fn shp005_silent_on_equal_values_from_csv() {
     // Eşitlik AYRI vaka (#94): kural yalnız `önceki > güncel` içindir.
-    match run(&shp005_feed("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
-        S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000000\n")) {
-        ValidateResult::Ok(vr) => assert!(!has(&vr, "SHP_005"),
-            "eşit shape_dist_traveled SHP_005 üretmemeli"),
+    match run(&shp005_feed(
+        "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+        S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000000\n",
+    )) {
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "SHP_005"),
+            "eşit shape_dist_traveled SHP_005 üretmemeli"
+        ),
         other => panic!("Ok beklendi: {other:?}"),
     }
 }

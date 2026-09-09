@@ -1,6 +1,9 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32, validate_enum,
+    RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -36,8 +39,15 @@ pub fn validate_fare_transfer_rules(
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1", "2"]) {
                         notices.push(make_k2_notice(
-                            &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("fare_transfer_type"), Some(v.to_string()),
+                            &mut counter,
+                            "FTR_001",
+                            EntityType::Row,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("fare_transfer_type"),
+                            Some(v.to_string()),
                             Some("0–2".to_string()),
                             "fare_transfer_type geçerli bir enum değeri değil.".to_string(),
                             "0, 1 veya 2 kullanın.",
@@ -45,8 +55,15 @@ pub fn validate_fare_transfer_rules(
                     }
                 } else if get_trimmed_field(&row_map, "fare_transfer_type") == Some("") {
                     notices.push(make_k2_notice(
-                        &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("fare_transfer_type"), None,
+                        &mut counter,
+                        "FTR_001",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("fare_transfer_type"),
+                        None,
                         Some("0–2".to_string()),
                         "fare_transfer_type zorunludur.".to_string(),
                         "0, 1 veya 2 kullanın.",
@@ -56,10 +73,17 @@ pub fn validate_fare_transfer_rules(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "FTR_001", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("fare_transfer_type"),
+                    &mut counter,
+                    "FTR_001",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("fare_transfer_type"),
                     get_trimmed_field(&row_map, "fare_transfer_type").map(str::to_string),
-                    Some("0–2".to_string()), err,
+                    Some("0–2".to_string()),
+                    err,
                     "Geçerli bir fare_transfer_type değeri girin.",
                 ));
                 None
@@ -71,8 +95,15 @@ pub fn validate_fare_transfer_rules(
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1", "2", "3"]) {
                         notices.push(make_k2_notice(
-                            &mut counter, "FTR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("duration_limit_type"), Some(v.to_string()),
+                            &mut counter,
+                            "FTR_005",
+                            EntityType::Row,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("duration_limit_type"),
+                            Some(v.to_string()),
                             Some("0–3".to_string()),
                             "duration_limit_type geçerli bir enum değeri değil.".to_string(),
                             "0, 1, 2 veya 3 kullanın.",
@@ -83,10 +114,17 @@ pub fn validate_fare_transfer_rules(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "FTR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("duration_limit_type"),
+                    &mut counter,
+                    "FTR_005",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("duration_limit_type"),
                     get_trimmed_field(&row_map, "duration_limit_type").map(str::to_string),
-                    Some("0–3".to_string()), err,
+                    Some("0–3".to_string()),
+                    err,
                     "Geçerli bir duration_limit_type değeri girin.",
                 ));
                 None
@@ -98,8 +136,15 @@ pub fn validate_fare_transfer_rules(
                 if let Some(v) = value {
                     if v == 0 {
                         notices.push(make_k2_notice(
-                            &mut counter, "FTR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("duration_limit"), Some(v.to_string()),
+                            &mut counter,
+                            "FTR_006",
+                            EntityType::Row,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("duration_limit"),
+                            Some(v.to_string()),
                             Some("> 0".to_string()),
                             "duration_limit pozitif olmalıdır.".to_string(),
                             "duration_limit alanını pozitif bir saniye değerine ayarlayın.",
@@ -110,10 +155,17 @@ pub fn validate_fare_transfer_rules(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "FTR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("duration_limit"),
+                    &mut counter,
+                    "FTR_006",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("duration_limit"),
                     get_trimmed_field(&row_map, "duration_limit").map(str::to_string),
-                    Some("> 0".to_string()), err,
+                    Some("> 0".to_string()),
+                    err,
                     "duration_limit için pozitif bir saniye değeri girin.",
                 ));
                 None
@@ -123,10 +175,18 @@ pub fn validate_fare_transfer_rules(
         // FTR_007: duration_limit_type, duration_limit olmadan anlamsız
         if duration_limit_type.is_some() && duration_limit.is_none() {
             notices.push(make_k2_notice(
-                &mut counter, "FTR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("duration_limit"), None,
+                &mut counter,
+                "FTR_007",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("duration_limit"),
+                None,
                 Some("dolu".to_string()),
-                "duration_limit_type tanımlandığında duration_limit de belirtilmelidir.".to_string(),
+                "duration_limit_type tanımlandığında duration_limit de belirtilmelidir."
+                    .to_string(),
                 "duration_limit alanını doldurun ya da duration_limit_type'ı kaldırın.",
             ));
         }
@@ -140,8 +200,15 @@ pub fn validate_fare_transfer_rules(
                 Ok(v) if v == -1 || v > 0 => Some(v),
                 Ok(v) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "FTR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("transfer_count"), Some(v.to_string()),
+                        &mut counter,
+                        "FTR_008",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("transfer_count"),
+                        Some(v.to_string()),
                         Some("-1 or > 0".to_string()),
                         "transfer_count -1 veya pozitif bir tam sayı olmalıdır.".to_string(),
                         "-1 (sınırsız) veya 1 gibi pozitif bir değer girin.",
@@ -150,8 +217,15 @@ pub fn validate_fare_transfer_rules(
                 }
                 Err(_) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "FTR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("transfer_count"), Some(raw.clone()),
+                        &mut counter,
+                        "FTR_008",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("transfer_count"),
+                        Some(raw.clone()),
                         Some("-1 or > 0".to_string()),
                         "transfer_count sayısal bir değer değil.".to_string(),
                         "-1 (sınırsız) veya pozitif bir tam sayı girin.",
@@ -193,9 +267,18 @@ pub fn validate_fare_transfer_rules(
         // FTR_011: duration_limit tanımlıyken duration_limit_type zorunludur (FTR_007'nin ters yönü).
         if duration_limit.is_some() && duration_limit_type.is_none() {
             notices.push(make_k2_notice(
-                &mut counter, "FTR_011", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("duration_limit_type"), None, Some("dolu".to_string()),
-                "duration_limit tanımlandığında duration_limit_type de belirtilmelidir.".to_string(),
+                &mut counter,
+                "FTR_011",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("duration_limit_type"),
+                None,
+                Some("dolu".to_string()),
+                "duration_limit tanımlandığında duration_limit_type de belirtilmelidir."
+                    .to_string(),
                 "duration_limit_type alanını (0–3) doldurun ya da duration_limit'i kaldırın.",
             ));
         }
@@ -226,9 +309,13 @@ mod tests {
         RawFile {
             name: "fare_transfer_rules.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
@@ -243,18 +330,29 @@ mod tests {
             vec![vec!["L1", "L1", "0"]],
         );
         let (_, n) = validate_fare_transfer_rules(&f);
-        assert!(has(&n, "FTR_009"), "from==to + transfer_count yok → FTR_009: {n:?}");
+        assert!(
+            has(&n, "FTR_009"),
+            "from==to + transfer_count yok → FTR_009: {n:?}"
+        );
         assert!(!has(&n, "FTR_010"));
     }
 
     #[test]
     fn transfer_count_forbidden_when_leg_groups_differ_ftr_010() {
         let f = make_file(
-            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count", "fare_transfer_type"],
+            vec![
+                "from_leg_group_id",
+                "to_leg_group_id",
+                "transfer_count",
+                "fare_transfer_type",
+            ],
             vec![vec!["L1", "L2", "1", "0"]],
         );
         let (_, n) = validate_fare_transfer_rules(&f);
-        assert!(has(&n, "FTR_010"), "from!=to + transfer_count dolu → FTR_010: {n:?}");
+        assert!(
+            has(&n, "FTR_010"),
+            "from!=to + transfer_count dolu → FTR_010: {n:?}"
+        );
         assert!(!has(&n, "FTR_009"));
     }
 
@@ -278,14 +376,28 @@ mod tests {
     #[test]
     fn duration_limit_without_type_ftr_011() {
         let f = make_file(
-            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count", "duration_limit"],
+            vec![
+                "from_leg_group_id",
+                "to_leg_group_id",
+                "transfer_count",
+                "duration_limit",
+            ],
             vec![vec!["L1", "L1", "1", "3600"]],
         );
         let (_, n) = validate_fare_transfer_rules(&f);
-        assert!(has(&n, "FTR_011"), "duration_limit dolu, type yok → FTR_011: {n:?}");
+        assert!(
+            has(&n, "FTR_011"),
+            "duration_limit dolu, type yok → FTR_011: {n:?}"
+        );
 
         let f2 = make_file(
-            vec!["from_leg_group_id", "to_leg_group_id", "transfer_count", "duration_limit", "duration_limit_type"],
+            vec![
+                "from_leg_group_id",
+                "to_leg_group_id",
+                "transfer_count",
+                "duration_limit",
+                "duration_limit_type",
+            ],
             vec![vec!["L1", "L1", "1", "3600", "1"]],
         );
         let (_, n2) = validate_fare_transfer_rules(&f2);

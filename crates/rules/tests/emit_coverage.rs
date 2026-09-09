@@ -52,7 +52,10 @@ fn strip_test_mods(src: &str) -> String {
                     b'{' => depth += 1,
                     b'}' => {
                         depth -= 1;
-                        if depth == 0 { k += 1; break; }
+                        if depth == 0 {
+                            k += 1;
+                            break;
+                        }
                     }
                     _ => {}
                 }
@@ -71,14 +74,16 @@ fn strip_test_mods(src: &str) -> String {
 /// `^[A-Z]{2,}_[0-9]+[a-z]?$` — registry rule_id deseni.
 fn is_rule_id(s: &str) -> bool {
     let Some(us) = s.find('_') else { return false };
-    if us < 2 { return false; }
-    if !s[..us].bytes().all(|c| c.is_ascii_uppercase()) { return false; }
+    if us < 2 {
+        return false;
+    }
+    if !s[..us].bytes().all(|c| c.is_ascii_uppercase()) {
+        return false;
+    }
     let rest = &s[us + 1..];
     let digits = rest.trim_end_matches(|c: char| c.is_ascii_lowercase());
     let suffix = &rest[digits.len()..];
-    !digits.is_empty()
-        && digits.bytes().all(|c| c.is_ascii_digit())
-        && suffix.len() <= 1
+    !digits.is_empty() && digits.bytes().all(|c| c.is_ascii_digit()) && suffix.len() <= 1
 }
 
 /// STRING LİTERALİ içindeki rule_id token'larını toplar.
@@ -116,8 +121,12 @@ fn collect_rule_ids(text: &str, into: &mut std::collections::HashSet<String>) {
         while k < lb.len() {
             if lb[k].is_ascii_uppercase() && (k == 0 || !is_word(lb[k - 1])) {
                 let s = k;
-                while k < lb.len() && is_word(lb[k]) { k += 1; }
-                if is_rule_id(&lit[s..k]) { into.insert(lit[s..k].to_string()); }
+                while k < lb.len() && is_word(lb[k]) {
+                    k += 1;
+                }
+                if is_rule_id(&lit[s..k]) {
+                    into.insert(lit[s..k].to_string());
+                }
             } else {
                 k += 1;
             }
@@ -146,7 +155,9 @@ fn every_canonical_rule_referenced_in_production_code() {
     let mut referenced = std::collections::HashSet::new();
     for f in &files {
         // k7_reporting.rs rapor görünüm mantığı + test-helper içerir; emit kaynağı değil.
-        if f.file_name().and_then(|n| n.to_str()) == Some("k7_reporting.rs") { continue; }
+        if f.file_name().and_then(|n| n.to_str()) == Some("k7_reporting.rs") {
+            continue;
+        }
         let txt = fs::read_to_string(f).expect("kaynak okunamadı");
         collect_rule_ids(&strip_test_mods(&txt), &mut referenced);
     }

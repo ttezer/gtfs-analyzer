@@ -84,14 +84,12 @@ fn parse_rows(md: &str) -> BTreeMap<String, Row> {
             continue;
         }
         let id = cells[0].as_str();
-        let looks_like_rule_id = id
-            .split_once('_')
-            .is_some_and(|(g, n)| {
-                !g.is_empty()
-                    && g.chars().all(|c| c.is_ascii_uppercase())
-                    && !n.is_empty()
-                    && n.chars().all(|c| c.is_ascii_alphanumeric())
-            });
+        let looks_like_rule_id = id.split_once('_').is_some_and(|(g, n)| {
+            !g.is_empty()
+                && g.chars().all(|c| c.is_ascii_uppercase())
+                && !n.is_empty()
+                && n.chars().all(|c| c.is_ascii_alphanumeric())
+        });
         if !looks_like_rule_id {
             continue;
         }
@@ -140,7 +138,10 @@ fn read(file: &str) -> String {
 fn rules_docs_match_registry() {
     let mut problems: Vec<String> = vec![];
 
-    for (lang, file) in ["RULES.md", "RULES.en.md", "RULES.ja.md", "RULES.fr.md"].iter().enumerate() {
+    for (lang, file) in ["RULES.md", "RULES.en.md", "RULES.ja.md", "RULES.fr.md"]
+        .iter()
+        .enumerate()
+    {
         let rows = parse_rows(&read(file));
 
         for rule in RULES {

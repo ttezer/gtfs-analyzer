@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use gtfs_core::{EntityType, Severity};
 
-use super::common::{get_col_raw, get_col, make_k2_notice, parse_f64_col, parse_u32_col};
+use super::common::{get_col, get_col_raw, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -21,31 +21,47 @@ pub struct ShapeInternTable {
 }
 
 impl Default for ShapeInternTable {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ShapeInternTable {
     pub fn new() -> Self {
-        Self { ids: vec![smol_str::SmolStr::default()] }
+        Self {
+            ids: vec![smol_str::SmolStr::default()],
+        }
     }
     /// Noktanın shape_id metni; bilinmeyen indeks veya boş değer için "".
     #[inline]
     pub fn id<'a>(&'a self, sp: &ShapePointRecord) -> &'a str {
-        self.ids.get(sp.shape_idx as usize).map(smol_str::SmolStr::as_str).unwrap_or("")
+        self.ids
+            .get(sp.shape_idx as usize)
+            .map(smol_str::SmolStr::as_str)
+            .unwrap_or("")
     }
     /// İndeksten metin (nokta elde değilken).
     #[inline]
     pub fn id_at(&self, idx: u32) -> &str {
-        self.ids.get(idx as usize).map(smol_str::SmolStr::as_str).unwrap_or("")
+        self.ids
+            .get(idx as usize)
+            .map(smol_str::SmolStr::as_str)
+            .unwrap_or("")
     }
-    pub fn len(&self) -> usize { self.ids.len() }
-    pub fn is_empty(&self) -> bool { self.ids.len() <= 1 }
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.ids.len() <= 1
+    }
 
     /// Metni intern eder ve indeksini döndürür. Boş metin → 0.
     /// Parse yolu kendi hash haritasını kullanır (40,9M satırda lineer arama olmaz);
     /// bu metot küçük tablolar ve test kurulumu içindir.
     pub fn intern(&mut self, id: &str) -> u32 {
-        if id.is_empty() { return 0; }
+        if id.is_empty() {
+            return 0;
+        }
         if let Some(pos) = self.ids.iter().position(|x| x == id) {
             return pos as u32;
         }
@@ -101,27 +117,47 @@ impl ShapePointRecord {
     }
 
     #[inline]
-    pub fn shape_idx(&self) -> u32 { self.shape_idx }
+    pub fn shape_idx(&self) -> u32 {
+        self.shape_idx
+    }
 
     #[inline]
     pub fn shape_pt_lat(&self) -> Option<f64> {
-        if self.lat.is_nan() { None } else { Some(self.lat) }
+        if self.lat.is_nan() {
+            None
+        } else {
+            Some(self.lat)
+        }
     }
     #[inline]
     pub fn shape_pt_lon(&self) -> Option<f64> {
-        if self.lon.is_nan() { None } else { Some(self.lon) }
+        if self.lon.is_nan() {
+            None
+        } else {
+            Some(self.lon)
+        }
     }
     #[inline]
     pub fn shape_pt_sequence(&self) -> Option<u32> {
-        if self.seq == u32::MAX { None } else { Some(self.seq) }
+        if self.seq == u32::MAX {
+            None
+        } else {
+            Some(self.seq)
+        }
     }
     #[inline]
     pub fn shape_dist_traveled(&self) -> Option<f64> {
-        if self.dist.is_nan() { None } else { Some(self.dist) }
+        if self.dist.is_nan() {
+            None
+        } else {
+            Some(self.dist)
+        }
     }
     /// Notice API'si u64 bekler.
     #[inline]
-    pub fn line_u64(&self) -> u64 { self.line as u64 }
+    pub fn line_u64(&self) -> u64 {
+        self.line as u64
+    }
 }
 
 // Boyut guard: 40B'ı aşarsa derleme kırılır.
@@ -141,16 +177,23 @@ impl Cols {
     fn from_headers(headers: &[String]) -> Self {
         let pos = |name: &str| headers.iter().position(|h| h == name);
         Self {
-            shape_id:           pos("shape_id"),
-            shape_pt_lat:       pos("shape_pt_lat"),
-            shape_pt_lon:       pos("shape_pt_lon"),
-            shape_pt_sequence:  pos("shape_pt_sequence"),
+            shape_id: pos("shape_id"),
+            shape_pt_lat: pos("shape_pt_lat"),
+            shape_pt_lon: pos("shape_pt_lon"),
+            shape_pt_sequence: pos("shape_pt_sequence"),
             shape_dist_traveled: pos("shape_dist_traveled"),
         }
     }
 }
 
-pub fn validate_shapes(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
+pub fn validate_shapes(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+) -> (
+    Vec<ShapePointRecord>,
+    ShapeInternTable,
+    Vec<gtfs_core::Notice>,
+) {
     validate_shapes_with_limits(file, zip_bytes, None, None)
 }
 
@@ -159,7 +202,11 @@ pub fn validate_shapes_with_limits(
     zip_bytes: Option<&[u8]>,
     max_data_rows: Option<usize>,
     mut stream_budget: Option<&mut super::stop_times::StreamBudget>,
-) -> (Vec<ShapePointRecord>, ShapeInternTable, Vec<gtfs_core::Notice>) {
+) -> (
+    Vec<ShapePointRecord>,
+    ShapeInternTable,
+    Vec<gtfs_core::Notice>,
+) {
     // #15 W3: shapes.txt K1'de stream edilir (RawFile.rows boş, gövde raw_text'te). Burada
     // streaming parse edilir; K1'in per-satır generic notice'ları (ARC_012/018/021, DQ_016)
     // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
@@ -220,10 +267,18 @@ pub fn validate_shapes_with_limits(
                 crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
             {
                 let mut n = make_k2_notice(
-                    &mut counter, "ARC_012", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, Some(line), None,
-                    Some(observed), None,
-                    msg, tip,
+                    &mut counter,
+                    "ARC_012",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    Some(line),
+                    None,
+                    Some(observed),
+                    None,
+                    msg,
+                    tip,
                 );
                 if is_info {
                     n.severity = Severity::Bilgi;
@@ -245,9 +300,16 @@ pub fn validate_shapes_with_limits(
             // ARC_018: tamamen boş satır → notice + kayıt YAPMA
             if row.iter().all(|v| v.trim().is_empty()) {
                 notices.push(make_k2_notice(
-                    &mut counter, "ARC_018", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, Some(line), None,
-                    None, None,
+                    &mut counter,
+                    "ARC_018",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    Some(line),
+                    None,
+                    None,
+                    None,
                     format!("'{}' {line}. satırı tamamen boş.", file.name),
                     "Boş satırları kaldırın.",
                 ));
@@ -277,9 +339,16 @@ pub fn validate_shapes_with_limits(
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     arc021_fired = true;
                     notices.push(make_k2_notice(
-                        &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
-                        None, &file.name, Some(line), None,
-                        Some(format!("U+{cp:04X}")), None,
+                        &mut counter,
+                        "ARC_021",
+                        EntityType::File,
+                        Some(file.name.clone()),
+                        None,
+                        &file.name,
+                        Some(line),
+                        None,
+                        Some(format!("U+{cp:04X}")),
+                        None,
                         crate::k1_parse::arc021_message(&file.name, cp),
                         crate::k1_parse::ARC021_REMEDIATION,
                     ));
@@ -288,12 +357,21 @@ pub fn validate_shapes_with_limits(
 
             // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
             if !arc030_fired {
-                if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
+                if let Some(cp) =
+                    crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
+                {
                     arc030_fired = true;
                     notices.push(make_k2_notice(
-                        &mut counter, "ARC_030", EntityType::File, Some(file.name.clone()),
-                        None, &file.name, Some(line), None,
-                        Some(format!("U+{cp:04X}")), None,
+                        &mut counter,
+                        "ARC_030",
+                        EntityType::File,
+                        Some(file.name.clone()),
+                        None,
+                        &file.name,
+                        Some(line),
+                        None,
+                        Some(format!("U+{cp:04X}")),
+                        None,
                         crate::k1_parse::arc030_message(&file.name, cp),
                         crate::k1_parse::ARC030_REMEDIATION,
                     ));
@@ -335,9 +413,16 @@ pub fn validate_shapes_with_limits(
             // SHP_001: shape_id required (sütun yoksa ARC_025 devralır → atla)
             if shape_id.is_empty() && file.headers.iter().any(|h| h == "shape_id") {
                 notices.push(make_k2_notice(
-                    &mut counter, "SHP_001", EntityType::Shape, None,
-                    None, &file.name, Some(line), Some("shape_id"),
-                    Some(String::new()), None,
+                    &mut counter,
+                    "SHP_001",
+                    EntityType::Shape,
+                    None,
+                    None,
+                    &file.name,
+                    Some(line),
+                    Some("shape_id"),
+                    Some(String::new()),
+                    None,
                     "shape_id zorunludur.".to_string(),
                     "shape_id alanını doldurun.",
                 ));
@@ -349,9 +434,16 @@ pub fn validate_shapes_with_limits(
                 Ok(v) => {
                     if v.is_none() && file.headers.iter().any(|h| h == "shape_pt_sequence") {
                         notices.push(make_k2_notice(
-                            &mut counter, "SHP_004", EntityType::Shape, entity_id(),
-                            None, &file.name, Some(line), Some("shape_pt_sequence"),
-                            Some(String::new()), None,
+                            &mut counter,
+                            "SHP_004",
+                            EntityType::Shape,
+                            entity_id(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("shape_pt_sequence"),
+                            Some(String::new()),
+                            None,
                             "shape_pt_sequence zorunludur.".to_string(),
                             "shape_pt_sequence negatif olmayan bir tam sayı olarak girin.",
                         ));
@@ -360,9 +452,16 @@ pub fn validate_shapes_with_limits(
                 }
                 Err(_) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "SHP_004", EntityType::Shape, entity_id(),
-                        None, &file.name, Some(line), Some("shape_pt_sequence"),
-                        Some(seq_raw.to_string()), None,
+                        &mut counter,
+                        "SHP_004",
+                        EntityType::Shape,
+                        entity_id(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("shape_pt_sequence"),
+                        Some(seq_raw.to_string()),
+                        None,
                         format!("shape_pt_sequence '{seq_raw}' geçersiz."),
                         "shape_pt_sequence negatif olmayan bir tam sayı olarak girin.",
                     ));
@@ -374,9 +473,16 @@ pub fn validate_shapes_with_limits(
             if let Some(seq) = shape_pt_sequence {
                 if !seen_seq_by_shape.entry(shape_idx).or_default().insert(seq) {
                     notices.push(make_k2_notice(
-                        &mut counter, "SHP_008", EntityType::Shape, entity_id(),
-                        None, &file.name, Some(line), Some("shape_pt_sequence"),
-                        Some(seq.to_string()), None,
+                        &mut counter,
+                        "SHP_008",
+                        EntityType::Shape,
+                        entity_id(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("shape_pt_sequence"),
+                        Some(seq.to_string()),
+                        None,
                         format!("shape_id '{shape_id}' için shape_pt_sequence {seq} yineleniyor."),
                         "Her shape noktasına benzersiz bir shape_pt_sequence atayın.",
                     ));
@@ -389,9 +495,16 @@ pub fn validate_shapes_with_limits(
                 Ok(None) => {
                     if file.headers.iter().any(|h| h == "shape_pt_lat") {
                         notices.push(make_k2_notice(
-                            &mut counter, "SHP_002", EntityType::Shape, entity_id(),
-                            None, &file.name, Some(line), Some("shape_pt_lat"),
-                            Some(String::new()), Some("[-90, 90]".to_string()),
+                            &mut counter,
+                            "SHP_002",
+                            EntityType::Shape,
+                            entity_id(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("shape_pt_lat"),
+                            Some(String::new()),
+                            Some("[-90, 90]".to_string()),
                             "shape_pt_lat zorunludur.".to_string(),
                             "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
                         ));
@@ -401,9 +514,16 @@ pub fn validate_shapes_with_limits(
                 Ok(Some(lat)) => {
                     if !(-90.0..=90.0).contains(&lat) {
                         notices.push(make_k2_notice(
-                            &mut counter, "SHP_002", EntityType::Shape, entity_id(),
-                            None, &file.name, Some(line), Some("shape_pt_lat"),
-                            Some(lat.to_string()), Some("[-90, 90]".to_string()),
+                            &mut counter,
+                            "SHP_002",
+                            EntityType::Shape,
+                            entity_id(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("shape_pt_lat"),
+                            Some(lat.to_string()),
+                            Some("[-90, 90]".to_string()),
                             format!("shape_pt_lat {lat} değeri [-90, 90] aralığı dışında."),
                             "shape_pt_lat için -90 ile 90 arasında bir değer girin.",
                         ));
@@ -412,9 +532,16 @@ pub fn validate_shapes_with_limits(
                 }
                 Err(_) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "SHP_002", EntityType::Shape, entity_id(),
-                        None, &file.name, Some(line), Some("shape_pt_lat"),
-                        Some(lat_raw.to_string()), Some("[-90, 90]".to_string()),
+                        &mut counter,
+                        "SHP_002",
+                        EntityType::Shape,
+                        entity_id(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("shape_pt_lat"),
+                        Some(lat_raw.to_string()),
+                        Some("[-90, 90]".to_string()),
                         format!("shape_pt_lat '{lat_raw}' geçersiz."),
                         "shape_pt_lat alanını ondalıklı enlem değeriyle doldurun.",
                     ));
@@ -428,9 +555,16 @@ pub fn validate_shapes_with_limits(
                 Ok(None) => {
                     if file.headers.iter().any(|h| h == "shape_pt_lon") {
                         notices.push(make_k2_notice(
-                            &mut counter, "SHP_003", EntityType::Shape, entity_id(),
-                            None, &file.name, Some(line), Some("shape_pt_lon"),
-                            Some(String::new()), Some("[-180, 180]".to_string()),
+                            &mut counter,
+                            "SHP_003",
+                            EntityType::Shape,
+                            entity_id(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("shape_pt_lon"),
+                            Some(String::new()),
+                            Some("[-180, 180]".to_string()),
                             "shape_pt_lon zorunludur.".to_string(),
                             "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
                         ));
@@ -440,9 +574,16 @@ pub fn validate_shapes_with_limits(
                 Ok(Some(lon)) => {
                     if !(-180.0..=180.0).contains(&lon) {
                         notices.push(make_k2_notice(
-                            &mut counter, "SHP_003", EntityType::Shape, entity_id(),
-                            None, &file.name, Some(line), Some("shape_pt_lon"),
-                            Some(lon.to_string()), Some("[-180, 180]".to_string()),
+                            &mut counter,
+                            "SHP_003",
+                            EntityType::Shape,
+                            entity_id(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("shape_pt_lon"),
+                            Some(lon.to_string()),
+                            Some("[-180, 180]".to_string()),
                             format!("shape_pt_lon {lon} değeri [-180, 180] aralığı dışında."),
                             "shape_pt_lon için -180 ile 180 arasında bir değer girin.",
                         ));
@@ -451,9 +592,16 @@ pub fn validate_shapes_with_limits(
                 }
                 Err(_) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "SHP_003", EntityType::Shape, entity_id(),
-                        None, &file.name, Some(line), Some("shape_pt_lon"),
-                        Some(lon_raw.to_string()), Some("[-180, 180]".to_string()),
+                        &mut counter,
+                        "SHP_003",
+                        EntityType::Shape,
+                        entity_id(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("shape_pt_lon"),
+                        Some(lon_raw.to_string()),
+                        Some("[-180, 180]".to_string()),
                         format!("shape_pt_lon '{lon_raw}' geçersiz."),
                         "shape_pt_lon alanını ondalıklı boylam değeriyle doldurun.",
                     ));
@@ -482,9 +630,16 @@ pub fn validate_shapes_with_limits(
                     // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı SHP_021 üretirken
                     // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
                     notices.push(make_k2_notice(
-                        &mut counter, "SHP_021", EntityType::Shape, entity_id(),
-                        None, &file.name, Some(line), Some("shape_dist_traveled"),
-                        Some(sdt_raw.to_string()), Some(">= 0".to_string()),
+                        &mut counter,
+                        "SHP_021",
+                        EntityType::Shape,
+                        entity_id(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("shape_dist_traveled"),
+                        Some(sdt_raw.to_string()),
+                        Some(">= 0".to_string()),
                         format!("shape_dist_traveled '{}' sayı olarak okunamıyor.", sdt_raw),
                         "shape_dist_traveled alanını sıfır veya pozitif bir değere ayarlayın.",
                     ));
@@ -496,7 +651,14 @@ pub fn validate_shapes_with_limits(
             // shape_pt_sequence-sıralı noktalar üzerinde kontrol edilir. Dosya sırası ≠ sequence
             // olan geçerli feed'lerde eski dosya-sırası kontrolü sahte "azalma" (FP) üretiyordu.
 
-            records.push(ShapePointRecord::new(shape_idx, shape_pt_lat, shape_pt_lon, shape_pt_sequence, shape_dist_traveled, line as u32));
+            records.push(ShapePointRecord::new(
+                shape_idx,
+                shape_pt_lat,
+                shape_pt_lon,
+                shape_pt_sequence,
+                shape_dist_traveled,
+                line as u32,
+            ));
         };
 
         // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
@@ -508,13 +670,14 @@ pub fn validate_shapes_with_limits(
             match zip::ZipArchive::new(cursor) {
                 Err(_) => {}
                 Ok(mut archive) => {
-                    if let Ok(entry) = archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
-                        let stream_limit = stream_budget.as_ref()
+                    if let Ok(entry) =
+                        archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name))
+                    {
+                        let stream_limit = stream_budget
+                            .as_ref()
                             .map(|budget| budget.limit())
                             .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
-                        let mut rdr = ZipCsvReader::with_limits(
-                            entry, stream_limit, max_data_rows,
-                        );
+                        let mut rdr = ZipCsvReader::with_limits(entry, stream_limit, max_data_rows);
                         let mut fields: Vec<Vec<u8>> = Vec::with_capacity(8);
                         let mut line: u64 = 2;
                         let mut header_skipped = false;
@@ -526,7 +689,8 @@ pub fn validate_shapes_with_limits(
                                 header_skipped = true;
                                 continue;
                             }
-                            let row: Vec<Cow<'_, str>> = fields.iter()
+                            let row: Vec<Cow<'_, str>> = fields
+                                .iter()
                                 .map(|f| match std::str::from_utf8(f) {
                                     Ok(x) => Cow::Borrowed(x),
                                     Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
@@ -583,7 +747,10 @@ pub fn validate_shapes_with_limits(
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push(super::common::arc013_unclosed_stream(
+            &file.name,
+            &mut counter,
+        ));
     }
 
     // ARC_033: DOSYA başına TEK özet.
@@ -603,10 +770,20 @@ pub fn validate_shapes_with_limits(
     // `shapes.txt` hiçbir bulgu üretmiyordu. Koşul `stop_times.rs`'tekiyle hizalandı.
     if (file.raw_text.is_some() || zip_bytes.is_some()) && total_rows == 0 {
         let mut n = make_k2_notice(
-            &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-            None, &file.name, None, None,
-            None, None,
-            format!("'{}' dosyasında başlık satırı var ama veri satırı yok.", file.name),
+            &mut counter,
+            "ARC_009",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            None,
+            None,
+            None,
+            None,
+            format!(
+                "'{}' dosyasında başlık satırı var ama veri satırı yok.",
+                file.name
+            ),
             "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
         );
         n.severity = Severity::Bilgi;
@@ -616,9 +793,18 @@ pub fn validate_shapes_with_limits(
     // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
         let mut n = make_k2_notice(
-            &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
-            None, &file.name, dq016.first_line, Some(cols.as_str()),
-            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
+            &mut counter,
+            "DQ_016",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            dq016.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
         notices.push(n);
@@ -636,27 +822,45 @@ mod tests {
         RawFile {
             name: "shapes.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
     #[test]
     fn valid_shape_point_produces_no_notices() {
         let file = make_file(
-            vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
+            vec![
+                "shape_id",
+                "shape_pt_lat",
+                "shape_pt_lon",
+                "shape_pt_sequence",
+            ],
             vec![vec!["SHP1", "41.0", "29.0", "1"]],
         );
         let (records, _interns, notices) = validate_shapes(&file, None);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli shape noktası notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli shape noktası notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn lat_out_of_range_produces_shp_002() {
         let file = make_file(
-            vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
+            vec![
+                "shape_id",
+                "shape_pt_lat",
+                "shape_pt_lon",
+                "shape_pt_sequence",
+            ],
             vec![vec!["SHP1", "999.0", "29.0", "1"]],
         );
         let (_, _interns, notices) = validate_shapes(&file, None);
@@ -666,7 +870,12 @@ mod tests {
     #[test]
     fn lon_out_of_range_produces_shp_003() {
         let file = make_file(
-            vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
+            vec![
+                "shape_id",
+                "shape_pt_lat",
+                "shape_pt_lon",
+                "shape_pt_sequence",
+            ],
             vec![vec!["SHP1", "41.0", "999.0", "1"]],
         );
         let (_, _interns, notices) = validate_shapes(&file, None);
@@ -676,7 +885,12 @@ mod tests {
     #[test]
     fn missing_sequence_produces_shp_004() {
         let file = make_file(
-            vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
+            vec![
+                "shape_id",
+                "shape_pt_lat",
+                "shape_pt_lon",
+                "shape_pt_sequence",
+            ],
             vec![vec!["SHP1", "41.0", "29.0", ""]],
         );
         let (_, _interns, notices) = validate_shapes(&file, None);
@@ -687,7 +901,12 @@ mod tests {
     fn streaming_raw_text_matches_rows_path() {
         // #15 W3: production'da shapes raw_text üzerinden stream edilir. Aynı veri için
         // raw_text yolu ile rows fallback yolu BİREBİR aynı record/line/notice üretmeli.
-        let headers = vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"];
+        let headers = vec![
+            "shape_id",
+            "shape_pt_lat",
+            "shape_pt_lon",
+            "shape_pt_sequence",
+        ];
         let rows = vec![
             vec!["S1", "41.0", "29.0", "1"],
             vec!["S1", "999.0", "29.0", "2"], // SHP_002 (lat aralık dışı)
@@ -695,7 +914,8 @@ mod tests {
         ];
 
         // rows fallback yolu
-        let (rec_a, _interns, not_a) = validate_shapes(&make_file(headers.clone(), rows.clone()), None);
+        let (rec_a, _interns, not_a) =
+            validate_shapes(&make_file(headers.clone(), rows.clone()), None);
 
         // raw_text streaming yolu (K1 stream_mode'un ürettiği biçim)
         let mut text = headers.join(",");
@@ -709,7 +929,8 @@ mod tests {
             headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: Vec::new(),
             bytes: 0,
-            raw_text: Some(text), zip_entry_name: None,
+            raw_text: Some(text),
+            zip_entry_name: None,
         };
         let (rec_b, _interns, not_b) = validate_shapes(&file_stream, None);
 
@@ -731,11 +952,19 @@ mod tests {
     fn stream_file(text: String) -> RawFile {
         RawFile {
             name: "shapes.txt".to_string(),
-            headers: vec!["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"]
-                .into_iter().map(str::to_string).collect(),
+            headers: vec![
+                "shape_id",
+                "shape_pt_lat",
+                "shape_pt_lon",
+                "shape_pt_sequence",
+            ]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
             rows: Vec::new(),
             bytes: text.len() as u32,
-            raw_text: Some(text), zip_entry_name: None,
+            raw_text: Some(text),
+            zip_entry_name: None,
         }
     }
 
@@ -745,14 +974,17 @@ mod tests {
         let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
         for i in 0..n {
             // ~70 bayt/satır — eski sabit varsayımın (30 B) iki katından fazlası
-            text.push_str(&format!("RUT:JourneyPattern:{i:08}:long-netex-id,59.91,10.75,{i}\n"));
+            text.push_str(&format!(
+                "RUT:JourneyPattern:{i:08}:long-netex-id,59.91,10.75,{i}\n"
+            ));
         }
         let (records, _interns, _) = validate_shapes(&stream_file(text), None);
         assert_eq!(records.len(), n, "tüm satırlar okunmalı");
         assert!(
             records.capacity() < records.len() * 3 / 2,
             "kapasite {} / satır {} — sabit-varsayım şişmesi geri gelmiş",
-            records.capacity(), records.len()
+            records.capacity(),
+            records.len()
         );
     }
 
@@ -769,7 +1001,9 @@ mod tests {
         assert_eq!(records.len(), n);
         assert!(
             records.capacity() >= records.len(),
-            "kapasite {} satır {} altına düşmüş", records.capacity(), records.len()
+            "kapasite {} satır {} altına düşmüş",
+            records.capacity(),
+            records.len()
         );
     }
 }

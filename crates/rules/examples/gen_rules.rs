@@ -15,7 +15,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .unwrap()
 }
 fn group_of(id: &str) -> &str {
     id.split('_').next().unwrap_or(id)
@@ -93,10 +96,10 @@ fn parse_titles(ts: &str) -> BTreeMap<String, String> {
 struct Lang {
     file: &'static str,
     idx: usize,
-    title_hdr: &'static str,   // `# ...`
+    title_hdr: &'static str, // `# ...`
     nav: &'static str,
-    intro: &'static str,       // {n}/{g} placeholder'lı 3 satır
-    table_hdr: &'static str,   // `| Rule | Title | Severity | Class |`
+    intro: &'static str,     // {n}/{g} placeholder'lı 3 satır
+    table_hdr: &'static str, // `| Rule | Title | Severity | Class |`
     groups: BTreeMap<String, String>,
     titles: Option<BTreeMap<String, String>>, // None = registry.title (TR)
 }
@@ -169,11 +172,20 @@ fn main() {
         out.push_str("\n\n");
         out.push_str(lang.nav);
         out.push_str("\n\n");
-        out.push_str(&lang.intro.replace("{N}", &n.to_string()).replace("{G}", &g.to_string()));
+        out.push_str(
+            &lang
+                .intro
+                .replace("{N}", &n.to_string())
+                .replace("{G}", &g.to_string()),
+        );
         out.push_str("\n\n---\n");
 
         for grp in &group_order {
-            let heading = lang.groups.get(*grp).cloned().unwrap_or_else(|| grp.to_string());
+            let heading = lang
+                .groups
+                .get(*grp)
+                .cloned()
+                .unwrap_or_else(|| grp.to_string());
             out.push_str(&format!("\n## {heading}\n\n"));
             out.push_str(lang.table_hdr);
             out.push_str("\n|---|---|---|---|\n");
@@ -188,7 +200,10 @@ fn main() {
                 let sev = sev4(&format!("{:?}", r.severity))[lang.idx];
                 let cls = cls4(&format!("{:?}", r.rule_class))[lang.idx];
                 let safe_title = title.replace('|', "\\|");
-                out.push_str(&format!("| {} | {} | {} | {} |\n", r.id, safe_title, sev, cls));
+                out.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    r.id, safe_title, sev, cls
+                ));
             }
         }
 

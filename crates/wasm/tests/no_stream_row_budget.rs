@@ -65,7 +65,10 @@ fn wasm_never_passes_a_row_budget_to_k2() {
              Bulunan çağrı:\n{block}"
         );
         let args = top_level_arguments(block);
-        assert!(args.len() >= 5, "#185: JP sinyal taşıyan K2 çağrısı beş argümanlı olmalı: {block}");
+        assert!(
+            args.len() >= 5,
+            "#185: JP sinyal taşıyan K2 çağrısı beş argümanlı olmalı: {block}"
+        );
         assert_eq!(
             args[3], "None",
             "#185: K2 çağrısının dördüncü, satır bütçesi argümanı `None` olmalı. Bulunan:\n{block}"

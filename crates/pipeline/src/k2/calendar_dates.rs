@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::{get_col_raw, get_col, make_k2_notice};
+use super::common::{get_col, get_col_raw, make_k2_notice};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -45,8 +45,8 @@ pub struct CalendarDateIndex {
 // ── Parse ──────────────────────────────────────────────────────────────────────
 
 struct Cols {
-    service_id:     Option<usize>,
-    date:           Option<usize>,
+    service_id: Option<usize>,
+    date: Option<usize>,
     exception_type: Option<usize>,
 }
 
@@ -54,21 +54,29 @@ impl Cols {
     fn from_headers(headers: &[String]) -> Self {
         let pos = |name: &str| headers.iter().position(|h| h == name);
         Self {
-            service_id:     pos("service_id"),
-            date:           pos("date"),
+            service_id: pos("service_id"),
+            date: pos("date"),
             exception_type: pos("exception_type"),
         }
     }
 }
 
 fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, String> {
-    if raw.is_empty() { return Ok(None); }
+    if raw.is_empty() {
+        return Ok(None);
+    }
     if raw.len() != 8 {
         return Err(format!("'{raw}' YYYYMMDD formatında değil."));
     }
-    let year  = raw[0..4].parse::<u32>().map_err(|_| format!("'{raw}' geçersiz yıl."))?;
-    let month = raw[4..6].parse::<u32>().map_err(|_| format!("'{raw}' geçersiz ay."))?;
-    let day   = raw[6..8].parse::<u32>().map_err(|_| format!("'{raw}' geçersiz gün."))?;
+    let year = raw[0..4]
+        .parse::<u32>()
+        .map_err(|_| format!("'{raw}' geçersiz yıl."))?;
+    let month = raw[4..6]
+        .parse::<u32>()
+        .map_err(|_| format!("'{raw}' geçersiz ay."))?;
+    let day = raw[6..8]
+        .parse::<u32>()
+        .map_err(|_| format!("'{raw}' geçersiz gün."))?;
     // ⚠️ ORTAK yardımcı (issue #82): burada `ay ≤ 12, gün ≤ 31` deniyordu ve `20260231`
     // geçiyordu. Akış ile akış-dışı yol AYNI kararı vermek zorunda.
     if !super::common::is_valid_calendar_date(year, month, day) {
@@ -100,7 +108,7 @@ pub fn validate_calendar_dates_with_limits(
     let mut service_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
 
     let cols = Cols::from_headers(&file.headers);
-    let has_service_id_col     = file.headers.iter().any(|h| h == "service_id");
+    let has_service_id_col = file.headers.iter().any(|h| h == "service_id");
     let has_exception_type_col = file.headers.iter().any(|h| h == "exception_type");
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
@@ -134,9 +142,16 @@ pub fn validate_calendar_dates_with_limits(
         // CLD_001: service_id required
         if service_id.is_empty() && has_service_id_col {
             notices.push(make_k2_notice(
-                &mut counter, "CLD_001", EntityType::Service, None,
-                None, &file.name, Some(line), Some("service_id"),
-                Some(String::new()), None,
+                &mut counter,
+                "CLD_001",
+                EntityType::Service,
+                None,
+                None,
+                &file.name,
+                Some(line),
+                Some("service_id"),
+                Some(String::new()),
+                None,
                 "service_id zorunludur.".to_string(),
                 "service_id alanını doldurun.",
             ));
@@ -148,9 +163,16 @@ pub fn validate_calendar_dates_with_limits(
             Ok(v) => {
                 if date_raw.is_empty() {
                     notices.push(make_k2_notice(
-                        &mut counter, "CLD_002", EntityType::Service, entity_id.clone(),
-                        None, &file.name, Some(line), Some("date"),
-                        Some(String::new()), Some("YYYYMMDD".to_string()),
+                        &mut counter,
+                        "CLD_002",
+                        EntityType::Service,
+                        entity_id.clone(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("date"),
+                        Some(String::new()),
+                        Some("YYYYMMDD".to_string()),
                         "date zorunludur.".to_string(),
                         "YYYYMMDD formatında tarihi girin.",
                     ));
@@ -159,13 +181,20 @@ pub fn validate_calendar_dates_with_limits(
                 if let Some((year, month, day)) = v {
                     if !(2000..=2099).contains(&year) {
                         notices.push(make_k2_notice(
-                            &mut counter, "CLD_005", EntityType::Service, entity_id.clone(),
-                            None, &file.name, Some(line), Some("date"),
+                            &mut counter,
+                            "CLD_005",
+                            EntityType::Service,
+                            entity_id.clone(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("date"),
                             Some(format!("{year}-{month:02}-{day:02}")),
                             Some("2000–2099".to_string()),
                             format!(
                                 "service_id '{}' için tarih {year}-{month:02}-{day:02} \
-                                 makul yıl aralığı dışında.", service_id
+                                 makul yıl aralığı dışında.",
+                                service_id
                             ),
                             "GTFS tarihleri 2000–2099 yılları arasında olmalıdır.",
                         ));
@@ -175,9 +204,16 @@ pub fn validate_calendar_dates_with_limits(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "CLD_002", EntityType::Service, entity_id.clone(),
-                    None, &file.name, Some(line), Some("date"),
-                    Some(date_raw.to_string()), Some("YYYYMMDD".to_string()),
+                    &mut counter,
+                    "CLD_002",
+                    EntityType::Service,
+                    entity_id.clone(),
+                    None,
+                    &file.name,
+                    Some(line),
+                    Some("date"),
+                    Some(date_raw.to_string()),
+                    Some("YYYYMMDD".to_string()),
                     err,
                     "YYYYMMDD formatında tarihi girin.",
                 ));
@@ -187,22 +223,30 @@ pub fn validate_calendar_dates_with_limits(
 
         // CLD_003: exception_type required + enum 1 or 2
         let et_raw = get_col(row, cols.exception_type);
-        let exception_type = if et_raw.is_empty() {
-            if has_exception_type_col {
-                notices.push(make_k2_notice(
-                    &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
-                    None, &file.name, Some(line), Some("exception_type"),
-                    Some(String::new()), Some("1 or 2".to_string()),
-                    "exception_type zorunludur.".to_string(),
-                    "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
-                ));
-            }
-            None
-        } else {
-            match et_raw.parse::<u32>() {
-                Ok(val) if val == 1 || val == 2 => Some(val),
-                Ok(val) => {
+        let exception_type =
+            if et_raw.is_empty() {
+                if has_exception_type_col {
                     notices.push(make_k2_notice(
+                        &mut counter,
+                        "CLD_003",
+                        EntityType::Service,
+                        entity_id.clone(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("exception_type"),
+                        Some(String::new()),
+                        Some("1 or 2".to_string()),
+                        "exception_type zorunludur.".to_string(),
+                        "exception_type değerini 1 (eklendi) veya 2 (kaldırıldı) olarak ayarlayın.",
+                    ));
+                }
+                None
+            } else {
+                match et_raw.parse::<u32>() {
+                    Ok(val) if val == 1 || val == 2 => Some(val),
+                    Ok(val) => {
+                        notices.push(make_k2_notice(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(val.to_string()), Some("1 or 2".to_string()),
@@ -210,10 +254,10 @@ pub fn validate_calendar_dates_with_limits(
                         "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) \
                          olarak ayarlayın.",
                     ));
-                    Some(val)
-                }
-                Err(_) => {
-                    notices.push(make_k2_notice(
+                        Some(val)
+                    }
+                    Err(_) => {
+                        notices.push(make_k2_notice(
                         &mut counter, "CLD_003", EntityType::Service, entity_id.clone(),
                         None, &file.name, Some(line), Some("exception_type"),
                         Some(et_raw.to_string()), Some("1 or 2".to_string()),
@@ -221,10 +265,10 @@ pub fn validate_calendar_dates_with_limits(
                         "exception_type değerini 1 (hizmet eklendi) veya 2 (hizmet kaldırıldı) \
                          olarak ayarlayın.",
                     ));
-                    None
+                        None
+                    }
                 }
-            }
-        };
+            };
 
         // ── İndeks güncelleme ─────────────────────────────────────────────────
         if service_id.is_empty() {
@@ -239,11 +283,15 @@ pub fn validate_calendar_dates_with_limits(
         match exception_type {
             Some(1) => {
                 let v = index.added.entry(service_id.clone()).or_default();
-                if let Some(d) = date_u32 { v.push(d); }
+                if let Some(d) = date_u32 {
+                    v.push(d);
+                }
             }
             Some(2) => {
                 let v = index.removed.entry(service_id.clone()).or_default();
-                if let Some(d) = date_u32 { v.push(d); }
+                if let Some(d) = date_u32 {
+                    v.push(d);
+                }
             }
             _ => {
                 // exception_type yok veya geçersiz: exception_count'a dahil, added/removed'a DEĞİL.
@@ -265,8 +313,16 @@ pub fn validate_calendar_dates_with_limits(
         match zip::ZipArchive::new(cursor) {
             Err(e) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, None, None, None, None,
+                    &mut counter,
+                    "ARC_009",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    None,
+                    None,
+                    None,
+                    None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
                     "ZIP arşivini kontrol edin.",
                 ));
@@ -275,28 +331,42 @@ pub fn validate_calendar_dates_with_limits(
                 match archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                     Err(e) => {
                         notices.push(make_k2_notice(
-                            &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-                            None, &file.name, None, None, None, None,
+                            &mut counter,
+                            "ARC_009",
+                            EntityType::File,
+                            Some(file.name.clone()),
+                            None,
+                            &file.name,
+                            None,
+                            None,
+                            None,
+                            None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
                             "ZIP arşivini kontrol edin.",
                         ));
                     }
                     Ok(entry) => {
-                        let stream_limit = stream_budget.as_ref()
+                        let stream_limit = stream_budget
+                            .as_ref()
                             .map(|budget| budget.limit())
                             .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
-                        let mut csv_reader = ZipCsvReader::with_limits(
-                            entry, stream_limit, max_data_rows,
-                        );
+                        let mut csv_reader =
+                            ZipCsvReader::with_limits(entry, stream_limit, max_data_rows);
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(4);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;
                         while csv_reader.next_record(&mut raw_fields) {
-                            if raw_fields.len() == 1 && raw_fields[0].is_empty() { continue; }
-                            if !header_skipped { header_skipped = true; continue; }
-                            let strings: Vec<String> = raw_fields.iter()
+                            if raw_fields.len() == 1 && raw_fields[0].is_empty() {
+                                continue;
+                            }
+                            if !header_skipped {
+                                header_skipped = true;
+                                continue;
+                            }
+                            let strings: Vec<String> = raw_fields
+                                .iter()
                                 .map(|f| match std::str::from_utf8(f) {
-                                    Ok(s)  => s.to_owned(),
+                                    Ok(s) => s.to_owned(),
                                     Err(_) => String::from_utf8_lossy(f).into_owned(),
                                 })
                                 .collect();
@@ -310,10 +380,13 @@ pub fn validate_calendar_dates_with_limits(
                             zip_line += 1;
                         }
                         let bytes_read = csv_reader.bytes_read();
-                        if let Some(budget) = stream_budget.as_mut() { budget.consume(bytes_read); }
+                        if let Some(budget) = stream_budget.as_mut() {
+                            budget.consume(bytes_read);
+                        }
                         if csv_reader.truncated() {
                             if let Some(max) = max_data_rows {
-                                index.raw_row_count = index.raw_row_count.max(max.saturating_add(1) as u64);
+                                index.raw_row_count =
+                                    index.raw_row_count.max(max.saturating_add(1) as u64);
                             }
                         }
                     }
@@ -326,8 +399,13 @@ pub fn validate_calendar_dates_with_limits(
         let mut data_idx = 0usize;
         let mut header_skipped = false;
         while next_csv_record(text, &mut pos, &mut buf, &mut scan) {
-            if buf.len() == 1 && buf[0].is_empty() { continue; }
-            if !header_skipped { header_skipped = true; continue; }
+            if buf.len() == 1 && buf[0].is_empty() {
+                continue;
+            }
+            if !header_skipped {
+                header_skipped = true;
+                continue;
+            }
             if let Some((k, ex)) = scan.rfc.take() {
                 rfc_acc.observe((data_idx + 2) as u64, k, &ex);
             }
@@ -346,9 +424,16 @@ pub fn validate_calendar_dates_with_limits(
     for (sid, &count) in &index.exception_count {
         if count > 60 {
             notices.push(make_k2_notice(
-                &mut counter, "CLD_006", EntityType::Service, Some(sid.to_string()),
-                None, &file.name, None, Some("service_id"),
-                Some(count.to_string()), Some("≤ 60".to_string()),
+                &mut counter,
+                "CLD_006",
+                EntityType::Service,
+                Some(sid.to_string()),
+                None,
+                &file.name,
+                None,
+                Some("service_id"),
+                Some(count.to_string()),
+                Some("≤ 60".to_string()),
                 format!("'{sid}' servisinin {count} istisna günü var; bu çok fazla olabilir."),
                 "Çok sayıda istisna yerine calendar.txt'te normal servis periyodu tanımlayın.",
             ));
@@ -357,15 +442,28 @@ pub fn validate_calendar_dates_with_limits(
 
     // Parse bitti: tarih listelerini sırala. Dedup YOK — exception_count ham satır sayısını
     // yansıtmalı. Aynı (service_id, date) duplicate'leri binary_search'ü bozmaz.
-    for v in index.added.values_mut()   { v.sort_unstable(); }
-    for v in index.removed.values_mut() { v.sort_unstable(); }
+    for v in index.added.values_mut() {
+        v.sort_unstable();
+    }
+    for v in index.removed.values_mut() {
+        v.sort_unstable();
+    }
 
     // DQ_016: stream edilen calendar_dates.txt için DOSYA başına tek kök özet.
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
         let mut n = make_k2_notice(
-            &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
-            None, &file.name, dq016.first_line, Some(cols.as_str()),
-            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
+            &mut counter,
+            "DQ_016",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            dq016.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
         notices.push(n);
@@ -373,7 +471,10 @@ pub fn validate_calendar_dates_with_limits(
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push(super::common::arc013_unclosed_stream(
+            &file.name,
+            &mut counter,
+        ));
     }
 
     // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
@@ -400,7 +501,8 @@ mod tests {
                 .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
                 .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
@@ -415,7 +517,11 @@ mod tests {
         let (idx, notices) = validate_calendar_dates(&file, None);
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap_or(&0), 1);
         assert!(idx.added.contains_key("SVC1" as &str));
-        assert!(notices.is_empty(), "Geçerli kayıt notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli kayıt notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -439,8 +545,10 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "CLD_002"));
         // exception_count artar ama added'a tarih girmez (date = None)
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap_or(&0), 1);
-        assert!(idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()),
-            "Geçersiz tarih added Vec'e girmemeli");
+        assert!(
+            idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()),
+            "Geçersiz tarih added Vec'e girmemeli"
+        );
     }
 
     #[test]
@@ -453,8 +561,14 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "CLD_003"));
         // exception_count artar ama added/removed'a girmez
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap_or(&0), 1);
-        assert!(!idx.added.contains_key("SVC1" as &str), "Geçersiz type added'a girmemeli");
-        assert!(!idx.removed.contains_key("SVC1" as &str), "Geçersiz type removed'a girmemeli");
+        assert!(
+            !idx.added.contains_key("SVC1" as &str),
+            "Geçersiz type added'a girmemeli"
+        );
+        assert!(
+            !idx.removed.contains_key("SVC1" as &str),
+            "Geçersiz type removed'a girmemeli"
+        );
     }
 
     #[test]
@@ -475,14 +589,14 @@ mod tests {
     fn duplicate_service_date_type1_keeps_raw_count() {
         let file = make_file(
             vec!["service_id", "date", "exception_type"],
-            vec![
-                vec!["SVC1", "20260601", "1"],
-                vec!["SVC1", "20260601", "1"],
-            ],
+            vec![vec!["SVC1", "20260601", "1"], vec!["SVC1", "20260601", "1"]],
         );
         let (idx, _) = validate_calendar_dates(&file, None);
-        assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap(), 2,
-            "Ham satır sayısı 2 olmalı");
+        assert_eq!(
+            *idx.exception_count.get("SVC1" as &str).unwrap(),
+            2,
+            "Ham satır sayısı 2 olmalı"
+        );
         let dates = idx.added.get("SVC1" as &str).unwrap();
         assert_eq!(dates.len(), 2, "Dedup olmadan ikisi de Vec'te");
         assert!(dates.windows(2).all(|w| w[0] <= w[1]), "Sıralı olmalı");
@@ -494,17 +608,20 @@ mod tests {
     fn type1_then_type2_same_date_both_in_index() {
         let file = make_file(
             vec!["service_id", "date", "exception_type"],
-            vec![
-                vec!["SVC1", "20260601", "1"],
-                vec!["SVC1", "20260601", "2"],
-            ],
+            vec![vec!["SVC1", "20260601", "1"], vec!["SVC1", "20260601", "2"]],
         );
         let (idx, _) = validate_calendar_dates(&file, None);
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap(), 2);
         let added = idx.added.get("SVC1" as &str).unwrap();
         let removed = idx.removed.get("SVC1" as &str).unwrap();
-        assert!(added.binary_search(&20260601u32).is_ok(), "added'da tarih olmalı");
-        assert!(removed.binary_search(&20260601u32).is_ok(), "removed'da tarih olmalı");
+        assert!(
+            added.binary_search(&20260601u32).is_ok(),
+            "added'da tarih olmalı"
+        );
+        assert!(
+            removed.binary_search(&20260601u32).is_ok(),
+            "removed'da tarih olmalı"
+        );
         // K5 semantiği belgelendi: removed kazanır (mevcut koddan farklı ancak tanımlı davranış)
     }
 
@@ -514,10 +631,7 @@ mod tests {
     fn type2_then_type1_same_date_documents_new_behavior() {
         let file = make_file(
             vec!["service_id", "date", "exception_type"],
-            vec![
-                vec!["SVC1", "20260601", "2"],
-                vec!["SVC1", "20260601", "1"],
-            ],
+            vec![vec!["SVC1", "20260601", "2"], vec!["SVC1", "20260601", "1"]],
         );
         let (idx, _) = validate_calendar_dates(&file, None);
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap(), 2);
@@ -535,8 +649,14 @@ mod tests {
             vec![vec!["GHOST", "20260601", "2"]],
         );
         let (idx, _) = validate_calendar_dates(&file, None);
-        assert!(idx.removed.contains_key("GHOST" as &str), "removed'da anahtar olmalı");
-        assert!(!idx.added.contains_key("GHOST" as &str), "added'da anahtar olmamalı");
+        assert!(
+            idx.removed.contains_key("GHOST" as &str),
+            "removed'da anahtar olmalı"
+        );
+        assert!(
+            !idx.added.contains_key("GHOST" as &str),
+            "added'da anahtar olmamalı"
+        );
         assert_eq!(*idx.exception_count.get("GHOST" as &str).unwrap(), 1);
     }
 
@@ -549,9 +669,18 @@ mod tests {
             vec![vec!["GHOST", "notadate", "2"]],
         );
         let (idx, notices) = validate_calendar_dates(&file, None);
-        assert!(notices.iter().any(|n| n.rule_id == "CLD_002"), "CLD_002 olmalı");
-        assert!(idx.removed.contains_key("GHOST" as &str), "Anahtar yine de removed'da olmalı");
-        assert!(idx.removed.get("GHOST" as &str).unwrap().is_empty(), "Geçersiz tarih Vec'e girmemeli");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "CLD_002"),
+            "CLD_002 olmalı"
+        );
+        assert!(
+            idx.removed.contains_key("GHOST" as &str),
+            "Anahtar yine de removed'da olmalı"
+        );
+        assert!(
+            idx.removed.get("GHOST" as &str).unwrap().is_empty(),
+            "Geçersiz tarih Vec'e girmemeli"
+        );
         assert_eq!(*idx.exception_count.get("GHOST" as &str).unwrap(), 1);
     }
 
@@ -565,8 +694,11 @@ mod tests {
         let (idx, notices) = validate_calendar_dates(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "CLD_002"));
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap(), 1);
-        assert_eq!(*idx.first_line.get("SVC1" as &str).unwrap(), 2,
-            "İlk satır numarası 2 olmalı");
+        assert_eq!(
+            *idx.first_line.get("SVC1" as &str).unwrap(),
+            2,
+            "İlk satır numarası 2 olmalı"
+        );
         // Tarih geçersiz, added Vec'te yer yok
         assert!(idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()));
     }
@@ -576,13 +708,13 @@ mod tests {
     fn first_line_tracks_first_occurrence() {
         let file = make_file(
             vec!["service_id", "date", "exception_type"],
-            vec![
-                vec!["SVC1", "20260601", "1"],
-                vec!["SVC1", "20260602", "1"],
-            ],
+            vec![vec!["SVC1", "20260601", "1"], vec!["SVC1", "20260602", "1"]],
         );
         let (idx, _) = validate_calendar_dates(&file, None);
-        assert_eq!(*idx.first_line.get("SVC1" as &str).unwrap(), 2,
-            "first_line ilk satır (2) olmalı");
+        assert_eq!(
+            *idx.first_line.get("SVC1" as &str).unwrap(),
+            2,
+            "first_line ilk satır (2) olmalı"
+        );
     }
 }

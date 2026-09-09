@@ -1,9 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 
-use crate::decompress_guard::{
-    DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS,
-};
+use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, PartialReport, Severity};
 use smol_str::SmolStr;
@@ -22,7 +20,11 @@ macro_rules! k1dbg {
 // ── GTFS dosya listeleri ──────────────────────────────────────────────────────
 
 const REQUIRED_FILES: &[&str] = &[
-    "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
+    "agency.txt",
+    "stops.txt",
+    "routes.txt",
+    "trips.txt",
+    "stop_times.txt",
 ];
 
 const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
@@ -30,25 +32,58 @@ const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
 /// `agency.csv` gibi: bir GTFS dosyasının gövdesini taşıyıp uzantısı `.txt` olmayan girdi.
 /// Konumdan bağımsızdır; çağıran taraf kök/alt dizin ayrımını kendi yapar.
 fn gtfs_stem_with_wrong_extension(path: &str) -> bool {
-    let base = path.rsplit(['/', '\\']).next().unwrap_or(path).to_ascii_lowercase();
-    let Some((stem, _ext)) = base.rsplit_once('.') else { return false };
-    KNOWN_FILES.iter().any(|k| k.strip_suffix(".txt") == Some(stem))
+    let base = path
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(path)
+        .to_ascii_lowercase();
+    let Some((stem, _ext)) = base.rsplit_once('.') else {
+        return false;
+    };
+    KNOWN_FILES
+        .iter()
+        .any(|k| k.strip_suffix(".txt") == Some(stem))
 }
 
 pub(crate) const KNOWN_FILES: &[&str] = &[
-    "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
-    "calendar.txt", "calendar_dates.txt", "shapes.txt", "frequencies.txt",
-    "transfers.txt", "fare_attributes.txt", "fare_rules.txt",
-    "pathways.txt", "levels.txt", "feed_info.txt", "translations.txt", "attributions.txt",
+    "agency.txt",
+    "stops.txt",
+    "routes.txt",
+    "trips.txt",
+    "stop_times.txt",
+    "calendar.txt",
+    "calendar_dates.txt",
+    "shapes.txt",
+    "frequencies.txt",
+    "transfers.txt",
+    "fare_attributes.txt",
+    "fare_rules.txt",
+    "pathways.txt",
+    "levels.txt",
+    "feed_info.txt",
+    "translations.txt",
+    "attributions.txt",
     "route_networks.txt",
     // Fares v2
-    "areas.txt", "stop_areas.txt", "networks.txt",
-    "rider_categories.txt", "fare_media.txt", "fare_products.txt",
-    "fare_leg_rules.txt", "fare_leg_join_rules.txt", "fare_transfer_rules.txt", "timeframes.txt",
+    "areas.txt",
+    "stop_areas.txt",
+    "networks.txt",
+    "rider_categories.txt",
+    "fare_media.txt",
+    "fare_products.txt",
+    "fare_leg_rules.txt",
+    "fare_leg_join_rules.txt",
+    "fare_transfer_rules.txt",
+    "timeframes.txt",
     // Flex
-    "booking_rules.txt", "location_groups.txt", "location_group_stops.txt",
+    "booking_rules.txt",
+    "location_groups.txt",
+    "location_group_stops.txt",
     // GTFS-JP uzantıları (Japonya standardı)
-    "agency_jp.txt", "routes_jp.txt", "office_jp.txt", "pattern_jp.txt",
+    "agency_jp.txt",
+    "routes_jp.txt",
+    "office_jp.txt",
+    "pattern_jp.txt",
 ];
 
 // ── Tipler ────────────────────────────────────────────────────────────────────
@@ -137,9 +172,20 @@ fn make_notice(
 ) -> Notice {
     // K1 scope_key ve expected_value üretmez — ikisi de sabit None.
     crate::notice_factory::build(
-        "K1", Some("k1"), counter, rule_id, entity_type, entity_id, None,
-        file.map(str::to_string), line, field.map(str::to_string),
-        observed_value, None, message, remediation,
+        "K1",
+        Some("k1"),
+        counter,
+        rule_id,
+        entity_type,
+        entity_id,
+        None,
+        file.map(str::to_string),
+        line,
+        field.map(str::to_string),
+        observed_value,
+        None,
+        message,
+        remediation,
     )
 }
 
@@ -195,8 +241,12 @@ const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
 fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64, u32)]) -> usize {
     let mut inconsistent = 0usize;
     for &(header_start, csize, usize_declared, crc) in entries {
-        let Ok(off) = usize::try_from(header_start) else { continue };
-        let Some(lfh) = zip_bytes.get(off..off.saturating_add(LFH_LEN)) else { continue };
+        let Ok(off) = usize::try_from(header_start) else {
+            continue;
+        };
+        let Some(lfh) = zip_bytes.get(off..off.saturating_add(LFH_LEN)) else {
+            continue;
+        };
         if u32::from_le_bytes([lfh[0], lfh[1], lfh[2], lfh[3]]) != LFH_SIGNATURE {
             continue;
         }
@@ -217,7 +267,9 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
         }
         // Verinin bittiği yer MERKEZ DİZİNDEKİ boyutla bulunur; yerel alan (kurallara uygun
         // akış zip'inde) sıfırdır ve buradan konum hesaplanamaz.
-        let Ok(csize_usize) = usize::try_from(csize) else { continue };
+        let Ok(csize_usize) = usize::try_from(csize) else {
+            continue;
+        };
         let data_end = off
             .saturating_add(LFH_LEN)
             .saturating_add(name_len)
@@ -250,11 +302,18 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
 
 /// GuardedReader okuma hatasını Fatal'a çevirir: guard tetiklendiyse ARC_029
 /// (DecompressionLimit), aksi halde ham ZIP okuma hatası (ARC_001 ZipUnreadable).
-fn read_fatal<R: Read>(guarded: &GuardedReader<'_, R>, raw_name: &str, e: &std::io::Error) -> FatalError {
+fn read_fatal<R: Read>(
+    guarded: &GuardedReader<'_, R>,
+    raw_name: &str,
+    e: &std::io::Error,
+) -> FatalError {
     match guarded.tripped() {
         Some(trip) => FatalError {
             code: FatalCode::DecompressionLimit,
-            message: format!("'{raw_name}' sıkıştırma koruması sınırını aştı: {}", trip.describe()),
+            message: format!(
+                "'{raw_name}' sıkıştırma koruması sınırını aştı: {}",
+                trip.describe()
+            ),
         },
         None => FatalError {
             code: FatalCode::ZipUnreadable,
@@ -296,7 +355,10 @@ fn strip_bom(bytes: &[u8]) -> (&[u8], bool) {
 }
 
 fn has_malformed_eol(bytes: &[u8]) -> bool {
-    bytes.iter().enumerate().any(|(i, b)| *b == b'\r' && bytes.get(i + 1) != Some(&b'\n'))
+    bytes
+        .iter()
+        .enumerate()
+        .any(|(i, b)| *b == b'\r' && bytes.get(i + 1) != Some(&b'\n'))
 }
 
 // ── CSV tokenizer ─────────────────────────────────────────────────────────────
@@ -377,7 +439,9 @@ fn tokenize_csv(
 ) -> Result<(Vec<Vec<SmolStr>>, bool, Rfc4180Acc), String> {
     let bytes = text.as_bytes();
     let n = bytes.len();
-    let cap = max_data_rows.map(|m| m + 1).unwrap_or_else(|| (n / 50).clamp(1, 5_000_000));
+    let cap = max_data_rows
+        .map(|m| m + 1)
+        .unwrap_or_else(|| (n / 50).clamp(1, 5_000_000));
     let mut records: Vec<Vec<SmolStr>> = Vec::with_capacity(cap.min(5_000_000));
     let mut pos = 0;
     let mut col_hint: usize = 8;
@@ -529,18 +593,34 @@ fn tokenize_csv(
 /// tetiklemek ~100 fixture demek olurdu; CAL_002'de yapılan şey burada ölçeklenmiyor.)
 pub fn required_fields(filename: &str) -> &'static [&'static str] {
     match filename {
-        "agency.txt"          => &["agency_name", "agency_url", "agency_timezone"],
-        "stops.txt"           => &["stop_id"],
-        "routes.txt"          => &["route_id", "route_type"],
-        "trips.txt"           => &["route_id", "service_id", "trip_id"],
+        "agency.txt" => &["agency_name", "agency_url", "agency_timezone"],
+        "stops.txt" => &["stop_id"],
+        "routes.txt" => &["route_id", "route_type"],
+        "trips.txt" => &["route_id", "service_id", "trip_id"],
         // stop_id KOŞULLU zorunlu (spec): "Required if stop_times.location_group_id AND
         // stop_times.location_id are NOT defined. Forbidden if ... are defined." Koşul
         // başlıklara bakılarak `required_fields_for` içinde uygulanır.
-        "stop_times.txt"      => &["trip_id", "stop_sequence"],
-        "calendar.txt"        => &["service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"],
-        "calendar_dates.txt"  => &["service_id", "date", "exception_type"],
-        "shapes.txt"          => &["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"],
-        "frequencies.txt"     => &["trip_id", "start_time", "end_time", "headway_secs"],
+        "stop_times.txt" => &["trip_id", "stop_sequence"],
+        "calendar.txt" => &[
+            "service_id",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+            "start_date",
+            "end_date",
+        ],
+        "calendar_dates.txt" => &["service_id", "date", "exception_type"],
+        "shapes.txt" => &[
+            "shape_id",
+            "shape_pt_lat",
+            "shape_pt_lon",
+            "shape_pt_sequence",
+        ],
+        "frequencies.txt" => &["trip_id", "start_time", "end_time", "headway_secs"],
         // ⚠️ `from_stop_id`/`to_stop_id` BURADA OLMAMALI — spec ikisini de KOŞULLU yapar:
         // "Required if transfer_type is empty, 0, 1, 2, or 3. Optional if transfer_type is 4 or 5."
         // 4/5 koltuk-içi aktarmalardır ve `from_trip_id`/`to_trip_id` kullanırlar. Yalnız 4/5
@@ -548,35 +628,51 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
         // ve R1'de düşüyordu — geçerli feed'i yayından alıkoyan bir yanlış pozitif.
         // Gerçekten koşulsuz Required olan alan `transfer_type`'tır ve listede YOKTU.
         // (2026-08-02, ARC_025'in listesi spec'le karşılaştırıldı.)
-        "transfers.txt"       => &["transfer_type"],
+        "transfers.txt" => &["transfer_type"],
         // transfers boş = sınırsız transfer (geçerli GTFS değeri) — değer-boş kuralı tetiklenmemeli
-        "fare_attributes.txt" => &["fare_id", "price", "currency_type", "payment_method", "transfers"],
-        "fare_rules.txt"      => &["fare_id"],
-        "pathways.txt"        => &["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional"],
-        "levels.txt"          => &["level_id", "level_index"],
-        "feed_info.txt"       => &["feed_publisher_name", "feed_publisher_url", "feed_lang"],
-        "translations.txt"    => &["table_name", "field_name", "language", "translation"],
-        "rider_categories.txt"    => &["rider_category_id", "rider_category_name", "is_default_fare_category"],
-        "fare_media.txt"          => &["fare_media_id", "fare_media_type"],
-        "fare_products.txt"       => &["fare_product_id", "amount", "currency"],
-        "fare_leg_rules.txt"      => &["fare_product_id"],
+        "fare_attributes.txt" => &[
+            "fare_id",
+            "price",
+            "currency_type",
+            "payment_method",
+            "transfers",
+        ],
+        "fare_rules.txt" => &["fare_id"],
+        "pathways.txt" => &[
+            "pathway_id",
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+        ],
+        "levels.txt" => &["level_id", "level_index"],
+        "feed_info.txt" => &["feed_publisher_name", "feed_publisher_url", "feed_lang"],
+        "translations.txt" => &["table_name", "field_name", "language", "translation"],
+        "rider_categories.txt" => &[
+            "rider_category_id",
+            "rider_category_name",
+            "is_default_fare_category",
+        ],
+        "fare_media.txt" => &["fare_media_id", "fare_media_type"],
+        "fare_products.txt" => &["fare_product_id", "amount", "currency"],
+        "fare_leg_rules.txt" => &["fare_product_id"],
         // Spec: dört alanın da bileşik birincil anahtar parçası; ağ alanları Required,
         // durak alanları karşılıklı koşullu (FLJ_003/004 ölçer) → required_fields'a yalnız
         // koşulsuz Required olan ikisi girer.
         "fare_leg_join_rules.txt" => &["from_network_id", "to_network_id"],
         "fare_transfer_rules.txt" => &["fare_transfer_type"],
-        "areas.txt"               => &["area_id"],
-        "stop_areas.txt"          => &["area_id", "stop_id"],
-        "networks.txt"            => &["network_id"],
-        "timeframes.txt"          => &["timeframe_group_id", "service_id"],
-        "booking_rules.txt"       => &["booking_rule_id", "booking_type"],
-        "location_groups.txt"        => &["location_group_id"],
-        "location_group_stops.txt"   => &["location_group_id", "stop_id"],
+        "areas.txt" => &["area_id"],
+        "stop_areas.txt" => &["area_id", "stop_id"],
+        "networks.txt" => &["network_id"],
+        "timeframes.txt" => &["timeframe_group_id", "service_id"],
+        "booking_rules.txt" => &["booking_rule_id", "booking_type"],
+        "location_groups.txt" => &["location_group_id"],
+        "location_group_stops.txt" => &["location_group_id", "stop_id"],
         // organization_name spec'te Required; liste boş bırakılmıştı (2026-08-02'de eklendi).
-        "attributions.txt"    => &["organization_name"],
+        "attributions.txt" => &["organization_name"],
         // route_networks.txt'in İKİ alanı da spec'te Required (dosya 2026-08-02'de tanıtıldı).
-        "route_networks.txt"  => &["network_id", "route_id"],
-        _                     => &[],
+        "route_networks.txt" => &["network_id", "route_id"],
+        _ => &[],
     }
 }
 
@@ -632,7 +728,9 @@ impl Dq016Acc {
             if s == s.trim() {
                 continue;
             }
-            let Some(name) = headers.get(i).map(|h| h.as_str()) else { continue };
+            let Some(name) = headers.get(i).map(|h| h.as_str()) else {
+                continue;
+            };
             if self.last_line != line || self.rows == 0 {
                 self.last_line = line;
                 self.rows += 1;
@@ -641,7 +739,9 @@ impl Dq016Acc {
                 }
             }
             self.cols.insert(name.to_string());
-            self.samples.entry(name.to_string()).or_insert_with(|| s.to_string());
+            self.samples
+                .entry(name.to_string())
+                .or_insert_with(|| s.to_string());
         }
     }
 
@@ -666,7 +766,12 @@ impl Dq016Acc {
         if self.rows == 0 {
             return None;
         }
-        let cols = self.cols.iter().map(String::as_str).collect::<Vec<_>>().join(", ");
+        let cols = self
+            .cols
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(", ");
         Some((
             format!("{} rows", self.rows),
             format!(
@@ -696,19 +801,25 @@ impl Dq016Acc {
         if self.samples.is_empty() {
             return None;
         }
-        let samples = self.samples.iter()
+        let samples = self
+            .samples
+            .iter()
             .map(|(field, value)| format!("{field}={value:?}"))
             .collect::<Vec<_>>()
             .join("; ");
         let mut details: std::collections::BTreeMap<String, String> = [
             ("raw_samples".to_string(), samples),
             ("affected_rows".to_string(), self.rows.to_string()),
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
 
         // Ham hali okunamayıp trim'li hali okunabiliyorsa, boşluk tek başına tipli bir
         // değeri gizliyor demektir. Metin alanları (" Durak Adı ") iki halde de sayı
         // vermez, bu yüzden listeye girmez.
-        let typed: Vec<&str> = self.samples.iter()
+        let typed: Vec<&str> = self
+            .samples
+            .iter()
             .filter(|(_, v)| v.parse::<f64>().is_err() && v.trim().parse::<f64>().is_ok())
             .map(|(field, _)| field.as_str())
             .collect();
@@ -732,12 +843,17 @@ impl Dq016Acc {
         // bunu gösterdi: `trips.txt` 304.117 bastırılan bulguyu beyan ederken
         // `TRP_024`'ün kaçırdığı 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu,
         // çünkü o kural hiç konuşmamıştı (#169).
-        let identity: Vec<&str> = self.cols.iter()
+        let identity: Vec<&str> = self
+            .cols
+            .iter()
             .map(String::as_str)
             .filter(|c| is_identity_column(c))
             .collect();
         if !identity.is_empty() {
-            details.insert("identity_whitespace_fields".to_string(), identity.join(", "));
+            details.insert(
+                "identity_whitespace_fields".to_string(),
+                identity.join(", "),
+            );
             details.insert(
                 "cross_file_analysis".to_string(),
                 "unreliable — lookups keyed on these values cannot match across files".to_string(),
@@ -795,7 +911,12 @@ pub(crate) fn arc012_check(
             "Her satırın başlık sayısı kadar virgülle ayrılmış değer içerdiğinden emin olun.",
         )
     };
-    Some((msg, tip, format!("{row_len} columns (expected {header_count})"), short))
+    Some((
+        msg,
+        tip,
+        format!("{row_len} columns (expected {header_count})"),
+        short,
+    ))
 }
 
 /// ARC_021: satırda yazdırılamaz/sorunlu karakter arar, ilk bulunanın kod noktasını döner.
@@ -816,7 +937,10 @@ pub(crate) fn arc012_check(
 pub(crate) fn arc034_is_header_repeat<S: AsRef<str>>(row: &[S], headers: &[String]) -> bool {
     row.len() == headers.len()
         && !headers.is_empty()
-        && row.iter().zip(headers.iter()).all(|(v, h)| v.as_ref().trim() == h.trim())
+        && row
+            .iter()
+            .zip(headers.iter())
+            .all(|(v, h)| v.as_ref().trim() == h.trim())
 }
 
 pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
@@ -949,7 +1073,9 @@ fn arc032_markup(value: &str) -> Option<String> {
                 continue;
             }
             // Etiket ancak `>` ile kapanırsa etikettir: "a < b" ya da "3 <br" değil.
-            let Some(close) = rest[name_len..].find('>') else { continue };
+            let Some(close) = rest[name_len..].find('>') else {
+                continue;
+            };
             // `<` ile `>` arasında başka bir `<` varsa bu bir etiket değil, düz metindir.
             let inner = &rest[name_len..name_len + close];
             if inner.contains('<') {
@@ -960,7 +1086,9 @@ fn arc032_markup(value: &str) -> Option<String> {
         if b == b'&' {
             let rest = &value[i + 1..];
             // Ad = `&`den sonraki alfanümerik dizi (`#` sayısal biçimi ayrı ele alınır).
-            let name_len = rest.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(rest.len());
+            let name_len = rest
+                .find(|c: char| !c.is_ascii_alphanumeric())
+                .unwrap_or(rest.len());
             let name = &rest[..name_len];
             // ⚠️ NOKTALI VİRGÜLSÜZ ESKİ BİÇİM (issue #79): HTML5 bazı adları `;` olmadan da
             // tanır (`&copy`). Ayrıcalık TÜM adlar için değildir; ayrı tablo kaynaktan gelir.
@@ -1014,14 +1142,18 @@ impl Arc032Acc {
         headers: &[String],
     ) {
         for (i, s) in values.enumerate() {
-            let Some(name) = headers.get(i).map(|h| h.as_str()) else { continue };
+            let Some(name) = headers.get(i).map(|h| h.as_str()) else {
+                continue;
+            };
             // `tts_stop_name` STP_023'ün alanı: o kural HERHANGİ bir `<`/`>` işaretini
             // (SSML dahil) zaten bildiriyor ve daha geniştir. İkisini birden emit etmek
             // aynı olguyu iki kez raporlamak olur.
             if name == "tts_stop_name" {
                 continue;
             }
-            let Some(found) = arc032_markup(s) else { continue };
+            let Some(found) = arc032_markup(s) else {
+                continue;
+            };
             if self.last_line != line || self.rows == 0 {
                 self.last_line = line;
                 self.rows += 1;
@@ -1041,7 +1173,12 @@ impl Arc032Acc {
         if self.rows == 0 {
             return None;
         }
-        let cols = self.cols.iter().map(String::as_str).collect::<Vec<_>>().join(", ");
+        let cols = self
+            .cols
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(", ");
         let example = self.example.as_deref().unwrap_or("");
         Some((
             example.to_string(),
@@ -1073,125 +1210,289 @@ pub(crate) const ARC021_REMEDIATION: &str =
 fn known_columns(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt" => &[
-            "agency_id","agency_name","agency_url","agency_timezone",
-            "agency_lang","agency_phone","agency_fare_url","agency_email",
+            "agency_id",
+            "agency_name",
+            "agency_url",
+            "agency_timezone",
+            "agency_lang",
+            "agency_phone",
+            "agency_fare_url",
+            "agency_email",
             "cemv_support",
         ],
         "stops.txt" => &[
-            "stop_id","stop_code","stop_name","stop_desc","stop_lat","stop_lon",
-            "zone_id","stop_url","location_type","parent_station","stop_timezone",
-            "wheelchair_boarding","level_id","platform_code","stop_access","tts_stop_name",
+            "stop_id",
+            "stop_code",
+            "stop_name",
+            "stop_desc",
+            "stop_lat",
+            "stop_lon",
+            "zone_id",
+            "stop_url",
+            "location_type",
+            "parent_station",
+            "stop_timezone",
+            "wheelchair_boarding",
+            "level_id",
+            "platform_code",
+            "stop_access",
+            "tts_stop_name",
         ],
         "routes.txt" => &[
-            "route_id","agency_id","route_short_name","route_long_name","route_desc",
-            "route_type","route_url","route_color","route_text_color","route_sort_order",
-            "continuous_pickup","continuous_drop_off","network_id","cemv_support",
+            "route_id",
+            "agency_id",
+            "route_short_name",
+            "route_long_name",
+            "route_desc",
+            "route_type",
+            "route_url",
+            "route_color",
+            "route_text_color",
+            "route_sort_order",
+            "continuous_pickup",
+            "continuous_drop_off",
+            "network_id",
+            "cemv_support",
             // GTFS-JP
-            "jp_parent_route_id","jp_office_id",
+            "jp_parent_route_id",
+            "jp_office_id",
         ],
         "trips.txt" => &[
-            "route_id","service_id","trip_id","trip_headsign","trip_short_name",
-            "direction_id","block_id","shape_id","wheelchair_accessible","bikes_allowed",
-            "cars_allowed","safe_duration_factor","safe_duration_offset",
+            "route_id",
+            "service_id",
+            "trip_id",
+            "trip_headsign",
+            "trip_short_name",
+            "direction_id",
+            "block_id",
+            "shape_id",
+            "wheelchair_accessible",
+            "bikes_allowed",
+            "cars_allowed",
+            "safe_duration_factor",
+            "safe_duration_offset",
             // GTFS-JP
-            "jp_trip_desc","jp_trip_desc_symbol","jp_pattern_id",
+            "jp_trip_desc",
+            "jp_trip_desc_symbol",
+            "jp_pattern_id",
         ],
         "stop_times.txt" => &[
-            "trip_id","arrival_time","departure_time","stop_id","stop_sequence",
-            "stop_headsign","pickup_type","drop_off_type","continuous_pickup",
-            "continuous_drop_off","shape_dist_traveled","timepoint",
+            "trip_id",
+            "arrival_time",
+            "departure_time",
+            "stop_id",
+            "stop_sequence",
+            "stop_headsign",
+            "pickup_type",
+            "drop_off_type",
+            "continuous_pickup",
+            "continuous_drop_off",
+            "shape_dist_traveled",
+            "timepoint",
             // GTFS-Flex (resmî Schedule Reference): talep-duyarlı hizmet alanları.
             // K2 parser bunları ZATEN okuyordu; burada eksik olmaları geçerli bir Flex
             // feed'inde ARC_017 "bilinmeyen sütun" yanlış-pozitifi üretiyordu.
-            "location_id","location_group_id",
-            "start_pickup_drop_off_window","end_pickup_drop_off_window",
-            "pickup_booking_rule_id","drop_off_booking_rule_id",
+            "location_id",
+            "location_group_id",
+            "start_pickup_drop_off_window",
+            "end_pickup_drop_off_window",
+            "pickup_booking_rule_id",
+            "drop_off_booking_rule_id",
         ],
         "calendar.txt" => &[
-            "service_id","monday","tuesday","wednesday","thursday","friday",
-            "saturday","sunday","start_date","end_date",
+            "service_id",
+            "monday",
+            "tuesday",
+            "wednesday",
+            "thursday",
+            "friday",
+            "saturday",
+            "sunday",
+            "start_date",
+            "end_date",
         ],
-        "calendar_dates.txt" => &["service_id","date","exception_type"],
+        "calendar_dates.txt" => &["service_id", "date", "exception_type"],
         "shapes.txt" => &[
-            "shape_id","shape_pt_lat","shape_pt_lon","shape_pt_sequence","shape_dist_traveled",
+            "shape_id",
+            "shape_pt_lat",
+            "shape_pt_lon",
+            "shape_pt_sequence",
+            "shape_dist_traveled",
         ],
-        "frequencies.txt" => &["trip_id","start_time","end_time","headway_secs","exact_times"],
+        "frequencies.txt" => &[
+            "trip_id",
+            "start_time",
+            "end_time",
+            "headway_secs",
+            "exact_times",
+        ],
         "transfers.txt" => &[
-            "from_stop_id","to_stop_id","transfer_type","min_transfer_time",
-            "from_route_id","to_route_id","from_trip_id","to_trip_id",
+            "from_stop_id",
+            "to_stop_id",
+            "transfer_type",
+            "min_transfer_time",
+            "from_route_id",
+            "to_route_id",
+            "from_trip_id",
+            "to_trip_id",
         ],
         "fare_attributes.txt" => &[
-            "fare_id","price","currency_type","payment_method","transfers",
-            "agency_id","transfer_duration",
+            "fare_id",
+            "price",
+            "currency_type",
+            "payment_method",
+            "transfers",
+            "agency_id",
+            "transfer_duration",
         ],
-        "fare_rules.txt" => &["fare_id","route_id","origin_id","destination_id","contains_id"],
+        "fare_rules.txt" => &[
+            "fare_id",
+            "route_id",
+            "origin_id",
+            "destination_id",
+            "contains_id",
+        ],
         "pathways.txt" => &[
-            "pathway_id","from_stop_id","to_stop_id","pathway_mode","is_bidirectional",
-            "length","traversal_time","stair_count","max_slope","min_width",
-            "signposted_as","reversed_signposted_as",
+            "pathway_id",
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+            "length",
+            "traversal_time",
+            "stair_count",
+            "max_slope",
+            "min_width",
+            "signposted_as",
+            "reversed_signposted_as",
         ],
-        "levels.txt" => &["level_id","level_index","level_name"],
+        "levels.txt" => &["level_id", "level_index", "level_name"],
         "feed_info.txt" => &[
-            "feed_publisher_name","feed_publisher_url","feed_lang","default_lang",
-            "feed_start_date","feed_end_date","feed_version",
-            "feed_contact_email","feed_contact_url",
+            "feed_publisher_name",
+            "feed_publisher_url",
+            "feed_lang",
+            "default_lang",
+            "feed_start_date",
+            "feed_end_date",
+            "feed_version",
+            "feed_contact_email",
+            "feed_contact_url",
         ],
         "translations.txt" => &[
-            "table_name","field_name","language","translation",
-            "record_id","record_sub_id","field_value",
+            "table_name",
+            "field_name",
+            "language",
+            "translation",
+            "record_id",
+            "record_sub_id",
+            "field_value",
         ],
         "attributions.txt" => &[
-            "attribution_id","agency_id","route_id","trip_id","organization_name",
-            "is_producer","is_operator","is_authority",
-            "attribution_url","attribution_email","attribution_phone",
+            "attribution_id",
+            "agency_id",
+            "route_id",
+            "trip_id",
+            "organization_name",
+            "is_producer",
+            "is_operator",
+            "is_authority",
+            "attribution_url",
+            "attribution_email",
+            "attribution_phone",
         ],
         // ── Fares v2 ── (sütun adları GTFS spec + repo k2 parser'larıyla doğrulandı)
         "rider_categories.txt" => &[
-            "rider_category_id","rider_category_name","is_default_fare_category","eligibility_url",
+            "rider_category_id",
+            "rider_category_name",
+            "is_default_fare_category",
+            "eligibility_url",
         ],
-        "fare_media.txt" => &["fare_media_id","fare_media_name","fare_media_type"],
+        "fare_media.txt" => &["fare_media_id", "fare_media_name", "fare_media_type"],
         "fare_products.txt" => &[
-            "fare_product_id","fare_product_name","rider_category_id","fare_media_id","amount","currency",
+            "fare_product_id",
+            "fare_product_name",
+            "rider_category_id",
+            "fare_media_id",
+            "amount",
+            "currency",
         ],
         "fare_leg_rules.txt" => &[
-            "leg_group_id","network_id","from_area_id","to_area_id",
-            "from_timeframe_group_id","to_timeframe_group_id","fare_product_id","rule_priority",
+            "leg_group_id",
+            "network_id",
+            "from_area_id",
+            "to_area_id",
+            "from_timeframe_group_id",
+            "to_timeframe_group_id",
+            "fare_product_id",
+            "rule_priority",
         ],
         // `rule_priority` BURADA YOK: 27 Nisan 2026 Schedule Reference'ta bu alan yalnız
         // `fare_leg_rules.txt`'te tanımlıdır (FLG_007 orayı ölçer). fare_transfer_rules'un
         // resmî alan listesi aşağıdaki yedidir.
         "fare_transfer_rules.txt" => &[
-            "from_leg_group_id","to_leg_group_id","transfer_count","duration_limit",
-            "duration_limit_type","fare_transfer_type","fare_product_id",
+            "from_leg_group_id",
+            "to_leg_group_id",
+            "transfer_count",
+            "duration_limit",
+            "duration_limit_type",
+            "fare_transfer_type",
+            "fare_product_id",
         ],
-        "timeframes.txt" => &["timeframe_group_id","start_time","end_time","service_id"],
-        "areas.txt" => &["area_id","area_name"],
-        "stop_areas.txt" => &["area_id","stop_id"],
-        "networks.txt" => &["network_id","network_name"],
-        "route_networks.txt" => &["network_id","route_id"],
-        "fare_leg_join_rules.txt" => &["from_network_id","to_network_id","from_stop_id","to_stop_id"],
+        "timeframes.txt" => &["timeframe_group_id", "start_time", "end_time", "service_id"],
+        "areas.txt" => &["area_id", "area_name"],
+        "stop_areas.txt" => &["area_id", "stop_id"],
+        "networks.txt" => &["network_id", "network_name"],
+        "route_networks.txt" => &["network_id", "route_id"],
+        "fare_leg_join_rules.txt" => &[
+            "from_network_id",
+            "to_network_id",
+            "from_stop_id",
+            "to_stop_id",
+        ],
         // ── Flex ──
         "booking_rules.txt" => &[
-            "booking_rule_id","booking_type",
-            "prior_notice_duration_min","prior_notice_duration_max",
-            "prior_notice_last_day","prior_notice_last_time",
-            "prior_notice_start_day","prior_notice_start_time","prior_notice_service_id",
-            "message","pickup_message","drop_off_message","phone_number","info_url","booking_url",
+            "booking_rule_id",
+            "booking_type",
+            "prior_notice_duration_min",
+            "prior_notice_duration_max",
+            "prior_notice_last_day",
+            "prior_notice_last_time",
+            "prior_notice_start_day",
+            "prior_notice_start_time",
+            "prior_notice_service_id",
+            "message",
+            "pickup_message",
+            "drop_off_message",
+            "phone_number",
+            "info_url",
+            "booking_url",
         ],
-        "location_groups.txt" => &["location_group_id","location_group_name"],
-        "location_group_stops.txt" => &["location_group_id","stop_id"],
+        "location_groups.txt" => &["location_group_id", "location_group_name"],
+        "location_group_stops.txt" => &["location_group_id", "stop_id"],
         // ── GTFS-JP (Japonya profili) — sütunlar resmî format-reference + Tokyo Toei feed'iyle doğrulandı.
         // Not: jp_ önekli sütunlar ARC_017'de zaten atlanır (ek güvenlik marjı).
         "agency_jp.txt" => &[
-            "agency_id","agency_official_name","agency_zip_number","agency_address",
-            "agency_president_pos","agency_president_name",
+            "agency_id",
+            "agency_official_name",
+            "agency_zip_number",
+            "agency_address",
+            "agency_president_pos",
+            "agency_president_name",
         ],
-        "office_jp.txt" => &["office_id","office_name","office_url","office_phone"],
+        "office_jp.txt" => &["office_id", "office_name", "office_url", "office_phone"],
         "routes_jp.txt" => &[
-            "route_id","route_update_date","origin_stop","via_stop","destination_stop",
+            "route_id",
+            "route_update_date",
+            "origin_stop",
+            "via_stop",
+            "destination_stop",
         ],
         "pattern_jp.txt" => &[
-            "jp_pattern_id","route_update_date","origin_stop","via_stop","destination_stop",
+            "jp_pattern_id",
+            "route_update_date",
+            "origin_stop",
+            "via_stop",
+            "destination_stop",
         ],
         _ => &[],
     }
@@ -1300,7 +1601,10 @@ pub fn parse_with_limits(
     if archive.len() > MAX_ZIP_ENTRIES {
         return Err(FatalError {
             code: FatalCode::ResourceLimit,
-            message: format!("ZIP merkezi dizini {} girdilik güvenlik sınırını aşıyor.", MAX_ZIP_ENTRIES),
+            message: format!(
+                "ZIP merkezi dizini {} girdilik güvenlik sınırını aşıyor.",
+                MAX_ZIP_ENTRIES
+            ),
         });
     }
 
@@ -1316,7 +1620,9 @@ pub fn parse_with_limits(
         if metadata_bytes > MAX_ZIP_METADATA_BYTES {
             return Err(FatalError {
                 code: FatalCode::ResourceLimit,
-                message: format!("ZIP merkezi dizini {MAX_ZIP_METADATA_BYTES} bayt metadata sınırını aşıyor."),
+                message: format!(
+                    "ZIP merkezi dizini {MAX_ZIP_METADATA_BYTES} bayt metadata sınırını aşıyor."
+                ),
             });
         }
         entry_names.push(name.to_string());
@@ -1324,7 +1630,9 @@ pub fn parse_with_limits(
     let mut partial = PartialReport::default();
     let root_prefix = detect_wrapped_root(&entry_names);
     if let Some(prefix) = &root_prefix {
-        partial.mark_root_error(format!("GTFS dosyaları ZIP kökünde değil; kök öneki '{prefix}'"));
+        partial.mark_root_error(format!(
+            "GTFS dosyaları ZIP kökünde değil; kök öneki '{prefix}'"
+        ));
     }
     if root_prefix.is_none()
         && entry_names.iter().any(|name| {
@@ -1342,13 +1650,16 @@ pub fn parse_with_limits(
     // bakmalıdır. Sıfır baytlık bir `calendar.txt`, boş `calendar_dates.txt`'i mazur
     // GÖSTERMEZ: o durumda feed'in hiç servis tanımı yoktur.
     let mut file_has_data = |name: &str| -> bool {
-        archive.index_for_name(name)
+        archive
+            .index_for_name(name)
             .and_then(|i| archive.by_index_raw(i).ok())
             .map(|f| f.size() > 0)
             .unwrap_or(false)
     };
     let calendar_entry = format!("{}calendar.txt", root_prefix.as_deref().unwrap_or(""));
-    let has_calendar_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_entry)
+    let has_calendar_txt = entry_names
+        .iter()
+        .any(|n| n.replace('\\', "/") == calendar_entry)
         && file_has_data(&calendar_entry);
     // 🔑 AYNI TOLERANS TERS YÖNDE DE GEÇERLİ (#166). Spec: "calendar.txt —
     // Required UNLESS all dates of service are defined in calendar_dates.txt."
@@ -1369,8 +1680,11 @@ pub fn parse_with_limits(
     // değil. Sıfır baytlık dosya yakalanır; "yalnız başlık satırı içeren" dosya yakalanmaz,
     // çünkü bastırma bayrakları dosya döngüsünden ÖNCE hesaplanır ve o noktada henüz hiçbir
     // dosya ayrıştırılmamıştır. Korpusta ölçülen altı vakanın altısı da 0 bayttır.
-    let calendar_dates_entry = format!("{}calendar_dates.txt", root_prefix.as_deref().unwrap_or(""));
-    let has_calendar_dates_txt = entry_names.iter().any(|n| n.replace('\\', "/") == calendar_dates_entry)
+    let calendar_dates_entry =
+        format!("{}calendar_dates.txt", root_prefix.as_deref().unwrap_or(""));
+    let has_calendar_dates_txt = entry_names
+        .iter()
+        .any(|n| n.replace('\\', "/") == calendar_dates_entry)
         && file_has_data(&calendar_dates_entry);
 
     // ARC_036: akış görünümü tutarlılığı. Merkez dizin metadata'sı burada toplanır; ham
@@ -1378,19 +1692,24 @@ pub fn parse_with_limits(
     // seçildi çünkü karar için AÇMA gerekmiyor, yalnız başlık alanları okunuyor.
     let stream_entries: Vec<(u64, u64, u64, u32)> = (0..archive.len())
         .filter_map(|i| {
-            archive
-                .by_index_raw(i)
-                .ok()
-                .map(|zf| (zf.header_start(), zf.compressed_size(), zf.size(), zf.crc32()))
+            archive.by_index_raw(i).ok().map(|zf| {
+                (
+                    zf.header_start(),
+                    zf.compressed_size(),
+                    zf.size(),
+                    zf.crc32(),
+                )
+            })
         })
         .collect();
-    let inconsistent_stream_entries =
-        count_inconsistent_stream_headers(zip_bytes, &stream_entries);
+    let inconsistent_stream_entries = count_inconsistent_stream_headers(zip_bytes, &stream_entries);
 
     let mut notices: Vec<Notice> = Vec::new();
     let mut counter: u32 = 0;
-    let mut geojson_location_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> = std::collections::HashMap::new();
+    let mut geojson_location_ids: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> =
+        std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
     // ARC_035: mevcut ama hiç veri satırı taşımayan dosyalar. Bulgu traversal sonunda,
@@ -1415,7 +1734,9 @@ pub fn parse_with_limits(
         // Sarılı feed'de kök öneki düşülür; sonraki tüm mantık dosyayı kökteymiş gibi görür.
         // Bulgu mesajları yine ZIP'teki GERÇEK yolu gösterir (entry_name).
         let raw_name = match &root_prefix {
-            Some(prefix) => entry_name.replace('\\', "/").strip_prefix(prefix.as_str())
+            Some(prefix) => entry_name
+                .replace('\\', "/")
+                .strip_prefix(prefix.as_str())
                 .map_or_else(|| entry_name.clone(), str::to_string),
             None => entry_name.clone(),
         };
@@ -1441,10 +1762,18 @@ pub fn parse_with_limits(
             ));
         }
         if raw_name.ends_with(".txt") && zf.unix_mode().is_some_and(|mode| mode & 0o400 == 0) {
-            notices.push(make_notice(&mut counter, "ARC_027", EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None, zf.unix_mode().map(|m| format!("{m:o}")),
+            notices.push(make_notice(
+                &mut counter,
+                "ARC_027",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(&raw_name),
+                None,
+                None,
+                zf.unix_mode().map(|m| format!("{m:o}")),
                 format!("'{raw_name}' ZIP girdisinde kullanıcı okuma izni bulunmuyor."),
-                "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin."));
+                "ZIP girdisinin Unix izinlerine user-read (0400) bitini ekleyin.",
+            ));
         }
 
         // ARC_023: ZIP içinde nested ZIP dosyası (kök VEYA alt dizin).
@@ -1471,9 +1800,17 @@ pub fn parse_with_limits(
             let declared_size = zf.size();
             let compressed_size = zf.compressed_size();
             let mut geo_limits = limits;
-            geo_limits.max_entry_decompressed = geo_limits.max_entry_decompressed.min(MAX_GEOJSON_BYTES);
-            let mut buf = Vec::with_capacity(prealloc_capacity(declared_size.min(MAX_GEOJSON_BYTES) as usize));
-            let mut guarded = GuardedReader::new(&mut zf, geo_limits, &mut total_decompressed, compressed_size);
+            geo_limits.max_entry_decompressed =
+                geo_limits.max_entry_decompressed.min(MAX_GEOJSON_BYTES);
+            let mut buf = Vec::with_capacity(prealloc_capacity(
+                declared_size.min(MAX_GEOJSON_BYTES) as usize,
+            ));
+            let mut guarded = GuardedReader::new(
+                &mut zf,
+                geo_limits,
+                &mut total_decompressed,
+                compressed_size,
+            );
             match guarded.read_to_end(&mut buf) {
                 Ok(_) => {
                     has_valid_locations_geojson = validate_locations_geojson(
@@ -1492,8 +1829,14 @@ pub fn parse_with_limits(
                     // locations.geojson is optional; an unreadable entry must not make
                     // stops.txt optional, and must be visible in PARTIAL metadata.
                     notices.push(make_notice(
-                        &mut counter, "LOC_001", EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), None, None, None,
+                        &mut counter,
+                        "LOC_001",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        None,
+                        None,
+                        None,
                         format!("'{raw_name}' okunamadı: {e}"),
                         "locations.geojson dosyasını geçerli UTF-8 JSON olarak yeniden üretin.",
                     ));
@@ -1530,9 +1873,13 @@ pub fn parse_with_limits(
                 || gtfs_stem_with_wrong_extension(&raw_name)
             {
                 notices.push(make_notice(
-                    &mut counter, "ARC_007",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), None, None,
+                    &mut counter,
+                    "ARC_007",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    None,
+                    None,
                     Some(raw_name.clone()),
                     format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
                     "GTFS dışı dosyaları ZIP'ten kaldırın.",
@@ -1547,19 +1894,26 @@ pub fn parse_with_limits(
 
         present_files.insert(raw_name.clone());
         let is_required = REQUIRED_FILES.contains(&raw_name.as_str());
-        let is_known   = KNOWN_FILES.contains(&raw_name.as_str());
+        let is_known = KNOWN_FILES.contains(&raw_name.as_str());
 
         // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
-        k1dbg!("[K1] okuma başladı: {raw_name} (compressed: {} b)", zf.compressed_size());
+        k1dbg!(
+            "[K1] okuma başladı: {raw_name} (compressed: {} b)",
+            zf.compressed_size()
+        );
         let uncompressed_hint = zf.size().min(usize::MAX as u64) as usize;
         // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
         // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
-        let is_zip_stream = matches!(raw_name.as_str(), "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt");
+        let is_zip_stream = matches!(
+            raw_name.as_str(),
+            "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt"
+        );
         let _is_stop_times = raw_name == "stop_times.txt"; // legacy: sadece ARC_011 bytes için artık is_zip_stream
-        // Alloc'dan ÖNCE log: crash olursa son satır hangi dosyada OOM çıktığını gösterir.
+                                                           // Alloc'dan ÖNCE log: crash olursa son satır hangi dosyada OOM çıktığını gösterir.
         crate::timing::mem_note(&format!(
             "K1::alloc::{} hint={}MB{}",
-            raw_name, uncompressed_hint / 1_048_576,
+            raw_name,
+            uncompressed_hint / 1_048_576,
             if is_zip_stream { " (partial)" } else { "" }
         ));
         crate::timing::mem_log(&format!("K1::pre-alloc::{raw_name}"));
@@ -1577,10 +1931,12 @@ pub fn parse_with_limits(
             let mut entry_limits = limits;
             if !is_zip_stream {
                 if let Some(limit) = buffered_entry_limit {
-                    entry_limits.max_entry_decompressed = entry_limits.max_entry_decompressed.min(limit);
+                    entry_limits.max_entry_decompressed =
+                        entry_limits.max_entry_decompressed.min(limit);
                 }
             }
-            let mut guarded = GuardedReader::new(&mut zf, entry_limits, &mut total_decompressed, comp_size);
+            let mut guarded =
+                GuardedReader::new(&mut zf, entry_limits, &mut total_decompressed, comp_size);
             if is_zip_stream {
                 let mut chunk = [0u8; 64 * 1024];
                 let mut malformed_eol = false;
@@ -1606,15 +1962,36 @@ pub fn parse_with_limits(
                         break;
                     }
                     scanned = scanned.saturating_add(n);
-                    if previous_was_cr && chunk[0] != b'\n' { malformed_eol = true; }
-                    malformed_eol |= chunk[..n].windows(2).any(|p| p[0] == b'\r' && p[1] != b'\n');
+                    if previous_was_cr && chunk[0] != b'\n' {
+                        malformed_eol = true;
+                    }
+                    malformed_eol |= chunk[..n]
+                        .windows(2)
+                        .any(|p| p[0] == b'\r' && p[1] != b'\n');
                     previous_was_cr = chunk[n - 1] == b'\r';
                     let keep = (8192usize.saturating_sub(raw_vec.len())).min(n);
                     raw_vec.extend_from_slice(&chunk[..keep]);
-                    if scanned >= probe_limit { break; }
+                    if scanned >= probe_limit {
+                        break;
+                    }
                 }
-                if reached_eof { malformed_eol |= previous_was_cr; }
-                if malformed_eol { notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın.")); }
+                if reached_eof {
+                    malformed_eol |= previous_was_cr;
+                }
+                if malformed_eol {
+                    notices.push(make_notice(
+                        &mut counter,
+                        "ARC_026",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        None,
+                        None,
+                        Some("CR not followed by LF".to_string()),
+                        format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."),
+                        "Satır sonlarını LF ya da CRLF olarak yeniden yazın.",
+                    ));
+                }
                 // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
                 // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
                 // zorunlu dosyada Utf8Critical → feed tümüyle reddedilirdi.
@@ -1624,16 +2001,35 @@ pub fn parse_with_limits(
             }
         }
         if !is_zip_stream && has_malformed_eol(&raw_vec) {
-            notices.push(make_notice(&mut counter, "ARC_026", EntityType::File, Some(raw_name.clone()), Some(&raw_name), None, None, Some("CR not followed by LF".to_string()), format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."), "Satır sonlarını LF ya da CRLF olarak yeniden yazın."));
+            notices.push(make_notice(
+                &mut counter,
+                "ARC_026",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(&raw_name),
+                None,
+                None,
+                Some("CR not followed by LF".to_string()),
+                format!("'{raw_name}' CRLF veya LF dışında satır sonu içeriyor."),
+                "Satır sonlarını LF ya da CRLF olarak yeniden yazın.",
+            ));
         }
 
         // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
         // zip_stream partial_read'de raw_vec yalnızca başlık (~8KB); gerçek boyut ZIP metadata'sından.
-        let file_size_bytes = if is_zip_stream { uncompressed_hint } else { raw_vec.len() };
+        let file_size_bytes = if is_zip_stream {
+            uncompressed_hint
+        } else {
+            raw_vec.len()
+        };
         notices.push(make_notice(
-            &mut counter, "ARC_011",
-            EntityType::File, Some(raw_name.clone()),
-            Some(&raw_name), None, None,
+            &mut counter,
+            "ARC_011",
+            EntityType::File,
+            Some(raw_name.clone()),
+            Some(&raw_name),
+            None,
+            None,
             Some(format!("{file_size_bytes} bytes")),
             format!("'{raw_name}' boyutu: {file_size_bytes} bayt."),
             "Bilgi amaçlı; düzeltme gerekmez.",
@@ -1642,9 +2038,13 @@ pub fn parse_with_limits(
         // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
         if !is_known {
             notices.push(make_notice(
-                &mut counter, "ARC_007",
-                EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None,
+                &mut counter,
+                "ARC_007",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(&raw_name),
+                None,
+                None,
                 Some(raw_name.clone()),
                 format!("'{raw_name}' GTFS spesifikasyonunda tanımlı değil."),
                 "GTFS dışı dosyaları ZIP'ten kaldırın.",
@@ -1655,9 +2055,13 @@ pub fn parse_with_limits(
         // ARC_006: İsteğe bağlı dosya mevcut (BİLGİ)
         if !is_required {
             notices.push(make_notice(
-                &mut counter, "ARC_006",
-                EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None,
+                &mut counter,
+                "ARC_006",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(&raw_name),
+                None,
+                None,
                 None,
                 format!("İsteğe bağlı dosya mevcut: '{raw_name}'."),
                 "Bilgi amaçlı; düzeltme gerekmez.",
@@ -1687,9 +2091,13 @@ pub fn parse_with_limits(
             Err(_) => {
                 // ARC_002: Kritik UTF-8 ihlali
                 notices.push(make_notice(
-                    &mut counter, "ARC_002",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), None, None,
+                    &mut counter,
+                    "ARC_002",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    None,
+                    None,
                     None,
                     format!("'{raw_name}' UTF-8 kodlamasıyla okunamıyor."),
                     "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
@@ -1697,9 +2105,13 @@ pub fn parse_with_limits(
                 partial.mark_unavailable(raw_name.clone());
                 if !is_required {
                     notices.push(make_notice(
-                        &mut counter, "ARC_003",
-                        EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), None, None,
+                        &mut counter,
+                        "ARC_003",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        None,
+                        None,
                         None,
                         format!("'{raw_name}' UTF-8 dışı olduğu için dosya atlandı."),
                         "Tüm GTFS dosyalarını UTF-8 kodlamasıyla kaydedin.",
@@ -1718,8 +2130,10 @@ pub fn parse_with_limits(
         // trips: ~3M sefer × 8 alan Vec<Vec<SmolStr>> (~576 MB) TripRecord Vec ile çakışır.
         // calendar_dates: Swiss feed ~8M+ satır → rows Vec<Vec<SmolStr>> 700MB+ tüketir,
         // stop_times.txt decompress için yer kalmaz.
-        let stream_mode = raw_name == "stop_times.txt" || raw_name == "shapes.txt"
-            || raw_name == "trips.txt" || raw_name == "calendar_dates.txt";
+        let stream_mode = raw_name == "stop_times.txt"
+            || raw_name == "shapes.txt"
+            || raw_name == "trips.txt"
+            || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
         // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), diğer her yerde
@@ -1766,7 +2180,6 @@ pub fn parse_with_limits(
         // artık yazılı. RFC 4180'in tırnak kaçırma ihlalleri (`ARC_033`) ise K2'de,
         // baytların gerçekten okunduğu yerde denetleniyor.
 
-
         // ARC_009: Boş dosya
         if records.is_empty() {
             // calendar.txt servisi tanımlıyorsa boş calendar_dates.txt yanlış-pozitiftir → bastır.
@@ -1778,9 +2191,13 @@ pub fn parse_with_limits(
                 // yalnız opsiyonel dosyaları raporlar ve sabit Bilgi'dir.
                 if !REQUIRED_FILES.contains(&raw_name.as_str()) {
                     notices.push(make_notice(
-                        &mut counter, "ARC_009",
-                        EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), None, None,
+                        &mut counter,
+                        "ARC_009",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        None,
+                        None,
                         None,
                         format!("'{raw_name}' dosyası boş veya yalnızca başlık satırı içeriyor."),
                         "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
@@ -1797,9 +2214,13 @@ pub fn parse_with_limits(
         for (col_i, hdr) in raw_headers.iter().enumerate() {
             if hdr != hdr.trim() {
                 notices.push(make_notice(
-                    &mut counter, "ARC_014",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), Some(1), Some(hdr.as_str()),
+                    &mut counter,
+                    "ARC_014",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(1),
+                    Some(hdr.as_str()),
                     Some(format!("{hdr:?}")),
                     format!("'{raw_name}' başlığında '{hdr}' sütununda gereksiz boşluk var."),
                     "CSV başlıklarındaki baştaki/sondaki boşlukları kaldırın.",
@@ -1815,9 +2236,13 @@ pub fn parse_with_limits(
         for hdr in &headers {
             if hdr.is_empty() {
                 notices.push(make_notice(
-                    &mut counter, "ARC_019",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), Some(1), None,
+                    &mut counter,
+                    "ARC_019",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(1),
+                    None,
                     Some("(boş)".to_string()),
                     format!("'{raw_name}' başlığında boş sütun adı var."),
                     "Tüm sütun adlarının dolu olduğundan emin olun.",
@@ -1831,9 +2256,13 @@ pub fn parse_with_limits(
         for hdr in &headers {
             if !seen_hdrs.insert(hdr.as_str()) {
                 notices.push(make_notice(
-                    &mut counter, "ARC_015",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), Some(1), Some(hdr.as_str()),
+                    &mut counter,
+                    "ARC_015",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(1),
+                    Some(hdr.as_str()),
                     Some(hdr.clone()),
                     format!("'{raw_name}' dosyasında '{hdr}' sütunu tekrarlanıyor."),
                     "Tekrar eden sütunu kaldırın.",
@@ -1847,11 +2276,17 @@ pub fn parse_with_limits(
             for hdr in &headers {
                 if !known_cols.contains(&hdr.as_str()) && !hdr.starts_with("jp_") {
                     notices.push(make_notice(
-                        &mut counter, "ARC_017",
-                        EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), Some(1), Some(hdr.as_str()),
+                        &mut counter,
+                        "ARC_017",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        Some(1),
+                        Some(hdr.as_str()),
                         Some(hdr.clone()),
-                        format!("'{raw_name}' dosyasında '{hdr}' GTFS spesifikasyonunda tanımlı değil."),
+                        format!(
+                            "'{raw_name}' dosyasında '{hdr}' GTFS spesifikasyonunda tanımlı değil."
+                        ),
                         "GTFS standardı dışındaki sütunları kaldırın.",
                     ));
                 }
@@ -1864,7 +2299,9 @@ pub fn parse_with_limits(
         // AND stop_times.location_id are NOT defined." Bu ikisinden biri başlıkta varsa dosya
         // Flex kullanıyordur ve stop_id sütunu beklenmez → ARC_025 üretilmez.
         let stop_id_required = raw_name == "stop_times.txt"
-            && !headers.iter().any(|h| h == "location_group_id" || h == "location_id");
+            && !headers
+                .iter()
+                .any(|h| h == "location_group_id" || h == "location_id");
         let extra_req: &[&str] = if stop_id_required { &["stop_id"] } else { &[] };
 
         // ARC_025: req_flds'te olup başlıkta OLMAYAN zorunlu sütun (header-level, dosya başına
@@ -1873,9 +2310,13 @@ pub fn parse_with_limits(
         for &f in req_flds.iter().chain(extra_req) {
             if !headers.iter().any(|h| h == f) {
                 notices.push(make_notice(
-                    &mut counter, "ARC_025",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), Some(1), Some(f),
+                    &mut counter,
+                    "ARC_025",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(1),
+                    Some(f),
                     Some(String::new()),
                     format!("'{raw_name}' dosyasında zorunlu '{f}' sütunu başlıkta yok."),
                     "Zorunlu sütunu başlığa ekleyin.",
@@ -1901,11 +2342,16 @@ pub fn parse_with_limits(
                 arc012_check(&raw_name, line_num, row.len(), header_count)
             {
                 let mut n = make_notice(
-                    &mut counter, "ARC_012",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), Some(line_num), None,
+                    &mut counter,
+                    "ARC_012",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(line_num),
+                    None,
                     Some(observed),
-                    msg, tip,
+                    msg,
+                    tip,
                 );
                 if is_info {
                     n.severity = Severity::Bilgi;
@@ -1916,9 +2362,13 @@ pub fn parse_with_limits(
             // ARC_018: Boş veri satırı (tüm alanlar boş)
             if row.iter().all(|v| v.trim().is_empty()) {
                 notices.push(make_notice(
-                    &mut counter, "ARC_018",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), Some(line_num), None,
+                    &mut counter,
+                    "ARC_018",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    Some(line_num),
+                    None,
                     None,
                     format!("'{raw_name}' {line_num}. satırı tamamen boş."),
                     "Boş satırları kaldırın.",
@@ -1959,9 +2409,13 @@ pub fn parse_with_limits(
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
                     arc021_fired = true;
                     notices.push(make_notice(
-                        &mut counter, "ARC_021",
-                        EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), Some(line_num), None,
+                        &mut counter,
+                        "ARC_021",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        Some(line_num),
+                        None,
                         Some(format!("U+{cp:04X}")),
                         arc021_message(&raw_name, cp),
                         ARC021_REMEDIATION,
@@ -1974,9 +2428,13 @@ pub fn parse_with_limits(
                 if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
                     arc030_fired = true;
                     notices.push(make_notice(
-                        &mut counter, "ARC_030",
-                        EntityType::File, Some(raw_name.clone()),
-                        Some(&raw_name), Some(line_num), None,
+                        &mut counter,
+                        "ARC_030",
+                        EntityType::File,
+                        Some(raw_name.clone()),
+                        Some(&raw_name),
+                        Some(line_num),
+                        None,
                         Some(format!("U+{cp:04X}")),
                         arc030_message(&raw_name, cp),
                         ARC030_REMEDIATION,
@@ -1997,10 +2455,16 @@ pub fn parse_with_limits(
         // DQ_016: DOSYA başına TEK özet (satır-başına DEĞİL — patlama önlemi, STM_050 deseni).
         if let Some((observed, msg, cols)) = dq016.summary(&raw_name) {
             let mut n = make_notice(
-                &mut counter, "DQ_016",
-                EntityType::File, Some(raw_name.clone()),
-                Some(raw_name.as_str()), dq016.first_line, Some(cols.as_str()),
-                Some(observed), msg, DQ016_REMEDIATION,
+                &mut counter,
+                "DQ_016",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(raw_name.as_str()),
+                dq016.first_line,
+                Some(cols.as_str()),
+                Some(observed),
+                msg,
+                DQ016_REMEDIATION,
             );
             n.details = dq016.evidence_details();
             notices.push(n);
@@ -2009,10 +2473,16 @@ pub fn parse_with_limits(
         // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
         if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
             notices.push(make_notice(
-                &mut counter, "ARC_032",
-                EntityType::File, Some(raw_name.clone()),
-                Some(raw_name.as_str()), arc032.first_line, Some(cols.as_str()),
-                Some(observed), msg, ARC032_REMEDIATION,
+                &mut counter,
+                "ARC_032",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(raw_name.as_str()),
+                arc032.first_line,
+                Some(cols.as_str()),
+                Some(observed),
+                msg,
+                ARC032_REMEDIATION,
             ));
         }
 
@@ -2023,9 +2493,13 @@ pub fn parse_with_limits(
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
             notices.push(make_notice(
-                &mut counter, "ARC_033",
-                EntityType::File, Some(raw_name.clone()),
-                Some(raw_name.as_str()), rfc4180.first_line, None,
+                &mut counter,
+                "ARC_033",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(raw_name.as_str()),
+                rfc4180.first_line,
+                None,
                 Some(format!("{} rows · {kind}", rfc4180.rows)),
                 format!(
                     "'{raw_name}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
@@ -2041,11 +2515,30 @@ pub fn parse_with_limits(
         let max_rows = cfg.max_file_rows as usize;
         if !stream_mode && (csv_truncated || rows.len() > max_rows) {
             notices.push(make_notice(
-                &mut counter, "ARC_022",
-                EntityType::File, Some(raw_name.clone()),
-                Some(&raw_name), None, None,
-                Some(format!("{}", if csv_truncated { max_rows.saturating_add(1) } else { rows.len() })),
-                format!("'{raw_name}' dosyasında en az {} satır var; {} satır sınırını aşıyor.", if csv_truncated { max_rows.saturating_add(1) } else { rows.len() }, max_rows),
+                &mut counter,
+                "ARC_022",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(&raw_name),
+                None,
+                None,
+                Some(format!(
+                    "{}",
+                    if csv_truncated {
+                        max_rows.saturating_add(1)
+                    } else {
+                        rows.len()
+                    }
+                )),
+                format!(
+                    "'{raw_name}' dosyasında en az {} satır var; {} satır sınırını aşıyor.",
+                    if csv_truncated {
+                        max_rows.saturating_add(1)
+                    } else {
+                        rows.len()
+                    },
+                    max_rows
+                ),
                 "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
             ));
         }
@@ -2064,9 +2557,13 @@ pub fn parse_with_limits(
             // Zorunlu dosya → ARC_035 (traversal sonunda, Flex muafiyetiyle).
             if !REQUIRED_FILES.contains(&raw_name.as_str()) {
                 notices.push(make_notice(
-                    &mut counter, "ARC_009",
-                    EntityType::File, Some(raw_name.clone()),
-                    Some(&raw_name), None, None,
+                    &mut counter,
+                    "ARC_009",
+                    EntityType::File,
+                    Some(raw_name.clone()),
+                    Some(&raw_name),
+                    None,
+                    None,
                     None,
                     format!("'{raw_name}' dosyasında başlık satırı var ama veri satırı yok."),
                     "Dosyaya en az bir veri satırı ekleyin (veya gereksizse dosyayı kaldırın).",
@@ -2076,7 +2573,11 @@ pub fn parse_with_limits(
 
         // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
         // NLL: bytes ödüncü burada biter (son kullanım), ardından raw_vec taşınabilir.
-        let bytes_len = if is_zip_stream { uncompressed_hint as u32 } else { bytes.len() as u32 };
+        let bytes_len = if is_zip_stream {
+            uncompressed_hint as u32
+        } else {
+            bytes.len() as u32
+        };
         // zip_stream dosyalarda (stop_times, trips, calendar_dates): raw_text=None.
         // K2 zip_bytes alır, ZIP'i yeniden açarak gövdeyi stream eder.
         // shapes.txt: raw_text yoluyla stream (zip_stream değil, raw_text=Some).
@@ -2091,7 +2592,17 @@ pub fn parse_with_limits(
 
         k1dbg!("[K1] bitti: {raw_name} ({} satır)", rows.len());
         let zip_entry_name = (raw_name != entry_name).then(|| entry_name.clone());
-        raw_files.insert(raw_name.clone(), RawFile { name: raw_name, headers, rows, bytes: bytes_len, raw_text, zip_entry_name });
+        raw_files.insert(
+            raw_name.clone(),
+            RawFile {
+                name: raw_name,
+                headers,
+                rows,
+                bytes: bytes_len,
+                raw_text,
+                zip_entry_name,
+            },
+        );
     }
 
     // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
@@ -2116,11 +2627,15 @@ pub fn parse_with_limits(
         for &f in &missing {
             partial.mark_unavailable(f);
             notices.push(make_notice(
-                &mut counter, "ARC_004",
+                &mut counter,
+                "ARC_004",
                 // Dosya adı elimizde; boş bırakılınca en/ja/fr metni
                 // "Required file '' is missing." oluyordu.
-                EntityType::Feed, Some(f.to_string()),
-                None, None, None,
+                EntityType::Feed,
+                Some(f.to_string()),
+                None,
+                None,
+                None,
                 Some(f.to_string()),
                 format!("Zorunlu GTFS dosyası eksik: '{f}'."),
                 "Eksik dosyayı feed ZIP arşivine ekleyin.",
@@ -2140,9 +2655,13 @@ pub fn parse_with_limits(
         .collect();
     for &f in &empty_required {
         notices.push(make_notice(
-            &mut counter, "ARC_035",
-            EntityType::File, Some(f.to_string()),
-            Some(f), None, None,
+            &mut counter,
+            "ARC_035",
+            EntityType::File,
+            Some(f.to_string()),
+            Some(f),
+            None,
+            None,
             Some(f.to_string()),
             format!("Zorunlu GTFS dosyası '{f}' hiç veri satırı içermiyor."),
             "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
@@ -2167,14 +2686,16 @@ pub fn parse_with_limits(
     }
 
     // ARC_008: calendar.txt VE calendar_dates.txt ikisi de eksik (Kritik, non-Fatal)
-    let has_any_calendar = CALENDAR_FILES
-        .iter()
-        .any(|&f| present_files.contains(f));
+    let has_any_calendar = CALENDAR_FILES.iter().any(|&f| present_files.contains(f));
     if !has_any_calendar {
         notices.push(make_notice(
-            &mut counter, "ARC_008",
-            EntityType::Feed, None,
-            None, None, None,
+            &mut counter,
+            "ARC_008",
+            EntityType::Feed,
+            None,
+            None,
+            None,
+            None,
             None,
             "calendar.txt ve calendar_dates.txt dosyalarının ikisi de eksik.".to_string(),
             "En az birini (calendar.txt veya calendar_dates.txt) ZIP'e ekleyin.",
@@ -2219,8 +2740,14 @@ fn validate_locations_geojson(
         Ok(s) => s,
         Err(_) => {
             notices.push(make_notice(
-                counter, "ARC_002", EntityType::File, Some(fname.to_string()),
-                Some(fname), None, None, None,
+                counter,
+                "ARC_002",
+                EntityType::File,
+                Some(fname.to_string()),
+                Some(fname),
+                None,
+                None,
+                None,
                 format!("'{fname}' UTF-8 kodlamasıyla okunamıyor."),
                 "Dosyayı UTF-8 kodlamasıyla yeniden kaydedin.",
             ));
@@ -2228,25 +2755,35 @@ fn validate_locations_geojson(
         }
     };
 
-    let json: serde_json::Value = match serde_json::from_str(text) {
-        Ok(v) => v,
-        Err(e) => {
-            notices.push(make_notice(
+    let json: serde_json::Value =
+        match serde_json::from_str(text) {
+            Ok(v) => v,
+            Err(e) => {
+                notices.push(make_notice(
                 counter, "LOC_001", EntityType::File, Some(fname.to_string()),
                 Some(fname), None, None, Some(format!("JSON hatası: {e}")),
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
                 "locations.geojson'ın geçerli bir GeoJSON FeatureCollection olduğundan emin olun.",
             ));
-            return false;
-        }
-    };
+                return false;
+            }
+        };
 
     let root_type = json.get("type").and_then(|t| t.as_str());
     if root_type != Some("FeatureCollection") {
         notices.push(make_notice(
-            counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-            Some(fname), None, Some("type"), root_type.map(str::to_string),
-            format!("'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.", root_type.unwrap_or("yok")),
+            counter,
+            "LOC_001",
+            EntityType::File,
+            Some(fname.to_string()),
+            Some(fname),
+            None,
+            Some("type"),
+            root_type.map(str::to_string),
+            format!(
+                "'{fname}' kök tipi 'FeatureCollection' olmalıdır; bulundu: '{}'.",
+                root_type.unwrap_or("yok")
+            ),
             "locations.geojson dosyasının kök tipi 'FeatureCollection' olmalıdır.",
         ));
         return false;
@@ -2254,8 +2791,14 @@ fn validate_locations_geojson(
 
     let Some(features) = json.get("features").and_then(|f| f.as_array()) else {
         notices.push(make_notice(
-            counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-            Some(fname), None, Some("features"), None,
+            counter,
+            "LOC_001",
+            EntityType::File,
+            Some(fname.to_string()),
+            Some(fname),
+            None,
+            Some("features"),
+            None,
             format!("'{fname}' için 'features' dizisi eksik veya geçersiz."),
             "locations.geojson dosyasına geçerli bir 'features' dizisi ekleyin.",
         ));
@@ -2265,8 +2808,14 @@ fn validate_locations_geojson(
     // LOC_005: FeatureCollection boş
     if features.is_empty() {
         notices.push(make_notice(
-            counter, "LOC_005", EntityType::File, Some(fname.to_string()),
-            Some(fname), None, Some("features"), None,
+            counter,
+            "LOC_005",
+            EntityType::File,
+            Some(fname.to_string()),
+            Some(fname),
+            None,
+            Some("features"),
+            None,
             format!("'{fname}' FeatureCollection'ı boş — hiç feature yok."),
             "GTFS Flex için en az bir Polygon veya MultiPolygon feature ekleyin.",
         ));
@@ -2275,12 +2824,18 @@ fn validate_locations_geojson(
 
     // LOC_007: Yinelenen feature 'id' değerleri
     {
-        let mut seen_ids: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        let mut seen_ids: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
         for (i, feature) in features.iter().enumerate() {
             if let Some(id_val) = feature.get("id") {
                 let id_str = id_val.to_string();
                 // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
-                geojson_ids.insert(id_val.as_str().map(str::to_string).unwrap_or_else(|| id_str.clone()));
+                geojson_ids.insert(
+                    id_val
+                        .as_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|| id_str.clone()),
+                );
                 if let Some(first_idx) = seen_ids.get(&id_str) {
                     notices.push(make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
@@ -2304,10 +2859,17 @@ fn validate_locations_geojson(
             Some("Feature") => {}
             other => {
                 notices.push(make_notice(
-                    counter, "LOC_008", EntityType::File, Some(fname.to_string()),
-                    Some(fname), Some(feat_num), Some("type"),
+                    counter,
+                    "LOC_008",
+                    EntityType::File,
+                    Some(fname.to_string()),
+                    Some(fname),
+                    Some(feat_num),
+                    Some("type"),
                     other.map(str::to_string),
-                    format!("'{fname}' özellik {feat_num} için 'type' eksik veya \"Feature\" değil."),
+                    format!(
+                        "'{fname}' özellik {feat_num} için 'type' eksik veya \"Feature\" değil."
+                    ),
                     "Her feature nesnesine \"type\": \"Feature\" ekleyin.",
                 ));
             }
@@ -2317,8 +2879,14 @@ fn validate_locations_geojson(
         // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
         if !feature.get("properties").is_some_and(|v| v.is_object()) {
             notices.push(make_notice(
-                counter, "LOC_009", EntityType::File, Some(fname.to_string()),
-                Some(fname), Some(feat_num), Some("properties"), None,
+                counter,
+                "LOC_009",
+                EntityType::File,
+                Some(fname.to_string()),
+                Some(fname),
+                Some(feat_num),
+                Some("properties"),
+                None,
                 format!("'{fname}' özellik {feat_num} için 'properties' nesnesi eksik."),
                 "Her feature'a bir 'properties' nesnesi ekleyin (boş nesne de geçerlidir).",
             ));
@@ -2337,7 +2905,9 @@ fn validate_locations_geojson(
         // Pa1fdaa0d: geometriyi feature 'id'sine bağlamak için ham id (XFL_025 ile AYNI
         // normalleştirme — `stop_times.location_id` ham CSV değeriyle eşleşmeli).
         let feature_id: Option<String> = feature.get("id").map(|v| {
-            v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())
+            v.as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| v.to_string())
         });
         let mut geom = LocationGeometry {
             outer_rings: Vec::new(),
@@ -2363,22 +2933,34 @@ fn validate_locations_geojson(
                 // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
                 // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
                 match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    Some(rings) => check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom)),
+                    Some(rings) => check_polygon_rings(
+                        counter,
+                        fname,
+                        feat_num,
+                        rings,
+                        notices,
+                        Some(&mut geom),
+                    ),
                     None => missing_coordinates(counter, fname, feat_num, notices),
                 }
             }
-            Some("MultiPolygon") => {
-                match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                    None => missing_coordinates(counter, fname, feat_num, notices),
-                    Some(polygons) => {
-                        for poly in polygons {
-                            if let Some(rings) = poly.as_array() {
-                                check_polygon_rings(counter, fname, feat_num, rings, notices, Some(&mut geom));
-                            }
+            Some("MultiPolygon") => match geometry.get("coordinates").and_then(|c| c.as_array()) {
+                None => missing_coordinates(counter, fname, feat_num, notices),
+                Some(polygons) => {
+                    for poly in polygons {
+                        if let Some(rings) = poly.as_array() {
+                            check_polygon_rings(
+                                counter,
+                                fname,
+                                feat_num,
+                                rings,
+                                notices,
+                                Some(&mut geom),
+                            );
                         }
                     }
                 }
-            }
+            },
             Some(t) => {
                 notices.push(make_notice(
                     counter, "LOC_001", EntityType::File, Some(fname.to_string()),
@@ -2389,8 +2971,14 @@ fn validate_locations_geojson(
             }
             None => {
                 notices.push(make_notice(
-                    counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-                    Some(fname), Some(feat_num), Some("geometry.type"), None,
+                    counter,
+                    "LOC_001",
+                    EntityType::File,
+                    Some(fname.to_string()),
+                    Some(fname),
+                    Some(feat_num),
+                    Some("geometry.type"),
+                    None,
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
                     "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
                 ));
@@ -2416,8 +3004,14 @@ fn validate_locations_geojson(
 /// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
 fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
     notices.push(make_notice(
-        counter, "LOC_010", EntityType::File, Some(fname.to_string()),
-        Some(fname), Some(feat_num), Some("coordinates"), None,
+        counter,
+        "LOC_010",
+        EntityType::File,
+        Some(fname.to_string()),
+        Some(fname),
+        Some(feat_num),
+        Some("coordinates"),
+        None,
         format!("'{fname}' özellik {feat_num} için geometry 'coordinates' eksik veya dizi değil."),
         "Geometriye geçerli bir 'coordinates' dizisi ekleyin.",
     ));
@@ -2442,17 +3036,21 @@ fn check_polygon_rings(
 
     for ring in rings {
         let Some(pts) = ring.as_array() else { continue };
-        if pts.len() < 2 { continue; }
+        if pts.len() < 2 {
+            continue;
+        }
 
         // LOC_004: İlk ve son nokta eşit değilse ring kapalı değil
         if !already_reported_closure {
             let first = &pts[0];
-            let last  = &pts[pts.len() - 1];
+            let last = &pts[pts.len() - 1];
             let first_lon = first.get(0).and_then(|v| v.as_f64());
             let first_lat = first.get(1).and_then(|v| v.as_f64());
-            let last_lon  = last.get(0).and_then(|v| v.as_f64());
-            let last_lat  = last.get(1).and_then(|v| v.as_f64());
-            if let (Some(fl), Some(fa), Some(ll), Some(la)) = (first_lon, first_lat, last_lon, last_lat) {
+            let last_lon = last.get(0).and_then(|v| v.as_f64());
+            let last_lat = last.get(1).and_then(|v| v.as_f64());
+            if let (Some(fl), Some(fa), Some(ll), Some(la)) =
+                (first_lon, first_lat, last_lon, last_lat)
+            {
                 if (fl - ll).abs() > 1e-8 || (fa - la).abs() > 1e-8 {
                     notices.push(make_notice(
                         counter, "LOC_004", EntityType::File, Some(fname.to_string()),
@@ -2468,7 +3066,10 @@ fn check_polygon_rings(
         // Ring koordinatlarını topla: alan hesabı ve enlem ölçeği için.
         let mut ring_pts: Vec<(f64, f64)> = Vec::with_capacity(pts.len());
         for pt in pts {
-            if let (Some(lon), Some(lat)) = (pt.get(0).and_then(|v| v.as_f64()), pt.get(1).and_then(|v| v.as_f64())) {
+            if let (Some(lon), Some(lat)) = (
+                pt.get(0).and_then(|v| v.as_f64()),
+                pt.get(1).and_then(|v| v.as_f64()),
+            ) {
                 all_lats.push(lat);
                 all_lons.push(lon);
                 ring_pts.push((lon, lat));
@@ -2499,7 +3100,9 @@ fn check_polygon_rings(
             bad = Some("dış ring kendine dokunuyor — iç kısım bölünüyor".to_string());
         }
         for (i, hole) in all_rings.iter().enumerate().skip(1) {
-            if bad.is_some() { break; }
+            if bad.is_some() {
+                break;
+            }
             if !ring_is_simple(hole) {
                 bad = Some(format!("{i}. delik kendini kesiyor"));
             } else if has_spike(hole) {
@@ -2512,20 +3115,28 @@ fn check_polygon_rings(
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
                 // görünmüyordu. Artık TÜM köşeler denetlenir.
-                bad = Some(format!("hole {i} lies partly or wholly outside the outer ring"));
+                bad = Some(format!(
+                    "hole {i} lies partly or wholly outside the outer ring"
+                ));
             }
         }
         // Delik-delik ilişkisi: kesişme yasak (6.1.11/3); iç içe delik de geçersizdir
         // (içteki "delik" aslında dolu alan olur, iç kısım tanımsızlaşır).
         'outer: for i in 1..all_rings.len() {
-            if bad.is_some() { break; }
+            if bad.is_some() {
+                break;
+            }
             for j in (i + 1)..all_rings.len() {
                 if rings_cross(&all_rings[i], &all_rings[j]) {
                     bad = Some(format!("{i}. ve {j}. delikler birbirini kesiyor"));
                     break 'outer;
                 }
-                if all_rings[j].first().is_some_and(|&p| point_in_ring(p, &all_rings[i]))
-                    || all_rings[i].first().is_some_and(|&p| point_in_ring(p, &all_rings[j]))
+                if all_rings[j]
+                    .first()
+                    .is_some_and(|&p| point_in_ring(p, &all_rings[i]))
+                    || all_rings[i]
+                        .first()
+                        .is_some_and(|&p| point_in_ring(p, &all_rings[j]))
                 {
                     bad = Some(format!("{i}. ve {j}. delikler iç içe"));
                     break 'outer;
@@ -2575,8 +3186,10 @@ fn check_polygon_rings(
     // kesişme/kapsama ile ayrıca doğrulanır.
     if let (Some(g), Some(outer)) = (collect, all_rings.first()) {
         for &(x, y) in outer {
-            g.bbox.0 = g.bbox.0.min(x); g.bbox.1 = g.bbox.1.min(y);
-            g.bbox.2 = g.bbox.2.max(x); g.bbox.3 = g.bbox.3.max(y);
+            g.bbox.0 = g.bbox.0.min(x);
+            g.bbox.1 = g.bbox.1.min(y);
+            g.bbox.2 = g.bbox.2.max(x);
+            g.bbox.3 = g.bbox.3.max(y);
         }
         g.outer_rings.push(outer.clone());
     }
@@ -2598,7 +3211,13 @@ pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f6
             robust::Coord { x: q.0, y: q.1 },
             robust::Coord { x: r.0, y: r.1 },
         );
-        if v > 0.0 { 1i8 } else if v < 0.0 { -1 } else { 0 }
+        if v > 0.0 {
+            1i8
+        } else if v < 0.0 {
+            -1
+        } else {
+            0
+        }
     };
     let (o1, o2, o3, o4) = (o(a, b, c), o(a, b, d), o(c, d, a), o(c, d, b));
     o1 != o2 && o3 != o4 && o1 != 0 && o2 != 0 && o3 != 0 && o4 != 0
@@ -2609,7 +3228,10 @@ pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f6
 fn ring_bbox(pts: &[(f64, f64)]) -> (f64, f64, f64, f64) {
     let mut b = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
     for &(x, y) in pts {
-        b.0 = b.0.min(x); b.1 = b.1.min(y); b.2 = b.2.max(x); b.3 = b.3.max(y);
+        b.0 = b.0.min(x);
+        b.1 = b.1.min(y);
+        b.2 = b.2.max(x);
+        b.3 = b.3.max(y);
     }
     b
 }
@@ -2772,7 +3394,13 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
 ///
 /// Öz-döngüler (`ring_touches_itself`) çağıran tarafta ring başına ayrıca denetlenir.
 fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
-    let label = |i: usize| if i == 0 { "dış ring".to_string() } else { format!("{i}. delik") };
+    let label = |i: usize| {
+        if i == 0 {
+            "dış ring".to_string()
+        } else {
+            format!("{i}. delik")
+        }
+    };
     let mut parent: Vec<usize> = (0..rings.len()).collect();
     fn find(parent: &mut [usize], x: usize) -> usize {
         let mut root = x;
@@ -2796,7 +3424,9 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
             if contacts > 1 {
                 return Some(format!(
                     "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
-                    label(i), label(j)));
+                    label(i),
+                    label(j)
+                ));
             }
             let (ri, rj) = (find(&mut parent, i), find(&mut parent, j));
             if ri == rj {
@@ -2869,14 +3499,14 @@ fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
 pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
     let mut inside = false;
     let n = ring.len();
-    if n < 3 { return false; }
+    if n < 3 {
+        return false;
+    }
     let mut j = n - 1;
     for i in 0..n {
         let (xi, yi) = ring[i];
         let (xj, yj) = ring[j];
-        if (yi > pt.1) != (yj > pt.1)
-            && pt.0 < (xj - xi) * (pt.1 - yi) / (yj - yi) + xi
-        {
+        if (yi > pt.1) != (yj > pt.1) && pt.0 < (xj - xi) * (pt.1 - yi) / (yj - yi) + xi {
             inside = !inside;
         }
         j = i;
@@ -2888,14 +3518,19 @@ pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
 /// Hizmet bölgeleri küçük olduğu için ring'in kendi ortalama enlemi ölçek olarak yeterlidir;
 /// işaret ring yönünü taşır, çağıran mutlak değeri alır.
 fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
-    if pts.len() < 3 { return 0.0; }
+    if pts.len() < 3 {
+        return 0.0;
+    }
     let lat0 = pts.iter().map(|p| p.1).sum::<f64>() / pts.len() as f64;
     let kx = 111.320 * lat0.to_radians().cos(); // 1° boylam → km
-    let ky = 110.574;                           // 1° enlem   → km
+    let ky = 110.574; // 1° enlem   → km
     let mut sum = 0.0;
     for i in 0..pts.len() {
         let (x1, y1) = (pts[i].0 * kx, pts[i].1 * ky);
-        let (x2, y2) = (pts[(i + 1) % pts.len()].0 * kx, pts[(i + 1) % pts.len()].1 * ky);
+        let (x2, y2) = (
+            pts[(i + 1) % pts.len()].0 * kx,
+            pts[(i + 1) % pts.len()].1 * ky,
+        );
         sum += x1 * y2 - x2 * y1;
     }
     sum / 2.0
@@ -2953,7 +3588,11 @@ mod tests {
     fn minimal_valid_feed_produces_no_error() {
         let zip = minimal_gtfs_zip();
         let result = parse(&zip);
-        assert!(result.is_ok(), "Geçerli feed Ok dönmeli: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Geçerli feed Ok dönmeli: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -2997,15 +3636,16 @@ mod tests {
             ..ValidatorConfig::default()
         };
 
-        let native = super::parse_with_limits(
-            &zip, &cfg, super::DEFAULT_DECOMPRESSION_LIMITS, None,
-        ).expect("native parse başarılı olmalı");
+        let native =
+            super::parse_with_limits(&zip, &cfg, super::DEFAULT_DECOMPRESSION_LIMITS, None)
+                .expect("native parse başarılı olmalı");
         let sdk = super::parse_with_limits(
             &zip,
             &cfg,
             crate::decompress_guard::SDK_DECOMPRESSION_LIMITS,
             Some(crate::decompress_guard::SDK_MAX_BUFFERED_FILE_BYTES),
-        ).expect("SDK parse başarılı olmalı");
+        )
+        .expect("SDK parse başarılı olmalı");
 
         // #185: `max_file_rows` bir RAPORLAMA eşiğidir (ARC_022), bir kesme sınırı
         // değil. Her iki yol da dosyanın tamamını okumalı; SDK yolu kesmeye başlarsa
@@ -3013,7 +3653,8 @@ mod tests {
         // kullanıcının kusuru olarak raporlar.
         assert_eq!(native.files["fare_rules.txt"].rows.len(), 12);
         assert_eq!(
-            sdk.files["fare_rules.txt"].rows.len(), 12,
+            sdk.files["fare_rules.txt"].rows.len(),
+            12,
             "SDK parse yolu buffered dosyayı kesmemeli (#185)"
         );
     }
@@ -3035,7 +3676,11 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let result = parse(&zip).expect("agency.txt eksikliği kurtarılabilir olmalı");
-        assert!(result.partial.unavailable_files.iter().any(|f| f == "agency.txt"));
+        assert!(result
+            .partial
+            .unavailable_files
+            .iter()
+            .any(|f| f == "agency.txt"));
         assert!(result.notices.iter().any(|n| {
             n.rule_id == "ARC_004" && n.observed_value.as_deref() == Some("agency.txt")
         }));
@@ -3057,22 +3702,40 @@ mod tests {
             (p("stop_times.txt"), b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             (p("calendar.txt"),   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ];
-        zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>())
+        zip_with_files(
+            &files
+                .iter()
+                .map(|(n, c)| (n.as_str(), *c))
+                .collect::<Vec<_>>(),
+        )
     }
 
     #[test]
     fn feed_wrapped_in_single_folder_is_parsed_and_reported() {
-        let k1 = parse(&wrapped_feed_zip("TEST GTFS/")).expect("sarılı geçerli feed fatal OLMAMALI");
+        let k1 =
+            parse(&wrapped_feed_zip("TEST GTFS/")).expect("sarılı geçerli feed fatal OLMAMALI");
         assert!(!k1.partial.root_structural_errors.is_empty());
         // Dosyalar kökteymiş gibi görünür → zorunlu dosya kontrolü geçer.
         for required in REQUIRED_FILES {
-            assert!(k1.files.contains_key(*required), "'{required}' kök adıyla görünmeli");
+            assert!(
+                k1.files.contains_key(*required),
+                "'{required}' kök adıyla görünmeli"
+            );
         }
         // Alt dizinde olmaları yine de bulgudur ve GERÇEK yolu gösterir.
-        let arc024: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_024").collect();
+        let arc024: Vec<_> = k1
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "ARC_024")
+            .collect();
         assert_eq!(arc024.len(), 6, "her .txt için bir ARC_024 beklenir");
-        assert!(arc024.iter().all(|n| n.file.as_deref().is_some_and(|f| f.starts_with("TEST GTFS/"))),
-            "ARC_024 ZIP'teki gerçek yolu göstermeli");
+        assert!(
+            arc024.iter().all(|n| n
+                .file
+                .as_deref()
+                .is_some_and(|f| f.starts_with("TEST GTFS/"))),
+            "ARC_024 ZIP'teki gerçek yolu göstermeli"
+        );
     }
 
     #[test]
@@ -3080,7 +3743,7 @@ mod tests {
         // GitHub repo zip'i (gerçek vaka mdb-3135): tek klasör ama GTFS değil.
         let zip = zip_with_files(&[
             ("honduras-transit-main/agency.csv", b"a,b\n1,2\n" as &[u8]),
-            ("honduras-transit-main/README.md",  b"# repo\n"),
+            ("honduras-transit-main/README.md", b"# repo\n"),
         ]);
         let result = parse(&zip).expect("okunabilir ama GTFS olmayan ZIP PARTIAL olmalı");
         assert!(!result.partial.unavailable_files.is_empty());
@@ -3094,9 +3757,18 @@ mod tests {
             // Zorunlu dosyalar İKİ ayrı klasöre dağıtılmış → hangisi kök belirsiz, hoşgörü yok.
             files.push((format!("dir{}/{name}", i % 2), b"x\n" as &[u8]));
         }
-        let zip = zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>());
+        let zip = zip_with_files(
+            &files
+                .iter()
+                .map(|(n, c)| (n.as_str(), *c))
+                .collect::<Vec<_>>(),
+        );
         let result = parse(&zip).expect("birden fazla üst klasör PARTIAL olmalı");
-        assert!(result.partial.root_structural_errors.iter().any(|e| e.contains("alt dizin")));
+        assert!(result
+            .partial
+            .root_structural_errors
+            .iter()
+            .any(|e| e.contains("alt dizin")));
         assert_eq!(result.partial.unavailable_files.len(), REQUIRED_FILES.len());
     }
 
@@ -3122,7 +3794,11 @@ mod tests {
         assert!(
             k1.notices.iter().all(|n| n.rule_id != "ARC_024"),
             "__MACOSX kaynak-çatalı ARC_024 ÜRETMEMELİ, üretilen: {:?}",
-            k1.notices.iter().filter(|n| n.rule_id == "ARC_024").map(|n| n.file.clone()).collect::<Vec<_>>()
+            k1.notices
+                .iter()
+                .filter(|n| n.rule_id == "ARC_024")
+                .map(|n| n.file.clone())
+                .collect::<Vec<_>>()
         );
     }
 
@@ -3146,7 +3822,12 @@ mod tests {
         files.push(("__MACOSX/._agency.txt".into(), b"\x00\x05\x16\x07" as &[u8]));
         files.push(("__MACOSX/TEST GTFS/._stops.txt".into(), b"\x00\x05\x16\x07"));
 
-        let zip = zip_with_files(&files.iter().map(|(n, c)| (n.as_str(), *c)).collect::<Vec<_>>());
+        let zip = zip_with_files(
+            &files
+                .iter()
+                .map(|(n, c)| (n.as_str(), *c))
+                .collect::<Vec<_>>(),
+        );
         let k1 = parse(&zip).expect("__MACOSX taşıyan sarılı feed fatal OLMAMALI");
 
         for required in REQUIRED_FILES {
@@ -3160,10 +3841,21 @@ mod tests {
             "__MACOSX yüzünden ARC_004 ÜRETİLMEMELİ"
         );
         // Gerçek sarılı dosyalar yine ARC_024 alır; yalnız __MACOSX girdileri sayılmaz.
-        let arc024: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_024").collect();
-        assert_eq!(arc024.len(), 6, "yalnız 6 gerçek .txt için ARC_024 beklenir");
+        let arc024: Vec<_> = k1
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "ARC_024")
+            .collect();
+        assert_eq!(
+            arc024.len(),
+            6,
+            "yalnız 6 gerçek .txt için ARC_024 beklenir"
+        );
         assert!(
-            arc024.iter().all(|n| n.file.as_deref().is_some_and(|f| !f.starts_with("__MACOSX/"))),
+            arc024.iter().all(|n| n
+                .file
+                .as_deref()
+                .is_some_and(|f| !f.starts_with("__MACOSX/"))),
             "hiçbir ARC_024 __MACOSX girdisini göstermemeli"
         );
     }
@@ -3171,8 +3863,10 @@ mod tests {
     #[test]
     fn root_level_feed_is_untouched_by_the_wrapper_tolerance() {
         let k1 = parse(&wrapped_feed_zip("")).expect("normal feed geçerli");
-        assert!(k1.notices.iter().all(|n| n.rule_id != "ARC_024"),
-            "kökteki feed ARC_024 ALMAMALI");
+        assert!(
+            k1.notices.iter().all(|n| n.rule_id != "ARC_024"),
+            "kökteki feed ARC_024 ALMAMALI"
+        );
     }
 
     /// 8192. bayta denk gelen çok baytlı karakter, GEÇERLİ bir feed'i fatal etmemeli.
@@ -3198,12 +3892,18 @@ mod tests {
         trips.push('あ'); // baytlar 8190,8191,8192 → 8192'deki kesim ORTADAN böler
         trips.push('\n');
         let trips_bytes = trips.as_bytes().to_vec();
-        assert!(trips_bytes.len() > 8_192, "test kurgusu: dosya 8KB'ı aşmalı");
+        assert!(
+            trips_bytes.len() > 8_192,
+            "test kurgusu: dosya 8KB'ı aşmalı"
+        );
         assert!(
             std::str::from_utf8(&trips_bytes[..8_192]).is_err(),
             "test kurgusu: ilk 8192 bayt çok baytlı karakteri bölmeli (yoksa test bugu kanıtlamaz)"
         );
-        assert!(std::str::from_utf8(&trips_bytes).is_ok(), "test kurgusu: dosya BÜTÜN olarak geçerli UTF-8");
+        assert!(
+            std::str::from_utf8(&trips_bytes).is_ok(),
+            "test kurgusu: dosya BÜTÜN olarak geçerli UTF-8"
+        );
 
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -3214,7 +3914,11 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let res = parse(&zip);
-        assert!(res.is_ok(), "geçerli UTF-8 feed fatal olmamalı: {:?}", res.err());
+        assert!(
+            res.is_ok(),
+            "geçerli UTF-8 feed fatal olmamalı: {:?}",
+            res.err()
+        );
         let notices = &res.unwrap().notices;
         assert!(
             !notices.iter().any(|n| n.rule_id == "ARC_002"),
@@ -3239,7 +3943,11 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let result = parse(&zip).expect("bozuk UTF-8 dosya PARTIAL olmalı");
-        assert!(result.partial.unavailable_files.iter().any(|f| f == "trips.txt"));
+        assert!(result
+            .partial
+            .unavailable_files
+            .iter()
+            .any(|f| f == "trips.txt"));
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
     }
 
@@ -3256,7 +3964,11 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let result = parse(&zip).expect("UTF-8 hatası PARTIAL olmalı");
-        assert!(result.partial.unavailable_files.iter().any(|f| f == "stops.txt"));
+        assert!(result
+            .partial
+            .unavailable_files
+            .iter()
+            .any(|f| f == "stops.txt"));
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_002"));
     }
 
@@ -3274,7 +3986,11 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let result = parse(&zip).expect("bozuk CSV PARTIAL olmalı");
-        assert!(result.partial.unavailable_files.iter().any(|f| f == "routes.txt"));
+        assert!(result
+            .partial
+            .unavailable_files
+            .iter()
+            .any(|f| f == "routes.txt"));
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_013"));
     }
 
@@ -3313,7 +4029,9 @@ mod tests {
         let k1 = parse(&zip).unwrap();
         for f in ["readme.pdf", "export.out"] {
             assert!(
-                k1.notices.iter().any(|n| n.rule_id == "ARC_007" && n.file.as_deref() == Some(f)),
+                k1.notices
+                    .iter()
+                    .any(|n| n.rule_id == "ARC_007" && n.file.as_deref() == Some(f)),
                 "ARC_007 notice bekleniyor: {f}"
             );
         }
@@ -3334,13 +4052,24 @@ mod tests {
             ("rider_categories.txt", b"rider_category_id,rider_category_name,eligibility_url,zzz_custom\nRC1,Adult,http://x.com,foo\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let arc017_cols: Vec<&str> = k1.notices.iter()
+        let arc017_cols: Vec<&str> = k1
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "ARC_017" && n.file.as_deref() == Some("rider_categories.txt"))
             .filter_map(|n| n.field.as_deref())
             .collect();
-        assert!(arc017_cols.contains(&"zzz_custom"), "bilinmeyen sütun zzz_custom ARC_017 üretmeli: {arc017_cols:?}");
-        assert!(!arc017_cols.contains(&"eligibility_url"), "geçerli sütun eligibility_url ARC_017 üretmemeli");
-        assert!(!arc017_cols.contains(&"rider_category_id"), "geçerli sütun rider_category_id ARC_017 üretmemeli");
+        assert!(
+            arc017_cols.contains(&"zzz_custom"),
+            "bilinmeyen sütun zzz_custom ARC_017 üretmeli: {arc017_cols:?}"
+        );
+        assert!(
+            !arc017_cols.contains(&"eligibility_url"),
+            "geçerli sütun eligibility_url ARC_017 üretmemeli"
+        );
+        assert!(
+            !arc017_cols.contains(&"rider_category_id"),
+            "geçerli sütun rider_category_id ARC_017 üretmemeli"
+        );
     }
 
     #[test]
@@ -3356,12 +4085,20 @@ mod tests {
             ("office_jp.txt",  b"office_id,office_name,jp_extra,bad_col\nO1,Ofis,x,y\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let cols: Vec<&str> = k1.notices.iter()
+        let cols: Vec<&str> = k1
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "ARC_017" && n.file.as_deref() == Some("office_jp.txt"))
             .filter_map(|n| n.field.as_deref())
             .collect();
-        assert!(cols.contains(&"bad_col"), "bad_col ARC_017 üretmeli: {cols:?}");
-        assert!(!cols.contains(&"office_name"), "office_name geçerli, ARC_017 üretmemeli");
+        assert!(
+            cols.contains(&"bad_col"),
+            "bad_col ARC_017 üretmeli: {cols:?}"
+        );
+        assert!(
+            !cols.contains(&"office_name"),
+            "office_name geçerli, ARC_017 üretmemeli"
+        );
         assert!(!cols.contains(&"jp_extra"), "jp_ önekli sütun atlanmalı");
     }
 
@@ -3370,11 +4107,15 @@ mod tests {
         // ARC_017 (k1: `if !known_cols.is_empty()`) known_columns() boş dönen dosyayı
         // TÜMÜYLE atlar. KNOWN_FILES'taki her dosyanın sütun listesi olmalı; yoksa o
         // dosyadaki bilinmeyen sütunlar sessizce kaçar (bu bug'ın kök nedeniydi).
-        let missing: Vec<&str> = KNOWN_FILES.iter()
+        let missing: Vec<&str> = KNOWN_FILES
+            .iter()
             .copied()
             .filter(|&f| known_columns(f).is_empty())
             .collect();
-        assert!(missing.is_empty(), "known_columns() boş dönen KNOWN_FILES: {missing:?}");
+        assert!(
+            missing.is_empty(),
+            "known_columns() boş dönen KNOWN_FILES: {missing:?}"
+        );
     }
 
     #[test]
@@ -3428,11 +4169,15 @@ mod tests {
             ("calendar_dates.txt", b"service_id,date,exception_type\nSVC1,20240101,1\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let hits: Vec<_> = k1.notices.iter()
+        let hits: Vec<_> = k1
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar.txt"))
             .collect();
-        assert!(hits.is_empty(),
-            "calendar_dates.txt servisi taşıyorken boş calendar.txt geçerlidir: {hits:?}");
+        assert!(
+            hits.is_empty(),
+            "calendar_dates.txt servisi taşıyorken boş calendar.txt geçerlidir: {hits:?}"
+        );
     }
 
     #[test]
@@ -3451,10 +4196,18 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_035" && n.file.as_deref() == Some("stops.txt")),
-            "boş stops.txt ARC_035 üretmeli");
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("stops.txt")),
-            "zorunlu dosya ARC_009'a DÜŞMEMELİ — çift raporlama olurdu");
+        assert!(
+            k1.notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_035" && n.file.as_deref() == Some("stops.txt")),
+            "boş stops.txt ARC_035 üretmeli"
+        );
+        assert!(
+            !k1.notices
+                .iter()
+                .any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("stops.txt")),
+            "zorunlu dosya ARC_009'a DÜŞMEMELİ — çift raporlama olurdu"
+        );
     }
 
     #[test]
@@ -3471,12 +4224,24 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let hits: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_034").collect();
-        assert_eq!(hits.len(), 1, "tekrarlanan başlık BİR kez raporlanmalı: {:?}",
-            k1.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        let hits: Vec<_> = k1
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "ARC_034")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            1,
+            "tekrarlanan başlık BİR kez raporlanmalı: {:?}",
+            k1.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
         assert_eq!(hits[0].file.as_deref(), Some("agency.txt"));
         // Satır veri olarak KAYDEDİLMEZ: hayalet agency oluşmamalı.
-        let agencies = k1.files.get("agency.txt").map(|f| f.rows.len()).unwrap_or(0);
+        let agencies = k1
+            .files
+            .get("agency.txt")
+            .map(|f| f.rows.len())
+            .unwrap_or(0);
         assert_eq!(agencies, 2, "başlık tekrarı veri satırı sayılmamalı");
     }
 
@@ -3493,8 +4258,10 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_034"),
-            "tek alan eşleşmesi ARC_034 üretmemeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "ARC_034"),
+            "tek alan eşleşmesi ARC_034 üretmemeli"
+        );
     }
 
     #[test]
@@ -3513,14 +4280,23 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let routes_root = k1.notices.iter()
+        let routes_root = k1
+            .notices
+            .iter()
             .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt"))
             .and_then(|n| n.details.clone())
             .expect("routes.txt için DQ_016 kökü bekleniyor");
-        assert_eq!(routes_root.get("identity_whitespace_fields").map(String::as_str), Some("route_id"),
-            "kimlik sütunu adıyla beyan edilmeli: {routes_root:?}");
-        assert!(routes_root.contains_key("cross_file_analysis"),
-            "dosyalar arası analizin güvenilmezliği beyan edilmeli: {routes_root:?}");
+        assert_eq!(
+            routes_root
+                .get("identity_whitespace_fields")
+                .map(String::as_str),
+            Some("route_id"),
+            "kimlik sütunu adıyla beyan edilmeli: {routes_root:?}"
+        );
+        assert!(
+            routes_root.contains_key("cross_file_analysis"),
+            "dosyalar arası analizin güvenilmezliği beyan edilmeli: {routes_root:?}"
+        );
     }
 
     #[test]
@@ -3536,12 +4312,16 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let routes_root = k1.notices.iter()
+        let routes_root = k1
+            .notices
+            .iter()
             .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt"))
             .and_then(|n| n.details.clone())
             .expect("routes.txt için DQ_016 kökü bekleniyor");
-        assert!(!routes_root.contains_key("identity_whitespace_fields"),
-            "route_long_name bir kimlik değildir: {routes_root:?}");
+        assert!(
+            !routes_root.contains_key("identity_whitespace_fields"),
+            "route_long_name bir kimlik değildir: {routes_root:?}"
+        );
     }
 
     #[test]
@@ -3558,19 +4338,31 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let dq016: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "DQ_016").collect();
-        assert!(dq016.iter().any(|n| n.message.contains("route_long_name")),
+        let dq016: Vec<_> = k1
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "DQ_016")
+            .collect();
+        assert!(
+            dq016.iter().any(|n| n.message.contains("route_long_name")),
             "route_long_name sondaki boşluk → DQ_016 beklenir: {:?}",
-            dq016.iter().map(|n| &n.message).collect::<Vec<_>>());
-        assert!(dq016.iter().any(|n| n.message.contains("route_type")),
+            dq016.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
+        assert!(
+            dq016.iter().any(|n| n.message.contains("route_type")),
             "tipli enum alanı da DQ_016 kök bulgusu olmalı: {:?}",
-            dq016.iter().map(|n| &n.message).collect::<Vec<_>>());
-        let evidence = dq016.iter().find_map(|n| n.details.as_ref())
+            dq016.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
+        let evidence = dq016
+            .iter()
+            .find_map(|n| n.details.as_ref())
             .and_then(|d| d.get("raw_samples"))
             .cloned()
             .unwrap_or_default();
-        assert!(evidence.contains("route_type=\" 3\""),
-            "ham tipli değer notice kanıtında korunmalı: {evidence}");
+        assert!(
+            evidence.contains("route_type=\" 3\""),
+            "ham tipli değer notice kanıtında korunmalı: {evidence}"
+        );
     }
 
     #[test]
@@ -3604,9 +4396,14 @@ mod tests {
             ("calendar_dates.txt", b"service_id,date,exception_type\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let cd_arc009 = k1.notices.iter().any(|n|
-            n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt"));
-        assert!(!cd_arc009, "calendar.txt varken boş calendar_dates.txt ARC_009 üretmemeli");
+        let cd_arc009 = k1
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt"));
+        assert!(
+            !cd_arc009,
+            "calendar.txt varken boş calendar_dates.txt ARC_009 üretmemeli"
+        );
     }
 
     #[test]
@@ -3622,11 +4419,18 @@ mod tests {
             ("calendar_dates.txt", b"service_id,date,exception_type\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let cd_arc009 = k1.notices.iter().any(|n|
-            n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt"));
-        assert!(cd_arc009, "calendar.txt yokken boş calendar_dates.txt ARC_009 üretmeli");
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_008"),
-            "calendar_dates.txt mevcutken ARC_008 fire etmemeli");
+        let cd_arc009 = k1
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("calendar_dates.txt"));
+        assert!(
+            cd_arc009,
+            "calendar.txt yokken boş calendar_dates.txt ARC_009 üretmeli"
+        );
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "ARC_008"),
+            "calendar_dates.txt mevcutken ARC_008 fire etmemeli"
+        );
     }
 
     #[test]
@@ -3642,11 +4446,16 @@ mod tests {
             ("transfers.txt",  b"from_stop_id,to_stop_id,transfer_type,min_transfer_time\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let n = k1.notices.iter().find(|n|
-            n.rule_id == "ARC_009" && n.file.as_deref() == Some("transfers.txt"))
+        let n = k1
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "ARC_009" && n.file.as_deref() == Some("transfers.txt"))
             .expect("boş transfers.txt ARC_009 üretmeli");
-        assert_eq!(n.severity, Severity::Bilgi,
-            "boş OPSİYONEL dosya ARC_009 BİLGİ olmalı (KRİTİK değil)");
+        assert_eq!(
+            n.severity,
+            Severity::Bilgi,
+            "boş OPSİYONEL dosya ARC_009 BİLGİ olmalı (KRİTİK değil)"
+        );
     }
 
     #[test]
@@ -3671,7 +4480,11 @@ mod tests {
         let text = "a,b,c\n1,\"Thonon Les Arts\" A compter du 01/09,3\n";
         let (records, _, rfc) = tokenize_csv(text, None).unwrap();
         // Alan sayısı başlıkla aynı kalmalı — kayma YOK.
-        assert_eq!(records[1].len(), 3, "kapanış tırnağı sonrası metin yeni alan açmamalı");
+        assert_eq!(
+            records[1].len(),
+            3,
+            "kapanış tırnağı sonrası metin yeni alan açmamalı"
+        );
         assert_eq!(records[1][1], "Thonon Les Arts A compter du 01/09");
         assert_eq!(records[1][2], "3", "sonraki sütun kaymamalı");
         // İhlal yine de bildirilmeli (ARC_033).
@@ -3697,7 +4510,11 @@ mod tests {
         let text = "a,b,c\n1,2,";
         let (records, _, _) = tokenize_csv(text, None).unwrap();
         assert_eq!(records.len(), 2);
-        assert_eq!(records[1].len(), 3, "sondaki virgül boş 3. alanı temsil eder");
+        assert_eq!(
+            records[1].len(),
+            3,
+            "sondaki virgül boş 3. alanı temsil eder"
+        );
         assert_eq!(records[1][2], "");
     }
 
@@ -3717,7 +4534,8 @@ mod tests {
         for n in &k1.notices {
             assert!(
                 get_rule(&n.rule_id).is_some(),
-                "Geçersiz rule_id: {}", n.rule_id
+                "Geçersiz rule_id: {}",
+                n.rule_id
             );
         }
     }
@@ -3734,7 +4552,10 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 bekleniyor");
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
+            "ARC_021 bekleniyor"
+        );
     }
 
     #[test]
@@ -3749,9 +4570,15 @@ mod tests {
             ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(k1.notices.iter().any(|n| n.rule_id == "ARC_030"), "ARC_030 bekleniyor");
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "ARC_030"),
+            "ARC_030 bekleniyor"
+        );
         // ARC_021 bu karakteri bilerek muaf tutar; iki kural çakışmamalı.
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 tetiklenmemeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
+            "ARC_021 tetiklenmemeli"
+        );
     }
 
     #[test]
@@ -3761,14 +4588,32 @@ mod tests {
             arc032_markup("[KMB+CTB] HIU TSUI STREET/<BR>HIU TSUI STREET, SIU SAI WAN ROAD"),
             Some("<BR>".to_string())
         );
-        assert_eq!(arc032_markup("Merkez <b>Durağı</b>"), Some("<b>".to_string()));
-        assert_eq!(arc032_markup("Kapanış </p> etiketi"), Some("</p>".to_string()));
-        assert_eq!(arc032_markup("<span class=\"x\">A</span>"), Some("<span class=\"x\">".to_string()));
-        assert_eq!(arc032_markup("A <!-- yorum --> B"), Some("<!--".to_string()));
+        assert_eq!(
+            arc032_markup("Merkez <b>Durağı</b>"),
+            Some("<b>".to_string())
+        );
+        assert_eq!(
+            arc032_markup("Kapanış </p> etiketi"),
+            Some("</p>".to_string())
+        );
+        assert_eq!(
+            arc032_markup("<span class=\"x\">A</span>"),
+            Some("<span class=\"x\">".to_string())
+        );
+        assert_eq!(
+            arc032_markup("A <!-- yorum --> B"),
+            Some("<!--".to_string())
+        );
         assert_eq!(arc032_markup("Ana&nbsp;Cadde"), Some("&nbsp;".to_string()));
         assert_eq!(arc032_markup("Bir &amp; iki"), Some("&amp;".to_string()));
-        assert_eq!(arc032_markup("Kod &#39;tırnak&#39;"), Some("&#39;".to_string()));
-        assert_eq!(arc032_markup("Onaltılık &#x27; kaçış"), Some("&#x27;".to_string()));
+        assert_eq!(
+            arc032_markup("Kod &#39;tırnak&#39;"),
+            Some("&#39;".to_string())
+        );
+        assert_eq!(
+            arc032_markup("Onaltılık &#x27; kaçış"),
+            Some("&#x27;".to_string())
+        );
     }
 
     /// issue #79: liste 26 addan HTML5'in TAMAMINA genişledi. Denetçinin istediği beş
@@ -3779,7 +4624,10 @@ mod tests {
     #[test]
     fn arc_032_covers_foreign_content_roots() {
         assert!(arc032_markup("<svg>x</svg>").is_some(), "<svg> yakalanmalı");
-        assert!(arc032_markup("<math>x</math>").is_some(), "<math> yakalanmalı");
+        assert!(
+            arc032_markup("<math>x</math>").is_some(),
+            "<math> yakalanmalı"
+        );
         assert!(arc032_markup("Durak </svg>").is_some(), "kapanış biçimi de");
         assert_eq!(arc032_markup("<TBD>"), None, "uydurma ad HTML DEĞİLDİR");
     }
@@ -3787,7 +4635,12 @@ mod tests {
     #[test]
     fn arc_032_covers_the_html5_named_entities() {
         // Bildirilen karşı örnekler — hepsi eski listede YOKTU.
-        for v in ["© 2026 &copy; Metro", "Metro&reg; hattı", "5&euro; bilet", "A&mdash;B"] {
+        for v in [
+            "© 2026 &copy; Metro",
+            "Metro&reg; hattı",
+            "5&euro; bilet",
+            "A&mdash;B",
+        ] {
             assert!(arc032_markup(v).is_some(), "kaçış dizisi yakalanmalı: {v}");
         }
         // Sayısal biçimler (zaten destekliydi, regresyon koruması).
@@ -3797,15 +4650,27 @@ mod tests {
         // Bu değer korpusta ölçüldü ve `Tire` bir entity adı DEĞİLDİR.
         assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None);
         assert_eq!(arc032_markup("A & B"), None);
-        assert_eq!(arc032_markup("Kadıköy&İskele;"), None, "ASCII olmayan ad entity değildir");
+        assert_eq!(
+            arc032_markup("Kadıköy&İskele;"),
+            None,
+            "ASCII olmayan ad entity değildir"
+        );
         // Büyük/küçük harf DUYARLI: `&COPY;` de listede ayrı bir giriştir, `&Copy;` de.
         assert!(arc032_markup("x &COPY; y").is_some());
-        assert_eq!(arc032_markup("x &cOpY; y"), None, "listede olmayan yazım entity değildir");
+        assert_eq!(
+            arc032_markup("x &cOpY; y"),
+            None,
+            "listede olmayan yazım entity değildir"
+        );
         // Noktalı virgülsüz ESKİ biçim (HTML5 bunları `;` olmadan da tanır).
         assert_eq!(arc032_markup("2026 &copy Metro"), Some("&copy".to_string()));
         assert!(arc032_markup("A &reg B").is_some());
         // ⚠️ Ayrıcalık TÜM adlara YAYILMAZ: `&mdash` (noktalı virgülsüz) eski listede YOK.
-        assert_eq!(arc032_markup("A &mdash B"), None, "yalnız kaynağın izin verdiği adlar");
+        assert_eq!(
+            arc032_markup("A &mdash B"),
+            None,
+            "yalnız kaynağın izin verdiği adlar"
+        );
         // Yanlış pozitif koruyucuları — `&` + kelime deseni serbest DEĞİL.
         assert_eq!(arc032_markup("Wheel&Tire servisi"), None);
         assert_eq!(arc032_markup("AT&T"), None);
@@ -3815,9 +4680,14 @@ mod tests {
     #[test]
     fn arc_032_covers_the_whole_html_element_set() {
         // Eski listede vardı — regresyon olmamalı.
-        assert_eq!(arc032_markup("Merkez <b>Durağı</b>"), Some("<b>".to_string()));
+        assert_eq!(
+            arc032_markup("Merkez <b>Durağı</b>"),
+            Some("<b>".to_string())
+        );
         // Eski listede YOKTU: hüküm "HTML etiketi" diyor, bunlar da HTML etiketi.
-        for tag in ["script", "section", "iframe", "style", "video", "article", "h4"] {
+        for tag in [
+            "script", "section", "iframe", "style", "video", "article", "h4",
+        ] {
             let v = format!("Durak <{tag}>x</{tag}>");
             assert!(arc032_markup(&v).is_some(), "<{tag}> yakalanmalı");
         }
@@ -3830,8 +4700,14 @@ mod tests {
         // Ama gerçek `svg`/`math` ve öznitelikli biçimleri yakalanır.
         assert!(arc032_markup("<svg width=\"3\">").is_some());
         assert!(arc032_markup("<math>").is_some());
-        assert_eq!(arc032_markup("Not <!-- gizli --> son"), Some("<!--".to_string()));
-        assert_eq!(arc032_markup("Kadıköy&nbsp;İskele"), Some("&nbsp;".to_string()));
+        assert_eq!(
+            arc032_markup("Not <!-- gizli --> son"),
+            Some("<!--".to_string())
+        );
+        assert_eq!(
+            arc032_markup("Kadıköy&nbsp;İskele"),
+            Some("&nbsp;".to_string())
+        );
         // Düz metin: uydurma ad HTML etiketi DEĞİLDİR — liste bilinçli olarak kapalı.
         assert_eq!(arc032_markup("<Bilinmiyor>"), None);
         assert_eq!(arc032_markup("<TBD> hattı"), None);
@@ -3842,13 +4718,13 @@ mod tests {
     fn arc_032_silent_for_legitimate_text() {
         // Bu üç değer ölçüm sırasında GEVŞEK bir desenle yanlış eşleşmişti (1991 uydurma
         // bulgunun kaynağı). Kapalı liste onları geçirmeli — regresyon buraya kilitlendi.
-        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None);           // bilinmeyen "entity"
-        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None);  // etiket değil
+        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None); // bilinmeyen "entity"
+        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None); // etiket değil
         assert_eq!(arc032_markup("La Clisse >< Luchat >< Pisany"), None);
         // Ayrıca: karşılaştırma işaretleri, bilinmeyen etiket adı, kapanmayan etiket.
         assert_eq!(arc032_markup("a < b ve c > d"), None);
-        assert_eq!(arc032_markup("<durak>"), None);                   // listede olmayan ad
-        assert_eq!(arc032_markup("3 <br sonra"), None);               // `>` yok
+        assert_eq!(arc032_markup("<durak>"), None); // listede olmayan ad
+        assert_eq!(arc032_markup("3 <br sonra"), None); // `>` yok
         assert_eq!(arc032_markup("Fiyat < 5 TL > indirim"), None);
         assert_eq!(arc032_markup("Şişli Durağı"), None);
         assert_eq!(arc032_markup("東京駅"), None);
@@ -3865,12 +4741,28 @@ mod tests {
             ("calendar.txt", b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ]);
         let k1 = parse(&zip).unwrap();
-        let hits: Vec<_> = k1.notices.iter().filter(|n| n.rule_id == "ARC_032").collect();
+        let hits: Vec<_> = k1
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "ARC_032")
+            .collect();
         // İki bozuk satır var ama emit DOSYA başına TEK — DQ_016/STM_050 patlama önlemi.
-        assert_eq!(hits.len(), 1, "dosya başına tek notice bekleniyor: {hits:?}");
+        assert_eq!(
+            hits.len(),
+            1,
+            "dosya başına tek notice bekleniyor: {hits:?}"
+        );
         assert_eq!(hits[0].field.as_deref(), Some("stop_name"));
-        assert!(hits[0].message.contains("2 satırda"), "satır sayısı: {}", hits[0].message);
-        assert!(hits[0].message.contains("<br>"), "örnek işaret: {}", hits[0].message);
+        assert!(
+            hits[0].message.contains("2 satırda"),
+            "satır sayısı: {}",
+            hits[0].message
+        );
+        assert!(
+            hits[0].message.contains("<br>"),
+            "örnek işaret: {}",
+            hits[0].message
+        );
     }
 
     #[test]
@@ -3880,7 +4772,10 @@ mod tests {
         let mut acc = Arc032Acc::default();
         let headers = vec!["stop_id".to_string(), "tts_stop_name".to_string()];
         acc.observe(2, ["S1", "Ana <b>Durak</b>"].into_iter(), &headers);
-        assert!(acc.summary("stops.txt").is_none(), "tts_stop_name ARC_032'ye girmemeli");
+        assert!(
+            acc.summary("stops.txt").is_none(),
+            "tts_stop_name ARC_032'ye girmemeli"
+        );
     }
 
     #[test]
@@ -3894,16 +4789,25 @@ mod tests {
     #[test]
     fn arc_030_silent_for_normal_and_unicode_values() {
         // Boşluk, Türkçe/Japonca metin ve noktalama sorun değildir.
-        assert_eq!(arc030_bad_whitespace(["Şişli Durağı", "東京駅", "a, b"].into_iter()), None);
+        assert_eq!(
+            arc030_bad_whitespace(["Şişli Durağı", "東京駅", "a, b"].into_iter()),
+            None
+        );
         let k1 = parse(&minimal_gtfs_zip()).unwrap();
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_030"), "ARC_030 tetiklenmemeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "ARC_030"),
+            "ARC_030 tetiklenmemeli"
+        );
     }
 
     #[test]
     fn arc_021_silent_for_ascii_only() {
         let zip = minimal_gtfs_zip(); // yalnızca ASCII içerir
         let k1 = parse(&zip).unwrap();
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "ARC_021"), "ARC_021 tetiklenmemeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
+            "ARC_021 tetiklenmemeli"
+        );
     }
 
     #[test]
@@ -3920,7 +4824,10 @@ mod tests {
             ("locations.geojson", geojson),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(k1.notices.iter().any(|n| n.rule_id == "LOC_001"), "LOC_001 bekleniyor");
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "LOC_001"),
+            "LOC_001 bekleniyor"
+        );
     }
 
     #[test]
@@ -3936,7 +4843,10 @@ mod tests {
             ("locations.geojson", geojson),
         ]);
         let k1 = parse(&zip).unwrap();
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_001"), "LOC_001 tetiklenmemeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "LOC_001"),
+            "LOC_001 tetiklenmemeli"
+        );
     }
 
     /// LOC_006 fixture'ı: verilen ring ile bir locations.geojson üretir.
@@ -3961,8 +4871,10 @@ mod tests {
         // Hizmet bölgeleri dışbükey değildir; bu ayrım kuralın FP'lerinin kaynağıydı.
         let ring = "[[29.0,41.0],[30.0,41.5],[30.0,41.52],[29.0,41.02],[29.0,41.0]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
-            "gerçek alanı eşiğin altında olan bölge LOC_006 üretmemeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
+            "gerçek alanı eşiğin altında olan bölge LOC_006 üretmemeli"
+        );
     }
 
     #[test]
@@ -3970,8 +4882,10 @@ mod tests {
         // ~1.0° boylam × 0.1° enlem, 41. paralelde ≈ 929km² → eşiğin (500) üstünde.
         let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
-        assert!(k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
-            "gerçekten büyük bölge LOC_006 üretmeli");
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
+            "gerçekten büyük bölge LOC_006 üretmeli"
+        );
     }
 
     #[test]
@@ -3980,8 +4894,10 @@ mod tests {
         let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]],\
                     [[29.05,41.005],[29.95,41.005],[29.95,41.095],[29.05,41.095],[29.05,41.005]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
-        assert!(!k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
-            "delikler dış ringden düşülmeli");
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "LOC_006"),
+            "delikler dış ringden düşülmeli"
+        );
     }
 
     // ── ARC_036: ZIP akış görünümü tutarlılığı ─────────────────────────────────
@@ -4040,11 +4956,17 @@ mod tests {
         let n = DATA.len() as u32;
         for with_sig in [true, false] {
             let bytes = synthetic_entry(
-                FLAG_DATA_DESCRIPTOR, 0, 0, DATA, Some((crc, n, n)), with_sig,
+                FLAG_DATA_DESCRIPTOR,
+                0,
+                0,
+                DATA,
+                Some((crc, n, n)),
+                with_sig,
             );
             let entries = [(0u64, u64::from(n), u64::from(n), crc)];
             assert_eq!(
-                count_inconsistent_stream_headers(&bytes, &entries), 0,
+                count_inconsistent_stream_headers(&bytes, &entries),
+                0,
                 "meşru akış zip'i (descriptor imzası: {with_sig}) bulgu üretmemeli",
             );
         }
@@ -4066,9 +4988,7 @@ mod tests {
     fn arc036_descriptor_celisirse_ateslenir() {
         let crc = 0xDEAD_BEEF;
         let n = DATA.len() as u32;
-        let bytes = synthetic_entry(
-            FLAG_DATA_DESCRIPTOR, 0, 0, DATA, Some((crc, n, 0)), true,
-        );
+        let bytes = synthetic_entry(FLAG_DATA_DESCRIPTOR, 0, 0, DATA, Some((crc, n, 0)), true);
         let entries = [(0u64, u64::from(n), u64::from(n), crc)];
         assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
     }
@@ -4081,13 +5001,20 @@ mod tests {
         let n = DATA.len() as u32;
         let no_flag = synthetic_entry(0, n, n, DATA, None, false);
         assert_eq!(
-            count_inconsistent_stream_headers(&no_flag, &[(0, u64::from(n), u64::from(n), crc)]), 0,
+            count_inconsistent_stream_headers(&no_flag, &[(0, u64::from(n), u64::from(n), crc)]),
+            0,
         );
         let zip64 = synthetic_entry(
-            FLAG_DATA_DESCRIPTOR, ZIP64_SENTINEL, ZIP64_SENTINEL, DATA, None, false,
+            FLAG_DATA_DESCRIPTOR,
+            ZIP64_SENTINEL,
+            ZIP64_SENTINEL,
+            DATA,
+            None,
+            false,
         );
         assert_eq!(
-            count_inconsistent_stream_headers(&zip64, &[(0, u64::from(n), u64::from(n), crc)]), 0,
+            count_inconsistent_stream_headers(&zip64, &[(0, u64::from(n), u64::from(n), crc)]),
+            0,
         );
     }
 
@@ -4105,7 +5032,9 @@ mod tests {
         let mut flipped = clean.clone();
         let starts: Vec<u64> = {
             let mut a = zip::ZipArchive::new(std::io::Cursor::new(&clean[..])).unwrap();
-            (0..a.len()).map(|i| a.by_index_raw(i).unwrap().header_start()).collect()
+            (0..a.len())
+                .map(|i| a.by_index_raw(i).unwrap().header_start())
+                .collect()
         };
         for s in &starts {
             let off = *s as usize + 6; // general purpose bit flag
@@ -4114,64 +5043,73 @@ mod tests {
         }
         // Merkez dizin bozulmadığı için arşiv hâlâ açılabilir olmalı; kural bunu ölçüyor.
         let r = parse(&flipped).unwrap();
-        let hits: Vec<_> = r.notices.iter().filter(|n| n.rule_id == "ARC_036").collect();
+        let hits: Vec<_> = r
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "ARC_036")
+            .collect();
         assert_eq!(hits.len(), 1, "feed düzeyinde tek bulgu bekleniyordu");
         assert_eq!(
-            hits[0].observed_value.as_deref(), Some(starts.len().to_string().as_str()),
+            hits[0].observed_value.as_deref(),
+            Some(starts.len().to_string().as_str()),
             "etkilenen girdi sayısı observed_value'da taşınmalı",
         );
     }
-
 }
-    /// `required_fields` (ARC_025'in dayanağı) spec'in `Required` sütunlarıyla BİREBİR olmalı.
-    ///
-    /// ARC_025 Kritik·Spec'tir, yani R1'i bloke eder. Listeye KOŞULLU bir alan yazmak geçerli
-    /// bir feed'i yayından alıkoyar; gerçekten Required olan bir alanı yazmamak ise hükmü
-    /// denetimsiz bırakır. 2026-08-02'de `transfers.txt`'te İKİSİ BİRDEN vardı:
-    /// `from_stop_id`/`to_stop_id` koşulluyken listedeydi (yanlış pozitif, gizli),
-    /// `transfer_type` koşulsuz Required'ken listede değildi (denetimsiz).
-    ///
-    /// Kaynak: `spec-audit/spec_fields.json` → `presence == "Required"`.
-    #[test]
-    fn required_columns_match_the_specification() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../spec-audit/spec_fields.json");
-        let doc: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-        let files = doc["files"].as_object().unwrap();
-        assert!(files.len() >= 25, "spec_fields.json çok küçük — yeniden üretin");
+/// `required_fields` (ARC_025'in dayanağı) spec'in `Required` sütunlarıyla BİREBİR olmalı.
+///
+/// ARC_025 Kritik·Spec'tir, yani R1'i bloke eder. Listeye KOŞULLU bir alan yazmak geçerli
+/// bir feed'i yayından alıkoyar; gerçekten Required olan bir alanı yazmamak ise hükmü
+/// denetimsiz bırakır. 2026-08-02'de `transfers.txt`'te İKİSİ BİRDEN vardı:
+/// `from_stop_id`/`to_stop_id` koşulluyken listedeydi (yanlış pozitif, gizli),
+/// `transfer_type` koşulsuz Required'ken listede değildi (denetimsiz).
+///
+/// Kaynak: `spec-audit/spec_fields.json` → `presence == "Required"`.
+#[test]
+fn required_columns_match_the_specification() {
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../spec-audit/spec_fields.json");
+    let doc: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    let files = doc["files"].as_object().unwrap();
+    assert!(
+        files.len() >= 25,
+        "spec_fields.json çok küçük — yeniden üretin"
+    );
 
-        let mut problems: Vec<String> = Vec::new();
-        for (fname, entry) in files {
-            let spec_required: std::collections::BTreeSet<&str> = entry["fields"]
-                .as_array().unwrap().iter()
-                .filter(|f| f["presence"].as_str() == Some("Required"))
-                .filter_map(|f| f["name"].as_str())
-                .collect();
-            let ours: std::collections::BTreeSet<&str> =
-                required_fields(fname).iter().copied().collect();
-            for miss in spec_required.difference(&ours) {
-                problems.push(format!(
+    let mut problems: Vec<String> = Vec::new();
+    for (fname, entry) in files {
+        let spec_required: std::collections::BTreeSet<&str> = entry["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|f| f["presence"].as_str() == Some("Required"))
+            .filter_map(|f| f["name"].as_str())
+            .collect();
+        let ours: std::collections::BTreeSet<&str> =
+            required_fields(fname).iter().copied().collect();
+        for miss in spec_required.difference(&ours) {
+            problems.push(format!(
                     "{fname}: '{miss}' spec'te Required ama required_fields'ta YOK → ARC_025 denetlemiyor"
                 ));
-            }
-            for extra in ours.difference(&spec_required) {
-                problems.push(format!(
+        }
+        for extra in ours.difference(&spec_required) {
+            problems.push(format!(
                     "{fname}: '{extra}' required_fields'ta ama spec'te Required DEĞİL →                      geçerli feed ARC_025 (Kritik) alabilir"
                 ));
-            }
         }
-        assert!(
+    }
+    assert!(
             problems.is_empty(),
             "required_fields spec ile uyuşmuyor ({} sorun):\n{}\n\n             Spec değiştiyse önce `python3 spec-audit/extract_fields.py` çalıştırın.",
             problems.len(), problems.join("\n"),
         );
-    }
+}
 
-    #[test]
-    fn malformed_eol_detects_bare_and_repeated_cr() {
-        assert!(has_malformed_eol(b"a\rb\n"));
-        assert!(has_malformed_eol(b"a\r\r\nb"));
-        assert!(!has_malformed_eol(b"a\r\nb\n"));
-        assert!(!has_malformed_eol(b"a\n\nb\n"));
-    }
+#[test]
+fn malformed_eol_detects_bare_and_repeated_cr() {
+    assert!(has_malformed_eol(b"a\rb\n"));
+    assert!(has_malformed_eol(b"a\r\r\nb"));
+    assert!(!has_malformed_eol(b"a\r\nb\n"));
+    assert!(!has_malformed_eol(b"a\n\nb\n"));
+}

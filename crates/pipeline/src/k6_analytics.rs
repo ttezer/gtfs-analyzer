@@ -1,6 +1,6 @@
-﻿use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use url::Url;
 
 use gtfs_config::ValidatorConfig;
@@ -47,7 +47,9 @@ fn normalize_web_url(raw: &str) -> Option<NormalizedWebUrl> {
     let host = parsed.host_str()?.to_ascii_lowercase();
     let scheme = parsed.scheme().to_ascii_lowercase();
     let port = match parsed.port() {
-        Some(port) if (scheme == "http" && port == 80) || (scheme == "https" && port == 443) => None,
+        Some(port) if (scheme == "http" && port == 80) || (scheme == "https" && port == 443) => {
+            None
+        }
         other => other,
     };
     let path = match parsed.path() {
@@ -71,14 +73,36 @@ fn format_normalized_web_url(url: &NormalizedWebUrl) -> String {
     let authority = if url.username.is_empty() {
         String::new()
     } else {
-        format!("{}{}@", url.username, url.password.as_ref().map(|p| format!(":{p}")).unwrap_or_default())
+        format!(
+            "{}{}@",
+            url.username,
+            url.password
+                .as_ref()
+                .map(|p| format!(":{p}"))
+                .unwrap_or_default()
+        )
     };
-    let host = if url.host.contains(':') { format!("[{0}]", url.host) } else { url.host.clone() };
+    let host = if url.host.contains(':') {
+        format!("[{0}]", url.host)
+    } else {
+        url.host.clone()
+    };
     let port = url.port.map(|p| format!(":{p}")).unwrap_or_default();
     let path = if url.path.is_empty() { "/" } else { &url.path };
-    let query = url.query.as_ref().map(|q| format!("?{q}")).unwrap_or_default();
-    let fragment = url.fragment.as_ref().map(|f| format!("#{f}")).unwrap_or_default();
-    format!("{}://{}{}{}{}{}{}", url.scheme, authority, host, port, path, query, fragment)
+    let query = url
+        .query
+        .as_ref()
+        .map(|q| format!("?{q}"))
+        .unwrap_or_default();
+    let fragment = url
+        .fragment
+        .as_ref()
+        .map(|f| format!("#{f}"))
+        .unwrap_or_default();
+    format!(
+        "{}://{}{}{}{}{}{}",
+        url.scheme, authority, host, port, path, query, fragment
+    )
 }
 
 // ── Ana fonksiyon ─────────────────────────────────────────────────────────────
@@ -90,7 +114,13 @@ pub fn analyze(
     config: &ValidatorConfig,
     today_yyyymmdd: u32,
 ) -> K6Result {
-    analyze_with_files(records, derived, config, today_yyyymmdd, &FileAvailability::complete())
+    analyze_with_files(
+        records,
+        derived,
+        config,
+        today_yyyymmdd,
+        &FileAvailability::complete(),
+    )
 }
 
 pub fn analyze_with_files(
@@ -116,14 +146,25 @@ pub fn analyze_with_files(
         } else {
             None
         };
-    let k2_for_idx: &K2StopTimesIndex = fallback_k2_owned.as_ref().unwrap_or(&records.stop_times_index);
-    let idx = { let _t = Timer::start("K6::idx::build"); StopTimesIndex::build(records, &trip_shape, k2_for_idx) };
+    let k2_for_idx: &K2StopTimesIndex = fallback_k2_owned
+        .as_ref()
+        .unwrap_or(&records.stop_times_index);
+    let idx = {
+        let _t = Timer::start("K6::idx::build");
+        StopTimesIndex::build(records, &trip_shape, k2_for_idx)
+    };
     // shape geometrisi: dört tüketici (speed_and_duration, remaining_analytics, shp012, shp022)
     // için TEK kurulum. Bkz. ShapeIndex tanımındaki ölçüm notu.
-    let shape_idx = { let _t = Timer::start("K6::shape_idx::build"); ShapeIndex::build(records) };
+    let shape_idx = {
+        let _t = Timer::start("K6::shape_idx::build");
+        ShapeIndex::build(records)
+    };
     // Raylı trip/shape kümeleri: geometri eşiklerini gevşeten üç tüketici (geo_analytics,
     // remaining_analytics, shp012) ve STM_045 için TEK kurulum — shape_idx emsali.
-    let rail = { let _t = Timer::start("K6::rail_index::build"); rail_index(records) };
+    let rail = {
+        let _t = Timer::start("K6::rail_index::build");
+        rail_index(records)
+    };
 
     // Her bağımsız K6 check'i KENDİ (notices, ctr)'sini üretir; sonuçlar KANONİK sırada
     // (1→13) birleştirilir ve sondaki renumber id'leri tek-iş-parçacıklı global ctr ile
@@ -146,83 +187,241 @@ pub fn analyze_with_files(
     // Her görev yalnızca doğrudan ihtiyaç duyduğu okunabilir dosyalar varsa çalışır.
     // Böylece bozuk shapes.txt shape analytics'i kapatır, fakat stop/route/calendar
     // analytics'i kaybetmez; feed_info gibi bağımsız bir dosya da tüm K6'yı kesmez.
-    add_task!("K6::speed_and_duration", availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]), || {
-        let _t = Timer::start("K6::speed_and_duration"); let mut v = Vec::new(); let mut c = 0u32;
-        check_speed_and_duration(records, config, &idx, &shape_idx, &mut v, &mut c); v
-    });
-    add_task!("K6::frequency_headway", availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "frequencies.txt"]), || {
-        let _t = Timer::start("K6::frequency_headway"); let mut v = Vec::new(); let mut c = 0u32;
-        check_frequency_headway(records, config, &mut v, &mut c); v
-    });
-    add_task!("K6::route_headway", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::route_headway"); let mut v = Vec::new(); let mut c = 0u32;
-        check_route_headway(records, config, &idx, &mut v, &mut c); v
-    });
-    add_task!("K6::calendar_analytics", availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
-        let _t = Timer::start("K6::calendar_analytics"); let mut v = Vec::new(); let mut c = 0u32;
-        check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c); v
-    });
+    add_task!(
+        "K6::speed_and_duration",
+        availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]),
+        || {
+            let _t = Timer::start("K6::speed_and_duration");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_speed_and_duration(records, config, &idx, &shape_idx, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::frequency_headway",
+        availability.all(&[
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "frequencies.txt"
+        ]),
+        || {
+            let _t = Timer::start("K6::frequency_headway");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_frequency_headway(records, config, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::route_headway",
+        availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::route_headway");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_route_headway(records, config, &idx, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::calendar_analytics",
+        availability.present_and_available("trips.txt")
+            && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]),
+        || {
+            let _t = Timer::start("K6::calendar_analytics");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_calendar_analytics(records, derived, config, today_yyyymmdd, &mut v, &mut c);
+            v
+        }
+    );
     // Üç ayrı kapı: her biri kendi bloklarının GERÇEKTEN okuduğu dosyayı ister.
     // Tek `all(&[stops, routes, trips, stop_times])` kapısı, yalnız `stops.txt`
     // isteyen kontrolleri de ilgisiz bir dosya yüzünden öldürüyordu (#160).
     add_task!("K6::geo_stops", availability.available("stops.txt"), || {
-        let _t = Timer::start("K6::geo_stops"); let mut v = Vec::new(); let mut c = 0u32;
-        check_geo_stop_analytics(records, derived, config, &mut v, &mut c); v
+        let _t = Timer::start("K6::geo_stops");
+        let mut v = Vec::new();
+        let mut c = 0u32;
+        check_geo_stop_analytics(records, derived, config, &mut v, &mut c);
+        v
     });
-    add_task!("K6::geo_shapes", availability.available("shapes.txt"), || {
-        let _t = Timer::start("K6::geo_shapes"); let mut v = Vec::new(); let mut c = 0u32;
-        check_geo_shape_analytics(records, derived, config, &rail, &mut v, &mut c); v
-    });
-    add_task!("K6::geo_shape_trips", availability.all(&["stops.txt", "trips.txt", "stop_times.txt", "shapes.txt"]), || {
-        let _t = Timer::start("K6::geo_shape_trips"); let mut v = Vec::new(); let mut c = 0u32;
-        check_geo_shape_trip_analytics(records, config, &rail, &mut v, &mut c); v
-    });
-    add_task!("K6::operational_analytics", availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::operational_analytics"); let mut v = Vec::new(); let mut c = 0u32;
-        check_operational_analytics(records, derived, config, &idx, today_yyyymmdd, &mut v, &mut c); v
-    });
-    add_task!("K6::stoptimes_derived", availability.available("stop_times.txt"), || {
-        let _t = Timer::start("K6::stoptimes_derived"); let mut v = Vec::new(); let mut c = 0u32;
-        check_stoptimes_derived(&idx, &mut v, &mut c); v
-    });
-    add_task!("K6::route_trip_quality", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::route_trip_quality"); let mut v = Vec::new(); let mut c = 0u32;
-        check_route_trip_quality(records, derived, &idx, &mut v, &mut c); v
-    });
+    add_task!(
+        "K6::geo_shapes",
+        availability.available("shapes.txt"),
+        || {
+            let _t = Timer::start("K6::geo_shapes");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_geo_shape_analytics(records, derived, config, &rail, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::geo_shape_trips",
+        availability.all(&["stops.txt", "trips.txt", "stop_times.txt", "shapes.txt"]),
+        || {
+            let _t = Timer::start("K6::geo_shape_trips");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_geo_shape_trip_analytics(records, config, &rail, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::operational_analytics",
+        availability.all(&["stops.txt", "routes.txt", "trips.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::operational_analytics");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_operational_analytics(
+                records,
+                derived,
+                config,
+                &idx,
+                today_yyyymmdd,
+                &mut v,
+                &mut c,
+            );
+            v
+        }
+    );
+    add_task!(
+        "K6::stoptimes_derived",
+        availability.available("stop_times.txt"),
+        || {
+            let _t = Timer::start("K6::stoptimes_derived");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_stoptimes_derived(&idx, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::route_trip_quality",
+        availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::route_trip_quality");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_route_trip_quality(records, derived, &idx, &mut v, &mut c);
+            v
+        }
+    );
     add_task!("K6::data_quality", true, || {
-        let _t = Timer::start("K6::data_quality"); let mut v = Vec::new(); let mut c = 0u32;
-        check_data_quality(records, derived, config, today_yyyymmdd, availability, &mut v, &mut c); v
+        let _t = Timer::start("K6::data_quality");
+        let mut v = Vec::new();
+        let mut c = 0u32;
+        check_data_quality(
+            records,
+            derived,
+            config,
+            today_yyyymmdd,
+            availability,
+            &mut v,
+            &mut c,
+        );
+        v
     });
-    add_task!("K6::remaining_analytics", availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::remaining_analytics"); let mut v = Vec::new(); let mut c = 0u32;
-        check_remaining_analytics(records, derived, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v
-    });
-    add_task!("K6::shp012", availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::shp012"); let mut v = Vec::new(); let mut c = 0u32;
-        check_shp012(records, config, &idx, &shape_idx, &rail.shapes, &mut v, &mut c); v
-    });
-    add_task!("K6::shp022", availability.all(&["stops.txt", "trips.txt", "shapes.txt"]), || {
-        let _t = Timer::start("K6::shp022"); let mut v = Vec::new(); let mut c = 0u32;
-        check_shp022(records, &idx, &shape_idx, &mut v, &mut c); v
-    });
-    add_task!("K6::pathway_analytics", availability.all(&["pathways.txt", "stops.txt"]), || {
-        let _t = Timer::start("K6::pathway_analytics"); let mut v = Vec::new(); let mut c = 0u32;
-        check_pathway_analytics(records, derived, &mut v, &mut c); v
-    });
-    add_task!("K6::calendar_override", availability.present_and_available("trips.txt") && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]), || {
-        let _t = Timer::start("K6::calendar_override"); let mut v = Vec::new(); let mut c = 0u32;
-        check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c); v
-    });
-    add_task!("K6::vat_analytics", availability.all(&["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::vat_analytics"); let mut v = Vec::new(); let mut c = 0u32;
-        check_vat_analytics(records, derived, config, &idx, &mut v, &mut c); v
-    });
+    add_task!(
+        "K6::remaining_analytics",
+        availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::remaining_analytics");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_remaining_analytics(
+                records,
+                derived,
+                config,
+                &idx,
+                &shape_idx,
+                &rail.shapes,
+                &mut v,
+                &mut c,
+            );
+            v
+        }
+    );
+    add_task!(
+        "K6::shp012",
+        availability.all(&["stops.txt", "trips.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::shp012");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_shp012(
+                records,
+                config,
+                &idx,
+                &shape_idx,
+                &rail.shapes,
+                &mut v,
+                &mut c,
+            );
+            v
+        }
+    );
+    add_task!(
+        "K6::shp022",
+        availability.all(&["stops.txt", "trips.txt", "shapes.txt"]),
+        || {
+            let _t = Timer::start("K6::shp022");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_shp022(records, &idx, &shape_idx, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::pathway_analytics",
+        availability.all(&["pathways.txt", "stops.txt"]),
+        || {
+            let _t = Timer::start("K6::pathway_analytics");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_pathway_analytics(records, derived, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::calendar_override",
+        availability.present_and_available("trips.txt")
+            && availability.any_present_and_available(&["calendar.txt", "calendar_dates.txt"]),
+        || {
+            let _t = Timer::start("K6::calendar_override");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_calendar_override_analytics(records, derived, config, &idx, &mut v, &mut c);
+            v
+        }
+    );
+    add_task!(
+        "K6::vat_analytics",
+        availability.all(&["routes.txt", "trips.txt", "stops.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::vat_analytics");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_vat_analytics(records, derived, config, &idx, &mut v, &mut c);
+            v
+        }
+    );
     // SONA eklendi: birleştirme sırası kanonik olduğu için yeni görev en sonda kalınca
     // mevcut notice id'leri KAYMAZ (renumber konuma göre yapılır).
-    add_task!("K6::linked_trips", availability.all(&["trips.txt", "stop_times.txt"]), || {
-        let _t = Timer::start("K6::linked_trips"); let mut v = Vec::new(); let mut c = 0u32;
-        check_linked_trip_continuations(records, derived, &mut v, &mut c); v
-    });
+    add_task!(
+        "K6::linked_trips",
+        availability.all(&["trips.txt", "stop_times.txt"]),
+        || {
+            let _t = Timer::start("K6::linked_trips");
+            let mut v = Vec::new();
+            let mut c = 0u32;
+            check_linked_trip_continuations(records, derived, &mut v, &mut c);
+            v
+        }
+    );
 
     #[cfg(feature = "parallel")]
     let parts: Vec<Vec<Notice>> = {
@@ -231,13 +430,17 @@ pub fn analyze_with_files(
         let large = records.stop_times_index.total_rows > 15_000_000;
         let batch = if large { 3 } else { tasks.len() };
         let mut out: Vec<Vec<Notice>> = tasks.iter().map(|_| Vec::new()).collect();
-        for (i, (out_chunk, task_chunk)) in out.chunks_mut(batch).zip(tasks.chunks(batch)).enumerate() {
+        for (i, (out_chunk, task_chunk)) in
+            out.chunks_mut(batch).zip(tasks.chunks(batch)).enumerate()
+        {
             if large {
                 crate::timing::mem_log(&format!("K6 batch {i} start"));
             }
             rayon::scope(|s| {
                 for (slot, task) in out_chunk.iter_mut().zip(task_chunk.iter()) {
-                    s.spawn(move |_| { *slot = task(); });
+                    s.spawn(move |_| {
+                        *slot = task();
+                    });
                 }
             });
             if large {
@@ -259,7 +462,10 @@ pub fn analyze_with_files(
         n.id = format!("k6/{}#{}", n.rule_id, i + 1);
     }
 
-    K6Result { notices, skipped_checks }
+    K6Result {
+        notices,
+        skipped_checks,
+    }
 }
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
@@ -282,9 +488,20 @@ fn k6_notice(
     remediation: &str,
 ) -> Notice {
     crate::notice_factory::build(
-        "K6", Some("k6"), ctr, rule_id, entity_type, entity_id, scope_key,
-        Some(file.to_string()), line, field.map(str::to_string),
-        observed, expected, message, remediation,
+        "K6",
+        Some("k6"),
+        ctr,
+        rule_id,
+        entity_type,
+        entity_id,
+        scope_key,
+        Some(file.to_string()),
+        line,
+        field.map(str::to_string),
+        observed,
+        expected,
+        message,
+        remediation,
     )
 }
 
@@ -298,7 +515,8 @@ fn finalize_stm007_pending(
     let n = pending.len();
     if n > threshold {
         // HashMap/chunk kaynaklı ham take(5) deterministik değildir: önce sırala.
-        let mut examples: Vec<String> = pending.iter()
+        let mut examples: Vec<String> = pending
+            .iter()
             .filter_map(|notice| notice.entity_id.clone())
             .collect();
         examples.sort_unstable();
@@ -338,7 +556,9 @@ fn finalize_stm007_pending(
 /// `needle`, `haystack` içinde kelime sınırında (alfanümerik olmayan karakter veya
 /// dize başı/sonu ile çevrili) geçiyor mu? Büyük/küçük harf duyarsız.
 fn contains_as_word(haystack: &str, needle: &str) -> bool {
-    if needle.is_empty() { return false; }
+    if needle.is_empty() {
+        return false;
+    }
     let h = haystack.to_lowercase();
     let n = needle.to_lowercase();
     let nb = n.len();
@@ -346,10 +566,20 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
     while let Some(pos) = h[start..].find(n.as_str()) {
         let pos = start + pos;
         let before_ok = pos == 0
-            || !h[..pos].chars().next_back().map(|c| c.is_alphanumeric()).unwrap_or(false);
+            || !h[..pos]
+                .chars()
+                .next_back()
+                .map(|c| c.is_alphanumeric())
+                .unwrap_or(false);
         let after_ok = pos + nb >= h.len()
-            || !h[pos + nb..].chars().next().map(|c| c.is_alphanumeric()).unwrap_or(false);
-        if before_ok && after_ok { return true; }
+            || !h[pos + nb..]
+                .chars()
+                .next()
+                .map(|c| c.is_alphanumeric())
+                .unwrap_or(false);
+        if before_ok && after_ok {
+            return true;
+        }
         // pos+1 çok-baytlı UTF-8'de (CJK vb.) char sınırında olmayabilir → bir sonraki
         // char sınırına ilerle; aksi halde h[start..] dilimlemesi panik atar.
         start = pos + h[pos..].chars().next().map_or(1, |c| c.len_utf8());
@@ -376,7 +606,9 @@ const DQ018_MIN_LETTERS: usize = 5;
 fn is_all_caps(s: &str) -> bool {
     let mut n = 0usize;
     for c in s.chars().filter(|c| c.is_alphabetic()) {
-        if !c.is_uppercase() { return false; }
+        if !c.is_uppercase() {
+            return false;
+        }
         n += 1;
     }
     n >= DQ018_MIN_LETTERS
@@ -386,7 +618,9 @@ fn is_all_caps(s: &str) -> bool {
 fn is_all_lower(s: &str) -> bool {
     let mut n = 0usize;
     for c in s.chars().filter(|c| c.is_alphabetic()) {
-        if !c.is_lowercase() { return false; }
+        if !c.is_lowercase() {
+            return false;
+        }
         n += 1;
     }
     n >= 3
@@ -400,7 +634,9 @@ use crate::k5_derived::{haversine_km, jdn_to_yyyymmdd, ymd_to_jdn};
 /// Her segment için dik-mesafe (perpendicular projection) hesaplanır; projeksiyon segment
 /// dışına taşarsa en yakın uç noktaya mesafe kullanılır.
 fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
-    if pts.is_empty() { return f64::MAX; }
+    if pts.is_empty() {
+        return f64::MAX;
+    }
     if pts.len() == 1 {
         return haversine_km(slat, slon, pts[0].0, pts[0].1) * 1000.0;
     }
@@ -424,7 +660,9 @@ fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
             let (cx, cy) = (ax + t * dx, ay + t * dy);
             (cx * cx + cy * cy).sqrt()
         };
-        if dist < min_dist { min_dist = dist; }
+        if dist < min_dist {
+            min_dist = dist;
+        }
     }
     min_dist
 }
@@ -452,7 +690,7 @@ fn project_arc_detail(
     slon: f64,
 ) -> (f64, f64, Option<f64>) {
     let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
-    let scale   = 111.0_f64 * cos_lat;
+    let scale = 111.0_f64 * cos_lat;
     let head_limit = cum.last().copied().unwrap_or(0.0) * 0.10;
     let mut best_arc = 0.0_f64;
     let mut best_dsq = f64::INFINITY;
@@ -465,9 +703,12 @@ fn project_arc_detail(
         let dx = (blon - slon) * scale - ax;
         let dy = (blat - slat) * 111.0_f64 - ay;
         let len_sq = dx * dx + dy * dy;
-        let t = if len_sq < 1e-12 { 0.0_f64 } else {
+        let t = if len_sq < 1e-12 {
+            0.0_f64
+        } else {
             ((-ax * dx) + (-ay * dy)) / len_sq
-        }.clamp(0.0_f64, 1.0_f64);
+        }
+        .clamp(0.0_f64, 1.0_f64);
         let nx = ax + t * dx;
         let ny = ay + t * dy;
         let dsq = nx * nx + ny * ny;
@@ -480,14 +721,18 @@ fn project_arc_detail(
             head_dsq = dsq;
         }
     }
-    (best_arc, best_dsq.sqrt(), head_dsq.is_finite().then(|| head_dsq.sqrt()))
+    (
+        best_arc,
+        best_dsq.sqrt(),
+        head_dsq.is_finite().then(|| head_dsq.sqrt()),
+    )
 }
 
 fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 {
     let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
-    let scale   = 111.0_f64 * cos_lat;
-    let mut best_arc    = 0.0_f64;
-    let mut best_dsq    = f64::INFINITY;
+    let scale = 111.0_f64 * cos_lat;
+    let mut best_arc = 0.0_f64;
+    let mut best_dsq = f64::INFINITY;
     for w in 0..pts.len() - 1 {
         let (alat, alon) = pts[w];
         let (blat, blon) = pts[w + 1];
@@ -498,15 +743,18 @@ fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 
         let dx = bx - ax;
         let dy = by_ - ay;
         let len_sq = dx * dx + dy * dy;
-        let t = if len_sq < 1e-12 { 0.0_f64 } else {
+        let t = if len_sq < 1e-12 {
+            0.0_f64
+        } else {
             ((-ax * dx) + (-ay * dy)) / len_sq
-        }.clamp(0.0_f64, 1.0_f64);
+        }
+        .clamp(0.0_f64, 1.0_f64);
         let nx = ax + t * dx;
         let ny = ay + t * dy;
         let dsq = nx * nx + ny * ny;
         if dsq < best_dsq {
-            best_dsq  = dsq;
-            best_arc  = cum[w] + t * (cum[w + 1] - cum[w]);
+            best_dsq = dsq;
+            best_arc = cum[w] + t * (cum[w + 1] - cum[w]);
         }
     }
     best_arc
@@ -515,13 +763,7 @@ fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 
 /// Durak noktasından shape polyline'ına segment projeksiyonu ile minimum uzaklık (km).
 /// Equirectangular space'te argmin bulunur; son haversine tek kez çağrılır.
 /// `safe_sq`: threshold²×0.98 — bu değerin altındaki segment için 0.0 döner (erken çıkış).
-fn seg_min_dist_km(
-    pts: &[(f64, f64)],
-    slat: f64,
-    slon: f64,
-    scale_lon: f64,
-    safe_sq: f64,
-) -> f64 {
+fn seg_min_dist_km(pts: &[(f64, f64)], slat: f64, slon: f64, scale_lon: f64, safe_sq: f64) -> f64 {
     if pts.len() < 2 {
         return haversine_km(slat, slon, pts[0].0, pts[0].1);
     }
@@ -546,8 +788,12 @@ fn seg_min_dist_km(
             // Scalar projection of P=(0,0) onto A+t*(B-A), clamp t∈[0,1]
             let t = ((-ax * dx) + (-ay * dy)) / len_sq;
             let t = t.clamp(0.0_f64, 1.0_f64);
-            (ax + t * dx, ay + t * dy,
-             alat + t * (blat - alat), alon + t * (blon - alon))
+            (
+                ax + t * dx,
+                ay + t * dy,
+                alat + t * (blat - alat),
+                alon + t * (blon - alon),
+            )
         };
         let d_sq = nx * nx + ny * ny;
         if d_sq < min_sq {
@@ -559,7 +805,11 @@ fn seg_min_dist_km(
             return 0.0;
         }
     }
-    if min_sq <= safe_sq { 0.0 } else { haversine_km(slat, slon, best_lat, best_lon) }
+    if min_sq <= safe_sq {
+        0.0
+    } else {
+        haversine_km(slat, slon, best_lat, best_lon)
+    }
 }
 
 /// Intercity/uzun mesafe ray route_type'ı mı? (STM_017 shape_dist eksik, STM_026 eşiği için)
@@ -601,7 +851,10 @@ fn rail_index(records: &EntityRecords) -> RailIndex<'_> {
         .filter(|r| r.route_type.is_some_and(is_rail_route_type))
         .map(|r| r.route_id.as_str())
         .collect();
-    let mut out = RailIndex { trips: FxHashSet::default(), shapes: FxHashSet::default() };
+    let mut out = RailIndex {
+        trips: FxHashSet::default(),
+        shapes: FxHashSet::default(),
+    };
     if rail_routes.is_empty() {
         return out;
     }
@@ -643,7 +896,8 @@ fn recoverable_stop_coord(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f
         return Some(coords);
     }
     let parse = |field: &str| {
-        stop.row.get(field)
+        stop.row
+            .get(field)
             .and_then(|raw| raw.trim().parse::<f64>().ok())
             .filter(|value| value.is_finite())
     };
@@ -690,12 +944,12 @@ const FAR_STOP_MIN_KM: f64 = 10.0;
 
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
-        0 | 900..=906                                   => cfg.max_speed_tram_kmh,   // tram / hafif raylı
-        1 | 400..=405                                   => cfg.max_speed_metro_kmh,  // metro / U-Bahn
-        2 | 12 | 100..=117                              => cfg.max_speed_rail_kmh,   // rail / S-Bahn / bölgesel
+        0 | 900..=906 => cfg.max_speed_tram_kmh, // tram / hafif raylı
+        1 | 400..=405 => cfg.max_speed_metro_kmh, // metro / U-Bahn
+        2 | 12 | 100..=117 => cfg.max_speed_rail_kmh, // rail / S-Bahn / bölgesel
         3 | 11 | 200..=209 | 700..=716 | 800 | 1500..=1507 => cfg.max_speed_bus_kmh, // bus / coach / troleybüs / taksi
-        4 | 1000..=1021 | 1200                          => cfg.max_speed_ferry_kmh,  // su / feribot
-        5 | 6 | 7 | 1300..=1307 | 1400                  => cfg.max_speed_cablecar_kmh, // teleferik / füniküler
+        4 | 1000..=1021 | 1200 => cfg.max_speed_ferry_kmh,                           // su / feribot
+        5 | 6 | 7 | 1300..=1307 | 1400 => cfg.max_speed_cablecar_kmh, // teleferik / füniküler
         _ => cfg.max_speed_bus_kmh, // bilinmeyen tür → güvenli varsayılan
     }
 }
@@ -722,7 +976,10 @@ impl<'a> ShapeIndex<'a> {
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
             if sp.shape_pt_lat().is_some() && sp.shape_pt_lon().is_some() {
-                shape_pt_idx.entry(records.shape_interns.id(sp)).or_default().push(i as u32);
+                shape_pt_idx
+                    .entry(records.shape_interns.id(sp))
+                    .or_default()
+                    .push(i as u32);
             }
         }
         let n_shapes = shape_pt_idx.len();
@@ -732,7 +989,8 @@ impl<'a> ShapeIndex<'a> {
         bbox.reserve(n_shapes);
         for (sid, mut idxs) in shape_pt_idx {
             idxs.sort_by_key(|&i| records.shapes[i as usize].shape_pt_sequence().unwrap_or(0));
-            let pts: Vec<(f64, f64)> = idxs.iter()
+            let pts: Vec<(f64, f64)> = idxs
+                .iter()
                 .map(|&i| {
                     let sp = &records.shapes[i as usize];
                     (sp.shape_pt_lat().unwrap(), sp.shape_pt_lon().unwrap())
@@ -744,10 +1002,18 @@ impl<'a> ShapeIndex<'a> {
                 let mut mn_lon = pts[0].1;
                 let mut mx_lon = pts[0].1;
                 for &(la, lo) in pts.iter().skip(1) {
-                    if la < mn_lat { mn_lat = la; }
-                    if la > mx_lat { mx_lat = la; }
-                    if lo < mn_lon { mn_lon = lo; }
-                    if lo > mx_lon { mx_lon = lo; }
+                    if la < mn_lat {
+                        mn_lat = la;
+                    }
+                    if la > mx_lat {
+                        mx_lat = la;
+                    }
+                    if lo < mn_lon {
+                        mn_lon = lo;
+                    }
+                    if lo > mx_lon {
+                        mx_lon = lo;
+                    }
                 }
                 bbox.insert(sid, [mn_lat, mx_lat, mn_lon, mx_lon]);
             }
@@ -836,9 +1102,11 @@ impl<'a> StopTimesIndex<'a> {
     }
 
     // Stop_id yardımcısı — K2 intern tablosuna delege eder
-    #[inline] fn stop_id_of(&self, st: &CompactStopTime) -> &str { self.k2.stop_id_of(st) }
+    #[inline]
+    fn stop_id_of(&self, st: &CompactStopTime) -> &str {
+        self.k2.stop_id_of(st)
+    }
 }
-
 
 // ── WP-09a: Hız anomalisi + trip süresi ──────────────────────────────────────
 
@@ -899,7 +1167,16 @@ fn check_speed_and_duration<'a>(
     let ti_sd = &records.trip_interns;
     let mut stm007_pending: Vec<Notice> = Vec::new();
 
-    let (stop_coords, stop_name_sd, trip_route_type, trip_to_route, route_short_sd, trip_direction, trip_headsign_sd, trip_service) = {
+    let (
+        stop_coords,
+        stop_name_sd,
+        trip_route_type,
+        trip_to_route,
+        route_short_sd,
+        trip_direction,
+        trip_headsign_sd,
+        trip_service,
+    ) = {
         let _t = Timer::start("K6::sd::setup");
         // stop_id → (lat, lon)  FxHashMap: SipHash yerine multiply-xor
         let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
@@ -943,9 +1220,15 @@ fn check_speed_and_duration<'a>(
         }
 
         // route_id → gösterim adı
-        let route_short_sd: FxHashMap<&str, &str> = records.routes.iter()
+        let route_short_sd: FxHashMap<&str, &str> = records
+            .routes
+            .iter()
             .map(|r| {
-                let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
+                let label = r
+                    .route_short_name
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(r.route_id.as_str());
                 (r.route_id.as_str(), label)
             })
             .collect();
@@ -954,7 +1237,11 @@ fn check_speed_and_duration<'a>(
         let mut trip_direction: FxHashMap<&str, &'static str> = FxHashMap::default();
         trip_direction.reserve(records.trips.len());
         for t in &records.trips {
-            let dir = match t.direction_id { Some(0) => "0", Some(1) => "1", _ => "-" };
+            let dir = match t.direction_id {
+                Some(0) => "0",
+                Some(1) => "1",
+                _ => "-",
+            };
             trip_direction.insert(t.trip_id.as_str(), dir);
         }
 
@@ -974,7 +1261,16 @@ fn check_speed_and_duration<'a>(
             }
         }
 
-        (stop_coords, stop_name_sd, trip_route_type, trip_to_route, route_short_sd, trip_direction, trip_headsign_sd, trip_service)
+        (
+            stop_coords,
+            stop_name_sd,
+            trip_route_type,
+            trip_to_route,
+            route_short_sd,
+            trip_direction,
+            trip_headsign_sd,
+            trip_service,
+        )
     };
 
     // Shape-based segment distance altyapısı (hız hesabı için)
@@ -986,20 +1282,26 @@ fn check_speed_and_duration<'a>(
     let shape_pts_speed = &shape_idx.coords;
     let (shape_cum_speed, trip_shape_speed) = {
         let _t = Timer::start("K6::sd::shape_setup");
-        let shape_cum: FxHashMap<&str, Vec<f64>> = shape_pts_speed.iter()
+        let shape_cum: FxHashMap<&str, Vec<f64>> = shape_pts_speed
+            .iter()
             .map(|(&sid, pts)| {
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i-1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
                 }
                 (sid, c)
             })
             .collect();
-        let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
-            .filter_map(|t| ti_sd.shape_id(t)
-                .filter(|s| !s.is_empty())
-                .map(|s| (t.trip_id.as_str(), s)))
+        let trip_shape: FxHashMap<&str, &str> = records
+            .trips
+            .iter()
+            .filter_map(|t| {
+                ti_sd
+                    .shape_id(t)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| (t.trip_id.as_str(), s))
+            })
             .collect();
         (shape_cum, trip_shape)
     };
@@ -1011,16 +1313,26 @@ fn check_speed_and_duration<'a>(
     //       unsorted_seq_trips tuple'ına iki SmolStr eklemeyi gerektirirdi (~+%120 bellek).
     //       Burada o trip'ler yalnızca (b)'den ELENMEK için okunur, ikinci notice üretilmez.
     //   (b) satırlar DAĞINIK (araya başka trip girmiş; sequence artsa bile gruplu değil)
-    let stm036_seen: std::collections::HashSet<&str> =
-        idx.unsorted_seq_trips.iter().map(|(trip_id, ..)| trip_id.as_str()).collect();
+    let stm036_seen: std::collections::HashSet<&str> = idx
+        .unsorted_seq_trips
+        .iter()
+        .map(|(trip_id, ..)| trip_id.as_str())
+        .collect();
     // (b) non-contiguous: finalize edilmiş index'te trip satırlarının CSV line'ları ardışık mı
     // (max-min+1 == satır sayısı) — değilse araya başka trip girmiş. Deterministik olsun diye ilk-satıra göre sıralanır.
     let mut noncontig: Vec<(&str, u32, u32)> = Vec::new();
     for (trip_id, stops) in idx.by_trip.iter() {
-        if stm036_seen.contains(*trip_id) { continue; }
-        if stops.len() < 2 { continue; }
+        if stm036_seen.contains(*trip_id) {
+            continue;
+        }
+        if stops.len() < 2 {
+            continue;
+        }
         let (mut lo, mut hi) = (u32::MAX, 0u32);
-        for r in *stops { lo = lo.min(r.line); hi = hi.max(r.line); }
+        for r in *stops {
+            lo = lo.min(r.line);
+            hi = hi.max(r.line);
+        }
         if (hi - lo + 1) as usize != stops.len() {
             noncontig.push((*trip_id, lo, hi));
         }
@@ -1050,44 +1362,58 @@ fn check_speed_and_duration<'a>(
     // STM_061 birikimi: (route_id, direction, stop_a, stop_b) → uzak çift özeti.
     // Anahtar STM_014 ile AYNI biçimdedir; iki kural aynı fiziksel segmenti farklı
     // ölçülerle görür ve ikisi de sefer sayısıyla ölçeklenmemelidir.
-    let mut stm061_pairs: FxHashMap<(&str, &str, &str, &str), Stm061Pair<'_>> = FxHashMap::default();
+    let mut stm061_pairs: FxHashMap<(&str, &str, &str, &str), Stm061Pair<'_>> =
+        FxHashMap::default();
 
-    { let _t = Timer::start("K6::sd::loop");
-    for (&trip_id, stimes) in &idx.by_trip {
-        if stimes.len() < 2 {
-            continue;
-        }
-        let route_type = trip_route_type.get(trip_id).copied().unwrap_or(3);
-        let threshold = max_speed_kmh(route_type, config);
-        let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
-        let route_label = route_short_sd.get(route).copied().unwrap_or(route);
-        let dir_sd = trip_direction.get(trip_id).copied().unwrap_or("-");
-        let svc_sd = trip_service.get(trip_id).copied().unwrap_or("-");
-        let dep_str = stimes.first()
-            .and_then(|s| s.departure_time())
-            .map(|(h, m, _)| format!("{h:02}:{m:02}"))
-            .unwrap_or_default();
-        // trip_id zenginleştirme: insan-tanır kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
-        // (STM_026 mesajındaki mevcut desenle aynı biçim.)
-        let dep_suffix = if dep_str.is_empty() { String::new() } else { format!(" {dep_str} kalkışlı") };
+    {
+        let _t = Timer::start("K6::sd::loop");
+        for (&trip_id, stimes) in &idx.by_trip {
+            if stimes.len() < 2 {
+                continue;
+            }
+            let route_type = trip_route_type.get(trip_id).copied().unwrap_or(3);
+            let threshold = max_speed_kmh(route_type, config);
+            let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
+            let route_label = route_short_sd.get(route).copied().unwrap_or(route);
+            let dir_sd = trip_direction.get(trip_id).copied().unwrap_or("-");
+            let svc_sd = trip_service.get(trip_id).copied().unwrap_or("-");
+            let dep_str = stimes
+                .first()
+                .and_then(|s| s.departure_time())
+                .map(|(h, m, _)| format!("{h:02}:{m:02}"))
+                .unwrap_or_default();
+            // trip_id zenginleştirme: insan-tanır kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
+            // (STM_026 mesajındaki mevcut desenle aynı biçim.)
+            let dep_suffix = if dep_str.is_empty() {
+                String::new()
+            } else {
+                format!(" {dep_str} kalkışlı")
+            };
 
-        // ── STM_007: aynı durakta departure < arrival (K2'den taşındı) ───────────
-        // Gece yarısını aşan son durak (00:xx kalkış, 24:xx yazılmalıydı) yanlış-pozitifi
-        // service_day_start ile elenir; gerçek satır-içi hatalar zenginleştirilmiş mesajla verilir.
-        {
-            let sds_secs = config.service_day_start_hour * 3600;
-            for st in stimes.iter() {
-                let (Some(arr), Some(dep)) = (st.arrival_time(), st.departure_time()) else { continue };
-                let arr_s = hms_to_secs(arr);
-                let dep_s = hms_to_secs(dep);
-                if dep_s >= arr_s { continue; }
-                // departure'ı +24sa alınca arrival'a yakınsa → gece-yarısı geçişi (kasıtsız) → atla
-                if sds_secs > 0 && (dep_s + 86400).saturating_sub(arr_s) <= sds_secs {
-                    continue;
-                }
-                let seq = st.stop_sequence().unwrap_or(0);
-                let name = stop_name_sd.get(idx.stop_id_of(st)).copied().unwrap_or(idx.stop_id_of(st));
-                let mut n = k6_notice(
+            // ── STM_007: aynı durakta departure < arrival (K2'den taşındı) ───────────
+            // Gece yarısını aşan son durak (00:xx kalkış, 24:xx yazılmalıydı) yanlış-pozitifi
+            // service_day_start ile elenir; gerçek satır-içi hatalar zenginleştirilmiş mesajla verilir.
+            {
+                let sds_secs = config.service_day_start_hour * 3600;
+                for st in stimes.iter() {
+                    let (Some(arr), Some(dep)) = (st.arrival_time(), st.departure_time()) else {
+                        continue;
+                    };
+                    let arr_s = hms_to_secs(arr);
+                    let dep_s = hms_to_secs(dep);
+                    if dep_s >= arr_s {
+                        continue;
+                    }
+                    // departure'ı +24sa alınca arrival'a yakınsa → gece-yarısı geçişi (kasıtsız) → atla
+                    if sds_secs > 0 && (dep_s + 86400).saturating_sub(arr_s) <= sds_secs {
+                        continue;
+                    }
+                    let seq = st.stop_sequence().unwrap_or(0);
+                    let name = stop_name_sd
+                        .get(idx.stop_id_of(st))
+                        .copied()
+                        .unwrap_or(idx.stop_id_of(st));
+                    let mut n = k6_notice(
                     ctr, "STM_007", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(st.line as u64), Some("departure_time"),
@@ -1097,39 +1423,45 @@ fn check_speed_and_duration<'a>(
                         format_hms(dep_s), format_hms(arr_s)),
                     "stop_times.txt'te kalkış zamanını varış zamanından sonra (veya eşit) ayarlayın.",
                 );
-                let mut d = std::collections::BTreeMap::new();
-                d.insert("route".to_string(), route_label.to_string());
-                d.insert("stop_name".to_string(), name.to_string());
-                d.insert("seq".to_string(), seq.to_string());
-                d.insert("dir".to_string(), dir_sd.to_string());
-                d.insert("dep".to_string(), format_hms(dep_s));
-                d.insert("arr".to_string(), format_hms(arr_s));
-                // Feed özeti dalı (`finalize_stm007_pending`) affected_rows/example_trips yazar;
-                // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı, yoksa özet
-                // notice'ın en/ja/fr metni boş placeholder'la çıkar (korpusta ölçüldü).
-                d.insert("affected_rows".to_string(), "1".to_string());
-                d.insert("example_trips".to_string(), trip_id.to_string());
-                n.details = Some(d);
-                n.service_id = Some(svc_sd.to_string());
-                stm007_pending.push(n);
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("route".to_string(), route_label.to_string());
+                    d.insert("stop_name".to_string(), name.to_string());
+                    d.insert("seq".to_string(), seq.to_string());
+                    d.insert("dir".to_string(), dir_sd.to_string());
+                    d.insert("dep".to_string(), format_hms(dep_s));
+                    d.insert("arr".to_string(), format_hms(arr_s));
+                    // Feed özeti dalı (`finalize_stm007_pending`) affected_rows/example_trips yazar;
+                    // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı, yoksa özet
+                    // notice'ın en/ja/fr metni boş placeholder'la çıkar (korpusta ölçüldü).
+                    d.insert("affected_rows".to_string(), "1".to_string());
+                    d.insert("example_trips".to_string(), trip_id.to_string());
+                    n.details = Some(d);
+                    n.service_id = Some(svc_sd.to_string());
+                    stm007_pending.push(n);
+                }
             }
-        }
 
-        // ── STM_028 / STM_029: trip süresi ───────────────────────────────────
-        let first_dep = stimes.first().and_then(|s| s.departure_time()).map(hms_to_secs);
-        let last_arr = stimes.last().and_then(|s| s.arrival_time()).map(hms_to_secs);
+            // ── STM_028 / STM_029: trip süresi ───────────────────────────────────
+            let first_dep = stimes
+                .first()
+                .and_then(|s| s.departure_time())
+                .map(hms_to_secs);
+            let last_arr = stimes
+                .last()
+                .and_then(|s| s.arrival_time())
+                .map(hms_to_secs);
 
-        if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
-            if arr >= dep {
-                let duration_sec = arr - dep;
-                // Raylı türlerde ayrı eşik + Bilgi severity: 24 saati aşan tren seferi
-                // meşrudur, sinyal "bak ama panikleme" düzeyindedir.
-                let rt = trip_route_type.get(trip_id).copied().unwrap_or(u32::MAX);
-                let is_rail = is_rail_route_type(rt);
-                let max_sec = max_trip_duration_secs(rt, config);
+            if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
+                if arr >= dep {
+                    let duration_sec = arr - dep;
+                    // Raylı türlerde ayrı eşik + Bilgi severity: 24 saati aşan tren seferi
+                    // meşrudur, sinyal "bak ama panikleme" düzeyindedir.
+                    let rt = trip_route_type.get(trip_id).copied().unwrap_or(u32::MAX);
+                    let is_rail = is_rail_route_type(rt);
+                    let max_sec = max_trip_duration_secs(rt, config);
 
-                if duration_sec > max_sec {
-                    let mut n = k6_notice(
+                    if duration_sec > max_sec {
+                        let mut n = k6_notice(
                         ctr,
                         "STM_028",
                         EntityType::Trip,
@@ -1148,14 +1480,14 @@ fn check_speed_and_duration<'a>(
                         // koşullu varyant --lang en/ja'da temsil edilemez (bkz. i18n mimarisi).
                         "İlk kalkış ve son varış saatlerini doğrulayın; uzun mesafe tarifelerinde bu süre olağandır, şehir içi hatlarda veri hatası işaretidir.",
                     );
-                    if is_rail {
-                        n.severity = gtfs_core::Severity::Bilgi;
+                        if is_rail {
+                            n.severity = gtfs_core::Severity::Bilgi;
+                        }
+                        notices.push(n);
                     }
-                    notices.push(n);
-                }
 
-                if duration_sec < config.min_trip_duration_sec {
-                    notices.push(k6_notice(
+                    if duration_sec < config.min_trip_duration_sec {
+                        notices.push(k6_notice(
                         ctr,
                         "STM_029",
                         EntityType::Trip,
@@ -1172,60 +1504,65 @@ fn check_speed_and_duration<'a>(
                             duration_sec, config.min_trip_duration_sec),
                         "stop_times zaman değerlerini kontrol edin; sefer gerçekten bu kadar kısa olmamalı.",
                     ));
+                    }
                 }
             }
-        }
 
-        let mut same_run = 1usize;
-        let mut max_same_run = 1usize;
-        let mut previous_time: Option<u32> = None;
-        for st in stimes.iter() {
-            let event_time = st.arrival_time().or_else(|| st.departure_time()).map(hms_to_secs);
-            if event_time.is_some() && event_time == previous_time {
-                same_run += 1; max_same_run = max_same_run.max(same_run);
-            } else { same_run = 1; }
-            previous_time = event_time;
-        }
-        if max_same_run >= 3 {
-            notices.push(k6_notice(ctr, "STM_053", EntityType::Trip,
+            let mut same_run = 1usize;
+            let mut max_same_run = 1usize;
+            let mut previous_time: Option<u32> = None;
+            for st in stimes.iter() {
+                let event_time = st
+                    .arrival_time()
+                    .or_else(|| st.departure_time())
+                    .map(hms_to_secs);
+                if event_time.is_some() && event_time == previous_time {
+                    same_run += 1;
+                    max_same_run = max_same_run.max(same_run);
+                } else {
+                    same_run = 1;
+                }
+                previous_time = event_time;
+            }
+            if max_same_run >= 3 {
+                notices.push(k6_notice(ctr, "STM_053", EntityType::Trip,
                 Some(trip_id.to_string()), Some(trip_id.to_string()), "stop_times.txt",
                 stimes.first().map(|s| s.line as u64), Some("arrival_time"),
                 Some(format!("{max_same_run} consecutive stops")), Some("< 3 consecutive stops".to_string()),
                 format!("trip_id '{trip_id}' içinde {max_same_run} ardışık durak aynı zaman değerini kullanıyor."),
                 "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin."));
-        }
+            }
 
-        // ── STM_008: chronology across untimed stops ───────────────────────
-        // MobilityData keeps the latest row with a known departure_time and
-        // compares each later known arrival_time against it.  A stop without
-        // times must not erase that state: interpolated/untimed intermediate
-        // stops are valid GTFS and can otherwise hide a real reversal.
-        //
-        // This pass is deliberately separate from the adjacent-segment speed
-        // loop below.  Speed and zero-duration checks still require a physically
-        // adjacent pair, while chronology may span any number of untimed rows.
-        let mut previous_departure: Option<(&CompactStopTime, u32)> = None;
-        for st in stimes.iter() {
-            if let (Some(arrival), Some((departure_row, departure))) = (
-                st.arrival_time().map(hms_to_secs),
-                previous_departure,
-            ) {
-                if arrival < departure {
-                    let seq_a = departure_row.stop_sequence().unwrap_or(0);
-                    let seq_b = st.stop_sequence().unwrap_or(0);
-                    let dep_hms = format_hms(departure);
-                    let arr_hms = format_hms(arrival);
-                    let name_a = stop_name_sd
-                        .get(idx.stop_id_of(departure_row))
-                        .copied()
-                        .unwrap_or(idx.stop_id_of(departure_row));
-                    let name_b = stop_name_sd
-                        .get(idx.stop_id_of(st))
-                        .copied()
-                        .unwrap_or(idx.stop_id_of(st));
-                    let headsign = trip_headsign_sd.get(trip_id).copied().unwrap_or("");
-                    let hs_sep = if headsign.is_empty() { "" } else { ", " };
-                    let mut n = k6_notice(
+            // ── STM_008: chronology across untimed stops ───────────────────────
+            // MobilityData keeps the latest row with a known departure_time and
+            // compares each later known arrival_time against it.  A stop without
+            // times must not erase that state: interpolated/untimed intermediate
+            // stops are valid GTFS and can otherwise hide a real reversal.
+            //
+            // This pass is deliberately separate from the adjacent-segment speed
+            // loop below.  Speed and zero-duration checks still require a physically
+            // adjacent pair, while chronology may span any number of untimed rows.
+            let mut previous_departure: Option<(&CompactStopTime, u32)> = None;
+            for st in stimes.iter() {
+                if let (Some(arrival), Some((departure_row, departure))) =
+                    (st.arrival_time().map(hms_to_secs), previous_departure)
+                {
+                    if arrival < departure {
+                        let seq_a = departure_row.stop_sequence().unwrap_or(0);
+                        let seq_b = st.stop_sequence().unwrap_or(0);
+                        let dep_hms = format_hms(departure);
+                        let arr_hms = format_hms(arrival);
+                        let name_a = stop_name_sd
+                            .get(idx.stop_id_of(departure_row))
+                            .copied()
+                            .unwrap_or(idx.stop_id_of(departure_row));
+                        let name_b = stop_name_sd
+                            .get(idx.stop_id_of(st))
+                            .copied()
+                            .unwrap_or(idx.stop_id_of(st));
+                        let headsign = trip_headsign_sd.get(trip_id).copied().unwrap_or("");
+                        let hs_sep = if headsign.is_empty() { "" } else { ", " };
+                        let mut n = k6_notice(
                         ctr, "STM_008", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("arrival_time"),
@@ -1234,148 +1571,177 @@ fn check_speed_and_duration<'a>(
                         format!("'{route_label}' hattı '{trip_id}'{dep_suffix} seferi: {name_a} durağından (sıra {seq_a}) kalkış {dep_hms}, {name_b} durağına (sıra {seq_b}) varış {arr_hms} — varış kalkıştan önce, zaman geriye gidiyor. (yön {dir_sd}{hs_sep}{headsign})"),
                         "stop_times.txt zaman değerlerini gözden geçirin; seferler boyunca zamanlar monoton artmalıdır.",
                     );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("stop_a".to_string(), idx.stop_id_of(departure_row).to_string());
-                    d.insert("stop_b".to_string(), idx.stop_id_of(st).to_string());
-                    d.insert("stop_a_name".to_string(), name_a.to_string());
-                    d.insert("stop_b_name".to_string(), name_b.to_string());
-                    d.insert("seq_a".to_string(), seq_a.to_string());
-                    d.insert("seq_b".to_string(), seq_b.to_string());
-                    d.insert("route".to_string(), route_label.to_string());
-                    d.insert("headsign".to_string(), headsign.to_string());
-                    d.insert("hs_sep".to_string(), hs_sep.to_string());
-                    d.insert("dir".to_string(), dir_sd.to_string());
-                    d.insert("dep".to_string(), dep_hms.clone());
-                    d.insert("arr".to_string(), arr_hms.clone());
-                    n.details = Some(d);
-                    notices.push(n);
+                        let mut d = std::collections::BTreeMap::new();
+                        d.insert(
+                            "stop_a".to_string(),
+                            idx.stop_id_of(departure_row).to_string(),
+                        );
+                        d.insert("stop_b".to_string(), idx.stop_id_of(st).to_string());
+                        d.insert("stop_a_name".to_string(), name_a.to_string());
+                        d.insert("stop_b_name".to_string(), name_b.to_string());
+                        d.insert("seq_a".to_string(), seq_a.to_string());
+                        d.insert("seq_b".to_string(), seq_b.to_string());
+                        d.insert("route".to_string(), route_label.to_string());
+                        d.insert("headsign".to_string(), headsign.to_string());
+                        d.insert("hs_sep".to_string(), hs_sep.to_string());
+                        d.insert("dir".to_string(), dir_sd.to_string());
+                        d.insert("dep".to_string(), dep_hms.clone());
+                        d.insert("arr".to_string(), arr_hms.clone());
+                        n.details = Some(d);
+                        notices.push(n);
+                    }
+                }
+                if let Some(departure) = st.departure_time() {
+                    previous_departure = Some((st, hms_to_secs(departure)));
                 }
             }
-            if let Some(departure) = st.departure_time() {
-                previous_departure = Some((st, hms_to_secs(departure)));
-            }
-        }
 
-        // ── STM_014 / OPR_008: hız anomalisi ─────────────────────────────────
-        // Per-trip coord buffer: her stop bir kez sorgulanır
-        coords_buf.clear();
-        coords_buf.extend(stimes.iter().map(|s| stop_coords.get(idx.stop_id_of(s)).copied()));
+            // ── STM_014 / OPR_008: hız anomalisi ─────────────────────────────────
+            // Per-trip coord buffer: her stop bir kez sorgulanır
+            coords_buf.clear();
+            coords_buf.extend(
+                stimes
+                    .iter()
+                    .map(|s| stop_coords.get(idx.stop_id_of(s)).copied()),
+            );
 
-        // ── STM_061: ARDIŞIK OLMAYAN uzak durak çifti arasında imkânsız hız ──
-        //
-        // STM_012/STM_014 yalnız KOMŞU durakları kıyaslar. Adım adım makul görünen
-        // ama uçtan uca imkânsız olan bir sefer aradan geçer: her segment eşiğin
-        // altında kalırken toplam yol fiziksel olarak kapatılamaz.
-        //
-        // 🔴 "Ardışıklar temizse uzak çift de temizdir" DİYE DÜŞÜNDÜM, KORPUS ÇÜRÜTTÜ.
-        // Argüman şuydu: her segment ≤ T ise yol_mesafesi ≤ T·toplam_süre, kuş uçuşu
-        // ≤ yol mesafesi, dolayısıyla uzak çift de ≤ T. Ama iki kontrol AYNI mesafe
-        // ölçüsünü kullanmıyor — komşu mesafe shape üzerinden (uzun) ölçülünce hız
-        // düşük çıkıyor. run-32197267205'te **20 feed** uzak-çift bulgusu veriyor ve
-        // ardışık bulgusu HİÇ vermiyor (#168).
-        //
-        // ⚡ PERF: naif hâli trip başına O(n²)'dir; VBB'de 282k sefer × ~22 durak
-        // ~68M çift eder. Buradaki sınır YAKLAŞIK DEĞİL, KESİN: `bbox_diag_km` bu
-        // seferdeki iki durak arasındaki AZAMİ olası kuş uçuşu mesafedir, dolayısıyla
-        // `threshold * Δt >= bbox_diag_km` olduğu anda daha ileri hiçbir `j` ihlal
-        // EDEMEZ ve döngü kırılır. Hiçbir bulgu kaybedilmez.
-        {
-            let mut lo_lat = f64::INFINITY; let mut hi_lat = f64::NEG_INFINITY;
-            let mut lo_lon = f64::INFINITY; let mut hi_lon = f64::NEG_INFINITY;
-            for c in coords_buf.iter().flatten() {
-                lo_lat = lo_lat.min(c.0); hi_lat = hi_lat.max(c.0);
-                lo_lon = lo_lon.min(c.1); hi_lon = hi_lon.max(c.1);
-            }
-            if lo_lat.is_finite() {
-                let bbox_diag_km = haversine_km(lo_lat, lo_lon, hi_lat, hi_lon);
-                // 10 km'lik "uzak" tanımı MobilityData ile aynıdır; altındaki çiftler
-                // komşu kontrolünün alanıdır ve orada zaten ölçülür.
-                if bbox_diag_km > FAR_STOP_MIN_KM {
-                    let mut worst: Option<(f64, f64, usize, usize)> = None;
-                    for i in 0..stimes.len() {
-                        let Some((la1, lo1)) = coords_buf[i] else { continue };
-                        let Some(dep) = stimes[i].departure_time().map(hms_to_secs) else { continue };
-                        for j in (i + 2)..stimes.len() {
-                            let Some(arr) = stimes[j].arrival_time().map(hms_to_secs) else { continue };
-                            if arr <= dep { continue; }
-                            let dt_h = (arr - dep) as f64 / 3600.0;
-                            // KESİN SINIR: bundan sonrası ihlal edemez.
-                            if threshold * dt_h >= bbox_diag_km { break; }
-                            let Some((la2, lo2)) = coords_buf[j] else { continue };
-                            let dist_km = haversine_km(la1, lo1, la2, lo2);
-                            if dist_km <= FAR_STOP_MIN_KM { continue; }
-                            let speed = dist_km / dt_h;
-                            if speed > threshold
-                                && worst.is_none_or(|(w, _, _, _)| speed > w)
-                            {
-                                worst = Some((speed, dist_km, i, j));
+            // ── STM_061: ARDIŞIK OLMAYAN uzak durak çifti arasında imkânsız hız ──
+            //
+            // STM_012/STM_014 yalnız KOMŞU durakları kıyaslar. Adım adım makul görünen
+            // ama uçtan uca imkânsız olan bir sefer aradan geçer: her segment eşiğin
+            // altında kalırken toplam yol fiziksel olarak kapatılamaz.
+            //
+            // 🔴 "Ardışıklar temizse uzak çift de temizdir" DİYE DÜŞÜNDÜM, KORPUS ÇÜRÜTTÜ.
+            // Argüman şuydu: her segment ≤ T ise yol_mesafesi ≤ T·toplam_süre, kuş uçuşu
+            // ≤ yol mesafesi, dolayısıyla uzak çift de ≤ T. Ama iki kontrol AYNI mesafe
+            // ölçüsünü kullanmıyor — komşu mesafe shape üzerinden (uzun) ölçülünce hız
+            // düşük çıkıyor. run-32197267205'te **20 feed** uzak-çift bulgusu veriyor ve
+            // ardışık bulgusu HİÇ vermiyor (#168).
+            //
+            // ⚡ PERF: naif hâli trip başına O(n²)'dir; VBB'de 282k sefer × ~22 durak
+            // ~68M çift eder. Buradaki sınır YAKLAŞIK DEĞİL, KESİN: `bbox_diag_km` bu
+            // seferdeki iki durak arasındaki AZAMİ olası kuş uçuşu mesafedir, dolayısıyla
+            // `threshold * Δt >= bbox_diag_km` olduğu anda daha ileri hiçbir `j` ihlal
+            // EDEMEZ ve döngü kırılır. Hiçbir bulgu kaybedilmez.
+            {
+                let mut lo_lat = f64::INFINITY;
+                let mut hi_lat = f64::NEG_INFINITY;
+                let mut lo_lon = f64::INFINITY;
+                let mut hi_lon = f64::NEG_INFINITY;
+                for c in coords_buf.iter().flatten() {
+                    lo_lat = lo_lat.min(c.0);
+                    hi_lat = hi_lat.max(c.0);
+                    lo_lon = lo_lon.min(c.1);
+                    hi_lon = hi_lon.max(c.1);
+                }
+                if lo_lat.is_finite() {
+                    let bbox_diag_km = haversine_km(lo_lat, lo_lon, hi_lat, hi_lon);
+                    // 10 km'lik "uzak" tanımı MobilityData ile aynıdır; altındaki çiftler
+                    // komşu kontrolünün alanıdır ve orada zaten ölçülür.
+                    if bbox_diag_km > FAR_STOP_MIN_KM {
+                        let mut worst: Option<(f64, f64, usize, usize)> = None;
+                        for i in 0..stimes.len() {
+                            let Some((la1, lo1)) = coords_buf[i] else {
+                                continue;
+                            };
+                            let Some(dep) = stimes[i].departure_time().map(hms_to_secs) else {
+                                continue;
+                            };
+                            for j in (i + 2)..stimes.len() {
+                                let Some(arr) = stimes[j].arrival_time().map(hms_to_secs) else {
+                                    continue;
+                                };
+                                if arr <= dep {
+                                    continue;
+                                }
+                                let dt_h = (arr - dep) as f64 / 3600.0;
+                                // KESİN SINIR: bundan sonrası ihlal edemez.
+                                if threshold * dt_h >= bbox_diag_km {
+                                    break;
+                                }
+                                let Some((la2, lo2)) = coords_buf[j] else {
+                                    continue;
+                                };
+                                let dist_km = haversine_km(la1, lo1, la2, lo2);
+                                if dist_km <= FAR_STOP_MIN_KM {
+                                    continue;
+                                }
+                                let speed = dist_km / dt_h;
+                                if speed > threshold && worst.is_none_or(|(w, _, _, _)| speed > w) {
+                                    worst = Some((speed, dist_km, i, j));
+                                }
                             }
                         }
-                    }
-                    // Sefer başına en kötü çift seçilir, ama EMIT ERTELENİR: aynı fiziksel
-                    // çift her seferde yeniden raporlanırsa bulgu sayısı tarifenin
-                    // sıklığıyla ölçeklenir, kusurun büyüklüğüyle değil.
-                    if let Some((speed, dist_km, i, j)) = worst {
-                        let pair = stm061_pairs
-                            .entry((route, dir_sd, idx.stop_id_of(&stimes[i]), idx.stop_id_of(&stimes[j])))
-                            .or_insert_with(|| Stm061Pair {
-                                route_label,
-                                seq_a: stimes[i].stop_sequence().unwrap_or(0),
-                                seq_b: stimes[j].stop_sequence().unwrap_or(0),
-                                threshold,
-                                dist_km,
-                                line: stimes[j].line as u64,
-                                speed_min: speed,
-                                speed_max: speed,
-                                trips: Vec::new(),
-                            });
-                        pair.speed_min = pair.speed_min.min(speed);
-                        pair.speed_max = pair.speed_max.max(speed);
-                        pair.line = pair.line.min(stimes[j].line as u64);
-                        pair.trips.push(trip_id);
+                        // Sefer başına en kötü çift seçilir, ama EMIT ERTELENİR: aynı fiziksel
+                        // çift her seferde yeniden raporlanırsa bulgu sayısı tarifenin
+                        // sıklığıyla ölçeklenir, kusurun büyüklüğüyle değil.
+                        if let Some((speed, dist_km, i, j)) = worst {
+                            let pair = stm061_pairs
+                                .entry((
+                                    route,
+                                    dir_sd,
+                                    idx.stop_id_of(&stimes[i]),
+                                    idx.stop_id_of(&stimes[j]),
+                                ))
+                                .or_insert_with(|| Stm061Pair {
+                                    route_label,
+                                    seq_a: stimes[i].stop_sequence().unwrap_or(0),
+                                    seq_b: stimes[j].stop_sequence().unwrap_or(0),
+                                    threshold,
+                                    dist_km,
+                                    line: stimes[j].line as u64,
+                                    speed_min: speed,
+                                    speed_max: speed,
+                                    trips: Vec::new(),
+                                });
+                            pair.speed_min = pair.speed_min.min(speed);
+                            pair.speed_max = pair.speed_max.max(speed);
+                            pair.line = pair.line.min(stimes[j].line as u64);
+                            pair.trips.push(trip_id);
+                        }
                     }
                 }
             }
-        }
 
+            let mut trip_max_speed: f64 = 0.0;
+            let mut trip_max_speed_line: Option<u64> = None;
+            let mut trip_bad_seg_count: u32 = 0;
+            // Tüm bozuk segmentlerin durak ID çiftleri — UI haritasında her biri kırmızı çizilir
+            let mut bad_seg_stops: Vec<(SmolStr, SmolStr)> = Vec::new();
+            // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment
+            let mut worst_zero_seg: Option<(f64, u64, SmolStr, SmolStr, u32, u32)> = None;
 
-        let mut trip_max_speed: f64 = 0.0;
-        let mut trip_max_speed_line: Option<u64> = None;
-        let mut trip_bad_seg_count: u32 = 0;
-        // Tüm bozuk segmentlerin durak ID çiftleri — UI haritasında her biri kırmızı çizilir
-        let mut bad_seg_stops: Vec<(SmolStr, SmolStr)> = Vec::new();
-        // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment
-        let mut worst_zero_seg: Option<(f64, u64, SmolStr, SmolStr, u32, u32)> = None;
+            for i in 0..stimes.len() - 1 {
+                let a = &stimes[i];
+                let b = &stimes[i + 1];
 
-        for i in 0..stimes.len() - 1 {
-            let a = &stimes[i];
-            let b = &stimes[i + 1];
+                let dep_a = a.departure_time().map(hms_to_secs);
+                let arr_b = b.arrival_time().map(hms_to_secs);
 
-            let dep_a = a.departure_time().map(hms_to_secs);
-            let arr_b = b.arrival_time().map(hms_to_secs);
-
-            let (Some(dep), Some(arr)) = (dep_a, arr_b) else { continue };
-            // STM_020: sıfır geçiş süresi — eşik 200m (dakika yuvarlama gürültüsünü filtreler)
-            if arr == dep {
-                let dep_secs = a.departure_time().map(|(_, _, s)| s).unwrap_or(1);
-                let arr_secs = b.arrival_time().map(|(_, _, s)| s).unwrap_or(1);
-                let dist_km = match (coords_buf[i], coords_buf[i + 1]) {
-                    (Some((la1, lo1)), Some((la2, lo2))) => haversine_km(la1, lo1, la2, lo2),
-                    _ => 0.0,
+                let (Some(dep), Some(arr)) = (dep_a, arr_b) else {
+                    continue;
                 };
-                // Her iki zaman tam dakika (saniye=0) → gerçek geçiş süresi bilinmiyor:
-                // yuvarlama yüzünden 0-59 sn arası herhangi bir şey olabilir. Bu yüzden
-                // "imkânsız" diyebilmek için mesafe, TAM BİR DAKİKA geçmiş olsa BİLE
-                // rota tipinin azami hızını aşmalı → eşik = max_speed_kmh / 60.
-                //
-                // Sabit 1.0 km eşiği YANLIŞ POZİTİF üretiyordu: 1.1 km bir otobüs için
-                // 60 sn'de 66 km/h eder — gayet olağan, "fiziksel olarak imkânsız" değil.
-                // 250-feed corpus kanıtı (mdb-2155): 42 bulgunun 41'i 1.1-1.5 km = FP;
-                // gerçek olan tek vaka 29.4 km (1764 km/h) ve MD de YALNIZ onu raporluyor.
-                let impossible_km = threshold / 60.0;
-                if dep_secs == 0 && arr_secs == 0 {
-                    if dist_km >= impossible_km {
-                        let mut n012 = k6_notice(
+                // STM_020: sıfır geçiş süresi — eşik 200m (dakika yuvarlama gürültüsünü filtreler)
+                if arr == dep {
+                    let dep_secs = a.departure_time().map(|(_, _, s)| s).unwrap_or(1);
+                    let arr_secs = b.arrival_time().map(|(_, _, s)| s).unwrap_or(1);
+                    let dist_km = match (coords_buf[i], coords_buf[i + 1]) {
+                        (Some((la1, lo1)), Some((la2, lo2))) => haversine_km(la1, lo1, la2, lo2),
+                        _ => 0.0,
+                    };
+                    // Her iki zaman tam dakika (saniye=0) → gerçek geçiş süresi bilinmiyor:
+                    // yuvarlama yüzünden 0-59 sn arası herhangi bir şey olabilir. Bu yüzden
+                    // "imkânsız" diyebilmek için mesafe, TAM BİR DAKİKA geçmiş olsa BİLE
+                    // rota tipinin azami hızını aşmalı → eşik = max_speed_kmh / 60.
+                    //
+                    // Sabit 1.0 km eşiği YANLIŞ POZİTİF üretiyordu: 1.1 km bir otobüs için
+                    // 60 sn'de 66 km/h eder — gayet olağan, "fiziksel olarak imkânsız" değil.
+                    // 250-feed corpus kanıtı (mdb-2155): 42 bulgunun 41'i 1.1-1.5 km = FP;
+                    // gerçek olan tek vaka 29.4 km (1764 km/h) ve MD de YALNIZ onu raporluyor.
+                    let impossible_km = threshold / 60.0;
+                    if dep_secs == 0 && arr_secs == 0 {
+                        if dist_km >= impossible_km {
+                            let mut n012 = k6_notice(
                             ctr, "STM_012", EntityType::Trip,
                             Some(trip_id.to_string()), Some(trip_id.to_string()),
                             "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
@@ -1386,75 +1752,86 @@ fn check_speed_and_duration<'a>(
                                 dist_km * 60.0),
                             "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz.",
                         );
-                        let mut d = std::collections::BTreeMap::new();
-                        d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                        d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                        n012.details = Some(d);
-                        notices.push(n012);
+                            let mut d = std::collections::BTreeMap::new();
+                            d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                            d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                            n012.details = Some(d);
+                            notices.push(n012);
+                        }
+                        continue;
+                    }
+                    if dist_km > 0.2 {
+                        let is_worse = worst_zero_seg.as_ref().is_none_or(|&(d, ..)| dist_km > d);
+                        if is_worse {
+                            worst_zero_seg = Some((
+                                dist_km,
+                                b.line as u64,
+                                SmolStr::from(idx.stop_id_of(a)),
+                                SmolStr::from(idx.stop_id_of(b)),
+                                a.stop_sequence().unwrap_or(0),
+                                b.stop_sequence().unwrap_or(0),
+                            ));
+                        }
                     }
                     continue;
                 }
-                if dist_km > 0.2 {
-                    let is_worse = worst_zero_seg.as_ref().is_none_or(|&(d, ..)| dist_km > d);
-                    if is_worse {
-                        worst_zero_seg = Some((
-                            dist_km, b.line as u64,
-                            SmolStr::from(idx.stop_id_of(a)), SmolStr::from(idx.stop_id_of(b)),
-                            a.stop_sequence().unwrap_or(0),
-                            b.stop_sequence().unwrap_or(0),
-                        ));
-                    }
+                if arr < dep {
+                    // STM_008 chronology was emitted in the stateful pass above.
+                    // Keep the adjacent speed loop from interpreting a backwards
+                    // segment as a valid (underflowed) travel duration.
+                    continue;
                 }
-                continue;
-            }
-            if arr < dep {
-                // STM_008 chronology was emitted in the stateful pass above.
-                // Keep the adjacent speed loop from interpreting a backwards
-                // segment as a valid (underflowed) travel duration.
-                continue;
-            }
-            let dt_sec = arr - dep;
+                let dt_sec = arr - dep;
 
-            // Mesafe: shape polyline projeksiyonu (varsa) ya da Haversine fallback.
-            // Ray (metro/tren) seferleri için projeksiyon atlanır: düz/tünel hatlar
-            // haversine ile yeterince temsil edilir; winding shapes false positive üretebilir.
-            let (c1, c2) = match (coords_buf[i], coords_buf[i + 1]) {
-                (Some(c1), Some(c2)) => (c1, c2),
-                _ => continue,
-            };
-            let haver_km = haversine_km(c1.0, c1.1, c2.0, c2.1);
-            let dist_km = trip_shape_speed.get(trip_id)
-                .and_then(|&sid| {
-                    let pts = shape_pts_speed.get(sid)?;
-                    let cum = shape_cum_speed.get(sid)?;
-                    if pts.len() < 2 { return None; }
-                    // (sid, stop_id) → arc cache: aynı shape'i kullanan seferlerde/segmentlerde
-                    // tekrar projeksiyonu önler. stop_id → tek koordinat olduğundan sonuç deterministik.
-                    let arc_a = *arc_cache.entry((sid, idx.stop_id_of(a)))
-                        .or_insert_with(|| project_arc_km(pts, cum, c1.0, c1.1));
-                    let arc_b = *arc_cache.entry((sid, idx.stop_id_of(b)))
-                        .or_insert_with(|| project_arc_km(pts, cum, c2.0, c2.1));
-                    let d = (arc_b - arc_a).abs();
-                    if d > 1e-6 { Some(d) } else { None }
-                })
-                // Shape projeksiyon kuş uçuşunun 4 katından büyükse durak büyük olasılıkla
-                // YANLIŞ shape segmentine eşleşmiştir (shape kendine yaklaşıyor/kesişiyor —
-                // grid ağlarında, gidiş-dönüş aynı caddede vb.). Bu durumda projeksiyon
-                // güvenilmez; haversine'e düş. Aksi halde LA Metro gibi feed'lerde sahte
-                // 1000+ km/h hızlar STM_012/STM_014 yanlış pozitifleri üretir.
-                // Şekil projeksiyonu da kuş uçuşundan kısa olamaz: self-near/crossing
-                // shape'lerde iki durak aynı küçük arc bölümüne eşleşebilir ve gerçek
-                // otobüs hızını yapay olarak düşürerek STM_014 false-negative'i üretir.
-                // Üst sınırdaki 4× fallback korunur; alt sınırda shape mesafesi Haversine'e
-                // clamp edilir. Böylece hem gerçek rota detour'u hem fiziksel minimum korunur.
-                .filter(|&d| d <= 4.0 * haver_km.max(0.05))
-                .map(|d| d.max(haver_km))
-                .unwrap_or(haver_km);
+                // Mesafe: shape polyline projeksiyonu (varsa) ya da Haversine fallback.
+                // Ray (metro/tren) seferleri için projeksiyon atlanır: düz/tünel hatlar
+                // haversine ile yeterince temsil edilir; winding shapes false positive üretebilir.
+                let (c1, c2) = match (coords_buf[i], coords_buf[i + 1]) {
+                    (Some(c1), Some(c2)) => (c1, c2),
+                    _ => continue,
+                };
+                let haver_km = haversine_km(c1.0, c1.1, c2.0, c2.1);
+                let dist_km = trip_shape_speed
+                    .get(trip_id)
+                    .and_then(|&sid| {
+                        let pts = shape_pts_speed.get(sid)?;
+                        let cum = shape_cum_speed.get(sid)?;
+                        if pts.len() < 2 {
+                            return None;
+                        }
+                        // (sid, stop_id) → arc cache: aynı shape'i kullanan seferlerde/segmentlerde
+                        // tekrar projeksiyonu önler. stop_id → tek koordinat olduğundan sonuç deterministik.
+                        let arc_a = *arc_cache
+                            .entry((sid, idx.stop_id_of(a)))
+                            .or_insert_with(|| project_arc_km(pts, cum, c1.0, c1.1));
+                        let arc_b = *arc_cache
+                            .entry((sid, idx.stop_id_of(b)))
+                            .or_insert_with(|| project_arc_km(pts, cum, c2.0, c2.1));
+                        let d = (arc_b - arc_a).abs();
+                        if d > 1e-6 {
+                            Some(d)
+                        } else {
+                            None
+                        }
+                    })
+                    // Shape projeksiyon kuş uçuşunun 4 katından büyükse durak büyük olasılıkla
+                    // YANLIŞ shape segmentine eşleşmiştir (shape kendine yaklaşıyor/kesişiyor —
+                    // grid ağlarında, gidiş-dönüş aynı caddede vb.). Bu durumda projeksiyon
+                    // güvenilmez; haversine'e düş. Aksi halde LA Metro gibi feed'lerde sahte
+                    // 1000+ km/h hızlar STM_012/STM_014 yanlış pozitifleri üretir.
+                    // Şekil projeksiyonu da kuş uçuşundan kısa olamaz: self-near/crossing
+                    // shape'lerde iki durak aynı küçük arc bölümüne eşleşebilir ve gerçek
+                    // otobüs hızını yapay olarak düşürerek STM_014 false-negative'i üretir.
+                    // Üst sınırdaki 4× fallback korunur; alt sınırda shape mesafesi Haversine'e
+                    // clamp edilir. Böylece hem gerçek rota detour'u hem fiziksel minimum korunur.
+                    .filter(|&d| d <= 4.0 * haver_km.max(0.05))
+                    .map(|d| d.max(haver_km))
+                    .unwrap_or(haver_km);
 
-            if dist_km < 1e-6 {
-                if idx.stop_id_of(a) == idx.stop_id_of(b) {
-                    // STM_035: aynı durak ardışık iki kez (terminal/döngü hattı)
-                    notices.push(k6_notice(
+                if dist_km < 1e-6 {
+                    if idx.stop_id_of(a) == idx.stop_id_of(b) {
+                        // STM_035: aynı durak ardışık iki kez (terminal/döngü hattı)
+                        notices.push(k6_notice(
                         ctr, "STM_035", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -1464,9 +1841,9 @@ fn check_speed_and_duration<'a>(
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a)),
                         "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
                     ));
-                } else {
-                    // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
-                    notices.push(k6_notice(
+                    } else {
+                        // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
+                        notices.push(k6_notice(
                         ctr, "STM_021", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -1476,13 +1853,13 @@ fn check_speed_and_duration<'a>(
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a), idx.stop_id_of(b)),
                         "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
                     ));
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            // STM_025: <10s tek başına hata değildir; fiziksel tutarlılığı hız kuralları değerlendirir.
-            if dt_sec < 10 {
-                let mut n025 = k6_notice(
+                // STM_025: <10s tek başına hata değildir; fiziksel tutarlılığı hız kuralları değerlendirir.
+                if dt_sec < 10 {
+                    let mut n025 = k6_notice(
                     ctr, "STM_025", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
@@ -1491,23 +1868,23 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "Bu süre bilinçliyse işlem gerekmez; değilse stop_times.txt zaman değerlerini kontrol edin.",
                 );
-                let mut d = std::collections::BTreeMap::new();
-                d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                n025.details = Some(d);
-                notices.push(n025);
-            }
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                    n025.details = Some(d);
+                    notices.push(n025);
+                }
 
-            // STM_026: durak arası mesafe çok uzun — shape arc projeksiyon hataları olabileceğinden
-            // straight-line (haversine) mesafesiyle kontrol edilir; gerçek sorun varsa o da büyük olur.
-            // Demiryolu seferleri için daha yüksek eşik (config.rail_stop_distance_km).
-            let stm026_threshold = if is_rail_route_type(route_type) {
-                config.rail_stop_distance_km
-            } else {
-                50.0
-            };
-            if haver_km > stm026_threshold {
-                let mut n026 = k6_notice(
+                // STM_026: durak arası mesafe çok uzun — shape arc projeksiyon hataları olabileceğinden
+                // straight-line (haversine) mesafesiyle kontrol edilir; gerçek sorun varsa o da büyük olur.
+                // Demiryolu seferleri için daha yüksek eşik (config.rail_stop_distance_km).
+                let stm026_threshold = if is_rail_route_type(route_type) {
+                    config.rail_stop_distance_km
+                } else {
+                    50.0
+                };
+                if haver_km > stm026_threshold {
+                    let mut n026 = k6_notice(
                     ctr, "STM_026", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -1516,23 +1893,23 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stops.txt koordinatlarını ve stop_times.txt sırasını doğrulayın.",
                 );
-                let mut d = std::collections::BTreeMap::new();
-                d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                n026.details = Some(d);
-                notices.push(n026);
-            }
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                    n026.details = Some(d);
+                    notices.push(n026);
+                }
 
-            let speed = dist_km / (dt_sec as f64 / 3600.0);
+                let speed = dist_km / (dt_sec as f64 / 3600.0);
 
-            // STM_012: fiziksel olarak imkansız hız (mutlak üst sınır 700 km/h).
-            // "İmkânsız" iddiası ALT-SINIR mesafeyle (haversine, kuş uçuşu) kanıtlanır:
-            // gerçek yol ≥ düz çizgi her zaman doğrudur; shape-projeksiyonu ise yanlış
-            // segmente eşleşip şişebilir (4× tavana kadar). Projeksiyonlu hız 700'ü
-            // aşıp haversine aşmıyorsa vaka "imkânsız" değil "aşırı"dır → STM_014'e düşer.
-            let hav_speed = haver_km / (dt_sec as f64 / 3600.0);
-            if hav_speed > 700.0 {
-                let mut n012 = k6_notice(
+                // STM_012: fiziksel olarak imkansız hız (mutlak üst sınır 700 km/h).
+                // "İmkânsız" iddiası ALT-SINIR mesafeyle (haversine, kuş uçuşu) kanıtlanır:
+                // gerçek yol ≥ düz çizgi her zaman doğrudur; shape-projeksiyonu ise yanlış
+                // segmente eşleşip şişebilir (4× tavana kadar). Projeksiyonlu hız 700'ü
+                // aşıp haversine aşmıyorsa vaka "imkânsız" değil "aşırı"dır → STM_014'e düşer.
+                let hav_speed = haver_km / (dt_sec as f64 / 3600.0);
+                if hav_speed > 700.0 {
+                    let mut n012 = k6_notice(
                     ctr, "STM_012", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
@@ -1541,47 +1918,50 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
-                let mut d = std::collections::BTreeMap::new();
-                d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                n012.details = Some(d);
-                notices.push(n012);
-                trip_bad_seg_count += 1;
-                continue;
-            }
-
-            if speed > threshold {
-                // Emit ertelenir: aynı (hat, yön, segment) için tek notice üretilecek.
-                let seg = stm014_segs
-                    .entry((route, dir_sd, idx.stop_id_of(a), idx.stop_id_of(b)))
-                    .or_insert_with(|| Stm014Seg {
-                        route_label,
-                        seq_a: a.stop_sequence().unwrap_or(0),
-                        seq_b: b.stop_sequence().unwrap_or(0),
-                        threshold,
-                        line: b.line as u64,
-                        speed_min: speed,
-                        speed_max: speed,
-                        trips: Vec::new(),
-                    });
-                seg.speed_min = seg.speed_min.min(speed);
-                seg.speed_max = seg.speed_max.max(speed);
-                seg.line = seg.line.min(b.line as u64);
-                seg.trips.push(trip_id);
-
-                if speed > trip_max_speed {
-                    trip_max_speed = speed;
-                    trip_max_speed_line = Some(b.line as u64);
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                    n012.details = Some(d);
+                    notices.push(n012);
+                    trip_bad_seg_count += 1;
+                    continue;
                 }
-                trip_bad_seg_count += 1;
-                bad_seg_stops.push((SmolStr::from(idx.stop_id_of(a)), SmolStr::from(idx.stop_id_of(b))));
-            }
-        }
 
-        // OPR_008: yalnızca birden fazla bozuk segment varsa özet notice üret.
-        // Tek segment bozuksa STM_014 zaten o bilgiyi taşır — OPR_008 tekrar olur.
-        if trip_bad_seg_count > 1 {
-            let mut n = k6_notice(
+                if speed > threshold {
+                    // Emit ertelenir: aynı (hat, yön, segment) için tek notice üretilecek.
+                    let seg = stm014_segs
+                        .entry((route, dir_sd, idx.stop_id_of(a), idx.stop_id_of(b)))
+                        .or_insert_with(|| Stm014Seg {
+                            route_label,
+                            seq_a: a.stop_sequence().unwrap_or(0),
+                            seq_b: b.stop_sequence().unwrap_or(0),
+                            threshold,
+                            line: b.line as u64,
+                            speed_min: speed,
+                            speed_max: speed,
+                            trips: Vec::new(),
+                        });
+                    seg.speed_min = seg.speed_min.min(speed);
+                    seg.speed_max = seg.speed_max.max(speed);
+                    seg.line = seg.line.min(b.line as u64);
+                    seg.trips.push(trip_id);
+
+                    if speed > trip_max_speed {
+                        trip_max_speed = speed;
+                        trip_max_speed_line = Some(b.line as u64);
+                    }
+                    trip_bad_seg_count += 1;
+                    bad_seg_stops.push((
+                        SmolStr::from(idx.stop_id_of(a)),
+                        SmolStr::from(idx.stop_id_of(b)),
+                    ));
+                }
+            }
+
+            // OPR_008: yalnızca birden fazla bozuk segment varsa özet notice üret.
+            // Tek segment bozuksa STM_014 zaten o bilgiyi taşır — OPR_008 tekrar olur.
+            if trip_bad_seg_count > 1 {
+                let mut n = k6_notice(
                 ctr,
                 "OPR_008",
                 EntityType::Trip,
@@ -1598,29 +1978,33 @@ fn check_speed_and_duration<'a>(
                 ),
                 "stop_times zaman ve koordinat verilerini kontrol edin.",
             );
-            // Tüm bozuk segment çiftleri → UI'da her biri kırmızı polyline
-            // Ayrıca kalkış saati (varsa) details'e → EN/JA mesaj şablonunda gösterilebilir.
-            {
-                let mut d = std::collections::BTreeMap::new();
-                for (i, (sa, sb)) in bad_seg_stops.iter().enumerate() {
-                    d.insert(format!("bad_seg_{i}_a"), sa.to_string());
-                    d.insert(format!("bad_seg_{i}_b"), sb.to_string());
+                // Tüm bozuk segment çiftleri → UI'da her biri kırmızı polyline
+                // Ayrıca kalkış saati (varsa) details'e → EN/JA mesaj şablonunda gösterilebilir.
+                {
+                    let mut d = std::collections::BTreeMap::new();
+                    for (i, (sa, sb)) in bad_seg_stops.iter().enumerate() {
+                        d.insert(format!("bad_seg_{i}_a"), sa.to_string());
+                        d.insert(format!("bad_seg_{i}_b"), sb.to_string());
+                    }
+                    // Kalkış saati → details'e. EN/JA şablonu {dep_suffix} ile gösterir;
+                    // boşken suffix tamamen kaybolur (koşullu boşluk için Rust'ta üretilir).
+                    d.insert("departure".to_string(), dep_str.clone());
+                    d.insert(
+                        "dep_suffix".to_string(),
+                        if dep_str.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" ({dep_str})")
+                        },
+                    );
+                    n.details = Some(d);
                 }
-                // Kalkış saati → details'e. EN/JA şablonu {dep_suffix} ile gösterir;
-                // boşken suffix tamamen kaybolur (koşullu boşluk için Rust'ta üretilir).
-                d.insert("departure".to_string(), dep_str.clone());
-                d.insert(
-                    "dep_suffix".to_string(),
-                    if dep_str.is_empty() { String::new() } else { format!(" ({dep_str})") },
-                );
-                n.details = Some(d);
+                notices.push(n);
             }
-            notices.push(n);
-        }
 
-        // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment (tek notice/trip)
-        if let Some((dist_km, line, stop_a, stop_b, seq_a, seq_b)) = worst_zero_seg {
-            let mut n = k6_notice(
+            // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment (tek notice/trip)
+            if let Some((dist_km, line, stop_a, stop_b, seq_a, seq_b)) = worst_zero_seg {
+                let mut n = k6_notice(
                 ctr,
                 "STM_020",
                 EntityType::Trip,
@@ -1639,13 +2023,17 @@ fn check_speed_and_duration<'a>(
                 ),
                 "Kalkış/varış zamanlarını doğrulayın; ardışık duraklar arasında geçiş süresi sıfır olamaz.",
             );
-            n.details = Some([
-                ("stop_a".to_string(), stop_a.to_string()),
-                ("stop_b".to_string(), stop_b.to_string()),
-            ].into_iter().collect());
-            notices.push(n);
+                n.details = Some(
+                    [
+                        ("stop_a".to_string(), stop_a.to_string()),
+                        ("stop_b".to_string(), stop_b.to_string()),
+                    ]
+                    .into_iter()
+                    .collect(),
+                );
+                notices.push(n);
+            }
         }
-    }
     } // K6::sd::loop
 
     // ── STM_014: biriken segmentleri tek tek emit et ─────────────────────────
@@ -1658,7 +2046,16 @@ fn check_speed_and_duration<'a>(
             let seg = &stm014_segs[&key];
             let (route, dir, stop_a, stop_b) = key;
             let n_trips = seg.trips.len();
-            let Stm014Seg { route_label, seq_a, seq_b, threshold, line, speed_min, speed_max, .. } = *seg;
+            let Stm014Seg {
+                route_label,
+                seq_a,
+                seq_b,
+                threshold,
+                line,
+                speed_min,
+                speed_max,
+                ..
+            } = *seg;
 
             // Sefer listesi deterministik + tekilleştirilmiş (aynı sefer segmenti bir kez geçer,
             // ama loop hatlarda tekrar edebilir).
@@ -1712,7 +2109,15 @@ fn check_speed_and_duration<'a>(
             d.insert("trip_count".to_string(), trips.len().to_string());
             d.insert("speed_min".to_string(), format!("{speed_min:.1}"));
             d.insert("speed_max".to_string(), format!("{speed_max:.1}"));
-            d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
+            d.insert(
+                "trips".to_string(),
+                trips
+                    .iter()
+                    .take(STM014_TRIP_SAMPLE)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
             n.details = Some(d);
             notices.push(n);
         }
@@ -1728,7 +2133,17 @@ fn check_speed_and_duration<'a>(
         for key in keys {
             let pair = &stm061_pairs[&key];
             let (route, dir, stop_a, stop_b) = key;
-            let Stm061Pair { route_label, seq_a, seq_b, threshold, dist_km, line, speed_min, speed_max, .. } = *pair;
+            let Stm061Pair {
+                route_label,
+                seq_a,
+                seq_b,
+                threshold,
+                dist_km,
+                line,
+                speed_min,
+                speed_max,
+                ..
+            } = *pair;
 
             let mut trips: Vec<&str> = pair.trips.clone();
             trips.sort_unstable();
@@ -1781,7 +2196,15 @@ fn check_speed_and_duration<'a>(
             d.insert("dist_km".to_string(), format!("{dist_km:.1}"));
             d.insert("speed_min".to_string(), format!("{speed_min:.0}"));
             d.insert("speed_max".to_string(), format!("{speed_max:.0}"));
-            d.insert("trips".to_string(), trips.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
+            d.insert(
+                "trips".to_string(),
+                trips
+                    .iter()
+                    .take(STM014_TRIP_SAMPLE)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
             n.details = Some(d);
             notices.push(n);
         }
@@ -1791,8 +2214,13 @@ fn check_speed_and_duration<'a>(
     // Eşik SHP_010/STP_022 ile aynı tutulur; örnekler HashMap/chunk sırasından
     // etkilenmesin diye finalize_stm007_pending içinde sıralanır.
     const STM007_AGG_THRESHOLD: usize = 50;
-    finalize_stm007_pending(&mut stm007_pending, notices, ctr, "STM_007", STM007_AGG_THRESHOLD);
-
+    finalize_stm007_pending(
+        &mut stm007_pending,
+        notices,
+        ctr,
+        "STM_007",
+        STM007_AGG_THRESHOLD,
+    );
 }
 
 // ── WP-09b: Frequency headway ─────────────────────────────────────────────────
@@ -1808,7 +2236,11 @@ fn check_frequency_headway(
 
     for frq in &records.frequencies {
         let Some(hw) = frq.headway_secs else { continue };
-        let trip_id = if frq.trip_id.is_empty() { continue } else { &frq.trip_id };
+        let trip_id = if frq.trip_id.is_empty() {
+            continue;
+        } else {
+            &frq.trip_id
+        };
 
         if hw > max_secs {
             notices.push(k6_notice(
@@ -1822,8 +2254,10 @@ fn check_frequency_headway(
                 Some("headway_secs"),
                 Some(format!("{hw}s ({:.0}dk)", hw as f64 / 60.0)),
                 Some(format!("≤ {}s", max_secs)),
-                format!("'{trip_id}' seferinde sefer aralığı {hw}sn — eşik {max_secs}sn ({} dk).",
-                    config.max_headway_warning_min),
+                format!(
+                    "'{trip_id}' seferinde sefer aralığı {hw}sn — eşik {max_secs}sn ({} dk).",
+                    config.max_headway_warning_min
+                ),
                 "Seferler arası süreyi azaltın veya ek sefer ekleyin.",
             ));
         }
@@ -1875,9 +2309,15 @@ fn check_route_headway(
     ctr: &mut u32,
 ) {
     let ti_hw = &records.trip_interns;
-    let route_short_hw: HashMap<&str, &str> = records.routes.iter()
+    let route_short_hw: HashMap<&str, &str> = records
+        .routes
+        .iter()
         .map(|r| {
-            let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
+            let label = r
+                .route_short_name
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(r.route_id.as_str());
             (r.route_id.as_str(), label)
         })
         .collect();
@@ -1952,7 +2392,9 @@ fn check_route_headway(
     // gereken bir boşluk değil. OPR_005'e DOKUNULMAZ: o zaten route_type başına medyan+MAD
     // ile GÖRELİ çalışır, sabit eşiği yoktur. FRQ kuralları da kapsam dışı — frequencies.txt
     // zaten düzenli sıklık beyanıdır, orada büyük headway ayrı bir olgudur.
-    let rail_routes_hw: FxHashSet<&str> = records.routes.iter()
+    let rail_routes_hw: FxHashSet<&str> = records
+        .routes
+        .iter()
         .filter(|r| r.route_type.is_some_and(is_rail_route_type))
         .map(|r| r.route_id.as_str())
         .collect();
@@ -1974,12 +2416,20 @@ fn check_route_headway(
         // OPR_001 yalnız (a) boşluk eşiği aşar, (b) hat manuel kırsal listesinde DEĞİL,
         // (c) kalkış aralıkları düzensiz (gerçek boşluk) ise üretilir. Düzenli-seyrek
         // (düşük CV) hatlar kasıtlı kırsal servis kabul edilip susturulur.
-        let hw_threshold = if rail_routes_hw.contains(route_id) { max_secs_rail } else { max_secs };
+        let hw_threshold = if rail_routes_hw.contains(route_id) {
+            max_secs_rail
+        } else {
+            max_secs
+        };
         if max_hw > hw_threshold
             && !config.rural_route_ids.iter().any(|r| r == route_id)
             && !is_regular_headway(&gaps)
         {
-            let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
+            let dir_display = if direction_key.is_empty() {
+                "-"
+            } else {
+                direction_key
+            };
             let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
             let mut n001 = k6_notice(
                 ctr,
@@ -2006,7 +2456,9 @@ fn check_route_headway(
     // HashMap iterasyonu → dedup temsilcisi nondeterministik olurdu; anahtara göre sırala.
     let mut route_stop_departures: Vec<_> = route_stop_departures.into_iter().collect();
     route_stop_departures.sort_unstable_by_key(|(k, _)| *k);
-    for ((route_id, direction_key, service_id, _first_stop, _pattern), mut deps) in route_stop_departures {
+    for ((route_id, direction_key, service_id, _first_stop, _pattern), mut deps) in
+        route_stop_departures
+    {
         deps.sort_unstable();
         // dedup suppresses cross-day repeated departure times for the same
         // service_id; may also hide true parallel same-time trips (known tradeoff)
@@ -2016,7 +2468,11 @@ fn check_route_headway(
         }
         let min_hw = deps.windows(2).map(|w| w[1] - w[0]).min().unwrap_or(0);
         if min_hw < bunching_secs && min_hw > 0 {
-            let dir_display = if direction_key.is_empty() { "-" } else { direction_key };
+            let dir_display = if direction_key.is_empty() {
+                "-"
+            } else {
+                direction_key
+            };
             let route_label_hw = route_short_hw.get(route_id).copied().unwrap_or(route_id);
             let mut n = k6_notice(
                 ctr,
@@ -2064,8 +2520,8 @@ fn check_calendar_analytics(
     // near_future imzanın (bugüne bağlı) fonksiyonudur, servise değil → her imza tekdüze
     // CAL_007 ya da CAL_012 üretir. Emit döngü SONRASINDA yapılır.
     let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
-    let gap_threshold = config.service_gap_days;   // CAL_010: çok-kısa servis eşiği (aktif gün)
-    let big_gap_threshold = config.big_gap_days;   // CAL_007/012: büyük-boşluk eşiği (MD ≈ 14)
+    let gap_threshold = config.service_gap_days; // CAL_010: çok-kısa servis eşiği (aktif gün)
+    let big_gap_threshold = config.big_gap_days; // CAL_007/012: büyük-boşluk eşiği (MD ≈ 14)
     let mut gap_services: std::collections::BTreeMap<(u32, u32), Vec<&str>> =
         std::collections::BTreeMap::new();
 
@@ -2081,11 +2537,19 @@ fn check_calendar_analytics(
         let mut hi = 0u32;
         for dates in derived.calendar_bitmap.active_dates.values() {
             for &d in dates {
-                if d < lo { lo = d; }
-                if d > hi { hi = d; }
+                if d < lo {
+                    lo = d;
+                }
+                if d > hi {
+                    hi = d;
+                }
             }
         }
-        if hi == 0 { 0 } else { yyyymmdd_to_jdn(hi).saturating_sub(yyyymmdd_to_jdn(lo)) + 1 }
+        if hi == 0 {
+            0
+        } else {
+            yyyymmdd_to_jdn(hi).saturating_sub(yyyymmdd_to_jdn(lo)) + 1
+        }
     };
 
     for (service_id, dates) in &derived.calendar_bitmap.active_dates {
@@ -2144,7 +2608,10 @@ fn check_calendar_analytics(
                 .saturating_sub(yyyymmdd_to_jdn(pair[0]))
                 .saturating_sub(1);
             if gap_days >= big_gap_threshold {
-                gap_services.entry((pair[0], pair[1])).or_default().push(service_id.as_str());
+                gap_services
+                    .entry((pair[0], pair[1]))
+                    .or_default()
+                    .push(service_id.as_str());
             }
         }
 
@@ -2161,7 +2628,10 @@ fn check_calendar_analytics(
                     let jdn = yyyymmdd_to_jdn(d);
                     jdn >= today_jdn && jdn <= window_end_jdn
                 });
-                let trip_count = service_trip_counts.get(service_id.as_str()).copied().unwrap_or(0);
+                let trip_count = service_trip_counts
+                    .get(service_id.as_str())
+                    .copied()
+                    .unwrap_or(0);
                 if !has_upcoming && trip_count > 0 {
                     let n = config.upcoming_service_days;
                     notices.push(k6_notice(
@@ -2193,8 +2663,7 @@ fn check_calendar_analytics(
         let b_jdn = yyyymmdd_to_jdn(gap_to);
         let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
         // Boşluk bugün/yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
-        let near_future =
-            b_jdn.saturating_sub(1) >= today_jdn && (a_jdn + 1) <= today_jdn + 30;
+        let near_future = b_jdn.saturating_sub(1) >= today_jdn && (a_jdn + 1) <= today_jdn + 30;
         let svc_suffix = if svcs.len() == 1 {
             format!("'{}' servisinde", svcs[0])
         } else {
@@ -2242,7 +2711,9 @@ fn check_calendar_analytics(
 
     // CAL_008 / CAL_009: expiry (bitiş tarihine göre)
     for cal in &records.calendars {
-        let Some((ey, em, ed)) = cal.end_date else { continue };
+        let Some((ey, em, ed)) = cal.end_date else {
+            continue;
+        };
         let end_yyyymmdd = ey * 10000 + em * 100 + ed;
 
         if today_yyyymmdd > 0 {
@@ -2281,8 +2752,11 @@ fn check_calendar_analytics(
                     Some("end_date"),
                     Some(format!("{end_yyyymmdd}")),
                     Some(format!("> {}", warning_days)),
-                    format!("'{}' takvimi {end_yyyymmdd} tarihinde bitiyor — {} gün kaldı.",
-                        cal.service_id, end_jdn - today_jdn),
+                    format!(
+                        "'{}' takvimi {end_yyyymmdd} tarihinde bitiyor — {} gün kaldı.",
+                        cal.service_id,
+                        end_jdn - today_jdn
+                    ),
                     "Feed'i güncellemeyi planlayın.",
                 ));
             }
@@ -2311,7 +2785,7 @@ fn check_calendar_analytics(
                 let fe_yyyymmdd = fe.0 * 10000 + fe.1 * 100 + fe.2;
                 if let Some(dates) = derived.calendar_bitmap.active_dates.get(service_id) {
                     let has_before = dates.iter().any(|&d| d < fs_yyyymmdd);
-                    let has_after  = dates.iter().any(|&d| d > fe_yyyymmdd);
+                    let has_after = dates.iter().any(|&d| d > fe_yyyymmdd);
                     if has_before || has_after {
                         notices.push(k6_notice(
                             ctr,
@@ -2364,7 +2838,10 @@ fn check_calendar_analytics(
 
     if today_yyyymmdd > 0 && !derived.calendar_bitmap.active_dates.is_empty() {
         // CAL_015: en erken aktif tarih gelecekte — feed henüz aktif değil
-        let min_date = derived.calendar_bitmap.active_dates.values()
+        let min_date = derived
+            .calendar_bitmap
+            .active_dates
+            .values()
             .flat_map(|s| s.iter().copied())
             .min();
         if let Some(first) = min_date {
@@ -2393,13 +2870,19 @@ fn check_calendar_analytics(
         // henüz başlamamışsa anlamlıdır. Geçmişte kalmış bir servis de "feed başladı" sayılır;
         // bayatlığı CAL_013 ölçer.
         let feed_has_started = derived.calendar_bitmap.active_dates.values().any(|dates| {
-            dates.iter().copied().min().is_some_and(|min_d| min_d <= today_yyyymmdd)
+            dates
+                .iter()
+                .copied()
+                .min()
+                .is_some_and(|min_d| min_d <= today_yyyymmdd)
         });
         // Determinizm: HashMap iterasyonu sırasız → service_id'ye göre topla ve sırala.
         let mut future_services: Vec<(&str, u32)> = Vec::new();
 
         for (service_id, dates) in &derived.calendar_bitmap.active_dates {
-            if dates.is_empty() { continue; }
+            if dates.is_empty() {
+                continue;
+            }
             let min_svc = dates.iter().copied().min().unwrap();
             let max_svc = dates.iter().copied().max().unwrap();
             if min_svc > today_yyyymmdd {
@@ -2407,7 +2890,10 @@ fn check_calendar_analytics(
                     future_services.push((service_id.as_str(), min_svc));
                 }
             } else if max_svc < today_yyyymmdd {
-                expired_services.entry(max_svc).or_default().push(service_id.as_str());
+                expired_services
+                    .entry(max_svc)
+                    .or_default()
+                    .push(service_id.as_str());
             }
         }
         // CAL_017 emit: yalnız feed'in tamamı gelecekteyse (feed_has_started false).
@@ -2433,10 +2919,16 @@ fn check_calendar_analytics(
                 format!("Son aktif tarihi {max_svc} olan {} servisin süresi dolmuş: {} — bu servislere ait seferler bugün için bulunamaz.", svcs.len(), svcs.join(", "))
             };
             let mut n = k6_notice(
-                ctr, "CAL_013", EntityType::Service,
-                Some(format!("{max_svc}")), Some(format!("{max_svc}")),
-                "calendar.txt", None, Some("end_date"),
-                Some(format!("{max_svc}")), Some(format!("≥ {today_yyyymmdd}")),
+                ctr,
+                "CAL_013",
+                EntityType::Service,
+                Some(format!("{max_svc}")),
+                Some(format!("{max_svc}")),
+                "calendar.txt",
+                None,
+                Some("end_date"),
+                Some(format!("{max_svc}")),
+                Some(format!("≥ {today_yyyymmdd}")),
                 msg,
                 "Feed'i yeni geçerlilik tarihleriyle güncelleyin veya servisleri silin.",
             );
@@ -2451,7 +2943,10 @@ fn check_calendar_analytics(
         // CAL_016: en geç aktif tarih 2 yıldan fazla ileriye uzanıyor
         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         let far_future_jdn = today_jdn + 730;
-        let max_date = derived.calendar_bitmap.active_dates.values()
+        let max_date = derived
+            .calendar_bitmap
+            .active_dates
+            .values()
             .flat_map(|s| s.iter().copied())
             .max();
         if let Some(last) = max_date {
@@ -2530,8 +3025,16 @@ fn check_geo_stop_analytics(
                 }
                 // parent/child istisnası: çocuk durak, ait olduğu istasyonla aynı/çok
                 // yakın konumda olabilir — bu normal GTFS modellemesidir, FP üretmeyelim.
-                let pa = sa.row.get("parent_station").map(|s| s.trim()).filter(|s| !s.is_empty());
-                let pb = sb.row.get("parent_station").map(|s| s.trim()).filter(|s| !s.is_empty());
+                let pa = sa
+                    .row
+                    .get("parent_station")
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty());
+                let pb = sb
+                    .row
+                    .get("parent_station")
+                    .map(|s| s.trim())
+                    .filter(|s| !s.is_empty());
                 if pa == Some(sb.stop_id.as_str()) || pb == Some(sa.stop_id.as_str()) {
                     continue;
                 }
@@ -2620,7 +3123,8 @@ fn check_geo_stop_analytics(
         const GEO002_P99_FACTOR: f64 = 3.0;
         const GEO002_MIN_SAMPLE: usize = 100;
         let threshold_km = if coords.len() >= GEO002_MIN_SAMPLE {
-            let mut dists: Vec<f64> = coords.iter()
+            let mut dists: Vec<f64> = coords
+                .iter()
                 .map(|&(la, lo)| haversine_km(med_lat, med_lon, la, lo))
                 .collect();
             dists.sort_by(f64::total_cmp);
@@ -2631,12 +3135,18 @@ fn check_geo_stop_analytics(
         };
 
         for stop in &records.stops {
-            if stop.stop_id.is_empty() { continue; }
-            let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+            if stop.stop_id.is_empty() {
+                continue;
+            }
+            let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
+                continue;
+            };
             // Null Island guard (STP_016/017, GEO_012, GEO_019 ile TUTARLI): (0,0) yakını
             // koordinat bir placeholder'dır ve median'dan kaçınılmaz olarak >200km uzaktır.
             // Kök nedeni GEO_016 raporlar; burada tekrar etmek aynı durağı iki kez sayardı.
-            if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
+            if lat.abs() < 0.1 && lon.abs() < 0.1 {
+                continue;
+            }
             // Eşiğin üstündeki duraklar → potansiyel koordinat hatası
             let d = haversine_km(med_lat, med_lon, lat, lon);
             if d > threshold_km {
@@ -2658,11 +3168,15 @@ fn check_geo_stop_analytics(
                 // Harita referansı: kural "median'a göre uzaklık" diyor ama median koordinatı
                 // notice'ta taşınmadığı için UI tek bir pin çizip "neye göre uzak" sorusunu
                 // cevapsız bırakıyordu. Median artık details'ta.
-                n.details = Some([
-                    ("med_lat".to_string(), format!("{med_lat:.6}")),
-                    ("med_lon".to_string(), format!("{med_lon:.6}")),
-                    ("dist_km".to_string(), format!("{d:.1}")),
-                ].into_iter().collect());
+                n.details = Some(
+                    [
+                        ("med_lat".to_string(), format!("{med_lat:.6}")),
+                        ("med_lon".to_string(), format!("{med_lon:.6}")),
+                        ("dist_km".to_string(), format!("{d:.1}")),
+                    ]
+                    .into_iter()
+                    .collect(),
+                );
                 notices.push(n);
             }
         }
@@ -2696,16 +3210,26 @@ fn check_geo_stop_analytics(
     // GEO_015: Japonya koordinat sınırı — feed_lang=ja ise durak koordinatları Japonya dışında olmamalı
     // Japonya coğrafi sınırları: lat 20.25–45.33, lon 122.56–153.59
     {
-        let is_japanese = records.feed_info.first()
+        let is_japanese = records
+            .feed_info
+            .first()
             .map(|fi| fi.feed_lang.starts_with("ja"))
             .unwrap_or(false);
         if is_japanese {
             for stop in &records.stops {
-                if stop.stop_id.is_empty() { continue; }
-                let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+                if stop.stop_id.is_empty() {
+                    continue;
+                }
+                let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
+                    continue;
+                };
                 let in_japan = (20.25..=45.33).contains(&lat) && (122.56..=153.59).contains(&lon);
                 if !in_japan {
-                    let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
+                    let name = stop
+                        .stop_name
+                        .as_deref()
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or(&stop.stop_id);
                     notices.push(k6_notice(
                         ctr, "GEO_015", EntityType::Stop,
                         Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
@@ -2722,10 +3246,18 @@ fn check_geo_stop_analytics(
 
     // GEO_016: Stop koordinatları Null Island yakınında (|lat| < 0.1 ve |lon| < 0.1)
     for stop in &records.stops {
-        if stop.stop_id.is_empty() { continue; }
-        let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+        if stop.stop_id.is_empty() {
+            continue;
+        }
+        let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
+            continue;
+        };
         if lat.abs() < 0.1 && lon.abs() < 0.1 {
-            let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
+            let name = stop
+                .stop_name
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&stop.stop_id);
             notices.push(k6_notice(
                 ctr, "GEO_016", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
@@ -2739,10 +3271,16 @@ fn check_geo_stop_analytics(
 
     // GEO_022: Stop enlemi kutba aşırı yakın (|lat| > 89) — olası koordinat hatası (point_near_pole)
     for stop in &records.stops {
-        if stop.stop_id.is_empty() { continue; }
+        if stop.stop_id.is_empty() {
+            continue;
+        }
         let Some(lat) = stop.stop_lat else { continue };
         if lat.abs() > 89.0 {
-            let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
+            let name = stop
+                .stop_name
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&stop.stop_id);
             notices.push(k6_notice(
                 ctr, "GEO_022", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
@@ -2756,14 +3294,28 @@ fn check_geo_stop_analytics(
 
     // GEO_018: Tüm feed durakları 200m'lik bir alan içinde — test/yer tutucu veri
     {
-        let coords: Vec<(f64, f64)> = records.stops.iter()
+        let coords: Vec<(f64, f64)> = records
+            .stops
+            .iter()
             .filter_map(recoverable_stop_coord)
             .collect();
         if coords.len() >= 3 {
-            let min_lat = coords.iter().map(|(lat,_)| *lat).fold(f64::INFINITY, f64::min);
-            let max_lat = coords.iter().map(|(lat,_)| *lat).fold(f64::NEG_INFINITY, f64::max);
-            let min_lon = coords.iter().map(|(_,lon)| *lon).fold(f64::INFINITY, f64::min);
-            let max_lon = coords.iter().map(|(_,lon)| *lon).fold(f64::NEG_INFINITY, f64::max);
+            let min_lat = coords
+                .iter()
+                .map(|(lat, _)| *lat)
+                .fold(f64::INFINITY, f64::min);
+            let max_lat = coords
+                .iter()
+                .map(|(lat, _)| *lat)
+                .fold(f64::NEG_INFINITY, f64::max);
+            let min_lon = coords
+                .iter()
+                .map(|(_, lon)| *lon)
+                .fold(f64::INFINITY, f64::min);
+            let max_lon = coords
+                .iter()
+                .map(|(_, lon)| *lon)
+                .fold(f64::NEG_INFINITY, f64::max);
             let span_km = haversine_km(min_lat, min_lon, max_lat, max_lon);
             if span_km < 0.2 {
                 notices.push(k6_notice(
@@ -2781,14 +3333,24 @@ fn check_geo_stop_analytics(
 
     // GEO_019: Tam sayı (ondalık sıfır) koordinata sahip durak
     for stop in &records.stops {
-        if stop.stop_id.is_empty() { continue; }
-        let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+        if stop.stop_id.is_empty() {
+            continue;
+        }
+        let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
+            continue;
+        };
         // Null Island (0,0) da tam sayıdır ama GEO_016 daha spesifik yakalıyor → çift
         // emit olmasın. Diğer tam-sayı koordinatlar (ör. 41.0,29.0 düşük hassasiyet)
         // GEO_016 kapsamı dışında, GEO_019 olarak raporlanmaya devam eder.
-        if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
+        if lat.abs() < 0.1 && lon.abs() < 0.1 {
+            continue;
+        }
         if (lat - lat.round()).abs() < 1e-9 && (lon - lon.round()).abs() < 1e-9 {
-            let name = stop.stop_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(&stop.stop_id);
+            let name = stop
+                .stop_name
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&stop.stop_id);
             notices.push(k6_notice(
                 ctr, "GEO_019", EntityType::Stop,
                 Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
@@ -2799,7 +3361,6 @@ fn check_geo_stop_analytics(
             ));
         }
     }
-
 }
 
 /// Yalnız `shapes.txt` gerektiren coğrafi kontroller.
@@ -2854,8 +3415,12 @@ fn check_geo_shape_analytics(
     {
         let mut flagged: HashSet<u32> = HashSet::new();
         for pt in &records.shapes {
-            if flagged.contains(&pt.shape_idx()) { continue; }
-            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
+            if flagged.contains(&pt.shape_idx()) {
+                continue;
+            }
+            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else {
+                continue;
+            };
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
                 flagged.insert(pt.shape_idx());
                 let sid = records.shape_interns.id(pt);
@@ -2870,7 +3435,6 @@ fn check_geo_shape_analytics(
             }
         }
     }
-
 }
 
 /// Shape ↔ sefer ↔ durak birlikteliği gerektiren coğrafi kontroller.
@@ -2890,10 +3454,14 @@ fn check_geo_shape_trip_analytics(
         let mut shape_counts: HashMap<u32, usize> = HashMap::new();
         let mut shape_varied: HashSet<u32> = HashSet::new();
         for pt in &records.shapes {
-            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else { continue };
+            let (Some(lat), Some(lon)) = (pt.shape_pt_lat(), pt.shape_pt_lon()) else {
+                continue;
+            };
             let sidx = pt.shape_idx();
             *shape_counts.entry(sidx).or_insert(0) += 1;
-            if shape_varied.contains(&sidx) { continue; }
+            if shape_varied.contains(&sidx) {
+                continue;
+            }
             if let Some(&(first_lat, first_lon)) = shape_first.get(&sidx) {
                 if (lat - first_lat).abs() > 1e-8 || (lon - first_lon).abs() > 1e-8 {
                     shape_varied.insert(sidx);
@@ -2911,14 +3479,19 @@ fn check_geo_shape_trip_analytics(
         // Sıralama METNE göre yapılır: intern indeksi dosya sırasıdır, alfabetik değil —
         // indekse göre sıralamak emit sırasını sessizce değiştirirdi.
         degenerate.sort_by(|a, b| {
-            records.shape_interns.id_at(*a.0).cmp(records.shape_interns.id_at(*b.0))
+            records
+                .shape_interns
+                .id_at(*a.0)
+                .cmp(records.shape_interns.id_at(*b.0))
         });
         for (shape_idx, (lat, lon)) in degenerate {
             let shape_id = records.shape_interns.id_at(*shape_idx);
             // Tüm noktaları (0,0) olan shape'in kök nedeni placeholder koordinattır ve
             // GEO_017 onu daha spesifik olarak raporlar (GEO_016/GEO_019 ikilisiyle aynı
             // iş bölümü) → burada çift emit edilmez.
-            if lat.abs() < 0.1 && lon.abs() < 0.1 { continue; }
+            if lat.abs() < 0.1 && lon.abs() < 0.1 {
+                continue;
+            }
             let count = shape_counts.get(shape_idx).copied().unwrap_or(0);
             if count >= 2 {
                 notices.push(k6_notice(
@@ -2942,15 +3515,27 @@ fn check_geo_shape_trip_analytics(
         // "sistematik koordinat sorunu" üretir.
         let mut coord_counts: HashMap<(i64, i64), u32> = HashMap::new();
         for stop in &records.stops {
-            if stop.location_type.unwrap_or(0) != 0 { continue; }
-            let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else { continue };
+            if stop.location_type.unwrap_or(0) != 0 {
+                continue;
+            }
+            let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
+                continue;
+            };
             let key = ((lat * 1e6).round() as i64, (lon * 1e6).round() as i64);
             *coord_counts.entry(key).or_default() += 1;
         }
-        let total_stops = records.stops.iter()
-            .filter(|s| s.location_type.unwrap_or(0) == 0 && s.stop_lat.is_some() && s.stop_lon.is_some())
+        let total_stops = records
+            .stops
+            .iter()
+            .filter(|s| {
+                s.location_type.unwrap_or(0) == 0 && s.stop_lat.is_some() && s.stop_lon.is_some()
+            })
             .count();
-        let shared: usize = coord_counts.values().filter(|&&c| c > 1).map(|&c| c as usize).sum();
+        let shared: usize = coord_counts
+            .values()
+            .filter(|&&c| c > 1)
+            .map(|&c| c as usize)
+            .sum();
         if total_stops >= 5 && shared as f64 / total_stops as f64 > 0.3 {
             let pct = shared as f64 / total_stops as f64 * 100.0;
             notices.push(k6_notice(
@@ -3001,7 +3586,9 @@ fn check_geo_shape_trip_analytics(
                 max_dep_h
             };
             for st in stops {
-                let Some((h, m, s)) = st.departure_time() else { continue };
+                let Some((h, m, s)) = st.departure_time() else {
+                    continue;
+                };
                 if h > max_dep_h || (h == max_dep_h && (m > 0 || s > 0)) {
                     notices.push(k6_notice(
                         ctr, "STM_045", EntityType::Trip,
@@ -3028,13 +3615,17 @@ fn check_geo_shape_trip_analytics(
 
     // STM_043: Sefer aşırı fazla durağa sahip (>200)
     {
-        let trip_ids_set: FxHashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
+        let trip_ids_set: FxHashSet<&str> =
+            records.trips.iter().map(|t| t.trip_id.as_str()).collect();
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             let count = stops.len() as u32;
             let trip_id = trip_id.as_str();
             if count > config.max_stops_per_trip && trip_ids_set.contains(trip_id) {
-                let dep_suffix = stops.first().and_then(|s| s.departure_time())
-                    .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
+                let dep_suffix = stops
+                    .first()
+                    .and_then(|s| s.departure_time())
+                    .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı"))
+                    .unwrap_or_default();
                 notices.push(k6_notice(
                     ctr, "STM_043", EntityType::Trip,
                     Some((*trip_id).to_string()), Some((*trip_id).to_string()),
@@ -3051,7 +3642,9 @@ fn check_geo_shape_trip_analytics(
     {
         let mut shape_counts: FxHashMap<&str, u32> = FxHashMap::default();
         for pt in &records.shapes {
-            *shape_counts.entry(records.shape_interns.id(pt)).or_default() += 1;
+            *shape_counts
+                .entry(records.shape_interns.id(pt))
+                .or_default() += 1;
         }
         for (shape_id, count) in &shape_counts {
             if *count > config.max_shape_points {
@@ -3070,7 +3663,6 @@ fn check_geo_shape_trip_analytics(
     // (`_tgeo2` artık `check_geo_stop_analytics`'in sonunda düşüyor — #160 bölmesi)
 }
 
-
 // ── WP-09c: Operasyonel analitik ─────────────────────────────────────────────
 
 fn check_operational_analytics(
@@ -3085,10 +3677,14 @@ fn check_operational_analytics(
     use crate::timing::Timer;
     let ti_opr = &records.trip_interns;
 
-    let trip_to_route: HashMap<&str, &str> = records.trips.iter()
+    let trip_to_route: HashMap<&str, &str> = records
+        .trips
+        .iter()
         .map(|t| (t.trip_id.as_str(), ti_opr.route_id(t)))
         .collect();
-    let stop_name_map: HashMap<&str, &str> = records.stops.iter()
+    let stop_name_map: HashMap<&str, &str> = records
+        .stops
+        .iter()
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
 
@@ -3133,26 +3729,44 @@ fn check_operational_analytics(
                 }
             }
             // Ring/döngüsel hat tespiti: ilk ve son durak aynıysa terminal tekrarı suppress et
-            let mut sorted_stops = stimes.iter()
+            let mut sorted_stops = stimes
+                .iter()
                 .filter(|st| !idx.stop_id_of(st).is_empty())
                 .collect::<Vec<_>>();
             sorted_stops.sort_by_key(|st| st.stop_sequence().unwrap_or(u32::MAX));
-            let first = sorted_stops.first().map(|st| idx.stop_id_of(st)).unwrap_or("");
-            let last  = sorted_stops.last() .map(|st| idx.stop_id_of(st)).unwrap_or("");
+            let first = sorted_stops
+                .first()
+                .map(|st| idx.stop_id_of(st))
+                .unwrap_or("");
+            let last = sorted_stops
+                .last()
+                .map(|st| idx.stop_id_of(st))
+                .unwrap_or("");
             let is_ring = !first.is_empty() && first == last;
 
             // `find` YERİNE `min_by_key`: `stop_counts` bir HashMap ve bir seferde birden çok
             // tekrarlanan durak olabiliyor — `find` hangisini bulacağını iterasyon sırasına
             // bırakıyordu, o da her süreçte değiştiği için aynı feed iki farklı durak
             // raporluyordu (VBB'de 306 sefer). stop_id'ye göre en küçük olan deterministiktir.
-            if let Some((&dup_stop, &count)) = stop_counts.iter().filter(|(&sid, &c)| c > 1 && !(is_ring && sid == first) && {
-                let mut prev = None; sorted_stops.iter().enumerate().filter(|(_, st)| idx.stop_id_of(st) == sid).any(|(i, _)| prev.replace(i).is_some_and(|p| i > p + 1)) })
+            if let Some((&dup_stop, &count)) = stop_counts
+                .iter()
+                .filter(|(&sid, &c)| {
+                    c > 1 && !(is_ring && sid == first) && {
+                        let mut prev = None;
+                        sorted_stops
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, st)| idx.stop_id_of(st) == sid)
+                            .any(|(i, _)| prev.replace(i).is_some_and(|p| i > p + 1))
+                    }
+                })
                 .min_by_key(|(&sid, _)| sid)
             {
                 let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
                 let stop_name = stop_name_map.get(dup_stop).copied().unwrap_or(dup_stop);
                 // Kalkış saati: aynı hattın çok seferi varsa satırları ayırt edilebilir kılar.
-                let dep = stimes.first()
+                let dep = stimes
+                    .first()
                     .and_then(|s| s.departure_time().or(s.arrival_time()))
                     .map(|(h, m, _)| format!("{h:02}:{m:02} "))
                     .unwrap_or_default();
@@ -3172,7 +3786,8 @@ fn check_operational_analytics(
                     "Bu rota deseni bilinçliyse işlem gerekmez; değilse stop_times.txt durak sırasını doğrulayın.",
                 );
                 // Harita için sıralı durak listesi + tekrarlayan durak
-                let stop_list: Vec<&str> = stimes.iter()
+                let stop_list: Vec<&str> = stimes
+                    .iter()
                     .filter(|st| !idx.stop_id_of(st).is_empty())
                     .map(|st| idx.stop_id_of(st))
                     .collect();
@@ -3278,16 +3893,24 @@ fn check_operational_analytics(
         // service_id → (etkilenen sefer sayısı, ilk trip satırı)
         let mut inactive_by_service: FxHashMap<&str, (u32, u64)> = FxHashMap::default();
         for trip in &records.trips {
-            if trip.trip_id.is_empty() { continue; }
-            let active_in_7 = derived.calendar_bitmap.active_dates
+            if trip.trip_id.is_empty() {
+                continue;
+            }
+            let active_in_7 = derived
+                .calendar_bitmap
+                .active_dates
                 .get(ti_opr.service_id(trip))
-                .map(|dates| dates.iter().any(|&d| {
-                    let djdn = yyyymmdd_to_jdn(d);
-                    djdn >= today_jdn && djdn < today_jdn + 7
-                }))
+                .map(|dates| {
+                    dates.iter().any(|&d| {
+                        let djdn = yyyymmdd_to_jdn(d);
+                        djdn >= today_jdn && djdn < today_jdn + 7
+                    })
+                })
                 .unwrap_or(false);
             if !active_in_7 {
-                let e = inactive_by_service.entry(ti_opr.service_id(trip)).or_insert((0, trip.line));
+                let e = inactive_by_service
+                    .entry(ti_opr.service_id(trip))
+                    .or_insert((0, trip.line));
                 e.0 += 1;
             }
         }
@@ -3309,8 +3932,12 @@ fn check_operational_analytics(
     // TRP_026: hiç aktif hizmet günü olmayan sefer (UnusedTripNotice)
     if today_yyyymmdd > 0 {
         for trip in &records.trips {
-            if trip.trip_id.is_empty() { continue; }
-            let has_any_date = derived.calendar_bitmap.active_dates
+            if trip.trip_id.is_empty() {
+                continue;
+            }
+            let has_any_date = derived
+                .calendar_bitmap
+                .active_dates
                 .get(ti_opr.service_id(trip))
                 .map(|dates| !dates.is_empty())
                 .unwrap_or(false);
@@ -3331,9 +3958,15 @@ fn check_operational_analytics(
 
     // TRP_028/029: wheelchair_accessible eksikliği
     {
-        let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
+        let total = records
+            .trips
+            .iter()
+            .filter(|t| !t.trip_id.is_empty())
+            .count();
         if total > 0 {
-            let unset = records.trips.iter()
+            let unset = records
+                .trips
+                .iter()
                 .filter(|t| !t.trip_id.is_empty() && t.wheelchair_accessible.unwrap_or(0) == 0)
                 .count();
             if unset == total {
@@ -3363,13 +3996,20 @@ fn check_operational_analytics(
     // analogu. Sadece fiziksel duraklar/peronlar sayılır (location_type 0 veya boş); istasyon/giriş
     // (1/2/3/4) erişilebilirlik semantiği farklı olduğundan paydaya katılmaz (yanlış-pozitif önlemi).
     {
-        let total = records.stops.iter()
+        let total = records
+            .stops
+            .iter()
             .filter(|s| !s.stop_id.is_empty() && matches!(s.location_type, None | Some(0)))
             .count();
         if total > 0 {
-            let unset = records.stops.iter()
-                .filter(|s| !s.stop_id.is_empty() && matches!(s.location_type, None | Some(0))
-                    && matches!(s.wheelchair_boarding, None | Some(0)))
+            let unset = records
+                .stops
+                .iter()
+                .filter(|s| {
+                    !s.stop_id.is_empty()
+                        && matches!(s.location_type, None | Some(0))
+                        && matches!(s.wheelchair_boarding, None | Some(0))
+                })
                 .count();
             if unset == total {
                 notices.push(k6_notice(
@@ -3402,7 +4042,9 @@ fn check_operational_analytics(
     // özelliğidir ("bu blok tür değiştiriyor"), seferin değil; STM_061'in çift toplulaması
     // ve STM_014'ün segment toplulamasıyla aynı desen.
     {
-        let route_type_map: HashMap<&str, u32> = records.routes.iter()
+        let route_type_map: HashMap<&str, u32> = records
+            .routes
+            .iter()
             .filter(|r| !r.route_id.is_empty())
             .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
             .collect();
@@ -3417,13 +4059,22 @@ fn check_operational_analytics(
         let mut block_route_types: HashMap<&str, (u32, &str, u64)> = HashMap::new();
         let mut conflicts: HashMap<&str, BlockConflict<'_>> = HashMap::new();
         for t in &records.trips {
-            let Some(bid) = ti_opr.block_id(t) else { continue };
-            let Some(&rtype) = route_type_map.get(ti_opr.route_id(t)) else { continue };
-            let entry = block_route_types.entry(bid).or_insert((rtype, t.trip_id.as_str(), t.line));
+            let Some(bid) = ti_opr.block_id(t) else {
+                continue;
+            };
+            let Some(&rtype) = route_type_map.get(ti_opr.route_id(t)) else {
+                continue;
+            };
+            let entry = block_route_types
+                .entry(bid)
+                .or_insert((rtype, t.trip_id.as_str(), t.line));
             if entry.0 != rtype {
                 let c = conflicts.entry(bid).or_insert_with(|| BlockConflict {
-                    first_type: entry.0, first_trip: entry.1, first_line: entry.2,
-                    other_types: BTreeSet::new(), trips: Vec::new(),
+                    first_type: entry.0,
+                    first_trip: entry.1,
+                    first_line: entry.2,
+                    other_types: BTreeSet::new(),
+                    trips: Vec::new(),
                 });
                 c.other_types.insert(rtype);
                 c.trips.push(t.trip_id.as_str());
@@ -3433,7 +4084,13 @@ fn check_operational_analytics(
         let mut bids: Vec<&str> = conflicts.keys().copied().collect();
         bids.sort_unstable();
         for bid in bids {
-            let BlockConflict { first_type, first_trip, first_line, other_types: types, trips } = &conflicts[bid];
+            let BlockConflict {
+                first_type,
+                first_trip,
+                first_line,
+                other_types: types,
+                trips,
+            } = &conflicts[bid];
             let n = trips.len();
             let type_list: Vec<String> = types.iter().map(|t| t.to_string()).collect();
             let msg = if n == 1 {
@@ -3444,10 +4101,16 @@ fn check_operational_analytics(
                     type_list.join("/"))
             };
             let mut notice = k6_notice(
-                ctr, "TRP_024", EntityType::Trip,
-                Some(bid.to_string()), Some(bid.to_string()),
-                "trips.txt", Some(*first_line), Some("block_id"),
-                Some(format!("route_type={}", type_list.join("/"))), Some(format!("route_type={first_type}")),
+                ctr,
+                "TRP_024",
+                EntityType::Trip,
+                Some(bid.to_string()),
+                Some(bid.to_string()),
+                "trips.txt",
+                Some(*first_line),
+                Some("block_id"),
+                Some(format!("route_type={}", type_list.join("/"))),
+                Some(format!("route_type={first_type}")),
                 msg,
                 "Aynı block içindeki tüm seferlerin aynı rota tipine sahip olmasını sağlayın.",
             );
@@ -3456,8 +4119,17 @@ fn check_operational_analytics(
             d.insert("trip_count".to_string(), n.to_string());
             d.insert("first_trip".to_string(), first_trip.to_string());
             let mut sample: Vec<&str> = trips.clone();
-            sample.sort_unstable(); sample.dedup();
-            d.insert("trips".to_string(), sample.iter().take(STM014_TRIP_SAMPLE).copied().collect::<Vec<_>>().join(","));
+            sample.sort_unstable();
+            sample.dedup();
+            d.insert(
+                "trips".to_string(),
+                sample
+                    .iter()
+                    .take(STM014_TRIP_SAMPLE)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
             notice.details = Some(d);
             notices.push(notice);
         }
@@ -3468,8 +4140,15 @@ fn check_operational_analytics(
         // Her trip için [first_dep_secs, last_arr_secs] hesapla
         let mut trip_range: HashMap<&str, (u32, u32)> = HashMap::new();
         for (&trip_id, stimes) in &idx.by_trip {
-            let first_dep = stimes.iter().find_map(|s| s.departure_time()).map(hms_to_secs);
-            let last_arr  = stimes.iter().rev().find_map(|s| s.arrival_time()).map(hms_to_secs);
+            let first_dep = stimes
+                .iter()
+                .find_map(|s| s.departure_time())
+                .map(hms_to_secs);
+            let last_arr = stimes
+                .iter()
+                .rev()
+                .find_map(|s| s.arrival_time())
+                .map(hms_to_secs);
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 trip_range.insert(trip_id, (dep, arr));
             }
@@ -3477,9 +4156,18 @@ fn check_operational_analytics(
 
         let mut block_trips: HashMap<&str, Vec<(&str, u32, u32, &str)>> = HashMap::new();
         for t in &records.trips {
-            let Some(bid) = ti_opr.block_id(t) else { continue };
-            let Some(&(dep, arr)) = trip_range.get(t.trip_id.as_str()) else { continue };
-            block_trips.entry(bid).or_default().push((t.trip_id.as_str(), dep, arr, ti_opr.service_id(t)));
+            let Some(bid) = ti_opr.block_id(t) else {
+                continue;
+            };
+            let Some(&(dep, arr)) = trip_range.get(t.trip_id.as_str()) else {
+                continue;
+            };
+            block_trips.entry(bid).or_default().push((
+                t.trip_id.as_str(),
+                dep,
+                arr,
+                ti_opr.service_id(t),
+            ));
         }
 
         // Takvim kesişim önbelleği (#29): aynı block'ta FARKLI service_id'li iki sefer ancak AYNI
@@ -3495,17 +4183,24 @@ fn check_operational_analytics(
                     if dep_a < arr_b && dep_b < arr_a {
                         // Aynı service → kesinlikle aynı gün. Farklı service → takvimleri kesişmeli.
                         if svc_a != svc_b {
-                            let key = if svc_a < svc_b { (svc_a, svc_b) } else { (svc_b, svc_a) };
-                            let same_day = *svc_overlap_cache.entry(key).or_insert_with(|| {
-                                match (
-                                    derived.calendar_bitmap.active_dates.get(svc_a),
-                                    derived.calendar_bitmap.active_dates.get(svc_b),
-                                ) {
-                                    (Some(a), Some(b)) => a.intersection(b).next().is_some(),
-                                    _ => false,
-                                }
-                            });
-                            if !same_day { continue; }
+                            let key = if svc_a < svc_b {
+                                (svc_a, svc_b)
+                            } else {
+                                (svc_b, svc_a)
+                            };
+                            let same_day =
+                                *svc_overlap_cache.entry(key).or_insert_with(|| {
+                                    match (
+                                        derived.calendar_bitmap.active_dates.get(svc_a),
+                                        derived.calendar_bitmap.active_dates.get(svc_b),
+                                    ) {
+                                        (Some(a), Some(b)) => a.intersection(b).next().is_some(),
+                                        _ => false,
+                                    }
+                                });
+                            if !same_day {
+                                continue;
+                            }
                         }
                         notices.push(k6_notice(
                             ctr, "TRP_022", EntityType::Trip,
@@ -3524,11 +4219,17 @@ fn check_operational_analytics(
 
     // TRP_025: wheelchair_accessible bilgisi eksik veya belirtilmemiş (0) seferlerin oranı yüksek (> %80)
     if !records.trips.is_empty() {
-        let unknown = records.trips.iter()
+        let unknown = records
+            .trips
+            .iter()
             .filter(|t| !t.trip_id.is_empty())
             .filter(|t| matches!(t.wheelchair_accessible, None | Some(0)))
             .count();
-        let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
+        let total = records
+            .trips
+            .iter()
+            .filter(|t| !t.trip_id.is_empty())
+            .count();
         if total > 0 {
             let ratio = unknown as f64 / total as f64;
             // unknown < total: %100 eksiklik TRP_029'un kapsamı. Guard olmadan TRP_029 her
@@ -3551,16 +4252,15 @@ fn check_operational_analytics(
 
 // ── WP-09d: Stop times derived kontrolleri ────────────────────────────────────
 
-fn check_stoptimes_derived(
-    idx: &StopTimesIndex<'_>,
-    notices: &mut Vec<Notice>,
-    ctr: &mut u32,
-) {
+fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, ctr: &mut u32) {
     // STM_015 / STM_016: ilk/son durağın zorunlu zaman alanları
     for (&trip_id, stimes) in &idx.by_trip {
         // trip_id zenginleştirme: ilk kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
-        let dep_suffix = stimes.first().and_then(|s| s.departure_time())
-            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
+        let dep_suffix = stimes
+            .first()
+            .and_then(|s| s.departure_time())
+            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı"))
+            .unwrap_or_default();
         // Flex guard: spec, `start_pickup_drop_off_window` veya `end_pickup_drop_off_window`
         // tanımlıyken arrival_time/departure_time'ı YASAKLAR ("Forbidden when ... are
         // defined"). Böyle bir kayıtta eksik zaman alanı ihlal değil, beklenen durumdur;
@@ -3589,10 +4289,16 @@ fn check_stoptimes_derived(
         if let Some(first) = stimes.first() {
             if !is_flex(first) && first.arrival_is_absent() {
                 notices.push(k6_notice(
-                    ctr, "STM_015", EntityType::Trip,
-                    Some(trip_id.to_string()), Some(trip_id.to_string()),
-                    "stop_times.txt", Some(first.line as u64),
-                    Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
+                    ctr,
+                    "STM_015",
+                    EntityType::Trip,
+                    Some(trip_id.to_string()),
+                    Some(trip_id.to_string()),
+                    "stop_times.txt",
+                    Some(first.line as u64),
+                    Some("arrival_time"),
+                    None,
+                    Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."),
                     "İlk stop_times satırına arrival_time girin.",
                 ));
@@ -3622,8 +4328,11 @@ fn check_stoptimes_derived(
     }
 
     for (&trip_id, stimes) in &idx.by_trip {
-        let dep_suffix = stimes.first().and_then(|s| s.departure_time())
-            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı")).unwrap_or_default();
+        let dep_suffix = stimes
+            .first()
+            .and_then(|s| s.departure_time())
+            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı"))
+            .unwrap_or_default();
 
         // STM_027 KALDIRILDI (2026-07-28): STM_056 ile aynı olguyu ölçüyordu. STM_056 spec'i
         // birebir izler (artmayan = azalan VEYA eşit), satır başına emit eder ve K2'de çalışır;
@@ -3684,19 +4393,27 @@ fn check_route_trip_quality(
     drop(_t0);
 
     // route_id → gösterim adı (route_short_name varsa, yoksa route_id)
-    let route_short: HashMap<&str, &str> = records.routes.iter()
+    let route_short: HashMap<&str, &str> = records
+        .routes
+        .iter()
         .map(|r| {
-            let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
+            let label = r
+                .route_short_name
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(r.route_id.as_str());
             (r.route_id.as_str(), label)
         })
         .collect();
 
     // trip_id → ilk kalkış saati (HH:MM)
-    let trip_first_dep: HashMap<&str, String> = idx.by_trip.iter()
+    let trip_first_dep: HashMap<&str, String> = idx
+        .by_trip
+        .iter()
         .filter_map(|(&tid, sts)| {
-            sts.first().and_then(|s| s.departure_time()).map(|d| {
-                (tid, format!("{:02}:{:02}", d.0, d.1))
-            })
+            sts.first()
+                .and_then(|s| s.departure_time())
+                .map(|d| (tid, format!("{:02}:{:02}", d.0, d.1)))
         })
         .collect();
 
@@ -3728,7 +4445,11 @@ fn check_route_trip_quality(
                 "Bu rotaya ek seferler ekleyin ya da frekans bazlı tanım kullanın.",
             );
             // Tek seferin çalışma takvimi (varsa) — R2 "Çalışma Takvimi" sütununu doldurur.
-            if let Some(svc) = trips.first().map(|t| ti_rtq.service_id(t)).filter(|s| !s.is_empty()) {
+            if let Some(svc) = trips
+                .first()
+                .map(|t| ti_rtq.service_id(t))
+                .filter(|s| !s.is_empty())
+            {
                 n013.service_id = Some(svc.to_string());
             }
             notices.push(n013);
@@ -3773,10 +4494,16 @@ fn check_route_trip_quality(
     // route adı (route_short/long_name) yoksa. Route adlıysa yolcu hattı route'tan tanır →
     // trip_headsign opsiyoneldir, FP üretme (#29: TriMet'te tüm seferler headsign'sız ama tüm
     // route'lar adlıydı → 52298 saf FP). route_id → en az bir route adı var mı?
-    let route_named: HashMap<&str, bool> = records.routes.iter()
-        .map(|r| (r.route_id.as_str(),
-            r.route_short_name.as_deref().is_some_and(|s| !s.is_empty())
-                || r.route_long_name.as_deref().is_some_and(|s| !s.is_empty())))
+    let route_named: HashMap<&str, bool> = records
+        .routes
+        .iter()
+        .map(|r| {
+            (
+                r.route_id.as_str(),
+                r.route_short_name.as_deref().is_some_and(|s| !s.is_empty())
+                    || r.route_long_name.as_deref().is_some_and(|s| !s.is_empty()),
+            )
+        })
         .collect();
     let _t4 = Timer::start("K6::rtq::trp_011");
     for trip in &records.trips {
@@ -3784,7 +4511,11 @@ fn check_route_trip_quality(
         let short_missing = ti_rtq.short_name(trip).map(str::is_empty).unwrap_or(true);
         if headsign_missing && short_missing {
             // Route adlıysa yolcu hattı route'tan tanır → trip_headsign opsiyonel, atla.
-            if route_named.get(ti_rtq.route_id(trip)).copied().unwrap_or(false) {
+            if route_named
+                .get(ti_rtq.route_id(trip))
+                .copied()
+                .unwrap_or(false)
+            {
                 continue;
             }
             notices.push(k6_notice(
@@ -3815,17 +4546,28 @@ fn check_route_trip_quality(
     let _t5 = Timer::start("K6::rtq::trp_020");
     {
         // stop_id → stop_name (küçük harf, trim edilmiş)
-        let stop_name_lc: HashMap<&str, String> = records.stops.iter()
-            .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n.trim().to_lowercase())))
+        let stop_name_lc: HashMap<&str, String> = records
+            .stops
+            .iter()
+            .filter_map(|s| {
+                s.stop_name
+                    .as_deref()
+                    .map(|n| (s.stop_id.as_str(), n.trim().to_lowercase()))
+            })
             .collect();
 
         // stop_id → parent_station (boş olmayan) — loop/circular tespiti parent-aware olsun.
         // Bir durağın "etkin istasyonu": parent_station varsa o, yoksa stop_id.
-        let parent_of: HashMap<&str, &str> = records.stops.iter()
-            .filter_map(|s| s.row.get("parent_station")
-                .map(|p| p.trim())
-                .filter(|p| !p.is_empty())
-                .map(|p| (s.stop_id.as_str(), p)))
+        let parent_of: HashMap<&str, &str> = records
+            .stops
+            .iter()
+            .filter_map(|s| {
+                s.row
+                    .get("parent_station")
+                    .map(|p| p.trim())
+                    .filter(|p| !p.is_empty())
+                    .map(|p| (s.stop_id.as_str(), p))
+            })
             .collect();
         // Etkin istasyon: parent_station varsa o, yoksa stop_id.
         fn eff_station<'a>(parent_of: &HashMap<&'a str, &'a str>, sid: &'a str) -> &'a str {
@@ -3839,7 +4581,11 @@ fn check_route_trip_quality(
         let mut station_counts: HashMap<&str, u32> = HashMap::new();
 
         for trip in &records.trips {
-            let headsign = match ti_rtq.headsign(trip).map(str::trim).filter(|h| !h.is_empty()) {
+            let headsign = match ti_rtq
+                .headsign(trip)
+                .map(str::trim)
+                .filter(|h| !h.is_empty())
+            {
                 Some(h) => h,
                 None => continue,
             };
@@ -3850,20 +4596,24 @@ fn check_route_trip_quality(
             };
 
             // Terminal durak: en büyük stop_sequence
-            let terminal_stop_id = stimes.iter()
+            let terminal_stop_id = stimes
+                .iter()
                 .max_by_key(|s| s.stop_sequence().unwrap_or(0))
                 .map(|s| idx.stop_id_of(s))
                 .unwrap_or("");
 
             // İlk durak: en küçük stop_sequence
-            let first_stop_id = stimes.iter()
+            let first_stop_id = stimes
+                .iter()
                 .min_by_key(|s| s.stop_sequence().unwrap_or(u32::MAX))
                 .map(|s| idx.stop_id_of(s))
                 .unwrap_or("");
 
             // Tam döngüsel sefer → ilk ve son durak aynı fiziksel istasyon (parent_station-aware;
             // farklı peron stop_id'leriyle aynı istasyona dönen loop'lar dahil). Tüm sefer loop, atla.
-            if eff_station(&parent_of, first_stop_id) == eff_station(&parent_of, terminal_stop_id) { continue; }
+            if eff_station(&parent_of, first_stop_id) == eff_station(&parent_of, terminal_stop_id) {
+                continue;
+            }
 
             // #15: headsign_lc'yi erken-çıkışlardan (stimes/cyclic) SONRA hesapla — elenecek
             // seferler to_lowercase tahsisi ödemez.
@@ -3881,7 +4631,9 @@ fn check_route_trip_quality(
             // Corpus kanıtı (mdb-1294, Roma): headsign 'CIMITERO LAURENTINO' hem 34. hem SON (38.)
             // durakta geçiyor; son durak eşleştiği için headsign doğru. Biz 9.162 sefer
             // işaretliyorduk, MD yalnız 19 (gerçekten ara durakta bitenler).
-            if stop_name_lc.get(terminal_stop_id) == Some(&headsign_lc) { continue; }
+            if stop_name_lc.get(terminal_stop_id) == Some(&headsign_lc) {
+                continue;
+            }
 
             // station_counts (sefer içinde her etkin istasyonun geçiş sayısı) yalnız ilk ad-eşleşmesinde
             // TEMBEL kurulur (counts_built). Eşleşen durak birden fazla geçiyorsa meşru uç/dönüş noktası
@@ -3893,14 +4645,25 @@ fn check_route_trip_quality(
             let mut counts_built = false;
 
             // Her matching intermediate stop için tek notice (ilk eşleşmede dur).
-            for st in stimes.iter().filter(|s| idx.stop_id_of(s) != terminal_stop_id) {
-                let Some(stop_name) = stop_name_lc.get(idx.stop_id_of(st)) else { continue };
-                if *stop_name != headsign_lc { continue; }
+            for st in stimes
+                .iter()
+                .filter(|s| idx.stop_id_of(s) != terminal_stop_id)
+            {
+                let Some(stop_name) = stop_name_lc.get(idx.stop_id_of(st)) else {
+                    continue;
+                };
+                if *stop_name != headsign_lc {
+                    continue;
+                }
 
                 if !counts_built {
                     seq_eff.clear();
-                    seq_eff.extend(stimes.iter()
-                        .map(|s| (s.stop_sequence().unwrap_or(0), eff_station(&parent_of, idx.stop_id_of(s)))));
+                    seq_eff.extend(stimes.iter().map(|s| {
+                        (
+                            s.stop_sequence().unwrap_or(0),
+                            eff_station(&parent_of, idx.stop_id_of(s)),
+                        )
+                    }));
                     seq_eff.sort_by_key(|(seq, _)| *seq);
                     station_counts.clear();
                     let mut prev_eff: Option<&str> = None;
@@ -3914,13 +4677,24 @@ fn check_route_trip_quality(
                 }
 
                 // Eşleşen durak bir uç/dönüş noktası (sefer içinde tekrar ediyor) → atla.
-                if station_counts.get(eff_station(&parent_of, idx.stop_id_of(st))).copied().unwrap_or(0) > 1 {
+                if station_counts
+                    .get(eff_station(&parent_of, idx.stop_id_of(st)))
+                    .copied()
+                    .unwrap_or(0)
+                    > 1
+                {
                     continue;
                 }
 
                 // #15: rname/dep (format!) yalnız emit anında — eşleşmeyen seferler için değil.
-                let rname = route_short.get(ti_rtq.route_id(trip)).copied().unwrap_or(ti_rtq.route_id(trip));
-                let dep = trip_first_dep.get(trip.trip_id.as_str()).map(|s| format!(" {} kalkışlı", s)).unwrap_or_default();
+                let rname = route_short
+                    .get(ti_rtq.route_id(trip))
+                    .copied()
+                    .unwrap_or(ti_rtq.route_id(trip));
+                let dep = trip_first_dep
+                    .get(trip.trip_id.as_str())
+                    .map(|s| format!(" {} kalkışlı", s))
+                    .unwrap_or_default();
                 notices.push(k6_notice(
                     ctr,
                     "TRP_020",
@@ -3951,10 +4725,16 @@ fn check_route_trip_quality(
     {
         let _t6 = Timer::start("K6::rtq::rts_020");
         // agency_id → agency_url
-        let agency_url_map: HashMap<&str, &str> = records.agencies.iter()
+        let agency_url_map: HashMap<&str, &str> = records
+            .agencies
+            .iter()
             .filter_map(|a| {
                 let aid = a.agency_id.as_deref().unwrap_or("");
-                if a.agency_url.is_empty() { None } else { Some((aid, a.agency_url.as_str())) }
+                if a.agency_url.is_empty() {
+                    None
+                } else {
+                    Some((aid, a.agency_url.as_str()))
+                }
             })
             .collect();
         // Tek acente varsa ve agency_id eksikse o acente URL'sini kullan
@@ -3965,23 +4745,39 @@ fn check_route_trip_quality(
         };
 
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
+            if route.route_id.is_empty() {
+                continue;
+            }
             let route_url = match route.route_url.as_deref().filter(|u| !u.is_empty()) {
                 Some(u) => u,
                 None => continue,
             };
-            let agency_url = route.agency_id.as_deref()
+            let agency_url = route
+                .agency_id
+                .as_deref()
                 .and_then(|aid| agency_url_map.get(aid).copied())
                 .or(default_agency_url);
             if let Some(aurl) = agency_url {
                 if route_url == aurl {
-                    let rname = route_short.get(route.route_id.as_str()).copied().unwrap_or(route.route_id.as_str());
+                    let rname = route_short
+                        .get(route.route_id.as_str())
+                        .copied()
+                        .unwrap_or(route.route_id.as_str());
                     notices.push(k6_notice(
-                        ctr, "RTS_020", EntityType::Route,
-                        Some(route.route_id.clone()), Some(route.route_id.clone()),
-                        "routes.txt", Some(route.line), Some("route_url"),
-                        Some(route_url.to_string()), None,
-                        format!("'{}' hattının route_url değeri acente URL'siyle aynı: '{route_url}'.", rname),
+                        ctr,
+                        "RTS_020",
+                        EntityType::Route,
+                        Some(route.route_id.clone()),
+                        Some(route.route_id.clone()),
+                        "routes.txt",
+                        Some(route.line),
+                        Some("route_url"),
+                        Some(route_url.to_string()),
+                        None,
+                        format!(
+                            "'{}' hattının route_url değeri acente URL'siyle aynı: '{route_url}'.",
+                            rname
+                        ),
                         "route_url'yi bu hata özgü bir sayfaya yönlendirin ya da boş bırakın.",
                     ));
                 }
@@ -3993,7 +4789,9 @@ fn check_route_trip_quality(
     {
         let _t7 = Timer::start("K6::rtq::rts_022");
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
+            if route.route_id.is_empty() {
+                continue;
+            }
             let short = match route.route_short_name.as_deref().filter(|s| !s.is_empty()) {
                 Some(s) => s,
                 None => continue,
@@ -4009,11 +4807,20 @@ fn check_route_trip_quality(
             let names_equal = short.to_lowercase() == long.to_lowercase();
             if names_equal || (short.chars().count() >= 2 && contains_as_word(long, short)) {
                 notices.push(k6_notice(
-                    ctr, "RTS_022", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line), Some("route_long_name"),
-                    Some(long.to_string()), None,
-                    format!("'{}' hattının uzun adı '{}', kısa adı '{}' zaten içeriyor.", route.route_id, long, short),
+                    ctr,
+                    "RTS_022",
+                    EntityType::Route,
+                    Some(route.route_id.clone()),
+                    Some(route.route_id.clone()),
+                    "routes.txt",
+                    Some(route.line),
+                    Some("route_long_name"),
+                    Some(long.to_string()),
+                    None,
+                    format!(
+                        "'{}' hattının uzun adı '{}', kısa adı '{}' zaten içeriyor.",
+                        route.route_id, long, short
+                    ),
                     "route_long_name'i kısa adı tekrar etmeyecek şekilde düzenleyin.",
                 ));
             }
@@ -4024,20 +4831,31 @@ fn check_route_trip_quality(
     // URL karşılaştırması güvenli sözdizimsel eşdeğerlik ile yapılır ve aynı
     // normalized URL'yi kullanan duraklar tek aggregate notice'ta toplanır.
     {
-        let agency_urls: BTreeSet<NormalizedWebUrl> = records.agencies.iter()
+        let agency_urls: BTreeSet<NormalizedWebUrl> = records
+            .agencies
+            .iter()
             .filter_map(|a| normalize_web_url(&a.agency_url))
             .collect();
-        let route_urls: BTreeSet<NormalizedWebUrl> = records.routes.iter()
+        let route_urls: BTreeSet<NormalizedWebUrl> = records
+            .routes
+            .iter()
             .filter_map(|r| r.route_url.as_deref().and_then(normalize_web_url))
             .collect();
         let mut agency_matches: BTreeMap<NormalizedWebUrl, Vec<usize>> = BTreeMap::new();
         let mut route_matches: BTreeMap<NormalizedWebUrl, Vec<usize>> = BTreeMap::new();
 
         for (stop_idx, stop) in records.stops.iter().enumerate() {
-            let Some(surl) = stop.stop_url.as_deref().filter(|u| !u.is_empty()) else { continue };
-            let Some(key) = normalize_web_url(surl) else { continue };
+            let Some(surl) = stop.stop_url.as_deref().filter(|u| !u.is_empty()) else {
+                continue;
+            };
+            let Some(key) = normalize_web_url(surl) else {
+                continue;
+            };
             if agency_urls.contains(&key) {
-                agency_matches.entry(key.clone()).or_default().push(stop_idx);
+                agency_matches
+                    .entry(key.clone())
+                    .or_default()
+                    .push(stop_idx);
             }
             if route_urls.contains(&key) {
                 route_matches.entry(key).or_default().push(stop_idx);
@@ -4050,19 +4868,27 @@ fn check_route_trip_quality(
                                 ctr: &mut u32,
                                 notices: &mut Vec<Notice>| {
             for (normalized, stop_indices) in matches.iter_mut() {
-                stop_indices.sort_by(|a, b| records.stops[*a].stop_id.cmp(&records.stops[*b].stop_id));
+                stop_indices
+                    .sort_by(|a, b| records.stops[*a].stop_id.cmp(&records.stops[*b].stop_id));
                 let representative = &records.stops[stop_indices[0]];
-                let stop_ids: Vec<&str> = stop_indices.iter()
+                let stop_ids: Vec<&str> = stop_indices
+                    .iter()
                     .take(5)
                     .map(|idx| records.stops[*idx].stop_id.as_str())
                     .collect();
                 let raw_url = representative.stop_url.as_deref().unwrap_or_default();
                 let mut details: BTreeMap<String, String> = BTreeMap::new();
-                details.insert("normalized_url".to_string(), format_normalized_web_url(normalized));
+                details.insert(
+                    "normalized_url".to_string(),
+                    format_normalized_web_url(normalized),
+                );
                 details.insert("stop_count".to_string(), stop_indices.len().to_string());
                 details.insert("representative_stop_ids".to_string(), stop_ids.join(","));
                 if stop_indices.len() > 5 {
-                    details.insert("additional_stop_count".to_string(), (stop_indices.len() - 5).to_string());
+                    details.insert(
+                        "additional_stop_count".to_string(),
+                        (stop_indices.len() - 5).to_string(),
+                    );
                 }
 
                 let mut notice = k6_notice(
@@ -4082,7 +4908,6 @@ fn check_route_trip_quality(
         emit_url_matches("STP_035", &mut route_matches, "hat", ctr, notices);
     }
 
-
     // ── PDW_006: aynı trip+zone'da örtüşen pickup/drop-off penceresi ──────────
     {
         // (trip_id, zone_key) → [(start_secs, end_secs, line)]
@@ -4090,20 +4915,35 @@ fn check_route_trip_quality(
         let mut zone_wins: ZoneWindows<'_> = HashMap::new();
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             for st in stops {
-                let Some(flex) = records.stop_times_index.flex_of(st) else { continue };
-                let Some(start) = flex.start_pickup_drop_off_window else { continue };
-                let Some(end)   = flex.end_pickup_drop_off_window   else { continue };
-                let zone = if let Some(ref z) = flex.location_id        { z.as_str() }
-                           else if let Some(ref z) = flex.location_group_id { z.as_str() }
-                           else { continue };
+                let Some(flex) = records.stop_times_index.flex_of(st) else {
+                    continue;
+                };
+                let Some(start) = flex.start_pickup_drop_off_window else {
+                    continue;
+                };
+                let Some(end) = flex.end_pickup_drop_off_window else {
+                    continue;
+                };
+                let zone = if let Some(ref z) = flex.location_id {
+                    z.as_str()
+                } else if let Some(ref z) = flex.location_group_id {
+                    z.as_str()
+                } else {
+                    continue;
+                };
                 let s = start.0 as u64 * 3600 + start.1 as u64 * 60 + start.2 as u64;
-                let e = end.0   as u64 * 3600 + end.1   as u64 * 60 + end.2   as u64;
-                zone_wins.entry((trip_id.as_str(), zone)).or_default().push((s, e, st.line as u64));
+                let e = end.0 as u64 * 3600 + end.1 as u64 * 60 + end.2 as u64;
+                zone_wins
+                    .entry((trip_id.as_str(), zone))
+                    .or_default()
+                    .push((s, e, st.line as u64));
             }
         }
 
         for ((trip_id, zone), mut wins) in zone_wins {
-            if wins.len() < 2 { continue; }
+            if wins.len() < 2 {
+                continue;
+            }
             wins.sort_by_key(|&(s, _, _)| s);
             for i in 1..wins.len() {
                 let (_ps, pe, _) = wins[i - 1];
@@ -4236,20 +5076,36 @@ fn check_data_quality(
     if let Some(source_url) = config.source_url.as_deref() {
         let path = source_url.split(['?', '#']).next().unwrap_or(source_url);
         if !path.to_ascii_lowercase().ends_with(".zip") {
-            notices.push(k6_notice(ctr, "ARC_028", EntityType::Feed, None, None,
-                "source_url", None, Some("source_url"), Some(source_url.to_string()),
+            notices.push(k6_notice(
+                ctr,
+                "ARC_028",
+                EntityType::Feed,
+                None,
+                None,
+                "source_url",
+                None,
+                Some("source_url"),
+                Some(source_url.to_string()),
                 Some("kalıcı URL .../dosya.zip".to_string()),
                 format!("GTFS yayın URL'si bir .zip dosya adıyla bitmiyor: '{source_url}'."),
-                "Feed'i kalıcı ve açık bir .zip dosya adı içeren URL'de yayımlayın."));
+                "Feed'i kalıcı ve açık bir .zip dosya adı içeren URL'de yayımlayın.",
+            ));
         }
     }
     if config.stop_name_best_practices && stops_usable {
-        let stop_by_id: HashMap<&str, &crate::k2::stops::StopRecord> = records.stops.iter()
-            .map(|s| (s.stop_id.as_str(), s)).collect();
+        let stop_by_id: HashMap<&str, &crate::k2::stops::StopRecord> = records
+            .stops
+            .iter()
+            .map(|s| (s.stop_id.as_str(), s))
+            .collect();
         for stop in &records.stops {
-            let Some(name) = stop.stop_name.as_deref() else { continue };
+            let Some(name) = stop.stop_name.as_deref() else {
+                continue;
+            };
             let lower = name.to_lowercase();
-            let generic = lower.split(|c: char| !c.is_alphanumeric()).any(|w| w == "stop" || w == "station");
+            let generic = lower
+                .split(|c: char| !c.is_alphanumeric())
+                .any(|w| w == "stop" || w == "station");
             let accepted = matches!(lower.as_str(), "union station" | "central station");
             if generic && !accepted {
                 notices.push(k6_notice(ctr, "STP_040", EntityType::Stop, Some(stop.stop_id.clone()),
@@ -4258,8 +5114,15 @@ fn check_data_quality(
                     format!("stop_id '{}' adı gereksiz genel 'stop/station' sözcüğü içeriyor: '{}'.", stop.stop_id, name),
                     "Genel sözcüğü kaldırın; sözcük resmi adın parçasıysa bu opt-in profili kapatın."));
             }
-            if let Some(parent_id) = stop.row.get("parent_station").filter(|v| !v.trim().is_empty()) {
-                if let Some(parent_name) = stop_by_id.get(parent_id.trim()).and_then(|p| p.stop_name.as_deref()) {
+            if let Some(parent_id) = stop
+                .row
+                .get("parent_station")
+                .filter(|v| !v.trim().is_empty())
+            {
+                if let Some(parent_name) = stop_by_id
+                    .get(parent_id.trim())
+                    .and_then(|p| p.stop_name.as_deref())
+                {
                     if !lower.contains(&parent_name.to_lowercase()) {
                         notices.push(k6_notice(ctr, "STP_041", EntityType::Stop, Some(stop.stop_id.clone()),
                             Some(stop.stop_id.clone()), "stops.txt", Some(stop.line), Some("stop_name"),
@@ -4273,9 +5136,11 @@ fn check_data_quality(
     }
     // DQ_005: feed'de hiç aktif sefer yok (calendar_bitmap tamamen boş veya tüm servisler expired)
     let has_any_active = if today_yyyymmdd > 0 {
-        derived.calendar_bitmap.active_dates.values().any(|dates| {
-            dates.iter().any(|&d| d >= today_yyyymmdd)
-        })
+        derived
+            .calendar_bitmap
+            .active_dates
+            .values()
+            .any(|dates| dates.iter().any(|&d| d >= today_yyyymmdd))
     } else {
         !derived.calendar_bitmap.active_dates.is_empty()
     };
@@ -4321,8 +5186,10 @@ fn check_data_quality(
     }
 
     // DQ_009: feed'de hiç stop_times yok
-    if trips_usable && stop_times_usable
-        && records.stop_times_index.total_rows == 0 && !records.trips.is_empty()
+    if trips_usable
+        && stop_times_usable
+        && records.stop_times_index.total_rows == 0
+        && !records.trips.is_empty()
     {
         notices.push(k6_notice(
             ctr,
@@ -4360,7 +5227,11 @@ fn check_data_quality(
 
     // DQ_012: feed'deki agency sayısı çok fazla ve agency_id kullanılmıyor
     if agency_usable && routes_usable && records.agencies.len() > 5 {
-        let routes_with_agency = records.routes.iter().filter(|r| r.agency_id.is_some()).count();
+        let routes_with_agency = records
+            .routes
+            .iter()
+            .filter(|r| r.agency_id.is_some())
+            .count();
         if routes_with_agency == 0 {
             notices.push(k6_notice(
                 ctr,
@@ -4373,7 +5244,10 @@ fn check_data_quality(
                 None,
                 None,
                 None,
-                format!("Feed'de {} işletici var ancak hiçbir rotada agency_id atanmamış.", records.agencies.len()),
+                format!(
+                    "Feed'de {} işletici var ancak hiçbir rotada agency_id atanmamış.",
+                    records.agencies.len()
+                ),
                 "routes.txt'deki agency_id sütununu doldurun.",
             ));
         }
@@ -4385,7 +5259,9 @@ fn check_data_quality(
     if agency_usable && routes_usable && records.agencies.len() <= 1 {
         for r in &records.routes {
             if r.agency_id.as_deref().is_none_or(|s| s.trim().is_empty()) {
-                let label = r.route_short_name.as_deref()
+                let label = r
+                    .route_short_name
+                    .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(r.route_id.as_str());
                 notices.push(k6_notice(
@@ -4425,9 +5301,18 @@ fn check_data_quality(
     // DQ_003: hat açıklaması (route_desc) boş — hat başına bir notice
     if routes_usable {
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
-            if route.row.get("route_desc").map(|v| v.trim().is_empty()).unwrap_or(true) {
-                let label = route.route_short_name.as_deref()
+            if route.route_id.is_empty() {
+                continue;
+            }
+            if route
+                .row
+                .get("route_desc")
+                .map(|v| v.trim().is_empty())
+                .unwrap_or(true)
+            {
+                let label = route
+                    .route_short_name
+                    .as_deref()
                     .filter(|s| !s.is_empty())
                     .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
                     .unwrap_or(&route.route_id);
@@ -4446,9 +5331,18 @@ fn check_data_quality(
     // DQ_004: hat URL'si (route_url) eksik — hat başına bir notice
     if routes_usable {
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
-            if route.row.get("route_url").map(|v| v.trim().is_empty()).unwrap_or(true) {
-                let label = route.route_short_name.as_deref()
+            if route.route_id.is_empty() {
+                continue;
+            }
+            if route
+                .row
+                .get("route_url")
+                .map(|v| v.trim().is_empty())
+                .unwrap_or(true)
+            {
+                let label = route
+                    .route_short_name
+                    .as_deref()
                     .filter(|s| !s.is_empty())
                     .or(route.route_long_name.as_deref().filter(|s| !s.is_empty()))
                     .unwrap_or(&route.route_id);
@@ -4466,7 +5360,9 @@ fn check_data_quality(
 
     // DQ_017: şüpheli koordinat (0.0, 0.0) veya okyanus ortası gibi değerler
     if stops_usable {
-        let suspicious = records.stops.iter()
+        let suspicious = records
+            .stops
+            .iter()
             .filter(|s| !s.stop_id.is_empty())
             .filter(|s| {
                 matches!((s.stop_lat, s.stop_lon), (Some(lat), Some(lon))
@@ -4520,7 +5416,7 @@ fn check_data_quality(
             if let Some((ey, em, ed)) = fi.feed_end_date {
                 let end = ey * 10000 + em * 100 + ed;
                 let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
-                let end_jdn   = yyyymmdd_to_jdn(end);
+                let end_jdn = yyyymmdd_to_jdn(end);
                 if end_jdn > today_jdn + 730 {
                     notices.push(k6_notice(
                         ctr, "FIN_017", EntityType::Feed,
@@ -4535,10 +5431,16 @@ fn check_data_quality(
 
             // FIN_018: feed_contact_email ve feed_contact_url ikisi de eksik
             // (missing_feed_contact_email_and_url)
-            let has_contact_email = fi.feed_contact_email.as_deref()
-                .map(|e| !e.trim().is_empty()).unwrap_or(false);
-            let has_contact_url = fi.feed_contact_url.as_deref()
-                .map(|u| !u.trim().is_empty()).unwrap_or(false);
+            let has_contact_email = fi
+                .feed_contact_email
+                .as_deref()
+                .map(|e| !e.trim().is_empty())
+                .unwrap_or(false);
+            let has_contact_url = fi
+                .feed_contact_url
+                .as_deref()
+                .map(|u| !u.trim().is_empty())
+                .unwrap_or(false);
             if !has_contact_email && !has_contact_url {
                 notices.push(k6_notice(
                     ctr, "FIN_018", EntityType::Feed,
@@ -4556,7 +5458,7 @@ fn check_data_quality(
                     let end = ey * 10000 + em * 100 + ed;
                     if end >= today_yyyymmdd {
                         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
-                        let end_jdn   = yyyymmdd_to_jdn(end);
+                        let end_jdn = yyyymmdd_to_jdn(end);
                         let days_left = end_jdn.saturating_sub(today_jdn);
                         let warning_days = config.feed_info_expiry_warning_days;
                         // `days_left == 0` DAHİLDİR (#146). Eskiden `days_left > 0` şartı
@@ -4575,10 +5477,14 @@ fn check_data_quality(
                                 format!("Feed'in geçerlilik süresi {ey}-{em:02}-{ed:02} tarihinde doluyor — {days_left} gün kaldı (uyarı eşiği: {warning_days} gün)."),
                                 "Yeni bir feed versiyonu yayınlamaya hazırlanın.",
                             );
-                            notice.details = Some([
-                                ("days_left".to_string(), days_left.to_string()),
-                                ("warning_days".to_string(), warning_days.to_string()),
-                            ].into_iter().collect());
+                            notice.details = Some(
+                                [
+                                    ("days_left".to_string(), days_left.to_string()),
+                                    ("warning_days".to_string(), warning_days.to_string()),
+                                ]
+                                .into_iter()
+                                .collect(),
+                            );
                             notices.push(notice);
                         }
                     }
@@ -4590,9 +5496,10 @@ fn check_data_quality(
     // FIN_020: Feed geçerlilik penceresi < 7 gün
     if feed_info_usable {
         if let Some(fi) = records.feed_info.first() {
-            if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
+            if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date)
+            {
                 let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
-                let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
+                let end_jdn = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
                 let span_days = end_jdn.saturating_sub(start_jdn);
                 if span_days < 7 {
                     notices.push(k6_notice(
@@ -4610,9 +5517,10 @@ fn check_data_quality(
     // CAL_020: Feed geçerlilik penceresi > 5 yıl (yaklaşık 1825 gün)
     if feed_info_usable {
         if let Some(fi) = records.feed_info.first() {
-            if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date) {
+            if let (Some((sy, sm, sd)), Some((ey, em, ed))) = (fi.feed_start_date, fi.feed_end_date)
+            {
                 let start_jdn = yyyymmdd_to_jdn(sy * 10000 + sm * 100 + sd);
-                let end_jdn   = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
+                let end_jdn = yyyymmdd_to_jdn(ey * 10000 + em * 100 + ed);
                 let span_days = end_jdn.saturating_sub(start_jdn);
                 if span_days > 1825 {
                     notices.push(k6_notice(
@@ -4630,7 +5538,11 @@ fn check_data_quality(
 
     // DQ_022: Durakların >%80'i aynı stop_name değerini paylaşıyor (yer tutucu/test verisi)
     if stops_usable {
-        let total_named = records.stops.iter().filter(|s| s.stop_name.is_some()).count();
+        let total_named = records
+            .stops
+            .iter()
+            .filter(|s| s.stop_name.is_some())
+            .count();
         if total_named >= 5 {
             let mut name_counts: HashMap<&str, u32> = HashMap::new();
             for s in &records.stops {
@@ -4638,7 +5550,9 @@ fn check_data_quality(
                     *name_counts.entry(n).or_default() += 1;
                 }
             }
-            if let Some((&most_common_name, &most_count)) = name_counts.iter().max_by_key(|(_, &c)| c) {
+            if let Some((&most_common_name, &most_count)) =
+                name_counts.iter().max_by_key(|(_, &c)| c)
+            {
                 if most_count as f64 / total_named as f64 > 0.8 {
                     notices.push(k6_notice(
                         ctr, "DQ_022", EntityType::Feed,
@@ -4656,56 +5570,127 @@ fn check_data_quality(
     // DQ_021: birincil anahtar yineleniyor (duplicate_key)
     // stop_id, route_id, trip_id, service_id tekrarını kontrol et
     {
-        fn find_dups<'a, I: Iterator<Item=&'a str>>(ids: I) -> Vec<String> {
+        fn find_dups<'a, I: Iterator<Item = &'a str>>(ids: I) -> Vec<String> {
             let mut seen: HashMap<&str, u32> = HashMap::new();
             let mut dups: Vec<String> = Vec::new();
             for id in ids {
                 let e = seen.entry(id).or_default();
                 *e += 1;
-                if *e == 2 { dups.push(id.to_string()); }
+                if *e == 2 {
+                    dups.push(id.to_string());
+                }
             }
             dups
         }
 
-        for dup_id in find_dups(records.stops.iter().filter(|_| stops_usable).filter(|s| !s.stop_id.is_empty()).map(|s| s.stop_id.as_str())) {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Stop,
-                Some(dup_id.clone()), Some(dup_id.clone()),
-                "stops.txt", None, Some("stop_id"), Some(dup_id.clone()), None,
+        for dup_id in find_dups(
+            records
+                .stops
+                .iter()
+                .filter(|_| stops_usable)
+                .filter(|s| !s.stop_id.is_empty())
+                .map(|s| s.stop_id.as_str()),
+        ) {
+            notices.push(k6_notice(
+                ctr,
+                "DQ_021",
+                EntityType::Stop,
+                Some(dup_id.clone()),
+                Some(dup_id.clone()),
+                "stops.txt",
+                None,
+                Some("stop_id"),
+                Some(dup_id.clone()),
+                None,
                 format!("stop_id '{dup_id}' stops.txt'de birden fazla kez tanımlanmış."),
-                "stops.txt'de benzersiz stop_id değerleri kullanın."));
+                "stops.txt'de benzersiz stop_id değerleri kullanın.",
+            ));
         }
-        for dup_id in find_dups(records.routes.iter().filter(|_| routes_usable).filter(|r| !r.route_id.is_empty()).map(|r| r.route_id.as_str())) {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Route,
-                Some(dup_id.clone()), Some(dup_id.clone()),
-                "routes.txt", None, Some("route_id"), Some(dup_id.clone()), None,
+        for dup_id in find_dups(
+            records
+                .routes
+                .iter()
+                .filter(|_| routes_usable)
+                .filter(|r| !r.route_id.is_empty())
+                .map(|r| r.route_id.as_str()),
+        ) {
+            notices.push(k6_notice(
+                ctr,
+                "DQ_021",
+                EntityType::Route,
+                Some(dup_id.clone()),
+                Some(dup_id.clone()),
+                "routes.txt",
+                None,
+                Some("route_id"),
+                Some(dup_id.clone()),
+                None,
                 format!("route_id '{dup_id}' routes.txt'de birden fazla kez tanımlanmış."),
-                "routes.txt'de benzersiz route_id değerleri kullanın."));
+                "routes.txt'de benzersiz route_id değerleri kullanın.",
+            ));
         }
-        for dup_id in find_dups(records.trips.iter().filter(|_| trips_usable).filter(|t| !t.trip_id.is_empty()).map(|t| t.trip_id.as_str())) {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Trip,
-                Some(dup_id.clone()), Some(dup_id.clone()),
-                "trips.txt", None, Some("trip_id"), Some(dup_id.clone()), None,
+        for dup_id in find_dups(
+            records
+                .trips
+                .iter()
+                .filter(|_| trips_usable)
+                .filter(|t| !t.trip_id.is_empty())
+                .map(|t| t.trip_id.as_str()),
+        ) {
+            notices.push(k6_notice(
+                ctr,
+                "DQ_021",
+                EntityType::Trip,
+                Some(dup_id.clone()),
+                Some(dup_id.clone()),
+                "trips.txt",
+                None,
+                Some("trip_id"),
+                Some(dup_id.clone()),
+                None,
                 format!("trip_id '{dup_id}' trips.txt'de birden fazla kez tanımlanmış."),
-                "trips.txt'de benzersiz trip_id değerleri kullanın."));
+                "trips.txt'de benzersiz trip_id değerleri kullanın.",
+            ));
         }
         // attributions.txt (attribution_id) — spec tipi `Unique ID`, dosyanın birincil
         // anahtarı. Alan Optional olduğu için ATR_001 (eksiklik) Quality'dir; BENZERSİZLİK
         // ise normatiftir ve hiç denetlenmiyordu. Boş id yinelenme sayılmaz.
-        for dup_id in find_dups(records.attributions.iter().filter(|_| availability.present_and_available("attributions.txt"))
-            .filter_map(|a| a.attribution_id.as_deref()).filter(|id| !id.is_empty()))
-        {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Attribution,
-                Some(dup_id.clone()), Some(dup_id.clone()),
-                "attributions.txt", None, Some("attribution_id"), Some(dup_id.clone()), None,
-                format!("attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış."),
-                "attributions.txt'de benzersiz attribution_id değerleri kullanın."));
+        for dup_id in find_dups(
+            records
+                .attributions
+                .iter()
+                .filter(|_| availability.present_and_available("attributions.txt"))
+                .filter_map(|a| a.attribution_id.as_deref())
+                .filter(|id| !id.is_empty()),
+        ) {
+            notices.push(k6_notice(
+                ctr,
+                "DQ_021",
+                EntityType::Attribution,
+                Some(dup_id.clone()),
+                Some(dup_id.clone()),
+                "attributions.txt",
+                None,
+                Some("attribution_id"),
+                Some(dup_id.clone()),
+                None,
+                format!(
+                    "attribution_id '{dup_id}' attributions.txt'de birden fazla kez tanımlanmış."
+                ),
+                "attributions.txt'de benzersiz attribution_id değerleri kullanın.",
+            ));
         }
         // route_networks.txt (route_id) — spec birincil anahtarı ve açık hükmü:
         // "A route_id can only be defined in one network_id." Aynı hat iki ağa yazılırsa
         // hangi ücret kuralının geçerli olduğu belirsizleşir.
-        for dup_id in find_dups(records.route_networks.iter().filter(|_| availability.present_and_available("route_networks.txt"))
-            .map(|r| r.route_id.as_str()).filter(|id| !id.is_empty()))
-        {
+        for dup_id in find_dups(
+            records
+                .route_networks
+                .iter()
+                .filter(|_| availability.present_and_available("route_networks.txt"))
+                .map(|r| r.route_id.as_str())
+                .filter(|id| !id.is_empty()),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Route,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "route_networks.txt", None, Some("route_id"), Some(dup_id.clone()), None,
@@ -4739,7 +5724,11 @@ fn check_data_quality(
             let mut seen: HashMap<String, u32> = HashMap::new();
             let mut dups: Vec<String> = Vec::new();
             for parts in keys {
-                let joined = parts.iter().map(|p| p.as_ref()).collect::<Vec<_>>().join("\u{1f}");
+                let joined = parts
+                    .iter()
+                    .map(|p| p.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\u{1f}");
                 let e = seen.entry(joined.clone()).or_default();
                 *e += 1;
                 if *e == 2 {
@@ -4750,11 +5739,22 @@ fn check_data_quality(
         }
         let opt = |v: &Option<String>| v.clone().unwrap_or_default();
 
-        for dup in composite_dups(records.fare_leg_rules.iter().filter(|_| availability.present_and_available("fare_leg_rules.txt")).map(|r| vec![
-            opt(&r.network_id), opt(&r.from_area_id), opt(&r.to_area_id),
-            opt(&r.from_timeframe_group_id), opt(&r.to_timeframe_group_id),
-            r.fare_product_id.clone(),
-        ])) {
+        for dup in composite_dups(
+            records
+                .fare_leg_rules
+                .iter()
+                .filter(|_| availability.present_and_available("fare_leg_rules.txt"))
+                .map(|r| {
+                    vec![
+                        opt(&r.network_id),
+                        opt(&r.from_area_id),
+                        opt(&r.to_area_id),
+                        opt(&r.from_timeframe_group_id),
+                        opt(&r.to_timeframe_group_id),
+                        r.fare_product_id.clone(),
+                    ]
+                }),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_leg_rules.txt: {dup}")), None,
                 "fare_leg_rules.txt", None, Some("network_id|from_area_id|to_area_id|from_timeframe_group_id|to_timeframe_group_id|fare_product_id"),
@@ -4765,10 +5765,20 @@ fn check_data_quality(
 
         // fare_leg_join_rules.txt — spec birincil anahtarı DÖRT alanın tamamıdır. Boş değer
         // anahtarın anlamlı bir parçasıdır (spec boş alanı "eşleşmede yok sayılır" der).
-        for dup in composite_dups(records.fare_leg_join_rules.iter().filter(|_| availability.present_and_available("fare_leg_join_rules.txt")).map(|r| vec![
-            r.from_network_id.clone(), r.to_network_id.clone(),
-            r.from_stop_id.clone(), r.to_stop_id.clone(),
-        ])) {
+        for dup in composite_dups(
+            records
+                .fare_leg_join_rules
+                .iter()
+                .filter(|_| availability.present_and_available("fare_leg_join_rules.txt"))
+                .map(|r| {
+                    vec![
+                        r.from_network_id.clone(),
+                        r.to_network_id.clone(),
+                        r.from_stop_id.clone(),
+                        r.to_stop_id.clone(),
+                    ]
+                }),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_leg_join_rules.txt: {dup}")), None,
                 "fare_leg_join_rules.txt", None,
@@ -4778,11 +5788,21 @@ fn check_data_quality(
                 "Bileşik birincil anahtarın (from_network_id, to_network_id, from_stop_id, to_stop_id) her satırda benzersiz olmasını sağlayın."));
         }
 
-        for dup in composite_dups(records.fare_transfer_rules.iter().filter(|_| availability.present_and_available("fare_transfer_rules.txt")).map(|r| vec![
-            opt(&r.from_leg_group_id), opt(&r.to_leg_group_id), opt(&r.fare_product_id),
-            r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),
-            r.duration_limit.map(|v| v.to_string()).unwrap_or_default(),
-        ])) {
+        for dup in composite_dups(
+            records
+                .fare_transfer_rules
+                .iter()
+                .filter(|_| availability.present_and_available("fare_transfer_rules.txt"))
+                .map(|r| {
+                    vec![
+                        opt(&r.from_leg_group_id),
+                        opt(&r.to_leg_group_id),
+                        opt(&r.fare_product_id),
+                        r.transfer_count.map(|v| v.to_string()).unwrap_or_default(),
+                        r.duration_limit.map(|v| v.to_string()).unwrap_or_default(),
+                    ]
+                }),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_transfer_rules.txt: {dup}")), None,
                 "fare_transfer_rules.txt", None, Some("from_leg_group_id|to_leg_group_id|fare_product_id|transfer_count|duration_limit"),
@@ -4791,10 +5811,14 @@ fn check_data_quality(
                 "Bileşik birincil anahtarın (from_leg_group_id, to_leg_group_id, fare_product_id, transfer_count, duration_limit) her satırda benzersiz olmasını sağlayın."));
         }
 
-        for dup_id in find_dups(records.location_groups.iter().filter(|_| availability.present_and_available("location_groups.txt"))
-            .filter(|g| !g.location_group_id.is_empty())
-            .map(|g| g.location_group_id.as_str()))
-        {
+        for dup_id in find_dups(
+            records
+                .location_groups
+                .iter()
+                .filter(|_| availability.present_and_available("location_groups.txt"))
+                .filter(|g| !g.location_group_id.is_empty())
+                .map(|g| g.location_group_id.as_str()),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(dup_id.clone()), Some(dup_id.clone()),
                 "location_groups.txt", None, Some("location_group_id"), Some(dup_id.clone()), None,
@@ -4802,9 +5826,13 @@ fn check_data_quality(
                 "location_groups.txt'de benzersiz location_group_id değerleri kullanın."));
         }
 
-        for dup in composite_dups(records.location_group_stops.iter().filter(|_| availability.present_and_available("location_group_stops.txt"))
-            .map(|s| vec![s.location_group_id.clone(), s.stop_id.clone()]))
-        {
+        for dup in composite_dups(
+            records
+                .location_group_stops
+                .iter()
+                .filter(|_| availability.present_and_available("location_group_stops.txt"))
+                .map(|s| vec![s.location_group_id.clone(), s.stop_id.clone()]),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("location_group_stops.txt: {dup}")), None,
                 "location_group_stops.txt", None, Some("location_group_id|stop_id"),
@@ -4817,21 +5845,44 @@ fn check_data_quality(
         // TÜM ALANLAR olarak yazar, yani tam satır tekrarı ihlaldir. 2026-08-06 birincil
         // anahtar taramasında bu iki dosyada (ve calendar_dates'te) hiçbir kural bulunamadı;
         // `SAR_001..004` yalnız foreign key ve boşluk ölçüyor, tekrarı görmüyor.
-        for dup in composite_dups(records.stop_areas.iter().filter(|_| availability.present_and_available("stop_areas.txt"))
-            .map(|s| vec![s.area_id.clone(), s.stop_id.clone()]))
-        {
-            notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
-                Some(format!("stop_areas.txt: {dup}")), None,
-                "stop_areas.txt", None, Some("area_id|stop_id"),
-                Some(dup.clone()), None,
+        for dup in composite_dups(
+            records
+                .stop_areas
+                .iter()
+                .filter(|_| availability.present_and_available("stop_areas.txt"))
+                .map(|s| vec![s.area_id.clone(), s.stop_id.clone()]),
+        ) {
+            notices.push(k6_notice(
+                ctr,
+                "DQ_021",
+                EntityType::Row,
+                Some(format!("stop_areas.txt: {dup}")),
+                None,
+                "stop_areas.txt",
+                None,
+                Some("area_id|stop_id"),
+                Some(dup.clone()),
+                None,
                 format!("stop_areas.txt'de aynı satır yineleniyor: ({dup})."),
-                "stop_areas.txt'de her (area_id, stop_id) çifti yalnız bir kez bulunmalıdır."));
+                "stop_areas.txt'de her (area_id, stop_id) çifti yalnız bir kez bulunmalıdır.",
+            ));
         }
 
-        for dup in composite_dups(records.fare_rules.iter().filter(|_| availability.present_and_available("fare_rules.txt")).map(|r| vec![
-            r.fare_id.clone(), opt(&r.route_id), opt(&r.origin_id),
-            opt(&r.destination_id), opt(&r.contains_id),
-        ])) {
+        for dup in composite_dups(
+            records
+                .fare_rules
+                .iter()
+                .filter(|_| availability.present_and_available("fare_rules.txt"))
+                .map(|r| {
+                    vec![
+                        r.fare_id.clone(),
+                        opt(&r.route_id),
+                        opt(&r.origin_id),
+                        opt(&r.destination_id),
+                        opt(&r.contains_id),
+                    ]
+                }),
+        ) {
             notices.push(k6_notice(ctr, "DQ_021", EntityType::Row,
                 Some(format!("fare_rules.txt: {dup}")), None,
                 "fare_rules.txt", None, Some("fare_id|route_id|origin_id|destination_id|contains_id"),
@@ -4855,7 +5906,10 @@ fn check_data_quality(
         if availability.present_and_available("calendar_dates.txt") {
             let cd = &records.calendar_dates;
             // FxHashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
-            let mut services: Vec<&str> = cd.added.keys().map(|s| s.as_str())
+            let mut services: Vec<&str> = cd
+                .added
+                .keys()
+                .map(|s| s.as_str())
                 .chain(cd.removed.keys().map(|s| s.as_str()))
                 .collect();
             services.sort_unstable();
@@ -4865,7 +5919,9 @@ fn check_data_quality(
             fn repeated(sorted: &[u32]) -> Vec<u32> {
                 let mut out = Vec::new();
                 for w in sorted.windows(2) {
-                    if w[0] == w[1] && out.last() != Some(&w[0]) { out.push(w[0]); }
+                    if w[0] == w[1] && out.last() != Some(&w[0]) {
+                        out.push(w[0]);
+                    }
                 }
                 out
             }
@@ -4878,8 +5934,11 @@ fn check_data_quality(
                         std::cmp::Ordering::Less => i += 1,
                         std::cmp::Ordering::Greater => j += 1,
                         std::cmp::Ordering::Equal => {
-                            if out.last() != Some(&a[i]) { out.push(a[i]); }
-                            i += 1; j += 1;
+                            if out.last() != Some(&a[i]) {
+                                out.push(a[i]);
+                            }
+                            i += 1;
+                            j += 1;
                         }
                     }
                 }
@@ -4895,11 +5954,16 @@ fn check_data_quality(
                 dates.extend(conflicting.iter().copied());
                 dates.sort_unstable();
                 dates.dedup();
-                if dates.is_empty() { continue; }
+                if dates.is_empty() {
+                    continue;
+                }
 
-                let sample: Vec<String> =
-                    dates.iter().take(5).map(|d| d.to_string()).collect();
-                let more = if dates.len() > 5 { format!(" (+{} tarih daha)", dates.len() - 5) } else { String::new() };
+                let sample: Vec<String> = dates.iter().take(5).map(|d| d.to_string()).collect();
+                let more = if dates.len() > 5 {
+                    format!(" (+{} tarih daha)", dates.len() - 5)
+                } else {
+                    String::new()
+                };
                 let conflict_note = if conflicting.is_empty() {
                     String::new()
                 } else {
@@ -4946,26 +6010,49 @@ fn check_data_quality(
         };
         if missing_shapes && missing_feed_info {
             notices.push(k6_notice(
-                ctr, "ARC_020", EntityType::Feed,
-                None, None, "shapes.txt/feed_info.txt", None, None,
-                None, None,
-                "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir.".to_string(),
+                ctr,
+                "ARC_020",
+                EntityType::Feed,
+                None,
+                None,
+                "shapes.txt/feed_info.txt",
+                None,
+                None,
+                None,
+                None,
+                "Feed'de shapes.txt ve feed_info.txt dosyaları yok — her ikisi de önerilir."
+                    .to_string(),
                 "shapes.txt ile güzergah geometrisi ve feed_info.txt ile yayıncı bilgisi ekleyin.",
             ));
         } else if missing_shapes {
             notices.push(k6_notice(
-                ctr, "ARC_020", EntityType::Feed,
-                None, None, "shapes.txt", None, None,
-                None, None,
+                ctr,
+                "ARC_020",
+                EntityType::Feed,
+                None,
+                None,
+                "shapes.txt",
+                None,
+                None,
+                None,
+                None,
                 "Feed'de shapes.txt dosyası yok — güzergah geometrisi için önerilir.".to_string(),
                 "shapes.txt dosyası oluşturarak güzergah geometrisi ekleyin.",
             ));
         } else if missing_feed_info {
             notices.push(k6_notice(
-                ctr, "ARC_020", EntityType::Feed,
-                None, None, "feed_info.txt", None, None,
-                None, None,
-                "Feed'de feed_info.txt dosyası yok — yayıncı ve geçerlilik bilgisi için önerilir.".to_string(),
+                ctr,
+                "ARC_020",
+                EntityType::Feed,
+                None,
+                None,
+                "feed_info.txt",
+                None,
+                None,
+                None,
+                None,
+                "Feed'de feed_info.txt dosyası yok — yayıncı ve geçerlilik bilgisi için önerilir."
+                    .to_string(),
                 "feed_info.txt dosyası oluşturarak yayıncı bilgisini tanımlayın.",
             ));
         }
@@ -5035,19 +6122,33 @@ fn check_remaining_analytics<'a>(
         .iter()
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
-    let trip_to_route_rem: FxHashMap<&str, &str> = records.trips.iter()
+    let trip_to_route_rem: FxHashMap<&str, &str> = records
+        .trips
+        .iter()
         .map(|t| (t.trip_id.as_str(), ti_rem.route_id(t)))
         .collect();
-    let route_type_rem: FxHashMap<&str, u32> = records.routes.iter()
+    let route_type_rem: FxHashMap<&str, u32> = records
+        .routes
+        .iter()
         .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
         .collect();
-    let trip_first_dep: FxHashMap<&str, (u32, u32, u32)> = idx.by_trip.iter()
-        .filter_map(|(&tid, sts)| sts.first().and_then(|s| s.departure_time()).map(|d| (tid, d)))
+    let trip_first_dep: FxHashMap<&str, (u32, u32, u32)> = idx
+        .by_trip
+        .iter()
+        .filter_map(|(&tid, sts)| {
+            sts.first()
+                .and_then(|s| s.departure_time())
+                .map(|d| (tid, d))
+        })
         .collect();
     // route_id → gösterim etiketi (route_short_name varsa o, yoksa route_id)
-    let route_short: FxHashMap<&str, &str> = records.routes.iter()
+    let route_short: FxHashMap<&str, &str> = records
+        .routes
+        .iter()
         .map(|r| {
-            let label = r.route_short_name.as_deref()
+            let label = r
+                .route_short_name
+                .as_deref()
                 .filter(|s| !s.is_empty())
                 .unwrap_or(r.route_id.as_str());
             (r.route_id.as_str(), label)
@@ -5064,13 +6165,18 @@ fn check_remaining_analytics<'a>(
         for t in &records.trips {
             if let Some(shape) = ti_rem.shape_id(t).filter(|s| !s.is_empty()) {
                 let de = dirs.entry(shape).or_insert(t.direction_id);
-                if *de != t.direction_id { *de = None; }
+                if *de != t.direction_id {
+                    *de = None;
+                }
                 let rid = ti_rem.route_id(t);
                 let re = route_ids.entry(shape).or_insert(Some(rid));
-                if *re != Some(rid) { *re = None; }
+                if *re != Some(rid) {
+                    *re = None;
+                }
             }
         }
-        let shape_to_route = route_ids.into_iter()
+        let shape_to_route = route_ids
+            .into_iter()
             .map(|(shape, rid)| {
                 let label = rid.map(|r| route_short.get(r).copied().unwrap_or(r));
                 (shape, label)
@@ -5083,7 +6189,9 @@ fn check_remaining_analytics<'a>(
     let shape_route_labels: FxHashMap<&str, Vec<&str>> = {
         let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for t in &records.trips {
-            if ti_rem.route_id(t).is_empty() { continue; }
+            if ti_rem.route_id(t).is_empty() {
+                continue;
+            }
             if let Some(shape) = ti_rem.shape_id(t).filter(|s| !s.is_empty()) {
                 let rid = ti_rem.route_id(t);
                 let label = route_short.get(rid).copied().unwrap_or(rid);
@@ -5100,8 +6208,14 @@ fn check_remaining_analytics<'a>(
     };
     // "[12, 14] kodlu hatlara ait " öneki (SHP_009/014/020/023). Boş slice → boş önek (orphan shape).
     let shp_route_prefix = |labels: &[&str]| -> String {
-        if labels.is_empty() { return String::new(); }
-        let hat = if labels.len() == 1 { "hatta" } else { "hatlara" };
+        if labels.is_empty() {
+            return String::new();
+        }
+        let hat = if labels.len() == 1 {
+            "hatta"
+        } else {
+            "hatlara"
+        };
         format!("[{}] kodlu {hat} ait ", labels.join(", "))
     };
     drop(_tb);
@@ -5123,7 +6237,10 @@ fn check_remaining_analytics<'a>(
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
             if sp.shape_pt_lat().is_some() && sp.shape_pt_lon().is_some() {
-                shape_pt_idx.entry(records.shape_interns.id(sp)).or_default().push(i as u32);
+                shape_pt_idx
+                    .entry(records.shape_interns.id(sp))
+                    .or_default()
+                    .push(i as u32);
             }
         }
         for idxs in shape_pt_idx.values_mut() {
@@ -5138,11 +6255,21 @@ fn check_remaining_analytics<'a>(
             let mut fired_028 = false;
             let mut fired_029 = false;
             for w in idxs.windows(2) {
-                if fired_023 && fired_028 && fired_029 { break; }
+                if fired_023 && fired_028 && fired_029 {
+                    break;
+                }
                 let pa = &records.shapes[w[0] as usize];
                 let pb = &records.shapes[w[1] as usize];
-                let (da, la, loa) = (pa.shape_dist_traveled(), pa.shape_pt_lat().unwrap(), pa.shape_pt_lon().unwrap());
-                let (db, lb, lob) = (pb.shape_dist_traveled(), pb.shape_pt_lat().unwrap(), pb.shape_pt_lon().unwrap());
+                let (da, la, loa) = (
+                    pa.shape_dist_traveled(),
+                    pa.shape_pt_lat().unwrap(),
+                    pa.shape_pt_lon().unwrap(),
+                );
+                let (db, lb, lob) = (
+                    pb.shape_dist_traveled(),
+                    pb.shape_pt_lat().unwrap(),
+                    pb.shape_pt_lon().unwrap(),
+                );
                 if let (Some(da_v), Some(db_v)) = (da, db) {
                     const EPS: f64 = 1e-9;
                     // SHP_028/029 koordinat-fark eşiği: **1,1 METRE**, derece DEĞİL.
@@ -5161,7 +6288,12 @@ fn check_remaining_analytics<'a>(
                             // SHP_023: aynı dist + aynı koordinat (tekrar eden nokta)
                             if !fired_023 {
                                 fired_023 = true;
-                                let prefix = shp_route_prefix(shape_route_labels.get(*shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+                                let prefix = shp_route_prefix(
+                                    shape_route_labels
+                                        .get(*shape_id)
+                                        .map(|v| v.as_slice())
+                                        .unwrap_or(&[]),
+                                );
                                 notices.push(k6_notice(
                                     ctr, "SHP_023", EntityType::Shape,
                                     Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -5213,7 +6345,10 @@ fn check_remaining_analytics<'a>(
         // shape_dist_traveled feed genelinde hiç kullanılmamışsa, trip-başına on
         // binlerce özdeş notice yerine tek feed-seviyesi özet üret (STM_050 emsali).
         // Kısmen doluysa (gerçek tutarsızlık) trip granülerliği korunur.
-        let any_sdt_present = records.stop_times.iter().any(|s| s.shape_dist_traveled.is_some());
+        let any_sdt_present = records
+            .stop_times
+            .iter()
+            .any(|s| s.shape_dist_traveled.is_some());
 
         // rail dışı (intercity rail shape_dist_traveled sağlamaz — beklenen davranış),
         // shape'i olup sdt eksik trip'ler.
@@ -5221,7 +6356,10 @@ fn check_remaining_analytics<'a>(
             .trips_missing_sdt
             .iter()
             .filter(|(trip_id, _)| {
-                let route_id = trip_to_route_rem.get(**trip_id).copied().unwrap_or(**trip_id);
+                let route_id = trip_to_route_rem
+                    .get(**trip_id)
+                    .copied()
+                    .unwrap_or(**trip_id);
                 let rt = route_type_rem.get(route_id).copied().unwrap_or(3);
                 !is_rail_route_type(rt)
             })
@@ -5258,10 +6396,15 @@ fn check_remaining_analytics<'a>(
         } else {
             for (trip_id, line) in flagged {
                 let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
-                let dep = trip_first_dep.get(trip_id)
+                let dep = trip_first_dep
+                    .get(trip_id)
                     .map(|(h, m, _)| format!("{h:02}:{m:02}"))
                     .unwrap_or_default();
-                let dep_infix = if dep.is_empty() { String::new() } else { format!(" {dep}") };
+                let dep_infix = if dep.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {dep}")
+                };
                 notices.push(k6_notice(
                     ctr,
                     "STM_017",
@@ -5292,21 +6435,40 @@ fn check_remaining_analytics<'a>(
         let mut shape_points: FxHashMap<&str, (u32, u32)> = FxHashMap::default();
         for sp in &records.shapes {
             let shape_id = records.shape_interns.id(sp);
-            if shape_id.is_empty() { continue; }
+            if shape_id.is_empty() {
+                continue;
+            }
             let entry = shape_points.entry(shape_id).or_default();
             entry.0 += 1;
-            if sp.shape_dist_traveled().is_some() { entry.1 += 1; }
+            if sp.shape_dist_traveled().is_some() {
+                entry.1 += 1;
+            }
         }
 
         for trip in &records.trips {
-            let Some(shape_id) = ti_rem.shape_id(trip).filter(|s| !s.is_empty()) else { continue; };
-            let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue; };
-            if !stimes.iter().any(|st| st.shape_dist_traveled().is_some()) { continue; }
-            let Some(&(point_count, with_sdt)) = shape_points.get(shape_id) else { continue; };
-            if point_count == 0 || with_sdt == point_count { continue; }
-            let entry = shape_stats.entry(shape_id).or_insert((point_count, with_sdt, 0, Vec::new()));
+            let Some(shape_id) = ti_rem.shape_id(trip).filter(|s| !s.is_empty()) else {
+                continue;
+            };
+            let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else {
+                continue;
+            };
+            if !stimes.iter().any(|st| st.shape_dist_traveled().is_some()) {
+                continue;
+            }
+            let Some(&(point_count, with_sdt)) = shape_points.get(shape_id) else {
+                continue;
+            };
+            if point_count == 0 || with_sdt == point_count {
+                continue;
+            }
+            let entry =
+                shape_stats
+                    .entry(shape_id)
+                    .or_insert((point_count, with_sdt, 0, Vec::new()));
             entry.2 += 1;
-            if entry.3.len() < 3 { entry.3.push(trip.trip_id.as_str()); }
+            if entry.3.len() < 3 {
+                entry.3.push(trip.trip_id.as_str());
+            }
         }
 
         let mut shape_ids: Vec<&str> = shape_stats.keys().copied().collect();
@@ -5323,13 +6485,20 @@ fn check_remaining_analytics<'a>(
                 format!("'{shape_id}' shape'i kullanan {affected_trips} trip stop_times.txt'te shape_dist_traveled kullanıyor, ancak shape noktalarının {missing}/{point_count} tanesinde shapes.txt shape_dist_traveled değeri eksik."),
                 "İlgili shape noktalarına stop_times.txt ile aynı birimde shape_dist_traveled ekleyin veya bu alanı ilgili trip'lerin stop_times kayıtlarından tutarlı biçimde kaldırın.",
             );
-            notice.details = Some([
-                ("shape_point_count".to_string(), point_count.to_string()),
-                ("shape_points_with_dist".to_string(), with_sdt.to_string()),
-                ("shape_points_missing_dist".to_string(), missing.to_string()),
-                ("affected_trip_count".to_string(), affected_trips.to_string()),
-                ("representative_trip_ids".to_string(), trip_ids.join(",")),
-            ].into_iter().collect());
+            notice.details = Some(
+                [
+                    ("shape_point_count".to_string(), point_count.to_string()),
+                    ("shape_points_with_dist".to_string(), with_sdt.to_string()),
+                    ("shape_points_missing_dist".to_string(), missing.to_string()),
+                    (
+                        "affected_trip_count".to_string(),
+                        affected_trips.to_string(),
+                    ),
+                    ("representative_trip_ids".to_string(), trip_ids.join(",")),
+                ]
+                .into_iter()
+                .collect(),
+            );
             notices.push(notice);
         }
     }
@@ -5391,38 +6560,50 @@ fn check_remaining_analytics<'a>(
         let _tg9 = Timer::start("K6::rem::geo_009_shp_013");
 
         for (&stop_id, shape_ids) in &idx.stop_shapes {
-            let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
+            let Some(&(slat, slon)) = stop_coords.get(stop_id) else {
+                continue;
+            };
             let cos_lat = (slat.to_radians()).cos().max(0.001_f64);
             let scale_lon = 111.0 * cos_lat;
 
             // Her shape için mesafeyi hesapla — Option-1 filtresi tüm mesafeleri karşılaştırır.
             // Eşik shape BAŞINA (raylı/şehir içi) değiştiğinden bbox marjı, safe_sq kısayolu ve
             // Option-1 karşılaştırması da eşikle birlikte taşınır; her shape kendi eşiğiyle ölçülür.
-            let dists: Vec<(&str, f64, f64)> = shape_ids.iter().filter_map(|&sid| {
-                let pts = shape_coords.get(sid)?;
-                if pts.is_empty() { return None; }
-                let threshold_km = stop_shape_threshold_m(sid, rail_shapes, config) / 1000.0;
-                let margin_lat_g = threshold_km / 111.0;
-                let margin_lon = threshold_km / scale_lon;
-                let safe_sq = threshold_km * threshold_km * 0.98;
-                let d = if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(sid) {
-                    if slat < bmin_la - margin_lat_g || slat > bmax_la + margin_lat_g
-                        || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon
+            let dists: Vec<(&str, f64, f64)> = shape_ids
+                .iter()
+                .filter_map(|&sid| {
+                    let pts = shape_coords.get(sid)?;
+                    if pts.is_empty() {
+                        return None;
+                    }
+                    let threshold_km = stop_shape_threshold_m(sid, rail_shapes, config) / 1000.0;
+                    let margin_lat_g = threshold_km / 111.0;
+                    let margin_lon = threshold_km / scale_lon;
+                    let safe_sq = threshold_km * threshold_km * 0.98;
+                    let d = if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(sid)
                     {
-                        let clat = slat.clamp(bmin_la, bmax_la);
-                        let clon = slon.clamp(bmin_lo, bmax_lo);
-                        haversine_km(slat, slon, clat, clon)
+                        if slat < bmin_la - margin_lat_g
+                            || slat > bmax_la + margin_lat_g
+                            || slon < bmin_lo - margin_lon
+                            || slon > bmax_lo + margin_lon
+                        {
+                            let clat = slat.clamp(bmin_la, bmax_la);
+                            let clon = slon.clamp(bmin_lo, bmax_lo);
+                            haversine_km(slat, slon, clat, clon)
+                        } else {
+                            seg_min_dist_km(pts, slat, slon, scale_lon, safe_sq)
+                        }
                     } else {
                         seg_min_dist_km(pts, slat, slon, scale_lon, safe_sq)
-                    }
-                } else {
-                    seg_min_dist_km(pts, slat, slon, scale_lon, safe_sq)
-                };
-                Some((sid, d, threshold_km))
-            }).collect();
+                    };
+                    Some((sid, d, threshold_km))
+                })
+                .collect();
 
             for &(shape_id, min_dist_km, threshold_km) in &dists {
-                if min_dist_km <= threshold_km { continue; }
+                if min_dist_km <= threshold_km {
+                    continue;
+                }
 
                 // Option-1: aynı hattın başka shape'i bu durağı kapsıyorsa atla.
                 // Kardeş shape KENDİ eşiğiyle değerlendirilir (raylı kardeş daha geniş kapsar).
@@ -5430,17 +6611,22 @@ fn check_remaining_analytics<'a>(
                     let covered = dists.iter().any(|&(sib, sib_dist, sib_thr)| {
                         sib != shape_id
                             && sib_dist <= sib_thr
-                            && shape_route_set.get(sib)
+                            && shape_route_set
+                                .get(sib)
                                 .is_some_and(|ry| rx.intersection(ry).next().is_some())
                     });
-                    if covered { continue; }
+                    if covered {
+                        continue;
+                    }
                 }
 
                 // Örnek kalkış saati: bu shape × durağa ait en erken sefer
                 let example_dep = shape_trips.get(shape_id).and_then(|trips| {
-                    trips.iter()
+                    trips
+                        .iter()
                         .filter_map(|&tid| {
-                            idx.by_trip.get(tid)?
+                            idx.by_trip
+                                .get(tid)?
                                 .iter()
                                 .find(|st| idx.stop_id_of(st) == stop_id)
                                 .and_then(|st| st.departure_time())
@@ -5452,15 +6638,23 @@ fn check_remaining_analytics<'a>(
 
                 let dist_m = min_dist_km * 1000.0;
                 let stop_name = stop_names.get(stop_id).copied().unwrap_or(stop_id);
-                let dir_label = shape_directions.get(shape_id)
+                let dir_label = shape_directions
+                    .get(shape_id)
                     .and_then(|d| *d)
-                    .map(|d| if d == 0 { " gidiş yönü" } else { " dönüş yönü" })
+                    .map(|d| {
+                        if d == 0 {
+                            " gidiş yönü"
+                        } else {
+                            " dönüş yönü"
+                        }
+                    })
                     .unwrap_or("");
                 let ref_label = match shape_to_route.get(shape_id).copied().flatten() {
                     Some(route) => format!("'{}' hattının{dir_label} güzergahından", route),
-                    None        => format!("'{}' no'lu güzergahtan", shape_id),
+                    None => format!("'{}' no'lu güzergahtan", shape_id),
                 };
-                let dep_suffix = example_dep.as_deref()
+                let dep_suffix = example_dep
+                    .as_deref()
                     .map(|t| format!(", örn. {t} kalkışlı sefer"))
                     .unwrap_or_default();
 
@@ -5485,7 +6679,9 @@ fn check_remaining_analytics<'a>(
                 // içindeki id görünmediği için o shape serialize edilmiyor ve harita
                 // güzergahı ÇİZEMİYORDU. UI artık details'tan okur (regex fallback duruyor).
                 let mut det: std::collections::BTreeMap<String, String> =
-                    [("shape_id".to_string(), shape_id.to_string())].into_iter().collect();
+                    [("shape_id".to_string(), shape_id.to_string())]
+                        .into_iter()
+                        .collect();
                 if let Some(dep) = &example_dep {
                     det.insert("example_dep".to_string(), dep.clone());
                 }
@@ -5506,15 +6702,26 @@ fn check_remaining_analytics<'a>(
         // shape_id → sorted Vec<(dist, lat, lon)> — yalnızca dist_traveled olan noktalar
         let mut shape_sdt_pts: FxHashMap<&str, Vec<(f64, f64, f64)>> = FxHashMap::default();
         for sp in &records.shapes {
-            if let (Some(dist), Some(lat), Some(lon)) = (sp.shape_dist_traveled(), sp.shape_pt_lat(), sp.shape_pt_lon()) {
-                shape_sdt_pts.entry(records.shape_interns.id(sp)).or_default().push((dist, lat, lon));
+            if let (Some(dist), Some(lat), Some(lon)) = (
+                sp.shape_dist_traveled(),
+                sp.shape_pt_lat(),
+                sp.shape_pt_lon(),
+            ) {
+                shape_sdt_pts
+                    .entry(records.shape_interns.id(sp))
+                    .or_default()
+                    .push((dist, lat, lon));
             }
         }
         for pts in shape_sdt_pts.values_mut() {
             pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         }
-        let stop_sdt_coords: FxHashMap<&str, (f64, f64)> = records.stops.iter()
-            .filter_map(|stop| recoverable_stop_coord(stop).map(|coords| (stop.stop_id.as_str(), coords)))
+        let stop_sdt_coords: FxHashMap<&str, (f64, f64)> = records
+            .stops
+            .iter()
+            .filter_map(|stop| {
+                recoverable_stop_coord(stop).map(|coords| (stop.stop_id.as_str(), coords))
+            })
             .collect();
 
         let mut seen_shp024: FxHashSet<(&str, &str)> = FxHashSet::default(); // (stop_id, shape_id)
@@ -5541,7 +6748,9 @@ fn check_remaining_analytics<'a>(
                     None => continue,
                 };
                 let stop_id = idx.stop_id_of(st);
-                if seen_shp024.contains(&(stop_id, shape_id)) { continue; }
+                if seen_shp024.contains(&(stop_id, shape_id)) {
+                    continue;
+                }
 
                 let (slat, slon) = match stop_sdt_coords.get(stop_id) {
                     Some(&c) => c,
@@ -5594,8 +6803,12 @@ fn check_remaining_analytics<'a>(
         let mut shape_max_sdt: FxHashMap<&str, f64> = FxHashMap::default();
         for sp in &records.shapes {
             if let Some(d) = sp.shape_dist_traveled() {
-                let e = shape_max_sdt.entry(records.shape_interns.id(sp)).or_insert(0.0);
-                if d > *e { *e = d; }
+                let e = shape_max_sdt
+                    .entry(records.shape_interns.id(sp))
+                    .or_insert(0.0);
+                if d > *e {
+                    *e = d;
+                }
             }
         }
         // Yalnızca tüm shape noktaları dist_traveled içeriyorsa kontrol et
@@ -5608,7 +6821,9 @@ fn check_remaining_analytics<'a>(
                 if sp.shape_idx() != 0 {
                     *shape_total.entry(records.shape_interns.id(sp)).or_default() += 1;
                     if sp.shape_dist_traveled().is_some() {
-                        *shape_with_sdt.entry(records.shape_interns.id(sp)).or_default() += 1;
+                        *shape_with_sdt
+                            .entry(records.shape_interns.id(sp))
+                            .or_default() += 1;
                     }
                 }
             }
@@ -5624,7 +6839,9 @@ fn check_remaining_analytics<'a>(
                 Some(s) => s,
                 None => continue,
             };
-            if !shape_has_full_sdt.contains(shape_id) { continue; }
+            if !shape_has_full_sdt.contains(shape_id) {
+                continue;
+            }
             let shape_max = match shape_max_sdt.get(shape_id) {
                 Some(&m) => m,
                 None => continue,
@@ -5636,12 +6853,16 @@ fn check_remaining_analytics<'a>(
             };
 
             // stop_times'daki en büyük shape_dist_traveled değeri
-            let trip_max_sdt = stimes.iter()
+            let trip_max_sdt = stimes
+                .iter()
                 .filter_map(|st| st.shape_dist_traveled())
                 .fold(f64::NEG_INFINITY, f64::max);
 
             if trip_max_sdt.is_finite() && trip_max_sdt > shape_max * 1.001 {
-                let route = trip_to_route_rem.get(trip.trip_id.as_str()).copied().unwrap_or(trip.trip_id.as_str());
+                let route = trip_to_route_rem
+                    .get(trip.trip_id.as_str())
+                    .copied()
+                    .unwrap_or(trip.trip_id.as_str());
                 notices.push(k6_notice(
                     ctr, "SHP_025", EntityType::Trip,
                     Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
@@ -5685,34 +6906,55 @@ fn check_remaining_analytics<'a>(
                 // anchor atlanır, hücredeki bir sonraki binilebilir durak denenir.
                 let anchor_entry = cell_stops.iter().copied().find(|&i| {
                     records.stops.get(i).is_some_and(|s| {
-                        if s.location_type.unwrap_or(0) != 0 { return false; }
+                        if s.location_type.unwrap_or(0) != 0 {
+                            return false;
+                        }
                         recoverable_stop_coord(s)
                             .is_some_and(|(la, lo)| !(la.abs() < 0.1 && lo.abs() < 0.1))
                     })
                 });
-                let Some(first_idx) = anchor_entry else { continue };
+                let Some(first_idx) = anchor_entry else {
+                    continue;
+                };
                 if let Some(anchor) = records.stops.get(first_idx) {
-                    let Some((alat, alon)) = recoverable_stop_coord(anchor) else { continue };
-                    let anchor_parent = anchor.row.get("parent_station")
-                        .map(|s| s.trim()).filter(|s| !s.is_empty());
+                    let Some((alat, alon)) = recoverable_stop_coord(anchor) else {
+                        continue;
+                    };
+                    let anchor_parent = anchor
+                        .row
+                        .get("parent_station")
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty());
                     let nearby = cell_stops
                         .iter()
                         .filter(|&&i| {
-                            i != first_idx && records.stops.get(i).map(|s| {
-                                if s.location_type.unwrap_or(0) != 0 { return false; }
-                                let p = s.row.get("parent_station")
-                                    .map(|v| v.trim()).filter(|v| !v.is_empty());
-                                // parent/child ya da aynı-parent kardeş → kümeye sayma
-                                if p == Some(anchor.stop_id.as_str())
-                                    || anchor_parent == Some(s.stop_id.as_str())
-                                    || (anchor_parent.is_some() && anchor_parent == p)
-                                {
-                                    return false;
-                                }
-                                recoverable_stop_coord(s)
-                                    .map(|(la, lo)| haversine_km(alat, alon, la, lo) < cluster_km)
+                            i != first_idx
+                                && records
+                                    .stops
+                                    .get(i)
+                                    .map(|s| {
+                                        if s.location_type.unwrap_or(0) != 0 {
+                                            return false;
+                                        }
+                                        let p = s
+                                            .row
+                                            .get("parent_station")
+                                            .map(|v| v.trim())
+                                            .filter(|v| !v.is_empty());
+                                        // parent/child ya da aynı-parent kardeş → kümeye sayma
+                                        if p == Some(anchor.stop_id.as_str())
+                                            || anchor_parent == Some(s.stop_id.as_str())
+                                            || (anchor_parent.is_some() && anchor_parent == p)
+                                        {
+                                            return false;
+                                        }
+                                        recoverable_stop_coord(s)
+                                            .map(|(la, lo)| {
+                                                haversine_km(alat, alon, la, lo) < cluster_km
+                                            })
+                                            .unwrap_or(false)
+                                    })
                                     .unwrap_or(false)
-                            }).unwrap_or(false)
                         })
                         .count();
                     if nearby >= 2 {
@@ -5740,7 +6982,11 @@ fn check_remaining_analytics<'a>(
 
     // ── GEO_013: Feed coğrafi kapsam özeti (Bilgi) ────────────────────────────
     {
-        let n_stops_with_coords = records.stops.iter().filter(|s| s.stop_lat.is_some()).count();
+        let n_stops_with_coords = records
+            .stops
+            .iter()
+            .filter(|s| s.stop_lat.is_some())
+            .count();
         if n_stops_with_coords > 0 {
             notices.push(k6_notice(
                 ctr,
@@ -5766,13 +7012,21 @@ fn check_remaining_analytics<'a>(
     // kırsal otobüsü kıyaslamamak için). Tekdüze sıklıkta feed sıfır notice üretir.
     {
         let _topr5 = Timer::start("K6::rem::opr_005");
-        let route_short_opr5: HashMap<&str, &str> = records.routes.iter()
+        let route_short_opr5: HashMap<&str, &str> = records
+            .routes
+            .iter()
             .map(|r| {
-                let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
+                let label = r
+                    .route_short_name
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(r.route_id.as_str());
                 (r.route_id.as_str(), label)
             })
             .collect();
-        let route_type_opr5: HashMap<&str, u32> = records.routes.iter()
+        let route_type_opr5: HashMap<&str, u32> = records
+            .routes
+            .iter()
             .map(|r| (r.route_id.as_str(), r.route_type.unwrap_or(3)))
             .collect();
 
@@ -5780,34 +7034,63 @@ fn check_remaining_analytics<'a>(
         let mut route_headways: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
         for trip in &records.trips {
             let route_id = ti_rem.route_id(trip);
-            if route_id.is_empty() { continue; }
-            let dir_key: &str = match trip.direction_id { Some(0) => "0", Some(1) => "1", _ => "-" };
+            if route_id.is_empty() {
+                continue;
+            }
+            let dir_key: &str = match trip.direction_id {
+                Some(0) => "0",
+                Some(1) => "1",
+                _ => "-",
+            };
             let svc_key = ti_rem.service_id(trip);
             if let Some(&dep) = idx.trip_first_dep.get(trip.trip_id.as_str()) {
-                route_headways.entry((route_id, dir_key, svc_key)).or_default().push(dep);
+                route_headways
+                    .entry((route_id, dir_key, svc_key))
+                    .or_default()
+                    .push(dep);
             }
         }
 
         // 1) Grup başına ortalama headway.
-        struct Hw<'a> { route: &'a str, dir: &'a str, svc: &'a str, hw: u32, rtype: u32 }
+        struct Hw<'a> {
+            route: &'a str,
+            dir: &'a str,
+            svc: &'a str,
+            hw: u32,
+            rtype: u32,
+        }
         let mut grps: Vec<Hw> = Vec::new();
         for ((route_id, dir_key, svc_key), mut deps) in route_headways {
-            if deps.len() < 2 { continue; }
+            if deps.len() < 2 {
+                continue;
+            }
             deps.sort_unstable();
             deps.dedup();
-            if deps.len() < 2 { continue; }
+            if deps.len() < 2 {
+                continue;
+            }
             let diffs: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
             let avg_hw = diffs.iter().sum::<u32>() / diffs.len() as u32;
             let rtype = route_type_opr5.get(route_id).copied().unwrap_or(3);
-            grps.push(Hw { route: route_id, dir: dir_key, svc: svc_key, hw: avg_hw, rtype });
+            grps.push(Hw {
+                route: route_id,
+                dir: dir_key,
+                svc: svc_key,
+                hw: avg_hw,
+                rtype,
+            });
         }
 
         // 2) route_type başına medyan + MAD (baz için ≥5 grup gerekir).
         let mut by_type: HashMap<u32, Vec<u32>> = HashMap::new();
-        for g in &grps { by_type.entry(g.rtype).or_default().push(g.hw); }
+        for g in &grps {
+            by_type.entry(g.rtype).or_default().push(g.hw);
+        }
         let mut type_stats: HashMap<u32, (f64, f64)> = HashMap::new();
         for (rt, mut hws) in by_type {
-            if hws.len() < 5 { continue; }
+            if hws.len() < 5 {
+                continue;
+            }
             hws.sort_unstable();
             let median = hws[hws.len() / 2] as f64;
             let mut devs: Vec<f64> = hws.iter().map(|&h| (h as f64 - median).abs()).collect();
@@ -5820,7 +7103,10 @@ fn check_remaining_analytics<'a>(
         // Determinizm için sırala.
         grps.sort_by(|a, b| (a.route, a.dir, a.svc).cmp(&(b.route, b.dir, b.svc)));
         for g in &grps {
-            let (median, mad) = match type_stats.get(&g.rtype) { Some(&s) => s, None => continue };
+            let (median, mad) = match type_stats.get(&g.rtype) {
+                Some(&s) => s,
+                None => continue,
+            };
             let hw = g.hw as f64;
             let use_ratio = mad < 30.0; // ~tüm hatlar neredeyse aynı sıklıkta → orana düş
             let is_outlier = if use_ratio {
@@ -5829,8 +7115,14 @@ fn check_remaining_analytics<'a>(
             } else {
                 (hw - median).abs() > config.headway_outlier_sigma * mad
             };
-            if !is_outlier { continue; }
-            let yon_str = if hw > median { "sıradışı seyrek" } else { "sıradışı sık" };
+            if !is_outlier {
+                continue;
+            }
+            let yon_str = if hw > median {
+                "sıradışı seyrek"
+            } else {
+                "sıradışı sık"
+            };
             let route_label = route_short_opr5.get(g.route).copied().unwrap_or(g.route);
             let hw_min = hw / 60.0;
             let med_min = median / 60.0;
@@ -5858,9 +7150,15 @@ fn check_remaining_analytics<'a>(
     {
         let _topr13 = Timer::start("K6::rem::opr_013");
         // route_id → gösterim etiketi (route_short_name varsa o, yoksa route_id)
-        let route_short_opr13: HashMap<&str, &str> = records.routes.iter()
+        let route_short_opr13: HashMap<&str, &str> = records
+            .routes
+            .iter()
             .map(|r| {
-                let label = r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str());
+                let label = r
+                    .route_short_name
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(r.route_id.as_str());
                 (r.route_id.as_str(), label)
             })
             .collect();
@@ -5953,8 +7251,10 @@ fn check_remaining_analytics<'a>(
                     None,
                     Some(format!("{:.0}%", ratio * 100.0)),
                     Some("≤ %50".to_string()),
-                    format!("Duraksaların %{:.0}'ında koordinat eksik — coğrafi analiz kısıtlı.",
-                        ratio * 100.0),
+                    format!(
+                        "Duraksaların %{:.0}'ında koordinat eksik — coğrafi analiz kısıtlı.",
+                        ratio * 100.0
+                    ),
                     "stop_lat ve stop_lon alanlarını tüm duraklara ekleyin.",
                 ));
             }
@@ -5969,7 +7269,9 @@ fn check_remaining_analytics<'a>(
             .filter_map(|r| r.agency_id.as_deref())
             .collect();
         for ag in &records.agencies {
-            let Some(ref aid) = ag.agency_id else { continue };
+            let Some(ref aid) = ag.agency_id else {
+                continue;
+            };
             if !agencies_in_routes.contains(aid.as_str()) {
                 notices.push(k6_notice(
                     ctr,
@@ -5984,8 +7286,14 @@ fn check_remaining_analytics<'a>(
                     Some("agency_id"),
                     Some(aid.clone()),
                     None,
-                    format!("'{}' işleticisi hiçbir hatta kullanılmıyor.",
-                        if ag.agency_name.is_empty() { aid.as_str() } else { ag.agency_name.as_str() }),
+                    format!(
+                        "'{}' işleticisi hiçbir hatta kullanılmıyor.",
+                        if ag.agency_name.is_empty() {
+                            aid.as_str()
+                        } else {
+                            ag.agency_name.as_str()
+                        }
+                    ),
                     "Kullanılmayan agency kaydını kaldırın ya da routes.txt'de agency_id atayın.",
                 ));
             }
@@ -6006,7 +7314,9 @@ fn check_remaining_analytics<'a>(
         // Yalnızca seferi olup hiç shape'i olmayan hatlar (sefersiz hatları başka kural ele alır).
         for r in &records.routes {
             if route_has_shape.get(r.route_id.as_str()) == Some(&false) {
-                let label = r.route_short_name.as_deref()
+                let label = r
+                    .route_short_name
+                    .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(r.route_id.as_str());
                 notices.push(k6_notice(
@@ -6032,9 +7342,13 @@ fn check_remaining_analytics<'a>(
     {
         let mut route_dir_trips: HashMap<(&str, u32), u32> = HashMap::new();
         for t in &records.trips {
-            if ti_rem.route_id(t).is_empty() { continue; }
+            if ti_rem.route_id(t).is_empty() {
+                continue;
+            }
             if let Some(dir) = t.direction_id {
-                *route_dir_trips.entry((ti_rem.route_id(t), dir)).or_default() += 1;
+                *route_dir_trips
+                    .entry((ti_rem.route_id(t), dir))
+                    .or_default() += 1;
             }
         }
         // Aynı rotada her iki yönde de sefer var; yalnızca direction_id set olmayan seferler → TRP_012
@@ -6045,22 +7359,33 @@ fn check_remaining_analytics<'a>(
                     r.entry(ti_rem.route_id(t)).or_default().insert(d);
                 }
             }
-            r.into_iter().filter(|(_, dirs)| dirs.len() > 1).map(|(rid, _)| rid).collect()
+            r.into_iter()
+                .filter(|(_, dirs)| dirs.len() > 1)
+                .map(|(rid, _)| rid)
+                .collect()
         };
         // Rota seviyesinde topla: çift yönlü rotada direction_id'si eksik kaç sefer var.
         // Sefer başına emit etmek aynı rota için yüzlerce özdeş satır üretiyordu (mesaj
         // zaten rota-merkezli); rota başına TEK notice + sayım.
         let mut route_missing: HashMap<&str, (u32, u64)> = HashMap::new(); // route -> (eksik_sayı, ilk_satır)
         for t in &records.trips {
-            if !routes_with_both_dirs.contains(ti_rem.route_id(t)) { continue; }
+            if !routes_with_both_dirs.contains(ti_rem.route_id(t)) {
+                continue;
+            }
             if t.direction_id.is_none() {
-                let e = route_missing.entry(ti_rem.route_id(t)).or_insert((0, t.line));
+                let e = route_missing
+                    .entry(ti_rem.route_id(t))
+                    .or_insert((0, t.line));
                 e.0 += 1;
-                if t.line < e.1 { e.1 = t.line; }
+                if t.line < e.1 {
+                    e.1 = t.line;
+                }
             }
         }
-        let mut rows: Vec<(&str, u32, u64)> =
-            route_missing.into_iter().map(|(r, (c, l))| (r, c, l)).collect();
+        let mut rows: Vec<(&str, u32, u64)> = route_missing
+            .into_iter()
+            .map(|(r, (c, l))| (r, c, l))
+            .collect();
         rows.sort_unstable_by(|a, b| a.0.cmp(b.0)); // deterministik sıra
         for (route_id, count, line) in rows {
             let label = route_short.get(route_id).copied().unwrap_or(route_id);
@@ -6078,7 +7403,9 @@ fn check_remaining_analytics<'a>(
                 format!("'{label}' kodlu hattın {count} seferinde yön bilgisi (direction_id) girilmemiş — hat çift yönlü."),
                 "Bu seferlerin direction_id alanını 0 veya 1 olarak doldurun.",
             );
-            notice.details.get_or_insert_with(Default::default)
+            notice
+                .details
+                .get_or_insert_with(Default::default)
                 .insert("route_label".to_string(), label.to_string());
             notices.push(notice);
         }
@@ -6132,7 +7459,9 @@ fn check_remaining_analytics<'a>(
                 ),
                 "block_id'yi aynı araçla ardışık yapılan seferlere ORTAK verin; her sefere ayrı kod vermek alanı bilgisiz bırakır (tek seferlik blok spec'e göre geçerlidir, bulgu onun için değildir).",
             );
-            notice.details.get_or_insert_with(Default::default)
+            notice
+                .details
+                .get_or_insert_with(Default::default)
                 .insert("trips_with_block".to_string(), trips_with_block.to_string());
             notices.push(notice);
         }
@@ -6144,24 +7473,37 @@ fn check_remaining_analytics<'a>(
     // farklıysa block_id ya yanlış atanmıştır ya da route_type yanlış girilmiştir.
     // Blok BAŞINA tek notice: sefer başına üretmek büyük bloklarda yüzlerce tekrar demekti.
     {
-        let route_type_of: HashMap<&str, u32> = records.routes.iter()
+        let route_type_of: HashMap<&str, u32> = records
+            .routes
+            .iter()
             .filter_map(|r| r.route_type.map(|t| (r.route_id.as_str(), t)))
             .collect();
         // block_id → (route_type'lar, ilk sefer, ilk satır)
         let mut blocks: HashMap<&str, (BTreeSet<u32>, &str, u64)> = HashMap::new();
         for t in &records.trips {
-            let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) else { continue };
-            let Some(&rt) = route_type_of.get(ti_rem.route_id(t)) else { continue };
-            let entry = blocks.entry(bid).or_insert_with(|| (BTreeSet::new(), t.trip_id.as_str(), t.line));
+            let Some(bid) = ti_rem.block_id(t).filter(|b| !b.is_empty()) else {
+                continue;
+            };
+            let Some(&rt) = route_type_of.get(ti_rem.route_id(t)) else {
+                continue;
+            };
+            let entry = blocks
+                .entry(bid)
+                .or_insert_with(|| (BTreeSet::new(), t.trip_id.as_str(), t.line));
             entry.0.insert(rt);
         }
-        let mut mixed: Vec<(&str, &BTreeSet<u32>, &str, u64)> = blocks.iter()
+        let mut mixed: Vec<(&str, &BTreeSet<u32>, &str, u64)> = blocks
+            .iter()
             .filter(|(_, (types, _, _))| types.len() > 1)
             .map(|(bid, (types, trip, line))| (*bid, types, *trip, *line))
             .collect();
         mixed.sort_by(|a, b| a.0.cmp(b.0)); // HashMap sırası deterministik değil
         for (bid, types, trip_id, line) in mixed {
-            let list = types.iter().map(u32::to_string).collect::<Vec<_>>().join(", ");
+            let list = types
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
             notices.push(k6_notice(
                 ctr, "TRP_033", EntityType::Trip,
                 Some(bid.to_string()), Some(bid.to_string()),
@@ -6176,7 +7518,9 @@ fn check_remaining_analytics<'a>(
     // ── STP_020: stop_times'da hiç kullanılmayan fiziksel durak ──────────────
     {
         let _t20 = Timer::start("K6::rem::stp_020");
-        let mut used_stops: FxHashSet<&str> = records.stop_times_index.stop_id_set
+        let mut used_stops: FxHashSet<&str> = records
+            .stop_times_index
+            .stop_id_set
             .iter()
             .map(|s| s.as_str())
             .collect();
@@ -6185,15 +7529,21 @@ fn check_remaining_analytics<'a>(
         // saf Flex feed'inde stops.txt'in TAMAMI "kullanılmıyor" çıkar (İsviçre ODV feed'inde
         // ölçüldü: 1259 durağın 1259'u, feed'in tüm bulgularının %85'i).
         used_stops.extend(
-            records.location_group_stops.iter()
+            records
+                .location_group_stops
+                .iter()
                 .filter(|r| !r.stop_id.is_empty())
                 .map(|r| r.stop_id.as_str()),
         );
 
         for stop in &records.stops {
-            if stop.stop_id.is_empty() { continue; }
+            if stop.stop_id.is_empty() {
+                continue;
+            }
             // Sadece fiziksel duraklar (location_type=0 veya null); parent station/giriş vs. hariç
-            if stop.location_type.unwrap_or(0) != 0 { continue; }
+            if stop.location_type.unwrap_or(0) != 0 {
+                continue;
+            }
             if !used_stops.contains(stop.stop_id.as_str()) {
                 notices.push(k6_notice(
                     ctr,
@@ -6208,7 +7558,10 @@ fn check_remaining_analytics<'a>(
                     None,
                     {
                         let name = stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str());
-                        format!("'{}' durağı (kod: '{}') hiçbir seferde kullanılmıyor.", name, stop.stop_id)
+                        format!(
+                            "'{}' durağı (kod: '{}') hiçbir seferde kullanılmıyor.",
+                            name, stop.stop_id
+                        )
                     },
                     "Durağı kaldırın veya ilgili bir sefere ekleyin.",
                 ));
@@ -6243,25 +7596,44 @@ fn check_remaining_analytics<'a>(
         // Doğrusu: şüpheli trip'in shape'i HAKKINDA KARAR VERİLMEZ.
         let mut unreliable: FxHashSet<&str> = FxHashSet::default();
         for (trip_id, stimes) in &idx.by_trip {
-            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
-            let Some(pts) = shape_coords.get(shape_id) else { continue };
-            if pts.len() < 2 { continue; }
+            let Some(&shape_id) = trip_shape_local.get(trip_id) else {
+                continue;
+            };
+            let Some(pts) = shape_coords.get(shape_id) else {
+                continue;
+            };
+            if pts.len() < 2 {
+                continue;
+            }
             let cum = shape_cum.entry(shape_id).or_insert_with(|| {
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
                 }
                 c
             });
             let total = cum.last().copied().unwrap_or(0.0);
-            if total <= 0.1 { continue; }
+            if total <= 0.1 {
+                continue;
+            }
             // Dairesel shape (başlangıç≈bitiş) → ters-kontrolü anlamsız, atla
-            let ring = haversine_km(pts[0].0, pts[0].1, pts.last().unwrap().0, pts.last().unwrap().1);
-            if ring < total * 0.10 && ring < 1.0 { continue; }
+            let ring = haversine_km(
+                pts[0].0,
+                pts[0].1,
+                pts.last().unwrap().0,
+                pts.last().unwrap().1,
+            );
+            if ring < total * 0.10 && ring < 1.0 {
+                continue;
+            }
             // by_trip dilimleri stop_sequence sıralı → ilk eleman = ilk durak
-            let Some(first_st) = stimes.first() else { continue };
-            let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(first_st)) else { continue };
+            let Some(first_st) = stimes.first() else {
+                continue;
+            };
+            let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(first_st)) else {
+                continue;
+            };
             let (first_arc, first_dist, head_dist) = project_arc_detail(pts, cum, slat, slon);
             // 🔴 İKİ KORUMA — ikisi de "ölçemediğin şey hakkında iddia kurma" ilkesinden.
             // 14. korpus koşumunun verisiyle 29 feed / 1.009 bulgu üzerinde eşiklendi.
@@ -6270,7 +7642,10 @@ fn check_remaining_analytics<'a>(
             // projeksiyonun durağa uzaklığı 2.561 KM — orada durak koordinatı bozuk ve asıl
             // kusuru `GEO_016`/`SHP_014` raporluyor; SHP_016'nın konuşması türev gürültüydü.
             // Örneklemde 184 bulgu (%18,2) bu daldan geliyordu.
-            if first_dist > 0.5 { unreliable.insert(shape_id); continue; }
+            if first_dist > 0.5 {
+                unreliable.insert(shape_id);
+                continue;
+            }
             // (A) Shape KENDİ ÜZERİNDEN GEÇİYORSA ilk durak iki yere birden düşer ve hangisinin
             // seçildiği metrelerle belirlenir → yön okunamaz. DART shape 58782: seçilen 6,8 m,
             // shape başındaki aday 10,0 m (fark 3,1 m); `mdb-1138`/`mdb-1154`'te fark 0,0 m.
@@ -6282,7 +7657,13 @@ fn check_remaining_analytics<'a>(
             }
             let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
             let entry = agg.entry(shape_id).or_insert_with(|| {
-                (f64::INFINITY, total, String::new(), String::new(), String::new())
+                (
+                    f64::INFINITY,
+                    total,
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                )
             });
             if first_arc < entry.0 {
                 entry.0 = first_arc;
@@ -6294,9 +7675,13 @@ fn check_remaining_analytics<'a>(
         let mut shape_ids: Vec<&str> = agg.keys().copied().collect();
         shape_ids.sort_unstable();
         for shape_id in shape_ids {
-            if unreliable.contains(shape_id) { continue; }
+            if unreliable.contains(shape_id) {
+                continue;
+            }
             let (min_arc, total, route, trip_id, first_stop) = &agg[shape_id];
-            if !min_arc.is_finite() || *min_arc <= *total * 0.5 { continue; }
+            if !min_arc.is_finite() || *min_arc <= *total * 0.5 {
+                continue;
+            }
             reversed_shapes.insert(shape_id);
             let mut n016 = k6_notice(
                 ctr, "SHP_016",
@@ -6333,15 +7718,21 @@ fn check_remaining_analytics<'a>(
         let mut shp017_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
 
         for (trip_id, stimes) in &idx.by_trip {
-            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
-            let Some(pts) = shape_coords.get(shape_id) else { continue };
-            if pts.len() < 2 { continue; }
+            let Some(&shape_id) = trip_shape_local.get(trip_id) else {
+                continue;
+            };
+            let Some(pts) = shape_coords.get(shape_id) else {
+                continue;
+            };
+            if pts.len() < 2 {
+                continue;
+            }
 
             let cum = shape_cum.entry(shape_id).or_insert_with(|| {
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i - 1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
                 }
                 c
             });
@@ -6353,8 +7744,9 @@ fn check_remaining_analytics<'a>(
             // (çevre hattı / döngü) arc-monotonicity kontrolü anlamsızlaşır → atla
             {
                 let shape_start = pts[0];
-                let shape_end   = *pts.last().unwrap();
-                let ring_dist_km = haversine_km(shape_start.0, shape_start.1, shape_end.0, shape_end.1);
+                let shape_end = *pts.last().unwrap();
+                let ring_dist_km =
+                    haversine_km(shape_start.0, shape_start.1, shape_end.0, shape_end.1);
                 let shape_total_km = cum.last().copied().unwrap_or(1.0);
                 // Başlangıç-bitiş mesafesi toplam uzunluğun %10'undan az VE 1km'den kısaysa dairesel
                 if ring_dist_km < shape_total_km * 0.10 && ring_dist_km < 1.0 {
@@ -6364,22 +7756,31 @@ fn check_remaining_analytics<'a>(
 
             // Ters shape (SHP_016 ön-geçişte tespit edildi): bu shape için SHP_017
             // "sıra bozuk" gürültüsünü bastır (SHP_016 daha net sinyaldir).
-            if reversed_shapes.contains(shape_id) { continue; }
+            if reversed_shapes.contains(shape_id) {
+                continue;
+            }
 
             // stop_times'da shape_dist_traveled varsa geometrik projeksiyona gerek yok.
             // Tüm duraklarda mevcutsa yetkili kaynak olarak kullan; karışık durumdaysa
             // birim uyuşmazlığından kaçınmak için geometrik kontrolü atla.
             let all_have_sdt = sorted.iter().all(|st| st.shape_dist_traveled().is_some());
             let any_have_sdt = sorted.iter().any(|st| st.shape_dist_traveled().is_some());
-            if any_have_sdt && !all_have_sdt { continue; }
+            if any_have_sdt && !all_have_sdt {
+                continue;
+            }
 
             // shape_dist_traveled metre mi km mi? shape toplam uzunluğuyla karşılaştır.
             let sdt_to_km: f64 = if all_have_sdt {
-                let sdt_max = sorted.iter()
+                let sdt_max = sorted
+                    .iter()
                     .filter_map(|st| st.shape_dist_traveled())
                     .fold(0.0_f64, f64::max);
                 let shape_total_km = cum.last().copied().unwrap_or(1.0);
-                if sdt_max > shape_total_km * 100.0 { 0.001 } else { 1.0 }
+                if sdt_max > shape_total_km * 100.0 {
+                    0.001
+                } else {
+                    1.0
+                }
             } else {
                 1.0
             };
@@ -6390,7 +7791,9 @@ fn check_remaining_analytics<'a>(
                 let arc = if all_have_sdt {
                     st.shape_dist_traveled().unwrap() * sdt_to_km
                 } else {
-                    let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(st)) else { continue };
+                    let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(st)) else {
+                        continue;
+                    };
                     *arc_cache
                         .entry((shape_id, idx.stop_id_of(st)))
                         .or_insert_with(|| project_arc_km(pts, cum, slat, slon))
@@ -6400,7 +7803,9 @@ fn check_remaining_analytics<'a>(
                     prob_idx = Some(i);
                     break;
                 }
-                if arc > prev_arc { prev_arc = arc; }
+                if arc > prev_arc {
+                    prev_arc = arc;
+                }
             }
             if let Some(pi) = prob_idx {
                 // Backtrack filtresi: prob_idx sonraki duraklarda arc prev_arc'ı geçiyorsa
@@ -6419,7 +7824,9 @@ fn check_remaining_analytics<'a>(
                     };
                     narc > prev_arc
                 });
-                if recovers { continue; }
+                if recovers {
+                    continue;
+                }
 
                 let st = sorted[pi];
                 // Aynı (shape_id, problem_stop_id) çifti için daha önce notice üretildiyse atla
@@ -6427,15 +7834,26 @@ fn check_remaining_analytics<'a>(
                     continue;
                 }
                 let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
-                let dep = trip_first_dep.get(trip_id)
+                let dep = trip_first_dep
+                    .get(trip_id)
                     .map(|(h, m, _)| format!("{h:02}:{m:02}"))
                     .unwrap_or_default();
-                let dep_infix = if dep.is_empty() { String::new() } else { format!(" {dep}") };
-                let sname = stop_names.get(idx.stop_id_of(st)).copied().unwrap_or(idx.stop_id_of(st));
+                let dep_infix = if dep.is_empty() {
+                    String::new()
+                } else {
+                    format!(" {dep}")
+                };
+                let sname = stop_names
+                    .get(idx.stop_id_of(st))
+                    .copied()
+                    .unwrap_or(idx.stop_id_of(st));
                 let arc = if all_have_sdt {
                     st.shape_dist_traveled().unwrap() * sdt_to_km
                 } else {
-                    arc_cache.get(&(shape_id, idx.stop_id_of(st))).copied().unwrap_or(0.0)
+                    arc_cache
+                        .get(&(shape_id, idx.stop_id_of(st)))
+                        .copied()
+                        .unwrap_or(0.0)
                 };
                 let mut notice = k6_notice(
                     ctr,
@@ -6456,14 +7874,30 @@ fn check_remaining_analytics<'a>(
                     "Projeksiyon döngü veya aynı yolun tekrar kullanımında belirsiz olabilir. Haritada doğrulayın; desen bilinçliyse işlem gerekmez.",
                 );
                 // Harita bağlamı: ±3 komşu durak + shape_id + sıra numaraları
-                let ctx_b: Vec<&str> = sorted[..pi].iter().rev().take(3).rev()
-                    .map(|s| idx.stop_id_of(s)).collect();
-                let ctx_a: Vec<&str> = sorted[pi + 1..].iter().take(3)
-                    .map(|s| idx.stop_id_of(s)).collect();
-                let seq_b: Vec<String> = sorted[..pi].iter().rev().take(3).rev()
-                    .map(|s| s.stop_sequence().unwrap_or(0).to_string()).collect();
-                let seq_a: Vec<String> = sorted[pi + 1..].iter().take(3)
-                    .map(|s| s.stop_sequence().unwrap_or(0).to_string()).collect();
+                let ctx_b: Vec<&str> = sorted[..pi]
+                    .iter()
+                    .rev()
+                    .take(3)
+                    .rev()
+                    .map(|s| idx.stop_id_of(s))
+                    .collect();
+                let ctx_a: Vec<&str> = sorted[pi + 1..]
+                    .iter()
+                    .take(3)
+                    .map(|s| idx.stop_id_of(s))
+                    .collect();
+                let seq_b: Vec<String> = sorted[..pi]
+                    .iter()
+                    .rev()
+                    .take(3)
+                    .rev()
+                    .map(|s| s.stop_sequence().unwrap_or(0).to_string())
+                    .collect();
+                let seq_a: Vec<String> = sorted[pi + 1..]
+                    .iter()
+                    .take(3)
+                    .map(|s| s.stop_sequence().unwrap_or(0).to_string())
+                    .collect();
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("ctx_b".to_string(), ctx_b.join(","));
                 det.insert("ctx_a".to_string(), ctx_a.join(","));
@@ -6477,7 +7911,6 @@ fn check_remaining_analytics<'a>(
         }
     }
 
-
     // ── SHP_014: ilk/son durak güzergah ucundan uzakta (varyant-farkında) ─────
     // Bir shape birden çok trip varyantı (short-turn, farklı terminal) tarafından
     // paylaşılabilir. Shape ucu HİÇBİR varyantın ucuna yakın değilse ateşle:
@@ -6486,19 +7919,26 @@ fn check_remaining_analytics<'a>(
         let _t14 = Timer::start("K6::rem::shp_014");
         // shape_id → (min_dist_km, problem_stop, trip_id)
         let mut start_agg: FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
-        let mut end_agg:   FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
+        let mut end_agg: FxHashMap<&str, (f64, String, String)> = FxHashMap::default();
 
         for (&trip_id, stimes) in &idx.by_trip {
-            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
-            let Some(pts) = shape_coords.get(shape_id) else { continue };
-            if pts.len() < 2 { continue; }
+            let Some(&shape_id) = trip_shape_local.get(trip_id) else {
+                continue;
+            };
+            let Some(pts) = shape_coords.get(shape_id) else {
+                continue;
+            };
+            if pts.len() < 2 {
+                continue;
+            }
             let shape_start = pts[0];
             let shape_end = *pts.last().unwrap();
 
             if let Some(first_st) = stimes.first() {
                 if let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(first_st)) {
                     let d_km = haversine_km(slat, slon, shape_start.0, shape_start.1);
-                    let e = start_agg.entry(shape_id)
+                    let e = start_agg
+                        .entry(shape_id)
                         .or_insert_with(|| (f64::INFINITY, String::new(), String::new()));
                     if d_km < e.0 {
                         e.0 = d_km;
@@ -6511,7 +7951,8 @@ fn check_remaining_analytics<'a>(
             if let Some(last_st) = stimes.last() {
                 if let Some(&(slat, slon)) = stop_coords.get(idx.stop_id_of(last_st)) {
                     let d_km = haversine_km(slat, slon, shape_end.0, shape_end.1);
-                    let e = end_agg.entry(shape_id)
+                    let e = end_agg
+                        .entry(shape_id)
                         .or_insert_with(|| (f64::INFINITY, String::new(), String::new()));
                     if d_km < e.0 {
                         e.0 = d_km;
@@ -6527,10 +7968,20 @@ fn check_remaining_analytics<'a>(
         for shape_id in start_ids {
             let (min_km, stop_id, trip_id) = &start_agg[shape_id];
             let threshold_km = stop_shape_threshold_m(shape_id, rail_shapes, config) / 1000.0;
-            if !min_km.is_finite() || *min_km <= threshold_km { continue; }
+            if !min_km.is_finite() || *min_km <= threshold_km {
+                continue;
+            }
             let dist_m = *min_km * 1000.0;
-            let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
-            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+            let sname = stop_names
+                .get(stop_id.as_str())
+                .copied()
+                .unwrap_or(stop_id.as_str());
+            let prefix = shp_route_prefix(
+                shape_route_labels
+                    .get(shape_id)
+                    .map(|v| v.as_slice())
+                    .unwrap_or(&[]),
+            );
             let mut n = k6_notice(
                 ctr, "SHP_014", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -6556,10 +8007,20 @@ fn check_remaining_analytics<'a>(
         for shape_id in end_ids {
             let (min_km, stop_id, trip_id) = &end_agg[shape_id];
             let threshold_km = stop_shape_threshold_m(shape_id, rail_shapes, config) / 1000.0;
-            if !min_km.is_finite() || *min_km <= threshold_km { continue; }
+            if !min_km.is_finite() || *min_km <= threshold_km {
+                continue;
+            }
             let dist_m = *min_km * 1000.0;
-            let sname = stop_names.get(stop_id.as_str()).copied().unwrap_or(stop_id.as_str());
-            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+            let sname = stop_names
+                .get(stop_id.as_str())
+                .copied()
+                .unwrap_or(stop_id.as_str());
+            let prefix = shp_route_prefix(
+                shape_route_labels
+                    .get(shape_id)
+                    .map(|v| v.as_slice())
+                    .unwrap_or(&[]),
+            );
             let mut n = k6_notice(
                 ctr, "SHP_014", EntityType::Shape,
                 Some(shape_id.to_string()), Some(shape_id.to_string()),
@@ -6587,7 +8048,9 @@ fn check_remaining_analytics<'a>(
         let threshold_m = config.stop_far_from_parent_m;
 
         // stop_id → (lat, lon)
-        let stop_coords: HashMap<&str, (f64, f64)> = records.stops.iter()
+        let stop_coords: HashMap<&str, (f64, f64)> = records
+            .stops
+            .iter()
             .filter_map(|s| {
                 recoverable_stop_coord(s).map(|(la, lo)| (s.stop_id.as_str(), (la, lo)))
             })
@@ -6595,7 +8058,9 @@ fn check_remaining_analytics<'a>(
 
         for stop in &records.stops {
             // Sadece location_type 0 veya tanımsız (fiziksel durak)
-            if stop.location_type.unwrap_or(0) != 0 { continue; }
+            if stop.location_type.unwrap_or(0) != 0 {
+                continue;
+            }
             let parent_id = match stop.row.get("parent_station") {
                 Some(p) if !p.trim().is_empty() => p.trim(),
                 _ => continue,
@@ -6650,18 +8115,25 @@ fn check_remaining_analytics<'a>(
         // Filtre yokken her çocuk sayılıyordu → 250-feed corpus, mdb-2933: `MTR-POA` (Po Lam)
         // istasyonunun 6 çocuğunun HEPSİ location_type=2 (giriş), peronu YOK; biz susuyorduk,
         // MobilityData `unused_station` ile işaretliyordu.
-        let stations_with_children: HashSet<&str> = records.stops.iter()
+        let stations_with_children: HashSet<&str> = records
+            .stops
+            .iter()
             .filter(|s| matches!(s.location_type, None | Some(0)))
             .filter_map(|s| {
-                s.row.get("parent_station")
+                s.row
+                    .get("parent_station")
                     .map(|p| p.trim())
                     .filter(|p| !p.is_empty())
             })
             .collect();
 
         for stop in &records.stops {
-            if stop.location_type != Some(1) { continue; }
-            if stop.stop_id.is_empty() { continue; }
+            if stop.location_type != Some(1) {
+                continue;
+            }
+            if stop.stop_id.is_empty() {
+                continue;
+            }
             if !stations_with_children.contains(stop.stop_id.as_str()) {
                 let sname = stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str());
                 notices.push(k6_notice(
@@ -6719,14 +8191,25 @@ fn check_remaining_analytics<'a>(
 
         // stop_name
         for stop in &records.stops {
-            if stop.stop_id.is_empty() { continue; }
+            if stop.stop_id.is_empty() {
+                continue;
+            }
             if let Some(name) = stop.stop_name.as_deref().filter(|s| is_all_caps(s)) {
                 notices.push(k6_notice(
-                    ctr, "DQ_018", EntityType::Stop,
-                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line), Some("stop_name"),
-                    Some(name.to_string()), None,
-                    format!("'{}' durağının adı tamamen büyük harf: '{name}'.", stop.stop_id),
+                    ctr,
+                    "DQ_018",
+                    EntityType::Stop,
+                    Some(stop.stop_id.clone()),
+                    Some(stop.stop_id.clone()),
+                    "stops.txt",
+                    Some(stop.line),
+                    Some("stop_name"),
+                    Some(name.to_string()),
+                    None,
+                    format!(
+                        "'{}' durağının adı tamamen büyük harf: '{name}'.",
+                        stop.stop_id
+                    ),
                     "Durak adını düzgün harf kuralıyla yazın (ör. 'Merkez İstasyon').",
                 ));
             }
@@ -6734,16 +8217,30 @@ fn check_remaining_analytics<'a>(
 
         // route_long_name
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
+            if route.route_id.is_empty() {
+                continue;
+            }
             if let Some(name) = route.route_long_name.as_deref().filter(|s| is_all_caps(s)) {
-                let label = route.route_short_name.as_deref()
-                    .filter(|s| !s.is_empty()).unwrap_or(route.route_id.as_str());
+                let label = route
+                    .route_short_name
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(route.route_id.as_str());
                 notices.push(k6_notice(
-                    ctr, "DQ_018", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line), Some("route_long_name"),
-                    Some(name.to_string()), None,
-                    format!("'{}' hattının uzun adı tamamen büyük harf: '{name}'.", label),
+                    ctr,
+                    "DQ_018",
+                    EntityType::Route,
+                    Some(route.route_id.clone()),
+                    Some(route.route_id.clone()),
+                    "routes.txt",
+                    Some(route.line),
+                    Some("route_long_name"),
+                    Some(name.to_string()),
+                    None,
+                    format!(
+                        "'{}' hattının uzun adı tamamen büyük harf: '{name}'.",
+                        label
+                    ),
                     "Hat adını düzgün harf kuralıyla yazın.",
                 ));
             }
@@ -6751,16 +8248,30 @@ fn check_remaining_analytics<'a>(
 
         // route_desc
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
+            if route.route_id.is_empty() {
+                continue;
+            }
             if let Some(desc) = route.route_desc.as_deref().filter(|s| is_all_caps(s)) {
-                let label = route.route_short_name.as_deref()
-                    .filter(|s| !s.is_empty()).unwrap_or(route.route_id.as_str());
+                let label = route
+                    .route_short_name
+                    .as_deref()
+                    .filter(|s| !s.is_empty())
+                    .unwrap_or(route.route_id.as_str());
                 notices.push(k6_notice(
-                    ctr, "DQ_018", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line), Some("route_desc"),
-                    Some(desc.to_string()), None,
-                    format!("'{}' hattının açıklaması tamamen büyük harf: '{desc}'.", label),
+                    ctr,
+                    "DQ_018",
+                    EntityType::Route,
+                    Some(route.route_id.clone()),
+                    Some(route.route_id.clone()),
+                    "routes.txt",
+                    Some(route.line),
+                    Some("route_desc"),
+                    Some(desc.to_string()),
+                    None,
+                    format!(
+                        "'{}' hattının açıklaması tamamen büyük harf: '{desc}'.",
+                        label
+                    ),
                     "Hat açıklamasını düzgün harf kuralıyla yazın.",
                 ));
             }
@@ -6768,14 +8279,25 @@ fn check_remaining_analytics<'a>(
 
         // trip_headsign
         for trip in &records.trips {
-            if trip.trip_id.is_empty() { continue; }
+            if trip.trip_id.is_empty() {
+                continue;
+            }
             if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_caps(s)) {
                 notices.push(k6_notice(
-                    ctr, "DQ_018", EntityType::Trip,
-                    Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                    "trips.txt", Some(trip.line), Some("trip_headsign"),
-                    Some(hs.to_string()), None,
-                    format!("'{}' seferinin yön adı tamamen büyük harf: '{hs}'.", trip.trip_id),
+                    ctr,
+                    "DQ_018",
+                    EntityType::Trip,
+                    Some(trip.trip_id.to_string()),
+                    Some(trip.trip_id.to_string()),
+                    "trips.txt",
+                    Some(trip.line),
+                    Some("trip_headsign"),
+                    Some(hs.to_string()),
+                    None,
+                    format!(
+                        "'{}' seferinin yön adı tamamen büyük harf: '{hs}'.",
+                        trip.trip_id
+                    ),
                     "Yön adını düzgün harf kuralıyla yazın.",
                 ));
             }
@@ -6783,17 +8305,30 @@ fn check_remaining_analytics<'a>(
 
         // agency_name
         for ag in &records.agencies {
-            if ag.agency_name.is_empty() { continue; }
+            if ag.agency_name.is_empty() {
+                continue;
+            }
             if is_all_caps(&ag.agency_name) {
-                let label = ag.agency_id.as_deref()
+                let label = ag
+                    .agency_id
+                    .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(ag.agency_name.as_str());
                 notices.push(k6_notice(
-                    ctr, "DQ_018", EntityType::Agency,
-                    Some(label.to_string()), Some(label.to_string()),
-                    "agency.txt", Some(ag.line), Some("agency_name"),
-                    Some(ag.agency_name.clone()), None,
-                    format!("'{}' işleticisinin adı tamamen büyük harf: '{}'.", label, ag.agency_name),
+                    ctr,
+                    "DQ_018",
+                    EntityType::Agency,
+                    Some(label.to_string()),
+                    Some(label.to_string()),
+                    "agency.txt",
+                    Some(ag.line),
+                    Some("agency_name"),
+                    Some(ag.agency_name.clone()),
+                    None,
+                    format!(
+                        "'{}' işleticisinin adı tamamen büyük harf: '{}'.",
+                        label, ag.agency_name
+                    ),
                     "İşletici adını düzgün harf kuralıyla yazın.",
                 ));
             }
@@ -6802,10 +8337,16 @@ fn check_remaining_analytics<'a>(
         // stop_headsign (B4: tek-tarama'dan toplanan caps değerleri — aynı sıra/içerik/ctr)
         for (line, s) in &dq_caps_hs {
             notices.push(k6_notice(
-                ctr, "DQ_018", EntityType::Row,
-                None, None,
-                "stop_times.txt", Some(*line), Some("stop_headsign"),
-                Some(s.clone()), None,
+                ctr,
+                "DQ_018",
+                EntityType::Row,
+                None,
+                None,
+                "stop_times.txt",
+                Some(*line),
+                Some("stop_headsign"),
+                Some(s.clone()),
+                None,
                 format!("stop_headsign değeri tamamen büyük harf: '{s}'."),
                 "Yön adını düzgün harf kuralıyla yazın.",
             ));
@@ -6815,11 +8356,20 @@ fn check_remaining_analytics<'a>(
         if let Some(fi) = records.feed_info.first() {
             if is_all_caps(&fi.feed_publisher_name) {
                 notices.push(k6_notice(
-                    ctr, "DQ_018", EntityType::Feed,
-                    None, None,
-                    "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
-                    Some(fi.feed_publisher_name.clone()), None,
-                    format!("feed_publisher_name tamamen büyük harf: '{}'.", fi.feed_publisher_name),
+                    ctr,
+                    "DQ_018",
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "feed_info.txt",
+                    Some(fi.line),
+                    Some("feed_publisher_name"),
+                    Some(fi.feed_publisher_name.clone()),
+                    None,
+                    format!(
+                        "feed_publisher_name tamamen büyük harf: '{}'.",
+                        fi.feed_publisher_name
+                    ),
                     "Yayıncı adını düzgün harf kuralıyla yazın.",
                 ));
             }
@@ -6830,53 +8380,97 @@ fn check_remaining_analytics<'a>(
     {
         let _t19 = Timer::start("K6::rem::dq_019");
         for stop in &records.stops {
-            if stop.stop_id.is_empty() { continue; }
+            if stop.stop_id.is_empty() {
+                continue;
+            }
             if let Some(name) = stop.stop_name.as_deref().filter(|s| is_all_lower(s)) {
                 notices.push(k6_notice(
-                    ctr, "DQ_019", EntityType::Stop,
-                    Some(stop.stop_id.clone()), Some(stop.stop_id.clone()),
-                    "stops.txt", Some(stop.line), Some("stop_name"),
-                    Some(name.to_string()), None,
-                    format!("'{}' durağının adı tamamen küçük harf: '{name}'.", stop.stop_id),
+                    ctr,
+                    "DQ_019",
+                    EntityType::Stop,
+                    Some(stop.stop_id.clone()),
+                    Some(stop.stop_id.clone()),
+                    "stops.txt",
+                    Some(stop.line),
+                    Some("stop_name"),
+                    Some(name.to_string()),
+                    None,
+                    format!(
+                        "'{}' durağının adı tamamen küçük harf: '{name}'.",
+                        stop.stop_id
+                    ),
                     "Durak adını başlık harfiyle yazın (ör. 'Merkez İstasyon').",
                 ));
             }
         }
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
+            if route.route_id.is_empty() {
+                continue;
+            }
             if let Some(name) = route.route_long_name.as_deref().filter(|s| is_all_lower(s)) {
                 notices.push(k6_notice(
-                    ctr, "DQ_019", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line), Some("route_long_name"),
-                    Some(name.to_string()), None,
-                    format!("'{}' hattının uzun adı tamamen küçük harf: '{name}'.", route.route_id),
+                    ctr,
+                    "DQ_019",
+                    EntityType::Route,
+                    Some(route.route_id.clone()),
+                    Some(route.route_id.clone()),
+                    "routes.txt",
+                    Some(route.line),
+                    Some("route_long_name"),
+                    Some(name.to_string()),
+                    None,
+                    format!(
+                        "'{}' hattının uzun adı tamamen küçük harf: '{name}'.",
+                        route.route_id
+                    ),
                     "Hat adını başlık harfiyle yazın.",
                 ));
             }
         }
         for route in &records.routes {
-            if route.route_id.is_empty() { continue; }
+            if route.route_id.is_empty() {
+                continue;
+            }
             if let Some(desc) = route.route_desc.as_deref().filter(|s| is_all_lower(s)) {
                 notices.push(k6_notice(
-                    ctr, "DQ_019", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line), Some("route_desc"),
-                    Some(desc.to_string()), None,
-                    format!("'{}' hattının açıklaması tamamen küçük harf: '{desc}'.", route.route_id),
+                    ctr,
+                    "DQ_019",
+                    EntityType::Route,
+                    Some(route.route_id.clone()),
+                    Some(route.route_id.clone()),
+                    "routes.txt",
+                    Some(route.line),
+                    Some("route_desc"),
+                    Some(desc.to_string()),
+                    None,
+                    format!(
+                        "'{}' hattının açıklaması tamamen küçük harf: '{desc}'.",
+                        route.route_id
+                    ),
                     "Hat açıklamasını başlık harfiyle yazın.",
                 ));
             }
         }
         for trip in &records.trips {
-            if trip.trip_id.is_empty() { continue; }
+            if trip.trip_id.is_empty() {
+                continue;
+            }
             if let Some(hs) = ti_rem.headsign(trip).filter(|s| is_all_lower(s)) {
                 notices.push(k6_notice(
-                    ctr, "DQ_019", EntityType::Trip,
-                    Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                    "trips.txt", Some(trip.line), Some("trip_headsign"),
-                    Some(hs.to_string()), None,
-                    format!("'{}' seferinin yön adı tamamen küçük harf: '{hs}'.", trip.trip_id),
+                    ctr,
+                    "DQ_019",
+                    EntityType::Trip,
+                    Some(trip.trip_id.to_string()),
+                    Some(trip.trip_id.to_string()),
+                    "trips.txt",
+                    Some(trip.line),
+                    Some("trip_headsign"),
+                    Some(hs.to_string()),
+                    None,
+                    format!(
+                        "'{}' seferinin yön adı tamamen küçük harf: '{hs}'.",
+                        trip.trip_id
+                    ),
                     "Yön adını başlık harfiyle yazın.",
                 ));
             }
@@ -6884,17 +8478,30 @@ fn check_remaining_analytics<'a>(
 
         // agency_name
         for ag in &records.agencies {
-            if ag.agency_name.is_empty() { continue; }
+            if ag.agency_name.is_empty() {
+                continue;
+            }
             if is_all_lower(&ag.agency_name) {
-                let label = ag.agency_id.as_deref()
+                let label = ag
+                    .agency_id
+                    .as_deref()
                     .filter(|s| !s.is_empty())
                     .unwrap_or(ag.agency_name.as_str());
                 notices.push(k6_notice(
-                    ctr, "DQ_019", EntityType::Agency,
-                    Some(label.to_string()), Some(label.to_string()),
-                    "agency.txt", Some(ag.line), Some("agency_name"),
-                    Some(ag.agency_name.clone()), None,
-                    format!("'{}' işleticisinin adı tamamen küçük harf: '{}'.", label, ag.agency_name),
+                    ctr,
+                    "DQ_019",
+                    EntityType::Agency,
+                    Some(label.to_string()),
+                    Some(label.to_string()),
+                    "agency.txt",
+                    Some(ag.line),
+                    Some("agency_name"),
+                    Some(ag.agency_name.clone()),
+                    None,
+                    format!(
+                        "'{}' işleticisinin adı tamamen küçük harf: '{}'.",
+                        label, ag.agency_name
+                    ),
                     "İşletici adını başlık harfiyle yazın.",
                 ));
             }
@@ -6903,10 +8510,16 @@ fn check_remaining_analytics<'a>(
         // stop_headsign (B4: tek-tarama'dan toplanan lower değerleri — aynı sıra/içerik/ctr)
         for (line, s) in &dq_lower_hs {
             notices.push(k6_notice(
-                ctr, "DQ_019", EntityType::Row,
-                None, None,
-                "stop_times.txt", Some(*line), Some("stop_headsign"),
-                Some(s.clone()), None,
+                ctr,
+                "DQ_019",
+                EntityType::Row,
+                None,
+                None,
+                "stop_times.txt",
+                Some(*line),
+                Some("stop_headsign"),
+                Some(s.clone()),
+                None,
                 format!("stop_headsign değeri tamamen küçük harf: '{s}'."),
                 "Yön adını başlık harfiyle yazın.",
             ));
@@ -6916,11 +8529,20 @@ fn check_remaining_analytics<'a>(
         if let Some(fi) = records.feed_info.first() {
             if is_all_lower(&fi.feed_publisher_name) {
                 notices.push(k6_notice(
-                    ctr, "DQ_019", EntityType::Feed,
-                    None, None,
-                    "feed_info.txt", Some(fi.line), Some("feed_publisher_name"),
-                    Some(fi.feed_publisher_name.clone()), None,
-                    format!("feed_publisher_name tamamen küçük harf: '{}'.", fi.feed_publisher_name),
+                    ctr,
+                    "DQ_019",
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "feed_info.txt",
+                    Some(fi.line),
+                    Some("feed_publisher_name"),
+                    Some(fi.feed_publisher_name.clone()),
+                    None,
+                    format!(
+                        "feed_publisher_name tamamen küçük harf: '{}'.",
+                        fi.feed_publisher_name
+                    ),
                     "Yayıncı adını başlık harfiyle yazın.",
                 ));
             }
@@ -6933,10 +8555,21 @@ fn check_remaining_analytics<'a>(
     // LA Metro gibi feed'lerde 33.642 cap-busting gürültü üretiyordu.
     {
         let _t20 = Timer::start("K6::rem::dq_020");
-        let total = records.trips.iter().filter(|t| !t.trip_id.is_empty()).count();
-        let missing = records.trips.iter()
+        let total = records
+            .trips
+            .iter()
             .filter(|t| !t.trip_id.is_empty())
-            .filter(|t| ti_rem.headsign(t).map(|s| s.trim().is_empty()).unwrap_or(true))
+            .count();
+        let missing = records
+            .trips
+            .iter()
+            .filter(|t| !t.trip_id.is_empty())
+            .filter(|t| {
+                ti_rem
+                    .headsign(t)
+                    .map(|s| s.trim().is_empty())
+                    .unwrap_or(true)
+            })
             .count();
         if missing > 0 && total > 0 {
             notices.push(k6_notice(
@@ -6960,18 +8593,32 @@ fn check_remaining_analytics<'a>(
                 if dep_sec >= 23 * 3600 || (sds_sec > 0 && dep_sec < sds_sec) {
                     let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
                     let e = by_route.entry(route).or_insert((0, dep_sec, dep_sec));
-                    e.0 += 1; e.1 = e.1.min(dep_sec); e.2 = e.2.max(dep_sec);
+                    e.0 += 1;
+                    e.1 = e.1.min(dep_sec);
+                    e.2 = e.2.max(dep_sec);
                 }
             }
         }
-        let mut routes: Vec<_> = by_route.into_iter().collect(); routes.sort_by_key(|x| x.0);
+        let mut routes: Vec<_> = by_route.into_iter().collect();
+        routes.sort_by_key(|x| x.0);
         for (route, (count, min, max)) in routes {
             let hm = |s: u32| format!("{:02}:{:02}", s / 3600, s / 60 % 60);
             notices.push(k6_notice(
-                ctr, "OPR_009", EntityType::Route,
-                Some(route.to_string()), Some(route.to_string()), "stop_times.txt", None,
-                Some("departure_time"), Some(format!("{count} trips, {}-{}", hm(min), hm(max))), None,
-                format!("'{route}' hattında {count} gece seferi var (ilk kalkış aralığı {}-{}).", hm(min), hm(max)),
+                ctr,
+                "OPR_009",
+                EntityType::Route,
+                Some(route.to_string()),
+                Some(route.to_string()),
+                "stop_times.txt",
+                None,
+                Some("departure_time"),
+                Some(format!("{count} trips, {}-{}", hm(min), hm(max))),
+                None,
+                format!(
+                    "'{route}' hattında {count} gece seferi var (ilk kalkış aralığı {}-{}).",
+                    hm(min),
+                    hm(max)
+                ),
                 "Bu bilgi notu; gece servisleri için beklenen bir durumdur.",
             ));
         }
@@ -6983,7 +8630,11 @@ fn check_remaining_analytics<'a>(
         const MIN_TRIP_KM: f64 = 0.1;
         for (&trip_id, stimes) in &idx.by_trip {
             let dist_km: Option<f64> = if let Some(&shape_id) = trip_shape_local.get(trip_id) {
-                derived.shape_geometry.shapes.get(shape_id).map(|s| s.total_length_km)
+                derived
+                    .shape_geometry
+                    .shapes
+                    .get(shape_id)
+                    .map(|s| s.total_length_km)
             } else {
                 // Shape yoksa ARDIŞIK duraklar boyunca yol uzunluğu toplanır.
                 //
@@ -7001,9 +8652,10 @@ fn check_remaining_analytics<'a>(
                 let mut seen_any = false;
                 for pair in stimes.windows(2) {
                     let (a, b) = (&pair[0], &pair[1]);
-                    if let (Some(&(la1, lo1)), Some(&(la2, lo2))) =
-                        (stop_coords.get(idx.stop_id_of(a)), stop_coords.get(idx.stop_id_of(b)))
-                    {
+                    if let (Some(&(la1, lo1)), Some(&(la2, lo2))) = (
+                        stop_coords.get(idx.stop_id_of(a)),
+                        stop_coords.get(idx.stop_id_of(b)),
+                    ) {
                         total += haversine_km(la1, lo1, la2, lo2);
                         seen_any = true;
                     }
@@ -7055,16 +8707,26 @@ fn check_remaining_analytics<'a>(
         let mut route_wc: FxHashMap<&str, (bool, bool)> = FxHashMap::default();
         let mut route_ba: FxHashMap<&str, (bool, bool)> = FxHashMap::default();
         for t in &records.trips {
-            if ti_rem.route_id(t).is_empty() { continue; }
+            if ti_rem.route_id(t).is_empty() {
+                continue;
+            }
             if let Some(wc) = t.wheelchair_accessible {
                 let e = route_wc.entry(ti_rem.route_id(t)).or_default();
-                if wc == 1 { e.0 = true; }
-                if wc == 2 { e.1 = true; }
+                if wc == 1 {
+                    e.0 = true;
+                }
+                if wc == 2 {
+                    e.1 = true;
+                }
             }
             if let Some(ba) = t.bikes_allowed {
                 let e = route_ba.entry(ti_rem.route_id(t)).or_default();
-                if ba == 1 { e.0 = true; }
-                if ba == 2 { e.1 = true; }
+                if ba == 1 {
+                    e.0 = true;
+                }
+                if ba == 2 {
+                    e.1 = true;
+                }
             }
         }
         for (route_id, (has_acc, has_noacc)) in &route_wc {
@@ -7078,7 +8740,9 @@ fn check_remaining_analytics<'a>(
                     format!("'{label}' kodlu hatta bazı seferler tekerlekli sandalye erişimli (1), bazıları erişimsiz (2) olarak işaretlenmiş."),
                     "Aynı hattaki tüm seferlerin erişilebilirlik bilgisini tutarlı hâle getirin.",
                 );
-                notice.details.get_or_insert_with(Default::default)
+                notice
+                    .details
+                    .get_or_insert_with(Default::default)
                     .insert("route_label".to_string(), label.to_string());
                 notices.push(notice);
             }
@@ -7094,7 +8758,9 @@ fn check_remaining_analytics<'a>(
                     format!("'{label}' kodlu hatta bazı seferler bisiklete izin veriyor (1), bazıları vermiyor (2)."),
                     "Aynı hattaki tüm seferlerin bisiklet politikasını tutarlı hâle getirin.",
                 );
-                notice.details.get_or_insert_with(Default::default)
+                notice
+                    .details
+                    .get_or_insert_with(Default::default)
                     .insert("route_label".to_string(), label.to_string());
                 notices.push(notice);
             }
@@ -7105,7 +8771,9 @@ fn check_remaining_analytics<'a>(
     {
         let _t14 = Timer::start("K6::rem::opr_014");
         const AVG_TRANSFER_THRESHOLD_SEC: u64 = 600; // 10 dakika
-        let timed: Vec<u32> = records.transfers.iter()
+        let timed: Vec<u32> = records
+            .transfers
+            .iter()
             .filter(|t| t.transfer_type == Some(2))
             .filter_map(|t| t.min_transfer_time)
             .collect();
@@ -7176,7 +8844,8 @@ fn check_remaining_analytics<'a>(
                 ));
                 continue;
             }
-            let total_km: f64 = pts.windows(2)
+            let total_km: f64 = pts
+                .windows(2)
                 .map(|w| haversine_km(w[0].0, w[0].1, w[1].0, w[1].1))
                 .sum();
             if total_km > 1.0 {
@@ -7215,7 +8884,8 @@ fn check_remaining_analytics<'a>(
         const SHP020_AGG_THRESHOLD: usize = 50;
         // (yuvarlanmış lat, lon) → (temsili shape_id, i, j, lat, lon, o koordinattaki shape'ler)
         type ShapeDuplicate<'a> = (&'a str, usize, usize, f64, f64, Vec<&'a str>);
-        type ShapeDuplicatesByCoord<'a> = std::collections::BTreeMap<(i64, i64), ShapeDuplicate<'a>>;
+        type ShapeDuplicatesByCoord<'a> =
+            std::collections::BTreeMap<(i64, i64), ShapeDuplicate<'a>>;
         let mut by_coord: ShapeDuplicatesByCoord<'_> = std::collections::BTreeMap::new();
         for (shape_id, pts) in shape_coords.iter() {
             // Sadece ardışık çiftleri değil, küçük bir pencere içinde kontrol et
@@ -7228,9 +8898,9 @@ fn check_remaining_analytics<'a>(
                             (pts[i].0 * 1e6).round() as i64,
                             (pts[i].1 * 1e6).round() as i64,
                         );
-                        let e = by_coord.entry(key).or_insert_with(|| {
-                            (*shape_id, i, j, pts[i].0, pts[i].1, Vec::new())
-                        });
+                        let e = by_coord
+                            .entry(key)
+                            .or_insert_with(|| (*shape_id, i, j, pts[i].0, pts[i].1, Vec::new()));
                         // Temsilci deterministik: leksikografik en küçük shape_id.
                         if *shape_id < e.0 {
                             e.0 = *shape_id;
@@ -7249,7 +8919,12 @@ fn check_remaining_analytics<'a>(
             shapes.sort_unstable();
             shapes.dedup();
             let n_shapes = shapes.len();
-            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+            let prefix = shp_route_prefix(
+                shape_route_labels
+                    .get(shape_id)
+                    .map(|v| v.as_slice())
+                    .unwrap_or(&[]),
+            );
             let repeat_suffix = if n_shapes > 1 {
                 format!(" Aynı konum {n_shapes} güzergah şeklinde tekrarlanıyor (istasyon/makas geometrisi).")
             } else {
@@ -7278,15 +8953,25 @@ fn check_remaining_analytics<'a>(
                 // siliyordu; mevcut map'e EKLENİR.
                 let d = n.details.get_or_insert_with(Default::default);
                 d.insert("repeated_shapes".to_string(), n_shapes.to_string());
-                d.insert("shapes".to_string(),
-                    shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
+                d.insert(
+                    "shapes".to_string(),
+                    shapes
+                        .iter()
+                        .take(10)
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
             }
             shp020_pending.push(n);
         }
         let n20 = shp020_pending.len();
         if n20 > SHP020_AGG_THRESHOLD {
-            let examples: Vec<String> = shp020_pending.iter()
-                .filter_map(|x| x.entity_id.clone()).take(5).collect();
+            let examples: Vec<String> = shp020_pending
+                .iter()
+                .filter_map(|x| x.entity_id.clone())
+                .take(5)
+                .collect();
             let mut notice = k6_notice(
                 ctr, "SHP_020", EntityType::Feed, None, None,
                 "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -7296,7 +8981,9 @@ fn check_remaining_analytics<'a>(
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("affected_shapes".to_string(), n20.to_string());
-            if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
+            if !examples.is_empty() {
+                d.insert("example_shapes".to_string(), examples.join(", "));
+            }
             notice.details = Some(d);
             notices.push(notice);
         } else {
@@ -7321,17 +9008,30 @@ fn check_remaining_analytics<'a>(
         type ShapeCrossingsByCoord<'a> = std::collections::BTreeMap<(i64, i64), ShapeCrossing<'a>>;
         let mut by_coord: ShapeCrossingsByCoord<'_> = std::collections::BTreeMap::new();
         for (shape_id, pts) in shape_coords.iter() {
-            if pts.len() < 4 { continue; }
+            if pts.len() < 4 {
+                continue;
+            }
             // O(n²) segment-crossing: büyük shape'lerde maksimum 300 segment kontrol et
             let n = pts.len().min(301);
             'seg_outer: for i in 0..n.saturating_sub(1) {
                 for j in i + 2..n.saturating_sub(1) {
-                    if i == 0 && j == n - 2 { continue; } // bitişik uçlar
-                    if segments_cross(pts[i], pts[i+1], pts[j], pts[j+1]) {
-                        let key = ((pts[i].0 * 1e3).round() as i64, (pts[i].1 * 1e3).round() as i64);
-                        let e = by_coord.entry(key).or_insert_with(|| (*shape_id, i, j, Vec::new()));
+                    if i == 0 && j == n - 2 {
+                        continue;
+                    } // bitişik uçlar
+                    if segments_cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
+                        let key = (
+                            (pts[i].0 * 1e3).round() as i64,
+                            (pts[i].1 * 1e3).round() as i64,
+                        );
+                        let e = by_coord
+                            .entry(key)
+                            .or_insert_with(|| (*shape_id, i, j, Vec::new()));
                         // Temsilci deterministik: leksikografik en küçük shape_id.
-                        if *shape_id < e.0 { e.0 = *shape_id; e.1 = i; e.2 = j; }
+                        if *shape_id < e.0 {
+                            e.0 = *shape_id;
+                            e.1 = i;
+                            e.2 = j;
+                        }
                         e.3.push(*shape_id);
                         break 'seg_outer;
                     }
@@ -7343,7 +9043,12 @@ fn check_remaining_analytics<'a>(
             shapes.sort_unstable();
             shapes.dedup();
             let n_shapes = shapes.len();
-            let prefix = shp_route_prefix(shape_route_labels.get(shape_id).map(|v| v.as_slice()).unwrap_or(&[]));
+            let prefix = shp_route_prefix(
+                shape_route_labels
+                    .get(shape_id)
+                    .map(|v| v.as_slice())
+                    .unwrap_or(&[]),
+            );
             let repeat_suffix = if n_shapes > 1 {
                 format!(" Aynı kesişme {n_shapes} güzergah şeklinde tekrarlanıyor (makas/istasyon yaklaşması).")
             } else {
@@ -7370,14 +9075,25 @@ fn check_remaining_analytics<'a>(
             if n_shapes > 1 {
                 let d = n.details.get_or_insert_with(Default::default);
                 d.insert("repeated_shapes".to_string(), n_shapes.to_string());
-                d.insert("shapes".to_string(), shapes.iter().take(10).copied().collect::<Vec<_>>().join(","));
+                d.insert(
+                    "shapes".to_string(),
+                    shapes
+                        .iter()
+                        .take(10)
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
             }
             shp009_pending.push(n);
         }
         let n09 = shp009_pending.len();
         if n09 > SHP009_AGG_THRESHOLD {
-            let examples: Vec<String> = shp009_pending.iter()
-                .filter_map(|x| x.entity_id.clone()).take(5).collect();
+            let examples: Vec<String> = shp009_pending
+                .iter()
+                .filter_map(|x| x.entity_id.clone())
+                .take(5)
+                .collect();
             let mut notice = k6_notice(
                 ctr, "SHP_009", EntityType::Feed, None, None,
                 "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
@@ -7387,14 +9103,15 @@ fn check_remaining_analytics<'a>(
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("affected_shapes".to_string(), n09.to_string());
-            if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
+            if !examples.is_empty() {
+                d.insert("example_shapes".to_string(), examples.join(", "));
+            }
             notice.details = Some(d);
             notices.push(notice);
         } else {
             notices.append(&mut shp009_pending);
         }
     }
-
 }
 
 /// SHP_012: güzergah şekli sefer duraklarından çok uzak.
@@ -7439,44 +9156,57 @@ fn check_shp012<'a>(
         let mut shape_stop_violations: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         let mut dist_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
         for trip in &records.trips {
-            let Some(shape_id) = ti_shp012.shape_id(trip).filter(|s| !s.is_empty()) else { continue };
-            let Some(pts) = shape_coords.get(shape_id) else { continue };
-            let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
+            let Some(shape_id) = ti_shp012.shape_id(trip).filter(|s| !s.is_empty()) else {
+                continue;
+            };
+            let Some(pts) = shape_coords.get(shape_id) else {
+                continue;
+            };
+            let Some(stimes) = idx.by_trip.get(trip.trip_id.as_str()) else {
+                continue;
+            };
             // Eşik shape başına: raylı güzergahlarda istasyon geometrisi daha geniş tolerans ister.
             let shp_stop_threshold_m = stop_shape_threshold_m(shape_id, rail_shapes, config);
 
             for st in stimes.iter() {
                 let stop_id = idx.stop_id_of(st);
-                let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
+                let Some(&(slat, slon)) = stop_coords.get(stop_id) else {
+                    continue;
+                };
                 // Shape'e en yakın SEGMENT mesafesi (nokta-noktaya değil): seyrek shape
                 // noktalarında iki nokta arasındaki duraklarda false-positive önlenir.
-                let min_dist_m = *dist_cache
-                    .entry((shape_id, stop_id))
-                    .or_insert_with(|| {
-                        // B3 bbox kısayolu (GEO_009 emsali): bbox+500m dışındaki durak kesinlikle
-                        // >500m → tam polyline hesabı yerine clamped-corner haversine (>500m garantili)
-                        // sakla. >threshold booleanı, viol_count ve mesaj birebir korunur.
-                        if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
-                            let cos_lat = slat.to_radians().cos();
-                            let margin_lat = shp_stop_threshold_m / 111_320.0_f64;
-                            let margin_lon = shp_stop_threshold_m / (111_320.0_f64 * cos_lat);
-                            if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
-                                || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
-                                let clat = slat.clamp(bmin_la, bmax_la);
-                                let clon = slon.clamp(bmin_lo, bmax_lo);
-                                return haversine_km(slat, slon, clat, clon) * 1000.0;
-                            }
+                let min_dist_m = *dist_cache.entry((shape_id, stop_id)).or_insert_with(|| {
+                    // B3 bbox kısayolu (GEO_009 emsali): bbox+500m dışındaki durak kesinlikle
+                    // >500m → tam polyline hesabı yerine clamped-corner haversine (>500m garantili)
+                    // sakla. >threshold booleanı, viol_count ve mesaj birebir korunur.
+                    if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
+                        let cos_lat = slat.to_radians().cos();
+                        let margin_lat = shp_stop_threshold_m / 111_320.0_f64;
+                        let margin_lon = shp_stop_threshold_m / (111_320.0_f64 * cos_lat);
+                        if slat < bmin_la - margin_lat
+                            || slat > bmax_la + margin_lat
+                            || slon < bmin_lo - margin_lon
+                            || slon > bmax_lo + margin_lon
+                        {
+                            let clat = slat.clamp(bmin_la, bmax_la);
+                            let clon = slon.clamp(bmin_lo, bmax_lo);
+                            return haversine_km(slat, slon, clat, clon) * 1000.0;
                         }
-                        point_to_polyline_dist_m(slat, slon, pts)
-                    });
+                    }
+                    point_to_polyline_dist_m(slat, slon, pts)
+                });
                 if min_dist_m > shp_stop_threshold_m {
-                    shape_stop_violations.entry(shape_id).or_default().insert(stop_id);
+                    shape_stop_violations
+                        .entry(shape_id)
+                        .or_default()
+                        .insert(stop_id);
                 }
             }
         }
 
         // Determinizm: FxHashMap sırası insertion'a bağlı; shape_id'ye göre sırala.
-        let mut viol_sorted: Vec<(&&str, &FxHashSet<&str>)> = shape_stop_violations.iter().collect();
+        let mut viol_sorted: Vec<(&&str, &FxHashSet<&str>)> =
+            shape_stop_violations.iter().collect();
         viol_sorted.sort_by(|a, b| a.0.cmp(b.0));
         // Haritada hatalı durakları AYRI RENKTE göstermek için id listesi details'ta taşınır.
         // Sınır: harita okunabilirliği için ilk 25 (sıralı, deterministik); sayı mesajda zaten var.
@@ -7497,7 +9227,11 @@ fn check_shp012<'a>(
                 ),
                 "shapes.txt noktalarını durak konumlarına yaklaştırın.",
             );
-            n.details = Some([("far_stops".to_string(), far.join(","))].into_iter().collect());
+            n.details = Some(
+                [("far_stops".to_string(), far.join(","))]
+                    .into_iter()
+                    .collect(),
+            );
             notices.push(n);
         }
     }
@@ -7542,8 +9276,8 @@ fn check_shp022<'a>(
     // ── SHP_022 gövdesi (check_remaining_analytics'ten verbatim taşındı) ─────
     {
         let _t22 = Timer::start("K6::shp022::body");
-        const MATCH_KM: f64 = 0.150;       // 150 m — eşleşme eşiği
-        const SEP_KM:   f64 = 0.500;       // 500 m — iki cluster arası min arc fark
+        const MATCH_KM: f64 = 0.150; // 150 m — eşleşme eşiği
+        const SEP_KM: f64 = 0.500; // 500 m — iki cluster arası min arc fark
 
         let mut shp022_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
         // B2 perf: (shape,stop) küme kararı saf fonksiyon — aynı çifti paylaşan onlarca
@@ -7557,10 +9291,18 @@ fn check_shp022<'a>(
 
         for (trip_id, stimes) in &idx.by_trip {
             // Sadece shape_dist_traveled eksik trippler
-            if !idx.trips_missing_sdt.contains_key(trip_id) { continue; }
-            let Some(&shape_id) = trip_shape_local.get(trip_id) else { continue };
-            let Some(pts) = shape_coords.get(shape_id) else { continue };
-            if pts.len() < 2 { continue; }
+            if !idx.trips_missing_sdt.contains_key(trip_id) {
+                continue;
+            }
+            let Some(&shape_id) = trip_shape_local.get(trip_id) else {
+                continue;
+            };
+            let Some(pts) = shape_coords.get(shape_id) else {
+                continue;
+            };
+            if pts.len() < 2 {
+                continue;
+            }
 
             // #52: stop_sequence KULLANILABİLİR ise (mevcut + kesin artan + tekrarsız)
             // sıra-farkında monoton eşleme durağın shape üzerindeki konumunu çözer →
@@ -7572,22 +9314,30 @@ fn check_shp022<'a>(
                 let mut ok = true;
                 for st in stimes.iter() {
                     match st.stop_sequence() {
-                        None => { ok = false; break; }
+                        None => {
+                            ok = false;
+                            break;
+                        }
                         Some(s) => {
-                            if last.is_some_and(|l| s <= l) { ok = false; break; }
+                            if last.is_some_and(|l| s <= l) {
+                                ok = false;
+                                break;
+                            }
                             last = Some(s);
                         }
                     }
                 }
                 ok
             };
-            if seq_usable { continue; }
+            if seq_usable {
+                continue;
+            }
 
             let cum = shape_cum.entry(shape_id).or_insert_with(|| {
                 let mut c = Vec::with_capacity(pts.len());
                 c.push(0.0_f64);
                 for i in 1..pts.len() {
-                    c.push(c[i-1] + haversine_km(pts[i-1].0, pts[i-1].1, pts[i].0, pts[i].1));
+                    c.push(c[i - 1] + haversine_km(pts[i - 1].0, pts[i - 1].1, pts[i].0, pts[i].1));
                 }
                 c
             });
@@ -7597,17 +9347,26 @@ fn check_shp022<'a>(
 
             for st in stimes.iter() {
                 let stop_id = idx.stop_id_of(st);
-                if shp022_seen.contains(&(shape_id, stop_id)) { continue; }
-                if !shp022_done.insert((shape_id, stop_id)) { continue; }
-                let Some(&(slat, slon)) = stop_coords.get(stop_id) else { continue };
+                if shp022_seen.contains(&(shape_id, stop_id)) {
+                    continue;
+                }
+                if !shp022_done.insert((shape_id, stop_id)) {
+                    continue;
+                }
+                let Some(&(slat, slon)) = stop_coords.get(stop_id) else {
+                    continue;
+                };
 
                 // B2 bbox ön-filtresi (GEO_009 emsali, satır ~3323): bbox+MATCH_KM dışındaki
                 // durak hiçbir segmente MATCH_KM kadar yakın olamaz → close_arcs boş → notice yok.
                 if let Some(&[bmin_la, bmax_la, bmin_lo, bmax_lo]) = shape_bbox.get(shape_id) {
                     let margin_lat = MATCH_KM / 111.0_f64;
                     let margin_lon = MATCH_KM / scale_lon;
-                    if slat < bmin_la - margin_lat || slat > bmax_la + margin_lat
-                        || slon < bmin_lo - margin_lon || slon > bmax_lo + margin_lon {
+                    if slat < bmin_la - margin_lat
+                        || slat > bmax_la + margin_lat
+                        || slon < bmin_lo - margin_lon
+                        || slon > bmax_lo + margin_lon
+                    {
                         continue;
                     }
                 }
@@ -7621,33 +9380,47 @@ fn check_shp022<'a>(
                     let ay = (alat - slat) * 111.0_f64;
                     let bx = (blon - slon) * scale_lon;
                     let by_ = (blat - slat) * 111.0_f64;
-                    let dx = bx - ax; let dy = by_ - ay;
+                    let dx = bx - ax;
+                    let dy = by_ - ay;
                     let len_sq = dx * dx + dy * dy;
-                    let t = if len_sq < 1e-12 { 0.0_f64 } else {
+                    let t = if len_sq < 1e-12 {
+                        0.0_f64
+                    } else {
                         ((-ax * dx) + (-ay * dy)) / len_sq
-                    }.clamp(0.0_f64, 1.0_f64);
-                    let nx = ax + t * dx; let ny = ay + t * dy;
+                    }
+                    .clamp(0.0_f64, 1.0_f64);
+                    let nx = ax + t * dx;
+                    let ny = ay + t * dy;
                     let dsq = nx * nx + ny * ny;
                     if dsq <= match_sq {
                         close_arcs.push(cum[w] + t * (cum[w + 1] - cum[w]));
                     }
                 }
-                if close_arcs.is_empty() { continue; }
+                if close_arcs.is_empty() {
+                    continue;
+                }
 
                 // Cluster sayısını bul (art arda gelmeyen arc grupları)
                 close_arcs.sort_by(|a, b| a.total_cmp(b));
                 let mut clusters = 1usize;
                 let mut prev = close_arcs[0];
                 for &arc in &close_arcs[1..] {
-                    if arc - prev > SEP_KM { clusters += 1; }
+                    if arc - prev > SEP_KM {
+                        clusters += 1;
+                    }
                     prev = arc;
                 }
-                if clusters < 2 { continue; }
+                if clusters < 2 {
+                    continue;
+                }
 
                 shp022_seen.insert((shape_id, stop_id));
                 // Stop başına yalnız en küçük (st.line, shape_id) temsilciyi tut (dedup eşdeğeri).
                 let best_key = (st.line as u64, shape_id);
-                if shp022_best.get(stop_id).is_some_and(|(k, _)| *k <= best_key) {
+                if shp022_best
+                    .get(stop_id)
+                    .is_some_and(|(k, _)| *k <= best_key)
+                {
                     continue;
                 }
                 let sname = stop_names.get(stop_id).copied().unwrap_or(stop_id);
@@ -7782,47 +9555,52 @@ fn check_linked_trip_continuations(
     let active = &derived.calendar_bitmap.active_dates;
     // Bir grubun içindeki İLK çelişkiyi döndürür: (seferA, servisA, seferB, servisB, ortak gün,
     // satır). Grup başına tek notice yeter — aynı belirsizliğin her çiftini saymak gürültüdür.
-    let first_conflict = |partners: &[(&str, u64)]| -> Option<(String, String, String, String, u32, u64)> {
-        // Servis başına İLK sefer (trip_id'ye göre sıralı) → çıktı deterministik.
-        let mut sorted: Vec<(&str, u64)> = partners.to_vec();
-        sorted.sort_unstable();
-        sorted.dedup_by_key(|(t, _)| *t);
-        let mut per_service: Vec<(&str, &str, u64)> = Vec::new(); // (service_id, trip_id, line)
-        for (trip, line) in sorted {
-            let svc = service_of[trip];
-            if !per_service.iter().any(|(s, _, _)| *s == svc) {
-                per_service.push((svc, trip, line));
-            }
-        }
-        if per_service.len() < 2 {
-            return None;
-        }
-        for i in 0..per_service.len() {
-            for j in (i + 1)..per_service.len() {
-                let (svc_a, trip_a, _) = per_service[i];
-                let (svc_b, trip_b, line_b) = per_service[j];
-                // Takvim çözülemiyorsa (calendar/calendar_dates eksik ya da hatalı) çakışma
-                // KANITLANAMAZ → sessiz kal. Boş küme "çakışma yok" demektir, "bilmiyorum" değil,
-                // ama ikisinde de bildirecek bir şey yok.
-                let (Some(days_a), Some(days_b)) = (active.get(svc_a), active.get(svc_b)) else {
-                    continue;
-                };
-                let (small, large) = if days_a.len() <= days_b.len() {
-                    (days_a, days_b)
-                } else {
-                    (days_b, days_a)
-                };
-                if let Some(day) = small.iter().filter(|d| large.contains(*d)).min() {
-                    return Some((
-                        trip_a.to_string(), svc_a.to_string(),
-                        trip_b.to_string(), svc_b.to_string(),
-                        *day, line_b,
-                    ));
+    let first_conflict =
+        |partners: &[(&str, u64)]| -> Option<(String, String, String, String, u32, u64)> {
+            // Servis başına İLK sefer (trip_id'ye göre sıralı) → çıktı deterministik.
+            let mut sorted: Vec<(&str, u64)> = partners.to_vec();
+            sorted.sort_unstable();
+            sorted.dedup_by_key(|(t, _)| *t);
+            let mut per_service: Vec<(&str, &str, u64)> = Vec::new(); // (service_id, trip_id, line)
+            for (trip, line) in sorted {
+                let svc = service_of[trip];
+                if !per_service.iter().any(|(s, _, _)| *s == svc) {
+                    per_service.push((svc, trip, line));
                 }
             }
-        }
-        None
-    };
+            if per_service.len() < 2 {
+                return None;
+            }
+            for i in 0..per_service.len() {
+                for j in (i + 1)..per_service.len() {
+                    let (svc_a, trip_a, _) = per_service[i];
+                    let (svc_b, trip_b, line_b) = per_service[j];
+                    // Takvim çözülemiyorsa (calendar/calendar_dates eksik ya da hatalı) çakışma
+                    // KANITLANAMAZ → sessiz kal. Boş küme "çakışma yok" demektir, "bilmiyorum" değil,
+                    // ama ikisinde de bildirecek bir şey yok.
+                    let (Some(days_a), Some(days_b)) = (active.get(svc_a), active.get(svc_b))
+                    else {
+                        continue;
+                    };
+                    let (small, large) = if days_a.len() <= days_b.len() {
+                        (days_a, days_b)
+                    } else {
+                        (days_b, days_a)
+                    };
+                    if let Some(day) = small.iter().filter(|d| large.contains(*d)).min() {
+                        return Some((
+                            trip_a.to_string(),
+                            svc_a.to_string(),
+                            trip_b.to_string(),
+                            svc_b.to_string(),
+                            *day,
+                            line_b,
+                        ));
+                    }
+                }
+            }
+            None
+        };
 
     // HashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
     let mut from_keys: Vec<&str> = by_from.keys().copied().collect();
@@ -7831,16 +9609,24 @@ fn check_linked_trip_continuations(
         let Some((ta, sa, tb, sb, day, line)) = first_conflict(&by_from[trip]) else {
             continue;
         };
-        notices.push(k6_notice(ctr, "TRF_022", EntityType::Trip,
-            Some(trip.to_string()), Some(trip.to_string()),
-            "transfers.txt", Some(line), Some("to_trip_id"),
-            Some(format!("{ta} ({sa}) / {tb} ({sb})")), None,
+        notices.push(k6_notice(
+            ctr,
+            "TRF_022",
+            EntityType::Trip,
+            Some(trip.to_string()),
+            Some(trip.to_string()),
+            "transfers.txt",
+            Some(line),
+            Some("to_trip_id"),
+            Some(format!("{ta} ({sa}) / {tb} ({sb})")),
+            None,
             format!(
                 "'{trip}' seferi birden çok sefere bağlanıyor ama devam seferlerinin takvimleri \
                  çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
             ),
             "1-to-n devamlılıkta tüm to_trip_id seferleri aynı service_id'yi kullanmalıdır. \
-             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır."));
+             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır.",
+        ));
     }
 
     let mut to_keys: Vec<&str> = by_to.keys().copied().collect();
@@ -7849,16 +9635,24 @@ fn check_linked_trip_continuations(
         let Some((ta, sa, tb, sb, day, line)) = first_conflict(&by_to[trip]) else {
             continue;
         };
-        notices.push(k6_notice(ctr, "TRF_023", EntityType::Trip,
-            Some(trip.to_string()), Some(trip.to_string()),
-            "transfers.txt", Some(line), Some("from_trip_id"),
-            Some(format!("{ta} ({sa}) / {tb} ({sb})")), None,
+        notices.push(k6_notice(
+            ctr,
+            "TRF_023",
+            EntityType::Trip,
+            Some(trip.to_string()),
+            Some(trip.to_string()),
+            "transfers.txt",
+            Some(line),
+            Some("from_trip_id"),
+            Some(format!("{ta} ({sa}) / {tb} ({sb})")),
+            None,
             format!(
                 "'{trip}' seferine birden çok sefer bağlanıyor ama gelen seferlerin takvimleri \
                  çelişiyor: '{ta}' → {sa}, '{tb}' → {sb}; ikisi de {day} günü aktif."
             ),
             "n-to-1 devamlılıkta tüm from_trip_id seferleri aynı service_id'yi kullanmalıdır. \
-             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır."));
+             Bunlar ayrı devamlılıklarsa takvimleri hiçbir günde çakışmamalıdır.",
+        ));
     }
 }
 
@@ -7896,8 +9690,16 @@ fn check_calendar_override_analytics(
     // binary_search ile O(log n) üyelik sorgusu — ayrı svc_date_exc map'i YOK.
     // has_exc helper: serviste belirtilen tarih için herhangi bir exception (type 1 veya 2) var mı?
     let has_exc_date = |svc: &str, date: u32| -> bool {
-        records.calendar_dates.added.get(svc).is_some_and(|v| v.binary_search(&date).is_ok())
-            || records.calendar_dates.removed.get(svc).is_some_and(|v| v.binary_search(&date).is_ok())
+        records
+            .calendar_dates
+            .added
+            .get(svc)
+            .is_some_and(|v| v.binary_search(&date).is_ok())
+            || records
+                .calendar_dates
+                .removed
+                .get(svc)
+                .is_some_and(|v| v.binary_search(&date).is_ok())
     };
 
     // ── Operasyonel sefer kimliği (OPR_019/OPR_020 çakışma tanımı) ──────────
@@ -7913,7 +9715,8 @@ fn check_calendar_override_analytics(
     // = yön + tren adı (trip_short_name) + ilk kalkış saati + sıralı durak dizisi.
     //
     // Perf: imzalar yalnız ≥2 servisli route'lar için hesaplanır.
-    let multi_svc_routes: FxHashSet<&str> = route_services.iter()
+    let multi_svc_routes: FxHashSet<&str> = route_services
+        .iter()
         .filter(|(_, svcs)| svcs.len() >= 2)
         .map(|(&r, _)| r)
         .collect();
@@ -7923,29 +9726,53 @@ fn check_calendar_override_analytics(
         use std::hash::{Hash, Hasher};
         for trip in &records.trips {
             let route_id = ti_cal_ov.route_id(trip);
-            if !multi_svc_routes.contains(route_id) { continue; }
+            if !multi_svc_routes.contains(route_id) {
+                continue;
+            }
             let svc_id = ti_cal_ov.service_id(trip);
-            if svc_id.is_empty() { continue; }
-            let Some(stops) = idx.by_trip.get(trip.trip_id.as_str()) else { continue };
-            if stops.is_empty() { continue; }
+            if svc_id.is_empty() {
+                continue;
+            }
+            let Some(stops) = idx.by_trip.get(trip.trip_id.as_str()) else {
+                continue;
+            };
+            if stops.is_empty() {
+                continue;
+            }
             let mut h = std::collections::hash_map::DefaultHasher::new();
             trip.direction_id.unwrap_or(u32::MAX).hash(&mut h);
             ti_cal_ov.short_name(trip).unwrap_or("").hash(&mut h);
-            stops.first().and_then(|s| s.departure_time()).map(hms_to_secs).unwrap_or(u32::MAX).hash(&mut h);
-            for st in stops.iter() { idx.stop_id_of(st).hash(&mut h); }
-            route_svc_sigs.entry(route_id).or_default()
-                .entry(svc_id).or_default()
+            stops
+                .first()
+                .and_then(|s| s.departure_time())
+                .map(hms_to_secs)
+                .unwrap_or(u32::MAX)
+                .hash(&mut h);
+            for st in stops.iter() {
+                idx.stop_id_of(st).hash(&mut h);
+            }
+            route_svc_sigs
+                .entry(route_id)
+                .or_default()
+                .entry(svc_id)
+                .or_default()
                 .insert(h.finish());
         }
     }
     // Bir günde aktif servisler arasında AYNI imzayı paylaşan var mı?
     let day_has_conflict = |route_id: &str, svcs: &[&str]| -> bool {
-        let Some(svc_sigs) = route_svc_sigs.get(route_id) else { return false };
+        let Some(svc_sigs) = route_svc_sigs.get(route_id) else {
+            return false;
+        };
         let mut seen: FxHashSet<u64> = FxHashSet::default();
         for &s in svcs {
-            let Some(sigs) = svc_sigs.get(s) else { continue };
+            let Some(sigs) = svc_sigs.get(s) else {
+                continue;
+            };
             for &sig in sigs {
-                if !seen.insert(sig) { return true; }
+                if !seen.insert(sig) {
+                    return true;
+                }
             }
         }
         false
@@ -7970,8 +9797,8 @@ fn check_calendar_override_analytics(
         }
 
         // Çakışmalı günleri sırala
-        let mut plain_dates: Vec<u32> = Vec::new();   // exception yok
-        let mut exc_dates: Vec<u32> = Vec::new();     // en az bir servis exception günü
+        let mut plain_dates: Vec<u32> = Vec::new(); // exception yok
+        let mut exc_dates: Vec<u32> = Vec::new(); // en az bir servis exception günü
         let mut plain_patterns: Vec<String> = Vec::new();
         let mut exc_patterns: Vec<String> = Vec::new();
 
@@ -7999,7 +9826,9 @@ fn check_calendar_override_analytics(
         if !plain_dates.is_empty() {
             plain_dates.sort_unstable();
             let count = plain_dates.len();
-            let sample_str: String = plain_dates.iter().take(3)
+            let sample_str: String = plain_dates
+                .iter()
+                .take(3)
                 .map(|d| d.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -8009,9 +9838,14 @@ fn check_calendar_override_analytics(
                 route_id, count, sample_str
             );
             let mut n = k6_notice(
-                ctr, "OPR_019", EntityType::Route,
-                Some(route_id.to_string()), Some(route_id.to_string()),
-                "trips.txt", None, None,
+                ctr,
+                "OPR_019",
+                EntityType::Route,
+                Some(route_id.to_string()),
+                Some(route_id.to_string()),
+                "trips.txt",
+                None,
+                None,
                 Some(format!("{count}")),
                 Some("≤ 1/day".to_string()),
                 msg,
@@ -8020,8 +9854,15 @@ fn check_calendar_override_analytics(
             n.details = Some({
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("conflict_day_count".to_string(), count.to_string());
-                d.insert("sample_dates".to_string(),
-                    plain_dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
+                d.insert(
+                    "sample_dates".to_string(),
+                    plain_dates
+                        .iter()
+                        .take(10)
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
                 d.insert("active_service_patterns".to_string(), patterns_str);
                 d
             });
@@ -8035,9 +9876,12 @@ fn check_calendar_override_analytics(
             // Her örnek tarihin yanında o tarihte çakışan service_id'leri göster:
             // "20260720 (X, Y)". Dil-nötr (yalnız tarih + service_id'ler) tutulur ki
             // tr mesajı ve en/ja şablonu aynı stringi güvenle kullanabilsin.
-            let sample_detail: String = exc_dates.iter().take(3)
+            let sample_detail: String = exc_dates
+                .iter()
+                .take(3)
                 .map(|d| {
-                    let svcs = date_services.get(d)
+                    let svcs = date_services
+                        .get(d)
                         .map(|v| {
                             let mut s = v.clone();
                             s.sort_unstable();
@@ -8068,8 +9912,15 @@ fn check_calendar_override_analytics(
             n.details = Some({
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("conflict_day_count".to_string(), count.to_string());
-                d.insert("sample_dates".to_string(),
-                    exc_dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
+                d.insert(
+                    "sample_dates".to_string(),
+                    exc_dates
+                        .iter()
+                        .take(10)
+                        .map(|x| x.to_string())
+                        .collect::<Vec<_>>()
+                        .join(","),
+                );
                 d.insert("sample_dates_detail".to_string(), sample_detail);
                 d.insert("active_service_patterns".to_string(), patterns_str);
                 d
@@ -8080,8 +9931,13 @@ fn check_calendar_override_analytics(
 
     // ── OPR_021 / OPR_022 / OPR_023: config-only ─────────────────────────────
     for rule in &config.calendar_override_rules {
-        let base_svc_set: FxHashSet<&str> = rule.base_service_ids.iter().map(|s| s.as_str()).collect();
-        let override_svc_set: FxHashSet<&str> = rule.override_service_ids.iter().map(|s| s.as_str()).collect();
+        let base_svc_set: FxHashSet<&str> =
+            rule.base_service_ids.iter().map(|s| s.as_str()).collect();
+        let override_svc_set: FxHashSet<&str> = rule
+            .override_service_ids
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
 
         let start_jdn = yyyymmdd_to_jdn(rule.start_date);
         let end_jdn = yyyymmdd_to_jdn(rule.end_date);
@@ -8093,18 +9949,24 @@ fn check_calendar_override_analytics(
         for jdn in start_jdn..=end_jdn {
             let date = jdn_to_yyyymmdd(jdn);
             let base_active = base_svc_set.iter().any(|&s| {
-                derived.calendar_bitmap.active_dates.get(s)
+                derived
+                    .calendar_bitmap
+                    .active_dates
+                    .get(s)
                     .is_some_and(|set| set.contains(&date))
             });
             let override_active = override_svc_set.iter().any(|&s| {
-                derived.calendar_bitmap.active_dates.get(s)
+                derived
+                    .calendar_bitmap
+                    .active_dates
+                    .get(s)
                     .is_some_and(|set| set.contains(&date))
             });
             match (base_active, override_active) {
-                (true, true)   => dates_021.push(date),
-                (true, false)  => dates_022.push(date),
+                (true, true) => dates_021.push(date),
+                (true, false) => dates_022.push(date),
                 (false, false) => dates_023.push(date),
-                (false, true)  => {} // doğru: base kaldırılmış, override eklenmiş
+                (false, true) => {} // doğru: base kaldırılmış, override eklenmiş
             }
         }
 
@@ -8118,12 +9980,25 @@ fn check_calendar_override_analytics(
                 rule.route_id, count, override_str, base_str, dates_021[0]
             );
             let mut n = k6_notice(
-                ctr, "OPR_021", EntityType::Route,
-                Some(rule.route_id.clone()), Some(rule.route_id.clone()),
-                "calendar_dates.txt", None, None, None, None, msg,
+                ctr,
+                "OPR_021",
+                EntityType::Route,
+                Some(rule.route_id.clone()),
+                Some(rule.route_id.clone()),
+                "calendar_dates.txt",
+                None,
+                None,
+                None,
+                None,
+                msg,
                 "Override gününde base servisi calendar_dates.txt ile kaldırın (exception_type=2).",
             );
-            n.details = Some(build_override_details(count, &dates_021, &base_str, &override_str));
+            n.details = Some(build_override_details(
+                count,
+                &dates_021,
+                &base_str,
+                &override_str,
+            ));
             notices.push(n);
         }
 
@@ -8139,7 +10014,12 @@ fn check_calendar_override_analytics(
                 "calendar_dates.txt", None, None, None, None, msg,
                 "Override günü için override servisini calendar_dates.txt ile ekleyin (exception_type=1).",
             );
-            n.details = Some(build_override_details(count, &dates_022, &base_str, &override_str));
+            n.details = Some(build_override_details(
+                count,
+                &dates_022,
+                &base_str,
+                &override_str,
+            ));
             notices.push(n);
         }
 
@@ -8150,12 +10030,25 @@ fn check_calendar_override_analytics(
                 rule.route_id, count, base_str, override_str, dates_023[0]
             );
             let mut n = k6_notice(
-                ctr, "OPR_023", EntityType::Route,
-                Some(rule.route_id.clone()), Some(rule.route_id.clone()),
-                "calendar_dates.txt", None, None, None, None, msg,
+                ctr,
+                "OPR_023",
+                EntityType::Route,
+                Some(rule.route_id.clone()),
+                Some(rule.route_id.clone()),
+                "calendar_dates.txt",
+                None,
+                None,
+                None,
+                None,
+                msg,
                 "Override penceresinde hem base hem override servisini aktif tutun.",
             );
-            n.details = Some(build_override_details(count, &dates_023, &base_str, &override_str));
+            n.details = Some(build_override_details(
+                count,
+                &dates_023,
+                &base_str,
+                &override_str,
+            ));
             notices.push(n);
         }
     }
@@ -8163,22 +10056,40 @@ fn check_calendar_override_analytics(
     // ── OPR_004: hatta hafta sonu sefer yok ──────────────────────────────────
     if !derived.calendar_bitmap.active_dates.is_empty() {
         let _t04 = Timer::start("K6::rem::opr_004");
-        let route_short_o4: FxHashMap<&str, &str> = records.routes.iter()
-            .map(|r| (r.route_id.as_str(), r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str())))
+        let route_short_o4: FxHashMap<&str, &str> = records
+            .routes
+            .iter()
+            .map(|r| {
+                (
+                    r.route_id.as_str(),
+                    r.route_short_name
+                        .as_deref()
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or(r.route_id.as_str()),
+                )
+            })
             .collect();
         let mut route_services: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for t in &records.trips {
             if !ti_cal_ov.route_id(t).is_empty() && !ti_cal_ov.service_id(t).is_empty() {
-                route_services.entry(ti_cal_ov.route_id(t)).or_default().insert(ti_cal_ov.service_id(t));
+                route_services
+                    .entry(ti_cal_ov.route_id(t))
+                    .or_default()
+                    .insert(ti_cal_ov.service_id(t));
             }
         }
         for (route_id, service_ids) in &route_services {
             let has_weekend = service_ids.iter().any(|&svc| {
-                derived.calendar_bitmap.active_dates.get(svc)
-                    .is_some_and(|dates| dates.iter().any(|&d| {
-                        let jdn = yyyymmdd_to_jdn(d);
-                        jdn % 7 == 5 || jdn % 7 == 6 // Cumartesi=5, Pazar=6
-                    }))
+                derived
+                    .calendar_bitmap
+                    .active_dates
+                    .get(svc)
+                    .is_some_and(|dates| {
+                        dates.iter().any(|&d| {
+                            let jdn = yyyymmdd_to_jdn(d);
+                            jdn % 7 == 5 || jdn % 7 == 6 // Cumartesi=5, Pazar=6
+                        })
+                    })
             });
             if !has_weekend {
                 let label = route_short_o4.get(*route_id).copied().unwrap_or(*route_id);
@@ -8201,13 +10112,19 @@ fn check_calendar_override_analytics(
     {
         let _t12 = Timer::start("K6::rem::opr_012");
         let gap_threshold = config.service_gap_days;
-        let used_services_12: FxHashSet<&str> = records.trips.iter()
+        let used_services_12: FxHashSet<&str> = records
+            .trips
+            .iter()
             .filter(|t| !ti_cal_ov.service_id(t).is_empty())
             .map(|t| ti_cal_ov.service_id(t))
             .collect();
         for (svc_id, dates) in &derived.calendar_bitmap.active_dates {
-            if dates.len() < 2 { continue; }
-            if !used_services_12.contains(svc_id.as_str()) { continue; }
+            if dates.len() < 2 {
+                continue;
+            }
+            if !used_services_12.contains(svc_id.as_str()) {
+                continue;
+            }
             let mut sorted: Vec<u32> = dates.iter().copied().collect();
             sorted.sort_unstable();
             let mut max_gap = 0u32;
@@ -8218,7 +10135,11 @@ fn check_calendar_override_analytics(
                 let d = yyyymmdd_to_jdn(w[1])
                     .saturating_sub(yyyymmdd_to_jdn(w[0]))
                     .saturating_sub(1);
-                if d > max_gap { max_gap = d; gap_start = w[0]; gap_end = w[1]; }
+                if d > max_gap {
+                    max_gap = d;
+                    gap_start = w[0];
+                    gap_end = w[1];
+                }
             }
             if max_gap >= gap_threshold {
                 let mut n012 = k6_notice(
@@ -8242,26 +10163,48 @@ fn check_calendar_override_analytics(
         let mut route_shape_set: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         let mut route_dirs: FxHashMap<&str, FxHashSet<u32>> = FxHashMap::default();
         for t in &records.trips {
-            if ti_cal_ov.route_id(t).is_empty() { continue; }
+            if ti_cal_ov.route_id(t).is_empty() {
+                continue;
+            }
             if let Some(shape) = ti_cal_ov.shape_id(t).filter(|s| !s.is_empty()) {
-                route_shape_set.entry(ti_cal_ov.route_id(t)).or_default().insert(shape);
+                route_shape_set
+                    .entry(ti_cal_ov.route_id(t))
+                    .or_default()
+                    .insert(shape);
             }
             if let Some(d) = t.direction_id {
-                route_dirs.entry(ti_cal_ov.route_id(t)).or_default().insert(d);
+                route_dirs
+                    .entry(ti_cal_ov.route_id(t))
+                    .or_default()
+                    .insert(d);
             }
         }
         // route_id → route_type (raylı sistemler için skip)
-        let rt_map: FxHashMap<&str, u32> = records.routes.iter()
+        let rt_map: FxHashMap<&str, u32> = records
+            .routes
+            .iter()
             .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
             .collect();
-        let route_short_o15: FxHashMap<&str, &str> = records.routes.iter()
-            .map(|r| (r.route_id.as_str(), r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str())))
+        let route_short_o15: FxHashMap<&str, &str> = records
+            .routes
+            .iter()
+            .map(|r| {
+                (
+                    r.route_id.as_str(),
+                    r.route_short_name
+                        .as_deref()
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or(r.route_id.as_str()),
+                )
+            })
             .collect();
         for (route_id, shapes) in &route_shape_set {
             // Tram(0), Metro(1), Demiryolu(2), Kablo tramvay(5), Monoray(12):
             // tek yönlü ray hattı; tek shape beklenen davranış
             let rt = rt_map.get(*route_id).copied().unwrap_or(3);
-            if matches!(rt, 0 | 1 | 2 | 5 | 12) { continue; }
+            if matches!(rt, 0 | 1 | 2 | 5 | 12) {
+                continue;
+            }
             // OPR_015 yalnız ÇİFT YÖNLÜ hatlarda anlamlı: iki yön aynı tek shape'i paylaşıyorsa
             // "gidiş-dönüş için ayrı shape" önerilir. Tek yönlü / yön-tanımsız hatta tek shape
             // beklenen davranıştır (öneri yanıltıcı olur) → susulur.
@@ -8278,8 +10221,14 @@ fn check_calendar_override_analytics(
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("shape_id".to_string(), shape_id.to_string());
-                d.insert("route_label".to_string(),
-                    route_short_o15.get(*route_id).copied().unwrap_or(*route_id).to_string());
+                d.insert(
+                    "route_label".to_string(),
+                    route_short_o15
+                        .get(*route_id)
+                        .copied()
+                        .unwrap_or(*route_id)
+                        .to_string(),
+                );
                 n015.details = Some(d);
                 notices.push(n015);
             }
@@ -8293,7 +10242,8 @@ fn summarize_patterns(patterns: &[String]) -> String {
     for p in patterns {
         *counts.entry(p.as_str()).or_default() += 1;
     }
-    counts.iter()
+    counts
+        .iter()
         .map(|(k, &v)| format!("{}: {} gün", k, v))
         .collect::<Vec<_>>()
         .join("; ")
@@ -8308,8 +10258,15 @@ fn build_override_details(
 ) -> std::collections::BTreeMap<String, String> {
     let mut d = std::collections::BTreeMap::new();
     d.insert("conflict_day_count".to_string(), count.to_string());
-    d.insert("sample_dates".to_string(),
-        dates.iter().take(10).map(|x| x.to_string()).collect::<Vec<_>>().join(","));
+    d.insert(
+        "sample_dates".to_string(),
+        dates
+            .iter()
+            .take(10)
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+    );
     d.insert("base_services".to_string(), base_str.to_string());
     d.insert("override_services".to_string(), override_str.to_string());
     d
@@ -8362,8 +10319,7 @@ fn check_pathway_analytics(
         .iter()
         .enumerate()
         .filter(|(_, pw)| {
-            pw.max_slope.is_none_or(|s| s.abs() <= 0.08)
-                && pw.min_width.is_none_or(|w| w >= 0.9)
+            pw.max_slope.is_none_or(|s| s.abs() <= 0.08) && pw.min_width.is_none_or(|w| w >= 0.9)
         })
         .map(|(i, _)| i)
         .collect();
@@ -8580,24 +10536,34 @@ fn check_vat_analytics(
     let ti_vat = &records.trip_interns;
     // ── Ortak indeksler ─────────────────────────────────────────────────────
 
-    let route_label: FxHashMap<&str, &str> = records.routes.iter()
+    let route_label: FxHashMap<&str, &str> = records
+        .routes
+        .iter()
         .map(|r| {
-            let label = r.route_short_name.as_deref()
+            let label = r
+                .route_short_name
+                .as_deref()
                 .filter(|s| !s.is_empty())
                 .unwrap_or(r.route_id.as_str());
             (r.route_id.as_str(), label)
         })
         .collect();
 
-    let route_type_map: FxHashMap<&str, u32> = records.routes.iter()
+    let route_type_map: FxHashMap<&str, u32> = records
+        .routes
+        .iter()
         .filter_map(|r| r.route_type.map(|rt| (r.route_id.as_str(), rt)))
         .collect();
 
-    let trip_route: FxHashMap<&str, &str> = records.trips.iter()
+    let trip_route: FxHashMap<&str, &str> = records
+        .trips
+        .iter()
         .map(|t| (t.trip_id.as_str(), ti_vat.route_id(t)))
         .collect();
 
-    let stop_name_map: FxHashMap<&str, &str> = records.stops.iter()
+    let stop_name_map: FxHashMap<&str, &str> = records
+        .stops
+        .iter()
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
 
@@ -8607,11 +10573,16 @@ fn check_vat_analytics(
     let mut route_trip_count: FxHashMap<&str, u32> = FxHashMap::default();
 
     for (&trip_id, stop_times) in &idx.by_trip {
-        let route = match trip_route.get(trip_id) { Some(&r) => r, None => continue };
+        let route = match trip_route.get(trip_id) {
+            Some(&r) => r,
+            None => continue,
+        };
         *route_trip_count.entry(route).or_insert(0) += 1;
         let route_set = route_stops.entry(route).or_default();
         for st in stop_times.iter() {
-            if idx.stop_id_of(st).is_empty() { continue; }
+            if idx.stop_id_of(st).is_empty() {
+                continue;
+            }
             let sid = idx.stop_id_of(st);
             route_set.insert(sid);
             stop_routes.entry(sid).or_default().insert(route);
@@ -8619,7 +10590,9 @@ fn check_vat_analytics(
     }
 
     // Transfers'daki stop'lar
-    let transfer_stops: FxHashSet<&str> = records.transfers.iter()
+    let transfer_stops: FxHashSet<&str> = records
+        .transfers
+        .iter()
         .flat_map(|t| [t.from_stop_id.as_str(), t.to_stop_id.as_str()])
         .filter(|s| !s.is_empty())
         .collect();
@@ -8630,7 +10603,9 @@ fn check_vat_analytics(
         let route_services: FxHashMap<&str, FxHashSet<&str>> = {
             let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
             for t in &records.trips {
-                m.entry(ti_vat.route_id(t)).or_default().insert(ti_vat.service_id(t));
+                m.entry(ti_vat.route_id(t))
+                    .or_default()
+                    .insert(ti_vat.service_id(t));
             }
             m
         };
@@ -8639,26 +10614,30 @@ fn check_vat_analytics(
         // VE hiç ortak gün yoksa → bunlar zamansal olarak ayrık (kopya değil, bk. #29 yorumu).
         let active = &derived.calendar_bitmap.active_dates;
         let route_has_dates = |svcs: &FxHashSet<&str>| -> bool {
-            svcs.iter().any(|s| active.get(*s).is_some_and(|d| !d.is_empty()))
+            svcs.iter()
+                .any(|s| active.get(*s).is_some_and(|d| !d.is_empty()))
         };
         let routes_share_day = |sa: &FxHashSet<&str>, sb: &FxHashSet<&str>| -> bool {
             for &x in sa {
                 let Some(da) = active.get(x) else { continue };
-                if da.is_empty() { continue; }
+                if da.is_empty() {
+                    continue;
+                }
                 for &y in sb {
                     if let Some(db) = active.get(y) {
-                        if da.intersection(db).next().is_some() { return true; }
+                        if da.intersection(db).next().is_some() {
+                            return true;
+                        }
                     }
                 }
             }
             false
         };
 
-        let route_list: Vec<(&str, &FxHashSet<&str>, u32)> = route_stops.iter()
+        let route_list: Vec<(&str, &FxHashSet<&str>, u32)> = route_stops
+            .iter()
             .filter(|(_, stops)| stops.len() >= 5)
-            .filter_map(|(&rid, stops)| {
-                route_type_map.get(rid).map(|&rt| (rid, stops, rt))
-            })
+            .filter_map(|(&rid, stops)| route_type_map.get(rid).map(|&rt| (rid, stops, rt)))
             .collect();
 
         // O(n²) → büyük feed'de atla
@@ -8667,12 +10646,18 @@ fn check_vat_analytics(
                 for j in (i + 1)..route_list.len() {
                     let (rid_a, stops_a, rt_a) = route_list[i];
                     let (rid_b, stops_b, rt_b) = route_list[j];
-                    if rt_a != rt_b { continue; }
+                    if rt_a != rt_b {
+                        continue;
+                    }
                     let inter = stops_a.iter().filter(|s| stops_b.contains(*s)).count();
                     let union = stops_a.len() + stops_b.len() - inter;
-                    if union == 0 { continue; }
+                    if union == 0 {
+                        continue;
+                    }
                     let jaccard = inter as f64 / union as f64;
-                    if jaccard < 0.85 { continue; }
+                    if jaccard < 0.85 {
+                        continue;
+                    }
 
                     // Takvim-kesişim guard'ı (#29): aynı public hat servis-değişiminde yeni
                     // route_id alabilir (TriMet '20'/'20a': '20' yaz takvimi, '20a' sonbahar,
@@ -8680,9 +10665,14 @@ fn check_vat_analytics(
                     // önerisi geçersiz. İki hat da çözülebilir tarihliyse VE hiç ortak günü
                     // yoksa atla. Takvim eksikse (kanıt yok) eski davranış: emit.
                     let (Some(svcs_a), Some(svcs_b)) =
-                        (route_services.get(rid_a), route_services.get(rid_b)) else { continue };
-                    if route_has_dates(svcs_a) && route_has_dates(svcs_b)
-                        && !routes_share_day(svcs_a, svcs_b) {
+                        (route_services.get(rid_a), route_services.get(rid_b))
+                    else {
+                        continue;
+                    };
+                    if route_has_dates(svcs_a)
+                        && route_has_dates(svcs_b)
+                        && !routes_share_day(svcs_a, svcs_b)
+                    {
                         continue;
                     }
 
@@ -8690,10 +10680,12 @@ fn check_vat_analytics(
                     let lb = route_label.get(rid_b).copied().unwrap_or(rid_b);
                     // Etiket route_id'den farklıysa route_id'yi de göster (aynı kısa-adlı iki
                     // farklı hat "'20' ve '20'" gibi ayırt edilemez bir mesaj üretmesin).
-                    let disp = |rid: &str, label: &str| if label == rid {
-                        format!("'{rid}'")
-                    } else {
-                        format!("'{label}' (route_id '{rid}')")
+                    let disp = |rid: &str, label: &str| {
+                        if label == rid {
+                            format!("'{rid}'")
+                        } else {
+                            format!("'{label}' (route_id '{rid}')")
+                        }
                     };
                     let mut n = k6_notice(
                         ctr,
@@ -8734,36 +10726,51 @@ fn check_vat_analytics(
     // Sinyal ancak YAKINDA, aktarma kurulabilecek AYRI bir durak varsa anlamlıdır. Ayrıca
     // `parent_station`'ı olan duraklar elenir: kompleks zaten modellenmiştir (eski kod
     // yalnız location_type=1 istasyonun KENDİSİNİ eliyordu, peron çocuklarını değil).
-    let has_parent: FxHashSet<&str> = records.stops.iter()
+    let has_parent: FxHashSet<&str> = records
+        .stops
+        .iter()
         .filter(|s| !crate::k6_analytics::row_field_local(&s.row, "parent_station").is_empty())
         .map(|s| s.stop_id.as_str())
         .collect();
 
     // Lat-sıralı durak dizisi (STP_017 emsali): banda sınırlı komşu taraması.
     let xfer_sorted_stops: Vec<(f64, f64, &str)> = {
-        let mut v: Vec<(f64, f64, &str)> = records.stops.iter()
+        let mut v: Vec<(f64, f64, &str)> = records
+            .stops
+            .iter()
             .filter_map(|s| recoverable_stop_coord(s).map(|(la, lo)| (la, lo, s.stop_id.as_str())))
             .collect();
         v.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
         v
     };
-    let xfer_stop_pos: FxHashMap<&str, (f64, f64)> = xfer_sorted_stops.iter()
+    let xfer_stop_pos: FxHashMap<&str, (f64, f64)> = xfer_sorted_stops
+        .iter()
         .map(|&(la, lo, id)| (id, (la, lo)))
         .collect();
 
     // Yakında, bu durağın SUNMADIĞI bir hattı sunan ayrı bir durak var mı?
     // Varsa gerçekten tanımlanmamış bir duraklar-arası aktarma söz konusudur.
     let has_nearby_unlinked_route = |stop_id: &str, own: &FxHashSet<&str>| -> bool {
-        let Some(&(la, lo)) = xfer_stop_pos.get(stop_id) else { return false };
+        let Some(&(la, lo)) = xfer_stop_pos.get(stop_id) else {
+            return false;
+        };
         let max_km = config.max_transfer_distance_m / 1000.0;
         let band = max_km / 111.0;
         let start = xfer_sorted_stops.partition_point(|&(l, _, _)| l < la - band);
         for &(nla, nlo, nid) in &xfer_sorted_stops[start..] {
-            if nla > la + band { break; }
-            if nid == stop_id { continue; }
-            if haversine_km(la, lo, nla, nlo) > max_km { continue; }
+            if nla > la + band {
+                break;
+            }
+            if nid == stop_id {
+                continue;
+            }
+            if haversine_km(la, lo, nla, nlo) > max_km {
+                continue;
+            }
             if let Some(nr) = stop_routes.get(nid) {
-                if nr.iter().any(|r| !own.contains(r)) { return true; }
+                if nr.iter().any(|r| !own.contains(r)) {
+                    return true;
+                }
             }
         }
         false
@@ -8771,22 +10778,35 @@ fn check_vat_analytics(
 
     // ── VAT_002: Aktarma merkezi tanımsız (≥ 4 route, transfer yok) ─────────
     {
-        let is_station: FxHashSet<&str> = records.stops.iter()
+        let is_station: FxHashSet<&str> = records
+            .stops
+            .iter()
             .filter(|s| s.location_type == Some(1))
             .map(|s| s.stop_id.as_str())
             .collect();
 
         for (&stop_id, routes) in &stop_routes {
-            if routes.len() < 4 { continue; }
-            if transfer_stops.contains(stop_id) { continue; }
-            if is_station.contains(stop_id) { continue; }
-            if has_parent.contains(stop_id) { continue; }
-            if !has_nearby_unlinked_route(stop_id, routes) { continue; }
+            if routes.len() < 4 {
+                continue;
+            }
+            if transfer_stops.contains(stop_id) {
+                continue;
+            }
+            if is_station.contains(stop_id) {
+                continue;
+            }
+            if has_parent.contains(stop_id) {
+                continue;
+            }
+            if !has_nearby_unlinked_route(stop_id, routes) {
+                continue;
+            }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
             // Hatları kararlı sırada topla: harita için route_id'ler, mesaj için okunur etiketler.
             let mut route_ids: Vec<&str> = routes.iter().copied().collect();
             route_ids.sort_unstable();
-            let route_labels: Vec<&str> = route_ids.iter()
+            let route_labels: Vec<&str> = route_ids
+                .iter()
                 .map(|rid| route_label.get(rid).copied().unwrap_or(rid))
                 .collect();
             let routes_label_str = route_labels.join(", ");
@@ -8823,32 +10843,50 @@ fn check_vat_analytics(
     // doğal süre farkını aykırı değer sanır (BART Green-N: 5 durak/23dk vs 22 durak/83dk).
     // Shape yoksa route_id + sıralı durak dizisi hash'ine düşülür.
     {
-        let trip_shape: FxHashMap<&str, &str> = records.trips.iter()
+        let trip_shape: FxHashMap<&str, &str> = records
+            .trips
+            .iter()
             .filter_map(|t| ti_vat.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
             .collect();
 
         #[derive(PartialEq, Eq, Hash)]
-        enum DurKey<'a> { ShapePattern(&'a str, u64), Pattern(&'a str, u64) }
+        enum DurKey<'a> {
+            ShapePattern(&'a str, u64),
+            Pattern(&'a str, u64),
+        }
 
         let mut groups: FxHashMap<DurKey, Vec<(&str, u32, u32, &str)>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
-            if stops.len() < 2 { continue; }
-            let route = match trip_route.get(trip_id) { Some(&r) => r, None => continue };
-            let first_dep = stops.first().and_then(|s| s.departure_time()).map(hms_to_secs);
-            let last_arr  = stops.last().and_then(|s| s.arrival_time()).map(hms_to_secs);
+            if stops.len() < 2 {
+                continue;
+            }
+            let route = match trip_route.get(trip_id) {
+                Some(&r) => r,
+                None => continue,
+            };
+            let first_dep = stops
+                .first()
+                .and_then(|s| s.departure_time())
+                .map(hms_to_secs);
+            let last_arr = stops.last().and_then(|s| s.arrival_time()).map(hms_to_secs);
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 if arr > dep {
                     // Durakların SIRALI dizisini hash'le. Durak sayısı yeterince ayırt edici
                     // değildir: aynı sayıda durağa sahip farklı desenler karışabilir.
                     use std::hash::{Hash, Hasher};
                     let mut h = std::collections::hash_map::DefaultHasher::new();
-                    for st in stops.iter() { idx.stop_id_of(st).hash(&mut h); }
+                    for st in stops.iter() {
+                        idx.stop_id_of(st).hash(&mut h);
+                    }
                     let pattern_hash = h.finish();
                     let key = match trip_shape.get(trip_id) {
                         Some(&sh) => DurKey::ShapePattern(sh, pattern_hash),
                         None => DurKey::Pattern(route, pattern_hash),
                     };
-                    groups.entry(key).or_default().push((trip_id, arr - dep, dep, route));
+                    groups
+                        .entry(key)
+                        .or_default()
+                        .push((trip_id, arr - dep, dep, route));
                 }
             }
         }
@@ -8881,20 +10919,27 @@ fn check_vat_analytics(
             for &(trip_id, dur, dep, route) in &trips {
                 let e = sched.entry((dur, dep)).or_insert((trip_id, 0, route));
                 // Temsili = leksikografik en küçük trip_id (FxHashMap sırasından bağımsız).
-                if trip_id < e.0 { e.0 = trip_id; }
+                if trip_id < e.0 {
+                    e.0 = trip_id;
+                }
                 e.1 += 1;
             }
-            let mut durs: Vec<(&str, u32, u32, &str, u32)> = sched.iter()
+            let mut durs: Vec<(&str, u32, u32, &str, u32)> = sched
+                .iter()
                 .map(|(&(dur, dep), &(tid, cnt, route))| (tid, dur, dep, route, cnt))
                 .collect();
             // Determinizm: FxHashMap iterasyon sırası tanımsız → temsili trip_id'ye göre sırala.
             durs.sort_unstable_by(|a, b| a.0.cmp(b.0));
 
-            if durs.len() < 5 { continue; }
+            if durs.len() < 5 {
+                continue;
+            }
             let mut all: Vec<u32> = durs.iter().map(|&(_, d, _, _, _)| d).collect();
             all.sort_unstable();
             let med_all = all[all.len() / 2] as f64;
-            if med_all < 120.0 { continue; }
+            if med_all < 120.0 {
+                continue;
+            }
 
             // Kaba zaman bandı (saatlik yerine): gün-içi yapıyı yakalar ama bucket'ları
             // veri-aç bırakmaz (katkıcının "coarse buckets degrade more gracefully" notu).
@@ -8906,16 +10951,18 @@ fn check_vat_analytics(
                 // bu yalnız feed'in kendisi 24:xx-ilk-kalkış yazdığında devreye girer (savunmacı;
                 // Toei gibi 00:xx yazan feed'lerde no-op). Bkz. issue #26.
                 match (dep / 3600) % 24 {
-                    0..=5 => 0,    // gece / erken (24:xx, 25:xx… buraya döner)
-                    6..=9 => 1,    // sabah zirve
-                    10..=15 => 2,  // gündüz
-                    16..=19 => 3,  // akşam zirve
-                    _ => 4,        // akşam / gece (20:00–23:59)
+                    0..=5 => 0,   // gece / erken (24:xx, 25:xx… buraya döner)
+                    6..=9 => 1,   // sabah zirve
+                    10..=15 => 2, // gündüz
+                    16..=19 => 3, // akşam zirve
+                    _ => 4,       // akşam / gece (20:00–23:59)
                 }
             };
             // Yoğun bandların (≥BUCKET_MIN_TRIPS) kendi medyanı; seyrek bandlar global'e düşer.
             let mut by_band: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
-            for &(_, d, dep, _, _) in &durs { by_band.entry(band(dep)).or_default().push(d); }
+            for &(_, d, dep, _, _) in &durs {
+                by_band.entry(band(dep)).or_default().push(d);
+            }
             let mut band_med: FxHashMap<u32, f64> = FxHashMap::default();
             for (b, mut bv) in by_band {
                 if bv.len() >= BUCKET_MIN_TRIPS {
@@ -8926,7 +10973,10 @@ fn check_vat_analytics(
             let reference = |dep: u32| band_med.get(&band(dep)).copied().unwrap_or(med_all);
 
             // residual = süre − saat-bazlı beklenen; MAD residual üzerinde.
-            let mut res: Vec<f64> = durs.iter().map(|&(_, d, dep, _, _)| d as f64 - reference(dep)).collect();
+            let mut res: Vec<f64> = durs
+                .iter()
+                .map(|&(_, d, dep, _, _)| d as f64 - reference(dep))
+                .collect();
             res.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let med_res = res[res.len() / 2];
             let mut dev: Vec<f64> = res.iter().map(|r| (r - med_res).abs()).collect();
@@ -8943,13 +10993,23 @@ fn check_vat_analytics(
                 // birebir aynı) σ testi atlanır; yalnızca taban karar verir.
                 let mag_ok = residual.abs() >= RESIDUAL_FLOOR_SECS;
                 let stat_ok = mad_r < 1.0 || residual.abs() > sigma * mad_r;
-                if !(mag_ok && stat_ok) { continue; }
+                if !(mag_ok && stat_ok) {
+                    continue;
+                }
 
                 let label = route_label.get(route).copied().unwrap_or(route);
-                let dep_suffix = format!(" {:02}:{:02} kalkışlı", dep_secs / 3600, (dep_secs % 3600) / 60);
+                let dep_suffix = format!(
+                    " {:02}:{:02} kalkışlı",
+                    dep_secs / 3600,
+                    (dep_secs % 3600) / 60
+                );
                 let dur_min = dur / 60;
                 let ref_min = (ref_med as u32) / 60;
-                let yon = if residual >= 0.0 { "beklenenden uzun" } else { "beklenenden kısa" };
+                let yon = if residual >= 0.0 {
+                    "beklenenden uzun"
+                } else {
+                    "beklenenden kısa"
+                };
                 let sigma_str = if mad_r >= 30.0 {
                     let z = residual / (mad_r / 1.4826);
                     format!("{z:+.1}σ, {yon}")
@@ -9002,7 +11062,9 @@ fn check_vat_analytics(
             for w in stops.windows(2) {
                 let a = idx.stop_id_of(&w[0]);
                 let b = idx.stop_id_of(&w[1]);
-                if a.is_empty() || b.is_empty() { continue; }
+                if a.is_empty() || b.is_empty() {
+                    continue;
+                }
                 adj.entry(a).or_default().insert(b);
                 adj.entry(b).or_default().insert(a);
             }
@@ -9014,7 +11076,9 @@ fn check_vat_analytics(
             let all_nodes: Vec<&str> = adj.keys().copied().collect();
 
             for &start in &all_nodes {
-                if visited.contains(start) { continue; }
+                if visited.contains(start) {
+                    continue;
+                }
                 let mut nodes: Vec<&str> = Vec::new();
                 let mut stack = vec![start];
                 visited.insert(start);
@@ -9045,24 +11109,31 @@ fn check_vat_analytics(
                         stop_coords.insert(s.stop_id.as_str(), c);
                     }
                 }
-                let main_idx = comp_nodes.iter().enumerate()
+                let main_idx = comp_nodes
+                    .iter()
+                    .enumerate()
                     .max_by_key(|(_, c)| c.len())
                     .map(|(i, _)| i)
                     .unwrap_or(0);
-                let main_coords: Vec<(f64, f64)> = comp_nodes[main_idx].iter()
+                let main_coords: Vec<(f64, f64)> = comp_nodes[main_idx]
+                    .iter()
                     .filter_map(|s| stop_coords.get(s).copied())
                     .collect();
                 const VAT005_MERGE_M: f64 = 200.0;
 
                 // İzole bileşenler: hem küçük hem ana şebekeden coğrafi olarak da kopuk.
-                let isolated_comps: Vec<&Vec<&str>> = comp_nodes.iter()
+                let isolated_comps: Vec<&Vec<&str>> = comp_nodes
+                    .iter()
                     .filter(|c| c.len() < main_size && c.len() <= small_thresh)
-                    .filter(|c| !c.iter().any(|s| {
-                        stop_coords.get(s).is_some_and(|&(la, lo)| {
-                            main_coords.iter().any(|&(mla, mlo)|
-                                haversine_km(la, lo, mla, mlo) * 1000.0 <= VAT005_MERGE_M)
+                    .filter(|c| {
+                        !c.iter().any(|s| {
+                            stop_coords.get(s).is_some_and(|&(la, lo)| {
+                                main_coords.iter().any(|&(mla, mlo)| {
+                                    haversine_km(la, lo, mla, mlo) * 1000.0 <= VAT005_MERGE_M
+                                })
+                            })
                         })
-                    }))
+                    })
                     .collect();
 
                 if !isolated_comps.is_empty() {
@@ -9071,7 +11142,9 @@ fn check_vat_analytics(
                     'outer: for c in &isolated_comps {
                         for &node in c.iter() {
                             isolated_all.push(node);
-                            if isolated_all.len() >= 200 { break 'outer; }
+                            if isolated_all.len() >= 200 {
+                                break 'outer;
+                            }
                         }
                     }
 
@@ -9135,7 +11208,10 @@ fn check_vat_analytics(
     {
         let mut terminus_routes: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
-            let route = match trip_route.get(trip_id) { Some(&r) => r, None => continue };
+            let route = match trip_route.get(trip_id) {
+                Some(&r) => r,
+                None => continue,
+            };
             if let Some(first) = stops.first() {
                 let sid = idx.stop_id_of(first);
                 if !sid.is_empty() {
@@ -9153,21 +11229,30 @@ fn check_vat_analytics(
         }
 
         for (&stop_id, routes) in &terminus_routes {
-            if routes.len() < 3 { continue; }
-            if transfer_stops.contains(stop_id) { continue; }
-            if has_parent.contains(stop_id) { continue; }
+            if routes.len() < 3 {
+                continue;
+            }
+            if transfer_stops.contains(stop_id) {
+                continue;
+            }
+            if has_parent.contains(stop_id) {
+                continue;
+            }
             // VAT_002 ile aynı ön koşul: aynı stop_id'deki aktarma zaten örtük. Komşuluk
             // testi durağın TÜM hatlarına bakar (yalnız terminus olduklarına değil) —
             // yanındaki durak buradan geçen bir hattı sunuyorsa yeni bağlantı yoktur.
             let own_all = stop_routes.get(stop_id);
             let empty: FxHashSet<&str> = FxHashSet::default();
-            if !has_nearby_unlinked_route(stop_id, own_all.unwrap_or(&empty)) { continue; }
+            if !has_nearby_unlinked_route(stop_id, own_all.unwrap_or(&empty)) {
+                continue;
+            }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
             // Determinizm: FxHashSet iterasyon sırası tanımsız. Eskiden take(5) SIRALAMADAN
             // ÖNCE geliyordu → hangi 5 hattın mesaja girdiği koşudan koşuya değişebiliyordu.
             let mut route_ids: Vec<&str> = routes.iter().copied().collect();
             route_ids.sort_unstable();
-            let mut labels: Vec<&str> = route_ids.iter()
+            let mut labels: Vec<&str> = route_ids
+                .iter()
                 .take(5)
                 .map(|r| route_label.get(r).copied().unwrap_or(r))
                 .collect();
@@ -9198,13 +11283,25 @@ fn check_vat_analytics(
     // Eşik route-toplam değil service-başına uygulanır: haftaya yayılan normal sefer sayısı
     // (7 gün × günlük sefer) yanlış-pozitif vermez; gerçek "veri birleştirme" tek takvimde patlar.
     {
-        let route_short_o24: HashMap<&str, &str> = records.routes.iter()
-            .map(|r| (r.route_id.as_str(), r.route_short_name.as_deref().filter(|s| !s.is_empty()).unwrap_or(r.route_id.as_str())))
+        let route_short_o24: HashMap<&str, &str> = records
+            .routes
+            .iter()
+            .map(|r| {
+                (
+                    r.route_id.as_str(),
+                    r.route_short_name
+                        .as_deref()
+                        .filter(|s| !s.is_empty())
+                        .unwrap_or(r.route_id.as_str()),
+                )
+            })
             .collect();
         let mut rs_trip_counts: HashMap<(&str, &str), u32> = HashMap::new();
         for t in &records.trips {
             if !ti_vat.route_id(t).is_empty() {
-                *rs_trip_counts.entry((ti_vat.route_id(t), ti_vat.service_id(t))).or_default() += 1;
+                *rs_trip_counts
+                    .entry((ti_vat.route_id(t), ti_vat.service_id(t)))
+                    .or_default() += 1;
             }
         }
         // HashMap iterasyonu → sırala (dedup temsilcisi deterministik olsun).
@@ -9223,7 +11320,11 @@ fn check_vat_analytics(
                 n.service_id = Some((*service_id).to_string());
                 n.details.get_or_insert_with(Default::default).insert(
                     "route_label".to_string(),
-                    route_short_o24.get(*route_id).copied().unwrap_or(*route_id).to_string(),
+                    route_short_o24
+                        .get(*route_id)
+                        .copied()
+                        .unwrap_or(*route_id)
+                        .to_string(),
                 );
                 notices.push(n);
             }
@@ -9244,7 +11345,9 @@ fn check_vat_analytics(
                 }
             }
             if let (Some(f), Some(l)) = (min_dep, max_dep) {
-                if l > f { trip_durations.push((l - f) as u64); }
+                if l > f {
+                    trip_durations.push((l - f) as u64);
+                }
             }
         }
         if trip_durations.len() >= 5 {
@@ -9269,7 +11372,10 @@ fn check_vat_analytics(
             for t in &records.trips {
                 if let Some(shape_id) = ti_vat.shape_id(t) {
                     if !shape_id.is_empty() && !ti_vat.route_id(t).is_empty() {
-                        shape_routes.entry(shape_id).or_default().insert(ti_vat.route_id(t));
+                        shape_routes
+                            .entry(shape_id)
+                            .or_default()
+                            .insert(ti_vat.route_id(t));
                     }
                 }
             }
@@ -9304,20 +11410,56 @@ mod tests {
     fn max_speed_kmh_maps_extended_route_types() {
         // #15/MD: genişletilmiş Avrupa route_type'ları doğru kategoriye eşlenmeli.
         let cfg = ValidatorConfig::default();
-        assert_eq!(max_speed_kmh(100, &cfg), cfg.max_speed_rail_kmh, "100 (railway ext) = rail");
-        assert_eq!(max_speed_kmh(109, &cfg), cfg.max_speed_rail_kmh, "109 (S-Bahn) = rail");
-        assert_eq!(max_speed_kmh(106, &cfg), cfg.max_speed_rail_kmh, "106 (bölgesel rail) = rail");
-        assert_eq!(max_speed_kmh(400, &cfg), cfg.max_speed_metro_kmh, "400 (U-Bahn ext) = metro");
-        assert_eq!(max_speed_kmh(900, &cfg), cfg.max_speed_tram_kmh, "900 (tram ext) = tram");
-        assert_eq!(max_speed_kmh(700, &cfg), cfg.max_speed_bus_kmh, "700 (bus ext) = bus");
-        assert_eq!(max_speed_kmh(2, &cfg), cfg.max_speed_rail_kmh, "standart 2 hâlâ rail");
-        assert_eq!(max_speed_kmh(3, &cfg), cfg.max_speed_bus_kmh, "standart 3 hâlâ bus");
+        assert_eq!(
+            max_speed_kmh(100, &cfg),
+            cfg.max_speed_rail_kmh,
+            "100 (railway ext) = rail"
+        );
+        assert_eq!(
+            max_speed_kmh(109, &cfg),
+            cfg.max_speed_rail_kmh,
+            "109 (S-Bahn) = rail"
+        );
+        assert_eq!(
+            max_speed_kmh(106, &cfg),
+            cfg.max_speed_rail_kmh,
+            "106 (bölgesel rail) = rail"
+        );
+        assert_eq!(
+            max_speed_kmh(400, &cfg),
+            cfg.max_speed_metro_kmh,
+            "400 (U-Bahn ext) = metro"
+        );
+        assert_eq!(
+            max_speed_kmh(900, &cfg),
+            cfg.max_speed_tram_kmh,
+            "900 (tram ext) = tram"
+        );
+        assert_eq!(
+            max_speed_kmh(700, &cfg),
+            cfg.max_speed_bus_kmh,
+            "700 (bus ext) = bus"
+        );
+        assert_eq!(
+            max_speed_kmh(2, &cfg),
+            cfg.max_speed_rail_kmh,
+            "standart 2 hâlâ rail"
+        );
+        assert_eq!(
+            max_speed_kmh(3, &cfg),
+            cfg.max_speed_bus_kmh,
+            "standart 3 hâlâ bus"
+        );
         // Asıl bug: rail extended kodları bus eşiği ALMAMALI.
-        assert_ne!(max_speed_kmh(100, &cfg), cfg.max_speed_bus_kmh, "rail ext bus eşiği almamalı");
+        assert_ne!(
+            max_speed_kmh(100, &cfg),
+            cfg.max_speed_bus_kmh,
+            "rail ext bus eşiği almamalı"
+        );
     }
 
-    use crate::k2::routes::RouteRecord;
     use crate::k2::agency::AgencyRecord;
+    use crate::k2::routes::RouteRecord;
     use crate::k2::stop_times::StopTimeRecord;
     use crate::k2::stops::StopRecord;
     use crate::k2::trips::TripRecord;
@@ -9395,18 +11537,37 @@ mod tests {
         let mut distinct_query = stop("S4", 41.3, 29.3);
         distinct_query.stop_url = Some("https://line.example/route?stop=4".into());
 
-        let mut records = records_with(vec![first, second, route_stop, distinct_query], vec![line], vec![], vec![]);
+        let mut records = records_with(
+            vec![first, second, route_stop, distinct_query],
+            vec![line],
+            vec![],
+            vec![],
+        );
         records.agencies.push(agency);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
 
-        let agency_hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STP_034").collect();
-        let route_hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STP_035").collect();
+        let agency_hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STP_034")
+            .collect();
+        let route_hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STP_035")
+            .collect();
         assert_eq!(agency_hits.len(), 1, "normalized agency matches aggregate");
         assert_eq!(route_hits.len(), 1, "query variation is not equated");
         let details = agency_hits[0].details.as_ref().expect("aggregate details");
         assert_eq!(details.get("stop_count").map(String::as_str), Some("2"));
-        assert_eq!(details.get("representative_stop_ids").map(String::as_str), Some("S1,S2"));
-        assert_eq!(details.get("normalized_url").map(String::as_str), Some("https://agency.example/"));
+        assert_eq!(
+            details.get("representative_stop_ids").map(String::as_str),
+            Some("S1,S2")
+        );
+        assert_eq!(
+            details.get("normalized_url").map(String::as_str),
+            Some("https://agency.example/")
+        );
         assert_eq!(agency_hits[0].entity_id.as_deref(), Some("S1"));
         assert_eq!(route_hits[0].entity_id.as_deref(), Some("S3"));
     }
@@ -9418,12 +11579,18 @@ mod tests {
     fn stop(stop_id: &str, lat: f64, lon: f64) -> StopRecord {
         StopRecord {
             stop_id: stop_id.into(),
-            stop_code: None, stop_name: None,
-            stop_lat: Some(lat), stop_lon: Some(lon),
-            location_type: None, stop_timezone: None,
-            wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None,
-            row: Default::default(), line: 2,
+            stop_code: None,
+            stop_name: None,
+            stop_lat: Some(lat),
+            stop_lon: Some(lon),
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
+            row: Default::default(),
+            line: 2,
             ..Default::default()
         }
     }
@@ -9431,11 +11598,22 @@ mod tests {
     fn route(route_id: &str, route_type: u32) -> RouteRecord {
         RouteRecord {
             route_id: route_id.into(),
-            agency_id: None, route_short_name: None, route_long_name: None,
-            route_desc: None, route_type: Some(route_type), route_url: None,
-            route_color: None, route_text_color: None, route_sort_order: None,
-            continuous_pickup: None, continuous_drop_off: None, network_id: None,
-            route_cemv_support: None, jp_office_id: None, row: Default::default(), line: 2,
+            agency_id: None,
+            route_short_name: None,
+            route_long_name: None,
+            route_desc: None,
+            route_type: Some(route_type),
+            route_url: None,
+            route_color: None,
+            route_text_color: None,
+            route_sort_order: None,
+            continuous_pickup: None,
+            continuous_drop_off: None,
+            network_id: None,
+            route_cemv_support: None,
+            jp_office_id: None,
+            row: Default::default(),
+            line: 2,
         }
     }
 
@@ -9451,9 +11629,7 @@ mod tests {
 
     /// Birikmiş TripInternTable'ı al ve yerine yeni boş tablo koy.
     fn take_ti() -> TripInternTable {
-        TEST_TI.with(|cell| {
-            std::mem::replace(&mut *cell.borrow_mut(), TripInternTable::new())
-        })
+        TEST_TI.with(|cell| std::mem::replace(&mut *cell.borrow_mut(), TripInternTable::new()))
     }
 
     /// Temel sefer kaydı: route_id + service="SVC" thread-local intern tablosuna eklenir.
@@ -9466,11 +11642,20 @@ mod tests {
             ti.service_ids.push(SmolStr::new("SVC"));
             TripRecord {
                 trip_id: trip_id.into(),
-                route_idx: ri, service_idx: si, shape_idx: 0,
-                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
-                direction_id: None, wheelchair_accessible: None,
-                bikes_allowed: None, cars_allowed: None,
-                safe_duration_factor: None, safe_duration_offset: None,
+                route_idx: ri,
+                service_idx: si,
+                shape_idx: 0,
+                headsign_idx: 0,
+                short_name_idx: 0,
+                block_idx: 0,
+                jp_office_idx: 0,
+                jp_pattern_idx: 0,
+                direction_id: None,
+                wheelchair_accessible: None,
+                bikes_allowed: None,
+                cars_allowed: None,
+                safe_duration_factor: None,
+                safe_duration_offset: None,
                 line: 2,
             }
         })
@@ -9516,7 +11701,14 @@ mod tests {
         t
     }
 
-    fn stoptime(trip_id: &str, seq: u32, stop_id: &str, arr: (u32,u32,u32), dep: (u32,u32,u32), line: u64) -> StopTimeRecord {
+    fn stoptime(
+        trip_id: &str,
+        seq: u32,
+        stop_id: &str,
+        arr: (u32, u32, u32),
+        dep: (u32, u32, u32),
+        line: u64,
+    ) -> StopTimeRecord {
         StopTimeRecord {
             trip_id: trip_id.into(),
             stop_id: stop_id.into(),
@@ -9556,15 +11748,18 @@ mod tests {
         // 30 dk olsaydı ~703 km/h → STM_012 tetiklenirdi; 2 saat STM_014 eşiğini (120 km/h) aşar
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9)],
-            vec![route("R1", 3)],  // bus
+            vec![route("R1", 3)], // bus
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (10,0,0), (10,0,0), 3), // 2 saat, ~350 km → ~175 km/h
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // 2 saat, ~350 km → ~175 km/h
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_014"), "STM_014 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_014"),
+            "STM_014 olmalı"
+        );
     }
 
     #[test]
@@ -9593,7 +11788,11 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "STM_014"),
             "recoverable whitespace coordinates must reach STM_014: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -9608,19 +11807,32 @@ mod tests {
             vec![trip("T1", "R1"), trip("T2", "R1"), trip("T3", "R1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3),   // ~175 km/h
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // ~175 km/h
                 stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
                 stoptime("T2", 2, "B", (11, 30, 0), (11, 30, 0), 5), // ~140 km/h (daha yavaş)
                 stoptime("T3", 1, "A", (12, 0, 0), (12, 0, 0), 6),
-                stoptime("T3", 2, "B", (14, 0, 0), (14, 0, 0), 7),   // ~175 km/h
+                stoptime("T3", 2, "B", (14, 0, 0), (14, 0, 0), 7), // ~175 km/h
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
-        assert_eq!(hits.len(), 1, "tek segment → tek notice, alınan: {}", hits.len());
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_014")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            1,
+            "tek segment → tek notice, alınan: {}",
+            hits.len()
+        );
 
         let d = hits[0].details.as_ref().expect("details olmalı");
-        assert_eq!(d.get("trip_count").map(String::as_str), Some("3"), "3 sefer sayılmalı");
+        assert_eq!(
+            d.get("trip_count").map(String::as_str),
+            Some("3"),
+            "3 sefer sayılmalı"
+        );
         assert_eq!(d.get("stop_a").map(String::as_str), Some("A"));
         assert_eq!(d.get("stop_b").map(String::as_str), Some("B"));
         // Örnek sefer listesi deterministik ve sıralı
@@ -9640,7 +11852,11 @@ mod tests {
         // Aynı hatta İKİ ayrı bozuk segment (A→B ve B→C) → dedup=Entity onları
         // yutmamalı; entity_id bileşik olduğu için 2 notice çıkmalı.
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9), stop("C", 41.0, 29.0)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 39.9, 32.9),
+                stop("C", 41.0, 29.0),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
@@ -9650,10 +11866,22 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
-        assert_eq!(hits.len(), 2, "iki farklı segment ayrı kalmalı, alınan: {}", hits.len());
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_014")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            2,
+            "iki farklı segment ayrı kalmalı, alınan: {}",
+            hits.len()
+        );
         let ids: Vec<_> = hits.iter().filter_map(|n| n.entity_id.as_deref()).collect();
-        assert_ne!(ids[0], ids[1], "entity_id'ler benzersiz olmalı (dedup yutmasın): {ids:?}");
+        assert_ne!(
+            ids[0], ids[1],
+            "entity_id'ler benzersiz olmalı (dedup yutmasın): {ids:?}"
+        );
     }
 
     #[test]
@@ -9664,8 +11892,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -9675,12 +11903,14 @@ mod tests {
     #[test]
     fn opt_in_stop_name_profile_emits_stp_040_and_041() {
         let mut parent = stop("P", 41.0, 29.0);
-        parent.stop_name = Some("Kadikoy".into()); parent.location_type = Some(1);
+        parent.stop_name = Some("Kadikoy".into());
+        parent.location_type = Some(1);
         let mut child = stop("C", 41.0, 29.0);
         child.stop_name = Some("Platform Stop".into());
         child.row.insert("parent_station".into(), "P".into());
         let records = records_with(vec![parent, child], vec![], vec![], vec![]);
-        let mut cfg = default_config(); cfg.stop_name_best_practices = true;
+        let mut cfg = default_config();
+        cfg.stop_name_best_practices = true;
         let result = analyze(&records, &empty_derived(), &cfg, 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_040"));
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_041"));
@@ -9689,7 +11919,8 @@ mod tests {
     #[test]
     fn source_url_without_zip_filename_emits_arc_028() {
         let records = records_with(vec![], vec![], vec![], vec![]);
-        let mut cfg = default_config(); cfg.source_url = Some("https://example.org/gtfs".into());
+        let mut cfg = default_config();
+        cfg.source_url = Some("https://example.org/gtfs".into());
         let result = analyze(&records, &empty_derived(), &cfg, 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "ARC_028"));
         cfg.source_url = Some("https://example.org/feed.zip?rev=2".into());
@@ -9699,13 +11930,19 @@ mod tests {
     #[test]
     fn three_consecutive_equal_times_produce_stm_053() {
         let records = records_with(
-            vec![stop("A",41.0,29.0), stop("B",41.001,29.0), stop("C",41.002,29.0)],
-            vec![route("R1",3)], vec![trip("T1","R1")],
             vec![
-                stoptime("T1",1,"A",(8,0,0),(8,0,0),2),
-                stoptime("T1",2,"B",(8,0,0),(8,0,0),3),
-                stoptime("T1",3,"C",(8,0,0),(8,0,0),4),
-            ]);
+                stop("A", 41.0, 29.0),
+                stop("B", 41.001, 29.0),
+                stop("C", 41.002, 29.0),
+            ],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 0), (8, 0, 0), 3),
+                stoptime("T1", 3, "C", (8, 0, 0), (8, 0, 0), 4),
+            ],
+        );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_053"));
     }
@@ -9716,17 +11953,24 @@ mod tests {
     fn excessive_speed_produces_opr_008() {
         // OPR_008 için trip_bad_seg_count > 1 gerekir: 3 durak, 2 anormal segment
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9), stop("C", 37.0, 36.0)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 39.9, 32.9),
+                stop("C", 37.0, 36.0),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0),  (8,0,0),  2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3), // ~350km / 10dk → aşırı hız
-                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4), // ~350km / 10dk → aşırı hız
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3), // ~350km / 10dk → aşırı hız
+                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4), // ~350km / 10dk → aşırı hız
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_008"), "OPR_008 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_008"),
+            "OPR_008 olmalı"
+        );
     }
 
     // ── STM_028 ───────────────────────────────────────────────────────────────
@@ -9739,8 +11983,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (38,0,0), (38,0,0), 3), // GTFS 38:00:00
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (38, 0, 0), (38, 0, 0), 3), // GTFS 38:00:00
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -9777,7 +12021,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "STM_028")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_028")
             .expect("50 saatlik tren seferi raylı eşiği de aşar");
         assert_eq!(n.severity, gtfs_core::Severity::Bilgi);
     }
@@ -9789,8 +12036,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -9807,8 +12054,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,0,30), (8,0,30), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 30), (8, 0, 30), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -9833,9 +12080,16 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_012").collect();
-        assert!(hits.is_empty(), "dakika yuvarlaması ile açıklanabilen mesafe FP olmamalı: {:?}",
-                hits.iter().map(|n| &n.observed_value).collect::<Vec<_>>());
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_012")
+            .collect();
+        assert!(
+            hits.is_empty(),
+            "dakika yuvarlaması ile açıklanabilen mesafe FP olmamalı: {:?}",
+            hits.iter().map(|n| &n.observed_value).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -9852,8 +12106,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_012"),
-                "bir dakikada alınamayacak mesafe STM_012 üretmeli");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_012"),
+            "bir dakikada alınamayacak mesafe STM_012 üretmeli"
+        );
     }
 
     #[test]
@@ -9869,15 +12125,43 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,0,6), (8,0,6), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 6), (8, 0, 6), 3),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.006), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0045), Some(29.006), Some(3), None, 4),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0045), Some(29.0), Some(4), None, 5),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.006),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0045),
+                Some(29.006),
+                Some(3),
+                None,
+                4,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0045),
+                Some(29.0),
+                Some(4),
+                None,
+                5,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -9908,17 +12192,46 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(40.995), Some(29.04), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.005), Some(29.04), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.005), Some(29.06), Some(3), None, 4),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(40.995), Some(29.06), Some(4), None, 5),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(40.995),
+                Some(29.04),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.005),
+                Some(29.04),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.005),
+                Some(29.06),
+                Some(3),
+                None,
+                4,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(40.995),
+                Some(29.06),
+                Some(4),
+                None,
+                5,
+            ),
         ];
         records.shape_interns = shape_ti;
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "STM_014"),
             "Haversine alt sınırı gerçek otobüs hızını koruyarak STM_014 üretmeli: {:?}",
-            result.notices
+            result
+                .notices
                 .iter()
                 .map(|n| (&n.rule_id, n.observed_value.as_deref()))
                 .collect::<Vec<_>>()
@@ -9953,8 +12266,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S0")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
         let mut shapes = Vec::new();
@@ -9964,16 +12277,44 @@ mod tests {
             // doyum artık ayrı KOORDİNAT sayısıyla ölçülür (aynı noktayı paylaşan shape'ler
             // tek bildirimde toplanır), o yüzden 51 ayrı konum gerekir.
             let lat = 41.0 + k as f64 * 0.01;
-            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(lat), Some(29.0), Some(1), None, 2));
-            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(lat + 0.001), Some(29.0), Some(2), None, 3));
-            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(lat), Some(29.0), Some(3), None, 4));
+            shapes.push(ShapePointRecord::new(
+                shape_ti.intern(&sid),
+                Some(lat),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ));
+            shapes.push(ShapePointRecord::new(
+                shape_ti.intern(&sid),
+                Some(lat + 0.001),
+                Some(29.0),
+                Some(2),
+                None,
+                3,
+            ));
+            shapes.push(ShapePointRecord::new(
+                shape_ti.intern(&sid),
+                Some(lat),
+                Some(29.0),
+                Some(3),
+                None,
+                4,
+            ));
         }
         records.shapes = shapes;
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_020").collect();
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_020")
+            .collect();
         assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_020 beklenir");
-        assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
+        assert!(
+            hits[0].entity_id.is_none(),
+            "özet notice feed-seviyesi olmalı (entity_id yok)"
+        );
     }
 
     /// WP-S: Bir istasyon/makas geometrisi gidiş ve dönüş shape'lerinde TEKRAR EDER;
@@ -9988,32 +12329,72 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S0")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
         // 8 shape (yön varyantları), HEPSİ aynı istasyon noktasında tekrarlıyor.
         let mut shapes = Vec::new();
         for k in 0..8u32 {
             let sid = format!("S{k}");
-            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.0), Some(29.0), Some(1), None, 2));
-            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.001), Some(29.0), Some(2), None, 3));
-            shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(41.0), Some(29.0), Some(3), None, 4));
+            shapes.push(ShapePointRecord::new(
+                shape_ti.intern(&sid),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ));
+            shapes.push(ShapePointRecord::new(
+                shape_ti.intern(&sid),
+                Some(41.001),
+                Some(29.0),
+                Some(2),
+                None,
+                3,
+            ));
+            shapes.push(ShapePointRecord::new(
+                shape_ti.intern(&sid),
+                Some(41.0),
+                Some(29.0),
+                Some(3),
+                None,
+                4,
+            ));
         }
         records.shapes = shapes;
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_020").collect();
-        assert_eq!(hits.len(), 1, "8 shape aynı koordinatta → TEK bildirim (8 değil)");
-        assert_eq!(hits[0].entity_id.as_deref(), Some("S0"), "temsilci en küçük shape_id olmalı");
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_020")
+            .collect();
         assert_eq!(
-            hits[0].details.as_ref().and_then(|d| d.get("repeated_shapes")).map(String::as_str),
+            hits.len(),
+            1,
+            "8 shape aynı koordinatta → TEK bildirim (8 değil)"
+        );
+        assert_eq!(
+            hits[0].entity_id.as_deref(),
+            Some("S0"),
+            "temsilci en küçük shape_id olmalı"
+        );
+        assert_eq!(
+            hits[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("repeated_shapes"))
+                .map(String::as_str),
             Some("8"),
             "kaç shape'te tekrarlandığı details'ta taşınmalı"
         );
         assert!(
-            hits[0].message.contains("8 güzergah şeklinde tekrarlanıyor"),
-            "mesaj tekrarı söylemeli: {}", hits[0].message
+            hits[0]
+                .message
+                .contains("8 güzergah şeklinde tekrarlanıyor"),
+            "mesaj tekrarı söylemeli: {}",
+            hits[0].message
         );
     }
 
@@ -10027,8 +12408,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "X0")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
         let mut shapes = Vec::new();
@@ -10038,17 +12419,37 @@ mod tests {
             // Her shape KENDİ konumunda kesişir: doyum artık ayrı KESİŞME KONUMU sayar
             // (aynı makası paylaşan yön varyantları tek bildirimde toplanır).
             let d = k as f64 * 0.1;
-            let pts = [(41.000 + d, 29.000), (41.010 + d, 29.010), (41.010 + d, 29.000), (41.000 + d, 29.010), (41.020 + d, 29.020)];
+            let pts = [
+                (41.000 + d, 29.000),
+                (41.010 + d, 29.010),
+                (41.010 + d, 29.000),
+                (41.000 + d, 29.010),
+                (41.020 + d, 29.020),
+            ];
             for (i, (la, lo)) in pts.iter().enumerate() {
-                shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
+                shapes.push(ShapePointRecord::new(
+                    shape_ti.intern(&sid),
+                    Some(*la),
+                    Some(*lo),
+                    Some(i as u32 + 1),
+                    None,
+                    2 + i as u32,
+                ));
             }
         }
         records.shapes = shapes;
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_009").collect();
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_009")
+            .collect();
         assert_eq!(hits.len(), 1, "eşik üstünde tek feed-özet SHP_009 beklenir");
-        assert!(hits[0].entity_id.is_none(), "özet notice feed-seviyesi olmalı (entity_id yok)");
+        assert!(
+            hits[0].entity_id.is_none(),
+            "özet notice feed-seviyesi olmalı (entity_id yok)"
+        );
     }
 
     /// Bir makas/istasyon yaklaşması gidiş ve dönüş shape'lerinde TEKRAR EDER; shape başına
@@ -10062,27 +12463,56 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "X0")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,30,0), (8,30,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
         // 4 shape (yön varyantları), HEPSİ aynı makasta kesişiyor.
         let mut shapes = Vec::new();
         for k in 0..4u32 {
             let sid = format!("X{k}");
-            let pts = [(41.000, 29.000), (41.010, 29.010), (41.010, 29.000), (41.000, 29.010), (41.020, 29.020)];
+            let pts = [
+                (41.000, 29.000),
+                (41.010, 29.010),
+                (41.010, 29.000),
+                (41.000, 29.010),
+                (41.020, 29.020),
+            ];
             for (i, (la, lo)) in pts.iter().enumerate() {
-                shapes.push(ShapePointRecord::new(shape_ti.intern(&sid), Some(*la), Some(*lo), Some(i as u32 + 1), None, 2 + i as u32));
+                shapes.push(ShapePointRecord::new(
+                    shape_ti.intern(&sid),
+                    Some(*la),
+                    Some(*lo),
+                    Some(i as u32 + 1),
+                    None,
+                    2 + i as u32,
+                ));
             }
         }
         records.shapes = shapes;
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_009").collect();
-        assert_eq!(hits.len(), 1, "4 shape aynı makasta kesişiyor → TEK bildirim");
-        assert_eq!(hits[0].entity_id.as_deref(), Some("X0"), "temsilci en küçük shape_id");
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_009")
+            .collect();
         assert_eq!(
-            hits[0].details.as_ref().and_then(|d| d.get("repeated_shapes")).map(String::as_str),
+            hits.len(),
+            1,
+            "4 shape aynı makasta kesişiyor → TEK bildirim"
+        );
+        assert_eq!(
+            hits[0].entity_id.as_deref(),
+            Some("X0"),
+            "temsilci en küçük shape_id"
+        );
+        assert_eq!(
+            hits[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("repeated_shapes"))
+                .map(String::as_str),
             Some("4"),
         );
     }
@@ -10092,7 +12522,11 @@ mod tests {
         // A→B ve B→C ayrı ayrı makul, A→C imkânsız: ara durak zamanı geç yazılmış,
         // uçtan uca 60 km 6 dakikada kapatılıyor (600 km/h, otobüs eşiği 120).
         let records = records_with(
-            vec![stop("A", 41.000, 29.000), stop("B", 41.100, 29.000), stop("C", 41.540, 29.000)],
+            vec![
+                stop("A", 41.000, 29.000),
+                stop("B", 41.100, 29.000),
+                stop("C", 41.540, 29.000),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
@@ -10102,16 +12536,26 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_061"),
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_061"),
             "uzak çift ihlali STM_061 üretmeli: {:?}",
-            result.notices.iter().map(|n| n.rule_id.as_str()).collect::<Vec<_>>());
+            result
+                .notices
+                .iter()
+                .map(|n| n.rule_id.as_str())
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn stm_061_stays_silent_on_a_plausible_long_trip() {
         // Aynı 60 km, ama 90 dakikada = 40 km/h. Hiçbir çift ihlal etmez.
         let records = records_with(
-            vec![stop("A", 41.000, 29.000), stop("B", 41.270, 29.000), stop("C", 41.540, 29.000)],
+            vec![
+                stop("A", 41.000, 29.000),
+                stop("B", 41.270, 29.000),
+                stop("C", 41.540, 29.000),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
@@ -10129,7 +12573,11 @@ mod tests {
         // 10 km'nin altındaki çiftler komşu kontrolünün alanıdır; hız imkânsız olsa
         // bile STM_061 susar, yoksa STM_012/STM_014 ile aynı olguyu iki kez sayardık.
         let records = records_with(
-            vec![stop("A", 41.000, 29.000), stop("B", 41.010, 29.000), stop("C", 41.040, 29.000)],
+            vec![
+                stop("A", 41.000, 29.000),
+                stop("B", 41.010, 29.000),
+                stop("C", 41.040, 29.000),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
@@ -10156,8 +12604,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_012"),
-                "teleferik için 1.1 km bir dakikada alınamaz → STM_012 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_012"),
+            "teleferik için 1.1 km bir dakikada alınamaz → STM_012 olmalı"
+        );
     }
 
     // ── STM_020: sıfır seyahat süresi ─────────────────────────────────────────
@@ -10170,12 +12620,15 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,30), (8,0,30), 2),
-                stoptime("T1", 2, "B", (8,0,30), (8,0,30), 3), // aynı zaman, farklı konum
+                stoptime("T1", 1, "A", (8, 0, 30), (8, 0, 30), 2),
+                stoptime("T1", 2, "B", (8, 0, 30), (8, 0, 30), 3), // aynı zaman, farklı konum
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_020"), "STM_020 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_020"),
+            "STM_020 olmalı"
+        );
     }
 
     #[test]
@@ -10186,18 +12639,26 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "A", (8,0,0), (8,0,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 0, 0), (8, 0, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_020"), "aynı durak STM_020 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STM_020"),
+            "aynı durak STM_020 üretmemeli"
+        );
     }
 
     #[test]
     fn empty_feed_no_notices() {
         use crate::k2::EntityRecords;
-        let result = analyze(&EntityRecords::default(), &empty_derived(), &default_config(), 20260514);
+        let result = analyze(
+            &EntityRecords::default(),
+            &empty_derived(),
+            &default_config(),
+            20260514,
+        );
         assert!(result.notices.is_empty());
     }
 
@@ -10213,12 +12674,24 @@ mod tests {
     #[test]
     fn is_regular_headway_distinguishes_rural_from_gap() {
         // Düzenli seyrek (kırsal): eşit aralıklar → düzenli (true) → OPR_001 bastırılır
-        assert!(is_regular_headway(&[18000, 18000, 18000]), "5sa eşit aralık = düzenli");
-        assert!(is_regular_headway(&[36000]), "tek aralık (2 sefer) = kasıtlı");
+        assert!(
+            is_regular_headway(&[18000, 18000, 18000]),
+            "5sa eşit aralık = düzenli"
+        );
+        assert!(
+            is_regular_headway(&[36000]),
+            "tek aralık (2 sefer) = kasıtlı"
+        );
         assert!(is_regular_headway(&[]), "boş = kasıtlı");
         // Düzensiz (gerçek boşluk): çoğu sık + bir dev boşluk → düzensiz (false) → OPR_001 üretilir
-        assert!(!is_regular_headway(&[900, 900, 900, 14400]), "15dk×3 + 4sa boşluk = düzensiz");
-        assert!(!is_regular_headway(&[600, 600, 7200]), "10dk×2 + 2sa = düzensiz");
+        assert!(
+            !is_regular_headway(&[900, 900, 900, 14400]),
+            "15dk×3 + 4sa boşluk = düzensiz"
+        );
+        assert!(
+            !is_regular_headway(&[600, 600, 7200]),
+            "10dk×2 + 2sa = düzensiz"
+        );
     }
 
     // ── WP-09b: FRQ_006 / FRQ_010 ────────────────────────────────────────────
@@ -10277,7 +12750,12 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
-            vec![trip("T1", "R1"), trip("T2", "R1"), trip("T3", "R1"), trip("T4", "R1")],
+            vec![
+                trip("T1", "R1"),
+                trip("T2", "R1"),
+                trip("T3", "R1"),
+                trip("T4", "R1"),
+            ],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
@@ -10311,7 +12789,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_001"), "düzenli seyrek bastırılmalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_001"),
+            "düzenli seyrek bastırılmalı"
+        );
     }
 
     #[test]
@@ -10347,16 +12828,32 @@ mod tests {
             stoptimes,
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let stm007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_007").collect();
-        assert_eq!(stm007.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm007:?}");
+        let stm007: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_007")
+            .collect();
+        assert_eq!(
+            stm007.len(),
+            1,
+            "51 ihlal tek feed-özeti olmalı: {stm007:?}"
+        );
         assert_eq!(stm007[0].entity_type, EntityType::Feed);
         assert_eq!(stm007[0].observed_value.as_deref(), Some("51"));
         assert_eq!(
-            stm007[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            stm007[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(String::as_str),
             Some("51"),
         );
         assert_eq!(
-            stm007[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            stm007[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_trips"))
+                .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
     }
@@ -10375,8 +12872,16 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let stm007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_007").collect();
-        assert_eq!(stm007.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        let stm007: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_007")
+            .collect();
+        assert_eq!(
+            stm007.len(),
+            2,
+            "düşük hacimde iki pinpoint notice korunmalı"
+        );
         assert!(stm007.iter().all(|n| n.entity_type == EntityType::Trip));
         assert!(stm007.iter().all(|n| n.details.is_some()));
     }
@@ -10394,7 +12899,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_007"), "gece-yarısı kalkış bastırılmalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STM_007"),
+            "gece-yarısı kalkış bastırılmalı"
+        );
     }
 
     #[test]
@@ -10410,15 +12918,19 @@ mod tests {
             ],
         );
         let r = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!r.notices.iter().any(|n| n.rule_id == "STM_045"),
-            "26:30 default eşik (27h) altında STM_045 üretmemeli");
+        assert!(
+            !r.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "26:30 default eşik (27h) altında STM_045 üretmemeli"
+        );
 
         // start_hour=0 (normalizasyon kapalı) → eşik 26h → 26:30 anomali.
         let mut cfg0 = default_config();
         cfg0.service_day_start_hour = 0;
         let r0 = analyze(&records, &empty_derived(), &cfg0, 20260514);
-        assert!(r0.notices.iter().any(|n| n.rule_id == "STM_045"),
-            "start_hour=0 iken 26:30 STM_045 üretmeli");
+        assert!(
+            r0.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "start_hour=0 iken 26:30 STM_045 üretmeli"
+        );
 
         // 28:30 → default eşik (27h) üstünde → anomali.
         let records2 = records_with(
@@ -10431,40 +12943,69 @@ mod tests {
             ],
         );
         let r2 = analyze(&records2, &empty_derived(), &default_config(), 20260514);
-        assert!(r2.notices.iter().any(|n| n.rule_id == "STM_045"),
-            "28:30 default eşik (27h) üstünde STM_045 üretmeli");
+        assert!(
+            r2.notices.iter().any(|n| n.rule_id == "STM_045"),
+            "28:30 default eşik (27h) üstünde STM_045 üretmeli"
+        );
     }
 
     #[test]
     fn wheelchair_boarding_completeness_stp_037_038() {
-        let mk = |stops: Vec<StopRecord>| records_with(
-            stops,
-            vec![route("R1", 3)],
-            vec![trip("T1", "R1")],
-            vec![
-                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
-            ],
-        );
+        let mk = |stops: Vec<StopRecord>| {
+            records_with(
+                stops,
+                vec![route("R1", 3)],
+                vec![trip("T1", "R1")],
+                vec![
+                    stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                    stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                ],
+            )
+        };
         let mut a = stop("A", 41.0, 29.0);
         let mut b = stop("B", 41.01, 29.01);
 
         // Tüm fiziksel duraklar eksik (wheelchair_boarding None) → STP_038, STP_037 yok.
-        let r = analyze(&mk(vec![a.clone(), b.clone()]), &empty_derived(), &default_config(), 20260514);
-        assert!(r.notices.iter().any(|n| n.rule_id == "STP_038"), "hepsi eksik → STP_038");
+        let r = analyze(
+            &mk(vec![a.clone(), b.clone()]),
+            &empty_derived(),
+            &default_config(),
+            20260514,
+        );
+        assert!(
+            r.notices.iter().any(|n| n.rule_id == "STP_038"),
+            "hepsi eksik → STP_038"
+        );
         assert!(!r.notices.iter().any(|n| n.rule_id == "STP_037"));
 
         // Biri dolu, biri eksik → STP_037, STP_038 yok.
         a.wheelchair_boarding = Some(1);
-        let r2 = analyze(&mk(vec![a.clone(), b.clone()]), &empty_derived(), &default_config(), 20260514);
-        assert!(r2.notices.iter().any(|n| n.rule_id == "STP_037"), "kısmi → STP_037");
+        let r2 = analyze(
+            &mk(vec![a.clone(), b.clone()]),
+            &empty_derived(),
+            &default_config(),
+            20260514,
+        );
+        assert!(
+            r2.notices.iter().any(|n| n.rule_id == "STP_037"),
+            "kısmi → STP_037"
+        );
         assert!(!r2.notices.iter().any(|n| n.rule_id == "STP_038"));
 
         // Hepsi dolu → ikisi de yok.
         b.wheelchair_boarding = Some(2);
-        let r3 = analyze(&mk(vec![a, b]), &empty_derived(), &default_config(), 20260514);
-        assert!(!r3.notices.iter().any(|n| n.rule_id == "STP_037" || n.rule_id == "STP_038"),
-            "hepsi dolu → notice yok");
+        let r3 = analyze(
+            &mk(vec![a, b]),
+            &empty_derived(),
+            &default_config(),
+            20260514,
+        );
+        assert!(
+            !r3.notices
+                .iter()
+                .any(|n| n.rule_id == "STP_037" || n.rule_id == "STP_038"),
+            "hepsi dolu → notice yok"
+        );
     }
 
     #[test]
@@ -10496,11 +13037,20 @@ mod tests {
             ti.service_ids.push(SmolStr::new(service_id));
             TripRecord {
                 trip_id: trip_id.into(),
-                route_idx: ri, service_idx: si, shape_idx: 0,
-                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
-                direction_id: None, wheelchair_accessible: None,
-                bikes_allowed: None, cars_allowed: None,
-                safe_duration_factor: None, safe_duration_offset: None,
+                route_idx: ri,
+                service_idx: si,
+                shape_idx: 0,
+                headsign_idx: 0,
+                short_name_idx: 0,
+                block_idx: 0,
+                jp_office_idx: 0,
+                jp_pattern_idx: 0,
+                direction_id: None,
+                wheelchair_accessible: None,
+                bikes_allowed: None,
+                cars_allowed: None,
+                safe_duration_factor: None,
+                safe_duration_offset: None,
                 line: 2,
             }
         })
@@ -10510,7 +13060,10 @@ mod tests {
     fn dedup_same_time_suppresses_opr_003() {
         // 5 trip, hepsi 08:00 kalkış → dedup sonrası tek unique saat → bucket atlanır → OPR_003 yok
         // Config: bunching_threshold_min = 2 (default ile aynı)
-        let cfg = ValidatorConfig { bunching_threshold_min: 2, ..default_config() };
+        let cfg = ValidatorConfig {
+            bunching_threshold_min: 2,
+            ..default_config()
+        };
         let trips: Vec<TripRecord> = (1..=5)
             .map(|i| trip_with_service(&format!("T{i}"), "R1", "SVC"))
             .collect();
@@ -10518,7 +13071,14 @@ mod tests {
         for i in 1u32..=5 {
             let tid = format!("T{i}");
             stoptimes.push(stoptime(&tid, 1, "A", (8, 0, 0), (8, 0, 0), (i * 2) as u64));
-            stoptimes.push(stoptime(&tid, 2, "B", (8, 10, 0), (8, 10, 0), (i * 2 + 1) as u64));
+            stoptimes.push(stoptime(
+                &tid,
+                2,
+                "B",
+                (8, 10, 0),
+                (8, 10, 0),
+                (i * 2 + 1) as u64,
+            ));
         }
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
@@ -10527,28 +13087,61 @@ mod tests {
             stoptimes,
         );
         let result = analyze(&records, &empty_derived(), &cfg, 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_003"),
-            "tek unique kalkış saati dedup'tan sonra bucket atlanmalı → OPR_003 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_003"),
+            "tek unique kalkış saati dedup'tan sonra bucket atlanmalı → OPR_003 olmamalı"
+        );
     }
 
     #[test]
     fn true_bunching_survives_dedup() {
         // 08:00 × 5 trip + 08:01 × 5 trip → dedup: [28800, 28860] → fark 60s = 1dk < 2dk → OPR_003
         // Config: bunching_threshold_min = 2
-        let cfg = ValidatorConfig { bunching_threshold_min: 2, ..default_config() };
+        let cfg = ValidatorConfig {
+            bunching_threshold_min: 2,
+            ..default_config()
+        };
         let mut trips = Vec::new();
         let mut stoptimes = Vec::new();
         for i in 1u32..=5 {
             let tid = format!("TA{i}");
             trips.push(trip_with_service(&tid, "R1", "SVC"));
-            stoptimes.push(stoptime(&tid, 1, "A", (8, 0, 0), (8, 0, 0), (i * 10) as u64));
-            stoptimes.push(stoptime(&tid, 2, "B", (8, 10, 0), (8, 10, 0), (i * 10 + 1) as u64));
+            stoptimes.push(stoptime(
+                &tid,
+                1,
+                "A",
+                (8, 0, 0),
+                (8, 0, 0),
+                (i * 10) as u64,
+            ));
+            stoptimes.push(stoptime(
+                &tid,
+                2,
+                "B",
+                (8, 10, 0),
+                (8, 10, 0),
+                (i * 10 + 1) as u64,
+            ));
         }
         for i in 1u32..=5 {
             let tid = format!("TB{i}");
             trips.push(trip_with_service(&tid, "R1", "SVC"));
-            stoptimes.push(stoptime(&tid, 1, "A", (8, 1, 0), (8, 1, 0), (100 + i * 10) as u64));
-            stoptimes.push(stoptime(&tid, 2, "B", (8, 11, 0), (8, 11, 0), (100 + i * 10 + 1) as u64));
+            stoptimes.push(stoptime(
+                &tid,
+                1,
+                "A",
+                (8, 1, 0),
+                (8, 1, 0),
+                (100 + i * 10) as u64,
+            ));
+            stoptimes.push(stoptime(
+                &tid,
+                2,
+                "B",
+                (8, 11, 0),
+                (8, 11, 0),
+                (100 + i * 10 + 1) as u64,
+            ));
         }
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
@@ -10558,15 +13151,22 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &cfg, 20260514);
         // dedup sonrası [28800, 28860] → min headway = 60s < 120s (2dk) → OPR_003 tetiklenmeli
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_003"),
-            "gerçek sıkışma (60s < 120s eşiği) dedup'tan sonra da OPR_003 üretmeli");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_003"),
+            "gerçek sıkışma (60s < 120s eşiği) dedup'tan sonra da OPR_003 üretmeli"
+        );
     }
 
     // ── WP-09b: CAL_008 / CAL_009 / CAL_010 / CAL_007 / CAL_012 ─────────────
 
     use crate::k2::calendar::CalendarRecord;
 
-    fn cal_rec(service_id: &str, days: [Option<u32>; 7], start: (u32,u32,u32), end: (u32,u32,u32)) -> CalendarRecord {
+    fn cal_rec(
+        service_id: &str,
+        days: [Option<u32>; 7],
+        start: (u32, u32, u32),
+        end: (u32, u32, u32),
+    ) -> CalendarRecord {
         CalendarRecord {
             service_id: service_id.into(),
             days,
@@ -10588,9 +13188,12 @@ mod tests {
         use crate::k5_derived::CalendarBitmap;
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
-                active_dates: [("SVC".to_string(),
-                    [20251201u32, 20251215, 20251231].into_iter().collect())]
-                    .into_iter().collect(),
+                active_dates: [(
+                    "SVC".to_string(),
+                    [20251201u32, 20251215, 20251231].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
@@ -10600,26 +13203,39 @@ mod tests {
         };
         // today = 20260514 > son aktif tarih 20251231
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_013"),
-            "süresi dolmuş tekil servis CAL_013 üretmeli");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_009"),
-            "tek servis durumunda k6'dan CAL_009 üretmemeli (k4 tümü dolmuşsa atar)");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_013"),
+            "süresi dolmuş tekil servis CAL_013 üretmeli"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_009"),
+            "tek servis durumunda k6'dan CAL_009 üretmemeli (k4 tümü dolmuşsa atar)"
+        );
     }
 
     fn pth_stop(id: &str, lt: Option<u32>, parent: &str) -> StopRecord {
         let mut s = stop(id, 0.0, 0.0);
         s.location_type = lt;
         if !parent.is_empty() {
-            s.row.insert("parent_station".to_string(), parent.to_string());
+            s.row
+                .insert("parent_station".to_string(), parent.to_string());
         }
         s
     }
     fn pth_pw(id: &str, from: &str, to: &str) -> crate::k2::pathways::PathwayRecord {
         crate::k2::pathways::PathwayRecord {
-            pathway_id: id.into(), from_stop_id: from.into(), to_stop_id: to.into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None, stair_count: None,
-            max_slope: None, min_width: None, row: Default::default(), line: 2,
+            pathway_id: id.into(),
+            from_stop_id: from.into(),
+            to_stop_id: to.into(),
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }
     }
 
@@ -10639,13 +13255,21 @@ mod tests {
             ..Default::default()
         };
         let mut derived = DerivedData::default();
-        derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
-        derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("EN".into(), vec![("BA".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("BA".into(), vec![("EN".into(), 0)]);
         let mut v = Vec::new();
         let mut c = 0u32;
         check_pathway_analytics(&recs, &derived, &mut v, &mut c);
-        assert!(!v.iter().any(|n| n.rule_id == "PTH_012"),
-            "boarding-area çocuğu erişilebilirken PTH_012 çıkmamalı");
+        assert!(
+            !v.iter().any(|n| n.rule_id == "PTH_012"),
+            "boarding-area çocuğu erişilebilirken PTH_012 çıkmamalı"
+        );
     }
 
     #[test]
@@ -10662,13 +13286,21 @@ mod tests {
             ..Default::default()
         };
         let mut derived = DerivedData::default();
-        derived.pathway_graph.adjacency.insert("EN".into(), vec![("X".into(), 0)]);
-        derived.pathway_graph.adjacency.insert("PL".into(), vec![("Y".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("EN".into(), vec![("X".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("PL".into(), vec![("Y".into(), 0)]);
         let mut v = Vec::new();
         let mut c = 0u32;
         check_pathway_analytics(&recs, &derived, &mut v, &mut c);
-        assert!(v.iter().any(|n| n.rule_id == "PTH_012"),
-            "erişilemeyen peron PTH_012 üretmeli");
+        assert!(
+            v.iter().any(|n| n.rule_id == "PTH_012"),
+            "erişilemeyen peron PTH_012 üretmeli"
+        );
     }
 
     #[test]
@@ -10686,13 +13318,21 @@ mod tests {
             ..Default::default()
         };
         let mut derived = DerivedData::default();
-        derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
-        derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("EN".into(), vec![("BA".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("BA".into(), vec![("EN".into(), 0)]);
         let mut v = Vec::new();
         let mut c = 0u32;
         check_pathway_analytics(&recs, &derived, &mut v, &mut c);
-        assert!(!v.iter().any(|n| n.rule_id == "PTH_013"),
-            "erişilebilir boarding-area çocuğu varken PTH_013 çıkmamalı");
+        assert!(
+            !v.iter().any(|n| n.rule_id == "PTH_013"),
+            "erişilebilir boarding-area çocuğu varken PTH_013 çıkmamalı"
+        );
     }
 
     #[test]
@@ -10712,13 +13352,21 @@ mod tests {
             ..Default::default()
         };
         let mut derived = DerivedData::default();
-        derived.pathway_graph.adjacency.insert("EN".into(), vec![("BA".into(), 0)]);
-        derived.pathway_graph.adjacency.insert("BA".into(), vec![("EN".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("EN".into(), vec![("BA".into(), 0)]);
+        derived
+            .pathway_graph
+            .adjacency
+            .insert("BA".into(), vec![("EN".into(), 0)]);
         let mut v = Vec::new();
         let mut c = 0u32;
         check_pathway_analytics(&recs, &derived, &mut v, &mut c);
-        assert!(v.iter().any(|n| n.rule_id == "PTH_013"),
-            "dik rotalı istasyon PTH_013 üretmeli");
+        assert!(
+            v.iter().any(|n| n.rule_id == "PTH_013"),
+            "dik rotalı istasyon PTH_013 üretmeli"
+        );
     }
 
     #[test]
@@ -10731,9 +13379,12 @@ mod tests {
         // birleşik active_dates gelecekte bir tarih içeriyor.
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
-                active_dates: [("SVC".to_string(),
-                    [20251201u32, 20251231, 20260601].into_iter().collect())]
-                    .into_iter().collect(),
+                active_dates: [(
+                    "SVC".to_string(),
+                    [20251201u32, 20251231, 20260601].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
@@ -10743,8 +13394,10 @@ mod tests {
         };
         // today = 20260514 < 20260601 (uzatılmış aktif tarih)
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_013"),
-            "calendar_dates ile hâlâ aktif servis CAL_013 üretmemeli (FP)");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_013"),
+            "calendar_dates ile hâlâ aktif servis CAL_013 üretmemeli (FP)"
+        );
     }
 
     #[test]
@@ -10755,21 +13408,43 @@ mod tests {
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
-                    ("A.724".to_string(), [20251215u32, 20251231].into_iter().collect()),
-                    ("B.724".to_string(), [20251201u32, 20251231].into_iter().collect()),
-                ].into_iter().collect(),
+                    (
+                        "A.724".to_string(),
+                        [20251215u32, 20251231].into_iter().collect(),
+                    ),
+                    (
+                        "B.724".to_string(),
+                        [20251201u32, 20251231].into_iter().collect(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        let cal013: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_013").collect();
-        assert_eq!(cal013.len(), 1, "aynı expiry tarihini paylaşan iki varyant için tek CAL_013 beklenir");
+        let cal013: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "CAL_013")
+            .collect();
+        assert_eq!(
+            cal013.len(),
+            1,
+            "aynı expiry tarihini paylaşan iki varyant için tek CAL_013 beklenir"
+        );
         assert_eq!(cal013[0].entity_id.as_deref(), Some("20251231"));
-        let services = cal013[0].details.as_ref()
-            .and_then(|d| d.get("services")).map(String::as_str).unwrap_or("");
-        assert!(services.contains("A.724") && services.contains("B.724"),
-            "details.services her iki varyantı listelemeli, bulundu: {services}");
+        let services = cal013[0]
+            .details
+            .as_ref()
+            .and_then(|d| d.get("services"))
+            .map(String::as_str)
+            .unwrap_or("");
+        assert!(
+            services.contains("A.724") && services.contains("B.724"),
+            "details.services her iki varyantı listelemeli, bulundu: {services}"
+        );
     }
 
     #[test]
@@ -10791,16 +13466,27 @@ mod tests {
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
-                    ("SVC".to_string(), [20260511u32, 20260512, 20260513].into_iter().collect()),
-                    ("LONG".to_string(), [20260401u32, 20260601].into_iter().collect()),
-                ].into_iter().collect(),
+                    (
+                        "SVC".to_string(),
+                        [20260511u32, 20260512, 20260513].into_iter().collect(),
+                    ),
+                    (
+                        "LONG".to_string(),
+                        [20260401u32, 20260601].into_iter().collect(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
-            result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("SVC")),
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("SVC")),
             "62 günlük pencerede 3 aktif gün → CAL_010 çıkmalı"
         );
     }
@@ -10838,13 +13524,18 @@ mod tests {
                 active_dates: [
                     ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
                     ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
-                ].into_iter().collect(),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let result = analyze(&r, &derived, &default_config(), 20260518);
         assert!(
-            !result.notices.iter().any(|n| n.rule_id == "OPR_019" || n.rule_id == "OPR_020"),
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "OPR_019" || n.rule_id == "OPR_020"),
             "zıt yönlerde iki ayrı tren çakışma değildir"
         );
     }
@@ -10878,7 +13569,9 @@ mod tests {
                 active_dates: [
                     ("SVC_A".to_string(), [20260518u32].into_iter().collect()),
                     ("SVC_B".to_string(), [20260518u32].into_iter().collect()),
-                ].into_iter().collect(),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
@@ -10896,18 +13589,27 @@ mod tests {
     /// ve notice "temel programdan sapma" diye bir şey ölçmez.
     #[test]
     fn cld_007_silent_when_the_feed_has_no_calendar_txt() {
-        use crate::k5_derived::CalendarBitmap;
         use crate::k2::calendar_dates::CalendarDateIndex;
+        use crate::k5_derived::CalendarBitmap;
         // calendars BOŞ — feed yalnız calendar_dates kullanıyor.
         let mut cd = CalendarDateIndex::default();
         cd.exception_count.insert("SVC".into(), 4);
-        cd.added.insert("SVC".into(), vec![20260518, 20260519, 20260520, 20260521]);
-        let r = crate::k2::EntityRecords { calendar_dates: cd, ..Default::default() };
+        cd.added
+            .insert("SVC".into(), vec![20260518, 20260519, 20260520, 20260521]);
+        let r = crate::k2::EntityRecords {
+            calendar_dates: cd,
+            ..Default::default()
+        };
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
-                active_dates: [("SVC".to_string(),
-                    [20260518u32, 20260519, 20260520, 20260521].into_iter().collect())]
-                    .into_iter().collect(),
+                active_dates: [(
+                    "SVC".to_string(),
+                    [20260518u32, 20260519, 20260520, 20260521]
+                        .into_iter()
+                        .collect(),
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
@@ -10926,7 +13628,8 @@ mod tests {
     fn cal_010_uses_a_ratio_on_short_feed_windows() {
         use crate::k5_derived::CalendarBitmap;
         // Pencere 20260728–20260813 = 17 gün (Temmuz 28-31 + Ağustos 1-13).
-        let full: std::collections::HashSet<u32> = (28..=31u32).map(|d| 20260700 + d)
+        let full: std::collections::HashSet<u32> = (28..=31u32)
+            .map(|d| 20260700 + d)
             .chain((1..=13u32).map(|d| 20260800 + d))
             .collect();
         let derived = DerivedData {
@@ -10934,22 +13637,37 @@ mod tests {
                 active_dates: [
                     ("DAILY".to_string(), full),
                     // 5 gün aktif — 17 günün %29'u, %20 eşiğinin üstünde.
-                    ("VANGOLU".to_string(),
-                        [20260728u32, 20260730, 20260801, 20260803, 20260805].into_iter().collect()),
+                    (
+                        "VANGOLU".to_string(),
+                        [20260728u32, 20260730, 20260801, 20260803, 20260805]
+                            .into_iter()
+                            .collect(),
+                    ),
                     // 2 gün aktif — %12, eşiğin altında → gerçek stub.
-                    ("STUB".to_string(), [20260728u32, 20260729].into_iter().collect()),
-                ].into_iter().collect(),
+                    (
+                        "STUB".to_string(),
+                        [20260728u32, 20260729].into_iter().collect(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260801);
         assert!(
-            !result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("VANGOLU")),
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("VANGOLU")),
             "17 günlük pencerede 5 aktif gün (%29) → CAL_010 ÇIKMAMALI"
         );
         assert!(
-            result.notices.iter().any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("STUB")),
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "CAL_010" && n.entity_id.as_deref() == Some("STUB")),
             "17 günlük pencerede 2 aktif gün (%12) → CAL_010 çıkmalı"
         );
     }
@@ -10961,9 +13679,17 @@ mod tests {
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
-                    ("ACTIVE".to_string(), [20260510u32, 20260514, 20260520].into_iter().collect()),
-                    ("SOON".to_string(),   [20260516u32, 20260517].into_iter().collect()),
-                ].into_iter().collect(),
+                    (
+                        "ACTIVE".to_string(),
+                        [20260510u32, 20260514, 20260520].into_iter().collect(),
+                    ),
+                    (
+                        "SOON".to_string(),
+                        [20260516u32, 20260517].into_iter().collect(),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
@@ -10982,19 +13708,30 @@ mod tests {
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
-                    ("A".to_string(), [20260601u32, 20260602].into_iter().collect()),
+                    (
+                        "A".to_string(),
+                        [20260601u32, 20260602].into_iter().collect(),
+                    ),
                     ("B".to_string(), [20260610u32].into_iter().collect()),
-                ].into_iter().collect(),
+                ]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        let ids: Vec<&str> = result.notices.iter()
+        let ids: Vec<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "CAL_017")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
-        assert_eq!(ids, vec!["A", "B"], "tümü gelecekteyse her servis için çıkmalı ve SIRALI olmalı");
+        assert_eq!(
+            ids,
+            vec!["A", "B"],
+            "tümü gelecekteyse her servis için çıkmalı ve SIRALI olmalı"
+        );
     }
 
     #[test]
@@ -11010,10 +13747,14 @@ mod tests {
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_007"),
-            "Geçmişteki boşluk CAL_007 üretmeli");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_012"),
-            "Geçmişteki boşluk CAL_012 üretmemeli");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_007"),
+            "Geçmişteki boşluk CAL_007 üretmeli"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_012"),
+            "Geçmişteki boşluk CAL_012 üretmemeli"
+        );
     }
 
     #[test]
@@ -11031,18 +13772,30 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1"), trip("T2", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
-                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
             ],
         );
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        let trp: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_024").collect();
-        assert_eq!(trp.len(), 1, "aktif olmayan tek takvim için tek CAL_024 beklenir");
+        let trp: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "CAL_024")
+            .collect();
+        assert_eq!(
+            trp.len(),
+            1,
+            "aktif olmayan tek takvim için tek CAL_024 beklenir"
+        );
         assert_eq!(trp[0].entity_type, gtfs_core::EntityType::Service);
         assert_eq!(trp[0].entity_id.as_deref(), Some("SVC"));
-        assert_eq!(trp[0].observed_value.as_deref(), Some("2"), "2 sefer etkilenmeli");
+        assert_eq!(
+            trp[0].observed_value.as_deref(),
+            Some("2"),
+            "2 sefer etkilenmeli"
+        );
     }
 
     #[test]
@@ -11059,10 +13812,14 @@ mod tests {
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         // #29: yakın-gelecek boşlukta CAL_012 (Yüksek) CAL_007'nin YERİNE raporlanır (çift-emit yok).
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_012"),
-            "Yakın gelecek boşluk CAL_012 üretmeli");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_007"),
-            "Yakın gelecek boşluk CAL_007 üretmemeli (CAL_012 onun yerine geçer)");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_012"),
+            "Yakın gelecek boşluk CAL_012 üretmeli"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_007"),
+            "Yakın gelecek boşluk CAL_007 üretmemeli (CAL_012 onun yerine geçer)"
+        );
     }
 
     #[test]
@@ -11077,19 +13834,33 @@ mod tests {
             active_dates: [
                 ("SVC_A".to_string(), dates_a),
                 ("SVC_B".to_string(), dates_b),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        let cal007: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "CAL_007").collect();
-        assert_eq!(cal007.len(), 1, "aynı boşluğu paylaşan iki servis için tek CAL_007 beklenir");
+        let cal007: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "CAL_007")
+            .collect();
+        assert_eq!(
+            cal007.len(),
+            1,
+            "aynı boşluğu paylaşan iki servis için tek CAL_007 beklenir"
+        );
         assert_eq!(cal007[0].entity_id.as_deref(), Some("20260101-20260201"));
-        let services = cal007[0].details.as_ref()
+        let services = cal007[0]
+            .details
+            .as_ref()
             .and_then(|d| d.get("services"))
             .map(String::as_str)
             .unwrap_or("");
-        assert!(services.contains("SVC_A") && services.contains("SVC_B"),
-            "details.services her iki servisi listelemeli, bulundu: {services}");
+        assert!(
+            services.contains("SVC_A") && services.contains("SVC_B"),
+            "details.services her iki servisi listelemeli, bulundu: {services}"
+        );
     }
 
     #[test]
@@ -11105,8 +13876,13 @@ mod tests {
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_007" || n.rule_id == "CAL_012"),
-            "big_gap_days eşiğinin altındaki boşluk (10<14) CAL_007/012 üretmemeli");
+        assert!(
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "CAL_007" || n.rule_id == "CAL_012"),
+            "big_gap_days eşiğinin altındaki boşluk (10<14) CAL_007/012 üretmemeli"
+        );
     }
 
     // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──
@@ -11120,11 +13896,20 @@ mod tests {
             ti.service_ids.push(SmolStr::new(sid));
             TripRecord {
                 trip_id: trip_id.into(),
-                route_idx: ri, service_idx: si, shape_idx: 0,
-                headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
-                direction_id: None, wheelchair_accessible: None,
-                bikes_allowed: None, cars_allowed: None,
-                safe_duration_factor: None, safe_duration_offset: None,
+                route_idx: ri,
+                service_idx: si,
+                shape_idx: 0,
+                headsign_idx: 0,
+                short_name_idx: 0,
+                block_idx: 0,
+                jp_office_idx: 0,
+                jp_pattern_idx: 0,
+                direction_id: None,
+                wheelchair_accessible: None,
+                bikes_allowed: None,
+                cars_allowed: None,
+                safe_duration_factor: None,
+                safe_duration_offset: None,
                 line: 2,
             }
         })
@@ -11148,8 +13933,10 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_021"),
-            "bugünü kapsayan ama yakın günde seferi olmayan servis CAL_021 üretmeli");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "bugünü kapsayan ama yakın günde seferi olmayan servis CAL_021 üretmeli"
+        );
     }
 
     #[test]
@@ -11162,8 +13949,10 @@ mod tests {
         };
         let records = crate::k2::EntityRecords::default(); // sefer yok
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_021"),
-            "sefersiz servis CAL_021 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "sefersiz servis CAL_021 üretmemeli"
+        );
     }
 
     #[test]
@@ -11181,8 +13970,10 @@ mod tests {
             ..Default::default()
         };
         let r1 = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(!r1.notices.iter().any(|n| n.rule_id == "CAL_021"),
-            "yakın günde aktif servis CAL_021 üretmemeli");
+        assert!(
+            !r1.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "yakın günde aktif servis CAL_021 üretmemeli"
+        );
 
         // (b) tamamen geçmiş → spans-today değil → CAL_021 yok (CAL_013 alanı)
         let mut derived2 = DerivedData::default();
@@ -11191,8 +13982,10 @@ mod tests {
             active_dates: [("SVC".to_string(), past)].into_iter().collect(),
         };
         let r2 = analyze(&records, &derived2, &default_config(), 20260514);
-        assert!(!r2.notices.iter().any(|n| n.rule_id == "CAL_021"),
-            "tamamen geçmiş servis CAL_021 üretmemeli");
+        assert!(
+            !r2.notices.iter().any(|n| n.rule_id == "CAL_021"),
+            "tamamen geçmiş servis CAL_021 üretmemeli"
+        );
     }
 
     // ── CAL_013: bitmap üzerinden süresi dolmuş servis ────────────────────────
@@ -11214,9 +14007,15 @@ mod tests {
         // exception_count'ta kayıt olmadan CLD_007/CAL_013 döngüsü çalışmaz
         let mut idx = CalendarDateIndex::default();
         idx.exception_count.insert("EXPIRED_SVC".into(), 1);
-        let records = crate::k2::EntityRecords { calendar_dates: idx, ..Default::default() };
+        let records = crate::k2::EntityRecords {
+            calendar_dates: idx,
+            ..Default::default()
+        };
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "CAL_013"), "CAL_013 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "CAL_013"),
+            "CAL_013 olmalı"
+        );
     }
 
     #[test]
@@ -11235,9 +14034,15 @@ mod tests {
         };
         let mut idx = CalendarDateIndex::default();
         idx.exception_count.insert("ACTIVE_SVC".into(), 1);
-        let records = crate::k2::EntityRecords { calendar_dates: idx, ..Default::default() };
+        let records = crate::k2::EntityRecords {
+            calendar_dates: idx,
+            ..Default::default()
+        };
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_013"), "aktif servis CAL_013 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_013"),
+            "aktif servis CAL_013 üretmemeli"
+        );
     }
 
     // ── WP-09c: GEO_006 ─────────────────────────────────────────────────────
@@ -11260,7 +14065,12 @@ mod tests {
             },
             ..Default::default()
         };
-        let result = analyze(&crate::k2::EntityRecords::default(), &derived, &default_config(), 20260514);
+        let result = analyze(
+            &crate::k2::EntityRecords::default(),
+            &derived,
+            &default_config(),
+            20260514,
+        );
         assert!(result.notices.iter().any(|n| n.rule_id == "GEO_006"));
     }
 
@@ -11282,7 +14092,12 @@ mod tests {
             },
             ..Default::default()
         };
-        let result = analyze(&crate::k2::EntityRecords::default(), &derived, &default_config(), 20260514);
+        let result = analyze(
+            &crate::k2::EntityRecords::default(),
+            &derived,
+            &default_config(),
+            20260514,
+        );
         assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_006"));
     }
 
@@ -11294,20 +14109,25 @@ mod tests {
         // İki durak 4 metre arayla (< 5m eşiği): 0.000036° fark ≈ 4m
         let records = crate::k2::EntityRecords {
             stops: vec![
-            stop("A", 41.0, 29.0),
-            stop("B", 41.000036, 29.0), // ~4m kuzey
+                stop("A", 41.0, 29.0),
+                stop("B", 41.000036, 29.0), // ~4m kuzey
             ],
             ..Default::default()
         };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
-                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                grid: [((82i32, 58i32), vec![0usize, 1usize])]
+                    .into_iter()
+                    .collect(),
                 cell_deg: 0.5,
             },
             ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STP_017"), "STP_017 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STP_017"),
+            "STP_017 olmalı"
+        );
     }
 
     #[test]
@@ -11316,20 +14136,30 @@ mod tests {
         // Aynı istasyonun iki peronu (aynı parent_station) 4 m arayla, hatta aynı
         // koordinatta olabilir — station-hierarchy modellemesi, FP üretmemeli (VBB dersi).
         let mut pa = stop("PA", 41.0, 29.0);
-        pa.row.insert("parent_station".to_string(), "ST".to_string());
+        pa.row
+            .insert("parent_station".to_string(), "ST".to_string());
         let mut pb = stop("PB", 41.0, 29.0); // aynı koordinat
-        pb.row.insert("parent_station".to_string(), "ST".to_string());
-        let records = crate::k2::EntityRecords { stops: vec![pa, pb], ..Default::default() };
+        pb.row
+            .insert("parent_station".to_string(), "ST".to_string());
+        let records = crate::k2::EntityRecords {
+            stops: vec![pa, pb],
+            ..Default::default()
+        };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
-                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                grid: [((82i32, 58i32), vec![0usize, 1usize])]
+                    .into_iter()
+                    .collect(),
                 cell_deg: 0.5,
             },
             ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
-            !result.notices.iter().any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
             "aynı-parent kardeş peronlar STP_016/017 üretmemeli"
         );
     }
@@ -11341,17 +14171,25 @@ mod tests {
         // modelleme tercihi; "durakları birleştirin" tavsiyesi yanlış olur (VBB: 3093 çift).
         let mut ent = stop("E1", 41.0, 29.0);
         ent.location_type = Some(2);
-        let records = crate::k2::EntityRecords { stops: vec![ent, stop("B", 41.0, 29.0)], ..Default::default() };
+        let records = crate::k2::EntityRecords {
+            stops: vec![ent, stop("B", 41.0, 29.0)],
+            ..Default::default()
+        };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
-                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                grid: [((82i32, 58i32), vec![0usize, 1usize])]
+                    .into_iter()
+                    .collect(),
                 cell_deg: 0.5,
             },
             ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
-            !result.notices.iter().any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_016" || n.rule_id == "STP_017"),
             "giriş↔durak aynı-koordinat çifti STP_016/017 üretmemeli"
         );
     }
@@ -11368,10 +14206,15 @@ mod tests {
             s.row.insert("parent_station".to_string(), "ST".to_string());
             s
         };
-        let records = crate::k2::EntityRecords { stops: vec![mk("PA"), mk("PB"), mk("PC"), st], ..Default::default() };
+        let records = crate::k2::EntityRecords {
+            stops: vec![mk("PA"), mk("PB"), mk("PC"), st],
+            ..Default::default()
+        };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
-                grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
+                grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])]
+                    .into_iter()
+                    .collect(),
                 cell_deg: 0.5,
             },
             ..Default::default()
@@ -11387,7 +14230,14 @@ mod tests {
     fn geo_012_independent_stops_still_cluster() {
         use crate::k5_derived::SpatialIndex;
         // Parent'sız, binilebilir 3 durak aynı noktada → gerçek küme, GEO_012 ÇIKMALI.
-        let records = crate::k2::EntityRecords { stops: vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0)], ..Default::default() };
+        let records = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.0, 29.0),
+                stop("C", 41.0, 29.0),
+            ],
+            ..Default::default()
+        };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
                 grid: [((82i32, 58i32), vec![0usize, 1, 2])].into_iter().collect(),
@@ -11412,22 +14262,33 @@ mod tests {
         station.location_type = Some(1);
         let records = crate::k2::EntityRecords {
             stops: vec![
-            station,
-            stop("A", 41.0, 29.0), stop("B", 41.0, 29.0), stop("C", 41.0, 29.0),
+                station,
+                stop("A", 41.0, 29.0),
+                stop("B", 41.0, 29.0),
+                stop("C", 41.0, 29.0),
             ],
             ..Default::default()
         };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
-                grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])].into_iter().collect(),
+                grid: [((82i32, 58i32), vec![0usize, 1, 2, 3])]
+                    .into_iter()
+                    .collect(),
                 cell_deg: 0.5,
             },
             ..Default::default()
         };
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "GEO_012")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "GEO_012")
             .expect("ilk durak istasyon olsa da arkadaki gerçek küme GEO_012 üretmeli");
-        assert_eq!(n.entity_id.as_deref(), Some("A"), "anchor ilk BİNİLEBİLİR durak olmalı");
+        assert_eq!(
+            n.entity_id.as_deref(),
+            Some("A"),
+            "anchor ilk BİNİLEBİLİR durak olmalı"
+        );
     }
 
     #[test]
@@ -11439,10 +14300,15 @@ mod tests {
         s1.location_type = Some(1);
         let mut s2 = stop("ST2", 41.0, 29.0);
         s2.location_type = Some(1);
-        let records = crate::k2::EntityRecords { stops: vec![s1, s2], ..Default::default() };
+        let records = crate::k2::EntityRecords {
+            stops: vec![s1, s2],
+            ..Default::default()
+        };
         let derived = DerivedData {
             spatial_index: SpatialIndex {
-                grid: [((82i32, 58i32), vec![0usize, 1usize])].into_iter().collect(),
+                grid: [((82i32, 58i32), vec![0usize, 1usize])]
+                    .into_iter()
+                    .collect(),
                 cell_deg: 0.5,
             },
             ..Default::default()
@@ -11472,11 +14338,15 @@ mod tests {
     fn repeated_stop_in_trip_produces_opr_007() {
         // A→B→C→B: non-ring (first=A, last=B), B ara durakta tekrar → OPR_007 tetiklenmeli
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,  0, 0), (8,  0, 0), 2),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
                 stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
                 stoptime("T1", 4, "B", (8, 30, 0), (8, 30, 0), 5), // B tekrar, ring değil
@@ -11494,35 +14364,48 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,  0, 0), (8,  0, 0), 2),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
                 stoptime("T1", 3, "A", (8, 20, 0), (8, 20, 0), 4),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_007"),
-            "Ring hatta terminal tekrarı OPR_007 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_007"),
+            "Ring hatta terminal tekrarı OPR_007 üretmemeli"
+        );
     }
 
     // ── WP-09d: STM_027 ─────────────────────────────────────────────────────
 
-    fn stoptime_with_dist(trip_id: &str, seq: u32, stop_id: &str, arr: (u32,u32,u32), dep: (u32,u32,u32), dist: f64, line: u64) -> StopTimeRecord {
+    fn stoptime_with_dist(
+        trip_id: &str,
+        seq: u32,
+        stop_id: &str,
+        arr: (u32, u32, u32),
+        dep: (u32, u32, u32),
+        dist: f64,
+        line: u64,
+    ) -> StopTimeRecord {
         let mut st = stoptime(trip_id, seq, stop_id, arr, dep, line);
         st.shape_dist_traveled = Some(dist);
         st
     }
 
-
     #[test]
     fn monotone_dist_no_stm_027() {
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime_with_dist("T1", 1, "A", (8,0,0), (8,0,0), 0.0, 2),
-                stoptime_with_dist("T1", 2, "B", (8,10,0), (8,10,0), 1.0, 3),
-                stoptime_with_dist("T1", 3, "C", (8,20,0), (8,20,0), 2.0, 4),
+                stoptime_with_dist("T1", 1, "A", (8, 0, 0), (8, 0, 0), 0.0, 2),
+                stoptime_with_dist("T1", 2, "B", (8, 10, 0), (8, 10, 0), 1.0, 3),
+                stoptime_with_dist("T1", 3, "C", (8, 20, 0), (8, 20, 0), 2.0, 4),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -11533,7 +14416,8 @@ mod tests {
 
     fn stoptime_no_time(trip_id: &str, seq: u32, stop_id: &str, line: u64) -> StopTimeRecord {
         StopTimeRecord {
-            trip_id: trip_id.into(), stop_id: stop_id.into(),
+            trip_id: trip_id.into(),
+            stop_id: stop_id.into(),
             stop_sequence: Some(seq),
             line,
             ..Default::default()
@@ -11543,13 +14427,17 @@ mod tests {
     #[test]
     fn mixed_timing_produces_stm_013() {
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime_no_time("T1", 2, "B", 3), // orta durak zamanı eksik
-                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
+                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -11565,8 +14453,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")], // trip() headsign=None, short=None
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -11580,8 +14468,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")], // tek sefer
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -11596,8 +14484,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         // calendar_bitmap boş → aktif gün yok
@@ -11615,14 +14503,14 @@ mod tests {
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
         // Tüm calendar_bitmap tarihleri geçmişte
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
-                active_dates: [("SVC".to_string(),
-                    [20250101u32].into_iter().collect())]
-                    .into_iter().collect(),
+                active_dates: [("SVC".to_string(), [20250101u32].into_iter().collect())]
+                    .into_iter()
+                    .collect(),
             },
             ..Default::default()
         };
@@ -11650,10 +14538,8 @@ mod tests {
         );
         assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_005"));
 
-        let present = std::collections::HashSet::from([
-            "trips.txt".to_string(),
-            "calendar.txt".to_string(),
-        ]);
+        let present =
+            std::collections::HashSet::from(["trips.txt".to_string(), "calendar.txt".to_string()]);
         let unavailable = vec!["calendar.txt".to_string()];
         let availability = FileAvailability::from_k1(&present, &unavailable);
         let result = analyze_with_files(
@@ -11673,7 +14559,7 @@ mod tests {
         // Null Island kontrolünü de öldürüyordu — `tdg-83820`'de MD `point_near_origin`
         // raporlarken biz susuyorduk. Yüklem değil BAĞIMLILIK kusuruydu.
         let records = records_with(
-            vec![stop("A", 0.0, 0.0)],   // Null Island
+            vec![stop("A", 0.0, 0.0)], // Null Island
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
@@ -11697,7 +14583,11 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "GEO_016"),
             "routes.txt okunamıyor diye stops.txt'e bakan GEO_016 susmamalı: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -11742,20 +14632,30 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,5,0), (8,5,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 5, 0), (8, 5, 0), 3),
             ],
         );
         // Bu sefer için ~8 km/h
         let result_default = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result_default.notices.iter().any(|n| n.rule_id == "STM_014"),
-            "Default config'te STM_014 olmamalı");
+        assert!(
+            !result_default
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STM_014"),
+            "Default config'te STM_014 olmamalı"
+        );
 
         // Çok düşük hız eşiği → STM_014 tetiklenmeli
-        let strict_cfg = ValidatorConfig { max_speed_bus_kmh: 1.0, ..default_config() };
+        let strict_cfg = ValidatorConfig {
+            max_speed_bus_kmh: 1.0,
+            ..default_config()
+        };
         let result_strict = analyze(&records, &empty_derived(), &strict_cfg, 20260514);
-        assert!(result_strict.notices.iter().any(|n| n.rule_id == "STM_014"),
-            "Düşük eşikli config'te STM_014 olmalı");
+        assert!(
+            result_strict.notices.iter().any(|n| n.rule_id == "STM_014"),
+            "Düşük eşikli config'te STM_014 olmalı"
+        );
     }
 
     #[test]
@@ -11780,14 +14680,17 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")], // service_id = "SVC"
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         // calendar_bitmap'te SVC yok → aktif gün yok
         let derived = DerivedData::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_011"), "OPR_011 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_011"),
+            "OPR_011 olmalı"
+        );
     }
 
     #[test]
@@ -11798,14 +14701,15 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [("SVC".to_string(), [20261001u32].into_iter().collect())]
-                    .into_iter().collect(),
+                    .into_iter()
+                    .collect(),
             },
             ..Default::default()
         };
@@ -11821,11 +14725,19 @@ mod tests {
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
         // calendar_bitmap tamamen boş
-        let result = analyze(&records, &DerivedData::default(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_016"), "OPR_016 olmalı");
+        let result = analyze(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+        );
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_016"),
+            "OPR_016 olmalı"
+        );
     }
 
     #[test]
@@ -11835,12 +14747,13 @@ mod tests {
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [("SVC".to_string(), [20261001u32].into_iter().collect())]
-                    .into_iter().collect(),
+                    .into_iter()
+                    .collect(),
             },
             ..Default::default()
         };
@@ -11858,8 +14771,16 @@ mod tests {
             vec![trip("T1", "R1")], // trip var
             vec![],                 // stop_times yok
         );
-        let result = analyze(&records, &DerivedData::default(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "DQ_009"), "DQ_009 olmalı");
+        let result = analyze(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+        );
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "DQ_009"),
+            "DQ_009 olmalı"
+        );
     }
 
     #[test]
@@ -11890,7 +14811,12 @@ mod tests {
     fn no_trips_no_dq_009() {
         // Sefer yoksa DQ_009 tetiklenmemeli (koşul: trips var + stop_times yok)
         let records = records_with(vec![], vec![], vec![], vec![]);
-        let result = analyze(&records, &DerivedData::default(), &default_config(), 20260514);
+        let result = analyze(
+            &records,
+            &DerivedData::default(),
+            &default_config(),
+            20260514,
+        );
         assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_009"));
     }
 
@@ -11905,17 +14831,34 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.1),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_017"), "STM_017 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STM_017"),
+            "STM_017 olmalı"
+        );
     }
 
     #[test]
@@ -11927,27 +14870,55 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1")],
             vec![
-                trip_sh("T1", "R1", "S1"),
-                trip_sh("T2", "R1", "S1"),
-            ],
-            vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
-                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.1),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let stm017: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_017").collect();
-        assert_eq!(stm017.len(), 1, "feed-geneli eksiklikte tek STM_017 beklenir, alınan: {}", stm017.len());
-        assert_eq!(stm017[0].entity_type, gtfs_core::EntityType::Feed, "feed-seviyesi olmalı");
-        assert_eq!(stm017[0].observed_value.as_deref(), Some("2"), "etkilenen sefer sayısı 2 olmalı");
+        let stm017: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_017")
+            .collect();
+        assert_eq!(
+            stm017.len(),
+            1,
+            "feed-geneli eksiklikte tek STM_017 beklenir, alınan: {}",
+            stm017.len()
+        );
+        assert_eq!(
+            stm017[0].entity_type,
+            gtfs_core::EntityType::Feed,
+            "feed-seviyesi olmalı"
+        );
+        assert_eq!(
+            stm017[0].observed_value.as_deref(),
+            Some("2"),
+            "etkilenen sefer sayısı 2 olmalı"
+        );
     }
 
     #[test]
@@ -11957,8 +14928,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")], // shape_id yok
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -11973,17 +14944,25 @@ mod tests {
         // max_shape_jump_km default = 10.0 → severe = 30.0 → 50 km segment tetikler
         let derived = DerivedData {
             shape_geometry: ShapeGeometry {
-                shapes: [("S1".to_string(), ShapeSegments {
-                    segment_distances_km: vec![50.0],
-                    total_length_km: 50.0,
-                    bbox: (41.0, 41.5, 29.0, 29.5),
-                })].into_iter().collect(),
+                shapes: [(
+                    "S1".to_string(),
+                    ShapeSegments {
+                        segment_distances_km: vec![50.0],
+                        total_length_km: 50.0,
+                        bbox: (41.0, 41.5, 29.0, 29.5),
+                    },
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_007"), "GEO_007 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_007"),
+            "GEO_007 olmalı"
+        );
     }
 
     /// 3× eşiği aşan segment YALNIZ GEO_007 üretmeli.
@@ -11997,17 +14976,25 @@ mod tests {
         // default max_shape_jump_km = 10.0 → severe = 30.0; 50 km ikisinin de üstünde
         let derived = DerivedData {
             shape_geometry: ShapeGeometry {
-                shapes: [("S1".to_string(), ShapeSegments {
-                    segment_distances_km: vec![50.0],
-                    total_length_km: 50.0,
-                    bbox: (41.0, 41.5, 29.0, 29.5),
-                })].into_iter().collect(),
+                shapes: [(
+                    "S1".to_string(),
+                    ShapeSegments {
+                        segment_distances_km: vec![50.0],
+                        total_length_km: 50.0,
+                        bbox: (41.0, 41.5, 29.0, 29.5),
+                    },
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_007"), "GEO_007 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_007"),
+            "GEO_007 olmalı"
+        );
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "GEO_006"),
             "3× eşik üstü segment GEO_006 ÜRETMEMELİ (GEO_007'nin işi)"
@@ -12025,18 +15012,29 @@ mod tests {
         // default max_shape_jump_km = 10.0 → severe = 30.0; 15 km ikisinin arasında
         let derived = DerivedData {
             shape_geometry: ShapeGeometry {
-                shapes: [("S1".to_string(), ShapeSegments {
-                    segment_distances_km: vec![15.0],
-                    total_length_km: 15.0,
-                    bbox: (41.0, 41.5, 29.0, 29.5),
-                })].into_iter().collect(),
+                shapes: [(
+                    "S1".to_string(),
+                    ShapeSegments {
+                        segment_distances_km: vec![15.0],
+                        total_length_km: 15.0,
+                        bbox: (41.0, 41.5, 29.0, 29.5),
+                    },
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_006"), "GEO_006 olmalı");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_007"), "GEO_007 olmamalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_006"),
+            "GEO_006 olmalı"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_007"),
+            "GEO_007 olmamalı"
+        );
     }
 
     #[test]
@@ -12045,11 +15043,16 @@ mod tests {
         // 2 km < 15 km severe threshold → tetiklenmemeli
         let derived = DerivedData {
             shape_geometry: ShapeGeometry {
-                shapes: [("S1".to_string(), ShapeSegments {
-                    segment_distances_km: vec![2.0],
-                    total_length_km: 2.0,
-                    bbox: (41.0, 41.02, 29.0, 29.02),
-                })].into_iter().collect(),
+                shapes: [(
+                    "S1".to_string(),
+                    ShapeSegments {
+                        segment_distances_km: vec![2.0],
+                        total_length_km: 2.0,
+                        bbox: (41.0, 41.02, 29.0, 29.02),
+                    },
+                )]
+                .into_iter()
+                .collect(),
             },
             ..Default::default()
         };
@@ -12069,19 +15072,37 @@ mod tests {
             vec![stop("IST", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
-            vec![stoptime("T1", 1, "IST", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "IST", (8, 0, 0), (8, 0, 0), 2)],
         );
-        records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(39.9), Some(32.9), Some(1), None, 2),
-        ];
+        records.shapes = vec![ShapePointRecord::new(
+            shape_ti.intern("S1"),
+            Some(39.9),
+            Some(32.9),
+            Some(1),
+            None,
+            2,
+        )];
         records.shape_interns = shape_ti.clone();
         // default stop_far_from_shape_m = 150.0 → 350 000 m >> 150 m
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "GEO_009").expect("GEO_009 olmalı");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_013"), "SHP_013 artık üretilmemeli");
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "GEO_009")
+            .expect("GEO_009 olmalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_013"),
+            "SHP_013 artık üretilmemeli"
+        );
         // shape_id details'ta taşınmalı: büyük feed modunda name_index harita verisini
         // notice'lardaki id'lere göre filtreliyor; yalnız mesaj metnindeki id görünmez.
-        assert_eq!(n.details.as_ref().and_then(|d| d.get("shape_id")).map(String::as_str), Some("S1"));
+        assert_eq!(
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("shape_id"))
+                .map(String::as_str),
+            Some("S1")
+        );
     }
 
     #[test]
@@ -12094,30 +15115,61 @@ mod tests {
         let mut records = records_with(
             vec![stop("NEAR", 41.0, 29.0), stop("FAR", 41.5, 29.5)],
             vec![route("R1", 3)],
-            vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1"), trip_sh("T3", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "NEAR", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "FAR",  (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "NEAR", (9,0,0), (9,0,0), 4),
-                stoptime("T2", 2, "FAR",  (9,10,0), (9,10,0), 5),
-                stoptime("T3", 1, "NEAR", (10,0,0), (10,0,0), 6),
-                stoptime("T3", 2, "FAR",  (10,10,0), (10,10,0), 7),
+                trip_sh("T1", "R1", "S1"),
+                trip_sh("T2", "R1", "S1"),
+                trip_sh("T3", "R1", "S1"),
+            ],
+            vec![
+                stoptime("T1", 1, "NEAR", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "FAR", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "NEAR", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "FAR", (9, 10, 0), (9, 10, 0), 5),
+                stoptime("T3", 1, "NEAR", (10, 0, 0), (10, 0, 0), 6),
+                stoptime("T3", 2, "FAR", (10, 10, 0), (10, 10, 0), 7),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.001), Some(29.001), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.001),
+                Some(29.001),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "SHP_012")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "SHP_012")
             .expect("uzak durak SHP_012 üretmeli");
         let obs = n.observed_value.as_deref().unwrap_or("");
-        assert!(obs.starts_with("1 "), "benzersiz durak sayılmalı (sefer örneği değil): {obs}");
-        assert!(n.message.contains("1 duraktan"), "mesaj da benzersiz sayıyı yazmalı: {}", n.message);
+        assert!(
+            obs.starts_with("1 "),
+            "benzersiz durak sayılmalı (sefer örneği değil): {obs}"
+        );
+        assert!(
+            n.message.contains("1 duraktan"),
+            "mesaj da benzersiz sayıyı yazmalı: {}",
+            n.message
+        );
         // Harita hatalı durağı AYRI RENKTE göstersin diye id'ler details'ta taşınır.
         assert_eq!(
-            n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("far_stops"))
+                .map(String::as_str),
             Some("FAR"),
         );
     }
@@ -12155,8 +15207,22 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.001), Some(29.001), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.001),
+                Some(29.001),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
 
@@ -12167,7 +15233,10 @@ mod tests {
             .find(|n| n.rule_id == "SHP_012")
             .expect("kurtarılabilir boşluklu koordinat SHP_012'ye ULAŞMALI");
         assert_eq!(
-            n.details.as_ref().and_then(|d| d.get("far_stops")).map(String::as_str),
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("far_stops"))
+                .map(String::as_str),
             Some("FAR"),
             "uzak durak kimliği raporlanmalı"
         );
@@ -12284,8 +15353,22 @@ mod tests {
                 vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
             );
             records.shapes = vec![
-                ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-                ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+                ShapePointRecord::new(
+                    shape_ti.intern("S1"),
+                    Some(41.0),
+                    Some(29.0),
+                    Some(1),
+                    None,
+                    2,
+                ),
+                ShapePointRecord::new(
+                    shape_ti.intern("S1"),
+                    Some(41.0),
+                    Some(29.01),
+                    Some(2),
+                    None,
+                    3,
+                ),
             ];
             records.shape_interns = shape_ti;
             analyze(&records, &empty_derived(), &default_config(), 20260514)
@@ -12326,24 +15409,49 @@ mod tests {
             vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.01),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti;
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "GEO_009")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "GEO_009")
             .expect("555 m raylı hatta da GEO_009 üretmeli");
         // Mesaj/observed shape'in KENDİ eşiğini yazmalı (100 değil 200).
-        assert_eq!(n.expected_value.as_deref(), Some("≤ 200m"), "rail eşiği raporlanmalı");
-        assert!(n.message.contains("200m"), "mesaj rail eşiğini yazmalı: {}", n.message);
+        assert_eq!(
+            n.expected_value.as_deref(),
+            Some("≤ 200m"),
+            "rail eşiği raporlanmalı"
+        );
+        assert!(
+            n.message.contains("200m"),
+            "mesaj rail eşiğini yazmalı: {}",
+            n.message
+        );
     }
 
     /// Şehirlerarası ray sadeleştirilmiş uzun düz kesimler içerir (Konya-Karaman 13,4 km):
     /// otobüste GEO_006 çıkar, raylı hatta çıkmaz.
     #[test]
     fn rail_route_widens_shape_jump_threshold() {
-        use crate::k5_derived::{ShapeGeometry, ShapeSegments};
         use crate::k2::shapes::ShapePointRecord;
+        use crate::k5_derived::{ShapeGeometry, ShapeSegments};
 
         let build = |route_type: u32| {
             let mut shape_ti = ShapeInternTable::new();
@@ -12353,18 +15461,28 @@ mod tests {
                 vec![trip_sh("T1", "R1", "S1")],
                 vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
             );
-            records.shapes = vec![
-                ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ];
+            records.shapes = vec![ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            )];
             records.shape_interns = shape_ti;
             // 13,4 km: şehir içi eşiğin (10) üstünde, rail eşiğinin (30) altında.
             let derived = DerivedData {
                 shape_geometry: ShapeGeometry {
-                    shapes: [("S1".to_string(), ShapeSegments {
-                        segment_distances_km: vec![13.4],
-                        total_length_km: 13.4,
-                        bbox: (41.0, 41.5, 29.0, 29.5),
-                    })].into_iter().collect(),
+                    shapes: [(
+                        "S1".to_string(),
+                        ShapeSegments {
+                            segment_distances_km: vec![13.4],
+                            total_length_km: 13.4,
+                            bbox: (41.0, 41.5, 29.0, 29.5),
+                        },
+                    )]
+                    .into_iter()
+                    .collect(),
                 },
                 ..Default::default()
             };
@@ -12394,8 +15512,22 @@ mod tests {
             vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.01),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti;
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12421,8 +15553,22 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.01),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti;
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12440,12 +15586,17 @@ mod tests {
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
-            vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
         // Shape noktası durağın hemen yanında (< 1 m)
-        records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-        ];
+        records.shapes = vec![ShapePointRecord::new(
+            shape_ti.intern("S1"),
+            Some(41.0),
+            Some(29.0),
+            Some(1),
+            None,
+            2,
+        )];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_009"));
@@ -12463,7 +15614,10 @@ mod tests {
             vec![],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_013"), "GEO_013 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_013"),
+            "GEO_013 olmalı"
+        );
     }
 
     // ── OPR_005: sıradışı sefer sıklığı (route_type bazlı göreli aykırı) ─────
@@ -12471,11 +15625,12 @@ mod tests {
     // 15dk headway (08:00, 08:15) veren bir hat üretir.
     fn normal_route(rid: &str, stops: &mut Vec<StopTimeRecord>, trips: &mut Vec<TripRecord>) {
         let (ta, tb) = (format!("{rid}a"), format!("{rid}b"));
-        trips.push(trip(&ta, rid)); trips.push(trip(&tb, rid));
-        stops.push(stoptime(&ta, 1, "A", (8,0,0), (8,0,0), 2));
-        stops.push(stoptime(&ta, 2, "B", (8,10,0), (8,10,0), 3));
-        stops.push(stoptime(&tb, 1, "A", (8,15,0), (8,15,0), 4));
-        stops.push(stoptime(&tb, 2, "B", (8,25,0), (8,25,0), 5));
+        trips.push(trip(&ta, rid));
+        trips.push(trip(&tb, rid));
+        stops.push(stoptime(&ta, 1, "A", (8, 0, 0), (8, 0, 0), 2));
+        stops.push(stoptime(&ta, 2, "B", (8, 10, 0), (8, 10, 0), 3));
+        stops.push(stoptime(&tb, 1, "A", (8, 15, 0), (8, 15, 0), 4));
+        stops.push(stoptime(&tb, 2, "B", (8, 25, 0), (8, 25, 0), 5));
     }
 
     #[test]
@@ -12491,16 +15646,24 @@ mod tests {
         }
         // Seyrek hat: 08:00 ve 09:30 → 90dk headway.
         routes.push(route("RS", 3));
-        trips.push(trip("RSa", "RS")); trips.push(trip("RSb", "RS"));
-        sts.push(stoptime("RSa", 1, "A", (8,0,0), (8,0,0), 2));
-        sts.push(stoptime("RSa", 2, "B", (8,10,0), (8,10,0), 3));
-        sts.push(stoptime("RSb", 1, "A", (9,30,0), (9,30,0), 4));
-        sts.push(stoptime("RSb", 2, "B", (9,40,0), (9,40,0), 5));
+        trips.push(trip("RSa", "RS"));
+        trips.push(trip("RSb", "RS"));
+        sts.push(stoptime("RSa", 1, "A", (8, 0, 0), (8, 0, 0), 2));
+        sts.push(stoptime("RSa", 2, "B", (8, 10, 0), (8, 10, 0), 3));
+        sts.push(stoptime("RSb", 1, "A", (9, 30, 0), (9, 30, 0), 4));
+        sts.push(stoptime("RSb", 2, "B", (9, 40, 0), (9, 40, 0), 5));
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)], routes, trips, sts,
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes,
+            trips,
+            sts,
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let opr: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_005").collect();
+        let opr: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "OPR_005")
+            .collect();
         assert_eq!(opr.len(), 1, "yalnızca sıradışı seyrek hat işaretlenmeli");
         assert_eq!(opr[0].entity_id.as_deref(), Some("RS"));
     }
@@ -12552,7 +15715,9 @@ mod tests {
         // feed'inde 92.354 bulgunun neredeyse tamamı buydu; gerçek yol medyan 20,9 km.
         // Burada sefer A→B→C→A dolaşıyor: kuş uçuşu 0, ardışık toplam ~44 km.
         let stops = vec![
-            stop("A", 41.00, 29.00), stop("B", 41.10, 29.00), stop("C", 41.10, 29.20),
+            stop("A", 41.00, 29.00),
+            stop("B", 41.10, 29.00),
+            stop("C", 41.10, 29.20),
         ];
         let sts = vec![
             stoptime("LOOP", 1, "A", (8, 0, 0), (8, 0, 0), 2),
@@ -12562,22 +15727,29 @@ mod tests {
         ];
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("LOOP", "R1")], sts);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_017"),
-            "döngüsel sefer gerçek yolu boyunca uzun; OPR_017 susmalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_017"),
+            "döngüsel sefer gerçek yolu boyunca uzun; OPR_017 susmalı"
+        );
     }
 
     #[test]
     fn opr_017_still_flags_a_genuinely_short_trip() {
         // Kapının koruduğu şey: gerçekten kısa sefer HÂLÂ yakalanmalı. İki durak ~8 m arayla.
-        let stops = vec![stop("A", 41.000_00, 29.000_00), stop("B", 41.000_05, 29.000_05)];
+        let stops = vec![
+            stop("A", 41.000_00, 29.000_00),
+            stop("B", 41.000_05, 29.000_05),
+        ];
         let sts = vec![
             stoptime("SHORT", 1, "A", (8, 0, 0), (8, 0, 0), 2),
             stoptime("SHORT", 2, "B", (8, 1, 0), (8, 1, 0), 3),
         ];
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("SHORT", "R1")], sts);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_017"),
-            "100 m altındaki gerçek sefer işaretlenmeli");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_017"),
+            "100 m altındaki gerçek sefer işaretlenmeli"
+        );
     }
 
     #[test]
@@ -12592,11 +15764,16 @@ mod tests {
             normal_route(&rid, &mut sts, &mut trips);
         }
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)], routes, trips, sts,
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes,
+            trips,
+            sts,
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_005"),
-            "tekdüze sıklıkta OPR_005 üretilmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_005"),
+            "tekdüze sıklıkta OPR_005 üretilmemeli"
+        );
     }
 
     // ── OPR_013: tek yönlü rota bilgisi ─────────────────────────────────────
@@ -12612,12 +15789,15 @@ mod tests {
                 t
             }],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_013"), "OPR_013 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_013"),
+            "OPR_013 olmalı"
+        );
     }
 
     // ── DQ_005b: hiçbir trip için stop_times yok ─────────────────────────────
@@ -12632,7 +15812,10 @@ mod tests {
             vec![], // stop_times boş
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "DQ_005b"), "DQ_005b olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "DQ_005b"),
+            "DQ_005b olmalı"
+        );
     }
 
     // ── DQ_005c: koordinatsız durak oranı > %50 ──────────────────────────────
@@ -12641,15 +15824,26 @@ mod tests {
     fn mostly_coord_missing_stops_produces_dq_005c() {
         use crate::k2::stops::StopRecord;
         let no_coord = StopRecord {
-            stop_id: "X".into(), stop_code: None, stop_name: None,
-            stop_lat: None, stop_lon: None, location_type: None,
-            stop_timezone: None, wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None, row: Default::default(), line: 3,
+            stop_id: "X".into(),
+            stop_code: None,
+            stop_name: None,
+            stop_lat: None,
+            stop_lon: None,
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
+            row: Default::default(),
+            line: 3,
             ..Default::default()
         };
         let records = records_with(
             vec![stop("A", 41.0, 29.0), no_coord.clone(), {
-                let mut s = no_coord.clone(); s.stop_id = "Y".into(); s
+                let mut s = no_coord.clone();
+                s.stop_id = "Y".into();
+                s
             }],
             vec![],
             vec![],
@@ -12657,7 +15851,10 @@ mod tests {
         );
         // 1 koordinatlı, 2 koordinatsız → %67 > %50 → DQ_005c
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "DQ_005c"), "DQ_005c olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "DQ_005c"),
+            "DQ_005c olmalı"
+        );
     }
 
     // ── DQ_010: agency_id hiçbir rotada kullanılmıyor ────────────────────────
@@ -12676,12 +15873,19 @@ mod tests {
             agency_name: "Test Agency".into(),
             agency_url: "https://test.example".into(),
             agency_timezone: "Europe/Istanbul".into(),
-            agency_lang: None, agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None,
-            row: Default::default(), line: 2,
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "DQ_010"), "DQ_010 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "DQ_010"),
+            "DQ_010 olmalı"
+        );
     }
 
     // ── RTS_017: shape'siz route ─────────────────────────────────────────────
@@ -12694,12 +15898,15 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")], // shape_id = None
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "RTS_017"), "RTS_017 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "RTS_017"),
+            "RTS_017 olmalı"
+        );
     }
 
     #[test]
@@ -12709,8 +15916,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12729,19 +15936,26 @@ mod tests {
                 trip_sh("T3", "R3", "S1"),
             ],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "A", (8,0,0), (8,0,0), 4),
-                stoptime("T2", 2, "B", (8,10,0), (8,10,0), 5),
-                stoptime("T3", 1, "A", (8,0,0), (8,0,0), 6),
-                stoptime("T3", 2, "B", (8,10,0), (8,10,0), 7),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (8, 0, 0), (8, 0, 0), 4),
+                stoptime("T2", 2, "B", (8, 10, 0), (8, 10, 0), 5),
+                stoptime("T3", 1, "A", (8, 0, 0), (8, 0, 0), 6),
+                stoptime("T3", 2, "B", (8, 10, 0), (8, 10, 0), 7),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let rts: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RTS_017").collect();
+        let rts: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "RTS_017")
+            .collect();
         assert_eq!(rts.len(), 2, "her shape'siz hat için ayrı RTS_017 beklenir");
-        assert!(rts.iter().all(|n| n.entity_type == gtfs_core::EntityType::Route));
-        let ids: std::collections::HashSet<_> = rts.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+        assert!(rts
+            .iter()
+            .all(|n| n.entity_type == gtfs_core::EntityType::Route));
+        let ids: std::collections::HashSet<_> =
+            rts.iter().filter_map(|n| n.entity_id.as_deref()).collect();
         assert!(ids.contains("R1") && ids.contains("R2") && !ids.contains("R3"));
     }
 
@@ -12753,18 +15967,29 @@ mod tests {
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
             vec![
-                { let mut t = trip("T1", "R1"); t.direction_id = Some(0); t },
-                { let mut t = trip("T2", "R1"); t.direction_id = Some(1); t },
+                {
+                    let mut t = trip("T1", "R1");
+                    t.direction_id = Some(0);
+                    t
+                },
+                {
+                    let mut t = trip("T2", "R1");
+                    t.direction_id = Some(1);
+                    t
+                },
                 trip("T3", "R1"), // direction_id = None — bu rotanın diğerleri var
             ],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T2", 1, "B", (9,0,0), (9,0,0), 3),
-                stoptime("T3", 1, "A", (10,0,0), (10,0,0), 4),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 1, "B", (9, 0, 0), (9, 0, 0), 3),
+                stoptime("T3", 1, "A", (10, 0, 0), (10, 0, 0), 4),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_012"), "TRP_012 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "TRP_012"),
+            "TRP_012 olmalı"
+        );
     }
 
     // ── TRP_015: block_id singleton ──────────────────────────────────────────
@@ -12778,14 +16003,26 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_blk("T1", "R1", "BLK1"), trip_blk("T2", "R1", "BLK2")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T2", 1, "B", (9,0,0), (9,0,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 1, "B", (9, 0, 0), (9, 0, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "TRP_015").collect();
-        assert_eq!(hits.len(), 1, "feed basina TEK bulgu bekleniyor, bulunan: {}", hits.len());
-        assert!(hits[0].entity_id.is_none(), "feed duzeyi bulgu trip kimligi tasimamali");
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "TRP_015")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            1,
+            "feed basina TEK bulgu bekleniyor, bulunan: {}",
+            hits.len()
+        );
+        assert!(
+            hits[0].entity_id.is_none(),
+            "feed duzeyi bulgu trip kimligi tasimamali"
+        );
     }
 
     #[test]
@@ -12804,9 +16041,9 @@ mod tests {
                 trip_blk("T3", "R1", "BLK2"),
             ],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T2", 1, "B", (9,0,0), (9,0,0), 3),
-                stoptime("T3", 1, "A", (10,0,0), (10,0,0), 2),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 1, "B", (9, 0, 0), (9, 0, 0), 3),
+                stoptime("T3", 1, "A", (10, 0, 0), (10, 0, 0), 2),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12826,15 +16063,25 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "A", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("X")),
-            "STP_020 olmalı");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("A")),
-            "kullanılan durak STP_020 üretmemeli");
+        assert!(
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("X")),
+            "STP_020 olmalı"
+        );
+        assert!(
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("A")),
+            "kullanılan durak STP_020 üretmemeli"
+        );
     }
 
     #[test]
@@ -12847,8 +16094,8 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "A", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.location_group_stops = vec![crate::k2::location_groups::LocationGroupStopRecord {
@@ -12857,8 +16104,13 @@ mod tests {
             line: 2,
         }];
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("X")),
-            "location group üyesi durak STP_020 üretmemeli");
+        assert!(
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("X")),
+            "location group üyesi durak STP_020 üretmemeli"
+        );
     }
 
     #[test]
@@ -12871,13 +16123,18 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "A", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("PS1")),
-            "parent station STP_020 üretmemeli");
+        assert!(
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_020" && n.entity_id.as_deref() == Some("PS1")),
+            "parent station STP_020 üretmemeli"
+        );
     }
 
     // ── SHP_017: durak sırası shape projeksiyonuyla çelişiyor ────────────────
@@ -12893,17 +16150,34 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "doğru sırada SHP_017 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_017"),
+            "doğru sırada SHP_017 olmamalı"
+        );
     }
 
     #[test]
@@ -12918,18 +16192,38 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "B", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "A", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "B", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_016"), "tamamen ters shape → SHP_016 olmalı");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_017"), "tamamen ters shape → SHP_017 olmamalı (SHP_016 öncelikli)");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "SHP_016"),
+            "tamamen ters shape → SHP_016 olmalı"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_017"),
+            "tamamen ters shape → SHP_017 olmamalı (SHP_016 öncelikli)"
+        );
     }
 
     #[test]
@@ -12963,11 +16257,46 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.0000), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.200), Some(29.0000), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.200), Some(29.0002), Some(3), None, 4),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.0002), Some(4), None, 5),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.0500), Some(5), None, 6),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000),
+                Some(29.0000),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.200),
+                Some(29.0000),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.200),
+                Some(29.0002),
+                Some(3),
+                None,
+                4,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000),
+                Some(29.0002),
+                Some(4),
+                None,
+                5,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000),
+                Some(29.0500),
+                Some(5),
+                None,
+                6,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12998,8 +16327,22 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.000), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000), Some(29.100), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000),
+                Some(29.000),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000),
+                Some(29.100),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13019,17 +16362,24 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1"), trip("T2", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 3),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 4),
-                stoptime("T2", 2, "B", (9,10,0), (9,10,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 3),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let stm036: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "STM_036").collect();
-        assert_eq!(stm036.len(), 2,
+        let stm036: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_036")
+            .collect();
+        assert_eq!(
+            stm036.len(),
+            2,
             "iki interleaved trip için 2 STM_036 (non-contiguous) beklenir: {:?}",
-            stm036.iter().map(|n| &n.message).collect::<Vec<_>>());
+            stm036.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -13041,20 +16391,42 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         // Aynı shape_dist_traveled (100.0) ama farklı koordinat (Δ=0.1° ≫ eşik) → SHP_028
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), Some(100.0), 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                Some(100.0),
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                Some(100.0),
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"SHP_028"), "aynı dist + farklı koordinat → SHP_028: {:?}", ids);
-        assert!(!ids.contains(&"SHP_029"), "eşik üstü fark SHP_029 olmamalı: {:?}", ids);
+        assert!(
+            ids.contains(&"SHP_028"),
+            "aynı dist + farklı koordinat → SHP_028: {:?}",
+            ids
+        );
+        assert!(
+            !ids.contains(&"SHP_029"),
+            "eşik üstü fark SHP_029 olmamalı: {:?}",
+            ids
+        );
     }
 
     #[test]
@@ -13068,24 +16440,61 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                Some(100.0),
+                2,
+            ),
             // Δlat=5e-6 (< 1e-5 eşik) → SHP_029 (eşik-altı), ilk çift
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000005), Some(29.0), Some(2), Some(100.0), 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000005),
+                Some(29.0),
+                Some(2),
+                Some(100.0),
+                3,
+            ),
             // 2. ile birebir aynı → SHP_023 (tekrar-nokta), ikinci çift
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.000005), Some(29.0), Some(3), Some(100.0), 4),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.000005),
+                Some(29.0),
+                Some(3),
+                Some(100.0),
+                4,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"SHP_029"), "eşik-altı fark → SHP_029: {:?}", ids);
-        assert!(ids.contains(&"SHP_023"), "tekrar-nokta → SHP_023 (first-wins bug fix): {:?}", ids);
-        assert_eq!(ids.iter().filter(|&&x| x == "SHP_023").count(), 1, "SHP_023 shape başına tek");
-        assert_eq!(ids.iter().filter(|&&x| x == "SHP_029").count(), 1, "SHP_029 shape başına tek");
+        assert!(
+            ids.contains(&"SHP_029"),
+            "eşik-altı fark → SHP_029: {:?}",
+            ids
+        );
+        assert!(
+            ids.contains(&"SHP_023"),
+            "tekrar-nokta → SHP_023 (first-wins bug fix): {:?}",
+            ids
+        );
+        assert_eq!(
+            ids.iter().filter(|&&x| x == "SHP_023").count(),
+            1,
+            "SHP_023 shape başına tek"
+        );
+        assert_eq!(
+            ids.iter().filter(|&&x| x == "SHP_029").count(),
+            1,
+            "SHP_029 shape başına tek"
+        );
     }
 
     #[test]
@@ -13097,20 +16506,42 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         // Aynı dist, koordinat farkı eşik altı (Δ=1e-6° < 1e-5°) → SHP_029
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), Some(100.0), 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.000001), Some(2), Some(100.0), 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                Some(100.0),
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.000001),
+                Some(2),
+                Some(100.0),
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"SHP_029"), "aynı dist + minik koordinat farkı → SHP_029: {:?}", ids);
-        assert!(!ids.contains(&"SHP_028"), "eşik altı fark SHP_028 olmamalı: {:?}", ids);
+        assert!(
+            ids.contains(&"SHP_029"),
+            "aynı dist + minik koordinat farkı → SHP_029: {:?}",
+            ids
+        );
+        assert!(
+            !ids.contains(&"SHP_028"),
+            "eşik altı fark SHP_028 olmamalı: {:?}",
+            ids
+        );
     }
 
     #[test]
@@ -13120,13 +16551,17 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"GEO_022"), "kutba yakın durak (lat 89.5) → GEO_022: {:?}", ids);
+        assert!(
+            ids.contains(&"GEO_022"),
+            "kutba yakın durak (lat 89.5) → GEO_022: {:?}",
+            ids
+        );
     }
 
     // ── GEO_002: median referansı + Null Island guard ────────────────────────
@@ -13135,22 +16570,34 @@ mod tests {
         // 3 durak İstanbul'da, 1 durak ~2000 km ötede → uzaktaki GEO_002 üretir ve
         // notice median koordinatını taşımalı (harita "neye göre uzak" gösterebilsin).
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2),
-                 stop("FAR", 52.5, 13.4)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+                stop("FAR", 52.5, 13.4),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "GEO_002")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "GEO_002")
             .expect("uzak durak GEO_002 üretmeli");
         assert_eq!(n.entity_id.as_deref(), Some("FAR"));
         let d = n.details.as_ref().expect("details olmalı");
-        assert!(d.contains_key("med_lat") && d.contains_key("med_lon"), "median details'ta olmalı: {d:?}");
-        assert!(d.get("dist_km").is_some_and(|v| v.parse::<f64>().unwrap_or(0.0) > 200.0));
+        assert!(
+            d.contains_key("med_lat") && d.contains_key("med_lon"),
+            "median details'ta olmalı: {d:?}"
+        );
+        assert!(d
+            .get("dist_km")
+            .is_some_and(|v| v.parse::<f64>().unwrap_or(0.0) > 200.0));
     }
 
     #[test]
@@ -13164,10 +16611,16 @@ mod tests {
         stops.push(stop("FAR", 55.0, 13.4)); // ~278 km — koridorun ucu, gerçek istasyon
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("T1", "R1")], vec![]);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_002"),
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_002"),
             "geniş yayılımlı feed'de koridor ucundaki durak GEO_002 üretmemeli: {:?}",
-            result.notices.iter().filter(|n| n.rule_id == "GEO_002")
-                .map(|n| (&n.entity_id, &n.observed_value)).collect::<Vec<_>>());
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "GEO_002")
+                .map(|n| (&n.entity_id, &n.observed_value))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -13180,7 +16633,10 @@ mod tests {
         stops.push(stop("BROKEN", 52.5, 13.4));
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("T1", "R1")], vec![]);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let n = result.notices.iter().find(|n| n.rule_id == "GEO_002")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "GEO_002")
             .expect("kompakt feed'deki aykırı durak GEO_002 üretmeli");
         assert_eq!(n.entity_id.as_deref(), Some("BROKEN"));
     }
@@ -13190,57 +16646,82 @@ mod tests {
         // (0,0) placeholder median'dan kaçınılmaz olarak >200km uzaktır; kök nedeni
         // GEO_016'dır → GEO_002 çift emit etmemeli (STP_016/017, GEO_012 ile tutarlı).
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.2, 29.2),
-                 stop("NULL", 0.0, 0.0)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+                stop("NULL", 0.0, 0.0),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_002"),
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "GEO_002"),
             "Null Island durağı GEO_002 üretmemeli: {:?}",
-            result.notices.iter().map(|n| (&n.rule_id, &n.entity_id)).collect::<Vec<_>>());
-        assert!(result.notices.iter().any(|n| n.rule_id == "GEO_016"), "GEO_016 üretilmeli");
+            result
+                .notices
+                .iter()
+                .map(|n| (&n.rule_id, &n.entity_id))
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "GEO_016"),
+            "GEO_016 üretilmeli"
+        );
     }
 
     #[test]
     fn bidirectional_route_single_shape_produces_opr_015() {
-        let mut t0 = trip_sh("T0", "R1", "S1"); t0.direction_id = Some(0);
-        let mut t1 = trip_sh("T1", "R1", "S1"); t1.direction_id = Some(1);
+        let mut t0 = trip_sh("T0", "R1", "S1");
+        t0.direction_id = Some(0);
+        let mut t1 = trip_sh("T1", "R1", "S1");
+        t1.direction_id = Some(1);
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
             vec![t0, t1],
             vec![
-                stoptime("T0", 1, "A", (8,0,0), (8,0,0), 2), stoptime("T0", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 1, "B", (9,0,0), (9,0,0), 2), stoptime("T1", 2, "A", (9,10,0), (9,10,0), 3),
+                stoptime("T0", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T0", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 1, "B", (9, 0, 0), (9, 0, 0), 2),
+                stoptime("T1", 2, "A", (9, 10, 0), (9, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "OPR_015"),
-            "çift yönlü + tek shape → OPR_015");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "OPR_015"),
+            "çift yönlü + tek shape → OPR_015"
+        );
     }
 
     #[test]
     fn unidirectional_route_single_shape_no_opr_015() {
         // İki trip de direction_id=0 → tek yönlü; tek shape beklenen davranış → OPR_015 yok
-        let mut t0 = trip_sh("T0", "R1", "S1"); t0.direction_id = Some(0);
-        let mut t1 = trip_sh("T1", "R1", "S1"); t1.direction_id = Some(0);
+        let mut t0 = trip_sh("T0", "R1", "S1");
+        t0.direction_id = Some(0);
+        let mut t1 = trip_sh("T1", "R1", "S1");
+        t1.direction_id = Some(0);
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
             vec![t0, t1],
             vec![
-                stoptime("T0", 1, "A", (8,0,0), (8,0,0), 2), stoptime("T0", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 1, "A", (9,0,0), (9,0,0), 2), stoptime("T1", 2, "B", (9,10,0), (9,10,0), 3),
+                stoptime("T0", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T0", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 1, "A", (9, 0, 0), (9, 0, 0), 2),
+                stoptime("T1", 2, "B", (9, 10, 0), (9, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_015"),
-            "tek yönlü + tek shape → OPR_015 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_015"),
+            "tek yönlü + tek shape → OPR_015 olmamalı"
+        );
     }
 
     #[test]
@@ -13252,25 +16733,38 @@ mod tests {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1")],
             vec![
-                trip_sh("T1", "R1", "S1"),
-                trip_sh("T2", "R1", "S1"),
-            ],
-            vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "B", (9,0,0), (9,0,0), 4),
-                stoptime("T2", 2, "A", (9,10,0), (9,10,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "B", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "A", (9, 10, 0), (9, 10, 0), 5),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_016"),
-            "ileri varyant varken shape ters sayılmamalı (SHP_016 yok)");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_016"),
+            "ileri varyant varken shape ters sayılmamalı (SHP_016 yok)"
+        );
     }
 
     #[test]
@@ -13281,27 +16775,44 @@ mod tests {
         // T2 kısa varyant (A→FAR, son durak shape sonundan çok uzak).
         // En yakın varyant (T1) shape sonuyla eşleştiği için SHP_014 ateşlememeli.
         let mut records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1), stop("FAR", 42.0, 30.0)],
-            vec![route("R1", 3)],
             vec![
-                trip_sh("T1", "R1", "S1"),
-                trip_sh("T2", "R1", "S1"),
+                stop("A", 41.0, 29.0),
+                stop("B", 41.0, 29.1),
+                stop("FAR", 42.0, 30.0),
             ],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T2", 1, "A", (9,0,0), (9,0,0), 4),
-                stoptime("T2", 2, "FAR", (9,10,0), (9,10,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "FAR", (9, 10, 0), (9, 10, 0), 5),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_014"),
-            "shape sonu bir varyantın son durağıyla eşleşiyorsa SHP_014 yok");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_014"),
+            "shape sonu bir varyantın son durağıyla eşleşiyorsa SHP_014 yok"
+        );
     }
 
     #[test]
@@ -13315,18 +16826,34 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "C", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "C", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(2), None, 3),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_014"),
-            "shape sonu hiçbir varyantın son durağına yakın değil → SHP_014");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "SHP_014"),
+            "shape sonu hiçbir varyantın son durağına yakın değil → SHP_014"
+        );
     }
 
     #[test]
@@ -13337,23 +16864,51 @@ mod tests {
         // stop_times: A(seq=1) → C(seq=2) → B(seq=3) → B, C'den sonra gelir ama shape'de önce
         // İlk durak A shape'in başında → SHP_016 tetiklenmez; B sırası bozuk → SHP_017
         let mut records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.05), stop("C", 41.0, 29.1)],
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.0, 29.05),
+                stop("C", 41.0, 29.1),
+            ],
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0),  (8,0,0),  2),
-                stoptime("T1", 2, "C", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 3, "B", (8,20,0), (8,20,0), 4),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "C", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 3, "B", (8, 20, 0), (8, 20, 0), 4),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.05), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.1), Some(3), None, 4),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.05),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(3),
+                None,
+                4,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_017"), "kısmi sıra ihlali → SHP_017 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "SHP_017"),
+            "kısmi sıra ihlali → SHP_017 olmalı"
+        );
     }
 
     #[test]
@@ -13373,16 +16928,37 @@ mod tests {
             vec![route("R1", 3)],
             vec![trip_sh("T1", "R1", "S1")],
             vec![
-                stoptime("T1", 1, "A", (8,0,0),  (8,0,0),  2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
-                stoptime("T1", 4, "D", (8,30,0), (8,30,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
+                stoptime("T1", 4, "D", (8, 30, 0), (8, 30, 0), 5),
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.00), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.05), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.10), Some(3), None, 4),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.00),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.05),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.10),
+                Some(3),
+                None,
+                4,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13397,17 +16973,27 @@ mod tests {
         let mut parent = stop("PS1", 41.0, 29.0);
         parent.location_type = Some(1);
         let mut child = stop("S1", 41.1, 29.1); // ~15 km uzakta — eşik aşıldı
-        child.row.insert("parent_station".to_string(), "PS1".to_string());
+        child
+            .row
+            .insert("parent_station".to_string(), "PS1".to_string());
         let records = records_with(
             vec![parent, child],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
-            result.notices.iter().any(|n| n.rule_id == "STP_029" && n.entity_id.as_deref() == Some("S1")),
-            "STP_029 olmalı: {:?}", result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_029" && n.entity_id.as_deref() == Some("S1")),
+            "STP_029 olmalı: {:?}",
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -13416,15 +17002,20 @@ mod tests {
         let mut parent = stop("PS1", 41.0, 29.0);
         parent.location_type = Some(1);
         let mut child = stop("S1", 41.0001, 29.0001); // ~15m — eşik altı
-        child.row.insert("parent_station".to_string(), "PS1".to_string());
+        child
+            .row
+            .insert("parent_station".to_string(), "PS1".to_string());
         let records = records_with(
             vec![parent, child],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_029"), "yakın durak STP_029 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STP_029"),
+            "yakın durak STP_029 üretmemeli"
+        );
     }
 
     // ── STP_030: hiç çocuğu olmayan üst istasyon ─────────────────────────────
@@ -13438,7 +17029,9 @@ mod tests {
         station.location_type = Some(1);
         let mut entrance = stop("E1", 41.0, 29.0);
         entrance.location_type = Some(2); // giriş/çıkış — peron DEĞİL
-        entrance.row.insert("parent_station".to_string(), "PS1".to_string());
+        entrance
+            .row
+            .insert("parent_station".to_string(), "PS1".to_string());
         let records = records_with(
             vec![station, entrance, stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
@@ -13447,7 +17040,10 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
-            result.notices.iter().any(|n| n.rule_id == "STP_030" && n.entity_id.as_deref() == Some("PS1")),
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_030" && n.entity_id.as_deref() == Some("PS1")),
             "yalnız girişi olan istasyon STP_030 üretmeli (peron yok)"
         );
     }
@@ -13460,11 +17056,14 @@ mod tests {
             vec![station, stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
-            result.notices.iter().any(|n| n.rule_id == "STP_030" && n.entity_id.as_deref() == Some("PS1")),
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "STP_030" && n.entity_id.as_deref() == Some("PS1")),
             "STP_030 olmalı"
         );
     }
@@ -13474,15 +17073,20 @@ mod tests {
         let mut station = stop("PS1", 41.0, 29.0);
         station.location_type = Some(1);
         let mut child = stop("S1", 41.0, 29.0);
-        child.row.insert("parent_station".to_string(), "PS1".to_string());
+        child
+            .row
+            .insert("parent_station".to_string(), "PS1".to_string());
         let records = records_with(
             vec![station, child],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_030"), "alt durağı olan istasyon STP_030 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STP_030"),
+            "alt durağı olan istasyon STP_030 üretmemeli"
+        );
     }
 
     // ── TRP_020: headsign ara durak adıyla eşleşiyor ────────────────────────
@@ -13533,14 +17137,19 @@ mod tests {
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "TRP_020"),
-            "TRP_020 olmalı: {:?}", result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+            "TRP_020 olmalı: {:?}",
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -13557,12 +17166,15 @@ mod tests {
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "terminal eşleşmede TRP_020 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "terminal eşleşmede TRP_020 olmamalı"
+        );
     }
 
     #[test]
@@ -13578,37 +17190,47 @@ mod tests {
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "eşleşme yoksa TRP_020 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "eşleşme yoksa TRP_020 olmamalı"
+        );
     }
 
     #[test]
     fn headsign_matches_repeated_turnaround_stop_no_trp_020() {
         // Sefer: A → B → C → B (tekrar) → D. headsign = "Stop B" = TEKRAR EDEN durak.
         // B bir uç/dönüş noktası (havalimanı wye gibi) → headsign meşru → TRP_020 olmamalı.
-        let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
-        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
-        let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
-        let mut sd = stop("D", 41.3, 29.3); sd.stop_name = Some("Stop D".into());
+        let mut sa = stop("A", 41.0, 29.0);
+        sa.stop_name = Some("Stop A".into());
+        let mut sb = stop("B", 41.1, 29.1);
+        sb.stop_name = Some("Stop B".into());
+        let mut sc = stop("C", 41.2, 29.2);
+        sc.stop_name = Some("Stop C".into());
+        let mut sd = stop("D", 41.3, 29.3);
+        sd.stop_name = Some("Stop D".into());
         let t = trip_hs("T1", "R1", "Stop B");
         let records = records_with(
             vec![sa, sb, sc, sd],
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
-                stoptime("T1", 4, "B", (8,30,0), (8,30,0), 5),
-                stoptime("T1", 5, "D", (8,40,0), (8,40,0), 6),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
+                stoptime("T1", 4, "B", (8, 30, 0), (8, 30, 0), 5),
+                stoptime("T1", 5, "D", (8, 40, 0), (8, 40, 0), 6),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "headsign tekrar eden uç noktaya eşleşiyor → TRP_020 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "headsign tekrar eden uç noktaya eşleşiyor → TRP_020 olmamalı"
+        );
     }
 
     #[test]
@@ -13616,27 +17238,37 @@ mod tests {
         // Sefer: A → B → C → B (tekrar) → D. headsign = "Stop C" = TEK GEÇEN ara durak.
         // B'nin tekrarı ALAKASIZ; headsign C bir kez geçen meşru ara durak eşleşmesi.
         // Eski "herhangi tekrar → loop" mantığı bunu yanlışlıkla bastırırdı (yanlış negatif).
-        let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
-        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
-        let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
-        let mut sd = stop("D", 41.3, 29.3); sd.stop_name = Some("Stop D".into());
+        let mut sa = stop("A", 41.0, 29.0);
+        sa.stop_name = Some("Stop A".into());
+        let mut sb = stop("B", 41.1, 29.1);
+        sb.stop_name = Some("Stop B".into());
+        let mut sc = stop("C", 41.2, 29.2);
+        sc.stop_name = Some("Stop C".into());
+        let mut sd = stop("D", 41.3, 29.3);
+        sd.stop_name = Some("Stop D".into());
         let t = trip_hs("T1", "R1", "Stop C");
         let records = records_with(
             vec![sa, sb, sc, sd],
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 3, "C", (8,20,0), (8,20,0), 4),
-                stoptime("T1", 4, "B", (8,30,0), (8,30,0), 5),
-                stoptime("T1", 5, "D", (8,40,0), (8,40,0), 6),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
+                stoptime("T1", 4, "B", (8, 30, 0), (8, 30, 0), 5),
+                stoptime("T1", 5, "D", (8, 40, 0), (8, 40, 0), 6),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "TRP_020"),
             "alakasız tekrar headsign'ın eşleştiği ara durağı bastırmamalı: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -13644,49 +17276,64 @@ mod tests {
         // #29: Sefer A → B → B → C; B aynı stop_id PEŞ PEŞE iki kez (dwell/timepoint çiftlemesi,
         // BART SFO seq 26-27 deseni), terminal = C. headsign = "Stop B" = ara durak.
         // Ardışık yineleme gerçek uç/dönüş DEĞİLDİR → TRP_020 ÇIKMALI (önceki mantık yanlış bastırırdı).
-        let mut sa = stop("A", 41.0, 29.0); sa.stop_name = Some("Stop A".into());
-        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
-        let mut sc = stop("C", 41.2, 29.2); sc.stop_name = Some("Stop C".into());
+        let mut sa = stop("A", 41.0, 29.0);
+        sa.stop_name = Some("Stop A".into());
+        let mut sb = stop("B", 41.1, 29.1);
+        sb.stop_name = Some("Stop B".into());
+        let mut sc = stop("C", 41.2, 29.2);
+        sc.stop_name = Some("Stop C".into());
         let t = trip_hs("T1", "R1", "Stop B");
         let records = records_with(
             vec![sa, sb, sc],
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B", (8,10,0), (8,10,0), 3),
-                stoptime("T1", 3, "B", (8,11,0), (8,11,0), 4),
-                stoptime("T1", 4, "C", (8,20,0), (8,20,0), 5),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 3, "B", (8, 11, 0), (8, 11, 0), 4),
+                stoptime("T1", 4, "C", (8, 20, 0), (8, 20, 0), 5),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "TRP_020"),
             "ardışık yinelenen ara durak (dwell) bastırılmamalı → TRP_020 çıkmalı: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn headsign_loop_via_parent_station_no_trp_020() {
         // Loop: A1 → B → A2; A1 ve A2 farklı stop_id ama aynı parent_station P.
         // first(A1) != terminal(A2) (stop_id) ama etkin istasyon aynı (P) → TRP_020 olmamalı.
-        let mut sa1 = stop("A1", 41.0, 29.0); sa1.stop_name = Some("İstasyon P".into());
+        let mut sa1 = stop("A1", 41.0, 29.0);
+        sa1.stop_name = Some("İstasyon P".into());
         sa1.row.insert("parent_station".into(), "P".into());
-        let mut sa2 = stop("A2", 41.0, 29.0); sa2.stop_name = Some("İstasyon P".into());
+        let mut sa2 = stop("A2", 41.0, 29.0);
+        sa2.stop_name = Some("İstasyon P".into());
         sa2.row.insert("parent_station".into(), "P".into());
-        let mut sb = stop("B", 41.1, 29.1); sb.stop_name = Some("Stop B".into());
+        let mut sb = stop("B", 41.1, 29.1);
+        sb.stop_name = Some("Stop B".into());
         let t = trip_hs("T1", "R1", "Stop B"); // ara durak adı
         let records = records_with(
             vec![sa1, sa2, sb],
             vec![route("R1", 3)],
             vec![t],
             vec![
-                stoptime("T1", 1, "A1", (8,0,0), (8,0,0), 2),
-                stoptime("T1", 2, "B",  (8,10,0), (8,10,0), 3),
-                stoptime("T1", 3, "A2", (8,20,0), (8,20,0), 4),
+                stoptime("T1", 1, "A1", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T1", 3, "A2", (8, 20, 0), (8, 20, 0), 4),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRP_020"), "parent_station ile dönen loop → TRP_020 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_020"),
+            "parent_station ile dönen loop → TRP_020 olmamalı"
+        );
     }
 
     // ── SHP_022: durak shape'te birden fazla eşleşme bölgesine yakın ─────────
@@ -13715,17 +17362,49 @@ mod tests {
         // shape: (0,0)→(1,0)→(1,0.001)→(0,0.001) — U benzeri
         // İki dikey kenar (lon=0 ve lon=0.001) stop'a ~5m uzaklıkta
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.0), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.001), Some(3), None, 4),
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.001), Some(4), None, 5),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(0.0),
+                Some(0.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(1.0),
+                Some(0.0),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(1.0),
+                Some(0.001),
+                Some(3),
+                None,
+                4,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(0.0),
+                Some(0.001),
+                Some(4),
+                None,
+                5,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "SHP_022"),
             "U-şekli + shape_dist eksik + sıra kullanılamaz → SHP_022 beklenir: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
         );
     }
 
@@ -13748,10 +17427,38 @@ mod tests {
             ],
         );
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.0), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(1.0), Some(0.001), Some(3), None, 4),
-            ShapePointRecord::new(shape_ti.intern("SH1"), Some(0.0), Some(0.001), Some(4), None, 5),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(0.0),
+                Some(0.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(1.0),
+                Some(0.0),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(1.0),
+                Some(0.001),
+                Some(3),
+                None,
+                4,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH1"),
+                Some(0.0),
+                Some(0.001),
+                Some(4),
+                None,
+                5,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13780,9 +17487,30 @@ mod tests {
         );
         // Düz shape, stop sadece ilk segmente (~11m) yakın
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("SH2"), Some(0.0), Some(0.0), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("SH2"), Some(1.0), Some(0.0), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("SH2"), Some(2.0), Some(0.0), Some(3), None, 4),
+            ShapePointRecord::new(
+                shape_ti.intern("SH2"),
+                Some(0.0),
+                Some(0.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH2"),
+                Some(1.0),
+                Some(0.0),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SH2"),
+                Some(2.0),
+                Some(0.0),
+                Some(3),
+                None,
+                4,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13802,10 +17530,13 @@ mod tests {
             vec![s],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "DQ_018"), "DQ_018 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "DQ_018"),
+            "DQ_018 olmalı"
+        );
     }
 
     #[test]
@@ -13816,10 +17547,13 @@ mod tests {
             vec![s],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_018"), "düzgün harf DQ_018 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "DQ_018"),
+            "düzgün harf DQ_018 üretmemeli"
+        );
     }
 
     #[test]
@@ -13831,10 +17565,13 @@ mod tests {
             vec![s],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2)],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_018"), "tek harf DQ_018 üretmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "DQ_018"),
+            "tek harf DQ_018 üretmemeli"
+        );
     }
 
     // ── Fix-8 (revize): patolojik shape projeksiyonu haversine'e düşer ────────
@@ -13859,10 +17596,38 @@ mod tests {
         // U shape: (41.0,29.0) → kuzeye (41.1,29.0) → (41.1,29.01) → güneye (41.0,29.01)
         // Arc ≈ 23 km vs haversine ~0.84 km → ratio ~27× → 4× eşiği aşar → fallback.
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.00), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.00), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.1), Some(29.01), Some(3), None, 4),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.01), Some(4), None, 5),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.00),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.1),
+                Some(29.00),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.1),
+                Some(29.01),
+                Some(3),
+                None,
+                4,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.01),
+                Some(4),
+                None,
+                5,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13891,9 +17656,30 @@ mod tests {
         );
         // A(41.0,29.0) → orta nokta hafif doğuya (41.05,29.03) → B(41.1,29.0): kavisli ama ~1.2×
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.00), Some(29.00), Some(1), None, 2),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.05), Some(29.03), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("S1"), Some(41.10), Some(29.00), Some(3), None, 4),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.00),
+                Some(29.00),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.05),
+                Some(29.03),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.10),
+                Some(29.00),
+                Some(3),
+                None,
+                4,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13936,13 +17722,29 @@ mod tests {
             .collect();
         let t1 = trip("T1", "R1");
         let t2 = trip("T2", "R2");
-        let stop_times = (1..=6).flat_map(|i| {
-            let h = i;
-            vec![
-                stoptime("T1", i, &format!("S{i}"), (h, 0, 0), (h, 0, 0), i as u64 + 1),
-                stoptime("T2", i, &format!("S{i}"), (h, 5, 0), (h, 5, 0), i as u64 + 10),
-            ]
-        }).collect();
+        let stop_times = (1..=6)
+            .flat_map(|i| {
+                let h = i;
+                vec![
+                    stoptime(
+                        "T1",
+                        i,
+                        &format!("S{i}"),
+                        (h, 0, 0),
+                        (h, 0, 0),
+                        i as u64 + 1,
+                    ),
+                    stoptime(
+                        "T2",
+                        i,
+                        &format!("S{i}"),
+                        (h, 5, 0),
+                        (h, 5, 0),
+                        i as u64 + 10,
+                    ),
+                ]
+            })
+            .collect();
         let r = crate::k2::EntityRecords {
             stops,
             routes: vec![route("R1", 3), route("R2", 3)],
@@ -13952,56 +17754,74 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_001"), "VAT_001 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "VAT_001"),
+            "VAT_001 olmalı"
+        );
     }
 
     #[test]
     fn very_different_routes_no_vat_001() {
         // R1: S1-S3, R2: S4-S6 → hiç ortak durak yok → Jaccard=0 → VAT_001 olmamalı
         let r = crate::k2::EntityRecords {
-            stops: (1..=6).map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0)).collect(),
+            stops: (1..=6)
+                .map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0))
+                .collect(),
             routes: vec![route("R1", 3), route("R2", 3)],
             trips: vec![trip("T1", "R1"), trip("T2", "R2")],
             trip_interns: take_ti(),
             stop_times: vec![
-            stoptime("T1", 1, "S1", (8,0,0), (8,0,0), 2),
-            stoptime("T1", 2, "S2", (8,5,0), (8,5,0), 3),
-            stoptime("T1", 3, "S3", (8,10,0), (8,10,0), 4),
-            stoptime("T2", 1, "S4", (9,0,0), (9,0,0), 2),
-            stoptime("T2", 2, "S5", (9,5,0), (9,5,0), 3),
-            stoptime("T2", 3, "S6", (9,10,0), (9,10,0), 4),
+                stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "S2", (8, 5, 0), (8, 5, 0), 3),
+                stoptime("T1", 3, "S3", (8, 10, 0), (8, 10, 0), 4),
+                stoptime("T2", 1, "S4", (9, 0, 0), (9, 0, 0), 2),
+                stoptime("T2", 2, "S5", (9, 5, 0), (9, 5, 0), 3),
+                stoptime("T2", 3, "S6", (9, 10, 0), (9, 10, 0), 4),
             ],
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_001"), "VAT_001 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_001"),
+            "VAT_001 olmamalı"
+        );
     }
 
     #[test]
     fn busy_stop_no_transfer_produces_vat_002() {
         // S1'den 4 hat geçiyor VE 200 m ötedeki S9'dan S1'de olmayan bir hat (R5) geçiyor
         // → gerçekten tanımlanmamış bir DURAKLAR ARASI aktarma var → VAT_002.
-        let mut sts: Vec<_> = (1..=4).flat_map(|i| vec![
-            stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
-            stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
-        ]).collect();
+        let mut sts: Vec<_> = (1..=4)
+            .flat_map(|i| {
+                vec![
+                    stoptime(&format!("T{i}"), 1, "S1", (8, 0, 0), (8, 0, 0), 2),
+                    stoptime(&format!("T{i}"), 2, "S2", (8, 10, 0), (8, 10, 0), 3),
+                ]
+            })
+            .collect();
         // R5 yalnız komşu durak S9'dan geçiyor — S1'de yok.
-        sts.push(stoptime("T5", 1, "S9", (9,0,0), (9,0,0), 4));
-        sts.push(stoptime("T5", 2, "S8", (9,10,0), (9,10,0), 5));
+        sts.push(stoptime("T5", 1, "S9", (9, 0, 0), (9, 0, 0), 4));
+        sts.push(stoptime("T5", 2, "S8", (9, 10, 0), (9, 10, 0), 5));
         let r = crate::k2::EntityRecords {
             stops: vec![
-                stop("S1", 41.0, 29.0), stop("S2", 41.1, 29.1),
+                stop("S1", 41.0, 29.0),
+                stop("S2", 41.1, 29.1),
                 stop("S9", 41.0018, 29.0), // ~200 m — max_transfer_distance_m (500 m) içinde
                 stop("S8", 41.2, 29.2),
             ],
             routes: (1..=5).map(|i| route(&format!("R{i}"), 3)).collect(),
-            trips: (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trips: (1..=5)
+                .map(|i| trip(&format!("T{i}"), &format!("R{i}")))
+                .collect(),
             trip_interns: take_ti(),
             stop_times: sts,
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_002"), "VAT_002 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "VAT_002"),
+            "VAT_002 olmalı"
+        );
     }
 
     // ── WP-D: aynı stop_id'deki aktarma örtüktür ─────────────────────────────
@@ -14013,12 +17833,18 @@ mod tests {
         let r = crate::k2::EntityRecords {
             stops: vec![stop("GAR", 41.0, 29.0), stop("S2", 41.1, 29.1)],
             routes: (1..=4).map(|i| route(&format!("R{i}"), 2)).collect(),
-            trips: (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trips: (1..=4)
+                .map(|i| trip(&format!("T{i}"), &format!("R{i}")))
+                .collect(),
             trip_interns: take_ti(),
-            stop_times: (1..=4).flat_map(|i| vec![
-            stoptime(&format!("T{i}"), 1, "GAR", (8,0,0), (8,0,0), 2),
-            stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
-            ]).collect(),
+            stop_times: (1..=4)
+                .flat_map(|i| {
+                    vec![
+                        stoptime(&format!("T{i}"), 1, "GAR", (8, 0, 0), (8, 0, 0), 2),
+                        stoptime(&format!("T{i}"), 2, "S2", (8, 10, 0), (8, 10, 0), 3),
+                    ]
+                })
+                .collect(),
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
@@ -14037,12 +17863,16 @@ mod tests {
         let mut row: StdMap<String, String> = StdMap::new();
         row.insert("parent_station".to_string(), "GAR".to_string());
         platform.row = row;
-        let mut sts: Vec<_> = (1..=4).flat_map(|i| vec![
-            stoptime(&format!("T{i}"), 1, "P1", (8,0,0), (8,0,0), 2),
-            stoptime(&format!("T{i}"), 2, "S2", (8,10,0), (8,10,0), 3),
-        ]).collect();
-        sts.push(stoptime("T5", 1, "S9", (9,0,0), (9,0,0), 4));
-        sts.push(stoptime("T5", 2, "S8", (9,10,0), (9,10,0), 5));
+        let mut sts: Vec<_> = (1..=4)
+            .flat_map(|i| {
+                vec![
+                    stoptime(&format!("T{i}"), 1, "P1", (8, 0, 0), (8, 0, 0), 2),
+                    stoptime(&format!("T{i}"), 2, "S2", (8, 10, 0), (8, 10, 0), 3),
+                ]
+            })
+            .collect();
+        sts.push(stoptime("T5", 1, "S9", (9, 0, 0), (9, 0, 0), 4));
+        sts.push(stoptime("T5", 2, "S8", (9, 10, 0), (9, 10, 0), 5));
         let r = crate::k2::EntityRecords {
             stops: vec![
                 platform,
@@ -14051,14 +17881,19 @@ mod tests {
                 stop("S8", 41.2, 29.2),
             ],
             routes: (1..=5).map(|i| route(&format!("R{i}"), 3)).collect(),
-            trips: (1..=5).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trips: (1..=5)
+                .map(|i| trip(&format!("T{i}"), &format!("R{i}")))
+                .collect(),
             trip_interns: take_ti(),
             stop_times: sts,
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
-            !result.notices.iter().any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("P1")),
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("P1")),
             "parent_station'lı durak için VAT_002 çıkmamalı"
         );
     }
@@ -14073,18 +17908,27 @@ mod tests {
                 stop("S2", 41.1, 29.1),
             ],
             routes: (1..=4).map(|i| route(&format!("R{i}"), 3)).collect(),
-            trips: (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trips: (1..=4)
+                .map(|i| trip(&format!("T{i}"), &format!("R{i}")))
+                .collect(),
             trip_interns: take_ti(),
-            stop_times: (1..=4).flat_map(|i| vec![
-            stoptime(&format!("T{i}"), 1, "S1", (8,0,0), (8,0,0), 2),
-            stoptime(&format!("T{i}"), 2, "S9", (8,5,0), (8,5,0), 3),
-            stoptime(&format!("T{i}"), 3, "S2", (8,10,0), (8,10,0), 4),
-            ]).collect(),
+            stop_times: (1..=4)
+                .flat_map(|i| {
+                    vec![
+                        stoptime(&format!("T{i}"), 1, "S1", (8, 0, 0), (8, 0, 0), 2),
+                        stoptime(&format!("T{i}"), 2, "S9", (8, 5, 0), (8, 5, 0), 3),
+                        stoptime(&format!("T{i}"), 3, "S2", (8, 10, 0), (8, 10, 0), 4),
+                    ]
+                })
+                .collect(),
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
-            !result.notices.iter().any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("S1")),
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "VAT_002" && n.entity_id.as_deref() == Some("S1")),
             "komşu yeni hat sunmuyorsa aktarma boşluğu yoktur → VAT_002 çıkmamalı"
         );
     }
@@ -14114,7 +17958,10 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_003"), "VAT_003 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "VAT_003 olmalı"
+        );
     }
 
     // ── WP-C: tarih-genişletmesi çökertme ────────────────────────────────────
@@ -14160,23 +18007,38 @@ mod tests {
         };
 
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        let vat: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "VAT_003").collect();
+        let vat: Vec<&Notice> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "VAT_003")
+            .collect();
         assert_eq!(
-            vat.len(), 1,
+            vat.len(),
+            1,
             "60 sefer / 6 tarife → 1 aykırı TARİFE = 1 notice (10 değil); çıkanlar: {:?}",
-            vat.iter().map(|n| n.entity_id.as_deref()).collect::<Vec<_>>()
+            vat.iter()
+                .map(|n| n.entity_id.as_deref())
+                .collect::<Vec<_>>()
         );
         let n = vat[0];
         // Temsili trip: leksikografik en küçük (deterministik).
-        assert_eq!(n.entity_id.as_deref(), Some("X_D00"), "representative must be the smallest trip_id");
         assert_eq!(
-            n.details.as_ref().and_then(|d| d.get("duplicate_trips")).map(String::as_str),
+            n.entity_id.as_deref(),
+            Some("X_D00"),
+            "representative must be the smallest trip_id"
+        );
+        assert_eq!(
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("duplicate_trips"))
+                .map(String::as_str),
             Some("10"),
             "kopya sayısı details'ta taşınmalı"
         );
         assert!(
             n.message.contains("10 sefer kaydında tekrarlanıyor"),
-            "mesaj kaç kaydı ilgilendirdiğini söylemeli: {}", n.message
+            "mesaj kaç kaydı ilgilendirdiğini söylemeli: {}",
+            n.message
         );
     }
 
@@ -14205,16 +18067,24 @@ mod tests {
         };
 
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        let vat: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "VAT_003").collect();
+        let vat: Vec<&Notice> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "VAT_003")
+            .collect();
         assert_eq!(vat.len(), 1, "aykırı sefer yine yakalanmalı");
         assert_eq!(vat[0].entity_id.as_deref(), Some("T9"));
         assert!(
-            vat[0].details.as_ref().is_none_or(|d| !d.contains_key("duplicate_trips")),
+            vat[0]
+                .details
+                .as_ref()
+                .is_none_or(|d| !d.contains_key("duplicate_trips")),
             "kopya yoksa duplicate_trips yazılmamalı"
         );
         assert!(
             !vat[0].message.contains("tekrarlanıyor"),
-            "kopya yoksa mesaj değişmemeli: {}", vat[0].message
+            "kopya yoksa mesaj değişmemeli: {}",
+            vat[0].message
         );
     }
 
@@ -14285,8 +18155,10 @@ mod tests {
         }
         let r = crate::k2::EntityRecords {
             stops: vec![
-                stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
-                stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+                stop("D", 41.3, 29.3),
             ],
             routes: vec![route("R1", 3)],
             trips: trips_vec,
@@ -14295,8 +18167,10 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
-            "ayrı desenler çapraz aykırı işaretlenmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "ayrı desenler çapraz aykırı işaretlenmemeli"
+        );
     }
 
     #[test]
@@ -14320,7 +18194,9 @@ mod tests {
         }
         let r = crate::k2::EntityRecords {
             stops: vec![
-                stop("A", 41.0, 29.0), stop("B", 41.1, 29.1), stop("C", 41.5, 29.5),
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.5, 29.5),
             ],
             routes: vec![route("R1", 3)],
             trips: trips_vec,
@@ -14329,8 +18205,10 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
-            "aynı durak sayılı farklı desenler durak-sırasıyla ayrılmalı, çapraz işaretlenmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "aynı durak sayılı farklı desenler durak-sırasıyla ayrılmalı, çapraz işaretlenmemeli"
+        );
     }
 
     #[test]
@@ -14356,8 +18234,10 @@ mod tests {
         }
         let r = crate::k2::EntityRecords {
             stops: vec![
-                stop("A", 41.0, 29.0), stop("B", 41.1, 29.1),
-                stop("C", 41.2, 29.2), stop("D", 41.3, 29.3),
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.1),
+                stop("C", 41.2, 29.2),
+                stop("D", 41.3, 29.3),
             ],
             routes: vec![route("R1", 3)],
             trips: trips_vec,
@@ -14366,8 +18246,10 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_003"),
-            "aynı shape'i paylaşan farklı stop desenleri çapraz işaretlenmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_003"),
+            "aynı shape'i paylaşan farklı stop desenleri çapraz işaretlenmemeli"
+        );
     }
 
     #[test]
@@ -14406,13 +18288,17 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        let flagged: std::collections::HashSet<&str> = result.notices.iter()
+        let flagged: std::collections::HashSet<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "VAT_003")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
         assert!(flagged.contains("INC"), "gerçek olay (40dk) işaretlenmeli");
-        assert!(!flagged.iter().any(|id| id.starts_with('P')),
-            "meşru peak seferleri saat-bazlı deseasonalize ile işaretlenmemeli");
+        assert!(
+            !flagged.iter().any(|id| id.starts_with('P')),
+            "meşru peak seferleri saat-bazlı deseasonalize ile işaretlenmemeli"
+        );
     }
 
     #[test]
@@ -14432,7 +18318,14 @@ mod tests {
             let tid = format!("N{i}");
             trips_vec.push(trip(&tid, "R1"));
             sts.push(stoptime(&tid, 1, "A", (2, i * 10, 0), (2, i * 10, 0), 2));
-            sts.push(stoptime(&tid, 2, "B", (2, i * 10 + 20, 0), (2, i * 10 + 20, 0), 3));
+            sts.push(stoptime(
+                &tid,
+                2,
+                "B",
+                (2, i * 10 + 20, 0),
+                (2, i * 10 + 20, 0),
+                3,
+            ));
         }
         // Akşam bandı (saat 21, 40dk — gece trafiğine göre uzun), 6 ayrı tarife.
         for i in 0..6u32 {
@@ -14445,8 +18338,22 @@ mod tests {
         for i in 0..3u32 {
             let tid = format!("W{i}");
             trips_vec.push(trip(&tid, "R1"));
-            sts.push(stoptime(&tid, 1, "A", (24, 30 + i * 5, 0), (24, 30 + i * 5, 0), 2));
-            sts.push(stoptime(&tid, 2, "B", (24, 50 + i * 5, 0), (24, 50 + i * 5, 0), 3));
+            sts.push(stoptime(
+                &tid,
+                1,
+                "A",
+                (24, 30 + i * 5, 0),
+                (24, 30 + i * 5, 0),
+                2,
+            ));
+            sts.push(stoptime(
+                &tid,
+                2,
+                "B",
+                (24, 50 + i * 5, 0),
+                (24, 50 + i * 5, 0),
+                3,
+            ));
         }
         // Owl olay: 24:35 kalkış, 40dk — gece bandı için ANORMAL.
         trips_vec.push(trip("WINC", "R1"));
@@ -14461,16 +18368,24 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        let flagged: std::collections::HashSet<&str> = result.notices.iter()
+        let flagged: std::collections::HashSet<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "VAT_003")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
         // % 24 ile owl-normal seferleri gece bandına düşer → FP yok.
-        assert!(!flagged.iter().any(|id| id.starts_with('W') && *id != "WINC"),
-            "normal owl seferleri gece bandına göre kıyaslanmalı (yanlış akşam-FP olmamalı)");
+        assert!(
+            !flagged
+                .iter()
+                .any(|id| id.starts_with('W') && *id != "WINC"),
+            "normal owl seferleri gece bandına göre kıyaslanmalı (yanlış akşam-FP olmamalı)"
+        );
         // Gerçek owl anomalisi gece bandına göre yine yakalanmalı.
-        assert!(flagged.contains("WINC"),
-            "gece bandı için anormal (40dk) owl seferi işaretlenmeli");
+        assert!(
+            flagged.contains("WINC"),
+            "gece bandı için anormal (40dk) owl seferi işaretlenmeli"
+        );
     }
 
     #[test]
@@ -14482,31 +18397,39 @@ mod tests {
         for i in 1..=12u32 {
             let tid = format!("M{i}");
             trips_v.push(trip(&tid, "R1"));
-            st_v.push(stoptime(&tid,1,"A",(i,0,0),(i,0,0),2));
-            st_v.push(stoptime(&tid,2,"B",(i,5,0),(i,5,0),3));
-            st_v.push(stoptime(&tid,3,"C",(i,10,0),(i,10,0),4));
-            st_v.push(stoptime(&tid,4,"D",(i,15,0),(i,15,0),5));
-            st_v.push(stoptime(&tid,5,"E",(i,20,0),(i,20,0),6));
-            st_v.push(stoptime(&tid,6,"F",(i,25,0),(i,25,0),7));
+            st_v.push(stoptime(&tid, 1, "A", (i, 0, 0), (i, 0, 0), 2));
+            st_v.push(stoptime(&tid, 2, "B", (i, 5, 0), (i, 5, 0), 3));
+            st_v.push(stoptime(&tid, 3, "C", (i, 10, 0), (i, 10, 0), 4));
+            st_v.push(stoptime(&tid, 4, "D", (i, 15, 0), (i, 15, 0), 5));
+            st_v.push(stoptime(&tid, 5, "E", (i, 20, 0), (i, 20, 0), 6));
+            st_v.push(stoptime(&tid, 6, "F", (i, 25, 0), (i, 25, 0), 7));
         }
         // İzole küme: X-Y
-        trips_v.push(trip("ISO","R2"));
-        st_v.push(stoptime("ISO",1,"X",(8,0,0),(8,0,0),2));
-        st_v.push(stoptime("ISO",2,"Y",(8,10,0),(8,10,0),3));
+        trips_v.push(trip("ISO", "R2"));
+        st_v.push(stoptime("ISO", 1, "X", (8, 0, 0), (8, 0, 0), 2));
+        st_v.push(stoptime("ISO", 2, "Y", (8, 10, 0), (8, 10, 0), 3));
         let r = crate::k2::EntityRecords {
             stops: vec![
-                stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
-                stop("E",41.4,29.0), stop("F",41.5,29.0),
-                stop("X",42.0,30.0), stop("Y",42.1,30.0), // izole
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.0),
+                stop("C", 41.2, 29.0),
+                stop("D", 41.3, 29.0),
+                stop("E", 41.4, 29.0),
+                stop("F", 41.5, 29.0),
+                stop("X", 42.0, 30.0),
+                stop("Y", 42.1, 30.0), // izole
             ],
-            routes: vec![route("R1",3), route("R2",3)],
+            routes: vec![route("R1", 3), route("R2", 3)],
             trips: trips_v,
             trip_interns: take_ti(),
             stop_times: st_v,
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_005"), "VAT_005 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "VAT_005"),
+            "VAT_005 olmalı"
+        );
     }
 
     #[test]
@@ -14518,32 +18441,39 @@ mod tests {
         for i in 1..=12u32 {
             let tid = format!("M{i}");
             trips_v.push(trip(&tid, "R1"));
-            st_v.push(stoptime(&tid,1,"A",(i,0,0),(i,0,0),2));
-            st_v.push(stoptime(&tid,2,"B",(i,5,0),(i,5,0),3));
-            st_v.push(stoptime(&tid,3,"C",(i,10,0),(i,10,0),4));
-            st_v.push(stoptime(&tid,4,"D",(i,15,0),(i,15,0),5));
-            st_v.push(stoptime(&tid,5,"E",(i,20,0),(i,20,0),6));
-            st_v.push(stoptime(&tid,6,"F",(i,25,0),(i,25,0),7));
+            st_v.push(stoptime(&tid, 1, "A", (i, 0, 0), (i, 0, 0), 2));
+            st_v.push(stoptime(&tid, 2, "B", (i, 5, 0), (i, 5, 0), 3));
+            st_v.push(stoptime(&tid, 3, "C", (i, 10, 0), (i, 10, 0), 4));
+            st_v.push(stoptime(&tid, 4, "D", (i, 15, 0), (i, 15, 0), 5));
+            st_v.push(stoptime(&tid, 5, "E", (i, 20, 0), (i, 20, 0), 6));
+            st_v.push(stoptime(&tid, 6, "F", (i, 25, 0), (i, 25, 0), 7));
         }
         // İzole küme P-Q: ana ağa trip bağı yok ama P koordinatı A'ya bitişik (<200m).
-        trips_v.push(trip("ISO","R2"));
-        st_v.push(stoptime("ISO",1,"P",(8,0,0),(8,0,0),2));
-        st_v.push(stoptime("ISO",2,"Q",(8,10,0),(8,10,0),3));
+        trips_v.push(trip("ISO", "R2"));
+        st_v.push(stoptime("ISO", 1, "P", (8, 0, 0), (8, 0, 0), 2));
+        st_v.push(stoptime("ISO", 2, "Q", (8, 10, 0), (8, 10, 0), 3));
         let r = crate::k2::EntityRecords {
             stops: vec![
-                stop("A",41.0,29.0), stop("B",41.1,29.0), stop("C",41.2,29.0), stop("D",41.3,29.0),
-                stop("E",41.4,29.0), stop("F",41.5,29.0),
-                stop("P",41.0003,29.0), stop("Q",41.0005,29.0), // A'ya ~33m: aynı fiziksel yer
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.0),
+                stop("C", 41.2, 29.0),
+                stop("D", 41.3, 29.0),
+                stop("E", 41.4, 29.0),
+                stop("F", 41.5, 29.0),
+                stop("P", 41.0003, 29.0),
+                stop("Q", 41.0005, 29.0), // A'ya ~33m: aynı fiziksel yer
             ],
-            routes: vec![route("R1",3), route("R2",3)],
+            routes: vec![route("R1", 3), route("R2", 3)],
             trips: trips_v,
             trip_interns: take_ti(),
             stop_times: st_v,
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "VAT_005"),
-            "İzole küme ana şebekeye <200m yakın → VAT_005 bastırılmalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_005"),
+            "İzole küme ana şebekeye <200m yakın → VAT_005 bastırılmalı"
+        );
     }
 
     #[test]
@@ -14576,7 +18506,10 @@ mod tests {
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_006"), "VAT_006 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "VAT_006"),
+            "VAT_006 olmalı"
+        );
     }
 
     #[test]
@@ -14587,28 +18520,35 @@ mod tests {
             stops: vec![
                 stop("HUB", 41.0, 29.0),
                 stop("HUB2", 41.0018, 29.0),
-                stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
+                stop("A", 41.1, 29.0),
+                stop("B", 41.0, 29.1),
+                stop("C", 41.0, 28.9),
                 stop("D", 41.2, 29.2),
             ],
             routes: (1..=4).map(|i| route(&format!("R{i}"), 3)).collect(),
-            trips: (1..=4).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trips: (1..=4)
+                .map(|i| trip(&format!("T{i}"), &format!("R{i}")))
+                .collect(),
             trip_interns: take_ti(),
             stop_times: vec![
-            stoptime("T1", 1, "HUB", (8,0,0), (8,0,0), 2),
-            stoptime("T1", 2, "A",   (8,10,0), (8,10,0), 3),
-            stoptime("T2", 1, "HUB", (8,0,0), (8,0,0), 2),
-            stoptime("T2", 2, "B",   (8,10,0), (8,10,0), 3),
-            stoptime("T3", 1, "HUB", (8,0,0), (8,0,0), 2),
-            stoptime("T3", 2, "C",   (8,10,0), (8,10,0), 3),
-            // R4 yalnız komşu HUB2'den geçiyor.
-            stoptime("T4", 1, "HUB2", (9,0,0), (9,0,0), 4),
-            stoptime("T4", 2, "D",    (9,10,0), (9,10,0), 5),
+                stoptime("T1", 1, "HUB", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "HUB", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T3", 1, "HUB", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T3", 2, "C", (8, 10, 0), (8, 10, 0), 3),
+                // R4 yalnız komşu HUB2'den geçiyor.
+                stoptime("T4", 1, "HUB2", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T4", 2, "D", (9, 10, 0), (9, 10, 0), 5),
             ],
             ..Default::default()
         };
         // transfers boş
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "VAT_007"), "VAT_007 olmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "VAT_007"),
+            "VAT_007 olmalı"
+        );
     }
 
     /// Terminusta bütün hatlar aynı stop_id'yi kullanıyorsa aktarma örtüktür → susar.
@@ -14617,18 +18557,22 @@ mod tests {
         let r = crate::k2::EntityRecords {
             stops: vec![
                 stop("GAR", 41.0, 29.0),
-                stop("A", 41.1, 29.0), stop("B", 41.0, 29.1), stop("C", 41.0, 28.9),
+                stop("A", 41.1, 29.0),
+                stop("B", 41.0, 29.1),
+                stop("C", 41.0, 28.9),
             ],
             routes: (1..=3).map(|i| route(&format!("R{i}"), 2)).collect(),
-            trips: (1..=3).map(|i| trip(&format!("T{i}"), &format!("R{i}"))).collect(),
+            trips: (1..=3)
+                .map(|i| trip(&format!("T{i}"), &format!("R{i}")))
+                .collect(),
             trip_interns: take_ti(),
             stop_times: vec![
-            stoptime("T1", 1, "GAR", (8,0,0), (8,0,0), 2),
-            stoptime("T1", 2, "A",   (8,10,0), (8,10,0), 3),
-            stoptime("T2", 1, "GAR", (8,0,0), (8,0,0), 2),
-            stoptime("T2", 2, "B",   (8,10,0), (8,10,0), 3),
-            stoptime("T3", 1, "GAR", (8,0,0), (8,0,0), 2),
-            stoptime("T3", 2, "C",   (8,10,0), (8,10,0), 3),
+                stoptime("T1", 1, "GAR", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "A", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "GAR", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T2", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T3", 1, "GAR", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T3", 2, "C", (8, 10, 0), (8, 10, 0), 3),
             ],
             ..Default::default()
         };
@@ -14657,15 +18601,18 @@ mod tests {
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_035"));
-        assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_007"),
-            "ardışık tekrar OPR_007 ile ikinci kez raporlanmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "OPR_007"),
+            "ardışık tekrar OPR_007 ile ikinci kez raporlanmamalı"
+        );
     }
 
     #[test]
     fn late_night_trips_are_summarized_once_per_route() {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
-            vec![route("R1", 3)], vec![trip("T1", "R1"), trip("T2", "R1")],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1")],
             vec![
                 stoptime("T1", 1, "A", (23, 0, 0), (23, 0, 0), 2),
                 stoptime("T1", 2, "B", (23, 10, 0), (23, 10, 0), 3),
@@ -14674,10 +18621,18 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let found: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "OPR_009").collect();
+        let found: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "OPR_009")
+            .collect();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].entity_type, EntityType::Route);
-        assert!(found[0].observed_value.as_deref().unwrap_or("").contains("2 trips"));
+        assert!(found[0]
+            .observed_value
+            .as_deref()
+            .unwrap_or("")
+            .contains("2 trips"));
     }
 
     // ── TRP_033 · blokta karışık route_type ───────────────────────────────────
@@ -14688,10 +18643,15 @@ mod tests {
         let mut t = trip(trip_id, route_id);
         t.block_idx = TEST_TI.with(|cell| {
             let mut ti = cell.borrow_mut();
-            if ti.block_ids.is_empty() { ti.block_ids.push(SmolStr::default()); }
+            if ti.block_ids.is_empty() {
+                ti.block_ids.push(SmolStr::default());
+            }
             match ti.block_ids.iter().position(|b| b == block_id) {
                 Some(i) => i as u32,
-                None => { ti.block_ids.push(SmolStr::new(block_id)); (ti.block_ids.len() - 1) as u32 }
+                None => {
+                    ti.block_ids.push(SmolStr::new(block_id));
+                    (ti.block_ids.len() - 1) as u32
+                }
             }
         });
         t
@@ -14703,7 +18663,10 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("BUS", 3), route("TRAM", 0)],
-            vec![blocked_trip("T1", "BUS", "B1"), blocked_trip("T2", "TRAM", "B1")],
+            vec![
+                blocked_trip("T1", "BUS", "B1"),
+                blocked_trip("T2", "TRAM", "B1"),
+            ],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
@@ -14712,10 +18675,22 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "TRP_033").collect();
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "TRP_033")
+            .collect();
         assert_eq!(hits.len(), 1, "blok başına tek notice beklenir");
-        assert_eq!(hits[0].entity_id.as_deref(), Some("B1"), "notice bloğa ait olmalı");
-        assert_eq!(hits[0].observed_value.as_deref(), Some("0, 3"), "route_type'lar sıralı listelenmeli");
+        assert_eq!(
+            hits[0].entity_id.as_deref(),
+            Some("B1"),
+            "notice bloğa ait olmalı"
+        );
+        assert_eq!(
+            hits[0].observed_value.as_deref(),
+            Some("0, 3"),
+            "route_type'lar sıralı listelenmeli"
+        );
     }
 
     #[test]
@@ -14723,7 +18698,10 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3), route("R2", 3)], // iki farklı hat, AYNI mod
-            vec![blocked_trip("T1", "R1", "B1"), blocked_trip("T2", "R2", "B1")],
+            vec![
+                blocked_trip("T1", "R1", "B1"),
+                blocked_trip("T2", "R2", "B1"),
+            ],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
@@ -14732,8 +18710,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().all(|n| n.rule_id != "TRP_033"),
-            "aynı moddaki blok bulgu ÜRETMEMELİ");
+        assert!(
+            result.notices.iter().all(|n| n.rule_id != "TRP_033"),
+            "aynı moddaki blok bulgu ÜRETMEMELİ"
+        );
     }
 
     #[test]
@@ -14743,16 +18723,43 @@ mod tests {
         let mut times = Vec::new();
         for i in 0..6u32 {
             let id = format!("T{i}");
-            trips.push(blocked_trip(&id, if i % 2 == 0 { "BUS" } else { "TRAM" }, "B1"));
-            times.push(stoptime(&id, 1, "A", (8, 0, 0), (8, 0, 0), (i * 2 + 2) as u64));
-            times.push(stoptime(&id, 2, "B", (8, 10, 0), (8, 10, 0), (i * 2 + 3) as u64));
+            trips.push(blocked_trip(
+                &id,
+                if i % 2 == 0 { "BUS" } else { "TRAM" },
+                "B1",
+            ));
+            times.push(stoptime(
+                &id,
+                1,
+                "A",
+                (8, 0, 0),
+                (8, 0, 0),
+                (i * 2 + 2) as u64,
+            ));
+            times.push(stoptime(
+                &id,
+                2,
+                "B",
+                (8, 10, 0),
+                (8, 10, 0),
+                (i * 2 + 3) as u64,
+            ));
         }
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
-            vec![route("BUS", 3), route("TRAM", 0)], trips, times,
+            vec![route("BUS", 3), route("TRAM", 0)],
+            trips,
+            times,
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "TRP_033").count(), 1);
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRP_033")
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -14769,8 +18776,10 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().all(|n| n.rule_id != "TRP_033"),
-            "block_id'siz seferler bu kuralın konusu değil");
+        assert!(
+            result.notices.iter().all(|n| n.rule_id != "TRP_033"),
+            "block_id'siz seferler bu kuralın konusu değil"
+        );
     }
 
     // ── ARC_020 · DRT muafiyeti ───────────────────────────────────────────────
@@ -14780,7 +18789,11 @@ mod tests {
 
     /// `stoptime` yardımcısının DRT karşılığı: stop_id boş, hizmet alanı flex alanla verilir.
     fn drt_stoptime(
-        trip_id: &str, seq: u32, location_id: Option<&str>, location_group_id: Option<&str>, line: u64,
+        trip_id: &str,
+        seq: u32,
+        location_id: Option<&str>,
+        location_group_id: Option<&str>,
+        line: u64,
     ) -> StopTimeRecord {
         StopTimeRecord {
             trip_id: trip_id.into(),
@@ -14829,17 +18842,32 @@ mod tests {
         let records = records_with_feed_end(Some((2026, 5, 14)));
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
 
-        let fin019 = result.notices.iter().filter(|n| n.rule_id == "FIN_019").count();
-        let fin010 = result.notices.iter().filter(|n| n.rule_id == "FIN_010").count();
+        let fin019 = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "FIN_019")
+            .count();
+        let fin010 = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "FIN_010")
+            .count();
         assert_eq!(fin019, 1, "bugün dolan feed FIN_019 üretmeli (0 gün kaldı)");
-        assert_eq!(fin010, 0, "bugün dolan feed HENÜZ dolmamıştır → FIN_010 ÜRETMEMELİ");
+        assert_eq!(
+            fin010, 0,
+            "bugün dolan feed HENÜZ dolmamıştır → FIN_010 ÜRETMEMELİ"
+        );
 
         // Sınırın öteki yakası değişmedi: dün dolmuş feed hâlâ yalnız FIN_010 alır.
         let expired = records_with_feed_end(Some((2026, 5, 13)));
         let r2 = analyze(&expired, &empty_derived(), &default_config(), 20260514);
-        assert_eq!(r2.notices.iter().filter(|n| n.rule_id == "FIN_010").count(), 1);
         assert_eq!(
-            r2.notices.iter().filter(|n| n.rule_id == "FIN_019").count(), 0,
+            r2.notices.iter().filter(|n| n.rule_id == "FIN_010").count(),
+            1
+        );
+        assert_eq!(
+            r2.notices.iter().filter(|n| n.rule_id == "FIN_019").count(),
+            0,
             "dolmuş feed FIN_019 ALMAMALI — iki kural ayrık kalmalı"
         );
     }
@@ -14856,7 +18884,12 @@ mod tests {
             let records = records_with_feed_end(Some(end));
             let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
             assert_eq!(
-                result.notices.iter().filter(|n| n.rule_id == "FIN_019").count() > 0,
+                result
+                    .notices
+                    .iter()
+                    .filter(|n| n.rule_id == "FIN_019")
+                    .count()
+                    > 0,
                 expected,
                 "default 7-day FIN_019 behavior for {label}"
             );
@@ -14871,12 +18904,23 @@ mod tests {
         ] {
             let records = records_with_feed_end(Some(end));
             let result = analyze(&records, &empty_derived(), &config, 20260514);
-            let notices: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FIN_019").collect();
-            assert_eq!(!notices.is_empty(), expected, "30-day FIN_019 behavior for {label}");
+            let notices: Vec<_> = result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "FIN_019")
+                .collect();
+            assert_eq!(
+                !notices.is_empty(),
+                expected,
+                "30-day FIN_019 behavior for {label}"
+            );
             if expected {
                 let details = notices[0].details.as_ref().expect("FIN_019 details");
                 assert_eq!(details.get("warning_days").map(String::as_str), Some("30"));
-                assert_eq!(details.get("days_left").map(String::as_str), Some(if label == "10 days" { "10" } else { "29" }));
+                assert_eq!(
+                    details.get("days_left").map(String::as_str),
+                    Some(if label == "10 days" { "10" } else { "29" })
+                );
             }
         }
     }
@@ -14885,14 +18929,18 @@ mod tests {
     fn fin_019_excludes_expired_and_missing_feed_end_dates() {
         let expired = analyze(
             &records_with_feed_end(Some((2026, 5, 13))),
-            &empty_derived(), &default_config(), 20260514,
+            &empty_derived(),
+            &default_config(),
+            20260514,
         );
         assert!(expired.notices.iter().any(|n| n.rule_id == "FIN_010"));
         assert!(expired.notices.iter().all(|n| n.rule_id != "FIN_019"));
 
         let missing = analyze(
             &records_with_feed_end(None),
-            &empty_derived(), &default_config(), 20260514,
+            &empty_derived(),
+            &default_config(),
+            20260514,
         );
         assert!(missing.notices.iter().all(|n| n.rule_id != "FIN_019"));
     }
@@ -14912,13 +18960,18 @@ mod tests {
         );
 
         assert!(result.notices.iter().all(|n| {
-            !matches!(n.rule_id.as_str(), "FIN_010" | "FIN_016" | "FIN_017" | "FIN_018" | "FIN_019" | "FIN_020" | "CAL_020")
+            !matches!(
+                n.rule_id.as_str(),
+                "FIN_010" | "FIN_016" | "FIN_017" | "FIN_018" | "FIN_019" | "FIN_020" | "CAL_020"
+            )
         }));
     }
 
     fn arc_020_files(records: &crate::k2::EntityRecords) -> Vec<String> {
         let result = analyze(records, &empty_derived(), &default_config(), 20260514);
-        result.notices.iter()
+        result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "ARC_020")
             .map(|n| n.file.clone().unwrap_or_default())
             .collect()
@@ -14928,15 +18981,19 @@ mod tests {
     fn arc_020_reports_missing_shapes_on_fixed_stop_feed() {
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
-            vec![route("R1", 3)], vec![trip("T1", "R1")],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
         records.feed_info = vec![feed_info_row()];
-        assert_eq!(arc_020_files(&records), vec!["shapes.txt".to_string()],
-            "sabit duraklı feed'de shapes.txt eksikliği raporlanmalı");
+        assert_eq!(
+            arc_020_files(&records),
+            vec!["shapes.txt".to_string()],
+            "sabit duraklı feed'de shapes.txt eksikliği raporlanmalı"
+        );
     }
 
     #[test]
@@ -14947,13 +19004,17 @@ mod tests {
             drt_stoptime("T1", 2, Some("zone_2"), None, 3),
         ];
         let mut records = records_with(
-            vec![stop("A", 41.0, 29.0)], vec![route("R1", 3)], vec![trip("T1", "R1")],
+            vec![stop("A", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
             stoptimes.clone(),
         );
         records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
         records.feed_info = vec![feed_info_row()];
-        assert!(arc_020_files(&records).is_empty(),
-            "alan-tabanlı DRT feed'inde shapes.txt beklenmez");
+        assert!(
+            arc_020_files(&records).is_empty(),
+            "alan-tabanlı DRT feed'inde shapes.txt beklenmez"
+        );
     }
 
     #[test]
@@ -14964,16 +19025,21 @@ mod tests {
             drt_stoptime("T1", 2, None, Some("lg_2"), 3),
         ];
         let mut records = records_with(
-            vec![stop("A", 41.0, 29.0)], vec![route("R1", 3)], vec![trip("T1", "R1")],
+            vec![stop("A", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
             stoptimes.clone(),
         );
         records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
         records.feed_info = vec![feed_info_row()];
         records.location_groups = vec![crate::k2::location_groups::LocationGroupRecord {
-            location_group_id: "lg_1".into(), line: 2,
+            location_group_id: "lg_1".into(),
+            line: 2,
         }];
-        assert!(arc_020_files(&records).is_empty(),
-            "sabit-duraklı DRT feed'inde shapes.txt beklenmez");
+        assert!(
+            arc_020_files(&records).is_empty(),
+            "sabit-duraklı DRT feed'inde shapes.txt beklenmez"
+        );
     }
 
     #[test]
@@ -14987,13 +19053,17 @@ mod tests {
         ];
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
-            vec![route("R1", 3)], vec![trip("T1", "R1"), trip("T2", "R1")],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1")],
             stoptimes.clone(),
         );
         records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
         records.feed_info = vec![feed_info_row()];
-        assert_eq!(arc_020_files(&records), vec!["shapes.txt".to_string()],
-            "karışık feed'de shapes.txt eksikliği raporlanmalı");
+        assert_eq!(
+            arc_020_files(&records),
+            vec!["shapes.txt".to_string()],
+            "karışık feed'de shapes.txt eksikliği raporlanmalı"
+        );
     }
 
     #[test]
@@ -15002,11 +19072,16 @@ mod tests {
         // DRT muafiyeti YALNIZ shapes.txt kolunu düşürür; feed_info.txt beklentisi sürer.
         let stoptimes = vec![drt_stoptime("T1", 1, Some("zone_1"), None, 2)];
         let mut records = records_with(
-            vec![stop("A", 41.0, 29.0)], vec![route("R1", 3)], vec![trip("T1", "R1")],
+            vec![stop("A", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
             stoptimes.clone(),
         );
         records.stop_times_index = StopTimesIndex::from_records(&stoptimes);
-        assert_eq!(arc_020_files(&records), vec!["feed_info.txt".to_string()],
-            "DRT feed'inde bile feed_info.txt eksikliği raporlanmalı");
+        assert_eq!(
+            arc_020_files(&records),
+            vec!["feed_info.txt".to_string()],
+            "DRT feed'inde bile feed_info.txt eksikliği raporlanmalı"
+        );
     }
 }

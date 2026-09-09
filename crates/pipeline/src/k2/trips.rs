@@ -5,7 +5,7 @@ use gtfs_core::EntityType;
 use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
-use super::common::{get_col_raw, get_col, make_k2_notice, parse_f64_col, parse_u32_col};
+use super::common::{get_col, get_col_raw, make_k2_notice, parse_f64_col, parse_u32_col};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
@@ -16,13 +16,13 @@ const _: () = assert!(std::mem::size_of::<TripRecord>() <= 128);
 /// Index 0 = boş string / None sentinel (her tablo None/absent için 0'ı saklar).
 #[derive(Debug, Default)]
 pub struct TripInternTable {
-    pub route_ids:   Vec<SmolStr>,
+    pub route_ids: Vec<SmolStr>,
     pub service_ids: Vec<SmolStr>,
-    pub shape_ids:   Vec<SmolStr>,
-    pub headsigns:   Vec<SmolStr>,
+    pub shape_ids: Vec<SmolStr>,
+    pub headsigns: Vec<SmolStr>,
     pub short_names: Vec<SmolStr>,
-    pub block_ids:   Vec<SmolStr>,
-    pub jp_offices:  Vec<SmolStr>,
+    pub block_ids: Vec<SmolStr>,
+    pub jp_offices: Vec<SmolStr>,
     pub jp_patterns: Vec<SmolStr>,
 }
 
@@ -30,72 +30,102 @@ impl TripInternTable {
     pub fn new() -> Self {
         let empty = || vec![SmolStr::default()];
         Self {
-            route_ids:   empty(),
+            route_ids: empty(),
             service_ids: empty(),
-            shape_ids:   empty(),
-            headsigns:   empty(),
+            shape_ids: empty(),
+            headsigns: empty(),
             short_names: empty(),
-            block_ids:   empty(),
-            jp_offices:  empty(),
+            block_ids: empty(),
+            jp_offices: empty(),
             jp_patterns: empty(),
         }
     }
 
     #[inline]
     pub fn route_id<'a>(&'a self, t: &TripRecord) -> &'a str {
-        self.route_ids.get(t.route_idx as usize).map(SmolStr::as_str).unwrap_or("")
+        self.route_ids
+            .get(t.route_idx as usize)
+            .map(SmolStr::as_str)
+            .unwrap_or("")
     }
     #[inline]
     pub fn service_id<'a>(&'a self, t: &TripRecord) -> &'a str {
-        self.service_ids.get(t.service_idx as usize).map(SmolStr::as_str).unwrap_or("")
+        self.service_ids
+            .get(t.service_idx as usize)
+            .map(SmolStr::as_str)
+            .unwrap_or("")
     }
     #[inline]
     pub fn shape_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
-        if t.shape_idx == 0 { return None; }
-        self.shape_ids.get(t.shape_idx as usize).map(SmolStr::as_str)
+        if t.shape_idx == 0 {
+            return None;
+        }
+        self.shape_ids
+            .get(t.shape_idx as usize)
+            .map(SmolStr::as_str)
     }
     #[inline]
     pub fn headsign<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
-        if t.headsign_idx == 0 { return None; }
-        self.headsigns.get(t.headsign_idx as usize).map(SmolStr::as_str)
+        if t.headsign_idx == 0 {
+            return None;
+        }
+        self.headsigns
+            .get(t.headsign_idx as usize)
+            .map(SmolStr::as_str)
     }
     #[inline]
     pub fn short_name<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
-        if t.short_name_idx == 0 { return None; }
-        self.short_names.get(t.short_name_idx as usize).map(SmolStr::as_str)
+        if t.short_name_idx == 0 {
+            return None;
+        }
+        self.short_names
+            .get(t.short_name_idx as usize)
+            .map(SmolStr::as_str)
     }
     #[inline]
     pub fn block_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
-        if t.block_idx == 0 { return None; }
-        self.block_ids.get(t.block_idx as usize).map(SmolStr::as_str)
+        if t.block_idx == 0 {
+            return None;
+        }
+        self.block_ids
+            .get(t.block_idx as usize)
+            .map(SmolStr::as_str)
     }
     #[inline]
     pub fn jp_office_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
-        if t.jp_office_idx == 0 { return None; }
-        self.jp_offices.get(t.jp_office_idx as usize).map(SmolStr::as_str)
+        if t.jp_office_idx == 0 {
+            return None;
+        }
+        self.jp_offices
+            .get(t.jp_office_idx as usize)
+            .map(SmolStr::as_str)
     }
     #[inline]
     pub fn jp_pattern_id<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
-        if t.jp_pattern_idx == 0 { return None; }
-        self.jp_patterns.get(t.jp_pattern_idx as usize).map(SmolStr::as_str)
+        if t.jp_pattern_idx == 0 {
+            return None;
+        }
+        self.jp_patterns
+            .get(t.jp_pattern_idx as usize)
+            .map(SmolStr::as_str)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct TripRecord {
-    pub trip_id:        SmolStr,
-    pub route_idx:      u32,
-    pub service_idx:    u32,
-    pub shape_idx:      u32,
-    pub headsign_idx:   u32,
+    pub trip_id: SmolStr,
+    pub route_idx: u32,
+    pub service_idx: u32,
+    pub shape_idx: u32,
+    pub headsign_idx: u32,
     pub short_name_idx: u32,
-    pub block_idx:      u32,
-    pub jp_office_idx:  u32,
+    pub block_idx: u32,
+    pub jp_office_idx: u32,
     pub jp_pattern_idx: u32,
-    pub direction_id:   Option<u32>,
+    pub direction_id: Option<u32>,
     pub wheelchair_accessible: Option<u32>,
-    pub bikes_allowed:  Option<u32>,
-    pub cars_allowed:   Option<u32>,
+    pub bikes_allowed: Option<u32>,
+    pub cars_allowed: Option<u32>,
     pub safe_duration_factor: Option<f64>,
     /// Spec tipi **Float** (saniye). 2026-08-02'ye kadar `u32` okunuyordu → `12.5` gibi
     /// GEÇERLİ bir değer sessizce siliniyordu.
@@ -106,8 +136,12 @@ pub struct TripRecord {
 /// String intern yardımcısı — boş string → 0 sentinel, aksi hâlde tabloya ekle/bul.
 #[inline]
 fn intern_idx(raw: &str, table: &mut Vec<SmolStr>, map: &mut FxHashMap<String, u32>) -> u32 {
-    if raw.is_empty() { return 0; }
-    if let Some(&idx) = map.get(raw) { return idx; }
+    if raw.is_empty() {
+        return 0;
+    }
+    if let Some(&idx) = map.get(raw) {
+        return idx;
+    }
     let idx = table.len() as u32;
     table.push(SmolStr::new(raw));
     map.insert(raw.to_string(), idx);
@@ -136,26 +170,29 @@ impl Cols {
     fn from_headers(headers: &[String]) -> Self {
         let pos = |name: &str| headers.iter().position(|h| h == name);
         Self {
-            trip_id:               pos("trip_id"),
-            route_id:              pos("route_id"),
-            service_id:            pos("service_id"),
-            shape_id:              pos("shape_id"),
-            trip_headsign:         pos("trip_headsign"),
-            trip_short_name:       pos("trip_short_name"),
-            direction_id:          pos("direction_id"),
-            block_id:              pos("block_id"),
+            trip_id: pos("trip_id"),
+            route_id: pos("route_id"),
+            service_id: pos("service_id"),
+            shape_id: pos("shape_id"),
+            trip_headsign: pos("trip_headsign"),
+            trip_short_name: pos("trip_short_name"),
+            direction_id: pos("direction_id"),
+            block_id: pos("block_id"),
             wheelchair_accessible: pos("wheelchair_accessible"),
-            bikes_allowed:         pos("bikes_allowed"),
-            cars_allowed:          pos("cars_allowed"),
-            safe_duration_factor:  pos("safe_duration_factor"),
-            safe_duration_offset:  pos("safe_duration_offset"),
-            jp_office_id:          pos("jp_office_id"),
-            jp_pattern_id:         pos("jp_pattern_id"),
+            bikes_allowed: pos("bikes_allowed"),
+            cars_allowed: pos("cars_allowed"),
+            safe_duration_factor: pos("safe_duration_factor"),
+            safe_duration_offset: pos("safe_duration_offset"),
+            jp_office_id: pos("jp_office_id"),
+            jp_pattern_id: pos("jp_pattern_id"),
         }
     }
 }
 
-pub fn validate_trips(file: &RawFile, zip_bytes: Option<&[u8]>) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
+pub fn validate_trips(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
     validate_trips_with_limits(file, zip_bytes, None, None)
 }
 
@@ -170,8 +207,14 @@ pub fn validate_trips_with_limits(
     let mut notices = Vec::new();
     // ZIP central-directory sizes are attacker-controlled metadata. Grow from
     // observed records rather than trusting the declared size.
-    let est_rows = if zip_bytes.is_some() { 0 }
-        else { file.raw_text.as_ref().map(|t| t.len() / 60).unwrap_or(file.rows.len()) };
+    let est_rows = if zip_bytes.is_some() {
+        0
+    } else {
+        file.raw_text
+            .as_ref()
+            .map(|t| t.len() / 60)
+            .unwrap_or(file.rows.len())
+    };
     let mut records: Vec<TripRecord> = Vec::with_capacity(est_rows);
     let mut counter = 0u32;
 
@@ -182,19 +225,19 @@ pub fn validate_trips_with_limits(
     let mut bikes_allowed_set_count: u32 = 0;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
-    let has_trip_id_col   = file.headers.iter().any(|h| h == "trip_id");
-    let has_route_id_col  = file.headers.iter().any(|h| h == "route_id");
+    let has_trip_id_col = file.headers.iter().any(|h| h == "trip_id");
+    let has_route_id_col = file.headers.iter().any(|h| h == "route_id");
     let has_service_id_col = file.headers.iter().any(|h| h == "service_id");
 
     // Intern tablo + per-field lookup map'leri
     let mut interns = TripInternTable::new();
-    let mut route_map:      FxHashMap<String, u32> = FxHashMap::default();
-    let mut service_map:    FxHashMap<String, u32> = FxHashMap::default();
-    let mut shape_map:      FxHashMap<String, u32> = FxHashMap::default();
-    let mut headsign_map:   FxHashMap<String, u32> = FxHashMap::default();
+    let mut route_map: FxHashMap<String, u32> = FxHashMap::default();
+    let mut service_map: FxHashMap<String, u32> = FxHashMap::default();
+    let mut shape_map: FxHashMap<String, u32> = FxHashMap::default();
+    let mut headsign_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut short_name_map: FxHashMap<String, u32> = FxHashMap::default();
-    let mut block_map:      FxHashMap<String, u32> = FxHashMap::default();
-    let mut jp_office_map:  FxHashMap<String, u32> = FxHashMap::default();
+    let mut block_map: FxHashMap<String, u32> = FxHashMap::default();
+    let mut jp_office_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut jp_pattern_map: FxHashMap<String, u32> = FxHashMap::default();
 
     // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
@@ -218,23 +261,45 @@ pub fn validate_trips_with_limits(
         // TRP_001: trip_id zorunlu
         if trip_id.is_empty() && has_trip_id_col {
             notices.push(make_k2_notice(
-                &mut counter, "TRP_001", EntityType::Trip, None,
-                None, &file.name, Some(line), Some("trip_id"),
-                Some(String::new()), None,
+                &mut counter,
+                "TRP_001",
+                EntityType::Trip,
+                None,
+                None,
+                &file.name,
+                Some(line),
+                Some("trip_id"),
+                Some(String::new()),
+                None,
                 "trip_id zorunludur.".to_string(),
                 "Her sefere benzersiz bir trip_id atayın.",
             ));
         }
 
-        let route_idx = intern_idx(get_col_raw(row, cols.route_id), &mut interns.route_ids, &mut route_map);
-        let service_idx = intern_idx(get_col_raw(row, cols.service_id), &mut interns.service_ids, &mut service_map);
+        let route_idx = intern_idx(
+            get_col_raw(row, cols.route_id),
+            &mut interns.route_ids,
+            &mut route_map,
+        );
+        let service_idx = intern_idx(
+            get_col_raw(row, cols.service_id),
+            &mut interns.service_ids,
+            &mut service_map,
+        );
 
         // TRP_031: route_id required — intern_idx 0 döndürdüyse boş demektir
         if route_idx == 0 && has_route_id_col {
             notices.push(make_k2_notice(
-                &mut counter, "TRP_031", EntityType::Trip, None,
-                None, &file.name, Some(line), Some("route_id"),
-                Some(String::new()), None,
+                &mut counter,
+                "TRP_031",
+                EntityType::Trip,
+                None,
+                None,
+                &file.name,
+                Some(line),
+                Some("route_id"),
+                Some(String::new()),
+                None,
                 "route_id zorunludur.".to_string(),
                 "Her sefere geçerli bir route_id atayın.",
             ));
@@ -245,18 +310,29 @@ pub fn validate_trips_with_limits(
         // triyajında bulundu (korpusta 24 satır / 5 feed).
         if service_idx == 0 && has_service_id_col {
             notices.push(make_k2_notice(
-                &mut counter, "TRP_035", EntityType::Trip, None,
-                None, &file.name, Some(line), Some("service_id"),
-                Some(String::new()), Some("(dolu)".to_string()),
+                &mut counter,
+                "TRP_035",
+                EntityType::Trip,
+                None,
+                None,
+                &file.name,
+                Some(line),
+                Some("service_id"),
+                Some(String::new()),
+                Some("(dolu)".to_string()),
                 "service_id zorunludur; boş bırakılan sefer hiçbir takvime bağlanmaz.".to_string(),
                 "Her sefere calendar.txt veya calendar_dates.txt'te tanımlı bir service_id atayın.",
             ));
         }
 
-        let shape_idx = intern_idx(get_col_raw(row, cols.shape_id), &mut interns.shape_ids, &mut shape_map);
+        let shape_idx = intern_idx(
+            get_col_raw(row, cols.shape_id),
+            &mut interns.shape_ids,
+            &mut shape_map,
+        );
 
         // trip_headsign ve trip_short_name için önce raw string al (TRP_014 kontrolü için)
-        let headsign_raw   = get_col(row, cols.trip_headsign);
+        let headsign_raw = get_col(row, cols.trip_headsign);
         let short_name_raw = get_col(row, cols.trip_short_name);
 
         // TRP_014: trip_short_name çok uzun (>20 karakter)
@@ -265,19 +341,45 @@ pub fn validate_trips_with_limits(
         let short_name_chars = short_name_raw.chars().count();
         if !short_name_raw.is_empty() && short_name_chars > 20 {
             notices.push(make_k2_notice(
-                &mut counter, "TRP_014", EntityType::Trip, entity_id.clone(),
-                None, &file.name, Some(line), Some("trip_short_name"),
-                Some(short_name_chars.to_string()), Some("≤20".to_string()),
-                format!("trip_short_name {} karakter; 20'yi aşmamalıdır.", short_name_chars),
+                &mut counter,
+                "TRP_014",
+                EntityType::Trip,
+                entity_id.clone(),
+                None,
+                &file.name,
+                Some(line),
+                Some("trip_short_name"),
+                Some(short_name_chars.to_string()),
+                Some("≤20".to_string()),
+                format!(
+                    "trip_short_name {} karakter; 20'yi aşmamalıdır.",
+                    short_name_chars
+                ),
                 "trip_short_name'i kısaltın.",
             ));
         }
 
-        let headsign_idx    = intern_idx(headsign_raw,   &mut interns.headsigns,    &mut headsign_map);
-        let short_name_idx  = intern_idx(short_name_raw, &mut interns.short_names,  &mut short_name_map);
-        let block_idx       = intern_idx(get_col_raw(row, cols.block_id),     &mut interns.block_ids,  &mut block_map);
-        let jp_office_idx   = intern_idx(get_col_raw(row, cols.jp_office_id), &mut interns.jp_offices, &mut jp_office_map);
-        let jp_pattern_idx  = intern_idx(get_col_raw(row, cols.jp_pattern_id), &mut interns.jp_patterns, &mut jp_pattern_map);
+        let headsign_idx = intern_idx(headsign_raw, &mut interns.headsigns, &mut headsign_map);
+        let short_name_idx = intern_idx(
+            short_name_raw,
+            &mut interns.short_names,
+            &mut short_name_map,
+        );
+        let block_idx = intern_idx(
+            get_col_raw(row, cols.block_id),
+            &mut interns.block_ids,
+            &mut block_map,
+        );
+        let jp_office_idx = intern_idx(
+            get_col_raw(row, cols.jp_office_id),
+            &mut interns.jp_offices,
+            &mut jp_office_map,
+        );
+        let jp_pattern_idx = intern_idx(
+            get_col_raw(row, cols.jp_pattern_id),
+            &mut interns.jp_patterns,
+            &mut jp_pattern_map,
+        );
 
         // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);
@@ -286,9 +388,16 @@ pub fn validate_trips_with_limits(
                 if let Some(val) = v {
                     if val > 1 {
                         notices.push(make_k2_notice(
-                            &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
-                            None, &file.name, Some(line), Some("direction_id"),
-                            Some(val.to_string()), Some("0 or 1".to_string()),
+                            &mut counter,
+                            "TRP_005",
+                            EntityType::Trip,
+                            entity_id.clone(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("direction_id"),
+                            Some(val.to_string()),
+                            Some("0 or 1".to_string()),
                             format!("direction_id {val} geçersiz; 0 veya 1 olmalıdır."),
                             "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
                         ));
@@ -298,9 +407,16 @@ pub fn validate_trips_with_limits(
             }
             Err(_) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "TRP_005", EntityType::Trip, entity_id.clone(),
-                    None, &file.name, Some(line), Some("direction_id"),
-                    Some(dir_raw.to_string()), Some("0 or 1".to_string()),
+                    &mut counter,
+                    "TRP_005",
+                    EntityType::Trip,
+                    entity_id.clone(),
+                    None,
+                    &file.name,
+                    Some(line),
+                    Some("direction_id"),
+                    Some(dir_raw.to_string()),
+                    Some("0 or 1".to_string()),
                     format!("direction_id '{dir_raw}' geçersiz; 0 veya 1 olmalıdır."),
                     "direction_id değerini 0 (gidiş) veya 1 (dönüş) olarak ayarlayın.",
                 ));
@@ -419,10 +535,16 @@ pub fn validate_trips_with_limits(
                 Ok(v) => v,
                 Err(()) => {
                     notices.push(make_k2_notice(
-                        &mut counter, "TRP_034", EntityType::Trip,
-                        Some(trip_id.to_string()), None,
-                        &file.name, Some(line), Some(field),
-                        Some(raw.to_string()), Some("ondalık sayı".to_string()),
+                        &mut counter,
+                        "TRP_034",
+                        EntityType::Trip,
+                        Some(trip_id.to_string()),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some(field),
+                        Some(raw.to_string()),
+                        Some("ondalık sayı".to_string()),
                         format!("{field} '{raw}' ondalık sayı olarak okunamıyor."),
                         "safe_duration alanlarını ondalık sayı olarak girin.",
                     ));
@@ -430,16 +552,31 @@ pub fn validate_trips_with_limits(
                 }
             }
         };
-        let safe_duration_factor = parse_safe(get_col(row, cols.safe_duration_factor), "safe_duration_factor");
-        let safe_duration_offset = parse_safe(get_col(row, cols.safe_duration_offset), "safe_duration_offset");
+        let safe_duration_factor = parse_safe(
+            get_col(row, cols.safe_duration_factor),
+            "safe_duration_factor",
+        );
+        let safe_duration_offset = parse_safe(
+            get_col(row, cols.safe_duration_offset),
+            "safe_duration_offset",
+        );
 
         records.push(TripRecord {
             trip_id,
-            route_idx, service_idx, shape_idx,
-            headsign_idx, short_name_idx, block_idx, jp_office_idx, jp_pattern_idx,
+            route_idx,
+            service_idx,
+            shape_idx,
+            headsign_idx,
+            short_name_idx,
+            block_idx,
+            jp_office_idx,
+            jp_pattern_idx,
             direction_id,
-            wheelchair_accessible, bikes_allowed, cars_allowed,
-            safe_duration_factor, safe_duration_offset,
+            wheelchair_accessible,
+            bikes_allowed,
+            cars_allowed,
+            safe_duration_factor,
+            safe_duration_offset,
             line,
         });
     };
@@ -456,8 +593,16 @@ pub fn validate_trips_with_limits(
         match zip::ZipArchive::new(cursor) {
             Err(e) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, None, None, None, None,
+                    &mut counter,
+                    "ARC_009",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    None,
+                    None,
+                    None,
+                    None,
                     format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
                     "ZIP arşivini kontrol edin.",
                 ));
@@ -466,26 +611,40 @@ pub fn validate_trips_with_limits(
                 match archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                     Err(e) => {
                         notices.push(make_k2_notice(
-                            &mut counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-                            None, &file.name, None, None, None, None,
+                            &mut counter,
+                            "ARC_009",
+                            EntityType::File,
+                            Some(file.name.clone()),
+                            None,
+                            &file.name,
+                            None,
+                            None,
+                            None,
+                            None,
                             format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
                             "ZIP arşivini kontrol edin.",
                         ));
                     }
                     Ok(entry) => {
-                        let stream_limit = stream_budget.as_ref()
+                        let stream_limit = stream_budget
+                            .as_ref()
                             .map(|budget| budget.limit())
                             .unwrap_or(super::stop_times::stream_byte_limit(max_data_rows));
-                        let mut csv_reader = ZipCsvReader::with_limits(
-                            entry, stream_limit, max_data_rows,
-                        );
+                        let mut csv_reader =
+                            ZipCsvReader::with_limits(entry, stream_limit, max_data_rows);
                         let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(16);
                         let mut zip_line: u64 = 2;
                         let mut header_skipped = false;
                         while csv_reader.next_record(&mut raw_fields) {
-                            if raw_fields.len() == 1 && raw_fields[0].is_empty() { continue; }
-                            if !header_skipped { header_skipped = true; continue; }
-                            let strings: Vec<String> = raw_fields.iter()
+                            if raw_fields.len() == 1 && raw_fields[0].is_empty() {
+                                continue;
+                            }
+                            if !header_skipped {
+                                header_skipped = true;
+                                continue;
+                            }
+                            let strings: Vec<String> = raw_fields
+                                .iter()
                                 .map(|f| match std::str::from_utf8(f) {
                                     Ok(s) => s.to_owned(),
                                     Err(_) => String::from_utf8_lossy(f).into_owned(),
@@ -513,8 +672,13 @@ pub fn validate_trips_with_limits(
         let mut data_idx = 0usize;
         let mut header_skipped = false;
         while next_csv_record(text, &mut pos, &mut buf, &mut scan) {
-            if buf.len() == 1 && buf[0].is_empty() { continue; }
-            if !header_skipped { header_skipped = true; continue; }
+            if buf.len() == 1 && buf[0].is_empty() {
+                continue;
+            }
+            if !header_skipped {
+                header_skipped = true;
+                continue;
+            }
             if let Some((k, ex)) = scan.rfc.take() {
                 rfc_acc.observe((data_idx + 2) as u64, k, &ex);
             }
@@ -533,9 +697,18 @@ pub fn validate_trips_with_limits(
     // DQ_016: stream edilen trips.txt için DOSYA başına tek kök özet.
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
         let mut n = make_k2_notice(
-            &mut counter, "DQ_016", EntityType::File, Some(file.name.clone()),
-            None, &file.name, dq016.first_line, Some(cols.as_str()),
-            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
+            &mut counter,
+            "DQ_016",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            dq016.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = dq016.evidence_details();
         notices.push(n);
@@ -556,9 +729,15 @@ pub fn validate_trips_with_limits(
             let examples = if trp021_missing_examples.is_empty() {
                 String::new()
             } else {
-                format!(" Örnek seferler: {}{}.",
+                format!(
+                    " Örnek seferler: {}{}.",
                     trp021_missing_examples.join(", "),
-                    if trp021_missing_count > trp021_missing_examples.len() { ", …" } else { "" })
+                    if trp021_missing_count > trp021_missing_examples.len() {
+                        ", …"
+                    } else {
+                        ""
+                    }
+                )
             };
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
@@ -573,7 +752,10 @@ pub fn validate_trips_with_limits(
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
     if scan.unclosed || zip_unclosed {
-        notices.push(super::common::arc013_unclosed_stream(&file.name, &mut counter));
+        notices.push(super::common::arc013_unclosed_stream(
+            &file.name,
+            &mut counter,
+        ));
     }
 
     // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
@@ -587,10 +769,20 @@ pub fn validate_trips_with_limits(
     // hâli K1'in `records.is_empty()` kolundan yakalanıyordu; aradaki fark görünmezdi.)
     if (file.raw_text.is_some() || zip_bytes.is_some()) && records.is_empty() {
         notices.push(make_k2_notice(
-            &mut counter, "ARC_035", EntityType::File, Some(file.name.clone()),
-            None, &file.name, None, None,
-            Some(file.name.clone()), None,
-            format!("Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.", file.name),
+            &mut counter,
+            "ARC_035",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            None,
+            None,
+            Some(file.name.clone()),
+            None,
+            format!(
+                "Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.",
+                file.name
+            ),
             "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
         ));
     }
@@ -608,25 +800,28 @@ mod tests {
         RawFile {
             name: "trips.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
     // Streaming yolunu test et — shapes.rs deseni.
     fn make_file_streaming(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         let header_line = headers.join(",");
-        let data_lines: Vec<String> = rows.iter()
-            .map(|r| r.join(","))
-            .collect();
+        let data_lines: Vec<String> = rows.iter().map(|r| r.join(",")).collect();
         let text = format!("{}\n{}\n", header_line, data_lines.join("\n"));
         RawFile {
             name: "trips.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: vec![],
             bytes: text.len() as u32,
-            raw_text: Some(text), zip_entry_name: None,
+            raw_text: Some(text),
+            zip_entry_name: None,
         }
     }
 
@@ -638,18 +833,30 @@ mod tests {
         );
         let (records, _ti, notices) = validate_trips(&file, None);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli sefer notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli sefer notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn streaming_matches_rows_path() {
-        let headers = vec!["route_id", "service_id", "trip_id", "direction_id", "bikes_allowed"];
+        let headers = vec![
+            "route_id",
+            "service_id",
+            "trip_id",
+            "direction_id",
+            "bikes_allowed",
+        ];
         let rows = vec![
             vec!["R1", "SVC1", "T1", "0", "1"],
             vec!["R2", "SVC2", "T2", "1", "2"],
         ];
-        let (rec_rows, ti_rows, notices_rows) = validate_trips(&make_file(headers.clone(), rows.clone()), None);
-        let (rec_stream, ti_stream, notices_stream) = validate_trips(&make_file_streaming(headers, rows), None);
+        let (rec_rows, ti_rows, notices_rows) =
+            validate_trips(&make_file(headers.clone(), rows.clone()), None);
+        let (rec_stream, ti_stream, notices_stream) =
+            validate_trips(&make_file_streaming(headers, rows), None);
         assert_eq!(rec_rows.len(), rec_stream.len());
         assert_eq!(notices_rows.len(), notices_stream.len());
         for (a, b) in rec_rows.iter().zip(rec_stream.iter()) {
@@ -666,8 +873,11 @@ mod tests {
             vec![vec!["R1", "WKD", "T1", "9"]],
         );
         let (_, _ti, notices) = validate_trips(&file, None);
-        assert!(notices.iter().any(|n| n.rule_id == "TRP_005"),
-            "direction_id=9 must produce TRP_005, got: {:?}", notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(
+            notices.iter().any(|n| n.rule_id == "TRP_005"),
+            "direction_id=9 must produce TRP_005, got: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]

@@ -24,7 +24,12 @@ use zip::write::SimpleFileOptions;
 
 /// `Notice`'ın sabit alanlarından doldurulabilen anahtarlar (`i18n::resolve`).
 const FIXED_KEYS: &[&str] = &[
-    "entity_id", "observed_value", "expected_value", "file", "field", "line",
+    "entity_id",
+    "observed_value",
+    "expected_value",
+    "file",
+    "field",
+    "line",
 ];
 
 fn repo_root() -> PathBuf {
@@ -35,7 +40,9 @@ fn repo_root() -> PathBuf {
 }
 
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = fs::read_dir(dir) else { return };
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -61,7 +68,9 @@ fn source_string_literals() -> BTreeSet<String> {
     rust_sources(&repo_root().join("crates"), &mut sources);
     let mut keys = BTreeSet::new();
     for path in sources {
-        let Ok(src) = fs::read_to_string(&path) else { continue };
+        let Ok(src) = fs::read_to_string(&path) else {
+            continue;
+        };
         let mut rest = src.as_str();
         while let Some(open) = rest.find('"') {
             rest = &rest[open + 1..];
@@ -109,12 +118,15 @@ fn locale_placeholders_can_be_filled() {
             .join("crates/cli/locales")
             .join(format!("{locale}.json"));
         let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path:?} okunamadı: {e}"));
-        let json: serde_json::Value = serde_json::from_str(&raw).expect("locale JSON ayrıştırılamadı");
+        let json: serde_json::Value =
+            serde_json::from_str(&raw).expect("locale JSON ayrıştırılamadı");
         let messages = json["messages"]
             .as_object()
             .expect("locale dosyasında `messages` bölümü yok");
         for (rule_id, template) in messages {
-            let Some(template) = template.as_str() else { continue };
+            let Some(template) = template.as_str() else {
+                continue;
+            };
             for key in placeholders(template) {
                 if !allowed.contains(&key) {
                     problems
@@ -135,7 +147,10 @@ fn locale_placeholders_can_be_filled() {
             .iter()
             .map(|(rule, keys)| format!(
                 "  {rule}: {}",
-                keys.iter().map(|k| format!("{{{k}}}")).collect::<Vec<_>>().join(", ")
+                keys.iter()
+                    .map(|k| format!("{{{k}}}"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ))
             .collect::<Vec<_>>()
             .join("\n")
@@ -175,7 +190,9 @@ fn fixture_feed() -> PathBuf {
     let cursor = std::io::Cursor::new(Vec::new());
     let mut writer = zip::ZipWriter::new(cursor);
     for (name, data) in files {
-        writer.start_file(name, SimpleFileOptions::default()).unwrap();
+        writer
+            .start_file(name, SimpleFileOptions::default())
+            .unwrap();
         writer.write_all(data).unwrap();
     }
     let bytes = writer.finish().unwrap().into_inner();
@@ -192,7 +209,11 @@ fn fixture_feed() -> PathBuf {
 
 /// `i18n::resolve` ile aynı sözleşme: sabit alanlar + `details`.
 fn value_for(key: &str, notice: &serde_json::Value) -> Option<String> {
-    if let Some(v) = notice.get("details").and_then(|d| d.get(key)).and_then(|v| v.as_str()) {
+    if let Some(v) = notice
+        .get("details")
+        .and_then(|d| d.get(key))
+        .and_then(|v| v.as_str())
+    {
         return Some(v.to_string());
     }
     let raw = match key {
@@ -226,7 +247,10 @@ fn emitted_notices_fill_their_locale_placeholders() {
     let json: serde_json::Value =
         serde_json::from_str(&String::from_utf8(output.stdout).unwrap()).expect("JSON değil");
     let notices = json["notices"].as_array().expect("notices dizisi yok");
-    assert!(!notices.is_empty(), "fixture hiç notice üretmedi — kapı ölçmüyor demektir");
+    assert!(
+        !notices.is_empty(),
+        "fixture hiç notice üretmedi — kapı ölçmüyor demektir"
+    );
 
     let raw = fs::read_to_string(repo_root().join("crates/cli/locales/en.json")).unwrap();
     let templates: serde_json::Value = serde_json::from_str(&raw).unwrap();
@@ -235,7 +259,9 @@ fn emitted_notices_fill_their_locale_placeholders() {
     let mut problems: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for notice in notices {
         let rule_id = notice["rule_id"].as_str().unwrap_or_default();
-        let Some(template) = templates.get(rule_id).and_then(|t| t.as_str()) else { continue };
+        let Some(template) = templates.get(rule_id).and_then(|t| t.as_str()) else {
+            continue;
+        };
         for key in placeholders(template) {
             if value_for(&key, notice).is_none() {
                 problems.entry(rule_id.to_string()).or_default().insert(key);

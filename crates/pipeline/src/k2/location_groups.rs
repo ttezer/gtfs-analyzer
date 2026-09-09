@@ -1,4 +1,4 @@
-use super::common::{get_raw_field, build_row_map};
+use super::common::{build_row_map, get_raw_field};
 use crate::k1_parse::RawFile;
 
 /// GTFS-Flex `location_groups.txt` — adlandırılmış durak grubu tanımı.

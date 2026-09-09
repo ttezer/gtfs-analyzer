@@ -66,9 +66,9 @@ fn main() {
                 let sev = match n.severity {
                     Severity::Kritik => "CRITICAL",
                     Severity::Yuksek => "HIGH",
-                    Severity::Orta   => "MEDIUM",
-                    Severity::Dusuk  => "LOW",
-                    Severity::Bilgi  => "INFO",
+                    Severity::Orta => "MEDIUM",
+                    Severity::Dusuk => "LOW",
+                    Severity::Bilgi => "INFO",
                 };
                 *by_severity.entry(sev).or_default() += 1;
             }

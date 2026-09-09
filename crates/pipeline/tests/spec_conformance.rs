@@ -21,7 +21,8 @@ use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
 const TODAY: u32 = 20_260_515;
 
 // ── Geçerli temel feed (emit_proof.rs ile aynı gövde) ──────────────────────────
-const AGENCY: &str = "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
+const AGENCY: &str =
+    "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 const STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
 const ROUTES: &str = "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n";
 const TRIPS: &str = "route_id,service_id,trip_id\nR1,SVC1,T1\n";
@@ -30,17 +31,27 @@ const CALENDAR: &str = "service_id,monday,tuesday,wednesday,thursday,friday,satu
 
 fn base() -> Vec<(String, Vec<u8>)> {
     [
-        ("agency.txt", AGENCY), ("stops.txt", STOPS), ("routes.txt", ROUTES),
-        ("trips.txt", TRIPS), ("stop_times.txt", STOP_TIMES), ("calendar.txt", CALENDAR),
-    ].iter().map(|(n, c)| (n.to_string(), c.as_bytes().to_vec())).collect()
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS),
+        ("stop_times.txt", STOP_TIMES),
+        ("calendar.txt", CALENDAR),
+    ]
+    .iter()
+    .map(|(n, c)| (n.to_string(), c.as_bytes().to_vec()))
+    .collect()
 }
 
 fn with_opts(overrides: &[(&str, &str)], removes: &[&str]) -> Vec<(String, Vec<u8>)> {
     let mut files = base();
     for (name, content) in overrides {
         let bytes = content.as_bytes().to_vec();
-        if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) { slot.1 = bytes; }
-        else { files.push((name.to_string(), bytes)); }
+        if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) {
+            slot.1 = bytes;
+        } else {
+            files.push((name.to_string(), bytes));
+        }
     }
     files.retain(|(n, _)| !removes.contains(&n.as_str()));
     files
@@ -61,9 +72,9 @@ fn notices_of(feed: &ValidFeed) -> Vec<Notice> {
     let files = with_opts(&feed.overrides, &feed.removes);
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => vr.notices,
-        ValidateResult::Fatal(e) => panic!(
-            "'{}' GEÇERLİ bir feed ama Fatal döndü: {:?}", feed.name, e,
-        ),
+        ValidateResult::Fatal(e) => {
+            panic!("'{}' GEÇERLİ bir feed ama Fatal döndü: {:?}", feed.name, e,)
+        }
     }
 }
 
@@ -71,8 +82,11 @@ fn notices_of(feed: &ValidFeed) -> Vec<Notice> {
 fn canary_rules(feed: &ValidFeed) -> BTreeSet<String> {
     let mut ov = feed.overrides.clone();
     for (name, content) in &feed.canary_overrides {
-        if let Some(slot) = ov.iter_mut().find(|(n, _)| n == name) { slot.1 = content; }
-        else { ov.push((name, content)); }
+        if let Some(slot) = ov.iter_mut().find(|(n, _)| n == name) {
+            slot.1 = content;
+        } else {
+            ov.push((name, content));
+        }
     }
     let files = with_opts(&ov, &feed.removes);
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
@@ -101,7 +115,8 @@ const GEOJSON_L1_L2: &str = r#"{"type":"FeatureCollection","features":[
 
 const ST_LOCATION_ID: &str = "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\nT1,1,L1,09:00:00,10:00:00,2,2\nT1,2,L2,10:00:00,11:00:00,2,2\n";
 const ST_LOCATION_GROUP: &str = "trip_id,stop_sequence,location_group_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\nT1,1,LG1,09:00:00,10:00:00,2,2\nT1,2,LG2,10:00:00,11:00:00,2,2\n";
-const LOCATION_GROUPS: &str = "location_group_id,location_group_name\nLG1,Bolge Bir\nLG2,Bolge Iki\n";
+const LOCATION_GROUPS: &str =
+    "location_group_id,location_group_name\nLG1,Bolge Bir\nLG2,Bolge Iki\n";
 const LOCATION_GROUP_STOPS: &str = "location_group_id,stop_id\nLG1,S1\nLG2,S2\n";
 
 fn valid_feeds() -> Vec<ValidFeed> {
@@ -194,15 +209,33 @@ fn dump() {
     for feed in valid_feeds() {
         let ns = notices_of(&feed);
         println!("\n=== {} ({} notice) ===", feed.name, ns.len());
-        let mut rows: Vec<String> = ns.iter()
-            .map(|n| format!("  {:?} {:?} {} [{}:{}]", n.rule_class, n.severity, n.rule_id,
-                             n.file.clone().unwrap_or_default(), n.field.clone().unwrap_or_default()))
+        let mut rows: Vec<String> = ns
+            .iter()
+            .map(|n| {
+                format!(
+                    "  {:?} {:?} {} [{}:{}]",
+                    n.rule_class,
+                    n.severity,
+                    n.rule_id,
+                    n.file.clone().unwrap_or_default(),
+                    n.field.clone().unwrap_or_default()
+                )
+            })
             .collect();
         rows.sort();
         rows.dedup();
-        for r in rows { println!("{r}"); }
-        println!("  canary({}) → {}", feed.canary_rule,
-                 if canary_rules(&feed).contains(feed.canary_rule) { "OK" } else { "KAÇIRDI" });
+        for r in rows {
+            println!("{r}");
+        }
+        println!(
+            "  canary({}) → {}",
+            feed.canary_rule,
+            if canary_rules(&feed).contains(feed.canary_rule) {
+                "OK"
+            } else {
+                "KAÇIRDI"
+            }
+        );
     }
 }
 
@@ -211,11 +244,17 @@ fn dump() {
 fn valid_feeds_emit_no_spec_notice() {
     let mut failures = Vec::new();
     for feed in valid_feeds() {
-        let mut hits: Vec<String> = notices_of(&feed).iter()
+        let mut hits: Vec<String> = notices_of(&feed)
+            .iter()
             .filter(|n| n.rule_class == RuleClass::Spec)
-            .map(|n| format!("{} ({}:{})", n.rule_id,
-                             n.file.clone().unwrap_or_default(),
-                             n.field.clone().unwrap_or_default()))
+            .map(|n| {
+                format!(
+                    "{} ({}:{})",
+                    n.rule_id,
+                    n.file.clone().unwrap_or_default(),
+                    n.field.clone().unwrap_or_default()
+                )
+            })
             .collect();
         hits.sort();
         hits.dedup();
@@ -223,9 +262,11 @@ fn valid_feeds_emit_no_spec_notice() {
             failures.push(format!("  {} → {}", feed.name, hits.join(", ")));
         }
     }
-    assert!(failures.is_empty(),
+    assert!(
+        failures.is_empty(),
         "Spec'e uygun feed'lerde Spec sınıfı notice çıktı (yanlış pozitif):\n{}",
-        failures.join("\n"));
+        failures.join("\n")
+    );
 }
 
 /// İkinci kapı: aynı korpusta `Kritik` severity de olmamalı.
@@ -233,7 +274,8 @@ fn valid_feeds_emit_no_spec_notice() {
 fn valid_feeds_emit_no_critical_notice() {
     let mut failures = Vec::new();
     for feed in valid_feeds() {
-        let mut hits: Vec<String> = notices_of(&feed).iter()
+        let mut hits: Vec<String> = notices_of(&feed)
+            .iter()
             .filter(|n| n.severity == Severity::Kritik)
             .map(|n| format!("{} [{:?}]", n.rule_id, n.rule_class))
             .collect();
@@ -243,8 +285,11 @@ fn valid_feeds_emit_no_critical_notice() {
             failures.push(format!("  {} → {}", feed.name, hits.join(", ")));
         }
     }
-    assert!(failures.is_empty(),
-        "Spec'e uygun feed'lerde Kritik notice çıktı:\n{}", failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "Spec'e uygun feed'lerde Kritik notice çıktı:\n{}",
+        failures.join("\n")
+    );
 }
 
 /// Fixture'lar "boş geçmiyor": her feed'in ayırt edici dosyası gerçekten okunuyor.
@@ -256,10 +301,15 @@ fn every_valid_feed_is_actually_exercised() {
     for feed in valid_feeds() {
         let rules = canary_rules(&feed);
         if !rules.contains(feed.canary_rule) {
-            failures.push(format!("  {}: kanarya {} üretmedi → {:?}",
-                                  feed.name, feed.canary_rule, rules));
+            failures.push(format!(
+                "  {}: kanarya {} üretmedi → {:?}",
+                feed.name, feed.canary_rule, rules
+            ));
         }
     }
-    assert!(failures.is_empty(),
-        "Kanarya düşmedi — fixture boş geçiyor olabilir:\n{}", failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "Kanarya düşmedi — fixture boş geçiyor olabilir:\n{}",
+        failures.join("\n")
+    );
 }

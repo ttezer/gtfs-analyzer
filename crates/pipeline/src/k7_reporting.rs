@@ -1,9 +1,9 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
 use rustc_hash::FxHashSet;
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use gtfs_core::{
-    DedupLevel, EntityType, FeedMetrics, FileInfo, Notice, R1Report, R2Report, R3Report, R4Report, R5Report,
-    R7Report, R8Report, R9Item, R9Label, R9Report, ReportId, ReportItem, ReportSet,
+    DedupLevel, EntityType, FeedMetrics, FileInfo, Notice, R1Report, R2Report, R3Report, R4Report,
+    R5Report, R7Report, R8Report, R9Item, R9Label, R9Report, ReportId, ReportItem, ReportSet,
     RuleClass, Severity,
 };
 use gtfs_rules::get_rule;
@@ -30,12 +30,15 @@ pub fn report(
     coverage_complete: bool,
 ) -> K7Result {
     use crate::timing::Timer;
-    let all_notices      = {
+    let all_notices = {
         let _t = Timer::start("K7::suppress_whitespace_derivatives");
         suppress_whitespace_derivatives(all_notices, records)
     };
-    let all_notices      = { let _t = Timer::start("K7::fill_service_ids"); fill_service_ids(all_notices, records) };
-    let mut notices      = if already_deduped {
+    let all_notices = {
+        let _t = Timer::start("K7::fill_service_ids");
+        fill_service_ids(all_notices, records)
+    };
+    let mut notices = if already_deduped {
         all_notices
     } else {
         let _t = Timer::start("K7::dedup");
@@ -50,11 +53,24 @@ pub fn report(
         let prefix = n.id.split('/').next().unwrap_or("k").to_string();
         n.id = format!("{prefix}/{}#{}", n.rule_id, i + 1);
     }
-    let resolution       = { let _t = crate::timing::Timer::start("K7::resolve_symptoms"); resolve_symptoms(&notices) };
-    let reports          = { let _t = Timer::start("K7::build_reports");    build_report_set(&notices, &resolution, coverage_complete) };
-    let mut metrics      = { let _t = Timer::start("K7::build_metrics");    build_metrics(&notices, records, derived, file_stats, coverage_complete) };
+    let resolution = {
+        let _t = crate::timing::Timer::start("K7::resolve_symptoms");
+        resolve_symptoms(&notices)
+    };
+    let reports = {
+        let _t = Timer::start("K7::build_reports");
+        build_report_set(&notices, &resolution, coverage_complete)
+    };
+    let mut metrics = {
+        let _t = Timer::start("K7::build_metrics");
+        build_metrics(&notices, records, derived, file_stats, coverage_complete)
+    };
     metrics.overall_score = reports.r5.score;
-    K7Result { notices, reports, metrics }
+    K7Result {
+        notices,
+        reports,
+        metrics,
+    }
 }
 
 /// DQ_016 kök bulgusunu koruyup, yalnızca ham değerin çevresindeki boşluk nedeniyle oluşan
@@ -87,7 +103,11 @@ fn suppress_whitespace_derivatives(
             return true;
         }
         // Kökü olmayan dosyada bastırma YOK.
-        if !notice.file.as_deref().is_some_and(|f| files_with_root.contains(f)) {
+        if !notice
+            .file
+            .as_deref()
+            .is_some_and(|f| files_with_root.contains(f))
+        {
             return true;
         }
         let file = notice.file.clone().unwrap_or_else(|| "<feed>".to_string());
@@ -98,8 +118,12 @@ fn suppress_whitespace_derivatives(
     });
 
     for root in notices.iter_mut().filter(|n| n.rule_id == "DQ_016") {
-        let Some(file) = root.file.as_deref() else { continue };
-        let Some((count, rules)) = suppressed.get(file) else { continue };
+        let Some(file) = root.file.as_deref() else {
+            continue;
+        };
+        let Some((count, rules)) = suppressed.get(file) else {
+            continue;
+        };
         let details = root.details.get_or_insert_with(BTreeMap::new);
         details.insert("suppressed_derivative_count".to_string(), count.to_string());
         details.insert(
@@ -111,7 +135,9 @@ fn suppress_whitespace_derivatives(
 }
 
 fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
-    let marked = notice.details.as_ref()
+    let marked = notice
+        .details
+        .as_ref()
         .and_then(|d| d.get("whitespace_derived"))
         .is_some_and(|v| v == "true");
     if marked {
@@ -133,7 +159,9 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
     // K4 yalnızca hedefte bulunmayan ham ID'yi raporlar. Aynı ID'nin trim edilmiş biçimi
     // hedef kümede varsa, bu tam olarak whitespace kaynaklı bir FK semptomudur; gerçekten
     // bilinmeyen "  UNKNOWN " değerleri görünür kalır.
-    let candidate = notice.details.as_ref()
+    let candidate = notice
+        .details
+        .as_ref()
         .and_then(|d| d.get("whitespace_candidate"))
         .is_some_and(|v| v == "true");
     if candidate && normalized_reference_exists(notice, references) {
@@ -154,9 +182,14 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
 
 /// Ham id bulunamıyor ama boşluk yok sayılınca bulunuyor → whitespace kaynaklı FK semptomu.
 fn mirror_whitespace_symptom(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
-    let Some(field) = notice.field.as_deref() else { return false };
-    let Some(observed) = notice.observed_value.as_deref() else { return false };
-    field.split('|')
+    let Some(field) = notice.field.as_deref() else {
+        return false;
+    };
+    let Some(observed) = notice.observed_value.as_deref() else {
+        return false;
+    };
+    field
+        .split('|')
         .zip(observed.split('|'))
         .any(|(field, value)| {
             let value = value.trim();
@@ -167,9 +200,14 @@ fn mirror_whitespace_symptom(notice: &Notice, references: &WhitespaceReferences<
 }
 
 fn normalized_reference_exists(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
-    let Some(field) = notice.field.as_deref() else { return false };
-    let Some(observed) = notice.observed_value.as_deref() else { return false };
-    field.split('|')
+    let Some(field) = notice.field.as_deref() else {
+        return false;
+    };
+    let Some(observed) = notice.observed_value.as_deref() else {
+        return false;
+    };
+    field
+        .split('|')
         .zip(observed.split('|'))
         .any(|(field, value)| {
             let value = value.trim();
@@ -210,23 +248,58 @@ impl<'a> IdSets<'a> {
             shape_id: FxHashSet::default(),
             zone_id: FxHashSet::default(),
         };
-        refs.agency_id.extend(records.agencies.iter().filter_map(|r| r.agency_id.as_deref()));
-        refs.stop_id.extend(records.stops.iter().map(|r| r.stop_id.as_str()));
-        refs.route_id.extend(records.routes.iter().map(|r| r.route_id.as_str()));
-        refs.trip_id.extend(records.trips.iter().map(|r| r.trip_id.as_str()));
-        refs.service_id.extend(records.calendars.iter().map(|r| r.service_id.as_str()));
-        refs.service_id.extend(records.trip_interns.service_ids.iter().map(|v| v.as_str()));
-        refs.fare_id.extend(records.fare_attributes.iter().map(|r| r.fare_id.as_str()));
-        refs.fare_id.extend(records.fare_rules.iter().map(|r| r.fare_id.as_str()));
-        refs.area_id.extend(records.areas.iter().map(|r| r.area_id.as_str()));
-        refs.fare_product_id.extend(records.fare_products.iter().map(|r| r.fare_product_id.as_str()));
-        refs.fare_media_id.extend(records.fare_media.iter().map(|r| r.fare_media_id.as_str()));
-        refs.rider_category_id.extend(records.rider_categories.iter().map(|r| r.rider_category_id.as_str()));
-        refs.network_id.extend(records.networks.iter().map(|r| r.network_id.as_str()));
-        refs.shape_id.extend(records.trips.iter().filter_map(|r| records.trip_interns.shape_id(r)));
-        refs.shape_id.extend(records.shapes.iter().map(|r| records.shape_interns.id(r)));
-        refs.zone_id.extend(records.stops.iter()
-            .filter_map(|r| r.row.get("zone_id").map(String::as_str)));
+        refs.agency_id.extend(
+            records
+                .agencies
+                .iter()
+                .filter_map(|r| r.agency_id.as_deref()),
+        );
+        refs.stop_id
+            .extend(records.stops.iter().map(|r| r.stop_id.as_str()));
+        refs.route_id
+            .extend(records.routes.iter().map(|r| r.route_id.as_str()));
+        refs.trip_id
+            .extend(records.trips.iter().map(|r| r.trip_id.as_str()));
+        refs.service_id
+            .extend(records.calendars.iter().map(|r| r.service_id.as_str()));
+        refs.service_id
+            .extend(records.trip_interns.service_ids.iter().map(|v| v.as_str()));
+        refs.fare_id
+            .extend(records.fare_attributes.iter().map(|r| r.fare_id.as_str()));
+        refs.fare_id
+            .extend(records.fare_rules.iter().map(|r| r.fare_id.as_str()));
+        refs.area_id
+            .extend(records.areas.iter().map(|r| r.area_id.as_str()));
+        refs.fare_product_id.extend(
+            records
+                .fare_products
+                .iter()
+                .map(|r| r.fare_product_id.as_str()),
+        );
+        refs.fare_media_id
+            .extend(records.fare_media.iter().map(|r| r.fare_media_id.as_str()));
+        refs.rider_category_id.extend(
+            records
+                .rider_categories
+                .iter()
+                .map(|r| r.rider_category_id.as_str()),
+        );
+        refs.network_id
+            .extend(records.networks.iter().map(|r| r.network_id.as_str()));
+        refs.shape_id.extend(
+            records
+                .trips
+                .iter()
+                .filter_map(|r| records.trip_interns.shape_id(r)),
+        );
+        refs.shape_id
+            .extend(records.shapes.iter().map(|r| records.shape_interns.id(r)));
+        refs.zone_id.extend(
+            records
+                .stops
+                .iter()
+                .filter_map(|r| r.row.get("zone_id").map(String::as_str)),
+        );
         refs
     }
 
@@ -302,7 +375,9 @@ impl<'a> WhitespaceReferences<'a> {
     /// (`trips.trip_id` = `' 10242975'`, 6523 satırın 6523'ü). Ham kesişim 0, trim'li
     /// kesişim 6523 — tek bir üretici alışkanlığı 103.649 bulguya dönüşüyordu.
     fn contains_trimmed(&self, field: &str, value: &str) -> bool {
-        self.trimmed.get(field).is_some_and(|set| set.contains(value))
+        self.trimmed
+            .get(field)
+            .is_some_and(|set| set.contains(value))
     }
 }
 
@@ -313,7 +388,9 @@ impl<'a> WhitespaceReferences<'a> {
 /// emit'te set edilenler) korunur. Trip dışı entity'ler (Route/Feed/Stop…) atlanır.
 fn fill_service_ids(mut notices: Vec<Notice>, records: &EntityRecords) -> Vec<Notice> {
     let ti = &records.trip_interns;
-    let trip_service: std::collections::HashMap<&str, &str> = records.trips.iter()
+    let trip_service: std::collections::HashMap<&str, &str> = records
+        .trips
+        .iter()
         .filter(|t| !ti.service_id(t).is_empty())
         .map(|t| (t.trip_id.as_str(), ti.service_id(t)))
         .collect();
@@ -511,7 +588,9 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
             continue;
         }
         for blocked_rule in &root.blocks {
-            let Some(by_scope) = by_rule_scope.get(blocked_rule.as_str()) else { continue };
+            let Some(by_scope) = by_rule_scope.get(blocked_rule.as_str()) else {
+                continue;
+            };
             match root.scope_key.as_deref() {
                 // Kapsamsız kök → tüm feed'i etkiler, o kuralın her scope'unu bastırır.
                 None => {
@@ -535,7 +614,10 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
         }
     }
 
-    SymptomResolution { is_symptom, rule_scope_buckets: by_rule_scope }
+    SymptomResolution {
+        is_symptom,
+        rule_scope_buckets: by_rule_scope,
+    }
 }
 
 /// Blocker-eligible notice'ların rule başına gruplanmış yayın penaltısı ve
@@ -548,7 +630,9 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
 fn build_pub_penalty_map(notices: &[Notice]) -> (f64, HashMap<String, f64>) {
     let mut rule_data: HashMap<&str, (f64, u32)> = HashMap::new();
     for n in notices.iter().filter(|n| is_pub_relevant(n)) {
-        let e = rule_data.entry(n.rule_id.as_str()).or_insert((n.severity.weight(), 0));
+        let e = rule_data
+            .entry(n.rule_id.as_str())
+            .or_insert((n.severity.weight(), 0));
         e.1 += 1;
     }
     let mut per_rule: HashMap<String, f64> = HashMap::new();
@@ -589,15 +673,19 @@ fn realized_dep_for_group(
     all_blocks
         .iter()
         .filter(|&&blocked_rule| {
-            let Some(by_scope) = rule_scope_buckets.get(blocked_rule) else { return false };
+            let Some(by_scope) = rule_scope_buckets.get(blocked_rule) else {
+                return false;
+            };
             // Kapsamsız üye → o kuralın HERHANGİ bir notice'ı yeter.
             if group_has_unscoped {
                 return by_scope.values().any(|v| !v.is_empty());
             }
             // Aksi hâlde yalnız grubun scope'ları aranır — tarama yerine arama.
-            group_scopes
-                .iter()
-                .any(|s| by_scope.get(&Some((*s).to_string())).is_some_and(|v| !v.is_empty()))
+            group_scopes.iter().any(|s| {
+                by_scope
+                    .get(&Some((*s).to_string()))
+                    .is_some_and(|v| !v.is_empty())
+            })
         })
         .count() as u32
 }
@@ -668,17 +756,16 @@ fn closure_notice_indices_for_group(
 /// kullanır; tek fark tüm notice yerine yalnızca `closure_indices` kümesindekiler
 /// işlenir.  Closure set'indeki her rule_id için instance sayısı ayrı toplanır;
 /// bu sayede birden fazla closure notice'ı olan rule'lar da doğru gruplandırılır.
-fn build_closure_pub_penalty(
-    closure_indices: &FxHashSet<usize>,
-    notices: &[Notice],
-) -> f64 {
+fn build_closure_pub_penalty(closure_indices: &FxHashSet<usize>, notices: &[Notice]) -> f64 {
     let mut rule_data: HashMap<&str, (f64, u32)> = HashMap::new();
     for &i in closure_indices {
         let n = &notices[i];
         if !is_pub_relevant(n) {
             continue;
         }
-        let e = rule_data.entry(n.rule_id.as_str()).or_insert((n.severity.weight(), 0));
+        let e = rule_data
+            .entry(n.rule_id.as_str())
+            .or_insert((n.severity.weight(), 0));
         e.1 += 1;
     }
     let mut total = 0.0_f64;
@@ -700,13 +787,24 @@ fn instance_multiplier(count: u32) -> f64 {
     }
 }
 
-fn compute_priority_score(severity: Severity, realized_dep: u32, affected: u32, fix_effort: f64) -> f64 {
+fn compute_priority_score(
+    severity: Severity,
+    realized_dep: u32,
+    affected: u32,
+    fix_effort: f64,
+) -> f64 {
     let sw = severity.weight();
     let raw = sw * (1.0 + realized_dep as f64) * (1.0 + affected as f64).log2() / fix_effort;
     (raw * 100.0).round() / 100.0
 }
 
-fn r9_labels(severity: Severity, rule_class: RuleClass, realized_dep: u32, fix_effort: f64, affected: u32) -> Vec<R9Label> {
+fn r9_labels(
+    severity: Severity,
+    rule_class: RuleClass,
+    realized_dep: u32,
+    fix_effort: f64,
+    affected: u32,
+) -> Vec<R9Label> {
     let mut labels = vec![];
 
     // R1 ile hizalı: yalnız Spec+Kritik gerçek yayın-engeli (Blocker). Interop her
@@ -731,7 +829,12 @@ fn r9_labels(severity: Severity, rule_class: RuleClass, realized_dep: u32, fix_e
         labels.push(R9Label::QuickWin);
     }
     // Kalite Öncelikli: Quality sınıfı, Orta veya üzeri
-    if matches!(rule_class, RuleClass::Quality) && matches!(severity, Severity::Kritik | Severity::Yuksek | Severity::Orta) {
+    if matches!(rule_class, RuleClass::Quality)
+        && matches!(
+            severity,
+            Severity::Kritik | Severity::Yuksek | Severity::Orta
+        )
+    {
         labels.push(R9Label::Quality);
     }
     // Yaygın: 20'den fazla etkilenen instance
@@ -818,14 +921,15 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
                 let mut closure_class_penalty: HashMap<RuleClass, f64> = HashMap::new();
                 for &ci in &closure {
                     let cn = &notices[ci];
-                    *closure_class_penalty.entry(cn.rule_class).or_default() += cn.severity.weight();
+                    *closure_class_penalty.entry(cn.rule_class).or_default() +=
+                        cn.severity.weight();
                 }
                 let mut delta_sum = 0.0_f64;
                 for (cn_class, cp_removed) in &closure_class_penalty {
                     let cn_weight = match cn_class {
-                        RuleClass::Spec      => 0.4,
-                        RuleClass::Interop   => 0.3,
-                        RuleClass::Quality   => 0.2,
+                        RuleClass::Spec => 0.4,
+                        RuleClass::Interop => 0.3,
+                        RuleClass::Quality => 0.2,
                         RuleClass::Analytics => 0.1,
                     };
                     let cur_cp = class_penalty.get(cn_class).copied().unwrap_or(0.0);
@@ -891,14 +995,38 @@ fn build_report_set(
     // yavaş olduğu dönüşür. mdb-2727'de toplam 78 sn'nin nereye gittiğini bulmak için
     // eklendi (#155) ve kalıcı — bir sonraki patolojik feed'de aynı soru sorulacak.
     ReportSet {
-        r1: { let _t = crate::timing::Timer::start("K7::r1"); build_r1(notices, coverage_complete) },
-        r2: { let _t = crate::timing::Timer::start("K7::r2"); build_r2(notices) },
-        r3: { let _t = crate::timing::Timer::start("K7::r3"); build_r3(notices) },
-        r4: { let _t = crate::timing::Timer::start("K7::r4"); build_r4(notices) },
-        r5: { let _t = crate::timing::Timer::start("K7::r5"); build_r5(notices) },
-        r7: { let _t = crate::timing::Timer::start("K7::r7"); build_r7(notices) },
-        r8: { let _t = crate::timing::Timer::start("K7::r8"); build_r8(notices) },
-        r9: { let _t = crate::timing::Timer::start("K7::r9"); build_r9(notices, resolution) },
+        r1: {
+            let _t = crate::timing::Timer::start("K7::r1");
+            build_r1(notices, coverage_complete)
+        },
+        r2: {
+            let _t = crate::timing::Timer::start("K7::r2");
+            build_r2(notices)
+        },
+        r3: {
+            let _t = crate::timing::Timer::start("K7::r3");
+            build_r3(notices)
+        },
+        r4: {
+            let _t = crate::timing::Timer::start("K7::r4");
+            build_r4(notices)
+        },
+        r5: {
+            let _t = crate::timing::Timer::start("K7::r5");
+            build_r5(notices)
+        },
+        r7: {
+            let _t = crate::timing::Timer::start("K7::r7");
+            build_r7(notices)
+        },
+        r8: {
+            let _t = crate::timing::Timer::start("K7::r8");
+            build_r8(notices)
+        },
+        r9: {
+            let _t = crate::timing::Timer::start("K7::r9");
+            build_r9(notices, resolution)
+        },
     }
 }
 
@@ -980,24 +1108,22 @@ fn is_pub_relevant(n: &Notice) -> bool {
 }
 
 fn build_r5(notices: &[Notice]) -> R5Report {
-    let spec_score      = class_score(notices, RuleClass::Spec);
-    let interop_score   = class_score(notices, RuleClass::Interop);
-    let quality_score   = class_score(notices, RuleClass::Quality);
+    let spec_score = class_score(notices, RuleClass::Spec);
+    let interop_score = class_score(notices, RuleClass::Interop);
+    let quality_score = class_score(notices, RuleClass::Quality);
     let analytics_score = class_score(notices, RuleClass::Analytics);
     // Ağırlıklı ortalama: SPEC %40, INTEROP %30, QUALITY %20, ANALYTICS %10
-    let overall = 0.4 * spec_score
-        + 0.3 * interop_score
-        + 0.2 * quality_score
-        + 0.1 * analytics_score;
+    let overall =
+        0.4 * spec_score + 0.3 * interop_score + 0.2 * quality_score + 0.1 * analytics_score;
     // Yayın skoru: rule başına gruplandırılmış penaltı (build_pub_penalty_map ile tutarlı)
     let (pub_penalty, _) = build_pub_penalty_map(notices);
     let pub_score = 100.0 * 50.0 / (50.0 + pub_penalty);
     R5Report {
-        score:           round1(overall),
-        pub_score:       round1(pub_score),
-        spec_score:      round1(spec_score),
-        interop_score:   round1(interop_score),
-        quality_score:   round1(quality_score),
+        score: round1(overall),
+        pub_score: round1(pub_score),
+        spec_score: round1(spec_score),
+        interop_score: round1(interop_score),
+        quality_score: round1(quality_score),
         analytics_score: round1(analytics_score),
     }
 }
@@ -1008,10 +1134,13 @@ fn build_r5(notices: &[Notice]) -> R5Report {
 fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
     let mut per_rule: HashMap<&str, (f64, u32)> = HashMap::new();
     for n in notices.iter().filter(|n| n.rule_class == class) {
-        let e = per_rule.entry(n.rule_id.as_str()).or_insert((n.severity.weight(), 0));
+        let e = per_rule
+            .entry(n.rule_id.as_str())
+            .or_insert((n.severity.weight(), 0));
         e.1 += 1;
     }
-    let penalty: f64 = per_rule.values()
+    let penalty: f64 = per_rule
+        .values()
         .map(|(w, cnt)| w * instance_multiplier(*cnt))
         .sum();
     100.0 * 50.0 / (50.0 + penalty)
@@ -1067,7 +1196,13 @@ fn r4_display_label(rule_id: &str) -> String {
 
 // ── Metrikler ─────────────────────────────────────────────────────────────────
 
-fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedData, file_stats: Vec<FileInfo>, coverage_complete: bool) -> FeedMetrics {
+fn build_metrics(
+    notices: &[Notice],
+    records: &EntityRecords,
+    derived: &DerivedData,
+    file_stats: Vec<FileInfo>,
+    coverage_complete: bool,
+) -> FeedMetrics {
     let shape_count = records
         .shapes
         .iter()
@@ -1098,31 +1233,47 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
     let mut unique_trips: HashMap<&str, &str> = HashMap::with_capacity(records.trips.len());
     for t in &records.trips {
         if !t.trip_id.is_empty() {
-            unique_trips.entry(t.trip_id.as_str()).or_insert(ti_k7.service_id(t));
+            unique_trips
+                .entry(t.trip_id.as_str())
+                .or_insert(ti_k7.service_id(t));
         }
     }
 
     // Frekans bazlı trip'lerin günlük run sayısını hesapla (floor((end-start)/headway))
     let mut freq_runs: HashMap<&str, u32> = HashMap::new();
     for freq in &records.frequencies {
-        if freq.trip_id.is_empty() { continue; }
-        let (Some(start), Some(end), Some(hw)) = (freq.start_time, freq.end_time, freq.headway_secs) else { continue };
-        if hw == 0 { continue; }
+        if freq.trip_id.is_empty() {
+            continue;
+        }
+        let (Some(start), Some(end), Some(hw)) =
+            (freq.start_time, freq.end_time, freq.headway_secs)
+        else {
+            continue;
+        };
+        if hw == 0 {
+            continue;
+        }
         let start_s = start.0 * 3600 + start.1 * 60 + start.2;
-        let end_s   = end.0   * 3600 + end.1   * 60 + end.2;
-        if end_s <= start_s { continue; }
+        let end_s = end.0 * 3600 + end.1 * 60 + end.2;
+        if end_s <= start_s {
+            continue;
+        }
         *freq_runs.entry(freq.trip_id.as_str()).or_insert(0) += (end_s - start_s) / hw;
     }
 
     // trip_count: frekans trip'leri günlük run sayısıyla genişletilir
-    let trip_count: u32 = unique_trips.keys()
+    let trip_count: u32 = unique_trips
+        .keys()
         .map(|&tid| freq_runs.get(tid).copied().unwrap_or(1).max(1))
         .sum();
 
     // Her benzersiz trip'in service_id'si kaç gün aktifse, frekans çarpanıyla birlikte sayılır.
-    let total_trip_days: usize = unique_trips.iter()
+    let total_trip_days: usize = unique_trips
+        .iter()
         .map(|(&tid, &svc)| {
-            let active = derived.calendar_bitmap.active_dates
+            let active = derived
+                .calendar_bitmap
+                .active_dates
                 .get(svc)
                 .map(|dates| dates.len())
                 .unwrap_or(0);
@@ -1143,21 +1294,25 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
     //   (c) translations'ta kana okuması (language=ja-Hrkt).
     let is_gtfs_jp = records.is_gtfs_jp.unwrap_or_else(|| {
         records.has_gtfs_jp_file
-            || file_stats.iter()
+            || file_stats
+                .iter()
                 .any(|f| GTFS_JP_FILES.contains(&f.name.as_str()))
-            || records.feed_info.first()
+            || records
+                .feed_info
+                .first()
                 .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
                 .unwrap_or(false)
-            || records.translations.iter()
+            || records
+                .translations
+                .iter()
                 .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"))
     });
-    let gtfs_jp_profile = is_gtfs_jp
-        .then(|| records.gtfs_jp_profile.as_str().to_string());
+    let gtfs_jp_profile = is_gtfs_jp.then(|| records.gtfs_jp_profile.as_str().to_string());
 
     FeedMetrics {
         coverage_complete,
-        stop_count:   records.stops.len() as u32,
-        route_count:  records.routes.len() as u32,
+        stop_count: records.stops.len() as u32,
+        route_count: records.routes.len() as u32,
         trip_count,
         shape_count,
         active_service_days,
@@ -1166,10 +1321,22 @@ fn build_metrics(notices: &[Notice], records: &EntityRecords, derived: &DerivedD
         feed_end_date,
         service_start_date,
         service_end_date,
-        spec_notice_count:      notices.iter().filter(|n| n.rule_class == RuleClass::Spec).count() as u32,
-        interop_notice_count:   notices.iter().filter(|n| n.rule_class == RuleClass::Interop).count() as u32,
-        quality_notice_count:   notices.iter().filter(|n| n.rule_class == RuleClass::Quality).count() as u32,
-        analytics_notice_count: notices.iter().filter(|n| n.rule_class == RuleClass::Analytics).count() as u32,
+        spec_notice_count: notices
+            .iter()
+            .filter(|n| n.rule_class == RuleClass::Spec)
+            .count() as u32,
+        interop_notice_count: notices
+            .iter()
+            .filter(|n| n.rule_class == RuleClass::Interop)
+            .count() as u32,
+        quality_notice_count: notices
+            .iter()
+            .filter(|n| n.rule_class == RuleClass::Quality)
+            .count() as u32,
+        analytics_notice_count: notices
+            .iter()
+            .filter(|n| n.rule_class == RuleClass::Analytics)
+            .count() as u32,
         overall_score: 0.0, // report() fonksiyonunda r5.score ile güncellenir
         file_stats,
         is_gtfs_jp,
@@ -1266,8 +1433,10 @@ mod tests {
     fn dedup_row_level_same_row() {
         let mut n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         let mut n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
-        n1.file = Some("stops.txt".into()); n1.line = Some(5);
-        n2.file = Some("stops.txt".into()); n2.line = Some(5);
+        n1.file = Some("stops.txt".into());
+        n1.line = Some(5);
+        n2.file = Some("stops.txt".into());
+        n2.line = Some(5);
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
     }
 
@@ -1275,8 +1444,10 @@ mod tests {
     fn dedup_row_level_different_rows() {
         let mut n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         let mut n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
-        n1.file = Some("stops.txt".into()); n1.line = Some(5);
-        n2.file = Some("stops.txt".into()); n2.line = Some(6);
+        n1.file = Some("stops.txt".into());
+        n1.line = Some(5);
+        n2.file = Some("stops.txt".into());
+        n2.line = Some(6);
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
     }
 
@@ -1299,7 +1470,10 @@ mod tests {
 
         assert_eq!(totals.get("ARC_018"), Some(&4));
         assert_eq!(kept.len(), 2);
-        assert_eq!(kept.iter().map(|n| n.line).collect::<Vec<_>>(), vec![Some(1), Some(2)]);
+        assert_eq!(
+            kept.iter().map(|n| n.line).collect::<Vec<_>>(),
+            vec![Some(1), Some(2)]
+        );
     }
 
     // ARC_014 → Field dedup
@@ -1307,8 +1481,12 @@ mod tests {
     fn dedup_field_level_same_field() {
         let mut n1 = notice("n1", "ARC_014", Severity::Orta, RuleClass::Quality);
         let mut n2 = notice("n2", "ARC_014", Severity::Orta, RuleClass::Quality);
-        n1.file = Some("stops.txt".into()); n1.line = Some(3); n1.field = Some("stop_name".into());
-        n2.file = Some("stops.txt".into()); n2.line = Some(3); n2.field = Some("stop_name".into());
+        n1.file = Some("stops.txt".into());
+        n1.line = Some(3);
+        n1.field = Some("stop_name".into());
+        n2.file = Some("stops.txt".into());
+        n2.line = Some(3);
+        n2.field = Some("stop_name".into());
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
     }
 
@@ -1316,8 +1494,12 @@ mod tests {
     fn dedup_field_level_different_fields() {
         let mut n1 = notice("n1", "ARC_014", Severity::Orta, RuleClass::Quality);
         let mut n2 = notice("n2", "ARC_014", Severity::Orta, RuleClass::Quality);
-        n1.file = Some("stops.txt".into()); n1.line = Some(3); n1.field = Some("stop_name".into());
-        n2.file = Some("stops.txt".into()); n2.line = Some(3); n2.field = Some("stop_lat".into());
+        n1.file = Some("stops.txt".into());
+        n1.line = Some(3);
+        n1.field = Some("stop_name".into());
+        n2.file = Some("stops.txt".into());
+        n2.line = Some(3);
+        n2.field = Some("stop_lat".into());
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
     }
 
@@ -1325,8 +1507,10 @@ mod tests {
     fn dedup_unknown_rule_falls_back_to_row() {
         let mut n1 = notice("n1", "UNKNOWN_999", Severity::Orta, RuleClass::Quality);
         let mut n2 = notice("n2", "UNKNOWN_999", Severity::Orta, RuleClass::Quality);
-        n1.file = Some("stops.txt".into()); n1.line = Some(1);
-        n2.file = Some("stops.txt".into()); n2.line = Some(1);
+        n1.file = Some("stops.txt".into());
+        n1.line = Some(1);
+        n2.file = Some("stops.txt".into());
+        n2.line = Some(1);
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
     }
 
@@ -1345,8 +1529,10 @@ mod tests {
     fn dedup_entity_different_types_not_merged() {
         let mut n1 = notice("n1", "AGN_002", Severity::Kritik, RuleClass::Spec);
         let mut n2 = notice("n2", "AGN_002", Severity::Kritik, RuleClass::Spec);
-        n1.entity_type = EntityType::Agency; n1.entity_id = Some("X".into());
-        n2.entity_type = EntityType::Stop;   n2.entity_id = Some("X".into()); // aynı id, farklı tip
+        n1.entity_type = EntityType::Agency;
+        n1.entity_id = Some("X".into());
+        n2.entity_type = EntityType::Stop;
+        n2.entity_id = Some("X".into()); // aynı id, farklı tip
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
     }
 
@@ -1356,7 +1542,11 @@ mod tests {
         let n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         let n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         // file=None, line=None → tekil key
-        assert_eq!(dedup(vec![n1, n2]).len(), 2, "file=None → dedup yapılmamalı");
+        assert_eq!(
+            dedup(vec![n1, n2]).len(),
+            2,
+            "file=None → dedup yapılmamalı"
+        );
     }
 
     // ── Semptom çözümü ────────────────────────────────────────────────────────
@@ -1372,7 +1562,10 @@ mod tests {
 
         let resolution = resolve_symptoms(&[root, symptom]);
         assert!(!resolution.is_symptom[0], "kök neden semptom olmamalı");
-        assert!(resolution.is_symptom[1], "eşleşen scope_key ile GEO_002 semptom olmalı");
+        assert!(
+            resolution.is_symptom[1],
+            "eşleşen scope_key ile GEO_002 semptom olmalı"
+        );
     }
 
     #[test]
@@ -1385,7 +1578,10 @@ mod tests {
         other.scope_key = Some("S2".into()); // farklı scope
 
         let resolution = resolve_symptoms(&[root, other]);
-        assert!(!resolution.is_symptom[1], "farklı scope_key → semptom değil");
+        assert!(
+            !resolution.is_symptom[1],
+            "farklı scope_key → semptom değil"
+        );
     }
 
     #[test]
@@ -1421,8 +1617,10 @@ mod tests {
         symptom.scope_key = Some("trip_1".into());
 
         let resolution = resolve_symptoms(&[root, symptom]);
-        assert!(resolution.is_symptom[1],
-            "None root → entity-level semptom da bastırılmalı");
+        assert!(
+            resolution.is_symptom[1],
+            "None root → entity-level semptom da bastırılmalı"
+        );
     }
 
     // Zincir A→B→C: hem B hem C semptom olmalı
@@ -1442,8 +1640,8 @@ mod tests {
         let all = [a, b, c];
         let resolution = resolve_symptoms(&all);
         assert!(!resolution.is_symptom[0], "A kök neden olmalı");
-        assert!(resolution.is_symptom[1],  "B semptom olmalı");
-        assert!(resolution.is_symptom[2],  "C semptom olmalı");
+        assert!(resolution.is_symptom[1], "B semptom olmalı");
+        assert!(resolution.is_symptom[2], "C semptom olmalı");
     }
 
     // realized_dep_for_group: sayısal değer doğrulaması
@@ -1511,26 +1709,41 @@ mod tests {
         let resolution = resolve_symptoms(&all);
         let r9 = build_r9(&all, &resolution);
         // Semptom (GEO_002) R9'da görünmemeli
-        assert!(r9.items.iter().all(|i| i.rule_id != "GEO_002"),
-            "semptom R9'da görünmemeli");
+        assert!(
+            r9.items.iter().all(|i| i.rule_id != "GEO_002"),
+            "semptom R9'da görünmemeli"
+        );
     }
 
     #[test]
     fn r9_bucket_order_blocker_before_interop() {
         // Faz 4: yalnız Spec+Kritik → Blocker. Interop (Kritik dahil) → Interop bucket;
         // bucket içinde priority_score'a göre (yüksek severity önce) sıralanır.
-        let interop_low  = notice("i1", "INTEROP_LOW",  Severity::Orta,   RuleClass::Interop);
+        let interop_low = notice("i1", "INTEROP_LOW", Severity::Orta, RuleClass::Interop);
         let interop_high = notice("ih", "INTEROP_HIGH", Severity::Yuksek, RuleClass::Interop);
-        let blocker      = notice("bl", "BLOCKER",      Severity::Kritik, RuleClass::Spec);
+        let blocker = notice("bl", "BLOCKER", Severity::Kritik, RuleClass::Spec);
 
-        let resolution = resolve_symptoms(&[interop_low.clone(), interop_high.clone(), blocker.clone()]);
+        let resolution =
+            resolve_symptoms(&[interop_low.clone(), interop_high.clone(), blocker.clone()]);
         let r9 = build_r9(&[interop_low, interop_high, blocker], &resolution);
 
         assert_eq!(r9.items.len(), 3);
-        assert!(r9.items[0].labels.contains(&R9Label::Blocker), "ilk sıra: blocker");
-        assert!(r9.items[1].labels.contains(&R9Label::Interop), "ikinci sıra: interop (yüksek)");
-        assert!(r9.items[2].labels.contains(&R9Label::Interop), "üçüncü sıra: interop (orta)");
-        assert_eq!(r9.items[1].rule_id, "INTEROP_HIGH", "yüksek interop, orta'dan önce");
+        assert!(
+            r9.items[0].labels.contains(&R9Label::Blocker),
+            "ilk sıra: blocker"
+        );
+        assert!(
+            r9.items[1].labels.contains(&R9Label::Interop),
+            "ikinci sıra: interop (yüksek)"
+        );
+        assert!(
+            r9.items[2].labels.contains(&R9Label::Interop),
+            "üçüncü sıra: interop (orta)"
+        );
+        assert_eq!(
+            r9.items[1].rule_id, "INTEROP_HIGH",
+            "yüksek interop, orta'dan önce"
+        );
     }
 
     #[test]
@@ -1548,8 +1761,10 @@ mod tests {
         let r9 = build_r9(&all, &resolution);
 
         let root_item = r9.items.iter().find(|i| i.rule_id == "ARC_001").unwrap();
-        assert!(root_item.labels.contains(&R9Label::Propagation),
-            "realized_dep=3 → Propagation etiketi beklenir");
+        assert!(
+            root_item.labels.contains(&R9Label::Propagation),
+            "realized_dep=3 → Propagation etiketi beklenir"
+        );
     }
 
     #[test]
@@ -1627,7 +1842,10 @@ mod tests {
         let r9 = build_r9(&all, &resolution);
 
         // R9'da yalnızca ROOT_001 görünmeli (SYMPTOM_RULE semptom olarak gizlendi)
-        let root_item = r9.items.iter().find(|i| i.rule_id == "ROOT_001")
+        let root_item = r9
+            .items
+            .iter()
+            .find(|i| i.rule_id == "ROOT_001")
             .expect("ROOT_001 R9'da olmalı");
 
         // Yalnızca root'un cezasıyla hesaplanan delta: Spec sınıfı, k=50, ceza=4.0
@@ -1646,7 +1864,8 @@ mod tests {
         assert!(
             root_item.score_delta > root_only_delta,
             "closure score_delta ({}) sadece-root delta'dan ({}) büyük olmalı",
-            root_item.score_delta, root_only_delta
+            root_item.score_delta,
+            root_only_delta
         );
     }
 
@@ -1700,7 +1919,10 @@ mod tests {
         assert!(closure.contains(&0), "root closure'da");
         assert!(closure.contains(&1), "trip_1 scope → None root ile eşleşir");
         assert!(closure.contains(&2), "trip_2 scope → None root ile eşleşir");
-        assert!(closure.contains(&3), "None scope downstream → None root ile eşleşir");
+        assert!(
+            closure.contains(&3),
+            "None scope downstream → None root ile eşleşir"
+        );
         assert_eq!(closure.len(), 4);
     }
 
@@ -1746,7 +1968,11 @@ mod tests {
         let closure = closure_notice_indices_for_group(&[0], &all, &resolution);
         assert!(closure.contains(&0));
         assert!(closure.contains(&1));
-        assert_eq!(closure.len(), 2, "döngüde bile her notice bir kez sayılmalı");
+        assert_eq!(
+            closure.len(),
+            2,
+            "döngüde bile her notice bir kez sayılmalı"
+        );
     }
 
     /// Senaryo 5: pub_score_delta yalnızca pub-relevant notice'lar üzerinden,
@@ -1774,13 +2000,18 @@ mod tests {
         let resolution = resolve_symptoms(&all);
         let r9 = build_r9(&all, &resolution);
 
-        let root_item = r9.items.iter().find(|i| i.rule_id == "PUB_ROOT")
+        let root_item = r9
+            .items
+            .iter()
+            .find(|i| i.rule_id == "PUB_ROOT")
             .expect("PUB_ROOT R9'da olmalı");
 
         // pub_score_delta > 0: en az pub-relevant root cezası kalktı
-        assert!(root_item.pub_score_delta > 0.0,
+        assert!(
+            root_item.pub_score_delta > 0.0,
             "pub-relevant root → pub_score_delta sıfırdan büyük olmalı; değer: {}",
-            root_item.pub_score_delta);
+            root_item.pub_score_delta
+        );
 
         // pub_score_delta hesabını manuel doğrula:
         // total_pub_penalty: PUB_ROOT(4, cnt=1)×1.0 + PUB_DS(4, cnt=1)×1.0 = 8.0
@@ -1809,7 +2040,14 @@ mod tests {
 
         // Aynı rule_id'den 10 closure downstream (cnt=10 → multiplier=1.5)
         let mut downstream: Vec<Notice> = (0..10)
-            .map(|i| notice(&format!("ds{i}"), "DS_RULE", Severity::Kritik, RuleClass::Spec))
+            .map(|i| {
+                notice(
+                    &format!("ds{i}"),
+                    "DS_RULE",
+                    Severity::Kritik,
+                    RuleClass::Spec,
+                )
+            })
             .collect();
         // Hepsi None scope → root ile eşleşir
 
@@ -1819,7 +2057,10 @@ mod tests {
         let resolution = resolve_symptoms(&all);
         let r9 = build_r9(&all, &resolution);
 
-        let root_item = r9.items.iter().find(|i| i.rule_id == "ROOT_PUB")
+        let root_item = r9
+            .items
+            .iter()
+            .find(|i| i.rule_id == "ROOT_PUB")
             .expect("ROOT_PUB R9'da olmalı");
 
         // Closure pub penalty:
@@ -1866,7 +2107,10 @@ mod tests {
                 "eşit skorlarda rule_id'ye göre artan sıralı olmalı"
             );
             match &seen {
-                Some(prev) => assert_eq!(&order, prev, "tekrar çağrıda sıra değişmemeli (deterministik)"),
+                Some(prev) => assert_eq!(
+                    &order, prev,
+                    "tekrar çağrıda sıra değişmemeli (deterministik)"
+                ),
                 None => seen = Some(order),
             }
         }

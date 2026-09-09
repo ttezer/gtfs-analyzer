@@ -25,7 +25,10 @@ fn run_and_print_sample_feed_notices() {
     let mut by_rule: std::collections::BTreeMap<String, Vec<&gtfs_core::Notice>> =
         std::collections::BTreeMap::new();
     for n in notices {
-        by_rule.entry(format!("{:?}|{}", n.severity, n.rule_id)).or_default().push(n);
+        by_rule
+            .entry(format!("{:?}|{}", n.severity, n.rule_id))
+            .or_default()
+            .push(n);
     }
 
     for (key, group) in &by_rule {
@@ -44,16 +47,22 @@ fn run_and_print_sample_feed_notices() {
     }
 
     // Özet say
-    let mut crit = 0usize; let mut high = 0; let mut med = 0; let mut low = 0; let mut info = 0;
+    let mut crit = 0usize;
+    let mut high = 0;
+    let mut med = 0;
+    let mut low = 0;
+    let mut info = 0;
     for n in notices {
         match n.severity {
-            gtfs_core::Severity::Kritik   => crit += 1,
-            gtfs_core::Severity::Yuksek   => high += 1,
-            gtfs_core::Severity::Orta     => med  += 1,
-            gtfs_core::Severity::Dusuk    => low  += 1,
-            gtfs_core::Severity::Bilgi    => info += 1,
+            gtfs_core::Severity::Kritik => crit += 1,
+            gtfs_core::Severity::Yuksek => high += 1,
+            gtfs_core::Severity::Orta => med += 1,
+            gtfs_core::Severity::Dusuk => low += 1,
+            gtfs_core::Severity::Bilgi => info += 1,
         }
     }
     println!("=== ÖZET ===");
-    println!("Kritik: {crit}  |  Yüksek: {high}  |  Orta: {med}  |  Düşük: {low}  |  Bilgi: {info}");
+    println!(
+        "Kritik: {crit}  |  Yüksek: {high}  |  Orta: {med}  |  Düşük: {low}  |  Bilgi: {info}"
+    );
 }

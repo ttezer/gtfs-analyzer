@@ -17,7 +17,10 @@ pub(crate) struct Timer {
 #[cfg(not(target_family = "wasm"))]
 impl Timer {
     pub(crate) fn start(label: impl Into<String>) -> Self {
-        Self { label: label.into(), start: std::time::Instant::now() }
+        Self {
+            label: label.into(),
+            start: std::time::Instant::now(),
+        }
     }
 }
 
@@ -25,7 +28,11 @@ impl Timer {
 impl Drop for Timer {
     fn drop(&mut self) {
         if std::env::var_os("GTFS_QUIET").is_none() {
-            eprintln!("[timing] {}: {}ms", self.label, self.start.elapsed().as_millis());
+            eprintln!(
+                "[timing] {}: {}ms",
+                self.label,
+                self.start.elapsed().as_millis()
+            );
         }
     }
 }
@@ -64,7 +71,9 @@ pub(crate) struct Timer;
 
 #[cfg(all(target_family = "wasm", feature = "quiet"))]
 impl Timer {
-    pub(crate) fn start(_label: impl Into<String>) -> Self { Self }
+    pub(crate) fn start(_label: impl Into<String>) -> Self {
+        Self
+    }
 }
 
 #[cfg(all(target_family = "wasm", not(feature = "quiet")))]

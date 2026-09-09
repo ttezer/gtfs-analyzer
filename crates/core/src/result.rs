@@ -81,19 +81,19 @@ pub enum ValidationStatus {
 /// UI'da entity_id yerine okunabilir ad göstermek için arama tablosu.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NameIndex {
-    pub stops: BTreeMap<String, String>,                  // stop_id → stop_name
-    pub routes: BTreeMap<String, String>,                 // route_id → short_name (veya long_name)
-    pub trips: BTreeMap<String, String>,                  // trip_id → trip_headsign
-    pub trip_routes: BTreeMap<String, String>,            // trip_id → route_id (filtre için)
-    pub trip_directions: BTreeMap<String, String>,        // trip_id → "0"/"1" (direction_id; yoksa yok)
-    pub stop_coords: BTreeMap<String, [f64; 2]>,           // stop_id → [lat, lon] (harita için)
-    pub trip_first_dep: BTreeMap<String, String>,          // trip_id → "HH:MM" (sefer saati)
-    pub shape_routes: BTreeMap<String, Vec<[String; 2]>>,  // shape_id → [[route_id, yön]]
-    pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>,     // shape_id → [[lat, lon], ...] sıralı nokta listesi
-    pub trip_shapes:  BTreeMap<String, String>,             // trip_id  → shape_id
-    pub trip_stops:   BTreeMap<String, Vec<String>>,        // trip_id  → [stop_id, ...] stop_sequence sıralı
-    pub shape_trips:  BTreeMap<String, String>,             // shape_id → ilk trip_id (shape durakları için)
-    pub route_shapes: BTreeMap<String, Vec<String>>,        // route_id → [shape_id, ...] (terminus haritası için)
+    pub stops: BTreeMap<String, String>,       // stop_id → stop_name
+    pub routes: BTreeMap<String, String>,      // route_id → short_name (veya long_name)
+    pub trips: BTreeMap<String, String>,       // trip_id → trip_headsign
+    pub trip_routes: BTreeMap<String, String>, // trip_id → route_id (filtre için)
+    pub trip_directions: BTreeMap<String, String>, // trip_id → "0"/"1" (direction_id; yoksa yok)
+    pub stop_coords: BTreeMap<String, [f64; 2]>, // stop_id → [lat, lon] (harita için)
+    pub trip_first_dep: BTreeMap<String, String>, // trip_id → "HH:MM" (sefer saati)
+    pub shape_routes: BTreeMap<String, Vec<[String; 2]>>, // shape_id → [[route_id, yön]]
+    pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>, // shape_id → [[lat, lon], ...] sıralı nokta listesi
+    pub trip_shapes: BTreeMap<String, String>,         // trip_id  → shape_id
+    pub trip_stops: BTreeMap<String, Vec<String>>, // trip_id  → [stop_id, ...] stop_sequence sıralı
+    pub shape_trips: BTreeMap<String, String>,     // shape_id → ilk trip_id (shape durakları için)
+    pub route_shapes: BTreeMap<String, Vec<String>>, // route_id → [shape_id, ...] (terminus haritası için)
     /// Büyük feed modunda harita geometrisi (shape_coords vb.) peşinen serialize
     /// EDİLMEZ; UI ikona tıklayınca WASM'dan on-demand çeker (shape_coords_of).
     pub map_data_deferred: bool,
@@ -142,6 +142,9 @@ mod tests {
     fn validate_result_layout_measurement() {
         assert!(std::mem::size_of::<ValidationResult>() >= 704);
         assert_eq!(std::mem::size_of::<FatalError>(), 32);
-        assert_eq!(std::mem::size_of::<ValidateResult>(), std::mem::size_of::<ValidationResult>());
+        assert_eq!(
+            std::mem::size_of::<ValidateResult>(),
+            std::mem::size_of::<ValidationResult>()
+        );
     }
 }

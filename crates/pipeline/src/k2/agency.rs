@@ -1,8 +1,9 @@
-﻿use gtfs_core::EntityType;
+use gtfs_core::EntityType;
 
-use super::common::{get_lexical_field, get_raw_field,
-    build_row_map, get_trimmed_field, looks_like_bcp47, looks_like_email,
-    looks_like_iana_timezone, looks_like_phone, looks_like_url, make_k2_notice, parse_u32, RowMap,
+use super::common::{
+    build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, looks_like_bcp47,
+    looks_like_email, looks_like_iana_timezone, looks_like_phone, looks_like_url, make_k2_notice,
+    parse_u32, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -40,25 +41,45 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // AGN_014: birden fazla kuruluş varken bu satırda agency_id boş/eksik
         if multiple_agencies && agency_id.is_none() {
             notices.push(make_k2_notice(
-                &mut counter, "AGN_014", EntityType::Agency, None, Some(&row_map),
-                &file.name, Some(line), Some("agency_id"), Some(String::new()), None,
+                &mut counter,
+                "AGN_014",
+                EntityType::Agency,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_id"),
+                Some(String::new()),
+                None,
                 "Birden fazla kuruluş tanımlıyken agency_id zorunludur.".to_string(),
                 "Çoklu kuruluş durumunda her agency satırına benzersiz bir agency_id girin.",
             ));
         }
 
         // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
-        let agency_name = get_trimmed_field(&row_map, "agency_name").unwrap_or("").to_string();
+        let agency_name = get_trimmed_field(&row_map, "agency_name")
+            .unwrap_or("")
+            .to_string();
         // `agency_id` tek işletmecili feed'lerde OPSİYONELDİR ve orada boş kalır; bütün AGN
         // mesajları `{entity_id}` ile doldurulduğu için metin "Agency ''" çıkıyordu (korpusta
         // AGN_015 97 feed). Kimlik yoksa okunabilir ada düşülür — DQ_010 ile aynı emsal.
-        let entity_id = agency_id.clone()
+        let entity_id = agency_id
+            .clone()
             .or_else(|| Some(agency_name.clone()).filter(|s| !s.is_empty()));
         if get_trimmed_field(&row_map, "agency_name") == Some("") {
             notices.push(make_k2_notice(
-                &mut counter, "AGN_002", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("agency_name"), Some(String::new()), None,
-                "agency_name zorunludur.".to_string(), "agency_name alanını doldurun.",
+                &mut counter,
+                "AGN_002",
+                EntityType::Agency,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_name"),
+                Some(String::new()),
+                None,
+                "agency_name zorunludur.".to_string(),
+                "agency_name alanını doldurun.",
             ));
         }
 
@@ -68,17 +89,37 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // Tek okumaya indirmek iki yönden de hata verir: hepsi ham olsaydı `"   "` taşıyan
         // bir alan "geçersiz URL" olurdu (oysa o EKSİK alandır); hepsi kırpılmış olsaydı
         // `" https://x "` sessizce geçerli sayılırdı — issue #92'nin karşı örneği.
-        let agency_url = get_lexical_field(&row_map, "agency_url").unwrap_or("").to_string();
+        let agency_url = get_lexical_field(&row_map, "agency_url")
+            .unwrap_or("")
+            .to_string();
         match get_trimmed_field(&row_map, "agency_url") {
             Some("") => notices.push(make_k2_notice(
-                &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("agency_url"), Some(String::new()), None,
-                "agency_url zorunludur.".to_string(), "Geçerli bir http/https URL'si girin.",
+                &mut counter,
+                "AGN_003",
+                EntityType::Agency,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_url"),
+                Some(String::new()),
+                None,
+                "agency_url zorunludur.".to_string(),
+                "Geçerli bir http/https URL'si girin.",
             )),
             Some(_) if !looks_like_url(&agency_url) => notices.push(make_k2_notice(
-                &mut counter, "AGN_003", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("agency_url"), Some(agency_url.clone()), None,
-                "agency_url geçerli bir URL değil.".to_string(), "Geçerli bir http/https URL'si kullanın.",
+                &mut counter,
+                "AGN_003",
+                EntityType::Agency,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_url"),
+                Some(agency_url.clone()),
+                None,
+                "agency_url geçerli bir URL değil.".to_string(),
+                "Geçerli bir http/https URL'si kullanın.",
             )),
             _ => {}
         }
@@ -86,8 +127,15 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         // AGN_015: agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.
         if agency_url.starts_with("http://") {
             notices.push(make_k2_notice(
-                &mut counter, "AGN_015", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("agency_url"), Some(agency_url.clone()),
+                &mut counter,
+                "AGN_015",
+                EntityType::Agency,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_url"),
+                Some(agency_url.clone()),
                 Some("https://".to_string()),
                 "agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.".to_string(),
                 "agency_url'yi https:// ile güncelleyin.",
@@ -96,7 +144,9 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
 
         // AGN_016: agency_phone bilinen bir yer-tutucu/hizmet-dışı numara (veri üreticisinin
         // kurumsal numarası, tüm feed'lere kopyalanmış vb.) — gerçek iletişim numarası olmayabilir.
-        if let Some(phone) = get_trimmed_field(&row_map, "agency_phone").filter(|v| !v.trim().is_empty()) {
+        if let Some(phone) =
+            get_trimmed_field(&row_map, "agency_phone").filter(|v| !v.trim().is_empty())
+        {
             let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
             const SUSPICIOUS_PHONES: &[&str] = &["8882812681", "18882812681"];
             if SUSPICIOUS_PHONES.contains(&digits.as_str()) {
@@ -110,16 +160,35 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         }
 
         // AGN_004: agency_timezone required + valid IANA (sütun yoksa ARC_025 devralır → atla)
-        let agency_timezone = get_trimmed_field(&row_map, "agency_timezone").unwrap_or("").to_string();
+        let agency_timezone = get_trimmed_field(&row_map, "agency_timezone")
+            .unwrap_or("")
+            .to_string();
         match get_trimmed_field(&row_map, "agency_timezone") {
             Some("") => notices.push(make_k2_notice(
-                &mut counter, "AGN_004", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("agency_timezone"), Some(String::new()), None,
-                "agency_timezone zorunludur.".to_string(), "Geçerli bir IANA saat dilimi girin.",
+                &mut counter,
+                "AGN_004",
+                EntityType::Agency,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_timezone"),
+                Some(String::new()),
+                None,
+                "agency_timezone zorunludur.".to_string(),
+                "Geçerli bir IANA saat dilimi girin.",
             )),
             Some(_) if !looks_like_iana_timezone(&agency_timezone) => notices.push(make_k2_notice(
-                &mut counter, "AGN_004", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("agency_timezone"), Some(agency_timezone.clone()), None,
+                &mut counter,
+                "AGN_004",
+                EntityType::Agency,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_timezone"),
+                Some(agency_timezone.clone()),
+                None,
                 format!("agency_timezone '{agency_timezone}' geçerli bir IANA saat dilimi değil."),
                 "Geçerli bir IANA saat dilimi kullanın (örn. Europe/Istanbul).",
             )),
@@ -163,8 +232,16 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         if let Some(ref url) = agency_fare_url {
             if !looks_like_url(url) {
                 notices.push(make_k2_notice(
-                    &mut counter, "AGN_008", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("agency_fare_url"), Some(url.clone()), None,
+                    &mut counter,
+                    "AGN_008",
+                    EntityType::Agency,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("agency_fare_url"),
+                    Some(url.clone()),
+                    None,
                     "agency_fare_url geçerli bir URL değil.".to_string(),
                     "agency_fare_url için geçerli bir http/https URL'si kullanın.",
                 ));
@@ -178,8 +255,16 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         if let Some(ref email) = agency_email {
             if !looks_like_email(email) {
                 notices.push(make_k2_notice(
-                    &mut counter, "AGN_009", EntityType::Agency, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("agency_email"), Some(email.clone()), None,
+                    &mut counter,
+                    "AGN_009",
+                    EntityType::Agency,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("agency_email"),
+                    Some(email.clone()),
+                    None,
                     "agency_email geçerli bir e-posta adresi değil.".to_string(),
                     "agency_email için geçerli bir e-posta adresi kullanın.",
                 ));
@@ -243,9 +328,13 @@ mod tests {
         RawFile {
             name: "agency.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
@@ -253,11 +342,20 @@ mod tests {
     fn valid_agency_produces_no_notices() {
         let file = make_file(
             vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
-            vec![vec!["A1", "Transit Co", "https://transit.example", "Europe/Istanbul"]],
+            vec![vec![
+                "A1",
+                "Transit Co",
+                "https://transit.example",
+                "Europe/Istanbul",
+            ]],
         );
         let (records, notices) = validate_agency(&file);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli ajans notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli ajans notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -284,7 +382,12 @@ mod tests {
     fn invalid_timezone_produces_agn_004() {
         let file = make_file(
             vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
-            vec![vec!["A1", "Transit Co", "https://transit.example", "InvalidTZ"]],
+            vec![vec![
+                "A1",
+                "Transit Co",
+                "https://transit.example",
+                "InvalidTZ",
+            ]],
         );
         let (_, notices) = validate_agency(&file);
         assert!(notices.iter().any(|n| n.rule_id == "AGN_004"));
@@ -293,8 +396,20 @@ mod tests {
     #[test]
     fn invalid_lang_produces_agn_006() {
         let file = make_file(
-            vec!["agency_id", "agency_name", "agency_url", "agency_timezone", "agency_lang"],
-            vec![vec!["A1", "TC", "https://tc.example", "Europe/Istanbul", "not valid lang!!"]],
+            vec![
+                "agency_id",
+                "agency_name",
+                "agency_url",
+                "agency_timezone",
+                "agency_lang",
+            ],
+            vec![vec![
+                "A1",
+                "TC",
+                "https://tc.example",
+                "Europe/Istanbul",
+                "not valid lang!!",
+            ]],
         );
         let (_, notices) = validate_agency(&file);
         assert!(notices.iter().any(|n| n.rule_id == "AGN_006"));
@@ -303,8 +418,20 @@ mod tests {
     #[test]
     fn invalid_email_produces_agn_009() {
         let file = make_file(
-            vec!["agency_id", "agency_name", "agency_url", "agency_timezone", "agency_email"],
-            vec![vec!["A1", "TC", "https://tc.example", "Europe/Istanbul", "notanemail"]],
+            vec![
+                "agency_id",
+                "agency_name",
+                "agency_url",
+                "agency_timezone",
+                "agency_email",
+            ],
+            vec![vec![
+                "A1",
+                "TC",
+                "https://tc.example",
+                "Europe/Istanbul",
+                "notanemail",
+            ]],
         );
         let (_, notices) = validate_agency(&file);
         assert!(notices.iter().any(|n| n.rule_id == "AGN_009"));
@@ -315,25 +442,39 @@ mod tests {
         let file = make_file(
             vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
             vec![
-                vec!["A1", "Transit Co", "https://transit.example", "Europe/Istanbul"],
+                vec![
+                    "A1",
+                    "Transit Co",
+                    "https://transit.example",
+                    "Europe/Istanbul",
+                ],
                 vec!["", "Other Co", "https://other.example", "Europe/Istanbul"],
             ],
         );
         let (_, notices) = validate_agency(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "AGN_014"),
+        assert!(
+            notices.iter().any(|n| n.rule_id == "AGN_014"),
             "Çoklu kuruluşta boş agency_id → AGN_014: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn single_agency_missing_agency_id_silent_for_agn_014() {
         let file = make_file(
             vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
-            vec![vec!["", "Transit Co", "https://transit.example", "Europe/Istanbul"]],
+            vec![vec![
+                "",
+                "Transit Co",
+                "https://transit.example",
+                "Europe/Istanbul",
+            ]],
         );
         let (_, notices) = validate_agency(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "AGN_014"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "AGN_014"),
             "Tek kuruluşta agency_id opsiyonel → AGN_014 yok: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 }

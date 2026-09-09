@@ -1,6 +1,9 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, amount_has_iso4217_decimals, iso4217_minor_unit, build_row_map, get_trimmed_field, make_k2_notice, parse_f64, RowMap};
+use super::common::{
+    amount_has_iso4217_decimals, build_row_map, get_raw_field, get_trimmed_field,
+    iso4217_minor_unit, make_k2_notice, parse_f64, RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -15,9 +18,7 @@ pub struct FareProductRecord {
     pub line: u64,
 }
 
-pub fn validate_fare_products(
-    file: &RawFile,
-) -> (Vec<FareProductRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
@@ -28,7 +29,9 @@ pub fn validate_fare_products(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let id = get_raw_field(&row_map, "fare_product_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "fare_product_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         // FPD_007: tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı.
@@ -53,8 +56,15 @@ pub fn validate_fare_products(
             Ok(value) => {
                 if value.is_none() && get_trimmed_field(&row_map, "amount") == Some("") {
                     notices.push(make_k2_notice(
-                        &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("amount"), None,
+                        &mut counter,
+                        "FPD_002",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("amount"),
+                        None,
                         Some("sayısal değer".to_string()),
                         "amount zorunludur.".to_string(),
                         "Fare ürünü için bir amount (tutar) girin.",
@@ -64,23 +74,39 @@ pub fn validate_fare_products(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "FPD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("amount"),
+                    &mut counter,
+                    "FPD_002",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("amount"),
                     get_trimmed_field(&row_map, "amount").map(str::to_string),
-                    None, err,
+                    None,
+                    err,
                     "amount için geçerli bir sayısal değer girin.",
                 ));
                 None
             }
         };
 
-        let currency = get_trimmed_field(&row_map, "currency").unwrap_or("").to_string();
+        let currency = get_trimmed_field(&row_map, "currency")
+            .unwrap_or("")
+            .to_string();
         // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
         // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.
         if !super::common::is_iso4217(&currency) {
             notices.push(make_k2_notice(
-                &mut counter, "FPD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("currency"), Some(currency.clone()),
+                &mut counter,
+                "FPD_003",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("currency"),
+                Some(currency.clone()),
                 Some("ISO 4217".to_string()),
                 "currency geçerli bir ISO 4217 kodu değil.".to_string(),
                 "3 harfli büyük harf ISO 4217 para birimi kodu kullanın (örn. TRY, EUR, USD).",
@@ -136,7 +162,10 @@ mod tests {
         RawFile {
             name: "fare_products.txt".to_string(),
             headers: vec!["fare_product_id".into(), "amount".into(), "currency".into()],
-            rows: rows.iter().map(|r| r.split(',').map(Into::into).collect()).collect(),
+            rows: rows
+                .iter()
+                .map(|r| r.split(',').map(Into::into).collect())
+                .collect(),
             ..Default::default()
         }
     }
@@ -157,16 +186,24 @@ mod tests {
     #[test]
     fn zero_amount_is_valid() {
         let (_, notices) = validate_fare_products(&raw(&["P1,0,USD"]));
-        assert!(!notices.iter().any(|n| n.rule_id == "FPD_002"), "sıfır tutar geçerlidir (ücretsiz ürün)");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "FPD_002"),
+            "sıfır tutar geçerlidir (ücretsiz ürün)"
+        );
     }
 
     /// Daraltmanın bedeli olmamalı: eksik ve sayısal-olmayan tutar YİNE yakalanır.
     #[test]
     fn missing_or_non_numeric_amount_still_flagged() {
         let (_, n1) = validate_fare_products(&raw(&["P1,,USD"]));
-        assert!(n1.iter().any(|n| n.rule_id == "FPD_002"), "boş tutar FPD_002 üretmeli");
+        assert!(
+            n1.iter().any(|n| n.rule_id == "FPD_002"),
+            "boş tutar FPD_002 üretmeli"
+        );
         let (_, n2) = validate_fare_products(&raw(&["P1,abc,USD"]));
-        assert!(n2.iter().any(|n| n.rule_id == "FPD_002"), "sayısal olmayan tutar FPD_002 üretmeli");
+        assert!(
+            n2.iter().any(|n| n.rule_id == "FPD_002"),
+            "sayısal olmayan tutar FPD_002 üretmeli"
+        );
     }
-
 }

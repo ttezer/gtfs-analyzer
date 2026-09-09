@@ -1,8 +1,8 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field,
-    build_row_map, get_trimmed_field, make_k2_notice, parse_f64, parse_i32, parse_u32,
-    validate_enum, RowMap,
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_f64, parse_i32,
+    parse_u32, validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -42,70 +42,180 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let pathway_id = get_raw_field(&row_map, "pathway_id").unwrap_or("").to_string();
+        let pathway_id = get_raw_field(&row_map, "pathway_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!pathway_id.is_empty()).then_some(pathway_id.clone());
         // PTH_020: pathway_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "pathway_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
-                &mut counter, "PTH_020", EntityType::Pathway, None, Some(&row_map),
-                &file.name, Some(line), Some("pathway_id"), Some(String::new()), None,
-                "pathway_id zorunludur.".to_string(), "Her geçide benzersiz bir pathway_id verin.",
+                &mut counter,
+                "PTH_020",
+                EntityType::Pathway,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("pathway_id"),
+                Some(String::new()),
+                None,
+                "pathway_id zorunludur.".to_string(),
+                "Her geçide benzersiz bir pathway_id verin.",
             ));
         }
 
         let pathway_mode = parse_enum_u32(
-            &row_map, &mut notices, &mut counter, "PTH_004", "pathway_mode", &["1","2","3","4","5","6","7"], &entity_id, line, &file.name
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "PTH_004",
+            "pathway_mode",
+            &["1", "2", "3", "4", "5", "6", "7"],
+            &entity_id,
+            line,
+            &file.name,
         );
         let is_bidirectional = parse_enum_u32(
-            &row_map, &mut notices, &mut counter, "PTH_005", "is_bidirectional", &["0","1"], &entity_id, line, &file.name
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "PTH_005",
+            "is_bidirectional",
+            &["0", "1"],
+            &entity_id,
+            line,
+            &file.name,
         );
         // Strict raw parsing above deliberately keeps lexical whitespace visible. For
         // cross-field semantics, a trim-valid value must still participate; otherwise a
         // whitespace-derived parse failure could hide an independent PTH_016/PTH_028/PTH_008
         // or PTH_009 finding.
-        let pathway_mode_semantic = get_trimmed_field(&row_map, "pathway_mode")
-            .and_then(|value| value.parse::<u32>().ok());
+        let pathway_mode_semantic =
+            get_trimmed_field(&row_map, "pathway_mode").and_then(|value| value.parse::<u32>().ok());
         let is_bidirectional_semantic = get_trimmed_field(&row_map, "is_bidirectional")
             .and_then(|value| value.parse::<u32>().ok());
         if get_trimmed_field(&row_map, "pathway_mode") == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_023", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("pathway_mode"), Some(String::new()), None, "pathway_mode zorunludur.".to_string(), "pathway_mode değerini 1-7 arasında girin."));
+            notices.push(make_k2_notice(
+                &mut counter,
+                "PTH_023",
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("pathway_mode"),
+                Some(String::new()),
+                None,
+                "pathway_mode zorunludur.".to_string(),
+                "pathway_mode değerini 1-7 arasında girin.",
+            ));
         }
         if get_trimmed_field(&row_map, "is_bidirectional") == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_024", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("is_bidirectional"), Some(String::new()), None, "is_bidirectional zorunludur.".to_string(), "is_bidirectional değerini 0 veya 1 girin."));
+            notices.push(make_k2_notice(
+                &mut counter,
+                "PTH_024",
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("is_bidirectional"),
+                Some(String::new()),
+                None,
+                "is_bidirectional zorunludur.".to_string(),
+                "is_bidirectional değerini 0 veya 1 girin.",
+            ));
         }
 
         let length = parse_nonnegative_f64(
-            &row_map, &mut notices, &mut counter, "PTH_006", "length", &entity_id, line, &file.name
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "PTH_006",
+            "length",
+            &entity_id,
+            line,
+            &file.name,
         );
-        if matches!(pathway_mode_semantic, Some(1 | 6 | 7)) && length.is_none()
+        if matches!(pathway_mode_semantic, Some(1 | 6 | 7))
+            && length.is_none()
             && get_trimmed_field(&row_map, "length").is_none_or(str::is_empty)
         {
             pth025_count += 1;
-            if pth025_examples.len() < 5 { if let Some(id) = &entity_id { pth025_examples.push(id.clone()); } }
+            if pth025_examples.len() < 5 {
+                if let Some(id) = &entity_id {
+                    pth025_examples.push(id.clone());
+                }
+            }
         }
         let traversal_time = parse_positive_u32(
-            &row_map, &mut notices, &mut counter, "PTH_007", "traversal_time", &entity_id, line, &file.name
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "PTH_007",
+            "traversal_time",
+            &entity_id,
+            line,
+            &file.name,
         );
         // PTH_029: spec traversal_time'ı yürüyen bant (3), yürüyen merdiven (4) ve asansör (5)
         // için ÖNERİR. PTH_007 yukarıda değerin geçerliliğini ölçer; bu kural eksikliğini.
         // PTH_025 (length) ile birebir aynı desen — koşul yalnız pathway_mode kümesinde ayrılır.
-        if matches!(pathway_mode_semantic, Some(3..=5)) && traversal_time.is_none()
+        if matches!(pathway_mode_semantic, Some(3..=5))
+            && traversal_time.is_none()
             && get_trimmed_field(&row_map, "traversal_time").is_none_or(str::is_empty)
         {
             pth029_count += 1;
-            if pth029_examples.len() < 5 { if let Some(id) = &entity_id { pth029_examples.push(id.clone()); } }
+            if pth029_examples.len() < 5 {
+                if let Some(id) = &entity_id {
+                    pth029_examples.push(id.clone());
+                }
+            }
         }
         let min_width = parse_positive_f64(
-            &row_map, &mut notices, &mut counter, "PTH_010", "min_width", &entity_id, line, &file.name
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "PTH_010",
+            "min_width",
+            &entity_id,
+            line,
+            &file.name,
         );
 
         let from_stop_id = get_raw_field(&row_map, "from_stop_id").unwrap_or("");
         let to_stop_id = get_raw_field(&row_map, "to_stop_id").unwrap_or("");
         if get_raw_field(&row_map, "from_stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_021", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("from_stop_id"), Some(String::new()), None, "from_stop_id zorunludur.".to_string(), "Geçidin başlangıç durağını girin."));
+            notices.push(make_k2_notice(
+                &mut counter,
+                "PTH_021",
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("from_stop_id"),
+                Some(String::new()),
+                None,
+                "from_stop_id zorunludur.".to_string(),
+                "Geçidin başlangıç durağını girin.",
+            ));
         }
         if get_raw_field(&row_map, "to_stop_id").map(str::trim) == Some("") {
-            notices.push(make_k2_notice(&mut counter, "PTH_022", EntityType::Pathway, entity_id.clone(), Some(&row_map), &file.name, Some(line), Some("to_stop_id"), Some(String::new()), None, "to_stop_id zorunludur.".to_string(), "Geçidin bitiş durağını girin."));
+            notices.push(make_k2_notice(
+                &mut counter,
+                "PTH_022",
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("to_stop_id"),
+                Some(String::new()),
+                None,
+                "to_stop_id zorunludur.".to_string(),
+                "Geçidin bitiş durağını girin.",
+            ));
         }
         if !from_stop_id.is_empty() && from_stop_id == to_stop_id {
             notices.push(make_k2_notice(
@@ -125,7 +235,8 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             ));
         }
 
-        if matches!(pathway_mode_semantic, Some(7)) && matches!(is_bidirectional_semantic, Some(1)) {
+        if matches!(pathway_mode_semantic, Some(7)) && matches!(is_bidirectional_semantic, Some(1))
+        {
             notices.push(make_k2_notice(
                 &mut counter,
                 "PTH_016",
@@ -238,12 +349,20 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         if let Some(sign) = get_trimmed_field(&row_map, "signposted_as") {
             if sign.len() > 255 {
                 notices.push(make_k2_notice(
-                    &mut counter, "PTH_018", EntityType::Pathway,
-                    entity_id.clone(), Some(&row_map), &file.name, Some(line),
+                    &mut counter,
+                    "PTH_018",
+                    EntityType::Pathway,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
                     Some("signposted_as"),
                     Some(format!("{} karakter", sign.len())),
                     Some("≤ 255 karakter".to_string()),
-                    format!("signposted_as alanı {} karakter uzunluğunda; önerilen maksimum 255.", sign.len()),
+                    format!(
+                        "signposted_as alanı {} karakter uzunluğunda; önerilen maksimum 255.",
+                        sign.len()
+                    ),
                     "signposted_as değerini 255 karakterin altına kısaltın.",
                 ));
             }
@@ -270,9 +389,16 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     // + scope None (registry Feed dedup). field=max_slope, file=pathways.txt korunur.
     if pth009_count > 0 {
         let mut n = make_k2_notice(
-            &mut counter, "PTH_009", EntityType::Feed, None, None,
-            &file.name, None, Some("max_slope"),
-            Some(pth009_count.to_string()), None,
+            &mut counter,
+            "PTH_009",
+            EntityType::Feed,
+            None,
+            None,
+            &file.name,
+            None,
+            Some("max_slope"),
+            Some(pth009_count.to_string()),
+            None,
             format!("{pth009_count} yürüme yolu geçidinde (pathway_mode=1) max_slope eksik."),
             "İlgili pathways.txt kayıtlarına max_slope ekleyin veya veri kaynağını düzeltin.",
         );
@@ -288,9 +414,16 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     // PTH_008 feed-seviyesi tek özet (PTH_009 ile aynı desen).
     if pth008_count > 0 {
         let mut n = make_k2_notice(
-            &mut counter, "PTH_008", EntityType::Feed, None, None,
-            &file.name, None, Some("stair_count"),
-            Some(pth008_count.to_string()), None,
+            &mut counter,
+            "PTH_008",
+            EntityType::Feed,
+            None,
+            None,
+            &file.name,
+            None,
+            Some("stair_count"),
+            Some(pth008_count.to_string()),
+            None,
             format!("{pth008_count} merdiven geçidinde (pathway_mode=2) stair_count eksik."),
             "İlgili pathways.txt kayıtlarına stair_count ekleyin veya veri kaynağını düzeltin.",
         );
@@ -309,18 +442,34 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             "pathway_mode 3, 4 veya 5 olan kayıtlara saniye cinsinden traversal_time ekleyin.");
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth029_count.to_string());
-        if !pth029_examples.is_empty() { d.insert("example_pathways".to_string(), pth029_examples.join(", ")); }
-        n.details = Some(d); notices.push(n);
+        if !pth029_examples.is_empty() {
+            d.insert("example_pathways".to_string(), pth029_examples.join(", "));
+        }
+        n.details = Some(d);
+        notices.push(n);
     }
     if pth025_count > 0 {
-        let mut n = make_k2_notice(&mut counter, "PTH_025", EntityType::Feed, None, None,
-            &file.name, None, Some("length"), Some(pth025_count.to_string()), None,
+        let mut n = make_k2_notice(
+            &mut counter,
+            "PTH_025",
+            EntityType::Feed,
+            None,
+            None,
+            &file.name,
+            None,
+            Some("length"),
+            Some(pth025_count.to_string()),
+            None,
             format!("{pth025_count} walkway/fare gate/exit gate kaydında önerilen length eksik."),
-            "pathway_mode 1, 6 veya 7 olan kayıtlara metre cinsinden length ekleyin.");
+            "pathway_mode 1, 6 veya 7 olan kayıtlara metre cinsinden length ekleyin.",
+        );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_pathways".to_string(), pth025_count.to_string());
-        if !pth025_examples.is_empty() { d.insert("example_pathways".to_string(), pth025_examples.join(", ")); }
-        n.details = Some(d); notices.push(n);
+        if !pth025_examples.is_empty() {
+            d.insert("example_pathways".to_string(), pth025_examples.join(", "));
+        }
+        n.details = Some(d);
+        notices.push(n);
     }
 
     (records, notices)
@@ -345,16 +494,44 @@ fn parse_enum_u32(
             if let Some(v) = value {
                 if !validate_enum(&v.to_string(), allowed) {
                     let allowed_str = allowed.join(", ");
-                    let remediation = format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(allowed_str.clone()), format!("{field} geçerli bir değer değil."), &remediation));
+                    let remediation =
+                        format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
+                    notices.push(make_k2_notice(
+                        counter,
+                        rule_id,
+                        EntityType::Pathway,
+                        entity_id.clone(),
+                        Some(row_map),
+                        file_name,
+                        Some(line),
+                        Some(field),
+                        Some(v.to_string()),
+                        Some(allowed_str.clone()),
+                        format!("{field} geçerli bir değer değil."),
+                        &remediation,
+                    ));
                 }
             }
             value
         }
         Err(err) => {
             let allowed_str = allowed.join(", ");
-            let remediation = format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), Some(allowed_str.clone()), err, &remediation));
+            let remediation =
+                format!("{field} için şu değerlerden birini kullanın: {allowed_str}.");
+            notices.push(make_k2_notice(
+                counter,
+                rule_id,
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(row_map),
+                file_name,
+                Some(line),
+                Some(field),
+                get_trimmed_field(row_map, field).map(str::to_string),
+                Some(allowed_str.clone()),
+                err,
+                &remediation,
+            ));
             None
         }
     }
@@ -377,13 +554,39 @@ fn parse_nonnegative_f64(
         Ok(value) => {
             if let Some(v) = value {
                 if v < 0.0 {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some(">= 0".to_string()), format!("{field} alanı negatif olamaz."), "Alanı sıfır veya pozitif bir değere ayarlayın."));
+                    notices.push(make_k2_notice(
+                        counter,
+                        rule_id,
+                        EntityType::Pathway,
+                        entity_id.clone(),
+                        Some(row_map),
+                        file_name,
+                        Some(line),
+                        Some(field),
+                        Some(v.to_string()),
+                        Some(">= 0".to_string()),
+                        format!("{field} alanı negatif olamaz."),
+                        "Alanı sıfır veya pozitif bir değere ayarlayın.",
+                    ));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
+            notices.push(make_k2_notice(
+                counter,
+                rule_id,
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(row_map),
+                file_name,
+                Some(line),
+                Some(field),
+                get_trimmed_field(row_map, field).map(str::to_string),
+                None,
+                err,
+                "Alanı geçerli bir sayısal değere ayarlayın.",
+            ));
             None
         }
     }
@@ -406,13 +609,39 @@ fn parse_positive_f64(
         Ok(value) => {
             if let Some(v) = value {
                 if v <= 0.0 {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir değere ayarlayın."));
+                    notices.push(make_k2_notice(
+                        counter,
+                        rule_id,
+                        EntityType::Pathway,
+                        entity_id.clone(),
+                        Some(row_map),
+                        file_name,
+                        Some(line),
+                        Some(field),
+                        Some(v.to_string()),
+                        Some("> 0".to_string()),
+                        format!("{field} alanı pozitif olmalıdır."),
+                        "Alanı pozitif bir değere ayarlayın.",
+                    ));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir sayısal değere ayarlayın."));
+            notices.push(make_k2_notice(
+                counter,
+                rule_id,
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(row_map),
+                file_name,
+                Some(line),
+                Some(field),
+                get_trimmed_field(row_map, field).map(str::to_string),
+                None,
+                err,
+                "Alanı geçerli bir sayısal değere ayarlayın.",
+            ));
             None
         }
     }
@@ -435,13 +664,39 @@ fn parse_positive_u32(
         Ok(value) => {
             if let Some(v) = value {
                 if v == 0 {
-                    notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), Some(v.to_string()), Some("> 0".to_string()), format!("{field} alanı pozitif olmalıdır."), "Alanı pozitif bir tam sayıya ayarlayın."));
+                    notices.push(make_k2_notice(
+                        counter,
+                        rule_id,
+                        EntityType::Pathway,
+                        entity_id.clone(),
+                        Some(row_map),
+                        file_name,
+                        Some(line),
+                        Some(field),
+                        Some(v.to_string()),
+                        Some("> 0".to_string()),
+                        format!("{field} alanı pozitif olmalıdır."),
+                        "Alanı pozitif bir tam sayıya ayarlayın.",
+                    ));
                 }
             }
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(counter, rule_id, EntityType::Pathway, entity_id.clone(), Some(row_map), file_name, Some(line), Some(field), get_trimmed_field(row_map, field).map(str::to_string), None, err, "Alanı geçerli bir tam sayıya ayarlayın."));
+            notices.push(make_k2_notice(
+                counter,
+                rule_id,
+                EntityType::Pathway,
+                entity_id.clone(),
+                Some(row_map),
+                file_name,
+                Some(line),
+                Some(field),
+                get_trimmed_field(row_map, field).map(str::to_string),
+                None,
+                err,
+                "Alanı geçerli bir tam sayıya ayarlayın.",
+            ));
             None
         }
     }
@@ -453,13 +708,24 @@ mod tests {
     use smol_str::SmolStr;
 
     fn pathways_file(rows: Vec<Vec<&str>>) -> RawFile {
-        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "max_slope"];
+        let headers = [
+            "pathway_id",
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+            "max_slope",
+        ];
         RawFile {
             name: "pathways.txt".to_string(),
             headers: headers.iter().map(|s| s.to_string()).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
@@ -480,7 +746,10 @@ mod tests {
         assert_eq!(n.entity_type, EntityType::Feed);
         assert_eq!(n.field.as_deref(), Some("max_slope"));
         assert_eq!(
-            n.details.as_ref().and_then(|d| d.get("affected_pathways")).map(String::as_str),
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("affected_pathways"))
+                .map(String::as_str),
             Some("3"),
         );
     }
@@ -499,45 +768,116 @@ mod tests {
         let n = pth008[0];
         assert_eq!(n.entity_type, EntityType::Feed);
         assert_eq!(
-            n.details.as_ref().and_then(|d| d.get("affected_pathways")).map(String::as_str),
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("affected_pathways"))
+                .map(String::as_str),
             Some("2"),
         );
     }
     #[test]
     fn pth_025_counts_recommended_modes_without_length() {
-        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "length"];
-        let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
-            rows: [["P1","S1","S2","1","0",""],["P2","S1","S2","6","0",""],["P3","S1","S2","7","0","12"],["P4","S1","S2","2","0",""]]
-                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None, zip_entry_name: None };
+        let headers = [
+            "pathway_id",
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+            "length",
+        ];
+        let file = RawFile {
+            name: "pathways.txt".into(),
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: [
+                ["P1", "S1", "S2", "1", "0", ""],
+                ["P2", "S1", "S2", "6", "0", ""],
+                ["P3", "S1", "S2", "7", "0", "12"],
+                ["P4", "S1", "S2", "2", "0", ""],
+            ]
+            .into_iter()
+            .map(|r| r.into_iter().map(SmolStr::from).collect())
+            .collect(),
+            bytes: 0,
+            raw_text: None,
+            zip_entry_name: None,
+        };
         let (_, notices) = validate_pathways(&file);
         let n = notices.iter().find(|n| n.rule_id == "PTH_025").unwrap();
-        assert_eq!(n.details.as_ref().unwrap().get("affected_pathways").map(String::as_str), Some("2"));
+        assert_eq!(
+            n.details
+                .as_ref()
+                .unwrap()
+                .get("affected_pathways")
+                .map(String::as_str),
+            Some("2")
+        );
     }
     #[test]
     fn pth_029_flags_missing_traversal_time_for_moving_modes() {
-        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "traversal_time"];
-        let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
-            rows: [["P1","S1","S2","3","0",""],   // yürüyen bant → sayılır
-                   ["P2","S2","S3","4","0",""],   // yürüyen merdiven → sayılır
-                   ["P3","S3","S4","5","0",""],   // asansör → sayılır
-                   ["P4","S4","S5","1","0",""],   // yürüme yolu → PTH_029 DEĞİL (PTH_025'in alanı)
-                   ["P5","S5","S6","4","0","30"]] // dolu → sayılmaz
-                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None, zip_entry_name: None };
+        let headers = [
+            "pathway_id",
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+            "traversal_time",
+        ];
+        let file = RawFile {
+            name: "pathways.txt".into(),
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: [
+                ["P1", "S1", "S2", "3", "0", ""], // yürüyen bant → sayılır
+                ["P2", "S2", "S3", "4", "0", ""], // yürüyen merdiven → sayılır
+                ["P3", "S3", "S4", "5", "0", ""], // asansör → sayılır
+                ["P4", "S4", "S5", "1", "0", ""], // yürüme yolu → PTH_029 DEĞİL (PTH_025'in alanı)
+                ["P5", "S5", "S6", "4", "0", "30"],
+            ] // dolu → sayılmaz
+            .into_iter()
+            .map(|r| r.into_iter().map(SmolStr::from).collect())
+            .collect(),
+            bytes: 0,
+            raw_text: None,
+            zip_entry_name: None,
+        };
         let (_, notices) = validate_pathways(&file);
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_029").collect();
         assert_eq!(hits.len(), 1, "feed başına tek özet bekleniyor: {hits:?}");
-        assert_eq!(hits[0].observed_value.as_deref(), Some("3"), "üç kayıt sayılmalı");
+        assert_eq!(
+            hits[0].observed_value.as_deref(),
+            Some("3"),
+            "üç kayıt sayılmalı"
+        );
         assert_eq!(hits[0].field.as_deref(), Some("traversal_time"));
     }
 
     #[test]
     fn pth_029_silent_when_all_moving_modes_have_traversal_time() {
-        let headers = ["pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional", "traversal_time"];
-        let file = RawFile { name: "pathways.txt".into(), headers: headers.iter().map(|s| s.to_string()).collect(),
-            rows: [["P1","S1","S2","3","0","20"],["P2","S2","S3","5","0","45"]]
-                .into_iter().map(|r| r.into_iter().map(SmolStr::from).collect()).collect(), bytes: 0, raw_text: None, zip_entry_name: None };
+        let headers = [
+            "pathway_id",
+            "from_stop_id",
+            "to_stop_id",
+            "pathway_mode",
+            "is_bidirectional",
+            "traversal_time",
+        ];
+        let file = RawFile {
+            name: "pathways.txt".into(),
+            headers: headers.iter().map(|s| s.to_string()).collect(),
+            rows: [
+                ["P1", "S1", "S2", "3", "0", "20"],
+                ["P2", "S2", "S3", "5", "0", "45"],
+            ]
+            .into_iter()
+            .map(|r| r.into_iter().map(SmolStr::from).collect())
+            .collect(),
+            bytes: 0,
+            raw_text: None,
+            zip_entry_name: None,
+        };
         let (_, notices) = validate_pathways(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "PTH_029"), "{notices:?}");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "PTH_029"),
+            "{notices:?}"
+        );
     }
-
 }

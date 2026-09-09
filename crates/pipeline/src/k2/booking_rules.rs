@@ -1,6 +1,9 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, looks_like_phone, looks_like_url, make_k2_notice, parse_gtfs_time, RowMap};
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, looks_like_phone, looks_like_url,
+    make_k2_notice, parse_gtfs_time, RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -25,9 +28,10 @@ fn opt_str(row: &RowMap, field: &str) -> Option<String> {
 }
 
 fn has_field(row: &RowMap, field: &str) -> bool {
-    get_trimmed_field(row, field).map(|v| !v.is_empty()).unwrap_or(false)
+    get_trimmed_field(row, field)
+        .map(|v| !v.is_empty())
+        .unwrap_or(false)
 }
-
 
 /// `opt_int`'in raporlayan hâli: sayı olmayan değer sessizce düşmez, `rule` ile bildirilir.
 ///
@@ -50,9 +54,16 @@ fn opt_int_checked(
         Ok(v) => Some(v),
         Err(_) => {
             notices.push(make_k2_notice(
-                ctr, rule, EntityType::Row, entity_id, Some(row),
-                file_name, Some(line), Some(field),
-                Some(raw.to_string()), Some("tam sayı".to_string()),
+                ctr,
+                rule,
+                EntityType::Row,
+                entity_id,
+                Some(row),
+                file_name,
+                Some(line),
+                Some(field),
+                Some(raw.to_string()),
+                Some("tam sayı".to_string()),
                 format!("{field} '{raw}' tam sayı olarak okunamıyor."),
                 "Bu alanı tam sayı olarak girin.",
             ));
@@ -72,7 +83,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let id = get_raw_field(&row_map, "booking_rule_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "booking_rule_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         // BKR_019: booking_rule_id eksik (boş) veya yineleniyor.
@@ -80,24 +93,42 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         if id.is_empty() {
             if get_raw_field(&row_map, "booking_rule_id").map(str::trim) == Some("") {
                 notices.push(make_k2_notice(
-                    &mut ctr, "BKR_019", EntityType::Row, None, Some(&row_map),
-                    &file.name, Some(line), Some("booking_rule_id"),
-                    Some(String::new()), None,
+                    &mut ctr,
+                    "BKR_019",
+                    EntityType::Row,
+                    None,
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("booking_rule_id"),
+                    Some(String::new()),
+                    None,
                     "booking_rule_id zorunludur.".to_string(),
                     "Her rezervasyon kuralına benzersiz bir booking_rule_id verin.",
                 ));
             }
         } else if !seen_ids.insert(id.clone()) {
             notices.push(make_k2_notice(
-                &mut ctr, "BKR_019", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("booking_rule_id"),
-                Some(id.clone()), None,
-                format!("booking_rule_id '{id}' yineleniyor; bu alan dosyanın birincil anahtarıdır."),
+                &mut ctr,
+                "BKR_019",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("booking_rule_id"),
+                Some(id.clone()),
+                None,
+                format!(
+                    "booking_rule_id '{id}' yineleniyor; bu alan dosyanın birincil anahtarıdır."
+                ),
                 "Her satıra benzersiz bir booking_rule_id verin.",
             ));
         }
 
-        let btype_str = get_trimmed_field(&row_map, "booking_type").unwrap_or("").to_string();
+        let btype_str = get_trimmed_field(&row_map, "booking_type")
+            .unwrap_or("")
+            .to_string();
         let booking_type: Option<u8> = btype_str.parse::<u8>().ok().filter(|&v| v <= 2);
 
         // BKR_016: booking_type eksik veya geçersiz (spec: Required, enum 0/1/2).
@@ -111,20 +142,28 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 (btype_str.clone(), format!("booking_type '{btype_str}' geçerli bir değer değil (0, 1 veya 2 olmalıdır)."))
             };
             notices.push(make_k2_notice(
-                &mut ctr, "BKR_016", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("booking_type"),
-                Some(observed), Some("0-2".to_string()), message,
+                &mut ctr,
+                "BKR_016",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("booking_type"),
+                Some(observed),
+                Some("0-2".to_string()),
+                message,
                 "booking_type alanını 0 (anlık), 1 (aynı gün) veya 2 (önceki gün) yapın.",
             ));
         }
 
         let has_duration_min = has_field(&row_map, "prior_notice_duration_min");
         let has_duration_max = has_field(&row_map, "prior_notice_duration_max");
-        let has_last_day    = has_field(&row_map, "prior_notice_last_day");
-        let has_last_time   = has_field(&row_map, "prior_notice_last_time");
-        let has_start_day   = has_field(&row_map, "prior_notice_start_day");
-        let has_start_time  = has_field(&row_map, "prior_notice_start_time");
-        let has_service_id  = has_field(&row_map, "prior_notice_service_id");
+        let has_last_day = has_field(&row_map, "prior_notice_last_day");
+        let has_last_time = has_field(&row_map, "prior_notice_last_time");
+        let has_start_day = has_field(&row_map, "prior_notice_start_day");
+        let has_start_time = has_field(&row_map, "prior_notice_start_time");
+        let has_service_id = has_field(&row_map, "prior_notice_service_id");
 
         // BKR_025: prior_notice zaman alanı GTFS Time olarak ayrıştırılamıyor.
         //
@@ -150,16 +189,56 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             }
         }
 
-        let duration_min = opt_int_checked(&row_map, "prior_notice_duration_min", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
-        let duration_max = opt_int_checked(&row_map, "prior_notice_duration_max", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
-        let last_day     = opt_int_checked(&row_map, "prior_notice_last_day", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
-        let start_day    = opt_int_checked(&row_map, "prior_notice_start_day", "BKR_023", Some(id.clone()), &file.name, line, &mut notices, &mut ctr);
+        let duration_min = opt_int_checked(
+            &row_map,
+            "prior_notice_duration_min",
+            "BKR_023",
+            Some(id.clone()),
+            &file.name,
+            line,
+            &mut notices,
+            &mut ctr,
+        );
+        let duration_max = opt_int_checked(
+            &row_map,
+            "prior_notice_duration_max",
+            "BKR_023",
+            Some(id.clone()),
+            &file.name,
+            line,
+            &mut notices,
+            &mut ctr,
+        );
+        let last_day = opt_int_checked(
+            &row_map,
+            "prior_notice_last_day",
+            "BKR_023",
+            Some(id.clone()),
+            &file.name,
+            line,
+            &mut notices,
+            &mut ctr,
+        );
+        let start_day = opt_int_checked(
+            &row_map,
+            "prior_notice_start_day",
+            "BKR_023",
+            Some(id.clone()),
+            &file.name,
+            line,
+            &mut notices,
+            &mut ctr,
+        );
 
         if let Some(btype) = booking_type {
             // BKR_004: booking_type=0 iken prior_notice alanları yasak
             if btype == 0
-                && (has_duration_min || has_duration_max || has_last_day
-                    || has_last_time || has_start_day || has_start_time)
+                && (has_duration_min
+                    || has_duration_max
+                    || has_last_day
+                    || has_last_time
+                    || has_start_day
+                    || has_start_time)
             {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_004", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -213,9 +292,16 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             // BKR_007: booking_type=1 iken prior_notice_duration_min zorunlu
             if btype == 1 && !has_duration_min {
                 notices.push(make_k2_notice(
-                    &mut ctr, "BKR_007", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("prior_notice_duration_min"),
-                    None, Some("integer > 0".to_string()),
+                    &mut ctr,
+                    "BKR_007",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("prior_notice_duration_min"),
+                    None,
+                    Some("integer > 0".to_string()),
                     "booking_type=1 iken prior_notice_duration_min zorunludur.".to_string(),
                     "Aynı gün rezervasyon için minimum önceden bildirim süresini (dakika) girin.",
                 ));
@@ -255,9 +341,16 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             // BKR_008: booking_type=2 iken prior_notice_last_day zorunlu
             if btype == 2 && !has_last_day {
                 notices.push(make_k2_notice(
-                    &mut ctr, "BKR_008", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("prior_notice_last_day"),
-                    None, Some("integer ≥ 0".to_string()),
+                    &mut ctr,
+                    "BKR_008",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("prior_notice_last_day"),
+                    None,
+                    Some("integer ≥ 0".to_string()),
                     "booking_type=2 iken prior_notice_last_day zorunludur.".to_string(),
                     "Önceki gün rezervasyonu için son bildirim gününü girin.",
                 ));
@@ -266,9 +359,16 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             // BKR_009: booking_type=2 iken prior_notice_last_time zorunlu
             if btype == 2 && !has_last_time {
                 notices.push(make_k2_notice(
-                    &mut ctr, "BKR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("prior_notice_last_time"),
-                    None, Some("HH:MM:SS".to_string()),
+                    &mut ctr,
+                    "BKR_009",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("prior_notice_last_time"),
+                    None,
+                    Some("HH:MM:SS".to_string()),
                     "booking_type=2 iken prior_notice_last_time zorunludur.".to_string(),
                     "Son bildirim günü için saat bilgisini girin (HH:MM:SS).",
                 ));
@@ -280,18 +380,32 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             match duration_min {
                 Some(v) if v <= 0 => {
                     notices.push(make_k2_notice(
-                        &mut ctr, "BKR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("prior_notice_duration_min"),
-                        Some(v.to_string()), Some("> 0".to_string()),
+                        &mut ctr,
+                        "BKR_006",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("prior_notice_duration_min"),
+                        Some(v.to_string()),
+                        Some("> 0".to_string()),
                         "prior_notice_duration_min sıfır veya negatif olamaz.".to_string(),
                         "Minimum bildirim süresini pozitif bir dakika değeri olarak girin.",
                     ));
                 }
                 None => {
                     notices.push(make_k2_notice(
-                        &mut ctr, "BKR_006", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("prior_notice_duration_min"),
-                        get_trimmed_field(&row_map, "prior_notice_duration_min").map(str::to_string),
+                        &mut ctr,
+                        "BKR_006",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("prior_notice_duration_min"),
+                        get_trimmed_field(&row_map, "prior_notice_duration_min")
+                            .map(str::to_string),
                         Some("integer > 0".to_string()),
                         "prior_notice_duration_min sayısal bir değer değil.".to_string(),
                         "Geçerli bir tam sayı (dakika) girin.",
@@ -354,10 +468,18 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // BKR_010: prior_notice_start_day dolu ama prior_notice_start_time yok
         if has_start_day && !has_start_time {
             notices.push(make_k2_notice(
-                &mut ctr, "BKR_010", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("prior_notice_start_time"),
-                None, Some("HH:MM:SS".to_string()),
-                "prior_notice_start_day belirtilmişse prior_notice_start_time zorunludur.".to_string(),
+                &mut ctr,
+                "BKR_010",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("prior_notice_start_time"),
+                None,
+                Some("HH:MM:SS".to_string()),
+                "prior_notice_start_day belirtilmişse prior_notice_start_time zorunludur."
+                    .to_string(),
                 "Erken rezervasyon penceresi başlangıç saatini girin (HH:MM:SS).",
             ));
         }
@@ -379,19 +501,34 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // aşaması okumuyordu (#60) — değerler sessizce geçiyordu. URL'ler Spec (tip `URL`),
         // telefon Quality (spec `Phone number` tipi dilbilgisi tanımlamaz → AGN_007 emsali).
         for (field, rule, msg, fix) in [
-            ("booking_url", "BKR_020",
-             "booking_url geçerli bir URL değil.",
-             "booking_url için geçerli bir http/https URL'si kullanın."),
-            ("info_url", "BKR_021",
-             "info_url geçerli bir URL değil.",
-             "info_url için geçerli bir http/https URL'si kullanın."),
+            (
+                "booking_url",
+                "BKR_020",
+                "booking_url geçerli bir URL değil.",
+                "booking_url için geçerli bir http/https URL'si kullanın.",
+            ),
+            (
+                "info_url",
+                "BKR_021",
+                "info_url geçerli bir URL değil.",
+                "info_url için geçerli bir http/https URL'si kullanın.",
+            ),
         ] {
             if let Some(url) = opt_str(&row_map, field) {
                 if !looks_like_url(&url) {
                     notices.push(make_k2_notice(
-                        &mut ctr, rule, EntityType::Row, Some(id.clone()), Some(&row_map),
-                        &file.name, Some(line), Some(field), Some(url), None,
-                        msg.to_string(), fix,
+                        &mut ctr,
+                        rule,
+                        EntityType::Row,
+                        Some(id.clone()),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some(field),
+                        Some(url),
+                        None,
+                        msg.to_string(),
+                        fix,
                     ));
                 }
             }
@@ -435,29 +572,45 @@ mod tests {
         RawFile {
             name: "booking_rules.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(SmolStr::new).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(SmolStr::new).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
     #[test]
     fn bkr_025_reports_a_malformed_prior_notice_time() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+            ],
             vec![vec!["BR1", "2", "3", "yarin sabah"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_025"),
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_025"),
             "Ayrıştırılamayan saat BKR_025 üretmeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_025_accepts_a_time_past_midnight() {
         // GTFS saatleri 24'ü aşabilir; 25:10:00 GEÇERLİDİR ve kural susmalıdır.
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+            ],
             vec![vec!["BR1", "2", "3", "25:10:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
@@ -478,7 +631,12 @@ mod tests {
     #[test]
     fn bkr_025_covers_the_last_time_field_too() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+            ],
             vec![vec!["BR1", "2", "3", "12:60"]],
         );
         let (_, notices) = validate_booking_rules(&file);
@@ -492,7 +650,10 @@ mod tests {
             vec![vec!["BR1", "1"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_007"), "BKR_007 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_007"),
+            "BKR_007 bekleniyor"
+        );
     }
 
     #[test]
@@ -502,7 +663,10 @@ mod tests {
             vec![vec!["BR1", "2", "12:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_008"), "BKR_008 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_008"),
+            "BKR_008 bekleniyor"
+        );
     }
 
     #[test]
@@ -512,17 +676,28 @@ mod tests {
             vec![vec!["BR1", "2", "3"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_009"), "BKR_009 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_009"),
+            "BKR_009 bekleniyor"
+        );
     }
 
     #[test]
     fn bkr_001_last_day_forbidden_for_type1() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_last_day"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_last_day",
+            ],
             vec![vec!["BR1", "1", "30", "2"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_001"), "BKR_001 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_001"),
+            "BKR_001 bekleniyor"
+        );
     }
 
     #[test]
@@ -530,7 +705,13 @@ mod tests {
         // Spec: prior_notice_start_day type=1'de yalnız prior_notice_duration_max
         // tanımlıysa yasak; yoksa Optional → BKR_001 ÇIKMAMALI (FP fix, 2026-07-24).
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+            ],
             vec![vec!["BR1", "1", "30", "2", "00:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
@@ -544,12 +725,26 @@ mod tests {
     fn bkr_001_start_day_forbidden_for_type1_with_duration_max() {
         // duration_max tanımlıyken start_day yasaklanır.
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_duration_max", "prior_notice_start_day", "prior_notice_start_time", "prior_notice_last_day", "prior_notice_last_time"],
-            vec![vec!["BR1", "1", "30", "60", "2", "00:00:00", "2", "17:00:00"]],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_duration_max",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+            ],
+            vec![vec![
+                "BR1", "1", "30", "60", "2", "00:00:00", "2", "17:00:00",
+            ]],
         );
         let (_, notices) = validate_booking_rules(&file);
         assert!(
-            notices.iter().any(|n| n.rule_id == "BKR_001" && n.field.as_deref() == Some("prior_notice_start_day")),
+            notices
+                .iter()
+                .any(|n| n.rule_id == "BKR_001"
+                    && n.field.as_deref() == Some("prior_notice_start_day")),
             "type=1 + duration_max + start_day BKR_001 üretmeli"
         );
     }
@@ -557,52 +752,94 @@ mod tests {
     #[test]
     fn bkr_004_prior_notice_forbidden_for_type0() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["BR1", "0", "15"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_004"), "BKR_004 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_004"),
+            "BKR_004 bekleniyor"
+        );
     }
 
     #[test]
     fn bkr_006_duration_min_zero() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["BR1", "1", "0"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_006"), "BKR_006 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_006"),
+            "BKR_006 bekleniyor"
+        );
     }
 
     #[test]
     fn bkr_011_last_day_after_start_day() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+            ],
             vec![vec!["BR1", "2", "5", "12:00:00", "3", "09:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_011"), "BKR_011 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_011"),
+            "BKR_011 bekleniyor"
+        );
     }
 
     #[test]
     fn valid_type2_booking_no_notices() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+            ],
             vec![vec!["BR1", "2", "3", "12:00:00"]],
         );
         let (recs, notices) = validate_booking_rules(&file);
         assert_eq!(recs.len(), 1);
-        assert!(notices.is_empty(), "Geçerli type=2 için notice olmamalı: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli type=2 için notice olmamalı: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn bkr_002_start_day_without_last_day() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_time", "prior_notice_start_day", "prior_notice_start_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_time",
+                "prior_notice_start_day",
+                "prior_notice_start_time",
+            ],
             vec![vec!["BR1", "2", "12:00:00", "7", "09:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_002"), "BKR_002 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_002"),
+            "BKR_002 bekleniyor"
+        );
     }
 
     // ── BKR_016/019 (issue #58: dosya bütünlüğü — zorunlu enum + birincil anahtar) ──
@@ -613,7 +850,10 @@ mod tests {
             vec![vec!["BR1", "7"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        let n = notices.iter().find(|n| n.rule_id == "BKR_016").expect("BKR_016 bekleniyor");
+        let n = notices
+            .iter()
+            .find(|n| n.rule_id == "BKR_016")
+            .expect("BKR_016 bekleniyor");
         assert_eq!(n.observed_value.as_deref(), Some("7"));
     }
 
@@ -624,154 +864,256 @@ mod tests {
             vec![vec!["BR1", ""]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_016"), "boş booking_type → BKR_016");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_016"),
+            "boş booking_type → BKR_016"
+        );
     }
 
     #[test]
     fn bkr_016_silent_when_column_absent() {
         // Sütun başlıkta yoksa ARC_025 devralır (RTS_004 deseni) → satır başına BKR_016 yağmuru olmaz.
-        let file = make_file(
-            vec!["booking_rule_id"],
-            vec![vec!["BR1"]],
-        );
+        let file = make_file(vec!["booking_rule_id"], vec![vec!["BR1"]]);
         let (_, notices) = validate_booking_rules(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "BKR_016"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "BKR_016"),
             "booking_type sütunu yokken BKR_016 üretilmemeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_016_silent_for_valid_types() {
         for t in ["0", "1", "2"] {
             let file = make_file(
-                vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_last_day", "prior_notice_last_time"],
-                vec![vec!["BR1", t, if t == "1" { "30" } else { "" }, if t == "2" { "3" } else { "" }, if t == "2" { "12:00:00" } else { "" }]],
+                vec![
+                    "booking_rule_id",
+                    "booking_type",
+                    "prior_notice_duration_min",
+                    "prior_notice_last_day",
+                    "prior_notice_last_time",
+                ],
+                vec![vec![
+                    "BR1",
+                    t,
+                    if t == "1" { "30" } else { "" },
+                    if t == "2" { "3" } else { "" },
+                    if t == "2" { "12:00:00" } else { "" },
+                ]],
             );
             let (_, notices) = validate_booking_rules(&file);
-            assert!(!notices.iter().any(|n| n.rule_id == "BKR_016"), "booking_type={t} geçerli");
+            assert!(
+                !notices.iter().any(|n| n.rule_id == "BKR_016"),
+                "booking_type={t} geçerli"
+            );
         }
     }
 
     #[test]
     fn bkr_019_duplicate_booking_rule_id() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["BR1", "1", "30"], vec!["BR1", "1", "45"]],
         );
         let (_, notices) = validate_booking_rules(&file);
         let dups: Vec<_> = notices.iter().filter(|n| n.rule_id == "BKR_019").collect();
-        assert_eq!(dups.len(), 1, "yalnız İKİNCİ satır BKR_019 üretmeli: {dups:?}");
+        assert_eq!(
+            dups.len(),
+            1,
+            "yalnız İKİNCİ satır BKR_019 üretmeli: {dups:?}"
+        );
         assert_eq!(dups[0].line, Some(3));
     }
 
     #[test]
     fn bkr_019_missing_booking_rule_id() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["", "1", "30"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_019"), "boş booking_rule_id → BKR_019");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_019"),
+            "boş booking_rule_id → BKR_019"
+        );
     }
 
     #[test]
     fn bkr_019_silent_for_unique_ids() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["BR1", "1", "30"], vec!["BR2", "1", "45"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "BKR_019"), "benzersiz id → BKR_019 yok");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "BKR_019"),
+            "benzersiz id → BKR_019 yok"
+        );
     }
 
     // ── BKR_012/013/014 (issue #56: spec presence matrisindeki üç boşluk) ──
     #[test]
     fn bkr_012_duration_min_forbidden_for_type2() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["BR1", "2", "3", "12:00:00", "30"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_012"), "BKR_012 bekleniyor: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_012"),
+            "BKR_012 bekleniyor: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_012_silent_for_type1_where_duration_min_is_required() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+            ],
             vec![vec!["BR1", "1", "30"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "BKR_012"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "BKR_012"),
             "type=1'de duration_min ZORUNLU → BKR_012 çıkmamalı: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_013_last_time_without_last_day() {
         // type=1 + last_time: bugüne kadar hiçbir kural yakalamıyordu (issue #56/B).
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_last_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_last_time",
+            ],
             vec![vec!["BR1", "1", "30", "17:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_013"), "BKR_013 bekleniyor: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_013"),
+            "BKR_013 bekleniyor: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_013_silent_when_last_day_present() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+            ],
             vec![vec!["BR1", "2", "3", "12:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "BKR_013"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "BKR_013"),
             "last_day varken BKR_013 çıkmamalı: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_014_service_id_forbidden_for_type1() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min", "prior_notice_service_id"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_service_id",
+            ],
             vec![vec!["BR1", "1", "30", "SVC1"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_014"), "BKR_014 bekleniyor: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_014"),
+            "BKR_014 bekleniyor: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn bkr_014_silent_for_type2() {
         // Spec: "Optional if booking_type=2" → geçerli kullanım.
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time", "prior_notice_service_id"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+                "prior_notice_service_id",
+            ],
             vec![vec!["BR1", "2", "3", "12:00:00", "SVC1"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.is_empty(), "type=2 + service_id geçerli, notice olmamalı: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "type=2 + service_id geçerli, notice olmamalı: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn bkr_010_start_day_without_start_time() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_last_day", "prior_notice_last_time", "prior_notice_start_day"],
+            vec![
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_last_day",
+                "prior_notice_last_time",
+                "prior_notice_start_day",
+            ],
             vec![vec!["BR1", "2", "3", "12:00:00", "7"]],
         );
         let (_, notices) = validate_booking_rules(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "BKR_010"), "BKR_010 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "BKR_010"),
+            "BKR_010 bekleniyor"
+        );
     }
     #[test]
     fn bkr_024_forbids_start_day_with_duration_max_on_same_day_booking() {
         let file = make_file(
-            vec!["booking_rule_id", "booking_type", "prior_notice_duration_min",
-                 "prior_notice_duration_max", "prior_notice_start_day", "prior_notice_last_day"],
             vec![
-                vec!["B1", "1", "30", "120", "2", "3"],   // type=1 + max + start_day → BKR_024
-                vec!["B2", "1", "30", "120", "", ""],     // start_day yok → sessiz
-                vec!["B3", "1", "30", "", "2", "3"],      // max yok → sessiz
+                "booking_rule_id",
+                "booking_type",
+                "prior_notice_duration_min",
+                "prior_notice_duration_max",
+                "prior_notice_start_day",
+                "prior_notice_last_day",
+            ],
+            vec![
+                vec!["B1", "1", "30", "120", "2", "3"], // type=1 + max + start_day → BKR_024
+                vec!["B2", "1", "30", "120", "", ""],   // start_day yok → sessiz
+                vec!["B3", "1", "30", "", "2", "3"],    // max yok → sessiz
             ],
         );
         let (_, notices) = validate_booking_rules(&file);
@@ -779,5 +1121,4 @@ mod tests {
         assert_eq!(hits.len(), 1, "yalnız B1: {hits:?}");
         assert_eq!(hits[0].entity_id.as_deref(), Some("B1"));
     }
-
 }

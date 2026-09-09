@@ -1,6 +1,8 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, parse_f64, make_k2_notice, RowMap};
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_f64, RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -20,13 +22,24 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let level_id = get_raw_field(&row_map, "level_id").unwrap_or("").to_string();
+        let level_id = get_raw_field(&row_map, "level_id")
+            .unwrap_or("")
+            .to_string();
         // LVL_008: level_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "level_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
-                &mut counter, "LVL_008", EntityType::Level, None, Some(&row_map),
-                &file.name, Some(line), Some("level_id"), Some(String::new()), None,
-                "level_id zorunludur.".to_string(), "Her kata benzersiz bir level_id verin.",
+                &mut counter,
+                "LVL_008",
+                EntityType::Level,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("level_id"),
+                Some(String::new()),
+                None,
+                "level_id zorunludur.".to_string(),
+                "Her kata benzersiz bir level_id verin.",
             ));
         }
         let entity_id = (!level_id.is_empty()).then_some(level_id.clone());
@@ -36,8 +49,16 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                 // LVL_007: level_index required (sütun yoksa ARC_025 devralır → atla)
                 if v.is_none() && get_trimmed_field(&row_map, "level_index") == Some("") {
                     notices.push(make_k2_notice(
-                        &mut counter, "LVL_007", EntityType::Level, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("level_index"), Some(String::new()), None,
+                        &mut counter,
+                        "LVL_007",
+                        EntityType::Level,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("level_index"),
+                        Some(String::new()),
+                        None,
                         "level_index zorunludur.".to_string(),
                         "level_index alanını sayısal bir değerle doldurun.",
                     ));
@@ -87,10 +108,21 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
         if let Some(ref name) = level_name {
             if name.len() > 255 {
                 notices.push(make_k2_notice(
-                    &mut counter, "LVL_005", EntityType::Level, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("level_name"),
-                    Some(format!("{} karakter", name.len())), Some("≤ 255 karakter".to_string()),
-                    format!("'{}' katmanının level_name değeri {} karakter — 255 sınırını aşıyor.", level_id, name.len()),
+                    &mut counter,
+                    "LVL_005",
+                    EntityType::Level,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("level_name"),
+                    Some(format!("{} karakter", name.len())),
+                    Some("≤ 255 karakter".to_string()),
+                    format!(
+                        "'{}' katmanının level_name değeri {} karakter — 255 sınırını aşıyor.",
+                        level_id,
+                        name.len()
+                    ),
                     "level_name'i 255 karakterin altına kısaltın.",
                 ));
             }

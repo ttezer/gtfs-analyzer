@@ -101,28 +101,48 @@ pub fn build_with_files(
         };
     }
 
-    gate!("K5::shape_geometry", availability.available("shapes.txt"), {
-        let _t = Timer::start("K5::shape_geometry");
-        build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr);
-    });
-    gate!("K5::calendar_bitmap", availability.any(&["calendar.txt", "calendar_dates.txt"]), {
-        let _t = Timer::start("K5::calendar_bitmap");
-        build_calendar_bitmap(records, &mut derived);
-    });
+    gate!(
+        "K5::shape_geometry",
+        availability.available("shapes.txt"),
+        {
+            let _t = Timer::start("K5::shape_geometry");
+            build_shape_geometry(records, entity_map, &mut derived, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K5::calendar_bitmap",
+        availability.any(&["calendar.txt", "calendar_dates.txt"]),
+        {
+            let _t = Timer::start("K5::calendar_bitmap");
+            build_calendar_bitmap(records, &mut derived);
+        }
+    );
     gate!("K5::spatial_index", availability.available("stops.txt"), {
         let _t = Timer::start("K5::spatial_index");
         build_spatial_index(records, &mut derived);
     });
-    gate!("K5::pathway_graph", availability.all(&["pathways.txt", "stops.txt"]), {
-        let _t = Timer::start("K5::pathway_graph");
-        build_pathway_graph(records, &mut derived);
-    });
-    gate!("K5::fare_network", availability.available("fare_rules.txt"), {
-        let _t = Timer::start("K5::fare_network");
-        build_fare_network(records, &mut derived);
-    });
+    gate!(
+        "K5::pathway_graph",
+        availability.all(&["pathways.txt", "stops.txt"]),
+        {
+            let _t = Timer::start("K5::pathway_graph");
+            build_pathway_graph(records, &mut derived);
+        }
+    );
+    gate!(
+        "K5::fare_network",
+        availability.available("fare_rules.txt"),
+        {
+            let _t = Timer::start("K5::fare_network");
+            build_fare_network(records, &mut derived);
+        }
+    );
 
-    K5Result { derived, notices, skipped_checks }
+    K5Result {
+        derived,
+        notices,
+        skipped_checks,
+    }
 }
 
 // ── Notice yardımcısı ─────────────────────────────────────────────────────────
@@ -145,9 +165,20 @@ fn k5_notice(
     remediation: &str,
 ) -> Notice {
     crate::notice_factory::build(
-        "K5", Some("k5"), ctr, rule_id, entity_type, entity_id, scope_key,
-        Some(file.to_string()), line, field.map(str::to_string),
-        observed, expected, message, remediation,
+        "K5",
+        Some("k5"),
+        ctr,
+        rule_id,
+        entity_type,
+        entity_id,
+        scope_key,
+        Some(file.to_string()),
+        line,
+        field.map(str::to_string),
+        observed,
+        expected,
+        message,
+        remediation,
     )
 }
 
@@ -224,12 +255,20 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
     // ⚠️ Çakışma davranışı: aynı (service_id, date) hem added hem removed'daysa removed kazanır
     // (CSV satır sırasından bağımsız). Geçerli GTFS feed'lerinde bu çakışma olmamalı.
     for (svc, dates) in &records.calendar_dates.added {
-        let set = derived.calendar_bitmap.active_dates.entry(svc.to_string()).or_default();
-        for &d in dates { set.insert(d); }
+        let set = derived
+            .calendar_bitmap
+            .active_dates
+            .entry(svc.to_string())
+            .or_default();
+        for &d in dates {
+            set.insert(d);
+        }
     }
     for (svc, dates) in &records.calendar_dates.removed {
         if let Some(set) = derived.calendar_bitmap.active_dates.get_mut(svc.as_str()) {
-            for &d in dates { set.remove(&d); }
+            for &d in dates {
+                set.remove(&d);
+            }
         }
     }
 }
@@ -259,24 +298,40 @@ fn build_shape_geometry(
 
     for (shape_id, point_indices) in &entity_map.shape_points {
         let n_pts = point_indices.len();
-        if n_pts == 0 { continue; }
+        if n_pts == 0 {
+            continue;
+        }
         let first_line = point_indices.first().map(|&i| records.shapes[i].line_u64());
         if n_pts == 1 {
             // SHP_006 yalnızca kullanılan shape'ler için bir tüketici-uyumluluk sinyalidir.
             // Kullanılmayan tek-nokta kaydı SHP_018 orphan-shape bulgusunun kapsamındadır;
             // iki notice ile aynı kök nedeni çoğaltıp puanı şişirmeyiz.
             if referenced_shapes.contains(shape_id.as_str()) {
-                let mut notice = k5_notice(ctr, "SHP_006", EntityType::Shape,
-                    Some(shape_id.clone()), Some(shape_id.clone()),
-                    "shapes.txt", first_line, Some("shape_pt_sequence"),
-                    Some("1".to_string()), Some(">= 2".to_string()),
-                    format!("'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.", shape_id),
+                let mut notice = k5_notice(
+                    ctr,
+                    "SHP_006",
+                    EntityType::Shape,
+                    Some(shape_id.clone()),
+                    Some(shape_id.clone()),
+                    "shapes.txt",
+                    first_line,
+                    Some("shape_pt_sequence"),
+                    Some("1".to_string()),
+                    Some(">= 2".to_string()),
+                    format!(
+                        "'{}' güzergah şekli yalnızca 1 noktadan oluşuyor; en az 2 nokta gerekir.",
+                        shape_id
+                    ),
                     "shapes.txt'e bu shape_id için en az bir nokta daha ekleyin.",
                 );
-                notice.details = Some([
-                    ("shape_id".to_string(), shape_id.clone()),
-                    ("shape_point_count".to_string(), "1".to_string()),
-                ].into_iter().collect());
+                notice.details = Some(
+                    [
+                        ("shape_id".to_string(), shape_id.clone()),
+                        ("shape_point_count".to_string(), "1".to_string()),
+                    ]
+                    .into_iter()
+                    .collect(),
+                );
                 notices.push(notice);
             }
             continue;
@@ -347,7 +402,10 @@ fn build_shape_geometry(
 
             if let (Some(plat), Some(plon)) = (prev_lat, prev_lon) {
                 // SHP_010: ardışık özdeş koordinat — shape başına bir kez (dedup zaten teke indirir)
-                if (lat - plat).abs() < f64::EPSILON && (lon - plon).abs() < f64::EPSILON && !shp010_fired {
+                if (lat - plat).abs() < f64::EPSILON
+                    && (lon - plon).abs() < f64::EPSILON
+                    && !shp010_fired
+                {
                     shp010_fired = true;
                     let mut notice = k5_notice(
                         ctr,
@@ -402,8 +460,10 @@ fn build_shape_geometry(
     if n10 > SHP010_AGG_THRESHOLD {
         // shp010_pending, shape_points (HashMap) iterasyon sırasında dolduğu için ham
         // `take(5)` her koşuda başka örnekler veriyordu. Önce sırala, sonra ilk 5'i al.
-        let mut examples: Vec<String> = shp010_pending.iter()
-            .filter_map(|x| x.entity_id.clone()).collect();
+        let mut examples: Vec<String> = shp010_pending
+            .iter()
+            .filter_map(|x| x.entity_id.clone())
+            .collect();
         examples.sort_unstable();
         examples.truncate(5);
         let mut notice = k5_notice(
@@ -415,7 +475,9 @@ fn build_shape_geometry(
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_shapes".to_string(), n10.to_string());
-        if !examples.is_empty() { d.insert("example_shapes".to_string(), examples.join(", ")); }
+        if !examples.is_empty() {
+            d.insert("example_shapes".to_string(), examples.join(", "));
+        }
         notice.details = Some(d);
         notices.push(notice);
     } else {
@@ -440,7 +502,10 @@ fn build_shape_geometry(
                 Some("shape_id"),
                 Some(shape_id.clone()),
                 None,
-                format!("'{}' güzergahı hiçbir sefer tarafından referans edilmiyor.", shape_id),
+                format!(
+                    "'{}' güzergahı hiçbir sefer tarafından referans edilmiyor.",
+                    shape_id
+                ),
                 "Kullanılmayan güzergah şeklini kaldırın ya da bir sefere atayın.",
             ));
         }
@@ -460,7 +525,12 @@ fn build_spatial_index(records: &EntityRecords, derived: &mut DerivedData) {
         };
         let row = (lat / SPATIAL_CELL_DEG).floor() as i32;
         let col = (lon / SPATIAL_CELL_DEG).floor() as i32;
-        derived.spatial_index.grid.entry((row, col)).or_default().push(idx);
+        derived
+            .spatial_index
+            .grid
+            .entry((row, col))
+            .or_default()
+            .push(idx);
     }
 }
 
@@ -524,10 +594,10 @@ mod tests {
     use super::*;
     use crate::k2::fare_rules::FareRuleRecord;
     use crate::k2::pathways::PathwayRecord;
+    use crate::k2::shapes::ShapeInternTable;
     use crate::k2::shapes::ShapePointRecord;
     use crate::k2::stops::StopRecord;
     use crate::k2::trips::TripRecord;
-    use crate::k2::shapes::ShapeInternTable;
 
     fn empty_records() -> EntityRecords {
         EntityRecords::default()
@@ -537,15 +607,47 @@ mod tests {
         EntityMap::default()
     }
 
-    fn shape_pt(ti: &mut ShapeInternTable, shape_id: &str, seq: u32, lat: f64, lon: f64, line: u64) -> ShapePointRecord {
-        ShapePointRecord::new(ti.intern(shape_id), Some(lat), Some(lon), Some(seq), None, line as u32)
+    fn shape_pt(
+        ti: &mut ShapeInternTable,
+        shape_id: &str,
+        seq: u32,
+        lat: f64,
+        lon: f64,
+        line: u64,
+    ) -> ShapePointRecord {
+        ShapePointRecord::new(
+            ti.intern(shape_id),
+            Some(lat),
+            Some(lon),
+            Some(seq),
+            None,
+            line as u32,
+        )
     }
 
-    fn shape_pt_d(ti: &mut ShapeInternTable, shape_id: &str, seq: u32, lat: f64, lon: f64, dist: f64, line: u64) -> ShapePointRecord {
-        ShapePointRecord::new(ti.intern(shape_id), Some(lat), Some(lon), Some(seq), Some(dist), line as u32)
+    fn shape_pt_d(
+        ti: &mut ShapeInternTable,
+        shape_id: &str,
+        seq: u32,
+        lat: f64,
+        lon: f64,
+        dist: f64,
+        line: u64,
+    ) -> ShapePointRecord {
+        ShapePointRecord::new(
+            ti.intern(shape_id),
+            Some(lat),
+            Some(lon),
+            Some(seq),
+            Some(dist),
+            line as u32,
+        )
     }
 
-    fn trip_with_shape(trip_id: &str, shape_id: &str) -> (TripRecord, crate::k2::trips::TripInternTable) {
+    fn trip_with_shape(
+        trip_id: &str,
+        shape_id: &str,
+    ) -> (TripRecord, crate::k2::trips::TripInternTable) {
         use crate::k2::trips::TripInternTable;
         use smol_str::SmolStr;
         let mut ti = TripInternTable::new();
@@ -557,11 +659,20 @@ mod tests {
         ti.shape_ids.push(SmolStr::new(shape_id));
         let trip = TripRecord {
             trip_id: trip_id.into(),
-            route_idx: ri, service_idx: si, shape_idx: shi,
-            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
-            direction_id: None, wheelchair_accessible: None,
-            bikes_allowed: None, cars_allowed: None,
-            safe_duration_factor: None, safe_duration_offset: None,
+            route_idx: ri,
+            service_idx: si,
+            shape_idx: shi,
+            headsign_idx: 0,
+            short_name_idx: 0,
+            block_idx: 0,
+            jp_office_idx: 0,
+            jp_pattern_idx: 0,
+            direction_id: None,
+            wheelchair_accessible: None,
+            bikes_allowed: None,
+            cars_allowed: None,
+            safe_duration_factor: None,
+            safe_duration_offset: None,
             line: 2,
         };
         (trip, ti)
@@ -604,7 +715,10 @@ mod tests {
         let seg = result.derived.shape_geometry.shapes.get("S1").unwrap();
         assert_eq!(seg.segment_distances_km.len(), 2);
         assert!(seg.total_length_km > 0.0);
-        assert!(result.notices.is_empty(), "Temiz shape'te notice üretilmemeli");
+        assert!(
+            result.notices.is_empty(),
+            "Temiz shape'te notice üretilmemeli"
+        );
     }
 
     #[test]
@@ -625,15 +739,40 @@ mod tests {
         map.trips.insert("T1".into(), 0);
 
         let result = build(&records, &map);
-        let single = result.notices.iter().find(|n| n.rule_id == "SHP_006")
+        let single = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "SHP_006")
             .expect("kullanılan tek noktalı shape SHP_006 üretmeli");
         assert_eq!(single.entity_id.as_deref(), Some("USED"));
         assert_eq!(single.observed_value.as_deref(), Some("1"));
-        assert_eq!(single.details.as_ref().and_then(|d| d.get("shape_id")).map(String::as_str), Some("USED"));
-        assert_eq!(single.details.as_ref().and_then(|d| d.get("shape_point_count")).map(String::as_str), Some("1"));
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_006" && n.entity_id.as_deref() == Some("ORPHAN")));
-        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_018" && n.entity_id.as_deref() == Some("ORPHAN")),
-            "kullanılmayan tek nokta SHP_018 ile sınıflandırılmalı");
+        assert_eq!(
+            single
+                .details
+                .as_ref()
+                .and_then(|d| d.get("shape_id"))
+                .map(String::as_str),
+            Some("USED")
+        );
+        assert_eq!(
+            single
+                .details
+                .as_ref()
+                .and_then(|d| d.get("shape_point_count"))
+                .map(String::as_str),
+            Some("1")
+        );
+        assert!(!result
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "SHP_006" && n.entity_id.as_deref() == Some("ORPHAN")));
+        assert!(
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "SHP_018" && n.entity_id.as_deref() == Some("ORPHAN")),
+            "kullanılmayan tek nokta SHP_018 ile sınıflandırılmalı"
+        );
     }
 
     #[test]
@@ -653,8 +792,10 @@ mod tests {
         map.trips.insert("T1".into(), 0);
 
         let result = build(&records, &map);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_006"),
-            "iki noktalı shape geçerli düz segmenttir");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_006"),
+            "iki noktalı shape geçerli düz segmenttir"
+        );
     }
 
     #[test]
@@ -670,12 +811,15 @@ mod tests {
         ];
         records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
-        records.trips = vec![t1]; records.trip_interns = ti1;
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![1, 0]); // sequence-sıralı: seq1, seq2
         map.trips.insert("T1".into(), 0);
         let result = build(&records, &map);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_005"),
-            "sequence-sıralı artan shape_dist için SHP_005 çıkmamalı (FP fix)");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_005"),
+            "sequence-sıralı artan shape_dist için SHP_005 çıkmamalı (FP fix)"
+        );
     }
 
     #[test]
@@ -690,12 +834,15 @@ mod tests {
         ];
         records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
-        records.trips = vec![t1]; records.trip_interns = ti1;
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1]);
         map.trips.insert("T1".into(), 0);
         let result = build(&records, &map);
-        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_005"),
-            "sequence sırasında azalan shape_dist SHP_005 üretmeli");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "SHP_005"),
+            "sequence sırasında azalan shape_dist SHP_005 üretmeli"
+        );
     }
 
     /// #94 sınır matrisi: azalma eski `1e-6` toleransından KÜÇÜK olsa da emit edilmeli,
@@ -710,28 +857,44 @@ mod tests {
         ];
         records.shape_interns = shape_ti.clone();
         let (t1, ti1) = trip_with_shape("T1", "S1");
-        records.trips = vec![t1]; records.trip_interns = ti1;
+        records.trips = vec![t1];
+        records.trip_interns = ti1;
         map.shape_points.insert("S1".into(), vec![0, 1]);
         map.trips.insert("T1".into(), 0);
-        build(&records, &map).notices.iter().any(|n| n.rule_id == "SHP_005")
+        build(&records, &map)
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "SHP_005")
     }
 
     #[test]
     fn shp_005_fires_on_decrease_below_old_epsilon() {
         // issue #94 karşı-örneği: azalma 5e-7, eski `d < prev - 1e-6` eşiğinin ALTINDA.
-        assert!(shp_005_fires_for(1.0000005, 1.0000000),
-            "1e-6'dan küçük gerçek azalma da SHP_005 üretmeli (#94)");
+        assert!(
+            shp_005_fires_for(1.0000005, 1.0000000),
+            "1e-6'dan küçük gerçek azalma da SHP_005 üretmeli (#94)"
+        );
         // f64'te temsil edilebilen en küçük azalma da yakalanmalı.
-        assert!(shp_005_fires_for(1.0, 1.0 - f64::EPSILON / 2.0),
-            "bir ULP'lik azalma da SHP_005 üretmeli (#94)");
+        assert!(
+            shp_005_fires_for(1.0, 1.0 - f64::EPSILON / 2.0),
+            "bir ULP'lik azalma da SHP_005 üretmeli (#94)"
+        );
     }
 
     #[test]
     fn shp_005_silent_on_equal_or_increasing() {
-        assert!(!shp_005_fires_for(10.0, 10.0), "eşit değerler SHP_005 üretmemeli");
-        assert!(!shp_005_fires_for(10.0, 10.0 + f64::EPSILON * 8.0),
-            "en küçük artış bile SHP_005 üretmemeli");
-        assert!(!shp_005_fires_for(10.0, 20.0), "artan değerler SHP_005 üretmemeli");
+        assert!(
+            !shp_005_fires_for(10.0, 10.0),
+            "eşit değerler SHP_005 üretmemeli"
+        );
+        assert!(
+            !shp_005_fires_for(10.0, 10.0 + f64::EPSILON * 8.0),
+            "en küçük artış bile SHP_005 üretmemeli"
+        );
+        assert!(
+            !shp_005_fires_for(10.0, 20.0),
+            "artan değerler SHP_005 üretmemeli"
+        );
     }
 
     #[test]
@@ -803,8 +966,15 @@ mod tests {
         map.trips.insert("T1".into(), 0);
 
         let result = build(&records, &map);
-        let shp010 = result.notices.iter().filter(|n| n.rule_id == "SHP_010").count();
-        assert_eq!(shp010, 1, "3 ardışık tekrar olsa da SHP_010 shape başına 1 kez: {shp010}");
+        let shp010 = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_010")
+            .count();
+        assert_eq!(
+            shp010, 1,
+            "3 ardışık tekrar olsa da SHP_010 shape başına 1 kez: {shp010}"
+        );
     }
 
     #[test]
@@ -826,12 +996,20 @@ mod tests {
         records.shape_interns = shape_ti.clone();
 
         let result = build(&records, &map);
-        let shp010: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "SHP_010").collect();
+        let shp010: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_010")
+            .collect();
         assert_eq!(shp010.len(), 1, "yüksek hacimde tek feed-özeti beklenir");
         assert_eq!(shp010[0].entity_type, EntityType::Feed);
         assert_eq!(shp010[0].observed_value.as_deref(), Some("52"));
         assert_eq!(
-            shp010[0].details.as_ref().and_then(|d| d.get("affected_shapes")).map(String::as_str),
+            shp010[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_shapes"))
+                .map(String::as_str),
             Some("52"),
         );
     }
@@ -889,7 +1067,12 @@ mod tests {
     use crate::k2::calendar::CalendarRecord;
     use crate::k2::calendar_dates::CalendarDateIndex;
 
-    fn calendar_rec(service_id: &str, days: [Option<u32>; 7], start: (u32,u32,u32), end: (u32,u32,u32)) -> CalendarRecord {
+    fn calendar_rec(
+        service_id: &str,
+        days: [Option<u32>; 7],
+        start: (u32, u32, u32),
+        end: (u32, u32, u32),
+    ) -> CalendarRecord {
         CalendarRecord {
             service_id: service_id.into(),
             days,
@@ -900,14 +1083,22 @@ mod tests {
         }
     }
 
-    fn cal_date_idx(service_id: &str, date: (u32, u32, u32), exception_type: u32) -> CalendarDateIndex {
+    fn cal_date_idx(
+        service_id: &str,
+        date: (u32, u32, u32),
+        exception_type: u32,
+    ) -> CalendarDateIndex {
         let mut idx = CalendarDateIndex::default();
         let d = date.0 * 10000 + date.1 * 100 + date.2;
         idx.exception_count.insert(service_id.into(), 1);
         idx.first_line.insert(service_id.into(), 2);
         match exception_type {
-            1 => { idx.added.insert(service_id.into(), vec![d]); }
-            2 => { idx.removed.insert(service_id.into(), vec![d]); }
+            1 => {
+                idx.added.insert(service_id.into(), vec![d]);
+            }
+            2 => {
+                idx.removed.insert(service_id.into(), vec![d]);
+            }
             _ => {}
         }
         idx
@@ -920,12 +1111,25 @@ mod tests {
         // days: [mon=1, tue=0, wed=0, thu=0, fri=0, sat=0, sun=0]
         records.calendars = vec![calendar_rec(
             "SVC1",
-            [Some(1), Some(0), Some(0), Some(0), Some(0), Some(0), Some(0)],
+            [
+                Some(1),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+                Some(0),
+            ],
             (2026, 5, 11),
             (2026, 5, 17),
         )];
         let result = build(&records, &empty_map());
-        let dates = result.derived.calendar_bitmap.active_dates.get("SVC1").unwrap();
+        let dates = result
+            .derived
+            .calendar_bitmap
+            .active_dates
+            .get("SVC1")
+            .unwrap();
         assert!(dates.contains(&20260511), "Pazartesi olmalı");
         assert!(!dates.contains(&20260512), "Salı olmamalı");
         assert!(!dates.contains(&20260517), "Pazar olmamalı");
@@ -938,14 +1142,27 @@ mod tests {
         // Tüm hafta aktif
         records.calendars = vec![calendar_rec(
             "SVC1",
-            [Some(1), Some(1), Some(1), Some(1), Some(1), Some(1), Some(1)],
+            [
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(1),
+            ],
             (2026, 5, 11),
             (2026, 5, 11),
         )];
         // Pazartesi'yi kaldır (exception_type=2)
         records.calendar_dates = cal_date_idx("SVC1", (2026, 5, 11), 2);
         let result = build(&records, &empty_map());
-        let dates = result.derived.calendar_bitmap.active_dates.get("SVC1").unwrap();
+        let dates = result
+            .derived
+            .calendar_bitmap
+            .active_dates
+            .get("SVC1")
+            .unwrap();
         assert!(!dates.contains(&20260511), "İptal edilen gün olmamalı");
     }
 
@@ -955,7 +1172,12 @@ mod tests {
         // Takvim yok, sadece ek gün
         records.calendar_dates = cal_date_idx("SVC_NEW", (2026, 6, 1), 1);
         let result = build(&records, &empty_map());
-        let dates = result.derived.calendar_bitmap.active_dates.get("SVC_NEW").unwrap();
+        let dates = result
+            .derived
+            .calendar_bitmap
+            .active_dates
+            .get("SVC_NEW")
+            .unwrap();
         assert!(dates.contains(&20260601));
     }
 
@@ -964,12 +1186,18 @@ mod tests {
     fn stop_rec(stop_id: &str, lat: f64, lon: f64) -> StopRecord {
         StopRecord {
             stop_id: stop_id.into(),
-            stop_code: None, stop_name: None,
-            stop_lat: Some(lat), stop_lon: Some(lon),
-            location_type: None, stop_timezone: None,
-            wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None,
-            row: Default::default(), line: 2,
+            stop_code: None,
+            stop_name: None,
+            stop_lat: Some(lat),
+            stop_lon: Some(lon),
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
+            row: Default::default(),
+            line: 2,
             ..Default::default()
         }
     }
@@ -996,12 +1224,18 @@ mod tests {
         let mut records = empty_records();
         records.stops = vec![StopRecord {
             stop_id: "S_NO_COORD".into(),
-            stop_code: None, stop_name: None,
-            stop_lat: None, stop_lon: None,
-            location_type: None, stop_timezone: None,
-            wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None,
-            row: Default::default(), line: 2,
+            stop_code: None,
+            stop_name: None,
+            stop_lat: None,
+            stop_lon: None,
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
+            row: Default::default(),
+            line: 2,
             ..Default::default()
         }];
         let result = build(&records, &empty_map());
@@ -1017,9 +1251,13 @@ mod tests {
             to_stop_id: to.into(),
             pathway_mode: Some(1),
             is_bidirectional: Some(bidirectional),
-            length: None, traversal_time: None, stair_count: None,
-            max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }
     }
 
@@ -1029,8 +1267,12 @@ mod tests {
         records.pathways = vec![pathway_rec("PW1", "A", "B", 0)];
         let result = build(&records, &empty_map());
         let adj = &result.derived.pathway_graph.adjacency;
-        assert!(adj.get("A").is_some_and(|v| v.iter().any(|(to, _)| to == "B")));
-        assert!(adj.get("B").is_none_or(|v| !v.iter().any(|(to, _)| to == "A")));
+        assert!(adj
+            .get("A")
+            .is_some_and(|v| v.iter().any(|(to, _)| to == "B")));
+        assert!(adj
+            .get("B")
+            .is_none_or(|v| !v.iter().any(|(to, _)| to == "A")));
     }
 
     #[test]
@@ -1039,20 +1281,30 @@ mod tests {
         records.pathways = vec![pathway_rec("PW1", "A", "B", 1)];
         let result = build(&records, &empty_map());
         let adj = &result.derived.pathway_graph.adjacency;
-        assert!(adj.get("A").is_some_and(|v| v.iter().any(|(to, _)| to == "B")));
-        assert!(adj.get("B").is_some_and(|v| v.iter().any(|(to, _)| to == "A")));
+        assert!(adj
+            .get("A")
+            .is_some_and(|v| v.iter().any(|(to, _)| to == "B")));
+        assert!(adj
+            .get("B")
+            .is_some_and(|v| v.iter().any(|(to, _)| to == "A")));
     }
 
     // ── WP-08d: FareNetwork ───────────────────────────────────────────────────
 
-    fn fare_rule_rec(fare_id: &str, route_id: Option<&str>, origin: Option<&str>, dest: Option<&str>) -> FareRuleRecord {
+    fn fare_rule_rec(
+        fare_id: &str,
+        route_id: Option<&str>,
+        origin: Option<&str>,
+        dest: Option<&str>,
+    ) -> FareRuleRecord {
         FareRuleRecord {
             fare_id: fare_id.into(),
             route_id: route_id.map(str::to_string),
             origin_id: origin.map(str::to_string),
             destination_id: dest.map(str::to_string),
             contains_id: None,
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         }
     }
 
@@ -1070,6 +1322,9 @@ mod tests {
         assert!(fn_.zone_ids.contains("Z1"));
         assert!(fn_.zone_ids.contains("Z2"));
         assert!(fn_.zone_ids.contains("Z3"));
-        assert!(!fn_.fare_routes.contains_key("F2"), "F2'nin route_id'si yok");
+        assert!(
+            !fn_.fare_routes.contains_key("F2"),
+            "F2'nin route_id'si yok"
+        );
     }
 }

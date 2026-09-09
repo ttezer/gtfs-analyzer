@@ -1,8 +1,8 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_lexical_field,
-    build_row_map, get_trimmed_field, looks_like_bcp47, looks_like_email, looks_like_url,
-    make_k2_notice, parse_service_date, RowMap,
+use super::common::{
+    build_row_map, get_lexical_field, get_trimmed_field, looks_like_bcp47, looks_like_email,
+    looks_like_url, make_k2_notice, parse_service_date, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -29,7 +29,9 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let publisher_name = get_trimmed_field(&row_map, "feed_publisher_name").unwrap_or("").to_string();
+        let publisher_name = get_trimmed_field(&row_map, "feed_publisher_name")
+            .unwrap_or("")
+            .to_string();
         // sütun başlıkta yoksa ARC_025 devralır → atla
         if get_trimmed_field(&row_map, "feed_publisher_name") == Some("") {
             notices.push(make_k2_notice(
@@ -48,7 +50,9 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             ));
         }
 
-        let publisher_url = get_lexical_field(&row_map, "feed_publisher_url").unwrap_or("").to_string();
+        let publisher_url = get_lexical_field(&row_map, "feed_publisher_url")
+            .unwrap_or("")
+            .to_string();
         if publisher_url.is_empty() || !looks_like_url(&publisher_url) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -66,7 +70,9 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             ));
         }
 
-        let feed_lang = get_lexical_field(&row_map, "feed_lang").unwrap_or("").to_string();
+        let feed_lang = get_lexical_field(&row_map, "feed_lang")
+            .unwrap_or("")
+            .to_string();
         if feed_lang.is_empty() || !looks_like_bcp47(&feed_lang) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -106,12 +112,32 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             }
         }
 
-        let feed_start_date = parse_date_field(&row_map, &mut notices, &mut counter, "FIN_005", "feed_start_date", line, &file.name);
-        let feed_end_date = parse_date_field(&row_map, &mut notices, &mut counter, "FIN_006", "feed_end_date", line, &file.name);
+        let feed_start_date = parse_date_field(
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "FIN_005",
+            "feed_start_date",
+            line,
+            &file.name,
+        );
+        let feed_end_date = parse_date_field(
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "FIN_006",
+            "feed_end_date",
+            line,
+            &file.name,
+        );
 
         // FIN_014: feed_start_date veya feed_end_date eksik (missing_feed_info_date)
-        let raw_start = get_trimmed_field(&row_map, "feed_start_date").unwrap_or("").to_string();
-        let raw_end   = get_trimmed_field(&row_map, "feed_end_date").unwrap_or("").to_string();
+        let raw_start = get_trimmed_field(&row_map, "feed_start_date")
+            .unwrap_or("")
+            .to_string();
+        let raw_end = get_trimmed_field(&row_map, "feed_end_date")
+            .unwrap_or("")
+            .to_string();
         if raw_start.is_empty() || raw_end.is_empty() {
             notices.push(make_k2_notice(
                 &mut counter, "FIN_014", EntityType::Feed, None,
@@ -222,10 +248,20 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
     // FIN_015: Birden fazla feed_info kaydı (more_than_one_entity)
     if records.len() > 1 {
         notices.push(make_k2_notice(
-            &mut counter, "FIN_015", EntityType::Feed, None,
-            None, &file.name, None, None,
-            Some(records.len().to_string()), Some("1".to_string()),
-            format!("feed_info.txt'de {} kayıt var; yalnızca 1 satır olmalıdır.", records.len()),
+            &mut counter,
+            "FIN_015",
+            EntityType::Feed,
+            None,
+            None,
+            &file.name,
+            None,
+            None,
+            Some(records.len().to_string()),
+            Some("1".to_string()),
+            format!(
+                "feed_info.txt'de {} kayıt var; yalnızca 1 satır olmalıdır.",
+                records.len()
+            ),
             "feed_info.txt'de yalnızca bir kayıt bırakın.",
         ));
     }

@@ -1,9 +1,10 @@
-use std::collections::HashMap;
 use gtfs_core::EntityType;
+use std::collections::HashMap;
 
-use super::common::{get_lexical_field, get_raw_field,
-    build_row_map, get_field, get_trimmed_field, looks_like_iana_timezone, looks_like_url,
-    make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap,
+use super::common::{
+    build_row_map, get_field, get_lexical_field, get_raw_field, get_trimmed_field,
+    looks_like_iana_timezone, looks_like_url, make_k2_notice, parse_f64, parse_u32, validate_enum,
+    RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -52,9 +53,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         // STP_002: stop_id required (sütun yoksa ARC_025 devralır → atla)
         if get_raw_field(&row_map, "stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
-                &mut counter, "STP_002", EntityType::Stop, None,
-                Some(&row_map), &file.name, Some(line), Some("stop_id"),
-                Some(String::new()), None,
+                &mut counter,
+                "STP_002",
+                EntityType::Stop,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("stop_id"),
+                Some(String::new()),
+                None,
                 "stop_id zorunludur.".to_string(),
                 "stop_id alanını doldurun.",
             ));
@@ -73,17 +81,30 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some("unique within the feed".to_string()),
                     format!("stop_code '{code}' hem '{first_stop}' hem '{stop_id}' duraklarında kullanılıyor."),
                     "Her yolcu-facing stop_code değerini feed içinde benzersiz yapın."));
-            } else { stop_code_owner.insert(code.clone(), stop_id.clone()); }
+            } else {
+                stop_code_owner.insert(code.clone(), stop_id.clone());
+            }
         }
 
         // STP_028: stop_code çok uzun (>50 karakter)
         if let Some(ref code) = stop_code {
             if code.len() > 50 {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_028", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_code"),
-                    Some(code.len().to_string()), Some("≤50".to_string()),
-                    format!("'{}' durağının stop_code değeri {} karakter; 50 karakteri aşıyor.", stop_id, code.len()),
+                    &mut counter,
+                    "STP_028",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_code"),
+                    Some(code.len().to_string()),
+                    Some("≤50".to_string()),
+                    format!(
+                        "'{}' durağının stop_code değeri {} karakter; 50 karakteri aşıyor.",
+                        stop_id,
+                        code.len()
+                    ),
                     "stop_code'u 50 karakterin altında tutun.",
                 ));
             }
@@ -95,9 +116,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 if let Some(val) = v {
                     if !validate_enum(&val.to_string(), &["0", "1", "2", "3", "4"]) {
                         notices.push(make_k2_notice(
-                            &mut counter, "STP_008", EntityType::Stop, entity_id.clone(),
-                            Some(&row_map), &file.name, Some(line), Some("location_type"),
-                            Some(val.to_string()), Some("0-4".to_string()),
+                            &mut counter,
+                            "STP_008",
+                            EntityType::Stop,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("location_type"),
+                            Some(val.to_string()),
+                            Some("0-4".to_string()),
                             format!("location_type {val} geçerli bir değer değil (0-4 olmalı)."),
                             "location_type alanını 0, 1, 2, 3 veya 4 olarak ayarlayın.",
                         ));
@@ -109,9 +137,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_008 üretirken
                 // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_008", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("location_type"),
-                    get_trimmed_field(&row_map, "location_type").map(str::to_string), Some("0-4".to_string()),
+                    &mut counter,
+                    "STP_008",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("location_type"),
+                    get_trimmed_field(&row_map, "location_type").map(str::to_string),
+                    Some("0-4".to_string()),
                     err,
                     "location_type alanını 0, 1, 2, 3 veya 4 olarak ayarlayın.",
                 ));
@@ -129,9 +164,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         // agregasyon kararı için bekletilir.
         if stop_code.is_none() && is_stop_or_station {
             let mut notice = make_k2_notice(
-                &mut counter, "STP_022", EntityType::Stop, entity_id.clone(),
-                Some(&row_map), &file.name, Some(line), Some("stop_code"),
-                Some(String::new()), None,
+                &mut counter,
+                "STP_022",
+                EntityType::Stop,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("stop_code"),
+                Some(String::new()),
+                None,
                 format!("'{}' durağında stop_code eksik.", stop_id),
                 "Yolcuların tanıyabileceği kısa bir stop_code değeri girin.",
             );
@@ -150,10 +192,20 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .map(str::to_string);
         if stop_name.is_none() && requires_name_and_coords {
             notices.push(make_k2_notice(
-                &mut counter, "STP_003", EntityType::Stop, entity_id.clone(),
-                Some(&row_map), &file.name, Some(line), Some("stop_name"),
-                Some(String::new()), None,
-                format!("'{}' durağı için durak adı (stop_name) zorunludur.", stop_id),
+                &mut counter,
+                "STP_003",
+                EntityType::Stop,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("stop_name"),
+                Some(String::new()),
+                None,
+                format!(
+                    "'{}' durağı için durak adı (stop_name) zorunludur.",
+                    stop_id
+                ),
                 "Okunabilir bir stop_name değeri girin.",
             ));
         }
@@ -162,10 +214,20 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if let Some(raw_name) = get_field(&row_map, "stop_name") {
             if !raw_name.trim().is_empty() && raw_name != raw_name.trim() {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_025", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_name"),
-                    Some(raw_name.to_string()), None,
-                    format!("'{}' durağının stop_name alanında baştaki/sondaki boşluk var.", stop_id),
+                    &mut counter,
+                    "STP_025",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_name"),
+                    Some(raw_name.to_string()),
+                    None,
+                    format!(
+                        "'{}' durağının stop_name alanında baştaki/sondaki boşluk var.",
+                        stop_id
+                    ),
                     "stop_name değerinin başındaki ve sonundaki boşlukları kaldırın.",
                 ));
             }
@@ -175,10 +237,21 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if let Some(ref name) = stop_name {
             if name.len() > 100 {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_019", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_name"),
-                    Some(name.len().to_string()), Some("≤100".to_string()),
-                    format!("'{}' durağının stop_name değeri {} karakter; 100 karakteri aşıyor.", stop_id, name.len()),
+                    &mut counter,
+                    "STP_019",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_name"),
+                    Some(name.len().to_string()),
+                    Some("≤100".to_string()),
+                    format!(
+                        "'{}' durağının stop_name değeri {} karakter; 100 karakteri aşıyor.",
+                        stop_id,
+                        name.len()
+                    ),
                     "stop_name'i 100 karakterin altında tutun.",
                 ));
             }
@@ -198,14 +271,26 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             // geçerliydi. `tdg-83513` 158↔160 ve `mdb-784` 73.944↔73.946 aynı sabit farkı
             // gösteriyordu — üç feed'de de eksik olan tam olarak ASCII dışı çiftlerdi.
             // Alloc'suz: iki tarafı da tembel şekilde küçük harfe çevirip karakter karşılaştır.
-            if name.chars().flat_map(char::to_lowercase)
+            if name
+                .chars()
+                .flat_map(char::to_lowercase)
                 .eq(desc.chars().flat_map(char::to_lowercase))
             {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_031", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_desc"),
-                    Some(desc.clone()), None,
-                    format!("'{}' durağının stop_name ve stop_desc değerleri aynı: '{}'.", stop_id, name),
+                    &mut counter,
+                    "STP_031",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_desc"),
+                    Some(desc.clone()),
+                    None,
+                    format!(
+                        "'{}' durağının stop_name ve stop_desc değerleri aynı: '{}'.",
+                        stop_id, name
+                    ),
                     "stop_desc, stop_name'den farklı ve daha açıklayıcı bir değer içermelidir.",
                 ));
             }
@@ -213,40 +298,59 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // STP_004: stop_lat required for stops/stations/entrances, must be in [-90, 90]
         let stop_lat = match parse_f64(&row_map, "stop_lat") {
-            Ok(v) => {
-                match v {
-                    None => {
-                        if requires_name_and_coords {
-                            notices.push(make_k2_notice(
-                                &mut counter, "STP_006", EntityType::Stop, entity_id.clone(),
-                                Some(&row_map), &file.name, Some(line), Some("stop_lat"),
-                                Some(String::new()), Some("[-90, 90]".to_string()),
-                                format!("'{}' durağı için enlem (stop_lat) zorunludur.", stop_id),
-                                "stop_lat alanını ondalıklı enlem değeriyle doldurun.",
-                            ));
-                        }
-                        None
+            Ok(v) => match v {
+                None => {
+                    if requires_name_and_coords {
+                        notices.push(make_k2_notice(
+                            &mut counter,
+                            "STP_006",
+                            EntityType::Stop,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("stop_lat"),
+                            Some(String::new()),
+                            Some("[-90, 90]".to_string()),
+                            format!("'{}' durağı için enlem (stop_lat) zorunludur.", stop_id),
+                            "stop_lat alanını ondalıklı enlem değeriyle doldurun.",
+                        ));
                     }
-                    Some(lat) => {
-                        if !(-90.0..=90.0).contains(&lat) {
-                            notices.push(make_k2_notice(
-                                &mut counter, "STP_003", EntityType::Stop, entity_id.clone(),
-                                Some(&row_map), &file.name, Some(line), Some("stop_lat"),
-                                Some(lat.to_string()), Some("[-90, 90]".to_string()),
-                                format!("stop_lat {lat} değeri [-90, 90] aralığı dışında."),
-                                "stop_lat için -90 ile 90 arasında bir değer girin.",
-                            ));
-                        }
-                        Some(lat)
-                    }
+                    None
                 }
-            }
+                Some(lat) => {
+                    if !(-90.0..=90.0).contains(&lat) {
+                        notices.push(make_k2_notice(
+                            &mut counter,
+                            "STP_003",
+                            EntityType::Stop,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("stop_lat"),
+                            Some(lat.to_string()),
+                            Some("[-90, 90]".to_string()),
+                            format!("stop_lat {lat} değeri [-90, 90] aralığı dışında."),
+                            "stop_lat için -90 ile 90 arasında bir değer girin.",
+                        ));
+                    }
+                    Some(lat)
+                }
+            },
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_004", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_lat"),
+                    &mut counter,
+                    "STP_004",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_lat"),
                     get_trimmed_field(&row_map, "stop_lat").map(str::to_string),
-                    Some("[-90, 90]".to_string()), err,
+                    Some("[-90, 90]".to_string()),
+                    err,
                     "stop_lat alanını ondalıklı enlem değeriyle doldurun.",
                 ));
                 None
@@ -255,40 +359,59 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // STP_007: stop_lon required for stops/stations/entrances, must be in [-180, 180]
         let stop_lon = match parse_f64(&row_map, "stop_lon") {
-            Ok(v) => {
-                match v {
-                    None => {
-                        if requires_name_and_coords {
-                            notices.push(make_k2_notice(
-                                &mut counter, "STP_007", EntityType::Stop, entity_id.clone(),
-                                Some(&row_map), &file.name, Some(line), Some("stop_lon"),
-                                Some(String::new()), Some("[-180, 180]".to_string()),
-                                format!("'{}' durağı için boylam (stop_lon) zorunludur.", stop_id),
-                                "stop_lon alanını ondalıklı boylam değeriyle doldurun.",
-                            ));
-                        }
-                        None
+            Ok(v) => match v {
+                None => {
+                    if requires_name_and_coords {
+                        notices.push(make_k2_notice(
+                            &mut counter,
+                            "STP_007",
+                            EntityType::Stop,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("stop_lon"),
+                            Some(String::new()),
+                            Some("[-180, 180]".to_string()),
+                            format!("'{}' durağı için boylam (stop_lon) zorunludur.", stop_id),
+                            "stop_lon alanını ondalıklı boylam değeriyle doldurun.",
+                        ));
                     }
-                    Some(lon) => {
-                        if !(-180.0..=180.0).contains(&lon) {
-                            notices.push(make_k2_notice(
-                                &mut counter, "STP_005", EntityType::Stop, entity_id.clone(),
-                                Some(&row_map), &file.name, Some(line), Some("stop_lon"),
-                                Some(lon.to_string()), Some("[-180, 180]".to_string()),
-                                format!("stop_lon {lon} değeri [-180, 180] aralığı dışında."),
-                                "stop_lon için -180 ile 180 arasında bir değer girin.",
-                            ));
-                        }
-                        Some(lon)
-                    }
+                    None
                 }
-            }
+                Some(lon) => {
+                    if !(-180.0..=180.0).contains(&lon) {
+                        notices.push(make_k2_notice(
+                            &mut counter,
+                            "STP_005",
+                            EntityType::Stop,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("stop_lon"),
+                            Some(lon.to_string()),
+                            Some("[-180, 180]".to_string()),
+                            format!("stop_lon {lon} değeri [-180, 180] aralığı dışında."),
+                            "stop_lon için -180 ile 180 arasında bir değer girin.",
+                        ));
+                    }
+                    Some(lon)
+                }
+            },
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_005", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_lon"),
+                    &mut counter,
+                    "STP_005",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_lon"),
                     get_trimmed_field(&row_map, "stop_lon").map(str::to_string),
-                    Some("[-180, 180]".to_string()), err,
+                    Some("[-180, 180]".to_string()),
+                    err,
                     "stop_lon alanını ondalıklı boylam değeriyle doldurun.",
                 ));
                 None
@@ -302,9 +425,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if let Some(ref tz) = stop_timezone {
             if !looks_like_iana_timezone(tz) {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_014", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_timezone"),
-                    Some(tz.clone()), None,
+                    &mut counter,
+                    "STP_014",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_timezone"),
+                    Some(tz.clone()),
+                    None,
                     format!("stop_timezone '{tz}' geçerli bir IANA saat dilimi değil."),
                     "Geçerli bir IANA saat dilimi girin (örn. Europe/Istanbul).",
                 ));
@@ -387,10 +517,22 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         //
         // STP_040 aynı şekli `stop_name` için uygular ama OPT-IN'dir, çünkü "Union Station"
         // meşru bir addır. Burada spec doğrudan yasakladığı için opt-in değil.
-        if let Some(pc) = get_trimmed_field(&row_map, "platform_code").filter(|v| !v.trim().is_empty()) {
+        if let Some(pc) =
+            get_trimmed_field(&row_map, "platform_code").filter(|v| !v.trim().is_empty())
+        {
             const PLATFORM_WORDS: &[&str] = &[
-                "platform", "track", "gleis", "peron", "perron", "binario",
-                "voie", "quai", "spor", "anden", "andén", "plataforma",
+                "platform",
+                "track",
+                "gleis",
+                "peron",
+                "perron",
+                "binario",
+                "voie",
+                "quai",
+                "spor",
+                "anden",
+                "andén",
+                "plataforma",
             ];
             let lower = pc.to_lowercase();
             if lower
@@ -411,10 +553,20 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if let Some(ref tts) = tts_stop_name {
             if tts.contains('<') || tts.contains('>') {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_023", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("tts_stop_name"),
-                    Some(tts.clone()), None,
-                    format!("'{}' durağının tts_stop_name değeri '<' veya '>' karakteri içeriyor.", stop_id),
+                    &mut counter,
+                    "STP_023",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("tts_stop_name"),
+                    Some(tts.clone()),
+                    None,
+                    format!(
+                        "'{}' durağının tts_stop_name değeri '<' veya '>' karakteri içeriyor.",
+                        stop_id
+                    ),
                     "tts_stop_name'de HTML/SSML işaret karakterleri kullanmayın.",
                 ));
             }
@@ -427,10 +579,20 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let loc_type = location_type.unwrap_or(0);
         if zone_id.is_none() && loc_type == 0 {
             let mut notice = make_k2_notice(
-                &mut counter, "STP_033", EntityType::Stop, entity_id.clone(),
-                Some(&row_map), &file.name, Some(line), Some("zone_id"),
-                None, None,
-                format!("'{}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.", stop_id),
+                &mut counter,
+                "STP_033",
+                EntityType::Stop,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("zone_id"),
+                None,
+                None,
+                format!(
+                    "'{}' durağında zone_id eksik; ücret hesaplamaları etkilenebilir.",
+                    stop_id
+                ),
                 "Ücret hesabı için zone_id alanını doldurun.",
             );
             let details = notice.details.get_or_insert_with(Default::default);
@@ -448,8 +610,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if let Some(ref url) = stop_url {
             if !looks_like_url(url) {
                 notices.push(make_k2_notice(
-                    &mut counter, "STP_042", EntityType::Stop, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("stop_url"), Some(url.clone()), None,
+                    &mut counter,
+                    "STP_042",
+                    EntityType::Stop,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("stop_url"),
+                    Some(url.clone()),
+                    None,
                     "stop_url geçerli bir URL değil.".to_string(),
                     "stop_url için geçerli bir http/https URL'si kullanın.",
                 ));
@@ -487,8 +657,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         } else {
             format!("{n} durakta stop_code eksik (feed'de stop_code kısmen kullanılıyor) — yolcular bu durakları kısa kodla tanıyamaz.")
         };
-        let examples: Vec<String> = stp022_pending.iter()
-            .filter_map(|x| x.entity_id.clone()).take(5).collect();
+        let examples: Vec<String> = stp022_pending
+            .iter()
+            .filter_map(|x| x.entity_id.clone())
+            .take(5)
+            .collect();
         let mut notice = make_k2_notice(
             &mut counter, "STP_022", EntityType::Feed, None,
             None, &file.name, None, Some("stop_code"),
@@ -498,7 +671,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), n.to_string());
-        if !examples.is_empty() { d.insert("example_stops".to_string(), examples.join(", ")); }
+        if !examples.is_empty() {
+            d.insert("example_stops".to_string(), examples.join(", "));
+        }
         notice.details = Some(d);
         notices.push(notice);
     } else {
@@ -510,18 +685,32 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     const STP033_AGG_THRESHOLD: usize = 50;
     let n33 = stp033_pending.len();
     if n33 > STP033_AGG_THRESHOLD {
-        let examples: Vec<String> = stp033_pending.iter()
-            .filter_map(|x| x.entity_id.clone()).take(5).collect();
+        let examples: Vec<String> = stp033_pending
+            .iter()
+            .filter_map(|x| x.entity_id.clone())
+            .take(5)
+            .collect();
         let mut notice = make_k2_notice(
-            &mut counter, "STP_033", EntityType::Feed, None,
-            None, &file.name, None, Some("zone_id"),
-            Some(n33.to_string()), None,
-            format!("{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."),
+            &mut counter,
+            "STP_033",
+            EntityType::Feed,
+            None,
+            None,
+            &file.name,
+            None,
+            Some("zone_id"),
+            Some(n33.to_string()),
+            None,
+            format!(
+                "{n33} durakta zone_id eksik — ücret bölgesi tabanlı hesaplamalar etkilenebilir."
+            ),
             "Ücret hesabı gerekiyorsa ilgili duraklara zone_id ekleyin.",
         );
         let mut d = std::collections::BTreeMap::new();
         d.insert("affected_stops".to_string(), n33.to_string());
-        if !examples.is_empty() { d.insert("example_stops".to_string(), examples.join(", ")); }
+        if !examples.is_empty() {
+            d.insert("example_stops".to_string(), examples.join(", "));
+        }
         notice.details = Some(d);
         notices.push(notice);
     } else {
@@ -558,21 +747,36 @@ mod tests {
         RawFile {
             name: "stops.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
     #[test]
     fn valid_stop_produces_no_notices() {
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code", "zone_id"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "stop_code",
+                "zone_id",
+            ],
             vec![vec!["S1", "Main Stop", "41.0", "29.0", "S001", "Z1"]],
         );
         let (records, notices) = validate_stops(&file);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli durak notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli durak notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -588,26 +792,54 @@ mod tests {
                 // ASCII cift — eskiden de yakalaniyordu, REGRESYON kapisi
                 vec!["S1", "Buszkowiczki", "41.0", "29.0", "BUSZKOWICZKI"],
                 // ASCII disi cift (l-stroke) — eskiden KACIYORDU
-                vec!["S2", "Stanis\u{142}awczyk", "41.1", "29.1", "STANIS\u{141}AWCZYK"],
+                vec![
+                    "S2",
+                    "Stanis\u{142}awczyk",
+                    "41.1",
+                    "29.1",
+                    "STANIS\u{141}AWCZYK",
+                ],
                 // Turkce cift (c-cedilla, o-umlaut, s-cedilla) — ayni sinif.
                 // NOT: `i` ve dotless-i BILEREK kullanilmadi. Unicode'un locale-bagimsiz
                 // casing'inde bu cift ASIMETRIKTIR: dotless-i buyuyunce `I` olur ama
                 // `I` kucuiltunce `i` olur, dotless-i degil. Yani "BAGCILAR" ile "Bagcilar"
                 // (dotless) Unicode'a gore ESIT DEGILDIR ve kural haklı olarak susar;
                 // Turkce'ye ozel casing yapmak locale bilgisi ister, bu kuralin isi degil.
-                vec!["S3", "\u{e7}orlu g\u{f6}l \u{15f}ube", "41.2", "29.2", "\u{c7}ORLU G\u{d6}L \u{15e}UBE"],
+                vec![
+                    "S3",
+                    "\u{e7}orlu g\u{f6}l \u{15f}ube",
+                    "41.2",
+                    "29.2",
+                    "\u{c7}ORLU G\u{d6}L \u{15e}UBE",
+                ],
                 // GERCEKTEN farkli aciklama — susmali
                 vec!["S4", "Merkez", "41.3", "29.3", "Otogar karsisi"],
             ],
         );
         let (_records, notices) = validate_stops(&file);
-        let hits: Vec<&str> = notices.iter().filter(|n| n.rule_id == "STP_031")
-            .filter_map(|n| n.entity_id.as_deref()).collect();
-        assert!(hits.contains(&"S1"), "ASCII cift yakalanmali (regresyon): {hits:?}");
-        assert!(hits.contains(&"S2"), "ASCII disi cift (l-stroke) yakalanmali: {hits:?}");
+        let hits: Vec<&str> = notices
+            .iter()
+            .filter(|n| n.rule_id == "STP_031")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert!(
+            hits.contains(&"S1"),
+            "ASCII cift yakalanmali (regresyon): {hits:?}"
+        );
+        assert!(
+            hits.contains(&"S2"),
+            "ASCII disi cift (l-stroke) yakalanmali: {hits:?}"
+        );
         assert!(hits.contains(&"S3"), "Turkce cift yakalanmali: {hits:?}");
-        assert!(!hits.contains(&"S4"), "gercekten farkli aciklama SUSMALI: {hits:?}");
-        assert_eq!(hits.len(), 3, "tam olarak uc esdeger cift beklenir: {hits:?}");
+        assert!(
+            !hits.contains(&"S4"),
+            "gercekten farkli aciklama SUSMALI: {hits:?}"
+        );
+        assert_eq!(
+            hits.len(),
+            3,
+            "tam olarak uc esdeger cift beklenir: {hits:?}"
+        );
     }
 
     #[test]
@@ -623,7 +855,11 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
-        assert_eq!(stp022.len(), 1, "feed-geneli eksiklikte tek STP_022 beklenir");
+        assert_eq!(
+            stp022.len(),
+            1,
+            "feed-geneli eksiklikte tek STP_022 beklenir"
+        );
         assert_eq!(stp022[0].entity_type, EntityType::Feed);
         assert_eq!(stp022[0].observed_value.as_deref(), Some("3"));
     }
@@ -641,7 +877,11 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
-        assert_eq!(stp022.len(), 2, "kısmi doluluk durak-başına STP_022 vermeli");
+        assert_eq!(
+            stp022.len(),
+            2,
+            "kısmi doluluk durak-başına STP_022 vermeli"
+        );
         assert!(stp022.iter().all(|n| n.entity_type == EntityType::Stop));
     }
 
@@ -654,14 +894,23 @@ mod tests {
             rows.push(vec![id.as_str(), "X", "41.0", "29.0", ""]); // stop_code eksik
         }
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"], rows,
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
+            rows,
         );
         let (_, notices) = validate_stops(&file);
         let stp022: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_022").collect();
-        assert_eq!(stp022.len(), 1, "yüksek hacimde kısmi eksiklik tek feed-özeti vermeli");
+        assert_eq!(
+            stp022.len(),
+            1,
+            "yüksek hacimde kısmi eksiklik tek feed-özeti vermeli"
+        );
         assert_eq!(stp022[0].entity_type, EntityType::Feed);
         assert_eq!(
-            stp022[0].details.as_ref().and_then(|d| d.get("affected_stops")).map(String::as_str),
+            stp022[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_stops"))
+                .map(String::as_str),
             Some("51"),
         );
     }
@@ -680,7 +929,11 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         let stp033: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_033").collect();
-        assert_eq!(stp033.len(), 3, "düşük hacimde durak-başına STP_033 beklenir");
+        assert_eq!(
+            stp033.len(),
+            3,
+            "düşük hacimde durak-başına STP_033 beklenir"
+        );
         assert!(stp033.iter().all(|n| n.entity_type == EntityType::Stop));
     }
 
@@ -693,7 +946,8 @@ mod tests {
             rows.push(vec![id.as_str(), "X", "41.0", "29.0", id.as_str()]); // stop_code dolu, zone_id yok
         }
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"], rows,
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
+            rows,
         );
         let (_, notices) = validate_stops(&file);
         let stp033: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_033").collect();
@@ -701,7 +955,11 @@ mod tests {
         assert_eq!(stp033[0].entity_type, EntityType::Feed);
         assert_eq!(stp033[0].observed_value.as_deref(), Some("52"));
         assert_eq!(
-            stp033[0].details.as_ref().and_then(|d| d.get("affected_stops")).map(String::as_str),
+            stp033[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_stops"))
+                .map(String::as_str),
             Some("52"),
         );
     }
@@ -713,8 +971,11 @@ mod tests {
             vec![vec!["S1", "Stop1", "999.0", "29.0"]],
         );
         let (_, notices) = validate_stops(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "STP_003"),
-            "stop_lat=999 should produce STP_003, got: {:?}", notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STP_003"),
+            "stop_lat=999 should produce STP_003, got: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -731,34 +992,76 @@ mod tests {
     fn entrance_missing_name_and_coords_produces_notices() {
         // location_type=2 (giriş/çıkış) için stop_name/stop_lat/stop_lon zorunlu
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "location_type",
+            ],
             vec![vec!["E1", "", "", "", "2"]],
         );
         let (_, notices) = validate_stops(&file);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STP_003"), "stop_name eksik → STP_003 bekleniyor: {:?}", ids);
-        assert!(ids.contains(&"STP_006"), "stop_lat eksik → STP_006 bekleniyor: {:?}", ids);
-        assert!(ids.contains(&"STP_007"), "stop_lon eksik → STP_007 bekleniyor: {:?}", ids);
+        assert!(
+            ids.contains(&"STP_003"),
+            "stop_name eksik → STP_003 bekleniyor: {:?}",
+            ids
+        );
+        assert!(
+            ids.contains(&"STP_006"),
+            "stop_lat eksik → STP_006 bekleniyor: {:?}",
+            ids
+        );
+        assert!(
+            ids.contains(&"STP_007"),
+            "stop_lon eksik → STP_007 bekleniyor: {:?}",
+            ids
+        );
     }
 
     #[test]
     fn generic_node_missing_name_and_coords_silent() {
         // location_type=3 (generic node) için stop_name/stop_lat/stop_lon opsiyonel
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "location_type",
+            ],
             vec![vec!["N1", "", "", "", "3"]],
         );
         let (_, notices) = validate_stops(&file);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(!ids.contains(&"STP_003"), "generic node'da stop_name zorunlu olmamalı: {:?}", ids);
-        assert!(!ids.contains(&"STP_006"), "generic node'da stop_lat zorunlu olmamalı: {:?}", ids);
-        assert!(!ids.contains(&"STP_007"), "generic node'da stop_lon zorunlu olmamalı: {:?}", ids);
+        assert!(
+            !ids.contains(&"STP_003"),
+            "generic node'da stop_name zorunlu olmamalı: {:?}",
+            ids
+        );
+        assert!(
+            !ids.contains(&"STP_006"),
+            "generic node'da stop_lat zorunlu olmamalı: {:?}",
+            ids
+        );
+        assert!(
+            !ids.contains(&"STP_007"),
+            "generic node'da stop_lon zorunlu olmamalı: {:?}",
+            ids
+        );
     }
 
     #[test]
     fn invalid_wheelchair_boarding_produces_stp_013() {
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "wheelchair_boarding"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "wheelchair_boarding",
+            ],
             vec![vec!["S1", "Stop", "41.0", "29.0", "9"]],
         );
         let (_, notices) = validate_stops(&file);
@@ -768,7 +1071,13 @@ mod tests {
     #[test]
     fn invalid_location_type_produces_stp_008() {
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "location_type",
+            ],
             vec![vec!["S1", "Stop", "41.0", "29.0", "9"]],
         );
         let (_, notices) = validate_stops(&file);
@@ -776,15 +1085,26 @@ mod tests {
     }
     #[test]
     fn duplicate_stop_code_produces_stp_039() {
-        let file = make_file(vec!["stop_id","stop_name","stop_lat","stop_lon","stop_code"],
-            vec![vec!["S1","One","41","29","100"], vec!["S2","Two","41.1","29.1","100"]]);
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
+            vec![
+                vec!["S1", "One", "41", "29", "100"],
+                vec!["S2", "Two", "41.1", "29.1", "100"],
+            ],
+        );
         let (_, notices) = validate_stops(&file);
         assert_eq!(notices.iter().filter(|n| n.rule_id == "STP_039").count(), 1);
     }
     #[test]
     fn stp_044_flags_platform_word_in_platform_code() {
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "platform_code"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "platform_code",
+            ],
             vec![
                 vec!["S1", "Ana", "41.0", "29.0", "Gleis 5"],
                 vec!["S2", "Yan", "41.1", "29.1", "Track 2"],
@@ -801,7 +1121,13 @@ mod tests {
     fn stp_044_silent_for_plain_identifiers() {
         // platform_code'un doğru kullanımı: yalnız tanımlayıcı.
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "platform_code"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "platform_code",
+            ],
             vec![
                 vec!["S1", "A", "41.0", "29.0", "5"],
                 vec!["S2", "B", "41.1", "29.1", "2b"],
@@ -817,5 +1143,4 @@ mod tests {
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_044").collect();
         assert!(hits.is_empty(), "yanlış pozitif: {hits:?}");
     }
-
 }

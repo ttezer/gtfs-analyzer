@@ -49,7 +49,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn repo_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().unwrap()
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .canonicalize()
+        .unwrap()
 }
 
 /// `#[cfg(test)]` bloklarını brace-eşleştirerek çıkarır (emit_coverage.rs ile aynı yöntem).
@@ -59,13 +62,22 @@ fn strip_test_mods(src: &str) -> String {
     while let Some(pos) = rest.find(marker) {
         out.push_str(&rest[..pos]);
         let after = &rest[pos..];
-        let Some(brace) = after.find('{') else { rest = ""; break };
+        let Some(brace) = after.find('{') else {
+            rest = "";
+            break;
+        };
         let bytes = after.as_bytes();
         let (mut depth, mut k) = (0i32, brace);
         while k < bytes.len() {
             match bytes[k] {
                 b'{' => depth += 1,
-                b'}' => { depth -= 1; if depth == 0 { k += 1; break; } }
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        k += 1;
+                        break;
+                    }
+                }
                 _ => {}
             }
             k += 1;
@@ -79,8 +91,11 @@ fn strip_test_mods(src: &str) -> String {
 fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for e in fs::read_dir(dir).unwrap().flatten() {
         let p = e.path();
-        if p.is_dir() { rs_files(&p, out); }
-        else if p.extension().and_then(|x| x.to_str()) == Some("rs") { out.push(p); }
+        if p.is_dir() {
+            rs_files(&p, out);
+        } else if p.extension().and_then(|x| x.to_str()) == Some("rs") {
+            out.push(p);
+        }
     }
 }
 
@@ -90,7 +105,8 @@ fn looks_like_field(s: &str) -> bool {
         && !s.contains('.')
         && !s.contains(' ')
         && s.len() <= 40
-        && s.bytes().all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())
+        && s.bytes()
+            .all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())
 }
 
 /// Pencere: rule_id literalinden sonraki satır sayısı. Emit çağrılarının argüman listesi
@@ -106,18 +122,24 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
 
     for f in &files {
         // k7 rapor görünüm mantığı emit kaynağı değil (emit_coverage.rs ile aynı istisna).
-        if f.file_name().and_then(|n| n.to_str()) == Some("k7_reporting.rs") { continue; }
+        if f.file_name().and_then(|n| n.to_str()) == Some("k7_reporting.rs") {
+            continue;
+        }
         let text = strip_test_mods(&fs::read_to_string(f).unwrap());
         let lines: Vec<&str> = text.lines().collect();
         let fname = f.file_name().unwrap().to_string_lossy().to_string();
 
         for (i, line) in lines.iter().enumerate() {
             for id in known.iter() {
-                if !line.contains(&format!("\"{id}\"")) { continue; }
+                if !line.contains(&format!("\"{id}\"")) {
+                    continue;
+                }
                 let mut fields = BTreeSet::new();
                 for l in lines.iter().take((i + WINDOW).min(lines.len())).skip(i) {
                     if *l != *line
-                        && known.iter().any(|o| o != id && l.contains(&format!("\"{o}\"")))
+                        && known
+                            .iter()
+                            .any(|o| o != id && l.contains(&format!("\"{o}\"")))
                     {
                         break;
                     }
@@ -126,13 +148,19 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
                     // Alan adı gibi göründükleri için kimlik kümesini kirletiyorlardı:
                     // OPR_010'un iki emit'i ortak bir `route_label` yüzünden ayrık
                     // olmaktan çıkıp defterden düşmüştü (2026-08-29).
-                    if l.contains(".insert(") { continue; }
+                    if l.contains(".insert(") {
+                        continue;
+                    }
                     for lit in l.split('"').skip(1).step_by(2) {
-                        if lit != *id && looks_like_field(lit) { fields.insert(lit.to_string()); }
+                        if lit != *id && looks_like_field(lit) {
+                            fields.insert(lit.to_string());
+                        }
                     }
                 }
                 if !fields.is_empty() {
-                    out.entry((*id).to_string()).or_default().push((fname.clone(), fields));
+                    out.entry((*id).to_string())
+                        .or_default()
+                        .push((fname.clone(), fields));
                 }
             }
         }
@@ -144,27 +172,40 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
 fn rule_ids_emitted_for_disjoint_fields_match_ledger() {
     let mut found: Vec<String> = Vec::new();
     for (id, sites) in emit_field_sets() {
-        if sites.len() < 2 { continue; }
+        if sites.len() < 2 {
+            continue;
+        }
         // Herhangi iki nokta ORTAK alan taşıyorsa aynı olgunun dalları sayılır.
-        let overlap = sites.iter().enumerate().any(|(a, (_, sa))| {
-            sites.iter().skip(a + 1).any(|(_, sb)| !sa.is_disjoint(sb))
-        });
-        if overlap { continue; }
-        let mut all: Vec<String> = sites.iter()
+        let overlap = sites
+            .iter()
+            .enumerate()
+            .any(|(a, (_, sa))| sites.iter().skip(a + 1).any(|(_, sb)| !sa.is_disjoint(sb)));
+        if overlap {
+            continue;
+        }
+        let mut all: Vec<String> = sites
+            .iter()
             .map(|(f, s)| format!("{f}:{}", s.iter().cloned().collect::<Vec<_>>().join("+")))
             .collect();
         all.sort_unstable();
         all.dedup();
-        if all.len() < 2 { continue; }
+        if all.len() < 2 {
+            continue;
+        }
         found.push(format!("{id}  {}", all.join("  ")));
     }
     found.sort_unstable();
 
     let ledger_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("emit_identity_ledger.txt");
+        .join("tests")
+        .join("emit_identity_ledger.txt");
     let ledger_raw = fs::read_to_string(&ledger_path).unwrap_or_default();
-    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+    let ledger: Vec<String> = ledger_raw
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect();
 
     if found != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
@@ -191,7 +232,10 @@ fn rule_ids_emitted_for_disjoint_fields_match_ledger() {
              Defterde fazla (emit değişti/kalktı): {:#?}\n\
              Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-rules --test emit_identity \
              rule_ids_emitted_for_disjoint_fields_match_ledger",
-            found.len(), ledger.len(), added, removed,
+            found.len(),
+            ledger.len(),
+            added,
+            removed,
         );
     }
 }

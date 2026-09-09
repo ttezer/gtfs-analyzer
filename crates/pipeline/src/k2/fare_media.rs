@@ -1,6 +1,9 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{
+    build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_u32, validate_enum,
+    RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -12,9 +15,7 @@ pub struct FareMediaRecord {
     pub line: u64,
 }
 
-pub fn validate_fare_media(
-    file: &RawFile,
-) -> (Vec<FareMediaRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
@@ -22,7 +23,9 @@ pub fn validate_fare_media(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let id = get_raw_field(&row_map, "fare_media_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "fare_media_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
         let fare_media_type = match parse_u32(&row_map, "fare_media_type") {
@@ -39,8 +42,15 @@ pub fn validate_fare_media(
                     }
                 } else if get_trimmed_field(&row_map, "fare_media_type") == Some("") {
                     notices.push(make_k2_notice(
-                        &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                        &file.name, Some(line), Some("fare_media_type"), None,
+                        &mut counter,
+                        "FMD_002",
+                        EntityType::Row,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("fare_media_type"),
+                        None,
                         Some("0–4".to_string()),
                         "fare_media_type zorunludur.".to_string(),
                         "Geçerli bir fare_media_type değeri girin.",
@@ -50,10 +60,17 @@ pub fn validate_fare_media(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "FMD_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("fare_media_type"),
+                    &mut counter,
+                    "FMD_002",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("fare_media_type"),
                     get_trimmed_field(&row_map, "fare_media_type").map(str::to_string),
-                    Some("0–4".to_string()), err,
+                    Some("0–4".to_string()),
+                    err,
                     "Geçerli bir fare_media_type değeri girin.",
                 ));
                 None
@@ -72,9 +89,20 @@ pub fn validate_fare_media(
                 _ => "ödeme aracı",
             };
             notices.push(make_k2_notice(
-                &mut counter, "FMD_003", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("fare_media_name"), None, None,
-                format!("fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.", fare_media_type.unwrap()),
+                &mut counter,
+                "FMD_003",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("fare_media_name"),
+                None,
+                None,
+                format!(
+                    "fare_media_type={} ({type_label}) için fare_media_name tavsiye edilir.",
+                    fare_media_type.unwrap()
+                ),
                 "Kullanıcıların ödeme aracını tanıyabilmesi için fare_media_name ekleyin.",
             ));
         }
@@ -101,9 +129,13 @@ mod tests {
         RawFile {
             name: "fare_media.txt".into(),
             headers: headers.iter().map(|s| s.to_string()).collect(),
-            rows: rows.iter().map(|r| r.iter().map(|v| SmolStr::new(*v)).collect()).collect(),
+            rows: rows
+                .iter()
+                .map(|r| r.iter().map(|v| SmolStr::new(*v)).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
@@ -114,7 +146,10 @@ mod tests {
             vec![vec!["FM1", "2"]],
         );
         let (_, notices) = validate_fare_media(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 bekleniyor");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "FMD_003"),
+            "FMD_003 bekleniyor"
+        );
     }
 
     #[test]
@@ -124,7 +159,10 @@ mod tests {
             vec![vec!["FM1", "2", "İstanbulkart"]],
         );
         let (_, notices) = validate_fare_media(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "FMD_003"),
+            "FMD_003 tetiklenmemeli"
+        );
     }
 
     #[test]
@@ -134,7 +172,10 @@ mod tests {
             vec![vec!["FM1", "0"], vec!["FM2", "3"]],
         );
         let (_, notices) = validate_fare_media(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "FMD_003 tetiklenmemeli");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "FMD_003"),
+            "FMD_003 tetiklenmemeli"
+        );
     }
 
     #[test]
@@ -144,6 +185,9 @@ mod tests {
             vec![vec!["FM1", "1"]],
         );
         let (_, notices) = validate_fare_media(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "FMD_003"), "kağıt bilet için FMD_003 tetiklenmemeli");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "FMD_003"),
+            "kağıt bilet için FMD_003 tetiklenmemeli"
+        );
     }
 }

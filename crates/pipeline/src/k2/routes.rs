@@ -1,10 +1,10 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 
 use gtfs_core::EntityType;
 
-use super::common::{get_lexical_field, get_raw_field,
-    build_row_map, get_trimmed_field, is_hex_color_6, looks_like_url, make_k2_notice,
-    parse_u32, wcag_contrast_ratio, RowMap,
+use super::common::{
+    build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, is_hex_color_6,
+    looks_like_url, make_k2_notice, parse_u32, wcag_contrast_ratio, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -50,7 +50,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
 
-        let route_id = get_raw_field(&row_map, "route_id").unwrap_or("").to_string();
+        let route_id = get_raw_field(&row_map, "route_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!route_id.is_empty()).then_some(route_id.clone());
 
         // RTS_031: `route_id` boş — birincil anahtar yok. Bu satır KİMLİKSİZDİR ve
@@ -59,8 +61,16 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         // boş değer iki kuralın arasından düşüyordu (#153, korpusta 4 feed).
         if route_id.trim().is_empty() {
             notices.push(make_k2_notice(
-                &mut counter, "RTS_031", EntityType::Route, None, Some(&row_map),
-                &file.name, Some(line), Some("route_id"), Some(String::new()), None,
+                &mut counter,
+                "RTS_031",
+                EntityType::Route,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("route_id"),
+                Some(String::new()),
+                None,
                 "route_id zorunludur.".to_string(),
                 "routes.txt'teki her satıra benzersiz bir route_id yazın.",
             ));
@@ -132,10 +142,20 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             let char_len = l.chars().count(); // bayt değil karakter — bkz. RTS_010/021 notu
             if char_len > 100 {
                 notices.push(make_k2_notice(
-                    &mut counter, "RTS_011", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_long_name"),
-                    Some(char_len.to_string()), Some("≤100".to_string()),
-                    format!("'{}' hattının route_long_name değeri {} karakter; 100 karakteri aşıyor.", route_id, char_len),
+                    &mut counter,
+                    "RTS_011",
+                    EntityType::Route,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("route_long_name"),
+                    Some(char_len.to_string()),
+                    Some("≤100".to_string()),
+                    format!(
+                        "'{}' hattının route_long_name değeri {} karakter; 100 karakteri aşıyor.",
+                        route_id, char_len
+                    ),
                     "route_long_name'i 100 karakterin altında tutun.",
                 ));
             }
@@ -149,9 +169,16 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                         // RTS_004: route_type missing (sütun yoksa ARC_025 devralır → atla)
                         if get_trimmed_field(&row_map, "route_type") == Some("") {
                             notices.push(make_k2_notice(
-                                &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
-                                &file.name, Some(line), Some("route_type"),
-                                Some(String::new()), None,
+                                &mut counter,
+                                "RTS_004",
+                                EntityType::Route,
+                                entity_id.clone(),
+                                Some(&row_map),
+                                &file.name,
+                                Some(line),
+                                Some("route_type"),
+                                Some(String::new()),
+                                None,
                                 "route_type zorunludur.".to_string(),
                                 "Geçerli bir route_type girin (0-7, 11, 12).",
                             ));
@@ -178,9 +205,16 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                         } else if !is_core_route_type(val) {
                             // RTS_004: route_type invalid enum value
                             notices.push(make_k2_notice(
-                                &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
-                                &file.name, Some(line), Some("route_type"),
-                                Some(val.to_string()), Some("0-7,11,12".to_string()),
+                                &mut counter,
+                                "RTS_004",
+                                EntityType::Route,
+                                entity_id.clone(),
+                                Some(&row_map),
+                                &file.name,
+                                Some(line),
+                                Some("route_type"),
+                                Some(val.to_string()),
+                                Some("0-7,11,12".to_string()),
                                 format!("route_type {val} geçerli bir GTFS hat tipi değil."),
                                 "Geçerli bir route_type kullanın (0-7, 11, 12).",
                             ));
@@ -191,10 +225,17 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "RTS_004", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_type"),
+                    &mut counter,
+                    "RTS_004",
+                    EntityType::Route,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("route_type"),
                     get_trimmed_field(&row_map, "route_type").map(str::to_string),
-                    None, err,
+                    None,
+                    err,
                     "Geçerli bir sayısal route_type girin.",
                 ));
                 None
@@ -208,8 +249,16 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         if let Some(ref url) = route_url {
             if !looks_like_url(url) {
                 notices.push(make_k2_notice(
-                    &mut counter, "RTS_005", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_url"), Some(url.clone()), None,
+                    &mut counter,
+                    "RTS_005",
+                    EntityType::Route,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("route_url"),
+                    Some(url.clone()),
+                    None,
                     "route_url geçerli bir URL değil.".to_string(),
                     "route_url için geçerli bir http/https URL'si kullanın.",
                 ));
@@ -223,8 +272,15 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         if let Some(ref color) = route_color {
             if !is_hex_color_6(color) {
                 notices.push(make_k2_notice(
-                    &mut counter, "RTS_006", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_color"), Some(color.clone()),
+                    &mut counter,
+                    "RTS_006",
+                    EntityType::Route,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("route_color"),
+                    Some(color.clone()),
                     Some("6 haneli hex".to_string()),
                     "route_color 6 karakterli hex renk kodu olmalıdır.".to_string(),
                     "Geçerli bir 6 haneli hex renk kullanın (örn. FF0000).",
@@ -239,8 +295,15 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         if let Some(ref color) = route_text_color {
             if !is_hex_color_6(color) {
                 notices.push(make_k2_notice(
-                    &mut counter, "RTS_007", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_text_color"), Some(color.clone()),
+                    &mut counter,
+                    "RTS_007",
+                    EntityType::Route,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("route_text_color"),
+                    Some(color.clone()),
                     Some("6 haneli hex".to_string()),
                     "route_text_color 6 karakterli hex renk kodu olmalıdır.".to_string(),
                     "Geçerli bir 6 haneli hex renk kullanın (örn. FFFFFF).",
@@ -267,12 +330,26 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_013: continuous_pickup invalid enum
         let continuous_pickup = parse_continuous_field(
-            &row_map, &mut notices, &mut counter, "RTS_013", "continuous_pickup", &entity_id, line, &file.name,
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "RTS_013",
+            "continuous_pickup",
+            &entity_id,
+            line,
+            &file.name,
         );
 
         // RTS_018: continuous_drop_off invalid enum
         let continuous_drop_off = parse_continuous_field(
-            &row_map, &mut notices, &mut counter, "RTS_018", "continuous_drop_off", &entity_id, line, &file.name,
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "RTS_018",
+            "continuous_drop_off",
+            &entity_id,
+            line,
+            &file.name,
         );
 
         // RTS_029: spec tipi `Non-negative integer`. Negatif ya da sayı olmayan değer eskiden
@@ -281,10 +358,17 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             Ok(v) => v,
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "RTS_029", EntityType::Route, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("route_sort_order"),
+                    &mut counter,
+                    "RTS_029",
+                    EntityType::Route,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("route_sort_order"),
                     get_trimmed_field(&row_map, "route_sort_order").map(str::to_string),
-                    Some("negatif olmayan tam sayı".to_string()), err,
+                    Some("negatif olmayan tam sayı".to_string()),
+                    err,
                     "route_sort_order değerini negatif olmayan bir tam sayı olarak girin.",
                 ));
                 None
@@ -308,8 +392,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         // bir adın kopyası); hangi alan(lar) eşleşti mesajda yazar.
         {
             let dl = route_desc.as_ref().map(|d| d.to_lowercase());
-            let matches_long = matches!((&route_long_name, &dl), (Some(l), Some(d)) if &l.to_lowercase() == d);
-            let matches_short = matches!((&route_short_name, &dl), (Some(s), Some(d)) if &s.to_lowercase() == d);
+            let matches_long =
+                matches!((&route_long_name, &dl), (Some(l), Some(d)) if &l.to_lowercase() == d);
+            let matches_short =
+                matches!((&route_short_name, &dl), (Some(s), Some(d)) if &s.to_lowercase() == d);
             if let (Some(d), true) = (&route_desc, matches_long || matches_short) {
                 // Eşleşen alan adı `details.matched_field`'e yazılır: mesaj şablonları
                 // (tr/en/ja) hangi alanın kopyalandığını buradan okur — locale'de sabit
@@ -325,9 +411,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     format!("'{route_id}' hattının route_desc değeri {matched_field} ile aynı: '{d}'."),
                     "route_desc, hat adlarından farklı ve daha açıklayıcı bir açıklama içermelidir.",
                 );
-                n.details = Some(std::collections::BTreeMap::from([
-                    ("matched_field".to_string(), matched_field.to_string()),
-                ]));
+                n.details = Some(std::collections::BTreeMap::from([(
+                    "matched_field".to_string(),
+                    matched_field.to_string(),
+                )]));
                 notices.push(n);
             }
         }
@@ -421,9 +508,21 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         type NameKey = (String, String, Option<u32>, String);
         let mut name_groups: HashMap<NameKey, Vec<(String, u64)>> = HashMap::new();
         for rec in &records {
-            let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
-            let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
-            if sn.is_empty() && ln.is_empty() { continue; }
+            let sn = rec
+                .route_short_name
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_lowercase();
+            let ln = rec
+                .route_long_name
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_lowercase();
+            if sn.is_empty() && ln.is_empty() {
+                continue;
+            }
             let agency = rec.agency_id.as_deref().unwrap_or("").trim().to_string();
             name_groups
                 .entry((sn, ln, rec.route_type, agency))
@@ -431,18 +530,29 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 .push((rec.route_id.clone(), rec.line));
         }
         // Deterministik çıktı için anahtara göre sırala.
-        let mut groups: Vec<_> = name_groups.into_iter().filter(|(_, e)| e.len() >= 2).collect();
+        let mut groups: Vec<_> = name_groups
+            .into_iter()
+            .filter(|(_, e)| e.len() >= 2)
+            .collect();
         groups.sort_by(|a, b| a.0.cmp(&b.0));
         for (_key, entries) in &groups {
-            let group_str = entries.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(", ");
+            let group_str = entries
+                .iter()
+                .map(|(id, _)| id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
             let (anchor_id, anchor_line) = &entries[0];
             let anchor = route_by_id.get(anchor_id.as_str()).copied();
-            let sn_disp = anchor.and_then(|r| r.route_short_name.as_deref()).unwrap_or("");
-            let ln_disp = anchor.and_then(|r| r.route_long_name.as_deref()).unwrap_or("");
+            let sn_disp = anchor
+                .and_then(|r| r.route_short_name.as_deref())
+                .unwrap_or("");
+            let ln_disp = anchor
+                .and_then(|r| r.route_long_name.as_deref())
+                .unwrap_or("");
             let display = match (sn_disp.is_empty(), ln_disp.is_empty()) {
                 (false, false) => format!("{sn_disp} — {ln_disp}"),
-                (false, true)  => sn_disp.to_string(),
-                _              => ln_disp.to_string(),
+                (false, true) => sn_disp.to_string(),
+                _ => ln_disp.to_string(),
             };
             let mut n = make_k2_notice(
                 &mut counter, "RTS_019", EntityType::Route,
@@ -452,7 +562,11 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 format!("'{display}' hat adı (kısa+uzun aynı) şu hatlar tarafından paylaşılıyor: {group_str}."),
                 "Aynı kısa+uzun adı taşıyan hatları birleştirin ya da adlarını benzersizleştirin; bilerek kopya ise görmezden gelin.",
             );
-            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            n.details = Some(
+                [("conflicting_routes".to_string(), group_str.clone())]
+                    .into_iter()
+                    .collect(),
+            );
             notices.push(n);
         }
     }
@@ -464,24 +578,50 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
     {
         let mut short_groups: HashMap<String, Vec<(String, String, u64)>> = HashMap::new();
         for rec in &records {
-            let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
-            if sn.is_empty() { continue; }
-            let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
-            short_groups.entry(sn).or_default().push((rec.route_id.clone(), ln, rec.line));
+            let sn = rec
+                .route_short_name
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_lowercase();
+            if sn.is_empty() {
+                continue;
+            }
+            let ln = rec
+                .route_long_name
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_lowercase();
+            short_groups
+                .entry(sn)
+                .or_default()
+                .push((rec.route_id.clone(), ln, rec.line));
         }
-        let mut groups: Vec<_> = short_groups.into_iter()
+        let mut groups: Vec<_> = short_groups
+            .into_iter()
             .filter(|(_, e)| {
                 e.len() >= 2
-                    && e.iter().map(|(_, ln, _)| ln.as_str())
-                        .collect::<std::collections::HashSet<_>>().len() >= 2
+                    && e.iter()
+                        .map(|(_, ln, _)| ln.as_str())
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        >= 2
             })
             .collect();
         groups.sort_by(|a, b| a.0.cmp(&b.0));
         for (_sn, entries) in &groups {
-            let group_str = entries.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>().join(", ");
+            let group_str = entries
+                .iter()
+                .map(|(id, _, _)| id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
             let (anchor_id, _, anchor_line) = &entries[0];
-            let sn_disp = route_by_id.get(anchor_id.as_str()).copied()
-                .and_then(|r| r.route_short_name.as_deref()).unwrap_or("");
+            let sn_disp = route_by_id
+                .get(anchor_id.as_str())
+                .copied()
+                .and_then(|r| r.route_short_name.as_deref())
+                .unwrap_or("");
             let mut n = make_k2_notice(
                 &mut counter, "RTS_026", EntityType::Route,
                 Some(anchor_id.clone()), None,
@@ -490,7 +630,11 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 format!("'{sn_disp}' kısa hat adı, farklı uzun adlı şu hatlar tarafından paylaşılıyor: {group_str}."),
                 "Aynı hat numarası varyant/yön için bilinçli kullanılıyorsa yok sayın; değilse benzersizleştirin.",
             );
-            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            n.details = Some(
+                [("conflicting_routes".to_string(), group_str.clone())]
+                    .into_iter()
+                    .collect(),
+            );
             notices.push(n);
         }
     }
@@ -501,24 +645,50 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
     {
         let mut long_groups: HashMap<String, Vec<(String, String, u64)>> = HashMap::new();
         for rec in &records {
-            let ln = rec.route_long_name.as_deref().unwrap_or("").trim().to_lowercase();
-            if ln.is_empty() { continue; }
-            let sn = rec.route_short_name.as_deref().unwrap_or("").trim().to_lowercase();
-            long_groups.entry(ln).or_default().push((rec.route_id.clone(), sn, rec.line));
+            let ln = rec
+                .route_long_name
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_lowercase();
+            if ln.is_empty() {
+                continue;
+            }
+            let sn = rec
+                .route_short_name
+                .as_deref()
+                .unwrap_or("")
+                .trim()
+                .to_lowercase();
+            long_groups
+                .entry(ln)
+                .or_default()
+                .push((rec.route_id.clone(), sn, rec.line));
         }
-        let mut groups: Vec<_> = long_groups.into_iter()
+        let mut groups: Vec<_> = long_groups
+            .into_iter()
             .filter(|(_, e)| {
                 e.len() >= 2
-                    && e.iter().map(|(_, sn, _)| sn.as_str())
-                        .collect::<std::collections::HashSet<_>>().len() >= 2
+                    && e.iter()
+                        .map(|(_, sn, _)| sn.as_str())
+                        .collect::<std::collections::HashSet<_>>()
+                        .len()
+                        >= 2
             })
             .collect();
         groups.sort_by(|a, b| a.0.cmp(&b.0));
         for (_ln, entries) in &groups {
-            let group_str = entries.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>().join(", ");
+            let group_str = entries
+                .iter()
+                .map(|(id, _, _)| id.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
             let (anchor_id, _, anchor_line) = &entries[0];
-            let ln_disp = route_by_id.get(anchor_id.as_str()).copied()
-                .and_then(|r| r.route_long_name.as_deref()).unwrap_or("");
+            let ln_disp = route_by_id
+                .get(anchor_id.as_str())
+                .copied()
+                .and_then(|r| r.route_long_name.as_deref())
+                .unwrap_or("");
             let mut n = make_k2_notice(
                 &mut counter, "RTS_027", EntityType::Route,
                 Some(anchor_id.clone()), None,
@@ -527,7 +697,11 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 format!("'{ln_disp}' uzun hat adı, farklı kısa adlı şu hatlar tarafından paylaşılıyor: {group_str}."),
                 "Aynı uzun ad bilinçli paylaşılıyorsa yok sayın; değilse her hatta ayırt edici bir ad verin.",
             );
-            n.details = Some([("conflicting_routes".to_string(), group_str.clone())].into_iter().collect());
+            n.details = Some(
+                [("conflicting_routes".to_string(), group_str.clone())]
+                    .into_iter()
+                    .collect(),
+            );
             notices.push(n);
         }
     }
@@ -553,8 +727,15 @@ fn parse_continuous_field(
             if let Some(val) = v {
                 if !matches!(val, 0..=3) {
                     notices.push(make_k2_notice(
-                        counter, rule_id, EntityType::Route, entity_id.clone(), Some(row_map),
-                        file_name, Some(line), Some(field), Some(val.to_string()),
+                        counter,
+                        rule_id,
+                        EntityType::Route,
+                        entity_id.clone(),
+                        Some(row_map),
+                        file_name,
+                        Some(line),
+                        Some(field),
+                        Some(val.to_string()),
                         Some("0-3".to_string()),
                         format!("{field} alanı 0, 1, 2 veya 3 olmalıdır."),
                         "Alanı geçerli bir GTFS sürekli servis değerine ayarlayın (0-3).",
@@ -565,10 +746,17 @@ fn parse_continuous_field(
         }
         Err(err) => {
             notices.push(make_k2_notice(
-                counter, rule_id, EntityType::Route, entity_id.clone(), Some(row_map),
-                file_name, Some(line), Some(field),
+                counter,
+                rule_id,
+                EntityType::Route,
+                entity_id.clone(),
+                Some(row_map),
+                file_name,
+                Some(line),
+                Some(field),
                 get_trimmed_field(row_map, field).map(str::to_string),
-                Some("0-3".to_string()), err,
+                Some("0-3".to_string()),
+                err,
                 "Alanı 0, 1, 2 veya 3 değerlerinden biri olarak girin.",
             ));
             None
@@ -585,9 +773,13 @@ mod tests {
         RawFile {
             name: "routes.txt".to_string(),
             headers: headers.into_iter().map(str::to_string).collect(),
-            rows: rows.into_iter().map(|r| r.into_iter().map(smol_str::SmolStr::from).collect()).collect(),
+            rows: rows
+                .into_iter()
+                .map(|r| r.into_iter().map(smol_str::SmolStr::from).collect())
+                .collect(),
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         }
     }
 
@@ -599,11 +791,19 @@ mod tests {
         );
         let (records, notices) = validate_routes(&file);
         assert_eq!(records.len(), 1);
-        assert!(notices.is_empty(), "Geçerli rota notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli rota notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     fn ids(file: &RawFile) -> Vec<String> {
-        validate_routes(file).1.iter().map(|n| n.rule_id.clone()).collect()
+        validate_routes(file)
+            .1
+            .iter()
+            .map(|n| n.rule_id.clone())
+            .collect()
     }
 
     #[test]
@@ -611,38 +811,74 @@ mod tests {
         // "Kızılay" 7 karakter / 8 bayt; bayt sayımıyla 6'lık Google eşiği yanlış aşılırdı.
         // route_long_name BOŞ bırakıldı ki RTS_021 muafiyeti devreye girmesin.
         let f = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
-            vec![vec!["R1", "Kızıla", "", "3"]],   // 6 karakter / 7 bayt → eşik altı
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
+            vec![vec!["R1", "Kızıla", "", "3"]], // 6 karakter / 7 bayt → eşik altı
         );
-        assert!(!ids(&f).contains(&"RTS_021".to_string()), "6 karakter eşiği aşmamalı: {:?}", ids(&f));
+        assert!(
+            !ids(&f).contains(&"RTS_021".to_string()),
+            "6 karakter eşiği aşmamalı: {:?}",
+            ids(&f)
+        );
 
         // 12 karakterlik Japonca ad = 36 bayt; bayt sayımıyla RTS_010 yanlış tetiklenirdi.
         let f = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![vec!["R1", "東京都交通局都営バス系統", "", "3"]],
         );
         let got = ids(&f);
-        assert!(!got.contains(&"RTS_010".to_string()), "12 karakter >12 değildir: {got:?}");
-        assert!(got.contains(&"RTS_021".to_string()), "12 karakter Google eşiğini aşar: {got:?}");
+        assert!(
+            !got.contains(&"RTS_010".to_string()),
+            "12 karakter >12 değildir: {got:?}"
+        );
+        assert!(
+            got.contains(&"RTS_021".to_string()),
+            "12 karakter Google eşiğini aşar: {got:?}"
+        );
     }
 
     #[test]
     fn rts_021_is_waived_when_long_name_is_present() {
         // Google'ın muafiyeti: route_long_name doluysa kısa ad uyarısı göz ardı edilebilir.
         let with_long = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![vec!["R1", "Green Line", "Green Line Downtown", "3"]],
         );
-        assert!(!ids(&with_long).contains(&"RTS_021".to_string()),
-            "long_name doluyken RTS_021 üretilmemeli: {:?}", ids(&with_long));
+        assert!(
+            !ids(&with_long).contains(&"RTS_021".to_string()),
+            "long_name doluyken RTS_021 üretilmemeli: {:?}",
+            ids(&with_long)
+        );
 
         // Boşluk-dolu long_name muafiyet saymaz.
         let blank_long = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![vec!["R1", "Green Line", "   ", "3"]],
         );
-        assert!(ids(&blank_long).contains(&"RTS_021".to_string()),
-            "boş long_name muafiyet saymamalı: {:?}", ids(&blank_long));
+        assert!(
+            ids(&blank_long).contains(&"RTS_021".to_string()),
+            "boş long_name muafiyet saymamalı: {:?}",
+            ids(&blank_long)
+        );
     }
 
     #[test]
@@ -652,14 +888,22 @@ mod tests {
             vec![vec!["R1", "10", "99"]],
         );
         let (_, notices) = validate_routes(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "RTS_004"),
-            "route_type=99 must produce RTS_004, got: {:?}", notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+        assert!(
+            notices.iter().any(|n| n.rule_id == "RTS_004"),
+            "route_type=99 must produce RTS_004, got: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn both_names_empty_produces_rts_003() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![vec!["R1", "", "", "3"]],
         );
         let (_, notices) = validate_routes(&file);
@@ -679,12 +923,24 @@ mod tests {
     #[test]
     fn non_numeric_continuous_values_produce_their_rules() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_type", "continuous_pickup", "continuous_drop_off"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_type",
+                "continuous_pickup",
+                "continuous_drop_off",
+            ],
             vec![vec!["R1", "10", "3", "abc", "xyz"]],
         );
         let (_, notices) = validate_routes(&file);
-        assert!(notices.iter().any(|n| n.rule_id == "RTS_013"), "RTS_013 bekleniyor: {notices:?}");
-        assert!(notices.iter().any(|n| n.rule_id == "RTS_018"), "RTS_018 bekleniyor: {notices:?}");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "RTS_013"),
+            "RTS_013 bekleniyor: {notices:?}"
+        );
+        assert!(
+            notices.iter().any(|n| n.rule_id == "RTS_018"),
+            "RTS_018 bekleniyor: {notices:?}"
+        );
     }
 
     /// Aynı ad FARKLI AJANSTA kopya değildir — iki işletmecinin "10" hattı olması olağan.
@@ -696,42 +952,80 @@ mod tests {
     #[test]
     fn route_desc_equal_to_short_name_produces_rts_023() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_desc", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_desc",
+                "route_type",
+            ],
             vec![vec!["R1", "EXT", "Merkez - Sahil", "EXT", "3"]],
         );
         let (_, notices) = validate_routes(&file);
-        assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_023").count(), 1,
-            "route_desc == route_short_name → RTS_023 olmalı");
+        assert_eq!(
+            notices.iter().filter(|n| n.rule_id == "RTS_023").count(),
+            1,
+            "route_desc == route_short_name → RTS_023 olmalı"
+        );
     }
 
     /// Her iki ad da eşleşse bile hat başına TEK notice (aynı kök neden).
     #[test]
     fn route_desc_equal_to_both_names_produces_single_rts_023() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_desc", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_desc",
+                "route_type",
+            ],
             vec![vec!["R1", "X", "X", "X", "3"]],
         );
         let (_, notices) = validate_routes(&file);
-        assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_023").count(), 1,
-            "iki alan da eşleşse bile tek notice");
+        assert_eq!(
+            notices.iter().filter(|n| n.rule_id == "RTS_023").count(),
+            1,
+            "iki alan da eşleşse bile tek notice"
+        );
     }
 
     /// route_desc farklıysa tetiklememeli (fix aşırı-tetiklememeli).
     #[test]
     fn route_desc_different_from_names_is_not_rts_023() {
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_desc", "route_type"],
-            vec![vec!["R1", "10", "Merkez - Sahil", "Sahil boyunca ekspres", "3"]],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_desc",
+                "route_type",
+            ],
+            vec![vec![
+                "R1",
+                "10",
+                "Merkez - Sahil",
+                "Sahil boyunca ekspres",
+                "3",
+            ]],
         );
         let (_, notices) = validate_routes(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "RTS_023"),
-            "gerçekten açıklayıcı route_desc tetiklememeli");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "RTS_023"),
+            "gerçekten açıklayıcı route_desc tetiklememeli"
+        );
     }
 
     #[test]
     fn same_name_different_agency_is_not_rts_019() {
         let file = make_file(
-            vec!["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "agency_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![
                 vec!["R1", "A1", "10", "", "3"],
                 vec!["R2", "A2", "10", "", "3"], // farklı ajans → kopya DEĞİL
@@ -748,7 +1042,13 @@ mod tests {
     #[test]
     fn same_name_different_route_type_is_not_rts_019() {
         let file = make_file(
-            vec!["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "agency_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![
                 vec!["R1", "A1", "10", "Merkez", "3"], // otobüs
                 vec!["R2", "A1", "10", "Merkez", "0"], // tramvay
@@ -765,7 +1065,13 @@ mod tests {
     #[test]
     fn same_name_same_agency_and_type_is_rts_019() {
         let file = make_file(
-            vec!["route_id", "agency_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "agency_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![
                 vec!["R1", "A1", "10", "Merkez", "3"],
                 vec!["R2", "A1", "10", "Merkez", "3"],
@@ -773,7 +1079,8 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         assert_eq!(
-            notices.iter().filter(|n| n.rule_id == "RTS_019").count(), 1,
+            notices.iter().filter(|n| n.rule_id == "RTS_019").count(),
+            1,
             "aynı ajans+tür+ad gerçek kopya → RTS_019 üretmeli"
         );
     }
@@ -782,7 +1089,12 @@ mod tests {
     fn shared_route_name_produces_single_rts_019_per_group() {
         // 3 hat HEM aynı short HEM aynı long → gerçek kopya → çakışan grup başına TEK RTS_019
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![
                 vec!["R1", "QM2", "Astoria - Midtown", "3"],
                 vec!["R2", "QM2", "Astoria - Midtown", "3"],
@@ -791,15 +1103,27 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         let rts019: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_019").collect();
-        assert_eq!(rts019.len(), 1, "Grup başına tek RTS_019 bekleniyor, {} üretildi: {:?}",
-            rts019.len(), rts019.iter().map(|n| &n.message).collect::<Vec<_>>());
+        assert_eq!(
+            rts019.len(),
+            1,
+            "Grup başına tek RTS_019 bekleniyor, {} üretildi: {:?}",
+            rts019.len(),
+            rts019.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
         // Mesaj grubun TÜM üyelerini (route_id) listelemeli
         let msg = &rts019[0].message;
-        assert!(msg.contains("R1") && msg.contains("R2") && msg.contains("R3"),
-            "Mesaj tüm grubu listelemeli: {}", msg);
+        assert!(
+            msg.contains("R1") && msg.contains("R2") && msg.contains("R3"),
+            "Mesaj tüm grubu listelemeli: {}",
+            msg
+        );
         // Hepsi HEM kısa HEM uzun aynı → yalnız RTS_019; RTS_026/027 (tek-alan) tetiklenmemeli.
-        assert!(!notices.iter().any(|n| n.rule_id == "RTS_026" || n.rule_id == "RTS_027"),
-            "both-same grup RTS_026/027 üretmemeli (RTS_019 dışında)");
+        assert!(
+            !notices
+                .iter()
+                .any(|n| n.rule_id == "RTS_026" || n.rule_id == "RTS_027"),
+            "both-same grup RTS_026/027 üretmemeli (RTS_019 dışında)"
+        );
     }
 
     #[test]
@@ -808,28 +1132,49 @@ mod tests {
         // RTS_019 (ORTA) YOK; ama aynı numara farklı adlar → RTS_026 (Bilgi). Athens mdb-3220
         // FP'sinin köku buydu (109 grup); artık ORTA değil BİLGİ.
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![
                 vec!["R1", "221", "Merkez - Kuzey", "3"],
                 vec!["R2", "221", "Merkez - Güney", "3"],
             ],
         );
         let (_, notices) = validate_routes(&file);
-        assert!(!notices.iter().any(|n| n.rule_id == "RTS_019"),
-            "aynı short + farklı long RTS_019 üretmemeli");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "RTS_019"),
+            "aynı short + farklı long RTS_019 üretmemeli"
+        );
         let rts026: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_026").collect();
-        assert_eq!(rts026.len(), 1, "aynı short farklı long → tek RTS_026 beklenir");
-        assert!(rts026[0].message.contains("R1") && rts026[0].message.contains("R2"),
-            "RTS_026 mesajı tüm grubu listelemeli: {}", rts026[0].message);
-        assert!(!notices.iter().any(|n| n.rule_id == "RTS_027"),
-            "farklı long → RTS_027 üretmemeli");
+        assert_eq!(
+            rts026.len(),
+            1,
+            "aynı short farklı long → tek RTS_026 beklenir"
+        );
+        assert!(
+            rts026[0].message.contains("R1") && rts026[0].message.contains("R2"),
+            "RTS_026 mesajı tüm grubu listelemeli: {}",
+            rts026[0].message
+        );
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "RTS_027"),
+            "farklı long → RTS_027 üretmemeli"
+        );
     }
 
     #[test]
     fn shared_long_name_different_short_produces_rts_027() {
         // Aynı route_long_name ama FARKLI route_short_name → RTS_027 (Bilgi); RTS_019/026 YOK.
         let file = make_file(
-            vec!["route_id", "route_short_name", "route_long_name", "route_type"],
+            vec![
+                "route_id",
+                "route_short_name",
+                "route_long_name",
+                "route_type",
+            ],
             vec![
                 vec!["R1", "10", "Şehir Merkezi Hattı", "3"],
                 vec!["R2", "20", "Şehir Merkezi Hattı", "3"],
@@ -837,11 +1182,22 @@ mod tests {
         );
         let (_, notices) = validate_routes(&file);
         let rts027: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_027").collect();
-        assert_eq!(rts027.len(), 1, "aynı long farklı short → tek RTS_027 beklenir");
-        assert!(rts027[0].message.contains("R1") && rts027[0].message.contains("R2"),
-            "RTS_027 mesajı tüm grubu listelemeli: {}", rts027[0].message);
-        assert!(!notices.iter().any(|n| n.rule_id == "RTS_019" || n.rule_id == "RTS_026"),
-            "aynı long farklı short durumda RTS_019/026 üretmemeli");
+        assert_eq!(
+            rts027.len(),
+            1,
+            "aynı long farklı short → tek RTS_027 beklenir"
+        );
+        assert!(
+            rts027[0].message.contains("R1") && rts027[0].message.contains("R2"),
+            "RTS_027 mesajı tüm grubu listelemeli: {}",
+            rts027[0].message
+        );
+        assert!(
+            !notices
+                .iter()
+                .any(|n| n.rule_id == "RTS_019" || n.rule_id == "RTS_026"),
+            "aynı long farklı short durumda RTS_019/026 üretmemeli"
+        );
     }
 
     #[test]
@@ -851,8 +1207,11 @@ mod tests {
             vec![vec!["R1", "10", "3"], vec!["R2", "10", "3"]],
         );
         let (_, notices) = validate_routes(&file);
-        assert_eq!(notices.iter().filter(|n| n.rule_id == "RTS_019").count(), 1,
-            "Aynı short_name → tek RTS_019");
+        assert_eq!(
+            notices.iter().filter(|n| n.rule_id == "RTS_019").count(),
+            1,
+            "Aynı short_name → tek RTS_019"
+        );
     }
 
     #[test]
@@ -887,7 +1246,8 @@ mod tests {
             .collect(),
             rows,
             bytes: 0,
-            raw_text: None, zip_entry_name: None,
+            raw_text: None,
+            zip_entry_name: None,
         };
 
         let started = std::time::Instant::now();
@@ -912,7 +1272,8 @@ mod tests {
             vec![vec!["R1", "Metro", value]],
         );
         let (_, notices) = validate_routes(&file);
-        notices.iter()
+        notices
+            .iter()
             .filter(|n| n.rule_id == "RTS_004" || n.rule_id == "RTS_030")
             .map(|n| n.rule_id.clone())
             .collect()
@@ -921,9 +1282,11 @@ mod tests {
     #[test]
     fn core_route_types_produce_no_type_notice() {
         for v in ["0", "3", "7", "11", "12"] {
-            assert!(route_type_rule_ids(v).is_empty(),
+            assert!(
+                route_type_rule_ids(v).is_empty(),
                 "çekirdek route_type {v} hiçbir tip notice'ı üretmemeli, gelen: {:?}",
-                route_type_rule_ids(v));
+                route_type_rule_ids(v)
+            );
         }
     }
 
@@ -931,8 +1294,11 @@ mod tests {
     fn extended_route_type_is_interop_not_core_spec() {
         // 401 (eski test), 100 (aralık başı), 1501 (issue #93 karşı-örneği), 1799 (aralık sonu).
         for v in ["100", "401", "715", "1501", "1799"] {
-            assert_eq!(route_type_rule_ids(v), vec!["RTS_030".to_string()],
-                "genişletilmiş route_type {v} yalnız RTS_030 üretmeli (RTS_004 DEĞİL)");
+            assert_eq!(
+                route_type_rule_ids(v),
+                vec!["RTS_030".to_string()],
+                "genişletilmiş route_type {v} yalnız RTS_030 üretmeli (RTS_004 DEĞİL)"
+            );
         }
     }
 
@@ -940,8 +1306,11 @@ mod tests {
     fn non_core_non_extended_route_type_stays_rts_004() {
         // Ne çekirdek ne genişletilmiş: davranış değişmedi, KRİTİK Spec ihlali.
         for v in ["8", "13", "99", "1800", "9999"] {
-            assert_eq!(route_type_rule_ids(v), vec!["RTS_004".to_string()],
-                "route_type {v} çekirdek Spec ihlali olarak RTS_004 üretmeli");
+            assert_eq!(
+                route_type_rule_ids(v),
+                vec!["RTS_004".to_string()],
+                "route_type {v} çekirdek Spec ihlali olarak RTS_004 üretmeli"
+            );
         }
     }
 

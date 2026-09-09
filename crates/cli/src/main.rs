@@ -536,7 +536,11 @@ fn render_json(
         }
         ValidateResult::Ok(vr) => {
             let payload = JsonOk {
-                status: if vr.status == ValidationStatus::Partial { "partial" } else { "ok" },
+                status: if vr.status == ValidationStatus::Partial {
+                    "partial"
+                } else {
+                    "ok"
+                },
                 filtered: filter_meta(filters),
                 result: vr,
             };
@@ -568,10 +572,22 @@ fn render_summary(result: &ValidateResult, filters: &Filters) -> String {
                 "status: OK\n"
             });
             if let Some(partial) = &vr.partial {
-                out.push_str(&format!("partial_root_errors: {}\n", partial.root_structural_errors.len()));
-                out.push_str(&format!("partial_unavailable_files: {}\n", partial.unavailable_files.len()));
-                out.push_str(&format!("partial_skipped_stages: {}\n", partial.skipped_stages.len()));
-                out.push_str(&format!("partial_skipped_checks: {}\n", partial.skipped_checks.len()));
+                out.push_str(&format!(
+                    "partial_root_errors: {}\n",
+                    partial.root_structural_errors.len()
+                ));
+                out.push_str(&format!(
+                    "partial_unavailable_files: {}\n",
+                    partial.unavailable_files.len()
+                ));
+                out.push_str(&format!(
+                    "partial_skipped_stages: {}\n",
+                    partial.skipped_stages.len()
+                ));
+                out.push_str(&format!(
+                    "partial_skipped_checks: {}\n",
+                    partial.skipped_checks.len()
+                ));
             }
             out.push_str(&format!("notices: {}\n", vr.notices.len()));
             if !filters.is_empty() {

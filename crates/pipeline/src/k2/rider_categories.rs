@@ -1,6 +1,9 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_lexical_field, get_raw_field, build_row_map, get_trimmed_field, looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap};
+use super::common::{
+    build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, looks_like_url,
+    make_k2_notice, parse_u32, validate_enum, RowMap,
+};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -28,15 +31,26 @@ pub fn validate_rider_categories(
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
-        let id = get_raw_field(&row_map, "rider_category_id").unwrap_or("").to_string();
+        let id = get_raw_field(&row_map, "rider_category_id")
+            .unwrap_or("")
+            .to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
-        let name = get_trimmed_field(&row_map, "rider_category_name").unwrap_or("").to_string();
+        let name = get_trimmed_field(&row_map, "rider_category_name")
+            .unwrap_or("")
+            .to_string();
         // sütun başlıkta yoksa ARC_025 devralır → atla
         if get_trimmed_field(&row_map, "rider_category_name") == Some("") {
             notices.push(make_k2_notice(
-                &mut counter, "RCT_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("rider_category_name"), None,
+                &mut counter,
+                "RCT_002",
+                EntityType::Row,
+                entity_id.clone(),
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("rider_category_name"),
+                None,
                 Some("dolu".to_string()),
                 "rider_category_name zorunludur.".to_string(),
                 "Her yolcu kategorisi için bir isim girin.",
@@ -48,8 +62,15 @@ pub fn validate_rider_categories(
                 if let Some(v) = value {
                     if !validate_enum(&v.to_string(), &["0", "1"]) {
                         notices.push(make_k2_notice(
-                            &mut counter, "RCT_003", EntityType::Row, entity_id.clone(), Some(&row_map),
-                            &file.name, Some(line), Some("is_default_fare_category"), Some(v.to_string()),
+                            &mut counter,
+                            "RCT_003",
+                            EntityType::Row,
+                            entity_id.clone(),
+                            Some(&row_map),
+                            &file.name,
+                            Some(line),
+                            Some("is_default_fare_category"),
+                            Some(v.to_string()),
                             Some("0 or 1".to_string()),
                             "is_default_fare_category geçerli bir enum değeri değil.".to_string(),
                             "0 (varsayılan değil) veya 1 (varsayılan) kullanın.",
@@ -60,10 +81,17 @@ pub fn validate_rider_categories(
             }
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "RCT_003", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("is_default_fare_category"),
+                    &mut counter,
+                    "RCT_003",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("is_default_fare_category"),
                     get_trimmed_field(&row_map, "is_default_fare_category").map(str::to_string),
-                    Some("0 or 1".to_string()), err,
+                    Some("0 or 1".to_string()),
+                    err,
                     "0 veya 1 kullanın.",
                 ));
                 None
@@ -74,10 +102,17 @@ pub fn validate_rider_categories(
             Ok(v) => v,
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "RCT_004", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("min_age"),
+                    &mut counter,
+                    "RCT_004",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("min_age"),
                     get_trimmed_field(&row_map, "min_age").map(str::to_string),
-                    Some(">= 0".to_string()), err,
+                    Some(">= 0".to_string()),
+                    err,
                     "min_age için negatif olmayan bir tam sayı girin.",
                 ));
                 None
@@ -88,10 +123,17 @@ pub fn validate_rider_categories(
             Ok(v) => v,
             Err(err) => {
                 notices.push(make_k2_notice(
-                    &mut counter, "RCT_004", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("max_age"),
+                    &mut counter,
+                    "RCT_004",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("max_age"),
                     get_trimmed_field(&row_map, "max_age").map(str::to_string),
-                    Some(">= 0".to_string()), err,
+                    Some(">= 0".to_string()),
+                    err,
                     "max_age için negatif olmayan bir tam sayı girin.",
                 ));
                 None
@@ -101,8 +143,15 @@ pub fn validate_rider_categories(
         if let (Some(mn), Some(mx)) = (min_age, max_age) {
             if mx < mn {
                 notices.push(make_k2_notice(
-                    &mut counter, "RCT_005", EntityType::Row, entity_id.clone(), Some(&row_map),
-                    &file.name, Some(line), Some("max_age"), Some(mx.to_string()),
+                    &mut counter,
+                    "RCT_005",
+                    EntityType::Row,
+                    entity_id.clone(),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("max_age"),
+                    Some(mx.to_string()),
                     Some(format!(">= {mn}")),
                     format!("max_age ({mx}) min_age ({mn}) değerinden küçük olamaz."),
                     "max_age değerini min_age'e eşit veya daha büyük yapın.",
@@ -117,8 +166,16 @@ pub fn validate_rider_categories(
         if let Some(ref url) = eligibility_url {
             if !looks_like_url(url) {
                 notices.push(make_k2_notice(
-                    &mut counter, "RCT_007", EntityType::Row, Some(id.clone()), Some(&row_map),
-                    &file.name, Some(line), Some("eligibility_url"), Some(url.clone()), None,
+                    &mut counter,
+                    "RCT_007",
+                    EntityType::Row,
+                    Some(id.clone()),
+                    Some(&row_map),
+                    &file.name,
+                    Some(line),
+                    Some("eligibility_url"),
+                    Some(url.clone()),
+                    None,
                     "eligibility_url geçerli bir URL değil.".to_string(),
                     "eligibility_url için geçerli bir http/https URL'si kullanın.",
                 ));

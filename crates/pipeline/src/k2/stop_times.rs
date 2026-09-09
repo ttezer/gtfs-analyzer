@@ -4,7 +4,7 @@ use smol_str::SmolStr;
 use std::borrow::Cow;
 use std::io::{Cursor, Read};
 
-use super::common::{get_col_raw, get_col, make_k2_notice};
+use super::common::{get_col, get_col_raw, make_k2_notice};
 #[cfg(feature = "parallel")]
 use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
@@ -15,7 +15,11 @@ pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
 /// SDK builds pass `max_data_rows`; native callers keep the historical large-feed
 /// path and therefore do not receive the SDK's per-entry byte cap.
 pub(crate) fn stream_byte_limit(max_data_rows: Option<usize>) -> usize {
-    if max_data_rows.is_some() { K2_MAX_STREAM_BYTES } else { usize::MAX }
+    if max_data_rows.is_some() {
+        K2_MAX_STREAM_BYTES
+    } else {
+        usize::MAX
+    }
 }
 
 /// Shared SDK budget for the files that K2 reopens from the ZIP. A separate
@@ -26,8 +30,12 @@ pub struct StreamBudget {
 }
 
 impl StreamBudget {
-    pub(crate) fn new(bytes: usize) -> Self { Self { remaining: bytes } }
-    pub(crate) fn limit(&self) -> usize { self.remaining }
+    pub(crate) fn new(bytes: usize) -> Self {
+        Self { remaining: bytes }
+    }
+    pub(crate) fn limit(&self) -> usize {
+        self.remaining
+    }
     pub(crate) fn consume(&mut self, bytes: usize) {
         self.remaining = self.remaining.saturating_sub(bytes);
     }
@@ -84,34 +92,56 @@ impl CompactStopTime {
     /// `arrival_is_absent()` kullanmalıdır.
     #[inline]
     pub fn arrival_time(&self) -> Option<(u32, u32, u32)> {
-        if self.arrival_secs == u32::MAX || self.arrival_secs == TIME_MALFORMED { None }
-        else { let s = self.arrival_secs; Some((s / 3600, (s % 3600) / 60, s % 60)) }
+        if self.arrival_secs == u32::MAX || self.arrival_secs == TIME_MALFORMED {
+            None
+        } else {
+            let s = self.arrival_secs;
+            Some((s / 3600, (s % 3600) / 60, s % 60))
+        }
     }
     /// Alan GERÇEKTEN boş mu — dolu-ama-bozuk vakası `false` döner.
     #[inline]
-    pub fn arrival_is_absent(&self) -> bool { self.arrival_secs == u32::MAX }
+    pub fn arrival_is_absent(&self) -> bool {
+        self.arrival_secs == u32::MAX
+    }
     /// Alan GERÇEKTEN boş mu — dolu-ama-bozuk vakası `false` döner.
     #[inline]
-    pub fn departure_is_absent(&self) -> bool { self.departure_secs == u32::MAX }
+    pub fn departure_is_absent(&self) -> bool {
+        self.departure_secs == u32::MAX
+    }
     /// departure_time → Option<(saat, dakika, saniye)>; u32::MAX → None
     #[inline]
     pub fn departure_time(&self) -> Option<(u32, u32, u32)> {
-        if self.departure_secs == u32::MAX || self.departure_secs == TIME_MALFORMED { None }
-        else { let s = self.departure_secs; Some((s / 3600, (s % 3600) / 60, s % 60)) }
+        if self.departure_secs == u32::MAX || self.departure_secs == TIME_MALFORMED {
+            None
+        } else {
+            let s = self.departure_secs;
+            Some((s / 3600, (s % 3600) / 60, s % 60))
+        }
     }
     /// stop_sequence → Option<u32>; u32::MAX → None
     #[inline]
     pub fn stop_sequence(&self) -> Option<u32> {
-        if self.sequence == u32::MAX { None } else { Some(self.sequence) }
+        if self.sequence == u32::MAX {
+            None
+        } else {
+            Some(self.sequence)
+        }
     }
     /// shape_dist_traveled → Option<f64>; f32::NAN → None
     #[inline]
     pub fn shape_dist_traveled(&self) -> Option<f64> {
-        if self.dist_f32.is_nan() { None } else { Some(self.dist_f32 as f64) }
+        if self.dist_f32.is_nan() {
+            None
+        } else {
+            Some(self.dist_f32 as f64)
+        }
     }
     /// line as u64 (notice API'si u64 bekler)
     #[inline]
-    pub fn line_u64(&self) -> u64 { self.line as u64 }
+    pub fn line_u64(&self) -> u64 {
+        self.line as u64
+    }
 }
 
 // #38: CompactStopTime boyut guard — 24B'ı aşarsa derleme kırılır.
@@ -120,17 +150,17 @@ const _: () = assert!(std::mem::size_of::<CompactStopTime>() <= 24);
 /// CompactStopTime'ın nadir kullanılan GTFS-Flex alanları (Box'lanır — bkz. CompactStopTime.flex).
 #[derive(Debug, Clone, Default)]
 pub struct StopTimeFlex {
-    pub start_pickup_drop_off_window:  Option<(u32, u32, u32)>,
-    pub end_pickup_drop_off_window:    Option<(u32, u32, u32)>,
-    pub location_id:                   Option<SmolStr>,
-    pub location_group_id:             Option<SmolStr>,
-    pub pickup_booking_rule_id:        Option<SmolStr>,
-    pub drop_off_booking_rule_id:      Option<SmolStr>,
+    pub start_pickup_drop_off_window: Option<(u32, u32, u32)>,
+    pub end_pickup_drop_off_window: Option<(u32, u32, u32)>,
+    pub location_id: Option<SmolStr>,
+    pub location_group_id: Option<SmolStr>,
+    pub pickup_booking_rule_id: Option<SmolStr>,
+    pub drop_off_booking_rule_id: Option<SmolStr>,
     /// STM_060 için: `CompactStopTime` 24 bayta sıkıştırıldığından pickup/drop_off tipini
     /// TAŞIMAZ. Bu kutu yalnız Flex satırlarında ayrıldığı için tipleri burada tutmak
     /// normal feed'lere SIFIR maliyettir (VBB'nin 6,1M satırında hiç kutu ayrılmaz).
-    pub pickup_type:                   Option<u32>,
-    pub drop_off_type:                 Option<u32>,
+    pub pickup_type: Option<u32>,
+    pub drop_off_type: Option<u32>,
 }
 
 /// 6 flex değerinden herhangi biri Some ise Box'lanmış StopTimeFlex, aksi halde None döner.
@@ -150,8 +180,11 @@ pub fn build_flex(
     pickup_type: Option<u32>,
     drop_off_type: Option<u32>,
 ) -> Option<Box<StopTimeFlex>> {
-    if start_window.is_some() || end_window.is_some() || location_id.is_some()
-        || location_group_id.is_some() || pickup_booking_rule_id.is_some()
+    if start_window.is_some()
+        || end_window.is_some()
+        || location_id.is_some()
+        || location_group_id.is_some()
+        || pickup_booking_rule_id.is_some()
         || drop_off_booking_rule_id.is_some()
     {
         Some(Box::new(StopTimeFlex {
@@ -213,8 +246,7 @@ pub struct StopTimesIndex {
 const RAW_MIDNIGHT_MIN_BACKSTEP_SECS: u32 = 6 * 3600;
 
 fn raw_midnight_rollover(previous: u32, current: u32) -> bool {
-    current < previous
-        && previous.saturating_sub(current) >= RAW_MIDNIGHT_MIN_BACKSTEP_SECS
+    current < previous && previous.saturating_sub(current) >= RAW_MIDNIGHT_MIN_BACKSTEP_SECS
 }
 
 /// Tek bir raw after-midnight ihlalinin kullanıcıya gösterilecek kanıtı.
@@ -232,7 +264,12 @@ pub struct MidnightViolation {
 }
 
 fn format_gtfs_time(secs: u32) -> String {
-    format!("{:02}:{:02}:{:02}", secs / 3600, (secs % 3600) / 60, secs % 60)
+    format!(
+        "{:02}:{:02}:{:02}",
+        secs / 3600,
+        (secs % 3600) / 60,
+        secs % 60
+    )
 }
 
 impl StopTimesIndex {
@@ -244,8 +281,13 @@ impl StopTimesIndex {
 
     /// stop_idx'ten stop_id &str; u32::MAX veya out-of-bounds → ""
     pub fn stop_id_of_idx(&self, idx: u32) -> &str {
-        if idx == u32::MAX { return ""; }
-        self.stop_intern.get(idx as usize).map(|s| s.as_str()).unwrap_or("")
+        if idx == u32::MAX {
+            return "";
+        }
+        self.stop_intern
+            .get(idx as usize)
+            .map(|s| s.as_str())
+            .unwrap_or("")
     }
     /// CompactStopTime'ın stop_id'sini &str olarak döner
     pub fn stop_id_of(&self, st: &CompactStopTime) -> &str {
@@ -253,8 +295,14 @@ impl StopTimesIndex {
     }
     /// CompactStopTime'ın stop_id'sini SmolStr olarak döner
     pub fn stop_smolstr_of(&self, st: &CompactStopTime) -> SmolStr {
-        if st.stop_idx == u32::MAX { SmolStr::default() }
-        else { self.stop_intern.get(st.stop_idx as usize).cloned().unwrap_or_default() }
+        if st.stop_idx == u32::MAX {
+            SmolStr::default()
+        } else {
+            self.stop_intern
+                .get(st.stop_idx as usize)
+                .cloned()
+                .unwrap_or_default()
+        }
     }
     /// CompactStopTime'ın stop_headsign'ını döner (CSV line anahtarlı side map'ten)
     pub fn stop_headsign_of(&self, st: &CompactStopTime) -> Option<&SmolStr> {
@@ -342,7 +390,9 @@ impl StopTimesIndex {
     /// (STM_007) gerçek hatası bozulmaz. Eşik ÜSTÜndeki geriye-gidişler (gerçek hata) dokunulmaz;
     /// STM_008 onları yakalamaya devam eder. Monoton trip'lerde offset 0 kalır → satır yeniden yazılmaz.
     pub fn normalize_service_day(&mut self, start_hour: u32) {
-        if start_hour == 0 { return; }
+        if start_hour == 0 {
+            return;
+        }
         let start_secs = start_hour * 3600;
         let mut wrapped = 0u32;
         for &(s, e) in self.trip_ranges.values() {
@@ -357,17 +407,23 @@ impl StopTimesIndex {
                             offset += 86400;
                         }
                     }
-                    if offset > 0 { st.arrival_secs = raw + offset; }
+                    if offset > 0 {
+                        st.arrival_secs = raw + offset;
+                    }
                     prev = Some(raw + offset);
                 }
                 if st.departure_secs < TIME_MALFORMED {
                     let raw = st.departure_secs;
                     let v = raw + offset; // offset'i takip eder; kendi unwrap'ını tetiklemez
-                    if offset > 0 { st.departure_secs = v; }
+                    if offset > 0 {
+                        st.departure_secs = v;
+                    }
                     prev = Some(v);
                 }
             }
-            if offset > 0 { wrapped += 1; }
+            if offset > 0 {
+                wrapped += 1;
+            }
         }
         self.midnight_wrapped_trips = wrapped;
     }
@@ -393,7 +449,9 @@ impl StopTimesIndex {
 
     /// trip'in stop_times'taki stop sayısı (K6: STM_043)
     pub fn stop_count(&self, trip_id: &str) -> usize {
-        self.trip_ranges.get(trip_id).map_or(0, |&(s, e)| (e - s) as usize)
+        self.trip_ranges
+            .get(trip_id)
+            .map_or(0, |&(s, e)| (e - s) as usize)
     }
 
     /// #15 teşhis: index yapılarının GERÇEK (canlı) bellek maliyetini logla.
@@ -419,17 +477,18 @@ impl StopTimesIndex {
         let rows_cap = self.rows.capacity();
         let rows_used_mb = mb(n * CST);
         let rows_cap_mb = mb(rows_cap * CST);
-        let tr_mb = mb(nt * (SS + 8));            // trip_ranges: SmolStr key + (u32,u32)
-        let tid_mb = mb(nt * SS);                 // trip_id_set
-        let sid_mb = mb(ns * SS);                 // stop_id_set
-        let tfl_mb = mb(nt * (SS + 8));           // trip_first_line
-        let sfl_mb = mb(ns * (SS + 8));           // stop_first_line
-        let intern_mb = mb(ni * (SS + 4));        // stop_intern Vec + stop_id_to_idx SmolStr→u32
+        let tr_mb = mb(nt * (SS + 8)); // trip_ranges: SmolStr key + (u32,u32)
+        let tid_mb = mb(nt * SS); // trip_id_set
+        let sid_mb = mb(ns * SS); // stop_id_set
+        let tfl_mb = mb(nt * (SS + 8)); // trip_first_line
+        let sfl_mb = mb(ns * (SS + 8)); // stop_first_line
+        let intern_mb = mb(ni * (SS + 4)); // stop_intern Vec + stop_id_to_idx SmolStr→u32
         let tss_outer_mb = mb(self.trip_stop_set.capacity() * (SS + SET_U32));
         let tss_inner_entries: usize = self.trip_stop_set.values().map(|s| s.capacity()).sum();
         let tss_inner_mb = mb(tss_inner_entries * 4); // u32 = 4 byte, heap yok
-        let useq_mb = mb(self.unsorted_seq_trips.capacity()
-            * std::mem::size_of::<(SmolStr, u32, u32, u64)>());
+        let useq_mb =
+            mb(self.unsorted_seq_trips.capacity()
+                * std::mem::size_of::<(SmolStr, u32, u32, u64)>());
 
         let heap_tid_mb = mb(heap_bytes(self.trip_id_set.iter()));
         let heap_sid_mb = mb(heap_bytes(self.stop_id_set.iter()));
@@ -453,24 +512,35 @@ impl StopTimesIndex {
         let mut idx = Self::default();
         let mut by_trip: FxHashMap<SmolStr, Vec<CompactStopTime>> = FxHashMap::default();
         for st in records {
-            if st.trip_id.is_empty() { continue; }
+            if st.trip_id.is_empty() {
+                continue;
+            }
             idx.total_rows += 1;
             idx.trip_id_set.insert(st.trip_id.clone());
-            idx.trip_first_line.entry(st.trip_id.clone()).or_insert(st.line);
+            idx.trip_first_line
+                .entry(st.trip_id.clone())
+                .or_insert(st.line);
             // stop intern
             let stop_idx = if st.stop_id.is_empty() {
                 u32::MAX
             } else {
-                *idx.stop_id_to_idx.entry(st.stop_id.clone()).or_insert_with(|| {
-                    let i = idx.stop_intern.len() as u32;
-                    idx.stop_intern.push(st.stop_id.clone());
-                    i
-                })
+                *idx.stop_id_to_idx
+                    .entry(st.stop_id.clone())
+                    .or_insert_with(|| {
+                        let i = idx.stop_intern.len() as u32;
+                        idx.stop_intern.push(st.stop_id.clone());
+                        i
+                    })
             };
             if stop_idx != u32::MAX {
                 idx.stop_id_set.insert(st.stop_id.clone());
-                idx.stop_first_line.entry(st.stop_id.clone()).or_insert(st.line);
-                idx.trip_stop_set.entry(st.trip_id.clone()).or_default().insert(stop_idx);
+                idx.stop_first_line
+                    .entry(st.stop_id.clone())
+                    .or_insert(st.line);
+                idx.trip_stop_set
+                    .entry(st.trip_id.clone())
+                    .or_default()
+                    .insert(stop_idx);
             }
             // Enum kümesi {0,2,3}: 1 ve boş "sürekli biniş YOK" demektir (#170).
             // Bu set TRP_019'u besler; 1'i dahil etmek geçerli feed'den shape_id
@@ -498,14 +568,23 @@ impl StopTimesIndex {
             ) {
                 idx.flex_map.insert(st.line as u32, flex);
             }
-            by_trip.entry(st.trip_id.clone()).or_default().push(CompactStopTime {
-                stop_idx,
-                arrival_secs:   st.arrival_time.map(|(h,m,s)| h*3600+m*60+s).unwrap_or(u32::MAX),
-                departure_secs: st.departure_time.map(|(h,m,s)| h*3600+m*60+s).unwrap_or(u32::MAX),
-                sequence:       st.stop_sequence.unwrap_or(u32::MAX),
-                dist_f32:       st.shape_dist_traveled.map(|d| d as f32).unwrap_or(f32::NAN),
-                line:           st.line as u32,
-            });
+            by_trip
+                .entry(st.trip_id.clone())
+                .or_default()
+                .push(CompactStopTime {
+                    stop_idx,
+                    arrival_secs: st
+                        .arrival_time
+                        .map(|(h, m, s)| h * 3600 + m * 60 + s)
+                        .unwrap_or(u32::MAX),
+                    departure_secs: st
+                        .departure_time
+                        .map(|(h, m, s)| h * 3600 + m * 60 + s)
+                        .unwrap_or(u32::MAX),
+                    sequence: st.stop_sequence.unwrap_or(u32::MAX),
+                    dist_f32: st.shape_dist_traveled.map(|d| d as f32).unwrap_or(f32::NAN),
+                    line: st.line as u32,
+                });
         }
         // Test yardımcısı: per-trip map → flat rows + trip_ranges (veri küçük, perf önemsiz).
         for (tid, mut stops) in by_trip {
@@ -549,49 +628,49 @@ pub struct StopTimeRecord {
 // ── Kolon indeks yapısı — header'dan bir kez hesaplanır ─────────────────────
 
 struct Cols {
-    trip_id:              Option<usize>,
-    stop_id:              Option<usize>,
-    arrival_time:         Option<usize>,
-    departure_time:       Option<usize>,
-    stop_headsign:        Option<usize>,
-    pickup_type:          Option<usize>,
-    drop_off_type:        Option<usize>,
-    shape_dist_traveled:  Option<usize>,
-    timepoint:            Option<usize>,
-    continuous_pickup:    Option<usize>,
-    continuous_drop_off:  Option<usize>,
-    stop_sequence:        Option<usize>,
+    trip_id: Option<usize>,
+    stop_id: Option<usize>,
+    arrival_time: Option<usize>,
+    departure_time: Option<usize>,
+    stop_headsign: Option<usize>,
+    pickup_type: Option<usize>,
+    drop_off_type: Option<usize>,
+    shape_dist_traveled: Option<usize>,
+    timepoint: Option<usize>,
+    continuous_pickup: Option<usize>,
+    continuous_drop_off: Option<usize>,
+    stop_sequence: Option<usize>,
     // Flex
-    start_pickup_drop_off_window:  Option<usize>,
-    end_pickup_drop_off_window:    Option<usize>,
-    location_id:                   Option<usize>,
-    location_group_id:             Option<usize>,
-    pickup_booking_rule_id:        Option<usize>,
-    drop_off_booking_rule_id:      Option<usize>,
+    start_pickup_drop_off_window: Option<usize>,
+    end_pickup_drop_off_window: Option<usize>,
+    location_id: Option<usize>,
+    location_group_id: Option<usize>,
+    pickup_booking_rule_id: Option<usize>,
+    drop_off_booking_rule_id: Option<usize>,
 }
 
 impl Cols {
     fn from_headers(headers: &[String]) -> Self {
         let pos = |name: &str| headers.iter().position(|h| h == name);
         Self {
-            trip_id:             pos("trip_id"),
-            stop_id:             pos("stop_id"),
-            arrival_time:        pos("arrival_time"),
-            departure_time:      pos("departure_time"),
-            stop_headsign:       pos("stop_headsign"),
-            pickup_type:         pos("pickup_type"),
-            drop_off_type:       pos("drop_off_type"),
+            trip_id: pos("trip_id"),
+            stop_id: pos("stop_id"),
+            arrival_time: pos("arrival_time"),
+            departure_time: pos("departure_time"),
+            stop_headsign: pos("stop_headsign"),
+            pickup_type: pos("pickup_type"),
+            drop_off_type: pos("drop_off_type"),
             shape_dist_traveled: pos("shape_dist_traveled"),
-            timepoint:           pos("timepoint"),
-            continuous_pickup:   pos("continuous_pickup"),
+            timepoint: pos("timepoint"),
+            continuous_pickup: pos("continuous_pickup"),
             continuous_drop_off: pos("continuous_drop_off"),
-            stop_sequence:       pos("stop_sequence"),
+            stop_sequence: pos("stop_sequence"),
             start_pickup_drop_off_window: pos("start_pickup_drop_off_window"),
-            end_pickup_drop_off_window:   pos("end_pickup_drop_off_window"),
-            location_id:                  pos("location_id"),
-            location_group_id:            pos("location_group_id"),
-            pickup_booking_rule_id:       pos("pickup_booking_rule_id"),
-            drop_off_booking_rule_id:     pos("drop_off_booking_rule_id"),
+            end_pickup_drop_off_window: pos("end_pickup_drop_off_window"),
+            location_id: pos("location_id"),
+            location_group_id: pos("location_group_id"),
+            pickup_booking_rule_id: pos("pickup_booking_rule_id"),
+            drop_off_booking_rule_id: pos("drop_off_booking_rule_id"),
         }
     }
 }
@@ -648,12 +727,13 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
     let parts: Vec<&str> = raw.split(':').collect();
     if !super::common::gtfs_time_widths_ok(&parts) {
         return Err(format!(
-            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"));
+            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
+        ));
     }
     let mut it = raw.splitn(3, ':');
     // parse_u32_ascii(seg).is_some() == seg.parse::<u32>().is_ok() (parse_tests garantisi) →
     // Ok/Err kararı orijinalle birebir; splitn + ok_or_else(bad) yapısı değişmedi.
-    let hour   = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
+    let hour = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
     let minute = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
     let second = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
     if minute > 59 || second > 59 {
@@ -664,39 +744,75 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
 
 #[cfg(test)]
 mod parse_tests {
-    use super::{parse_u32_ascii, parse_gtfs_time_raw};
+    use super::{parse_gtfs_time_raw, parse_u32_ascii};
 
     // str::parse referans HH:MM:SS — değiştirdiğimiz fonksiyonun ESKİ mantığı.
     fn ref_time(raw: &str) -> Result<Option<(u32, u32, u32)>, ()> {
-        if raw.is_empty() { return Ok(None); }
+        if raw.is_empty() {
+            return Ok(None);
+        }
         // issue #82: referans da SÖZLÜKSEL genişliği denetler — testin işi hızlı
         // ayrıştırıcının referansla aynı kararı vermesi, ikisinin de ESKİ (gevşek)
         // mantığı sürdürmesi değil.
         let parts: Vec<&str> = raw.split(':').collect();
-        if !crate::k2::common::gtfs_time_widths_ok(&parts) { return Err(()); }
+        if !crate::k2::common::gtfs_time_widths_ok(&parts) {
+            return Err(());
+        }
         let mut it = raw.splitn(3, ':');
         let h = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
         let m = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
         let s = it.next().ok_or(())?.parse::<u32>().map_err(|_| ())?;
-        if m > 59 || s > 59 { return Err(()); }
+        if m > 59 || s > 59 {
+            return Err(());
+        }
         Ok(Some((h, m, s)))
     }
 
     #[test]
     fn u32_ascii_matches_std_bruteforce() {
-        for n in (0u32..=100_000).chain([100_001, 999_999, 1_000_000, 4_294_967_294, 4_294_967_295]) {
+        for n in (0u32..=100_000).chain([100_001, 999_999, 1_000_000, 4_294_967_294, 4_294_967_295])
+        {
             let s = n.to_string();
             assert_eq!(parse_u32_ascii(&s), s.parse::<u32>().ok(), "düz {s}");
             let plus = format!("+{s}");
-            assert_eq!(parse_u32_ascii(&plus), plus.parse::<u32>().ok(), "+önek {plus}");
+            assert_eq!(
+                parse_u32_ascii(&plus),
+                plus.parse::<u32>().ok(),
+                "+önek {plus}"
+            );
         }
     }
 
     #[test]
     fn u32_ascii_matches_std_edge_cases() {
-        for s in ["", "+", "-", "-5", "+5", "0", "00", "007", "+007", " 5", "5 ", "5a", "a5",
-                  "4294967295", "4294967296", "42949672960", "99999999999999",
-                  "+0", "++5", "1.5", "0x10", "१२", "८", "  ", "\t5", "+\u{0661}"] {
+        for s in [
+            "",
+            "+",
+            "-",
+            "-5",
+            "+5",
+            "0",
+            "00",
+            "007",
+            "+007",
+            " 5",
+            "5 ",
+            "5a",
+            "a5",
+            "4294967295",
+            "4294967296",
+            "42949672960",
+            "99999999999999",
+            "+0",
+            "++5",
+            "1.5",
+            "0x10",
+            "१२",
+            "८",
+            "  ",
+            "\t5",
+            "+\u{0661}",
+        ] {
             assert_eq!(parse_u32_ascii(s), s.parse::<u32>().ok(), "edge {s:?}");
         }
     }
@@ -705,10 +821,15 @@ mod parse_tests {
     fn u32_ascii_matches_std_fuzz() {
         let alphabet = b"0123456789+-  aZ\t.x";
         let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
-        let mut next = || { state = state.wrapping_mul(6364136223846793005).wrapping_add(1); (state >> 33) as usize };
+        let mut next = || {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (state >> 33) as usize
+        };
         for _ in 0..50_000 {
             let len = next() % 13;
-            let bytes: Vec<u8> = (0..len).map(|_| alphabet[next() % alphabet.len()]).collect();
+            let bytes: Vec<u8> = (0..len)
+                .map(|_| alphabet[next() % alphabet.len()])
+                .collect();
             let s = String::from_utf8_lossy(&bytes).into_owned();
             assert_eq!(parse_u32_ascii(&s), s.parse::<u32>().ok(), "fuzz {s:?}");
         }
@@ -716,15 +837,38 @@ mod parse_tests {
 
     #[test]
     fn gtfs_time_matches_reference() {
-        let cases = ["", "08:30:45", "0:0:0", "25:00:00", "24:00:00", "12:60:00", "12:00:60",
-                     "1:2:3", "12:3:45", "+8:30:45", "8:+30:45", "ab:cd:ef", "12:30", "12:30:45:6",
-                     "12::45", ":30:45", "100:00:00", "12:30:45 ", " 12:30:45", "0x:30:45", "१२:३०:४५"];
+        let cases = [
+            "",
+            "08:30:45",
+            "0:0:0",
+            "25:00:00",
+            "24:00:00",
+            "12:60:00",
+            "12:00:60",
+            "1:2:3",
+            "12:3:45",
+            "+8:30:45",
+            "8:+30:45",
+            "ab:cd:ef",
+            "12:30",
+            "12:30:45:6",
+            "12::45",
+            ":30:45",
+            "100:00:00",
+            "12:30:45 ",
+            " 12:30:45",
+            "0x:30:45",
+            "१२:३०:४५",
+        ];
         for c in cases {
-            assert_eq!(parse_gtfs_time_raw(c, "f").map_err(|_| ()), ref_time(c), "time {c:?}");
+            assert_eq!(
+                parse_gtfs_time_raw(c, "f").map_err(|_| ()),
+                ref_time(c),
+                "time {c:?}"
+            );
         }
     }
 }
-
 
 // ── SmolStr interning: >22 byte string'ler için Arc alloc sayısını azaltır ──
 
@@ -833,7 +977,10 @@ pub(super) fn next_csv_record<'a>(
                 *pos += 1;
             }
             if bare_quote && st.rfc.is_none() {
-                st.rfc = Some((RFC4180_BARE_QUOTE, text[start..*pos].chars().take(40).collect()));
+                st.rfc = Some((
+                    RFC4180_BARE_QUOTE,
+                    text[start..*pos].chars().take(40).collect(),
+                ));
             }
             out.push(Cow::Borrowed(&text[start..*pos]));
         }
@@ -877,8 +1024,8 @@ pub(super) fn next_csv_record<'a>(
 struct TripAgg {
     idx: u32,
     first_line: u32,
-    last_seq: u32,              // u32::MAX = None; STM_036 sıralama takibi
-    last_stop: SmolStr,         // boş = None; last_seq'i ayarlayan durak
+    last_seq: u32,      // u32::MAX = None; STM_036 sıralama takibi
+    last_stop: SmolStr, // boş = None; last_seq'i ayarlayan durak
     unsorted_fired: bool,
     continuous: bool,
     // stop_idx_set KALDIRILDI (#38 peak-2): 3M trip × ~80B heap → ~240 MB ekstra peak.
@@ -886,7 +1033,12 @@ struct TripAgg {
 }
 impl TripAgg {
     fn new(first_line: u64, idx: u32) -> Self {
-        Self { idx, first_line: first_line as u32, last_seq: u32::MAX, ..Default::default() }
+        Self {
+            idx,
+            first_line: first_line as u32,
+            last_seq: u32::MAX,
+            ..Default::default()
+        }
     }
 }
 
@@ -952,8 +1104,12 @@ impl<R: Read> ZipCsvReader<R> {
         reader
     }
 
-    pub(crate) fn truncated(&self) -> bool { self.truncated }
-    pub(crate) fn bytes_read(&self) -> usize { self.bytes_read }
+    pub(crate) fn truncated(&self) -> bool {
+        self.truncated
+    }
+    pub(crate) fn bytes_read(&self) -> usize {
+        self.bytes_read
+    }
 
     #[inline(always)]
     fn next_byte(&mut self) -> Option<u8> {
@@ -1041,7 +1197,9 @@ impl<R: Read> ZipCsvReader<R> {
                     if in_quotes {
                         self.unclosed = true;
                     }
-                    if started { finish!(); }
+                    if started {
+                        finish!();
+                    }
                     out.clear();
                     return false;
                 }
@@ -1051,11 +1209,18 @@ impl<R: Read> ZipCsvReader<R> {
                 if b == b'"' {
                     match self.next_byte() {
                         Some(b'"') => out[fi].push(b'"'),
-                        Some(b',') => { in_quotes = false; commit!(); }
-                        Some(b'\n') => { finish!(); }
+                        Some(b',') => {
+                            in_quotes = false;
+                            commit!();
+                        }
+                        Some(b'\n') => {
+                            finish!();
+                        }
                         Some(b'\r') => {
                             if let Some(lf) = self.next_byte() {
-                                if lf != b'\n' { self.pending = Some(lf); }
+                                if lf != b'\n' {
+                                    self.pending = Some(lf);
+                                }
                             }
                             finish!();
                         }
@@ -1081,7 +1246,9 @@ impl<R: Read> ZipCsvReader<R> {
                 }
             } else {
                 match b {
-                    b'"' if out[fi].is_empty() => { in_quotes = true; }
+                    b'"' if out[fi].is_empty() => {
+                        in_quotes = true;
+                    }
                     b'"' => {
                         // 🔴 Alan ZATEN BAŞLAMIŞKEN gelen tırnak (`12" Street`) DÜZ
                         // KARAKTERDİR — tırnak başlangıcı değil. Eski kod burada tırnak
@@ -1096,11 +1263,17 @@ impl<R: Read> ZipCsvReader<R> {
                         }
                         out[fi].push(b);
                     }
-                    b',' => { commit!(); }
-                    b'\n' => { finish!(); }
+                    b',' => {
+                        commit!();
+                    }
+                    b'\n' => {
+                        finish!();
+                    }
                     b'\r' => {
                         if let Some(lf) = self.next_byte() {
-                            if lf != b'\n' { self.pending = Some(lf); }
+                            if lf != b'\n' {
+                                self.pending = Some(lf);
+                            }
                         }
                         finish!();
                     }
@@ -1170,14 +1343,23 @@ struct StChunk {
 /// sıra durumu (last_seq/last_stop) parça sınırında kopmaz.
 /// Döner: (bayt_başı, bayt_sonu, ilk_satır_numarası). Başlık satırı atlanmıştır.
 #[cfg(feature = "parallel")]
-fn split_body_at_trip_boundaries(body: &[u8], trip_col: Option<usize>, n: usize) -> Vec<(usize, usize, u64)> {
+fn split_body_at_trip_boundaries(
+    body: &[u8],
+    trip_col: Option<usize>,
+    n: usize,
+) -> Vec<(usize, usize, u64)> {
     // Satırın `trip_col`'uncu alanını kaba okur (tırnak yok varsayımı; trip_id'de nadirdir).
     // Okunamazsa None döner ve sınır bir satır ileri kayar — muhafazakâr taraf.
     fn trip_of(line: &[u8], col: usize) -> Option<&[u8]> {
         line.split(|&b| b == b',').nth(col)
     }
-    let Some(tcol) = trip_col else { return Vec::new() };
-    let header_end = match body.iter().position(|&b| b == b'\n') { Some(i) => i + 1, None => return Vec::new() };
+    let Some(tcol) = trip_col else {
+        return Vec::new();
+    };
+    let header_end = match body.iter().position(|&b| b == b'\n') {
+        Some(i) => i + 1,
+        None => return Vec::new(),
+    };
     if n <= 1 || body.len() - header_end < 4 * 1024 * 1024 {
         return vec![(header_end, body.len(), 2)];
     }
@@ -1186,9 +1368,13 @@ fn split_body_at_trip_boundaries(body: &[u8], trip_col: Option<usize>, n: usize)
     let mut starts: Vec<usize> = Vec::new();
     starts.push(header_end);
     for (i, &b) in body.iter().enumerate().skip(header_end) {
-        if b == b'\n' && i + 1 < body.len() { starts.push(i + 1); }
+        if b == b'\n' && i + 1 < body.len() {
+            starts.push(i + 1);
+        }
     }
-    if starts.len() < n { return vec![(header_end, body.len(), 2)]; }
+    if starts.len() < n {
+        return vec![(header_end, body.len(), 2)];
+    }
 
     let per = starts.len() / n;
     let mut out: Vec<(usize, usize, u64)> = Vec::with_capacity(n);
@@ -1199,20 +1385,32 @@ fn split_body_at_trip_boundaries(body: &[u8], trip_col: Option<usize>, n: usize)
         if next < starts.len() {
             let line_of = |i: usize| -> &[u8] {
                 let s = starts[i];
-                let e = if i + 1 < starts.len() { starts[i + 1] } else { body.len() };
+                let e = if i + 1 < starts.len() {
+                    starts[i + 1]
+                } else {
+                    body.len()
+                };
                 &body[s..e]
             };
             let prev_trip = trip_of(line_of(next.saturating_sub(1)), tcol).map(|t| t.to_vec());
             while next < starts.len() {
                 let cur = trip_of(line_of(next), tcol).map(|t| t.to_vec());
-                if cur != prev_trip { break; }
+                if cur != prev_trip {
+                    break;
+                }
                 next += 1;
             }
         }
         let byte_start = starts[cut_idx];
-        let byte_end = if next < starts.len() { starts[next] } else { body.len() };
+        let byte_end = if next < starts.len() {
+            starts[next]
+        } else {
+            body.len()
+        };
         out.push((byte_start, byte_end, cut_idx as u64 + 2));
-        if next >= starts.len() { break; }
+        if next >= starts.len() {
+            break;
+        }
         cut_idx = next;
     }
     out
@@ -1261,13 +1459,17 @@ impl StChunk {
                     cur.unsorted_fired |= agg.unsorted_fired;
                     cur.continuous |= agg.continuous;
                     cur.first_line = cur.first_line.min(agg.first_line);
-                    if local < trip_remap.len() { trip_remap[local] = cur.idx; }
+                    if local < trip_remap.len() {
+                        trip_remap[local] = cur.idx;
+                    }
                 }
                 None => {
                     let mut moved = agg;
                     moved.idx = next;
                     self.trips_agg.insert(tid, moved);
-                    if local < trip_remap.len() { trip_remap[local] = next; }
+                    if local < trip_remap.len() {
+                        trip_remap[local] = next;
+                    }
                 }
             }
         }
@@ -1282,7 +1484,11 @@ impl StChunk {
         }
         self.row_trip.reserve(other.row_trip.len());
         for t in other.row_trip {
-            self.row_trip.push(if (t as usize) < trip_remap.len() { trip_remap[t as usize] } else { t });
+            self.row_trip.push(if (t as usize) < trip_remap.len() {
+                trip_remap[t as usize]
+            } else {
+                t
+            });
         }
 
         // ── toplanabilir / birleşebilir durum ──────────────────────────────────
@@ -1305,7 +1511,10 @@ impl StChunk {
         self.stop_headsigns.extend(other.stop_headsigns); // anahtar = CSV satırı, çakışmaz
         self.flex_map.extend(other.flex_map);
         for (sid, line) in other.stop_first_line {
-            self.stop_first_line.entry(sid).and_modify(|l| *l = (*l).min(line)).or_insert(line);
+            self.stop_first_line
+                .entry(sid)
+                .and_modify(|l| *l = (*l).min(line))
+                .or_insert(line);
         }
         self.total_rows += other.total_rows;
         self.unsorted_seq_trips.extend(other.unsorted_seq_trips);
@@ -1332,7 +1541,10 @@ pub fn validate_stop_times_with_limits(
     max_data_rows: Option<usize>,
     mut stream_budget: Option<&mut StreamBudget>,
 ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
-    let mut st = StChunk { has_booking_rules, ..StChunk::default() };
+    let mut st = StChunk {
+        has_booking_rules,
+        ..StChunk::default()
+    };
     let cols = Cols::from_headers(&file.headers);
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
     // Çıktı birebir aynı: get_col hep "" döner → STM_037-041 boş-yere-false, 6 alan None.
@@ -1385,10 +1597,18 @@ pub fn validate_stop_times_with_limits(
                 crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
             {
                 let mut n = make_k2_notice(
-                    &mut st.counter, "ARC_012", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, Some(line), None,
-                    Some(observed), None,
-                    msg, tip,
+                    &mut st.counter,
+                    "ARC_012",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    Some(line),
+                    None,
+                    Some(observed),
+                    None,
+                    msg,
+                    tip,
                 );
                 if is_info {
                     n.severity = Severity::Bilgi;
@@ -1411,9 +1631,16 @@ pub fn validate_stop_times_with_limits(
             // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)
             if row.iter().all(|v| v.trim().is_empty()) {
                 st.notices.push(make_k2_notice(
-                    &mut st.counter, "ARC_018", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, Some(line), None,
-                    None, None,
+                    &mut st.counter,
+                    "ARC_018",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    Some(line),
+                    None,
+                    None,
+                    None,
                     format!("'{}' {line}. satırı tamamen boş.", file.name),
                     "Boş satırları kaldırın.",
                 ));
@@ -1425,9 +1652,16 @@ pub fn validate_stop_times_with_limits(
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     st.arc021_fired = true;
                     st.notices.push(make_k2_notice(
-                        &mut st.counter, "ARC_021", EntityType::File, Some(file.name.clone()),
-                        None, &file.name, Some(line), None,
-                        Some(format!("U+{cp:04X}")), None,
+                        &mut st.counter,
+                        "ARC_021",
+                        EntityType::File,
+                        Some(file.name.clone()),
+                        None,
+                        &file.name,
+                        Some(line),
+                        None,
+                        Some(format!("U+{cp:04X}")),
+                        None,
                         crate::k1_parse::arc021_message(&file.name, cp),
                         crate::k1_parse::ARC021_REMEDIATION,
                     ));
@@ -1436,12 +1670,21 @@ pub fn validate_stop_times_with_limits(
 
             // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
             if !st.arc030_fired {
-                if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
+                if let Some(cp) =
+                    crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
+                {
                     st.arc030_fired = true;
                     st.notices.push(make_k2_notice(
-                        &mut st.counter, "ARC_030", EntityType::File, Some(file.name.clone()),
-                        None, &file.name, Some(line), None,
-                        Some(format!("U+{cp:04X}")), None,
+                        &mut st.counter,
+                        "ARC_030",
+                        EntityType::File,
+                        Some(file.name.clone()),
+                        None,
+                        &file.name,
+                        Some(line),
+                        None,
+                        Some(format!("U+{cp:04X}")),
+                        None,
                         crate::k1_parse::arc030_message(&file.name, cp),
                         crate::k1_parse::ARC030_REMEDIATION,
                     ));
@@ -1450,78 +1693,104 @@ pub fn validate_stop_times_with_limits(
 
             // DQ_016: değerlerde baştaki/sondaki boşluk
             // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
-            st.dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
+            st.dq016
+                .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Mevcut STM_* doğrulamaları + index ──
             let trip_id_raw = get_col_raw(row, cols.trip_id);
-        let trip_id = intern_smolstr(trip_id_raw, &mut st.trip_id_cache);
-        // entity_id is only materialized when a notice is actually pushed
-        let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
+            let trip_id = intern_smolstr(trip_id_raw, &mut st.trip_id_cache);
+            // entity_id is only materialized when a notice is actually pushed
+            let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
 
-        // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
-        if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
-            st.notices.push(make_k2_notice(
-                &mut st.counter, "STM_046", EntityType::Trip, None,
-                None, &file.name, Some(line), Some("trip_id"),
-                Some(String::new()), None,
-                "trip_id zorunludur.".to_string(),
-                "Her stop_times satırına geçerli bir trip_id girin.",
-            ));
-        }
+            // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
+            if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
+                st.notices.push(make_k2_notice(
+                    &mut st.counter,
+                    "STM_046",
+                    EntityType::Trip,
+                    None,
+                    None,
+                    &file.name,
+                    Some(line),
+                    Some("trip_id"),
+                    Some(String::new()),
+                    None,
+                    "trip_id zorunludur.".to_string(),
+                    "Her stop_times satırına geçerli bir trip_id girin.",
+                ));
+            }
 
-        // STM_005: stop_sequence required
-        let seq_raw = get_col(row, cols.stop_sequence);
-        let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {
-            Ok(v) => {
-                if v.is_none() && file.headers.iter().any(|h| h == "stop_sequence") {
+            // STM_005: stop_sequence required
+            let seq_raw = get_col(row, cols.stop_sequence);
+            let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {
+                Ok(v) => {
+                    if v.is_none() && file.headers.iter().any(|h| h == "stop_sequence") {
+                        st.notices.push(make_k2_notice(
+                            &mut st.counter,
+                            "STM_005",
+                            EntityType::Trip,
+                            eid(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("stop_sequence"),
+                            Some(String::new()),
+                            None,
+                            "stop_sequence zorunludur.".to_string(),
+                            "stop_sequence negatif olmayan bir tam sayı olarak girin.",
+                        ));
+                    }
+                    v
+                }
+                Err(err) => {
                     st.notices.push(make_k2_notice(
-                        &mut st.counter, "STM_005", EntityType::Trip, eid(),
-                        None, &file.name, Some(line), Some("stop_sequence"),
-                        Some(String::new()), None,
-                        "stop_sequence zorunludur.".to_string(),
+                        &mut st.counter,
+                        "STM_005",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("stop_sequence"),
+                        Some(seq_raw.to_string()),
+                        None,
+                        err,
                         "stop_sequence negatif olmayan bir tam sayı olarak girin.",
                     ));
+                    None
                 }
-                v
-            }
-            Err(err) => {
-                st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_005", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("stop_sequence"),
-                    Some(seq_raw.to_string()), None, err,
-                    "stop_sequence negatif olmayan bir tam sayı olarak girin.",
-                ));
-                None
-            }
-        };
+            };
 
-        // STM_036: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
-        if let Some(seq) = stop_sequence {
-            let cur_stop = get_col_raw(row, cols.stop_id);
-            let next_idx = st.trips_agg.len() as u32;
-            let agg = st.trips_agg.entry(trip_id.clone()).or_insert_with(|| TripAgg::new(line, next_idx));
-            // STM_036 (a) alt-vakası: dosya satır sırası stop_sequence sırasıyla uyuşmuyor.
-            // Trip başına TEK atış — MD unsorted_stop_times paritesi buna dayanır.
-            // (b) alt-vakası (dağınık satırlar) K6'da, finalize edilmiş index üzerinden.
-            if !agg.unsorted_fired {
-                if agg.last_seq != u32::MAX {
-                    let last = agg.last_seq;
-                    // ⚠️ `<=`, `<` DEĞİL. Spec: *"The values must increase along the trip"* —
-                    // EŞİT değer de artmıyordur. 2026-08-06 korpus koşumunda ölçüldü
-                    // (mdb-1229): 24 seferin TÜM satırlarında `stop_sequence=0` yazıyor;
-                    // sıra ne azalıyor ne satırlar dağınık, hep EŞİT. Eski `seq < last`
-                    // koşulu iki dala da girmiyordu → STM_036 sessizdi, MD ise
-                    // `unsorted_stop_times` = 24 diyordu.
-                    // ⚠️ `STM_032` (yinelenen stop_sequence) ile ÇAKIŞMAZ: o SATIR başına
-                    // "bu değer tekrar ediyor" der (MD `duplicate_key` ile birebir, 170.885),
-                    // bu ise SEFER başına "satırlar sıralı değil" der. MD de ikisini ayrı
-                    // notice olarak verir.
-                    if seq <= last {
-                        // Daha küçük stop_sequence'li satır, daha büyük sequence'li satırdan SONRA
-                        // yazılmış → dosya artan sırada değil. Mesaj durak-odaklı: hangi durak
-                        // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
-                        let prev_stop = agg.last_stop.clone();
-                        let mut n = make_k2_notice(
+            // STM_036: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
+            if let Some(seq) = stop_sequence {
+                let cur_stop = get_col_raw(row, cols.stop_id);
+                let next_idx = st.trips_agg.len() as u32;
+                let agg = st
+                    .trips_agg
+                    .entry(trip_id.clone())
+                    .or_insert_with(|| TripAgg::new(line, next_idx));
+                // STM_036 (a) alt-vakası: dosya satır sırası stop_sequence sırasıyla uyuşmuyor.
+                // Trip başına TEK atış — MD unsorted_stop_times paritesi buna dayanır.
+                // (b) alt-vakası (dağınık satırlar) K6'da, finalize edilmiş index üzerinden.
+                if !agg.unsorted_fired {
+                    if agg.last_seq != u32::MAX {
+                        let last = agg.last_seq;
+                        // ⚠️ `<=`, `<` DEĞİL. Spec: *"The values must increase along the trip"* —
+                        // EŞİT değer de artmıyordur. 2026-08-06 korpus koşumunda ölçüldü
+                        // (mdb-1229): 24 seferin TÜM satırlarında `stop_sequence=0` yazıyor;
+                        // sıra ne azalıyor ne satırlar dağınık, hep EŞİT. Eski `seq < last`
+                        // koşulu iki dala da girmiyordu → STM_036 sessizdi, MD ise
+                        // `unsorted_stop_times` = 24 diyordu.
+                        // ⚠️ `STM_032` (yinelenen stop_sequence) ile ÇAKIŞMAZ: o SATIR başına
+                        // "bu değer tekrar ediyor" der (MD `duplicate_key` ile birebir, 170.885),
+                        // bu ise SEFER başına "satırlar sıralı değil" der. MD de ikisini ayrı
+                        // notice olarak verir.
+                        if seq <= last {
+                            // Daha küçük stop_sequence'li satır, daha büyük sequence'li satırdan SONRA
+                            // yazılmış → dosya artan sırada değil. Mesaj durak-odaklı: hangi durak
+                            // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
+                            let prev_stop = agg.last_stop.clone();
+                            let mut n = make_k2_notice(
                             &mut st.counter, "STM_036", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("stop_sequence"),
                             // observed/expected durak bilgisini de taşır: STM_036'nın locale
@@ -1542,198 +1811,281 @@ pub fn validate_stop_times_with_limits(
                             },
                             "stop_times.txt satırlarını trip_id ve stop_sequence değerine göre artan sırada düzenleyin.",
                         );
-                        let mut d = std::collections::BTreeMap::new();
-                        d.insert("curr_stop".to_string(), cur_stop.to_string());
-                        d.insert("prev_stop".to_string(), prev_stop.to_string());
-                        d.insert("curr_seq".to_string(), seq.to_string());
-                        d.insert("prev_seq".to_string(), last.to_string());
-                        n.details = Some(d);
-                        st.notices.push(n);
-                        agg.unsorted_fired = true;
-                        st.unsorted_seq_trips.push((trip_id.clone(), last, seq, line));
-                    } else if seq > last {
+                            let mut d = std::collections::BTreeMap::new();
+                            d.insert("curr_stop".to_string(), cur_stop.to_string());
+                            d.insert("prev_stop".to_string(), prev_stop.to_string());
+                            d.insert("curr_seq".to_string(), seq.to_string());
+                            d.insert("prev_seq".to_string(), last.to_string());
+                            n.details = Some(d);
+                            st.notices.push(n);
+                            agg.unsorted_fired = true;
+                            st.unsorted_seq_trips
+                                .push((trip_id.clone(), last, seq, line));
+                        } else if seq > last {
+                            agg.last_seq = seq;
+                            agg.last_stop = SmolStr::from(cur_stop);
+                        }
+                    } else {
                         agg.last_seq = seq;
                         agg.last_stop = SmolStr::from(cur_stop);
                     }
-                } else {
-                    agg.last_seq = seq;
-                    agg.last_stop = SmolStr::from(cur_stop);
                 }
-            }
-        } // if let Some(seq)
+            } // if let Some(seq)
 
-        // STM_006: stop_id KOŞULLU zorunlu (sütun yoksa ARC_025 devralır → atla).
-        // Spec: "Required if stop_times.location_group_id AND stop_times.location_id are NOT
-        // defined. Forbidden if ... are defined." Yani bir Flex satırı stop_id yerine
-        // location_id veya location_group_id taşır ve bu GEÇERLİDİR. Guard'sız hâlde her
-        // Flex satırı KRİTİK STM_006 alıyordu.
-        let raw_stop = get_col_raw(row, cols.stop_id);
-        let has_flex_location = !get_col_raw(row, cols.location_id).is_empty()
-            || !get_col_raw(row, cols.location_group_id).is_empty();
-        if raw_stop.is_empty() && !has_flex_location && file.headers.iter().any(|h| h == "stop_id") {
-            st.notices.push(make_k2_notice(
-                &mut st.counter, "STM_006", EntityType::Stop, eid(),
-                None, &file.name, Some(line), Some("stop_id"),
-                Some(String::new()), None,
-                "stop_id zorunludur.".to_string(),
-                "stop_id alanını doldurun.",
-            ));
-        }
-        // stop intern: raw_stop → u32 indeks (CompactStopTime.stop_idx)
-        let stop_idx: u32 = if raw_stop.is_empty() {
-            u32::MAX
-        } else if let Some(&i) = st.stop_id_to_idx.get(raw_stop) {
-            i
-        } else {
-            let i = st.stop_intern.len() as u32;
-            let ss = SmolStr::new(raw_stop);
-            st.stop_id_to_idx.insert(ss.clone(), i);
-            st.stop_intern.push(ss);
-            i
-        };
-
-        // arrival_time
-        let arr_raw = get_col(row, cols.arrival_time);
-        // `arr_malformed`: alan DOLU ama ayrıştırılamadı. `None` ile aynı kovaya
-        // atılırsa "değer yok" iddiasında bulunan kurallar (STM_015/016) dolu bir
-        // alan hakkında konuşur — bkz. TIME_MALFORMED.
-        let mut arr_malformed = false;
-        let arrival_time = match parse_gtfs_time_raw(arr_raw, "arrival_time") {
-            Ok(v) => v,
-            Err(err) => {
+            // STM_006: stop_id KOŞULLU zorunlu (sütun yoksa ARC_025 devralır → atla).
+            // Spec: "Required if stop_times.location_group_id AND stop_times.location_id are NOT
+            // defined. Forbidden if ... are defined." Yani bir Flex satırı stop_id yerine
+            // location_id veya location_group_id taşır ve bu GEÇERLİDİR. Guard'sız hâlde her
+            // Flex satırı KRİTİK STM_006 alıyordu.
+            let raw_stop = get_col_raw(row, cols.stop_id);
+            let has_flex_location = !get_col_raw(row, cols.location_id).is_empty()
+                || !get_col_raw(row, cols.location_group_id).is_empty();
+            if raw_stop.is_empty()
+                && !has_flex_location
+                && file.headers.iter().any(|h| h == "stop_id")
+            {
                 st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_003", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("arrival_time"),
-                    Some(arr_raw.to_string()), Some("HH:MM:SS".to_string()), err,
-                    "HH:MM:SS formatında arrival_time girin.",
-                ));
-                arr_malformed = true;
-                None
-            }
-        };
-
-        // departure_time
-        let dep_raw = get_col(row, cols.departure_time);
-        let mut dep_malformed = false;
-        let departure_time = match parse_gtfs_time_raw(dep_raw, "departure_time") {
-            Ok(v) => v,
-            Err(err) => {
-                st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_004", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("departure_time"),
-                    Some(dep_raw.to_string()), Some("HH:MM:SS".to_string()), err,
-                    "HH:MM:SS formatında departure_time girin.",
-                ));
-                dep_malformed = true;
-                None
-            }
-        };
-
-        // STM_007 (departure_time >= arrival_time) K6'ya taşındı: orada servis-günü
-        // normalize'li veri + hat/yön/servis bağlamı mevcut, gece-yarısı (00:xx kalkış)
-        // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
-
-        // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı
-        //
-        // 🔴 `None` İKİ ŞEY DEMEK: alan boş, ya da alan dolu ama ayrıştırılamadı. Bu kural
-        // "yalnız biri TANIMLI" der, yani DOLULUK hakkında konuşur — bozuk değeri "yok"
-        // sayarsa dolu bir alan için asimetri uydurur ve aynı satırda STM_003/STM_004
-        // zaten doğrusunu söylerken ikinci bir yanlış bulgu üretir. STM_015/016'nın
-        // mdb-2727'de 101.621 kez yaptığı hatanın aynısı (44206d0a).
-        match (arrival_time.or(arr_malformed.then_some((0,0,0))),
-               departure_time.or(dep_malformed.then_some((0,0,0)))) {
-            (Some(_), None) => {
-                st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_034", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("departure_time"),
-                    None, Some("dolu".to_string()),
-                    format!("trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.", trip_id),
-                    "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                    &mut st.counter,
+                    "STM_006",
+                    EntityType::Stop,
+                    eid(),
+                    None,
+                    &file.name,
+                    Some(line),
+                    Some("stop_id"),
+                    Some(String::new()),
+                    None,
+                    "stop_id zorunludur.".to_string(),
+                    "stop_id alanını doldurun.",
                 ));
             }
-            (None, Some(_)) => {
-                st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_034", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("arrival_time"),
-                    None, Some("dolu".to_string()),
-                    format!("trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.", trip_id),
-                    "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
-                ));
+            // stop intern: raw_stop → u32 indeks (CompactStopTime.stop_idx)
+            let stop_idx: u32 = if raw_stop.is_empty() {
+                u32::MAX
+            } else if let Some(&i) = st.stop_id_to_idx.get(raw_stop) {
+                i
+            } else {
+                let i = st.stop_intern.len() as u32;
+                let ss = SmolStr::new(raw_stop);
+                st.stop_id_to_idx.insert(ss.clone(), i);
+                st.stop_intern.push(ss);
+                i
+            };
+
+            // arrival_time
+            let arr_raw = get_col(row, cols.arrival_time);
+            // `arr_malformed`: alan DOLU ama ayrıştırılamadı. `None` ile aynı kovaya
+            // atılırsa "değer yok" iddiasında bulunan kurallar (STM_015/016) dolu bir
+            // alan hakkında konuşur — bkz. TIME_MALFORMED.
+            let mut arr_malformed = false;
+            let arrival_time = match parse_gtfs_time_raw(arr_raw, "arrival_time") {
+                Ok(v) => v,
+                Err(err) => {
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter,
+                        "STM_003",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("arrival_time"),
+                        Some(arr_raw.to_string()),
+                        Some("HH:MM:SS".to_string()),
+                        err,
+                        "HH:MM:SS formatında arrival_time girin.",
+                    ));
+                    arr_malformed = true;
+                    None
+                }
+            };
+
+            // departure_time
+            let dep_raw = get_col(row, cols.departure_time);
+            let mut dep_malformed = false;
+            let departure_time = match parse_gtfs_time_raw(dep_raw, "departure_time") {
+                Ok(v) => v,
+                Err(err) => {
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter,
+                        "STM_004",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("departure_time"),
+                        Some(dep_raw.to_string()),
+                        Some("HH:MM:SS".to_string()),
+                        err,
+                        "HH:MM:SS formatında departure_time girin.",
+                    ));
+                    dep_malformed = true;
+                    None
+                }
+            };
+
+            // STM_007 (departure_time >= arrival_time) K6'ya taşındı: orada servis-günü
+            // normalize'li veri + hat/yön/servis bağlamı mevcut, gece-yarısı (00:xx kalkış)
+            // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
+
+            // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı
+            //
+            // 🔴 `None` İKİ ŞEY DEMEK: alan boş, ya da alan dolu ama ayrıştırılamadı. Bu kural
+            // "yalnız biri TANIMLI" der, yani DOLULUK hakkında konuşur — bozuk değeri "yok"
+            // sayarsa dolu bir alan için asimetri uydurur ve aynı satırda STM_003/STM_004
+            // zaten doğrusunu söylerken ikinci bir yanlış bulgu üretir. STM_015/016'nın
+            // mdb-2727'de 101.621 kez yaptığı hatanın aynısı (44206d0a).
+            match (
+                arrival_time.or(arr_malformed.then_some((0, 0, 0))),
+                departure_time.or(dep_malformed.then_some((0, 0, 0))),
+            ) {
+                (Some(_), None) => {
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter,
+                        "STM_034",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("departure_time"),
+                        None,
+                        Some("dolu".to_string()),
+                        format!(
+                            "trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.",
+                            trip_id
+                        ),
+                        "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                    ));
+                }
+                (None, Some(_)) => {
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter,
+                        "STM_034",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("arrival_time"),
+                        None,
+                        Some("dolu".to_string()),
+                        format!(
+                            "trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.",
+                            trip_id
+                        ),
+                        "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                    ));
+                }
+                _ => {}
             }
-            _ => {}
-        }
 
-        // STM_009: pickup_type 0-3
-        let pickup_type = parse_pickup_dropoff_col(
-            get_col(row, cols.pickup_type), &mut st.notices, &mut st.counter,
-            "STM_009", "pickup_type", trip_id.as_str(), line, &file.name,
-        );
+            // STM_009: pickup_type 0-3
+            let pickup_type = parse_pickup_dropoff_col(
+                get_col(row, cols.pickup_type),
+                &mut st.notices,
+                &mut st.counter,
+                "STM_009",
+                "pickup_type",
+                trip_id.as_str(),
+                line,
+                &file.name,
+            );
 
-        // STM_010: drop_off_type 0-3
-        let drop_off_type = parse_pickup_dropoff_col(
-            get_col(row, cols.drop_off_type), &mut st.notices, &mut st.counter,
-            "STM_010", "drop_off_type", trip_id.as_str(), line, &file.name,
-        );
+            // STM_010: drop_off_type 0-3
+            let drop_off_type = parse_pickup_dropoff_col(
+                get_col(row, cols.drop_off_type),
+                &mut st.notices,
+                &mut st.counter,
+                "STM_010",
+                "drop_off_type",
+                trip_id.as_str(),
+                line,
+                &file.name,
+            );
 
-        // STM_018: continuous_pickup 0-3
-        let continuous_pickup = parse_pickup_dropoff_col(
-            get_col(row, cols.continuous_pickup), &mut st.stm018_pending, &mut st.counter,
-            "STM_018", "continuous_pickup", trip_id.as_str(), line, &file.name,
-        );
+            // STM_018: continuous_pickup 0-3
+            let continuous_pickup = parse_pickup_dropoff_col(
+                get_col(row, cols.continuous_pickup),
+                &mut st.stm018_pending,
+                &mut st.counter,
+                "STM_018",
+                "continuous_pickup",
+                trip_id.as_str(),
+                line,
+                &file.name,
+            );
 
-        // STM_019: continuous_drop_off 0-3
-        let continuous_drop_off = parse_pickup_dropoff_col(
-            get_col(row, cols.continuous_drop_off), &mut st.stm019_pending, &mut st.counter,
-            "STM_019", "continuous_drop_off", trip_id.as_str(), line, &file.name,
-        );
+            // STM_019: continuous_drop_off 0-3
+            let continuous_drop_off = parse_pickup_dropoff_col(
+                get_col(row, cols.continuous_drop_off),
+                &mut st.stm019_pending,
+                &mut st.counter,
+                "STM_019",
+                "continuous_drop_off",
+                trip_id.as_str(),
+                line,
+                &file.name,
+            );
 
-        // STM_022: timepoint 0 or 1
-        let tp_raw = get_col(row, cols.timepoint);
-        // STM_050: timepoint sütunu feed'de mevcut ama bu satırda boş (MD missing_timepoint_value).
-        // Boş timepoint örtük 1 (kesin) sayılır → yaklaşık zamanlar yanlış kesin görünür; açık değer önerilir.
-        // Satır-başına DEĞİL sayılır; döngü sonunda tek feed-seviyesi özet (büyük feed OOM önlemi).
-        if cols.timepoint.is_some() && tp_raw.trim().is_empty() {
-            st.stm050_empty += 1;
-        }
-        let timepoint = match parse_u32_raw(tp_raw, "timepoint") {
-            Ok(v) => {
-                if let Some(val) = v {
-                    if val > 1 {
-                        st.notices.push(make_k2_notice(
+            // STM_022: timepoint 0 or 1
+            let tp_raw = get_col(row, cols.timepoint);
+            // STM_050: timepoint sütunu feed'de mevcut ama bu satırda boş (MD missing_timepoint_value).
+            // Boş timepoint örtük 1 (kesin) sayılır → yaklaşık zamanlar yanlış kesin görünür; açık değer önerilir.
+            // Satır-başına DEĞİL sayılır; döngü sonunda tek feed-seviyesi özet (büyük feed OOM önlemi).
+            if cols.timepoint.is_some() && tp_raw.trim().is_empty() {
+                st.stm050_empty += 1;
+            }
+            let timepoint =
+                match parse_u32_raw(tp_raw, "timepoint") {
+                    Ok(v) => {
+                        if let Some(val) = v {
+                            if val > 1 {
+                                st.notices.push(make_k2_notice(
                             &mut st.counter, "STM_022", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("timepoint"),
                             Some(val.to_string()), Some("0 or 1".to_string()),
                             "timepoint 0 veya 1 olmalıdır.".to_string(),
                             "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
                         ));
+                            }
+                        }
+                        v
                     }
-                }
-                v
-            }
-            Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_022 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_022", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("timepoint"),
-                    Some(tp_raw.to_string()), Some("0 or 1".to_string()),
-                    err,
-                    "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
-                ));
-                None
-            }
-        };
+                    Err(err) => {
+                        // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_022 üretirken
+                        // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                        st.notices.push(make_k2_notice(
+                            &mut st.counter,
+                            "STM_022",
+                            EntityType::Trip,
+                            eid(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("timepoint"),
+                            Some(tp_raw.to_string()),
+                            Some("0 or 1".to_string()),
+                            err,
+                            "timepoint değerini 0 (yaklaşık) veya 1 (kesin) olarak ayarlayın.",
+                        ));
+                        None
+                    }
+                };
 
-        // STM_047: timepoint=1 (kesin zaman noktası) iken hem arrival_time hem departure_time
-        // eksik. Yalnızca biri dolu olduğunda STM_034 asimetriyi yakalar → örtüşme yok.
-        // Aynı ayrım: "tanımlı değil" iddiası ancak alan GERÇEKTEN boşken doğrudur.
-        // Bozuk yazılmış bir zaman timepoint=1 için eksik değil, hatalıdır — onu STM_003
-        // ve STM_004 bildirir.
-        if timepoint == Some(1)
-            && arrival_time.is_none() && !arr_malformed
-            && departure_time.is_none() && !dep_malformed
-        {
-            st.notices.push(make_k2_notice(
+            // STM_047: timepoint=1 (kesin zaman noktası) iken hem arrival_time hem departure_time
+            // eksik. Yalnızca biri dolu olduğunda STM_034 asimetriyi yakalar → örtüşme yok.
+            // Aynı ayrım: "tanımlı değil" iddiası ancak alan GERÇEKTEN boşken doğrudur.
+            // Bozuk yazılmış bir zaman timepoint=1 için eksik değil, hatalıdır — onu STM_003
+            // ve STM_004 bildirir.
+            if timepoint == Some(1)
+                && arrival_time.is_none()
+                && !arr_malformed
+                && departure_time.is_none()
+                && !dep_malformed
+            {
+                st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_047", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
                 // Hüküm İKİ alanı da kapsar: spec "Required for timepoint=1" cümlesini hem
@@ -1744,244 +2096,270 @@ pub fn validate_stop_times_with_limits(
                 format!("trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time tanımlı değil.", trip_id),
                 "Kesin zaman noktalarında (timepoint=1) hem arrival_time hem departure_time değerlerini girin.",
             ));
-        }
+            }
 
-        // shape_dist_traveled: non-negative
-        let sdt_raw = get_col(row, cols.shape_dist_traveled);
-        let shape_dist_traveled = match parse_f64_raw(sdt_raw, "shape_dist_traveled") {
-            Ok(v) => {
-                if let Some(d) = v {
-                    if d < 0.0 {
-                        st.notices.push(make_k2_notice(
+            // shape_dist_traveled: non-negative
+            let sdt_raw = get_col(row, cols.shape_dist_traveled);
+            let shape_dist_traveled = match parse_f64_raw(sdt_raw, "shape_dist_traveled") {
+                Ok(v) => {
+                    if let Some(d) = v {
+                        if d < 0.0 {
+                            st.notices.push(make_k2_notice(
                             &mut st.counter, "STM_030", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("shape_dist_traveled"),
                             Some(d.to_string()), Some(">= 0".to_string()),
                             "shape_dist_traveled negatif olamaz.".to_string(),
                             "shape_dist_traveled değerini sıfır veya pozitif bir sayıya ayarlayın.",
                         ));
+                        }
                     }
+                    v
                 }
-                v
-            }
-            Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_030 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                st.notices.push(make_k2_notice(
-                    &mut st.counter, "STM_030", EntityType::Trip, eid(),
-                    None, &file.name, Some(line), Some("shape_dist_traveled"),
-                    Some(sdt_raw.to_string()), Some(">= 0".to_string()),
-                    err,
-                    "shape_dist_traveled değerini sıfır veya pozitif bir sayıya ayarlayın.",
-                ));
+                Err(err) => {
+                    // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_030 üretirken
+                    // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter,
+                        "STM_030",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some("shape_dist_traveled"),
+                        Some(sdt_raw.to_string()),
+                        Some(">= 0".to_string()),
+                        err,
+                        "shape_dist_traveled değerini sıfır veya pozitif bir sayıya ayarlayın.",
+                    ));
+                    None
+                }
+            };
+
+            let stop_headsign_raw = get_col(row, cols.stop_headsign);
+            let stop_headsign = if stop_headsign_raw.is_empty() {
                 None
-            }
-        };
+            } else {
+                Some(SmolStr::new(stop_headsign_raw))
+            };
 
-        let stop_headsign_raw = get_col(row, cols.stop_headsign);
-        let stop_headsign = if stop_headsign_raw.is_empty() {
-            None
-        } else {
-            Some(SmolStr::new(stop_headsign_raw))
-        };
-
-        // STM_042: stop_headsign'da Google Transit'in yasakladığı özel karakterler
-        if let Some(ref hs) = stop_headsign {
-            const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
-            if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
-                st.notices.push(make_k2_notice(
+            // STM_042: stop_headsign'da Google Transit'in yasakladığı özel karakterler
+            if let Some(ref hs) = stop_headsign {
+                const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
+                if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
+                    st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_042", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_headsign"),
                     Some(format!("'{bad}' karakteri içeriyor")), None,
                     format!("stop_headsign '{}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'.", hs),
                     "stop_headsign değerinden ! $ % \\ * = _ karakterlerini kaldırın.",
                 ));
+                }
             }
-        }
 
-        // STM_059: `pickup_type=2` / `drop_off_type=2` ("ajansı telefonla arayın") iken
-        // spec ilgili booking rule'u ÖNERİR.
-        //
-        // ⚠️ BU BLOK FLEX BLOĞUNUN DIŞINDADIR ve öyle kalmalı. `has_flex_cols` sütun
-        // VARLIĞINA bakar; `pickup_booking_rule_id` sütunu hiç yoksa Flex bloğu tümüyle
-        // atlanır — ama tam o durum bu kuralın hedefidir (klasik dial-a-ride pencere de
-        // booking sütunu da taşımaz). İlk yazımda blok içindeydi ve `emit_proof` kapısı
-        // "STM_059 emit etmedi" diyerek yakaladı.
-        //
-        // ⚠️ `booking_rules.txt` YOKSA susar: o dosya olmadan bir id yazmak FK'yı kırar
-        // (`BKR_017`). Ölçümde bu kapı olmadan 97.355 satır çıkmıştı, kapıyla 27.
-        if st.has_booking_rules {
-            let pu2 = get_col(row, cols.pickup_type) == "2";
-            let do2 = get_col(row, cols.drop_off_type) == "2";
-            let pbr = get_col_raw(row, cols.pickup_booking_rule_id);
-            let dobr = get_col_raw(row, cols.drop_off_booking_rule_id);
-            if (pu2 && pbr.is_empty()) || (do2 && dobr.is_empty()) {
-                let (which, field) = if pu2 && pbr.is_empty() {
-                    ("pickup_type=2", "pickup_booking_rule_id")
-                } else {
-                    ("drop_off_type=2", "drop_off_booking_rule_id")
-                };
-                st.notices.push(make_k2_notice(
+            // STM_059: `pickup_type=2` / `drop_off_type=2` ("ajansı telefonla arayın") iken
+            // spec ilgili booking rule'u ÖNERİR.
+            //
+            // ⚠️ BU BLOK FLEX BLOĞUNUN DIŞINDADIR ve öyle kalmalı. `has_flex_cols` sütun
+            // VARLIĞINA bakar; `pickup_booking_rule_id` sütunu hiç yoksa Flex bloğu tümüyle
+            // atlanır — ama tam o durum bu kuralın hedefidir (klasik dial-a-ride pencere de
+            // booking sütunu da taşımaz). İlk yazımda blok içindeydi ve `emit_proof` kapısı
+            // "STM_059 emit etmedi" diyerek yakaladı.
+            //
+            // ⚠️ `booking_rules.txt` YOKSA susar: o dosya olmadan bir id yazmak FK'yı kırar
+            // (`BKR_017`). Ölçümde bu kapı olmadan 97.355 satır çıkmıştı, kapıyla 27.
+            if st.has_booking_rules {
+                let pu2 = get_col(row, cols.pickup_type) == "2";
+                let do2 = get_col(row, cols.drop_off_type) == "2";
+                let pbr = get_col_raw(row, cols.pickup_booking_rule_id);
+                let dobr = get_col_raw(row, cols.drop_off_booking_rule_id);
+                if (pu2 && pbr.is_empty()) || (do2 && dobr.is_empty()) {
+                    let (which, field) = if pu2 && pbr.is_empty() {
+                        ("pickup_type=2", "pickup_booking_rule_id")
+                    } else {
+                        ("drop_off_type=2", "drop_off_booking_rule_id")
+                    };
+                    st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_059", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some(field),
                     None, None,
                     format!("trip_id '{}' {which} (telefonla rezervasyon) ama {field} eksik.", trip_id),
                     "Talep-üzerine biniş/iniş için booking_rules.txt'teki ilgili kuralı bu alana bağlayın.",
                 ));
-            }
-        }
-
-        // ── Flex GTFS alanları (B1: yalnızca feed'de flex sütunu varsa işlenir) ──
-        type ParsedFlexColumns = (
-            Option<(u32, u32, u32)>,
-            Option<(u32, u32, u32)>,
-            Option<SmolStr>,
-            Option<SmolStr>,
-            Option<SmolStr>,
-            Option<SmolStr>,
-        );
-        let (start_window, end_window, location_id, location_group_id,
-             pickup_booking_rule_id, drop_off_booking_rule_id): ParsedFlexColumns = if has_flex_cols {
-        let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
-        let end_window_raw   = get_col(row, cols.end_pickup_drop_off_window);
-        let loc_id_raw       = get_col_raw(row, cols.location_id);
-        let loc_grp_raw      = get_col_raw(row, cols.location_group_id);
-        let pbr_raw          = get_col_raw(row, cols.pickup_booking_rule_id);
-        let dobr_raw         = get_col_raw(row, cols.drop_off_booking_rule_id);
-
-        // STM_058: Flex pencere alanları `Time` tipindedir — biçim hatası arrival_time gibi
-        // RAPOR EDİLİR. Eskiden `.ok().flatten()` ile yutuluyordu: değer kayboluyor, STM_038
-        // karşılaştıracak bir şey bulamıyor, satır "pencereli" sayıldığı için varlık kuralları
-        // da susuyordu → bozuk bir rezervasyon penceresi feed'de HİÇ bulgu üretmiyordu.
-        let mut parse_window = |raw: &str, field: &'static str| -> Option<(u32, u32, u32)> {
-            match parse_gtfs_time_raw(raw, field) {
-                Ok(v) => v,
-                Err(err) => {
-                    st.notices.push(make_k2_notice(
-                        &mut st.counter, "STM_058", EntityType::Trip, eid(),
-                        None, &file.name, Some(line), Some(field),
-                        Some(raw.to_string()), Some("HH:MM:SS".to_string()), err,
-                        "Flex pencere alanlarını HH:MM:SS formatında girin.",
-                    ));
-                    None
                 }
             }
-        };
-        let start_window = parse_window(start_window_raw, "start_pickup_drop_off_window");
-        let end_window   = parse_window(end_window_raw,   "end_pickup_drop_off_window");
 
-        let has_start_window = !start_window_raw.is_empty();
-        let has_end_window   = !end_window_raw.is_empty();
-        let has_any_window   = has_start_window || has_end_window;
-        let has_location     = !loc_id_raw.is_empty() || !loc_grp_raw.is_empty();
+            // ── Flex GTFS alanları (B1: yalnızca feed'de flex sütunu varsa işlenir) ──
+            type ParsedFlexColumns = (
+                Option<(u32, u32, u32)>,
+                Option<(u32, u32, u32)>,
+                Option<SmolStr>,
+                Option<SmolStr>,
+                Option<SmolStr>,
+                Option<SmolStr>,
+            );
+            let (
+                start_window,
+                end_window,
+                location_id,
+                location_group_id,
+                pickup_booking_rule_id,
+                drop_off_booking_rule_id,
+            ): ParsedFlexColumns = if has_flex_cols {
+                let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
+                let end_window_raw = get_col(row, cols.end_pickup_drop_off_window);
+                let loc_id_raw = get_col_raw(row, cols.location_id);
+                let loc_grp_raw = get_col_raw(row, cols.location_group_id);
+                let pbr_raw = get_col_raw(row, cols.pickup_booking_rule_id);
+                let dobr_raw = get_col_raw(row, cols.drop_off_booking_rule_id);
 
-        // STM_037: Flex penceresinde arrival_time/departure_time yasak
-        if has_any_window && (arrival_time.is_some() || departure_time.is_some()) {
-            st.notices.push(make_k2_notice(
+                // STM_058: Flex pencere alanları `Time` tipindedir — biçim hatası arrival_time gibi
+                // RAPOR EDİLİR. Eskiden `.ok().flatten()` ile yutuluyordu: değer kayboluyor, STM_038
+                // karşılaştıracak bir şey bulamıyor, satır "pencereli" sayıldığı için varlık kuralları
+                // da susuyordu → bozuk bir rezervasyon penceresi feed'de HİÇ bulgu üretmiyordu.
+                let mut parse_window =
+                    |raw: &str, field: &'static str| -> Option<(u32, u32, u32)> {
+                        match parse_gtfs_time_raw(raw, field) {
+                            Ok(v) => v,
+                            Err(err) => {
+                                st.notices.push(make_k2_notice(
+                                    &mut st.counter,
+                                    "STM_058",
+                                    EntityType::Trip,
+                                    eid(),
+                                    None,
+                                    &file.name,
+                                    Some(line),
+                                    Some(field),
+                                    Some(raw.to_string()),
+                                    Some("HH:MM:SS".to_string()),
+                                    err,
+                                    "Flex pencere alanlarını HH:MM:SS formatında girin.",
+                                ));
+                                None
+                            }
+                        }
+                    };
+                let start_window = parse_window(start_window_raw, "start_pickup_drop_off_window");
+                let end_window = parse_window(end_window_raw, "end_pickup_drop_off_window");
+
+                let has_start_window = !start_window_raw.is_empty();
+                let has_end_window = !end_window_raw.is_empty();
+                let has_any_window = has_start_window || has_end_window;
+                let has_location = !loc_id_raw.is_empty() || !loc_grp_raw.is_empty();
+
+                // STM_037: Flex penceresinde arrival_time/departure_time yasak
+                if has_any_window && (arrival_time.is_some() || departure_time.is_some()) {
+                    st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_037", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("arrival_time"),
                 Some(arr_raw.to_string()), Some("(boş)".to_string()),
                 format!("trip_id '{}' Flex penceresi tanımlı iken arrival_time/departure_time yasaktır.", trip_id),
                 "Flex stop_times satırlarında arrival_time ve departure_time alanlarını kaldırın.",
             ));
-        }
+                }
 
-        // STM_051: Flex penceresi tanımlı iken pickup_type=0 (düzenli) veya 3 (sürücü koordinasyonu) yasak.
-        // GTFS spec [Kesin]: pickup_type 0/3 forbidden if start/end_pickup_drop_off_window defined.
-        if has_any_window {
-            if let Some(pt) = pickup_type {
-                if pt == 0 || pt == 3 {
-                    st.notices.push(make_k2_notice(
+                // STM_051: Flex penceresi tanımlı iken pickup_type=0 (düzenli) veya 3 (sürücü koordinasyonu) yasak.
+                // GTFS spec [Kesin]: pickup_type 0/3 forbidden if start/end_pickup_drop_off_window defined.
+                if has_any_window {
+                    if let Some(pt) = pickup_type {
+                        if pt == 0 || pt == 3 {
+                            st.notices.push(make_k2_notice(
                         &mut st.counter, "STM_051", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("pickup_type"),
                         Some(pt.to_string()), Some("1 or 2".to_string()),
                         format!("trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır."),
                         "Flex penceresi olan stop_times satırlarında pickup_type'ı 1 (alış yok) veya 2 (telefonla) yapın.",
                     ));
-                }
-            }
-            // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
-            if drop_off_type == Some(0) {
-                st.notices.push(make_k2_notice(
+                        }
+                    }
+                    // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
+                    if drop_off_type == Some(0) {
+                        st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("drop_off_type"),
                     Some("0".to_string()), Some("1 or 2".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır."),
                     "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
                 ));
-            }
-            // STM_054/055: Flex penceresi tanımlı iken continuous_pickup/continuous_drop_off
-            // 1 (veya boş) dışında yasak. GTFS spec [Kesin]: stop_times tarafındaki koşul SATIR
-            // kapsamlıdır ("Forbidden if start/end_pickup_drop_off_window are defined") — routes
-            // tarafındaki rota-kapsamlı koşul (RTS_028, K4) ile karıştırılmamalı.
-            // Enum dışı değerler (>3) STM_018/019'un işi; burada çift emit etmemek için elenir.
-            if matches!(continuous_pickup, Some(0) | Some(2) | Some(3)) {
-                let cp = continuous_pickup.unwrap();
-                st.notices.push(make_k2_notice(
+                    }
+                    // STM_054/055: Flex penceresi tanımlı iken continuous_pickup/continuous_drop_off
+                    // 1 (veya boş) dışında yasak. GTFS spec [Kesin]: stop_times tarafındaki koşul SATIR
+                    // kapsamlıdır ("Forbidden if start/end_pickup_drop_off_window are defined") — routes
+                    // tarafındaki rota-kapsamlı koşul (RTS_028, K4) ile karıştırılmamalı.
+                    // Enum dışı değerler (>3) STM_018/019'un işi; burada çift emit etmemek için elenir.
+                    if matches!(continuous_pickup, Some(0) | Some(2) | Some(3)) {
+                        let cp = continuous_pickup.unwrap();
+                        st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_054", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_pickup"),
                     Some(cp.to_string()), Some("1 or empty".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_pickup={cp} yasaktır."),
                     "Flex penceresi olan stop_times satırlarında continuous_pickup'ı 1 yapın veya alanı boş bırakın.",
                 ));
-            }
-            if matches!(continuous_drop_off, Some(0) | Some(2) | Some(3)) {
-                let cd = continuous_drop_off.unwrap();
-                st.notices.push(make_k2_notice(
+                    }
+                    if matches!(continuous_drop_off, Some(0) | Some(2) | Some(3)) {
+                        let cd = continuous_drop_off.unwrap();
+                        st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_055", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("continuous_drop_off"),
                     Some(cd.to_string()), Some("1 or empty".to_string()),
                     format!("trip_id '{trip_id}' Flex penceresi tanımlı iken continuous_drop_off={cd} yasaktır."),
                     "Flex penceresi olan stop_times satırlarında continuous_drop_off'u 1 yapın veya alanı boş bırakın.",
                 ));
-            }
-        }
+                    }
+                }
 
-        // STM_038: start_window >= end_window
-        // Eşitlik de hatadır: sıfır uzunluklu bir pencere hizmetin hiçbir an açık
-        // olmadığı anlamına gelir. Spec bu sıralamayı HİÇ yazmaz; kural Interop'tur
-        // ve şeklini MobilityData belirler: "end_pickup_drop_off_window must be
-        // strictly later than the start_pickup_drop_off_window". Eskiden yalnız
-        // `>` bakıyorduk ve eşitliği kaçırıyorduk (mdb-2741'de MD 38, bizde 0).
-        if let (Some(sw), Some(ew)) = (start_window, end_window) {
-            let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
-            let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
-            if sw_secs >= ew_secs {
-                st.notices.push(make_k2_notice(
+                // STM_038: start_window >= end_window
+                // Eşitlik de hatadır: sıfır uzunluklu bir pencere hizmetin hiçbir an açık
+                // olmadığı anlamına gelir. Spec bu sıralamayı HİÇ yazmaz; kural Interop'tur
+                // ve şeklini MobilityData belirler: "end_pickup_drop_off_window must be
+                // strictly later than the start_pickup_drop_off_window". Eskiden yalnız
+                // `>` bakıyorduk ve eşitliği kaçırıyorduk (mdb-2741'de MD 38, bizde 0).
+                if let (Some(sw), Some(ew)) = (start_window, end_window) {
+                    let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
+                    let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
+                    if sw_secs >= ew_secs {
+                        st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_038", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("start_pickup_drop_off_window"),
                     Some(format!("{start_window_raw} >= {end_window_raw}")), None,
                     format!("trip_id '{}' start_pickup_drop_off_window, end_pickup_drop_off_window'dan önce değil.", trip_id),
                     "start_pickup_drop_off_window değerini end_pickup_drop_off_window'dan kesin olarak küçük yapın.",
                 ));
-            }
-        }
+                    }
+                }
 
-        // STM_039: location_id/group_id var ama pencere eksik
-        if has_location && (!has_start_window || !has_end_window) {
-            let missing = if !has_start_window { "start_pickup_drop_off_window" } else { "end_pickup_drop_off_window" };
-            st.notices.push(make_k2_notice(
+                // STM_039: location_id/group_id var ama pencere eksik
+                if has_location && (!has_start_window || !has_end_window) {
+                    let missing = if !has_start_window {
+                        "start_pickup_drop_off_window"
+                    } else {
+                        "end_pickup_drop_off_window"
+                    };
+                    st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_039", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some(missing),
                 None, Some("HH:MM:SS".to_string()),
                 format!("trip_id '{}' location_id/group_id tanımlı ama {missing} eksik.", trip_id),
                 "Flex stop_times için hem start_pickup_drop_off_window hem end_pickup_drop_off_window girin.",
             ));
-        }
+                }
 
-        // STM_040: Flex penceresi var ama booking_rule_id yok
-        if has_any_window && pbr_raw.is_empty() && dobr_raw.is_empty() {
-            st.notices.push(make_k2_notice(
+                // STM_040: Flex penceresi var ama booking_rule_id yok
+                if has_any_window && pbr_raw.is_empty() && dobr_raw.is_empty() {
+                    st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_040", EntityType::Trip, eid(),
                 None, &file.name, Some(line), Some("pickup_booking_rule_id"),
                 None, None,
                 format!("trip_id '{}' Flex penceresi tanımlı ama pickup/drop_off_booking_rule_id eksik.", trip_id),
                 "Flex rezervasyon için pickup_booking_rule_id veya drop_off_booking_rule_id girin.",
             ));
-        }
+                }
 
-        // STM_041: stop_id ve location_id/group_id aynı anda dolu (çakışma)
-        if !raw_stop.is_empty() && has_location {
-            st.notices.push(make_k2_notice(
+                // STM_041: stop_id ve location_id/group_id aynı anda dolu (çakışma)
+                if !raw_stop.is_empty() && has_location {
+                    st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_041", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
                 // Çakışma üç alan arasındadır; eskiden yalnız "location_id" yazılıyordu ve
@@ -1992,62 +2370,91 @@ pub fn validate_stop_times_with_limits(
                 format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
                 "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
             ));
-        }
+                }
 
-        let smol_opt = |s: &str| if s.is_empty() { None } else { Some(SmolStr::new(s)) };
+                let smol_opt = |s: &str| {
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(SmolStr::new(s))
+                    }
+                };
 
-        let location_id         = smol_opt(loc_id_raw);
-        let location_group_id   = smol_opt(loc_grp_raw);
-        let pickup_booking_rule_id   = smol_opt(pbr_raw);
-        let drop_off_booking_rule_id = smol_opt(dobr_raw);
-            (start_window, end_window, location_id, location_group_id,
-             pickup_booking_rule_id, drop_off_booking_rule_id)
-        } else {
-            (None, None, None, None, None, None)
-        };
+                let location_id = smol_opt(loc_id_raw);
+                let location_group_id = smol_opt(loc_grp_raw);
+                let pickup_booking_rule_id = smol_opt(pbr_raw);
+                let drop_off_booking_rule_id = smol_opt(dobr_raw);
+                (
+                    start_window,
+                    end_window,
+                    location_id,
+                    location_group_id,
+                    pickup_booking_rule_id,
+                    drop_off_booking_rule_id,
+                )
+            } else {
+                (None, None, None, None, None, None)
+            };
 
-        // ── Per-trip toplama ──
-        st.total_rows += 1;
-        if !trip_id.is_empty() {
-            let next_idx = st.trips_agg.len() as u32;
-            let agg = st.trips_agg.entry(trip_id.clone()).or_insert_with(|| TripAgg::new(line, next_idx));
-            if stop_idx != u32::MAX {
-                let stop_smol = st.stop_intern[stop_idx as usize].clone();
-                st.stop_first_line.entry(stop_smol).or_insert(line);
-                // stop_idx_set kaldırıldı; trip_stop_set finalize sonrası rows'dan inşa edilir
+            // ── Per-trip toplama ──
+            st.total_rows += 1;
+            if !trip_id.is_empty() {
+                let next_idx = st.trips_agg.len() as u32;
+                let agg = st
+                    .trips_agg
+                    .entry(trip_id.clone())
+                    .or_insert_with(|| TripAgg::new(line, next_idx));
+                if stop_idx != u32::MAX {
+                    let stop_smol = st.stop_intern[stop_idx as usize].clone();
+                    st.stop_first_line.entry(stop_smol).or_insert(line);
+                    // stop_idx_set kaldırıldı; trip_stop_set finalize sonrası rows'dan inşa edilir
+                }
+                if matches!(continuous_pickup, Some(0) | Some(2) | Some(3))
+                    || matches!(continuous_drop_off, Some(0) | Some(2) | Some(3))
+                {
+                    agg.continuous = true;
+                }
+                let trip_idx = agg.idx;
+                st.row_trip.push(trip_idx);
+                // side map'ler: CSV satır numarası anahtarlı (permutation'dan bağımsız)
+                if let Some(ref hs) = stop_headsign {
+                    st.stop_headsigns.insert(line as u32, hs.clone());
+                }
+                if let Some(flex) = build_flex(
+                    start_window,
+                    end_window,
+                    location_id.clone(),
+                    location_group_id.clone(),
+                    pickup_booking_rule_id.clone(),
+                    drop_off_booking_rule_id.clone(),
+                    pickup_type,
+                    drop_off_type,
+                ) {
+                    st.flex_map.insert(line as u32, flex);
+                }
+                st.all_rows.push(CompactStopTime {
+                    stop_idx,
+                    // Bozuk değer u32::MAX'e DÜŞMEZ: "alan yok" ile "alan dolu ama okunamadı"
+                    // ayrı sentinellerdir, yoksa STM_015/016 dolu bir alan için "eksik" der.
+                    arrival_secs: arrival_time
+                        .map(|(h, m, s)| h * 3600 + m * 60 + s)
+                        .unwrap_or(if arr_malformed {
+                            TIME_MALFORMED
+                        } else {
+                            u32::MAX
+                        }),
+                    departure_secs: departure_time
+                        .map(|(h, m, s)| h * 3600 + m * 60 + s)
+                        .unwrap_or(if dep_malformed {
+                            TIME_MALFORMED
+                        } else {
+                            u32::MAX
+                        }),
+                    sequence: stop_sequence.unwrap_or(u32::MAX),
+                    dist_f32: shape_dist_traveled.map(|d| d as f32).unwrap_or(f32::NAN),
+                    line: line as u32,
+                });
             }
-            if matches!(continuous_pickup, Some(0) | Some(2) | Some(3))
-                || matches!(continuous_drop_off, Some(0) | Some(2) | Some(3))
-            {
-                agg.continuous = true;
-            }
-            let trip_idx = agg.idx;
-            st.row_trip.push(trip_idx);
-            // side map'ler: CSV satır numarası anahtarlı (permutation'dan bağımsız)
-            if let Some(ref hs) = stop_headsign {
-                st.stop_headsigns.insert(line as u32, hs.clone());
-            }
-            if let Some(flex) = build_flex(
-                start_window, end_window,
-                location_id.clone(), location_group_id.clone(),
-                pickup_booking_rule_id.clone(), drop_off_booking_rule_id.clone(),
-                pickup_type, drop_off_type,
-            ) {
-                st.flex_map.insert(line as u32, flex);
-            }
-            st.all_rows.push(CompactStopTime {
-                stop_idx,
-                // Bozuk değer u32::MAX'e DÜŞMEZ: "alan yok" ile "alan dolu ama okunamadı"
-                // ayrı sentinellerdir, yoksa STM_015/016 dolu bir alan için "eksik" der.
-                arrival_secs:   arrival_time.map(|(h,m,s)| h*3600+m*60+s)
-                                    .unwrap_or(if arr_malformed { TIME_MALFORMED } else { u32::MAX }),
-                departure_secs: departure_time.map(|(h,m,s)| h*3600+m*60+s)
-                                    .unwrap_or(if dep_malformed { TIME_MALFORMED } else { u32::MAX }),
-                sequence:       stop_sequence.unwrap_or(u32::MAX),
-                dist_f32:       shape_dist_traveled.map(|d| d as f32).unwrap_or(f32::NAN),
-                line:           line as u32,
-            });
-        }
         };
 
         // ARC_033: `next_csv_record` bu değişkene yazar, döngü satır numarasını ekler.
@@ -2080,8 +2487,16 @@ pub fn validate_stop_times_with_limits(
             match zip::ZipArchive::new(cursor) {
                 Err(e) => {
                     st.notices.push(make_k2_notice(
-                        &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-                        None, &file.name, None, None, None, None,
+                        &mut st.counter,
+                        "ARC_009",
+                        EntityType::File,
+                        Some(file.name.clone()),
+                        None,
+                        &file.name,
+                        None,
+                        None,
+                        None,
+                        None,
                         format!("'{}' ZIP yeniden açılamadı: {e}.", file.name),
                         "ZIP arşivini kontrol edin.",
                     ));
@@ -2090,8 +2505,16 @@ pub fn validate_stop_times_with_limits(
                     match archive.by_name(file.zip_entry_name.as_deref().unwrap_or(&file.name)) {
                         Err(e) => {
                             st.notices.push(make_k2_notice(
-                                &mut st.counter, "ARC_009", EntityType::File, Some(file.name.clone()),
-                                None, &file.name, None, None, None, None,
+                                &mut st.counter,
+                                "ARC_009",
+                                EntityType::File,
+                                Some(file.name.clone()),
+                                None,
+                                &file.name,
+                                None,
+                                None,
+                                None,
+                                None,
                                 format!("'{}' ZIP girdisi bulunamadı: {e}.", file.name),
                                 "ZIP arşivini kontrol edin.",
                             ));
@@ -2104,7 +2527,8 @@ pub fn validate_stop_times_with_limits(
                             // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
                             // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
                             // boyutuyla tahsis saldırısına açıktı.
-                            let stream_limit = stream_budget.as_ref()
+                            let stream_limit = stream_budget
+                                .as_ref()
                                 .map(|budget| budget.limit())
                                 .unwrap_or(stream_byte_limit(max_data_rows));
                             let mut limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
@@ -2115,42 +2539,65 @@ pub fn validate_stop_times_with_limits(
                             let compressed_size = entry.compressed_size();
                             let mut total_decompressed = 0u64;
                             let mut guarded = GuardedReader::new(
-                                entry, limits, &mut total_decompressed, compressed_size,
+                                entry,
+                                limits,
+                                &mut total_decompressed,
+                                compressed_size,
                             );
                             let mut body: Vec<u8> = Vec::new();
                             if guarded.read_to_end(&mut body).is_ok() {
-                                let n = std::thread::available_parallelism().map(|v| v.get()).unwrap_or(4);
+                                let n = std::thread::available_parallelism()
+                                    .map(|v| v.get())
+                                    .unwrap_or(4);
                                 let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
-                                let parts: Vec<StChunk> = ranges.par_iter().map(|&(bs, be, first_line)| {
-                                    let mut c = StChunk { has_booking_rules, ..StChunk::default() };
-                                    // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
-                                    // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
-                                    // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
-                                    let mut rdr = ZipCsvReader::with_limits(
-                                        Cursor::new(&body[bs..be]), stream_limit, max_data_rows,
-                                    );
-                                    let mut fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
-                                    let mut line = first_line;
-                                    while rdr.next_record(&mut fields) {
-                                        if fields.len() == 1 && fields[0].is_empty() { continue; }
-                                        let row: Vec<Cow<'_, str>> = fields.iter()
-                                            .map(|f| match std::str::from_utf8(f) {
-                                                Ok(x) => Cow::Borrowed(x),
-                                                Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
-                                            })
-                                            .collect();
-                                        c.unclosed |= rdr.unclosed;
-                                        if let Some((k, ex)) = rdr.rfc.take() {
-                                            c.rfc.observe(line, k, &ex);
+                                let parts: Vec<StChunk> = ranges
+                                    .par_iter()
+                                    .map(|&(bs, be, first_line)| {
+                                        let mut c = StChunk {
+                                            has_booking_rules,
+                                            ..StChunk::default()
+                                        };
+                                        // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
+                                        // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
+                                        // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
+                                        let mut rdr = ZipCsvReader::with_limits(
+                                            Cursor::new(&body[bs..be]),
+                                            stream_limit,
+                                            max_data_rows,
+                                        );
+                                        let mut fields: Vec<Vec<u8>> =
+                                            Vec::with_capacity(header_count + 1);
+                                        let mut line = first_line;
+                                        while rdr.next_record(&mut fields) {
+                                            if fields.len() == 1 && fields[0].is_empty() {
+                                                continue;
+                                            }
+                                            let row: Vec<Cow<'_, str>> = fields
+                                                .iter()
+                                                .map(|f| match std::str::from_utf8(f) {
+                                                    Ok(x) => Cow::Borrowed(x),
+                                                    Err(_) => Cow::Owned(
+                                                        String::from_utf8_lossy(f).into_owned(),
+                                                    ),
+                                                })
+                                                .collect();
+                                            c.unclosed |= rdr.unclosed;
+                                            if let Some((k, ex)) = rdr.rfc.take() {
+                                                c.rfc.observe(line, k, &ex);
+                                            }
+                                            process(&mut c, &row, line);
+                                            line += 1;
                                         }
-                                        process(&mut c, &row, line);
-                                        line += 1;
-                                    }
-                                    c
-                                }).collect();
+                                        c
+                                    })
+                                    .collect();
                                 let mut it = parts.into_iter();
-                                if let Some(first) = it.next() { st = first; }
-                                for c in it { st.merge(c); }
+                                if let Some(first) = it.next() {
+                                    st = first;
+                                }
+                                for c in it {
+                                    st.merge(c);
+                                }
                             }
                             if let Some(budget) = stream_budget.as_mut() {
                                 budget.consume(total_decompressed as usize);
@@ -2158,12 +2605,12 @@ pub fn validate_stop_times_with_limits(
                         }
                         #[cfg(not(feature = "parallel"))]
                         Ok(entry) => {
-                            let stream_limit = stream_budget.as_ref()
+                            let stream_limit = stream_budget
+                                .as_ref()
                                 .map(|budget| budget.limit())
                                 .unwrap_or(stream_byte_limit(max_data_rows));
-                            let mut csv_reader = ZipCsvReader::with_limits(
-                                entry, stream_limit, max_data_rows,
-                            );
+                            let mut csv_reader =
+                                ZipCsvReader::with_limits(entry, stream_limit, max_data_rows);
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
@@ -2192,10 +2639,13 @@ pub fn validate_stop_times_with_limits(
                                 // her alan `to_owned()` ile kopyalanıyordu — VBB'de satır başına
                                 // 1 Vec + ~10 String, yani ~68M tahsis.) Bozuk UTF-8 nadir
                                 // istisnadır ve yalnız o satırda `Cow::Owned`a düşer.
-                                let cow_row: Vec<Cow<'_, str>> = raw_fields.iter()
+                                let cow_row: Vec<Cow<'_, str>> = raw_fields
+                                    .iter()
                                     .map(|f| match std::str::from_utf8(f) {
                                         Ok(s) => Cow::Borrowed(s),
-                                        Err(_) => Cow::Owned(String::from_utf8_lossy(f).into_owned()),
+                                        Err(_) => {
+                                            Cow::Owned(String::from_utf8_lossy(f).into_owned())
+                                        }
                                     })
                                     .collect();
                                 // Sınıra gelindiyse trip değişimini BEKLE, sonra böl.
@@ -2258,7 +2708,10 @@ pub fn validate_stop_times_with_limits(
 
     // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84).
     if st.unclosed {
-        st.notices.push(super::common::arc013_unclosed_stream(&file.name, &mut st.counter));
+        st.notices.push(super::common::arc013_unclosed_stream(
+            &file.name,
+            &mut st.counter,
+        ));
     }
 
     // ARC_033: DOSYA başına TEK özet (chunk'lar `StChunk::merge` ile birleşti).
@@ -2275,10 +2728,20 @@ pub fn validate_stop_times_with_limits(
     // GÖREMEZ; devir bu yüzden burada yapılır.
     if (file.raw_text.is_some() || zip_bytes.is_some()) && st.total_rows == 0 {
         st.notices.push(make_k2_notice(
-            &mut st.counter, "ARC_035", EntityType::File, Some(file.name.clone()),
-            None, &file.name, None, None,
-            Some(file.name.clone()), None,
-            format!("Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.", file.name),
+            &mut st.counter,
+            "ARC_035",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            None,
+            None,
+            Some(file.name.clone()),
+            None,
+            format!(
+                "Zorunlu GTFS dosyası '{}' hiç veri satırı içermiyor.",
+                file.name
+            ),
             "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
         ));
     }
@@ -2286,9 +2749,18 @@ pub fn validate_stop_times_with_limits(
     // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
     if let Some((observed, msg, cols)) = st.dq016.summary(&file.name) {
         let mut n = make_k2_notice(
-            &mut st.counter, "DQ_016", EntityType::File, Some(file.name.clone()),
-            None, &file.name, st.dq016.first_line, Some(cols.as_str()),
-            Some(observed), None, msg, crate::k1_parse::DQ016_REMEDIATION,
+            &mut st.counter,
+            "DQ_016",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            st.dq016.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::DQ016_REMEDIATION,
         );
         n.details = st.dq016.evidence_details();
         st.notices.push(n);
@@ -2365,8 +2837,8 @@ pub fn validate_stop_times_with_limits(
     });
     drop(_t_sort);
     drop(st.row_trip); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
-    // perm[pos] = pos. cikti pozisyonuna gelecek KAYNAK indeks. In-place icin dest'e
-    // (eleman i NEREYE gider) cevir, sonra cycle-swap uygula (ikinci Vec yok).
+                       // perm[pos] = pos. cikti pozisyonuna gelecek KAYNAK indeks. In-place icin dest'e
+                       // (eleman i NEREYE gider) cevir, sonra cycle-swap uygula (ikinci Vec yok).
     let mut dest: Vec<u32> = vec![0u32; n];
     for (pos, &src) in perm.iter().enumerate() {
         dest[src as usize] = pos as u32;
@@ -2403,17 +2875,32 @@ pub fn validate_stop_times_with_limits(
         let mut tids: Vec<&SmolStr> = st.trips_agg.keys().collect();
         tids.sort_unstable();
         for tid in tids {
-            if tid.is_empty() { continue; }
+            if tid.is_empty() {
+                continue;
+            }
             let agg = &st.trips_agg[tid];
-            let (s, e) = (offsets[agg.idx as usize] as usize, offsets[agg.idx as usize + 1] as usize);
+            let (s, e) = (
+                offsets[agg.idx as usize] as usize,
+                offsets[agg.idx as usize + 1] as usize,
+            );
             for w in rows[s..e].windows(2) {
                 let (a, b) = (&w[0], &w[1]);
                 if a.sequence != u32::MAX && a.sequence == b.sequence {
                     let mut n032 = make_k2_notice(
-                        &mut st.counter, "STM_032", EntityType::Trip, Some(tid.to_string()),
-                        None, &file.name, Some(b.line as u64), Some("stop_sequence"),
-                        Some(b.sequence.to_string()), None,
-                        format!("trip_id '{}' için stop_sequence {} tekrar ediyor.", tid, b.sequence),
+                        &mut st.counter,
+                        "STM_032",
+                        EntityType::Trip,
+                        Some(tid.to_string()),
+                        None,
+                        &file.name,
+                        Some(b.line as u64),
+                        Some("stop_sequence"),
+                        Some(b.sequence.to_string()),
+                        None,
+                        format!(
+                            "trip_id '{}' için stop_sequence {} tekrar ediyor.",
+                            tid, b.sequence
+                        ),
                         "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
                     );
                     // STM_056 ile aynı desen: feed özeti dalı affected_rows/example_trips yazar,
@@ -2495,9 +2982,13 @@ pub fn validate_stop_times_with_limits(
             continue; // boş trip_id çıktıya girmez (orijinal `if !trip_id.is_empty()` guard'ı)
         }
         let i = agg.idx as usize;
-        index.trip_ranges.insert(tid.clone(), (offsets[i], offsets[i + 1]));
+        index
+            .trip_ranges
+            .insert(tid.clone(), (offsets[i], offsets[i + 1]));
         index.trip_id_set.insert(tid.clone());
-        index.trip_first_line.insert(tid.clone(), agg.first_line as u64);
+        index
+            .trip_first_line
+            .insert(tid.clone(), agg.first_line as u64);
         if agg.continuous {
             index.continuous_trips.insert(tid.clone());
         }
@@ -2522,13 +3013,17 @@ pub fn validate_stop_times_with_limits(
                 violation.trip_id, violation.line, violation.field, observed, previous, expected),
             "Gece yarısından sonraki stop_times saatini 24:00:00, 25:00:00… biçiminde yazın; 00:xx kullanmayın.",
         );
-        notice.details = Some([
-            ("trip_id".to_string(), violation.trip_id.to_string()),
-            ("stop_id".to_string(), violation.stop_id.to_string()),
-            ("previous_time".to_string(), previous),
-            ("observed_time".to_string(), observed),
-            ("expected_time".to_string(), expected),
-        ].into_iter().collect());
+        notice.details = Some(
+            [
+                ("trip_id".to_string(), violation.trip_id.to_string()),
+                ("stop_id".to_string(), violation.stop_id.to_string()),
+                ("previous_time".to_string(), previous),
+                ("observed_time".to_string(), observed),
+                ("expected_time".to_string(), expected),
+            ]
+            .into_iter()
+            .collect(),
+        );
         st.notices.push(notice);
     }
 
@@ -2546,13 +3041,17 @@ pub fn validate_stop_times_with_limits(
                 violation.trip_id, violation.line, observed, previous, expected),
             "Aynı satırdaki gece yarısı sonrası departure_time değerini 24:00:00+ biçiminde yazın; 00:xx kullanmayın.",
         );
-        notice.details = Some([
-            ("trip_id".to_string(), violation.trip_id.to_string()),
-            ("stop_id".to_string(), violation.stop_id.to_string()),
-            ("previous_time".to_string(), previous),
-            ("observed_time".to_string(), observed),
-            ("expected_time".to_string(), expected),
-        ].into_iter().collect());
+        notice.details = Some(
+            [
+                ("trip_id".to_string(), violation.trip_id.to_string()),
+                ("stop_id".to_string(), violation.stop_id.to_string()),
+                ("previous_time".to_string(), previous),
+                ("observed_time".to_string(), observed),
+                ("expected_time".to_string(), expected),
+            ]
+            .into_iter()
+            .collect(),
+        );
         st.notices.push(notice);
     }
 
@@ -2563,7 +3062,9 @@ pub fn validate_stop_times_with_limits(
     {
         let _t_tss = crate::timing::Timer::start("K2::st::fin::trip_stop_set");
         for (tid, &(s, e)) in &index.trip_ranges {
-            if s == e { continue; }
+            if s == e {
+                continue;
+            }
             let set: FxHashSet<u32> = index.rows[s as usize..e as usize]
                 .iter()
                 .map(|st| st.stop_idx)
@@ -2576,7 +3077,9 @@ pub fn validate_stop_times_with_limits(
     }
     crate::timing::mem_log("K2 after trip_stop_set rebuild");
 
-    crate::timing::mem_log("  stop_times: index finalized (rows placed, st.all_rows freed, maps built)");
+    crate::timing::mem_log(
+        "  stop_times: index finalized (rows placed, st.all_rows freed, maps built)",
+    );
     index.log_mem_report();
     (index, st.notices)
 }
@@ -2597,15 +3100,21 @@ fn finalize_stm_pending(
     if n > threshold {
         // Pending listesi HashMap/chunk iterasyonundan geldiği için ham take(5)
         // deterministik değildir. Önce sırala, sonra ilk 5'i al.
-        let mut examples: Vec<String> = pending.iter()
-            .filter_map(|x| x.entity_id.clone())
-            .collect();
+        let mut examples: Vec<String> =
+            pending.iter().filter_map(|x| x.entity_id.clone()).collect();
         examples.sort_unstable();
         examples.truncate(5);
         let mut notice = make_k2_notice(
-            counter, rule_id, EntityType::Feed, None,
-            None, file_name, None, Some(field),
-            Some(n.to_string()), None,
+            counter,
+            rule_id,
+            EntityType::Feed,
+            None,
+            None,
+            file_name,
+            None,
+            Some(field),
+            Some(n.to_string()),
+            None,
             format!("{n} stop_times satırında {summary}"),
             remediation,
         );
@@ -2640,9 +3149,16 @@ fn parse_pickup_dropoff_col(
                 if val > 3 {
                     let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
                     notices.push(make_k2_notice(
-                        counter, rule_id, EntityType::Trip, entity_id,
-                        None, file_name, Some(line), Some(field),
-                        Some(val.to_string()), Some("0-3".to_string()),
+                        counter,
+                        rule_id,
+                        EntityType::Trip,
+                        entity_id,
+                        None,
+                        file_name,
+                        Some(line),
+                        Some(field),
+                        Some(val.to_string()),
+                        Some("0-3".to_string()),
                         format!("{field} 0, 1, 2 veya 3 olmalıdır."),
                         "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın.",
                     ));
@@ -2653,9 +3169,17 @@ fn parse_pickup_dropoff_col(
         Err(err) => {
             let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
             notices.push(make_k2_notice(
-                counter, rule_id, EntityType::Trip, entity_id,
-                None, file_name, Some(line), Some(field),
-                Some(raw.to_string()), Some("0-3".to_string()), err,
+                counter,
+                rule_id,
+                EntityType::Trip,
+                entity_id,
+                None,
+                file_name,
+                Some(line),
+                Some(field),
+                Some(raw.to_string()),
+                Some("0-3".to_string()),
+                err,
                 "Alanı geçerli bir GTFS biniş/iniş enum değerine (0-3) ayarlayın.",
             ));
             None
@@ -2671,11 +3195,7 @@ mod tests {
     #[test]
     fn zip_csv_reader_enforces_row_and_byte_budgets() {
         let body = b"a\n1\n2\n3\n";
-        let mut reader = ZipCsvReader::with_limits(
-            Cursor::new(body),
-            body.len() + 1,
-            Some(2),
-        );
+        let mut reader = ZipCsvReader::with_limits(Cursor::new(body), body.len() + 1, Some(2));
         let mut fields = Vec::new();
         assert!(reader.next_record(&mut fields)); // header
         assert!(reader.next_record(&mut fields));
@@ -2683,13 +3203,12 @@ mod tests {
         assert!(!reader.next_record(&mut fields));
         assert!(reader.truncated(), "satır bütçesi aşımı görünür olmalı");
 
-        let mut byte_limited = ZipCsvReader::with_limits(
-            Cursor::new(body),
-            body.len() - 1,
-            None,
-        );
+        let mut byte_limited = ZipCsvReader::with_limits(Cursor::new(body), body.len() - 1, None);
         while byte_limited.next_record(&mut fields) {}
-        assert!(byte_limited.truncated(), "byte bütçesi aşımı görünür olmalı");
+        assert!(
+            byte_limited.truncated(),
+            "byte bütçesi aşımı görünür olmalı"
+        );
     }
 
     #[test]
@@ -2714,16 +3233,35 @@ mod tests {
         let mut idx = StopTimesIndex::from_records(&recs);
         idx.normalize_service_day(3);
         let t1 = idx.sorted_stops("T1").unwrap();
-        assert_eq!(t1[0].departure_time(), Some((23, 58, 0)), "ilk durak dokunulmamalı");
-        assert_eq!(t1[1].arrival_time(), Some((24, 1, 0)), "00:01 → 24:01 normalize");
-        assert_eq!(t1[1].departure_time(), Some((24, 1, 0)), "departure aynı offset'i takip eder");
+        assert_eq!(
+            t1[0].departure_time(),
+            Some((23, 58, 0)),
+            "ilk durak dokunulmamalı"
+        );
+        assert_eq!(
+            t1[1].arrival_time(),
+            Some((24, 1, 0)),
+            "00:01 → 24:01 normalize"
+        );
+        assert_eq!(
+            t1[1].departure_time(),
+            Some((24, 1, 0)),
+            "departure aynı offset'i takip eder"
+        );
         let t2 = idx.sorted_stops("T2").unwrap();
-        assert_eq!(t2[1].arrival_time(), Some((7, 55, 0)), "gerçek hata (eşik üstü) korunur");
+        assert_eq!(
+            t2[1].arrival_time(),
+            Some((7, 55, 0)),
+            "gerçek hata (eşik üstü) korunur"
+        );
 
         // start_hour = 0 → normalizasyon kapalı.
         let mut idx0 = StopTimesIndex::from_records(&recs);
         idx0.normalize_service_day(0);
-        assert_eq!(idx0.sorted_stops("T1").unwrap()[1].arrival_time(), Some((0, 1, 0)));
+        assert_eq!(
+            idx0.sorted_stops("T1").unwrap()[1].arrival_time(),
+            Some((0, 1, 0))
+        );
     }
 
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
@@ -2740,14 +3278,21 @@ mod tests {
             headers: headers.into_iter().map(str::to_string).collect(),
             rows: Vec::new(),
             bytes: 0,
-            raw_text: Some(text), zip_entry_name: None,
+            raw_text: Some(text),
+            zip_entry_name: None,
         }
     }
 
     #[test]
     fn valid_stop_time_produces_no_notices() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2"],
@@ -2755,7 +3300,11 @@ mod tests {
         );
         let (records_idx, notices) = validate_stop_times(&file, None, false);
         assert_eq!(records_idx.rows.len(), 2);
-        assert!(notices.is_empty(), "Geçerli stop_times notice üretmemeli: {:?}", notices);
+        assert!(
+            notices.is_empty(),
+            "Geçerli stop_times notice üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -2768,7 +3317,10 @@ mod tests {
         assert!(reader.next_record(&mut fields));
         assert_eq!(fields, vec![b"1".to_vec(), b"a\"b".to_vec()]);
         assert!(!reader.next_record(&mut fields));
-        assert!(!reader.unclosed, "kapanış tırnağından sonraki EOF ARC_013 olmamalı");
+        assert!(
+            !reader.unclosed,
+            "kapanış tırnağından sonraki EOF ARC_013 olmamalı"
+        );
     }
 
     #[test]
@@ -2780,13 +3332,22 @@ mod tests {
         assert_eq!(fields, vec![b"a".to_vec(), b"b".to_vec()]);
         assert!(reader.next_record(&mut fields));
         assert_eq!(fields, vec![b"1".to_vec(), b"unclosed".to_vec()]);
-        assert!(reader.unclosed, "kapanış tırnağı olmadan EOF ARC_013 üretmeli");
+        assert!(
+            reader.unclosed,
+            "kapanış tırnağı olmadan EOF ARC_013 üretmeli"
+        );
     }
 
     #[test]
     fn missing_stop_sequence_produces_stm_005() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", ""]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
@@ -2796,7 +3357,13 @@ mod tests {
     #[test]
     fn missing_stop_id_produces_stm_006() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
@@ -2808,7 +3375,14 @@ mod tests {
     #[test]
     fn invalid_pickup_type_produces_stm_009() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "pickup_type"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "pickup_type",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "9"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
@@ -2818,7 +3392,14 @@ mod tests {
     #[test]
     fn invalid_timepoint_produces_stm_022() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "5"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
@@ -2828,37 +3409,76 @@ mod tests {
     #[test]
     fn timepoint_one_without_times_produces_stm_047() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
             vec![vec!["T1", "", "", "S1", "1", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_047"), "timepoint=1 + saatsiz → STM_047: {:?}", ids);
-        assert!(!ids.contains(&"STM_034"), "Her ikisi boşken STM_034 tetiklenmemeli: {:?}", ids);
+        assert!(
+            ids.contains(&"STM_047"),
+            "timepoint=1 + saatsiz → STM_047: {:?}",
+            ids
+        );
+        assert!(
+            !ids.contains(&"STM_034"),
+            "Her ikisi boşken STM_034 tetiklenmemeli: {:?}",
+            ids
+        );
     }
 
     #[test]
     fn timepoint_one_with_one_time_is_stm_034_not_047() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
             vec![vec!["T1", "08:00:00", "", "S1", "1", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_034"), "Yalnız biri dolu → STM_034: {:?}", ids);
-        assert!(!ids.contains(&"STM_047"), "Biri dolu iken STM_047 tetiklenmemeli: {:?}", ids);
+        assert!(
+            ids.contains(&"STM_034"),
+            "Yalnız biri dolu → STM_034: {:?}",
+            ids
+        );
+        assert!(
+            !ids.contains(&"STM_047"),
+            "Biri dolu iken STM_047 tetiklenmemeli: {:?}",
+            ids
+        );
     }
 
     #[test]
     fn timepoint_zero_without_times_silent_for_stm_047() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
             vec![vec!["T1", "", "", "S1", "1", "0"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_047"),
             "timepoint=0 (yaklaşık) → STM_047 tetiklenmemeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -2866,7 +3486,14 @@ mod tests {
         // 3 boş-timepoint satırı → TEK feed-seviyesi STM_050 özeti (satır-başına DEĞİL),
         // observed_value = 3. (Büyük feed OOM önlemi: bkz. Kocaeli 2.4M.)
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "timepoint"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1", ""],
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
@@ -2875,138 +3502,257 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm050: Vec<&_> = notices.iter().filter(|n| n.rule_id == "STM_050").collect();
-        assert_eq!(stm050.len(), 1, "STM_050 satır-başına değil TEK özet olmalı: {}", stm050.len());
-        assert_eq!(stm050[0].observed_value.as_deref(), Some("3"), "özet 3 boş satır saymalı");
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_022"), "boş değer STM_022 tetiklememeli");
+        assert_eq!(
+            stm050.len(),
+            1,
+            "STM_050 satır-başına değil TEK özet olmalı: {}",
+            stm050.len()
+        );
+        assert_eq!(
+            stm050[0].observed_value.as_deref(),
+            Some("3"),
+            "özet 3 boş satır saymalı"
+        );
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_022"),
+            "boş değer STM_022 tetiklememeli"
+        );
     }
 
     #[test]
     fn absent_timepoint_column_silent_for_stm_050() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_050"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_050"),
             "timepoint kolonu yok → STM_050 tetiklenmemeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn flex_window_forbidden_pickup_type_produces_stm_051() {
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "drop_off_type"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_type",
+                "drop_off_type",
+            ],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "0", "2"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_051"), "Flex penceresi + pickup_type=0 → STM_051: {:?}", ids);
+        assert!(
+            ids.contains(&"STM_051"),
+            "Flex penceresi + pickup_type=0 → STM_051: {:?}",
+            ids
+        );
     }
 
     #[test]
     fn flex_window_forbidden_drop_off_type_produces_stm_052() {
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "drop_off_type"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_type",
+                "drop_off_type",
+            ],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "0"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_052"),
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_052"),
             "Flex penceresi + drop_off_type=0 → STM_052: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
     fn no_flex_window_pickup_type_zero_silent_for_stm_051() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "pickup_type"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "pickup_type",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_051"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_051"),
             "Flex penceresi yok → pickup_type=0 STM_051 üretmemeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     // ── STM_054/055: Flex penceresi + continuous_pickup/drop_off (satır kapsamlı) ──
     #[test]
     fn flex_window_forbidden_continuous_pickup_produces_stm_054() {
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_type", "continuous_pickup"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_type",
+                "continuous_pickup",
+            ],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "0"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_054"), "Flex penceresi + continuous_pickup=0 → STM_054: {ids:?}");
+        assert!(
+            ids.contains(&"STM_054"),
+            "Flex penceresi + continuous_pickup=0 → STM_054: {ids:?}"
+        );
     }
 
     #[test]
     fn flex_window_forbidden_continuous_drop_off_produces_stm_055() {
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "drop_off_type", "continuous_drop_off"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "drop_off_type",
+                "continuous_drop_off",
+            ],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "2", "3"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_055"), "Flex penceresi + continuous_drop_off=3 → STM_055: {ids:?}");
+        assert!(
+            ids.contains(&"STM_055"),
+            "Flex penceresi + continuous_drop_off=3 → STM_055: {ids:?}"
+        );
     }
 
     #[test]
     fn flex_window_continuous_one_or_empty_silent_for_stm_054_055() {
         // 1 → izinli; boş → izinli (örtük 1 sayılır, susulur).
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "continuous_pickup", "continuous_drop_off"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "continuous_pickup",
+                "continuous_drop_off",
+            ],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "1", ""]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(!ids.contains(&"STM_054") && !ids.contains(&"STM_055"),
-            "continuous 1/boş → STM_054/055 üretmemeli: {ids:?}");
+        assert!(
+            !ids.contains(&"STM_054") && !ids.contains(&"STM_055"),
+            "continuous 1/boş → STM_054/055 üretmemeli: {ids:?}"
+        );
     }
 
     #[test]
     fn no_flex_window_continuous_zero_silent_for_stm_054() {
         // Pencere yoksa continuous_pickup=0 tümüyle geçerlidir (rota-kapsamlı koşul RTS_028'in işi).
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "continuous_pickup"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "continuous_pickup",
+            ],
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(!ids.contains(&"STM_054"), "Flex penceresi yok → STM_054 üretmemeli: {ids:?}");
+        assert!(
+            !ids.contains(&"STM_054"),
+            "Flex penceresi yok → STM_054 üretmemeli: {ids:?}"
+        );
     }
 
     #[test]
     fn invalid_continuous_enum_with_flex_window_only_produces_stm_018() {
         // 9 = enum dışı → STM_018'in işi; STM_054 çift emit ETMEMELİ.
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "continuous_pickup"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "continuous_pickup",
+            ],
             vec![vec!["T1", "1", "Z1", "08:00:00", "18:00:00", "9"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
-        assert!(ids.contains(&"STM_018"), "continuous_pickup=9 → STM_018: {ids:?}");
-        assert!(!ids.contains(&"STM_054"), "enum dışı değer STM_054'ü de tetiklememeli: {ids:?}");
+        assert!(
+            ids.contains(&"STM_018"),
+            "continuous_pickup=9 → STM_018: {ids:?}"
+        );
+        assert!(
+            !ids.contains(&"STM_054"),
+            "enum dışı değer STM_054'ü de tetiklememeli: {ids:?}"
+        );
     }
 
     #[test]
     fn stm018_above_threshold_aggregates_with_sorted_examples() {
         // Girdi ters sırada: feed özeti HashMap/chunk iterasyon sırasına bağlı kalmamalı.
         let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
-        let rows: Vec<Vec<&str>> = ids.iter()
+        let rows: Vec<Vec<&str>> = ids
+            .iter()
             .map(|id| vec![id.as_str(), id.as_str(), "9"])
             .collect();
         let file = make_file(vec!["trip_id", "stop_id", "continuous_pickup"], rows);
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm018: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_018").collect();
-        assert_eq!(stm018.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm018:?}");
+        assert_eq!(
+            stm018.len(),
+            1,
+            "51 ihlal tek feed-özeti olmalı: {stm018:?}"
+        );
         assert_eq!(stm018[0].entity_type, EntityType::Feed);
         assert_eq!(stm018[0].observed_value.as_deref(), Some("51"));
         assert_eq!(
-            stm018[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            stm018[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(String::as_str),
             Some("51"),
         );
         assert_eq!(
-            stm018[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            stm018[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_trips"))
+                .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
     }
@@ -3019,7 +3765,11 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm018: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_018").collect();
-        assert_eq!(stm018.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert_eq!(
+            stm018.len(),
+            2,
+            "düşük hacimde iki pinpoint notice korunmalı"
+        );
         assert!(stm018.iter().all(|n| n.entity_type == EntityType::Trip));
         assert!(stm018.iter().all(|n| n.details.is_none()));
     }
@@ -3027,21 +3777,34 @@ mod tests {
     #[test]
     fn stm019_above_threshold_aggregates_with_sorted_examples() {
         let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
-        let rows: Vec<Vec<&str>> = ids.iter()
+        let rows: Vec<Vec<&str>> = ids
+            .iter()
             .map(|id| vec![id.as_str(), id.as_str(), "9"])
             .collect();
         let file = make_file(vec!["trip_id", "stop_id", "continuous_drop_off"], rows);
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
-        assert_eq!(stm019.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm019:?}");
+        assert_eq!(
+            stm019.len(),
+            1,
+            "51 ihlal tek feed-özeti olmalı: {stm019:?}"
+        );
         assert_eq!(stm019[0].entity_type, EntityType::Feed);
         assert_eq!(stm019[0].observed_value.as_deref(), Some("51"));
         assert_eq!(
-            stm019[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            stm019[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(String::as_str),
             Some("51"),
         );
         assert_eq!(
-            stm019[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            stm019[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_trips"))
+                .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
     }
@@ -3054,7 +3817,11 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
-        assert_eq!(stm019.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert_eq!(
+            stm019.len(),
+            2,
+            "düşük hacimde iki pinpoint notice korunmalı"
+        );
         assert!(stm019.iter().all(|n| n.entity_type == EntityType::Trip));
         assert!(stm019.iter().all(|n| n.details.is_none()));
     }
@@ -3063,14 +3830,24 @@ mod tests {
     #[test]
     fn duplicate_stop_sequence_produces_stm_032() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
                 vec!["T1", "08:10:00", "08:10:00", "S2", "1"], // aynı stop_sequence tekrar
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_032"), "STM_032 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_032"),
+            "STM_032 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -3082,20 +3859,38 @@ mod tests {
             rows.push(vec![id.as_str(), "08:10:00", "08:10:00", "S2", "1"]);
         }
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             rows,
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm032: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_032").collect();
-        assert_eq!(stm032.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm032:?}");
+        assert_eq!(
+            stm032.len(),
+            1,
+            "51 ihlal tek feed-özeti olmalı: {stm032:?}"
+        );
         assert_eq!(stm032[0].entity_type, EntityType::Feed);
         assert_eq!(stm032[0].observed_value.as_deref(), Some("51"));
         assert_eq!(
-            stm032[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            stm032[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(String::as_str),
             Some("51"),
         );
         assert_eq!(
-            stm032[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            stm032[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_trips"))
+                .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
     }
@@ -3103,7 +3898,13 @@ mod tests {
     #[test]
     fn stm032_at_or_below_threshold_keeps_pinpoint_notices() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T2", "08:00:00", "08:00:00", "S1", "1"],
                 vec!["T2", "08:10:00", "08:10:00", "S2", "1"],
@@ -3113,30 +3914,51 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm032: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_032").collect();
-        assert_eq!(stm032.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert_eq!(
+            stm032.len(),
+            2,
+            "düşük hacimde iki pinpoint notice korunmalı"
+        );
         assert!(stm032.iter().all(|n| n.entity_type == EntityType::Trip));
         // STM_056 ile aynı sözleşme değişikliği: pinpoint dal da `affected_rows`/`example_trips`
         // taşır, çünkü tek mesaj şablonu hem satır-başına hem feed-özeti dalına hizmet ediyor.
-        assert!(stm032.iter().all(|n| n.details.as_ref()
-            .and_then(|d| d.get("affected_rows")).map(|v| v == "1").unwrap_or(false)),
-            "pinpoint notice affected_rows=1 taşımalı");
+        assert!(
+            stm032.iter().all(|n| n
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(|v| v == "1")
+                .unwrap_or(false)),
+            "pinpoint notice affected_rows=1 taşımalı"
+        );
     }
 
     /// #97 kabul matrisi: `stop_sequence` ARTIŞ hükmünü ölçen kural SPEC sınıfında olmalı,
     /// ve hükmü ihlal ETMEYEN iki meşru şekilde susmalı.
     #[test]
     fn stop_sequence_increase_provision_is_measured_by_a_spec_rule() {
-        let meta = gtfs_rules::RULES.iter().find(|r| r.id == "STM_032")
+        let meta = gtfs_rules::RULES
+            .iter()
+            .find(|r| r.id == "STM_032")
             .expect("STM_032 registry'de olmalı");
-        assert_eq!(meta.rule_class, gtfs_core::RuleClass::Spec,
-            "artış hükmünü ölçen kural Spec sınıfında olmalı (#97)");
+        assert_eq!(
+            meta.rule_class,
+            gtfs_core::RuleClass::Spec,
+            "artış hükmünü ölçen kural Spec sınıfında olmalı (#97)"
+        );
     }
 
     #[test]
     fn non_consecutive_increasing_stop_sequence_is_silent() {
         // Spec AÇIKÇA izin verir: "do not need to be consecutive" (1, 5, 9).
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
                 vec!["T1", "08:10:00", "08:10:00", "S2", "5"],
@@ -3144,8 +3966,10 @@ mod tests {
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_032"),
-            "ardışık olmayan ama artan değerler STM_032 üretmemeli: {notices:?}");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_032"),
+            "ardışık olmayan ama artan değerler STM_032 üretmemeli: {notices:?}"
+        );
     }
 
     #[test]
@@ -3154,35 +3978,62 @@ mod tests {
         // ama trip'in değerleri artıyor → hüküm İHLAL EDİLMEMİŞTİR, Spec bulgusu ÇIKMAMALI.
         // (Dosya sırası sinyali STM_036'nın işidir ve o K6'da üretilir.)
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2"],
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_032"),
-            "dosya sırası ters ama değerler artıyor → STM_032 çıkmamalı: {notices:?}");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_032"),
+            "dosya sırası ters ama değerler artıyor → STM_032 çıkmamalı: {notices:?}"
+        );
     }
 
     #[test]
     fn non_increasing_shape_dist_produces_stm_056() {
-        let cols = vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "shape_dist_traveled"];
+        let cols = vec![
+            "trip_id",
+            "arrival_time",
+            "departure_time",
+            "stop_id",
+            "stop_sequence",
+            "shape_dist_traveled",
+        ];
         // eşit değer
-        let file = make_file(cols.clone(), vec![
-            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
-            vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
-        ]);
+        let file = make_file(
+            cols.clone(),
+            vec![
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
+            ],
+        );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "eşit değer STM_056 üretmeli: {notices:?}");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_056"),
+            "eşit değer STM_056 üretmeli: {notices:?}"
+        );
 
         // azalan değer
-        let file = make_file(cols.clone(), vec![
-            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "250.0"],
-            vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
-        ]);
+        let file = make_file(
+            cols.clone(),
+            vec![
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", "250.0"],
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2", "100.0"],
+            ],
+        );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_056"), "azalan değer STM_056 üretmeli");
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_056"),
+            "azalan değer STM_056 üretmeli"
+        );
     }
 
     #[test]
@@ -3195,22 +4046,38 @@ mod tests {
         }
         let file = make_file(
             vec![
-                "trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence",
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
                 "shape_dist_traveled",
             ],
             rows,
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
-        assert_eq!(stm056.len(), 1, "51 ihlal tek feed-özeti olmalı: {stm056:?}");
+        assert_eq!(
+            stm056.len(),
+            1,
+            "51 ihlal tek feed-özeti olmalı: {stm056:?}"
+        );
         assert_eq!(stm056[0].entity_type, EntityType::Feed);
         assert_eq!(stm056[0].observed_value.as_deref(), Some("51"));
         assert_eq!(
-            stm056[0].details.as_ref().and_then(|d| d.get("affected_rows")).map(String::as_str),
+            stm056[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(String::as_str),
             Some("51"),
         );
         assert_eq!(
-            stm056[0].details.as_ref().and_then(|d| d.get("example_trips")).map(String::as_str),
+            stm056[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_trips"))
+                .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
     }
@@ -3219,7 +4086,11 @@ mod tests {
     fn stm056_at_or_below_threshold_keeps_pinpoint_notices() {
         let file = make_file(
             vec![
-                "trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence",
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
                 "shape_dist_traveled",
             ],
             vec![
@@ -3231,42 +4102,79 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
-        assert_eq!(stm056.len(), 2, "düşük hacimde iki pinpoint notice korunmalı");
+        assert_eq!(
+            stm056.len(),
+            2,
+            "düşük hacimde iki pinpoint notice korunmalı"
+        );
         assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
         // Pinpoint dal artık `details` TAŞIR: tek mesaj şablonu iki dala da hizmet ettiği
         // için (feed özeti / satır başına) sayaç+örnek burada da yazılır, yoksa en/ja/fr
         // metni boş placeholder ile çıkar. Ayırt edici olan sayaç: pinpoint'te 1.
-        assert!(stm056.iter().all(|n| n.details.as_ref()
-            .and_then(|d| d.get("affected_rows")).map(|v| v == "1").unwrap_or(false)),
-            "pinpoint notice affected_rows=1 taşımalı");
-        assert!(stm056.iter().all(|n| n.details.as_ref()
+        assert!(
+            stm056.iter().all(|n| n
+                .details
+                .as_ref()
+                .and_then(|d| d.get("affected_rows"))
+                .map(|v| v == "1")
+                .unwrap_or(false)),
+            "pinpoint notice affected_rows=1 taşımalı"
+        );
+        assert!(stm056.iter().all(|n| n
+            .details
+            .as_ref()
             .is_some_and(|d| d.contains_key("example_trips"))));
     }
 
     #[test]
     fn increasing_or_missing_shape_dist_no_stm_056() {
-        let cols = vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "shape_dist_traveled"];
+        let cols = vec![
+            "trip_id",
+            "arrival_time",
+            "departure_time",
+            "stop_id",
+            "stop_sequence",
+            "shape_dist_traveled",
+        ];
         // artan → temiz
-        let file = make_file(cols.clone(), vec![
-            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
-            vec!["T1", "08:10:00", "08:10:00", "S2", "2", "250.0"],
-        ]);
+        let file = make_file(
+            cols.clone(),
+            vec![
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2", "250.0"],
+            ],
+        );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_056"), "artan değer temiz olmalı");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_056"),
+            "artan değer temiz olmalı"
+        );
 
         // biri eksik → karşılaştırma yapılmaz (STM_017 kapsamı)
-        let file = make_file(cols, vec![
-            vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
-            vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
-        ]);
+        let file = make_file(
+            cols,
+            vec![
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", "100.0"],
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
+            ],
+        );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_056"), "eksik değerde STM_056 olmamalı");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_056"),
+            "eksik değerde STM_056 olmamalı"
+        );
     }
 
     #[test]
     fn out_of_order_stop_sequence_produces_stm_036() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "5"],
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2"], // 2 < 5 → dosya sırası bozuk
@@ -3274,14 +4182,30 @@ mod tests {
         );
         let (idx, notices) = validate_stop_times(&file, None, false);
         let stm036: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_036").collect();
-        assert_eq!(stm036.len(), 1, "STM_036 trip başına TEK kez üretilmeli: {:?}", notices);
-        assert_eq!(idx.unsorted_seq_trips.len(), 1, "STM_036 unsorted_seq_trips'e bir kayıt eklemeli");
+        assert_eq!(
+            stm036.len(),
+            1,
+            "STM_036 trip başına TEK kez üretilmeli: {:?}",
+            notices
+        );
+        assert_eq!(
+            idx.unsorted_seq_trips.len(),
+            1,
+            "STM_036 unsorted_seq_trips'e bir kayıt eklemeli"
+        );
     }
 
     #[test]
     fn finalize_index_fields_preserved() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence", "continuous_pickup"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "continuous_pickup",
+            ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1", "0"], // continuous_pickup=0 → T1 continuous
                 vec!["T1", "08:10:00", "08:10:00", "S2", "2", ""],
@@ -3296,10 +4220,13 @@ mod tests {
         assert_eq!(idx.trip_first_line.get("T1").copied(), Some(2)); // ilk veri satırı = satır 2
         assert_eq!(idx.trip_first_line.get("T2").copied(), Some(4));
         assert_eq!(idx.stop_first_line.get("S1").copied(), Some(2)); // S1 ilk satır 2'de
-        assert!(idx.continuous_trips.contains("T1"), "T1 continuous_pickup=0 → continuous_trips'te olmalı");
+        assert!(
+            idx.continuous_trips.contains("T1"),
+            "T1 continuous_pickup=0 → continuous_trips'te olmalı"
+        );
         assert!(!idx.continuous_trips.contains("T2"));
         assert_eq!(idx.trip_stop_set.get("T1").map(|s| s.len()), Some(2)); // S1,S2
-        // trips stop_sequence'e göre sıralı
+                                                                           // trips stop_sequence'e göre sıralı
         let t1 = idx.sorted_stops("T1").expect("T1 trips'te olmalı");
         assert_eq!(t1[0].stop_sequence(), Some(1));
         assert_eq!(t1[1].stop_sequence(), Some(2));
@@ -3311,7 +4238,13 @@ mod tests {
         // In-place permütasyon: (a) trip'e göre grupla, (b) trip-içi sequence ASC,
         // (c) eşit sequence'te DOSYA sırası (determinizm), (d) trip_ranges doğru.
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![
                 vec!["T2", "09:02:00", "09:02:00", "S_B", "2"], // satır 2  (T2 = idx 0)
                 vec!["T1", "08:30:00", "08:30:00", "S_a", "3"], // satır 3  (T1 = idx 1)
@@ -3325,61 +4258,118 @@ mod tests {
         assert_eq!(idx.total_rows, 6);
         assert_eq!(idx.trip_ranges.len(), 2);
 
-        let t1: Vec<_> = idx.sorted_stops("T1").unwrap().iter()
-            .map(|s| (idx.stop_id_of(s).to_string(), s.stop_sequence())).collect();
-        assert_eq!(t1, vec![
-            ("S_c".into(), Some(1)), ("S_d".into(), Some(1)),
-            ("S_b".into(), Some(2)), ("S_a".into(), Some(3)),
-        ], "T1: sequence ASC + eşit seq'te dosya sırası (S_c < S_d)");
+        let t1: Vec<_> = idx
+            .sorted_stops("T1")
+            .unwrap()
+            .iter()
+            .map(|s| (idx.stop_id_of(s).to_string(), s.stop_sequence()))
+            .collect();
+        assert_eq!(
+            t1,
+            vec![
+                ("S_c".into(), Some(1)),
+                ("S_d".into(), Some(1)),
+                ("S_b".into(), Some(2)),
+                ("S_a".into(), Some(3)),
+            ],
+            "T1: sequence ASC + eşit seq'te dosya sırası (S_c < S_d)"
+        );
 
-        let t2: Vec<_> = idx.sorted_stops("T2").unwrap().iter()
-            .map(|s| (idx.stop_id_of(s).to_string(), s.stop_sequence())).collect();
-        assert_eq!(t2, vec![("S_A".into(), Some(1)), ("S_B".into(), Some(2))],
-            "T2 ayrı grup, sequence ASC");
+        let t2: Vec<_> = idx
+            .sorted_stops("T2")
+            .unwrap()
+            .iter()
+            .map(|s| (idx.stop_id_of(s).to_string(), s.stop_sequence()))
+            .collect();
+        assert_eq!(
+            t2,
+            vec![("S_A".into(), Some(1)), ("S_B".into(), Some(2))],
+            "T2 ayrı grup, sequence ASC"
+        );
     }
 
     #[test]
     fn scope_key_is_trip_id() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["TRIP_X", "08:00:00", "08:00:00", "S1", ""]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        let n = notices.iter().find(|n| n.rule_id == "STM_005").expect("STM_005 olmalı");
-        assert_eq!(n.scope_key.as_deref(), Some("TRIP_X"), "scope_key trip_id olmalı");
+        let n = notices
+            .iter()
+            .find(|n| n.rule_id == "STM_005")
+            .expect("STM_005 olmalı");
+        assert_eq!(
+            n.scope_key.as_deref(),
+            Some("TRIP_X"),
+            "scope_key trip_id olmalı"
+        );
     }
 
     #[test]
     fn only_arrival_time_produces_stm_034() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["T1", "08:00:00", "", "S1", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_034"),
-            "Yalnızca arrival_time dolu → STM_034 olmalı. Notices: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_034"),
+            "Yalnızca arrival_time dolu → STM_034 olmalı. Notices: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn only_departure_time_produces_stm_034() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["T1", "", "08:00:00", "S1", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_034"),
-            "Yalnızca departure_time dolu → STM_034 olmalı. Notices: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_034"),
+            "Yalnızca departure_time dolu → STM_034 olmalı. Notices: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn both_times_empty_no_stm_034() {
         let file = make_file(
-            vec!["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+            ],
             vec![vec!["T1", "", "", "S1", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_034"),
-            "İkisi de boş → STM_034 üretilmemeli. Notices: {:?}", notices);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_034"),
+            "İkisi de boş → STM_034 üretilmemeli. Notices: {:?}",
+            notices
+        );
     }
 
     // ── STM Flex ────────────────────────────────────────────────────────────────
@@ -3387,21 +4377,43 @@ mod tests {
     #[test]
     fn stm_037_arrival_time_forbidden_in_flex_window() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "arrival_time", "departure_time"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "arrival_time",
+                "departure_time",
+            ],
             vec![vec!["T1", "", "1", "08:00:00", "08:00:00", ""]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_037"), "STM_037 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_037"),
+            "STM_037 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn stm_038_start_window_after_end_window() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_booking_rule_id",
+            ],
             vec![vec!["T1", "", "1", "10:00:00", "09:00:00", "BR1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_038"), "STM_038 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_038"),
+            "STM_038 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -3410,23 +4422,43 @@ mod tests {
         // Interop'tur. Kod 2026-08-18'e kadar yalnız `>` bakıyordu; `mdb-2741`'de
         // MD 38 bulgu verirken bizde 0'dı.
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_booking_rule_id",
+            ],
             vec![vec!["T1", "", "1", "13:09:00", "13:09:00", "BR1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_038"),
-            "Eşit pencerelerde STM_038 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_038"),
+            "Eşit pencerelerde STM_038 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn stm_038_ordered_windows_are_clean() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_booking_rule_id",
+            ],
             vec![vec!["T1", "", "1", "09:00:00", "17:00:00", "BR1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_038"),
-            "start < end temiz olmalı: {:?}", notices);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_038"),
+            "start < end temiz olmalı: {:?}",
+            notices
+        );
     }
 
     /// STM_034 "yalnız biri tanımlı" der — DOLULUK hakkında. Bozuk değer "yok" DEĞİLDİR.
@@ -3442,54 +4474,90 @@ mod tests {
         // Yanlış pozitifin gerçek şekli: BİRİ bozuk, DİĞERİ geçerli — eski kod bunu
         // "(None, Some)" olarak görüp asimetri uyduruyordu.
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "arrival_time",
+                "departure_time",
+            ],
             vec![vec!["T1", "S1", "1", "8:30", "08:31:00"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_034"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_034"),
             "iki alan da DOLU (yalnız biçimi bozuk) — STM_034 asimetri uydurmamalı: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
-        assert!(notices.iter().any(|n| n.rule_id == "STM_003"),
-            "gerçek kusuru bildiren kural SUSMAMALI");
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_003"),
+            "gerçek kusuru bildiren kural SUSMAMALI"
+        );
     }
 
     /// Gerçekten tek taraflı boşlukta STM_034 hâlâ ateşlemeli — kapı fazla geniş olmamalı.
     #[test]
     fn stm_034_still_fires_when_one_side_is_genuinely_empty() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "arrival_time",
+                "departure_time",
+            ],
             vec![vec!["T1", "S1", "1", "08:30:00", ""]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_034"),
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_034"),
             "arrival dolu, departure GERÇEKTEN boş — STM_034 ateşlemeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     /// STM_047 "timepoint=1 ama iki zaman da tanımlı değil" der; bozuk değer tanımsız değildir.
     #[test]
     fn stm_047_does_not_fire_when_times_are_present_but_malformed() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "timepoint"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "arrival_time",
+                "departure_time",
+                "timepoint",
+            ],
             vec![vec!["T1", "S1", "1", "8:30", "8:31", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"),
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_047"),
             "iki alan da DOLU (biçimi bozuk) — STM_047 'tanımlı değil' dememeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     /// Gerçekten boş iki alan + timepoint=1 → STM_047 ateşlemeli.
     #[test]
     fn stm_047_still_fires_when_both_times_are_genuinely_empty() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "arrival_time", "departure_time", "timepoint"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "arrival_time",
+                "departure_time",
+                "timepoint",
+            ],
             vec![vec!["T1", "S1", "1", "", "", "1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_047"),
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_047"),
             "iki alan da GERÇEKTEN boş — STM_047 ateşlemeli: {:?}",
-            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -3497,26 +4565,49 @@ mod tests {
         // Eskiden `.ok().flatten()` hatayı yutuyordu: hiç bulgu çıkmıyor, değer kayboluyor
         // ve STM_038 karşılaştıracak bir şey bulamadığı için o da susuyordu.
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+            ],
             vec![vec!["T1", "", "1", "9am", "10:00:00"]],
         );
         let (index, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_058"
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_058"
                 && n.field.as_deref() == Some("start_pickup_drop_off_window")),
-            "STM_058 bekleniyor ve alanı start_pickup_drop_off_window olmalı: {:?}", notices);
-        assert!(index.flex_map.values().all(|f| f.start_pickup_drop_off_window.is_none()),
-            "parse edilemeyen değer kayda GİRMEMELİ");
+            "STM_058 bekleniyor ve alanı start_pickup_drop_off_window olmalı: {:?}",
+            notices
+        );
+        assert!(
+            index
+                .flex_map
+                .values()
+                .all(|f| f.start_pickup_drop_off_window.is_none()),
+            "parse edilemeyen değer kayda GİRMEMELİ"
+        );
     }
 
     #[test]
     fn stm_058_silent_for_valid_windows() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
-            vec![vec!["T1", "", "1", "09:00:00", "25:30:00"]],  // 24:00 üstü GTFS'te geçerli
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+            ],
+            vec![vec!["T1", "", "1", "09:00:00", "25:30:00"]], // 24:00 üstü GTFS'te geçerli
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_058"),
-            "geçerli pencere STM_058 üretmemeli: {:?}", notices);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_058"),
+            "geçerli pencere STM_058 üretmemeli: {:?}",
+            notices
+        );
     }
 
     #[test]
@@ -3526,48 +4617,99 @@ mod tests {
             vec![vec!["T1", "1", "LOC1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_039"), "STM_039 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_039"),
+            "STM_039 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn stm_040_flex_window_without_booking_rule() {
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+            ],
             vec![vec!["T1", "1", "08:00:00", "10:00:00"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_040"), "STM_040 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_040"),
+            "STM_040 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn stm_041_stop_id_and_location_id_conflict() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_booking_rule_id",
+            ],
             vec![vec!["T1", "S1", "1", "LOC1", "08:00:00", "10:00:00", "BR1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_041"), "STM_041 bekleniyor: {:?}", notices);
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_041"),
+            "STM_041 bekleniyor: {:?}",
+            notices
+        );
     }
 
     #[test]
     fn valid_flex_stop_time_no_notices() {
         let file = make_file(
-            vec!["trip_id", "stop_sequence", "location_id", "start_pickup_drop_off_window", "end_pickup_drop_off_window", "pickup_booking_rule_id"],
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_booking_rule_id",
+            ],
             vec![vec!["T1", "1", "LOC1", "08:00:00", "10:00:00", "BR1"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        let flex_notices: Vec<_> = notices.iter().filter(|n| matches!(n.rule_id.as_str(), "STM_037"|"STM_038"|"STM_039"|"STM_040"|"STM_041")).collect();
-        assert!(flex_notices.is_empty(), "Geçerli Flex stop_time için Flex notice olmamalı: {:?}", flex_notices);
+        let flex_notices: Vec<_> = notices
+            .iter()
+            .filter(|n| {
+                matches!(
+                    n.rule_id.as_str(),
+                    "STM_037" | "STM_038" | "STM_039" | "STM_040" | "STM_041"
+                )
+            })
+            .collect();
+        assert!(
+            flex_notices.is_empty(),
+            "Geçerli Flex stop_time için Flex notice olmamalı: {:?}",
+            flex_notices
+        );
     }
     #[test]
     fn stm_059_flags_on_demand_type_without_booking_rule() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "pickup_type", "drop_off_type", "pickup_booking_rule_id"],
             vec![
-                vec!["T1", "S1", "1", "2", "0", ""],        // pickup_type=2, kural yok → say
-                vec!["T2", "S1", "1", "0", "2", ""],        // drop_off_type=2, kural yok → say
-                vec!["T3", "S1", "1", "2", "0", "BR1"],     // kural var → sessiz
-                vec!["T4", "S1", "1", "0", "0", ""],        // enum 2 değil → sessiz
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "pickup_type",
+                "drop_off_type",
+                "pickup_booking_rule_id",
+            ],
+            vec![
+                vec!["T1", "S1", "1", "2", "0", ""], // pickup_type=2, kural yok → say
+                vec!["T2", "S1", "1", "0", "2", ""], // drop_off_type=2, kural yok → say
+                vec!["T3", "S1", "1", "2", "0", "BR1"], // kural var → sessiz
+                vec!["T4", "S1", "1", "0", "0", ""], // enum 2 değil → sessiz
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, true);
@@ -3584,7 +4726,10 @@ mod tests {
             vec![vec!["T1", "S1", "1", "2"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(!notices.iter().any(|n| n.rule_id == "STM_059"), "{notices:?}");
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_059"),
+            "{notices:?}"
+        );
     }
 
     #[test]
@@ -3592,17 +4737,31 @@ mod tests {
         // STM_040 Flex PENCERESİNE bakar, STM_059 talep-üzerine ENUM DEĞERİNE.
         // Penceresiz dial-a-ride satırı STM_040'ta sessizdi — boşluk buydu.
         let file = make_file(
-            vec!["trip_id", "stop_id", "stop_sequence", "pickup_type", "start_pickup_drop_off_window", "end_pickup_drop_off_window"],
             vec![
-                vec!["T1", "S1", "1", "2", "", ""],                    // yalnız STM_059
-                vec!["T2", "", "1", "0", "08:00:00", "10:00:00"],      // yalnız STM_040
+                "trip_id",
+                "stop_id",
+                "stop_sequence",
+                "pickup_type",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+            ],
+            vec![
+                vec!["T1", "S1", "1", "2", "", ""],               // yalnız STM_059
+                vec!["T2", "", "1", "0", "08:00:00", "10:00:00"], // yalnız STM_040
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, true);
-        let s59: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_059").map(|n| n.entity_id.as_deref()).collect();
-        let s40: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_040").map(|n| n.entity_id.as_deref()).collect();
+        let s59: Vec<_> = notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_059")
+            .map(|n| n.entity_id.as_deref())
+            .collect();
+        let s40: Vec<_> = notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_040")
+            .map(|n| n.entity_id.as_deref())
+            .collect();
         assert_eq!(s59, vec![Some("T1")], "STM_059 yalnız T1");
         assert_eq!(s40, vec![Some("T2")], "STM_040 yalnız T2");
     }
-
 }

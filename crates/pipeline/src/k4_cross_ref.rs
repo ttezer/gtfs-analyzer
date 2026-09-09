@@ -1,7 +1,7 @@
-﻿use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
-use gtfs_core::{EntityType, Notice};
 use gtfs_config::GtfsJpProfile;
+use gtfs_core::{EntityType, Notice};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
@@ -46,8 +46,13 @@ pub fn check_with_files(
     }
 
     // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
-    let (stm_used_stop_ids, stm_trip_continuous, stm_trips_in_stm, stm_trip_stm_count,
-         stm_flex_window_trips) = if availability.available("stop_times.txt") {
+    let (
+        stm_used_stop_ids,
+        stm_trip_continuous,
+        stm_trips_in_stm,
+        stm_trip_stm_count,
+        stm_flex_window_trips,
+    ) = if availability.available("stop_times.txt") {
         let _t = Timer::start("K4::stop_times");
         let idx = &records.stop_times_index;
 
@@ -108,7 +113,9 @@ pub fn check_with_files(
         let mut xfl024_seen: HashSet<&str> = HashSet::new();
         let mut xfl025_seen: HashSet<&str> = HashSet::new();
         for st in &idx.rows {
-            let Some(flex) = idx.flex_of(st) else { continue };
+            let Some(flex) = idx.flex_of(st) else {
+                continue;
+            };
             if availability.available("location_groups.txt") {
                 if let Some(lg) = &flex.location_group_id {
                     if !lg.is_empty()
@@ -151,10 +158,12 @@ pub fn check_with_files(
         }
 
         // index'ten &str görünümlü geçici koleksiyonlar (fonksiyon imzaları değişmeden)
-        let used_stop_ids: HashSet<&str>  = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
-        let trip_continuous: HashSet<&str> = idx.continuous_trips.iter().map(|s| s.as_str()).collect();
-        let trips_in_stm: HashSet<&str>   = idx.trip_id_set.iter().map(|s| s.as_str()).collect();
-        let trip_stm_count: HashMap<&str, u32> = idx.iter_trips()
+        let used_stop_ids: HashSet<&str> = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
+        let trip_continuous: HashSet<&str> =
+            idx.continuous_trips.iter().map(|s| s.as_str()).collect();
+        let trips_in_stm: HashSet<&str> = idx.trip_id_set.iter().map(|s| s.as_str()).collect();
+        let trip_stm_count: HashMap<&str, u32> = idx
+            .iter_trips()
             .map(|(k, v)| (k.as_str(), v.len() as u32))
             .collect();
 
@@ -177,93 +186,210 @@ pub fn check_with_files(
                 .collect()
         };
 
-        (used_stop_ids, trip_continuous, trips_in_stm, trip_stm_count, flex_window_trips)
+        (
+            used_stop_ids,
+            trip_continuous,
+            trips_in_stm,
+            trip_stm_count,
+            flex_window_trips,
+        )
     } else {
         skipped_checks.push("K4::stop_times".to_string());
-        (HashSet::new(), HashSet::new(), HashSet::new(), HashMap::new(), HashSet::new())
+        (
+            HashSet::new(),
+            HashSet::new(),
+            HashSet::new(),
+            HashMap::new(),
+            HashSet::new(),
+        )
     };
 
     gate!("K4::agency", availability.available("agency.txt"), {
         check_agencies(records, map, &mut notices, &mut ctr);
     });
-    gate!("K4::stops", availability.all(&["stops.txt", "stop_times.txt"]), {
-        check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids);
-    });
-    gate!("K4::routes", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), {
-        check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips);
-    });
-    gate!("K4::trips", availability.all(&["trips.txt", "routes.txt"]), {
-        check_trips(
-            records,
-            map,
-            &mut notices,
-            &mut ctr,
-            &stm_trip_continuous,
-            availability.available("shapes.txt"),
-        );
-    });
-    gate!("K4::pathways", availability.all(&["pathways.txt", "stops.txt"]), {
-        check_pathways(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::booking_rules", availability.available("booking_rules.txt"), {
-        check_booking_rules(records, map, &mut notices, &mut ctr);
-    });
+    gate!(
+        "K4::stops",
+        availability.all(&["stops.txt", "stop_times.txt"]),
+        {
+            check_stops(records, map, &mut notices, &mut ctr, &stm_used_stop_ids);
+        }
+    );
+    gate!(
+        "K4::routes",
+        availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]),
+        {
+            check_routes(records, map, &mut notices, &mut ctr, &stm_flex_window_trips);
+        }
+    );
+    gate!(
+        "K4::trips",
+        availability.all(&["trips.txt", "routes.txt"]),
+        {
+            check_trips(
+                records,
+                map,
+                &mut notices,
+                &mut ctr,
+                &stm_trip_continuous,
+                availability.available("shapes.txt"),
+            );
+        }
+    );
+    gate!(
+        "K4::pathways",
+        availability.all(&["pathways.txt", "stops.txt"]),
+        {
+            check_pathways(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::booking_rules",
+        availability.available("booking_rules.txt"),
+        {
+            check_booking_rules(records, map, &mut notices, &mut ctr);
+        }
+    );
     gate!("K4::calendar", availability.available("calendar.txt"), {
         check_calendar(records, map, &mut notices, &mut ctr, today);
     });
-    gate!("K4::calendar_dates", availability.available("calendar_dates.txt"), {
-        check_calendar_dates(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::frequencies", availability.all(&["frequencies.txt", "trips.txt"]), {
-        check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm);
-    });
-    gate!("K4::transfers", availability.all(&["transfers.txt", "stops.txt", "trips.txt", "stop_times.txt"]), {
-        check_transfers(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &records.stop_times_index.trip_stop_set, &records.stop_times_index.stop_id_to_idx);
-    });
-    gate!("K4::fare_attributes", availability.available("fare_attributes.txt"), {
-        check_fare_attributes(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::fare_rules", availability.all(&["fare_rules.txt", "stops.txt"]), {
-        check_fare_rules(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::fares_v2", availability.any(&["fare_products.txt", "fare_media.txt", "fare_leg_rules.txt"]), {
-        check_fares_v2(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::levels", availability.all(&["levels.txt", "stops.txt", "pathways.txt"]), {
-        check_levels(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::translations", availability.all(&["translations.txt", "feed_info.txt"]), {
-        check_translations(records, map, &mut notices, &mut ctr);
-    });
-    { let _t = Timer::start("K4::gtfs_jp"); check_gtfs_jp(records, &mut notices, &mut ctr, availability); }
-    gate!("K4::attributions", availability.available("attributions.txt"), {
-        check_attributions(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::route_networks", availability.all(&["routes.txt", "networks.txt", "route_networks.txt"]), {
-        check_route_networks(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::flex_zone_overlap", availability.all(&["stop_times.txt", "locations.geojson"]), {
-        check_flex_zone_overlap(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::fare_leg_join_rules", availability.any(&["fare_leg_join_rules.txt", "fare_leg_rules.txt"]), {
-        check_fare_leg_join_rules(records, map, &mut notices, &mut ctr);
-    });
-    gate!("K4::xfl", availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]), {
-        check_xfl(records, map, &mut notices, &mut ctr, &stm_trips_in_stm, &stm_trip_stm_count);
-    });
-    gate!("K4::stm_shape_dist", availability.all(&["stop_times.txt", "shapes.txt"]), {
-        check_stm_shape_dist(records, &mut notices, &mut ctr);
-    });
+    gate!(
+        "K4::calendar_dates",
+        availability.available("calendar_dates.txt"),
+        {
+            check_calendar_dates(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::frequencies",
+        availability.all(&["frequencies.txt", "trips.txt"]),
+        {
+            check_frequencies(records, map, &mut notices, &mut ctr, &stm_trips_in_stm);
+        }
+    );
+    gate!(
+        "K4::transfers",
+        availability.all(&["transfers.txt", "stops.txt", "trips.txt", "stop_times.txt"]),
+        {
+            check_transfers(
+                records,
+                map,
+                &mut notices,
+                &mut ctr,
+                &stm_trips_in_stm,
+                &records.stop_times_index.trip_stop_set,
+                &records.stop_times_index.stop_id_to_idx,
+            );
+        }
+    );
+    gate!(
+        "K4::fare_attributes",
+        availability.available("fare_attributes.txt"),
+        {
+            check_fare_attributes(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::fare_rules",
+        availability.all(&["fare_rules.txt", "stops.txt"]),
+        {
+            check_fare_rules(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::fares_v2",
+        availability.any(&["fare_products.txt", "fare_media.txt", "fare_leg_rules.txt"]),
+        {
+            check_fares_v2(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::levels",
+        availability.all(&["levels.txt", "stops.txt", "pathways.txt"]),
+        {
+            check_levels(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::translations",
+        availability.all(&["translations.txt", "feed_info.txt"]),
+        {
+            check_translations(records, map, &mut notices, &mut ctr);
+        }
+    );
+    {
+        let _t = Timer::start("K4::gtfs_jp");
+        check_gtfs_jp(records, &mut notices, &mut ctr, availability);
+    }
+    gate!(
+        "K4::attributions",
+        availability.available("attributions.txt"),
+        {
+            check_attributions(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::route_networks",
+        availability.all(&["routes.txt", "networks.txt", "route_networks.txt"]),
+        {
+            check_route_networks(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::flex_zone_overlap",
+        availability.all(&["stop_times.txt", "locations.geojson"]),
+        {
+            check_flex_zone_overlap(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::fare_leg_join_rules",
+        availability.any(&["fare_leg_join_rules.txt", "fare_leg_rules.txt"]),
+        {
+            check_fare_leg_join_rules(records, map, &mut notices, &mut ctr);
+        }
+    );
+    gate!(
+        "K4::xfl",
+        availability.all(&["routes.txt", "trips.txt", "stop_times.txt"]),
+        {
+            check_xfl(
+                records,
+                map,
+                &mut notices,
+                &mut ctr,
+                &stm_trips_in_stm,
+                &stm_trip_stm_count,
+            );
+        }
+    );
+    gate!(
+        "K4::stm_shape_dist",
+        availability.all(&["stop_times.txt", "shapes.txt"]),
+        {
+            check_stm_shape_dist(records, &mut notices, &mut ctr);
+        }
+    );
 
     // XFL_026-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
     {
         let _t = Timer::start("K4::cemv_fares");
-        let has_agency_cemv1 = records.agencies.iter().any(|a| a.agency_cemv_support == Some(1));
-        let has_route_cemv1  = records.routes.iter().any(|r| r.route_cemv_support == Some(1));
-        let has_route_cemv2  = records.routes.iter().any(|r| r.route_cemv_support == Some(2));
-        let has_any_cemv1    = has_agency_cemv1 || has_route_cemv1;
-        let has_fares_v2     = !records.fare_products.is_empty();
-        let type3_media: HashSet<&str> = records.fare_media.iter()
+        let has_agency_cemv1 = records
+            .agencies
+            .iter()
+            .any(|a| a.agency_cemv_support == Some(1));
+        let has_route_cemv1 = records
+            .routes
+            .iter()
+            .any(|r| r.route_cemv_support == Some(1));
+        let has_route_cemv2 = records
+            .routes
+            .iter()
+            .any(|r| r.route_cemv_support == Some(2));
+        let has_any_cemv1 = has_agency_cemv1 || has_route_cemv1;
+        let has_fares_v2 = !records.fare_products.is_empty();
+        let type3_media: HashSet<&str> = records
+            .fare_media
+            .iter()
             .filter(|m| m.fare_media_type == Some(3))
             .map(|m| m.fare_media_id.as_str())
             .collect();
@@ -273,8 +399,18 @@ pub fn check_with_files(
         {
             let mut feed_cemv = |rule: &str, msg: String, rem: &str| {
                 notices.push(notice(
-                    &mut ctr, rule, EntityType::Feed,
-                    None, None, "", None, None, None, None, msg, rem,
+                    &mut ctr,
+                    rule,
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "",
+                    None,
+                    None,
+                    None,
+                    None,
+                    msg,
+                    rem,
                 ));
             };
             if has_agency_cemv1 && has_fares_v2 && !has_type3 {
@@ -297,8 +433,14 @@ pub fn check_with_files(
         // Route-bazlı (XFL_026/027): route'a UYGULANABİLİR contactless fare product var mı?
         // Yol: fare_media(type=3) → fare_products → fare_leg_rules → (network_id | from/to_area_id | global)
         if has_type3 && (has_route_cemv1 || has_route_cemv2) {
-            let type3_products: HashSet<&str> = records.fare_products.iter()
-                .filter(|p| p.fare_media_id.as_deref().is_some_and(|id| type3_media.contains(id)))
+            let type3_products: HashSet<&str> = records
+                .fare_products
+                .iter()
+                .filter(|p| {
+                    p.fare_media_id
+                        .as_deref()
+                        .is_some_and(|id| type3_media.contains(id))
+                })
                 .map(|p| p.fare_product_id.as_str())
                 .collect();
             // type3 leg rule'ların kapsamı: global / network / area
@@ -306,21 +448,34 @@ pub fn check_with_files(
             let mut type3_networks: HashSet<&str> = HashSet::new();
             let mut type3_areas: HashSet<&str> = HashSet::new();
             for lr in &records.fare_leg_rules {
-                if !type3_products.contains(lr.fare_product_id.as_str()) { continue; }
+                if !type3_products.contains(lr.fare_product_id.as_str()) {
+                    continue;
+                }
                 let net = lr.network_id.as_deref().filter(|s| !s.is_empty());
-                let fa  = lr.from_area_id.as_deref().filter(|s| !s.is_empty());
-                let ta  = lr.to_area_id.as_deref().filter(|s| !s.is_empty());
-                if net.is_none() && fa.is_none() && ta.is_none() { global_type3 = true; }
-                if let Some(n) = net { type3_networks.insert(n); }
-                if let Some(a) = fa  { type3_areas.insert(a); }
-                if let Some(a) = ta  { type3_areas.insert(a); }
+                let fa = lr.from_area_id.as_deref().filter(|s| !s.is_empty());
+                let ta = lr.to_area_id.as_deref().filter(|s| !s.is_empty());
+                if net.is_none() && fa.is_none() && ta.is_none() {
+                    global_type3 = true;
+                }
+                if let Some(n) = net {
+                    type3_networks.insert(n);
+                }
+                if let Some(a) = fa {
+                    type3_areas.insert(a);
+                }
+                if let Some(a) = ta {
+                    type3_areas.insert(a);
+                }
             }
             // route → area kümesi (yalnız area-based type3 leg rule varsa hesapla — maliyet guard)
             let route_areas: HashMap<&str, HashSet<&str>> = if !type3_areas.is_empty() {
                 let mut stop_to_areas: HashMap<&str, Vec<&str>> = HashMap::new();
                 for sa in &records.stop_areas {
                     if !sa.stop_id.is_empty() && !sa.area_id.is_empty() {
-                        stop_to_areas.entry(sa.stop_id.as_str()).or_default().push(sa.area_id.as_str());
+                        stop_to_areas
+                            .entry(sa.stop_id.as_str())
+                            .or_default()
+                            .push(sa.area_id.as_str());
                     }
                 }
                 let idx = &records.stop_times_index;
@@ -328,27 +483,36 @@ pub fn check_with_files(
                 let mut ra: HashMap<&str, HashSet<&str>> = HashMap::new();
                 for trip in &records.trips {
                     let trip_route_id = ti_fa.route_id(trip);
-                    if trip_route_id.is_empty() { continue; }
+                    if trip_route_id.is_empty() {
+                        continue;
+                    }
                     if let Some(stops) = idx.trip_stop_set.get(trip.trip_id.as_str()) {
                         for &stop_idx in stops {
                             let stop_id = idx.stop_id_of_idx(stop_idx);
                             if let Some(areas) = stop_to_areas.get(stop_id) {
                                 let e = ra.entry(trip_route_id).or_default();
-                                for a in areas { e.insert(a); }
+                                for a in areas {
+                                    e.insert(a);
+                                }
                             }
                         }
                     }
                 }
                 ra
-            } else { HashMap::new() };
+            } else {
+                HashMap::new()
+            };
 
             for r in &records.routes {
                 let cemv = r.route_cemv_support;
-                if cemv != Some(1) && cemv != Some(2) { continue; }
+                if cemv != Some(1) && cemv != Some(2) {
+                    continue;
+                }
                 let rnet = r.network_id.as_deref().filter(|s| !s.is_empty());
                 let rareas = route_areas.get(r.route_id.as_str());
                 let network_match = rnet.is_some_and(|n| type3_networks.contains(n));
-                let area_match = rareas.is_some_and(|set| set.iter().any(|a| type3_areas.contains(a)));
+                let area_match =
+                    rareas.is_some_and(|set| set.iter().any(|a| type3_areas.contains(a)));
                 let covered = global_type3 || network_match || area_match;
                 // FP guard: route'un kapsamı çözülebilir mi? (global / network bilgisi / area bilgisi var)
                 let resolvable = global_type3 || rnet.is_some() || rareas.is_some();
@@ -374,7 +538,10 @@ pub fn check_with_files(
         }
     }
 
-    K4Result { notices, skipped_checks }
+    K4Result {
+        notices,
+        skipped_checks,
+    }
 }
 
 // �"?�"? Notice yardımcısı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -395,26 +562,37 @@ fn notice(
     remediation: &str,
 ) -> Notice {
     let whitespace_candidate = observed.as_deref().is_some_and(|value| {
-        value.split('|').any(|part| !part.is_empty() && part != part.trim())
+        value
+            .split('|')
+            .any(|part| !part.is_empty() && part != part.trim())
     });
     let mut notice = crate::notice_factory::build(
-        "K4", Some("k4"), ctr, rule_id, entity_type, entity_id, scope_key,
-        Some(file.to_string()), line, field.map(str::to_string),
-        observed, expected, message, remediation,
+        "K4",
+        Some("k4"),
+        ctr,
+        rule_id,
+        entity_type,
+        entity_id,
+        scope_key,
+        Some(file.to_string()),
+        line,
+        field.map(str::to_string),
+        observed,
+        expected,
+        message,
+        remediation,
     );
     if whitespace_candidate {
-        notice.details = Some([(
-            "whitespace_candidate".to_string(),
-            "true".to_string(),
-        )].into_iter().collect());
+        notice.details = Some(
+            [("whitespace_candidate".to_string(), "true".to_string())]
+                .into_iter()
+                .collect(),
+        );
     }
     notice
 }
 
-fn append_jpn022_missing_records(
-    notices: &mut Vec<Notice>,
-    pending: Vec<Notice>,
-) {
+fn append_jpn022_missing_records(notices: &mut Vec<Notice>, pending: Vec<Notice>) {
     let mut grouped: std::collections::BTreeMap<(String, String), Vec<Notice>> =
         std::collections::BTreeMap::new();
     for finding in pending {
@@ -435,9 +613,8 @@ fn append_jpn022_missing_records(
             if let Some(entity_id) = finding.entity_id.as_deref() {
                 details.insert("example_record_ids".to_string(), entity_id.to_string());
             }
-            finding.message = format!(
-                "GTFS-JP v4'te {file} içindeki {field} alanı 1 kayıtta eksik veya boş."
-            );
+            finding.message =
+                format!("GTFS-JP v4'te {file} içindeki {field} alanı 1 kayıtta eksik veya boş.");
             notices.push(finding);
             continue;
         }
@@ -459,9 +636,8 @@ fn append_jpn022_missing_records(
         summary.message = format!(
             "GTFS-JP v4'te {file} içindeki {field} alanı {affected} kayıtta eksik veya boş."
         );
-        summary.remediation = format!(
-            "{file} içindeki ilgili zorunlu alanı tüm kayıtlar için doldurun."
-        );
+        summary.remediation =
+            format!("{file} içindeki ilgili zorunlu alanı tüm kayıtlar için doldurun.");
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_records".to_string(), affected.to_string());
         if !examples.is_empty() {
@@ -477,7 +653,6 @@ fn append_jpn022_missing_records(
 fn row_field<'a>(row: &'a HashMap<String, String>, key: &str) -> &'a str {
     row.get(key).map(String::as_str).unwrap_or("").trim()
 }
-
 
 fn date_to_u32(t: (u32, u32, u32)) -> u32 {
     t.0 * 10000 + t.1 * 100 + t.2
@@ -528,7 +703,9 @@ fn check_agencies(
     // AGN_017: agency'ler-arası agency_lang tutarsızlığı (inconsistent_agency_lang).
     // 2+ agency garantili (yukarıdaki return). Farklı (büyük/küçük harf duyarsız) dil sayısı > 1 ise uyar.
     {
-        let mut langs: Vec<String> = records.agencies.iter()
+        let mut langs: Vec<String> = records
+            .agencies
+            .iter()
             .filter_map(|a| a.agency_lang.as_deref())
             .filter(|l| !l.is_empty())
             .map(|l| l.to_lowercase())
@@ -582,7 +759,9 @@ fn check_agencies(
     }
 
     // AGN_011: birden fazla işletici varsa routes.txt'deki her hatta agency_id zorunlu
-    let routes_without_agency = records.routes.iter()
+    let routes_without_agency = records
+        .routes
+        .iter()
         .filter(|r| !r.route_id.is_empty() && r.agency_id.is_none())
         .count();
     if routes_without_agency > 0 {
@@ -609,7 +788,9 @@ fn check_agencies(
     // "Conditionally Required: Required if multiple agencies are defined in agency.txt" diye
     // tanımlar. 2026-08-02'ye kadar YALNIZ routes.txt denetleniyordu; ücret tarafındaki aynı
     // hüküm denetimsizdi. Tek kural, iki dosya (DQ_021 emsali) — olgu birebir aynı.
-    let fares_without_agency = records.fare_attributes.iter()
+    let fares_without_agency = records
+        .fare_attributes
+        .iter()
         .filter(|f| !f.fare_id.is_empty() && f.agency_id.is_none())
         .count();
     if fares_without_agency > 0 {
@@ -642,7 +823,6 @@ fn check_stops(
     ctr: &mut u32,
     used_in_stm: &HashSet<&str>,
 ) {
-
     // Pathway tanımlı istasyonları bul (STP_027 için)
     let station_has_pathway: HashSet<String> = {
         let mut s = HashSet::new();
@@ -672,7 +852,11 @@ fn check_stops(
         // `parent_station` onu bulamıyor ve kural Spec·KRİTİK bir FK ihlali uyduruyordu.
         // #85'in kararı: PK/FK ham sözlüksel değerdir. Doluluk kontrolü trim'li kalır —
         // yalnız boşluktan ibaret bir alan "dolu" sayılmamalı.
-        let parent = rec.row.get("parent_station").map(String::as_str).unwrap_or("");
+        let parent = rec
+            .row
+            .get("parent_station")
+            .map(String::as_str)
+            .unwrap_or("");
         let loc_type = rec.location_type;
 
         // STP_009: parent_station geçerli stop_id'ye referans
@@ -756,9 +940,7 @@ fn check_stops(
         }
 
         // STP_012: stop_times'ta kullanılan durakların location_type = 0 veya bo�Y olması
-        if used_in_stm.contains(rec.stop_id.as_str())
-            && !matches!(loc_type, None | Some(0))
-        {
+        if used_in_stm.contains(rec.stop_id.as_str()) && !matches!(loc_type, None | Some(0)) {
             notices.push(notice(
                 ctr,
                 "STP_012",
@@ -821,7 +1003,10 @@ fn check_stops(
                     Some("level_id"),
                     Some(lid.clone()),
                     None,
-                    format!("'{}' durağının level_id '{lid}' levels.txt'te tanımlı değil.", rec.stop_id),
+                    format!(
+                        "'{}' durağının level_id '{lid}' levels.txt'te tanımlı değil.",
+                        rec.stop_id
+                    ),
                     "Geçerli bir level_id kullanın veya levels.txt'e bu katmanı ekleyin.",
                 ));
             }
@@ -831,23 +1016,22 @@ fn check_stops(
         // ⚠️ Spec YALNIZ 0 ve 1 tanımlar; kod 2026-08-03'e kadar `2`yi de kabul ediyordu ve
         // geçersiz değer sessizce geçiyordu (gerekçesi kodda yoktu).
         let stop_access_raw = row_field(&rec.row, "stop_access");
-        if !stop_access_raw.is_empty()
-            && !matches!(stop_access_raw, "0" | "1") {
-                notices.push(notice(
-                    ctr,
-                    "STP_026",
-                    EntityType::Stop,
-                    eid.clone(),
-                    eid.clone(),
-                    "stops.txt",
-                    Some(rec.line),
-                    Some("stop_access"),
-                    Some(stop_access_raw.to_string()),
-                    Some("0 or 1".to_string()),
-                    format!("stop_access '{stop_access_raw}' geçersiz enum değeri."),
-                    "stop_access için 0 veya 1 kullanın.",
-                ));
-            }
+        if !stop_access_raw.is_empty() && !matches!(stop_access_raw, "0" | "1") {
+            notices.push(notice(
+                ctr,
+                "STP_026",
+                EntityType::Stop,
+                eid.clone(),
+                eid.clone(),
+                "stops.txt",
+                Some(rec.line),
+                Some("stop_access"),
+                Some(stop_access_raw.to_string()),
+                Some("0 or 1".to_string()),
+                format!("stop_access '{stop_access_raw}' geçersiz enum değeri."),
+                "stop_access için 0 veya 1 kullanın.",
+            ));
+        }
 
         // STP_043: spec'in koşullu-YASAK hükmü — "Forbidden for locations which are stations
         // (location_type=1), entrances (2), generic nodes (3) or boarding areas (4). Forbidden
@@ -996,7 +1180,9 @@ fn check_routes(
                 Some(rec.route_id.clone()),
                 None,
                 {
-                    let label = rec.route_short_name.as_deref()
+                    let label = rec
+                        .route_short_name
+                        .as_deref()
                         .filter(|s| !s.is_empty())
                         .unwrap_or(rec.route_id.as_str());
                     format!("'{}' kodlu hattın hiçbir seferi bulunmamaktadır.", label)
@@ -1019,14 +1205,18 @@ fn check_routes(
         let mut flex_routes: HashMap<&str, &str> = HashMap::new();
         for t in &records.trips {
             if flex_window_trips.contains(t.trip_id.as_str()) {
-                flex_routes.entry(ti.route_id(t)).or_insert(t.trip_id.as_str());
+                flex_routes
+                    .entry(ti.route_id(t))
+                    .or_insert(t.trip_id.as_str());
             }
         }
         for rec in &records.routes {
             if rec.route_id.is_empty() {
                 continue;
             }
-            let Some(&sample_trip) = flex_routes.get(rec.route_id.as_str()) else { continue };
+            let Some(&sample_trip) = flex_routes.get(rec.route_id.as_str()) else {
+                continue;
+            };
             // Enum dışı değerler (>3) RTS_013/018'in işi; burada çift emit edilmez.
             let bad = if matches!(rec.continuous_pickup, Some(0) | Some(2) | Some(3)) {
                 Some(("continuous_pickup", rec.continuous_pickup.unwrap()))
@@ -1089,10 +1279,22 @@ fn check_booking_rules(
         let mut seen_pickup: HashSet<&str> = HashSet::new();
         let mut seen_drop_off: HashSet<&str> = HashSet::new();
         for st in &idx.rows {
-            let Some(flex) = idx.flex_of(st) else { continue };
+            let Some(flex) = idx.flex_of(st) else {
+                continue;
+            };
             for (rule_id, field, value, seen) in [
-                ("BKR_017", "pickup_booking_rule_id", &flex.pickup_booking_rule_id, &mut seen_pickup),
-                ("BKR_018", "drop_off_booking_rule_id", &flex.drop_off_booking_rule_id, &mut seen_drop_off),
+                (
+                    "BKR_017",
+                    "pickup_booking_rule_id",
+                    &flex.pickup_booking_rule_id,
+                    &mut seen_pickup,
+                ),
+                (
+                    "BKR_018",
+                    "drop_off_booking_rule_id",
+                    &flex.drop_off_booking_rule_id,
+                    &mut seen_drop_off,
+                ),
             ] {
                 let Some(br) = value.as_ref().map(|s| s.as_str()).filter(|s| !s.is_empty()) else {
                     continue;
@@ -1119,7 +1321,11 @@ fn check_booking_rules(
     }
 
     for rec in &records.booking_rules {
-        let Some(svc) = rec.prior_notice_service_id.as_deref().filter(|s| !s.is_empty()) else {
+        let Some(svc) = rec
+            .prior_notice_service_id
+            .as_deref()
+            .filter(|s| !s.is_empty())
+        else {
             continue;
         };
         if matches!(rec.booking_type, Some(0) | Some(1)) {
@@ -1207,22 +1413,22 @@ fn check_trips(
         // TRP_004: shape_id referansı (varsa)
         if shapes_available {
             if let Some(sid) = ti.shape_id(rec) {
-            if !map.shape_points.contains_key(sid) {
-                notices.push(notice(
-                    ctr,
-                    "TRP_004",
-                    EntityType::Trip,
-                    eid.clone(),
-                    Some(sid.to_string()), // scope_key = shape_id
-                    "trips.txt",
-                    Some(rec.line),
-                    Some("shape_id"),
-                    Some(sid.to_string()),
-                    None,
-                    format!("'{}' güzergahı shapes.txt'te tanımlı değil.", sid),
-                    "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
-                ));
-            }
+                if !map.shape_points.contains_key(sid) {
+                    notices.push(notice(
+                        ctr,
+                        "TRP_004",
+                        EntityType::Trip,
+                        eid.clone(),
+                        Some(sid.to_string()), // scope_key = shape_id
+                        "trips.txt",
+                        Some(rec.line),
+                        Some("shape_id"),
+                        Some(sid.to_string()),
+                        None,
+                        format!("'{}' güzergahı shapes.txt'te tanımlı değil.", sid),
+                        "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
+                    ));
+                }
             }
         }
 
@@ -1233,20 +1439,20 @@ fn check_trips(
                 .get(rec_route_id)
                 .and_then(|&idx| records.routes.get(idx))
                 .map(|r| {
-            // 🔴 DEĞER KÜMESİ {0, 2, 3}'TÜR — 1 DEĞİLDİR (#170).
-            //
-            // Spec, `trips.shape_id` için: "Required if the trip has a continuous
-            // pickup or drop-off behavior defined either in routes.txt or in
-            // stop_times.txt." Enum ise şöyle tanımlı:
-            //   0        → sürekli biniş VAR
-            //   1 / boş  → sürekli biniş YOK        ← şart TETİKLEMEZ
-            //   2        → telefonla ayarlanan sürekli biniş  → VAR
-            //   3        → sürücüyle ayarlanan sürekli biniş  → VAR
-            //
-            // Yüklem `Some(0) | Some(1)` idi: hem 1'i (sürekli servis YOK) dahil edip
-            // geçerli feed'den shape_id talep ediyor, hem 2/3'ü (sürekli servis VAR)
-            // atlayarak gerçek ihlali kaçırıyordu. Korpusta 100 feed / 215.288 bulgu;
-            // örneklenen üç feed'in ikisinde değer 1'di (`tdg-83921`, `tdg-81645`).
+                    // 🔴 DEĞER KÜMESİ {0, 2, 3}'TÜR — 1 DEĞİLDİR (#170).
+                    //
+                    // Spec, `trips.shape_id` için: "Required if the trip has a continuous
+                    // pickup or drop-off behavior defined either in routes.txt or in
+                    // stop_times.txt." Enum ise şöyle tanımlı:
+                    //   0        → sürekli biniş VAR
+                    //   1 / boş  → sürekli biniş YOK        ← şart TETİKLEMEZ
+                    //   2        → telefonla ayarlanan sürekli biniş  → VAR
+                    //   3        → sürücüyle ayarlanan sürekli biniş  → VAR
+                    //
+                    // Yüklem `Some(0) | Some(1)` idi: hem 1'i (sürekli servis YOK) dahil edip
+                    // geçerli feed'den shape_id talep ediyor, hem 2/3'ü (sürekli servis VAR)
+                    // atlayarak gerçek ihlali kaçırıyordu. Korpusta 100 feed / 215.288 bulgu;
+                    // örneklenen üç feed'in ikisinde değer 1'di (`tdg-83921`, `tdg-81645`).
                     matches!(r.continuous_pickup, Some(0) | Some(2) | Some(3))
                         || matches!(r.continuous_drop_off, Some(0) | Some(2) | Some(3))
                 })
@@ -1276,7 +1482,6 @@ fn check_trips(
 }
 
 // �"?�"? STM_001-002: stop_times cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
-
 
 // �"?�"? PTH_014: pathway_id referans bütünlü�Yü �?" aynı istasyon cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?
 
@@ -1466,7 +1671,12 @@ fn check_pathways(
         let stop_level: HashMap<&str, bool> = records
             .stops
             .iter()
-            .map(|s| (s.stop_id.as_str(), s.level_id.as_deref().is_some_and(|l| !l.is_empty())))
+            .map(|s| {
+                (
+                    s.stop_id.as_str(),
+                    s.level_id.as_deref().is_some_and(|l| !l.is_empty()),
+                )
+            })
             .collect();
 
         let mut seen: HashSet<&str> = HashSet::new();
@@ -1515,11 +1725,10 @@ fn check_calendar(
 ) {
     // CAL_009: feed yayın aralı�Yı tamamen sona ermi�Yse (hiçbir servis aktif)
     if !records.calendars.is_empty() {
-        let all_expired = records.calendars.iter().all(|r| {
-            r.end_date
-                .map(|d| date_to_u32(d) < today)
-                .unwrap_or(false)
-        });
+        let all_expired = records
+            .calendars
+            .iter()
+            .all(|r| r.end_date.map(|d| date_to_u32(d) < today).unwrap_or(false));
         if all_expired {
             // Her servis için bir notice
             for rec in &records.calendars {
@@ -1549,11 +1758,7 @@ fn check_calendar(
 
     // CAL_011: servis hiçbir trip tarafından kullanılmıyor (orphan)
     let ti_cal = &records.trip_interns;
-    let used_services: HashSet<&str> = records
-        .trips
-        .iter()
-        .map(|t| ti_cal.service_id(t))
-        .collect();
+    let used_services: HashSet<&str> = records.trips.iter().map(|t| ti_cal.service_id(t)).collect();
     for rec in &records.calendars {
         if rec.service_id.is_empty() {
             continue;
@@ -1570,7 +1775,10 @@ fn check_calendar(
                 Some("service_id"),
                 Some(rec.service_id.clone()),
                 None,
-                format!("'{}' takvimi hiçbir sefer tarafından kullanılmıyor.", rec.service_id),
+                format!(
+                    "'{}' takvimi hiçbir sefer tarafından kullanılmıyor.",
+                    rec.service_id
+                ),
                 "Kullanılmayan servisi silin veya bir sefere atayın.",
             ));
         }
@@ -1578,8 +1786,12 @@ fn check_calendar(
 
     // CAL_018: haftalık bazda tüm günler pasif VE calendar_dates'te exception_type=1 override yok
     {
-        let services_with_added: HashSet<&str> = records.calendar_dates.added.keys()
-            .map(|s| s.as_str()).collect();
+        let services_with_added: HashSet<&str> = records
+            .calendar_dates
+            .added
+            .keys()
+            .map(|s| s.as_str())
+            .collect();
         for rec in &records.calendars {
             if rec.service_id.is_empty() {
                 continue;
@@ -1622,15 +1834,16 @@ fn check_calendar_dates(
     // servis_id'lerinin en az 1 tarihi olup olmadı�Yını kontrol eder.
     if records.calendars.is_empty() && !records.calendar_dates.exception_count.is_empty() {
         // added.keys() = service_ids with at least one exception_type=1 record (even invalid date)
-        let has_added: HashSet<&str> = records.calendar_dates.added.keys()
-            .map(|s| s.as_str()).collect();
+        let has_added: HashSet<&str> = records
+            .calendar_dates
+            .added
+            .keys()
+            .map(|s| s.as_str())
+            .collect();
         // trips'teki her service_id en az bir exception_type=1 kaydına sahip olmalı
         let ti_cld = &records.trip_interns;
-        let trip_services: HashSet<&str> = records
-            .trips
-            .iter()
-            .map(|t| ti_cld.service_id(t))
-            .collect();
+        let trip_services: HashSet<&str> =
+            records.trips.iter().map(|t| ti_cld.service_id(t)).collect();
         for sid in &trip_services {
             if !has_added.contains(*sid) {
                 // Bu service_id için exception_type=1 kaydı yok
@@ -1667,7 +1880,9 @@ fn check_frequencies(
     trips_in_stm: &HashSet<&str>,
 ) {
     for rec in &records.frequencies {
-        if rec.trip_id.is_empty() { continue; }
+        if rec.trip_id.is_empty() {
+            continue;
+        }
 
         // FRQ_001: trip_id trips.txt'te tanımlı değil
         if !map.trips.contains_key(rec.trip_id.as_str()) {
@@ -1690,7 +1905,8 @@ fn check_frequencies(
         // TRP_017: frekans tabanlı, trips.txt'te GEÇERLİ sefer stop_times'ta eksik.
         // trips.txt'te olmayan trip için FRQ_001 kök FK hatasıdır; türev notice üretme.
         if map.trips.contains_key(rec.trip_id.as_str())
-            && !trips_in_stm.contains(rec.trip_id.as_str()) {
+            && !trips_in_stm.contains(rec.trip_id.as_str())
+        {
             notices.push(notice(
                 ctr,
                 "TRP_017",
@@ -1702,7 +1918,10 @@ fn check_frequencies(
                 Some("trip_id"),
                 Some(rec.trip_id.clone()),
                 None,
-                format!("'{}' frekans tabanlı seferin stop_times.txt'te durağı tanımlanmamış.", rec.trip_id),
+                format!(
+                    "'{}' frekans tabanlı seferin stop_times.txt'te durağı tanımlanmamış.",
+                    rec.trip_id
+                ),
                 "stop_times.txt'e bu sefer için durak saatlerini ekleyin.",
             ));
         }
@@ -1728,13 +1947,20 @@ fn check_transfers(
         // TRF_003: from_stop_id veya to_stop_id stops.txt'te bulunamıyor
         for (field, stop_id) in [
             ("from_stop_id", rec.from_stop_id.as_str()),
-            ("to_stop_id",   rec.to_stop_id.as_str()),
+            ("to_stop_id", rec.to_stop_id.as_str()),
         ] {
             if !stop_id.is_empty() && !map.stops.contains_key(stop_id) {
                 notices.push(notice(
-                    ctr, "TRF_003", EntityType::Transfer,
-                    None, None, "transfers.txt", Some(rec.line), Some(field),
-                    Some(stop_id.to_string()), None,
+                    ctr,
+                    "TRF_003",
+                    EntityType::Transfer,
+                    None,
+                    None,
+                    "transfers.txt",
+                    Some(rec.line),
+                    Some(field),
+                    Some(stop_id.to_string()),
+                    None,
                     format!("{field} '{stop_id}' stops.txt'te tanımlı değil."),
                     "Geçerli bir stop_id kullanın veya eksik durağı stops.txt'e ekleyin.",
                 ));
@@ -1755,12 +1981,25 @@ fn check_transfers(
                 ));
             }
             if mtt > 0 {
-                let pair = map.stops.get(rec.from_stop_id.as_str()).and_then(|&i| records.stops.get(i)).zip(map.stops.get(rec.to_stop_id.as_str()).and_then(|&i| records.stops.get(i)));
+                let pair = map
+                    .stops
+                    .get(rec.from_stop_id.as_str())
+                    .and_then(|&i| records.stops.get(i))
+                    .zip(
+                        map.stops
+                            .get(rec.to_stop_id.as_str())
+                            .and_then(|&i| records.stops.get(i)),
+                    );
                 if let Some((a, b)) = pair {
-                    if let (Some(lat1), Some(lon1), Some(lat2), Some(lon2)) = (a.stop_lat, a.stop_lon, b.stop_lat, b.stop_lon) {
-                        let p1 = lat1.to_radians(); let p2 = lat2.to_radians();
-                        let dp = (lat2 - lat1).to_radians(); let dl = (lon2 - lon1).to_radians();
-                        let h = (dp / 2.0).sin().powi(2) + p1.cos() * p2.cos() * (dl / 2.0).sin().powi(2);
+                    if let (Some(lat1), Some(lon1), Some(lat2), Some(lon2)) =
+                        (a.stop_lat, a.stop_lon, b.stop_lat, b.stop_lon)
+                    {
+                        let p1 = lat1.to_radians();
+                        let p2 = lat2.to_radians();
+                        let dp = (lat2 - lat1).to_radians();
+                        let dl = (lon2 - lon1).to_radians();
+                        let h = (dp / 2.0).sin().powi(2)
+                            + p1.cos() * p2.cos() * (dl / 2.0).sin().powi(2);
                         let distance_m = 6_371_000.0 * 2.0 * h.sqrt().atan2((1.0 - h).sqrt());
                         let speed = distance_m / mtt as f64;
                         if speed > 2.0 {
@@ -1871,34 +2110,36 @@ fn check_transfers(
 
         // TRF_013: transfer_type=4/5 için from_trip_id ve to_trip_id zorunlu
         if matches!(ttype, Some(4) | Some(5))
-            && (rec.from_trip_id.is_none() || rec.to_trip_id.is_none()) {
-                notices.push(notice(
-                    ctr,
-                    "TRF_013",
-                    EntityType::Transfer,
-                    None,
-                    None,
-                    "transfers.txt",
-                    Some(rec.line),
-                    Some("from_trip_id|to_trip_id"),
-                    None,
-                    Some("both trip_id values are required for type 4/5".to_string()),
-                    format!(
-                        "transfer_type={} için from_trip_id ve to_trip_id zorunludur.",
-                        ttype.unwrap()
-                    ),
-                    "Linked-trip transfer için her iki trip_id alanını doldurun.",
-                ));
-            }
+            && (rec.from_trip_id.is_none() || rec.to_trip_id.is_none())
+        {
+            notices.push(notice(
+                ctr,
+                "TRF_013",
+                EntityType::Transfer,
+                None,
+                None,
+                "transfers.txt",
+                Some(rec.line),
+                Some("from_trip_id|to_trip_id"),
+                None,
+                Some("both trip_id values are required for type 4/5".to_string()),
+                format!(
+                    "transfer_type={} için from_trip_id ve to_trip_id zorunludur.",
+                    ttype.unwrap()
+                ),
+                "Linked-trip transfer için her iki trip_id alanını doldurun.",
+            ));
+        }
 
         // TRF_014: in-seat aktarma için seferde stop_times kaydı yok
         if matches!(ttype, Some(4) | Some(5)) {
             for (field, trip_id_opt) in [
                 ("from_trip_id", &rec.from_trip_id),
-                ("to_trip_id",   &rec.to_trip_id),
+                ("to_trip_id", &rec.to_trip_id),
             ] {
                 if let Some(tid) = trip_id_opt {
-                    if map.trips.contains_key(tid.as_str()) && !trips_in_stm.contains(tid.as_str()) {
+                    if map.trips.contains_key(tid.as_str()) && !trips_in_stm.contains(tid.as_str())
+                    {
                         notices.push(notice(
                             ctr, "TRF_014", EntityType::Transfer,
                             None, None, "transfers.txt", Some(rec.line), Some(field),
@@ -1914,16 +2155,18 @@ fn check_transfers(
         // TRF_019: in-seat aktarmada farklı route_type (InconsistentRouteTypeForInSeatTransfer)
         if matches!(ttype, Some(4) | Some(5)) {
             if let (Some(ref fti), Some(ref tti)) = (&rec.from_trip_id, &rec.to_trip_id) {
-                let from_rtype = map.trips.get(fti.as_str())
-                    .and_then(|&tidx| {
-                        let rid = ti_trf.route_id(&records.trips[tidx]);
-                        map.routes.get(rid).and_then(|&ridx| records.routes[ridx].route_type)
-                    });
-                let to_rtype = map.trips.get(tti.as_str())
-                    .and_then(|&tidx| {
-                        let rid = ti_trf.route_id(&records.trips[tidx]);
-                        map.routes.get(rid).and_then(|&ridx| records.routes[ridx].route_type)
-                    });
+                let from_rtype = map.trips.get(fti.as_str()).and_then(|&tidx| {
+                    let rid = ti_trf.route_id(&records.trips[tidx]);
+                    map.routes
+                        .get(rid)
+                        .and_then(|&ridx| records.routes[ridx].route_type)
+                });
+                let to_rtype = map.trips.get(tti.as_str()).and_then(|&tidx| {
+                    let rid = ti_trf.route_id(&records.trips[tidx]);
+                    map.routes
+                        .get(rid)
+                        .and_then(|&ridx| records.routes[ridx].route_type)
+                });
                 if let (Some(fr), Some(tr)) = (from_rtype, to_rtype) {
                     if fr != tr {
                         notices.push(notice(
@@ -1980,7 +2223,8 @@ fn check_transfers(
         if let Some(ref fti) = rec.from_trip_id {
             let fsid = rec.from_stop_id.as_str();
             if !fsid.is_empty() && map.trips.contains_key(fti.as_str()) {
-                let in_trip = stop_id_to_idx.get(fsid)
+                let in_trip = stop_id_to_idx
+                    .get(fsid)
                     .and_then(|idx| trip_stops.get(fti.as_str()).map(|s| s.contains(idx)))
                     .unwrap_or(false);
                 if !in_trip {
@@ -1997,7 +2241,8 @@ fn check_transfers(
         if let Some(ref tti) = rec.to_trip_id {
             let tsid = rec.to_stop_id.as_str();
             if !tsid.is_empty() && map.trips.contains_key(tti.as_str()) {
-                let in_trip = stop_id_to_idx.get(tsid)
+                let in_trip = stop_id_to_idx
+                    .get(tsid)
                     .and_then(|idx| trip_stops.get(tti.as_str()).map(|s| s.contains(idx)))
                     .unwrap_or(false);
                 if !in_trip {
@@ -2014,8 +2259,18 @@ fn check_transfers(
 
         // XFL_020: transfer kaydındaki (trip_id, route_id) çifti geçersiz — sefer belirtilen hatta ait değil
         for (trip_opt, route_opt, trip_field, route_field) in [
-            (&rec.from_trip_id, &rec.from_route_id, "from_trip_id", "from_route_id"),
-            (&rec.to_trip_id,   &rec.to_route_id,   "to_trip_id",   "to_route_id"),
+            (
+                &rec.from_trip_id,
+                &rec.from_route_id,
+                "from_trip_id",
+                "from_route_id",
+            ),
+            (
+                &rec.to_trip_id,
+                &rec.to_route_id,
+                "to_trip_id",
+                "to_route_id",
+            ),
         ] {
             if let (Some(ref tid), Some(ref rid)) = (trip_opt, route_opt) {
                 if let Some(&tidx) = map.trips.get(tid.as_str()) {
@@ -2045,8 +2300,13 @@ fn check_transfers(
             ("from_stop_id", rec.from_stop_id.as_str()),
             ("to_stop_id", rec.to_stop_id.as_str()),
         ] {
-            let Some(&sidx) = map.stops.get(stop_id) else { continue };
-            if matches!(records.stops[sidx].location_type, Some(2) | Some(3) | Some(4)) {
+            let Some(&sidx) = map.stops.get(stop_id) else {
+                continue;
+            };
+            if matches!(
+                records.stops[sidx].location_type,
+                Some(2) | Some(3) | Some(4)
+            ) {
                 let lt = records.stops[sidx].location_type.unwrap_or(0);
                 notices.push(notice(
                     ctr, "TRF_021", EntityType::Transfer,
@@ -2146,18 +2406,26 @@ fn check_transfers(
         let mut seen_stops: HashMap<(&str, &str), u64> = HashMap::new();
         for rec in &records.transfers {
             // Sadece trip ve route bağlamı olmayan satırlar için kontrol et
-            if rec.from_trip_id.is_some() || rec.to_trip_id.is_some()
-                || rec.from_route_id.is_some() || rec.to_route_id.is_some()
+            if rec.from_trip_id.is_some()
+                || rec.to_trip_id.is_some()
+                || rec.from_route_id.is_some()
+                || rec.to_route_id.is_some()
             {
                 continue;
             }
             let key = (rec.from_stop_id.as_str(), rec.to_stop_id.as_str());
             if let Some(&prev_line) = seen_stops.get(&key) {
                 notices.push(notice(
-                    ctr, "TRF_012", EntityType::Transfer,
-                    None, None, "transfers.txt", Some(rec.line),
+                    ctr,
+                    "TRF_012",
+                    EntityType::Transfer,
+                    None,
+                    None,
+                    "transfers.txt",
+                    Some(rec.line),
                     Some("from_stop_id|to_stop_id"),
-                    Some(format!("{}|{}", rec.from_stop_id, rec.to_stop_id)), None,
+                    Some(format!("{}|{}", rec.from_stop_id, rec.to_stop_id)),
+                    None,
                     format!(
                         "'{}' → '{}' aktarma çifti yineleniyor (ilk görünüm: satır {prev_line}).",
                         rec.from_stop_id, rec.to_stop_id
@@ -2180,7 +2448,8 @@ fn check_fare_attributes(
     ctr: &mut u32,
 ) {
     // FAR_009 için: hangi fare_id'lerin fare_rules'u var
-    let fares_with_rules: HashSet<&str> = records.fare_rules
+    let fares_with_rules: HashSet<&str> = records
+        .fare_rules
         .iter()
         .map(|fr| fr.fare_id.as_str())
         .collect();
@@ -2207,22 +2476,38 @@ fn check_fare_attributes(
             }
         } else {
             // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.
-            if records.fare_attributes.iter().find(|f| f.agency_id.is_none()).is_some_and(|first| std::ptr::eq(first, rec)) {
-              let missing = records.fare_attributes.iter().filter(|f| f.agency_id.is_none()).count();
-              notices.push(notice(
-                ctr,
-                "FIN_013",
-                EntityType::Feed,
-                None,
-                None,
-                "fare_attributes.txt",
-                None,
-                Some("agency_id"),
-                Some(format!("{missing} missing records")),
-                Some("dolu".to_string()),
-                format!("{missing} ücret tarifesinde agency_id eksik{}.", if multi_agency { "; birden fazla kuruluşta zorunludur" } else { "; tek kuruluşta önerilir" }),
-                "agency_id sütununu ücret tarifeleri için doldurun.",
-              ));
+            if records
+                .fare_attributes
+                .iter()
+                .find(|f| f.agency_id.is_none())
+                .is_some_and(|first| std::ptr::eq(first, rec))
+            {
+                let missing = records
+                    .fare_attributes
+                    .iter()
+                    .filter(|f| f.agency_id.is_none())
+                    .count();
+                notices.push(notice(
+                    ctr,
+                    "FIN_013",
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "fare_attributes.txt",
+                    None,
+                    Some("agency_id"),
+                    Some(format!("{missing} missing records")),
+                    Some("dolu".to_string()),
+                    format!(
+                        "{missing} ücret tarifesinde agency_id eksik{}.",
+                        if multi_agency {
+                            "; birden fazla kuruluşta zorunludur"
+                        } else {
+                            "; tek kuruluşta önerilir"
+                        }
+                    ),
+                    "agency_id sütununu ücret tarifeleri için doldurun.",
+                ));
             }
         }
 
@@ -2293,7 +2578,10 @@ fn check_fare_rules(
         // 1,1M notice üretiyordu (tek kök neden). STM_002 aynı FK ihlalini zaten
         // distinct stop_id başına toplar; FRL ailesi de öyle.
         if !rec.fare_id.is_empty() && !map.fare_attrs.contains_key(rec.fare_id.as_str()) {
-            frl001_bad.entry(rec.fare_id.as_str()).or_insert((rec.line, 0)).1 += 1;
+            frl001_bad
+                .entry(rec.fare_id.as_str())
+                .or_insert((rec.line, 0))
+                .1 += 1;
         }
 
         // FRL_002: route_id referansı (varsa)
@@ -2392,7 +2680,9 @@ fn check_fare_rules(
             let uncovered: Vec<&str> = records
                 .routes
                 .iter()
-                .filter(|r| !r.route_id.is_empty() && !routes_in_rules.contains(r.route_id.as_str()))
+                .filter(|r| {
+                    !r.route_id.is_empty() && !routes_in_rules.contains(r.route_id.as_str())
+                })
                 .map(|r| r.route_id.as_str())
                 .collect();
             if !uncovered.is_empty() {
@@ -2419,7 +2709,12 @@ fn check_fare_rules(
 
     // FAR_010: aynı (route_id, origin_id, destination_id, contains_id) kombinasyonu için birden fazla fare_id
     {
-        type FareRuleKey<'a> = (Option<&'a str>, Option<&'a str>, Option<&'a str>, Option<&'a str>);
+        type FareRuleKey<'a> = (
+            Option<&'a str>,
+            Option<&'a str>,
+            Option<&'a str>,
+            Option<&'a str>,
+        );
         type FareRuleByKey<'a> = HashMap<FareRuleKey<'a>, &'a str>;
         let mut rule_key_to_fare: FareRuleByKey<'_> = HashMap::new();
         for rec in &records.fare_rules {
@@ -2459,7 +2754,6 @@ fn check_fare_rules(
     }
 }
 
-
 // -- Fares v2 cross-reference
 
 fn check_fares_v2(
@@ -2473,10 +2767,16 @@ fn check_fares_v2(
         if let Some(ref fmid) = rec.fare_media_id {
             if !map.fare_media_ids.contains_key(fmid.as_str()) {
                 notices.push(notice(
-                    ctr, "FPD_004", EntityType::Row,
-                    Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
-                    "fare_products.txt", Some(rec.line), Some("fare_media_id"),
-                    Some(fmid.clone()), None,
+                    ctr,
+                    "FPD_004",
+                    EntityType::Row,
+                    Some(rec.fare_product_id.clone()),
+                    Some(rec.fare_product_id.clone()),
+                    "fare_products.txt",
+                    Some(rec.line),
+                    Some("fare_media_id"),
+                    Some(fmid.clone()),
+                    None,
                     format!("'{}' odeme araci fare_media.txt te tanimli degil.", fmid),
                     "Gecerli bir fare_media_id kullanin.",
                 ));
@@ -2485,11 +2785,20 @@ fn check_fares_v2(
         if let Some(ref rcid) = rec.rider_category_id {
             if !map.rider_category_ids.contains(rcid.as_str()) {
                 notices.push(notice(
-                    ctr, "FPD_005", EntityType::Row,
-                    Some(rec.fare_product_id.clone()), Some(rec.fare_product_id.clone()),
-                    "fare_products.txt", Some(rec.line), Some("rider_category_id"),
-                    Some(rcid.clone()), None,
-                    format!("'{}' yolcu kategorisi rider_categories.txt te tanimli degil.", rcid),
+                    ctr,
+                    "FPD_005",
+                    EntityType::Row,
+                    Some(rec.fare_product_id.clone()),
+                    Some(rec.fare_product_id.clone()),
+                    "fare_products.txt",
+                    Some(rec.line),
+                    Some("rider_category_id"),
+                    Some(rcid.clone()),
+                    None,
+                    format!(
+                        "'{}' yolcu kategorisi rider_categories.txt te tanimli degil.",
+                        rcid
+                    ),
                     "Gecerli bir rider_category_id kullanin.",
                 ));
             }
@@ -2520,7 +2829,10 @@ fn check_fares_v2(
             if fp.fare_product_id.is_empty() {
                 continue;
             }
-            fp_rows.entry(fp.fare_product_id.as_str()).or_default().push(fp.line);
+            fp_rows
+                .entry(fp.fare_product_id.as_str())
+                .or_default()
+                .push(fp.line);
             let eligible = fp_eligible.entry(fp.fare_product_id.as_str()).or_default();
             match fp.rider_category_id.as_deref() {
                 Some(rcid) if rider_category_ids.contains(rcid) => {
@@ -2562,8 +2874,7 @@ fn check_fares_v2(
                     Some(acc) => acc.intersection(eligible).copied().collect(),
                 });
             }
-            let mut resolving: Vec<&str> =
-                resolving.unwrap_or_default().into_iter().collect();
+            let mut resolving: Vec<&str> = resolving.unwrap_or_default().into_iter().collect();
             resolving.sort_unstable();
 
             let n = violations.len();
@@ -2591,7 +2902,12 @@ fn check_fares_v2(
             details.insert("affected_products".to_string(), n.to_string());
             details.insert(
                 "example_products".to_string(),
-                violations.iter().take(5).map(|v| v.0).collect::<Vec<_>>().join(", "),
+                violations
+                    .iter()
+                    .take(5)
+                    .map(|v| v.0)
+                    .collect::<Vec<_>>()
+                    .join(", "),
             );
             if !resolving.is_empty() {
                 details.insert("resolving_categories".to_string(), resolving.join(", "));
@@ -2600,7 +2916,9 @@ fn check_fares_v2(
             notices.push(agg);
         } else {
             for (fpid, eligible, default_count) in violations {
-                let lines = fp_rows.get(fpid).expect("fare product rows are indexed together");
+                let lines = fp_rows
+                    .get(fpid)
+                    .expect("fare product rows are indexed together");
                 let message = if default_count == 0 {
                     format!(
                         "'{}' ucret urununde {} uygun yolcu kategorisi var ancak hicbiri varsayilan degil; tam olarak 1 olmali.",
@@ -2640,13 +2958,27 @@ fn check_fares_v2(
                 "fare_leg_rules.txt'teki her satıra fare_products.txt'te tanımlı bir fare_product_id yazın.",
             ));
         }
-        if !rec.fare_product_id.is_empty() && !map.fare_product_ids.contains_key(rec.fare_product_id.as_str()) {
+        if !rec.fare_product_id.is_empty()
+            && !map
+                .fare_product_ids
+                .contains_key(rec.fare_product_id.as_str())
+        {
             let eid = rec.leg_group_id.clone();
             notices.push(notice(
-                ctr, "FLG_001", EntityType::Row, eid.clone(), eid.clone(),
-                "fare_leg_rules.txt", Some(rec.line), Some("fare_product_id"),
-                Some(rec.fare_product_id.clone()), None,
-                format!("'{}' ucret urunu fare_products.txt te tanimli degil.", rec.fare_product_id),
+                ctr,
+                "FLG_001",
+                EntityType::Row,
+                eid.clone(),
+                eid.clone(),
+                "fare_leg_rules.txt",
+                Some(rec.line),
+                Some("fare_product_id"),
+                Some(rec.fare_product_id.clone()),
+                None,
+                format!(
+                    "'{}' ucret urunu fare_products.txt te tanimli degil.",
+                    rec.fare_product_id
+                ),
                 "Gecerli bir fare_product_id kullanin.",
             ));
         }
@@ -2666,9 +2998,16 @@ fn check_fares_v2(
             if !map.areas.contains_key(aid.as_str()) {
                 let eid = rec.leg_group_id.clone();
                 notices.push(notice(
-                    ctr, "FLG_003", EntityType::Row, eid.clone(), eid.clone(),
-                    "fare_leg_rules.txt", Some(rec.line), Some("from_area_id"),
-                    Some(aid.clone()), None,
+                    ctr,
+                    "FLG_003",
+                    EntityType::Row,
+                    eid.clone(),
+                    eid.clone(),
+                    "fare_leg_rules.txt",
+                    Some(rec.line),
+                    Some("from_area_id"),
+                    Some(aid.clone()),
+                    None,
                     format!("'{}' alan kodu areas.txt te tanimli degil.", aid),
                     "Gecerli bir from_area_id kullanin.",
                 ));
@@ -2678,9 +3017,16 @@ fn check_fares_v2(
             if !map.areas.contains_key(aid.as_str()) {
                 let eid = rec.leg_group_id.clone();
                 notices.push(notice(
-                    ctr, "FLG_004", EntityType::Row, eid.clone(), eid.clone(),
-                    "fare_leg_rules.txt", Some(rec.line), Some("to_area_id"),
-                    Some(aid.clone()), None,
+                    ctr,
+                    "FLG_004",
+                    EntityType::Row,
+                    eid.clone(),
+                    eid.clone(),
+                    "fare_leg_rules.txt",
+                    Some(rec.line),
+                    Some("to_area_id"),
+                    Some(aid.clone()),
+                    None,
                     format!("'{}' alan kodu areas.txt te tanimli degil.", aid),
                     "Gecerli bir to_area_id kullanin.",
                 ));
@@ -2690,9 +3036,16 @@ fn check_fares_v2(
             if !map.timeframe_group_ids.contains(tfid.as_str()) {
                 let eid = rec.leg_group_id.clone();
                 notices.push(notice(
-                    ctr, "FLG_005", EntityType::Row, eid.clone(), eid.clone(),
-                    "fare_leg_rules.txt", Some(rec.line), Some("from_timeframe_group_id"),
-                    Some(tfid.clone()), None,
+                    ctr,
+                    "FLG_005",
+                    EntityType::Row,
+                    eid.clone(),
+                    eid.clone(),
+                    "fare_leg_rules.txt",
+                    Some(rec.line),
+                    Some("from_timeframe_group_id"),
+                    Some(tfid.clone()),
+                    None,
                     format!("'{}' zaman dilimi timeframes.txt te tanimli degil.", tfid),
                     "Gecerli bir from_timeframe_group_id kullanin.",
                 ));
@@ -2702,9 +3055,16 @@ fn check_fares_v2(
             if !map.timeframe_group_ids.contains(tfid.as_str()) {
                 let eid = rec.leg_group_id.clone();
                 notices.push(notice(
-                    ctr, "FLG_006", EntityType::Row, eid.clone(), eid.clone(),
-                    "fare_leg_rules.txt", Some(rec.line), Some("to_timeframe_group_id"),
-                    Some(tfid.clone()), None,
+                    ctr,
+                    "FLG_006",
+                    EntityType::Row,
+                    eid.clone(),
+                    eid.clone(),
+                    "fare_leg_rules.txt",
+                    Some(rec.line),
+                    Some("to_timeframe_group_id"),
+                    Some(tfid.clone()),
+                    None,
                     format!("'{}' zaman dilimi timeframes.txt te tanimli degil.", tfid),
                     "Gecerli bir to_timeframe_group_id kullanin.",
                 ));
@@ -2717,11 +3077,20 @@ fn check_fares_v2(
         if let Some(ref lgid) = rec.from_leg_group_id {
             if !map.leg_group_ids.contains(lgid.as_str()) {
                 notices.push(notice(
-                    ctr, "FTR_002", EntityType::Row,
-                    Some(lgid.clone()), Some(lgid.clone()),
-                    "fare_transfer_rules.txt", Some(rec.line), Some("from_leg_group_id"),
-                    Some(lgid.clone()), None,
-                    format!("'{}' bacak grubu fare_leg_rules.txt te tanimli degil.", lgid),
+                    ctr,
+                    "FTR_002",
+                    EntityType::Row,
+                    Some(lgid.clone()),
+                    Some(lgid.clone()),
+                    "fare_transfer_rules.txt",
+                    Some(rec.line),
+                    Some("from_leg_group_id"),
+                    Some(lgid.clone()),
+                    None,
+                    format!(
+                        "'{}' bacak grubu fare_leg_rules.txt te tanimli degil.",
+                        lgid
+                    ),
                     "Gecerli bir from_leg_group_id kullanin.",
                 ));
             }
@@ -2729,11 +3098,20 @@ fn check_fares_v2(
         if let Some(ref lgid) = rec.to_leg_group_id {
             if !map.leg_group_ids.contains(lgid.as_str()) {
                 notices.push(notice(
-                    ctr, "FTR_003", EntityType::Row,
-                    Some(lgid.clone()), Some(lgid.clone()),
-                    "fare_transfer_rules.txt", Some(rec.line), Some("to_leg_group_id"),
-                    Some(lgid.clone()), None,
-                    format!("'{}' bacak grubu fare_leg_rules.txt te tanimli degil.", lgid),
+                    ctr,
+                    "FTR_003",
+                    EntityType::Row,
+                    Some(lgid.clone()),
+                    Some(lgid.clone()),
+                    "fare_transfer_rules.txt",
+                    Some(rec.line),
+                    Some("to_leg_group_id"),
+                    Some(lgid.clone()),
+                    None,
+                    format!(
+                        "'{}' bacak grubu fare_leg_rules.txt te tanimli degil.",
+                        lgid
+                    ),
                     "Gecerli bir to_leg_group_id kullanin.",
                 ));
             }
@@ -2741,10 +3119,16 @@ fn check_fares_v2(
         if let Some(ref fpid) = rec.fare_product_id {
             if !map.fare_product_ids.contains_key(fpid.as_str()) {
                 notices.push(notice(
-                    ctr, "FTR_004", EntityType::Row,
-                    rec.from_leg_group_id.clone(), rec.from_leg_group_id.clone(),
-                    "fare_transfer_rules.txt", Some(rec.line), Some("fare_product_id"),
-                    Some(fpid.clone()), None,
+                    ctr,
+                    "FTR_004",
+                    EntityType::Row,
+                    rec.from_leg_group_id.clone(),
+                    rec.from_leg_group_id.clone(),
+                    "fare_transfer_rules.txt",
+                    Some(rec.line),
+                    Some("fare_product_id"),
+                    Some(fpid.clone()),
+                    None,
                     format!("'{}' ucret urunu fare_products.txt te tanimli degil.", fpid),
                     "Gecerli bir fare_product_id kullanin.",
                 ));
@@ -2756,20 +3140,32 @@ fn check_fares_v2(
     for rec in &records.stop_areas {
         if !rec.area_id.is_empty() && !map.areas.contains_key(rec.area_id.as_str()) {
             notices.push(notice(
-                ctr, "SAR_001", EntityType::Row,
-                Some(rec.area_id.clone()), Some(rec.area_id.clone()),
-                "stop_areas.txt", Some(rec.line), Some("area_id"),
-                Some(rec.area_id.clone()), None,
+                ctr,
+                "SAR_001",
+                EntityType::Row,
+                Some(rec.area_id.clone()),
+                Some(rec.area_id.clone()),
+                "stop_areas.txt",
+                Some(rec.line),
+                Some("area_id"),
+                Some(rec.area_id.clone()),
+                None,
                 format!("'{}' alan kodu areas.txt te tanimli degil.", rec.area_id),
                 "Gecerli bir area_id kullanin.",
             ));
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
             notices.push(notice(
-                ctr, "SAR_002", EntityType::Row,
-                Some(rec.stop_id.clone()), Some(rec.stop_id.clone()),
-                "stop_areas.txt", Some(rec.line), Some("stop_id"),
-                Some(rec.stop_id.clone()), None,
+                ctr,
+                "SAR_002",
+                EntityType::Row,
+                Some(rec.stop_id.clone()),
+                Some(rec.stop_id.clone()),
+                "stop_areas.txt",
+                Some(rec.line),
+                Some("stop_id"),
+                Some(rec.stop_id.clone()),
+                None,
                 format!("'{}' durak stops.txt te tanimli degil.", rec.stop_id),
                 "Gecerli bir stop_id kullanin.",
             ));
@@ -2779,7 +3175,9 @@ fn check_fares_v2(
     // XFL_022-023: location_group_stops cross-ref (GTFS-Flex)
     for rec in &records.location_group_stops {
         if !rec.location_group_id.is_empty()
-            && !map.location_group_ids.contains(rec.location_group_id.as_str())
+            && !map
+                .location_group_ids
+                .contains(rec.location_group_id.as_str())
         {
             notices.push(notice(
                 ctr, "XFL_022", EntityType::Row,
@@ -2792,10 +3190,16 @@ fn check_fares_v2(
         }
         if !rec.stop_id.is_empty() && !map.stops.contains_key(rec.stop_id.as_str()) {
             notices.push(notice(
-                ctr, "XFL_023", EntityType::Row,
-                Some(rec.stop_id.clone()), Some(rec.stop_id.clone()),
-                "location_group_stops.txt", Some(rec.line), Some("stop_id"),
-                Some(rec.stop_id.clone()), None,
+                ctr,
+                "XFL_023",
+                EntityType::Row,
+                Some(rec.stop_id.clone()),
+                Some(rec.stop_id.clone()),
+                "location_group_stops.txt",
+                Some(rec.line),
+                Some("stop_id"),
+                Some(rec.stop_id.clone()),
+                None,
                 format!("'{}' durak stops.txt'te tanimli degil.", rec.stop_id),
                 "Gecerli bir stop_id kullanin.",
             ));
@@ -2806,10 +3210,16 @@ fn check_fares_v2(
     for rec in &records.timeframes {
         if !rec.service_id.is_empty() && !map.services.contains(rec.service_id.as_str()) {
             notices.push(notice(
-                ctr, "TFR_002", EntityType::Row,
-                Some(rec.timeframe_group_id.clone()), Some(rec.timeframe_group_id.clone()),
-                "timeframes.txt", Some(rec.line), Some("service_id"),
-                Some(rec.service_id.clone()), None,
+                ctr,
+                "TFR_002",
+                EntityType::Row,
+                Some(rec.timeframe_group_id.clone()),
+                Some(rec.timeframe_group_id.clone()),
+                "timeframes.txt",
+                Some(rec.line),
+                Some("service_id"),
+                Some(rec.service_id.clone()),
+                None,
                 format!("'{}' servis takvimi tanimli degil.", rec.service_id),
                 "Gecerli bir service_id kullanin.",
             ));
@@ -2847,7 +3257,10 @@ fn check_levels(
                 Some("level_id"),
                 Some(rec.level_id.clone()),
                 None,
-                format!("level_id '{}' hiçbir durak tarafından referans edilmiyor.", rec.level_id),
+                format!(
+                    "level_id '{}' hiçbir durak tarafından referans edilmiyor.",
+                    rec.level_id
+                ),
                 "Kullanılmayan level'ı silin veya bir durağın level_id'sini bu değere ayarlayın.",
             ));
         }
@@ -2858,7 +3271,9 @@ fn check_levels(
 
 /// `attributions.txt`'nin birincil anahtarı; `EntityMap` bu tabloyu taşımaz.
 fn attribution_id_set(records: &EntityRecords) -> HashSet<&str> {
-    records.attributions.iter()
+    records
+        .attributions
+        .iter()
         .filter_map(|a| a.attribution_id.as_deref())
         .filter(|id| !id.is_empty())
         .collect()
@@ -2907,10 +3322,14 @@ fn stop_times_translation_sub_id_valid(
     ) else {
         return None;
     };
-    let sequence = sub_id.parse::<u32>().ok().filter(|&value| value != u32::MAX);
+    let sequence = sub_id
+        .parse::<u32>()
+        .ok()
+        .filter(|&value| value != u32::MAX);
     let rows = records.stop_times_index.sorted_stops(trip_id)?;
     Some(sequence.is_some_and(|value| {
-        rows.binary_search_by_key(&value, |stop| stop.sequence).is_ok()
+        rows.binary_search_by_key(&value, |stop| stop.sequence)
+            .is_ok()
     }))
 }
 
@@ -2920,7 +3339,11 @@ fn check_translations(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    let feed_lang = records.feed_info.first().map(|fi| fi.feed_lang.as_str()).unwrap_or("");
+    let feed_lang = records
+        .feed_info
+        .first()
+        .map(|fi| fi.feed_lang.as_str())
+        .unwrap_or("");
     // key → ilk görülen translation değeri. Aynı key tekrar görülürse:
     //   değer aynı  → TRN_005 (birebir yinelenen çeviri)
     //   değer farklı → TRN_006 (çelişkili çeviri; hangisi geçerli belirsiz)
@@ -2957,9 +3380,9 @@ fn check_translations(
 
         // TRN_004: record_id başvurulan kayıt bulunamadı
         if let Some(ref rid) = rec.record_id {
-            let exists = translation_record_exists(
-                map, &attribution_ids, &rec.table_name, rid.as_str(),
-            ).unwrap_or(true);
+            let exists =
+                translation_record_exists(map, &attribution_ids, &rec.table_name, rid.as_str())
+                    .unwrap_or(true);
             if !exists {
                 notices.push(notice(
                     ctr,
@@ -3115,11 +3538,13 @@ fn check_translations(
 /// String Japonca karakter (Hiragana/Katakana/Kanji) içeriyor mu — char/scalar bazlı (byte DEĞİL).
 /// JPN_008'in route_short_name'e düşmesinde sayısal kodları (ör. "42") elemek için.
 fn has_japanese(s: &str) -> bool {
-    s.chars().any(|c| matches!(c,
-        '\u{3040}'..='\u{309F}'   // Hiragana
-        | '\u{30A0}'..='\u{30FF}' // Katakana
-        | '\u{4E00}'..='\u{9FFF}' // CJK Unified Ideographs (Kanji)
-    ))
+    s.chars().any(|c| {
+        matches!(c,
+            '\u{3040}'..='\u{309F}'   // Hiragana
+            | '\u{30A0}'..='\u{30FF}' // Katakana
+            | '\u{4E00}'..='\u{9FFF}' // CJK Unified Ideographs (Kanji)
+        )
+    })
 }
 
 fn collect_kana<'a>(
@@ -3130,19 +3555,37 @@ fn collect_kana<'a>(
     let mut recs: HashSet<&str> = HashSet::new();
     let mut vals: HashSet<&str> = HashSet::new();
     for t in translations {
-        if t.table_name == table && t.field_name == field && t.language.eq_ignore_ascii_case("ja-Hrkt") {
-            if let Some(rid) = t.record_id.as_deref() { recs.insert(rid); }
-            if let Some(fv) = t.field_value.as_deref() { vals.insert(fv); }
+        if t.table_name == table
+            && t.field_name == field
+            && t.language.eq_ignore_ascii_case("ja-Hrkt")
+        {
+            if let Some(rid) = t.record_id.as_deref() {
+                recs.insert(rid);
+            }
+            if let Some(fv) = t.field_value.as_deref() {
+                vals.insert(fv);
+            }
         }
     }
     (recs, vals)
 }
 
 fn valid_gtfs_jp_date(raw: &str) -> bool {
-    if raw.len() != 8 || !raw.chars().all(|c| c.is_ascii_digit()) { return false; }
-    let year = match raw[0..4].parse::<u32>() { Ok(v) => v, Err(_) => return false };
-    let month = match raw[4..6].parse::<u32>() { Ok(v) => v, Err(_) => return false };
-    let day = match raw[6..8].parse::<u32>() { Ok(v) => v, Err(_) => return false };
+    if raw.len() != 8 || !raw.chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
+    let year = match raw[0..4].parse::<u32>() {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let month = match raw[4..6].parse::<u32>() {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let day = match raw[6..8].parse::<u32>() {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
     crate::k2::common::is_valid_calendar_date(year, month, day)
 }
 
@@ -3162,24 +3605,30 @@ fn check_gtfs_jp(
     // Gerçek pipeline'da K1 envanteri boş/bozuk dosyaları da fiziksel varlık olarak taşır.
     // Doğrudan K4 çağrılarında ise complete() sentetik kayıtları desteklemek için mevcut
     // typed kayıtlar ve pattern işareti geri dönüş ölçütüdür.
-    let has_jp_file = records.has_gtfs_jp_file || if availability.has_inventory() {
-        GTFS_JP_FILES.iter().any(|name| availability.present(name))
-    } else {
-        !records.agency_jp.is_empty()
-            || !records.office_jp.is_empty()
-            || !records.routes_jp.is_empty()
-            || records.has_pattern_jp_file
-    };
-    let has_pattern_jp_file = records.has_pattern_jp_file || if availability.has_inventory() {
-        availability.present("pattern_jp.txt")
-    } else {
-        false
-    };
+    let has_jp_file = records.has_gtfs_jp_file
+        || if availability.has_inventory() {
+            GTFS_JP_FILES.iter().any(|name| availability.present(name))
+        } else {
+            !records.agency_jp.is_empty()
+                || !records.office_jp.is_empty()
+                || !records.routes_jp.is_empty()
+                || records.has_pattern_jp_file
+        };
+    let has_pattern_jp_file = records.has_pattern_jp_file
+        || if availability.has_inventory() {
+            availability.present("pattern_jp.txt")
+        } else {
+            false
+        };
     // ── JPN_001: stop_name kana (ja-Hrkt) okuması — kapı: feed_lang ja* VEYA ja-Hrkt çeviri ──
-    let feed_lang_ja = records.feed_info.first()
+    let feed_lang_ja = records
+        .feed_info
+        .first()
         .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
         .unwrap_or(false);
-    let has_kana = records.translations.iter()
+    let has_kana = records
+        .translations
+        .iter()
         .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
     let is_gtfs_jp = records.is_gtfs_jp.unwrap_or({
         // Compatibility path for direct/synthetic K4 callers that predate the
@@ -3198,8 +3647,12 @@ fn check_gtfs_jp(
                 && t.field_name == "stop_name"
                 && t.language.eq_ignore_ascii_case("ja-Hrkt")
             {
-                if let Some(rid) = t.record_id.as_deref() { kana_records.insert(rid); }
-                if let Some(fv) = t.field_value.as_deref() { kana_values.insert(fv); }
+                if let Some(rid) = t.record_id.as_deref() {
+                    kana_records.insert(rid);
+                }
+                if let Some(fv) = t.field_value.as_deref() {
+                    kana_values.insert(fv);
+                }
             }
         }
 
@@ -3246,7 +3699,9 @@ fn check_gtfs_jp(
             let (field, name, kr_rec, kr_val) = match route.route_long_name.as_deref() {
                 Some(n) if !n.is_empty() => ("route_long_name", n, &krl_rec, &krl_val),
                 _ => match route.route_short_name.as_deref() {
-                    Some(s) if !s.is_empty() && has_japanese(s) => ("route_short_name", s, &krs_rec, &krs_val),
+                    Some(s) if !s.is_empty() && has_japanese(s) => {
+                        ("route_short_name", s, &krs_rec, &krs_val)
+                    }
                     _ => continue,
                 },
             };
@@ -3290,10 +3745,15 @@ fn check_gtfs_jp(
                 continue;
             }
             let aid = ag.agency_id.as_deref().unwrap_or("");
-            if (!aid.is_empty() && ka_rec.contains(aid)) || ka_val.contains(ag.agency_name.as_str()) {
+            if (!aid.is_empty() && ka_rec.contains(aid)) || ka_val.contains(ag.agency_name.as_str())
+            {
                 continue;
             }
-            let eid = ag.agency_id.clone().filter(|s| !s.is_empty()).unwrap_or_else(|| ag.agency_name.clone());
+            let eid = ag
+                .agency_id
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| ag.agency_name.clone());
             notices.push(notice(
                 ctr, "JPN_010", EntityType::Agency,
                 Some(eid.clone()), Some(eid),
@@ -3306,21 +3766,23 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-    // ── JPN_002: trips.jp_office_id → office_jp.office_id ──
-    // Kapı: office_jp.txt mevcut (GTFS-JP yapısal sinyali). Boş/eksik jp_office_id atlanır;
-    // sadece dolu ama office_jp'de tanımsız referanslar işaretlenir.
-    if !records.office_jp.is_empty() {
-        let office_ids: HashSet<&str> = records.office_jp.iter()
-            .map(|o| o.office_id.as_str())
-            .filter(|id| !id.is_empty())
-            .collect();
-        for trip in &records.trips {
-            let oid = match ti_jpn.jp_office_id(trip) {
-                Some(o) if !o.is_empty() => o,
-                _ => continue,
-            };
-            if !office_ids.contains(oid) {
-                notices.push(notice(
+        // ── JPN_002: trips.jp_office_id → office_jp.office_id ──
+        // Kapı: office_jp.txt mevcut (GTFS-JP yapısal sinyali). Boş/eksik jp_office_id atlanır;
+        // sadece dolu ama office_jp'de tanımsız referanslar işaretlenir.
+        if !records.office_jp.is_empty() {
+            let office_ids: HashSet<&str> = records
+                .office_jp
+                .iter()
+                .map(|o| o.office_id.as_str())
+                .filter(|id| !id.is_empty())
+                .collect();
+            for trip in &records.trips {
+                let oid = match ti_jpn.jp_office_id(trip) {
+                    Some(o) if !o.is_empty() => o,
+                    _ => continue,
+                };
+                if !office_ids.contains(oid) {
+                    notices.push(notice(
                     ctr,
                     "JPN_002",
                     EntityType::Trip,
@@ -3335,18 +3797,18 @@ fn check_gtfs_jp(
                         trip.trip_id, oid),
                     "jp_office_id değerini office_jp.txt'te tanımlı bir office_id ile eşleştirin.",
                 ));
+                }
             }
-        }
-        // JPN_002 (genişletme): routes.jp_office_id → office_jp.office_id.
-        // Resmî GTFS-JP spec jp_office_id'yi routes.txt'te tanımlar (Tokyo trips.txt'te koymuş);
-        // sürüm-toleranslı olmak için her iki konumu da denetleriz.
-        for route in &records.routes {
-            let oid = match route.jp_office_id.as_deref() {
-                Some(o) if !o.is_empty() => o,
-                _ => continue,
-            };
-            if !office_ids.contains(oid) {
-                notices.push(notice(
+            // JPN_002 (genişletme): routes.jp_office_id → office_jp.office_id.
+            // Resmî GTFS-JP spec jp_office_id'yi routes.txt'te tanımlar (Tokyo trips.txt'te koymuş);
+            // sürüm-toleranslı olmak için her iki konumu da denetleriz.
+            for route in &records.routes {
+                let oid = match route.jp_office_id.as_deref() {
+                    Some(o) if !o.is_empty() => o,
+                    _ => continue,
+                };
+                if !office_ids.contains(oid) {
+                    notices.push(notice(
                     ctr,
                     "JPN_002",
                     EntityType::Route,
@@ -3361,24 +3823,26 @@ fn check_gtfs_jp(
                         route.route_id, oid),
                     "jp_office_id değerini office_jp.txt'te tanımlı bir office_id ile eşleştirin.",
                 ));
+                }
             }
         }
-    }
 
-    // ── JPN_003: agency_jp.agency_id → agency.agency_id ──
-    // Kapı: agency_jp.txt mevcut. Boş agency_id (ayrı zorunluluk ihlali) atlanır.
-    if !records.agency_jp.is_empty() {
-        let agency_ids: HashSet<&str> = records.agencies.iter()
-            .filter_map(|a| a.agency_id.as_deref())
-            .filter(|id| !id.is_empty())
-            .collect();
-        for aj in &records.agency_jp {
-            let aid = match aj.agency_id.as_deref() {
-                Some(a) if !a.is_empty() => a,
-                _ => continue,
-            };
-            if !agency_ids.contains(aid) {
-                notices.push(notice(
+        // ── JPN_003: agency_jp.agency_id → agency.agency_id ──
+        // Kapı: agency_jp.txt mevcut. Boş agency_id (ayrı zorunluluk ihlali) atlanır.
+        if !records.agency_jp.is_empty() {
+            let agency_ids: HashSet<&str> = records
+                .agencies
+                .iter()
+                .filter_map(|a| a.agency_id.as_deref())
+                .filter(|id| !id.is_empty())
+                .collect();
+            for aj in &records.agency_jp {
+                let aid = match aj.agency_id.as_deref() {
+                    Some(a) if !a.is_empty() => a,
+                    _ => continue,
+                };
+                if !agency_ids.contains(aid) {
+                    notices.push(notice(
                     ctr,
                     "JPN_003",
                     EntityType::Agency,
@@ -3392,10 +3856,9 @@ fn check_gtfs_jp(
                     format!("agency_jp.txt'teki agency_id ('{}') agency.txt'te tanımlı değil.", aid),
                     "agency_jp.txt'teki agency_id değerini agency.txt'te tanımlı bir agency_id ile eşleştirin.",
                 ));
+                }
             }
         }
-    }
-
     }
 
     // ── JPN_004: GTFS-JP feed'inde translations.txt zorunlu ──
@@ -3423,7 +3886,9 @@ fn check_gtfs_jp(
     // Standart GTFS tek-agency'de agency_id'yi opsiyonel sayar; AGN_011 yalnız ÇOKLU-agency'de
     // (route-level) fire eder → tek-işletici JP feed'inde agency_id eksikliği boşlukta kalıyordu.
     if is_gtfs_jp {
-        let missing = records.agencies.iter()
+        let missing = records
+            .agencies
+            .iter()
             .filter(|a| a.agency_id.as_deref().is_none_or(|id| id.trim().is_empty()))
             .count();
         if missing > 0 {
@@ -3451,7 +3916,11 @@ fn check_gtfs_jp(
     if is_gtfs_jp && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
         let mut jpn022_pending = Vec::new();
         for agency in &records.agencies {
-            if agency.agency_lang.as_deref().is_none_or(|value| value.trim().is_empty()) {
+            if agency
+                .agency_lang
+                .as_deref()
+                .is_none_or(|value| value.trim().is_empty())
+            {
                 jpn022_pending.push(notice(
                     ctr,
                     "JPN_022",
@@ -3504,7 +3973,13 @@ fn check_gtfs_jp(
             let required_fields = [
                 ("feed_start_date", feed_info.feed_start_date.is_none()),
                 ("feed_end_date", feed_info.feed_end_date.is_none()),
-                ("feed_version", feed_info.feed_version.as_deref().is_none_or(|value| value.trim().is_empty())),
+                (
+                    "feed_version",
+                    feed_info
+                        .feed_version
+                        .as_deref()
+                        .is_none_or(|value| value.trim().is_empty()),
+                ),
             ];
             for (field, missing) in required_fields {
                 if missing {
@@ -3530,15 +4005,19 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-    // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
-    // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
-    for oj in &records.office_jp {
-        if oj.office_id.is_empty() {
-            continue;
-        }
-        let name_empty = oj.office_name.as_deref().map(|s| s.trim().is_empty()).unwrap_or(true);
-        if name_empty {
-            notices.push(notice(
+        // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
+        // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
+        for oj in &records.office_jp {
+            if oj.office_id.is_empty() {
+                continue;
+            }
+            let name_empty = oj
+                .office_name
+                .as_deref()
+                .map(|s| s.trim().is_empty())
+                .unwrap_or(true);
+            if name_empty {
+                notices.push(notice(
                 ctr,
                 "JPN_005",
                 EntityType::Agency,
@@ -3552,9 +4031,8 @@ fn check_gtfs_jp(
                 format!("office_jp.txt'teki '{}' ofisinin office_name değeri boş — GTFS-JP'de zorunludur.", oj.office_id),
                 "office_jp.txt'te her office_id için office_name değerini doldurun.",
             ));
+            }
         }
-    }
-
     }
 
     // ── JPN_006: GTFS-JP ücret kapsamı ───────────────────────────────────────
@@ -3572,7 +4050,10 @@ fn check_gtfs_jp(
                 fare.row.get("currency_type").cloned().unwrap_or_default(),
                 fare.row.get("payment_method").cloned().unwrap_or_default(),
                 fare.row.get("transfers").cloned().unwrap_or_default(),
-                fare.row.get("transfer_duration").cloned().unwrap_or_default(),
+                fare.row
+                    .get("transfer_duration")
+                    .cloned()
+                    .unwrap_or_default(),
             )
         })
         .collect();
@@ -3615,25 +4096,31 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-    // ── JPN_012: agency_jp.agency_id zorunlu ─────────────────────────────────
-    for aj in &records.agency_jp {
-        if aj.agency_id.as_deref().is_none_or(|id| id.trim().is_empty()) {
-            notices.push(notice(
+        // ── JPN_012: agency_jp.agency_id zorunlu ─────────────────────────────────
+        for aj in &records.agency_jp {
+            if aj
+                .agency_id
+                .as_deref()
+                .is_none_or(|id| id.trim().is_empty())
+            {
+                notices.push(notice(
                 ctr, "JPN_012", EntityType::Agency, None, None,
                 "agency_jp.txt", Some(aj.line), Some("agency_id"),
                 Some(String::new()), Some("dolu".to_string()),
                 "agency_jp.txt satırında agency_id eksik — GTFS-JP bu alanı zorunlu kılar.".to_string(),
                 "agency_jp.txt'teki her satırı agency.txt'te tanımlı bir agency_id ile eşleştirin.",
             ));
+            }
         }
-    }
 
-    // ── JPN_013: agency_zip_number biçimi ────────────────────────────────────
-    for aj in &records.agency_jp {
-        let Some(raw) = aj.row.get("agency_zip_number").map(String::as_str) else { continue };
-        let raw = raw.trim();
-        if !raw.is_empty() && (raw.len() != 7 || !raw.chars().all(|c| c.is_ascii_digit())) {
-            notices.push(notice(
+        // ── JPN_013: agency_zip_number biçimi ────────────────────────────────────
+        for aj in &records.agency_jp {
+            let Some(raw) = aj.row.get("agency_zip_number").map(String::as_str) else {
+                continue;
+            };
+            let raw = raw.trim();
+            if !raw.is_empty() && (raw.len() != 7 || !raw.chars().all(|c| c.is_ascii_digit())) {
+                notices.push(notice(
                 ctr, "JPN_013", EntityType::Agency,
                 aj.agency_id.clone(), aj.agency_id.clone(),
                 "agency_jp.txt", Some(aj.line), Some("agency_zip_number"),
@@ -3641,188 +4128,291 @@ fn check_gtfs_jp(
                 format!("agency_zip_number '{}' geçersiz; GTFS-JP posta kodunu tire olmadan 7 rakam olarak ister.", raw),
                 "agency_zip_number değerini tire olmadan 7 ASCII rakam olarak girin.",
             ));
+            }
         }
-    }
 
-    // ── JPN_014: office_jp.office_id zorunlu ve tekil ─────────────────────────
-    {
-        let mut office_ids: HashMap<&str, u64> = HashMap::new();
-        for office in &records.office_jp {
-            let office_id = office.office_id.trim();
-            if office_id.is_empty() {
-                notices.push(notice(
+        // ── JPN_014: office_jp.office_id zorunlu ve tekil ─────────────────────────
+        {
+            let mut office_ids: HashMap<&str, u64> = HashMap::new();
+            for office in &records.office_jp {
+                let office_id = office.office_id.trim();
+                if office_id.is_empty() {
+                    notices.push(notice(
                     ctr, "JPN_014", EntityType::Agency, None, None,
                     "office_jp.txt", Some(office.line), Some("office_id"),
                     Some(String::new()), Some("dolu ve tekil".to_string()),
                     "office_jp.txt satırında office_id eksik — her ofis kaydı benzersiz bir kimlik taşımalıdır.".to_string(),
                     "office_jp.txt'teki her satıra benzersiz bir office_id girin.",
                 ));
-                continue;
-            }
-            if let Some(first_line) = office_ids.insert(office_id, office.line) {
-                notices.push(notice(
-                    ctr, "JPN_014", EntityType::Agency,
-                    Some(office_id.to_string()), Some(office_id.to_string()),
-                    "office_jp.txt", Some(office.line), Some("office_id"),
-                    Some(office_id.to_string()), Some("unique".to_string()),
-                    format!("office_id '{}' tekrarlanıyor (ilk görünüm: satır {}).", office_id, first_line),
-                    "Her ofis kaydı için benzersiz bir office_id kullanın.",
-                ));
+                    continue;
+                }
+                if let Some(first_line) = office_ids.insert(office_id, office.line) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_014",
+                        EntityType::Agency,
+                        Some(office_id.to_string()),
+                        Some(office_id.to_string()),
+                        "office_jp.txt",
+                        Some(office.line),
+                        Some("office_id"),
+                        Some(office_id.to_string()),
+                        Some("unique".to_string()),
+                        format!(
+                            "office_id '{}' tekrarlanıyor (ilk görünüm: satır {}).",
+                            office_id, first_line
+                        ),
+                        "Her ofis kaydı için benzersiz bir office_id kullanın.",
+                    ));
+                }
             }
         }
-    }
 
-    // ── JPN_015: routes_jp.route_id zorunlu, tekil ve routes.txt'e bağlı ────
-    {
-        let route_ids: HashSet<&str> = records.routes.iter()
-            .map(|route| route.route_id.as_str()).filter(|id| !id.is_empty()).collect();
-        let mut jp_route_ids: HashMap<&str, u64> = HashMap::new();
-        for route in &records.routes_jp {
-            let route_id = route.route_id.trim();
-            if route_id.is_empty() {
-                notices.push(notice(
-                    ctr, "JPN_015", EntityType::Route, None, None,
-                    "routes_jp.txt", Some(route.line), Some("route_id"),
-                    Some(String::new()), Some("routes.txt'te tanımlı route_id".to_string()),
-                    "routes_jp.txt satırında route_id eksik.".to_string(),
-                    "routes_jp.txt'te routes.txt'te tanımlı bir route_id kullanın.",
-                ));
-                continue;
-            }
-            if let Some(first_line) = jp_route_ids.insert(route_id, route.line) {
-                notices.push(notice(
-                    ctr, "JPN_015", EntityType::Route,
-                    Some(route_id.to_string()), Some(route_id.to_string()),
-                    "routes_jp.txt", Some(route.line), Some("route_id"),
-                    Some(route_id.to_string()), Some("unique".to_string()),
-                    format!("routes_jp.txt route_id '{}' tekrarlanıyor (ilk görünüm: satır {}).", route_id, first_line),
-                    "Her routes_jp kaydı için benzersiz bir route_id kullanın.",
-                ));
-            }
-            if !route_ids.contains(route_id) {
-                notices.push(notice(
-                    ctr, "JPN_015", EntityType::Route,
-                    Some(route_id.to_string()), Some(route_id.to_string()),
-                    "routes_jp.txt", Some(route.line), Some("route_id"),
-                    Some(route_id.to_string()), None,
-                    format!("routes_jp.txt route_id '{}' routes.txt'te tanımlı değil.", route_id),
-                    "route_id değerini routes.txt'te tanımlı bir rota ile eşleştirin.",
-                ));
+        // ── JPN_015: routes_jp.route_id zorunlu, tekil ve routes.txt'e bağlı ────
+        {
+            let route_ids: HashSet<&str> = records
+                .routes
+                .iter()
+                .map(|route| route.route_id.as_str())
+                .filter(|id| !id.is_empty())
+                .collect();
+            let mut jp_route_ids: HashMap<&str, u64> = HashMap::new();
+            for route in &records.routes_jp {
+                let route_id = route.route_id.trim();
+                if route_id.is_empty() {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_015",
+                        EntityType::Route,
+                        None,
+                        None,
+                        "routes_jp.txt",
+                        Some(route.line),
+                        Some("route_id"),
+                        Some(String::new()),
+                        Some("routes.txt'te tanımlı route_id".to_string()),
+                        "routes_jp.txt satırında route_id eksik.".to_string(),
+                        "routes_jp.txt'te routes.txt'te tanımlı bir route_id kullanın.",
+                    ));
+                    continue;
+                }
+                if let Some(first_line) = jp_route_ids.insert(route_id, route.line) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_015",
+                        EntityType::Route,
+                        Some(route_id.to_string()),
+                        Some(route_id.to_string()),
+                        "routes_jp.txt",
+                        Some(route.line),
+                        Some("route_id"),
+                        Some(route_id.to_string()),
+                        Some("unique".to_string()),
+                        format!(
+                            "routes_jp.txt route_id '{}' tekrarlanıyor (ilk görünüm: satır {}).",
+                            route_id, first_line
+                        ),
+                        "Her routes_jp kaydı için benzersiz bir route_id kullanın.",
+                    ));
+                }
+                if !route_ids.contains(route_id) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_015",
+                        EntityType::Route,
+                        Some(route_id.to_string()),
+                        Some(route_id.to_string()),
+                        "routes_jp.txt",
+                        Some(route.line),
+                        Some("route_id"),
+                        Some(route_id.to_string()),
+                        None,
+                        format!(
+                            "routes_jp.txt route_id '{}' routes.txt'te tanımlı değil.",
+                            route_id
+                        ),
+                        "route_id değerini routes.txt'te tanımlı bir rota ile eşleştirin.",
+                    ));
+                }
             }
         }
-    }
 
-    // ── JPN_016: route_update_date YYYYMMDD ─────────────────────────────────
-    // GTFS-JP v3'te tarih pattern_jp.txt içindedir. routes_jp.txt v3 dosyası
-    // değildir; ancak eski feed uyumluluğu için aynı tarih alanını doğrulamaya
-    // devam ederiz. Böylece legacy feed'lerde gerçek üretici hataları sessizce
-    // kaybolmaz.
-    for pattern in &records.pattern_jp {
-        if let Some(date) = pattern.route_update_date.as_deref() {
-            if !valid_gtfs_jp_date(date) {
-                notices.push(notice(
-                    ctr, "JPN_016", EntityType::Row,
-                    Some(pattern.jp_pattern_id.clone()), Some(pattern.jp_pattern_id.clone()),
-                    "pattern_jp.txt", Some(pattern.line), Some("route_update_date"),
-                    Some(date.to_string()), Some("YYYYMMDD".to_string()),
-                    format!("pattern_jp.txt route_update_date '{}' geçerli bir tarih değil.", date),
-                    "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
-                ));
-            }
-        }
-    }
-    for route in &records.routes_jp {
-        if let Some(date) = route.route_update_date.as_deref() {
-            if !valid_gtfs_jp_date(date) {
-                notices.push(notice(
-                    ctr, "JPN_016", EntityType::Row,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes_jp.txt", Some(route.line), Some("route_update_date"),
-                    Some(date.to_string()), Some("YYYYMMDD".to_string()),
-                    format!("routes_jp.txt route_update_date '{}' geçerli bir tarih değil.", date),
-                    "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
-                ));
-            }
-        }
-    }
-
-    // ── JPN_017: pattern_jp.jp_pattern_id zorunlu ve tekil ───────────────────
-    {
-        let mut pattern_ids: HashMap<&str, u64> = HashMap::new();
+        // ── JPN_016: route_update_date YYYYMMDD ─────────────────────────────────
+        // GTFS-JP v3'te tarih pattern_jp.txt içindedir. routes_jp.txt v3 dosyası
+        // değildir; ancak eski feed uyumluluğu için aynı tarih alanını doğrulamaya
+        // devam ederiz. Böylece legacy feed'lerde gerçek üretici hataları sessizce
+        // kaybolmaz.
         for pattern in &records.pattern_jp {
-            let pattern_id = pattern.jp_pattern_id.trim();
-            if pattern_id.is_empty() {
-                notices.push(notice(
+            if let Some(date) = pattern.route_update_date.as_deref() {
+                if !valid_gtfs_jp_date(date) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_016",
+                        EntityType::Row,
+                        Some(pattern.jp_pattern_id.clone()),
+                        Some(pattern.jp_pattern_id.clone()),
+                        "pattern_jp.txt",
+                        Some(pattern.line),
+                        Some("route_update_date"),
+                        Some(date.to_string()),
+                        Some("YYYYMMDD".to_string()),
+                        format!(
+                            "pattern_jp.txt route_update_date '{}' geçerli bir tarih değil.",
+                            date
+                        ),
+                        "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
+                    ));
+                }
+            }
+        }
+        for route in &records.routes_jp {
+            if let Some(date) = route.route_update_date.as_deref() {
+                if !valid_gtfs_jp_date(date) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_016",
+                        EntityType::Row,
+                        Some(route.route_id.clone()),
+                        Some(route.route_id.clone()),
+                        "routes_jp.txt",
+                        Some(route.line),
+                        Some("route_update_date"),
+                        Some(date.to_string()),
+                        Some("YYYYMMDD".to_string()),
+                        format!(
+                            "routes_jp.txt route_update_date '{}' geçerli bir tarih değil.",
+                            date
+                        ),
+                        "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
+                    ));
+                }
+            }
+        }
+
+        // ── JPN_017: pattern_jp.jp_pattern_id zorunlu ve tekil ───────────────────
+        {
+            let mut pattern_ids: HashMap<&str, u64> = HashMap::new();
+            for pattern in &records.pattern_jp {
+                let pattern_id = pattern.jp_pattern_id.trim();
+                if pattern_id.is_empty() {
+                    notices.push(notice(
                     ctr, "JPN_017", EntityType::Row, None, None,
                     "pattern_jp.txt", Some(pattern.line), Some("jp_pattern_id"),
                     Some(String::new()), Some("dolu ve tekil".to_string()),
                     "pattern_jp.txt satırında jp_pattern_id eksik — dosya mevcutsa bu alan zorunludur.".to_string(),
                     "pattern_jp.txt'teki her satıra benzersiz bir jp_pattern_id girin.",
                 ));
-                continue;
-            }
-            if let Some(first_line) = pattern_ids.insert(pattern_id, pattern.line) {
-                notices.push(notice(
-                    ctr, "JPN_017", EntityType::Row,
-                    Some(pattern_id.to_string()), Some(pattern_id.to_string()),
-                    "pattern_jp.txt", Some(pattern.line), Some("jp_pattern_id"),
-                    Some(pattern_id.to_string()), Some("unique".to_string()),
-                    format!("jp_pattern_id '{}' tekrarlanıyor (ilk görünüm: satır {}).", pattern_id, first_line),
-                    "Her duruş paterni için benzersiz bir jp_pattern_id kullanın.",
-                ));
-            }
-        }
-    }
-
-    // ── JPN_018: trips.jp_pattern_id → pattern_jp.jp_pattern_id ──────────────
-    // `pattern_jp.txt` ve trips.jp_pattern_id ayrı ayrı opsiyoneldir. jp_pattern_id
-    // pattern_jp.txt yokken kurum içi kod olarak kullanılabilir; yalnızca pattern
-    // master dosyası mevcutsa burada foreign-key bütünlüğü aranır.
-    if has_pattern_jp_file {
-        let pattern_ids: HashSet<&str> = records.pattern_jp.iter()
-            .map(|pattern| pattern.jp_pattern_id.as_str()).filter(|id| !id.is_empty()).collect();
-        for trip in &records.trips {
-            let Some(pattern_id) = ti_jpn.jp_pattern_id(trip).filter(|id| !id.is_empty()) else { continue };
-            if !pattern_ids.contains(pattern_id) {
-                notices.push(notice(
-                    ctr, "JPN_018", EntityType::Trip,
-                    Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
-                    "trips.txt", Some(trip.line), Some("jp_pattern_id"),
-                    Some(pattern_id.to_string()), None,
-                    format!("'{}' seferindeki jp_pattern_id '{}' pattern_jp.txt'te tanımlı değil.", trip.trip_id, pattern_id),
-                    "jp_pattern_id değerini pattern_jp.txt'te tanımlı bir paterne bağlayın.",
-                ));
+                    continue;
+                }
+                if let Some(first_line) = pattern_ids.insert(pattern_id, pattern.line) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_017",
+                        EntityType::Row,
+                        Some(pattern_id.to_string()),
+                        Some(pattern_id.to_string()),
+                        "pattern_jp.txt",
+                        Some(pattern.line),
+                        Some("jp_pattern_id"),
+                        Some(pattern_id.to_string()),
+                        Some("unique".to_string()),
+                        format!(
+                            "jp_pattern_id '{}' tekrarlanıyor (ilk görünüm: satır {}).",
+                            pattern_id, first_line
+                        ),
+                        "Her duruş paterni için benzersiz bir jp_pattern_id kullanın.",
+                    ));
+                }
             }
         }
-    }
 
+        // ── JPN_018: trips.jp_pattern_id → pattern_jp.jp_pattern_id ──────────────
+        // `pattern_jp.txt` ve trips.jp_pattern_id ayrı ayrı opsiyoneldir. jp_pattern_id
+        // pattern_jp.txt yokken kurum içi kod olarak kullanılabilir; yalnızca pattern
+        // master dosyası mevcutsa burada foreign-key bütünlüğü aranır.
+        if has_pattern_jp_file {
+            let pattern_ids: HashSet<&str> = records
+                .pattern_jp
+                .iter()
+                .map(|pattern| pattern.jp_pattern_id.as_str())
+                .filter(|id| !id.is_empty())
+                .collect();
+            for trip in &records.trips {
+                let Some(pattern_id) = ti_jpn.jp_pattern_id(trip).filter(|id| !id.is_empty())
+                else {
+                    continue;
+                };
+                if !pattern_ids.contains(pattern_id) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_018",
+                        EntityType::Trip,
+                        Some(trip.trip_id.to_string()),
+                        Some(trip.trip_id.to_string()),
+                        "trips.txt",
+                        Some(trip.line),
+                        Some("jp_pattern_id"),
+                        Some(pattern_id.to_string()),
+                        None,
+                        format!(
+                            "'{}' seferindeki jp_pattern_id '{}' pattern_jp.txt'te tanımlı değil.",
+                            trip.trip_id, pattern_id
+                        ),
+                        "jp_pattern_id değerini pattern_jp.txt'te tanımlı bir paterne bağlayın.",
+                    ));
+                }
+            }
+        }
     }
 
     // ── JPN_019: ja-Hrkt çevirilerinde gerçek kayıt/alt kayıt bütünlüğü ───────
     {
-        let agency_ids: HashSet<&str> = records.agencies.iter().filter_map(|a| a.agency_id.as_deref()).collect();
+        let agency_ids: HashSet<&str> = records
+            .agencies
+            .iter()
+            .filter_map(|a| a.agency_id.as_deref())
+            .collect();
         let stop_ids: HashSet<&str> = records.stops.iter().map(|s| s.stop_id.as_str()).collect();
         let route_ids: HashSet<&str> = records.routes.iter().map(|r| r.route_id.as_str()).collect();
         let trip_ids: HashSet<&str> = records.trips.iter().map(|t| t.trip_id.as_str()).collect();
-        let attribution_ids: HashSet<&str> = records.attributions.iter()
+        let attribution_ids: HashSet<&str> = records
+            .attributions
+            .iter()
             .filter_map(|a| a.attribution_id.as_deref())
             .filter(|id| !id.is_empty())
             .collect();
-        let pathway_ids: HashSet<&str> = records.pathways.iter()
-            .map(|p| p.pathway_id.as_str()).filter(|id| !id.is_empty()).collect();
-        let level_ids: HashSet<&str> = records.levels.iter()
-            .map(|l| l.level_id.as_str()).filter(|id| !id.is_empty()).collect();
-        for translation in records.translations.iter().filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt")) {
+        let pathway_ids: HashSet<&str> = records
+            .pathways
+            .iter()
+            .map(|p| p.pathway_id.as_str())
+            .filter(|id| !id.is_empty())
+            .collect();
+        let level_ids: HashSet<&str> = records
+            .levels
+            .iter()
+            .map(|l| l.level_id.as_str())
+            .filter(|id| !id.is_empty())
+            .collect();
+        for translation in records
+            .translations
+            .iter()
+            .filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"))
+        {
             // TRN_001/TRN_002 bilinmeyen table_name/field_name kök bulgularını
             // üretir. JPN_019 yalnız bilinen tabloların GTFS-JP referansını
             // denetler; aksi hâlde aynı satırda türev bulgu çığı oluşur.
-            let table_known = crate::k2::translations::is_known_translation_table(&translation.table_name);
+            let table_known =
+                crate::k2::translations::is_known_translation_table(&translation.table_name);
             if !table_known {
                 continue;
             }
-            let valid_field = crate::k2::translations::valid_fields_for_table(&translation.table_name)
-                .contains(&translation.field_name.as_str());
-            let valid_record = match (translation.table_name.as_str(), translation.record_id.as_deref()) {
+            let valid_field =
+                crate::k2::translations::valid_fields_for_table(&translation.table_name)
+                    .contains(&translation.field_name.as_str());
+            let valid_record = match (
+                translation.table_name.as_str(),
+                translation.record_id.as_deref(),
+            ) {
                 (_, None) => true,
                 ("agency", Some(id)) => agency_ids.contains(id),
                 ("stops", Some(id)) => stop_ids.contains(id),
@@ -3840,15 +4430,24 @@ fn check_gtfs_jp(
                 _ => true,
             };
             let valid_sub_id = if translation.table_name == "stop_times" {
-                match (translation.record_id.as_deref(), translation.record_sub_id.as_deref()) {
+                match (
+                    translation.record_id.as_deref(),
+                    translation.record_sub_id.as_deref(),
+                ) {
                     // `record_sub_id` is the stop_sequence belonging to the trip in
                     // `record_id`; numeric formatting alone does not prove this link.
-                    (Some(trip_id), Some(sub)) => sub.parse::<u32>().ok()
+                    (Some(trip_id), Some(sub)) => sub
+                        .parse::<u32>()
+                        .ok()
                         .filter(|sequence| *sequence != u32::MAX)
                         .is_some_and(|sequence| {
-                            records.stop_times_index.sorted_stops(trip_id).is_some_and(|rows| {
-                                rows.binary_search_by_key(&sequence, |stop| stop.sequence).is_ok()
-                            })
+                            records
+                                .stop_times_index
+                                .sorted_stops(trip_id)
+                                .is_some_and(|rows| {
+                                    rows.binary_search_by_key(&sequence, |stop| stop.sequence)
+                                        .is_ok()
+                                })
                         }),
                     // TRN_017 owns the missing-sub-id case when record_id is present.
                     (Some(_), None) | (None, None) => true,
@@ -3874,9 +4473,10 @@ fn check_gtfs_jp(
                     (_, Some(_), Some(_)) => false,
                 }
             } else {
-                translation.record_sub_id.as_deref().is_none_or(|value| {
-                    crate::k2::translations::is_none_record_sub_id(value)
-                })
+                translation
+                    .record_sub_id
+                    .as_deref()
+                    .is_none_or(|value| crate::k2::translations::is_none_record_sub_id(value))
             };
             if !valid_field || !valid_record || !valid_sub_id {
                 notices.push(notice(
@@ -3893,64 +4493,119 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-    // ── JPN_020: office_url / office_phone kalite biçimi ─────────────────────
-    for office in &records.office_jp {
-        if let Some(url) = office.row.get("office_url").map(String::as_str).map(str::trim).filter(|v| !v.is_empty()) {
-            if !crate::k2::common::looks_like_url(url) {
-                notices.push(notice(
-                    ctr, "JPN_020", EntityType::Agency,
-                    Some(office.office_id.clone()), Some(office.office_id.clone()),
-                    "office_jp.txt", Some(office.line), Some("office_url"),
-                    Some(url.to_string()), Some("http:// veya https:// URL".to_string()),
-                    format!("office_url '{}' geçerli bir http/https URL'si gibi görünmüyor.", url),
-                    "office_url için geçerli bir http/https URL'si kullanın.",
-                ));
+        // ── JPN_020: office_url / office_phone kalite biçimi ─────────────────────
+        for office in &records.office_jp {
+            if let Some(url) = office
+                .row
+                .get("office_url")
+                .map(String::as_str)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+            {
+                if !crate::k2::common::looks_like_url(url) {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_020",
+                        EntityType::Agency,
+                        Some(office.office_id.clone()),
+                        Some(office.office_id.clone()),
+                        "office_jp.txt",
+                        Some(office.line),
+                        Some("office_url"),
+                        Some(url.to_string()),
+                        Some("http:// veya https:// URL".to_string()),
+                        format!(
+                            "office_url '{}' geçerli bir http/https URL'si gibi görünmüyor.",
+                            url
+                        ),
+                        "office_url için geçerli bir http/https URL'si kullanın.",
+                    ));
+                }
+            }
+            if let Some(phone) = office
+                .row
+                .get("office_phone")
+                .map(String::as_str)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+            {
+                let digits = phone.chars().filter(|c| c.is_ascii_digit()).count();
+                let allowed = phone
+                    .chars()
+                    .all(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '(' | ')' | ' '));
+                if digits < 3 || !allowed {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_020",
+                        EntityType::Agency,
+                        Some(office.office_id.clone()),
+                        Some(office.office_id.clone()),
+                        "office_jp.txt",
+                        Some(office.line),
+                        Some("office_phone"),
+                        Some(phone.to_string()),
+                        Some("telefon numarası".to_string()),
+                        format!(
+                            "office_phone '{}' geçerli bir telefon numarası gibi görünmüyor.",
+                            phone
+                        ),
+                        "office_phone alanına aranabilir bir telefon numarası girin.",
+                    ));
+                }
             }
         }
-        if let Some(phone) = office.row.get("office_phone").map(String::as_str).map(str::trim).filter(|v| !v.is_empty()) {
-            let digits = phone.chars().filter(|c| c.is_ascii_digit()).count();
-            let allowed = phone.chars().all(|c| c.is_ascii_digit() || matches!(c, '+' | '-' | '(' | ')' | ' '));
-            if digits < 3 || !allowed {
-                notices.push(notice(
-                    ctr, "JPN_020", EntityType::Agency,
-                    Some(office.office_id.clone()), Some(office.office_id.clone()),
-                    "office_jp.txt", Some(office.line), Some("office_phone"),
-                    Some(phone.to_string()), Some("telefon numarası".to_string()),
-                    format!("office_phone '{}' geçerli bir telefon numarası gibi görünmüyor.", phone),
-                    "office_phone alanına aranabilir bir telefon numarası girin.",
-                ));
-            }
-        }
-    }
-
     }
 
     // ── JPN_021: kana satırı boş/çakışmalı/tutarsız ────────────────────────────
     {
         let mut seen: HashMap<String, (String, u64)> = HashMap::new();
-        for translation in records.translations.iter().filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt")) {
+        for translation in records
+            .translations
+            .iter()
+            .filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"))
+        {
             if translation.translation.trim().is_empty() {
                 notices.push(notice(
-                    ctr, "JPN_021", EntityType::Translation,
-                    translation.record_id.clone(), translation.record_id.clone(),
-                    "translations.txt", Some(translation.line), Some("translation"),
-                    Some(translation.translation.clone()), Some("dolu Japonca kana".to_string()),
+                    ctr,
+                    "JPN_021",
+                    EntityType::Translation,
+                    translation.record_id.clone(),
+                    translation.record_id.clone(),
+                    "translations.txt",
+                    Some(translation.line),
+                    Some("translation"),
+                    Some(translation.translation.clone()),
+                    Some("dolu Japonca kana".to_string()),
                     "GTFS-JP ja-Hrkt çevirisi boş.".to_string(),
                     "ja-Hrkt translation alanını Japonca kana/kanji okumasıyla doldurun.",
                 ));
                 continue;
             }
-            let key = format!("{}|{}|{}|{}|{}", translation.table_name, translation.field_name,
-                translation.record_id.as_deref().unwrap_or(""), translation.record_sub_id.as_deref().unwrap_or(""),
-                translation.field_value.as_deref().unwrap_or(""));
+            let key = format!(
+                "{}|{}|{}|{}|{}",
+                translation.table_name,
+                translation.field_name,
+                translation.record_id.as_deref().unwrap_or(""),
+                translation.record_sub_id.as_deref().unwrap_or(""),
+                translation.field_value.as_deref().unwrap_or("")
+            );
             if let Some((previous, first_line)) = seen.get(&key) {
                 if *previous != translation.translation {
                     notices.push(notice(
-                        ctr, "JPN_021", EntityType::Translation,
-                        translation.record_id.clone(), translation.record_id.clone(),
-                        "translations.txt", Some(translation.line), Some("translation"),
-                        Some(translation.translation.clone()), Some(previous.clone()),
-                        format!("Aynı ja-Hrkt çeviri hedefi ilk satır {} ile çelişiyor.", first_line),
+                        ctr,
+                        "JPN_021",
+                        EntityType::Translation,
+                        translation.record_id.clone(),
+                        translation.record_id.clone(),
+                        "translations.txt",
+                        Some(translation.line),
+                        Some("translation"),
+                        Some(translation.translation.clone()),
+                        Some(previous.clone()),
+                        format!(
+                            "Aynı ja-Hrkt çeviri hedefi ilk satır {} ile çelişiyor.",
+                            first_line
+                        ),
                         "Aynı çeviri hedefi için tek ve tutarlı bir kana değeri bırakın.",
                     ));
                 }
@@ -3959,10 +4614,16 @@ fn check_gtfs_jp(
             }
             if !has_japanese(&translation.translation) {
                 notices.push(notice(
-                    ctr, "JPN_021", EntityType::Translation,
-                    translation.record_id.clone(), translation.record_id.clone(),
-                    "translations.txt", Some(translation.line), Some("translation"),
-                    Some(translation.translation.clone()), Some("Japonca kana/kanji".to_string()),
+                    ctr,
+                    "JPN_021",
+                    EntityType::Translation,
+                    translation.record_id.clone(),
+                    translation.record_id.clone(),
+                    "translations.txt",
+                    Some(translation.line),
+                    Some("translation"),
+                    Some(translation.translation.clone()),
+                    Some("Japonca kana/kanji".to_string()),
                     "ja-Hrkt çevirisi Japonca kana veya kanji içermiyor.".to_string(),
                     "ja-Hrkt translation alanına Japonca okunuşu yazın.",
                 ));
@@ -3986,27 +4647,43 @@ fn check_fare_leg_join_rules(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    if records.fare_leg_join_rules.is_empty() { return; }
+    if records.fare_leg_join_rules.is_empty() {
+        return;
+    }
 
     for rec in &records.fare_leg_join_rules {
         // ── Ağ alanları: koşulsuz Required + FK ──────────────────────────────
         for (value, field, rule) in [
             (&rec.from_network_id, "from_network_id", "FLJ_001"),
-            (&rec.to_network_id,   "to_network_id",   "FLJ_002"),
+            (&rec.to_network_id, "to_network_id", "FLJ_002"),
         ] {
             if value.is_empty() {
                 notices.push(notice(
-                    ctr, rule, EntityType::Row, None, None,
-                    "fare_leg_join_rules.txt", Some(rec.line), Some(field),
-                    Some(String::new()), None,
+                    ctr,
+                    rule,
+                    EntityType::Row,
+                    None,
+                    None,
+                    "fare_leg_join_rules.txt",
+                    Some(rec.line),
+                    Some(field),
+                    Some(String::new()),
+                    None,
                     format!("fare_leg_join_rules.txt satırında {field} zorunludur."),
                     "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu girin.",
                 ));
             } else if !map.network_ids.contains(value.as_str()) {
                 notices.push(notice(
-                    ctr, rule, EntityType::Row, None, None,
-                    "fare_leg_join_rules.txt", Some(rec.line), Some(field),
-                    Some(value.clone()), None,
+                    ctr,
+                    rule,
+                    EntityType::Row,
+                    None,
+                    None,
+                    "fare_leg_join_rules.txt",
+                    Some(rec.line),
+                    Some(field),
+                    Some(value.clone()),
+                    None,
                     format!("'{value}' ağ kodu networks.txt/routes.txt içinde tanımlı değil."),
                     "networks.txt veya routes.network_id içinde tanımlı bir ağ kodu kullanın.",
                 ));
@@ -4015,37 +4692,76 @@ fn check_fare_leg_join_rules(
 
         // ── Durak alanları: KARŞILIKLI koşullu + FK + location_type kısıtı ───
         let pairs = [
-            (&rec.from_stop_id, &rec.to_stop_id, "from_stop_id", "to_stop_id", "FLJ_003"),
-            (&rec.to_stop_id, &rec.from_stop_id, "to_stop_id", "from_stop_id", "FLJ_004"),
+            (
+                &rec.from_stop_id,
+                &rec.to_stop_id,
+                "from_stop_id",
+                "to_stop_id",
+                "FLJ_003",
+            ),
+            (
+                &rec.to_stop_id,
+                &rec.from_stop_id,
+                "to_stop_id",
+                "from_stop_id",
+                "FLJ_004",
+            ),
         ];
         for (value, other, field, other_field, rule) in pairs {
             if value.is_empty() {
                 if !other.is_empty() {
                     notices.push(notice(
-                        ctr, rule, EntityType::Row, None, None,
-                        "fare_leg_join_rules.txt", Some(rec.line), Some(field),
-                        Some(String::new()), None,
+                        ctr,
+                        rule,
+                        EntityType::Row,
+                        None,
+                        None,
+                        "fare_leg_join_rules.txt",
+                        Some(rec.line),
+                        Some(field),
+                        Some(String::new()),
+                        None,
                         format!("{other_field} tanımlıyken {field} da zorunludur."),
                         "İki durak alanını birlikte doldurun ya da ikisini de boş bırakın.",
                     ));
                 }
                 continue;
             }
-            match map.stops.get(value.as_str()).and_then(|&i| records.stops.get(i)) {
+            match map
+                .stops
+                .get(value.as_str())
+                .and_then(|&i| records.stops.get(i))
+            {
                 None => notices.push(notice(
-                    ctr, rule, EntityType::Row, None, None,
-                    "fare_leg_join_rules.txt", Some(rec.line), Some(field),
-                    Some(value.clone()), None,
+                    ctr,
+                    rule,
+                    EntityType::Row,
+                    None,
+                    None,
+                    "fare_leg_join_rules.txt",
+                    Some(rec.line),
+                    Some(field),
+                    Some(value.clone()),
+                    None,
                     format!("'{value}' durağı stops.txt'te tanımlı değil."),
                     "stops.txt'te tanımlı bir stop_id kullanın.",
                 )),
                 Some(stop) if !matches!(stop.location_type.unwrap_or(0), 0 | 1) => {
                     notices.push(notice(
-                        ctr, rule, EntityType::Row, None, None,
-                        "fare_leg_join_rules.txt", Some(rec.line), Some(field),
-                        Some(value.clone()), Some("location_type 0 or 1".to_string()),
-                        format!("'{value}' bir durak veya istasyon değil (location_type={}).",
-                                stop.location_type.unwrap_or(0)),
+                        ctr,
+                        rule,
+                        EntityType::Row,
+                        None,
+                        None,
+                        "fare_leg_join_rules.txt",
+                        Some(rec.line),
+                        Some(field),
+                        Some(value.clone()),
+                        Some("location_type 0 or 1".to_string()),
+                        format!(
+                            "'{value}' bir durak veya istasyon değil (location_type={}).",
+                            stop.location_type.unwrap_or(0)
+                        ),
                         "Durak (location_type 0/boş) veya istasyon (location_type=1) gösterin.",
                     ));
                 }
@@ -4067,9 +4783,15 @@ fn check_route_networks(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    if records.route_networks.is_empty() { return; }
-    let declared: std::collections::HashSet<&str> = records.networks.iter()
-        .map(|n| n.network_id.as_str()).filter(|s| !s.is_empty()).collect();
+    if records.route_networks.is_empty() {
+        return;
+    }
+    let declared: std::collections::HashSet<&str> = records
+        .networks
+        .iter()
+        .map(|n| n.network_id.as_str())
+        .filter(|s| !s.is_empty())
+        .collect();
 
     for rec in &records.route_networks {
         let eid = Some(rec.route_id.clone()).filter(|s| !s.is_empty());
@@ -4077,18 +4799,35 @@ fn check_route_networks(
         // NET_002: network_id — Required + networks.txt'te tanımlı olmalı.
         if rec.network_id.is_empty() {
             notices.push(notice(
-                ctr, "NET_002", EntityType::Row, eid.clone(), eid.clone(),
-                "route_networks.txt", Some(rec.line), Some("network_id"),
-                Some(String::new()), None,
+                ctr,
+                "NET_002",
+                EntityType::Row,
+                eid.clone(),
+                eid.clone(),
+                "route_networks.txt",
+                Some(rec.line),
+                Some("network_id"),
+                Some(String::new()),
+                None,
                 "route_networks.txt satırında network_id zorunludur.".to_string(),
                 "networks.txt'te tanımlı bir network_id girin.",
             ));
         } else if !declared.contains(rec.network_id.as_str()) {
             notices.push(notice(
-                ctr, "NET_002", EntityType::Row, eid.clone(), eid.clone(),
-                "route_networks.txt", Some(rec.line), Some("network_id"),
-                Some(rec.network_id.clone()), None,
-                format!("'{}' ağ kodu networks.txt'te tanımlı değil.", rec.network_id),
+                ctr,
+                "NET_002",
+                EntityType::Row,
+                eid.clone(),
+                eid.clone(),
+                "route_networks.txt",
+                Some(rec.line),
+                Some("network_id"),
+                Some(rec.network_id.clone()),
+                None,
+                format!(
+                    "'{}' ağ kodu networks.txt'te tanımlı değil.",
+                    rec.network_id
+                ),
                 "networks.txt'te tanımlı bir network_id kullanın.",
             ));
         }
@@ -4096,17 +4835,31 @@ fn check_route_networks(
         // NET_003: route_id — Required + routes.txt'te tanımlı olmalı.
         if rec.route_id.is_empty() {
             notices.push(notice(
-                ctr, "NET_003", EntityType::Row, None, None,
-                "route_networks.txt", Some(rec.line), Some("route_id"),
-                Some(String::new()), None,
+                ctr,
+                "NET_003",
+                EntityType::Row,
+                None,
+                None,
+                "route_networks.txt",
+                Some(rec.line),
+                Some("route_id"),
+                Some(String::new()),
+                None,
                 "route_networks.txt satırında route_id zorunludur.".to_string(),
                 "routes.txt'te tanımlı bir route_id girin.",
             ));
         } else if !map.routes.contains_key(rec.route_id.as_str()) {
             notices.push(notice(
-                ctr, "NET_003", EntityType::Row, eid.clone(), eid.clone(),
-                "route_networks.txt", Some(rec.line), Some("route_id"),
-                Some(rec.route_id.clone()), None,
+                ctr,
+                "NET_003",
+                EntityType::Row,
+                eid.clone(),
+                eid.clone(),
+                "route_networks.txt",
+                Some(rec.line),
+                Some("route_id"),
+                Some(rec.route_id.clone()),
+                None,
                 format!("'{}' hattı routes.txt'te tanımlı değil.", rec.route_id),
                 "routes.txt'te tanımlı bir route_id kullanın.",
             ));
@@ -4255,8 +5008,15 @@ fn check_xfl(
     // (sefer hiçbir yere gidemez → "unusable trip")
     {
         for rec in &records.trips {
-            if rec.trip_id.is_empty() { continue; }
-            if trip_stm_count.get(rec.trip_id.as_str()).copied().unwrap_or(0) == 1 {
+            if rec.trip_id.is_empty() {
+                continue;
+            }
+            if trip_stm_count
+                .get(rec.trip_id.as_str())
+                .copied()
+                .unwrap_or(0)
+                == 1
+            {
                 notices.push(notice(
                     ctr,
                     "STM_033",
@@ -4284,13 +5044,12 @@ fn check_xfl(
     // iş gibi görünüyordu. STM_002 satır numarası taşıdığı ve distinct stop_id başına
     // toplandığı için korunan taraf o oldu; XFL_005'in blocks'u STM_002'ye devredildi.
 
-
     // PTH_002 / PTH_003: pathway'deki from/to stop_id stops.txt'te mevcut
     {
         for rec in &records.pathways {
             for (rule_id, field, stop_id) in [
                 ("PTH_002", "from_stop_id", rec.from_stop_id.as_str()),
-                ("PTH_003", "to_stop_id",   rec.to_stop_id.as_str()),
+                ("PTH_003", "to_stop_id", rec.to_stop_id.as_str()),
             ] {
                 if !stop_id.is_empty() && !map.stops.contains_key(stop_id) {
                     notices.push(notice(
@@ -4329,13 +5088,30 @@ fn check_xfl(
     {
         use crate::k2::common::require_nonempty;
         for r in &records.areas {
-            require_nonempty(&r.row, "area_id", "ARS_002", EntityType::Row,
-                (!r.area_id.is_empty()).then(|| r.area_id.clone()), "areas.txt", r.line,
+            require_nonempty(
+                &r.row,
+                "area_id",
+                "ARS_002",
+                EntityType::Row,
+                (!r.area_id.is_empty()).then(|| r.area_id.clone()),
+                "areas.txt",
+                r.line,
                 "areas.txt'te area_id zorunludur.".to_string(),
-                "Her alana benzersiz bir area_id verin.", notices, ctr);
+                "Her alana benzersiz bir area_id verin.",
+                notices,
+                ctr,
+            );
         }
         for r in &records.calendars {
-            for day in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"] {
+            for day in [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ] {
                 require_nonempty(&r.row, day, "CAL_025", EntityType::Row,
                     (!r.service_id.is_empty()).then(|| r.service_id.clone()), "calendar.txt", r.line,
                     format!("service_id '{}' için '{day}' alanı boş; gün alanları zorunludur (0 veya 1).", r.service_id),
@@ -4343,69 +5119,160 @@ fn check_xfl(
             }
         }
         for r in &records.fare_media {
-            require_nonempty(&r.row, "fare_media_id", "FMD_004", EntityType::Row,
-                (!r.fare_media_id.is_empty()).then(|| r.fare_media_id.clone()), "fare_media.txt", r.line,
+            require_nonempty(
+                &r.row,
+                "fare_media_id",
+                "FMD_004",
+                EntityType::Row,
+                (!r.fare_media_id.is_empty()).then(|| r.fare_media_id.clone()),
+                "fare_media.txt",
+                r.line,
                 "fare_media_id zorunludur.".to_string(),
-                "Her ücret aracına benzersiz bir fare_media_id verin.", notices, ctr);
+                "Her ücret aracına benzersiz bir fare_media_id verin.",
+                notices,
+                ctr,
+            );
         }
         for r in &records.networks {
-            require_nonempty(&r.row, "network_id", "NET_004", EntityType::Row,
-                (!r.network_id.is_empty()).then(|| r.network_id.clone()), "networks.txt", r.line,
+            require_nonempty(
+                &r.row,
+                "network_id",
+                "NET_004",
+                EntityType::Row,
+                (!r.network_id.is_empty()).then(|| r.network_id.clone()),
+                "networks.txt",
+                r.line,
                 "networks.txt'te network_id zorunludur.".to_string(),
-                "Her ağa benzersiz bir network_id verin.", notices, ctr);
+                "Her ağa benzersiz bir network_id verin.",
+                notices,
+                ctr,
+            );
         }
         for r in &records.rider_categories {
-            require_nonempty(&r.row, "rider_category_id", "RCT_008", EntityType::Row,
+            require_nonempty(
+                &r.row,
+                "rider_category_id",
+                "RCT_008",
+                EntityType::Row,
                 (!r.rider_category_id.is_empty()).then(|| r.rider_category_id.clone()),
-                "rider_categories.txt", r.line,
+                "rider_categories.txt",
+                r.line,
                 "rider_category_id zorunludur.".to_string(),
-                "Her yolcu kategorisine benzersiz bir rider_category_id verin.", notices, ctr);
+                "Her yolcu kategorisine benzersiz bir rider_category_id verin.",
+                notices,
+                ctr,
+            );
         }
         // ⚠️ Bu üç kayıt ham satırı (`row`) TUTMAZ, yalnız alanları taşır. Dolayısıyla
         // "sütun hiç yok" (→ARC_025) ile "sütun var, değer boş" (→bu kurallar) ayrımı
         // BURADA YAPILAMAZ: sütun yoksa alan da boş string olur ve iki notice birden çıkar.
         // Küçük bir gürültü; alternatifi bu kayıtlara RowMap eklemekti ve bu kurallar için
         // bellek maliyetine değmez.
-        let emit_empty = |cond: bool, rule: &'static str, file: &'static str,
-                              field: &'static str, line: u64, msg: String, fix: &'static str,
-                              notices: &mut Vec<gtfs_core::Notice>, ctr: &mut u32| {
+        let emit_empty = |cond: bool,
+                          rule: &'static str,
+                          file: &'static str,
+                          field: &'static str,
+                          line: u64,
+                          msg: String,
+                          fix: &'static str,
+                          notices: &mut Vec<gtfs_core::Notice>,
+                          ctr: &mut u32| {
             if cond {
-                notices.push(notice(ctr, rule, EntityType::Row, None, None, file, Some(line),
-                    Some(field), Some(String::new()), Some("(dolu)".to_string()), msg, fix));
+                notices.push(notice(
+                    ctr,
+                    rule,
+                    EntityType::Row,
+                    None,
+                    None,
+                    file,
+                    Some(line),
+                    Some(field),
+                    Some(String::new()),
+                    Some("(dolu)".to_string()),
+                    msg,
+                    fix,
+                ));
             }
         };
         for r in &records.location_groups {
-            emit_empty(r.location_group_id.trim().is_empty(), "XFL_032", "location_groups.txt",
-                "location_group_id", r.line,
+            emit_empty(
+                r.location_group_id.trim().is_empty(),
+                "XFL_032",
+                "location_groups.txt",
+                "location_group_id",
+                r.line,
                 "location_groups.txt'te location_group_id zorunludur.".to_string(),
-                "Her konum grubuna benzersiz bir location_group_id verin.", notices, ctr);
+                "Her konum grubuna benzersiz bir location_group_id verin.",
+                notices,
+                ctr,
+            );
         }
         for r in &records.location_group_stops {
-            emit_empty(r.location_group_id.trim().is_empty(), "XFL_033", "location_group_stops.txt",
-                "location_group_id", r.line,
+            emit_empty(
+                r.location_group_id.trim().is_empty(),
+                "XFL_033",
+                "location_group_stops.txt",
+                "location_group_id",
+                r.line,
                 "location_group_stops.txt'te location_group_id zorunludur.".to_string(),
-                "Satırı bir location_group_id'ye bağlayın.", notices, ctr);
-            emit_empty(r.stop_id.trim().is_empty(), "XFL_034", "location_group_stops.txt",
-                "stop_id", r.line,
+                "Satırı bir location_group_id'ye bağlayın.",
+                notices,
+                ctr,
+            );
+            emit_empty(
+                r.stop_id.trim().is_empty(),
+                "XFL_034",
+                "location_group_stops.txt",
+                "stop_id",
+                r.line,
                 "location_group_stops.txt'te stop_id zorunludur.".to_string(),
-                "Satırı bir stop_id'ye bağlayın.", notices, ctr);
+                "Satırı bir stop_id'ye bağlayın.",
+                notices,
+                ctr,
+            );
         }
         for r in &records.stop_areas {
-            require_nonempty(&r.row, "area_id", "SAR_003", EntityType::Row,
-                None, "stop_areas.txt", r.line,
+            require_nonempty(
+                &r.row,
+                "area_id",
+                "SAR_003",
+                EntityType::Row,
+                None,
+                "stop_areas.txt",
+                r.line,
                 "stop_areas.txt'te area_id zorunludur.".to_string(),
-                "Satırı bir area_id'ye bağlayın.", notices, ctr);
-            require_nonempty(&r.row, "stop_id", "SAR_004", EntityType::Row,
-                None, "stop_areas.txt", r.line,
+                "Satırı bir area_id'ye bağlayın.",
+                notices,
+                ctr,
+            );
+            require_nonempty(
+                &r.row,
+                "stop_id",
+                "SAR_004",
+                EntityType::Row,
+                None,
+                "stop_areas.txt",
+                r.line,
                 "stop_areas.txt'te stop_id zorunludur.".to_string(),
-                "Satırı bir stop_id'ye bağlayın.", notices, ctr);
+                "Satırı bir stop_id'ye bağlayın.",
+                notices,
+                ctr,
+            );
         }
         for r in &records.timeframes {
-            require_nonempty(&r.row, "service_id", "TFR_008", EntityType::Row,
+            require_nonempty(
+                &r.row,
+                "service_id",
+                "TFR_008",
+                EntityType::Row,
                 (!r.timeframe_group_id.is_empty()).then(|| r.timeframe_group_id.clone()),
-                "timeframes.txt", r.line,
+                "timeframes.txt",
+                r.line,
                 "timeframes.txt'te service_id zorunludur.".to_string(),
-                "Her zaman dilimini calendar'da tanımlı bir service_id'ye bağlayın.", notices, ctr);
+                "Her zaman dilimini calendar'da tanımlı bir service_id'ye bağlayın.",
+                notices,
+                ctr,
+            );
         }
     }
 
@@ -4464,7 +5331,9 @@ fn check_xfl(
                 ("from_stop_id", rec.from_stop_id.as_str()),
                 ("to_stop_id", rec.to_stop_id.as_str()),
             ] {
-                let Some(&sidx) = map.stops.get(stop_id) else { continue };
+                let Some(&sidx) = map.stops.get(stop_id) else {
+                    continue;
+                };
                 let stop = &records.stops[sidx];
                 // `stop_access` yalnız peron/durakta anlamlıdır (spec: istasyon, giriş,
                 // ara düğüm ve biniş alanında Conditionally Forbidden) → location_type
@@ -4509,9 +5378,6 @@ fn check_xfl(
         }
     }
 
-
-
-
     // SHP_019: shape trip(ler) tarafından referanslanmış ama o trip'lerin hiçbirinin stop_times'ı yok
     {
         // shape_id → referans eden trip_id listesi
@@ -4519,14 +5385,19 @@ fn check_xfl(
         for trip in &records.trips {
             if let Some(sid) = ti_xfl.shape_id(trip) {
                 if !sid.is_empty() {
-                    shape_to_trips.entry(sid).or_default().push(trip.trip_id.as_str());
+                    shape_to_trips
+                        .entry(sid)
+                        .or_default()
+                        .push(trip.trip_id.as_str());
                 }
             }
         }
 
         for (shape_id, trip_ids) in &shape_to_trips {
             if trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)) {
-                let line = records.shapes.iter()
+                let line = records
+                    .shapes
+                    .iter()
                     .find(|sp| records.shape_interns.id(sp) == *shape_id)
                     .map(|sp| sp.line_u64());
                 let trip_count = trip_ids.len();
@@ -4551,7 +5422,6 @@ fn check_xfl(
         }
     }
 
-
     // XFL_006: calendar_dates'te yalnızca exception_type=2 olan ve calendar.txt'te de bulunmayan service_id'ler
     {
         let cal_services: HashSet<&str> = records
@@ -4559,10 +5429,17 @@ fn check_xfl(
             .iter()
             .map(|c| c.service_id.as_str())
             .collect();
-        let added_services: HashSet<&str> = records.calendar_dates.added.keys()
-            .map(|s| s.as_str()).collect();
+        let added_services: HashSet<&str> = records
+            .calendar_dates
+            .added
+            .keys()
+            .map(|s| s.as_str())
+            .collect();
         // removed.keys() = services with at least one type=2 record (valid date or not)
-        let bad: HashSet<&str> = records.calendar_dates.removed.keys()
+        let bad: HashSet<&str> = records
+            .calendar_dates
+            .removed
+            .keys()
             .map(|s| s.as_str())
             .filter(|sid| !cal_services.contains(*sid) && !added_services.contains(*sid))
             .collect();
@@ -4614,7 +5491,8 @@ fn check_xfl(
                             if observed.is_empty() {
                                 observed = format!("cal_end={ce} > feed_end={fi_end_u32}");
                             } else {
-                                observed = format!("{observed}, cal_end={ce} > feed_end={fi_end_u32}");
+                                observed =
+                                    format!("{observed}, cal_end={ce} > feed_end={fi_end_u32}");
                             }
                         }
                     }
@@ -4646,10 +5524,12 @@ fn check_xfl(
     {
         if let Some(fi) = records.feed_info.first() {
             let fi_start_opt = fi.feed_start_date.map(date_to_u32);
-            let fi_end_opt   = fi.feed_end_date.map(date_to_u32);
+            let fi_end_opt = fi.feed_end_date.map(date_to_u32);
             if fi_start_opt.is_some() || fi_end_opt.is_some() {
                 for rec in &records.calendars {
-                    if rec.service_id.is_empty() { continue; }
+                    if rec.service_id.is_empty() {
+                        continue;
+                    }
                     let mut outside = false;
                     let mut observed = String::new();
                     if let (Some(fi_s), Some(cal_start)) = (fi_start_opt, rec.start_date) {
@@ -4666,7 +5546,8 @@ fn check_xfl(
                             if observed.is_empty() {
                                 observed = format!("end_date={ce} > feed_end_date={fi_e}");
                             } else {
-                                observed = format!("{observed}, end_date={ce} > feed_end_date={fi_e}");
+                                observed =
+                                    format!("{observed}, end_date={ce} > feed_end_date={fi_e}");
                             }
                         }
                     }
@@ -4707,9 +5588,7 @@ fn check_xfl(
                 continue;
             }
             if let Some(trip_ids) = route_trip_ids.get(rec.route_id.as_str()) {
-                if !trip_ids.is_empty()
-                    && trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid))
-                {
+                if !trip_ids.is_empty() && trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)) {
                     notices.push(notice(
                         ctr,
                         "XFL_012",
@@ -4749,7 +5628,11 @@ fn check_xfl(
             }
             let n = set.len();
             let shown = set.iter().take(cap).cloned().collect::<Vec<_>>().join(", ");
-            if n > cap { format!("{shown} (+{})", n - cap) } else { shown }
+            if n > cap {
+                format!("{shown} (+{})", n - cap)
+            } else {
+                shown
+            }
         }
 
         // shape_id → (gidiş, dönüş) detayları
@@ -4800,7 +5683,8 @@ fn check_xfl(
             let bwd_services = join_capped(&d1.services, 5);
             let bwd_deps = join_capped(&d1.deps, 6);
 
-            let mut details: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+            let mut details: std::collections::BTreeMap<String, String> =
+                std::collections::BTreeMap::new();
             details.insert("fwd_routes".into(), fwd_routes.clone());
             details.insert("fwd_services".into(), fwd_services.clone());
             details.insert("fwd_deps".into(), fwd_deps.clone());
@@ -4847,9 +5731,11 @@ fn check_xfl(
     {
         let mut unmatched: Vec<String> = Vec::new();
         for rec in &records.translations {
-            let Some(want) = rec.field_value.as_deref().filter(|v| !v.is_empty()) else { continue };
+            let Some(want) = rec.field_value.as_deref().filter(|v| !v.is_empty()) else {
+                continue;
+            };
             if rec.record_id.as_deref().is_some_and(|r| !r.is_empty()) {
-                continue;                       // `record_id` biçimi → XFL_014'ün alanı
+                continue; // `record_id` biçimi → XFL_014'ün alanı
             }
             let field = rec.field_name.as_str();
             if field.is_empty() {
@@ -4864,12 +5750,15 @@ fn check_xfl(
                 "calendar" => records.calendars.iter().map(|r| &r.row).collect(),
                 "fare_attributes" => records.fare_attributes.iter().map(|r| &r.row).collect(),
                 "feed_info" => records.feed_info.iter().map(|r| &r.row).collect(),
-                _ => continue,                  // desteklenmeyen tablo → sessiz
+                _ => continue, // desteklenmeyen tablo → sessiz
             };
             if rows.is_empty() || !rows[0].contains_key(field) {
-                continue;                       // dosya yok ya da sütun yok (TRN_002)
+                continue; // dosya yok ya da sütun yok (TRN_002)
             }
-            if !rows.iter().any(|r| r.get(field).map(String::as_str) == Some(want)) {
+            if !rows
+                .iter()
+                .any(|r| r.get(field).map(String::as_str) == Some(want))
+            {
                 unmatched.push(format!("{}.{field}={want}", rec.table_name));
             }
         }
@@ -4879,9 +5768,16 @@ fn check_xfl(
             let total = unmatched.len();
             let sample: Vec<&str> = unmatched.iter().take(5).map(String::as_str).collect();
             notices.push(notice(
-                ctr, "TRN_016", EntityType::Feed, None, None,
-                "translations.txt", None, Some("field_value"),
-                Some(total.to_string()), None,
+                ctr,
+                "TRN_016",
+                EntityType::Feed,
+                None,
+                None,
+                "translations.txt",
+                None,
+                Some("field_value"),
+                Some(total.to_string()),
+                None,
                 format!(
                     "{total} çeviri kaydının 'field_value' değeri hedef dosyada hiçbir satırla \
                      eşleşmiyor — bu çeviriler uygulanmaz. Örnek: {}.",
@@ -4902,9 +5798,9 @@ fn check_xfl(
                 if rid.is_empty() {
                     continue;
                 }
-                let exists = translation_record_exists(
-                    map, &attribution_ids, &rec.table_name, rid.as_str(),
-                ).unwrap_or(true);
+                let exists =
+                    translation_record_exists(map, &attribution_ids, &rec.table_name, rid.as_str())
+                        .unwrap_or(true);
                 if !exists {
                     bad_keys.insert(format!("{}:{}", rec.table_name, rid));
                 }
@@ -5007,7 +5903,9 @@ fn check_xfl(
     // `stop_times.location_group_id` referansını belirsiz bırakır: tüketici hangi varlığa
     // bakacağını bilemez. Her çakışan kimlik için TEK notice (kaynak çiftleri mesajda).
     {
-        let stop_ids: std::collections::HashSet<&str> = records.stops.iter()
+        let stop_ids: std::collections::HashSet<&str> = records
+            .stops
+            .iter()
             .map(|s| s.stop_id.as_str())
             .filter(|s| !s.is_empty())
             .collect();
@@ -5015,7 +5913,9 @@ fn check_xfl(
         let mut clashes: Vec<(String, &'static str)> = Vec::new();
         for lg in &records.location_groups {
             let id = lg.location_group_id.as_str();
-            if id.is_empty() { continue; }
+            if id.is_empty() {
+                continue;
+            }
             if stop_ids.contains(id) {
                 clashes.push((id.to_string(), "stops.stop_id"));
             } else if map.geojson_location_ids.contains(id) {
@@ -5046,7 +5946,9 @@ fn check_xfl(
     // OR networks.txt file exists." Eskiden yalnız route_networks.txt kolu denetleniyordu;
     // networks.txt ile birlikte kullanım aynı derecede yasak olduğu hâlde kaçıyordu.
     if records.has_route_networks_file || records.has_networks_file {
-        let has_route_network_id = records.routes.iter()
+        let has_route_network_id = records
+            .routes
+            .iter()
             .any(|r| r.network_id.as_deref().is_some_and(|n| !n.is_empty()));
         if has_route_network_id {
             let other = if records.has_route_networks_file {
@@ -5113,17 +6015,15 @@ fn check_xfl(
 
 // ── STM_024: shape_dist_traveled birim tutarsızlığı ─────────────────────────
 
-fn check_stm_shape_dist(
-    records: &EntityRecords,
-    notices: &mut Vec<Notice>,
-    ctr: &mut u32,
-) {
+fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
     let ti_stm = &records.trip_interns;
     // shape_id → o shape'teki max shape_dist_traveled
     let mut shape_max_dist: HashMap<&str, f64> = HashMap::new();
     for sp in &records.shapes {
         if let Some(d) = sp.shape_dist_traveled() {
-            let e = shape_max_dist.entry(records.shape_interns.id(sp)).or_insert(0.0_f64);
+            let e = shape_max_dist
+                .entry(records.shape_interns.id(sp))
+                .or_insert(0.0_f64);
             if d > *e {
                 *e = d;
             }
@@ -5388,16 +6288,16 @@ mod tests {
     use crate::k2::frequencies::FrequencyRecord;
     use crate::k2::levels::LevelRecord;
     use crate::k2::office_jp::OfficeJpRecord;
-    use crate::k2::pattern_jp::PatternJpRecord;
     use crate::k2::pathways::PathwayRecord;
+    use crate::k2::pattern_jp::PatternJpRecord;
     use crate::k2::routes::RouteRecord;
     use crate::k2::routes_jp::RoutesJpRecord;
-    use crate::k2::stops::StopRecord;
-    use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
-    use crate::k2::transfers::TransferRecord;
-    use crate::k2::trips::{TripRecord, TripInternTable};
-    use crate::k2::translations::TranslationRecord;
     use crate::k2::shapes::ShapeInternTable;
+    use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
+    use crate::k2::stops::StopRecord;
+    use crate::k2::transfers::TransferRecord;
+    use crate::k2::translations::TranslationRecord;
+    use crate::k2::trips::{TripInternTable, TripRecord};
 
     fn empty() -> (EntityRecords, EntityMap) {
         // Bu yardımcı, aşağıdaki eski JPN_* fixture'larının V3 uzantı kurallarını
@@ -5415,13 +6315,21 @@ mod tests {
         RouteRecord {
             route_id: id.into(),
             agency_id: None,
-            route_short_name: None, route_long_name: None,
-            route_desc: None, route_type: Some(3),
-            route_url: None, route_color: None,
-            route_text_color: None, route_sort_order: None,
-            continuous_pickup: None, continuous_drop_off: None,
-            network_id: None, route_cemv_support: None, jp_office_id: None,
-            row: Default::default(), line: 2,
+            route_short_name: None,
+            route_long_name: None,
+            route_desc: None,
+            route_type: Some(3),
+            route_url: None,
+            route_color: None,
+            route_text_color: None,
+            route_sort_order: None,
+            continuous_pickup: None,
+            continuous_drop_off: None,
+            network_id: None,
+            route_cemv_support: None,
+            jp_office_id: None,
+            row: Default::default(),
+            line: 2,
         }
     }
 
@@ -5433,17 +6341,33 @@ mod tests {
         ti.service_ids.push(SmolStr::new(sid));
         TripRecord {
             trip_id: id.into(),
-            route_idx: ri, service_idx: si, shape_idx: 0,
-            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
-            direction_id: None, wheelchair_accessible: None,
-            bikes_allowed: None, cars_allowed: None,
-            safe_duration_factor: None, safe_duration_offset: None,
+            route_idx: ri,
+            service_idx: si,
+            shape_idx: 0,
+            headsign_idx: 0,
+            short_name_idx: 0,
+            block_idx: 0,
+            jp_office_idx: 0,
+            jp_pattern_idx: 0,
+            direction_id: None,
+            wheelchair_accessible: None,
+            bikes_allowed: None,
+            cars_allowed: None,
+            safe_duration_factor: None,
+            safe_duration_offset: None,
             line: 2,
         }
     }
 
     /// Shape ve yön içeren sefer kaydı oluşturur; intern tablosuna eklenir.
-    fn trip_s(ti: &mut TripInternTable, id: &str, rid: &str, sid: &str, shape: &str, dir: Option<u32>) -> TripRecord {
+    fn trip_s(
+        ti: &mut TripInternTable,
+        id: &str,
+        rid: &str,
+        sid: &str,
+        shape: &str,
+        dir: Option<u32>,
+    ) -> TripRecord {
         let mut t = trip(ti, id, rid, sid);
         t.direction_id = dir;
         if !shape.is_empty() {
@@ -5457,12 +6381,18 @@ mod tests {
     fn stop(id: &str) -> StopRecord {
         StopRecord {
             stop_id: id.into(),
-            stop_code: None, stop_name: None,
-            stop_lat: None, stop_lon: None,
-            location_type: None, stop_timezone: None,
-            wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None,
-            row: Default::default(), line: 2,
+            stop_code: None,
+            stop_name: None,
+            stop_lat: None,
+            stop_lon: None,
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
+            row: Default::default(),
+            line: 2,
             ..Default::default()
         }
     }
@@ -5483,14 +6413,24 @@ mod tests {
         map.stops.insert("STATION".into(), 0);
         let mut station = stop("STATION");
         station.location_type = Some(1);
-        station.row.insert("parent_station".to_string(), " ".to_string());
+        station
+            .row
+            .insert("parent_station".to_string(), " ".to_string());
         recs.stops = vec![station];
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_036"),
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STP_036"),
             "yalnız boşluk taşıyan parent_station DOLU sayılmamalı: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
-        assert!(!result.notices.iter().any(|n| n.rule_id == "STP_009"),
-            "boş parent için FK ihlali de üretilmemeli");
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STP_009"),
+            "boş parent için FK ihlali de üretilmemeli"
+        );
     }
 
     /// Gerçekten dolu bir parent_station'da STP_036 hâlâ ateşlemeli — kapı fazla geniş olmasın.
@@ -5501,15 +6441,23 @@ mod tests {
         map.stops.insert("PARENT".into(), 1);
         let mut station = stop("STATION");
         station.location_type = Some(1);
-        station.row.insert("parent_station".to_string(), "PARENT".to_string());
+        station
+            .row
+            .insert("parent_station".to_string(), "PARENT".to_string());
         let mut parent = stop("PARENT");
         parent.location_type = Some(1);
         // İki kayıt da `recs.stops`'ta olmalı: `map.stops` indeksleri bu vektöre bakar.
         recs.stops = vec![station, parent];
         let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STP_036"),
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "STP_036"),
             "istasyonun GERÇEK parent'ı varsa STP_036 ateşlemeli: {:?}",
-            result.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>());
+            result
+                .notices
+                .iter()
+                .map(|n| &n.rule_id)
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -5529,19 +6477,36 @@ mod tests {
         let (mut recs, map) = empty();
         let mut ti = TripInternTable::new();
         recs.trips = vec![
-            trip_s(&mut ti, "T1", "R1", "WD",  "S1", Some(0)),
-            trip_s(&mut ti, "T2", "R2", "WD",  "S1", Some(0)),
+            trip_s(&mut ti, "T1", "R1", "WD", "S1", Some(0)),
+            trip_s(&mut ti, "T2", "R2", "WD", "S1", Some(0)),
             trip_s(&mut ti, "T3", "R1", "SAT", "S1", Some(1)),
         ];
         recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
-        let xfl: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "XFL_013").collect();
-        assert_eq!(xfl.len(), 1, "tek XFL_013 bekleniyor: {:?}",
-            xfl.iter().map(|n| &n.message).collect::<Vec<_>>());
+        let xfl: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "XFL_013")
+            .collect();
+        assert_eq!(
+            xfl.len(),
+            1,
+            "tek XFL_013 bekleniyor: {:?}",
+            xfl.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
         let m = &xfl[0].message;
-        assert!(m.contains("R1") && m.contains("R2"), "gidiş iki hattı listelemeli: {m}");
-        assert!(m.contains("WD") && m.contains("SAT"), "takvimler listelenmeli: {m}");
-        assert!(m.contains("Gidiş") && m.contains("Dönüş"), "yön etiketleri olmalı: {m}");
+        assert!(
+            m.contains("R1") && m.contains("R2"),
+            "gidiş iki hattı listelemeli: {m}"
+        );
+        assert!(
+            m.contains("WD") && m.contains("SAT"),
+            "takvimler listelenmeli: {m}"
+        );
+        assert!(
+            m.contains("Gidiş") && m.contains("Dönüş"),
+            "yön etiketleri olmalı: {m}"
+        );
         let d = xfl[0].details.as_ref().expect("details olmalı");
         assert_eq!(d.get("fwd_routes").map(String::as_str), Some("R1, R2"));
         assert_eq!(d.get("bwd_routes").map(String::as_str), Some("R1"));
@@ -5550,7 +6515,11 @@ mod tests {
 
     // ── BKR_015: prior_notice_service_id → calendar/calendar_dates ──────────────
 
-    fn booking_rule(id: &str, btype: Option<u8>, svc: Option<&str>) -> crate::k2::booking_rules::BookingRuleRecord {
+    fn booking_rule(
+        id: &str,
+        btype: Option<u8>,
+        svc: Option<&str>,
+    ) -> crate::k2::booking_rules::BookingRuleRecord {
         crate::k2::booking_rules::BookingRuleRecord {
             booking_rule_id: id.into(),
             booking_type: btype,
@@ -5567,7 +6536,10 @@ mod tests {
     }
 
     /// stop_times index'i tek Flex satırdan kurar (pickup/drop_off booking_rule_id ile).
-    fn stm_index_with_booking_rules(pickup: Option<&str>, drop_off: Option<&str>) -> crate::k2::stop_times::StopTimesIndex {
+    fn stm_index_with_booking_rules(
+        pickup: Option<&str>,
+        drop_off: Option<&str>,
+    ) -> crate::k2::stop_times::StopTimesIndex {
         use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
         StopTimesIndex::from_records(&[StopTimeRecord {
             trip_id: "T1".into(),
@@ -5588,7 +6560,11 @@ mod tests {
         recs.booking_rules = vec![booking_rule("BR1", Some(2), None)];
         recs.stop_times_index = stm_index_with_booking_rules(Some("MISSING_BR"), None);
         let result = check(&recs, &map, 20260515);
-        let n = result.notices.iter().find(|n| n.rule_id == "BKR_017").expect("BKR_017 bekleniyor");
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "BKR_017")
+            .expect("BKR_017 bekleniyor");
         assert_eq!(n.file.as_deref(), Some("stop_times.txt"));
         assert_eq!(n.field.as_deref(), Some("pickup_booking_rule_id"));
     }
@@ -5599,8 +6575,11 @@ mod tests {
         recs.booking_rules = vec![booking_rule("BR1", Some(2), None)];
         recs.stop_times_index = stm_index_with_booking_rules(None, Some("MISSING_BR"));
         let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "BKR_018"
-            && n.field.as_deref() == Some("drop_off_booking_rule_id")), "BKR_018 bekleniyor");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "BKR_018"
+                && n.field.as_deref() == Some("drop_off_booking_rule_id")),
+            "BKR_018 bekleniyor"
+        );
     }
 
     #[test]
@@ -5609,8 +6588,13 @@ mod tests {
         recs.booking_rules = vec![booking_rule("BR1", Some(2), None)];
         recs.stop_times_index = stm_index_with_booking_rules(Some("BR1"), Some("BR1"));
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "BKR_017" || n.rule_id == "BKR_018"),
-            "tanımlı booking_rule_id → notice yok");
+        assert!(
+            !result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "BKR_017" || n.rule_id == "BKR_018"),
+            "tanımlı booking_rule_id → notice yok"
+        );
     }
 
     #[test]
@@ -5618,7 +6602,10 @@ mod tests {
         let (mut recs, map) = empty();
         recs.booking_rules = vec![booking_rule("BR1", Some(2), Some("MISSING_SVC"))];
         let result = check(&recs, &map, 20260515);
-        let n = result.notices.iter().find(|n| n.rule_id == "BKR_015")
+        let n = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "BKR_015")
             .expect("BKR_015 bekleniyor");
         assert_eq!(n.file.as_deref(), Some("booking_rules.txt"));
         assert_eq!(n.field.as_deref(), Some("prior_notice_service_id"));
@@ -5630,8 +6617,10 @@ mod tests {
         map.services.insert("SVC1".to_string());
         recs.booking_rules = vec![booking_rule("BR1", Some(2), Some("SVC1"))];
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "BKR_015"),
-            "tanımlı service_id → BKR_015 üretilmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "BKR_015"),
+            "tanımlı service_id → BKR_015 üretilmemeli"
+        );
     }
 
     #[test]
@@ -5640,8 +6629,10 @@ mod tests {
         let (mut recs, map) = empty();
         recs.booking_rules = vec![booking_rule("BR1", Some(1), Some("MISSING_SVC"))];
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "BKR_015"),
-            "type=1'de BKR_015 susmalı (BKR_014 kapsıyor)");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "BKR_015"),
+            "type=1'de BKR_015 susmalı (BKR_014 kapsıyor)"
+        );
     }
 
     #[test]
@@ -5650,8 +6641,10 @@ mod tests {
         let (mut recs, map) = empty();
         recs.booking_rules = vec![booking_rule("BR1", None, Some("MISSING_SVC"))];
         let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "BKR_015"),
-            "booking_type okunamayan satırda BKR_015 çalışmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "BKR_015"),
+            "booking_type okunamayan satırda BKR_015 çalışmalı"
+        );
     }
 
     #[test]
@@ -5664,8 +6657,10 @@ mod tests {
         ];
         recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "XFL_013"),
-            "tek yön → XFL_013 üretilmemeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "XFL_013"),
+            "tek yön → XFL_013 üretilmemeli"
+        );
     }
 
     // �"?�"? TRP_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -5762,8 +6757,10 @@ mod tests {
         recs.calendars = vec![CalendarRecord {
             service_id: "UNUSED".into(),
             days: [Some(1); 7],
-            start_date: None, end_date: None,
-            row: Default::default(), line: 2,
+            start_date: None,
+            end_date: None,
+            row: Default::default(),
+            line: 2,
         }];
         // trips bo�Y �?' servis kullanılmıyor
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -5777,9 +6774,12 @@ mod tests {
         let (mut recs, map) = empty();
         recs.frequencies = vec![FrequencyRecord {
             trip_id: "MISSING".into(),
-            start_time: None, end_time: None,
-            headway_secs: Some(600), exact_times: None,
-            row: Default::default(), line: 2,
+            start_time: None,
+            end_time: None,
+            headway_secs: Some(600),
+            exact_times: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRQ_001"));
@@ -5791,12 +6791,16 @@ mod tests {
     fn invalid_from_trip_in_transfer_produces_trf_006() {
         let (mut recs, map) = empty();
         recs.transfers = vec![TransferRecord {
-            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
             transfer_type: Some(3),
             min_transfer_time: None,
             from_trip_id: Some("MISSING_TRIP".into()),
-            to_trip_id: None, from_route_id: None, to_route_id: None,
-            row: Default::default(), line: 2,
+            to_trip_id: None,
+            from_route_id: None,
+            to_route_id: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_006"));
@@ -5806,10 +6810,16 @@ mod tests {
     fn transfer_time_of_24_hours_produces_trf_010() {
         let (mut recs, map) = empty();
         recs.transfers = vec![TransferRecord {
-            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
-            transfer_type: Some(2), min_transfer_time: Some(86_400),
-            from_trip_id: None, to_trip_id: None, from_route_id: None, to_route_id: None,
-            row: Default::default(), line: 2,
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
+            transfer_type: Some(2),
+            min_transfer_time: Some(86_400),
+            from_trip_id: None,
+            to_trip_id: None,
+            from_route_id: None,
+            to_route_id: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_010"));
@@ -5817,12 +6827,27 @@ mod tests {
     #[test]
     fn transfer_walking_speed_over_two_mps_produces_trf_020() {
         let (mut recs, mut map) = empty();
-        let mut a = stop("S1"); a.stop_lat = Some(41.0); a.stop_lon = Some(29.0);
-        let mut b = stop("S2"); b.stop_lat = Some(41.01); b.stop_lon = Some(29.0);
-        recs.stops = vec![a, b]; map.stops.insert("S1".into(), 0); map.stops.insert("S2".into(), 1);
-        recs.transfers = vec![TransferRecord { from_stop_id: "S1".into(), to_stop_id: "S2".into(),
-            transfer_type: Some(2), min_transfer_time: Some(60), from_trip_id: None, to_trip_id: None,
-            from_route_id: None, to_route_id: None, row: Default::default(), line: 2 }];
+        let mut a = stop("S1");
+        a.stop_lat = Some(41.0);
+        a.stop_lon = Some(29.0);
+        let mut b = stop("S2");
+        b.stop_lat = Some(41.01);
+        b.stop_lon = Some(29.0);
+        recs.stops = vec![a, b];
+        map.stops.insert("S1".into(), 0);
+        map.stops.insert("S2".into(), 1);
+        recs.transfers = vec![TransferRecord {
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
+            transfer_type: Some(2),
+            min_transfer_time: Some(60),
+            from_trip_id: None,
+            to_trip_id: None,
+            from_route_id: None,
+            to_route_id: None,
+            row: Default::default(),
+            line: 2,
+        }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_020"));
     }
@@ -5833,13 +6858,16 @@ mod tests {
     fn type4_transfer_missing_trip_ids_produces_trf_013() {
         let (mut recs, map) = empty();
         recs.transfers = vec![TransferRecord {
-            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
             transfer_type: Some(4),
             min_transfer_time: None,
             from_trip_id: None, // eksik
             to_trip_id: None,   // eksik
-            from_route_id: None, to_route_id: None,
-            row: Default::default(), line: 2,
+            from_route_id: None,
+            to_route_id: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_013"));
@@ -5855,9 +6883,11 @@ mod tests {
             price: Some(2.0),
             currency_type: "TRY".into(),
             payment_method: Some(0),
-            transfers: None, transfer_duration: None,
+            transfers: None,
+            transfer_duration: None,
             agency_id: Some("MISSING_AGENCY".into()),
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "FAR_008"));
@@ -5870,9 +6900,12 @@ mod tests {
         let (mut recs, map) = empty();
         recs.fare_rules = vec![FareRuleRecord {
             fare_id: "MISSING_FARE".into(),
-            route_id: None, origin_id: None,
-            destination_id: None, contains_id: None,
-            row: Default::default(), line: 2,
+            route_id: None,
+            origin_id: None,
+            destination_id: None,
+            contains_id: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRL_001"));
@@ -5886,19 +6919,37 @@ mod tests {
         let (mut recs, map) = empty();
         recs.fare_rules = (0..50)
             .map(|i| FareRuleRecord {
-                fare_id: if i % 2 == 0 { "MISSING_A".into() } else { "MISSING_B".into() },
-                route_id: None, origin_id: None,
-                destination_id: None, contains_id: None,
-                row: Default::default(), line: (i + 2) as u64,
+                fare_id: if i % 2 == 0 {
+                    "MISSING_A".into()
+                } else {
+                    "MISSING_B".into()
+                },
+                route_id: None,
+                origin_id: None,
+                destination_id: None,
+                contains_id: None,
+                row: Default::default(),
+                line: (i + 2) as u64,
             })
             .collect();
         let result = check(&recs, &map, 20260515);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FRL_001").collect();
-        assert_eq!(hits.len(), 2, "2 distinct fare_id → 2 notice, alınan: {}", hits.len());
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "FRL_001")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            2,
+            "2 distinct fare_id → 2 notice, alınan: {}",
+            hits.len()
+        );
         // Satır sayısı bilgisi korunmalı (25'er kez tekrar ediyor)
-        assert!(hits.iter().all(|n| n.message.contains("25 fare_rules")),
+        assert!(
+            hits.iter().all(|n| n.message.contains("25 fare_rules")),
             "mesaj kaç satırda tekrarladığını taşımalı: {:?}",
-            hits.iter().map(|n| &n.message).collect::<Vec<_>>());
+            hits.iter().map(|n| &n.message).collect::<Vec<_>>()
+        );
     }
 
     /// Tanımsız zone_id de distinct başına tek notice (FRL_003/004).
@@ -5913,12 +6964,27 @@ mod tests {
                 origin_id: Some("NO_ZONE".into()),
                 destination_id: Some("NO_ZONE".into()),
                 contains_id: None,
-                row: Default::default(), line: (i + 2) as u64,
+                row: Default::default(),
+                line: (i + 2) as u64,
             })
             .collect();
         let result = check(&recs, &map, 20260515);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "FRL_003").count(), 1);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "FRL_004").count(), 1);
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "FRL_003")
+                .count(),
+            1
+        );
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "FRL_004")
+                .count(),
+            1
+        );
     }
 
     // �"?�"? LVL_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -5928,8 +6994,10 @@ mod tests {
         let (mut recs, _map) = empty();
         recs.levels = vec![LevelRecord {
             level_id: "L1".into(),
-            level_index: Some(0.0), level_name: None,
-            row: Default::default(), line: 2,
+            level_index: Some(0.0),
+            level_name: None,
+            row: Default::default(),
+            line: 2,
         }];
         // stops bo�Y �?' level kullanılmıyor
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -5944,12 +7012,16 @@ mod tests {
         recs.attributions = vec![AttributionRecord {
             attribution_id: None,
             organization_name: "Org".into(),
-            is_producer: Some(1), is_operator: None, is_authority: None,
+            is_producer: Some(1),
+            is_operator: None,
+            is_authority: None,
             agency_id: Some("A1".into()),
             route_id: Some("R1".into()), // hem agency hem route → hata
             trip_id: None,
-            attribution_url: None, attribution_email: None,
-            row: Default::default(), line: 2,
+            attribution_url: None,
+            attribution_email: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "ATR_009"));
@@ -5978,10 +7050,15 @@ mod tests {
             pathway_id: "P1".into(),
             from_stop_id: "MISSING".into(),
             to_stop_id: "S2".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "PTH_002"));
@@ -5991,7 +7068,8 @@ mod tests {
         let mut s = stop(id);
         s.location_type = lt;
         if !parent.is_empty() {
-            s.row.insert("parent_station".to_string(), parent.to_string());
+            s.row
+                .insert("parent_station".to_string(), parent.to_string());
         }
         s
     }
@@ -6012,10 +7090,15 @@ mod tests {
             pathway_id: "P1".into(),
             from_stop_id: "CN".into(),
             to_stop_id: "BA".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6038,10 +7121,15 @@ mod tests {
             pathway_id: "P1".into(),
             from_stop_id: "PA".into(),
             to_stop_id: "PB".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6070,16 +7158,25 @@ mod tests {
             pathway_id: "dwnxg-385".into(),
             from_stop_id: "N_A".into(),
             to_stop_id: "N_B".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(0),
-            length: Some(142.3416), traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(0),
+            length: Some(142.3416),
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
             "koordinatsız uçta kısa beyan edilen length PTH_014'ü bastırmalı: {:?}",
-            result.notices.iter().filter(|n| n.rule_id == "PTH_014").collect::<Vec<_>>()
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "PTH_014")
+                .collect::<Vec<_>>()
         );
     }
 
@@ -6098,10 +7195,15 @@ mod tests {
             pathway_id: "P1".into(),
             from_stop_id: "N_A".into(),
             to_stop_id: "N_B".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(0),
-            length: Some(5_000.0), traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(0),
+            length: Some(5_000.0),
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6122,21 +7224,35 @@ mod tests {
         let mut to = stop_ctx("N_B", Some(3), "B");
         to.stop_lat = Some(42.4064); // ~5,5 km kuzey
         to.stop_lon = Some(-71.0624);
-        recs.stops = vec![stop_ctx("A", Some(1), ""), stop_ctx("B", Some(1), ""), from, to];
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            from,
+            to,
+        ];
         recs.pathways = vec![PathwayRecord {
             pathway_id: "P1".into(),
             from_stop_id: "N_A".into(),
             to_stop_id: "N_B".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(0),
-            length: Some(10.0), traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(0),
+            length: Some(10.0),
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "PTH_014"),
             "geçerli kısa length beyanı, uzak koordinatlara rağmen PTH_014'ü bastırmalı: {:?}",
-            result.notices.iter().filter(|n| n.rule_id == "PTH_014").collect::<Vec<_>>()
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "PTH_014")
+                .collect::<Vec<_>>()
         );
     }
 
@@ -6155,10 +7271,15 @@ mod tests {
             pathway_id: "P1".into(),
             from_stop_id: "N_A".into(),
             to_stop_id: "N_B".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(0),
-            length: Some(-1.0), traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(0),
+            length: Some(-1.0),
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6183,10 +7304,15 @@ mod tests {
             pathway_id: "P1".into(),
             from_stop_id: "EA".into(),
             to_stop_id: "EB".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6207,15 +7333,25 @@ mod tests {
         let mut pb = stop_ctx("PB", Some(0), "B");
         pb.stop_lat = Some(52.4010); // ~111 m kuzey
         pb.stop_lon = Some(13.0000);
-        recs.stops = vec![stop_ctx("A", Some(1), ""), stop_ctx("B", Some(1), ""), pa, pb];
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            pa,
+            pb,
+        ];
         recs.pathways = vec![PathwayRecord {
             pathway_id: "P1".into(),
             from_stop_id: "PA".into(),
             to_stop_id: "PB".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6235,15 +7371,25 @@ mod tests {
         let mut pb = stop_ctx("PB", Some(0), "B");
         pb.stop_lat = Some(52.4500); // ~5.5 km kuzey
         pb.stop_lon = Some(13.0000);
-        recs.stops = vec![stop_ctx("A", Some(1), ""), stop_ctx("B", Some(1), ""), pa, pb];
+        recs.stops = vec![
+            stop_ctx("A", Some(1), ""),
+            stop_ctx("B", Some(1), ""),
+            pa,
+            pb,
+        ];
         recs.pathways = vec![PathwayRecord {
             pathway_id: "P1".into(),
             from_stop_id: "PA".into(),
             to_stop_id: "PB".into(),
-            pathway_mode: Some(1), is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            pathway_mode: Some(1),
+            is_bidirectional: Some(1),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -6270,11 +7416,16 @@ mod tests {
     fn agency_tz(id: &str, tz: &str) -> AgencyRecord {
         AgencyRecord {
             agency_id: Some(id.into()),
-            agency_name: id.into(), agency_url: "https://a.com".into(),
+            agency_name: id.into(),
+            agency_url: "https://a.com".into(),
             agency_timezone: tz.into(),
-            agency_lang: None, agency_phone: None,
-            agency_fare_url: None, agency_email: None,
-            agency_cemv_support: None, row: Default::default(), line: 2,
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         }
     }
 
@@ -6324,19 +7475,29 @@ mod tests {
         recs.agencies = vec![
             AgencyRecord {
                 agency_id: Some("A1".into()),
-                agency_name: "A".into(), agency_url: "https://a.com".into(),
+                agency_name: "A".into(),
+                agency_url: "https://a.com".into(),
                 agency_timezone: "Europe/Istanbul".into(),
-                agency_lang: None, agency_phone: None,
-                agency_fare_url: None, agency_email: None,
-                agency_cemv_support: None, row: Default::default(), line: 2,
+                agency_lang: None,
+                agency_phone: None,
+                agency_fare_url: None,
+                agency_email: None,
+                agency_cemv_support: None,
+                row: Default::default(),
+                line: 2,
             },
             AgencyRecord {
                 agency_id: Some("A2".into()),
-                agency_name: "B".into(), agency_url: "https://b.com".into(),
+                agency_name: "B".into(),
+                agency_url: "https://b.com".into(),
                 agency_timezone: "America/New_York".into(),
-                agency_lang: None, agency_phone: None,
-                agency_fare_url: None, agency_email: None,
-                agency_cemv_support: None, row: Default::default(), line: 3,
+                agency_lang: None,
+                agency_phone: None,
+                agency_fare_url: None,
+                agency_email: None,
+                agency_cemv_support: None,
+                row: Default::default(),
+                line: 3,
             },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -6363,11 +7524,15 @@ mod tests {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         let base = TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "tr".into(), translation: "Durak".into(),
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "tr".into(),
+            translation: "Durak".into(),
             record_id: Some("S1".into()),
-            record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         };
         // Aynı anahtar + aynı değer → birebir kopya → TRN_005
         recs.translations = vec![base.clone(), TranslationRecord { line: 3, ..base }];
@@ -6381,16 +7546,24 @@ mod tests {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         let base = TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "tr".into(), translation: "Durak".into(),
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "tr".into(),
+            translation: "Durak".into(),
             record_id: Some("S1".into()),
-            record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         };
         // Aynı anahtar + farklı değer → çelişki → TRN_006
         recs.translations = vec![
             base.clone(),
-            TranslationRecord { line: 3, translation: "İstasyon".into(), ..base },
+            TranslationRecord {
+                line: 3,
+                translation: "İstasyon".into(),
+                ..base
+            },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRN_006"));
@@ -6401,14 +7574,27 @@ mod tests {
     fn trn_010_validates_stop_sequence_within_the_referenced_trip() {
         let (mut recs, _map) = empty();
         recs.stop_times_index = StopTimesIndex::from_records(&[
-            StopTimeRecord { trip_id: "T1".into(), stop_sequence: Some(5), ..Default::default() },
-            StopTimeRecord { trip_id: "T2".into(), stop_sequence: Some(7), ..Default::default() },
+            StopTimeRecord {
+                trip_id: "T1".into(),
+                stop_sequence: Some(5),
+                ..Default::default()
+            },
+            StopTimeRecord {
+                trip_id: "T2".into(),
+                stop_sequence: Some(7),
+                ..Default::default()
+            },
         ]);
         let translation = |sub: &str| TranslationRecord {
-            table_name: "stop_times".into(), field_name: "stop_headsign".into(),
-            language: "en".into(), translation: "Centre".into(),
-            record_id: Some("T1".into()), record_sub_id: Some(sub.into()),
-            field_value: None, row: Default::default(), line: 6,
+            table_name: "stop_times".into(),
+            field_name: "stop_headsign".into(),
+            language: "en".into(),
+            translation: "Centre".into(),
+            record_id: Some("T1".into()),
+            record_sub_id: Some(sub.into()),
+            field_value: None,
+            row: Default::default(),
+            line: 6,
         };
 
         recs.translations = vec![translation("5")];
@@ -6418,7 +7604,10 @@ mod tests {
         // 7 başka bir trip'te bulunsa da T1'in stop_sequence kümesine ait değildir.
         recs.translations = vec![translation("7")];
         let invalid = check(&recs, &EntityMap::default(), 20260824);
-        let hit = invalid.notices.iter().find(|n| n.rule_id == "TRN_010")
+        let hit = invalid
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "TRN_010")
             .expect("geçersiz trip-bazlı stop_sequence için TRN_010 bekleniyor");
         assert_eq!(hit.entity_type, EntityType::Translation);
         assert_eq!(hit.entity_id.as_deref(), Some("T1"));
@@ -6435,38 +7624,67 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip(&mut ti, "T1", "R1", "S1")];
         recs.trip_interns = ti;
-        recs.stop_times_index = StopTimesIndex::from_records(&[
-            StopTimeRecord { trip_id: "T1".into(), stop_sequence: Some(5), ..Default::default() },
-        ]);
+        recs.stop_times_index = StopTimesIndex::from_records(&[StopTimeRecord {
+            trip_id: "T1".into(),
+            stop_sequence: Some(5),
+            ..Default::default()
+        }]);
         recs.translations = vec![TranslationRecord {
-            table_name: "stop_times".into(), field_name: "stop_headsign".into(),
-            language: "ja-Hrkt".into(), translation: "とうきょう".into(),
-            record_id: Some("T1".into()), record_sub_id: Some("6".into()),
-            field_value: None, row: Default::default(), line: 6,
+            table_name: "stop_times".into(),
+            field_name: "stop_headsign".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(),
+            record_id: Some("T1".into()),
+            record_sub_id: Some("6".into()),
+            field_value: None,
+            row: Default::default(),
+            line: 6,
         }];
 
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "TRN_010").count(), 1);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_019").count(), 1);
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRN_010")
+                .count(),
+            1
+        );
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "JPN_019")
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn missing_kana_produces_jpn_001() {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
-        let mut s1 = stop("S1"); s1.stop_name = Some("六本木".into());
-        let mut s2 = stop("S2"); s2.stop_name = Some("赤坂".into());
+        let mut s1 = stop("S1");
+        s1.stop_name = Some("六本木".into());
+        let mut s2 = stop("S2");
+        s2.stop_name = Some("赤坂".into());
         recs.stops = vec![s1, s2];
         // S1 için kana var, S2 için yok. ja-Hrkt varlığı GTFS-JP kapısını açar.
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "ろっぽんぎ".into(),
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "ろっぽんぎ".into(),
             record_id: Some("S1".into()),
-            record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let jpn: Vec<&str> = result.notices.iter()
+        let jpn: Vec<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "JPN_001")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
@@ -6477,22 +7695,35 @@ mod tests {
     fn missing_route_kana_produces_jpn_008() {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
-        let mut r1 = route("R1"); r1.route_long_name = Some("東京駅行".into());
-        let mut r2 = route("R2"); r2.route_long_name = Some("渋谷行".into());
+        let mut r1 = route("R1");
+        r1.route_long_name = Some("東京駅行".into());
+        let mut r2 = route("R2");
+        r2.route_long_name = Some("渋谷行".into());
         recs.routes = vec![r1, r2];
         // R1 için kana var, R2 için yok. ja-Hrkt varlığı GTFS-JP kapısını açar.
         recs.translations = vec![TranslationRecord {
-            table_name: "routes".into(), field_name: "route_long_name".into(),
-            language: "ja-Hrkt".into(), translation: "とうきょうえきゆき".into(),
-            record_id: Some("R1".into()), record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            table_name: "routes".into(),
+            field_name: "route_long_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょうえきゆき".into(),
+            record_id: Some("R1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let jpn: Vec<&str> = result.notices.iter()
+        let jpn: Vec<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "JPN_008")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
-        assert_eq!(jpn, vec!["R2"], "yalnız kanası eksik R2 hattı işaretlenmeli");
+        assert_eq!(
+            jpn,
+            vec!["R2"],
+            "yalnız kanası eksik R2 hattı işaretlenmeli"
+        );
     }
 
     #[test]
@@ -6500,18 +7731,27 @@ mod tests {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         // Tokyo deseni: route_long_name BOŞ, ad route_short_name'de (Japonca)
-        let mut r1 = route("R1"); r1.route_long_name = None; r1.route_short_name = Some("波０１".into());
+        let mut r1 = route("R1");
+        r1.route_long_name = None;
+        r1.route_short_name = Some("波０１".into());
         recs.routes = vec![r1];
         // Kapı: başka alanda ja-Hrkt çeviri; route_short_name kana yok → JPN_008
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "x".into(),
-            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "x".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_008"),
-            "Japonca route_short_name kana yok → JPN_008");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_008"),
+            "Japonca route_short_name kana yok → JPN_008"
+        );
     }
 
     #[test]
@@ -6526,13 +7766,20 @@ mod tests {
         r1.line = 7;
         recs.routes = vec![r1];
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "x".into(),
-            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "x".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let found = result.notices.iter()
+        let found = result
+            .notices
+            .iter()
             .find(|n| n.rule_id == "JPN_008")
             .expect("kanası eksik hat için JPN_008 bekleniyor");
         assert_eq!(found.file.as_deref(), Some("routes.txt"));
@@ -6544,17 +7791,26 @@ mod tests {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         // route_long_name boş, route_short_name sayısal kod → Japonca değil → JPN_008 yok
-        let mut r1 = route("R1"); r1.route_long_name = None; r1.route_short_name = Some("42".into());
+        let mut r1 = route("R1");
+        r1.route_long_name = None;
+        r1.route_short_name = Some("42".into());
         recs.routes = vec![r1];
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "x".into(),
-            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "x".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_008"),
-            "sayısal route_short_name → JPN_008 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "JPN_008"),
+            "sayısal route_short_name → JPN_008 olmamalı"
+        );
     }
 
     #[test]
@@ -6570,14 +7826,21 @@ mod tests {
         recs.trip_interns = ti;
         // Kapı: başka alanda ja-Hrkt çeviri var; trip_headsign kana yok → JPN_009.
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "x".into(),
-            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "x".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_009"),
-            "trip_headsign kana yok → JPN_009");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_009"),
+            "trip_headsign kana yok → JPN_009"
+        );
     }
 
     #[test]
@@ -6586,22 +7849,35 @@ mod tests {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         recs.agencies = vec![AgencyRecord {
-            agency_id: Some("A1".into()), agency_name: "都営バス".into(),
-            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
-            agency_lang: None, agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None,
-            row: Default::default(), line: 2,
+            agency_id: Some("A1".into()),
+            agency_name: "都営バス".into(),
+            agency_url: "https://example.jp".into(),
+            agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         }];
         // Kapı: başka alanda ja-Hrkt çeviri var; agency_name kana yok → JPN_010.
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "x".into(),
-            record_id: Some("S1".into()), record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "x".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_010"),
-            "agency_name kana yok → JPN_010");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_010"),
+            "agency_name kana yok → JPN_010"
+        );
     }
 
     #[test]
@@ -6611,8 +7887,10 @@ mod tests {
             let present = HashSet::from([file.to_string()]);
             let availability = FileAvailability::from_k1(&present, &[]);
             let result = check_with_files(&recs, &EntityMap::default(), 20260515, &availability);
-            assert!(result.notices.iter().any(|n| n.rule_id == "JPN_007"),
-                "boş/başlıksız {file} dosyası GTFS-JP profilini açmalı");
+            assert!(
+                result.notices.iter().any(|n| n.rule_id == "JPN_007"),
+                "boş/başlıksız {file} dosyası GTFS-JP profilini açmalı"
+            );
         }
     }
 
@@ -6621,14 +7899,23 @@ mod tests {
         use crate::k2::agency::AgencyRecord;
         use crate::k2::office_jp::OfficeJpRecord;
         let mk_agency = |id: Option<&str>| AgencyRecord {
-            agency_id: id.map(|s| s.into()), agency_name: "X".into(),
-            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
-            agency_lang: None, agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None, row: Default::default(), line: 2,
+            agency_id: id.map(|s| s.into()),
+            agency_name: "X".into(),
+            agency_url: "https://example.jp".into(),
+            agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         };
         let mk_office = || OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         };
 
         // is_gtfs_jp kapısı: office_jp mevcut. Tek agency, agency_id YOK → JPN_011.
@@ -6636,56 +7923,86 @@ mod tests {
         recs.office_jp = vec![mk_office()];
         recs.agencies = vec![mk_agency(None)];
         let r = check(&recs, &EntityMap::default(), 20260515);
-        assert!(r.notices.iter().any(|n| n.rule_id == "JPN_011"), "JP + agency_id yok → JPN_011");
+        assert!(
+            r.notices.iter().any(|n| n.rule_id == "JPN_011"),
+            "JP + agency_id yok → JPN_011"
+        );
 
         // agency_id dolu → JPN_011 yok.
         let (mut recs2, _m2) = empty();
         recs2.office_jp = vec![mk_office()];
         recs2.agencies = vec![mk_agency(Some("A1"))];
         let r2 = check(&recs2, &EntityMap::default(), 20260515);
-        assert!(!r2.notices.iter().any(|n| n.rule_id == "JPN_011"), "agency_id dolu → JPN_011 yok");
+        assert!(
+            !r2.notices.iter().any(|n| n.rule_id == "JPN_011"),
+            "agency_id dolu → JPN_011 yok"
+        );
 
         // JP sinyali yok + agency_id yok → JPN_011 yok (standart feed'de opsiyonel).
         let (mut recs3, _m3) = empty();
         recs3.agencies = vec![mk_agency(None)];
         let r3 = check(&recs3, &EntityMap::default(), 20260515);
-        assert!(!r3.notices.iter().any(|n| n.rule_id == "JPN_011"), "JP değil → JPN_011 yok");
+        assert!(
+            !r3.notices.iter().any(|n| n.rule_id == "JPN_011"),
+            "JP değil → JPN_011 yok"
+        );
     }
 
     #[test]
     fn inconsistent_agency_lang_produces_agn_017() {
         use crate::k2::agency::AgencyRecord;
         let mk = |id: &str, lang: &str| AgencyRecord {
-            agency_id: Some(id.into()), agency_name: "X".into(),
-            agency_url: "https://example.com".into(), agency_timezone: "Europe/Istanbul".into(),
-            agency_lang: Some(lang.into()), agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None, row: Default::default(), line: 2,
+            agency_id: Some(id.into()),
+            agency_name: "X".into(),
+            agency_url: "https://example.com".into(),
+            agency_timezone: "Europe/Istanbul".into(),
+            agency_lang: Some(lang.into()),
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         };
         let (mut recs, _map) = empty();
         recs.agencies = vec![mk("A1", "tr"), mk("A2", "en")];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "AGN_017"), "farklı agency_lang → AGN_017");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "AGN_017"),
+            "farklı agency_lang → AGN_017"
+        );
     }
 
     #[test]
     fn consistent_agency_lang_no_agn_017() {
         use crate::k2::agency::AgencyRecord;
         let mk = |id: &str| AgencyRecord {
-            agency_id: Some(id.into()), agency_name: "X".into(),
-            agency_url: "https://example.com".into(), agency_timezone: "Europe/Istanbul".into(),
-            agency_lang: Some("tr".into()), agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None, row: Default::default(), line: 2,
+            agency_id: Some(id.into()),
+            agency_name: "X".into(),
+            agency_url: "https://example.com".into(),
+            agency_timezone: "Europe/Istanbul".into(),
+            agency_lang: Some("tr".into()),
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         };
         let (mut recs, _map) = empty();
         recs.agencies = vec![mk("A1"), mk("A2")];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "AGN_017"), "aynı agency_lang → AGN_017 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "AGN_017"),
+            "aynı agency_lang → AGN_017 olmamalı"
+        );
     }
 
     #[test]
     fn non_japanese_feed_no_jpn_001() {
         let (mut recs, _map) = empty();
-        let mut s1 = stop("S1"); s1.stop_name = Some("Main St".into());
+        let mut s1 = stop("S1");
+        s1.stop_name = Some("Main St".into());
         recs.stops = vec![s1];
         // JP sinyali yok (feed_lang yok, ja-Hrkt yok) → kapı kapalı → JPN_001 yok.
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -6699,23 +8016,35 @@ mod tests {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         }];
         // T1 geçerli ofise işaret eder, T2 tanımsız ofise → yalnız T2 işaretlenmeli.
         let mut ti = TripInternTable::new();
-        let jpo1 = ti.jp_offices.len() as u32; ti.jp_offices.push(SmolStr::new("OF1"));
-        let mut t1 = trip(&mut ti, "T1", "R1", "SVC1"); t1.jp_office_idx = jpo1;
-        let jpo2 = ti.jp_offices.len() as u32; ti.jp_offices.push(SmolStr::new("MISSING"));
-        let mut t2 = trip(&mut ti, "T2", "R1", "SVC1"); t2.jp_office_idx = jpo2;
+        let jpo1 = ti.jp_offices.len() as u32;
+        ti.jp_offices.push(SmolStr::new("OF1"));
+        let mut t1 = trip(&mut ti, "T1", "R1", "SVC1");
+        t1.jp_office_idx = jpo1;
+        let jpo2 = ti.jp_offices.len() as u32;
+        ti.jp_offices.push(SmolStr::new("MISSING"));
+        let mut t2 = trip(&mut ti, "T2", "R1", "SVC1");
+        t2.jp_office_idx = jpo2;
         recs.trips = vec![t1, t2];
         recs.trip_interns = ti;
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let jpn: Vec<&str> = result.notices.iter()
+        let jpn: Vec<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "JPN_002")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
-        assert_eq!(jpn, vec!["T2"], "yalnız tanımsız ofise işaret eden T2 işaretlenmeli");
+        assert_eq!(
+            jpn,
+            vec!["T2"],
+            "yalnız tanımsız ofise işaret eden T2 işaretlenmeli"
+        );
     }
 
     #[test]
@@ -6723,20 +8052,34 @@ mod tests {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         }];
         // routes.jp_office_id (resmî spec konumu): R1 geçerli, R2 tanımsız ofise → yalnız R2.
         recs.routes = vec![
-            RouteRecord { jp_office_id: Some("OF1".into()), ..route("R1") },
-            RouteRecord { jp_office_id: Some("MISSING".into()), ..route("R2") },
+            RouteRecord {
+                jp_office_id: Some("OF1".into()),
+                ..route("R1")
+            },
+            RouteRecord {
+                jp_office_id: Some("MISSING".into()),
+                ..route("R2")
+            },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let jpn: Vec<&str> = result.notices.iter()
+        let jpn: Vec<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "JPN_002")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
-        assert_eq!(jpn, vec!["R2"], "yalnız tanımsız ofise işaret eden R2 işaretlenmeli");
+        assert_eq!(
+            jpn,
+            vec!["R2"],
+            "yalnız tanımsız ofise işaret eden R2 işaretlenmeli"
+        );
     }
 
     #[test]
@@ -6744,12 +8087,16 @@ mod tests {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: None,
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: None,
+            row: Default::default(),
+            line: 2,
         }];
         let mut ti = TripInternTable::new();
-        let jpo1 = ti.jp_offices.len() as u32; ti.jp_offices.push(SmolStr::new("OF1"));
-        let mut t = trip(&mut ti, "T1", "R1", "SVC1"); t.jp_office_idx = jpo1;
+        let jpo1 = ti.jp_offices.len() as u32;
+        ti.jp_offices.push(SmolStr::new("OF1"));
+        let mut t = trip(&mut ti, "T1", "R1", "SVC1");
+        t.jp_office_idx = jpo1;
         recs.trips = vec![t];
         recs.trip_interns = ti;
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -6764,14 +8111,22 @@ mod tests {
         use crate::k2::agency_jp::AgencyJpRecord;
         let (mut recs, _map) = empty();
         recs.agencies = vec![AgencyRecord {
-            agency_id: Some("A1".into()), agency_name: "都営".into(),
-            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
-            agency_lang: None, agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None,
-            row: Default::default(), line: 2,
+            agency_id: Some("A1".into()),
+            agency_name: "都営".into(),
+            agency_url: "https://example.jp".into(),
+            agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         }];
         recs.agency_jp = vec![AgencyJpRecord {
-            agency_id: Some("NONEXISTENT".into()), row: Default::default(), line: 2,
+            agency_id: Some("NONEXISTENT".into()),
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_003"));
@@ -6783,14 +8138,22 @@ mod tests {
         use crate::k2::agency_jp::AgencyJpRecord;
         let (mut recs, _map) = empty();
         recs.agencies = vec![AgencyRecord {
-            agency_id: Some("A1".into()), agency_name: "都営".into(),
-            agency_url: "https://example.jp".into(), agency_timezone: "Asia/Tokyo".into(),
-            agency_lang: None, agency_phone: None, agency_fare_url: None,
-            agency_email: None, agency_cemv_support: None,
-            row: Default::default(), line: 2,
+            agency_id: Some("A1".into()),
+            agency_name: "都営".into(),
+            agency_url: "https://example.jp".into(),
+            agency_timezone: "Asia/Tokyo".into(),
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
         }];
         recs.agency_jp = vec![AgencyJpRecord {
-            agency_id: Some("A1".into()), row: Default::default(), line: 2,
+            agency_id: Some("A1".into()),
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_003"));
@@ -6802,12 +8165,16 @@ mod tests {
         let (mut recs, _map) = empty();
         // *_jp dosyası = GTFS-JP sinyali; translations boş → JPN_004
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_004"),
-            "GTFS-JP sinyali + translations yok → JPN_004");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_004"),
+            "GTFS-JP sinyali + translations yok → JPN_004"
+        );
     }
 
     #[test]
@@ -6816,19 +8183,27 @@ mod tests {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         }];
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "ja-Hrkt".into(), translation: "ろっぽんぎ".into(),
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "ろっぽんぎ".into(),
             record_id: Some("S1".into()),
-            record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_004"),
-            "translations mevcut → JPN_004 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "JPN_004"),
+            "translations mevcut → JPN_004 olmamalı"
+        );
     }
 
     #[test]
@@ -6844,11 +8219,23 @@ mod tests {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![
-            OfficeJpRecord { office_id: "OF1".into(), office_name: Some("本社".into()), row: Default::default(), line: 2 },
-            OfficeJpRecord { office_id: "OF2".into(), office_name: None, row: Default::default(), line: 3 },
+            OfficeJpRecord {
+                office_id: "OF1".into(),
+                office_name: Some("本社".into()),
+                row: Default::default(),
+                line: 2,
+            },
+            OfficeJpRecord {
+                office_id: "OF2".into(),
+                office_name: None,
+                row: Default::default(),
+                line: 3,
+            },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let ids: Vec<&str> = result.notices.iter()
+        let ids: Vec<&str> = result
+            .notices
+            .iter()
             .filter(|n| n.rule_id == "JPN_005")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
@@ -6859,10 +8246,18 @@ mod tests {
     fn missing_fares_in_jp_feed_produces_jpn_006() {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
-        recs.office_jp = vec![OfficeJpRecord { office_id: "OF1".into(), office_name: Some("本社".into()), row: Default::default(), line: 2 }];
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
+        }];
         // fare_attributes/fare_rules boş → JPN_006
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_006"), "GTFS-JP + fares yok → JPN_006");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_006"),
+            "GTFS-JP + fares yok → JPN_006"
+        );
     }
 
     #[test]
@@ -6870,21 +8265,32 @@ mod tests {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         }];
         let mut row = std::collections::HashMap::new();
         row.insert("price".into(), "200".into());
         row.insert("currency_type".into(), "JPY".into());
         row.insert("payment_method".into(), "0".into());
         recs.fare_attributes = vec![FareAttributeRecord {
-            fare_id: "F1".into(), price: Some(200.0), currency_type: "JPY".into(),
-            payment_method: Some(0), transfers: None, transfer_duration: None,
-            agency_id: None, row, line: 2,
+            fare_id: "F1".into(),
+            price: Some(200.0),
+            currency_type: "JPY".into(),
+            payment_method: Some(0),
+            transfers: None,
+            transfer_duration: None,
+            agency_id: None,
+            row,
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_006"),
-            "tek tip ücrette fare_rules koşullu zorunluluk üretmemeli: {:?}", result.notices);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "JPN_006"),
+            "tek tip ücrette fare_rules koşullu zorunluluk üretmemeli: {:?}",
+            result.notices
+        );
     }
 
     #[test]
@@ -6892,8 +8298,10 @@ mod tests {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "OF1".into(), office_name: Some("本社".into()),
-            row: Default::default(), line: 2,
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
         }];
         let fare = |id: &str, price: &str| {
             let mut row = std::collections::HashMap::new();
@@ -6901,25 +8309,41 @@ mod tests {
             row.insert("currency_type".into(), "JPY".into());
             row.insert("payment_method".into(), "0".into());
             FareAttributeRecord {
-                fare_id: id.into(), price: price.parse().ok(), currency_type: "JPY".into(),
-                payment_method: Some(0), transfers: None, transfer_duration: None,
-                agency_id: None, row, line: 2,
+                fare_id: id.into(),
+                price: price.parse().ok(),
+                currency_type: "JPY".into(),
+                payment_method: Some(0),
+                transfers: None,
+                transfer_duration: None,
+                agency_id: None,
+                row,
+                line: 2,
             }
         };
         recs.fare_attributes = vec![fare("F1", "200"), fare("F2", "300")];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_006"),
-            "farklı ücret profilleri için fare_rules eksikliği raporlanmalı");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_006"),
+            "farklı ücret profilleri için fare_rules eksikliği raporlanmalı"
+        );
     }
 
     #[test]
     fn missing_feed_info_in_jp_feed_produces_jpn_007() {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
-        recs.office_jp = vec![OfficeJpRecord { office_id: "OF1".into(), office_name: Some("本社".into()), row: Default::default(), line: 2 }];
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "OF1".into(),
+            office_name: Some("本社".into()),
+            row: Default::default(),
+            line: 2,
+        }];
         // feed_info boş → JPN_007
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_007"), "GTFS-JP + feed_info yok → JPN_007");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "JPN_007"),
+            "GTFS-JP + feed_info yok → JPN_007"
+        );
     }
 
     #[test]
@@ -6958,11 +8382,21 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
         recs.trip_interns = ti;
-        recs.shapes = vec![ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![ShapePointRecord::new(
+            shape_ti.intern("S1"),
+            Some(41.0),
+            Some(29.0),
+            Some(1),
+            None,
+            2,
+        )];
         recs.shape_interns = shape_ti.clone();
         // stop_times yok → SHP_019 ateşlenmeli
         let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "SHP_019"), "SHP_019 olmalı: trip var ama stop_times yok");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "SHP_019"),
+            "SHP_019 olmalı: trip var ama stop_times yok"
+        );
     }
 
     #[test]
@@ -6978,17 +8412,29 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", "S1", None)];
         recs.trip_interns = ti;
-        recs.shapes = vec![ShapePointRecord::new(shape_ti.intern("S1"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![ShapePointRecord::new(
+            shape_ti.intern("S1"),
+            Some(41.0),
+            Some(29.0),
+            Some(1),
+            None,
+            2,
+        )];
         recs.shape_interns = shape_ti.clone();
         recs.stop_times = vec![StopTimeRecord {
-            trip_id: "T1".into(), stop_id: "STOP1".into(),
-            stop_sequence: Some(1), line: 10,
+            trip_id: "T1".into(),
+            stop_id: "STOP1".into(),
+            stop_sequence: Some(1),
+            line: 10,
             ..Default::default()
         }];
         recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
         // stop_times var → SHP_019 ateşlenmemeli
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_019"), "stop_times olan trip için SHP_019 olmamalı");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_019"),
+            "stop_times olan trip için SHP_019 olmamalı"
+        );
     }
 
     #[test]
@@ -6996,11 +8442,21 @@ mod tests {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let (mut recs, map) = empty();
-        recs.shapes = vec![ShapePointRecord::new(shape_ti.intern("ORPHAN"), Some(41.0), Some(29.0), Some(1), None, 2)];
+        recs.shapes = vec![ShapePointRecord::new(
+            shape_ti.intern("ORPHAN"),
+            Some(41.0),
+            Some(29.0),
+            Some(1),
+            None,
+            2,
+        )];
         recs.shape_interns = shape_ti.clone();
         // Hiç trip yok → SHP_018 ateşler, SHP_019 ateşlemez
         let result = check(&recs, &map, 20260515);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_019"), "orphan shape SHP_019 değil SHP_018 üretmeli");
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "SHP_019"),
+            "orphan shape SHP_019 değil SHP_018 üretmeli"
+        );
     }
 
     //�"?�"? XFL_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -7012,8 +8468,11 @@ mod tests {
         recs.fare_rules = vec![FareRuleRecord {
             fare_id: "F1".into(),
             route_id: Some("MISSING_ROUTE".into()),
-            origin_id: None, destination_id: None, contains_id: None,
-            row: Default::default(), line: 2,
+            origin_id: None,
+            destination_id: None,
+            contains_id: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "FRL_002"));
@@ -7047,15 +8506,19 @@ mod tests {
             feed_lang: "tr".into(),
             feed_start_date: Some((2025, 1, 1)),
             feed_end_date: Some((2025, 12, 31)),
-            feed_version: None, feed_contact_email: None, feed_contact_url: None,
-            row: Default::default(), line: 2,
+            feed_version: None,
+            feed_contact_email: None,
+            feed_contact_url: None,
+            row: Default::default(),
+            line: 2,
         }];
         recs.calendars = vec![CalendarRecord {
             service_id: "SVC".into(),
             days: [Some(1); 7],
             start_date: Some((2024, 6, 1)), // feed başlangıcından önce
             end_date: Some((2025, 6, 30)),
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_011"));
@@ -7089,8 +8552,10 @@ mod tests {
             language: "tr".into(),
             translation: "Durak".into(),
             record_id: Some("DELETED_STOP".into()),
-            record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_014"));
@@ -7105,11 +8570,16 @@ mod tests {
         recs.attributions = vec![AttributionRecord {
             attribution_id: None,
             organization_name: "Org".into(),
-            is_producer: Some(1), is_operator: None, is_authority: None,
+            is_producer: Some(1),
+            is_operator: None,
+            is_authority: None,
             agency_id: Some("MISSING_AGENCY".into()),
-            route_id: None, trip_id: None,
-            attribution_url: None, attribution_email: None,
-            row: Default::default(), line: 2,
+            route_id: None,
+            trip_id: None,
+            attribution_url: None,
+            attribution_email: None,
+            row: Default::default(),
+            line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_015"));
@@ -7126,8 +8596,11 @@ mod tests {
             field_name: "feed_publisher_name".into(),
             language: "tr".into(),
             translation: "Yayıncı".into(),
-            record_id: None, record_sub_id: None, field_value: None,
-            row: Default::default(), line: 2,
+            record_id: None,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 2,
         }];
         // feed_info bo�Y �?' XFL_016
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -7146,10 +8619,13 @@ mod tests {
             agency_name: "Agency".into(),
             agency_url: "https://example.com".into(),
             agency_timezone: "Europe/Istanbul".into(),
-            agency_lang: None, agency_phone: None,
-            agency_fare_url: None, agency_email: None,
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
             agency_cemv_support: Some(1), // agency=1
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         }];
         map.routes.insert("R1".into(), 0);
         recs.routes = vec![RouteRecord {
@@ -7172,12 +8648,16 @@ mod tests {
         // `mdb-1859`'da ikisi de aynı 5.204 satırda ateşliyordu. Test artık bağlam taşıyor.
         let (mut recs, _map) = empty();
         let base = TransferRecord {
-            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
             transfer_type: Some(0),
             min_transfer_time: None,
-            from_trip_id: Some("T1".into()), to_trip_id: Some("T2".into()),
-            from_route_id: None, to_route_id: None,
-            row: Default::default(), line: 2,
+            from_trip_id: Some("T1".into()),
+            to_trip_id: Some("T2".into()),
+            from_route_id: None,
+            to_route_id: None,
+            row: Default::default(),
+            line: 2,
         };
         recs.transfers = vec![base.clone(), TransferRecord { line: 3, ..base }];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -7190,45 +8670,68 @@ mod tests {
         // aksi hâlde aynı olgu iki kez raporlanır.
         let (mut recs, _map) = empty();
         let base = TransferRecord {
-            from_stop_id: "S1".into(), to_stop_id: "S2".into(),
+            from_stop_id: "S1".into(),
+            to_stop_id: "S2".into(),
             transfer_type: Some(0),
             min_transfer_time: None,
-            from_trip_id: None, to_trip_id: None,
-            from_route_id: None, to_route_id: None,
-            row: Default::default(), line: 2,
+            from_trip_id: None,
+            to_trip_id: None,
+            from_route_id: None,
+            to_route_id: None,
+            row: Default::default(),
+            line: 2,
         };
         recs.transfers = vec![base.clone(), TransferRecord { line: 3, ..base }];
         let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "TRF_012"),
-            "bağlamsız yineleme TRF_012 üretmeli");
-        assert!(!result.notices.iter().any(|n| n.rule_id == "TRF_016"),
-            "bağlamsız yineleme TRF_016 ÜRETMEMELİ — aynı olgu iki kez raporlanır");
+        assert!(
+            result.notices.iter().any(|n| n.rule_id == "TRF_012"),
+            "bağlamsız yineleme TRF_012 üretmeli"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRF_016"),
+            "bağlamsız yineleme TRF_016 ÜRETMEMELİ — aynı olgu iki kez raporlanır"
+        );
     }
 
     // ── RCT_006 ───────────────────────────────────────────────────────────────
 
     fn rider_cats(specs: &[(&str, u32)]) -> Vec<crate::k2::rider_categories::RiderCategoryRecord> {
         use crate::k2::rider_categories::RiderCategoryRecord;
-        specs.iter().enumerate().map(|(i, (id, def))| RiderCategoryRecord {
-            rider_category_id: (*id).into(),
-            rider_category_name: (*id).into(),
-            is_default_fare_category: Some(*def),
-            min_age: None, max_age: None,
-            eligibility_url: None,
-            row: Default::default(), line: i as u64 + 2,
-        }).collect()
+        specs
+            .iter()
+            .enumerate()
+            .map(|(i, (id, def))| RiderCategoryRecord {
+                rider_category_id: (*id).into(),
+                rider_category_name: (*id).into(),
+                is_default_fare_category: Some(*def),
+                min_age: None,
+                max_age: None,
+                eligibility_url: None,
+                row: Default::default(),
+                line: i as u64 + 2,
+            })
+            .collect()
     }
 
     /// `None` rider_category_id = ürün TÜM tanımlı kategorilere uygun (spec okuması).
-    fn fare_prods(specs: &[(&str, Option<&str>)]) -> Vec<crate::k2::fare_products::FareProductRecord> {
+    fn fare_prods(
+        specs: &[(&str, Option<&str>)],
+    ) -> Vec<crate::k2::fare_products::FareProductRecord> {
         use crate::k2::fare_products::FareProductRecord;
-        specs.iter().enumerate().map(|(i, (pid, rcid))| FareProductRecord {
-            fare_product_id: (*pid).into(),
-            fare_product_name: None,
-            rider_category_id: rcid.map(Into::into),
-            fare_media_id: None, amount: None, currency: String::new(),
-            row: Default::default(), line: i as u64 + 10,
-        }).collect()
+        specs
+            .iter()
+            .enumerate()
+            .map(|(i, (pid, rcid))| FareProductRecord {
+                fare_product_id: (*pid).into(),
+                fare_product_name: None,
+                rider_category_id: rcid.map(Into::into),
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: i as u64 + 10,
+            })
+            .collect()
     }
 
     #[test]
@@ -7241,17 +8744,21 @@ mod tests {
                 rider_category_id: "adult".into(),
                 rider_category_name: "Adult".into(),
                 is_default_fare_category: Some(1),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 2,
+                row: Default::default(),
+                line: 2,
             },
             RiderCategoryRecord {
                 rider_category_id: "senior".into(),
                 rider_category_name: "Senior".into(),
                 is_default_fare_category: Some(1),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 3,
+                row: Default::default(),
+                line: 3,
             },
         ];
         recs.fare_products = vec![
@@ -7259,15 +8766,21 @@ mod tests {
                 fare_product_id: "fp1".into(),
                 fare_product_name: None,
                 rider_category_id: Some("adult".into()),
-                fare_media_id: None, amount: None, currency: String::new(),
-                row: Default::default(), line: 10,
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: 10,
             },
             FareProductRecord {
                 fare_product_id: "fp1".into(),
                 fare_product_name: None,
                 rider_category_id: Some("senior".into()),
-                fare_media_id: None, amount: None, currency: String::new(),
-                row: Default::default(), line: 11,
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: 11,
             },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -7284,17 +8797,21 @@ mod tests {
                 rider_category_id: "adult".into(),
                 rider_category_name: "Adult".into(),
                 is_default_fare_category: Some(1),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 2,
+                row: Default::default(),
+                line: 2,
             },
             RiderCategoryRecord {
                 rider_category_id: "child".into(),
                 rider_category_name: "Child".into(),
                 is_default_fare_category: Some(0),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 3,
+                row: Default::default(),
+                line: 3,
             },
         ];
         recs.fare_products = vec![
@@ -7302,15 +8819,21 @@ mod tests {
                 fare_product_id: "fp1".into(),
                 fare_product_name: None,
                 rider_category_id: Some("adult".into()),
-                fare_media_id: None, amount: None, currency: String::new(),
-                row: Default::default(), line: 10,
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: 10,
             },
             FareProductRecord {
                 fare_product_id: "fp1".into(),
                 fare_product_name: None,
                 rider_category_id: Some("child".into()),
-                fare_media_id: None, amount: None, currency: String::new(),
-                row: Default::default(), line: 11,
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: 11,
             },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -7327,17 +8850,21 @@ mod tests {
                 rider_category_id: "adult".into(),
                 rider_category_name: "Adult".into(),
                 is_default_fare_category: Some(0),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 2,
+                row: Default::default(),
+                line: 2,
             },
             RiderCategoryRecord {
                 rider_category_id: "senior".into(),
                 rider_category_name: "Senior".into(),
                 is_default_fare_category: Some(0),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 3,
+                row: Default::default(),
+                line: 3,
             },
         ];
         recs.fare_products = vec![
@@ -7345,15 +8872,21 @@ mod tests {
                 fare_product_id: "fp1".into(),
                 fare_product_name: None,
                 rider_category_id: Some("adult".into()),
-                fare_media_id: None, amount: None, currency: String::new(),
-                row: Default::default(), line: 10,
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: 10,
             },
             FareProductRecord {
                 fare_product_id: "fp1".into(),
                 fare_product_name: None,
                 rider_category_id: Some("senior".into()),
-                fare_media_id: None, amount: None, currency: String::new(),
-                row: Default::default(), line: 11,
+                fare_media_id: None,
+                amount: None,
+                currency: String::new(),
+                row: Default::default(),
+                line: 11,
             },
         ];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -7370,25 +8903,32 @@ mod tests {
                 rider_category_id: "adult".into(),
                 rider_category_name: "Adult".into(),
                 is_default_fare_category: Some(0),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 2,
+                row: Default::default(),
+                line: 2,
             },
             RiderCategoryRecord {
                 rider_category_id: "senior".into(),
                 rider_category_name: "Senior".into(),
                 is_default_fare_category: Some(0),
-                min_age: None, max_age: None,
+                min_age: None,
+                max_age: None,
                 eligibility_url: None,
-                row: Default::default(), line: 3,
+                row: Default::default(),
+                line: 3,
             },
         ];
         recs.fare_products = vec![FareProductRecord {
             fare_product_id: "fp1".into(),
             fare_product_name: None,
             rider_category_id: None,
-            fare_media_id: None, amount: None, currency: String::new(),
-            row: Default::default(), line: 10,
+            fare_media_id: None,
+            amount: None,
+            currency: String::new(),
+            row: Default::default(),
+            line: 10,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "RCT_006"));
@@ -7403,16 +8943,21 @@ mod tests {
             rider_category_id: "adult".into(),
             rider_category_name: "Adult".into(),
             is_default_fare_category: Some(0),
-            min_age: None, max_age: None,
+            min_age: None,
+            max_age: None,
             eligibility_url: None,
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         }];
         recs.fare_products = vec![FareProductRecord {
             fare_product_id: "fp1".into(),
             fare_product_name: None,
             rider_category_id: Some("adult".into()),
-            fare_media_id: None, amount: None, currency: String::new(),
-            row: Default::default(), line: 10,
+            fare_media_id: None,
+            amount: None,
+            currency: String::new(),
+            row: Default::default(),
+            line: 10,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
@@ -7433,14 +8978,27 @@ mod tests {
             ("day_pass_discount", Some("disabled")),
         ]);
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RCT_006").collect();
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "RCT_006")
+            .collect();
         assert_eq!(hits.len(), 1, "kök kusur tek → tek notice");
         assert_eq!(hits[0].entity_type, EntityType::Feed);
         let msg = &hits[0].message;
-        assert!(msg.contains("disabled, senior"), "çözücü kategoriler adıyla: {msg}");
-        assert!(!msg.contains("adult"), "adult tek başına çözmez, önerilmemeli: {msg}");
+        assert!(
+            msg.contains("disabled, senior"),
+            "çözücü kategoriler adıyla: {msg}"
+        );
+        assert!(
+            !msg.contains("adult"),
+            "adult tek başına çözmez, önerilmemeli: {msg}"
+        );
         let details = hits[0].details.as_ref().expect("feed özeti details taşır");
-        assert_eq!(details.get("affected_products").map(String::as_str), Some("2"));
+        assert_eq!(
+            details.get("affected_products").map(String::as_str),
+            Some("2")
+        );
         assert_eq!(
             details.get("resolving_categories").map(String::as_str),
             Some("disabled, senior")
@@ -7454,11 +9012,17 @@ mod tests {
         let (mut recs, _map) = empty();
         recs.rider_categories = rider_cats(&[("adult", 1), ("senior", 0), ("disabled", 0)]);
         recs.fare_products = fare_prods(&[
-            ("p1", Some("senior")), ("p1", Some("disabled")),
-            ("p2", Some("senior")), ("p2", Some("disabled")),
+            ("p1", Some("senior")),
+            ("p1", Some("disabled")),
+            ("p2", Some("senior")),
+            ("p2", Some("disabled")),
         ]);
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RCT_006").collect();
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "RCT_006")
+            .collect();
         assert_eq!(hits.len(), 2, "ürün başına kalmalı");
         assert!(hits.iter().all(|n| n.entity_type == EntityType::Row));
     }
@@ -7470,26 +9034,53 @@ mod tests {
         let (mut recs, _map) = empty();
         recs.rider_categories = rider_cats(&[("a", 0), ("b", 0), ("c", 0), ("d", 0)]);
         recs.fare_products = fare_prods(&[
-            ("p1", Some("a")), ("p1", Some("b")),
-            ("p2", Some("c")), ("p2", Some("d")),
+            ("p1", Some("a")),
+            ("p1", Some("b")),
+            ("p2", Some("c")),
+            ("p2", Some("d")),
         ]);
         let result = check(&recs, &EntityMap::default(), 20260515);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "RCT_006").collect();
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "RCT_006")
+            .collect();
         assert_eq!(hits.len(), 1);
-        assert!(hits[0].message.contains("ortusmuyor"), "{}", hits[0].message);
-        assert!(hits[0].details.as_ref().is_some_and(|d| !d.contains_key("resolving_categories")));
+        assert!(
+            hits[0].message.contains("ortusmuyor"),
+            "{}",
+            hits[0].message
+        );
+        assert!(hits[0]
+            .details
+            .as_ref()
+            .is_some_and(|d| !d.contains_key("resolving_categories")));
     }
 
     #[test]
     fn missing_fare_agency_is_summarized_once_per_feed() {
         let (mut recs, map) = empty();
-        recs.fare_attributes = ["F1", "F2"].into_iter().enumerate().map(|(i, id)| FareAttributeRecord {
-            fare_id: id.into(), price: Some(2.0), currency_type: "TRY".into(),
-            payment_method: Some(0), transfers: None, transfer_duration: None,
-            agency_id: None, row: Default::default(), line: i as u64 + 2,
-        }).collect();
+        recs.fare_attributes = ["F1", "F2"]
+            .into_iter()
+            .enumerate()
+            .map(|(i, id)| FareAttributeRecord {
+                fare_id: id.into(),
+                price: Some(2.0),
+                currency_type: "TRY".into(),
+                payment_method: Some(0),
+                transfers: None,
+                transfer_duration: None,
+                agency_id: None,
+                row: Default::default(),
+                line: i as u64 + 2,
+            })
+            .collect();
         let result = check(&recs, &map, 20260515);
-        let found: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "FIN_013").collect();
+        let found: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "FIN_013")
+            .collect();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].entity_type, EntityType::Feed);
         assert!(found[0].message.contains("2 ücret tarifesinde"));
@@ -7543,7 +9134,10 @@ mod tests {
         // görünür olmalıdır, yoksa referans bütünlüğü dil eksenine bağlı kalır.
         let recs = attributions_translation_fixture("A1", "A2", "en");
         let result = check(&recs, &EntityMap::default(), 20260824);
-        let trn004 = result.notices.iter().find(|n| n.rule_id == "TRN_004" && n.line == Some(6));
+        let trn004 = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "TRN_004" && n.line == Some(6));
         let trn004 = trn004.expect("TRN_004 bulunmalı");
         // en/ja/fr şablonları `{entity_id}` ile doldurulur; boş bırakılırsa mesaj
         // "record_id '' not found." olur.
@@ -7555,104 +9149,184 @@ mod tests {
 
     #[test]
     fn trn_016_flags_field_value_matching_nothing() {
-        use crate::k2::translations::TranslationRecord;
         use crate::k2::stops::StopRecord;
+        use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         let mk = |id: &str, name: &str| {
             let mut row = std::collections::HashMap::new();
             row.insert("stop_id".to_string(), id.to_string());
             row.insert("stop_name".to_string(), name.to_string());
             StopRecord {
-                stop_id: id.to_string(), stop_name: Some(name.to_string()),
-                row, line: 2, ..Default::default()
+                stop_id: id.to_string(),
+                stop_name: Some(name.to_string()),
+                row,
+                line: 2,
+                ..Default::default()
             }
         };
         recs.stops = vec![mk("S1", "Merkez"), mk("S2", "Sahil")];
         let base = TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "en".into(), translation: "Centre".into(),
-            record_id: None, record_sub_id: None,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "en".into(),
+            translation: "Centre".into(),
+            record_id: None,
+            record_sub_id: None,
             field_value: Some("Merkez".into()),
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         };
         // Eşleşen çeviri → sessiz.
         recs.translations = vec![base.clone()];
         let ok = check(&recs, &EntityMap::default(), 20260515);
-        assert!(!ok.notices.iter().any(|n| n.rule_id == "TRN_016"), "{:?}", ok.notices);
+        assert!(
+            !ok.notices.iter().any(|n| n.rule_id == "TRN_016"),
+            "{:?}",
+            ok.notices
+        );
 
         // Eşleşmeyen değer → TRN_016.
-        recs.translations = vec![TranslationRecord { field_value: Some("Yokistan".into()), ..base.clone() }];
+        recs.translations = vec![TranslationRecord {
+            field_value: Some("Yokistan".into()),
+            ..base.clone()
+        }];
         let bad = check(&recs, &EntityMap::default(), 20260515);
-        let hits: Vec<_> = bad.notices.iter().filter(|n| n.rule_id == "TRN_016").collect();
+        let hits: Vec<_> = bad
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "TRN_016")
+            .collect();
         assert_eq!(hits.len(), 1, "feed başına tek özet: {hits:?}");
         assert!(hits[0].message.contains("Yokistan"), "{}", hits[0].message);
     }
 
     #[test]
     fn trn_016_defers_to_neighbours() {
-        use crate::k2::translations::TranslationRecord;
         use crate::k2::stops::StopRecord;
+        use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         let mut row = std::collections::HashMap::new();
         row.insert("stop_id".to_string(), "S1".to_string());
         row.insert("stop_name".to_string(), "Merkez".to_string());
-        recs.stops = vec![StopRecord { stop_id: "S1".into(), stop_name: Some("Merkez".into()), row, line: 2, ..Default::default() }];
+        recs.stops = vec![StopRecord {
+            stop_id: "S1".into(),
+            stop_name: Some("Merkez".into()),
+            row,
+            line: 2,
+            ..Default::default()
+        }];
         let base = TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(),
-            language: "en".into(), translation: "X".into(),
-            record_id: None, record_sub_id: None, field_value: Some("Yok".into()),
-            row: Default::default(), line: 2,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "en".into(),
+            translation: "X".into(),
+            record_id: None,
+            record_sub_id: None,
+            field_value: Some("Yok".into()),
+            row: Default::default(),
+            line: 2,
         };
         // (a) `record_id` biçimi → XFL_014'ün alanı, TRN_016 susar.
-        recs.translations = vec![TranslationRecord { record_id: Some("S1".into()), field_value: None, ..base.clone() }];
-        assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+        recs.translations = vec![TranslationRecord {
+            record_id: Some("S1".into()),
+            field_value: None,
+            ..base.clone()
+        }];
+        assert!(!check(&recs, &EntityMap::default(), 20260515)
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "TRN_016"));
 
         // (b) `field_name` o dosyada sütun DEĞİL → TRN_002'nin alanı, TRN_016 susar.
-        recs.translations = vec![TranslationRecord { field_name: "long_name".into(), ..base.clone() }];
-        assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+        recs.translations = vec![TranslationRecord {
+            field_name: "long_name".into(),
+            ..base.clone()
+        }];
+        assert!(!check(&recs, &EntityMap::default(), 20260515)
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "TRN_016"));
 
         // (c) desteklenmeyen tablo (trips — ham satır tutulmaz) → sessiz.
-        recs.translations = vec![TranslationRecord { table_name: "trips".into(), field_name: "trip_headsign".into(), ..base }];
-        assert!(!check(&recs, &EntityMap::default(), 20260515).notices.iter().any(|n| n.rule_id == "TRN_016"));
+        recs.translations = vec![TranslationRecord {
+            table_name: "trips".into(),
+            field_name: "trip_headsign".into(),
+            ..base
+        }];
+        assert!(!check(&recs, &EntityMap::default(), 20260515)
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "TRN_016"));
     }
 
     #[test]
     fn pth_030_flags_pathway_on_platform_with_boarding_areas() {
-        use crate::k2::stops::StopRecord;
         use crate::k2::pathways::PathwayRecord;
+        use crate::k2::stops::StopRecord;
         let (mut recs, mut map) = empty();
         let stop = |id: &str, lt: Option<u32>, parent: &str| {
             let mut row = std::collections::HashMap::new();
             row.insert("stop_id".to_string(), id.to_string());
             row.insert("parent_station".to_string(), parent.to_string());
-            StopRecord { stop_id: id.to_string(), location_type: lt, row, line: 2, ..Default::default() }
+            StopRecord {
+                stop_id: id.to_string(),
+                location_type: lt,
+                row,
+                line: 2,
+                ..Default::default()
+            }
         };
         // P1 platformunun boarding area'sı var; P2'nin yok.
         recs.stops = vec![
-            stop("P1", Some(0), "ST1"), stop("BA1", Some(4), "P1"),
-            stop("P2", Some(0), "ST1"), stop("E1", Some(2), "ST1"),
+            stop("P1", Some(0), "ST1"),
+            stop("BA1", Some(4), "P1"),
+            stop("P2", Some(0), "ST1"),
+            stop("E1", Some(2), "ST1"),
         ];
-        for (i, s) in recs.stops.iter().enumerate() { map.stops.insert(s.stop_id.clone(), i); }
+        for (i, s) in recs.stops.iter().enumerate() {
+            map.stops.insert(s.stop_id.clone(), i);
+        }
         let pw = |id: &str, from: &str, to: &str, line: u64| PathwayRecord {
-            pathway_id: id.into(), from_stop_id: from.into(), to_stop_id: to.into(),
-            pathway_mode: Some(1), is_bidirectional: Some(0),
-            length: None, traversal_time: None, stair_count: None, max_slope: None,
-            min_width: None, row: Default::default(), line,
+            pathway_id: id.into(),
+            from_stop_id: from.into(),
+            to_stop_id: to.into(),
+            pathway_mode: Some(1),
+            is_bidirectional: Some(0),
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line,
         };
         recs.pathways = vec![pw("W1", "E1", "P1", 2), pw("W2", "E1", "P2", 3)];
         let result = check(&recs, &map, 20260515);
-        let hits: Vec<_> = result.notices.iter().filter(|n| n.rule_id == "PTH_030").collect();
-        assert_eq!(hits.len(), 1, "yalnız boarding area'sı olan platforma bağlanan: {hits:?}");
+        let hits: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "PTH_030")
+            .collect();
+        assert_eq!(
+            hits.len(),
+            1,
+            "yalnız boarding area'sı olan platforma bağlanan: {hits:?}"
+        );
         assert_eq!(hits[0].entity_id.as_deref(), Some("W1"));
     }
 
     #[test]
     fn jpn_012_reports_missing_agency_jp_id() {
         let (mut recs, _map) = empty();
-        recs.agency_jp = vec![AgencyJpRecord { agency_id: None, row: Default::default(), line: 7 }];
+        recs.agency_jp = vec![AgencyJpRecord {
+            agency_id: None,
+            row: Default::default(),
+            line: 7,
+        }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_012"
-            && n.file.as_deref() == Some("agency_jp.txt") && n.line == Some(7)));
+            && n.file.as_deref() == Some("agency_jp.txt")
+            && n.line == Some(7)));
     }
 
     #[test]
@@ -7660,7 +9334,11 @@ mod tests {
         let (mut recs, _map) = empty();
         let mut row = std::collections::HashMap::new();
         row.insert("agency_zip_number".to_string(), "123-4567".to_string());
-        recs.agency_jp = vec![AgencyJpRecord { agency_id: Some("A1".into()), row, line: 3 }];
+        recs.agency_jp = vec![AgencyJpRecord {
+            agency_id: Some("A1".into()),
+            row,
+            line: 3,
+        }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_013"));
     }
@@ -7669,12 +9347,34 @@ mod tests {
     fn jpn_014_reports_empty_and_duplicate_office_ids() {
         let (mut recs, _map) = empty();
         recs.office_jp = vec![
-            OfficeJpRecord { office_id: String::new(), office_name: Some("A".into()), row: Default::default(), line: 2 },
-            OfficeJpRecord { office_id: "O1".into(), office_name: Some("B".into()), row: Default::default(), line: 3 },
-            OfficeJpRecord { office_id: "O1".into(), office_name: Some("C".into()), row: Default::default(), line: 4 },
+            OfficeJpRecord {
+                office_id: String::new(),
+                office_name: Some("A".into()),
+                row: Default::default(),
+                line: 2,
+            },
+            OfficeJpRecord {
+                office_id: "O1".into(),
+                office_name: Some("B".into()),
+                row: Default::default(),
+                line: 3,
+            },
+            OfficeJpRecord {
+                office_id: "O1".into(),
+                office_name: Some("C".into()),
+                row: Default::default(),
+                line: 4,
+            },
         ];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_014").count(), 2);
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "JPN_014")
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -7682,20 +9382,31 @@ mod tests {
         let (mut recs, _map) = empty();
         recs.routes = vec![route("R1")];
         recs.routes_jp = vec![RoutesJpRecord {
-            route_id: "MISSING".into(), route_update_date: None, origin_stop: Some("metin".into()),
-            via_stop: None, destination_stop: None, row: Default::default(), line: 8,
+            route_id: "MISSING".into(),
+            route_update_date: None,
+            origin_stop: Some("metin".into()),
+            via_stop: None,
+            destination_stop: None,
+            row: Default::default(),
+            line: 8,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_015"
-            && n.file.as_deref() == Some("routes_jp.txt") && n.line == Some(8)));
+            && n.file.as_deref() == Some("routes_jp.txt")
+            && n.line == Some(8)));
     }
 
     #[test]
     fn jpn_016_reports_invalid_pattern_jp_update_date() {
         let (mut recs, _map) = empty();
         recs.pattern_jp = vec![PatternJpRecord {
-            jp_pattern_id: "P1".into(), route_update_date: Some("20260231".into()),
-            origin_stop: None, via_stop: None, destination_stop: None, row: Default::default(), line: 5,
+            jp_pattern_id: "P1".into(),
+            route_update_date: Some("20260231".into()),
+            origin_stop: None,
+            via_stop: None,
+            destination_stop: None,
+            row: Default::default(),
+            line: 5,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_016"
@@ -7707,9 +9418,13 @@ mod tests {
     fn jpn_016_reports_invalid_legacy_routes_jp_update_date() {
         let (mut recs, _map) = empty();
         recs.routes_jp = vec![RoutesJpRecord {
-            route_id: "R1".into(), route_update_date: Some("令和8年4月6日".into()),
-            origin_stop: None, via_stop: None, destination_stop: None,
-            row: Default::default(), line: 7,
+            route_id: "R1".into(),
+            route_update_date: Some("令和8年4月6日".into()),
+            origin_stop: None,
+            via_stop: None,
+            destination_stop: None,
+            row: Default::default(),
+            line: 7,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_016"
@@ -7721,12 +9436,24 @@ mod tests {
     fn jpn_017_reports_missing_and_duplicate_pattern_ids() {
         let (mut recs, _map) = empty();
         let pattern = |id: &str, line| PatternJpRecord {
-            jp_pattern_id: id.into(), route_update_date: None, origin_stop: None,
-            via_stop: None, destination_stop: None, row: Default::default(), line,
+            jp_pattern_id: id.into(),
+            route_update_date: None,
+            origin_stop: None,
+            via_stop: None,
+            destination_stop: None,
+            row: Default::default(),
+            line,
         };
         recs.pattern_jp = vec![pattern("", 2), pattern("P1", 3), pattern("P1", 4)];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_017").count(), 2);
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "JPN_017")
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -7740,8 +9467,10 @@ mod tests {
         recs.trip_interns = ti;
         recs.has_pattern_jp_file = true;
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_018"
-            && n.entity_id.as_deref() == Some("T1")));
+        assert!(result
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "JPN_018" && n.entity_id.as_deref() == Some("T1")));
     }
 
     #[test]
@@ -7761,20 +9490,35 @@ mod tests {
     fn v4_profile_treats_v3_extension_files_as_reference_only() {
         let (mut recs, _map) = empty();
         recs.gtfs_jp_profile = GtfsJpProfile::V4;
-        recs.agency_jp = vec![AgencyJpRecord { agency_id: None, row: Default::default(), line: 2 }];
+        recs.agency_jp = vec![AgencyJpRecord {
+            agency_id: None,
+            row: Default::default(),
+            line: 2,
+        }];
         recs.office_jp = vec![OfficeJpRecord {
-            office_id: "O1".into(), office_name: None, row: Default::default(), line: 3,
+            office_id: "O1".into(),
+            office_name: None,
+            row: Default::default(),
+            line: 3,
         }];
         recs.routes = vec![route("R1")];
         recs.routes_jp = vec![RoutesJpRecord {
-            route_id: "MISSING".into(), route_update_date: Some("令和8年4月6日".into()),
-            origin_stop: None, via_stop: None, destination_stop: None,
-            row: Default::default(), line: 4,
+            route_id: "MISSING".into(),
+            route_update_date: Some("令和8年4月6日".into()),
+            origin_stop: None,
+            via_stop: None,
+            destination_stop: None,
+            row: Default::default(),
+            line: 4,
         }];
         recs.pattern_jp = vec![PatternJpRecord {
-            jp_pattern_id: "P1".into(), route_update_date: Some("20260231".into()),
-            origin_stop: None, via_stop: None, destination_stop: None,
-            row: Default::default(), line: 5,
+            jp_pattern_id: "P1".into(),
+            route_update_date: Some("20260231".into()),
+            origin_stop: None,
+            via_stop: None,
+            destination_stop: None,
+            row: Default::default(),
+            line: 5,
         }];
         recs.has_pattern_jp_file = true;
 
@@ -7786,10 +9530,14 @@ mod tests {
         recs.trip_interns = ti;
 
         let result = check(&recs, &EntityMap::default(), 20260824);
-        for id in ["JPN_002", "JPN_003", "JPN_005", "JPN_012", "JPN_013",
-                   "JPN_014", "JPN_015", "JPN_016", "JPN_017", "JPN_018", "JPN_020"] {
-            assert!(!result.notices.iter().any(|n| n.rule_id == id),
-                "v4 profilinde v3 uzantı kuralı çalışmamalı: {id}");
+        for id in [
+            "JPN_002", "JPN_003", "JPN_005", "JPN_012", "JPN_013", "JPN_014", "JPN_015", "JPN_016",
+            "JPN_017", "JPN_018", "JPN_020",
+        ] {
+            assert!(
+                !result.notices.iter().any(|n| n.rule_id == id),
+                "v4 profilinde v3 uzantı kuralı çalışmamalı: {id}"
+            );
         }
     }
 
@@ -7797,13 +9545,20 @@ mod tests {
     fn jpn_019_reports_invalid_kana_translation_reference() {
         let (mut recs, _map) = empty();
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(), language: "ja-Hrkt".into(),
-            translation: "とうきょう".into(), record_id: Some("MISSING_STOP".into()), record_sub_id: None,
-            field_value: None, row: Default::default(), line: 6,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(),
+            record_id: Some("MISSING_STOP".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 6,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019"
-            && n.file.as_deref() == Some("translations.txt") && n.line == Some(6)));
+            && n.file.as_deref() == Some("translations.txt")
+            && n.line == Some(6)));
     }
 
     #[test]
@@ -7870,7 +9625,10 @@ mod tests {
             line: 6,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
+        assert!(result
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
     }
 
     #[test]
@@ -7954,7 +9712,10 @@ mod tests {
             line: 6,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
+        assert!(result
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
     }
 
     #[test]
@@ -7963,13 +9724,21 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip(&mut ti, "T1", "R1", "S1")];
         recs.trip_interns = ti;
-        recs.stop_times_index = StopTimesIndex::from_records(&[
-            StopTimeRecord { trip_id: "T1".into(), stop_sequence: Some(5), ..Default::default() },
-        ]);
+        recs.stop_times_index = StopTimesIndex::from_records(&[StopTimeRecord {
+            trip_id: "T1".into(),
+            stop_sequence: Some(5),
+            ..Default::default()
+        }]);
         let translation = |sub: &str| TranslationRecord {
-            table_name: "stop_times".into(), field_name: "stop_headsign".into(), language: "ja-Hrkt".into(),
-            translation: "とうきょう".into(), record_id: Some("T1".into()), record_sub_id: Some(sub.into()),
-            field_value: None, row: Default::default(), line: 6,
+            table_name: "stop_times".into(),
+            field_name: "stop_headsign".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(),
+            record_id: Some("T1".into()),
+            record_sub_id: Some(sub.into()),
+            field_value: None,
+            row: Default::default(),
+            line: 6,
         };
 
         recs.translations = vec![translation("5")];
@@ -7978,20 +9747,32 @@ mod tests {
 
         recs.translations = vec![translation("6")];
         let dangling = check(&recs, &EntityMap::default(), 20260824);
-        assert!(dangling.notices.iter().any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
+        assert!(dangling
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "JPN_019" && n.line == Some(6)));
     }
 
     #[test]
     fn jpn_019_is_silent_for_unknown_translation_table() {
         let (mut recs, _map) = empty();
         recs.translations = vec![TranslationRecord {
-            table_name: "unknown_table".into(), field_name: "unknown_field".into(), language: "ja-Hrkt".into(),
-            translation: "とうきょう".into(), record_id: None, record_sub_id: None,
-            field_value: None, row: Default::default(), line: 7,
+            table_name: "unknown_table".into(),
+            field_name: "unknown_field".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(),
+            record_id: None,
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 7,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"),
-            "TRN_001 kök bulgusuna JPN_019 türevi eklenmemeli: {:?}", result.notices);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "JPN_019"),
+            "TRN_001 kök bulgusuna JPN_019 türevi eklenmemeli: {:?}",
+            result.notices
+        );
     }
 
     #[test]
@@ -7999,13 +9780,22 @@ mod tests {
         let (mut recs, _map) = empty();
         recs.stops = vec![stop("S1")];
         recs.translations = vec![TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(), language: "ja-Hrkt".into(),
-            translation: "とうきょう".into(), record_id: Some("S1".into()),
-            record_sub_id: Some("NONE".into()), field_value: None, row: Default::default(), line: 7,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: Some("NONE".into()),
+            field_value: None,
+            row: Default::default(),
+            line: 7,
         }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"),
-            "GTFS-JP v3'te NONE gerçek alt kimlik sayılmamalı: {:?}", result.notices);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "JPN_019"),
+            "GTFS-JP v3'te NONE gerçek alt kimlik sayılmamalı: {:?}",
+            result.notices
+        );
     }
 
     #[test]
@@ -8014,9 +9804,15 @@ mod tests {
         recs.gtfs_jp_profile = GtfsJpProfile::V4;
         recs.stops = vec![stop("S1")];
         let mut translation = TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(), language: "ja-Hrkt".into(),
-            translation: "とうきょう".into(), record_id: Some("S1".into()), record_sub_id: None,
-            field_value: None, row: Default::default(), line: 7,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: "とうきょう".into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line: 7,
         };
         recs.translations = vec![translation.clone()];
         let missing = check(&recs, &EntityMap::default(), 20260824);
@@ -8048,7 +9844,11 @@ mod tests {
         recs.agencies[0].agency_lang = None;
         recs.stops = vec![stop("S1")];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        let findings = result.notices.iter().filter(|n| n.rule_id == "JPN_022").collect::<Vec<_>>();
+        let findings = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "JPN_022")
+            .collect::<Vec<_>>();
         assert_eq!(findings.len(), 5);
         assert!(findings.iter().all(|finding| {
             finding
@@ -8099,9 +9899,21 @@ mod tests {
         let mut row = std::collections::HashMap::new();
         row.insert("office_url".to_string(), "not-a-url".to_string());
         row.insert("office_phone".to_string(), "x".to_string());
-        recs.office_jp = vec![OfficeJpRecord { office_id: "O1".into(), office_name: Some("Ofis".into()), row, line: 9 }];
+        recs.office_jp = vec![OfficeJpRecord {
+            office_id: "O1".into(),
+            office_name: Some("Ofis".into()),
+            row,
+            line: 9,
+        }];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        assert_eq!(result.notices.iter().filter(|n| n.rule_id == "JPN_020").count(), 2);
+        assert_eq!(
+            result
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "JPN_020")
+                .count(),
+            2
+        );
     }
 
     #[test]
@@ -8109,16 +9921,40 @@ mod tests {
         let (mut recs, _map) = empty();
         recs.stops = vec![stop("S1")];
         let translation = |value: &str, line| TranslationRecord {
-            table_name: "stops".into(), field_name: "stop_name".into(), language: "ja-Hrkt".into(),
-            translation: value.into(), record_id: Some("S1".into()), record_sub_id: None,
-            field_value: None, row: Default::default(), line,
+            table_name: "stops".into(),
+            field_name: "stop_name".into(),
+            language: "ja-Hrkt".into(),
+            translation: value.into(),
+            record_id: Some("S1".into()),
+            record_sub_id: None,
+            field_value: None,
+            row: Default::default(),
+            line,
         };
-        recs.translations = vec![translation("とうきょう", 2), translation("トウキョウ", 3), translation("Tokyo", 4), translation("", 5)];
+        recs.translations = vec![
+            translation("とうきょう", 2),
+            translation("トウキョウ", 3),
+            translation("Tokyo", 4),
+            translation("", 5),
+        ];
         let result = check(&recs, &EntityMap::default(), 20260824);
-        let conflict = result.notices.iter().find(|n| n.rule_id == "JPN_021" && n.line == Some(3)).expect("JPN_021 çelişki bulgusu");
-        assert!(conflict.message.contains("ilk satır 2"), "ilk görülen satır korunmalı: {}", conflict.message);
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_021" && n.line == Some(4)));
-        assert!(result.notices.iter().any(|n| n.rule_id == "JPN_021" && n.line == Some(5)));
+        let conflict = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "JPN_021" && n.line == Some(3))
+            .expect("JPN_021 çelişki bulgusu");
+        assert!(
+            conflict.message.contains("ilk satır 2"),
+            "ilk görülen satır korunmalı: {}",
+            conflict.message
+        );
+        assert!(result
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "JPN_021" && n.line == Some(4)));
+        assert!(result
+            .notices
+            .iter()
+            .any(|n| n.rule_id == "JPN_021" && n.line == Some(5)));
     }
-
 }

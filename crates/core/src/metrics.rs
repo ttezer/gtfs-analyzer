@@ -74,4 +74,6 @@ pub struct FeedMetrics {
     pub gtfs_jp_profile: Option<String>,
 }
 
-fn default_true_metrics() -> bool { true }
+fn default_true_metrics() -> bool {
+    true
+}

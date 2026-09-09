@@ -13,13 +13,16 @@ use std::collections::BTreeSet;
 use std::io::Write as _;
 use zip::write::SimpleFileOptions;
 
-use gtfs_pipeline::{validate_bytes, CalendarOverrideRule, GtfsJpProfile, ValidateResult, ValidatorConfig};
+use gtfs_pipeline::{
+    validate_bytes, CalendarOverrideRule, GtfsJpProfile, ValidateResult, ValidatorConfig,
+};
 use gtfs_rules::RULES;
 
 const TODAY: u32 = 20_260_515;
 
 // ── Geçerli temel feed (integration.rs ile aynı; tek başına notice üretmez) ─────
-const AGENCY: &str = "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
+const AGENCY: &str =
+    "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 const STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
 const ROUTES: &str = "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n";
 const TRIPS: &str = "route_id,service_id,trip_id\nR1,SVC1,T1\n";
@@ -30,21 +33,39 @@ const CALENDAR: &str = "service_id,monday,tuesday,wednesday,thursday,friday,satu
 // fixture'lar doğrudan byte geçer (ARC_002/003 için).
 fn base() -> Vec<(String, Vec<u8>)> {
     [
-        ("agency.txt", AGENCY), ("stops.txt", STOPS), ("routes.txt", ROUTES),
-        ("trips.txt", TRIPS), ("stop_times.txt", STOP_TIMES), ("calendar.txt", CALENDAR),
-    ].iter().map(|(n, c)| (n.to_string(), c.as_bytes().to_vec())).collect()
+        ("agency.txt", AGENCY),
+        ("stops.txt", STOPS),
+        ("routes.txt", ROUTES),
+        ("trips.txt", TRIPS),
+        ("stop_times.txt", STOP_TIMES),
+        ("calendar.txt", CALENDAR),
+    ]
+    .iter()
+    .map(|(n, c)| (n.to_string(), c.as_bytes().to_vec()))
+    .collect()
 }
 
 /// Temel feed'i alır; string override'ları, ham byte override'larını uygular (yeni dosya da ekler)
 /// ve `removes`'taki dosyaları çıkarır (örn. "agency.txt eksik" senaryosu).
-fn with_opts(overrides: &[(&str, &str)], removes: &[&str], raw: &[(&str, &[u8])]) -> Vec<(String, Vec<u8>)> {
+fn with_opts(
+    overrides: &[(&str, &str)],
+    removes: &[&str],
+    raw: &[(&str, &[u8])],
+) -> Vec<(String, Vec<u8>)> {
     let mut files = base();
     let apply = |name: &str, bytes: Vec<u8>, files: &mut Vec<(String, Vec<u8>)>| {
-        if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) { slot.1 = bytes; }
-        else { files.push((name.to_string(), bytes)); }
+        if let Some(slot) = files.iter_mut().find(|(n, _)| n == name) {
+            slot.1 = bytes;
+        } else {
+            files.push((name.to_string(), bytes));
+        }
     };
-    for (name, content) in overrides { apply(name, content.as_bytes().to_vec(), &mut files); }
-    for (name, content) in raw { apply(name, content.to_vec(), &mut files); }
+    for (name, content) in overrides {
+        apply(name, content.as_bytes().to_vec(), &mut files);
+    }
+    for (name, content) in raw {
+        apply(name, content.to_vec(), &mut files);
+    }
     files.retain(|(n, _)| !removes.contains(&n.as_str()));
     files
 }
@@ -72,8 +93,15 @@ fn make_zip_with_modes(files: &[(String, Vec<u8>)], no_read: &[&str]) -> Vec<u8>
 
 /// ARC_027 fixture'ı: verilen dosyalar okuma izinsiz yazılır.
 fn fx_noread(rule: &'static str, no_read: Vec<&'static str>) -> Fixture {
-    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw: Vec::new(),
-              config: None, no_read, flip_stream_flags: false }
+    Fixture {
+        rule,
+        overrides: Vec::new(),
+        removes: Vec::new(),
+        raw: Vec::new(),
+        config: None,
+        no_read,
+        flip_stream_flags: false,
+    }
 }
 
 /// ARC_036 fixture'ı: zip KURULDUKTAN SONRA yerel başlıkların bayrağına bit 3 eklenir.
@@ -82,7 +110,9 @@ fn fx_noread(rule: &'static str, no_read: Vec<&'static str>) -> Fixture {
 fn flip_data_descriptor_flags(mut zip_bytes: Vec<u8>) -> Vec<u8> {
     let starts: Vec<u64> = {
         let mut a = zip::ZipArchive::new(std::io::Cursor::new(&zip_bytes[..])).unwrap();
-        (0..a.len()).map(|i| a.by_index_raw(i).unwrap().header_start()).collect()
+        (0..a.len())
+            .map(|i| a.by_index_raw(i).unwrap().header_start())
+            .collect()
     };
     for s in starts {
         let off = s as usize + 6; // general purpose bit flag
@@ -94,8 +124,15 @@ fn flip_data_descriptor_flags(mut zip_bytes: Vec<u8>) -> Vec<u8> {
 
 /// ARC_036 fixture'ı: base feed, yalnız zip çerçevesi bozulur.
 fn fx_stream_flag(rule: &'static str) -> Fixture {
-    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw: Vec::new(),
-              config: None, no_read: Vec::new(), flip_stream_flags: true }
+    Fixture {
+        rule,
+        overrides: Vec::new(),
+        removes: Vec::new(),
+        raw: Vec::new(),
+        config: None,
+        no_read: Vec::new(),
+        flip_stream_flags: true,
+    }
 }
 
 fn emitted_rules(files: &[(String, Vec<u8>)], config: &ValidatorConfig) -> BTreeSet<String> {
@@ -109,7 +146,11 @@ fn emitted_rules_modes(
     flip_stream_flags: bool,
 ) -> BTreeSet<String> {
     let zip_bytes = make_zip_with_modes(files, no_read);
-    let zip_bytes = if flip_stream_flags { flip_data_descriptor_flags(zip_bytes) } else { zip_bytes };
+    let zip_bytes = if flip_stream_flags {
+        flip_data_descriptor_flags(zip_bytes)
+    } else {
+        zip_bytes
+    };
     match validate_bytes(&zip_bytes, config, TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.clone()).collect(),
         ValidateResult::Fatal(e) => {
@@ -144,7 +185,15 @@ struct Fixture {
 }
 
 fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
-    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: None, no_read: Vec::new(), flip_stream_flags: false }
+    Fixture {
+        rule,
+        overrides,
+        removes: Vec::new(),
+        raw: Vec::new(),
+        config: None,
+        no_read: Vec::new(),
+        flip_stream_flags: false,
+    }
 }
 
 /// V3 uzantı kurallarının emit kanıtı: üretim varsayılanı Auto olsa da bu fixture'lar
@@ -182,18 +231,50 @@ fn fx_v4(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fi
 }
 
 /// Dosya çıkarmalı fixture ("X.txt eksik" senaryoları).
-fn fx_rm(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, removes: Vec<&'static str>) -> Fixture {
-    Fixture { rule, overrides, removes, raw: Vec::new(), config: None, no_read: Vec::new(), flip_stream_flags: false }
+fn fx_rm(
+    rule: &'static str,
+    overrides: Vec<(&'static str, &'static str)>,
+    removes: Vec<&'static str>,
+) -> Fixture {
+    Fixture {
+        rule,
+        overrides,
+        removes,
+        raw: Vec::new(),
+        config: None,
+        no_read: Vec::new(),
+        flip_stream_flags: false,
+    }
 }
 
 /// Ham byte fixture — geçersiz UTF-8 senaryoları (ARC_002/003).
 fn fx_raw(rule: &'static str, raw: Vec<(&'static str, &'static [u8])>) -> Fixture {
-    Fixture { rule, overrides: Vec::new(), removes: Vec::new(), raw, config: None, no_read: Vec::new(), flip_stream_flags: false }
+    Fixture {
+        rule,
+        overrides: Vec::new(),
+        removes: Vec::new(),
+        raw,
+        config: None,
+        no_read: Vec::new(),
+        flip_stream_flags: false,
+    }
 }
 
 /// Config-override fixture — ör. calendar_override_rules (OPR_021/022/023).
-fn fx_cfg(rule: &'static str, overrides: Vec<(&'static str, &'static str)>, config: ValidatorConfig) -> Fixture {
-    Fixture { rule, overrides, removes: Vec::new(), raw: Vec::new(), config: Some(config), no_read: Vec::new(), flip_stream_flags: false }
+fn fx_cfg(
+    rule: &'static str,
+    overrides: Vec<(&'static str, &'static str)>,
+    config: ValidatorConfig,
+) -> Fixture {
+    Fixture {
+        rule,
+        overrides,
+        removes: Vec::new(),
+        raw: Vec::new(),
+        config: Some(config),
+        no_read: Vec::new(),
+        flip_stream_flags: false,
+    }
 }
 
 /// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
@@ -230,10 +311,12 @@ const PROOF_ALLOWLIST: &[&str] = &[
 
 // #28 Grup 1 yardımcıları ─────────────────────────────────────────────────────
 // OPSİYONEL dosyada (feed_info.txt) geçersiz UTF-8 (0xFF/0xFE) → ARC_002 + ARC_003 (fatal değil).
-const BAD_UTF8_FEED_INFO: &[u8] = b"feed_publisher_name,feed_publisher_url,feed_lang\n\xff\xfe,https://x.example,en\n";
+const BAD_UTF8_FEED_INFO: &[u8] =
+    b"feed_publisher_name,feed_publisher_url,feed_lang\n\xff\xfe,https://x.example,en\n";
 // calendar_dates: SVC_B 0101+0102, SVC_O yalnız 0101 aktif. Kural penceresi 0101-0103'te:
 // 0101 base+override → OPR_021, 0102 yalnız base → OPR_022, 0103 hiçbiri → OPR_023.
-const OVERRIDE_CD: &str = "service_id,date,exception_type\nSVC_B,20260101,1\nSVC_B,20260102,1\nSVC_O,20260101,1\n";
+const OVERRIDE_CD: &str =
+    "service_id,date,exception_type\nSVC_B,20260101,1\nSVC_B,20260102,1\nSVC_O,20260101,1\n";
 fn override_config() -> ValidatorConfig {
     ValidatorConfig {
         calendar_override_rules: vec![CalendarOverrideRule {
@@ -1934,13 +2017,20 @@ fn each_fixture_actually_emits_its_rule() {
         let cfg = f.config.clone().unwrap_or_default();
         let no_read: Vec<&str> = f.no_read.clone();
         let emitted = emitted_rules_modes(
-            &with_opts(&f.overrides, &f.removes, &f.raw), &cfg, &no_read, f.flip_stream_flags,
+            &with_opts(&f.overrides, &f.removes, &f.raw),
+            &cfg,
+            &no_read,
+            f.flip_stream_flags,
         );
         if !emitted.contains(f.rule) {
             failures.push(format!("  {} emit etmedi → {:?}", f.rule, emitted));
         }
     }
-    assert!(failures.is_empty(), "Emit etmeyen fixture(lar):\n{}", failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "Emit etmeyen fixture(lar):\n{}",
+        failures.join("\n")
+    );
 }
 
 #[test]
@@ -1950,20 +2040,41 @@ fn shp030_aggregates_and_does_not_duplicate_related_findings() {
         ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,\n"),
         ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,1\nT2,09:00:00,09:00:00,S1,1,0\nT2,09:10:00,09:10:00,S2,2,1\n"),
     ];
-    let positive = notices_for(&with_opts(&overrides, &[], &[]), &ValidatorConfig::default());
+    let positive = notices_for(
+        &with_opts(&overrides, &[], &[]),
+        &ValidatorConfig::default(),
+    );
     let shp030: Vec<_> = positive.iter().filter(|n| n.rule_id == "SHP_030").collect();
     assert_eq!(shp030.len(), 1, "aynı shape için tek SHP_030 beklenir");
     assert_eq!(shp030[0].entity_id.as_deref(), Some("SH1"));
-    assert_eq!(shp030[0].details.as_ref().and_then(|d| d.get("affected_trip_count")).map(String::as_str), Some("2"));
+    assert_eq!(
+        shp030[0]
+            .details
+            .as_ref()
+            .and_then(|d| d.get("affected_trip_count"))
+            .map(String::as_str),
+        Some("2")
+    );
     for related in ["STM_017", "SHP_024", "SHP_025"] {
-        assert!(!positive.iter().any(|n| n.rule_id == related), "{related} SHP_030 fixture'ında türememeli");
+        assert!(
+            !positive.iter().any(|n| n.rule_id == related),
+            "{related} SHP_030 fixture'ında türememeli"
+        );
     }
 
     let complete_shapes = "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,1\n";
-    let negative = notices_for(&with_opts(&[
-        overrides[0], ("shapes.txt", complete_shapes), overrides[2]
-    ], &[], &[]), &ValidatorConfig::default());
-    assert!(!negative.iter().any(|n| n.rule_id == "SHP_030"), "tam shape mesafesi SHP_030 üretmemeli");
+    let negative = notices_for(
+        &with_opts(
+            &[overrides[0], ("shapes.txt", complete_shapes), overrides[2]],
+            &[],
+            &[],
+        ),
+        &ValidatorConfig::default(),
+    );
+    assert!(
+        !negative.iter().any(|n| n.rule_id == "SHP_030"),
+        "tam shape mesafesi SHP_030 üretmemeli"
+    );
 }
 
 #[test]
@@ -1983,7 +2094,8 @@ SH1,43.229660,0.062172,3,2.238\n\
 SH1,43.229665,0.062354,4,2.253\n\
 SH1,43.228891,0.062634,5,2.376\n\
 SH1,43.228047,0.062443,6,2.471\n";
-    let stop_times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+    let stop_times =
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
 T1,08:00:00,08:00:00,S1,1,2.137\n\
 T1,08:10:00,08:10:00,S2,2,2.387\n";
     let files = with_opts(
@@ -1999,24 +2111,43 @@ T1,08:10:00,08:10:00,S2,2,2.387\n";
     );
     let bus = notices_for(&files, &ValidatorConfig::default());
     let bus_shp024: Vec<_> = bus.iter().filter(|n| n.rule_id == "SHP_024").collect();
-    assert_eq!(bus_shp024.len(), 2, "iki >100m otobüs vakası ayrı raporlanmalı: {bus_shp024:?}");
-    assert!(bus_shp024.iter().any(|n| n.entity_id.as_deref() == Some("S1")
-        && n.observed_value.as_deref().is_some_and(|v| v.starts_with("139."))));
-    assert!(bus_shp024.iter().any(|n| n.entity_id.as_deref() == Some("S2")
-        && n.observed_value.as_deref().is_some_and(|v| v.starts_with("165."))));
+    assert_eq!(
+        bus_shp024.len(),
+        2,
+        "iki >100m otobüs vakası ayrı raporlanmalı: {bus_shp024:?}"
+    );
+    assert!(bus_shp024
+        .iter()
+        .any(|n| n.entity_id.as_deref() == Some("S1")
+            && n.observed_value
+                .as_deref()
+                .is_some_and(|v| v.starts_with("139."))));
+    assert!(bus_shp024
+        .iter()
+        .any(|n| n.entity_id.as_deref() == Some("S2")
+            && n.observed_value
+                .as_deref()
+                .is_some_and(|v| v.starts_with("165."))));
 
     // Same geometry on a rail route: the intentional 200m rail threshold keeps both
     // ~139m/~166m platform-center offsets unflagged.
     let rail_routes = "route_id,agency_id,route_short_name,route_type\nR1,1,101,2\n";
     let rail_files = with_opts(
-        &[("routes.txt", rail_routes), ("stops.txt", stops), ("trips.txt", trips),
-          ("shapes.txt", shapes), ("stop_times.txt", stop_times)],
+        &[
+            ("routes.txt", rail_routes),
+            ("stops.txt", stops),
+            ("trips.txt", trips),
+            ("shapes.txt", shapes),
+            ("stop_times.txt", stop_times),
+        ],
         &[],
         &[],
     );
     let rail = notices_for(&rail_files, &ValidatorConfig::default());
-    assert!(!rail.iter().any(|n| n.rule_id == "SHP_024"),
-        "rail eşik istisnası korunmalı: {rail:?}");
+    assert!(
+        !rail.iter().any(|n| n.rule_id == "SHP_024"),
+        "rail eşik istisnası korunmalı: {rail:?}"
+    );
 }
 
 #[test]
@@ -2027,18 +2158,27 @@ FAR,Far,40.0,0.0062\n";
     let trips = "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n";
     let shapes = "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
 SH1,40.0,0.0,1,0\nSH1,40.0,0.01,2,1\n";
-    let stop_times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+    let stop_times =
+        "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
 T1,08:00:00,08:00:00,NEAR,1,0.5\n\
 T1,08:10:00,08:10:00,FAR,2,0.5\n";
     let files = with_opts(
-        &[("stops.txt", stops), ("trips.txt", trips), ("shapes.txt", shapes),
-          ("stop_times.txt", stop_times)],
+        &[
+            ("stops.txt", stops),
+            ("trips.txt", trips),
+            ("shapes.txt", shapes),
+            ("stop_times.txt", stop_times),
+        ],
         &[],
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
     let shp024: Vec<_> = notices.iter().filter(|n| n.rule_id == "SHP_024").collect();
-    assert_eq!(shp024.len(), 1, "100m üzerindeki yalnız FAR vakası raporlanmalı: {shp024:?}");
+    assert_eq!(
+        shp024.len(),
+        1,
+        "100m üzerindeki yalnız FAR vakası raporlanmalı: {shp024:?}"
+    );
     assert_eq!(shp024[0].entity_id.as_deref(), Some("FAR"));
 }
 
@@ -2084,7 +2224,8 @@ fn shared_fixture_bodies_match_ledger() {
     pairs.dedup();
 
     let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("shared_fixture_ledger.txt");
+        .join("tests")
+        .join("shared_fixture_ledger.txt");
     let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
     let ledger: Vec<String> = ledger_raw
         .lines()
@@ -2141,7 +2282,10 @@ fn flg_002_network_id_from_route_networks_txt_is_not_a_false_positive() {
     let route_networks = "network_id,route_id\nTRAM,R1\n";
     let flr = "leg_group_id,network_id\nLG1,TRAM\n";
     let files = with_opts(
-        &[("route_networks.txt", route_networks), ("fare_leg_rules.txt", flr)],
+        &[
+            ("route_networks.txt", route_networks),
+            ("fare_leg_rules.txt", flr),
+        ],
         &[],
         &[],
     );
@@ -2159,7 +2303,11 @@ fn flg_002_still_fires_for_truly_undefined_network_id() {
     let flr = "leg_group_id,network_id\nLG1,NOPE\n";
     let files = with_opts(&[("fare_leg_rules.txt", flr)], &[], &[]);
     let emitted = emitted_rules(&files, &ValidatorConfig::default());
-    assert!(emitted.contains("FLG_002"), "tanımsız network_id FLG_002 üretmeli, emit: {:?}", emitted);
+    assert!(
+        emitted.contains("FLG_002"),
+        "tanımsız network_id FLG_002 üretmeli, emit: {:?}",
+        emitted
+    );
 }
 
 // #105 regression: aynı fare_product_id'nin farklı fare_media_id varyantları
@@ -2198,7 +2346,11 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
     let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
-    assert_eq!(stm048.len(), 1, "raw rollover tek feed özeti olmalı: {stm048:?}");
+    assert_eq!(
+        stm048.len(),
+        1,
+        "raw rollover tek feed özeti olmalı: {stm048:?}"
+    );
     assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm048[0].severity, gtfs_core::Severity::Yuksek);
     assert_eq!(stm048[0].entity_type, gtfs_core::EntityType::Trip);
@@ -2207,8 +2359,10 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     assert_eq!(stm048[0].field.as_deref(), Some("arrival_time"));
     assert_eq!(stm048[0].observed_value.as_deref(), Some("00:10:00"));
     assert_eq!(stm048[0].expected_value.as_deref(), Some("24:10:00"));
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"),
-        "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}");
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_008"),
+        "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}"
+    );
 }
 
 #[test]
@@ -2221,10 +2375,15 @@ fn stm_048_raw_detection_is_not_disabled_by_service_day_config() {
         &[],
         &[],
     );
-    let config = ValidatorConfig { service_day_start_hour: 0, ..ValidatorConfig::default() };
+    let config = ValidatorConfig {
+        service_day_start_hour: 0,
+        ..ValidatorConfig::default()
+    };
     let notices = notices_for(&files, &config);
-    assert!(notices.iter().any(|n| n.rule_id == "STM_048"),
-        "service_day_start_hour=0 raw STM_048'i kapatmamalı: {notices:?}");
+    assert!(
+        notices.iter().any(|n| n.rule_id == "STM_048"),
+        "service_day_start_hour=0 raw STM_048'i kapatmamalı: {notices:?}"
+    );
 }
 
 #[test]
@@ -2238,8 +2397,10 @@ fn stm_048_detects_rollover_after_the_normalization_threshold() {
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
-    assert!(notices.iter().any(|n| n.rule_id == "STM_048"),
-        "03:30 raw rollover STM_048 üretmeli: {notices:?}");
+    assert!(
+        notices.iter().any(|n| n.rule_id == "STM_048"),
+        "03:30 raw rollover STM_048 üretmeli: {notices:?}"
+    );
 }
 
 #[test]
@@ -2252,18 +2413,27 @@ fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
         &[],
         &[],
     );
-    let config = ValidatorConfig { service_day_start_hour: 0, ..ValidatorConfig::default() };
+    let config = ValidatorConfig {
+        service_day_start_hour: 0,
+        ..ValidatorConfig::default()
+    };
     let notices = notices_for(&files, &config);
     let stm049: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_049").collect();
-    assert_eq!(stm049.len(), 1, "same-row raw departure tek feed özeti olmalı: {stm049:?}");
+    assert_eq!(
+        stm049.len(),
+        1,
+        "same-row raw departure tek feed özeti olmalı: {stm049:?}"
+    );
     assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm049[0].severity, gtfs_core::Severity::Yuksek);
     assert_eq!(stm049[0].entity_type, gtfs_core::EntityType::Trip);
     assert_eq!(stm049[0].entity_id.as_deref(), Some("T1"));
     assert_eq!(stm049[0].observed_value.as_deref(), Some("00:02:00"));
     assert_eq!(stm049[0].expected_value.as_deref(), Some("24:02:00"));
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"),
-        "aynı satır departure olayı STM_048'e karışmamalı: {notices:?}");
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_048"),
+        "aynı satır departure olayı STM_048'e karışmamalı: {notices:?}"
+    );
 }
 
 #[test]
@@ -2284,8 +2454,16 @@ T2,24:10:00,24:10:00,S4,2\n",
     let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
     let stm049: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_049").collect();
 
-    assert_eq!(stm048.len(), 1, "arrival rollover kendi finding'i olmalı: {stm048:?}");
-    assert_eq!(stm049.len(), 1, "same-row departure rollover kendi finding'i olmalı: {stm049:?}");
+    assert_eq!(
+        stm048.len(),
+        1,
+        "arrival rollover kendi finding'i olmalı: {stm048:?}"
+    );
+    assert_eq!(
+        stm049.len(),
+        1,
+        "same-row departure rollover kendi finding'i olmalı: {stm049:?}"
+    );
     assert_eq!(stm048[0].field.as_deref(), Some("arrival_time"));
     assert_eq!(stm049[0].field.as_deref(), Some("departure_time"));
     assert_eq!(stm048[0].severity, gtfs_core::Severity::Yuksek);
@@ -2316,10 +2494,19 @@ T4,23:53:00,23:53:00,S1,1\nT4,00:13:00,00:13:00,S2,2\n",
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
     let stm048: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_048").collect();
-    assert_eq!(stm048.len(), 4, "dört raw olay dört ayrı finding olmalı: {stm048:?}");
-    let trips: BTreeSet<_> = stm048.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+    assert_eq!(
+        stm048.len(),
+        4,
+        "dört raw olay dört ayrı finding olmalı: {stm048:?}"
+    );
+    let trips: BTreeSet<_> = stm048
+        .iter()
+        .filter_map(|n| n.entity_id.as_deref())
+        .collect();
     assert_eq!(trips, BTreeSet::from(["T1", "T2", "T3", "T4"]));
-    assert!(stm048.iter().all(|n| n.line.is_some() && n.details.is_some()));
+    assert!(stm048
+        .iter()
+        .all(|n| n.line.is_some() && n.details.is_some()));
 }
 
 #[test]
@@ -2333,9 +2520,18 @@ fn trip_starting_after_midnight_without_raw_wrap_is_silent() {
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"), "gece yarısından başlayan trip STM_048 üretmemeli");
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_049"), "gece yarısından başlayan trip STM_049 üretmemeli");
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "monoton trip STM_008 üretmemeli");
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_048"),
+        "gece yarısından başlayan trip STM_048 üretmemeli"
+    );
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_049"),
+        "gece yarısından başlayan trip STM_049 üretmemeli"
+    );
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_008"),
+        "monoton trip STM_008 üretmemeli"
+    );
 }
 
 #[test]
@@ -2349,8 +2545,14 @@ fn valid_service_day_rollover_does_not_emit_stm_048() {
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"), "valid 24:xx rollover işaretlenmemeli");
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "valid 24:xx rollover STM_008 üretmemeli");
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_048"),
+        "valid 24:xx rollover işaretlenmemeli"
+    );
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_008"),
+        "valid 24:xx rollover STM_008 üretmemeli"
+    );
 }
 
 #[test]
@@ -2364,8 +2566,14 @@ fn real_non_midnight_decrease_remains_stm_008_without_stm_048() {
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
-    assert!(notices.iter().any(|n| n.rule_id == "STM_008"), "gerçek gün-içi geriye gidiş STM_008 üretmeli");
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_048"), "gün-içi geriye gidiş STM_048 olmamalı");
+    assert!(
+        notices.iter().any(|n| n.rule_id == "STM_008"),
+        "gerçek gün-içi geriye gidiş STM_008 üretmeli"
+    );
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_048"),
+        "gün-içi geriye gidiş STM_048 olmamalı"
+    );
 }
 
 #[test]
@@ -2380,10 +2588,32 @@ fn stm008_carries_previous_departure_across_one_untimed_stop() {
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
     let stm008: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_008").collect();
-    assert_eq!(stm008.len(), 1, "untimed ara durak gerçek geriye gidişi gizlememeli: {stm008:?}");
-    assert_eq!(stm008[0].line, Some(4), "finding sonraki zamanlı satırı göstermeli");
-    assert_eq!(stm008[0].details.as_ref().and_then(|d| d.get("seq_a")).map(String::as_str), Some("1"));
-    assert_eq!(stm008[0].details.as_ref().and_then(|d| d.get("seq_b")).map(String::as_str), Some("3"));
+    assert_eq!(
+        stm008.len(),
+        1,
+        "untimed ara durak gerçek geriye gidişi gizlememeli: {stm008:?}"
+    );
+    assert_eq!(
+        stm008[0].line,
+        Some(4),
+        "finding sonraki zamanlı satırı göstermeli"
+    );
+    assert_eq!(
+        stm008[0]
+            .details
+            .as_ref()
+            .and_then(|d| d.get("seq_a"))
+            .map(String::as_str),
+        Some("1")
+    );
+    assert_eq!(
+        stm008[0]
+            .details
+            .as_ref()
+            .and_then(|d| d.get("seq_b"))
+            .map(String::as_str),
+        Some("3")
+    );
 }
 
 #[test]
@@ -2415,7 +2645,10 @@ fn stm008_does_not_flag_monotonic_interpolation_across_untimed_stop() {
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "monoton interpolasyon false-positive üretmemeli");
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_008"),
+        "monoton interpolasyon false-positive üretmemeli"
+    );
 }
 
 #[test]
@@ -2429,8 +2662,14 @@ fn stm008_keeps_midnight_normalization_silent_across_untimed_stop() {
         &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
-    assert!(notices.iter().any(|n| n.rule_id == "STM_048"), "raw rollover STM_048 olarak korunmalı");
-    assert!(!notices.iter().any(|n| n.rule_id == "STM_008"), "normalize edilen rollover STM_008'e çoğalmamalı");
+    assert!(
+        notices.iter().any(|n| n.rule_id == "STM_048"),
+        "raw rollover STM_048 olarak korunmalı"
+    );
+    assert!(
+        !notices.iter().any(|n| n.rule_id == "STM_008"),
+        "normalize edilen rollover STM_008'e çoğalmamalı"
+    );
 }
 
 #[test]
@@ -2447,9 +2686,14 @@ fn coverage_debt_matches_ledger() {
     debt.sort_unstable();
 
     let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("coverage_debt.txt");
+        .join("tests")
+        .join("coverage_debt.txt");
     let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
-    let ledger: Vec<&str> = ledger_raw.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')).collect();
+    let ledger: Vec<&str> = ledger_raw
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .collect();
 
     if debt != ledger {
         // Yeni ledger içeriğini yaz (UPDATE_LEDGER=1) ya da sadece farkı raporla.
@@ -2457,7 +2701,8 @@ fn coverage_debt_matches_ledger() {
             let header = format!(
                 "# emit-proof coverage debt (#5 C). Fixture'ı olmayan canonical kurallar.\n\
                  # Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. {} kural.\n",
-                debt.len());
+                debt.len()
+            );
             std::fs::write(&ledger_path, format!("{header}{}\n", debt.join("\n"))).unwrap();
             return;
         }
@@ -2472,7 +2717,6 @@ fn coverage_debt_matches_ledger() {
         );
     }
 }
-
 
 // ── WP-2: alan düzeyinde spec çapası ──────────────────────────────────────────
 // emit_proof "kural ateşleyebiliyor mu", spec_conformance.rs "geçerli veri sessiz mi"
@@ -2498,20 +2742,28 @@ const PSEUDO_FILES: &[&str] = &["feed"];
 
 #[test]
 fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../spec-audit/spec_fields.json");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../spec-audit/spec_fields.json");
     let raw = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("{} okunamadı: {e}", path.display()));
     let doc: serde_json::Value = serde_json::from_str(&raw).unwrap();
-    let table = doc["files"].as_object().expect("spec_fields.json: 'files' nesnesi yok");
-    assert!(table.len() >= 25, "spec_fields.json çok küçük ({}) — yeniden üretin", table.len());
+    let table = doc["files"]
+        .as_object()
+        .expect("spec_fields.json: 'files' nesnesi yok");
+    assert!(
+        table.len() >= 25,
+        "spec_fields.json çok küçük ({}) — yeniden üretin",
+        table.len()
+    );
 
     let mut failures: BTreeSet<String> = BTreeSet::new();
 
     for f in fixtures() {
         let cfg = f.config.clone().unwrap_or_default();
         let vr = match validate_bytes(
-            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)), &cfg, TODAY,
+            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)),
+            &cfg,
+            TODAY,
         ) {
             ValidateResult::Ok(vr) => vr,
             ValidateResult::Fatal(_) => continue,
@@ -2532,7 +2784,10 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
                 parts.iter().filter_map(|p| table.get(*p)).collect();
 
             if known.is_empty() {
-                if parts.iter().all(|p| NO_FIELD_TABLE.contains(p) || PSEUDO_FILES.contains(p)) {
+                if parts
+                    .iter()
+                    .all(|p| NO_FIELD_TABLE.contains(p) || PSEUDO_FILES.contains(p))
+                {
                     continue;
                 }
                 failures.insert(format!(
@@ -2545,9 +2800,16 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
 
             // Bileşik alan etiketleri ("stop_lat|stop_lon") tek tek denetlenir; alan,
             // etiketteki dosyalardan EN AZ BİRİNDE tanımlı olmalı.
-            for one in field.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()) {
+            for one in field
+                .split(['|', ','])
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
                 let ok = known.iter().any(|entry| {
-                    entry["fields"].as_array().unwrap().iter()
+                    entry["fields"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
                         .any(|f| f["name"].as_str() == Some(one))
                 });
                 if !ok {
@@ -2566,7 +2828,11 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
          Quality/Interop olmalı ya da alan adı yanlış:\n{}\n\n\
          (Spec listesi: spec-audit/spec_fields.json — yeniden üretmek için \
          `python3 spec-audit/extract_fields.py`)",
-        failures.iter().map(|s| format!("  {s}")).collect::<Vec<_>>().join("\n"),
+        failures
+            .iter()
+            .map(|s| format!("  {s}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
     );
 }
 
@@ -2619,11 +2885,16 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
         // koymak defterde olmayan bir borç üretiyordu (agency_phone → AGN_007'yi "eksik"
         // gösteriyordu, oysa AGN_007'nin Quality olması doğru). Katı bir telefon kontrolü
         // geçerli uluslararası biçimleri reddeder.
-        "Time" | "Local time" | "Date" | "Color" | "URL" | "Email"
-        | "Language code" | "Timezone" | "Currency code" | "Currency amount"
-        | "Latitude" | "Longitude" => atoms.push("format"),
-        "Non-negative integer" | "Positive integer" | "Non-negative float"
-        | "Positive float" | "Non-null integer" | "Non-zero integer" => atoms.push("range"),
+        "Time" | "Local time" | "Date" | "Color" | "URL" | "Email" | "Language code"
+        | "Timezone" | "Currency code" | "Currency amount" | "Latitude" | "Longitude" => {
+            atoms.push("format")
+        }
+        "Non-negative integer"
+        | "Positive integer"
+        | "Non-negative float"
+        | "Positive float"
+        | "Non-null integer"
+        | "Non-zero integer" => atoms.push("range"),
         // Nitelenmemiş sayısal tipler bir ARALIK dayatmaz ama PARSE EDİLEBİLİRLİK dayatır:
         // "abc" bir Float değildir. Ayrı atom, çünkü `range` aralık kısıtını anlatır.
         // `Text`, `ID` ve `Text or URL or …` BİLİNÇLİ OLARAK YOK: spec bunlara herhangi bir
@@ -2640,11 +2911,17 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
 /// Üçüncü küme kritik: `agency_phone`'u AGN_007 (Quality) ölçer, hiçbir Spec kuralı ölçmez.
 /// Yalnız Spec'e bakan bir defter onu "denetimsiz" gösterir ve okuyanı VAR OLAN kuralı yeniden
 /// yazmaya iter. Ölçüldü: 32 defter satırının 11'i bu durumda.
-type CoverageRow = (String, String, Vec<&'static str>, BTreeSet<String>, BTreeSet<String>);
+type CoverageRow = (
+    String,
+    String,
+    Vec<&'static str>,
+    BTreeSet<String>,
+    BTreeSet<String>,
+);
 
 fn coverage_rows() -> Vec<CoverageRow> {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../spec-audit/spec_fields.json");
+    let path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../spec-audit/spec_fields.json");
     let doc: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     let table = doc["files"].as_object().unwrap();
@@ -2655,7 +2932,9 @@ fn coverage_rows() -> Vec<CoverageRow> {
     for f in fixtures() {
         let cfg = f.config.clone().unwrap_or_default();
         let vr = match validate_bytes(
-            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)), &cfg, TODAY,
+            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)),
+            &cfg,
+            TODAY,
         ) {
             ValidateResult::Ok(vr) => vr,
             ValidateResult::Fatal(_) => continue,
@@ -2665,11 +2944,26 @@ fn coverage_rows() -> Vec<CoverageRow> {
                 continue;
             };
             let bucket = if gtfs_rules::registry::authority_source(&n.rule_id)
-                == gtfs_core::AuthoritySource::GtfsSpec { &mut spec } else { &mut other };
-            for p in file.split('/').map(str::trim).filter(|p| table.contains_key(*p)) {
-                for one in field.split(['|', ',']).map(str::trim).filter(|s| !s.is_empty()) {
-                    bucket.entry((p.to_string(), one.to_string()))
-                        .or_default().insert(n.rule_id.clone());
+                == gtfs_core::AuthoritySource::GtfsSpec
+            {
+                &mut spec
+            } else {
+                &mut other
+            };
+            for p in file
+                .split('/')
+                .map(str::trim)
+                .filter(|p| table.contains_key(*p))
+            {
+                for one in field
+                    .split(['|', ','])
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                {
+                    bucket
+                        .entry((p.to_string(), one.to_string()))
+                        .or_default()
+                        .insert(n.rule_id.clone());
                 }
             }
         }
@@ -2680,11 +2974,13 @@ fn coverage_rows() -> Vec<CoverageRow> {
         for f in entry["fields"].as_array().unwrap() {
             let name = f["name"].as_str().unwrap().to_string();
             let atoms = provision_atoms(
-                f["type"].as_str().unwrap_or(""), f["presence"].as_str().unwrap_or(""),
+                f["type"].as_str().unwrap_or(""),
+                f["presence"].as_str().unwrap_or(""),
             );
             let key = (file.clone(), name.clone());
             rows.push((
-                file.clone(), name,
+                file.clone(),
+                name,
                 atoms,
                 spec.get(&key).cloned().unwrap_or_default(),
                 other.get(&key).cloned().unwrap_or_default(),
@@ -2709,13 +3005,20 @@ fn identifiers_in_check_stages() -> BTreeSet<String> {
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
         for e in std::fs::read_dir(dir).unwrap().flatten() {
             let p = e.path();
-            if p.is_dir() { walk(&p, out); }
-            else if p.extension().is_some_and(|x| x == "rs")
-                && p.file_name().is_some_and(|n| n != "k1_parse.rs") { out.push(p); }
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|x| x == "rs")
+                && p.file_name().is_some_and(|n| n != "k1_parse.rs")
+            {
+                out.push(p);
+            }
         }
     }
     let mut files = Vec::new();
-    walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+    walk(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut files,
+    );
 
     let mut ids = BTreeSet::new();
     for f in files {
@@ -2723,7 +3026,9 @@ fn identifiers_in_check_stages() -> BTreeSet<String> {
         for lit in text.split('"').skip(1).step_by(2) {
             if !lit.is_empty()
                 && lit.len() <= 40
-                && lit.bytes().all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())
+                && lit
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())
             {
                 ids.insert(lit.to_string());
             }
@@ -2747,14 +3052,18 @@ fn identifiers_in_check_stages() -> BTreeSet<String> {
 #[test]
 fn spec_coverage_gaps_match_ledger() {
     let ids = identifiers_in_check_stages();
-    let gaps: Vec<String> = coverage_rows().into_iter()
+    let gaps: Vec<String> = coverage_rows()
+        .into_iter()
         .filter(|(_, _, atoms, spec, _)| !atoms.is_empty() && spec.is_empty())
         .map(|(file, field, atoms, _, other)| {
             // Kanıt sırası: en kesinden en belirsize.
             let proof = if !other.is_empty() {
                 // Alanı ölçen bir kural VAR, yalnız Spec sınıfı değil → yeni kural yazmadan
                 // önce karar: hüküm gerçekten Spec meselesi mi, yoksa mevcut kural yeterli mi?
-                format!("  [yalnız: {}]", other.iter().cloned().collect::<Vec<_>>().join(","))
+                format!(
+                    "  [yalnız: {}]",
+                    other.iter().cloned().collect::<Vec<_>>().join(",")
+                )
             } else if !ids.contains(&field) {
                 "  [denetim-yok]".to_string()
             } else {
@@ -2765,10 +3074,15 @@ fn spec_coverage_gaps_match_ledger() {
         .collect();
 
     let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("spec_coverage_ledger.txt");
+        .join("tests")
+        .join("spec_coverage_ledger.txt");
     let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
-    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+    let ledger: Vec<String> = ledger_raw
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect();
 
     if gaps != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
@@ -2840,7 +3154,10 @@ fn spec_coverage_gaps_match_ledger() {
              Defterde fazla (boşluk KAPANDI → defter küçülmeli): {:#?}\n\
              Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
              spec_coverage_gaps_match_ledger",
-            gaps.len(), ledger.len(), added, removed,
+            gaps.len(),
+            ledger.len(),
+            added,
+            removed,
         );
     }
 }
@@ -2949,29 +3266,43 @@ fn field_none_emitters_match_ledger() {
     for f in fixtures() {
         let cfg = f.config.clone().unwrap_or_default();
         let vr = match validate_bytes(
-            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)), &cfg, TODAY,
+            &make_zip(&with_opts(&f.overrides, &f.removes, &f.raw)),
+            &cfg,
+            TODAY,
         ) {
             ValidateResult::Ok(vr) => vr,
             ValidateResult::Fatal(_) => continue,
         };
         for n in &vr.notices {
-            if n.field.is_some() { with_field.insert(n.rule_id.clone()); }
-            else { without_field.insert(n.rule_id.clone()); }
+            if n.field.is_some() {
+                with_field.insert(n.rule_id.clone());
+            } else {
+                without_field.insert(n.rule_id.clone());
+            }
         }
     }
     let mut found: Vec<String> = Vec::new();
     for id in without_field.iter().filter(|r| !with_field.contains(*r)) {
-        let Some(m) = gtfs_rules::registry::get_rule(id) else { continue };
-        if matches!(m.dedup_level, DedupLevel::Feed | DedupLevel::File) { continue; }
+        let Some(m) = gtfs_rules::registry::get_rule(id) else {
+            continue;
+        };
+        if matches!(m.dedup_level, DedupLevel::Feed | DedupLevel::File) {
+            continue;
+        }
         found.push(format!("{id}  {:?}", m.rule_class));
     }
     found.sort_unstable();
 
     let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("field_none_ledger.txt");
+        .join("tests")
+        .join("field_none_ledger.txt");
     let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
-    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+    let ledger: Vec<String> = ledger_raw
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect();
 
     if found != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
@@ -3014,7 +3345,8 @@ fn field_none_emitters_match_ledger() {
 #[test]
 fn spec_claims_without_a_provision_match_ledger() {
     let rows = coverage_rows();
-    let mut found: Vec<String> = rows.iter()
+    let mut found: Vec<String> = rows
+        .iter()
         .filter(|(_, _, atoms, spec_rules, _)| atoms.is_empty() && !spec_rules.is_empty())
         .map(|(file, field, _, spec_rules, _)| {
             let mut rs: Vec<String> = spec_rules.iter().cloned().collect();
@@ -3025,10 +3357,15 @@ fn spec_claims_without_a_provision_match_ledger() {
     found.sort_unstable();
 
     let ledger_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests").join("spec_claims_ledger.txt");
+        .join("tests")
+        .join("spec_claims_ledger.txt");
     let ledger_raw = std::fs::read_to_string(&ledger_path).unwrap_or_default();
-    let ledger: Vec<String> = ledger_raw.lines().map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#')).map(str::to_string).collect();
+    let ledger: Vec<String> = ledger_raw
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        .map(str::to_string)
+        .collect();
 
     if found != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
@@ -3069,7 +3406,10 @@ fn spec_claims_without_a_provision_match_ledger() {
              Defterde fazla (iddia kalktı/sınıf düzeldi): {:#?}\n\
              Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
              spec_claims_without_a_provision_match_ledger",
-            found.len(), ledger.len(), added, removed,
+            found.len(),
+            ledger.len(),
+            added,
+            removed,
         );
     }
 }
@@ -3085,21 +3425,34 @@ fn spec_partial_coverage_report() {
     println!("kural eksik sütunu `field=<sütun>` ile emit eder, mekanizma tek döngüdür ve liste");
     println!("`required_columns_match_the_specification` ile spec'e kilitlidir.\n");
     for (file, field, atoms, rules, _) in &rows {
-        if atoms.is_empty() { continue; }
+        if atoms.is_empty() {
+            continue;
+        }
         // Beyan edilmiş çapa kaynağı: ARC_025'in zorunlu-sütun listesi.
-        let declared_presence = gtfs_pipeline::k1_parse::required_fields(file)
-            .contains(&field.as_str());
-        let atoms: Vec<&str> = atoms.iter().copied()
+        let declared_presence =
+            gtfs_pipeline::k1_parse::required_fields(file).contains(&field.as_str());
+        let atoms: Vec<&str> = atoms
+            .iter()
+            .copied()
             .filter(|a| !(*a == "presence:required" && declared_presence))
             .collect();
-        if atoms.is_empty() { full += 1; continue; }
-        if rules.is_empty() { none += 1; }
-        else if rules.len() < atoms.len() {
+        if atoms.is_empty() {
+            full += 1;
+            continue;
+        }
+        if rules.is_empty() {
+            none += 1;
+        } else if rules.len() < atoms.len() {
             partial += 1;
             println!("  {file}:{field} — [{}] · {:?}", atoms.join(","), rules);
-        } else { full += 1; }
+        } else {
+            full += 1;
+        }
     }
-    println!("\n### ÖZET ({} hüküm taşıyan alan · {total} hüküm atomu):", none + partial + full);
+    println!(
+        "\n### ÖZET ({} hüküm taşıyan alan · {total} hüküm atomu):",
+        none + partial + full
+    );
     println!("  Spec çapası YOK ....... {none}   (defterde; \"eksik kural\" DEĞİL — bkz. başlık)");
     println!("  hüküm > çapalı kural .. {partial}   (sinyal, karar değil)");
     println!("  hüküm <= çapalı kural . {full}");
@@ -3125,27 +3478,52 @@ fn anchor_granularity_report() {
     let rows = coverage_rows();
     let (mut atoms, mut fields_with_atoms, mut suspect) = (0usize, 0usize, Vec::new());
     for (file, field, provs, spec_rules, other_rules) in &rows {
-        if provs.is_empty() { continue; }
+        if provs.is_empty() {
+            continue;
+        }
         atoms += provs.len();
         fields_with_atoms += 1;
         if provs.len() > spec_rules.len() {
-            suspect.push((file.clone(), field.clone(), provs.clone(),
-                          spec_rules.clone(), other_rules.clone()));
+            suspect.push((
+                file.clone(),
+                field.clone(),
+                provs.clone(),
+                spec_rules.clone(),
+                other_rules.clone(),
+            ));
         }
     }
-    suspect.sort_by_key(|(f, n, p, s, _)| (std::cmp::Reverse(p.len() - s.len()), f.clone(), n.clone()));
+    suspect.sort_by_key(|(f, n, p, s, _)| {
+        (std::cmp::Reverse(p.len() - s.len()), f.clone(), n.clone())
+    });
     println!("\n=== ÇAPA GRANÜLERLİĞİ ===");
     println!("hüküm atomu           : {atoms}");
     println!("atomu olan alan       : {fields_with_atoms}");
     println!("atom > Spec kuralı    : {} alan", suspect.len());
-    let gap: usize = suspect.iter().map(|(_, _, p, s, _)| p.len() - s.len()).sum();
+    let gap: usize = suspect
+        .iter()
+        .map(|(_, _, p, s, _)| p.len() - s.len())
+        .sum();
     println!("kapatılmamış atom farkı: {gap}");
     println!("\n--- en büyük 20 fark ---");
     for (file, field, provs, spec_rules, other) in suspect.iter() {
-        let titles: Vec<String> = spec_rules.iter()
-            .map(|r| format!("{r}={}", gtfs_rules::registry::get_rule(r).map(|x| x.title).unwrap_or("?")))
+        let titles: Vec<String> = spec_rules
+            .iter()
+            .map(|r| {
+                format!(
+                    "{r}={}",
+                    gtfs_rules::registry::get_rule(r)
+                        .map(|x| x.title)
+                        .unwrap_or("?")
+                )
+            })
             .collect();
-        println!("{file}:{field}\t{:?}\t{}\t{:?}", provs, titles.join(" | "), other);
+        println!(
+            "{file}:{field}\t{:?}\t{}\t{:?}",
+            provs,
+            titles.join(" | "),
+            other
+        );
     }
 }
 
@@ -3163,7 +3541,9 @@ fn anchor_granularity_report() {
 fn file_level_provisions_doc_covers_every_conditional_file() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let doc: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(root.join("spec-audit/spec_fields.json")).unwrap()).unwrap();
+        &std::fs::read_to_string(root.join("spec-audit/spec_fields.json")).unwrap(),
+    )
+    .unwrap();
     let md = std::fs::read_to_string(root.join("spec-audit/FILE_LEVEL_PROVISIONS.md")).unwrap();
 
     let mut missing = Vec::new();
@@ -3183,7 +3563,8 @@ fn file_level_provisions_doc_covers_every_conditional_file() {
         "spec'te koşullu ama FILE_LEVEL_PROVISIONS.md'de adjudike EDİLMEMİŞ {} dosya:\n  {}\n\n\
          Bu hükümler başka hiçbir defterde yok. Belgeyi güncelleyin: koşul metnini, karşılayan \
          kuralı ve kararı yazın (mevcut yedi satırın biçimi örnek).",
-        missing.len(), missing.join("\n  ")
+        missing.len(),
+        missing.join("\n  ")
     );
     assert!(
         conditional >= 7,
@@ -3204,15 +3585,24 @@ fn triage_ledger_has_no_stale_open_claims() {
     let md = std::fs::read_to_string(root.join("spec-audit/PROVISION_TRIAGE.md")).unwrap();
 
     // Durum makinesinde kapanmış sayılan adaylar
-    let start = md.find("## 📊 DURUM MAKİNESİ").expect("DURUM MAKİNESİ bölümü yok");
-    let end = md[start..].find("**KISMİ adjudikasyonu").map(|i| start + i).unwrap_or(md.len());
+    let start = md
+        .find("## 📊 DURUM MAKİNESİ")
+        .expect("DURUM MAKİNESİ bölümü yok");
+    let end = md[start..]
+        .find("**KISMİ adjudikasyonu")
+        .map(|i| start + i)
+        .unwrap_or(md.len());
     let closed: Vec<&str> = md[start..end]
         .lines()
         .filter(|l| l.starts_with('|') && l.contains('`'))
         .flat_map(|l| l.split('`').skip(1).step_by(2))
         .filter(|s| s.len() == 9 && s.starts_with('P'))
         .collect();
-    assert!(closed.len() >= 12, "durum makinesi çok kısa: {} kayıt", closed.len());
+    assert!(
+        closed.len() >= 12,
+        "durum makinesi çok kısa: {} kayıt",
+        closed.len()
+    );
 
     // Kapanmış bir aday, "AÇIK" ya da "KAPATILMAYACAK" diyen bir satırda geçmemeli
     let mut stale = Vec::new();
@@ -3222,7 +3612,10 @@ fn triage_ledger_has_no_stale_open_claims() {
         }
         for id in &closed {
             if line.contains(&format!("`{id}`")) {
-                stale.push(format!("{id}: {}", line.trim().chars().take(90).collect::<String>()));
+                stale.push(format!(
+                    "{id}: {}",
+                    line.trim().chars().take(90).collect::<String>()
+                ));
             }
         }
     }
@@ -3230,10 +3623,10 @@ fn triage_ledger_has_no_stale_open_claims() {
         stale.is_empty(),
         "durum makinesinde KAPALI olan {} aday, defterde hâlâ AÇIK görünüyor:\n  {}\n\n\
          Kapanışı tek yerde tutun; özet satırını da güncelleyin.",
-        stale.len(), stale.join("\n  ")
+        stale.len(),
+        stale.join("\n  ")
     );
 }
-
 
 /// Defterin BAŞLIK SAYAÇLARI katalogla ve hesaplanan yüzdeyle tutmalı.
 ///
@@ -3280,13 +3673,16 @@ fn ledger_header_counts_match_catalogue() {
     );
 }
 
-
 // Full-catalog regression: transfer_duration=0 is a valid non-negative integer.
 #[test]
 fn full_catalog_far006_zero_is_valid_non_negative() {
     let files = with_opts(
-        &[("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfer_duration\nF1,2.5,USD,0,0\n")],
-        &[], &[],
+        &[(
+            "fare_attributes.txt",
+            "fare_id,price,currency_type,payment_method,transfer_duration\nF1,2.5,USD,0,0\n",
+        )],
+        &[],
+        &[],
     );
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(!notices.iter().any(|n| n.rule_id == "FAR_006"));
@@ -3297,8 +3693,12 @@ fn full_catalog_far006_zero_is_valid_non_negative() {
 #[test]
 fn full_catalog_trp017_requires_an_existing_trip() {
     let missing_trip = with_opts(
-        &[("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nMISSING,08:00:00,10:00:00,600\n")],
-        &[], &[],
+        &[(
+            "frequencies.txt",
+            "trip_id,start_time,end_time,headway_secs\nMISSING,08:00:00,10:00:00,600\n",
+        )],
+        &[],
+        &[],
     );
     let notices = notices_for(&missing_trip, &ValidatorConfig::default());
     assert!(notices.iter().any(|n| n.rule_id == "FRQ_001"));
@@ -3306,10 +3706,17 @@ fn full_catalog_trp017_requires_an_existing_trip() {
 
     let known_without_stop_times = with_opts(
         &[
-            ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
-            ("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT2,08:00:00,10:00:00,600\n"),
+            (
+                "trips.txt",
+                "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n",
+            ),
+            (
+                "frequencies.txt",
+                "trip_id,start_time,end_time,headway_secs\nT2,08:00:00,10:00:00,600\n",
+            ),
         ],
-        &[], &[],
+        &[],
+        &[],
     );
     let notices = notices_for(&known_without_stop_times, &ValidatorConfig::default());
     assert!(!notices.iter().any(|n| n.rule_id == "FRQ_001"));

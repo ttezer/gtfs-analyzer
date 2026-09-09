@@ -1,4 +1,4 @@
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, RowMap};
+use super::common::{build_row_map, get_raw_field, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]
@@ -16,7 +16,9 @@ pub fn parse_networks(file: &RawFile) -> Vec<NetworkRecord> {
         .map(|(row_idx, row)| {
             let row_map = build_row_map(&file.headers, row);
             NetworkRecord {
-                network_id: get_raw_field(&row_map, "network_id").unwrap_or("").to_string(),
+                network_id: get_raw_field(&row_map, "network_id")
+                    .unwrap_or("")
+                    .to_string(),
                 network_name: get_trimmed_field(&row_map, "network_name")
                     .filter(|v| !v.trim().is_empty())
                     .map(str::to_string),

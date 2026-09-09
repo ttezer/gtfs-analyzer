@@ -1,4 +1,4 @@
-﻿use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 
 use gtfs_core::{EntityType, Notice};
 
@@ -24,9 +24,20 @@ fn make_notice(
 ) -> Notice {
     // K3 yalnız benzersizlik (PK tekrarı) ihlali üretir → expected_value sabit "unique".
     crate::notice_factory::build(
-        "K3", Some("k3"), counter, rule_id, entity_type, entity_id, scope_key,
-        Some(file.to_string()), Some(line), Some(field.to_string()),
-        observed_value, Some("unique".to_string()), message, remediation,
+        "K3",
+        Some("k3"),
+        counter,
+        rule_id,
+        entity_type,
+        entity_id,
+        scope_key,
+        Some(file.to_string()),
+        Some(line),
+        Some(field.to_string()),
+        observed_value,
+        Some("unique".to_string()),
+        message,
+        remediation,
     )
 }
 
@@ -108,7 +119,10 @@ pub fn build(records: &EntityRecords) -> K3Result {
     build_fares_v2(records, &mut map, &mut notices, &mut ctr);
     build_location_groups(records, &mut map);
 
-    K3Result { entity_map: map, notices }
+    K3Result {
+        entity_map: map,
+        notices,
+    }
 }
 
 /// location_groups.txt'ten geçerli location_group_id kümesini toplar (XFL_022/024 için).
@@ -145,9 +159,7 @@ fn build_agencies(
                 rec.line,
                 "agency_id",
                 Some(aid.clone()),
-                format!(
-                    "agency_id '{aid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."
-                ),
+                format!("agency_id '{aid}' tekrarlanıyor (ilk görünüm: satır {prev_line})."),
                 "Her işleticiye benzersiz bir agency_id atayın.",
             ));
         } else {
@@ -172,7 +184,11 @@ fn build_stops(
         // zone_id indeksi (fare cross-ref)
         if let Some(ref zid) = rec.row.get("zone_id").and_then(|v| {
             let t = v.trim();
-            if t.is_empty() { None } else { Some(t.to_string()) }
+            if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            }
         }) {
             map.zone_ids.insert(zid.clone());
         }
@@ -188,7 +204,10 @@ fn build_stops(
                 rec.line,
                 "stop_id",
                 Some(sid.clone()),
-                format!("'{}' durağı tekrarlanıyor (ilk görünüm: satır {prev_line}).", sid),
+                format!(
+                    "'{}' durağı tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    sid
+                ),
                 "Her durağa benzersiz bir stop_id atayın.",
             ));
         } else {
@@ -222,7 +241,10 @@ fn build_routes(
                 rec.line,
                 "route_id",
                 Some(rid.clone()),
-                format!("'{}' hattı tekrarlanıyor (ilk görünüm: satır {prev_line}).", rid),
+                format!(
+                    "'{}' hattı tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    rid
+                ),
                 "Her rotaya benzersiz bir route_id atayın.",
             ));
         } else {
@@ -257,7 +279,10 @@ fn build_trips(
                 rec.line,
                 "trip_id",
                 Some(tid_s),
-                format!("'{}' sefer kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).", tid),
+                format!(
+                    "'{}' sefer kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    tid
+                ),
                 "Her sefere benzersiz bir trip_id atayın.",
             ));
         } else {
@@ -292,7 +317,10 @@ fn build_services(
                 rec.line,
                 "service_id",
                 Some(sid.clone()),
-                format!("'{}' takvim kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).", sid),
+                format!(
+                    "'{}' takvim kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    sid
+                ),
                 "Her hizmet kaydına benzersiz bir service_id atayın.",
             ));
         } else {
@@ -317,7 +345,9 @@ fn build_shapes(records: &EntityRecords, map: &mut EntityMap) {
         if rec.shape_idx() == 0 {
             continue;
         }
-        raw.entry(records.shape_interns.id(rec)).or_default().push(idx);
+        raw.entry(records.shape_interns.id(rec))
+            .or_default()
+            .push(idx);
     }
 
     // Her shape'i shape_pt_sequence'e göre sırala
@@ -420,7 +450,10 @@ fn build_fare_attrs(
                 rec.line,
                 "fare_id",
                 Some(fid.clone()),
-                format!("'{}' ücret tarifesi tekrarlanıyor (ilk görünüm: satır {prev_line}).", fid),
+                format!(
+                    "'{}' ücret tarifesi tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    fid
+                ),
                 "Her tarife kaydına benzersiz bir fare_id atayın.",
             ));
         } else {
@@ -445,11 +478,19 @@ fn build_fares_v2(
         if let Some(&prev_idx) = map.areas.get(rec.area_id.as_str()) {
             let prev_line = records.areas[prev_idx].line;
             notices.push(make_notice(
-                ctr, "ARS_001", EntityType::Row,
-                Some(rec.area_id.clone()), Some(rec.area_id.clone()),
-                "areas.txt", rec.line, "area_id",
+                ctr,
+                "ARS_001",
+                EntityType::Row,
                 Some(rec.area_id.clone()),
-                format!("'{}' alan kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.area_id),
+                Some(rec.area_id.clone()),
+                "areas.txt",
+                rec.line,
+                "area_id",
+                Some(rec.area_id.clone()),
+                format!(
+                    "'{}' alan kodu tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    rec.area_id
+                ),
                 "Her alana benzersiz bir area_id atayın.",
             ));
         } else {
@@ -464,9 +505,14 @@ fn build_fares_v2(
         }
         if map.network_ids.contains(rec.network_id.as_str()) {
             notices.push(make_notice(
-                ctr, "NET_001", EntityType::Row,
-                Some(rec.network_id.clone()), Some(rec.network_id.clone()),
-                "networks.txt", rec.line, "network_id",
+                ctr,
+                "NET_001",
+                EntityType::Row,
+                Some(rec.network_id.clone()),
+                Some(rec.network_id.clone()),
+                "networks.txt",
+                rec.line,
+                "network_id",
                 Some(rec.network_id.clone()),
                 format!("'{}' ağ kodu tekrarlanıyor.", rec.network_id),
                 "Her ağa benzersiz bir network_id atayın.",
@@ -496,13 +542,24 @@ fn build_fares_v2(
         if rec.rider_category_id.is_empty() {
             continue;
         }
-        if map.rider_category_ids.contains(rec.rider_category_id.as_str()) {
+        if map
+            .rider_category_ids
+            .contains(rec.rider_category_id.as_str())
+        {
             notices.push(make_notice(
-                ctr, "RCT_001", EntityType::Row,
-                Some(rec.rider_category_id.clone()), Some(rec.rider_category_id.clone()),
-                "rider_categories.txt", rec.line, "rider_category_id",
+                ctr,
+                "RCT_001",
+                EntityType::Row,
                 Some(rec.rider_category_id.clone()),
-                format!("'{}' yolcu kategorisi tekrarlanıyor.", rec.rider_category_id),
+                Some(rec.rider_category_id.clone()),
+                "rider_categories.txt",
+                rec.line,
+                "rider_category_id",
+                Some(rec.rider_category_id.clone()),
+                format!(
+                    "'{}' yolcu kategorisi tekrarlanıyor.",
+                    rec.rider_category_id
+                ),
                 "Her yolcu kategorisine benzersiz bir rider_category_id atayın.",
             ));
         } else {
@@ -518,11 +575,19 @@ fn build_fares_v2(
         if let Some(&prev_idx) = map.fare_media_ids.get(rec.fare_media_id.as_str()) {
             let prev_line = records.fare_media[prev_idx].line;
             notices.push(make_notice(
-                ctr, "FMD_001", EntityType::Row,
-                Some(rec.fare_media_id.clone()), Some(rec.fare_media_id.clone()),
-                "fare_media.txt", rec.line, "fare_media_id",
+                ctr,
+                "FMD_001",
+                EntityType::Row,
                 Some(rec.fare_media_id.clone()),
-                format!("'{}' ödeme aracı tekrarlanıyor (ilk görünüm: satır {prev_line}).", rec.fare_media_id),
+                Some(rec.fare_media_id.clone()),
+                "fare_media.txt",
+                rec.line,
+                "fare_media_id",
+                Some(rec.fare_media_id.clone()),
+                format!(
+                    "'{}' ödeme aracı tekrarlanıyor (ilk görünüm: satır {prev_line}).",
+                    rec.fare_media_id
+                ),
                 "Her ödeme aracına benzersiz bir fare_media_id atayın.",
             ));
         } else {
@@ -541,7 +606,9 @@ fn build_fares_v2(
         if rec.fare_product_id.is_empty() {
             continue;
         }
-        map.fare_product_ids.entry(rec.fare_product_id.clone()).or_insert(idx);
+        map.fare_product_ids
+            .entry(rec.fare_product_id.clone())
+            .or_insert(idx);
         let pk = (
             rec.fare_product_id.as_str(),
             rec.rider_category_id.as_deref().unwrap_or(""),
@@ -572,7 +639,8 @@ fn build_fares_v2(
 
     for rec in &records.timeframes {
         if !rec.timeframe_group_id.is_empty() {
-            map.timeframe_group_ids.insert(rec.timeframe_group_id.clone());
+            map.timeframe_group_ids
+                .insert(rec.timeframe_group_id.clone());
         }
     }
 }
@@ -589,10 +657,10 @@ mod tests {
     use crate::k2::levels::LevelRecord;
     use crate::k2::pathways::PathwayRecord;
     use crate::k2::routes::RouteRecord;
+    use crate::k2::shapes::ShapeInternTable;
     use crate::k2::shapes::ShapePointRecord;
     use crate::k2::stops::StopRecord;
     use crate::k2::trips::TripRecord;
-    use crate::k2::shapes::ShapeInternTable;
 
     fn empty_records() -> EntityRecords {
         EntityRecords::default()
@@ -657,10 +725,14 @@ mod tests {
             mk("P1", Some("child"), None, 3),
         ];
         let r = build(&records);
-        assert!(!r.notices.iter().any(|n| n.rule_id == "FPD_001"),
-            "aynı id farklı rider_category → FPD_001 olmamalı (bileşik PK)");
-        assert!(r.entity_map.fare_product_ids.contains_key("P1"),
-            "FK varlık haritası id'yi içermeli (FLG/FTR lookup)");
+        assert!(
+            !r.notices.iter().any(|n| n.rule_id == "FPD_001"),
+            "aynı id farklı rider_category → FPD_001 olmamalı (bileşik PK)"
+        );
+        assert!(
+            r.entity_map.fare_product_ids.contains_key("P1"),
+            "FK varlık haritası id'yi içermeli (FLG/FTR lookup)"
+        );
 
         // TAM bileşik anahtar tekrarı (id+rider+media aynı) → FPD_001.
         let mut records2 = empty_records();
@@ -669,8 +741,10 @@ mod tests {
             mk("P1", Some("adult"), Some("card"), 3),
         ];
         let r2 = build(&records2);
-        assert!(r2.notices.iter().any(|n| n.rule_id == "FPD_001"),
-            "tam bileşik anahtar tekrarı → FPD_001");
+        assert!(
+            r2.notices.iter().any(|n| n.rule_id == "FPD_001"),
+            "tam bileşik anahtar tekrarı → FPD_001"
+        );
     }
 
     #[test]
@@ -682,20 +756,26 @@ mod tests {
                 agency_name: "Agency One".into(),
                 agency_url: "https://example.com".into(),
                 agency_timezone: "Europe/Istanbul".into(),
-                agency_lang: None, agency_phone: None,
-                agency_fare_url: None, agency_email: None,
+                agency_lang: None,
+                agency_phone: None,
+                agency_fare_url: None,
+                agency_email: None,
                 agency_cemv_support: None,
-                row: Default::default(), line: 2,
+                row: Default::default(),
+                line: 2,
             },
             AgencyRecord {
                 agency_id: Some("A2".into()),
                 agency_name: "Agency Two".into(),
                 agency_url: "https://example.com".into(),
                 agency_timezone: "Europe/Istanbul".into(),
-                agency_lang: None, agency_phone: None,
-                agency_fare_url: None, agency_email: None,
+                agency_lang: None,
+                agency_phone: None,
+                agency_fare_url: None,
+                agency_email: None,
                 agency_cemv_support: None,
-                row: Default::default(), line: 3,
+                row: Default::default(),
+                line: 3,
             },
         ];
         let result = build(&records);
@@ -710,18 +790,21 @@ mod tests {
         let mut records = empty_records();
         let base = StopRecord {
             stop_id: "S1".into(),
-            stop_code: None, stop_name: None,
-            stop_lat: None, stop_lon: None,
-            location_type: None, stop_timezone: None,
-            wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None,
-            row: Default::default(), line: 2,
+            stop_code: None,
+            stop_name: None,
+            stop_lat: None,
+            stop_lon: None,
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
+            row: Default::default(),
+            line: 2,
             ..Default::default()
         };
-        records.stops = vec![
-            base.clone(),
-            StopRecord { line: 3, ..base },
-        ];
+        records.stops = vec![base.clone(), StopRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_001"));
         assert_eq!(*result.entity_map.stops.get("S1").unwrap(), 0);
@@ -735,18 +818,23 @@ mod tests {
         let base = RouteRecord {
             route_id: "R1".into(),
             agency_id: None,
-            route_short_name: None, route_long_name: None,
-            route_desc: None, route_type: Some(3),
-            route_url: None, route_color: None,
-            route_text_color: None, route_sort_order: None,
-            continuous_pickup: None, continuous_drop_off: None,
-            network_id: None, route_cemv_support: None, jp_office_id: None,
-            row: Default::default(), line: 2,
+            route_short_name: None,
+            route_long_name: None,
+            route_desc: None,
+            route_type: Some(3),
+            route_url: None,
+            route_color: None,
+            route_text_color: None,
+            route_sort_order: None,
+            continuous_pickup: None,
+            continuous_drop_off: None,
+            network_id: None,
+            route_cemv_support: None,
+            jp_office_id: None,
+            row: Default::default(),
+            line: 2,
         };
-        records.routes = vec![
-            base.clone(),
-            RouteRecord { line: 3, ..base },
-        ];
+        records.routes = vec![base.clone(), RouteRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "RTS_001"));
     }
@@ -758,17 +846,23 @@ mod tests {
         let mut records = empty_records();
         let base = TripRecord {
             trip_id: "T1".into(),
-            route_idx: 0, service_idx: 0, shape_idx: 0,
-            headsign_idx: 0, short_name_idx: 0, block_idx: 0, jp_office_idx: 0, jp_pattern_idx: 0,
-            direction_id: None, wheelchair_accessible: None,
-            bikes_allowed: None, cars_allowed: None,
-            safe_duration_factor: None, safe_duration_offset: None,
+            route_idx: 0,
+            service_idx: 0,
+            shape_idx: 0,
+            headsign_idx: 0,
+            short_name_idx: 0,
+            block_idx: 0,
+            jp_office_idx: 0,
+            jp_pattern_idx: 0,
+            direction_id: None,
+            wheelchair_accessible: None,
+            bikes_allowed: None,
+            cars_allowed: None,
+            safe_duration_factor: None,
+            safe_duration_offset: None,
             line: 2,
         };
-        records.trips = vec![
-            base.clone(),
-            TripRecord { line: 3, ..base },
-        ];
+        records.trips = vec![base.clone(), TripRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_001"));
     }
@@ -781,13 +875,12 @@ mod tests {
         let base = CalendarRecord {
             service_id: "WKD".into(),
             days: [Some(1); 7],
-            start_date: None, end_date: None,
-            row: Default::default(), line: 2,
+            start_date: None,
+            end_date: None,
+            row: Default::default(),
+            line: 2,
         };
-        records.calendars = vec![
-            base.clone(),
-            CalendarRecord { line: 3, ..base },
-        ];
+        records.calendars = vec![base.clone(), CalendarRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_001"));
     }
@@ -800,8 +893,10 @@ mod tests {
         records.calendars = vec![CalendarRecord {
             service_id: "WKD".into(),
             days: [Some(1); 7],
-            start_date: None, end_date: None,
-            row: Default::default(), line: 2,
+            start_date: None,
+            end_date: None,
+            row: Default::default(),
+            line: 2,
         }];
         // "HOL": exception_type=None → yalnızca exception_count'ta (added/removed'da değil)
         // Boş service_id: exception_count'a GİRMEZ → services kümesine eklenmemeli
@@ -821,8 +916,22 @@ mod tests {
         let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
         records.shapes = vec![
-            ShapePointRecord::new(shape_ti.intern("SHP1"), Some(41.0), Some(29.0), Some(2), None, 3),
-            ShapePointRecord::new(shape_ti.intern("SHP1"), Some(41.1), Some(29.1), Some(1), None, 2),
+            ShapePointRecord::new(
+                shape_ti.intern("SHP1"),
+                Some(41.0),
+                Some(29.0),
+                Some(2),
+                None,
+                3,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("SHP1"),
+                Some(41.1),
+                Some(29.1),
+                Some(1),
+                None,
+                2,
+            ),
         ];
         records.shape_interns = shape_ti.clone();
         let result = build(&records);
@@ -843,14 +952,15 @@ mod tests {
             to_stop_id: "S2".into(),
             pathway_mode: Some(1),
             is_bidirectional: Some(1),
-            length: None, traversal_time: None,
-            stair_count: None, max_slope: None, min_width: None,
-            row: Default::default(), line: 2,
+            length: None,
+            traversal_time: None,
+            stair_count: None,
+            max_slope: None,
+            min_width: None,
+            row: Default::default(),
+            line: 2,
         };
-        records.pathways = vec![
-            base.clone(),
-            PathwayRecord { line: 3, ..base },
-        ];
+        records.pathways = vec![base.clone(), PathwayRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "PTH_001"));
     }
@@ -862,13 +972,12 @@ mod tests {
         let mut records = empty_records();
         let base = LevelRecord {
             level_id: "L1".into(),
-            level_index: Some(0.0), level_name: None,
-            row: Default::default(), line: 2,
+            level_index: Some(0.0),
+            level_name: None,
+            row: Default::default(),
+            line: 2,
         };
-        records.levels = vec![
-            base.clone(),
-            LevelRecord { line: 3, ..base },
-        ];
+        records.levels = vec![base.clone(), LevelRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "LVL_001"));
     }
@@ -883,14 +992,13 @@ mod tests {
             price: Some(2.0),
             currency_type: "TRY".into(),
             payment_method: Some(0),
-            transfers: None, transfer_duration: None,
+            transfers: None,
+            transfer_duration: None,
             agency_id: None,
-            row: Default::default(), line: 2,
+            row: Default::default(),
+            line: 2,
         };
-        records.fare_attributes = vec![
-            base.clone(),
-            FareAttributeRecord { line: 3, ..base },
-        ];
+        records.fare_attributes = vec![base.clone(), FareAttributeRecord { line: 3, ..base }];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "FAR_001"));
     }
@@ -915,11 +1023,16 @@ mod tests {
         row.insert("zone_id".into(), "ZoneA".into());
         records.stops = vec![StopRecord {
             stop_id: "S1".into(),
-            stop_code: None, stop_name: None,
-            stop_lat: None, stop_lon: None,
-            location_type: None, stop_timezone: None,
-            wheelchair_boarding: None, stop_access: None,
-            level_id: None, tts_stop_name: None,
+            stop_code: None,
+            stop_name: None,
+            stop_lat: None,
+            stop_lon: None,
+            location_type: None,
+            stop_timezone: None,
+            wheelchair_boarding: None,
+            stop_access: None,
+            level_id: None,
+            tts_stop_name: None,
             row,
             line: 2,
             ..Default::default()

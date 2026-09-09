@@ -1,4 +1,4 @@
-use super::common::{get_raw_field, build_row_map, get_trimmed_field, RowMap};
+use super::common::{build_row_map, get_raw_field, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
 #[derive(Debug, Clone)]

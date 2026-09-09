@@ -7,8 +7,8 @@
 /// Notice baseline → stdout
 use std::collections::{BTreeMap, BTreeSet};
 
-use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
 use gtfs_core::{Notice, Severity};
+use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -19,7 +19,10 @@ fn main() {
 
     let path = &args[1];
     // today = path'ten sonraki ilk u32-parse edilebilen arg (--json bayrağını atlar)
-    let today: u32 = args[2..].iter().find_map(|s| s.parse().ok()).unwrap_or(20_260_515);
+    let today: u32 = args[2..]
+        .iter()
+        .find_map(|s| s.parse().ok())
+        .unwrap_or(20_260_515);
     let json_mode = args.iter().any(|a| a == "--json");
 
     let zip_bytes = std::fs::read(path).unwrap_or_else(|e| {
@@ -44,7 +47,10 @@ fn main() {
         // tie'larda kararlı değil — bu MEVCUT, benim değişikliğimden bağımsız bir durum). Diff'in
         // anlamlı olması için rule_id'ye göre KANONİK sırala (R9'da rule_id benzersiz). Bu yalnız
         // dev-dump kanonikleştirmesi → pipeline çıktısını DEĞİŞTİRMEZ. Rapor eşitliği = içerik eşitliği.
-        vr.reports.r9.items.sort_by(|a, b| a.rule_id.cmp(&b.rule_id));
+        vr.reports
+            .r9
+            .items
+            .sort_by(|a, b| a.rule_id.cmp(&b.rule_id));
         // Kanonik (anahtar-sıralı) TAM ValidationResult dökümü → kurallar VE raporlar
         // (notices + R1–R9 + metrics + name_index + capped_totals). serde_json::Value::Object =
         // BTreeMap olduğundan tüm map anahtarları sıralanır → HashMap sıra belirsizliği kalkar.
@@ -93,16 +99,19 @@ fn print_baseline(notices: &[Notice], source: &str) {
     }
 
     for (rule_id, ns) in &per_rule {
-        let lines: Vec<String> = ns.iter()
+        let lines: Vec<String> = ns
+            .iter()
             .filter_map(|n| n.line)
             .take(3)
             .map(|l| l.to_string())
             .collect();
-        let entity_ids: Vec<&str> = ns.iter()
+        let entity_ids: Vec<&str> = ns
+            .iter()
             .filter_map(|n| n.entity_id.as_deref())
             .take(3)
             .collect();
-        let scope_keys: Vec<&str> = ns.iter()
+        let scope_keys: Vec<&str> = ns
+            .iter()
             .filter_map(|n| n.scope_key.as_deref())
             .take(3)
             .collect();

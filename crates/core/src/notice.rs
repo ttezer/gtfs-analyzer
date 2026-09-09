@@ -1,9 +1,9 @@
 // BTreeMap (HashMap değil): `details` JSON'a serialize edilir ve HashMap iterasyon
 // sırası süreçten sürece değişir → aynı girdi iki koşuda farklı BAYT üretirdi
 // (içerik aynı, yalnız anahtar sırası). Bkz. NameIndex'teki aynı gerekçe.
-use std::collections::BTreeMap;
-use serde::{Deserialize, Serialize};
 use crate::{EntityType, RuleClass, Severity};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Tek bir doğrulama bulgusunu temsil eden canonical veri yapısı.
 ///

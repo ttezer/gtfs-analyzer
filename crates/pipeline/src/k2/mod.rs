@@ -1,14 +1,14 @@
-﻿pub mod agency;
+pub mod agency;
 pub mod agency_jp;
 pub mod areas;
-pub mod booking_rules;
 pub mod attributions;
+pub(crate) mod bcp47_grandfathered;
+pub mod booking_rules;
 pub mod calendar;
 pub mod calendar_dates;
 pub mod common;
-pub(crate) mod bcp47_grandfathered;
-pub(crate) mod iso4217_generated;
 pub mod fare_attributes;
+pub mod fare_leg_join_rules;
 pub mod fare_leg_rules;
 pub mod fare_media;
 pub mod fare_products;
@@ -16,38 +16,37 @@ pub mod fare_rules;
 pub mod fare_transfer_rules;
 pub mod feed_info;
 pub mod frequencies;
+pub(crate) mod iso4217_generated;
 pub mod levels;
+pub mod location_groups;
 pub mod networks;
 pub mod office_jp;
-pub mod pattern_jp;
 pub mod pathways;
+pub mod pattern_jp;
 pub mod rider_categories;
-pub mod location_groups;
-pub mod fare_leg_join_rules;
 pub mod route_networks;
 pub mod routes;
 pub mod routes_jp;
 pub mod shapes;
 pub mod stop_areas;
-pub mod stops;
 pub mod stop_times;
+pub mod stops;
 pub mod timeframes;
 pub mod transfers;
 pub mod translations;
 pub mod trips;
 
+use crate::k1_parse::{RawFile, RawFiles};
 use agency::{validate_agency, AgencyRecord};
 use agency_jp::{parse_agency_jp, AgencyJpRecord};
 use areas::{parse_areas, AreaRecord};
-use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use attributions::{validate_attributions, AttributionRecord};
-use common::make_k2_notice;
+use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates_with_limits, CalendarDateIndex};
-use gtfs_config::{GtfsJpProfile, ValidatorConfig};
-use gtfs_core::Notice;
-use crate::k1_parse::{RawFile, RawFiles};
+use common::make_k2_notice;
 use fare_attributes::{validate_fare_attributes, FareAttributeRecord};
+use fare_leg_join_rules::{parse_fare_leg_join_rules, FareLegJoinRuleRecord};
 use fare_leg_rules::{validate_fare_leg_rules, FareLegRuleRecord};
 use fare_media::{validate_fare_media, FareMediaRecord};
 use fare_products::{validate_fare_products, FareProductRecord};
@@ -55,28 +54,33 @@ use fare_rules::{parse_fare_rules, FareRuleRecord};
 use fare_transfer_rules::{validate_fare_transfer_rules, FareTransferRuleRecord};
 use feed_info::{validate_feed_info, FeedInfoRecord};
 use frequencies::{validate_frequencies, FrequencyRecord};
+use gtfs_config::{GtfsJpProfile, ValidatorConfig};
+use gtfs_core::Notice;
 use levels::{validate_levels, LevelRecord};
-use location_groups::{parse_location_groups, LocationGroupRecord, parse_location_group_stops, LocationGroupStopRecord};
+use location_groups::{
+    parse_location_group_stops, parse_location_groups, LocationGroupRecord, LocationGroupStopRecord,
+};
 use networks::{parse_networks, NetworkRecord};
 use office_jp::{parse_office_jp, OfficeJpRecord};
-use pattern_jp::{parse_pattern_jp, PatternJpRecord};
 use pathways::{validate_pathways, PathwayRecord};
+use pattern_jp::{parse_pattern_jp, PatternJpRecord};
 use rider_categories::{validate_rider_categories, RiderCategoryRecord};
-use fare_leg_join_rules::{parse_fare_leg_join_rules, FareLegJoinRuleRecord};
 use route_networks::{parse_route_networks, RouteNetworkRecord};
 use routes::{validate_routes, RouteRecord};
 use routes_jp::{parse_routes_jp, RoutesJpRecord};
-use shapes::{validate_shapes_with_limits, ShapePointRecord};
+use rustc_hash::FxHashMap;
 pub use shapes::ShapeInternTable;
+use shapes::{validate_shapes_with_limits, ShapePointRecord};
 use stop_areas::{parse_stop_areas, StopAreaRecord};
-use stops::{validate_stops, StopRecord};
-use stop_times::{validate_stop_times_with_limits, StopTimeRecord, StreamBudget, K2_MAX_STREAM_BYTES};
+use stop_times::{
+    validate_stop_times_with_limits, StopTimeRecord, StreamBudget, K2_MAX_STREAM_BYTES,
+};
 pub use stop_times::{CompactStopTime, StopTimesIndex};
+use stops::{validate_stops, StopRecord};
 use timeframes::{validate_timeframes, TimeframeRecord};
 use transfers::{validate_transfers, TransferRecord};
 use translations::TranslationRecord;
-use trips::{validate_trips_with_limits, TripRecord, TripInternTable};
-use rustc_hash::FxHashMap;
+use trips::{validate_trips_with_limits, TripInternTable, TripRecord};
 
 /// GTFS-JP profilini fiziksel dosya varlığıyla tanımlayan bilinen dosyalar.
 pub const GTFS_JP_FILES: [&str; 4] = [
@@ -135,7 +139,7 @@ pub struct EntityRecords {
     // Production'da BOŞ kalır — K2 artık Vec build etmez (bellek tasarrufu).
     // Sadece testler doğrudan set eder; K6 fallback bu durumu from_records ile karşılar.
     pub stop_times: Vec<StopTimeRecord>,
-    pub stop_times_index: StopTimesIndex,    // production stop_times kaynağı (streaming K2)
+    pub stop_times_index: StopTimesIndex, // production stop_times kaynağı (streaming K2)
     pub timeframes: Vec<TimeframeRecord>,
     pub transfers: Vec<TransferRecord>,
     pub translations: Vec<TranslationRecord>,
@@ -208,7 +212,7 @@ pub fn validate_with_stream_limit_and_jp_signal(
     max_stream_rows: Option<usize>,
     has_gtfs_jp_file: Option<bool>,
 ) -> K2Result {
-    use crate::timing::{Timer, mem_log};
+    use crate::timing::{mem_log, Timer};
     let mut notices = Vec::new();
     // Capture physical JP files before any streaming/drop path. K4 receives
     // the same signal from K1 in the full pipeline; direct K2 callers need the
@@ -270,20 +274,39 @@ pub fn validate_with_stream_limit_and_jp_signal(
 
     if let Some(file) = files.get("calendar_dates.txt") {
         let _t = Timer::start("K2::calendar_dates");
-        let (calendar_date_records, calendar_date_notices) =
-            validate_calendar_dates_with_limits(
-                file, zip_bytes, max_stream_rows,
-                stream_budget.as_mut().map(|budget| &mut *budget),
-            );
+        let (calendar_date_records, calendar_date_notices) = validate_calendar_dates_with_limits(
+            file,
+            zip_bytes,
+            max_stream_rows,
+            stream_budget.as_mut().map(|budget| &mut *budget),
+        );
         records.calendar_dates = calendar_date_records;
         notices.extend(calendar_date_notices);
-        records.streaming_row_counts.insert("calendar_dates.txt".to_string(), records.calendar_dates.raw_row_count);
+        records.streaming_row_counts.insert(
+            "calendar_dates.txt".to_string(),
+            records.calendar_dates.raw_row_count,
+        );
         mem_log(&format!(
             "K2::calendar_dates done: svcs={} exc_total={} added_dates={} removed_dates={}",
             records.calendar_dates.exception_count.len(),
-            records.calendar_dates.exception_count.values().map(|&v| v as u64).sum::<u64>(),
-            records.calendar_dates.added.values().map(|v| v.len()).sum::<usize>(),
-            records.calendar_dates.removed.values().map(|v| v.len()).sum::<usize>(),
+            records
+                .calendar_dates
+                .exception_count
+                .values()
+                .map(|&v| v as u64)
+                .sum::<u64>(),
+            records
+                .calendar_dates
+                .added
+                .values()
+                .map(|v| v.len())
+                .sum::<usize>(),
+            records
+                .calendar_dates
+                .removed
+                .values()
+                .map(|v| v.len())
+                .sum::<usize>(),
         ));
     }
 
@@ -294,10 +317,16 @@ pub fn validate_with_stream_limit_and_jp_signal(
         notices.extend(feed_info_notices);
     }
 
-    records.is_gtfs_jp = Some(records.has_gtfs_jp_file
-        || records.feed_info.first().is_some_and(|feed_info| {
-            feed_info.feed_lang.trim().to_ascii_lowercase().starts_with("ja")
-        }));
+    records.is_gtfs_jp = Some(
+        records.has_gtfs_jp_file
+            || records.feed_info.first().is_some_and(|feed_info| {
+                feed_info
+                    .feed_lang
+                    .trim()
+                    .to_ascii_lowercase()
+                    .starts_with("ja")
+            }),
+    );
 
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
@@ -341,15 +370,18 @@ pub fn validate_with_stream_limit_and_jp_signal(
 
     if let Some(file) = files.get("shapes.txt") {
         let _t = Timer::start("K2::shapes");
-        let (shape_records, shape_interns, shape_notices) =
-            validate_shapes_with_limits(
-                file, zip_bytes, max_stream_rows,
-                stream_budget.as_mut().map(|budget| &mut *budget),
-            );
+        let (shape_records, shape_interns, shape_notices) = validate_shapes_with_limits(
+            file,
+            zip_bytes,
+            max_stream_rows,
+            stream_budget.as_mut().map(|budget| &mut *budget),
+        );
         records.shapes = shape_records;
         records.shape_interns = shape_interns;
         notices.extend(shape_notices);
-        records.streaming_row_counts.insert("shapes.txt".to_string(), records.shapes.len() as u64);
+        records
+            .streaming_row_counts
+            .insert("shapes.txt".to_string(), records.shapes.len() as u64);
         mem_log("K2 after shapes records");
     }
 
@@ -396,15 +428,18 @@ pub fn validate_with_stream_limit_and_jp_signal(
 
     if let Some(file) = files.get("trips.txt") {
         let _t = Timer::start("K2::trips");
-        let (trip_records, trip_interns, trip_notices) =
-            validate_trips_with_limits(
-                file, zip_bytes, max_stream_rows,
-                stream_budget.as_mut().map(|budget| &mut *budget),
-            );
+        let (trip_records, trip_interns, trip_notices) = validate_trips_with_limits(
+            file,
+            zip_bytes,
+            max_stream_rows,
+            stream_budget.as_mut().map(|budget| &mut *budget),
+        );
         records.trips = trip_records;
         records.trip_interns = trip_interns;
         notices.extend(trip_notices);
-        records.streaming_row_counts.insert("trips.txt".to_string(), records.trips.len() as u64);
+        records
+            .streaming_row_counts
+            .insert("trips.txt".to_string(), records.trips.len() as u64);
         mem_log("K2 after trips records");
     }
 
@@ -503,12 +538,18 @@ pub fn validate_with_stream_limit_and_jp_signal(
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
         let (stm_index, stop_time_notices) = validate_stop_times_with_limits(
-            file, zip_bytes, has_booking_rules, max_stream_rows,
+            file,
+            zip_bytes,
+            has_booking_rules,
+            max_stream_rows,
             stream_budget.as_mut().map(|budget| &mut *budget),
         );
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
-        records.streaming_row_counts.insert("stop_times.txt".to_string(), records.stop_times_index.total_rows as u64);
+        records.streaming_row_counts.insert(
+            "stop_times.txt".to_string(),
+            records.stop_times_index.total_rows as u64,
+        );
         mem_log("K2 after stop_times index");
     }
 
@@ -526,13 +567,24 @@ pub fn validate_with_stream_limit_and_jp_signal(
     // de aynı kaynaktan gösterir, iki yer tutarlı kalsın diye böyle.
     {
         let mut ctr = 0u32;
-        for (name, rows) in files_over_row_limit(&records.streaming_row_counts, cfg.max_file_rows as u64) {
+        for (name, rows) in
+            files_over_row_limit(&records.streaming_row_counts, cfg.max_file_rows as u64)
+        {
             notices.push(make_k2_notice(
-                &mut ctr, "ARC_022", gtfs_core::EntityType::File, Some(name.to_string()),
-                None, name, None, None,
-                Some(format!("{rows}")), None,
-                format!("'{name}' dosyasında {rows} satır var; {} satır sınırını aşıyor.",
-                        cfg.max_file_rows),
+                &mut ctr,
+                "ARC_022",
+                gtfs_core::EntityType::File,
+                Some(name.to_string()),
+                None,
+                name,
+                None,
+                None,
+                Some(format!("{rows}")),
+                None,
+                format!(
+                    "'{name}' dosyasında {rows} satır var; {} satır sınırını aşıyor.",
+                    cfg.max_file_rows
+                ),
                 "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
             ));
         }
@@ -579,7 +631,7 @@ mod tests {
             ("stop_times.txt", 11u64),
             ("trips.txt", 11),
             ("calendar_dates.txt", 11),
-            ("shapes.txt", 10),   // eşiğe EŞİT → ihlal değil
+            ("shapes.txt", 10), // eşiğe EŞİT → ihlal değil
             ("agency.txt", 3),
         ] {
             counts.insert(name.to_string(), rows);
@@ -587,7 +639,11 @@ mod tests {
         let over = files_over_row_limit(&counts, 10);
         assert_eq!(
             over,
-            vec![("calendar_dates.txt", 11), ("stop_times.txt", 11), ("trips.txt", 11)],
+            vec![
+                ("calendar_dates.txt", 11),
+                ("stop_times.txt", 11),
+                ("trips.txt", 11)
+            ],
             "eşiği AŞANLAR alfabetik gelmeli; eşiğe eşit olan (shapes) listede OLMAMALI"
         );
     }
@@ -623,7 +679,8 @@ mod tests {
                     "Europe/Istanbul".into(),
                 ]],
                 bytes: 0,
-                raw_text: None, zip_entry_name: None,
+                raw_text: None,
+                zip_entry_name: None,
             },
         );
 
@@ -638,7 +695,8 @@ mod tests {
                 ],
                 rows: vec![vec!["R1".into(), "10".into(), "99".into()]],
                 bytes: 0,
-                raw_text: None, zip_entry_name: None,
+                raw_text: None,
+                zip_entry_name: None,
             },
         );
 
@@ -654,7 +712,8 @@ mod tests {
                 ],
                 rows: vec![vec!["R1".into(), "WKD".into(), "T1".into(), "9".into()]],
                 bytes: 0,
-                raw_text: None, zip_entry_name: None,
+                raw_text: None,
+                zip_entry_name: None,
             },
         );
 
@@ -676,7 +735,8 @@ mod tests {
                 headers: vec!["fare_id".into(), "route_id".into()],
                 rows: vec![vec!["F1".into(), "R1".into()]],
                 bytes: 0,
-                raw_text: None, zip_entry_name: None,
+                raw_text: None,
+                zip_entry_name: None,
             },
         );
 

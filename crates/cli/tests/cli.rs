@@ -212,11 +212,12 @@ fn recoverable_structural_error_is_partial_with_exit_1() {
         .unwrap()
         .iter()
         .any(|file| file == "routes.txt"));
-    assert!(!json["partial"]["skipped_stages"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|stage| stage == "K4-cross-ref"),
+    assert!(
+        !json["partial"]["skipped_stages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|stage| stage == "K4-cross-ref"),
         "routes.txt kaybı bağımsız K4 kurallarını aşama olarak kapatmamalı"
     );
     assert!(json["partial"]["skipped_checks"]
@@ -537,7 +538,10 @@ fn rules_subcommand_honours_lang() {
         "rules", "--json", "--rule", "TRP_002", "--lang", "en",
     ]));
 
-    assert_eq!(default[0]["title"], en[0]["title"], "default must be English");
+    assert_eq!(
+        default[0]["title"], en[0]["title"],
+        "default must be English"
+    );
     assert_ne!(en[0]["title"], tr[0]["title"]);
     assert!(en[0]["title"].as_str().unwrap().is_ascii());
 }
@@ -556,10 +560,16 @@ fn lang_fr_translates_and_never_leaks_turkish_or_placeholders() {
     let tr = first_spec_notice(&feed, "tr");
     let en = first_spec_notice(&feed, "en");
 
-    assert_ne!(fr["title"], tr["title"], "French title must differ from Turkish");
+    assert_ne!(
+        fr["title"], tr["title"],
+        "French title must differ from Turkish"
+    );
     // `fr` is a COMPLETE dictionary (see the coverage gate in i18n.rs), so it must
     // not silently fall through to the English fallback either.
-    assert_ne!(fr["title"], en["title"], "French title must differ from English");
+    assert_ne!(
+        fr["title"], en["title"],
+        "French title must differ from English"
+    );
 
     for field in ["title", "message", "remediation"] {
         let text = fr[field].as_str().unwrap_or_default();

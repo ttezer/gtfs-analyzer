@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use gtfs_core::{EntityType, Notice};
 use super::bcp47_grandfathered::GRANDFATHERED;
 use super::iso4217_generated::ISO4217;
+use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
 use smol_str::SmolStr;
 use url::Url;
@@ -97,11 +97,15 @@ pub fn get_raw_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
 
 /// KİMLİK sütunları için ham akış değeri — `get_col`in trim YAPMAYAN eşi (issue #85).
 pub fn get_col_raw<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_ref()).unwrap_or("")
+    col.and_then(|i| row.get(i))
+        .map(|s| s.as_ref())
+        .unwrap_or("")
 }
 
 pub fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
-    col.and_then(|i| row.get(i)).map(|s| s.as_ref().trim()).unwrap_or("")
+    col.and_then(|i| row.get(i))
+        .map(|s| s.as_ref().trim())
+        .unwrap_or("")
 }
 
 /// Ham değerden u32. Boş → `Ok(None)`, geçersiz → `Err(())`.
@@ -144,7 +148,11 @@ pub fn parse_f64_col(raw: &str) -> Result<Option<f64>, ()> {
 /// olurdu ve bu, `#85`'te bilinçle korunan davranışın tersine dönmesi demekti.
 pub fn get_lexical_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
     let raw = get_raw_field(row, field)?;
-    if raw.trim().is_empty() { None } else { Some(raw) }
+    if raw.trim().is_empty() {
+        None
+    } else {
+        Some(raw)
+    }
 }
 
 pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
@@ -252,7 +260,8 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
     // `1:2:3` geçiyordu. Saat 1–2 basamak olabilir (`25:00:00` servis-günü notasyonu).
     if !gtfs_time_widths_ok(&parts) {
         return Err(format!(
-            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"));
+            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
+        ));
     }
 
     let hour = parts[0]
@@ -266,7 +275,9 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
         .map_err(|_| format!("'{field}' saniye bölümü geçersiz: {raw}"))?;
 
     if minute > 59 || second > 59 {
-        return Err(format!("'{field}' için dakika/saniye aralığı geçersiz: {raw}"));
+        return Err(format!(
+            "'{field}' için dakika/saniye aralığı geçersiz: {raw}"
+        ));
     }
 
     Ok(Some((hour, minute, second)))
@@ -300,7 +311,6 @@ pub fn is_iso4217(code: &str) -> bool {
     ISO4217.binary_search_by_key(&code, |(k, _)| *k).is_ok()
 }
 
-
 pub fn validate_enum(value: &str, allowed: &[&str]) -> bool {
     allowed.contains(&value)
 }
@@ -320,7 +330,8 @@ pub fn validate_enum(value: &str, allowed: &[&str]) -> bool {
 /// Aradığımız önek saf ASCII olduğundan bayt karşılaştırması hem güvenli hem doğru.
 pub fn looks_like_url(value: &str) -> bool {
     fn starts_with_ci(s: &str, prefix: &str) -> bool {
-        s.len() >= prefix.len() && s.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
+        s.len() >= prefix.len()
+            && s.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
     }
     // ⚠️ İÇ `trim` KALDIRILDI (issue #92): predikat kendisi kırparsa çağıran ham değeri
     // verse bile ölçü yine normalize edilmiş olurdu. Boşluk zaten `url_strict_ok`un
@@ -330,7 +341,9 @@ pub fn looks_like_url(value: &str) -> bool {
     if !(has_web_scheme && url_strict_ok(trimmed)) {
         return false;
     }
-    let Ok(parsed) = Url::parse(trimmed) else { return false };
+    let Ok(parsed) = Url::parse(trimmed) else {
+        return false;
+    };
     // ÇİFT ŞEMA: `https://https://example.com/...` ayrıştırılır ve host'u literal
     // `"https"` olur. Şema adıyla aynı, tek etiketli bir host gerçek bir adres
     // olamaz; bu desen yalnızca değerin başına şemanın iki kez yazılmasından doğar.
@@ -341,7 +354,8 @@ pub fn looks_like_url(value: &str) -> bool {
     // `url_strict_ok`un `is_ascii()` kapısı tam o yüzden #144'te kaldırılmıştı.
     // Bu kontrol tek bir kesin desene çapalıdır; alt çizgili host, `localhost` ve
     // sayısal host gibi komşu vakalar KASITLI olarak dışarıda (#162).
-    if matches!(parsed.host_str(), Some(h) if h.eq_ignore_ascii_case("http") || h.eq_ignore_ascii_case("https")) {
+    if matches!(parsed.host_str(), Some(h) if h.eq_ignore_ascii_case("http") || h.eq_ignore_ascii_case("https"))
+    {
         return false;
     }
     true
@@ -419,7 +433,10 @@ pub fn url_escaping_ok(value: &str) -> bool {
     // RFC 3986'da bir URI'de ÇIPLAK geçemeyecek karakterler (ayrıştırıcının sessizce
     // kodladıkları) + kontrol karakterleri.
     const MUST_ESCAPE: &[char] = &[' ', '"', '<', '>', '\\', '^', '`', '{', '}', '|'];
-    if value.chars().any(|c| MUST_ESCAPE.contains(&c) || c.is_control()) {
+    if value
+        .chars()
+        .any(|c| MUST_ESCAPE.contains(&c) || c.is_control())
+    {
         return false;
     }
     // Yüzde kaçışı İKİ onaltılık basamak ister; `%zz` ve satır sonundaki `%` bozuktur.
@@ -427,10 +444,7 @@ pub fn url_escaping_ok(value: &str) -> bool {
     let mut i = 0;
     while i < b.len() {
         if b[i] == b'%' {
-            if i + 2 >= b.len()
-                || !b[i + 1].is_ascii_hexdigit()
-                || !b[i + 2].is_ascii_hexdigit()
-            {
+            if i + 2 >= b.len() || !b[i + 1].is_ascii_hexdigit() || !b[i + 2].is_ascii_hexdigit() {
                 return false;
             }
             i += 3;
@@ -518,7 +532,10 @@ pub fn looks_like_email(value: &str) -> bool {
             || "!#$%&'*+-/=?^_`{|}~".contains(c)
             || (!c.is_ascii() && !c.is_whitespace() && !c.is_control())
     };
-    if !local.split('.').all(|atom| !atom.is_empty() && atom.chars().all(atext)) {
+    if !local
+        .split('.')
+        .all(|atom| !atom.is_empty() && atom.chars().all(atext))
+    {
         return false;
     }
     // domain: en az iki etiket; her etiket harf/rakam ile başlar ve biter, içinde tire olabilir.
@@ -537,7 +554,9 @@ pub fn looks_like_email(value: &str) -> bool {
         return false;
     }
     // Son etiket (TLD) sayısal olamaz — `a@b.1` adres değildir.
-    labels.last().is_some_and(|tld| tld.chars().all(|c| c.is_alphabetic()) && tld.len() >= 2)
+    labels
+        .last()
+        .is_some_and(|tld| tld.chars().all(|c| c.is_alphabetic()) && tld.len() >= 2)
 }
 
 /// GTFS `Language` tipi — **RFC 5646 (BCP 47) well-formed** sözdizimi (issue #82).
@@ -567,7 +586,10 @@ pub fn looks_like_bcp47(value: &str) -> bool {
         return false;
     }
     let parts: Vec<&str> = t.split('-').collect();
-    if parts.iter().any(|p| p.is_empty() || p.len() > 8 || !p.chars().all(|c| c.is_ascii_alphanumeric())) {
+    if parts
+        .iter()
+        .any(|p| p.is_empty() || p.len() > 8 || !p.chars().all(|c| c.is_ascii_alphanumeric()))
+    {
         return false;
     }
     let alpha = |p: &str| p.chars().all(|c| c.is_ascii_alphabetic());
@@ -620,7 +642,8 @@ pub fn looks_like_bcp47(value: &str) -> bool {
     }
     // region (2 alpha | 3 digit)
     if idx < parts.len()
-        && ((parts[idx].len() == 2 && alpha(parts[idx])) || (parts[idx].len() == 3 && digit(parts[idx])))
+        && ((parts[idx].len() == 2 && alpha(parts[idx]))
+            || (parts[idx].len() == 3 && digit(parts[idx])))
     {
         idx += 1;
     }
@@ -701,14 +724,18 @@ pub fn looks_like_phone(value: &str) -> bool {
     // (`+1 800 FLOWERS` yalnız dört rakam taşır ama on bir hanelik bir numaradır). Yine de
     // en az bir rakam aranır, yoksa `FLOWERS` tek başına telefon sayılırdı.
     let digit_count = trimmed.chars().filter(|c| c.is_ascii_digit()).count();
-    let dialable_count = trimmed.chars().filter(|c| c.is_ascii_alphanumeric()).count();
+    let dialable_count = trimmed
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .count();
     if dialable_count < 5 || digit_count == 0 {
         return false;
     }
-    if !trimmed
-        .chars()
-        .all(|c| c.is_ascii_digit() || c.is_ascii_alphabetic() || matches!(c, '+' | '-' | '(' | ')' | ' ' | '.'))
-    {
+    if !trimmed.chars().all(|c| {
+        c.is_ascii_digit()
+            || c.is_ascii_alphabetic()
+            || matches!(c, '+' | '-' | '(' | ')' | ' ' | '.')
+    }) {
         return false;
     }
     // Harf grupları: ayırıcılarla bölündüğünde tamamı harften oluşan parçalar.
@@ -737,9 +764,9 @@ pub fn looks_like_phone(value: &str) -> bool {
     // Tek grup: eski davranış (büyük/küçük harf aranmaz). Birden çok grup: vanity yazım
     // konvansiyonu olan BÜYÜK HARF şartı — düzyazıyı ayıran tek sinyal bu (#95).
     n == 1
-        || letter_group_indices.iter().all(|&i| {
-            parts[i].chars().all(|c| c.is_ascii_uppercase())
-        })
+        || letter_group_indices
+            .iter()
+            .all(|&i| parts[i].chars().all(|c| c.is_ascii_uppercase()))
 }
 
 pub fn looks_like_iana_timezone(value: &str) -> bool {
@@ -832,10 +859,18 @@ pub fn require_nonempty(
     // `None` = sütun başlıkta yok → ARC_025; `Some("")` = sütun var, değer boş → bu kural.
     if get_trimmed_field(row, field).is_some_and(str::is_empty) {
         notices.push(make_k2_notice(
-            counter, rule_id, entity_type, entity_id, Some(row),
-            file, Some(line), Some(field),
-            Some(String::new()), Some("(dolu)".to_string()),
-            message, remediation,
+            counter,
+            rule_id,
+            entity_type,
+            entity_id,
+            Some(row),
+            file,
+            Some(line),
+            Some(field),
+            Some(String::new()),
+            Some("(dolu)".to_string()),
+            message,
+            remediation,
         ));
     }
 }
@@ -853,10 +888,20 @@ pub(crate) fn arc033_summary(
     let kind = acc.kind.unwrap_or(crate::k1_parse::RFC4180_BARE_QUOTE);
     let example = acc.example.clone().unwrap_or_default();
     Some(make_k2_notice(
-        counter, "ARC_033", EntityType::File, Some(file.to_string()),
-        None, file, acc.first_line, None,
-        Some(format!("{} rows · {kind}", acc.rows)), None,
-        format!("'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').", acc.rows),
+        counter,
+        "ARC_033",
+        EntityType::File,
+        Some(file.to_string()),
+        None,
+        file,
+        acc.first_line,
+        None,
+        Some(format!("{} rows · {kind}", acc.rows)),
+        None,
+        format!(
+            "'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
+            acc.rows
+        ),
         "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
 tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
     ))
@@ -879,9 +924,16 @@ tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
 pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notice {
     let msg = "Kapanmamış tırnak işareti (unclosed quote)";
     make_k2_notice(
-        counter, "ARC_013", EntityType::File, Some(file.to_string()),
-        None, file, None, None,
-        Some(msg.to_string()), None,
+        counter,
+        "ARC_013",
+        EntityType::File,
+        Some(file.to_string()),
+        None,
+        file,
+        None,
+        None,
+        Some(msg.to_string()),
+        None,
         format!("'{file}' CSV tokenization hatası: {msg} — kaydın kalanı okunamadı."),
         "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
     )
@@ -914,15 +966,27 @@ pub fn make_k2_notice(
         whitespace_parser_derivative(rule_id, r, f, observed_value.as_deref(), &message)
     });
     let mut notice = crate::notice_factory::build(
-        "K2", Some("k2"), counter, rule_id, entity_type, entity_id, scope_key,
-        Some(file.to_string()), line, field.map(str::to_string),
-        observed_value, expected_value, message, remediation,
+        "K2",
+        Some("k2"),
+        counter,
+        rule_id,
+        entity_type,
+        entity_id,
+        scope_key,
+        Some(file.to_string()),
+        line,
+        field.map(str::to_string),
+        observed_value,
+        expected_value,
+        message,
+        remediation,
     );
     if whitespace_derived {
-        notice.details = Some([(
-            "whitespace_derived".to_string(),
-            "true".to_string(),
-        )].into_iter().collect());
+        notice.details = Some(
+            [("whitespace_derived".to_string(), "true".to_string())]
+                .into_iter()
+                .collect(),
+        );
     }
     notice
 }
@@ -945,7 +1009,9 @@ fn whitespace_parser_derivative(
         return false;
     }
     field.split('|').any(|name| {
-        let Some(raw) = row.get(name).map(String::as_str) else { return false };
+        let Some(raw) = row.get(name).map(String::as_str) else {
+            return false;
+        };
         let trimmed = raw.trim();
         !trimmed.is_empty()
             && raw != trimmed
@@ -959,13 +1025,22 @@ fn whitespace_parser_derivative(
 /// korur; tanınmayan alanlar için parse başarısı yeterli kök kanıtıdır.
 fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) -> bool {
     if field.ends_with("_lat") {
-        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && (-90.0..=90.0).contains(&v));
+        return value
+            .parse::<f64>()
+            .is_ok_and(|v| v.is_finite() && (-90.0..=90.0).contains(&v));
     }
     if field.ends_with("_lon") {
-        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && (-180.0..=180.0).contains(&v));
+        return value
+            .parse::<f64>()
+            .is_ok_and(|v| v.is_finite() && (-180.0..=180.0).contains(&v));
     }
-    if matches!(field, "price" | "amount" | "length" | "max_slope" | "level_index") {
-        return value.parse::<f64>().is_ok_and(|v| v.is_finite() && v >= 0.0);
+    if matches!(
+        field,
+        "price" | "amount" | "length" | "max_slope" | "level_index"
+    ) {
+        return value
+            .parse::<f64>()
+            .is_ok_and(|v| v.is_finite() && v >= 0.0);
     }
     if field == "min_width" {
         return value.parse::<f64>().is_ok_and(|v| v.is_finite() && v > 0.0);
@@ -983,13 +1058,17 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
         return value.parse::<i32>().is_ok_and(|v| v != 0);
     }
     if field == "route_type" {
-        return value.parse::<u32>().is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));
+        return value
+            .parse::<u32>()
+            .is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));
     }
     if field == "location_type" {
         return value.parse::<u32>().is_ok_and(|v| v <= 4);
     }
-    if field == "wheelchair_boarding" || field == "wheelchair_accessible"
-        || field == "bikes_allowed" || field == "cars_allowed"
+    if field == "wheelchair_boarding"
+        || field == "wheelchair_accessible"
+        || field == "bikes_allowed"
+        || field == "cars_allowed"
     {
         return value.parse::<u32>().is_ok_and(|v| v <= 2);
     }
@@ -1002,7 +1081,10 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
     if field == "transfer_type" {
         return value.parse::<u32>().is_ok_and(|v| v <= 5);
     }
-    if matches!(field, "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday") {
+    if matches!(
+        field,
+        "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday"
+    ) {
         return value.parse::<u32>().is_ok_and(|v| v <= 1);
     }
     if field == "stop_access" {
@@ -1010,7 +1092,9 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
     }
     // Rule-specific custom parser messages still need a conservative guard.
     if rule_id == "RTS_004" {
-        return value.parse::<u32>().is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));
+        return value
+            .parse::<u32>()
+            .is_ok_and(|v| matches!(v, 0..=7 | 11 | 12));
     }
     true
 }
@@ -1021,7 +1105,9 @@ mod tests {
     #[test]
     fn looks_like_url_rejects_a_doubled_scheme() {
         // tdg-83744: 'https://https://www.mairie-courchevel.com/...'
-        assert!(!looks_like_url("https://https://www.mairie-courchevel.com/a"));
+        assert!(!looks_like_url(
+            "https://https://www.mairie-courchevel.com/a"
+        ));
         assert!(!looks_like_url("http://http://example.com"));
         assert!(!looks_like_url("https://HTTPS://example.com"));
     }
@@ -1030,10 +1116,10 @@ mod tests {
     fn looks_like_url_still_accepts_the_neighbours_we_chose_not_to_reject() {
         // #162'de kanıtlanan ama BİLEREK reddedilmeyen vakalar. AGN_003 Kritik+Spec,
         // yani yayın engeli; buradaki bir yanlış pozitif geçerli feed'i reddeder.
-        assert!(looks_like_url("https://www.keolis_littoral.com"));   // alt çizgili host
-        assert!(looks_like_url("http://localhost"));                   // tek etiket
-        assert!(looks_like_url("http://167"));                         // 0.0.0.167'ye ayrışır
-        assert!(looks_like_url("http://www.takethehop.coml/"));        // yazım hatası TLD
+        assert!(looks_like_url("https://www.keolis_littoral.com")); // alt çizgili host
+        assert!(looks_like_url("http://localhost")); // tek etiket
+        assert!(looks_like_url("http://167")); // 0.0.0.167'ye ayrışır
+        assert!(looks_like_url("http://www.takethehop.coml/")); // yazım hatası TLD
     }
 
     #[test]
@@ -1114,15 +1200,33 @@ mod tests {
     /// issue #82 (yeniden açıldı) — `i-*` KEYFİ bir ad alanı DEĞİLDİR.
     #[test]
     fn bcp47_rejects_invented_grandfathered_tags() {
-        assert!(!super::looks_like_bcp47("i-foo"), "uydurma i-* well-formed DEĞİLDİR");
+        assert!(
+            !super::looks_like_bcp47("i-foo"),
+            "uydurma i-* well-formed DEĞİLDİR"
+        );
         assert!(!super::looks_like_bcp47("i-whatever"));
-        assert!(super::looks_like_bcp47("i-klingon"), "kayıtlı grandfathered etiket");
+        assert!(
+            super::looks_like_bcp47("i-klingon"),
+            "kayıtlı grandfathered etiket"
+        );
         assert!(super::looks_like_bcp47("i-navajo"));
-        assert!(super::looks_like_bcp47("en-GB-oed"), "düzensiz grandfathered etiket");
-        assert!(super::looks_like_bcp47("I-KLINGON"), "etiketler büyük/küçük harfe DUYARSIZ");
-        assert!(super::looks_like_bcp47("zh-min-nan"), "düzenli grandfathered etiket");
+        assert!(
+            super::looks_like_bcp47("en-GB-oed"),
+            "düzensiz grandfathered etiket"
+        );
+        assert!(
+            super::looks_like_bcp47("I-KLINGON"),
+            "etiketler büyük/küçük harfe DUYARSIZ"
+        );
+        assert!(
+            super::looks_like_bcp47("zh-min-nan"),
+            "düzenli grandfathered etiket"
+        );
         // ⚠️ `zz-ZZ` ile karıştırma: o well-formed ama kayıtlı değil (bilinçli kalıntı).
-        assert!(super::looks_like_bcp47("zz-ZZ"), "kayıt defteri DENETLENMEZ — belgelenmiş kalıntı");
+        assert!(
+            super::looks_like_bcp47("zz-ZZ"),
+            "kayıt defteri DENETLENMEZ — belgelenmiş kalıntı"
+        );
         // Normal langtag yolu grandfathered listesinden bağımsız çalışmalı.
         assert!(super::looks_like_bcp47("tr") && super::looks_like_bcp47("en-US"));
     }
@@ -1133,33 +1237,43 @@ mod tests {
     #[test]
     fn email_rejects_invalid_addr_spec_shapes() {
         // Geçerli — desteklenen dot-atom biçimi.
-        for ok in ["info@example.com", "a.b-c@sub.example.co.uk",
-                   "ticket+iyi_haber@example.org", "x!#$%&'*+-/=?^_`{|}~@example.com",
-                   "info@şehir.example"] {
-            assert!(super::looks_like_email(ok), "geçerli adres reddedildi: {ok}");
+        for ok in [
+            "info@example.com",
+            "a.b-c@sub.example.co.uk",
+            "ticket+iyi_haber@example.org",
+            "x!#$%&'*+-/=?^_`{|}~@example.com",
+            "info@şehir.example",
+        ] {
+            assert!(
+                super::looks_like_email(ok),
+                "geçerli adres reddedildi: {ok}"
+            );
         }
         // Geçersiz — her biri AYRI bir bozukluk sınıfı.
         for bad in [
-            "a@@b.com",          // bildirilen karşı örnek: iki ayraç
-            "a@b@c.com",         // iki ayraç, ikisi de ayrı yerde
-            "@example.com",      // local yok
-            "a@",                // domain yok
-            "a@b",               // tek etiket
-            "a@.example.com",    // boş etiket
-            "a@example..com",    // boş etiket (ortada)
-            "a@-example.com",    // etiket tire ile başlıyor
-            "a@example-.com",    // etiket tire ile bitiyor
-            "a@example.1",       // sayısal TLD
-            "a@example.c",       // tek harfli TLD
-            ".a@example.com",    // baştaki nokta
-            "a.@example.com",    // sondaki nokta
-            "a..b@example.com",  // boş atom
-            "a b@example.com",   // boşluk
-            "a\t@example.com",   // sekme
+            "a@@b.com",         // bildirilen karşı örnek: iki ayraç
+            "a@b@c.com",        // iki ayraç, ikisi de ayrı yerde
+            "@example.com",     // local yok
+            "a@",               // domain yok
+            "a@b",              // tek etiket
+            "a@.example.com",   // boş etiket
+            "a@example..com",   // boş etiket (ortada)
+            "a@-example.com",   // etiket tire ile başlıyor
+            "a@example-.com",   // etiket tire ile bitiyor
+            "a@example.1",      // sayısal TLD
+            "a@example.c",      // tek harfli TLD
+            ".a@example.com",   // baştaki nokta
+            "a.@example.com",   // sondaki nokta
+            "a..b@example.com", // boş atom
+            "a b@example.com",  // boşluk
+            "a\t@example.com",  // sekme
             "noatsign.example.com",
             "",
         ] {
-            assert!(!super::looks_like_email(bad), "geçersiz adres kabul edildi: {bad:?}");
+            assert!(
+                !super::looks_like_email(bad),
+                "geçersiz adres kabul edildi: {bad:?}"
+            );
         }
     }
 
@@ -1169,14 +1283,41 @@ mod tests {
     fn type_helpers_reject_values_outside_the_declared_types() {
         // 1) BCP 47: birincil alt etiket ALFABETİK olmalı.
         // GEÇERLİ (RFC 5646 well-formed)
-        for ok in ["tr", "en-US", "zh-Hant-TW", "es-419", "x-private", "de-CH-1901",
-                   "en-a-bbb", "en-a-bbb-x-priv", "i-klingon", "sl-rozaj-biske"] {
-            assert!(super::looks_like_bcp47(ok), "geçerli dil etiketi reddedildi: {ok}");
+        for ok in [
+            "tr",
+            "en-US",
+            "zh-Hant-TW",
+            "es-419",
+            "x-private",
+            "de-CH-1901",
+            "en-a-bbb",
+            "en-a-bbb-x-priv",
+            "i-klingon",
+            "sl-rozaj-biske",
+        ] {
+            assert!(
+                super::looks_like_bcp47(ok),
+                "geçerli dil etiketi reddedildi: {ok}"
+            );
         }
         // GEÇERSİZ — her biri ayrı bir sözdizimi kuralı
-        for bad in ["123", "1-tr", "en-a", "en-a-b-c", "en-a-bbb-a-ccc", "en--US", "en-",
-                    "x-", "-en", "en-toolongsubtag", "en-US-"] {
-            assert!(!super::looks_like_bcp47(bad), "geçersiz dil etiketi kabul edildi: {bad:?}");
+        for bad in [
+            "123",
+            "1-tr",
+            "en-a",
+            "en-a-b-c",
+            "en-a-bbb-a-ccc",
+            "en--US",
+            "en-",
+            "x-",
+            "-en",
+            "en-toolongsubtag",
+            "en-US-",
+        ] {
+            assert!(
+                !super::looks_like_bcp47(bad),
+                "geçersiz dil etiketi kabul edildi: {bad:?}"
+            );
         }
 
         // 5) f64: sonlu olmayan değerler tip dışıdır.
@@ -1187,23 +1328,43 @@ mod tests {
         assert_eq!(super::parse_f64_col("").unwrap(), None);
 
         // 6) Saat: dakika/saniye İKİ basamak; saatte sınır YOK (servis günü).
-        assert!(!super::gtfs_time_widths_ok(&["1", "2", "3"]), "1:2:3 tip dışı");
+        assert!(
+            !super::gtfs_time_widths_ok(&["1", "2", "3"]),
+            "1:2:3 tip dışı"
+        );
         assert!(!super::gtfs_time_widths_ok(&["08", "5", "00"]));
-        assert!(super::gtfs_time_widths_ok(&["8", "05", "00"]), "H:MM:SS geçerli");
+        assert!(
+            super::gtfs_time_widths_ok(&["8", "05", "00"]),
+            "H:MM:SS geçerli"
+        );
         assert!(super::gtfs_time_widths_ok(&["08", "05", "00"]));
-        assert!(super::gtfs_time_widths_ok(&["145", "00", "00"]),
-                "çok günlü tren seferi — saat basamağı SINIRLANMAZ");
+        assert!(
+            super::gtfs_time_widths_ok(&["145", "00", "00"]),
+            "çok günlü tren seferi — saat basamağı SINIRLANMAZ"
+        );
 
         // 4) ISO 4217: uydurma kod geçmemeli.
         assert!(!super::is_iso4217("ZZZ"), "ZZZ ISO 4217 kodu değildir");
-        assert!(!super::is_iso4217("TRL"), "tedavülden kalkmış kod bilinçli olarak dışarıda");
+        assert!(
+            !super::is_iso4217("TRL"),
+            "tedavülden kalkmış kod bilinçli olarak dışarıda"
+        );
         assert!(!super::is_iso4217("usd"), "kodlar BÜYÜK harftir");
         assert!(super::is_iso4217("TRY") && super::is_iso4217("EUR") && super::is_iso4217("USD"));
 
         // 2/3) Takvim: biçim doğru ama GÜN yok.
-        assert!(!super::is_valid_calendar_date(2026, 13, 40), "13. ay yoktur");
-        assert!(!super::is_valid_calendar_date(2026, 2, 31), "31 Şubat yoktur");
-        assert!(!super::is_valid_calendar_date(2026, 2, 29), "2026 artık yıl DEĞİL");
+        assert!(
+            !super::is_valid_calendar_date(2026, 13, 40),
+            "13. ay yoktur"
+        );
+        assert!(
+            !super::is_valid_calendar_date(2026, 2, 31),
+            "31 Şubat yoktur"
+        );
+        assert!(
+            !super::is_valid_calendar_date(2026, 2, 29),
+            "2026 artık yıl DEĞİL"
+        );
         assert!(super::is_valid_calendar_date(2024, 2, 29), "2024 artık yıl");
         assert!(super::is_valid_calendar_date(2026, 12, 31));
     }
@@ -1213,12 +1374,18 @@ mod tests {
         // Spec: "A fully qualified URL that includes http:// or https://."
         assert!(super::looks_like_url("http://a.com"));
         assert!(super::looks_like_url("https://a.com/x?y=1#z"));
-        assert!(super::looks_like_url("HTTPS://A.COM"), "şema adı büyük/küçük harfe duyarsız");
+        assert!(
+            super::looks_like_url("HTTPS://A.COM"),
+            "şema adı büyük/küçük harfe duyarsız"
+        );
         // issue #92: baştaki/sondaki boşluk ARTIK KIRPILMAZ. Bu test eski toleransı
         // koruyordu; spec "özel karakterler doğru kaçırılmalı" diyor ve boşluk kaçırılmamış
         // bir karakterdir. VARLIK teşhisi hâlâ kırpar — `"   "` EKSİK alandır, geçersiz
         // URL değil; o ayrım çağıran tarafta iki ayrı okumayla korunuyor.
-        assert!(!super::looks_like_url("  https://a.com  "), "ham değerde çıplak boşluk");
+        assert!(
+            !super::looks_like_url("  https://a.com  "),
+            "ham değerde çıplak boşluk"
+        );
         assert!(super::looks_like_url("https://a.com"));
 
         // Bunların hepsi `Url::parse` için GEÇERLİ ve şema kontrolü eklenmeden önce
@@ -1230,21 +1397,54 @@ mod tests {
 
         // issue #80 — hükmün İKİNCİ yarısı: özel karakterler DOĞRU kaçırılmış olmalı.
         // `Url::parse` bunların hepsine Ok diyordu (normalize ederek).
-        assert!(super::looks_like_url("https://a.example/a%20b"), "doğru yüzde kodlaması");
-        assert!(!super::looks_like_url("https://a.example/a b"), "kaçırılmamış boşluk");
-        assert!(!super::looks_like_url("https://a.example/a\"b"), "kaçırılmamış tırnak");
-        assert!(!super::looks_like_url("https://a.example/a<b>"), "kaçırılmamış açılı ayraç");
-        assert!(!super::looks_like_url("https://a.example/a%zzb"), "BOZUK yüzde kodlaması");
-        assert!(!super::looks_like_url("https://a.example/a%2"), "eksik yüzde kodlaması");
-        assert!(!super::looks_like_url("https://a.example/a\\b"), "ters bölü çıplak geçemez");
+        assert!(
+            super::looks_like_url("https://a.example/a%20b"),
+            "doğru yüzde kodlaması"
+        );
+        assert!(
+            !super::looks_like_url("https://a.example/a b"),
+            "kaçırılmamış boşluk"
+        );
+        assert!(
+            !super::looks_like_url("https://a.example/a\"b"),
+            "kaçırılmamış tırnak"
+        );
+        assert!(
+            !super::looks_like_url("https://a.example/a<b>"),
+            "kaçırılmamış açılı ayraç"
+        );
+        assert!(
+            !super::looks_like_url("https://a.example/a%zzb"),
+            "BOZUK yüzde kodlaması"
+        );
+        assert!(
+            !super::looks_like_url("https://a.example/a%2"),
+            "eksik yüzde kodlaması"
+        );
+        assert!(
+            !super::looks_like_url("https://a.example/a\\b"),
+            "ters bölü çıplak geçemez"
+        );
         // #144: ASCII dışı ARTIK REDDEDİLMİYOR. Hüküm "özel karakterler" der; `ü`, `ş` ve
         // tam genişlikli `ｗ` RFC 3986'nın ayraç kümesinde değildir. Belirleyici ölçüt
         // deterministik kanonik ASCII karşılığının bulunması: NFKC, punycode ve yüzde
         // kodlama üçü de tek anlamlıdır — ayrıştırıcı bir yorum UYDURMAZ.
-        assert!(super::looks_like_url("https://example.com/güzergah"), "ASCII dışı yol: kanonik karşılığı var");
-        assert!(super::looks_like_url("https://example.com/g%C3%BCzergah"), "yüzde kodlanmış eşdeğeri de GEÇERLİ");
-        assert!(super::looks_like_url("https://şehir.example/yol"), "IDN alan adı GEÇERLİ");
-        assert!(super::looks_like_url("https://xn--ehir-jua.example/yol"), "punycode eşdeğeri GEÇERLİ");
+        assert!(
+            super::looks_like_url("https://example.com/güzergah"),
+            "ASCII dışı yol: kanonik karşılığı var"
+        );
+        assert!(
+            super::looks_like_url("https://example.com/g%C3%BCzergah"),
+            "yüzde kodlanmış eşdeğeri de GEÇERLİ"
+        );
+        assert!(
+            super::looks_like_url("https://şehir.example/yol"),
+            "IDN alan adı GEÇERLİ"
+        );
+        assert!(
+            super::looks_like_url("https://xn--ehir-jua.example/yol"),
+            "punycode eşdeğeri GEÇERLİ"
+        );
         // Korpustan gelen iki gerçek vaka (#144, tam katalog koşumu).
         assert!(
             super::looks_like_url("https://ｗｗｗ.city.chikuma.lg.jp"),
@@ -1256,11 +1456,23 @@ mod tests {
         );
         // 🔑 Gevşetmenin SINIRI: ASCII dışı serbest kaldı, kaçırılmamış AYRAÇ kalmadı.
         // Bu üçü ASCII dışı bir değerin içinde de reddedilmeli, yoksa gevşetme hükmü yer.
-        assert!(!super::looks_like_url("https://şehir.example/a b"), "ASCII dışı host çıplak boşluğu MEŞRULAŞTIRMAZ");
-        assert!(!super::looks_like_url("https://şehir.example/a%zz"), "ASCII dışı host bozuk yüzde kodlamasını MEŞRULAŞTIRMAZ");
-        assert!(!super::looks_like_url("şehir.example/yol"), "şema yokluğu ASCII dışı olmaktan bağımsız");
+        assert!(
+            !super::looks_like_url("https://şehir.example/a b"),
+            "ASCII dışı host çıplak boşluğu MEŞRULAŞTIRMAZ"
+        );
+        assert!(
+            !super::looks_like_url("https://şehir.example/a%zz"),
+            "ASCII dışı host bozuk yüzde kodlamasını MEŞRULAŞTIRMAZ"
+        );
+        assert!(
+            !super::looks_like_url("şehir.example/yol"),
+            "şema yokluğu ASCII dışı olmaktan bağımsız"
+        );
         assert!(!super::looks_like_url("foo:bar"));
-        assert!(!super::looks_like_url("jrutil://invalid"), "korpusta görülen yer tutucu");
+        assert!(
+            !super::looks_like_url("jrutil://invalid"),
+            "korpusta görülen yer tutucu"
+        );
 
         // Şemasız değerler zaten reddediliyordu; davranış korunur.
         assert!(!super::looks_like_url("www.example.com"));
@@ -1283,8 +1495,14 @@ mod tests {
         assert!(super::looks_like_phone("+1 800 FLOWERS"));
         assert!(super::looks_like_phone("1-800-COLLECT"));
         // #95: BİRDEN ÇOK vanity harf grubu — hepsi büyük harf ve kuyrukta.
-        assert!(super::looks_like_phone("1-800-GO-FEDEX"), "iki vanity grubu kabul edilmeli");
-        assert!(super::looks_like_phone("1 800 GO FEDEX"), "ayırıcı boşluk da olabilir");
+        assert!(
+            super::looks_like_phone("1-800-GO-FEDEX"),
+            "iki vanity grubu kabul edilmeli"
+        );
+        assert!(
+            super::looks_like_phone("1 800 GO FEDEX"),
+            "ayırıcı boşluk da olabilir"
+        );
         assert!(super::looks_like_phone("+1-800-NEW-CARS"));
         // Tek grupta büyük harf ŞARTI YOK — eski davranış aynen korunur (kabul kümesi
         // yalnız genişledi, hiçbir değer yeni baştan reddedilmedi).
@@ -1298,20 +1516,46 @@ mod tests {
     #[test]
     fn looks_like_phone_rejects_descriptive_text() {
         // Spec: "must not contain any other descriptive text."
-        assert!(!super::looks_like_phone("Call 503-238-1234"), "harf grubu BAŞTA");
-        assert!(!super::looks_like_phone("555-1234 ext 99"), "harf grubu ORTADA");
-        assert!(!super::looks_like_phone("Call us at 503 238 1234"), "birden çok harf grubu");
+        assert!(
+            !super::looks_like_phone("Call 503-238-1234"),
+            "harf grubu BAŞTA"
+        );
+        assert!(
+            !super::looks_like_phone("555-1234 ext 99"),
+            "harf grubu ORTADA"
+        );
+        assert!(
+            !super::looks_like_phone("Call us at 503 238 1234"),
+            "birden çok harf grubu"
+        );
         // #95 sınırı: çok gruplu KUYRUK ancak BÜYÜK HARFse vanity sayılır; düzyazı geçemez.
-        assert!(!super::looks_like_phone("1234 call us now"), "küçük harf kuyruk düzyazıdır");
-        assert!(!super::looks_like_phone("555 1234 Call Us"), "baş harfi büyük düzyazı vanity değil");
-        assert!(!super::looks_like_phone("GO FEDEX 1 800"), "harf kuyrukta değil, BAŞTA");
-        assert!(!super::looks_like_phone("1-800-GO-FEDEX-now"), "kuyruğun son grubu küçük harf");
+        assert!(
+            !super::looks_like_phone("1234 call us now"),
+            "küçük harf kuyruk düzyazıdır"
+        );
+        assert!(
+            !super::looks_like_phone("555 1234 Call Us"),
+            "baş harfi büyük düzyazı vanity değil"
+        );
+        assert!(
+            !super::looks_like_phone("GO FEDEX 1 800"),
+            "harf kuyrukta değil, BAŞTA"
+        );
+        assert!(
+            !super::looks_like_phone("1-800-GO-FEDEX-now"),
+            "kuyruğun son grubu küçük harf"
+        );
         // Korpusta GERÇEKTEN bulunan iki değer (mdb-2337, mdb-992) — kural bunlarda DOĞRU
         // ateşliyor ve düzeltmeden sonra da ateşlemeye devam etmeli.
-        assert!(!super::looks_like_phone("80000078 (Liepājā); 80000079 (Pierīgā)"));
+        assert!(!super::looks_like_phone(
+            "80000078 (Liepājā); 80000079 (Pierīgā)"
+        ));
         // Yetersiz hane / hiç rakam yok / boş: davranış korunur.
         assert!(!super::looks_like_phone("RIDE"), "beş haneden kısa");
-        assert!(!super::looks_like_phone("FLOWERS"), "hiç rakam yok — telefon değil");
+        assert!(
+            !super::looks_like_phone("FLOWERS"),
+            "hiç rakam yok — telefon değil"
+        );
         assert!(!super::looks_like_phone("12"));
         assert!(!super::looks_like_phone(""));
     }
@@ -1327,7 +1571,11 @@ mod tests {
         assert_eq!(mu("UYW"), Some(4), "UYW dört ondalıklıdır");
         // Kod geçerliliği ile ondalık AYRI kavram: ikisi de `None` döner ama sebepleri farklı.
         assert_eq!(mu("ZZZ"), None, "bilinmeyen kod — 2 VARSAYILMAZ");
-        assert_eq!(mu("XAU"), None, "kıymetli maden: ondalık TANIMSIZ (kaynakta N.A.)");
+        assert_eq!(
+            mu("XAU"),
+            None,
+            "kıymetli maden: ondalık TANIMSIZ (kaynakta N.A.)"
+        );
         assert!(super::is_iso4217("XAU"), "…ama XAU GEÇERLİ bir koddur");
         // 🔴 Elle yazılmış liste yanlıştı: BGN 2026-01-01 listesinde AKTİF DEĞİL
         // (Bulgaristan euro'ya geçti). Üretilmiş tablo bunu kaynaktan alıyor.
@@ -1352,5 +1600,4 @@ mod tests {
         assert!(ok("abc", "EUR"));
         assert!(ok("2.50", ""), "para birimi yoksa karar verilemez");
     }
-
 }

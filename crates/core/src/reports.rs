@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::{R9Label, ReportItem};
+use serde::{Deserialize, Serialize};
 
 /// R1: Yayınlanabilirlik kararı — resmi GTFS spec kapısı.
 /// Yalnız `Spec + Kritik` (otorite `GtfsSpec`) yayını engeller; diğer sınıflar (Interop/
@@ -22,7 +22,9 @@ pub struct R1Report {
     pub blocker_notice_ids: Vec<String>,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 /// R2: Tüm notice'ların teknik listesi — file/line/field/observed_value ile birlikte.
 #[derive(Debug, Clone, Serialize, Deserialize)]

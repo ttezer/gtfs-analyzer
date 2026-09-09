@@ -1,11 +1,11 @@
-﻿use gtfs_core::DedupLevel::{Entity, Feed, Field, File, Row};
-use gtfs_core::ReportId::{R1, R2, R3, R4, R5, R7, R8, R9};
-use gtfs_core::RuleClass::{Analytics, Interop, Quality, Spec};
-use gtfs_core::Severity::{Bilgi, Dusuk, Kritik, Orta, Yuksek};
 use gtfs_core::AuthoritySource::{
     GoogleTransitInterop, GtfsBestPractice, GtfsSpec, MobilitydataParity, ProjectAnalytics,
     ProjectQuality, RegionalProfile,
 };
+use gtfs_core::DedupLevel::{Entity, Feed, Field, File, Row};
+use gtfs_core::ReportId::{R1, R2, R3, R4, R5, R7, R8, R9};
+use gtfs_core::RuleClass::{Analytics, Interop, Quality, Spec};
+use gtfs_core::Severity::{Bilgi, Dusuk, Kritik, Orta, Yuksek};
 use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 
 // ── Statik rapor görünüm kümeleri ────────────────────────────────────────────
@@ -2530,7 +2530,10 @@ fn authority_index() -> &'static std::collections::HashMap<&'static str, Authori
 
 /// Kural ID'sinin otorite kaynağı. Bilinmiyorsa `Unknown`.
 pub fn authority_source(id: &str) -> AuthoritySource {
-    authority_index().get(id).copied().unwrap_or(AuthoritySource::Unknown)
+    authority_index()
+        .get(id)
+        .copied()
+        .unwrap_or(AuthoritySource::Unknown)
 }
 
 impl RuleMeta {
@@ -2539,7 +2542,6 @@ impl RuleMeta {
         authority_source(self.id)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -2568,8 +2570,14 @@ mod tests {
         assert_eq!(AUTHORITY.len(), auth_ids.len(), "AUTHORITY'de mükerrer id");
         let missing: Vec<&str> = rule_ids.difference(&auth_ids).copied().collect();
         let orphan: Vec<&str> = auth_ids.difference(&rule_ids).copied().collect();
-        assert!(missing.is_empty(), "AUTHORITY'de eksik kural(lar): {missing:?}");
-        assert!(orphan.is_empty(), "AUTHORITY'de yetim giriş(ler): {orphan:?}");
+        assert!(
+            missing.is_empty(),
+            "AUTHORITY'de eksik kural(lar): {missing:?}"
+        );
+        assert!(
+            orphan.is_empty(),
+            "AUTHORITY'de yetim giriş(ler): {orphan:?}"
+        );
     }
 
     /// Otorite bütünlüğü çekirdek değişmezi: hiçbir kural `Spec` sınıfındayken
@@ -2632,9 +2640,18 @@ mod tests {
 
     #[test]
     fn geo_view_ids_absent() {
-        assert!(get_rule("GEO_008").is_none(), "GEO_008 registry'de olmamalı");
-        assert!(get_rule("GEO_010").is_none(), "GEO_010 registry'de olmamalı");
-        assert!(get_rule("GEO_011").is_none(), "GEO_011 registry'de olmamalı");
+        assert!(
+            get_rule("GEO_008").is_none(),
+            "GEO_008 registry'de olmamalı"
+        );
+        assert!(
+            get_rule("GEO_010").is_none(),
+            "GEO_010 registry'de olmamalı"
+        );
+        assert!(
+            get_rule("GEO_011").is_none(),
+            "GEO_011 registry'de olmamalı"
+        );
     }
 
     #[test]
@@ -2666,15 +2683,30 @@ mod tests {
     #[test]
     fn blocks_only_canonical_ids() {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
-        let removed_ids = ["STM_011","TRP_010","GEO_001","GEO_005","DQ_007","DQ_008","DQ_015","STM_027","SHP_027","STM_057","AGN_001","FPD_006"];
+        let removed_ids = [
+            "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
+            "SHP_027", "STM_057", "AGN_001", "FPD_006",
+        ];
         for rule in RULES {
             for &b in rule.blocks {
-                assert!(!view_ids.contains(&b),
-                    "{}: blocks[] içinde rapor görünüm ID'si var: {}", rule.id, b);
-                assert!(!removed_ids.contains(&b),
-                    "{}: blocks[] içinde kaldırılmış ID var: {}", rule.id, b);
-                assert!(get_rule(b).is_some(),
-                    "{}: blocks[] içinde bilinmeyen canonical ID: {}", rule.id, b);
+                assert!(
+                    !view_ids.contains(&b),
+                    "{}: blocks[] içinde rapor görünüm ID'si var: {}",
+                    rule.id,
+                    b
+                );
+                assert!(
+                    !removed_ids.contains(&b),
+                    "{}: blocks[] içinde kaldırılmış ID var: {}",
+                    rule.id,
+                    b
+                );
+                assert!(
+                    get_rule(b).is_some(),
+                    "{}: blocks[] içinde bilinmeyen canonical ID: {}",
+                    rule.id,
+                    b
+                );
             }
         }
     }
@@ -2691,7 +2723,9 @@ mod tests {
         for rule in RULES {
             assert!(
                 matches!(rule.base_effort, 1..=3),
-                "{}: geçersiz base_effort = {}", rule.id, rule.base_effort
+                "{}: geçersiz base_effort = {}",
+                rule.id,
+                rule.base_effort
             );
         }
     }
@@ -2701,19 +2735,21 @@ mod tests {
         for rule in RULES {
             assert!(
                 !rule.report_views.is_empty(),
-                "{}: report_views boş olamaz", rule.id
+                "{}: report_views boş olamaz",
+                rule.id
             );
         }
     }
 
     #[test]
     fn interop_always_has_r8() {
-        use gtfs_core::{RuleClass::Interop, ReportId::R8};
+        use gtfs_core::{ReportId::R8, RuleClass::Interop};
         for rule in RULES {
             if rule.rule_class == Interop {
                 assert!(
                     rule.report_views.contains(&R8),
-                    "{}: INTEROP kuralı R8'i içermeli", rule.id
+                    "{}: INTEROP kuralı R8'i içermeli",
+                    rule.id
                 );
             }
         }
@@ -2721,7 +2757,7 @@ mod tests {
 
     #[test]
     fn blocker_rules_have_r1() {
-        use gtfs_core::{RuleClass::Spec, ReportId::R1, Severity::Kritik};
+        use gtfs_core::{ReportId::R1, RuleClass::Spec, Severity::Kritik};
         // Otorite bütünlüğü (Faz 4): R1 yayın-engeli yalnız `Spec` + `Kritik`.
         // build_r1/is_pub_relevant artık YALNIZ Spec+Kritik kapısını kullanır (Interop
         // R1 üretmez). report_views/R1 metadata temizliği ayrı WP. Bu test yalnız
@@ -2730,7 +2766,8 @@ mod tests {
             if rule.severity == Kritik && rule.rule_class == Spec {
                 assert!(
                     rule.report_views.contains(&R1),
-                    "{}: Spec+Kritik kural R1'i içermeli", rule.id
+                    "{}: Spec+Kritik kural R1'i içermeli",
+                    rule.id
                 );
             }
         }
@@ -2738,7 +2775,10 @@ mod tests {
 
     #[test]
     fn spec_severity_rubric_has_no_info_findings() {
-        use gtfs_core::{RuleClass::Spec, Severity::{Bilgi, Yuksek}};
+        use gtfs_core::{
+            RuleClass::Spec,
+            Severity::{Bilgi, Yuksek},
+        };
 
         let info_rules: Vec<&str> = RULES
             .iter()
@@ -2753,7 +2793,10 @@ mod tests {
         for id in ["STM_048", "STM_049"] {
             let rule = get_rule(id).expect("STM raw midnight rule registry'de olmalı");
             assert_eq!(rule.rule_class, Spec);
-            assert_eq!(rule.severity, Yuksek, "{id} ham servis-günü ihlali Yüksek olmalı");
+            assert_eq!(
+                rule.severity, Yuksek,
+                "{id} ham servis-günü ihlali Yüksek olmalı"
+            );
         }
     }
 

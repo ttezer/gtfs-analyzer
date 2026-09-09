@@ -33,8 +33,7 @@ pub(crate) fn build(
     remediation: &str,
 ) -> Notice {
     *counter += 1;
-    let meta =
-        get_rule(rule_id).unwrap_or_else(|| panic!("{layer}: bilinmeyen rule_id {rule_id}"));
+    let meta = get_rule(rule_id).unwrap_or_else(|| panic!("{layer}: bilinmeyen rule_id {rule_id}"));
     let id = match id_prefix {
         Some(p) => format!("{p}/{rule_id}#{counter}"),
         None => format!("{rule_id}#{counter}"),

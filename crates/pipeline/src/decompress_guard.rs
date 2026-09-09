@@ -91,11 +91,23 @@ pub struct DecompressionBudget {
 
 impl DecompressionBudget {
     pub fn new(limits: DecompressionLimits) -> Self {
-        Self { limits, total_decompressed: 0 }
+        Self {
+            limits,
+            total_decompressed: 0,
+        }
     }
 
-    pub fn reader<'a, R: Read>(&'a mut self, inner: R, compressed_size: u64) -> GuardedReader<'a, R> {
-        GuardedReader::new(inner, self.limits, &mut self.total_decompressed, compressed_size)
+    pub fn reader<'a, R: Read>(
+        &'a mut self,
+        inner: R,
+        compressed_size: u64,
+    ) -> GuardedReader<'a, R> {
+        GuardedReader::new(
+            inner,
+            self.limits,
+            &mut self.total_decompressed,
+            compressed_size,
+        )
     }
 }
 
@@ -107,7 +119,11 @@ pub enum GuardTrip {
     /// Arşiv geneli toplam açılmış bayt tavanı aşıldı.
     TotalCap { got: u64, cap: u64 },
     /// Taban üstü açılmış:sıkıştırılmış oranı tavanı aştı.
-    Ratio { decompressed: u64, compressed: u64, cap: u64 },
+    Ratio {
+        decompressed: u64,
+        compressed: u64,
+        cap: u64,
+    },
 }
 
 impl GuardTrip {
@@ -139,8 +155,20 @@ pub struct GuardedReader<'a, R: Read> {
 }
 
 impl<'a, R: Read> GuardedReader<'a, R> {
-    pub fn new(inner: R, limits: DecompressionLimits, total: &'a mut u64, entry_compressed: u64) -> Self {
-        Self { inner, limits, total, entry_compressed, entry_decompressed: 0, tripped: None }
+    pub fn new(
+        inner: R,
+        limits: DecompressionLimits,
+        total: &'a mut u64,
+        entry_compressed: u64,
+    ) -> Self {
+        Self {
+            inner,
+            limits,
+            total,
+            entry_compressed,
+            entry_decompressed: 0,
+            tripped: None,
+        }
     }
 
     /// Sınır aşıldıysa nedenini döndürür (aksi halde `None`).
@@ -169,9 +197,15 @@ impl<R: Read> Read for GuardedReader<'_, R> {
         // Çarpım biçimli oran kontrolü: sıfıra bölme yok, taşma yok. Taban üstü
         // sıfır-sıkıştırılmış girdi sonsuz oran demektir → doğru şekilde tetikler.
         let breach = if self.entry_decompressed > self.limits.max_entry_decompressed {
-            Some(GuardTrip::EntryCap { got: self.entry_decompressed, cap: self.limits.max_entry_decompressed })
+            Some(GuardTrip::EntryCap {
+                got: self.entry_decompressed,
+                cap: self.limits.max_entry_decompressed,
+            })
         } else if *self.total > self.limits.max_total_decompressed {
-            Some(GuardTrip::TotalCap { got: *self.total, cap: self.limits.max_total_decompressed })
+            Some(GuardTrip::TotalCap {
+                got: *self.total,
+                cap: self.limits.max_total_decompressed,
+            })
         } else if self.entry_decompressed > self.limits.ratio_floor
             && self.entry_decompressed > self.limits.max_ratio.saturating_mul(self.entry_compressed)
         {

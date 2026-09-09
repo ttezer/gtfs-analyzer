@@ -1,8 +1,8 @@
 use gtfs_core::EntityType;
 
-use super::common::{get_lexical_field, get_raw_field,
-    build_row_map, get_trimmed_field, looks_like_email, looks_like_url, make_k2_notice, parse_u32,
-    validate_enum, RowMap,
+use super::common::{
+    build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, looks_like_email,
+    looks_like_url, make_k2_notice, parse_u32, validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -22,9 +22,7 @@ pub struct AttributionRecord {
     pub line: u64,
 }
 
-pub fn validate_attributions(
-    file: &RawFile,
-) -> (Vec<AttributionRecord>, Vec<gtfs_core::Notice>) {
+pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
@@ -39,15 +37,24 @@ pub fn validate_attributions(
         // ATR_001: attribution_id eksik (tavsiye edilen)
         if attribution_id.is_none() {
             notices.push(make_k2_notice(
-                &mut counter, "ATR_001", EntityType::Attribution, None,
-                Some(&row_map), &file.name, Some(line), Some("attribution_id"),
-                Some(String::new()), None,
+                &mut counter,
+                "ATR_001",
+                EntityType::Attribution,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("attribution_id"),
+                Some(String::new()),
+                None,
                 "attribution_id belirtilmemiş; kayıt tekrarında ayrım yapılamaz.".to_string(),
                 "Her attribution kaydına benzersiz bir attribution_id atayın.",
             ));
         }
 
-        let organization_name = get_trimmed_field(&row_map, "organization_name").unwrap_or("").to_string();
+        let organization_name = get_trimmed_field(&row_map, "organization_name")
+            .unwrap_or("")
+            .to_string();
         // sütun başlıkta yoksa ARC_025 devralır → atla
         if get_trimmed_field(&row_map, "organization_name") == Some("") {
             notices.push(make_k2_notice(
@@ -66,11 +73,41 @@ pub fn validate_attributions(
             ));
         }
 
-        let is_producer = parse_role_enum(&row_map, &mut notices, &mut counter, "ATR_004", "is_producer", &attribution_id, line, &file.name);
-        let is_operator = parse_role_enum(&row_map, &mut notices, &mut counter, "ATR_005", "is_operator", &attribution_id, line, &file.name);
-        let is_authority = parse_role_enum(&row_map, &mut notices, &mut counter, "ATR_006", "is_authority", &attribution_id, line, &file.name);
+        let is_producer = parse_role_enum(
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "ATR_004",
+            "is_producer",
+            &attribution_id,
+            line,
+            &file.name,
+        );
+        let is_operator = parse_role_enum(
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "ATR_005",
+            "is_operator",
+            &attribution_id,
+            line,
+            &file.name,
+        );
+        let is_authority = parse_role_enum(
+            &row_map,
+            &mut notices,
+            &mut counter,
+            "ATR_006",
+            "is_authority",
+            &attribution_id,
+            line,
+            &file.name,
+        );
 
-        if !matches!(is_producer, Some(1)) && !matches!(is_operator, Some(1)) && !matches!(is_authority, Some(1)) {
+        if !matches!(is_producer, Some(1))
+            && !matches!(is_operator, Some(1))
+            && !matches!(is_authority, Some(1))
+        {
             notices.push(make_k2_notice(
                 &mut counter,
                 "ATR_003",
