@@ -114,6 +114,11 @@ pub struct EntityRecords {
     pub levels: Vec<LevelRecord>,
     pub location_groups: Vec<LocationGroupRecord>,
     pub location_group_stops: Vec<LocationGroupStopRecord>,
+    /// File-level header metadata used by K4 to separate ARC_025 from XFL value checks.
+    /// `None` preserves compatibility for direct synthetic K4 callers without schema metadata.
+    pub location_groups_has_location_group_id: Option<bool>,
+    pub location_group_stops_has_location_group_id: Option<bool>,
+    pub location_group_stops_has_stop_id: Option<bool>,
     pub networks: Vec<NetworkRecord>,
     pub office_jp: Vec<OfficeJpRecord>,
     pub pattern_jp: Vec<PatternJpRecord>,
@@ -462,11 +467,23 @@ pub fn validate_with_stream_limit_and_jp_signal(
 
     if let Some(file) = files.get("location_groups.txt") {
         let _t = Timer::start("K2::location_groups");
+        records.location_groups_has_location_group_id = Some(
+            file.headers
+                .iter()
+                .any(|header| header == "location_group_id"),
+        );
         records.location_groups = parse_location_groups(file);
     }
 
     if let Some(file) = files.get("location_group_stops.txt") {
         let _t = Timer::start("K2::location_group_stops");
+        records.location_group_stops_has_location_group_id = Some(
+            file.headers
+                .iter()
+                .any(|header| header == "location_group_id"),
+        );
+        records.location_group_stops_has_stop_id =
+            Some(file.headers.iter().any(|header| header == "stop_id"));
         records.location_group_stops = parse_location_group_stops(file);
     }
 
@@ -743,5 +760,43 @@ mod tests {
         let result = validate(files, None, &ValidatorConfig::default());
         assert_eq!(result.records.fare_rules.len(), 1);
         assert!(result.notices.is_empty());
+    }
+
+    #[test]
+    fn validate_preserves_location_group_header_presence() {
+        let mut files: RawFiles = HashMap::new();
+        files.insert(
+            "location_groups.txt".to_string(),
+            RawFile {
+                name: "location_groups.txt".to_string(),
+                headers: vec!["location_group_name".into()],
+                rows: vec![vec!["Group".into()]],
+                bytes: 0,
+                raw_text: None,
+                zip_entry_name: None,
+            },
+        );
+        files.insert(
+            "location_group_stops.txt".to_string(),
+            RawFile {
+                name: "location_group_stops.txt".to_string(),
+                headers: vec!["stop_id".into()],
+                rows: vec![vec!["S1".into()]],
+                bytes: 0,
+                raw_text: None,
+                zip_entry_name: None,
+            },
+        );
+
+        let result = validate(files, None, &ValidatorConfig::default());
+        assert_eq!(
+            result.records.location_groups_has_location_group_id,
+            Some(false)
+        );
+        assert_eq!(
+            result.records.location_group_stops_has_location_group_id,
+            Some(false)
+        );
+        assert_eq!(result.records.location_group_stops_has_stop_id, Some(true));
     }
 }

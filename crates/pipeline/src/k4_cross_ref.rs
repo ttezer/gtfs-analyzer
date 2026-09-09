@@ -5163,11 +5163,11 @@ fn check_xfl(
                 ctr,
             );
         }
-        // ⚠️ Bu üç kayıt ham satırı (`row`) TUTMAZ, yalnız alanları taşır. Dolayısıyla
-        // "sütun hiç yok" (→ARC_025) ile "sütun var, değer boş" (→bu kurallar) ayrımı
-        // BURADA YAPILAMAZ: sütun yoksa alan da boş string olur ve iki notice birden çıkar.
-        // Küçük bir gürültü; alternatifi bu kayıtlara RowMap eklemekti ve bu kurallar için
-        // bellek maliyetine değmez.
+        // These records do not retain raw rows; K2 therefore carries the file-level
+        // header metadata separately for the distinction described below.
+        // K2 now carries file-level header metadata, so ARC_025 owns missing columns and
+        // these K4 rules own only blank values in columns that are present.
+        // No raw-row or RowMap copy is needed.
         let emit_empty = |cond: bool,
                           rule: &'static str,
                           file: &'static str,
@@ -5194,42 +5194,54 @@ fn check_xfl(
                 ));
             }
         };
-        for r in &records.location_groups {
-            emit_empty(
-                r.location_group_id.trim().is_empty(),
-                "XFL_032",
-                "location_groups.txt",
-                "location_group_id",
-                r.line,
-                "location_groups.txt'te location_group_id zorunludur.".to_string(),
-                "Her konum grubuna benzersiz bir location_group_id verin.",
-                notices,
-                ctr,
-            );
+        if records
+            .location_groups_has_location_group_id
+            .unwrap_or(true)
+        {
+            for r in &records.location_groups {
+                emit_empty(
+                    r.location_group_id.trim().is_empty(),
+                    "XFL_032",
+                    "location_groups.txt",
+                    "location_group_id",
+                    r.line,
+                    "location_groups.txt'te location_group_id zorunludur.".to_string(),
+                    "Her konum grubuna benzersiz bir location_group_id verin.",
+                    notices,
+                    ctr,
+                );
+            }
         }
         for r in &records.location_group_stops {
-            emit_empty(
-                r.location_group_id.trim().is_empty(),
-                "XFL_033",
-                "location_group_stops.txt",
-                "location_group_id",
-                r.line,
-                "location_group_stops.txt'te location_group_id zorunludur.".to_string(),
-                "Satırı bir location_group_id'ye bağlayın.",
-                notices,
-                ctr,
-            );
-            emit_empty(
-                r.stop_id.trim().is_empty(),
-                "XFL_034",
-                "location_group_stops.txt",
-                "stop_id",
-                r.line,
-                "location_group_stops.txt'te stop_id zorunludur.".to_string(),
-                "Satırı bir stop_id'ye bağlayın.",
-                notices,
-                ctr,
-            );
+            if records
+                .location_group_stops_has_location_group_id
+                .unwrap_or(true)
+            {
+                emit_empty(
+                    r.location_group_id.trim().is_empty(),
+                    "XFL_033",
+                    "location_group_stops.txt",
+                    "location_group_id",
+                    r.line,
+                    "location_group_stops.txt'te location_group_id zorunludur.".to_string(),
+                    "Satırı bir location_group_id'ye bağlayın.",
+                    notices,
+                    ctr,
+                );
+            }
+            if records.location_group_stops_has_stop_id.unwrap_or(true) {
+                emit_empty(
+                    r.stop_id.trim().is_empty(),
+                    "XFL_034",
+                    "location_group_stops.txt",
+                    "stop_id",
+                    r.line,
+                    "location_group_stops.txt'te stop_id zorunludur.".to_string(),
+                    "Satırı bir stop_id'ye bağlayın.",
+                    notices,
+                    ctr,
+                );
+            }
         }
         for r in &records.stop_areas {
             require_nonempty(
@@ -10153,5 +10165,54 @@ mod tests {
             .notices
             .iter()
             .any(|n| n.rule_id == "JPN_021" && n.line == Some(5)));
+    }
+
+    #[test]
+    fn xfl_presence_checks_respect_file_headers() {
+        let blank_group = || crate::k2::location_groups::LocationGroupRecord {
+            location_group_id: String::new(),
+            line: 2,
+        };
+        let blank_group_stop = || crate::k2::location_groups::LocationGroupStopRecord {
+            location_group_id: String::new(),
+            stop_id: String::new(),
+            line: 2,
+        };
+        let xfl_rules = ["XFL_032", "XFL_033", "XFL_034"];
+
+        let mut missing_headers = EntityRecords {
+            location_groups: vec![blank_group()],
+            location_group_stops: vec![blank_group_stop()],
+            location_groups_has_location_group_id: Some(false),
+            location_group_stops_has_location_group_id: Some(false),
+            location_group_stops_has_stop_id: Some(false),
+            ..EntityRecords::default()
+        };
+        let result = check(&missing_headers, &EntityMap::default(), 20260909);
+        assert!(!result
+            .notices
+            .iter()
+            .any(|notice| xfl_rules.contains(&notice.rule_id.as_str())));
+
+        missing_headers.location_groups_has_location_group_id = Some(true);
+        missing_headers.location_group_stops_has_location_group_id = Some(true);
+        missing_headers.location_group_stops_has_stop_id = Some(true);
+        let result = check(&missing_headers, &EntityMap::default(), 20260909);
+        for rule in xfl_rules {
+            assert!(
+                result.notices.iter().any(|notice| notice.rule_id == rule),
+                "blank value in a declared column must produce {rule}: {:?}",
+                result.notices
+            );
+        }
+
+        missing_headers.location_groups[0].location_group_id = "LG1".into();
+        missing_headers.location_group_stops[0].location_group_id = "LG1".into();
+        missing_headers.location_group_stops[0].stop_id = "S1".into();
+        let result = check(&missing_headers, &EntityMap::default(), 20260909);
+        assert!(!result
+            .notices
+            .iter()
+            .any(|notice| xfl_rules.contains(&notice.rule_id.as_str())));
     }
 }

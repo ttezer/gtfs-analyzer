@@ -662,10 +662,27 @@ değerde bir notice çıkarsa gerçekten ölçülüyordur.
 | durum | alan | not |
 |---|---|---|
 | **MEŞRU** — tek kural iki atomu da ölçüyor | 37 | 6'sı örneklemle doğrulandı (`AGN_003`·`RTS_004`·`STM_005`·`TRP_001`·`CAL_003`·`SHP_002`), hepsi ateşledi |
-| **BOŞLUK** — `presence` ölçülmüyor | **12** | aşağıda |
+| **TARİHSEL BOŞLUK** — 2026-08-05 snapshot'ı; güncel açık değil | **12** | aşağıda |
 | **ATOM ÜRETİMİ KABA** | 1 | `RTS_018` — `continuous_drop_off` presence'ı `Conditionally Forbidden`; **boş değer ihlal DEĞİL**, atom eşleşmesi yanlış |
 
-### 12 gerçek boşluk — alan boş bırakıldığında hiçbir kural konuşmuyor
+### Tarihsel kayıt — 12 eski boşluk (2026-08-05)
+
+> **Güncel durum (2026-09-09):** Aşağıdaki tablo bu tarihteki audit snapshot'ıdır;
+> güncel açık listesi değildir. Listedeki presence kontrolleri artık kodda ve rule
+> registry'sinde temsil edilmektedir: `ARS_002`, `CAL_025`, `FMD_004`, `NET_004`,
+> `RCT_008`, `XFL_032`, `XFL_033`, `XFL_034`, `SAR_003`, `SAR_004`, `TFR_008`,
+> `TRP_035`. Bu kimlikler için kapanış yalnız registry varlığıyla değil, notice
+> sahipliği ve test davranışıyla doğrulanır.
+>
+> Kural kimliği sayımı 12'dir; bazı eski özetlerde geçen “11” ifadesi bu listeyle
+> uyumlu değildir ve kullanılmamalıdır. XFL ailesinde ayrıca header yokluğu ile boş
+> değer ayrımı için runtime düzeltmesi izlenmektedir: sütun yoksa `ARC_025`, sütun
+> mevcut ve değer boşsa ilgili XFL kuralı tek notice üretmelidir.
+
+Bu bölüm tarihsel kanıt zincirini korur; güncel kararlar üstteki güncel durum tablosu
+ve bu notla okunmalıdır.
+
+### Alan boş bırakıldığında hiçbir kural konuşmuyordu
 
 | alan | çapalayan kural | kuralın gerçekte ölçtüğü |
 |---|---|---|
