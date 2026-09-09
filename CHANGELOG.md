@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-09
+
+This release consolidates the validator triage fixes and aligns the Rust engine,
+Web UI, and npm SDK version surfaces.
+
+### Fixed
+
+- Report malformed numeric and enum values that previously could be silently
+  discarded, including fare prices, continuous route fields, and trip fields.
+- Keep `translations.field_value` checks tied to typed trip and stop-time data,
+  including trip-specific `stop_sequence` references.
+- Separate missing location-group headers from blank values so `ARC_025` owns
+  missing columns and `XFL_032`–`XFL_034` own present-but-empty values.
+- Align fare-media guidance with the current enum meanings and only recommend
+  names for transit cards and mobile apps.
+- Accept zero-valued `ic_price` and document that the Google extension belongs
+  to `fare_attributes.txt`.
+- Add regression coverage for textual fare prices producing `FAR_002`.
+
+### Documentation
+
+- Synchronize rule cards, localized guidance, README files, and the provision
+  triage ledger with the current validator behavior.
+
 ## [0.12.0] - 2026-09-01
 
 A validator-behaviour release, driven by two full-catalog audit runs over the
@@ -1839,7 +1863,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.0...v0.11.1
 [0.8.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.7.0...v0.8.0
