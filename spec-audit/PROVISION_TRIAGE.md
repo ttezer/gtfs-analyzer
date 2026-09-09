@@ -48,9 +48,13 @@ olarak kullanılmamalıdır.
 | `TRN_017` | Eksik `record_sub_id` K2’de korunuyor. |
 | `TRN_010` | K4'te `record_id` ile belirlenen trip'in `stop_sequence` değerine göre doğrulanıyor; kart, fixture ve senkron kapıları güncellendi. |
 | `GGL_002` | Google'ın resmi uzantı dokümanına göre `fare_attributes.txt` → `ic_price` olarak hizalandı; kod, fixture ve kart güncellendi. |
-| `agency_lang` | Yerel 830 feed korpusunda 826 `agency.txt`, 2.373 agency satırı; 463 satırda (%19,51) eksik, 54 feed etkileniyor. Yalnız ölçüm yapıldı; yeni notice eklenmedi. |
-| linked trip | Terim/kapsam hâlâ tanımsız; mevcut hüküm KAPSAM DIŞI olarak korunuyor. Mesafe ölçümü ve eşik belirlenmedi. |
+| `agency_lang` | Yerel 830 feed korpusunda 826 `agency.txt`, 2.373 agency satırı; 463 satırda (%19,51) eksik, 54 feed etkileniyor. Bu, açık **Quality** kuyruğudur; yalnız ölçüm yapıldı, yeni notice eklenmedi. |
+| linked trip | Terim/kapsam hâlâ tanımsız; mevcut hüküm KAPSAM DIŞI olarak korunuyor. Bu, açık **Quality/tanım** kuyruğudur; mesafe ölçümü ve eşik belirlenmedi. |
 | timeout asimetrisi | `ANALYZER_TIMEOUT` 420 saniyeye hizalandı; artifact kanıtı mevcut, tam korpus doğrulaması bekliyor. `#2142` bu checkout'un GitHub deposunda bulunamadı. |
+
+Bu tablo, aşağıdaki tarihsel bölümlerdeki eski BOŞLUK/KISMİ etiketlerinden önceliklidir.
+Kapanan adayların güncel eşlemesi ilgili bölüm tablolarına işlendi; eski bulgu metinleri
+yalnız kararın nasıl verildiğini belgelemek için tarihsel olarak korunur.
 
 ## Karar sınıfları
 
@@ -211,8 +215,8 @@ her biri ayrı satırdır (spec metni gerçekten her alanın altında tekrar yaz
 | `Pc6b3be8f` | timepoint | Zamanı olan her kayıtta `timepoint` dolu olmalı | **KANITLI** — `STM_050` (sütun var ama satırda boş). |
 | `Pd0952f0f` · `Pd6d4d60e` | arrival_time · departure_time | Kesin zaman yoksa `timepoint=0` ile tahmini zaman verilmeli | **KANITLI** — `STM_050` yakınsıyor. `STM_050` bu hükmü ölçer. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P7c96867d` | shape_dist_traveled | Döngü/iç içe geçen hatlarda önerilir | KISMİ — `STM_017` mesafe eksikliğini ölçer, döngü koşuluna bakmaz. |
-| `P71243b3e` | pickup_booking_rule_id | `pickup_type=2` iken önerilir | **BOŞLUK** — aşağıda. |
-| `P504bde32` | drop_off_booking_rule_id | `drop_off_type=2` iken önerilir | **BOŞLUK** — aşağıda. |
+| `P71243b3e` | pickup_booking_rule_id | `pickup_type=2` iken önerilir | **KANITLI** → `STM_059` (`bb10592b`). |
+| `P504bde32` | drop_off_booking_rule_id | `drop_off_type=2` iken önerilir | **KANITLI** → `STM_059` (`bb10592b`). |
 | `Pc45300d2` | stop_headsign | Tüm sefer boyunca aynıysa `trips.trip_headsign` kullanılmalı | KISMİ — `TRP_020` komşu alanı ölçüyor; birebir değil. |
 | `P5c5b9def` | — | Tüketici ara kayıtları yok saymalı | **KAPSAM DIŞI** — tüketiciyi bağlar. |
 | `Pf991d0a1` · `Pf400fbfa` · `P95949c3b` | stop_id · location_group_id · location_id | Tüketici seyahati mümkün varsaymalı | **KAPSAM DIŞI** — tüketiciyi bağlar. |
@@ -257,7 +261,7 @@ birleştirmek `emit_identity` kapısını düşürebilir.
 | `P4aab119d` | location_type | Giriş birden çok istasyona aitse veri sağlayıcı birini parent seçmeli | **KAPSAM DIŞI** | Şema zaten tek `parent_station` alanı verir → ihlal edilemez; cümle modelleme rehberi. |
 | `P740a5096` · `Pb857b7b0` · `Pa5a48cf2` | stop_access | Girişten erişilmeli; pathway varsa kullanılmalı; tüketici yön üretmeli | **KAPSAM DIŞI** | Tüketici davranışını bağlar. `STP_027` komşu olguyu (pathway istasyonunda `stop_access` eksik) ölçer. |
 | `P8cb6a9cc` | stop_code | Yolcuya sunulan kodu olmayan yerlerde **boş bırakılmalı** *(soft)* | **KAPSAM DIŞI** ⚠️GERİLİM | Bir durağın yolcuya sunulan kodu OLUP OLMADIĞI feed'den bilinemez — boşluğun kendisi tek kanıttır, ve o hem uyumu hem ihlali gösterir. Karar makine-okunur etiket taşımadığı için `badge_status.py`'nin yumuşak paydasından SESSİZCE düşüyordu (2026-08-06 orphan denetimi yakaladı). Gerilim ayrıntısı Bulgu 5'te. |
-| `P3af6af7b` · `Pb24eacd3` | platform_code | Yalnız tanımlayıcı olmalı; "platform"/"track" kelimesi geçmemeli *(soft)* | **BOŞLUK** | `platform_code` kod tabanında hiç geçmiyor. `STP_040` aynı olguyu `stop_name` için ölçüyor — desen mevcut, alan kapsanmamış. |
+| `P3af6af7b` · `Pb24eacd3` | platform_code | Yalnız tanımlayıcı olmalı; "platform"/"track" kelimesi geçmemeli *(soft)* | **KANITLI** → `STP_044` (`509c5b54`). | |
 
 ## routes.txt
 
@@ -343,8 +347,8 @@ Yumuşak hüküm → karşılığı **Quality**. Kural yazılmadı; `STP_040`'ı
 | `P6863d663` | stair_count | Tahminse kat başına ~15 basamak varsayılmalı *(soft)* | **KAPSAM DIŞI** | Üreticiye tahmin yöntemi öneriyor; feed'den doğrulanamaz. |
 | `P16572364` | signposted_as | Metin tabelada yazdığı gibi olmalı *(soft)* | **KAPSAM DIŞI** | Fiziksel tabela bilgisi gerekir. Uzunluk `PTH_018`. |
 | `Pd498d7a2` | min_width | Genişlik 1 metreden azsa önerilir *(soft)* | **KAPSAM DIŞI** | Alan boşken gerçek genişlik bilinmediği için koşul değerlendirilemez — mantıksal olarak ölçülemez tavsiye. |
-| `Pd21dea02` | traversal_time | Yürüyen bant (3), yürüyen merdiven (4), asansör (5) için önerilir *(soft)* | **BOŞLUK** | Aşağıda. |
-| `P2264440d` | — | Platformun boarding area'ları varsa platforma pathway atanmamalı | **BOŞLUK** | Aşağıda. |
+| `Pd21dea02` | traversal_time | Yürüyen bant (3), yürüyen merdiven (4), asansör (5) için önerilir *(soft)* | **KANITLI** → `PTH_029` (`509c5b54`). | |
+| `P2264440d` | — | Platformun boarding area'ları varsa platforma pathway atanmamalı | **KANITLI** → `PTH_030` (`62571264`). | |
 
 ---
 
@@ -387,10 +391,10 @@ pathway atanmasını **yasak olarak ölçmüyor**.
 | `Pdc0b679c` · `Pf93f15ba` | record_id · field_value | Diğeri boşsa zorunlu | **KANITLI** | `TRN_015` (08-02'de eklendi; `table_name` geçersizse susacak şekilde daraltılmıştı). |
 | `Pcf0597aa` | record_id | Tablonun birincil anahtarının ilk/tek alanı olmalı | **KANITLI** | `TRN_004` (record_id bulunamadı) — çözümleme birincil anahtar üzerinden. |
 | `P7c7134fe` · `P4adfb063` · `P502d68a6` | field_name · record_id · record_sub_id | Diğer tiplerdeki/tablolardaki alanlar çevrilmemeli *(soft)* | **KANITLI** | `TRN_011` (field_name çevrilebilir değil) + `TRN_002`. |
-| `P2c840d38` | field_value | Alan tam olarak `field_value`'daki değere sahip olmalı | KISMİ | `XFL_014` çözümlenemeyen çeviri referansını yakalar; `field_value` eşleşmesinin **tam** olduğunu doğrulayan ayrı ölçüm yok. |
+| `P2c840d38` | field_value | Alan tam olarak `field_value`'daki değere sahip olmalı | KISMİ | `TRN_016` artık ham satır taşıyan tabloların yanı sıra `trips.trip_headsign`, `trips.trip_short_name` ve `stop_times.stop_headsign` typed/indexed değerlerini de karşılaştırıyor. Desteklenmeyen tablolar (ör. `attributions`) ve alanlar kapsam dışında kaldığı için hüküm genelde hâlâ KISMİ. |
 | `Pf3f9b74e` · `P95d8f3ea` | record_id · record_sub_id | Tablo başına önerilen kullanım listesi *(soft)* | **META** | Rehber tablosu; `TRN_004`/`TRN_014` zaten yapıyı denetliyor. |
 | `P403cf2f3` | field_value | `record_id` yerine alternatif kullanım *(soft)* | **META** | Alanın ne işe yaradığını anlatıyor. |
-| `P9373b1fa` | record_sub_id | `table_name=stop_times` **ve** `record_id` tanımlıysa **zorunlu** | **BOŞLUK** | Aşağıda. |
+| `P9373b1fa` | record_sub_id | `table_name=stop_times` **ve** `record_id` tanımlıysa **zorunlu** | **KANITLI** → `TRN_017` (`62571264`). | |
 
 ## booking_rules.txt
 
@@ -406,7 +410,7 @@ pathway atanmasını **yasak olarak ölçmüyor**.
 | `P1d4947e7` · `Pd78aeee0` | prior_notice_service_id | `booking_type=2` ile opsiyonel, aksi yasak | **KANITLI** | `BKR_014`. |
 | `Pe467fc5a` · `P7dbb186e` | prior_notice_last_day · last_time | Kodlama örneği ("1 gün önce 17:00'ye kadar") | **META** | Örnek; ihlal edilebilir bir yasak koymuyor. |
 | `P3b3a8cc2` | message | Yolcuya iletilecek asgari bilgiyi taşımalı | **META** | Alan tanımı. |
-| `P5a5cced5` | prior_notice_start_day | `booking_type=1` iken `prior_notice_duration_max` tanımlıysa **yasak** | **BOŞLUK** | Aşağıda. |
+| `P5a5cced5` | prior_notice_start_day | `booking_type=1` iken `prior_notice_duration_max` tanımlıysa **yasak** | **KANITLI** → `BKR_024` (`62571264`). | |
 
 ---
 
@@ -423,30 +427,33 @@ has_duration_max || has_last_day || …)` denetliyor. Aynı bölüşme `BKR_005`
 "eksik" demek üzereydim. **Kuralın doc yorumu, kuralın kapsamı hakkındaki ilk kaynaktır** —
 bu repoda yorumlar spec cümlesini ve bölüşmeyi düzenli olarak yazıyor.
 
-## Bulgu 10: `record_sub_id` gereklilik yönü ölçülmüyor — **BOŞLUK** (`P9373b1fa`)
+## Bulgu 10 (tarihsel): `record_sub_id` gereklilik yönü ölçülmüyordu — **KAPANDI → `TRN_017`** (`P9373b1fa`)
 
 Spec iki yönlü hüküm koyar:
 - **Yasak:** `stop_times` dışındaki tablolarda `record_sub_id` kullanılamaz → `TRN_014` ✅
   (`translations.rs:229` — `table_name != "stop_times" && record_sub_id.is_some()`).
 - **Zorunlu:** `table_name=stop_times` **ve** `record_id` tanımlıysa `record_sub_id` gerekir →
-  **ölçülmüyor.**
+  **o tarihte ölçülmüyordu; güncel kod bunu `TRN_017` ile raporluyor.**
 
 `stop_times.txt`'in birincil anahtarı bileşiktir (`trip_id` + `stop_sequence`); `record_id`
 yalnız ilk alanı taşır, `record_sub_id` ikincisini. İkincisi olmadan çeviri **hangi satıra**
 ait olduğunu söyleyemez — çözümlenemeyen değil, **belirsiz** bir referans.
 
-Sert hüküm (`Conditionally Required`). Kural adayı; `TRN_014`'ün ters kolu olarak yazılabilir.
+Sert hüküm (`Conditionally Required`). Bu tarihsel boşluk `TRN_017` ile kapatıldı; `TRN_014`
+stop_times dışındaki yasak kolunu korur.
 
-## Bulgu 11: `start_day` / `duration_max` çakışması ölçülmüyor — **BOŞLUK** (`P5a5cced5`)
+## Bulgu 11 (tarihsel): `start_day` / `duration_max` çakışması ölçülmüyordu — **KAPANDI → `BKR_024`** (`P5a5cced5`)
 
 Spec: `prior_notice_start_day` *"Forbidden for booking_type=1 if prior_notice_duration_max is
 defined."* Yani aynı gün rezervasyonda üst süre sınırı varken başlangıç günü çelişkilidir.
 
-`prior_notice_duration_max` kodda yalnız üç yerde geçiyor (`booking_rules.rs:129/137/157`) ve
-hiçbiri `start_day` ile ilişkilendirilmiyor. `BKR_002` komşu ama farklı hükmü ölçer
+`prior_notice_duration_max` o tarihte kodda yalnız üç yerde geçiyordu
+(`booking_rules.rs:129/137/157`) ve hiçbiri `start_day` ile ilişkilendirilmiyordu. Güncel
+`BKR_024` bu ilişkiyi ölçer; `BKR_002` komşu ama farklı hükmü ölçer
 (`start_day` yalnız `last_day` ile kullanılabilir).
 
-Sert hüküm. `BKR_005`'in yanına yazılabilir; `booking_type=1` dalı bugün tamamen sessiz.
+Sert hüküm. Bu tarihsel boşluk `BKR_024` ile kapatıldı; `BKR_005` komşu hükmü ayrı
+olarak korur.
 
 ---
 
@@ -483,24 +490,26 @@ ile yazar. Bunlar bağlayıcıdır ama **veriyi değil tüketiciyi** bağlar —
 | `Pa13f977d` · `P25918782` · `P4e4360f8` · `P203b24af` · `Pbbc4e012` | — | fare_leg_rules sorgulama algoritması (filtrele → tam eşleşme → boş girdiler) | **KAPSAM DIŞI** | Sert (`must`) ama tüketici algoritması. |
 | `P4dead8a8` · `P34b16ddb` · `P2b1854d3` · `Pb6d9a2c2` · `Pe8b16d97` | — | fare_transfer_rules sorgulama algoritması | **KAPSAM DIŞI** | Aynı gerekçe. |
 | `P9a687aee` · `P801d96f0` · `P9bb795c0` · `P66fe5cb3` | — | fare_leg_join_rules eşleştirme algoritması | **KAPSAM DIŞI** | Aynı gerekçe. |
-| `P38cd4e78` | amount | Tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı | **BOŞLUK** | Aşağıda. |
+| `P38cd4e78` | amount | Tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı | **KANITLI** → `FPD_007` + `FAR_013` (`9beb1282`). | |
 
 ---
 
-## Bulgu 12: ISO 4217 ondalık basamak sayısı ölçülmüyor — **BOŞLUK** (`P38cd4e78`)
+## Bulgu 12 (tarihsel): ISO 4217 ondalık basamak sayısı ölçülmüyordu — **KAPANDI → `FPD_007` + `FAR_013`** (`P38cd4e78`)
 
 Spec: *"The currency amount must contain the number of decimal places specified by the norm
 ISO 4217 for the accompanying Currency code."*
 
-Kodda **para birimi kodunun** geçerliliği ölçülüyor (`FPD_003`, `FAR_003` — üç harfli ISO 4217
-listesi) ama **minor-unit tablosu hiç yok**: `grep -rn "4217\|decimal_digits\|minor_unit"`
+O tarihte kodda **para birimi kodunun** geçerliliği ölçülüyor (`FPD_003`, `FAR_003` — üç harfli
+ISO 4217 listesi) ama **minor-unit tablosu yoktu**: `grep -rn "4217\|decimal_digits\|minor_unit"`
 yalnız hata mesajlarını buluyor.
 
 Somut ihlaller: `JPY 100.00` (yen'in ondalığı 0), `USD 2.5` (2 basamak olmalı: `2.50`),
-`KWD 1.5` (dinar 3 basamak). Bunlar bugün sessiz geçiyor.
+`KWD 1.5` (dinar 3 basamak). Bunlar o tarihte sessiz geçiyordu; güncel `FPD_007` ve
+`FAR_013` bu biçim ihlalini ölçüyor.
 
-Sert hüküm. Kural yazılabilir ama **ISO 4217 minor-unit tablosu gerekir** (~180 satır sabit
-veri, çoğu 2). Değeri: yanlış ondalık, tüketicide 100× fiyat hatasına dönüşebilir.
+Sert hüküm. Bu tarihsel boşluk, üretilmiş ISO 4217 minor-unit tablosu ve dosya başına özet
+emisyon kullanan `FPD_007` + `FAR_013` ile kapatıldı. Değeri: yanlış ondalık, tüketicide
+100× fiyat hatasına dönüşebilir.
 
 ⚠️ `FPD_002`/`FAR_002` yalnız negatif/sayısal olmayan değeri ölçüyor; bu farklı bir olgu.
 
@@ -533,7 +542,7 @@ düşünmeye itiyor; bu repoda `DQ_021` gibi çapraz kurallar tam bu boşluklar�
 | `P7917f3c5` | agency_id | `agency_id`/`route_id`/`trip_id` attribution'larından biri varsa diğerleri boş olmalı | **KANITLI** | `ATR_009` (Quality→**Spec**, #96 — *"the other ones must be empty"* normatif). |
 | `Pebcbebf1` | is_producer | `is_producer`/`is_operator`/`is_authority`'den en az biri 1 olmalı *(soft)* | **KANITLI** | `ATR_003`. |
 | `Pec6b6920` | headway_secs | Aynı sefer için birden çok headway tanımlanabilir ama **çakışamaz** | **KANITLI** | `FRQ_011` (Interop→**Spec**, #96 — *"must not overlap"* normatif). |
-| `P257db6b1` | exact_times | `end_time`, son istenen sefer başlangıcından büyük olmalı | KISMİ | `FRQ_005` (end < start) ve `FRQ_009` komşu; cümlenin `exact_times=1`'e özgü inceliği ölçülmüyor. |
+| `P257db6b1` | exact_times | `end_time`, son istenen sefer başlangıcından büyük olmalı | **KANITLI** → `FRQ_012` (`d4ac363e`). | |
 | `P1ecc6733` | level_index | Zemin 0, üstü pozitif, altı negatif *(soft)* | **KAPSAM DIŞI** | `LVL_002` sayısal geçerliliği ölçer; zemin referansı feed dışı bilgi. Zemin referansı feed'den bilinemez; hangi katın "zemin" olduğu dışsal bilgidir. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P24d95df2` | location_group_id | Üç kaynak genelinde benzersiz | **KANITLI** | `XFL_031` (hükmün üçüncü ucu; 1. turda `P042ba79f`/`P1afc582a`). |
 
@@ -887,8 +896,8 @@ Bu ayrım 27 adayı ikiye böler: **5 sert**, **22 yumuşak**.
 | id | hüküm | yeni karar | gerekçe |
 |---|---|---|---|
 | `Pd84a0bcb` | OpenGIS poligon geçerliliği | **BOŞLUK** | Zaten #67; KISMİ olarak da sayılıyordu → **çift sayım düzeltildi** |
-| `P2c840d38` | `translations.field_value` alanın değeriyle **tam** eşleşmeli | **BOŞLUK** *(yeni)* | Genel eşleşme doğrulaması yok. `k4_cross_ref.rs:2683`'teki `field_value` çözümlemesi yalnız **GTFS-JP kana** yolunda çalışıyor (`feed_lang_ja \|\| has_kana`), genel değil |
-| `P257db6b1` | `exact_times=1` iken `end_time` son sefer başlangıcı ile başlangıç+`headway_secs` arasında olmalı | **BOŞLUK** *(yeni)* | `FRQ_005` yalnız `end_time <= start_time`'ı ölçer; bu hüküm `end_time`'ın headway'in tam katına denk gelmemesini ister — farklı ve daha dar |
+| `P2c840d38` | `translations.field_value` alanın değeriyle **tam** eşleşmeli | **TARİHSEL BOŞLUK — KAPANDI → `TRN_016`** | O tarihte genel eşleşme doğrulaması yoktu; güncel kapsam ve kalan sınır üstteki translations tablosunda açıklanıyor. |
+| `P257db6b1` | `exact_times=1` iken `end_time` son sefer başlangıcı ile başlangıç+`headway_secs` arasında olmalı | **TARİHSEL BOŞLUK — KAPANDI → `FRQ_012`** | O tarihte `FRQ_005` yalnız `end_time <= start_time`'ı ölçüyordu; güncel `FRQ_012` daha dar `exact_times=1` koşulunu ölçüyor. |
 | `P8681b6f4` | `Text` tipi insan tarafından okunabilir olmalı | **KAPSAM DIŞI** | "İnsan okunabilir"in makine tanımı yok; `ARC_021` yaklaşıyor ama daha ileri gitmek yanlış pozitif üretir |
 | `P44a6984b` | *"n-to-n continuations must respect both constraints"* | **KAPSAM DIŞI** | **Kaba cümle bölmenin artefaktı** — hükmün gövdesi önceki cümlelerde, bu cümle tek başına bir kısıt tanımlamıyor |
 
@@ -1143,9 +1152,9 @@ biçiminde başlıyor. Sekiz eşleşmenin sekizi de gerçek hüküm çıktı —
 | `Pfe619a22` | `stop_desc`, `stop_name`'in kopyası olmamalı *(soft)* | **KANITLI** | `STP_031` |
 | `P72501068` | `route_desc`, route adlarının kopyası olmamalı *(soft)* | **KANITLI** | `RTS_023` |
 | `Pa6690298` | `route_url`, `agency_url`'den farklı olmalı *(soft)* | **KANITLI** | `RTS_020` |
-| `P5b7396a2` · `Pbd495b4e` | uç nokta `stop_access=1` olan durak olamaz | 🔴 **BOŞLUKTU → `PTH_031`** | Aşağıda. |
+| `P5b7396a2` · `Pbd495b4e` | uç nokta `stop_access=1` olan durak olamaz | **KANITLI** → `PTH_031` (`506` triyajı). | |
 | `P7ae1fa9d` | `agency_lang` sağlanmalı *(soft)* | **BOŞLUK** *(yumuşak eksen)* | Yalnız geçerlilik (`AGN_006`) ve tutarlılık (`AGN_013/017`) ölçülüyor; VARLIK tavsiyesi ölçülmüyor. Quality kuyruğuna. |
-| `Pa1fdaa0d` | geojson geometri + pencere + pickup/drop_off eşzamanlı örtüşmesi yasak | 🔴 **BOŞLUK** | ⚠️ **2026-08-06 DIŞ DENETİMİNDE DÜZELTİLDİ — eskiden KAPSAM DIŞI yazıyordu, gerekçesi *"poligon geometrisi saklanmıyor"*du. Bu bir MİMARİ EKSİKTİR, doğrulanamazlık değil.** Hükmün gerektirdiği her girdi feed'in İÇİNDE: `locations.geojson` geometrileri · `stop_times.location_id` · `start/end_pickup_drop_off_window` · `pickup_type`/`drop_off_type` · `trip_id`. Uygulamanın veriyi saklamaması hükmü paydadan çıkaramaz. |
+| `Pa1fdaa0d` | geojson geometri + pencere + pickup/drop_off eşzamanlı örtüşmesi yasak | **KANITLI** → `STM_060` (2. dış denetim). | Önceki mimari gerekçe geçersizdi; geometri ve pencere girdileri artık K4'te birlikte ölçülüyor. |
 | `P1ced9134` | aynı bölge içi seyahat İKİ `stop_times` kaydı gerektirir | **KAPSAM DIŞI** | **Modelleme talimatı, ihlal predikatı değil.** Tek kayıt geçerlidir (bölgede binip başka durakta inmek meşru); "üretici bölge-içi seyahat kastetti" bilgisi veride yok. Dejenere hâl (tek duraklı sefer) `STM_033`'te. |
 | `Pcb0bc0b7` | *"2 - Transfer requires a minimum amount of time…"* | **META** | `transfer_type` enum değerinin tanımı; yükümlülük `min_transfer_time`'da (`TRF_001/002`). |
 | `P7413e90c` | *"For examples that demonstrate what is forbidden, see the data example page."* | **META** | İşaret cümlesi; `forbidden` kelimesi içerdiği için aday oldu. |

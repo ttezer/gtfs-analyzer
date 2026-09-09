@@ -7,7 +7,6 @@ description = "Validate a GTFS Schedule feed from the command line: 600+ rules, 
 repository = "https://github.com/ttezer/gtfs-analyzer"
 keywords = ["gtfs", "transit", "validator", "cli", "opendata"]
 categories = ["command-line-utilities", "parser-implementations"]
-readme = "README.md"
 build = "build.rs"
 
 [[bin]]
