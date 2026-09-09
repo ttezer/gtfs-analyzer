@@ -367,6 +367,16 @@ mod tests {
     }
 
     #[test]
+    fn textual_price_produces_far_002() {
+        let file = make_file(
+            &["fare_id", "price", "currency_type", "payment_method"],
+            vec![vec!["F1", "abc", "TRY", "0"]],
+        );
+        let (_, notices) = validate_fare_attributes(&file);
+        assert!(notices.iter().any(|notice| notice.rule_id == "FAR_002"));
+    }
+
+    #[test]
     fn negative_price_keeps_existing_far_002_behavior() {
         let file = make_file(
             &["fare_id", "price", "currency_type", "payment_method"],
