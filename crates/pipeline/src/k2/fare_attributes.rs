@@ -142,9 +142,9 @@ pub fn validate_fare_attributes(
                         Some(v.to_string()),
                         Some("-1 or >= 0".to_string()),
                         format!(
-                            "ic_price '{v}' geçersiz: -1 veya sıfırdan büyük bir değer olmalıdır."
+                            "ic_price '{v}' geçersiz: -1 veya sıfır/pozitif (>= 0) bir değer olmalıdır."
                         ),
-                        "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
+                        "ic_price değerini -1 (bilinmiyor) veya sıfır ya da pozitif bir sayı olarak ayarlayın.",
                     ));
                 }
                 Err(_) => {
@@ -160,7 +160,7 @@ pub fn validate_fare_attributes(
                         Some(ic_price_raw.to_string()),
                         Some("-1 or >= 0".to_string()),
                         format!("ic_price '{ic_price_raw}' sayısal değil."),
-                        "ic_price değerini -1 (bilinmiyor) veya pozitif bir sayı olarak ayarlayın.",
+                        "ic_price değerini -1 (bilinmiyor) veya sıfır ya da pozitif bir sayı olarak ayarlayın.",
                     ));
                 }
             }

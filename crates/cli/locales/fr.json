@@ -930,7 +930,7 @@
     "TRF_004": "Mettez transfer_type à une valeur d’énumération GTFS valide (0–5).",
     "TRF_005": "Saisissez un entier positif ou nul pour min_transfer_time.",
     "GGL_001": "Choisissez un transfer_type compris entre 0 et 3 pour la compatibilité Google Transit.",
-    "GGL_002": "Mettez ic_price à -1 (inconnu) ou à un nombre positif.",
+    "GGL_002": "Mettez ic_price à -1 (inconnu) ou à un nombre nul ou positif.",
     "PTH_002": "Utilisez un stop_id valide pour from_stop_id.",
     "PTH_003": "Utilisez un stop_id valide pour to_stop_id.",
     "PTH_004": "Utilisez l’une de ces valeurs pour pathway_mode : 1, 2, 3, 4, 5, 6, 7.",

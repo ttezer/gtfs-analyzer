@@ -1574,7 +1574,7 @@ const fr: LocaleShape = {
     'TRF_005': 'Saisissez un entier positif ou nul pour min_transfer_time.',
     // GGL
     'GGL_001': 'Choisissez un transfer_type compris entre 0 et 3 pour la compatibilité Google Transit.',
-    'GGL_002': 'Mettez ic_price à -1 (inconnu) ou à un nombre positif.',
+    'GGL_002': 'Mettez ic_price à -1 (inconnu) ou à un nombre nul ou positif.',
     // PTH (niveau champ)
     'PTH_002': 'Utilisez un stop_id valide pour from_stop_id.',
     'PTH_003': 'Utilisez un stop_id valide pour to_stop_id.',
