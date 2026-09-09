@@ -236,6 +236,9 @@ pub struct StopTimesIndex {
     /// #38: CSV line → stop_headsign (nadir; CompactStopTime dışına taşındı)
     /// Key = st.line (u32). Sort/permutation'dan bağımsız — line CSV'de sabittir.
     pub stop_headsigns: FxHashMap<u32, SmolStr>,
+    /// Header presence is kept separately because an entirely empty optional column
+    /// is different from a missing column when translations.field_value is checked.
+    pub has_stop_headsign_field: bool,
     /// #38: CSV line → StopTimeFlex (feed'lerin %99'unda boş; CompactStopTime dışına taşındı)
     pub flex_map: FxHashMap<u32, Box<StopTimeFlex>>,
 }
@@ -509,7 +512,10 @@ impl StopTimesIndex {
     /// Test yardımcısı: Vec<StopTimeRecord>'dan index oluşturur.
     /// Gerçek pipeline'da K2 streaming tarafından doldurulur.
     pub fn from_records(records: &[StopTimeRecord]) -> Self {
-        let mut idx = Self::default();
+        let mut idx = Self {
+            has_stop_headsign_field: records.iter().any(|st| st.stop_headsign.is_some()),
+            ..Self::default()
+        };
         let mut by_trip: FxHashMap<SmolStr, Vec<CompactStopTime>> = FxHashMap::default();
         for st in records {
             if st.trip_id.is_empty() {
@@ -2971,6 +2977,7 @@ pub fn validate_stop_times_with_limits(
         rows,
         ..Default::default()
     };
+    index.has_stop_headsign_field = cols.stop_headsign.is_some();
     index.stop_id_set = index.stop_first_line.keys().cloned().collect();
     index.stop_intern = st.stop_intern;
     index.stop_id_to_idx = st.stop_id_to_idx;

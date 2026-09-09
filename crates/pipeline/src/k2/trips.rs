@@ -21,6 +21,10 @@ pub struct TripInternTable {
     pub shape_ids: Vec<SmolStr>,
     pub headsigns: Vec<SmolStr>,
     pub short_names: Vec<SmolStr>,
+    /// Header presence is kept separately because an entirely empty optional column
+    /// is different from a missing column when translations.field_value is checked.
+    pub has_headsign_field: bool,
+    pub has_short_name_field: bool,
     pub block_ids: Vec<SmolStr>,
     pub jp_offices: Vec<SmolStr>,
     pub jp_patterns: Vec<SmolStr>,
@@ -35,6 +39,8 @@ impl TripInternTable {
             shape_ids: empty(),
             headsigns: empty(),
             short_names: empty(),
+            has_headsign_field: false,
+            has_short_name_field: false,
             block_ids: empty(),
             jp_offices: empty(),
             jp_patterns: empty(),
@@ -231,6 +237,8 @@ pub fn validate_trips_with_limits(
 
     // Intern tablo + per-field lookup map'leri
     let mut interns = TripInternTable::new();
+    interns.has_headsign_field = cols.trip_headsign.is_some();
+    interns.has_short_name_field = cols.trip_short_name.is_some();
     let mut route_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut service_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut shape_map: FxHashMap<String, u32> = FxHashMap::default();

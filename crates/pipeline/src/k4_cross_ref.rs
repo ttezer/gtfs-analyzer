@@ -4476,7 +4476,7 @@ fn check_gtfs_jp(
                 translation
                     .record_sub_id
                     .as_deref()
-                    .is_none_or(|value| crate::k2::translations::is_none_record_sub_id(value))
+                    .is_none_or(crate::k2::translations::is_none_record_sub_id)
             };
             if !valid_field || !valid_record || !valid_sub_id {
                 notices.push(notice(
@@ -5721,9 +5721,9 @@ fn check_xfl(
     // `record_id` yerine DEĞERE göre eşleşir; eşleşen satır yoksa çeviri sessizce etkisizdir
     // (üretici çevirdiğini sanır). `XFL_014` yalnız `record_id` kolunu kapsar.
     //
-    // ⚠️ KAPSAM SINIRI: yalnız ham satırı (`row`) taşıyan tablolar denetlenir. `trips` bellek
-    // optimizasyonu nedeniyle `row` tutmaz → `table_name=trips` çevirileri SESSİZCE atlanır.
-    // Yanlış negatif yönünde bilinçli tercih; ölçümde trips payı 339/4362 idi.
+    // Kapsam: ham `row` taşıyan tabloların yanında trips ve stop_times da typed/indexed
+    // değerlerinden denetlenir. Ham satır kopyası tutulmaz: trips için intern tabloları,
+    // stop_times için stop_headsign side-map'i ve CompactStopTime index'i kullanılır.
     //
     // ⚠️ `field_name` hedef dosyada SÜTUN DEĞİLSE burada sayılmaz — o ihlal `TRN_002`'nin
     // ("field_name bu tablo için geçersiz") alanıdır. Ölçüm sırasında bu ayrım yapılmadığında
@@ -5741,24 +5741,165 @@ fn check_xfl(
             if field.is_empty() {
                 continue;
             }
-            let rows: Vec<&crate::k2::common::RowMap> = match rec.table_name.as_str() {
-                "agency" => records.agencies.iter().map(|r| &r.row).collect(),
-                "stops" => records.stops.iter().map(|r| &r.row).collect(),
-                "routes" => records.routes.iter().map(|r| &r.row).collect(),
-                "levels" => records.levels.iter().map(|r| &r.row).collect(),
-                "pathways" => records.pathways.iter().map(|r| &r.row).collect(),
-                "calendar" => records.calendars.iter().map(|r| &r.row).collect(),
-                "fare_attributes" => records.fare_attributes.iter().map(|r| &r.row).collect(),
-                "feed_info" => records.feed_info.iter().map(|r| &r.row).collect(),
-                _ => continue, // desteklenmeyen tablo → sessiz
+            let matched = match rec.table_name.as_str() {
+                "agency" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.agencies.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None // dosya yok ya da sütun yok (TRN_002)
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "stops" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.stops.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "routes" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.routes.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "levels" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.levels.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "pathways" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.pathways.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "calendar" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.calendars.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "fare_attributes" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.fare_attributes.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "feed_info" => {
+                    let rows: Vec<&crate::k2::common::RowMap> =
+                        records.feed_info.iter().map(|r| &r.row).collect();
+                    if rows.is_empty() || !rows[0].contains_key(field) {
+                        None
+                    } else {
+                        Some(
+                            rows.iter()
+                                .any(|r| r.get(field).map(String::as_str) == Some(want)),
+                        )
+                    }
+                }
+                "trips" => {
+                    let has_field = match field {
+                        "trip_headsign" => {
+                            records.trip_interns.has_headsign_field
+                                || records.trip_interns.headsigns.len() > 1
+                        }
+                        "trip_short_name" => {
+                            records.trip_interns.has_short_name_field
+                                || records.trip_interns.short_names.len() > 1
+                        }
+                        _ => false,
+                    };
+                    if records.trips.is_empty() || !has_field {
+                        None
+                    } else {
+                        Some(records.trips.iter().any(|trip| {
+                            let value = match field {
+                                "trip_headsign" => records.trip_interns.headsign(trip),
+                                "trip_short_name" => records.trip_interns.short_name(trip),
+                                _ => None,
+                            };
+                            value == Some(want)
+                        }))
+                    }
+                }
+                "stop_times" => {
+                    if field != "stop_headsign" {
+                        None
+                    } else {
+                        let has_field = records.stop_times_index.has_stop_headsign_field
+                            || !records.stop_times_index.stop_headsigns.is_empty()
+                            || records
+                                .stop_times
+                                .iter()
+                                .any(|st| st.stop_headsign.is_some());
+                        if !has_field {
+                            None
+                        } else if !records.stop_times_index.rows.is_empty() {
+                            Some(records.stop_times_index.rows.iter().any(|st| {
+                                records
+                                    .stop_times_index
+                                    .stop_headsign_of(st)
+                                    .is_some_and(|value| value.as_str() == want)
+                            }))
+                        } else if !records.stop_times.is_empty() {
+                            Some(
+                                records
+                                    .stop_times
+                                    .iter()
+                                    .any(|st| st.stop_headsign.as_deref() == Some(want)),
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                }
+                _ => None, // desteklenmeyen tablo → sessiz
             };
-            if rows.is_empty() || !rows[0].contains_key(field) {
-                continue; // dosya yok ya da sütun yok (TRN_002)
-            }
-            if !rows
-                .iter()
-                .any(|r| r.get(field).map(String::as_str) == Some(want))
-            {
+            let Some(matched) = matched else {
+                continue;
+            };
+            if !matched {
                 unmatched.push(format!("{}.{field}={want}", rec.table_name));
             }
         }
@@ -9247,7 +9388,7 @@ mod tests {
             .iter()
             .any(|n| n.rule_id == "TRN_016"));
 
-        // (c) desteklenmeyen tablo (trips — ham satır tutulmaz) → sessiz.
+        // (c) trips dosyasında hedef kayıt yoksa typed lookup da değerlendirme yapmaz.
         recs.translations = vec![TranslationRecord {
             table_name: "trips".into(),
             field_name: "trip_headsign".into(),
@@ -9257,6 +9398,62 @@ mod tests {
             .notices
             .iter()
             .any(|n| n.rule_id == "TRN_016"));
+    }
+
+    #[test]
+    fn trn_016_checks_typed_trips_and_indexed_stop_times_values() {
+        use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
+        use crate::k2::translations::TranslationRecord;
+
+        let (mut recs, _map) = empty();
+        let mut ti = TripInternTable::new();
+        let mut trip_record = trip(&mut ti, "T1", "R1", "SVC1");
+        let headsign_idx = ti.headsigns.len() as u32;
+        ti.headsigns.push("Merkez".into());
+        ti.has_headsign_field = true;
+        trip_record.headsign_idx = headsign_idx;
+        recs.trips = vec![trip_record];
+        recs.trip_interns = ti;
+        recs.stop_times_index = StopTimesIndex::from_records(&[StopTimeRecord {
+            trip_id: "T1".into(),
+            stop_sequence: Some(1),
+            stop_headsign: Some("Sahil".into()),
+            line: 3,
+            ..Default::default()
+        }]);
+
+        let translation =
+            |table_name: &str, field_name: &str, field_value: &str| TranslationRecord {
+                table_name: table_name.into(),
+                field_name: field_name.into(),
+                language: "en".into(),
+                translation: "Translated".into(),
+                record_id: None,
+                record_sub_id: None,
+                field_value: Some(field_value.into()),
+                row: Default::default(),
+                line: 2,
+            };
+
+        recs.translations = vec![
+            translation("trips", "trip_headsign", "Merkez"),
+            translation("stop_times", "stop_headsign", "Sahil"),
+        ];
+        let matched = check(&recs, &EntityMap::default(), 20260515);
+        assert!(!matched.notices.iter().any(|n| n.rule_id == "TRN_016"));
+
+        recs.translations = vec![
+            translation("trips", "trip_headsign", "YokTrip"),
+            translation("stop_times", "stop_headsign", "YokStop"),
+        ];
+        let unmatched = check(&recs, &EntityMap::default(), 20260515);
+        let notice = unmatched
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "TRN_016")
+            .expect("typed trips ve indexed stop_times değerleri TRN_016 üretmeli");
+        assert!(notice.message.contains("trips.trip_headsign=YokTrip"));
+        assert!(notice.message.contains("stop_times.stop_headsign=YokStop"));
     }
 
     #[test]
