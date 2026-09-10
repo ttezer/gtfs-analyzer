@@ -218,12 +218,95 @@ fn prealloc_capacity(uncompressed_hint: usize) -> usize {
 /// Yerel dosya başlığı (local file header) imzası ve sabit uzunluğu.
 const LFH_SIGNATURE: u32 = 0x0403_4b50;
 const LFH_LEN: usize = 30;
+/// Merkez dizin girdisi (central directory header) imzası ve sabit uzunluğu.
+const CDH_SIGNATURE: u32 = 0x0201_4b50;
+const CDH_LEN: usize = 46;
+/// Merkez dizin sonu (end of central directory) imzası ve sabit uzunluğu.
+const EOCD_SIGNATURE: u32 = 0x0605_4b50;
+const EOCD_LEN: usize = 22;
+/// EOCD, dosya sonundan en çok comment uzunluğu (64 KB) kadar geride olabilir.
+const EOCD_SEARCH_WINDOW: usize = 65_557;
 /// Data descriptor imzası. APPNOTE'a göre bu imza OPSİYONELDİR; iki biçim de okunur.
 const DATA_DESCRIPTOR_SIGNATURE: u32 = 0x0807_4b50;
 /// Data descriptor bayrağı (general purpose bit flag, bit 3).
 const FLAG_DATA_DESCRIPTOR: u16 = 0x0008;
 /// zip64 kaçış değeri — gerçek boyut extra field'da taşınır, 32-bit alan okunamaz.
 const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
+
+/// `ZipArchive::new` başarısız olduğunda BOZUKLUĞUN KATMANINI söyler.
+///
+/// 🔴 Neden gerekli: `zip` crate'i (2.4.2) bozuk bir girdide de "Could not find EOCD" döndürüyor
+/// ve bu mesajı olduğu gibi aktarmak kullanıcıyı YANLIŞ yere bakmaya yönlendiriyordu. Ölçüm
+/// (`tld-5895`, korpusun tek `ZipUnreadable` feed'i): EOCD offset 855.231'de KUSURSUZ, merkez
+/// dizinin 9 girdisi de kusursuz; bozuk olan tek şey `stop_times.txt`'in yerel başlığı
+/// (offset 570.618, imza yerine sıfır baytlar) — önceki girdinin sıkıştırılmış verisi taşmış.
+/// `unzip -t` aynı offseti veriyor, biz "arşivin sonu kesik" diyorduk.
+///
+/// `None` → ham byte'lardan ek bir şey söylenemiyor; çağıran yalnız kütüphane mesajını verir.
+/// zip64 arşivleri ATLANIR: 32-bit EOCD alanları kaçış değeri taşır, gerçek offset zip64
+/// kaydındadır ve buradan okunamaz; okunamayanı "bozuk" saymak yanlış teşhis olurdu.
+fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<String> {
+    let read_u16 = |at: usize| -> Option<u16> {
+        zip_bytes.get(at..at + 2).map(|b| u16::from_le_bytes([b[0], b[1]]))
+    };
+    let read_u32 = |at: usize| -> Option<u32> {
+        zip_bytes
+            .get(at..at + 4)
+            .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    };
+
+    // 1) EOCD: dosya sonundan geriye doğru, comment penceresi kadar.
+    let start = zip_bytes.len().saturating_sub(EOCD_SEARCH_WINDOW);
+    let eocd = (start..zip_bytes.len().saturating_sub(EOCD_LEN - 1))
+        .rev()
+        .find(|&i| read_u32(i) == Some(EOCD_SIGNATURE))?;
+
+    let cd_offset = read_u32(eocd + 16)?;
+    let entry_count = read_u16(eocd + 10)?;
+    if cd_offset == ZIP64_SENTINEL || entry_count == u16::MAX {
+        return None; // zip64 → gerçek değerler başka kayıtta
+    }
+    let cd_offset = cd_offset as usize;
+
+    // 2) Merkez dizin, EOCD'nin işaret ettiği yerde mi?
+    if read_u32(cd_offset) != Some(CDH_SIGNATURE) {
+        return Some(format!(
+            "merkez dizin {cd_offset}. bayta işaret ediyor ama orada merkez dizin imzası yok (EOCD {eocd}. baytta okunabildi)"
+        ));
+    }
+
+    // 3) Merkez dizin girdilerini yürü: her girdinin yerel başlığı yerinde mi?
+    let mut cursor = cd_offset;
+    for _ in 0..entry_count {
+        if read_u32(cursor) != Some(CDH_SIGNATURE) {
+            return Some(format!(
+                "merkez dizin {cursor}. bayttan sonra okunamıyor (beklenen girdi sayısı: {entry_count})"
+            ));
+        }
+        let name_len = read_u16(cursor + 28)? as usize;
+        let extra_len = read_u16(cursor + 30)? as usize;
+        let comment_len = read_u16(cursor + 32)? as usize;
+        let local_offset = read_u32(cursor + 42)?;
+        let name = zip_bytes
+            .get(cursor + CDH_LEN..cursor + CDH_LEN + name_len)
+            .map_or_else(|| "?".to_string(), |b| String::from_utf8_lossy(b).into_owned());
+
+        if local_offset != ZIP64_SENTINEL
+            && read_u32(local_offset as usize) != Some(LFH_SIGNATURE)
+        {
+            return Some(format!(
+                "'{name}' yerel başlığı {local_offset}. bayta göre bozuk (imza yok); EOCD ve merkez dizin sağlam, bir önceki girdinin sıkıştırılmış verisi taşmış olabilir"
+            ));
+        }
+        cursor += CDH_LEN + name_len + extra_len + comment_len;
+    }
+
+    // EOCD, merkez dizin ve tüm yerel başlıklar yerinde: bozukluk girdi VERİSİNDE.
+    Some(
+        "EOCD, merkez dizin ve tüm yerel başlıklar yerinde; bozukluk girdilerin sıkıştırılmış verisinde olabilir"
+            .to_string(),
+    )
+}
 
 /// ARC_036: bir girdinin AKIŞ görünümü (yerel başlık + data descriptor) merkez diziniyle
 /// çelişiyor mu?
@@ -1595,7 +1678,13 @@ pub fn parse_with_limits(
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
     let mut archive = zip::ZipArchive::new(cursor).map_err(|e| FatalError {
         code: FatalCode::ZipUnreadable,
-        message: format!("ZIP arşivi açılamadı: {e}"),
+        // Kütüphane mesajı bozukluğun KATMANINI yanlış gösterebiliyor (bkz.
+        // `diagnose_unreadable_zip`), o yüzden ham byte teşhisi ÖNE alınır ve
+        // kütüphane metni arkasına eklenir.
+        message: match diagnose_unreadable_zip(zip_bytes) {
+            Some(detail) => format!("ZIP arşivi açılamadı: {detail}. Kütüphane hatası: {e}"),
+            None => format!("ZIP arşivi açılamadı: {e}"),
+        },
     })?;
     k1dbg!("[K1] archive açıldı: {} entry", archive.len());
     if archive.len() > MAX_ZIP_ENTRIES {
@@ -3573,6 +3662,55 @@ mod tests {
         zw.finish().unwrap().into_inner()
     }
 
+    /// `zip` crate'i (2.4.2) bozuk bir YEREL BAŞLIK için de "Could not find EOCD" döndürüyor;
+    /// o mesajı olduğu gibi aktarmak kullanıcıyı arşivin SONUNA baktırıyordu. Ölçüm
+    /// (`tld-5895`, korpusun tek `ZipUnreadable` feed'i): EOCD ve merkez dizin kusursuz, bozuk
+    /// olan `stop_times.txt`'in yerel başlığıydı (offset 570.618). Teşhis bozukluğun KATMANINI
+    /// ayırt etmeli.
+    #[test]
+    fn zip_diagnosis_points_at_the_broken_local_header() {
+        let files: &[(&str, &[u8])] = &[
+            ("agency.txt", b"agency_name\nA\n"),
+            ("stops.txt", b"stop_id\nS1\n"),
+        ];
+        let mut bytes = zip_with_files(files);
+
+        // Sağlam arşivde hiçbir katman suçlanmaz.
+        let clean = diagnose_unreadable_zip(&bytes).expect("sağlam arşivde de teşhis dönmeli");
+        assert!(
+            clean.contains("tüm yerel başlıklar yerinde"),
+            "sağlam arşiv yanlış katmanı suçluyor: {clean}"
+        );
+
+        // İkinci girdinin yerel başlık imzasını boz; merkez dizin ve EOCD'ye dokunma.
+        let second = bytes
+            .windows(4)
+            .enumerate()
+            .filter(|(_, w)| *w == LFH_SIGNATURE.to_le_bytes())
+            .nth(1)
+            .map(|(i, _)| i)
+            .expect("ikinci yerel başlık bulunmalı");
+        bytes[second] = 0;
+
+        let detail = diagnose_unreadable_zip(&bytes).expect("bozuk yerel başlık teşhis edilmeli");
+        assert!(
+            detail.contains("yerel başlığı") && detail.contains("merkez dizin sağlam"),
+            "yerel başlık bozukluğu doğru anlatılmalı: {detail}"
+        );
+    }
+
+    /// EOCD gerçekten yoksa kütüphane mesajı zaten doğrudur; ek teşhis UYDURULMAMALI.
+    #[test]
+    fn zip_diagnosis_stays_quiet_without_an_eocd() {
+        let files: &[(&str, &[u8])] = &[("agency.txt", b"agency_name\nA\n")];
+        let bytes = zip_with_files(files);
+        let truncated = &bytes[..bytes.len() / 2];
+        assert!(
+            diagnose_unreadable_zip(truncated).is_none(),
+            "EOCD yokken teşhis uydurulmamalı"
+        );
+    }
+
     fn zip_with_files(files: &[(&str, &[u8])]) -> Vec<u8> {
         let buf = std::io::Cursor::new(Vec::new());
         let mut zw = zip::ZipWriter::new(buf);
@@ -5113,3 +5251,4 @@ fn malformed_eol_detects_bare_and_repeated_cr() {
     assert!(!has_malformed_eol(b"a\r\nb\n"));
     assert!(!has_malformed_eol(b"a\n\nb\n"));
 }
+
