@@ -1614,15 +1614,15 @@ pub static RULES: &[RuleMeta] = &[
     // Hüküm: P7917f3c5
     r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution hedef alanları (agency/route/trip) birlikte kullanılmış"),
-    r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "agency_id bulunamadı"),
     // ATR_011/012: attributions.txt'in üç referans alanı üç ayrı kuralla ölçülür. Daha önce
     // route_id ATR_006, trip_id ise ATR_007 altında raporlanıyordu — yani enum/URL biçim
     // hatalarıyla aynı ID'de. Feed-level özet XFL_015 (Kritik) üçünü de kapsadığı için
     // yayın kapısı ATR_010 ile aynı emsalde DÜŞÜK kalır.
-    r!("ATR_011", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_011", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "route_id bulunamadı"),
-    r!("ATR_012", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_012", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "trip_id bulunamadı"),
 
     // ── XFL: Çapraz Dosya / Semantik ───────────────────────────────────────────

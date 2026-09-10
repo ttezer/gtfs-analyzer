@@ -4314,3 +4314,41 @@ fn shp005_silent_on_equal_values_from_csv() {
         other => panic!("Ok beklendi: {other:?}"),
     }
 }
+
+/// ATR_010/011/012 dedup'ı `Entity` iken `attribution_id` boş olan her satır aynı
+/// dedup anahtarına düşüyordu ve feed'de kaç bozuk referans olursa olsun TEK bulgu
+/// kalıyordu. `attributions.attribution_id` spec'te **Optional**, yani kimliksiz dosya
+/// geçerlidir — dedup'ın opsiyonel bir alana dayanması kuralı sessizce susturuyordu.
+/// Ölçüm (`tdg-80245`): 26 dangling `trip_id` → 1 bulgu; MobilityData aynı feed'de
+/// `foreign_key_violation` ile 26'nın hepsini raporluyordu.
+#[test]
+fn attribution_fk_violations_are_reported_per_row_without_attribution_id() {
+    const ATTRIBUTIONS: &[u8] = b"organization_name,is_producer,trip_id\n\
+          Org,1,T8\nOrg,1,T9\n";
+
+    let mut files = base_files();
+    files.push(("attributions.txt", ATTRIBUTIONS));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "ATR_012")
+                .collect();
+            assert_eq!(
+                hits.len(),
+                2,
+                "kimlik yokken her bozuk trip_id ayrı raporlanmalı: {hits:?}"
+            );
+            let seen: Vec<&str> = hits
+                .iter()
+                .filter_map(|n| n.observed_value.as_deref())
+                .collect();
+            assert!(
+                seen.contains(&"T8") && seen.contains(&"T9"),
+                "iki farklı trip_id de görünmeli: {seen:?}"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi: {other:?}"),
+    }
+}
