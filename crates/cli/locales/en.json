@@ -479,7 +479,7 @@
     "ATR_006": "Attribution '{entity_id}': is_authority '{observed_value}' is invalid.",
     "ATR_007": "Attribution: attribution_url '{observed_value}' is invalid.",
     "ATR_008": "Attribution '{entity_id}': attribution_email is invalid.",
-    "ATR_009": "Attribution '{entity_id}': more than one of agency_id, route_id, trip_id is set.",
+    "ATR_009": "{observed_value} in attributions.txt set more than one of agency_id, route_id and trip_id.",
     "ATR_010": "Attribution '{entity_id}': agency_id '{observed_value}' not found.",
     "ATR_011": "Attribution '{entity_id}': route_id '{observed_value}' not found.",
     "ATR_012": "Attribution '{entity_id}': trip_id '{observed_value}' not found.",

@@ -1612,7 +1612,7 @@ pub static RULES: &[RuleMeta] = &[
     // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
     // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
     // Hüküm: P7917f3c5
-    r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, File,
         "attribution hedef alanları (agency/route/trip) birlikte kullanılmış"),
     r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "agency_id bulunamadı"),

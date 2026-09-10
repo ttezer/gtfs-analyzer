@@ -1066,7 +1066,7 @@ const ja: LocaleShape = {
     'ATR_006': "帰属'{entity_id}'：is_authority'{observed_value}'が無効です。",
     'ATR_007': "attributions.txt：attribution_url'{observed_value}'が不正です。",
     'ATR_008': "帰属'{entity_id}'：attribution_emailが無効です。",
-    'ATR_009': "帰属'{entity_id}'：agency_id・route_id・trip_idのうち複数が設定されています。",
+    'ATR_009': 'attributions.txt内の{observed_value}でagency_id・route_id・trip_idのうち複数が設定されています。',
     'ATR_010': "帰属'{entity_id}'：agency_id'{observed_value}'が見つかりません。",
     'ATR_011': "帰属'{entity_id}'：route_id'{observed_value}'が見つかりません。",
     'ATR_012': "帰属'{entity_id}'：trip_id'{observed_value}'が見つかりません。",

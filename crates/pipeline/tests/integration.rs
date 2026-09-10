@@ -4385,3 +4385,29 @@ fn attribution_systemic_violations_are_summarized_once_with_a_count() {
         other => panic!("ValidateResult::Ok beklendi: {other:?}"),
     }
 }
+
+/// ATR_009 da ATR_001/ATR_003 ile aynı sınıfa girer: ölçümde ihlal sayısı her feed'de
+/// SATIR sayısına eşitti (`tdg-82555` 12.240/12.240, `tld-4477` 3.379/3.379), yani üretici
+/// her satırda aynı iki referans alanını birlikte yazıyor. `Entity` dedup kimlik başına
+/// tekilleştirdiği için 5 feed'de 93 notice çıkıyor ve hiçbiri kaç satırın etkilendiğini
+/// söylemiyordu. Dosya başına tek özet + sayı hem tekrarı önler hem hacmi korur.
+#[test]
+fn attribution_mutually_exclusive_refs_are_summarized_once_with_a_count() {
+    const ATTRIBUTIONS: &[u8] = b"attribution_id,organization_name,is_producer,agency_id,route_id\n\
+          A1,Org A,1,A1,R1\nA2,Org B,1,A1,R1\n";
+
+    let mut files = base_files();
+    files.push(("attributions.txt", ATTRIBUTIONS));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "ATR_009").collect();
+            assert_eq!(hits.len(), 1, "dosya başına tek özet beklenir: {hits:?}");
+            assert_eq!(
+                hits[0].observed_value.as_deref(),
+                Some("2 rows"),
+                "etkilenen kayıt sayısı observed_value'da taşınmalı",
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi: {other:?}"),
+    }
+}

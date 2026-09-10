@@ -1087,7 +1087,7 @@ const fr: LocaleShape = {
     'ATR_006': 'Attribution « {entity_id} » : is_authority « {observed_value} » est invalide.',
     'ATR_007': 'Attribution : attribution_url « {observed_value} » n’est pas valide.',
     'ATR_008': 'Attribution « {entity_id} » : attribution_email est invalide.',
-    'ATR_009': 'Attribution « {entity_id} » : plus d’un champ parmi agency_id, route_id, trip_id est renseigné.',
+    'ATR_009': '{observed_value} dans attributions.txt renseignent plus d’un champ parmi agency_id, route_id et trip_id.',
     'ATR_010': 'Attribution « {entity_id} » : agency_id « {observed_value} » est introuvable.',
     'ATR_011': 'Attribution « {entity_id} » : route_id « {observed_value} » est introuvable.',
     'ATR_012': 'Attribution « {entity_id} » : trip_id « {observed_value} » est introuvable.',

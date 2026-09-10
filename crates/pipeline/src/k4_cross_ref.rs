@@ -4873,6 +4873,15 @@ fn check_attributions(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    // ATR_009: DOSYA başına tek özet (ATR_001/ATR_003 ile aynı gerekçe). Ölçümde ihlal
+    // sayısı her feed'de SATIR sayısına eşitti (`tdg-82555` 12.240/12.240, `tld-4477`
+    // 3.379/3.379, `mdb-2374` 72/72) — yani üretici her satırda aynı iki referans alanını
+    // birlikte yazıyor, ihlal tek sistemik tercihten doğuyor. `Entity` dedup kimlik başına
+    // tekilleştirdiği için 5 feed'de 93 notice çıkıyordu ve hiçbiri kaç satırın
+    // etkilendiğini söylemiyordu.
+    let mut both_refs_count: u64 = 0;
+    let mut both_refs_first: Option<u64> = None;
+
     for rec in &records.attributions {
         let eid = rec.attribution_id.clone();
 
@@ -4942,22 +4951,32 @@ fn check_attributions(
             .filter(|x| x.is_some())
             .count();
         if filled > 1 {
-            notices.push(notice(
-                ctr,
-                "ATR_009",
-                EntityType::Attribution,
-                eid.clone(),
-                eid.clone(),
-                "attributions.txt",
-                Some(rec.line),
-                // Olgu ÜÇ hedef alanının birlikte kullanılmasıdır.
-                Some("agency_id|route_id|trip_id"),
-                None,
-                Some("at most one may be set (agency_id/route_id/trip_id)".to_string()),
-                "agency_id, route_id ve trip_id aynı satırda birlikte kullanılamaz.".to_string(),
-                "Bu alanlardan yalnızca birini doldurun.",
-            ));
+            both_refs_count += 1;
+            if both_refs_first.is_none() {
+                both_refs_first = Some(rec.line);
+            }
         }
+    }
+
+    if let Some(first) = both_refs_first {
+        notices.push(notice(
+            ctr,
+            "ATR_009",
+            EntityType::File,
+            None,
+            None,
+            "attributions.txt",
+            Some(first),
+            // Olgu ÜÇ hedef alanının birlikte kullanılmasıdır.
+            Some("agency_id|route_id|trip_id"),
+            Some(format!("{both_refs_count} rows")),
+            Some("at most one may be set (agency_id/route_id/trip_id)".to_string()),
+            format!(
+                "attributions.txt dosyasındaki {both_refs_count} kayıtta agency_id, route_id ve \
+                 trip_id alanlarından birden fazlası dolu (ör. satır {first})."
+            ),
+            "Bu alanlardan yalnızca birini doldurun.",
+        ));
     }
 }
 
