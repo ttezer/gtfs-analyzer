@@ -1058,9 +1058,9 @@ const ja: LocaleShape = {
     'TRN_013': '翻訳：IDフィールドはfeed_info翻訳では使用できません。',
     'TRN_014': '翻訳：record_sub_idはstop_timesにのみ有効です。',
     // ATR
-    'ATR_001': 'attribution_idがありません。',
+    'ATR_001': 'attributions.txt内の{observed_value}にattribution_idがありません。これらのレコードは重複時に区別できません。',
     'ATR_002': "帰属'{entity_id}'：organization_nameがありません。",
-    'ATR_003': "帰属'{entity_id}'：役割が定義されていません（is_producer、is_operator、is_authority）。",
+    'ATR_003': 'attributions.txt内の{observed_value}に帰属の役割が定義されていません（is_producer、is_operator、is_authority）。',
     'ATR_004': "帰属'{entity_id}'：is_producer'{observed_value}'が無効です。",
     'ATR_005': "帰属'{entity_id}'：is_operator'{observed_value}'が無効です。",
     'ATR_006': "帰属'{entity_id}'：is_authority'{observed_value}'が無効です。",

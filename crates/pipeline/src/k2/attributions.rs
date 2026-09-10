@@ -26,6 +26,17 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
+    // ATR_001/ATR_003: DOSYA başına tek özet (FAR_013/DQ_016 deseni). Her iki ihlal de
+    // TEK sistemik nedenden doğar — `attribution_id` sütununun hiç yazılmaması ya da rol
+    // sütunlarının hiç doldurulmaması — ve satır başına emit aynı cümleyi tekrarlar.
+    // Ölçüm (124 feed, `attributions.txt` taşıyanlar): satır başına emit ATR_001'de
+    // 391.871, ATR_003'te 6.472 notice demekti; tek feed 97.261 satır taşıyor.
+    // Özet, sayıyı `observed_value` üzerinden taşır, böylece kaç satırın etkilendiği
+    // kaybolmaz.
+    let mut missing_id_count: u64 = 0;
+    let mut missing_id_first: Option<u64> = None;
+    let mut no_role_count: u64 = 0;
+    let mut no_role_first: Option<u64> = None;
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -34,22 +45,12 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // ATR_001: attribution_id eksik (tavsiye edilen)
+        // ATR_001: attribution_id eksik (tavsiye edilen) — dosya sonunda tek özet
         if attribution_id.is_none() {
-            notices.push(make_k2_notice(
-                &mut counter,
-                "ATR_001",
-                EntityType::Attribution,
-                None,
-                Some(&row_map),
-                &file.name,
-                Some(line),
-                Some("attribution_id"),
-                Some(String::new()),
-                None,
-                "attribution_id belirtilmemiş; kayıt tekrarında ayrım yapılamaz.".to_string(),
-                "Her attribution kaydına benzersiz bir attribution_id atayın.",
-            ));
+            missing_id_count += 1;
+            if missing_id_first.is_none() {
+                missing_id_first = Some(line);
+            }
         }
 
         let organization_name = get_trimmed_field(&row_map, "organization_name")
@@ -108,21 +109,10 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             && !matches!(is_operator, Some(1))
             && !matches!(is_authority, Some(1))
         {
-            notices.push(make_k2_notice(
-                &mut counter,
-                "ATR_003",
-                EntityType::Attribution,
-                attribution_id.clone(),
-                Some(&row_map),
-                &file.name,
-                Some(line),
-                // Hüküm üç rol alanının BİRLİKTE boş olmasıdır; üçü de adlandırılır.
-                Some("is_producer|is_operator|is_authority"),
-                None,
-                Some("en az bir rol = 1".to_string()),
-                "En az bir attribution rolü 1 olarak ayarlanmalıdır.".to_string(),
-                "is_producer, is_operator veya is_authority değerinden en az birini 1 olarak ayarlayın.",
-            ));
+            no_role_count += 1;
+            if no_role_first.is_none() {
+                no_role_first = Some(line);
+            }
         }
 
         let attribution_url = get_lexical_field(&row_map, "attribution_url")
@@ -193,6 +183,45 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             row: row_map,
             line,
         });
+    }
+
+    if let Some(first) = missing_id_first {
+        notices.push(make_k2_notice(
+            &mut counter,
+            "ATR_001",
+            EntityType::File,
+            None,
+            None,
+            &file.name,
+            Some(first),
+            Some("attribution_id"),
+            Some(format!("{missing_id_count} rows")),
+            None,
+            format!(
+                "attributions.txt dosyasındaki {missing_id_count} kayıtta attribution_id yok                  (ör. satır {first}); bu kayıtlar tekrarda ayrılamaz."
+            ),
+            "Her attribution kaydına benzersiz bir attribution_id atayın.",
+        ));
+    }
+
+    if let Some(first) = no_role_first {
+        notices.push(make_k2_notice(
+            &mut counter,
+            "ATR_003",
+            EntityType::File,
+            None,
+            None,
+            &file.name,
+            Some(first),
+            // Hüküm üç rol alanının BİRLİKTE boş olmasıdır; üçü de adlandırılır.
+            Some("is_producer|is_operator|is_authority"),
+            Some(format!("{no_role_count} rows")),
+            Some("en az bir rol = 1".to_string()),
+            format!(
+                "attributions.txt dosyasındaki {no_role_count} kayıtta hiçbir attribution rolü                  tanımlı değil (ör. satır {first})."
+            ),
+            "is_producer, is_operator veya is_authority değerinden en az birini 1 olarak ayarlayın.",
+        ));
     }
 
     (records, notices)

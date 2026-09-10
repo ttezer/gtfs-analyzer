@@ -1592,11 +1592,11 @@ pub static RULES: &[RuleMeta] = &[
         "field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor"),
 
     // ── ATR: Attributions ──────────────────────────────────────────────────────
-    r!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, File,
         "attribution_id eksik"),
     r!("ATR_002", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
         "organization_name eksik"),
-    r!("ATR_003", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, Entity,
+    r!("ATR_003", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, File,
         "Attribution rolü tanımlanmamış"),
     r!("ATR_004", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
         "is_producer geçersiz"),

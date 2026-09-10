@@ -4352,3 +4352,36 @@ fn attribution_fk_violations_are_reported_per_row_without_attribution_id() {
         other => panic!("ValidateResult::Ok beklendi: {other:?}"),
     }
 }
+
+/// ATR_001/ATR_003 dedup'ı `Entity` iken kimliksiz dosyada tek bulguya çöküyordu ve
+/// mesaj kaç kaydın etkilendiğini söylemiyordu. Her iki ihlal de TEK sistemik nedenden
+/// doğar (sütunun hiç yazılmaması, rol sütunlarının hiç doldurulmaması), bu yüzden satır
+/// başına emit aynı cümleyi tekrarlar: ölçümde 124 feed için ATR_001'de 391.871,
+/// ATR_003'te 6.472 notice demekti. Dosya başına tek özet + `observed_value` içinde sayı
+/// hem tekrarı önler hem etkilenen kayıt sayısını korur (FAR_013/DQ_016 deseni).
+#[test]
+fn attribution_systemic_violations_are_summarized_once_with_a_count() {
+    const ATTRIBUTIONS: &[u8] = b"organization_name\nOrg A\nOrg B\nOrg C\n";
+
+    let mut files = base_files();
+    files.push(("attributions.txt", ATTRIBUTIONS));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            for rule in ["ATR_001", "ATR_003"] {
+                let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+                assert_eq!(hits.len(), 1, "{rule}: dosya başına tek özet beklenir: {hits:?}");
+                assert_eq!(
+                    hits[0].observed_value.as_deref(),
+                    Some("3 rows"),
+                    "{rule}: etkilenen kayıt sayısı observed_value'da taşınmalı",
+                );
+                assert!(
+                    hits[0].message.contains('3'),
+                    "{rule}: mesaj sayıyı içermeli: {}",
+                    hits[0].message,
+                );
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi: {other:?}"),
+    }
+}

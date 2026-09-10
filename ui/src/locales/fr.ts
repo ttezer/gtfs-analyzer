@@ -1079,9 +1079,9 @@ const fr: LocaleShape = {
     'TRN_013': 'Traduction : un champ d’identité ne peut pas être utilisé dans une traduction de feed_info.',
     'TRN_014': 'Traduction : record_sub_id n’est valide que pour stop_times.',
     // ATR
-    'ATR_001': 'attribution_id est absent.',
+    'ATR_001': '{observed_value} dans attributions.txt n’ont pas d’attribution_id ; ces enregistrements ne peuvent pas être distingués en cas de répétition.',
     'ATR_002': 'Attribution « {entity_id} » : organization_name est absent.',
-    'ATR_003': 'Attribution « {entity_id} » : aucun rôle n’est défini (is_producer, is_operator, is_authority).',
+    'ATR_003': '{observed_value} dans attributions.txt ne définissent aucun rôle d’attribution (is_producer, is_operator, is_authority).',
     'ATR_004': 'Attribution « {entity_id} » : is_producer « {observed_value} » est invalide.',
     'ATR_005': 'Attribution « {entity_id} » : is_operator « {observed_value} » est invalide.',
     'ATR_006': 'Attribution « {entity_id} » : is_authority « {observed_value} » est invalide.',
