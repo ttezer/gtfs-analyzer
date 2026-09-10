@@ -32,7 +32,7 @@ adjudike edildi. Bölümler tam bitirilir, yarım bırakılmaz — kalan sayıs�
 > Aşağıdaki tur bölümleri o günkü kararları taşır; **kapanış durumu tek yerde tutulur:
 > "DURUM MAKİNESİ" tablosu.**
 
-## GÜNCEL UYGULAMA DURUMU — 2026-09-09
+## GÜNCEL UYGULAMA DURUMU — 2026-09-10
 
 Bu tablo canlı çalışma durumudur. Aşağıdaki tarihsel bölümlerde geçen “açık”, “kapandı”
 veya “tek kalan kalem” ifadeleri kendi tarihsel bağlamında okunmalıdır; güncel iş kuyruğu
@@ -50,7 +50,32 @@ olarak kullanılmamalıdır.
 | `GGL_002` | Google'ın resmi uzantı dokümanına göre `fare_attributes.txt` → `ic_price` olarak hizalandı; kod, fixture ve kart güncellendi. |
 | `agency_lang` | Yerel 830 feed korpusunda 826 `agency.txt`, 2.373 agency satırı; 463 satırda (%19,51) eksik, 54 feed etkileniyor. Bu, açık **Quality** kuyruğudur; yalnız ölçüm yapıldı, yeni notice eklenmedi. |
 | linked trip | Terim/kapsam hâlâ tanımsız; mevcut hüküm KAPSAM DIŞI olarak korunuyor. Bu, açık **Quality/tanım** kuyruğudur; mesafe ölçümü ve eşik belirlenmedi. |
-| timeout asimetrisi | `ANALYZER_TIMEOUT` 420 saniyeye hizalandı; artifact kanıtı mevcut, tam korpus doğrulaması bekliyor. `#2142` bu checkout'un GitHub deposunda bulunamadı. |
+| timeout asimetrisi | **KAPANDI.** `ANALYZER_TIMEOUT` 420 saniyeye hizalandı ve 16. koşumda doğrulandı: korpusta **0 timeout** (15. koşumda 2). `mdb-784` 305,4 sn'de tamamlandı — eski 300 sn sınırıyla bu turda DA kesilirdi. `#2142` bu checkout'un GitHub deposunda bulunamadı. |
+| `ARC_036` | 16. koşumda ilk kez ölçüldü: 4.342 feed'de **2 bulgu** (`mdb-2607`, `tdg-81618`); ikisinde de MobilityData arşivi açamıyor (`partial_internal`, exit 255). FP kapısı 200 feed'lik örneklemle kurulmuştu, korpus geneli doğruladı. |
+| `TRN_016` | Kapsam `trips` ve `stop_times`'a genişledi (46 → 77 feed). Değer kümesi `(tablo, alan)` başına bir kez kuruluyor; `mdb-865`'te K4 98.420 ms → 1.041 ms. |
+| ATR dedup | FK kolları (`ATR_010/011/012`) satır başına raporluyor (ölçülen bedel +25 notice). Sistemik kurallar (`ATR_001/003/009`) dosya başına tek özet + `observed_value`'da kayıt sayısı. |
+| `analyzer_spec_unmapped` | 16. koşumda 0 → 2 (`SAR_003`, `ATR_012` ilk kez ateşledi — korpus kayması, kod değişikliği değil). İkisi de ham feed'e karşı doğrulandı, MD karşılıkları (`missing_required_field`, `foreign_key_violation`) deftere işlendi → tekrar **0**. |
+
+
+### 16. korpus koşumu — künye (kanıt kaydı)
+
+| | |
+|---|---|
+| run | `34400576914` · commit `f9a3b3a9` · MD 8.0.1 · `--today 20260820` |
+| sonuç | 643/643 job, TEK denemede, 73 dk · `complete: true`, `missing_attempts: 0` |
+| korpus | denenen 4.342 · indirilen 4.310 · iki validatör de temiz 4.297 · **timeout 0** |
+| kod etkisi | aynı-arşiv altkümesi **3.415 feed**: 23.249.922 → 23.249.940 notice (**+18**). Oynayan tek iki kural: `TRN_016` +16, `ARC_036` +2. **Susan kural yok.** |
+| korpus geneli | 36.619.570 → 40.342.307 notice; artışın ~3,59M'i timeout'tan dönen iki feed (`mdb-784`, `mdb-2014`), kalanı 916 feed'in arşiv değişimi. Kod etkisi DEĞİLDİR. |
+| skorlar | score 90,04 → 90,00 · pub 98,00 → 97,98 · spec 96,87 → 96,84 · `pub_score = 100` feed 3.567 → 3.581 |
+| süre/bellek | aynı-arşiv toplam süre 34,1 → 33,6 dk (regresyon yok), p95 2,07 → 1,96 s · peak RSS medyan 14 MB, >1 GB 95 feed (%2,2), >8 GB 7 |
+
+⚠️ **Artifact repo DIŞINDA:** `/Users/tacettintezer/GTFS/run18-artifacts/` (15. koşum `run17-artifacts`).
+GitHub artifact'i süresi dolunca silinir; yukarıdaki sayılar bu tablodan okunur.
+
+🔑 **Aynı-arşiv altkümesi regresyonu maskeleyebilir.** Bu koşumda `mdb-865`'in arşivi değiştiği
+için altkümeye girmedi ve `TRN_016`'nın o feed'de yarattığı **97 saniyelik** gecikme
+"toplam süre −29 s" sonucunun içinde görünmedi. Süre iddiaları için aynı-arşiv ölçümü
+gerekli ama YETERLİ değildir; arşivi değişen ağır feed'ler ayrıca incelenmelidir.
 
 Bu tablo, aşağıdaki tarihsel bölümlerdeki eski BOŞLUK/KISMİ etiketlerinden önceliklidir.
 Kapanan adayların güncel eşlemesi ilgili bölüm tablolarına işlendi; eski bulgu metinleri
