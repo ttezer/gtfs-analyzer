@@ -5500,7 +5500,13 @@ fn check_xfl(
             .filter(|sid| !cal_services.contains(*sid) && !added_services.contains(*sid))
             .collect();
         if !bad.is_empty() {
-            let bad_list: Vec<&str> = bad.into_iter().collect();
+            // 🔴 `bad` bir HashSet: sırası process'e göre değişir. Sıralama olmadan aynı feed
+            // aynı binary'de her koşumda BAŞKA bir mesaj/observed_value üretiyordu — ölçüldü
+            // (`mdb-2280`, üç koşum üç farklı sıra). Korpus karşılaştırması, golden çıktı ve
+            // kullanıcıya verilen rapor bundan etkileniyordu. Komşu kurallar zaten sıralıyor
+            // (FRL zone listesi `sort_unstable`, AGN_017 `langs.sort()`, `join_capped` BTreeSet).
+            let mut bad_list: Vec<&str> = bad.into_iter().collect();
+            bad_list.sort_unstable();
             notices.push(notice(
                 ctr,
                 "XFL_006",
@@ -8639,6 +8645,39 @@ mod tests {
         recs.calendar_dates = idx;
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_006"));
+    }
+
+    /// XFL_006'nın listesi `HashSet`'ten geliyor; sıralanmazsa aynı feed aynı binary'de her
+    /// koşumda BAŞKA bir `observed_value` üretir. Ölçüldü (`mdb-2280`, korpusta 63 feed):
+    /// üç koşum üç farklı sıra verdi ve bu, korpus karşılaştırmasını, golden çıktıyı ve
+    /// kullanıcıya giden raporu etkiliyordu.
+    #[test]
+    fn xfl_006_lists_service_ids_in_a_stable_order() {
+        use crate::k2::calendar_dates::CalendarDateIndex;
+        let (mut recs, _map) = empty();
+        let mut idx = CalendarDateIndex::default();
+        for sid in ["WK_3844", "MT", "FR", "P_Fri", "WK_3843"] {
+            idx.removed.insert(sid.into(), vec![]);
+            idx.exception_count.insert(sid.into(), 1);
+        }
+        recs.calendar_dates = idx;
+
+        let result = check(&recs, &EntityMap::default(), 20260515);
+        let hit = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "XFL_006")
+            .expect("XFL_006 bekleniyor");
+        let observed = hit.observed_value.as_deref().expect("observed_value dolu olmalı");
+        assert_eq!(
+            observed, "FR, MT, P_Fri, WK_3843, WK_3844",
+            "service_id listesi sıralı olmalı (HashSet sırası sızmamalı)"
+        );
+        assert!(
+            hit.message.contains("FR, MT, P_Fri, WK_3843, WK_3844"),
+            "mesaj da aynı sıralı listeyi taşımalı: {}",
+            hit.message
+        );
     }
 
     // �"?�"? XFL_011 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
