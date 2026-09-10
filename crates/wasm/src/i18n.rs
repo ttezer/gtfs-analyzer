@@ -110,6 +110,8 @@ mod tests {
             observed_value: Some("25:1:00".to_string()),
             expected_value: None,
             details: None,
+            whitespace_derived: false,
+            whitespace_candidate: false,
             title: "Türkçe başlık".to_string(),
             message: "Türkçe mesaj".to_string(),
             remediation: "Türkçe çözüm".to_string(),

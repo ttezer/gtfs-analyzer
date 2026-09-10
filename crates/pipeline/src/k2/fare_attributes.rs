@@ -2,9 +2,11 @@ use gtfs_core::EntityType;
 
 use super::common::{
     amount_has_iso4217_decimals, build_row_map, get_raw_field, get_trimmed_field,
-    iso4217_minor_unit, make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap,
+    iso4217_minor_unit, make_k2_notice, parse_f64, parse_u32, validate_enum,
+    whitespace_only_parser_failure, RowMap,
 };
 use crate::k1_parse::RawFile;
+use crate::WhitespaceSuppressions;
 
 #[derive(Debug, Clone)]
 pub struct FareAttributeRecord {
@@ -22,8 +24,31 @@ pub struct FareAttributeRecord {
 pub fn validate_fare_attributes(
     file: &RawFile,
 ) -> (Vec<FareAttributeRecord>, Vec<gtfs_core::Notice>) {
+    let (records, notices, _) = validate_fare_attributes_inner(file, false);
+    (records, notices)
+}
+
+pub(super) fn validate_fare_attributes_with_suppression(
+    file: &RawFile,
+) -> (
+    Vec<FareAttributeRecord>,
+    Vec<gtfs_core::Notice>,
+    WhitespaceSuppressions,
+) {
+    validate_fare_attributes_inner(file, true)
+}
+
+fn validate_fare_attributes_inner(
+    file: &RawFile,
+    suppress_whitespace_derivatives: bool,
+) -> (
+    Vec<FareAttributeRecord>,
+    Vec<gtfs_core::Notice>,
+    WhitespaceSuppressions,
+) {
     let mut notices = Vec::new();
     let mut records = Vec::new();
+    let mut whitespace_suppressions = WhitespaceSuppressions::default();
     let mut counter = 0;
     // FAR_013: dosya başına TEK özet — ölçümde tek feed 1,1M satır üretiyordu.
     let mut iso_bad: u64 = 0;
@@ -103,20 +128,27 @@ pub fn validate_fare_attributes(
                 value
             }
             Err(err) => {
-                notices.push(make_k2_notice(
-                    &mut counter,
-                    "FAR_002",
-                    EntityType::Fare,
-                    entity_id.clone(),
-                    Some(&row_map),
-                    &file.name,
-                    Some(line),
-                    Some("price"),
-                    get_trimmed_field(&row_map, "price").map(str::to_string),
-                    None,
-                    err,
-                    "price için geçerli bir sayısal değer girin.",
-                ));
+                let observed = get_trimmed_field(&row_map, "price");
+                if suppress_whitespace_derivatives
+                    && whitespace_only_parser_failure("FAR_002", &row_map, "price", observed)
+                {
+                    whitespace_suppressions.record(&file.name, "FAR_002");
+                } else {
+                    notices.push(make_k2_notice(
+                        &mut counter,
+                        "FAR_002",
+                        EntityType::Fare,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("price"),
+                        observed.map(str::to_string),
+                        None,
+                        err,
+                        "price için geçerli bir sayısal değer girin.",
+                    ));
+                }
                 None
             }
         };
@@ -198,6 +230,8 @@ pub fn validate_fare_attributes(
             &entity_id,
             line,
             &file.name,
+            suppress_whitespace_derivatives,
+            &mut whitespace_suppressions,
         );
         // FAR_011: payment_method required (sütun yoksa ARC_025 devralır → atla)
         if get_trimmed_field(&row_map, "payment_method") == Some("") {
@@ -226,6 +260,8 @@ pub fn validate_fare_attributes(
             &entity_id,
             line,
             &file.name,
+            suppress_whitespace_derivatives,
+            &mut whitespace_suppressions,
         );
 
         let transfer_duration = match parse_u32(&row_map, "transfer_duration") {
@@ -277,7 +313,7 @@ pub fn validate_fare_attributes(
         ));
     }
 
-    (records, notices)
+    (records, notices, whitespace_suppressions)
 }
 
 // Bu yardımcı farklı FAR enum alanlarını aynı açık parse/emit tablosuyla işler;
@@ -293,6 +329,8 @@ fn parse_enum_u32(
     entity_id: &Option<String>,
     line: u64,
     file_name: &str,
+    suppress_whitespace_derivatives: bool,
+    whitespace_suppressions: &mut WhitespaceSuppressions,
 ) -> Option<u32> {
     match parse_u32(row_map, field) {
         Ok(value) => {
@@ -317,20 +355,27 @@ fn parse_enum_u32(
             value
         }
         Err(err) => {
-            notices.push(make_k2_notice(
-                counter,
-                rule_id,
-                EntityType::Fare,
-                entity_id.clone(),
-                Some(row_map),
-                file_name,
-                Some(line),
-                Some(field),
-                get_trimmed_field(row_map, field).map(str::to_string),
-                None,
-                err,
-                "Alanı geçerli bir spec enum değerine ayarlayın.",
-            ));
+            let observed = get_trimmed_field(row_map, field);
+            if suppress_whitespace_derivatives
+                && whitespace_only_parser_failure(rule_id, row_map, field, observed)
+            {
+                whitespace_suppressions.record(file_name, rule_id);
+            } else {
+                notices.push(make_k2_notice(
+                    counter,
+                    rule_id,
+                    EntityType::Fare,
+                    entity_id.clone(),
+                    Some(row_map),
+                    file_name,
+                    Some(line),
+                    Some(field),
+                    observed.map(str::to_string),
+                    None,
+                    err,
+                    "Alanı geçerli bir spec enum değerine ayarlayın.",
+                ));
+            }
             None
         }
     }
@@ -374,6 +419,45 @@ mod tests {
         );
         let (_, notices) = validate_fare_attributes(&file);
         assert!(notices.iter().any(|notice| notice.rule_id == "FAR_002"));
+    }
+
+    #[test]
+    fn whitespace_flags_do_not_allocate_a_details_map_and_can_be_counted_early() {
+        let file = make_file(
+            &[
+                "fare_id",
+                "price",
+                "currency_type",
+                "payment_method",
+                "transfers",
+            ],
+            vec![vec!["F1", " 1.00", "EUR", " 0", " 0"]],
+        );
+
+        let (_, notices) = validate_fare_attributes(&file);
+        let derivatives: Vec<_> = notices
+            .iter()
+            .filter(|notice| matches!(notice.rule_id.as_str(), "FAR_002" | "FAR_004" | "FAR_005"))
+            .collect();
+        assert_eq!(derivatives.len(), 3);
+        assert!(derivatives.iter().all(|notice| notice.whitespace_derived));
+        assert!(derivatives.iter().all(|notice| notice.details.is_none()));
+
+        let (_, notices, suppressions) = validate_fare_attributes_with_suppression(&file);
+        assert!(notices
+            .iter()
+            .all(|notice| !matches!(notice.rule_id.as_str(), "FAR_002" | "FAR_004" | "FAR_005")));
+        let (count, rules) = suppressions
+            .audit_for("fare_attributes.txt")
+            .expect("üç erken bastırma sayılmalı");
+        assert_eq!(count, 3);
+        assert_eq!(
+            rules,
+            ["FAR_002", "FAR_004", "FAR_005"]
+                .into_iter()
+                .map(str::to_string)
+                .collect()
+        );
     }
 
     #[test]

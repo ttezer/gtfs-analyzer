@@ -10,6 +10,7 @@ use gtfs_rules::get_rule;
 
 use crate::k2::{EntityRecords, GTFS_JP_FILES};
 use crate::k5_derived::DerivedData;
+use crate::WhitespaceSuppressions;
 
 // ── Çıktı tipi ────────────────────────────────────────────────────────────────
 
@@ -29,10 +30,30 @@ pub fn report(
     already_deduped: bool,
     coverage_complete: bool,
 ) -> K7Result {
+    report_with_whitespace_suppressions(
+        all_notices,
+        records,
+        derived,
+        file_stats,
+        already_deduped,
+        coverage_complete,
+        WhitespaceSuppressions::default(),
+    )
+}
+
+pub fn report_with_whitespace_suppressions(
+    all_notices: Vec<Notice>,
+    records: &EntityRecords,
+    derived: &DerivedData,
+    file_stats: Vec<FileInfo>,
+    already_deduped: bool,
+    coverage_complete: bool,
+    early_suppressions: WhitespaceSuppressions,
+) -> K7Result {
     use crate::timing::Timer;
     let all_notices = {
         let _t = Timer::start("K7::suppress_whitespace_derivatives");
-        suppress_whitespace_derivatives(all_notices, records)
+        suppress_whitespace_derivatives(all_notices, records, early_suppressions)
     };
     let all_notices = {
         let _t = Timer::start("K7::fill_service_ids");
@@ -44,6 +65,7 @@ pub fn report(
         let _t = Timer::start("K7::dedup");
         dedup(all_notices)
     };
+    materialize_retained_whitespace_flags(&mut notices);
     // Determinizm: id'ler katmanların EMİSYON sırasından geliyordu ve o sıra HashMap
     // iterasyonlarına bağlı olduğu için koşudan koşuya kayıyordu (içerik aynı, id farklı).
     // Dedup çıktısı `notice_order_key` ile kararlı sıralı olduğundan, id'ler burada yeniden
@@ -81,6 +103,7 @@ pub fn report(
 fn suppress_whitespace_derivatives(
     mut notices: Vec<Notice>,
     records: &EntityRecords,
+    early_suppressions: WhitespaceSuppressions,
 ) -> Vec<Notice> {
     let references = WhitespaceReferences::from_records(records);
 
@@ -97,7 +120,14 @@ fn suppress_whitespace_derivatives(
         .filter_map(|n| n.file.clone())
         .collect();
 
-    let mut suppressed: BTreeMap<String, (u64, BTreeSet<String>)> = BTreeMap::new();
+    let mut suppressed: BTreeMap<String, (u64, BTreeSet<String>)> = files_with_root
+        .iter()
+        .filter_map(|file| {
+            early_suppressions
+                .audit_for(file)
+                .map(|audit| (file.clone(), audit))
+        })
+        .collect();
     notices.retain(|notice| {
         if !is_whitespace_derivative(notice, &references) {
             return true;
@@ -135,12 +165,7 @@ fn suppress_whitespace_derivatives(
 }
 
 fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
-    let marked = notice
-        .details
-        .as_ref()
-        .and_then(|d| d.get("whitespace_derived"))
-        .is_some_and(|v| v == "true");
-    if marked {
+    if notice.whitespace_derived {
         return true;
     }
 
@@ -159,12 +184,7 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
     // K4 yalnızca hedefte bulunmayan ham ID'yi raporlar. Aynı ID'nin trim edilmiş biçimi
     // hedef kümede varsa, bu tam olarak whitespace kaynaklı bir FK semptomudur; gerçekten
     // bilinmeyen "  UNKNOWN " değerleri görünür kalır.
-    let candidate = notice
-        .details
-        .as_ref()
-        .and_then(|d| d.get("whitespace_candidate"))
-        .is_some_and(|v| v == "true");
-    if candidate && normalized_reference_exists(notice, references) {
+    if notice.whitespace_candidate && normalized_reference_exists(notice, references) {
         return true;
     }
 
@@ -178,6 +198,25 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
     //      (ör. yinelenen anahtar bulgusu) ve bastırılmamalıdır.
     // Gerçekten bilinmeyen bir id'nin trim'li karşılığı da yoktur → görünür kalır.
     mirror_whitespace_symptom(notice, references)
+}
+
+/// İç işaretler K7 kararına kadar allocation-free tutulur. Kökü bulunmadığı veya trim edilmiş
+/// karşılığı gerçekten mevcut olmadığı için korunan bulguda eski JSON sözleşmesini geri kurar.
+fn materialize_retained_whitespace_flags(notices: &mut [Notice]) {
+    for notice in notices {
+        if notice.whitespace_derived {
+            notice
+                .details
+                .get_or_insert_with(BTreeMap::new)
+                .insert("whitespace_derived".to_string(), "true".to_string());
+        }
+        if notice.whitespace_candidate {
+            notice
+                .details
+                .get_or_insert_with(BTreeMap::new)
+                .insert("whitespace_candidate".to_string(), "true".to_string());
+        }
+    }
 }
 
 /// Ham id bulunamıyor ama boşluk yok sayılınca bulunuyor → whitespace kaynaklı FK semptomu.
@@ -1366,6 +1405,8 @@ mod tests {
             observed_value: None,
             expected_value: None,
             details: None,
+            whitespace_derived: false,
+            whitespace_candidate: false,
             title: String::new(),
             message: String::new(),
             remediation: String::new(),

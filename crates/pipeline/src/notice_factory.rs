@@ -52,6 +52,8 @@ pub(crate) fn build(
         observed_value,
         expected_value,
         details: None,
+        whitespace_derived: false,
+        whitespace_candidate: false,
         title: meta.title.to_string(),
         message,
         remediation: remediation.to_string(),

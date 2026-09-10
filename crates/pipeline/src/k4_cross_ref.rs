@@ -9,6 +9,7 @@ use crate::k2::{EntityRecords, GTFS_JP_FILES};
 use crate::k3_entity_graph::EntityMap;
 use crate::recovery::FileAvailability;
 use crate::timing::Timer;
+use crate::WhitespaceSuppressions;
 
 // �"?�"? �?ıktı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
@@ -16,6 +17,7 @@ use crate::timing::Timer;
 pub struct K4Result {
     pub notices: Vec<Notice>,
     pub skipped_checks: Vec<String>,
+    pub whitespace_suppressions: WhitespaceSuppressions,
 }
 
 // �"?�"? Ana fonksiyon �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
@@ -30,8 +32,21 @@ pub fn check_with_files(
     today: u32,
     availability: &FileAvailability<'_>,
 ) -> K4Result {
+    check_with_files_and_whitespace_roots(records, entity_map, today, availability, None)
+}
+
+/// Pipeline, erken bastırmayı yalnız K1'de DQ_016 kökü kanıtlanmış dosyalarda açar.
+/// Doğrudan K4 çağrıları üstteki API üzerinden eski notice akışını korur.
+pub fn check_with_files_and_whitespace_roots(
+    records: &EntityRecords,
+    entity_map: &EntityMap,
+    today: u32,
+    availability: &FileAvailability<'_>,
+    whitespace_root_files: Option<&HashSet<String>>,
+) -> K4Result {
     let mut notices = Vec::new();
     let mut skipped_checks = Vec::new();
+    let mut whitespace_suppressions = WhitespaceSuppressions::default();
     let mut ctr = 0u32;
     let map = entity_map;
 
@@ -285,7 +300,14 @@ pub fn check_with_files(
         "K4::fare_attributes",
         availability.available("fare_attributes.txt"),
         {
-            check_fare_attributes(records, map, &mut notices, &mut ctr);
+            check_fare_attributes(
+                records,
+                map,
+                &mut notices,
+                &mut ctr,
+                whitespace_root_files.is_some_and(|files| files.contains("fare_attributes.txt")),
+                &mut whitespace_suppressions,
+            );
         }
     );
     gate!(
@@ -541,6 +563,7 @@ pub fn check_with_files(
     K4Result {
         notices,
         skipped_checks,
+        whitespace_suppressions,
     }
 }
 
@@ -583,11 +606,7 @@ fn notice(
         remediation,
     );
     if whitespace_candidate {
-        notice.details = Some(
-            [("whitespace_candidate".to_string(), "true".to_string())]
-                .into_iter()
-                .collect(),
-        );
+        notice.whitespace_candidate = true;
     }
     notice
 }
@@ -2446,6 +2465,8 @@ fn check_fare_attributes(
     map: &EntityMap,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
+    suppress_whitespace_derivatives: bool,
+    whitespace_suppressions: &mut WhitespaceSuppressions,
 ) {
     // FAR_009 için: hangi fare_id'lerin fare_rules'u var
     let fares_with_rules: HashSet<&str> = records
@@ -2459,20 +2480,24 @@ fn check_fare_attributes(
     for rec in &records.fare_attributes {
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
-                notices.push(notice(
-                    ctr,
-                    "FAR_008",
-                    EntityType::Fare,
-                    Some(rec.fare_id.clone()),
-                    Some(rec.fare_id.clone()),
-                    "fare_attributes.txt",
-                    Some(rec.line),
-                    Some("agency_id"),
-                    Some(aid.clone()),
-                    None,
-                    format!("'{}' işletici kodu agency.txt'te tanımlı değil.", aid),
-                    "Geçerli bir agency_id kullanın.",
-                ));
+                if suppress_whitespace_derivatives && map.agencies.contains_key(aid.trim()) {
+                    whitespace_suppressions.record("fare_attributes.txt", "FAR_008");
+                } else {
+                    notices.push(notice(
+                        ctr,
+                        "FAR_008",
+                        EntityType::Fare,
+                        Some(rec.fare_id.clone()),
+                        Some(rec.fare_id.clone()),
+                        "fare_attributes.txt",
+                        Some(rec.line),
+                        Some("agency_id"),
+                        Some(aid.clone()),
+                        None,
+                        format!("'{}' işletici kodu agency.txt'te tanımlı değil.", aid),
+                        "Geçerli bir agency_id kullanın.",
+                    ));
+                }
             }
         } else {
             // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.

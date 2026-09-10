@@ -11,16 +11,19 @@ pub mod k7_reporting;
 pub(crate) mod notice_factory;
 pub mod recovery;
 pub(crate) mod timing;
+pub mod whitespace_suppression;
 
 pub use k1_parse::{parse, parse_with_limits, K1Result, RawFile, RawFiles};
 pub use k2::{
     validate as validate_k2, validate_with_stream_limit as validate_k2_with_stream_limit,
     validate_with_stream_limit_and_jp_signal as validate_k2_with_jp_signal, EntityRecords,
+    validate_with_stream_limit_and_jp_signal_and_whitespace_roots as validate_k2_with_whitespace_roots,
     K2Result, GTFS_JP_FILES,
 };
 pub use k3_entity_graph::{build as build_entity_map, EntityMap, K3Result};
 pub use k4_cross_ref::{
-    check as check_cross_ref, check_with_files as check_cross_ref_with_files, K4Result,
+    check as check_cross_ref, check_with_files as check_cross_ref_with_files,
+    check_with_files_and_whitespace_roots as check_cross_ref_with_whitespace_roots, K4Result,
 };
 pub use k5_derived::{
     build as build_derived, build_with_files as build_derived_with_files, DerivedData, K5Result,
@@ -28,8 +31,12 @@ pub use k5_derived::{
 pub use k6_analytics::{
     analyze as analyze_k6, analyze_with_files as analyze_k6_with_files, K6Result,
 };
-pub use k7_reporting::{report as report_k7, K7Result};
+pub use k7_reporting::{
+    report as report_k7, report_with_whitespace_suppressions as report_k7_with_suppressions,
+    K7Result,
+};
 pub use recovery::FileAvailability;
+pub use whitespace_suppression::WhitespaceSuppressions;
 
 // Entegrasyon testlerine açık yeniden ihracat
 pub use gtfs_config::{CalendarOverrideRule, GtfsJpProfile, ValidatorConfig};
@@ -56,11 +63,24 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         .iter()
         .any(|file| k1.present_files.contains(*file));
     let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
+    let whitespace_root_files: std::collections::HashSet<String> = k1
+        .notices
+        .iter()
+        .filter(|notice| notice.rule_id == "DQ_016")
+        .filter_map(|notice| notice.file.clone())
+        .collect();
     let mut file_stats = collect_file_stats(&k1.files);
 
     let mut k2 = {
         let _t = Timer::start("K2-validate");
-        validate_k2_with_jp_signal(k1.files, Some(zip), config, None, Some(has_gtfs_jp_file))
+        validate_k2_with_whitespace_roots(
+            k1.files,
+            Some(zip),
+            config,
+            None,
+            Some(has_gtfs_jp_file),
+            Some(&whitespace_root_files),
+        )
         // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
@@ -95,7 +115,13 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     let k4 = {
         let _t = Timer::start("K4-cross-ref");
-        check_cross_ref_with_files(&k2.records, &k3.entity_map, today, &availability)
+        check_cross_ref_with_whitespace_roots(
+            &k2.records,
+            &k3.entity_map,
+            today,
+            &availability,
+            Some(&whitespace_root_files),
+        )
     };
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
@@ -139,15 +165,19 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         .any(|f| k1_parse::is_certification_critical(f))
         && partial.root_structural_errors.is_empty();
 
+    let mut whitespace_suppressions = k2.whitespace_suppressions;
+    whitespace_suppressions.merge(k4.whitespace_suppressions);
+
     let k7 = {
         let _t = Timer::start("K7-reporting");
-        report_k7(
+        report_k7_with_suppressions(
             all,
             &k2.records,
             &k5.derived,
             file_stats,
             false,
             coverage_complete,
+            whitespace_suppressions,
         )
     };
 
@@ -592,6 +622,8 @@ mod name_index_tests {
             observed_value: None,
             expected_value: None,
             details: None,
+            whitespace_derived: false,
+            whitespace_candidate: false,
             title: String::new(),
             message: String::new(),
             remediation: String::new(),

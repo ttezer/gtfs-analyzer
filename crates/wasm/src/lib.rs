@@ -7,9 +7,9 @@ use gtfs_core::{
 };
 use gtfs_pipeline::{
     analyze_k6_with_files, build_derived_with_files, build_entity_map, build_name_index,
-    check_cross_ref_with_files, collect_file_stats, parse_with_limits, report_k7,
-    validate_k2_with_jp_signal, DerivedData, EntityRecords, FileAvailability, FileInfo,
-    GTFS_JP_FILES,
+    check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
+    report_k7_with_suppressions, validate_k2_with_whitespace_roots, DerivedData, EntityRecords,
+    FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
@@ -77,6 +77,7 @@ const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 #[wasm_bindgen]
 pub struct CachedState {
     k1_k5_notices: Vec<gtfs_core::Notice>,
+    whitespace_suppressions: WhitespaceSuppressions,
     records: EntityRecords,
     derived: DerivedData,
     file_stats: Vec<FileInfo>,
@@ -441,13 +442,14 @@ fn rerun_k6_k7_inner(
 
     let t = js_sys::Date::now();
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7(
+    let mut k7 = report_k7_with_suppressions(
         all_notices,
         &cache.records,
         &cache.derived,
         cache.file_stats.clone(),
         true,
         coverage_complete,
+        cache.whitespace_suppressions.clone(),
     );
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
@@ -499,6 +501,12 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         .iter()
         .any(|file| k1.present_files.contains(*file));
     let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
+    let whitespace_root_files: HashSet<String> = k1
+        .notices
+        .iter()
+        .filter(|notice| notice.rule_id == "DQ_016")
+        .filter_map(|notice| notice.file.clone())
+        .collect();
     t_end!("K1-parse");
     let mut file_stats = collect_file_stats(&k1.files);
 
@@ -508,12 +516,13 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // referanslar feed'in kusuru olarak raporlanıyordu (VBB: 250.407 TRP_004 + 220.752
     // XFL_002 uydurma HIGH bulgu). v0.9.7 hiçbir satır sınırı uygulamıyordu; davranış
     // oraya döndürüldü. `max_file_rows` yine yalnız ARC_022 eşiğidir.
-    let mut k2 = validate_k2_with_jp_signal(
+    let mut k2 = validate_k2_with_whitespace_roots(
         k1.files,
         Some(zip_bytes),
         config,
         None,
         Some(has_gtfs_jp_file),
+        Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
@@ -536,7 +545,13 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     t_end!("K3-entity-map");
 
     t_start!("K4-cross-ref");
-    let k4 = check_cross_ref_with_files(&k2.records, &k3.entity_map, today, &availability);
+    let k4 = check_cross_ref_with_whitespace_roots(
+        &k2.records,
+        &k3.entity_map,
+        today,
+        &availability,
+        Some(&whitespace_root_files),
+    );
     t_end!("K4-cross-ref");
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır → serbest bırak.
@@ -583,14 +598,17 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         ));
     }
 
+    let mut whitespace_suppressions = k2.whitespace_suppressions;
+    whitespace_suppressions.merge(k4.whitespace_suppressions);
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7(
+    let mut k7 = report_k7_with_suppressions(
         all_notices,
         &k2.records,
         &k5.derived,
         file_stats,
         true,
         coverage_complete,
+        whitespace_suppressions,
     );
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
@@ -641,6 +659,12 @@ fn run_k1_k5(
         .iter()
         .any(|file| k1.present_files.contains(*file));
     let has_pattern_jp_file = k1.present_files.contains("pattern_jp.txt");
+    let whitespace_root_files: HashSet<String> = k1
+        .notices
+        .iter()
+        .filter(|notice| notice.rule_id == "DQ_016")
+        .filter_map(|notice| notice.file.clone())
+        .collect();
     let mut file_stats = collect_file_stats(&k1.files);
 
     t = js_sys::Date::now();
@@ -650,12 +674,13 @@ fn run_k1_k5(
     // referanslar feed'in kusuru olarak raporlanıyordu (VBB: 250.407 TRP_004 + 220.752
     // XFL_002 uydurma HIGH bulgu). v0.9.7 hiçbir satır sınırı uygulamıyordu; davranış
     // oraya döndürüldü. `max_file_rows` yine yalnız ARC_022 eşiğidir.
-    let mut k2 = validate_k2_with_jp_signal(
+    let mut k2 = validate_k2_with_whitespace_roots(
         k1.files,
         Some(zip_bytes),
         config,
         None,
         Some(has_gtfs_jp_file),
+        Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
@@ -682,7 +707,13 @@ fn run_k1_k5(
 
     t = js_sys::Date::now();
     t_start!("K4-cross-ref");
-    let k4 = check_cross_ref_with_files(&k2.records, &k3.entity_map, today, &availability);
+    let k4 = check_cross_ref_with_whitespace_roots(
+        &k2.records,
+        &k3.entity_map,
+        today,
+        &availability,
+        Some(&whitespace_root_files),
+    );
     t_end!("K4-cross-ref");
     call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; cache'lenen records'tan
@@ -723,8 +754,12 @@ fn run_k1_k5(
         top_rules_str(&k1_k5_notices)
     ));
 
+    let mut whitespace_suppressions = k2.whitespace_suppressions;
+    whitespace_suppressions.merge(k4.whitespace_suppressions);
+
     Ok(CachedState {
         k1_k5_notices,
+        whitespace_suppressions,
         records: k2.records,
         derived: k5.derived,
         file_stats,
@@ -924,6 +959,8 @@ mod tests {
             observed_value: None,
             expected_value: None,
             details: None,
+            whitespace_derived: false,
+            whitespace_candidate: false,
             title: "test".to_string(),
             message: "test".to_string(),
             remediation: "test".to_string(),

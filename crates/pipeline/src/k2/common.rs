@@ -982,11 +982,7 @@ pub fn make_k2_notice(
         remediation,
     );
     if whitespace_derived {
-        notice.details = Some(
-            [("whitespace_derived".to_string(), "true".to_string())]
-                .into_iter()
-                .collect(),
-        );
+        notice.whitespace_derived = true;
     }
     notice
 }
@@ -1008,6 +1004,17 @@ fn whitespace_parser_derivative(
     if !parser_error {
         return false;
     }
+    whitespace_only_parser_failure(rule_id, row, field, observed)
+}
+
+/// Çağıran parse hatasını zaten kanıtladıysa, pahalı hata metnini ve `Notice`'ı kurmadan
+/// hatanın yalnız çevre boşluğundan doğup doğmadığını sınar.
+pub(crate) fn whitespace_only_parser_failure(
+    rule_id: &str,
+    row: &RowMap,
+    field: &str,
+    observed: Option<&str>,
+) -> bool {
     field.split('|').any(|name| {
         let Some(raw) = row.get(name).map(String::as_str) else {
             return false;

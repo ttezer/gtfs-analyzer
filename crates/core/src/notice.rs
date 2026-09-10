@@ -33,6 +33,14 @@ pub struct Notice {
     pub expected_value: Option<String>,
     /// Ek bağlam: ikinci entity ID, hesaplanan değer, birim vb.
     pub details: Option<BTreeMap<String, String>>,
+    /// K2'nin yalnız çevre boşluğu nedeniyle ürettiği tip/enum semptomu.
+    /// Pipeline-içi işarettir; K7'de korunan bulgular için eski `details` biçimi kurulur.
+    #[serde(skip)]
+    pub whitespace_derived: bool,
+    /// K4'te trim edilmiş referansla doğrulanmayı bekleyen çevre-boşluğu FK adayı.
+    /// Pipeline-içi işarettir; K7'de korunan bulgular için eski `details` biçimi kurulur.
+    #[serde(skip)]
+    pub whitespace_candidate: bool,
     /// Kural için kısa genel Türkçe başlık — UI'da gösterilir.
     pub title: String,
     /// Kural tanımından gelen sabit metin — runtime'da üretilmez.

@@ -37,6 +37,7 @@ pub mod translations;
 pub mod trips;
 
 use crate::k1_parse::{RawFile, RawFiles};
+use crate::WhitespaceSuppressions;
 use agency::{validate_agency, AgencyRecord};
 use agency_jp::{parse_agency_jp, AgencyJpRecord};
 use areas::{parse_areas, AreaRecord};
@@ -45,7 +46,9 @@ use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates_with_limits, CalendarDateIndex};
 use common::make_k2_notice;
-use fare_attributes::{validate_fare_attributes, FareAttributeRecord};
+use fare_attributes::{
+    validate_fare_attributes, validate_fare_attributes_with_suppression, FareAttributeRecord,
+};
 use fare_leg_join_rules::{parse_fare_leg_join_rules, FareLegJoinRuleRecord};
 use fare_leg_rules::{validate_fare_leg_rules, FareLegRuleRecord};
 use fare_media::{validate_fare_media, FareMediaRecord};
@@ -71,6 +74,7 @@ use routes_jp::{parse_routes_jp, RoutesJpRecord};
 use rustc_hash::FxHashMap;
 pub use shapes::ShapeInternTable;
 use shapes::{validate_shapes_with_limits, ShapePointRecord};
+use std::collections::HashSet;
 use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stop_times::{
     validate_stop_times_with_limits, StopTimeRecord, StreamBudget, K2_MAX_STREAM_BYTES,
@@ -165,6 +169,7 @@ pub struct EntityRecords {
 pub struct K2Result {
     pub records: EntityRecords,
     pub notices: Vec<Notice>,
+    pub whitespace_suppressions: WhitespaceSuppressions,
 }
 
 /// Eşiği aşan AKIŞ dosyaları — ARC_022'nin karar kaynağı (issue #75).
@@ -211,14 +216,35 @@ pub fn validate_with_stream_limit(
 /// optional signal keeps that physical-file fact aligned with K4 without
 /// changing the historical four-argument API above.
 pub fn validate_with_stream_limit_and_jp_signal(
-    mut files: RawFiles,
+    files: RawFiles,
     zip_bytes: Option<&[u8]>,
     cfg: &ValidatorConfig,
     max_stream_rows: Option<usize>,
     has_gtfs_jp_file: Option<bool>,
 ) -> K2Result {
+    validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
+        files,
+        zip_bytes,
+        cfg,
+        max_stream_rows,
+        has_gtfs_jp_file,
+        None,
+    )
+}
+
+/// Tam pipeline, yalnız K1'in gerçekten DQ_016 kökü ürettiği dosyalarda türevleri üretim
+/// yerinde sayaca çevirebilir. Doğrudan K2 çağrıları üstteki API ile eski çıktıyı korur.
+pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
+    mut files: RawFiles,
+    zip_bytes: Option<&[u8]>,
+    cfg: &ValidatorConfig,
+    max_stream_rows: Option<usize>,
+    has_gtfs_jp_file: Option<bool>,
+    whitespace_root_files: Option<&HashSet<String>>,
+) -> K2Result {
     use crate::timing::{mem_log, Timer};
     let mut notices = Vec::new();
+    let mut whitespace_suppressions = WhitespaceSuppressions::default();
     // Capture physical JP files before any streaming/drop path. K4 receives
     // the same signal from K1 in the full pipeline; direct K2 callers need the
     // local inventory so translation strictness cannot diverge by entry point.
@@ -335,9 +361,17 @@ pub fn validate_with_stream_limit_and_jp_signal(
 
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
-        let (fare_attribute_records, fare_attribute_notices) = validate_fare_attributes(file);
+        let suppress =
+            whitespace_root_files.is_some_and(|files| files.contains("fare_attributes.txt"));
+        let (fare_attribute_records, fare_attribute_notices, fare_suppressions) = if suppress {
+            validate_fare_attributes_with_suppression(file)
+        } else {
+            let (records, notices) = validate_fare_attributes(file);
+            (records, notices, WhitespaceSuppressions::default())
+        };
         records.fare_attributes = fare_attribute_records;
         notices.extend(fare_attribute_notices);
+        whitespace_suppressions.merge(fare_suppressions);
     }
 
     if let Some(file) = files.get("fare_rules.txt") {
@@ -628,7 +662,11 @@ pub fn validate_with_stream_limit_and_jp_signal(
         }
     }
 
-    K2Result { records, notices }
+    K2Result {
+        records,
+        notices,
+        whitespace_suppressions,
+    }
 }
 
 #[allow(dead_code)]

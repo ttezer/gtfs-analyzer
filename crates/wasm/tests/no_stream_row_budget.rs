@@ -1,7 +1,7 @@
 //! #185 nöbeti: WASM yolu K2'ye satır bütçesi GEÇMEMELİ.
 //!
 //! Regresyonun kendisi bir çağrı yeriydi, bir fonksiyon değil: `run_full_pipeline` ve
-//! önbellekli yol `validate_k2_with_jp_signal`'a `Some(config.max_file_rows)`
+//! önbellekli yol `validate_k2_with_whitespace_roots`'a `Some(config.max_file_rows)`
 //! veriyordu. Sonuç, stream edilen dosyaların 1.000.000 satırda sessizce kesilmesi ve
 //! kesmenin ürettiği boşta referansların feed'in kusuru olarak raporlanmasıydı
 //! (VBB/mdb-782: 250.407 uydurma TRP_004 + 220.752 XFL_002, gerçek sayı 25.369).
@@ -52,7 +52,7 @@ fn wasm_never_passes_a_row_budget_to_k2() {
 
     let mut calls = 0usize;
     let mut rest = code.as_str();
-    while let Some(i) = rest.find("validate_k2_with_jp_signal(") {
+    while let Some(i) = rest.find("validate_k2_with_whitespace_roots(") {
         let after = &rest[i..];
         let end = after.find(");").expect("çağrı kapanmamış") + 2;
         let block = &after[..end];
@@ -66,8 +66,8 @@ fn wasm_never_passes_a_row_budget_to_k2() {
         );
         let args = top_level_arguments(block);
         assert!(
-            args.len() >= 5,
-            "#185: JP sinyal taşıyan K2 çağrısı beş argümanlı olmalı: {block}"
+            args.len() >= 6,
+            "#185: whitespace-root sinyal taşıyan K2 çağrısı altı argümanlı olmalı: {block}"
         );
         assert_eq!(
             args[3], "None",

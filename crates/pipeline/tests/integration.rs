@@ -3912,6 +3912,69 @@ fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() 
 }
 
 #[test]
+fn whitespace_fare_derivatives_are_counted_before_notice_allocation() {
+    let mut files = base_files();
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers,agency_id\n\
+          F1, 1.00,EUR, 0, 0, 1\n\
+          F2, -1,EUR, 9, 9, UNKNOWN \n",
+    ));
+    files.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id,contains_id\nF1,R1,,,\nF2,R1,,,\n",
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let root = vr
+                .notices
+                .iter()
+                .find(|notice| {
+                    notice.rule_id == "DQ_016"
+                        && notice.file.as_deref() == Some("fare_attributes.txt")
+                })
+                .expect("fare_attributes.txt DQ_016 kökü");
+            let details = root.details.as_ref().expect("DQ_016 audit özeti");
+            assert_eq!(
+                details
+                    .get("suppressed_derivative_count")
+                    .map(String::as_str),
+                Some("4")
+            );
+            assert_eq!(
+                details
+                    .get("suppressed_derivative_rules")
+                    .map(String::as_str),
+                Some("FAR_002, FAR_004, FAR_005, FAR_008")
+            );
+
+            for rule in ["FAR_002", "FAR_004", "FAR_005", "FAR_008"] {
+                let kept: Vec<_> = vr
+                    .notices
+                    .iter()
+                    .filter(|notice| notice.rule_id == rule)
+                    .collect();
+                assert_eq!(kept.len(), 1, "{rule}: gerçek F2 hatası korunmalı");
+                assert_eq!(kept[0].entity_id.as_deref(), Some("F2"));
+                if rule == "FAR_008" {
+                    assert_eq!(
+                        kept[0]
+                            .details
+                            .as_ref()
+                            .and_then(|details| details.get("whitespace_candidate"))
+                            .map(String::as_str),
+                        Some("true"),
+                        "korunan K4 adayı eski JSON details sözleşmesini sürdürmeli"
+                    );
+                }
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
 fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     let mut files = base_files();
     files.push((
