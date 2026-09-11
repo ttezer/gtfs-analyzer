@@ -5813,105 +5813,6 @@ fn check_xfl(
             notices.push(n);
         }
     }
-
-/// TRN_016'nın hedef tablosundaki alan değer kümesi. `None` = dosya yok ya da `field` o
-/// dosyada sütun DEĞİL (o ihlal `TRN_002`'nin alanıdır).
-///
-/// ⚠️ Küme çeviri başına DEĞİL, `(tablo, alan)` çifti başına BİR KEZ kurulur. Eskiden her
-/// çeviri kaydı hedef tabloyu baştan sona tarıyordu ve `has_field` kontrolü ikinci bir tam
-/// tarama daha yapıyordu. Ölçüm (`mdb-865`: 776.265 çeviri satırı, 907 MB `stop_times.txt`):
-/// K4 98.420 ms harcıyordu ve bunun 97.237 ms'si yalnız `stop_times` koluydu; kol kapatılınca
-/// K4 1.183 ms'ye iniyordu. Değer kümesi tarama sayısını `çeviri × satır`dan `satır`a indirir.
-fn translation_target_values<'a>(
-    records: &'a EntityRecords,
-    table: &str,
-    field: &str,
-) -> Option<HashSet<&'a str>> {
-    fn from_rows<'b, T>(
-        items: &'b [T],
-        row_of: impl Fn(&'b T) -> &'b crate::k2::common::RowMap,
-        field: &str,
-    ) -> Option<HashSet<&'b str>> {
-        // Sütun varlığı ilk satırdan okunur; başlık satır başına değişmez.
-        if !row_of(items.first()?).contains_key(field) {
-            return None;
-        }
-        Some(
-            items
-                .iter()
-                .filter_map(|it| row_of(it).get(field).map(String::as_str))
-                .collect(),
-        )
-    }
-
-    match table {
-        "agency" => from_rows(&records.agencies, |r| &r.row, field),
-        "stops" => from_rows(&records.stops, |r| &r.row, field),
-        "routes" => from_rows(&records.routes, |r| &r.row, field),
-        "levels" => from_rows(&records.levels, |r| &r.row, field),
-        "pathways" => from_rows(&records.pathways, |r| &r.row, field),
-        "calendar" => from_rows(&records.calendars, |r| &r.row, field),
-        "fare_attributes" => from_rows(&records.fare_attributes, |r| &r.row, field),
-        "feed_info" => from_rows(&records.feed_info, |r| &r.row, field),
-        // trips ham satır tutmaz; değerler intern tablosundan okunur.
-        "trips" => {
-            let interns = &records.trip_interns;
-            let has_field = match field {
-                "trip_headsign" => interns.has_headsign_field || interns.headsigns.len() > 1,
-                "trip_short_name" => {
-                    interns.has_short_name_field || interns.short_names.len() > 1
-                }
-                _ => false,
-            };
-            if records.trips.is_empty() || !has_field {
-                return None;
-            }
-            Some(
-                records
-                    .trips
-                    .iter()
-                    .filter_map(|t| match field {
-                        "trip_headsign" => interns.headsign(t),
-                        "trip_short_name" => interns.short_name(t),
-                        _ => None,
-                    })
-                    .collect(),
-            )
-        }
-        // stop_times de ham satır tutmaz; `stop_headsign` side-map'ten ve typed kayıtlardan
-        // toplanır. İki yol birlikte taranır çünkü akış (CompactStopTime) ve bellek
-        // (StopTimeRecord) kolları aynı feed'de farklı doluluk gösterebilir.
-        "stop_times" => {
-            if field != "stop_headsign" {
-                return None;
-            }
-            let index = &records.stop_times_index;
-            let has_field = index.has_stop_headsign_field
-                || !index.stop_headsigns.is_empty()
-                || records.stop_times.iter().any(|st| st.stop_headsign.is_some());
-            if !has_field {
-                return None;
-            }
-            let mut values: HashSet<&str> = index
-                .stop_headsigns
-                .values()
-                .map(smol_str::SmolStr::as_str)
-                .collect();
-            values.extend(
-                records
-                    .stop_times
-                    .iter()
-                    .filter_map(|st| st.stop_headsign.as_deref()),
-            );
-            if values.is_empty() && index.rows.is_empty() && records.stop_times.is_empty() {
-                return None;
-            }
-            Some(values)
-        }
-        _ => None, // desteklenmeyen tablo → sessiz
-    }
-}
-
     // TRN_016: `field_value` biçimli çeviri hiçbir kayıtla eşleşmiyor.
     //
     // Spec: "The field must have exactly the value defined in field_value." Bu biçim
@@ -6200,6 +6101,105 @@ fn translation_target_values<'a>(
                 }
             }
         }
+    }
+}
+
+/// TRN_016'nın hedef tablosundaki alan değer kümesi. `None` = dosya yok ya da `field` o
+/// dosyada sütun DEĞİL (o ihlal `TRN_002`'nin alanıdır).
+///
+/// ⚠️ Küme çeviri başına DEĞİL, `(tablo, alan)` çifti başına BİR KEZ kurulur. Eskiden her
+/// çeviri kaydı hedef tabloyu baştan sona tarıyordu ve `has_field` kontrolü ikinci bir tam
+/// tarama daha yapıyordu. Ölçüm (`mdb-865`: 776.265 çeviri satırı, 907 MB `stop_times.txt`):
+/// K4 98.420 ms harcıyordu ve bunun 97.237 ms'si yalnız `stop_times` koluydu; kol kapatılınca
+/// K4 1.183 ms'ye iniyordu. Değer kümesi tarama sayısını `çeviri × satır`dan `satır`a indirir.
+fn translation_target_values<'a>(
+    records: &'a EntityRecords,
+    table: &str,
+    field: &str,
+) -> Option<HashSet<&'a str>> {
+    fn from_rows<'b, T>(
+        items: &'b [T],
+        row_of: impl Fn(&'b T) -> &'b crate::k2::common::RowMap,
+        field: &str,
+    ) -> Option<HashSet<&'b str>> {
+        // Sütun varlığı ilk satırdan okunur; başlık satır başına değişmez.
+        if !row_of(items.first()?).contains_key(field) {
+            return None;
+        }
+        Some(
+            items
+                .iter()
+                .filter_map(|it| row_of(it).get(field).map(String::as_str))
+                .collect(),
+        )
+    }
+
+    match table {
+        "agency" => from_rows(&records.agencies, |r| &r.row, field),
+        "stops" => from_rows(&records.stops, |r| &r.row, field),
+        "routes" => from_rows(&records.routes, |r| &r.row, field),
+        "levels" => from_rows(&records.levels, |r| &r.row, field),
+        "pathways" => from_rows(&records.pathways, |r| &r.row, field),
+        "calendar" => from_rows(&records.calendars, |r| &r.row, field),
+        "fare_attributes" => from_rows(&records.fare_attributes, |r| &r.row, field),
+        "feed_info" => from_rows(&records.feed_info, |r| &r.row, field),
+        // trips ham satır tutmaz; değerler intern tablosundan okunur.
+        "trips" => {
+            let interns = &records.trip_interns;
+            let has_field = match field {
+                "trip_headsign" => interns.has_headsign_field || interns.headsigns.len() > 1,
+                "trip_short_name" => interns.has_short_name_field || interns.short_names.len() > 1,
+                _ => false,
+            };
+            if records.trips.is_empty() || !has_field {
+                return None;
+            }
+            Some(
+                records
+                    .trips
+                    .iter()
+                    .filter_map(|t| match field {
+                        "trip_headsign" => interns.headsign(t),
+                        "trip_short_name" => interns.short_name(t),
+                        _ => None,
+                    })
+                    .collect(),
+            )
+        }
+        // stop_times de ham satır tutmaz; `stop_headsign` side-map'ten ve typed kayıtlardan
+        // toplanır. İki yol birlikte taranır çünkü akış (CompactStopTime) ve bellek
+        // (StopTimeRecord) kolları aynı feed'de farklı doluluk gösterebilir.
+        "stop_times" => {
+            if field != "stop_headsign" {
+                return None;
+            }
+            let index = &records.stop_times_index;
+            let has_field = index.has_stop_headsign_field
+                || !index.stop_headsigns.is_empty()
+                || records
+                    .stop_times
+                    .iter()
+                    .any(|st| st.stop_headsign.is_some());
+            if !has_field {
+                return None;
+            }
+            let mut values: HashSet<&str> = index
+                .stop_headsigns
+                .values()
+                .map(smol_str::SmolStr::as_str)
+                .collect();
+            values.extend(
+                records
+                    .stop_times
+                    .iter()
+                    .filter_map(|st| st.stop_headsign.as_deref()),
+            );
+            if values.is_empty() && index.rows.is_empty() && records.stop_times.is_empty() {
+                return None;
+            }
+            Some(values)
+        }
+        _ => None, // desteklenmeyen tablo → sessiz
     }
 }
 
@@ -8774,7 +8774,10 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "XFL_006")
             .expect("XFL_006 bekleniyor");
-        let observed = hit.observed_value.as_deref().expect("observed_value dolu olmalı");
+        let observed = hit
+            .observed_value
+            .as_deref()
+            .expect("observed_value dolu olmalı");
         assert_eq!(
             observed, "FR, MT, P_Fri, WK_3843, WK_3844",
             "service_id listesi sıralı olmalı (HashSet sırası sızmamalı)"

@@ -247,7 +247,9 @@ const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
 /// kaydındadır ve buradan okunamaz; okunamayanı "bozuk" saymak yanlış teşhis olurdu.
 fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<String> {
     let read_u16 = |at: usize| -> Option<u16> {
-        zip_bytes.get(at..at + 2).map(|b| u16::from_le_bytes([b[0], b[1]]))
+        zip_bytes
+            .get(at..at + 2)
+            .map(|b| u16::from_le_bytes([b[0], b[1]]))
     };
     let read_u32 = |at: usize| -> Option<u32> {
         zip_bytes
@@ -289,10 +291,12 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<String> {
         let local_offset = read_u32(cursor + 42)?;
         let name = zip_bytes
             .get(cursor + CDH_LEN..cursor + CDH_LEN + name_len)
-            .map_or_else(|| "?".to_string(), |b| String::from_utf8_lossy(b).into_owned());
+            .map_or_else(
+                || "?".to_string(),
+                |b| String::from_utf8_lossy(b).into_owned(),
+            );
 
-        if local_offset != ZIP64_SENTINEL
-            && read_u32(local_offset as usize) != Some(LFH_SIGNATURE)
+        if local_offset != ZIP64_SENTINEL && read_u32(local_offset as usize) != Some(LFH_SIGNATURE)
         {
             return Some(format!(
                 "'{name}' yerel başlığı {local_offset}. bayta göre bozuk (imza yok); EOCD ve merkez dizin sağlam, bir önceki girdinin sıkıştırılmış verisi taşmış olabilir"
@@ -5298,4 +5302,3 @@ fn malformed_eol_detects_bare_and_repeated_cr() {
     assert!(!has_malformed_eol(b"a\r\nb\n"));
     assert!(!has_malformed_eol(b"a\n\nb\n"));
 }
-

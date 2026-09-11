@@ -4432,7 +4432,11 @@ fn attribution_systemic_violations_are_summarized_once_with_a_count() {
         ValidateResult::Ok(vr) => {
             for rule in ["ATR_001", "ATR_003"] {
                 let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
-                assert_eq!(hits.len(), 1, "{rule}: dosya başına tek özet beklenir: {hits:?}");
+                assert_eq!(
+                    hits.len(),
+                    1,
+                    "{rule}: dosya başına tek özet beklenir: {hits:?}"
+                );
                 assert_eq!(
                     hits[0].observed_value.as_deref(),
                     Some("3 rows"),
@@ -4456,14 +4460,19 @@ fn attribution_systemic_violations_are_summarized_once_with_a_count() {
 /// söylemiyordu. Dosya başına tek özet + sayı hem tekrarı önler hem hacmi korur.
 #[test]
 fn attribution_mutually_exclusive_refs_are_summarized_once_with_a_count() {
-    const ATTRIBUTIONS: &[u8] = b"attribution_id,organization_name,is_producer,agency_id,route_id\n\
+    const ATTRIBUTIONS: &[u8] =
+        b"attribution_id,organization_name,is_producer,agency_id,route_id\n\
           A1,Org A,1,A1,R1\nA2,Org B,1,A1,R1\n";
 
     let mut files = base_files();
     files.push(("attributions.txt", ATTRIBUTIONS));
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            let hits: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "ATR_009").collect();
+            let hits: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "ATR_009")
+                .collect();
             assert_eq!(hits.len(), 1, "dosya başına tek özet beklenir: {hits:?}");
             assert_eq!(
                 hits[0].observed_value.as_deref(),

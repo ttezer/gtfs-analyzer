@@ -16,9 +16,9 @@ pub mod whitespace_suppression;
 pub use k1_parse::{parse, parse_with_limits, K1Result, RawFile, RawFiles};
 pub use k2::{
     validate as validate_k2, validate_with_stream_limit as validate_k2_with_stream_limit,
-    validate_with_stream_limit_and_jp_signal as validate_k2_with_jp_signal, EntityRecords,
+    validate_with_stream_limit_and_jp_signal as validate_k2_with_jp_signal,
     validate_with_stream_limit_and_jp_signal_and_whitespace_roots as validate_k2_with_whitespace_roots,
-    K2Result, GTFS_JP_FILES,
+    EntityRecords, K2Result, GTFS_JP_FILES,
 };
 pub use k3_entity_graph::{build as build_entity_map, EntityMap, K3Result};
 pub use k4_cross_ref::{
