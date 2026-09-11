@@ -436,7 +436,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | FAR_009 | Le tarif n’a aucune règle de ligne | FAIBLE | Quality |
 | FAR_010 | Règles tarifaires qui se chevauchent | MOYENNE | Quality |
 | FAR_011 | payment_method manquant | CRITIQUE | Spec |
-| FAR_013 | price ne respecte pas le nombre de décimales ISO 4217 de la devise | FAIBLE | Spec |
+| FAR_013 | price ne respecte pas le nombre de décimales ISO 4217 de la devise | INFO | Quality |
 | FAR_012 | fare_id manquant | CRITIQUE | Spec |
 
 ## FRL — Règles tarifaires

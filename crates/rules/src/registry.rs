@@ -1161,7 +1161,29 @@ pub static RULES: &[RuleMeta] = &[
         "Çakışan ücret kuralları"),
     r!("FAR_011", Kritik, Spec, 1, &[], Some("payment_method"), VS_K, Entity,
         "payment_method eksik"),
-    r!("FAR_013", Dusuk, Spec, 1, &[], None, VS, File,
+    // FAR_013 — 2026-09-11'de `Dusuk·Spec` → `Bilgi·Quality`. Üç ölçüm bunu getirdi:
+    //
+    // 1. HÜKÜM BU ALAN İÇİN YAZILI DEĞİL. ISO 4217 ondalık cümlesini taşıyan tek hüküm
+    //    `P38cd4e78` ve kaydın bölümü `fare_products`, alanı `amount`. `fare_attributes`
+    //    bölümünde ondalıkla ilgili hüküm YOK; `price`/`currency_type` için spec'te hiç
+    //    cümle yok. Alan tipleri de ayrı: `amount` = "Currency amount" (ondalık şartı
+    //    TİPİN özelliği), `price` = "Non-negative float". Kural şartı benzeşimle taşıyordu.
+    // 2. HİÇBİR KOLU GERÇEK VERİ HATASI BULMUYOR. Eksik basamak (`2.8` USD) aynı tutardır.
+    //    Fazla basamak (`100.50` JPY) da geçersiz DEĞİLDİR: sıfır basamak nakit kademesini
+    //    söyler, bir ücretin o kademeden hassas hesaplanması hata değil (akaryakıt litre
+    //    fiyatı emsali). Tek ciddi tehlike 100× birim hatasıdır (`150` = 150 sent mi 150
+    //    dolar mı) ama kural bunu ayırt EDEMEZ, dolayısıyla sinyal eyleme dönüşmüyor.
+    // 3. SPEC'İN KENDİ HÜKMÜ DE BİÇİM KURALI. *"...must contain the number of decimal
+    //    places specified by the norm ISO 4217..."* değerin geçerliliği hakkında hiçbir şey
+    //    söylemiyor. `FPD_007` de biçim ölçer; farkı spec'in onu AÇIKÇA zorunlu kılması.
+    //
+    // Ölçüm (16. korpus): 394 feed / 2.166.496 satır, feed başına medyan 2 satır, 190 feed'de
+    // tek satır. MD'nin karşılığı 0 — ve olamaz da: 394 feed'in HİÇBİRİNDE Fares V2 yok, MD'nin
+    // `invalid_currency_amount` kuralı `fare_products.amount`'u denetliyor. MD sessizliği
+    // "baktım, temiz" değil "bakacak kuralım yok" demek → MD burada HAKEM DEĞİL.
+    // `Bilgi` ağırlığı 0.0 olduğu için hiçbir skora ceza yazılmaz; gözlem raporda kalır,
+    // kusur iddiası kalkar. Sınıf `Quality` ZORUNLU: registry kapısı `Spec ∧ Bilgi`'yi yasaklar.
+    r!("FAR_013", Bilgi, Quality, 1, &[], None, VS, File,
         "price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
     r!("FAR_012", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
         "fare_id eksik"),
@@ -2066,7 +2088,9 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FAR_010", ProjectQuality),
     ("FAR_011", GtfsSpec),
     ("FAR_012", GtfsSpec),
-    ("FAR_013", GtfsSpec),
+    // Yakaladığı olgu ISO 4217 biçim geleneği; GTFS spec'i `fare_attributes.price` için
+    // ondalık şartı YAZMIYOR (hüküm `fare_products.amount` içindir → `FPD_007`).
+    ("FAR_013", ProjectQuality),
     ("FIN_001", GtfsSpec),
     ("FIN_002", GtfsSpec),
     ("FIN_003", GtfsSpec),

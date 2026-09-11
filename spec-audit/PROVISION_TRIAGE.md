@@ -515,11 +515,11 @@ ile yazar. Bunlar bağlayıcıdır ama **veriyi değil tüketiciyi** bağlar —
 | `Pa13f977d` · `P25918782` · `P4e4360f8` · `P203b24af` · `Pbbc4e012` | — | fare_leg_rules sorgulama algoritması (filtrele → tam eşleşme → boş girdiler) | **KAPSAM DIŞI** | Sert (`must`) ama tüketici algoritması. |
 | `P4dead8a8` · `P34b16ddb` · `P2b1854d3` · `Pb6d9a2c2` · `Pe8b16d97` | — | fare_transfer_rules sorgulama algoritması | **KAPSAM DIŞI** | Aynı gerekçe. |
 | `P9a687aee` · `P801d96f0` · `P9bb795c0` · `P66fe5cb3` | — | fare_leg_join_rules eşleştirme algoritması | **KAPSAM DIŞI** | Aynı gerekçe. |
-| `P38cd4e78` | amount | Tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı | **KANITLI** → `FPD_007` + `FAR_013` (`9beb1282`). | |
+| `P38cd4e78` | amount | Tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı | **KANITLI** → `FPD_007` (`9beb1282`). | ⚠️ 2026-09-11: `FAR_013` kanıt listesinden ÇIKARILDI. Hüküm `fare_products.amount` içindir; `FAR_013` aynı şartı `fare_attributes.price`'a benzeşimle taşıyordu ve o alan için spec'te HİÇ hüküm yok. Kural silinmedi, `Bilgi·Quality`'ye indirildi. |
 
 ---
 
-## Bulgu 12 (tarihsel): ISO 4217 ondalık basamak sayısı ölçülmüyordu — **KAPANDI → `FPD_007` + `FAR_013`** (`P38cd4e78`)
+## Bulgu 12 (tarihsel): ISO 4217 ondalık basamak sayısı ölçülmüyordu — **KAPANDI → `FPD_007`** (`P38cd4e78`)
 
 Spec: *"The currency amount must contain the number of decimal places specified by the norm
 ISO 4217 for the accompanying Currency code."*
@@ -530,11 +530,32 @@ yalnız hata mesajlarını buluyor.
 
 Somut ihlaller: `JPY 100.00` (yen'in ondalığı 0), `USD 2.5` (2 basamak olmalı: `2.50`),
 `KWD 1.5` (dinar 3 basamak). Bunlar o tarihte sessiz geçiyordu; güncel `FPD_007` ve
-`FAR_013` bu biçim ihlalini ölçüyor.
+`FAR_013` aynı biçim ölçümünü `fare_attributes.price` için yapıyor **ama hükmün kanıtı DEĞİLDİR**
+(2026-09-11 kararı, aşağıda).
 
 Sert hüküm. Bu tarihsel boşluk, üretilmiş ISO 4217 minor-unit tablosu ve dosya başına özet
-emisyon kullanan `FPD_007` + `FAR_013` ile kapatıldı. Değeri: yanlış ondalık, tüketicide
-100× fiyat hatasına dönüşebilir.
+emisyon kullanan `FPD_007` ile kapatıldı — **yalnız `fare_products.amount` için.**
+
+### ⚠️ 2026-09-11 DÜZELTMESİ: `FAR_013` bu hükmün kanıtı SAYILAMAZ
+
+16. korpus koşumunun `analyzer_spec_md_absent` taraması (394 feed) üç şeyi ortaya çıkardı:
+
+1. **Hüküm bu alan için yazılı değil.** `P38cd4e78`'in bölümü `fare_products`, alanı `amount`.
+   `fare_attributes` bölümünde ondalıkla ilgili hüküm YOK; `price`/`currency_type` için spec'te
+   hiç cümle yok (ayrıştırıcı sıfır sonuç döndürüyor). Alan tipleri de ayrı:
+   `amount` = **Currency amount** (ondalık şartı tipin özelliği) · `price` = **Non-negative float**.
+2. **"100× fiyat hatası" gerekçesi ÇÜRÜDÜ.** Eksik basamak (`2.8` USD) aynı tutardır. Fazla
+   basamak (`100.50` JPY) da geçersiz değildir: sıfır basamak nakit kademesini söyler, bir ücretin
+   o kademeden hassas hesaplanması hata değil. Gerçek 100× riski `150` gibi değerlerdedir
+   (150 sent mi 150 dolar mı) ama kural bunu AYIRT EDEMEZ → sinyal eyleme dönüşmüyor.
+3. **MD burada hakem DEĞİL.** `invalid_currency_amount` 11 feed, örneklerin hepsi
+   `fare_products.txt::amount`. 394 feed'in **hiçbirinde Fares V2 yok**, yani MD'nin kuralı
+   yapısal olarak ateşleyemez. Sessizliği "temiz" değil "bakacak kuralım yok" demek.
+
+**Karar:** kural silinmedi, `Dusuk·Spec` → **`Bilgi·Quality`** (`ProjectQuality` otoritesi).
+`Bilgi` ağırlığı 0.0 → hiçbir skora ceza yok; ölçülen etki: `spec_score` ort. **+1,86**,
+`quality_score` ort. **−1,01**, genel `score` ort. **+0,54**, `pub_score` **0 feed** değişiyor
+(kural Kritik olmadığı için yayın kapısını hiç görmüyordu). `analyzer_spec_md_absent` **580 → 186**.
 
 ⚠️ `FPD_002`/`FAR_002` yalnız negatif/sayısal olmayan değeri ölçüyor; bu farklı bir olgu.
 
@@ -798,7 +819,7 @@ hesaplanır. Bir boşluk kurala dönüştüğünde satır BURAYA eklenir.
 | `P2264440d` | `PTH_030` | `62571264` |
 
 | ~~Pd84a0bcb (kimlik bilerek backtick'siz — kapalı SAYILMASIN)~~ | ~~`LOC_011`~~ | 🔴 **GERİ ALINDI 08-06** — `LOC_011` OpenGIS 6.1.11'in YALNIZ BİR KISMINI ölçüyor; kuralın kendi kartı dört maddeyi yanlış-negatif diye sayıyor (delik-delik kesişimi · deliğin kısmen dışarıda olması · ring yönü · iç kısmın bağlantılılığı). Hüküm **KISMİ**'dir, kapanmış değil. |
-| `P38cd4e78` | `FPD_007` + `FAR_013` | `9beb1282` sonrası |
+| `P38cd4e78` | `FPD_007` | `9beb1282` sonrası · 2026-09-11'de `FAR_013` listeden çıktı |
 | `P612a9dbf` · `P0bb79a62` | `TRF_022` | 764 triyajı |
 | `P9db18901` | `TRF_023` | 764 triyajı |
 | `P5b7396a2` · `Pbd495b4e` | `PTH_031` | 506 turu |
@@ -862,7 +883,7 @@ issue de açılmamıştı). Doğru sayı **10 hüküm / 12 aday**.
 | 2 | `traversal_time` tavsiyesi (`Pd21dea02`) | — | 4 | 24 | ✅ **KAPANDI → `PTH_029`** (`509c5b54`) |
 | 3 | `platform_code` (`P3af6af7b`·`Pb24eacd3`) | — | 1 | 1 | ✅ **KAPANDI → `STP_044`** (`509c5b54`) |
 | 4 | URL şeması (`P5f72fb5a`) | ✅ | 1 | 116 | ✅ **KAPANDI → `looks_like_url`** (`cfd8f7d4`) |
-| 5 | ISO 4217 ondalık (`P38cd4e78`) | ✅ | 38 | 2.001.806 | ✅ **KAPANDI → `FPD_007`+`FAR_013`** (`708c2149`) — karar DEĞİŞTİ |
+| 5 | ISO 4217 ondalık (`P38cd4e78`) | ✅ | 38 | 2.001.806 | ✅ **KAPANDI → `FPD_007`** (`708c2149`) — karar DEĞİŞTİ; 2026-09-11'de `FAR_013` kanıt listesinden çıkarıldı (`Bilgi·Quality`) |
 | 6 | `record_sub_id` gereklilik yönü (`P9373b1fa`) | ✅ | **0** | 0 | ✅ **KAPANDI → `TRN_017`** (`62571264`) |
 | 7 | `start_day`/`duration_max` (`P5a5cced5`) | ✅ | **0** | 0 | ✅ **KAPANDI → `BKR_024`** (`62571264`) |
 | 8 | Boarding area + platform pathway (`P2264440d`) | ✅ | **0** | 0 | ✅ **KAPANDI → `PTH_030`** (`62571264`) |

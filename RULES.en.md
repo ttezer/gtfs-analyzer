@@ -436,7 +436,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FAR_009 | Fare has no route rules | LOW | Quality |
 | FAR_010 | Overlapping fare rules | MEDIUM | Quality |
 | FAR_011 | payment_method missing | CRITICAL | Spec |
-| FAR_013 | price does not carry the currency's ISO 4217 decimal places | LOW | Spec |
+| FAR_013 | price does not carry the currency's ISO 4217 decimal places | INFO | Quality |
 | FAR_012 | fare_id missing | CRITICAL | Spec |
 
 ## FRL — Fare Rules

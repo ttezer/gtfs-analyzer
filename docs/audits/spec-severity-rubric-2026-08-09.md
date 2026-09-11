@@ -78,12 +78,18 @@ Registry'de toplam **307 Spec kuralı** audit edildi:
 `TFR_005`, `PTH_006`, `PTH_007`, `PTH_017`, `PTH_027`, `FIN_004`, `FIN_005`, `TRN_003`,
 `TRN_017`, `TRN_016`, `XFL_019`.
 
-### Düşük (31)
+### Düşük (30)
 
 `BKR_021`, `AGN_006`, `AGN_008`, `AGN_009`, `AGN_012`, `STP_013`, `STP_026`, `STP_036`,
 `STP_042`, `RTS_013`, `RTS_018`, `RTS_024`, `RTS_029`, `TRP_006`, `TRP_007`, `TRP_032`,
-`STM_030`, `STM_032`, `FRQ_012`, `FAR_013`, `RCT_007`, `FPD_007`, `PTH_010`, `PTH_030`,
+`STM_030`, `STM_032`, `FRQ_012`, `RCT_007`, `FPD_007`, `PTH_010`, `PTH_030`,
 `FIN_008`, `FIN_009`, `FIN_012`, `ATR_008`, `ATR_010`, `ATR_011`, `ATR_012`.
+
+⚠️ **`FAR_013` 2026-09-11'de BU LİSTEDEN ÇIKTI** — `Dusuk·Spec` → `Bilgi·Quality`. Rubrik
+yalnız **Spec** sınıfını kapsar; kural artık Spec değil. Gerekçe: ISO 4217 ondalık hükmü
+(`P38cd4e78`) `fare_products.amount` için yazılı, `fare_attributes.price` için spec'te hiç
+hüküm yok. Hükmü `FPD_007` tek başına kanıtlıyor. Ayrıntı `registry.rs`'teki kural yorumunda
+ve `docs/rules/FAR/FAR_013.md`'de.
 
 ## Regression ve bakım kapıları
 

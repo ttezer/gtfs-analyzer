@@ -436,7 +436,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FAR_009 | Ücrete ait hat kuralı yok | DÜŞÜK | Quality |
 | FAR_010 | Çakışan ücret kuralları | ORTA | Quality |
 | FAR_011 | payment_method eksik | KRİTİK | Spec |
-| FAR_013 | price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | DÜŞÜK | Spec |
+| FAR_013 | price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | BİLGİ | Quality |
 | FAR_012 | fare_id eksik | KRİTİK | Spec |
 
 ## FRL — Fare Rules (Ücret Kuralları)
