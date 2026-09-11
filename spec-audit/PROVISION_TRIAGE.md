@@ -559,6 +559,35 @@ emisyon kullanan `FPD_007` ile kapatıldı — **yalnız `fare_products.amount` 
 
 ⚠️ `FPD_002`/`FAR_002` yalnız negatif/sayısal olmayan değeri ölçüyor; bu farklı bir olgu.
 
+## Bulgu 14: `agency_lang` VARLIK tavsiyesi — ÖLÇÜLDÜ, KURAL YAZILMADI (`P7ae1fa9d`)
+
+16. korpus koşumunun 5. ekseni. Hüküm: *"Should be provided to help GTFS consumers choose
+capitalization rules and other language-specific settings for the dataset."* (`soft`)
+
+Dört ölçüm aynı yöne bakıyor ve hiçbiri kural yazmayı desteklemiyor:
+
+1. **Spec alanı `Optional` işaretliyor**, `Recommended` DEĞİL (`spec_fields.json` →
+   `agency.txt::agency_lang`, `presence: Optional`). Karşılaştırma: `routes.agency_id` ve
+   `fare_attributes.agency_id` gerçekten `Conditionally Required`/`Recommended`.
+2. **MD hiç bildirmiyor.** `missing_recommended_field` 1.226 feed'de 90.458 kez ateşliyor;
+   örneklerinde `agency_lang` **0** kez geçiyor (en sık: `fare_attributes::agency_id` 790,
+   `routes::agency_id` 428, `feed_info::feed_end_date` 254). MD spec'in işaretine uyuyor.
+3. 🔑 **HÜKMÜN GEREKÇESİ BİZDE KARŞILIKSIZ.** Cümle "harf kuralları" diyor; bizim harf kuralımız
+   `DQ_018` ve dili HİÇ kullanmıyor. Yüklem kod-noktası başına çalışıyor
+   (`k6_analytics.rs::is_all_caps` → `is_alphabetic()` + `is_uppercase()`), bu yüzden kaseti
+   olmayan yazı sistemlerinde (Japonca, Çince, Korece, Arapça, İbranice) `is_uppercase()` false
+   döner ve kural doğru biçimde SESSİZ kalır. Türkçe `ı`/`İ` de doğru çalışır. `agency_lang`
+   bilinse kuralın davranışı DEĞİŞMEZDİ → tavsiyenin bizde tüketicisi yok.
+4. **Dil bilgisi zaten başka yerde zorunlu:** `feed_info.txt::feed_lang` `Required`. `agency_lang`
+   o varken yedek sinyal.
+
+Ölçülen eksiklik: 2.373 agency satırının 463'ü boş (**%19,51**), 54 feed. Hacim küçük ve
+`Kalite` sınıfında bile skora ceza yazmanın gerekçesi yok.
+
+⚠️ **`FAR_013` dersi burada uygulandı** (aynı gün, `f7105108`): spec'in `Optional` dediği bir
+alanın eksikliğini bulgu saymak, spec'in kurmadığı bir iddiayı ürüne sokmaktır. Orada kuralı
+`Bilgi·Quality`'ye indirdik; burada kural HİÇ YAZILMADI.
+
 ## Bulgu 13: İkinci yanlış alarm da kod okumasıyla önlendi
 
 `P9cee47a9` için "leg grubu benzersizliği ölçülmüyor" diyecektim — `fare_leg_rules.rs`'te
@@ -1216,7 +1245,7 @@ biçiminde başlıyor. Sekiz eşleşmenin sekizi de gerçek hüküm çıktı —
 | `P72501068` | `route_desc`, route adlarının kopyası olmamalı *(soft)* | **KANITLI** | `RTS_023` |
 | `Pa6690298` | `route_url`, `agency_url`'den farklı olmalı *(soft)* | **KANITLI** | `RTS_020` |
 | `P5b7396a2` · `Pbd495b4e` | uç nokta `stop_access=1` olan durak olamaz | **KANITLI** → `PTH_031` (`506` triyajı). | |
-| `P7ae1fa9d` | `agency_lang` sağlanmalı *(soft)* | **BOŞLUK** *(yumuşak eksen)* | Yalnız geçerlilik (`AGN_006`) ve tutarlılık (`AGN_013/017`) ölçülüyor; VARLIK tavsiyesi ölçülmüyor. Quality kuyruğuna. |
+| `P7ae1fa9d` | `agency_lang` sağlanmalı *(soft)* | **KAPSAM DIŞI** | 2026-09-11'de Quality kuyruğundan ÇIKARILDI, gerekçe aşağıda ("Bulgu 14"). Geçerlilik `AGN_006`, tutarlılık `AGN_013`/`AGN_017` ile ölçülüyor; VARLIK tavsiyesi bilinçli ölçülmüyor. |
 | `Pa1fdaa0d` | geojson geometri + pencere + pickup/drop_off eşzamanlı örtüşmesi yasak | **KANITLI** → `STM_060` (2. dış denetim). | Önceki mimari gerekçe geçersizdi; geometri ve pencere girdileri artık K4'te birlikte ölçülüyor. |
 | `P1ced9134` | aynı bölge içi seyahat İKİ `stop_times` kaydı gerektirir | **KAPSAM DIŞI** | **Modelleme talimatı, ihlal predikatı değil.** Tek kayıt geçerlidir (bölgede binip başka durakta inmek meşru); "üretici bölge-içi seyahat kastetti" bilgisi veride yok. Dejenere hâl (tek duraklı sefer) `STM_033`'te. |
 | `Pcb0bc0b7` | *"2 - Transfer requires a minimum amount of time…"* | **META** | `transfer_type` enum değerinin tanımı; yükümlülük `min_transfer_time`'da (`TRF_001/002`). |
