@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-613 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+614 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -285,6 +285,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | LOC_001 | Unknown or invalid geometry type in locations.geojson | HIGH | Spec |
+| LOC_012 | locations.geojson is not a valid GeoJSON FeatureCollection | HIGH | Spec |
 | LOC_002 | Feature has null or missing geometry | CRITICAL | Spec |
 | LOC_003 | Feature missing required 'id' property | CRITICAL | Spec |
 | LOC_004 | Polygon ring is not closed | MEDIUM | Spec |

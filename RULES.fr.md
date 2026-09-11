@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-613 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+614 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -285,6 +285,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | Règle | Titre | Gravité | Classe |
 |---|---|---|---|
 | LOC_001 | Type de géométrie inconnu ou invalide dans locations.geojson | ÉLEVÉE | Spec |
+| LOC_012 | locations.geojson n’est pas une FeatureCollection GeoJSON valide | ÉLEVÉE | Spec |
 | LOC_002 | L’objet Feature a une géométrie nulle ou absente | CRITIQUE | Spec |
 | LOC_003 | L’objet Feature n’a pas la propriété obligatoire « id » | CRITIQUE | Spec |
 | LOC_004 | L’anneau du polygone n’est pas fermé | MOYENNE | Spec |

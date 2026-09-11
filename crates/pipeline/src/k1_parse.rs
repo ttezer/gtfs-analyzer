@@ -1919,13 +1919,13 @@ pub fn parse_with_limits(
                     // stops.txt optional, and must be visible in PARTIAL metadata.
                     notices.push(make_notice(
                         &mut counter,
-                        "LOC_001",
+                        "LOC_012",
                         EntityType::File,
                         Some(raw_name.clone()),
                         Some(&raw_name),
                         None,
                         None,
-                        None,
+                        Some(e.to_string()),
                         format!("'{raw_name}' okunamadı: {e}"),
                         "locations.geojson dosyasını geçerli UTF-8 JSON olarak yeniden üretin.",
                     ));
@@ -2849,8 +2849,8 @@ fn validate_locations_geojson(
             Ok(v) => v,
             Err(e) => {
                 notices.push(make_notice(
-                counter, "LOC_001", EntityType::File, Some(fname.to_string()),
-                Some(fname), None, None, Some(format!("JSON hatası: {e}")),
+                counter, "LOC_012", EntityType::File, Some(fname.to_string()),
+                Some(fname), None, None, Some(e.to_string()),
                 format!("'{fname}' geçerli bir GeoJSON belgesi değil: {e}"),
                 "locations.geojson'ın geçerli bir GeoJSON FeatureCollection olduğundan emin olun.",
             ));
@@ -2862,7 +2862,7 @@ fn validate_locations_geojson(
     if root_type != Some("FeatureCollection") {
         notices.push(make_notice(
             counter,
-            "LOC_001",
+            "LOC_012",
             EntityType::File,
             Some(fname.to_string()),
             Some(fname),
@@ -2881,7 +2881,7 @@ fn validate_locations_geojson(
     let Some(features) = json.get("features").and_then(|f| f.as_array()) else {
         notices.push(make_notice(
             counter,
-            "LOC_001",
+            "LOC_012",
             EntityType::File,
             Some(fname.to_string()),
             Some(fname),
@@ -4985,6 +4985,53 @@ mod tests {
             !k1.notices.iter().any(|n| n.rule_id == "LOC_001"),
             "LOC_001 tetiklenmemeli"
         );
+    }
+
+    /// Ölçüm, 16. korpus koşumu (`tdg-81648`..`tdg-81652`): dosya HİÇ JSON değil. Eskiden bu
+    /// `LOC_001` üretiyordu ve yerelleştirilmiş şablon "geçersiz geometri tipi" diyordu;
+    /// ayrıştırıcı ilk karakterde düşerken hiçbir geometri okunmamıştı.
+    #[test]
+    fn loc_012_fires_for_a_document_that_is_not_json_and_loc_001_stays_silent() {
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("locations.geojson", b"<html>not json at all</html>"),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        assert!(
+            k1.notices.iter().any(|n| n.rule_id == "LOC_012"),
+            "JSON olmayan belge LOC_012 üretmeli"
+        );
+        assert!(
+            !k1.notices.iter().any(|n| n.rule_id == "LOC_001"),
+            "geometri hiç okunmadı — LOC_001 konuşmamalı"
+        );
+    }
+
+    /// Kök tip yanlışsa da olgu belge düzeyindedir, geometri düzeyinde değil.
+    #[test]
+    fn loc_012_fires_when_the_root_type_is_not_a_feature_collection() {
+        let zip = zip_with_files(&[
+            ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
+            ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
+            ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
+            ("trips.txt",      b"route_id,service_id,trip_id\nR1,SVC1,T1\n"),
+            ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
+            ("calendar.txt",   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
+            ("locations.geojson", br#"{"type":"Feature","geometry":null}"#),
+        ]);
+        let k1 = parse(&zip).unwrap();
+        let n = k1
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "LOC_012")
+            .expect("kök tip yanlışsa LOC_012 bekleniyor");
+        assert_eq!(n.field.as_deref(), Some("type"));
+        assert_eq!(n.observed_value.as_deref(), Some("Feature"));
     }
 
     /// LOC_006 fixture'ı: verilen ring ile bir locations.geojson üretir.

@@ -3,7 +3,7 @@ use gtfs_core::EntityType;
 use super::common::{
     build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, looks_like_bcp47,
     looks_like_email, looks_like_iana_timezone, looks_like_phone, looks_like_url, make_k2_notice,
-    parse_u32, RowMap,
+    parse_u32, whitespace_only_format_failure, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -231,7 +231,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         if let Some(ref url) = agency_fare_url {
             if !looks_like_url(url) {
-                notices.push(make_k2_notice(
+                let mut n = make_k2_notice(
                     &mut counter,
                     "AGN_008",
                     EntityType::Agency,
@@ -244,7 +244,11 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     None,
                     "agency_fare_url geçerli bir URL değil.".to_string(),
                     "agency_fare_url için geçerli bir http/https URL'si kullanın.",
-                ));
+                );
+                if whitespace_only_format_failure(url, looks_like_url) {
+                    n.whitespace_derived = true;
+                }
+                notices.push(n);
             }
         }
 
@@ -254,7 +258,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             .map(str::to_string);
         if let Some(ref email) = agency_email {
             if !looks_like_email(email) {
-                notices.push(make_k2_notice(
+                let mut n = make_k2_notice(
                     &mut counter,
                     "AGN_009",
                     EntityType::Agency,
@@ -267,7 +271,11 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                     None,
                     "agency_email geçerli bir e-posta adresi değil.".to_string(),
                     "agency_email için geçerli bir e-posta adresi kullanın.",
-                ));
+                );
+                if whitespace_only_format_failure(email, looks_like_email) {
+                    n.whitespace_derived = true;
+                }
+                notices.push(n);
             }
         }
 
@@ -435,6 +443,80 @@ mod tests {
         );
         let (_, notices) = validate_agency(&file);
         assert!(notices.iter().any(|n| n.rule_id == "AGN_009"));
+    }
+
+    /// Ölçüm, 16. korpus koşumu: `AGN_008` 10 feed, `AGN_009` 9 feed, 19 vakanın hepsinde tek
+    /// kusur BAŞTAKİ BOŞLUKTU (`' https://metrarail.com/tickets'`,
+    /// `' kotu@city.sakata.lg.jp'`) ve `DQ_016` aynı satırı zaten bildiriyordu. Kök tek,
+    /// rapor iki taneydi. Bulgu `whitespace_derived` işaretlenir; K7 onu YALNIZ aynı dosyada
+    /// `DQ_016` kökü varsa bastırır, yoksa izsiz kaybolmasın diye korur.
+    #[test]
+    fn whitespace_only_url_and_email_failures_are_marked_as_dq_016_derivatives() {
+        let file = make_file(
+            vec![
+                "agency_id",
+                "agency_name",
+                "agency_url",
+                "agency_timezone",
+                "agency_fare_url",
+                "agency_email",
+            ],
+            vec![vec![
+                "A1",
+                "TC",
+                "https://tc.example",
+                "Europe/Istanbul",
+                " https://tc.example/tickets",
+                " info@tc.example",
+            ]],
+        );
+        let (_, notices) = validate_agency(&file);
+        for rule in ["AGN_008", "AGN_009"] {
+            let n = notices
+                .iter()
+                .find(|n| n.rule_id == rule)
+                .unwrap_or_else(|| panic!("{rule} bekleniyor"));
+            assert!(
+                n.whitespace_derived,
+                "{rule} yalnız çevre boşluğundan doğdu, türev işaretlenmeli"
+            );
+        }
+    }
+
+    /// 🔴 ASIL RİSK: trim edilince DE geçersiz kalan değer bastırılmamalı. Sayısal yolun
+    /// `trimmed_value_is_semantically_valid` tablosu tanımadığı alanda `true` döndüğü için
+    /// burada KULLANILMAZ; onun yerine alanın kendi doğrulayıcısı çalıştırılır.
+    #[test]
+    fn a_value_that_stays_invalid_after_trimming_is_not_marked_as_a_derivative() {
+        let file = make_file(
+            vec![
+                "agency_id",
+                "agency_name",
+                "agency_url",
+                "agency_timezone",
+                "agency_fare_url",
+                "agency_email",
+            ],
+            vec![vec![
+                "A1",
+                "TC",
+                "https://tc.example",
+                "Europe/Istanbul",
+                " not-a-url ",
+                " not-an-email ",
+            ]],
+        );
+        let (_, notices) = validate_agency(&file);
+        for rule in ["AGN_008", "AGN_009"] {
+            let n = notices
+                .iter()
+                .find(|n| n.rule_id == rule)
+                .unwrap_or_else(|| panic!("{rule} bekleniyor"));
+            assert!(
+                !n.whitespace_derived,
+                "{rule} trim'den sonra da geçersiz — bastırılamaz"
+            );
+        }
     }
 
     #[test]

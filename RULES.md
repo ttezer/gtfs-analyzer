@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-613 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+614 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -285,6 +285,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | LOC_001 | locations.geojson'da bilinmeyen veya geçersiz geometri tipi | YÜKSEK | Spec |
+| LOC_012 | locations.geojson geçerli bir GeoJSON FeatureCollection değil | YÜKSEK | Spec |
 | LOC_002 | Feature'da geometry null veya eksik — GTFS Flex gerektiriyor | KRİTİK | Spec |
 | LOC_003 | Feature'da 'id' property eksik — stop_times çapraz referansı için zorunlu | KRİTİK | Spec |
 | LOC_004 | Polygon ring kapalı değil (ilk != son nokta) | ORTA | Spec |

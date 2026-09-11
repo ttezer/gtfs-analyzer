@@ -1027,6 +1027,24 @@ pub(crate) fn whitespace_only_parser_failure(
     })
 }
 
+/// URL / e-posta / dil etiketi gibi BİÇİM doğrulayıcılarının reddi yalnız çevre boşluğundan
+/// mı doğuyor? Kök `DQ_016`'dır; türev bulgu K7'de bastırılır — ama yalnız aynı dosyada
+/// `DQ_016` kökü varsa, yoksa bulgu izsiz kaybolmasın diye korunur (`k7_reporting.rs`).
+///
+/// ⚠️ Sayısal yolun `trimmed_value_is_semantically_valid` tablosu BURADA KULLANILMAZ: o
+/// tablo tanımadığı alanda `true` döner ve biçim kurallarında bu `' bozuk-url '` gibi
+/// gerçek ihlalleri de bastırırdı. Onun yerine çağıran kendi doğrulayıcısını verir ve
+/// trim'li değer o doğrulayıcıdan GEÇMEK ZORUNDADIR.
+///
+/// Ölçüm (16. korpus): `AGN_008` 10 feed, `AGN_009` 9 feed, `FIN_004` 1 feed — 20 vakanın
+/// hepsinde tek kusur baştaki boşluktu (`' https://metrarail.com/tickets'`,
+/// `' kotu@city.sakata.lg.jp'`, `' bg'`) ve `DQ_016` 10 feed'in 9'unda aynı satırı zaten
+/// bildiriyordu.
+pub(crate) fn whitespace_only_format_failure(raw: &str, valid: impl Fn(&str) -> bool) -> bool {
+    let trimmed = raw.trim();
+    !trimmed.is_empty() && raw != trimmed && valid(trimmed)
+}
+
 /// Ham değerin trim edilmiş biçimi de bağımsız bir aralık/enum ihlali taşıyorsa, yalnızca
 /// whitespace köküne indirgenemez. Bu küçük alan tablosu özellikle 91.0 gibi değerleri
 /// korur; tanınmayan alanlar için parse başarısı yeterli kök kanıtıdır.

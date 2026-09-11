@@ -833,6 +833,17 @@ pub static RULES: &[RuleMeta] = &[
     // ── LOC: locations.geojson ───────────────────────────────────────────────
     r!("LOC_001", Yuksek, Spec, 2, &[], None, VS, File,
         "locations.geojson'da bilinmeyen veya geçersiz geometri tipi"),
+    // LOC_012 (16. korpus koşumu, 2026-09-11): `LOC_001` BEŞ AYRI olguyu taşıyordu —
+    // dosya okunamıyor · JSON ayrıştırılamıyor · kök tip FeatureCollection değil ·
+    // `features` dizisi yok · feature geometri tipi desteklenmiyor. Yerelleştirme
+    // katmanında kural başına TEK şablon var (`i18n.rs::translate`), o şablon da
+    // "Invalid geometry type" diyordu. Sonuç: `tdg-81648`..`tdg-81652`'de dosya HİÇ JSON
+    // değilken (`expected value at line 1 column 1`) en/fr/ja çıktısı "geçersiz geometri
+    // tipi" iddia ediyordu. Belge düzeyi kusurlar buraya taşındı; `LOC_001` yalnız
+    // `geometry.type` kolunda kaldı ve başlığı artık DOĞRU.
+    // 🔑 ARC_001 deseni: yerelleştirilmiş şablon değişmezi söyler, ayrıntı Türkçe mesajda.
+    r!("LOC_012", Yuksek, Spec, 2, &[], None, VS, File,
+        "locations.geojson geçerli bir GeoJSON FeatureCollection değil"),
     r!("LOC_002", Kritik, Spec, 2, &[], None, VS_K, File,
         "Feature'da geometry null veya eksik — GTFS Flex gerektiriyor"),
     r!("LOC_003", Kritik, Spec, 2, &[], None, VS_K, File,
@@ -2178,6 +2189,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("LOC_009", GtfsSpec),
     ("LOC_010", GtfsSpec),
     ("LOC_011", GtfsSpec),
+    ("LOC_012", GtfsSpec),
     ("LVL_001", GtfsSpec),
     ("LVL_002", GtfsSpec),
     ("LVL_003", ProjectQuality),

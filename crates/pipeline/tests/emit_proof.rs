@@ -970,8 +970,12 @@ fn fixtures() -> Vec<Fixture> {
      ]),
 
         // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─
-        // LOC_001: geçersiz JSON.
-        fx("LOC_001", vec![("locations.geojson", "not valid json")]),
+        // LOC_001: feature geometri tipi desteklenmiyor (Point). ⚠️ Fixture 2026-09-11'de
+        // DEĞİŞTİ: eskiden "not valid json" idi, ama o kol artık LOC_012'nin — belge hiç
+        // ayrıştırılamıyorsa geometri okunmamıştır ve LOC_001 konuşmamalıdır.
+        fx("LOC_001", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"properties\":{},\"geometry\":{\"type\":\"Point\",\"coordinates\":[0,0]}}]}")]),
+        // LOC_012: belge hiç JSON değil (korpus: tdg-81648..tdg-81652).
+        fx("LOC_012", vec![("locations.geojson", "not valid json")]),
         // LOC_005: FeatureCollection boş.
         fx("LOC_005", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[]}")]),
         // LOC_007: yinelenen feature 'id'.

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use gtfs_config::GtfsJpProfile;
 use gtfs_core::{EntityType, Notice};
@@ -1382,6 +1382,13 @@ fn check_trips(
     shapes_available: bool,
 ) {
     let ti = &records.trip_interns;
+    // TRP_004: sarkan `shape_id` SEFER başına değil, GÜZERGAH başına raporlanır.
+    // Kuralın kendi `scope_key_field`'i zaten `shape_id`; sefer başına emit o beyanla
+    // çelişiyordu. 16. korpus ölçümü: 29 feed'de 70.135 bulgu ve bunun %93,5'i tek bir
+    // kök kimlik uyuşmazlığından gelen iki feed (`mdb-3412`/`mdb-2027`, her biri 32.797).
+    // Kusurlu olan referans EDİLEN güzergahtır, onu kullanan her sefer değil.
+    // Değer: (etkilenen sefer sayısı, ilk seferin id'si, ilk seferin satırı).
+    let mut dangling_shapes: BTreeMap<&str, (u64, String, u64)> = BTreeMap::new();
     for rec in &records.trips {
         if rec.trip_id.is_empty() {
             continue;
@@ -1429,24 +1436,20 @@ fn check_trips(
             ));
         }
 
-        // TRP_004: shape_id referansı (varsa)
+        // TRP_004: shape_id referansı (varsa). Emit döngüden SONRA, güzergah başına.
+        //
+        // ⚠️ Trim edilince boşalan `shape_id` SARKAN REFERANS DEĞİL, boş alandır — alan
+        // opsiyoneldir ve boş bırakılabilir. `mdb-992` ölçümü: `shape_id ' '` değeri
+        // "' ' güzergahı tanımlı değil" bulgusu üretiyordu. Çevre boşluğu `DQ_016`'nın
+        // konusudur; K7'nin whitespace bastırması bu vakayı GÖREMEZ çünkü trim'li karşılık
+        // (boş dize) hedef kümede zaten yoktur.
         if shapes_available {
-            if let Some(sid) = ti.shape_id(rec) {
+            if let Some(sid) = ti.shape_id(rec).filter(|s| !s.trim().is_empty()) {
                 if !map.shape_points.contains_key(sid) {
-                    notices.push(notice(
-                        ctr,
-                        "TRP_004",
-                        EntityType::Trip,
-                        eid.clone(),
-                        Some(sid.to_string()), // scope_key = shape_id
-                        "trips.txt",
-                        Some(rec.line),
-                        Some("shape_id"),
-                        Some(sid.to_string()),
-                        None,
-                        format!("'{}' güzergahı shapes.txt'te tanımlı değil.", sid),
-                        "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
-                    ));
+                    let entry = dangling_shapes
+                        .entry(sid)
+                        .or_insert_with(|| (0, rec.trip_id.to_string(), rec.line));
+                    entry.0 += 1;
                 }
             }
         }
@@ -1497,6 +1500,40 @@ fn check_trips(
                 ));
             }
         }
+    }
+
+    // TRP_004 emisyonu: güzergah başına TEK bulgu. `BTreeMap` sırası determinizmi verir.
+    // Varlık `Shape`'tir (kusurlu olan referans edilen güzergah), örnek sefer ve etkilenen
+    // sefer sayısı `details`'te taşınır ki tüketici hâlâ satıra inebilsin.
+    for (sid, (trips, first_trip, first_line)) in dangling_shapes {
+        let message = if trips == 1 {
+            format!(
+                "'{sid}' güzergahı shapes.txt'te tanımlı değil; '{first_trip}' seferi bu güzergaha başvuruyor."
+            )
+        } else {
+            format!(
+                "'{sid}' güzergahı shapes.txt'te tanımlı değil; {trips} sefer bu güzergaha başvuruyor (ör. '{first_trip}')."
+            )
+        };
+        let mut n = notice(
+            ctr,
+            "TRP_004",
+            EntityType::Shape,
+            Some(sid.to_string()),
+            Some(sid.to_string()), // scope_key = shape_id
+            "trips.txt",
+            Some(first_line),
+            Some("shape_id"),
+            Some(sid.to_string()),
+            None,
+            message,
+            "Geçerli bir shape_id kullanın veya alanı boş bırakın.",
+        );
+        let mut details: BTreeMap<String, String> = BTreeMap::new();
+        details.insert("affected_trips".to_string(), trips.to_string());
+        details.insert("example_trip".to_string(), first_trip);
+        n.details = Some(details);
+        notices.push(n);
     }
 }
 
@@ -6853,6 +6890,75 @@ mod tests {
         recs.trip_interns = ti;
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_004"));
+    }
+
+    /// Ölçüm, 16. korpus koşumu: sefer başına emit `mdb-3412`'de 32.797 bulgu üretiyordu.
+    /// Kusurlu olan referans EDİLEN güzergahtır. Aynı sarkan `shape_id`'yi kullanan N sefer
+    /// TEK bulgu vermeli ve sayı `details.affected_trips` içinde durmalı.
+    #[test]
+    fn trp_004_collapses_many_trips_of_one_dangling_shape_into_a_single_notice() {
+        let (mut recs, mut map) = empty();
+        map.routes.insert("R1".into(), 0);
+        map.services.insert("SVC1".into());
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![
+            trip_s(&mut ti, "T1", "R1", "SVC1", "MISSING_SHAPE", None),
+            trip_s(&mut ti, "T2", "R1", "SVC1", "MISSING_SHAPE", None),
+            trip_s(&mut ti, "T3", "R1", "SVC1", "MISSING_SHAPE", None),
+        ];
+        recs.trip_interns = ti;
+        let result = check(&recs, &map, 20260515);
+        let found: Vec<&Notice> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "TRP_004")
+            .collect();
+        assert_eq!(found.len(), 1, "üç sefer tek güzergah bulgusu vermeli");
+        assert_eq!(found[0].entity_id.as_deref(), Some("MISSING_SHAPE"));
+        let details = found[0].details.as_ref().expect("details bekleniyor");
+        assert_eq!(details.get("affected_trips").map(String::as_str), Some("3"));
+        assert_eq!(details.get("example_trip").map(String::as_str), Some("T1"));
+    }
+
+    /// İki farklı sarkan güzergah iki bulgu verir ve sıra `shape_id`'ye göre determinist.
+    #[test]
+    fn trp_004_emits_one_notice_per_distinct_shape_in_sorted_order() {
+        let (mut recs, mut map) = empty();
+        map.routes.insert("R1".into(), 0);
+        map.services.insert("SVC1".into());
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![
+            trip_s(&mut ti, "T1", "R1", "SVC1", "ZZ_SHAPE", None),
+            trip_s(&mut ti, "T2", "R1", "SVC1", "AA_SHAPE", None),
+        ];
+        recs.trip_interns = ti;
+        let result = check(&recs, &map, 20260515);
+        let ids: Vec<&str> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "TRP_004")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(ids, vec!["AA_SHAPE", "ZZ_SHAPE"]);
+    }
+
+    /// `mdb-992`: `shape_id` değeri yalnız boşluk taşıyordu ve kural "' ' güzergahı tanımlı
+    /// değil" diyordu. Alan opsiyoneldir; trim edilince boşalan değer BOŞ ALANDIR. Çevre
+    /// boşluğunu `DQ_016` bildirir, K7'nin bastırması bunu göremez (trim'li karşılık olan
+    /// boş dize hedef kümede zaten yoktur), o yüzden koruma emit noktasında durur.
+    #[test]
+    fn trp_004_treats_a_whitespace_only_shape_id_as_an_empty_field() {
+        let (mut recs, mut map) = empty();
+        map.routes.insert("R1".into(), 0);
+        map.services.insert("SVC1".into());
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip_s(&mut ti, "T1", "R1", "SVC1", " ", None)];
+        recs.trip_interns = ti;
+        let result = check(&recs, &map, 20260515);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "TRP_004"),
+            "yalnız boşluk taşıyan shape_id sarkan referans değildir"
+        );
     }
 
     // �"?�"? STM_001 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

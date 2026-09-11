@@ -702,7 +702,7 @@ const ja: LocaleShape = {
     'TRP_001': "trip_idが重複しています：'{entity_id}'。",
     'TRP_002': "便'{entity_id}'：route_id'{observed_value}'がroutes.txtに見つかりません。",
     'TRP_003': "便'{entity_id}'：service_id'{observed_value}'がcalendar/calendar_datesに見つかりません。",
-    'TRP_004': "便'{entity_id}'：shape_id'{observed_value}'がshapes.txtに見つかりません。",
+    'TRP_004': "shape_id'{observed_value}'がshapes.txtに定義されていません（{affected_trips}件の便が参照、例：'{example_trip}'）。",
     'TRP_005': "便'{entity_id}'：direction_id'{observed_value}'が無効です（0または1でなければなりません）。",
     'TRP_006': "便'{entity_id}'：wheelchair_accessible'{observed_value}'が無効です。",
     'TRP_007': "便'{entity_id}'：bikes_allowed'{observed_value}'が無効です。",
@@ -2055,6 +2055,7 @@ const ja: LocaleShape = {
     'LOC_009': "Featureの'properties'オブジェクトが欠落",
     'LOC_010': "Geometryの'coordinates'が欠落または配列でない",
     'LOC_011': '不正なポリゴン: リングが自己交差、または穴が外側にあります',
+    'LOC_012': 'locations.geojsonが有効なGeoJSON FeatureCollectionではない',
     // CAL
     'CAL_001': 'service_idが重複',
     'CAL_002': '曜日フィールドの値が無効',

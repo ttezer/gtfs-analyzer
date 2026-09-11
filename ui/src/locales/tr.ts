@@ -838,6 +838,7 @@ const tr = {
     'LOC_007': "FeatureCollection içinde yinelenen feature 'id'",
     'LOC_010': "Geometry 'coordinates' eksik veya dizi değil — bölge geometrisi çözümlenemez",
     'LOC_011': 'Poligon geçersiz: ring kendini kesiyor veya delik dışarıda',
+    'LOC_012': "locations.geojson geçerli bir GeoJSON FeatureCollection değil",
     'LOC_009': "Feature 'properties' nesnesi eksik",
     'LOC_008': "Feature 'type' alanı eksik veya \"Feature\" değil",
     // CAL

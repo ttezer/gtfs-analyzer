@@ -2,7 +2,7 @@ use gtfs_core::EntityType;
 
 use super::common::{
     build_row_map, get_lexical_field, get_trimmed_field, looks_like_bcp47, looks_like_email,
-    looks_like_url, make_k2_notice, parse_service_date, RowMap,
+    looks_like_url, make_k2_notice, parse_service_date, whitespace_only_format_failure, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -95,7 +95,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             .map(str::to_string);
         if let Some(ref lang) = default_lang {
             if !looks_like_bcp47(lang) {
-                notices.push(make_k2_notice(
+                let mut n = make_k2_notice(
                     &mut counter,
                     "FIN_004",
                     EntityType::Feed,
@@ -108,7 +108,11 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
                     None,
                     "default_lang geçerli bir BCP 47 dil etiketi değil.".to_string(),
                     "default_lang için geçerli bir IETF BCP 47 dil etiketi girin.",
-                ));
+                );
+                if whitespace_only_format_failure(lang, looks_like_bcp47) {
+                    n.whitespace_derived = true;
+                }
+                notices.push(n);
             }
         }
 
