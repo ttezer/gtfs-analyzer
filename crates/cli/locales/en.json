@@ -608,7 +608,7 @@
     "STP_044": "platform_code '{observed_value}' contains a redundant platform/track word; it should hold the identifier only.",
     "TFR_008": "service_id is required in timeframes.txt.",
     "TRF_020": "The transfer requires walking at {observed_value}, which is faster than a plausible walking speed.",
-    "TRN_016": "The 'field_value' of {observed_value} translation records matches no row in the target file, so those translations are never applied.",
+    "TRN_016": "The 'field_value' of {observed_value} translation records matches no row in the target file, so those translations are never applied. For example: {examples}.",
     "TRN_017": "A stop_times translation sets record_id but omits record_sub_id, so the row it belongs to is ambiguous.",
     "TRP_035": "service_id is required; a trip left empty is attached to no calendar.",
     "XFL_032": "location_group_id is required in location_groups.txt.",

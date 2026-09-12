@@ -470,6 +470,7 @@
     "TRN_010": "翻訳：record_sub_id'{observed_value}'が無効です。",
     "TRN_011": "翻訳：field_name'{observed_value}'は翻訳可能ではありません。",
     "TRN_013": "翻訳：IDフィールドはfeed_info翻訳では使用できません。",
+    "TRN_016": "{observed_value}件の翻訳レコードのfield_valueが対象ファイルのどの行とも一致せず、これらの翻訳は適用されません。例：{examples}。",
     "TRN_014": "翻訳：record_sub_idはstop_timesにのみ有効です。",
     "ATR_001": "attributions.txt内の{observed_value}にattribution_idがありません。これらのレコードは重複時に区別できません。",
     "ATR_002": "帰属'{entity_id}'：organization_nameがありません。",

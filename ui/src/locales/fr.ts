@@ -1222,7 +1222,7 @@ const fr: LocaleShape = {
     'STP_044': 'Le platform_code « {observed_value} » contient un mot redondant (quai ou voie) ; il ne doit contenir que l’identifiant.',
     'TFR_008': 'service_id est obligatoire dans timeframes.txt.',
     'TRF_020': 'La correspondance impose de marcher à {observed_value}, ce qui dépasse une vitesse de marche plausible.',
-    'TRN_016': 'Le « field_value » de {observed_value} enregistrements de traduction ne correspond à aucune ligne du fichier cible, ces traductions ne sont donc jamais appliquées.',
+    'TRN_016': 'Le « field_value » de {observed_value} enregistrements de traduction ne correspond à aucune ligne du fichier cible, ces traductions ne sont donc jamais appliquées. Par exemple : {examples}.',
     'TRN_017': 'Une traduction de stop_times définit record_id mais omet record_sub_id, l’enregistrement concerné est donc ambigu.',
     'TRP_035': 'service_id est obligatoire ; une course laissée vide n’est rattachée à aucun calendrier.',
     'XFL_032': 'location_group_id est obligatoire dans location_groups.txt.',

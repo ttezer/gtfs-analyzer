@@ -5858,7 +5858,8 @@ fn check_xfl(
             unmatched.dedup();
             let total = unmatched.len();
             let sample: Vec<&str> = unmatched.iter().take(5).map(String::as_str).collect();
-            notices.push(notice(
+            let examples = sample.join(", ");
+            let mut n = notice(
                 ctr,
                 "TRN_016",
                 EntityType::Feed,
@@ -5871,12 +5872,23 @@ fn check_xfl(
                 None,
                 format!(
                     "{total} çeviri kaydının 'field_value' değeri hedef dosyada hiçbir satırla \
-                     eşleşmiyor — bu çeviriler uygulanmaz. Örnek: {}.",
-                    sample.join(", ")
+                     eşleşmiyor — bu çeviriler uygulanmaz. Örnek: {examples}."
                 ),
                 "field_value değerlerini hedef alanın gerçek içeriğiyle birebir eşleştirin \
                  (baştaki/sondaki boşluk ve büyük/küçük harf dahil).",
-            ));
+            );
+            // 🔴 ÖRNEKLER `details`'E DE YAZILIR (17. koşum incelemesi, 2026-09-12).
+            // Yerelleştirme kural başına TEK şablon tutar ve en/fr/ja şablonları yalnız SAYIYI
+            // basıyordu: 3.013 ölü çevirisi olan bir Japon üreticisi kendi dilinde nereden
+            // başlayacağını göremiyordu. Türkçe mesajdaki "Örnek: …" listesi başka hiçbir yerde
+            // durmuyordu — `details` dolmadığı için kaybın izi de yoktu.
+            // `i18n.rs::resolve` önce `details`e bakar, bu yüzden şablonlar `{examples}` ile
+            // aynı listeyi çözebiliyor.
+            let mut details: BTreeMap<String, String> = BTreeMap::new();
+            details.insert("examples".to_string(), examples);
+            details.insert("unmatched_values".to_string(), total.to_string());
+            n.details = Some(details);
+            notices.push(n);
         }
     }
 
