@@ -794,6 +794,58 @@ fn rts_028_silent_when_continuous_is_one() {
 /// 57 farklı durak çifti vardı, çift başına ortalama 14,5 satır. Kural künyesinde kimlik alanı
 /// zaten `from_stop_id|to_stop_id`, yani çift; emisyon satır başınaydı ve kendi beyanıyla
 /// çelişiyordu. MD `transfer_distance_above_2_km` 69 diyordu — o da çift başına sayıyor.
+/// Ölçüm, 17. korpus koşumu (`mdb-2653`): `stop_times` kaydı olmayan 421 seferin 108'inin
+/// `trip_id`'sinde boşluk vardı ve 108'i de K7'de bastırılıyordu — biz 313 rapor ederken MD 732
+/// diyordu. Bastırma "kimlik yalnız boşluk yüzünden eşleşmiyor" varsayımını `trip_id` referans
+/// kümesine bakarak kuruyordu, ama o küme `trips.txt`'nin KENDİ kimliklerinden doluyor ve
+/// `XFL_002`'nin gözlenen değeri zaten seferin kendi kimliği — koşul her zaman sağlanıyordu.
+/// Doğru küme `stop_times`'ta GEÇEN kimlikler.
+#[test]
+fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
+    let trips = "route_id,service_id,trip_id\nR1,SVC1,T1 \nR1,SVC1,T2 \n";
+    let stop_times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT2,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S2,2\n";
+    let mut files = base_files();
+    for f in files.iter_mut() {
+        if f.0 == "trips.txt" {
+            *f = ("trips.txt", trips.as_bytes());
+        } else if f.0 == "stop_times.txt" {
+            *f = ("stop_times.txt", stop_times.as_bytes());
+        }
+    }
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let ids: Vec<&str> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "XFL_002")
+                .filter_map(|n| n.entity_id.as_deref())
+                .collect();
+            // `T1 ` hiçbir yazımla stop_times'ta YOK → bulgu GERÇEK, görünür kalmalı.
+            assert!(
+                ids.iter().any(|id| id.trim() == "T1"),
+                "stop_times'ta hiç geçmeyen sefer bastırılmamalı: {ids:?}"
+            );
+            // `T2 ` trim'lenince stop_times'ta VAR → fark yalnız boşluk, bastırılmalı.
+            assert!(
+                !ids.iter().any(|id| id.trim() == "T2"),
+                "yalnız boşlukla ayrılan sefer DQ_016'nın konusudur, ayrı bulgu değil: {ids:?}"
+            );
+            // Bastırma izsiz olmamalı: kök DQ_016 sayıyı beyan etmeli.
+            let root = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("trips.txt"))
+                .expect("trips.txt için DQ_016 kökü bekleniyor");
+            assert!(root
+                .details
+                .as_ref()
+                .and_then(|d| d.get("suppressed_derivative_rules"))
+                .is_some_and(|v| v.contains("XFL_002")));
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 #[test]
 fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
     // Aynı uzak çift ÜÇ satırda, ters yönlü çift bir satırda (S1↔S2 ~13,7 km).

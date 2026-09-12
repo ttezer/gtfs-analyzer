@@ -220,6 +220,35 @@ fn materialize_retained_whitespace_flags(notices: &mut [Notice]) {
 }
 
 /// Ham id bulunamıyor ama boşluk yok sayılınca bulunuyor → whitespace kaynaklı FK semptomu.
+/// `IdSets` içinde `stop_times` kolunu adlandıran iç anahtar. GTFS'te böyle bir ALAN yok;
+/// yalnız `reference_field_for` üzerinden erişilir, bu yüzden gerçek bir alan adıyla çakışmaz.
+const STOP_TIMES_TRIP_ID: &str = "\0stop_times::trip_id";
+
+/// Bastırmanın hangi kimlik kümesine bakacağını kural bazında düzeltir.
+///
+/// 🔴 KÖK KUSUR (17. koşum, `mdb-2653`): kümeler "bu alanı TANIMLAYAN tablo" varsayımıyla
+/// kuruluyor — `trip_id` → `trips.txt`. `XFL_002` ise TERS yönü sorar: "bu seferin
+/// `stop_times`'ta kaydı var mı?" Gözlenen değer seferin KENDİ kimliği olduğu için
+/// `contains_trimmed("trip_id", …)` **her zaman** doğru döner ve bulgu boşluk artığı sanılıp
+/// düşürülür. Sonuç garantili yanlış negatif: `trip_id`'sinde boşluk olan hiçbir feed'de
+/// `XFL_002` görünmez.
+///
+/// Ölçüm (`mdb-2653`, 138.962 sefer): `stop_times` kaydı OLMAYAN 421 seferin **108'inin**
+/// kimliğinde boşluk var ve 108'i de bastırılıyordu; biz 313 rapor ediyorduk, MD 732.
+/// O 108 seferin kimliği `stop_times.txt`'te HİÇBİR yazımla geçmiyor (doğrulandı) —
+/// yani bulgular gerçekti.
+///
+/// Doğru küme `stop_times`'ta geçen kimlikler. Böylece ayrım da doğru kurulur:
+/// · kimlik orada YOK → bulgu gerçek, GÖRÜNÜR kalır;
+/// · kimlik orada trim'li hâliyle VAR → sefer gerçekten kayıtlı, fark yalnız boşluk →
+///   bastırılır ve `DQ_016` kökünde beyan edilir.
+fn reference_field_for<'f>(rule_id: &str, field: &'f str) -> &'f str {
+    match (rule_id, field) {
+        ("XFL_002", "trip_id") => STOP_TIMES_TRIP_ID,
+        _ => field,
+    }
+}
+
 fn mirror_whitespace_symptom(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
     let Some(field) = notice.field.as_deref() else {
         return false;
@@ -231,6 +260,7 @@ fn mirror_whitespace_symptom(notice: &Notice, references: &WhitespaceReferences<
         .split('|')
         .zip(observed.split('|'))
         .any(|(field, value)| {
+            let field = reference_field_for(&notice.rule_id, field);
             let value = value.trim();
             !value.is_empty()
                 && !references.contains(field, value)
@@ -249,6 +279,7 @@ fn normalized_reference_exists(notice: &Notice, references: &WhitespaceReference
         .split('|')
         .zip(observed.split('|'))
         .any(|(field, value)| {
+            let field = reference_field_for(&notice.rule_id, field);
             let value = value.trim();
             !value.is_empty() && references.contains(field, value)
         })
@@ -268,6 +299,9 @@ struct IdSets<'a> {
     network_id: FxHashSet<&'a str>,
     shape_id: FxHashSet<&'a str>,
     zone_id: FxHashSet<&'a str>,
+    /// 🔴 `stop_times.txt`'te GEÇEN sefer kimlikleri — `trips.txt`'te TANIMLI olanlar değil.
+    /// `XFL_002` gibi TERS YÖNLÜ kurallar için gerekli; gerekçe `reference_field_for`da.
+    stop_times_trip_id: FxHashSet<&'a str>,
 }
 
 impl<'a> IdSets<'a> {
@@ -286,6 +320,7 @@ impl<'a> IdSets<'a> {
             network_id: FxHashSet::default(),
             shape_id: FxHashSet::default(),
             zone_id: FxHashSet::default(),
+            stop_times_trip_id: FxHashSet::default(),
         };
         refs.agency_id.extend(
             records
@@ -299,6 +334,17 @@ impl<'a> IdSets<'a> {
             .extend(records.routes.iter().map(|r| r.route_id.as_str()));
         refs.trip_id
             .extend(records.trips.iter().map(|r| r.trip_id.as_str()));
+        // `stop_times`'ta GEÇEN sefer kimlikleri. `StopTimesIndex::trip_id_set` zaten
+        // `XFL_002` için tutuluyor; tamponlanan kol için typed kayıtlardan da toplanır.
+        refs.stop_times_trip_id.extend(
+            records
+                .stop_times_index
+                .trip_id_set
+                .iter()
+                .map(smol_str::SmolStr::as_str),
+        );
+        refs.stop_times_trip_id
+            .extend(records.stop_times.iter().map(|r| r.trip_id.as_str()));
         refs.service_id
             .extend(records.calendars.iter().map(|r| r.service_id.as_str()));
         refs.service_id
@@ -359,6 +405,7 @@ impl<'a> IdSets<'a> {
             "network_id" => &self.network_id,
             "shape_id" => &self.shape_id,
             "zone_id" | "origin_id" | "destination_id" | "contains_id" => &self.zone_id,
+            STOP_TIMES_TRIP_ID => &self.stop_times_trip_id,
             _ => return None,
         })
     }
@@ -380,6 +427,7 @@ impl<'a> IdSets<'a> {
             network_id: self.network_id.iter().map(|v| v.trim()).collect(),
             shape_id: self.shape_id.iter().map(|v| v.trim()).collect(),
             zone_id: self.zone_id.iter().map(|v| v.trim()).collect(),
+            stop_times_trip_id: self.stop_times_trip_id.iter().map(|v| v.trim()).collect(),
         }
     }
 }
