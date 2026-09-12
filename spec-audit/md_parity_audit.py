@@ -123,7 +123,13 @@ MAP = {
     "stop_time_with_only_arrival_or_departure_time": ["STM_034"],  # 1/1
     "missing_prior_notice_last_time":   ["BKR_009"],            # 1/1
     "empty_column_name":                ["ARC_017"],            # 5/5 — boş başlık tanınmayan sütundur
-    "missing_pickup_or_drop_off_window": ["STM_039", "PDW_006"],# 1/1 ikisi de
+    # ⚠️ `PDW_006` 2026-09-12'de BU EŞLEMEDEN ÇIKARILDI. MD'nin kodu pencerenin EKSİK olmasını
+    # ölçer; `PDW_006` ise aynı trip+zone'da pencerelerin ÖRTÜŞMESİNİ ölçer — başka olgu.
+    # Doğru karşılık `STM_039` ("Flex bağlamında pickup/drop_off penceresi eksik"). Çelişki
+    # betiğin kendi içinde duruyordu: alt satırın yorumu zaten "PDW_006 ÖRTÜŞME ölçer, bu değil"
+    # diyordu ama üst satır onu yine o koda bağlıyordu. 17. koşumda eşleme 75 sahte
+    # `analyzer_mapped_md_absent` vakası üretiyordu (kovanın %24'ü).
+    "missing_pickup_or_drop_off_window": ["STM_039"],
     "invalid_pickup_drop_off_window":   ["STM_038"],            # ters/sıfır pencere; PDW_006 ÖRTÜŞME ölçer, bu değil
     # İlk aday turunda "hiçbiri" çıkmıştı çünkü YANLIŞ aday seçmiştim (FTR_002 =
     # from_leg_group_id bulunamadı, FK kuralı). Doğru kurallar leg-grubu koşulunu
