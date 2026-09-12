@@ -112,7 +112,37 @@ pub fn validate_calendar_dates_with_limits(
     let has_exception_type_col = file.headers.iter().any(|h| h == "exception_type");
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
 
+    let header_count = file.headers.len();
     let mut process = |row: &[Cow<'_, str>], line: u64| {
+        // ARC_012: satırın alan sayısı başlıkla uyuşmuyor. Alt satırdaki `ARC_034` yorumunun
+        // anlattığı mekanizmanın aynısı — dosya K1'de stream edildiği için K1'in satır döngüsüne
+        // hiç girmez ve kontrol oraya bırakılırsa burada HİÇ çalışmaz. `stop_times.rs` ve
+        // `shapes.rs` taşımıştı, bu dosya ile `trips.rs` taşımamıştı (17. korpus koşumunda
+        // bulundu; kanıt `mdb-2013`'ün trips.txt'si, 15.170 bozuk satırın tamamı sessizdi).
+        // ⚠️ Kural Kritik·Spec, yani R1 yayın kapısını GÖREN bir kural.
+        if let Some((msg, tip, observed, is_info)) =
+            crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
+        {
+            let mut n = make_k2_notice(
+                &mut counter,
+                "ARC_012",
+                EntityType::File,
+                Some(file.name.clone()),
+                None,
+                &file.name,
+                Some(line),
+                None,
+                Some(observed),
+                None,
+                msg,
+                tip,
+            );
+            if is_info {
+                n.severity = gtfs_core::Severity::Bilgi;
+            }
+            notices.push(n);
+        }
+
         // ARC_034: başlık tekrarı → notice + satırı KAYDETME. Bu dosya K1'de stream edilir
         // ve orada yalnız başlık okunur; kontrol K1'de kalırsa burada hiç çalışmaz (#181).
         if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
@@ -504,6 +534,47 @@ mod tests {
             raw_text: None,
             zip_entry_name: None,
         }
+    }
+
+    /// Akış yolu fixture'ı — `raw_text` dolu, `rows` boş.
+    fn make_file_streaming(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
+        let text = format!(
+            "{}\n{}\n",
+            headers.join(","),
+            rows.iter()
+                .map(|r| r.join(","))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+        RawFile {
+            name: "calendar_dates.txt".to_string(),
+            headers: headers.into_iter().map(str::to_string).collect(),
+            rows: vec![],
+            bytes: text.len() as u32,
+            raw_text: Some(text),
+            zip_entry_name: None,
+        }
+    }
+
+    /// `trips.txt` ile aynı kör nokta: dosya K1'de stream edilir, `ARC_012` oraya bırakılırsa
+    /// burada hiç çalışmaz. Korpusta bu dosya için bozuk satır KANITI YOK; boşluk kod
+    /// okumasıyla bulundu ve bu test onu sabitler.
+    #[test]
+    fn arc012_fires_on_the_streaming_path_for_calendar_dates() {
+        let file = make_file_streaming(
+            vec!["service_id", "date", "exception_type"],
+            vec![
+                vec!["SVC1", "20260101", "1"],
+                vec!["SVC2", "20260102", "1", "FAZLA"],
+            ],
+        );
+        let (_idx, notices) = validate_calendar_dates(&file, None);
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "ARC_012")
+            .expect("fazla alanlı satır ARC_012 üretmeli");
+        assert_eq!(hit.file.as_deref(), Some("calendar_dates.txt"));
+        assert_eq!(hit.severity, gtfs_core::Severity::Kritik);
     }
 
     // ── Mevcut testler (davranış değişmemeli) ────────────────────────────────

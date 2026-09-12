@@ -249,7 +249,42 @@ pub fn validate_trips_with_limits(
     let mut jp_pattern_map: FxHashMap<String, u32> = FxHashMap::default();
 
     // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
+    let header_count = file.headers.len();
     let mut process = |row: &[Cow<'_, str>], line: u64| {
+        // ARC_012: satırın alan sayısı başlıkla uyuşmuyor.
+        //
+        // 🔴 17. korpus koşumunda bulundu: bu dosya `is_zip_stream` listesinde olduğu için K1'de
+        // YALNIZ başlığı okunur ve K1'in satır döngüsüne HİÇ girmez. `stop_times.rs` ve
+        // `shapes.rs` kontrolü akış yoluna taşımıştı, `trips.rs` ve `calendar_dates.rs`
+        // taşımamıştı — yani bu iki dosyada satır uzunluğu HİÇ denetlenmiyordu.
+        // Aynı dosyadaki `ARC_034` yorumu mekanizmayı zaten anlatıyor (#181); `ARC_012` o turda
+        // atlanmış.
+        // Kanıt `mdb-2013`: dosyanın 15.170 satırının tamamı bozuk, MD `invalid_row_length`
+        // 38.893 diyordu, biz 23.723 — fark tam olarak trips.txt'nin payıydı.
+        // ⚠️ Kural Kritik·Spec, yani R1 yayın kapısını GÖREN bir kural.
+        if let Some((msg, tip, observed, is_info)) =
+            crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
+        {
+            let mut n = make_k2_notice(
+                &mut counter,
+                "ARC_012",
+                EntityType::File,
+                Some(file.name.clone()),
+                None,
+                &file.name,
+                Some(line),
+                None,
+                Some(observed),
+                None,
+                msg,
+                tip,
+            );
+            if is_info {
+                n.severity = gtfs_core::Severity::Bilgi;
+            }
+            notices.push(n);
+        }
+
         // ARC_034: başlık satırının tekrarı — notice + satırı KAYDETME (K1'deki continue).
         // Bu dosya K1'de stream edilir ve orada yalnız başlık okunur, dolayısıyla kontrol
         // K1'de kalırsa bu dosyada HİÇ çalışmaz (#181).
@@ -831,6 +866,41 @@ mod tests {
             raw_text: Some(text),
             zip_entry_name: None,
         }
+    }
+
+    /// Ölçüm, 17. korpus koşumu — kör nokta: `trips.txt` `is_zip_stream` listesindedir,
+    /// K1'de yalnız başlığı okunur ve K1'in satır döngüsüne HİÇ girmez. `ARC_012` oraya
+    /// bırakıldığı için bu dosyada hiç çalışmıyordu. Kanıt `mdb-2013`: 15.170 bozuk satırın
+    /// tamamı sessizdi, MD `invalid_row_length` 38.893 derken biz 23.723 diyorduk.
+    #[test]
+    fn arc012_fires_on_the_streaming_path_for_trips() {
+        let file = make_file_streaming(
+            vec!["route_id", "service_id", "trip_id"],
+            vec![vec!["R1", "SVC1", "T1"], vec!["R2", "SVC2", "T2", "FAZLA"]],
+        );
+        let (_records, _ti, notices) = validate_trips(&file, None);
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "ARC_012")
+            .expect("fazla alanlı satır ARC_012 üretmeli");
+        assert_eq!(hit.file.as_deref(), Some("trips.txt"));
+        assert_eq!(hit.line, Some(3));
+        assert_eq!(hit.severity, gtfs_core::Severity::Kritik);
+    }
+
+    /// Eksik kuyruk alanı geçerli CSV pratiğidir → Bilgi, Kritik DEĞİL.
+    #[test]
+    fn arc012_downgrades_a_short_trips_row_to_info() {
+        let file = make_file_streaming(
+            vec!["route_id", "service_id", "trip_id", "trip_headsign"],
+            vec![vec!["R1", "SVC1", "T1"]],
+        );
+        let (_records, _ti, notices) = validate_trips(&file, None);
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "ARC_012")
+            .expect("kısa satır ARC_012 üretmeli");
+        assert_eq!(hit.severity, gtfs_core::Severity::Bilgi);
     }
 
     #[test]
