@@ -73,7 +73,12 @@ MAP = {
     "single_shape_point":          ["SHP_006"],  # near-parity: yalnız kullanılan shape'ler
     # fare_products.txt::amount para birimi ondalık hassasiyetine uymuyor. Eşlemesizdi ve
     # 11 feed "kuralımız yok" gibi görünüyordu; koşumda 11'in 11'i de FPD_007 alıyor (#146).
-    "invalid_currency_amount":     ["FPD_007", "FAR_013"],  # FAR_013: price ISO 4217 ondalık basamak sayısını taşımıyor (#165)
+    # ⚠️ FAR_013 2026-09-11'de BU EŞLEMEDEN ÇIKARILDI. MD'nin kodu YALNIZ
+    # `fare_products.amount`'u denetler (16. koşumda 11 feed'in örneklerinin HEPSİ öyle) ve
+    # `FAR_013` `fare_attributes.price`'a bakar — MD'nin hiç kuralı olmayan bir alan.
+    # 394 feed'in HİÇBİRİNDE Fares V2 yok, yani MD'nin kuralı yapısal olarak ateşleyemez.
+    # Eşleme dururken denetim her koşumda 394 sahte `..._md_absent` üretiyordu.
+    "invalid_currency_amount":     ["FPD_007"],
     # Aşağıdaki altı kod eşlemesizdi ve "kuralımız yok" gibi sayılıyordu; her biri tam
     # katalog koşumunda DOĞRULANDI — adayın o feed'lerde gerçekten ateşlediği ölçüldü (#146).
     "missing_required_agency_id":       ["AGN_011"],  # 9/9 feed
@@ -100,6 +105,14 @@ MAP = {
     "fare_transfer_rule_duration_limit_without_type": ["FTR_011"],  # birebir (#165)
     "fare_product_with_multiple_default_rider_categories": ["RCT_006"],  # birebir (#165)
     "forbidden_prior_day_booking_field_value": ["BKR_001"],  # önceki gün rezervasyon alanı yasak (#165)
+    # 17. korpus koşumu (2026-09-11): iki kod `md_unmapped` kovasında duruyordu.
+    # `mdb-2796`/`mdb-2926`: MD `forbidden_pickup_type` 5 ↔ bizim `STM_051` 5 — BİREBİR.
+    "forbidden_pickup_type":            ["STM_051"],
+    # ⚠️ `forbidden_drop_off_type` eşlemesi AÇIK BİR SORU ORTAYA ÇIKARIR ve bilerek öyle bırakıldı:
+    # aynı iki feed'de MD 5 diyor, `STM_052` 0 diyor. Spec ayrımı şu: `pickup_type` için 0 VE 3
+    # yasak, `drop_off_type` için YALNIZ 0 (`P56388e97` / `P4280b626`). Satırlarda değer 3 ise
+    # MD fazla iddia ediyor, 0 ise bizde kör nokta var. Feed indirilmeden karara bağlanamaz.
+    "forbidden_drop_off_type":          ["STM_052"],
     "transfer_with_invalid_trip_and_route": ["TRF_017", "XFL_020"],  # XFL_020 aynı olgunun (trip,route) çifti (#165)
     "invalid_timezone":                 ["AGN_004"],            # 1/1
     "inconsistent_agency_lang":         ["AGN_017", "AGN_013"], # 4/4 ikisi de

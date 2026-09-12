@@ -2267,25 +2267,67 @@ pub fn validate_stop_times_with_limits(
 
                 // STM_051: Flex penceresi tanımlı iken pickup_type=0 (düzenli) veya 3 (sürücü koordinasyonu) yasak.
                 // GTFS spec [Kesin]: pickup_type 0/3 forbidden if start/end_pickup_drop_off_window defined.
+                //
+                // 🔴 ÖRTÜK 0 (17. korpus koşumu, 2026-09-11): spec enum'u
+                // *"0 or empty - Regularly scheduled pickup/drop off"* der — BOŞ HÜCRE 0'IN KENDİSİDİR,
+                // belirsizlik değil. Üretici alanı boş bırakarak "düzenli" demiş olur ve pencere
+                // varken yasak olan tam budur. Eskiden `Some(0)` şartı yalnız AÇIKÇA yazılmış 0'ı
+                // görüyordu; kartlar bunu "FP riski" diye gerekçelendiriyordu, oysa eşitliği spec
+                // kuruyor. `mdb-2796`/`mdb-2926` ile ölçüldü: Flex penceresi olan 5 satırın 5'inde
+                // `pickup_type=0` AÇIK ama `drop_off_type` BOŞ → `STM_051` 5 bulgu verirken
+                // `STM_052` 0 veriyordu; MD `forbidden_drop_off_type` 5 diyordu ve HAKLIYDI.
+                //
+                // ⚠️ BOŞ HÜCRE ile BOZUK DEĞER ayrılır: `parse_pickup_dropoff_col` ikisinde de `None`
+                // döner. Örtük 0 yalnız hücre GERÇEKTEN boşken varsayılır; `"abc"` gibi değerler
+                // `STM_009`/`STM_010`'un alanıdır ve burada çift raporlanmaz.
+                //
+                // ⚠️ SÜTUN HİÇ YOKSA örtük 0 VARSAYILMAZ. Spec açısından yok sayılan sütun da 0
+                // demektir, ama o iddia bambaşka bir hacim üretir (pickup_type sütunu olmayan her
+                // Flex feed'inin her satırı) ve MD'nin o vakadaki davranışı ÖLÇÜLMEDİ. Dar kapsam
+                // bilinçli: `cols.*.is_some()` şartı bunu sabitler.
+                let implicit_pickup =
+                    cols.pickup_type.is_some() && get_col(row, cols.pickup_type).is_empty();
+                let implicit_drop_off =
+                    cols.drop_off_type.is_some() && get_col(row, cols.drop_off_type).is_empty();
+                let effective_pickup = if implicit_pickup {
+                    Some(0)
+                } else {
+                    pickup_type
+                };
+                let effective_drop_off = if implicit_drop_off {
+                    Some(0)
+                } else {
+                    drop_off_type
+                };
+
                 if has_any_window {
-                    if let Some(pt) = pickup_type {
+                    if let Some(pt) = effective_pickup {
                         if pt == 0 || pt == 3 {
                             st.notices.push(make_k2_notice(
                         &mut st.counter, "STM_051", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("pickup_type"),
-                        Some(pt.to_string()), Some("1 or 2".to_string()),
-                        format!("trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır."),
+                        Some(if implicit_pickup { "(boş → örtük 0)".to_string() } else { pt.to_string() }),
+                        Some("1 or 2".to_string()),
+                        format!(
+                            "trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır.{}",
+                            if implicit_pickup { " Alan boş bırakılmış; spec boş değeri 0 sayar." } else { "" }
+                        ),
                         "Flex penceresi olan stop_times satırlarında pickup_type'ı 1 (alış yok) veya 2 (telefonla) yapın.",
                     ));
                         }
                     }
                     // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
-                    if drop_off_type == Some(0) {
+                    // Örtük 0 dahil — gerekçe yukarıda.
+                    if effective_drop_off == Some(0) {
                         st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("drop_off_type"),
-                    Some("0".to_string()), Some("1 or 2".to_string()),
-                    format!("trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır."),
+                    Some(if implicit_drop_off { "(boş → örtük 0)".to_string() } else { "0".to_string() }),
+                    Some("1 or 2".to_string()),
+                    format!(
+                        "trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır.{}",
+                        if implicit_drop_off { " Alan boş bırakılmış; spec boş değeri 0 sayar." } else { "" }
+                    ),
                     "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
                 ));
                     }
@@ -3589,6 +3631,111 @@ mod tests {
             "Flex penceresi + drop_off_type=0 → STM_052: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
         );
+    }
+
+    /// Ölçüm, 17. korpus koşumu (`mdb-2796`/`mdb-2926`): Flex penceresi olan 5 satırın 5'inde
+    /// `pickup_type=0` AÇIK ama `drop_off_type` BOŞ. `STM_051` 5 bulgu veriyordu, `STM_052` 0;
+    /// MD `forbidden_drop_off_type` 5 diyordu ve HAKLIYDI. Spec enum'u
+    /// *"0 or empty - Regularly scheduled drop off"* der — boş hücre 0'ın KENDİSİDİR.
+    #[test]
+    fn flex_window_with_empty_drop_off_type_produces_stm_052_implicit_zero() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_group_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_type",
+                "drop_off_type",
+            ],
+            vec![vec!["T1", "0", "G1", "37:00:46", "16:00:46", "0", ""]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "STM_052")
+            .expect("boş drop_off_type örtük 0'dır, STM_052 bekleniyor");
+        assert_eq!(hit.observed_value.as_deref(), Some("(boş → örtük 0)"));
+        assert!(
+            notices.iter().any(|n| n.rule_id == "STM_051"),
+            "aynı satırda pickup_type=0 açık yazılı → STM_051 de konuşmalı"
+        );
+    }
+
+    /// Aynı örtük-0 kuralı pickup tarafında da geçerli; asimetri bırakmak yeni bir kör nokta olurdu.
+    #[test]
+    fn flex_window_with_empty_pickup_type_produces_stm_051_implicit_zero() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_group_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_type",
+                "drop_off_type",
+            ],
+            vec![vec!["T1", "0", "G1", "08:00:00", "18:00:00", "", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "STM_051")
+            .expect("boş pickup_type örtük 0'dır, STM_051 bekleniyor");
+        assert_eq!(hit.observed_value.as_deref(), Some("(boş → örtük 0)"));
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_052"),
+            "drop_off_type=1 açıkça yazılı → STM_052 susmalı"
+        );
+    }
+
+    /// 🔴 ASIL RİSK: BOZUK değer örtük 0 SAYILMAZ. `parse_pickup_dropoff_col` boş ve bozuk
+    /// değerde de `None` döner; ayrım hücrenin gerçekten boş olmasına bakılarak kurulur.
+    /// Bozuk değer `STM_009`/`STM_010`'un alanıdır ve burada çift raporlanmamalıdır.
+    #[test]
+    fn flex_window_with_unparseable_pickup_type_is_not_treated_as_implicit_zero() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_group_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+                "pickup_type",
+                "drop_off_type",
+            ],
+            vec![vec!["T1", "0", "G1", "08:00:00", "18:00:00", "abc", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(
+            !notices.iter().any(|n| n.rule_id == "STM_051"),
+            "'abc' örtük 0 değildir: {:?}",
+            notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+        );
+    }
+
+    /// ⚠️ SÜTUN HİÇ YOKSA örtük 0 varsayılmaz — bilinçli dar kapsam (MD davranışı ölçülmedi).
+    #[test]
+    fn flex_window_without_a_drop_off_type_column_stays_silent() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "stop_sequence",
+                "location_group_id",
+                "start_pickup_drop_off_window",
+                "end_pickup_drop_off_window",
+            ],
+            vec![vec!["T1", "0", "G1", "08:00:00", "18:00:00"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        for rule in ["STM_051", "STM_052"] {
+            assert!(
+                !notices.iter().any(|n| n.rule_id == rule),
+                "{rule} sütun yokken konuşmamalı: {:?}",
+                notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
+            );
+        }
     }
 
     #[test]
