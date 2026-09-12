@@ -280,6 +280,18 @@ AGG_RULES = {
     # Feed veya File düzeyinde dedup ediliyor — yani tasarım gereği agregat — ama liste
     # bunu bilmediği için her koşumda sahte UNDER üretiyorlardı. Bu, STM_014 · DQ_016 ·
     # SHP_024'ten sonra aynı atlamanın DÖRDÜNCÜ tekrarı.
+    # 2026-09-12 (17. korpus koşumu): AYNI ATLAMANIN BEŞİNCİ, ALTINCI ve YEDİNCİ tekrarı.
+    # Üçü de registry'de zaten Entity düzeyinde dedup ediliyor — tasarım gereği agregat — ama
+    # liste bilmediği için her koşumda sahte `md_mapped_under` üretiyorlardı.
+    "GEO_017",  # [Entity=shape_id] Null Island'a yakın shape NOKTASI — SHAPE başına tek notice.
+                # MD nokta başına sayar: tdg-81559/tdg-82291'de MD 67 ↔ biz 19 (3,53×).
+                # Kardeşi `GEO_016` [Entity=stop_id] MD ile AYNI birimde sayar ve eşleşir —
+                # `mdb-3108`'deki 1,80× karışık çiftin yalnız GEO_017 kolundan gelir.
+    "STM_059",  # [Entity=trip_id] pickup/drop_off=2 iken booking_rule_id eksik — SEFER başına tek.
+                # MD stop_times SATIRI başına sayar: mdb-2884 MD 1.504 ↔ biz 140 (10,74×),
+                # mdb-2447 MD 598 ↔ biz 79 (7,57×).
+    "STM_038",  # [Entity=trip_id] start > end pickup/drop-off penceresi — SEFER başına tek.
+                # MD satır başına sayar: mdb-2741 MD 38 ↔ biz 23.
     "SHP_002", "SHP_003",  # [Entity=shape] shape_pt_lat/lon geçersiz — SHAPE başına tek notice.
                 # MD NOKTA başına sayar. tfs-70 (ondalık ayırıcı virgül) ile ölçüldü: shapes.txt
                 # 36.491 nokta ama 397 shape → MD 72.982 (lat+lon), biz 794. Aynı feed'in

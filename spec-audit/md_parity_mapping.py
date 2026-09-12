@@ -633,6 +633,36 @@ MAPPED_DIVERGENCE_DECISIONS = {
     # ⚠️ Bu tablo MD KODUNA anahtarlıdır; `fp_adjudication.tsv` KURAL KİMLİĞİNE.
     # `md_mapped_under`/`over` satırlarının kararı `classify_divergence` üzerinden BURADAN
     # gelir — o kovaları kural defterine yazarak kapatmaya çalışmak işe yaramaz.
+    "invalid_integer": (
+        "scope-difference",
+        "Four feeds, and in every one the audit compares MobilityData's whole code total against "
+        "our count for a single context. invalid_integer is generic across files and fields while "
+        "the mapping resolves one context from its two sample notices. mdb-2727 settles it "
+        "arithmetically: MobilityData reports 103,211, we report 1,590 under RTS_004 for "
+        "routes.txt route_type plus 101,621 under CLD_003 for calendar_dates exception_type, which "
+        "is exactly 103,211. Every finding is reported on our side. The exception_type context is "
+        "already registered in the mapping; the script never reaches it because MobilityData's "
+        "samples do not show it. mdb-1830, mdb-2838 and ntd-332 are the same shape.",
+    ),
+    "empty_column_name": (
+        "scope-difference",
+        "mdb-3226 and mdb-1880 in md_mapped_over, 6 against 25 and 1 against 3. The mapping is "
+        "wider than the code: ARC_017 reports every column the GTFS spec does not define, while "
+        "MobilityData's code covers only a column whose name is empty. Every empty name is an "
+        "unknown column but not the reverse, so our count is larger by construction. ARC_017 is "
+        "Info and Quality, so nothing reaches a score.",
+    ),
+    "route_short_name_too_long": (
+        "scope-difference",
+        "tdg-81996, 61 against 62, a single route apart. RTS_010 is entity scoped on route_id and "
+        "so is MobilityData's code; a one-route edge on a length threshold is not worth a feed "
+        "download. Low severity and Quality class.",
+    ),
+    "missing_prior_notice_duration_min": (
+        "scope-difference",
+        "mdb-3234, 11 against 12, a single booking rule apart. Same reasoning as "
+        "route_short_name_too_long: both sides are entity scoped and the gap is one record.",
+    ),
     "stop_without_location": (
         "scope-difference",
         "Eight feeds in md_mapped_over at a ratio of exactly 2.0 in every one of them, 349 MD notices "
