@@ -633,6 +633,25 @@ MAPPED_DIVERGENCE_DECISIONS = {
     # ⚠️ Bu tablo MD KODUNA anahtarlıdır; `fp_adjudication.tsv` KURAL KİMLİĞİNE.
     # `md_mapped_under`/`over` satırlarının kararı `classify_divergence` üzerinden BURADAN
     # gelir — o kovaları kural defterine yazarak kapatmaya çalışmak işe yaramaz.
+    "invalid_row_length": (
+        "md-implementation-limit",
+        "mdb-3215 in md_mapped_missing with a single MobilityData notice against zero of ours, and "
+        "its run on that feed is partial_internal: the validator crashed part way with a "
+        "NullPointerException in BlockTripsWithOverlappingStopTimesValidator followed by an "
+        "OutOfMemoryError, so it reported 99,401 notices out of a feed where we complete with "
+        "2,323,976. A count taken from a crashed run carries no information. Its single sample is "
+        "also demonstrably wrong: it names stops.txt row 87479 as carrying 10 fields against a "
+        "header of 11, and that row was read back from the archive the run used, verified by the "
+        "member CRC 0xf619a530 in the central directory. The row holds 10 commas, so 11 fields, "
+        "and an RFC 4180 parse of the whole file returns 552,956 data rows with no length mismatch "
+        "anywhere. Line endings are CRLF throughout with no bare CR or LF, and the physical line "
+        "count equals the record count, so no row is split by an embedded newline. The twin feed "
+        "mdb-784 carries the same sha256 and MobilityData reports no invalid_row_length on it at "
+        "all, which makes this notice an artifact of the crashed run rather than a property of the "
+        "feed. Our zero is correct, and ARC_012 is not blind on that file: it fires on stops.txt in "
+        "five other feeds of the same run. The same feed and its twin mdb-784 are the standing "
+        "evidence for MobilityData's stop_times crash class.",
+    ),
     "invalid_integer": (
         "scope-difference",
         "Four feeds, and in every one the audit compares MobilityData's whole code total against "
