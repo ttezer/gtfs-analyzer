@@ -629,6 +629,42 @@ def classify_unmapped(code: str) -> tuple[str, str]:
 #
 # Key is the MD code; value is (decision, reasoning).
 MAPPED_DIVERGENCE_DECISIONS = {
+    # ── 17. korpus koşumu, 2026-09-12 ────────────────────────────────────────────
+    # ⚠️ Bu tablo MD KODUNA anahtarlıdır; `fp_adjudication.tsv` KURAL KİMLİĞİNE.
+    # `md_mapped_under`/`over` satırlarının kararı `classify_divergence` üzerinden BURADAN
+    # gelir — o kovaları kural defterine yazarak kapatmaya çalışmak işe yaramaz.
+    "stop_without_location": (
+        "scope-difference",
+        "Eight feeds in md_mapped_over at a ratio of exactly 2.0 in every one of them, 349 MD notices "
+        "against 698 of ours. One MD code maps to two of our rules, STP_006 for the missing latitude and "
+        "STP_007 for the missing longitude, so a stop lacking both coordinates yields two findings here and "
+        "one there. Arithmetic of the mapping, not a scope difference, and the exact factor of two across "
+        "all eight feeds is the proof.",
+    ),
+    "transfer_with_invalid_trip_and_stop": (
+        "scope-difference",
+        "mdb-1078 and mdb-2425 in md_mapped_under at a ratio of exactly 2.0, the mirror of "
+        "stop_without_location. MD counts each end of the transfer separately where XFL_021 raises one "
+        "finding for the row.",
+    ),
+    "number_out_of_range": (
+        "scope-difference",
+        "tfs-70 in md_mapped_over at a ratio of 713, 11 MD notices against 7,850 of ours, which is a "
+        "mapping mismatch rather than a coverage gap. MD splits the two failure modes into separate codes: "
+        "invalid_float for a value it cannot parse, raised 88,657 times on this feed, and "
+        "number_out_of_range for a value that parses but falls outside the range, which is the 11. STP_003 "
+        "and STP_005 merge both. The feed writes coordinates with comma decimals, so almost everything "
+        "lands in the unparseable bucket that this code does not point at.",
+    ),
+    "stop_without_stop_time": (
+        "scope-difference",
+        "Appears in both directions, under on 10 feeds and over on 2, which already argues against a "
+        "systematic gap. Where the counts are large the differences are under one percent: 1,466 against "
+        "1,454 on mdb-1074 and mdb-1306, 3,329 against 3,310 on mdb-1307, 3,579 against 3,506 on mdb-1305. "
+        "Whether a stop counts as unused depends on how each tool treats stops reached only through a "
+        "parent station or a location group, and that definitional edge is the whole of it. STP_020 is "
+        "Analytics class, so no score and no gate.",
+    ),
     # #162: `md_mapped_missing` — MD raporluyor, eşlediğimiz kural susuyor.
     "missing_required_field": (
         "structural-fault-owns-it",
