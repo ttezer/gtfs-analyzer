@@ -224,7 +224,14 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("missing_required_field", "STP_002", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
     _ctx("missing_required_field", "FAR_003", filename=("fare_attributes.txt",), fields=("currency_type",), label="fare_attributes.txt::currency_type"),
     _ctx("invalid_email", "AGN_009", filename=("agency.txt",), fields=("agency_email",), label="agency.txt::agency_email"),
+    # 🔴 EKSİK BAĞLAM (17. koşum, 2026-09-12): bir koda BİR bağlam kaydedilince statik eşleme
+    # devre dışı kalır ve kaydedilmemiş HER bağlam `context_unresolved` olur. İki kod tam bu
+    # yüzden çözülemiyordu; ikisinde de bulguyu MD'nin bildirdiği DEĞERİN AYNISIYLA veriyoruz.
+    #   `mdb-1118`: feed_contact_email = "http://www.xpressga.com/contact/" (e-posta alanında URL)
+    _ctx("invalid_email", "FIN_008", filename=("feed_info.txt",), fields=("feed_contact_email",), label="feed_info.txt::feed_contact_email"),
     _ctx("invalid_language_code", "FIN_004", filename=("feed_info.txt",), fields=("default_lang",), label="feed_info.txt::default_lang"),
+    #   `tdg-81284`: agency_lang = "Europe/Paris" (dil alanında saat dilimi)
+    _ctx("invalid_language_code", "AGN_006", filename=("agency.txt",), fields=("agency_lang",), label="agency.txt::agency_lang"),
     # empty_file — 13. korpus koşumunda ARAÇ KUSURU olarak bulundu (#md_mapped_missing).
     # MD bu kodu HER boş dosya için basar; eşlemede yalnız `stops.txt` bağlamı vardı,
     # dolayısıyla `routes.txt`/`trips.txt`/`calendar.txt` örnekleri `unresolved` sayılıp
