@@ -8799,6 +8799,22 @@ fn check_remaining_analytics<'a>(
     {
         let _t11 = Timer::start("K6::rem::trf_011");
         const TRF_DIST_THRESHOLD_M: f64 = 2000.0;
+        // 🔴 DURAK ÇİFTİ BAŞINA TEK BULGU (17. koşum incelemesi, 2026-09-12).
+        //
+        // Kural künyesinde kimlik alanı zaten `from_stop_id|to_stop_id`, yani "bu bulgunun
+        // kimliği DURAK ÇİFTİDİR" diyor; emisyon ise SATIR başınaydı ve kural kendi beyanıyla
+        // çelişiyordu. Aynı gün `TRP_004`'te verilen kararın aynısı (orada `scope_key`
+        // `shape_id`'ydi, emisyon sefer başınaydı).
+        //
+        // İçerik de bunu gerektiriyor: iki durak arasındaki mesafe, o çifti hangi sefer
+        // kullanırsa kullansın DEĞİŞMEZ. Sefer-sefer aktarma kullanan feed'lerde aynı cümle
+        // onlarca kez tekrarlanıyordu. Ölçüm (`tfs-789`, arşiv sha256 koşumla doğrulandı):
+        // 829 aktarma satırının TAMAMI 2 km üstü ama yalnız **57 farklı durak çifti** var,
+        // çift başına ortalama 14,5 satır. MD `transfer_distance_above_2_km` 69 diyor — o da
+        // çift başına sayıyor.
+        //
+        // ⚠️ Eşik farkı DEĞİL: iki tarafta da 2.000 m. Fark yalnız emisyon biriminde.
+        let mut far_pairs: BTreeMap<(&str, &str), (f64, u64, u64)> = BTreeMap::new();
         for trf in &records.transfers {
             if trf.from_stop_id.is_empty() || trf.to_stop_id == trf.from_stop_id {
                 continue;
@@ -8809,22 +8825,36 @@ fn check_remaining_analytics<'a>(
             ) {
                 let dist_m = haversine_km(la1, lo1, la2, lo2) * 1000.0;
                 if dist_m > TRF_DIST_THRESHOLD_M {
-                    notices.push(k6_notice(
-                        ctr, "TRF_011", EntityType::Transfer,
-                        Some(format!("{}|{}", trf.from_stop_id, trf.to_stop_id)),
-                        Some(format!("{}|{}", trf.from_stop_id, trf.to_stop_id)),
-                        "transfers.txt", Some(trf.line),
-                        Some("from_stop_id|to_stop_id"),
-                        Some(format!("{dist_m:.0}m")),
-                        Some(format!("≤ {TRF_DIST_THRESHOLD_M:.0}m")),
-                        format!(
-                            "'{}' → '{}' aktarması {dist_m:.0}m uzaklıkta — yürüyüş mesafesi {}m eşiğini aşıyor.",
-                            trf.from_stop_id, trf.to_stop_id, TRF_DIST_THRESHOLD_M as u32
-                        ),
-                        "Aktarma tanımını gözden geçirin; çok uzak duraklar arasındaki aktarma yolcular için zorlayıcı olabilir.",
-                    ));
+                    let e = far_pairs
+                        .entry((trf.from_stop_id.as_str(), trf.to_stop_id.as_str()))
+                        .or_insert((dist_m, 0, trf.line));
+                    e.1 += 1;
                 }
             }
+        }
+        // `BTreeMap` sırası determinizmi verir — `XFL_006` dersinin gereği.
+        for ((from, to), (dist_m, rows, first_line)) in far_pairs {
+            let mut n = k6_notice(
+                ctr, "TRF_011", EntityType::Transfer,
+                Some(format!("{from}|{to}")),
+                Some(format!("{from}|{to}")),
+                "transfers.txt", Some(first_line),
+                Some("from_stop_id|to_stop_id"),
+                Some(format!("{dist_m:.0}m")),
+                Some(format!("≤ {TRF_DIST_THRESHOLD_M:.0}m")),
+                format!(
+                    "'{from}' → '{to}' aktarması {dist_m:.0}m uzaklıkta — yürüyüş mesafesi {}m eşiğini aşıyor.{}",
+                    TRF_DIST_THRESHOLD_M as u32,
+                    if rows > 1 { format!(" Bu çift {rows} aktarma satırında tekrarlanıyor.") } else { String::new() }
+                ),
+                "Aktarma tanımını gözden geçirin; çok uzak duraklar arasındaki aktarma yolcular için zorlayıcı olabilir.",
+            );
+            if rows > 1 {
+                let mut details: BTreeMap<String, String> = BTreeMap::new();
+                details.insert("transfer_rows".to_string(), rows.to_string());
+                n.details = Some(details);
+            }
+            notices.push(n);
         }
     }
 

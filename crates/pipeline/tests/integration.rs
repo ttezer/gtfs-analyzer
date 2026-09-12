@@ -790,6 +790,55 @@ fn rts_028_silent_when_continuous_is_one() {
     }
 }
 
+/// Ölçüm, 17. korpus koşumu (`tfs-789`): 829 aktarma satırının tamamı 2 km üstüydü ama yalnız
+/// 57 farklı durak çifti vardı, çift başına ortalama 14,5 satır. Kural künyesinde kimlik alanı
+/// zaten `from_stop_id|to_stop_id`, yani çift; emisyon satır başınaydı ve kendi beyanıyla
+/// çelişiyordu. MD `transfer_distance_above_2_km` 69 diyordu — o da çift başına sayıyor.
+#[test]
+fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
+    // Aynı uzak çift ÜÇ satırda, ters yönlü çift bir satırda (S1↔S2 ~13,7 km).
+    let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,300\nS1,S2,2,300\nS1,S2,2,300\nS2,S1,2,300\n";
+    let mut files = base_files();
+    files.push(("transfers.txt", transfers.as_bytes()));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let hits: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRF_011")
+                .collect();
+            assert_eq!(
+                hits.len(),
+                2,
+                "iki yönlü iki çift → iki bulgu, dört satır değil: {:?}",
+                hits.iter()
+                    .map(|n| n.entity_id.as_deref())
+                    .collect::<Vec<_>>()
+            );
+            let three = hits
+                .iter()
+                .find(|n| n.entity_id.as_deref() == Some("S1|S2"))
+                .expect("S1|S2 çifti bekleniyor");
+            assert_eq!(
+                three
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("transfer_rows"))
+                    .map(String::as_str),
+                Some("3"),
+                "üç satırda tekrarlanan çift sayıyı details'te taşımalı"
+            );
+            // Tek satırlık çift `details` taşımaz — gereksiz alan üretilmesin.
+            let single = hits
+                .iter()
+                .find(|n| n.entity_id.as_deref() == Some("S2|S1"))
+                .expect("S2|S1 çifti bekleniyor");
+            assert!(single.details.is_none());
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
 #[test]
 fn transfer_stop_requirements_cover_recommended_and_in_seat_types() {
     for transfer_type in ["0", "1", "2", "3"] {
