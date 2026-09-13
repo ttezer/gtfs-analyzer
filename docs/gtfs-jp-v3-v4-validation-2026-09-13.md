@@ -109,13 +109,35 @@ tam bu mekanizmadır.
 | Japonya dışı | 5 (ES ×2 · CA · BG · US) |
 | örneğinde yeni izinli iki alan görünen feed | 8, hepsi Japonya |
 
-Japonya dışı beş feed'in örnek alanları başkadır: `feed_contact_url`, `route_name`,
-`bike_policy_url`, `stop_code`. Yani bu değişiklikten etkilenebilecek Japonya dışı feed sayısı en
-çok beştir ve görünen kanıtta hiçbiri etkilenmemektedir.
+Beş feed'in hepsinin `translations.txt` dosyası arşivden okundu (ZIP merkezî dizini üzerinden
+yalnız o üye çekildi, her birinde üye CRC'si doğrulandı). Sonuç örneklerin gösterdiğinden FARKLI
+çıktı: **iki İspanyol feed'i yeni izinli alanlardan birini gerçekten çeviriyor.**
 
-⚠️ Ölçümün sınırı: artifact kural başına tek örnek tutar, dolayısıyla bir feed'in görünmeyen
-`TRN_002` bulguları yeni izinli alanlara denk gelebilir. Aday havuzu beş feed olduğu için kalan
-belirsizlik küçüktür; kesinleştirmek için o beş arşivin okunması gerekir.
+| Feed | Arşiv | `translations.txt` satırı | Yeni izinli alan | Kalan geçersiz çift |
+|---|---|---:|---|---|
+| `tfs-655` (ES) | koşumla AYNI sha256 | 1.508 | `feed_info::feed_publisher_url` ×4 | `feed_contact_url` ×4 |
+| `mdb-2715` (ES) | koşumdan SONRA değişti | 130 | `feed_info::feed_publisher_url` ×4 | `feed_contact_url` ×4 |
+| `mdb-2126` (CA) | koşumla aynı boyut | 158.531 | yok | `directions::direction` ×421 · `routes::route_desc_detail` ×207 |
+| `mdb-2848` (BG) | koşumdan sonra değişti | 4.500 | yok | `routes::long_name` ×1.636 |
+| `mdb-394` (US) | koşumla aynı boyut | 28 | yok | `agency::bike_policy_url` ×1 |
+
+İki İspanyol feed'i bu paketin binary'siyle yeniden koşuldu (`--today 20260820`):
+
+| Feed | `TRN_002` önce → sonra | Kalan bulgunun alanı | `publishable` | Genel skor |
+|---|---:|---|---|---|
+| `tfs-655` | 8 → **4** | yalnız `feed_contact_url` | `false` → **`false`** | 85,1 → 86,4 |
+| `mdb-2715` | 8 → **4** | yalnız `feed_contact_url` | `false` → **`false`** | 85,5 (bugünkü arşiv) |
+
+🔑 **Etki gerçek, yayın kararı DEĞİŞMİYOR.** `feed_publisher_url` bulguları kalkıyor ama `TRN_002`
+sıfırlanmıyor: `feed_contact_url` hâlâ izinli alan listesinde değil ve `Kritik·Spec` olduğu için R1
+kapısını kapalı tutuyor. `tfs-655`'in R1 raporu bunu açıkça yazıyor, engelleyenler dört `TRN_002`
+bildirimi. Yani Japonya dışında skor bir miktar yükseliyor, `publishable` sonucu hiçbir feed'de
+dönmüyor.
+
+Kalan üç feed'in geçersiz çiftleri bu paketin dokunduğu alanlardan tümüyle bağımsızdır, dolayısıyla
+o feed'lerde değişiklik YOKTUR. Bu ölçümle Japonya dışı belirsizlik kapandı; artifact'in örnek
+kapağına dayanan önceki tahmin ("görünen kanıtta hiçbiri etkilenmiyor") EKSİKTİ, iki feed
+etkileniyor.
 
 ## Sınırlar
 
