@@ -79,6 +79,44 @@ Ham karşılaştırma repo dışındadır: `/Users/tacettintezer/GTFS/tmp/jp-pac
 
 İlk uygulamadaki gereksiz Auto çeviri kapsam indeksi bu ölçüm sırasında yakalanıp kapatıldı. Son ölçümde Auto sonuçları aynı, K4 daha hızlı ve tepe bellek önceki doğal ölçüm aralığının içinde kaldı. `jp_trip_desc` yalnız dolu satırlar için seyrek yan haritada tutuluyor; ham `stop_times` satırları kopyalanmıyor.
 
+## Paket payı
+
+Sekiz kural ve dört dil şablonu eklendikten sonra `sdk: package:check` yeniden ölçüldü. Kapaklar
+`sdk/package-size-baseline.json` dosyasındadır ve bu turda DEĞİŞTİRİLMEDİ.
+
+| Ölçüm | Kapak | Bu paket | Pay | Önceki ölçüm |
+|---|---:|---:|---:|---:|
+| packed | 1.000.000 | 922.558 | %7,7 | 910.694 |
+| unpacked | 3.000.000 | 2.565.882 | %14,5 | 2.529.197 |
+
+Paketin maliyeti packed tarafta 11.864, unpacked tarafta 36.685 bayttır. Paket kapısı 9 dosyayla
+geçti.
+
+## Japonya dışı feed'lerde etki
+
+Bu kontrol tören değildir. `k2/translations.rs` içindeki `valid_fields_for_table` profil kapısının
+ARKASINDA DEĞİLDİR; `trips` listesine eklenen `jp_trip_desc` ile `feed_info` listesine eklenen
+`feed_publisher_url` her feed için geçerlidir. `TRN_002` de `Kritik·Spec`, yani yanlış alarmın
+kalkması bir feed'i yayınlanamazdan yayınlanabilire çevirebilir — Japon korpusundaki yedi iyileşme
+tam bu mekanizmadır.
+
+18. korpus koşumunun (`34718902532`, 4.343 feed) çıktısı üzerinde ölçüldü:
+
+| Ölçüm | Feed |
+|---|---:|
+| `TRN_002` ateşleyen feed | 18 |
+| bunlardan Japonya | 13 |
+| Japonya dışı | 5 (ES ×2 · CA · BG · US) |
+| örneğinde yeni izinli iki alan görünen feed | 8, hepsi Japonya |
+
+Japonya dışı beş feed'in örnek alanları başkadır: `feed_contact_url`, `route_name`,
+`bike_policy_url`, `stop_code`. Yani bu değişiklikten etkilenebilecek Japonya dışı feed sayısı en
+çok beştir ve görünen kanıtta hiçbiri etkilenmemektedir.
+
+⚠️ Ölçümün sınırı: artifact kural başına tek örnek tutar, dolayısıyla bir feed'in görünmeyen
+`TRN_002` bulguları yeni izinli alanlara denk gelebilir. Aday havuzu beş feed olduğu için kalan
+belirsizlik küçüktür; kesinleştirmek için o beş arşivin okunması gerekir.
+
 ## Sınırlar
 
 - Bu çalışma tam MLIT uyumluluk sertifikası değildir; yalnız matriste listelenen kapsamı doğrular.
