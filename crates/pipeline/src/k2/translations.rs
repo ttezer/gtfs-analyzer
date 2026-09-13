@@ -33,9 +33,9 @@ pub(crate) fn valid_fields_for_table(table: &str) -> &'static [&'static str] {
             "route_desc",
             "route_url",
         ],
-        "trips" => &["trip_headsign", "trip_short_name"],
+        "trips" => &["trip_headsign", "trip_short_name", "jp_trip_desc"],
         "stop_times" => &["stop_headsign"],
-        "feed_info" => &["feed_publisher_name"],
+        "feed_info" => &["feed_publisher_name", "feed_publisher_url"],
         "attributions" => &[
             "organization_name",
             "attribution_url",

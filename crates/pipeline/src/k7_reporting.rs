@@ -1394,7 +1394,10 @@ fn build_metrics(
                 .iter()
                 .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"))
     });
-    let gtfs_jp_profile = is_gtfs_jp.then(|| records.gtfs_jp_profile.as_str().to_string());
+    let gtfs_jp_profile = records
+        .gtfs_jp_profile
+        .jp_validation_enabled(is_gtfs_jp)
+        .then(|| records.gtfs_jp_profile.as_str().to_string());
 
     FeedMetrics {
         coverage_complete,

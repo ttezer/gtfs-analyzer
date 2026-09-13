@@ -1884,13 +1884,13 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: fare_attributes eksik veya farklı ücret profilleri için fare_rules eksik"),
     r!("JPN_007", Orta,   Quality, 2, &[], None, VS, Feed,
         "GTFS-JP: feed_info.txt eksik (profil zorunlu kılar)"),
-    r!("JPN_008", Orta,   Quality, 2, &[], Some("route_id"), VS, Entity,
-        "GTFS-JP: hat adının (route_long_name) kana (ja-Hrkt) okuması eksik"),
+    r!("JPN_008", Orta,   Quality, 2, &[], Some("route_id"), VS, Field,
+        "GTFS-JP: hat adının (route_short_name/route_long_name) kana (ja-Hrkt) okuması eksik"),
     r!("JPN_009", Orta,   Quality, 2, &[], Some("trip_id"), VS, Entity,
         "GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik"),
     r!("JPN_010", Orta,   Quality, 2, &[], Some("agency_id"), VS, Entity,
         "GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik"),
-    r!("JPN_011", Yuksek, Interop, 1, &[], None, VI, Feed,
+    r!("JPN_011", Yuksek, Interop, 1, &[], None, VI, File,
         "GTFS-JP: tek işletici olsa bile agency_id zorunlu"),
     r!("JPN_012", Yuksek, Interop, 1, &[], Some("agency_id"), VI, Entity,
         "GTFS-JP: agency_jp.agency_id eksik"),
@@ -1916,6 +1916,20 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız"),
     r!("JPN_022", Orta, Interop, 1, &[], None, VI, Field,
         "GTFS-JP v4: ana alan zorunluluğu eksik"),
+    r!("JPN_023", Yuksek, Interop, 1, &[], None, VI, Field,
+        "GTFS-JP: feed_lang değeri ja değil"),
+    r!("JPN_024", Yuksek, Interop, 1, &[], Some("agency_id"), VI, Field,
+        "GTFS-JP: agency_lang değeri ja değil"),
+    r!("JPN_025", Yuksek, Interop, 1, &[], Some("agency_id"), VI, Field,
+        "GTFS-JP: agency_timezone değeri Asia/Tokyo değil"),
+    r!("JPN_026", Yuksek, Interop, 1, &[], Some("fare_id"), VI, Field,
+        "GTFS-JP: fare_attributes.currency_type değeri JPY değil"),
+    r!("JPN_028", Orta, Quality, 2, &[], None, VS, Field,
+        "GTFS-JP v3: zorunlu kana çevirisi eksik"),
+    r!("JPN_029", Dusuk, Quality, 1, &[], None, VS, Field,
+        "GTFS-JP v4: önerilen kana çevirisi eksik"),
+    r!("JPN_030", Orta, Quality, 2, &[], None, VS, Field,
+        "GTFS-JP v3: zorunlu language=ja çevirisi eksik"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
@@ -2202,6 +2216,13 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("JPN_020", ProjectQuality),
     ("JPN_021", ProjectQuality),
     ("JPN_022", RegionalProfile),
+    ("JPN_023", RegionalProfile),
+    ("JPN_024", RegionalProfile),
+    ("JPN_025", RegionalProfile),
+    ("JPN_026", RegionalProfile),
+    ("JPN_028", ProjectQuality),
+    ("JPN_029", ProjectQuality),
+    ("JPN_030", ProjectQuality),
     ("LOC_001", GtfsSpec),
     ("LOC_002", GtfsSpec),
     ("LOC_003", GtfsSpec),
@@ -2751,6 +2772,7 @@ mod tests {
     fn get_rule_lookup() {
         assert!(get_rule("STP_003").is_some());
         assert!(get_rule("STM_014").is_some());
+        assert!(get_rule("JPN_027").is_none());
         assert!(get_rule("NONEXISTENT").is_none());
     }
 

@@ -52,8 +52,8 @@ function result(notices: Notice[]): ValidationResult {
       spec_notice_count: 0, interop_notice_count: 0, quality_notice_count: notices.length, analytics_notice_count: 0,
       overall_score: 94.7,
       file_stats: [{ name: 'routes.txt', rows: 2, bytes: 100 }],
-      is_gtfs_jp: true,
-      gtfs_jp_profile: 'auto',
+      is_gtfs_jp: false,
+      gtfs_jp_profile: 'v4',
     },
     name_index: {
       stops: {}, routes: {}, trips: {}, trip_routes: {}, trip_directions: {},
@@ -75,6 +75,7 @@ describe('detailed export report', () => {
     expect(html).toContain('Add route_desc to routes.txt.');
     expect(html).toContain('value is absent');
     expect(html).toContain('GTFS-JP profili');
+    expect(html).toContain('v4');
     expect(html).not.toContain('<missing>');
   });
 

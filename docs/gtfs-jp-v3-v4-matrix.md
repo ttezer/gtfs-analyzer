@@ -1,6 +1,6 @@
 # GTFS-JP v3/v4 uyumluluk matrisi
 
-Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez; runtime yalnızca GTFS-JP sinyali üretir. Kural kapsamı açık profil seçimiyle kontrol edilir: varsayılan `auto` profilidir, `v3` eski Japonya-özel uzantıları doğrular, `v4` ise yeni V4 kapsamını açıkça seçer. UI ve SDK’daki profil rozeti yalnızca bu seçimi gösterir; tam V4 uyumluluk sertifikası değildir.
+Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal bulunmasa da profil doğrulamasını zorlar. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; tam uyumluluk sertifikası değildir.
 
 V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. V4’ün ana GTFS alanlarında değiştirdiği tüm zorunluluk sınıfları henüz “tam v4 uyumluluk rozeti” olarak ilan edilmiyor.
 
@@ -8,9 +8,9 @@ V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 ta
 
 | Profil | Sürüm tespiti | `*_jp` uzantı kuralları | Çeviri/kana kuralları | Varsayılan |
 |---|---|---|---|---|
-| `auto` | Yapılmaz; yalnız GTFS-JP sinyali | Mevcut v3/legacy davranışı | Çalışır | Evet |
-| `v3` | Kullanıcı seçer | `JPN_002/003/005/012–018/020` çalışır | Çalışır | Hayır |
-| `v4` | Kullanıcı seçer | Bu uzantılar referans kapsamıdır; yukarıdaki kurallar çalışmaz | `JPN_001/004/006–011/019/021/022` çalışır | Hayır |
+| `auto` | Yapılmaz; yalnız GTFS-JP sinyali doğrulamayı açar | Mevcut v3/legacy davranışı | Genel JP/kana kuralları çalışır; sürüme özel yeni sabitler çalışmaz | Evet |
+| `v3` | Kullanıcı seçer; doğrulamayı zorlar | `JPN_002/003/005/012–018/020` çalışır | JPN_001/004/006–011/019/021 ve V3'e özel JPN_023–026/028/030 | Hayır |
+| `v4` | Kullanıcı seçer; doğrulamayı zorlar | V3 uzantı kuralları çalışmaz | JPN_001/004/006–011/019/021/022–026/029 | Hayır |
 
 CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
@@ -31,7 +31,26 @@ Ham sonuç: `/Users/tacettintezer/GTFS/run14-artifacts/jp-v4-aggregated-20260825
 Bu ölçüm varsayılan davranışı değiştirmez; `auto` profili hâlâ v3/legacy davranışını
 korur ve feed sürümünü otomatik iddia etmez.
 
-Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/transport/content/001981081.pdf), [GTFS-JP format referansı](https://www.gtfs.jp/developpers-guide/format-reference.html), [pattern_jp.txt rehberi](https://www.busdata.or.jp/gtfs_guide/08%E3%80%80pattern_jp-txt%EF%BC%88%E5%81%9C%E8%BB%8A%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3%E6%83%85%E5%A0%B1%EF%BC%89%E3%80%80%E3%80%90%E4%BB%BB%E6%84%8F%E3%80%91/), [GTFS-JP v4 spesifikasyonu](https://www.mlit.go.jp/commmmons/document/007/), [v3-v4 fark belgesi](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf).
+2026-09-13 düzeltme paketinin aynı-arşiv Katori, 590 feed'lik Japonya korpusu ve
+`mdb-865` performans sonuçları ayrıca [doğrulama kaydında](gtfs-jp-v3-v4-validation-2026-09-13.md)
+yer alır.
+
+Kaynaklar: [GTFS-JP v3 nihai resmî belgesi (Temmuz 2021)](https://www.mlit.go.jp/sogoseisaku/transport/content/001981046.docx), [MLIT eski sürümler arşivi](https://www.mlit.go.jp/sogoseisaku/transport/sosei_transport_tk_000067.html), [GTFS-JP v4 spesifikasyonu (19 Mart 2026)](https://www.mlit.go.jp/commmmons/document/007/), [V4 ana PDF](https://www.mlit.go.jp/commmmons/document/007/commmmons_doc_007-01_ver01.pdf), [v3-v4 fark belgesi](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf), [pattern_jp.txt rehberi](https://www.busdata.or.jp/gtfs_guide/08%E3%80%80pattern_jp-txt%EF%BC%88%E5%81%9C%E8%BB%8A%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3%E6%83%85%E5%A0%B1%EF%BC%89%E3%80%80%E3%80%90%E4%BB%BB%E6%84%8F%E3%80%91/).
+
+## 2026-09-13 kaynak ve davranış kaydı
+
+| Konu | Kaynak / sayfa | Önceki davranış | Bu pakette beklenen davranış |
+|---|---|---|---|
+| Açık profil kapısı | Ürün kararı; V3/V4 kullanıcı seçimi | JP sinyali yoksa açık profil de kuralları çalıştırmıyordu | V3/V4 doğrulamayı zorlar; `is_gtfs_jp` yalnız algılama kalır |
+| `feed_lang=ja` | V4 feed_info, s.29 | JP'ye özgü sabit kontrol yoktu | JPN_023; `JA` kabul, `ja-JP` reddedilir |
+| `agency_lang=ja`, `agency_timezone=Asia/Tokyo` | V4 agency, s.35 | Yalnız genel biçim kontrolleri | JPN_024/JPN_025, yalnız açık profil |
+| `currency_type=JPY` | V4 fare_attributes, s.67 | Yalnız genel ISO kodu kontrolü | JPN_026; dosya yokluğu bu kuralın konusu değil |
+| `location_type` | V4 stops, s.38; fark tablosu s.120 | Boş hücre JPN_022 sayılıyordu | Eksik kolon JPN_022; boş hücre geçerli `0 veya boş`; geçersiz enum STP_008 |
+| V3 çeviri alanları | V3 nihai belge 2-14, s.33 | JPN_001/008/009/010 dışındaki alanlar eksikti | JPN_028 kana + JPN_030 `ja`; bir geçişte kurulan ödünç indeksler |
+| V4 önerilen kalan okumalar | V4 translations, s.77 | `stop_headsign` ve attribution kapsanmıyordu | JPN_029, Düşük/Quality |
+| Kana içeriği | V4 translations, s.75–77 | Kanji tek başına okuma sayılıyordu; yarım genişlik Katakana yoktu | Hiragana/Katakana gerekir; yarım genişlik Katakana kabul edilir |
+| Ücret istisnası | V4 s.20/22/68 | Mesaj V3 zorunluluğu gibi görünüyordu | JPN_006 profil mesajı; V4'te doğrulanamayan karmaşık ücret istisnası açıklanır |
+| V3 otobüs `route_type=3` | Güvenilir profil kapısı bulunamadı | Öneri taslağındaydı | JPN_027 eklenmedi; demiryolu `route_type=2` yanlış pozitifinden kaçınıldı |
 
 | Dosya / alan | v3 durumu | v4 durumu | Zorunluluk seviyesi | Kural | Sınıf | Kaynak | Test senaryosu |
 |---|---|---|---|---|---|---|---|
@@ -43,21 +62,21 @@ Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/t
 | `office_jp.office_name` | Mevcut `office_id` için zorunlu | V4 ana standardında yok; v3 alanı | Dosya mevcutsa zorunlu | v3/auto: JPN_005; v4: — | Interop | format reference / v4 farkı | Profil başına boş isim |
 | `office_jp.office_url` | Varsa HTTP(S) biçim kalite kontrolü | V4 ana standardında yok; v3 alanı | Opsiyonel; mevcutsa biçim | v3/auto: JPN_020; v4: — | Quality | format reference / v4 farkı | Profil başına URL sonucu |
 | `office_jp.office_phone` | Varsa temel telefon biçim kalite kontrolü | V4 ana standardında yok; v3 alanı | Opsiyonel; mevcutsa biçim | v3/auto: JPN_020; v4: — | Quality | format reference / v4 farkı | Profil başına telefon sonucu |
-| `routes_jp.txt` | v3'te yok; eski v2 feed'leri için parser/sinyal ve legacy JPN_015/JPN_016 korunur | V4 ana standardında yok | Legacy uyumluluk | v3/auto: JPN_015, JPN_016; v4: — | Interop / Quality | [v3 PDF](https://www.mlit.go.jp/sogoseisaku/transport/content/001981081.pdf) / v4 farkı | Profil başına eski dosyanın sonucu |
+| `routes_jp.txt` | v3'te yok; eski v2 feed'leri için parser/sinyal ve legacy JPN_015/JPN_016 korunur | V4 ana standardında yok | Legacy uyumluluk | v3/auto: JPN_015, JPN_016; v4: — | Interop / Quality | [v3 nihai belge](https://www.mlit.go.jp/sogoseisaku/transport/content/001981046.docx) / v4 farkı | Profil başına eski dosyanın sonucu |
 | `pattern_jp.txt` | Opsiyonel duruş paterni dosyası | Ana v4 standardından çıkarıldı; v3 uzantısı olarak referans bölümünde | Opsiyonel dosya | v3/auto: JPN_017, JPN_018; v4: — | Interop | pattern rehberi / v4 farkı | V4'te masterless `jp_pattern_id` kabul edilir |
 | `pattern_jp.jp_pattern_id` | Dosya mevcutsa zorunlu ve tekil | V4 ana standardında `pattern_jp` master'ı yok; v4'teki `jp_pattern_id` alanıyla aynı ilişki varsayılmaz | Dosya mevcutsa zorunlu | v3/auto: JPN_017; v4: — | Interop | pattern rehberi / v4 farkı | Profil başına eksik ve tekrar eden kimlik |
 | `pattern_jp.route_update_date` | Varsa geçerli `YYYYMMDD` | V4 ana standardında yok; v3/legacy alanı | Opsiyonel; mevcutsa biçim | v3/auto: JPN_016; v4: — | Quality | v3 PDF / pattern rehberi / v4 farkı | Profil başına tarih sonucu |
 | `trips.jp_pattern_id` | `pattern_jp.txt` mevcutsa `pattern_jp.jp_pattern_id` referansı; dosya yokken alan opsiyonel/iç kod olabilir | V4'te opsiyonel JP alanı korunur; `pattern_jp` master'ı v4 standardında olmadığı için foreign key uygulanmaz | Opsiyonel alan | v3/auto: JPN_018; v4: — | Interop | trips rehberi / v4 farkı | V4'te master dosyası olmadan değer kabul edilir |
 | `shapes.txt` / `trips.shape_id` | `shapes.txt` opsiyonel; `shape_id` normal GTFS ilişkisi içinde kullanılır | Continuous pickup/drop-off aktifse `shape_id` koşullu zorunlu; sabit rotalarda önerilir. `shapes.txt` dosyasının yokluğu tek başına hata değildir | Koşullu zorunlu / önerilen | TRP_019: continuous aktif + boş `shape_id`; TRP_004: mevcut ID için FK | Spec | [GTFS-JP v4 farkı](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf) / [GTFS-JP format referansı](https://www.gtfs.jp/developpers-guide/format-reference.html) | `continuous_*` 0/2/3 + boş `shape_id` bulgu üretir; 1/boş değer sessiz kalır |
 | `transfers.txt` | Opsiyonel | Önerilir; dosyanın yokluğu zorunlu hata değildir | Önerilen | Dosya mevcutsa TRF ailesi bütünlük kontrolleri | Quality / Interop | [GTFS-JP v4 farkı](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf) / [GTFS-JP format referansı](https://www.gtfs.jp/developpers-guide/format-reference.html) | Dosya yokken ceza yok; mevcut dosyada geçersiz durak/sefer referansı kontrol edilir |
-| `translations.txt` kana satırları | `ja-Hrkt` okumaları ve GTFS-JP v3 referans bütünlüğü | V4'te standart translations dosyasıdır; `ja-Hrkt` okuması zorunlu, tablo ve alt kimlik kuralları genişletilmiştir | Profil kurallarına göre | JPN_001, JPN_008–010, JPN_019, JPN_021 | Quality / Interop | format reference / v4 farkı | V3 kana eksikliği, V4 `record_sub_id` semantiği, geçersiz kayıt ve çelişki |
-| `stops.location_type` | V3'te opsiyonel; boş değer normal durak gibi yorumlanır | V4'te zorunlu; değer 0–4 enumundan biri olmalı | V4'te zorunlu | JPN_022 eksik/boş alan; STP_008 enum/biçim | Interop / Spec | v4 farkı / [GTFS-JP format referansı](https://www.gtfs.jp/developpers-guide/format-reference.html) | V4 JP feed'inde `location_type` sütunu veya satır değeri boş; non-numeric/enum dışı değer STP_008 |
+| `translations.txt` kana satırları | `ja-Hrkt` okumaları ve GTFS-JP v3 referans bütünlüğü | V4'te standart translations dosyasıdır; stop_name okuması zorunlu, yıldızlı alanlar önerilir | Profil kurallarına göre | JPN_001, JPN_008–010, JPN_019, JPN_021, JPN_028–030 | Quality / Interop | V3 s.33 / V4 s.75–77 | `record_id`, `field_value`, anahtarsız feed_info ve stop_times bileşik anahtarı |
+| `stops.location_type` | V3'te opsiyonel; boş değer normal durak gibi yorumlanır | V4'te kolon zorunlu; geçerli değerlerden biri `0 veya boş` | V4'te zorunlu | JPN_022 eksik kolon; STP_008 enum/biçim | Interop / Spec | V4 s.38/120 | Eksik kolon JPN_022; boş hücre sessiz; non-numeric/enum dışı STP_008 |
 | `stops.parent_station` | V3'te opsiyonel; hiyerarşi kısıtları koşullu | V4'te location type 2/3/4 için koşullu zorunlu; parent türü ve istasyon hiyerarşisi korunur | Koşullu zorunlu | STP_009/010/011/021/032/036 | Spec | v4 farkı / GTFS Reference | `location_type=2/3/4` + boş parent; yanlış parent türü; istasyonun parent taşıması |
-| `feed_info` / `agency` ana alanları | V3'te `feed_start_date`, `feed_end_date`, `feed_version` opsiyonel; `agency_lang` sabit JP alanı | V4'te `feed_start_date`, `feed_end_date`, `feed_version` ve `agency_lang` zorunlu | V4'te zorunlu | JPN_022; FIN_005/006/007; AGN_006 | Interop / Quality / Spec | v4 farkı | V4 JP feed'inde dört alan eksik; dolu ama biçimi hatalı |
+| `feed_info` / `agency` ana alanları | V3'te `feed_start_date`, `feed_end_date`, `feed_version` opsiyonel; Japonya sabitleri uygulanır | V4'te tarihler/sürüm ve `agency_lang` zorunlu; `feed_lang=ja`, `agency_timezone=Asia/Tokyo` | Açık profile göre | JPN_022–025; FIN_005/006/007; AGN_006 | Interop / Quality / Spec | V4 s.29/35/120 | Eksik, boş, geçersiz ve yanlış sabit değer ayrı test edilir |
 | `fare_attributes.agency_id` | V3'te alan standardın bu sürümünde yok | Birden fazla agency tanımlıysa koşullu zorunlu | Koşullu zorunlu | AGN_011 eksiklik; FAR_008 foreign key | Spec | v4 farkı / GTFS Reference | Tek agency'de boşluk uyarı/öneri; çoklu agency'de eksiklik bulgusu; hatalı ID FK bulgusu |
 | `stop_times` Flex alanları | V3'te yok veya sınırlı kullanım | `start/end_pickup_drop_off_window` Flex lokasyonuyla koşullu zorunlu; arrival/departure ve pickup/drop-off alanlarında koşullu yasaklar uygulanır | Koşullu zorunlu / koşullu yasak | STM_037–041, STM_051–055, STM_058; RTS_028 | Spec / Interop | v4 farkı / GTFS Reference | Lokasyon + eksik pencere; pencere + arrival/departure; pencere + yasak pickup/drop-off; rota düzeyi continuous çelişkisi |
 | `jp_parent_route_id` | Tanınır; otomatik `route_id` foreign key sayılmaz | V4'te isteğe bağlı JP alanı korunur; rota gruplama anlamı açıkça tarif edilir | Opsiyonel alan | - | - | v3/v4 farkı | Değerin varlığı tek başına bulgu üretmez |
-| `jp_trip_desc` | Tanınır; spesifikasyonda olmayan regex uygulanmaz | V4'te isteğe bağlı JP alanı korunur | Opsiyonel alan | - | - | v3/v4 farkı | Özel biçim icat edilmez |
+| `jp_trip_desc` | Tanınır; Japonca değer V3 çeviri çiftine girer | V4'te isteğe bağlı JP alanı korunur | Opsiyonel alan | V3: JPN_028/JPN_030 | Quality | V3 s.18/33 | Seyrek trip side-map'i; özel biçim icat edilmez |
 | `jp_trip_desc_symbol` | Tanınır; spesifikasyonda olmayan regex uygulanmaz | V4'te isteğe bağlı JP alanı korunur | Opsiyonel alan | - | - | v3/v4 farkı | Özel biçim icat edilmez |
 
 ## Zorunluluk ve skor politikası
@@ -71,7 +90,7 @@ Kaynaklar: [GTFS-JP v3 resmî arşiv PDF'i](https://www.mlit.go.jp/sogoseisaku/t
 
 ## V4'ün kalan kapsamı
 
-MLIT v4 belgesinin uzantı dosyası, `jp_pattern_id` farkı, translations alt kimlik semantiği, ana alan zorunlulukları ve `shapes`/`transfers` koşulları runtime/dokümantasyona alındı. `shapes` için mevcut TRP_019 koşullu zorunluluğu uygular; `transfers` yalnızca öneri olarak belgelenir ve yokluğu cezalandırılmaz. Tam v4 uyumluluk iddiası için sonraki sprintte:
+MLIT v4 belgesinin uzantı dosyası, `jp_pattern_id` farkı, translations alt kimlik semantiği, ana alan zorunlulukları ve `shapes`/`transfers` koşulları runtime/dokümantasyona alındı. Bu paketle Japonya sabitleri ve hedeflenen çeviri boşlukları da eklendi. `shapes` için mevcut TRP_019 koşullu zorunluluğu uygular; `transfers` yalnızca öneri olarak belgelenir ve yokluğu cezalandırılmaz. Tam v4 uyumluluk iddiası için sonraki sprintte:
 
 1. V4 teknik rehberindeki uygulama rehberleri ve öneri alanlarını ayrı kalite kapsamı olarak değerlendirmek,
 2. Bu kapsamın tamamı için üretici çeşitliliğini temsil eden ek fixture/korpus doğrulaması yapmak

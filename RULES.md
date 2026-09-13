@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-614 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+621 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -796,7 +796,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_005 | GTFS-JP: office_jp.office_name boş (zorunlu alan) | YÜKSEK | Interop |
 | JPN_006 | GTFS-JP: fare_attributes eksik veya farklı ücret profilleri için fare_rules eksik | ORTA | Quality |
 | JPN_007 | GTFS-JP: feed_info.txt eksik (profil zorunlu kılar) | ORTA | Quality |
-| JPN_008 | GTFS-JP: hat adının (route_long_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
+| JPN_008 | GTFS-JP: hat adının (route_short_name/route_long_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_009 | GTFS-JP: trip_headsign kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_010 | GTFS-JP: işletici adının (agency_name) kana (ja-Hrkt) okuması eksik | ORTA | Quality |
 | JPN_011 | GTFS-JP: tek işletici olsa bile agency_id zorunlu | YÜKSEK | Interop |
@@ -811,3 +811,10 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_020 | GTFS-JP: office_url veya office_phone biçimi şüpheli | ORTA | Quality |
 | JPN_021 | GTFS-JP: kana çevirisi boş, çakışmalı veya tutarsız | ORTA | Quality |
 | JPN_022 | GTFS-JP v4: ana alan zorunluluğu eksik | ORTA | Interop |
+| JPN_023 | GTFS-JP: feed_lang değeri ja değil | YÜKSEK | Interop |
+| JPN_024 | GTFS-JP: agency_lang değeri ja değil | YÜKSEK | Interop |
+| JPN_025 | GTFS-JP: agency_timezone değeri Asia/Tokyo değil | YÜKSEK | Interop |
+| JPN_026 | GTFS-JP: fare_attributes.currency_type değeri JPY değil | YÜKSEK | Interop |
+| JPN_028 | GTFS-JP v3: zorunlu kana çevirisi eksik | ORTA | Quality |
+| JPN_029 | GTFS-JP v4: önerilen kana çevirisi eksik | DÜŞÜK | Quality |
+| JPN_030 | GTFS-JP v3: zorunlu language=ja çevirisi eksik | ORTA | Quality |

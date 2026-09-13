@@ -86,7 +86,16 @@ impl Translator {
         if let Some(title) = self.lookup(|d| &d.titles, &notice.rule_id) {
             notice.title = title.to_string();
         }
-        if let Some(template) = self.lookup(|d| &d.messages, &notice.rule_id) {
+        let variant = notice
+            .details
+            .as_ref()
+            .and_then(|details| details.get("jp_profile"))
+            .map(|profile| format!("{}.{}", notice.rule_id, profile.to_lowercase()));
+        if let Some(template) = variant
+            .as_deref()
+            .and_then(|key| self.lookup(|d| &d.messages, key))
+            .or_else(|| self.lookup(|d| &d.messages, &notice.rule_id))
+        {
             notice.message = fill(template, notice);
         }
         if let Some(remediation) = self.lookup(|d| &d.remediations, &notice.rule_id) {
@@ -251,6 +260,21 @@ mod tests {
             "override".to_string(),
         )]));
         assert_eq!(fill("{entity_id}", &n), "override");
+    }
+
+    #[test]
+    fn jp_profile_selects_the_profile_specific_message() {
+        let translator = Translator::new(LangArg::En).unwrap().unwrap();
+        let mut n = notice();
+        n.rule_id = "JPN_006".to_string();
+        n.details = Some(std::collections::BTreeMap::from([(
+            "jp_profile".to_string(),
+            "V4".to_string(),
+        )]));
+        translator.translate(&mut n);
+
+        assert!(n.message.contains("GTFS-JP v4"), "{}", n.message);
+        assert!(n.message.contains("cannot be represented"), "{}", n.message);
     }
 
     #[test]

@@ -886,8 +886,11 @@ fn fixtures() -> Vec<Fixture> {
         // ── JPN grubu (GTFS-JP; k4_cross_ref::check_gtfs_jp) ───────────────────
         // Kapı: feed_lang=ja* VEYA office_jp/agency_jp dosyası (is_gtfs_jp).
         // JPN_001/008/009/010 ek kapı: feed_lang ja* VEYA herhangi ja-Hrkt çeviri.
-        // JPN_001: durak adında kana (ja-Hrkt) okuması yok (base duraklar).
-        fx("JPN_001", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
+        // JPN_001: Japonca durak adında kana (ja-Hrkt) okuması yok.
+        fx("JPN_001", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,東京駅,41.0,29.0\nS2,渋谷駅,41.1,29.1\n"),
+        ]),
         // JPN_008: route_long_name dolu ama kana okuması yok.
         fx("JPN_008", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
@@ -898,8 +901,11 @@ fn fixtures() -> Vec<Fixture> {
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("trips.txt", "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,渋谷\n"),
         ]),
-        // JPN_010: agency_name dolu ama kana okuması yok (base agency).
-        fx("JPN_010", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
+        // JPN_010: Japonca agency_name dolu ama kana okuması yok.
+        fx("JPN_010", vec![
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,東京交通,http://test.example,UTC\n"),
+        ]),
         // JPN_002: trips.jp_office_id office_jp.txt'te tanımsız.
         fx_v3("JPN_002", vec![
             ("office_jp.txt", "office_id,office_name\nO1,Office1\n"),
@@ -963,11 +969,42 @@ fn fixtures() -> Vec<Fixture> {
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,S1\nstops,stop_name,ja-Hrkt,トウキョウ,S1\n"),
         ]),
         // JPN_022: GTFS-JP v4'te agency_lang, location_type ve feed_info ana alanları eksik.
-         fx_v4("JPN_022", vec![
-         ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,\n"),
-         ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,35.0,139.0\n"),
-         ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
-     ]),
+        fx_v4("JPN_022", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,\n"),
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,35.0,139.0\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+        ]),
+        // JPN_023-026: Japonya sabit değerleri yalnız açık profilde denetlenir.
+        fx_v4("JPN_023", vec![(
+            "feed_info.txt",
+            "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n",
+        )]),
+        fx_v4("JPN_024", vec![(
+            "agency.txt",
+            "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,Asia/Tokyo,en\n",
+        )]),
+        fx_v4("JPN_025", vec![(
+            "agency.txt",
+            "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,ja\n",
+        )]),
+        fx_v4("JPN_026", vec![(
+            "fare_attributes.txt",
+            "fare_id,price,currency_type,payment_method,transfers\nF1,100,USD,0,0\n",
+        )]),
+        // JPN_028/030: V3'te Japonca route_desc için kana ve ja kayıtları birlikte gerekir.
+        fx_v3("JPN_028", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
+        ]),
+        fx_v3("JPN_030", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
+        ]),
+        // JPN_029: V4'te Japonca stop_headsign için önerilen kana okuması eksik.
+        fx_v4("JPN_029", vec![
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,渋谷\nT1,08:10:00,08:10:00,S2,2,\n"),
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
+        ]),
 
         // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─
         // LOC_001: feature geometri tipi desteklenmiyor (Point). ⚠️ Fixture 2026-09-11'de

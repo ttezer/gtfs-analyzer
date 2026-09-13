@@ -218,7 +218,7 @@ function countBySeverity(result: ValidationResult): SevCount {
 
 function renderMetrics(m: FeedMetrics): string {
   const profile = m.gtfs_jp_profile?.toLowerCase();
-  const profileBadge = m.is_gtfs_jp && profile && ['auto', 'v3', 'v4'].includes(profile)
+  const profileBadge = profile && ['auto', 'v3', 'v4'].includes(profile)
     ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.profile_tip'))}">${escHtml(t('domain.gtfs_jp.profile', { profile: profile.toUpperCase() }))}</span>`
     : '';
   const items = [

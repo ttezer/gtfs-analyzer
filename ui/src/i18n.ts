@@ -115,7 +115,12 @@ export function tMsg(n: NoticeLike): string {
 export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   if (locale === 'tr') return n.message;
   // JA: kendi mesajı yoksa EN şablonuna fallback
-  const tpl = LOCALES[locale].ruleMessages[n.rule_id] ?? LOCALES.en.ruleMessages[n.rule_id];
+  const profile = n.details?.jp_profile?.toLowerCase();
+  const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;
+  const tpl = LOCALES[locale].ruleMessages[variant]
+    ?? LOCALES.en.ruleMessages[variant]
+    ?? LOCALES[locale].ruleMessages[n.rule_id]
+    ?? LOCALES.en.ruleMessages[n.rule_id];
   if (!tpl) return n.message;
   const params = _noticeParams(n);
   return tpl.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');

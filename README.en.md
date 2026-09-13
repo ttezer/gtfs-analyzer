@@ -4,7 +4,7 @@
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20supported-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Rule count](https://img.shields.io/badge/rules-613-blue?style=flat)](RULES.en.md)
+[![Rule count](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Corpus validation](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
@@ -13,7 +13,7 @@
 
 GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, and the `gtfs-sdk` npm package.
 
-The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **613 rules**, **417** produced at least one finding in the most recent full 4,318-feed catalog run; the GTFS-JP additions were measured separately on a 585-feed profile run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
+The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **621 rules**, **417** produced at least one finding in the most recent full 4,318-feed catalog run; the new GTFS-JP rules require a separate full-corpus measurement. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
 Accuracy is tested against MobilityData's official `gtfs-validator` through **twelve full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,318** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
 
@@ -21,7 +21,7 @@ GTFS Validator & Analyzer does not merely check whether a file conforms to the s
 
 Every finding is tagged with a rule code, an analysis class, and a severity level. Thanks to the Spec · Interop · Quality · Analytics classes and the Critical → Info severity levels, thousands of findings can be filtered, prioritized, and handled systematically. The tool also automatically detects the GTFS features used by the feed — Shapes, Transfers, Fares, Headsigns, Flex, and the like — and includes them in the report.
 
-GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 613 distinct validation and analysis rules. Results are summarized with scores for publishability and overall feed quality. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
+GTFS Validator & Analyzer extends specification validation with operational quality analysis. Frequency inconsistencies per route, anomalous speed segments, isolated stops, gaps in service patterns, and network topology problems are examined with 621 distinct validation and analysis rules. Results are summarized with scores for publishability and overall feed quality. The prioritized fix queue shows which issues should be addressed first and the likely impact of each fix on the score.
 
 **Who is it for?**
 
@@ -55,7 +55,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | npm package | ❌ | ✅ `gtfs-sdk` |
 | crates.io package | — *(Java project)* | ✅ `gtfs-analyzer` |
 | GTFS Spec coverage (measured) | — | **97.2%** · 300/300 field anchors |
-| **Total rules** | **178** | **613** |
+| **Total rules** | **178** | **621** |
 
 ### Corpus Validation
 
@@ -155,7 +155,7 @@ Feed: `mdb-782` · 1,274 routes, 41,961 stops, 258,524 trips, 14,485 shapes · *
 
 GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profile (国土交通省 / MLIT standard), and enforces the requirements that GTFS-JP makes mandatory where standard GTFS leaves them optional. Because MLIT requires subsidized operators to publish GTFS-JP, hundreds of small operators must conform to this profile — yet mainstream validators do not check its profile-specific obligations.
 
-**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains the current GTFS-JP files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) or the legacy-compatible `routes_jp.txt`, when `feed_lang` starts with `ja`, or when `translations.txt` carries kana (`ja-Hrkt`) readings. `routes_jp.txt` is not a v3 file; it remains recognized only for legacy-feed compatibility. The default rule profile is **auto**; the web app, CLI, and WASM config can explicitly select `v3` or `v4`. Under v4, v3 extension files are reference data and their v3-specific JPN rules do not run. The profile rules activate only on GTFS-JP signals and stay silent on standard feeds.
+**Automatic detection.** A feed is flagged as GTFS-JP — and a **GTFS-JP** badge appears in the report — when it contains the current GTFS-JP files (`agency_jp.txt`, `office_jp.txt`, `pattern_jp.txt`) or the legacy-compatible `routes_jp.txt`, when `feed_lang` starts with `ja`, or when `translations.txt` carries kana (`ja-Hrkt`) readings. `routes_jp.txt` is not a v3 file; it remains recognized only for legacy-feed compatibility. Under the default **auto** profile, these signals enable JPN validation. Explicitly selecting `v3` or `v4` in the web app, CLI, SDK, or WASM forces that profile even without a signal; under v4, v3-extension rules do not run. The detection badge and selected-profile badge are therefore independent.
 
 **Selecting the profile for an analysis.** In the web app, open **Analysis Criteria** before choosing the ZIP and select `Auto`, `V3`, or `V4` under **GTFS-JP validation profile**. The current selection is committed when you choose a feed, before automatic validation starts; `Auto` is the default. For the CLI, use `--gtfs-jp-profile v3` or `--gtfs-jp-profile v4`. In the SDK, pass `config: { gtfs_jp_profile: 'v3' }` or `'v4'`. This selects the validation scope; it does not infer the feed's official GTFS-JP version. See the [GTFS-JP v3/v4 compatibility matrix](docs/gtfs-jp-v3-v4-matrix.md) for the detailed differences.
 
@@ -170,10 +170,10 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_005** | `office_name` (a required field) must be filled in `office_jp.txt` |
 | **JPN_006** | `fare_attributes.txt` is required; `fare_rules.txt` is conditional when fare profiles differ |
 | **JPN_007** | `feed_info.txt` must be present — mandatory in GTFS-JP |
-| **JPN_008** | Kana (`ja-Hrkt`) reading for the route name (`route_long_name`) |
+| **JPN_008** | Independent kana readings for Japanese `route_short_name` and `route_long_name` |
 | **JPN_009** | Kana (`ja-Hrkt`) reading for `trip_headsign` |
 | **JPN_010** | Kana (`ja-Hrkt`) reading for the operator name (`agency_name`) |
-| **JPN_011** | `agency_id` is required even when the feed has only one agency |
+| **JPN_011** | `agency_id` is required in both `agency.txt` and `routes.txt` |
 | **JPN_012** | `agency_jp.agency_id` is required and must identify an `agency.txt` row |
 | **JPN_013** | When present, `agency_zip_number` must contain exactly 7 ASCII digits |
 | **JPN_014** | `office_jp.office_id` must be present and unique |
@@ -183,8 +183,12 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_018** | When `pattern_jp.txt` exists, `trips.jp_pattern_id` must reference it |
 | **JPN_019** | `ja-Hrkt` rows must use valid GTFS tables, fields, records, and stop-time sub-records |
 | **JPN_020** | `office_url` and `office_phone` receive basic format quality checks |
-| **JPN_021** | `ja-Hrkt` translations must be non-empty, consistent, and contain Japanese writing |
-| **JPN_022** | GTFS-JP v4 requires `agency_lang`, `feed_start_date`, `feed_end_date`, and `feed_version` |
+| **JPN_021** | `ja-Hrkt` translations must be non-empty, consistent, and contain kana |
+| **JPN_022** | GTFS-JP v4 main fields and the `location_type` column; a blank cell is valid `0` |
+| **JPN_023–026** | Explicit profiles require `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo`, and `currency_type=JPY` |
+| **JPN_028** | Remaining required V3 `ja-Hrkt` translations |
+| **JPN_029** | Recommended V4 stop-time/attribution kana readings |
+| **JPN_030** | Remaining required V3 `language=ja` translations |
 
 The **Tokyo Toei** comparison above shows how the profile behaves on a real GTFS-JP feed: the feed is specification-clean (0 critical), and the profile rules produce no false positives on correctly referenced data.
 
@@ -228,7 +232,7 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 ## Five Ways to Use It
 
-The same validation core (`gtfs_pipeline::validate_bytes`) runs in five ways — all of them use the same 613 rules and produce the same result model:
+The same validation core (`gtfs_pipeline::validate_bytes`) runs in five ways — all of them use the same 621 rules and produce the same result model:
 
 | Path | Best for | Where the data goes |
 |---|---|---|
@@ -746,7 +750,7 @@ gtfs-validator/
 │   ├── config/     # Configuration types
 │   ├── core/       # Shared data structures and result model
 │   ├── pipeline/   # Validation pipeline (k1–k7 stages)
-│   ├── rules/      # Rule definitions and registry (613 rules, 38 groups)
+│   ├── rules/      # Rule definitions and registry (621 rules, 38 groups)
 │   └── wasm/       # wasm-bindgen WASM output
 ├── spec-audit/     # Field table generated from the spec (anchor gate)
 └── ui/             # Vite + TypeScript frontend

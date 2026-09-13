@@ -440,9 +440,8 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
 
     if let Some(file) = files.get("translations.txt") {
         let _t = Timer::start("K2::translations");
-        // The profile is an explicit user choice; the GTFS-JP signal is a
-        // separate input. V4's stricter record_sub_id rule must not be applied
-        // to an unrelated feed merely because V4 was selected in the UI/CLI.
+        // Detection and the selected validation scope are independent. Explicit
+        // V3/V4 opts in; Auto retains the detected/legacy behavior.
         let signal_before_kana = file
             .headers
             .iter()
@@ -459,7 +458,8 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
             translations::validate_translations_with_profile(
                 file,
                 matches!(cfg.gtfs_jp_profile, GtfsJpProfile::V4),
-                is_gtfs_jp || signal_before_kana,
+                cfg.gtfs_jp_profile
+                    .jp_validation_enabled(is_gtfs_jp || signal_before_kana),
             );
         records.translations = translation_records;
         notices.extend(translation_notices);

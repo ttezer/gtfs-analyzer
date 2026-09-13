@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-614 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+621 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -811,3 +811,10 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | JPN_020 | GTFS-JP: office contact format suspicious | MEDIUM | Quality |
 | JPN_021 | GTFS-JP: kana translation inconsistent | MEDIUM | Quality |
 | JPN_022 | GTFS-JP v4: required core field missing | MEDIUM | Interop |
+| JPN_023 | GTFS-JP: feed_lang is not ja | HIGH | Interop |
+| JPN_024 | GTFS-JP: agency_lang is not ja | HIGH | Interop |
+| JPN_025 | GTFS-JP: agency_timezone is not Asia/Tokyo | HIGH | Interop |
+| JPN_026 | GTFS-JP: fare currency is not JPY | HIGH | Interop |
+| JPN_028 | GTFS-JP v3: required kana translation missing | MEDIUM | Quality |
+| JPN_029 | GTFS-JP v4: recommended kana translation missing | LOW | Quality |
+| JPN_030 | GTFS-JP v3: required Japanese translation missing | MEDIUM | Quality |

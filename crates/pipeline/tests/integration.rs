@@ -110,6 +110,311 @@ fn selected_gtfs_jp_profile_is_exposed_without_version_inference() {
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
+
+    for profile in [GtfsJpProfile::V3, GtfsJpProfile::V4] {
+        match run_with_profile(&base_files(), profile) {
+            ValidateResult::Ok(vr) => {
+                assert!(
+                    !vr.metrics.is_gtfs_jp,
+                    "açık profil tespit rozetini değiştirmemeli"
+                );
+                assert_eq!(
+                    vr.metrics.gtfs_jp_profile.as_deref(),
+                    Some(profile.as_str())
+                );
+                assert!(
+                    has(&vr, "JPN_004"),
+                    "açık profil JP sinyali bulunmasa da JP doğrulamasını çalıştırmalı"
+                );
+                let fare_notice = vr
+                    .notices
+                    .iter()
+                    .find(|notice| notice.rule_id == "JPN_006")
+                    .expect("açık profilde eksik ücret kapsamı raporlanmalı");
+                assert!(fare_notice
+                    .message
+                    .contains(profile.as_str().to_uppercase().as_str()));
+                if profile == GtfsJpProfile::V4 {
+                    assert!(fare_notice.message.contains("karmaşık ücret"));
+                }
+            }
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn v4_location_type_distinguishes_missing_column_blank_and_invalid_value() {
+    let agency = b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,Asia/Tokyo,ja\n";
+    let feed_info = b"feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_version\nTest,http://test.example,ja,20250101,20271231,v1\n";
+    let cases: [(&[u8], bool, bool, bool); 3] = [
+        (b"stop_id,stop_name,stop_lat,stop_lon\nS1,\xE6\x9D\xB1\xE4\xBA\xAC,41.0,29.0\nS2,Stop2,41.1,29.1\n", true, false, true),
+        (b"stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,\xE6\x9D\xB1\xE4\xBA\xAC,41.0,29.0,\nS2,Stop2,41.1,29.1,0\n", false, false, true),
+        (b"stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,\xE6\x9D\xB1\xE4\xBA\xAC,41.0,29.0,x\nS2,Stop2,41.1,29.1,0\n", false, true, false),
+    ];
+    for (stops, expect_jpn022, expect_stp008, expect_jpn001) in cases {
+        let mut files = base_files();
+        files[0] = ("agency.txt", agency);
+        files[1] = ("stops.txt", stops);
+        files.push(("feed_info.txt", feed_info));
+        match run_with_profile(&files, GtfsJpProfile::V4) {
+            ValidateResult::Ok(vr) => {
+                let location_missing = vr.notices.iter().any(|notice| {
+                    notice.rule_id == "JPN_022" && notice.field.as_deref() == Some("location_type")
+                });
+                assert_eq!(location_missing, expect_jpn022);
+                assert_eq!(has(&vr, "STP_008"), expect_stp008);
+                assert_eq!(has(&vr, "JPN_001"), expect_jpn001);
+            }
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn jp_kana_scope_covers_stations_and_both_route_names_but_skips_latin_sources() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,Asia/Tokyo,ja\n",
+    );
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,0\nS2,Stop2,41.1,29.1,0\nST,\xE6\x9D\xB1\xE4\xBA\xAC\xE9\xA7\x85,41.2,29.2,1\n",
+    );
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,\xE6\xB8\x8B\xE8\xB0\xB7,\xE6\xB8\x8B\xE8\xB0\xB7\xE7\xB7\x9A,3\n",
+    );
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,Airport\n",
+    );
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88,S1\n",
+    ));
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.notices.iter().any(|notice| {
+                notice.rule_id == "JPN_001" && notice.entity_id.as_deref() == Some("ST")
+            }));
+            let route_fields: std::collections::BTreeSet<_> = vr
+                .notices
+                .iter()
+                .filter(|notice| notice.rule_id == "JPN_008")
+                .filter_map(|notice| notice.field.as_deref())
+                .collect();
+            assert_eq!(route_fields, ["route_long_name", "route_short_name"].into());
+            assert!(!has(&vr, "JPN_009"));
+            assert!(!has(&vr, "JPN_010"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn jpn_021_requires_a_reading_and_accepts_half_width_katakana() {
+    for (translations, expected) in [
+        (
+            b"table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,\xE6\x9D\xB1\xE4\xBA\xAC,S1\n".as_slice(),
+            true,
+        ),
+        (
+            b"table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,\xEF\xBE\x84\xEF\xBD\xB3\xEF\xBD\xB7\xEF\xBD\xAE\xEF\xBD\xB3,S1\n".as_slice(),
+            false,
+        ),
+        (
+            b"table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,\xE3\x81\xA8\xE3\x81\x86\xE3\x81\x8D\xE3\x82\x87\xE3\x81\x861,S1\n".as_slice(),
+            false,
+        ),
+    ] {
+        let mut files = base_files();
+        files.push(("translations.txt", translations));
+        match run(&files) {
+            ValidateResult::Ok(vr) => assert_eq!(has(&vr, "JPN_021"), expected),
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn v3_railway_routes_are_valid_and_routes_agency_id_is_still_required() {
+    let mut files = base_files();
+    files[2] = (
+        "routes.txt",
+        b"route_id,route_short_name,route_type\nR1,101,2\n",
+    );
+    match run_with_profile(&files, GtfsJpProfile::V3) {
+        ValidateResult::Ok(vr) => {
+            assert!(vr.notices.iter().any(|notice| notice.rule_id == "JPN_011"
+                && notice.file.as_deref() == Some("routes.txt")));
+            assert!(
+                vr.notices.iter().all(|notice| notice.rule_id != "JPN_027"),
+                "V3 demiryolu route_type=2 için tanımsız otobüs profili kuralı çalışmamalı"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn explicit_jp_constants_do_not_run_in_auto() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,en\n",
+    );
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,en\n",
+    ));
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n",
+    ));
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            for rule in ["JPN_023", "JPN_024", "JPN_025", "JPN_026"] {
+                assert!(has(&vr, rule), "{rule} açık profilde çalışmalı");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            for rule in ["JPN_023", "JPN_024", "JPN_025", "JPN_026"] {
+                assert!(!has(&vr, rule), "{rule} Auto'da sürüm sabiti dayatmamalı");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn v4_free_and_route_specific_fixed_fares_do_not_trigger_jpn_006() {
+    let cases: [Vec<(&'static str, &'static [u8])>; 2] = [
+        vec![(
+            "fare_attributes.txt",
+            b"fare_id,price,currency_type,payment_method,transfers\nFREE,0,JPY,0,0\n",
+        )],
+        vec![
+            (
+                "routes.txt",
+                b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n",
+            ),
+            (
+                "fare_attributes.txt",
+                b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\nF2,300,JPY,0,0\n",
+            ),
+            (
+                "fare_rules.txt",
+                b"fare_id,route_id\nF1,R1\nF2,R2\n",
+            ),
+        ],
+    ];
+
+    for additions in cases {
+        let mut files = base_files();
+        for (name, data) in additions {
+            if let Some(existing) = files.iter_mut().find(|(file, _)| *file == name) {
+                existing.1 = data;
+            } else {
+                files.push((name, data));
+            }
+        }
+        match run_with_profile(&files, GtfsJpProfile::V4) {
+            ValidateResult::Ok(vr) => assert!(
+                !has(&vr, "JPN_006"),
+                "ücretsiz veya hatlara eşlenmiş sabit ücret JPN_006 üretmemeli"
+            ),
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn v3_remaining_translation_fields_require_kana_and_japanese_rows() {
+    let mut files = base_files();
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,\xE6\xB8\x8B\xE8\xB0\xB7\xE6\x96\xB9\xE9\x9D\xA2\n",
+    );
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id,jp_trip_desc\nR1,SVC1,T1,\xE6\x80\xA5\xE8\xA1\x8C\n",
+    );
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,\xE3\x83\x86\xE3\x82\xB9\xE3\x83\x88,S1\n",
+    ));
+    match run_with_profile(&files, GtfsJpProfile::V3) {
+        ValidateResult::Ok(vr) => {
+            for field in ["route_desc", "jp_trip_desc"] {
+                assert!(vr.notices.iter().any(|notice| {
+                    notice.rule_id == "JPN_028" && notice.field.as_deref() == Some(field)
+                }));
+                assert!(vr.notices.iter().any(|notice| {
+                    notice.rule_id == "JPN_030" && notice.field.as_deref() == Some(field)
+                }));
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn gtfs_jp_translation_fields_are_not_rejected_by_general_translation_validation() {
+    let mut files = base_files();
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id,jp_trip_desc\nR1,SVC1,T1,\xE6\x80\xA5\xE8\xA1\x8C\n",
+    );
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\n\xE4\xBA\x8B\xE6\xA5\xAD\xE8\x80\x85,http://test.example,ja\n",
+    ));
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\ntrips,jp_trip_desc,ja-Hrkt,\xE3\x81\x8D\xE3\x82\x85\xE3\x81\x86\xE3\x81\x93\xE3\x81\x86,T1\nfeed_info,feed_publisher_url,ja,http://ja.example,\n",
+    ));
+
+    match run_with_profile(&files, GtfsJpProfile::V3) {
+        ValidateResult::Ok(vr) => assert!(
+            !has(&vr, "TRN_002"),
+            "GTFS-JP jp_trip_desc ve feed_publisher_url çeviri hedefleri geçerli olmalı"
+        ),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn v4_stop_times_kana_matching_uses_trip_and_stop_sequence() {
+    let mut files = base_files();
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,\xE6\x9D\xB1\xE4\xBA\xAC\nT2,09:00:00,09:00:00,S1,1,\xE6\x9D\xB1\xE4\xBA\xAC\n",
+    );
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id,record_sub_id\nstop_times,stop_headsign,ja-Hrkt,\xE3\x81\xA8\xE3\x81\x86\xE3\x81\x8D\xE3\x82\x87\xE3\x81\x86,T1,1\n",
+    ));
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            let findings: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|notice| notice.rule_id == "JPN_029")
+                .collect();
+            assert_eq!(findings.len(), 1);
+            assert_eq!(findings[0].entity_id.as_deref(), Some("T2:1"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
 }
 
 #[test]

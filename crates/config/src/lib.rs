@@ -116,6 +116,11 @@ pub enum GtfsJpProfile {
 }
 
 impl GtfsJpProfile {
+    /// Explicit profiles opt in even when automatic JP detection is negative.
+    pub const fn jp_validation_enabled(self, detected: bool) -> bool {
+        detected || !matches!(self, Self::Auto)
+    }
+
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Auto => "auto",

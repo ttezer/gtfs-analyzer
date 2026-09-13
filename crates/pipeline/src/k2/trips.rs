@@ -25,9 +25,12 @@ pub struct TripInternTable {
     /// is different from a missing column when translations.field_value is checked.
     pub has_headsign_field: bool,
     pub has_short_name_field: bool,
+    pub has_jp_trip_desc_field: bool,
     pub block_ids: Vec<SmolStr>,
     pub jp_offices: Vec<SmolStr>,
     pub jp_patterns: Vec<SmolStr>,
+    /// GTFS-JP translation coverage only; sparse so ordinary trips pay no per-row cost.
+    pub jp_descriptions: FxHashMap<SmolStr, SmolStr>,
 }
 
 impl TripInternTable {
@@ -41,9 +44,11 @@ impl TripInternTable {
             short_names: empty(),
             has_headsign_field: false,
             has_short_name_field: false,
+            has_jp_trip_desc_field: false,
             block_ids: empty(),
             jp_offices: empty(),
             jp_patterns: empty(),
+            jp_descriptions: FxHashMap::default(),
         }
     }
 
@@ -115,6 +120,10 @@ impl TripInternTable {
             .get(t.jp_pattern_idx as usize)
             .map(SmolStr::as_str)
     }
+    #[inline]
+    pub fn jp_trip_desc<'a>(&'a self, t: &TripRecord) -> Option<&'a str> {
+        self.jp_descriptions.get(&t.trip_id).map(SmolStr::as_str)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -170,6 +179,7 @@ struct Cols {
     safe_duration_offset: Option<usize>,
     jp_office_id: Option<usize>,
     jp_pattern_id: Option<usize>,
+    jp_trip_desc: Option<usize>,
 }
 
 impl Cols {
@@ -191,6 +201,7 @@ impl Cols {
             safe_duration_offset: pos("safe_duration_offset"),
             jp_office_id: pos("jp_office_id"),
             jp_pattern_id: pos("jp_pattern_id"),
+            jp_trip_desc: pos("jp_trip_desc"),
         }
     }
 }
@@ -239,6 +250,7 @@ pub fn validate_trips_with_limits(
     let mut interns = TripInternTable::new();
     interns.has_headsign_field = cols.trip_headsign.is_some();
     interns.has_short_name_field = cols.trip_short_name.is_some();
+    interns.has_jp_trip_desc_field = cols.jp_trip_desc.is_some();
     let mut route_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut service_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut shape_map: FxHashMap<String, u32> = FxHashMap::default();
@@ -423,6 +435,12 @@ pub fn validate_trips_with_limits(
             &mut interns.jp_patterns,
             &mut jp_pattern_map,
         );
+        let jp_desc_raw = get_col_raw(row, cols.jp_trip_desc);
+        if !jp_desc_raw.is_empty() {
+            interns
+                .jp_descriptions
+                .insert(trip_id.clone(), SmolStr::new(jp_desc_raw));
+        }
 
         // TRP_005: direction_id 0 veya 1 olmalı
         let dir_raw = get_col(row, cols.direction_id);

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-614 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+621 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -811,3 +811,10 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | JPN_020 | GTFS-JP : format de contact du bureau suspect | MOYENNE | Quality |
 | JPN_021 | GTFS-JP : traduction kana incohérente | MOYENNE | Quality |
 | JPN_022 | GTFS-JP v4 : champ principal obligatoire manquant | MOYENNE | Interop |
+| JPN_023 | GTFS-JP : feed_lang n’est pas ja | ÉLEVÉE | Interop |
+| JPN_024 | GTFS-JP : agency_lang n’est pas ja | ÉLEVÉE | Interop |
+| JPN_025 | GTFS-JP : agency_timezone n’est pas Asia/Tokyo | ÉLEVÉE | Interop |
+| JPN_026 | GTFS-JP : la devise tarifaire n’est pas JPY | ÉLEVÉE | Interop |
+| JPN_028 | GTFS-JP v3 : traduction kana obligatoire manquante | MOYENNE | Quality |
+| JPN_029 | GTFS-JP v4 : traduction kana recommandée manquante | FAIBLE | Quality |
+| JPN_030 | GTFS-JP v3 : traduction japonaise obligatoire manquante | MOYENNE | Quality |

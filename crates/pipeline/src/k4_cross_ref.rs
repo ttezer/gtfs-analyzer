@@ -3604,9 +3604,215 @@ fn has_japanese(s: &str) -> bool {
         matches!(c,
             '\u{3040}'..='\u{309F}'   // Hiragana
             | '\u{30A0}'..='\u{30FF}' // Katakana
+            | '\u{FF66}'..='\u{FF9D}' // Half-width Katakana
             | '\u{4E00}'..='\u{9FFF}' // CJK Unified Ideographs (Kanji)
         )
     })
+}
+
+/// A `ja-Hrkt` value must contain an actual reading. Kanji identifies Japanese
+/// source text, but does not by itself provide the Hiragana/Katakana reading.
+fn has_kana_reading(s: &str) -> bool {
+    s.chars().any(|c| {
+        matches!(c,
+            '\u{3040}'..='\u{309F}'   // Hiragana
+            | '\u{30A0}'..='\u{30FF}' // Katakana
+            | '\u{FF66}'..='\u{FF9D}' // Half-width Katakana
+        )
+    })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum JpTranslationLanguage {
+    Japanese,
+    Kana,
+}
+
+/// Index the two GTFS-JP translation languages once. This keeps every source
+/// field check O(1), including stop_times' `(trip_id, stop_sequence)` identity.
+struct JpTranslationCoverage<'a> {
+    fields: HashSet<(&'a str, &'a str, JpTranslationLanguage)>,
+    records: HashSet<(&'a str, &'a str, JpTranslationLanguage, &'a str)>,
+    subrecords: HashSet<(&'a str, &'a str, JpTranslationLanguage, &'a str, &'a str)>,
+    values: HashSet<(&'a str, &'a str, JpTranslationLanguage, &'a str)>,
+}
+
+impl<'a> JpTranslationCoverage<'a> {
+    fn new(translations: &'a [crate::k2::translations::TranslationRecord]) -> Self {
+        let mut coverage = Self {
+            fields: HashSet::new(),
+            records: HashSet::new(),
+            subrecords: HashSet::new(),
+            values: HashSet::new(),
+        };
+        for translation in translations {
+            let language = if translation.language.eq_ignore_ascii_case("ja") {
+                JpTranslationLanguage::Japanese
+            } else if translation.language.eq_ignore_ascii_case("ja-Hrkt") {
+                JpTranslationLanguage::Kana
+            } else {
+                continue;
+            };
+            let table = translation.table_name.as_str();
+            let field = translation.field_name.as_str();
+            coverage.fields.insert((table, field, language));
+            if let Some(record_id) = translation.record_id.as_deref().filter(|id| !id.is_empty()) {
+                coverage.records.insert((table, field, language, record_id));
+                if let Some(sub_id) = translation
+                    .record_sub_id
+                    .as_deref()
+                    .filter(|id| !id.is_empty())
+                {
+                    coverage
+                        .subrecords
+                        .insert((table, field, language, record_id, sub_id));
+                }
+            }
+            if let Some(value) = translation
+                .field_value
+                .as_deref()
+                .filter(|value| !value.is_empty())
+            {
+                coverage.values.insert((table, field, language, value));
+            }
+        }
+        coverage
+    }
+
+    fn has(
+        &self,
+        table: &str,
+        field: &str,
+        language: JpTranslationLanguage,
+        record_id: Option<&str>,
+        record_sub_id: Option<&str>,
+        value: &str,
+    ) -> bool {
+        let record_match = match (record_id, record_sub_id) {
+            _ if table == "feed_info" => self.fields.contains(&(table, field, language)),
+            (Some(record_id), Some(sub_id)) if table == "stop_times" => self
+                .subrecords
+                .contains(&(table, field, language, record_id, sub_id)),
+            (Some(record_id), _) if table != "stop_times" => {
+                self.records.contains(&(table, field, language, record_id))
+            }
+            _ => false,
+        };
+        record_match || self.values.contains(&(table, field, language, value))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_jp_translation_field(
+    coverage: &JpTranslationCoverage<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+    rule_id: &str,
+    profile: GtfsJpProfile,
+    language: JpTranslationLanguage,
+    table: &str,
+    field: &str,
+    entity_type: EntityType,
+    record_id: Option<&str>,
+    record_sub_id: Option<&str>,
+    source_value: &str,
+    file: &str,
+    line: u64,
+    recommendation: bool,
+) {
+    if !has_japanese(source_value)
+        || coverage.has(
+            table,
+            field,
+            language,
+            record_id,
+            record_sub_id,
+            source_value,
+        )
+    {
+        return;
+    }
+    let language_code = match language {
+        JpTranslationLanguage::Japanese => "ja",
+        JpTranslationLanguage::Kana => "ja-Hrkt",
+    };
+    let identity = match (record_id, record_sub_id) {
+        (Some(record_id), Some(sub_id)) => Some(format!("{record_id}:{sub_id}")),
+        (Some(record_id), None) => Some(record_id.to_string()),
+        _ => None,
+    };
+    let profile_name = profile.as_str().to_uppercase();
+    let requirement = if recommendation {
+        "önerilir"
+    } else {
+        "zorunludur"
+    };
+    notices.push(notice(
+        ctr,
+        rule_id,
+        entity_type,
+        identity.clone(),
+        identity,
+        file,
+        Some(line),
+        Some(field),
+        Some(source_value.to_string()),
+        Some(language_code.to_string()),
+        format!(
+            "GTFS-JP {profile_name}: Japonca {table}.{field} değeri için language={language_code} çevirisi {requirement}."
+        ),
+        "translations.txt'e kaynak kayıt veya field_value ile eşleşen çeviriyi ekleyin.",
+    ));
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_v3_translation_pair(
+    coverage: &JpTranslationCoverage<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+    table: &str,
+    field: &str,
+    entity_type: EntityType,
+    record_id: Option<&str>,
+    record_sub_id: Option<&str>,
+    source_value: &str,
+    file: &str,
+    line: u64,
+) {
+    check_jp_translation_field(
+        coverage,
+        notices,
+        ctr,
+        "JPN_028",
+        GtfsJpProfile::V3,
+        JpTranslationLanguage::Kana,
+        table,
+        field,
+        entity_type,
+        record_id,
+        record_sub_id,
+        source_value,
+        file,
+        line,
+        false,
+    );
+    check_jp_translation_field(
+        coverage,
+        notices,
+        ctr,
+        "JPN_030",
+        GtfsJpProfile::V3,
+        JpTranslationLanguage::Japanese,
+        table,
+        field,
+        entity_type,
+        record_id,
+        record_sub_id,
+        source_value,
+        file,
+        line,
+        false,
+    );
 }
 
 fn collect_kana<'a>(
@@ -3663,6 +3869,7 @@ fn check_gtfs_jp(
     ctr: &mut u32,
     availability: &FileAvailability<'_>,
 ) {
+    let first_jp_notice = notices.len();
     let ti_jpn = &records.trip_interns;
     // Gerçek pipeline'da K1 envanteri boş/bozuk dosyaları da fiziksel varlık olarak taşır.
     // Doğrudan K4 çağrılarında ise complete() sentetik kayıtları desteklemek için mevcut
@@ -3697,11 +3904,17 @@ fn check_gtfs_jp(
         // K2 signal field. The real K1→K2→K4 pipeline always carries Some(...).
         feed_lang_ja || has_kana || has_jp_file
     });
+    let jp_validation_enabled = records.gtfs_jp_profile.jp_validation_enabled(is_gtfs_jp);
+    let kana_requirement = match records.gtfs_jp_profile {
+        GtfsJpProfile::V3 => "zorunlu",
+        GtfsJpProfile::V4 => "önerilen",
+        GtfsJpProfile::Auto => "beklenen",
+    };
     // GTFS-JP v4 keeps the Japanese translation and core GTFS checks, but
     // moves agency_jp/office_jp/pattern_jp out of the main standard. The
     // profile is explicit; Auto preserves the pre-v4 behavior.
     let legacy_v3_extensions = !matches!(records.gtfs_jp_profile, GtfsJpProfile::V4);
-    if is_gtfs_jp {
+    if jp_validation_enabled {
         let mut kana_records: HashSet<&str> = HashSet::new();
         let mut kana_values: HashSet<&str> = HashSet::new();
         for t in &records.translations {
@@ -3719,12 +3932,23 @@ fn check_gtfs_jp(
         }
 
         for stop in &records.stops {
-            // Sadece fiziksel duraklar (location_type 0/boş); istasyon/giriş/node hariç.
-            if stop.location_type.unwrap_or(0) != 0 {
+            // Stops and stations; entrances/nodes/boarding areas remain out of scope.
+            let location_type_in_scope = match stop
+                .row
+                .get("location_type")
+                .map(String::as_str)
+                .map(str::trim)
+            {
+                None | Some("") => true,
+                Some(raw) => raw
+                    .parse::<u32>()
+                    .is_ok_and(|location_type| matches!(location_type, 0 | 1)),
+            };
+            if !location_type_in_scope {
                 continue;
             }
             let name = match stop.stop_name.as_deref() {
-                Some(n) if !n.is_empty() => n,
+                Some(n) if has_japanese(n) => n,
                 _ => continue,
             };
             if kana_records.contains(stop.stop_id.as_str()) || kana_values.contains(name) {
@@ -3753,38 +3977,46 @@ fn check_gtfs_jp(
         }
 
         // ── JPN_008: route adı kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
-        // route_long_name varsa onu; yoksa (Tokyo gibi adı route_short_name'de tutan feed'lerde)
-        // Japonca karakter içeren route_short_name'i denetle (sayısal kodlar elenir).
+        // Both Japanese names are independently translatable fields.
         let (krl_rec, krl_val) = collect_kana(&records.translations, "routes", "route_long_name");
         let (krs_rec, krs_val) = collect_kana(&records.translations, "routes", "route_short_name");
         for route in &records.routes {
-            let (field, name, kr_rec, kr_val) = match route.route_long_name.as_deref() {
-                Some(n) if !n.is_empty() => ("route_long_name", n, &krl_rec, &krl_val),
-                _ => match route.route_short_name.as_deref() {
-                    Some(s) if !s.is_empty() && has_japanese(s) => {
-                        ("route_short_name", s, &krs_rec, &krs_val)
-                    }
-                    _ => continue,
-                },
-            };
-            if kr_rec.contains(route.route_id.as_str()) || kr_val.contains(name) {
-                continue;
+            for (field, name, kr_rec, kr_val) in [
+                (
+                    "route_long_name",
+                    route.route_long_name.as_deref(),
+                    &krl_rec,
+                    &krl_val,
+                ),
+                (
+                    "route_short_name",
+                    route.route_short_name.as_deref(),
+                    &krs_rec,
+                    &krs_val,
+                ),
+            ] {
+                let Some(name) = name.filter(|name| has_japanese(name)) else {
+                    continue;
+                };
+                if kr_rec.contains(route.route_id.as_str()) || kr_val.contains(name) {
+                    continue;
+                }
+                notices.push(notice(
+                    ctr, "JPN_008", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some(field),
+                    None, Some("ja-Hrkt".to_string()),
+                    format!("'{}' hattının {} değeri ('{}') için kana (ja-Hrkt) okuması eksik — seçilen GTFS-JP profilinde {kana_requirement}.", route.route_id, field, name),
+                    "translations.txt'e bu hat için language=ja-Hrkt (route adı) çevirisi ekleyin.",
+                ));
             }
-            notices.push(notice(
-                ctr, "JPN_008", EntityType::Route,
-                Some(route.route_id.clone()), Some(route.route_id.clone()),
-                "routes.txt", Some(route.line), Some(field),
-                None, Some("ja-Hrkt".to_string()),
-                format!("'{}' hattının adı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", route.route_id, name),
-                "translations.txt'e bu hat için language=ja-Hrkt (route adı) çevirisi ekleyin.",
-            ));
         }
 
         // ── JPN_009: trip_headsign kana (ja-Hrkt) — GTFS-JP _headsign alanları zorunlu ──
         let (kt_rec, kt_val) = collect_kana(&records.translations, "trips", "trip_headsign");
         for trip in &records.trips {
             let hs = match ti_jpn.headsign(trip) {
-                Some(h) if !h.is_empty() => h,
+                Some(h) if has_japanese(h) => h,
                 _ => continue,
             };
             if kt_rec.contains(trip.trip_id.as_str()) || kt_val.contains(hs) {
@@ -3795,7 +4027,7 @@ fn check_gtfs_jp(
                 Some(trip.trip_id.to_string()), Some(trip.trip_id.to_string()),
                 "trips.txt", Some(trip.line), Some("trip_headsign"),
                 None, Some("ja-Hrkt".to_string()),
-                format!("'{}' seferinin trip_headsign'ı ('{}') için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", trip.trip_id, hs),
+                format!("'{}' seferinin trip_headsign'ı ('{}') için kana (ja-Hrkt) okuması eksik — seçilen GTFS-JP profilinde {kana_requirement}.", trip.trip_id, hs),
                 "translations.txt'e bu sefer için language=ja-Hrkt (trip_headsign) çevirisi ekleyin.",
             ));
         }
@@ -3803,7 +4035,7 @@ fn check_gtfs_jp(
         // ── JPN_010: agency_name kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
         let (ka_rec, ka_val) = collect_kana(&records.translations, "agency", "agency_name");
         for ag in &records.agencies {
-            if ag.agency_name.is_empty() {
+            if !has_japanese(&ag.agency_name) {
                 continue;
             }
             let aid = ag.agency_id.as_deref().unwrap_or("");
@@ -3821,7 +4053,7 @@ fn check_gtfs_jp(
                 Some(eid.clone()), Some(eid),
                 "agency.txt", Some(ag.line), Some("agency_name"),
                 None, Some("ja-Hrkt".to_string()),
-                format!("'{}' işleticisinin adı için kana (ja-Hrkt) okuması eksik — GTFS-JP'de zorunlu.", ag.agency_name),
+                format!("'{}' işleticisinin adı için kana (ja-Hrkt) okuması eksik — seçilen GTFS-JP profilinde {kana_requirement}.", ag.agency_name),
                 "translations.txt'e bu işletici için language=ja-Hrkt (agency_name) çevirisi ekleyin.",
             ));
         }
@@ -3927,7 +4159,7 @@ fn check_gtfs_jp(
     // GTFS-JP profili translations.txt'i (özellikle stop_name kana/ja-Hrkt okumaları için)
     // zorunlu kılar. Kapı: GTFS-JP sinyali (feed_lang ja* VEYA *_jp dosyası) AMA translations hiç yok.
     // has_kana zaten translations dolu demek → bu kuralla çelişmez.
-    if is_gtfs_jp && records.translations.is_empty() {
+    if jp_validation_enabled && records.translations.is_empty() {
         notices.push(notice(
             ctr,
             "JPN_004",
@@ -3947,7 +4179,7 @@ fn check_gtfs_jp(
     // ── JPN_011: GTFS-JP'de agency_id her zaman zorunlu (tek işletici olsa bile) ──
     // Standart GTFS tek-agency'de agency_id'yi opsiyonel sayar; AGN_011 yalnız ÇOKLU-agency'de
     // (route-level) fire eder → tek-işletici JP feed'inde agency_id eksikliği boşlukta kalıyordu.
-    if is_gtfs_jp {
+    if jp_validation_enabled {
         let missing = records
             .agencies
             .iter()
@@ -3969,13 +4201,41 @@ fn check_gtfs_jp(
                 "agency.txt'teki her satıra benzersiz bir agency_id girin.",
             ));
         }
+        let missing_routes = records
+            .routes
+            .iter()
+            .filter(|route| {
+                route
+                    .agency_id
+                    .as_deref()
+                    .is_none_or(|id| id.trim().is_empty())
+            })
+            .count();
+        if missing_routes > 0 {
+            notices.push(notice(
+                ctr,
+                "JPN_011",
+                EntityType::Feed,
+                None,
+                None,
+                "routes.txt",
+                None,
+                Some("agency_id"),
+                Some(missing_routes.to_string()),
+                Some("dolu".to_string()),
+                format!(
+                    "GTFS-JP: {missing_routes} hatta agency_id eksik; JP profilinde routes.agency_id zorunludur."
+                ),
+                "routes.txt'teki her hatta agency.txt'te tanımlı bir agency_id girin.",
+            ));
+        }
     }
 
     // ── JPN_022: GTFS-JP v4 ana alan zorunluluğu ─────────────────────────────
     // V4, v3'te sabit/opsiyonel olan bazı alanları açıkça zorunlu kılar. Dolu
     // değerlerin biçim ve anlam denetimi genel GTFS kurallarında kalır; bu kural
     // yalnız eksik/boş değerleri, profil seçimi V4 iken görünür kılar.
-    if is_gtfs_jp && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+    if jp_validation_enabled && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
         let mut jpn022_pending = Vec::new();
         for agency in &records.agencies {
             if agency
@@ -4000,15 +4260,11 @@ fn check_gtfs_jp(
             }
         }
 
-        // V4 makes stops.location_type Required. The base GTFS parser keeps the
-        // v3-compatible default (missing/blank means a regular stop), so only a
-        // genuinely missing/blank column is reported here; a non-numeric value
-        // remains the responsibility of STP_008 and must not be double-reported.
+        // V4 requires the column but explicitly accepts 0 OR blank as a stop.
+        // Invalid values remain owned by STP_008.
         for stop in &records.stops {
             let raw_location_type = stop.row.get("location_type").map(String::as_str);
-            if stop.location_type.is_none()
-                && raw_location_type.is_none_or(|value| value.trim().is_empty())
-            {
+            if raw_location_type.is_none() {
                 jpn022_pending.push(notice(
                     ctr,
                     "JPN_022",
@@ -4020,8 +4276,8 @@ fn check_gtfs_jp(
                     Some("location_type"),
                     None,
                     None,
-                    "GTFS-JP v4'te location_type zorunludur ancak değer eksik.".to_string(),
-                    "stops.txt'teki her durak için location_type değerini 0, 1, 2, 3 veya 4 olarak belirtin.",
+                    "GTFS-JP v4'te location_type sütunu zorunludur ancak sütun eksik.".to_string(),
+                    "stops.txt'e location_type sütununu ekleyin; normal durak için 0 veya boş hücre geçerlidir.",
                 ));
             }
         }
@@ -4064,6 +4320,282 @@ fn check_gtfs_jp(
         }
 
         append_jpn022_missing_records(notices, jpn022_pending);
+    }
+
+    // ── JPN_023..026: explicit-profile Japanese constants ───────────────────
+    if !matches!(records.gtfs_jp_profile, GtfsJpProfile::Auto) {
+        if let Some(feed_info) = records.feed_info.first() {
+            let value = feed_info.feed_lang.as_str();
+            if crate::k2::common::looks_like_bcp47(value) && !value.eq_ignore_ascii_case("ja") {
+                notices.push(notice(
+                    ctr,
+                    "JPN_023",
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "feed_info.txt",
+                    Some(feed_info.line),
+                    Some("feed_lang"),
+                    Some(value.to_string()),
+                    Some("ja".to_string()),
+                    "Açık GTFS-JP profilinde feed_lang değeri 'ja' olmalıdır.".to_string(),
+                    "feed_info.txt içindeki feed_lang değerini ja yapın.",
+                ));
+            }
+        }
+        for agency in &records.agencies {
+            let entity_id = agency
+                .agency_id
+                .clone()
+                .or_else(|| Some(agency.agency_name.clone()).filter(|name| !name.is_empty()));
+            if let Some(value) = agency.agency_lang.as_deref() {
+                if crate::k2::common::looks_like_bcp47(value) && !value.eq_ignore_ascii_case("ja") {
+                    notices.push(notice(
+                        ctr,
+                        "JPN_024",
+                        EntityType::Agency,
+                        entity_id.clone(),
+                        entity_id.clone(),
+                        "agency.txt",
+                        Some(agency.line),
+                        Some("agency_lang"),
+                        Some(value.to_string()),
+                        Some("ja".to_string()),
+                        "Açık GTFS-JP profilinde agency_lang değeri 'ja' olmalıdır.".to_string(),
+                        "agency.txt içindeki agency_lang değerini ja yapın.",
+                    ));
+                }
+            }
+            let timezone = agency.agency_timezone.as_str();
+            if crate::k2::common::looks_like_iana_timezone(timezone) && timezone != "Asia/Tokyo" {
+                notices.push(notice(
+                    ctr,
+                    "JPN_025",
+                    EntityType::Agency,
+                    entity_id.clone(),
+                    entity_id,
+                    "agency.txt",
+                    Some(agency.line),
+                    Some("agency_timezone"),
+                    Some(timezone.to_string()),
+                    Some("Asia/Tokyo".to_string()),
+                    "Açık GTFS-JP profilinde agency_timezone değeri Asia/Tokyo olmalıdır."
+                        .to_string(),
+                    "agency.txt içindeki agency_timezone değerini Asia/Tokyo yapın.",
+                ));
+            }
+        }
+        for fare in &records.fare_attributes {
+            let currency = fare.currency_type.as_str();
+            if crate::k2::common::iso4217_minor_unit(currency).is_some() && currency != "JPY" {
+                notices.push(notice(
+                    ctr,
+                    "JPN_026",
+                    EntityType::Fare,
+                    Some(fare.fare_id.clone()),
+                    Some(fare.fare_id.clone()),
+                    "fare_attributes.txt",
+                    Some(fare.line),
+                    Some("currency_type"),
+                    Some(currency.to_string()),
+                    Some("JPY".to_string()),
+                    "Açık GTFS-JP profilinde currency_type değeri JPY olmalıdır.".to_string(),
+                    "fare_attributes.txt içindeki currency_type değerini JPY yapın.",
+                ));
+            }
+        }
+    }
+
+    // ── JPN_028..030: remaining v3/v4 translation coverage ──────────────────
+    if !matches!(records.gtfs_jp_profile, GtfsJpProfile::Auto) && !records.translations.is_empty() {
+        let coverage = JpTranslationCoverage::new(&records.translations);
+        if matches!(records.gtfs_jp_profile, GtfsJpProfile::V3) {
+            for agency in &records.agencies {
+                for (field, value) in [
+                    ("agency_url", Some(agency.agency_url.as_str())),
+                    ("agency_fare_url", agency.agency_fare_url.as_deref()),
+                ] {
+                    if let Some(value) = value.filter(|value| !value.is_empty()) {
+                        check_v3_translation_pair(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "agency",
+                            field,
+                            EntityType::Agency,
+                            agency.agency_id.as_deref(),
+                            None,
+                            value,
+                            "agency.txt",
+                            agency.line,
+                        );
+                    }
+                }
+            }
+            for stop in &records.stops {
+                for field in ["stop_desc", "stop_url"] {
+                    let value = row_field(&stop.row, field);
+                    if !value.is_empty() {
+                        check_v3_translation_pair(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "stops",
+                            field,
+                            EntityType::Stop,
+                            Some(&stop.stop_id),
+                            None,
+                            value,
+                            "stops.txt",
+                            stop.line,
+                        );
+                    }
+                }
+            }
+            for route in &records.routes {
+                for (field, value) in [
+                    ("route_desc", route.route_desc.as_deref()),
+                    ("route_url", route.route_url.as_deref()),
+                ] {
+                    if let Some(value) = value.filter(|value| !value.is_empty()) {
+                        check_v3_translation_pair(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "routes",
+                            field,
+                            EntityType::Route,
+                            Some(&route.route_id),
+                            None,
+                            value,
+                            "routes.txt",
+                            route.line,
+                        );
+                    }
+                }
+            }
+            for trip in &records.trips {
+                for (field, value) in [
+                    ("trip_short_name", ti_jpn.short_name(trip)),
+                    ("jp_trip_desc", ti_jpn.jp_trip_desc(trip)),
+                ] {
+                    if let Some(value) = value.filter(|value| !value.is_empty()) {
+                        check_v3_translation_pair(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "trips",
+                            field,
+                            EntityType::Trip,
+                            Some(trip.trip_id.as_str()),
+                            None,
+                            value,
+                            "trips.txt",
+                            trip.line,
+                        );
+                    }
+                }
+            }
+            for (trip_id, stop_times) in records.stop_times_index.iter_trips() {
+                for stop_time in stop_times {
+                    if let Some(value) = records
+                        .stop_times_index
+                        .stop_headsign_of(stop_time)
+                        .map(|value| value.as_str())
+                    {
+                        let sequence = stop_time.sequence.to_string();
+                        check_v3_translation_pair(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "stop_times",
+                            "stop_headsign",
+                            EntityType::Row,
+                            Some(trip_id.as_str()),
+                            Some(&sequence),
+                            value,
+                            "stop_times.txt",
+                            u64::from(stop_time.line),
+                        );
+                    }
+                }
+            }
+            for feed_info in &records.feed_info {
+                for (field, value) in [
+                    (
+                        "feed_publisher_name",
+                        feed_info.feed_publisher_name.as_str(),
+                    ),
+                    ("feed_publisher_url", feed_info.feed_publisher_url.as_str()),
+                ] {
+                    if !value.is_empty() {
+                        check_v3_translation_pair(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "feed_info",
+                            field,
+                            EntityType::Feed,
+                            None,
+                            None,
+                            value,
+                            "feed_info.txt",
+                            feed_info.line,
+                        );
+                    }
+                }
+            }
+        } else if matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+            for (trip_id, stop_times) in records.stop_times_index.iter_trips() {
+                for stop_time in stop_times {
+                    if let Some(value) = records
+                        .stop_times_index
+                        .stop_headsign_of(stop_time)
+                        .map(|value| value.as_str())
+                    {
+                        let sequence = stop_time.sequence.to_string();
+                        check_jp_translation_field(
+                            &coverage,
+                            notices,
+                            ctr,
+                            "JPN_029",
+                            GtfsJpProfile::V4,
+                            JpTranslationLanguage::Kana,
+                            "stop_times",
+                            "stop_headsign",
+                            EntityType::Row,
+                            Some(trip_id.as_str()),
+                            Some(&sequence),
+                            value,
+                            "stop_times.txt",
+                            u64::from(stop_time.line),
+                            true,
+                        );
+                    }
+                }
+            }
+            for attribution in &records.attributions {
+                if !attribution.organization_name.is_empty() {
+                    check_jp_translation_field(
+                        &coverage,
+                        notices,
+                        ctr,
+                        "JPN_029",
+                        GtfsJpProfile::V4,
+                        JpTranslationLanguage::Kana,
+                        "attributions",
+                        "organization_name",
+                        EntityType::Attribution,
+                        attribution.attribution_id.as_deref(),
+                        None,
+                        &attribution.organization_name,
+                        "attributions.txt",
+                        attribution.line,
+                        true,
+                    );
+                }
+            }
+        }
     }
 
     if legacy_v3_extensions {
@@ -4122,7 +4654,26 @@ fn check_gtfs_jp(
     let fare_rules_conditionally_required = fare_profiles.len() > 1;
     let fare_problem = records.fare_attributes.is_empty()
         || (fare_rules_conditionally_required && records.fare_rules.is_empty());
-    if is_gtfs_jp && fare_problem {
+    if jp_validation_enabled && fare_problem {
+        let fare_file_missing =
+            availability.has_inventory() && !availability.present("fare_attributes.txt");
+        let message = if fare_file_missing && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+            "GTFS-JP V4'te fare_attributes.txt normalde zorunludur; yalnız bu formatta temsil edilemeyen karmaşık ücretler varsa dosya dışarıda bırakılabilir ve bu istisna feed'den doğrulanamaz."
+        } else if records.fare_attributes.is_empty() {
+            match records.gtfs_jp_profile {
+                GtfsJpProfile::V3 => {
+                    "GTFS-JP V3'te fare_attributes.txt zorunludur ancak dosya eksik, boş veya kullanılabilir kayıt içermiyor."
+                }
+                GtfsJpProfile::V4 => {
+                    "GTFS-JP V4 ücret dosyası mevcut olsa da kullanılabilir fare_attributes kaydı içermiyor; karmaşık ücret istisnası boş veya bozuk dosyayı kapsamaz."
+                }
+                GtfsJpProfile::Auto => {
+                    "GTFS-JP ücret kapsamı için fare_attributes.txt eksik, boş veya kullanılabilir kayıt içermiyor."
+                }
+            }
+        } else {
+            "GTFS-JP feed'inde farklı ücret profilleri var ancak fare_rules.txt bunları hat veya bölgelere eşlemiyor."
+        };
         notices.push(notice(
             ctr,
             "JPN_006",
@@ -4134,13 +4685,13 @@ fn check_gtfs_jp(
             Some("fare_attributes"),
             None,
             None,
-            "GTFS-JP feed'inde fare_attributes.txt eksik veya farklı ücret profilleri için fare_rules.txt eksik — v3 ücret kapsamı koşulunu karşılamıyor.".to_string(),
+            message.to_string(),
             "fare_attributes.txt'i ekleyin; hatlara/alanlara göre farklı ücret profilleri varsa fare_rules.txt ile bunları eşleyin.",
         ));
     }
 
     // ── JPN_007: GTFS-JP'de feed_info.txt zorunlu ──
-    if is_gtfs_jp && records.feed_info.is_empty() {
+    if jp_validation_enabled && records.feed_info.is_empty() {
         notices.push(notice(
             ctr,
             "JPN_007",
@@ -4639,7 +5190,7 @@ fn check_gtfs_jp(
                     Some(translation.translation.clone()),
                     Some("dolu Japonca kana".to_string()),
                     "GTFS-JP ja-Hrkt çevirisi boş.".to_string(),
-                    "ja-Hrkt translation alanını Japonca kana/kanji okumasıyla doldurun.",
+                    "ja-Hrkt translation alanını Hiragana veya Katakana okumasıyla doldurun.",
                 ));
                 continue;
             }
@@ -4674,7 +5225,7 @@ fn check_gtfs_jp(
             } else {
                 seen.insert(key, (translation.translation.clone(), translation.line));
             }
-            if !has_japanese(&translation.translation) {
+            if !has_kana_reading(&translation.translation) {
                 notices.push(notice(
                     ctr,
                     "JPN_021",
@@ -4685,11 +5236,25 @@ fn check_gtfs_jp(
                     Some(translation.line),
                     Some("translation"),
                     Some(translation.translation.clone()),
-                    Some("Japonca kana/kanji".to_string()),
-                    "ja-Hrkt çevirisi Japonca kana veya kanji içermiyor.".to_string(),
+                    Some("Hiragana/Katakana".to_string()),
+                    "ja-Hrkt çevirisi Hiragana veya Katakana içermiyor; yalnız Kanji yeterli değildir.".to_string(),
                     "ja-Hrkt translation alanına Japonca okunuşu yazın.",
                 ));
             }
+        }
+    }
+
+    // Carry the selected validation scope without changing the independent
+    // automatic-detection metric. Locale resolvers use this for profile variants.
+    for jp_notice in &mut notices[first_jp_notice..] {
+        if jp_notice.rule_id.starts_with("JPN_") {
+            jp_notice
+                .details
+                .get_or_insert_with(Default::default)
+                .insert(
+                    "jp_profile".to_string(),
+                    records.gtfs_jp_profile.as_str().to_string(),
+                );
         }
     }
 }
@@ -6161,6 +6726,9 @@ fn translation_target_values<'a>(
             let has_field = match field {
                 "trip_headsign" => interns.has_headsign_field || interns.headsigns.len() > 1,
                 "trip_short_name" => interns.has_short_name_field || interns.short_names.len() > 1,
+                "jp_trip_desc" => {
+                    interns.has_jp_trip_desc_field || !interns.jp_descriptions.is_empty()
+                }
                 _ => false,
             };
             if records.trips.is_empty() || !has_field {
@@ -6173,6 +6741,7 @@ fn translation_target_values<'a>(
                     .filter_map(|t| match field {
                         "trip_headsign" => interns.headsign(t),
                         "trip_short_name" => interns.short_name(t),
+                        "jp_trip_desc" => interns.jp_trip_desc(t),
                         _ => None,
                     })
                     .collect(),
@@ -8211,6 +8780,8 @@ mod tests {
 
         // JP sinyali yok + agency_id yok → JPN_011 yok (standart feed'de opsiyonel).
         let (mut recs3, _m3) = empty();
+        recs3.gtfs_jp_profile = GtfsJpProfile::Auto;
+        recs3.is_gtfs_jp = Some(false);
         recs3.agencies = vec![mk_agency(None)];
         let r3 = check(&recs3, &EntityMap::default(), 20260515);
         assert!(
@@ -8480,7 +9051,9 @@ mod tests {
     #[test]
     fn non_jp_feed_no_jpn_004() {
         // JP sinyali yok (feed_lang yok, *_jp dosyası yok) + translations yok → JPN_004 yok
-        let (recs, _map) = empty();
+        let (mut recs, _map) = empty();
+        recs.gtfs_jp_profile = GtfsJpProfile::Auto;
+        recs.is_gtfs_jp = Some(false);
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_004"));
     }
@@ -8620,7 +9193,9 @@ mod tests {
     #[test]
     fn non_jp_feed_no_jpn_005_006_007() {
         // GTFS-JP sinyali yok → office/fare/feed_info kuralları susar
-        let (recs, _map) = empty();
+        let (mut recs, _map) = empty();
+        recs.gtfs_jp_profile = GtfsJpProfile::Auto;
+        recs.is_gtfs_jp = Some(false);
         let result = check(&recs, &EntityMap::default(), 20260515);
         let ids: Vec<&str> = result.notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(!ids.contains(&"JPN_005"));

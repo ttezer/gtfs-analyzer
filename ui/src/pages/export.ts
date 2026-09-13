@@ -542,7 +542,7 @@ export function buildReportHtml(result: ValidationResult, fileName: string, ts: 
   <h1>${t('export.html.h1')}</h1>
   <p style="color:#64748b;font-size:.9rem">${t('export.html.source')} ${escHtml(fileName)}</p>
   <p style="color:#64748b;font-size:.82rem">${t('export.summary.datetime')}: ${escHtml(ts)}</p>
-  <div class="report-note">${t('export.html.detail_intro')}${result.metrics.is_gtfs_jp && result.metrics.gtfs_jp_profile ? ` · ${t('export.html.gtfs_jp_profile')}: ${escHtml(result.metrics.gtfs_jp_profile)}` : ''}</div>
+  <div class="report-note">${t('export.html.detail_intro')}${result.metrics.gtfs_jp_profile ? ` · ${t('export.html.gtfs_jp_profile')}: ${escHtml(result.metrics.gtfs_jp_profile)}` : ''}</div>
 
   <div class="summary">
     <div class="kpi">

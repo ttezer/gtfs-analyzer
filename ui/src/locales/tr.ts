@@ -1228,6 +1228,13 @@ const tr = {
     'JPN_020': 'GTFS-JP: ofis iletişim biçimi şüpheli',
     'JPN_021': 'GTFS-JP: kana çevirisi tutarsız',
     'JPN_022': 'GTFS-JP v4: ana alan zorunluluğu eksik',
+    'JPN_023': 'GTFS-JP: feed_lang ja değil',
+    'JPN_024': 'GTFS-JP: agency_lang ja değil',
+    'JPN_025': 'GTFS-JP: agency_timezone Asia/Tokyo değil',
+    'JPN_026': 'GTFS-JP: ücret para birimi JPY değil',
+    'JPN_028': 'GTFS-JP v3: zorunlu kana çevirisi eksik',
+    'JPN_029': 'GTFS-JP v4: önerilen kana çevirisi eksik',
+    'JPN_030': 'GTFS-JP v3: zorunlu Japonca çeviri eksik',
   } as Record<string, string>,
 };
 
