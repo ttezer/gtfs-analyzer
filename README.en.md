@@ -6,16 +6,16 @@
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20supported-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Rule count](https://img.shields.io/badge/rules-621-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
-[![Corpus validation](https://img.shields.io/badge/corpus-4%2C318%20feeds%20%C3%97%2012%20runs-brightgreen?style=flat)](audit-results/)
+[![Corpus validation](https://img.shields.io/badge/corpus-4%2C343%20feeds%20%C3%97%2018%20runs-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, and the `gtfs-sdk` npm package.
 
-The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **621 rules**, **417** produced at least one finding in the most recent full 4,318-feed catalog run; the new GTFS-JP rules require a separate full-corpus measurement. Every rule is listed in [`RULES.en.md`](RULES.en.md).
+The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **621 rules**, **426** produced at least one finding in the most recent full 4,343-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
-Accuracy is tested against MobilityData's official `gtfs-validator` through **twelve full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,318** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
+Accuracy is tested against MobilityData's official `gtfs-validator` through **eighteen full catalog runs**. Each run validates every testable GTFS Schedule feed in the catalogue — **4,343** as of the most recent run — with both validators on the same machine and date, using the actual Java `gtfs-validator v8.0.1`. The raw outputs are available in [`audit-results/`](audit-results/).
 
 GTFS Validator & Analyzer does not merely check whether a file conforms to the specification; it also analyzes how reliable, consistent, and usable the feed is. It shows errors together with the relevant file and line number, provides remediation steps for each finding, and marks geographic issues — such as deviating routes, broken coordinates, or unreachable stops — on an interactive map.
 
@@ -59,22 +59,25 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 
 ### Corpus Validation
 
-Accuracy cannot be shown with a handful of feeds. Every release is run against the **entire MobilityDatabase GTFS Schedule catalogue** — **4,318 feeds** in the most recent run, over 640 parallel shards. On the other side is MobilityData's **`gtfs-validator` v8.0.1**, executed again on the same archive rather than read from its published reports, so the difference is "who found what", not "whose report was generated when".
+Accuracy cannot be shown with a handful of feeds. Every release is run against the **entire MobilityDatabase GTFS Schedule catalogue** — **4,343 feeds** in the most recent run, over 640 parallel shards. On the other side is MobilityData's **`gtfs-validator` v8.0.1**, executed again on the same archive rather than read from its published reports, so the difference is "who found what", not "whose report was generated when".
 
-From the most recent run (`32587015142`, both validators clean on 4,275 feeds):
+From the most recent run (`34718902532`, both validators completed on **4,298** of the 4,311 testable feeds):
 
 | | GTFS Analyzer | MobilityData |
 |---|---|---|
-| Median wall time | **0.05 s** | 3.00 s |
+| Median wall time | **0.05 s** | 2.93 s |
 | Median peak memory | **14 MB** | 329 MB |
-| Feeds not completed | **1** | 10 |
+| Feeds not completed | **0** | 13 |
 | Facts MobilityData saw and we did not | **0** | — |
+| Total wall time | **63.2 min** | 361.4 min |
+
+⚠️ **The median speed ratio varies widely with feed size and cannot be stated as one multiplier:** **78.8×** below 1 MB, 11.6× at 1-5 MB, 5.1× at 5-20 MB, 2.9× at 20-100 MB and **2.2×** above 100 MB. 71% of the corpus sits below 1 MB, so the median ratio is largely JVM startup cost. The memory advantage is steadier across every band.
 
 Raw output is under [`audit-results/`](audit-results/) — the first seven runs are committed, later ones are archived as an `audit-<run-id>` prerelease.
 
 ### Feed Analysis Examples
 
-The figures below come from the latest corpus run: the same archive and the same analysis date (2026-08-20), with MobilityData running Java `gtfs-validator v8.0.1`.
+The figures below come from the latest corpus run: the same archive and the same analysis date (2026-08-20), with MobilityData running Java `gtfs-validator v8.0.1`. `mdb-3175`'s archive has changed since that run, so only its size is listed; both columns of its table still come from the archive the run read.
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
@@ -82,70 +85,71 @@ Feed: `mdb-53` · 14 routes, 287 stops, 4,417 trips · 0.9 MB
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 2,715 | 740 |
+| Total findings | 2,715 | 740 |
 | Critical / Error | 2 | 2 |
 | High / Warning | 2,654 | 1 |
 | Medium | — | 11 |
 | Low | — | 24 |
 | Info | 59 | 702 |
-| Distinct rule types triggered | 13 | **37** |
-| Validation time | 3.43 s | **0.19 s** |
-| Publish score | — | **92.6 / 100** |
-| Overall score | — | **90.9 / 100** |
+| Rule types triggered | 13 | **37** |
+| Validation time | 2.66 s | **0.17 s** |
+| Publication score | — | **92,6 / 100** |
+| Overall score | — | **90,9 / 100** |
 
 #### TriMet (Portland, Oregon)
 
-Feed: `mdb-247` · 112 routes, 6,480 stops, 70,557 trips · 28.4 MB
+Feed: `mdb-247` · 81 routes, 6,020 stops, 45,521 trips · 28.2 MB
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 51 | 3,099 |
+| Total findings | 31 | 3,162 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 38 | 12 |
-| Medium | — | 97 |
-| Low | — | 497 |
-| Info | 13 | 2,493 |
-| Distinct rule types triggered | 8 | **49** |
-| Validation time | 14.85 s | **5.46 s** |
-| Publish score | — | **100 / 100** |
-| Overall score | — | **90.0 / 100** |
+| High / Warning | 19 | 16 |
+| Medium | — | 73 |
+| Low | — | 480 |
+| Info | 12 | 2,593 |
+| Rule types triggered | 9 | **44** |
+| Validation time | 14.22 s | **4.87 s** |
+| Publication score | — | **100 / 100** |
+| Overall score | — | **91,3 / 100** |
 
 > This is a specification-clean feed: both tools report zero Critical findings and a Publish Score of 100. The difference in rule counts reflects GTFS Analyzer's additional operational-quality analysis.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
-Feed: `mdb-3175` · 151 routes, 5,370 stops, 68,817 trips · 8.6 MB · **GTFS-JP profile**
+Feed: `mdb-3175` · 7.3 MB · **GTFS-JP profile**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 1,849 | 1,741 |
+| Total findings | 1,883 | 1,869 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 268 | 12 |
-| Medium | — | 809 |
-| Low | — | 548 |
-| Info | 1,581 | 372 |
-| Distinct rule types triggered | 8 | **49** |
-| Validation time | 5.94 s | **1.75 s** |
-| Publish score | — | **100 / 100** |
-| Overall score | — | **87.2 / 100** |
+| High / Warning | 301 | 10 |
+| Medium | — | 800 |
+| Low | — | 684 |
+| Info | 1,582 | 375 |
+| Rule types triggered | 11 | **54** |
+| Validation time | 8.50 s | **2.17 s** |
+| Publication score | — | **100 / 100** |
+| Overall score | — | **85,2 / 100** |
 
 > The GTFS-JP profile produces no false positives on this real Japanese feed: it is specification-clean (0 Critical, Publish Score 100), and profile rules inspect only Japan-specific requirements.
 
 #### VBB (Berlin-Brandenburg Transport Association)
 
-Feed: `mdb-782` · 1,274 routes, 41,961 stops, 258,524 trips, 14,485 shapes · **~75 MB**
+Feed: `mdb-782` · 1,259 routes, 42,133 stops, 247,834 trips, 14,969 shapes · **73.8 MB**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Total notices | 12,201 | 25,369 |
+| Total findings | 12,210 | 26,529 |
 | Critical / Error | 0 | 0 |
-| High / Warning | 11,486 | 1,307 |
-| Medium | — | 7,440 |
-| Low | — | 8,186 |
-| Info | 715 | 8,436 |
-| Distinct rule types triggered | 18 | **91** |
-| Validation time | 45.16 s | **21.07 s** |
-| Overall score | — | **78.4 / 100** |
+| High / Warning | 11,336 | 1,260 |
+| Medium | — | 7,409 |
+| Low | — | 10,443 |
+| Info | 874 | 7,417 |
+| Rule types triggered | 18 | **85** |
+| Validation time | 42.55 s | **18.66 s** |
+| Publication score | — | **100 / 100** |
+| Overall score | — | **77,3 / 100** |
 
 > 🇩🇪 **Large feed:** MobilityData's hosted web validator cannot process a feed of this size. GTFS Analyzer validates it directly in the browser without sending the file to a server. More than half of MobilityData's total (`non_ascii_or_non_printable_char`) comes from valid German ü/ö/ä/ß characters; GTFS Analyzer does not flag valid Unicode letters. Core checks remain aligned.
 
