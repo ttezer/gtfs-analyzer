@@ -33,6 +33,7 @@ pub mod stop_times;
 pub mod stops;
 pub mod timeframes;
 pub mod transfers;
+pub(crate) mod translatable_fields_generated;
 pub mod translations;
 pub mod trips;
 

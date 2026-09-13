@@ -5019,9 +5019,12 @@ fn check_gtfs_jp(
             if !table_known {
                 continue;
             }
-            let valid_field =
-                crate::k2::translations::valid_fields_for_table(&translation.table_name)
-                    .contains(&translation.field_name.as_str());
+            // TRN_002 ile AYNI yüklem: alan o tablonun bir sütunu mu. İkisi ayrışırsa
+            // JPN_019 ya kendi kapsamadığı satırı denetler ya da denetlemesi gerekeni atlar.
+            let valid_field = crate::k2::translations::table_has_field(
+                &translation.table_name,
+                &translation.field_name,
+            );
             let valid_record = match (
                 translation.table_name.as_str(),
                 translation.record_id.as_deref(),

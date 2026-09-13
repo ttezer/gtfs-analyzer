@@ -1294,6 +1294,27 @@ pub(crate) const ARC021_REMEDIATION: &str =
     "Alan değerlerindeki kontrol/yazdırılamaz karakterleri kaldırın; geçerli Unicode harfler (ü, ö, 漢字 vb.) sorun değildir.";
 
 /// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
+/// `translations.txt::table_name` uzantısız tablo adı taşır; sütun listesi dosya adına
+/// anahtarlıdır. Kol yalnız çeviri tablolarını kapsar — `translations.txt` yalnız o
+/// dokuzunu kabul eder ve bilinmeyen tabloyu `TRN_001` raporlar.
+///
+/// 🔑 Ad birleştirmek (`format!("{table}.txt")`) satır başına tahsis demektir;
+/// `mdb-2126`'nın `translations.txt`'si 158.531 satır taşıyor.
+pub(crate) fn known_columns_for_table(table: &str) -> &'static [&'static str] {
+    match table {
+        "agency" => known_columns("agency.txt"),
+        "stops" => known_columns("stops.txt"),
+        "routes" => known_columns("routes.txt"),
+        "trips" => known_columns("trips.txt"),
+        "stop_times" => known_columns("stop_times.txt"),
+        "feed_info" => known_columns("feed_info.txt"),
+        "attributions" => known_columns("attributions.txt"),
+        "pathways" => known_columns("pathways.txt"),
+        "levels" => known_columns("levels.txt"),
+        _ => &[],
+    }
+}
+
 fn known_columns(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt" => &[

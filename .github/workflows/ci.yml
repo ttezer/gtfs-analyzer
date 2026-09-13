@@ -86,6 +86,12 @@ jobs:
         run: |
           python3 spec-audit/gen_bcp47_grandfathered.py --check
 
+      # Çevrilebilir alan türleri `spec-audit/spec_fields.json`'dan üretilir; TRN_011 o
+      # tabloya sorar. Kaynak yerel bir dosya olduğu için bu adım AĞ İSTEMEZ.
+      - name: Çevrilebilir alan tablosu sürüklenme denetimi
+        run: |
+          python3 spec-audit/gen_translatable_fields.py --check
+
       - name: Sinyal paritesi (signal_parity)
         run: |
           python3 spec-audit/signal_parity.py
