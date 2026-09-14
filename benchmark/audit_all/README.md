@@ -45,3 +45,9 @@ Each downloaded ZIP is analyzed once with Auto and, when the workflow passes
 `profile-summary.json` and `profile-rules.json`, and the published summary
 shows the Linux runner counts for Auto, V3 and V4 separately. One download and
 one MobilityData run are reused for all analyzer profiles.
+
+The Linux aggregate also writes `platform-probe.json`. It requires the four
+known comparison feeds and records the six `SHP_017`/`STM_014`/`OPR_008`
+observations from the current run, including runner architecture and commit.
+It is deliberately a fresh-run artifact; it must not be described as a
+same-run comparison with an older Linux result.

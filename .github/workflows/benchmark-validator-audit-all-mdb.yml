@@ -339,6 +339,12 @@ jobs:
             --out-dir benchmark/audit_all/final
           cp benchmark/audit_all/run/manifest.json benchmark/audit_all/final/corpus-manifest.json
           sed -i 's/1000-feed GTFS Analyzer vs MobilityData audit/Full MobilityDatabase GTFS Schedule — GTFS Analyzer vs MobilityData audit/' benchmark/audit_all/final/AUDIT_SUMMARY.md
+      - name: Extract K6 platform probe
+        run: |
+          python3 benchmark/audit_all/platform_probe.py \
+            --all-results benchmark/audit_all/final/all-results.json.gz \
+            --profile auto \
+            --out benchmark/audit_all/final/platform-probe.json
       - name: Record corpus completeness
         run: |
           python3 - <<'PY'
@@ -398,6 +404,7 @@ jobs:
               "selection_script": "benchmark/audit_all/select_corpus.py",
               "shard_script": "benchmark/audit_all/run_shard.py",
               "aggregate_script": "benchmark/audit_all/aggregate.py",
+              "platform_probe_script": "benchmark/audit_all/platform_probe.py",
               "analyzer_profiles": ["auto", "v3", "v4"],
               "analyzer_command": [
                   "gtfs-analyzer", "validate", "<feed.zip>", "--json", "--lang", "en",

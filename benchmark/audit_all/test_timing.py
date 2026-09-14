@@ -26,6 +26,7 @@ def load(name, filename):
 
 shard = load("run_shard_test", "run_shard.py")
 agg = load("aggregate_test", "aggregate.py")
+probe = load("platform_probe_test", "platform_probe.py")
 
 # GNU time -v'nin gerçek çıktısı; etiket parantezinin İÇİNDE iki nokta vardır.
 TIME_V = """\tCommand being timed: "gtfs-analyzer validate feed.zip"
@@ -117,6 +118,36 @@ class AnalyzerProfiles(unittest.TestCase):
         self.assertEqual(result["profiles"]["v3"]["notice_total"], 3)
         self.assertEqual(result["profiles"]["v3"]["rules_seen"], 2)
         self.assertEqual(result["rules"][0]["profile"], "v3")
+
+    def test_platform_probe_extracts_current_profile_counts(self):
+        result = probe.extract_probe([
+            {
+                "feed": {"feed_id": "jbda-nantocity-nanbus"},
+                "analyzer_profiles": {
+                    "auto": {
+                        "state": "completed",
+                        "exit_code": 1,
+                        "timing": {"elapsed": "0:00.08"},
+                        "by_rule": {"STM_014": 4},
+                    }
+                },
+            },
+            {
+                "feed": {"feed_id": "jbda-kagaminotown-kagaminotownbus"},
+                "analyzer_profiles": {
+                    "auto": {"state": "completed", "by_rule": {"SHP_017": 11}}
+                },
+            },
+        ])
+        counts = {
+            (case["feed_id"], case["rule_id"]): case["notice_count"]
+            for case in result["cases"]
+        }
+        self.assertEqual(counts[("jbda-nantocity-nanbus", "STM_014")], 4)
+        self.assertEqual(
+            counts[("jbda-kagaminotown-kagaminotownbus", "SHP_017")], 11
+        )
+        self.assertEqual(len(result["missing"]), 3)
 
 
 class SourceDrift(unittest.TestCase):

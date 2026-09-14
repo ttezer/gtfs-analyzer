@@ -172,12 +172,12 @@ Bu takip maddeleri uygulandı:
 
 SHP/STM/OPR platform farkı için eşik veya analitik davranış değiştirilmedi: yerel macOS arm64 ortamında Linux karşılaştırması kanıtlanamazdı. CI denetimi artık Ubuntu runner üzerinde explicit profil ölçümlerini yayımlayacak; bu altı feed için platform hipotezi bu koşumla doğrulanabilir veya reddedilebilir.
 
-## Linux platform koşumu sonucu
+## Önceki Linux ölçümünün statüsü
 
-Bu açık kalem, GitHub Actions'taki 18. koşumun Linux artefaktı üzerinden kapatıldı:
-[run 34718902532](https://github.com/ttezer/gtfs-analyzer/actions/runs/34718902532), Ubuntu runner, analyzer commit `136ebc32`, `--today 20260820`. Bu commit mevcut `6bf7f9a1`'in atasıdır; aradaki commitlerde SHP/STM/OPR hesap kodu değişmemiştir.
+GitHub Actions'taki 18. koşumun artefaktı yalnızca önceki Linux ölçümünü yeniden gösterir:
+[run 34718902532](https://github.com/ttezer/gtfs-analyzer/actions/runs/34718902532), Ubuntu runner, analyzer commit `136ebc32`, `--today 20260820`. Bu, mevcut `6bf7f9a1` binary'sinin Linux koşumu değildir. `136ebc32` ile bugün arasındaki SHP/STM/OPR kod farkları incelemede elenmiştir; bu bir ölçüm değil, kod okumasına dayalı bir hipotez daraltmasıdır.
 
-| Kural / feed | Linux x86_64 | macOS arm64 | Fark |
+| Kural / feed | Eski Linux x86_64 kaydı | macOS arm64 kaydı | Fark |
 |---|---:|---:|---:|
 | `SHP_017` · `jbda-kagaminotown-kagaminotownbus` | 11 | 12 | +1 |
 | `SHP_017` · `jbda-kimitsucity-Local_buses_via_Kimitsu_City` | 6 | 3 | −3 |
@@ -186,4 +186,6 @@ Bu açık kalem, GitHub Actions'taki 18. koşumun Linux artefaktı üzerinden ka
 | `STM_014` · `jbda-tokushima-miyoshicity-miyoshicitybus` | 6 | 5 | −1 |
 | `OPR_008` · `jbda-nantocity-nanbus` | 1 | 2 | +1 |
 
-Linux değerleri önceki x86_64 ölçümündeki değerlerle birebir eşleşiyor. Bu nedenle altı fark için mevcut kanıt, kural eşiği hatasından çok macOS arm64 ile Linux x86_64 arasındaki kayan nokta/geometry yürütme farkını gösteriyor. Eşik veya kural mantığı değiştirilmedi; konu artık doğrulanmış platform farkı olarak kapalıdır.
+Bu tablo yeni bir Linux karşılaştırması değildir; Linux sütunu ile karşılaştırılan eski Linux sütunu aynı koşumdan geldiği için totolojiktir. Mevcut en dürüst sonuç şudur: kod değişikliği hipotezi zayıflatılmıştır, platform farkı en olası açıklamadır; ancak aynı güncel binary iki mimaride koşulmadığı için platform farkı doğrulanmış değildir. Eşik veya kural mantığı değiştirilmedi. Kalem, güncel binary ile Linux koşumu yapılana kadar açıktır.
+
+Sonraki full audit koşumunda `benchmark/audit_all/platform_probe.py`, bu dört feed ve altı kural satırını güncel Linux runner, commit ve mimari bilgisiyle `platform-probe.json` olarak çıkarır. Bu artefakt gerçek kapanış kanıtı olacaktır.
