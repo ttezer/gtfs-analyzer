@@ -91,14 +91,30 @@ impl Translator {
             .as_ref()
             .and_then(|details| details.get("jp_profile"))
             .map(|profile| format!("{}.{}", notice.rule_id, profile.to_lowercase()));
-        if let Some(template) = variant
+        let specific = variant.as_ref().and_then(|key| {
+            notice
+                .details
+                .as_ref()
+                .and_then(|details| details.get("message_variant"))
+                .map(|kind| format!("{key}.{kind}"))
+        });
+        if let Some(template) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.messages, key))
+            .or_else(|| {
+                variant
+                    .as_deref()
+                    .and_then(|key| self.lookup(|d| &d.messages, key))
+            })
             .or_else(|| self.lookup(|d| &d.messages, &notice.rule_id))
         {
             notice.message = fill(template, notice);
         }
-        if let Some(remediation) = self.lookup(|d| &d.remediations, &notice.rule_id) {
+        if let Some(remediation) = specific
+            .as_deref()
+            .and_then(|key| self.lookup(|d| &d.remediations, key))
+            .or_else(|| self.lookup(|d| &d.remediations, &notice.rule_id))
+        {
             notice.remediation = remediation.to_string();
         }
     }
@@ -289,6 +305,52 @@ mod tests {
                     lang,
                     meta.id
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn jp_manual_review_and_aggregate_templates_are_used_in_all_locales() {
+        for lang in [LangArg::En, LangArg::Ja, LangArg::Fr] {
+            let translator = Translator::new(lang).unwrap().unwrap();
+            let mut n = notice();
+            n.rule_id = "JPN_006".into();
+            n.details = Some(std::collections::BTreeMap::from([
+                ("jp_profile".into(), "V4".into()),
+                ("message_variant".into(), "missing_review".into()),
+            ]));
+            translator.translate(&mut n);
+            let specific = translator
+                .lookup(|d| &d.messages, "JPN_006.v4.missing_review")
+                .unwrap();
+            assert_eq!(n.message, specific);
+            assert_eq!(
+                n.remediation,
+                translator
+                    .lookup(|d| &d.remediations, "JPN_006.v4.missing_review")
+                    .unwrap()
+            );
+            n.rule_id = "JPN_029".into();
+            n.field = Some("stop_headsign".into());
+            n.details = Some(std::collections::BTreeMap::from([
+                ("jp_profile".into(), "v4".into()),
+                ("message_variant".into(), "aggregate".into()),
+                ("table_name".into(), "stop_times".into()),
+                ("source_value".into(), "渋谷".into()),
+                ("affected_records".into(), "18426".into()),
+                (
+                    "example_record_ids".into(),
+                    "trip_id=T1,stop_sequence=2".into(),
+                ),
+            ]));
+            translator.translate(&mut n);
+            for part in [
+                "18426",
+                "渋谷",
+                "stop_times.stop_headsign",
+                "trip_id=T1,stop_sequence=2",
+            ] {
+                assert!(n.message.contains(part), "{:?}: {}", lang, n.message);
             }
         }
     }

@@ -135,7 +135,12 @@ fn selected_gtfs_jp_profile_is_exposed_without_version_inference() {
                     .message
                     .contains(profile.as_str().to_uppercase().as_str()));
                 if profile == GtfsJpProfile::V4 {
-                    assert!(fare_notice.message.contains("karmaşık ücret"));
+                    assert!(fare_notice.message.contains("karmaşık tarifeler"));
+                    assert_eq!(fare_notice.severity, gtfs_core::Severity::Bilgi);
+                    assert_eq!(
+                        fare_notice.details.as_ref().unwrap()["review_required"],
+                        "true"
+                    );
                 }
             }
             other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -239,7 +244,7 @@ fn jpn_021_requires_a_reading_and_accepts_half_width_katakana() {
 }
 
 #[test]
-fn v3_railway_routes_are_valid_and_routes_agency_id_is_still_required() {
+fn v3_requires_bus_route_type_and_routes_agency_id() {
     let mut files = base_files();
     files[2] = (
         "routes.txt",
@@ -250,8 +255,8 @@ fn v3_railway_routes_are_valid_and_routes_agency_id_is_still_required() {
             assert!(vr.notices.iter().any(|notice| notice.rule_id == "JPN_011"
                 && notice.file.as_deref() == Some("routes.txt")));
             assert!(
-                vr.notices.iter().all(|notice| notice.rule_id != "JPN_027"),
-                "V3 demiryolu route_type=2 için tanımsız otobüs profili kuralı çalışmamalı"
+                vr.notices.iter().any(|notice| notice.rule_id == "JPN_027"),
+                "açık V3 otobüs profili route_type=2 değerini reddetmeli"
             );
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -411,7 +416,10 @@ fn v4_stop_times_kana_matching_uses_trip_and_stop_sequence() {
                 .filter(|notice| notice.rule_id == "JPN_029")
                 .collect();
             assert_eq!(findings.len(), 1);
-            assert_eq!(findings[0].entity_id.as_deref(), Some("T2:1"));
+            let details = findings[0].details.as_ref().unwrap();
+            assert_eq!(details["affected_records"], "1");
+            assert!(details["example_record_ids"].contains("trip_id=T2,stop_sequence=1"));
+            assert!(!details["example_record_ids"].contains("trip_id=T1,"));
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }

@@ -991,6 +991,12 @@ fn fixtures() -> Vec<Fixture> {
             "fare_attributes.txt",
             "fare_id,price,currency_type,payment_method,transfers\nF1,100,USD,0,0\n",
         )]),
+        fx_v3("JPN_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,2\n")]),
+        fx_v4("JPN_031", vec![
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,100,JPY,0,0\n"),
+            ("fare_rules.txt", "fare_id,route_id,origin_id\nF1,R1,Z\n"),
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z\nS2,Stop2,41.1,29.1,\n"),
+        ]),
         // JPN_028/030: V3'te Japonca route_desc için kana ve ja kayıtları birlikte gerekir.
         fx_v3("JPN_028", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),

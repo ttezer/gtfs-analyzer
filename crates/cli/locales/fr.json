@@ -599,6 +599,12 @@
     "JPN_028": "GTFS-JP v3 exige une traduction ja-Hrkt pour le champ japonais {field} de {file}.",
     "JPN_029": "GTFS-JP v4 recommande une traduction ja-Hrkt pour le champ japonais {field} de {file}.",
     "JPN_030": "GTFS-JP v3 exige une traduction language=ja pour le champ japonais {field} de {file}.",
+    "JPN_027": "GTFS-JP V3 exige route_type=3 pour la ligne {entity_id} ; valeur reçue : {observed_value}.",
+    "JPN_031": "L'arrêt {entity_id} est desservi par des lignes à tarification zonale ({example_route_ids}) mais ne possède pas de zone_id.",
+    "JPN_029.v4.aggregate": "GTFS-JP v4 : lecture ja-Hrkt recommandée manquante pour {table_name}.{field} = {source_value} ; {affected_records} lignes concernées. Exemples : {example_record_ids}.",
+    "JPN_006.v4.missing_review": "GTFS-JP v4 : fare_attributes.txt est absent. Son omission est permise si tous les tarifs sont complexes et non représentables dans ce format. Une vérification manuelle est nécessaire ; cet avis ne réduit pas le score.",
+    "JPN_006.v4.unusable": "GTFS-JP v4 : fare_attributes.txt est présent mais vide ou inexploitable ; l'exception des tarifs complexes ne couvre pas ce cas.",
+    "JPN_006.v4.missing_rules": "GTFS-JP v4 : des profils tarifaires distincts existent, mais fare_rules.txt ne les associe pas aux lignes ou zones.",
     "ARC_026": "Les fins de ligne de « {entity_id} » ne sont ni CRLF ni LF.",
     "ARC_027": "L’entrée ZIP « {entity_id} » n’accorde pas de droit de lecture utilisateur.",
     "ARC_028": "L’URL de publication GTFS ne se termine pas par un fichier .zip : « {observed_value} ».",
@@ -805,6 +811,9 @@
     "JPN_028": "Ajoutez la traduction language=ja-Hrkt correspondante.",
     "JPN_029": "Ajoutez la traduction language=ja-Hrkt recommandée.",
     "JPN_030": "Ajoutez la traduction language=ja correspondante.",
+    "JPN_027": "Utilisez route_type=3 pour le profil bus V3, ou sélectionnez le profil adapté aux données multimodales.",
+    "JPN_031": "Renseignez zone_id conformément aux zones de fare_rules des lignes concernées.",
+    "JPN_006.v4.missing_review": "Vérifiez manuellement l'exception MLIT des tarifs complexes ; sinon, fournissez fare_attributes.txt.",
     "AGN_002": "Renseignez le champ agency_name.",
     "AGN_003": "Saisissez une URL http/https valide pour agency_url.",
     "AGN_004": "Utilisez un fuseau horaire IANA valide (par exemple Europe/Paris).",
@@ -1878,6 +1887,8 @@
     "JPN_026": "GTFS-JP : la devise tarifaire n’est pas JPY",
     "JPN_028": "GTFS-JP v3 : traduction kana obligatoire manquante",
     "JPN_029": "GTFS-JP v4 : traduction kana recommandée manquante",
-    "JPN_030": "GTFS-JP v3 : traduction japonaise obligatoire manquante"
+    "JPN_030": "GTFS-JP v3 : traduction japonaise obligatoire manquante",
+    "JPN_027": "GTFS-JP V3 : route_type différent de 3",
+    "JPN_031": "GTFS-JP : zone_id absent à un arrêt desservi par une tarification zonale"
   }
 }

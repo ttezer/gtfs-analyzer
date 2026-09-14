@@ -340,7 +340,7 @@ pub fn check_with_files_and_whitespace_roots(
     );
     {
         let _t = Timer::start("K4::gtfs_jp");
-        check_gtfs_jp(records, &mut notices, &mut ctr, availability);
+        check_gtfs_jp(records, map, &mut notices, &mut ctr, availability);
     }
     gate!(
         "K4::attributions",
@@ -3702,6 +3702,261 @@ impl<'a> JpTranslationCoverage<'a> {
     }
 }
 
+/// Borrow source values and retain only a count and five deterministic examples.
+/// No full Notice is allocated until all matching missing rows are counted.
+#[derive(Default)]
+struct JpMissingReadings<'a> {
+    groups: BTreeMap<(&'static str, &'static str, &'a str), JpMissingReading>,
+}
+
+#[derive(Default)]
+struct JpMissingReading {
+    count: u64,
+    examples: BTreeMap<u64, String>,
+}
+
+impl<'a> JpMissingReadings<'a> {
+    #[allow(clippy::too_many_arguments)]
+    fn record(
+        &mut self,
+        coverage: &JpTranslationCoverage<'_>,
+        table: &'static str,
+        field: &'static str,
+        record_id: Option<&str>,
+        sub_id: Option<&str>,
+        value: &'a str,
+        line: u64,
+    ) {
+        if !has_japanese(value)
+            || coverage.has(
+                table,
+                field,
+                JpTranslationLanguage::Kana,
+                record_id,
+                sub_id,
+                value,
+            )
+        {
+            return;
+        }
+        let group = self.groups.entry((table, field, value)).or_default();
+        group.count += 1;
+        if group.examples.len() < 5
+            || group
+                .examples
+                .last_key_value()
+                .is_some_and(|(&last, _)| line < last)
+        {
+            let example = match (record_id, sub_id) {
+                (Some(id), Some(seq)) => format!("trip_id={id},stop_sequence={seq} (line={line})"),
+                (Some(id), None) => format!("record_id={id} (line={line})"),
+                _ => format!("line={line}"),
+            };
+            group.examples.insert(line, example);
+            if group.examples.len() > 5 {
+                group.examples.pop_last();
+            }
+        }
+    }
+
+    fn emit(self, notices: &mut Vec<Notice>, ctr: &mut u32) {
+        for ((table, field, source), group) in self.groups {
+            let file = format!("{table}.txt");
+            let first_line = group.examples.first_key_value().map(|(&line, _)| line);
+            let examples = group.examples.into_values().collect::<Vec<_>>().join("; ");
+            // The first affected line belongs to this source value, so Field
+            // dedup keeps distinct values and fields without a new global key.
+            let mut finding = notice(
+                ctr, "JPN_029", EntityType::Feed, None, None,
+                &file, first_line, Some(field),
+                Some(source.to_string()), Some("ja-Hrkt".to_string()),
+                format!("GTFS-JP V4: {table}.{field} = '{source}' için önerilen ja-Hrkt okuması eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
+                "translations.txt'e bu kaynak değeri kapsayan field_value çevirisi veya eksik kayıtların çevirilerini ekleyin.",
+            );
+            finding.details = Some(BTreeMap::from([
+                ("message_variant".to_string(), "aggregate".to_string()),
+                ("table_name".to_string(), table.to_string()),
+                ("source_value".to_string(), source.to_string()),
+                ("affected_records".to_string(), group.count.to_string()),
+                ("example_record_ids".to_string(), examples),
+            ]));
+            notices.push(finding);
+        }
+    }
+}
+
+/// Zone evidence is scoped through fares -> routes -> trips -> served stops.
+/// Unknown references and ambiguous agency-wide fares cannot prove scope.
+fn check_jp_fare_zones(
+    records: &EntityRecords,
+    map: &EntityMap,
+    availability: &FileAvailability<'_>,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    if records.gtfs_jp_profile == GtfsJpProfile::Auto
+        || !availability.all(&[
+            "fare_attributes.txt",
+            "fare_rules.txt",
+            "routes.txt",
+            "trips.txt",
+            "stop_times.txt",
+            "stops.txt",
+            "agency.txt",
+        ])
+    {
+        return;
+    }
+    let mut zoned_routes = HashSet::new();
+    let mut uniform_routes = HashSet::new();
+    let mut agency_zone_refs: HashMap<&str, HashSet<&str>> = HashMap::new();
+    let sole_agency = (records.agencies.len() == 1)
+        .then(|| records.agencies[0].agency_id.as_deref())
+        .flatten();
+    for rule in &records.fare_rules {
+        let Some(fare) = map
+            .fare_attrs
+            .get(&rule.fare_id)
+            .and_then(|&i| records.fare_attributes.get(i))
+        else {
+            continue;
+        };
+        if !fare
+            .price
+            .is_some_and(|price| price.is_finite() && price >= 0.0)
+            || crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_none()
+        {
+            continue;
+        }
+        let zone_refs = [&rule.origin_id, &rule.destination_id, &rule.contains_id];
+        // A padded zone reference is a lexical fault, not reliable fare evidence.
+        if zone_refs
+            .iter()
+            .filter_map(|id| id.as_deref())
+            .any(|id| id.trim().is_empty() || id != id.trim())
+        {
+            continue;
+        }
+        let zoned = zone_refs.iter().any(|id| id.is_some());
+        if let Some(route_id) = &rule.route_id {
+            let Some(route) = map.routes.get(route_id).map(|&i| &records.routes[i]) else {
+                continue;
+            };
+            let agency = route.agency_id.as_deref().or(sole_agency);
+            if fare
+                .agency_id
+                .as_deref()
+                .is_some_and(|id| !map.agencies.contains_key(id) || Some(id) != agency)
+            {
+                continue;
+            }
+            if zoned {
+                zoned_routes.insert(route_id.as_str());
+            } else {
+                uniform_routes.insert(route_id.as_str());
+            }
+        } else if zoned {
+            if let Some(agency) = fare
+                .agency_id
+                .as_deref()
+                .or(sole_agency)
+                .filter(|id| map.agencies.contains_key(*id))
+            {
+                agency_zone_refs
+                    .entry(agency)
+                    .or_default()
+                    .extend(zone_refs.iter().filter_map(|id| id.as_deref()));
+            }
+        }
+    }
+    for trip in &records.trips {
+        let route_id = records.trip_interns.route_id(trip);
+        let Some(route) = map
+            .routes
+            .get(route_id)
+            .and_then(|&i| records.routes.get(i))
+        else {
+            continue;
+        };
+        let agency = route.agency_id.as_deref().or(sole_agency);
+        // An explicit route-uniform fare is evidence against assuming that
+        // an agency-wide zone fare makes this route distance-dependent. Without
+        // an explicit route_id, require a served stop in a referenced zone too:
+        // agency membership alone is not evidence of this fare's route scope.
+        if uniform_routes.contains(route_id) || zoned_routes.contains(route_id) {
+            continue;
+        }
+        let Some(zones) = agency.and_then(|id| agency_zone_refs.get(id)) else {
+            continue;
+        };
+        if records
+            .stop_times_index
+            .trip_stop_set
+            .get(trip.trip_id.as_str())
+            .is_some_and(|stops| {
+                stops.iter().any(|&idx| {
+                    let stop_id = records.stop_times_index.stop_id_of_idx(idx);
+                    map.stops.get(stop_id).is_some_and(|&i| {
+                        zones.contains(row_field(&records.stops[i].row, "zone_id"))
+                    })
+                })
+            })
+        {
+            zoned_routes.insert(route_id);
+        }
+    }
+    if zoned_routes.is_empty() {
+        return;
+    }
+    let mut missing: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for trip in &records.trips {
+        let route_id = records.trip_interns.route_id(trip);
+        if !zoned_routes.contains(route_id) {
+            continue;
+        }
+        let Some(stops) = records
+            .stop_times_index
+            .trip_stop_set
+            .get(trip.trip_id.as_str())
+        else {
+            continue;
+        };
+        for &stop_idx in stops {
+            let stop_id = records.stop_times_index.stop_id_of_idx(stop_idx);
+            let Some(stop) = map.stops.get(stop_id).and_then(|&i| records.stops.get(i)) else {
+                continue;
+            };
+            let is_platform = stop.location_type == Some(0)
+                || (stop.location_type.is_none()
+                    && row_field(&stop.row, "location_type").is_empty());
+            if !is_platform || !row_field(&stop.row, "zone_id").is_empty() {
+                continue;
+            }
+            let routes = missing.entry(stop.stop_id.as_str()).or_default();
+            routes.insert(route_id);
+            if routes.len() > 5 {
+                routes.pop_last();
+            }
+        }
+    }
+    for (stop_id, routes) in missing {
+        let stop = &records.stops[map.stops[stop_id]];
+        let route_examples = routes.into_iter().collect::<Vec<_>>().join(", ");
+        let mut finding = notice(
+            ctr, "JPN_031", EntityType::Stop,
+            Some(stop_id.to_string()), Some(stop_id.to_string()),
+            "stops.txt", Some(stop.line), Some("zone_id"), None, Some("zone_id".to_string()),
+            format!("GTFS-JP: '{stop_id}' durağı bölgeye bağlı ücret kullanılan hatlarda ({route_examples}) hizmet görüyor ancak zone_id eksik."),
+            "Bu durağın zone_id değerini ilgili hattın fare_rules bölge tanımlarıyla eşleştirin.",
+        );
+        finding.details = Some(BTreeMap::from([(
+            "example_route_ids".to_string(),
+            route_examples,
+        )]));
+        notices.push(finding);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn check_jp_translation_field(
     coverage: &JpTranslationCoverage<'_>,
@@ -3865,6 +4120,7 @@ fn valid_gtfs_jp_date(raw: &str) -> bool {
 // field_value=stop_name ile eşleşen satır bulunur.
 fn check_gtfs_jp(
     records: &EntityRecords,
+    map: &EntityMap,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
     availability: &FileAvailability<'_>,
@@ -4406,6 +4662,24 @@ fn check_gtfs_jp(
         }
     }
 
+    // V3 is the static bus format. Explicit V3 selects this constraint;
+    // Auto and the multimodal V4 profile must never infer it.
+    if records.gtfs_jp_profile == GtfsJpProfile::V3 {
+        for route in &records.routes {
+            if let Some(route_type) = route.route_type.filter(|value| *value != 3) {
+                notices.push(notice(
+                    ctr, "JPN_027", EntityType::Route,
+                    Some(route.route_id.clone()), Some(route.route_id.clone()),
+                    "routes.txt", Some(route.line), Some("route_type"),
+                    Some(route_type.to_string()), Some("3".to_string()),
+                    format!("GTFS-JP V3 otobüs profilinde '{}' hattının route_type değeri {route_type}; 3 olmalıdır.", route.route_id),
+                    "V3 otobüs verisinde route_type=3 kullanın; çok modlu veri için uygun profili seçin.",
+                ));
+            }
+        }
+    }
+    check_jp_fare_zones(records, map, availability, notices, ctr);
+
     // ── JPN_028..030: remaining v3/v4 translation coverage ──────────────────
     if !matches!(records.gtfs_jp_profile, GtfsJpProfile::Auto) && !records.translations.is_empty() {
         let coverage = JpTranslationCoverage::new(&records.translations);
@@ -4546,6 +4820,7 @@ fn check_gtfs_jp(
                 }
             }
         } else if matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
+            let mut missing = JpMissingReadings::default();
             for (trip_id, stop_times) in records.stop_times_index.iter_trips() {
                 for stop_time in stop_times {
                     if let Some(value) = records
@@ -4554,47 +4829,32 @@ fn check_gtfs_jp(
                         .map(|value| value.as_str())
                     {
                         let sequence = stop_time.sequence.to_string();
-                        check_jp_translation_field(
+                        missing.record(
                             &coverage,
-                            notices,
-                            ctr,
-                            "JPN_029",
-                            GtfsJpProfile::V4,
-                            JpTranslationLanguage::Kana,
                             "stop_times",
                             "stop_headsign",
-                            EntityType::Row,
                             Some(trip_id.as_str()),
                             Some(&sequence),
                             value,
-                            "stop_times.txt",
                             u64::from(stop_time.line),
-                            true,
                         );
                     }
                 }
             }
             for attribution in &records.attributions {
                 if !attribution.organization_name.is_empty() {
-                    check_jp_translation_field(
+                    missing.record(
                         &coverage,
-                        notices,
-                        ctr,
-                        "JPN_029",
-                        GtfsJpProfile::V4,
-                        JpTranslationLanguage::Kana,
                         "attributions",
                         "organization_name",
-                        EntityType::Attribution,
                         attribution.attribution_id.as_deref(),
                         None,
                         &attribution.organization_name,
-                        "attributions.txt",
                         attribution.line,
-                        true,
                     );
                 }
             }
+            missing.emit(notices, ctr);
         }
     }
 
@@ -4652,14 +4912,24 @@ fn check_gtfs_jp(
         })
         .collect();
     let fare_rules_conditionally_required = fare_profiles.len() > 1;
-    let fare_problem = records.fare_attributes.is_empty()
+    let fare_attributes_unusable = records.fare_attributes.is_empty()
+        || (records.gtfs_jp_profile != GtfsJpProfile::Auto
+            && !records.fare_attributes.iter().any(|fare| {
+                !fare.fare_id.trim().is_empty()
+                    && fare.price.is_some_and(|p| p.is_finite() && p >= 0.0)
+                    && crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_some()
+                    && matches!(fare.payment_method, Some(0 | 1))
+                    && (matches!(fare.transfers, Some(0..=2))
+                        || row_field(&fare.row, "transfers").is_empty())
+            }));
+    let fare_problem = fare_attributes_unusable
         || (fare_rules_conditionally_required && records.fare_rules.is_empty());
     if jp_validation_enabled && fare_problem {
         let fare_file_missing =
             availability.has_inventory() && !availability.present("fare_attributes.txt");
         let message = if fare_file_missing && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
-            "GTFS-JP V4'te fare_attributes.txt normalde zorunludur; yalnız bu formatta temsil edilemeyen karmaşık ücretler varsa dosya dışarıda bırakılabilir ve bu istisna feed'den doğrulanamaz."
-        } else if records.fare_attributes.is_empty() {
+            "GTFS-JP V4'te fare_attributes.txt normalde zorunludur; ücretlerin tamamı bu formatta temsil edilemeyen karmaşık tarifelerden oluşuyorsa dosya dışarıda bırakılabilir. Elle inceleme gerekir; bu bilgi bulgusu puan düşürmez."
+        } else if fare_attributes_unusable {
             match records.gtfs_jp_profile {
                 GtfsJpProfile::V3 => {
                     "GTFS-JP V3'te fare_attributes.txt zorunludur ancak dosya eksik, boş veya kullanılabilir kayıt içermiyor."
@@ -4674,20 +4944,46 @@ fn check_gtfs_jp(
         } else {
             "GTFS-JP feed'inde farklı ücret profilleri var ancak fare_rules.txt bunları hat veya bölgelere eşlemiyor."
         };
-        notices.push(notice(
+        let missing_review = fare_file_missing && records.gtfs_jp_profile == GtfsJpProfile::V4;
+        let unusable = fare_attributes_unusable;
+        let file = if unusable {
+            "fare_attributes.txt"
+        } else {
+            "fare_rules.txt"
+        };
+        let mut finding = notice(
             ctr,
             "JPN_006",
             EntityType::Feed,
             None,
             None,
-            "fare_attributes.txt",
+            file,
             None,
-            Some("fare_attributes"),
+            Some(if unusable { "fare_attributes" } else { "fare_rules" }),
             None,
             None,
             message.to_string(),
             "fare_attributes.txt'i ekleyin; hatlara/alanlara göre farklı ücret profilleri varsa fare_rules.txt ile bunları eşleyin.",
-        ));
+        );
+        if missing_review {
+            finding.severity = gtfs_core::Severity::Bilgi;
+            finding.remediation = "Ücret tarifesinin MLIT karmaşık ücret istisnasına uyduğunu elle doğrulayın; uymuyorsa fare_attributes.txt ekleyin.".to_string();
+        }
+        finding.details = Some(BTreeMap::from([
+            (
+                "message_variant".to_string(),
+                if missing_review {
+                    "missing_review"
+                } else if unusable {
+                    "unusable"
+                } else {
+                    "missing_rules"
+                }
+                .to_string(),
+            ),
+            ("review_required".to_string(), missing_review.to_string()),
+        ]));
+        notices.push(finding);
     }
 
     // ── JPN_007: GTFS-JP'de feed_info.txt zorunlu ──

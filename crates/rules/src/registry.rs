@@ -1924,12 +1924,16 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: agency_timezone değeri Asia/Tokyo değil"),
     r!("JPN_026", Yuksek, Interop, 1, &[], Some("fare_id"), VI, Field,
         "GTFS-JP: fare_attributes.currency_type değeri JPY değil"),
+    r!("JPN_027", Yuksek, Interop, 1, &[], Some("route_id"), VI, Field,
+        "GTFS-JP V3: route_type 3 değil"),
     r!("JPN_028", Orta, Quality, 2, &[], None, VS, Field,
         "GTFS-JP v3: zorunlu kana çevirisi eksik"),
     r!("JPN_029", Dusuk, Quality, 1, &[], None, VS, Field,
         "GTFS-JP v4: önerilen kana çevirisi eksik"),
     r!("JPN_030", Orta, Quality, 2, &[], None, VS, Field,
         "GTFS-JP v3: zorunlu language=ja çevirisi eksik"),
+    r!("JPN_031", Yuksek, Interop, 2, &[], Some("stop_id"), VI, Entity,
+        "GTFS-JP: bölgeye bağlı ücret kullanılan durakta zone_id eksik"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
@@ -2220,9 +2224,11 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("JPN_024", RegionalProfile),
     ("JPN_025", RegionalProfile),
     ("JPN_026", RegionalProfile),
+    ("JPN_027", RegionalProfile),
     ("JPN_028", ProjectQuality),
     ("JPN_029", ProjectQuality),
     ("JPN_030", ProjectQuality),
+    ("JPN_031", RegionalProfile),
     ("LOC_001", GtfsSpec),
     ("LOC_002", GtfsSpec),
     ("LOC_003", GtfsSpec),
@@ -2772,7 +2778,6 @@ mod tests {
     fn get_rule_lookup() {
         assert!(get_rule("STP_003").is_some());
         assert!(get_rule("STM_014").is_some());
-        assert!(get_rule("JPN_027").is_none());
         assert!(get_rule("NONEXISTENT").is_none());
     }
 

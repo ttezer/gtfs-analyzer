@@ -1235,6 +1235,8 @@ const tr = {
     'JPN_028': 'GTFS-JP v3: zorunlu kana çevirisi eksik',
     'JPN_029': 'GTFS-JP v4: önerilen kana çevirisi eksik',
     'JPN_030': 'GTFS-JP v3: zorunlu Japonca çeviri eksik',
+    'JPN_027': 'GTFS-JP V3: route_type 3 değil',
+    'JPN_031': 'GTFS-JP: bölgeye bağlı ücret kullanılan durakta zone_id eksik',
   } as Record<string, string>,
 };
 

@@ -34,10 +34,31 @@ pub fn translate_notices(notices: &mut [Notice]) {
         if let Some(title) = dictionary.titles.get(&notice.rule_id) {
             notice.title = title.clone();
         }
-        if let Some(template) = dictionary.messages.get(&notice.rule_id) {
+        let profile = notice
+            .details
+            .as_ref()
+            .and_then(|d| d.get("jp_profile"))
+            .map(|p| format!("{}.{}", notice.rule_id, p.to_lowercase()));
+        let specific = profile.as_ref().and_then(|key| {
+            notice
+                .details
+                .as_ref()
+                .and_then(|d| d.get("message_variant"))
+                .map(|kind| format!("{key}.{kind}"))
+        });
+        if let Some(template) = specific
+            .as_ref()
+            .and_then(|k| dictionary.messages.get(k))
+            .or_else(|| profile.as_ref().and_then(|k| dictionary.messages.get(k)))
+            .or_else(|| dictionary.messages.get(&notice.rule_id))
+        {
             notice.message = fill(template, notice);
         }
-        if let Some(remediation) = dictionary.remediations.get(&notice.rule_id) {
+        if let Some(remediation) = specific
+            .as_ref()
+            .and_then(|k| dictionary.remediations.get(k))
+            .or_else(|| dictionary.remediations.get(&notice.rule_id))
+        {
             notice.remediation = remediation.clone();
         }
     }
@@ -130,5 +151,32 @@ mod tests {
             notice.remediation
         );
         assert!(notice.message.contains("T1"));
+
+        notice.rule_id = "JPN_006".to_string();
+        notice.details = Some(std::collections::BTreeMap::from([
+            ("jp_profile".into(), "V4".into()),
+            ("message_variant".into(), "missing_review".into()),
+        ]));
+        translate_notices(std::slice::from_mut(&mut notice));
+        assert!(notice.message.contains("no score penalty"));
+        assert!(notice.remediation.contains("Manually verify"));
+
+        notice.rule_id = "JPN_029".to_string();
+        notice.field = Some("stop_headsign".into());
+        notice.details = Some(std::collections::BTreeMap::from([
+            ("jp_profile".into(), "v4".into()),
+            ("message_variant".into(), "aggregate".into()),
+            ("table_name".into(), "stop_times".into()),
+            ("source_value".into(), "渋谷".into()),
+            ("affected_records".into(), "18426".into()),
+            (
+                "example_record_ids".into(),
+                "trip_id=T1,stop_sequence=2".into(),
+            ),
+        ]));
+        translate_notices(std::slice::from_mut(&mut notice));
+        assert!(notice.message.contains("stop_times.stop_headsign = 渋谷"));
+        assert!(notice.message.contains("18426 rows"));
+        assert!(notice.message.contains("trip_id=T1,stop_sequence=2"));
     }
 }

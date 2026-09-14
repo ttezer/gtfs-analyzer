@@ -1210,6 +1210,12 @@ const en: LocaleShape = {
     'JPN_028': 'GTFS-JP v3 requires a ja-Hrkt translation for Japanese {file}.{field}.',
     'JPN_029': 'GTFS-JP v4 recommends a ja-Hrkt translation for Japanese {file}.{field}.',
     'JPN_030': 'GTFS-JP v3 requires a language=ja translation for Japanese {file}.{field}.',
+    'JPN_027': 'GTFS-JP V3 requires route_type=3 for route {entity_id}; found {observed_value}.',
+    'JPN_031': 'Stop {entity_id} is served by zone-based fare routes ({example_route_ids}) but has no zone_id.',
+    'JPN_029.v4.aggregate': 'GTFS-JP v4: recommended ja-Hrkt reading missing for {table_name}.{field} = {source_value}; affects {affected_records} rows. Examples: {example_record_ids}.',
+    'JPN_006.v4.missing_review': 'GTFS-JP v4: fare_attributes.txt is absent. It may be omitted if all fares are complex fares that cannot be represented by this format. Manual review is required; this notice carries no score penalty.',
+    'JPN_006.v4.unusable': 'GTFS-JP v4: fare_attributes.txt is present but empty or unusable; the complex-fare exception does not cover this case.',
+    'JPN_006.v4.missing_rules': 'GTFS-JP v4: distinct fare profiles exist but fare_rules.txt does not map them to routes or zones.',
     // v0.1.4: rules that had no dictionary entry (SDK English output)
     'ARC_026': "Line endings in '{entity_id}' are neither CRLF nor LF.",
     'ARC_027': "The ZIP entry '{entity_id}' does not grant user read permission.",
@@ -1434,6 +1440,9 @@ const en: LocaleShape = {
     'JPN_028': 'Add the matching language=ja-Hrkt translation row.',
     'JPN_029': 'Add the recommended matching language=ja-Hrkt translation row.',
     'JPN_030': 'Add the matching language=ja translation row.',
+    'JPN_027': 'Use route_type=3 for the V3 bus profile, or select the profile appropriate for multimodal data.',
+    'JPN_031': 'Set this stop\'s zone_id consistently with the fare_rules zones for the affected routes.',
+    'JPN_006.v4.missing_review': 'Manually verify the MLIT complex-fare exception; otherwise provide fare_attributes.txt.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
     'AGN_003': 'Enter a valid http/https URL for agency_url.',
@@ -2591,6 +2600,8 @@ const en: LocaleShape = {
     'JPN_028': 'GTFS-JP v3: required kana translation missing',
     'JPN_029': 'GTFS-JP v4: recommended kana translation missing',
     'JPN_030': 'GTFS-JP v3: required Japanese translation missing',
+    'JPN_027': 'GTFS-JP V3: route_type is not 3',
+    'JPN_031': 'GTFS-JP: zone_id missing at a stop served by zone-based fares',
   },
 };
 

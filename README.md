@@ -4,7 +4,7 @@
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20destekli-c8102e?style=flat)](https://www.gtfs.jp/)
-[![Kural sayısı](https://img.shields.io/badge/kural-621-blue?style=flat)](RULES.md)
+[![Kural sayısı](https://img.shields.io/badge/kural-623-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4343%20feed%20%C3%97%2018%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
@@ -13,7 +13,7 @@
 
 **GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD** ve **`gtfs-sdk` npm paketi** olmak üzere beş yoldan kullanılabilir.
 
-**621 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **426'sı** son 4.343 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
+**623 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **426'sı** son 4.343 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
 Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **on sekiz tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.343** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
 
@@ -21,7 +21,7 @@ GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadı�
 
 Her bulgu; kural kodu, analiz sınıfı ve önem seviyesiyle etiketlenir. Spec · Interop · Quality · Analytics sınıfları ile Kritik → Bilgi önem seviyeleri sayesinde binlerce bulgu filtrelenebilir, önceliklendirilebilir ve sistematik biçimde ele alınabilir. Araç ayrıca feed'in kullandığı GTFS özelliklerini — Shapes, Transfers, Fares, Headsigns, Flex ve benzerlerini — otomatik olarak tespit ederek rapora dahil eder.
 
-GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi problemleri 621 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
+GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite analiziyle genişletir. Hat bazında sefer sıklığı tutarsızlıkları, anormal hız segmentleri, izole duraklar, servis desenlerindeki boşluklar ve ağ topolojisi problemleri 623 farklı doğrulama ve analiz kuralıyla incelenir. Sonuçlar, uyumluluk ve kaliteyi ayrı ayrı değerlendiren skorlarla özetlenir. Önceliklendirilmiş düzeltme kuyruğu ise hangi sorunların önce ele alınması gerektiğini ve yapılacak düzeltmelerin skora olası etkisini gösterir.
 
 **Kimler için?**
 
@@ -55,7 +55,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | npm paketi | ❌ | ✅ `gtfs-sdk` |
 | crates.io paketi | — *(Java projesi)* | ✅ `gtfs-analyzer` |
 | GTFS Spec kapsamı (ölçülmüş) | — | **%97,2** · 300/300 alan çapası |
-| **Toplam kural** | **178** | **621** |
+| **Toplam kural** | **178** | **623** |
 
 ### Korpus Doğrulaması
 
@@ -174,7 +174,7 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_003** | `agency_jp.txt` `agency_id` değerinin `agency.txt`'te tanımlı olması (işletici referans bütünlüğü) |
 | **JPN_004** | `translations.txt`'in mevcudiyeti — GTFS-JP'de (özellikle kana okumaları için) zorunludur |
 | **JPN_005** | `office_jp.txt`'te `office_name` zorunlu alanının dolu olması |
-| **JPN_006** | `fare_attributes.txt` zorunluluğu ve farklı ücret profillerinde `fare_rules.txt` koşulu |
+| **JPN_006** | V3/Auto: ücret kapsamı ORTA; V4: dosya yokluğu BİLGİ/elle inceleme, boş/bozuk dosya ORTA |
 | **JPN_007** | `feed_info.txt`'in mevcudiyeti — GTFS-JP'de zorunludur |
 | **JPN_008** | Japonca `route_short_name` ve `route_long_name` için bağımsız kana okumaları |
 | **JPN_009** | `trip_headsign` kana (`ja-Hrkt`) okuması |
@@ -192,9 +192,11 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_021** | Kana çevirilerinde boş, çakışan veya kana içermeyen kayıtlar |
 | **JPN_022** | GTFS-JP v4 ana alanları ve `location_type` kolonunun eksikliği; boş hücre geçerli `0` kabul edilir |
 | **JPN_023–026** | Açık profilde `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo`, `currency_type=JPY` |
+| **JPN_027** | Yalnız açık V3 otobüs profilinde `route_type=3`; Auto/V4 kapsam dışı |
 | **JPN_028** | V3'ün kalan zorunlu `ja-Hrkt` çevirileri |
-| **JPN_029** | V4'te önerilen stop-time/attribution kana okumaları |
+| **JPN_029** | V4 okumaları: kaynak değeri başına toplulama, etkilenen satır sayısı ve en fazla 5 örnek |
 | **JPN_030** | V3'ün kalan zorunlu `language=ja` çevirileri |
+| **JPN_031** | V3/V4: ücret→hat→sefer→durak bağlantısıyla koşullu `zone_id` |
 
 Yukarıdaki **Tokyo Toei** karşılaştırması bu profilin gerçek bir GTFS-JP feed'inde nasıl davrandığını gösterir: feed spec açısından temizdir (0 kritik) ve profil kuralları doğru referanslı veride yanlış pozitif üretmez.
 
@@ -238,7 +240,7 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 ## Beş Kullanım Yolu
 
-Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) beş şekilde çalışır — hepsi aynı 621 kuralı, aynı sonucu üretir:
+Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) beş şekilde çalışır — hepsi aynı 623 kuralı, aynı sonucu üretir:
 
 | yol | ne için | veri nereye gider |
 |---|---|---|
@@ -758,7 +760,7 @@ gtfs-validator/
 │   ├── config/     # Yapılandırma tipleri
 │   ├── core/       # Ortak veri yapıları ve sonuç modeli
 │   ├── pipeline/   # Doğrulama pipeline'ı (k1–k7 aşamaları)
-│   ├── rules/      # Kural tanımları ve registry (621 kural, 38 grup)
+│   ├── rules/      # Kural tanımları ve registry (623 kural, 38 grup)
 │   └── wasm/       # wasm-bindgen WASM çıktısı
 ├── spec-audit/     # Spec'ten üretilen alan tablosu (WP-2 çapa kapısı)
 └── ui/             # Vite + TypeScript frontend

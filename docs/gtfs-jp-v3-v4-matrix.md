@@ -9,8 +9,8 @@ V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 ta
 | Profil | Sürüm tespiti | `*_jp` uzantı kuralları | Çeviri/kana kuralları | Varsayılan |
 |---|---|---|---|---|
 | `auto` | Yapılmaz; yalnız GTFS-JP sinyali doğrulamayı açar | Mevcut v3/legacy davranışı | Genel JP/kana kuralları çalışır; sürüme özel yeni sabitler çalışmaz | Evet |
-| `v3` | Kullanıcı seçer; doğrulamayı zorlar | `JPN_002/003/005/012–018/020` çalışır | JPN_001/004/006–011/019/021 ve V3'e özel JPN_023–026/028/030 | Hayır |
-| `v4` | Kullanıcı seçer; doğrulamayı zorlar | V3 uzantı kuralları çalışmaz | JPN_001/004/006–011/019/021/022–026/029 | Hayır |
+| `v3` | Kullanıcı statik otobüs profilini seçer; doğrulamayı zorlar | `JPN_002/003/005/012–018/020` çalışır | JPN_001/004/006–011/019/021/023–028/030/031 | Hayır |
+| `v4` | Kullanıcı seçer; doğrulamayı zorlar | V3 uzantı kuralları çalışmaz | JPN_001/004/006–011/019/021/022–026/029/031 | Hayır |
 
 CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
@@ -37,7 +37,7 @@ yer alır.
 
 Kaynaklar: [GTFS-JP v3 nihai resmî belgesi (Temmuz 2021)](https://www.mlit.go.jp/sogoseisaku/transport/content/001981046.docx), [MLIT eski sürümler arşivi](https://www.mlit.go.jp/sogoseisaku/transport/sosei_transport_tk_000067.html), [GTFS-JP v4 spesifikasyonu (19 Mart 2026)](https://www.mlit.go.jp/commmmons/document/007/), [V4 ana PDF](https://www.mlit.go.jp/commmmons/document/007/commmmons_doc_007-01_ver01.pdf), [v3-v4 fark belgesi](https://www.mlit.go.jp/commmmons/document/007/commmons_doc_007-03_ver01.pdf), [pattern_jp.txt rehberi](https://www.busdata.or.jp/gtfs_guide/08%E3%80%80pattern_jp-txt%EF%BC%88%E5%81%9C%E8%BB%8A%E3%83%91%E3%82%BF%E3%83%BC%E3%83%B3%E6%83%85%E5%A0%B1%EF%BC%89%E3%80%80%E3%80%90%E4%BB%BB%E6%84%8F%E3%80%91/).
 
-## 2026-09-13 kaynak ve davranış kaydı
+## 2026-09-13 kaynak ve davranış kaydı (14 Eylül düzeltmeleriyle)
 
 | Konu | Kaynak / sayfa | Önceki davranış | Bu pakette beklenen davranış |
 |---|---|---|---|
@@ -47,10 +47,16 @@ Kaynaklar: [GTFS-JP v3 nihai resmî belgesi (Temmuz 2021)](https://www.mlit.go.j
 | `currency_type=JPY` | V4 fare_attributes, s.67 | Yalnız genel ISO kodu kontrolü | JPN_026; dosya yokluğu bu kuralın konusu değil |
 | `location_type` | V4 stops, s.38; fark tablosu s.120 | Boş hücre JPN_022 sayılıyordu | Eksik kolon JPN_022; boş hücre geçerli `0 veya boş`; geçersiz enum STP_008 |
 | V3 çeviri alanları | V3 nihai belge 2-14, s.33 | JPN_001/008/009/010 dışındaki alanlar eksikti | JPN_028 kana + JPN_030 `ja`; bir geçişte kurulan ödünç indeksler |
-| V4 önerilen kalan okumalar | V4 translations, s.77 | `stop_headsign` ve attribution kapsanmıyordu | JPN_029, Düşük/Quality |
+| V4 önerilen kalan okumalar | V4 translations, s.77 | İlk paket satır başına notice üretiyordu | JPN_029, Düşük/Quality; tablo+alan+kaynak değeri başına K4 toplulaması, eksik kayıt sayısı ve en fazla beş örnek |
 | Kana içeriği | V4 translations, s.75–77 | Kanji tek başına okuma sayılıyordu; yarım genişlik Katakana yoktu | Hiragana/Katakana gerekir; yarım genişlik Katakana kabul edilir |
-| Ücret istisnası | V4 s.20/22/68 | Mesaj V3 zorunluluğu gibi görünüyordu | JPN_006 profil mesajı; V4'te doğrulanamayan karmaşık ücret istisnası açıklanır |
-| V3 otobüs `route_type=3` | Güvenilir profil kapısı bulunamadı | Öneri taslağındaydı | JPN_027 eklenmedi; demiryolu `route_type=2` yanlış pozitifinden kaçınıldı |
+| Ücret istisnası | V4 s.20/22/68 | İstisna mesajı doğru olsa da dosya yokluğu Orta puan kaybıydı | JPN_006: V4 fiziksel yokluk BİLGİ/elle inceleme, sıfır ceza; mevcut boş/bozuk dosya Orta; V3/Auto Orta |
+| V3 otobüs `route_type=3` | V3 nihai belge routes.txt; MLIT V3→V4 revizyon açıklaması | V3'ün zaten otobüs formatı olduğu gözden kaçırılıp JPN_027 çıkarılmıştı | **Önceki karar düzeltildi:** JPN_027 yalnız açık V3, sayısal `route_type != 3`, Yüksek/Interop. Auto/V4 sessiz |
+| Koşullu `zone_id` | V3 stops/ücret örnekleri; V4 stops.zone_id ve補足3 | JP koşullu zorunluluk yoktu | JPN_031, V3/V4 Yüksek/Interop; fare→route→trip→stop kapsamı. Tek ücretli/ilgisiz duraklarda bulgu yok |
+
+14 Eylül kapsamı ve ölçümleri [takip doğrulama kaydında](gtfs-jp-followup-2026-09-14.md) tutulur.
+V3 otobüs sınırının kaldırılması [MLIT revizyon açıklamasında](https://www.mlit.go.jp/sogoseisaku/transport/content/001993769.pdf) ayrıca açıklanır; nihai hükümler için V3 ve V4 belgeleri esastır.
+
+JPN_031 tarifeyi dışarıdan tahmin etmez. Açık hat referansı olmayan bölge kuralı için tekil işletici kapsamı **ve hizmet verilen bir durakta bölge eşleşmesi** gerekir; açık hat-içi tek ücret kuralı bu çıkarımı sınırlar. Belirsiz işletici, bozuk referans veya bütün bölge bağlantılarının eksikliği halinde kanıtsız hat kapsamı genişletilmez. Ayrıntılar [JPN_031 kartında](rules/JPN/JPN_031.md).
 
 | Dosya / alan | v3 durumu | v4 durumu | Zorunluluk seviyesi | Kural | Sınıf | Kaynak | Test senaryosu |
 |---|---|---|---|---|---|---|---|

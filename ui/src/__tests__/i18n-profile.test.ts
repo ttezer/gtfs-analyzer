@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { tMsgForLocale } from '../i18n';
+import { tMsgForLocale, tRemediationForLocale } from '../i18n';
 
 describe('GTFS-JP profile-specific notice messages', () => {
+  it('keeps aggregate counts and manual review in every translated locale', () => {
+    for (const locale of ['en', 'fr', 'ja'] as const) {
+      const aggregate = tMsgForLocale(locale, {
+        rule_id: 'JPN_029', field: 'stop_headsign', message: 'runtime',
+        details: { jp_profile: 'V4', message_variant: 'aggregate',
+          table_name: 'stop_times', source_value: '渋谷', affected_records: '18426',
+          example_record_ids: 'trip_id=T1,stop_sequence=2' },
+      });
+      for (const part of ['18426', '渋谷', 'stop_times.stop_headsign', 'trip_id=T1,stop_sequence=2']) {
+        expect(aggregate).toContain(part);
+      }
+      const review = { rule_id: 'JPN_006', message: 'runtime', remediation: 'runtime',
+        details: { jp_profile: 'V4', message_variant: 'missing_review' } };
+      expect(tMsgForLocale(locale, review)).not.toBe(tMsgForLocale(locale, { ...review, details: { jp_profile: 'V4' } }));
+      expect(tRemediationForLocale(locale, review)).not.toBe(tRemediationForLocale(locale, { ...review, details: {} }));
+    }
+  });
   it('uses the explicit profile variant and falls back to the neutral message', () => {
     const base = {
       rule_id: 'JPN_006',

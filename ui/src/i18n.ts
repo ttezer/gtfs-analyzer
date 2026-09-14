@@ -117,7 +117,10 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   // JA: kendi mesajı yoksa EN şablonuna fallback
   const profile = n.details?.jp_profile?.toLowerCase();
   const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;
-  const tpl = LOCALES[locale].ruleMessages[variant]
+  const specific = n.details?.message_variant ? `${variant}.${n.details.message_variant}` : variant;
+  const tpl = LOCALES[locale].ruleMessages[specific]
+    ?? LOCALES.en.ruleMessages[specific]
+    ?? LOCALES[locale].ruleMessages[variant]
     ?? LOCALES.en.ruleMessages[variant]
     ?? LOCALES[locale].ruleMessages[n.rule_id]
     ?? LOCALES.en.ruleMessages[n.rule_id];
@@ -126,15 +129,19 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   return tpl.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');
 }
 
-export function tRemediation(n: { rule_id: string; remediation?: string | null }): string {
+export function tRemediation(n: { rule_id: string; remediation?: string | null; details?: Record<string, string> | null }): string {
   return tRemediationForLocale(_locale, n);
 }
 
 /** Translate remediation text without mutating the application's active locale. */
-export function tRemediationForLocale(locale: Locale, n: { rule_id: string; remediation?: string | null }): string {
+export function tRemediationForLocale(locale: Locale, n: { rule_id: string; remediation?: string | null; details?: Record<string, string> | null }): string {
   if (locale === 'tr') return n.remediation ?? '';
   // Mevcut locale → EN → TR (Rust mesajı)
-  return LOCALES[locale].ruleRemediations[n.rule_id]
+  const specific = n.details?.jp_profile && n.details?.message_variant
+    ? `${n.rule_id}.${n.details.jp_profile.toLowerCase()}.${n.details.message_variant}` : n.rule_id;
+  return LOCALES[locale].ruleRemediations[specific]
+    ?? LOCALES.en.ruleRemediations[specific]
+    ?? LOCALES[locale].ruleRemediations[n.rule_id]
     ?? LOCALES.en.ruleRemediations[n.rule_id]
     ?? n.remediation ?? '';
 }

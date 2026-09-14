@@ -1,5 +1,7 @@
 # GTFS-JP V3/V4 doğrulama kaydı — 2026-09-13
 
+> Tarihsel ölçüm kaydıdır. V3 otobüs sınırı, JPN_029 toplulaması, JPN_031 ve V4 ücret inceleme davranışı 14 Eylül'de düzeltildi; güncel sonuçlar [takip kaydındadır](gtfs-jp-followup-2026-09-14.md). Aşağıdaki eski sayılar değiştirilmemiştir.
+
 Bu kayıt, GTFS-JP V3/V4 düzeltme paketinin aynı arşiv ve sabit tarihli önce/sonra doğrulamasıdır. Önceki binary `7b4d6b8d` commit'inden, sonraki binary bu paketin son çalışma ağacından release profilinde derlendi. Tüm analizlerde `--today 20260913` kullanıldı. Kaynak ve alan bazındaki kararlar [V3/V4 uyumluluk matrisinde](gtfs-jp-v3-v4-matrix.md) kayıtlıdır.
 
 ## Kalıcı regresyon kapsamı
