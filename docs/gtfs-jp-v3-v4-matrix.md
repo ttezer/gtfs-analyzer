@@ -1,6 +1,6 @@
 # GTFS-JP v3/v4 uyumluluk matrisi
 
-Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal bulunmasa da profil doğrulamasını zorlar. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; tam uyumluluk sertifikası değildir.
+Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal yoksa doğrulamayı açmaz, yalnız uygulanacak kural kapsamını seçer. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; tam uyumluluk sertifikası değildir.
 
 V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. V4’ün ana GTFS alanlarında değiştirdiği tüm zorunluluk sınıfları henüz “tam v4 uyumluluk rozeti” olarak ilan edilmiyor.
 
@@ -9,8 +9,8 @@ V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 ta
 | Profil | Sürüm tespiti | `*_jp` uzantı kuralları | Çeviri/kana kuralları | Varsayılan |
 |---|---|---|---|---|
 | `auto` | Yapılmaz; yalnız GTFS-JP sinyali doğrulamayı açar | Mevcut v3/legacy davranışı | Genel JP/kana kuralları çalışır; sürüme özel yeni sabitler çalışmaz | Evet |
-| `v3` | Kullanıcı statik otobüs profilini seçer; doğrulamayı zorlar | `JPN_002/003/005/012–018/020` çalışır | JPN_001/004/006–011/019/021/023–028/030/031 | Hayır |
-| `v4` | Kullanıcı seçer; doğrulamayı zorlar | V3 uzantı kuralları çalışmaz | JPN_001/004/006–011/019/021/022–026/029/031 | Hayır |
+| `v3` | Kullanıcı statik otobüs profilini seçer; JP sinyali varsa doğrular | `JPN_002/003/005/012–018/020` çalışır | JPN_001/004/006–011/019/021/023–028/030/031 | Hayır |
+| `v4` | Kullanıcı seçer; JP sinyali varsa doğrular | V3 uzantı kuralları çalışmaz | JPN_001/004/006–011/019/021/022–026/029/031 | Hayır |
 
 CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
@@ -41,8 +41,8 @@ Kaynaklar: [GTFS-JP v3 nihai resmî belgesi (Temmuz 2021)](https://www.mlit.go.j
 
 | Konu | Kaynak / sayfa | Önceki davranış | Bu pakette beklenen davranış |
 |---|---|---|---|
-| Açık profil kapısı | Ürün kararı; V3/V4 kullanıcı seçimi | JP sinyali yoksa açık profil de kuralları çalıştırmıyordu | V3/V4 doğrulamayı zorlar; `is_gtfs_jp` yalnız algılama kalır |
-| `feed_lang=ja` | V4 feed_info, s.29 | JP'ye özgü sabit kontrol yoktu | JPN_023; `JA` kabul, `ja-JP` reddedilir |
+| Açık profil kapısı | Ürün kararı; V3/V4 kullanıcı seçimi | Açık profil JP sinyali yokken de kuralları çalıştırıyordu | JP sinyali yoksa hiçbir `JPN_*` çalışmaz; profil yalnız sürüm kapsamını seçer |
+| `feed_lang=ja` | V4 feed_info, s.29 | JP'ye özgü sabit kontrol yoktu | Tespit için geçerli `ja-*` etiketi kabul edilir; açık profilde JPN_023 yalnız tam `ja` değerini kabul eder (`ja-JP` bulgu üretir) |
 | `agency_lang=ja`, `agency_timezone=Asia/Tokyo` | V4 agency, s.35 | Yalnız genel biçim kontrolleri | JPN_024/JPN_025, yalnız açık profil |
 | `currency_type=JPY` | V4 fare_attributes, s.67 | Yalnız genel ISO kodu kontrolü | JPN_026; dosya yokluğu bu kuralın konusu değil |
 | `location_type` | V4 stops, s.38; fark tablosu s.120 | Boş hücre JPN_022 sayılıyordu | Eksik kolon JPN_022; boş hücre geçerli `0 veya boş`; geçersiz enum STP_008 |

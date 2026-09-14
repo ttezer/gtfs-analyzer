@@ -155,6 +155,17 @@ pub fn get_lexical_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
     }
 }
 
+/// Returns whether a well-formed BCP-47 tag has Japanese (`ja`) as its
+/// primary language subtag. Prefix matching is intentionally avoided: `jaa`
+/// is Jamamadí, not Japanese.
+pub fn is_japanese_language_tag(value: &str) -> bool {
+    looks_like_bcp47(value)
+        && value
+            .split('-')
+            .next()
+            .is_some_and(|primary| primary.eq_ignore_ascii_case("ja"))
+}
+
 pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
@@ -1254,6 +1265,16 @@ mod tests {
         );
         // Normal langtag yolu grandfathered listesinden bağımsız çalışmalı.
         assert!(super::looks_like_bcp47("tr") && super::looks_like_bcp47("en-US"));
+    }
+
+    #[test]
+    fn japanese_language_detection_uses_the_primary_subtag() {
+        assert!(super::is_japanese_language_tag("ja"));
+        assert!(super::is_japanese_language_tag("ja-JP"));
+        assert!(super::is_japanese_language_tag("JA-Hrkt"));
+        assert!(!super::is_japanese_language_tag("jaa"));
+        assert!(!super::is_japanese_language_tag("en-ja"));
+        assert!(!super::is_japanese_language_tag("ja--JP"));
     }
 
     /// issue #86 — GTFS `Email` tipi SÖZDİZİMİ doğrulaması.

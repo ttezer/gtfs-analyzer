@@ -884,8 +884,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_015", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length,traversal_time\nP1,S1,S2,3,0,100,10\n")]),
 
         // ── JPN grubu (GTFS-JP; k4_cross_ref::check_gtfs_jp) ───────────────────
-        // Kapı: feed_lang=ja* VEYA office_jp/agency_jp dosyası (is_gtfs_jp).
-        // JPN_001/008/009/010 ek kapı: feed_lang ja* VEYA herhangi ja-Hrkt çeviri.
+        // Kapı: geçerli feed_lang=ja, agency_lang=ja + Asia/Tokyo, ja-Hrkt çevirisi
+        // veya office_jp/agency_jp dosyası (is_gtfs_jp).
+        // JPN_001/008/009/010 de aynı GTFS-JP tespit kapısının arkasındadır.
         // JPN_001: Japonca durak adında kana (ja-Hrkt) okuması yok.
         fx("JPN_001", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
@@ -978,32 +979,49 @@ fn fixtures() -> Vec<Fixture> {
         fx_v4("JPN_023", vec![(
             "feed_info.txt",
             "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n",
+        ), (
+            "agency.txt",
+            "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,Asia/Tokyo,ja\n",
         )]),
         fx_v4("JPN_024", vec![(
             "agency.txt",
             "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,Asia/Tokyo,en\n",
+        ), (
+            "feed_info.txt",
+            "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n",
         )]),
         fx_v4("JPN_025", vec![(
             "agency.txt",
             "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,ja\n",
+        ), (
+            "feed_info.txt",
+            "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n",
         )]),
         fx_v4("JPN_026", vec![(
             "fare_attributes.txt",
             "fare_id,price,currency_type,payment_method,transfers\nF1,100,USD,0,0\n",
+        ), (
+            "feed_info.txt",
+            "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n",
         )]),
         // Çapa "otobüs ÇOĞUNLUKTA" (2026-09-14): iki otobüs + bir demiryolu. Tek otobüsle
         // kural artık susar ve bu bilinçli — ölçüm BART'ta 12 metro hattının yanlış
         // işaretlendiğini gösterdi.
-        fx_v3("JPN_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,2\n")]),
+        fx_v3("JPN_027", vec![
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,2\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+        ]),
         fx_v4("JPN_031", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,100,JPY,0,0\n"),
             ("fare_rules.txt", "fare_id,route_id,origin_id\nF1,R1,Z\n"),
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z\nS2,Stop2,41.1,29.1,\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
         // JPN_028/030: V3'te Japonca route_desc için kana ve ja kayıtları birlikte gerekir.
         fx_v3("JPN_028", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
         fx_v3("JPN_030", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
@@ -1013,6 +1031,7 @@ fn fixtures() -> Vec<Fixture> {
         fx_v4("JPN_029", vec![
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,渋谷\nT1,08:10:00,08:10:00,S2,2,\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
 
         // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─

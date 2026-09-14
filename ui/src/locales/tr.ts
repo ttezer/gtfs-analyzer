@@ -259,7 +259,7 @@ const tr = {
     'domain.sev.LOW'             : 'Düşük',
     'domain.sev.INFO'            : 'Bilgi',
     'domain.metrics_title'       : 'Feed Metrikleri',
-    'domain.gtfs_jp.tip'         : 'GTFS-JP (Japonya profili) feed — feed_lang=ja, kana çevirileri (ja-Hrkt) veya *_jp dosyalarından algılandı.',
+    'domain.gtfs_jp.tip'         : 'GTFS-JP (Japonya profili) feed — feed_lang=ja, Asia/Tokyo ile birlikte agency_lang=ja, kana çevirileri (ja-Hrkt) veya *_jp dosyalarından algılandı.',
     'domain.gtfs_jp.profile'     : 'GTFS-JP {profile} profili',
     'domain.gtfs_jp.profile_tip' : 'Bu rozet analizde seçilen kural kapsamını gösterir; feed’in resmî GTFS-JP sürümü otomatik olarak tespit edilmez.',
     'domain.metric.stops'        : 'Durak',

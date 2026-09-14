@@ -46,7 +46,7 @@ use attributions::{validate_attributions, AttributionRecord};
 use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates_with_limits, CalendarDateIndex};
-use common::make_k2_notice;
+use common::{is_japanese_language_tag, make_k2_notice};
 use fare_attributes::{
     validate_fare_attributes, validate_fare_attributes_with_suppression, FareAttributeRecord,
 };
@@ -163,6 +163,32 @@ pub struct EntityRecords {
     /// lib.rs file_stats döngüsünde K1 rows.len()==0 yerine bu sayaçlar kullanılır.
     /// Yeni bir dosya stream edildiğinde buraya eklemek yeterli; lib.rs dokunmaz.
     pub streaming_row_counts: FxHashMap<String, u64>,
+}
+
+/// Computes the single GTFS-JP detection predicate shared by K2, K4 and K7.
+///
+/// `physical_jp_file` is supplied by the caller because K4/K7 may receive the
+/// K1 file inventory independently from the typed records. Language signals
+/// use the exact BCP-47 primary subtag; `ja` is Japanese, while values such as
+/// `jaa` are different languages and must not open JP validation.
+pub fn detect_gtfs_jp(records: &EntityRecords, physical_jp_file: bool) -> bool {
+    physical_jp_file
+        || records.has_gtfs_jp_file
+        || records
+            .feed_info
+            .first()
+            .is_some_and(|feed_info| is_japanese_language_tag(&feed_info.feed_lang))
+        || records
+            .translations
+            .iter()
+            .any(|translation| translation.language.eq_ignore_ascii_case("ja-Hrkt"))
+        || records.agencies.iter().any(|agency| {
+            agency
+                .agency_lang
+                .as_deref()
+                .is_some_and(is_japanese_language_tag)
+                && agency.agency_timezone.eq_ignore_ascii_case("Asia/Tokyo")
+        })
 }
 
 /// K2 schema/field validation çıktısı.
@@ -349,16 +375,10 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         notices.extend(feed_info_notices);
     }
 
-    records.is_gtfs_jp = Some(
-        records.has_gtfs_jp_file
-            || records.feed_info.first().is_some_and(|feed_info| {
-                feed_info
-                    .feed_lang
-                    .trim()
-                    .to_ascii_lowercase()
-                    .starts_with("ja")
-            }),
-    );
+    // GTFS-JP detection is a feed signal, independent of the selected profile.
+    // The shared predicate also recovers the five measured Japanese feeds that
+    // have agency_lang=ja + Asia/Tokyo but no feed_info/translations/*_jp files.
+    records.is_gtfs_jp = Some(detect_gtfs_jp(&records, records.has_gtfs_jp_file));
 
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
@@ -442,7 +462,7 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
     if let Some(file) = files.get("translations.txt") {
         let _t = Timer::start("K2::translations");
         // Detection and the selected validation scope are independent. Explicit
-        // V3/V4 opts in; Auto retains the detected/legacy behavior.
+        // V3/V4 selects a rule set; the detection signal still gates validation.
         let signal_before_kana = file
             .headers
             .iter()

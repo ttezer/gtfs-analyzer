@@ -8,7 +8,7 @@ use gtfs_core::{
 };
 use gtfs_rules::get_rule;
 
-use crate::k2::{EntityRecords, GTFS_JP_FILES};
+use crate::k2::{detect_gtfs_jp, EntityRecords, GTFS_JP_FILES};
 use crate::k5_derived::DerivedData;
 use crate::WhitespaceSuppressions;
 
@@ -1374,30 +1374,24 @@ fn build_metrics(
         0.0
     };
 
-    // GTFS-JP profili (geniş tespit): _jp uzantı dosyaları OPSİYONEL olduğundan, bir
-    // Japon feed'i onlarsız da GTFS-JP konvansiyonlarını izleyebilir (örn. osaka-tokushima:
-    // _jp dosyası yok ama feed_lang=ja + kana çevirileri var). Üç sinyalden biri yeterli:
-    //   (a) herhangi bir *_jp.txt dosyası, (b) feed_lang ja* ile başlıyor,
-    //   (c) translations'ta kana okuması (language=ja-Hrkt).
+    // K7 fallback only serves direct callers that did not carry K2's signal.
+    // The production pipeline supplies `records.is_gtfs_jp`; keep the fallback
+    // semantically identical to K2 so reporting cannot disagree with validation.
     let is_gtfs_jp = records.is_gtfs_jp.unwrap_or_else(|| {
-        records.has_gtfs_jp_file
-            || file_stats
+        detect_gtfs_jp(
+            records,
+            file_stats
                 .iter()
-                .any(|f| GTFS_JP_FILES.contains(&f.name.as_str()))
-            || records
-                .feed_info
-                .first()
-                .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
-                .unwrap_or(false)
-            || records
-                .translations
-                .iter()
-                .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"))
+                .any(|f| GTFS_JP_FILES.contains(&f.name.as_str())),
+        )
     });
-    let gtfs_jp_profile = records
-        .gtfs_jp_profile
-        .jp_validation_enabled(is_gtfs_jp)
-        .then(|| records.gtfs_jp_profile.as_str().to_string());
+    // The profile is user-selected metadata; it is intentionally independent
+    // from whether JP validation ran.
+    let gtfs_jp_profile = match records.gtfs_jp_profile {
+        gtfs_config::GtfsJpProfile::Auto if is_gtfs_jp => Some("auto".to_string()),
+        gtfs_config::GtfsJpProfile::Auto => None,
+        profile => Some(profile.as_str().to_string()),
+    };
 
     FeedMetrics {
         coverage_complete,

@@ -103,9 +103,9 @@ pub const KNOWN_CONFIG_KEYS: &[&str] = &[
 /// GTFS-JP kural kapsamı.
 ///
 /// `Auto` varsayılandır ve sürüm iddiasında bulunmadan mevcut legacy davranışı
-/// korur. `V3` eski Japonya-özel uzantı dosyalarını doğrular. `V4` ise bu
-/// dosyaları referans kapsamı olarak görür ve v3 uzantı foreign-key/biçim
-/// kurallarını çalıştırmaz. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
+/// korur. `V3` eski Japonya-özel uzantı dosyalarını, `V4` ise güncel referans
+/// kapsamını seçer; seçilen kapsam yalnızca feed GTFS-JP olarak algılanırsa
+/// uygulanır. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum GtfsJpProfile {
@@ -116,9 +116,13 @@ pub enum GtfsJpProfile {
 }
 
 impl GtfsJpProfile {
-    /// Explicit profiles opt in even when automatic JP detection is negative.
+    /// JP validation is enabled only when the feed carries a GTFS-JP signal.
+    ///
+    /// The selected profile chooses the version-specific rule set; it must not
+    /// turn a non-JP feed into a GTFS-JP feed and produce unrelated JPN notices.
     pub const fn jp_validation_enabled(self, detected: bool) -> bool {
-        detected || !matches!(self, Self::Auto)
+        let _ = self;
+        detected
     }
 
     pub const fn as_str(self) -> &'static str {
@@ -666,6 +670,14 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn jp_validation_requires_detection_for_every_profile() {
+        for profile in [GtfsJpProfile::Auto, GtfsJpProfile::V3, GtfsJpProfile::V4] {
+            assert!(!profile.jp_validation_enabled(false));
+            assert!(profile.jp_validation_enabled(true));
+        }
+    }
 
     #[test]
     fn default_values() {

@@ -5,7 +5,7 @@ use gtfs_core::{EntityType, Notice};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 
-use crate::k2::{EntityRecords, GTFS_JP_FILES};
+use crate::k2::{detect_gtfs_jp, EntityRecords, GTFS_JP_FILES};
 use crate::k3_entity_graph::EntityMap;
 use crate::recovery::FileAvailability;
 use crate::timing::Timer;
@@ -4147,8 +4147,9 @@ fn valid_gtfs_jp_date(raw: &str) -> bool {
 
 // ── JPN_001: GTFS-JP feed'inde durak adının kana (ja-Hrkt) okuması eksik ──────
 // GTFS-JP, stop_name için かな okumasını (translations, language=ja-Hrkt) ZORUNLU kılar
-// (sesli anons + arama için). Yalnız Japon feed'inde çalışır: feed_lang=ja VEYA herhangi
-// bir ja-Hrkt çeviri varsa. Bir durağın kanası var sayılır ⇔ translations'ta
+// (sesli anons + arama için). Yalnız GTFS-JP sinyali taşıyan feed'lerde çalışır:
+// feed_lang/agency_lang=ja + Asia/Tokyo, herhangi bir ja-Hrkt çeviri veya *_jp dosyası.
+// Bir durağın kanası var sayılır ⇔ translations'ta
 // (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
 // field_value=stop_name ile eşleşen satır bulunur.
 fn check_gtfs_jp(
@@ -4170,6 +4171,7 @@ fn check_gtfs_jp(
             !records.agency_jp.is_empty()
                 || !records.office_jp.is_empty()
                 || !records.routes_jp.is_empty()
+                || !records.pattern_jp.is_empty()
                 || records.has_pattern_jp_file
         };
     let has_pattern_jp_file = records.has_pattern_jp_file
@@ -4178,22 +4180,17 @@ fn check_gtfs_jp(
         } else {
             false
         };
-    // ── JPN_001: stop_name kana (ja-Hrkt) okuması — kapı: feed_lang ja* VEYA ja-Hrkt çeviri ──
-    let feed_lang_ja = records
-        .feed_info
-        .first()
-        .map(|fi| fi.feed_lang.to_lowercase().starts_with("ja"))
-        .unwrap_or(false);
-    let has_kana = records
-        .translations
-        .iter()
-        .any(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"));
-    let is_gtfs_jp = records.is_gtfs_jp.unwrap_or({
+    let is_gtfs_jp = records.is_gtfs_jp.unwrap_or_else(|| {
         // Compatibility path for direct/synthetic K4 callers that predate the
         // K2 signal field. The real K1→K2→K4 pipeline always carries Some(...).
-        feed_lang_ja || has_kana || has_jp_file
+        detect_gtfs_jp(records, has_jp_file)
     });
     let jp_validation_enabled = records.gtfs_jp_profile.jp_validation_enabled(is_gtfs_jp);
+    // This function owns all JPN_* emission. A selected V3/V4 profile chooses
+    // the rules only after the feed has been detected as GTFS-JP.
+    if !jp_validation_enabled {
+        return;
+    }
     let kana_requirement = match records.gtfs_jp_profile {
         GtfsJpProfile::V3 => "zorunlu",
         GtfsJpProfile::V4 => "önerilen",
@@ -4446,8 +4443,8 @@ fn check_gtfs_jp(
 
     // ── JPN_004: GTFS-JP feed'inde translations.txt zorunlu ──
     // GTFS-JP profili translations.txt'i (özellikle stop_name kana/ja-Hrkt okumaları için)
-    // zorunlu kılar. Kapı: GTFS-JP sinyali (feed_lang ja* VEYA *_jp dosyası) AMA translations hiç yok.
-    // has_kana zaten translations dolu demek → bu kuralla çelişmez.
+    // zorunlu kılar. Kapı: detect_gtfs_jp() ile hesaplanan GTFS-JP sinyali AMA
+    // translations hiç yok. has_kana zaten translations dolu demek → bu kuralla çelişmez.
     if jp_validation_enabled && records.translations.is_empty() {
         notices.push(notice(
             ctr,

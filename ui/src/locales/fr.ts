@@ -262,7 +262,7 @@ const fr: LocaleShape = {
     'domain.sev.LOW'             : 'Faible',
     'domain.sev.INFO'            : 'Info',
     'domain.metrics_title'       : 'Métriques du jeu de données',
-    'domain.gtfs_jp.tip'         : 'Jeu de données GTFS-JP (profil Japon) — détecté à partir de feed_lang=ja, de traductions kana (ja-Hrkt) ou de fichiers *_jp.',
+    'domain.gtfs_jp.tip'         : 'Jeu de données GTFS-JP (profil Japon) — détecté à partir de feed_lang=ja, de agency_lang=ja associé au fuseau horaire Asia/Tokyo, de traductions kana (ja-Hrkt) ou de fichiers *_jp.',
     'domain.gtfs_jp.profile'     : 'Profil GTFS-JP {profile}',
     'domain.gtfs_jp.profile_tip' : 'Ce badge indique la portée de validation sélectionnée pour l’analyse ; la version GTFS-JP officielle du jeu de données n’est pas déduite automatiquement.',
     'domain.metric.stops'        : 'Arrêts',

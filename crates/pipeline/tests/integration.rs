@@ -123,28 +123,76 @@ fn selected_gtfs_jp_profile_is_exposed_without_version_inference() {
                     Some(profile.as_str())
                 );
                 assert!(
-                    has(&vr, "JPN_004"),
-                    "açık profil JP sinyali bulunmasa da JP doğrulamasını çalıştırmalı"
+                    !vr.notices
+                        .iter()
+                        .any(|notice| notice.rule_id.starts_with("JPN_")),
+                    "JP sinyali olmayan feed açık profil seçilse de JPN bulgusu üretmemeli: {:?}",
+                    vr.notices
+                        .iter()
+                        .filter(|notice| notice.rule_id.starts_with("JPN_"))
+                        .collect::<Vec<_>>()
                 );
-                let fare_notice = vr
-                    .notices
-                    .iter()
-                    .find(|notice| notice.rule_id == "JPN_006")
-                    .expect("açık profilde eksik ücret kapsamı raporlanmalı");
-                assert!(fare_notice
-                    .message
-                    .contains(profile.as_str().to_uppercase().as_str()));
-                if profile == GtfsJpProfile::V4 {
-                    assert!(fare_notice.message.contains("karmaşık tarifeler"));
-                    assert_eq!(fare_notice.severity, gtfs_core::Severity::Bilgi);
-                    assert_eq!(
-                        fare_notice.details.as_ref().unwrap()["review_required"],
-                        "true"
-                    );
-                }
             }
             other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
         }
+    }
+}
+
+#[test]
+fn agency_language_and_tokyo_timezone_detect_jp_without_optional_jp_files() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,Asia/Tokyo,ja\n",
+    );
+
+    for profile in [GtfsJpProfile::Auto, GtfsJpProfile::V3, GtfsJpProfile::V4] {
+        match run_with_profile(&files, profile) {
+            ValidateResult::Ok(vr) => {
+                assert!(vr.metrics.is_gtfs_jp, "{profile:?} JP olarak algılanmalı");
+                assert!(has(&vr, "JPN_004"), "translations eksikliği raporlanmalı");
+                assert!(has(&vr, "JPN_007"), "feed_info eksikliği raporlanmalı");
+            }
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn agency_language_alone_does_not_detect_jp() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,ja\n2,Other,http://other.example,Asia/Tokyo,en\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(!vr.metrics.is_gtfs_jp);
+            assert!(!vr
+                .notices
+                .iter()
+                .any(|notice| notice.rule_id.starts_with("JPN_")));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn non_japanese_primary_language_prefix_does_not_detect_jp() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,jaa\n",
+    ));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(!vr.metrics.is_gtfs_jp);
+            assert!(!vr
+                .notices
+                .iter()
+                .any(|notice| notice.rule_id.starts_with("JPN_")));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
 
@@ -246,6 +294,10 @@ fn jpn_021_requires_a_reading_and_accepts_half_width_katakana() {
 #[test]
 fn v3_requires_bus_route_type_and_routes_agency_id() {
     let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
+    ));
     // Çapa "otobüs ÇOĞUNLUKTA" (2026-09-14): iki otobüs + bir demiryolu. Tek otobüsle kural
     // artık susar; ölçüm BART'ta 12 metro hattının yanlış işaretlendiğini gösterdi.
     files[2] = (
@@ -266,7 +318,7 @@ fn v3_requires_bus_route_type_and_routes_agency_id() {
 }
 
 #[test]
-fn explicit_jp_constants_do_not_run_in_auto() {
+fn explicit_jp_constants_require_jp_detection() {
     let mut files = base_files();
     files[0] = (
         "agency.txt",
@@ -283,7 +335,7 @@ fn explicit_jp_constants_do_not_run_in_auto() {
     match run_with_profile(&files, GtfsJpProfile::V4) {
         ValidateResult::Ok(vr) => {
             for rule in ["JPN_023", "JPN_024", "JPN_025", "JPN_026"] {
-                assert!(has(&vr, rule), "{rule} açık profilde çalışmalı");
+                assert!(!has(&vr, rule), "{rule} JP sinyali yokken çalışmamalı");
             }
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -295,6 +347,40 @@ fn explicit_jp_constants_do_not_run_in_auto() {
             }
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn explicit_non_jp_profile_suppresses_jpn_fare_scope_notice() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,en\n",
+    );
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,en\n",
+    ));
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers,agency_id\nF1,1.00,USD,0,0,1\n",
+    ));
+    files.push(("fare_rules.txt", b"fare_id,route_id,origin_id\nF1,R1,Z\n"));
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon,location_type,zone_id\nS1,Stop1,41.0,29.0,0,Z\nS2,Stop2,41.1,29.1,0,\n",
+    );
+
+    for profile in [GtfsJpProfile::V3, GtfsJpProfile::V4] {
+        match run_with_profile(&files, profile) {
+            ValidateResult::Ok(vr) => assert!(
+                !vr.notices
+                    .iter()
+                    .any(|notice| notice.rule_id.starts_with("JPN_")),
+                "{profile:?} JP sinyali yokken JPN bulgusu üretmemeli"
+            ),
+            other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
     }
 }
 
