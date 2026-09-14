@@ -41,6 +41,17 @@ fn is_extended_route_type(v: u32) -> bool {
     matches!(v, 100..=1799)
 }
 
+/// Otobüs hizmeti sayan hat tipleri: çekirdek `3` ile HVT otobüs bandı `700..=716`
+/// (Bus Service ve alt türleri) ve `800` (Trolleybus Service).
+///
+/// 🔴 **`JPN_027` YALNIZ `3`'E BAKIYORDU ve bu ölçümle kusur çıktı.** VBB (`mdb-782`)
+/// 1.259 hattının 1.045'ini `700` ile bildiriyor — genişletilmiş şemada otobüs. Kural onları
+/// otobüs saymadığı için feed'i "otobüs feed'i değil" gibi görüyor ve 1.225 hattı
+/// işaretliyordu. Otobüs payı gerçekte %86.
+pub(crate) fn is_bus_route_type(v: u32) -> bool {
+    matches!(v, 3 | 700..=716 | 800)
+}
+
 pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();
     let mut records = Vec::new();

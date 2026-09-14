@@ -246,9 +246,11 @@ fn jpn_021_requires_a_reading_and_accepts_half_width_katakana() {
 #[test]
 fn v3_requires_bus_route_type_and_routes_agency_id() {
     let mut files = base_files();
+    // Çapa "otobüs ÇOĞUNLUKTA" (2026-09-14): iki otobüs + bir demiryolu. Tek otobüsle kural
+    // artık susar; ölçüm BART'ta 12 metro hattının yanlış işaretlendiğini gösterdi.
     files[2] = (
         "routes.txt",
-        b"route_id,route_short_name,route_type\nR1,101,3\nR2,102,2\n",
+        b"route_id,route_short_name,route_type\nR1,101,3\nR2,102,3\nR3,103,2\n",
     );
     match run_with_profile(&files, GtfsJpProfile::V3) {
         ValidateResult::Ok(vr) => {

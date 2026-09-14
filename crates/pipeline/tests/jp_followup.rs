@@ -44,17 +44,22 @@ fn select<'a>(notices: &'a [Notice], rule: &str) -> Vec<&'a Notice> {
 
 #[test]
 fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
+    // Otobüs ÇOĞUNLUKTA olsun (üç otobüs + bir aday) ki çapa açık olsun; testin ölçtüğü şey
+    // adayın tipi, çapa değil.
     for (value, fires) in [
         ("2", true),
-        ("700", true),
         ("999", true),
         ("3", false),
+        // 700 HVT şemasında Bus Service'tir → otobüs sayılır, bulgu YOK.
+        ("700", false),
+        ("800", false),
         ("", false),
         ("bad", false),
         ("-1", false),
     ] {
-        let routes =
-            format!("route_id,agency_id,route_short_name,route_type\nR1,A,1,3\nR2,A,2,{value}\n");
+        let routes = format!(
+            "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\nR2,A,2,3\nR3,A,3,3\nR4,A,4,{value}\n"
+        );
         for profile in [GtfsJpProfile::Auto, GtfsJpProfile::V3, GtfsJpProfile::V4] {
             let result = validate(&[("routes.txt", &routes)], profile);
             assert_eq!(
@@ -72,6 +77,88 @@ fn v3_route_type_constraint_is_silent_for_pure_non_bus_feeds() {
         "route_id,agency_id,route_short_name,route_type\nR1,A,rail,2\nR2,A,tram,0\nR3,A,ferry,4\n";
     let result = validate(&[("routes.txt", routes)], GtfsJpProfile::V3);
     assert!(select(&result.notices, "JPN_027").is_empty());
+}
+
+/// 🔴 ÖLÇÜLMÜŞ YANLIŞ POZİTİF (`mdb-53`, BART): 14 hattın 12'si metro, 2'si otobüs. Eski çapa
+/// "en az bir otobüs hattı" olduğu için o iki hat kapıyı açıyor ve 12 metro hattı işaretleniyordu.
+/// Otobüs AZINLIKTA olan feed bir otobüs feed'i değildir; kural susmalıdır.
+#[test]
+fn v3_route_type_constraint_is_silent_when_bus_is_a_minority() {
+    let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
+    for i in 0..12 {
+        routes.push_str(&format!("RAIL{i},A,rail{i},1\n"));
+    }
+    routes.push_str("BUS1,A,bus1,3\nBUS2,A,bus2,3\n");
+    let result = validate(&[("routes.txt", &routes)], GtfsJpProfile::V3);
+    assert!(
+        select(&result.notices, "JPN_027").is_empty(),
+        "{:?}",
+        select(&result.notices, "JPN_027")
+    );
+}
+
+/// 🔴 ÖLÇÜLMÜŞ YANLIŞ POZİTİF (`mdb-782`, VBB): 1.259 hattın 1.045'i `700` ile bildirilmiş,
+/// HVT şemasında Bus Service. Kural yalnız `3`'e baktığı için feed'i otobüs feed'i saymıyor ve
+/// 1.225 hattı işaretliyordu.
+#[test]
+fn extended_bus_route_types_count_as_bus_for_the_anchor() {
+    let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
+    for i in 0..10 {
+        routes.push_str(&format!("B{i},A,bus{i},700\n"));
+    }
+    routes.push_str("T1,A,tram,900\n");
+    let result = validate(&[("routes.txt", &routes)], GtfsJpProfile::V3);
+    let found = select(&result.notices, "JPN_027");
+    // Çapa açılır (otobüs %91) ve YALNIZ tramvay bildirilir — on otobüs hattı değil.
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].observed_value.as_deref(), Some("900"));
+}
+
+/// Emisyon TİP başına toplanır: aynı `route_type`'ı paylaşan hatlar tek bulguda birleşir.
+#[test]
+fn v3_route_type_findings_aggregate_per_type() {
+    let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
+    for i in 0..6 {
+        routes.push_str(&format!("B{i},A,bus{i},3\n"));
+    }
+    routes.push_str("R1,A,rail1,2\nR2,A,rail2,2\nR3,A,rail3,2\nF1,A,ferry,4\n");
+    let result = validate(&[("routes.txt", &routes)], GtfsJpProfile::V3);
+    let found = select(&result.notices, "JPN_027");
+    assert_eq!(found.len(), 2, "iki farklı tip beklenir: {found:?}");
+    let rail = found
+        .iter()
+        .find(|n| n.observed_value.as_deref() == Some("2"))
+        .expect("route_type=2 bulgusu");
+    assert_eq!(
+        rail.details
+            .as_ref()
+            .and_then(|d| d.get("affected_records"))
+            .map(String::as_str),
+        Some("3"),
+        "{rail:?}"
+    );
+}
+
+/// 🔴 ÖLÇÜLMÜŞ HACİM (`mdb-53`, BART): 2.500 `fare_attributes` satırı, HEPSİ `USD` → eski
+/// emisyon tek olguyu 2.500 kez raporluyordu. Künyede tekilleştirme `Field`.
+#[test]
+fn jpn_026_aggregates_per_currency() {
+    let fares = "fare_id,price,currency_type,payment_method,transfers\n        F1,1.00,USD,0,0\nF2,2.00,USD,0,0\nF3,3.00,USD,0,0\nF4,4.00,EUR,0,0\n";
+    let result = validate(&[("fare_attributes.txt", fares)], GtfsJpProfile::V4);
+    let found = select(&result.notices, "JPN_026");
+    assert_eq!(found.len(), 2, "iki farklı para birimi beklenir: {found:?}");
+    let usd = found
+        .iter()
+        .find(|n| n.observed_value.as_deref() == Some("USD"))
+        .expect("USD bulgusu");
+    assert_eq!(
+        usd.details
+            .as_ref()
+            .and_then(|d| d.get("affected_records"))
+            .map(String::as_str),
+        Some("3"),
+        "{usd:?}"
+    );
 }
 
 #[test]

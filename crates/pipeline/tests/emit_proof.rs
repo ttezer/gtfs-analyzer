@@ -991,7 +991,10 @@ fn fixtures() -> Vec<Fixture> {
             "fare_attributes.txt",
             "fare_id,price,currency_type,payment_method,transfers\nF1,100,USD,0,0\n",
         )]),
-        fx_v3("JPN_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,2\n")]),
+        // Çapa "otobüs ÇOĞUNLUKTA" (2026-09-14): iki otobüs + bir demiryolu. Tek otobüsle
+        // kural artık susar ve bu bilinçli — ölçüm BART'ta 12 metro hattının yanlış
+        // işaretlendiğini gösterdi.
+        fx_v3("JPN_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,2\n")]),
         fx_v4("JPN_031", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,100,JPY,0,0\n"),
             ("fare_rules.txt", "fare_id,route_id,origin_id\nF1,R1,Z\n"),

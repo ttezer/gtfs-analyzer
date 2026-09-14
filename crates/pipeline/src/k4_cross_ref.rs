@@ -4674,48 +4674,122 @@ fn check_gtfs_jp(
                 ));
             }
         }
+        // 🔑 PARA BİRİMİ başına toplanır, satır başına DEĞİL. Künyede tekilleştirme `Field`
+        // yazıyor; emisyon satır başınaydı ve tek olguyu yüzlerce kez tekrarlıyordu —
+        // BART (`mdb-53`) 2.500 `fare_attributes` satırı taşıyor ve **hepsi `USD`**, yani
+        // 2.500 bulgu tek bir gerçeği söylüyordu. `JPN_028`/`JPN_029`/`JPN_030` ile aynı şekil.
+        let mut currencies: BTreeMap<&str, (u64, Vec<String>, u64)> = BTreeMap::new();
         for fare in &records.fare_attributes {
             let currency = fare.currency_type.as_str();
             if crate::k2::common::iso4217_minor_unit(currency).is_some() && currency != "JPY" {
-                notices.push(notice(
-                    ctr,
-                    "JPN_026",
-                    EntityType::Fare,
-                    Some(fare.fare_id.clone()),
-                    Some(fare.fare_id.clone()),
-                    "fare_attributes.txt",
-                    Some(fare.line),
-                    Some("currency_type"),
-                    Some(currency.to_string()),
-                    Some("JPY".to_string()),
-                    "Açık GTFS-JP profilinde currency_type değeri JPY olmalıdır.".to_string(),
-                    "fare_attributes.txt içindeki currency_type değerini JPY yapın.",
-                ));
+                let entry = currencies
+                    .entry(currency)
+                    .or_insert_with(|| (0, Vec::new(), fare.line));
+                entry.0 += 1;
+                if entry.1.len() < 3 {
+                    entry.1.push(fare.fare_id.clone());
+                }
             }
+        }
+        for (currency, (count, examples, line)) in currencies {
+            let first = examples.first().cloned();
+            let mut finding = notice(
+                ctr,
+                "JPN_026",
+                EntityType::Fare,
+                first.clone(),
+                first,
+                "fare_attributes.txt",
+                Some(line),
+                Some("currency_type"),
+                Some(currency.to_string()),
+                Some("JPY".to_string()),
+                format!(
+                    "Açık GTFS-JP profilinde currency_type değeri JPY olmalıdır; {count} ücret kaydı '{currency}' kullanıyor. Örnekler: {}.",
+                    examples.join(", ")
+                ),
+                "fare_attributes.txt içindeki currency_type değerini JPY yapın.",
+            );
+            finding.details = Some(BTreeMap::from([
+                ("message_variant".to_string(), "aggregate".to_string()),
+                (
+                    "jp_profile".to_string(),
+                    records.gtfs_jp_profile.as_str().to_string(),
+                ),
+                ("affected_records".to_string(), count.to_string()),
+                ("example_record_ids".to_string(), examples.join(", ")),
+            ]));
+            notices.push(finding);
         }
     }
 
-    // V3 is the static bus format. Explicit V3 selects this constraint;
-    // Auto and the multimodal V4 profile must never infer it. A pure
-    // non-bus feed may still be explicitly selected as V3 for compatibility,
-    // but must not receive a per-route bus warning; the route_type=3 anchor
-    // keeps this rule scoped to feeds that actually contain bus service.
-    if records.gtfs_jp_profile == GtfsJpProfile::V3
-        && records
+    // ── JPN_027: V3 otobüs profilinde otobüs dışı hat ────────────────────────
+    // V3 statik otobüs formatıdır; açık V3 bu kısıtı seçer, Auto ve çok modlu V4 ASLA
+    // çıkarsamaz.
+    //
+    // 🔴 ÇAPA İKİ KEZ YANLIŞTI, ikisi de ölçümle çıktı:
+    // 1. **"en az bir otobüs hattı" yetmez.** `any(route_type == 3)` saf otobüs dışı feed'i
+    //    (34 Japon demiryolu/tramvay/vapur feed'i) doğru biçimde susturuyordu ama otobüsün
+    //    AZINLIK olduğu çok modlu feed'i korumuyordu: BART'ın 2 otobüs hattı kapıyı açıyor ve
+    //    12 metro hattı işaretleniyordu. Ölçülen ayrım keskin — BART %14, VBB %3, TriMet %88 —
+    //    dolayısıyla "otobüs BASKIN olmalı" eşiği %14 ile %88 arasında geniş boşluğa oturur.
+    // 2. **Yalnız `3` otobüs sayılıyordu.** VBB 1.045 hattını `700` (HVT Bus Service) ile
+    //    bildiriyor; kural onları otobüs saymayıp 1.225 hattı işaretliyordu. Gerçek otobüs
+    //    payı %86. → `k2::routes::is_bus_route_type`
+    //
+    // 🔑 Emisyon de TİP başına toplanır. Künyede tekilleştirme `Field` yazıyor, yani kimlik
+    // "alan"; hat başına basmak aynı olguyu yüzlerce kez tekrarlıyordu (VBB 1.225).
+    if records.gtfs_jp_profile == GtfsJpProfile::V3 {
+        let typed: Vec<(u32, &crate::k2::routes::RouteRecord)> = records
             .routes
             .iter()
-            .any(|route| route.route_type == Some(3))
-    {
-        for route in &records.routes {
-            if let Some(route_type) = route.route_type.filter(|value| *value != 3) {
-                notices.push(notice(
-                    ctr, "JPN_027", EntityType::Route,
-                    Some(route.route_id.clone()), Some(route.route_id.clone()),
-                    "routes.txt", Some(route.line), Some("route_type"),
-                    Some(route_type.to_string()), Some("3".to_string()),
-                    format!("GTFS-JP V3 otobüs profilinde '{}' hattının route_type değeri {route_type}; 3 olmalıdır.", route.route_id),
+            .filter_map(|route| route.route_type.map(|value| (value, route)))
+            .collect();
+        let bus = typed
+            .iter()
+            .filter(|(value, _)| crate::k2::routes::is_bus_route_type(*value))
+            .count();
+        // Otobüs BASKIN değilse bu bir otobüs feed'i değildir ve hiçbir şey iddia edilmez.
+        if bus * 2 > typed.len() {
+            let mut groups: BTreeMap<u32, (u64, Vec<String>, u64)> = BTreeMap::new();
+            for (value, route) in &typed {
+                if crate::k2::routes::is_bus_route_type(*value) {
+                    continue;
+                }
+                let entry = groups
+                    .entry(*value)
+                    .or_insert_with(|| (0, Vec::new(), route.line));
+                entry.0 += 1;
+                if entry.1.len() < 3 {
+                    entry.1.push(route.route_id.clone());
+                }
+            }
+            for (route_type, (count, examples, line)) in groups {
+                let first = examples.first().cloned();
+                let mut finding = notice(
+                    ctr,
+                    "JPN_027",
+                    EntityType::Route,
+                    first.clone(),
+                    first,
+                    "routes.txt",
+                    Some(line),
+                    Some("route_type"),
+                    Some(route_type.to_string()),
+                    Some("3".to_string()),
+                    format!(
+                        "GTFS-JP V3 otobüs profilinde route_type={route_type} kullanan {count} hat var; 3 olmalıdır. Örnekler: {}.",
+                        examples.join(", ")
+                    ),
                     "V3 otobüs verisinde route_type=3 kullanın; çok modlu veri için uygun profili seçin.",
-                ));
+                );
+                finding.details = Some(BTreeMap::from([
+                    ("message_variant".to_string(), "aggregate".to_string()),
+                    ("jp_profile".to_string(), "v3".to_string()),
+                    ("affected_records".to_string(), count.to_string()),
+                    ("example_record_ids".to_string(), examples.join(", ")),
+                ]));
+                notices.push(finding);
             }
         }
     }
