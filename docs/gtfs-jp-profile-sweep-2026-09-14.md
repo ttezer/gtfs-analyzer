@@ -171,3 +171,19 @@ Bu takip maddeleri uygulandı:
 - Audit shard'ı artık aynı indirilen ZIP'i Auto, V3 ve V4 profilleriyle koşabiliyor. Auto sonucu geriye dönük `analyzer` alanında korunuyor; explicit profil sonuçları `analyzer_profiles`, `profile-summary.json` ve `profile-rules.json` içinde tutuluyor.
 
 SHP/STM/OPR platform farkı için eşik veya analitik davranış değiştirilmedi: yerel macOS arm64 ortamında Linux karşılaştırması kanıtlanamazdı. CI denetimi artık Ubuntu runner üzerinde explicit profil ölçümlerini yayımlayacak; bu altı feed için platform hipotezi bu koşumla doğrulanabilir veya reddedilebilir.
+
+## Linux platform koşumu sonucu
+
+Bu açık kalem, GitHub Actions'taki 18. koşumun Linux artefaktı üzerinden kapatıldı:
+[run 34718902532](https://github.com/ttezer/gtfs-analyzer/actions/runs/34718902532), Ubuntu runner, analyzer commit `136ebc32`, `--today 20260820`. Bu commit mevcut `6bf7f9a1`'in atasıdır; aradaki commitlerde SHP/STM/OPR hesap kodu değişmemiştir.
+
+| Kural / feed | Linux x86_64 | macOS arm64 | Fark |
+|---|---:|---:|---:|
+| `SHP_017` · `jbda-kagaminotown-kagaminotownbus` | 11 | 12 | +1 |
+| `SHP_017` · `jbda-kimitsucity-Local_buses_via_Kimitsu_City` | 6 | 3 | −3 |
+| `SHP_017` · `jbda-tokushima-miyoshicity-miyoshicitybus` | 2 | 1 | −1 |
+| `STM_014` · `jbda-nantocity-nanbus` | 4 | 6 | +2 |
+| `STM_014` · `jbda-tokushima-miyoshicity-miyoshicitybus` | 6 | 5 | −1 |
+| `OPR_008` · `jbda-nantocity-nanbus` | 1 | 2 | +1 |
+
+Linux değerleri önceki x86_64 ölçümündeki değerlerle birebir eşleşiyor. Bu nedenle altı fark için mevcut kanıt, kural eşiği hatasından çok macOS arm64 ile Linux x86_64 arasındaki kayan nokta/geometry yürütme farkını gösteriyor. Eşik veya kural mantığı değiştirilmedi; konu artık doğrulanmış platform farkı olarak kapalıdır.
