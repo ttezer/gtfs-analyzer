@@ -151,6 +151,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
+            --profiles auto,v3,v4 \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -199,6 +200,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
+            --profiles auto,v3,v4 \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -247,6 +249,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
+            --profiles auto,v3,v4 \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -295,6 +298,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
+            --profiles auto,v3,v4 \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -394,6 +398,7 @@ jobs:
               "selection_script": "benchmark/audit_all/select_corpus.py",
               "shard_script": "benchmark/audit_all/run_shard.py",
               "aggregate_script": "benchmark/audit_all/aggregate.py",
+              "analyzer_profiles": ["auto", "v3", "v4"],
               "analyzer_command": [
                   "gtfs-analyzer", "validate", "<feed.zip>", "--json", "--lang", "en",
                   "--today", "20260820", "--output", "report.json",

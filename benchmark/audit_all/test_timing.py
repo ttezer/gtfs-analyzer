@@ -85,6 +85,40 @@ class DownloadMetadata(unittest.TestCase):
         )
 
 
+class AnalyzerProfiles(unittest.TestCase):
+    def test_profiles_are_deduplicated_in_requested_order(self):
+        self.assertEqual(
+            shard.parse_profiles("auto,v3,auto,v4"), ["auto", "v3", "v4"]
+        )
+
+    def test_unknown_profile_is_rejected(self):
+        with self.assertRaises(ValueError):
+            shard.parse_profiles("auto,v5")
+
+    def test_profile_summary_preserves_rule_counts(self):
+        result = agg.summarize_analyzer_profiles([
+            {
+                "feed": {"feed_id": "feed-1"},
+                "analyzer_profiles": {
+                    "v3": {
+                        "state": "completed",
+                        "notice_count": 3,
+                        "by_rule": {"JPN_028": 2, "JPN_030": 1},
+                    },
+                    "v4": {
+                        "state": "partial_timeout",
+                        "notice_count": 4,
+                        "by_rule": {"JPN_029": 4},
+                    },
+                },
+            },
+        ])
+        self.assertEqual(result["profiles"]["v3"]["completed"], 1)
+        self.assertEqual(result["profiles"]["v3"]["notice_total"], 3)
+        self.assertEqual(result["profiles"]["v3"]["rules_seen"], 2)
+        self.assertEqual(result["rules"][0]["profile"], "v3")
+
+
 class SourceDrift(unittest.TestCase):
     def test_baseline_comparison_reports_changed_payload(self):
         with tempfile.TemporaryDirectory() as d:

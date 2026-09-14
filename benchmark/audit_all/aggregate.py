@@ -123,6 +123,50 @@ def require_consistent_states(feed_rows):
             "from it. Fix the state classifier; do not publish the run."
         )
 
+def summarize_analyzer_profiles(rows):
+    """Summarize additive Auto/V3/V4 analyzer runs from shard rows."""
+    profiles=defaultdict(lambda: {
+        "attempted":0, "completed":0, "partial":0, "failed":0,
+        "notice_total":0, "rules":defaultdict(lambda: {
+            "feed_count":0, "notice_total":0, "affected_feeds":[]
+        })
+    })
+    for row in rows:
+        for profile, report in (row.get("analyzer_profiles") or {}).items():
+            stats=profiles[profile]
+            stats["attempted"]+=1
+            state=report.get("state","not_run")
+            if state=="completed": stats["completed"]+=1
+            elif state.startswith("partial"): stats["partial"]+=1
+            else: stats["failed"]+=1
+            stats["notice_total"]+=int(report.get("notice_count") or 0)
+            feed_id=(row.get("feed") or {}).get("feed_id","")
+            for rule_id,count in (report.get("by_rule") or {}).items():
+                entry=stats["rules"][rule_id]
+                entry["feed_count"]+=1
+                entry["notice_total"]+=int(count)
+                if feed_id: entry["affected_feeds"].append(feed_id)
+    serial_profiles={}
+    serial_rules=[]
+    for profile in sorted(profiles):
+        stats=profiles[profile]
+        rules={}
+        for rule_id,entry in sorted(stats["rules"].items()):
+            rules[rule_id]={
+                "feed_count":entry["feed_count"],
+                "notice_total":entry["notice_total"],
+                "affected_feeds":entry["affected_feeds"],
+            }
+            serial_rules.append({
+                "profile":profile,
+                "rule_id":rule_id,
+                **rules[rule_id],
+            })
+        serial_profiles[profile]={k:v for k,v in stats.items() if k!="rules"}
+        serial_profiles[profile]["rules_seen"]=len(rules)
+    serial_rules.sort(key=lambda x:(x["profile"],-x["feed_count"],-x["notice_total"],x["rule_id"]))
+    return {"profiles":serial_profiles,"rules":serial_rules}
+
 def load_result_rows(path):
     """Load a previous aggregate result for source-drift comparison."""
     path=Path(path)
@@ -200,6 +244,13 @@ def main():
     rows.sort(key=lambda x:int((x.get("feed") or {}).get("corpus_index",10**9)))
     with gzip.open(out/"all-results.json.gz","wt",encoding="utf-8") as f:
         json.dump(rows,f,ensure_ascii=False,separators=(",",":"))
+    profile_measurements=summarize_analyzer_profiles(rows)
+    (out/"profile-summary.json").write_text(
+        json.dumps(profile_measurements["profiles"],indent=2,ensure_ascii=False)+"\n"
+    )
+    (out/"profile-rules.json").write_text(
+        json.dumps(profile_measurements["rules"],indent=2,ensure_ascii=False)+"\n"
+    )
 
     # Kapsam boşlukları (#135'ten taşındı): eksik bir shard SESSİZCE kaybolmamalı.
     # Manifest verilmişse beklenen feed kümesiyle karşılaştırılır; verilmemişse yalnız
@@ -445,6 +496,7 @@ def main():
       "analyzer_peak_rss_median_kb":statistics.median(arss) if arss else None,
       "md_peak_rss_median_kb":statistics.median(mrss) if mrss else None,
       "unique_analyzer_rules_seen":len(ar_list),"unique_md_codes_seen":len(mc_list),
+      "analyzer_profiles":profile_measurements["profiles"],
       "divergence_candidate_counts":dict(types),
       "fresh_vs_stored_md_report_count_different":len(stored_disagreements),
       "source_drift":source_drift}
@@ -453,6 +505,9 @@ def main():
     top=divergences[:60]
     lines=["# 1000-feed GTFS Analyzer vs MobilityData audit","","## Corpus execution","",f"- Attempted feeds: **{attempted}**",f"- Successfully downloaded: **{downloaded}**",f"- Both validators completed cleanly: **{both}**",f"- Analyzer median wall time (completed feeds): **{summary['analyzer_wall_median_s']} s**",f"- MobilityData median wall time (completed feeds): **{summary['md_wall_median_s']} s**",f"- Analyzer rules observed: **{len(ar_list)}**",f"- MobilityData notice codes observed: **{len(mc_list)}**","","These are automated divergence *candidates*, not correctness verdicts. A count difference can be caused by aggregation, thresholds, scope, or a true validator bug.","","## Validator state pairs","","| Analyzer | MobilityData | Feeds |","|---|---|---:|"]
     for (a,m),n in state_pairs.most_common(): lines.append(f"| {a} | {m} | {n} |")
+    lines += ["", "## Explicit GTFS-JP profile runs", "", "| Profile | Attempted | Completed | Partial | Failed | Notices | Rules |", "|---|---:|---:|---:|---:|---:|---:|"]
+    for profile,stats in profile_measurements["profiles"].items():
+        lines.append(f"| {profile} | {stats['attempted']} | {stats['completed']} | {stats['partial']} | {stats['failed']} | {stats['notice_total']} | {stats['rules_seen']} |")
     lines += ["","## Divergence candidate classes","","| Candidate class | Count |","|---|---:|"]
     for k,n in types.most_common(): lines.append(f"| {k} | {n} |")
     lines += ["","## Highest-priority candidates","","| Priority | Feed | Direction | MD code | Analyzer rule(s) | Counts |","|---:|---|---|---|---|---|"]

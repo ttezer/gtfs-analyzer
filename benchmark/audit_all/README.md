@@ -35,3 +35,13 @@ python3 benchmark/audit_all/aggregate.py \
 The run writes `source-drift.json` and includes the same result in
 `summary.json`. A changed SHA, byte count, effective URL, HTTP status or content
 type is reported per feed; feed IDs are never deduplicated.
+
+## GTFS-JP profile sweep
+
+Each downloaded ZIP is analyzed once with Auto and, when the workflow passes
+`--profiles auto,v3,v4`, once with each explicit GTFS-JP profile. The historical
+`analyzer` field remains the Auto result for compatibility; the additive
+`analyzer_profiles` field retains all profile results. Aggregation writes
+`profile-summary.json` and `profile-rules.json`, and the published summary
+shows the Linux runner counts for Auto, V3 and V4 separately. One download and
+one MobilityData run are reused for all analyzer profiles.

@@ -248,7 +248,7 @@ fn v3_requires_bus_route_type_and_routes_agency_id() {
     let mut files = base_files();
     files[2] = (
         "routes.txt",
-        b"route_id,route_short_name,route_type\nR1,101,2\n",
+        b"route_id,route_short_name,route_type\nR1,101,3\nR2,102,2\n",
     );
     match run_with_profile(&files, GtfsJpProfile::V3) {
         ValidateResult::Ok(vr) => {
@@ -256,7 +256,7 @@ fn v3_requires_bus_route_type_and_routes_agency_id() {
                 && notice.file.as_deref() == Some("routes.txt")));
             assert!(
                 vr.notices.iter().any(|notice| notice.rule_id == "JPN_027"),
-                "açık V3 otobüs profili route_type=2 değerini reddetmeli"
+                "açık V3 otobüs profili, otobüs kapsamı içindeki route_type=2 değerini reddetmeli"
             );
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -356,10 +356,18 @@ fn v3_remaining_translation_fields_require_kana_and_japanese_rows() {
     match run_with_profile(&files, GtfsJpProfile::V3) {
         ValidateResult::Ok(vr) => {
             for field in ["route_desc", "jp_trip_desc"] {
-                assert!(vr.notices.iter().any(|notice| {
-                    notice.rule_id == "JPN_028" && notice.field.as_deref() == Some(field)
-                }));
-                assert!(vr.notices.iter().any(|notice| {
+                let notice = vr
+                    .notices
+                    .iter()
+                    .find(|notice| {
+                        notice.rule_id == "JPN_028" && notice.field.as_deref() == Some(field)
+                    })
+                    .expect("aggregate_both JPN_028 bekleniyordu");
+                assert_eq!(
+                    notice.details.as_ref().unwrap()["message_variant"],
+                    "aggregate_both"
+                );
+                assert!(!vr.notices.iter().any(|notice| {
                     notice.rule_id == "JPN_030" && notice.field.as_deref() == Some(field)
                 }));
             }

@@ -21,6 +21,7 @@ DOWNLOAD_TIMEOUT=300
 MAX_DOWNLOAD=2_500_000_000
 BENCH_DATE="20260820"
 MD_DATE="2026-08-20"
+ANALYZER_PROFILES=("auto","v3","v4")
 
 def slurp(p,limit=6000):
     p=Path(p)
@@ -50,6 +51,23 @@ def timing(p):
       "max_rss_kb":int(g(r"Maximum resident set size \(kbytes\):\s*(\d+)") or 0),
       "cpu":g(r"Percent of CPU this job got:\s*(.+)$"),
     }
+
+def parse_profiles(raw):
+    """Return a stable, duplicate-free analyzer profile list.
+
+    ``auto`` keeps the historical result contract; explicit ``v3`` and ``v4``
+    runs are additional measurements over the same downloaded ZIP.
+    """
+    values=[x.strip().lower() for x in str(raw or "").split(",") if x.strip()]
+    if not values:
+        raise ValueError("at least one analyzer profile is required")
+    unknown=sorted(set(values)-set(ANALYZER_PROFILES))
+    if unknown:
+        raise ValueError(
+            f"unknown analyzer profile(s): {', '.join(unknown)}; "
+            f"choose from {', '.join(ANALYZER_PROFILES)}"
+        )
+    return list(dict.fromkeys(values))
 
 def run_timed(cmd,timefile,stdout,stderr,timeout_s,cwd=None):
     full=["/usr/bin/time","-v","-o",str(timefile),"timeout","--signal=TERM","--kill-after=10s",f"{timeout_s}s",*cmd]
@@ -216,7 +234,24 @@ def classify_md(exit_code,report,sys_errors,stderr):
     if has_sys: return "internal_error"
     return "no_report"
 
-def run_one(feed,root,analyzer,mdjar):
+def run_analyzer_profile(analyzer,z,work,profile):
+    profile_dir=work/"analyzer"/profile
+    profile_dir.mkdir(parents=True,exist_ok=True)
+    report=profile_dir/"report.json"
+    cmd=[str(analyzer),"validate",str(z),"--json","--lang","en","--today",BENCH_DATE,"--output",str(report)]
+    if profile!="auto":
+        cmd += ["--gtfs-jp-profile",profile]
+    exit_code=run_timed(
+        cmd,profile_dir/"time.txt",profile_dir/"stdout.txt",profile_dir/"stderr.txt",ANALYZER_TIMEOUT)
+    stderr=slurp(profile_dir/"stderr.txt")
+    result={"profile":profile,"exit_code":exit_code,"timing":timing(profile_dir/"time.txt"),"stderr_head":stderr}
+    if report.exists():
+        try: result.update(parse_analyzer(report))
+        except Exception as e: result["parse_error"]=repr(e)
+    result["state"]=classify_analyzer(exit_code,report,stderr)
+    return result
+
+def run_one(feed,root,analyzer,mdjar,profiles=("auto",)):
     fid=feed["feed_id"]
     work=root/fid.replace("/","_")
     shutil.rmtree(work,ignore_errors=True)
@@ -260,17 +295,12 @@ def run_one(feed,root,analyzer,mdjar):
     else:
         result["mobilitydata_stored"]={"status":"unavailable","curl_exit":src,**stored_meta}
 
-    ar=work/"analyzer"/"report.json"
-    aexit=run_timed(
-      [str(analyzer),"validate",str(z),"--json","--lang","en","--today",BENCH_DATE,"--output",str(ar)],
-      work/"analyzer"/"time.txt",work/"analyzer"/"stdout.txt",work/"analyzer"/"stderr.txt",ANALYZER_TIMEOUT)
-    astderr=slurp(work/"analyzer"/"stderr.txt")
-    a={"exit_code":aexit,"timing":timing(work/"analyzer"/"time.txt"),"stderr_head":astderr}
-    if ar.exists():
-        try:a.update(parse_analyzer(ar))
-        except Exception as e:a["parse_error"]=repr(e)
-    a["state"]=classify_analyzer(aexit,ar,astderr)
-    result["analyzer"]=a
+    profile_reports={profile:run_analyzer_profile(analyzer,z,work,profile) for profile in profiles}
+    result["analyzer_profiles"]=profile_reports
+    # Existing aggregate/consumer code compares this field with MobilityData.
+    # Keep it as Auto when selected, while publishing every explicit profile in
+    # the additive analyzer_profiles field.
+    result["analyzer"]=profile_reports.get("auto") or next(iter(profile_reports.values()))
 
     mexit=run_timed(
       ["java","-Xmx12g","-jar",str(mdjar),"-i",str(z),"-o",str(work/"md"),"-d",MD_DATE],
@@ -301,7 +331,12 @@ def main():
     ap.add_argument("--analyzer",required=True)
     ap.add_argument("--md-jar",required=True)
     ap.add_argument("--out",required=True)
+    ap.add_argument("--profiles",default="auto",help="comma-separated analyzer profiles: auto,v3,v4")
     args=ap.parse_args()
+    try:
+        profiles=parse_profiles(args.profiles)
+    except ValueError as e:
+        ap.error(str(e))
     manifest=json.loads(Path(args.manifest).read_text())
     feeds=[f for f in manifest["feeds"] if int(f["corpus_index"]) % args.shards == args.shard]
     root=Path(os.environ.get("RUNNER_TEMP","/tmp"))/f"gtfs-audit-{args.shard:03d}"
@@ -312,7 +347,7 @@ def main():
         for i,feed in enumerate(feeds,1):
             print(f"[shard {args.shard}/{args.shards}] {i}/{len(feeds)} {feed['feed_id']} {feed.get('provider','')}",flush=True)
             try:
-                r=run_one(feed,root,analyzer,mdjar)
+                r=run_one(feed,root,analyzer,mdjar,profiles)
             except Exception as e:
                 r={"feed":feed,"runner_exception":repr(e),"finished_at_epoch":time.time()}
             fh.write(json.dumps(r,ensure_ascii=False,separators=(",",":"))+"\n")

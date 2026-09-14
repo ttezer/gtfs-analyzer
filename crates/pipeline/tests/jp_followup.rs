@@ -53,7 +53,8 @@ fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
         ("bad", false),
         ("-1", false),
     ] {
-        let routes = format!("route_id,agency_id,route_short_name,route_type\nR1,A,1,{value}\n");
+        let routes =
+            format!("route_id,agency_id,route_short_name,route_type\nR1,A,1,3\nR2,A,2,{value}\n");
         for profile in [GtfsJpProfile::Auto, GtfsJpProfile::V3, GtfsJpProfile::V4] {
             let result = validate(&[("routes.txt", &routes)], profile);
             assert_eq!(
@@ -63,6 +64,54 @@ fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
             );
         }
     }
+}
+
+#[test]
+fn v3_route_type_constraint_is_silent_for_pure_non_bus_feeds() {
+    let routes =
+        "route_id,agency_id,route_short_name,route_type\nR1,A,rail,2\nR2,A,tram,0\nR3,A,ferry,4\n";
+    let result = validate(&[("routes.txt", routes)], GtfsJpProfile::V3);
+    assert!(select(&result.notices, "JPN_027").is_empty());
+}
+
+#[test]
+fn v3_translation_pairs_aggregate_and_merge_duplicate_work() {
+    let stop_times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,渋谷\nT1,08:10:00,08:10:00,S2,2,渋谷\n";
+    let result = validate(&[("stop_times.txt", stop_times)], GtfsJpProfile::V3);
+    let kana = select(&result.notices, "JPN_028")
+        .into_iter()
+        .filter(|notice| notice.field.as_deref() == Some("stop_headsign"))
+        .collect::<Vec<_>>();
+    let japanese = select(&result.notices, "JPN_030")
+        .into_iter()
+        .filter(|notice| notice.field.as_deref() == Some("stop_headsign"))
+        .collect::<Vec<_>>();
+    assert_eq!(kana.len(), 1);
+    assert!(japanese.is_empty());
+    let details = kana[0].details.as_ref().unwrap();
+    assert_eq!(details["message_variant"], "aggregate_both");
+    assert_eq!(details["affected_records"], "2");
+}
+
+#[test]
+fn v3_translation_aggregation_keeps_japanese_only_findings() {
+    let translations = "table_name,field_name,language,translation,field_value\nstop_times,stop_headsign,ja-Hrkt,シブヤ,渋谷\n";
+    let result = validate(
+        &[("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,渋谷\nT1,08:10:00,08:10:00,S2,2,渋谷\n"), ("translations.txt", translations)],
+        GtfsJpProfile::V3,
+    );
+    assert!(select(&result.notices, "JPN_028")
+        .into_iter()
+        .all(|notice| { notice.field.as_deref() != Some("stop_headsign") }));
+    let japanese = select(&result.notices, "JPN_030")
+        .into_iter()
+        .filter(|notice| notice.field.as_deref() == Some("stop_headsign"))
+        .collect::<Vec<_>>();
+    assert_eq!(japanese.len(), 1);
+    assert_eq!(
+        japanese[0].details.as_ref().unwrap()["affected_records"],
+        "2"
+    );
 }
 
 #[test]

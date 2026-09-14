@@ -991,7 +991,7 @@ fn fixtures() -> Vec<Fixture> {
             "fare_attributes.txt",
             "fare_id,price,currency_type,payment_method,transfers\nF1,100,USD,0,0\n",
         )]),
-        fx_v3("JPN_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,2\n")]),
+        fx_v3("JPN_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,2\n")]),
         fx_v4("JPN_031", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,100,JPY,0,0\n"),
             ("fare_rules.txt", "fare_id,route_id,origin_id\nF1,R1,Z\n"),
@@ -1004,7 +1004,7 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         fx_v3("JPN_030", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
-            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
+            ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\nroutes,route_desc,ja-Hrkt,シブヤ線,R1\n"),
         ]),
         // JPN_029: V4'te Japonca stop_headsign için önerilen kana okuması eksik.
         fx_v4("JPN_029", vec![

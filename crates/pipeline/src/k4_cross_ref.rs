@@ -3713,11 +3713,50 @@ struct JpMissingReadings<'a> {
 struct JpMissingReading {
     count: u64,
     examples: BTreeMap<u64, String>,
+    missing_kana: bool,
+    missing_japanese: bool,
 }
 
 impl<'a> JpMissingReadings<'a> {
     #[allow(clippy::too_many_arguments)]
-    fn record(
+    fn record_missing(
+        &mut self,
+        table: &'static str,
+        field: &'static str,
+        record_id: Option<&str>,
+        sub_id: Option<&str>,
+        value: &'a str,
+        line: u64,
+        missing_kana: bool,
+        missing_japanese: bool,
+    ) {
+        if !missing_kana && !missing_japanese {
+            return;
+        }
+        let group = self.groups.entry((table, field, value)).or_default();
+        group.count += 1;
+        group.missing_kana |= missing_kana;
+        group.missing_japanese |= missing_japanese;
+        if group.examples.len() < 5
+            || group
+                .examples
+                .last_key_value()
+                .is_some_and(|(&last, _)| line < last)
+        {
+            let example = match (record_id, sub_id) {
+                (Some(id), Some(seq)) => format!("trip_id={id},stop_sequence={seq} (line={line})"),
+                (Some(id), None) => format!("record_id={id} (line={line})"),
+                _ => format!("line={line}"),
+            };
+            group.examples.insert(line, example);
+            if group.examples.len() > 5 {
+                group.examples.pop_last();
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn record_v4(
         &mut self,
         coverage: &JpTranslationCoverage<'_>,
         table: &'static str,
@@ -3739,27 +3778,52 @@ impl<'a> JpMissingReadings<'a> {
         {
             return;
         }
-        let group = self.groups.entry((table, field, value)).or_default();
-        group.count += 1;
-        if group.examples.len() < 5
-            || group
-                .examples
-                .last_key_value()
-                .is_some_and(|(&last, _)| line < last)
-        {
-            let example = match (record_id, sub_id) {
-                (Some(id), Some(seq)) => format!("trip_id={id},stop_sequence={seq} (line={line})"),
-                (Some(id), None) => format!("record_id={id} (line={line})"),
-                _ => format!("line={line}"),
-            };
-            group.examples.insert(line, example);
-            if group.examples.len() > 5 {
-                group.examples.pop_last();
-            }
-        }
+        self.record_missing(table, field, record_id, sub_id, value, line, true, false);
     }
 
-    fn emit(self, notices: &mut Vec<Notice>, ctr: &mut u32) {
+    #[allow(clippy::too_many_arguments)]
+    fn record_v3_pair(
+        &mut self,
+        coverage: &JpTranslationCoverage<'_>,
+        table: &'static str,
+        field: &'static str,
+        record_id: Option<&str>,
+        sub_id: Option<&str>,
+        value: &'a str,
+        line: u64,
+    ) {
+        if !has_japanese(value) {
+            return;
+        }
+        let missing_kana = !coverage.has(
+            table,
+            field,
+            JpTranslationLanguage::Kana,
+            record_id,
+            sub_id,
+            value,
+        );
+        let missing_japanese = !coverage.has(
+            table,
+            field,
+            JpTranslationLanguage::Japanese,
+            record_id,
+            sub_id,
+            value,
+        );
+        self.record_missing(
+            table,
+            field,
+            record_id,
+            sub_id,
+            value,
+            line,
+            missing_kana,
+            missing_japanese,
+        );
+    }
+
+    fn emit_v4(self, notices: &mut Vec<Notice>, ctr: &mut u32) {
         for ((table, field, source), group) in self.groups {
             let file = format!("{table}.txt");
             let first_line = group.examples.first_key_value().map(|(&line, _)| line);
@@ -3779,6 +3843,66 @@ impl<'a> JpMissingReadings<'a> {
                 ("source_value".to_string(), source.to_string()),
                 ("affected_records".to_string(), group.count.to_string()),
                 ("example_record_ids".to_string(), examples),
+            ]));
+            notices.push(finding);
+        }
+    }
+
+    fn emit_v3(self, notices: &mut Vec<Notice>, ctr: &mut u32) {
+        for ((table, field, source), group) in self.groups {
+            let file = format!("{table}.txt");
+            let first_line = group.examples.first_key_value().map(|(&line, _)| line);
+            let examples = group.examples.into_values().collect::<Vec<_>>().join("; ");
+            let both = group.missing_kana && group.missing_japanese;
+            let (rule_id, message_variant, missing_languages, message, remediation) = if both {
+                (
+                        "JPN_028",
+                        "aggregate_both",
+                        "ja-Hrkt,ja",
+                        format!("GTFS-JP V3: {table}.{field} = '{source}' için zorunlu ja-Hrkt ve language=ja çevirileri eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
+                        "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt ve language=ja çevirilerini ekleyin.",
+                    )
+            } else if group.missing_kana {
+                (
+                        "JPN_028",
+                        "aggregate",
+                        "ja-Hrkt",
+                        format!("GTFS-JP V3: {table}.{field} = '{source}' için zorunlu ja-Hrkt çevirisi eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
+                        "translations.txt'e bu kaynak değeri kapsayan ja-Hrkt çevirisini ekleyin.",
+                    )
+            } else {
+                (
+                        "JPN_030",
+                        "aggregate",
+                        "ja",
+                        format!("GTFS-JP V3: {table}.{field} = '{source}' için zorunlu language=ja çevirisi eksik — {} satırı etkiliyor. Örnekler: {examples}.", group.count),
+                        "translations.txt'e bu kaynak değeri kapsayan language=ja çevirisini ekleyin.",
+                    )
+            };
+            let mut finding = notice(
+                ctr,
+                rule_id,
+                EntityType::Feed,
+                None,
+                None,
+                &file,
+                first_line,
+                Some(field),
+                Some(source.to_string()),
+                Some(missing_languages.to_string()),
+                message,
+                remediation,
+            );
+            finding.details = Some(BTreeMap::from([
+                ("message_variant".to_string(), message_variant.to_string()),
+                ("table_name".to_string(), table.to_string()),
+                ("source_value".to_string(), source.to_string()),
+                ("affected_records".to_string(), group.count.to_string()),
+                ("example_record_ids".to_string(), examples),
+                (
+                    "missing_languages".to_string(),
+                    missing_languages.to_string(),
+                ),
             ]));
             notices.push(finding);
         }
@@ -3958,115 +4082,24 @@ fn check_jp_fare_zones(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn check_jp_translation_field(
+fn record_v3_translation_pair<'a>(
     coverage: &JpTranslationCoverage<'_>,
-    notices: &mut Vec<Notice>,
-    ctr: &mut u32,
-    rule_id: &str,
-    profile: GtfsJpProfile,
-    language: JpTranslationLanguage,
-    table: &str,
-    field: &str,
-    entity_type: EntityType,
+    missing: &mut JpMissingReadings<'a>,
+    table: &'static str,
+    field: &'static str,
     record_id: Option<&str>,
     record_sub_id: Option<&str>,
-    source_value: &str,
-    file: &str,
-    line: u64,
-    recommendation: bool,
-) {
-    if !has_japanese(source_value)
-        || coverage.has(
-            table,
-            field,
-            language,
-            record_id,
-            record_sub_id,
-            source_value,
-        )
-    {
-        return;
-    }
-    let language_code = match language {
-        JpTranslationLanguage::Japanese => "ja",
-        JpTranslationLanguage::Kana => "ja-Hrkt",
-    };
-    let identity = match (record_id, record_sub_id) {
-        (Some(record_id), Some(sub_id)) => Some(format!("{record_id}:{sub_id}")),
-        (Some(record_id), None) => Some(record_id.to_string()),
-        _ => None,
-    };
-    let profile_name = profile.as_str().to_uppercase();
-    let requirement = if recommendation {
-        "önerilir"
-    } else {
-        "zorunludur"
-    };
-    notices.push(notice(
-        ctr,
-        rule_id,
-        entity_type,
-        identity.clone(),
-        identity,
-        file,
-        Some(line),
-        Some(field),
-        Some(source_value.to_string()),
-        Some(language_code.to_string()),
-        format!(
-            "GTFS-JP {profile_name}: Japonca {table}.{field} değeri için language={language_code} çevirisi {requirement}."
-        ),
-        "translations.txt'e kaynak kayıt veya field_value ile eşleşen çeviriyi ekleyin.",
-    ));
-}
-
-#[allow(clippy::too_many_arguments)]
-fn check_v3_translation_pair(
-    coverage: &JpTranslationCoverage<'_>,
-    notices: &mut Vec<Notice>,
-    ctr: &mut u32,
-    table: &str,
-    field: &str,
-    entity_type: EntityType,
-    record_id: Option<&str>,
-    record_sub_id: Option<&str>,
-    source_value: &str,
-    file: &str,
+    source_value: &'a str,
     line: u64,
 ) {
-    check_jp_translation_field(
+    missing.record_v3_pair(
         coverage,
-        notices,
-        ctr,
-        "JPN_028",
-        GtfsJpProfile::V3,
-        JpTranslationLanguage::Kana,
         table,
         field,
-        entity_type,
         record_id,
         record_sub_id,
         source_value,
-        file,
         line,
-        false,
-    );
-    check_jp_translation_field(
-        coverage,
-        notices,
-        ctr,
-        "JPN_030",
-        GtfsJpProfile::V3,
-        JpTranslationLanguage::Japanese,
-        table,
-        field,
-        entity_type,
-        record_id,
-        record_sub_id,
-        source_value,
-        file,
-        line,
-        false,
     );
 }
 
@@ -4663,8 +4696,16 @@ fn check_gtfs_jp(
     }
 
     // V3 is the static bus format. Explicit V3 selects this constraint;
-    // Auto and the multimodal V4 profile must never infer it.
-    if records.gtfs_jp_profile == GtfsJpProfile::V3 {
+    // Auto and the multimodal V4 profile must never infer it. A pure
+    // non-bus feed may still be explicitly selected as V3 for compatibility,
+    // but must not receive a per-route bus warning; the route_type=3 anchor
+    // keeps this rule scoped to feeds that actually contain bus service.
+    if records.gtfs_jp_profile == GtfsJpProfile::V3
+        && records
+            .routes
+            .iter()
+            .any(|route| route.route_type == Some(3))
+    {
         for route in &records.routes {
             if let Some(route_type) = route.route_type.filter(|value| *value != 3) {
                 notices.push(notice(
@@ -4684,23 +4725,21 @@ fn check_gtfs_jp(
     if !matches!(records.gtfs_jp_profile, GtfsJpProfile::Auto) && !records.translations.is_empty() {
         let coverage = JpTranslationCoverage::new(&records.translations);
         if matches!(records.gtfs_jp_profile, GtfsJpProfile::V3) {
+            let mut missing = JpMissingReadings::default();
             for agency in &records.agencies {
                 for (field, value) in [
                     ("agency_url", Some(agency.agency_url.as_str())),
                     ("agency_fare_url", agency.agency_fare_url.as_deref()),
                 ] {
                     if let Some(value) = value.filter(|value| !value.is_empty()) {
-                        check_v3_translation_pair(
+                        record_v3_translation_pair(
                             &coverage,
-                            notices,
-                            ctr,
+                            &mut missing,
                             "agency",
                             field,
-                            EntityType::Agency,
                             agency.agency_id.as_deref(),
                             None,
                             value,
-                            "agency.txt",
                             agency.line,
                         );
                     }
@@ -4710,17 +4749,14 @@ fn check_gtfs_jp(
                 for field in ["stop_desc", "stop_url"] {
                     let value = row_field(&stop.row, field);
                     if !value.is_empty() {
-                        check_v3_translation_pair(
+                        record_v3_translation_pair(
                             &coverage,
-                            notices,
-                            ctr,
+                            &mut missing,
                             "stops",
                             field,
-                            EntityType::Stop,
                             Some(&stop.stop_id),
                             None,
                             value,
-                            "stops.txt",
                             stop.line,
                         );
                     }
@@ -4732,17 +4768,14 @@ fn check_gtfs_jp(
                     ("route_url", route.route_url.as_deref()),
                 ] {
                     if let Some(value) = value.filter(|value| !value.is_empty()) {
-                        check_v3_translation_pair(
+                        record_v3_translation_pair(
                             &coverage,
-                            notices,
-                            ctr,
+                            &mut missing,
                             "routes",
                             field,
-                            EntityType::Route,
                             Some(&route.route_id),
                             None,
                             value,
-                            "routes.txt",
                             route.line,
                         );
                     }
@@ -4754,17 +4787,14 @@ fn check_gtfs_jp(
                     ("jp_trip_desc", ti_jpn.jp_trip_desc(trip)),
                 ] {
                     if let Some(value) = value.filter(|value| !value.is_empty()) {
-                        check_v3_translation_pair(
+                        record_v3_translation_pair(
                             &coverage,
-                            notices,
-                            ctr,
+                            &mut missing,
                             "trips",
                             field,
-                            EntityType::Trip,
                             Some(trip.trip_id.as_str()),
                             None,
                             value,
-                            "trips.txt",
                             trip.line,
                         );
                     }
@@ -4778,17 +4808,14 @@ fn check_gtfs_jp(
                         .map(|value| value.as_str())
                     {
                         let sequence = stop_time.sequence.to_string();
-                        check_v3_translation_pair(
+                        record_v3_translation_pair(
                             &coverage,
-                            notices,
-                            ctr,
+                            &mut missing,
                             "stop_times",
                             "stop_headsign",
-                            EntityType::Row,
                             Some(trip_id.as_str()),
                             Some(&sequence),
                             value,
-                            "stop_times.txt",
                             u64::from(stop_time.line),
                         );
                     }
@@ -4803,22 +4830,20 @@ fn check_gtfs_jp(
                     ("feed_publisher_url", feed_info.feed_publisher_url.as_str()),
                 ] {
                     if !value.is_empty() {
-                        check_v3_translation_pair(
+                        record_v3_translation_pair(
                             &coverage,
-                            notices,
-                            ctr,
+                            &mut missing,
                             "feed_info",
                             field,
-                            EntityType::Feed,
                             None,
                             None,
                             value,
-                            "feed_info.txt",
                             feed_info.line,
                         );
                     }
                 }
             }
+            missing.emit_v3(notices, ctr);
         } else if matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
             let mut missing = JpMissingReadings::default();
             for (trip_id, stop_times) in records.stop_times_index.iter_trips() {
@@ -4829,7 +4854,7 @@ fn check_gtfs_jp(
                         .map(|value| value.as_str())
                     {
                         let sequence = stop_time.sequence.to_string();
-                        missing.record(
+                        missing.record_v4(
                             &coverage,
                             "stop_times",
                             "stop_headsign",
@@ -4843,7 +4868,7 @@ fn check_gtfs_jp(
             }
             for attribution in &records.attributions {
                 if !attribution.organization_name.is_empty() {
-                    missing.record(
+                    missing.record_v4(
                         &coverage,
                         "attributions",
                         "organization_name",
@@ -4854,7 +4879,7 @@ fn check_gtfs_jp(
                     );
                 }
             }
-            missing.emit(notices, ctr);
+            missing.emit_v4(notices, ctr);
         }
     }
 
