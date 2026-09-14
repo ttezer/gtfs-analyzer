@@ -5,6 +5,21 @@ on:
   # workflow to retrigger itself whenever this workflow file changed, producing
   # repeated 72-minute runs for unrelated validator fixes.
   workflow_dispatch:
+    inputs:
+      profiles:
+        description: >-
+          Analyzer profile passes per feed. `auto` is the MobilityData parity
+          baseline and the only one the divergence buckets read. Adding v3/v4
+          validates every feed against the Japanese profile, including the
+          ~3,700 non-Japanese ones, which produces large and meaningless JPN
+          volumes there (measured: VBB 1,225 x JPN_027, BART 2,500 x JPN_026).
+          Use the local 635-feed sweep for profile questions instead.
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - auto,v3,v4
 
 permissions:
   contents: read
@@ -151,7 +166,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
-            --profiles auto,v3,v4 \
+            --profiles "${{ inputs.profiles || 'auto' }}" \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -200,7 +215,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
-            --profiles auto,v3,v4 \
+            --profiles "${{ inputs.profiles || 'auto' }}" \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -249,7 +264,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
-            --profiles auto,v3,v4 \
+            --profiles "${{ inputs.profiles || 'auto' }}" \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -298,7 +313,7 @@ jobs:
             --shard "${{ matrix.shard }}" \
             --shards "$SHARD_COUNT" \
             --analyzer benchmark/audit_all/tools/gtfs-analyzer \
-            --profiles auto,v3,v4 \
+            --profiles "${{ inputs.profiles || 'auto' }}" \
             --md-jar benchmark/audit_all/tools/md-cli.jar \
             --out "benchmark/audit_all/shards/shard-$(printf '%03d' '${{ matrix.shard }}').jsonl"
       - name: Upload shard checkpoint
@@ -381,6 +396,7 @@ jobs:
           AUDIT_RUN_ATTEMPT: ${{ github.run_attempt }}
           AUDIT_REF: ${{ github.ref }}
           AUDIT_COMMIT: ${{ github.sha }}
+          AUDIT_PROFILES: ${{ inputs.profiles || 'auto' }}
         run: |
           python3 - <<'PY'
           import hashlib
@@ -405,7 +421,7 @@ jobs:
               "shard_script": "benchmark/audit_all/run_shard.py",
               "aggregate_script": "benchmark/audit_all/aggregate.py",
               "platform_probe_script": "benchmark/audit_all/platform_probe.py",
-              "analyzer_profiles": ["auto", "v3", "v4"],
+              "analyzer_profiles": os.environ["AUDIT_PROFILES"].split(","),
               "analyzer_command": [
                   "gtfs-analyzer", "validate", "<feed.zip>", "--json", "--lang", "en",
                   "--today", "20260820", "--output", "report.json",
