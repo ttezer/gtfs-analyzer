@@ -369,7 +369,10 @@ function resetSettings(root: HTMLElement): void {
 
 // ── Dosya işleme ─────────────────────────────────────────────────────────────
 
+// wasm.ts MAX_INPUT_BYTES ve crates/wasm MAX_INPUT_BYTES ile AYNI olmalı;
+// hata mesajındaki sayı buradan türetilir (elle yazılmaz).
 const MAX_FILE_BYTES = 512 * 1024 * 1024;
+const MAX_FILE_MB = MAX_FILE_BYTES / 1_048_576;
 
 async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
   if (!file.name.endsWith('.zip')) {
@@ -379,7 +382,7 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
   if (file.size > MAX_FILE_BYTES) {
     showError(errorEl, {
       code: 'InvalidInput',
-      message: t('upload.error_size', { mb: (file.size / 1_048_576).toFixed(1) }),
+      message: t('upload.error_size', { mb: (file.size / 1_048_576).toFixed(1), max: MAX_FILE_MB }),
     });
     return;
   }
@@ -437,7 +440,7 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
   const declared = Number(resp.headers.get('content-length'));
   if (declared && declared > MAX_FILE_BYTES) {
     clearLoading(root);
-    showError(errorEl, { code: 'InvalidInput', message: t('upload.error_size', { mb: (declared / 1_048_576).toFixed(1) }) });
+    showError(errorEl, { code: 'InvalidInput', message: t('upload.error_size', { mb: (declared / 1_048_576).toFixed(1), max: MAX_FILE_MB }) });
     return;
   }
   // 5) Sınırlı stream indirme (Content-Length yalanlarına karşı gerçek bayt sayımı) + body-hata aşaması.
@@ -446,7 +449,7 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
   catch (err) {
     clearLoading(root);
     const msg = err instanceof RangeError
-      ? t('upload.error_size', { mb: (MAX_FILE_BYTES / 1_048_576).toFixed(0) })
+      ? t('upload.error_size', { mb: MAX_FILE_MB, max: MAX_FILE_MB })
       : t('upload.url_body');
     showError(errorEl, { code: 'InvalidInput', message: msg });
     return;

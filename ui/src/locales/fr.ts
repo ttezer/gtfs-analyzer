@@ -115,7 +115,7 @@ const fr: LocaleShape = {
     'upload.settings_saved'   : 'Paramètres enregistrés. Ils s’appliqueront au prochain téléversement de ZIP.',
     'upload.settings_reset'   : 'Valeurs par défaut restaurées.',
     'upload.error_zip'        : 'Seuls les fichiers .zip sont acceptés.',
-    'upload.error_size'       : 'Fichier trop volumineux ({mb} Mo). Taille maximale autorisée : 1024 Mo.',
+    'upload.error_size'       : 'Fichier trop volumineux ({mb} Mo). Taille maximale autorisée : {max} Mo.',
     'upload.url_placeholder'  : 'https://…/gtfs.zip',
     'upload.url_aria'         : 'URL du jeu de données',
     'upload.url_load'         : 'Charger depuis une URL',
