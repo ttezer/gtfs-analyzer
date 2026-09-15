@@ -81,7 +81,7 @@ jobs:
           path: |
             benchmark/audit_all/run/manifest.json
             benchmark/audit_all/run/feeds_v2.csv
-          retention-days: 90
+          retention-days: 30
 
   build-tools:
     runs-on: ubuntu-latest
@@ -126,7 +126,7 @@ jobs:
         with:
           name: audit-all-mdb-tools
           path: benchmark/audit_all/tools/
-          retention-days: 90
+          retention-days: 30
 
   audit_a:
     needs: [prepare, build-tools]
@@ -175,7 +175,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 90
+          retention-days: 30
 
   audit_b:
     needs: [prepare, build-tools]
@@ -224,7 +224,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 90
+          retention-days: 30
 
   audit_c:
     needs: [prepare, build-tools]
@@ -273,7 +273,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 90
+          retention-days: 30
 
   audit_d:
     needs: [prepare, build-tools]
@@ -322,7 +322,7 @@ jobs:
         with:
           name: audit-all-mdb-shard-${{ matrix.shard }}
           path: benchmark/audit_all/shards/
-          retention-days: 90
+          retention-days: 30
 
   aggregate:
     needs: [prepare, build-tools, audit_a, audit_b, audit_c, audit_d]
@@ -444,7 +444,7 @@ jobs:
             benchmark/audit_all/final/
             benchmark/audit_all/validator-audit-all-mdb-results.tar.gz
             benchmark/audit_all/validator-audit-all-mdb-results.tar.gz.sha256
-          retention-days: 90
+          retention-days: 30
       - name: Archive final audit as GitHub prerelease
         if: always() && hashFiles('benchmark/audit_all/final/provenance.json') != ''
         env:
