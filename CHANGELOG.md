@@ -9,16 +9,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.13.1] - 2026-09-15
 
-Patch release for GTFS-JP detection and fare-zone evidence correctness.
+This release contains the accumulated validator, corpus-audit, GTFS-JP, SDK,
+and documentation work completed after 0.13.0. It includes 49 commits across
+the Rust engine, CLI, WASM/npm distribution, audit tooling, rule cards,
+locales, and regression fixtures.
+
+### Added
+
+- **`LOC_012` — invalid locations document** (rule count 613 → 614). A
+  locations file that cannot be read, is not JSON, is not a FeatureCollection,
+  or has no `features` array now has a rule whose title describes the failure.
+  `LOC_001` is reserved for an actually unsupported `geometry.type`.
+- The corpus audit can now dispatch `auto`, `v3`, and `v4` as an explicit
+  workflow choice. Auto remains the default parity run; profile results are
+  written separately to `analyzer_profiles`, `profile-summary.json`, and
+  `profile-rules.json`, and provenance records the profiles that were actually
+  used.
+- The audit bundle now records run id, attempt, ref, analyzer commit,
+  MobilityData version, shard count, and manifest SHA-256. GitHub archives the
+  result bundle as an `audit-<run-id>` prerelease and retains artifacts for 90
+  days.
 
 ### Fixed
 
-- Evaluate the shared GTFS-JP detector after `stops.txt` is parsed, so kana in
-  `stop_name` independently activates JP validation even when metadata is wrong.
-- Ignore unknown or whitespace-padded fare-zone references as JPN_031 scope
-  evidence; the corresponding generic fare-reference notice remains authoritative.
-- Keep explicit V3/V4 profile selection behind the shared JP detection gate and
-  synchronize the GTFS-JP rule cards and matrix with that behavior.
+- **Attribution references now retain the right granularity.** `ATR_010`,
+  `ATR_011`, and `ATR_012` report each broken row when the optional
+  `attribution_id` is absent, so a feed with 26 dangling `trip_id` values no
+  longer collapses to one notice. Systemic `ATR_001` and `ATR_003` violations,
+  and mutually exclusive `ATR_009` violations, remain one notice per file but
+  now include the affected row count. The corpus increase is only 25 notices;
+  the large systemic counts are no longer repeated as identical messages.
+- **`TRP_004` is aggregated by `shape_id`.** One notice is emitted per
+  distinct dangling shape, with the affected trip count and an example trip,
+  reducing 70,135 repeated notices across 29 feeds. Whitespace-only
+  `shape_id` values are treated as empty fields and remain owned by `DQ_016`.
+- **`TRF_011` is aggregated by stop pair.** The rule now reports one finding
+  per affected origin/destination pair with the contributing transfer rows,
+  reducing the tfs-789 example from 829 notices to 57 while preserving the
+  2,000 m threshold and deterministic output.
+- **Streaming row-length validation covers `trips.txt` and
+  `calendar_dates.txt`.** `ARC_012` now reaches the same malformed-row cases
+  on both streaming paths; the mdb-2013 and mdb-3360 parity cases are covered
+  by regression tests.
+- Empty `pickup_type` and `drop_off_type` values are interpreted as the GTFS
+  implicit zero inside Flex windows. Malformed non-empty values still produce
+  their enum findings, and absent columns are left to the required-column
+  rules. Malformed rows continue through field-level parsing deliberately so
+  the report retains the actionable findings from the row.
+- **Whitespace-derived findings are suppressed at the source.** K2, K4, K7,
+  the CLI, and WASM now share whitespace metadata and suppress a validator
+  notice only when the trimmed value passes that field's validator and a
+  declared `DQ_016` root exists. URL, email, and fare validators no longer
+  duplicate that root; the Critical `AGN_003` path remains unchanged pending a
+  separate measurement.
+- `XFL_002` now compares against stop-time identifiers from the table it
+  actually checks, recovering 108 Renfe findings that were previously hidden
+  by a trips-table lookup. `XFL_006` sorts service IDs before emission, making
+  observed values and messages stable across repeated runs.
+- **Translation field validation follows the specification.** `TRN_002`
+  checks whether `field_name` is a real column in the named table, including
+  extension columns, and `TRN_011` checks the generated field type rather than
+  a substring heuristic. `JPN_019` shares the same predicate. This removes
+  1,900 false `TRN_002` findings and 50 false `TRN_011` findings from the
+  measured corpus while retaining genuine unknown-field errors. `TRN_016`
+  details now include up to five concrete unmatched examples in every locale.
+- **ZIP failures identify the failing layer.** Unreadable archives now
+  distinguish a missing end-of-central-directory record, a missing central
+  directory, and an intact directory with a broken local header, including
+  the offending entry and offset when available. ZIP64 archives are left to
+  the library because their 32-bit escape fields cannot be diagnosed safely.
+- **GTFS-JP validation is gated by independent detection.** The detector is
+  recalculated after `stops.txt` is parsed and recognizes physical `*_jp.txt`,
+  feed language, `ja-Hrkt` translations, the `agency_lang` + `Asia/Tokyo`
+  combination, and kana in `agency_name` or `stop_name`. This breaks the
+  circularity where `JPN_023`–`JPN_025` could not report wrong metadata. In the
+  4,311-feed measurement, all 635 Japanese feeds were detected and no
+  non-Japanese feed fired a signal; the five previously missed Japanese feeds
+  were recovered.
+- Explicit `v3` and `v4` profiles still pass through the shared JP detection
+  gate, so profile selection does not make ordinary feeds emit JPN notices.
+  Japanese V3 route validation now requires numeric `route_type = 3`; the
+  previous bus-majority and extended-bus heuristic is gone. V4 remains outside
+  that V3-only rule.
+- **GTFS-JP aggregation and evidence are corrected.** `JPN_026` emits one
+  finding per currency, while `JPN_028`, `JPN_029`, and `JPN_030` emit one per
+  `(table, field, source_value)` with affected-record counts and examples.
+  When both `ja-Hrkt` and `ja` are missing for the same value, one aggregate
+  `JPN_028` finding represents the pair. `JPN_031` no longer treats unknown or
+  whitespace-only fare-zone references as regional-scope evidence; the generic
+  fare-reference finding remains authoritative.
+- `FAR_013` is now `Info/Quality` instead of `Low/Spec`. The fare-attributes
+  price field has no specification provision requiring ISO-4217 decimal
+  precision; the enforceable fare-products amount rule remains `FPD_007`.
+- `AGN_008`, `AGN_009`, and `FIN_004` no longer repeat a whitespace root when
+  their trimmed values are valid. `LOC_001` no longer describes a non-JSON
+  document as an invalid geometry type, and its technical detail is kept in
+  the message and observed value rather than being presented as data.
+
+### Performance
+
+- `TRN_016` builds target values once per `(table, field)` instead of rescanning
+  the target table for every translation row. On mdb-865 (776,265 translation
+  rows), K4 fell from 98,420 ms to 1,041 ms and whole validation from 129 s to
+  47 s with identical output.
+- Early whitespace suppression removes derivative notices before they enter the
+  aggregation and serialization paths. The change is wired through native,
+  CLI, WASM, and SDK paths and is covered by cross-runtime tests.
+- GTFS-JP aggregate output materially reduces large-feed cost. Across 590
+  Japanese archives total notices fell from 2,102,555 to 211,854, with
+  `JPN_029` falling from 1,901,271 to 10,570 while all affected records remain
+  in aggregate counters. On the largest feed, `JPN_029` fell 531,569 → 165,
+  JSON output 402 MB → 21 MB, peak RSS 2.10 GB → 767 MB, and the measured wall
+  time 2.93 s → 1.18 s.
+
+### Validation and documentation
+
+- The 18th full-catalog run completed 4,311/4,311 testable feeds. README
+  corpus figures now use that run: 4,343 catalog entries, 4,311 testable,
+  4,298 completed by both validators, and 426 rules with findings. The
+  comparison now includes total wall time and explains why one median speed
+  multiplier is misleading across feed sizes.
+- The spec-audit ledger now records the complete adjudication of the
+  Spec-absent bucket, the remaining mapped-but-absent cases, attribution and
+  stop-area verdicts, and implementation-limit cases caused by partial
+  MobilityData runs. Aggregate rules are registered with their measured
+  comparison semantics instead of being reported as under-counts.
+- The five non-Japanese feeds that could be affected by the expanded
+  translation-field set were read from their archives. Two Spanish feeds do
+  translate `feed_publisher_url`, so `TRN_002` drops from eight to four there;
+  both remain unpublishable for their separate `feed_contact_url` findings,
+  and the other three feeds are unchanged. Missing optional `agency_lang`
+  remains explicitly out of scope because no corresponding GTFS rule exists.
+- Rule cards, localized rule messages/remediations, README translations,
+  translation examples, code references, and the shared-fixture ledger were
+  regenerated and re-anchored. Locale export/parity, card consistency, and
+  all four interface languages are covered by CI.
+- The GTFS-JP package has dedicated profile, detection, aggregation, fare-zone,
+  locale, native/WASM, and SDK parity fixtures. The final sweep covers
+  635 Japanese feeds across `auto`, `v3`, and `v4`; BART, TriMet, and VBB stay
+  silent behind the detection gate.
+- The Linux platform comparison is documented with its actual evidence
+  boundary: the historical Ubuntu artifact used an older analyzer commit, so
+  no threshold or analytic behavior was changed on the basis of an unrepeatable
+  cross-platform claim.
+
+### Release
+
+- Rust engine, CLI, configuration, rules, pipeline, and WASM version surfaces
+  move from `0.13.0` to `0.13.1`; `gtfs-sdk` moves from `0.4.0` to `0.4.1` and
+  reports engine `0.13.1`. `gtfs-wasm` remains `publish = false` and is shipped
+  through the SDK; the private UI package intentionally remains `0.13.0`.
+- The final SDK package contains nine allow-listed files and passes the package
+  size, smoke, WASM32/WASM64 determinism, locale, Rust, and UI gates. The
+  packed/unpacked CI limits are now 1,000,000 / 3,000,000 bytes with the
+  allowlist check unchanged. The published package is `gtfs-sdk@0.4.1`.
 
 ## [0.13.0] - 2026-09-09
 
