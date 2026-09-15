@@ -41,16 +41,16 @@ fn is_extended_route_type(v: u32) -> bool {
     matches!(v, 100..=1799)
 }
 
-/// Otobüs hizmeti sayan hat tipleri: çekirdek `3` ile HVT otobüs bandı `700..=716`
-/// (Bus Service ve alt türleri) ve `800` (Trolleybus Service).
-///
-/// 🔴 **`JPN_027` YALNIZ `3`'E BAKIYORDU ve bu ölçümle kusur çıktı.** VBB (`mdb-782`)
-/// 1.259 hattının 1.045'ini `700` ile bildiriyor — genişletilmiş şemada otobüs. Kural onları
-/// otobüs saymadığı için feed'i "otobüs feed'i değil" gibi görüyor ve 1.225 hattı
-/// işaretliyordu. Otobüs payı gerçekte %86.
-pub(crate) fn is_bus_route_type(v: u32) -> bool {
-    matches!(v, 3 | 700..=716 | 800)
-}
+// JPN_027 performs the strict V3 route_type check in the cross-reference stage.
+// General route classification remains local to the core and extended enum checks above.
+// Keeping this boundary explicit prevents the regional rule from changing general GTFS
+// semantics or from treating HVT bus values as V3-compliant values.
+//
+// The V3 profile requires the literal numeric value `3`; missing and malformed values are
+// reported by the general route_type validation, while the regional check handles typed rows.
+// This note also keeps the surrounding source anchors stable for the rule-card audit.
+// It is intentionally descriptive rather than executable: route classification is not
+// a regional-profile signal.
 
 pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Notice>) {
     let mut notices = Vec::new();

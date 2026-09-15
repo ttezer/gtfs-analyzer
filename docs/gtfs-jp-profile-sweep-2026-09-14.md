@@ -167,7 +167,7 @@ Bu takip maddeleri uygulandı:
 
 - V3 `JPN_028` ve `JPN_030`, `(table_name, field_name, source_value)` başına toplulaştırıldı. `affected_records` kaynak satırlarının tamamını koruyor; beş deterministik örnek raporda kalıyor.
 - Aynı kaynak değerde hem `ja-Hrkt` hem `language=ja` eksikse tek `JPN_028` `aggregate_both` bildirimi üretiliyor; yalnız `language=ja` eksikse toplu `JPN_030` korunuyor.
-- `JPN_027`, explicit V3 içinde en az bir `route_type=3` otobüs ankrajı bulunan feed'lerde çalışıyor. Yalnız demiryolu, tramvay veya vapur hatlarından oluşan feed'lerde per-route yanlış pozitif üretmiyor; Auto ve V4 hâlâ kapsam dışı.
+- `JPN_027`, ortak JP tespit kapısından sonra explicit V3'te her sayısal `route_type != 3` değeri için tip başına tek bulgu üretiyor. `700..716` ve `800` de V3 sabitini karşılamıyor; Auto ve V4 hâlâ kapsam dışı. Bu davranış, önceki ankraj/çoğunluk sezgisinin düzeltmesidir.
 - Audit shard'ı artık aynı indirilen ZIP'i Auto, V3 ve V4 profilleriyle koşabiliyor. Auto sonucu geriye dönük `analyzer` alanında korunuyor; explicit profil sonuçları `analyzer_profiles`, `profile-summary.json` ve `profile-rules.json` içinde tutuluyor.
 
 SHP/STM/OPR platform farkı için eşik veya analitik davranış değiştirilmedi: yerel macOS arm64 ortamında Linux karşılaştırması kanıtlanamazdı. CI denetimi artık Ubuntu runner üzerinde explicit profil ölçümlerini yayımlayacak; bu altı feed için platform hipotezi bu koşumla doğrulanabilir veya reddedilebilir.

@@ -298,8 +298,8 @@ fn v3_requires_bus_route_type_and_routes_agency_id() {
         "feed_info.txt",
         b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
     ));
-    // Çapa "otobüs ÇOĞUNLUKTA" (2026-09-14): iki otobüs + bir demiryolu. Tek otobüsle kural
-    // artık susar; ölçüm BART'ta 12 metro hattının yanlış işaretlendiğini gösterdi.
+    // Açık V3 artık sayısal route_type=3 sabitini doğrudan uygular; iki otobüs + bir demiryolu
+    // fixture'ında route_type=2 ihlali, dağılımdan bağımsız olarak raporlanmalıdır.
     files[2] = (
         "routes.txt",
         b"route_id,route_short_name,route_type\nR1,101,3\nR2,102,3\nR3,103,2\n",
@@ -4991,5 +4991,73 @@ fn attribution_mutually_exclusive_refs_are_summarized_once_with_a_count() {
             );
         }
         other => panic!("ValidateResult::Ok beklendi: {other:?}"),
+    }
+}
+
+#[test]
+fn japanese_text_signal_opens_jp_validation_when_metadata_is_wrong() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,\xE6\x9D\xB1\xE4\xBA\xAC\xE3\x83\x90\xE3\x82\xB9,http://test.example,Europe/London,en\n",
+    );
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,\xE6\x9D\xB1\xE4\xBA\xAC\xE3\x81\x88\xE3\x81\x8D,41.0,29.0\nS2,London,41.1,29.1\n",
+    );
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,en\n",
+    ));
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n",
+    ));
+
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                vr.metrics.is_gtfs_jp,
+                "Japonca kana metni, bozuk JP metadata'sından bağımsız tespiti açmalı"
+            );
+            for rule in ["JPN_023", "JPN_024", "JPN_025", "JPN_026"] {
+                assert!(has(&vr, rule), "{rule} Japonca metin sinyaliyle çalışmalı");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
+fn kanji_only_text_does_not_open_jp_validation() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,\xE8\x87\xBA\xE5\x8C\x97\xE5\xB8\x82,http://test.example,UTC,en\n",
+    );
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,\xE8\x87\xBA\xE5\x8C\x97\xE8\xBB\x8A\xE7\xAB\x99,41.0,29.0\nS2,Central Station,41.1,29.1\n",
+    );
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,en\n",
+    ));
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n",
+    ));
+
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                !vr.metrics.is_gtfs_jp,
+                "Kanji tek başına JP sinyali sayılmamalı"
+            );
+            for rule in ["JPN_023", "JPN_024", "JPN_025", "JPN_026"] {
+                assert!(!has(&vr, rule), "{rule} yalnız Kanji metinle çalışmamalı");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }

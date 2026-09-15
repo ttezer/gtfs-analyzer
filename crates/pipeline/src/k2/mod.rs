@@ -46,7 +46,7 @@ use attributions::{validate_attributions, AttributionRecord};
 use booking_rules::{validate_booking_rules, BookingRuleRecord};
 use calendar::{validate_calendar, CalendarRecord};
 use calendar_dates::{validate_calendar_dates_with_limits, CalendarDateIndex};
-use common::{is_japanese_language_tag, make_k2_notice};
+use common::{has_japanese_kana, is_japanese_language_tag, make_k2_notice};
 use fare_attributes::{
     validate_fare_attributes, validate_fare_attributes_with_suppression, FareAttributeRecord,
 };
@@ -188,6 +188,20 @@ pub fn detect_gtfs_jp(records: &EntityRecords, physical_jp_file: bool) -> bool {
                 .as_deref()
                 .is_some_and(is_japanese_language_tag)
                 && agency.agency_timezone.eq_ignore_ascii_case("Asia/Tokyo")
+        })
+        // feed_lang, agency_lang and agency_timezone are themselves checked by
+        // JPN_023..025. Keep an independent text signal so a Japanese feed
+        // with all three metadata values wrong can still reach those rules.
+        // Kana is required; Kanji-only text is ambiguous with Chinese/Taiwanese
+        // feeds and was measured to produce false positives.
+        || records
+            .agencies
+            .iter()
+            .any(|agency| has_japanese_kana(&agency.agency_name))
+        || records.stops.iter().any(|stop| {
+            stop.stop_name
+                .as_deref()
+                .is_some_and(has_japanese_kana)
         })
 }
 

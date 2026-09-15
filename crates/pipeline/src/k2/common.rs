@@ -166,6 +166,22 @@ pub fn is_japanese_language_tag(value: &str) -> bool {
             .is_some_and(|primary| primary.eq_ignore_ascii_case("ja"))
 }
 
+/// Returns whether a user-facing value contains Japanese kana.
+///
+/// Kanji alone is deliberately not enough here: the same CJK characters are
+/// used by Chinese and Taiwanese feeds, which would make a text-only JP gate
+/// noisy. Kana (Hiragana, Katakana, or half-width Katakana) is the independent
+/// text signal used to recover Japanese feeds whose language metadata is wrong.
+pub fn has_japanese_kana(value: &str) -> bool {
+    value.chars().any(|c| {
+        matches!(c,
+            '\u{3040}'..='\u{309F}'   // Hiragana
+            | '\u{30A0}'..='\u{30FF}' // Katakana
+            | '\u{FF66}'..='\u{FF9F}' // Half-width Katakana
+        )
+    })
+}
+
 pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
@@ -1275,6 +1291,16 @@ mod tests {
         assert!(!super::is_japanese_language_tag("jaa"));
         assert!(!super::is_japanese_language_tag("en-ja"));
         assert!(!super::is_japanese_language_tag("ja--JP"));
+    }
+
+    #[test]
+    fn japanese_text_detection_requires_kana_not_kanji() {
+        assert!(super::has_japanese_kana("東京バス"));
+        assert!(super::has_japanese_kana("とうきょう駅"));
+        assert!(super::has_japanese_kana("ｼﾌﾞﾔ"));
+        assert!(!super::has_japanese_kana("東京駅"));
+        assert!(!super::has_japanese_kana("臺北車站"));
+        assert!(!super::has_japanese_kana("Tokyo Station"));
     }
 
     /// issue #86 — GTFS `Email` tipi SÖZDİZİMİ doğrulaması.

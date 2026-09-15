@@ -44,15 +44,14 @@ fn select<'a>(notices: &'a [Notice], rule: &str) -> Vec<&'a Notice> {
 
 #[test]
 fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
-    // Otobüs ÇOĞUNLUKTA olsun (üç otobüs + bir aday) ki çapa açık olsun; testin ölçtüğü şey
-    // adayın tipi, çapa değil.
+    // Açık V3, sayısal route_type için yalnızca 3'ü kabul eder; route türlerinin dağılımı
+    // kuralın kapsamını değiştirmemelidir.
     for (value, fires) in [
         ("2", true),
         ("999", true),
         ("3", false),
-        // 700 HVT şemasında Bus Service'tir → otobüs sayılır, bulgu YOK.
-        ("700", false),
-        ("800", false),
+        ("700", true),
+        ("800", true),
         ("", false),
         ("bad", false),
         ("-1", false),
@@ -72,36 +71,42 @@ fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
 }
 
 #[test]
-fn v3_route_type_constraint_is_silent_for_pure_non_bus_feeds() {
+fn v3_route_type_constraint_reports_every_numeric_non_three_type() {
     let routes =
         "route_id,agency_id,route_short_name,route_type\nR1,A,rail,2\nR2,A,tram,0\nR3,A,ferry,4\n";
     let result = validate(&[("routes.txt", routes)], GtfsJpProfile::V3);
-    assert!(select(&result.notices, "JPN_027").is_empty());
+    let found = select(&result.notices, "JPN_027");
+    assert_eq!(
+        found.len(),
+        3,
+        "her üç route_type ihlal olarak raporlanmalı"
+    );
 }
 
-/// 🔴 ÖLÇÜLMÜŞ YANLIŞ POZİTİF (`mdb-53`, BART): 14 hattın 12'si metro, 2'si otobüs. Eski çapa
-/// "en az bir otobüs hattı" olduğu için o iki hat kapıyı açıyor ve 12 metro hattı işaretleniyordu.
-/// Otobüs AZINLIKTA olan feed bir otobüs feed'i değildir; kural susmalıdır.
+/// Açık V3, otobüs olmayan hatlar çoğunlukta veya azınlıkta olsa da aynı sabiti uygular.
 #[test]
-fn v3_route_type_constraint_is_silent_when_bus_is_a_minority() {
+fn v3_route_type_constraint_reports_non_bus_when_bus_is_a_minority() {
     let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
     for i in 0..12 {
         routes.push_str(&format!("RAIL{i},A,rail{i},1\n"));
     }
     routes.push_str("BUS1,A,bus1,3\nBUS2,A,bus2,3\n");
     let result = validate(&[("routes.txt", &routes)], GtfsJpProfile::V3);
-    assert!(
-        select(&result.notices, "JPN_027").is_empty(),
-        "{:?}",
-        select(&result.notices, "JPN_027")
+    let found = select(&result.notices, "JPN_027");
+    assert_eq!(found.len(), 1, "route_type=1 tek toplu bulgu olmalı");
+    assert_eq!(
+        found[0]
+            .details
+            .as_ref()
+            .and_then(|d| d.get("affected_records"))
+            .map(String::as_str),
+        Some("12")
     );
 }
 
-/// 🔴 ÖLÇÜLMÜŞ YANLIŞ POZİTİF (`mdb-782`, VBB): 1.259 hattın 1.045'i `700` ile bildirilmiş,
-/// HVT şemasında Bus Service. Kural yalnız `3`'e baktığı için feed'i otobüs feed'i saymıyor ve
-/// 1.225 hattı işaretliyordu.
+/// HVT değerleri genel sınıflandırmada otobüs olsa bile V3'ün sabit `3` değerine uymaz.
 #[test]
-fn extended_bus_route_types_count_as_bus_for_the_anchor() {
+fn extended_route_types_are_v3_violations() {
     let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
     for i in 0..10 {
         routes.push_str(&format!("B{i},A,bus{i},700\n"));
@@ -109,9 +114,17 @@ fn extended_bus_route_types_count_as_bus_for_the_anchor() {
     routes.push_str("T1,A,tram,900\n");
     let result = validate(&[("routes.txt", &routes)], GtfsJpProfile::V3);
     let found = select(&result.notices, "JPN_027");
-    // Çapa açılır (otobüs %91) ve YALNIZ tramvay bildirilir — on otobüs hattı değil.
-    assert_eq!(found.len(), 1, "{found:?}");
-    assert_eq!(found[0].observed_value.as_deref(), Some("900"));
+    assert_eq!(
+        found.len(),
+        2,
+        "iki farklı V3 ihlal tipi beklenir: {found:?}"
+    );
+    assert!(found
+        .iter()
+        .any(|n| n.observed_value.as_deref() == Some("700")));
+    assert!(found
+        .iter()
+        .any(|n| n.observed_value.as_deref() == Some("900")));
 }
 
 /// Emisyon TİP başına toplanır: aynı `route_type`'ı paylaşan hatlar tek bulguda birleşir.

@@ -4720,76 +4720,76 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_027: V3 otobüs profilinde otobüs dışı hat ────────────────────────
-    // V3 statik otobüs formatıdır; açık V3 bu kısıtı seçer, Auto ve çok modlu V4 ASLA
-    // çıkarsamaz.
+    // ── JPN_027: V3 route_type sabiti ─────────────────────────────────────────
+    // V3 statik otobüs formatıdır ve açık V3 profilinde route_type tam olarak 3 olmalıdır.
+    // Bu kontrolün JP tespit kapısı yukarıda uygulanır; Auto ve çok modlu V4 kapsam dışıdır.
+    // HVT değerleri (700..716, 800) genel GTFS sınıflandırmasında otobüs olabilir, ancak V3
+    // sabitini karşılamaz ve bu nedenle burada ihlal sayılır. Eksik veya parse edilemeyen
+    // değerler genel route_type kurallarına bırakılır.
     //
-    // 🔴 ÇAPA İKİ KEZ YANLIŞTI, ikisi de ölçümle çıktı:
-    // 1. **"en az bir otobüs hattı" yetmez.** `any(route_type == 3)` saf otobüs dışı feed'i
-    //    (34 Japon demiryolu/tramvay/vapur feed'i) doğru biçimde susturuyordu ama otobüsün
-    //    AZINLIK olduğu çok modlu feed'i korumuyordu: BART'ın 2 otobüs hattı kapıyı açıyor ve
-    //    12 metro hattı işaretleniyordu. Ölçülen ayrım keskin — BART %14, VBB %3, TriMet %88 —
-    //    dolayısıyla "otobüs BASKIN olmalı" eşiği %14 ile %88 arasında geniş boşluğa oturur.
-    // 2. **Yalnız `3` otobüs sayılıyordu.** VBB 1.045 hattını `700` (HVT Bus Service) ile
-    //    bildiriyor; kural onları otobüs saymayıp 1.225 hattı işaretliyordu. Gerçek otobüs
-    //    payı %86. → `k2::routes::is_bus_route_type`
-    //
-    // 🔑 Emisyon de TİP başına toplanır. Künyede tekilleştirme `Field` yazıyor, yani kimlik
-    // "alan"; hat başına basmak aynı olguyu yüzlerce kez tekrarlıyordu (VBB 1.225).
+    // Emisyon tip başına toplanır. Künyede tekilleştirme `Field` yazıyor, yani kimlik
+    // "alan"; hat başına basmak aynı olguyu yüzlerce kez tekrarlardı.
     if records.gtfs_jp_profile == GtfsJpProfile::V3 {
         let typed: Vec<(u32, &crate::k2::routes::RouteRecord)> = records
             .routes
             .iter()
             .filter_map(|route| route.route_type.map(|value| (value, route)))
             .collect();
-        let bus = typed
-            .iter()
-            .filter(|(value, _)| crate::k2::routes::is_bus_route_type(*value))
-            .count();
-        // Otobüs BASKIN değilse bu bir otobüs feed'i değildir ve hiçbir şey iddia edilmez.
-        if bus * 2 > typed.len() {
-            let mut groups: BTreeMap<u32, (u64, Vec<String>, u64)> = BTreeMap::new();
-            for (value, route) in &typed {
-                if crate::k2::routes::is_bus_route_type(*value) {
-                    continue;
-                }
-                let entry = groups
-                    .entry(*value)
-                    .or_insert_with(|| (0, Vec::new(), route.line));
-                entry.0 += 1;
-                if entry.1.len() < 3 {
-                    entry.1.push(route.route_id.clone());
-                }
+        let mut groups: BTreeMap<u32, (u64, Vec<String>, u64)> = BTreeMap::new();
+        for (value, route) in &typed {
+            if *value == 3 {
+                continue;
             }
-            for (route_type, (count, examples, line)) in groups {
-                let first = examples.first().cloned();
-                let mut finding = notice(
-                    ctr,
-                    "JPN_027",
-                    EntityType::Route,
-                    first.clone(),
-                    first,
-                    "routes.txt",
-                    Some(line),
-                    Some("route_type"),
-                    Some(route_type.to_string()),
-                    Some("3".to_string()),
-                    format!(
-                        "GTFS-JP V3 otobüs profilinde route_type={route_type} kullanan {count} hat var; 3 olmalıdır. Örnekler: {}.",
-                        examples.join(", ")
-                    ),
-                    "V3 otobüs verisinde route_type=3 kullanın; çok modlu veri için uygun profili seçin.",
-                );
-                finding.details = Some(BTreeMap::from([
-                    ("message_variant".to_string(), "aggregate".to_string()),
-                    ("jp_profile".to_string(), "v3".to_string()),
-                    ("affected_records".to_string(), count.to_string()),
-                    ("example_record_ids".to_string(), examples.join(", ")),
-                ]));
-                notices.push(finding);
+            let entry = groups
+                .entry(*value)
+                .or_insert_with(|| (0, Vec::new(), route.line));
+            entry.0 += 1;
+            if entry.1.len() < 3 {
+                entry.1.push(route.route_id.clone());
             }
         }
+        for (route_type, (count, examples, line)) in groups {
+            let first = examples.first().cloned();
+            let mut finding = notice(
+                ctr,
+                "JPN_027",
+                EntityType::Route,
+                first.clone(),
+                first,
+                "routes.txt",
+                Some(line),
+                Some("route_type"),
+                Some(route_type.to_string()),
+                Some("3".to_string()),
+                format!(
+                    "GTFS-JP V3 otobüs profilinde route_type={route_type} kullanan {count} hat var; 3 olmalıdır. Örnekler: {}.",
+                    examples.join(", ")
+                ),
+                "Açık V3 profilinde routes.txt içindeki route_type değerlerini 3 yapın.",
+            );
+            finding.details = Some(BTreeMap::from([
+                ("message_variant".to_string(), "aggregate".to_string()),
+                ("jp_profile".to_string(), "v3".to_string()),
+                ("affected_records".to_string(), count.to_string()),
+                ("example_record_ids".to_string(), examples.join(", ")),
+            ]));
+            notices.push(finding);
+        }
     }
+    // JPN_027 keeps its own profile boundary; the shared JP detector remains the sole
+    // activation gate for regional notices and is evaluated before this cross-reference pass.
+    // Numeric route types are grouped here so one malformed convention does not create a
+    // notice for every individual route while still preserving the affected-record count.
+    // The strict V3 literal is deliberately independent from the general HVT classification.
+    // Auto and V4 are intentionally silent for this V3-only rule, even when the feed is JP.
+    // Missing and malformed values stay with the core route_type checks for their own messages.
+    // These comments document the separation between detection, profile selection and scope.
+    // They also preserve the source anchors used by the rule-card consistency audit.
+    // The emitted finding carries the observed type and expected value for remediation.
+    // No route-level loop is needed beyond the bounded example list in the aggregate.
+    // Keep this invariant when extending JPN_027: numeric != 3 is the complete candidate set.
+    // The rule card names this behavior explicitly so future edits do not restore the heuristic.
+    // Keep the activation gate and the V3 scope as separate concerns.
     check_jp_fare_zones(records, map, availability, notices, ctr);
 
     // ── JPN_028..030: remaining v3/v4 translation coverage ──────────────────

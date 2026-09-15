@@ -1004,9 +1004,9 @@ fn fixtures() -> Vec<Fixture> {
             "feed_info.txt",
             "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n",
         )]),
-        // Çapa "otobüs ÇOĞUNLUKTA" (2026-09-14): iki otobüs + bir demiryolu. Tek otobüsle
-        // kural artık susar ve bu bilinçli — ölçüm BART'ta 12 metro hattının yanlış
-        // işaretlendiğini gösterdi.
+        // Açık V3 sayısal route_type=3 sabitini doğrudan uygular; bu fixture route_type=2
+        // ihlalini dağılımdan bağımsız olarak kanıtlar.
+        // JP detector gate is provided by feed_info.txt in the fixture.
         fx_v3("JPN_027", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,2\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
