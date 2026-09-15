@@ -18,7 +18,9 @@ spec.loader.exec_module(coverage)
 class GtfsJpCoverageTests(unittest.TestCase):
     def test_inventory_is_closed_and_strong_rows_are_mapped(self):
         rows = coverage.load_rows()
-        self.assertEqual(len(rows), 39)
+        self.assertEqual(len(rows), 40)
+        self.assertTrue(all(row["source_document"] and row["source_version"] for row in rows))
+        self.assertTrue(all(row["audited_on"] == "2026-09-16" for row in rows))
         self.assertTrue(all(row["strength"] != "strong" or row["automation"] == "rule" for row in rows))
         mapped = set().union(*(coverage.rule_ids(row) for row in rows))
         jpn = {rule for rule in mapped if coverage.JPN_ID.fullmatch(rule)}

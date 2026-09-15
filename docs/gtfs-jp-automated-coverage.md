@@ -1,7 +1,7 @@
 # GTFS-JP V3/V4 — %100 otomatik kapsama sözleşmesi
 
-Bu belge UI'daki `GTFS-JP V3/V4 · %100 otomatik kapsama (insan yorumu
-gerektiren kurallar hariç)` rozetinin ürün sözleşmesidir. Yüzde feed'in
+Bu belge UI'daki `GTFS-JP V3/V4 · %100 otomatik kapsama (insan yorumu ve
+yalnızca öneri hükümleri hariç)` rozetinin ürün sözleşmesidir. Yüzde feed'in
 doğrulama sonucunu, dosya okunabilirliğini veya R1 kapsamını göstermez; seçilen
 profildeki **makineyle doğrulanabilen MLIT hükümlerinin** ürün envanterine
 alındığını gösterir.
@@ -16,7 +16,8 @@ alındığını gösterir.
   bu karara dahil değildir. R1 kapsamı eksikse yalnız yayınlanabilirlik kartı
   etkilenir.
 - Gerçek法人番号 kurum eşleşmesi, kana/okuma doğruluğu, dış veriyle ücret
-  yorumu ve insan kararı gerektiren konular yüzdeye dahil değildir.
+  yorumu, insan kararı gerektiren konular ve yalnızca öneri niteliğindeki
+  hükümler yüzdeye dahil değildir.
 
 ## Makineyle doğrulanan envanter
 
@@ -42,51 +43,50 @@ Kaynak gerçekliği ve yüzde hesabının paydası [`spec-audit/gtfs_jp_provisio
 
 **Eşleşmemiş güçlü makine hükmü: 0**
 
-Envanterde **33 makine kuralı eşleşmesi** bulunur (30 güçlü hüküm, 3 yumuşak
-öneri). Yumuşak öneriler de otomatik çalışır; uyumluluk yüzdesinin zorunlu
-paydasına yalnız güçlü hükümler girer.
+Her satır, hangi resmî belge sürümünün hangi tarihte baştan sona yeniden tarandığını ve hükmün sayfa/bölüm çapasıyla birlikte taşır. Son denetim tarihi: **2026-09-16**.
 
-| Provision ID | Profil | Güç | Otomasyon | Rule ID | MLIT / temel kaynak |
-|---|---|---|---|---|---|
-| `V3-AGENCY-ID` | v3 | strong | rule | `JPN_032` | MLIT V3 s.11 |
-| `V3-AGENCY-JP-ID` | v3 | strong | rule | `JPN_012` | MLIT V3 agency_jp |
-| `V3-AGENCY-JP-REFERENCE` | v3 | strong | rule | `JPN_003` | MLIT V3 agency_jp |
-| `V3-AGENCY-ZIP` | v3 | soft | rule | `JPN_013` | MLIT V3 agency_jp |
-| `V3-OFFICE-ID` | v3 | strong | rule | `JPN_014` | MLIT V3 office_jp |
-| `V3-OFFICE-NAME` | v3 | strong | rule | `JPN_005` | MLIT V3 office_jp |
-| `V3-OFFICE-CONTACT` | v3 | soft | rule | `JPN_020` | MLIT V3 office_jp |
-| `V3-OFFICE-REFERENCE` | v3 | strong | rule | `JPN_002` | MLIT V3 office_jp |
-| `V3-ROUTES-JP-ROUTE` | v3 | strong | rule | `JPN_015` | MLIT V3 routes_jp |
-| `V3-ROUTES-JP-DATE` | v3 | soft | rule | `JPN_016` | MLIT V3 routes_jp |
-| `V3-PATTERN-ID` | v3 | strong | rule | `JPN_017` | MLIT V3 pattern_jp |
-| `V3-PATTERN-REF` | v3 | strong | rule | `JPN_018` | MLIT V3 trips/pattern_jp |
-| `V3-TRANSLATIONS-FILE` | v3 | strong | rule | `JPN_004` | MLIT V3 translations |
-| `V3-TRANSLATIONS-KANA` | v3 | strong | rule | `JPN_001`, `JPN_008`, `JPN_009`, `JPN_010`, `JPN_028` | MLIT V3 translations s.33 |
-| `V3-TRANSLATIONS-JA` | v3 | strong | rule | `JPN_030` | MLIT V3 translations s.33 |
-| `V3-TRANSLATIONS-RECORD` | v3 | strong | rule | `JPN_019`, `JPN_021` | MLIT V3 translations |
-| `V3-FEED-INFO` | v3 | strong | rule | `JPN_007` | MLIT V3 feed_info |
-| `V3-AGENCY-REQUIRED` | v3 | strong | rule | `JPN_011` | MLIT V3 agency/routes |
-| `V3-ROUTE-TYPE` | v3 | strong | rule | `JPN_027` | MLIT V3 routes.txt |
-| `V3-ZONE-ID` | v3 | strong | rule | `JPN_031` | MLIT V3 fare/stop kapsamı |
-| `SHARED-NAMESPACE` | v3,v4 | strong | rule | `JPN_033` | MLIT V3 s.10; V3→V4 farkı |
-| `V4-FEED-LANG` | v4 | strong | rule | `JPN_023` | MLIT V4 s.29 |
-| `V4-AGENCY-LANG` | v4 | strong | rule | `JPN_024` | MLIT V4 s.35 |
-| `V4-AGENCY-TIMEZONE` | v4 | strong | rule | `JPN_025` | MLIT V4 s.35 |
-| `V4-FARE-CURRENCY` | v4 | strong | rule | `JPN_026` | MLIT V4 s.67 |
-| `V4-FARE-FILE` | v4 | strong | rule | `JPN_006` | MLIT V4 s.67 |
-| `V4-CORE-FIELDS` | v4 | strong | rule | `JPN_022` | MLIT V4 s.29,35,38,120 |
-| `V4-TRANSLATIONS-FILE` | v4 | strong | rule | `JPN_004` | MLIT V4 translations |
-| `V4-TRANSLATIONS-KANA` | v4 | strong | rule | `JPN_001`, `JPN_008`, `JPN_009`, `JPN_010`, `JPN_019`, `JPN_021`, `JPN_029` | MLIT V4 s.75-77 |
-| `V4-FARE-AGENCY` | v4 | strong | rule | `AGN_011` | MLIT V4 farkı; GTFS Reference |
-| `V4-LOCATION-HIERARCHY` | v4 | strong | rule | `STP_009`, `STP_010`, `STP_011`, `STP_012`, `STP_021`, `STP_032`, `STP_036` | MLIT V4 s.38,120; GTFS Reference |
-| `V4-FLEX-STOP-TIMES` | v4 | strong | rule | `STM_037`, `STM_038`, `STM_039`, `STM_040`, `STM_041`, `STM_051`, `STM_052`, `STM_054`, `STM_055`, `STM_058` | MLIT V4 farkı; GTFS Reference |
-| `V4-CONTINUOUS-SHAPE` | v4 | strong | rule | `TRP_019` | MLIT V4 farkı; GTFS Reference |
-| `V4-TRANSFER-RECOMMENDATION` | v4 | soft | excluded_recommendation | — | MLIT V4 farkı |
-| `V4-JP-EXTENSION-MASTER` | v4 | soft | excluded_recommendation | — | MLIT V4 farkı |
-| `HUMAN-CORPORATE-IDENTITY` | v3,v4 | manual | manual | — | MLIT V3/V4法人番号 |
-| `HUMAN-KANA-PRONUNCIATION` | v3,v4 | manual | manual | — | MLIT V3/V4 translations |
-| `HUMAN-FARE-EXCEPTION` | v4 | manual | manual | — | MLIT V4 ücret istisnası |
-| `HUMAN-STOP-ACCESS` | v4 | manual | manual | — | MLIT V4 stop access |
+| Provision ID | Profil | Güç | Otomasyon | Rule ID | Kaynak | Belge / sürüm | Sayfa-bölüm çapası |
+|---|---|---|---|---|---|---|---|
+| `V3-AGENCY-ID` | v3 | strong | rule | `JPN_032` | MLIT V3 s.11 | MLIT GTFS-JP V3 final / 2021-07 final | s.11 · agency.txt |
+| `V3-AGENCY-JP-ID` | v3 | strong | rule | `JPN_012` | MLIT V3 agency_jp | MLIT GTFS-JP V3 final / 2021-07 final | agency_jp.txt · agency_id |
+| `V3-AGENCY-JP-REFERENCE` | v3 | strong | rule | `JPN_003` | MLIT V3 agency_jp | MLIT GTFS-JP V3 final / 2021-07 final | agency_jp.txt · agency_id reference |
+| `V3-AGENCY-ZIP` | v3 | soft | rule | `JPN_013` | MLIT V3 agency_jp | MLIT GTFS-JP V3 final / 2021-07 final | agency_jp.txt · agency_zip_number |
+| `V3-OFFICE-ID` | v3 | strong | rule | `JPN_014` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · office_id |
+| `V3-OFFICE-NAME` | v3 | strong | rule | `JPN_005` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · office_name |
+| `V3-OFFICE-CONTACT` | v3 | soft | rule | `JPN_020` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · office_url/office_phone |
+| `V3-OFFICE-REFERENCE` | v3 | strong | rule | `JPN_002` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · jp_office_id |
+| `V3-ROUTES-JP-ROUTE` | v3 | strong | rule | `JPN_015` | MLIT V3 routes_jp | MLIT GTFS-JP V3 final / 2021-07 final | routes_jp.txt · route_id |
+| `V3-ROUTES-JP-DATE` | v3 | soft | rule | `JPN_016` | MLIT V3 routes_jp | MLIT GTFS-JP V3 final / 2021-07 final | routes_jp.txt · route_update_date |
+| `V3-PATTERN-ID` | v3 | strong | rule | `JPN_017` | MLIT V3 pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt · jp_pattern_id |
+| `V3-PATTERN-REF` | v3 | strong | rule | `JPN_018` | MLIT V3 trips/pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt / trips.txt · jp_pattern_id |
+| `V3-TRANSLATIONS-FILE` | v3 | strong | rule | `JPN_004` | MLIT V3 translations | MLIT GTFS-JP V3 final / 2021-07 final | translations.txt |
+| `V3-TRANSLATIONS-KANA` | v3 | strong | rule | `JPN_001`, `JPN_008`, `JPN_009`, `JPN_010`, `JPN_028` | MLIT V3 translations s.33 | MLIT GTFS-JP V3 final / 2021-07 final | s.33 · translations.txt |
+| `V3-TRANSLATIONS-JA` | v3 | strong | rule | `JPN_030` | MLIT V3 translations s.33 | MLIT GTFS-JP V3 final / 2021-07 final | s.33 · translations.txt · language=ja |
+| `V3-TRANSLATIONS-RECORD` | v3 | strong | rule | `JPN_019`, `JPN_021` | MLIT V3 translations | MLIT GTFS-JP V3 final / 2021-07 final | translations.txt · record_id/field_value |
+| `V3-FEED-INFO` | v3 | strong | rule | `JPN_007` | MLIT V3 feed_info | MLIT GTFS-JP V3 final / 2021-07 final | feed_info.txt |
+| `V3-AGENCY-REQUIRED` | v3 | strong | rule | `JPN_011` | MLIT V3 agency/routes | MLIT GTFS-JP V3 final / 2021-07 final | agency.txt / routes.txt · agency_id |
+| `V3-ROUTE-TYPE` | v3 | strong | rule | `JPN_027` | MLIT V3 routes.txt | MLIT GTFS-JP V3 final / 2021-07 final | routes.txt · route_type (2-4) |
+| `V3-ZONE-ID` | v3 | strong | rule | `JPN_031` | MLIT V3 fare/stop kapsamı | MLIT GTFS-JP V3 final / 2021-07 final | stops.txt / fare_rules.txt |
+| `SHARED-NAMESPACE` | v3,v4 | strong | rule | `JPN_033` | MLIT V3 s.10; V3→V4 farkı | MLIT GTFS-JP V3 final; MLIT GTFS-JP V4 change document / V3 final 2021-07; V4 change ver.01 | V3 s.10; V4 change document · custom names |
+| `V4-FEED-LANG` | v4 | strong | rule | `JPN_023` | MLIT V4 s.29 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.29 · feed_info.txt |
+| `V4-AGENCY-LANG` | v4 | strong | rule | `JPN_024` | MLIT V4 s.35 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.35 · agency.txt |
+| `V4-AGENCY-TIMEZONE` | v4 | strong | rule | `JPN_025` | MLIT V4 s.35 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.35 · agency.txt |
+| `V4-FARE-CURRENCY` | v4 | strong | rule | `JPN_026` | MLIT V4 s.67 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.67 · fare_attributes.txt |
+| `V4-FARE-RULES` | v4 | strong | rule | `JPN_006` | MLIT V4 s.67 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.67 · fare_rules.txt conditional branch |
+| `V4-FARE-FILE-EXCEPTION` | v4 | manual | manual | — | MLIT V4 s.67 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.67 · complex fare exception |
+| `V4-CORE-FIELDS` | v4 | strong | rule | `JPN_022` | MLIT V4 s.29,35,38,120 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.29, 35, 38, 120 |
+| `V4-TRANSLATIONS-FILE` | v4 | strong | rule | `JPN_004` | MLIT V4 translations | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | translations.txt |
+| `V4-TRANSLATIONS-KANA` | v4 | strong | rule | `JPN_001`, `JPN_008`, `JPN_009`, `JPN_010`, `JPN_019`, `JPN_021`, `JPN_029` | MLIT V4 s.75-77 | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | s.75-77 · translations.txt |
+| `V4-FARE-AGENCY` | v4 | strong | rule | `AGN_011` | MLIT V4 farkı; GTFS Reference | MLIT GTFS-JP V4 specification; GTFS Schedule Reference / 2026-03 ver.01 | V4 change · fare_attributes.txt agency_id |
+| `V4-LOCATION-HIERARCHY` | v4 | strong | rule | `STP_009`, `STP_010`, `STP_011`, `STP_012`, `STP_021`, `STP_032`, `STP_036` | MLIT V4 s.38,120; GTFS Reference | MLIT GTFS-JP V4 specification; GTFS Schedule Reference / 2026-03 ver.01 | s.38, 120 · stops.txt hierarchy |
+| `V4-FLEX-STOP-TIMES` | v4 | strong | rule | `STM_037`, `STM_038`, `STM_039`, `STM_040`, `STM_041`, `STM_051`, `STM_052`, `STM_054`, `STM_055`, `STM_058` | MLIT V4 farkı; GTFS Reference | MLIT GTFS-JP V4 specification; GTFS Schedule Reference / 2026-03 ver.01 | V4 change · routes.txt/stop_times.txt flex fields |
+| `V4-CONTINUOUS-SHAPE` | v4 | strong | rule | `TRP_019` | MLIT V4 farkı; GTFS Reference | MLIT GTFS-JP V4 specification; GTFS Schedule Reference / 2026-03 ver.01 | V4 change · routes.txt/trips.txt continuous service |
+| `V4-TRANSFER-RECOMMENDATION` | v4 | soft | excluded_recommendation | — | MLIT V4 farkı | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | V4 change · transfers.txt |
+| `V4-JP-EXTENSION-MASTER` | v4 | soft | excluded_recommendation | — | MLIT V4 farkı | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | V4 change · JP extension master files |
+| `HUMAN-CORPORATE-IDENTITY` | v3,v4 | manual | manual | — | MLIT V3/V4法人番号 | MLIT GTFS-JP V3/V4 source set / V3 final 2021-07; V4 ver.01 | V3/V4 · 法人番号 external identity |
+| `HUMAN-KANA-PRONUNCIATION` | v3,v4 | manual | manual | — | MLIT V3/V4 translations | MLIT GTFS-JP V3/V4 source set / V3 final 2021-07; V4 ver.01 | V3/V4 · translations reading |
+| `HUMAN-FARE-EXCEPTION` | v4 | manual | manual | — | MLIT V4 ücret istisnası | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | V4 · external fare evidence |
+| `HUMAN-STOP-ACCESS` | v4 | manual | manual | — | MLIT V4 stop access | MLIT GTFS-JP V4 specification / 2026-03 ver.01 | V4 · stop_access context |
 
 ## Kapsam dışı insan ve dış doğrulama kararları
 

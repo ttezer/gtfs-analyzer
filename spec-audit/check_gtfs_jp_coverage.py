@@ -28,6 +28,10 @@ REQUIRED_COLUMNS = {
     "rule_ids",
     "source",
     "note",
+    "source_document",
+    "source_version",
+    "audited_on",
+    "page_anchor",
 }
 ALLOWED_STRENGTHS = {"strong", "soft", "manual"}
 ALLOWED_AUTOMATION = {"rule", "manual", "excluded_recommendation"}
@@ -82,6 +86,11 @@ def main() -> int:
         profiles = {profile.strip() for profile in row["profile"].split(",") if profile.strip()}
         if not profiles or not profiles <= ALLOWED_PROFILES:
             problems.append(f"{provision}: bilinmeyen profile={row['profile']!r}")
+        for provenance_field in ("source_document", "source_version", "audited_on", "page_anchor"):
+            if not row[provenance_field].strip():
+                problems.append(f"{provision}: provenance alanı boş: {provenance_field}")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", row["audited_on"].strip()):
+            problems.append(f"{provision}: audited_on YYYY-MM-DD olmalı")
         if strength not in ALLOWED_STRENGTHS:
             problems.append(f"{provision}: bilinmeyen strength={strength!r}")
         if automation not in ALLOWED_AUTOMATION:

@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   treats a feed's R1 `coverage_complete` flag as proof of product coverage. The
   contract is documented in
   [`docs/gtfs-jp-automated-coverage.md`](docs/gtfs-jp-automated-coverage.md).
+- The coverage inventory now records the audited MLIT document version, audit
+  date, and page/section anchor for every provision. Recommendation-only
+  provisions and the V4 fare-file exception are explicitly outside the
+  automated badge denominator; the machine-checkable V4 `fare_rules` branch
+  remains mapped to `JPN_006`.
 - README translations now report the current **625-rule** catalog.
 
 ## [0.13.1] - 2026-09-15

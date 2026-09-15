@@ -7,7 +7,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_032"
     ],
-    "source": "MLIT V3 s.11"
+    "source": "MLIT V3 s.11",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.11 · agency.txt"
   },
   {
     "provisionId": "V3-AGENCY-JP-ID",
@@ -15,7 +19,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_012"
     ],
-    "source": "MLIT V3 agency_jp"
+    "source": "MLIT V3 agency_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "agency_jp.txt · agency_id"
   },
   {
     "provisionId": "V3-AGENCY-JP-REFERENCE",
@@ -23,7 +31,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_003"
     ],
-    "source": "MLIT V3 agency_jp"
+    "source": "MLIT V3 agency_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "agency_jp.txt · agency_id reference"
   },
   {
     "provisionId": "V3-AGENCY-ZIP",
@@ -31,7 +43,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_013"
     ],
-    "source": "MLIT V3 agency_jp"
+    "source": "MLIT V3 agency_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "agency_jp.txt · agency_zip_number"
   },
   {
     "provisionId": "V3-OFFICE-ID",
@@ -39,7 +55,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_014"
     ],
-    "source": "MLIT V3 office_jp"
+    "source": "MLIT V3 office_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "office_jp.txt · office_id"
   },
   {
     "provisionId": "V3-OFFICE-NAME",
@@ -47,7 +67,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_005"
     ],
-    "source": "MLIT V3 office_jp"
+    "source": "MLIT V3 office_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "office_jp.txt · office_name"
   },
   {
     "provisionId": "V3-OFFICE-CONTACT",
@@ -55,7 +79,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_020"
     ],
-    "source": "MLIT V3 office_jp"
+    "source": "MLIT V3 office_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "office_jp.txt · office_url/office_phone"
   },
   {
     "provisionId": "V3-OFFICE-REFERENCE",
@@ -63,7 +91,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_002"
     ],
-    "source": "MLIT V3 office_jp"
+    "source": "MLIT V3 office_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "office_jp.txt · jp_office_id"
   },
   {
     "provisionId": "V3-ROUTES-JP-ROUTE",
@@ -71,7 +103,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_015"
     ],
-    "source": "MLIT V3 routes_jp"
+    "source": "MLIT V3 routes_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "routes_jp.txt · route_id"
   },
   {
     "provisionId": "V3-ROUTES-JP-DATE",
@@ -79,7 +115,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_016"
     ],
-    "source": "MLIT V3 routes_jp"
+    "source": "MLIT V3 routes_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "routes_jp.txt · route_update_date"
   },
   {
     "provisionId": "V3-PATTERN-ID",
@@ -87,7 +127,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_017"
     ],
-    "source": "MLIT V3 pattern_jp"
+    "source": "MLIT V3 pattern_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "pattern_jp.txt · jp_pattern_id"
   },
   {
     "provisionId": "V3-PATTERN-REF",
@@ -95,7 +139,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_018"
     ],
-    "source": "MLIT V3 trips/pattern_jp"
+    "source": "MLIT V3 trips/pattern_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "pattern_jp.txt / trips.txt · jp_pattern_id"
   },
   {
     "provisionId": "V3-TRANSLATIONS-FILE",
@@ -103,7 +151,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_004"
     ],
-    "source": "MLIT V3 translations"
+    "source": "MLIT V3 translations",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "translations.txt"
   },
   {
     "provisionId": "V3-TRANSLATIONS-KANA",
@@ -115,7 +167,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
       "JPN_010",
       "JPN_028"
     ],
-    "source": "MLIT V3 translations s.33"
+    "source": "MLIT V3 translations s.33",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.33 · translations.txt"
   },
   {
     "provisionId": "V3-TRANSLATIONS-JA",
@@ -123,7 +179,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_030"
     ],
-    "source": "MLIT V3 translations s.33"
+    "source": "MLIT V3 translations s.33",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.33 · translations.txt · language=ja"
   },
   {
     "provisionId": "V3-TRANSLATIONS-RECORD",
@@ -132,7 +192,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
       "JPN_019",
       "JPN_021"
     ],
-    "source": "MLIT V3 translations"
+    "source": "MLIT V3 translations",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "translations.txt · record_id/field_value"
   },
   {
     "provisionId": "V3-FEED-INFO",
@@ -140,7 +204,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_007"
     ],
-    "source": "MLIT V3 feed_info"
+    "source": "MLIT V3 feed_info",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "feed_info.txt"
   },
   {
     "provisionId": "V3-AGENCY-REQUIRED",
@@ -148,7 +216,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_011"
     ],
-    "source": "MLIT V3 agency/routes"
+    "source": "MLIT V3 agency/routes",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "agency.txt / routes.txt · agency_id"
   },
   {
     "provisionId": "V3-ROUTE-TYPE",
@@ -156,7 +228,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_027"
     ],
-    "source": "MLIT V3 routes.txt"
+    "source": "MLIT V3 routes.txt",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "routes.txt · route_type (2-4)"
   },
   {
     "provisionId": "V3-ZONE-ID",
@@ -164,7 +240,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_031"
     ],
-    "source": "MLIT V3 fare/stop kapsamı"
+    "source": "MLIT V3 fare/stop kapsamı",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "stops.txt / fare_rules.txt"
   },
   {
     "provisionId": "SHARED-NAMESPACE",
@@ -172,7 +252,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_033"
     ],
-    "source": "MLIT V3 s.10; V3→V4 farkı"
+    "source": "MLIT V3 s.10; V3→V4 farkı",
+    "sourceDocument": "MLIT GTFS-JP V3 final; MLIT GTFS-JP V4 change document",
+    "sourceVersion": "V3 final 2021-07; V4 change ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "V3 s.10; V4 change document · custom names"
   },
   {
     "provisionId": "V4-FEED-LANG",
@@ -180,7 +264,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_023"
     ],
-    "source": "MLIT V4 s.29"
+    "source": "MLIT V4 s.29",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.29 · feed_info.txt"
   },
   {
     "provisionId": "V4-AGENCY-LANG",
@@ -188,7 +276,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_024"
     ],
-    "source": "MLIT V4 s.35"
+    "source": "MLIT V4 s.35",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.35 · agency.txt"
   },
   {
     "provisionId": "V4-AGENCY-TIMEZONE",
@@ -196,7 +288,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_025"
     ],
-    "source": "MLIT V4 s.35"
+    "source": "MLIT V4 s.35",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.35 · agency.txt"
   },
   {
     "provisionId": "V4-FARE-CURRENCY",
@@ -204,15 +300,23 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_026"
     ],
-    "source": "MLIT V4 s.67"
+    "source": "MLIT V4 s.67",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.67 · fare_attributes.txt"
   },
   {
-    "provisionId": "V4-FARE-FILE",
+    "provisionId": "V4-FARE-RULES",
     "profile": "v4",
     "ruleIds": [
       "JPN_006"
     ],
-    "source": "MLIT V4 s.67"
+    "source": "MLIT V4 s.67",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.67 · fare_rules.txt conditional branch"
   },
   {
     "provisionId": "V4-CORE-FIELDS",
@@ -220,7 +324,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_022"
     ],
-    "source": "MLIT V4 s.29,35,38,120"
+    "source": "MLIT V4 s.29,35,38,120",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.29, 35, 38, 120"
   },
   {
     "provisionId": "V4-TRANSLATIONS-FILE",
@@ -228,7 +336,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "JPN_004"
     ],
-    "source": "MLIT V4 translations"
+    "source": "MLIT V4 translations",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "translations.txt"
   },
   {
     "provisionId": "V4-TRANSLATIONS-KANA",
@@ -242,7 +354,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
       "JPN_021",
       "JPN_029"
     ],
-    "source": "MLIT V4 s.75-77"
+    "source": "MLIT V4 s.75-77",
+    "sourceDocument": "MLIT GTFS-JP V4 specification",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.75-77 · translations.txt"
   },
   {
     "provisionId": "V4-FARE-AGENCY",
@@ -250,7 +366,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "AGN_011"
     ],
-    "source": "MLIT V4 farkı; GTFS Reference"
+    "source": "MLIT V4 farkı; GTFS Reference",
+    "sourceDocument": "MLIT GTFS-JP V4 specification; GTFS Schedule Reference",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "V4 change · fare_attributes.txt agency_id"
   },
   {
     "provisionId": "V4-LOCATION-HIERARCHY",
@@ -264,7 +384,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
       "STP_032",
       "STP_036"
     ],
-    "source": "MLIT V4 s.38,120; GTFS Reference"
+    "source": "MLIT V4 s.38,120; GTFS Reference",
+    "sourceDocument": "MLIT GTFS-JP V4 specification; GTFS Schedule Reference",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "s.38, 120 · stops.txt hierarchy"
   },
   {
     "provisionId": "V4-FLEX-STOP-TIMES",
@@ -281,7 +405,11 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
       "STM_055",
       "STM_058"
     ],
-    "source": "MLIT V4 farkı; GTFS Reference"
+    "source": "MLIT V4 farkı; GTFS Reference",
+    "sourceDocument": "MLIT GTFS-JP V4 specification; GTFS Schedule Reference",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "V4 change · routes.txt/stop_times.txt flex fields"
   },
   {
     "provisionId": "V4-CONTINUOUS-SHAPE",
@@ -289,10 +417,17 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "ruleIds": [
       "TRP_019"
     ],
-    "source": "MLIT V4 farkı; GTFS Reference"
+    "source": "MLIT V4 farkı; GTFS Reference",
+    "sourceDocument": "MLIT GTFS-JP V4 specification; GTFS Schedule Reference",
+    "sourceVersion": "2026-03 ver.01",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "V4 change · routes.txt/trips.txt continuous service"
   }
 ] as const;
 
+export const GTFS_JP_UNMATCHED_STRONG_PROVISIONS = [] as const;
+
 export const GTFS_JP_AUTOMATED_COVERAGE_COMPLETE =
   GTFS_JP_AUTOMATED_PROVISIONS.length > 0 &&
+  GTFS_JP_UNMATCHED_STRONG_PROVISIONS.length === 0 &&
   GTFS_JP_AUTOMATED_PROVISIONS.every((provision) => provision.ruleIds.length > 0);
