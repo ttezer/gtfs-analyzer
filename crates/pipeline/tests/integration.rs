@@ -5029,6 +5029,40 @@ fn japanese_text_signal_opens_jp_validation_when_metadata_is_wrong() {
 }
 
 #[test]
+fn stop_name_kana_signal_opens_jp_validation_when_agency_metadata_is_wrong() {
+    let mut files = base_files();
+    files[0] = (
+        "agency.txt",
+        b"agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,London Bus,http://test.example,Europe/London,en\n",
+    );
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,\xE6\x9D\xb1\xE4\xbA\xac\xE3\x81\x88\xE3\x81\x8D,41.0,29.0\nS2,London,41.1,29.1\n",
+    );
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,en\n",
+    ));
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n",
+    ));
+
+    match run_with_profile(&files, GtfsJpProfile::V4) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                vr.metrics.is_gtfs_jp,
+                "stop_name kana, independent of agency metadata, should open JP validation"
+            );
+            for rule in ["JPN_023", "JPN_024", "JPN_025", "JPN_026"] {
+                assert!(has(&vr, rule), "{rule} should run from stop_name kana");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
 fn kanji_only_text_does_not_open_jp_validation() {
     let mut files = base_files();
     files[0] = (

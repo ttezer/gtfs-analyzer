@@ -387,6 +387,19 @@ fn uniform_fares_bad_references_and_mismatched_agencies_do_not_prove_zone_requir
 }
 
 #[test]
+fn invalid_zone_reference_does_not_prove_jpn_031_scope() {
+    let result = zone_result(
+        "fare_id,route_id,origin_id\nF,R1,UNKNOWN\n",
+        GtfsJpProfile::V4,
+    );
+    assert!(
+        select(&result.notices, "JPN_031").is_empty(),
+        "unknown zone references are not JPN_031 scope evidence"
+    );
+    assert!(!select(&result.notices, "FRL_003").is_empty());
+}
+
+#[test]
 fn agency_wide_zone_fare_requires_a_served_zone_anchor_and_unambiguous_agency() {
     let rules = "fare_id,origin_id\nF,Z\n";
     let disconnected = "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:00:00,08:00:00,S3,1\nT2,08:10:00,08:10:00,S3,2\n";

@@ -3953,11 +3953,11 @@ fn check_jp_fare_zones(
             continue;
         }
         let zone_refs = [&rule.origin_id, &rule.destination_id, &rule.contains_id];
-        // A padded zone reference is a lexical fault, not reliable fare evidence.
+        // Padded or unknown zone references are not reliable fare evidence.
         if zone_refs
             .iter()
             .filter_map(|id| id.as_deref())
-            .any(|id| id.trim().is_empty() || id != id.trim())
+            .any(|id| id.trim().is_empty() || id != id.trim() || !map.zone_ids.contains(id))
         {
             continue;
         }
@@ -4147,8 +4147,8 @@ fn valid_gtfs_jp_date(raw: &str) -> bool {
 
 // ── JPN_001: GTFS-JP feed'inde durak adının kana (ja-Hrkt) okuması eksik ──────
 // GTFS-JP, stop_name için かな okumasını (translations, language=ja-Hrkt) ZORUNLU kılar
-// (sesli anons + arama için). Yalnız GTFS-JP sinyali taşıyan feed'lerde çalışır:
-// feed_lang/agency_lang=ja + Asia/Tokyo, herhangi bir ja-Hrkt çeviri veya *_jp dosyası.
+// (sesli anons + arama için). Yalnız ortak GTFS-JP tespiti taşıyan feed'lerde çalışır:
+// geçerli dil/çeviri sinyalleri, agency_lang=ja + Asia/Tokyo, kana metni veya *_jp dosyası.
 // Bir durağın kanası var sayılır ⇔ translations'ta
 // (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
 // field_value=stop_name ile eşleşen satır bulunur.

@@ -389,11 +389,6 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         notices.extend(feed_info_notices);
     }
 
-    // GTFS-JP detection is a feed signal, independent of the selected profile.
-    // The shared predicate also recovers the five measured Japanese feeds that
-    // have agency_lang=ja + Asia/Tokyo but no feed_info/translations/*_jp files.
-    records.is_gtfs_jp = Some(detect_gtfs_jp(&records, records.has_gtfs_jp_file));
-
     if let Some(file) = files.get("fare_attributes.txt") {
         let _t = Timer::start("K2::fare_attributes");
         let suppress =
@@ -465,6 +460,13 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         records.stops = stop_records;
         notices.extend(stop_notices);
     }
+
+    // GTFS-JP detection is a feed signal, independent of the selected profile.
+    // Run it after stops.txt is materialised so the independent stop_name kana
+    // signal is available in the production K1 -> K2 path. The shared predicate
+    // also recovers the five measured Japanese feeds that have
+    // agency_lang=ja + Asia/Tokyo but no feed_info/translations/*_jp files.
+    records.is_gtfs_jp = Some(detect_gtfs_jp(&records, records.has_gtfs_jp_file));
 
     if let Some(file) = files.get("transfers.txt") {
         let _t = Timer::start("K2::transfers");
