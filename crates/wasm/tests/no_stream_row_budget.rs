@@ -88,9 +88,10 @@ fn wasm_never_passes_a_row_budget_to_k2() {
 fn wasm_carries_custom_headers_into_jp_namespace_validation() {
     let code = code_only(SRC);
 
-    let merge_count = code
-        .matches("k2.records.gtfs_jp_namespace_headers.extend")
-        .count();
+    let merge = "k2.records.gtfs_jp_namespace_headers.extend";
+    let k2_call = "let mut k2 = validate_k2_with_whitespace_roots(";
+    let k4_call = "check_cross_ref_with_whitespace_roots(";
+    let merge_count = code.matches(merge).count();
     assert_eq!(
         merge_count, 2,
         "both WASM K2 paths must carry K1 custom headers into GTFS-JP namespace validation"
@@ -99,5 +100,30 @@ fn wasm_carries_custom_headers_into_jp_namespace_validation() {
         code.matches("k1.custom_file_headers").count(),
         2,
         "each WASM K2 path must use the K1 custom-file header inventory"
+    );
+
+    let mut rest = code.as_str();
+    let mut paths = 0usize;
+    while let Some(start) = rest.find(k2_call) {
+        let path = &rest[start..];
+        let next_start = path[k2_call.len()..]
+            .find(k2_call)
+            .map(|offset| k2_call.len() + offset)
+            .unwrap_or(path.len());
+        let path = &path[..next_start];
+        let merge_pos = path
+            .find(merge)
+            .expect("each K2 path must merge custom headers");
+        let k4_pos = path.find(k4_call).expect("each K2 path must call K4");
+        assert!(
+            merge_pos < k4_pos,
+            "GTFS-JP custom headers must reach K4 before cross-reference validation"
+        );
+        paths += 1;
+        rest = &rest[start + next_start..];
+    }
+    assert_eq!(
+        paths, 2,
+        "both WASM K2 paths must be checked for merge ordering"
     );
 }

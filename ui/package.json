@@ -17,6 +17,7 @@
     "prebuild": "npm run sdk:build",
     "dev": "vite",
     "locales:export": "node scripts/export-locales.mjs",
+    "gtfs-jp:coverage": "node scripts/gtfs-jp-coverage.mjs",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",

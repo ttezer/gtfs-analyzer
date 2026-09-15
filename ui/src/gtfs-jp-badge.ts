@@ -1,12 +1,11 @@
-export type GtfsJpBadgeKey = 'domain.gtfs_jp.coverage' | 'domain.gtfs_jp.profile';
+/** Generated from the audited MLIT provision inventory; see the source link. */
+import { GTFS_JP_AUTOMATED_COVERAGE_COMPLETE } from './gtfs-jp-coverage.generated';
+export {
+  GTFS_JP_AUTOMATED_PROVISIONS,
+  GTFS_JP_AUTOMATED_COVERAGE_COMPLETE,
+} from './gtfs-jp-coverage.generated';
 
-/**
- * Static product contract: the scoped V3/V4 JPN rule inventory covers every
- * machine-verifiable MLIT provision; human review and external verification are
- * excluded. Feed-level R1 coverage is intentionally unrelated to this claim.
- * See docs/gtfs-jp-automated-coverage.md.
- */
-export const GTFS_JP_AUTOMATED_COVERAGE_COMPLETE = true as const;
+export type GtfsJpBadgeKey = 'domain.gtfs_jp.coverage' | 'domain.gtfs_jp.profile';
 
 /** Selects the claim a UI badge may make without inferring a feed version. */
 export function gtfsJpBadgeKey(

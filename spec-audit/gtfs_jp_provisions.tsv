@@ -1,0 +1,40 @@
+provision_id	profile	strength	automation	rule_ids	source	note
+V3-AGENCY-ID	v3	strong	rule	JPN_032	MLIT V3 s.11	法人番号 gövdesi ve izin verilen boş olmayan dal eki
+V3-AGENCY-JP-ID	v3	strong	rule	JPN_012	MLIT V3 agency_jp	agency_jp.agency_id zorunludur
+V3-AGENCY-JP-REFERENCE	v3	strong	rule	JPN_003	MLIT V3 agency_jp	agency_jp.agency_id agency.txt kimliğine bağlanır
+V3-AGENCY-ZIP	v3	soft	rule	JPN_013	MLIT V3 agency_jp	7 haneli posta kodu biçimi
+V3-OFFICE-ID	v3	strong	rule	JPN_014	MLIT V3 office_jp	office_id varlık ve tekillik
+V3-OFFICE-NAME	v3	strong	rule	JPN_005	MLIT V3 office_jp	office_name zorunluluğu
+V3-OFFICE-CONTACT	v3	soft	rule	JPN_020	MLIT V3 office_jp	office_url ve office_phone biçim kontrolleri
+V3-OFFICE-REFERENCE	v3	strong	rule	JPN_002	MLIT V3 office_jp	jp_office_id referansı
+V3-ROUTES-JP-ROUTE	v3	strong	rule	JPN_015	MLIT V3 routes_jp	route_id varlık, tekillik ve routes.txt referansı
+V3-ROUTES-JP-DATE	v3	soft	rule	JPN_016	MLIT V3 routes_jp	route_update_date biçimi
+V3-PATTERN-ID	v3	strong	rule	JPN_017	MLIT V3 pattern_jp	jp_pattern_id varlık ve tekillik
+V3-PATTERN-REF	v3	strong	rule	JPN_018	MLIT V3 trips/pattern_jp	trips.jp_pattern_id referansı
+V3-TRANSLATIONS-FILE	v3	strong	rule	JPN_004	MLIT V3 translations	translations.txt profilde zorunlu
+V3-TRANSLATIONS-KANA	v3	strong	rule	JPN_001;JPN_008;JPN_009;JPN_010;JPN_028	MLIT V3 translations s.33	stop, route, trip ve agency kana okumaları
+V3-TRANSLATIONS-JA	v3	strong	rule	JPN_030	MLIT V3 translations s.33	zorunlu language=ja eşleşmeleri
+V3-TRANSLATIONS-RECORD	v3	strong	rule	JPN_019;JPN_021	MLIT V3 translations	record_id, field_value ve çakışma bütünlüğü
+V3-FEED-INFO	v3	strong	rule	JPN_007	MLIT V3 feed_info	feed_info.txt varlığı
+V3-AGENCY-REQUIRED	v3	strong	rule	JPN_011	MLIT V3 agency/routes	tek işleticide de agency_id ve route bağları
+V3-ROUTE-TYPE	v3	strong	rule	JPN_027	MLIT V3 routes.txt	statik otobüs profili route_type=3
+V3-ZONE-ID	v3	strong	rule	JPN_031	MLIT V3 fare/stop kapsamı	kanıtlanan ücret bölgesi duraklarında zone_id
+SHARED-NAMESPACE	v3,v4	strong	rule	JPN_033	MLIT V3 s.10; V3→V4 farkı	özel dosya ve alanlarda ayrılmış jp ad alanı
+V4-FEED-LANG	v4	strong	rule	JPN_023	MLIT V4 s.29	feed_lang sabiti
+V4-AGENCY-LANG	v4	strong	rule	JPN_024	MLIT V4 s.35	agency_lang sabiti
+V4-AGENCY-TIMEZONE	v4	strong	rule	JPN_025	MLIT V4 s.35	agency_timezone sabiti
+V4-FARE-CURRENCY	v4	strong	rule	JPN_026	MLIT V4 s.67	currency_type=JPY
+V4-FARE-FILE	v4	strong	rule	JPN_006	MLIT V4 s.67	fare_attributes dosyası ve doğrulanabilir fare_rules koşulu
+V4-CORE-FIELDS	v4	strong	rule	JPN_022	MLIT V4 s.29,35,38,120	V4 ana alan kolon/boşluk zorunlulukları
+V4-TRANSLATIONS-FILE	v4	strong	rule	JPN_004	MLIT V4 translations	translations.txt profilde zorunlu
+V4-TRANSLATIONS-KANA	v4	strong	rule	JPN_001;JPN_008;JPN_009;JPN_010;JPN_019;JPN_021;JPN_029	MLIT V4 s.75-77	zorunlu stop_name ve önerilen diğer kana okumaları
+V4-FARE-AGENCY	v4	strong	rule	AGN_011	MLIT V4 farkı; GTFS Reference	çoklu agency durumunda fare_attributes.agency_id
+V4-LOCATION-HIERARCHY	v4	strong	rule	STP_009;STP_010;STP_011;STP_012;STP_021;STP_032;STP_036	MLIT V4 s.38,120; GTFS Reference	location_type ve parent_station koşullu ilişkileri
+V4-FLEX-STOP-TIMES	v4	strong	rule	STM_037;STM_038;STM_039;STM_040;STM_041;STM_051;STM_052;STM_054;STM_055;STM_058	MLIT V4 farkı; GTFS Reference	Flex pencere ve stop_times koşullu alanları
+V4-CONTINUOUS-SHAPE	v4	strong	rule	TRP_019	MLIT V4 farkı; GTFS Reference	continuous service durumunda shape_id koşulu
+V4-TRANSFER-RECOMMENDATION	v4	soft	excluded_recommendation		MLIT V4 farkı	transfers.txt önerisi yokluğu uyumluluk ihlali değildir; puanlanmaz
+V4-JP-EXTENSION-MASTER	v4	soft	excluded_recommendation		MLIT V4 farkı	v3 uzantı master dosyalarının ana V4 standardından çıkarılması tek başına bulgu değildir
+HUMAN-CORPORATE-IDENTITY	v3,v4	manual	manual		MLIT V3/V4法人番号	ID’nin gerçek kuruma aitliği dış kayıt doğrulamasıdır
+HUMAN-KANA-PRONUNCIATION	v3,v4	manual	manual		MLIT V3/V4 translations	kana metninin doğru telaffuz olup olmadığı insan/dış kaynak kanıtı ister
+HUMAN-FARE-EXCEPTION	v4	manual	manual		MLIT V4 ücret istisnası	karmaşık ücret modelinin dış tarife ile eşleşmesi insan incelemesidir
+HUMAN-STOP-ACCESS	v4	manual	manual		MLIT V4 stop access	erişilebilirlik ve işletmeci niyeti yalnız statik alanlardan kanıtlanamaz

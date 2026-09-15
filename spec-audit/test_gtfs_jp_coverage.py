@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Regression tests for the GTFS-JP provision denominator and rule mapping."""
+
+from __future__ import annotations
+
+import importlib.util
+import unittest
+from pathlib import Path
+
+
+HERE = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location("gtfs_jp_coverage", HERE / "check_gtfs_jp_coverage.py")
+assert spec is not None and spec.loader is not None
+coverage = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(coverage)
+
+
+class GtfsJpCoverageTests(unittest.TestCase):
+    def test_inventory_is_closed_and_strong_rows_are_mapped(self):
+        rows = coverage.load_rows()
+        self.assertEqual(len(rows), 39)
+        self.assertTrue(all(row["strength"] != "strong" or row["automation"] == "rule" for row in rows))
+        mapped = set().union(*(coverage.rule_ids(row) for row in rows))
+        jpn = {rule for rule in mapped if coverage.JPN_ID.fullmatch(rule)}
+        registry = set(coverage.REGISTRY_ID.findall(coverage.REGISTRY.read_text(encoding="utf-8")))
+        self.assertEqual(jpn, {f"JPN_{number:03d}" for number in range(1, 34)})
+        self.assertTrue(jpn <= registry)
+
+    def test_checker_passes_current_contract(self):
+        self.assertEqual(coverage.main(), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

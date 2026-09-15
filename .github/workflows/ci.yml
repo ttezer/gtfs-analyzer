@@ -109,6 +109,13 @@ jobs:
           python3 spec-audit/test_badge_status.py
           python3 spec-audit/badge_status.py
 
+      # GTFS-JP %100 rozetinin paydası MLIT hüküm envanteridir; strong
+      # makine hükümleri registry'de bir kurala bağlanmadıkça kapı kapanır.
+      - name: GTFS-JP otomatik kapsama envanteri
+        run: |
+          python3 spec-audit/check_gtfs_jp_coverage.py
+          python3 spec-audit/test_gtfs_jp_coverage.py
+
       # 🔴 Bu testler 2026-08-18'e kadar HİÇBİR workflow tarafından çağrılmıyordu.
       # #149'un dersini (boş ölçüm kolonu) kodlayan `test_timing.py` yazıldı ve ölü
       # kaldı; koşum aracı, ölçtüğü üründen daha az test edilmiş durumdaydı ve üç
@@ -172,6 +179,10 @@ jobs:
       - name: "locale export drift (bayat ise: npm run locales:export)"
         working-directory: ui
         run: npm run locales:export -- --check
+
+      - name: "GTFS-JP coverage inventory drift"
+        working-directory: ui
+        run: npm run gtfs-jp:coverage -- --check
 
       - name: vitest + coverage (eşik altındaysa fail)
         working-directory: ui
