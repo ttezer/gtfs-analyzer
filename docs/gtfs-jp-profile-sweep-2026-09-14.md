@@ -172,6 +172,38 @@ Bu takip maddeleri uygulandı:
 
 SHP/STM/OPR platform farkı için eşik veya analitik davranış değiştirilmedi: yerel macOS arm64 ortamında Linux karşılaştırması kanıtlanamazdı. CI denetimi artık Ubuntu runner üzerinde explicit profil ölçümlerini yayımlayacak; bu altı feed için platform hipotezi bu koşumla doğrulanabilir veya reddedilebilir.
 
+## Tespit kapısı — yanlış pozitif ölçümü (2026-09-15, KAPANDI)
+
+`c266f34d` ile JP doğrulaması tespite bağlandı ve tespite iki bağımsız sinyal eklendi:
+`agency_lang` Japonca **ve** `agency_timezone=Asia/Tokyo` konjonksiyonu, ayrıca `agency_name`
+veya `stop_name` içinde **kana**. Kana şartı bilinçlidir: kanji Çince ve Tayvanca feed'lerle
+ortaktır, kana Japoncaya özgüdür.
+
+Sinyallerin Japonya dışında ateşleyip ateşlemediği korpusun TAMAMINDA ölçüldü. Her feed'den
+yalnız `agency.txt` ve `stops.txt` üyeleri ZIP merkezî dizini üzerinden çekildi, her üyenin
+CRC'si doğrulandı. **4.311 feed'in 4.311'i okundu.**
+
+| sinyal | ateşleyen feed | ülkesi JP olmayan |
+|---|---:|---:|
+| `agency_name`'de kana | 179 | **0** |
+| `stop_name`'de kana | 619 | **0** |
+| `agency_lang` + `Asia/Tokyo` | 634 | **0** |
+| **en az biri** | **635** | **0** |
+
+🔑 **Ateşleyen 635, korpustaki Japon feed sayısının tam kendisidir.** Tespit artık **635/635**:
+yanlış pozitifi de yanlış negatifi de sıfır. Daha önce kaçan beş feed (`mdb-1149`, `mdb-1301`,
+`mdb-1302`, `mdb-1303`, `mdb-873`) `agency_lang`+`Asia/Tokyo` koluyla yakalanıyor.
+
+⚠️ **Sinyaller birbirinin yerine geçmiyor, tamamlıyor.** `stop_kana` 619, `lang_tz` 634 feed'de
+ateşliyor ve kümeler farklı; kapsamı birleşimleri veriyor. Metadata'sı tamamen bozuk bir Japon
+feed'i (ör. `feed_lang=en`, `agency_lang=en`, `Europe/London`) yalnız kana koluyla kurtarılır —
+sentetik testle doğrulandı, o feed `auto`'da tespit ediliyor ve V3'te `JPN_023`/`JPN_024`/
+`JPN_025` ateşliyor. Tespiti yalnız dil/saat dilimine bağlamak, o üç kuralın yakalaması gereken
+vakada susmasına yol açardı; kana kolu bu döngüselliği kırar.
+
+⚠️ **Japonya dışı feed'ler açık profilde tamamen sessiz.** BART, TriMet ve VBB'de `is_gtfs_jp`
+`false` ve `v3`/`v4` toplamları `auto` ile birebir aynı (740 · 3.162 · 26.529).
+
 ## Önceki Linux ölçümünün statüsü
 
 GitHub Actions'taki 18. koşumun artefaktı yalnızca önceki Linux ölçümünü yeniden gösterir:
