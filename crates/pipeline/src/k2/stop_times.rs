@@ -1935,58 +1935,6 @@ pub fn validate_stop_times_with_limits(
             // normalize'li veri + hat/yön/servis bağlamı mevcut, gece-yarısı (00:xx kalkış)
             // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
 
-            // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı
-            //
-            // 🔴 `None` İKİ ŞEY DEMEK: alan boş, ya da alan dolu ama ayrıştırılamadı. Bu kural
-            // "yalnız biri TANIMLI" der, yani DOLULUK hakkında konuşur — bozuk değeri "yok"
-            // sayarsa dolu bir alan için asimetri uydurur ve aynı satırda STM_003/STM_004
-            // zaten doğrusunu söylerken ikinci bir yanlış bulgu üretir. STM_015/016'nın
-            // mdb-2727'de 101.621 kez yaptığı hatanın aynısı (44206d0a).
-            match (
-                arrival_time.or(arr_malformed.then_some((0, 0, 0))),
-                departure_time.or(dep_malformed.then_some((0, 0, 0))),
-            ) {
-                (Some(_), None) => {
-                    st.notices.push(make_k2_notice(
-                        &mut st.counter,
-                        "STM_034",
-                        EntityType::Trip,
-                        eid(),
-                        None,
-                        &file.name,
-                        Some(line),
-                        Some("departure_time"),
-                        None,
-                        Some("dolu".to_string()),
-                        format!(
-                            "trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.",
-                            trip_id
-                        ),
-                        "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
-                    ));
-                }
-                (None, Some(_)) => {
-                    st.notices.push(make_k2_notice(
-                        &mut st.counter,
-                        "STM_034",
-                        EntityType::Trip,
-                        eid(),
-                        None,
-                        &file.name,
-                        Some(line),
-                        Some("arrival_time"),
-                        None,
-                        Some("dolu".to_string()),
-                        format!(
-                            "trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.",
-                            trip_id
-                        ),
-                        "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
-                    ));
-                }
-                _ => {}
-            }
-
             // STM_009: pickup_type 0-3
             let pickup_type = parse_pickup_dropoff_col(
                 get_col(row, cols.pickup_type),
@@ -2080,28 +2028,108 @@ pub fn validate_stop_times_with_limits(
                     }
                 };
 
-            // STM_047: timepoint=1 (kesin zaman noktası) iken hem arrival_time hem departure_time
-            // eksik. Yalnızca biri dolu olduğunda STM_034 asimetriyi yakalar → örtüşme yok.
-            // Aynı ayrım: "tanımlı değil" iddiası ancak alan GERÇEKTEN boşken doğrudur.
-            // Bozuk yazılmış bir zaman timepoint=1 için eksik değil, hatalıdır — onu STM_003
-            // ve STM_004 bildirir.
-            if timepoint == Some(1)
-                && arrival_time.is_none()
-                && !arr_malformed
-                && departure_time.is_none()
-                && !dep_malformed
-            {
-                st.notices.push(make_k2_notice(
-                &mut st.counter, "STM_047", EntityType::Trip, eid(),
-                None, &file.name, Some(line),
-                // Hüküm İKİ alanı da kapsar: spec "Required for timepoint=1" cümlesini hem
-                // arrival_time hem departure_time için yazar. Eskiden yalnız arrival_time
-                // yazılıyordu ve departure_time'ın hükmü ölçümde çapasız görünüyordu.
-                Some("arrival_time|departure_time"),
-                Some(String::new()), Some("dolu".to_string()),
-                format!("trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama arrival_time ve departure_time tanımlı değil.", trip_id),
-                "Kesin zaman noktalarında (timepoint=1) hem arrival_time hem departure_time değerlerini girin.",
-            ));
+            // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı.
+            //
+            // `None` iki anlama gelebilir: alan gerçekten boş veya alan dolu ama biçimi bozuk.
+            // Bozuk değerleri aşağıdaki doluluk kontrolünde dolu kabul ediyoruz; STM_003/004
+            // zaten biçim ihlalini bildiriyor. `timepoint=1` ise iki alan da ayrı ayrı Spec
+            // gereğidir; eksik taraf STM_047 tarafından bildirilir ve STM_034 üretilmez.
+            if timepoint != Some(1) {
+                match (
+                    arrival_time.or(arr_malformed.then_some((0, 0, 0))),
+                    departure_time.or(dep_malformed.then_some((0, 0, 0))),
+                ) {
+                    (Some(_), None) => {
+                        st.notices.push(make_k2_notice(
+                            &mut st.counter,
+                            "STM_034",
+                            EntityType::Trip,
+                            eid(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("departure_time"),
+                            None,
+                            Some("dolu".to_string()),
+                            format!(
+                                "trip_id '{}' satırında arrival_time tanımlı ama departure_time eksik.",
+                                trip_id
+                            ),
+                            "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                        ));
+                    }
+                    (None, Some(_)) => {
+                        st.notices.push(make_k2_notice(
+                            &mut st.counter,
+                            "STM_034",
+                            EntityType::Trip,
+                            eid(),
+                            None,
+                            &file.name,
+                            Some(line),
+                            Some("arrival_time"),
+                            None,
+                            Some("dolu".to_string()),
+                            format!(
+                                "trip_id '{}' satırında departure_time tanımlı ama arrival_time eksik.",
+                                trip_id
+                            ),
+                            "Her iki zaman alanını birlikte doldurun veya ikisini de boş bırakın.",
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+
+            // STM_047: timepoint=1 iken arrival_time ve departure_time alanlarının her biri
+            // ayrı ayrı zorunludur. Yalnızca gerçekten boş alanlar eksik sayılır; dolu ama bozuk
+            // değerler STM_003/STM_004 tarafından raporlanır ve burada tekrar edilmez.
+            if timepoint == Some(1) {
+                let arrival_missing = arrival_time.is_none() && !arr_malformed;
+                let departure_missing = departure_time.is_none() && !dep_malformed;
+                if arrival_missing || departure_missing {
+                    let missing_fields = match (arrival_missing, departure_missing) {
+                        (true, true) => "arrival_time ve departure_time",
+                        (true, false) => "arrival_time",
+                        (false, true) => "departure_time",
+                        (false, false) => unreachable!(),
+                    };
+                    let field = match (arrival_missing, departure_missing) {
+                        (true, true) => "arrival_time|departure_time",
+                        (true, false) => "arrival_time",
+                        (false, true) => "departure_time",
+                        (false, false) => unreachable!(),
+                    };
+                    let remediation = match (arrival_missing, departure_missing) {
+                        (true, true) => {
+                            "Kesin zaman noktalarında arrival_time ve departure_time alanlarını geçerli HH:MM:SS değerleriyle doldurun."
+                        }
+                        (true, false) => {
+                            "Kesin zaman noktalarında arrival_time alanını geçerli HH:MM:SS değeriyle doldurun."
+                        }
+                        (false, true) => {
+                            "Kesin zaman noktalarında departure_time alanını geçerli HH:MM:SS değeriyle doldurun."
+                        }
+                        (false, false) => unreachable!(),
+                    };
+                    st.notices.push(make_k2_notice(
+                        &mut st.counter,
+                        "STM_047",
+                        EntityType::Trip,
+                        eid(),
+                        None,
+                        &file.name,
+                        Some(line),
+                        Some(field),
+                        Some(String::new()),
+                        Some("dolu".to_string()),
+                        format!(
+                            "trip_id '{}' satırında timepoint=1 (kesin zaman noktası) ama {} eksik.",
+                            trip_id, missing_fields
+                        ),
+                        remediation,
+                    ));
+                }
             }
 
             // shape_dist_traveled: non-negative
@@ -3483,7 +3511,7 @@ mod tests {
     }
 
     #[test]
-    fn timepoint_one_with_one_time_is_stm_034_not_047() {
+    fn timepoint_one_with_one_time_is_stm_047_not_034() {
         let file = make_file(
             vec![
                 "trip_id",
@@ -3498,15 +3526,140 @@ mod tests {
         let (_, notices) = validate_stop_times(&file, None, false);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(
-            ids.contains(&"STM_034"),
-            "Yalnız biri dolu → STM_034: {:?}",
+            ids.contains(&"STM_047"),
+            "timepoint=1 + yalnız arrival dolu → STM_047: {:?}",
             ids
         );
         assert!(
-            !ids.contains(&"STM_047"),
-            "Biri dolu iken STM_047 tetiklenmemeli: {:?}",
+            !ids.contains(&"STM_034"),
+            "timepoint=1 iken STM_034 üretilmemeli: {:?}",
             ids
         );
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "STM_047")
+            .expect("STM_047 notice");
+        assert_eq!(hit.field.as_deref(), Some("departure_time"));
+        assert_eq!(hit.observed_value.as_deref(), Some(""));
+        assert_eq!(hit.expected_value.as_deref(), Some("dolu"));
+        assert!(hit.message.contains("departure_time eksik"));
+    }
+
+    #[test]
+    fn timepoint_one_with_only_departure_is_stm_047_not_034() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
+            vec![vec!["T1", "", "08:00:00", "S1", "1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
+        assert!(ids.contains(&"STM_047"), "ids: {ids:?}");
+        assert!(!ids.contains(&"STM_034"), "ids: {ids:?}");
+        let hit = notices
+            .iter()
+            .find(|n| n.rule_id == "STM_047")
+            .expect("STM_047 notice");
+        assert_eq!(hit.field.as_deref(), Some("arrival_time"));
+        assert_eq!(hit.observed_value.as_deref(), Some(""));
+        assert_eq!(hit.expected_value.as_deref(), Some("dolu"));
+        assert!(hit.message.contains("arrival_time eksik"));
+    }
+
+    #[test]
+    fn timepoint_one_with_malformed_arrival_is_stm_003_not_047() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
+            vec![vec!["T1", "not-a-time", "08:00:00", "S1", "1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_003"));
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"));
+    }
+
+    #[test]
+    fn timepoint_one_with_malformed_departure_is_stm_004_not_047() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
+            vec![vec!["T1", "08:00:00", "not-a-time", "S1", "1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_004"));
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"));
+    }
+
+    #[test]
+    fn timepoint_zero_with_one_missing_time_is_stm_034_not_047() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
+            vec![vec!["T1", "08:00:00", "", "S1", "1", "0"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_034"));
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"));
+    }
+
+    #[test]
+    fn empty_timepoint_with_one_missing_time_is_stm_034_not_047() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
+            vec![vec!["T1", "08:00:00", "", "S1", "1", ""]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(notices.iter().any(|n| n.rule_id == "STM_034"));
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"));
+    }
+
+    #[test]
+    fn timepoint_one_with_both_valid_times_is_silent_for_stm_034_and_047() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "timepoint",
+            ],
+            vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "1"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_034"));
+        assert!(!notices.iter().any(|n| n.rule_id == "STM_047"));
     }
 
     #[test]

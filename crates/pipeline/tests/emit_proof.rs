@@ -3271,16 +3271,19 @@ fn spec_coverage_gaps_match_ledger() {
 ///    - `trips.shape_id` ✅ — *"Required if the trip has a continuous pickup or drop-off
 ///      behavior."* `TRP_019` tam bunu ölçer.
 ///
-///    **Kalan 5 GERÇEK BOŞLUK ADAYI:**
-///    - `booking_rules.prior_notice_duration_max` · `prior_notice_start_day` — `numeric` atomu
-///      denetlenmiyor: `opt_int()` `.parse::<i64>().ok()` kullanıyor, sayı olmayan değer sessiz
-///      düşüyor. **Bu bir SİSTEMİK desenin parçası, aşağıya bak.**
-///    - `fare_attributes.agency_id` — *"Required if multiple agencies are defined."* Kodda
-///      karşılığı bulunamadı (`FAR_008` yalnız FK'yi ölçer).
+///    **Bu turda kapanan iki aday:**
+///    - `fare_attributes.agency_id` — *"Required if multiple agencies are defined."* artık
+///      `AGN_011` tarafından ölçülüyor; `FAR_008` FK'yi ölçmeye devam ediyor.
 ///    - `stop_times.departure_time` — iki alt hükmü var: Flex penceresiyle YASAK (`STM_037` ✅)
-///      ve *"Required for timepoint=1"* (karşılığı bulunamadı). ⚠️ Kalıcı incelik doğrulandı:
-///      spec ilk/son durak zorunluluğunu YALNIZ `arrival_time` için yazar.
+///      ve *"Required for timepoint=1"* (`STM_047` ✅). ⚠️ Kalıcı incelik doğrulandı: spec
+///      ilk/son durak zorunluluğunu YALNIZ `arrival_time` için yazar.
+///
+///    **Kalan 3 GERÇEK BOŞLUK ADAYI:**
+///    - `booking_rules.prior_notice_duration_max` — `numeric` atomu denetlenmiyor:
+///      `opt_int()` `.parse::<i64>().ok()` kullanıyor, sayı olmayan değer sessiz düşüyor.
+///    - `booking_rules.prior_notice_start_day` — aynı sessiz numeric-parse açığı.
 ///    - `stop_times.location_group_id` — koşullu-yasak hükmü denetlenmiyor (`XFL_024` FK'dir).
+///      **Bu üçü SİSTEMİK desenin parçası, aşağıya bak.**
 ///
 /// ## 🔁 SİSTEMİK BULGU — sessiz parse yutması (12 nokta)
 /// `Err(_) => None` / `.parse().ok()` deseni k2'de **12 yerde** duruyor ve 11'inin HEMEN
