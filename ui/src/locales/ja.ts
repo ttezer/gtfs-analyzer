@@ -1193,6 +1193,7 @@ const ja: LocaleShape = {
     'JPN_029': 'GTFS-JP v4では日本語の{file}.{field}にja-Hrkt翻訳を推奨します。',
     'JPN_030': 'GTFS-JP v3では日本語の{file}.{field}にlanguage=ja翻訳が必須です。',
     'JPN_027': 'GTFS-JP V3 では路線 {entity_id} の route_type は 3 が必須です。現在値：{observed_value}。',
+    'JPN_033': 'カスタムファイルまたはフィールドでGTFS-JP予約名前空間「{observed_value}」が使用されています。',
     'JPN_026.v3.aggregate': "選択したGTFS-JPプロファイルではcurrency_type='JPY'が必要です。{affected_records} 件の運賃レコードが '{observed_value}' を使用しています。例：{example_record_ids}。",
     'JPN_026.v4.aggregate': "選択したGTFS-JPプロファイルではcurrency_type='JPY'が必要です。{affected_records} 件の運賃レコードが '{observed_value}' を使用しています。例：{example_record_ids}。",
     'JPN_027.v3.aggregate': 'GTFS-JP V3 はバス形式です。{affected_records} 件の路線が route_type=3 ではなく {observed_value} を使用しています。例：{example_record_ids}。',
@@ -1824,6 +1825,7 @@ const ja: LocaleShape = {
     'JPN_026.v4.aggregate': 'これらのレコードの fare_attributes.currency_type を JPY に設定してください。',
     'JPN_027.v3.aggregate': 'V3 バス形式では route_type=3 を使用し、複数交通モードのデータには適切なプロファイルを選択してください。',
     'JPN_031': '対象路線の fare_rules のゾーンに合わせて停留所の zone_id を設定してください。',
+    'JPN_033': 'GTFS-JPで予約されているjpの接頭辞または接尾辞を使わない名前に変更してください。',
     'JPN_006.v4.missing_review': 'MLIT の複雑な運賃の例外に該当するか手動で確認し、該当しない場合は fare_attributes.txt を追加してください。',
     // XFL
     'XFL_002': 'この便のstop_timesレコードを追加してください。',
@@ -2500,6 +2502,7 @@ const ja: LocaleShape = {
     'JPN_030': 'GTFS-JP v3：必須日本語翻訳が不足',
     'JPN_027': 'GTFS-JP V3：route_type が 3 ではない',
     'JPN_031': 'GTFS-JP：ゾーン運賃の対象停留所に zone_id がない',
+    'JPN_033': 'GTFS-JP：カスタムファイルまたはフィールドで予約済みjp名前空間を使用',
   } as Record<string, string>,
 };
 

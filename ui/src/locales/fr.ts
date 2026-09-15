@@ -1213,6 +1213,7 @@ const fr: LocaleShape = {
     'JPN_029': 'GTFS-JP v4 recommande une traduction ja-Hrkt pour le champ japonais {field} de {file}.',
     'JPN_030': 'GTFS-JP v3 exige une traduction language=ja pour le champ japonais {field} de {file}.',
     'JPN_027': 'GTFS-JP V3 exige route_type=3 pour la ligne {entity_id} ; valeur reçue : {observed_value}.',
+    'JPN_033': 'Un fichier ou champ personnalisé utilise l’espace de noms réservé par GTFS-JP : « {observed_value} ».',
     'JPN_026.v3.aggregate': 'Le profil GTFS-JP sélectionné exige currency_type=JPY ; {affected_records} enregistrement(s) tarifaire(s) utilisent « {observed_value} ». Exemples : {example_record_ids}.',
     'JPN_026.v4.aggregate': 'Le profil GTFS-JP sélectionné exige currency_type=JPY ; {affected_records} enregistrement(s) tarifaire(s) utilisent « {observed_value} ». Exemples : {example_record_ids}.',
     'JPN_027.v3.aggregate': 'GTFS-JP V3 est le format bus ; {affected_records} ligne(s) utilisent route_type={observed_value} au lieu de 3. Exemples : {example_record_ids}.',
@@ -1456,6 +1457,7 @@ const fr: LocaleShape = {
     'JPN_026.v4.aggregate': 'Définissez fare_attributes.currency_type sur JPY pour ces enregistrements.',
     'JPN_027.v3.aggregate': 'Utilisez route_type=3 pour le profil bus V3, ou sélectionnez le profil adapté aux données multimodales.',
     'JPN_031': 'Renseignez zone_id conformément aux zones de fare_rules des lignes concernées.',
+    'JPN_033': 'Renommez le fichier ou le champ personnalisé afin de ne pas utiliser le préfixe ou suffixe jp réservé par GTFS-JP.',
     'JPN_006.v4.missing_review': 'Vérifiez manuellement l\'exception MLIT des tarifs complexes ; sinon, fournissez fare_attributes.txt.',
     // AGN
     'AGN_002': 'Renseignez le champ agency_name.',
@@ -2615,6 +2617,7 @@ const fr: LocaleShape = {
     'JPN_030': 'GTFS-JP v3 : traduction japonaise obligatoire manquante',
     'JPN_027': 'GTFS-JP V3 : route_type différent de 3',
     'JPN_031': 'GTFS-JP : zone_id absent à un arrêt desservi par une tarification zonale',
+    'JPN_033': 'GTFS-JP : espace de noms jp réservé utilisé par un fichier ou champ personnalisé',
   } as Record<string, string>,
 };
 

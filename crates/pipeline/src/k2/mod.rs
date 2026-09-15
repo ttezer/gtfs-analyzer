@@ -129,6 +129,10 @@ pub struct EntityRecords {
     pub pattern_jp: Vec<PatternJpRecord>,
     /// GTFS-JP dosyalarından birinin ZIP'te fiziksel olarak mevcut olduğunu korur.
     pub has_gtfs_jp_file: bool,
+    /// File/header inventory used by K4's GTFS-JP reserved namespace rule.
+    /// Unknown files are supplied by K1; known files are copied from their raw
+    /// headers before K2 drops the untyped input.
+    pub gtfs_jp_namespace_headers: std::collections::HashMap<String, Vec<String>>,
     /// K2'nin tek GTFS-JP sinyali. K4 üretim yolunda bu alanı okur; doğrudan
     /// sentetik K4 çağrıları için yalnız envantersiz compatibility fallback'i
     /// kullanılır.
@@ -295,6 +299,10 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
             .unwrap_or_else(|| GTFS_JP_FILES.iter().any(|name| files.contains_key(*name))),
         ..EntityRecords::default()
     };
+    records.gtfs_jp_namespace_headers = files
+        .iter()
+        .map(|(name, file)| (name.clone(), file.headers.clone()))
+        .collect();
     let mut stream_budget = max_stream_rows.map(|_| StreamBudget::new(K2_MAX_STREAM_BYTES));
     mem_log("K2-start (=after-K1, K1 raw alive)");
     // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in

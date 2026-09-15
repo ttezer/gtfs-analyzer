@@ -1934,6 +1934,8 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP v3: zorunlu language=ja çevirisi eksik"),
     r!("JPN_031", Yuksek, Interop, 2, &[], Some("stop_id"), VI, Entity,
         "GTFS-JP: bölgeye bağlı ücret kullanılan durakta zone_id eksik"),
+    r!("JPN_033", Orta, Interop, 1, &[], None, VI, Field,
+        "GTFS-JP: özel dosya veya alan adında ayrılmış jp ad alanı kullanılmış"),
 ];
 
 /// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
@@ -2229,6 +2231,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("JPN_029", ProjectQuality),
     ("JPN_030", ProjectQuality),
     ("JPN_031", RegionalProfile),
+    ("JPN_033", RegionalProfile),
     ("LOC_001", GtfsSpec),
     ("LOC_002", GtfsSpec),
     ("LOC_003", GtfsSpec),

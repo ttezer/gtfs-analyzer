@@ -43,6 +43,44 @@ fn select<'a>(notices: &'a [Notice], rule: &str) -> Vec<&'a Notice> {
 }
 
 #[test]
+fn jp_033_checks_custom_file_names_by_profile_without_feeding_detection() {
+    for (profile, file_name, fires) in [
+        (GtfsJpProfile::V3, "custom_jp.txt", true),
+        (GtfsJpProfile::V4, "custom_jp.txt", true),
+        (GtfsJpProfile::V4, "customjp.txt", true),
+        (GtfsJpProfile::Auto, "custom_jp.txt", true),
+        (GtfsJpProfile::Auto, "customjp.txt", false),
+    ] {
+        let result = validate(&[(file_name, "foo,bar\n1,2\n")], profile);
+        assert_eq!(!select(&result.notices, "JPN_033").is_empty(), fires, "{profile:?} {file_name}");
+    }
+
+    // A reserved-looking custom name cannot open the independent JP detection gate.
+    let result = validate(
+        &[
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\nA,Test,https://example.com,Europe/London,en\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date,feed_version\nTest,https://example.com,en,20260101,20271231,test\n"),
+            ("custom_jp.txt", "foo,bar\n1,2\n"),
+        ],
+        GtfsJpProfile::V3,
+    );
+    assert!(select(&result.notices, "JPN_033").is_empty());
+}
+
+#[test]
+fn jp_033_flags_unknown_reserved_fields_but_allows_official_jp_extensions() {
+    let custom = "agency_id,agency_name,agency_url,agency_timezone,agency_lang,jp_custom\nA,Test,https://example.jp,Asia/Tokyo,ja,x\n";
+    let result = validate(&[("agency.txt", custom)], GtfsJpProfile::V3);
+    let findings = select(&result.notices, "JPN_033");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].field.as_deref(), Some("jp_custom"));
+
+    let official = "route_id,agency_id,route_short_name,route_type,jp_parent_route_id\nR1,A,1,3,P1\n";
+    let result = validate(&[("routes.txt", official)], GtfsJpProfile::V3);
+    assert!(select(&result.notices, "JPN_033").is_empty());
+}
+
+#[test]
 fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
     // Açık V3, sayısal route_type için yalnızca 3'ü kabul eder; route türlerinin dağılımı
     // kuralın kapsamını değiştirmemelidir.

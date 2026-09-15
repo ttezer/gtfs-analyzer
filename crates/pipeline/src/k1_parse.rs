@@ -137,6 +137,10 @@ pub struct K1Result {
     /// **yanlışlıkla KAPSAM DIŞI** işaretlenmişti. Gerekçe mimari eksikti, doğrulanamazlık
     /// değil — hükmün her girdisi feed'in içinde. Bu alan o eksiği kapatır.
     pub geojson_geometries: std::collections::HashMap<String, LocationGeometry>,
+    /// Unknown root-level `.txt` files and their parsed headers. K2 cannot retain
+    /// unknown files because it only materialises typed GTFS records, but K4 needs
+    /// their names/headers for the profile-aware GTFS-JP namespace check.
+    pub custom_file_headers: std::collections::HashMap<String, Vec<String>>,
 }
 
 /// Bir `locations.geojson` feature'ının geometrisi: dış ring'ler + bounding box.
@@ -1315,6 +1319,13 @@ pub(crate) fn known_columns_for_table(table: &str) -> &'static [&'static str] {
     }
 }
 
+/// Returns the complete known-column set for a canonical GTFS/GTFS-JP file.
+/// K4 uses this to distinguish official `jp_` extensions from a custom field
+/// that collides with the GTFS-JP reserved namespace.
+pub(crate) fn known_columns_for_file(filename: &str) -> &'static [&'static str] {
+    known_columns(filename)
+}
+
 fn known_columns(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt" => &[
@@ -1826,6 +1837,8 @@ pub fn parse_with_limits(
         std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
     let mut present_files: HashSet<String> = HashSet::new();
+    let mut custom_file_headers: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
     // ARC_035: mevcut ama hiç veri satırı taşımayan dosyalar. Bulgu traversal sonunda,
     // ARC_004'ün yanında üretilir — Flex muafiyeti (`has_valid_locations_geojson`) ancak
     // orada güvenilirdir, çünkü ZIP girdi sırası locations.geojson'u sonraya atabilir.
@@ -2151,6 +2164,20 @@ pub fn parse_with_limits(
 
         // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
         if !is_known {
+            // Unknown files are intentionally not retained in `raw_files`; keep only
+            // their header names so K4 can enforce GTFS-JP's reserved namespace rule
+            // without retaining arbitrary custom-file bodies in memory.
+            let (unknown_bytes, _) = strip_bom(&raw_vec);
+            if let Ok(text) = std::str::from_utf8(unknown_bytes) {
+                if let Ok((mut header_rows, _, _)) = tokenize_csv(text, Some(1)) {
+                    if let Some(row) = header_rows.pop() {
+                        custom_file_headers.insert(
+                            raw_name.clone(),
+                            row.into_iter().map(|h| h.trim().to_string()).collect(),
+                        );
+                    }
+                }
+            }
             notices.push(make_notice(
                 &mut counter,
                 "ARC_007",
@@ -2837,6 +2864,7 @@ pub fn parse_with_limits(
         has_valid_locations_geojson,
         geojson_location_ids,
         geojson_geometries,
+        custom_file_headers,
     })
 }
 

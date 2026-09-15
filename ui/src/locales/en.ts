@@ -1211,6 +1211,7 @@ const en: LocaleShape = {
     'JPN_029': 'GTFS-JP v4 recommends a ja-Hrkt translation for Japanese {file}.{field}.',
     'JPN_030': 'GTFS-JP v3 requires a language=ja translation for Japanese {file}.{field}.',
     'JPN_027': 'GTFS-JP V3 requires route_type=3 for route {entity_id}; found {observed_value}.',
+    'JPN_033': "GTFS-JP reserved namespace used by custom file or field '{observed_value}'.",
     'JPN_026.v3.aggregate': "The selected GTFS-JP profile requires currency_type='JPY'; {affected_records} fare record(s) use '{observed_value}'. Examples: {example_record_ids}.",
     'JPN_026.v4.aggregate': "The selected GTFS-JP profile requires currency_type='JPY'; {affected_records} fare record(s) use '{observed_value}'. Examples: {example_record_ids}.",
     'JPN_027.v3.aggregate': 'GTFS-JP V3 is the bus format; {affected_records} route(s) use route_type={observed_value} instead of 3. Examples: {example_record_ids}.',
@@ -1454,6 +1455,7 @@ const en: LocaleShape = {
     'JPN_026.v4.aggregate': 'Set fare_attributes.currency_type to JPY for these records.',
     'JPN_027.v3.aggregate': 'Use route_type=3 for the V3 bus profile, or select the profile appropriate for multimodal data.',
     'JPN_031': 'Set this stop\'s zone_id consistently with the fare_rules zones for the affected routes.',
+    'JPN_033': 'Rename the custom file or field so it does not use the GTFS-JP reserved jp prefix or suffix.',
     'JPN_006.v4.missing_review': 'Manually verify the MLIT complex-fare exception; otherwise provide fare_attributes.txt.',
     // AGN
     'AGN_002': 'Fill in the agency_name field.',
@@ -2614,6 +2616,7 @@ const en: LocaleShape = {
     'JPN_030': 'GTFS-JP v3: required Japanese translation missing',
     'JPN_027': 'GTFS-JP V3: route_type is not 3',
     'JPN_031': 'GTFS-JP: zone_id missing at a stop served by zone-based fares',
+    'JPN_033': 'GTFS-JP: reserved jp namespace used by a custom file or field',
   },
 };
 

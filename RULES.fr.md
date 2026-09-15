@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-623 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+624 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -820,3 +820,4 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | JPN_029 | GTFS-JP v4 : traduction kana recommandée manquante | FAIBLE | Quality |
 | JPN_030 | GTFS-JP v3 : traduction japonaise obligatoire manquante | MOYENNE | Quality |
 | JPN_031 | GTFS-JP : zone_id absent à un arrêt desservi par une tarification zonale | ÉLEVÉE | Interop |
+| JPN_033 | GTFS-JP : espace de noms jp réservé utilisé par un fichier ou champ personnalisé | MOYENNE | Interop |

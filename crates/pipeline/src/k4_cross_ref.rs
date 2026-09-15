@@ -4145,6 +4145,77 @@ fn valid_gtfs_jp_date(raw: &str) -> bool {
     crate::k2::common::is_valid_calendar_date(year, month, day)
 }
 
+/// Enforces MLIT's reserved namespace rule for custom GTFS-JP files and fields.
+///
+/// This check consumes the independent JP detection gate but never contributes a
+/// signal to it. Official GTFS-JP files and columns already known to the parser are
+/// allowlisted; only unknown custom names are reported.
+fn check_gtfs_jp_namespace(
+    records: &EntityRecords,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    let (file_suffix, field_prefix) = match records.gtfs_jp_profile {
+        // V3 forbids a custom file ending in `_jp` and a custom field beginning
+        // with `jp_`.
+        GtfsJpProfile::V3 => ("_jp", "jp_"),
+        // V4 broadens both reserved forms. Official parser-known JP fields/files
+        // remain exempt from this custom-name check.
+        GtfsJpProfile::V4 => ("jp", "jp"),
+        // Auto applies only the V3/V4 common subset. It must not infer a version.
+        GtfsJpProfile::Auto => ("_jp", "jp_"),
+    };
+
+    let mut files: Vec<(&str, &Vec<String>)> = records
+        .gtfs_jp_namespace_headers
+        .iter()
+        .map(|(name, headers)| (name.as_str(), headers))
+        .collect();
+    files.sort_unstable_by(|a, b| a.0.cmp(b.0));
+
+    for (file_name, headers) in files {
+        let stem = file_name.strip_suffix(".txt").unwrap_or(file_name);
+        let is_official_jp_file = GTFS_JP_FILES.contains(&file_name);
+        if !is_official_jp_file && stem.ends_with(file_suffix) {
+            notices.push(notice(
+                ctr,
+                "JPN_033",
+                EntityType::File,
+                Some(file_name.to_string()),
+                Some(file_name.to_string()),
+                file_name,
+                Some(1),
+                None,
+                Some(file_name.to_string()),
+                Some(format!("custom file name must not end with '{file_suffix}'")),
+                format!("GTFS-JP reserved namespace: custom file '{file_name}' uses the reserved suffix.",),
+                "Rename the custom file so it does not use the GTFS-JP reserved suffix.",
+            ));
+        }
+
+        let known_columns = crate::k1_parse::known_columns_for_file(file_name);
+        for header in headers {
+            if !header.starts_with(field_prefix) || known_columns.contains(&header.as_str()) {
+                continue;
+            }
+            notices.push(notice(
+                ctr,
+                "JPN_033",
+                EntityType::File,
+                Some(file_name.to_string()),
+                Some(file_name.to_string()),
+                file_name,
+                Some(1),
+                Some(header),
+                Some(header.clone()),
+                Some(format!("custom field must not start with '{field_prefix}'")),
+                format!("GTFS-JP reserved namespace: custom field '{header}' in '{file_name}' is reserved.",),
+                "Rename the custom field so it does not use the GTFS-JP reserved prefix.",
+            ));
+        }
+    }
+}
+
 // ── JPN_001: GTFS-JP feed'inde durak adının kana (ja-Hrkt) okuması eksik ──────
 // GTFS-JP, stop_name için かな okumasını (translations, language=ja-Hrkt) ZORUNLU kılar
 // (sesli anons + arama için). Yalnız ortak GTFS-JP tespiti taşıyan feed'lerde çalışır:
@@ -4191,6 +4262,9 @@ fn check_gtfs_jp(
     if !jp_validation_enabled {
         return;
     }
+    // Namespace findings use only the independent JP detection signal above;
+    // JPN_033 itself is never a detection input.
+    check_gtfs_jp_namespace(records, notices, ctr);
     let kana_requirement = match records.gtfs_jp_profile {
         GtfsJpProfile::V3 => "zorunlu",
         GtfsJpProfile::V4 => "önerilen",

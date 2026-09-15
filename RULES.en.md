@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-623 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+624 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -820,3 +820,4 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | JPN_029 | GTFS-JP v4: recommended kana translation missing | LOW | Quality |
 | JPN_030 | GTFS-JP v3: required Japanese translation missing | MEDIUM | Quality |
 | JPN_031 | GTFS-JP: zone_id missing at a stop served by zone-based fares | HIGH | Interop |
+| JPN_033 | GTFS-JP: reserved jp namespace used by a custom file or field | MEDIUM | Interop |
