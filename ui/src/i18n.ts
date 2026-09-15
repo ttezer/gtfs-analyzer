@@ -137,8 +137,11 @@ export function tRemediation(n: { rule_id: string; remediation?: string | null; 
 export function tRemediationForLocale(locale: Locale, n: { rule_id: string; remediation?: string | null; details?: Record<string, string> | null }): string {
   if (locale === 'tr') return n.remediation ?? '';
   // Mevcut locale → EN → TR (Rust mesajı)
-  const specific = n.details?.jp_profile && n.details?.message_variant
-    ? `${n.rule_id}.${n.details.jp_profile.toLowerCase()}.${n.details.message_variant}` : n.rule_id;
+  const specific = n.details?.message_variant
+    ? n.details.jp_profile
+      ? `${n.rule_id}.${n.details.jp_profile.toLowerCase()}.${n.details.message_variant}`
+      : `${n.rule_id}.${n.details.message_variant}`
+    : n.rule_id;
   return LOCALES[locale].ruleRemediations[specific]
     ?? LOCALES.en.ruleRemediations[specific]
     ?? LOCALES[locale].ruleRemediations[n.rule_id]

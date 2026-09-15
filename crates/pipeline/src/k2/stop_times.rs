@@ -2087,32 +2087,29 @@ pub fn validate_stop_times_with_limits(
             if timepoint == Some(1) {
                 let arrival_missing = arrival_time.is_none() && !arr_malformed;
                 let departure_missing = departure_time.is_none() && !dep_malformed;
-                if arrival_missing || departure_missing {
-                    let missing_fields = match (arrival_missing, departure_missing) {
-                        (true, true) => "arrival_time ve departure_time",
-                        (true, false) => "arrival_time",
-                        (false, true) => "departure_time",
-                        (false, false) => unreachable!(),
-                    };
-                    let field = match (arrival_missing, departure_missing) {
-                        (true, true) => "arrival_time|departure_time",
-                        (true, false) => "arrival_time",
-                        (false, true) => "departure_time",
-                        (false, false) => unreachable!(),
-                    };
-                    let remediation = match (arrival_missing, departure_missing) {
-                        (true, true) => {
-                            "Kesin zaman noktalarında arrival_time ve departure_time alanlarını geçerli HH:MM:SS değerleriyle doldurun."
-                        }
-                        (true, false) => {
-                            "Kesin zaman noktalarında arrival_time alanını geçerli HH:MM:SS değeriyle doldurun."
-                        }
-                        (false, true) => {
-                            "Kesin zaman noktalarında departure_time alanını geçerli HH:MM:SS değeriyle doldurun."
-                        }
-                        (false, false) => unreachable!(),
-                    };
-                    st.notices.push(make_k2_notice(
+                let missing = match (arrival_missing, departure_missing) {
+                    (true, true) => Some((
+                        "arrival_time ve departure_time",
+                        "arrival_time|departure_time",
+                        "Kesin zaman noktalarında arrival_time ve departure_time alanlarını geçerli HH:MM:SS değerleriyle doldurun.",
+                        "missing_both",
+                    )),
+                    (true, false) => Some((
+                        "arrival_time",
+                        "arrival_time",
+                        "Kesin zaman noktalarında arrival_time alanını geçerli HH:MM:SS değeriyle doldurun.",
+                        "missing_arrival",
+                    )),
+                    (false, true) => Some((
+                        "departure_time",
+                        "departure_time",
+                        "Kesin zaman noktalarında departure_time alanını geçerli HH:MM:SS değeriyle doldurun.",
+                        "missing_departure",
+                    )),
+                    (false, false) => None,
+                };
+                if let Some((missing_fields, field, remediation, message_variant)) = missing {
+                    let mut notice = make_k2_notice(
                         &mut st.counter,
                         "STM_047",
                         EntityType::Trip,
@@ -2128,7 +2125,12 @@ pub fn validate_stop_times_with_limits(
                             trip_id, missing_fields
                         ),
                         remediation,
-                    ));
+                    );
+                    notice.details = Some(std::collections::BTreeMap::from([(
+                        "message_variant".to_string(),
+                        message_variant.to_string(),
+                    )]));
+                    st.notices.push(notice);
                 }
             }
 

@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { tMsgForLocale, tRemediationForLocale } from '../i18n';
 
 describe('GTFS-JP profile-specific notice messages', () => {
+  it('translates STM_047 by the independently missing time field', () => {
+    const notice = {
+      rule_id: 'STM_047', entity_id: 'T1', message: 'runtime', remediation: 'runtime',
+      details: { message_variant: 'missing_departure' },
+    };
+    expect(tMsgForLocale('en', notice)).toBe(
+      "Trip 'T1': timepoint=1 (exact time point) but departure_time is missing.",
+    );
+    expect(tMsgForLocale('ja', notice)).toContain('departure_timeがありません');
+    expect(tMsgForLocale('fr', notice)).toContain('departure_time est absent');
+    expect(tRemediationForLocale('en', notice)).toContain('Provide departure_time');
+    expect(tRemediationForLocale('ja', notice)).toContain('departure_timeを入力');
+    expect(tRemediationForLocale('fr', notice)).toContain('Renseignez departure_time');
+  });
+
   it('keeps aggregate counts and manual review in every translated locale', () => {
     for (const locale of ['en', 'fr', 'ja'] as const) {
       const aggregate = tMsgForLocale(locale, {

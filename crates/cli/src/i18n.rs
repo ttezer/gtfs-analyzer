@@ -86,23 +86,26 @@ impl Translator {
         if let Some(title) = self.lookup(|d| &d.titles, &notice.rule_id) {
             notice.title = title.to_string();
         }
-        let variant = notice
+        let profile_variant = notice
             .details
             .as_ref()
             .and_then(|details| details.get("jp_profile"))
             .map(|profile| format!("{}.{}", notice.rule_id, profile.to_lowercase()));
-        let specific = variant.as_ref().and_then(|key| {
-            notice
-                .details
-                .as_ref()
-                .and_then(|details| details.get("message_variant"))
-                .map(|kind| format!("{key}.{kind}"))
-        });
+        let specific = notice
+            .details
+            .as_ref()
+            .and_then(|details| details.get("message_variant"))
+            .map(|kind| {
+                profile_variant.as_deref().map_or_else(
+                    || format!("{}.{}", notice.rule_id, kind),
+                    |key| format!("{key}.{kind}"),
+                )
+            });
         if let Some(template) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.messages, key))
             .or_else(|| {
-                variant
+                profile_variant
                     .as_deref()
                     .and_then(|key| self.lookup(|d| &d.messages, key))
             })
@@ -113,6 +116,11 @@ impl Translator {
         if let Some(remediation) = specific
             .as_deref()
             .and_then(|key| self.lookup(|d| &d.remediations, key))
+            .or_else(|| {
+                profile_variant
+                    .as_deref()
+                    .and_then(|key| self.lookup(|d| &d.remediations, key))
+            })
             .or_else(|| self.lookup(|d| &d.remediations, &notice.rule_id))
         {
             notice.remediation = remediation.to_string();
@@ -291,6 +299,34 @@ mod tests {
 
         assert!(n.message.contains("GTFS-JP v4"), "{}", n.message);
         assert!(n.message.contains("cannot be represented"), "{}", n.message);
+    }
+
+    #[test]
+    fn timepoint_missing_field_variants_translate_without_a_profile() {
+        for lang in [LangArg::En, LangArg::Ja, LangArg::Fr] {
+            let translator = Translator::new(lang).unwrap().unwrap();
+            let mut n = notice();
+            n.rule_id = "STM_047".to_string();
+            n.entity_id = Some("T1".to_string());
+            n.details = Some(std::collections::BTreeMap::from([(
+                "message_variant".to_string(),
+                "missing_departure".to_string(),
+            )]));
+            translator.translate(&mut n);
+
+            let key = "STM_047.missing_departure";
+            assert_eq!(
+                n.message,
+                translator
+                    .lookup(|d| &d.messages, key)
+                    .unwrap()
+                    .replace("{entity_id}", "T1",)
+            );
+            assert_eq!(
+                n.remediation,
+                translator.lookup(|d| &d.remediations, key).unwrap()
+            );
+        }
     }
 
     #[test]

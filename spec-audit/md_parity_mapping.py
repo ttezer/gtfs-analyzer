@@ -798,8 +798,11 @@ MAPPED_DIVERGENCE_DECISIONS = {
     ),
     "stop_time_timepoint_without_times": (
         "aggregation",
-        "Median ratio 0.50: STM_047 emits once per stop_time row while MobilityData reports "
-        "arrival and departure separately on the same row.",
+        "Median ratio 0.50 in the baseline corpus: STM_047 emits one finding per affected "
+        "stop_time row and names the missing field(s); MobilityData reports arrival and "
+        "departure omissions separately when both are absent on the same row. Rows with "
+        "only one omission therefore have a one-to-one comparison, so the aggregate ratio "
+        "depends on the corpus mix.",
     ),
     "stop_without_zone_id": (
         "aggregation",
