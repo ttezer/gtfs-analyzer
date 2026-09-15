@@ -4,6 +4,7 @@ import { getState, setPage, setFixClassFilter } from '../state';
 import { fmtServiceDate, inclusiveDaySpan, dayOffset, fmtTimestamp } from '../dates';
 import { escHtml } from '../escape';
 import { formatBytes } from '../format';
+import { gtfsJpBadgeKey } from '../gtfs-jp-badge';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;
@@ -15,7 +16,7 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
       ${renderScoreRow(r5, sevCounts, r1.coverage_complete !== false)}
       ${renderR1Card(r1, result)}
       ${renderSubScores(r5)}
-      ${renderMetrics(metrics)}
+      ${renderMetrics(metrics, result.reports.r1.coverage_complete !== false)}
       ${renderFeedCalendar(metrics)}
     </div>`;
 
@@ -216,10 +217,11 @@ function countBySeverity(result: ValidationResult): SevCount {
 
 // ── Feed metrikleri ───────────────────────────────────────────────────────────
 
-function renderMetrics(m: FeedMetrics): string {
+function renderMetrics(m: FeedMetrics, coverageComplete: boolean): string {
   const profile = m.gtfs_jp_profile?.toLowerCase();
-  const profileBadge = profile && ['auto', 'v3', 'v4'].includes(profile)
-    ? ` <span class="jp-badge" title="${escHtml(t('domain.gtfs_jp.profile_tip'))}">${escHtml(t('domain.gtfs_jp.profile', { profile: profile.toUpperCase() }))}</span>`
+  const badgeKey = gtfsJpBadgeKey(profile, m.is_gtfs_jp === true, coverageComplete);
+  const profileBadge = badgeKey
+    ? ` <span class="jp-badge" title="${escHtml(t(badgeKey === 'domain.gtfs_jp.coverage' ? 'domain.gtfs_jp.coverage_tip' : 'domain.gtfs_jp.profile_tip'))}">${escHtml(t(badgeKey, { profile: profile!.toUpperCase() }))}</span>`
     : '';
   const items = [
     { label: t('domain.metric.stops'),        value: m.stop_count.toLocaleString(intlLocale()) },
