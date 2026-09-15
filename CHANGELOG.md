@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `timepoint=1`.** A single missing field is reported with the missing field in
   the notice; malformed values remain owned by `STM_003`/`STM_004`, and the
   overlapping `STM_034` notice is suppressed for the same row.
+- **`STM_047` messages are now field-specific in the CLI and UI locales.**
+  English, Japanese, and French output distinguishes a missing arrival time,
+  departure time, or both, including the remediation text.
 - **WASM and native GTFS-JP namespace validation now share custom-file headers.**
   Both WASM K2 paths carry K1's unknown-file header inventory into K4, keeping
   `JPN_033` behavior consistent across runtimes.
@@ -21,9 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The GTFS-JP automated-coverage badge now uses the static machine-verifiable
-  rule inventory contract and never treats a feed's R1 `coverage_complete` flag
-  as proof of product coverage. The contract is documented in
+- The GTFS-JP automated-coverage badge now derives from the machine-readable
+  MLIT provision inventory, with a fail-closed CI mapping check, and never
+  treats a feed's R1 `coverage_complete` flag as proof of product coverage. The
+  contract is documented in
   [`docs/gtfs-jp-automated-coverage.md`](docs/gtfs-jp-automated-coverage.md).
 - README translations now report the current **625-rule** catalog.
 
