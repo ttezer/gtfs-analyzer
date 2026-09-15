@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`STM_047` now checks `arrival_time` and `departure_time` independently when
+  `timepoint=1`.** A single missing field is reported with the missing field in
+  the notice; malformed values remain owned by `STM_003`/`STM_004`, and the
+  overlapping `STM_034` notice is suppressed for the same row.
+- **WASM and native GTFS-JP namespace validation now share custom-file headers.**
+  Both WASM K2 paths carry K1's unknown-file header inventory into K4, keeping
+  `JPN_033` behavior consistent across runtimes.
+- Removed the unsupported md-parity mapping from **`JPN_032`**; its strict V3
+  profile rule remains covered by the dedicated JP fixtures.
+
+### Changed
+
+- The GTFS-JP automated-coverage badge now uses the static machine-verifiable
+  rule inventory contract and never treats a feed's R1 `coverage_complete` flag
+  as proof of product coverage. The contract is documented in
+  [`docs/gtfs-jp-automated-coverage.md`](docs/gtfs-jp-automated-coverage.md).
+- README translations now report the current **625-rule** catalog.
+
 ## [0.13.1] - 2026-09-15
 
 This release contains the accumulated validator, corpus-audit, GTFS-JP, SDK,

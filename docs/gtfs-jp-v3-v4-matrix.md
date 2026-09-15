@@ -2,6 +2,8 @@
 
 Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal yoksa doğrulamayı açmaz, yalnız uygulanacak kural kapsamını seçer. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; sürüm sertifikası değildir.
 
+Rozetin makineyle doğrulanabilir hüküm envanteri ve UI sözleşmesi için [otomatik kapsama belgesine](gtfs-jp-automated-coverage.md) bakın.
+
 **Rozet sözleşmesi:** `GTFS-JP V3 · %100 otomatik kapsama (insan yorumu gerektiren kurallar hariç)` ve eşdeğer V4 rozeti yalnızca bağımsız JP detection gate'i açık olan feed'lerde, açıkça seçilmiş `v3`/`v4` profiliyle ve makine tarafından doğrulanabilen MLIT hükümleri tamamlandığında kullanılabilir.法人番号'ın gerçek kuruma aitliği, telaffuz/okuma doğruluğu, karmaşık ücret yorumu ve `stop_access` gibi insan veya dış kaynak kanıtı isteyen konular bu yüzdeye dahil değildir. `auto` profilinde sürüm rozeti verilmez.
 
 > **Güncel davranış (0.13.1).** Tüm profiller ortak GTFS-JP tespit

@@ -525,6 +525,14 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
+    // K1 deliberately retains headers for unknown custom files only; carry that
+    // lightweight inventory into K4 so GTFS-JP namespace checks see the same
+    // file/field set as the native pipeline.
+    k2.records.gtfs_jp_namespace_headers.extend(
+        k1.custom_file_headers
+            .iter()
+            .map(|(name, headers)| (name.clone(), headers.clone())),
+    );
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
     // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
@@ -683,6 +691,13 @@ fn run_k1_k5(
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
     t_end!("K2-validate");
+    // Keep the cached WASM path in parity with the full native/WASM pipeline:
+    // unknown custom headers are needed by the GTFS-JP namespace rule.
+    k2.records.gtfs_jp_namespace_headers.extend(
+        k1.custom_file_headers
+            .iter()
+            .map(|(name, headers)| (name.clone(), headers.clone())),
+    );
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
     // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
     k2.records

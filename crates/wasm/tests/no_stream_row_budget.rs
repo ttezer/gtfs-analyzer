@@ -83,3 +83,21 @@ fn wasm_never_passes_a_row_budget_to_k2() {
          sayı değiştiyse bu nöbet yeni çağrıyı da kapsamalı"
     );
 }
+
+#[test]
+fn wasm_carries_custom_headers_into_jp_namespace_validation() {
+    let code = code_only(SRC);
+
+    let merge_count = code
+        .matches("k2.records.gtfs_jp_namespace_headers.extend")
+        .count();
+    assert_eq!(
+        merge_count, 2,
+        "both WASM K2 paths must carry K1 custom headers into GTFS-JP namespace validation"
+    );
+    assert_eq!(
+        code.matches("k1.custom_file_headers").count(),
+        2,
+        "each WASM K2 path must use the K1 custom-file header inventory"
+    );
+}
