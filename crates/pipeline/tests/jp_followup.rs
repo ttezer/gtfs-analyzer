@@ -81,6 +81,20 @@ fn jp_033_flags_unknown_reserved_fields_but_allows_official_jp_extensions() {
 }
 
 #[test]
+fn multi_agency_fare_id_is_normative_agn_011_not_fin_013() {
+    let result = validate(
+        &[
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\nA,First,https://a.example,Asia/Tokyo\nB,Second,https://b.example,Asia/Tokyo\n"),
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,100,JPY,0,0\nF2,200,JPY,0,0\n"),
+        ],
+        GtfsJpProfile::V4,
+    );
+    let agn = select(&result.notices, "AGN_011");
+    assert!(agn.iter().any(|n| n.file.as_deref() == Some("fare_attributes.txt")));
+    assert!(select(&result.notices, "FIN_013").is_empty());
+}
+
+#[test]
 fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
     // Açık V3, sayısal route_type için yalnızca 3'ü kabul eder; route türlerinin dağılımı
     // kuralın kapsamını değiştirmemelidir.

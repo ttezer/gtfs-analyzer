@@ -2538,7 +2538,8 @@ fn check_fare_attributes(
             }
         } else {
             // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.
-            if records
+            if !multi_agency
+                && records
                 .fare_attributes
                 .iter()
                 .find(|f| f.agency_id.is_none())
@@ -2560,14 +2561,7 @@ fn check_fare_attributes(
                     Some("agency_id"),
                     Some(format!("{missing} missing records")),
                     Some("dolu".to_string()),
-                    format!(
-                        "{missing} ücret tarifesinde agency_id eksik{}.",
-                        if multi_agency {
-                            "; birden fazla kuruluşta zorunludur"
-                        } else {
-                            "; tek kuruluşta önerilir"
-                        }
-                    ),
+                    format!("{missing} ücret tarifesinde agency_id eksik; tek kuruluşta önerilir."),
                     "agency_id sütununu ücret tarifeleri için doldurun.",
                 ));
             }
