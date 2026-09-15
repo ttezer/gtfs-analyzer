@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-09-15
+
+Patch release for GTFS-JP detection and fare-zone evidence correctness.
+
+### Fixed
+
+- Evaluate the shared GTFS-JP detector after `stops.txt` is parsed, so kana in
+  `stop_name` independently activates JP validation even when metadata is wrong.
+- Ignore unknown or whitespace-padded fare-zone references as JPN_031 scope
+  evidence; the corresponding generic fare-reference notice remains authoritative.
+- Keep explicit V3/V4 profile selection behind the shared JP detection gate and
+  synchronize the GTFS-JP rule cards and matrix with that behavior.
+
 ## [0.13.0] - 2026-09-09
 
 This release consolidates the validator triage fixes and aligns the Rust engine,
@@ -1863,7 +1876,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.0...v0.11.1

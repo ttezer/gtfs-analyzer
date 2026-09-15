@@ -270,9 +270,9 @@ Pour intégrer la validation dans votre propre service Rust, utilisez directemen
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.13.0"
-gtfs-config   = "0.13.0"
-gtfs-core     = "0.13.0"
+gtfs-pipeline = "0.13.1"
+gtfs-config   = "0.13.1"
+gtfs-core     = "0.13.1"
 ```
 
 ```rust
@@ -298,7 +298,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ### Paquet npm `gtfs-sdk`
 
-`gtfs-sdk` expose le moteur de validation v0.13.0 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
+`gtfs-sdk` expose le moteur de validation v0.13.1 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
 
 ```js
 import { validateGtfs } from "gtfs-sdk";
