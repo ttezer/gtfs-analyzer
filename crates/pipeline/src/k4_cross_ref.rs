@@ -2540,10 +2540,10 @@ fn check_fare_attributes(
             // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.
             if !multi_agency
                 && records
-                .fare_attributes
-                .iter()
-                .find(|f| f.agency_id.is_none())
-                .is_some_and(|first| std::ptr::eq(first, rec))
+                    .fare_attributes
+                    .iter()
+                    .find(|f| f.agency_id.is_none())
+                    .is_some_and(|first| std::ptr::eq(first, rec))
             {
                 let missing = records
                     .fare_attributes
@@ -4139,16 +4139,25 @@ fn valid_gtfs_jp_date(raw: &str) -> bool {
     crate::k2::common::is_valid_calendar_date(year, month, day)
 }
 
+/// V3 uses the operator's 13-digit Japanese Corporate Number as agency_id. An
+/// optional underscore branch identifier is permitted, but MLIT does not define
+/// its character grammar; validate only the mandatory numeric body and non-empty
+/// suffix.
+fn valid_v3_agency_id(raw: &str) -> bool {
+    let (base, suffix) = raw
+        .split_once('_')
+        .map_or((raw, None), |(base, suffix)| (base, Some(suffix)));
+    base.len() == 13
+        && base.bytes().all(|byte| byte.is_ascii_digit())
+        && suffix.is_none_or(|value| !value.is_empty())
+}
+
 /// Enforces MLIT's reserved namespace rule for custom GTFS-JP files and fields.
 ///
 /// This check consumes the independent JP detection gate but never contributes a
 /// signal to it. Official GTFS-JP files and columns already known to the parser are
 /// allowlisted; only unknown custom names are reported.
-fn check_gtfs_jp_namespace(
-    records: &EntityRecords,
-    notices: &mut Vec<Notice>,
-    ctr: &mut u32,
-) {
+fn check_gtfs_jp_namespace(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
     let (file_suffix, field_prefix) = match records.gtfs_jp_profile {
         // V3 forbids a custom file ending in `_jp` and a custom field beginning
         // with `jp_`.
@@ -4582,6 +4591,41 @@ fn check_gtfs_jp(
                 ),
                 "routes.txt'teki her hatta agency.txt'te tanımlı bir agency_id girin.",
             ));
+        }
+
+        // ── JPN_032: GTFS-JP V3 agency_id法人番号 biçimi ────────────────
+        // V3 requires the operator's 13-digit Corporate Number. A branch
+        // identifier may follow an underscore; its grammar is intentionally not
+        // invented here because MLIT does not specify one.
+        if matches!(records.gtfs_jp_profile, GtfsJpProfile::V3) {
+            for agency in &records.agencies {
+                let Some(agency_id) = agency.agency_id.as_deref() else {
+                    continue; // JPN_011 owns missing IDs.
+                };
+                if agency_id.trim().is_empty() || valid_v3_agency_id(agency_id) {
+                    continue;
+                }
+                let entity_id = Some(
+                    agency
+                        .agency_id
+                        .clone()
+                        .unwrap_or_else(|| agency.agency_name.clone()),
+                );
+                notices.push(notice(
+                    ctr,
+                    "JPN_032",
+                    EntityType::Agency,
+                    entity_id.clone(),
+                    entity_id,
+                    "agency.txt",
+                    Some(agency.line),
+                    Some("agency_id"),
+                    Some(agency_id.to_string()),
+                    Some("13 ASCII digits, optionally followed by '_' and a non-empty branch id".to_string()),
+                    format!("GTFS-JP V3'te agency_id法人番号 biçiminde olmalı: '{agency_id}' 13 haneli ASCII gövdeyi karşılamıyor."),
+                    "agency_id'yi 13 haneli ASCII Corporate Number olarak yazın; gerekiyorsa '_' ile boş olmayan dal kimliği ekleyin.",
+                ));
+            }
         }
     }
 

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-624 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+625 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -820,4 +820,5 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | JPN_029 | GTFS-JP v4: önerilen kana çevirisi eksik | DÜŞÜK | Quality |
 | JPN_030 | GTFS-JP v3: zorunlu language=ja çevirisi eksik | ORTA | Quality |
 | JPN_031 | GTFS-JP: bölgeye bağlı ücret kullanılan durakta zone_id eksik | YÜKSEK | Interop |
+| JPN_032 | GTFS-JP V3: agency_id Corporate Number biçiminde değil | ORTA | Interop |
 | JPN_033 | GTFS-JP: özel dosya veya alan adında ayrılmış jp ad alanı kullanılmış | ORTA | Interop |

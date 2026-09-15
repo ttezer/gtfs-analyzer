@@ -86,11 +86,11 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     // K1 deliberately drops unknown file bodies after recording their headers;
     // retain that lightweight inventory alongside K2's known-file headers so K4
     // can apply GTFS-JP namespace rules without reopening or retaining payloads.
-    k2.records
-        .gtfs_jp_namespace_headers
-        .extend(k1.custom_file_headers.iter().map(|(name, headers)| {
-            (name.clone(), headers.clone())
-        }));
+    k2.records.gtfs_jp_namespace_headers.extend(
+        k1.custom_file_headers
+            .iter()
+            .map(|(name, headers)| (name.clone(), headers.clone())),
+    );
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
 
     // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.

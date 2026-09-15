@@ -605,6 +605,7 @@
     "JPN_026.v4.aggregate": "The selected GTFS-JP profile requires currency_type='JPY'; {affected_records} fare record(s) use '{observed_value}'. Examples: {example_record_ids}.",
     "JPN_027.v3.aggregate": "GTFS-JP V3 is the bus format; {affected_records} route(s) use route_type={observed_value} instead of 3. Examples: {example_record_ids}.",
     "JPN_031": "Stop {entity_id} is served by zone-based fare routes ({example_route_ids}) but has no zone_id.",
+    "JPN_032": "GTFS-JP V3 agency_id '{observed_value}' is not a 13-digit Corporate Number format.",
     "JPN_029.v4.aggregate": "GTFS-JP v4: recommended ja-Hrkt reading missing for {table_name}.{field} = {source_value}; affects {affected_records} rows. Examples: {example_record_ids}.",
     "JPN_028.v3.aggregate": "GTFS-JP v3: required ja-Hrkt translation missing for {table_name}.{field} = {source_value}; affects {affected_records} rows. Examples: {example_record_ids}.",
     "JPN_028.v3.aggregate_both": "GTFS-JP v3: required ja-Hrkt and language=ja translations missing for {table_name}.{field} = {source_value}; affects {affected_records} rows. Examples: {example_record_ids}.",
@@ -826,6 +827,7 @@
     "JPN_026.v4.aggregate": "Set fare_attributes.currency_type to JPY for these records.",
     "JPN_027.v3.aggregate": "Use route_type=3 for the V3 bus profile, or select the profile appropriate for multimodal data.",
     "JPN_031": "Set this stop's zone_id consistently with the fare_rules zones for the affected routes.",
+    "JPN_032": "Use 13 ASCII digits for agency_id; append an underscore and non-empty branch id only when needed.",
     "JPN_033": "Rename the custom file or field so it does not use the GTFS-JP reserved jp prefix or suffix.",
     "JPN_006.v4.missing_review": "Manually verify the MLIT complex-fare exception; otherwise provide fare_attributes.txt.",
     "AGN_002": "Fill in the agency_name field.",
@@ -1904,6 +1906,7 @@
     "JPN_030": "GTFS-JP v3: required Japanese translation missing",
     "JPN_027": "GTFS-JP V3: route_type is not 3",
     "JPN_031": "GTFS-JP: zone_id missing at a stop served by zone-based fares",
+    "JPN_032": "GTFS-JP V3: agency_id is not in Corporate Number format",
     "JPN_033": "GTFS-JP: reserved jp namespace used by a custom file or field"
   }
 }

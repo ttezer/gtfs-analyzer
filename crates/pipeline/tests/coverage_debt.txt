@@ -6,6 +6,7 @@
 # ✅ 2026-08-07 (issue #71): borç **7 → 0**. Yeni JPN fixture'ları bu sprintte eklendi.
 # ✅ 2026-08-24: JPN_012..021 için emit_proof.rs::fixtures() uçtan uca kanıtı eklendi;
 # borç **10 → 0**.
+# ✅ 2026-09-15: JPN_032/JPN_033 emit fixture'ları eklendi; borç **0**.
 #
 # ⚠️ Eşik taşımaları VARSAYILAN DAVRANIŞI DEĞİŞTİRMEMELİDİR; tek amaç kanıt yazabilmektir.
 #

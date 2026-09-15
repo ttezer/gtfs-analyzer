@@ -52,7 +52,11 @@ fn jp_033_checks_custom_file_names_by_profile_without_feeding_detection() {
         (GtfsJpProfile::Auto, "customjp.txt", false),
     ] {
         let result = validate(&[(file_name, "foo,bar\n1,2\n")], profile);
-        assert_eq!(!select(&result.notices, "JPN_033").is_empty(), fires, "{profile:?} {file_name}");
+        assert_eq!(
+            !select(&result.notices, "JPN_033").is_empty(),
+            fires,
+            "{profile:?} {file_name}"
+        );
     }
 
     // A reserved-looking custom name cannot open the independent JP detection gate.
@@ -75,7 +79,8 @@ fn jp_033_flags_unknown_reserved_fields_but_allows_official_jp_extensions() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].field.as_deref(), Some("jp_custom"));
 
-    let official = "route_id,agency_id,route_short_name,route_type,jp_parent_route_id\nR1,A,1,3,P1\n";
+    let official =
+        "route_id,agency_id,route_short_name,route_type,jp_parent_route_id\nR1,A,1,3,P1\n";
     let result = validate(&[("routes.txt", official)], GtfsJpProfile::V3);
     assert!(select(&result.notices, "JPN_033").is_empty());
 }
@@ -90,8 +95,54 @@ fn multi_agency_fare_id_is_normative_agn_011_not_fin_013() {
         GtfsJpProfile::V4,
     );
     let agn = select(&result.notices, "AGN_011");
-    assert!(agn.iter().any(|n| n.file.as_deref() == Some("fare_attributes.txt")));
+    assert!(agn
+        .iter()
+        .any(|n| n.file.as_deref() == Some("fare_attributes.txt")));
     assert!(select(&result.notices, "FIN_013").is_empty());
+}
+
+#[test]
+fn jpn_032_is_strict_v3_only_and_does_not_recheck_blank_ids() {
+    for (agency_id, fires) in [
+        ("3000123456789", false),
+        ("3000123456789_1", false),
+        ("3000123456789_branch-a", false),
+        ("3000123456789_", true),
+        ("300012345678", true),
+        ("30001234567890", true),
+        ("not-a-corporate-number", true),
+    ] {
+        let agency = format!(
+            "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n{agency_id},Test,https://example.jp,Asia/Tokyo,ja\n"
+        );
+        let result = validate(&[("agency.txt", &agency)], GtfsJpProfile::V3);
+        assert_eq!(
+            !select(&result.notices, "JPN_032").is_empty(),
+            fires,
+            "{agency_id}"
+        );
+        assert!(
+            select(&result.notices, "JPN_011").is_empty(),
+            "non-empty id: {agency_id}"
+        );
+    }
+
+    let blank = validate(
+        &[("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n,Test,https://example.jp,Asia/Tokyo,ja\n")],
+        GtfsJpProfile::V3,
+    );
+    assert!(select(&blank.notices, "JPN_011")
+        .iter()
+        .any(|n| n.file.as_deref() == Some("agency.txt")));
+    assert!(select(&blank.notices, "JPN_032").is_empty());
+
+    for profile in [GtfsJpProfile::Auto, GtfsJpProfile::V4] {
+        let result = validate(
+            &[("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\nA,Test,https://example.jp,Asia/Tokyo,ja\n")],
+            profile,
+        );
+        assert!(select(&result.notices, "JPN_032").is_empty(), "{profile:?}");
+    }
 }
 
 #[test]

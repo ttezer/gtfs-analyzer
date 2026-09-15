@@ -1218,6 +1218,7 @@ const fr: LocaleShape = {
     'JPN_026.v4.aggregate': 'Le profil GTFS-JP sélectionné exige currency_type=JPY ; {affected_records} enregistrement(s) tarifaire(s) utilisent « {observed_value} ». Exemples : {example_record_ids}.',
     'JPN_027.v3.aggregate': 'GTFS-JP V3 est le format bus ; {affected_records} ligne(s) utilisent route_type={observed_value} au lieu de 3. Exemples : {example_record_ids}.',
     'JPN_031': 'L\'arrêt {entity_id} est desservi par des lignes à tarification zonale ({example_route_ids}) mais ne possède pas de zone_id.',
+    'JPN_032': 'Dans GTFS-JP V3, agency_id « {observed_value} » n’a pas le format de numéro d’entreprise à 13 chiffres.',
     'JPN_029.v4.aggregate': 'GTFS-JP v4 : lecture ja-Hrkt recommandée manquante pour {table_name}.{field} = {source_value} ; {affected_records} lignes concernées. Exemples : {example_record_ids}.',
     'JPN_028.v3.aggregate': 'GTFS-JP v3 : traduction ja-Hrkt obligatoire manquante pour {table_name}.{field} = {source_value} ; {affected_records} lignes concernées. Exemples : {example_record_ids}.',
     'JPN_028.v3.aggregate_both': 'GTFS-JP v3 : traductions ja-Hrkt et language=ja obligatoires manquantes pour {table_name}.{field} = {source_value} ; {affected_records} lignes concernées. Exemples : {example_record_ids}.',
@@ -1457,6 +1458,7 @@ const fr: LocaleShape = {
     'JPN_026.v4.aggregate': 'Définissez fare_attributes.currency_type sur JPY pour ces enregistrements.',
     'JPN_027.v3.aggregate': 'Utilisez route_type=3 pour le profil bus V3, ou sélectionnez le profil adapté aux données multimodales.',
     'JPN_031': 'Renseignez zone_id conformément aux zones de fare_rules des lignes concernées.',
+    'JPN_032': 'Utilisez 13 chiffres ASCII pour agency_id ; ajoutez si nécessaire un identifiant de branche non vide après un underscore.',
     'JPN_033': 'Renommez le fichier ou le champ personnalisé afin de ne pas utiliser le préfixe ou suffixe jp réservé par GTFS-JP.',
     'JPN_006.v4.missing_review': 'Vérifiez manuellement l\'exception MLIT des tarifs complexes ; sinon, fournissez fare_attributes.txt.',
     // AGN
@@ -2617,6 +2619,7 @@ const fr: LocaleShape = {
     'JPN_030': 'GTFS-JP v3 : traduction japonaise obligatoire manquante',
     'JPN_027': 'GTFS-JP V3 : route_type différent de 3',
     'JPN_031': 'GTFS-JP : zone_id absent à un arrêt desservi par une tarification zonale',
+    'JPN_032': 'GTFS-JP V3 : agency_id n’a pas le format du numéro d’entreprise',
     'JPN_033': 'GTFS-JP : espace de noms jp réservé utilisé par un fichier ou champ personnalisé',
   } as Record<string, string>,
 };

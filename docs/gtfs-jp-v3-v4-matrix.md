@@ -1,6 +1,8 @@
 # GTFS-JP v3/v4 uyumluluk matrisi
 
-Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal yoksa doğrulamayı açmaz, yalnız uygulanacak kural kapsamını seçer. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; tam uyumluluk sertifikası değildir.
+Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal yoksa doğrulamayı açmaz, yalnız uygulanacak kural kapsamını seçer. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; sürüm sertifikası değildir.
+
+**Rozet sözleşmesi:** `GTFS-JP V3 · %100 otomatik kapsama (insan yorumu gerektiren kurallar hariç)` ve eşdeğer V4 rozeti yalnızca bağımsız JP detection gate'i açık olan feed'lerde, açıkça seçilmiş `v3`/`v4` profiliyle ve makine tarafından doğrulanabilen MLIT hükümleri tamamlandığında kullanılabilir.法人番号'ın gerçek kuruma aitliği, telaffuz/okuma doğruluğu, karmaşık ücret yorumu ve `stop_access` gibi insan veya dış kaynak kanıtı isteyen konular bu yüzdeye dahil değildir. `auto` profilinde sürüm rozeti verilmez.
 
 > **Güncel davranış (0.13.1).** Tüm profiller ortak GTFS-JP tespit
 > kapısından geçer. Tespit; JP uzantı dosyaları, geçerli `feed_lang` etiketi,
@@ -10,15 +12,15 @@ Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasında
 > [takip kaydında](gtfs-jp-followup-2026-09-14.md) ve [profil taramasında](gtfs-jp-profile-sweep-2026-09-14.md)
 > tutulur.
 
-V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. V4’ün ana GTFS alanlarında değiştirdiği tüm zorunluluk sınıfları henüz “tam v4 uyumluluk rozeti” olarak ilan edilmiyor.
+V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. Otomatik rozet yalnızca yukarıdaki sözleşmede sayılan makine doğrulamalı kapsam için verilir.
 
 ## Runtime profil kapısı
 
 | Profil | Sürüm tespiti | `*_jp` uzantı kuralları | Çeviri/kana kuralları | Varsayılan |
 |---|---|---|---|---|
-| `auto` | Yapılmaz; yalnız GTFS-JP sinyali doğrulamayı açar | Mevcut v3/legacy davranışı | Genel JP/kana kuralları çalışır; sürüme özel yeni sabitler çalışmaz | Evet |
-| `v3` | Kullanıcı statik otobüs profilini seçer; JP sinyali varsa doğrular | `JPN_002/003/005/012–018/020` çalışır | JPN_001/004/006–011/019/021/023–028/030/031 | Hayır |
-| `v4` | Kullanıcı seçer; JP sinyali varsa doğrular | V3 uzantı kuralları çalışmaz | JPN_001/004/006–011/019/021/022–026/029/031 | Hayır |
+| `auto` | Yapılmaz; yalnız GTFS-JP sinyali doğrulamayı açar | Mevcut v3/legacy davranışı; JPN_033 yalnız V3/V4 ortak `*_jp`/`jp_*` alt kümesini kontrol eder | Genel JP/kana kuralları çalışır; JPN_032 ve sürüme özgü yeni sabitler çalışmaz | Evet |
+| `v3` | Kullanıcı statik otobüs profilini seçer; JP sinyali varsa doğrular | `JPN_002/003/005/012–018/020`, JPN_033 V3 ad alanı ve JPN_032 çalışır | JPN_001/004/006–011/019/021/023–028/030/031 | Hayır |
+| `v4` | Kullanıcı seçer; JP sinyali varsa doğrular | V3 uzantı kuralları çalışmaz; JPN_033 V4 ad alanını (`*jp`/`jp*`) kontrol eder | JPN_001/004/006–011/019/021/022–026/029/031 | Hayır |
 
 CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
@@ -72,12 +74,14 @@ JPN_031 tarifeyi dışarıdan tahmin etmez. Açık hat referansı olmayan bölge
 | `agency_jp.txt` | Profil dosyası; mevcutsa işleticinin Japonya-özel bilgileri | Ana v4 standardından çıkarıldı; v3 uzantısı olarak referans bölümünde | Opsiyonel dosya | v3/auto: JPN_003, JPN_012, JPN_013; v4: — | Interop / Quality | format reference / v4 farkı | Profil başına dosya mevcut ve hatalı |
 | `agency_jp.agency_id` | `agency.txt` kimliğine bağlanan zorunlu alan | V4 ana standardında yok; v3 alanı | Dosya mevcutsa zorunlu | v3/auto: JPN_012; v4: — | Interop | format reference / v4 farkı | Profil başına boş değer sonucu |
 | `agency_jp.agency_zip_number` | Varsa 7 ASCII rakam | V4 ana standardında yok; v3 alanı | Opsiyonel alan; mevcutsa biçim | v3/auto: JPN_013; v4: — | Quality | format reference / v4 farkı | Profil başına biçim sonucu |
+| `agency.agency_id` | İşleticinin 13 haneli法人番号 gövdesi; aynı法人 için `_` sonrası boş olmayan dal kimliği kullanılabilir |法人番号 önerilir; arbitrary ID izinlidir | V3 strict profilinde biçim zorunluluğu; V4/Auto kapsam dışı | v3: JPN_032; v4/auto: — | Interop | V3 s.11 / V4 farkı | 13 ASCII rakam, geçerli `_` suffix ve V4/Auto sessiz testleri |
 | `office_jp.txt` | Ofis bilgileri; dosya opsiyonel | Ana v4 standardından çıkarıldı; v3 uzantısı olarak referans bölümünde | Opsiyonel dosya | v3/auto: JPN_002, JPN_005, JPN_014, JPN_020; v4: — | Interop / Quality | format reference / v4 farkı | Profil başına dosya mevcut ve hatalı |
 | `office_jp.office_id` | Birincil anahtar; mevcut satırda dolu ve tekil | V4 ana standardında yok; v3 alanı | Dosya mevcutsa zorunlu ve tekil | v3/auto: JPN_014; v4: — | Interop | format reference / v4 farkı | Profil başına boş ve tekrar eden kimlik |
 | `office_jp.office_name` | Mevcut `office_id` için zorunlu | V4 ana standardında yok; v3 alanı | Dosya mevcutsa zorunlu | v3/auto: JPN_005; v4: — | Interop | format reference / v4 farkı | Profil başına boş isim |
 | `office_jp.office_url` | Varsa HTTP(S) biçim kalite kontrolü | V4 ana standardında yok; v3 alanı | Opsiyonel; mevcutsa biçim | v3/auto: JPN_020; v4: — | Quality | format reference / v4 farkı | Profil başına URL sonucu |
 | `office_jp.office_phone` | Varsa temel telefon biçim kalite kontrolü | V4 ana standardında yok; v3 alanı | Opsiyonel; mevcutsa biçim | v3/auto: JPN_020; v4: — | Quality | format reference / v4 farkı | Profil başına telefon sonucu |
 | `routes_jp.txt` | v3'te yok; eski v2 feed'leri için parser/sinyal ve legacy JPN_015/JPN_016 korunur | V4 ana standardında yok | Legacy uyumluluk | v3/auto: JPN_015, JPN_016; v4: — | Interop / Quality | [v3 nihai belge](https://www.mlit.go.jp/sogoseisaku/transport/content/001981046.docx) / v4 farkı | Profil başına eski dosyanın sonucu |
+| Özel dosya ve alan adları | Özel dosya sonunda `_jp`, özel alan başında `jp_` kullanılamaz; resmî GTFS-JP dosya/alanları istisnadır | Özel dosya adı `jp` ile, özel alan adı `jp` ile başlayamaz; resmî uzantılar istisnadır | Profil kapısı açıkken namespace uyumluluğu | v3: JPN_033 (`*_jp`/`jp_*`); v4: JPN_033 (`*jp`/`jp*`); auto: ortak alt küme | Interop | V3 s.10 / V4 farkı | Profil başına bilinmeyen custom file/field; detection'a geri besleme yok |
 | `pattern_jp.txt` | Opsiyonel duruş paterni dosyası | Ana v4 standardından çıkarıldı; v3 uzantısı olarak referans bölümünde | Opsiyonel dosya | v3/auto: JPN_017, JPN_018; v4: — | Interop | pattern rehberi / v4 farkı | V4'te masterless `jp_pattern_id` kabul edilir |
 | `pattern_jp.jp_pattern_id` | Dosya mevcutsa zorunlu ve tekil | V4 ana standardında `pattern_jp` master'ı yok; v4'teki `jp_pattern_id` alanıyla aynı ilişki varsayılmaz | Dosya mevcutsa zorunlu | v3/auto: JPN_017; v4: — | Interop | pattern rehberi / v4 farkı | Profil başına eksik ve tekrar eden kimlik |
 | `pattern_jp.route_update_date` | Varsa geçerli `YYYYMMDD` | V4 ana standardında yok; v3/legacy alanı | Opsiyonel; mevcutsa biçim | v3/auto: JPN_016; v4: — | Quality | v3 PDF / pattern rehberi / v4 farkı | Profil başına tarih sonucu |
@@ -105,7 +109,7 @@ JPN_031 tarifeyi dışarıdan tahmin etmez. Açık hat referansı olmayan bölge
 
 ## V4'ün kalan kapsamı
 
-MLIT v4 belgesinin uzantı dosyası, `jp_pattern_id` farkı, translations alt kimlik semantiği, ana alan zorunlulukları ve `shapes`/`transfers` koşulları runtime/dokümantasyona alındı. Bu paketle Japonya sabitleri ve hedeflenen çeviri boşlukları da eklendi. `shapes` için mevcut TRP_019 koşullu zorunluluğu uygular; `transfers` yalnızca öneri olarak belgelenir ve yokluğu cezalandırılmaz. Tam v4 uyumluluk iddiası için sonraki sprintte:
+MLIT v4 belgesinin uzantı dosyası, `jp_pattern_id` farkı, translations alt kimlik semantiği, ana alan zorunlulukları ve `shapes`/`transfers` koşulları runtime/dokümantasyona alındı. Bu paketle Japonya sabitleri, hedeflenen çeviri boşlukları, V3 `agency_id` biçimi ve ayrılmış ad alanı kontrolü de eklendi. `shapes` için mevcut TRP_019 koşullu zorunluluğu uygular; `transfers` yalnızca öneri olarak belgelenir ve yokluğu cezalandırılmaz. İnsan yorumu gerektiren maddeler rozet kapsamı dışında tutulur; kalan iş, makine doğrulamalı hükümlerin fixture/korpus kanıtını tamamlamaktır:
 
 1. V4 teknik rehberindeki uygulama rehberleri ve öneri alanlarını ayrı kalite kapsamı olarak değerlendirmek,
 2. Bu kapsamın tamamı için üretici çeşitliliğini temsil eden ek fixture/korpus doğrulaması yapmak

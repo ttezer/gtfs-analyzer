@@ -1017,6 +1017,16 @@ fn fixtures() -> Vec<Fixture> {
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z\nS2,Stop2,41.1,29.1,\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
+        // JPN_032: strict V3 agency_id Corporate Number biçimi.
+        fx_v3("JPN_032", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\nA-1,Test,http://test.example,UTC,ja\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+        ]),
+        // JPN_033: detection gate açıkken reserved custom file suffix.
+        fx_v3("JPN_033", vec![
+            ("custom_jp.txt", "foo,bar\n1,2\n"),
+            ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
+        ]),
         // JPN_028/030: V3'te Japonca route_desc için kana ve ja kayıtları birlikte gerekir.
         fx_v3("JPN_028", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
