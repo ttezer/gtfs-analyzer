@@ -1,5 +1,10 @@
 # GTFS-JP takip doğrulaması — 2026-09-14
 
+> **Tarihsel 14 Eylül snapshot'ı.** Aşağıdaki sayılar 14 Eylül binary çiftiyle alınmıştır.
+> 15 Eylül'de ortak tespit kapısı, bağımsız kana sinyali ve stop parse sırası son hâline
+> getirildi; güncel davranış [profil taramasında](gtfs-jp-profile-sweep-2026-09-14.md)
+> ve [V3/V4 matrisinde](gtfs-jp-v3-v4-matrix.md) belgelenir.
+
 Bu kayıt, `JPN_027`, `JPN_029` toplulaması, `JPN_031` ve `JPN_006` ücret istisnası düzeltmelerinin kanıtıdır. Tarihsel 13 Eylül ölçümü [önceki kayıtta](gtfs-jp-v3-v4-validation-2026-09-13.md) korunmuştur.
 
 ## Korpus ölçümü

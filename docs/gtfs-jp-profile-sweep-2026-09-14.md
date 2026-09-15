@@ -1,8 +1,11 @@
 # GTFS-JP profil taraması — Japon feed'leri × auto/v3/v4 (2026-09-14)
 
-Bu kayıt, GTFS-JP paketinin **açık profillerini** ilk kez ölçek altında sınar. Korpus denetimi
-bunu yapmaz: `benchmark/audit_all/run_shard.py:265` analyzer'ı profil vermeden çağırır, yani her
-koşum **auto**'dur ve paketin sekiz yeni kuralının altısı orada hiç çalışmaz.
+Bu kayıt iki aşamayı birlikte tutar. İlk dört bölüm, 14 Eylül'deki ilk profil
+tarama binary'sinde görülen sorunları ve ölçümleri tarihsel olarak korur;
+`Uygulama sonucu` ve sonraki bölümler bu sorunların hangi düzeltmelerle
+kapatıldığını ve hangi platform sorusunun açık kaldığını gösterir. Güncel
+full-catalog audit'i `--profiles` seçimini destekler; varsayılan `auto` parity
+koşusudur, açık `v3,v4` geçişleri ise ayrıca yayımlanan profil çıktılarıdır.
 
 ## Yöntem
 
@@ -16,7 +19,7 @@ koşum **auto**'dur ve paketin sekiz yeni kuralının altısı orada hiç çalı
   Soru "biz üç profilde ne yapıyoruz", "MD ne diyor" değil.
 - Hata: **0**.
 
-## ✅ Doğrulanan üç şey
+## Tarihsel ilk tarama — doğrulanan üç şey
 
 | ölçüm | auto | v3 | v4 |
 |---|---:|---:|---:|
@@ -38,9 +41,9 @@ yalnız V4'te konuşuyor (8 feed).
 
 ---
 
-# 🔧 DÜZELTİLECEKLER
+# Tarihsel takip bulguları ve durumları
 
-## 1. 🔴 `stop_times.stop_headsign` satır başına basılıyor — hacmin %99,9'u
+## 1. ✅ `stop_times.stop_headsign` satır başına basılıyor — hacmin %99,9'u (uygulandı)
 
 En hacimli 20 feed'in `JPN_028`/`JPN_029`/`JPN_030` bulgularının **%99,9'u** tek alandan:
 
@@ -67,19 +70,21 @@ Yani kapsamın geri kalanı (durak/hat açıklamaları, sefer metinleri, yayınc
 (829 → 57) için düzeltilen şeklin birebir aynısı: kural kimliğini alan düzeyinde ilan ediyor,
 satır düzeyinde basıyor.
 
-**Nerede:** `crates/pipeline/src/k4_cross_ref.rs:4671-4694` — `iter_trips()` içinde her
-`stop_time` için `check_v3_translation_pair` çağrılıyor. V4 kolu `4726` civarında aynı şekilde.
+**Nerede:** `crates/pipeline/src/k4_cross_ref.rs` içindeki `JpTranslationCoverage`,
+`record_v3_translation_pair` ve V3/V4 `iter_trips()` döngüleri. Her `stop_time` için
+aynı alanın kaynak değeri biriktirilip K4 sonunda toplu notice'a dönüştürülür.
 
-**Yapılacak:** alan başına toplulama. `TRP_004` deseni: döngüde biriktir, sonra `(tablo, alan)`
-başına TEK notice bas, `details`'a etkilenen satır sayısı ve örnek kayıt. Beklenen etki
-1.582.080 → feed başına 1 bulgu.
+**Uygulanan düzeltme:** alan başına toplulama. `TRP_004` deseni kullanılarak döngüde biriktirildi,
+sonra `(tablo, alan, source_value)` başına TEK notice basıldı; `details`'a etkilenen satır sayısı
+ve örnek kayıt taşındı. Beklenen etki, 1.582.080 satır-bulgudan aynı kaynak değerin tekrarları
+için tek notice'a düşüştür; bir feed'de kalan notice sayısı kaynak değer grubu sayısına bağlıdır.
 
 ⚠️ Kapsamı daraltma önerisi DEĞİL: `stop_headsign` planda bilinçli olarak kapsamda. Sorun
 kapsamda değil, granülerlikte.
 
-## 2. 🔴 `JPN_028` ile `JPN_030` aynı satırları iki kez sayıyor
+## 2. ✅ `JPN_028` ile `JPN_030` aynı satırları iki kez sayıyor (uygulandı)
 
-`check_v3_translation_pair` (`k4_cross_ref.rs:3922`) aynı yardımcıyı aynı `(tablo, alan, kayıt)`
+V3 çeviri döngüsü aynı yardımcıyı aynı `(tablo, alan, kayıt)`
 için **iki kez** çağırıyor: biri `ja-Hrkt` (kana) için `JPN_028`, biri `ja` için `JPN_030`.
 Yani çift basma tasarımın kendisi.
 
@@ -101,10 +106,9 @@ eksik değil: `JPN_004` kökü olan **0** feed var, 618'inin de dosyası var ama
 🔑 Asimetri anlamlı: `ja` tam olup kana eksik olan **hiçbir** feed yok. Yani `JPN_030`
 pratikte `JPN_028`'i kapsıyor.
 
-**Karar gerekiyor, kod değil:** iki dilin eksikliği üretici için iki ayrı iş mi, yoksa tek
-"bu alanın çevirisi eksik" bulgusu mu? Eğer tek ise iki kural tek kurala inmeli veya biri
-diğerini bastırmalı. 1. maddedeki toplulama yapılırsa hacim zaten feed başına 2'ye iner ve bu
-karar acil olmaktan çıkar — ama çift raporlama okunabilirlik sorunu olarak kalır.
+**Uygulanan karar:** aynı kaynak değerde iki dil de eksikse tek `JPN_028`
+`aggregate_both` bildirimi; yalnız `language=ja` eksikse toplu `JPN_030`
+korunur. Böylece aynı üretici işi iki kez raporlanmaz.
 
 ## 3. 🟡 Üç kural açıklanamayan yönde oynadı — platform farkı olabilir
 
@@ -135,14 +139,16 @@ koşup karşılaştırmak. Fark kayboluyorsa platform, sürüyorsa gerçek bir k
 
 ⚠️ Bu, 1. ve 2. maddelerden **bağımsız** bir kalem; onları düzeltmek bunu çözmez.
 
-## 4. 🟡 Korpus denetimi açık profilleri hiç çalıştırmıyor
+## 4. ✅ Korpus denetimi açık profilleri hiç çalıştırmıyor (uygulandı)
 
-`run_shard.py:265` profil argümanı vermiyor. Sonuç: `JPN_023`–`JPN_026`, `JPN_028`, `JPN_029`,
-`JPN_030` korpus koşumlarında **hiç** ateşlemiyor. Paketin sekiz kuralından altısı CI ölçeğinde
-denenmemiş durumda; bu kayıt o boşluğu elle dolduruyor.
+İlk binary'de `run_shard.py` profil argümanı vermiyordu. Bu nedenle
+`JPN_023`–`JPN_026`, `JPN_028`, `JPN_029`, `JPN_030` ilk full-catalog
+koşumunda ölçülmedi; bu kayıt boşluğu elle doldurdu.
 
-**Seçenek:** ya denetime ikinci bir Japonya geçişi eklemek (635 feed, tek geçiş 0,6 dk, indirme
-0,11 GB — ucuz), ya da boşluğu bilinçli kapsam dışı olarak yazmak. Şu an ikisi de yapılmadı.
+**Uygulanan sonuç:** workflow `auto` veya `auto,v3,v4` seçimini kabul ediyor;
+aynı ZIP bir kez indirilip profiller arasında yeniden kullanılıyor ve explicit
+sonuçlar `analyzer_profiles`, `profile-summary.json` ve `profile-rules.json`
+alanlarına yazılıyor. Parity sonuçları yine Auto'dan okunuyor.
 
 ## 5. ℹ️ `JPN_023`–`JPN_026` hiç konuşmuyor (kusur değil)
 
@@ -153,13 +159,12 @@ bugünkü korpusta örneği yok.
 
 ---
 
-## Önerilen sıra
+## Uygulama sırası
 
-1. **1. madde** — toplulama. Tek başına hacmin %99,9'unu çözüyor, kapsam kaybı yok, `TRP_004`
-   deseni hazır.
-2. **3. madde** — Linux koşumu. Ucuz ve 1. maddeden bağımsız; sonuç "platform" çıkarsa kapanır.
-3. **2. madde** — çift raporlama kararı. 1. maddeden sonra aciliyeti düşer ama kararı verilmeli.
-4. **4. madde** — denetim kapsamı kararı.
+1. **Tamamlandı:** `JPN_028`/`JPN_030` toplulaması ve `aggregate_both` kararı.
+2. **Tamamlandı:** ortak tespit kapısından sonra katı V3 `JPN_027` ve `JPN_026` para birimi toplulaması.
+3. **Tamamlandı:** audit profil dispatch'i ve Auto parity ayrımı.
+4. **Açık:** aynı güncel binary ile Linux/macOS SHP/STM/OPR platform karşılaştırması.
 
 ## Uygulama sonucu
 

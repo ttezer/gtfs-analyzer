@@ -1,6 +1,12 @@
 # GTFS-JP korpus ölçümü — 2026-08-25
 
-Bu ölçüm, 2026-08-20 tarihli tam MobilityDatabase manifestindeki `country=JP` satırlarını yeniden kullanır. Küme 592 feed kimliğinden oluşur; analyzer güncel çalışma ağacındaki release binary ile, karşılaştırılabilir olması için `--today 20260820` kullanılarak çalıştırılmıştır. GTFS-RT kapsam dışıdır.
+> **Tarihsel snapshot.** Bu belge 25 Ağustos'taki Auto/legacy ve ayrı V4
+> ölçümünü korur. Sonraki GTFS-JP tespit kapısı, `JPN_026`/`JPN_028`/
+> `JPN_029`/`JPN_030` toplulaştırmaları, katı V3 `JPN_027` ve `JPN_031`
+> kanıt düzeltmeleri için [14 Eylül takip doğrulamasına](gtfs-jp-followup-2026-09-14.md)
+> ve [profil taramasına](gtfs-jp-profile-sweep-2026-09-14.md) bakın.
+
+Bu ölçüm, 2026-08-20 tarihli tam MobilityDatabase manifestindeki `country=JP` satırlarını yeniden kullanır. Küme 592 feed kimliğinden oluşur; analyzer o tarihteki çalışma ağacının release binary'siyle, karşılaştırılabilir olması için `--today 20260820` kullanılarak çalıştırılmıştır. GTFS-RT kapsam dışıdır.
 
 Ham JSONL çıktı repo dışındadır:
 
@@ -82,7 +88,7 @@ Ham çıktı:
 
 Bu koşumda JPN_012, JPN_005, JPN_007, JPN_014, JPN_015, JPN_017, JPN_020 ve JPN_021 için bulgu oluşmadı. JPN_018 sonucu önceki adjudication ile aynıdır: `1 feed / 3 bulgu`. JPN_019 da `1 feed / 1 bulgu` olarak kalmıştır; bu korpusta bilinmeyen `table_name` türevi görülmemiştir.
 
-## Açık V4 profil follow-up'ı
+## Tarihsel açık V4 profil follow-up'ı (2026-08-25)
 
 Yukarıdaki aggregate varsayılan `auto`/v3-legacy kapsamıdır. Profilin varsayılan
 olarak V4 yapılmasının etkisini ölçmek için aynı 592 feed, bu kez açık
@@ -107,4 +113,4 @@ V4 açıkça seçilmediğinde bu sonuçlar uygulanmaz; araç feed içeriğinden 
 - Manifest feed kimlikleri aynıdır; `latest.zip` URL'leri yeniden indirildiği için arşiv byte'larının tamamının aynı olduğu varsayılmaz. Ürün karşılaştırmaları payload SHA-256 drift'i ile birlikte okunmalıdır.
 - Bu ölçüm yalnız GTFS Analyzer sonuçlarını yeniler; MobilityData Validator yeniden koşturulmamıştır.
 - ZIP olmayan iki payload ilk aggregate'ta skor veya kural dağılımına dahil edilmemiştir; gerçek feed oldukları resmî kaynak follow-up'ında doğrulanmıştır.
-- Ana aggregate v4 runtime profili olmadan alınmıştır; aşağıdaki açık V4 follow-up'ı ayrı bir koşum olarak v4 kurallarını ölçer.
+- Ana aggregate v4 runtime profili olmadan alınmıştır; aşağıdaki açık V4 follow-up'ı ayrı bir koşum olarak v4 kurallarını ölçer. Güncel profil kapısı ve toplulaştırma davranışı yukarıdaki takip kayıtlarında yer alır.

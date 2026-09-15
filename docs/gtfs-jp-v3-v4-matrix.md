@@ -2,6 +2,14 @@
 
 Bu belge, GTFS Analyzer’ın GTFS-JP v3 kapsamını ve GTFS-JP v4 ile arasındaki farkları kayıt altına alır. Analyzer feed’in v3 veya v4 olduğunu otomatik olarak iddia etmez. `is_gtfs_jp` yalnız içerik sinyalidir; açık `v3`/`v4` seçimi sinyal yoksa doğrulamayı açmaz, yalnız uygulanacak kural kapsamını seçer. UI, CLI, SDK ve WASM'deki profil değeri seçilen doğrulama kapsamını gösterir; tam uyumluluk sertifikası değildir.
 
+> **Güncel davranış (0.13.1).** Tüm profiller ortak GTFS-JP tespit
+> kapısından geçer. Tespit; JP uzantı dosyaları, geçerli `feed_lang` etiketi,
+> `ja-Hrkt` çevirisi, `agency_lang=ja` + `Asia/Tokyo` ve agency/stop kana
+> sinyallerini birleştirir. Açık profil sürüm iddiası değildir; yalnızca kural
+> kapsamını seçer. 14 Eylül ölçümlerindeki önce/sonra ve yanlış pozitif kanıtı
+> [takip kaydında](gtfs-jp-followup-2026-09-14.md) ve [profil taramasında](gtfs-jp-profile-sweep-2026-09-14.md)
+> tutulur.
+
 V3 kuralları geriye dönük uyumluluk için korunur. MLIT’nin 19 Mart 2026 tarihli v4 spesifikasyonu, v3’teki `agency_jp.txt`, `office_jp.txt` ve `pattern_jp.txt` dosyalarını ana standardın dışına çıkarıp v3 uzantıları için referans bölümüne taşır. Bu fark runtime’a işlendi: v4 profilinde bu dosyalara bağlı JPN kuralları çalışmaz; çeviri/kana ve temel GTFS-JP kontrolleri çalışmaya devam eder. V4’ün ana GTFS alanlarında değiştirdiği tüm zorunluluk sınıfları henüz “tam v4 uyumluluk rozeti” olarak ilan edilmiyor.
 
 ## Runtime profil kapısı
@@ -16,7 +24,7 @@ CLI: `gtfs-analyzer validate feed.zip --gtfs-jp-profile v4`
 
 JSON config delta: `{"gtfs_jp_profile":"v4"}`. WASM tarafında aynı alan mevcut config delta sözleşmesiyle verilir. Profil feed içeriğinden otomatik çıkarılmaz. Web ayarlarında `Auto / V3 / V4` seçilebilir. UI raporunda `GTFS-JP` tespit rozeti yanında seçilen kapsam rozeti gösterilir; bu rozet feed sürümünü değil analiz profilini ifade eder.
 
-## 2026-08-25 açık V4 ölçümü
+## Tarihsel 2026-08-25 açık V4 ölçümü
 
 592 JP feed aynı manifestten, yalnızca `--gtfs-jp-profile v4` açık seçimiyle yeniden
 koşturuldu. 588 sonuç `ok`, 2 sonuç `fatal`, 2 sonuç ise kısmi çıktı verdi; V4

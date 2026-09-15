@@ -1,6 +1,10 @@
 # GTFS-JP V3/V4 doğrulama kaydı — 2026-09-13
 
-> Tarihsel ölçüm kaydıdır. V3 otobüs sınırı, JPN_029 toplulaması, JPN_031 ve V4 ücret inceleme davranışı 14 Eylül'de düzeltildi; güncel sonuçlar [takip kaydındadır](gtfs-jp-followup-2026-09-14.md). Aşağıdaki eski sayılar değiştirilmemiştir.
+> Tarihsel ölçüm kaydıdır. V3 otobüs sınırı, `JPN_026`/`JPN_028`/`JPN_029`/
+> `JPN_030` toplulaştırmaları, tespit kapısı, `JPN_031` ve V4 ücret inceleme
+> davranışı 14–15 Eylül'de düzeltildi; güncel sonuçlar [takip kaydındadır](gtfs-jp-followup-2026-09-14.md)
+> ve [profil taramasında](gtfs-jp-profile-sweep-2026-09-14.md) tutulur.
+> Aşağıdaki eski sayılar karşılaştırma kanıtı olarak değiştirilmemiştir.
 
 Bu kayıt, GTFS-JP V3/V4 düzeltme paketinin aynı arşiv ve sabit tarihli önce/sonra doğrulamasıdır. Önceki binary `7b4d6b8d` commit'inden, sonraki binary bu paketin son çalışma ağacından release profilinde derlendi. Tüm analizlerde `--today 20260913` kullanıldı. Kaynak ve alan bazındaki kararlar [V3/V4 uyumluluk matrisinde](gtfs-jp-v3-v4-matrix.md) kayıtlıdır.
 
@@ -46,6 +50,8 @@ V3 farkı, feed'lerde kana satırlarının bulunmasına karşılık V3'ün zorun
 | Yeni engellenen feed | - | 0 |
 | Yeni yayınlanabilir feed | - | 7 |
 
+Aşağıdaki dağılım, 13 Eylül'deki eski binary'nin tarihsel davranışını gösterir:
+
 JP kural gruplarının tamamı:
 
 | Kural | Feed önce→sonra | Bulgu önce→sonra | Açıklama |
@@ -63,7 +69,7 @@ JP kural gruplarının tamamı:
 | JPN_022 | 17→6 | 17→6 | Boş `location_type` yanlış alarmları kaldırıldı; gerçek kolon/alan eksikleri kaldı |
 | JPN_029 | 0→435 | 0→1.901.271 | V4'ün önerilen stop-time/attribution kana kapsamı eklendi |
 
-JPN_023–026 bu korpusta yeni bulgu üretmedi; mevcut geçerli değerler Japonya sabitleriyle uyumluydu. JPN_028/JPN_030 yalnız açık V3 kuralıdır ve V4 korpus koşumunda çalışmadı. JPN_027 registry'ye eklenmedi.
+JPN_023–026 bu korpusta yeni bulgu üretmedi; mevcut geçerli değerler Japonya sabitleriyle uyumluydu. JPN_028/JPN_030 yalnız açık V3 kuralıdır ve V4 korpus koşumunda çalışmadı. Bu eski binary'de JPN_027 henüz registry'ye eklenmemişti.
 
 Yayın kararı için planlanan “tam sabitlik” ölçümde yedi iyileşme istisnası verdi; hiçbir feed yeni engellenmedi. Bunun nedeni yeni JPN kuralları değil, V3 kapsamı için gerekli `trips.jp_trip_desc` ve `feed_info.feed_publisher_url` çeviri hedeflerinin genel TRN_002 tarafından artık hatalı biçimde “geçersiz alan” sayılmamasıdır. `jbda-keisei-transitbus-keiseitransitbus` `feed_publisher_url`, altı Mie Kotsu feed'i `jp_trip_desc` nedeniyle önce yanlış `Kritik/Spec` engeli taşıyordu. Bu yedi feed `false→true`; diğer 583 feed'in `pub_score` ve `publishable` sonucu aynı kaldı.
 

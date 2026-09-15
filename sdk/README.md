@@ -65,6 +65,10 @@ For a GTFS-JP analysis, select the scope explicitly with `config.gtfs_jp_profile
 use `'v3'` for the legacy v3 rule scope, `'v4'` for the v4 scope, or omit the
 field/use `'auto'` for the default legacy-compatible behavior. The SDK does not
 infer the feed's official GTFS-JP version; the value selects the validation scope.
+The selected scope does not force JPN notices on an ordinary feed: all three
+profiles use the shared GTFS-JP detector, which recognizes JP extension files,
+Japanese language/translation signals, `agency_lang=ja` with
+`agency_timezone=Asia/Tokyo`, and kana in agency or stop names.
 
 Options:
 
