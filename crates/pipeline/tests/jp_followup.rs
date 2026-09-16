@@ -97,6 +97,14 @@ fn jp_033_flags_unknown_reserved_fields_but_allows_official_jp_extensions() {
     assert!(select(&result.notices, "JPN_033")
         .iter()
         .any(|n| n.field.as_deref() == Some("jp_custom")));
+
+    // A misspelled lookalike is not an official extension and must remain
+    // visible; the allowlist must not turn every jp_ header into a free pass.
+    let typo_trip = "route_id,service_id,trip_id,jp_trip_desc_simbol\nR1,SVC,T1,x\n";
+    let result = validate(&[("trips.txt", typo_trip)], GtfsJpProfile::V3);
+    assert!(select(&result.notices, "JPN_033")
+        .iter()
+        .any(|n| n.field.as_deref() == Some("jp_trip_desc_simbol")));
 }
 
 #[test]
