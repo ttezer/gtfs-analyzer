@@ -43,7 +43,7 @@ Kaynak gerçekliği ve yüzde hesabının paydası [`spec-audit/gtfs_jp_provisio
 
 **Eşleşmemiş güçlü makine hükmü: 0**
 
-Her satır, hangi resmî belge sürümünün hangi tarihte baştan sona yeniden tarandığını ve hükmün sayfa/bölüm çapasıyla birlikte taşır. Son denetim tarihi: **2026-09-16**.
+Her satır, hangi resmî belge sürümünün envantere işlendiğini, kaynakla karşılaştırmanın tarihini ve hükmün sayfa/bölüm çapasını taşır. Son karşılaştırma tarihi: **2026-09-16**. V3 için `2021-07 final` sürümü, MLIT'nin arşiv sayfasındaki **第3版（2021年7月）** kaydıyla eşleştirilmiştir ([MLIT kaynak arşivi](https://www.mlit.go.jp/sogoseisaku/transport/sosei_transport_tk_000067.html)).
 
 | Provision ID | Profil | Güç | Otomasyon | Rule ID | Kaynak | Belge / sürüm | Sayfa-bölüm çapası |
 |---|---|---|---|---|---|---|---|
