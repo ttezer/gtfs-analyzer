@@ -16,16 +16,20 @@ spec.loader.exec_module(coverage)
 
 
 class GtfsJpCoverageTests(unittest.TestCase):
-    def test_inventory_is_closed_and_strong_rows_are_mapped(self):
+    def test_inventory_is_closed_and_machine_rows_are_mapped(self):
         rows = coverage.load_rows()
-        self.assertEqual(len(rows), 40)
+        self.assertEqual(len(rows), 38)
         self.assertTrue(all(row["source_document"] and row["source_version"] for row in rows))
         self.assertTrue(all(row["audited_on"] == "2026-09-16" for row in rows))
         self.assertTrue(all(row["strength"] != "strong" or row["automation"] == "rule" for row in rows))
         mapped = set().union(*(coverage.rule_ids(row) for row in rows))
         jpn = {rule for rule in mapped if coverage.JPN_ID.fullmatch(rule)}
         registry = set(coverage.REGISTRY_ID.findall(coverage.REGISTRY.read_text(encoding="utf-8")))
-        self.assertEqual(jpn, {f"JPN_{number:03d}" for number in range(1, 34)})
+        self.assertEqual(
+            jpn,
+            {f"JPN_{number:03d}" for number in range(1, 34)}
+            - coverage.NON_NORMATIVE_JPN_RULES,
+        )
         self.assertTrue(jpn <= registry)
 
     def test_checker_passes_current_contract(self):

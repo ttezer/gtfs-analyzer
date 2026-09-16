@@ -7,8 +7,6 @@ V3-OFFICE-ID	v3	strong	rule	JPN_014	MLIT V3 office_jp	office_id varlık ve tekil
 V3-OFFICE-NAME	v3	strong	rule	JPN_005	MLIT V3 office_jp	office_name zorunluluğu	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	office_jp.txt · office_name
 V3-OFFICE-CONTACT	v3	soft	rule	JPN_020	MLIT V3 office_jp	office_url ve office_phone biçim kontrolleri	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	office_jp.txt · office_url/office_phone
 V3-OFFICE-REFERENCE	v3	strong	rule	JPN_002	MLIT V3 office_jp	jp_office_id referansı	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	office_jp.txt · jp_office_id
-V3-ROUTES-JP-ROUTE	v3	strong	rule	JPN_015	MLIT V3 routes_jp	route_id varlık, tekillik ve routes.txt referansı	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	routes_jp.txt · route_id
-V3-ROUTES-JP-DATE	v3	soft	rule	JPN_016	MLIT V3 routes_jp	route_update_date biçimi	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	routes_jp.txt · route_update_date
 V3-PATTERN-ID	v3	strong	rule	JPN_017	MLIT V3 pattern_jp	jp_pattern_id varlık ve tekillik	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	pattern_jp.txt · jp_pattern_id
 V3-PATTERN-REF	v3	strong	rule	JPN_018	MLIT V3 trips/pattern_jp	trips.jp_pattern_id referansı	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	pattern_jp.txt / trips.txt · jp_pattern_id
 V3-TRANSLATIONS-FILE	v3	strong	rule	JPN_004	MLIT V3 translations	translations.txt profilde zorunlu	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	translations.txt

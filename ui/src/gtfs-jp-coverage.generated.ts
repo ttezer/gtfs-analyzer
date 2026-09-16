@@ -98,30 +98,6 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "pageAnchor": "office_jp.txt · jp_office_id"
   },
   {
-    "provisionId": "V3-ROUTES-JP-ROUTE",
-    "profile": "v3",
-    "ruleIds": [
-      "JPN_015"
-    ],
-    "source": "MLIT V3 routes_jp",
-    "sourceDocument": "MLIT GTFS-JP V3 final",
-    "sourceVersion": "2021-07 final",
-    "auditedOn": "2026-09-16",
-    "pageAnchor": "routes_jp.txt · route_id"
-  },
-  {
-    "provisionId": "V3-ROUTES-JP-DATE",
-    "profile": "v3",
-    "ruleIds": [
-      "JPN_016"
-    ],
-    "source": "MLIT V3 routes_jp",
-    "sourceDocument": "MLIT GTFS-JP V3 final",
-    "sourceVersion": "2021-07 final",
-    "auditedOn": "2026-09-16",
-    "pageAnchor": "routes_jp.txt · route_update_date"
-  },
-  {
     "provisionId": "V3-PATTERN-ID",
     "profile": "v3",
     "ruleIds": [

@@ -183,8 +183,8 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 | **JPN_012** | `agency_jp.agency_id` が必須で、`agency.txt` の行を参照すること |
 | **JPN_013** | 存在する場合、`agency_zip_number` は7桁のASCII数字であること |
 | **JPN_014** | `office_jp.office_id` が存在し、一意であること |
-| **JPN_015** | 旧版 `routes_jp.route_id` の互換性チェック（v3 ファイルではありません） |
-| **JPN_016** | `pattern_jp.route_update_date` と旧版 `routes_jp.route_update_date` が有効な `YYYYMMDD` 日付であること |
+| **JPN_015** | Auto プロファイルのみで旧版 `routes_jp.route_id` の互換性をチェック（v3 ファイルではありません） |
+| **JPN_016** | V3 の `pattern_jp.route_update_date` と、Auto の旧版 `routes_jp.route_update_date` の日付形式 |
 | **JPN_017** | `pattern_jp.jp_pattern_id` が存在し、一意であること |
 | **JPN_018** | `pattern_jp.txt` が存在する場合、`trips.jp_pattern_id` が同ファイルを参照すること |
 | **JPN_019** | `ja-Hrkt` 行が有効なGTFSテーブル・フィールド・レコード・stop_timesサブレコードを使うこと |

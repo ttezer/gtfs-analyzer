@@ -55,8 +55,6 @@ Her satır, hangi resmî belge sürümünün envantere işlendiğini, kaynakla k
 | `V3-OFFICE-NAME` | v3 | strong | rule | `JPN_005` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · office_name |
 | `V3-OFFICE-CONTACT` | v3 | soft | rule | `JPN_020` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · office_url/office_phone |
 | `V3-OFFICE-REFERENCE` | v3 | strong | rule | `JPN_002` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · jp_office_id |
-| `V3-ROUTES-JP-ROUTE` | v3 | strong | rule | `JPN_015` | MLIT V3 routes_jp | MLIT GTFS-JP V3 final / 2021-07 final | routes_jp.txt · route_id |
-| `V3-ROUTES-JP-DATE` | v3 | soft | rule | `JPN_016` | MLIT V3 routes_jp | MLIT GTFS-JP V3 final / 2021-07 final | routes_jp.txt · route_update_date |
 | `V3-PATTERN-ID` | v3 | strong | rule | `JPN_017` | MLIT V3 pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt · jp_pattern_id |
 | `V3-PATTERN-REF` | v3 | strong | rule | `JPN_018` | MLIT V3 trips/pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt / trips.txt · jp_pattern_id |
 | `V3-TRANSLATIONS-FILE` | v3 | strong | rule | `JPN_004` | MLIT V3 translations | MLIT GTFS-JP V3 final / 2021-07 final | translations.txt |

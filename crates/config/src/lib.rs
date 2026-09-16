@@ -103,7 +103,8 @@ pub const KNOWN_CONFIG_KEYS: &[&str] = &[
 /// GTFS-JP kural kapsamı.
 ///
 /// `Auto` varsayılandır ve sürüm iddiasında bulunmadan mevcut legacy davranışı
-/// korur. `V3` eski Japonya-özel uzantı dosyalarını, `V4` ise güncel referans
+/// korur; buna `routes_jp.txt` için eski uyumluluk kontrolleri de dahildir.
+/// `V3` V3'te kalan Japonya-özel uzantı dosyalarını, `V4` ise güncel referans
 /// kapsamını seçer; seçilen kapsam yalnızca feed GTFS-JP olarak algılanırsa
 /// uygulanır. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

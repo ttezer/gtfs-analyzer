@@ -939,11 +939,11 @@ fn fixtures() -> Vec<Fixture> {
         fx_v3("JPN_014", vec![
             ("office_jp.txt", "office_id,office_name\n,OfficeEmpty\nO1,OfficeA\nO1,OfficeB\n"),
         ]),
-        // JPN_015: routes_jp.route_id routes.txt'te yok.
-        fx_v3("JPN_015", vec![
+        // JPN_015: legacy routes_jp.route_id routes.txt'te yok (Auto compatibility).
+        fx("JPN_015", vec![
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,20260101,Origin,Via,Destination\n"),
         ]),
-        // JPN_016: pattern_jp ve legacy routes_jp route_update_date geçersiz.
+        // JPN_016: explicit V3 pattern_jp route_update_date geçersiz.
         fx_v3("JPN_016", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nP1,20260231,Origin,Via,Destination\n"),
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nR1,令和8年4月6日,Origin,Via,Destination\n"),

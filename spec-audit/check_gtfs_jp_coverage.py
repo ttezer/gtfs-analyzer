@@ -2,9 +2,11 @@
 """Validate the machine-readable GTFS-JP V3/V4 coverage contract.
 
 The provision inventory is the denominator for the product's scoped 100%
-claim.  This check deliberately fails closed when a strong provision is left
-unmapped, a rule id is removed from the registry, or the published contract
-document stops reflecting the inventory.
+claim. This check deliberately fails closed when a machine-checkable provision
+is left unmapped, a rule id is removed from the registry, or the published
+contract document stops reflecting the inventory. Legacy compatibility rules
+that are intentionally outside the normative V3/V4 denominator are listed
+explicitly below.
 """
 
 from __future__ import annotations
@@ -36,6 +38,9 @@ REQUIRED_COLUMNS = {
 ALLOWED_STRENGTHS = {"strong", "soft", "manual"}
 ALLOWED_AUTOMATION = {"rule", "manual", "excluded_recommendation"}
 ALLOWED_PROFILES = {"v3", "v4"}
+# These rules remain in the product for Auto/legacy compatibility, but their
+# pre-V3 routes_jp.txt behavior is not an MLIT V3/V4 normative provision.
+NON_NORMATIVE_JPN_RULES = {"JPN_015", "JPN_016"}
 
 
 def load_rows() -> list[dict[str, str]]:
@@ -108,7 +113,11 @@ def main() -> int:
 
     registry_jpn = {value for value in registry_ids if JPN_ID.fullmatch(value)}
     inventory_jpn = {value for value in inventory_rules if JPN_ID.fullmatch(value)}
-    if missing := sorted(registry_jpn - inventory_jpn):
+    if legacy_in_inventory := sorted(inventory_jpn & NON_NORMATIVE_JPN_RULES):
+        problems.append(
+            "normatif envanterde legacy JPN kuralı: " + ", ".join(legacy_in_inventory)
+        )
+    if missing := sorted(registry_jpn - inventory_jpn - NON_NORMATIVE_JPN_RULES):
         problems.append("envanterde eksik JPN kuralı: " + ", ".join(missing))
     if extra := sorted(inventory_jpn - registry_jpn):
         problems.append("registry dışı JPN kuralı: " + ", ".join(extra))

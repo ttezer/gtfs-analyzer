@@ -183,8 +183,8 @@ GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du
 | **JPN_012** | `agency_jp.agency_id` est obligatoire et doit identifier un enregistrement de `agency.txt` |
 | **JPN_013** | Lorsqu’il est présent, `agency_zip_number` doit contenir exactement 7 chiffres ASCII |
 | **JPN_014** | `office_jp.office_id` doit être présent et unique |
-| **JPN_015** | Contrôle de compatibilité de `routes_jp.route_id` (hérité) ; ce n’est pas un fichier v3 |
-| **JPN_016** | `pattern_jp.route_update_date` et `routes_jp.route_update_date` (hérité) doivent être des dates `AAAAMMJJ` valides |
+| **JPN_015** | Contrôle de compatibilité hérité de `routes_jp.route_id`, uniquement en profil Auto ; ce n’est pas un fichier v3 |
+| **JPN_016** | `pattern_jp.route_update_date` en V3 ; format de date de `routes_jp.route_update_date` hérité en profil Auto |
 | **JPN_017** | `pattern_jp.jp_pattern_id` doit être présent et unique |
 | **JPN_018** | Lorsque `pattern_jp.txt` existe, `trips.jp_pattern_id` doit le référencer |
 | **JPN_019** | Les enregistrements `ja-Hrkt` doivent viser des tables, champs, enregistrements et sous-enregistrements GTFS valides |

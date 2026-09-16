@@ -4182,7 +4182,11 @@ fn check_gtfs_jp_namespace(records: &EntityRecords, notices: &mut Vec<Notice>, c
 
     for (file_name, headers) in files {
         let stem = file_name.strip_suffix(".txt").unwrap_or(file_name);
-        let is_official_jp_file = GTFS_JP_FILES.contains(&file_name);
+        // `routes_jp.txt` was removed from the V3 standard. Keep recognizing
+        // it as a legacy signal in Auto, but explicit V3/V4 profiles must
+        // apply the reserved custom-file namespace rule to that old name.
+        let is_official_jp_file = GTFS_JP_FILES.contains(&file_name)
+            && (records.gtfs_jp_profile == GtfsJpProfile::Auto || file_name != "routes_jp.txt");
         if !is_official_jp_file && stem.ends_with(file_suffix) {
             notices.push(notice(
                 ctr,
@@ -4281,6 +4285,10 @@ fn check_gtfs_jp(
     // moves agency_jp/office_jp/pattern_jp out of the main standard. The
     // profile is explicit; Auto preserves the pre-v4 behavior.
     let legacy_v3_extensions = !matches!(records.gtfs_jp_profile, GtfsJpProfile::V4);
+    // `routes_jp.txt` is a pre-V3 compatibility file. It remains active only
+    // in Auto, while explicit profiles enforce the current namespace/profile
+    // contract instead of validating the removed table as normative V3.
+    let legacy_routes_jp_compatibility = records.gtfs_jp_profile == GtfsJpProfile::Auto;
     if jp_validation_enabled {
         let mut kana_records: HashSet<&str> = HashSet::new();
         let mut kana_values: HashSet<&str> = HashSet::new();
@@ -5289,8 +5297,8 @@ fn check_gtfs_jp(
             }
         }
 
-        // ── JPN_015: routes_jp.route_id zorunlu, tekil ve routes.txt'e bağlı ────
-        {
+        // ── JPN_015: legacy routes_jp.route_id zorunlu, tekil ve routes.txt'e bağlı ──
+        if legacy_routes_jp_compatibility {
             let route_ids: HashSet<&str> = records
                 .routes
                 .iter()
@@ -5386,26 +5394,28 @@ fn check_gtfs_jp(
                 }
             }
         }
-        for route in &records.routes_jp {
-            if let Some(date) = route.route_update_date.as_deref() {
-                if !valid_gtfs_jp_date(date) {
-                    notices.push(notice(
-                        ctr,
-                        "JPN_016",
-                        EntityType::Row,
-                        Some(route.route_id.clone()),
-                        Some(route.route_id.clone()),
-                        "routes_jp.txt",
-                        Some(route.line),
-                        Some("route_update_date"),
-                        Some(date.to_string()),
-                        Some("YYYYMMDD".to_string()),
-                        format!(
-                            "routes_jp.txt route_update_date '{}' geçerli bir tarih değil.",
-                            date
-                        ),
-                        "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
-                    ));
+        if legacy_routes_jp_compatibility {
+            for route in &records.routes_jp {
+                if let Some(date) = route.route_update_date.as_deref() {
+                    if !valid_gtfs_jp_date(date) {
+                        notices.push(notice(
+                            ctr,
+                            "JPN_016",
+                            EntityType::Row,
+                            Some(route.route_id.clone()),
+                            Some(route.route_id.clone()),
+                            "routes_jp.txt",
+                            Some(route.line),
+                            Some("route_update_date"),
+                            Some(date.to_string()),
+                            Some("YYYYMMDD".to_string()),
+                            format!(
+                                "routes_jp.txt route_update_date '{}' geçerli bir tarih değil.",
+                                date
+                            ),
+                            "route_update_date değerini geçerli bir YYYYMMDD tarihi olarak girin.",
+                        ));
+                    }
                 }
             }
         }
