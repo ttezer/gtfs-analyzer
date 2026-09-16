@@ -104,9 +104,10 @@ pub const KNOWN_CONFIG_KEYS: &[&str] = &[
 ///
 /// `Auto` varsayılandır ve sürüm iddiasında bulunmadan mevcut legacy davranışı
 /// korur; buna `routes_jp.txt` için eski uyumluluk kontrolleri de dahildir.
-/// `V3` V3'te kalan Japonya-özel uzantı dosyalarını, `V4` ise güncel referans
-/// kapsamını seçer; seçilen kapsam yalnızca feed GTFS-JP olarak algılanırsa
-/// uygulanır. Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
+/// `V3` V3'te kalan Japonya-özel uzantı dosyalarını ve `routes_jp.txt` için
+/// geriye dönük uyumluluk kontrollerini, `V4` ise güncel referans kapsamını
+/// seçer; seçilen kapsam yalnızca feed GTFS-JP olarak algılanırsa uygulanır.
+/// Sürüm otomatik olarak feed içeriğinden çıkarılmaz.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum GtfsJpProfile {
