@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`JPN_033` — reserved GTFS-JP namespace in custom names** (Medium/Interop,
+  rule count 623 → 624). When the GTFS-JP detection gate is open, a custom file
+  or column that uses MLIT's reserved `jp` namespace is reported: `*_jp` files
+  and `jp_*` columns under V3, the broader `*jp` / `jp*` forms under V4, and
+  only the shared `*_jp` / `jp_*` subset under Auto. Official GTFS-JP files
+  (including the legacy `routes_jp.txt`) and parser-known official columns are
+  allowlisted — among them `jp_office_id` on `trips.txt`, which Tokyo Toei and
+  other publishers use alongside `routes.txt`. Misspelled lookalikes are still
+  reported. The finding never feeds back into GTFS-JP detection, and the native
+  CLI, WASM, and SDK see the same custom-file headers.
+- **`JPN_032` — V3 `agency_id` is not a Corporate Number** (Medium/Interop,
+  rule count 624 → 625). With the explicit V3 profile, `agency_id` must be 13
+  ASCII digits, optionally followed by `_` and a non-empty branch suffix. No
+  grammar is invented for the suffix, an empty `agency_id` remains `JPN_011`,
+  and whether the number belongs to the operator is not checked. V4 and Auto
+  are unaffected.
+- **GTFS-JP machine-checkable coverage badge.** With an explicitly selected V3
+  or V4 profile on a detected GTFS-JP feed, the UI shows
+  *100% Machine-Checkable Coverage (human review and recommendation-only
+  provisions excluded)*. The claim is generated from
+  [`spec-audit/gtfs_jp_provisions.tsv`](spec-audit/gtfs_jp_provisions.tsv):
+  39 MLIT provisions, 32 of them mapped to Analyzer rules, each with its source
+  document, version, comparison date, and page or section anchor. A fail-closed
+  CI check rejects an unmapped machine-checkable provision, an unknown rule id,
+  or a JPN rule missing from the inventory, and a drift check keeps the
+  generated UI data in sync. Auto never shows the badge, and a feed's R1
+  `coverage_complete` flag plays no part in it. The legacy `routes_jp.txt`
+  checks (`JPN_015`) still run in Auto and V3 but sit outside the normative
+  denominator. Contract:
+  [`docs/gtfs-jp-automated-coverage.md`](docs/gtfs-jp-automated-coverage.md).
+
+### Changed
+
+- **A missing `fare_attributes.agency_id` in a multi-agency feed is now reported
+  only by `AGN_011`** (Critical/Spec), the rule that already carried this
+  conditional requirement. `FIN_013` stays an INFO recommendation for
+  single-agency feeds. `AGN_011` now also counts fare rows whose `fare_id` is
+  empty (`FAR_012` still reports the empty id), so such a feed can newly become
+  non-publishable. Its remediation text now mentions fare records.
+- READMEs report the current **625-rule** catalog, list `JPN_032`/`JPN_033` in
+  the GTFS-JP rule tables, and use the qualified coverage badge wording.
+- Corpus-audit workflow artifacts are retained for 30 days instead of 90.
+
 ### Fixed
 
 - **`STM_047` now checks `arrival_time` and `departure_time` independently when
@@ -16,25 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`STM_047` messages are now field-specific in the CLI and UI locales.**
   English, Japanese, and French output distinguishes a missing arrival time,
   departure time, or both, including the remediation text.
-- **WASM and native GTFS-JP namespace validation now share custom-file headers.**
-  Both WASM K2 paths carry K1's unknown-file header inventory into K4, keeping
-  `JPN_033` behavior consistent across runtimes.
-- Removed the unsupported md-parity mapping from **`JPN_032`**; its strict V3
-  profile rule remains covered by the dedicated JP fixtures.
-
-### Changed
-
-- The GTFS-JP automated-coverage badge now derives from the machine-readable
-  MLIT provision inventory, with a fail-closed CI mapping check, and never
-  treats a feed's R1 `coverage_complete` flag as proof of product coverage. The
-  contract is documented in
-  [`docs/gtfs-jp-automated-coverage.md`](docs/gtfs-jp-automated-coverage.md).
-- The coverage inventory now records the audited MLIT document version, audit
-  date, and page/section anchor for every provision. Recommendation-only
-  provisions and the V4 fare-file exception are explicitly outside the
-  automated badge denominator; the machine-checkable V4 `fare_rules` branch
-  remains mapped to `JPN_006`.
-- README translations now report the current **625-rule** catalog.
+- **The oversize-upload message states the real limit.** It said "1024 MB" in
+  every locale while the enforced limit is 512 MiB; the message is now
+  parameterized from the actual limit in all four locales.
+- **Exported reports carry the correct app version.** The UI package was still
+  at 0.13.0 after the 0.13.1 release, so the build stamped `app_version`
+  0.13.0 into exports.
 
 ## [0.13.1] - 2026-09-15
 
