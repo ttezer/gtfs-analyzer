@@ -3,7 +3,7 @@
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100%20otomatik-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20makineyle%20denetlenebilir%20kapsam%20%25100-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Kural sayısı](https://img.shields.io/badge/kural-625-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4343%20feed%20%C3%97%2018%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
