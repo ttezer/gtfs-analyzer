@@ -1476,7 +1476,7 @@ const fr: LocaleShape = {
     'AGN_008': 'Utilisez une URL http/https valide pour agency_fare_url.',
     'AGN_009': 'Utilisez une adresse e-mail valide pour agency_email.',
     'AGN_010': 'Attribuez un agency_id unique à chaque agence.',
-    'AGN_011': 'Renseignez agency_id sur toutes les lignes lorsque plusieurs agences sont présentes.',
+    'AGN_011': 'Renseignez agency_id sur toutes les lignes et tous les tarifs lorsque plusieurs agences sont présentes.',
     'AGN_012': 'Mettez cemv_support à 0 (pas d’information), 1 (pris en charge) ou 2 (non pris en charge).',
     'RTS_024': 'Mettez cemv_support à 0 (pas d’information), 1 (pris en charge) ou 2 (non pris en charge).',
     'RTS_025': 'Renseignez la colonne agency_id de routes.txt avec l’agency_id de l’agence exploitante.',

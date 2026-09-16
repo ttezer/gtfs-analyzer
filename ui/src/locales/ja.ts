@@ -1256,7 +1256,7 @@ const ja: LocaleShape = {
     'AGN_008': 'agency_fare_urlに有効なhttp/https URLを使用してください。',
     'AGN_009': 'agency_emailに有効なメールアドレスを使用してください。',
     'AGN_010': '各事業者に一意のagency_idを割り当ててください。',
-    'AGN_011': '複数の事業者が存在する場合はagency_idをすべての路線に入力してください。',
+    'AGN_011': '複数の事業者が存在する場合は、すべての路線と運賃レコードにagency_idを入力してください。',
     'AGN_012': 'cemv_supportを0（情報なし）、1（対応）、2（非対応）に設定してください。',
     'RTS_024': 'cemv_supportを0（情報なし）、1（対応）、2（非対応）に設定してください。',
     'RTS_025': 'routes.txtのagency_id列を運行事業者のagency_idで入力してください。',
