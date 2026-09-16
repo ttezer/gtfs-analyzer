@@ -810,7 +810,11 @@ fn check_agencies(
     let fares_without_agency = records
         .fare_attributes
         .iter()
-        .filter(|f| !f.fare_id.is_empty() && f.agency_id.is_none())
+        // agency_id is conditionally required for every fare_attributes row.
+        // Keep this independent from fare_id validity: FAR_012 owns the empty
+        // fare_id defect, while AGN_011 must still report the missing agency
+        // attribution on the same row when multiple agencies are defined.
+        .filter(|f| f.agency_id.is_none())
         .count();
     if fares_without_agency > 0 {
         notices.push(notice(
