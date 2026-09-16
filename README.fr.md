@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 **Français**
 
 [![Ouvrir l’application](https://img.shields.io/badge/Ouvrir%20l%27application-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20couverture%20v%C3%A9rifiable%20par%20machine%20100%25-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Couverture%20V%C3%A9rifiable%20par%20Machine-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-625-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
 [![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C343%20jeux%20de%20donn%C3%A9es%20%C3%97%2018%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)

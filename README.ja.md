@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](README.fr.md)
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%E6%A9%9F%E6%A2%B0%E6%A4%9C%E8%A8%BC%E5%8F%AF%E8%83%BD%E3%82%AB%E3%83%90%E3%83%AC%E3%83%83%E3%82%B8%20100%25-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20%E6%A9%9F%E6%A2%B0%E6%A4%9C%E8%A8%BC%E5%8F%AF%E8%83%BD%E3%82%AB%E3%83%90%E3%83%AC%E3%83%83%E3%82%B8-c8102e?style=flat)](https://www.gtfs.jp/)
 [![ルール数](https://img.shields.io/badge/rules-625-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![コーパス検証](https://img.shields.io/badge/corpus-4%2C343%20feeds%20%C3%97%2018%20runs-brightgreen?style=flat)](audit-results/)
