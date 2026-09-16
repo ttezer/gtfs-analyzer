@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20supported-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20automated-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Rule count](https://img.shields.io/badge/rules-625-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Corpus validation](https://img.shields.io/badge/corpus-4%2C343%20feeds%20%C3%97%2018%20runs-brightgreen?style=flat)](audit-results/)
@@ -163,6 +163,8 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 
 **Selecting the profile for an analysis.** In the web app, open **Analysis Criteria** before choosing the ZIP and select `Auto`, `V3`, or `V4` under **GTFS-JP validation profile**. The current selection is committed when you choose a feed, before automatic validation starts; `Auto` is the default. For the CLI, use `--gtfs-jp-profile v3` or `--gtfs-jp-profile v4`. In the SDK, pass `config: { gtfs_jp_profile: 'v3' }` or `'v4'`. This selects the validation scope; it does not infer the feed's official GTFS-JP version. See the [GTFS-JP v3/v4 compatibility matrix](docs/gtfs-jp-v3-v4-matrix.md) for the detailed differences.
 
+**Automated coverage badge.** The **100% automated coverage** badge on an explicitly selected V3 or V4 profile means that all MLIT provisions enforced by that profile and verifiable by machine are covered. Human review, external verification, and recommendation-only provisions are excluded from the denominator; `Auto` does not make a version coverage claim. The badge does not infer the feed's official GTFS-JP version.
+
 **Profile rules (JPN group).**
 
 | Rule | Check |
@@ -190,11 +192,13 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_021** | `ja-Hrkt` translations must be non-empty, consistent, and contain kana |
 | **JPN_022** | GTFS-JP v4 main fields and the `location_type` column; a blank cell is valid `0` |
 | **JPN_023–026** | Explicit profiles require `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo`, and `currency_type=JPY` |
-| **JPN_027** | Explicit V3 bus profile requires `route_type=3`; excluded from Auto/V4 |
+| **JPN_027** | Explicit V3 profile requires every numeric `route_type` to be `3`; excluded from Auto/V4 |
 | **JPN_028** | Remaining required V3 `ja-Hrkt` translations |
 | **JPN_029** | V4 readings aggregated per source value, with affected-row count and up to 5 examples |
 | **JPN_030** | Remaining required V3 `language=ja` translations |
 | **JPN_031** | V3/V4: conditional `zone_id` through fare→route→trip→stop links |
+| **JPN_032** | Strict V3: `agency_id` uses a 13-digit corporate-number body, with an optional non-empty branch suffix |
+| **JPN_033** | V3/V4: reserved `jp` namespace is forbidden in custom file and field names, according to the selected profile |
 
 The **Tokyo Toei** comparison above shows how the profile behaves on a real GTFS-JP feed: the feed is specification-clean (0 critical), and the profile rules produce no false positives on correctly referenced data.
 

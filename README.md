@@ -3,7 +3,7 @@
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20destekli-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100%20otomatik-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Kural sayısı](https://img.shields.io/badge/kural-625-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4343%20feed%20%C3%97%2018%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
@@ -165,6 +165,8 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 
 **Profil seçimi (analiz sırasında).** Web uygulamasında ZIP'i seçmeden önce **Analiz Kriterleri** panelini açın ve **GTFS-JP profil kapsamı** alanından `Auto`, `V3` veya `V4` seçin. Feed'i seçtiğiniz anda mevcut seçim kaydedilir ve analiz otomatik başlar; `Auto` varsayılandır. CLI için `--gtfs-jp-profile v3` veya `--gtfs-jp-profile v4` kullanın. SDK'da aynı seçimi `config: { gtfs_jp_profile: 'v3' }` ya da `'v4'` ile verin. Bu seçim feed'in resmî sürümünü tespit etmez; yalnızca uygulanacak doğrulama kapsamını belirler. Ayrıntılı farklar için [GTFS-JP v3/v4 uyumluluk matrisine](docs/gtfs-jp-v3-v4-matrix.md) bakın.
 
+**Otomatik kapsama rozeti.** Açıkça seçilen V3 veya V4 profilinde raporlanan `%100 otomatik kapsama`, MLIT'nin makineyle doğrulanabilen ve profilde uygulanan hükümlerinin tamamını ifade eder. İnsan yorumu, dış doğrulama ve yalnızca öneri niteliğindeki hükümler bu paydadan çıkarılır; `Auto` profili sürüm kapsamı rozeti üretmez. Bu rozet feed'in resmî GTFS-JP sürümünü otomatik olarak tespit ettiği anlamına gelmez.
+
 **Profil kuralları (JPN grubu).**
 
 | Kural | Denetim |
@@ -192,11 +194,13 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_021** | Kana çevirilerinde boş, çakışan veya kana içermeyen kayıtlar |
 | **JPN_022** | GTFS-JP v4 ana alanları ve `location_type` kolonunun eksikliği; boş hücre geçerli `0` kabul edilir |
 | **JPN_023–026** | Açık profilde `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo`, `currency_type=JPY` |
-| **JPN_027** | Yalnız açık V3 otobüs profilinde `route_type=3`; Auto/V4 kapsam dışı |
+| **JPN_027** | Açık V3 profilinde sayısal `route_type` değeri yalnızca `3` olabilir; Auto/V4 kapsam dışı |
 | **JPN_028** | V3'ün kalan zorunlu `ja-Hrkt` çevirileri |
 | **JPN_029** | V4 okumaları: kaynak değeri başına toplulama, etkilenen satır sayısı ve en fazla 5 örnek |
 | **JPN_030** | V3'ün kalan zorunlu `language=ja` çevirileri |
 | **JPN_031** | V3/V4: ücret→hat→sefer→durak bağlantısıyla koşullu `zone_id` |
+| **JPN_032** | Strict V3: `agency_id` 13 haneli法人番号 gövdesi ve varsa boş olmayan dal eki biçiminde olmalı |
+| **JPN_033** | V3/V4: özel dosya ve alan adlarında ayrılmış `jp` ad alanı kullanılamaz (profil sürümüne göre) |
 
 Yukarıdaki **Tokyo Toei** karşılaştırması bu profilin gerçek bir GTFS-JP feed'inde nasıl davrandığını gösterir: feed spec açısından temizdir (0 kritik) ve profil kuralları doğru referanslı veride yanlış pozitif üretmez.
 

@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](README.fr.md)
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%E5%AF%BE%E5%BF%9C-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20%E8%87%AA%E5%8B%95%E3%82%AB%E3%83%90%E3%83%AC%E3%83%83%E3%82%B8-c8102e?style=flat)](https://www.gtfs.jp/)
 [![ルール数](https://img.shields.io/badge/rules-625-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![コーパス検証](https://img.shields.io/badge/corpus-4%2C343%20feeds%20%C3%97%2018%20runs-brightgreen?style=flat)](audit-results/)
@@ -163,6 +163,8 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 
 **解析プロファイルの選択。** Web アプリでは ZIP を選ぶ前に **分析設定** パネルを開き、**GTFS-JP 検証プロファイル**で `Auto`、`V3`、または `V4` を選択してください。フィードを選択すると現在の選択が保存され、そのまま自動解析が始まります。デフォルトは `Auto` です。CLI では `--gtfs-jp-profile v3` または `--gtfs-jp-profile v4`、SDK では `config: { gtfs_jp_profile: 'v3' }` または `'v4'` を指定します。これは検証範囲の選択であり、フィードの公式 GTFS-JP バージョンを自動判定するものではありません。詳細は [GTFS-JP v3/v4 互換性マトリクス](docs/gtfs-jp-v3-v4-matrix.md) を参照してください。
 
+**自動カバレッジバッジ。** 明示した V3 または V4 プロファイルの **自動カバレッジ100%** は、プロファイルが適用する MLIT の機械検証可能な規定をすべてカバーすることを示します。人手の確認、外部検証、推奨のみの規定は分母から除外され、`Auto` はバージョン別カバレッジを主張しません。このバッジはフィードの公式 GTFS-JP バージョンを自動判定するものでもありません。
+
 **プロファイルルール（JPN グループ）。**
 
 | ルール | 検査内容 |
@@ -190,11 +192,13 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 | **JPN_021** | `ja-Hrkt` 翻訳が空でなく、一貫し、かなを含むこと |
 | **JPN_022** | GTFS-JP v4 の主要項目と `location_type` 列。空セルは有効な `0` とみなす |
 | **JPN_023–026** | 明示プロファイルで `feed_lang=ja`、`agency_lang=ja`、`agency_timezone=Asia/Tokyo`、`currency_type=JPY` |
-| **JPN_027** | 明示的な V3 バスプロファイルのみ `route_type=3` が必須（Auto/V4 は対象外） |
+| **JPN_027** | 明示的な V3 プロファイルでは数値 `route_type` は `3` のみ（Auto/V4 は対象外） |
 | **JPN_028** | V3 の残りの必須 `ja-Hrkt` 翻訳 |
 | **JPN_029** | V4 の読みを原文値ごとに集約し、対象行数と最大 5 件の例を表示 |
 | **JPN_030** | V3 の残りの必須 `language=ja` 翻訳 |
 | **JPN_031** | V3/V4: 運賃→路線→便→停留所の関連に基づく条件付き `zone_id` |
+| **JPN_032** | Strict V3: `agency_id` は13桁の法人番号本体と、あれば空でない枝番号を持つ形式 |
+| **JPN_033** | V3/V4: 選択プロファイルに応じ、カスタムファイル名・フィールド名で予約済み `jp` 名前空間を使用しない |
 
 上記の **Tokyo Toei** の比較は、実際の GTFS-JP フィードでこのプロファイルがどう振る舞うかを示しています。フィードは仕様的にクリーン（重大 0 件）であり、正しく参照されたデータではプロファイルルールが誤検出を生みません。
 

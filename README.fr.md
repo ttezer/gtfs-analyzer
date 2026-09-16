@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 **Français**
 
 [![Ouvrir l’application](https://img.shields.io/badge/Ouvrir%20l%27application-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20support%C3%A9-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20automatis%C3%A9-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-625-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
 [![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C343%20jeux%20de%20donn%C3%A9es%20%C3%97%2018%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)
@@ -163,6 +163,8 @@ GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du
 
 **Choisir le profil d’une analyse.** Dans l’application web, ouvrez **Critères d’analyse** avant de choisir le ZIP et sélectionnez `Auto`, `V3` ou `V4` sous **Profil de validation GTFS-JP**. La sélection est prise en compte au moment où vous choisissez un jeu de données, avant le démarrage de la validation automatique ; `Auto` est la valeur par défaut. Pour la CLI, utilisez `--gtfs-jp-profile v3` ou `--gtfs-jp-profile v4`. Dans le SDK, passez `config: { gtfs_jp_profile: 'v3' }` ou `'v4'`. Ce choix définit la portée de validation ; il ne déduit pas la version GTFS-JP officielle du jeu de données. Voir la [matrice de compatibilité GTFS-JP v3/v4](docs/gtfs-jp-v3-v4-matrix.md) pour le détail des différences.
 
+**Badge de couverture automatisée.** Le badge **couverture automatisée à 100 %** d’un profil V3 ou V4 explicitement sélectionné signifie que toutes les dispositions MLIT appliquées par le profil et vérifiables par machine sont couvertes. L’avis humain, la vérification externe et les recommandations seules sont exclus du dénominateur ; `Auto` ne revendique pas une couverture par version. Le badge ne déduit pas la version GTFS-JP officielle du jeu de données.
+
 **Règles de profil (groupe JPN).**
 
 | Règle | Contrôle |
@@ -190,11 +192,13 @@ GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du
 | **JPN_021** | Les traductions `ja-Hrkt` doivent être non vides, cohérentes et contenir des kana |
 | **JPN_022** | Champs principaux GTFS-JP v4 et colonne `location_type` ; une cellule vide vaut `0` |
 | **JPN_023–026** | Les profils explicites exigent `feed_lang=ja`, `agency_lang=ja`, `agency_timezone=Asia/Tokyo` et `currency_type=JPY` |
-| **JPN_027** | Profil bus V3 explicite : `route_type=3` obligatoire ; hors Auto/V4 |
+| **JPN_027** | Profil V3 explicite : toute valeur numérique de `route_type` doit être `3` ; hors Auto/V4 |
 | **JPN_028** | Traductions `ja-Hrkt` V3 obligatoires restantes |
 | **JPN_029** | Lectures V4 regroupées par valeur source, nombre de lignes et jusqu’à 5 exemples |
 | **JPN_030** | Traductions `language=ja` V3 obligatoires restantes |
 | **JPN_031** | V3/V4 : `zone_id` conditionnel via les liens tarif→ligne→course→arrêt |
+| **JPN_032** | V3 strict : `agency_id` utilise un corps de 13 chiffres de numéro d’entreprise, avec suffixe de branche non vide facultatif |
+| **JPN_033** | V3/V4 : l’espace de noms réservé `jp` est interdit dans les noms de fichiers et de champs personnalisés, selon le profil |
 
 La comparaison **Tokyo Toei** ci-dessus montre le comportement du profil sur un jeu de données GTFS-JP réel : le jeu est conforme à la spécification (0 critique) et les règles de profil ne produisent aucun faux positif sur des données correctement référencées.
 
