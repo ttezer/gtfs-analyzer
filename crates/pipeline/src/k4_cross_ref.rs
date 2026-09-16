@@ -4182,11 +4182,10 @@ fn check_gtfs_jp_namespace(records: &EntityRecords, notices: &mut Vec<Notice>, c
 
     for (file_name, headers) in files {
         let stem = file_name.strip_suffix(".txt").unwrap_or(file_name);
-        // `routes_jp.txt` was removed from the V3 standard. Keep recognizing
-        // it as a legacy signal in Auto, but explicit V3/V4 profiles must
-        // apply the reserved custom-file namespace rule to that old name.
-        let is_official_jp_file = GTFS_JP_FILES.contains(&file_name)
-            && (records.gtfs_jp_profile == GtfsJpProfile::Auto || file_name != "routes_jp.txt");
+        // `routes_jp.txt` was removed from the V3 standard, but it remains a
+        // known official legacy file. Keep it allowlisted in every profile so
+        // JPN_033 does not mislabel an old MLIT file as a custom collision.
+        let is_official_jp_file = GTFS_JP_FILES.contains(&file_name);
         if !is_official_jp_file && stem.ends_with(file_suffix) {
             notices.push(notice(
                 ctr,
@@ -4285,10 +4284,6 @@ fn check_gtfs_jp(
     // moves agency_jp/office_jp/pattern_jp out of the main standard. The
     // profile is explicit; Auto preserves the pre-v4 behavior.
     let legacy_v3_extensions = !matches!(records.gtfs_jp_profile, GtfsJpProfile::V4);
-    // `routes_jp.txt` is a pre-V3 compatibility file. It remains active only
-    // in Auto, while explicit profiles enforce the current namespace/profile
-    // contract instead of validating the removed table as normative V3.
-    let legacy_routes_jp_compatibility = records.gtfs_jp_profile == GtfsJpProfile::Auto;
     if jp_validation_enabled {
         let mut kana_records: HashSet<&str> = HashSet::new();
         let mut kana_values: HashSet<&str> = HashSet::new();
@@ -5298,7 +5293,9 @@ fn check_gtfs_jp(
         }
 
         // ── JPN_015: legacy routes_jp.route_id zorunlu, tekil ve routes.txt'e bağlı ──
-        if legacy_routes_jp_compatibility {
+        // Preserve the historical V3/Auto compatibility behavior. This is not
+        // part of the normative V3 inventory because routes_jp.txt was removed.
+        if legacy_v3_extensions {
             let route_ids: HashSet<&str> = records
                 .routes
                 .iter()
@@ -5394,7 +5391,7 @@ fn check_gtfs_jp(
                 }
             }
         }
-        if legacy_routes_jp_compatibility {
+        if legacy_v3_extensions {
             for route in &records.routes_jp {
                 if let Some(date) = route.route_update_date.as_deref() {
                     if !valid_gtfs_jp_date(date) {
@@ -7592,10 +7589,10 @@ mod tests {
     use crate::k2::trips::{TripInternTable, TripRecord};
 
     fn empty() -> (EntityRecords, EntityMap) {
-        // Bu yardımcı, aşağıdaki V3/legacy JPN_* fixture'larının uzantı kurallarını
-        // sınadığı sentetik feed'i temsil eder. Legacy routes_jp testleri Auto
-        // profilini kendi içinde açıkça seçer; V4 davranışı ayrıca
-        // `v4_profile_treats_v3_extension_files_as_reference_only` ile sınanır.
+        // Bu yardımcı, aşağıdaki eski JPN_* fixture'larının V3 uzantı kurallarını
+        // sınadığı sentetik feed'i temsil eder. Üretim varsayılanı V4 olduğu için
+        // legacy testlerinin profil niyeti burada açıkça belirtilmelidir; V4 davranışı
+        // ayrıca `v4_profile_treats_v3_extension_files_as_reference_only` ile sınanır.
         let records = EntityRecords {
             gtfs_jp_profile: GtfsJpProfile::V3,
             ..EntityRecords::default()
@@ -10839,7 +10836,6 @@ mod tests {
     #[test]
     fn jpn_015_reports_dangling_routes_jp_route_id() {
         let (mut recs, _map) = empty();
-        recs.gtfs_jp_profile = GtfsJpProfile::Auto;
         recs.routes = vec![route("R1")];
         recs.routes_jp = vec![RoutesJpRecord {
             route_id: "MISSING".into(),
@@ -10877,7 +10873,6 @@ mod tests {
     #[test]
     fn jpn_016_reports_invalid_legacy_routes_jp_update_date() {
         let (mut recs, _map) = empty();
-        recs.gtfs_jp_profile = GtfsJpProfile::Auto;
         recs.routes_jp = vec![RoutesJpRecord {
             route_id: "R1".into(),
             route_update_date: Some("令和8年4月6日".into()),

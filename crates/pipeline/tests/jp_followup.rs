@@ -108,7 +108,7 @@ fn jp_033_flags_unknown_reserved_fields_but_allows_official_jp_extensions() {
 }
 
 #[test]
-fn routes_jp_is_legacy_compatibility_only_in_auto_profile() {
+fn routes_jp_is_legacy_compatibility_in_v3_and_auto_profiles() {
     let routes_jp = "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,令和8年4月6日,Origin,Via,Destination\n";
 
     let auto = validate(&[("routes_jp.txt", routes_jp)], GtfsJpProfile::Auto);
@@ -120,22 +120,19 @@ fn routes_jp_is_legacy_compatibility_only_in_auto_profile() {
         .any(|notice| { notice.file.as_deref() == Some("routes_jp.txt") }));
     assert!(select(&auto.notices, "JPN_033").is_empty());
 
-    for profile in [GtfsJpProfile::V3, GtfsJpProfile::V4] {
-        let result = validate(&[("routes_jp.txt", routes_jp)], profile);
-        assert!(select(&result.notices, "JPN_015").is_empty(), "{profile:?}");
-        assert!(
-            select(&result.notices, "JPN_016")
-                .iter()
-                .all(|notice| { notice.file.as_deref() != Some("routes_jp.txt") }),
-            "{profile:?}"
-        );
-        assert!(
-            select(&result.notices, "JPN_033")
-                .iter()
-                .any(|notice| { notice.file.as_deref() == Some("routes_jp.txt") }),
-            "{profile:?}"
-        );
-    }
+    let v3 = validate(&[("routes_jp.txt", routes_jp)], GtfsJpProfile::V3);
+    assert!(select(&v3.notices, "JPN_015")
+        .iter()
+        .any(|notice| notice.file.as_deref() == Some("routes_jp.txt")));
+    assert!(select(&v3.notices, "JPN_016")
+        .iter()
+        .any(|notice| notice.file.as_deref() == Some("routes_jp.txt")));
+    assert!(select(&v3.notices, "JPN_033").is_empty());
+
+    let v4 = validate(&[("routes_jp.txt", routes_jp)], GtfsJpProfile::V4);
+    assert!(select(&v4.notices, "JPN_015").is_empty());
+    assert!(select(&v4.notices, "JPN_016").is_empty());
+    assert!(select(&v4.notices, "JPN_033").is_empty());
 }
 
 #[test]
