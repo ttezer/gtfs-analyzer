@@ -1394,6 +1394,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "jp_trip_desc",
             "jp_trip_desc_symbol",
             "jp_pattern_id",
+            // Tokyo Toei and other GTFS-JP feeds may carry the official
+            // jp_office_id extension on trips.txt as well as routes.txt.
+            "jp_office_id",
         ],
         "stop_times.txt" => &[
             "trip_id",

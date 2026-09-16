@@ -83,6 +83,20 @@ fn jp_033_flags_unknown_reserved_fields_but_allows_official_jp_extensions() {
         "route_id,agency_id,route_short_name,route_type,jp_parent_route_id\nR1,A,1,3,P1\n";
     let result = validate(&[("routes.txt", official)], GtfsJpProfile::V3);
     assert!(select(&result.notices, "JPN_033").is_empty());
+
+    // Tokyo Toei places the same official extension on trips.txt. It must not
+    // be mistaken for a custom reserved-namespace collision.
+    let official_trip = "route_id,service_id,trip_id,jp_office_id\nR1,SVC,T1,O1\n";
+    let result = validate(&[("trips.txt", official_trip)], GtfsJpProfile::V3);
+    assert!(select(&result.notices, "JPN_033").is_empty());
+
+    // Keep the negative side of the allowlist: an actually custom jp_ field
+    // in trips.txt remains visible.
+    let custom_trip = "route_id,service_id,trip_id,jp_custom\nR1,SVC,T1,x\n";
+    let result = validate(&[("trips.txt", custom_trip)], GtfsJpProfile::V3);
+    assert!(select(&result.notices, "JPN_033")
+        .iter()
+        .any(|n| n.field.as_deref() == Some("jp_custom")));
 }
 
 #[test]
