@@ -8810,10 +8810,10 @@ fn check_remaining_analytics<'a>(
         // kullanırsa kullansın DEĞİŞMEZ. Sefer-sefer aktarma kullanan feed'lerde aynı cümle
         // onlarca kez tekrarlanıyordu. Ölçüm (`tfs-789`, arşiv sha256 koşumla doğrulandı):
         // 829 aktarma satırının TAMAMI 2 km üstü ama yalnız **57 farklı durak çifti** var,
-        // çift başına ortalama 14,5 satır. MD `transfer_distance_above_2_km` 69 diyor — o da
-        // çift başına sayıyor.
-        //
-        // ⚠️ Eşik farkı DEĞİL: iki tarafta da 2.000 m. Fark yalnız emisyon biriminde.
+        // çift başına ortalama 14,5 satır. ⚠️ MD çift başına SAYMAZ (22. koşum, 3 feed ölçüldü):
+        // `transfer_distance_above_2_km` yalnız 2–10 km SATIRLARINI, `_too_large` >10 km'yi sayar.
+        // Çift başına emisyon MD paritesi için değil, tekrar gürültüsünü kesmek için seçildi.
+        // Eşik (2.000 m) ve haversine iki tarafta aynı; fark emisyon birimi ve bant bölünmesinde.
         let mut far_pairs: BTreeMap<(&str, &str), (f64, u64, u64)> = BTreeMap::new();
         for trf in &records.transfers {
             if trf.from_stop_id.is_empty() || trf.to_stop_id == trf.from_stop_id {
@@ -8823,6 +8823,13 @@ fn check_remaining_analytics<'a>(
                 stop_coords.get(trf.from_stop_id.as_str()),
                 stop_coords.get(trf.to_stop_id.as_str()),
             ) {
+                // Null Island (GEO_016 ile aynı koşul): (0,0) yer tutucusuna mesafe ölçülmez.
+                // mdb-2393'te "5.590 km aktarma" diye raporlanıyordu; kök neden bozuk koordinat
+                // ve GEO_016 onu zaten söylüyor. `blocks` bunu çözemez: kapsamlı kök yalnız
+                // birebir aynı scope'u bastırır (k7), GEO_016 `stop_id`, TRF_011 `from|to` taşır.
+                if (la1.abs() < 0.1 && lo1.abs() < 0.1) || (la2.abs() < 0.1 && lo2.abs() < 0.1) {
+                    continue;
+                }
                 let dist_m = haversine_km(la1, lo1, la2, lo2) * 1000.0;
                 if dist_m > TRF_DIST_THRESHOLD_M {
                     let e = far_pairs

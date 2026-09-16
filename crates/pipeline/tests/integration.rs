@@ -1256,6 +1256,39 @@ fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
 }
 
 #[test]
+fn trf_011_skips_null_island_stops_and_leaves_the_root_to_geo_016() {
+    // SN (0,0) yer tutucusu: S1→SN mesafesi anlamsız, kök GEO_016. S1→S2 gerçek ~13,7 km.
+    let stops: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSN,StopNull,0.0,0.0\n";
+    let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,SN,2,300\nSN,S2,2,300\nS1,S2,2,300\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", stops);
+    files.push(("transfers.txt", transfers.as_bytes()));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let pairs: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRF_011")
+                .map(|n| n.entity_id.as_deref())
+                .collect();
+            assert_eq!(
+                pairs,
+                vec![Some("S1|S2")],
+                "Null Island çifti TRF_011 üretmemeli"
+            );
+            assert!(
+                vr.notices
+                    .iter()
+                    .any(|n| n.rule_id == "GEO_016" && n.entity_id.as_deref() == Some("SN")),
+                "kök neden GEO_016 olarak raporlanmalı"
+            );
+        }
+        _ => panic!("ValidateResult::Ok beklendi"),
+    }
+}
+
+#[test]
 fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
     // Aynı uzak çift ÜÇ satırda, ters yönlü çift bir satırda (S1↔S2 ~13,7 km).
     let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,300\nS1,S2,2,300\nS1,S2,2,300\nS2,S1,2,300\n";

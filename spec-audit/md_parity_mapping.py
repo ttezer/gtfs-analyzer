@@ -796,6 +796,17 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "MobilityData reports the archive layout once per feed; ARC_024 reports it per file, "
         "so the median ratio is 9 and rises with the file count. Same fact, different unit.",
     ),
+    "transfer_distance_above_2_km": (
+        "aggregation",
+        "Run 22: tdg-84001 MD 14 / A 22, mdb-2393 MD 32 / A 44, mdb-1078 MD 14 / A 6, tfs-789 MD 69 / A 57. "
+        "Not a threshold difference: both sides use 2 km and haversine. MobilityData splits the distance into "
+        "two codes and counts rows - above_2_km covers only 2-10 km rows and transfer_distance_too_large covers "
+        "rows beyond 10 km - while TRF_011 reports both bands under one rule, once per stop pair. Recomputing "
+        "transfers.txt and stops.txt with that model reproduces MobilityData exactly on the three reachable "
+        "feeds (14 rows / 8 pairs over 10 km; 32 rows / 12 over 10 km; 14 rows spread over 5 pairs / 1 over "
+        "10 km). Ours is higher when a feed has pairs beyond 10 km and lower when a pair repeats across rows, "
+        "so the ratio depends on the feed and neither direction is a defect.",
+    ),
     "stop_time_timepoint_without_times": (
         "aggregation",
         "Median ratio 0.50 in the baseline corpus: STM_047 emits one finding per affected "

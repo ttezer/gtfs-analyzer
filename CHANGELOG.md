@@ -64,6 +64,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The oversize-upload message states the real limit.** It said "1024 MB" in
   every locale while the enforced limit is 512 MiB; the message is now
   parameterized from the actual limit in all four locales.
+- **`TRF_011` no longer reports a transfer to a (0,0) placeholder stop.** A stop
+  at Null Island produced findings such as a "5,590 km" transfer between two
+  adjacent stops; the pair is now skipped and the broken coordinate is left to
+  `GEO_016`. Severity is unchanged: of 21 transfer pairs beyond 10 km measured in
+  three corpus feeds, the 12 coordinate errors were already reported by
+  `GEO_016` or `GEO_009`/`SHP_024`, and the other 9 had sound coordinates.
 - **Exported reports carry the correct app version.** The UI package was still
   at 0.13.0 after the 0.13.1 release, so the build stamped `app_version`
   0.13.0 into exports.
