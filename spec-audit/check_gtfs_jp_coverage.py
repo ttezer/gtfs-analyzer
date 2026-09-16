@@ -62,6 +62,15 @@ def rule_ids(row: dict[str, str]) -> set[str]:
     }
 
 
+def unmatched_machine_provisions(rows: list[dict[str, str]]) -> list[str]:
+    """Return every rule-backed provision that has no mapped rule id."""
+    return [
+        row["provision_id"]
+        for row in rows
+        if row["automation"] == "rule" and not rule_ids(row)
+    ]
+
+
 def main() -> int:
     problems: list[str] = []
     try:
@@ -128,14 +137,21 @@ def main() -> int:
         problems.append(
             "sözleşme belgesinde olmayan provision_id: " + ", ".join(missing_contract_ids)
         )
-    if "Eşleşmemiş güçlü makine hükmü: 0" not in contract_text:
-        problems.append("sözleşme belgesinde 'Eşleşmemiş güçlü makine hükmü: 0' kanıtı yok")
+    if "Eşleşmemiş makineyle denetlenebilir hüküm: 0" not in contract_text:
+        problems.append(
+            "sözleşme belgesinde 'Eşleşmemiş makineyle denetlenebilir hüküm: 0' kanıtı yok"
+        )
 
-    strong = [row for row in rows if row["strength"] == "strong"]
-    strong_rules = [row for row in strong if row["automation"] == "rule" and rule_ids(row)]
-    unmatched = [row["provision_id"] for row in strong if row["automation"] != "rule" or not rule_ids(row)]
-    if unmatched:
-        problems.append("eşleşmemiş güçlü makine hükmü: " + ", ".join(unmatched))
+    # The denominator is every provision backed by an Analyzer rule. This
+    # intentionally includes soft-but-machine-checkable provisions while
+    # leaving manual and recommendation-only rows outside the claim.
+    machine = [row for row in rows if row["automation"] == "rule"]
+    machine_rules = [row for row in machine if rule_ids(row)]
+    unmatched_machine = unmatched_machine_provisions(rows)
+    if unmatched_machine:
+        problems.append(
+            "eşleşmemiş makineyle denetlenebilir hüküm: " + ", ".join(unmatched_machine)
+        )
 
     if problems:
         print("GTFS-JP coverage inventory — FAIL")
@@ -145,8 +161,10 @@ def main() -> int:
 
     print(
         "GTFS-JP coverage inventory OK — "
-        f"{len(rows)} provision, {len(strong_rules)} strong machine mappings, "
-        f"{len(inventory_jpn)} JPN rules, unmatched strong machine provisions: 0."
+        f"{len(rows)} provision, {len(machine_rules)} machine-checkable mappings "
+        f"({sum(row['strength'] == 'strong' for row in machine_rules)} strong, "
+        f"{sum(row['strength'] == 'soft' for row in machine_rules)} soft), "
+        f"{len(inventory_jpn)} normative JPN rules, unmatched machine-checkable provisions: 0."
     )
     return 0
 

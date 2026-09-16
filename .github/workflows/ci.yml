@@ -109,8 +109,9 @@ jobs:
           python3 spec-audit/test_badge_status.py
           python3 spec-audit/badge_status.py
 
-      # GTFS-JP %100 rozetinin paydası MLIT hüküm envanteridir; strong
-      # makine hükümleri registry'de bir kurala bağlanmadıkça kapı kapanır.
+      # GTFS-JP %100 rozetinin paydası MLIT hüküm envanteridir; güçlü ve
+      # makineyle denetlenebilir yumuşak hükümler registry'de bir kurala
+      # bağlanmadıkça kapı kapanır.
       - name: GTFS-JP otomatik kapsama envanteri
         run: |
           python3 spec-audit/check_gtfs_jp_coverage.py

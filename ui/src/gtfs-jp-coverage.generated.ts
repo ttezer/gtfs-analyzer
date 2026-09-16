@@ -401,9 +401,9 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
   }
 ] as const;
 
-export const GTFS_JP_UNMATCHED_STRONG_PROVISIONS = [] as const;
+export const GTFS_JP_UNMATCHED_MACHINE_PROVISIONS = [] as const;
 
 export const GTFS_JP_AUTOMATED_COVERAGE_COMPLETE =
   GTFS_JP_AUTOMATED_PROVISIONS.length > 0 &&
-  GTFS_JP_UNMATCHED_STRONG_PROVISIONS.length === 0 &&
+  GTFS_JP_UNMATCHED_MACHINE_PROVISIONS.length === 0 &&
   GTFS_JP_AUTOMATED_PROVISIONS.every((provision) => provision.ruleIds.length > 0);

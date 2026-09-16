@@ -1,10 +1,11 @@
-# GTFS-JP V3/V4 — %100 otomatik kapsama sözleşmesi
+# GTFS-JP V3/V4 — %100 Makineyle Denetlenebilir Kapsam sözleşmesi
 
-Bu belge UI'daki `GTFS-JP V3/V4 · %100 otomatik kapsama (insan yorumu ve
-yalnızca öneri hükümleri hariç)` rozetinin ürün sözleşmesidir. Yüzde feed'in
+Bu belge UI'daki `GTFS-JP V3/V4 · %100 Makineyle Denetlenebilir Kapsam`
+rozetinin ürün sözleşmesidir. Yüzde feed'in
 doğrulama sonucunu, dosya okunabilirliğini veya R1 kapsamını göstermez; seçilen
-profildeki **makineyle doğrulanabilen MLIT hükümlerinin** ürün envanterine
-alındığını gösterir.
+profildeki **makineyle denetlenebilir MLIT hükümlerinin** ürün envanterine
+alındığını gösterir. Payda, `automation=rule` olan güçlü ve yumuşak
+hükümlerin tamamıdır.
 
 ## Rozetin açılma koşulları
 
@@ -16,10 +17,12 @@ alındığını gösterir.
   bu karara dahil değildir. R1 kapsamı eksikse yalnız yayınlanabilirlik kartı
   etkilenir.
 - Gerçek法人番号 kurum eşleşmesi, kana/okuma doğruluğu, dış veriyle ücret
-  yorumu, insan kararı gerektiren konular ve yalnızca öneri niteliğindeki
-  hükümler yüzdeye dahil değildir.
+  yorumu ve insan kararı gerektiren konular yüzdeye dahil değildir.
+- Yalnızca öneri olup yokluğu uyumluluk ihlali sayılmayan hükümler
+  `excluded_recommendation` olarak açıkça işaretlenir ve paydadan çıkarılır;
+  makineyle denetlenebilir yumuşak hükümler çıkarılmaz.
 
-## Makineyle doğrulanan envanter
+## Makineyle denetlenebilir envanter
 
 | Kapsam | V3 | V4 | Runtime kanıtı |
 |---|---|---|---|
@@ -31,7 +34,10 @@ alındığını gösterir.
 | Ücret bölgesi kapsamı | `JPN_031` | `JPN_031` | geçerli zone kapsamı ve bozuk referans regresyonları |
 | V4'ün genel GTFS hükümleri | koşula bağlı ortak GTFS kuralları | `AGN_011`, `STP`, `STM`, `TRP`, `FAR` ve ilgili kural aileleri | `PROVISION_TRIAGE.md`, provision evidence ve spec-conformance testleri |
 
-JPN kural kaydı 33 karttan oluşur. Envanter, her MLIT hükmünü güçlü, yumuşak veya insan incelemesi olarak sınıflandırır; ayrıntılı alan, sürüm, sınıf ve test
+JPN kural kaydı 33 karttan oluşur. `JPN_015` ve `JPN_016` ürün içinde Auto/legacy
+uyumluluğu için korunur, ancak V3 standardından kaldırılmış `routes_jp.txt`
+tablosunu denetledikleri için normatif V3/V4 paydasına girmez. Envanter, her
+MLIT hükmünü güçlü, yumuşak veya insan incelemesi olarak sınıflandırır; ayrıntılı alan, sürüm, sınıf ve test
 eşleşmeleri [GTFS-JP V3/V4 uyumluluk matrisinde](gtfs-jp-v3-v4-matrix.md)
 bulunur. Genel GTFS kurallarının MLIT hükmünü taşıdığı durumlar matrisin
 ilgili satırında ayrıca gösterilir; aynı hüküm için ikinci bir JPN kuralı
@@ -39,9 +45,10 @@ ilgili satırında ayrıca gösterilir; aynı hüküm için ikinci bir JPN kural
 
 ## Makine-okunur MLIT hüküm envanteri
 
-Kaynak gerçekliği ve yüzde hesabının paydası [`spec-audit/gtfs_jp_provisions.tsv`](../spec-audit/gtfs_jp_provisions.tsv) dosyasıdır. CI bu tabloyu registry ile karşılaştırır; güçlü makine hükümlerinin tamamı bir Analyzer kuralına bağlanmadıkça kapı kapanır.
+Kaynak gerçekliği ve yüzde hesabının paydası [`spec-audit/gtfs_jp_provisions.tsv`](../spec-audit/gtfs_jp_provisions.tsv) dosyasıdır. CI bu tabloyu registry ile karşılaştırır; `automation=rule` olan makineyle denetlenebilir hükümlerin tamamı bir Analyzer kuralına bağlanmadıkça kapı kapanır.
 
-**Eşleşmemiş güçlü makine hükmü: 0**
+**Makineyle denetlenebilir hüküm: 31 (29 güçlü, 2 yumuşak)**
+**Eşleşmemiş makineyle denetlenebilir hüküm: 0**
 
 Her satır, hangi resmî belge sürümünün envantere işlendiğini, kaynakla karşılaştırmanın tarihini ve hükmün sayfa/bölüm çapasını taşır. Son karşılaştırma tarihi: **2026-09-16**. V3 için `2021-07 final` sürümü, MLIT'nin arşiv sayfasındaki **第3版（2021年7月）** kaydıyla eşleştirilmiştir ([MLIT kaynak arşivi](https://www.mlit.go.jp/sogoseisaku/transport/sosei_transport_tk_000067.html)).
 
@@ -98,8 +105,9 @@ paydasında değildir; bunlar ayrı insan-okur inceleme maddeleridir.
 
 Kapsam değiştiğinde bu envanter ve kural kartları birlikte güncellenir; genel
 GTFS kanıt defterleri (`PROVISION_TRIAGE.md`, `provision_evidence.tsv`) kendi
-alanları için ayrı tutulur. Yeni bir güçlü makine hükmü eklenirse önce bu
-tabloya yazılır ve eşleşmemiş sayısı sıfıra indirilmeden rozet yayımlanmaz. Rust/native, WASM ve SDK aynı
+alanları için ayrı tutulur. Yeni bir makineyle denetlenebilir hüküm eklenirse
+önce bu tabloya yazılır ve eşleşmemiş sayısı sıfıra indirilmeden rozet
+yayımlanmaz. Rust/native, WASM ve SDK aynı
 K2/K4 kayıtlarını kullanmalı; WASM'in iki K2 yolu da bilinmeyen özel dosya
 başlıklarını GTFS-JP ad alanı kontrolüne taşır. CI'daki card-consistency,
 provision-audit, Rust/WASM ve UI testleri bu sözleşmenin uygulanabilirliğini

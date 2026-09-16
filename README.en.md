@@ -163,7 +163,7 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 
 **Selecting the profile for an analysis.** In the web app, open **Analysis Criteria** before choosing the ZIP and select `Auto`, `V3`, or `V4` under **GTFS-JP validation profile**. The current selection is committed when you choose a feed, before automatic validation starts; `Auto` is the default. For the CLI, use `--gtfs-jp-profile v3` or `--gtfs-jp-profile v4`. In the SDK, pass `config: { gtfs_jp_profile: 'v3' }` or `'v4'`. This selects the validation scope; it does not infer the feed's official GTFS-JP version. See the [GTFS-JP v3/v4 compatibility matrix](docs/gtfs-jp-v3-v4-matrix.md) for the detailed differences.
 
-**Automated coverage badge.** The **100% automated coverage** badge on an explicitly selected V3 or V4 profile means that all MLIT provisions enforced by that profile and verifiable by machine are covered. Human review, external verification, and recommendation-only provisions are excluded from the denominator; `Auto` does not make a version coverage claim. The badge does not infer the feed's official GTFS-JP version.
+**Machine-checkable coverage badge.** The **GTFS-JP v3/v4 100% Machine-Checkable Coverage** badge on an explicitly selected V3 or V4 profile means that all strong and soft MLIT provisions enforced by that profile and backed by an Analyzer rule are covered. Human review, external verification, and recommendation-only provisions whose absence is not a conformance violation are excluded from the denominator; `Auto` does not make a version coverage claim. The badge does not infer the feed's official GTFS-JP version.
 
 **Profile rules (JPN group).**
 

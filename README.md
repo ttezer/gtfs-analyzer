@@ -165,7 +165,7 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 
 **Profil seçimi (analiz sırasında).** Web uygulamasında ZIP'i seçmeden önce **Analiz Kriterleri** panelini açın ve **GTFS-JP profil kapsamı** alanından `Auto`, `V3` veya `V4` seçin. Feed'i seçtiğiniz anda mevcut seçim kaydedilir ve analiz otomatik başlar; `Auto` varsayılandır. CLI için `--gtfs-jp-profile v3` veya `--gtfs-jp-profile v4` kullanın. SDK'da aynı seçimi `config: { gtfs_jp_profile: 'v3' }` ya da `'v4'` ile verin. Bu seçim feed'in resmî sürümünü tespit etmez; yalnızca uygulanacak doğrulama kapsamını belirler. Ayrıntılı farklar için [GTFS-JP v3/v4 uyumluluk matrisine](docs/gtfs-jp-v3-v4-matrix.md) bakın.
 
-**Otomatik kapsama rozeti.** Açıkça seçilen V3 veya V4 profilinde raporlanan `%100 otomatik kapsama`, MLIT'nin makineyle doğrulanabilen ve profilde uygulanan hükümlerinin tamamını ifade eder. İnsan yorumu, dış doğrulama ve yalnızca öneri niteliğindeki hükümler bu paydadan çıkarılır; `Auto` profili sürüm kapsamı rozeti üretmez. Bu rozet feed'in resmî GTFS-JP sürümünü otomatik olarak tespit ettiği anlamına gelmez.
+**Makineyle denetlenebilir kapsam rozeti.** Açıkça seçilen V3 veya V4 profilinde raporlanan `GTFS-JP v3/v4 %100 Makineyle Denetlenebilir Kapsam`, profilde uygulanan ve makineyle denetlenebilir güçlü ve yumuşak MLIT hükümlerinin tamamını ifade eder. İnsan yorumu, dış doğrulama ve yokluğu uyumluluk ihlali sayılmayan yalnızca öneri hükümleri paydadan çıkarılır; `Auto` profili sürüm kapsamı rozeti üretmez. Bu rozet feed'in resmî GTFS-JP sürümünü otomatik olarak tespit ettiği anlamına gelmez.
 
 **Profil kuralları (JPN grubu).**
 

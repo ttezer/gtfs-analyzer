@@ -3,7 +3,7 @@ import { GTFS_JP_AUTOMATED_COVERAGE_COMPLETE } from './gtfs-jp-coverage.generate
 export {
   GTFS_JP_AUTOMATED_PROVISIONS,
   GTFS_JP_AUTOMATED_COVERAGE_COMPLETE,
-  GTFS_JP_UNMATCHED_STRONG_PROVISIONS,
+  GTFS_JP_UNMATCHED_MACHINE_PROVISIONS,
 } from './gtfs-jp-coverage.generated';
 
 export type GtfsJpBadgeKey = 'domain.gtfs_jp.coverage' | 'domain.gtfs_jp.profile';
