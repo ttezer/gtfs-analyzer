@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 **Français**
 
 [![Ouvrir l’application](https://img.shields.io/badge/Ouvrir%20l%27application-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Couverture%20V%C3%A9rifiable%20par%20Machine-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Couverture%20V%C3%A9rifiable%20par%20Machine%20%28avis%20humain%20et%20recommandations%20seules%20exclus%29-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-625-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
 [![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C343%20jeux%20de%20donn%C3%A9es%20%C3%97%2018%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)
@@ -163,7 +163,7 @@ GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du
 
 **Choisir le profil d’une analyse.** Dans l’application web, ouvrez **Critères d’analyse** avant de choisir le ZIP et sélectionnez `Auto`, `V3` ou `V4` sous **Profil de validation GTFS-JP**. La sélection est prise en compte au moment où vous choisissez un jeu de données, avant le démarrage de la validation automatique ; `Auto` est la valeur par défaut. Pour la CLI, utilisez `--gtfs-jp-profile v3` ou `--gtfs-jp-profile v4`. Dans le SDK, passez `config: { gtfs_jp_profile: 'v3' }` ou `'v4'`. Ce choix définit la portée de validation ; il ne déduit pas la version GTFS-JP officielle du jeu de données. Voir la [matrice de compatibilité GTFS-JP v3/v4](docs/gtfs-jp-v3-v4-matrix.md) pour le détail des différences.
 
-**Badge de couverture vérifiable par machine.** Le badge **GTFS-JP v3/v4 · couverture vérifiable par machine à 100 %** d’un profil V3 ou V4 explicitement sélectionné signifie que toutes les dispositions MLIT fortes et souples appliquées par le profil et associées à une règle Analyzer sont couvertes. L’avis humain, la vérification externe et les recommandations dont l’absence ne constitue pas une non-conformité sont exclus du dénominateur ; `Auto` ne revendique pas une couverture par version. Le badge ne déduit pas la version GTFS-JP officielle du jeu de données.
+**Badge de couverture vérifiable par machine.** Le badge **GTFS-JP v3/v4 · couverture vérifiable par machine à 100 % (avis humain et recommandations seules exclus)** d’un profil V3 ou V4 explicitement sélectionné signifie que toutes les dispositions MLIT fortes et souples appliquées par le profil et associées à une règle Analyzer sont couvertes. L’avis humain, la vérification externe et les recommandations dont l’absence ne constitue pas une non-conformité sont exclus du dénominateur ; `Auto` ne revendique pas une couverture par version. Le badge ne déduit pas la version GTFS-JP officielle du jeu de données.
 
 **Règles de profil (groupe JPN).**
 
@@ -183,8 +183,8 @@ GTFS Analyzer reconnaît automatiquement **GTFS-JP**, le profil GTFS national du
 | **JPN_012** | `agency_jp.agency_id` est obligatoire et doit identifier un enregistrement de `agency.txt` |
 | **JPN_013** | Lorsqu’il est présent, `agency_zip_number` doit contenir exactement 7 chiffres ASCII |
 | **JPN_014** | `office_jp.office_id` doit être présent et unique |
-| **JPN_015** | Contrôle de compatibilité hérité de `routes_jp.route_id`, uniquement en profil Auto ; ce n’est pas un fichier v3 |
-| **JPN_016** | `pattern_jp.route_update_date` en V3 ; format de date de `routes_jp.route_update_date` hérité en profil Auto |
+| **JPN_015** | Contrôle de compatibilité hérité de `routes_jp.route_id`, en profils V3 et Auto ; ce n’est pas un fichier v3 |
+| **JPN_016** | `pattern_jp.route_update_date` en V3 ; format de date de `routes_jp.route_update_date` hérité en profils V3 et Auto |
 | **JPN_017** | `pattern_jp.jp_pattern_id` doit être présent et unique |
 | **JPN_018** | Lorsque `pattern_jp.txt` existe, `trips.jp_pattern_id` doit le référencer |
 | **JPN_019** | Les enregistrements `ja-Hrkt` doivent viser des tables, champs, enregistrements et sous-enregistrements GTFS valides |

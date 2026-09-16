@@ -254,7 +254,7 @@ const ja: LocaleShape = {
     'domain.gtfs_jp.tip'         : 'GTFS-JP（日本プロファイル）フィード — feed_lang=ja、Asia/Tokyo と組み合わせた agency_lang=ja、かな翻訳（ja-Hrkt）、または *_jp ファイルから検出。',
     'domain.gtfs_jp.profile'     : 'GTFS-JP {profile}プロファイル',
     'domain.gtfs_jp.profile_tip' : 'このバッジは分析で選択された検証範囲を示します。フィードの公式GTFS-JPバージョンを自動判定するものではありません。',
-    'domain.gtfs_jp.coverage'    : 'GTFS-JP {profile}・機械検証可能カバレッジ100%',
+    'domain.gtfs_jp.coverage'    : 'GTFS-JP {profile}・機械検証可能カバレッジ100%（人手確認・推奨のみの規定を除く）',
     'domain.gtfs_jp.coverage_tip': 'プロファイルが適用し、Analyzerルールで検証する強い規定とソフト規定をすべて確認します。人手の判断、外部確認、または不在が適合違反にならない推奨規定は分母から除外されます。フィードの公式GTFS-JPバージョンを自動判定するものではありません。',
     'domain.metric.stops'        : '停留所',
     'domain.metric.routes'       : '路線',

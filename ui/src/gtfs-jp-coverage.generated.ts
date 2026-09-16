@@ -122,6 +122,18 @@ export const GTFS_JP_AUTOMATED_PROVISIONS = [
     "pageAnchor": "pattern_jp.txt / trips.txt · jp_pattern_id"
   },
   {
+    "provisionId": "V3-PATTERN-DATE",
+    "profile": "v3",
+    "ruleIds": [
+      "JPN_016"
+    ],
+    "source": "MLIT V3 pattern_jp",
+    "sourceDocument": "MLIT GTFS-JP V3 final",
+    "sourceVersion": "2021-07 final",
+    "auditedOn": "2026-09-16",
+    "pageAnchor": "pattern_jp.txt · route_update_date"
+  },
+  {
     "provisionId": "V3-TRANSLATIONS-FILE",
     "profile": "v3",
     "ruleIds": [

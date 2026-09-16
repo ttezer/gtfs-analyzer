@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 [English](README.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](README.fr.md)
 
 [![アプリを開く](https://img.shields.io/badge/%E3%82%A2%E3%83%97%E3%83%AA%E3%82%92%E9%96%8B%E3%81%8F-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20%E6%A9%9F%E6%A2%B0%E6%A4%9C%E8%A8%BC%E5%8F%AF%E8%83%BD%E3%82%AB%E3%83%90%E3%83%AC%E3%83%83%E3%82%B8-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20%E6%A9%9F%E6%A2%B0%E6%A4%9C%E8%A8%BC%E5%8F%AF%E8%83%BD%E3%82%AB%E3%83%90%E3%83%AC%E3%83%83%E3%82%B8%20%28%E4%BA%BA%E6%89%8B%E7%A2%BA%E8%AA%8D%E3%83%BB%E6%8E%A8%E5%A5%A8%E3%81%AE%E3%81%BF%E3%81%AE%E8%A6%8F%E5%AE%9A%E3%82%92%E9%99%A4%E3%81%8F%29-c8102e?style=flat)](https://www.gtfs.jp/)
 [![ルール数](https://img.shields.io/badge/rules-625-blue?style=flat)](RULES.ja.md)
 ![GTFS Spec カバレッジ](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![コーパス検証](https://img.shields.io/badge/corpus-4%2C343%20feeds%20%C3%97%2018%20runs-brightgreen?style=flat)](audit-results/)
@@ -163,7 +163,7 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 
 **解析プロファイルの選択。** Web アプリでは ZIP を選ぶ前に **分析設定** パネルを開き、**GTFS-JP 検証プロファイル**で `Auto`、`V3`、または `V4` を選択してください。フィードを選択すると現在の選択が保存され、そのまま自動解析が始まります。デフォルトは `Auto` です。CLI では `--gtfs-jp-profile v3` または `--gtfs-jp-profile v4`、SDK では `config: { gtfs_jp_profile: 'v3' }` または `'v4'` を指定します。これは検証範囲の選択であり、フィードの公式 GTFS-JP バージョンを自動判定するものではありません。詳細は [GTFS-JP v3/v4 互換性マトリクス](docs/gtfs-jp-v3-v4-matrix.md) を参照してください。
 
-**機械検証可能カバレッジバッジ。** 明示した V3 または V4 プロファイルの **GTFS-JP v3/v4 機械検証可能カバレッジ100%** は、プロファイルが適用し Analyzer ルールで検証する強い規定とソフト規定をすべてカバーすることを示します。人手の確認、外部検証、不在が適合違反にならない推奨のみの規定は分母から除外され、`Auto` はバージョン別カバレッジを主張しません。このバッジはフィードの公式 GTFS-JP バージョンを自動判定するものでもありません。
+**機械検証可能カバレッジバッジ。** 明示した V3 または V4 プロファイルの **GTFS-JP v3/v4 機械検証可能カバレッジ100%（人手確認・推奨のみの規定を除く）** は、プロファイルが適用し Analyzer ルールで検証する強い規定とソフト規定をすべてカバーすることを示します。人手の確認、外部検証、不在が適合違反にならない推奨のみの規定は分母から除外され、`Auto` はバージョン別カバレッジを主張しません。このバッジはフィードの公式 GTFS-JP バージョンを自動判定するものでもありません。
 
 **プロファイルルール（JPN グループ）。**
 
@@ -183,8 +183,8 @@ GTFS Analyzer は、日本の国内 GTFS プロファイルである **GTFS-JP**
 | **JPN_012** | `agency_jp.agency_id` が必須で、`agency.txt` の行を参照すること |
 | **JPN_013** | 存在する場合、`agency_zip_number` は7桁のASCII数字であること |
 | **JPN_014** | `office_jp.office_id` が存在し、一意であること |
-| **JPN_015** | Auto プロファイルのみで旧版 `routes_jp.route_id` の互換性をチェック（v3 ファイルではありません） |
-| **JPN_016** | V3 の `pattern_jp.route_update_date` と、Auto の旧版 `routes_jp.route_update_date` の日付形式 |
+| **JPN_015** | V3 と Auto プロファイルで旧版 `routes_jp.route_id` の互換性をチェック（v3 ファイルではありません） |
+| **JPN_016** | V3 の `pattern_jp.route_update_date` と、V3 と Auto の旧版 `routes_jp.route_update_date` の日付形式 |
 | **JPN_017** | `pattern_jp.jp_pattern_id` が存在し、一意であること |
 | **JPN_018** | `pattern_jp.txt` が存在する場合、`trips.jp_pattern_id` が同ファイルを参照すること |
 | **JPN_019** | `ja-Hrkt` 行が有効なGTFSテーブル・フィールド・レコード・stop_timesサブレコードを使うこと |

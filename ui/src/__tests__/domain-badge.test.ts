@@ -13,7 +13,7 @@ describe('GTFS-JP profile badge scope', () => {
     expect(GTFS_JP_AUTOMATED_PROVISIONS.flatMap((p) => p.ruleIds)).toContain('JPN_007');
     expect(GTFS_JP_AUTOMATED_PROVISIONS.flatMap((p) => p.ruleIds)).toContain('JPN_013');
     expect(GTFS_JP_AUTOMATED_PROVISIONS.flatMap((p) => p.ruleIds)).not.toContain('JPN_015');
-    expect(GTFS_JP_AUTOMATED_PROVISIONS.flatMap((p) => p.ruleIds)).not.toContain('JPN_016');
+    expect(GTFS_JP_AUTOMATED_PROVISIONS.flatMap((p) => p.ruleIds)).toContain('JPN_016');
     expect(GTFS_JP_AUTOMATED_PROVISIONS.every((p) =>
       p.sourceDocument && p.sourceVersion && p.auditedOn && p.pageAnchor,
     )).toBe(true);

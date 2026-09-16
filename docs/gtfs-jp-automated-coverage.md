@@ -1,7 +1,6 @@
 # GTFS-JP V3/V4 — %100 Makineyle Denetlenebilir Kapsam sözleşmesi
 
-Bu belge UI'daki `GTFS-JP V3/V4 · %100 Makineyle Denetlenebilir Kapsam`
-rozetinin ürün sözleşmesidir. Yüzde feed'in
+Bu belge UI'daki `GTFS-JP V3/V4 · %100 Makineyle Denetlenebilir Kapsam (insan yorumu ve yalnızca öneriler hariç)` rozetinin ürün sözleşmesidir. Yüzde feed'in
 doğrulama sonucunu, dosya okunabilirliğini veya R1 kapsamını göstermez; seçilen
 profildeki **makineyle denetlenebilir MLIT hükümlerinin** ürün envanterine
 alındığını gösterir. Payda, `automation=rule` olan güçlü ve yumuşak
@@ -34,9 +33,11 @@ hükümlerin tamamıdır.
 | Ücret bölgesi kapsamı | `JPN_031` | `JPN_031` | geçerli zone kapsamı ve bozuk referans regresyonları |
 | V4'ün genel GTFS hükümleri | koşula bağlı ortak GTFS kuralları | `AGN_011`, `STP`, `STM`, `TRP`, `FAR` ve ilgili kural aileleri | `PROVISION_TRIAGE.md`, provision evidence ve spec-conformance testleri |
 
-JPN kural kaydı 33 karttan oluşur. `JPN_015` ve `JPN_016` ürün içinde Auto/legacy
+JPN kural kaydı 33 karttan oluşur. `JPN_015` ürün içinde V3/Auto legacy
 uyumluluğu için korunur, ancak V3 standardından kaldırılmış `routes_jp.txt`
-tablosunu denetledikleri için normatif V3/V4 paydasına girmez. Envanter, her
+tablosunu denetlediği için normatif V3/V4 paydasına girmez. `JPN_016` ise
+V3'teki `pattern_jp.route_update_date` hükmüyle paydada yer alır; aynı kuralın
+legacy `routes_jp` dalı ayrıca korunur. Envanter, her
 MLIT hükmünü güçlü, yumuşak veya insan incelemesi olarak sınıflandırır; ayrıntılı alan, sürüm, sınıf ve test
 eşleşmeleri [GTFS-JP V3/V4 uyumluluk matrisinde](gtfs-jp-v3-v4-matrix.md)
 bulunur. Genel GTFS kurallarının MLIT hükmünü taşıdığı durumlar matrisin
@@ -47,7 +48,7 @@ ilgili satırında ayrıca gösterilir; aynı hüküm için ikinci bir JPN kural
 
 Kaynak gerçekliği ve yüzde hesabının paydası [`spec-audit/gtfs_jp_provisions.tsv`](../spec-audit/gtfs_jp_provisions.tsv) dosyasıdır. CI bu tabloyu registry ile karşılaştırır; `automation=rule` olan makineyle denetlenebilir hükümlerin tamamı bir Analyzer kuralına bağlanmadıkça kapı kapanır.
 
-**Makineyle denetlenebilir hüküm: 31 (29 güçlü, 2 yumuşak)**
+**Makineyle denetlenebilir hüküm: 32 (29 güçlü, 3 yumuşak)**
 **Eşleşmemiş makineyle denetlenebilir hüküm: 0**
 
 Her satır, hangi resmî belge sürümünün envantere işlendiğini, kaynakla karşılaştırmanın tarihini ve hükmün sayfa/bölüm çapasını taşır. Son karşılaştırma tarihi: **2026-09-16**. V3 için `2021-07 final` sürümü, MLIT'nin arşiv sayfasındaki **第3版（2021年7月）** kaydıyla eşleştirilmiştir ([MLIT kaynak arşivi](https://www.mlit.go.jp/sogoseisaku/transport/sosei_transport_tk_000067.html)).
@@ -64,6 +65,7 @@ Her satır, hangi resmî belge sürümünün envantere işlendiğini, kaynakla k
 | `V3-OFFICE-REFERENCE` | v3 | strong | rule | `JPN_002` | MLIT V3 office_jp | MLIT GTFS-JP V3 final / 2021-07 final | office_jp.txt · jp_office_id |
 | `V3-PATTERN-ID` | v3 | strong | rule | `JPN_017` | MLIT V3 pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt · jp_pattern_id |
 | `V3-PATTERN-REF` | v3 | strong | rule | `JPN_018` | MLIT V3 trips/pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt / trips.txt · jp_pattern_id |
+| `V3-PATTERN-DATE` | v3 | soft | rule | `JPN_016` | MLIT V3 pattern_jp | MLIT GTFS-JP V3 final / 2021-07 final | pattern_jp.txt · route_update_date |
 | `V3-TRANSLATIONS-FILE` | v3 | strong | rule | `JPN_004` | MLIT V3 translations | MLIT GTFS-JP V3 final / 2021-07 final | translations.txt |
 | `V3-TRANSLATIONS-KANA` | v3 | strong | rule | `JPN_001`, `JPN_008`, `JPN_009`, `JPN_010`, `JPN_028` | MLIT V3 translations s.33 | MLIT GTFS-JP V3 final / 2021-07 final | s.33 · translations.txt |
 | `V3-TRANSLATIONS-JA` | v3 | strong | rule | `JPN_030` | MLIT V3 translations s.33 | MLIT GTFS-JP V3 final / 2021-07 final | s.33 · translations.txt · language=ja |

@@ -9,6 +9,7 @@ V3-OFFICE-CONTACT	v3	soft	rule	JPN_020	MLIT V3 office_jp	office_url ve office_ph
 V3-OFFICE-REFERENCE	v3	strong	rule	JPN_002	MLIT V3 office_jp	jp_office_id referansı	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	office_jp.txt · jp_office_id
 V3-PATTERN-ID	v3	strong	rule	JPN_017	MLIT V3 pattern_jp	jp_pattern_id varlık ve tekillik	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	pattern_jp.txt · jp_pattern_id
 V3-PATTERN-REF	v3	strong	rule	JPN_018	MLIT V3 trips/pattern_jp	trips.jp_pattern_id referansı	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	pattern_jp.txt / trips.txt · jp_pattern_id
+V3-PATTERN-DATE	v3	soft	rule	JPN_016	MLIT V3 pattern_jp	pattern_jp.route_update_date biçimi	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	pattern_jp.txt · route_update_date
 V3-TRANSLATIONS-FILE	v3	strong	rule	JPN_004	MLIT V3 translations	translations.txt profilde zorunlu	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	translations.txt
 V3-TRANSLATIONS-KANA	v3	strong	rule	JPN_001;JPN_008;JPN_009;JPN_010;JPN_028	MLIT V3 translations s.33	stop, route, trip ve agency kana okumaları	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	s.33 · translations.txt
 V3-TRANSLATIONS-JA	v3	strong	rule	JPN_030	MLIT V3 translations s.33	zorunlu language=ja eşleşmeleri	MLIT GTFS-JP V3 final	2021-07 final	2026-09-16	s.33 · translations.txt · language=ja

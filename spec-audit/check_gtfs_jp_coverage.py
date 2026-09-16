@@ -38,9 +38,9 @@ REQUIRED_COLUMNS = {
 ALLOWED_STRENGTHS = {"strong", "soft", "manual"}
 ALLOWED_AUTOMATION = {"rule", "manual", "excluded_recommendation"}
 ALLOWED_PROFILES = {"v3", "v4"}
-# These rules remain in the product for Auto/legacy compatibility, but their
+# JPN_015 remains in the product for V3/Auto legacy compatibility, but its
 # pre-V3 routes_jp.txt behavior is not an MLIT V3/V4 normative provision.
-NON_NORMATIVE_JPN_RULES = {"JPN_015", "JPN_016"}
+NON_NORMATIVE_JPN_RULES = {"JPN_015"}
 
 
 def load_rows() -> list[dict[str, str]]:

@@ -265,7 +265,7 @@ const fr: LocaleShape = {
     'domain.gtfs_jp.tip'         : 'Jeu de données GTFS-JP (profil Japon) — détecté à partir de feed_lang=ja, de agency_lang=ja associé au fuseau horaire Asia/Tokyo, de traductions kana (ja-Hrkt) ou de fichiers *_jp.',
     'domain.gtfs_jp.profile'     : 'Profil GTFS-JP {profile}',
     'domain.gtfs_jp.profile_tip' : 'Ce badge indique la portée de validation sélectionnée pour l’analyse ; la version GTFS-JP officielle du jeu de données n’est pas déduite automatiquement.',
-    'domain.gtfs_jp.coverage'    : 'GTFS-JP {profile} · couverture vérifiable par machine à 100 %',
+    'domain.gtfs_jp.coverage'    : 'GTFS-JP {profile} · couverture vérifiable par machine à 100 % (avis humain et recommandations seules exclus)',
     'domain.gtfs_jp.coverage_tip': 'Couvre toutes les dispositions MLIT fortes et souples appliquées par le profil et associées à une règle Analyzer ; les vérifications humaines, externes et les recommandations dont l’absence ne constitue pas une non-conformité sont hors dénominateur. La version GTFS-JP officielle n’est pas déduite automatiquement.',
     'domain.metric.stops'        : 'Arrêts',
     'domain.metric.routes'       : 'Lignes',

@@ -3,7 +3,7 @@
 🇹🇷 [Türkçe](README.md) · 🇬🇧 **English** · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Open App](https://img.shields.io/badge/Open%20App-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Machine--Checkable%20Coverage-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Machine--Checkable%20Coverage%20%28human%20review%20and%20recommendation--only%20provisions%20excluded%29-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Rule count](https://img.shields.io/badge/rules-625-blue?style=flat)](RULES.en.md)
 ![GTFS Spec coverage](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Corpus validation](https://img.shields.io/badge/corpus-4%2C343%20feeds%20%C3%97%2018%20runs-brightgreen?style=flat)](audit-results/)
@@ -163,7 +163,7 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 
 **Selecting the profile for an analysis.** In the web app, open **Analysis Criteria** before choosing the ZIP and select `Auto`, `V3`, or `V4` under **GTFS-JP validation profile**. The current selection is committed when you choose a feed, before automatic validation starts; `Auto` is the default. For the CLI, use `--gtfs-jp-profile v3` or `--gtfs-jp-profile v4`. In the SDK, pass `config: { gtfs_jp_profile: 'v3' }` or `'v4'`. This selects the validation scope; it does not infer the feed's official GTFS-JP version. See the [GTFS-JP v3/v4 compatibility matrix](docs/gtfs-jp-v3-v4-matrix.md) for the detailed differences.
 
-**Machine-checkable coverage badge.** The **GTFS-JP v3/v4 100% Machine-Checkable Coverage** badge on an explicitly selected V3 or V4 profile means that all strong and soft MLIT provisions enforced by that profile and backed by an Analyzer rule are covered. Human review, external verification, and recommendation-only provisions whose absence is not a conformance violation are excluded from the denominator; `Auto` does not make a version coverage claim. The badge does not infer the feed's official GTFS-JP version.
+**Machine-checkable coverage badge.** The **GTFS-JP v3/v4 100% Machine-Checkable Coverage (human review and recommendation-only provisions excluded)** badge on an explicitly selected V3 or V4 profile means that all strong and soft MLIT provisions enforced by that profile and backed by an Analyzer rule are covered. Human review, external verification, and recommendation-only provisions whose absence is not a conformance violation are excluded from the denominator; `Auto` does not make a version coverage claim. The badge does not infer the feed's official GTFS-JP version.
 
 **Profile rules (JPN group).**
 
@@ -183,8 +183,8 @@ GTFS Analyzer automatically recognizes **GTFS-JP**, Japan's national GTFS profil
 | **JPN_012** | `agency_jp.agency_id` is required and must identify an `agency.txt` row |
 | **JPN_013** | When present, `agency_zip_number` must contain exactly 7 ASCII digits |
 | **JPN_014** | `office_jp.office_id` must be present and unique |
-| **JPN_015** | Legacy `routes_jp.route_id` compatibility check in Auto only; not a v3 file |
-| **JPN_016** | V3 `pattern_jp.route_update_date`; legacy `routes_jp.route_update_date` date format in Auto |
+| **JPN_015** | Legacy `routes_jp.route_id` compatibility check in V3 and Auto; not a v3 file |
+| **JPN_016** | V3 `pattern_jp.route_update_date`; legacy `routes_jp.route_update_date` date format in V3 and Auto |
 | **JPN_017** | `pattern_jp.jp_pattern_id` must be present and unique |
 | **JPN_018** | When `pattern_jp.txt` exists, `trips.jp_pattern_id` must reference it |
 | **JPN_019** | `ja-Hrkt` rows must use valid GTFS tables, fields, records, and stop-time sub-records |

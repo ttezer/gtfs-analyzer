@@ -262,7 +262,7 @@ const tr = {
     'domain.gtfs_jp.tip'         : 'GTFS-JP (Japonya profili) feed — feed_lang=ja, Asia/Tokyo ile birlikte agency_lang=ja, kana çevirileri (ja-Hrkt) veya *_jp dosyalarından algılandı.',
     'domain.gtfs_jp.profile'     : 'GTFS-JP {profile} profili',
     'domain.gtfs_jp.profile_tip' : 'Bu rozet analizde seçilen kural kapsamını gösterir; feed’in resmî GTFS-JP sürümü otomatik olarak tespit edilmez.',
-    'domain.gtfs_jp.coverage'    : 'GTFS-JP {profile} · %100 Makineyle Denetlenebilir Kapsam',
+    'domain.gtfs_jp.coverage'    : 'GTFS-JP {profile} · %100 Makineyle Denetlenebilir Kapsam (insan yorumu ve yalnızca öneriler hariç)',
     'domain.gtfs_jp.coverage_tip': 'Profilin uyguladığı ve Analyzer kuralıyla denetlenen güçlü ve yumuşak MLIT hükümlerinin tamamı kapsanır; insan yorumu, dış doğrulama ve yokluğu uyumluluk ihlali sayılmayan yalnız öneriler payda dışındadır. Feed’in resmî GTFS-JP sürümü otomatik olarak tespit edilmez.',
     'domain.metric.stops'        : 'Durak',
     'domain.metric.routes'       : 'Hat',

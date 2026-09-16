@@ -3,7 +3,7 @@
 🇹🇷 **Türkçe** · 🇬🇧 [English](README.en.md) · 🇯🇵 [日本語](README.ja.md) · 🇫🇷 [Français](README.fr.md)
 
 [![Uygulamayı Aç](https://img.shields.io/badge/Uygulamay%C4%B1%20A%C3%A7-gtfs--analyzer-2ea44f?style=flat&logo=googlechrome&logoColor=white)](https://ttezer.github.io/gtfs-analyzer/)
-[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100%20Makineyle%20Denetlenebilir%20Kapsam-c8102e?style=flat)](https://www.gtfs.jp/)
+[![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100%20Makineyle%20Denetlenebilir%20Kapsam%20%28insan%20yorumu%20ve%20yaln%C4%B1zca%20%C3%B6neriler%20hari%C3%A7%29-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Kural sayısı](https://img.shields.io/badge/kural-625-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4343%20feed%20%C3%97%2018%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
@@ -165,7 +165,7 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 
 **Profil seçimi (analiz sırasında).** Web uygulamasında ZIP'i seçmeden önce **Analiz Kriterleri** panelini açın ve **GTFS-JP profil kapsamı** alanından `Auto`, `V3` veya `V4` seçin. Feed'i seçtiğiniz anda mevcut seçim kaydedilir ve analiz otomatik başlar; `Auto` varsayılandır. CLI için `--gtfs-jp-profile v3` veya `--gtfs-jp-profile v4` kullanın. SDK'da aynı seçimi `config: { gtfs_jp_profile: 'v3' }` ya da `'v4'` ile verin. Bu seçim feed'in resmî sürümünü tespit etmez; yalnızca uygulanacak doğrulama kapsamını belirler. Ayrıntılı farklar için [GTFS-JP v3/v4 uyumluluk matrisine](docs/gtfs-jp-v3-v4-matrix.md) bakın.
 
-**Makineyle denetlenebilir kapsam rozeti.** Açıkça seçilen V3 veya V4 profilinde raporlanan `GTFS-JP v3/v4 %100 Makineyle Denetlenebilir Kapsam`, profilde uygulanan ve makineyle denetlenebilir güçlü ve yumuşak MLIT hükümlerinin tamamını ifade eder. İnsan yorumu, dış doğrulama ve yokluğu uyumluluk ihlali sayılmayan yalnızca öneri hükümleri paydadan çıkarılır; `Auto` profili sürüm kapsamı rozeti üretmez. Bu rozet feed'in resmî GTFS-JP sürümünü otomatik olarak tespit ettiği anlamına gelmez.
+**Makineyle denetlenebilir kapsam rozeti.** Açıkça seçilen V3 veya V4 profilinde raporlanan `GTFS-JP v3/v4 %100 Makineyle Denetlenebilir Kapsam (insan yorumu ve yalnızca öneriler hariç)`, profilde uygulanan ve makineyle denetlenebilir güçlü ve yumuşak MLIT hükümlerinin tamamını ifade eder. İnsan yorumu, dış doğrulama ve yokluğu uyumluluk ihlali sayılmayan yalnızca öneri hükümleri paydadan çıkarılır; `Auto` profili sürüm kapsamı rozeti üretmez. Bu rozet feed'in resmî GTFS-JP sürümünü otomatik olarak tespit ettiği anlamına gelmez.
 
 **Profil kuralları (JPN grubu).**
 
@@ -185,8 +185,8 @@ GTFS Analyzer, Japonya'nın ulusal GTFS profili **GTFS-JP**'yi (国土交通省 
 | **JPN_012** | `agency_jp.agency_id` eksikliği |
 | **JPN_013** | Varsa `agency_zip_number` değerinin 7 ASCII rakam olması |
 | **JPN_014** | `office_jp.office_id` eksikliği ve tekrarları |
-| **JPN_015** | Yalnız Auto profilinde eski `routes_jp.route_id` uyumluluk kontrolü; v3 dosyası değildir |
-| **JPN_016** | V3 `pattern_jp.route_update_date`; Auto profilinde legacy `routes_jp.route_update_date` geçerli tarih biçimi |
+| **JPN_015** | V3 ve Auto profillerinde eski `routes_jp.route_id` uyumluluk kontrolü; v3 dosyası değildir |
+| **JPN_016** | V3 `pattern_jp.route_update_date`; V3 ve Auto profillerinde legacy `routes_jp.route_update_date` geçerli tarih biçimi |
 | **JPN_017** | `pattern_jp.jp_pattern_id` eksikliği ve tekrarları |
 | **JPN_018** | Mevcut `pattern_jp.txt` içindeki kopuk `trips.jp_pattern_id` referansı |
 | **JPN_019** | GTFS-JP `ja-Hrkt` satırlarında geçersiz kayıt/alan/alt kayıt |

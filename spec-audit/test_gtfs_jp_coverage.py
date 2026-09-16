@@ -18,13 +18,13 @@ spec.loader.exec_module(coverage)
 class GtfsJpCoverageTests(unittest.TestCase):
     def test_inventory_is_closed_and_machine_rows_are_mapped(self):
         rows = coverage.load_rows()
-        self.assertEqual(len(rows), 38)
+        self.assertEqual(len(rows), 39)
         self.assertTrue(all(row["source_document"] and row["source_version"] for row in rows))
         self.assertTrue(all(row["audited_on"] == "2026-09-16" for row in rows))
         self.assertTrue(all(row["strength"] != "strong" or row["automation"] == "rule" for row in rows))
         machine = [row for row in rows if row["automation"] == "rule"]
-        self.assertEqual(len(machine), 31)
-        self.assertEqual(sum(row["strength"] == "soft" for row in machine), 2)
+        self.assertEqual(len(machine), 32)
+        self.assertEqual(sum(row["strength"] == "soft" for row in machine), 3)
         self.assertTrue(all(coverage.rule_ids(row) for row in machine))
         self.assertEqual(
             sum(row["automation"] == "excluded_recommendation" for row in rows), 2
