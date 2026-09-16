@@ -842,7 +842,7 @@
     "AGN_008": "Use a valid http/https URL for agency_fare_url.",
     "AGN_009": "Use a valid e-mail address for agency_email.",
     "AGN_010": "Assign a unique agency_id to each agency.",
-    "AGN_011": "Fill in agency_id for all routes when multiple agencies are present.",
+    "AGN_011": "Fill in agency_id for all routes and fare records when multiple agencies are present.",
     "AGN_012": "Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).",
     "RTS_024": "Set cemv_support to 0 (no info), 1 (supported) or 2 (not supported).",
     "RTS_025": "Fill the agency_id column in routes.txt with the operating agency's agency_id.",
