@@ -5013,6 +5013,54 @@ fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold(
     }
 }
 
+/// `mdb-1309`/`tfs-109`: 340 seferin 340'ında `block_id = " "`. Tek boşluk bir blok kimliği
+/// sayılınca bütün seferler AYNI araca düşüyor ve 286 `TRP_022` "çakışan blok" üretiyordu.
+/// #85: kimlik ham karşılaştırılır AMA boşluktan oluşan değer YOKTUR — opsiyonel alan boştur.
+/// Gerçek bir blokta çakışma görünür kalır.
+#[test]
+fn whitespace_only_optional_trip_ids_are_absent() {
+    let mut files = base_files();
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id,block_id,shape_id\n\
+          R1,SVC1,T1, , \nR1,SVC1,T2, , \nR1,SVC1,T3,B1,\nR1,SVC1,T4,B1,\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,09:00:00,09:00:00,S2,2\n\
+          T2,08:30:00,08:30:00,S1,1\nT2,09:30:00,09:30:00,S2,2\n\
+          T3,10:00:00,10:00:00,S1,1\nT3,11:00:00,11:00:00,S2,2\n\
+          T4,10:30:00,10:30:00,S1,1\nT4,11:30:00,11:30:00,S2,2\n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let trp022: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRP_022")
+                .map(|n| n.observed_value.clone().unwrap_or_default())
+                .collect();
+            assert_eq!(trp022.len(), 1, "yalnız gerçek B1 bloğu: {trp022:?}");
+            assert!(trp022[0].contains("T3"), "{trp022:?}");
+            for rule in ["TRP_004", "SHP_019"] {
+                let found: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+                assert!(
+                    found.is_empty(),
+                    "' ' şekil kimliği yok sayılmalı: {found:?}"
+                );
+            }
+            assert!(
+                vr.notices
+                    .iter()
+                    .any(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("trips.txt")),
+                "boşluk DQ_016 ile raporlanmaya devam etmeli"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 #[test]
 fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     let mut files = base_files();

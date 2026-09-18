@@ -137,6 +137,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   none moved away from, or fell below, the same feed with all whitespace
   trimmed. What remains is mostly deliberate: the `DQ_016` roots themselves,
   padded URL and colour values (#92), and trip-keyed `OPR_009` summaries.
+- **An optional trip ID that holds only whitespace is now treated as absent.**
+  `block_id`, `shape_id`, `jp_office_id` and `jp_pattern_id` are still compared
+  raw (#85), but a value such as `" "` is an empty field, not an identifier. Two
+  corpus feeds carried `block_id = " "` on all 340 trips, which put every trip on
+  one vehicle and produced 286 `TRP_022` overlapping-block findings each; the
+  same pattern in `shape_id` produced `SHP_019`. The whitespace itself is still
+  reported by `DQ_016`.
 - **The Turkish `GEO_016` title states the threshold the code applies.** It
   said `|lat|<1 AND |lon|<1` while the rule, and the English, Japanese and French
   titles, use 0.1.

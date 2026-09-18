@@ -150,6 +150,19 @@ pub struct TripRecord {
 
 /// String intern yardımcısı — boş string → 0 sentinel, aksi hâlde tabloya ekle/bul.
 #[inline]
+/// Opsiyonel KİMLİK alanı (#85): değer ham saklanır, ama boşluktan oluşan değer YOKTUR.
+///
+/// `mdb-1309`/`tfs-109`: 340 seferin 340'ında `block_id = " "`. Tek boşluk bir blok kimliği
+/// sayılınca bütün seferler aynı araca düştü ve 286 `TRP_022` "çakışan blok" üretti; aynı
+/// desen `shape_id = " "` için `SHP_019` üretiyordu. Boşluğun kendisi `DQ_016`'nın konusudur.
+fn optional_id(raw: &str) -> &str {
+    if raw.trim().is_empty() {
+        ""
+    } else {
+        raw
+    }
+}
+
 fn intern_idx(raw: &str, table: &mut Vec<SmolStr>, map: &mut FxHashMap<String, u32>) -> u32 {
     if raw.is_empty() {
         return 0;
@@ -381,7 +394,7 @@ pub fn validate_trips_with_limits(
         }
 
         let shape_idx = intern_idx(
-            get_col_raw(row, cols.shape_id),
+            optional_id(get_col_raw(row, cols.shape_id)),
             &mut interns.shape_ids,
             &mut shape_map,
         );
@@ -421,17 +434,17 @@ pub fn validate_trips_with_limits(
             &mut short_name_map,
         );
         let block_idx = intern_idx(
-            get_col_raw(row, cols.block_id),
+            optional_id(get_col_raw(row, cols.block_id)),
             &mut interns.block_ids,
             &mut block_map,
         );
         let jp_office_idx = intern_idx(
-            get_col_raw(row, cols.jp_office_id),
+            optional_id(get_col_raw(row, cols.jp_office_id)),
             &mut interns.jp_offices,
             &mut jp_office_map,
         );
         let jp_pattern_idx = intern_idx(
-            get_col_raw(row, cols.jp_pattern_id),
+            optional_id(get_col_raw(row, cols.jp_pattern_id)),
             &mut interns.jp_patterns,
             &mut jp_pattern_map,
         );
