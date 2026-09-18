@@ -249,7 +249,16 @@ const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
 /// `None` → ham byte'lardan ek bir şey söylenemiyor; çağıran yalnız kütüphane mesajını verir.
 /// zip64 arşivleri ATLANIR: 32-bit EOCD alanları kaçış değeri taşır, gerçek offset zip64
 /// kaydındadır ve buradan okunamaz; okunamayanı "bozuk" saymak yanlış teşhis olurdu.
-fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<String> {
+/// `diagnose_unreadable_zip` sonucu: Türkçe metin (pipeline mesajı) + çeviri için tür ve
+/// parametreler. Tür, fatal şablonunun varyantını seçer (`archive.local_header` gibi).
+#[derive(Debug)]
+struct ZipDiagnosis {
+    kind: &'static str,
+    params: Vec<(&'static str, String)>,
+    text: String,
+}
+
+fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
     let read_u16 = |at: usize| -> Option<u16> {
         zip_bytes
             .get(at..at + 2)
@@ -276,18 +285,29 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<String> {
 
     // 2) Merkez dizin, EOCD'nin işaret ettiği yerde mi?
     if read_u32(cd_offset) != Some(CDH_SIGNATURE) {
-        return Some(format!(
-            "merkez dizin {cd_offset}. bayta işaret ediyor ama orada merkez dizin imzası yok (EOCD {eocd}. baytta okunabildi)"
-        ));
+        return Some(ZipDiagnosis {
+            kind: "cd_signature",
+            params: vec![("cd_offset", cd_offset.to_string()), ("eocd", eocd.to_string())],
+            text: format!(
+                "merkez dizin {cd_offset}. bayta işaret ediyor ama orada merkez dizin imzası yok (EOCD {eocd}. baytta okunabildi)"
+            ),
+        });
     }
 
     // 3) Merkez dizin girdilerini yürü: her girdinin yerel başlığı yerinde mi?
     let mut cursor = cd_offset;
     for _ in 0..entry_count {
         if read_u32(cursor) != Some(CDH_SIGNATURE) {
-            return Some(format!(
-                "merkez dizin {cursor}. bayttan sonra okunamıyor (beklenen girdi sayısı: {entry_count})"
-            ));
+            return Some(ZipDiagnosis {
+                kind: "cd_truncated",
+                params: vec![
+                    ("cursor", cursor.to_string()),
+                    ("entry_count", entry_count.to_string()),
+                ],
+                text: format!(
+                    "merkez dizin {cursor}. bayttan sonra okunamıyor (beklenen girdi sayısı: {entry_count})"
+                ),
+            });
         }
         let name_len = read_u16(cursor + 28)? as usize;
         let extra_len = read_u16(cursor + 30)? as usize;
@@ -302,18 +322,24 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<String> {
 
         if local_offset != ZIP64_SENTINEL && read_u32(local_offset as usize) != Some(LFH_SIGNATURE)
         {
-            return Some(format!(
-                "'{name}' yerel başlığı {local_offset}. bayta göre bozuk (imza yok); EOCD ve merkez dizin sağlam, bir önceki girdinin sıkıştırılmış verisi taşmış olabilir"
-            ));
+            return Some(ZipDiagnosis {
+                kind: "local_header",
+                text: format!(
+                    "'{name}' yerel başlığı {local_offset}. bayta göre bozuk (imza yok); EOCD ve merkez dizin sağlam, bir önceki girdinin sıkıştırılmış verisi taşmış olabilir"
+                ),
+                params: vec![("name", name), ("local_offset", local_offset.to_string())],
+            });
         }
         cursor += CDH_LEN + name_len + extra_len + comment_len;
     }
 
     // EOCD, merkez dizin ve tüm yerel başlıklar yerinde: bozukluk girdi VERİSİNDE.
-    Some(
-        "EOCD, merkez dizin ve tüm yerel başlıklar yerinde; bozukluk girdilerin sıkıştırılmış verisinde olabilir"
+    Some(ZipDiagnosis {
+        kind: "entry_data",
+        params: Vec::new(),
+        text: "EOCD, merkez dizin ve tüm yerel başlıklar yerinde; bozukluk girdilerin sıkıştırılmış verisinde olabilir"
             .to_string(),
-    )
+    })
 }
 
 /// ARC_036: bir girdinin AKIŞ görünümü (yerel başlık + data descriptor) merkez diziniyle
@@ -399,17 +425,28 @@ fn read_fatal<R: Read>(
     e: &std::io::Error,
 ) -> FatalError {
     match guarded.tripped() {
-        Some(trip) => FatalError {
-            code: FatalCode::DecompressionLimit,
-            message: format!(
-                "'{raw_name}' sıkıştırma koruması sınırını aştı: {}",
-                trip.describe()
-            ),
-        },
-        None => FatalError {
-            code: FatalCode::ZipUnreadable,
-            message: format!("'{raw_name}' okunamadı: {e}"),
-        },
+        Some(trip) => {
+            let (variant, values) = trip.fatal_params();
+            values.into_iter().fold(
+                FatalError::new(
+                    FatalCode::DecompressionLimit,
+                    format!(
+                        "'{raw_name}' sıkıştırma koruması sınırını aştı: {}",
+                        trip.describe()
+                    ),
+                )
+                .variant(variant)
+                .param("file", raw_name),
+                |err, (key, value)| err.param(key, value),
+            )
+        }
+        None => FatalError::new(
+            FatalCode::ZipUnreadable,
+            format!("'{raw_name}' okunamadı: {e}"),
+        )
+        .variant("entry_read")
+        .param("file", raw_name)
+        .param("detail", e),
     }
 }
 
@@ -1715,25 +1752,41 @@ pub fn parse_with_limits(
     k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
-    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| FatalError {
-        code: FatalCode::ZipUnreadable,
-        // Kütüphane mesajı bozukluğun KATMANINI yanlış gösterebiliyor (bkz.
-        // `diagnose_unreadable_zip`), o yüzden ham byte teşhisi ÖNE alınır ve
-        // kütüphane metni arkasına eklenir.
-        message: match diagnose_unreadable_zip(zip_bytes) {
-            Some(detail) => format!("ZIP arşivi açılamadı: {detail}. Kütüphane hatası: {e}"),
-            None => format!("ZIP arşivi açılamadı: {e}"),
-        },
+    // Kütüphane mesajı bozukluğun KATMANINI yanlış gösterebiliyor (bkz.
+    // `diagnose_unreadable_zip`), o yüzden ham byte teşhisi ÖNE alınır ve
+    // kütüphane metni arkasına eklenir.
+    let mut archive = zip::ZipArchive::new(cursor).map_err(|e| {
+        match diagnose_unreadable_zip(zip_bytes) {
+            Some(diagnosis) => diagnosis.params.into_iter().fold(
+                FatalError::new(
+                    FatalCode::ZipUnreadable,
+                    format!(
+                        "ZIP arşivi açılamadı: {}. Kütüphane hatası: {e}",
+                        diagnosis.text
+                    ),
+                )
+                .variant(&format!("archive.{}", diagnosis.kind)),
+                |err, (key, value)| err.param(key, value),
+            ),
+            None => FatalError::new(
+                FatalCode::ZipUnreadable,
+                format!("ZIP arşivi açılamadı: {e}"),
+            )
+            .variant("archive"),
+        }
+        .param("detail", &e)
     })?;
     k1dbg!("[K1] archive açıldı: {} entry", archive.len());
     if archive.len() > MAX_ZIP_ENTRIES {
-        return Err(FatalError {
-            code: FatalCode::ResourceLimit,
-            message: format!(
+        return Err(FatalError::new(
+            FatalCode::ResourceLimit,
+            format!(
                 "ZIP merkezi dizini {} girdilik güvenlik sınırını aşıyor.",
                 MAX_ZIP_ENTRIES
             ),
-        });
+        )
+        .variant("zip_entries")
+        .param("limit", MAX_ZIP_ENTRIES));
     }
 
     // ARC_009 yanlış-pozitif guard'ı: calendar_dates.txt boş (veya yalnızca başlık) olsa bile
@@ -1746,12 +1799,14 @@ pub fn parse_with_limits(
     for name in archive.file_names() {
         metadata_bytes = metadata_bytes.saturating_add(name.len());
         if metadata_bytes > MAX_ZIP_METADATA_BYTES {
-            return Err(FatalError {
-                code: FatalCode::ResourceLimit,
-                message: format!(
+            return Err(FatalError::new(
+                FatalCode::ResourceLimit,
+                format!(
                     "ZIP merkezi dizini {MAX_ZIP_METADATA_BYTES} bayt metadata sınırını aşıyor."
                 ),
-            });
+            )
+            .variant("zip_metadata")
+            .param("limit", MAX_ZIP_METADATA_BYTES));
         }
         entry_names.push(name.to_string());
     }
@@ -1855,9 +1910,14 @@ pub fn parse_with_limits(
     let mut total_decompressed: u64 = 0;
     for i in 0..archive.len() {
         k1dbg!("[K1] by_index({i})...");
-        let mut zf = archive.by_index(i).map_err(|e| FatalError {
-            code: FatalCode::ZipUnreadable,
-            message: format!("ZIP dosyası okunamadı (index {i}): {e}"),
+        let mut zf = archive.by_index(i).map_err(|e| {
+            FatalError::new(
+                FatalCode::ZipUnreadable,
+                format!("ZIP dosyası okunamadı (index {i}): {e}"),
+            )
+            .variant("entry_index")
+            .param("index", i)
+            .param("detail", &e)
         })?;
 
         let entry_name = zf.name().to_string();
@@ -3732,7 +3792,9 @@ mod tests {
         let mut bytes = zip_with_files(files);
 
         // Sağlam arşivde hiçbir katman suçlanmaz.
-        let clean = diagnose_unreadable_zip(&bytes).expect("sağlam arşivde de teşhis dönmeli");
+        let clean = diagnose_unreadable_zip(&bytes)
+            .expect("sağlam arşivde de teşhis dönmeli")
+            .text;
         assert!(
             clean.contains("tüm yerel başlıklar yerinde"),
             "sağlam arşiv yanlış katmanı suçluyor: {clean}"
@@ -3748,7 +3810,10 @@ mod tests {
             .expect("ikinci yerel başlık bulunmalı");
         bytes[second] = 0;
 
-        let detail = diagnose_unreadable_zip(&bytes).expect("bozuk yerel başlık teşhis edilmeli");
+        let diagnosis =
+            diagnose_unreadable_zip(&bytes).expect("bozuk yerel başlık teşhis edilmeli");
+        assert_eq!(diagnosis.kind, "local_header");
+        let detail = diagnosis.text;
         assert!(
             detail.contains("yerel başlığı") && detail.contains("merkez dizin sağlam"),
             "yerel başlık bozukluğu doğru anlatılmalı: {detail}"

@@ -127,6 +127,26 @@ pub enum GuardTrip {
 }
 
 impl GuardTrip {
+    /// Fatal mesaj şablonunun varyantı ve parametreleri (CLI/SDK/UI çevirisi için).
+    pub fn fatal_params(&self) -> (&'static str, Vec<(&'static str, u64)>) {
+        match *self {
+            GuardTrip::EntryCap { got, cap } => ("entry_cap", vec![("got", got), ("cap", cap)]),
+            GuardTrip::TotalCap { got, cap } => ("total_cap", vec![("got", got), ("cap", cap)]),
+            GuardTrip::Ratio {
+                decompressed,
+                compressed,
+                cap,
+            } => (
+                "ratio",
+                vec![
+                    ("decompressed", decompressed),
+                    ("compressed", compressed),
+                    ("cap", cap),
+                ],
+            ),
+        }
+    }
+
     /// İnsan-okur açıklama (FatalError mesajına gömülür).
     pub fn describe(&self) -> String {
         match self {

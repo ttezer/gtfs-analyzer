@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use gtfs_core::Notice;
+use gtfs_core::{FatalError, Notice};
 use serde::Deserialize;
 
 const EN_JSON: &str = include_str!(concat!(env!("OUT_DIR"), "/en_locale.json"));
@@ -18,6 +18,9 @@ struct Dictionary {
     messages: HashMap<String, String>,
     remediations: HashMap<String, String>,
     titles: HashMap<String, String>,
+    /// `{FatalCode}.{variant}` → şablon; CLI ile aynı sözlük (`crates/cli/locales/en.json`).
+    #[serde(default)]
+    fatal_messages: HashMap<String, String>,
 }
 
 fn dictionary() -> &'static Dictionary {
@@ -64,9 +67,25 @@ pub fn translate_notices(notices: &mut [Notice]) {
     }
 }
 
+/// Rewrites a fatal error's message from its English template; without one the
+/// pipeline's text stays.
+pub fn translate_fatal(mut err: FatalError) -> FatalError {
+    if let Some(template) = dictionary().fatal_messages.get(&err.template_key()) {
+        let message = fill_with(template, |key| {
+            err.params.get(key).cloned().unwrap_or_default()
+        });
+        err.message = message;
+    }
+    err
+}
+
 /// Substitutes `{field}` placeholders from the notice, matching the UI and CLI
 /// locale implementations. Unknown placeholders resolve to an empty string.
 fn fill(template: &str, notice: &Notice) -> String {
+    fill_with(template, |key| resolve(key, notice))
+}
+
+fn fill_with(template: &str, resolve: impl Fn(&str) -> String) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
 
@@ -86,7 +105,7 @@ fn fill(template: &str, notice: &Notice) -> String {
             continue;
         }
 
-        out.push_str(&resolve(key, notice));
+        out.push_str(&resolve(key));
         rest = &after[close + 1..];
     }
 
@@ -114,6 +133,27 @@ fn resolve(key: &str, notice: &Notice) -> String {
 mod tests {
     use super::*;
     use gtfs_core::{EntityType, RuleClass, Severity};
+
+    /// SDK fatal mesajı da İngilizce şablondan yazılır; şablonu olmayan varyant
+    /// pipeline metnini korur.
+    #[test]
+    fn english_dictionary_translates_fatal_errors() {
+        let err = translate_fatal(
+            FatalError::new(gtfs_core::FatalCode::DecompressionLimit, "Türkçe metin")
+                .variant("entry_cap")
+                .param("file", "stop_times.txt")
+                .param("got", 10)
+                .param("cap", 5),
+        );
+        assert_eq!(
+            err.message,
+            "'stop_times.txt' exceeded the decompression guard: the per-entry decompressed size limit was exceeded (10 > 5 bytes)"
+        );
+        let kept = translate_fatal(
+            FatalError::new(gtfs_core::FatalCode::InvalidInput, "özgün").variant("yok"),
+        );
+        assert_eq!(kept.message, "özgün");
+    }
 
     #[test]
     fn english_dictionary_fills_notice_placeholders() {

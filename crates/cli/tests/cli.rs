@@ -199,6 +199,40 @@ fn corrupt_zip_is_fatal_with_exit_2() {
     assert_eq!(json_of(&out)["status"], "fatal");
 }
 
+/// Fatal mesajı pipeline'ın Türkçe metniydi ve `--lang` onu hiç çevirmiyordu: İngilizce
+/// kullanıcı "ZIP arşivi açılamadı" görüyordu. Artık bildirimlerle aynı modelde
+/// şablondan yazılır; kütüphanenin teknik ayrıntısı `{detail}` olarak korunur.
+#[test]
+fn fatal_message_follows_the_requested_language() {
+    let path = std::env::temp_dir().join("gtfs-cli-test-corrupt-lang.zip");
+    std::fs::write(&path, b"not a zip at all").unwrap();
+
+    let expected = [
+        ("en", "The ZIP archive could not be opened"),
+        ("fr", "L’archive ZIP n’a pas pu être ouverte"),
+        ("ja", "ZIPアーカイブを開けませんでした"),
+        ("tr", "ZIP arşivi açılamadı"),
+    ];
+    for (lang, prefix) in expected {
+        let out = validate(&path, &["--json", "--lang", lang]);
+        assert_eq!(code(&out), 2);
+        let json = json_of(&out);
+        let message = json["message"].as_str().unwrap();
+        assert!(message.starts_with(prefix), "{lang}: {message}");
+        assert!(
+            message.contains("EOCD"),
+            "{lang}: kütüphane ayrıntısı korunmalı: {message}"
+        );
+        if lang != "tr" {
+            assert!(
+                !message.contains("açılamadı"),
+                "{lang}: Türkçe kaldı: {message}"
+            );
+        }
+        assert_eq!(json["params"]["variant"], "archive", "{lang}");
+    }
+}
+
 #[test]
 fn recoverable_structural_error_is_partial_with_exit_1() {
     let out = validate(&feed_partial(), &["--json"]);

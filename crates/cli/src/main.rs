@@ -362,6 +362,9 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
     apply_filters(&mut result, &filters);
 
     // After filtering: no point translating notices that were dropped.
+    if let (Some(translator), ValidateResult::Fatal(err)) = (&translator, &mut result) {
+        translator.translate_fatal(err);
+    }
     if let (Some(translator), ValidateResult::Ok(vr)) = (&translator, &mut result) {
         for notice in &mut vr.notices {
             translator.translate(notice);
@@ -499,6 +502,8 @@ struct JsonFatal<'a> {
     status: &'static str,
     code: &'a gtfs_core::FatalCode,
     message: &'a str,
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    params: &'a std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Serialize)]
@@ -531,6 +536,7 @@ fn render_json(
                 status: "fatal",
                 code: &err.code,
                 message: &err.message,
+                params: &err.params,
             };
             serialize(&payload, pretty)
         }

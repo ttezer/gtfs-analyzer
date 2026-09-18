@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use clap::ValueEnum;
-use gtfs_core::Notice;
+use gtfs_core::{FatalError, Notice};
 use serde::Deserialize;
 
 const EN_JSON: &str = include_str!("../locales/en.json");
@@ -34,6 +34,9 @@ struct Dictionary {
     messages: HashMap<String, String>,
     remediations: HashMap<String, String>,
     titles: HashMap<String, String>,
+    /// `{FatalCode}.{variant}` → şablon; parametreler `FatalError::params`'tan dolar.
+    #[serde(default)]
+    fatal_messages: HashMap<String, String>,
 }
 
 impl Dictionary {
@@ -127,6 +130,16 @@ impl Translator {
         }
     }
 
+    /// Rewrites a fatal error's message from its template. Without a template (or
+    /// without `params`) the pipeline's Turkish text stays.
+    pub fn translate_fatal(&self, err: &mut FatalError) {
+        if let Some(template) = self.lookup(|d| &d.fatal_messages, &err.template_key()) {
+            err.message = fill_with(template, |key| {
+                err.params.get(key).cloned().unwrap_or_default()
+            });
+        }
+    }
+
     /// Registry title for the `rules` subcommand, which has no notice context.
     pub fn rule_title<'a>(&'a self, rule_id: &str, fallback: &'a str) -> &'a str {
         self.lookup(|d| &d.titles, rule_id).unwrap_or(fallback)
@@ -137,6 +150,11 @@ impl Translator {
 /// `tpl.replace(/\{(\w+)\}/g, …)`. Unknown placeholders resolve to an empty
 /// string; a brace that is not a `\w+` placeholder is left untouched.
 fn fill(template: &str, notice: &Notice) -> String {
+    fill_with(template, |key| resolve(key, notice))
+}
+
+/// Substitutes `{key}` placeholders through `resolve`; malformed braces stay as text.
+fn fill_with(template: &str, resolve: impl Fn(&str) -> String) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
 
@@ -156,7 +174,7 @@ fn fill(template: &str, notice: &Notice) -> String {
             continue;
         }
 
-        out.push_str(&resolve(key, notice));
+        out.push_str(&resolve(key));
         rest = &after[close + 1..];
     }
 
@@ -183,6 +201,60 @@ fn resolve(key: &str, notice: &Notice) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn placeholders(template: &str) -> std::collections::BTreeSet<String> {
+        template
+            .split('{')
+            .skip(1)
+            .filter_map(|part| part.split_once('}').map(|(key, _)| key.to_string()))
+            .collect()
+    }
+
+    /// Her fatal şablonu üç dilde de var ve AYNI yer tutucuları kullanıyor; biri eksik
+    /// kalırsa o dilde parametre sessizce boş basılırdı.
+    #[test]
+    fn fatal_templates_match_across_locales() {
+        let en = Dictionary::parse(EN_JSON, "en").unwrap();
+        assert!(
+            !en.fatal_messages.is_empty(),
+            "İngilizce fatal şablonları boş"
+        );
+        for (lang, raw) in [("fr", FR_JSON), ("ja", JA_JSON)] {
+            let other = Dictionary::parse(raw, lang).unwrap();
+            let mut en_keys: Vec<_> = en.fatal_messages.keys().collect();
+            let mut other_keys: Vec<_> = other.fatal_messages.keys().collect();
+            en_keys.sort();
+            other_keys.sort();
+            assert_eq!(
+                en_keys, other_keys,
+                "{lang}: fatal şablon anahtarları farklı"
+            );
+            for (key, template) in &en.fatal_messages {
+                assert_eq!(
+                    placeholders(template),
+                    placeholders(&other.fatal_messages[key]),
+                    "{lang}: {key} yer tutucuları farklı"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn fatal_without_template_keeps_the_pipeline_text() {
+        let translator = Translator::new(LangArg::En).unwrap().unwrap();
+        let mut known =
+            FatalError::new(gtfs_core::FatalCode::ZipUnreadable, "ZIP dosyası okunamadı")
+                .variant("entry_read")
+                .param("file", "stops.txt")
+                .param("detail", "bad crc");
+        translator.translate_fatal(&mut known);
+        assert_eq!(known.message, "'stops.txt' could not be read: bad crc");
+
+        let mut unknown = FatalError::new(gtfs_core::FatalCode::ZipUnreadable, "özgün metin")
+            .variant("no_such_variant");
+        translator.translate_fatal(&mut unknown);
+        assert_eq!(unknown.message, "özgün metin");
+    }
     use gtfs_core::{EntityType, RuleClass, Severity};
 
     fn notice() -> Notice {

@@ -290,22 +290,32 @@ pub fn validate(zip_bytes: Vec<u8>, config_delta_json: String) -> JsValue {
 #[wasm_bindgen]
 pub fn validate_with_today(zip_bytes: Vec<u8>, config_delta_json: String, today: u32) -> JsValue {
     if zip_bytes.len() > MAX_INPUT_BYTES {
-        return to_js(&ValidateResult::Fatal(FatalError {
-            code: FatalCode::ResourceLimit,
-            message: "Input ZIP exceeds the SDK safety limit.".to_string(),
-        }));
+        return fatal_js(
+            FatalError::new(
+                FatalCode::ResourceLimit,
+                "Input ZIP exceeds the SDK safety limit.",
+            )
+            .variant("input_size"),
+        );
     }
     if !is_valid_yyyymmdd(today) {
-        return to_js(&ValidateResult::Fatal(FatalError {
-            code: FatalCode::InvalidInput,
-            message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
-        }));
+        return fatal_js(
+            FatalError::new(
+                FatalCode::InvalidInput,
+                format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+            )
+            .variant("today")
+            .param("today", today),
+        );
     }
     let config = match parse_config(&config_delta_json) {
         Ok(c) => c,
-        Err(e) => return to_js(&ValidateResult::Fatal(e)),
+        Err(e) => return fatal_js(e),
     };
-    to_js(&run_full_pipeline(&zip_bytes, &config, today))
+    match run_full_pipeline(&zip_bytes, &config, today) {
+        ValidateResult::Fatal(err) => fatal_js(err),
+        result => to_js(&result),
+    }
 }
 
 /// Kaba YYYYMMDD sağlaması: pipeline'a anlamsız tarih girip sessizce saçma
@@ -335,22 +345,28 @@ pub fn prepare_with_today(
     today: u32,
 ) -> Result<CachedState, JsValue> {
     if zip_bytes.len() > MAX_INPUT_BYTES {
-        return Err(to_js(&ValidateResult::Fatal(FatalError {
-            code: FatalCode::ResourceLimit,
-            message: "Input ZIP exceeds the SDK safety limit.".to_string(),
-        })));
+        return Err(fatal_js(
+            FatalError::new(
+                FatalCode::ResourceLimit,
+                "Input ZIP exceeds the SDK safety limit.",
+            )
+            .variant("input_size"),
+        ));
     }
     if !is_valid_yyyymmdd(today) {
-        return Err(to_js(&ValidateResult::Fatal(FatalError {
-            code: FatalCode::InvalidInput,
-            message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
-        })));
+        return Err(fatal_js(
+            FatalError::new(
+                FatalCode::InvalidInput,
+                format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+            )
+            .variant("today")
+            .param("today", today),
+        ));
     }
     // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
     // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
-    let config = parse_config(&config_delta_json).map_err(|e| to_js(&ValidateResult::Fatal(e)))?;
-    run_k1_k5(&zip_bytes, &config, on_stage, today)
-        .map_err(|fatal| to_js(&ValidateResult::Fatal(fatal)))
+    let config = parse_config(&config_delta_json).map_err(fatal_js)?;
+    run_k1_k5(&zip_bytes, &config, on_stage, today).map_err(fatal_js)
 }
 
 /// Önbellekten K6+K7'yi çalıştırır.
@@ -373,10 +389,14 @@ pub fn rerun_k6_k7_with_today(
     today: u32,
 ) -> JsValue {
     if !is_valid_yyyymmdd(today) {
-        return to_js(&ValidateResult::Fatal(FatalError {
-            code: FatalCode::InvalidInput,
-            message: format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
-        }));
+        return fatal_js(
+            FatalError::new(
+                FatalCode::InvalidInput,
+                format!("Geçersiz 'today' değeri: {today} (beklenen YYYYMMDD, ör. 20260716)"),
+            )
+            .variant("today")
+            .param("today", today),
+        );
     }
     rerun_k6_k7_inner(cache, &config_delta_json, on_stage, today)
 }
@@ -389,7 +409,7 @@ fn rerun_k6_k7_inner(
 ) -> JsValue {
     let config = match parse_config(config_delta_json) {
         Ok(c) => c,
-        Err(e) => return to_js(&ValidateResult::Fatal(e)),
+        Err(e) => return fatal_js(e),
     };
 
     let t = js_sys::Date::now();
@@ -788,14 +808,16 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
         return Ok(ValidatorConfig::default());
     }
     if delta_json.len() > 4 * 1024 * 1024 {
-        return Err(FatalError {
-            code: FatalCode::ResourceLimit,
-            message: "Config JSON exceeds the 4 MiB safety limit.".to_string(),
-        });
+        return Err(FatalError::new(
+            FatalCode::ResourceLimit,
+            "Config JSON exceeds the 4 MiB safety limit.",
+        )
+        .variant("config_size"));
     }
-    merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| FatalError {
-        code: FatalCode::InvalidInput,
-        message: format!("Config parse hatası: {e}"),
+    merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| {
+        FatalError::new(FatalCode::InvalidInput, format!("Config parse hatası: {e}"))
+            .variant("config_parse")
+            .param("detail", &e)
     })
 }
 
@@ -926,6 +948,14 @@ fn today_yyyymmdd() -> u32 {
     let m = now.get_month() + 1;
     let d = now.get_date();
     y * 10000 + m * 100 + d
+}
+
+/// Fatal sonucu JS'e çevirir. SDK derlemesinde (`sdk-en`) mesaj, bildirimlerle aynı
+/// modelle İngilizce şablondan yazılır; şablonu olmayan fatal pipeline metnini korur.
+fn fatal_js(err: FatalError) -> JsValue {
+    #[cfg(feature = "sdk-en")]
+    let err = i18n::translate_fatal(err);
+    to_js(&ValidateResult::Fatal(err))
 }
 
 fn to_js<T: serde::Serialize>(value: &T) -> JsValue {

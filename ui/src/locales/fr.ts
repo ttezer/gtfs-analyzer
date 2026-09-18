@@ -578,6 +578,25 @@ const fr: LocaleShape = {
     InvalidInput   : 'Entrée invalide',
   },
 
+  fatalMessages: {
+    'ZipUnreadable.archive': "L’archive ZIP n’a pas pu être ouverte : {detail}",
+    'ZipUnreadable.archive.cd_signature': "L’archive ZIP n’a pas pu être ouverte : le répertoire central pointe vers l’octet {cd_offset}, mais aucune signature de répertoire central ne s’y trouve (EOCD lu à l’octet {eocd}). Erreur de la bibliothèque : {detail}",
+    'ZipUnreadable.archive.cd_truncated': "L’archive ZIP n’a pas pu être ouverte : le répertoire central est illisible après l’octet {cursor} (entrées attendues : {entry_count}). Erreur de la bibliothèque : {detail}",
+    'ZipUnreadable.archive.local_header': "L’archive ZIP n’a pas pu être ouverte : l’en-tête local de « {name} » à l’octet {local_offset} est corrompu (signature absente) ; l’EOCD et le répertoire central sont intacts, les données compressées de l’entrée précédente l’ont peut-être écrasé. Erreur de la bibliothèque : {detail}",
+    'ZipUnreadable.archive.entry_data': "L’archive ZIP n’a pas pu être ouverte : l’EOCD, le répertoire central et tous les en-têtes locaux sont en place ; la corruption se trouve peut-être dans les données compressées des entrées. Erreur de la bibliothèque : {detail}",
+    'ZipUnreadable.entry_read': "« {file} » n’a pas pu être lu : {detail}",
+    'ZipUnreadable.entry_index': "L’entrée ZIP {index} n’a pas pu être lue : {detail}",
+    'DecompressionLimit.entry_cap': "« {file} » a déclenché la protection de décompression : la taille décompressée maximale par entrée est dépassée ({got} > {cap} octets)",
+    'DecompressionLimit.total_cap': "« {file} » a déclenché la protection de décompression : la taille décompressée maximale de l’archive est dépassée ({got} > {cap} octets)",
+    'DecompressionLimit.ratio': "« {file} » a déclenché la protection de décompression : le taux de compression dépasse {cap}:1 ({decompressed} octets décompressés, {compressed} octets compressés)",
+    'ResourceLimit.zip_entries': "Le répertoire central ZIP dépasse la limite de sécurité de {limit} entrées.",
+    'ResourceLimit.zip_metadata': "Le répertoire central ZIP dépasse la limite de {limit} octets de métadonnées.",
+    'ResourceLimit.input_size': "Le ZIP d’entrée dépasse la limite de sécurité du SDK.",
+    'ResourceLimit.config_size': "Le JSON de configuration dépasse la limite de sécurité de 4 Mio.",
+    'InvalidInput.today': "Valeur « today » invalide : {today} (format attendu AAAAMMJJ, p. ex. 20260716)",
+    'InvalidInput.config_parse': "Erreur d’analyse de la configuration : {detail}",
+  } as Record<string, string>,
+
   ruleMessages: {
     // ARC
     'ARC_001': 'Impossible d’ouvrir l’archive ZIP.',

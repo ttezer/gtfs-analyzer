@@ -173,6 +173,8 @@ export interface PartialReport {
 export interface FatalError {
   code: FatalCode;
   message: string;
+  /** Şablon parametreleri; `variant` anahtarı `{code}.{variant}` şablonunu seçer. */
+  params?: Record<string, string>;
 }
 
 export type ValidateResult =

@@ -575,6 +575,9 @@ const tr = {
     InvalidInput   : 'Geçersiz girdi',
   },
 
+  // Türkçe: pipeline'ın kendi fatal metni; şablon gerekmez.
+  fatalMessages: {} as Record<string, string>,
+
   ruleMessages: {} as Record<string, string>,
 
   ruleRemediations: {} as Record<string, string>,

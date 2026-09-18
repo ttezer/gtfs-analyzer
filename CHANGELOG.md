@@ -137,6 +137,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   none moved away from, or fell below, the same feed with all whitespace
   trimmed. What remains is mostly deliberate: the `DQ_016` roots themselves,
   padded URL and colour values (#92), and trip-keyed `OPR_009` summaries.
+- **Fatal messages follow the selected language.** A fatal result carried the
+  pipeline's Turkish text whatever `--lang` said, and the web UI translated the
+  heading but showed the Turkish sentence below it. Fatal errors now carry a
+  `params` object (`variant` plus the values in the message), and the CLI, the
+  SDK and the UI fill a per-language template for each of the 16 variants of
+  `ZipUnreadable`, `DecompressionLimit`, `ResourceLimit` and `InvalidInput`,
+  the same way notices are translated. The ZIP library's own error text is kept
+  as `{detail}`. Turkish output is unchanged, and a variant without a template
+  keeps the original text. `params` is a new, additive field in fatal JSON.
 - **An optional trip ID that holds only whitespace is now treated as absent.**
   `block_id`, `shape_id`, `jp_office_id` and `jp_pattern_id` are still compared
   raw (#85), but a value such as `" "` is an empty field, not an identifier. Two

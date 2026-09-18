@@ -557,6 +557,25 @@ const ja: LocaleShape = {
     InvalidInput   : '無効な入力',
   },
 
+  fatalMessages: {
+    'ZipUnreadable.archive': "ZIPアーカイブを開けませんでした：{detail}",
+    'ZipUnreadable.archive.cd_signature': "ZIPアーカイブを開けませんでした：中央ディレクトリは{cd_offset}バイト目を指していますが、そこに中央ディレクトリの署名がありません（EOCDは{eocd}バイト目で読み取れました）。ライブラリのエラー：{detail}",
+    'ZipUnreadable.archive.cd_truncated': "ZIPアーカイブを開けませんでした：中央ディレクトリを{cursor}バイト目以降読み取れません（想定エントリ数：{entry_count}）。ライブラリのエラー：{detail}",
+    'ZipUnreadable.archive.local_header': "ZIPアーカイブを開けませんでした：'{name}'のローカルヘッダーが{local_offset}バイト目で壊れています（署名なし）。EOCDと中央ディレクトリは正常なため、直前のエントリの圧縮データがはみ出した可能性があります。ライブラリのエラー：{detail}",
+    'ZipUnreadable.archive.entry_data': "ZIPアーカイブを開けませんでした：EOCD、中央ディレクトリ、すべてのローカルヘッダーは正常です。エントリの圧縮データが破損している可能性があります。ライブラリのエラー：{detail}",
+    'ZipUnreadable.entry_read': "'{file}'を読み取れませんでした：{detail}",
+    'ZipUnreadable.entry_index': "ZIPエントリ{index}を読み取れませんでした：{detail}",
+    'DecompressionLimit.entry_cap': "'{file}'が展開保護の上限を超えました：エントリごとの展開後サイズ上限を超えています（{got} > {cap}バイト）",
+    'DecompressionLimit.total_cap': "'{file}'が展開保護の上限を超えました：アーカイブ全体の展開後サイズ上限を超えています（{got} > {cap}バイト）",
+    'DecompressionLimit.ratio': "'{file}'が展開保護の上限を超えました：圧縮率が{cap}:1を超えています（展開後{decompressed}バイト、圧縮{compressed}バイト）",
+    'ResourceLimit.zip_entries': "ZIPの中央ディレクトリが{limit}エントリの安全上限を超えています。",
+    'ResourceLimit.zip_metadata': "ZIPの中央ディレクトリが{limit}バイトのメタデータ上限を超えています。",
+    'ResourceLimit.input_size': "入力ZIPがSDKの安全上限を超えています。",
+    'ResourceLimit.config_size': "設定JSONが4 MiBの安全上限を超えています。",
+    'InvalidInput.today': "'today'の値が無効です：{today}（形式はYYYYMMDD、例：20260716）",
+    'InvalidInput.config_parse': "設定の解析エラー：{detail}",
+  } as Record<string, string>,
+
   ruleMessages: {
     // ARC
     'ARC_001': 'ZIPアーカイブを開けませんでした。',

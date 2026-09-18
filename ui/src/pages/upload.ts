@@ -1,5 +1,5 @@
 import { setResult, getState, setConfigDelta, setPage } from '../state';
-import { FATAL_CODE_TR, t, getLocale, intlLocale } from '../i18n';
+import { FATAL_CODE_TR, t, tFatal, getLocale, intlLocale } from '../i18n';
 import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
@@ -698,7 +698,7 @@ function activateResult(root: HTMLElement, result: ValidationResult): void {
 function showError(el: HTMLElement, error: FatalError): void {
   const label = FATAL_CODE_TR[error.code] ?? error.code;
   el.className = 'upload-status error';
-  el.innerHTML = `<strong>${escHtml(label)}</strong><p>${escHtml(error.message)}</p>`;
+  el.innerHTML = `<strong>${escHtml(label)}</strong><p>${escHtml(tFatal(error))}</p>`;
 }
 
 function formatSize(kb: number): string {

@@ -1,4 +1,4 @@
-import type { Severity, RuleClass, FatalCode } from './types';
+import type { Severity, RuleClass, FatalCode, FatalError } from './types';
 import tr from './locales/tr';
 import en from './locales/en';
 import ja from './locales/ja';
@@ -126,6 +126,20 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
     ?? LOCALES.en.ruleMessages[n.rule_id];
   if (!tpl) return n.message;
   const params = _noticeParams(n);
+  return tpl.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');
+}
+
+/**
+ * Fatal mesajını bildirimlerle aynı modelle çevirir: `{code}.{variant}` şablonu,
+ * yoksa İngilizcesi, o da yoksa pipeline'ın kendi (Türkçe) metni.
+ */
+export function tFatal(error: FatalError, locale: Locale = _locale): string {
+  if (locale === 'tr' || !error.params) return error.message;
+  const variant = error.params.variant;
+  const key = variant ? `${error.code}.${variant}` : error.code;
+  const tpl = LOCALES[locale].fatalMessages[key] ?? LOCALES.en.fatalMessages[key];
+  if (!tpl) return error.message;
+  const params = error.params;
   return tpl.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');
 }
 

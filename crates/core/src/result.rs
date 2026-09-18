@@ -13,7 +13,40 @@ use crate::{FatalCode, FeedMetrics, Notice, ReportSet};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FatalError {
     pub code: FatalCode,
+    /// Pipeline'ın kendi (Türkçe) metni. `params` çevrilemezse gösterilen metin budur.
     pub message: String,
+    /// Mesaj şablonunun parametreleri. `variant`, şablon anahtarını `{code}.{variant}`
+    /// olarak seçer; diğer anahtarlar `{placeholder}` doldurur. CLI, SDK ve UI fatal
+    /// mesajını bildirimlerle AYNI modelle çevirir; boşsa JSON'a hiç yazılmaz.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub params: BTreeMap<String, String>,
+}
+
+impl FatalError {
+    pub fn new(code: FatalCode, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            params: BTreeMap::new(),
+        }
+    }
+
+    pub fn variant(self, variant: &str) -> Self {
+        self.param("variant", variant)
+    }
+
+    pub fn param(mut self, key: &str, value: impl ToString) -> Self {
+        self.params.insert(key.to_string(), value.to_string());
+        self
+    }
+
+    /// Şablon sözlüğündeki anahtar: `ZipUnreadable.entry_read` gibi.
+    pub fn template_key(&self) -> String {
+        match self.params.get("variant") {
+            Some(variant) => format!("{:?}.{variant}", self.code),
+            None => format!("{:?}", self.code),
+        }
+    }
 }
 
 /// Structural recovery information that explains why a validation report has
@@ -121,9 +154,10 @@ pub struct ValidationResult {
 /// - `Ok`    → pipeline tamamlandı veya güvenli recovery ile PARTIAL rapor üretildi
 /// - `Fatal` → pipeline tamamen durdu; UI "feed açılamadı" gösterir
 // `large_enum_variant` burada bilinçli olarak kabul edilir. Ölçüm: `ValidationResult`
-// 704 bayt, `FatalError` 32 bayt ve enum 704 bayt; yayılım farkı 672 bayttır. Bu değer
+// 704 bayt, `FatalError` 56 bayt (2026-09-18'de `params` ile 32'den büyüdü) ve enum 704
+// bayt; yayılım farkı 648 bayttır. Bu değer
 // notice başına değil, `pipeline::validate_bytes`/WASM `run_full_pipeline` çağrısı başına
-// bir kez oluşur. Yapının büyük kısmı Vec/BTreeMap gibi heap başlıklarıdır; boxing 672
+// bir kez oluşur. Yapının büyük kısmı Vec/BTreeMap gibi heap başlıklarıdır; boxing 648
 // baytlık stack/layout tasarrufu karşılığında her başarılı dönüşte ek allocation getirir.
 // CLI ayrıca kendi flat JSON envelope'unu kullanır; WASM sınırındaki externally-tagged
 // serde sözleşmesini lint temizliği uğruna değiştirmemek gerekir.
@@ -141,7 +175,7 @@ mod tests {
     #[test]
     fn validate_result_layout_measurement() {
         assert!(std::mem::size_of::<ValidationResult>() >= 704);
-        assert_eq!(std::mem::size_of::<FatalError>(), 32);
+        assert_eq!(std::mem::size_of::<FatalError>(), 56);
         assert_eq!(
             std::mem::size_of::<ValidateResult>(),
             std::mem::size_of::<ValidationResult>()

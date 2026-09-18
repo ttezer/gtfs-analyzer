@@ -20,6 +20,7 @@ function payloadOf(locale) {
     messages: locale.ruleMessages ?? {},
     remediations: locale.ruleRemediations ?? {},
     titles: locale.ruleTitles ?? {},
+    fatal_messages: locale.fatalMessages ?? {},
   };
 }
 

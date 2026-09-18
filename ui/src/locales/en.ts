@@ -576,6 +576,25 @@ const en: LocaleShape = {
     InvalidInput   : 'Invalid input',
   },
 
+  fatalMessages: {
+    'ZipUnreadable.archive': "The ZIP archive could not be opened: {detail}",
+    'ZipUnreadable.archive.cd_signature': "The ZIP archive could not be opened: the central directory points to byte {cd_offset}, but there is no central directory signature there (EOCD read at byte {eocd}). Library error: {detail}",
+    'ZipUnreadable.archive.cd_truncated': "The ZIP archive could not be opened: the central directory cannot be read past byte {cursor} (expected entries: {entry_count}). Library error: {detail}",
+    'ZipUnreadable.archive.local_header': "The ZIP archive could not be opened: the local header of '{name}' at byte {local_offset} is corrupt (no signature); the EOCD and central directory are intact, so the previous entry's compressed data may have overrun it. Library error: {detail}",
+    'ZipUnreadable.archive.entry_data': "The ZIP archive could not be opened: the EOCD, the central directory and all local headers are in place; the corruption may be in the entries' compressed data. Library error: {detail}",
+    'ZipUnreadable.entry_read': "'{file}' could not be read: {detail}",
+    'ZipUnreadable.entry_index': "ZIP entry {index} could not be read: {detail}",
+    'DecompressionLimit.entry_cap': "'{file}' exceeded the decompression guard: the per-entry decompressed size limit was exceeded ({got} > {cap} bytes)",
+    'DecompressionLimit.total_cap': "'{file}' exceeded the decompression guard: the archive-wide decompressed size limit was exceeded ({got} > {cap} bytes)",
+    'DecompressionLimit.ratio': "'{file}' exceeded the decompression guard: the compression ratio exceeded {cap}:1 ({decompressed} bytes decompressed, {compressed} bytes compressed)",
+    'ResourceLimit.zip_entries': "The ZIP central directory exceeds the {limit}-entry safety limit.",
+    'ResourceLimit.zip_metadata': "The ZIP central directory exceeds the {limit}-byte metadata limit.",
+    'ResourceLimit.input_size': "The input ZIP exceeds the SDK safety limit.",
+    'ResourceLimit.config_size': "The config JSON exceeds the 4 MiB safety limit.",
+    'InvalidInput.today': "Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)",
+    'InvalidInput.config_parse': "Config parse error: {detail}",
+  } as Record<string, string>,
+
   ruleMessages: {
     // ARC
     'ARC_001': 'ZIP archive could not be opened.',
