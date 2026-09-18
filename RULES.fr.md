@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-625 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+624 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -126,7 +126,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STP_022 | stop_code manquant | MOYENNE | Quality |
 | STP_023 | tts_stop_name invalide | FAIBLE | Quality |
 | STP_024 | stop_access hors de la plage de compatibilité K2 | INFO | Quality |
-| STP_025 | stop_name comporte des espaces en début ou en fin | MOYENNE | Quality |
 | STP_026 | Valeur stop_access invalide | FAIBLE | Spec |
 | STP_027 | stop_access non défini sur une station avec cheminements | MOYENNE | Quality |
 | STP_028 | stop_code trop long | INFO | Quality |

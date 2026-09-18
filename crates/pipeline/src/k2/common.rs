@@ -251,6 +251,22 @@ pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32,
     Ok(Some((year, month, day)))
 }
 
+/// Ham değer yalnız çevre boşluğu yüzünden reddedildiyse kırpılmış tarihi döndürür.
+///
+/// Hüküm ham değerle verilir (`parse_service_date`, #92) ve bulgu `DQ_016` altında
+/// bastırılır. Bu yardımcı YALNIZ anlamsal kayıt içindir: onsuz `"20271231    "` taşıyan
+/// bir servis "aktif günü yok" sayılır ve her seferi `TRP_026` üretir. Kırpılınca da
+/// geçersiz olan değer `None` döner — gerçek biçim hatası servis aralığına girmez.
+pub fn whitespace_trimmed_service_date(row: &RowMap, field: &str) -> Option<(u32, u32, u32)> {
+    let raw = get_raw_field(row, field)?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || raw == trimmed {
+        return None;
+    }
+    let row = RowMap::from([(field.to_string(), trimmed.to_string())]);
+    parse_service_date(&row, field).ok().flatten()
+}
+
 /// Gerçek bir takvim günü mü — artık yıl dahil (issue #82).
 pub fn is_valid_calendar_date(year: u32, month: u32, day: u32) -> bool {
     if !(1..=12).contains(&month) || day == 0 {
@@ -1141,6 +1157,16 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
     }
     if field == "stop_access" {
         return value.parse::<u32>().is_ok_and(|v| v <= 2);
+    }
+    // Tarihler tabloda yoktu ve aşağıdaki `true`ya düşüyordu: `" 2027-12-31 "` kırpılınca da
+    // geçersiz olduğu hâlde boşluk türevi sayılıp bastırılıyor, Kritik·Spec `CAL_004`
+    // görünmüyordu (17 Eylül, `whitespace_padded_calendar_dates_keep_the_service_active`).
+    if matches!(
+        field,
+        "start_date" | "end_date" | "date" | "feed_start_date" | "feed_end_date"
+    ) {
+        let row = RowMap::from([(field.to_string(), value.to_string())]);
+        return matches!(parse_service_date(&row, field), Ok(Some(_)));
     }
     // Rule-specific custom parser messages still need a conservative guard.
     if rule_id == "RTS_004" {

@@ -4517,6 +4517,502 @@ fn whitespace_fare_derivatives_are_counted_before_notice_allocation() {
     }
 }
 
+/// FRL ailesi FK ihlallerini DISTINCT kimlik başına toplar. Toplama `observed_value`'ya
+/// `"Z1 (2 rows)"` yazdığı sürece K7 bastırması bu metni kimlik sanıp arıyor ve hiç
+/// eşleşmiyordu: 17 Eylül karşı-olgu ölçümünde 7 feed, 20.452 Kritik·Spec bulgu, 7 yayın
+/// kararı yalnız çevre boşluğundan geliyordu (`mdb-1196` `origin_id` "ADR ").
+#[test]
+fn whitespace_fare_rule_fk_derivatives_are_suppressed_after_aggregation() {
+    let mut files = base_files();
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z1\nS2,Stop2,41.1,29.1,Z2\n",
+    );
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,1.00,EUR,0,0\n",
+    ));
+    files.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id,contains_id\n\
+          F1,R1, Z1,Z2 ,\n\
+          F1,R1, Z1,Z2 ,\n\
+          F1,R1,NOPE ,Z1,\n \
+          F1,R1,,,\n\
+          FNOPE ,R1,,,\n",
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let of = |rule: &str| -> Vec<_> {
+                vr.notices.iter().filter(|n| n.rule_id == rule).collect()
+            };
+
+            let frl003 = of("FRL_003");
+            assert_eq!(
+                frl003.len(),
+                1,
+                "yalnız gerçekten tanımsız zone kalmalı: {frl003:?}"
+            );
+            assert_eq!(frl003[0].observed_value.as_deref(), Some("NOPE "));
+            assert_eq!(
+                frl003[0]
+                    .details
+                    .as_ref()
+                    .and_then(|d| d.get("affected_rows"))
+                    .map(String::as_str),
+                Some("1")
+            );
+            assert!(
+                of("FRL_004").is_empty(),
+                "' Z2 ' türevi bastırılmalı: {:?}",
+                of("FRL_004")
+            );
+
+            let frl001 = of("FRL_001");
+            assert_eq!(frl001.len(), 1, "yalnız FNOPE kalmalı: {frl001:?}");
+            assert_eq!(frl001[0].observed_value.as_deref(), Some("FNOPE "));
+
+            let root = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("fare_rules.txt"))
+                .expect("fare_rules.txt DQ_016 kökü");
+            let rules = root
+                .details
+                .as_ref()
+                .and_then(|d| d.get("suppressed_derivative_rules"))
+                .expect("bastırılan türevler kökte beyan edilmeli");
+            for rule in ["FRL_001", "FRL_003", "FRL_004"] {
+                assert!(rules.contains(rule), "{rule} beyan edilmeli: {rules}");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+/// Sabit genişlikli dışa aktarım son sütunu boşlukla doldurur: `end_date` = `"20271231    "`.
+/// Hüküm (`CAL_004`) ham değerle verilir ve `DQ_016` altında bastırılır; ama takvim kaydına
+/// `None` yazılırsa servis "hiç aktif günü yok" sayılır ve her sefer `TRP_026` üretir
+/// (17 Eylül kısmi kırpma ölçümü: `TRP_026` 272.440, `OPR_011` 14.724 bulgu yalnız bundan).
+/// Gün bayraklarındaki aynı karar `CAL_006` için `2736bc79`'da verilmişti.
+#[test]
+fn whitespace_padded_calendar_dates_keep_the_service_active() {
+    let mut files = base_files();
+    files[5] = (
+        "calendar.txt",
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,0,0, 20250101,20271231    \n",
+    );
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            for rule in ["TRP_026", "OPR_011", "RTS_016", "CAL_024"] {
+                let found: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == rule).collect();
+                assert!(
+                    found.is_empty(),
+                    "{rule} boşluk türevi, çıkmamalı: {found:?}"
+                );
+            }
+            let root = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("calendar.txt"))
+                .expect("calendar.txt DQ_016 kökü");
+            let rules = root
+                .details
+                .as_ref()
+                .and_then(|d| d.get("suppressed_derivative_rules"))
+                .expect("tarih hükmü kökte beyan edilmeli");
+            assert!(
+                rules.contains("CAL_003") && rules.contains("CAL_004"),
+                "{rules}"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+
+    // Kırpılınca da geçersiz olan tarih servis aralığına GİRMEZ ve görünür kalır.
+    files[5] = (
+        "calendar.txt",
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,0,0,20250101, 2027-12-31 \n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "CAL_004"),
+                "gerçek biçim hatası korunmalı"
+            );
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "TRP_026"),
+                "okunamayan end_date servisi aktif yapmamalı"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+/// Kimlik birleşimi yalnız boşlukla kırık (2b). #85 gereği kimlik HAM kalır; değişen,
+/// SONUÇ bulgusunun boşluğu taşıyan dosyanın `DQ_016` kökünde beyan edilmesi.
+fn join_run(
+    files: &[(&str, &[u8])],
+) -> (
+    Vec<gtfs_core::Notice>,
+    std::collections::BTreeMap<String, String>,
+) {
+    match run(files) {
+        ValidateResult::Ok(vr) => {
+            let declared = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "DQ_016")
+                .filter_map(|n| {
+                    let rules = n.details.as_ref()?.get("suppressed_derivative_rules")?;
+                    Some((n.file.clone()?, rules.clone()))
+                })
+                .collect();
+            (vr.notices, declared)
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+fn entities(notices: &[gtfs_core::Notice], rule: &str) -> Vec<String> {
+    notices
+        .iter()
+        .filter(|n| n.rule_id == rule)
+        .map(|n| n.entity_id.clone().unwrap_or_default())
+        .collect()
+}
+
+/// `mdb-1065`: `routes.route_id = "10T0001C1  "`, `trips.route_id` temiz → 113.649 seferin
+/// her biri "hat adı yok" diye `TRP_011` alıyordu. Gerçekten adsız hat görünür kalmalı.
+#[test]
+fn whitespace_join_route_id_padding_in_routes_is_declared_at_routes() {
+    let mut files = base_files();
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
+          R1  ,1,101,Main,3\nR2  ,1,,,3\n",
+    );
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id\nR1,SVC1,T1\nR2,SVC1,T2\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+          T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n",
+    );
+    let (notices, declared) = join_run(&files);
+    assert_eq!(
+        entities(&notices, "TRP_011"),
+        vec!["T2"],
+        "yalnız adsız hattın seferi kalmalı"
+    );
+    assert!(
+        declared
+            .get("routes.txt")
+            .is_some_and(|r| r.contains("TRP_011")),
+        "boşluğu taşıyan routes.txt kökünde beyan edilmeli: {declared:?}"
+    );
+}
+
+/// `trips.service_id = " SVC1"`, takvim temiz: `TRP_026`/`OPR_011`/`CAL_011` hepsi türev.
+/// Hiçbir yerde tanımlı olmayan takvim gerçek hata olarak kalır.
+#[test]
+fn whitespace_join_service_id_padding_in_trips_is_declared_at_trips() {
+    let mut files = base_files();
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id\nR1, SVC1,T1\nR1,SVC9,T2\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+          T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n",
+    );
+    let (notices, declared) = join_run(&files);
+    assert_eq!(
+        entities(&notices, "TRP_026"),
+        vec!["T2"],
+        "yalnız tanımsız SVC9 kalmalı"
+    );
+    assert!(
+        entities(&notices, "CAL_011").is_empty(),
+        "SVC1 kırpınca kullanılıyor"
+    );
+    assert!(
+        !entities(&notices, "OPR_011").iter().any(|e| e == " SVC1"),
+        "' SVC1' kırpınca aktif: {:?}",
+        entities(&notices, "OPR_011")
+    );
+    assert!(entities(&notices, "TRP_003").contains(&"T2".to_string()));
+    let trips = declared.get("trips.txt").cloned().unwrap_or_default();
+    for rule in ["TRP_026", "CAL_011"] {
+        assert!(
+            trips.contains(rule),
+            "{rule} trips.txt kökünde beyan edilmeli: {declared:?}"
+        );
+    }
+}
+
+/// `mdb-2137`: `calendar.service_id = " 1"`, `trips.service_id = "1"` → Kritik·Spec `TRP_003`
+/// sefer başına. Boşluk calendar.txt'te; bulgu trips.txt'te — #134'ün eski "kendi dosyası"
+/// şartı bunu hiç bastıramıyordu.
+#[test]
+fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
+    let mut files = base_files();
+    files[5] = (
+        "calendar.txt",
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          \x20SVC1,1,1,1,1,1,0,0,20250101,20271231\n",
+    );
+    let (notices, declared) = join_run(&files);
+    for rule in ["TRP_003", "TRP_026"] {
+        assert!(
+            entities(&notices, rule).is_empty(),
+            "{rule} türev: {:?}",
+            entities(&notices, rule)
+        );
+    }
+    let cal = declared.get("calendar.txt").cloned().unwrap_or_default();
+    assert!(
+        cal.contains("TRP_003"),
+        "calendar.txt kökünde beyan edilmeli: {declared:?}"
+    );
+
+    // `mdb-488`: takvim `calendar.txt`'te TEMİZ ama tarihsiz; tarihi `calendar_dates.txt`'teki
+    // `" 6"` ekliyor. Beyan temiz tanımın değil, BOŞLUKLU karşılığın dosyasına yazılmalı.
+    files[5] = (
+        "calendar.txt",
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,0,0,0,0,0,0,0,20250101,20271231\n",
+    );
+    files.push((
+        "calendar_dates.txt",
+        b"service_id,date,exception_type\n SVC1,20260520,1\n",
+    ));
+    let (notices, declared) = join_run(&files);
+    assert!(
+        entities(&notices, "TRP_026").is_empty(),
+        "{:?}",
+        entities(&notices, "TRP_026")
+    );
+    assert!(
+        !entities(&notices, "OPR_011").contains(&"SVC1".to_string()),
+        "tanımlı ama tarihsiz SVC1'in tarihi ' SVC1'den geliyor: {:?}",
+        entities(&notices, "OPR_011")
+    );
+    let dates = declared
+        .get("calendar_dates.txt")
+        .cloned()
+        .unwrap_or_default();
+    assert!(
+        dates.contains("TRP_026"),
+        "calendar_dates.txt kökünde beyan edilmeli: {declared:?}"
+    );
+}
+
+/// `stop_times.stop_id = " S2"` → `S2` kullanılmıyor görünür (`STP_020`); `trips.trip_id =
+/// " T1"` → seferin kaydı yok görünür (`XFL_002`) ve şekli "seferleri kayıtsız" (`SHP_019`);
+/// `trips.shape_id = " SH2"` → `SH2` kullanılmıyor görünür (`SHP_018`).
+/// Gerçekten kullanılmayan `S3` ve gerçekten kayıtsız `T3` görünür kalır.
+#[test]
+fn whitespace_join_stop_trip_and_shape_padding_is_declared_where_it_sits() {
+    let mut files = base_files();
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n",
+    );
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1, T1,SH1\nR1,SVC1,T2, SH2\nR1,SVC1,T3,SH3\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00, S2,2\n\
+          T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S1,2\n",
+    );
+    files.push((
+        "shapes.txt",
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+          SH1,41.0,29.0,1\nSH1,41.1,29.1,2\nSH2,41.0,29.0,1\nSH2,41.1,29.1,2\n\
+          SH3,41.0,29.0,1\nSH3,41.1,29.1,2\n",
+    ));
+    let (notices, declared) = join_run(&files);
+    assert_eq!(
+        entities(&notices, "STP_020"),
+        vec!["S3"],
+        "yalnız gerçekten kullanılmayan S3"
+    );
+    assert_eq!(
+        entities(&notices, "XFL_002"),
+        vec!["T3"],
+        "yalnız gerçekten kayıtsız T3"
+    );
+    assert_eq!(
+        entities(&notices, "SHP_019"),
+        vec!["SH3"],
+        "yalnız gerçekten kayıtsız SH3"
+    );
+    assert!(
+        entities(&notices, "SHP_018").is_empty(),
+        "SH2 kırpınca kullanılıyor"
+    );
+    let st = declared.get("stop_times.txt").cloned().unwrap_or_default();
+    let trips = declared.get("trips.txt").cloned().unwrap_or_default();
+    assert!(st.contains("STP_020"), "{declared:?}");
+    for rule in ["XFL_002", "SHP_019", "SHP_018"] {
+        assert!(
+            trips.contains(rule),
+            "{rule} trips.txt kökünde: {declared:?}"
+        );
+    }
+}
+
+/// Hat düzeyinde toplayan kurallar (2c). Hepsi VAROLUŞSAL: hattın TEK bir seferinin
+/// birleşimi kırpınca düzelirse kırpılmış dünyada kural susar.
+///   · `R1`: tek seferi `" T1"`, `stop_times` `T1` → `XFL_012` (hiç kayıtlı seferi yok);
+///     `T1` 23:30'da kalkar ve hattı bulunamadığı için `OPR_009` hat yerine SEFER kimliğiyle
+///     çıkar — bu bilgi GERÇEKTİR, bastırılmaz (bastırmak hattın gece servisini gizler).
+///   · `R4`: seferinin takvimi `" WE"`, tanım `WE` (hafta sonu) → `RTS_016` + `OPR_004`.
+/// Gerçekler görünür kalır: `R3` seferinin hiç kaydı yok, `R5` takvimi hiçbir yerde yok,
+/// `R2` gerçekten yalnız hafta içi ve gece seferi var.
+#[test]
+fn whitespace_join_route_level_rules_are_declared_where_it_sits() {
+    let mut files = base_files();
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type\n\
+          R1,1,101,3\nR2,1,102,3\nR3,1,103,3\nR4,1,104,3\nR5,1,105,3\n",
+    );
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id\n\
+          R1,SVC1, T1\nR2,SVC1,T2\nR3,SVC1,T3\nR4, WE,T4\nR5,NONE,T5\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,23:30:00,23:30:00,S1,1\nT1,23:40:00,23:40:00,S2,2\n\
+          T2,23:30:00,23:30:00,S1,1\nT2,23:40:00,23:40:00,S2,2\n\
+          T4,08:00:00,08:00:00,S1,1\nT4,08:10:00,08:10:00,S2,2\n\
+          T5,08:00:00,08:00:00,S1,1\nT5,08:10:00,08:10:00,S2,2\n",
+    );
+    files[5] = (
+        "calendar.txt",
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
+          WE,0,0,0,0,0,1,1,20250101,20271231\n",
+    );
+    let (notices, declared) = join_run(&files);
+    assert_eq!(
+        entities(&notices, "XFL_012"),
+        vec!["R3"],
+        "yalnız gerçekten kayıtsız R3"
+    );
+    assert_eq!(
+        entities(&notices, "RTS_016"),
+        vec!["R5"],
+        "yalnız takvimi tanımsız R5"
+    );
+    assert!(
+        !entities(&notices, "OPR_004").contains(&"R4".to_string()),
+        "R4 kırpınca hafta sonu çalışıyor: {:?}",
+        entities(&notices, "OPR_004")
+    );
+    assert!(
+        entities(&notices, "OPR_004").contains(&"R2".to_string()),
+        "R2 gerçekten hafta içi"
+    );
+    let opr009 = entities(&notices, "OPR_009");
+    assert!(opr009.contains(&"R2".to_string()), "{opr009:?}");
+    assert!(
+        opr009.contains(&"T1".to_string()),
+        "sefer kimlikli gece özeti gerçek bilgi, görünür kalmalı: {opr009:?}"
+    );
+    let trips = declared.get("trips.txt").cloned().unwrap_or_default();
+    for rule in ["XFL_012", "RTS_016", "OPR_004"] {
+        assert!(
+            trips.contains(rule),
+            "{rule} trips.txt kökünde: {declared:?}"
+        );
+    }
+}
+
+/// `mdb-1065`: 243 hattın hepsi raylı ve `route_id`'leri dolgulu. Hat bulunamayınca K6
+/// `route_type`'ı otobüse düşürür (`unwrap_or(3)`): 167 km/h tren "aşırı hızlı" (`STM_014`,
+/// `OPR_008`), 410 dk aralık "boşluk" (`OPR_001`) olur. Kırpılmış hattın ray eşiği (300 km/h,
+/// 720 dk) altında kalanlar türevdir; ray eşiğini de aşanlar gerçektir ve görünür kalır.
+#[test]
+fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold() {
+    let mut files = base_files();
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,A,41.00,29.0\nS2,B,41.10,29.0\nS3,C,41.20,29.0\nS4,D,41.30,29.0\nS5,E,41.40,29.0\n",
+    );
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type\nR1  ,1,IC1,2\nR2  ,1,IC2,2\n",
+    );
+    files[3] = (
+        "trips.txt",
+        b"route_id,service_id,trip_id\n\
+          R1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T9\nR2,SVC1,T5\nR2,SVC1,T6\nR2,SVC1,T7\n",
+    );
+    files[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,06:00:00,06:00:00,S1,1\nT1,06:04:00,06:04:00,S2,2\nT1,06:08:00,06:08:00,S3,3\n\
+          T2,06:10:00,06:10:00,S3,1\nT2,06:11:30,06:11:30,S4,2\nT2,06:13:00,06:13:00,S5,3\n\
+          T3,13:00:00,13:00:00,S1,1\nT3,13:10:00,13:10:00,S2,2\n\
+          T9,06:20:00,06:20:00,S3,1\nT9,06:24:00,06:24:00,S4,2\n\
+          T5,06:00:00,06:00:00,S1,1\nT5,06:10:00,06:10:00,S2,2\n\
+          T6,06:10:00,06:10:00,S1,1\nT6,06:20:00,06:20:00,S2,2\n\
+          T7,19:00:00,19:00:00,S1,1\nT7,19:10:00,19:10:00,S2,2\n",
+    );
+    let (notices, declared) = join_run(&files);
+    let stm014 = entities(&notices, "STM_014");
+    assert!(
+        !stm014
+            .iter()
+            .any(|e| e.contains("S1→S2") || e.contains("S2→S3")),
+        "167 km/h tren ray eşiğinin altında: {stm014:?}"
+    );
+    // S3→S4'ten T9 167 km/h ile (türev) ve T2 444 km/h ile (gerçek) geçer: segment kalır.
+    assert!(
+        stm014.iter().any(|e| e.contains("S3→S4")),
+        "444 km/h gerçek: {stm014:?}"
+    );
+    assert_eq!(
+        entities(&notices, "OPR_008"),
+        vec!["T2"],
+        "yalnız ray eşiğini aşan sefer"
+    );
+    let opr001 = entities(&notices, "OPR_001");
+    assert!(
+        !opr001.contains(&"R1".to_string()),
+        "410 dk ray için normal: {opr001:?}"
+    );
+    assert!(
+        opr001.contains(&"R2".to_string()),
+        "770 dk ray eşiğini de aşıyor: {opr001:?}"
+    );
+    let routes = declared.get("routes.txt").cloned().unwrap_or_default();
+    for rule in ["STM_014", "OPR_008", "OPR_001"] {
+        assert!(
+            routes.contains(rule),
+            "{rule} routes.txt kökünde: {declared:?}"
+        );
+    }
+}
+
 #[test]
 fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     let mut files = base_files();

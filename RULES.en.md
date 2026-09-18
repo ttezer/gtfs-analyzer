@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-625 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+624 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -126,7 +126,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_022 | stop_code missing | MEDIUM | Quality |
 | STP_023 | tts_stop_name invalid | LOW | Quality |
 | STP_024 | stop_access outside K2 compatibility range | INFO | Quality |
-| STP_025 | stop_name has leading or trailing whitespace | MEDIUM | Quality |
 | STP_026 | stop_access invalid value | LOW | Spec |
 | STP_027 | stop_access not set on pathway station | MEDIUM | Quality |
 | STP_028 | stop_code too long | INFO | Quality |

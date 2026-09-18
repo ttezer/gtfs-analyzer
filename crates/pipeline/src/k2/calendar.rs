@@ -2,7 +2,7 @@ use gtfs_core::EntityType;
 
 use super::common::{
     build_row_map, get_raw_field, get_trimmed_field, make_k2_notice, parse_service_date, parse_u32,
-    validate_enum, RowMap,
+    validate_enum, whitespace_trimmed_service_date, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -170,7 +170,9 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     err,
                     "start_date alanını YYYYMMDD formatında doldurun.",
                 ));
-                None
+                // Hüküm yukarıda ham değerle verildi; kayıt kırpılmış tarihi taşır
+                // (boşluk-yalnız hata ise). Gerekçe `whitespace_trimmed_service_date`.
+                whitespace_trimmed_service_date(&row_map, "start_date")
             }
         };
 
@@ -210,7 +212,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     err,
                     "end_date alanını YYYYMMDD formatında doldurun.",
                 ));
-                None
+                whitespace_trimmed_service_date(&row_map, "end_date")
             }
         };
 

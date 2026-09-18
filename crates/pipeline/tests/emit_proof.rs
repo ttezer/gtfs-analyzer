@@ -1691,8 +1691,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_023", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,tts_stop_name\nS1,Stop1,41.0,29.0,<b>X\nS2,Stop2,41.1,29.1,\n")]),
         // STP_024: stop_access geçersiz enum (k2).
         fx("STP_024", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,5\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_025: stop_name baştaki/sondaki boşluk (k2).
-        fx("STP_025", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1, Stop1 ,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
         // STP_026: stop_access ham geçersiz enum (k4).
         fx("STP_026", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,9\nS2,Stop2,41.1,29.1,\n")]),
         // STP_027: pathway tanımlı istasyonda platform stop_access belirsiz (k4).

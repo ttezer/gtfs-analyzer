@@ -52,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the GTFS-JP rule tables, and use the qualified coverage badge wording.
 - Corpus-audit workflow artifacts are retained for 30 days instead of 90.
 
+### Removed
+
+- **`STP_025` (stop_name has leading or trailing whitespace), rule count
+  625 → 624.** It reported, per stop, a fact `DQ_016` already reports for every
+  field of `stops.txt`. On 1,366 corpus feeds it fired in 481, and in all 481
+  `DQ_016` fired too, so the same whitespace counted twice in the Quality score.
+  `stop_name` whitespace remains visible in `DQ_016`'s affected fields and raw
+  samples. The id is retired and cannot be reused.
+
 ### Fixed
 
 - **`STM_047` now checks `arrival_time` and `departure_time` independently when
@@ -70,6 +79,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GEO_016`. Severity is unchanged: of 21 transfer pairs beyond 10 km measured in
   three corpus feeds, the 12 coordinate errors were already reported by
   `GEO_016` or `GEO_009`/`SHP_024`, and the other 9 had sound coordinates.
+- **`FRL_003`/`FRL_004`/`FRL_005` whitespace derivatives are suppressed again.**
+  These aggregated findings wrote `"ADR  (14 rows)"` into `observed_value`, and
+  the whitespace suppression read that text as the zone id, so it never matched:
+  a `fare_rules.txt` zone reference differing from `stops.txt` only by
+  surrounding whitespace stayed a Critical/Spec finding next to its `DQ_016`
+  root. Measured on 1,366 corpus feeds, this was 20,452 findings in 7 feeds and
+  decided publishability in all 7. `observed_value` now carries the raw id and
+  the repeat count moves to `details.affected_rows` (same for `FRL_001`); the
+  message text is unchanged. `FRL_001` whitespace suppression now looks up only
+  `fare_attributes.txt` ids, so a genuinely undefined `fare_id` with surrounding
+  whitespace is no longer mistaken for a whitespace artefact.
+- **A `calendar.txt` date padded with whitespace no longer switches the service
+  off.** Fixed-width exports pad the last column (`end_date = "20271231    "`);
+  the date was rejected, the service had no date range, and every trip on it
+  was reported by `TRP_026`. The `CAL_003`/`CAL_004` verdict is still made on the
+  raw value and suppressed under its `DQ_016` root, but the service record now
+  keeps the trimmed date, as weekday flags already did for `CAL_006`. On 30
+  corpus feeds this removed 271,102 `TRP_026`, 14,631 `OPR_011`, 1,713 `RTS_016`
+  and 468 `CAL_024` findings, and surfaced calendar findings the padding had
+  hidden (`CAL_010` +8,196, `CAL_009` +5,086); every change matches the same
+  feeds with all whitespace trimmed.
+- **A date that stays invalid after trimming is no longer hidden as whitespace
+  noise.** `" 2027-12-31 "` was treated as a whitespace-only parse failure, so
+  the Critical/Spec `CAL_004` finding was suppressed. Date fields now pass the
+  same trimmed-value check as numeric and enum fields.
+- **Findings caused only by a whitespace-broken ID join are declared at their
+  root instead of reported per row.** IDs are still compared raw (`"R1  "` is not
+  `R1`), but when a join fails only because one side is padded, the downstream
+  findings are now suppressed and counted on the `DQ_016` root of the file that
+  carries the whitespace — which may differ from the finding's own file:
+  `routes.route_id = "R1  "` declares `TRP_011` (trips.txt) at routes.txt. If
+  that file has no `DQ_016` root, nothing is suppressed. Each rule keeps its
+  genuine findings (an unnamed route, an undefined service, a stop no trip
+  uses): `TRP_011`, `TRP_026`, `TRP_003`, `OPR_011`, `CAL_011`, `STP_020`,
+  `SHP_018`, `SHP_019`, `XFL_002`, and the route-level `XFL_012`, `RTS_016` and
+  `OPR_004`, which are suppressed when any trip of the route joins after
+  trimming. `CAL_024` is left out because its 7-day window needs today's date.
+- **Speed and headway findings no longer fire because whitespace hid the route
+  type.** When a trip's route could not be found, the route type fell back to
+  bus: all 243 rail routes of one corpus feed were checked against the 120 km/h
+  bus limit and the 240-minute bus headway. The computation is unchanged; a
+  finding is now re-checked against the route the trimmed id resolves to and
+  declared at its `DQ_016` root only if it would not exist there. `STM_014`
+  keeps a segment when any contributing trip exceeds that threshold, `OPR_008`
+  keeps a trip with more than one such segment, and `OPR_001` uses the rail
+  headway limit.
+- Not suppressed on purpose: when the trip join itself is broken, `OPR_009`
+  night-service summaries and `STM_014` segments are keyed by trip instead of
+  route. The information is real, only mis-keyed; keying it correctly would
+  mean trimming IDs. Suppressing `OPR_009` in an earlier draft removed a
+  route's night service from the report entirely.
+- Measured together with the `FRL` and `calendar.txt` date fixes above and the
+  `STP_025` removal on 1,258 corpus feeds whose archives did not change between
+  runs: findings 10,094,908 → 9,772,915 and 6 feeds became publishable.
+  Findings that vanish when every field is trimmed fell from 340,097 to 4,594;
+  none moved away from, or fell below, the same feed with all whitespace
+  trimmed. What remains is mostly deliberate: the `DQ_016` roots themselves,
+  padded URL and colour values (#92), and trip-keyed `OPR_009` summaries.
+- **The Turkish `GEO_016` title states the threshold the code applies.** It
+  said `|lat|<1 AND |lon|<1` while the rule, and the English, Japanese and French
+  titles, use 0.1.
+- The README Python example now loops over a folder of feeds, calls the
+  `gtfs-analyzer` binary from `PATH` and continues past a fatal feed.
 - **Exported reports carry the correct app version.** The UI package was still
   at 0.13.0 after the 0.13.1 release, so the build stamped `app_version`
   0.13.0 into exports.

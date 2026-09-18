@@ -2708,25 +2708,35 @@ fn check_fare_rules(
     }
 
     // ── FRL_001/003/004/005: biriken FK ihlallerini DISTINCT kimlik başına emit et ──
-    // observed = kaç satırda tekrarladığı; satır = ilk görüldüğü yer.
+    // observed = HAM kimlik; tekrar sayısı `details.affected_rows`; satır = ilk görüldüğü yer.
+    //
+    // 🔴 observed'a sayı EKLENMEZ. K7 boşluk bastırması observed'ı kimlik olarak okur;
+    // `"ADR  (14 rows)"` hiçbir kümede bulunmadığı için FRL türevleri hiç bastırılmıyordu
+    // (17 Eylül karşı-olgu ölçümü: 7 feed, 20.452 Kritik·Spec bulgu, 7 yayın kararı).
+    let with_rows = |mut n: Notice, rows: u64| {
+        n.details
+            .get_or_insert_with(Default::default)
+            .insert("affected_rows".to_string(), rows.to_string());
+        n
+    };
     for (fare_id, (line, rows)) in &frl001_bad {
         let eid = Some((*fare_id).to_string());
-        notices.push(notice(
+        notices.push(with_rows(notice(
             ctr, "FRL_001", EntityType::Fare, eid.clone(), eid,
             "fare_rules.txt", Some(*line), Some("fare_id"),
-            Some(format!("{fare_id} ({rows} rows)")), None,
+            Some((*fare_id).to_string()), None,
             format!("'{fare_id}' ücret tarifesi fare_attributes.txt'te tanımlı değil ({rows} fare_rules satırında kullanılıyor)."),
             "Geçerli bir fare_id kullanın ya da fare_attributes.txt'e tanımını ekleyin.",
-        ));
+        ), *rows));
     }
     for ((rule, field, zid), (fare_id, line, rows)) in &frl_zone_bad {
-        notices.push(notice(
+        notices.push(with_rows(notice(
             ctr, rule, EntityType::Fare, Some(fare_id.clone()), Some(fare_id.clone()),
             "fare_rules.txt", Some(*line), Some(field),
-            Some(format!("{zid} ({rows} rows)")), None,
+            Some((*zid).to_string()), None,
             format!("{field} '{zid}' stops.txt'te tanımlı bir zone_id değil ({rows} fare_rules satırında kullanılıyor)."),
             "Geçerli bir zone_id kullanın.",
-        ));
+        ), *rows));
     }
 
     // FRL_008: ücret sistemi route tabanlı ama bazı hatlar kapsam dışı

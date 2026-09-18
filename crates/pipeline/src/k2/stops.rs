@@ -2,9 +2,8 @@ use gtfs_core::EntityType;
 use std::collections::HashMap;
 
 use super::common::{
-    build_row_map, get_field, get_lexical_field, get_raw_field, get_trimmed_field,
-    looks_like_iana_timezone, looks_like_url, make_k2_notice, parse_f64, parse_u32, validate_enum,
-    RowMap,
+    build_row_map, get_lexical_field, get_raw_field, get_trimmed_field, looks_like_iana_timezone,
+    looks_like_url, make_k2_notice, parse_f64, parse_u32, validate_enum, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -208,29 +207,6 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 ),
                 "Okunabilir bir stop_name değeri girin.",
             ));
-        }
-
-        // STP_025: stop_name baştaki/sondaki boşluk
-        if let Some(raw_name) = get_field(&row_map, "stop_name") {
-            if !raw_name.trim().is_empty() && raw_name != raw_name.trim() {
-                notices.push(make_k2_notice(
-                    &mut counter,
-                    "STP_025",
-                    EntityType::Stop,
-                    entity_id.clone(),
-                    Some(&row_map),
-                    &file.name,
-                    Some(line),
-                    Some("stop_name"),
-                    Some(raw_name.to_string()),
-                    None,
-                    format!(
-                        "'{}' durağının stop_name alanında baştaki/sondaki boşluk var.",
-                        stop_id
-                    ),
-                    "stop_name değerinin başındaki ve sonundaki boşlukları kaldırın.",
-                ));
-            }
         }
 
         // STP_019: stop_name çok uzun (>100 karakter)

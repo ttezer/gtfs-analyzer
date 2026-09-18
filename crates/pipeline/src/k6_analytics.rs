@@ -1128,6 +1128,19 @@ struct Stm014Seg<'a> {
     speed_min: f64,
     speed_max: f64,
     trips: Vec<&'a str>,
+    /// Katkılardan en az biri, hat türü boşluk yüzünden kaybolmasa da eşiği aşıyor.
+    ws_real: bool,
+    /// Katkıların hepsi yalnız kaybolan hat türü yüzünden aşıyorsa boşluğun dosyası.
+    ws_file: Option<&'static str>,
+}
+
+/// Bulgu yalnız boşlukla kırık bir kimlik birleşimi yüzünden oluştu. K7 onu boşluğu taşıyan
+/// dosyanın `DQ_016` kökünde beyan eder; kök yoksa bulgu kalır ve bu anahtar görünür.
+/// Hesap DEĞİŞMEZ (#85 kimliği ham tutar); yalnız kırpılmış dünyada oluşup oluşmayacağı sınanır.
+fn mark_whitespace_join(n: &mut Notice, file: &'static str) {
+    n.details
+        .get_or_insert_with(Default::default)
+        .insert("whitespace_join_file".to_string(), file.to_string());
 }
 
 /// details["trips"] listesinde gösterilecek örnek sefer sayısı (tam sayı trip_count'ta).
@@ -1176,6 +1189,7 @@ fn check_speed_and_duration<'a>(
         trip_direction,
         trip_headsign_sd,
         trip_service,
+        ws_route_type,
     ) = {
         let _t = Timer::start("K6::sd::setup");
         // stop_id → (lat, lon)  FxHashMap: SipHash yerine multiply-xor
@@ -1217,6 +1231,61 @@ fn check_speed_and_duration<'a>(
         trip_to_route.reserve(records.trips.len());
         for t in &records.trips {
             trip_to_route.insert(t.trip_id.as_str(), ti_sd.route_id(t));
+        }
+
+        // Hat türü YALNIZ boşluklu kimlik yüzünden kayıp (`mdb-1065`: `routes.route_id`
+        // dolgulu, 243 raylı hat otobüs eşiğine düşüyordu). Eşik ham türle hesaplanmaya devam
+        // eder; bu harita yalnız bulgunun kırpılmış dünyada da oluşup oluşmayacağını sınar.
+        // Iskalama yoksa hiç kurulmaz.
+        let mut ws_route_type: FxHashMap<&str, (u32, &'static str)> = FxHashMap::default();
+        let stop_times_trip_missing = idx.by_trip.keys().any(|t| !trip_to_route.contains_key(t));
+        if trip_route_type.len() < records.trips.len() || stop_times_trip_missing {
+            let mut routes_trimmed: FxHashMap<&str, (u32, bool)> = FxHashMap::default();
+            for r in &records.routes {
+                if let Some(rt) = r.route_type {
+                    routes_trimmed
+                        .entry(r.route_id.trim())
+                        .or_insert((rt, r.route_id != r.route_id.trim()));
+                }
+            }
+            for t in &records.trips {
+                if trip_route_type.contains_key(t.trip_id.as_str()) {
+                    continue;
+                }
+                if let Some(&(rt, padded)) = routes_trimmed.get(ti_sd.route_id(t).trim()) {
+                    let file = if padded { "routes.txt" } else { "trips.txt" };
+                    ws_route_type.insert(t.trip_id.as_str(), (rt, file));
+                }
+            }
+            // stop_times'taki sefer kimliği trips.txt'tekiyle yalnız boşlukla ayrışıyor.
+            if stop_times_trip_missing {
+                let trips_trimmed: FxHashMap<&str, &crate::k2::trips::TripRecord> = records
+                    .trips
+                    .iter()
+                    .map(|t| (t.trip_id.trim(), t))
+                    .collect();
+                for &trip_id in idx.by_trip.keys() {
+                    if trip_to_route.contains_key(trip_id) {
+                        continue;
+                    }
+                    let Some(trip) = trips_trimmed.get(trip_id.trim()) else {
+                        continue;
+                    };
+                    let route = ti_sd.route_id(trip);
+                    let rt = route_type_map
+                        .get(route)
+                        .copied()
+                        .or_else(|| routes_trimmed.get(route.trim()).map(|&(rt, _)| rt));
+                    if let Some(rt) = rt {
+                        let file = if trip.trip_id != trip.trip_id.trim() {
+                            "trips.txt"
+                        } else {
+                            "stop_times.txt"
+                        };
+                        ws_route_type.insert(trip_id, (rt, file));
+                    }
+                }
+            }
         }
 
         // route_id → gösterim adı
@@ -1270,6 +1339,7 @@ fn check_speed_and_duration<'a>(
             trip_direction,
             trip_headsign_sd,
             trip_service,
+            ws_route_type,
         )
     };
 
@@ -1373,6 +1443,9 @@ fn check_speed_and_duration<'a>(
             }
             let route_type = trip_route_type.get(trip_id).copied().unwrap_or(3);
             let threshold = max_speed_kmh(route_type, config);
+            let ws_join = ws_route_type
+                .get(trip_id)
+                .map(|&(rt, file)| (max_speed_kmh(rt, config), file));
             let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
             let route_label = route_short_sd.get(route).copied().unwrap_or(route);
             let dir_sd = trip_direction.get(trip_id).copied().unwrap_or("-");
@@ -1706,6 +1779,8 @@ fn check_speed_and_duration<'a>(
             let mut trip_max_speed: f64 = 0.0;
             let mut trip_max_speed_line: Option<u64> = None;
             let mut trip_bad_seg_count: u32 = 0;
+            // Kırpılmış hattın eşiğiyle de bozuk kalan segment sayısı (OPR_008 karşı-olgusu).
+            let mut trip_ws_bad_count: u32 = 0;
             // Tüm bozuk segmentlerin durak ID çiftleri — UI haritasında her biri kırmızı çizilir
             let mut bad_seg_stops: Vec<(SmolStr, SmolStr)> = Vec::new();
             // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment
@@ -1924,6 +1999,7 @@ fn check_speed_and_duration<'a>(
                     n012.details = Some(d);
                     notices.push(n012);
                     trip_bad_seg_count += 1;
+                    trip_ws_bad_count += 1;
                     continue;
                 }
 
@@ -1940,11 +2016,22 @@ fn check_speed_and_duration<'a>(
                             speed_min: speed,
                             speed_max: speed,
                             trips: Vec::new(),
+                            ws_real: false,
+                            ws_file: None,
                         });
                     seg.speed_min = seg.speed_min.min(speed);
                     seg.speed_max = seg.speed_max.max(speed);
                     seg.line = seg.line.min(b.line as u64);
                     seg.trips.push(trip_id);
+                    match ws_join {
+                        Some((ws_threshold, file)) if speed <= ws_threshold => {
+                            seg.ws_file = Some(file);
+                        }
+                        _ => {
+                            seg.ws_real = true;
+                            trip_ws_bad_count += 1;
+                        }
+                    }
 
                     if speed > trip_max_speed {
                         trip_max_speed = speed;
@@ -1998,6 +2085,9 @@ fn check_speed_and_duration<'a>(
                         },
                     );
                     n.details = Some(d);
+                }
+                if let Some((_, file)) = ws_join.filter(|_| trip_ws_bad_count <= 1) {
+                    mark_whitespace_join(&mut n, file);
                 }
                 notices.push(n);
             }
@@ -2119,6 +2209,9 @@ fn check_speed_and_duration<'a>(
                     .join(","),
             );
             n.details = Some(d);
+            if let Some(file) = seg.ws_file.filter(|_| !seg.ws_real) {
+                mark_whitespace_join(&mut n, file);
+            }
             notices.push(n);
         }
     }
@@ -2399,6 +2492,15 @@ fn check_route_headway(
         .map(|r| r.route_id.as_str())
         .collect();
     let max_secs_rail = config.max_headway_warning_min_rail * 60;
+    // Hattın raylı olduğu yalnız boşluklu kimlik yüzünden görülmüyorsa (`mdb-1065`).
+    let routes_raw_hw: FxHashSet<&str> =
+        records.routes.iter().map(|r| r.route_id.as_str()).collect();
+    let rail_trimmed_hw: FxHashMap<&str, bool> = records
+        .routes
+        .iter()
+        .filter(|r| r.route_type.is_some_and(is_rail_route_type))
+        .map(|r| (r.route_id.trim(), r.route_id != r.route_id.trim()))
+        .collect();
 
     // OPR_001: hattın tamamında en büyük ardışık kalkış boşluğu eşiği aşıyor mu?
     // HashMap iterasyon sırası her süreçte değişir; aynı entity_id'ye düşen bulgulardan
@@ -2447,6 +2549,12 @@ fn check_route_headway(
                 "Pik/saatdışı sefer sayısını artırın ya da büyük boşlukları kapatın.",
             );
             n001.service_id = Some(service_id.to_string());
+            if !routes_raw_hw.contains(route_id) && max_hw <= max_secs_rail {
+                if let Some(&padded) = rail_trimmed_hw.get(route_id.trim()) {
+                    let file = if padded { "routes.txt" } else { "trips.txt" };
+                    mark_whitespace_join(&mut n001, file);
+                }
+            }
             notices.push(n001);
         }
     }
@@ -9511,7 +9619,7 @@ fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) ->
 
 /// Paketlenmiş YYYYMMDD → Julian Day Number. Formül `k5_derived::ymd_to_jdn`'de;
 /// burada yalnızca u32 açma + geçersiz tarih (0 bileşen) koruması var.
-fn yyyymmdd_to_jdn(yyyymmdd: u32) -> u32 {
+pub(crate) fn yyyymmdd_to_jdn(yyyymmdd: u32) -> u32 {
     let y = yyyymmdd / 10000;
     let m = (yyyymmdd / 100) % 100;
     let d = yyyymmdd % 100;

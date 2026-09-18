@@ -1,4 +1,4 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use gtfs_core::{
@@ -53,7 +53,7 @@ pub fn report_with_whitespace_suppressions(
     use crate::timing::Timer;
     let all_notices = {
         let _t = Timer::start("K7::suppress_whitespace_derivatives");
-        suppress_whitespace_derivatives(all_notices, records, early_suppressions)
+        suppress_whitespace_derivatives(all_notices, records, derived, early_suppressions)
     };
     let all_notices = {
         let _t = Timer::start("K7::fill_service_ids");
@@ -103,6 +103,7 @@ pub fn report_with_whitespace_suppressions(
 fn suppress_whitespace_derivatives(
     mut notices: Vec<Notice>,
     records: &EntityRecords,
+    derived: &DerivedData,
     early_suppressions: WhitespaceSuppressions,
 ) -> Vec<Notice> {
     let references = WhitespaceReferences::from_records(records);
@@ -128,7 +129,42 @@ fn suppress_whitespace_derivatives(
                 .map(|audit| (file.clone(), audit))
         })
         .collect();
+    // Kimlik birleşimi yalnız boşlukla kırık olduğunda ateşleyen SONUÇ kuralları (2b).
+    // Yapı pahalı değil ama boşluksuz feed'lerde hiç kurulmaz.
+    let joins = (!files_with_root.is_empty()
+        && notices
+            .iter()
+            .any(|n| JOIN_DERIVATIVE_RULES.contains(&n.rule_id.as_str())))
+    .then(|| JoinWhitespace::from_records(records, derived));
     notices.retain(|notice| {
+        // K6 hesabın içinde işaretledi: bulgu, hat türü yalnız boşluk yüzünden kaybolduğu
+        // için oluştu (hız ve sefer aralığı eşikleri; `mark_whitespace_join`).
+        if let Some(file) = notice
+            .details
+            .as_ref()
+            .and_then(|d| d.get("whitespace_join_file"))
+        {
+            if files_with_root.contains(file.as_str()) {
+                let entry = suppressed.entry(file.clone()).or_default();
+                entry.0 += 1;
+                entry.1.insert(notice.rule_id.clone());
+                return false;
+            }
+        }
+        // Beyan, bulgunun kendi dosyasına değil BOŞLUĞU TAŞIYAN dosyanın köküne yazılır:
+        // `routes.route_id = "R1  "` ise `TRP_011` (trips.txt) `routes.txt` kökünde beyan
+        // edilir. #134'ün asıl şartı korunur — o kök yoksa bulgu izsiz kaybolmaz, KALIR.
+        if let Some(file) = joins
+            .as_ref()
+            .and_then(|joins| joins.declaration_file(notice))
+        {
+            if files_with_root.contains(file) {
+                let entry = suppressed.entry(file.to_string()).or_default();
+                entry.0 += 1;
+                entry.1.insert(notice.rule_id.clone());
+                return false;
+            }
+        }
         if !is_whitespace_derivative(notice, &references) {
             return true;
         }
@@ -162,6 +198,324 @@ fn suppress_whitespace_derivatives(
         );
     }
     notices
+}
+
+/// Kimlik birleşimi yalnız boşluk yüzünden kırıldığı için ateşleyen SONUÇ kuralları.
+///
+/// Liste ölçümden geldi (18 Eylül, 25 feed; her kimlik adı tek başına kırpıldı). Genel bir
+/// ağ bilerek kurulmadı: bir seferin birleşimi kırık diye O SEFERİN bağımsız kusurları da
+/// gizlenmemeli. `CAL_024` ("7 gün içinde aktif değil") bilerek YOK — yükleminin ihtiyaç
+/// duyduğu "bugün" K7'de yok ve servis kırpılınca da 7 gün içinde pasif olabilir.
+///
+/// `OPR_009` bilerek YOK (18 Eylül tam doğrulamasında aşırı bastırma çıktı): hattı bulunamayan
+/// seferin gece servisi özeti hat yerine SEFER kimliğiyle basılır, ama bilgi GERÇEKTİR —
+/// bastırınca hattın gece servisi rapordan tamamen kayboluyordu (`mdb-1187` ham 0, kırpılmış 9).
+/// Doğru anahtarlamak kimliği kırpmayı, yani #85'i delmeyi gerektirir. `STM_014`'ün sefer
+/// başına anahtarlanan hız bulguları da aynı gerekçeyle bastırılmaz.
+///
+/// ⚠️ Bu liste yalnız yapının KURULUP kurulmayacağını belirler; kural seçimi
+/// `declaration_file`'daki `match` kollarındadır. İkisi birlikte güncellenir — listede
+/// olmayan bir kol, yalnız o kuralın bulgusunu taşıyan feed'de hiç çalışmaz.
+const JOIN_DERIVATIVE_RULES: &[&str] = &[
+    "TRP_011", "TRP_026", "TRP_003", "OPR_011", "CAL_011", "STP_020", "SHP_018", "SHP_019",
+    "XFL_002", "XFL_012", "RTS_016", "OPR_004",
+];
+
+/// #85 kimliği HAM karşılaştırır ve bu korunur: `"R1  "` ile `R1` aynı hat DEĞİLDİR.
+/// Bu yapı kimliği değiştirmez; yalnız bir sonuç bulgusunun, ham birleşim kırık ama
+/// kırpılmış birleşim sağlam olduğu için mi ateşlediğini ve boşluğun HANGİ DOSYADA
+/// durduğunu söyler. Bulgu o dosyanın `DQ_016` kökünde beyan edilir.
+struct JoinWhitespace<'a> {
+    interns: &'a crate::k2::trips::TripInternTable,
+    trips: FxHashMap<&'a str, &'a crate::k2::trips::TripRecord>,
+    route_raw: FxHashSet<&'a str>,
+    /// kırpılmış route_id → hattın adı var mı (K6 `TRP_011` ile aynı ölçüt: ham ad dolu)
+    route_named: FxHashMap<&'a str, bool>,
+    service_raw: FxHashSet<&'a str>,
+    /// kırpılmış service_id → (aktif tarihi var mı, BOŞLUKLU tanımın dosyası; yoksa calendar)
+    service_trimmed: FxHashMap<&'a str, (bool, &'static str)>,
+    service_active_raw: FxHashSet<&'a str>,
+    service_used_raw: FxHashSet<&'a str>,
+    service_used_trimmed: FxHashSet<&'a str>,
+    stop_used_raw: FxHashSet<&'a str>,
+    stop_used_trimmed: FxHashSet<&'a str>,
+    shape_used_raw: FxHashSet<&'a str>,
+    shape_used_trimmed: FxHashSet<&'a str>,
+    /// ham shape_id → onu kullanan seferler
+    shape_trips: FxHashMap<&'a str, Vec<&'a str>>,
+    st_trip_raw: FxHashSet<&'a str>,
+    st_trip_trimmed: FxHashSet<&'a str>,
+    /// ham route_id (trips'teki yazımıyla) → o hattın seferleri; hat düzeyi kurallar (2c)
+    route_trips: FxHashMap<&'a str, Vec<&'a crate::k2::trips::TripRecord>>,
+    service_weekend_raw: FxHashSet<&'a str>,
+    service_weekend_trimmed: FxHashSet<&'a str>,
+}
+
+impl<'a> JoinWhitespace<'a> {
+    fn from_records(records: &'a EntityRecords, derived: &'a DerivedData) -> Self {
+        let ti = &records.trip_interns;
+        let trimmed = |set: &FxHashSet<&'a str>| set.iter().map(|v| v.trim()).collect();
+
+        let mut trips = FxHashMap::default();
+        let mut service_used_raw = FxHashSet::default();
+        let mut shape_used_raw = FxHashSet::default();
+        let mut shape_trips: FxHashMap<&'a str, Vec<&'a str>> = FxHashMap::default();
+        let mut route_trips: FxHashMap<&'a str, Vec<&'a crate::k2::trips::TripRecord>> =
+            FxHashMap::default();
+        for trip in &records.trips {
+            trips.insert(trip.trip_id.as_str(), trip);
+            route_trips.entry(ti.route_id(trip)).or_default().push(trip);
+            service_used_raw.insert(ti.service_id(trip));
+            if let Some(shape) = ti.shape_id(trip) {
+                shape_used_raw.insert(shape);
+                shape_trips
+                    .entry(shape)
+                    .or_default()
+                    .push(trip.trip_id.as_str());
+            }
+        }
+
+        let route_raw: FxHashSet<&'a str> =
+            records.routes.iter().map(|r| r.route_id.as_str()).collect();
+        let mut route_named: FxHashMap<&'a str, bool> = FxHashMap::default();
+        for route in &records.routes {
+            let named = route
+                .route_short_name
+                .as_deref()
+                .is_some_and(|s| !s.is_empty())
+                || route
+                    .route_long_name
+                    .as_deref()
+                    .is_some_and(|s| !s.is_empty());
+            *route_named.entry(route.route_id.trim()).or_default() |= named;
+        }
+
+        let active = &derived.calendar_bitmap.active_dates;
+        let calendar: FxHashSet<&'a str> = records
+            .calendars
+            .iter()
+            .map(|c| c.service_id.as_str())
+            .collect();
+        let mut service_raw = calendar.clone();
+        service_raw.extend(
+            records
+                .calendar_dates
+                .exception_count
+                .keys()
+                .map(|k| k.as_str()),
+        );
+        let service_active_raw: FxHashSet<&'a str> = active
+            .iter()
+            .filter(|(_, dates)| !dates.is_empty())
+            .map(|(k, _)| k.as_str())
+            .collect();
+        // `OPR_004` ile AYNI hafta sonu ölçütü (JDN mod 7: Cumartesi=5, Pazar=6).
+        let service_weekend_raw: FxHashSet<&'a str> = active
+            .iter()
+            .filter(|(_, dates)| {
+                dates.iter().any(|&d| {
+                    let jdn = crate::k6_analytics::yyyymmdd_to_jdn(d);
+                    jdn % 7 == 5 || jdn % 7 == 6
+                })
+            })
+            .map(|(k, _)| k.as_str())
+            .collect();
+        let mut service_trimmed: FxHashMap<&'a str, (bool, &'static str)> = FxHashMap::default();
+        for &id in &service_raw {
+            let file = if calendar.contains(id) {
+                "calendar.txt"
+            } else {
+                "calendar_dates.txt"
+            };
+            let entry = service_trimmed.entry(id.trim()).or_insert((false, file));
+            entry.0 |= service_active_raw.contains(id);
+            // Beyan boşluğun DURDUĞU dosyaya yazılır. `mdb-488`: temiz `6` calendar.txt'te
+            // tarihsiz, tarihi calendar_dates.txt'teki `" 6"` veriyor — kök oradadır.
+            if id != id.trim() {
+                entry.1 = file;
+            }
+        }
+
+        let mut stop_used_raw: FxHashSet<&'a str> = records
+            .stop_times_index
+            .stop_id_set
+            .iter()
+            .map(smol_str::SmolStr::as_str)
+            .collect();
+        stop_used_raw.extend(records.stop_times.iter().map(|r| r.stop_id.as_str()));
+        let mut st_trip_raw: FxHashSet<&'a str> = records
+            .stop_times_index
+            .trip_id_set
+            .iter()
+            .map(smol_str::SmolStr::as_str)
+            .collect();
+        st_trip_raw.extend(records.stop_times.iter().map(|r| r.trip_id.as_str()));
+
+        Self {
+            interns: ti,
+            service_weekend_trimmed: trimmed(&service_weekend_raw),
+            service_weekend_raw,
+            route_trips,
+            trips,
+            route_named,
+            service_trimmed,
+            service_active_raw,
+            service_used_trimmed: trimmed(&service_used_raw),
+            stop_used_trimmed: trimmed(&stop_used_raw),
+            shape_used_trimmed: trimmed(&shape_used_raw),
+            st_trip_trimmed: trimmed(&st_trip_raw),
+            route_raw,
+            service_raw,
+            service_used_raw,
+            stop_used_raw,
+            shape_used_raw,
+            shape_trips,
+            st_trip_raw,
+        }
+    }
+
+    /// Bulgu bir boşluk-kırık birleşimin sonucuysa, boşluğu taşıyan dosya.
+    fn declaration_file(&self, notice: &Notice) -> Option<&'static str> {
+        let id = notice.entity_id.as_deref()?;
+        let padded = id != id.trim();
+        match notice.rule_id.as_str() {
+            // Seferin hattı ham eşleşmiyor ama kırpınca ADLI bir hatta eşleşiyor.
+            "TRP_011" => {
+                let route = self.trip_route(id)?;
+                if self.route_raw.contains(route) || !*self.route_named.get(route.trim())? {
+                    return None;
+                }
+                Some(if route != route.trim() {
+                    "trips.txt"
+                } else {
+                    "routes.txt"
+                })
+            }
+            // Seferin takvimi ham hâliyle tarihsiz/tanımsız, kırpınca tarihli/tanımlı.
+            "TRP_026" | "TRP_003" => {
+                let service = self.trips.get(id).map(|t| self.service_of(t))?;
+                let (active, file) = *self.service_trimmed.get(service.trim())?;
+                let broken = if notice.rule_id == "TRP_003" {
+                    !self.service_raw.contains(service)
+                } else {
+                    !self.service_active_raw.contains(service) && active
+                };
+                broken.then_some(if service != service.trim() {
+                    "trips.txt"
+                } else {
+                    file
+                })
+            }
+            // Kullanılan takvim ham hâliyle tarihsiz (tanımsız ya da tanımlı-ama-boş), kırpınca
+            // tarihli. `mdb-488`: `6` calendar.txt'te tarihsiz, tarihi `" 6"` veriyor.
+            "OPR_011" => {
+                if self.service_active_raw.contains(id) {
+                    return None;
+                }
+                let (active, file) = *self.service_trimmed.get(id.trim())?;
+                active.then_some(if padded && !self.service_raw.contains(id) {
+                    "trips.txt"
+                } else {
+                    file
+                })
+            }
+            // Tanımlı ama kullanılmıyor görünüyor; kırpınca kullanılıyor.
+            "CAL_011" => (!self.service_used_raw.contains(id)
+                && self.service_used_trimmed.contains(id.trim()))
+            .then_some(if !padded {
+                "trips.txt"
+            } else if notice.file.as_deref() == Some("calendar_dates.txt") {
+                "calendar_dates.txt"
+            } else {
+                "calendar.txt"
+            }),
+            "STP_020" => (!self.stop_used_raw.contains(id)
+                && self.stop_used_trimmed.contains(id.trim()))
+            .then_some(if padded {
+                "stops.txt"
+            } else {
+                "stop_times.txt"
+            }),
+            "SHP_018" => (!self.shape_used_raw.contains(id)
+                && self.shape_used_trimmed.contains(id.trim()))
+            .then_some(if padded { "shapes.txt" } else { "trips.txt" }),
+            // Şekli kullanan seferlerin HİÇBİRİNİN ham stop_times kaydı yok, HEPSİNİN
+            // kırpılmış kaydı var. Biri gerçekten kayıtsızsa bulgu gerçektir.
+            "SHP_019" => {
+                let trips = self.shape_trips.get(id)?;
+                let all_broken = trips.iter().all(|t| {
+                    !self.st_trip_raw.contains(t) && self.st_trip_trimmed.contains(t.trim())
+                });
+                (all_broken && !trips.is_empty()).then_some(
+                    if trips.iter().any(|t| *t != t.trim()) {
+                        "trips.txt"
+                    } else {
+                        "stop_times.txt"
+                    },
+                )
+            }
+            // ── Hat düzeyi (2c). Kurallar VAROLUŞSAL ("hattın hiçbir seferinde X yok"):
+            // tek bir seferin birleşimi kırpınca düzelirse kırpılmış dünyada kural susar.
+            "XFL_012" => {
+                let trip = self.route_trips.get(id)?.iter().find(|t| {
+                    !self.st_trip_raw.contains(t.trip_id.as_str())
+                        && self.st_trip_trimmed.contains(t.trip_id.trim())
+                })?;
+                Some(if trip.trip_id != trip.trip_id.trim() {
+                    "trips.txt"
+                } else {
+                    "stop_times.txt"
+                })
+            }
+            "RTS_016" => self.route_service_repair(id, |svc| {
+                (!self.service_active_raw.contains(svc))
+                    .then(|| self.service_trimmed.get(svc.trim()).filter(|e| e.0))
+                    .flatten()
+                    .is_some()
+            }),
+            "OPR_004" => self.route_service_repair(id, |svc| {
+                !self.service_weekend_raw.contains(svc)
+                    && self.service_weekend_trimmed.contains(svc.trim())
+            }),
+            "XFL_002" => (!self.st_trip_raw.contains(id)
+                && self.st_trip_trimmed.contains(id.trim()))
+            .then_some(if padded {
+                "trips.txt"
+            } else {
+                "stop_times.txt"
+            }),
+            _ => None,
+        }
+    }
+
+    /// Hattın seferlerinden birinin takvimi kırpınca `repaired` koşulunu sağlıyorsa, o
+    /// takvimdeki boşluğun dosyası.
+    fn route_service_repair(
+        &self,
+        route: &str,
+        repaired: impl Fn(&str) -> bool,
+    ) -> Option<&'static str> {
+        let svc = self
+            .route_trips
+            .get(route)?
+            .iter()
+            .map(|t| self.service_of(t))
+            .find(|svc| repaired(svc))?;
+        let (_, file) = *self.service_trimmed.get(svc.trim())?;
+        Some(if svc != svc.trim() && !self.service_raw.contains(svc) {
+            "trips.txt"
+        } else {
+            file
+        })
+    }
+
+    fn trip_route(&self, trip_id: &str) -> Option<&'a str> {
+        self.trips.get(trip_id).map(|t| self.interns.route_id(t))
+    }
+
+    fn service_of(&self, trip: &crate::k2::trips::TripRecord) -> &'a str {
+        self.interns.service_id(trip)
+    }
 }
 
 fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'_>) -> bool {
@@ -223,6 +577,8 @@ fn materialize_retained_whitespace_flags(notices: &mut [Notice]) {
 /// `IdSets` içinde `stop_times` kolunu adlandıran iç anahtar. GTFS'te böyle bir ALAN yok;
 /// yalnız `reference_field_for` üzerinden erişilir, bu yüzden gerçek bir alan adıyla çakışmaz.
 const STOP_TIMES_TRIP_ID: &str = "\0stop_times::trip_id";
+/// `IdSets` içinde yalnız `fare_attributes.txt`'te TANIMLI tarifeleri adlandıran iç anahtar.
+const FARE_ATTRIBUTES_FARE_ID: &str = "\0fare_attributes::fare_id";
 
 /// Bastırmanın hangi kimlik kümesine bakacağını kural bazında düzeltir.
 ///
@@ -245,6 +601,11 @@ const STOP_TIMES_TRIP_ID: &str = "\0stop_times::trip_id";
 fn reference_field_for<'f>(rule_id: &str, field: &'f str) -> &'f str {
     match (rule_id, field) {
         ("XFL_002", "trip_id") => STOP_TIMES_TRIP_ID,
+        // Aynı kusurun ücret kolu: genel `fare_id` kümesi `fare_rules.txt`'in KENDİ
+        // kimliklerini de taşır. `FRL_001` "fare_rules'taki kimlik fare_attributes'ta yok"
+        // der; genel kümede gözlenen değer kendisini bulur ve `'FNOPE '` gibi gerçekten
+        // tanımsız bir tarife boşluk artığı sanılıp bastırılır.
+        ("FRL_001", "fare_id") => FARE_ATTRIBUTES_FARE_ID,
         _ => field,
     }
 }
@@ -302,6 +663,8 @@ struct IdSets<'a> {
     /// 🔴 `stop_times.txt`'te GEÇEN sefer kimlikleri — `trips.txt`'te TANIMLI olanlar değil.
     /// `XFL_002` gibi TERS YÖNLÜ kurallar için gerekli; gerekçe `reference_field_for`da.
     stop_times_trip_id: FxHashSet<&'a str>,
+    /// Yalnız `fare_attributes.txt`'te tanımlı tarifeler; gerekçe `reference_field_for`da.
+    fare_attributes_fare_id: FxHashSet<&'a str>,
 }
 
 impl<'a> IdSets<'a> {
@@ -321,6 +684,7 @@ impl<'a> IdSets<'a> {
             shape_id: FxHashSet::default(),
             zone_id: FxHashSet::default(),
             stop_times_trip_id: FxHashSet::default(),
+            fare_attributes_fare_id: FxHashSet::default(),
         };
         refs.agency_id.extend(
             records
@@ -350,6 +714,8 @@ impl<'a> IdSets<'a> {
         refs.service_id
             .extend(records.trip_interns.service_ids.iter().map(|v| v.as_str()));
         refs.fare_id
+            .extend(records.fare_attributes.iter().map(|r| r.fare_id.as_str()));
+        refs.fare_attributes_fare_id
             .extend(records.fare_attributes.iter().map(|r| r.fare_id.as_str()));
         refs.fare_id
             .extend(records.fare_rules.iter().map(|r| r.fare_id.as_str()));
@@ -406,6 +772,7 @@ impl<'a> IdSets<'a> {
             "shape_id" => &self.shape_id,
             "zone_id" | "origin_id" | "destination_id" | "contains_id" => &self.zone_id,
             STOP_TIMES_TRIP_ID => &self.stop_times_trip_id,
+            FARE_ATTRIBUTES_FARE_ID => &self.fare_attributes_fare_id,
             _ => return None,
         })
     }
@@ -428,6 +795,11 @@ impl<'a> IdSets<'a> {
             shape_id: self.shape_id.iter().map(|v| v.trim()).collect(),
             zone_id: self.zone_id.iter().map(|v| v.trim()).collect(),
             stop_times_trip_id: self.stop_times_trip_id.iter().map(|v| v.trim()).collect(),
+            fare_attributes_fare_id: self
+                .fare_attributes_fare_id
+                .iter()
+                .map(|v| v.trim())
+                .collect(),
         }
     }
 }

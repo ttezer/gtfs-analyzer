@@ -401,8 +401,6 @@ pub static RULES: &[RuleMeta] = &[
         "tts_stop_name geçersiz"),
     r!("STP_024", Bilgi,  Quality, 1, &["STP_026"], Some("stop_id"), VS, Entity,
         "stop_access K2 uyumluluk aralığı dışında değer"),
-    r!("STP_025", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
-        "stop_name baştaki veya sondaki boşluk içeriyor"),
     r!("STP_026", Dusuk,  Spec, 1,
         &["STP_027","PTH_012"],
         Some("stop_id"), VS_ACC, Entity,
@@ -1796,7 +1794,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("GEO_015", Orta,   Quality,   1, &[], Some("stop_id"), VS, Entity,
         "Durak koordinatları Japonya sınırları dışında (feed_lang: ja)"),
     r!("GEO_016", Yuksek, Quality,   1, &[], Some("stop_id"), VA_GEO, Entity,
-        "Durak Null Island yakınında (|lat|<1 VE |lon|<1) — olası koordinat hatası"),
+        "Durak Null Island yakınında (|lat|<0.1 VE |lon|<0.1) — olası koordinat hatası"),
     r!("GEO_017", Yuksek, Quality,   1, &[], Some("shape_id"), VA_GEO, Entity,
         "Shape noktası Null Island yakınında — GPS verisi hatası"),
     r!("GEO_018", Yuksek, Analytics, 2, &[], None, VA_GEO, Feed,
@@ -2454,7 +2452,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_022", ProjectQuality),
     ("STP_023", ProjectQuality),
     ("STP_024", ProjectQuality),
-    ("STP_025", ProjectQuality),
     ("STP_026", GtfsSpec),
     ("STP_027", ProjectQuality),
     ("STP_028", ProjectQuality),
@@ -2747,6 +2744,10 @@ mod tests {
         // FPD_006 (2026-08-09): boş rider_category_id default değildir; duplicate
         // composite key FPD_001, is_default_fare_category ise RCT_006 tarafından ölçülür.
         assert!(get_rule("FPD_006").is_none());
+        // STP_025 (2026-09-18): `stop_name` baş/son boşluğu `DQ_016`'nın tam alt kümesiydi —
+        // 1.366 feed'lik ölçümde 481 feed'in 481'inde DQ_016 ile BİRLİKTE ateşledi; aynı hücre
+        // Quality skorunda iki kez sayılıyordu.
+        assert!(get_rule("STP_025").is_none());
     }
 
     #[test]
@@ -2754,7 +2755,7 @@ mod tests {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
         let removed_ids = [
             "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
-            "SHP_027", "STM_057", "AGN_001", "FPD_006",
+            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025",
         ];
         for rule in RULES {
             for &b in rule.blocks {

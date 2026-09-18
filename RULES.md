@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-625 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+624 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -126,7 +126,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_022 | stop_code eksik | ORTA | Quality |
 | STP_023 | tts_stop_name geçersiz | DÜŞÜK | Quality |
 | STP_024 | stop_access K2 uyumluluk aralığı dışında değer | BİLGİ | Quality |
-| STP_025 | stop_name baştaki veya sondaki boşluk içeriyor | ORTA | Quality |
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
 | STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Quality |
 | STP_028 | stop_code çok uzun | BİLGİ | Quality |
@@ -742,7 +741,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | GEO_013 | Feed coğrafi kapsam özeti | BİLGİ | Analytics |
 | GEO_014 | Feed coğrafi kapsamı çok geniş | BİLGİ | Analytics |
 | GEO_015 | Durak koordinatları Japonya sınırları dışında (feed_lang: ja) | ORTA | Quality |
-| GEO_016 | Durak Null Island yakınında (\|lat\|<1 VE \|lon\|<1) — olası koordinat hatası | YÜKSEK | Quality |
+| GEO_016 | Durak Null Island yakınında (\|lat\|<0.1 VE \|lon\|<0.1) — olası koordinat hatası | YÜKSEK | Quality |
 | GEO_017 | Shape noktası Null Island yakınında — GPS verisi hatası | YÜKSEK | Quality |
 | GEO_018 | Tüm feed durağları 200m yarıçap içinde — test/yer tutucu veri | YÜKSEK | Analytics |
 | GEO_019 | Durak koordinatları tam sayı (ondalık basamak yok) — düşük hassasiyetli veya yer tutucu | ORTA | Quality |

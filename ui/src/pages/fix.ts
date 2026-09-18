@@ -312,7 +312,7 @@ const STOP_ID_RULES = new Set([
   'STP_003','STP_004','STP_005','STP_006','STP_007','STP_008','STP_009',
   'STP_010','STP_011','STP_012','STP_013','STP_014','STP_015','STP_016',
   'STP_017','STP_018','STP_019','STP_020','STP_021','STP_022','STP_023',
-  'STP_024','STP_025','STP_026','STP_027','STP_028','STP_029','STP_030',
+  'STP_024','STP_026','STP_027','STP_028','STP_029','STP_030',
   // NOT: GEO_001/003/004/005 emekli, GEO_010/011 yalnız R4 görüntü etiketi
   // (k7_reporting::r4_display_label — notice.rule_id hep SHP_014/016 kalır), GEO_014
   // feed seviyesi (entity_id yok) → hiçbiri gerçek bir notice ile eşleşmiyordu, kaldırıldı.
