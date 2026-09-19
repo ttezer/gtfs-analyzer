@@ -6,7 +6,7 @@ use gtfs_core::{
     FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
 };
 use gtfs_pipeline::{
-    analyze_k6_with_files, build_derived_with_files, build_entity_map, build_name_index,
+    analyze_k6_with_files, apply_report_scope, build_derived_with_files, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
     report_k7_with_suppressions, validate_k2_with_whitespace_roots, DerivedData, EntityRecords,
     FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
@@ -433,6 +433,9 @@ fn rerun_k6_k7_inner(
     let mut all_notices = cache.k1_k5_notices.clone();
     let mut notice_budget_exceeded = false;
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
+    // Native `validate_bytes` ile AYNI rapor kapsamı (STP_033 uniform ücret istisnası +
+    // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
+    apply_report_scope(&mut all_notices, &cache.records, &config);
     wasm_log!(format!(
         "[mem] after-K6 (pre-cap): {} notices, {:.1} MB",
         all_notices.len(),
@@ -606,6 +609,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k4.notices);
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k5.notices);
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
+    // Native `validate_bytes` ile AYNI rapor kapsamı (STP_033 uniform ücret istisnası +
+    // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
+    apply_report_scope(&mut all_notices, &k2.records, config);
 
     // 1) Dedup sonrası gerçek totalleri say, ardından kural başına gösterim cap'ini uygula.
     // Native pipeline K7'de dedup yaptığı için karşılaştırılabilir "gerçek" sayı bu noktadadır.

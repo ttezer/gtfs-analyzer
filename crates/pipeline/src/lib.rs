@@ -47,15 +47,20 @@ pub use gtfs_core::{
 /// Returns true only when the feed itself proves that every served route has
 /// an all-trip fare. This is the narrow exception for STP_033: a uniform fare
 /// does not need stop zones, while a zone-based or ambiguous fare still does.
-fn has_uniform_fare_coverage(records: &EntityRecords, map: &EntityMap) -> bool {
-    let valid_fares: std::collections::HashSet<&str> = records
+///
+/// Uses only `EntityRecords` so the WASM rerun path (which caches records but
+/// not the K3 entity map) evaluates the same predicate as `validate_bytes`.
+fn has_uniform_fare_coverage(records: &EntityRecords) -> bool {
+    use std::collections::HashSet;
+    let valid_fares: HashSet<&str> = records
         .fare_attributes
         .iter()
         .filter(|fare| {
-            fare.price
-                .is_some_and(|price| price.is_finite() && price >= 0.0)
+            !fare.fare_id.is_empty()
+                && fare
+                    .price
+                    .is_some_and(|price| price.is_finite() && price >= 0.0)
                 && crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_some()
-                && map.fare_attrs.contains_key(fare.fare_id.as_str())
         })
         .map(|fare| fare.fare_id.as_str())
         .collect();
@@ -68,40 +73,67 @@ fn has_uniform_fare_coverage(records: &EntityRecords, map: &EntityMap) -> bool {
         return true;
     }
 
-    let catch_all = records.fare_rules.iter().any(|rule| {
+    let unqualified = |rule: &&crate::k2::fare_rules::FareRuleRecord| {
         valid_fares.contains(rule.fare_id.as_str())
-            && rule.route_id.is_none()
             && rule.origin_id.is_none()
             && rule.destination_id.is_none()
             && rule.contains_id.is_none()
-    });
-    if catch_all {
+    };
+    if records
+        .fare_rules
+        .iter()
+        .filter(unqualified)
+        .any(|rule| rule.route_id.is_none())
+    {
         return true;
     }
 
-    let uniform_routes: std::collections::HashSet<&str> = records
+    let uniform_routes: HashSet<&str> = records
         .fare_rules
         .iter()
-        .filter(|rule| {
-            valid_fares.contains(rule.fare_id.as_str())
-                && rule.route_id.is_some()
-                && rule.origin_id.is_none()
-                && rule.destination_id.is_none()
-                && rule.contains_id.is_none()
-        })
+        .filter(unqualified)
         .filter_map(|rule| rule.route_id.as_deref())
         .collect();
-
-    let served_routes: std::collections::HashSet<&str> = records
+    let known_routes: HashSet<&str> = records
+        .routes
+        .iter()
+        .map(|route| route.route_id.as_str())
+        .filter(|id| !id.is_empty())
+        .collect();
+    let served_routes: HashSet<&str> = records
         .trips
         .iter()
         .map(|trip| records.trip_interns.route_id(trip))
-        .filter(|route_id| map.routes.contains_key(*route_id))
+        .filter(|route_id| known_routes.contains(*route_id))
         .collect();
     !served_routes.is_empty()
         && served_routes
             .iter()
             .all(|route_id| uniform_routes.contains(route_id))
+}
+
+/// Report-scope filtering shared by every orchestration (native
+/// `validate_bytes` and both WASM paths). Runs after K6 and before K7 so that
+/// removed notices cannot affect scores, report views, or the R9 queue.
+///
+/// 1. STP_033 is dropped when the feed proves uniform fare coverage.
+/// 2. Rules listed in `config.disabled_rule_ids` are dropped.
+pub fn apply_report_scope(
+    notices: &mut Vec<gtfs_core::Notice>,
+    records: &EntityRecords,
+    config: &ValidatorConfig,
+) {
+    if notices.iter().any(|n| n.rule_id == "STP_033") && has_uniform_fare_coverage(records) {
+        notices.retain(|notice| notice.rule_id != "STP_033");
+    }
+    if !config.disabled_rule_ids.is_empty() {
+        let disabled: std::collections::HashSet<&str> = config
+            .disabled_rule_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        notices.retain(|notice| !disabled.contains(notice.rule_id.as_str()));
+    }
 }
 
 /// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
@@ -223,22 +255,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
-    if has_uniform_fare_coverage(&k2.records, &k3.entity_map) {
-        all.retain(|notice| notice.rule_id != "STP_033");
-    }
-
-    // User-selected rule scope. The stages still execute so their derived
-    // data remains internally consistent, but disabled rules do not enter K7:
-    // they cannot affect notices, scores, report views, or the improvement
-    // queue. This is the engine-level counterpart of the SDK/CLI config.
-    if !config.disabled_rule_ids.is_empty() {
-        let disabled: std::collections::HashSet<&str> = config
-            .disabled_rule_ids
-            .iter()
-            .map(String::as_str)
-            .collect();
-        all.retain(|notice| !disabled.contains(notice.rule_id.as_str()));
-    }
+    apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
     // okunamadıysa ona bağlı kurallar hiç koşmamıştır; bulgu yokluğu kanıt yokluğudur.
