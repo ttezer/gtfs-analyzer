@@ -54,6 +54,7 @@ const DEF_BIG_GAP_DAYS: u32 = 14;
 // sınırsız büyüyemez. Sınırlar normal kullanımın çok üzerindedir ve yalnızca
 // WASM/native parser'ın devasa map/Vec tahsis etmesini önler.
 const MAX_RURAL_ROUTE_IDS: usize = 100_000;
+const MAX_DISABLED_RULE_IDS: usize = 100_000;
 const MAX_CALENDAR_OVERRIDE_RULES: usize = 100_000;
 const MAX_OVERRIDE_SERVICE_IDS_PER_RULE: usize = 100_000;
 const MAX_CONFIG_STRING_BYTES: usize = 4 * 1024 * 1024;
@@ -98,6 +99,7 @@ pub const KNOWN_CONFIG_KEYS: &[&str] = &[
     "rural_route_ids",
     "calendar_override_rules",
     "gtfs_jp_profile",
+    "disabled_rule_ids",
 ];
 
 /// GTFS-JP kural kapsamı.
@@ -233,6 +235,12 @@ pub struct ValidatorConfig {
     /// Takvim override kuralları — OPR_021/022/023 için.
     /// Boş liste varsayılan; override analizi yapılmaz.
     pub calendar_override_rules: Vec<CalendarOverrideRule>,
+    /// Kullanıcının raporlamak istemediği kural kimlikleri.
+    ///
+    /// Kurallar çalıştırılmaya devam eder; notice'lar K7 raporlamasından önce
+    /// kaldırılır. Böylece düşük öncelikli/yerel olarak gereksiz alan kontrolleri
+    /// (`DQ_003`, `DQ_004`, `TRP_021` gibi) profil bazında kapatılabilir.
+    pub disabled_rule_ids: Vec<String>,
 }
 
 impl Default for ValidatorConfig {
@@ -279,6 +287,7 @@ impl Default for ValidatorConfig {
             max_calendar_future_years: DEF_MAX_CALENDAR_FUTURE_YEARS,
             rural_route_ids: Vec::new(),
             calendar_override_rules: Vec::new(),
+            disabled_rule_ids: Vec::new(),
         }
     }
 }
@@ -626,6 +635,19 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         }
     }
 
+    if let Some(v) = map.get("disabled_rule_ids") {
+        cfg.disabled_rule_ids = serde_json::from_value(v.clone())
+            .map_err(|e| format!("'disabled_rule_ids' parse hatası: {e}"))?;
+        for (i, rule_id) in cfg.disabled_rule_ids.iter_mut().enumerate() {
+            *rule_id = rule_id.trim().to_string();
+            if rule_id.is_empty() {
+                return Err(format!("disabled_rule_ids[{i}] boş olamaz"));
+            }
+        }
+        cfg.disabled_rule_ids.sort_unstable();
+        cfg.disabled_rule_ids.dedup();
+    }
+
     if cfg.rural_route_ids.len() > MAX_RURAL_ROUTE_IDS {
         return Err(format!(
             "'rural_route_ids' {} öğelik güvenlik sınırını aşıyor",
@@ -638,10 +660,17 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             MAX_CALENDAR_OVERRIDE_RULES
         ));
     }
+    if cfg.disabled_rule_ids.len() > MAX_DISABLED_RULE_IDS {
+        return Err(format!(
+            "'disabled_rule_ids' {} öğelik güvenlik sınırını aşıyor",
+            MAX_DISABLED_RULE_IDS
+        ));
+    }
     let total_config_string_bytes: usize = cfg
         .rural_route_ids
         .iter()
         .map(String::len)
+        .chain(cfg.disabled_rule_ids.iter().map(String::len))
         .chain(cfg.calendar_override_rules.iter().flat_map(|rule| {
             std::iter::once(rule.route_id.len())
                 .chain(rule.base_service_ids.iter().map(String::len))
@@ -1174,5 +1203,24 @@ mod tests {
         );
         let cfg = merge_delta(&cfg, r#"{"source_url":null}"#).unwrap();
         assert!(cfg.source_url.is_none());
+    }
+
+    #[test]
+    fn disabled_rule_ids_are_trimmed_deduplicated_and_typed() {
+        let base = ValidatorConfig::default();
+        let cfg = merge_delta(
+            &base,
+            r#"{"disabled_rule_ids":[" DQ_004 ","DQ_003","DQ_004"]}"#,
+        )
+        .expect("disabled_rule_ids kabul edilmeli");
+        assert_eq!(cfg.disabled_rule_ids, ["DQ_003", "DQ_004"]);
+    }
+
+    #[test]
+    fn disabled_rule_ids_reject_empty_values() {
+        let base = ValidatorConfig::default();
+        let err = merge_delta(&base, r#"{"disabled_rule_ids":["DQ_003", " "]}"#)
+            .expect_err("boş kural kimliği reddedilmeli");
+        assert!(err.contains("disabled_rule_ids"), "{err}");
     }
 }

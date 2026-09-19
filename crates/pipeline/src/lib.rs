@@ -163,6 +163,19 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
+    // User-selected rule scope. The stages still execute so their derived
+    // data remains internally consistent, but disabled rules do not enter K7:
+    // they cannot affect notices, scores, report views, or the improvement
+    // queue. This is the engine-level counterpart of the SDK/CLI config.
+    if !config.disabled_rule_ids.is_empty() {
+        let disabled: std::collections::HashSet<&str> = config
+            .disabled_rule_ids
+            .iter()
+            .map(String::as_str)
+            .collect();
+        all.retain(|notice| !disabled.contains(notice.rule_id.as_str()));
+    }
+
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
     // okunamadıysa ona bağlı kurallar hiç koşmamıştır; bulgu yokluğu kanıt yokluğudur.
     // ⚠️ İsteğe bağlı dosya kaybı bu bayrağı DÜŞÜRMEZ (ölçüldü: bozuk `attributions.txt` de

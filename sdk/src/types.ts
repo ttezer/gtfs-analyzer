@@ -211,6 +211,8 @@ export interface ValidatorConfigDelta {
   max_calendar_future_years?: number;
   rural_route_ids?: string[];
   calendar_override_rules?: CalendarOverrideRule[];
+  /** Rule IDs omitted from notices, scores, report views, and R9. */
+  disabled_rule_ids?: string[];
 }
 
 export interface ValidateOptions {

@@ -285,6 +285,7 @@ The values below are the default thresholds used by the `0.13.1` validator engin
 | `max_calendar_future_years` | `3` | Maximum future calendar horizon. |
 | `rural_route_ids` | `[]` | Routes exempt from automatic sparse-service warnings. |
 | `calendar_override_rules` | `[]` | Explicit calendar base/override relationships. |
+| `disabled_rule_ids` | `[]` | Rule IDs omitted from notices, scores, report views, and R9; useful for selecting checks relevant to a local publishing profile. |
 
 ```ts
 const result = await validateGtfs(zipBytes, {

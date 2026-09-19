@@ -90,6 +90,10 @@ struct ValidateArgs {
     #[arg(long, value_delimiter = ',')]
     class: Vec<RuleClassArg>,
 
+    /// Disable these rule checks in the validation result (repeatable, comma separated).
+    #[arg(long, value_delimiter = ',')]
+    disable_rule: Vec<String>,
+
     /// Exit 1 only when a notice at this severity or worse exists.
     #[arg(long)]
     fail_on: Option<SeverityArg>,
@@ -339,6 +343,11 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
     };
     if let Some(profile) = args.gtfs_jp_profile {
         config.gtfs_jp_profile = profile.into();
+    }
+    if !args.disable_rule.is_empty() {
+        config.disabled_rule_ids.extend(args.disable_rule);
+        config.disabled_rule_ids.sort_unstable();
+        config.disabled_rule_ids.dedup();
     }
 
     // Parsed before the pipeline runs: a broken dictionary should fail fast

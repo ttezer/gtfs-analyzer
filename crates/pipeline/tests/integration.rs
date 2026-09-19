@@ -60,6 +60,34 @@ fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> Validate
 }
 
 #[test]
+fn disabled_rule_ids_remove_selected_findings_from_reports() {
+    let baseline = run(&base_files());
+    let baseline = match baseline {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    for rule in ["DQ_003", "DQ_004", "TRP_021"] {
+        assert!(has(&baseline, rule), "varsayılan feed {rule} üretmeli");
+    }
+
+    let config = ValidatorConfig {
+        disabled_rule_ids: ["DQ_003", "DQ_004", "TRP_021"]
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        ..ValidatorConfig::default()
+    };
+    let filtered = validate_bytes(&make_zip(&base_files()), &config, TODAY);
+    let filtered = match filtered {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    for rule in ["DQ_003", "DQ_004", "TRP_021"] {
+        assert!(!has(&filtered, rule), "devre dışı {rule} raporlanmamalı");
+    }
+}
+
+#[test]
 fn empty_gtfs_jp_file_still_activates_profile_detection() {
     for file in [
         "agency_jp.txt",
