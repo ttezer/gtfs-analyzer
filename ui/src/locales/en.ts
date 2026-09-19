@@ -959,6 +959,7 @@ const en: LocaleShape = {
     'FRL_006': 'No fare rules are defined.',
     'FRL_007': "Fare rule logical inconsistency for '{entity_id}'.",
     'FRL_008': 'No fare defined for all routes.',
+    'FRL_009': 'Fare coverage is missing for some served origin/destination zone pairs.',
     // RCT
     'RCT_001': "Duplicate rider_category_id: '{entity_id}'.",
     'RCT_002': "Rider category '{entity_id}': rider_category_name is missing.",
@@ -1902,6 +1903,7 @@ const en: LocaleShape = {
     // FRL
     'FRL_007': 'Review fare rule logic; ensure the zone combination is consistent and non-contradictory.',
     'FRL_008': 'Add fare rules covering all routes or define a catch-all fare.',
+    'FRL_009': 'Add fare_rules.txt entries for every served origin/destination zone pair, or model the fare as a route-uniform or catch-all fare.',
     // LOC
     'LOC_001': 'Ensure locations.geojson contains only Polygon or MultiPolygon feature geometries.',
     'LOC_002': 'Add a valid Polygon or MultiPolygon geometry to each feature in locations.geojson.',
@@ -2373,6 +2375,7 @@ const en: LocaleShape = {
     'FRL_006': 'No fare rules defined',
     'FRL_007': 'Fare rule logical inconsistency',
     'FRL_008': 'No fare defined for all routes',
+    'FRL_009': 'Origin/destination fare coverage incomplete',
     // RCT
     'RCT_001': 'Duplicate rider_category_id',
     'RCT_002': 'rider_category_name missing',

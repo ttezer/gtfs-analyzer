@@ -961,6 +961,7 @@ const fr: LocaleShape = {
     'FRL_006': 'Aucune règle tarifaire n’est définie.',
     'FRL_007': 'Incohérence logique de règle tarifaire pour « {entity_id} ».',
     'FRL_008': 'Aucun tarif défini pour l’ensemble des lignes.',
+    'FRL_009': 'La couverture tarifaire est absente pour certaines paires origine/destination desservies.',
     // RCT
     'RCT_001': 'rider_category_id en double : « {entity_id} ».',
     'RCT_002': 'Catégorie de voyageur « {entity_id} » : rider_category_name est absent.',
@@ -1904,6 +1905,7 @@ const fr: LocaleShape = {
     // FRL
     'FRL_007': 'Revoyez la logique de la règle tarifaire ; assurez-vous que la combinaison de zones est cohérente et non contradictoire.',
     'FRL_008': 'Ajoutez des règles tarifaires couvrant toutes les lignes, ou définissez un tarif par défaut.',
+    'FRL_009': 'Ajoutez des entrées fare_rules.txt pour chaque paire origine/destination desservie, ou modélisez le tarif comme uniforme par ligne ou global.',
     // LOC
     'LOC_001': 'Assurez-vous que locations.geojson ne contient que des géométries Polygon ou MultiPolygon.',
     'LOC_002': 'Ajoutez une géométrie Polygon ou MultiPolygon valide à chaque objet Feature de locations.geojson.',
@@ -2374,6 +2376,7 @@ const fr: LocaleShape = {
     'FRL_006': 'Aucune règle tarifaire définie',
     'FRL_007': 'Incohérence logique dans une règle tarifaire',
     'FRL_008': 'Aucun tarif défini pour l’ensemble des lignes',
+    'FRL_009': 'Couverture tarifaire origine/destination incomplète',
     // RCT
     'RCT_001': 'rider_category_id en double',
     'RCT_002': 'rider_category_name manquant',

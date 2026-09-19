@@ -2777,6 +2777,14 @@ fn check_fare_rules(
         }
     }
 
+    // FRL_009: in an explicitly zone-paired route fare model, every ordered
+    // origin/destination zone pair served by a route must have a fare rule.
+    // This check deliberately stays conservative: catch-all fares, a single
+    // fare_attributes record without fare_rules, route-uniform rules, missing
+    // stop zones, and contains_id/partial-zone rules are not enumerable enough
+    // to prove a missing pair without guessing.
+    check_fare_origin_destination_coverage(records, map, notices, ctr);
+
     // FAR_010: aynı (route_id, origin_id, destination_id, contains_id) kombinasyonu için birden fazla fare_id
     {
         type FareRuleKey<'a> = (
@@ -2822,6 +2830,162 @@ fn check_fare_rules(
             }
         }
     }
+}
+
+fn check_fare_origin_destination_coverage(
+    records: &EntityRecords,
+    map: &EntityMap,
+    notices: &mut Vec<Notice>,
+    ctr: &mut u32,
+) {
+    if records.fare_attributes.is_empty()
+        || records.fare_rules.is_empty()
+        || records.routes.is_empty()
+        || records.trips.is_empty()
+    {
+        return;
+    }
+
+    let valid_fare_ids: HashSet<&str> = records
+        .fare_attributes
+        .iter()
+        .filter(|fare| {
+            fare.price
+                .is_some_and(|price| price.is_finite() && price >= 0.0)
+                && crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_some()
+                && map.fare_attrs.contains_key(fare.fare_id.as_str())
+        })
+        .map(|fare| fare.fare_id.as_str())
+        .collect();
+    if valid_fare_ids.is_empty() {
+        return;
+    }
+
+    // A fare rule without any discriminator is a deliberate all-trips fare
+    // (FRL_007 may still report its broad scope, but it covers the pairs).
+    if records.fare_rules.iter().any(|rule| {
+        valid_fare_ids.contains(rule.fare_id.as_str())
+            && rule.route_id.is_none()
+            && rule.origin_id.is_none()
+            && rule.destination_id.is_none()
+            && rule.contains_id.is_none()
+    }) {
+        return;
+    }
+
+    let mut route_stops: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    for trip in &records.trips {
+        let route_id = records.trip_interns.route_id(trip);
+        if !map.routes.contains_key(route_id) {
+            continue;
+        }
+        let Some(stops) = records.stop_times_index.sorted_stops(trip.trip_id.as_str()) else {
+            continue;
+        };
+        let served = route_stops.entry(route_id).or_default();
+        for stop_time in stops {
+            let stop_id = records.stop_times_index.stop_id_of(stop_time);
+            if !stop_id.is_empty() {
+                served.insert(stop_id);
+            }
+        }
+    }
+
+    let mut route_rules: BTreeMap<&str, Vec<&crate::k2::fare_rules::FareRuleRecord>> =
+        BTreeMap::new();
+    for rule in &records.fare_rules {
+        let Some(route_id) = rule.route_id.as_deref() else {
+            continue;
+        };
+        if valid_fare_ids.contains(rule.fare_id.as_str()) && map.routes.contains_key(route_id) {
+            route_rules.entry(route_id).or_default().push(rule);
+        }
+    }
+
+    let mut missing_pairs = BTreeSet::new();
+    for (route_id, stop_ids) in route_stops {
+        let Some(rules) = route_rules.get(route_id) else {
+            continue;
+        };
+
+        // An unqualified route rule covers every origin/destination pair on
+        // that route, including the uniform-fare case.
+        if rules.iter().any(|rule| {
+            rule.origin_id.is_none() && rule.destination_id.is_none() && rule.contains_id.is_none()
+        }) {
+            continue;
+        }
+
+        // Only a complete origin+destination zone model is enumerable. A
+        // contains_id or one-sided rule needs transfer/leg semantics that this
+        // Schedule-v1 check must not invent.
+        if !rules.iter().any(|rule| {
+            rule.origin_id.is_some() && rule.destination_id.is_some() && rule.contains_id.is_none()
+        }) {
+            continue;
+        }
+
+        let mut zones = BTreeSet::new();
+        let mut all_stops_zoned = true;
+        for stop_id in stop_ids {
+            let Some(&stop_idx) = map.stops.get(stop_id) else {
+                all_stops_zoned = false;
+                break;
+            };
+            let zone = row_field(&records.stops[stop_idx].row, "zone_id");
+            if zone.is_empty() {
+                all_stops_zoned = false;
+                break;
+            }
+            zones.insert(zone);
+        }
+        if !all_stops_zoned || zones.is_empty() {
+            continue;
+        }
+
+        for origin in &zones {
+            for destination in &zones {
+                let covered = rules.iter().any(|rule| {
+                    rule.origin_id.as_deref() == Some(*origin)
+                        && rule.destination_id.as_deref() == Some(*destination)
+                });
+                if !covered {
+                    missing_pairs.insert(format!(
+                        "route_id={route_id}, origin_id={origin}, destination_id={destination}"
+                    ));
+                }
+            }
+        }
+    }
+
+    if missing_pairs.is_empty() {
+        return;
+    }
+
+    let examples: Vec<&str> = missing_pairs.iter().map(String::as_str).take(5).collect();
+    let mut finding = notice(
+        ctr,
+        "FRL_009",
+        EntityType::Feed,
+        None,
+        None,
+        "fare_rules.txt",
+        None,
+        Some("route_id|origin_id|destination_id"),
+        Some(missing_pairs.len().to_string()),
+        Some("0 missing origin/destination fare pairs".to_string()),
+        format!(
+            "{} served origin/destination zone pair(s) have no fare rule (examples: {}).",
+            missing_pairs.len(),
+            examples.join("; ")
+        ),
+        "Add fare_rules.txt entries for every served origin/destination zone pair, or model the fare as a route-uniform or catch-all fare.",
+    );
+    finding.details = Some(BTreeMap::from([
+        ("missing_pairs".to_string(), missing_pairs.len().to_string()),
+        ("example_pairs".to_string(), examples.join("; ")),
+    ]));
+    notices.push(finding);
 }
 
 // -- Fares v2 cross-reference

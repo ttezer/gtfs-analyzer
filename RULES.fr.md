@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-623 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+624 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -449,6 +449,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | FRL_006 | Aucune règle tarifaire définie | INFO | Quality |
 | FRL_007 | Incohérence logique dans une règle tarifaire | MOYENNE | Quality |
 | FRL_008 | Aucun tarif défini pour l’ensemble des lignes | INFO | Quality |
+| FRL_009 | Couverture tarifaire origine/destination incomplète | MOYENNE | Quality |
 
 ## RCT — Catégories de voyageurs (Tarifs v2)
 

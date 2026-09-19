@@ -1196,6 +1196,8 @@ pub static RULES: &[RuleMeta] = &[
         "Ücret kuralı mantıksal tutarsızlık"),
     r!("FRL_008", Bilgi,  Quality, 3, &[], None, VS, Feed,
         "Tüm hatlar için ücret tanımlı değil"),
+    r!("FRL_009", Orta,   Quality, 3, &[], None, VS, Feed,
+        "Origin/destination ücret kapsamı eksik"),
 
     // ── RCT: Rider Categories (Fares v2) ──────────────────────────────────────
     r!("RCT_001", Kritik, Spec, 1, &["FPD_005"],
@@ -2152,6 +2154,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FRL_006", ProjectQuality),
     ("FRL_007", ProjectQuality),
     ("FRL_008", ProjectQuality),
+    ("FRL_009", ProjectQuality),
     ("FRQ_001", GtfsSpec),
     ("FRQ_002", GtfsSpec),
     ("FRQ_003", GtfsSpec),

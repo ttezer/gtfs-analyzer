@@ -2079,6 +2079,12 @@ fn fixtures() -> Vec<Fixture> {
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n"),
             ("fare_rules.txt", "fare_id,route_id\nF1,R1\n"),
         ]),
+        // FRL_009: zone-paired route fare leaves served origin/destination pairs uncovered.
+        fx("FRL_009", vec![
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z1\nS2,Stop2,41.1,29.1,Z2\n"),
+            ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
+            ("fare_rules.txt", "fare_id,route_id,origin_id,destination_id\nF1,R1,Z1,Z2\n"),
+        ]),
 
         // ── SHP_021 (k2) ───────────────────────────────────────────────────────
         // SHP_021: shape_dist_traveled negatif.

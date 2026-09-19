@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-623 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+624 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -449,6 +449,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FRL_006 | No fare rules defined | INFO | Quality |
 | FRL_007 | Fare rule logical inconsistency | MEDIUM | Quality |
 | FRL_008 | No fare defined for all routes | INFO | Quality |
+| FRL_009 | Origin/destination fare coverage incomplete | MEDIUM | Quality |
 
 ## RCT — Rider Categories (Fares v2)
 

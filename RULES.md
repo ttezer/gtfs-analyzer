@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-623 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+624 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -449,6 +449,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FRL_006 | Ücret kuralı tanımlı değil | BİLGİ | Quality |
 | FRL_007 | Ücret kuralı mantıksal tutarsızlık | ORTA | Quality |
 | FRL_008 | Tüm hatlar için ücret tanımlı değil | BİLGİ | Quality |
+| FRL_009 | Origin/destination ücret kapsamı eksik | ORTA | Quality |
 
 ## RCT — Rider Categories (Yolcu Kategorileri, Fares v2)
 

@@ -455,6 +455,50 @@ fn v4_free_and_route_specific_fixed_fares_do_not_trigger_jpn_006() {
 }
 
 #[test]
+fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_fares() {
+    let mut files = base_files();
+    files[1] = (
+        "stops.txt",
+        b"stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,A\nS2,Stop2,41.1,29.1,B\n",
+    );
+    files.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
+    ));
+    files.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id\nF1,R1,A,B\n",
+    ));
+
+    let incomplete = run(&files);
+    let incomplete = match incomplete {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert!(has(&incomplete, "FRL_009"));
+    let missing = incomplete
+        .notices
+        .iter()
+        .find(|notice| notice.rule_id == "FRL_009")
+        .and_then(|notice| notice.details.as_ref())
+        .expect("FRL_009 ayrıntıları olmalı");
+    assert!(missing["missing_pairs"].parse::<usize>().unwrap() >= 1);
+
+    let mut uniform = files;
+    uniform.pop();
+    uniform.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id\nF1,R1,,\n",
+    ));
+    let uniform = run(&uniform);
+    let uniform = match uniform {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert!(!has(&uniform, "FRL_009"));
+}
+
+#[test]
 fn v3_remaining_translation_fields_require_kana_and_japanese_rows() {
     let mut files = base_files();
     files[2] = (
