@@ -772,6 +772,11 @@ gtfs-validator/
     └── tests/        # Playwright tests
 ```
 
+## Acknowledgements
+
+**Akira Nishizawa** (西澤明): our sincere thanks for supporting our GTFS-JP work and for the
+valuable time he gave us.
+
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.

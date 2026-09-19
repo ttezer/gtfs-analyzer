@@ -772,6 +772,11 @@ gtfs-validator/
     └── tests/        # Playwright テスト
 ```
 
+## 謝辞
+
+**西澤明**様：GTFS-JP 対応の改善へのご支援と、貴重なお時間を割いてくださったことに心より
+御礼申し上げます。
+
 ## ライセンス
 
 MIT — 詳細は [LICENSE](LICENSE) をご参照ください。
