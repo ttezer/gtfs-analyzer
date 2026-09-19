@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single-agency feeds. `AGN_011` now also counts fare rows whose `fare_id` is
   empty (`FAR_012` still reports the empty id), so such a feed can newly become
   non-publishable. Its remediation text now mentions fare records.
-- READMEs report the current **625-rule** catalog, list `JPN_032`/`JPN_033` in
+- READMEs report the current **623-rule** catalog, list `JPN_032`/`JPN_033` in
   the GTFS-JP rule tables, and use the qualified coverage badge wording.
 - Corpus-audit workflow artifacts are retained for 30 days instead of 90.
 
