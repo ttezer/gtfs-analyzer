@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-624 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+623 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -52,7 +52,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | Rule | Title | Severity | Class |
 |---|---|---|---|
 | BKR_001 | Prior-day booking field set in prohibited context | HIGH | Spec |
-| BKR_002 | prior_notice_start_day only valid with prior_notice_last_day | MEDIUM | Quality |
 | BKR_003 | prior_notice_start_time only valid with prior_notice_start_day | HIGH | Spec |
 | BKR_004 | prior_notice fields prohibited for real-time booking | HIGH | Spec |
 | BKR_005 | prior_notice_duration_max only valid with booking_type=1 | MEDIUM | Spec |

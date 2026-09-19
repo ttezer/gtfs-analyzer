@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](RULES.fr.md)
 
-624ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+623ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -52,7 +52,6 @@
 | ルール | タイトル | 重要度 | クラス |
 |---|---|---|---|
 | BKR_001 | 予約ルール: prior_notice_start_dayが禁止コンテキスト | 高 | 仕様 |
-| BKR_002 | prior_notice_start_dayにprior_notice_last_dayが必要 | 中 | 品質 |
 | BKR_003 | prior_notice_start_timeにprior_notice_start_dayが必要 | 高 | 仕様 |
 | BKR_004 | リアルタイム予約でprior_noticeフィールドが禁止 | 高 | 仕様 |
 | BKR_005 | prior_notice_duration_maxはbooking_type=1のみ有効 | 中 | 仕様 |

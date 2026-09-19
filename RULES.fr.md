@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-624 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+623 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -52,7 +52,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | Règle | Titre | Gravité | Classe |
 |---|---|---|---|
 | BKR_001 | Champ de réservation en jour antérieur défini dans un contexte interdit | ÉLEVÉE | Spec |
-| BKR_002 | prior_notice_start_day valide uniquement avec prior_notice_last_day | MOYENNE | Quality |
 | BKR_003 | prior_notice_start_time valide uniquement avec prior_notice_start_day | ÉLEVÉE | Spec |
 | BKR_004 | Champs prior_notice interdits pour la réservation en temps réel | ÉLEVÉE | Spec |
 | BKR_005 | prior_notice_duration_max valide uniquement avec booking_type=1 | MOYENNE | Spec |

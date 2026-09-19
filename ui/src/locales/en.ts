@@ -630,7 +630,6 @@ const en: LocaleShape = {
     'ARC_024': "'{entity_id}' is a .txt file inside a subdirectory — standard GTFS parsers will not read it.",
     // BKR
     'BKR_001': "Booking rule '{entity_id}': prior_notice_start_day is set in a prohibited context.",
-    'BKR_002': "Booking rule '{entity_id}': prior_notice_start_day requires prior_notice_last_day.",
     'BKR_003': "Booking rule '{entity_id}': prior_notice_start_time requires prior_notice_start_day.",
     'BKR_004': "Booking rule '{entity_id}': prior_notice fields are prohibited for real-time booking.",
     'BKR_005': "Booking rule '{entity_id}': prior_notice_duration_max is only valid with booking_type=1.",
@@ -1711,7 +1710,6 @@ const en: LocaleShape = {
     'ATR_008': 'Use a valid e-mail address for attribution_email.',
     // BKR
     'BKR_001': 'Use prior-day-based fields only with booking_type=2.',
-    'BKR_002': 'Add prior_notice_last_day or remove prior_notice_start_day.',
     'BKR_003': 'Add prior_notice_start_day or remove prior_notice_start_time.',
     'BKR_004': 'Remove prior_notice fields for instant booking or correct the booking_type value.',
     'BKR_005': 'prior_notice_duration_max can only be used with booking_type=1 (same-day).',
@@ -2033,7 +2031,6 @@ const en: LocaleShape = {
     'TRP_035': 'trips.txt has an empty service_id',
     // BKR
     'BKR_001': 'Prior-day booking field set in prohibited context',
-    'BKR_002': 'prior_notice_start_day only valid with prior_notice_last_day',
     'BKR_003': 'prior_notice_start_time only valid with prior_notice_start_day',
     'BKR_004': 'prior_notice fields prohibited for real-time booking',
     'BKR_005': 'prior_notice_duration_max only valid with booking_type=1',

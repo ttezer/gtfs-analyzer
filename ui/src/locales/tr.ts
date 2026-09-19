@@ -632,7 +632,6 @@ const tr = {
     'TRP_035': "trips.txt'te service_id boş",
     // BKR
     'BKR_001': 'Önceki gün rezervasyon alanı yasak bağlamda dolu',
-    'BKR_002': 'prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir',
     'BKR_003': 'prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir',
     'BKR_004': 'Anlık rezervasyonda prior_notice alanları yasak',
     'BKR_005': 'prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak)',

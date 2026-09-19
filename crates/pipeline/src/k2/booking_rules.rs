@@ -36,7 +36,7 @@ fn has_field(row: &RowMap, field: &str) -> bool {
 /// `opt_int`'in raporlayan hâli: sayı olmayan değer sessizce düşmez, `rule` ile bildirilir.
 ///
 /// Spec bu dört alanı `Integer` olarak tipler. Eski `opt_int` "abc"yi sessizce yutuyordu:
-/// koşullu-yasak hükmü (BKR_002/BKR_004/BKR_005) ateşliyor ama DEĞERİN sayı olmadığı hiç
+/// koşullu-yasak hükmü (BKR_004/BKR_005) ateşliyor ama DEĞERİN sayı olmadığı hiç
 /// söylenmiyordu — yani kullanıcı bozuk bir rezervasyon penceresini göremiyordu.
 #[allow(clippy::too_many_arguments)]
 fn opt_int_checked(
@@ -417,7 +417,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
 
         // BKR_024: aynı gün rezervasyonda (booking_type=1) üst süre sınırı varken başlangıç
         // günü çelişkilidir — spec: "Forbidden for booking_type=1 if prior_notice_duration_max
-        // is defined." `BKR_002` komşudur ama başka hükmü ölçer (start_day yalnız last_day ile).
+        // is defined." BKR_024 yalnızca bu üç alanlı koşulu ölçer.
         if booking_type == Some(1) && has_duration_max && has_start_day {
             notices.push(make_k2_notice(
                 &mut ctr, "BKR_024", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -426,17 +426,6 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 Some("(boş)".to_string()),
                 "booking_type=1 ve prior_notice_duration_max tanımlıyken prior_notice_start_day yasaktır.".to_string(),
                 "prior_notice_start_day alanını boşaltın ya da prior_notice_duration_max'i kaldırın.",
-            ));
-        }
-
-        // BKR_002: prior_notice_start_day dolu ama prior_notice_last_day yok
-        if has_start_day && !has_last_day {
-            notices.push(make_k2_notice(
-                &mut ctr, "BKR_002", EntityType::Row, entity_id.clone(), Some(&row_map),
-                &file.name, Some(line), Some("prior_notice_start_day"),
-                get_trimmed_field(&row_map, "prior_notice_start_day").map(str::to_string), None,
-                "prior_notice_start_day yalnızca prior_notice_last_day ile birlikte kullanılabilir.".to_string(),
-                "prior_notice_last_day ekleyin ya da prior_notice_start_day kaldırın.",
             ));
         }
 
@@ -824,21 +813,22 @@ mod tests {
     }
 
     #[test]
-    fn bkr_002_start_day_without_last_day() {
+    fn valid_type1_start_day_without_last_day_is_allowed() {
         let file = make_file(
             vec![
                 "booking_rule_id",
                 "booking_type",
-                "prior_notice_last_time",
+                "prior_notice_duration_min",
                 "prior_notice_start_day",
                 "prior_notice_start_time",
             ],
-            vec![vec!["BR1", "2", "12:00:00", "7", "09:00:00"]],
+            vec![vec!["BR1", "1", "30", "7", "09:00:00"]],
         );
         let (_, notices) = validate_booking_rules(&file);
         assert!(
-            notices.iter().any(|n| n.rule_id == "BKR_002"),
-            "BKR_002 bekleniyor"
+            notices.iter().all(|n| n.rule_id != "BKR_002"),
+            "geçerli type=1 satırı BKR_002 üretmemeli: {:?}",
+            notices
         );
     }
 

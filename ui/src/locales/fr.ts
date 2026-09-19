@@ -632,7 +632,6 @@ const fr: LocaleShape = {
     'ARC_024': '« {entity_id} » est un fichier .txt situé dans un sous-répertoire — les analyseurs GTFS standard ne le liront pas.',
     // BKR
     'BKR_001': 'Règle de réservation « {entity_id} » : prior_notice_start_day est défini dans un contexte interdit.',
-    'BKR_002': 'Règle de réservation « {entity_id} » : prior_notice_start_day exige prior_notice_last_day.',
     'BKR_003': 'Règle de réservation « {entity_id} » : prior_notice_start_time exige prior_notice_start_day.',
     'BKR_004': 'Règle de réservation « {entity_id} » : les champs prior_notice sont interdits pour la réservation en temps réel.',
     'BKR_005': 'Règle de réservation « {entity_id} » : prior_notice_duration_max n’est valide qu’avec booking_type=1.',
@@ -1713,7 +1712,6 @@ const fr: LocaleShape = {
     'ATR_008': 'Utilisez une adresse e-mail valide pour attribution_email.',
     // BKR
     'BKR_001': 'N’utilisez les champs basés sur le jour antérieur qu’avec booking_type=2.',
-    'BKR_002': 'Ajoutez prior_notice_last_day, ou retirez prior_notice_start_day.',
     'BKR_003': 'Ajoutez prior_notice_start_day, ou retirez prior_notice_start_time.',
     'BKR_004': 'Retirez les champs prior_notice pour la réservation instantanée, ou corrigez la valeur booking_type.',
     'BKR_005': 'prior_notice_duration_max ne peut être utilisé qu’avec booking_type=1 (jour même).',
@@ -2035,7 +2033,6 @@ const fr: LocaleShape = {
     'TRP_035': 'trips.txt contient un service_id vide',
     // BKR
     'BKR_001': 'Champ de réservation en jour antérieur défini dans un contexte interdit',
-    'BKR_002': 'prior_notice_start_day valide uniquement avec prior_notice_last_day',
     'BKR_003': 'prior_notice_start_time valide uniquement avec prior_notice_start_day',
     'BKR_004': 'Champs prior_notice interdits pour la réservation en temps réel',
     'BKR_005': 'prior_notice_duration_max valide uniquement avec booking_type=1',

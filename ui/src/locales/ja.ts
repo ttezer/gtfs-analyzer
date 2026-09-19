@@ -611,7 +611,6 @@ const ja: LocaleShape = {
     'ARC_024': "'{entity_id}'はサブディレクトリ内の.txtファイルです — 標準GTFSパーサーは読み込みません。",
     // BKR
     'BKR_001': "予約ルール'{entity_id}'：禁止されたコンテキストでprior_notice_start_dayが設定されています。",
-    'BKR_002': "予約ルール'{entity_id}'：prior_notice_start_dayにはprior_notice_last_dayが必要です。",
     'BKR_003': "予約ルール'{entity_id}'：prior_notice_start_timeにはprior_notice_start_dayが必要です。",
     'BKR_004': "予約ルール'{entity_id}'：リアルタイム予約ではprior_noticeフィールドは禁止されています。",
     'BKR_005': "予約ルール'{entity_id}'：prior_notice_duration_maxはbooking_type=1のみ有効です。",
@@ -1300,7 +1299,6 @@ const ja: LocaleShape = {
     'ATR_012': 'trips.txtに存在するtrip_idを使用してください。',
     // BKR
     'BKR_001': 'booking_type=2の場合にのみ前日ベースのフィールドを使用してください。',
-    'BKR_002': 'prior_notice_last_dayを追加するか、prior_notice_start_dayを削除してください。',
     'BKR_003': 'prior_notice_start_dayを追加するか、prior_notice_start_timeを削除してください。',
     'BKR_004': 'インスタント予約のprior_noticeフィールドを削除するか、booking_typeの値を修正してください。',
     'BKR_005': 'prior_notice_duration_maxはbooking_type=1（当日）の場合にのみ使用できます。',
@@ -1919,7 +1917,6 @@ const ja: LocaleShape = {
     'TRP_035': 'trips.txtのservice_idが空',
     // BKR
     'BKR_001': '予約ルール: prior_notice_start_dayが禁止コンテキスト',
-    'BKR_002': 'prior_notice_start_dayにprior_notice_last_dayが必要',
     'BKR_003': 'prior_notice_start_timeにprior_notice_start_dayが必要',
     'BKR_004': 'リアルタイム予約でprior_noticeフィールドが禁止',
     'BKR_005': 'prior_notice_duration_maxはbooking_type=1のみ有効',

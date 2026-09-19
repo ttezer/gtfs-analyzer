@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-624 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+623 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -52,7 +52,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | Kural | Başlık | Önem | Sınıf |
 |---|---|---|---|
 | BKR_001 | Önceki gün rezervasyon alanı yasak bağlamda dolu | YÜKSEK | Spec |
-| BKR_002 | prior_notice_start_day tek başına, last_day olmadan kullanılmış | ORTA | Quality |
 | BKR_003 | prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir | YÜKSEK | Spec |
 | BKR_004 | Anlık rezervasyonda prior_notice alanları yasak | YÜKSEK | Spec |
 | BKR_005 | prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak) | ORTA | Spec |

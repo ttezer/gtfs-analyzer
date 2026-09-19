@@ -208,16 +208,9 @@ pub static RULES: &[RuleMeta] = &[
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "Önceki gün rezervasyon alanı yasak bağlamda dolu"),
-    // 🔴 SINIF Spec → Quality (2026-08-19, #170). Kartında spec alıntısı YOKTU ve
-    // olmamasının sebebi var: spec `prior_notice_start_day` için "Conditionally
-    // Forbidden: booking_type=0'da yasak · booking_type=1 ve duration_max varsa
-    // yasak · **aksi hâlde OPSİYONEL**" der. `last_day` ile birlikte kullanılma
-    // şartı HİÇBİR yerde geçmez; MobilityData da aynı yerde durur —
-    // `missing_prior_notice_last_day` yalnız booking_type=2 için (bizde BKR_008).
-    // "Başlangıç günü tek başına pencere oluşturmaz" bir YORUMDU; Spec sınıfında
-    // durduğu sürece geçerli feed'e norm ihlali iddia ediyordu (asimetri kuralı).
-    r!("BKR_002", Orta, Quality, 1, &[], Some("booking_rule_id"), VS, Entity,
-        "prior_notice_start_day tek başına, last_day olmadan kullanılmış"),
+    // BKR_002 (2026-09-19): retired. `prior_notice_start_day`,
+    // `prior_notice_duration_max` boşken booking_type=1 için isteğe bağlıdır; bu
+    // kimlik yeniden kullanılmamalıdır (removed_ids_absent testiyle korunur).
     r!("BKR_003", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir"),
     r!("BKR_004", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -259,8 +252,8 @@ pub static RULES: &[RuleMeta] = &[
     // booking_url yolcunun rezervasyonu FİİLEN yaptığı adrestir; info_url yalnız açıklayıcıdır.
     // BKR_024: spec `prior_notice_start_day` için "Forbidden for booking_type=1 if
     // prior_notice_duration_max is defined" der. `duration_max` parser'da üç yerde geçer
-    // ve hiçbiri `start_day` ile ilişkilendirilmiyordu; `BKR_002` komşudur ama başka
-    // hükmü ölçer (`start_day` yalnız `last_day` ile kullanılabilir).
+    // ve hiçbiri `start_day` ile ilişkilendirilmiyordu; BKR_024 yalnızca bu üç alanlı
+    // koşulu ölçer.
     // ⚠️ Korpusta örnek YOK → sentetik fixture.
     r!("BKR_024", Orta, Spec, 1, &[], Some("booking_rule_id"), VS, Row,
         "booking_type=1 ve duration_max varken prior_notice_start_day yasak"),
@@ -2023,7 +2016,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ATR_011", GtfsSpec),
     ("ATR_012", GtfsSpec),
     ("BKR_001", GtfsSpec),
-    ("BKR_002", ProjectQuality),
     ("BKR_003", GtfsSpec),
     ("BKR_004", GtfsSpec),
     ("BKR_005", GtfsSpec),
@@ -2748,6 +2740,10 @@ mod tests {
         // 1.366 feed'lik ölçümde 481 feed'in 481'inde DQ_016 ile BİRLİKTE ateşledi; aynı hücre
         // Quality skorunda iki kez sayılıyordu.
         assert!(get_rule("STP_025").is_none());
+        // BKR_002 (2026-09-19): `prior_notice_start_day` ile `prior_notice_last_day`
+        // arasında spec'te bulunmayan eşlik zorunluluğu dayatıyordu. Kimlik emekli edildi
+        // ve ileride başka bir kurala verilemez.
+        assert!(get_rule("BKR_002").is_none());
     }
 
     #[test]
@@ -2755,7 +2751,7 @@ mod tests {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
         let removed_ids = [
             "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
-            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025",
+            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002",
         ];
         for rule in RULES {
             for &b in rule.blocks {

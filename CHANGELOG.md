@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **`BKR_002` (prior_notice_start_day requires prior_notice_last_day).** This was not
+  required by the GTFS specification and produced a false positive for valid
+  `booking_type=1` rows. The identifier is retired and cannot be reused.
 - **`STP_025` (stop_name has leading or trailing whitespace), rule count
   625 → 624.** It reported, per stop, a fact `DQ_016` already reports for every
   field of `stops.txt`. On 1,366 corpus feeds it fired in 481, and in all 481
