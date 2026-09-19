@@ -730,7 +730,7 @@ const fr: LocaleShape = {
     'RTS_016': 'La ligne « {entity_id} » n’a aucun jour de service actif.',
     'RTS_017': 'La ligne « {entity_id} » n’a aucun tracé défini.',
     'RTS_018': 'Ligne « {entity_id} » : continuous_drop_off « {observed_value} » est invalide.',
-    'RTS_019': 'Ligne « {entity_id} » : {field} « {observed_value} » est partagé par les lignes : {conflicting_routes}.',
+    'RTS_019': 'Ligne « {entity_id} » : le nom « {observed_value} » est utilisé par plusieurs lignes : {conflicting_routes}.',
     'RTS_020': 'Ligne « {entity_id} » : route_url et agency_url sont identiques.',
     'RTS_021': 'Ligne « {entity_id} » : route_short_name dépasse la limite de 6 caractères de Google Transit.',
     'RTS_022': 'Ligne « {entity_id} » : route_long_name contient route_short_name.',
@@ -1084,7 +1084,7 @@ const fr: LocaleShape = {
     'FIN_015': 'feed_info.txt : plusieurs enregistrements trouvés.',
     'FIN_016': 'feed_info.txt : feed_start_date est dans le futur — le jeu de données n’est pas encore actif ({observed_value}).',
     'FIN_017': 'feed_info.txt : le jeu de données expire dans un futur très lointain ({observed_value}).',
-    'FIN_018': 'feed_info.txt : feed_contact_email et feed_contact_url sont tous deux absents.',
+    'FIN_018': 'feed_info.txt : aucun contact technique n’est indiqué (feed_contact_email ou feed_contact_url).',
     'FIN_019': 'La validité du jeu de données expire prochainement (date de fin : {observed_value}).',
     'FIN_020': 'La fenêtre de validité du jeu de données n’est que de {observed_value} — trop courte pour une exploitation opérationnelle.',
     // TRN
@@ -1548,7 +1548,7 @@ const fr: LocaleShape = {
     'RTS_012': 'Supprimez la ligne inutilisée, ou affectez-lui une course.',
     'RTS_013': 'Mettez le champ à une valeur de service continu GTFS valide (0–3).',
     'RTS_018': 'Mettez le champ à une valeur de service continu GTFS valide (0–3).',
-    'RTS_019': 'Recommandation qualité : vérifiez si les lignes sont volontairement distinctes ; utilisez des noms différenciants pour des services voyageurs distincts, ou un seul route_id pour un service nommé unique.',
+    'RTS_019': 'Vérifiez les lignes : donnez des noms distincts aux services différents, ou utilisez un seul route_id pour le même service. Aucune action n’est nécessaire si c’est intentionnel.',
     'RTS_021': 'Gardez route_short_name en dessous de 6 caractères pour la compatibilité Google Transit, ou renseignez route_long_name.',
     'RTS_023': 'route_desc doit décrire la ligne, et non répéter son nom.',
     // TRP (niveau champ)
@@ -1699,7 +1699,7 @@ const fr: LocaleShape = {
     'FIN_013': 'Renseignez agency_id dans fare_attributes.txt pour préciser à quelle agence chaque tarif se rattache.',
     'FIN_016': 'Mettez feed_start_date à aujourd’hui ou à une date antérieure, ou publiez le jeu de données au bon moment.',
     'FIN_017': 'Mettez feed_end_date à une date de fin réaliste (dans les 2 ans).',
-    'FIN_018': 'Recommandation : ajoutez feed_contact_email ou feed_contact_url dans feed_info.txt afin de fournir un contact technique aux utilisateurs des données.',
+    'FIN_018': 'Recommandation : ajoutez feed_contact_email ou feed_contact_url dans feed_info.txt. Ces champs sont facultatifs dans la spécification GTFS.',
     'FIN_019': 'Prévoyez de publier un jeu de données mis à jour avant l’expiration du jeu actuel.',
     'FIN_020': 'Élargissez la fenêtre de validité du jeu de données pour couvrir au moins un cycle de service complet.',
     // ATR

@@ -728,7 +728,7 @@ const en: LocaleShape = {
     'RTS_016': "Route '{entity_id}' has no active service days.",
     'RTS_017': "Route '{entity_id}' has no shape defined.",
     'RTS_018': "Route '{entity_id}': continuous_drop_off '{observed_value}' is invalid.",
-    'RTS_019': "Route '{entity_id}': {field} '{observed_value}' is shared by routes: {conflicting_routes}.",
+    'RTS_019': "Route '{entity_id}': the name '{observed_value}' is used by multiple routes: {conflicting_routes}.",
     'RTS_020': "Route '{entity_id}': route_url and agency_url are identical.",
     'RTS_021': "Route '{entity_id}': route_short_name exceeds Google Transit's 6-character limit.",
     'RTS_022': "Route '{entity_id}': route_long_name contains the route_short_name.",
@@ -1082,7 +1082,7 @@ const en: LocaleShape = {
     'FIN_015': 'feed_info.txt: multiple records found.',
     'FIN_016': "feed_info.txt: feed_start_date is in the future — feed not yet active ({observed_value}).",
     'FIN_017': "feed_info.txt: feed expires very far in the future ({observed_value}).",
-    'FIN_018': 'feed_info.txt: both feed_contact_email and feed_contact_url are missing.',
+    'FIN_018': 'feed_info.txt: no technical contact is provided (feed_contact_email or feed_contact_url).',
     'FIN_019': "Feed validity expires soon (end date: {observed_value}).",
     'FIN_020': "Feed validity window is only {observed_value} — too short for operational use.",
     // TRN
@@ -1546,7 +1546,7 @@ const en: LocaleShape = {
     'RTS_012': 'Remove the unused route or assign it a trip.',
     'RTS_013': 'Set the field to a valid GTFS continuous service value (0–3).',
     'RTS_018': 'Set the field to a valid GTFS continuous service value (0–3).',
-    'RTS_019': 'Quality recommendation: review whether the routes are intentionally separate; use distinguishing names for distinct passenger services, or one route_id for a single named service.',
+    'RTS_019': 'Check the routes: give distinct names to separate services, or use one route_id for the same service. No action is needed if this is intentional.',
     'RTS_021': 'Keep route_short_name under 6 characters for Google Transit compatibility, or fill in route_long_name.',
     'RTS_023': 'route_desc should describe the route, not repeat its name.',
     // TRP (field-level)
@@ -1697,7 +1697,7 @@ const en: LocaleShape = {
     'FIN_013': 'Fill in agency_id in fare_attributes.txt to clarify which agency each fare belongs to.',
     'FIN_016': 'Set feed_start_date to today or an earlier date, or publish the feed at the right time.',
     'FIN_017': 'Set feed_end_date to a realistic end date (within 2 years).',
-    'FIN_018': 'Recommended: add feed_contact_email or feed_contact_url to feed_info.txt so consumers have a technical contact.',
+    'FIN_018': 'Recommended: add feed_contact_email or feed_contact_url to feed_info.txt. These fields are optional in the GTFS Spec.',
     'FIN_019': 'Plan to publish an updated feed before the current one expires.',
     'FIN_020': 'Extend the feed validity window to cover at least one full service cycle.',
     // ATR

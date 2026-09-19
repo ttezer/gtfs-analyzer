@@ -5594,8 +5594,8 @@ fn check_data_quality(
                     ctr, "FIN_018", EntityType::Feed,
                     None, None, "feed_info.txt", None, Some("feed_contact_email"),
                     None, None,
-                    "feed_contact_email ve feed_contact_url alanlarının ikisi de eksik — kullanıcılar feed sorunlarını nereden bildireceğini bilemiyor.".to_string(),
-                    "Öneri: Veri tüketicilerinin teknik iletişim noktası olması için feed_info.txt'e feed_contact_email veya feed_contact_url ekleyin.",
+                    "feed_info.txt'te teknik iletişim bilgisi yok (feed_contact_email veya feed_contact_url).".to_string(),
+                    "Öneri: feed_info.txt'e feed_contact_email veya feed_contact_url ekleyin. Bu alanlar GTFS Spec'te isteğe bağlıdır.",
                 ));
             }
 

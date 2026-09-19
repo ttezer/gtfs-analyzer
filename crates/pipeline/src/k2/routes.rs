@@ -570,8 +570,8 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 Some(anchor_id.clone()), None,
                 "routes.txt", Some(*anchor_line), Some("route_long_name"),
                 Some(display.clone()), None,
-                format!("'{display}' hat adı (kısa+uzun aynı) şu hatlar tarafından paylaşılıyor: {group_str}."),
-                "Kalite önerisi: hatların bilerek ayrı olup olmadığını kontrol edin; farklı yolcu hizmetleriyse ayırt edici adlar kullanın, tek bir adlandırılmış hizmetse tek route_id kullanın.",
+                format!("'{display}' adı birden fazla hatta kullanılıyor: {group_str}."),
+                "Kontrol edin: Bu hatlar farklı hizmetlerse adlarını ayırt edin. Aynı hizmetse tek route_id kullanın. Bilerek böyleyse işlem gerekmez.",
             );
             n.details = Some(
                 [("conflicting_routes".to_string(), group_str.clone())]
