@@ -808,7 +808,7 @@ const ja: LocaleShape = {
     'STM_058': "便'{entity_id}'：Flexの受降車ウィンドウ時刻'{observed_value}'が有効な時刻ではありません。",
     'STM_055': "トリップ'{entity_id}'：同じstop_timeにFlexの乗降ウィンドウが定義されている場合、continuous_drop_off {observed_value} は禁止です。",
     // PDW
-    'PDW_006': "便'{entity_id}'：同じ便とゾーンの乗降ウィンドウが重複しています。",
+    'PDW_006': "便'{entity_id}'：同じゾーンで乗車（または降車）可能な行の乗降ウィンドウが重複しています。",
     // LOC
     'LOC_001': "locations.geojsonのジオメトリタイプが無効です：'{observed_value}'。",
     'LOC_002': "locations.geojsonのフィーチャー{observed_value}のgeometryがnullまたは欠如しています。",
@@ -1557,7 +1557,7 @@ const ja: LocaleShape = {
     'OPR_024': '便が正しい路線に割り当てられているか確認してください。非常に大きな路線は分割を検討してください。',
     'OPR_025': 'stop_times.txtのdeparture_timeとarrival_timeの値にデータエラーがないか確認してください。',
     // PDW
-    'PDW_006': '同一便・ゾーン内の時間ウィンドウが重複しないようにしてください。',
+    'PDW_006': "同一便・ゾーン内で乗車（または降車）可能な行の時間ウィンドウが重複しないようにしてください。",
     // PTH
     'PTH_001': '各経路レコードに一意のpathway_idを割り当ててください。',
     'PTH_002': 'from_stop_idに有効なstop_idを使用してください。',

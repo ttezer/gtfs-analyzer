@@ -829,7 +829,7 @@ const fr: LocaleShape = {
     'STM_058': 'Course « {entity_id} » : l’heure de fenêtre Flex de prise en charge/dépose « {observed_value} » n’est pas une heure valide.',
     'STM_055': 'Course « {entity_id} » : continuous_drop_off {observed_value} est interdit lorsqu’une fenêtre Flex de prise en charge/dépose est définie sur le même stop_time.',
     // PDW
-    'PDW_006': 'Course « {entity_id} » : fenêtres de prise en charge/dépose qui se chevauchent pour un même couple course+zone.',
+    'PDW_006': "Course « {entity_id} » : fenêtres de prise en charge/dépose qui se chevauchent dans une même zone avec le même rôle (prise en charge ou dépose).",
     // LOC
     'LOC_001': 'Type de géométrie invalide dans locations.geojson : « {observed_value} ».',
     'LOC_002': 'L’objet Feature {observed_value} de locations.geojson a une géométrie nulle ou absente.',
@@ -1368,7 +1368,7 @@ const fr: LocaleShape = {
     'OPR_024': 'Vérifiez que les courses sont correctement rattachées aux lignes ; envisagez de scinder les lignes très volumineuses.',
     'OPR_025': 'Vérifiez les valeurs departure_time et arrival_time de stop_times.txt à la recherche d’erreurs de données.',
     // PDW
-    'PDW_006': 'Assurez-vous que les fenêtres horaires d’un même couple course+zone ne se chevauchent pas.',
+    'PDW_006': "Assurez-vous que les lignes ouvertes à la prise en charge (ou à la dépose) d’un même couple course+zone n’ont pas de fenêtres horaires qui se chevauchent.",
     // PTH
     'PTH_012': 'Ajoutez une entrée de station (location_type=2) et complétez les connexions de cheminement.',
     'PTH_013': 'Créez un itinéraire entrée-vers-quai respectant les conditions d’accessibilité (max_slope ≤ 0,08, min_width ≥ 0,9).',

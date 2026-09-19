@@ -827,7 +827,7 @@ const en: LocaleShape = {
     'STM_058': "Trip '{entity_id}': the Flex pickup/drop-off window time '{observed_value}' is not a valid time.",
     'STM_055': "Trip '{entity_id}': continuous_drop_off {observed_value} is forbidden when a Flex pickup/drop-off window is defined on the same stop_time.",
     // PDW
-    'PDW_006': "Trip '{entity_id}': overlapping pickup/drop-off windows for the same trip+zone.",
+    'PDW_006': "Trip '{entity_id}': pickup/drop-off windows overlap in the same zone with the same pickup or drop-off role.",
     // LOC
     'LOC_001': "Invalid geometry type in locations.geojson: '{observed_value}'.",
     'LOC_002': "Feature {observed_value} in locations.geojson has null or missing geometry.",
@@ -1366,7 +1366,7 @@ const en: LocaleShape = {
     'OPR_024': 'Check that trips are correctly assigned to routes; consider splitting very large routes.',
     'OPR_025': 'Review departure_time and arrival_time values in stop_times.txt for data errors.',
     // PDW
-    'PDW_006': 'Ensure time windows within the same trip+zone do not overlap.',
+    'PDW_006': "Ensure rows open for pickup (or for drop-off) in the same trip+zone do not have overlapping time windows.",
     // PTH
     'PTH_012': 'Add a station entrance (location_type=2) and complete pathway connections.',
     'PTH_013': 'Create an entrance-to-platform route meeting accessibility conditions (max_slope ≤ 0.08, min_width ≥ 0.9).',

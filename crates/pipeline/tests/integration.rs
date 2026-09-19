@@ -5861,3 +5861,51 @@ fn kanji_only_text_does_not_open_jp_validation() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
+
+/// Goshogawara talep üzerine taksi deseni (2026-09-19): tek durak grubu içinde yalnız-biniş
+/// ve yalnız-iniş satırı aynı pencereyi paylaşır. Spec'in yasakladığı örtüşme ROL de
+/// örtüştüğünde vardır; sabit güzergâhı olmayan sefer shape kuralına da girmez.
+#[test]
+fn zone_only_flex_trip_is_not_an_overlap_or_shape_gap() {
+    fn flex_files(stop_times: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
+        let mut files = base_files();
+        files.push((
+            "location_groups.txt",
+            b"location_group_id,location_group_name\nC1,Area\n",
+        ));
+        files.push((
+            "location_group_stops.txt",
+            b"location_group_id,stop_id\nC1,S1\nC1,S2\n",
+        ));
+        files.push((
+            "booking_rules.txt",
+            b"booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n",
+        ));
+        files[4] = ("stop_times.txt", stop_times);
+        files
+    }
+    let split_roles = flex_files(
+        b"trip_id,stop_sequence,location_group_id,pickup_type,drop_off_type,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_booking_rule_id\n\
+          T1,1,C1,2,1,09:00:00,18:00:00,BR1,BR1\n\
+          T1,2,C1,1,2,09:00:00,18:00:00,BR1,BR1\n",
+    );
+    match run(&split_roles) {
+        ValidateResult::Ok(vr) => {
+            for rule in ["PDW_006", "DQ_006", "RTS_017"] {
+                assert!(!has(&vr, rule), "zone-only Flex sefer {rule} üretmemeli");
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+
+    // Kapının kanıtı: iki satır da binişe açıksa örtüşme gerçektir.
+    let same_role = flex_files(
+        b"trip_id,stop_sequence,location_group_id,pickup_type,drop_off_type,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_booking_rule_id\n\
+          T1,1,C1,2,2,09:00:00,18:00:00,BR1,BR1\n\
+          T1,2,C1,2,2,09:00:00,18:00:00,BR1,BR1\n",
+    );
+    match run(&same_role) {
+        ValidateResult::Ok(vr) => assert!(has(&vr, "PDW_006"), "aynı rolde örtüşme PDW_006 üretmeli"),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}

@@ -69,6 +69,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`STP_033` is no longer reported when the feed proves uniform fare coverage**
   (a single fare without `fare_rules.txt`, a catch-all rule, or a route-uniform
   rule for every served route). Zone-based or ambiguous fare models keep it.
+- **Flex on-demand trips:** `PDW_006` now reports overlapping windows in the
+  same trip and zone only when both rows share a role (both open for pickup or
+  both open for drop-off), as the spec's overlap constraint requires; a
+  pickup-only and a drop-off-only row sharing one window is the spec's
+  single-zone example. `DQ_006` and `RTS_017` ignore trips made only of Flex
+  zone or location-group rows, which have no fixed path to shape.
 - `RTS_019` and `FIN_018` messages and remediations are shorter and state that
   they are quality recommendations (`FIN_018`'s fields are optional in the spec).
 - `translations.txt::table_name` and `field_name` validation now uses the generated

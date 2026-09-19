@@ -526,6 +526,26 @@ fn gtfs_jp_future_only_date(
     (first > today_yyyymmdd).then_some(first)
 }
 
+/// Trips whose every stop_time is a Flex zone or location-group row (no `stop_id`).
+/// Such an on-demand trip has no fixed path, so `shape_id` cannot describe it;
+/// shape coverage rules (DQ_006, RTS_017) leave these trips out.
+fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
+    let index = &records.stop_times_index;
+    index
+        .iter_trips()
+        .filter(|(_, stops)| {
+            !stops.is_empty()
+                && stops.iter().all(|st| {
+                    st.stop_idx == u32::MAX
+                        && index
+                            .flex_of(st)
+                            .is_some_and(|f| f.location_id.is_some() || f.location_group_id.is_some())
+                })
+        })
+        .map(|(trip_id, _)| trip_id.as_str())
+        .collect()
+}
+
 fn finalize_stm007_pending(
     pending: &mut Vec<Notice>,
     notices: &mut Vec<Notice>,
@@ -5064,8 +5084,13 @@ fn check_route_trip_quality(
 
     // ── PDW_006: aynı trip+zone'da örtüşen pickup/drop-off penceresi ──────────
     {
-        // (trip_id, zone_key) → [(start_secs, end_secs, line)]
-        type ZoneWindows<'a> = HashMap<(&'a str, &'a str), Vec<(u64, u64, u64)>>;
+        // Spec (stop_times.txt): yasak olan, AYNI trip'te geometri + zaman penceresi +
+        // `pickup_type` veya `drop_off_type` üçünün BİRLİKTE örtüşmesidir. Yalnız-biniş
+        // satırı ile yalnız-iniş satırının aynı zone'da aynı pencereyi paylaşması, spec'in
+        // "tek zone içinde talep üzerine hizmet" örneğinin kendisidir (Goshogawara Flex
+        // taslağı, 2026-09-19) — rol örtüşmüyorsa bulgu yoktur.
+        // (trip_id, zone_key) → [(start_secs, end_secs, line, pickup_open, drop_off_open)]
+        type ZoneWindows<'a> = HashMap<(&'a str, &'a str), Vec<(u64, u64, u64, bool, bool)>>;
         let mut zone_wins: ZoneWindows<'_> = HashMap::new();
         for (trip_id, stops) in records.stop_times_index.iter_trips() {
             for st in stops {
@@ -5090,7 +5115,13 @@ fn check_route_trip_quality(
                 zone_wins
                     .entry((trip_id.as_str(), zone))
                     .or_default()
-                    .push((s, e, st.line as u64));
+                    .push((
+                        s,
+                        e,
+                        st.line as u64,
+                        flex.pickup_type != Some(1),
+                        flex.drop_off_type != Some(1),
+                    ));
             }
         }
 
@@ -5098,21 +5129,27 @@ fn check_route_trip_quality(
             if wins.len() < 2 {
                 continue;
             }
-            wins.sort_by_key(|&(s, _, _)| s);
-            for i in 1..wins.len() {
-                let (_ps, pe, _) = wins[i - 1];
-                let (cs, _ce, cl) = wins[i];
-                if cs < pe {
-                    notices.push(k6_notice(
-                        ctr, "PDW_006", EntityType::Trip,
-                        Some(trip_id.to_string()), Some(trip_id.to_string()),
-                        "stop_times.txt", Some(cl), Some("start_pickup_drop_off_window"),
-                        None, None,
-                        format!("trip_id '{}' için zone '{}' içinde örtüşen pickup/drop-off pencereleri var.", trip_id, zone),
-                        "Aynı trip+zone içindeki zaman pencerelerinin örtüşmediğinden emin olun.",
-                    ));
-                    break;
-                }
+            wins.sort_by_key(|&(s, _, _, _, _)| s);
+            // Aynı trip+zone satırları azdır; rol şartı bitişik-çift taramasını bozduğu
+            // için çiftler doğrudan karşılaştırılır.
+            let overlap_line = (1..wins.len()).find_map(|i| {
+                let (cs, _ce, cl, c_pick, c_drop) = wins[i];
+                wins[..i]
+                    .iter()
+                    .any(|&(_ps, pe, _, p_pick, p_drop)| {
+                        cs < pe && ((c_pick && p_pick) || (c_drop && p_drop))
+                    })
+                    .then_some(cl)
+            });
+            if let Some(cl) = overlap_line {
+                notices.push(k6_notice(
+                    ctr, "PDW_006", EntityType::Trip,
+                    Some(trip_id.to_string()), Some(trip_id.to_string()),
+                    "stop_times.txt", Some(cl), Some("start_pickup_drop_off_window"),
+                    None, None,
+                    format!("trip_id '{}' için zone '{}' içinde aynı biniş/iniş rolüyle örtüşen pickup/drop-off pencereleri var.", trip_id, zone),
+                    "Aynı trip+zone içinde biniş (veya iniş) açık satırların zaman pencerelerinin örtüşmediğinden emin olun.",
+                ));
             }
         }
     }
@@ -5318,9 +5355,21 @@ fn check_data_quality(
     }
 
     // DQ_006: şekil (shape) olmayan trip oranı çok yüksek (> %80)
-    if trips_usable && !records.trips.is_empty() {
-        let shapeless = records.trips.iter().filter(|t| t.shape_idx == 0).count();
-        let ratio = shapeless as f64 / records.trips.len() as f64;
+    // Yalnız Flex zone/grup satırlı seferler paydadan çıkar: sabit güzergâhları yoktur
+    // (Goshogawara talep üzerine taksi feed'inde %100 "shape yok" YÜKSEK bulgusu üretiyordu).
+    let zone_only = zone_only_trip_ids(records);
+    let fixed_trips = records.trips.len() - records
+        .trips
+        .iter()
+        .filter(|t| zone_only.contains(t.trip_id.as_str()))
+        .count();
+    if trips_usable && fixed_trips > 0 {
+        let shapeless = records
+            .trips
+            .iter()
+            .filter(|t| t.shape_idx == 0 && !zone_only.contains(t.trip_id.as_str()))
+            .count();
+        let ratio = shapeless as f64 / fixed_trips as f64;
         if ratio > 0.8 {
             notices.push(k6_notice(
                 ctr,
@@ -7462,8 +7511,13 @@ fn check_remaining_analytics<'a>(
     // (route_short_name etiketiyle; RTS_025 deseni. Eski feed-özeti tek route_id
     // gösteriyordu; artık hangi hatların shape'siz olduğu tek tek görülür.)
     {
+        // Yalnız Flex zone/grup seferli hatlar atlanır (DQ_006 ile aynı gerekçe).
+        let zone_only = zone_only_trip_ids(records);
         let mut route_has_shape: HashMap<&str, bool> = HashMap::new();
         for t in &records.trips {
+            if zone_only.contains(t.trip_id.as_str()) {
+                continue;
+            }
             let entry = route_has_shape.entry(ti_rem.route_id(t)).or_insert(false);
             if t.shape_idx != 0 {
                 *entry = true;
