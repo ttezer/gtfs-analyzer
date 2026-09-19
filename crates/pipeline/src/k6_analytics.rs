@@ -13920,6 +13920,82 @@ mod tests {
     }
 
     #[test]
+    fn global_future_only_feed_keeps_quality_and_operational_notices() {
+        use crate::k5_derived::CalendarBitmap;
+
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+            ],
+        );
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(), [20260601u32].into_iter().collect())]
+                    .into_iter()
+                    .collect(),
+            },
+            ..Default::default()
+        };
+
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let cal015 = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "CAL_015")
+            .expect("global future-only feed CAL_015 üretmeli");
+        assert_eq!(cal015.severity, gtfs_core::Severity::Dusuk);
+        for rule in ["CAL_017", "CAL_024", "TRP_023"] {
+            assert!(
+                result.notices.iter().any(|n| n.rule_id == rule),
+                "global future-only feed {rule} üretmeli"
+            );
+        }
+    }
+
+    #[test]
+    fn non_jp_future_only_feed_keeps_global_behavior() {
+        use crate::k5_derived::CalendarBitmap;
+
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+            ],
+        );
+        records.is_gtfs_jp = Some(false);
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(), [20260601u32].into_iter().collect())]
+                    .into_iter()
+                    .collect(),
+            },
+            ..Default::default()
+        };
+
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "CAL_015" && n.severity == gtfs_core::Severity::Dusuk),
+            "non-JP future-only feed global CAL_015 davranışını korumalı"
+        );
+        for rule in ["CAL_017", "CAL_024", "TRP_023"] {
+            assert!(
+                result.notices.iter().any(|n| n.rule_id == rule),
+                "non-JP future-only feed {rule} üretmeli"
+            );
+        }
+    }
+
+    #[test]
     fn gtfs_jp_future_only_feed_emits_one_zero_penalty_calendar_notice() {
         use crate::k5_derived::CalendarBitmap;
 
