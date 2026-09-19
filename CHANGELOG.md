@@ -16,11 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `destination_id`. Reverse or same-zone pairs that no trip serves are not
   required. Catch-all and route-uniform fares, routes reachable by a
   `contains_id` rule, routes with unzoned or Flex stops, and Fares v2 are out of
-  scope. `pickup_type`/`drop_off_type` restrictions are not yet considered.
+  scope. A pair is only required when boarding is allowed at the origin and
+  alighting at the destination (`pickup_type`/`drop_off_type` ≠ 1).
 - **`disabled_rule_ids` config key and `--disable-rule` CLI option.** Listed
   rules are removed after analysis and before reporting, so they affect neither
   notices, scores, report views, nor the R9 queue. Native, WASM, and SDK apply
-  the same filter.
+  the same filter, and the web app has a "Hidden rules" settings field. Unknown
+  or retired ids and Spec-class rules are rejected with an `InvalidInput`
+  error, so a typo cannot silently disable nothing and the publishability
+  verdict cannot be hidden.
 - **`JPN_033` — reserved GTFS-JP namespace in custom names** (Medium/Interop,
   rule count 623 → 624). When the GTFS-JP detection gate is open, a custom file
   or column that uses MLIT's reserved `jp` namespace is reported: `*_jp` files

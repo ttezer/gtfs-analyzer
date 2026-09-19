@@ -155,6 +155,8 @@ const ja: LocaleShape = {
     'cfg.gtfs_jp_profile.auto'  : 'Auto（従来動作）',
     'cfg.gtfs_jp_profile.v3'    : 'V3',
     'cfg.gtfs_jp_profile.v4'    : 'V4',
+    'cfg.disabled_rule_ids.label' : "非表示にするルール",
+    'cfg.disabled_rule_ids.desc'  : "カンマ区切りのルールID（例：DQ_003, DQ_004）。指定したルールは指摘・スコア・修正キューから除外されます。Specルールは無効化できません。",
     'cfg.max_speed_bus_kmh.label'        : 'バス最大速度',
     'cfg.max_speed_bus_kmh.unit'         : 'km/h',
     'cfg.max_speed_bus_kmh.desc'         : 'バス便の最大許容速度',
@@ -574,6 +576,8 @@ const ja: LocaleShape = {
     'ResourceLimit.config_size': "設定JSONが4 MiBの安全上限を超えています。",
     'InvalidInput.today': "'today'の値が無効です：{today}（形式はYYYYMMDD、例：20260716）",
     'InvalidInput.config_parse': "設定の解析エラー：{detail}",
+    'InvalidInput.disabled_rule_unknown': "disabled_rule_ids のルール「{rule_id}」は既知のルールIDではありません。",
+    'InvalidInput.disabled_rule_spec': "ルール「{rule_id}」はSpecルールのため無効化できません。公開可否の判定はSpecルールに基づきます。",
   } as Record<string, string>,
 
   ruleMessages: {

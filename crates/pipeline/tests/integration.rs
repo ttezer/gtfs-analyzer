@@ -60,6 +60,28 @@ fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> Validate
 }
 
 #[test]
+fn disabled_rule_ids_reject_unknown_and_spec_rules() {
+    // Bilinmeyen/emekli kimlik sessizce hiçbir şeyi kapatmamalı; Spec kuralı yayın
+    // kararının kanıtıdır ve gizlenemez.
+    for (rule, variant) in [
+        ("DQ_04", "disabled_rule_unknown"),
+        ("BKR_002", "disabled_rule_unknown"),
+        ("BKR_001", "disabled_rule_spec"),
+    ] {
+        let config = ValidatorConfig {
+            disabled_rule_ids: vec![rule.to_string()],
+            ..ValidatorConfig::default()
+        };
+        match validate_bytes(&make_zip(&base_files()), &config, TODAY) {
+            ValidateResult::Fatal(e) => {
+                assert_eq!(e.params.get("variant").map(String::as_str), Some(variant), "{rule}: {e:?}");
+            }
+            other => panic!("{rule} için Fatal beklendi, alınan: {other:?}"),
+        }
+    }
+}
+
+#[test]
 fn disabled_rule_ids_remove_selected_findings_from_reports() {
     let baseline = run(&base_files());
     let baseline = match baseline {
@@ -498,6 +520,7 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         ValidateResult::Ok(vr) => assert!(!has(&vr, "FRL_009"), "yapılamayan çiftler istenmemeli"),
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
+
     // S2'de inilemiyorsa (drop_off_type=1) A→B yolcuya açık değildir; yalnız B→A
     // fiyatlı olsa da eksik çift yoktur.
     let mut no_drop_off = files.clone();
@@ -511,7 +534,6 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         ValidateResult::Ok(vr) => assert!(!has(&vr, "FRL_009"), "inilemeyen durağa çift istenmemeli"),
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
-
 
     let mut uniform = files;
     uniform.pop();

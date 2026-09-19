@@ -1864,6 +1864,8 @@
     "ResourceLimit.input_size": "入力ZIPがSDKの安全上限を超えています。",
     "ResourceLimit.config_size": "設定JSONが4 MiBの安全上限を超えています。",
     "InvalidInput.today": "'today'の値が無効です：{today}（形式はYYYYMMDD、例：20260716）",
-    "InvalidInput.config_parse": "設定の解析エラー：{detail}"
+    "InvalidInput.config_parse": "設定の解析エラー：{detail}",
+    "InvalidInput.disabled_rule_unknown": "disabled_rule_ids のルール「{rule_id}」は既知のルールIDではありません。",
+    "InvalidInput.disabled_rule_spec": "ルール「{rule_id}」はSpecルールのため無効化できません。公開可否の判定はSpecルールに基づきます。"
   }
 }

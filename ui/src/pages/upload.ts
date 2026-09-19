@@ -5,6 +5,7 @@ import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
 import type { EngineMode } from '../wasm';
 import { validateFeedUrl, urlFileName, isZipSignature } from './url-helpers';
+import { parseRuleIdList } from './rule-list';
 import { escHtml } from '../escape';
 
 const STAGE_ORDER = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7'];
@@ -40,7 +41,7 @@ const CONFIG_KEYS: Array<{ key: string; type: 'float' | 'int'; def: number; min:
 ];
 
 const GTFS_JP_PROFILES = ['auto', 'v3', 'v4'] as const;
-type ConfigValue = number | string;
+type ConfigValue = number | string | string[];
 type ConfigOverrides = Record<string, ConfigValue>;
 
 export function renderUpload(root: HTMLElement): void {
@@ -208,7 +209,23 @@ function renderSettingsFields(overrides: ConfigOverrides): string {
         </div>
         <div class="sf-desc">${escHtml(t('cfg.gtfs_jp_profile.desc'))} (${t('upload.default_for', { val: t('cfg.gtfs_jp_profile.auto') })})</div>
       </div>`;
-  return profileRow + CONFIG_KEYS.map(f => {
+  const disabled = Array.isArray(overrides.disabled_rule_ids) ? overrides.disabled_rule_ids : [];
+  const disabledOverridden = disabled.length > 0;
+  // Nishizawa geri bildirimi (2): yerel yayın profilinde gereksiz kontroller kapatılabilsin.
+  // Spec kuralları ve bilinmeyen kimlikler motor tarafında reddedilir (check_rule_scope).
+  const disabledRow = `
+      <div class="sf-row${disabledOverridden ? ' sf-overridden' : ''}">
+        <label class="sf-label" title="${escHtml(t('cfg.disabled_rule_ids.desc'))}">${escHtml(t('cfg.disabled_rule_ids.label'))}</label>
+        <div class="sf-control">
+          <input class="sf-input sf-value" type="text" data-key="disabled_rule_ids" data-def="" data-type="list"
+            placeholder="DQ_003, DQ_004, TRP_021" value="${escHtml(disabled.join(', '))}"
+            aria-label="${escHtml(t('cfg.disabled_rule_ids.label'))}"/>
+          <button class="sf-reset btn btn-ghost" data-key="disabled_rule_ids" title="${t('upload.reset')}"
+            ${!disabledOverridden ? 'style="visibility:hidden"' : ''}>✕</button>
+        </div>
+        <div class="sf-desc">${escHtml(t('cfg.disabled_rule_ids.desc'))}</div>
+      </div>`;
+  return profileRow + disabledRow + CONFIG_KEYS.map(f => {
     const val = overrides[f.key] !== undefined ? overrides[f.key] : f.def;
     const isOverridden = overrides[f.key] !== undefined;
     const label = t(`cfg.${f.key}.label`);
@@ -239,6 +256,7 @@ function parseConfigDelta(delta: string): ConfigOverrides {
     for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof value === 'number' && isFinite(value)) result[key] = value;
       else if (typeof value === 'string') result[key] = value;
+      else if (Array.isArray(value) && value.every(v => typeof v === 'string')) result[key] = value as string[];
     }
     return result;
   } catch { return {}; }
@@ -339,6 +357,11 @@ function saveSettings(root: HTMLElement): void {
     const def = input.dataset['def']!;
     if (input instanceof HTMLSelectElement) {
       if (input.value !== def) delta[key] = input.value;
+      return;
+    }
+    if (input.dataset['type'] === 'list') {
+      const ids = parseRuleIdList(input.value);
+      if (ids.length > 0) delta[key] = ids;
       return;
     }
     const numericDef = parseFloat(def);

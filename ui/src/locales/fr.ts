@@ -163,6 +163,8 @@ const fr: LocaleShape = {
     'cfg.gtfs_jp_profile.auto'  : 'Auto (historique)',
     'cfg.gtfs_jp_profile.v3'    : 'V3',
     'cfg.gtfs_jp_profile.v4'    : 'V4',
+    'cfg.disabled_rule_ids.label' : "Règles masquées",
+    'cfg.disabled_rule_ids.desc'  : "Identifiants de règles séparés par des virgules (ex. DQ_003, DQ_004). Ces règles sont retirées des signalements, des scores et de la file de correction. Les règles Spec ne peuvent pas être désactivées.",
     'cfg.max_speed_bus_kmh.label'        : 'Vitesse max. bus',
     'cfg.max_speed_bus_kmh.unit'         : 'km/h',
     'cfg.max_speed_bus_kmh.desc'         : 'Vitesse maximale autorisée pour les services de bus',
@@ -595,6 +597,8 @@ const fr: LocaleShape = {
     'ResourceLimit.config_size': "Le JSON de configuration dépasse la limite de sécurité de 4 Mio.",
     'InvalidInput.today': "Valeur « today » invalide : {today} (format attendu AAAAMMJJ, p. ex. 20260716)",
     'InvalidInput.config_parse': "Erreur d’analyse de la configuration : {detail}",
+    'InvalidInput.disabled_rule_unknown': "La règle « {rule_id} » de disabled_rule_ids n’est pas un identifiant de règle connu.",
+    'InvalidInput.disabled_rule_spec': "La règle « {rule_id} » est une règle Spec et ne peut pas être désactivée : le verdict de publiabilité repose sur les règles Spec.",
   } as Record<string, string>,
 
   ruleMessages: {

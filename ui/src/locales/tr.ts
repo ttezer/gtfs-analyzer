@@ -160,6 +160,8 @@ const tr = {
     'cfg.gtfs_jp_profile.auto'  : 'Auto (legacy)',
     'cfg.gtfs_jp_profile.v3'    : 'V3',
     'cfg.gtfs_jp_profile.v4'    : 'V4',
+    'cfg.disabled_rule_ids.label' : "Gizlenecek kurallar",
+    'cfg.disabled_rule_ids.desc'  : "Virgülle ayrılmış kural kimlikleri (ör. DQ_003, DQ_004). Bu kurallar bulgulardan, skorlardan ve düzeltme kuyruğundan çıkarılır. Spec kuralları kapatılamaz.",
     'cfg.max_speed_bus_kmh.label'        : 'Maks. Otobüs Hızı',
     'cfg.max_speed_bus_kmh.unit'         : 'km/s',
     'cfg.max_speed_bus_kmh.desc'         : 'Otobüs seferleri için maksimum izin verilen hız',

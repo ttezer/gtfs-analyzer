@@ -1930,6 +1930,8 @@
     "ResourceLimit.input_size": "Le ZIP d’entrée dépasse la limite de sécurité du SDK.",
     "ResourceLimit.config_size": "Le JSON de configuration dépasse la limite de sécurité de 4 Mio.",
     "InvalidInput.today": "Valeur « today » invalide : {today} (format attendu AAAAMMJJ, p. ex. 20260716)",
-    "InvalidInput.config_parse": "Erreur d’analyse de la configuration : {detail}"
+    "InvalidInput.config_parse": "Erreur d’analyse de la configuration : {detail}",
+    "InvalidInput.disabled_rule_unknown": "La règle « {rule_id} » de disabled_rule_ids n’est pas un identifiant de règle connu.",
+    "InvalidInput.disabled_rule_spec": "La règle « {rule_id} » est une règle Spec et ne peut pas être désactivée : le verdict de publiabilité repose sur les règles Spec."
   }
 }

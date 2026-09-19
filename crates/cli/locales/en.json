@@ -1930,6 +1930,8 @@
     "ResourceLimit.input_size": "The input ZIP exceeds the SDK safety limit.",
     "ResourceLimit.config_size": "The config JSON exceeds the 4 MiB safety limit.",
     "InvalidInput.today": "Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)",
-    "InvalidInput.config_parse": "Config parse error: {detail}"
+    "InvalidInput.config_parse": "Config parse error: {detail}",
+    "InvalidInput.disabled_rule_unknown": "Rule '{rule_id}' in disabled_rule_ids is not a known rule id.",
+    "InvalidInput.disabled_rule_spec": "Rule '{rule_id}' is a Spec rule and cannot be disabled: the publishability verdict depends on Spec rules."
   }
 }

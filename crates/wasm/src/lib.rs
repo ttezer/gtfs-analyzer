@@ -6,7 +6,7 @@ use gtfs_core::{
     FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
 };
 use gtfs_pipeline::{
-    analyze_k6_with_files, apply_report_scope, build_derived_with_files, build_entity_map, build_name_index,
+    analyze_k6_with_files, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
     report_k7_with_suppressions, validate_k2_with_whitespace_roots, DerivedData, EntityRecords,
     FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
@@ -820,11 +820,14 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
         )
         .variant("config_size"));
     }
-    merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| {
+    let config = merge_delta(&ValidatorConfig::default(), delta_json).map_err(|e| {
         FatalError::new(FatalCode::InvalidInput, format!("Config parse hatası: {e}"))
             .variant("config_parse")
             .param("detail", &e)
-    })
+    })?;
+    // Native `validate_bytes` ile aynı kapı: bilinmeyen/Spec kural kapatılamaz.
+    check_rule_scope(&config)?;
+    Ok(config)
 }
 
 // Kural başına notice sınırı (cap):

@@ -161,6 +161,8 @@ const en: LocaleShape = {
     'cfg.gtfs_jp_profile.auto'  : 'Auto (legacy)',
     'cfg.gtfs_jp_profile.v3'    : 'V3',
     'cfg.gtfs_jp_profile.v4'    : 'V4',
+    'cfg.disabled_rule_ids.label' : "Hidden rules",
+    'cfg.disabled_rule_ids.desc'  : "Comma-separated rule IDs (e.g. DQ_003, DQ_004). These rules are removed from findings, scores, and the fix queue. Spec rules cannot be disabled.",
     'cfg.max_speed_bus_kmh.label'        : 'Max. Bus Speed',
     'cfg.max_speed_bus_kmh.unit'         : 'km/h',
     'cfg.max_speed_bus_kmh.desc'         : 'Maximum allowed speed for bus services',
@@ -593,6 +595,8 @@ const en: LocaleShape = {
     'ResourceLimit.config_size': "The config JSON exceeds the 4 MiB safety limit.",
     'InvalidInput.today': "Invalid 'today' value: {today} (expected YYYYMMDD, e.g. 20260716)",
     'InvalidInput.config_parse': "Config parse error: {detail}",
+    'InvalidInput.disabled_rule_unknown': "Rule '{rule_id}' in disabled_rule_ids is not a known rule id.",
+    'InvalidInput.disabled_rule_spec': "Rule '{rule_id}' is a Spec rule and cannot be disabled: the publishability verdict depends on Spec rules.",
   } as Record<string, string>,
 
   ruleMessages: {

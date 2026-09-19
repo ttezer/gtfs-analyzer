@@ -112,6 +112,42 @@ fn has_uniform_fare_coverage(records: &EntityRecords) -> bool {
             .all(|route_id| uniform_routes.contains(route_id))
 }
 
+/// Rejects a `disabled_rule_ids` list the report cannot honour faithfully.
+///
+/// * An unknown or retired id would silently disable nothing while the user
+///   believes a check is off.
+/// * A Spec-class rule is the normative evidence behind the publishability
+///   verdict (R1); hiding it could turn an invalid feed into "publishable".
+///
+/// Every orchestration calls this before running, so native, WASM, and SDK
+/// fail the same way.
+pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
+    for rule_id in &config.disabled_rule_ids {
+        match gtfs_rules::registry::get_rule(rule_id) {
+            None => {
+                return Err(FatalError::new(
+                    FatalCode::InvalidInput,
+                    format!("disabled_rule_ids: '{rule_id}' bilinen bir kural kimliği değil."),
+                )
+                .variant("disabled_rule_unknown")
+                .param("rule_id", rule_id));
+            }
+            Some(meta) if meta.rule_class == gtfs_core::RuleClass::Spec => {
+                return Err(FatalError::new(
+                    FatalCode::InvalidInput,
+                    format!(
+                        "disabled_rule_ids: '{rule_id}' bir Spec kuralı; yayın kararı bu kurallara dayandığı için kapatılamaz."
+                    ),
+                )
+                .variant("disabled_rule_spec")
+                .param("rule_id", rule_id));
+            }
+            Some(_) => {}
+        }
+    }
+    Ok(())
+}
+
 /// Report-scope filtering shared by every orchestration (native
 /// `validate_bytes` and both WASM paths). Runs after K6 and before K7 so that
 /// removed notices cannot affect scores, report views, or the R9 queue.
@@ -140,6 +176,10 @@ pub fn apply_report_scope(
 /// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
 pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     use crate::timing::Timer;
+
+    if let Err(e) = check_rule_scope(config) {
+        return ValidateResult::Fatal(e);
+    }
 
     let k1 = {
         let _t = Timer::start("K1-parse");
