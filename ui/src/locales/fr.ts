@@ -853,6 +853,7 @@ const fr: LocaleShape = {
     'CAL_013': 'Période de service expirée (dernière date active : {observed_value}) ; services concernés : {services}.',
     'CAL_014': 'Service « {entity_id} » : les dates se situent hors de la plage de validité de feed_info.',
     'CAL_015': 'La première date de service du jeu de données est {observed_value} — aucune course n’est active aujourd’hui.',
+    'CAL_015.future_only_jp': "Toutes les dates de service actives de ce jeu GTFS-JP sont dans le futur (première : {observed_value}). Publier un horaire à venir avant sa date de début est attendu et n’affecte pas le score de qualité.",
     'CAL_016': 'La dernière date de service du jeu de données est {observed_value} — plus de 2 ans dans le futur.',
     'CAL_017': 'Service « {entity_id} » : toutes les dates actives sont futures (la plus proche : {observed_value}).',
     'CAL_018': 'Service « {entity_id} » : aucun jour de semaine actif et aucun remplacement par calendar_dates.',
@@ -1297,6 +1298,7 @@ const fr: LocaleShape = {
     'CAL_013': 'Mettez à jour le jeu de données avec des dates de validité actuelles, ou supprimez le service.',
     'CAL_014': 'Mettez à jour feed_start_date/feed_end_date dans feed_info.txt pour couvrir la plage des dates de service.',
     'CAL_015': 'Revoyez le calendrier de publication du jeu de données ou corrigez calendar.txt.',
+    'CAL_015.future_only_jp': "Aucune action requise. Publiez le jeu GTFS-JP à venir avant sa date de début de service.",
     'CAL_016': 'Limitez le calendrier de service à une date de fin réaliste.',
     'CAL_017': 'Revoyez la date de début du calendrier ou les entrées de calendar_dates.txt.',
     // CLD

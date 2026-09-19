@@ -2991,10 +2991,16 @@ fn check_calendar_analytics(
                     notice.remediation =
                         "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın."
                             .to_string();
+                    // `message_variant` olmadan en/ja/fr şablonu genel CAL_015 metnini
+                    // ("takvimi düzeltin") basıyordu; Türkçe dışındaki kullanıcı düzeltmeyi
+                    // görmüyordu.
                     notice.details = Some(
-                        [("first_service_date".to_string(), first.to_string())]
-                            .into_iter()
-                            .collect(),
+                        [
+                            ("first_service_date".to_string(), first.to_string()),
+                            ("message_variant".to_string(), "future_only_jp".to_string()),
+                        ]
+                        .into_iter()
+                        .collect(),
                     );
                 }
                 notices.push(notice);
@@ -5212,6 +5218,7 @@ fn check_data_quality(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
+    let future_only_jp = gtfs_jp_future_only_date(records, derived, today_yyyymmdd).is_some();
     let agency_usable = availability.present_and_available("agency.txt");
     let routes_usable = availability.present_and_available("routes.txt");
     let trips_usable = availability.present_and_available("trips.txt");
@@ -5545,10 +5552,13 @@ fn check_data_quality(
                 }
             }
 
-            // FIN_016: feed_start_date gelecekte — feed henüz aktif değil
+            // FIN_016: feed_start_date gelecekte — feed henüz aktif değil.
+            // GTFS-JP'de yaklaşan dönemin ayrı veri kümesi olarak önceden yayınlanması
+            // beklenen desendir; takvim de tamamen gelecekteyse durum yalnız CAL_015'in
+            // sıfır-cezalı bilgisiyle bildirilir (CAL_017/CAL_024/TRP_023 ile aynı istisna).
             if let Some((sy, sm, sd)) = fi.feed_start_date {
                 let start = sy * 10000 + sm * 100 + sd;
-                if start > today_yyyymmdd {
+                if start > today_yyyymmdd && !future_only_jp {
                     notices.push(k6_notice(
                         ctr, "FIN_016", EntityType::Feed,
                         None, None, "feed_info.txt", None, Some("feed_start_date"),
@@ -13970,6 +13980,9 @@ mod tests {
             ],
         );
         records.is_gtfs_jp = Some(false);
+        let mut feed_info = feed_info_row();
+        feed_info.feed_start_date = Some((2026, 6, 1));
+        records.feed_info = vec![feed_info];
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [("SVC".to_string(), [20260601u32].into_iter().collect())]
@@ -13987,7 +14000,7 @@ mod tests {
                 .any(|n| n.rule_id == "CAL_015" && n.severity == gtfs_core::Severity::Dusuk),
             "non-JP future-only feed global CAL_015 davranışını korumalı"
         );
-        for rule in ["CAL_017", "CAL_024", "TRP_023"] {
+        for rule in ["CAL_017", "CAL_024", "TRP_023", "FIN_016"] {
             assert!(
                 result.notices.iter().any(|n| n.rule_id == rule),
                 "non-JP future-only feed {rule} üretmeli"
@@ -14009,6 +14022,9 @@ mod tests {
             ],
         );
         records.is_gtfs_jp = Some(true);
+        let mut feed_info = feed_info_row();
+        feed_info.feed_start_date = Some((2026, 6, 1));
+        records.feed_info = vec![feed_info];
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [(
@@ -14037,7 +14053,16 @@ mod tests {
                 .map(String::as_str),
             Some("20260601")
         );
-        for rule in ["CAL_017", "CAL_024", "TRP_023"] {
+        // en/ja/fr şablonu bu varyanttan seçilir; yoksa genel "takvimi düzeltin" metni çıkar.
+        assert_eq!(
+            cal015[0]
+                .details
+                .as_ref()
+                .and_then(|details| details.get("message_variant"))
+                .map(String::as_str),
+            Some("future_only_jp")
+        );
+        for rule in ["CAL_017", "CAL_024", "TRP_023", "FIN_016"] {
             assert!(
                 !result.notices.iter().any(|n| n.rule_id == rule),
                 "GTFS-JP future-only feed {rule} üretmemeli"

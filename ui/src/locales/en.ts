@@ -851,6 +851,7 @@ const en: LocaleShape = {
     'CAL_013': "Service period expired (last active date: {observed_value}); affected services: {services}.",
     'CAL_014': "Service '{entity_id}': dates fall outside the feed_info validity range.",
     'CAL_015': "Feed's earliest service date is {observed_value} — no trips are active today.",
+    'CAL_015.future_only_jp': "All active service dates in this GTFS-JP feed are in the future (first: {observed_value}). Publishing an upcoming timetable before its start date is expected and does not affect the quality score.",
     'CAL_016': "Feed's latest service date is {observed_value} — more than 2 years in the future.",
     'CAL_017': "Service '{entity_id}': all active dates are in the future (earliest: {observed_value}).",
     'CAL_018': "Service '{entity_id}': no active weekdays and no calendar_dates overrides.",
@@ -1295,6 +1296,7 @@ const en: LocaleShape = {
     'CAL_013': 'Update the feed with current validity dates or remove the service.',
     'CAL_014': 'Update feed_start_date/feed_end_date in feed_info.txt to cover the service date range.',
     'CAL_015': 'Review the feed publishing schedule or fix calendar.txt.',
+    'CAL_015.future_only_jp': "No action needed. Publish the upcoming GTFS-JP dataset before its service start date.",
     'CAL_016': 'Limit the service calendar to a realistic end date.',
     'CAL_017': 'Review the calendar start date or calendar_dates.txt entries.',
     // CLD
