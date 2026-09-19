@@ -498,6 +498,20 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         ValidateResult::Ok(vr) => assert!(!has(&vr, "FRL_009"), "yapılamayan çiftler istenmemeli"),
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
+    // S2'de inilemiyorsa (drop_off_type=1) A→B yolcuya açık değildir; yalnız B→A
+    // fiyatlı olsa da eksik çift yoktur.
+    let mut no_drop_off = files.clone();
+    assert_eq!(no_drop_off[4].0, "stop_times.txt");
+    no_drop_off[4] = (
+        "stop_times.txt",
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type\n\
+          T1,08:00:00,08:00:00,S1,1,0,0\nT1,08:10:00,08:10:00,S2,2,0,1\n",
+    );
+    match run(&no_drop_off) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "FRL_009"), "inilemeyen durağa çift istenmemeli"),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+
 
     let mut uniform = files;
     uniform.pop();

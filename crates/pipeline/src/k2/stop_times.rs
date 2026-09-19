@@ -241,6 +241,21 @@ pub struct StopTimesIndex {
     pub has_stop_headsign_field: bool,
     /// #38: CSV line → StopTimeFlex (feed'lerin %99'unda boş; CompactStopTime dışına taşındı)
     pub flex_map: FxHashMap<u32, Box<StopTimeFlex>>,
+    /// CSV line → biniş/iniş yasağı bitleri (`NO_PICKUP` | `NO_DROP_OFF`); yalnız
+    /// `pickup_type=1` veya `drop_off_type=1` satırları girer (seyrek). `CompactStopTime`
+    /// 24 bayta sıkıştırıldığı için tipleri taşımaz; FRL_009 hangi kalkış-varış
+    /// çiftinin gerçekten yolcuya açık olduğunu buradan okur.
+    pub boarding_restrictions: FxHashMap<u32, u8>,
+}
+
+/// `boarding_restrictions` biti: bu durakta binilemez (`pickup_type=1`).
+pub const NO_PICKUP: u8 = 1;
+/// `boarding_restrictions` biti: bu durakta inilemez (`drop_off_type=1`).
+pub const NO_DROP_OFF: u8 = 2;
+
+fn boarding_restriction_bits(pickup_type: Option<u32>, drop_off_type: Option<u32>) -> u8 {
+    (if pickup_type == Some(1) { NO_PICKUP } else { 0 })
+        | (if drop_off_type == Some(1) { NO_DROP_OFF } else { 0 })
 }
 
 /// Raw saatlerin küçük bir gün-içi hatadan ziyade gece yarısı yazımına döndüğünü
@@ -314,6 +329,10 @@ impl StopTimesIndex {
     /// CompactStopTime'ın flex alanlarını döner (CSV line anahtarlı side map'ten)
     pub fn flex_of(&self, st: &CompactStopTime) -> Option<&StopTimeFlex> {
         self.flex_map.get(&st.line).map(|b| b.as_ref())
+    }
+    /// CompactStopTime'ın biniş/iniş yasağı bitleri (`NO_PICKUP` | `NO_DROP_OFF`); 0 = serbest.
+    pub fn boarding_restriction_of(&self, st: &CompactStopTime) -> u8 {
+        self.boarding_restrictions.get(&st.line).copied().unwrap_or(0)
     }
 
     /// Raw stop_times'ta açık bir saat dönümünü, normalization ayarından bağımsız ölçer.
@@ -559,6 +578,10 @@ impl StopTimesIndex {
             // stop_headsign side map (line-anahtarlı, sort'tan bağımsız)
             if let Some(ref hs) = st.stop_headsign {
                 idx.stop_headsigns.insert(st.line as u32, hs.clone());
+            }
+            let restriction = boarding_restriction_bits(st.pickup_type, st.drop_off_type);
+            if restriction != 0 {
+                idx.boarding_restrictions.insert(st.line as u32, restriction);
             }
             // flex side map — streaming yolun (build_index) yaptığının aynısı; fixture'lardan
             // kurulan index'te de location_id/location_group_id görünür olsun diye.
@@ -1325,6 +1348,7 @@ struct StChunk {
     /// #38: side map'ler — CSV line anahtarlı (sort/permutation'dan bağımsız)
     stop_headsigns: FxHashMap<u32, SmolStr>,
     flex_map: FxHashMap<u32, Box<StopTimeFlex>>,
+    boarding_restrictions: FxHashMap<u32, u8>,
     /// OOM/perf: trip_id-anahtarlı TÜM per-trip durum tek map'te → satır başı ~8 hashmap op
     /// yerine 1-2. Çıktı setleri finalize pass'le buradan TÜRETİLİR.
     trips_agg: FxHashMap<SmolStr, TripAgg>,
@@ -1516,6 +1540,7 @@ impl StChunk {
         self.trip_id_cache.extend(other.trip_id_cache);
         self.stop_headsigns.extend(other.stop_headsigns); // anahtar = CSV satırı, çakışmaz
         self.flex_map.extend(other.flex_map);
+        self.boarding_restrictions.extend(other.boarding_restrictions);
         for (sid, line) in other.stop_first_line {
             self.stop_first_line
                 .entry(sid)
@@ -2498,6 +2523,10 @@ pub fn validate_stop_times_with_limits(
                 if let Some(ref hs) = stop_headsign {
                     st.stop_headsigns.insert(line as u32, hs.clone());
                 }
+                let restriction = boarding_restriction_bits(pickup_type, drop_off_type);
+                if restriction != 0 {
+                    st.boarding_restrictions.insert(line as u32, restriction);
+                }
                 if let Some(flex) = build_flex(
                     start_window,
                     end_window,
@@ -3055,6 +3084,7 @@ pub fn validate_stop_times_with_limits(
     index.stop_id_to_idx = st.stop_id_to_idx;
     index.stop_headsigns = st.stop_headsigns;
     index.flex_map = st.flex_map;
+    index.boarding_restrictions = st.boarding_restrictions;
     let _t_maps = crate::timing::Timer::start("K2::st::fin::maps");
     for (tid, agg) in st.trips_agg {
         if tid.is_empty() {

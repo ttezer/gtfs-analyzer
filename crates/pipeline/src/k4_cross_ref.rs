@@ -2932,7 +2932,8 @@ fn check_fare_origin_destination_coverage(
         let zone = row_field(&records.stops[idx].row, "zone_id");
         (!zone.is_empty()).then_some(zone)
     };
-    let mut patterns: BTreeMap<&str, HashSet<Vec<&str>>> = BTreeMap::new();
+    // (zone, restriction bits) per stop; bits come from pickup_type/drop_off_type=1.
+    let mut patterns: BTreeMap<&str, HashSet<Vec<(&str, u8)>>> = BTreeMap::new();
     let mut unzoned_routes: HashSet<&str> = HashSet::new();
     for trip in &records.trips {
         let route_id = records.trip_interns.route_id(trip);
@@ -2955,7 +2956,7 @@ fn check_fare_origin_destination_coverage(
                 zones.clear();
                 break;
             };
-            zones.push(zone);
+            zones.push((zone, records.stop_times_index.boarding_restriction_of(stop_time)));
         }
         if zones.len() >= 2 {
             patterns.entry(route_id).or_default().insert(zones);
@@ -2970,10 +2971,16 @@ fn check_fare_origin_destination_coverage(
         let mut served: HashSet<(&str, &str)> = HashSet::new();
         for zones in route_patterns {
             // A rider boards before alighting: only forward pairs along the
-            // trip are served. Same-zone pairs are real between two stops.
-            for (i, &origin) in zones.iter().enumerate() {
-                for &destination in &zones[i + 1..] {
-                    served.insert((origin, destination));
+            // trip are served, from a stop open for pickup to a stop open for
+            // drop-off. Same-zone pairs are real between two stops.
+            for (i, &(origin, origin_bits)) in zones.iter().enumerate() {
+                if origin_bits & crate::k2::stop_times::NO_PICKUP != 0 {
+                    continue;
+                }
+                for &(destination, destination_bits) in &zones[i + 1..] {
+                    if destination_bits & crate::k2::stop_times::NO_DROP_OFF == 0 {
+                        served.insert((origin, destination));
+                    }
                 }
             }
         }
