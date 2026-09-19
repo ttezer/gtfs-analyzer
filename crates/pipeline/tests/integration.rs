@@ -499,6 +499,41 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
 }
 
 #[test]
+fn stp_033_is_suppressed_only_for_proven_uniform_fares() {
+    let mut uniform = base_files();
+    uniform.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
+    ));
+    uniform.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id\nF1,R1,,\n",
+    ));
+    let uniform = run(&uniform);
+    let uniform = match uniform {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert!(!has(&uniform, "STP_033"));
+
+    let mut zone_based = base_files();
+    zone_based.push((
+        "fare_attributes.txt",
+        b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
+    ));
+    zone_based.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id\nF1,R1,A,B\n",
+    ));
+    let zone_based = run(&zone_based);
+    let zone_based = match zone_based {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert!(has(&zone_based, "STP_033"));
+}
+
+#[test]
 fn v3_remaining_translation_fields_require_kana_and_japanese_rows() {
     let mut files = base_files();
     files[2] = (

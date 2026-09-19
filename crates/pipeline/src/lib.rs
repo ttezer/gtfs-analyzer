@@ -44,6 +44,66 @@ pub use gtfs_core::{
     FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult, ValidationStatus,
 };
 
+/// Returns true only when the feed itself proves that every served route has
+/// an all-trip fare. This is the narrow exception for STP_033: a uniform fare
+/// does not need stop zones, while a zone-based or ambiguous fare still does.
+fn has_uniform_fare_coverage(records: &EntityRecords, map: &EntityMap) -> bool {
+    let valid_fares: std::collections::HashSet<&str> = records
+        .fare_attributes
+        .iter()
+        .filter(|fare| {
+            fare.price
+                .is_some_and(|price| price.is_finite() && price >= 0.0)
+                && crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_some()
+                && map.fare_attrs.contains_key(fare.fare_id.as_str())
+        })
+        .map(|fare| fare.fare_id.as_str())
+        .collect();
+    if valid_fares.is_empty() {
+        return false;
+    }
+
+    // A single valid fare without fare_rules is GTFS's uniform-fare form.
+    if records.fare_rules.is_empty() && valid_fares.len() == 1 {
+        return true;
+    }
+
+    let catch_all = records.fare_rules.iter().any(|rule| {
+        valid_fares.contains(rule.fare_id.as_str())
+            && rule.route_id.is_none()
+            && rule.origin_id.is_none()
+            && rule.destination_id.is_none()
+            && rule.contains_id.is_none()
+    });
+    if catch_all {
+        return true;
+    }
+
+    let uniform_routes: std::collections::HashSet<&str> = records
+        .fare_rules
+        .iter()
+        .filter(|rule| {
+            valid_fares.contains(rule.fare_id.as_str())
+                && rule.route_id.is_some()
+                && rule.origin_id.is_none()
+                && rule.destination_id.is_none()
+                && rule.contains_id.is_none()
+        })
+        .filter_map(|rule| rule.route_id.as_deref())
+        .collect();
+
+    let served_routes: std::collections::HashSet<&str> = records
+        .trips
+        .iter()
+        .map(|trip| records.trip_interns.route_id(trip))
+        .filter(|route_id| map.routes.contains_key(*route_id))
+        .collect();
+    !served_routes.is_empty()
+        && served_routes
+            .iter()
+            .all(|route_id| uniform_routes.contains(route_id))
+}
+
 /// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
 /// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
 pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
@@ -162,6 +222,10 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k4.notices);
     all.extend(k5.notices);
     all.extend(k6.notices);
+
+    if has_uniform_fare_coverage(&k2.records, &k3.entity_map) {
+        all.retain(|notice| notice.rule_id != "STP_033");
+    }
 
     // User-selected rule scope. The stages still execute so their derived
     // data remains internally consistent, but disabled rules do not enter K7:
