@@ -505,6 +505,27 @@ fn k6_notice(
     )
 }
 
+/// Returns the first active service date when a detected GTFS-JP feed contains
+/// no active date on or before today. This is a publication-state signal, not
+/// a global GTFS quality defect: non-JP feeds retain the existing rules.
+fn gtfs_jp_future_only_date(
+    records: &EntityRecords,
+    derived: &DerivedData,
+    today_yyyymmdd: u32,
+) -> Option<u32> {
+    if records.is_gtfs_jp != Some(true) || today_yyyymmdd == 0 {
+        return None;
+    }
+
+    let first = derived
+        .calendar_bitmap
+        .active_dates
+        .values()
+        .flat_map(|dates| dates.iter().copied())
+        .min()?;
+    (first > today_yyyymmdd).then_some(first)
+}
+
 fn finalize_stm007_pending(
     pending: &mut Vec<Notice>,
     notices: &mut Vec<Notice>,
@@ -2614,6 +2635,7 @@ fn check_calendar_analytics(
     ctr: &mut u32,
 ) {
     let ti_cal = &records.trip_interns;
+    let future_only_jp_date = gtfs_jp_future_only_date(records, derived, today_yyyymmdd);
     // CAL_021 için: her servisin kaç sefer (trip) tarafından kullanıldığı.
     let mut service_trip_counts: HashMap<&str, u32> = HashMap::new();
     for t in &records.trips {
@@ -2954,13 +2976,28 @@ fn check_calendar_analytics(
             .min();
         if let Some(first) = min_date {
             if first > today_yyyymmdd {
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr, "CAL_015", EntityType::Feed,
                     None, None, "calendar.txt", None, None,
                     Some(format!("{first}")), Some(format!("≤ {today_yyyymmdd}")),
                     format!("Feed'in en erken servis tarihi {first}; bu tarih henüz gelmedi — seferler bugün için mevcut değil."),
                     "Feed yayınlama zamanlamasını gözden geçirin ya da calendar.txt'i düzeltin.",
-                ));
+                );
+                if future_only_jp_date == Some(first) {
+                    notice.severity = gtfs_core::Severity::Bilgi;
+                    notice.message = format!(
+                        "Yaklaşan servis veri kümesi — GTFS-JP feed'indeki tüm aktif servis tarihleri gelecekte başlıyor ({first}); bu beklenen yayınlama deseni kalite skorunu etkilemez."
+                    );
+                    notice.remediation =
+                        "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın."
+                            .to_string();
+                    notice.details = Some(
+                        [("first_service_date".to_string(), first.to_string())]
+                            .into_iter()
+                            .collect(),
+                    );
+                }
+                notices.push(notice);
             }
         }
 
@@ -3005,16 +3042,18 @@ fn check_calendar_analytics(
             }
         }
         // CAL_017 emit: yalnız feed'in tamamı gelecekteyse (feed_has_started false).
-        future_services.sort_unstable();
-        for (service_id, min_svc) in future_services {
-            notices.push(k6_notice(
-                ctr, "CAL_017", EntityType::Service,
-                Some(service_id.to_string()), Some(service_id.to_string()),
-                "calendar.txt", None, Some("start_date"),
-                Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
-                format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}. Feed'de bugün aktif olan hiçbir servis yok."),
-                "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
-            ));
+        if future_only_jp_date.is_none() {
+            future_services.sort_unstable();
+            for (service_id, min_svc) in future_services {
+                notices.push(k6_notice(
+                    ctr, "CAL_017", EntityType::Service,
+                    Some(service_id.to_string()), Some(service_id.to_string()),
+                    "calendar.txt", None, Some("start_date"),
+                    Some(format!("{min_svc}")), Some(format!("≤ {today_yyyymmdd}")),
+                    format!("'{service_id}' takvimi henüz başlamamış; en erken aktif tarih {min_svc}. Feed'de bugün aktif olan hiçbir servis yok."),
+                    "Takvim başlangıç tarihini veya calendar_dates.txt girişlerini gözden geçirin.",
+                ));
+            }
         }
 
         // CAL_013 emit: son-aktif-tarih (expiry) imzası başına TEK notice.
@@ -3784,6 +3823,7 @@ fn check_operational_analytics(
 ) {
     use crate::timing::Timer;
     let ti_opr = &records.trip_interns;
+    let future_only_jp = gtfs_jp_future_only_date(records, derived, today_yyyymmdd).is_some();
 
     let trip_to_route: HashMap<&str, &str> = records
         .trips
@@ -3974,7 +4014,7 @@ fn check_operational_analytics(
     }
 
     // TRP_023: önümüzdeki 7 günde aktif sefer yok
-    if today_yyyymmdd > 0 && !records.trips.is_empty() {
+    if today_yyyymmdd > 0 && !records.trips.is_empty() && !future_only_jp {
         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         let active_in_7days = derived.calendar_bitmap.active_dates.values().any(|dates| {
             dates.iter().any(|&d| {
@@ -3996,7 +4036,7 @@ fn check_operational_analytics(
     // CAL_024 (eski TRP_030): önümüzdeki 7 günde aktif olmayan takvim — service_id başına agregasyon.
     // (Aynı aktif-olmayan takvim binlerce sefere yayılır; aksiyon birimi service_id'dir,
     // sefer değil — bu yüzden sefer-başına notice yerine takvim-başına tek özet üretilir.)
-    if today_yyyymmdd > 0 && !records.trips.is_empty() {
+    if today_yyyymmdd > 0 && !records.trips.is_empty() && !future_only_jp {
         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         // service_id → (etkilenen sefer sayısı, ilk trip satırı)
         let mut inactive_by_service: FxHashMap<&str, (u32, u64)> = FxHashMap::default();
@@ -13876,6 +13916,101 @@ mod tests {
             ids,
             vec!["A", "B"],
             "tümü gelecekteyse her servis için çıkmalı ve SIRALI olmalı"
+        );
+    }
+
+    #[test]
+    fn gtfs_jp_future_only_feed_emits_one_zero_penalty_calendar_notice() {
+        use crate::k5_derived::CalendarBitmap;
+
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+            ],
+        );
+        records.is_gtfs_jp = Some(true);
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [(
+                    "SVC".to_string(),
+                    [20260601u32, 20260602].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
+        };
+
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        let cal015: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "CAL_015")
+            .collect();
+        assert_eq!(cal015.len(), 1, "tek feed-level CAL_015 beklenir");
+        assert_eq!(cal015[0].severity, gtfs_core::Severity::Bilgi);
+        assert_eq!(
+            cal015[0]
+                .details
+                .as_ref()
+                .and_then(|details| details.get("first_service_date"))
+                .map(String::as_str),
+            Some("20260601")
+        );
+        for rule in ["CAL_017", "CAL_024", "TRP_023"] {
+            assert!(
+                !result.notices.iter().any(|n| n.rule_id == rule),
+                "GTFS-JP future-only feed {rule} üretmemeli"
+            );
+        }
+    }
+
+    #[test]
+    fn gtfs_jp_feed_with_current_service_keeps_calendar_gap_notice() {
+        use crate::k5_derived::CalendarBitmap;
+
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![
+                trip_with_service("T_ACTIVE", "R1", "ACTIVE"),
+                trip_with_service("T_GAP", "R1", "GAP"),
+            ],
+            vec![
+                stoptime("T_ACTIVE", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T_ACTIVE", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T_GAP", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T_GAP", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+            ],
+        );
+        records.is_gtfs_jp = Some(true);
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("ACTIVE".to_string(), [20260514u32].into_iter().collect()),
+                    ("GAP".to_string(), [20260522u32].into_iter().collect()),
+                ]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
+        };
+
+        let result = analyze(&records, &derived, &default_config(), 20260514);
+        assert!(
+            result
+                .notices
+                .iter()
+                .any(|n| n.rule_id == "CAL_024" && n.entity_id.as_deref() == Some("GAP")),
+            "bugün aktif bir servis varken ayrı gelecekteki takvimin CAL_024 sinyali korunmalı"
+        );
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CAL_015"),
+            "feed bugün başladığında future-only CAL_015 üretilmemeli"
         );
     }
 

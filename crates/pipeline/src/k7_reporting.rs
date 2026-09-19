@@ -1342,6 +1342,11 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
     // Sadece kök neden notice'lar R9'a girer; semptomlar gizlenir
     let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
     for (i, n) in notices.iter().enumerate() {
+        // GTFS-JP future-only feeds use CAL_015 as a zero-penalty publication
+        // notice. It remains visible in R2/R5 but is not an action item in R9.
+        if n.rule_id == "CAL_015" && matches!(n.severity, Severity::Bilgi) {
+            continue;
+        }
         if !resolution.is_symptom[i] {
             groups.entry(n.rule_id.as_str()).or_default().push(i);
         }
@@ -2572,5 +2577,16 @@ mod tests {
                 None => seen = Some(order),
             }
         }
+    }
+
+    #[test]
+    fn info_future_only_cal015_is_not_an_r9_action_item() {
+        let notices = vec![notice("n1", "CAL_015", Severity::Bilgi, RuleClass::Quality)];
+        let resolution = resolve_symptoms(&notices);
+        let r9 = build_r9(&notices, &resolution);
+        assert!(
+            r9.items.is_empty(),
+            "zero-penalty future-only CAL_015 R9 düzeltme kuyruğuna girmemeli"
+        );
     }
 }

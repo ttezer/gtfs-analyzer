@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **GTFS-JP future-only calendar handling:** when every derived active service
+  date is after `today`, `CAL_015` is emitted once as a zero-penalty INFO notice;
+  `CAL_017`, `CAL_024`, and `TRP_023` are suppressed for that publication state.
+  Global feeds and GTFS-JP feeds that already have current service retain the
+  existing calendar quality checks.
+
 ### Added
 
 - **`JPN_033` — reserved GTFS-JP namespace in custom names** (Medium/Interop,
