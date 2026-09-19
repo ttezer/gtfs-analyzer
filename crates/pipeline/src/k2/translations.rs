@@ -5,18 +5,6 @@ use super::common::{
 };
 use crate::k1_parse::RawFile;
 
-const TRANSLATION_TABLES: &[&str] = &[
-    "agency",
-    "stops",
-    "routes",
-    "trips",
-    "stop_times",
-    "feed_info",
-    "attributions",
-    "pathways",
-    "levels",
-];
-
 /// `translations.txt::field_name` o tablonun bir alanı mı?
 ///
 /// 🔴 BU FONKSİYON BİR EL YAPIMI İZİNLİ LİSTEYDİ ve spec'i temsil etmiyordu. Spec'in
@@ -28,16 +16,16 @@ const TRANSLATION_TABLES: &[&str] = &[
 /// 50 bulgu) ve `feed_info::feed_contact_url` (URL, 8 bulgu). İkisi de yanlış pozitifti
 /// ve üç feed'i `Kritik·Spec` ekseninde yayın kapısında tutuyordu.
 ///
-/// Artık soru şudur: alan o tablonun bilinen sütunlarından biri mi. Uzantı alanları
-/// (`jp_trip_desc` gibi) `known_columns` içinde olduğu için kendiliğinden kapsanır —
-/// eski listede her biri elle eklenmek zorundaydı ve `feed_publisher_url` bu yüzden
-/// aylarca eksik kalmıştı. Tür ekseni `TRN_011`'e aittir.
+/// Artık soru şudur: alan resmi şema kataloğunda veya bilinen bir profil uzantısında
+/// o tablonun sütunu mu. Resmi alanlar generated spec kataloğundan, uzantılar ise
+/// `known_columns` listesinden çözülür; tür ekseni `TRN_011`'e aittir.
 pub(crate) fn table_has_field(table: &str, field: &str) -> bool {
     crate::k1_parse::known_columns_for_table(table).contains(&field)
+        || super::translatable_fields_generated::spec_field_is_translatable(table, field).is_some()
 }
 
 pub(crate) fn is_known_translation_table(table: &str) -> bool {
-    TRANSLATION_TABLES.contains(&table)
+    super::translatable_fields_generated::spec_translation_table_is_known(table)
 }
 
 /// GTFS-JP v3 örneklerinde `record_sub_id` değeri, alt kimlik gerekmeyen
@@ -93,7 +81,7 @@ pub fn validate_translations_with_profile(
         let table_name = get_trimmed_field(&row_map, "table_name")
             .unwrap_or("")
             .to_string();
-        let table_known = TRANSLATION_TABLES.contains(&table_name.as_str());
+        let table_known = is_known_translation_table(&table_name);
         if has_table_name && !table_known {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -205,7 +193,7 @@ pub fn validate_translations_with_profile(
         //    (korpus, mdb-2519): eski Google `trans_id,lang,translation` biçimini kullanan bir
         //    feed'de bu daraltma olmadan TRN_015 101.872 bulgu üretiyordu — aynı satırlara
         //    zaten TRN_001/002/003/006/011 ateşliyor, yani ALTINCI kez aynı şeyi söylemek olurdu.
-        let table_known = TRANSLATION_TABLES.contains(&table_name.as_str());
+        let table_known = is_known_translation_table(&table_name);
         if table_known && table_name != "feed_info" && record_id.is_none() && field_value.is_none()
         {
             notices.push(make_k2_notice(

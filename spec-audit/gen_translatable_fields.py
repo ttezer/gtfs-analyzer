@@ -23,18 +23,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "spec-audit/spec_fields.json"
 OUT = ROOT / "crates/pipeline/src/k2/translatable_fields_generated.rs"
 
-# `translations.txt::table_name` yalnız bu dokuz tabloyu kabul eder.
-TABLES = [
-    "agency",
-    "stops",
-    "routes",
-    "trips",
-    "stop_times",
-    "feed_info",
-    "attributions",
-    "pathways",
-    "levels",
-]
+# `translations.txt::table_name` resmi GTFS şemasındaki tablo adına karşılık gelir.
+# `translations.txt` kendi satırlarını çevrilecek kaynak tablo olarak sunmaz; diğer
+# tablolar katalogdan dinamik olarak alınır. Böylece yeni resmi tablolar (ör.
+# `location_groups.txt`) ayrıca elle whitelist'e eklenmek zorunda kalmaz.
+EXCLUDED_TABLES = {"translations"}
 
 TRANSLATABLE_TYPES = {"Text", "URL", "Email", "Phone number"}
 
@@ -42,8 +35,13 @@ TRANSLATABLE_TYPES = {"Text", "URL", "Email", "Phone number"}
 def build():
     spec = json.loads(SRC.read_text(encoding="utf-8"))
     files = spec["files"]
+    tables = sorted(
+        name.removesuffix(".txt")
+        for name in files
+        if name.endswith(".txt") and name.removesuffix(".txt") not in EXCLUDED_TABLES
+    )
     rows = []
-    for table in TABLES:
+    for table in tables:
         entry = files.get(f"{table}.txt")
         if entry is None:
             raise SystemExit(f"spec_fields.json içinde {table}.txt yok")
@@ -66,6 +64,11 @@ def build():
 //! (`jp_trip_desc_symbol` gibi) spec kataloğunda yoktur ve türleri bilinmez;
 //! `spec_field_is_translatable` orada `None` döner ve çağıran SUSMALIDIR.
 
+/// `translations.txt::table_name` için resmi GTFS tablo adları.
+pub(crate) const SPEC_TRANSLATION_TABLES: &[&str] = &[
+{chr(10).join(f'    "{t}",' for t in tables)}
+];
+
 /// (tablo, alan, çevrilebilir tür mü) — (tablo, alan)'a göre SIRALI;
 /// `binary_search_by` bunu varsayar.
 pub(crate) const SPEC_TRANSLATION_FIELDS: &[(&str, &str, bool)] = &[
@@ -80,6 +83,10 @@ pub(crate) fn spec_field_is_translatable(table: &str, field: &str) -> Option<boo
         .ok()
         .map(|i| SPEC_TRANSLATION_FIELDS[i].2)
 }}
+
+pub(crate) fn spec_translation_table_is_known(table: &str) -> bool {{
+    SPEC_TRANSLATION_TABLES.binary_search(&table).is_ok()
+}}
 """
     return text, rows, yes
 
@@ -92,7 +99,13 @@ def main():
         cur = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         cur_rows = set(re.findall(pattern, cur))
         new_rows = set(re.findall(pattern, text))
-        if cur_rows == new_rows:
+        table_pattern = r'SPEC_TRANSLATION_TABLES:.*?= &\[\n(.*?)\n\];'
+        table_row_pattern = r'^\s+"([a-z_]+)",$'
+        cur_table_block = re.search(table_pattern, cur, flags=re.S)
+        new_table_block = re.search(table_pattern, text, flags=re.S)
+        cur_tables = set(re.findall(table_row_pattern, cur_table_block.group(1))) if cur_table_block else set()
+        new_tables = set(re.findall(table_row_pattern, new_table_block.group(1))) if new_table_block else set()
+        if cur_rows == new_rows and cur_tables == new_tables:
             print(f"translatable_fields OK — {len(rows)} alan, {yes} çevrilebilir")
             return 0
         added = sorted(new_rows - cur_rows)
@@ -102,6 +115,12 @@ def main():
             print(f"  eklenen/değişen: {added[:12]}")
         if gone:
             print(f"  kaybolan/eski  : {gone[:12]}")
+        added_tables = sorted(new_tables - cur_tables)
+        gone_tables = sorted(cur_tables - new_tables)
+        if added_tables:
+            print(f"  eklenen tablolar: {added_tables[:12]}")
+        if gone_tables:
+            print(f"  kaldırılan tablolar: {gone_tables[:12]}")
         print("  → python3 spec-audit/gen_translatable_fields.py ile tabloyu yenileyin.")
         return 1
     OUT.write_text(text, encoding="utf-8")

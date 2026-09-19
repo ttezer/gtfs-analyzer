@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `translations.txt::table_name` and `field_name` validation now uses the generated
+  official GTFS schema catalogue, including `location_groups.location_group_name`;
+  new official tables no longer require a hand-maintained translation whitelist.
 - **A missing `fare_attributes.agency_id` in a multi-agency feed is now reported
   only by `AGN_011`** (Critical/Spec), the rule that already carried this
   conditional requirement. `FIN_013` stays an INFO recommendation for

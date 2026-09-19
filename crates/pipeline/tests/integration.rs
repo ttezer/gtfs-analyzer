@@ -650,6 +650,37 @@ fn modern_translation_headers_keep_translation_conflict_validation() {
 }
 
 #[test]
+fn location_groups_translation_uses_catalogue_table_and_field() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
+    ));
+    files.push((
+        "location_groups.txt",
+        b"location_group_id,location_group_name\nC1,Mokutekichi\nC2,Teiryujo\n",
+    ));
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\n\
+          location_groups,location_group_name,en,Mokutekichi,C1\n\
+          location_groups,location_group_name,en,Teiryujo,C2\n",
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            for rule in ["TRN_001", "TRN_002", "TRN_011"] {
+                assert!(
+                    !has(&vr, rule),
+                    "location_groups/location_group_name çevirisi {rule} üretmemeli"
+                );
+            }
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
 fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct() {
     let mut files = base_files();
     files.push((

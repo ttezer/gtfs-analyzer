@@ -1336,8 +1336,9 @@ pub(crate) const ARC021_REMEDIATION: &str =
 
 /// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
 /// `translations.txt::table_name` uzantısız tablo adı taşır; sütun listesi dosya adına
-/// anahtarlıdır. Kol yalnız çeviri tablolarını kapsar — `translations.txt` yalnız o
-/// dokuzunu kabul eder ve bilinmeyen tabloyu `TRN_001` raporlar.
+/// anahtarlıdır. Kol, `translations.txt` için eski ve profil-özel kolon listelerini
+/// taşır; resmi GTFS tablolarının tamamı için çeviri alan kataloğu ayrıca generated
+/// `spec_fields.json` kaynağından çözülür.
 ///
 /// 🔑 Ad birleştirmek (`format!("{table}.txt")`) satır başına tahsis demektir;
 /// `mdb-2126`'nın `translations.txt`'si 158.531 satır taşıyor.
