@@ -839,6 +839,38 @@ fn location_groups_translation_uses_catalogue_table_and_field() {
 }
 
 #[test]
+fn location_groups_translation_record_id_must_exist() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
+    ));
+    files.push((
+        "location_groups.txt",
+        b"location_group_id,location_group_name\nC1,Mokutekichi\n",
+    ));
+    files.push((
+        "translations.txt",
+        b"table_name,field_name,language,translation,record_id\n\
+          location_groups,location_group_name,en,Destination,C1\n\
+          location_groups,location_group_name,en,Ghost,C9\n",
+    ));
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let trn004: Vec<_> = vr
+                .notices
+                .iter()
+                .filter(|n| n.rule_id == "TRN_004")
+                .map(|n| n.entity_id.as_deref())
+                .collect();
+            assert_eq!(trn004, [Some("C9")], "yalnız var olmayan C9 raporlanmalı");
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
+#[test]
 fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct() {
     let mut files = base_files();
     files.push((

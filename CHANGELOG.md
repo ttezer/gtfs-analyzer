@@ -80,6 +80,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pickup-only and a drop-off-only row sharing one window is the spec's
   single-zone example. `DQ_006` and `RTS_017` ignore trips made only of Flex
   zone or location-group rows, which have no fixed path to shape.
+- **Translation `record_id` checks cover the newly accepted tables.** `TRN_004`
+  and `XFL_014` now verify that a translated `location_groups`, `booking_rules`,
+  `areas`, `networks`, `fare_media`, or `rider_categories` record exists
+  (only when that file yielded ids, so an unreadable file cannot flag every row).
+- **Plainer Japanese texts for the 30 rules most frequent on Japanese feeds**
+  (measured on 635 GTFS-JP feeds of corpus run 35377373835). Each now says in
+  everyday terms what is missing and whether the field is optional (任意) or
+  needs no action (対応不要); `STM_053` gained its missing Japanese text.
 - `RTS_019` and `FIN_018` messages and remediations are shorter and state that
   they are quality recommendations (`FIN_018`'s fields are optional in the spec).
 - `translations.txt::table_name` and `field_name` validation now uses the generated

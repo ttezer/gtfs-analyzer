@@ -3542,14 +3542,36 @@ fn check_levels(
 
 // �"?�"? TRN_005-006: çeviri cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
-/// `attributions.txt`'nin birincil anahtarı; `EntityMap` bu tabloyu taşımaz.
-fn attribution_id_set(records: &EntityRecords) -> HashSet<&str> {
-    records
-        .attributions
-        .iter()
-        .filter_map(|a| a.attribution_id.as_deref())
-        .filter(|id| !id.is_empty())
-        .collect()
+/// `EntityMap`'in taşımadığı, tek alanlı birincil anahtarlı çeviri tabloları → kimlik kümesi.
+///
+/// `attributions` her zaman girer (2026-08-29 davranışı). Sonradan eklenen tablolar
+/// (`location_groups`, `booking_rules`, `areas`, `networks`, `fare_media`,
+/// `rider_categories`) yalnız en az bir kimlik okunmuşsa girer: kolonu eksik ya da
+/// okunamamış bir dosyada boş küme her çeviriyi "kayıt yok" (TRN_004) yapardı.
+/// `translations.txt::table_name` 2026-09-19'dan beri resmi şema kataloğunu kabul
+/// ettiği için bu tablolar artık çevrilebilir; kimlikleri denetlenmezse sessiz kalırdı.
+fn translation_extra_record_ids(records: &EntityRecords) -> HashMap<&'static str, HashSet<&str>> {
+    fn ids<'a>(it: impl Iterator<Item = &'a str>) -> HashSet<&'a str> {
+        it.filter(|id| !id.is_empty()).collect()
+    }
+    let mut by_table = HashMap::new();
+    by_table.insert(
+        "attributions",
+        ids(records.attributions.iter().filter_map(|a| a.attribution_id.as_deref())),
+    );
+    for (table, set) in [
+        ("location_groups", ids(records.location_groups.iter().map(|r| r.location_group_id.as_str()))),
+        ("booking_rules", ids(records.booking_rules.iter().map(|r| r.booking_rule_id.as_str()))),
+        ("areas", ids(records.areas.iter().map(|r| r.area_id.as_str()))),
+        ("networks", ids(records.networks.iter().map(|r| r.network_id.as_str()))),
+        ("fare_media", ids(records.fare_media.iter().map(|r| r.fare_media_id.as_str()))),
+        ("rider_categories", ids(records.rider_categories.iter().map(|r| r.rider_category_id.as_str()))),
+    ] {
+        if !set.is_empty() {
+            by_table.insert(table, set);
+        }
+    }
+    by_table
 }
 
 /// Bir çeviri satırının `record_id`'si kaynak tabloda var mı?
@@ -3561,7 +3583,7 @@ fn attribution_id_set(records: &EntityRecords) -> HashSet<&str> {
 /// JPN_019 ayrı bir eşleme kullanır: o blok `EntityMap` yerine ham K2 kayıtlarını okur.
 fn translation_record_exists(
     map: &EntityMap,
-    attribution_ids: &HashSet<&str>,
+    extra_ids: &HashMap<&'static str, HashSet<&str>>,
     table: &str,
     record_id: &str,
 ) -> Option<bool> {
@@ -3574,10 +3596,9 @@ fn translation_record_exists(
         "levels" => map.levels.contains_key(record_id),
         "pathways" => map.pathways.contains_key(record_id),
         "fare_attributes" => map.fare_attrs.contains_key(record_id),
-        "attributions" => attribution_ids.contains(record_id),
         // feed_info/stop_times/shapes/frequencies/transfers/fare_rules/translations:
         // kimlik ya yasaktır (feed_info → TRN_013) ya da tek alanla çözülemez.
-        _ => return None,
+        _ => return extra_ids.get(table).map(|ids| ids.contains(record_id)),
     })
 }
 
@@ -3621,7 +3642,7 @@ fn check_translations(
     //   değer aynı  → TRN_005 (birebir yinelenen çeviri)
     //   değer farklı → TRN_006 (çelişkili çeviri; hangisi geçerli belirsiz)
     let mut seen: HashMap<String, String> = HashMap::new();
-    let attribution_ids = attribution_id_set(records);
+    let extra_ids = translation_extra_record_ids(records);
     // TRN_007 agregasyonu: feed_lang ile aynı dildeki çeviriler (yaygın GTFS-JP araç pratiği —
     // her alanı ja/ja-Hrkt/en'e çevirir, ja kaynağı birebir tekrarlar) satır-başına on binlerce
     // notice yerine tek feed-seviyesi özette toplanır (STM_017/STP_022 emsali).
@@ -3654,7 +3675,7 @@ fn check_translations(
         // TRN_004: record_id başvurulan kayıt bulunamadı
         if let Some(ref rid) = rec.record_id {
             let exists =
-                translation_record_exists(map, &attribution_ids, &rec.table_name, rid.as_str())
+                translation_record_exists(map, &extra_ids, &rec.table_name, rid.as_str())
                     .unwrap_or(true);
             if !exists {
                 notices.push(notice(
@@ -7191,14 +7212,14 @@ fn check_xfl(
     // XFL_014:�?eviri yapılan kayıt silinmiş veya tanımsız (dangling translation feed özeti)
     {
         let mut bad_keys: HashSet<String> = HashSet::new();
-        let attribution_ids = attribution_id_set(records);
+        let extra_ids = translation_extra_record_ids(records);
         for rec in &records.translations {
             if let Some(ref rid) = rec.record_id {
                 if rid.is_empty() {
                     continue;
                 }
                 let exists =
-                    translation_record_exists(map, &attribution_ids, &rec.table_name, rid.as_str())
+                    translation_record_exists(map, &extra_ids, &rec.table_name, rid.as_str())
                         .unwrap_or(true);
                 if !exists {
                     bad_keys.insert(format!("{}:{}", rec.table_name, rid));
