@@ -2860,12 +2860,16 @@ fn check_fare_origin_destination_coverage(
     if valid_fare_ids.is_empty() {
         return;
     }
+    let rules: Vec<&crate::k2::fare_rules::FareRuleRecord> = records
+        .fare_rules
+        .iter()
+        .filter(|rule| valid_fare_ids.contains(rule.fare_id.as_str()))
+        .collect();
 
     // A fare rule without any discriminator is a deliberate all-trips fare
     // (FRL_007 may still report its broad scope, but it covers the pairs).
-    if records.fare_rules.iter().any(|rule| {
-        valid_fare_ids.contains(rule.fare_id.as_str())
-            && rule.route_id.is_none()
+    if rules.iter().any(|rule| {
+        rule.route_id.is_none()
             && rule.origin_id.is_none()
             && rule.destination_id.is_none()
             && rule.contains_id.is_none()
@@ -2873,87 +2877,109 @@ fn check_fare_origin_destination_coverage(
         return;
     }
 
-    let mut route_stops: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    // GTFS v1 matching: an empty route/origin/destination field matches any
+    // value. A pair is covered when some rule matches it on all three axes, so
+    // lookups try the concrete value and the wildcard for each (8 probes).
+    let coverage: HashSet<(Option<&str>, Option<&str>, Option<&str>)> = rules
+        .iter()
+        .filter(|rule| rule.contains_id.is_none())
+        .map(|rule| {
+            (
+                rule.route_id.as_deref(),
+                rule.origin_id.as_deref(),
+                rule.destination_id.as_deref(),
+            )
+        })
+        .collect();
+    let covered = |route: &str, origin: &str, destination: &str| {
+        [Some(route), None].into_iter().any(|r| {
+            [Some(origin), None].into_iter().any(|o| {
+                [Some(destination), None]
+                    .into_iter()
+                    .any(|d| coverage.contains(&(r, o, d)))
+            })
+        })
+    };
+    // contains_id needs the whole itinerary's zone set; this Schedule-v1 check
+    // does not model it, so a route that any contains_id rule may apply to is
+    // skipped rather than guessed.
+    let contains_any_route = rules
+        .iter()
+        .any(|rule| rule.contains_id.is_some() && rule.route_id.is_none());
+    let contains_routes: HashSet<&str> = rules
+        .iter()
+        .filter(|rule| rule.contains_id.is_some())
+        .filter_map(|rule| rule.route_id.as_deref())
+        .collect();
+    if contains_any_route {
+        return;
+    }
+    // Only a route whose applicable rules use origin/destination zones is a
+    // zone-fare route. Route-uniform routes are already fully covered.
+    let zoned_any_route = rules.iter().any(|rule| {
+        rule.route_id.is_none() && (rule.origin_id.is_some() || rule.destination_id.is_some())
+    });
+    let zoned_routes: HashSet<&str> = rules
+        .iter()
+        .filter(|rule| rule.origin_id.is_some() || rule.destination_id.is_some())
+        .filter_map(|rule| rule.route_id.as_deref())
+        .collect();
+
+    // Distinct zone sequences per route. Trips sharing a stop pattern yield the
+    // same pairs, so pairs are enumerated once per pattern, not once per trip.
+    let stop_zone = |stop_id: &str| -> Option<&str> {
+        let &idx = map.stops.get(stop_id)?;
+        let zone = row_field(&records.stops[idx].row, "zone_id");
+        (!zone.is_empty()).then_some(zone)
+    };
+    let mut patterns: BTreeMap<&str, HashSet<Vec<&str>>> = BTreeMap::new();
+    let mut unzoned_routes: HashSet<&str> = HashSet::new();
     for trip in &records.trips {
         let route_id = records.trip_interns.route_id(trip);
-        if !map.routes.contains_key(route_id) {
+        if !map.routes.contains_key(route_id)
+            || contains_routes.contains(route_id)
+            || !(zoned_any_route || zoned_routes.contains(route_id))
+            || unzoned_routes.contains(route_id)
+        {
             continue;
         }
         let Some(stops) = records.stop_times_index.sorted_stops(trip.trip_id.as_str()) else {
             continue;
         };
-        let served = route_stops.entry(route_id).or_default();
+        let mut zones = Vec::with_capacity(stops.len());
         for stop_time in stops {
-            let stop_id = records.stop_times_index.stop_id_of(stop_time);
-            if !stop_id.is_empty() {
-                served.insert(stop_id);
-            }
-        }
-    }
-
-    let mut route_rules: BTreeMap<&str, Vec<&crate::k2::fare_rules::FareRuleRecord>> =
-        BTreeMap::new();
-    for rule in &records.fare_rules {
-        let Some(route_id) = rule.route_id.as_deref() else {
-            continue;
-        };
-        if valid_fare_ids.contains(rule.fare_id.as_str()) && map.routes.contains_key(route_id) {
-            route_rules.entry(route_id).or_default().push(rule);
-        }
-    }
-
-    let mut missing_pairs = BTreeSet::new();
-    for (route_id, stop_ids) in route_stops {
-        let Some(rules) = route_rules.get(route_id) else {
-            continue;
-        };
-
-        // An unqualified route rule covers every origin/destination pair on
-        // that route, including the uniform-fare case.
-        if rules.iter().any(|rule| {
-            rule.origin_id.is_none() && rule.destination_id.is_none() && rule.contains_id.is_none()
-        }) {
-            continue;
-        }
-
-        // Only a complete origin+destination zone model is enumerable. A
-        // contains_id or one-sided rule needs transfer/leg semantics that this
-        // Schedule-v1 check must not invent.
-        if !rules.iter().any(|rule| {
-            rule.origin_id.is_some() && rule.destination_id.is_some() && rule.contains_id.is_none()
-        }) {
-            continue;
-        }
-
-        let mut zones = BTreeSet::new();
-        let mut all_stops_zoned = true;
-        for stop_id in stop_ids {
-            let Some(&stop_idx) = map.stops.get(stop_id) else {
-                all_stops_zoned = false;
+            // Flex rows (no stop_id) and unzoned stops cannot be priced by zone;
+            // STP_033 owns the missing zone, so the route is not judged here.
+            let Some(zone) = stop_zone(records.stop_times_index.stop_id_of(stop_time)) else {
+                unzoned_routes.insert(route_id);
+                zones.clear();
                 break;
             };
-            let zone = row_field(&records.stops[stop_idx].row, "zone_id");
-            if zone.is_empty() {
-                all_stops_zoned = false;
-                break;
-            }
-            zones.insert(zone);
+            zones.push(zone);
         }
-        if !all_stops_zoned || zones.is_empty() {
+        if zones.len() >= 2 {
+            patterns.entry(route_id).or_default().insert(zones);
+        }
+    }
+
+    let mut missing_pairs: BTreeSet<(&str, &str, &str)> = BTreeSet::new();
+    for (route_id, route_patterns) in &patterns {
+        if unzoned_routes.contains(route_id) {
             continue;
         }
-
-        for origin in &zones {
-            for destination in &zones {
-                let covered = rules.iter().any(|rule| {
-                    rule.origin_id.as_deref() == Some(*origin)
-                        && rule.destination_id.as_deref() == Some(*destination)
-                });
-                if !covered {
-                    missing_pairs.insert(format!(
-                        "route_id={route_id}, origin_id={origin}, destination_id={destination}"
-                    ));
+        let mut served: HashSet<(&str, &str)> = HashSet::new();
+        for zones in route_patterns {
+            // A rider boards before alighting: only forward pairs along the
+            // trip are served. Same-zone pairs are real between two stops.
+            for (i, &origin) in zones.iter().enumerate() {
+                for &destination in &zones[i + 1..] {
+                    served.insert((origin, destination));
                 }
+            }
+        }
+        for (origin, destination) in served {
+            if !covered(route_id, origin, destination) {
+                missing_pairs.insert((route_id, origin, destination));
             }
         }
     }
@@ -2962,7 +2988,14 @@ fn check_fare_origin_destination_coverage(
         return;
     }
 
-    let examples: Vec<&str> = missing_pairs.iter().map(String::as_str).take(5).collect();
+    let examples: Vec<String> = missing_pairs
+        .iter()
+        .take(5)
+        .map(|(route, origin, destination)| {
+            format!("route_id={route}, origin_id={origin}, destination_id={destination}")
+        })
+        .collect();
+    let examples = examples.join("; ");
     let mut finding = notice(
         ctr,
         "FRL_009",
@@ -2973,17 +3006,16 @@ fn check_fare_origin_destination_coverage(
         None,
         Some("route_id|origin_id|destination_id"),
         Some(missing_pairs.len().to_string()),
-        Some("0 missing origin/destination fare pairs".to_string()),
+        Some("0".to_string()),
         format!(
-            "{} served origin/destination zone pair(s) have no fare rule (examples: {}).",
-            missing_pairs.len(),
-            examples.join("; ")
+            "Seferlerin gerçekten bağladığı {} kalkış-varış bölge çifti için ücret kuralı yok (örnekler: {examples}).",
+            missing_pairs.len()
         ),
-        "Add fare_rules.txt entries for every served origin/destination zone pair, or model the fare as a route-uniform or catch-all fare.",
+        "Her kalkış-varış bölge çifti için fare_rules.txt satırı ekleyin ya da ücreti hat bazında tek fiyat veya tüm seferleri kapsayan ücret olarak tanımlayın.",
     );
     finding.details = Some(BTreeMap::from([
         ("missing_pairs".to_string(), missing_pairs.len().to_string()),
-        ("example_pairs".to_string(), examples.join("; ")),
+        ("example_pairs".to_string(), examples),
     ]));
     notices.push(finding);
 }

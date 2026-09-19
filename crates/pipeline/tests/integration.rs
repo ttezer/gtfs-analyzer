@@ -465,9 +465,10 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         "fare_attributes.txt",
         b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
     ));
+    // Seferler S1(A)→S2(B) yönünde; yalnız ters yön fiyatlıysa A→B eksiktir.
     files.push((
         "fare_rules.txt",
-        b"fare_id,route_id,origin_id,destination_id\nF1,R1,A,B\n",
+        b"fare_id,route_id,origin_id,destination_id\nF1,R1,B,A\n",
     ));
 
     let incomplete = run(&files);
@@ -482,7 +483,21 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         .find(|notice| notice.rule_id == "FRL_009")
         .and_then(|notice| notice.details.as_ref())
         .expect("FRL_009 ayrıntıları olmalı");
-    assert!(missing["missing_pairs"].parse::<usize>().unwrap() >= 1);
+    assert_eq!(missing["missing_pairs"], "1");
+    assert!(missing["example_pairs"].contains("origin_id=A, destination_id=B"));
+
+    // Seferin bağladığı tek çift fiyatlıysa bulgu yok: ters yön (B→A) ve aynı-bölge
+    // (A→A, B→B) çiftleri hiçbir seferde yapılamadığı için istenmez.
+    let mut served_only = files.clone();
+    served_only.pop();
+    served_only.push((
+        "fare_rules.txt",
+        b"fare_id,route_id,origin_id,destination_id\nF1,R1,A,B\n",
+    ));
+    match run(&served_only) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "FRL_009"), "yapılamayan çiftler istenmemeli"),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
 
     let mut uniform = files;
     uniform.pop();
