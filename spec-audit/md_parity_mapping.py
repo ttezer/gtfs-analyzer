@@ -995,7 +995,6 @@ NO_MD_EQUIVALENT: dict[str, str] = {
     "TRN_008": "translations.txt::translation boş; satır bir çeviri tanımladığını söyler ama içerik taşımaz. MD katalogunda boş çeviri değerini denetleyen kod yok — translation_unexpected_value boş OLMASI GEREKEN alanın dolu olmasını ölçer, tersini değil.",
     "TRN_015": "record_id ve field_value ikisi de boş. MD'nin `translation_unexpected_value`'su TERSİNİ ölçer (dolu olmamalıyken dolu).",
     "STM_060": "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşmesi. Spec bunu yasaklar; MD'de kod yok ve bizde de geometri saklanmadığı için kapsam sınırlıdır.",
-    "BKR_002": "prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir. MD'nin `forbidden_prior_notice_start_day`'i duration_max koşulunu ölçer (o bizde BKR_024), bu eşleşmeyi değil.",
     "ARC_036": "ZIP girdisinin akış görünümü (data-descriptor bayrağı + descriptor kaydı) merkez diziniyle çelişiyor. MD katalogunda ZIP çerçeve tutarlılığını denetleyen kod YOK; MD bu arşivlerde bulgu üretmek yerine ÇÖKER (`GtfsInput.hasSubfolderWithGtfsFile` akış okuyucusu `ZipException` fırlatır, doğrulama hiç başlamaz — `tdg-81618` ve `mdb-2607` 15. koşumda böyle düştü). Çökme bir kod değildir, dolayısıyla eşlenecek karşılık da yoktur.",
 }
 

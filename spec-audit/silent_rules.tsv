@@ -29,7 +29,6 @@ ATR_010		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	ARC_002	no	1	agency_
 ATR_011		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup	RTS_001	yes	1	route_id bulunamadı
 ATR_012		Dusuk	Spec	SELECTION_BIAS	attributions.txt	14	grup			1	trip_id bulunamadı
 BKR_001		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	2	Önceki gün rezervasyon alanı yasak bağlamda dolu
-BKR_002		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_start_day yalnızca prior_notice_last_day ile kullanılabilir
 BKR_003		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül			1	prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir
 BKR_004		Yuksek	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	Anlık rezervasyonda prior_notice alanları yasak
 BKR_005		Orta	Spec	PREDICATE_SUSPECT	booking_rules.txt	18	modül	BKR_016	no	1	prior_notice_duration_max yalnızca booking_type=1 ile geçerli (booking_type=0/2 ile yasak)

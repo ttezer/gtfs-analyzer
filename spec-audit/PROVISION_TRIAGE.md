@@ -474,8 +474,8 @@ defined."* Yani aynı gün rezervasyonda üst süre sınırı varken başlangı�
 
 `prior_notice_duration_max` o tarihte kodda yalnız üç yerde geçiyordu
 (`booking_rules.rs:129/137/157`) ve hiçbiri `start_day` ile ilişkilendirilmiyordu. Güncel
-`BKR_024` bu ilişkiyi ölçer; `BKR_002` komşu ama farklı hükmü ölçer
-(`start_day` yalnız `last_day` ile kullanılabilir).
+`BKR_024` bu ilişkiyi ölçer. (Eskiden komşu sayılan `BKR_002`, spec'te bulunmayan
+bir eşlik şartı dayattığı için 2026-09-19'da emekli edildi.)
 
 Sert hüküm. Bu tarihsel boşluk `BKR_024` ile kapatıldı; `BKR_005` komşu hükmü ayrı
 olarak korur.
