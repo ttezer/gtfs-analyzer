@@ -977,6 +977,7 @@ const tr = {
     'FRL_006': 'Ücret kuralı tanımlı değil',
     'FRL_007': 'Ücret kuralı mantıksal tutarsızlık',
     'FRL_008': 'Tüm hatlar için ücret tanımlı değil',
+    'FRL_009': 'Bazı kalkış-varış bölge çiftleri için ücret eksik',
     // RCT
     'RCT_001': 'rider_category_id yineleniyor',
     'RCT_002': 'rider_category_name eksik',
