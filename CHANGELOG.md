@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **GTFS-JP future-only calendar handling:** when every derived active service
-  date is after `today`, `CAL_015` is emitted once as a zero-penalty INFO notice;
-  `CAL_017`, `CAL_024`, and `TRP_023` are suppressed for that publication state.
-  Global feeds and GTFS-JP feeds that already have current service retain the
-  existing calendar quality checks.
-
 ### Added
 
+- **`FRL_009` — origin/destination fare coverage incomplete** (Medium/Quality,
+  rule count 623 → 624). In a zone-based `fare_rules.txt` model, every zone pair
+  a trip actually connects (boarding stop before alighting stop) must match a
+  fare rule, using GTFS v1 wildcard matching on `route_id`, `origin_id`, and
+  `destination_id`. Reverse or same-zone pairs that no trip serves are not
+  required. Catch-all and route-uniform fares, routes reachable by a
+  `contains_id` rule, routes with unzoned or Flex stops, and Fares v2 are out of
+  scope. `pickup_type`/`drop_off_type` restrictions are not yet considered.
+- **`disabled_rule_ids` config key and `--disable-rule` CLI option.** Listed
+  rules are removed after analysis and before reporting, so they affect neither
+  notices, scores, report views, nor the R9 queue. Native, WASM, and SDK apply
+  the same filter.
 - **`JPN_033` — reserved GTFS-JP namespace in custom names** (Medium/Interop,
   rule count 623 → 624). When the GTFS-JP detection gate is open, a custom file
   or column that uses MLIT's reserved `jp` namespace is reported: `*_jp` files
@@ -48,6 +54,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **GTFS-JP future-only feeds:** when a detected GTFS-JP feed has no active
+  service date on or before `today`, `CAL_015` is emitted once as a zero-penalty
+  INFO notice with its own "no action needed" text in every locale
+  (`CAL_015.future_only_jp`), and `CAL_017`, `CAL_024`, `TRP_023`, and
+  `FIN_016` are suppressed. Publishing the next timetable generation as a
+  separate dataset before it takes effect is the recommended Japanese practice.
+  Non-JP feeds and GTFS-JP feeds that already have current service keep the
+  existing checks.
+- **`STP_033` is no longer reported when the feed proves uniform fare coverage**
+  (a single fare without `fare_rules.txt`, a catch-all rule, or a route-uniform
+  rule for every served route). Zone-based or ambiguous fare models keep it.
+- `RTS_019` and `FIN_018` messages and remediations are shorter and state that
+  they are quality recommendations (`FIN_018`'s fields are optional in the spec).
 - `translations.txt::table_name` and `field_name` validation now uses the generated
   official GTFS schema catalogue, including `location_groups.location_group_name`;
   new official tables no longer require a hand-maintained translation whitelist.
@@ -57,13 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single-agency feeds. `AGN_011` now also counts fare rows whose `fare_id` is
   empty (`FAR_012` still reports the empty id), so such a feed can newly become
   non-publishable. Its remediation text now mentions fare records.
-- READMEs report the current **623-rule** catalog, list `JPN_032`/`JPN_033` in
+- READMEs report the current **624-rule** catalog, list `JPN_032`/`JPN_033` in
   the GTFS-JP rule tables, and use the qualified coverage badge wording.
 - Corpus-audit workflow artifacts are retained for 30 days instead of 90.
 
 ### Removed
 
-- **`BKR_002` (prior_notice_start_day requires prior_notice_last_day).** This was not
+- **`BKR_002` (prior_notice_start_day requires prior_notice_last_day), rule
+  count 624 → 623.** This was not
   required by the GTFS specification and produced a false positive for valid
   `booking_type=1` rows. The identifier is retired and cannot be reused.
 - **`STP_025` (stop_name has leading or trailing whitespace), rule count

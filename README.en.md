@@ -360,6 +360,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--severity critical` | Notices with exactly this severity (critical/high/medium/low/info) |
 | `--min-severity high` | This severity and anything worse (critical is the worst) |
 | `--class spec` | Only these rule classes — `spec,interop,quality,analytics`, comma separated |
+| `--disable-rule DQ_004` | Removes the listed rules from notices, scores, and the R9 queue; comma separated |
 | `--fail-on critical` | Exit 1 **only** when this severity or worse is present |
 | `--fail-on-class spec` | Exit 1 only when a notice in these classes is present |
 | `--pretty` | Indent the JSON output (requires `--json`) |

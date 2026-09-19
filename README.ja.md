@@ -360,6 +360,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--severity critical` | この重大度に完全一致する通知のみ（critical/high/medium/low/info） |
 | `--min-severity high` | この重大度以上（critical が最も重い） |
 | `--class spec` | 指定したルールクラスのみ — `spec,interop,quality,analytics`、カンマ区切りで複数可 |
+| `--disable-rule DQ_004` | 指定したルールを指摘・スコア・R9キューから除外します。カンマ区切りで複数可 |
 | `--fail-on critical` | この重大度以上が存在する場合**のみ** exit 1 |
 | `--fail-on-class spec` | 指定クラスの通知が存在する場合のみ exit 1 |
 | `--pretty` | JSON をインデント出力（`--json` が必要） |
