@@ -1408,7 +1408,7 @@ const ja: LocaleShape = {
     'FIN_015': 'feed_info.txtのレコードを1件のみにしてください。',
     'FIN_016': 'feed_start_dateを今日以前の日付に設定するか、適切なタイミングでフィードを公開してください。',
     'FIN_017': 'feed_end_dateを現実的な終了日（2年以内）に設定してください。',
-    'FIN_018': 'feed_info.txtにfeed_contact_emailまたはfeed_contact_urlを追加してください。',
+    'FIN_018': '推奨：データ利用者向けの技術連絡先として、feed_info.txtにfeed_contact_emailまたはfeed_contact_urlを追加してください。',
     'FIN_019': '現在のフィードが期限切れになる前に更新版を公開する計画を立ててください。',
     'FIN_020': '少なくとも1つの完全なサービスサイクルをカバーするようにフィード有効期間を延長してください。',
     // FLG
@@ -1602,7 +1602,7 @@ const ja: LocaleShape = {
     'RTS_016': 'calendar.txtまたはcalendar_dates.txtのサービス定義を修正してください。',
     'RTS_017': 'すべての路線にshapes.txtを定義し、trips.txtのshape_idを割り当ててください。',
     'RTS_018': 'フィールドを有効なGTFS連続サービス値（0〜3）に設定してください。',
-    'RTS_019': '各路線に一意の短い名前または長い名前を付けてください。意図的に共有している場合は文書化してください。',
+    'RTS_019': '品質上の推奨：路線が意図的に分かれているか確認してください。別個の旅客サービスなら区別できる名称を付け、同一の名称付きサービスなら1つのroute_idを使用してください。',
     'RTS_020': 'route_urlを路線固有のページに指定するか、空のままにしてください。',
     'RTS_021': 'Googleトランジット互換性のためroute_short_nameを6文字以内にするか、route_long_nameを入力してください。',
     'RTS_022': 'route_long_nameが短い名前を繰り返さないように編集してください。',

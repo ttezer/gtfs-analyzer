@@ -5595,7 +5595,7 @@ fn check_data_quality(
                     None, None, "feed_info.txt", None, Some("feed_contact_email"),
                     None, None,
                     "feed_contact_email ve feed_contact_url alanlarının ikisi de eksik — kullanıcılar feed sorunlarını nereden bildireceğini bilemiyor.".to_string(),
-                    "feed_info.txt'e feed_contact_email veya feed_contact_url ekleyin.",
+                    "Öneri: Veri tüketicilerinin teknik iletişim noktası olması için feed_info.txt'e feed_contact_email veya feed_contact_url ekleyin.",
                 ));
             }
 

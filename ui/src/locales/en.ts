@@ -1546,7 +1546,7 @@ const en: LocaleShape = {
     'RTS_012': 'Remove the unused route or assign it a trip.',
     'RTS_013': 'Set the field to a valid GTFS continuous service value (0–3).',
     'RTS_018': 'Set the field to a valid GTFS continuous service value (0–3).',
-    'RTS_019': 'Give each route a unique short or long name, or document intentional sharing.',
+    'RTS_019': 'Quality recommendation: review whether the routes are intentionally separate; use distinguishing names for distinct passenger services, or one route_id for a single named service.',
     'RTS_021': 'Keep route_short_name under 6 characters for Google Transit compatibility, or fill in route_long_name.',
     'RTS_023': 'route_desc should describe the route, not repeat its name.',
     // TRP (field-level)
@@ -1697,7 +1697,7 @@ const en: LocaleShape = {
     'FIN_013': 'Fill in agency_id in fare_attributes.txt to clarify which agency each fare belongs to.',
     'FIN_016': 'Set feed_start_date to today or an earlier date, or publish the feed at the right time.',
     'FIN_017': 'Set feed_end_date to a realistic end date (within 2 years).',
-    'FIN_018': 'Add feed_contact_email or feed_contact_url to feed_info.txt.',
+    'FIN_018': 'Recommended: add feed_contact_email or feed_contact_url to feed_info.txt so consumers have a technical contact.',
     'FIN_019': 'Plan to publish an updated feed before the current one expires.',
     'FIN_020': 'Extend the feed validity window to cover at least one full service cycle.',
     // ATR
