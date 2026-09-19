@@ -4070,10 +4070,8 @@ fn check_operational_analytics(
             if trip.trip_id.is_empty() {
                 continue;
             }
-            let active_in_7 = derived
-                .calendar_bitmap
-                .active_dates
-                .get(ti_opr.service_id(trip))
+            let dates = derived.calendar_bitmap.active_dates.get(ti_opr.service_id(trip));
+            let active_in_7 = dates
                 .map(|dates| {
                     dates.iter().any(|&d| {
                         let djdn = yyyymmdd_to_jdn(d);
@@ -4081,7 +4079,14 @@ fn check_operational_analytics(
                     })
                 })
                 .unwrap_or(false);
-            if !active_in_7 {
+            // Henüz başlamamış servis (ilk aktif günü bugünden sonra) bir kusur değildir:
+            // aynı veri kümesindeki gelecek dönemin tarifesidir (ör. Goshogawara'nın kış
+            // servisi). CAL_017'nin gerekçesiyle aynı; tüm feed gelecekteyse durum
+            // CAL_015/CAL_017/TRP_023 ile zaten bildirilir.
+            let not_started = dates
+                .and_then(|dates| dates.iter().copied().min())
+                .is_some_and(|first| first > today_yyyymmdd);
+            if !active_in_7 && !not_started {
                 let e = inactive_by_service
                     .entry(ti_opr.service_id(trip))
                     .or_insert((0, trip.line));
@@ -14012,12 +14017,14 @@ mod tests {
             .find(|n| n.rule_id == "CAL_015")
             .expect("global future-only feed CAL_015 üretmeli");
         assert_eq!(cal015.severity, gtfs_core::Severity::Dusuk);
-        for rule in ["CAL_017", "CAL_024", "TRP_023"] {
+        for rule in ["CAL_017", "TRP_023"] {
             assert!(
                 result.notices.iter().any(|n| n.rule_id == rule),
                 "global future-only feed {rule} üretmeli"
             );
         }
+        // Henüz başlamamış servis CAL_024 konusu değildir; feed-seviyesi durum yukarıdakilerde.
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_024"));
     }
 
     #[test]
@@ -14054,12 +14061,13 @@ mod tests {
                 .any(|n| n.rule_id == "CAL_015" && n.severity == gtfs_core::Severity::Dusuk),
             "non-JP future-only feed global CAL_015 davranışını korumalı"
         );
-        for rule in ["CAL_017", "CAL_024", "TRP_023", "FIN_016"] {
+        for rule in ["CAL_017", "TRP_023", "FIN_016"] {
             assert!(
                 result.notices.iter().any(|n| n.rule_id == rule),
                 "non-JP future-only feed {rule} üretmeli"
             );
         }
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_024"));
     }
 
     #[test]
@@ -14147,7 +14155,8 @@ mod tests {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
                     ("ACTIVE".to_string(), [20260514u32].into_iter().collect()),
-                    ("GAP".to_string(), [20260522u32].into_iter().collect()),
+                    // Bugünü kapsayan ama önümüzdeki 7 günde aktif günü olmayan takvim.
+                    ("GAP".to_string(), [20260501u32, 20260601].into_iter().collect()),
                 ]
                 .into_iter()
                 .collect(),
@@ -14161,7 +14170,7 @@ mod tests {
                 .notices
                 .iter()
                 .any(|n| n.rule_id == "CAL_024" && n.entity_id.as_deref() == Some("GAP")),
-            "bugün aktif bir servis varken ayrı gelecekteki takvimin CAL_024 sinyali korunmalı"
+            "bugünü kapsayan ama 7 gün boşluklu takvimin CAL_024 sinyali JP istisnasıyla kaybolmamalı"
         );
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "CAL_015"),
@@ -14190,6 +14199,51 @@ mod tests {
             !result.notices.iter().any(|n| n.rule_id == "CAL_012"),
             "Geçmişteki boşluk CAL_012 üretmemeli"
         );
+    }
+
+    /// Goshogawara (2026-09-19): feed bugün çalışıyor, kış tarifesi 1 Aralık'ta başlıyor.
+    /// Aynı veri kümesindeki gelecek dönem CAL_024 değildir; kapıyı kanıtlamak için
+    /// başlamış ama 7 gün boşluklu takvim hâlâ raporlanır.
+    #[test]
+    fn cal_024_skips_not_yet_started_service_in_an_active_feed() {
+        use crate::k5_derived::CalendarBitmap;
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![
+                trip_with_service("T_NOW", "R1", "SUMMER"),
+                trip_with_service("T_WINTER", "R1", "WINTER"),
+                trip_with_service("T_HOLE", "R1", "HOLE"),
+            ],
+            vec![
+                stoptime("T_NOW", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T_NOW", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T_WINTER", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T_WINTER", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+                stoptime("T_HOLE", 1, "A", (10, 0, 0), (10, 0, 0), 6),
+                stoptime("T_HOLE", 2, "B", (10, 10, 0), (10, 10, 0), 7),
+            ],
+        );
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [
+                    ("SUMMER".to_string(), [20260919u32, 20260920].into_iter().collect()),
+                    ("WINTER".to_string(), [20261201u32, 20261202].into_iter().collect()),
+                    ("HOLE".to_string(), [20260901u32, 20261015].into_iter().collect()),
+                ]
+                .into_iter()
+                .collect(),
+            },
+            ..Default::default()
+        };
+        let result = analyze(&records, &derived, &default_config(), 20260919);
+        let ids: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "CAL_024")
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(ids, ["HOLE"], "yalnız başlamış ve 7 gün boşluklu takvim raporlanmalı");
     }
 
     #[test]

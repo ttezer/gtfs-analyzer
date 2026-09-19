@@ -69,6 +69,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`STP_033` is no longer reported when the feed proves uniform fare coverage**
   (a single fare without `fare_rules.txt`, a catch-all rule, or a route-uniform
   rule for every served route). Zone-based or ambiguous fare models keep it.
+- **`CAL_024` no longer reports a service that has not started yet** (its first
+  active date is after `today`), such as next season's timetable in the same
+  dataset. A started service with no activity in the next 7 days and expired
+  services are still reported; an entirely future feed is covered by
+  `CAL_015`/`CAL_017`/`TRP_023`.
 - **Flex on-demand trips:** `PDW_006` now reports overlapping windows in the
   same trip and zone only when both rows share a role (both open for pickup or
   both open for drop-off), as the spec's overlap constraint requires; a

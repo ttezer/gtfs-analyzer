@@ -1375,7 +1375,7 @@ fn fixtures() -> Vec<Fixture> {
         // CAL_023: end_date >= today_year+3 (sınır yılı dahil; ör. 2026+3=2029 eşikte).
         fx("CAL_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20290101\n")]),
         // CAL_024: servis önümüzdeki 7 günde aktif değil (service-başına).
-        fx("CAL_024", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270131\n")]),
+        fx("CAL_024", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260401,20260630\n"), ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260515,2\nSVC1,20260516,2\nSVC1,20260517,2\nSVC1,20260518,2\nSVC1,20260519,2\nSVC1,20260520,2\nSVC1,20260521,2\n")]),
 
         // ── FIN grubu (feed_info.txt k2 + k6) ──────────────────────────────────
         // FIN_007: feed_version eksik.
