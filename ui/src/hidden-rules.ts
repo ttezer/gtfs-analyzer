@@ -88,10 +88,17 @@ export async function applyRuleVisibility(changed: boolean): Promise<void> {
   const { setResult, setPage } = await import('./state');
   const state = getState();
   const page = state.page;
-  // Yeniden çizim sayfayı sıfırdan kurar: R9 akordeonu kapanır ve sayfa başa döner.
-  // Kullanıcı okuduğu yerde kalmalı — açıklık ve kaydırma konumu geri konur.
+  // Yeniden çizim sayfayı sıfırdan kurar: R9 akordeonu kapanır, önem filtresi
+  // seçimi silinir ve sayfa başa döner. Kullanıcı okuduğu yerde kalmalı.
+  // Sınıf/dosya filtreleri state'te tutulduğu için kendiliğinden korunur; önem
+  // rozetleri yalnız DOM'da yaşar, bu yüzden burada yakalanır.
   const r9Open = document.querySelector<HTMLDetailsElement>('.r9-card')?.open ?? false;
   const scrollY = window.scrollY;
+  const activeSev = (id: string): string[] => {
+    const chips = Array.from(document.querySelectorAll(`#${id} .sev-chip.active`)) as HTMLButtonElement[];
+    return chips.map(chip => chip.dataset['sev'] ?? '').filter(Boolean);
+  };
+  const sevSelection = { r2: activeSev('r2-sev-filter'), r9: activeSev('r9-sev-filter') };
   try {
     const fresh = await rerunValidation(state.configDelta);
     setResult(fresh, state.fileName, state.fileSize ?? 0, state.reportDurationMs);
@@ -102,6 +109,13 @@ export async function applyRuleVisibility(changed: boolean): Promise<void> {
   renderApp();
   const r9 = document.querySelector<HTMLDetailsElement>('.r9-card');
   if (r9 && r9Open) r9.open = true;
+  // Rozete tıklamak hem 'active' işaretini hem de filtre uygulamasını geri getirir;
+  // filtre mantığını burada TEKRARLAMAK iki kopya demek olurdu.
+  for (const [id, sevs] of [['r2-sev-filter', sevSelection.r2], ['r9-sev-filter', sevSelection.r9]] as const) {
+    for (const sev of sevs) {
+      document.querySelector<HTMLButtonElement>(`#${id} .sev-chip[data-sev="${sev}"]`)?.click();
+    }
+  }
   window.scrollTo({ top: scrollY });
 }
 
