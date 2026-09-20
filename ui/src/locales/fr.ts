@@ -301,6 +301,9 @@ const fr: LocaleShape = {
     // Fix R9
     'fix.r9_title'       : 'Synthèse des scores par règle (R9)',
     'fix.r9_hint'        : 'Cliquez sur une ligne du tableau pour voir les détails et la correction.',
+    'fix.hide_rule'       : "Masquer cette règle",
+    'fix.unhide_rule'     : "Afficher à nouveau",
+    'fix.hidden_note'     : "{count} règle(s) masquée(s) ; les signalements et les scores ne portent que sur les règles restantes. Cliquez sur une étiquette pour en rétablir une.",
     'fix.r9_collapsed_hint' : 'cliquez pour voir l’impact sur le score de publication et le score global',
     'fix.r9_empty'       : 'Aucun problème à corriger.',
     'fix.r9_message'     : 'Message :',

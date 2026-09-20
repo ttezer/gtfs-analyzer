@@ -298,6 +298,9 @@ const tr = {
     // Fix R9
     'fix.r9_title'       : 'Kural Bazlı Skor Özeti (R9)',
     'fix.r9_hint'        : 'Satıra tıklayarak açıklama ve çözüm önerisini görebilirsiniz.',
+    'fix.hide_rule'       : "Bu kuralı gizle",
+    'fix.unhide_rule'     : "Yeniden göster",
+    'fix.hidden_note'     : "{count} kural gizlendi; bulgular ve skorlar yalnız gizlenmemiş kurallara göre hesaplandı. Geri getirmek için rozete tıklayın.",
     'fix.r9_collapsed_hint' : 'Yayın ve Genel Skora etkiyi görmek için tıklayın',
     'fix.r9_empty'       : 'Düzeltilecek bulgu yok.',
     'fix.r9_message'     : 'Mesaj:',

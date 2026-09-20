@@ -299,6 +299,9 @@ const en: LocaleShape = {
     // Fix R9
     'fix.r9_title'       : 'Rule-Based Score Summary (R9)',
     'fix.r9_hint'        : 'Click a row to see details and remediation.',
+    'fix.hide_rule'       : "Hide this rule",
+    'fix.unhide_rule'     : "Show again",
+    'fix.hidden_note'     : "{count} rule(s) hidden; findings and scores cover the remaining rules only. Click a chip to bring one back.",
     'fix.r9_collapsed_hint' : 'click to see Publish and Overall score impact',
     'fix.r9_empty'       : 'No issues to fix.',
     'fix.r9_message'     : 'Message:',
