@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-20
+
+This release consolidates the GTFS-JP profile and coverage contract, rule-selection
+configuration, fare and calendar correctness fixes, and the synchronized Rust,
+CLI, WebAssembly, UI, and SDK surfaces.
+
 ### Added
 
 - **`FRL_009` — origin/destination fare coverage incomplete** (Medium/Quality,
@@ -2230,7 +2236,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.11.1...v0.12.0

@@ -276,9 +276,9 @@ Doğrulamayı kendi Rust servisinize gömmek için `gtfs-pipeline`'ı doğrudan 
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.13.1"
-gtfs-config   = "0.13.1"
-gtfs-core     = "0.13.1"
+gtfs-pipeline = "0.14.0"
+gtfs-config   = "0.14.0"
+gtfs-core     = "0.14.0"
 ```
 
 ```rust
@@ -304,7 +304,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ### `gtfs-sdk` npm paketi
 
-`gtfs-sdk`, v0.13.1 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
+`gtfs-sdk`, v0.14.0 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
 
 ```js
 import { validateGtfs } from "gtfs-sdk";

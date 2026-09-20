@@ -6,7 +6,7 @@ Rozetin makineyle denetlenebilir hüküm envanteri ve UI sözleşmesi için [kap
 
 **Rozet sözleşmesi:** `GTFS-JP V3/V4 · %100 Makineyle Denetlenebilir Kapsam` rozeti yalnızca bağımsız JP detection gate'i açık olan feed'lerde, açıkça seçilmiş `v3`/`v4` profiliyle ve `automation=rule` olan güçlü ve yumuşak MLIT hükümleri tamamlandığında kullanılabilir.法人番号'ın gerçek kuruma aitliği, telaffuz/okuma doğruluğu, karmaşık ücret yorumu ve `stop_access` gibi insan veya dış kaynak kanıtı isteyen konular bu yüzdeye dahil değildir. Yokluğu uyumluluk ihlali sayılmayan yalnız öneri kayıtları açıkça payda dışındadır. `auto` profilinde sürüm rozeti verilmez.
 
-> **Güncel davranış (0.13.1).** Tüm profiller ortak GTFS-JP tespit
+> **Güncel davranış (0.14.0).** Tüm profiller ortak GTFS-JP tespit
 > kapısından geçer. Tespit; JP uzantı dosyaları, geçerli `feed_lang` etiketi,
 > `ja-Hrkt` çevirisi, `agency_lang=ja` + `Asia/Tokyo` ve agency/stop kana
 > sinyallerini birleştirir. Açık profil sürüm iddiası değildir; yalnızca kural
