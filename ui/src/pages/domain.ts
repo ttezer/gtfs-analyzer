@@ -5,6 +5,7 @@ import { fmtServiceDate, inclusiveDaySpan, dayOffset, fmtTimestamp } from '../da
 import { escHtml } from '../escape';
 import { formatBytes } from '../format';
 import { gtfsJpBadgeKey, GTFS_JP_AUTOMATED_COVERAGE_COMPLETE } from '../gtfs-jp-badge';
+import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;
@@ -13,12 +14,14 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
 
   root.innerHTML = `
     <div class="report-page">
+      ${renderHiddenRulesBar()}
       ${renderScoreRow(r5, sevCounts, r1.coverage_complete !== false)}
       ${renderR1Card(r1, result)}
       ${renderSubScores(r5)}
       ${renderMetrics(metrics)}
       ${renderFeedCalendar(metrics)}
     </div>`;
+  attachHiddenRuleListeners(root);
 
   // Genel Skor bileşeni kartları → Ayrıntı ve Düzeltme (fix) sayfasındaki R2 bölümünü
   // o sınıfla filtreli aç. files sayfasıyla aynı navigasyon mekanizmasını yeniden kullan.

@@ -1,4 +1,7 @@
 import { getState, setConfigDelta } from './state';
+import { t } from './i18n';
+import { escHtml } from './escape';
+import { rerunValidation } from './validator-client';
 
 /**
  * Kullanıcının gizlediği kural kimlikleri, `configDelta`'nın `disabled_rule_ids`
@@ -54,4 +57,60 @@ export function unhideRule(ruleId: string): boolean {
   delta['disabled_rule_ids'] = current.filter(id => id !== ruleId);
   writeDelta(delta);
   return true;
+}
+
+/**
+ * Gizlenen kuralların şeridi. HER rapor sayfasının en üstünde görünür (Rapor ve
+ * Ayrıntı/Düzeltme): kullanıcı hangi sayfada olursa olsun neyin ölçüm dışı kaldığını
+ * görebilmeli ve tek tıkla geri getirebilmeli.
+ */
+export function renderHiddenRulesBar(): string {
+  const hidden = hiddenRules();
+  if (hidden.length === 0) return '';
+  const chips = hidden.map(id =>
+    `<button class="hidden-rule-chip" data-rule="${escHtml(id)}" title="${t('fix.unhide_rule')}">${escHtml(id)} ↩</button>`
+  ).join('');
+  return `
+    <div class="card hidden-rules-card">
+      <p class="hint">${t('fix.hidden_note', { count: hidden.length })}</p>
+      <div class="hidden-rule-chips">${chips}</div>
+    </div>`;
+}
+
+/**
+ * Gizleme/gösterme tek yoldan işler: listeyi güncelle → K6+K7'yi cache'ten yeniden
+ * koş → sonucu tazele. K1-K5 TEKRARLANMAZ, büyük feed'de de anlık gelir.
+ * `setResult` sayfayı 'domain'e döndürdüğü için kullanıcının sayfası geri konur.
+ */
+export async function applyRuleVisibility(changed: boolean): Promise<void> {
+  if (!changed) return;
+  const { renderApp } = await import('./main');
+  const { setResult, setPage } = await import('./state');
+  const state = getState();
+  const page = state.page;
+  try {
+    const fresh = await rerunValidation(state.configDelta);
+    setResult(fresh, state.fileName, state.fileSize ?? 0, state.reportDurationMs);
+    setPage(page);
+  } catch {
+    // Yeniden koşum başarısızsa ayar yine de kayıtlı; sonraki koşumda uygulanır.
+  }
+  renderApp();
+}
+
+/** Şerit rozetleri ve bulgu satırındaki gizle düğmeleri için dinleyiciler. */
+export function attachHiddenRuleListeners(root: HTMLElement): void {
+  root.querySelectorAll<HTMLButtonElement>('.hide-rule-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();  // R9 satırı tıklanınca açılır; gizleme onu tetiklemesin.
+      const rule = btn.dataset['rule'];
+      if (rule) void applyRuleVisibility(hideRule(rule));
+    });
+  });
+  root.querySelectorAll<HTMLButtonElement>('.hidden-rule-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const rule = chip.dataset['rule'];
+      if (rule) void applyRuleVisibility(unhideRule(rule));
+    });
+  });
 }

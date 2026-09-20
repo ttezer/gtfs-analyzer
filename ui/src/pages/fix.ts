@@ -1,11 +1,11 @@
 ﻿import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation, intlLocale } from '../i18n';
 import { MAX_MAP_PINS, openMapModal, type MapPin, type MapOptions } from '../map-modal';
-import { requestShapeCoords, rerunValidation } from '../validator-client';
+import { requestShapeCoords } from '../validator-client';
 import { openPatternModal } from '../pattern-modal';
 import { escHtml } from '../escape';
 import { SEVERITY_ORDER, SEVERITY_RANK } from '../severity-order';
-import { hiddenRules, hideRule, unhideRule } from '../hidden-rules';
+import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 
 // EN/JA parite: route-scoped bulgularda entity_id = route_id ve mesaj şablonu {route_label}
 // kullanır. name_index.routes[route_id] = route_short_name (yoksa long_name) → details'e enjekte
@@ -24,21 +24,8 @@ export function augmentRouteLabels(notices: Notice[], nameIndex: NameIndex): voi
 function hideBtn(notice: Notice | undefined): string {
   if (!notice || notice.rule_class === 'SPEC') return '';
   const label = t('fix.hide_rule');
-  return `<button class="hide-rule-btn" data-rule="${escHtml(notice.rule_id)}" title="${label}" aria-label="${label}">✕</button>`;
-}
-
-/** Gizlenen kurallar şeridi: skorun daralmış kapsamda hesaplandığını SÖYLER. */
-function renderHiddenBar(): string {
-  const hidden = hiddenRules();
-  if (hidden.length === 0) return '';
-  const chips = hidden.map(id =>
-    `<button class="hidden-rule-chip" data-rule="${escHtml(id)}" title="${t('fix.unhide_rule')}">${escHtml(id)} ✕</button>`
-  ).join('');
-  return `
-    <div class="card hidden-rules-card">
-      <p class="hint">${t('fix.hidden_note', { count: hidden.length })}</p>
-      <div class="hidden-rule-chips">${chips}</div>
-    </div>`;
+  const hint  = t('fix.hide_rule_hint');
+  return `<button class="hide-rule-btn" data-rule="${escHtml(notice.rule_id)}" title="${hint}" aria-label="${hint}">✕ ${label}</button>`;
 }
 
 export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string, classFilter?: string): void {
@@ -60,7 +47,7 @@ export function renderFix(root: HTMLElement, result: ValidationResult, fileFilte
 
   root.innerHTML = `
     <section class="page-fix">
-      ${renderHiddenBar()}
+      ${renderHiddenRulesBar()}
       ${renderR9(result.reports.r9.items, noticeMap, normFactor, pubNormFactor, result.capped_totals)}
       ${renderR2(result, noticeMap, deltaMap, result.name_index, fileFilter, classFilter)}
     </section>`;
@@ -267,9 +254,11 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
       ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">${PATTERN_ICON}</button>`
       : '';
     const specHref = specUrl(notice, result.metrics.gtfs_jp_profile);
-    const ruleCell = specHref
+    const ruleLink = specHref
       ? `<a href="${escHtml(specHref)}" target="_blank" rel="noopener" class="spec-link" title="${t('fix.spec_link')}">${escHtml(item.display_label)}</a>`
       : escHtml(item.display_label);
+    // Gizle düğmesi ilk sütunda: son sütun yatay kaydırma ardında kalıyordu.
+    const ruleCell = `${ruleLink}${hideBtn(notice)}`;
     return `
       <tr data-severity="${notice.severity}" data-class="${notice.rule_class}" data-rule="${notice.rule_id}" data-file="${escHtml(notice.file ?? '')}">
         <td>${ruleCell}</td>
@@ -282,7 +271,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
         <td>${notice.field ? escHtml(notice.field) : '—'}</td>
         <td class="score-delta-cell">${pubHtml}</td>
         <td class="score-delta-cell">${qualHtml}</td>
-        <td class="map-btn-cell">${mapBtn}${patBtn}${hideBtn(notice)}</td>
+        <td class="map-btn-cell">${mapBtn}${patBtn}</td>
       </tr>`;
   }).join('');
 
@@ -1405,44 +1394,11 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   return { pins: [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }] };
 }
 
-/**
- * Gizleme/gösterme tek yoldan işler: listeyi güncelle → K6+K7'yi cache'ten yeniden koş
- * → sonucu tazele. Yeniden koşum K1-K5'i TEKRARLAMAZ; büyük feed'de de anlık gelir.
- */
-async function applyRuleVisibility(changed: boolean): Promise<void> {
-  if (!changed) return;
-  const { renderApp } = await import('../main');
-  const { getState, setResult, setPage } = await import('../state');
-  const state = getState();
-  const page = state.page;  // setResult 'domain'e döner; kullanıcı bulguya bakıyordu, orada kalmalı.
-  try {
-    const fresh = await rerunValidation(state.configDelta);
-    setResult(fresh, state.fileName, state.fileSize ?? 0, state.reportDurationMs);
-    setPage(page);
-  } catch {
-    // Yeniden koşum başarısızsa ayar yine de kayıtlı; kullanıcı yeni feed yüklediğinde uygulanır.
-  }
-  renderApp();
-}
-
 export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
   // Kolon-bilgi (ℹ) tooltip'leri — hover + tıklama + klavye (native title yerine)
   cinfoWire(root);
 
-  // Kural gizle (bulgunun yanında) ve şeritteki rozetten geri getir.
-  root.querySelectorAll<HTMLButtonElement>('.hide-rule-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();  // R9 satırı tıklanınca açılıyor; gizleme onu tetiklemesin.
-      const rule = btn.dataset['rule'];
-      if (rule) void applyRuleVisibility(hideRule(rule));
-    });
-  });
-  root.querySelectorAll<HTMLButtonElement>('.hidden-rule-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const rule = chip.dataset['rule'];
-      if (rule) void applyRuleVisibility(unhideRule(rule));
-    });
-  });
+  attachHiddenRuleListeners(root);
 
   // R9 expandable rows — blocks[] bağlamı
   root.querySelectorAll<HTMLTableRowElement>('.r9-main-row').forEach(row => {

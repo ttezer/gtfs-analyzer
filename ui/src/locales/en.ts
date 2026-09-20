@@ -299,7 +299,8 @@ const en: LocaleShape = {
     // Fix R9
     'fix.r9_title'       : 'Rule-Based Score Summary (R9)',
     'fix.r9_hint'        : 'Click a row to see details and remediation.',
-    'fix.hide_rule'       : "Hide this rule",
+    'fix.hide_rule'     : "Exclude",
+    'fix.hide_rule_hint': "Click to remove this rule from the findings and the score",
     'fix.unhide_rule'     : "Show again",
     'fix.hidden_note'     : "{count} rule(s) hidden; findings and scores cover the remaining rules only. Click a chip to bring one back.",
     'fix.r9_collapsed_hint' : 'click to see Publish and Overall score impact',

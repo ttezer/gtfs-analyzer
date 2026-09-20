@@ -713,12 +713,12 @@
     .map-btn-cell { width: 3.5rem; text-align: center; padding: .35rem .25rem !important; white-space: nowrap; }
 
     /* Kural gizleme: bulgunun yanında tek tık, şeritte geri getirme rozeti. */
-    .hide-rule-btn { background: none; border: none; cursor: pointer; font-size: .8rem; line-height: 1;
-      padding: .1rem .3rem; margin-left: .35rem; border-radius: 4px; color: var(--color-muted);
-      opacity: .45; transition: opacity .15s, background .15s, color .15s; }
-    tr:hover .hide-rule-btn, .hide-rule-btn:hover, .hide-rule-btn:focus-visible { opacity: 1; }
-    .hide-rule-btn:hover { background: var(--color-bg); color: var(--color-text); }
-    .map-btn-cell { width: 4.6rem; }
+    .hide-rule-btn { background: none; border: 1px solid transparent; cursor: pointer; font-size: .72rem;
+      line-height: 1; padding: .18rem .4rem; margin-left: .35rem; border-radius: 4px; white-space: nowrap;
+      color: #b91c1c; transition: background .15s, border-color .15s; }
+    .hide-rule-btn:hover, .hide-rule-btn:focus-visible { background: #fef2f2; border-color: #fecaca; }
+    .map-btn-cell { width: 3.5rem; }
+    .hide-rule-btn { display: inline-block; margin-top: .15rem; }
     .hidden-rules-card { padding: .7rem .9rem; }
     .hidden-rules-card .hint { margin: 0 0 .5rem; }
     .hidden-rule-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
