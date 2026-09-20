@@ -778,8 +778,8 @@ gtfs-validator/
 
 ## Teşekkür
 
-**Akira Nishizawa** (西澤明): GTFS-JP geliştirmemize verdiği destek ve değerli vaktini bize
-ayırdığı için içtenlikle teşekkür ederiz.
+**Akira Nishizawa** (西澤明), 一般社団法人日本バス情報協会 専務理事: GTFS-JP geliştirmemize
+verdiği destek ve değerli vaktini bize ayırdığı için içtenlikle teşekkür ederiz.
 
 ## Lisans
 

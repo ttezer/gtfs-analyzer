@@ -774,8 +774,8 @@ gtfs-validator/
 
 ## Acknowledgements
 
-**Akira Nishizawa** (西澤明): our sincere thanks for supporting our GTFS-JP work and for the
-valuable time he gave us.
+**Akira Nishizawa** (西澤明), Executive Director of the Japan Bus Information Association: our
+sincere thanks for supporting our GTFS-JP work and for the valuable time he gave us.
 
 ## License
 

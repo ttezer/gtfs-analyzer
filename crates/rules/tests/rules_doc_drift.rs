@@ -240,6 +240,36 @@ fn turkish_rules_doc_titles_match_registry_titles() {
 /// Tablodaki kural sayısı ve grup sayısı, giriş metninde yazan sayılarla tutmalı
 /// ("537 kural, 37 grup"). Elle düzenlenmiş bir tabloda ilk sapan şey budur.
 #[test]
+/// `ui/index.html`'in SEO metinleri (meta description, og:description, JSON-LD) kural
+/// sayısını ELLE taşır ve hiçbir kapı onu denetlemiyordu: 0.14.0 yayınına kadar `526 rules`
+/// yazıyordu — katalog 624'e çıkmışken. Kullanıcıya görünen ilk metin budur.
+#[test]
+fn ui_meta_rule_count_matches_registry() {
+    let n = RULES.len().to_string();
+    let html = read("ui/index.html");
+    let mut seen = 0usize;
+    for (idx, _) in html.match_indices(" rules").chain(html.match_indices(" validation and quality rules")) {
+        let head = &html[..idx];
+        let digits: String = head
+            .chars()
+            .rev()
+            .take_while(char::is_ascii_digit)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        if digits.is_empty() {
+            continue;
+        }
+        seen += 1;
+        assert_eq!(
+            digits, n,
+            "ui/index.html: SEO metni {digits} kural diyor, registry {n} taşıyor (bayat sayı)"
+        );
+    }
+    assert!(seen >= 2, "ui/index.html'de kural sayısı taşıyan metin bulunamadı (desen değişti mi?)");
+}
+
 fn rules_doc_intro_counts_match_registry() {
     let n = RULES.len();
     let mut groups: Vec<&str> = RULES
