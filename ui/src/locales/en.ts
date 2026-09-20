@@ -784,7 +784,6 @@ const en: LocaleShape = {
     'STM_009': "Trip '{entity_id}': pickup_type '{observed_value}' is invalid.",
     'STM_010': "Trip '{entity_id}': drop_off_type '{observed_value}' is invalid.",
     'STM_012': "Trip '{entity_id}': unrealistic speed — {observed_value} (limit: {expected_value}).",
-    'STM_013': "Trip '{entity_id}': mixed time coverage — some intermediate stops are missing arrival/departure times.",
     'STM_014': "Route '{route_label}' (direction {direction_id}): speed threshold exceeded between stops {stop_a} and {stop_b} across {trip_count} trip(s) — {observed_value} (limit: {expected_value}).",
     'STM_015': "Trip '{entity_id}': first stop is missing arrival_time.",
     'STM_016': "Trip '{entity_id}': last stop is missing arrival_time.",
@@ -1402,7 +1401,6 @@ const en: LocaleShape = {
     // STM
     'STM_008': 'Review stop_times.txt time values; times must increase monotonically across trips.',
     'STM_012': 'Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.',
-    'STM_013': 'Add arrival/departure_time for all stops, or leave blank only for the first/last stop if required.',
     'STM_014': 'Verify timestamps or stop coordinates; the speed between consecutive stop_times exceeds the threshold.',
     'STM_015': 'Enter an arrival_time for the first stop_times row.',
     'STM_016': 'Enter an arrival_time for the last stop_times row.',
@@ -2195,7 +2193,6 @@ const en: LocaleShape = {
     'STM_009': 'pickup_type invalid',
     'STM_010': 'drop_off_type invalid',
     'STM_012': 'Unrealistic speed between stops',
-    'STM_013': 'Mixed arrival/departure times',
     'STM_014': 'Excessive speed in segment',
     'STM_015': 'First stop is missing arrival_time',
     'STM_016': 'Last stop is missing arrival_time',

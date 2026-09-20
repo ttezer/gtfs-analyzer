@@ -1830,11 +1830,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_008", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,09:00:00,09:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n")]),
         // STM_012: sıfır geçiş süresi ama mesafe >= 1km (base duraklar ~14km) (k6).
         fx("STM_012", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n")]),
-        // STM_013: ara durakta zaman eksik (k6).
-        fx("STM_013", vec![
-            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.05,29.05\nS3,Stop3,41.1,29.1\n"),
-            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\nT1,08:20:00,08:20:00,S3,3\n"),
-        ]),
         // STM_014: hız eşiği aşımı (~208 km/h: bus eşik 120 < hız < 700 imkânsız sınırı) (k6).
         fx("STM_014", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:04:00,08:04:00,S2,2\n")]),
         // STM_015: ilk durakta departure_time yok (k6).

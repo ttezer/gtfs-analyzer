@@ -639,7 +639,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── STM: Stop Times ────────────────────────────────────────────────────────
     r!("STM_001", Kritik, Spec, 1,
-        &["STM_008","STM_013","STM_014","STM_056","OPR_001","OPR_008"],
+        &["STM_008","STM_014","STM_056","OPR_001","OPR_008"],
         Some("trip_id"), VS_K, Row,
         "trip_id bulunamadı"),
     // blocks: STP_012 + DQ_005c, kaldırılan XFL_005'ten devralındı — aynı FK ihlalini
@@ -666,11 +666,11 @@ pub static RULES: &[RuleMeta] = &[
         Some("trip_id"), VS_K, Row,
         "departure_time geçersiz format"),
     r!("STM_005", Kritik, Spec, 2,
-        &["STM_008","STM_012","STM_013","STM_014","STM_028","STM_029","OPR_008","OPR_010"],
+        &["STM_008","STM_012","STM_014","STM_028","STM_029","OPR_008","OPR_010"],
         Some("trip_id"), VS_K, Row,
         "stop_sequence eksik veya geçersiz"),
     r!("STM_006", Kritik, Spec, 2,
-        &["STM_007","STM_008","STM_012","STM_013","STM_014","STM_028","STM_029","OPR_008"],
+        &["STM_007","STM_008","STM_012","STM_014","STM_028","STM_029","OPR_008"],
         Some("trip_id"), VS_K, Row,
         "stop_id eksik (stop_times)"),
     r!("STM_007", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
@@ -683,8 +683,9 @@ pub static RULES: &[RuleMeta] = &[
         "drop_off_type geçersiz"),
     r!("STM_012", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Duraklar arası hız gerçekçi değil"),
-    r!("STM_013", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
-        "Karışık varış/kalkış zamanları"),
+    // STM_013 (2026-09-21): retired. Ara stop'larda zaman bırakılması GTFS'te optional'dır;
+    // bu kural timepoint modelini bozuk feed olarak cezalandırıyor ve geçerli timing-point
+    // üreticilerinde sistemik false positive üretiyordu. Kimlik yeniden kullanılmamalıdır.
     // Emit (hat, yön, segment) başına toplulanır → Entity; entity_id bileşik segment
     // anahtarı, scope_key route_id (UI hat filtresi). Eski hâl: Row/trip_id, aynı
     // segmenti her seferde tekrar raporluyordu (TriMet'te 604×).
@@ -2378,7 +2379,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_009", GtfsSpec),
     ("STM_010", GtfsSpec),
     ("STM_012", MobilitydataParity),
-    ("STM_013", ProjectQuality),
     ("STM_014", ProjectAnalytics),
     ("STM_015", GtfsSpec),
     ("STM_016", GtfsSpec),
@@ -2747,6 +2747,9 @@ mod tests {
         // arasında spec'te bulunmayan eşlik zorunluluğu dayatıyordu. Kimlik emekli edildi
         // ve ileride başka bir kurala verilemez.
         assert!(get_rule("BKR_002").is_none());
+        // STM_013 (2026-09-21): optional ara stop zamanlarını Quality ihlali sayıyordu;
+        // timing-point üreticilerinde sistemik false positive ürettiği için emekli edildi.
+        assert!(get_rule("STM_013").is_none());
     }
 
     #[test]
@@ -2754,7 +2757,7 @@ mod tests {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
         let removed_ids = [
             "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
-            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002",
+            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002", "STM_013",
         ];
         for rule in RULES {
             for &b in rule.blocks {

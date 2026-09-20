@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-624 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+623 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -226,7 +226,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_009 | pickup_type geçersiz | YÜKSEK | Spec |
 | STM_010 | drop_off_type geçersiz | YÜKSEK | Spec |
 | STM_012 | Duraklar arası hız gerçekçi değil | YÜKSEK | Interop |
-| STM_013 | Karışık varış/kalkış zamanları | YÜKSEK | Quality |
 | STM_014 | Segmentte aşırı hız | YÜKSEK | Analytics |
 | STM_015 | İlk durakta arrival_time eksik | KRİTİK | Spec |
 | STM_016 | Son durakta arrival_time eksik | KRİTİK | Spec |

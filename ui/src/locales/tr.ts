@@ -790,7 +790,6 @@ const tr = {
     'STM_009': 'pickup_type geçersiz',
     'STM_010': 'drop_off_type geçersiz',
     'STM_012': "Duraklar arası hız gerçekçi değil",
-    'STM_013': 'Karışık varış/kalkış zamanları',
     'STM_014': 'Segmentte aşırı hız',
     'STM_015': 'İlk durakta arrival_time eksik',
     'STM_016': 'Son durakta arrival_time eksik',

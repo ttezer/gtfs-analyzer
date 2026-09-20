@@ -118,12 +118,18 @@ CLI, WebAssembly, UI, and SDK surfaces.
   single-agency feeds. `AGN_011` now also counts fare rows whose `fare_id` is
   empty (`FAR_012` still reports the empty id), so such a feed can newly become
   non-publishable. Its remediation text now mentions fare records.
-- READMEs report the current **624-rule** catalog, list `JPN_032`/`JPN_033` in
+- READMEs report the current **623-rule** catalog, list `JPN_032`/`JPN_033` in
   the GTFS-JP rule tables, and use the qualified coverage badge wording.
 - Corpus-audit workflow artifacts are retained for 30 days instead of 90.
 
 ### Removed
 
+- **`STM_013` (mixed intermediate-stop time coverage), rule count 624 → 623.** The
+  predicate treated an optional untimed intermediate stop as a HIGH Quality defect,
+  so timing-point feeds such as Unitrans were systematically penalized. The existing
+  `STM_034`, `STM_047`, and `STM_015`/`STM_016` checks retain the independently
+  enforceable row, timepoint, and endpoint requirements. The identifier is retired
+  and cannot be reused.
 - **`BKR_002` (prior_notice_start_day requires prior_notice_last_day), rule
   count 624 → 623.** This was not
   required by the GTFS specification and produced a false positive for valid

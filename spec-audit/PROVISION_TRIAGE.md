@@ -236,7 +236,7 @@ her biri ayrı satırdır (spec metni gerçekten her alanın altında tekrar yaz
 
 | id | alan | tavsiye | karar |
 |---|---|---|---|
-| `Peaccedd4` · `P07ae073c` | arrival_time · departure_time | Ayrı zaman yoksa ikisi aynı olmalı | **KAPSAM DIŞI** — `STM_013` karışık zamanları ölçer, bu tavsiyenin tam karşılığı değil. Koşul ("ayrı zaman yoksa") feed'den doğrulanamaz: iki alanın aynı olması niyeti göstermez. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
+| `Peaccedd4` · `P07ae073c` | arrival_time · departure_time | Ayrı zaman yoksa ikisi aynı olmalı | **KAPSAM DIŞI** — koşul ("ayrı zaman yoksa") feed'den doğrulanamaz: iki alanın aynı olması niyeti göstermez. `STM_034` yalnızca tek alanın boş olduğu satırları denetler. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `Pc6b3be8f` | timepoint | Zamanı olan her kayıtta `timepoint` dolu olmalı | **KANITLI** — `STM_050` (sütun var ama satırda boş). |
 | `Pd0952f0f` · `Pd6d4d60e` | arrival_time · departure_time | Kesin zaman yoksa `timepoint=0` ile tahmini zaman verilmeli | **KANITLI** — `STM_050` yakınsıyor. `STM_050` bu hükmü ölçer. 📌 **§'Yumuşak KISMİ'ler (22)' triyajında karara bağlandı; buraya YAZILMADIĞI için ayrıştırıcı KISMİ okumaya devam ediyordu — makine-okunur hâle getirildi.** |
 | `P7c96867d` | shape_dist_traveled | Döngü/iç içe geçen hatlarda önerilir | KISMİ — `STM_017` mesafe eksikliğini ölçer, döngü koşuluna bakmaz. |

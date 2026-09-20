@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-624 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+623 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -226,7 +226,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_009 | pickup_type invalid | HIGH | Spec |
 | STM_010 | drop_off_type invalid | HIGH | Spec |
 | STM_012 | Unrealistic speed between stops | HIGH | Interop |
-| STM_013 | Mixed arrival/departure times | HIGH | Quality |
 | STM_014 | Excessive speed in segment | HIGH | Analytics |
 | STM_015 | First stop is missing arrival_time | CRITICAL | Spec |
 | STM_016 | Last stop is missing arrival_time | CRITICAL | Spec |

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-624 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+623 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -226,7 +226,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STM_009 | pickup_type invalide | ÉLEVÉE | Spec |
 | STM_010 | drop_off_type invalide | ÉLEVÉE | Spec |
 | STM_012 | Vitesse irréaliste entre deux arrêts | ÉLEVÉE | Interop |
-| STM_013 | Heures d’arrivée et de départ mélangées | ÉLEVÉE | Quality |
 | STM_014 | Vitesse excessive sur un segment | ÉLEVÉE | Analytics |
 | STM_015 | arrival_time manquant au premier arrêt | CRITIQUE | Spec |
 | STM_016 | arrival_time manquant au dernier arrêt | CRITIQUE | Spec |

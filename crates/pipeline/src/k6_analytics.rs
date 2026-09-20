@@ -4505,48 +4505,6 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
             }
         }
     }
-
-    for (&trip_id, stimes) in &idx.by_trip {
-        let dep_suffix = stimes
-            .first()
-            .and_then(|s| s.departure_time())
-            .map(|(h, m, _)| format!(" {h:02}:{m:02} kalkışlı"))
-            .unwrap_or_default();
-
-        // STM_027 KALDIRILDI (2026-07-28): STM_056 ile aynı olguyu ölçüyordu. STM_056 spec'i
-        // birebir izler (artmayan = azalan VEYA eşit), satır başına emit eder ve K2'de çalışır;
-        // STM_027 yalnız kesin azalmayı yakalıyor, trip başına bir kez emit ediyordu. Azalma
-        // durumunda ikisi de tetiklendiği için MD'nin tek notice'ı (`decreasing_or_equal_stop_
-        // time_distance`) iki kez sayılıyordu.
-
-        // STM_013: bazı stop_times'ta arrival/departure var, bazılarında yok (karışık)
-        let has_time: Vec<bool> = stimes
-            .iter()
-            .map(|s| s.arrival_time().is_some() || s.departure_time().is_some())
-            .collect();
-        let n = has_time.len();
-        if n >= 3 {
-            // İlk ve son durak hariç ortadaki duraklarda eksik zaman → STM_013
-            let missing_mid = has_time[1..n - 1].iter().any(|&v| !v);
-            let has_any = has_time.iter().any(|&v| v);
-            if has_any && missing_mid {
-                notices.push(k6_notice(
-                    ctr,
-                    "STM_013",
-                    EntityType::Trip,
-                    Some(trip_id.to_string()),
-                    Some(trip_id.to_string()),
-                    "stop_times.txt",
-                    stimes.first().map(|s| s.line as u64),
-                    Some("arrival_time|departure_time"),
-                    None,
-                    None,
-                    format!("'{trip_id}'{dep_suffix} seferinde bazı ara duraklarda zaman bilgisi eksik — tutarsız zaman dizisi."),
-                    "Tüm duraklara arrival/departure_time ekleyin ya da yalnızca ilk/son durak için gerektiğinde boş bırakın.",
-                ));
-            }
-        }
-    }
 }
 
 // ── WP-09d: Route + trip kalitesi ────────────────────────────────────────────
@@ -14901,36 +14859,43 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "STM_027"));
     }
 
-    // ── WP-09d: STM_013 ─────────────────────────────────────────────────────
-
-    fn stoptime_no_time(trip_id: &str, seq: u32, stop_id: &str, line: u64) -> StopTimeRecord {
-        StopTimeRecord {
+    #[test]
+    fn untimed_intermediate_stops_do_not_produce_retired_stm_013() {
+        let untimed = |trip_id: &str, seq: u32, stop_id: &str, line: u64| StopTimeRecord {
             trip_id: trip_id.into(),
             stop_id: stop_id.into(),
             stop_sequence: Some(seq),
             line,
             ..Default::default()
-        }
-    }
-
-    #[test]
-    fn mixed_timing_produces_stm_013() {
+        };
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
                 stop("B", 41.1, 29.1),
                 stop("C", 41.2, 29.2),
+                stop("D", 41.3, 29.3),
             ],
             vec![route("R1", 3)],
-            vec![trip("T1", "R1")],
+            vec![trip("T1", "R1"), trip("T2", "R1")],
             vec![
+                // TIME / blank / blank / TIME
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-                stoptime_no_time("T1", 2, "B", 3), // orta durak zamanı eksik
-                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
+                untimed("T1", 2, "B", 3),
+                untimed("T1", 3, "C", 4),
+                stoptime("T1", 4, "D", (8, 20, 0), (8, 20, 0), 5),
+                // TIME / TIME / blank / TIME
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 6),
+                stoptime("T2", 2, "B", (9, 5, 0), (9, 5, 0), 7),
+                untimed("T2", 3, "C", 8),
+                stoptime("T2", 4, "D", (9, 20, 0), (9, 20, 0), 9),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_013"));
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "STM_013"),
+            "optional intermediate timing gaps must not revive retired STM_013: {:?}",
+            result.notices
+        );
     }
 
     // ── WP-09d: TRP_011 / TRP_013 / RTS_016 ────────────────────────────────
