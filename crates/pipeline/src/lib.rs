@@ -122,7 +122,11 @@ fn has_uniform_fare_coverage(records: &EntityRecords) -> bool {
 /// Every orchestration calls this before running, so native, WASM, and SDK
 /// fail the same way.
 pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
-    for rule_id in &config.disabled_rule_ids {
+    let listed = config
+        .disabled_rule_ids
+        .iter()
+        .chain(config.disabled_rule_ids_gtfs_jp.iter());
+    for rule_id in listed {
         match gtfs_rules::registry::get_rule(rule_id) {
             None => {
                 return Err(FatalError::new(
@@ -154,6 +158,9 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
 ///
 /// 1. STP_033 is dropped when the feed proves uniform fare coverage.
 /// 2. Rules listed in `config.disabled_rule_ids` are dropped.
+/// 3. Rules listed in `config.disabled_rule_ids_gtfs_jp` are dropped ONLY when the
+///    feed is a detected GTFS-JP feed. Japanese publishing practice makes some
+///    checks meaningless there; feeds elsewhere keep them.
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -162,12 +169,19 @@ pub fn apply_report_scope(
     if notices.iter().any(|n| n.rule_id == "STP_033") && has_uniform_fare_coverage(records) {
         notices.retain(|notice| notice.rule_id != "STP_033");
     }
-    if !config.disabled_rule_ids.is_empty() {
-        let disabled: std::collections::HashSet<&str> = config
-            .disabled_rule_ids
-            .iter()
-            .map(String::as_str)
-            .collect();
+    let jp_scope = records.is_gtfs_jp == Some(true);
+    let disabled: std::collections::HashSet<&str> = config
+        .disabled_rule_ids
+        .iter()
+        .chain(
+            jp_scope
+                .then_some(config.disabled_rule_ids_gtfs_jp.iter())
+                .into_iter()
+                .flatten(),
+        )
+        .map(String::as_str)
+        .collect();
+    if !disabled.is_empty() {
         notices.retain(|notice| !disabled.contains(notice.rule_id.as_str()));
     }
 }

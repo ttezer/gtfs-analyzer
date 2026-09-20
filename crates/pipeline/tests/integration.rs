@@ -59,18 +59,60 @@ fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> Validate
     validate_bytes(&make_zip(files), &config, TODAY)
 }
 
+/// GTFS-JP listesi YALNIZ tespit edilmiş JP feed'inde uygulanır: Japonya'ya özgü
+/// yayın pratiği yüzünden anlamsızlaşan kontroller, dünyanın geri kalanındaki
+/// feed'lerde görünmeye devam etmelidir.
+#[test]
+fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
+    let config = ValidatorConfig {
+        disabled_rule_ids_gtfs_jp: vec!["DQ_004".to_string()],
+        ..ValidatorConfig::default()
+    };
+    let check = |files: &[(&str, &[u8])], expect_hidden: bool, label: &str| {
+        match validate_bytes(&make_zip(files), &config, TODAY) {
+            ValidateResult::Ok(vr) => assert_eq!(
+                !has(&vr, "DQ_004"), expect_hidden,
+                "{label}: DQ_004 gizlenme beklentisi {expect_hidden}"
+            ),
+            other => panic!("{label}: ValidateResult::Ok beklendi, alınan: {other:?}"),
+        }
+    };
+
+    // JP olmayan feed: kural görünmeye devam eder.
+    check(&base_files(), false, "global feed");
+
+    // `office_jp.txt` GTFS-JP tespitini açar: kural gizlenir.
+    let mut jp = base_files();
+    jp.push(("office_jp.txt", b"office_id,office_name\nO1,Test\n"));
+    check(&jp, true, "GTFS-JP feed");
+
+    // Genel liste her iki feed'de de uygulanır (kapsam farkının kanıtı).
+    let global = ValidatorConfig {
+        disabled_rule_ids: vec!["DQ_004".to_string()],
+        ..ValidatorConfig::default()
+    };
+    match validate_bytes(&make_zip(&base_files()), &global, TODAY) {
+        ValidateResult::Ok(vr) => assert!(!has(&vr, "DQ_004"), "genel liste JP dışında da uygulanmalı"),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 #[test]
 fn disabled_rule_ids_reject_unknown_and_spec_rules() {
     // Bilinmeyen/emekli kimlik sessizce hiçbir şeyi kapatmamalı; Spec kuralı yayın
     // kararının kanıtıdır ve gizlenemez.
-    for (rule, variant) in [
-        ("DQ_04", "disabled_rule_unknown"),
-        ("BKR_002", "disabled_rule_unknown"),
-        ("BKR_001", "disabled_rule_spec"),
+    for (rule, variant, jp_scope) in [
+        ("DQ_04", "disabled_rule_unknown", false),
+        ("BKR_002", "disabled_rule_unknown", false),
+        ("BKR_001", "disabled_rule_spec", false),
+        // Aynı kapı GTFS-JP listesinde de geçerlidir.
+        ("DQ_04", "disabled_rule_unknown", true),
+        ("BKR_001", "disabled_rule_spec", true),
     ] {
-        let config = ValidatorConfig {
-            disabled_rule_ids: vec![rule.to_string()],
-            ..ValidatorConfig::default()
+        let config = if jp_scope {
+            ValidatorConfig { disabled_rule_ids_gtfs_jp: vec![rule.to_string()], ..ValidatorConfig::default() }
+        } else {
+            ValidatorConfig { disabled_rule_ids: vec![rule.to_string()], ..ValidatorConfig::default() }
         };
         match validate_bytes(&make_zip(&base_files()), &config, TODAY) {
             ValidateResult::Fatal(e) => {

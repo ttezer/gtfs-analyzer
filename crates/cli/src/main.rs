@@ -94,6 +94,10 @@ struct ValidateArgs {
     #[arg(long, value_delimiter = ',')]
     disable_rule: Vec<String>,
 
+    /// Disable these rule checks only for detected GTFS-JP feeds (repeatable, comma separated).
+    #[arg(long, value_delimiter = ',')]
+    disable_rule_gtfs_jp: Vec<String>,
+
     /// Exit 1 only when a notice at this severity or worse exists.
     #[arg(long)]
     fail_on: Option<SeverityArg>,
@@ -348,6 +352,11 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         config.disabled_rule_ids.extend(args.disable_rule);
         config.disabled_rule_ids.sort_unstable();
         config.disabled_rule_ids.dedup();
+    }
+    if !args.disable_rule_gtfs_jp.is_empty() {
+        config.disabled_rule_ids_gtfs_jp.extend(args.disable_rule_gtfs_jp);
+        config.disabled_rule_ids_gtfs_jp.sort_unstable();
+        config.disabled_rule_ids_gtfs_jp.dedup();
     }
 
     // Parsed before the pipeline runs: a broken dictionary should fail fast

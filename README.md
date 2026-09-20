@@ -364,6 +364,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--min-severity high` | Bu önem ve daha ağırı (critical en ağır) |
 | `--class spec` | Yalnızca bu kural sınıfları — `spec,interop,quality,analytics`, virgülle çoklu |
 | `--disable-rule DQ_004` | Belirtilen kuralları sonuçtan, skorlardan ve R9 kuyruğundan çıkarır; virgülle çoklu |
+| `--disable-rule-gtfs-jp DQ_004` | Yalnız GTFS-JP olarak tespit edilen feed'lerde bu kuralları çıkarır |
 | `--fail-on critical` | Exit 1 **yalnızca** bu önem ve daha ağırı varsa |
 | `--fail-on-class spec` | Exit 1 yalnızca bu sınıflarda notice varsa |
 | `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |

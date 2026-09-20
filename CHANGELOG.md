@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`disabled_rule_ids_gtfs_jp` config key and `--disable-rule-gtfs-jp` CLI
+  option.** Rules listed there are dropped only when the feed is detected as
+  GTFS-JP, so a check that Japanese publishing practice makes meaningless can be
+  turned off without changing what feeds elsewhere report. The general
+  `disabled_rule_ids` list still applies to every feed, and both lists reject
+  unknown ids and Spec-class rules.
+- **Exclude a rule straight from the finding.** Each finding in the fix page
+  carries a labelled "exclude" button, and a bar on both report pages lists what
+  is excluded, states that the scores cover the remaining rules only, and brings
+  a rule back on click. Spec rules have no button.
+
 ## [0.14.0] - 2026-09-20
 
 This release consolidates the GTFS-JP profile and coverage contract, rule-selection

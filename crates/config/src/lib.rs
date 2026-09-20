@@ -100,6 +100,7 @@ pub const KNOWN_CONFIG_KEYS: &[&str] = &[
     "calendar_override_rules",
     "gtfs_jp_profile",
     "disabled_rule_ids",
+    "disabled_rule_ids_gtfs_jp",
 ];
 
 /// GTFS-JP kural kapsamı.
@@ -235,6 +236,13 @@ pub struct ValidatorConfig {
     /// Takvim override kuralları — OPR_021/022/023 için.
     /// Boş liste varsayılan; override analizi yapılmaz.
     pub calendar_override_rules: Vec<CalendarOverrideRule>,
+    /// Yalnız GTFS-JP olarak tespit edilen feed'lerde raporlanmayacak kurallar.
+    ///
+    /// Japonya'daki yayın pratiği bazı kontrolleri anlamsız kılar (ör. yalnız
+    /// oraya özgü sebeple çıkan uyarılar); bu liste o feed'lerde uygulanır ve
+    /// dünyanın geri kalanındaki feed'lerin davranışını DEĞİŞTİRMEZ. Genel liste
+    /// (`disabled_rule_ids`) her feed'e uygulanmaya devam eder.
+    pub disabled_rule_ids_gtfs_jp: Vec<String>,
     /// Kullanıcının raporlamak istemediği kural kimlikleri.
     ///
     /// Kurallar çalıştırılmaya devam eder; notice'lar K7 raporlamasından önce
@@ -288,6 +296,7 @@ impl Default for ValidatorConfig {
             rural_route_ids: Vec::new(),
             calendar_override_rules: Vec::new(),
             disabled_rule_ids: Vec::new(),
+            disabled_rule_ids_gtfs_jp: Vec::new(),
         }
     }
 }
@@ -635,17 +644,23 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         }
     }
 
-    if let Some(v) = map.get("disabled_rule_ids") {
-        cfg.disabled_rule_ids = serde_json::from_value(v.clone())
-            .map_err(|e| format!("'disabled_rule_ids' parse hatası: {e}"))?;
-        for (i, rule_id) in cfg.disabled_rule_ids.iter_mut().enumerate() {
+    for key in ["disabled_rule_ids", "disabled_rule_ids_gtfs_jp"] {
+        let Some(v) = map.get(key) else { continue };
+        let mut ids: Vec<String> = serde_json::from_value(v.clone())
+            .map_err(|e| format!("'{key}' parse hatası: {e}"))?;
+        for (i, rule_id) in ids.iter_mut().enumerate() {
             *rule_id = rule_id.trim().to_string();
             if rule_id.is_empty() {
-                return Err(format!("disabled_rule_ids[{i}] boş olamaz"));
+                return Err(format!("{key}[{i}] boş olamaz"));
             }
         }
-        cfg.disabled_rule_ids.sort_unstable();
-        cfg.disabled_rule_ids.dedup();
+        ids.sort_unstable();
+        ids.dedup();
+        if key == "disabled_rule_ids" {
+            cfg.disabled_rule_ids = ids;
+        } else {
+            cfg.disabled_rule_ids_gtfs_jp = ids;
+        }
     }
 
     if cfg.rural_route_ids.len() > MAX_RURAL_ROUTE_IDS {
@@ -660,17 +675,23 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             MAX_CALENDAR_OVERRIDE_RULES
         ));
     }
-    if cfg.disabled_rule_ids.len() > MAX_DISABLED_RULE_IDS {
-        return Err(format!(
-            "'disabled_rule_ids' {} öğelik güvenlik sınırını aşıyor",
-            MAX_DISABLED_RULE_IDS
-        ));
+    for (key, ids) in [
+        ("disabled_rule_ids", &cfg.disabled_rule_ids),
+        ("disabled_rule_ids_gtfs_jp", &cfg.disabled_rule_ids_gtfs_jp),
+    ] {
+        if ids.len() > MAX_DISABLED_RULE_IDS {
+            return Err(format!(
+                "'{key}' {} öğelik güvenlik sınırını aşıyor",
+                MAX_DISABLED_RULE_IDS
+            ));
+        }
     }
     let total_config_string_bytes: usize = cfg
         .rural_route_ids
         .iter()
         .map(String::len)
         .chain(cfg.disabled_rule_ids.iter().map(String::len))
+        .chain(cfg.disabled_rule_ids_gtfs_jp.iter().map(String::len))
         .chain(cfg.calendar_override_rules.iter().flat_map(|rule| {
             std::iter::once(rule.route_id.len())
                 .chain(rule.base_service_ids.iter().map(String::len))

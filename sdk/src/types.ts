@@ -213,6 +213,8 @@ export interface ValidatorConfigDelta {
   calendar_override_rules?: CalendarOverrideRule[];
   /** Rule IDs omitted from notices, scores, report views, and R9. */
   disabled_rule_ids?: string[];
+  /** Rule IDs omitted only when the feed is detected as GTFS-JP. */
+  disabled_rule_ids_gtfs_jp?: string[];
 }
 
 export interface ValidateOptions {
