@@ -142,10 +142,15 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 // aksi halde notice.file → gtfs.org schedule reference çapası (dosya adındaki nokta silinir:
 // stop_times.txt → #stop_timestxt). Dosyası olmayan feed-seviyesi bulgular → null (link yok).
 // Çoklu-dosya kuralında bile notice.file "sorunun raporlandığı asıl dosya"dır → tek link yeter.
-function specUrl(notice: Notice): string | null {
+function specUrl(notice: Notice, jpProfile?: string | null): string | null {
   const file = notice.file ?? '';
   if (notice.rule_id.startsWith('JPN_') || file.endsWith('_jp.txt')) {
-    return 'https://www.gtfs.jp/testsite/fix/format-reference_style/developpers-guide/format-reference.html';
+    // v4 (2026-03) MLIT'in COMmmmONS sayfasında yayımlanıyor; gtfs.jp'deki referans
+    // GTFS-JP 第2版'i anlatır ve v3/Auto için doğru adrestir. Eski link sitenin
+    // `testsite/` taslak yolunu gösteriyordu — kanonik yola taşındı (2026-09-20).
+    return jpProfile?.toLowerCase() === 'v4'
+      ? 'https://www.mlit.go.jp/commmmons/document/007/'
+      : 'https://www.gtfs.jp/developpers-guide/format-reference.html';
   }
   if (!file) return null;
   return `https://gtfs.org/documentation/schedule/reference/#${file.replace(/\./g, '')}`;
@@ -237,7 +242,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const patBtn   = patternRouteId(notice, nameIndex)
       ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">${PATTERN_ICON}</button>`
       : '';
-    const specHref = specUrl(notice);
+    const specHref = specUrl(notice, result.metrics.gtfs_jp_profile);
     const ruleCell = specHref
       ? `<a href="${escHtml(specHref)}" target="_blank" rel="noopener" class="spec-link" title="${t('fix.spec_link')}">${escHtml(item.display_label)}</a>`
       : escHtml(item.display_label);
