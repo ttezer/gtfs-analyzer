@@ -1,4 +1,5 @@
-import { getState, setConfigDelta } from './state';
+import { getState, setConfigDelta, setResult, setPage } from './state';
+import { renderApp } from './main';
 import { parseHiddenRules, withHiddenRule, withoutHiddenRule } from './hidden-rules-core';
 import { t } from './i18n';
 import { escHtml } from './escape';
@@ -61,10 +62,11 @@ export function renderHiddenRulesBar(): string {
  * koş → sonucu tazele. K1-K5 TEKRARLANMAZ, büyük feed'de de anlık gelir.
  * `setResult` sayfayı 'domain'e döndürdüğü için kullanıcının sayfası geri konur.
  */
+// `main` statik içe aktarılır: `pages/upload.ts` de aynısını yapar, yani modül
+// döngüsü zaten mevcut ve ESM tarafından çözülüyor. Dinamik import vite'ta
+// "hem statik hem dinamik" uyarısı üretiyordu.
 export async function applyRuleVisibility(changed: boolean): Promise<void> {
   if (!changed) return;
-  const { renderApp } = await import('./main');
-  const { setResult, setPage } = await import('./state');
   const state = getState();
   const page = state.page;
   // Yeniden çizim sayfayı sıfırdan kurar: R9 akordeonu kapanır, önem filtresi
