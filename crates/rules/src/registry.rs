@@ -1794,7 +1794,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinde büyük atlama"),
     r!("GEO_007", Yuksek, Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
         "Güzergah şeklinde kritik atlama (3× eşik)"),
-    r!("GEO_009", Yuksek, Quality,   3, &[], Some("stop_id"), VS_GEO, Entity,
+    r_noscore!("GEO_009", Yuksek, Quality,   3, &[], Some("stop_id"), VS_GEO, Entity,
         "Durak shape güzergahından çok uzakta"),
     r!("GEO_012", Orta,   Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
         "Duraksallar kümelenmesi (çok yakın duraklar)"),
