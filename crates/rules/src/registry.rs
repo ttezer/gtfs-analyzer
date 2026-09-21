@@ -783,7 +783,7 @@ pub static RULES: &[RuleMeta] = &[
         "Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi"),
     r!("STM_046", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "trip_id eksik"),
-    r!("STM_047", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
+    r!("STM_047", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik"),
     r!("STM_048", Yuksek, Spec, 1, &[], Some("arrival_time"), VS, Row,
         "Gece yarısı sonrası saatler 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)"),

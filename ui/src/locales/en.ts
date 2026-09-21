@@ -813,7 +813,7 @@ const en: LocaleShape = {
     'STM_044': "Feed stop_times has {observed_value} rows — serious memory/performance risk for WASM consumers.",
     'STM_045': "Trip '{entity_id}': departure time {observed_value} exceeds the service day window (24h + service day start).",
     'STM_046': 'stop_times.txt: trip_id is missing.',
-    'STM_047': "Trip '{entity_id}': timepoint=1 (exact time point) but one or more required times are missing.",
+    'STM_047': "Trip '{entity_id}' has {observed_value} exact time-point rows with missing times.",
     'STM_047.missing_arrival': "Trip '{entity_id}': timepoint=1 (exact time point) but arrival_time is missing.",
     'STM_047.missing_departure': "Trip '{entity_id}': timepoint=1 (exact time point) but departure_time is missing.",
     'STM_047.missing_both': "Trip '{entity_id}': timepoint=1 (exact time point) but both arrival_time and departure_time are missing.",

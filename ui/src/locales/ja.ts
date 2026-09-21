@@ -794,7 +794,7 @@ const ja: LocaleShape = {
     'STM_044': "フィードのstop_timesは{observed_value}行あります — WASMコンシューマーに深刻なメモリ/パフォーマンスリスク。",
     'STM_045': "便'{entity_id}'：出発時刻{observed_value}がサービス日の範囲（24時間＋サービス日開始時刻）を超えています。",
     'STM_046': 'stop_times.txt：trip_idがありません。',
-    'STM_047': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、必須の時刻が不足しています。',
+    'STM_047': '便「{entity_id}」には時刻が不足する正確な時刻ポイント行が{observed_value}件あります。',
     'STM_047.missing_arrival': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、arrival_timeがありません。',
     'STM_047.missing_departure': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、departure_timeがありません。',
     'STM_047.missing_both': 'トリップ「{entity_id}」：timepoint=1（正確な時刻ポイント）ですが、arrival_timeとdeparture_timeの両方がありません。',

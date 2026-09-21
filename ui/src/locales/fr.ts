@@ -815,7 +815,7 @@ const fr: LocaleShape = {
     'STM_044': 'Le fichier stop_times du jeu de données compte {observed_value} enregistrements — risque sérieux de mémoire et de performance pour les consommateurs WASM.',
     'STM_045': 'Course « {entity_id} » : l’heure de départ {observed_value} dépasse la fenêtre de la journée de service (24 h + début de journée de service).',
     'STM_046': 'stop_times.txt : trip_id est absent.',
-    'STM_047': 'Course « {entity_id} » : timepoint=1 (point horaire exact) mais une ou plusieurs heures obligatoires sont absentes.',
+    'STM_047': 'La course « {entity_id} » compte {observed_value} lignes de point horaire exact avec des heures manquantes.',
     'STM_047.missing_arrival': 'Course « {entity_id} » : timepoint=1 (point horaire exact) mais arrival_time est absent.',
     'STM_047.missing_departure': 'Course « {entity_id} » : timepoint=1 (point horaire exact) mais departure_time est absent.',
     'STM_047.missing_both': 'Course « {entity_id} » : timepoint=1 (point horaire exact) mais arrival_time et departure_time sont tous deux absents.',
