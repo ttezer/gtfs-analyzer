@@ -126,7 +126,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STP_023 | tts_stop_name invalide | FAIBLE | Quality |
 | STP_024 | stop_access hors de la plage de compatibilité K2 | INFO | Quality |
 | STP_026 | Valeur stop_access invalide | FAIBLE | Spec |
-| STP_027 | stop_access non défini sur une station avec cheminements | MOYENNE | Quality |
 | STP_028 | stop_code trop long | INFO | Quality |
 | STP_029 | Arrêt situé dans une station mais coordonnée trop éloignée | MOYENNE | Quality |
 | STP_030 | La station parente n’a aucun arrêt enfant | MOYENNE | Quality |

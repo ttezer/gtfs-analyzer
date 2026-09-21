@@ -2756,6 +2756,12 @@ mod tests {
         // STM_013 (2026-09-21): optional ara stop zamanlarını Quality ihlali sayıyordu;
         // timing-point üreticilerinde sistemik false positive ürettiği için emekli edildi.
         assert!(get_rule("STM_013").is_none());
+        // STP_027 (2026-09-21): optional stop_access kontrolü STP_024/STP_026 ile
+        // örtüşüyordu; pathway istasyonunda alan yokluğu tek başına kusur değildir.
+        assert!(get_rule("STP_027").is_none());
+        // FAR_009 (2026-09-21): fare_rules.txt optional olduğu için genel fare + boş
+        // fare_rules geçerli bir modeldir; FRL_006 referans tutarlılığını korur.
+        assert!(get_rule("FAR_009").is_none());
     }
 
     #[test]
@@ -2764,6 +2770,7 @@ mod tests {
         let removed_ids = [
             "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
             "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002", "STM_013", "TRP_033",
+            "STP_027", "FAR_009",
         ];
         for rule in RULES {
             for &b in rule.blocks {
@@ -2808,6 +2815,13 @@ mod tests {
         assert_eq!(get_rule("ARC_022").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("ARC_010").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("CLD_006").unwrap().score_weight, 0.0);
+        for rule in RULES.iter().filter(|rule| rule.score_weight == 0.0) {
+            assert!(
+                !(matches!(rule.severity, Severity::Kritik) && rule.rule_class == RuleClass::Spec),
+                "no-score rule cannot be Spec/Kritik: {}",
+                rule.id
+            );
+        }
     }
 
     #[test]

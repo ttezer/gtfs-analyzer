@@ -126,7 +126,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STP_023 | tts_stop_name geçersiz | DÜŞÜK | Quality |
 | STP_024 | stop_access K2 uyumluluk aralığı dışında değer | BİLGİ | Quality |
 | STP_026 | stop_access geçersiz değer | DÜŞÜK | Spec |
-| STP_027 | Pathway istasyonunda stop_access belirtilmemiş | ORTA | Quality |
 | STP_028 | stop_code çok uzun | BİLGİ | Quality |
 | STP_029 | Durak istasyon içinde ama koordinat çok uzakta | ORTA | Quality |
 | STP_030 | Üst istasyonun alt durağı yok | ORTA | Quality |

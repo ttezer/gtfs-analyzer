@@ -126,7 +126,6 @@
 | STP_023 | tts_stop_nameが無効 | 低 | 品質 |
 | STP_024 | stop_accessがK2互換範囲外 | 情報 | 品質 |
 | STP_026 | stop_accessが有効な列挙値でない | 低 | 仕様 |
-| STP_027 | 経路接続駅でstop_accessが未設定 | 中 | 品質 |
 | STP_028 | stop_codeが長すぎる | 情報 | 品質 |
 | STP_029 | 停留所が親駅から遠い | 中 | 品質 |
 | STP_030 | 子停留所のない駅 | 中 | 品質 |
