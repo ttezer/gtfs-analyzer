@@ -852,7 +852,7 @@ const fr: LocaleShape = {
     'CAL_006': 'Service « {entity_id} » : toutes les colonnes de jours de semaine valent 0 — aucun rythme hebdomadaire ; le service ne peut être actif que via des exceptions de calendar_dates.txt.',
     'CAL_007': 'Interruption de période de service {entity_id} : {observed_value} jours (seuil : {expected_value}) ; services concernés : {services}.',
     'CAL_008': 'Service « {entity_id} » : expire le {observed_value} (seuil : {expected_value}).',
-    'CAL_009': 'Service « {entity_id} » : toutes les valeurs end_date du calendrier sont passées — le jeu de données n’a aucun service actif.',
+    'CAL_009': 'Tous les services du calendrier ont expiré ({observed_value} services).',
     'CAL_010': 'Service « {entity_id} » : seulement {observed_value} jours actifs (seuil : {expected_value}).',
     'CAL_011': 'Le service « {entity_id} » est défini mais utilisé par aucune course.',
     'CAL_012': 'Interruption de service dans un futur proche {entity_id} : {observed_value} jours ; services concernés : {services}.',
@@ -1878,7 +1878,7 @@ const fr: LocaleShape = {
     'ATR_011': 'Utilisez un route_id existant dans routes.txt.',
     'ATR_012': 'Utilisez un trip_id existant dans trips.txt.',
     // CAL
-    'CAL_009': 'Mettez à jour toutes les valeurs end_date du calendrier pour qu’au moins un service ait des dates actives futures.',
+    'CAL_009': 'Mettez à jour les valeurs end_date du calendrier pour qu’au moins un service ait des dates actives futures.',
     'CAL_011': 'Supprimez le service inutilisé, ou rattachez-le à au moins une course.',
     'CAL_018': 'Mettez au moins un jour de semaine à actif (1), ou ajoutez des entrées calendar_dates pour ce service.',
     'CAL_019': 'Mettez à jour feed_start_date/feed_end_date dans feed_info.txt pour couvrir toute la plage des dates de service, ou ajustez les dates de calendar.txt.',

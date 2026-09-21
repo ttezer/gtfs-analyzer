@@ -1790,29 +1790,27 @@ fn check_calendar(
             .iter()
             .all(|r| r.end_date.map(|d| date_to_u32(d) < today).unwrap_or(false));
         if all_expired {
-            // Her servis için bir notice
-            for rec in &records.calendars {
-                if rec.service_id.is_empty() {
-                    continue;
-                }
-                notices.push(notice(
-                    ctr,
-                    "CAL_009",
-                    EntityType::Service,
-                    Some(rec.service_id.clone()),
-                    Some(rec.service_id.clone()),
-                    "calendar.txt",
-                    Some(rec.line),
-                    Some("end_date"),
-                    rec.end_date.map(|d| format!("{}", date_to_u32(d))),
-                    None,
-                    format!(
-                        "service_id '{}' için end_date geçmişte kaldı; feed'in tüm hizmetleri sona ermiş.",
-                        rec.service_id
-                    ),
-                    "Feed'in geçerlilik tarihini güncelleyin.",
-                ));
-            }
+            let expired_services = records
+                .calendars
+                .iter()
+                .filter(|rec| !rec.service_id.is_empty())
+                .count();
+            notices.push(notice(
+                ctr,
+                "CAL_009",
+                EntityType::Feed,
+                None,
+                None,
+                "calendar.txt",
+                None,
+                None,
+                Some(expired_services.to_string()),
+                None,
+                format!(
+                    "Feed'deki tüm calendar.txt servislerinin end_date'i geçmişte kaldı ({expired_services} servis)."
+                ),
+                "Feed'in geçerlilik tarihlerini güncelleyin.",
+            ));
         }
     }
 

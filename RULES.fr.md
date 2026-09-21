@@ -305,7 +305,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_006 | Tous les jours de la grille hebdomadaire sont désactivés | INFO | Quality |
 | CAL_007 | Interruption dans la période de service | MOYENNE | Analytics |
 | CAL_008 | Le service expire prochainement | ÉLEVÉE | Analytics |
-| CAL_009 | Tous les services du jeu de données ont expiré | CRITIQUE | Quality |
+| CAL_009 | Tous les services du jeu de données ont expiré | INFORMATION | Analytics |
 | CAL_010 | Le service compte trop peu de jours actifs | MOYENNE | Analytics |
 | CAL_011 | Service inutilisé | FAIBLE | Quality |
 | CAL_012 | Interruption de service dans un futur proche | INFO | Analytics |

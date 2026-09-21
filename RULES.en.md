@@ -305,7 +305,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_006 | Weekly schedule has all days disabled | INFO | Quality |
 | CAL_007 | Gap in service period | MEDIUM | Analytics |
 | CAL_008 | Service expires soon | HIGH | Analytics |
-| CAL_009 | All feed services have expired | CRITICAL | Quality |
+| CAL_009 | All feed services have expired | INFO | Analytics |
 | CAL_010 | Service has too few active days | MEDIUM | Analytics |
 | CAL_011 | Unused service | LOW | Quality |
 | CAL_012 | Service gap in the near future | INFO | Analytics |
