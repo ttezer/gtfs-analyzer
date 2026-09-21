@@ -275,7 +275,7 @@
     "SHP_018": "Le tracé « {entity_id} » n’est référencé par aucune course.",
     "SHP_019": "Tracé « {entity_id} » : les courses utilisant ce tracé n’ont aucun horaire d’arrêt.",
     "SHP_020": "{affected_shapes} tracé(s) ont des points répétés, p. ex. {example_shapes}.",
-    "SHP_021": "Tracé « {entity_id} » : shape_dist_traveled a une valeur négative.",
+    "SHP_021": "Tracé « {entity_id} » : shape_dist_traveled est négatif ou non numérique.",
     "SHP_022": "Tracé « {entity_id} » : la position de l’arrêt sur le tracé est ambiguë.",
     "SHP_023": "Tracé « {entity_id} » : des points consécutifs partagent le même shape_dist_traveled aux mêmes coordonnées.",
     "SHP_024": "Tracé « {entity_id} » : la distance arrêt–tracé est incohérente avec shape_dist_traveled.",

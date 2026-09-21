@@ -275,7 +275,7 @@
     "SHP_018": "シェープ'{entity_id}'はどの便にも参照されていません。",
     "SHP_019": "シェープ'{entity_id}'：このシェープを使用する便にstop_timesがありません。",
     "SHP_020": "{affected_shapes}件の経路形状（shapes.txt）で、同じ位置の点が続いています（例: {example_shapes}）。",
-    "SHP_021": "シェープ'{entity_id}'：shape_dist_traveledに負の値があります。",
+    "SHP_021": "シェープ'{entity_id}'：shape_dist_traveledが負または数値ではありません。",
     "SHP_022": "シェープ'{entity_id}'：シェープ上の停留所位置が曖昧です。",
     "SHP_023": "シェープ'{entity_id}'：同じ座標の連続する点が同じshape_dist_traveledを持っています。",
     "SHP_024": "シェープ'{entity_id}'：停留所からシェープまでの距離がshape_dist_traveledと一致しません。",

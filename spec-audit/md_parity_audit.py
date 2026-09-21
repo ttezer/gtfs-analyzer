@@ -52,11 +52,11 @@ MAP = {
     # kullanıcı etkisi görünümüdür; aynı MD koduna ikinci kez bağlanmaz.
     "big_gap_in_service":       ["CAL_007"],  # PER-SERVICE, eşik big_gap_days=14
     # CAL_013 servisin BİRLEŞİK aktif tarih kümesine bakar (calendar + calendar_dates);
-    # MD ise calendar.txt satırının end_date'ine bakar. CAL_009 aynı olgunun feed
-    # agregatıdır (tüm calendar.txt servisleri geçmişte). CAL_024 ise "önümüzdeki
-    # 7 günde aktif değil" sorusudur; MD'nin expired_calendar koduyla kapsamı aynı
-    # değildir ve kendi karşılığı TRP_023'tür.
-    "expired_calendar":         ["CAL_009", "CAL_013"],
+    # MD ise calendar.txt end_date ve exception semantiğini servis düzeyinde değerlendirir.
+    # CAL_009 yalnızca bizim feed-seviyesi calendar.txt özetimizdir; exact parity taşıyıcısı
+    # değildir. CAL_024 ise "önümüzdeki 7 günde aktif değil" sorusudur; MD'nin
+    # expired_calendar koduyla kapsamı aynı değildir ve kendi yakın karşılığı TRP_023'tür.
+    "expired_calendar":         ["CAL_013"],
     # #123: whitespace-wrapped weekday zeros are parsed for the weekly decision while
     # DQ_016 remains the lexical root; mdb-2830 replay recovered MD's 12 services.
     "service_has_no_active_day_of_the_week": ["CAL_006"],

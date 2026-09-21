@@ -298,6 +298,11 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_time", "BKR_025", filename=("booking_rules.txt",), fields=("prior_notice_start_time", "prior_notice_last_time"), label="booking_rules.txt::prior_notice zamanları"),
     _ctx("invalid_float", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("invalid_float", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),
+    # shape_dist_traveled ayrı bir Spec kuralıdır. Geçersiz sayı ile negatif/
+    # aralık-dışı sayı aynı MD generic kodlarına düşebilir; ARC_021'in aynı NUL
+    # satırında görünmesi bilinçli bir ikinci sinyaldir: lexical dosya hijyeni
+    # ve alan tipi ihlali ayrı bulgulardır.
+    _ctx("invalid_float", "SHP_021", filename=("shapes.txt",), fields=("shape_dist_traveled",), label="shapes.txt::shape_dist_traveled sayı değil"),
     _ctx("invalid_integer", "CAL_002", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanları"),
     _ctx("invalid_integer", "FAR_005", filename=("fare_attributes.txt",), fields=("transfers",), label="fare_attributes.txt::transfers"),
     _ctx("invalid_integer", "FAR_004", filename=("fare_attributes.txt",), fields=("payment_method",), label="fare_attributes.txt::payment_method"),
@@ -310,6 +315,7 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_integer", "CLD_003", filename=("calendar_dates.txt",), fields=("exception_type",), label="calendar_dates.txt::exception_type"),
     _ctx("invalid_integer", "STM_022", filename=("stop_times.txt",), fields=("timepoint",), label="stop_times.txt::timepoint"),
     _ctx("number_out_of_range", "STM_030", filename=("stop_times.txt",), fields=("shape_dist_traveled",), label="stop_times.txt::shape_dist_traveled negatif"),
+    _ctx("number_out_of_range", "SHP_021", filename=("shapes.txt",), fields=("shape_dist_traveled",), label="shapes.txt::shape_dist_traveled negatif"),
     _ctx("missing_required_field", "CAL_025", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanı boş"),
     _ctx("number_out_of_range", "PTH_007", filename=("pathways.txt",), fields=("traversal_time",), label="pathways.txt::traversal_time"),
     _ctx("number_out_of_range", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),

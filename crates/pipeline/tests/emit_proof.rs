@@ -2145,6 +2145,25 @@ fn shp030_aggregates_and_does_not_duplicate_related_findings() {
 }
 
 #[test]
+fn nul_shape_distance_keeps_lexical_and_field_type_signals_separate() {
+    let shapes = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+SH1,41.0,29.0,1,\0\n\
+SH1,41.1,29.1,2,10\n";
+    let notices = notices_for(
+        &with_opts(&[], &[], &[("shapes.txt", shapes)]),
+        &ValidatorConfig::default(),
+    );
+    assert!(
+        notices.iter().any(|n| n.rule_id == "ARC_021"),
+        "NUL karakteri dosya hijyeni sinyalini korumalı"
+    );
+    assert!(
+        notices.iter().any(|n| n.rule_id == "SHP_021"),
+        "NUL karakteri shape_dist_traveled tip ihlalini de korumalı"
+    );
+}
+
+#[test]
 fn shp024_recovers_whitespace_coordinates_and_preserves_thresholds() {
     // tdg-83134 reduced case: coordinates are numerically valid after trimming, but the
     // lexical K2 path keeps them invalid so DQ_016/STP evidence remains available. SHP_024
