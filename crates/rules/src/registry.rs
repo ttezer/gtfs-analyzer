@@ -953,7 +953,7 @@ pub static RULES: &[RuleMeta] = &[
         "calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil"),
     r!("CLD_005", Kritik, Quality, 2, &[], Some("service_id"), VS, Row,
         "Tarih makul yıl aralığı dışında"),
-    r!("CLD_006", Orta,   Quality, 1, &[], Some("service_id"), VS, Row,
+    r_noscore!("CLD_006", Bilgi, Analytics, 1, &[], Some("service_id"), VA, Row,
         "Çok fazla istisna günü"),
     r!("CLD_007", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Row,
         "Aşırı takvim istisnası"),
@@ -2807,6 +2807,7 @@ mod tests {
         assert_eq!(get_rule("STP_022").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("ARC_022").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("ARC_010").unwrap().score_weight, 0.0);
+        assert_eq!(get_rule("CLD_006").unwrap().score_weight, 0.0);
     }
 
     #[test]

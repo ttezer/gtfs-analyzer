@@ -332,7 +332,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CLD_003 | exception_type manquant ou invalide | CRITIQUE | Spec |
 | CLD_004 | Un service défini uniquement par calendar_dates n’a aucune date active | ÉLEVÉE | Quality |
 | CLD_005 | Date hors plage | CRITIQUE | Quality |
-| CLD_006 | Trop de jours d’exception | MOYENNE | Quality |
+| CLD_006 | Trop de jours d’exception | INFO | Analytics |
 | CLD_007 | Nombre excessif d’exceptions de calendrier | INFO | Analytics |
 
 ## SHP — Tracés

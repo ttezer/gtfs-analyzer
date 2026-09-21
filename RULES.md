@@ -332,7 +332,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CLD_003 | exception_type eksik veya geçersiz | KRİTİK | Spec |
 | CLD_004 | calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil | YÜKSEK | Quality |
 | CLD_005 | Tarih makul yıl aralığı dışında | KRİTİK | Quality |
-| CLD_006 | Çok fazla istisna günü | ORTA | Quality |
+| CLD_006 | Çok fazla istisna günü | BİLGİ | Analytics |
 | CLD_007 | Aşırı takvim istisnası | BİLGİ | Analytics |
 
 ## SHP — Shapes (Güzergah Şekilleri)

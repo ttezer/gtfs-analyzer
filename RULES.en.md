@@ -332,7 +332,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CLD_003 | exception_type missing or invalid | CRITICAL | Spec |
 | CLD_004 | Calendar-dates-only service has no active dates | HIGH | Quality |
 | CLD_005 | Date out of range | CRITICAL | Quality |
-| CLD_006 | Too many exception days | MEDIUM | Quality |
+| CLD_006 | Too many exception days | INFO | Analytics |
 | CLD_007 | Excessive calendar exceptions | INFO | Analytics |
 
 ## SHP — Shapes
