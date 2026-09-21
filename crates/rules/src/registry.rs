@@ -1480,7 +1480,7 @@ pub static RULES: &[RuleMeta] = &[
     // ⚠️ Korpusta örnek YOK — endişe edilen gürültü gerçekleşmiyor → sentetik fixture.
     r!("PTH_030", Dusuk, Spec, 1, &[], Some("pathway_id"), VS, Row,
         "Boarding area'sı olan platforma pathway atanmış"),
-    r!("PTH_029", Dusuk, Quality, 1, &[], None, VS, Feed,
+    r_noscore!("PTH_029", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway traversal_time bilgisi eksik"),
     r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
         "Pathway uç noktası istasyon"),
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025",
+            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
