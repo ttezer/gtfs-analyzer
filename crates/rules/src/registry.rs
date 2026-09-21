@@ -914,7 +914,7 @@ pub static RULES: &[RuleMeta] = &[
         "Yakın gelecekte servis boşluğu var"),
     r!("CAL_013", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
         "Geçmiş tarihli servis dönemi"),
-    r!("CAL_014", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+    r_noscore!("CAL_014", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
         "Servis tarihleri feed_info geçerlilik aralığı dışında"),
     r_noscore!("CAL_015", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Tüm takvim tarihleri gelecekte (bugün aktif sefer yok)"),
@@ -924,7 +924,7 @@ pub static RULES: &[RuleMeta] = &[
         "Takvim henüz başlamamış (tüm aktif tarihler gelecekte)"),
     r!("CAL_018", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
-    r!("CAL_019", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+    r_noscore!("CAL_019", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
         "Ham takvim aralığı feed_info geçerlilik penceresini aşıyor"),
     r!("CAL_020", Dusuk,  Quality,   1, &[], None, VS, Feed,
         "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
@@ -1671,7 +1671,7 @@ pub static RULES: &[RuleMeta] = &[
     // XFL_011 (Interop, iki feed tarihi de zorunlu) ile CAL_019 (Quality) aynı
     // ham calendar–feed_info karşılaştırmasını yapar. XFL_011 tetiklendiğinde
     // aynı service_id scope'undaki CAL_019 semptom olarak bastırılır (çift rapor önlenir).
-    r!("XFL_011", Orta,   Interop, 2, &["CAL_019"], None, VI, Feed,
+    r_noscore!("XFL_011", Orta,   Interop, 2, &["CAL_019"], None, VI, Feed,
         "Takvim tarihleri feed_info aralığı dışında"),
     r!("XFL_012", Yuksek, Quality, 2, &[], Some("route_id"), VS, Entity,
         "Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik)"),
