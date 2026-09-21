@@ -396,7 +396,7 @@ pub static RULES: &[RuleMeta] = &[
         "stop_access K2 uyumluluk aralığı dışında değer"),
     r!("STP_026", Dusuk,  Spec, 1,
         &["STP_027","PTH_012"],
-        Some("stop_id"), VS_ACC, Entity,
+        None, VS_ACC, Feed,
         "stop_access geçersiz değer"),
     r!("STP_027", Orta,   Quality, 1,
         &["PTH_012","PTH_013"],

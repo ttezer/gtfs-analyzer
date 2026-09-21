@@ -1032,7 +1032,7 @@ const ja: LocaleShape = {
     'PTH_009': "{affected_pathways}件の歩行者用通路（pathway_mode=1）にmax_slopeがありません。",
     'PTH_010': "経路'{entity_id}'：min_width'{observed_value}'が無効です。",
     'PTH_011': "経路'{entity_id}'がループを形成しています。",
-    'PTH_012': "駅'{entity_id}'：バリアフリーな経路が見つかりません。",
+    'PTH_012': 'このフィードで入口から到達できないプラットフォームが{observed_value}件あります。',
     'PTH_013': "経路'{entity_id}'：バリアフリー経路分析。",
     'PTH_014': "経路'{entity_id}'が駅の境界を越えています（{observed_value}）。",
     'PTH_015': "経路'{entity_id}'が到達不能な停留所に繋がっています。",

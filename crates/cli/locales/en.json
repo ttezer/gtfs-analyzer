@@ -420,7 +420,7 @@
     "PTH_009": "{affected_pathways} walkway pathways (pathway_mode=1) are missing max_slope.",
     "PTH_010": "Pathway '{entity_id}': min_width '{observed_value}' is invalid.",
     "PTH_011": "Pathway '{entity_id}' forms a loop.",
-    "PTH_012": "Station '{entity_id}': no accessible pathway found.",
+    "PTH_012": "{observed_value} platforms cannot be reached from an entrance in this feed.",
     "PTH_013": "Pathway '{entity_id}': accessible pathway analysis.",
     "PTH_014": "Pathway '{entity_id}' crosses a station boundary ({observed_value}).",
     "PTH_015": "Pathway '{entity_id}' leads to an unreachable stop.",

@@ -420,7 +420,7 @@
     "PTH_009": "{affected_pathways} cheminements piétons (pathway_mode=1) n’ont pas de max_slope.",
     "PTH_010": "Cheminement « {entity_id} » : min_width « {observed_value} » est invalide.",
     "PTH_011": "Le cheminement « {entity_id} » forme une boucle.",
-    "PTH_012": "Station « {entity_id} » : aucun cheminement accessible trouvé.",
+    "PTH_012": "{observed_value} quais ne sont accessibles depuis aucune entrée dans ce jeu de données.",
     "PTH_013": "Cheminement « {entity_id} » : analyse des cheminements accessibles.",
     "PTH_014": "Le cheminement « {entity_id} » franchit une limite de station ({observed_value}).",
     "PTH_015": "Le cheminement « {entity_id} » mène à un arrêt inatteignable.",
