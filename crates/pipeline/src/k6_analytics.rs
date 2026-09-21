@@ -8914,17 +8914,6 @@ fn check_remaining_analytics<'a>(
         let _t15 = Timer::start("K6::rem::shp_015");
         const MIN_POINTS_PER_10KM: f64 = 2.0; // en az 2 nokta / 10km
         for (shape_id, pts) in shape_coords.iter() {
-            if pts.len() < 3 {
-                notices.push(k6_notice(
-                    ctr, "SHP_015", EntityType::Shape,
-                    Some(shape_id.to_string()), Some(shape_id.to_string()),
-                    "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
-                    Some(format!("{}", pts.len())), Some("≥ 3".to_string()),
-                    format!("'{shape_id}' güzergah şeklinde yalnızca {} nokta var — minimum 3 nokta gerekli.", pts.len()),
-                    "Güzergah şekline daha fazla nokta ekleyin.",
-                ));
-                continue;
-            }
             let total_km: f64 = pts
                 .windows(2)
                 .map(|w| haversine_km(w[0].0, w[0].1, w[1].0, w[1].1))
