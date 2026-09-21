@@ -408,7 +408,7 @@ pub static RULES: &[RuleMeta] = &[
         "Hiç sefer geçmeyen durak"),
     r!("STP_021", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Boarding area parent'ı platform değil"),
-    r!("STP_022", Orta,   Quality, 1, &[], Some("stop_id"), VS, Entity,
+    r_noscore!("STP_022", Orta, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "stop_code eksik"),
     r!("STP_023", Dusuk,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "tts_stop_name geçersiz"),
@@ -2804,6 +2804,7 @@ mod tests {
         assert_eq!(get_rule("OPR_016").unwrap().score_weight, 1.0);
         assert_eq!(get_rule("OPR_008").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("STM_045").unwrap().score_weight, 0.0);
+        assert_eq!(get_rule("STP_022").unwrap().score_weight, 0.0);
     }
 
     #[test]
