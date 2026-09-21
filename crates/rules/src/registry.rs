@@ -1426,7 +1426,7 @@ pub static RULES: &[RuleMeta] = &[
         "traversal_time geçersiz"),
     r_noscore!("PTH_008", Dusuk,  Quality, 2, &[], None, VS, Feed,
         "stair_count eksik"),
-    r!("PTH_009", Dusuk,  Quality, 2, &[], None, VS, Feed,
+    r_noscore!("PTH_009", Dusuk,  Quality, 2, &[], None, VS, Feed,
         "max_slope eksik"),
     r!("PTH_010", Dusuk,  Spec, 1, &[], Some("pathway_id"), VS, Entity,
         "min_width geçersiz"),
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008",
+            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
