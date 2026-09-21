@@ -1191,7 +1191,7 @@ const fr: LocaleShape = {
     'DQ_018':  'Valeur tout en majuscules dans le champ recommandé « {field} » : « {observed_value} ».',
     'DQ_019':  'Valeur tout en minuscules dans le champ recommandé « {field} » : « {observed_value} ».',
     'DQ_020':  'Le champ recommandé « {field} » est absent ou vide dans « {file} » ({observed_value} lignes).',
-    'DQ_021':  'Clé primaire en double : « {entity_id} ».',
+    'DQ_021':  'Doublons de clé primaire dans « {entity_id} » : {observed_value}.',
     'DQ_022':  '{observed_value} des arrêts partagent le même stop_name — données de remplissage ou de test possibles.',
     // VAT
     'VAT_001': 'Les lignes « {entity_id} » et « {route_b} » partagent la plupart de leurs arrêts ({observed_value}) — doublon possible.',

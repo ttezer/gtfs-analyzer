@@ -1189,7 +1189,7 @@ const en: LocaleShape = {
     'DQ_018':  "All-caps value in recommended field '{field}': '{observed_value}'.",
     'DQ_019':  "All-lowercase value in recommended field '{field}': '{observed_value}'.",
     'DQ_020':  "Recommended field '{field}' is missing or empty in '{file}' ({observed_value} rows).",
-    'DQ_021':  "Duplicate primary key: '{entity_id}'.",
+    'DQ_021':  "{observed_value} duplicate primary-key findings in '{entity_id}'.",
     'DQ_022':  "{observed_value} of stops share the same stop_name — possible placeholder or test data.",
     // VAT
     'VAT_001': "Routes '{entity_id}' and '{route_b}' share most stops ({observed_value}) — possible duplicate.",

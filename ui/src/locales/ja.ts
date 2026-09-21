@@ -1171,7 +1171,7 @@ const ja: LocaleShape = {
     'DQ_018':  "推奨フィールド'{field}'の値がすべて大文字です：'{observed_value}'。",
     'DQ_019':  "推奨フィールド'{field}'の値がすべて小文字です：'{observed_value}'。",
     'DQ_020':  "'{file}'の推奨フィールド'{field}'がないか空です（{observed_value}行）。",
-    'DQ_021':  "主キーが重複しています：'{entity_id}'。",
+    'DQ_021':  "{entity_id}で主キーの重複が{observed_value}件あります。",
     'DQ_022':  "停留所の{observed_value}が同じstop_name値を共有しています — プレースホルダー/テストデータの可能性があります。",
     // VAT
     'VAT_001': "路線'{entity_id}'と'{route_b}'はほとんどの停留所を共有しています（{observed_value}）— 重複の可能性があります。",

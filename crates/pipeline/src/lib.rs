@@ -215,6 +215,82 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+/// DQ_021 emits one notice per duplicate key. Keep file context while
+/// reducing large feeds to one deterministic summary per affected file.
+fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
+    use std::collections::BTreeMap;
+
+    let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<gtfs_core::Notice>> = BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "DQ_021" {
+            let file = notice
+                .file
+                .clone()
+                .unwrap_or_else(|| "unknown file".to_string());
+            first_positions.entry(file.clone()).or_insert(index);
+            grouped.entry(file).or_default().push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if grouped.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregates = Vec::with_capacity(grouped.len());
+    for (file, mut matches) in grouped {
+        let mut aggregate = matches.swap_remove(0);
+        let affected_duplicates = matches.len() + 1;
+        let mut examples: Vec<String> = std::iter::once(aggregate.observed_value.clone())
+            .chain(matches.iter().filter_map(|notice| notice.observed_value.clone()))
+            .collect();
+        examples.sort_unstable();
+        examples.dedup();
+        examples.truncate(5);
+
+        aggregate.entity_type = gtfs_core::EntityType::File;
+        aggregate.entity_id = Some(file.clone());
+        aggregate.scope_key = None;
+        aggregate.file = Some(file.clone());
+        aggregate.line = None;
+        aggregate.field = None;
+        aggregate.observed_value = Some(affected_duplicates.to_string());
+        aggregate.expected_value = Some("file-level aggregate".to_string());
+        aggregate.message = format!(
+            "{file} içinde {affected_duplicates} birincil anahtar yinelenmesi tespit edildi."
+        );
+        aggregate.details = Some({
+            let mut details = BTreeMap::new();
+            details.insert(
+                "affected_duplicates".to_string(),
+                affected_duplicates.to_string(),
+            );
+            if !examples.is_empty() {
+                details.insert("example_keys".to_string(), examples.join(" | "));
+            }
+            details
+        });
+        aggregate.service_id = None;
+        aggregate.whitespace_derived = false;
+        aggregate.whitespace_candidate = false;
+        aggregates.push((file, aggregate));
+    }
+
+    aggregates.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (file, aggregate) in aggregates.into_iter().rev() {
+        let insert_at = first_positions
+            .get(&file)
+            .copied()
+            .unwrap_or(retained.len())
+            .min(retained.len());
+        retained.insert(insert_at, aggregate);
+    }
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -366,6 +442,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
     // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
     aggregate_stm036(&mut all);
+    aggregate_dq021(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

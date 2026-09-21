@@ -1837,7 +1837,7 @@ pub static RULES: &[RuleMeta] = &[
         "Önerilen alanda tamamen küçük harf (all-lowercase)"),
     r!("DQ_020",  Dusuk,  Quality,  1, &[], Some("file"), VS, Field,
         "Önerilen alan eksik veya boş"),
-    r!("DQ_021",  Yuksek, Spec,     1, &[], Some("file"), VS_K, Entity,
+    r!("DQ_021",  Yuksek, Spec,     1, &[], None, VS_K, File,
         "Birincil anahtar yineleniyor — genel ikincil sinyal (STP_001/RTS_001 gibi entity-level kurallarla örtüşebilir)"),
     r!("DQ_022",  Yuksek, Quality,  2, &[], None, VS, Feed,
         "Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi"),

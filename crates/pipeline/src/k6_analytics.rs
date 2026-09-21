@@ -5911,12 +5911,8 @@ fn check_data_quality(
         // ayraç olarak birim-ayırıcı (\u{1f}) kullanılır.
         //
         // 🔴 `entity_id` DOSYA ADIYLA NİTELENİR — bunlar aksi hâlde BİRBİRİNİ EZİYORDU.
-        // `DQ_021`'in dedup düzeyi `Entity`, anahtarı `rule_id + entity_type + entity_id`.
-        // Bileşik emisyonların hepsi `EntityType::Row` + `entity_id=None` ile yazılmıştı →
-        // ANAHTARLARI ÖZDEŞTİ ve keep-first tek bir tanesini bırakıyordu. Yani Fares v2
-        // feed'inde hem `fare_leg_rules` hem `fare_transfer_rules` yinelenmişse yalnız biri
-        // raporlanıyordu (sıralama gereği alfabetik ilk dosya). 2026-08-06'da `stop_areas.txt`
-        // eklenirken testi düşürdüğü için fark edildi — yeni kural değil, ESKİ hata.
+        // DQ_021 notices are initially emitted per duplicate key. The orchestration layer
+        // later aggregates them by file, preserving file context and a small key sample.
         fn composite_dups<K: AsRef<str>>(keys: impl Iterator<Item = Vec<K>>) -> Vec<String> {
             let mut seen: HashMap<String, u32> = HashMap::new();
             let mut dups: Vec<String> = Vec::new();
