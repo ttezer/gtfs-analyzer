@@ -1275,7 +1275,7 @@ const en: LocaleShape = {
     'RCT_008': 'rider_category_id is required.',
     'SAR_003': 'area_id is required in stop_areas.txt.',
     'SAR_004': 'stop_id is required in stop_areas.txt.',
-    'STM_053': "{observed_value} consecutive stops of trip '{entity_id}' use the same time value.",
+    'STM_053': "Route '{entity_id}' has {observed_value} with repeated consecutive stop times.",
     'STM_059': "Trip '{entity_id}' books on demand, but {field} is missing.",
     'STP_039': "stop_code '{observed_value}' is used by more than one stop.",
     'STP_040': "The name of stop '{entity_id}' contains a redundant generic 'stop/station' word.",

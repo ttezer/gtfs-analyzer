@@ -615,7 +615,7 @@
     "JPN_006.v4.missing_review": "GTFS-JP v4：fare_attributes.txt がありません。すべての運賃が本形式で表現できない複雑な運賃である場合に限り省略できます。手動確認が必要です。この通知によるスコア減点はありません。",
     "JPN_006.v4.unusable": "GTFS-JP v4：fare_attributes.txt は存在しますが空または使用不能です。複雑な運賃の例外はこの場合には適用されません。",
     "JPN_006.v4.missing_rules": "GTFS-JP v4：異なる運賃設定がありますが、fare_rules.txt による路線やゾーンへの対応付けがありません。",
-    "STM_053": "便'{entity_id}'の連続する{observed_value}停留所が同じ時刻になっています。"
+    "STM_053": "route '{entity_id}'で{observed_value}、連続する停留所の時刻が繰り返されています。"
   },
   "remediations": {
     "ARC_001": "フィードのZIPファイルが破損していないか確認してください。",

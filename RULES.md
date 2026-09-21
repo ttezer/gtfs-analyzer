@@ -264,7 +264,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_050 | timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin) | DÜŞÜK | Quality |
 | STM_051 | Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli) | YÜKSEK | Spec |
 | STM_052 | Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli) | YÜKSEK | Spec |
-| STM_053 | Çok sayıda ardışık durakta aynı zaman | ORTA | Quality |
+| STM_053 | Çok sayıda ardışık durakta aynı zaman | BİLGİ | Analytics |
 | STM_054 | Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak | YÜKSEK | Spec |
 | STM_055 | Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak | YÜKSEK | Spec |
 | STM_056 | shape_dist_traveled artmıyor | KRİTİK | Spec |

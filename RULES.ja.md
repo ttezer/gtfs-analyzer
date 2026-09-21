@@ -264,7 +264,7 @@
 | STM_050 | timepoint列はあるが値が空 | 低 | 品質 |
 | STM_051 | Flexウィンドウでpickup_type 0/3禁止 | 高 | 仕様 |
 | STM_052 | Flexウィンドウでdrop_off_type 0禁止 | 高 | 仕様 |
-| STM_053 | 多数の連続停留所が同じ時刻 | 中 | 品質 |
+| STM_053 | 多数の連続停留所が同じ時刻 | 情報 | 分析 |
 | STM_054 | Flexウィンドウでcontinuous_pickup禁止 | 高 | 仕様 |
 | STM_055 | Flexウィンドウでcontinuous_drop_off禁止 | 高 | 仕様 |
 | STM_056 | shape_dist_traveledが増加していない | 致命的 | 仕様 |

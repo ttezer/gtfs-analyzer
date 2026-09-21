@@ -1277,7 +1277,7 @@ const fr: LocaleShape = {
     'RCT_008': 'rider_category_id est obligatoire.',
     'SAR_003': 'area_id est obligatoire dans stop_areas.txt.',
     'SAR_004': 'stop_id est obligatoire dans stop_areas.txt.',
-    'STM_053': '{observed_value} arrêts consécutifs de la course « {entity_id} » utilisent la même valeur horaire.',
+    'STM_053': 'La route « {entity_id} » compte {observed_value} avec des heures consécutives répétées.',
     'STM_059': 'La course « {entity_id} » se réserve à la demande, mais {field} est absent.',
     'STP_039': 'Le stop_code « {observed_value} » est utilisé par plus d’un arrêt.',
     'STP_040': 'Le nom de l’arrêt « {entity_id} » contient un mot générique redondant (« arrêt » ou « station »).',

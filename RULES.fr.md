@@ -264,7 +264,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STM_050 | Colonne timepoint présente mais valeur vide | FAIBLE | Quality |
 | STM_051 | pickup_type 0/3 interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
 | STM_052 | drop_off_type 0 interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
-| STM_053 | De nombreux arrêts consécutifs ont la même heure | MOYENNE | Quality |
+| STM_053 | De nombreux arrêts consécutifs ont la même heure | INFORMATION | Analytics |
 | STM_054 | continuous_pickup interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
 | STM_055 | continuous_drop_off interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
 | STM_056 | shape_dist_traveled n’augmente pas | CRITIQUE | Spec |

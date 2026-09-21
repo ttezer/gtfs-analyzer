@@ -1475,6 +1475,9 @@ fn check_speed_and_duration<'a>(
     // ölçülerle görür ve ikisi de sefer sayısıyla ölçeklenmemelidir.
     let mut stm061_pairs: FxHashMap<(&str, &str, &str, &str), Stm061Pair<'_>> =
         FxHashMap::default();
+    // STM_053: aynı route içindeki etkilenen seferleri tek route-level notice'ta topla.
+    // Tespit ve eşik değişmez; yalnızca trip başına Quality gürültüsü Analytics özetine iner.
+    let mut stm053_routes: FxHashMap<&str, (usize, usize, &str, u64)> = FxHashMap::default();
 
     {
         let _t = Timer::start("K6::sd::loop");
@@ -1639,12 +1642,12 @@ fn check_speed_and_duration<'a>(
                 previous_time = event_time;
             }
             if max_same_run >= 3 {
-                notices.push(k6_notice(ctr, "STM_053", EntityType::Trip,
-                Some(trip_id.to_string()), Some(trip_id.to_string()), "stop_times.txt",
-                stimes.first().map(|s| s.line as u64), Some("arrival_time"),
-                Some(format!("{max_same_run} consecutive stops")), Some("< 3 consecutive stops".to_string()),
-                format!("trip_id '{trip_id}' içinde {max_same_run} ardışık durak aynı zaman değerini kullanıyor."),
-                "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin."));
+                let entry = stm053_routes.entry(route).or_insert((0, 0, trip_id, 0));
+                entry.0 = entry.0.max(max_same_run);
+                entry.1 += 1;
+                if entry.3 == 0 {
+                    entry.3 = stimes.first().map(|s| s.line as u64).unwrap_or(0);
+                }
             }
 
             // ── STM_008: chronology across untimed stops ───────────────────────
@@ -2166,6 +2169,30 @@ fn check_speed_and_duration<'a>(
             }
         }
     } // K6::sd::loop
+
+    let mut stm053_keys: Vec<&str> = stm053_routes.keys().copied().collect();
+    stm053_keys.sort_unstable();
+    for route in stm053_keys {
+        let &(max_same_run, affected_trips, example_trip, line) = &stm053_routes[route];
+        notices.push(k6_notice(
+            ctr,
+            "STM_053",
+            EntityType::Route,
+            Some(route.to_string()),
+            Some(route.to_string()),
+            "routes.txt",
+            (line > 0).then_some(line),
+            Some("route_id"),
+            Some(format!(
+                "{affected_trips} trips; max {max_same_run} consecutive stops"
+            )),
+            Some("no route-level repeated-time pattern".to_string()),
+            format!(
+                "route_id '{route}' içinde {affected_trips} seferde ardışık duraklar aynı zaman değerini kullanıyor (en uzun seri: {max_same_run}; örnek: '{example_trip}')."
+            ),
+            "Ardışık stop_times zamanlarını doğrulayın; gerçek bekleme ise zamanları açıklayıcı biçimde düzenleyin.",
+        ));
+    }
 
     // ── STM_014: biriken segmentleri tek tek emit et ─────────────────────────
     // FxHashMap iterasyonu sırasız → anahtara göre sırala (golden determinizmi).
@@ -12002,7 +12029,14 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(result.notices.iter().any(|n| n.rule_id == "STM_053"));
+        let found: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_053")
+            .collect();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].entity_type, EntityType::Route);
+        assert_eq!(found[0].entity_id.as_deref(), Some("R1"));
     }
 
     // ── OPR_008 ───────────────────────────────────────────────────────────────

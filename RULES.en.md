@@ -264,7 +264,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_050 | timepoint column present but value empty | LOW | Quality |
 | STM_051 | pickup_type 0/3 forbidden with Flex window | HIGH | Spec |
 | STM_052 | drop_off_type 0 forbidden with Flex window | HIGH | Spec |
-| STM_053 | Many consecutive stops have the same time | MEDIUM | Quality |
+| STM_053 | Many consecutive stops have the same time | INFO | Analytics |
 | STM_054 | continuous_pickup forbidden with Flex window | HIGH | Spec |
 | STM_055 | continuous_drop_off forbidden with Flex window | HIGH | Spec |
 | STM_056 | shape_dist_traveled does not increase | CRITICAL | Spec |
