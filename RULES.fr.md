@@ -191,7 +191,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | TRP_032 | cars_allowed invalide | FAIBLE | Spec |
 | TRP_011 | Girouette de course non renseignée | ÉLEVÉE | Quality |
 | TRP_012 | direction_id manquant sur une ligne bidirectionnelle | FAIBLE | Quality |
-| TRP_013 | La ligne ne comporte qu’une seule course | FAIBLE | Quality |
+| TRP_013 | La ligne ne comporte qu’une seule course | INFO | Analytics |
 | TRP_014 | trip_short_name trop long | INFO | Quality |
 | TRP_015 | block_id ne regroupe aucune course | FAIBLE | Quality |
 | TRP_017 | Course basée sur la fréquence absente de stop_times | MOYENNE | Quality |
@@ -759,7 +759,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | DQ_010 | Agence utilisée par aucune ligne | INFO | Quality |
 | DQ_011 | Un seul arrêt existe | FAIBLE | Quality |
 | DQ_012 | Trop d’agences, agency_id non utilisé | FAIBLE | Quality |
-| DQ_013 | Trop peu de courses | MOYENNE | Quality |
+| DQ_013 | Trop peu de courses | INFO | Analytics |
 | DQ_016 | Espaces superflus dans la valeur d’un champ | MOYENNE | Quality |
 | DQ_017 | Valeur de coordonnée suspecte | INFO | Quality |
 | DQ_018 | Valeur tout en majuscules dans un champ recommandé | MOYENNE | Quality |

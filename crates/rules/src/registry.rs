@@ -588,7 +588,7 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer yön adı girilmemiş"),
     r!("TRP_012", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Çift yönlü rotada direction_id eksik"),
-    r!("TRP_013", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
+    r_noscore!("TRP_013", Bilgi, Analytics, 1, &[], Some("route_id"), VA, Entity,
         "Hat tek seferlik"),
     r!("TRP_014", Bilgi,  Quality, 1, &[], Some("trip_id"), VS, Entity,
         "trip_short_name çok uzun"),
@@ -1836,7 +1836,7 @@ pub static RULES: &[RuleMeta] = &[
         "Yalnızca bir durak var"),
     r!("DQ_012",  Dusuk,  Quality,  1, &[], None, VS, Feed,
         "Çok fazla acente, agency_id kullanılmıyor"),
-    r!("DQ_013",  Orta,   Quality,  1, &[], None, VS, Feed,
+    r_noscore!("DQ_013", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Çok az sefer"),
     // Emit DOSYA başına tek özet → Varlık=File. Eski hâl Row idi ve baş/son boşluk tek bir
     // üretici alışkanlığı (ör. ayraç ', ') olduğu için dosyanın HER satırında çıkıyordu:
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011",
+            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }

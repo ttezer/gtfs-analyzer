@@ -191,7 +191,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_032 | cars_allowed invalid | LOW | Spec |
 | TRP_011 | Trip headsign not set | HIGH | Quality |
 | TRP_012 | direction_id missing on bidirectional route | LOW | Quality |
-| TRP_013 | Route has only one trip | LOW | Quality |
+| TRP_013 | Route has only one trip | INFO | Analytics |
 | TRP_014 | trip_short_name too long | INFO | Quality |
 | TRP_015 | block_id groups no trips | LOW | Quality |
 | TRP_017 | Frequency-based trip missing from stop_times | MEDIUM | Quality |
@@ -759,7 +759,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | DQ_010 | Agency not used by any route | INFO | Quality |
 | DQ_011 | Only one stop exists | LOW | Quality |
 | DQ_012 | Too many agencies, agency_id not used | LOW | Quality |
-| DQ_013 | Too few trips | MEDIUM | Quality |
+| DQ_013 | Too few trips | INFO | Analytics |
 | DQ_016 | Extra whitespace in field value | MEDIUM | Quality |
 | DQ_017 | Suspicious coordinate value | INFO | Quality |
 | DQ_018 | All-caps value in recommended field | MEDIUM | Quality |

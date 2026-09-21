@@ -191,7 +191,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_032 | cars_allowed geçersiz | DÜŞÜK | Spec |
 | TRP_011 | Sefer yön adı girilmemiş | YÜKSEK | Quality |
 | TRP_012 | Çift yönlü rotada direction_id eksik | DÜŞÜK | Quality |
-| TRP_013 | Hat tek seferlik | DÜŞÜK | Quality |
+| TRP_013 | Hat tek seferlik | BİLGİ | Analytics |
 | TRP_014 | trip_short_name çok uzun | BİLGİ | Quality |
 | TRP_015 | block_id hiçbir seferi gruplamıyor | DÜŞÜK | Quality |
 | TRP_017 | Frekans tabanlı sefer stop_times'ta eksik | ORTA | Quality |
@@ -759,7 +759,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | DQ_010 | Acente hiçbir hatta kullanılmıyor | BİLGİ | Quality |
 | DQ_011 | Yalnızca bir durak var | DÜŞÜK | Quality |
 | DQ_012 | Çok fazla acente, agency_id kullanılmıyor | DÜŞÜK | Quality |
-| DQ_013 | Çok az sefer | ORTA | Quality |
+| DQ_013 | Çok az sefer | BİLGİ | Analytics |
 | DQ_016 | Değerde fazladan boşluk karakteri | ORTA | Quality |
 | DQ_017 | Şüpheli koordinat değeri | BİLGİ | Quality |
 | DQ_018 | Önerilen alanda tamamen büyük harf (all-caps) | ORTA | Quality |
