@@ -779,7 +779,7 @@ const en: LocaleShape = {
     'STM_005': "Trip '{entity_id}': stop_sequence '{observed_value}' is missing or invalid.",
     'STM_006': 'stop_id is missing in a stop_times row.',
     'STM_007': "departure_time is before arrival_time on {affected_rows} stop_times row(s), e.g. trip {example_trips}.",
-    'STM_008': "Route '{route}' trip '{entity_id}': departure {dep} from {stop_a_name} (stop {seq_a}), but arrival {arr} at {stop_b_name} (stop {seq_b}) — arrival precedes departure (time goes backwards). (dir {dir}{hs_sep}{headsign})",
+    'STM_008': "Trip '{entity_id}' has {observed_value} backward-time segments; the first is shown in the details.",
     'STM_009': "Trip '{entity_id}': pickup_type '{observed_value}' is invalid.",
     'STM_010': "Trip '{entity_id}': drop_off_type '{observed_value}' is invalid.",
     'STM_012': "Trip '{entity_id}': unrealistic speed — {observed_value} (limit: {expected_value}).",

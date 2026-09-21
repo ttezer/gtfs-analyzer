@@ -168,7 +168,7 @@
     "STM_005": "Course « {entity_id} » : stop_sequence « {observed_value} » est absent ou invalide.",
     "STM_006": "stop_id est absent dans un enregistrement stop_times.",
     "STM_007": "departure_time précède arrival_time sur {affected_rows} ligne(s) de stop_times, p. ex. course {example_trips}.",
-    "STM_008": "Ligne « {route} », course « {entity_id} » : départ {dep} de {stop_a_name} (arrêt {seq_a}), mais arrivée {arr} à {stop_b_name} (arrêt {seq_b}) — l’arrivée précède le départ (le temps recule). (sens {dir}{hs_sep}{headsign})",
+    "STM_008": "La course « {entity_id} » comporte {observed_value} segments où l’heure recule ; le premier est détaillé.",
     "STM_009": "Course « {entity_id} » : pickup_type « {observed_value} » est invalide.",
     "STM_010": "Course « {entity_id} » : drop_off_type « {observed_value} » est invalide.",
     "STM_012": "Course « {entity_id} » : vitesse irréaliste — {observed_value} (limite : {expected_value}).",

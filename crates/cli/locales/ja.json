@@ -168,7 +168,7 @@
     "STM_005": "便'{entity_id}'：stop_sequence'{observed_value}'がないか無効です。",
     "STM_006": "stop_timesの行にstop_idがありません。",
     "STM_007": "{affected_rows}件のstop_times行でdeparture_timeがarrival_timeより前です（例: 便{example_trips}）。",
-    "STM_008": "路線'{route}'の便'{entity_id}'：{stop_a_name}（停留所 {seq_a}）の出発 {dep} に対し、{stop_b_name}（停留所 {seq_b}）への到着 {arr} — 到着が出発より前です（時刻が逆行）。(方向 {dir}{hs_sep}{headsign})",
+    "STM_008": "便'{entity_id}'には時刻が逆行する区間が{observed_value}件あります。最初の区間を詳細に表示します。",
     "STM_009": "便'{entity_id}'：pickup_type'{observed_value}'が無効です。",
     "STM_010": "便'{entity_id}'：drop_off_type'{observed_value}'が無効です。",
     "STM_012": "便'{entity_id}'：非現実的な速度 — {observed_value}（制限：{expected_value}）。",

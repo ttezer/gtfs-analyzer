@@ -511,6 +511,63 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>) {
+    use std::collections::BTreeMap;
+
+    let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<gtfs_core::Notice>> = BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "STM_008" {
+            let trip_id = notice
+                .entity_id
+                .clone()
+                .unwrap_or_else(|| "unknown trip".to_string());
+            first_positions.entry(trip_id.clone()).or_insert(index);
+            grouped.entry(trip_id).or_default().push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if grouped.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregates = Vec::with_capacity(grouped.len());
+    for (trip_id, mut matches) in grouped {
+        let mut aggregate = matches.swap_remove(0);
+        let affected_segments = matches.len() + 1;
+        aggregate.entity_type = gtfs_core::EntityType::Trip;
+        aggregate.entity_id = Some(trip_id.clone());
+        aggregate.scope_key = Some(trip_id.clone());
+        aggregate.observed_value = Some(affected_segments.to_string());
+        aggregate.expected_value = Some("monotonic trip chronology".to_string());
+        aggregate.message = format!(
+            "{affected_segments} zaman geriye gidişi bu seferin kronolojisini bozuyor."
+        );
+        aggregate.details.get_or_insert_with(BTreeMap::new).insert(
+            "affected_segments".to_string(),
+            affected_segments.to_string(),
+        );
+        aggregate.service_id = None;
+        aggregate.whitespace_derived = false;
+        aggregate.whitespace_candidate = false;
+        aggregates.push((trip_id, aggregate));
+    }
+
+    aggregates.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (trip_id, aggregate) in aggregates.into_iter().rev() {
+        let insert_at = first_positions
+            .get(&trip_id)
+            .copied()
+            .unwrap_or(retained.len())
+            .min(retained.len());
+        retained.insert(insert_at, aggregate);
+    }
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -666,6 +723,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     aggregate_arc012(&mut all);
     aggregate_cld003(&mut all);
     aggregate_shp005(&mut all);
+    aggregate_stm008(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

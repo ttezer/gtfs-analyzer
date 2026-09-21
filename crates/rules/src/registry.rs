@@ -670,7 +670,7 @@ pub static RULES: &[RuleMeta] = &[
         "stop_id eksik (stop_times)"),
     r!("STM_007", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Kalkış saati varış saatinden önce (departure_time < arrival_time)"),
-    r!("STM_008", Kritik, Interop, 2, &[], Some("trip_id"), VI, Row,
+    r!("STM_008", Kritik, Interop, 2, &[], Some("trip_id"), VI, Entity,
         "Duraklar arası zaman geriye gidiyor"),
     r!("STM_009", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
         "pickup_type geçersiz"),
