@@ -155,7 +155,7 @@ PTH_004		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	pathway_mode eksi
 PTH_005		Kritik	Spec	SELECTION_BIAS	pathways.txt	10	modül			1	is_bidirectional eksik
 PTH_006		Orta	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	length geçersiz
 PTH_010		Dusuk	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül			1	min_width geçersiz
-PTH_013		Bilgi	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003,PTH_012,STP_027	yes	1	Erişilebilir yol analizi
+PTH_013		Bilgi	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003,PTH_012	yes	1	Erişilebilir yol analizi
 PTH_014		Kritik	Quality	PREDICATE_SUSPECT	pathways.txt	10	grup			1	Geçit istasyon sınırını aşıyor
 PTH_015		Orta	Analytics	PREDICATE_SUSPECT	pathways.txt	10	grup	PTH_002,PTH_003	no	1	Geçit hedefi erişilemeyen durakta
 PTH_016		Yuksek	Spec	PREDICATE_SUSPECT	pathways.txt	10	modül	PTH_005	no	1	Çıkış kapısı çift yönlü tanımlanmış

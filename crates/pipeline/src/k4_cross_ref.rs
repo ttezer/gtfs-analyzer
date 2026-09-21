@@ -846,7 +846,7 @@ fn check_stops(
     ctr: &mut u32,
     used_in_stm: &HashSet<&str>,
 ) {
-    // Pathway tanımlı istasyonları bul (STP_027 için)
+    // Pathway uç noktalarını bul (STP_032 için)
     let station_has_pathway: HashSet<String> = {
         let mut s = HashSet::new();
         for pw in &records.pathways {
@@ -1082,38 +1082,6 @@ fn check_stops(
                     Some("(boş)".to_string()),
                     format!("stop_access yalnız üst istasyonu olan platformlarda kullanılabilir ({why})."),
                     "stop_access alanını yalnız parent_station'ı olan platformlarda (location_type 0/boş) doldurun.",
-                ));
-            }
-        }
-
-        // STP_027: pathway tanımlı istasyonda stop_access=0 olan platform
-        if station_has_pathway.contains(&rec.stop_id)
-            && matches!(loc_type, None | Some(0))
-            && matches!(rec.stop_access, Some(0) | None)
-        {
-            let parent_is_station = !parent.is_empty()
-                && map
-                    .stops
-                    .get(parent)
-                    .map(|&i| records.stops[i].location_type == Some(1))
-                    .unwrap_or(false);
-            if parent_is_station {
-                notices.push(notice(
-                    ctr,
-                    "STP_027",
-                    EntityType::Stop,
-                    eid.clone(),
-                    eid.clone(),
-                    "stops.txt",
-                    Some(rec.line),
-                    Some("stop_access"),
-                    rec.stop_access.map(|v| v.to_string()),
-                    None,
-                    format!(
-                        "'{}' platformunun stop_access'i belirtilmemiş veya 0 (bilinmiyor); pathway tanımlı istasyonda.",
-                        rec.stop_id
-                    ),
-                    "Pathway tanımlı istasyonlarda platformların stop_access alanını doldurun.",
                 ));
             }
         }
@@ -6731,8 +6699,7 @@ fn check_xfl(
     // noktası OLAMAZ. `stop_access=1` "bu durağa sokaktan doğrudan erişilir, istasyonun
     // giriş/pathway'lerinden bağımsız yol tarifi üret" demektir; ona pathway bağlamak
     // kendi kendisiyle çelişir. 2026-08-06'ya kadar burada "kapsam dışıdır" yazıyordu ama
-    // hükmü ölçen BAŞKA bir kural da yoktu (`STP_027` TERS olguyu ölçer: pathway'li
-    // istasyonda `stop_access` BOŞ bırakılmış platform).
+    // hükmü ölçen PTH_031, pathway uç noktasına doğrudan erişim çelişkisini ölçer.
     {
         for rec in &records.pathways {
             for (field, stop_id) in [

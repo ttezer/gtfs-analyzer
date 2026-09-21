@@ -1686,11 +1686,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_024", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,5\nS2,Stop2,41.1,29.1,\n")]),
         // STP_026: stop_access ham geçersiz enum (k4).
         fx("STP_026", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,9\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_027: pathway tanımlı istasyonda platform stop_access belirsiz (k4).
-        fx("STP_027", vec![
-            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nS1,Plat1,41.0,29.0,0,ST1\nS2,Plat2,41.01,29.01,0,ST1\n"),
-            ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n"),
-        ]),
         // STP_028: stop_code > 50 karakter (k2).
         fx("STP_028", vec![("stops.txt", "stop_id,stop_code,stop_name,stop_lat,stop_lon\nS1,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,Stop1,41.0,29.0\nS2,C2,Stop2,41.1,29.1\n")]),
         // STP_029: durak parent_station'dan çok uzak (> 150m) (k6).
@@ -3255,7 +3250,7 @@ fn spec_coverage_gaps_match_ledger() {
 ///    KURAL sayar, atom eşleştirmez: `FLJ_003`/`FLJ_004` (karşılıklı koşul + FK'yi birlikte
 ///    ölçerler, ben yazdım), `STM_058`↔`STM_039` çifti (biçim + varlık).
 /// 2. **BAŞKA KURAL KARŞILIYOR ama çapalamıyor** — `routes.continuous_pickup/drop_off`'un
-///    koşullu-yasak hükmünü `RTS_028` (Interop) ölçer; `stops.stop_access`'inkini `STP_027`.
+///    koşullu-yasak hükmünü `RTS_028` (Interop) ölçer; `stops.stop_access`'inkini `STP_043`.
 ///    İkisi de fixture'da o alanı çapalamıyor.
 /// 3. **SPEC METNİ OKUNDU (2026-08-02) — 7 adayın 2'si KAPALI çıktı:**
 ///    - `timeframes.start_time` ✅ — *"Required if end_time is defined. Forbidden otherwise."*

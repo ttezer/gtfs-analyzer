@@ -711,7 +711,6 @@ const tr = {
     'STP_023': 'tts_stop_name geçersiz',
     'STP_024': 'stop_access enum aralığı dışında değer (K2 ham alan kontrolü)',
     'STP_026': 'stop_access geçersiz değer',
-    'STP_027': "Pathway istasyonunda stop_access belirtilmemiş",
     'STP_028': 'stop_code çok uzun',
     'STP_029': 'Durak istasyon içinde ama koordinat çok uzakta',
     'STP_030': 'Üst istasyonun alt durağı yok',

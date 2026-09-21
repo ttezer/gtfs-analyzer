@@ -284,7 +284,7 @@ birleştirmek `emit_identity` kapısını düşürebilir.
 | `P4dec6139` | stop_name | Ajansın yolcuya gösterdiği adla eşleşmeli *(soft)* | **KAPSAM DIŞI** | Basılı tarife/dış kaynak bilgisi gerekir. |
 | `P2f98361b` | stop_name | Boarding area'da biniş alanının adı olmalı *(soft)* | KISMİ | `STP_041` alt durak/üst istasyon ad ilişkisini ölçer; boarding area'ya özel değil. |
 | `P4aab119d` | location_type | Giriş birden çok istasyona aitse veri sağlayıcı birini parent seçmeli | **KAPSAM DIŞI** | Şema zaten tek `parent_station` alanı verir → ihlal edilemez; cümle modelleme rehberi. |
-| `P740a5096` · `Pb857b7b0` · `Pa5a48cf2` | stop_access | Girişten erişilmeli; pathway varsa kullanılmalı; tüketici yön üretmeli | **KAPSAM DIŞI** | Tüketici davranışını bağlar. `STP_027` komşu olguyu (pathway istasyonunda `stop_access` eksik) ölçer. |
+| `P740a5096` · `Pb857b7b0` · `Pa5a48cf2` | stop_access | Girişten erişilmeli; pathway varsa kullanılmalı; tüketici yön üretmeli | **KAPSAM DIŞI** | Tüketici davranışını bağlar. Pathway erişilebilirliği PTH_031/PTH_012 kapsamındadır. |
 | `P8cb6a9cc` | stop_code | Yolcuya sunulan kodu olmayan yerlerde **boş bırakılmalı** *(soft)* | **KAPSAM DIŞI** ⚠️GERİLİM | Bir durağın yolcuya sunulan kodu OLUP OLMADIĞI feed'den bilinemez — boşluğun kendisi tek kanıttır, ve o hem uyumu hem ihlali gösterir. Karar makine-okunur etiket taşımadığı için `badge_status.py`'nin yumuşak paydasından SESSİZCE düşüyordu (2026-08-06 orphan denetimi yakaladı). Gerilim ayrıntısı Bulgu 5'te. |
 | `P3af6af7b` · `Pb24eacd3` | platform_code | Yalnız tanımlayıcı olmalı; "platform"/"track" kelimesi geçmemeli *(soft)* | **KANITLI** → `STP_044` (`509c5b54`). | |
 
