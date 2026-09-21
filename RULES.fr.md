@@ -256,7 +256,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STM_042 | stop_headsign contient des caractères non pris en charge par Google Transit | FAIBLE | Interop |
 | STM_043 | Course au nombre d’arrêts extrême (>200) | INFO | Analytics |
 | STM_044 | Le fichier stop_times dépasse 2 000 000 d’enregistrements (avertissement de performance WASM) | INFO | Analytics |
-| STM_045 | L’heure de départ de la course dépasse la fenêtre de la journée de service | MOYENNE | Quality |
+| STM_045 | L’heure de départ de la course dépasse la fenêtre de la journée de service | INFO | Analytics |
 | STM_046 | trip_id manquant | CRITIQUE | Spec |
 | STM_047 | timepoint=1 sans heure d’arrivée ni de départ | CRITIQUE | Spec |
 | STM_048 | Heures de journée de service après minuit écrites en 00:xx (spécification GTFS) | ÉLEVÉE | Spec |

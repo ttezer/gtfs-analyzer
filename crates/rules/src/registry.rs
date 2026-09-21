@@ -795,7 +795,7 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer aşırı fazla durağa sahip (>200) — olası veri birleştirme hatası"),
     r!("STM_044", Bilgi,  Analytics, 1, &[], None, VA, Feed,
         "Feed stop_times satır sayısı 2 milyonu aşıyor — WASM bellek/performans uyarısı"),
-    r!("STM_045", Orta,   Quality,   1, &[], Some("trip_id"), VS, Entity,
+    r_noscore!("STM_045", Bilgi, Analytics, 1, &[], Some("trip_id"), VA, Entity,
         "Seferin hareket saati servis günü penceresini aşıyor — olası veri anomalisi"),
     r!("STM_046", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "trip_id eksik"),
@@ -2803,6 +2803,7 @@ mod tests {
         }
         assert_eq!(get_rule("OPR_016").unwrap().score_weight, 1.0);
         assert_eq!(get_rule("OPR_008").unwrap().score_weight, 0.0);
+        assert_eq!(get_rule("STM_045").unwrap().score_weight, 0.0);
     }
 
     #[test]
