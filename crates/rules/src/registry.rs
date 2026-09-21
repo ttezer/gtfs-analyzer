@@ -1052,7 +1052,7 @@ pub static RULES: &[RuleMeta] = &[
         "from_stop_id veya to_stop_id bulunamadı"),
     r!("TRF_004", Yuksek, Spec, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
         "transfer_type geçersiz"),
-    r!("TRF_005", Kritik, Spec, 2, &[], Some("from_stop_id|to_stop_id"), VS_K, Row,
+    r!("TRF_005", Kritik, Spec, 2, &[], None, VS_K, Feed,
         "min_transfer_time eksik"),
     r!("TRF_006", Kritik, Spec, 1,
         &["TRF_013","TRF_014","TRF_015","TRF_017","TRF_018","OPR_007"],

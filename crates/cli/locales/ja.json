@@ -300,7 +300,7 @@
     "TRF_002": "乗り換え：to_stop_idがありません。",
     "TRF_003": "乗り換え：{field}'{observed_value}'がstops.txtに見つかりません。",
     "TRF_004": "乗り換え：transfer_type'{observed_value}'が無効です。",
-    "TRF_005": "乗り換え：min_transfer_timeがありません。",
+    "TRF_005": "transfers.txtでmin_transfer_timeがないか無効な行が{observed_value}件あります。",
     "TRF_006": "乗り換え：from_trip_id'{entity_id}'がtrips.txtに見つかりません。",
     "TRF_007": "乗り換え：to_trip_id'{entity_id}'がtrips.txtに見つかりません。",
     "TRF_008": "乗り換え：from_route_id'{observed_value}'がroutes.txtに見つかりません。",

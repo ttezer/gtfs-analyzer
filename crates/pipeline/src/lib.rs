@@ -939,6 +939,61 @@ fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>) {
+    let mut first_position = None;
+    let mut matched = Vec::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "TRF_005" {
+            first_position.get_or_insert(index);
+            matched.push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if matched.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregate = matched.swap_remove(0);
+    let affected_rows = matched.len() + 1;
+    let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
+        .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
+        .collect();
+    examples.sort_unstable();
+    examples.dedup();
+    examples.truncate(5);
+    aggregate.entity_type = gtfs_core::EntityType::Feed;
+    aggregate.entity_id = None;
+    aggregate.scope_key = None;
+    aggregate.file = Some("transfers.txt".to_string());
+    aggregate.line = None;
+    aggregate.observed_value = Some(affected_rows.to_string());
+    aggregate.expected_value = Some("non-negative integer seconds".to_string());
+    aggregate.message = format!(
+        "transfers.txt içinde {affected_rows} satırda min_transfer_time eksik veya geçersiz."
+    );
+    aggregate.details = Some({
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("affected_rows".to_string(), affected_rows.to_string());
+        if !examples.is_empty() {
+            details.insert("example_transfers".to_string(), examples.join(", "));
+        }
+        details
+    });
+    aggregate.service_id = None;
+    aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
+        && aggregate.whitespace_derived;
+    aggregate.whitespace_candidate = matched.iter().all(|n| n.whitespace_candidate)
+        && aggregate.whitespace_candidate;
+    retained.insert(
+        first_position.unwrap_or(retained.len()).min(retained.len()),
+        aggregate,
+    );
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -1101,6 +1156,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     aggregate_trn001(&mut all);
     aggregate_stp004(&mut all);
     aggregate_stp005(&mut all);
+    aggregate_trf005(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

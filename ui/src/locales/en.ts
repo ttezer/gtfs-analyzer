@@ -918,7 +918,7 @@ const en: LocaleShape = {
     'TRF_002': 'Transfer: to_stop_id is missing.',
     'TRF_003': "Transfer: {field} '{observed_value}' not found in stops.txt.",
     'TRF_004': "Transfer: transfer_type '{observed_value}' is invalid.",
-    'TRF_005': 'Transfer: min_transfer_time is missing.',
+    'TRF_005': '{observed_value} rows in transfers.txt have a missing or invalid min_transfer_time.',
     'TRF_006': "Transfer: from_trip_id '{entity_id}' not found in trips.txt.",
     'TRF_007': "Transfer: to_trip_id '{entity_id}' not found in trips.txt.",
     'TRF_008': "Transfer: from_route_id '{observed_value}' not found in routes.txt.",

@@ -300,7 +300,7 @@
     "TRF_002": "Correspondance : to_stop_id est absent.",
     "TRF_003": "Correspondance : {field} « {observed_value} » est introuvable dans stops.txt.",
     "TRF_004": "Correspondance : transfer_type « {observed_value} » est invalide.",
-    "TRF_005": "Correspondance : min_transfer_time est absent.",
+    "TRF_005": "{observed_value} lignes de transfers.txt ont un min_transfer_time absent ou invalide.",
     "TRF_006": "Correspondance : from_trip_id « {entity_id} » est introuvable dans trips.txt.",
     "TRF_007": "Correspondance : to_trip_id « {entity_id} » est introuvable dans trips.txt.",
     "TRF_008": "Correspondance : from_route_id « {observed_value} » est introuvable dans routes.txt.",
