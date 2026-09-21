@@ -692,7 +692,7 @@ const ja: LocaleShape = {
     'STP_029': "停留所'{entity_id}'は駅内にありますが、親駅から座標が離れすぎています。",
     'STP_030': "駅'{entity_id}'に子停留所がありません。",
     'STP_031': "停留所'{entity_id}'：stop_nameとstop_descが同じです。",
-    'STP_032': "停留所'{entity_id}'は経路ネットワークに接続されていますが、parent_stationがありません。",
+    'STP_032': 'このフィードで経路ネットワークに接続されparent_stationがないプラットフォームが{observed_value}件あります。',
     'STP_033': "{affected_stops}件の停留所でzone_idがありません（例: {example_stops}）。運賃計算に必要です。",
     'STP_034': "停留所'{entity_id}'：stop_urlが事業者URLと同じです。",
     'STP_042': 'このフィードでstop_urlが無効な停留所が{observed_value}件あります。',

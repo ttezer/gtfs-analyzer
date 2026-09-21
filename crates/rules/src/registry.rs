@@ -410,7 +410,7 @@ pub static RULES: &[RuleMeta] = &[
         "Üst istasyonun alt durağı yok"),
     r!("STP_031", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Durak adı ve açıklaması aynı"),
-    r!("STP_032", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
+    r!("STP_032", Orta,   Quality, 2, &[], None, VS, Feed,
         "Pathway bağlantılı platform için parent_station eksik"),
     r!("STP_033", Bilgi,  Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Durak zone_id eksik (ücret hesabı için gerekli)"),

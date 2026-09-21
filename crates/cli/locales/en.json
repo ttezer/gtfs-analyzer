@@ -103,7 +103,7 @@
     "STP_029": "Stop '{entity_id}' is inside a station but its coordinates are too far from the parent.",
     "STP_030": "Station '{entity_id}' has no child stops.",
     "STP_031": "Stop '{entity_id}': stop_name and stop_desc are identical.",
-    "STP_032": "Stop '{entity_id}' is connected to the pathway network but has no parent_station.",
+    "STP_032": "{observed_value} pathway-connected platforms have no parent_station in this feed.",
     "STP_033": "zone_id is missing for {affected_stops} stop(s), e.g. {example_stops} (required for fare calculation).",
     "STP_034": "Stop '{entity_id}': stop_url matches the agency URL.",
     "STP_042": "{observed_value} stops have an invalid stop_url in this feed.",

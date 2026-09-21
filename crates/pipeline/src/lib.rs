@@ -1098,6 +1098,57 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>) {
+    let mut first_position = None;
+    let mut matched = Vec::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "STP_032" {
+            first_position.get_or_insert(index);
+            matched.push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if matched.is_empty() {
+        *notices = retained;
+        return;
+    }
+    let mut aggregate = matched.swap_remove(0);
+    let affected_platforms = matched.len() + 1;
+    let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
+        .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
+        .collect();
+    examples.sort_unstable();
+    examples.dedup();
+    examples.truncate(5);
+    aggregate.entity_type = gtfs_core::EntityType::Feed;
+    aggregate.entity_id = None;
+    aggregate.scope_key = None;
+    aggregate.file = Some("stops.txt".to_string());
+    aggregate.line = None;
+    aggregate.observed_value = Some(affected_platforms.to_string());
+    aggregate.expected_value = Some("parent_station defined".to_string());
+    aggregate.message = format!(
+        "pathway ağına bağlı {affected_platforms} platform için parent_station eksik."
+    );
+    aggregate.details = Some({
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("affected_platforms".to_string(), affected_platforms.to_string());
+        if !examples.is_empty() {
+            details.insert("example_platforms".to_string(), examples.join(", "));
+        }
+        details
+    });
+    aggregate.service_id = None;
+    aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
+        && aggregate.whitespace_derived;
+    aggregate.whitespace_candidate = matched.iter().all(|n| n.whitespace_candidate)
+        && aggregate.whitespace_candidate;
+    retained.insert(first_position.unwrap_or(retained.len()).min(retained.len()), aggregate);
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -1263,6 +1314,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     aggregate_trf005(&mut all);
     aggregate_pth012(&mut all);
     aggregate_stp042(&mut all);
+    aggregate_stp032(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

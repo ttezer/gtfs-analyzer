@@ -713,7 +713,7 @@ const fr: LocaleShape = {
     'STP_029': 'L’arrêt « {entity_id} » se situe dans une station mais ses coordonnées sont trop éloignées du parent.',
     'STP_030': 'La station « {entity_id} » n’a aucun arrêt enfant.',
     'STP_031': 'Arrêt « {entity_id} » : stop_name et stop_desc sont identiques.',
-    'STP_032': 'L’arrêt « {entity_id} » est relié au réseau de cheminements mais n’a pas de parent_station.',
+    'STP_032': '{observed_value} quais reliés au réseau de cheminements n’ont pas de parent_station dans ce jeu de données.',
     'STP_033': 'zone_id est absent pour {affected_stops} arrêt(s), p. ex. {example_stops} (nécessaire au calcul tarifaire).',
     'STP_034': 'Arrêt « {entity_id} » : stop_url est identique à l’URL de l’agence.',
     'STP_042': '{observed_value} arrêts ont un stop_url invalide dans ce jeu de données.',
