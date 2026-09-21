@@ -5456,7 +5456,7 @@ fn check_data_quality(
     // RTS_025: routes.txt'te agency_id boş — önerilen alan (best practice). Tek/sıfır agency'de
     // bilgi düzeyi; >1 agency varsa agency_id zorunludur (DQ_012 / cross-ref kapsamı). MD'nin
     // missing_recommended_field karşılığı. Her boş hat için AYRI notice üretilir.
-    if agency_usable && routes_usable && records.agencies.len() <= 1 {
+    if agency_usable && routes_usable && records.agencies.len() == 0 {
         for r in &records.routes {
             if r.agency_id.as_deref().is_none_or(|s| s.trim().is_empty()) {
                 let label = r
@@ -7467,11 +7467,16 @@ fn check_remaining_analytics<'a>(
             .iter()
             .filter_map(|r| r.agency_id.as_deref())
             .collect();
+        let has_implicit_single_agency = records.agencies.len() == 1
+            && records
+                .routes
+                .iter()
+                .any(|r| r.agency_id.as_deref().is_none_or(|id| id.trim().is_empty()));
         for ag in &records.agencies {
             let Some(ref aid) = ag.agency_id else {
                 continue;
             };
-            if !agencies_in_routes.contains(aid.as_str()) {
+            if !agencies_in_routes.contains(aid.as_str()) && !has_implicit_single_agency {
                 notices.push(k6_notice(
                     ctr,
                     "DQ_010",
