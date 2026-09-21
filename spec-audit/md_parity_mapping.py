@@ -1063,6 +1063,7 @@ SETTLING_VERDICTS = frozenset({
     "AGGREGATION",
     "MD_IMPLEMENTATION_LIMIT",
     "THRESHOLD_DIFFERENCE",
+    "DISJOINT",
     # `FIX_CONFIRMED` #171'de eklendi ve NÖBETİ SONLANDIRIR, bulguyu değil.
     # `FALSE_POSITIVE_FIXED` bilerek regresyon duyarlıdır: bir düzeltme İDDİA eder
     # ve bir koşum kanıtlayana kadar satırları görünür tutar. Kanıt geldiğinde o

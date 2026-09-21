@@ -1871,8 +1871,10 @@ mod tests {
         let opr006 = notice("opr", "OPR_006", Severity::Yuksek, RuleClass::Analytics);
 
         assert_eq!(notice_score_weight(&trp026, false, false), 1.0);
+        assert_eq!(notice_score_weight(&trp026, false, true), 1.0);
         assert_eq!(notice_score_weight(&trp026, true, false), 0.0);
         assert_eq!(notice_score_weight(&opr006, false, false), 1.0);
+        assert_eq!(notice_score_weight(&opr006, true, false), 1.0);
         assert_eq!(notice_score_weight(&opr006, false, true), 0.0);
     }
 
