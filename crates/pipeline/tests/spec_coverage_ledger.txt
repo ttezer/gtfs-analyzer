@@ -1,6 +1,6 @@
 # WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir
 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].
-# 0 alan.
+# 1 alan.
 #
 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,
 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.
@@ -53,4 +53,4 @@
 #
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   spec_coverage_gaps_match_ledger
-
+attributions.txt:attribution_id  unique  [yalnız: ATR_001]

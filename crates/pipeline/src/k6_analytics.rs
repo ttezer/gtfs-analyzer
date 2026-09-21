@@ -5461,7 +5461,7 @@ fn check_data_quality(
     // RTS_025: routes.txt'te agency_id boş — önerilen alan (best practice). Tek/sıfır agency'de
     // bilgi düzeyi; >1 agency varsa agency_id zorunludur (DQ_012 / cross-ref kapsamı). MD'nin
     // missing_recommended_field karşılığı. Her boş hat için AYRI notice üretilir.
-    if agency_usable && routes_usable && records.agencies.is_empty() {
+    if agency_usable && routes_usable && records.agencies.len() <= 1 {
         for r in &records.routes {
             if r.agency_id.as_deref().is_none_or(|s| s.trim().is_empty()) {
                 let label = r

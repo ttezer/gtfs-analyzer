@@ -1,4 +1,4 @@
-# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 34 kural.
+# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. 33 kural.
 # Biçim: RULE_ID  sınıf
 #
 # Kapsam defteri ve iddia defteri çapayı `(file, field)` üzerinden kurar; bu
@@ -16,7 +16,6 @@
 #
 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
 #   field_none_emitters_match_ledger
-ARC_012  Spec
 ARC_018  Quality
 CAL_007  Analytics
 CAL_010  Analytics
@@ -48,5 +47,5 @@ SHP_026  Analytics
 STM_043  Analytics
 STP_020  Analytics
 STP_030  Quality
-TRP_013  Quality
+TRP_013  Analytics
 VAT_008  Analytics

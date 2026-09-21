@@ -1564,7 +1564,10 @@ fn fixtures() -> Vec<Fixture> {
         // RTS_024: cemv_support > 2 (k2).
         fx("RTS_024", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,5\n")]),
         // RTS_025: tek agency'de route agency_id boş (k6 best-practice).
-        fx("RTS_025", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n")]),
+        fx("RTS_025", vec![
+            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\nA1,Test Agency,https://test.example,Europe/Istanbul\n"),
+            ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
+        ]),
         // RTS_031: route_id BOŞ — RTS_001 yinelenmeyi ölçer, olmayan kimlik yinelenemez (#153).
         fx("RTS_031", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\n,1,101,3\n")]),
 
