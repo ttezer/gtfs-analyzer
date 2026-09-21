@@ -2805,16 +2805,14 @@ mod tests {
 
     #[test]
     fn no_score_rules_are_explicit() {
-        for rule_id in ["CAL_009", "CAL_015", "CAL_017", "CAL_024", "GEO_009"] {
+        for rule_id in [
+            "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
+            "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
+            "CLD_006",
+        ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
         assert_eq!(get_rule("OPR_016").unwrap().score_weight, 1.0);
-        assert_eq!(get_rule("OPR_008").unwrap().score_weight, 0.0);
-        assert_eq!(get_rule("STM_045").unwrap().score_weight, 0.0);
-        assert_eq!(get_rule("STP_022").unwrap().score_weight, 0.0);
-        assert_eq!(get_rule("ARC_022").unwrap().score_weight, 0.0);
-        assert_eq!(get_rule("ARC_010").unwrap().score_weight, 0.0);
-        assert_eq!(get_rule("CLD_006").unwrap().score_weight, 0.0);
         for rule in RULES.iter().filter(|rule| rule.score_weight == 0.0) {
             assert!(
                 !(matches!(rule.severity, Severity::Kritik) && rule.rule_class == RuleClass::Spec),
