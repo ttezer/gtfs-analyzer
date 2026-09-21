@@ -747,7 +747,7 @@ const en: LocaleShape = {
     // TRP
     'TRP_001': "Duplicate trip_id: '{entity_id}'.",
     'TRP_002': "Trip '{entity_id}': route_id '{observed_value}' not found in routes.txt.",
-    'TRP_003': "Trip '{entity_id}': service_id '{observed_value}' not found in calendar or calendar_dates.",
+    'TRP_003': '{observed_value} trips have a service_id not found in calendar or calendar_dates.',
     'TRP_004': "shape_id '{observed_value}' is not defined in shapes.txt ({affected_trips} trips reference it, e.g. '{example_trip}').",
     'TRP_005': "Trip '{entity_id}': direction_id '{observed_value}' is invalid (must be 0 or 1).",
     'TRP_006': "Trip '{entity_id}': wheelchair_accessible '{observed_value}' is invalid.",

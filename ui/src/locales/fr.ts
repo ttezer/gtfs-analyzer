@@ -749,7 +749,7 @@ const fr: LocaleShape = {
     // TRP
     'TRP_001': 'trip_id en double : « {entity_id} ».',
     'TRP_002': 'Course « {entity_id} » : route_id « {observed_value} » est introuvable dans routes.txt.',
-    'TRP_003': 'Course « {entity_id} » : service_id « {observed_value} » est introuvable dans calendar ou calendar_dates.',
+    'TRP_003': '{observed_value} courses ont un service_id absent du calendrier ou de calendar_dates.',
     'TRP_004': "Le shape_id « {observed_value} » n’est pas défini dans shapes.txt ({affected_trips} courses y font référence, par exemple « {example_trip} »).",
     'TRP_005': 'Course « {entity_id} » : direction_id « {observed_value} » est invalide (doit valoir 0 ou 1).',
     'TRP_006': 'Course « {entity_id} » : wheelchair_accessible « {observed_value} » est invalide.',

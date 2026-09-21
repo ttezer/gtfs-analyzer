@@ -554,7 +554,7 @@ pub static RULES: &[RuleMeta] = &[
     // OPR_016, kaldırılan XFL_001'den devralındı (aynı service_id FK ihlali).
     r!("TRP_003", Kritik, Spec, 1,
         &["DQ_005","DQ_005b","CAL_009","CAL_012","OPR_011","OPR_016"],
-        Some("trip_id"), VS_K, Entity,
+        None, VS_K, Feed,
         "service_id bulunamadı"),
     r!("TRP_004", Yuksek, Spec, 1,
         &["SHP_014","SHP_016","SHP_017","STM_015","STM_016"],
