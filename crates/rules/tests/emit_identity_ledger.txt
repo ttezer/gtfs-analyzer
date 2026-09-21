@@ -11,8 +11,8 @@
 AGN_013  k4_cross_ref.rs:agency_lang  mod.rs:feed_lang
 BKR_001  booking_rules.rs:prior_notice_last_day  booking_rules.rs:prior_notice_start_day
 BKR_023  booking_rules.rs:prior_notice_duration_max  booking_rules.rs:prior_notice_last_day  booking_rules.rs:prior_notice_start_day
-DQ_018  k6_analytics.rs:agency_name  k6_analytics.rs:feed_publisher_name  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
-DQ_019  k6_analytics.rs:agency_name  k6_analytics.rs:feed_publisher_name  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
+DQ_018  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
+DQ_019  k6_analytics.rs:route_desc  k6_analytics.rs:route_long_name  k6_analytics.rs:stop_headsign  k6_analytics.rs:stop_name  k6_analytics.rs:trip_headsign
 JPN_020  k4_cross_ref.rs:office_phone  k4_cross_ref.rs:office_url
 JPN_022  k4_cross_ref.rs:agency_lang  k4_cross_ref.rs:location_type
 OPR_010  k6_analytics.rs:bikes_allowed  k6_analytics.rs:wheelchair_accessible
