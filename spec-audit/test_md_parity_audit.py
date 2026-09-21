@@ -307,7 +307,7 @@ class LedgerDriftGate(unittest.TestCase):
     # buraya geri eklenir — sözlük kullanımdan dondurulduğu için bu bilinçli olur.
     UNMAPPED_LABELS = {
         "deprecated-md-only", "md-implementation-limit",
-        "config-dependent", "intentional-difference", "context-dependent",
+        "config-dependent", "context-dependent", "disjoint", "exact-parity",
     }
     MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it", "md-implementation-limit", "scope-difference",
                       "config-dependent", "analyzer-defect",
@@ -477,7 +477,7 @@ class LedgerDriftGate(unittest.TestCase):
         """Kaldırılmış bir kural hakkındaki hüküm ölü ağırlıktır ve fark edilmez."""
         registry = (Path(__file__).resolve().parents[1]
                     / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
-        known = set(re.findall(r'r!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
+        known = set(re.findall(r'r(?:_noscore)?!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
         for rule in mapping._fp_verdicts():
             with self.subTest(rule=rule):
                 self.assertIn(rule, known, f"{rule} hakkında hüküm var ama kural registry'de yok")
@@ -522,7 +522,7 @@ class LedgerDriftGate(unittest.TestCase):
         """
         registry = (Path(__file__).resolve().parents[1]
                     / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
-        known = set(re.findall(r'r!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
+        known = set(re.findall(r'r(?:_noscore)?!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
         mapped = {r for rules in audit.MAP.values() for r in rules}
         mapped |= {r for e in mapping.CONTEXT_MAPPINGS for r in e.analyzer_rules}
         for rule, reason in mapping.NO_MD_EQUIVALENT.items():
@@ -539,7 +539,7 @@ class LedgerDriftGate(unittest.TestCase):
         """
         registry = (Path(__file__).resolve().parents[1]
                     / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
-        known = set(re.findall(r'r!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
+        known = set(re.findall(r'r(?:_noscore)?!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
         self.assertGreater(len(known), 500, "registry ayrıştırması boş döndü — ÖNCE SORGUYU şüphelen")
         for code, rules in audit.MAP.items():
             for rule in rules:

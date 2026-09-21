@@ -254,7 +254,7 @@ AGG_RULES = {
     "STM_050", "STM_017", "TRN_007", "STP_022", "RTS_017",  # feed-özeti (changelog 0.1.3)
     "TRP_020",                                              # per-trip
     "SHP_023", "SHP_028", "SHP_029",                        # per-shape (tür başına)
-    "CAL_007", "CAL_012", "CAL_013",                        # per-service, imza-agregasyonu (#30); CAL_012 MD-only detail
+    "CAL_007", "CAL_009", "CAL_012", "CAL_013",             # per-service/feed calendar aggregates; CAL_012 MD-only detail
     "STM_014",  # 2026-07-16: (hat, yön, segment) toplulaması (53ef3fb). MD per-occurrence
                 # sayar → our_count << md_count ARTIK NORMAL. Eklenmezse her koşumda
                 # sahte UNDER üretir (250-feed koşumunda 20 feed'de böyle çıktı).
@@ -331,6 +331,11 @@ AGG_RULES = {
     "TRP_021",  # feed-özeti: k2/trips.rs bikes_allowed-boş seferleri SAYAR, tek notice +
                 # ilk 5 örnek trip_id emit eder (kart: "feed genelinde tek özet").
                 # MD per-trip sayar (mdb-2933: 118) → bizim 1'imiz UNDER değil AGG.
+    # 2026-09-21: Kapı A toplulamalarının doğrudan MD eşlemeleri. Bu kurallar
+    # orchestration sonrasında feed/file/entity özeti taşıdığı için MD'nin satır
+    # başına sayımıyla oluşan düşük oran gerçek UNDER değildir.
+    "STM_036", "ARC_012", "SHP_005", "STM_008", "STM_047",
+    "TRN_001", "PTH_012", "STP_032", "TRP_005",
 }
 
 
