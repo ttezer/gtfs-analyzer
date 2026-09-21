@@ -415,7 +415,7 @@
     "PTH_004": "Cheminement « {entity_id} » : pathway_mode est absent ou invalide.",
     "PTH_005": "Cheminement « {entity_id} » : is_bidirectional est absent.",
     "PTH_006": "Cheminement « {entity_id} » : length « {observed_value} » est invalide.",
-    "PTH_007": "Cheminement « {entity_id} » : traversal_time « {observed_value} » est invalide.",
+    "PTH_007": "Le cheminement « {entity_id} » compte {observed_value} lignes avec un traversal_time invalide.",
     "PTH_008": "{affected_pathways} cheminements de type escalier (pathway_mode=2) n’ont pas de stair_count.",
     "PTH_009": "{affected_pathways} cheminements piétons (pathway_mode=1) n’ont pas de max_slope.",
     "PTH_010": "Cheminement « {entity_id} » : min_width « {observed_value} » est invalide.",

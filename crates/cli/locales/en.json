@@ -415,7 +415,7 @@
     "PTH_004": "Pathway '{entity_id}': pathway_mode is missing or invalid.",
     "PTH_005": "Pathway '{entity_id}': is_bidirectional is missing.",
     "PTH_006": "Pathway '{entity_id}': length '{observed_value}' is invalid.",
-    "PTH_007": "Pathway '{entity_id}': traversal_time '{observed_value}' is invalid.",
+    "PTH_007": "Pathway '{entity_id}' has {observed_value} rows with invalid traversal_time.",
     "PTH_008": "{affected_pathways} stair pathways (pathway_mode=2) are missing stair_count.",
     "PTH_009": "{affected_pathways} walkway pathways (pathway_mode=1) are missing max_slope.",
     "PTH_010": "Pathway '{entity_id}': min_width '{observed_value}' is invalid.",

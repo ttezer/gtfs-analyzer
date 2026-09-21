@@ -649,6 +649,64 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>) {
+    use std::collections::BTreeMap;
+
+    let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<gtfs_core::Notice>> = BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "PTH_007" {
+            let pathway_id = notice.entity_id.clone().unwrap_or_default();
+            first_positions.entry(pathway_id.clone()).or_insert(index);
+            grouped.entry(pathway_id).or_default().push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if grouped.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregates = Vec::with_capacity(grouped.len());
+    for (pathway_id, mut matches) in grouped {
+        let mut aggregate = matches.swap_remove(0);
+        let affected_rows = matches.len() + 1;
+        aggregate.entity_type = gtfs_core::EntityType::Pathway;
+        aggregate.entity_id = Some(pathway_id.clone());
+        aggregate.scope_key = Some(pathway_id.clone());
+        aggregate.line = None;
+        aggregate.observed_value = Some(affected_rows.to_string());
+        aggregate.expected_value = Some("positive integer seconds".to_string());
+        aggregate.message = format!(
+            "pathway_id '{pathway_id}' için {affected_rows} satırda traversal_time geçersiz."
+        );
+        aggregate.details = Some({
+            let mut details = BTreeMap::new();
+            details.insert("affected_rows".to_string(), affected_rows.to_string());
+            details
+        });
+        aggregate.service_id = None;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
+        aggregates.push((pathway_id, aggregate));
+    }
+
+    aggregates.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (pathway_id, aggregate) in aggregates.into_iter().rev() {
+        let insert_at = first_positions
+            .get(&pathway_id)
+            .copied()
+            .unwrap_or(retained.len())
+            .min(retained.len());
+        retained.insert(insert_at, aggregate);
+    }
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -806,6 +864,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     aggregate_shp005(&mut all);
     aggregate_stm008(&mut all);
     aggregate_stm047(&mut all);
+    aggregate_pth007(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

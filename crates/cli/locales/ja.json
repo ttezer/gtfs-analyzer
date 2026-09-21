@@ -415,7 +415,7 @@
     "PTH_004": "経路'{entity_id}'：pathway_modeがないか無効です。",
     "PTH_005": "経路'{entity_id}'：is_bidirectionalがありません。",
     "PTH_006": "経路'{entity_id}'：length'{observed_value}'が無効です。",
-    "PTH_007": "経路'{entity_id}'：traversal_time'{observed_value}'が無効です。",
+    "PTH_007": "経路'{entity_id}'でtraversal_timeが無効な行が{observed_value}件あります。",
     "PTH_008": "{affected_pathways}件の階段通路（pathway_mode=2）にstair_countがありません。",
     "PTH_009": "{affected_pathways}件の歩行者用通路（pathway_mode=1）にmax_slopeがありません。",
     "PTH_010": "経路'{entity_id}'：min_width'{observed_value}'が無効です。",
