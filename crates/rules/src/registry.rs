@@ -589,7 +589,7 @@ pub static RULES: &[RuleMeta] = &[
     // Yeni hüküm — savunulabilir kalan tek sinyal: block_id HİÇBİR seferi gruplamıyorsa
     // alan fiilen `trip_id` kopyasıdır ve araç devamlılığı bilgisi taşımaz. Aynı örneklemde
     // 14 feed'in 8'i tam %100 oranındaydı, yani bu keyfi bir eşik değil veride net bir sınıf.
-    // FEED başına TEK bulgu (TRP_033'ün "blok başına tek notice" emsali).
+    // FEED başına TEK bulgu.
     r!("TRP_015", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "block_id hiçbir seferi gruplamıyor"),
     r!("TRP_017", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
@@ -623,11 +623,6 @@ pub static RULES: &[RuleMeta] = &[
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
     r!("TRP_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
         "route_id eksik"),
-    // Blok = aynı araca zincirlenen seferler. Araç mod değiştiremeyeceği için bir blok
-    // içinde farklı route_type görmek modelleme hatasına işaret eder. Blok BAŞINA tek
-    // notice (STM_014 dersi: sefer başına üretmek yüzlerce tekrar demekti).
-    r!("TRP_033", Orta,  Quality, 2, &[], Some("block_id"), VS, Entity,
-        "Aynı block_id'yi paylaşan seferler farklı route_type taşıyor"),
     // TRP_034: `safe_duration_factor` ve `safe_duration_offset` spec'te `Float`'tır. Parse
     // hatası eskiden `.ok().flatten()` ile SESSİZCE yutuluyordu (günün dördüncü örneği).
     // Ayrıca `safe_duration_offset` u32 olarak okunuyordu — spec Float diyor, yani `12.5`
@@ -2545,7 +2540,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_031", GtfsSpec),
     ("TRP_032", GtfsSpec),
     // Spec bir blokta tek mod şartını AÇIKÇA yazmaz → GtfsSpec DEĞİL, proje kararı.
-    ("TRP_033", ProjectQuality),
     ("TRP_034", GtfsSpec),
     ("TRP_035", GtfsSpec),
     ("VAT_001", ProjectAnalytics),
@@ -2757,7 +2751,7 @@ mod tests {
         let view_ids = ["GEO_008", "GEO_010", "GEO_011"];
         let removed_ids = [
             "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
-            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002", "STM_013",
+            "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002", "STM_013", "TRP_033",
         ];
         for rule in RULES {
             for &b in rule.blocks {

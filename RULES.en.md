@@ -207,7 +207,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | TRP_028 | Some trips have not set wheelchair accessibility | MEDIUM | Quality |
 | TRP_029 | No trips report wheelchair accessibility | INFO | Quality |
 | TRP_031 | route_id missing | CRITICAL | Spec |
-| TRP_033 | Trips sharing a block_id carry different route types | MEDIUM | Quality |
 | TRP_034 | safe_duration field is not a number | MEDIUM | Spec |
 | TRP_035 | trips.txt has an empty service_id | CRITICAL | Spec |
 

@@ -207,7 +207,6 @@
 | TRP_028 | 一部の便で車椅子対応情報が未設定 | 中 | 品質 |
 | TRP_029 | すべての便で車椅子対応情報が未報告 | 情報 | 品質 |
 | TRP_031 | route_idが不足 | 致命的 | 仕様 |
-| TRP_033 | block_idを共有する便が異なるroute_typeを持つ | 中 | 品質 |
 | TRP_034 | safe_duration項目が数値でない | 中 | 仕様 |
 | TRP_035 | trips.txtのservice_idが空 | 致命的 | 仕様 |
 

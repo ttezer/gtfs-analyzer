@@ -207,7 +207,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | TRP_028 | Certaines courses n’indiquent pas l’accessibilité en fauteuil roulant | MOYENNE | Quality |
 | TRP_029 | Aucune course n’indique l’accessibilité en fauteuil roulant | INFO | Quality |
 | TRP_031 | route_id manquant | CRITIQUE | Spec |
-| TRP_033 | Des courses partageant un block_id portent des types de ligne différents | MOYENNE | Quality |
 | TRP_034 | Le champ safe_duration n’est pas un nombre | MOYENNE | Spec |
 | TRP_035 | trips.txt contient un service_id vide | CRITIQUE | Spec |
 

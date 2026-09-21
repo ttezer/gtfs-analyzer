@@ -207,7 +207,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | TRP_028 | Bazı seferler tekerlekli sandalye erişilebilirliği işaretlememiş | ORTA | Quality |
 | TRP_029 | Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş | BİLGİ | Quality |
 | TRP_031 | route_id eksik | KRİTİK | Spec |
-| TRP_033 | Aynı block_id'yi paylaşan seferler farklı route_type taşıyor | ORTA | Quality |
 | TRP_034 | safe_duration alanı sayı değil | ORTA | Spec |
 | TRP_035 | trips.txt'te service_id boş | KRİTİK | Spec |
 

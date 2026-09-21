@@ -752,7 +752,6 @@ const ja: LocaleShape = {
     'TRP_029': "車椅子対応（wheelchair_accessible）が入力された便がありません（{observed_value}便）。",
     'CAL_024': "サービス'{entity_id}'は今後7日間に運行日がありません（{observed_value}便）。",
     'TRP_031': 'trips.txt：route_idがありません。',
-    'TRP_033': "ブロック'{entity_id}'が異なるroute_type（{observed_value}）の便を連結しています。1台の車両がモードを変更することはできません。",
     // STM
     'STM_001': "trip_id'{entity_id}'がtrips.txtに見つかりません。",
     'STM_002': "stop_id'{entity_id}'がstops.txtに見つかりません。",
@@ -1814,7 +1813,6 @@ const ja: LocaleShape = {
     'TRP_029': "任意項目です。使用車両の対応が分かる場合はwheelchair_accessibleに入力してください（1=対応、2=非対応）。",
     'CAL_024': "運休中など意図したものであれば対応不要です。そうでなければcalendar.txt・calendar_dates.txtの日付を確認してください。",
     'TRP_031': '各便に有効なroute_idを割り当ててください。',
-    'TRP_033': 'ブロックを単一モードに分割するか、誤って入力されたroute_typeを修正してください。',
     // VAT
     'VAT_001': '2つの路線を統合するか、異なる経路で差別化してください。',
     'VAT_002': "任意です。乗換時間を案内したい場合はtransfers.txtに登録してください。",
@@ -2068,7 +2066,6 @@ const ja: LocaleShape = {
     'TRP_029': 'すべての便で車椅子対応情報が未報告',
     'CAL_024': '今後7日間にアクティブでないカレンダー',
     'TRP_031': 'route_idが不足',
-    'TRP_033': 'block_idを共有する便が異なるroute_typeを持つ',
     // STM
     'STM_001': 'trip_idがtrips.txtに存在しない',
     'STM_002': 'stop_idがstops.txtに存在しない',

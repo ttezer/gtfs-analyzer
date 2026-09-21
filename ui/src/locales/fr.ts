@@ -773,7 +773,6 @@ const fr: LocaleShape = {
     'TRP_029': 'Aucune course n’a d’information d’accessibilité en fauteuil roulant ({observed_value} courses).',
     'CAL_024': 'Le service « {entity_id} » n’a aucune date active dans les 7 prochains jours ; {observed_value} courses sont concernées.',
     'TRP_031': 'trips.txt : route_id est absent.',
-    'TRP_033': 'L’enchaînement « {entity_id} » enchaîne des courses de types de ligne différents ({observed_value}) ; un même véhicule ne peut pas changer de mode.',
     // STM
     'STM_001': 'trip_id « {entity_id} » est introuvable dans trips.txt.',
     'STM_002': 'stop_id « {entity_id} » est introuvable dans stops.txt.',
@@ -1443,7 +1442,6 @@ const fr: LocaleShape = {
     'TRP_029': 'Indiquez l’accessibilité en fauteuil roulant à l’aide du champ wheelchair_accessible (1=accessible, 2=non accessible).',
     'CAL_024': 'Mettez à jour le calendrier de service ou publiez un nouveau jeu de données.',
     'TRP_031': 'Attribuez un route_id valide à chaque course.',
-    'TRP_033': 'Scindez l’enchaînement pour un mode unique, ou corrigez le route_type saisi par erreur.',
     // VAT
     'VAT_001': 'Fusionnez les deux lignes, ou différenciez-les par des tracés distincts.',
     'VAT_002': 'Ajoutez des enregistrements de correspondance pour cet arrêt dans transfers.txt (utilisez transfer_type=2 pour préciser le temps d’attente).',
@@ -2182,7 +2180,6 @@ const fr: LocaleShape = {
     'TRP_029': 'Aucune course n’indique l’accessibilité en fauteuil roulant',
     'CAL_024': 'Calendrier inactif dans les 7 prochains jours',
     'TRP_031': 'route_id manquant',
-    'TRP_033': 'Des courses partageant un block_id portent des types de ligne différents',
     // STM
     'STM_001': 'trip_id introuvable',
     'STM_002': 'stop_id introuvable',
