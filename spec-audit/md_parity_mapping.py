@@ -419,6 +419,13 @@ UNMAPPED_DECISIONS = {
         "without difficulty (completed, 3,406 findings). Nothing in the specification caps field length, so "
         "there is no rule to write; the divergence measures their parser, not the data.",
     ),
+    "stop_has_too_many_matches_for_shape": (
+        "disjoint",
+        "DISJOINT: SHP_022 only runs for trips without shape_dist_traveled and uses a "
+        "geometric fallback; MobilityData checks when shape_dist_traveled is present. "
+        "The populations are disjoint, so this MD code is reviewed but intentionally "
+        "has no Analyzer mapping.",
+    ),
     # 🔴 2026-08-19: bu iki kod "genuine-gap" olarak KAYITLIYDI ve KARAR YANLIŞTI.
     # Defter "would need its own rule" diyordu; kurallar zaten vardı ve ateşliyordu.
     # Aranan yer yanlıştı: tutarlılık kontrolleri TRF_ önekinde değil, biri XFL_
@@ -559,10 +566,6 @@ BY_DESIGN = {
     "route_color_contrast":
         "Kontrast eşiği farkı: RTS_008 daha sıkı (20-feed: biz 132 vs MD 3). Erişilebilirlik "
         "tercihi, MD paritesi hedeflenmiyor.",
-    "stop_has_too_many_matches_for_shape":
-        "DISJOINT: SHP_022 YALNIZ shape_dist_traveled EKSİK trip'lerde çalışır (geometrik "
-        "fallback); MD ise shape_dist VARKEN bakar → aynı vakayı ölçmüyorlar. mdb-8'de "
-        "biz 9300 / MD 0 çıkmıştı = mis-comparison, parite bug'ı DEĞİL.",
     "trip_distance_exceeds_shape_distance":
         "SHP_025 eşiği >%0,1 (yuvarlamayı tolere eder, SHP_029 felsefesi). mdb-1909: 170 "
         "aşımın 165'i <%0,1 = yuvarlama → biz 5 doğru, MD 170'in hepsini basar.",
