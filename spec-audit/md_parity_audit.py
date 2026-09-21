@@ -48,7 +48,9 @@ MAP = {
     "same_name_and_description_for_stop": ["STP_031"],
     "stop_without_stop_time":   ["STP_020"],
     # ── Calendar ──
-    "big_gap_in_service":       ["CAL_007", "CAL_012"],  # PER-SERVICE, eşik big_gap_days=14
+    # Exact-parity taşıyıcısı CAL_007'dir. CAL_012 aynı boşluğun yakın-gelecek
+    # kullanıcı etkisi görünümüdür; aynı MD koduna ikinci kez bağlanmaz.
+    "big_gap_in_service":       ["CAL_007"],  # PER-SERVICE, eşik big_gap_days=14
     # CAL_013 servisin BİRLEŞİK aktif tarih kümesine bakar (calendar + calendar_dates);
     # MD ise calendar.txt satırının end_date'ine bakar. İstisna günleri ileri tarihliyse
     # birleşik küme geçmişte DEĞİLDİR ve CAL_013 haklı olarak susar. Vaka yine görülüyor:
@@ -252,7 +254,7 @@ AGG_RULES = {
     "STM_050", "STM_017", "TRN_007", "STP_022", "RTS_017",  # feed-özeti (changelog 0.1.3)
     "TRP_020",                                              # per-trip
     "SHP_023", "SHP_028", "SHP_029",                        # per-shape (tür başına)
-    "CAL_007", "CAL_012", "CAL_013",                        # per-service, imza-agregasyonu (#30)
+    "CAL_007", "CAL_012", "CAL_013",                        # per-service, imza-agregasyonu (#30); CAL_012 MD-only detail
     "STM_014",  # 2026-07-16: (hat, yön, segment) toplulaması (53ef3fb). MD per-occurrence
                 # sayar → our_count << md_count ARTIK NORMAL. Eklenmezse her koşumda
                 # sahte UNDER üretir (250-feed koşumunda 20 feed'de böyle çıktı).
