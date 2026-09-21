@@ -139,6 +139,9 @@ fn main() {
         let Ok(text) = fs::read_to_string(&path) else {
             continue;
         };
+        let has_score_weight = text.lines().any(|line| {
+            line.trim_start().starts_with("| Skor ağırlığı |")
+        });
         let mut out: Vec<String> = Vec::with_capacity(text.lines().count());
 
         for line in text.lines() {
@@ -175,6 +178,12 @@ fn main() {
                     new_line = rebuilt;
                     meta_fix += 1;
                 }
+                out.push(new_line);
+                if rule.score_weight == 0.0 && !has_score_weight {
+                    out.push("| Skor ağırlığı | 0 (no-score) |".to_string());
+                    meta_fix += 1;
+                }
+                continue;
             } else if line.trim_start().starts_with("| Varlık |") {
                 let rebuilt = format!("| Varlık | {:?} |", rule.dedup_level);
                 if line.trim() != rebuilt {

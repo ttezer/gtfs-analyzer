@@ -237,6 +237,21 @@ fn kunye_and_score_match_registry() {
             }
         }
 
+        // No-score durumu, base_effort'tan ayrı bir künye satırında açıkça yazılır.
+        if rule.score_weight == 0.0 {
+            match kunye_value(&text, "Skor ağırlığı") {
+                Some(v) if v.trim() == "0 (no-score)" => {}
+                Some(v) => problems.push(format!(
+                    "{}: Skor ağırlığı '{}' ≠ 0 (no-score)",
+                    rule.id, v
+                )),
+                None => problems.push(format!(
+                    "{}: no-score kuralında 'Skor ağırlığı' satırı yok",
+                    rule.id
+                )),
+            }
+        }
+
         // Varlık == dedup_level
         let exp_dedup = format!("{:?}", rule.dedup_level);
         if let Some(v) = kunye_value(&text, "Varlık") {
