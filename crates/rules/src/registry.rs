@@ -46,6 +46,8 @@ pub struct RuleMeta {
     pub severity: Severity,
     pub rule_class: RuleClass,
     pub base_effort: u8,
+    /// R5 sınıf skoruna katkı katsayısı. 0.0 görünür ama no-score kuralıdır.
+    pub score_weight: f64,
     /// Canonical rule ID'leri — GEO_008/010/011 gibi rapor görünüm ID'leri içermez.
     pub blocks: &'static [&'static str],
     /// Notice üretiminde scope_key'e atanacak GTFS alanı.
@@ -66,6 +68,24 @@ macro_rules! r {
             severity: $sev,
             rule_class: $cls,
             base_effort: $effort,
+            score_weight: 1.0,
+            blocks: $blocks,
+            scope_key_field: $scope,
+            report_views: $views,
+            dedup_level: $dedup,
+            title: $title,
+        }
+    };
+}
+
+macro_rules! r_noscore {
+    ($id:expr, $sev:expr, $cls:expr, $effort:expr, $blocks:expr, $scope:expr, $views:expr, $dedup:expr, $title:expr) => {
+        RuleMeta {
+            id: $id,
+            severity: $sev,
+            rule_class: $cls,
+            base_effort: $effort,
+            score_weight: 0.0,
             blocks: $blocks,
             scope_key_field: $scope,
             report_views: $views,
@@ -888,7 +908,7 @@ pub static RULES: &[RuleMeta] = &[
         "Servis döneminde boşluk"),
     r!("CAL_008", Yuksek, Analytics, 2, &[], None, VA, Feed,
         "Servis tarihi yakında sona eriyor"),
-    r!("CAL_009", Bilgi, Analytics, 1, &[], None, VA, Feed,
+    r_noscore!("CAL_009", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Feed'deki tüm takvim dönemleri sona ermiş"),
     r!("CAL_010", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "Serviste aktif gün sayısı çok az"),
@@ -919,7 +939,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("CAL_023", Orta, Quality, 2, &[], Some("service_id"), VA, Entity,
         "end_date çok ileri (şüpheli uzak-gelecek tarih)"),
     // CAL_024: eski TRP_030 (takvim odaklı olduğu için #23 ile CAL grubuna taşındı).
-    r!("CAL_024", Bilgi, Analytics, 1, &[], Some("service_id"), VS, Entity,
+    r_noscore!("CAL_024", Bilgi, Analytics, 1, &[], Some("service_id"), VS, Entity,
         "Takvim önümüzdeki 7 günde aktif değil"),
     r!("CAL_025", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
         "Takvim gün alanı boş (değer verilmemiş)"),

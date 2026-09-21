@@ -1333,7 +1333,8 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
     // Sınıf başına toplam penaltı (R5 score_delta hesabı için)
     let mut class_penalty: HashMap<RuleClass, f64> = HashMap::new();
     for n in notices {
-        *class_penalty.entry(n.rule_class).or_default() += n.severity.weight();
+        *class_penalty.entry(n.rule_class).or_default() +=
+            n.severity.weight() * notice_score_weight(n);
     }
 
     // Toplam yayın penaltısı (pub_score_delta için referans baz değer)
@@ -1386,7 +1387,7 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
                 for &ci in &closure {
                     let cn = &notices[ci];
                     *closure_class_penalty.entry(cn.rule_class).or_default() +=
-                        cn.severity.weight();
+                        cn.severity.weight() * notice_score_weight(cn);
                 }
                 let mut delta_sum = 0.0_f64;
                 for (cn_class, cp_removed) in &closure_class_penalty {
@@ -1592,6 +1593,12 @@ fn build_r5(notices: &[Notice]) -> R5Report {
     }
 }
 
+fn notice_score_weight(notice: &Notice) -> f64 {
+    get_rule(&notice.rule_id)
+        .map(|meta| meta.score_weight)
+        .unwrap_or(1.0)
+}
+
 /// Hiperbolik azalma: score = 100 × K / (K + penalty), K=50.
 /// Her kural başına instance_multiplier (maks 2×) uygulanır — tek yüksek
 /// sayımlı kural tüm skoru çökertmez. build_pub_penalty_map ile tutarlı.
@@ -1600,7 +1607,7 @@ fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
     for n in notices.iter().filter(|n| n.rule_class == class) {
         let e = per_rule
             .entry(n.rule_id.as_str())
-            .or_insert((n.severity.weight(), 0));
+            .or_insert((n.severity.weight() * notice_score_weight(n), 0));
         e.1 += 1;
     }
     let penalty: f64 = per_rule
