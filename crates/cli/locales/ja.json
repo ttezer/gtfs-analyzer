@@ -106,7 +106,7 @@
     "STP_032": "停留所'{entity_id}'は経路ネットワークに接続されていますが、parent_stationがありません。",
     "STP_033": "{affected_stops}件の停留所でzone_idがありません（例: {example_stops}）。運賃計算に必要です。",
     "STP_034": "停留所'{entity_id}'：stop_urlが事業者URLと同じです。",
-    "STP_042": "停留所'{entity_id}'：stop_urlが有効なURLではありません。",
+    "STP_042": "このフィードでstop_urlが無効な停留所が{observed_value}件あります。",
     "STP_043": "停留所'{entity_id}'：stop_accessは親駅を持つプラットフォームでのみ使用できます（{observed_value}）。",
     "STP_035": "停留所'{entity_id}'：stop_urlが路線URLと同じです。",
     "STP_036": "駅'{entity_id}'（location_type=1）にparent_stationが設定されています。駅は親を持てません。",

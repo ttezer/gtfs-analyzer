@@ -714,7 +714,7 @@ const en: LocaleShape = {
     'STP_032': "Stop '{entity_id}' is connected to the pathway network but has no parent_station.",
     'STP_033': "zone_id is missing for {affected_stops} stop(s), e.g. {example_stops} (required for fare calculation).",
     'STP_034': "Stop '{entity_id}': stop_url matches the agency URL.",
-    'STP_042': "Stop '{entity_id}': stop_url is not a valid URL.",
+    'STP_042': '{observed_value} stops have an invalid stop_url in this feed.',
     'STP_043': "Stop '{entity_id}': stop_access is only allowed on platforms with a parent station ({observed_value}).",
     'STP_035': "Stop '{entity_id}': stop_url matches a route URL.",
     'STP_036': "Station '{entity_id}' (location_type=1) has a parent_station set; stations must not have a parent.",

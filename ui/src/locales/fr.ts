@@ -716,7 +716,7 @@ const fr: LocaleShape = {
     'STP_032': 'L’arrêt « {entity_id} » est relié au réseau de cheminements mais n’a pas de parent_station.',
     'STP_033': 'zone_id est absent pour {affected_stops} arrêt(s), p. ex. {example_stops} (nécessaire au calcul tarifaire).',
     'STP_034': 'Arrêt « {entity_id} » : stop_url est identique à l’URL de l’agence.',
-    'STP_042': 'Arrêt « {entity_id} » : stop_url n’est pas une URL valide.',
+    'STP_042': '{observed_value} arrêts ont un stop_url invalide dans ce jeu de données.',
     'STP_043': 'Arrêt « {entity_id} » : stop_access n’est autorisé que sur les quais rattachés à une station parente ({observed_value}).',
     'STP_035': 'Arrêt « {entity_id} » : stop_url est identique à l’URL d’une ligne.',
     'STP_036': 'La station « {entity_id} » (location_type=1) a un parent_station défini ; une station ne doit pas avoir de parent.',

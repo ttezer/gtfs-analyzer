@@ -441,7 +441,7 @@ pub static RULES: &[RuleMeta] = &[
     // Kardeş alanların hepsinde biçim kuralı vardı (agency_url→AGN_002, agency_fare_url→
     // AGN_008, route_url→RTS_005, feed_publisher_url→FIN_002, attribution_url→ATR_007);
     // stop_url'de yalnız STP_034/035 (başka URL ile aynı) vardı, biçim hiç ölçülmüyordu.
-    r!("STP_042", Dusuk, Spec, 1, &[], Some("stop_id"), VS, Entity,
+    r!("STP_042", Dusuk, Spec, 1, &[], None, VS, Feed,
         "stop_url geçersiz"),
     // STP_043: spec `stop_access` için AYRI bir koşullu-yasak hükmü koyar —
     // "Forbidden for locations which are stations (1), entrances (2), generic nodes (3) or
