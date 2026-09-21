@@ -2805,6 +2805,14 @@ mod tests {
     }
 
     #[test]
+    fn no_score_rules_are_explicit() {
+        for rule_id in ["CAL_009", "CAL_015", "CAL_017", "CAL_024", "GEO_009"] {
+            assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
+        }
+        assert_eq!(get_rule("OPR_016").unwrap().score_weight, 1.0);
+    }
+
+    #[test]
     fn base_effort_valid() {
         for rule in RULES {
             assert!(
