@@ -931,7 +931,7 @@ pub static RULES: &[RuleMeta] = &[
         "date eksik veya geçersiz format"),
     r!("CLD_003", Kritik, Spec, 1,
         &["CLD_005","CLD_006","CLD_007"],
-        Some("service_id"), VS_K, Row,
+        None, VS_K, File,
         "exception_type eksik veya geçersiz"),
     r!("CLD_004", Yuksek, Quality, 2, &[], Some("service_id"), VS, Row,
         "calendar_dates-only serviste aktif gün (exception_type=1) tanımlı değil"),

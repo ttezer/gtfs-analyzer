@@ -871,7 +871,7 @@ const fr: LocaleShape = {
     // CLD
     'CLD_001': 'calendar_dates.txt : service_id est absent.',
     'CLD_002': 'calendar_dates.txt : le format de la date « {observed_value} » est invalide.',
-    'CLD_003': 'calendar_dates.txt : exception_type « {observed_value} » est absent ou invalide.',
+    'CLD_003': 'Dans « {entity_id} », {observed_value} lignes ont un exception_type absent ou invalide.',
     'CLD_004': 'Service « {entity_id} » : aucune date active (exception_type=1) trouvée dans calendar_dates.txt pour un jeu de données reposant uniquement sur calendar_dates.',
     'CLD_005': 'calendar_dates.txt : la date « {observed_value} » est hors plage.',
     'CLD_006': 'calendar_dates.txt : trop de jours d’exception ({observed_value}).',

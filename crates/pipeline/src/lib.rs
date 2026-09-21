@@ -383,6 +383,80 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+/// CLD_003 is a file-local enum validation. Collapse its row notices while
+/// retaining the affected-row count and a few source line examples.
+fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>) {
+    use std::collections::BTreeMap;
+
+    let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
+    let mut grouped: BTreeMap<String, Vec<gtfs_core::Notice>> = BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "CLD_003" {
+            let file = notice
+                .file
+                .clone()
+                .unwrap_or_else(|| "calendar_dates.txt".to_string());
+            first_positions.entry(file.clone()).or_insert(index);
+            grouped.entry(file).or_default().push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if grouped.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregates = Vec::with_capacity(grouped.len());
+    for (file, mut matches) in grouped {
+        let mut aggregate = matches.swap_remove(0);
+        let affected_rows = matches.len() + 1;
+        let mut lines: Vec<String> = std::iter::once(aggregate.line)
+            .chain(matches.iter().filter_map(|notice| notice.line))
+            .map(|line| line.to_string())
+            .collect();
+        lines.sort_unstable();
+        lines.dedup();
+        lines.truncate(5);
+
+        aggregate.entity_type = gtfs_core::EntityType::File;
+        aggregate.entity_id = Some(file.clone());
+        aggregate.scope_key = None;
+        aggregate.file = Some(file.clone());
+        aggregate.line = None;
+        aggregate.field = Some("exception_type".to_string());
+        aggregate.observed_value = Some(affected_rows.to_string());
+        aggregate.expected_value = Some("1 or 2".to_string());
+        aggregate.message = format!(
+            "{file} içinde {affected_rows} satırda exception_type eksik veya geçersiz."
+        );
+        aggregate.details = Some({
+            let mut details = BTreeMap::new();
+            details.insert("affected_rows".to_string(), affected_rows.to_string());
+            if !lines.is_empty() {
+                details.insert("example_lines".to_string(), lines.join(", "));
+            }
+            details
+        });
+        aggregate.service_id = None;
+        aggregate.whitespace_derived = false;
+        aggregate.whitespace_candidate = false;
+        aggregates.push((file, aggregate));
+    }
+
+    aggregates.sort_by(|(left, _), (right, _)| left.cmp(right));
+    for (file, aggregate) in aggregates.into_iter().rev() {
+        let insert_at = first_positions
+            .get(&file)
+            .copied()
+            .unwrap_or(retained.len())
+            .min(retained.len());
+        retained.insert(insert_at, aggregate);
+    }
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -536,6 +610,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     aggregate_stm036(&mut all);
     aggregate_dq021(&mut all);
     aggregate_arc012(&mut all);
+    aggregate_cld003(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

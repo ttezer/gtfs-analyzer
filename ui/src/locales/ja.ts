@@ -850,7 +850,7 @@ const ja: LocaleShape = {
     // CLD
     'CLD_001': 'calendar_dates.txt：service_idがありません。',
     'CLD_002': "calendar_dates.txt：日付'{observed_value}'の形式が無効です。",
-    'CLD_003': "calendar_dates.txt：exception_type'{observed_value}'がないか無効です。",
+    'CLD_003': '{entity_id}でexception_typeがないか無効な行が{observed_value}件あります。',
     'CLD_004': "サービス'{entity_id}'：calendar.txtのないフィードでexception_type=1（有効日）のエントリが見つかりません。",
     'CLD_005': "calendar_dates.txt：日付'{observed_value}'が範囲外です。",
     'CLD_006': "calendar_dates.txtの例外日が多くあります（{observed_value}）。",
