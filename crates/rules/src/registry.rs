@@ -116,7 +116,7 @@ pub static RULES: &[RuleMeta] = &[
         &["RTS_002","STM_002","XFL_002","DQ_005","DQ_005b"],
         None, VS_K, Feed,
         "Zorunlu dosya eksik"),
-    r!("ARC_006", Bilgi,  Quality, 1, &[], None, VS, File,
+    r_noscore!("ARC_006", Bilgi, Analytics, 1, &[], None, VA, File,
         "İsteğe bağlı GTFS dosyası mevcut"),
     r!("ARC_007", Bilgi,  Quality, 1, &[], None, VS, File,
         "GTFS dışı tanınmayan dosya"),
