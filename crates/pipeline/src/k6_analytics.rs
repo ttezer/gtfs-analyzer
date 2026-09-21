@@ -2956,7 +2956,7 @@ fn check_calendar_analytics(
             .calendars
             .iter()
             .find(|cal| cal.service_id == service_id)
-            .map(|cal| cal.days.iter().any(|day| *day == Some(1)))
+            .map(|cal| cal.days.contains(&Some(1)))
             .unwrap_or(false);
         // CAL_013 (süresi dolmuş) buradan kaldırıldı → tüm servisler için birleşik
         // active_dates üzerinden CAL_017 döngüsünde tek yerde hesaplanır (çift-emit önlenir).
@@ -5461,7 +5461,7 @@ fn check_data_quality(
     // RTS_025: routes.txt'te agency_id boş — önerilen alan (best practice). Tek/sıfır agency'de
     // bilgi düzeyi; >1 agency varsa agency_id zorunludur (DQ_012 / cross-ref kapsamı). MD'nin
     // missing_recommended_field karşılığı. Her boş hat için AYRI notice üretilir.
-    if agency_usable && routes_usable && records.agencies.len() == 0 {
+    if agency_usable && routes_usable && records.agencies.is_empty() {
         for r in &records.routes {
             if r.agency_id.as_deref().is_none_or(|s| s.trim().is_empty()) {
                 let label = r
