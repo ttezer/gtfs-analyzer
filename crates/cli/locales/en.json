@@ -291,7 +291,7 @@
     "FRQ_004": "Frequency '{entity_id}': headway_secs is missing or invalid.",
     "FRQ_005": "Frequency '{entity_id}': end_time is before start_time.",
     "FRQ_006": "Frequency '{entity_id}': headway {observed_value} min is too long (limit: {expected_value} min).",
-    "FRQ_007": "Frequency '{entity_id}': exact_times '{observed_value}' is invalid.",
+    "FRQ_007": "{observed_value} frequency trips have invalid exact_times.",
     "FRQ_008": "Frequency '{entity_id}': headway_secs is zero — invalid frequency.",
     "FRQ_009": "Frequency '{entity_id}': frequency interval is too short.",
     "FRQ_010": "Frequency '{entity_id}': very high frequency — bunching risk ({observed_value} min).",

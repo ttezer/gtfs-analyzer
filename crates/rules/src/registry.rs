@@ -1017,7 +1017,7 @@ pub static RULES: &[RuleMeta] = &[
         "end_time start_time'dan önce"),
     r!("FRQ_006", Orta,   Analytics, 2, &[], Some("trip_id"), VA, Row,
         "headway_secs çok uzun"),
-    r!("FRQ_007", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
+    r!("FRQ_007", Orta,   Spec, 1, &[], None, VS, Feed,
         "exact_times geçersiz"),
     r!("FRQ_008", Kritik, Spec, 3, &[], Some("trip_id"), VS_K, Row,
         "headway_secs sıfır (geçersiz frekans)"),

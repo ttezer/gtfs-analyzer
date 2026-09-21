@@ -291,7 +291,7 @@
     "FRQ_004": "Fréquence « {entity_id} » : headway_secs est absent ou invalide.",
     "FRQ_005": "Fréquence « {entity_id} » : end_time est antérieure à start_time.",
     "FRQ_006": "Fréquence « {entity_id} » : l’intervalle de {observed_value} min est trop long (limite : {expected_value} min).",
-    "FRQ_007": "Fréquence « {entity_id} » : exact_times « {observed_value} » est invalide.",
+    "FRQ_007": "{observed_value} trajets de fréquence ont un exact_times invalide.",
     "FRQ_008": "Fréquence « {entity_id} » : headway_secs est nul — fréquence invalide.",
     "FRQ_009": "Fréquence « {entity_id} » : l’intervalle de fréquence est trop court.",
     "FRQ_010": "Fréquence « {entity_id} » : fréquence très élevée — risque d’effet accordéon ({observed_value} min).",
