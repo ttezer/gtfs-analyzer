@@ -1826,7 +1826,7 @@ pub static RULES: &[RuleMeta] = &[
         "Hiçbir seferin durak zamanı yok"),
     r!("DQ_005c", Yuksek, Quality,  2, &[], None, VS, Feed,
         "Koordinatsız durak oranı çok yüksek"),
-    r!("DQ_006",  Yuksek, Quality,  2, &[], None, VS, Feed,
+    r_noscore!("DQ_006", Yuksek, Quality, 2, &[], None, VS, Feed,
         "Şekil olmayan sefer oranı çok yüksek"),
     r!("DQ_009",  Bilgi,  Quality,  1, &[], None, VS, Feed,
         "Seferlerde durak zamanı yok"),
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001",
+            "CLD_006", "ATR_001", "DQ_006",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
