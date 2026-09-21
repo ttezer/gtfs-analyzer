@@ -811,7 +811,7 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken pickup_type=0/3 yasak (talep-üzerine değerler gerekli)"),
     r!("STM_052", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresi tanımlıyken drop_off_type=0 yasak (talep-üzerine değer gerekli)"),
-    r!("STM_053", Bilgi, Analytics, 2, &[], Some("route_id"), VS, Entity,
+    r!("STM_053", Bilgi, Analytics, 2, &[], Some("route_id"), VA, Entity,
         "Çok sayıda ardışık durakta aynı zaman"),
     r!("STM_054", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak"),
