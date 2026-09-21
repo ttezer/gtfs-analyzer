@@ -336,6 +336,9 @@ AGG_RULES = {
     # başına sayımıyla oluşan düşük oran gerçek UNDER değildir.
     "STM_036", "ARC_012", "SHP_005", "STM_008", "STM_047",
     "TRN_001", "PTH_012", "STP_032", "TRP_005",
+    # Context mapping üzerinden gelenler: çözümleme belirli bir Analyzer kuralını
+    # seçtiğinde bu kuralın kendi aggregation kapsamı da hesaba katılır.
+    "DQ_021", "TRP_003",
 }
 
 
