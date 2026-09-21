@@ -890,7 +890,7 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "comma-space separated, so feed_end_date reads ' 20250819' and FIN_010/FIN_019 have no parseable date "
         "to compare against today. DQ_016 fires, and so does FIN_008 on the ' planning@wavetransit.com' in the "
         "same row - the whitespace is reported twice under its own name. Note the feed expired a year before "
-        "the run date, so CAL_013 and CAL_024 do report the expiry from the calendar side. Verified on mdb-2026; "
+        "the run date, so CAL_009 and CAL_013 do report the expiry from the calendar side. Verified on mdb-2026; "
         "mdb-3235 not inspected.",
     ),
     "stop_time_with_arrival_before_previous_departure_time": (
