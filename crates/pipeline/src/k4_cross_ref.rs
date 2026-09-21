@@ -379,6 +379,7 @@ pub fn check_with_files_and_whitespace_roots(
                 map,
                 &mut notices,
                 &mut ctr,
+                today,
                 &stm_trips_in_stm,
                 &stm_trip_stm_count,
             );
@@ -6305,6 +6306,7 @@ fn check_xfl(
     map: &EntityMap,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
+    today: u32,
     trips_in_stm: &HashSet<&str>,
     trip_stm_count: &HashMap<&str, u32>,
 ) {
@@ -6829,6 +6831,16 @@ fn check_xfl(
                     if rec.service_id.is_empty() {
                         continue;
                     }
+                    // A service whose calendar starts entirely in the future is not
+                    // evidence that the published feed window is wrong yet. Its
+                    // freshness is handled by the calendar analytics rules.
+                    if rec
+                        .start_date
+                        .map(date_to_u32)
+                        .is_some_and(|start| start > today)
+                    {
+                        continue;
+                    }
                     let mut inconsistent = false;
                     let mut observed = String::new();
                     if let Some(cal_start) = rec.start_date {
@@ -6882,6 +6894,13 @@ fn check_xfl(
             if fi_start_opt.is_some() || fi_end_opt.is_some() {
                 for rec in &records.calendars {
                     if rec.service_id.is_empty() {
+                        continue;
+                    }
+                    if rec
+                        .start_date
+                        .map(date_to_u32)
+                        .is_some_and(|start| start > today)
+                    {
                         continue;
                     }
                     let mut outside = false;
@@ -10094,6 +10113,35 @@ mod tests {
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_011"));
+    }
+
+    #[test]
+    fn future_only_calendar_does_not_produce_feed_window_errors() {
+        use crate::k2::feed_info::FeedInfoRecord;
+        let (mut recs, _map) = empty();
+        recs.feed_info = vec![FeedInfoRecord {
+            feed_publisher_name: "Pub".into(),
+            feed_publisher_url: "https://example.com".into(),
+            feed_lang: "tr".into(),
+            feed_start_date: Some((2026, 1, 1)),
+            feed_end_date: Some((2026, 12, 31)),
+            feed_version: None,
+            feed_contact_email: None,
+            feed_contact_url: None,
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.calendars = vec![CalendarRecord {
+            service_id: "FUTURE".into(),
+            days: [Some(1); 7],
+            start_date: Some((2027, 1, 1)),
+            end_date: Some((2027, 12, 31)),
+            row: Default::default(),
+            line: 2,
+        }];
+        let result = check(&recs, &EntityMap::default(), 20260921);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "XFL_011"));
+        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_019"));
     }
 
     // �"?�"? XFL_012 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

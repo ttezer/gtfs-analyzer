@@ -2967,6 +2967,11 @@ fn check_calendar_analytics(
                 let fs_yyyymmdd = fs.0 * 10000 + fs.1 * 100 + fs.2;
                 let fe_yyyymmdd = fe.0 * 10000 + fe.1 * 100 + fe.2;
                 if let Some(dates) = derived.calendar_bitmap.active_dates.get(service_id) {
+                    // A wholly future service is a freshness/publication-context
+                    // signal, not proof that feed_info is already inconsistent.
+                    if dates.iter().all(|&d| d > today_yyyymmdd) {
+                        continue;
+                    }
                     let has_before = dates.iter().any(|&d| d < fs_yyyymmdd);
                     let has_after = dates.iter().any(|&d| d > fe_yyyymmdd);
                     if has_before || has_after {
