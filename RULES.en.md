@@ -708,7 +708,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | OPR_005 | Unusual service frequency | INFO | Analytics |
 | OPR_006 | Trip has too few stops (not functional) | HIGH | Analytics |
 | OPR_007 | Repeated stop pattern within trip | INFO | Analytics |
-| OPR_008 | Excessive speed in multiple segments | HIGH | Analytics |
+| OPR_008 | Excessive speed in multiple segments | INFO | Analytics |
 | OPR_009 | Night trip start time too late | INFO | Analytics |
 | OPR_010 | Route accessibility or bicycle policy conflicts | MEDIUM | Analytics |
 | OPR_011 | Service has no active days | HIGH | Analytics |

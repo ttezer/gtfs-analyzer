@@ -708,7 +708,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | OPR_005 | Fréquence de service inhabituelle | INFO | Analytics |
 | OPR_006 | La course compte trop peu d’arrêts (non fonctionnelle) | ÉLEVÉE | Analytics |
 | OPR_007 | Séquence d’arrêts répétée au sein d’une course | INFO | Analytics |
-| OPR_008 | Vitesse excessive sur plusieurs segments | ÉLEVÉE | Analytics |
+| OPR_008 | Vitesse excessive sur plusieurs segments | INFO | Analytics |
 | OPR_009 | Heure de départ de la course de nuit trop tardive | INFO | Analytics |
 | OPR_010 | Conflits de politique d’accessibilité ou de transport des vélos sur la ligne | MOYENNE | Analytics |
 | OPR_011 | Le service n’a aucun jour actif | ÉLEVÉE | Analytics |

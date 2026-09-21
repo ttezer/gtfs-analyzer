@@ -708,7 +708,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | OPR_005 | Sıradışı sefer sıklığı | BİLGİ | Analytics |
 | OPR_006 | Seferde çok az durak (işlevsel değil) | YÜKSEK | Analytics |
 | OPR_007 | Sefer içinde tekrarlayan durak deseni | BİLGİ | Analytics |
-| OPR_008 | Birden fazla segmentte aşırı hız | YÜKSEK | Analytics |
+| OPR_008 | Birden fazla segmentte aşırı hız | BİLGİ | Analytics |
 | OPR_009 | Gece seferi başlangıç saati çok geç | BİLGİ | Analytics |
 | OPR_010 | Hatta erişilebilirlik veya bisiklet politikası çelişiyor | ORTA | Analytics |
 | OPR_011 | Serviste aktif gün yok | YÜKSEK | Analytics |

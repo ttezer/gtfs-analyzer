@@ -1742,7 +1742,7 @@ pub static RULES: &[RuleMeta] = &[
         "Seferde çok az durak (işlevsel değil)"),
     r!("OPR_007", Bilgi,  Analytics, 3, &[], Some("trip_id"), VA, Entity,
         "Sefer içinde tekrarlayan durak deseni"),
-    r!("OPR_008", Yuksek, Analytics, 3, &[], Some("trip_id"), VA, Entity,
+    r_noscore!("OPR_008", Bilgi, Analytics, 3, &[], Some("trip_id"), VA, Entity,
         "Birden fazla segmentte aşırı hız"),
     r!("OPR_009", Bilgi,  Analytics, 2, &[], Some("route_id"), VA, Entity,
         "Gece seferi başlangıç saati çok geç"),
@@ -2802,6 +2802,7 @@ mod tests {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
         assert_eq!(get_rule("OPR_016").unwrap().score_weight, 1.0);
+        assert_eq!(get_rule("OPR_008").unwrap().score_weight, 0.0);
     }
 
     #[test]
