@@ -33,7 +33,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | ARC_019 | Nom de colonne vide dans l’en-tête | ÉLEVÉE | Quality |
 | ARC_020 | Fichier GTFS recommandé manquant (shapes.txt ou feed_info.txt) | FAIBLE | Quality |
 | ARC_021 | Caractère non imprimable ou problématique dans un champ | FAIBLE | Quality |
-| ARC_022 | Le nombre d’enregistrements dépasse la limite de 1 000 000 | FAIBLE | Quality |
+| ARC_022 | Le nombre d’enregistrements dépasse la limite de 1 000 000 | INFO | Analytics |
 | ARC_023 | Fichier ZIP imbriqué dans l’archive GTFS | MOYENNE | Quality |
 | ARC_024 | Fichier GTFS .txt dans un sous-répertoire (il ne sera pas analysé) | MOYENNE | Spec |
 | ARC_026 | Caractères de fin de ligne mal formés | MOYENNE | Spec |

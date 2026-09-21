@@ -164,7 +164,7 @@ pub static RULES: &[RuleMeta] = &[
         "Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt)"),
     r!("ARC_021", Dusuk,  Quality, 1, &[], None, VS, File,
         "Alanda yazdırılamaz veya sorunlu karakter"),
-    r!("ARC_022", Dusuk,  Quality, 1, &[], None, VS, File,
+    r_noscore!("ARC_022", Bilgi, Analytics, 1, &[], None, VA, File,
         "Dosya satır sayısı 1.000.000 sınırını aşıyor"),
     r!("ARC_023", Orta,   Quality, 2, &[], None, VS, File,
         "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
@@ -2805,6 +2805,7 @@ mod tests {
         assert_eq!(get_rule("OPR_008").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("STM_045").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("STP_022").unwrap().score_weight, 0.0);
+        assert_eq!(get_rule("ARC_022").unwrap().score_weight, 0.0);
     }
 
     #[test]

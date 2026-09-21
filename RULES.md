@@ -33,7 +33,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_019 | Başlıkta boş sütun adı | YÜKSEK | Quality |
 | ARC_020 | Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt) | DÜŞÜK | Quality |
 | ARC_021 | Alanda yazdırılamaz veya sorunlu karakter | DÜŞÜK | Quality |
-| ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | DÜŞÜK | Quality |
+| ARC_022 | Dosya satır sayısı 1.000.000 sınırını aşıyor | BİLGİ | Analytics |
 | ARC_023 | ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez | ORTA | Quality |
 | ARC_024 | GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır | ORTA | Spec |
 | ARC_026 | Dosyada hatalı satır sonu karakteri | ORTA | Spec |
