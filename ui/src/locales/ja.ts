@@ -730,7 +730,7 @@ const ja: LocaleShape = {
     'TRP_002': "便'{entity_id}'：route_id'{observed_value}'がroutes.txtに見つかりません。",
     'TRP_003': '{observed_value}便のservice_idがcalendarまたはcalendar_datesに定義されていません。',
     'TRP_004': "shape_id'{observed_value}'がshapes.txtに定義されていません（{affected_trips}件の便が参照、例：'{example_trip}'）。",
-    'TRP_005': "便'{entity_id}'：direction_id'{observed_value}'が無効です（0または1でなければなりません）。",
+    'TRP_005': 'このフィードでdirection_idが無効な便が{observed_value}件あります。',
     'TRP_006': "便'{entity_id}'：wheelchair_accessible'{observed_value}'が無効です。",
     'TRP_007': "便'{entity_id}'：bikes_allowed'{observed_value}'が無効です。",
     'TRP_032': "便'{entity_id}'：cars_allowed'{observed_value}'が無効です。",

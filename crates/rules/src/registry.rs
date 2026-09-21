@@ -560,7 +560,7 @@ pub static RULES: &[RuleMeta] = &[
         &["SHP_014","SHP_016","SHP_017","STM_015","STM_016"],
         Some("shape_id"), VS, Entity,
         "shape_id bulunamadı"),
-    r!("TRP_005", Orta,   Spec, 1, &[], Some("trip_id"), VS, Entity,
+    r!("TRP_005", Orta,   Spec, 1, &[], None, VS, Feed,
         "direction_id geçersiz"),
     r!("TRP_006", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
         "wheelchair_accessible geçersiz"),
