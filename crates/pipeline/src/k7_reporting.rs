@@ -1330,14 +1330,16 @@ fn bucket_rank(labels: &[R9Label]) -> u8 {
 }
 
 fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
+    let has_opr011 = notices.iter().any(|n| n.rule_id == "OPR_011");
+    let has_stm033 = notices.iter().any(|n| n.rule_id == "STM_033");
     // Sınıf başına toplam penaltı (R5 score_delta hesabı için)
     let mut class_penalty: HashMap<RuleClass, f64> = HashMap::new();
     for n in notices {
         *class_penalty.entry(n.rule_class).or_default() +=
             n.severity.weight() * notice_score_weight(
                 n,
-                notices.iter().any(|x| x.rule_id == "OPR_011"),
-                notices.iter().any(|x| x.rule_id == "STM_033"),
+                has_opr011,
+                has_stm033,
             );
     }
 
@@ -1390,11 +1392,11 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
                 let mut closure_class_penalty: HashMap<RuleClass, f64> = HashMap::new();
                 for &ci in &closure {
                     let cn = &notices[ci];
-                    *closure_class_penalty.entry(cn.rule_class).or_default() +=
-                        cn.severity.weight() * notice_score_weight(
-                            cn,
-                            notices.iter().any(|x| x.rule_id == "OPR_011"),
-                            notices.iter().any(|x| x.rule_id == "STM_033"),
+                        *closure_class_penalty.entry(cn.rule_class).or_default() +=
+                            cn.severity.weight() * notice_score_weight(
+                                cn,
+                            has_opr011,
+                            has_stm033,
                         );
                 }
                 let mut delta_sum = 0.0_f64;
@@ -1619,12 +1621,11 @@ fn notice_score_weight(notice: &Notice, has_opr011: bool, has_stm033: bool) -> f
 fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
     let mut per_rule: HashMap<&str, (f64, u32)> = HashMap::new();
     let has_opr011 = notices.iter().any(|n| n.rule_id == "OPR_011");
+    let has_stm033 = notices.iter().any(|n| n.rule_id == "STM_033");
     for n in notices.iter().filter(|n| n.rule_class == class) {
-        let e = per_rule
-            .entry(n.rule_id.as_str())
-            .or_insert((
+        let e = per_rule.entry(n.rule_id.as_str()).or_insert_with(|| (
                 n.severity.weight()
-                    * notice_score_weight(n, has_opr011, notices.iter().any(|x| x.rule_id == "STM_033")),
+                    * notice_score_weight(n, has_opr011, has_stm033),
                 0,
             ));
         e.1 += 1;
@@ -1862,6 +1863,17 @@ mod tests {
             base_effort: 1,
             service_id: None,
         }
+    }
+
+    #[test]
+    fn conditional_score_weights_only_zero_dependent_details() {
+        let trp026 = notice("trp", "TRP_026", Severity::Orta, RuleClass::Analytics);
+        let opr006 = notice("opr", "OPR_006", Severity::Yuksek, RuleClass::Analytics);
+
+        assert_eq!(notice_score_weight(&trp026, false, false), 1.0);
+        assert_eq!(notice_score_weight(&trp026, true, false), 0.0);
+        assert_eq!(notice_score_weight(&opr006, false, false), 1.0);
+        assert_eq!(notice_score_weight(&opr006, false, true), 0.0);
     }
 
     // ── Dedup ─────────────────────────────────────────────────────────────────
