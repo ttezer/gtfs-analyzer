@@ -724,7 +724,7 @@ pub static RULES: &[RuleMeta] = &[
         "shape_dist_traveled birim tutarsızlığı"),
     r!("STM_025", Bilgi,  Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Kısa segment zamanlaması"),
-    r!("STM_026", Yuksek, Quality, 2, &[], Some("trip_id"), VS, Row,
+    r_noscore!("STM_026", Bilgi, Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Durak arası mesafe aşırı uzun"),
     r!("STM_028", Yuksek, Analytics, 2, &[], Some("trip_id"), VA, Row,
         "Sefer süresi çok uzun"),
