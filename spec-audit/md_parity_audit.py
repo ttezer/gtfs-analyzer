@@ -339,6 +339,8 @@ AGG_RULES = {
     # Context mapping üzerinden gelenler: çözümleme belirli bir Analyzer kuralını
     # seçtiğinde bu kuralın kendi aggregation kapsamı da hesaba katılır.
     "DQ_021", "TRP_003",
+    "CLD_003", "FRQ_007", "PTH_007", "STM_022", "STP_004", "STP_005",
+    "STP_042", "TRF_005",
 }
 
 
