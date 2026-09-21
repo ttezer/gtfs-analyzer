@@ -708,7 +708,7 @@ pub static RULES: &[RuleMeta] = &[
         "İlk durakta arrival_time eksik"),
     r!("STM_016", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
         "Son durakta arrival_time eksik"),
-    r!("STM_017", Orta,   Quality, 3, &[], Some("trip_id"), VS, Row,
+    r_noscore!("STM_017", Orta,   Quality, 3, &[], Some("trip_id"), VS, Row,
         "Sefer saatlerinde güzergah mesafesi eksik"),
     r!("STM_018", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
         "continuous_pickup geçersiz (stop_times)"),
