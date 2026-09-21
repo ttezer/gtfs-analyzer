@@ -21,7 +21,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_008 | Calendar file missing (calendar.txt and calendar_dates.txt) | CRITICAL | Spec |
 | ARC_031 | feed_info.txt missing while translations.txt is present | CRITICAL | Spec |
 | ARC_009 | Optional file has no data rows | INFO | Quality |
-| ARC_010 | File contains UTF-8 BOM | MEDIUM | Quality |
+| ARC_010 | File contains UTF-8 BOM | INFO | Interop |
 | ARC_011 | File size (info) | INFO | Analytics |
 | ARC_012 | Row column count does not match header | CRITICAL | Spec |
 | ARC_013 | CSV parse error | CRITICAL | Spec |

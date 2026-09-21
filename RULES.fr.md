@@ -21,7 +21,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | ARC_008 | Fichier de calendrier manquant (calendar.txt et calendar_dates.txt) | CRITIQUE | Spec |
 | ARC_031 | feed_info.txt manquant alors que translations.txt est présent | CRITIQUE | Spec |
 | ARC_009 | Le fichier facultatif ne contient aucun enregistrement de données | INFO | Quality |
-| ARC_010 | Le fichier contient une BOM UTF-8 | MOYENNE | Quality |
+| ARC_010 | Le fichier contient une BOM UTF-8 | INFO | Interop |
 | ARC_011 | Taille du fichier (info) | INFO | Analytics |
 | ARC_012 | Le nombre de colonnes ne correspond pas à l’en-tête | CRITIQUE | Spec |
 | ARC_013 | Erreur d’analyse CSV | CRITIQUE | Spec |

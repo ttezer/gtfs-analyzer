@@ -21,7 +21,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_008 | Takvim dosyası eksik (calendar.txt ve calendar_dates.txt) | KRİTİK | Spec |
 | ARC_031 | translations.txt varken feed_info.txt eksik | KRİTİK | Spec |
 | ARC_009 | Opsiyonel dosyada veri satırı yok | BİLGİ | Quality |
-| ARC_010 | Dosya UTF-8 BOM içeriyor | ORTA | Quality |
+| ARC_010 | Dosya UTF-8 BOM içeriyor | BİLGİ | Interop |
 | ARC_011 | Dosya boyutu (bilgi) | BİLGİ | Analytics |
 | ARC_012 | Satır sütun sayısı başlıkla uyuşmuyor | KRİTİK | Spec |
 | ARC_013 | CSV ayrıştırma hatası | KRİTİK | Spec |

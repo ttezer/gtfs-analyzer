@@ -136,7 +136,7 @@ pub static RULES: &[RuleMeta] = &[
     // zararsızdır, bu yüzden severity dinamik değil sabit Bilgi'dir.
     r!("ARC_009", Bilgi, Quality, 1, &[], None, VS, File,
         "Opsiyonel dosyada veri satırı yok"),
-    r!("ARC_010", Orta,   Quality, 1, &[], None, VS, File,
+    r_noscore!("ARC_010", Bilgi, Interop, 1, &[], None, VS, File,
         "Dosya UTF-8 BOM içeriyor"),
     r!("ARC_011", Bilgi,  Analytics, 1, &[], None, VA, File,
         "Dosya boyutu (bilgi)"),
@@ -2806,6 +2806,7 @@ mod tests {
         assert_eq!(get_rule("STM_045").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("STP_022").unwrap().score_weight, 0.0);
         assert_eq!(get_rule("ARC_022").unwrap().score_weight, 0.0);
+        assert_eq!(get_rule("ARC_010").unwrap().score_weight, 0.0);
     }
 
     #[test]
