@@ -1467,7 +1467,7 @@ pub static RULES: &[RuleMeta] = &[
         "pathway_mode eksik"),
     r!("PTH_024", Kritik, Spec, 1, &[], Some("is_bidirectional"), VS_K, Entity,
         "is_bidirectional eksik"),
-    r!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
+    r_noscore!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway length bilgisi eksik"),
     // PTH_029: PTH_025'in kardeşi. Spec `traversal_time` için "recommended for moving
     // sidewalks (3), escalators (4) and elevator (5)" der; PTH_007 değeri VARSA doğruluyor,
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009",
+            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
