@@ -783,7 +783,7 @@ const ja: LocaleShape = {
     'STM_033': "便'{entity_id}'には停留所が1つしかなく使用できません。",
     'STM_034': "便'{entity_id}'：arrival_timeまたはdeparture_timeの一方しか定義されていません。",
     'STM_035': "便'{entity_id}'：同じ停留所が連続して2回訪問されています（終点/ループパターン）。",
-    'STM_036': "便'{entity_id}'：stop_timesがtrip_id + stop_sequenceでソート／グループ化されていません（検出：{observed_value}、期待：{expected_value}）。",
+    'STM_036': "stop_times.txtにtrip_id + stop_sequence順に並んでいない便が{observed_value}件あります。",
     'STM_037': "便'{entity_id}'：Flexの乗降ウィンドウ内に到着/出発時刻は禁止されています。",
     'STM_038': "便'{entity_id}'：start_pickup_drop_off_windowがend_pickup_drop_off_windowより前ではありません。",
     'STM_039': "便'{entity_id}'：Flexコンテキストで乗降ウィンドウがありません。",

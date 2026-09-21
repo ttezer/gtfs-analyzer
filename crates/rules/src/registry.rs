@@ -731,7 +731,7 @@ pub static RULES: &[RuleMeta] = &[
         "Varış veya kalkış zamanından yalnızca biri tanımlı"),
     r!("STM_035", Bilgi,  Analytics, 1, &[], Some("trip_id"), VS, Row,
         "Aynı durak ardışık iki kez ziyaret ediliyor (terminal/döngü)"),
-    r!("STM_036", Bilgi,  Quality,   2, &[], Some("trip_id"), VS, Entity,
+    r!("STM_036", Bilgi,  Quality,   2, &[], None, VS, Feed,
         "stop_times trip_id + stop_sequence'a göre sıralı değil (unsorted_stop_times)"),
     r!("STM_037", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresinde arrival_time/departure_time yasak"),

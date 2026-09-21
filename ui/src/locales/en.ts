@@ -802,7 +802,7 @@ const en: LocaleShape = {
     'STM_033': "Trip '{entity_id}' has only one stop and is unusable.",
     'STM_034': "Trip '{entity_id}': only one of arrival_time or departure_time is defined.",
     'STM_035': "Trip '{entity_id}': same stop visited twice in a row (terminal/loop pattern).",
-    'STM_036': "Trip '{entity_id}': stop_times not sorted/grouped by trip_id + stop_sequence (found: {observed_value}, expected: {expected_value}).",
+    'STM_036': "stop_times.txt contains {observed_value} trips that are not ordered/grouped by trip_id + stop_sequence.",
     'STM_037': "Trip '{entity_id}': arrival/departure time is prohibited inside a Flex pickup/drop-off window.",
     'STM_038': "Trip '{entity_id}': start_pickup_drop_off_window is not earlier than end_pickup_drop_off_window.",
     'STM_039': "Trip '{entity_id}': pickup/drop-off window is missing in a Flex context.",

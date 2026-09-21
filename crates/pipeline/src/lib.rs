@@ -161,6 +161,60 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
 /// 3. Rules listed in `config.disabled_rule_ids_gtfs_jp` are dropped ONLY when the
 ///    feed is a detected GTFS-JP feed. Japanese publishing practice makes some
 ///    checks meaningless there; feeds elsewhere keep them.
+fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
+    let mut first_position = None;
+    let mut matched = Vec::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "STM_036" {
+            first_position.get_or_insert(index);
+            matched.push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if matched.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregate = matched.swap_remove(0);
+    let affected_trips = matched.len() + 1;
+    let mut examples: Vec<String> = std::iter::once(aggregate.entity_id.clone())
+        .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
+        .collect();
+    examples.sort_unstable();
+    examples.dedup();
+    examples.truncate(5);
+
+    aggregate.entity_type = gtfs_core::EntityType::Feed;
+    aggregate.entity_id = None;
+    aggregate.scope_key = None;
+    aggregate.file = Some("stop_times.txt".to_string());
+    aggregate.line = None;
+    aggregate.field = Some("trip_id".to_string());
+    aggregate.observed_value = Some(affected_trips.to_string());
+    aggregate.expected_value = Some("feed-level aggregate".to_string());
+    aggregate.message = format!(
+        "stop_times.txt içinde {affected_trips} seferin satırları trip_id + stop_sequence düzeninde değil."
+    );
+    aggregate.details = Some({
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("affected_trips".to_string(), affected_trips.to_string());
+        if !examples.is_empty() {
+            details.insert("example_trips".to_string(), examples.join(", "));
+        }
+        details
+    });
+    aggregate.service_id = None;
+    aggregate.whitespace_derived = false;
+    aggregate.whitespace_candidate = false;
+
+    let insert_at = first_position.unwrap_or(retained.len()).min(retained.len());
+    retained.insert(insert_at, aggregate);
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -309,6 +363,9 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
+    // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
+    // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
+    aggregate_stm036(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

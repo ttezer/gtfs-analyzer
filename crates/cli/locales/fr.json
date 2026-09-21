@@ -191,7 +191,7 @@
     "STM_033": "La course « {entity_id} » n’a qu’un seul arrêt et est inutilisable.",
     "STM_034": "Course « {entity_id} » : une seule des valeurs arrival_time ou departure_time est définie.",
     "STM_035": "Course « {entity_id} » : le même arrêt est desservi deux fois de suite (schéma terminus ou boucle).",
-    "STM_036": "Course « {entity_id} » : stop_times n’est pas trié ni groupé par trip_id + stop_sequence (trouvé : {observed_value}, attendu : {expected_value}).",
+    "STM_036": "stop_times.txt contient {observed_value} courses qui ne sont pas triées/regroupées par trip_id + stop_sequence.",
     "STM_037": "Course « {entity_id} » : une heure d’arrivée ou de départ est interdite dans une fenêtre Flex de prise en charge/dépose.",
     "STM_038": "Course « {entity_id} » : start_pickup_drop_off_window n’est pas antérieure à end_pickup_drop_off_window.",
     "STM_039": "Course « {entity_id} » : la fenêtre de prise en charge/dépose est absente dans un contexte Flex.",
