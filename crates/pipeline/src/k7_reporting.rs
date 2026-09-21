@@ -1334,7 +1334,11 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
     let mut class_penalty: HashMap<RuleClass, f64> = HashMap::new();
     for n in notices {
         *class_penalty.entry(n.rule_class).or_default() +=
-            n.severity.weight() * notice_score_weight(n, notices.iter().any(|x| x.rule_id == "OPR_011"));
+            n.severity.weight() * notice_score_weight(
+                n,
+                notices.iter().any(|x| x.rule_id == "OPR_011"),
+                notices.iter().any(|x| x.rule_id == "STM_033"),
+            );
     }
 
     // Toplam yayın penaltısı (pub_score_delta için referans baz değer)
@@ -1387,7 +1391,11 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
                 for &ci in &closure {
                     let cn = &notices[ci];
                     *closure_class_penalty.entry(cn.rule_class).or_default() +=
-                        cn.severity.weight() * notice_score_weight(cn, notices.iter().any(|x| x.rule_id == "OPR_011"));
+                        cn.severity.weight() * notice_score_weight(
+                            cn,
+                            notices.iter().any(|x| x.rule_id == "OPR_011"),
+                            notices.iter().any(|x| x.rule_id == "STM_033"),
+                        );
                 }
                 let mut delta_sum = 0.0_f64;
                 for (cn_class, cp_removed) in &closure_class_penalty {
@@ -1593,8 +1601,11 @@ fn build_r5(notices: &[Notice]) -> R5Report {
     }
 }
 
-fn notice_score_weight(notice: &Notice, has_opr011: bool) -> f64 {
+fn notice_score_weight(notice: &Notice, has_opr011: bool, has_stm033: bool) -> f64 {
     if notice.rule_id == "TRP_026" && has_opr011 {
+        return 0.0;
+    }
+    if notice.rule_id == "OPR_006" && has_stm033 {
         return 0.0;
     }
     get_rule(&notice.rule_id)
@@ -1611,7 +1622,11 @@ fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
     for n in notices.iter().filter(|n| n.rule_class == class) {
         let e = per_rule
             .entry(n.rule_id.as_str())
-            .or_insert((n.severity.weight() * notice_score_weight(n, has_opr011), 0));
+            .or_insert((
+                n.severity.weight()
+                    * notice_score_weight(n, has_opr011, notices.iter().any(|x| x.rule_id == "STM_033")),
+                0,
+            ));
         e.1 += 1;
     }
     let penalty: f64 = per_rule
