@@ -8430,37 +8430,6 @@ fn check_remaining_analytics<'a>(
             }
         }
 
-        // agency_name
-        for ag in &records.agencies {
-            if ag.agency_name.is_empty() {
-                continue;
-            }
-            if is_all_caps(&ag.agency_name) {
-                let label = ag
-                    .agency_id
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or(ag.agency_name.as_str());
-                notices.push(k6_notice(
-                    ctr,
-                    "DQ_018",
-                    EntityType::Agency,
-                    Some(label.to_string()),
-                    Some(label.to_string()),
-                    "agency.txt",
-                    Some(ag.line),
-                    Some("agency_name"),
-                    Some(ag.agency_name.clone()),
-                    None,
-                    format!(
-                        "'{}' işleticisinin adı tamamen büyük harf: '{}'.",
-                        label, ag.agency_name
-                    ),
-                    "İşletici adını düzgün harf kuralıyla yazın.",
-                ));
-            }
-        }
-
         // stop_headsign (B4: tek-tarama'dan toplanan caps değerleri — aynı sıra/içerik/ctr)
         for (line, s) in &dq_caps_hs {
             notices.push(k6_notice(
@@ -8479,28 +8448,6 @@ fn check_remaining_analytics<'a>(
             ));
         }
 
-        // feed_publisher_name
-        if let Some(fi) = records.feed_info.first() {
-            if is_all_caps(&fi.feed_publisher_name) {
-                notices.push(k6_notice(
-                    ctr,
-                    "DQ_018",
-                    EntityType::Feed,
-                    None,
-                    None,
-                    "feed_info.txt",
-                    Some(fi.line),
-                    Some("feed_publisher_name"),
-                    Some(fi.feed_publisher_name.clone()),
-                    None,
-                    format!(
-                        "feed_publisher_name tamamen büyük harf: '{}'.",
-                        fi.feed_publisher_name
-                    ),
-                    "Yayıncı adını düzgün harf kuralıyla yazın.",
-                ));
-            }
-        }
     }
 
     // ── DQ_019: önerilen alanlarda tümü küçük harf (mixed_case_recommended_field) ──
@@ -8603,37 +8550,6 @@ fn check_remaining_analytics<'a>(
             }
         }
 
-        // agency_name
-        for ag in &records.agencies {
-            if ag.agency_name.is_empty() {
-                continue;
-            }
-            if is_all_lower(&ag.agency_name) {
-                let label = ag
-                    .agency_id
-                    .as_deref()
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or(ag.agency_name.as_str());
-                notices.push(k6_notice(
-                    ctr,
-                    "DQ_019",
-                    EntityType::Agency,
-                    Some(label.to_string()),
-                    Some(label.to_string()),
-                    "agency.txt",
-                    Some(ag.line),
-                    Some("agency_name"),
-                    Some(ag.agency_name.clone()),
-                    None,
-                    format!(
-                        "'{}' işleticisinin adı tamamen küçük harf: '{}'.",
-                        label, ag.agency_name
-                    ),
-                    "İşletici adını başlık harfiyle yazın.",
-                ));
-            }
-        }
-
         // stop_headsign (B4: tek-tarama'dan toplanan lower değerleri — aynı sıra/içerik/ctr)
         for (line, s) in &dq_lower_hs {
             notices.push(k6_notice(
@@ -8652,28 +8568,6 @@ fn check_remaining_analytics<'a>(
             ));
         }
 
-        // feed_publisher_name
-        if let Some(fi) = records.feed_info.first() {
-            if is_all_lower(&fi.feed_publisher_name) {
-                notices.push(k6_notice(
-                    ctr,
-                    "DQ_019",
-                    EntityType::Feed,
-                    None,
-                    None,
-                    "feed_info.txt",
-                    Some(fi.line),
-                    Some("feed_publisher_name"),
-                    Some(fi.feed_publisher_name.clone()),
-                    None,
-                    format!(
-                        "feed_publisher_name tamamen küçük harf: '{}'.",
-                        fi.feed_publisher_name
-                    ),
-                    "Yayıncı adını başlık harfiyle yazın.",
-                ));
-            }
-        }
     }
 
     // ── DQ_020: önerilen alan eksik/boş (missing_recommended_field) ──────────
@@ -17977,6 +17871,42 @@ mod tests {
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "DQ_018"),
             "tek harf DQ_018 üretmemeli"
+        );
+    }
+
+    #[test]
+    fn institution_metadata_case_does_not_produce_dq_018_or_dq_019() {
+        let mut records = records_with(
+            vec![stop("S1", 41.0, 29.0)],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2)],
+        );
+        records.agencies.push(AgencyRecord {
+            agency_id: Some("A1".into()),
+            agency_name: "TRAMBAIX".into(),
+            agency_url: "https://example.org".into(),
+            agency_timezone: "Europe/Istanbul".into(),
+            agency_lang: None,
+            agency_phone: None,
+            agency_fare_url: None,
+            agency_email: None,
+            agency_cemv_support: None,
+            row: Default::default(),
+            line: 2,
+        });
+        let mut fi = feed_info_row();
+        fi.feed_publisher_name = "TRAMBESÒS".into();
+        records.feed_info = vec![fi];
+
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            result
+                .notices
+                .iter()
+                .all(|n| !matches!(n.rule_id.as_str(), "DQ_018" | "DQ_019")),
+            "kurum/yayıncı metadata'sı DQ_018/019 üretmemeli: {:?}",
+            result.notices
         );
     }
 
