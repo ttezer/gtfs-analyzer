@@ -1120,7 +1120,7 @@ pub static RULES: &[RuleMeta] = &[
         "n-to-1 devamlılıkta gelen seferlerin takvimleri çelişiyor"),
 
     // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
-    r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Row,
+    r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Feed,
         "transfer_type=4/5 Google Transit tarafından desteklenmiyor"),
     r!("GGL_002", Dusuk, Interop, 1, &[], None, VI, Row,
         "ic_price (Google-özel) geçersiz değer"),

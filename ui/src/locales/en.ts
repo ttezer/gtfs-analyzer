@@ -937,7 +937,7 @@ const en: LocaleShape = {
     'TRF_018': "Transfer: from_trip_id and to_trip_id are the same trip ('{entity_id}').",
     'TRF_019': '{observed_value} in-seat transfers have inconsistent route_type.',
     // GGL
-    'GGL_001': 'Transfer: transfer_type=4/5 is not supported by Google Transit.',
+    'GGL_001': '{observed_value} transfers are ignored by Google Transit.',
     'GGL_002': "ic_price '{observed_value}' is not a valid value.",
     // FAR
     'FAR_001': "Duplicate fare_id: '{entity_id}'.",

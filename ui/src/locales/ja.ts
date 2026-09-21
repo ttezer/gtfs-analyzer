@@ -918,7 +918,7 @@ const ja: LocaleShape = {
     'TRF_018': "乗り換え：from_trip_idとto_trip_idが同じ便です（'{entity_id}'）。",
     'TRF_019': '{observed_value}件の座席確保乗り換えでroute_typeが一致しません。',
     // GGL
-    'GGL_001': '乗り換え：transfer_type=4/5はGoogleトランジットでサポートされていません。',
+    'GGL_001': '{observed_value}件の乗り換えがGoogleトランジットで無視されます。',
     'GGL_002': "ic_price'{observed_value}'が有効な値ではありません。",
     // FAR
     'FAR_001': "fare_idが重複しています：'{entity_id}'。",

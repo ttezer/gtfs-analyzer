@@ -939,7 +939,7 @@ const fr: LocaleShape = {
     'TRF_018': 'Correspondance : from_trip_id et to_trip_id désignent la même course (« {entity_id} »).',
     'TRF_019': '{observed_value} correspondances sans changement de véhicule ont un route_type incohérent.',
     // GGL
-    'GGL_001': 'Correspondance : transfer_type=4/5 n’est pas pris en charge par Google Transit.',
+    'GGL_001': '{observed_value} correspondances sont ignorées par Google Transit.',
     'GGL_002': 'ic_price « {observed_value} » n’est pas une valeur valide.',
     // FAR
     'FAR_001': 'fare_id en double : « {entity_id} ».',
