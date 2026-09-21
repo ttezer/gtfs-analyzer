@@ -1074,7 +1074,7 @@ const ja: LocaleShape = {
     'FIN_019': "フィードの有効期限が近いです（終了日：{observed_value}）。",
     'FIN_020': "フィードの有効期間は{observed_value}のみ — 運用利用には短すぎます。",
     // TRN
-    'TRN_001': "翻訳：table_name'{observed_value}'が無効です。",
+    'TRN_001': 'translations.txtでtable_nameが無効な行が{observed_value}件あります。',
     'TRN_002': "翻訳：このテーブルに対してfield_name'{observed_value}'が無効です。",
     'TRN_003': "翻訳：language'{observed_value}'が無効です。",
     'TRN_004': "翻訳：record_id'{entity_id}'が見つかりません。",

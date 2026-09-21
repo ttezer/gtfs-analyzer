@@ -1560,7 +1560,7 @@ pub static RULES: &[RuleMeta] = &[
         "Feed geçerlilik penceresi 7 günden kısa — operasyonel kullanım için çok kısa"),
 
     // ── TRN: Translations ──────────────────────────────────────────────────────
-    r!("TRN_001", Kritik, Spec, 1, &[], None, VS_K, Row,
+    r!("TRN_001", Kritik, Spec, 1, &[], None, VS_K, Feed,
         "table_name geçersiz değer"),
     r!("TRN_002", Kritik, Spec, 1, &[], None, VS_K, Row,
         "field_name bu tablo için geçersiz"),

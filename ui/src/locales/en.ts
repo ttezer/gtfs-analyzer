@@ -1093,7 +1093,7 @@ const en: LocaleShape = {
     'FIN_019': "Feed validity expires soon (end date: {observed_value}).",
     'FIN_020': "Feed validity window is only {observed_value} — too short for operational use.",
     // TRN
-    'TRN_001': "Translation: table_name '{observed_value}' is invalid.",
+    'TRN_001': '{observed_value} rows in translations.txt have an invalid table_name.',
     'TRN_002': "Translation: field_name '{observed_value}' is invalid for this table.",
     'TRN_003': "Translation: language '{observed_value}' is invalid.",
     'TRN_004': "Translation: record_id '{entity_id}' not found.",

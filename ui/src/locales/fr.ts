@@ -1095,7 +1095,7 @@ const fr: LocaleShape = {
     'FIN_019': 'La validité du jeu de données expire prochainement (date de fin : {observed_value}).',
     'FIN_020': 'La fenêtre de validité du jeu de données n’est que de {observed_value} — trop courte pour une exploitation opérationnelle.',
     // TRN
-    'TRN_001': 'Traduction : table_name « {observed_value} » est invalide.',
+    'TRN_001': '{observed_value} lignes de translations.txt ont un table_name invalide.',
     'TRN_002': 'Traduction : field_name « {observed_value} » est invalide pour cette table.',
     'TRN_003': 'Traduction : language « {observed_value} » est invalide.',
     'TRN_004': 'Traduction : record_id « {entity_id} » est introuvable.',
