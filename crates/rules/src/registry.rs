@@ -344,7 +344,7 @@ pub static RULES: &[RuleMeta] = &[
     // koordinat-türevi GEO/yakınlık kurallarını maskeler — lat ile simetrik).
     r!("STP_005", Kritik, Spec, 2,
         &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
-        Some("stop_id"), VS_K, Entity,
+        None, VS_K, Feed,
         "stop_lon geçersiz veya aralık dışı"),
     r!("STP_006", Kritik, Spec, 2,
         &["GEO_002","GEO_009","GEO_012","STP_016","STP_017"],

@@ -77,7 +77,7 @@
     "STP_002": "stop_id is empty.",
     "STP_003": "Stop '{entity_id}': stop_name is missing or stop_lat is out of range.",
     "STP_004": "{observed_value} stops have a non-numeric stop_lat in this feed.",
-    "STP_005": "Stop '{entity_id}': stop_lon '{observed_value}' is invalid or out of range.",
+    "STP_005": "{observed_value} stops have an invalid or out-of-range stop_lon in this feed.",
     "STP_006": "Stop '{entity_id}': stop_lat is missing.",
     "STP_007": "Stop '{entity_id}': stop_lon is missing.",
     "STP_008": "Stop '{entity_id}': location_type '{observed_value}' is invalid.",

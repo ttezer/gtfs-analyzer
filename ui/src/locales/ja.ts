@@ -666,7 +666,7 @@ const ja: LocaleShape = {
     'STP_002': 'stop_idが空です。',
     'STP_003': "停留所'{entity_id}'：stop_nameがないか、stop_latが範囲外です。",
     'STP_004': 'このフィードでstop_latが数値でない停留所が{observed_value}件あります。',
-    'STP_005': "停留所'{entity_id}'：stop_lon'{observed_value}'が無効または範囲外です。",
+    'STP_005': 'このフィードでstop_lonが無効または範囲外の停留所が{observed_value}件あります。',
     'STP_006': "停留所'{entity_id}'：stop_latがありません。",
     'STP_007': "停留所'{entity_id}'：stop_lonがありません。",
     'STP_008': "停留所'{entity_id}'：location_type'{observed_value}'が無効です。",
