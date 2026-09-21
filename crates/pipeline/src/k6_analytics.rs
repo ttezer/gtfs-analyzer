@@ -14123,6 +14123,7 @@ mod tests {
             Some("2"),
             "2 sefer etkilenmeli"
         );
+        assert_eq!(trp[0].severity, gtfs_core::Severity::Bilgi);
     }
 
     #[test]

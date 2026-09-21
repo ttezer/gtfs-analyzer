@@ -320,7 +320,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |
 | CAL_022 | service_id eksik | KRİTİK | Spec |
 | CAL_023 | end_date çok ileri (şüpheli uzak-gelecek tarih) | ORTA | Quality |
-| CAL_024 | Takvim önümüzdeki 7 günde aktif değil | DÜŞÜK | Quality |
+| CAL_024 | Takvim önümüzdeki 7 günde aktif değil | BİLGİ | Analytics |
 | CAL_025 | Takvim gün alanı boş (değer verilmemiş) | KRİTİK | Spec |
 
 ## CLD — Calendar Dates

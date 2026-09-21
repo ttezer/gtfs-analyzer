@@ -919,7 +919,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("CAL_023", Orta, Quality, 2, &[], Some("service_id"), VA, Entity,
         "end_date çok ileri (şüpheli uzak-gelecek tarih)"),
     // CAL_024: eski TRP_030 (takvim odaklı olduğu için #23 ile CAL grubuna taşındı).
-    r!("CAL_024", Dusuk, Quality, 1, &[], Some("service_id"), VS, Entity,
+    r!("CAL_024", Bilgi, Analytics, 1, &[], Some("service_id"), VS, Entity,
         "Takvim önümüzdeki 7 günde aktif değil"),
     r!("CAL_025", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
         "Takvim gün alanı boş (değer verilmemiş)"),
@@ -2060,7 +2060,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("CAL_021", ProjectAnalytics),
     ("CAL_022", GtfsSpec),
     ("CAL_023", ProjectQuality),
-    ("CAL_024", ProjectQuality),
+    ("CAL_024", ProjectAnalytics),
     ("CAL_025", GtfsSpec),
     ("CLD_001", GtfsSpec),
     ("CLD_002", GtfsSpec),

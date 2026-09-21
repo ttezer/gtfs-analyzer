@@ -320,7 +320,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_021 | Actif aujourd’hui mais aucun service dans les jours à venir | INFO | Analytics |
 | CAL_022 | service_id manquant | CRITIQUE | Spec |
 | CAL_023 | end_date du calendrier très lointaine (suspect) | MOYENNE | Quality |
-| CAL_024 | Calendrier inactif dans les 7 prochains jours | FAIBLE | Quality |
+| CAL_024 | Calendrier inactif dans les 7 prochains jours | INFORMATION | Analytics |
 | CAL_025 | Champ de jour du calendrier vide | CRITIQUE | Spec |
 
 ## CLD — Dates de calendrier
