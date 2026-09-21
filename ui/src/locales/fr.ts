@@ -686,7 +686,7 @@ const fr: LocaleShape = {
     'STP_001': 'stop_id en double : « {entity_id} ».',
     'STP_002': 'stop_id est vide.',
     'STP_003': 'Arrêt « {entity_id} » : stop_name est absent ou stop_lat est hors plage.',
-    'STP_004': 'Arrêt « {entity_id} » : stop_lat « {observed_value} » n’est pas numérique.',
+    'STP_004': '{observed_value} arrêts ont un stop_lat non numérique dans ce jeu de données.',
     'STP_005': 'Arrêt « {entity_id} » : stop_lon « {observed_value} » est invalide ou hors plage.',
     'STP_006': 'Arrêt « {entity_id} » : stop_lat est absent.',
     'STP_007': 'Arrêt « {entity_id} » : stop_lon est absent.',

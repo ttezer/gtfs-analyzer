@@ -684,7 +684,7 @@ const en: LocaleShape = {
     'STP_001': "Duplicate stop_id: '{entity_id}'.",
     'STP_002': 'stop_id is empty.',
     'STP_003': "Stop '{entity_id}': stop_name is missing or stop_lat is out of range.",
-    'STP_004': "Stop '{entity_id}': stop_lat '{observed_value}' is not numeric.",
+    'STP_004': '{observed_value} stops have a non-numeric stop_lat in this feed.',
     'STP_005': "Stop '{entity_id}': stop_lon '{observed_value}' is invalid or out of range.",
     'STP_006': "Stop '{entity_id}': stop_lat is missing.",
     'STP_007': "Stop '{entity_id}': stop_lon is missing.",

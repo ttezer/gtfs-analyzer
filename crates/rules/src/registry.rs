@@ -337,7 +337,7 @@ pub static RULES: &[RuleMeta] = &[
         "stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)"),
     r!("STP_004", Kritik, Spec, 2,
         &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
-        Some("stop_id"), VS_K, Entity,
+        None, VS_K, Feed,
         "stop_lat sayısal değil"),
     // STP_005 lat-ikizleriyle (STP_003/004/006/007) AYNI spec cümlesine dayanır;
     // 2026-07-24 hizalaması: Quality→Spec, VS→VS_K, blocks eklendi (bozuk lon
