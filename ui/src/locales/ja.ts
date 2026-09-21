@@ -860,7 +860,7 @@ const ja: LocaleShape = {
     'SHP_002': "シェープ'{entity_id}'：shape_pt_latがないか無効です。",
     'SHP_003': "シェープ'{entity_id}'：shape_pt_lonがないか無効です。",
     'SHP_004': "シェープ'{entity_id}'：shape_pt_sequenceがないか無効です。",
-    'SHP_005': "シェープ'{entity_id}'：shape_dist_traveledが減少しています。",
+    'SHP_005': 'このフィードの{observed_value}個のシェープでshape_dist_traveledが減少しています。',
     'SHP_006': "シェープ'{entity_id}'は1点のみで構成されています（最低2点必要）。",
     'SHP_008': "シェープ'{entity_id}'：shape_pt_sequenceの値が重複しています。",
     'SHP_009': "{affected_shapes}件の経路形状（shapes.txt）で、線が自分自身と交差しています（例: {example_shapes}）。",

@@ -881,7 +881,7 @@ const fr: LocaleShape = {
     'SHP_002': 'Tracé « {entity_id} » : shape_pt_lat est absent ou invalide.',
     'SHP_003': 'Tracé « {entity_id} » : shape_pt_lon est absent ou invalide.',
     'SHP_004': 'Tracé « {entity_id} » : shape_pt_sequence est absent ou invalide.',
-    'SHP_005': 'Tracé « {entity_id} » : shape_dist_traveled diminue.',
+    'SHP_005': 'shape_dist_traveled diminue pour {observed_value} tracés dans ce jeu de données.',
     'SHP_006': 'Le tracé « {entity_id} » ne comporte qu’un seul point (2 au minimum sont requis).',
     'SHP_008': 'Tracé « {entity_id} » : valeur shape_pt_sequence en double.',
     'SHP_009': '{affected_shapes} tracé(s) s’auto-intersectent, p. ex. {example_shapes}.',

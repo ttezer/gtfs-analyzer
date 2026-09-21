@@ -879,7 +879,7 @@ const en: LocaleShape = {
     'SHP_002': "Shape '{entity_id}': shape_pt_lat is missing or invalid.",
     'SHP_003': "Shape '{entity_id}': shape_pt_lon is missing or invalid.",
     'SHP_004': "Shape '{entity_id}': shape_pt_sequence is missing or invalid.",
-    'SHP_005': "Shape '{entity_id}': shape_dist_traveled decreases.",
+    'SHP_005': 'shape_dist_traveled decreases for {observed_value} shapes in this feed.',
     'SHP_006': "Shape '{entity_id}' consists of a single point only (minimum 2 required).",
     'SHP_008': "Shape '{entity_id}': duplicate shape_pt_sequence value.",
     'SHP_009': "{affected_shapes} shape(s) self-intersect, e.g. {example_shapes}.",

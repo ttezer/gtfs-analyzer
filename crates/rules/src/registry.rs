@@ -953,7 +953,7 @@ pub static RULES: &[RuleMeta] = &[
         "shape_pt_lon eksik veya geçersiz"),
     r!("SHP_004", Kritik, Spec, 2,
         &["SHP_009","SHP_012","GEO_006","GEO_007"],
-        Some("shape_id"), VS_K, Row,
+        None, VS_K, Feed,
         "shape_pt_sequence eksik veya geçersiz"),
     r!("SHP_005", Kritik, Spec, 2,
         &["SHP_009","SHP_012","GEO_006","GEO_007"],
