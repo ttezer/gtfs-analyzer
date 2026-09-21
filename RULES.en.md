@@ -303,7 +303,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_004 | end_date invalid | CRITICAL | Spec |
 | CAL_005 | start_date is after end_date | CRITICAL | Interop |
 | CAL_006 | Weekly schedule has all days disabled | INFO | Quality |
-| CAL_007 | Gap in service period | MEDIUM | Analytics |
+| CAL_007 | Gap in service period | INFO | Analytics |
 | CAL_008 | Service expires soon | HIGH | Analytics |
 | CAL_009 | All feed services have expired | INFO | Analytics |
 | CAL_010 | Service has too few active days | MEDIUM | Analytics |

@@ -303,7 +303,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_004 | end_date eksik veya geçersiz format | KRİTİK | Spec |
 | CAL_005 | start_date end_date'den sonra | KRİTİK | Interop |
 | CAL_006 | Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün) | BİLGİ | Quality |
-| CAL_007 | Servis döneminde boşluk | ORTA | Analytics |
+| CAL_007 | Servis döneminde boşluk | BİLGİ | Analytics |
 | CAL_008 | Servis tarihi yakında sona eriyor | YÜKSEK | Analytics |
 | CAL_009 | Feed'deki tüm takvim dönemleri sona ermiş | BİLGİ | Analytics |
 | CAL_010 | Serviste aktif gün sayısı çok az | ORTA | Analytics |
