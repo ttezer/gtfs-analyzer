@@ -651,6 +651,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
 fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>) {
     use std::collections::BTreeMap;
 
+    let original_len = notices.len();
     let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
     let mut grouped: BTreeMap<String, Vec<gtfs_core::Notice>> = BTreeMap::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -694,16 +695,37 @@ fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>) {
         aggregates.push((pathway_id, aggregate));
     }
 
-    aggregates.sort_by(|(left, _), (right, _)| left.cmp(right));
-    for (pathway_id, aggregate) in aggregates.into_iter().rev() {
-        let insert_at = first_positions
-            .get(&pathway_id)
-            .copied()
-            .unwrap_or(retained.len())
-            .min(retained.len());
-        retained.insert(insert_at, aggregate);
+    // Rebuild by original first occurrence instead of repeatedly inserting into the
+    // middle of `retained`. A feed with many distinct pathway groups otherwise turns
+    // this step into O(n²) vector shifting (mdb-3215 had 23,179 PTH_007 groups).
+    let mut positioned: Vec<(usize, gtfs_core::Notice)> = aggregates
+        .into_iter()
+        .map(|(pathway_id, aggregate)| {
+            (
+                first_positions
+                    .get(&pathway_id)
+                    .copied()
+                    .unwrap_or(original_len),
+                aggregate,
+            )
+        })
+        .collect();
+    positioned.sort_unstable_by_key(|(position, _)| *position);
+
+    let mut merged = Vec::with_capacity(retained.len() + positioned.len());
+    let mut retained = retained.into_iter();
+    let mut positioned = positioned.into_iter().peekable();
+    for position in 0..original_len {
+        if positioned
+            .peek()
+            .is_some_and(|(first_position, _)| *first_position == position)
+        {
+            merged.push(positioned.next().expect("PTH_007 aggregate missing").1);
+        } else if let Some(notice) = retained.next() {
+            merged.push(notice);
+        }
     }
-    *notices = retained;
+    *notices = merged;
 }
 
 fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>) {
@@ -2249,5 +2271,64 @@ mod name_index_tests {
             shapes.contains(&"SH1".to_string()) && shapes.contains(&"SH2".to_string()),
             "hattın shape'leri çözülmeli: {shapes:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod aggregation_tests {
+    use super::*;
+
+    fn pth007(pathway_id: &str, id: &str) -> gtfs_core::Notice {
+        gtfs_core::Notice {
+            id: id.into(),
+            rule_id: "PTH_007".into(),
+            severity: gtfs_core::Severity::Bilgi,
+            rule_class: gtfs_core::RuleClass::Quality,
+            entity_type: gtfs_core::EntityType::Pathway,
+            entity_id: Some(pathway_id.into()),
+            scope_key: Some(pathway_id.into()),
+            file: Some("pathways.txt".into()),
+            line: Some(1),
+            field: Some("traversal_time".into()),
+            observed_value: Some("0".into()),
+            expected_value: Some("> 0".into()),
+            details: None,
+            whitespace_derived: false,
+            whitespace_candidate: false,
+            title: String::new(),
+            message: String::new(),
+            remediation: String::new(),
+            blocks: vec![],
+            base_effort: 1,
+            service_id: None,
+        }
+    }
+
+    fn other(id: &str) -> gtfs_core::Notice {
+        let mut notice = pth007("other", id);
+        notice.rule_id = "PTH_006".into();
+        notice
+    }
+
+    #[test]
+    fn pth007_aggregates_at_first_occurrence_without_quadratic_inserts() {
+        let mut notices = vec![
+            pth007("B", "b1"),
+            pth007("A", "a1"),
+            other("x"),
+            pth007("B", "b2"),
+        ];
+
+        aggregate_pth007(&mut notices);
+
+        assert_eq!(
+            notices
+                .iter()
+                .map(|notice| notice.entity_id.as_deref())
+                .collect::<Vec<_>>(),
+            vec![Some("B"), Some("A"), Some("other")]
+        );
+        assert_eq!(notices[0].observed_value.as_deref(), Some("2"));
+        assert_eq!(notices[1].observed_value.as_deref(), Some("1"));
     }
 }
