@@ -24,7 +24,7 @@ REGISTRY_PATH = ROOT / "crates" / "rules" / "src" / "registry.rs"
 DOCS_PATH = ROOT / "docs" / "rules"
 MARKER = re.compile(r"<!--\s*md-parity:\s*code=([a-z0-9_]+)\s*-->")
 CARD_ID = re.compile(r"^#\s+([A-Z]{2,3}_[0-9]{3}[a-z]?)\b", re.MULTILINE)
-REGISTRY_ID = re.compile(r'r!\("([A-Z]{2,3}_[0-9]{3}[a-z]?)"')
+REGISTRY_ID = re.compile(r'r(?:_noscore)?!\("([A-Z]{2,3}_[0-9]{3}[a-z]?)"')
 
 
 def load_audit():
