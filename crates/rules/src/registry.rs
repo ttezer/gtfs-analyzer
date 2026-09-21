@@ -716,7 +716,7 @@ pub static RULES: &[RuleMeta] = &[
         "continuous_drop_off geçersiz (stop_times)"),
     r!("STM_020", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Row,
         "Sıfır geçiş süresi (mesafe > 200m)"),
-    r!("STM_021", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Row,
+    r_noscore!("STM_021", Bilgi, Analytics, 3, &[], Some("trip_id"), VA, Row,
         "Duraklar arası mesafe sıfır veya negatif"),
     r!("STM_022", Orta,   Spec, 1, &[], None, VS, Feed,
         "timepoint geçersiz"),
