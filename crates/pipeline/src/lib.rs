@@ -1632,28 +1632,34 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
 
     // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
     // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
-    aggregate_stm036(&mut all);
-    aggregate_dq021(&mut all);
-    aggregate_arc012(&mut all);
-    aggregate_cld003(&mut all);
-    aggregate_shp005(&mut all);
-    aggregate_stm008(&mut all);
-    aggregate_stm047(&mut all);
-    aggregate_pth007(&mut all);
-    aggregate_trp003(&mut all);
-    aggregate_trn001(&mut all);
-    aggregate_stp004(&mut all);
-    aggregate_stp005(&mut all);
-    aggregate_trf005(&mut all);
-    aggregate_pth012(&mut all);
-    aggregate_stp042(&mut all);
-    aggregate_stp032(&mut all);
-    aggregate_trp005(&mut all);
-    aggregate_stm022(&mut all);
-    aggregate_frq007(&mut all);
-    aggregate_trf019(&mut all);
-    aggregate_cal008(&mut all);
-    aggregate_ggl001(&mut all);
+    macro_rules! timed_aggregate {
+        ($name:literal, $function:ident) => {{
+            let _t = Timer::start(concat!("aggregate::", $name));
+            $function(&mut all);
+        }};
+    }
+    timed_aggregate!("STM_036", aggregate_stm036);
+    timed_aggregate!("DQ_021", aggregate_dq021);
+    timed_aggregate!("ARC_012", aggregate_arc012);
+    timed_aggregate!("CLD_003", aggregate_cld003);
+    timed_aggregate!("SHP_005", aggregate_shp005);
+    timed_aggregate!("STM_008", aggregate_stm008);
+    timed_aggregate!("STM_047", aggregate_stm047);
+    timed_aggregate!("PTH_007", aggregate_pth007);
+    timed_aggregate!("TRP_003", aggregate_trp003);
+    timed_aggregate!("TRN_001", aggregate_trn001);
+    timed_aggregate!("STP_004", aggregate_stp004);
+    timed_aggregate!("STP_005", aggregate_stp005);
+    timed_aggregate!("TRF_005", aggregate_trf005);
+    timed_aggregate!("PTH_012", aggregate_pth012);
+    timed_aggregate!("STP_042", aggregate_stp042);
+    timed_aggregate!("STP_032", aggregate_stp032);
+    timed_aggregate!("TRP_005", aggregate_trp005);
+    timed_aggregate!("STM_022", aggregate_stm022);
+    timed_aggregate!("FRQ_007", aggregate_frq007);
+    timed_aggregate!("TRF_019", aggregate_trf019);
+    timed_aggregate!("CAL_008", aggregate_cal008);
+    timed_aggregate!("GGL_001", aggregate_ggl001);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
