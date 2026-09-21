@@ -1818,7 +1818,7 @@ const fr: LocaleShape = {
     'FRL_003': 'Utilisez un zone_id valide pour origin_id.',
     'FRL_004': 'Utilisez un zone_id valide pour destination_id.',
     'FRL_005': 'Utilisez un zone_id valide pour contains_id.',
-    'FRL_006': 'Ajoutez des règles tarifaires dans fare_rules.txt, ou supprimez les définitions de fare_attributes.',
+    'FRL_006': 'Si les tarifs doivent être associés à des lignes ou zones, ajoutez les règles correspondantes dans fare_rules.txt ; un modèle tarifaire général peut laisser le fichier vide.',
     // XFL
     'XFL_002': 'Ajoutez des enregistrements stop_times pour cette course.',
     'XFL_006': 'Ajoutez des enregistrements exception_type=1 dans calendar_dates.txt, ou définissez le service dans calendar.txt.',

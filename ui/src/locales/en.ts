@@ -1816,7 +1816,7 @@ const en: LocaleShape = {
     'FRL_003': 'Use a valid zone_id for origin_id.',
     'FRL_004': 'Use a valid zone_id for destination_id.',
     'FRL_005': 'Use a valid zone_id for contains_id.',
-    'FRL_006': 'Add fare rules to fare_rules.txt or remove the fare attribute definitions.',
+    'FRL_006': 'If fares should be restricted to routes or zones, add the corresponding rules to fare_rules.txt; a general fare model may leave the file empty.',
     // XFL
     'XFL_002': 'Add stop_times records for this trip.',
     'XFL_006': 'Add exception_type=1 records in calendar_dates.txt or define the service in calendar.txt.',
