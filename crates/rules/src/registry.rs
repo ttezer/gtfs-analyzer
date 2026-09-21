@@ -2394,11 +2394,11 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STM_018", GtfsSpec),
     ("STM_019", GtfsSpec),
     ("STM_020", ProjectQuality),
-    ("STM_021", ProjectQuality),
+    ("STM_021", ProjectAnalytics),
     ("STM_022", GtfsSpec),
     ("STM_024", ProjectQuality),
     ("STM_025", ProjectAnalytics),
-    ("STM_026", ProjectQuality),
+    ("STM_026", ProjectAnalytics),
     ("STM_028", ProjectAnalytics),
     ("STM_029", ProjectAnalytics),
     ("STM_030", GtfsSpec),
@@ -2807,7 +2807,7 @@ mod tests {
     fn no_score_rules_are_explicit() {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
-            "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
+            "STM_017", "STM_021", "STM_026", "STM_035", "XFL_011", "OPR_007", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
             "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029", "STP_039",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
