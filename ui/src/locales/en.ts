@@ -849,7 +849,7 @@ const en: LocaleShape = {
     'CAL_005': "Service '{entity_id}': start_date is after end_date.",
     'CAL_006': "Service '{entity_id}': all weekday columns are 0 — no weekly pattern; the service can only be active via calendar_dates.txt exceptions.",
     'CAL_007': "Service-period gap {entity_id}: {observed_value} days (threshold: {expected_value}); affected services: {services}.",
-    'CAL_008': "Service '{entity_id}': expires {observed_value} (threshold: {expected_value}).",
+    'CAL_008': '{observed_value} services expire on the same date.',
     'CAL_009': "All calendar services in the feed have expired ({observed_value} services).",
     'CAL_010': "Service '{entity_id}': only {observed_value} active days (threshold: {expected_value}).",
     'CAL_011': "Service '{entity_id}' is defined but not used by any trip.",

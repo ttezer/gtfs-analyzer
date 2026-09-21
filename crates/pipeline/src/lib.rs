@@ -1347,6 +1347,70 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>) {
+    let mut groups: std::collections::BTreeMap<String, Vec<gtfs_core::Notice>> =
+        std::collections::BTreeMap::new();
+    let mut first_positions = std::collections::BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "CAL_008" {
+            let date = notice.observed_value.clone().unwrap_or_default();
+            first_positions.entry(date.clone()).or_insert(index);
+            groups.entry(date).or_default().push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if groups.is_empty() {
+        *notices = retained;
+        return;
+    }
+    let mut aggregates = Vec::with_capacity(groups.len());
+    for (end_date, mut matches) in groups {
+        let mut aggregate = matches.swap_remove(0);
+        let affected_services = matches.len() + 1;
+        let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
+            .chain(matches.iter().filter_map(|notice| notice.entity_id.clone()))
+            .collect();
+        examples.sort_unstable();
+        examples.dedup();
+        examples.truncate(5);
+        aggregate.entity_type = gtfs_core::EntityType::Feed;
+        aggregate.entity_id = None;
+        aggregate.scope_key = None;
+        aggregate.file = Some("calendar.txt".to_string());
+        aggregate.line = None;
+        aggregate.field = Some("end_date".to_string());
+        aggregate.observed_value = Some(end_date.clone());
+        aggregate.message = format!(
+            "calendar.txt içinde {affected_services} servisinin end_date değeri {end_date} tarihinde sona eriyor."
+        );
+        aggregate.details = Some({
+            let mut details = std::collections::BTreeMap::new();
+            details.insert("affected_services".to_string(), affected_services.to_string());
+            if !examples.is_empty() {
+                details.insert("example_services".to_string(), examples.join(", "));
+            }
+            details
+        });
+        aggregate.service_id = None;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
+        aggregates.push((end_date, aggregate));
+    }
+    for (end_date, aggregate) in aggregates.into_iter().rev() {
+        let insert_at = first_positions
+            .get(&end_date)
+            .copied()
+            .unwrap_or(retained.len())
+            .min(retained.len());
+        retained.insert(insert_at, aggregate);
+    }
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -1517,6 +1581,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     aggregate_stm022(&mut all);
     aggregate_frq007(&mut all);
     aggregate_trf019(&mut all);
+    aggregate_cal008(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

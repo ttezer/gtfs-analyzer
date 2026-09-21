@@ -851,7 +851,7 @@ const fr: LocaleShape = {
     'CAL_005': 'Service « {entity_id} » : start_date est postérieure à end_date.',
     'CAL_006': 'Service « {entity_id} » : toutes les colonnes de jours de semaine valent 0 — aucun rythme hebdomadaire ; le service ne peut être actif que via des exceptions de calendar_dates.txt.',
     'CAL_007': 'Interruption de période de service {entity_id} : {observed_value} jours (seuil : {expected_value}) ; services concernés : {services}.',
-    'CAL_008': 'Service « {entity_id} » : expire le {observed_value} (seuil : {expected_value}).',
+    'CAL_008': '{observed_value} services expirent à la même date.',
     'CAL_009': 'Tous les services du calendrier ont expiré ({observed_value} services).',
     'CAL_010': 'Service « {entity_id} » : seulement {observed_value} jours actifs (seuil : {expected_value}).',
     'CAL_011': 'Le service « {entity_id} » est défini mais utilisé par aucune course.',

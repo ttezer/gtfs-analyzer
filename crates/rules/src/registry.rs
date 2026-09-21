@@ -886,7 +886,7 @@ pub static RULES: &[RuleMeta] = &[
         "Haftalık bazda tüm günler pasif (calendar_dates ile override mümkün)"),
     r!("CAL_007", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "Servis döneminde boşluk"),
-    r!("CAL_008", Yuksek, Analytics, 2, &[], Some("service_id"), VA, Entity,
+    r!("CAL_008", Yuksek, Analytics, 2, &[], None, VA, Feed,
         "Servis tarihi yakında sona eriyor"),
     r!("CAL_009", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Feed'deki tüm takvim dönemleri sona ermiş"),

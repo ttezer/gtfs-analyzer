@@ -235,7 +235,7 @@
     "CAL_005": "サービス'{entity_id}'：start_dateがend_dateより後です。",
     "CAL_006": "サービス'{entity_id}'：曜日フィールドがすべて0 — 週次パターンがなく、calendar_dates.txt の例外でのみ有効になり得ます。",
     "CAL_007": "サービス期間のギャップ {entity_id}：{observed_value} 日（閾値：{expected_value}）。対象サービス：{services}。",
-    "CAL_008": "サービス'{entity_id}'：{observed_value}に期限切れ（閾値：{expected_value}）。",
+    "{observed_value}件のサービスが同じ日に終了します。",
     "CAL_009": "フィード内のすべてのカレンダーサービスが終了しています（{observed_value}サービス）。",
     "CAL_010": "サービス'{entity_id}'：有効な日が{observed_value}日のみです（閾値：{expected_value}）。",
     "CAL_011": "サービス'{entity_id}'は定義されていますが、どの便にも使用されていません。",
