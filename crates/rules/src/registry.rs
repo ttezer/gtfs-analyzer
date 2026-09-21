@@ -1001,7 +1001,7 @@ pub static RULES: &[RuleMeta] = &[
         "Güzergah şeklinin seferleri durak zamanı içermiyor"),
     r!("SHP_020", Bilgi,  Analytics, 3, &[], Some("shape_id"), VA, Entity,
         "Güzergah şeklinde tekrarlayan nokta"),
-    r!("SHP_021", Dusuk,  Quality, 1, &[], Some("shape_id"), VS, Entity,
+    r!("SHP_021", Dusuk,  Spec, 1, &[], Some("shape_id"), VS, Entity,
         "shape_dist_traveled negatif veya sayı değil"),
     r!("SHP_022", Yuksek, Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Durak güzergah şeklinde belirsiz konumda"),
