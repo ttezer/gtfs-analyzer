@@ -143,6 +143,7 @@ const REPORT_TEXT = {
     cappedNote: 'Arayüzde gösterilen {displayed} örneğe karşılık gerçek toplam {actual} olarak hesaplandı.',
     offline: 'Bu rapor tarayıcıda, yüklenen feed ve GTFS Analyzer sonuçları kullanılarak yerel olarak oluşturulmuştur; harici bir API gerekmez.',
     unknown: 'Bilinmiyor', notAvailable: 'Mevcut değil',
+    aggregateEvidence: '{count} bulgu yönetici görünümünde kural başına toplu gösterilir; ayrıntılı trip/shape örnekleri teknik bulgu listesinde korunur.',
     impactP0: '“{rule}” kuralındaki {count} bulgu R1 yayın kapısını doğrudan etkiler ve tüketici sistemlerinde feed’in reddedilmesine yol açabilir.',
     impactSpec: '“{rule}” kuralındaki {count} bulgu GTFS spesifikasyonuna uygunluğu etkiler; zorunluluk düzeyi ve yayın etkisi kural bağlamında değerlendirilmelidir.',
     impactInterop: '“{rule}” kuralındaki {count} bulgu tüketici sistemlerin feed’i tutarlı yorumlamasını ve sistemler arası uyumluluğu etkileyebilir.',
@@ -189,6 +190,7 @@ const REPORT_TEXT = {
     cappedNote: 'The actual total is {actual}, compared with {displayed} instances retained for display.',
     offline: 'This report was generated locally in the browser from the uploaded feed and GTFS Analyzer results; no external API is required.',
     unknown: 'Unknown', notAvailable: 'Not available',
+    aggregateEvidence: '{count} findings are summarized per rule in the executive view; detailed trip/shape examples remain in the technical findings list.',
     impactP0: 'The {count} “{rule}” findings directly affect the R1 publication gate and may cause consuming systems to reject the feed.',
     impactSpec: 'The {count} “{rule}” findings affect GTFS specification compliance; the requirement level and publication impact must be evaluated in the rule context.',
     impactInterop: 'The {count} “{rule}” findings may affect consistent interpretation by consuming systems and cross-system interoperability.',
@@ -235,6 +237,7 @@ const REPORT_TEXT = {
     cappedNote: '表示用に保持された{displayed}件に対し、実際の合計は{actual}件です。',
     offline: 'このレポートはアップロードされたフィードとGTFS Analyzerの結果からブラウザ内でローカル生成され、外部APIを必要としません。',
     unknown: '不明', notAvailable: '該当なし',
+    aggregateEvidence: 'エグゼクティブ表示では{count}件の指摘をルール単位で要約し、詳細な便・形状の例は技術指摘一覧に残します。',
     impactP0: '「{rule}」の{count}件の指摘はR1公開ゲートに直接影響し、利用システムでフィードが拒否される可能性があります。',
     impactSpec: '「{rule}」の{count}件の指摘はGTFS仕様への準拠に影響します。要件レベルと公開への影響はルールの文脈で評価する必要があります。',
     impactInterop: '「{rule}」の{count}件の指摘は、利用システムによる一貫した解釈やシステム間の相互運用性に影響する可能性があります。',
@@ -281,6 +284,7 @@ const REPORT_TEXT = {
     cappedNote: 'Le total réel est de {actual}, contre {displayed} occurrences conservées pour l’affichage.',
     offline: 'Ce rapport a été généré localement dans le navigateur à partir du jeu de données téléversé et des résultats de GTFS Analyzer ; aucune API externe n’est requise.',
     unknown: 'Inconnu', notAvailable: 'Non disponible',
+    aggregateEvidence: '{count} signalements sont regroupés par règle dans la vue exécutive ; les exemples détaillés de courses/tracés restent dans la liste technique.',
     impactP0: 'Les {count} signalements « {rule} » affectent directement la porte de publication R1 et peuvent amener les systèmes consommateurs à rejeter le jeu de données.',
     impactSpec: 'Les {count} signalements « {rule} » affectent la conformité à la spécification GTFS ; le niveau d’exigence et l’impact sur la publication doivent être évalués dans le contexte de la règle.',
     impactInterop: 'Les {count} signalements « {rule} » peuvent affecter l’interprétation cohérente par les systèmes consommateurs et l’interopérabilité entre systèmes.',
@@ -327,6 +331,12 @@ function impactFor(copy: ReportText, priority: ExecutivePriority, ruleClass: Rul
         : ruleClass === 'QUALITY' ? copy.impactQuality
           : copy.impactAnalytics;
   return replace(template, { rule: ruleTitle, count });
+}
+
+function evidenceForExecutive(copy: ReportText, ruleId: string, count: string, fallback: string): string {
+  return ['STM_025', 'SHP_020', 'OPR_007'].includes(ruleId)
+    ? replace(copy.aggregateEvidence, { count })
+    : fallback;
 }
 
 function priorityRank(priority: ExecutivePriority): number {
@@ -383,7 +393,7 @@ export function buildExecutiveReportModel(options: BuildOptions): ExecutiveRepor
       ruleClass: notice.rule_class,
       classLabel: ruleClassForLocale(locale, notice.rule_class),
       actualCount,
-      evidence: tMsgForLocale(locale, notice),
+      evidence: evidenceForExecutive(copy, ruleId, number.format(actualCount), tMsgForLocale(locale, notice)),
       impact: impactFor(copy, priority, notice.rule_class, title, number.format(actualCount)),
       action,
       scoreDelta: item?.score_delta ?? 0,
