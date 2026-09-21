@@ -1096,7 +1096,7 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer aktarması yanlış hat"),
     r!("TRF_018", Orta,   Quality, 2, &[], None, VS, Row,
         "Sefer aktarması aynı seferi gösteriyor"),
-    r!("TRF_019", Orta, Interop, 2, &[], None, VI, Row,
+    r!("TRF_019", Orta, Interop, 2, &[], None, VI, Feed,
         "In-seat aktarmada farklı route_type"),
     r!("TRF_020", Orta, Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
         "Aktarma için gereken yürüme hızı çok yüksek"),

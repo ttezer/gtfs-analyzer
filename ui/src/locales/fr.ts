@@ -937,7 +937,7 @@ const fr: LocaleShape = {
     'TRF_023': 'La course « {entity_id} » est la continuation de plusieurs courses dont les calendriers sont contradictoires : {observed_value}.',
     'TRF_017': 'Correspondance : la correspondance de course référence la mauvaise ligne.',
     'TRF_018': 'Correspondance : from_trip_id et to_trip_id désignent la même course (« {entity_id} »).',
-    'TRF_019': 'Correspondance : la correspondance sans changement de véhicule a un route_type différent (trouvé : {observed_value}).',
+    'TRF_019': '{observed_value} correspondances sans changement de véhicule ont un route_type incohérent.',
     // GGL
     'GGL_001': 'Correspondance : transfer_type=4/5 n’est pas pris en charge par Google Transit.',
     'GGL_002': 'ic_price « {observed_value} » n’est pas une valeur valide.',

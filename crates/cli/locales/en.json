@@ -317,7 +317,7 @@
     "TRF_023": "Trip '{entity_id}' is the continuation of several trips whose calendars conflict: {observed_value}.",
     "TRF_017": "Transfer: trip transfer references the wrong route.",
     "TRF_018": "Transfer: from_trip_id and to_trip_id are the same trip ('{entity_id}').",
-    "TRF_019": "Transfer: in-seat transfer has different route_type (found: {observed_value}).",
+    "TRF_019": "{observed_value} in-seat transfers have inconsistent route_type.",
     "GGL_001": "Transfer: transfer_type=4/5 is not supported by Google Transit.",
     "GGL_002": "ic_price '{observed_value}' is not a valid value.",
     "FAR_001": "Duplicate fare_id: '{entity_id}'.",

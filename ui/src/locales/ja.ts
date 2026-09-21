@@ -916,7 +916,7 @@ const ja: LocaleShape = {
     'TRF_023': "トリップ'{entity_id}'は複数のトリップの継続先ですが、それらの運行カレンダーが矛盾しています：{observed_value}。",
     'TRF_017': '乗り換え：便乗り換えが誤った路線を参照しています。',
     'TRF_018': "乗り換え：from_trip_idとto_trip_idが同じ便です（'{entity_id}'）。",
-    'TRF_019': "乗り換え：座席確保乗り換えでroute_typeが異なります（検出：{observed_value}）。",
+    'TRF_019': '{observed_value}件の座席確保乗り換えでroute_typeが一致しません。',
     // GGL
     'GGL_001': '乗り換え：transfer_type=4/5はGoogleトランジットでサポートされていません。',
     'GGL_002': "ic_price'{observed_value}'が有効な値ではありません。",
