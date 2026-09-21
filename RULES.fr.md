@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-623 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+620 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -16,12 +16,12 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | ARC_002 | Fichier illisible en UTF-8 | CRITIQUE | Quality |
 | ARC_003 | Erreur d’encodage UTF-8 dans un fichier optionnel | MOYENNE | Quality |
 | ARC_004 | Fichier obligatoire manquant | CRITIQUE | Spec |
-| ARC_006 | Fichier GTFS optionnel présent | INFO | Quality |
+| ARC_006 | Fichier GTFS optionnel présent | INFO | Analytics |
 | ARC_007 | Fichier non GTFS non reconnu | INFO | Quality |
 | ARC_008 | Fichier de calendrier manquant (calendar.txt et calendar_dates.txt) | CRITIQUE | Spec |
 | ARC_031 | feed_info.txt manquant alors que translations.txt est présent | CRITIQUE | Spec |
 | ARC_009 | Le fichier facultatif ne contient aucun enregistrement de données | INFO | Quality |
-| ARC_010 | Le fichier contient une BOM UTF-8 | INFO | Interop |
+| ARC_010 | Le fichier contient une BOM UTF-8 | INFO | Quality |
 | ARC_011 | Taille du fichier (info) | INFO | Analytics |
 | ARC_012 | Le nombre de colonnes ne correspond pas à l’en-tête | CRITIQUE | Spec |
 | ARC_013 | Erreur d’analyse CSV | CRITIQUE | Spec |
@@ -231,11 +231,11 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STM_018 | continuous_pickup invalide (stop_times) | MOYENNE | Spec |
 | STM_019 | continuous_drop_off invalide (stop_times) | MOYENNE | Spec |
 | STM_020 | Temps de parcours nul (distance > 200 m) | ÉLEVÉE | Quality |
-| STM_021 | Distance entre arrêts nulle ou négative | ÉLEVÉE | Quality |
+| STM_021 | Distance entre arrêts nulle ou négative | INFO | Analytics |
 | STM_022 | timepoint invalide | MOYENNE | Spec |
 | STM_024 | Incohérence d’unité pour shape_dist_traveled | INFO | Quality |
 | STM_025 | Durée de segment très courte | INFO | Analytics |
-| STM_026 | Distance excessive entre deux arrêts | ÉLEVÉE | Quality |
+| STM_026 | Distance excessive entre deux arrêts | INFO | Analytics |
 | STM_028 | Durée de course trop longue | ÉLEVÉE | Analytics |
 | STM_029 | Durée de course trop courte | MOYENNE | Analytics |
 | STM_030 | shape_dist_traveled négatif ou non numérique | FAIBLE | Spec |
@@ -263,7 +263,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STM_050 | Colonne timepoint présente mais valeur vide | FAIBLE | Quality |
 | STM_051 | pickup_type 0/3 interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
 | STM_052 | drop_off_type 0 interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
-| STM_053 | De nombreux arrêts consécutifs ont la même heure | INFORMATION | Analytics |
+| STM_053 | De nombreux arrêts consécutifs ont la même heure | INFO | Analytics |
 | STM_054 | continuous_pickup interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
 | STM_055 | continuous_drop_off interdit avec une fenêtre Flex | ÉLEVÉE | Spec |
 | STM_056 | shape_dist_traveled n’augmente pas | CRITIQUE | Spec |
@@ -304,22 +304,22 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_006 | Tous les jours de la grille hebdomadaire sont désactivés | INFO | Quality |
 | CAL_007 | Interruption dans la période de service | INFO | Analytics |
 | CAL_008 | Le service expire prochainement | ÉLEVÉE | Analytics |
-| CAL_009 | Tous les services du jeu de données ont expiré | INFORMATION | Analytics |
+| CAL_009 | Tous les services du jeu de données ont expiré | INFO | Analytics |
 | CAL_010 | Le service compte trop peu de jours actifs | MOYENNE | Analytics |
 | CAL_011 | Service inutilisé | FAIBLE | Quality |
 | CAL_012 | Interruption de service dans un futur proche | INFO | Analytics |
 | CAL_013 | Période de service expirée | INFO | Analytics |
 | CAL_014 | Dates de service hors de la plage de validité de feed_info | FAIBLE | Quality |
-| CAL_015 | Toutes les dates du calendrier sont futures (aucune course active aujourd’hui) | FAIBLE | Quality |
+| CAL_015 | Toutes les dates du calendrier sont futures (aucune course active aujourd’hui) | INFO | Analytics |
 | CAL_016 | Le service s’étend jusqu’à une date très lointaine | INFO | Quality |
-| CAL_017 | Le calendrier n’a pas encore commencé (toutes les dates actives sont futures) | FAIBLE | Quality |
+| CAL_017 | Le calendrier n’a pas encore commencé (toutes les dates actives sont futures) | INFO | Analytics |
 | CAL_018 | Le service n’a aucun jour de semaine actif (tous les jours à 0, aucun remplacé par calendar_dates) | INFO | Quality |
 | CAL_019 | Dates du calendrier de service hors de la fenêtre de validité de feed_info | FAIBLE | Quality |
 | CAL_020 | La fenêtre de validité du jeu de données dépasse 5 ans | FAIBLE | Quality |
 | CAL_021 | Actif aujourd’hui mais aucun service dans les jours à venir | INFO | Analytics |
 | CAL_022 | service_id manquant | CRITIQUE | Spec |
 | CAL_023 | end_date du calendrier très lointaine (suspect) | MOYENNE | Quality |
-| CAL_024 | Calendrier inactif dans les 7 prochains jours | INFORMATION | Analytics |
+| CAL_024 | Calendrier inactif dans les 7 prochains jours | INFO | Analytics |
 | CAL_025 | Champ de jour du calendrier vide | CRITIQUE | Spec |
 
 ## CLD — Dates de calendrier
@@ -355,7 +355,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | SHP_018 | Tracé référencé par aucune course | FAIBLE | Quality |
 | SHP_019 | Les courses de ce tracé n’ont aucun horaire d’arrêt | MOYENNE | Quality |
 | SHP_020 | Point répété dans le tracé | INFO | Analytics |
-| SHP_021 | shape_dist_traveled négatif ou non numérique | FAIBLE | Quality |
+| SHP_021 | shape_dist_traveled négatif ou non numérique | FAIBLE | Spec |
 | SHP_022 | Position de l’arrêt ambiguë sur le tracé | ÉLEVÉE | Quality |
 | SHP_023 | Points consécutifs de même shape_dist_traveled aux mêmes coordonnées | MOYENNE | Quality |
 | SHP_024 | Distance arrêt–tracé incohérente avec shape_dist_traveled | MOYENNE | Quality |

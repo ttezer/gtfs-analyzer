@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-623 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+620 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -16,12 +16,12 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | ARC_002 | File cannot be read as UTF-8 | CRITICAL | Quality |
 | ARC_003 | UTF-8 encoding error in optional file | MEDIUM | Quality |
 | ARC_004 | Required file missing | CRITICAL | Spec |
-| ARC_006 | Optional GTFS file present | INFO | Quality |
+| ARC_006 | Optional GTFS file present | INFO | Analytics |
 | ARC_007 | Unrecognized non-GTFS file | INFO | Quality |
 | ARC_008 | Calendar file missing (calendar.txt and calendar_dates.txt) | CRITICAL | Spec |
 | ARC_031 | feed_info.txt missing while translations.txt is present | CRITICAL | Spec |
 | ARC_009 | Optional file has no data rows | INFO | Quality |
-| ARC_010 | File contains UTF-8 BOM | INFO | Interop |
+| ARC_010 | File contains UTF-8 BOM | INFO | Quality |
 | ARC_011 | File size (info) | INFO | Analytics |
 | ARC_012 | Row column count does not match header | CRITICAL | Spec |
 | ARC_013 | CSV parse error | CRITICAL | Spec |
@@ -231,11 +231,11 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STM_018 | continuous_pickup invalid (stop_times) | MEDIUM | Spec |
 | STM_019 | continuous_drop_off invalid (stop_times) | MEDIUM | Spec |
 | STM_020 | Zero travel time (distance > 200m) | HIGH | Quality |
-| STM_021 | Distance between stops is zero or negative | HIGH | Quality |
+| STM_021 | Distance between stops is zero or negative | INFO | Analytics |
 | STM_022 | timepoint invalid | MEDIUM | Spec |
 | STM_024 | shape_dist_traveled unit inconsistency | INFO | Quality |
 | STM_025 | Short segment timing | INFO | Analytics |
-| STM_026 | Excessive distance between stops | HIGH | Quality |
+| STM_026 | Excessive distance between stops | INFO | Analytics |
 | STM_028 | Trip duration too long | HIGH | Analytics |
 | STM_029 | Trip duration too short | MEDIUM | Analytics |
 | STM_030 | shape_dist_traveled is negative or not a number | LOW | Spec |
@@ -310,9 +310,9 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_012 | Service gap in the near future | INFO | Analytics |
 | CAL_013 | Expired service period | INFO | Analytics |
 | CAL_014 | Service dates outside feed_info validity range | LOW | Quality |
-| CAL_015 | All calendar dates in the future (no active trips today) | LOW | Quality |
+| CAL_015 | All calendar dates in the future (no active trips today) | INFO | Analytics |
 | CAL_016 | Service extends to a very distant future date | INFO | Quality |
-| CAL_017 | Calendar has not yet started (all active dates in the future) | LOW | Quality |
+| CAL_017 | Calendar has not yet started (all active dates in the future) | INFO | Analytics |
 | CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | INFO | Quality |
 | CAL_019 | Service calendar dates outside feed_info validity window | LOW | Quality |
 | CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
@@ -355,7 +355,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | SHP_018 | Shape not referenced by any trip | LOW | Quality |
 | SHP_019 | Shape's trips have no stop times | MEDIUM | Quality |
 | SHP_020 | Repeated point in shape | INFO | Analytics |
-| SHP_021 | shape_dist_traveled is negative or not a number | LOW | Quality |
+| SHP_021 | shape_dist_traveled is negative or not a number | LOW | Spec |
 | SHP_022 | Stop position ambiguous on shape | HIGH | Quality |
 | SHP_023 | Consecutive points with same shape_dist_traveled at same coordinates | MEDIUM | Quality |
 | SHP_024 | Stop-to-shape distance inconsistent with shape_dist_traveled | MEDIUM | Quality |

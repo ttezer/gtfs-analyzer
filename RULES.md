@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-623 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+620 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -16,12 +16,12 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_002 | Dosya UTF-8 ile okunamıyor | KRİTİK | Quality |
 | ARC_003 | İsteğe bağlı dosyada UTF-8 kodlama hatası | ORTA | Quality |
 | ARC_004 | Zorunlu dosya eksik | KRİTİK | Spec |
-| ARC_006 | İsteğe bağlı GTFS dosyası mevcut | BİLGİ | Quality |
+| ARC_006 | İsteğe bağlı GTFS dosyası mevcut | BİLGİ | Analytics |
 | ARC_007 | GTFS dışı tanınmayan dosya | BİLGİ | Quality |
 | ARC_008 | Takvim dosyası eksik (calendar.txt ve calendar_dates.txt) | KRİTİK | Spec |
 | ARC_031 | translations.txt varken feed_info.txt eksik | KRİTİK | Spec |
 | ARC_009 | Opsiyonel dosyada veri satırı yok | BİLGİ | Quality |
-| ARC_010 | Dosya UTF-8 BOM içeriyor | BİLGİ | Interop |
+| ARC_010 | Dosya UTF-8 BOM içeriyor | BİLGİ | Quality |
 | ARC_011 | Dosya boyutu (bilgi) | BİLGİ | Analytics |
 | ARC_012 | Satır sütun sayısı başlıkla uyuşmuyor | KRİTİK | Spec |
 | ARC_013 | CSV ayrıştırma hatası | KRİTİK | Spec |
@@ -231,11 +231,11 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | STM_018 | continuous_pickup geçersiz (stop_times) | ORTA | Spec |
 | STM_019 | continuous_drop_off geçersiz (stop_times) | ORTA | Spec |
 | STM_020 | Sıfır geçiş süresi (mesafe > 200m) | YÜKSEK | Quality |
-| STM_021 | Duraklar arası mesafe sıfır veya negatif | YÜKSEK | Quality |
+| STM_021 | Duraklar arası mesafe sıfır veya negatif | BİLGİ | Analytics |
 | STM_022 | timepoint geçersiz | ORTA | Spec |
 | STM_024 | shape_dist_traveled birim tutarsızlığı | BİLGİ | Quality |
 | STM_025 | Kısa segment zamanlaması | BİLGİ | Analytics |
-| STM_026 | Durak arası mesafe aşırı uzun | YÜKSEK | Quality |
+| STM_026 | Durak arası mesafe aşırı uzun | BİLGİ | Analytics |
 | STM_028 | Sefer süresi çok uzun | YÜKSEK | Analytics |
 | STM_029 | Sefer süresi çok kısa | ORTA | Analytics |
 | STM_030 | shape_dist_traveled negatif veya sayı değil | DÜŞÜK | Spec |
@@ -310,9 +310,9 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_012 | Yakın gelecekte servis boşluğu var | BİLGİ | Analytics |
 | CAL_013 | Geçmiş tarihli servis dönemi | BİLGİ | Analytics |
 | CAL_014 | Servis tarihleri feed_info geçerlilik aralığı dışında | DÜŞÜK | Quality |
-| CAL_015 | Tüm takvim tarihleri gelecekte (bugün aktif sefer yok) | DÜŞÜK | Quality |
+| CAL_015 | Tüm takvim tarihleri gelecekte (bugün aktif sefer yok) | BİLGİ | Analytics |
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
-| CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | DÜŞÜK | Quality |
+| CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | BİLGİ | Analytics |
 | CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | BİLGİ | Quality |
 | CAL_019 | Ham takvim aralığı feed_info geçerlilik penceresini aşıyor | DÜŞÜK | Quality |
 | CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi | DÜŞÜK | Quality |
@@ -355,7 +355,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | SHP_018 | Güzergah şekli sefer tarafından referanslanmıyor | DÜŞÜK | Quality |
 | SHP_019 | Güzergah şeklinin seferleri durak zamanı içermiyor | ORTA | Quality |
 | SHP_020 | Güzergah şeklinde tekrarlayan nokta | BİLGİ | Analytics |
-| SHP_021 | shape_dist_traveled negatif veya sayı değil | DÜŞÜK | Quality |
+| SHP_021 | shape_dist_traveled negatif veya sayı değil | DÜŞÜK | Spec |
 | SHP_022 | Durak güzergah şeklinde belirsiz konumda | YÜKSEK | Quality |
 | SHP_023 | shape_dist_traveled aynı değere sahip art arda iki nokta aynı koordinatta | ORTA | Quality |
 | SHP_024 | Duraktan şekle mesafe shape_dist_traveled ile tutarsız | ORTA | Quality |
