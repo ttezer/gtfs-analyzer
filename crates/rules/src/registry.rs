@@ -1628,7 +1628,7 @@ pub static RULES: &[RuleMeta] = &[
         "field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor"),
 
     // ── ATR: Attributions ──────────────────────────────────────────────────────
-    r!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, File,
+    r_noscore!("ATR_001", Yuksek, Quality, 1, &[], Some("attribution_id"), VS, File,
         "attribution_id eksik"),
     r!("ATR_002", Kritik, Spec, 1, &[], Some("attribution_id"), VS_K, Entity,
         "organization_name eksik"),
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006",
+            "CLD_006", "ATR_001",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
