@@ -922,7 +922,7 @@ pub static RULES: &[RuleMeta] = &[
         "Servis çok uzak bir gelecek tarihine kadar uzanıyor"),
     r_noscore!("CAL_017", Bilgi, Analytics, 1, &[], Some("service_id"), VA, Entity,
         "Takvim henüz başlamamış (tüm aktif tarihler gelecekte)"),
-    r!("CAL_018", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+    r!("CAL_018", Bilgi,  Quality,   2, &[], Some("service_id"), VS, Entity,
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
     r_noscore!("CAL_019", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
         "Ham takvim aralığı feed_info geçerlilik penceresini aşıyor"),

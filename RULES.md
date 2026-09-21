@@ -313,7 +313,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_015 | Tüm takvim tarihleri gelecekte (bugün aktif sefer yok) | DÜŞÜK | Quality |
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | DÜŞÜK | Quality |
-| CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | DÜŞÜK | Quality |
+| CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | BİLGİ | Quality |
 | CAL_019 | Ham takvim aralığı feed_info geçerlilik penceresini aşıyor | DÜŞÜK | Quality |
 | CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi | DÜŞÜK | Quality |
 | CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |

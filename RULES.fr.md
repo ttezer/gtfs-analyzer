@@ -313,7 +313,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_015 | Toutes les dates du calendrier sont futures (aucune course active aujourd’hui) | FAIBLE | Quality |
 | CAL_016 | Le service s’étend jusqu’à une date très lointaine | INFO | Quality |
 | CAL_017 | Le calendrier n’a pas encore commencé (toutes les dates actives sont futures) | FAIBLE | Quality |
-| CAL_018 | Le service n’a aucun jour de semaine actif (tous les jours à 0, aucun remplacé par calendar_dates) | FAIBLE | Quality |
+| CAL_018 | Le service n’a aucun jour de semaine actif (tous les jours à 0, aucun remplacé par calendar_dates) | INFO | Quality |
 | CAL_019 | Dates du calendrier de service hors de la fenêtre de validité de feed_info | FAIBLE | Quality |
 | CAL_020 | La fenêtre de validité du jeu de données dépasse 5 ans | FAIBLE | Quality |
 | CAL_021 | Actif aujourd’hui mais aucun service dans les jours à venir | INFO | Analytics |

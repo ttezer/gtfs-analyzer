@@ -313,7 +313,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_015 | All calendar dates in the future (no active trips today) | LOW | Quality |
 | CAL_016 | Service extends to a very distant future date | INFO | Quality |
 | CAL_017 | Calendar has not yet started (all active dates in the future) | LOW | Quality |
-| CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | LOW | Quality |
+| CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | INFO | Quality |
 | CAL_019 | Service calendar dates outside feed_info validity window | LOW | Quality |
 | CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
 | CAL_021 | Active today but no service in the upcoming days | INFO | Analytics |
