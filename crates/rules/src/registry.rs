@@ -440,7 +440,7 @@ pub static RULES: &[RuleMeta] = &[
         "Bazı duraklar tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
     r!("STP_038", Bilgi,  Quality, 1, &[], None, VS_ACC, Feed,
         "Hiçbir durak tekerlekli sandalye erişilebilirliği (wheelchair_boarding) bildirmemiş"),
-    r!("STP_039", Dusuk, Quality, 1, &[], Some("stop_code"), VS, Entity,
+    r_noscore!("STP_039", Dusuk, Quality, 1, &[], Some("stop_code"), VS, Entity,
         "stop_code birden fazla durakta kullanılıyor"),
     r!("STP_040", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Durak adı gereksiz genel stop/station sözcüğü içeriyor"),
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029",
+            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029", "STP_039",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
