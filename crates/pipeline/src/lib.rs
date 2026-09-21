@@ -291,6 +291,98 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+/// ARC_012 is emitted per malformed row by both buffered and streaming paths.
+/// Aggregate by file and severity so short optional tails remain INFO while
+/// rows with extra columns remain CRITICAL.
+fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
+    use std::collections::BTreeMap;
+
+    let mut first_positions: BTreeMap<(String, u8), usize> = BTreeMap::new();
+    let mut grouped: BTreeMap<(String, u8), Vec<gtfs_core::Notice>> = BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "ARC_012" {
+            let file = notice
+                .file
+                .clone()
+                .unwrap_or_else(|| "unknown file".to_string());
+            let severity_key = match notice.severity {
+                gtfs_core::Severity::Kritik => 0,
+                gtfs_core::Severity::Yuksek => 1,
+                gtfs_core::Severity::Orta => 2,
+                gtfs_core::Severity::Dusuk => 3,
+                gtfs_core::Severity::Bilgi => 4,
+            };
+            let key = (file, severity_key);
+            first_positions.entry(key.clone()).or_insert(index);
+            grouped.entry(key).or_default().push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if grouped.is_empty() {
+        *notices = retained;
+        return;
+    }
+
+    let mut aggregates = Vec::with_capacity(grouped.len());
+    for ((file, severity_key), mut matches) in grouped {
+        let mut aggregate = matches.swap_remove(0);
+        let affected_rows = matches.len() + 1;
+        let mut lines: Vec<String> = std::iter::once(aggregate.line)
+            .chain(matches.iter().filter_map(|notice| notice.line))
+            .map(|line| line.to_string())
+            .collect();
+        lines.sort_unstable();
+        lines.dedup();
+        lines.truncate(5);
+
+        aggregate.entity_type = gtfs_core::EntityType::File;
+        aggregate.entity_id = Some(file.clone());
+        aggregate.scope_key = None;
+        aggregate.file = Some(file.clone());
+        aggregate.line = None;
+        aggregate.field = None;
+        aggregate.observed_value = Some(affected_rows.to_string());
+        aggregate.expected_value = Some("file-level aggregate".to_string());
+        aggregate.message = match severity_key {
+            4 => format!(
+                "{file} içinde {affected_rows} satırda sondaki isteğe bağlı sütunlar eksik."
+            ),
+            _ => format!(
+                "{file} içinde {affected_rows} satırın sütun sayısı başlıkla uyuşmuyor."
+            ),
+        };
+        aggregate.details = Some({
+            let mut details = BTreeMap::new();
+            details.insert("affected_rows".to_string(), affected_rows.to_string());
+            if !lines.is_empty() {
+                details.insert("example_lines".to_string(), lines.join(", "));
+            }
+            details
+        });
+        aggregate.service_id = None;
+        aggregate.whitespace_derived = false;
+        aggregate.whitespace_candidate = false;
+        aggregates.push(((file, severity_key), aggregate));
+    }
+
+    aggregates.sort_by(|((left_file, left_severity), _), ((right_file, right_severity), _)| {
+        left_file
+            .cmp(right_file)
+            .then(left_severity.cmp(right_severity))
+    });
+    for (key, aggregate) in aggregates.into_iter().rev() {
+        let insert_at = first_positions
+            .get(&key)
+            .copied()
+            .unwrap_or(retained.len())
+            .min(retained.len());
+        retained.insert(insert_at, aggregate);
+    }
+    *notices = retained;
+}
+
 pub fn apply_report_scope(
     notices: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -443,6 +535,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
     aggregate_stm036(&mut all);
     aggregate_dq021(&mut all);
+    aggregate_arc012(&mut all);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya

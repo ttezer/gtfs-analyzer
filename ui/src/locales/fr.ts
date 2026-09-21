@@ -618,7 +618,7 @@ const fr: LocaleShape = {
     'ARC_009': 'Le fichier facultatif « {entity_id} » ne contient aucun enregistrement de données.',
     'ARC_010': 'Le fichier « {entity_id} » contient une BOM UTF-8.',
     'ARC_011': 'Fichier « {entity_id} » : {observed_value}.',
-    'ARC_012': 'Le nombre de colonnes de l’enregistrement ne correspond pas à l’en-tête ({observed_value} au lieu de {expected_value}).',
+    'ARC_012': 'Dans « {entity_id} », {observed_value} lignes ont un nombre de colonnes différent de l’en-tête.',
     'ARC_013': 'Erreur d’analyse CSV dans « {entity_id} » : {observed_value}.',
     'ARC_029': 'Protection anti-décompression déclenchée pour « {entity_id} » : l’archive a dépassé la limite de sécurité anti-bombe zip ({observed_value}).',
     'ARC_030': 'Une valeur de champ de « {entity_id} » contient une tabulation, un retour chariot ou un saut de ligne ({observed_value}).',

@@ -597,7 +597,7 @@ const ja: LocaleShape = {
     'ARC_009': "ファイル'{entity_id}'は項目名の行だけで、データがありません。",
     'ARC_010': "ファイル'{entity_id}'の先頭にBOM（目に見えない文字）が付いています。",
     'ARC_011': "ファイル'{entity_id}'：{observed_value}。",
-    'ARC_012': '行の列数がヘッダーと一致しません（{observed_value}列 vs {expected_value}列）。',
+    'ARC_012': '{entity_id}でヘッダーと列数が一致しない行が{observed_value}件あります。',
     'ARC_013': "'{entity_id}'のCSV解析エラー：{observed_value}。",
     'ARC_029': "'{entity_id}'で解凍ガードが作動しました：アーカイブがzip爆弾の安全上限を超えました（{observed_value}）。",
     'ARC_030': "'{entity_id}'のフィールド値にタブ、復帰または改行が含まれています（{observed_value}）。",

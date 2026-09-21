@@ -616,7 +616,7 @@ const en: LocaleShape = {
     'ARC_009': "Optional file '{entity_id}' has no data rows.",
     'ARC_010': "File '{entity_id}' contains a UTF-8 BOM.",
     'ARC_011': "File '{entity_id}': {observed_value}.",
-    'ARC_012': 'Row column count does not match the header ({observed_value} vs {expected_value}).',
+    'ARC_012': "{observed_value} rows in '{entity_id}' have a column count that does not match the header.",
     'ARC_013': "CSV parse error in '{entity_id}': {observed_value}.",
     'ARC_029': "Decompression guard tripped for '{entity_id}': the archive exceeded the zip-bomb safety limit ({observed_value}).",
     'ARC_030': "A field value in '{entity_id}' contains a tab, carriage return or new line ({observed_value}).",

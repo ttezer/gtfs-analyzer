@@ -120,7 +120,7 @@ pub static RULES: &[RuleMeta] = &[
         "Dosya UTF-8 BOM içeriyor"),
     r!("ARC_011", Bilgi,  Analytics, 1, &[], None, VA, File,
         "Dosya boyutu (bilgi)"),
-    r!("ARC_012", Kritik, Spec,    1, &["ARC_015"], None, VS_K, Row,
+    r!("ARC_012", Kritik, Spec,    1, &["ARC_015"], None, VS_K, File,
         "Satır sütun sayısı başlıkla uyuşmuyor"),
     r!("ARC_013", Kritik, Spec,    1,
         &["AGN_003","RTS_005","STM_005","STM_006"],
