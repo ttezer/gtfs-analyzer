@@ -190,6 +190,7 @@ MAP = {
     # mdb-2015/2036 XFL_002=13 ↔ MD 13, mdb-2381 XFL_002=35 ↔ MD 35 — hepsi BİREBİR
     # (MD örneklerinin 13/13'ü gerçekten 0 stop_times'lı doğrulandı).
     "unusable_trip":                  ["STM_033", "XFL_002"],
+    "unused_trip":                    ["XFL_002"],
     # DÜZELTİLDİ 2026-07-17: JENERİK kod → bizde alan başına AYRI kural var.
     # 250-feed kanıtı: mdb-3230 direction_id=255 → TRP_005=26 ↔ MD 26 BİREBİR;
     # mdb-2086 transfers=5 → FAR_005=6 ↔ MD 6 BİREBİR. Yalnız RTS_004'e eşlemek

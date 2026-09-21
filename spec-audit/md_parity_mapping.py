@@ -443,9 +443,9 @@ UNMAPPED_DECISIONS = {
         "does not alias the equal-range frequencies variant to FRQ_005.",
     ),
     "unused_trip": (
-        "intentional-difference",
-        "MobilityData means a trip is unreferenced by stop_times. TRP_017 is the separate "
-        "frequency-trip-without-stop-times check, so it is not an exact alias.",
+        "exact-parity",
+        "MobilityData's unused_trip means a trip has no stop_times row; XFL_002 is the "
+        "Analyzer rule for the same zero-stop trip condition.",
     ),
     "missing_recommended_field": (
         "context-dependent",
@@ -532,7 +532,7 @@ BY_DESIGN = {
     "stops_match_shape_out_of_order":
         "SHP_016 kavramsal olarak AYRIK (Faz 5'te doğrulandı) — aynı şeyi ölçmüyorlar.",
     "unused_trip":
-        "TRP_017 exact-parite DEĞİL (2. tur audit kararı) — ilişkili ama farklı kural.",
+        "XFL_002 ile exact-parite: trips.txt'te tanımlı ancak stop_times.txt'te hiç satırı olmayan trip.",
     # ── MAP yorumlarında ZATEN adjudicate edilmiş, makine-okunur hâle getirildi ──
     # ── UNDECIDABLE (sprint ilkesi: "undecidable = bulgu") ──
     "stop_too_far_from_shape_using_user_distance":
