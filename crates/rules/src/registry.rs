@@ -507,7 +507,7 @@ pub static RULES: &[RuleMeta] = &[
         "continuous_pickup geçersiz"),
     r!("RTS_016", Dusuk,  Quality, 2, &[], Some("route_id"), VS, Entity,
         "Hiçbir aktif servis günü olmayan hat"),
-    r!("RTS_017", Bilgi,  Quality, 2, &[], Some("route_id"), VS, Entity,
+    r_noscore!("RTS_017", Bilgi, Quality, 2, &[], Some("route_id"), VS, Entity,
         "Shape tanımlı olmayan hat"),
     r!("RTS_018", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "continuous_drop_off geçersiz"),
@@ -584,7 +584,7 @@ pub static RULES: &[RuleMeta] = &[
         "bikes_allowed geçersiz"),
     r!("TRP_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Entity,
         "cars_allowed geçersiz"),
-    r!("TRP_011", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Entity,
+    r_noscore!("TRP_011", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Entity,
         "Sefer yön adı girilmemiş"),
     r!("TRP_012", Dusuk,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Çift yönlü rotada direction_id eksik"),
@@ -2808,7 +2808,7 @@ mod tests {
         for rule_id in [
             "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
             "STM_017", "XFL_011", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006",
+            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }
