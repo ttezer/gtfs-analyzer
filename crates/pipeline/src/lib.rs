@@ -180,7 +180,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregate = matched.swap_remove(0);
     let affected_trips = matched.len() + 1;
-    let mut examples: Vec<String> = std::iter::once(aggregate.entity_id.clone())
+    let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
         .collect();
     examples.sort_unstable();
@@ -207,8 +207,10 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
         details
     });
     aggregate.service_id = None;
-    aggregate.whitespace_derived = false;
-    aggregate.whitespace_candidate = false;
+    aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
+        && aggregate.whitespace_derived;
+    aggregate.whitespace_candidate = matched.iter().all(|n| n.whitespace_candidate)
+        && aggregate.whitespace_candidate;
 
     let insert_at = first_position.unwrap_or(retained.len()).min(retained.len());
     retained.insert(insert_at, aggregate);
@@ -244,7 +246,7 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
     for (file, mut matches) in grouped {
         let mut aggregate = matches.swap_remove(0);
         let affected_duplicates = matches.len() + 1;
-        let mut examples: Vec<String> = std::iter::once(aggregate.observed_value.clone())
+    let mut examples: Vec<String> = aggregate.observed_value.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.observed_value.clone()))
             .collect();
         examples.sort_unstable();
@@ -274,8 +276,10 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
             details
         });
         aggregate.service_id = None;
-        aggregate.whitespace_derived = false;
-        aggregate.whitespace_candidate = false;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
         aggregates.push((file, aggregate));
     }
 
@@ -329,9 +333,8 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
     for ((file, severity_key), mut matches) in grouped {
         let mut aggregate = matches.swap_remove(0);
         let affected_rows = matches.len() + 1;
-        let mut lines: Vec<String> = std::iter::once(aggregate.line)
+        let mut lines: Vec<u64> = aggregate.line.into_iter()
             .chain(matches.iter().filter_map(|notice| notice.line))
-            .map(|line| line.to_string())
             .collect();
         lines.sort_unstable();
         lines.dedup();
@@ -357,13 +360,18 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
             let mut details = BTreeMap::new();
             details.insert("affected_rows".to_string(), affected_rows.to_string());
             if !lines.is_empty() {
-                details.insert("example_lines".to_string(), lines.join(", "));
+                details.insert(
+                    "example_lines".to_string(),
+                    lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
+                );
             }
             details
         });
         aggregate.service_id = None;
-        aggregate.whitespace_derived = false;
-        aggregate.whitespace_candidate = false;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
         aggregates.push(((file, severity_key), aggregate));
     }
 
@@ -412,9 +420,8 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>) {
     for (file, mut matches) in grouped {
         let mut aggregate = matches.swap_remove(0);
         let affected_rows = matches.len() + 1;
-        let mut lines: Vec<String> = std::iter::once(aggregate.line)
+        let mut lines: Vec<u64> = aggregate.line.into_iter()
             .chain(matches.iter().filter_map(|notice| notice.line))
-            .map(|line| line.to_string())
             .collect();
         lines.sort_unstable();
         lines.dedup();
@@ -435,13 +442,18 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>) {
             let mut details = BTreeMap::new();
             details.insert("affected_rows".to_string(), affected_rows.to_string());
             if !lines.is_empty() {
-                details.insert("example_lines".to_string(), lines.join(", "));
+                details.insert(
+                    "example_lines".to_string(),
+                    lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
+                );
             }
             details
         });
         aggregate.service_id = None;
-        aggregate.whitespace_derived = false;
-        aggregate.whitespace_candidate = false;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
         aggregates.push((file, aggregate));
     }
 
@@ -476,7 +488,7 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregate = matched.swap_remove(0);
     let affected_shapes = matched.len() + 1;
-    let mut examples: Vec<String> = std::iter::once(aggregate.entity_id.clone())
+    let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
         .collect();
     examples.sort_unstable();
@@ -502,8 +514,10 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
         details
     });
     aggregate.service_id = None;
-    aggregate.whitespace_derived = false;
-    aggregate.whitespace_candidate = false;
+    aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
+        && aggregate.whitespace_derived;
+    aggregate.whitespace_candidate = matched.iter().all(|n| n.whitespace_candidate)
+        && aggregate.whitespace_candidate;
     retained.insert(
         first_position.unwrap_or(retained.len()).min(retained.len()),
         aggregate,
@@ -551,8 +565,10 @@ fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>) {
             affected_segments.to_string(),
         );
         aggregate.service_id = None;
-        aggregate.whitespace_derived = false;
-        aggregate.whitespace_candidate = false;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
         aggregates.push((trip_id, aggregate));
     }
 
@@ -592,7 +608,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
     for (trip_id, mut matches) in grouped {
         let mut aggregate = matches.swap_remove(0);
         let affected_rows = matches.len() + 1;
-        let mut fields: Vec<String> = std::iter::once(aggregate.field.clone())
+        let mut fields: Vec<String> = aggregate.field.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.field.clone()))
             .flat_map(|field| field.split('|').map(str::to_string).collect::<Vec<_>>())
             .collect();
@@ -614,8 +630,10 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
             details
         });
         aggregate.service_id = None;
-        aggregate.whitespace_derived = false;
-        aggregate.whitespace_candidate = false;
+        aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
+            && aggregate.whitespace_derived;
+        aggregate.whitespace_candidate = matches.iter().all(|n| n.whitespace_candidate)
+            && aggregate.whitespace_candidate;
         aggregates.push((trip_id, aggregate));
     }
 

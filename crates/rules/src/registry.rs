@@ -888,7 +888,7 @@ pub static RULES: &[RuleMeta] = &[
         "Servis döneminde boşluk"),
     r!("CAL_008", Yuksek, Analytics, 2, &[], Some("service_id"), VA, Entity,
         "Servis tarihi yakında sona eriyor"),
-    r!("CAL_009", Bilgi, Analytics, 2, &[], None, VA, Feed,
+    r!("CAL_009", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Feed'deki tüm takvim dönemleri sona ermiş"),
     r!("CAL_010", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "Serviste aktif gün sayısı çok az"),
