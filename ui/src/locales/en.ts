@@ -946,7 +946,6 @@ const en: LocaleShape = {
     'FAR_005': "Fare '{entity_id}': transfers '{observed_value}' is invalid.",
     'FAR_006': "Fare '{entity_id}': transfer_duration '{observed_value}' is invalid.",
     'FAR_008': "Fare '{entity_id}': agency_id '{observed_value}' not found.",
-    'FAR_009': "Fare '{entity_id}' has no route rules.",
     'FAR_010': "Fare '{entity_id}': overlapping fare rules.",
     'FAR_011': 'fare_attributes.txt: payment_method is missing.',
     'FAR_012': 'fare_attributes.txt: fare_id is missing.',
@@ -1890,7 +1889,6 @@ const en: LocaleShape = {
     'DQ_016': 'Trim leading and trailing whitespace from all field values.',
     // FAR
     'FAR_008': 'Use a valid agency_id from agency.txt.',
-    'FAR_009': 'Add at least one rule in fare_rules.txt for this fare_id.',
     'FAR_010': 'Review fare rules to remove overlapping origin/destination/zone combinations.',
     'FAR_011': 'Set payment_method to 0 (on board) or 1 (before boarding).',
     'FAR_012': 'Give every fare a unique fare_id.',
@@ -2353,7 +2351,6 @@ const en: LocaleShape = {
     'FAR_005': 'transfers invalid',
     'FAR_006': 'transfer_duration invalid',
     'FAR_008': 'agency_id not found',
-    'FAR_009': 'Fare has no route rules',
     'FAR_010': 'Overlapping fare rules',
     'FAR_011': 'payment_method missing',
     'FAR_012': 'fare_id missing',

@@ -948,7 +948,6 @@ const fr: LocaleShape = {
     'FAR_005': 'Tarif « {entity_id} » : transfers « {observed_value} » est invalide.',
     'FAR_006': 'Tarif « {entity_id} » : transfer_duration « {observed_value} » est invalide.',
     'FAR_008': 'Tarif « {entity_id} » : agency_id « {observed_value} » est introuvable.',
-    'FAR_009': 'Le tarif « {entity_id} » n’a aucune règle de ligne.',
     'FAR_010': 'Tarif « {entity_id} » : règles tarifaires qui se chevauchent.',
     'FAR_011': 'fare_attributes.txt : payment_method est absent.',
     'FAR_012': 'fare_attributes.txt : fare_id est absent.',
@@ -1892,7 +1891,6 @@ const fr: LocaleShape = {
     'DQ_016': 'Supprimez les espaces en début et en fin de toutes les valeurs de champ.',
     // FAR
     'FAR_008': 'Utilisez un agency_id valide issu de agency.txt.',
-    'FAR_009': 'Ajoutez au moins une règle dans fare_rules.txt pour ce fare_id.',
     'FAR_010': 'Revoyez les règles tarifaires pour supprimer les combinaisons origine/destination/zone qui se chevauchent.',
     'FAR_011': 'Mettez payment_method à 0 (à bord) ou 1 (avant l’embarquement).',
     'FAR_012': 'Donnez à chaque tarif un fare_id unique.',
@@ -2354,7 +2352,6 @@ const fr: LocaleShape = {
     'FAR_005': 'transfers invalide',
     'FAR_006': 'transfer_duration invalide',
     'FAR_008': 'agency_id introuvable',
-    'FAR_009': 'Le tarif n’a aucune règle de ligne',
     'FAR_010': 'Règles tarifaires qui se chevauchent',
     'FAR_011': 'payment_method manquant',
     'FAR_012': 'fare_id manquant',

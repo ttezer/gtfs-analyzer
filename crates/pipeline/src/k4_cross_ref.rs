@@ -2475,13 +2475,6 @@ fn check_fare_attributes(
     suppress_whitespace_derivatives: bool,
     whitespace_suppressions: &mut WhitespaceSuppressions,
 ) {
-    // FAR_009 için: hangi fare_id'lerin fare_rules'u var
-    let fares_with_rules: HashSet<&str> = records
-        .fare_rules
-        .iter()
-        .map(|fr| fr.fare_id.as_str())
-        .collect();
-
     let multi_agency = records.agencies.len() > 1;
 
     for rec in &records.fare_attributes {
@@ -2537,26 +2530,6 @@ fn check_fare_attributes(
             }
         }
 
-        // FAR_009: bu fare_id'ye ait fare_rules kuralı yok
-        if !rec.fare_id.is_empty() && !fares_with_rules.contains(rec.fare_id.as_str()) {
-            notices.push(notice(
-                ctr,
-                "FAR_009",
-                EntityType::Fare,
-                Some(rec.fare_id.clone()),
-                Some(rec.fare_id.clone()),
-                "fare_attributes.txt",
-                Some(rec.line),
-                Some("fare_id"),
-                Some(rec.fare_id.clone()),
-                Some("a record in fare_rules.txt".to_string()),
-                format!(
-                    "Ücret tarifesi '{}' için fare_rules.txt'te hiç kural tanımlanmamış — hangi hatlara uygulanacağı belli değil.",
-                    rec.fare_id
-                ),
-                "fare_rules.txt'e bu fare_id için en az bir kural ekleyin.",
-            ));
-        }
     }
 }
 

@@ -429,7 +429,6 @@
 | FAR_005 | transfersが無効 | 致命的 | 仕様 |
 | FAR_006 | transfer_durationが無効 | 中 | 仕様 |
 | FAR_008 | agency_idが存在しない | 致命的 | 仕様 |
-| FAR_009 | この運賃IDに路線ルールなし | 低 | 品質 |
 | FAR_010 | 運賃ルールが重複 | 中 | 品質 |
 | FAR_011 | payment_methodが不足 | 致命的 | 仕様 |
 | FAR_013 | priceが通貨のISO 4217小数桁数と一致しません | 情報 | 品質 |

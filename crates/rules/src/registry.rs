@@ -1143,7 +1143,7 @@ pub static RULES: &[RuleMeta] = &[
 
     // ── FAR: Fare Attributes ───────────────────────────────────────────────────
     r!("FAR_001", Kritik, Spec, 1,
-        &["FRL_001","FAR_009"],
+        &["FRL_001"],
         Some("fare_id"), VS_K, Entity,
         "fare_id yineleniyor"),
     r!("FAR_002", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
@@ -1158,8 +1158,6 @@ pub static RULES: &[RuleMeta] = &[
         "transfer_duration geçersiz"),
     r!("FAR_008", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
         "agency_id bulunamadı"),
-    r!("FAR_009", Dusuk,  Quality, 3, &[], Some("fare_id"), VS, Entity,
-        "Ücrete ait hat kuralı yok"),
     r!("FAR_010", Orta,   Quality, 2, &[], None, VS, Feed,
         "Çakışan ücret kuralları"),
     r!("FAR_011", Kritik, Spec, 1, &[], Some("payment_method"), VS_K, Entity,
@@ -2110,7 +2108,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FAR_005", GtfsSpec),
     ("FAR_006", GtfsSpec),
     ("FAR_008", GtfsSpec),
-    ("FAR_009", ProjectQuality),
     ("FAR_010", ProjectQuality),
     ("FAR_011", GtfsSpec),
     ("FAR_012", GtfsSpec),

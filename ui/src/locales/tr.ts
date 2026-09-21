@@ -954,7 +954,6 @@ const tr = {
     'FAR_005': 'transfers geçersiz',
     'FAR_006': 'transfer_duration geçersiz',
     'FAR_008': 'agency_id bulunamadı',
-    'FAR_009': 'Ücrete ait hat kuralı yok',
     'FAR_010': 'Çakışan ücret kuralları',
     'FAR_011': 'payment_method eksik',
     'FAR_012': 'fare_id eksik',

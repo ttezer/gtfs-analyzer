@@ -1432,8 +1432,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("FAR_001", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\nF1,2.5,USD,0\n")]),
         // FAR_008: fare_attribute agency_id agency.txt'te yok (k4).
         fx("FAR_008", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,agency_id\nF1,2.5,USD,0,NOPE\n")]),
-        // FAR_009: fare_attribute için fare_rules kaydı yok (k4).
-        fx("FAR_009", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n")]),
         // FAR_010: aynı (route,origin,destination,contains) için birden fazla fare_id (k4).
         fx("FAR_010", vec![("fare_rules.txt", "fare_id,route_id\nF1,R1\nF2,R1\n")]),
 

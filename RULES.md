@@ -429,7 +429,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | FAR_005 | transfers geçersiz | KRİTİK | Spec |
 | FAR_006 | transfer_duration geçersiz | ORTA | Spec |
 | FAR_008 | agency_id bulunamadı | KRİTİK | Spec |
-| FAR_009 | Ücrete ait hat kuralı yok | DÜŞÜK | Quality |
 | FAR_010 | Çakışan ücret kuralları | ORTA | Quality |
 | FAR_011 | payment_method eksik | KRİTİK | Spec |
 | FAR_013 | price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor | BİLGİ | Quality |

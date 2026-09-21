@@ -429,7 +429,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | FAR_005 | transfers invalide | CRITIQUE | Spec |
 | FAR_006 | transfer_duration invalide | MOYENNE | Spec |
 | FAR_008 | agency_id introuvable | CRITIQUE | Spec |
-| FAR_009 | Le tarif n’a aucune règle de ligne | FAIBLE | Quality |
 | FAR_010 | Règles tarifaires qui se chevauchent | MOYENNE | Quality |
 | FAR_011 | payment_method manquant | CRITIQUE | Spec |
 | FAR_013 | price ne respecte pas le nombre de décimales ISO 4217 de la devise | INFO | Quality |

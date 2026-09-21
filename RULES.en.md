@@ -429,7 +429,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | FAR_005 | transfers invalid | CRITICAL | Spec |
 | FAR_006 | transfer_duration invalid | MEDIUM | Spec |
 | FAR_008 | agency_id not found | CRITICAL | Spec |
-| FAR_009 | Fare has no route rules | LOW | Quality |
 | FAR_010 | Overlapping fare rules | MEDIUM | Quality |
 | FAR_011 | payment_method missing | CRITICAL | Spec |
 | FAR_013 | price does not carry the currency's ISO 4217 decimal places | INFO | Quality |
