@@ -3718,8 +3718,15 @@ fn stp024_k2_range_and_stp026_normative_enum_are_distinct() {
             );
             assert_eq!(
                 vr.notices.iter().filter(|n| n.rule_id == "STP_026").count(),
-                2,
-                "K4 normatif enumunda hem 2 hem 9 geçersiz olmalı"
+                1,
+                "9 için STP_024, STP_026'yı bloklar; K4'ün bağımsız 2 bulgusu kalmalı"
+            );
+            assert_eq!(
+                vr.notices
+                    .iter()
+                    .find(|n| n.rule_id == "STP_026")
+                    .and_then(|n| n.observed_value.as_deref()),
+                Some("2")
             );
         }
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),

@@ -35,6 +35,7 @@ pub use k7_reporting::{
     report as report_k7, report_with_whitespace_suppressions as report_k7_with_suppressions,
     K7Result,
 };
+use k7_reporting::annotate_whitespace_join_provenance;
 pub use recovery::FileAvailability;
 pub use whitespace_suppression::WhitespaceSuppressions;
 
@@ -177,7 +178,6 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-
     let mut aggregate = matched.swap_remove(0);
     let affected_trips = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
@@ -485,7 +485,6 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-
     let mut aggregate = matched.swap_remove(0);
     let affected_shapes = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
@@ -723,6 +722,17 @@ fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
+    if matched.iter().any(|notice| {
+        notice
+            .details
+            .as_ref()
+            .and_then(|details| details.get("whitespace_join_file"))
+            .is_some()
+    }) {
+        retained.extend(matched);
+        *notices = retained;
+        return;
+    }
 
     let mut aggregate = matched.swap_remove(0);
     let affected_trips = matched.len() + 1;
@@ -842,6 +852,16 @@ fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>) {
         }
     }
     if matched.is_empty() {
+        *notices = retained;
+        return;
+    }
+    if matched.first().is_some_and(|first| {
+        matched.iter().any(|notice| {
+            notice.whitespace_derived != first.whitespace_derived
+                || notice.whitespace_candidate != first.whitespace_candidate
+        })
+    }) {
+        retained.extend(matched);
         *notices = retained;
         return;
     }
@@ -1605,6 +1625,10 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k4.notices);
     all.extend(k5.notices);
     all.extend(k6.notices);
+
+    // K7'nin whitespace join çözümlemesi entity_id üzerinden çalışır; feed-level
+    // toplulama bunu silmeden önce padding'in hangi dosyada durduğunu işaretle.
+    annotate_whitespace_join_provenance(&mut all, &k2.records, &k5.derived);
 
     // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
     // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.

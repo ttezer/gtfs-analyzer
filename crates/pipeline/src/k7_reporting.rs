@@ -221,6 +221,28 @@ const JOIN_DERIVATIVE_RULES: &[&str] = &[
     "XFL_002", "XFL_012", "RTS_016", "OPR_004",
 ];
 
+/// Mark join-derived notices before feed-level aggregation can erase their entity id.
+/// K7 uses this marker to declare/suppress the notice in the file carrying the padding.
+pub(crate) fn annotate_whitespace_join_provenance(
+    notices: &mut [Notice],
+    records: &EntityRecords,
+    derived: &DerivedData,
+) {
+    let joins = JoinWhitespace::from_records(records, derived);
+    for notice in notices.iter_mut() {
+        if !JOIN_DERIVATIVE_RULES.contains(&notice.rule_id.as_str()) {
+            continue;
+        }
+        let Some(file) = joins.declaration_file(notice) else {
+            continue;
+        };
+        notice
+            .details
+            .get_or_insert_with(BTreeMap::new)
+            .insert("whitespace_join_file".to_string(), file.to_string());
+    }
+}
+
 /// #85 kimliği HAM karşılaştırır ve bu korunur: `"R1  "` ile `R1` aynı hat DEĞİLDİR.
 /// Bu yapı kimliği değiştirmez; yalnız bir sonuç bulgusunun, ham birleşim kırık ama
 /// kırpılmış birleşim sağlam olduğu için mi ateşlediğini ve boşluğun HANGİ DOSYADA
