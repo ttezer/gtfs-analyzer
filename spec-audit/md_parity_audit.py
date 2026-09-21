@@ -196,7 +196,6 @@ MAP = {
     # mdb-2086 transfers=5 → FAR_005=6 ↔ MD 6 BİREBİR. Yalnız RTS_004'e eşlemek
     # bu ikisini "kaçırdık" gösteriyordu.
     "unexpected_enum_value":          ["RTS_004", "RTS_030", "TRP_005", "TRP_006", "TRP_007", "TRP_032", "FAR_005", "TRF_004", "RCT_003", "RTS_013", "RTS_018"],
-    "stop_has_too_many_matches_for_shape": ["SHP_022"], # DISJOINT: SHP_022 yalnız shape_dist EKSİK trip'lerde (geometrik fallback); MD shape_dist VARKEN → mdb-8'de us=9300/MD=0 mis-comparison'dı, MD-parite bug DEĞİL. (SHP_022 ORTA×9300 kendi başına severity sorusu.)
     "unused_station":                 ["STP_030"],     # station without child ≈ unused_station (~19)
     "trip_distance_exceeds_shape_distance": ["SHP_025"],  # VAR ama by-design: SHP_025 eşiği >%0.1 (rounding tolere, SHP_029 felsefesi). mdb-1909: 170 aşımın 165'i <%0.1 rounding → biz 5 doğru, MD 170 hepsini basar.
     "trip_distance_exceeds_shape_distance_below_threshold": ["SHP_025"],
