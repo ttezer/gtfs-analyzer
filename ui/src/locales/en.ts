@@ -891,7 +891,7 @@ const en: LocaleShape = {
     'SHP_018': "Shape '{entity_id}' is not referenced by any trip.",
     'SHP_019': "Shape '{entity_id}': trips using this shape have no stop times.",
     'SHP_020': "{affected_shapes} shape(s) have repeated points, e.g. {example_shapes}.",
-    'SHP_021': "Shape '{entity_id}': shape_dist_traveled has a negative value.",
+    'SHP_021': "Shape '{entity_id}': shape_dist_traveled is negative or not a number.",
     'SHP_022': "Shape '{entity_id}': stop position on shape is ambiguous.",
     'SHP_023': "Shape '{entity_id}': consecutive points share the same shape_dist_traveled at the same coordinates.",
     'SHP_024': "Shape '{entity_id}': stop-to-shape distance is inconsistent with shape_dist_traveled.",
