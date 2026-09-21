@@ -2952,6 +2952,12 @@ fn check_calendar_analytics(
             .get(service_id)
             .map(|s| s.len() as u32)
             .unwrap_or(0);
+        let has_weekly_base = records
+            .calendars
+            .iter()
+            .find(|cal| cal.service_id == service_id)
+            .map(|cal| cal.days.iter().any(|day| *day == Some(1)))
+            .unwrap_or(false);
         // CAL_013 (süresi dolmuş) buradan kaldırıldı → tüm servisler için birleşik
         // active_dates üzerinden CAL_017 döngüsünde tek yerde hesaplanır (çift-emit önlenir).
 
@@ -2995,7 +3001,7 @@ fn check_calendar_analytics(
         // notice "temel programdan sapma" diye bir şey ölçmez — yalnız feed'in modelleme
         // seçimini geri okur. Bu boş dosya guard'ı ARC_009'daki has_calendar_txt emsaliyle
         // aynı sınıftan. Base schedule'ın varlığını ARC_008/CAL kuralları ayrıca ölçer.
-        if has_base_calendar && active > 0 && count > active / 2 {
+        if has_base_calendar && has_weekly_base && active > 0 && count > active / 2 {
             notices.push(k6_notice(
                 ctr,
                 "CLD_007",
