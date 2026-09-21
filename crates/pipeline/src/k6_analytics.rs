@@ -13855,7 +13855,7 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "CAL_015")
             .expect("global future-only feed CAL_015 üretmeli");
-        assert_eq!(cal015.severity, gtfs_core::Severity::Dusuk);
+        assert_eq!(cal015.severity, gtfs_core::Severity::Bilgi);
         for rule in ["CAL_017", "TRP_023"] {
             assert!(
                 result.notices.iter().any(|n| n.rule_id == rule),
@@ -13897,7 +13897,7 @@ mod tests {
             result
                 .notices
                 .iter()
-                .any(|n| n.rule_id == "CAL_015" && n.severity == gtfs_core::Severity::Dusuk),
+                .any(|n| n.rule_id == "CAL_015" && n.severity == gtfs_core::Severity::Bilgi),
             "non-JP future-only feed global CAL_015 davranışını korumalı"
         );
         for rule in ["CAL_017", "TRP_023", "FIN_016"] {
@@ -16217,6 +16217,11 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
+        let mut used_agency = records.agencies[0].clone();
+        used_agency.agency_id = Some("AG2".into());
+        used_agency.line = 3;
+        records.agencies.push(used_agency);
+        records.routes[0].agency_id = Some("AG2".into());
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "DQ_010"),
