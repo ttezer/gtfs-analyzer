@@ -793,7 +793,7 @@ const fr: LocaleShape = {
     'STM_019': 'Course « {entity_id} » : continuous_drop_off « {observed_value} » est invalide dans stop_times.',
     'STM_020': 'Course « {entity_id} » : temps de parcours nul avec une distance > 200 m ({observed_value}).',
     'STM_021': 'Course « {entity_id} » : des arrêts différents partagent les mêmes coordonnées.',
-    'STM_022': 'Course « {entity_id} » : timepoint « {observed_value} » est invalide.',
+    'STM_022': '{observed_value} lignes de stop_times.txt ont un timepoint invalide.',
     'STM_024': 'Course « {entity_id} » : incohérence d’unité pour shape_dist_traveled.',
     'STM_025': 'Course « {entity_id} » : la durée de segment planifiée est de {observed_value} — vérifiez ce signal de durée très courte s’il n’est pas intentionnel.',
     'STM_026': 'Course « {entity_id} » : distance excessive entre arrêts — {observed_value} (limite : {expected_value}).',

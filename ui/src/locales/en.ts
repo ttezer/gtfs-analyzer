@@ -791,7 +791,7 @@ const en: LocaleShape = {
     'STM_019': "Trip '{entity_id}': continuous_drop_off '{observed_value}' is invalid in stop_times.",
     'STM_020': "Trip '{entity_id}': zero travel time with distance > 200 m ({observed_value}).",
     'STM_021': "Trip '{entity_id}': different stops share the same coordinates.",
-    'STM_022': "Trip '{entity_id}': timepoint '{observed_value}' is invalid.",
+    'STM_022': '{observed_value} rows in stop_times.txt have an invalid timepoint.',
     'STM_024': "Trip '{entity_id}': shape_dist_traveled unit inconsistency.",
     'STM_025': "Trip '{entity_id}': scheduled segment time is {observed_value} — review this short-timing signal if unintended.",
     'STM_026': "Trip '{entity_id}': excessive distance between stops — {observed_value} (limit: {expected_value}).",

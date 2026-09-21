@@ -772,7 +772,7 @@ const ja: LocaleShape = {
     'STM_019': "便'{entity_id}'：stop_timesのcontinuous_drop_off'{observed_value}'が無効です。",
     'STM_020': "便'{entity_id}'：移動時間ゼロで距離が200m超（{observed_value}）。",
     'STM_021': "便'{entity_id}'：異なる停留所が同じ座標を共有しています。",
-    'STM_022': "便'{entity_id}'：timepoint'{observed_value}'が無効です。",
+    'STM_022': 'stop_times.txtでtimepointが無効な行が{observed_value}件あります。',
     'STM_024': "便'{entity_id}'：shape_dist_traveledの単位が一致しません。",
     'STM_025': "便'{entity_id}'：区間の予定時間は{observed_value}です。意図しない場合は確認してください。",
     'STM_026': "便'{entity_id}'：停留所間の距離が過大です — {observed_value}（制限：{expected_value}）。",

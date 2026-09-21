@@ -702,7 +702,7 @@ pub static RULES: &[RuleMeta] = &[
         "Sıfır geçiş süresi (mesafe > 200m)"),
     r!("STM_021", Yuksek, Quality, 3, &[], Some("trip_id"), VS, Row,
         "Duraklar arası mesafe sıfır veya negatif"),
-    r!("STM_022", Orta,   Spec, 1, &[], Some("trip_id"), VS, Row,
+    r!("STM_022", Orta,   Spec, 1, &[], None, VS, Feed,
         "timepoint geçersiz"),
     r!("STM_024", Bilgi,  Quality, 2, &[], Some("trip_id"), VS, Row,
         "shape_dist_traveled birim tutarsızlığı"),
