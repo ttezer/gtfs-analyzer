@@ -6202,10 +6202,18 @@ fn check_data_quality(
         // shapes.txt'in amacı sabit hat geometrisini çizmektir. Feed tümüyle talep-duyarlı
         // (DRT/flex) ise çizilecek güzergâh yoktur → shapes.txt yokluğu bulgu değildir.
         // feed_info.txt beklentisi DRT'den etkilenmez, ayrı değerlendirilir.
+        let continuous_shape_required = records.routes.iter().any(|r| {
+            matches!(r.continuous_pickup, Some(0) | Some(2) | Some(3))
+                || matches!(r.continuous_drop_off, Some(0) | Some(2) | Some(3))
+        }) || !records.stop_times_index.continuous_trips.is_empty();
         let missing_shapes = if availability.has_inventory() {
-            !availability.present("shapes.txt") && !feed_is_demand_responsive_only(records)
+            !availability.present("shapes.txt")
+                && !feed_is_demand_responsive_only(records)
+                && !continuous_shape_required
         } else {
-            records.shapes.is_empty() && !feed_is_demand_responsive_only(records)
+            records.shapes.is_empty()
+                && !feed_is_demand_responsive_only(records)
+                && !continuous_shape_required
         };
         let missing_feed_info = if availability.has_inventory() {
             !availability.present("feed_info.txt")

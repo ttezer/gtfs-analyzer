@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-620 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+618 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -679,7 +679,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_014 | Invalid translation reference (source record not found) | MEDIUM | Quality |
 | XFL_015 | Invalid reference in attribution | CRITICAL | Spec |
 | XFL_016 | Translation references feed_info but feed_info.txt is missing | HIGH | Spec |
-| XFL_017 | route_cemv_support conflicts with agency_cemv_support | LOW | Quality |
 | XFL_019 | Network defined in two separate files (routes.network_id + route_networks.txt) | MEDIUM | Spec |
 | XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | CRITICAL | Spec |
 | XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Interop |
@@ -691,8 +690,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_032 | location_groups.txt has an empty location_group_id | CRITICAL | Spec |
 | XFL_033 | location_group_stops has an empty location_group_id | CRITICAL | Spec |
 | XFL_034 | location_group_stops has an empty stop_id | CRITICAL | Spec |
-| XFL_026 | route cemv=1 but no applicable contactless product | MEDIUM | Quality |
-| XFL_027 | route cemv=2 but applicable contactless product | MEDIUM | Quality |
+| XFL_027 | route cemv=2 but applicable contactless product | INFO | Interop |
 | XFL_028 | agency cemv=1 but no contactless media | INFO | Quality |
 | XFL_029 | route cemv=1 but no contactless media | INFO | Quality |
 | XFL_030 | contactless media but no cemv=1 | INFO | Quality |

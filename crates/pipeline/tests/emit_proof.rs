@@ -1256,11 +1256,6 @@ fn fixtures() -> Vec<Fixture> {
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n"),
             ("route_networks.txt", "network_id,route_id\nN1,R1\n"),
         ]),
-        // XFL_017: route_cemv_support agency_cemv_support ile çelişiyor.
-        fx("XFL_017", vec![
-            ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,cemv_support\n1,Test,http://test.example,UTC,1\n"),
-            ("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,0\n"),
-        ]),
         // XFL_020: transfer (trip_id, route_id) çifti geçersiz.
         fx("XFL_020", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,from_route_id\nS1,S2,1,T1,RWRONG\n")]),
         // XFL_021: from_stop_id, from_trip_id'nin stop_times'ında yok.
@@ -1279,17 +1274,10 @@ fn fixtures() -> Vec<Fixture> {
         fx("XFL_024", vec![("stop_times.txt", "trip_id,stop_sequence,location_group_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,NOPE,09:00:00,10:00:00\n")]),
         // XFL_025: stop_times.location_id locations.geojson'da yok (Flex).
         fx("XFL_025", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,NOPE,09:00:00,10:00:00\n")]),
-        // XFL_026: route cemv=1 ama uygulanabilir contactless (type3) fare product yok.
         // XFL_031: location_group_id ile stop_id aynı isim alanında çakışıyor.
         fx("XFL_031", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nLG1,Cakisan,41.2,29.2\n"),
             ("location_groups.txt", "location_group_id,location_group_name\nLG1,Bolge\n"),
-        ]),
-        fx("XFL_026", vec![
-            ("fare_media.txt", "fare_media_id,fare_media_type\nM3,3\n"),
-            ("fare_products.txt", "fare_product_id,fare_media_id,amount,currency\nP1,M3,2.5,USD\n"),
-            ("fare_leg_rules.txt", "leg_group_id,network_id,fare_product_id\nLG1,NOTHER,P1\n"),
-            ("routes.txt", "route_id,agency_id,route_short_name,route_type,network_id,cemv_support\nR1,1,101,3,N1,1\n"),
         ]),
         // XFL_027: route cemv=2 ama uygulanabilir contactless fare product var (çelişki).
         fx("XFL_027", vec![
@@ -1686,7 +1674,7 @@ fn fixtures() -> Vec<Fixture> {
         // STP_024: stop_access geçersiz enum (k2).
         fx("STP_024", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,5\nS2,Stop2,41.1,29.1,\n")]),
         // STP_026: stop_access ham geçersiz enum (k4).
-        fx("STP_026", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,9\nS2,Stop2,41.1,29.1,\n")]),
+        fx("STP_026", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,2\nS2,Stop2,41.1,29.1,9\n")]),
         // STP_028: stop_code > 50 karakter (k2).
         fx("STP_028", vec![("stops.txt", "stop_id,stop_code,stop_name,stop_lat,stop_lon\nS1,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,Stop1,41.0,29.0\nS2,C2,Stop2,41.1,29.1\n")]),
         // STP_029: durak parent_station'dan çok uzak (> 150m) (k6).

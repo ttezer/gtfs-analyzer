@@ -2711,7 +2711,7 @@ fn complete_headers_produce_no_arc_025() {
     );
 }
 
-// ── XFL_026/027: route-bazlı contactless EMV uygulanabilirliği ─────────────────
+// ── XFL_027: route-bazlı contactless EMV precedence bilgisi ───────────────────
 // Ortak: 1 route (R1, 2 durak), contactless fare_media(type=3) + fare_product.
 // Senaryoya göre routes.txt (cemv/network) + fare_leg_rules + networks değişir.
 fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
@@ -2752,8 +2752,8 @@ fn xfl027_route_cemv2_with_global_contactless() {
 }
 
 #[test]
-fn xfl026_route_cemv1_network_mismatch() {
-    // R1 cemv=1, network=N1; contactless leg rule network=N2 → R1 kapsanmiyor + cozulebilir → XFL_026.
+fn xfl026_route_cemv1_network_mismatch_is_not_reported() {
+    // cEMV=1 tek başına Fares v2 kanıtı gerektirmez; XFL_026 artık üretilmez.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2766,14 +2766,28 @@ fn xfl026_route_cemv1_network_mismatch() {
     ));
     match run(&files) {
         ValidateResult::Ok(vr) => assert!(
-            vr.notices.iter().any(|n| n.rule_id == "XFL_026"),
-            "XFL_026 bekleniyor (cemv=1 + network eslesmiyor). Cikan: {:?}",
+            !vr.notices.iter().any(|n| n.rule_id == "XFL_026"),
+            "XFL_026 üretilmemeli. Cikan: {:?}",
             vr.notices
                 .iter()
                 .map(|n| n.rule_id.as_str())
                 .collect::<Vec<_>>()
         ),
         other => panic!("Ok bekleniyordu: {other:?}"),
+    }
+}
+
+#[test]
+fn xfl_019_fires_when_networks_file_is_present() {
+    let mut files = base_files();
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_long_name,route_type,network_id\nR1,A1,1,Route One,3,N1\n",
+    );
+    files.push(("networks.txt", b"network_id,network_name\nN1,Network\n"));
+    match run(&files) {
+        ValidateResult::Ok(vr) => assert!(has(&vr, "XFL_019")),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
 

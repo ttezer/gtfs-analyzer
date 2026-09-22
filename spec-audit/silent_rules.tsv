@@ -292,15 +292,14 @@ VAT_008		Bilgi	Analytics	CROSS_FILE						1	Aynı shape feed hatlarının %30'und
 XFL_014		Orta	Quality	CROSS_FILE						1	Geçersiz çeviri referansı (kaynak kayıt bulunamadı)
 XFL_015		Kritik	Spec	CROSS_FILE						1	Attribution'da geçersiz referans
 XFL_016		Yuksek	Spec	CROSS_FILE						1	Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik
-XFL_019		Orta	Spec	CROSS_FILE						1	Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)
+XFL_019		Orta	Spec	CROSS_FILE						1	Ağ tanımı iki ayrı dosyada (routes.network_id + networks.txt veya route_networks.txt)
 XFL_020		Kritik	Spec	CROSS_FILE				TRF_017	no	1	Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti
 XFL_021		Yuksek	Interop	CROSS_FILE						2	Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti
 XFL_022		Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (location_group_stops)
 XFL_023		Kritik	Spec	CROSS_FILE						1	stop_id bulunamadı (location_group_stops)
 XFL_024		Kritik	Spec	CROSS_FILE						1	location_group_id bulunamadı (stop_times)
 XFL_025	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Unknown stop_times.location_id on ch-odv-flex fires it.	Kritik	Spec	CROSS_FILE						1	location_id bulunamadı (locations.geojson)
-XFL_026		Orta	Quality	CROSS_FILE						1	route cemv_support=1 ama uygulanabilir contactless fare product yok
-XFL_027		Orta	Quality	CROSS_FILE						1	route cemv_support=2 ama uygulanabilir contactless fare product var
+XFL_027		Bilgi	Interop	CROSS_FILE						0	cEMV bayrağı ile Fares v2 bilgisi farklı; Fares v2 bilgisi geçerlidir
 XFL_029		Bilgi	Quality	CROSS_FILE						1	route cemv_support=1 ama Fares v2'de contactless media yok
 XFL_031	SAMPLED 2026-08-16 (stratified random, seed 20260816): correct. Moving a real stop_id into a locations.geojson feature id on ch-odv-flex fires it; XFL_025 follows because the original location id no longer resolves.	Kritik	Spec	CROSS_FILE						1	Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır
 XFL_032		Kritik	Spec	CROSS_FILE						1	location_groups.txt'te location_group_id boş

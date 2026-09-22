@@ -447,7 +447,8 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         };
 
-        // stop_access: 0, 1, or 2
+        // K2 compatibility domain: 0, 1, or 2. Normative GTFS validity is checked by
+        // STP_026 in K4, where only 0 and 1 are accepted.
         let stop_access = match parse_u32(&row_map, "stop_access") {
             Ok(v) => {
                 if let Some(val) = v {
@@ -457,7 +458,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                             Some(&row_map), &file.name, Some(line), Some("stop_access"),
                             Some(val.to_string()), Some("0–2".to_string()),
                             format!("'{}' durağında stop_access '{val}' geçersiz.", stop_id),
-                            "stop_access'i 0 (bilinmiyor), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                            "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
                         ));
                     }
                 }
@@ -471,7 +472,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     Some(&row_map), &file.name, Some(line), Some("stop_access"),
                     get_trimmed_field(&row_map, "stop_access").map(str::to_string), Some("0–2".to_string()),
                     err,
-                    "stop_access'i 0 (bilinmiyor), 1 (erişilebilir) veya 2 (erişilemez) olarak ayarlayın.",
+                    "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
                 ));
                 None
             }

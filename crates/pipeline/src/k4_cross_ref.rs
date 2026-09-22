@@ -393,7 +393,7 @@ pub fn check_with_files_and_whitespace_roots(
         }
     );
 
-    // XFL_026-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
+    // XFL_027-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
     {
         let _t = Timer::start("K4::cemv_fares");
         let has_agency_cemv1 = records
@@ -453,9 +453,9 @@ pub fn check_with_files_and_whitespace_roots(
             }
         }
 
-        // Route-bazlı (XFL_026/027): route'a UYGULANABİLİR contactless fare product var mı?
+        // Route-bazlı (XFL_027): route'a UYGULANABİLİR contactless fare product var mı?
         // Yol: fare_media(type=3) → fare_products → fare_leg_rules → (network_id | from/to_area_id | global)
-        if has_type3 && (has_route_cemv1 || has_route_cemv2) {
+        if has_type3 && has_route_cemv2 {
             let type3_products: HashSet<&str> = records
                 .fare_products
                 .iter()
@@ -528,7 +528,7 @@ pub fn check_with_files_and_whitespace_roots(
 
             for r in &records.routes {
                 let cemv = r.route_cemv_support;
-                if cemv != Some(1) && cemv != Some(2) {
+                if cemv != Some(2) {
                     continue;
                 }
                 let rnet = r.network_id.as_deref().filter(|s| !s.is_empty());
@@ -538,23 +538,13 @@ pub fn check_with_files_and_whitespace_roots(
                     rareas.is_some_and(|set| set.iter().any(|a| type3_areas.contains(a)));
                 let covered = global_type3 || network_match || area_match;
                 // FP guard: route'un kapsamı çözülebilir mi? (global / network bilgisi / area bilgisi var)
-                let resolvable = global_type3 || rnet.is_some() || rareas.is_some();
-                if cemv == Some(1) && resolvable && !covered {
-                    notices.push(notice(
-                        &mut ctr, "XFL_026", EntityType::Route,
-                        Some(r.route_id.clone()), Some(r.route_id.clone()),
-                        "routes.txt", None, Some("cemv_support"), None, None,
-                        format!("'{}' route'u cemv_support=1 (contactless) ama bu route'a uygulanabilir contactless fare product (fare_media_type=3) yok.", r.route_id),
-                        "Bu route'a uygulanabilir bir contactless fare product tanimlayin veya cemv_support degerini gozden gecirin.",
-                    ));
-                }
                 if cemv == Some(2) && covered {
                     notices.push(notice(
                         &mut ctr, "XFL_027", EntityType::Route,
                         Some(r.route_id.clone()), Some(r.route_id.clone()),
                         "routes.txt", None, Some("cemv_support"), None, None,
-                        format!("'{}' route'u cemv_support=2 (desteklenmiyor) ama bu route'a uygulanabilir contactless fare product var — celiski.", r.route_id),
-                        "cemv_support degerini duzeltin veya contactless fare product kapsamini gozden gecirin.",
+                        format!("'{}' route'unda cEMV bayragi ile Fares v2 bilgisi farkli; GTFS precedence geregi Fares v2 bilgisi gecerlidir.", r.route_id),
+                        "Bu yalnizca bilgilendirmedir; Fares v2 bilgisi gecerlidir ve feed'in cEMV bayragini gecersiz kilar.",
                     ));
                 }
             }
@@ -7355,39 +7345,6 @@ fn check_xfl(
         }
     }
 
-    // XFL_017: route_cemv_support ile agency_cemv_support çelişiyor
-    {
-        for rec in &records.routes {
-            if rec.route_id.is_empty() {
-                continue;
-            }
-            if let (Some(rv), Some(ref aid)) = (rec.route_cemv_support, &rec.agency_id) {
-                if let Some(&aidx) = map.agencies.get(aid.as_str()) {
-                    if let Some(av) = records.agencies[aidx].agency_cemv_support {
-                        if rv != av {
-                            notices.push(notice(
-                                ctr,
-                                "XFL_017",
-                                EntityType::Route,
-                                Some(rec.route_id.clone()),
-                                Some(rec.route_id.clone()),
-                                "routes.txt",
-                                Some(rec.line),
-                                Some("cemv_support"),
-                                Some(format!("route={rv}, agency={av}")),
-                                None,
-                                format!(
-                                    "route_id '{}' route_cemv_support={rv} iken agency '{aid}' agency_cemv_support={av}; değerler çelişiyor.",
-                                    rec.route_id
-                                ),
-                                "route_cemv_support ve agency_cemv_support değerlerini tutarlı hale getirin.",
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 /// TRN_016'nın hedef tablosundaki alan değer kümesi. `None` = dosya yok ya da `field` o
@@ -10228,34 +10185,6 @@ mod tests {
     }
 
     // �"?�"? XFL_017 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
-
-    #[test]
-    fn conflicting_cemv_support_produces_xfl_017() {
-        use crate::k2::agency::AgencyRecord;
-        let (mut recs, mut map) = empty();
-        map.agencies.insert("A1".into(), 0);
-        recs.agencies = vec![AgencyRecord {
-            agency_id: Some("A1".into()),
-            agency_name: "Agency".into(),
-            agency_url: "https://example.com".into(),
-            agency_timezone: "Europe/Istanbul".into(),
-            agency_lang: None,
-            agency_phone: None,
-            agency_fare_url: None,
-            agency_email: None,
-            agency_cemv_support: Some(1), // agency=1
-            row: Default::default(),
-            line: 2,
-        }];
-        map.routes.insert("R1".into(), 0);
-        recs.routes = vec![RouteRecord {
-            route_cemv_support: Some(0), // route=0 → çelişki
-            agency_id: Some("A1".into()),
-            ..route("R1")
-        }];
-        let result = check(&recs, &map, 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "XFL_017"));
-    }
 
     // �"?�"? TRF_016 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 

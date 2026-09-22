@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-620 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+618 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -679,7 +679,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | XFL_014 | Référence de traduction invalide (enregistrement source introuvable) | MOYENNE | Quality |
 | XFL_015 | Référence invalide dans une attribution | CRITIQUE | Spec |
 | XFL_016 | La traduction référence feed_info mais feed_info.txt est absent | ÉLEVÉE | Spec |
-| XFL_017 | route_cemv_support en conflit avec agency_cemv_support | FAIBLE | Quality |
 | XFL_019 | Réseau défini dans deux fichiers distincts (routes.network_id + route_networks.txt) | MOYENNE | Spec |
 | XFL_020 | Couple (from_trip_id/to_trip_id, route_id) invalide dans transfers | CRITIQUE | Spec |
 | XFL_021 | Couple (from_trip_id/to_trip_id, stop_id) invalide dans transfers | ÉLEVÉE | Interop |
@@ -691,8 +690,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | XFL_032 | location_groups.txt contient un location_group_id vide | CRITIQUE | Spec |
 | XFL_033 | location_group_stops contient un location_group_id vide | CRITIQUE | Spec |
 | XFL_034 | location_group_stops contient un stop_id vide | CRITIQUE | Spec |
-| XFL_026 | Ligne avec cemv=1 mais aucun produit sans contact applicable | MOYENNE | Quality |
-| XFL_027 | Ligne avec cemv=2 mais produit sans contact applicable | MOYENNE | Quality |
+| XFL_027 | Ligne avec cemv=2 mais produit sans contact applicable | INFO | Interop |
 | XFL_028 | Agence avec cemv=1 mais aucun support sans contact | INFO | Quality |
 | XFL_029 | Ligne avec cemv=1 mais aucun support sans contact | INFO | Quality |
 | XFL_030 | Support sans contact présent mais aucun cemv=1 | INFO | Quality |

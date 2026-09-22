@@ -523,8 +523,8 @@ pub static RULES: &[RuleMeta] = &[
         "Hat açıklaması hat adının kopyası"),
     // AGN_012 ile aynı gerekçe: `Enum` tipi normatiftir, küme dışı değer spec ihlalidir.
     // Sınıf Quality→Spec (2026-08-01, WP-3); önem Düşük (emsal RTS_013/RTS_018).
-    // NOT: XFL_017/026/027 cemv_support'un SEMANTİK tutarlılığını ölçer (fare product ile
-    // çelişki) — onlar meşru biçimde Quality kalır; bu kural yalnız enum kümesini ölçer.
+    // cEMV alanlarının enum geçerliliği burada ölçülür; Fares v2 ile cEMV arasındaki
+    // precedence ilişkisi bir feed ihlali değildir.
     r!("RTS_024", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_cemv_support geçersiz"),
     r!("RTS_025", Bilgi,  Quality, 1, &[], Some("agency_id"), VS, Entity,
@@ -1683,10 +1683,8 @@ pub static RULES: &[RuleMeta] = &[
         "Attribution'da geçersiz referans"),
     r!("XFL_016", Yuksek, Spec, 1, &[], None, VS, Feed,
         "Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik"),
-    r!("XFL_017", Dusuk,  Quality, 1, &[], None, VS, Feed,
-        "route_cemv_support ile agency_cemv_support çelişiyor"),
     r!("XFL_019", Orta,   Spec, 2, &[], None, VS, Feed,
-        "Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)"),
+        "Ağ tanımı iki ayrı dosyada (routes.network_id + networks.txt veya route_networks.txt)"),
     // XFL_020 → Spec: GTFS Reference transfers.txt NORMATİF — "If both from_trip_id and
     // from_route_id are defined, the trip_id MUST BELONG TO the route_id" (to_* için aynı).
     // MD karşılığı `transfer_with_invalid_trip_and_route` (ERROR).
@@ -1718,10 +1716,8 @@ pub static RULES: &[RuleMeta] = &[
         "location_group_stops'ta location_group_id boş"),
     r!("XFL_034", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Row,
         "location_group_stops'ta stop_id boş"),
-    r!("XFL_026", Orta,  Quality, 2, &[], Some("route_id"), VS, Entity,
-        "route cemv_support=1 ama uygulanabilir contactless fare product yok"),
-    r!("XFL_027", Orta,  Quality, 2, &[], Some("route_id"), VS, Entity,
-        "route cemv_support=2 ama uygulanabilir contactless fare product var"),
+    r_noscore!("XFL_027", Bilgi, Interop, 2, &[], Some("route_id"), VI, Entity,
+        "cEMV bayrağı ile Fares v2 bilgisi farklı; Fares v2 bilgisi geçerlidir"),
     r!("XFL_028", Bilgi, Quality, 1, &[], None, VS, Feed,
         "agency cemv_support=1 ama Fares v2'de contactless media yok"),
     r!("XFL_029", Bilgi, Quality, 1, &[], None, VS, Feed,
@@ -2569,7 +2565,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_014", ProjectQuality),
     ("XFL_015", GtfsSpec),
     ("XFL_016", GtfsSpec),
-    ("XFL_017", ProjectQuality),
     ("XFL_019", GtfsSpec),
     ("XFL_020", GtfsSpec),
     ("XFL_021", MobilitydataParity),
@@ -2581,8 +2576,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_032", GtfsSpec),
     ("XFL_033", GtfsSpec),
     ("XFL_034", GtfsSpec),
-    ("XFL_026", ProjectQuality),
-    ("XFL_027", ProjectQuality),
+    ("XFL_027", GoogleTransitInterop),
     ("XFL_028", ProjectQuality),
     ("XFL_029", ProjectQuality),
     ("XFL_030", ProjectQuality),
@@ -2806,9 +2800,11 @@ mod tests {
     #[test]
     fn no_score_rules_are_explicit() {
         for rule_id in [
-            "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009",
-            "ARC_006", "STM_017", "STM_021", "STM_026", "STM_035", "XFL_011", "OPR_007", "OPR_008", "STM_045", "STP_022", "ARC_022", "ARC_010",
-            "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011", "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029", "STP_039",
+            "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009", "ARC_006",
+            "STM_017", "STM_021", "STM_026", "STM_035", "XFL_011", "OPR_007", "OPR_008", "STM_045",
+            "STP_022", "ARC_022", "ARC_010", "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011",
+            "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029", "STP_039",
+            "XFL_027",
         ] {
             assert_eq!(get_rule(rule_id).unwrap().score_weight, 0.0, "{rule_id}");
         }

@@ -874,7 +874,7 @@
       ]
     },
     "shapes.txt": {
-      "presence": "Optional",
+      "presence": "Conditionally Required",
       "primary_key": [
         "shape_id",
         "shape_pt_sequence"

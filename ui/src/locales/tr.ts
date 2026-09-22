@@ -1032,7 +1032,7 @@ const tr = {
     'XFL_024': 'location_group_id bulunamadı (stop_times)',
     'XFL_025': 'location_id bulunamadı (locations.geojson)',
     'XFL_026': 'route cemv_support=1 ama uygulanabilir contactless product yok',
-    'XFL_027': 'route cemv_support=2 ama uygulanabilir contactless product var',
+    'XFL_027': 'cEMV bayrağı ile Fares v2 bilgisi farklı; Fares v2 bilgisi geçerlidir',
     'XFL_028': 'agency cemv_support=1 ama contactless media yok',
     'XFL_029': 'route cemv_support=1 ama contactless media yok',
     'XFL_030': 'contactless media var ama cemv_support=1 yok',
@@ -1142,7 +1142,7 @@ const tr = {
     'XFL_015': "Attribution'da geçersiz referans",
     'XFL_016': "Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik",
     'XFL_017': 'route_cemv_support ile agency_cemv_support çelişiyor',
-    'XFL_019': 'Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt)',
+    'XFL_019': 'Ağ tanımı iki ayrı dosyada (routes.network_id + networks.txt veya route_networks.txt)',
     'XFL_020': "Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti",
     'XFL_021': "Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti",
     // OPR

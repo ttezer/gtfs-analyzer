@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 **日本語** · 🇫🇷 [Français](RULES.fr.md)
 
-620ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
+618ルール、38グループ。各ルールは一意のID、重要度、クラスで定義されます。
 重要度: **致命的**（公開ブロッカー）· **高** · **中** · **低** · **情報**
 クラス: **仕様**（GTFS妥当性）· **相互運用**（GTFSインターオペラビリティ）· **品質**（GTFS品質）· **分析**（GTFSアナリティクス）
 
@@ -679,7 +679,6 @@
 | XFL_014 | 翻訳のソースレコードが存在しない | 中 | 品質 |
 | XFL_015 | 帰属の参照が無効 | 致命的 | 仕様 |
 | XFL_016 | 翻訳でfeed_infoを参照しているがfeed_info.txtなし | 高 | 仕様 |
-| XFL_017 | route_cemv_supportとagency_cemv_supportが競合 | 低 | 品質 |
 | XFL_019 | ネットワーク割り当てが2か所に定義されている | 中 | 仕様 |
 | XFL_020 | （from_trip_id/to_trip_id, route_id）の組み合わせが無効 | 致命的 | 仕様 |
 | XFL_021 | （from_trip_id/to_trip_id, stop_id）の組み合わせが無効 | 高 | 相互運用 |
@@ -691,8 +690,7 @@
 | XFL_032 | location_groups.txtのlocation_group_idが空 | 致命的 | 仕様 |
 | XFL_033 | location_group_stopsのlocation_group_idが空 | 致命的 | 仕様 |
 | XFL_034 | location_group_stopsのstop_idが空 | 致命的 | 仕様 |
-| XFL_026 | 路線cemv=1だが適用可能なcontactless productなし | 中 | 品質 |
-| XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 中 | 品質 |
+| XFL_027 | 路線cemv=2だが適用可能なcontactless productあり | 情報 | 相互運用 |
 | XFL_028 | agency cemv=1だがcontactless mediaなし | 情報 | 品質 |
 | XFL_029 | route cemv=1だがcontactless mediaなし | 情報 | 品質 |
 | XFL_030 | contactless mediaありだがcemv=1なし | 情報 | 品質 |

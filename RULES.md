@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-620 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+618 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -679,8 +679,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_014 | Geçersiz çeviri referansı (kaynak kayıt bulunamadı) | ORTA | Quality |
 | XFL_015 | Attribution'da geçersiz referans | KRİTİK | Spec |
 | XFL_016 | Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik | YÜKSEK | Spec |
-| XFL_017 | route_cemv_support ile agency_cemv_support çelişiyor | DÜŞÜK | Quality |
-| XFL_019 | Ağ tanımı iki ayrı dosyada (routes.network_id + route_networks.txt) | ORTA | Spec |
+| XFL_019 | Ağ tanımı iki ayrı dosyada (routes.network_id + networks.txt veya route_networks.txt) | ORTA | Spec |
 | XFL_020 | Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti | KRİTİK | Spec |
 | XFL_021 | Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti | YÜKSEK | Interop |
 | XFL_022 | location_group_id bulunamadı (location_group_stops) | KRİTİK | Spec |
@@ -691,8 +690,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | XFL_032 | location_groups.txt'te location_group_id boş | KRİTİK | Spec |
 | XFL_033 | location_group_stops'ta location_group_id boş | KRİTİK | Spec |
 | XFL_034 | location_group_stops'ta stop_id boş | KRİTİK | Spec |
-| XFL_026 | route cemv_support=1 ama uygulanabilir contactless fare product yok | ORTA | Quality |
-| XFL_027 | route cemv_support=2 ama uygulanabilir contactless fare product var | ORTA | Quality |
+| XFL_027 | cEMV bayrağı ile Fares v2 bilgisi farklı; Fares v2 bilgisi geçerlidir | BİLGİ | Interop |
 | XFL_028 | agency cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
 | XFL_029 | route cemv_support=1 ama Fares v2'de contactless media yok | BİLGİ | Quality |
 | XFL_030 | contactless fare media var ama hiç cemv_support=1 yok | BİLGİ | Quality |

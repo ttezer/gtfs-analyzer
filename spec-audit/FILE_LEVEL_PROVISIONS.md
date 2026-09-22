@@ -6,7 +6,7 @@
 
 Kapsam defteri (`spec_coverage_ledger.txt`) ve iddia defteri (`spec_claims_ledger.txt`)
 **alan tablosundan** türeyen hükümleri ölçer. Spec'in normatif içeriği bununla bitmiyor:
-her dosyanın başlığında bir `File: …` satırı var ve bunların yedisi koşulludur.
+her dosyanın başlığında bir `File: …` satırı var ve bunların sekizi koşulludur.
 
 `extract_fields.py` 2026-08-02'ye kadar bu satırı hiç okumuyordu. Artık okuyor
 (`files.<dosya>.presence`), ama **otomatik bir kapıya bağlanamıyor**: koşullar düzyazıdadır
@@ -20,13 +20,13 @@ bir sonraki spec revizyonunda yeniden okunması gereken yer burasıdır.
 |---|---|
 | Required | 4 |
 | Optional | 20 |
-| Conditionally Required | 5 |
+| Conditionally Required | 6 |
 | Conditionally Forbidden | 2 |
 
 `Required` ve `Optional` olanlar koşulsuzdur: ilki `ARC_004`, ikincisi hiçbir hüküm taşımaz.
-Aşağıdaki yedisi koşulludur ve tek tek incelenmiştir.
+Aşağıdaki sekizi koşulludur ve tek tek incelenmiştir.
 
-## Yedi koşullu hüküm
+## Sekiz koşullu hüküm
 
 | # | Dosya | Spec koşulu (birebir) | Karşılayan | Karar |
 |---|---|---|---|---|
@@ -37,8 +37,9 @@ Aşağıdaki yedisi koşulludur ve tek tek incelenmiştir.
 | 5 | `feed_info.txt` | *"Required if translations.txt is provided. Recommended otherwise."* | **`ARC_031`** (norm) + `ARC_020` (tavsiye) | 🔧 **BOŞLUK VARDI, KAPATILDI.** İki hâl de `ARC_020` (Düşük·Quality) sayılıyordu — bir norm tavsiye diye raporlanıyordu. |
 | 6 | `networks.txt` | *"Forbidden if network_id exists in routes.txt."* | `XFL_019` | ✅ Aynı çakışma routes tarafından raporlanır; tek bulgu yeterlidir. |
 | 7 | `route_networks.txt` | *"Forbidden if network_id exists in routes.txt."* | `XFL_019` | ✅ 6 ile aynı. |
+| 8 | `shapes.txt` | *"Conditionally Required: Required if the trip has continuous pickup or drop-off behavior defined either in routes.txt or in stop_times.txt. Recommended otherwise."* | `TRP_019` + `TRP_004`; `ARC_020` tavsiye kolu | ✅ Continuous davranış varsa şekil zorunluluğu TRP_019/TRP_004 ile ölçülür; bu durumda ARC_020 duplicate'i bastırılır. Continuous davranış yoksa eksik shapes.txt ARC_020 ile Quality/tavsiye olarak raporlanır. |
 
-## Yedi'den çıkan tek boşluk
+## Bu sekiz hükümden çıkan tek boşluk
 
 `feed_info.txt`. Spec'in cümlesi **ikiye ayrılıyor** ve iki farklı sınıf gerektiriyor:
 
