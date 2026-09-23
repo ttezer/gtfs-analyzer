@@ -3208,10 +3208,12 @@ fn finalize_stm_pending(
     let n = pending.len();
     if n > threshold {
         // Pending listesi HashMap/chunk iterasyonundan geldiği için ham take(5)
-        // deterministik değildir. Önce sırala, sonra ilk 5'i al.
+        // deterministik değildir. Önce sırala, sonra ilk 5'i al. Aynı seferde
+        // birden çok ihlal satırı olabilir; tekrarlar örnek listesini doldurmasın.
         let mut examples: Vec<String> =
             pending.iter().filter_map(|x| x.entity_id.clone()).collect();
         examples.sort_unstable();
+        examples.dedup();
         examples.truncate(5);
         let mut notice = make_k2_notice(
             counter,
@@ -4138,6 +4140,30 @@ mod tests {
                 .map(String::as_str),
             Some("51"),
         );
+        assert_eq!(
+            stm019[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_trips"))
+                .map(String::as_str),
+            Some("T00, T01, T02, T03, T04"),
+        );
+    }
+
+    #[test]
+    fn stm019_aggregate_examples_do_not_repeat_trips() {
+        let rows: Vec<Vec<String>> = (0..52)
+            .map(|i| vec![format!("T{:02}", i / 2), format!("S{i:02}"), "9".to_string()])
+            .collect();
+        let rows: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(String::as_str).collect())
+            .collect();
+        let file = make_file(vec!["trip_id", "stop_id", "continuous_drop_off"], rows);
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
+        assert_eq!(stm019.len(), 1, "52 ihlal tek feed-özeti olmalı: {stm019:?}");
+        assert_eq!(stm019[0].observed_value.as_deref(), Some("52"));
         assert_eq!(
             stm019[0]
                 .details
