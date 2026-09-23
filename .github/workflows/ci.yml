@@ -238,12 +238,24 @@ jobs:
         working-directory: sdk
         run: npm run test:config-parity && npm run test:smoke && npm run package:check
 
-  # WASM + UI tek kez derlenir; çıktı (ui/dist) artifact olarak e2e ve deploy job'larına
-  # aktarılır. Böylece aynı wasm iki ayrı runner'da tekrar derlenmez.
-  build-wasm:
-    name: WASM + UI Build
+      # UI build'i (build-wasm job'u) bu WASM'ı paketler; ikinci kez derlenmesin.
+      - name: sdk/pkg artifact yükle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sdk-pkg
+          path: sdk/pkg
+          if-no-files-found: error
+          retention-days: 1
+
+  # Üç WASM varyantı (seri, threaded, memory64) PARALEL job'larda derlenir; eskiden
+  # tek job'da art arda koşuyorlardı ve CI'ın kritik yolu buydu (2026-09-23 ölçümü:
+  # 2,5 + 3,5 + 3,6 dk seri, job toplamı 12,9 dk). `build-wasm` artık çıktıları toplar,
+  # determinizm eşitliğini ve UI build'ini koşar; ui/dist'i e2e ve deploy'a aktarır.
+  # Kapılar değişmedi, yalnız hangi runner'da koştukları değişti.
+  wasm-serial:
+    name: WASM seri (ui/pkg)
     runs-on: ubuntu-latest
-    timeout-minutes: 25   # normal: WASM+UI ~8dk
+    timeout-minutes: 15   # normal: ~3dk
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -259,8 +271,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-wasm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-wasm-
+          key: ${{ runner.os }}-wasm-serial-${{ hashFiles('**/Cargo.lock') }}
+          # Son satır bölünmeden önceki ortak anahtar: ilk koşum soğuk başlamasın.
+          restore-keys: |
+            ${{ runner.os }}-wasm-serial-
+            ${{ runner.os }}-wasm-
 
       # 2026-08-12'de ana dal bu adımda kırmızı yandı: `curl: (56) Connection died` —
       # init.sh, wasm-pack ikilisini GitHub release'inden indiremedi. Kodla ilgisi yoktu,
@@ -293,6 +308,56 @@ jobs:
         working-directory: ui
         run: npm run wasm
 
+      - name: ui/pkg artifact yükle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wasm-serial
+          path: ui/pkg
+          if-no-files-found: error
+          retention-days: 1
+
+  wasm-threads:
+    name: WASM threaded (ui/pkg-threads)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # normal: ~4dk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Rust toolchain + wasm32 target kur
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-wasm-threads-${{ hashFiles('**/Cargo.lock') }}
+          # Son satır bölünmeden önceki ortak anahtar: ilk koşum soğuk başlamasın.
+          restore-keys: |
+            ${{ runner.os }}-wasm-threads-
+            ${{ runner.os }}-wasm-
+
+      # Ağ hatasında KIRMIZI yanması bilinçli; gerekçe wasm-serial'deki aynı adımda.
+      - name: wasm-pack kur (sabit sürüm)
+        uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
+        with:
+          tool: wasm-pack@0.15.0
+
+      - name: Node.js kur
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: npm bağımlılıkları yükle
+        working-directory: ui
+        run: npm ci
+
       - name: Nightly toolchain (threaded WASM / build-std için)
         run: |
           rustup toolchain install nightly --component rust-src --profile minimal
@@ -301,6 +366,55 @@ jobs:
       - name: Threaded WASM derle (ui/pkg-threads/ — UI build bunu dinamik import eder)
         working-directory: ui
         run: npm run wasm:threads
+
+      - name: ui/pkg-threads artifact yükle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wasm-threads
+          path: ui/pkg-threads
+          if-no-files-found: error
+          retention-days: 1
+
+  wasm64:
+    name: WASM memory64 (ui/pkg64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # normal: ~4dk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Rust toolchain + wasm32 target kur
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cargo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-wasm64-${{ hashFiles('**/Cargo.lock') }}
+          # Son satır bölünmeden önceki ortak anahtar: ilk koşum soğuk başlamasın.
+          restore-keys: |
+            ${{ runner.os }}-wasm64-
+            ${{ runner.os }}-wasm-
+
+      - name: Node.js kur
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: npm bağımlılıkları yükle
+        working-directory: ui
+        run: npm ci
+
+      - name: Nightly toolchain (threaded WASM / build-std için)
+        run: |
+          rustup toolchain install nightly --component rust-src --profile minimal
+          rustup target add wasm32-unknown-unknown --toolchain nightly
 
       # ⚠️ SÜRÜM ELLE YAZILMAZ. wasm-bindgen CLI'ın sürümü, derlenen koddaki wasm-bindgen
       # crate'iyle EŞLEŞMEK ZORUNDADIR; ayrışırsa Memory64 çıktısı şema uyuşmazlığıyla
@@ -349,13 +463,69 @@ jobs:
         working-directory: ui
         run: npm run wasm:64
 
+      - name: ui/pkg64 artifact yükle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: wasm64
+          path: ui/pkg64
+          if-no-files-found: error
+          retention-days: 1
+
+  build-wasm:
+    name: WASM parity + UI Build
+    needs: [wasm-serial, wasm-threads, wasm64, sdk-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # normal: ~1-2dk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Node.js kur
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: npm bağımlılıkları yükle
+        working-directory: ui
+        run: npm ci
+
+      - name: ui/pkg artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: wasm-serial
+          path: ui/pkg
+
+      - name: ui/pkg-threads artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: wasm-threads
+          path: ui/pkg-threads
+
+      - name: ui/pkg64 artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: wasm64
+          path: ui/pkg64
+
+      # UI, gtfs-sdk'yı kaynaktan (sdk/src) derler ve sdk/pkg'deki WASM'ı paketler.
+      # O WASM'ı `sdk-test` job'u aynı betikle (build-wasm.mjs, wasm-pack 0.15.0,
+      # binaryen 130.0.0) zaten üretiyor; burada yeniden derlenmez, indirilir.
+      - name: sdk/pkg artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sdk-pkg
+          path: sdk/pkg
+
       - name: wasm32 / wasm64 deterministik çıktı eşitliği
         working-directory: ui
         run: npm run wasm:64:parity
 
+      # `--ignore-scripts`: `prebuild` (npm run sdk:build) SDK WASM'ını yeniden derlerdi;
+      # sdk/pkg yukarıda indirildi. Asıl `build` betiği (tsc --noEmit + vite build) koşar.
       - name: UI derle (taze ui/dist)
         working-directory: ui
-        run: npm run build
+        run: npm run build --ignore-scripts
 
       # JapanBus prototipleri repoda tutuluyor ancak backend bağlantısı tamamlanana kadar
       # Pages artifact'ına kopyalanmıyor; geçici akış bu nedenle pasif kalıyor.
