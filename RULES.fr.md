@@ -679,7 +679,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | XFL_014 | Référence de traduction invalide (enregistrement source introuvable) | MOYENNE | Quality |
 | XFL_015 | Référence invalide dans une attribution | CRITIQUE | Spec |
 | XFL_016 | La traduction référence feed_info mais feed_info.txt est absent | ÉLEVÉE | Spec |
-| XFL_019 | Réseau défini dans deux fichiers distincts (routes.network_id + route_networks.txt) | MOYENNE | Spec |
+| XFL_019 | Réseau défini dans deux fichiers distincts (routes.network_id + networks.txt ou route_networks.txt) | MOYENNE | Spec |
 | XFL_020 | Couple (from_trip_id/to_trip_id, route_id) invalide dans transfers | CRITIQUE | Spec |
 | XFL_021 | Couple (from_trip_id/to_trip_id, stop_id) invalide dans transfers | ÉLEVÉE | Interop |
 | XFL_022 | location_group_id introuvable | CRITIQUE | Spec |

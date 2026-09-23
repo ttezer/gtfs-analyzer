@@ -679,7 +679,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | XFL_014 | Invalid translation reference (source record not found) | MEDIUM | Quality |
 | XFL_015 | Invalid reference in attribution | CRITICAL | Spec |
 | XFL_016 | Translation references feed_info but feed_info.txt is missing | HIGH | Spec |
-| XFL_019 | Network defined in two separate files (routes.network_id + route_networks.txt) | MEDIUM | Spec |
+| XFL_019 | Network defined in two separate files (routes.network_id + networks.txt or route_networks.txt) | MEDIUM | Spec |
 | XFL_020 | Invalid (from_trip_id/to_trip_id, route_id) pair in transfers | CRITICAL | Spec |
 | XFL_021 | Invalid (from_trip_id/to_trip_id, stop_id) pair in transfers | HIGH | Interop |
 | XFL_022 | location_group_id not found | CRITICAL | Spec |
