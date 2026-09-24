@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD** ve **`gtfs-sdk` npm paketi** olmak üzere beş yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi** ve yayınlandığında **`gtfs-analyzer` Python paketi** olmak üzere altı yoldan kullanılabilir.
 
 **618 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **424'ü** son 4.343 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
@@ -242,9 +242,9 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 ---
 
-## Beş Kullanım Yolu
+## Altı Kullanım Yolu
 
-Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) beş şekilde çalışır — hepsi aynı 618 kuralı, aynı sonucu üretir:
+Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) altı şekilde çalışır — hepsi aynı 618 kuralı, aynı sonucu üretir:
 
 | yol | ne için | veri nereye gider |
 |---|---|---|
@@ -253,6 +253,7 @@ Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) beş şekilde ça
 | **Rust kütüphanesi** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | doğrulamayı kendi Rust servisinize gömmek | hiçbir yere — kendi süreciniz |
 | **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
+| **`gtfs-analyzer` Python paketi** *(PyPI yayını sonrası)* | Python uygulamasına doğrulama gömmek | hiçbir yere — yerel Rust native modülü |
 
 Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan temel farktır: ticari sözleşme gereği dışarı çıkamayan veriyi de doğrulayabilirsiniz.
 
@@ -319,6 +320,29 @@ Dışa açılan public API `validateGtfs`, `getVersion` ve progress/cache akış
 
 Paket kaynakları `sdk/` altındadır; ayrıntılı kullanım, sonuç modeli ve config referansı [`sdk/README.md`](sdk/README.md) içindedir. WASM binding'i build sırasında `crates/wasm` üzerinden üretilir.
 Web UI worker'ı da aynı `ValidatorSession` facade'ını kullanır; seri/threaded/WASM64 seçimini yalnızca uygulama içindeki engine adapter belirler.
+
+### Python paketi
+
+PyPI yayını tamamlandıktan sonra:
+
+```bash
+pip install gtfs-analyzer
+```
+
+Python paketi aynı Rust doğrulama pipeline'ını PyO3 native modülü üzerinden
+çalıştırır; ayrıca Cargo CLI kurulumu gerekmez. ZIP dosyasını yol veya bytes
+olarak verebilirsiniz:
+
+```python
+from gtfs_analyzer import validate_gtfs
+
+result = validate_gtfs("feed.zip", today="2026-08-20")
+print(result["validation_status"])
+print(len(result["notices"]))
+```
+
+`result`, npm SDK ve CLI JSON çıktısıyla aynı temel sonucu taşır. Ayrıntılı
+Python API ve yayın durumu için [`workplan.md`](workplan.md) dosyasına bakın.
 
 ## CLI (Terminal)
 

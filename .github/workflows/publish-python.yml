@@ -1,0 +1,98 @@
+name: Publish Python package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build-sdist:
+    name: Build source distribution
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Check release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+          import sys
+
+          expected = os.environ["RELEASE_TAG"].removeprefix("v")
+          pyproject = pathlib.Path("pyproject.toml").read_text()
+          cargo = pathlib.Path("crates/python/Cargo.toml").read_text()
+          py_version = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE).group(1)
+          cargo_version = re.search(r'^version = "([^"]+)"', cargo, re.MULTILINE).group(1)
+          if py_version != expected or cargo_version != expected:
+              print(f"release={expected} pyproject={py_version} cargo-python={cargo_version}")
+              sys.exit(1)
+          print(f"Python release version ok: {expected}")
+          PY
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@423a6347767a8b16e65c2a7a7042e4a921528da8 # v1
+        with:
+          command: sdist
+          args: --out dist
+          maturin-version: 1.15.0
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-sdist
+          path: dist/*
+
+  build-wheels:
+    name: Build wheel (${{ matrix.os }})
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@423a6347767a8b16e65c2a7a7042e4a921528da8 # v1
+        with:
+          command: build
+          args: --release --out dist --compatibility pypi
+          maturin-version: 1.15.0
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-${{ matrix.os }}
+          path: dist/*
+
+  publish:
+    name: Publish to PyPI
+    if: startsWith(github.event.release.tag_name, 'v')
+    needs: [build-sdist, build-wheels]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: python-*
+          merge-multiple: true
+
+      - name: Publish distributions
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

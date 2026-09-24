@@ -1,0 +1,19 @@
+[package]
+name = "gtfs-analyzer-python"
+version = "0.14.0"
+edition = "2021"
+license.workspace = true
+description = "Python bindings for the GTFS Analyzer validation engine."
+repository = "https://github.com/ttezer/gtfs-analyzer"
+homepage = "https://github.com/ttezer/gtfs-analyzer"
+
+[lib]
+name = "gtfs_analyzer"
+crate-type = ["cdylib"]
+
+[dependencies]
+gtfs-config = { path = "../config" }
+gtfs-core = { path = "../core" }
+gtfs-pipeline = { path = "../pipeline" }
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py39"] }
+serde_json = { workspace = true }

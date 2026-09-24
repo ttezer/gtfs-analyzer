@@ -6,6 +6,7 @@ members = [
     "crates/config",
     "crates/cli",
     "crates/wasm",
+    "crates/python",
 ]
 resolver = "2"
 

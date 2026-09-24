@@ -756,11 +756,34 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
 
+  python-package:
+    name: Python package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Rust tests for Python binding
+        run: cargo test -p gtfs-analyzer-python
+
+      - name: Build Python wheel
+        uses: PyO3/maturin-action@423a6347767a8b16e65c2a7a7042e4a921528da8 # v1
+        with:
+          command: build
+          args: --release --out dist --compatibility pypi
+
+      - name: Install wheel in clean virtualenv
+        run: |
+          python3 -m venv .ci-python-venv
+          . .ci-python-venv/bin/activate
+          python -m pip install dist/*.whl
+          python -m unittest discover -s tests -p 'test_python_api.py' -v
+
   # GitHub Pages deploy — yalnız main'e push'ta. build-wasm'ın ürettiği ui/dist artifact'ını
   # kaynaktan-taze olarak deploy eder (committed dist yok; drift imkânsız).
   deploy:
     name: Deploy
-    needs: [rust-test, ts-test, sdk-test, build-wasm, e2e, security-audit]
+    needs: [rust-test, ts-test, sdk-test, build-wasm, e2e, security-audit, python-package]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # normal: Deploy ~11sn
