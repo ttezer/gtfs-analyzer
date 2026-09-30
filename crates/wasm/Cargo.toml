@@ -27,6 +27,11 @@ wasm-bindgen-rayon = { version = "1.3", optional = true }
 [build-dependencies]
 serde_json = { workspace = true }
 
+[dev-dependencies]
+# Yalnız test: SDK çevirisi (`sdk-en`) CLI'ın `gtfs_core::i18n`'ine karşı sınanır. Resolver 2
+# dev-dependency feature'larını normal derlemeye taşımaz; WASM paketi büyümez.
+gtfs-core = { path = "../core", features = ["i18n"] }
+
 [features]
 # Public `gtfs-sdk` build'i için UI/teşhis konsol çıktısını susturur.
 quiet = ["gtfs-pipeline/quiet"]

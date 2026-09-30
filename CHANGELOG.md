@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "2 trips have an invalid direction_id"). Both WASM paths now call the same
   `gtfs_pipeline::aggregate_feed_level_notices` as the CLI, before report scope
   and the per-rule cap, and a source-level test guards the call order.
+- **npm SDK: rule-specific English texts for message variants.** The SDK's
+  English translation used a message variant only together with a GTFS-JP
+  profile, and skipped profile-specific remediations, while the CLI and Python
+  package use both. Future-only GTFS-JP feeds therefore showed the generic
+  `CAL_015` "fix the calendar" text in the SDK. The SDK now selects texts in the
+  same order as the CLI, and a test compares both translators over every
+  dictionary key. CI now runs the `sdk-en` tests, which `--workspace` skipped.
 - **`CAL_008` message in English, French and Japanese.** The feed-level summary
   carries the end date in `observed_value`, but the templates read it as the
   service count ("20261007 services expire on the same date."). They now use

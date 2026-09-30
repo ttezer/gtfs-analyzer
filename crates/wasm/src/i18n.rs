@@ -42,13 +42,18 @@ pub fn translate_notices(notices: &mut [Notice]) {
             .as_ref()
             .and_then(|d| d.get("jp_profile"))
             .map(|p| format!("{}.{}", notice.rule_id, p.to_lowercase()));
-        let specific = profile.as_ref().and_then(|key| {
-            notice
-                .details
-                .as_ref()
-                .and_then(|d| d.get("message_variant"))
-                .map(|kind| format!("{key}.{kind}"))
-        });
+        // `gtfs_core::i18n::Translator::translate` ile AYNI seçim sırası (CLI/Python):
+        // varyant profilsiz de geçerlidir (`CAL_015.future_only_jp`, `STM_047.missing_*`).
+        let specific = notice
+            .details
+            .as_ref()
+            .and_then(|d| d.get("message_variant"))
+            .map(|kind| {
+                profile.as_deref().map_or_else(
+                    || format!("{}.{kind}", notice.rule_id),
+                    |key| format!("{key}.{kind}"),
+                )
+            });
         if let Some(template) = specific
             .as_ref()
             .and_then(|k| dictionary.messages.get(k))
@@ -60,6 +65,7 @@ pub fn translate_notices(notices: &mut [Notice]) {
         if let Some(remediation) = specific
             .as_ref()
             .and_then(|k| dictionary.remediations.get(k))
+            .or_else(|| profile.as_ref().and_then(|k| dictionary.remediations.get(k)))
             .or_else(|| dictionary.remediations.get(&notice.rule_id))
         {
             notice.remediation = remediation.clone();
@@ -133,6 +139,86 @@ fn resolve(key: &str, notice: &Notice) -> String {
 mod tests {
     use super::*;
     use gtfs_core::{EntityType, RuleClass, Severity};
+
+    /// SDK çevirisi CLI/Python çevirisiyle (`gtfs_core::i18n`) AYNI metni üretmeli. İki
+    /// kopya bilinçli (WASM paketine ~500 KB sözlük taşımamak için) ama anahtar seçimi
+    /// 2026-09-30'a kadar ayrışıktı: profilsiz `message_variant` WASM'da yok sayılıyordu.
+    /// Sözlükteki HER anahtar biçimi (kural, kural.profil, kural.varyant,
+    /// kural.profil.varyant) için iki çevirmen karşılaştırılır.
+    #[test]
+    fn sdk_translation_matches_the_cli_translator() {
+        let core = gtfs_core::i18n::Translator::new(gtfs_core::i18n::Lang::En)
+            .expect("core sözlüğü okunamadı")
+            .expect("İngilizce çevirmen yok");
+        let dictionary = dictionary();
+        let keys = dictionary
+            .messages
+            .keys()
+            .chain(dictionary.remediations.keys())
+            .chain(dictionary.titles.keys());
+
+        let mut checked = 0;
+        for key in keys {
+            let parts: Vec<&str> = key.split('.').collect();
+            let rule = parts[0];
+            // İki parçalı anahtar profil de varyant da olabilir: ikisi de denenir.
+            let shapes: Vec<(Option<&str>, Option<&str>)> = match parts.as_slice() {
+                [_] => vec![(None, None)],
+                [_, x] => vec![(Some(*x), None), (None, Some(*x))],
+                [_, profile, kind] => vec![(Some(*profile), Some(*kind))],
+                _ => continue,
+            };
+            for (profile, kind) in shapes {
+                let mut details = std::collections::BTreeMap::from([
+                    ("affected_services".to_string(), "4".to_string()),
+                    ("first_service_date".to_string(), "20261001".to_string()),
+                ]);
+                if let Some(profile) = profile {
+                    details.insert("jp_profile".to_string(), profile.to_uppercase());
+                }
+                if let Some(kind) = kind {
+                    details.insert("message_variant".to_string(), kind.to_string());
+                }
+                let mut notice = parity_notice(rule, details);
+                let mut expected = notice.clone();
+                core.translate(&mut expected);
+                translate_notices(std::slice::from_mut(&mut notice));
+                assert_eq!(
+                    (&notice.title, &notice.message, &notice.remediation),
+                    (&expected.title, &expected.message, &expected.remediation),
+                    "SDK ile CLI çevirisi ayrıştı: {key} (profil {profile:?}, varyant {kind:?})"
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked > 1000, "sözlük beklenenden küçük: {checked}");
+    }
+
+    fn parity_notice(rule: &str, details: std::collections::BTreeMap<String, String>) -> Notice {
+        Notice {
+            id: "k/parity#1".to_string(),
+            rule_id: rule.to_string(),
+            severity: Severity::Orta,
+            rule_class: RuleClass::Quality,
+            entity_type: EntityType::Trip,
+            entity_id: Some("T1".to_string()),
+            scope_key: Some("T1".to_string()),
+            file: Some("trips.txt".to_string()),
+            line: Some(7),
+            field: Some("direction_id".to_string()),
+            observed_value: Some("9".to_string()),
+            expected_value: Some("0 or 1".to_string()),
+            details: Some(details),
+            whitespace_derived: false,
+            whitespace_candidate: false,
+            title: "Türkçe başlık".to_string(),
+            message: "Türkçe mesaj".to_string(),
+            remediation: "Türkçe çözüm".to_string(),
+            blocks: Vec::new(),
+            base_effort: 1,
+            service_id: None,
+        }
+    }
 
     /// SDK fatal mesajı da İngilizce şablondan yazılır; şablonu olmayan varyant
     /// pipeline metnini korur.
