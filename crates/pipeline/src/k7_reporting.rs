@@ -100,7 +100,9 @@ pub fn report_with_whitespace_suppressions(
 /// burada veya daha erken normalleştirilmez. Kök bulguya sayısal ve kural bazlı audit özeti
 /// yazılır; böylece varsayılan rapor küçük kalırken strict/audit tüketicisi neyin bastırıldığını
 /// görebilir.
-fn suppress_whitespace_derivatives(
+/// `pub` yalnız denetim araçları için (`examples/scope_audit.rs`).
+#[doc(hidden)]
+pub fn suppress_whitespace_derivatives(
     mut notices: Vec<Notice>,
     records: &EntityRecords,
     derived: &DerivedData,
@@ -223,7 +225,8 @@ const JOIN_DERIVATIVE_RULES: &[&str] = &[
 
 /// Mark join-derived notices before feed-level aggregation can erase their entity id.
 /// K7 uses this marker to declare/suppress the notice in the file carrying the padding.
-pub(crate) fn annotate_whitespace_join_provenance(
+#[doc(hidden)]
+pub fn annotate_whitespace_join_provenance(
     notices: &mut [Notice],
     records: &EntityRecords,
     derived: &DerivedData,

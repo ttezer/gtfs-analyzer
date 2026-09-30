@@ -1528,6 +1528,25 @@ pub fn apply_report_scope(
 /// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
 /// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
 pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
+    validate_bytes_inspected(zip, config, today, &mut |_, _, _, _| {})
+}
+
+/// [`validate_bytes_inspected`]'e verilen gözlemci: ham K1–K6 notice'ları ve onları
+/// yorumlamak için gereken kayıtlar, türev veri ve boşluk bastırma listeleri.
+#[doc(hidden)]
+pub type NoticeInspector<'a> =
+    dyn FnMut(&[gtfs_core::Notice], &EntityRecords, &DerivedData, &WhitespaceSuppressions) + 'a;
+
+/// [`validate_bytes`] ile aynı pipeline; `inspect` K1–K6 notice'larını feed-level
+/// toplulamadan ve rapor kapsamından ÖNCE, ham haliyle görür. Denetim araçları içindir
+/// (ör. `examples/scope_audit.rs`): toplulama `scope_key`/`entity_id`'yi siler.
+#[doc(hidden)]
+pub fn validate_bytes_inspected(
+    zip: &[u8],
+    config: &ValidatorConfig,
+    today: u32,
+    inspect: &mut NoticeInspector<'_>,
+) -> ValidateResult {
     use crate::timing::Timer;
 
     if let Err(e) = check_rule_scope(config) {
@@ -1648,6 +1667,10 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
+    let mut whitespace_suppressions = k2.whitespace_suppressions;
+    whitespace_suppressions.merge(k4.whitespace_suppressions);
+
+    inspect(&all, &k2.records, &k5.derived, &whitespace_suppressions);
     aggregate_feed_level_notices(&mut all, &k2.records, &k5.derived);
     apply_report_scope(&mut all, &k2.records, config);
 
@@ -1660,9 +1683,6 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         .iter()
         .any(|f| k1_parse::is_certification_critical(f))
         && partial.root_structural_errors.is_empty();
-
-    let mut whitespace_suppressions = k2.whitespace_suppressions;
-    whitespace_suppressions.merge(k4.whitespace_suppressions);
 
     let k7 = {
         let _t = Timer::start("K7-reporting");

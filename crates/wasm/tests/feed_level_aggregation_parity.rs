@@ -67,9 +67,15 @@ fn wasm_cached_rerun_aggregates_before_scope_and_cap() {
 #[test]
 fn native_validate_bytes_aggregates_before_scope() {
     let src = code_only(NATIVE_SRC);
+    // `validate_bytes` denetim gözlemcisi için ince bir sarmalayıcıdır; asıl orkestratör
+    // `validate_bytes_inspected`'tır. Sarmalayıcı başka bir yola saparsa kapı körleşir.
+    assert!(
+        body_of(&src, "validate_bytes").contains("validate_bytes_inspected("),
+        "`validate_bytes` artık `validate_bytes_inspected`'a devretmiyor"
+    );
     assert_aggregates_before(
-        body_of(&src, "validate_bytes"),
-        "validate_bytes",
+        body_of(&src, "validate_bytes_inspected"),
+        "validate_bytes_inspected",
         &["apply_report_scope("],
     );
 }
