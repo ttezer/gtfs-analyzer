@@ -1,6 +1,6 @@
 [package]
 name = "gtfs-analyzer-python"
-version = "0.14.0"
+version.workspace = true
 edition = "2021"
 license.workspace = true
 description = "Python bindings for the GTFS Analyzer validation engine."

@@ -52,13 +52,20 @@ jobs:
           import re
           import sys
 
+          # Paket sürümü kök Cargo.toml [workspace.package] version'dan gelir:
+          # crates/python onu miras alır, pyproject.toml `dynamic = ["version"]` ile
+          # maturin'e bırakır. İkisinden biri kendi sürümünü yazarsa tek kaynak bozulur.
           expected = os.environ["RELEASE_VERSION"].removeprefix("v")
+          root = pathlib.Path("Cargo.toml").read_text()
+          crate = pathlib.Path("crates/python/Cargo.toml").read_text()
           pyproject = pathlib.Path("pyproject.toml").read_text()
-          cargo = pathlib.Path("crates/python/Cargo.toml").read_text()
-          py_version = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE).group(1)
-          cargo_version = re.search(r'^version = "([^"]+)"', cargo, re.MULTILINE).group(1)
-          if py_version != expected or cargo_version != expected:
-              print(f"release={expected} pyproject={py_version} cargo-python={cargo_version}")
+          match = re.search(r'^\[workspace\.package\][^\[]*?^version\s*=\s*"([^"]+)"', root, re.MULTILINE | re.DOTALL)
+          workspace_version = match.group(1) if match else None
+          inherits = re.search(r'^version\.workspace\s*=\s*true\s*$', crate, re.MULTILINE) is not None
+          dynamic = re.search(r'^dynamic\s*=\s*\[\s*"version"\s*\]', pyproject, re.MULTILINE) is not None
+          if workspace_version != expected or not inherits or not dynamic:
+              print(f"release={expected} workspace={workspace_version} "
+                    f"crate_inherits={inherits} pyproject_dynamic={dynamic}")
               sys.exit(1)
           print(f"Python release version ok: {expected}")
           PY

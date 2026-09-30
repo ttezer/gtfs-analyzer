@@ -33,7 +33,7 @@ fn gtfs_analyzer(m: &Bound<'_, PyModule>) -> PyResult<()> {
         std::env::set_var("GTFS_QUIET", "1");
     }
     m.add_function(wrap_pyfunction!(validate, m)?)?;
-    // Sürümün tek kaynağı bu crate'in Cargo.toml'u; `__init__.py` buradan okur.
+    // CARGO_PKG_VERSION = kök Cargo.toml [workspace.package] version; `__init__.py` buradan okur.
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }

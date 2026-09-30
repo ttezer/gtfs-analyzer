@@ -11,6 +11,12 @@ members = [
 resolver = "2"
 
 [workspace.package]
+# Motor sürümünün TEK kaynağı. Yedi crate `version.workspace = true` ile buradan okur;
+# Python paketi (maturin) crates/python üzerinden aynı değeri alır. Bump için:
+#   node scripts/bump-version.mjs X.Y.Z
+# (kalan kopyaları — iç pinler, SDK ENGINE_VERSION, ui/package.json — o yazar,
+# sdk/scripts/check-version.mjs hepsinin eşitliğini denetler).
+version = "0.14.0"
 license = "MIT"
 
 [workspace.dependencies]
@@ -18,6 +24,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 zip = { version = "2", default-features = false, features = ["deflate", "time"] }
 wasm-bindgen = "0.2"
+# crates.io'ya yayınlanan iç crate'ler: yayında path yerine bu sürüm kullanılır.
+gtfs-core = { version = "0.14.0", path = "crates/core" }
+gtfs-config = { version = "0.14.0", path = "crates/config" }
+gtfs-rules = { version = "0.14.0", path = "crates/rules" }
+gtfs-pipeline = { version = "0.14.0", path = "crates/pipeline" }
 
 # NOT: Geçmişte lto kapatılmıştı (TriMet 6059→6085 regresyonunun lto FP-drift mi yoksa
 # flat-layout bug'ı mı olduğu izole edilemediği için). flat-layout bug'ı sonradan düzeldi;

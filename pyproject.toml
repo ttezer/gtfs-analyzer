@@ -4,7 +4,8 @@ build-backend = "maturin"
 
 [project]
 name = "gtfs-analyzer"
-version = "0.14.0"
+# Sürüm Cargo'dan gelir (kök Cargo.toml [workspace.package] → crates/python).
+dynamic = ["version"]
 description = "GTFS validation and quality analysis powered by the Rust GTFS Analyzer engine."
 readme = "README.md"
 requires-python = ">=3.9"
