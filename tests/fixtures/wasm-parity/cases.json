@@ -1,5 +1,5 @@
 {
-  "_comment": "Native (CLI) ile WASM (SDK) paritesi. Her vaka taban feed'e override uygular; `rule` o vakanın ateşlemesi zorunlu toplulanmış kuraldır. Beklenen çıktı expected.json'dadır ve CLI testi (crates/cli/tests/wasm_parity.rs) GTFS_BLESS_PARITY=1 ile yeniden üretir. Hiçbir vaka kural başına cap'e yaklaşmamalı: cap WASM'da bilinçli fark üretir.",
+  "_comment": "Native (CLI) ile WASM (SDK) paritesi. Her vaka taban feed'e override uygular; `rule` o vakanın ateşlemesi zorunlu kuraldır (toplulanan 23 kural + dedup seviyesi Entity'e alınan kurallar). Beklenen çıktı expected.json'dadır ve CLI testi (crates/cli/tests/wasm_parity.rs) GTFS_BLESS_PARITY=1 ile yeniden üretir. Hiçbir vaka kural başına cap'e yaklaşmamalı: cap WASM'da bilinçli fark üretir.",
   "today": "20260515",
   "base": {
     "agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n",
@@ -167,6 +167,31 @@
       "rule": "GGL_001",
       "files": {
         "transfers.txt": "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\nS2,S1,5\n"
+      }
+    },
+    {
+      "name": "FAR_010",
+      "rule": "FAR_010",
+      "files": {
+        "fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\nF2,2.00,USD,0,0\nF3,3.00,USD,0,0\n",
+        "fare_rules.txt": "fare_id,route_id\nF1,R1\nF2,R1\nF3,R1\n"
+      }
+    },
+    {
+      "name": "DQ_010",
+      "rule": "DQ_010",
+      "files": {
+        "agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\nA2,Two,http://two.example,UTC\nA3,Three,http://three.example,UTC\n",
+        "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"
+      }
+    },
+    {
+      "name": "AGN_013",
+      "rule": "AGN_013",
+      "files": {
+        "agency.txt": "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,en\nA2,Two,http://two.example,UTC,fr\nA3,Three,http://three.example,UTC,en\n",
+        "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n",
+        "feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nPublisher,http://publisher.example,de\n"
       }
     }
   ]

@@ -35,7 +35,7 @@
 //! | ~~ATR_006~~ | ✅ **ÇÖZÜLDÜ (issue #62)** — `route_id` FK'sı `ATR_011`'e ayrıldı; ATR_006 artık yalnız `is_authority` enum'unu ölçer. Defterden düştü. |
 //! | ~~ATR_007~~ | ✅ **ÇÖZÜLDÜ (issue #62)** — `trip_id` FK'sı `ATR_012`'ye ayrıldı; ATR_007 artık yalnız `attribution_url`'i ölçer. Defterden düştü. |
 //! | **STP_003** | ⚠️ Aynı biçim ama **başlıkta AÇIKÇA beyan edilmiş**: *"stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)"*. Kullanıcı yanlış etiketlenmiş bulgu almıyor. Bölünmesi ayrı bir karar; #62'de not düşüldü. |
-//! | AGN_013 | ✅ Tek olgu, iki alan: *"Feed dili ve ajans dili uyuşmuyor"* (`feed_lang` ↔ `agency_lang`) |
+//! | ~~AGN_013~~ | ✅ **ÇÖZÜLDÜ (2026-09-30)** — K2'deki ilk-acente kopyası kaldırıldı; tek emitter K4 `check_agencies` (acente başına). Defterden düştü. |
 //! | BKR_001 | ✅ Tek olgu: `prior_notice_start_day` / `prior_notice_last_day` aynı yasak bağlamı |
 //! | DQ_018 · DQ_019 | ✅ Tek olgu (all-caps / kontrol karakteri), yedi metin alanında ölçülür |
 //! | OPR_010 | ✅ Başlık ikisini de adlandırır: *"erişilebilirlik VEYA bisiklet politikası çelişiyor"* |

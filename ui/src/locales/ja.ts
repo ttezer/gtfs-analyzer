@@ -927,7 +927,7 @@ const ja: LocaleShape = {
     'FAR_005': "運賃'{entity_id}'：transfers'{observed_value}'が無効です。",
     'FAR_006': "運賃'{entity_id}'：transfer_duration'{observed_value}'が無効です。",
     'FAR_008': "運賃'{entity_id}'：agency_id'{observed_value}'が見つかりません。",
-    'FAR_010': "運賃'{entity_id}'：運賃ルールが重複しています。",
+    'FAR_010': "fare_rules.txtで{observed_value}件の運賃ルールが別の運賃の条件と重複しています。",
     'FAR_011': 'fare_attributes.txt：payment_methodがありません。',
     'FAR_012': 'fare_attributes.txt：fare_idがありません。',
     'LVL_008': 'levels.txt：level_idがありません。',

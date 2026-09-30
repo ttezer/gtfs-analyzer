@@ -1191,6 +1191,66 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
+/// FAR_010 ham olarak çakışan her `fare_rules` satırı için üretilir (korpusta tek feed'de
+/// 846.630). Registry `Feed` dedup seviyesindedir: toplulama olmadan dedup rastgele tek
+/// satırı bırakıyor ve çakışma sayısı kayboluyordu. Tek özet, sayı ve örnek çiftlerle.
+fn aggregate_far010(notices: &mut Vec<gtfs_core::Notice>) {
+    let mut first_position = None;
+    let mut matched = Vec::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "FAR_010" {
+            first_position.get_or_insert(index);
+            matched.push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if matched.is_empty() {
+        *notices = retained;
+        return;
+    }
+    let affected_rows = matched.len();
+    let mut examples: Vec<String> = matched
+        .iter()
+        .filter_map(|notice| {
+            let fare = notice.observed_value.as_deref()?;
+            let other = notice.expected_value.as_deref()?;
+            Some(format!("{fare} ↔ {other}"))
+        })
+        .collect();
+    examples.sort_unstable();
+    examples.dedup();
+    examples.truncate(5);
+    let mut aggregate = matched.swap_remove(0);
+    aggregate.entity_type = gtfs_core::EntityType::Feed;
+    aggregate.entity_id = None;
+    aggregate.scope_key = None;
+    aggregate.file = Some("fare_rules.txt".to_string());
+    aggregate.line = None;
+    aggregate.field = Some("fare_id".to_string());
+    aggregate.observed_value = Some(affected_rows.to_string());
+    aggregate.expected_value = None;
+    aggregate.message = format!(
+        "fare_rules.txt içinde {affected_rows} kural, aynı koşul kümesini başka bir tarifeyle çakışacak biçimde tanımlıyor."
+    );
+    aggregate.details = Some({
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("affected_rows".to_string(), affected_rows.to_string());
+        if !examples.is_empty() {
+            details.insert("example_fares".to_string(), examples.join(", "));
+        }
+        details
+    });
+    aggregate.service_id = None;
+    aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
+        && aggregate.whitespace_derived;
+    aggregate.whitespace_candidate = matched.iter().all(|n| n.whitespace_candidate)
+        && aggregate.whitespace_candidate;
+    retained.insert(first_position.unwrap_or(retained.len()).min(retained.len()), aggregate);
+    *notices = retained;
+}
+
 fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>) {
     let mut first_position = None;
     let mut matched = Vec::new();
@@ -1759,6 +1819,7 @@ pub fn aggregate_feed_level_notices(
     timed_aggregate!("TRF_019", aggregate_trf019);
     timed_aggregate!("CAL_008", aggregate_cal008);
     timed_aggregate!("GGL_001", aggregate_ggl001);
+    timed_aggregate!("FAR_010", aggregate_far010);
 }
 
 pub fn build_name_index(

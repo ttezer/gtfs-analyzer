@@ -55,6 +55,7 @@ const CASES: &[(&str, Group, Count)] = &[
     ("TRF_019", Group::Feed, Count::Observed),
     ("CAL_008", Group::Observed, Count::Detail("affected_services")),
     ("GGL_001", Group::Feed, Count::Observed),
+    ("FAR_010", Group::Feed, Count::Observed),
 ];
 
 /// `group` anahtarlı ham notice. `row` satır ve ayrık varlık kimliği üretir.
