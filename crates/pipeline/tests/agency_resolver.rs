@@ -10,7 +10,7 @@ use gtfs_core::{EntityType, Notice};
 use gtfs_pipeline::agency_attribution::{
     AgencyAttribution, AgencyResolver, Resolution, UnattributedReason,
 };
-use gtfs_pipeline::{validate_bytes_inspected, ValidatorConfig};
+use gtfs_pipeline::{validate_bytes, validate_bytes_inspected, ValidateResult, ValidatorConfig};
 use zip::write::SimpleFileOptions;
 
 const AGENCIES_AB: &str = "agency_id,agency_name,agency_url,agency_timezone\n\
@@ -28,7 +28,7 @@ fn attribute(
     probes: &[(Option<&str>, Option<&str>)],
 ) -> Vec<(AgencyAttribution, Option<String>)> {
     let notices: Vec<Notice> = probes.iter().map(|(scope, key)| probe(*scope, *key)).collect();
-    attribute_in(agency, routes, trips, &notices)
+    attribute_in(agency, routes, trips, &[], &notices)
 }
 
 /// Hazır notice'ları iki agency'li küçük bir feed'de atfeder.
@@ -37,6 +37,7 @@ fn attribute_notices(notices: &[Notice]) -> Vec<(AgencyAttribution, Option<Strin
         AGENCIES_AB,
         "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\n",
         "route_id,service_id,trip_id\nR1,SVC,T1\n",
+        &[],
         notices,
     )
 }
@@ -45,6 +46,7 @@ fn attribute_in(
     agency: &str,
     routes: &str,
     trips: &str,
+    extra: &[(&str, &str)],
     notices: &[Notice],
 ) -> Vec<(AgencyAttribution, Option<String>)> {
     let stop_times = {
@@ -55,7 +57,7 @@ fn attribute_in(
         }
         rows
     };
-    let files = [
+    let mut files = vec![
         ("agency.txt", agency),
         ("stops.txt", STOPS),
         ("routes.txt", routes),
@@ -63,6 +65,7 @@ fn attribute_in(
         ("stop_times.txt", stop_times.as_str()),
         ("calendar.txt", CALENDAR),
     ];
+    files.extend_from_slice(extra);
     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     for (name, body) in files {
         writer.start_file(name, SimpleFileOptions::default()).unwrap();
@@ -111,6 +114,7 @@ fn probe(scope: Option<&str>, key: Option<&str>) -> Notice {
         blocks: Vec::new(),
         base_effort: rule.base_effort,
         service_id: None,
+        agency_distribution: None,
     }
 }
 
@@ -247,4 +251,123 @@ fn feed_level_summaries_of_scoped_rules_are_not_missing_keys() {
     };
     let out = attribute_notices(&[summary]);
     assert_eq!(out[0].0, unattributed(UnattributedReason::FeedLevelSummary));
+}
+
+/// #2201 P2: feed-level özet, altındaki ham notice'ların agency dağılımını kaybetmez.
+/// İki agency'nin birer seferinde direction_id geçersiz → tek TRP_005 özeti, A=1 B=1.
+#[test]
+fn aggregated_summary_keeps_the_agency_distribution() {
+    let files = [
+        ("agency.txt", AGENCIES_AB),
+        ("stops.txt", STOPS),
+        ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\nR2,B,2,3\n"),
+        ("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC,T1,7\nR2,SVC,T2,9\n"),
+        (
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n",
+        ),
+        ("calendar.txt", CALENDAR),
+    ];
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, body) in files {
+        writer.start_file(name, SimpleFileOptions::default()).unwrap();
+        writer.write_all(body.as_bytes()).unwrap();
+    }
+    let zip = writer.finish().unwrap().into_inner();
+    let ValidateResult::Ok(result) = validate_bytes(&zip, &ValidatorConfig::default(), 20_260_930)
+    else {
+        panic!("feed fatal");
+    };
+    let summary: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "TRP_005").collect();
+    assert_eq!(summary.len(), 1, "TRP_005 tek feed özeti olmalı");
+    assert_eq!(summary[0].entity_type, EntityType::Feed);
+    let distribution = summary[0].agency_distribution.as_ref().expect("dağılım yok");
+    let agencies: Vec<(u32, u64)> = distribution
+        .iter()
+        .map(|(attribution, n)| match attribution {
+            AgencyAttribution::Resolved { agency, resolution: Resolution::Exact } => (agency.0, *n),
+            other => panic!("beklenmeyen atıf: {other:?}"),
+        })
+        .collect();
+    assert_eq!(agencies, [(0, 1), (1, 1)], "A (0) ve B (1) birer sefer");
+}
+
+/// `fare_id` scope'lu kurallar: `fare_attributes.agency_id` → agency; boşsa tek agency.
+#[test]
+fn fares_resolve_through_fare_attributes() {
+    let fares = |agencies: &str, fare_rows: &str, probes: &[Option<&str>]| {
+        let notices: Vec<Notice> = probes.iter().map(|key| probe(Some("fare_id"), *key)).collect();
+        attribute_in(
+            agencies,
+            "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\n",
+            "route_id,service_id,trip_id\nR1,SVC,T1\n",
+            &[(
+                "fare_attributes.txt",
+                fare_rows,
+            )],
+            &notices,
+        )
+    };
+    let multi = fares(
+        AGENCIES_AB,
+        "fare_id,price,currency_type,payment_method,transfers,agency_id\n\
+F1,1.00,USD,0,0,B\nF2,2.00,USD,0,0,\n",
+        &[Some("F1"), Some("F2"), Some("NOPE")],
+    );
+    assert!(resolved("B", Resolution::Exact)(&multi[0]), "{multi:?}");
+    assert_eq!(multi[1].0, unattributed(UnattributedReason::FareWithoutAgency));
+    assert_eq!(multi[2].0, unattributed(UnattributedReason::UnknownFare));
+
+    let single = fares(
+        "agency_id,agency_name,agency_url,agency_timezone\nA,Alpha,http://a.example,UTC\n",
+        "fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n",
+        &[Some("F1")],
+    );
+    assert!(resolved("A", Resolution::Exact)(&single[0]), "{single:?}");
+}
+
+/// FAR_010 scope beyan etmez (feed özeti) ama ham notice'ları tarife başınadır; toplulama
+/// dağılımı tarifenin agency'sinden kurulur (`attribute_member`, `EntityType::Fare`).
+#[test]
+fn far010_summary_distributes_over_fare_agencies() {
+    let files = [
+        ("agency.txt", AGENCIES_AB),
+        ("stops.txt", STOPS),
+        ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\n"),
+        ("trips.txt", "route_id,service_id,trip_id\nR1,SVC,T1\n"),
+        (
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n",
+        ),
+        ("calendar.txt", CALENDAR),
+        (
+            "fare_attributes.txt",
+            "fare_id,price,currency_type,payment_method,transfers,agency_id\n\
+F1,1.00,USD,0,0,A\nF2,2.00,USD,0,0,B\nF3,3.00,USD,0,0,B\n",
+        ),
+        ("fare_rules.txt", "fare_id,route_id\nF1,R1\nF2,R1\nF3,R1\n"),
+    ];
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, body) in files {
+        writer.start_file(name, SimpleFileOptions::default()).unwrap();
+        writer.write_all(body.as_bytes()).unwrap();
+    }
+    let zip = writer.finish().unwrap().into_inner();
+    let ValidateResult::Ok(result) = validate_bytes(&zip, &ValidatorConfig::default(), 20_260_930)
+    else {
+        panic!("feed fatal");
+    };
+    let summary: Vec<&Notice> = result.notices.iter().filter(|n| n.rule_id == "FAR_010").collect();
+    assert_eq!(summary.len(), 1, "FAR_010 tek feed özeti olmalı");
+    assert_eq!(summary[0].observed_value.as_deref(), Some("2"));
+    let distribution = summary[0].agency_distribution.as_ref().expect("dağılım yok");
+    // F2 ve F3, F1 ile çakışır; ikisi de B'nin tarifesi.
+    let agencies: Vec<(u32, u64)> = distribution
+        .iter()
+        .map(|(attribution, n)| (attribution.agency().expect("atfedilmeli").0, *n))
+        .collect();
+    assert_eq!(agencies, [(1, 2)], "{distribution:?}");
 }

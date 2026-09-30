@@ -1887,6 +1887,7 @@ mod tests {
             blocks: vec![],
             base_effort: 1,
             service_id: None,
+            agency_distribution: None,
         }
     }
 

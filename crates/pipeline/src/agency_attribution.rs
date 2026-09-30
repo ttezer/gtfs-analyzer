@@ -8,6 +8,7 @@
 //! - `agency_id` → agency                         ⇒ [`AgencyAttribution::Direct`]
 //! - `route_id`  → route.agency_id → agency       ⇒ [`AgencyAttribution::Resolved`]
 //! - `trip_id`   → trip.route_id → route → agency ⇒ [`AgencyAttribution::Resolved`]
+//! - `fare_id`   → fare_attributes.agency_id → agency ⇒ [`AgencyAttribution::Resolved`]
 //! - başka bir scope (stop, shape, service…)      ⇒ [`AgencyAttribution::Unsupported`]
 //! - scope beyanı yok (feed/dosya düzeyi)         ⇒ [`AgencyAttribution::NotApplicable`]
 //!
@@ -18,9 +19,10 @@
 //! ([`UnattributedReason::AmbiguousPaddedId`]). 2026-09-30 korpus denetimi: 830 feed'de
 //! yedek 463 notice'ta gerekti, belirsizlik hiç çıkmadı.
 //!
-//! Tek agency'li feed'de `routes.agency_id` boş olabilir (GTFS koşullu zorunluluk); bu
-//! durumda route o tek agency'ye bağlanır. Birden fazla agency varken boş `agency_id`
-//! bağlanmaz ([`UnattributedReason::RouteWithoutAgency`]).
+//! Tek agency'li feed'de `routes.agency_id` ve `fare_attributes.agency_id` boş olabilir
+//! (GTFS koşullu zorunluluk); bu durumda kayıt o tek agency'ye bağlanır. Birden fazla agency
+//! varken boş `agency_id` bağlanmaz ([`UnattributedReason::RouteWithoutAgency`],
+//! [`UnattributedReason::FareWithoutAgency`]).
 //!
 //! Yinelenen ID'lerde İLK kayıt kazanır (dosya sırası); kopya kimlik ayrı kurallarla
 //! raporlanır.
@@ -31,71 +33,9 @@ use gtfs_core::Notice;
 
 use crate::k2::EntityRecords;
 
-/// Agency kaydının resolver içindeki sırası. `agency_id`'si olmayan tek agency'nin
-/// kimliği boş string'dir.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct AgencyRef(u32);
-
-/// Kimliğin nasıl eşleştiği. Zincirdeki (trip → route → agency) HERHANGİ bir adım
-/// kırpma yedeğiyle çözüldüyse sonuç yedektir.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Resolution {
-    Exact,
-    UniqueTrimFallback,
-}
-
-impl Resolution {
-    fn and(self, other: Resolution) -> Resolution {
-        if self == Resolution::Exact && other == Resolution::Exact {
-            Resolution::Exact
-        } else {
-            Resolution::UniqueTrimFallback
-        }
-    }
-}
-
-/// Atıf beklenebilirken yapılamamasının nedeni.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum UnattributedReason {
-    /// Kural scope beyan ediyor ama notice `scope_key` taşımıyor.
-    MissingScopeKey,
-    /// Scope beyanlı kuralın feed düzeyi özeti (`EntityType::Feed`, `scope_key` yok):
-    /// feed-level toplulamalar ve emitter içi özetler (STM_017, STM_032/056 eşik üstü).
-    /// Tek bir varlığa ait değildir; dağılım özetten ÖNCE, ham notice'larda korunmalıdır.
-    FeedLevelSummary,
-    /// `agency_id` feed'de yok (kırık FK dahil).
-    UnknownAgency,
-    /// `route_id` feed'de yok (kırık FK dahil).
-    UnknownRoute,
-    /// `trip_id` feed'de yok (kırık FK dahil).
-    UnknownTrip,
-    /// Birden fazla agency varken route'un `agency_id`'si boş.
-    RouteWithoutAgency,
-    /// Kırpılmış kimlik birden fazla ham kimliğe düşüyor.
-    AmbiguousPaddedId,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AgencyAttribution {
-    /// Notice doğrudan bir agency kaydına ait.
-    Direct { agency: AgencyRef, resolution: Resolution },
-    /// Route/trip ilişkisinden tek agency bulundu.
-    Resolved { agency: AgencyRef, resolution: Resolution },
-    Unattributed(UnattributedReason),
-    /// Kuralın scope türü henüz çözülmüyor (stop, shape, service… — P6).
-    Unsupported,
-    /// Kural scope beyan etmiyor: feed/dosya düzeyi bulgu, agency kavramıyla ilişkisi yok.
-    NotApplicable,
-}
-
-impl AgencyAttribution {
-    pub fn agency(&self) -> Option<AgencyRef> {
-        match self {
-            Self::Direct { agency, .. } | Self::Resolved { agency, .. } => Some(*agency),
-            _ => None,
-        }
-    }
-}
+pub use gtfs_core::agency::{
+    AgencyAttribution, AgencyDistribution, AgencyRef, Resolution, UnattributedReason,
+};
 
 /// Ham kimlik → değer; kırpılmış kimlik → değer ya da belirsizlik.
 struct IdIndex<'a, V> {
@@ -141,11 +81,15 @@ impl<'a, V: Copy> IdIndex<'a, V> {
 type RouteAgency = Result<(AgencyRef, Resolution), UnattributedReason>;
 
 pub struct AgencyResolver<'a> {
+    records: &'a EntityRecords,
     agency_ids: Vec<&'a str>,
     agencies: IdIndex<'a, AgencyRef>,
     routes: IdIndex<'a, RouteAgency>,
-    /// trip_id → route_id (ham).
-    trips: IdIndex<'a, &'a str>,
+    fares: IdIndex<'a, RouteAgency>,
+    /// trip_id → route_id (ham). TEMBEL: trip scope'lu bir notice sorulana kadar kurulmaz.
+    /// Büyük feed'de (VBB 282k sefer) iki hash haritası demektir; WASM belleği için
+    /// toplulanan kuralların çoğu trip scope'lu olmadığında hiç ödenmez.
+    trips: std::cell::OnceCell<IdIndex<'a, &'a str>>,
 }
 
 impl<'a> AgencyResolver<'a> {
@@ -160,29 +104,39 @@ impl<'a> AgencyResolver<'a> {
         );
         let single = (agency_ids.len() == 1).then_some(AgencyRef(0));
 
-        let routes = IdIndex::build(records.routes.iter().map(|route| {
-            let owner = match route.agency_id.as_deref().filter(|id| !id.trim().is_empty()) {
+        // Kaydın `agency_id`'si → agency; boşsa tek agency, o da yoksa `without`.
+        let owner = |agency_id: Option<&str>, without: UnattributedReason| -> RouteAgency {
+            match agency_id.filter(|id| !id.trim().is_empty()) {
                 Some(id) => match agencies.get(id) {
                     Ok(hit) => Ok(hit),
                     Err(Miss::Unknown) => Err(UnattributedReason::UnknownAgency),
                     Err(Miss::Ambiguous) => Err(UnattributedReason::AmbiguousPaddedId),
                 },
-                None => single
-                    .map(|agency| (agency, Resolution::Exact))
-                    .ok_or(UnattributedReason::RouteWithoutAgency),
-            };
-            (route.route_id.as_str(), owner)
+                None => single.map(|agency| (agency, Resolution::Exact)).ok_or(without),
+            }
+        };
+        let routes = IdIndex::build(records.routes.iter().map(|route| {
+            let agency = owner(route.agency_id.as_deref(), UnattributedReason::RouteWithoutAgency);
+            (route.route_id.as_str(), agency)
+        }));
+        let fares = IdIndex::build(records.fare_attributes.iter().map(|fare| {
+            let agency = owner(fare.agency_id.as_deref(), UnattributedReason::FareWithoutAgency);
+            (fare.fare_id.as_str(), agency)
         }));
 
-        let interns = &records.trip_interns;
-        let trips = IdIndex::build(
-            records
-                .trips
-                .iter()
-                .map(|trip| (trip.trip_id.as_str(), interns.route_id(trip))),
-        );
+        Self { records, agency_ids, agencies, routes, fares, trips: std::cell::OnceCell::new() }
+    }
 
-        Self { agency_ids, agencies, routes, trips }
+    fn trips(&self) -> &IdIndex<'a, &'a str> {
+        self.trips.get_or_init(|| {
+            let interns = &self.records.trip_interns;
+            IdIndex::build(
+                self.records
+                    .trips
+                    .iter()
+                    .map(|trip| (trip.trip_id.as_str(), interns.route_id(trip))),
+            )
+        })
     }
 
     /// Resolver'ın atfettiği agency'nin ham kimliği (tek agency'de boş olabilir).
@@ -195,10 +149,37 @@ impl<'a> AgencyResolver<'a> {
         let Some(scope) = scope else {
             return AgencyAttribution::NotApplicable;
         };
-        if !matches!(scope, "agency_id" | "route_id" | "trip_id") {
+        self.attribute_scoped(notice, scope, notice.scope_key.as_deref())
+    }
+
+    /// Feed-level toplulamanın ham grup üyesi için. Toplulanan kuralların registry scope'u
+    /// ÖZETİN kimliğini anlatır (feed düzeyi, çoğunlukla `None`), üyenin değil: ham TRP_005
+    /// sefer başınadır ama kural scope beyan etmez. Scope beyanı yoksa üyenin kendi varlığı
+    /// (`Agency`/`Route`/`Trip` + `entity_id`) kullanılır.
+    pub fn attribute_member(&self, notice: &Notice) -> AgencyAttribution {
+        match self.attribute(notice) {
+            AgencyAttribution::NotApplicable => {
+                let scope = match notice.entity_type {
+                    gtfs_core::EntityType::Agency => "agency_id",
+                    gtfs_core::EntityType::Route => "route_id",
+                    gtfs_core::EntityType::Trip => "trip_id",
+                    gtfs_core::EntityType::Fare => "fare_id",
+                    gtfs_core::EntityType::Stop
+                    | gtfs_core::EntityType::Shape
+                    | gtfs_core::EntityType::Service => return AgencyAttribution::Unsupported,
+                    _ => return AgencyAttribution::NotApplicable,
+                };
+                self.attribute_scoped(notice, scope, notice.entity_id.as_deref())
+            }
+            other => other,
+        }
+    }
+
+    fn attribute_scoped(&self, notice: &Notice, scope: &str, key: Option<&str>) -> AgencyAttribution {
+        if !matches!(scope, "agency_id" | "route_id" | "trip_id" | "fare_id") {
             return AgencyAttribution::Unsupported;
         }
-        let Some(key) = notice.scope_key.as_deref().filter(|k| !k.is_empty()) else {
+        let Some(key) = key.filter(|k| !k.is_empty()) else {
             return AgencyAttribution::Unattributed(
                 if notice.entity_type == gtfs_core::EntityType::Feed {
                     UnattributedReason::FeedLevelSummary
@@ -215,7 +196,11 @@ impl<'a> AgencyResolver<'a> {
                 };
             }
             "route_id" => self.route(key, Resolution::Exact),
-            _ => match self.trips.get(key) {
+            "fare_id" => match self.fares.get(key) {
+                Ok((owner, hop)) => owner.map(|(agency, agency_hop)| (agency, hop.and(agency_hop))),
+                Err(miss) => return unattributed(miss, UnattributedReason::UnknownFare),
+            },
+            _ => match self.trips().get(key) {
                 Ok((route_id, resolution)) => self.route(route_id, resolution),
                 Err(miss) => return unattributed(miss, UnattributedReason::UnknownTrip),
             },

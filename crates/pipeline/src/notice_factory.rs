@@ -60,5 +60,6 @@ pub(crate) fn build(
         blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
         base_effort: meta.base_effort,
         service_id: None,
+        agency_distribution: None,
     }
 }

@@ -105,6 +105,36 @@ fn survivors(
         .collect()
 }
 
+/// Toplulanmış özetlerin agency dağılımı (#2201 P2): kural → (özet, dağılım toplamı,
+/// özetlerin taşıdığı sayı toplamı, dağılımın atfedilen kısmı).
+fn aggregate_distributions(
+    raw: &[Notice],
+    records: &EntityRecords,
+    derived: &DerivedData,
+) -> BTreeMap<String, (u64, u64, u64, u64)> {
+    let mut notices = raw.to_vec();
+    aggregate_feed_level_notices(&mut notices, records, derived);
+    let mut out: BTreeMap<String, (u64, u64, u64, u64)> = BTreeMap::new();
+    for n in &notices {
+        let Some(distribution) = n.agency_distribution.as_ref() else { continue };
+        let count = if n.rule_id == "CAL_008" {
+            n.details.as_ref().and_then(|d| d.get("affected_services")).cloned()
+        } else {
+            n.observed_value.clone()
+        };
+        let entry = out.entry(n.rule_id.clone()).or_default();
+        entry.0 += 1;
+        entry.1 += distribution.values().sum::<u64>();
+        entry.2 += count.and_then(|c| c.parse::<u64>().ok()).unwrap_or(0);
+        entry.3 += distribution
+            .iter()
+            .filter(|(a, _)| a.agency().is_some())
+            .map(|(_, n)| n)
+            .sum::<u64>();
+    }
+    out
+}
+
 /// (kök kuralı, engellenen kural) → (birebir semptom, kırpılmış semptom, kapsamlı kök
 /// sayısı, engellenen kuralın feed'deki notice sayısı).
 fn symptom_pairs(
@@ -203,6 +233,7 @@ fn main() {
     let mut inspected = false;
     let mut symptoms = BTreeMap::new();
     let mut resolver_us = (0u128, 0u128, 0usize);
+    let mut distributions = BTreeMap::new();
     let config = ValidatorConfig::default();
 
     let result = validate_bytes_inspected(
@@ -225,6 +256,7 @@ fn main() {
                 .collect();
             resolver_us = (built, t1.elapsed().as_micros(), records.agencies.len());
             symptoms = symptom_pairs(notices, records, derived, suppressions, &config);
+            distributions = aggregate_distributions(notices, records, derived);
             let sets = id_sets(records);
             // kırpılmış → ham ID'ler (trim fallback ve belirsizlik ölçümü için)
             let trimmed: HashMap<&str, HashMap<&str, Vec<&str>>> = sets
@@ -327,6 +359,19 @@ fn main() {
                 "verifiable_trim_only": s.verifiable_trim_only,
                 "ws_suppressed": s.ws_suppressed,
                 "attribution": s.attribution,
+            })
+        );
+    }
+    for (rule, (summaries, distributed, counted, attributed)) in distributions {
+        println!(
+            "{}",
+            json!({
+                "feed": feed,
+                "aggregate": rule,
+                "summaries": summaries,
+                "distributed": distributed,
+                "counted": counted,
+                "attributed": attributed,
             })
         );
     }

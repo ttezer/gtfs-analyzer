@@ -55,6 +55,11 @@ pub struct Notice {
     /// doldurulur (R2'de "Çalışma Takvimi" sütunu). Feed/dosya kurallarında None.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub service_id: Option<String>,
+    /// Feed-level özetin altındaki ham notice'ların agency dağılımı (#2201). Yalnız
+    /// toplulanmış özetlerde dolar; diğer notice'larda `None` kalır (8 bayt). Pipeline-içi
+    /// işarettir, serileştirilmez: JSON sözleşmesi ayrı karardır.
+    #[serde(skip)]
+    pub agency_distribution: Option<Box<crate::agency::AgencyDistribution>>,
 }
 
 /// Canonical Notice'ı bir rapor görünümüne projekte eden referans nesnesi.

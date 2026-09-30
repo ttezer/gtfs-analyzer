@@ -217,6 +217,7 @@ mod tests {
             blocks: Vec::new(),
             base_effort: 1,
             service_id: None,
+            agency_distribution: None,
         }
     }
 
@@ -265,6 +266,7 @@ mod tests {
             blocks: Vec::new(),
             base_effort: 1,
             service_id: None,
+            agency_distribution: None,
         };
 
         translate_notices(std::slice::from_mut(&mut notice));

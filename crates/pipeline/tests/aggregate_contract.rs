@@ -93,6 +93,7 @@ fn raw(rule_id: &str, group: Group, key: &str, row: u64) -> Notice {
         blocks: Vec::new(),
         base_effort: meta.base_effort,
         service_id: None,
+        agency_distribution: None,
     }
 }
 
@@ -143,8 +144,15 @@ fn every_aggregated_rule_carries_the_affected_count() {
             assert_eq!(summaries[0].entity_type, EntityType::Feed, "{rule_id}: feed özeti");
             assert_eq!(summaries[0].entity_id, None, "{rule_id}: feed özeti varlık taşımaz");
         }
-        let kept = out.iter().filter(|n| n.rule_id == "STM_054").count();
-        assert_eq!(kept, 1, "{rule_id}: başka kuralın notice'ı korunmalı");
+        let kept: Vec<&Notice> = out.iter().filter(|n| n.rule_id == "STM_054").collect();
+        assert_eq!(kept.len(), 1, "{rule_id}: başka kuralın notice'ı korunmalı");
+        assert!(kept[0].agency_distribution.is_none(), "{rule_id}: toplulanmayan notice dağılım taşımaz");
+        // #2201: özet, altındaki ham notice'ların agency dağılımını taşır; toplamı sayıdır.
+        let distribution = summaries[0]
+            .agency_distribution
+            .as_ref()
+            .unwrap_or_else(|| panic!("{rule_id}: özet agency dağılımı taşımalı"));
+        assert_eq!(distribution.values().sum::<u64>(), 3, "{rule_id}: dağılım toplamı = sayı");
     }
 }
 
@@ -166,7 +174,12 @@ fn grouped_rules_summarise_each_group_separately() {
         let mut counts: Vec<&str> = out
             .iter()
             .filter(|n| n.rule_id == rule_id)
-            .map(|n| count_of(n, count).expect("özet sayı taşımalı"))
+            .map(|n| {
+                let c = count_of(n, count).expect("özet sayı taşımalı");
+                let total: u64 = n.agency_distribution.as_ref().map_or(0, |d| d.values().sum());
+                assert_eq!(total.to_string(), c, "{rule_id}: grup dağılımı toplamı = grup sayısı");
+                c
+            })
             .collect();
         counts.sort_unstable();
         assert_eq!(counts, ["1", "2"], "{rule_id}: grup başına ayrı özet");
