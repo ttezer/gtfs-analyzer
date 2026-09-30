@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the 64-bit native build and 32-bit WASM, so the CLI and the web app showed
   different `line` and example trip for the same feed. It now keeps the trip
   with the lowest `stop_times.txt` line.
+- **`STM_053` points to `stop_times.txt`.** Since the route-level summary its
+  `file` was `routes.txt` while `line` is the example trip's first
+  `stop_times.txt` row, so the location pointed to an unrelated row. `file` is
+  now `stop_times.txt`, as the rule card documents.
 
 ## [0.15.0] - 2026-09-30
 

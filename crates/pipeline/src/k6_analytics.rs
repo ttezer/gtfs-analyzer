@@ -2185,7 +2185,8 @@ fn check_speed_and_duration<'a>(
             EntityType::Route,
             Some(route.to_string()),
             Some(route.to_string()),
-            "routes.txt",
+            // `line` örnek seferin ilk stop_times satırıdır; dosya onunla aynı olmalı.
+            "stop_times.txt",
             (line > 0).then_some(line),
             Some("route_id"),
             Some(format!(
@@ -12083,6 +12084,7 @@ mod tests {
             .filter(|n| n.rule_id == "STM_053")
             .collect();
         assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file.as_deref(), Some("stop_times.txt"));
         assert_eq!(found[0].line, Some(2));
         assert!(
             found[0].message.contains("'T23'"),
