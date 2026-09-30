@@ -137,3 +137,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: gh release edit "$RELEASE_TAG" --draft=false
+
+  # PyPI paketi aynı tag'den çıksın diye `publish-python.yml` burada tetiklenir.
+  # `release: published` olayına güvenilemez: release'i yukarıda GITHUB_TOKEN yayınlıyor
+  # ve GITHUB_TOKEN olayları başka workflow başlatmaz; `workflow_dispatch` istisnadır.
+  # PyPI trusted publisher `publish-python.yml`'ye bağlı olduğundan yayın orada kalır.
+  trigger-pypi:
+    name: PyPI yayınını tetikle
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: publish-python.yml'yi tag ref'iyle başlat
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh workflow run publish-python.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_TAG"

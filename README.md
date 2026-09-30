@@ -9,6 +9,7 @@
 [![Korpus doğrulaması](https://img.shields.io/badge/korpus-4343%20feed%20%C3%97%2018%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
+[![PyPI](https://img.shields.io/pypi/v/gtfs-analyzer?style=flat&label=PyPI)](https://pypi.org/project/gtfs-analyzer/)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
 **GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi** ve yayınlandığında **`gtfs-analyzer` Python paketi** olmak üzere altı yoldan kullanılabilir.

@@ -133,10 +133,13 @@ kurması beklenmeyecek.
 
 - `crates/python` eklendi ve ortak Rust pipeline'ına bağlandı.
 - `pyproject.toml` ve `python/gtfs_analyzer/__init__.py` eklendi.
-- `.github/workflows/publish-python.yml` eklendi; yalnızca GitHub Release
-  yayımlandığında ve tag `v*` olduğunda Trusted Publishing ile çalışacak
-  şekilde ayarlandı. Tag ile `pyproject.toml` ve Python crate sürümü eşleşmezse
-  yayın durur.
+- `.github/workflows/publish-python.yml` eklendi; Trusted Publishing ile
+  yalnız `vX.Y.Z` tag ref'inde çalışır (`require-tag` job'u başka ref'te kırmızı
+  yanar). Tag ile `pyproject.toml` ve Python crate sürümü eşleşmezse yayın durur.
+- 2026-09-30: `release: published` tetikleyicisi kaldırıldı — `release.yml`
+  release'i GITHUB_TOKEN ile yayınladığı için hiç ateşlenmiyordu. 0.14.0 bu yüzden
+  `main`'den elle yayınlandı ve `v0.14.0` tag'inden 138 commit ileride kaldı.
+  Artık `release.yml`'nin `trigger-pypi` job'u workflow'u tag ref'iyle başlatır.
 - `.github/workflows/publish-python-test.yml` eklendi; yalnızca manuel
   `workflow_dispatch` ile TestPyPI’ye yayın yapar. Henüz çalıştırılmadı.
 - `.github/workflows/ci.yml` içine `python-package` kapısı eklendi; Rust binding
@@ -171,7 +174,7 @@ kurması beklenmeyecek.
   bu sürüm engine sürümüyle aynı olmak zorunda değildir.
 - Engine release tag'i yayımlandığında Python workflow'u aynı tag'den wheel ve
   sdist üretip PyPI'ye yayınlar. `audit-*` gibi ürün release'i olmayan tag'ler
-  Python workflow'unda atlanır.
+  `release.yml`'yi tetiklemez; elle tag dışı ref seçilirse `require-tag` düşer.
 - Yalnız npm SDK değiştiğinde engine tag'i üretme; npm paketi kendi sürüm bump
   akışıyla yayınlanır. Mevcut repository'de npm publish için ayrı bir workflow
   bulunmadığından, npm yayın adımı ayrıca ve açıkça planlanmalıdır.
@@ -184,9 +187,9 @@ kurması beklenmeyecek.
 3. SDK değiştiyse yalnız ayrıca `SDK_VERSION` ve `sdk/package.json` sürümünü
    bump et; `sdk/scripts/check-version.mjs` çalıştır.
 4. Cargo, SDK ve Python build/test kapılarını çalıştır.
-5. `vX.Y.Z` tag'ini engine sürümüyle aynı oluştur; GitHub Release'i yayınla.
-6. Release workflow CLI asset'lerini üretir; Python workflow aynı release'ten
-   PyPI dağıtımlarını üretir.
+5. `vX.Y.Z` tag'ini engine sürümüyle aynı oluştur ve push et.
+6. `release.yml` CLI asset'lerini üretir, release'i yayına alır ve
+   `publish-python.yml`'yi aynı tag ref'iyle başlatır; PyPI dağıtımları oradan çıkar.
 
 Bu plan içinde Python için ayrı bir `v0.14.0`/`v0.14.1` tag hattı açılmamalı.
 
