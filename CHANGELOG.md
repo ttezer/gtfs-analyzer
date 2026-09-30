@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PyPI shows a dedicated English README (`python/README.md`) instead of the
   Turkish repository README.
 
+### Fixed
+
+- **Web app and npm SDK: feed-level summaries for 22 rules.** The feed-level
+  aggregation added on 2026-09-21 (`STM_036`, `TRP_005`, `FRQ_007`, `CAL_008` and
+  18 more) ran only in the native pipeline. The WASM build deduplicated the raw
+  per-row notices at feed level instead, so it kept one arbitrary row, lost the
+  affected-record count, and rendered the row's value as the count (for example
+  "2 trips have an invalid direction_id"). Both WASM paths now call the same
+  `gtfs_pipeline::aggregate_feed_level_notices` as the CLI, before report scope
+  and the per-rule cap, and a source-level test guards the call order.
+
 ## [0.15.0] - 2026-09-30
 
 This release carries the multi-feed rule-semantics triage of 2026-09-21 into every

@@ -1648,40 +1648,7 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
-    // K7'nin whitespace join çözümlemesi entity_id üzerinden çalışır; feed-level
-    // toplulama bunu silmeden önce padding'in hangi dosyada durduğunu işaretle.
-    annotate_whitespace_join_provenance(&mut all, &k2.records, &k5.derived);
-
-    // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
-    // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
-    macro_rules! timed_aggregate {
-        ($name:literal, $function:ident) => {{
-            let _t = Timer::start(concat!("aggregate::", $name));
-            $function(&mut all);
-        }};
-    }
-    timed_aggregate!("STM_036", aggregate_stm036);
-    timed_aggregate!("DQ_021", aggregate_dq021);
-    timed_aggregate!("ARC_012", aggregate_arc012);
-    timed_aggregate!("CLD_003", aggregate_cld003);
-    timed_aggregate!("SHP_005", aggregate_shp005);
-    timed_aggregate!("STM_008", aggregate_stm008);
-    timed_aggregate!("STM_047", aggregate_stm047);
-    timed_aggregate!("PTH_007", aggregate_pth007);
-    timed_aggregate!("TRP_003", aggregate_trp003);
-    timed_aggregate!("TRN_001", aggregate_trn001);
-    timed_aggregate!("STP_004", aggregate_stp004);
-    timed_aggregate!("STP_005", aggregate_stp005);
-    timed_aggregate!("TRF_005", aggregate_trf005);
-    timed_aggregate!("PTH_012", aggregate_pth012);
-    timed_aggregate!("STP_042", aggregate_stp042);
-    timed_aggregate!("STP_032", aggregate_stp032);
-    timed_aggregate!("TRP_005", aggregate_trp005);
-    timed_aggregate!("STM_022", aggregate_stm022);
-    timed_aggregate!("FRQ_007", aggregate_frq007);
-    timed_aggregate!("TRF_019", aggregate_trf019);
-    timed_aggregate!("CAL_008", aggregate_cal008);
-    timed_aggregate!("GGL_001", aggregate_ggl001);
+    aggregate_feed_level_notices(&mut all, &k2.records, &k5.derived);
     apply_report_scope(&mut all, &k2.records, config);
 
     // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
@@ -1726,6 +1693,52 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         name_index,
         capped_totals: std::collections::BTreeMap::new(),
     })
+}
+
+/// K1–K6 notice'larını feed-level özetlere indirir. Native `validate_bytes` ve WASM
+/// orkestratörleri AYNI fonksiyonu `apply_report_scope`'tan önce çağırmak zorundadır:
+/// registry bu kuralları `Feed` dedup seviyesinde tanımlar, locale metinleri de
+/// `observed_value`'yu etkilenen kayıt sayısı olarak okur. Toplulama atlanırsa dedup
+/// ham satır notice'larından birini seçer ve sayı kaybolur.
+pub fn aggregate_feed_level_notices(
+    all: &mut Vec<gtfs_core::Notice>,
+    records: &EntityRecords,
+    derived: &DerivedData,
+) {
+    // K7'nin whitespace join çözümlemesi entity_id üzerinden çalışır; feed-level
+    // toplulama bunu silmeden önce padding'in hangi dosyada durduğunu işaretle.
+    annotate_whitespace_join_provenance(all, records, derived);
+
+    // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
+    // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
+    macro_rules! timed_aggregate {
+        ($name:literal, $function:ident) => {{
+            let _t = crate::timing::Timer::start(concat!("aggregate::", $name));
+            $function(all);
+        }};
+    }
+    timed_aggregate!("STM_036", aggregate_stm036);
+    timed_aggregate!("DQ_021", aggregate_dq021);
+    timed_aggregate!("ARC_012", aggregate_arc012);
+    timed_aggregate!("CLD_003", aggregate_cld003);
+    timed_aggregate!("SHP_005", aggregate_shp005);
+    timed_aggregate!("STM_008", aggregate_stm008);
+    timed_aggregate!("STM_047", aggregate_stm047);
+    timed_aggregate!("PTH_007", aggregate_pth007);
+    timed_aggregate!("TRP_003", aggregate_trp003);
+    timed_aggregate!("TRN_001", aggregate_trn001);
+    timed_aggregate!("STP_004", aggregate_stp004);
+    timed_aggregate!("STP_005", aggregate_stp005);
+    timed_aggregate!("TRF_005", aggregate_trf005);
+    timed_aggregate!("PTH_012", aggregate_pth012);
+    timed_aggregate!("STP_042", aggregate_stp042);
+    timed_aggregate!("STP_032", aggregate_stp032);
+    timed_aggregate!("TRP_005", aggregate_trp005);
+    timed_aggregate!("STM_022", aggregate_stm022);
+    timed_aggregate!("FRQ_007", aggregate_frq007);
+    timed_aggregate!("TRF_019", aggregate_trf019);
+    timed_aggregate!("CAL_008", aggregate_cal008);
+    timed_aggregate!("GGL_001", aggregate_ggl001);
 }
 
 pub fn build_name_index(

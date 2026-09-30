@@ -6,7 +6,7 @@ use gtfs_core::{
     FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
 };
 use gtfs_pipeline::{
-    analyze_k6_with_files, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
+    aggregate_feed_level_notices, analyze_k6_with_files, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
     report_k7_with_suppressions, validate_k2_with_whitespace_roots, DerivedData, EntityRecords,
     FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
@@ -433,6 +433,9 @@ fn rerun_k6_k7_inner(
     let mut all_notices = cache.k1_k5_notices.clone();
     let mut notice_budget_exceeded = false;
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
+    // K2 ve K6 alt-vakaları aynı özete girdiği için toplulama önbellekteki ham K1–K5
+    // notice'larına K6 eklendikten SONRA yapılır (önbellek ham kalır).
+    aggregate_feed_level_notices(&mut all_notices, &cache.records, &cache.derived);
     // Native `validate_bytes` ile AYNI rapor kapsamı (STP_033 uniform ücret istisnası +
     // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
     apply_report_scope(&mut all_notices, &cache.records, &config);
@@ -609,6 +612,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k4.notices);
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k5.notices);
     notice_budget_exceeded |= append_notices_bounded(&mut all_notices, k6.notices);
+    // Native `validate_bytes` ile AYNI feed-level toplulama; registry bu kuralları
+    // `Feed` dedup seviyesinde tanımladığı için cap'ten önce yapılmazsa sayı kaybolur.
+    aggregate_feed_level_notices(&mut all_notices, &k2.records, &k5.derived);
     // Native `validate_bytes` ile AYNI rapor kapsamı (STP_033 uniform ücret istisnası +
     // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
     apply_report_scope(&mut all_notices, &k2.records, config);
@@ -1022,6 +1028,38 @@ mod tests {
             base_effort: 1,
             service_id: None,
         }
+    }
+
+    #[test]
+    fn feed_level_aggregation_runs_before_dedup_cap() {
+        // Registry TRP_005'i `Feed` dedup seviyesinde tanımlar. Toplulama atlanırsa
+        // dedup ham satır notice'larından birini seçer: sayı 1'e düşer ve
+        // `observed_value` ("2") UI'da "2 trips…" diye yanlış okunur.
+        let raw = |trip: &str| {
+            let mut n = trip_notice(trip);
+            n.rule_id = "TRP_005".to_string();
+            n.entity_id = Some(trip.to_string());
+            n.scope_key = Some(trip.to_string());
+            n.field = Some("direction_id".to_string());
+            n.observed_value = Some("2".to_string());
+            n
+        };
+        let mut notices = vec![raw("t1"), raw("t2"), raw("t3")];
+        gtfs_pipeline::aggregate_feed_level_notices(
+            &mut notices,
+            &gtfs_pipeline::EntityRecords::default(),
+            &gtfs_pipeline::DerivedData::default(),
+        );
+        let totals = cap_per_rule(&mut notices);
+        assert_eq!(notices.len(), 1);
+        assert_eq!(totals.get("TRP_005"), Some(&1));
+        let n = &notices[0];
+        assert_eq!(n.entity_type, EntityType::Feed);
+        assert_eq!(n.observed_value.as_deref(), Some("3"));
+        assert_eq!(
+            n.details.as_ref().and_then(|d| d.get("affected_trips")).map(String::as_str),
+            Some("3")
+        );
     }
 
     #[test]
