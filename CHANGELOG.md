@@ -43,7 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`STM_053` points to `stop_times.txt`.** Since the route-level summary its
   `file` was `routes.txt` while `line` is the example trip's first
   `stop_times.txt` row, so the location pointed to an unrelated row. `file` is
-  now `stop_times.txt`, as the rule card documents.
+  now `stop_times.txt`, as the rule card documents, and `field` names the
+  measured columns (`arrival_time|departure_time`) instead of `route_id`, which
+  is not a `stop_times.txt` column.
 
 ## [0.15.0] - 2026-09-30
 

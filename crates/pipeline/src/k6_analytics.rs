@@ -2188,7 +2188,9 @@ fn check_speed_and_duration<'a>(
             // `line` örnek seferin ilk stop_times satırıdır; dosya onunla aynı olmalı.
             "stop_times.txt",
             (line > 0).then_some(line),
-            Some("route_id"),
+            // Ölçülen sütun: arrival_time (yoksa departure_time). route_id yalnız
+            // gruplama anahtarıdır ve stop_times.txt'te sütun değildir.
+            Some("arrival_time|departure_time"),
             Some(format!(
                 "{affected_trips} trips; max {max_same_run} consecutive stops"
             )),
@@ -12085,6 +12087,7 @@ mod tests {
             .collect();
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].file.as_deref(), Some("stop_times.txt"));
+        assert_eq!(found[0].field.as_deref(), Some("arrival_time|departure_time"));
         assert_eq!(found[0].line, Some(2));
         assert!(
             found[0].message.contains("'T23'"),
