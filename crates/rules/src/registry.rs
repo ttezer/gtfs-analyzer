@@ -527,7 +527,7 @@ pub static RULES: &[RuleMeta] = &[
     // precedence ilişkisi bir feed ihlali değildir.
     r!("RTS_024", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_cemv_support geçersiz"),
-    r!("RTS_025", Bilgi,  Quality, 1, &[], Some("agency_id"), VS, Entity,
+    r!("RTS_025", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "routes.txt'te agency_id boş (önerilen alan)"),
     r!("RTS_026", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Row,
         "Yinelenen kısa hat adı"),

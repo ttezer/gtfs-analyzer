@@ -28,6 +28,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use gtfs_core::{DedupLevel, EntityType, Notice};
+use gtfs_pipeline::agency_attribution::{AgencyAttribution, AgencyResolver, Resolution};
 use gtfs_pipeline::k7_reporting::{annotate_whitespace_join_provenance, dedup, suppress_whitespace_derivatives};
 use gtfs_pipeline::{
     aggregate_feed_level_notices, apply_report_scope, validate_bytes_inspected, DerivedData,
@@ -68,6 +69,22 @@ struct RuleStats {
     verifiable_equal: u64,
     verifiable_trim_only: u64,
     ws_suppressed: u64,
+    /// `AgencyResolver` sonucu (yalnız bastırmadan sağ çıkanlar).
+    attribution: BTreeMap<String, u64>,
+}
+
+fn attribution_bucket(a: &AgencyAttribution) -> String {
+    let res = |r: &Resolution| match r {
+        Resolution::Exact => "exact",
+        Resolution::UniqueTrimFallback => "trim",
+    };
+    match a {
+        AgencyAttribution::Direct { resolution, .. } => format!("direct_{}", res(resolution)),
+        AgencyAttribution::Resolved { resolution, .. } => format!("resolved_{}", res(resolution)),
+        AgencyAttribution::Unattributed(reason) => format!("unattributed_{reason:?}"),
+        AgencyAttribution::Unsupported => "unsupported".to_string(),
+        AgencyAttribution::NotApplicable => "not_applicable".to_string(),
+    }
 }
 
 /// K7 boşluk bastırmasından sağ çıkan ham notice indeksleri.
@@ -185,6 +202,7 @@ fn main() {
     let mut padded: BTreeMap<&'static str, u64> = BTreeMap::new();
     let mut inspected = false;
     let mut symptoms = BTreeMap::new();
+    let mut resolver_us = (0u128, 0u128, 0usize);
     let config = ValidatorConfig::default();
 
     let result = validate_bytes_inspected(
@@ -197,6 +215,15 @@ fn main() {
               suppressions: &WhitespaceSuppressions| {
             inspected = true;
             let alive = survivors(notices, records, derived, suppressions);
+            let t0 = std::time::Instant::now();
+            let resolver = AgencyResolver::new(records);
+            let built = t0.elapsed().as_micros();
+            let t1 = std::time::Instant::now();
+            let buckets: Vec<String> = notices
+                .iter()
+                .map(|n| attribution_bucket(&resolver.attribute(n)))
+                .collect();
+            resolver_us = (built, t1.elapsed().as_micros(), records.agencies.len());
             symptoms = symptom_pairs(notices, records, derived, suppressions, &config);
             let sets = id_sets(records);
             // kırpılmış → ham ID'ler (trim fallback ve belirsizlik ölçümü için)
@@ -224,6 +251,7 @@ fn main() {
                     continue;
                 }
                 entry.raw += 1;
+                *entry.attribution.entry(buckets[i].clone()).or_default() += 1;
                 let Some(key) = notice.scope_key.as_deref().filter(|k| !k.is_empty()) else {
                     continue;
                 };
@@ -267,7 +295,17 @@ fn main() {
     }
 
     let aggregated = aggregated_rules();
-    println!("{}", json!({ "feed": feed, "status": status, "padded_ids": padded }));
+    println!(
+        "{}",
+        json!({
+            "feed": feed,
+            "status": status,
+            "padded_ids": padded,
+            "agencies": resolver_us.2,
+            "resolver_build_us": resolver_us.0,
+            "resolver_attribute_us": resolver_us.1,
+        })
+    );
     for (rule, s) in stats {
         let meta = gtfs_rules::get_rule(&rule);
         println!(
@@ -288,6 +326,7 @@ fn main() {
                 "verifiable_equal": s.verifiable_equal,
                 "verifiable_trim_only": s.verifiable_trim_only,
                 "ws_suppressed": s.ws_suppressed,
+                "attribution": s.attribution,
             })
         );
     }
