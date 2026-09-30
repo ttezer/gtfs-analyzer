@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, and the `gtfs-sdk` npm package.
+GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, and the `gtfs-analyzer` Python package.
 
 The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **618 rules**, **424** produced at least one finding in the most recent full 4,343-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
@@ -50,7 +50,7 @@ GTFS Validator & Analyzer extends specification validation with operational qual
 | Fares v2 validation | Partial | ✅ |
 | GTFS-JP profile validation | ❌ | ✅ |
 | Output formats | HTML, JSON | HTML, CSV, JSON, PDF |
-| Distribution | Web · desktop installers (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK |
+| Distribution | Web · desktop installers (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK · PyPI |
 | Documented CI/CD integration | Not documented in the README (possible via Docker/CLI) | ✅ `--fail-on` + exit codes |
 | npm package | ❌ | ✅ `gtfs-sdk` |
 | crates.io package | — *(Java project)* | ✅ `gtfs-analyzer` |
@@ -240,9 +240,9 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 ---
 
-## Five Ways to Use It
+## Six Ways to Use It
 
-The same validation core (`gtfs_pipeline::validate_bytes`) runs in five ways — all of them use the same 618 rules and produce the same result model:
+The same validation core (`gtfs_pipeline::validate_bytes`) runs in six ways — all of them use the same 618 rules and produce the same result model:
 
 | Path | Best for | Where the data goes |
 |---|---|---|
@@ -251,6 +251,7 @@ The same validation core (`gtfs_pipeline::validate_bytes`) runs in five ways —
 | **Rust library** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Embedding validation in your own Rust service | Nowhere — your own process |
 | **CI/CD** (exit codes + `--fail-on`) | A release gate before publishing a feed | Nowhere — your own runner |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm package** | Embedding validation in your web or Node application | Nowhere — local WASM |
+| **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python package** (`pip install gtfs-analyzer`) | Embedding validation in your Python application | Nowhere — local Rust native module |
 
 The feed is never uploaded to a server in any of these modes. This makes it suitable for data that cannot leave your organization under policy or contract.
 
@@ -316,6 +317,29 @@ console.log(result.notices.length, result.reports.r5.score);
 The public API includes `validateGtfs`, `getVersion`, and `createValidatorSession` for applications that need progress and cache events. The low-level `gtfs-wasm` binding is not part of the SDK contract; WASM64 and threaded engine selection remain internal to the first SDK package.
 
 Package sources live under `sdk/`; the detailed usage, result model, and config reference are in [`sdk/README.md`](sdk/README.md). The WASM binding is generated from `crates/wasm` during the build.
+
+### Python package
+
+Install from [PyPI](https://pypi.org/project/gtfs-analyzer/) (CPython 3.9+):
+
+```bash
+pip install gtfs-analyzer
+```
+
+The package runs the same Rust pipeline through a PyO3 native module; no Cargo
+or CLI install is needed. Pass the ZIP as a path or as bytes:
+
+```python
+from gtfs_analyzer import validate_gtfs
+
+result = validate_gtfs("feed.zip", today="2026-09-30")
+print(result["validation_status"])
+print(len(result["notices"]))
+```
+
+`result` carries the same core result as the npm SDK and the CLI JSON output.
+Parameters, the result structure, and error types are described in
+[`python/README.md`](python/README.md).
 
 ---
 

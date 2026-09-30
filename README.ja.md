@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージの 5 つの方法で利用できます。
+GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージ、`gtfs-analyzer` Python パッケージの 6 つの方法で利用できます。
 
 測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**618 個の検証ルール**のうち **424 個**が直近の 4,343 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
@@ -50,7 +50,7 @@ GTFS Validator & Analyzer は、仕様検証を運用品質分析へと拡張し
 | Fares v2 検証 | 部分的 | ✅ |
 | GTFS-JP プロファイル検証 | ❌ | ✅ |
 | 出力形式 | HTML, JSON | HTML, CSV, JSON, PDF |
-| 配布形態 | Web · デスクトップインストーラー（msi/dmg/deb）· CLI JAR · Docker | Web · CLI バイナリ · `cargo install` · npm SDK |
+| 配布形態 | Web · デスクトップインストーラー（msi/dmg/deb）· CLI JAR · Docker | Web · CLI バイナリ · `cargo install` · npm SDK · PyPI |
 | 文書化された CI/CD 統合 | README に記載なし（Docker/CLI で可能） | ✅ `--fail-on` + 終了コード |
 | npm パッケージ | ❌ | ✅ `gtfs-sdk` |
 | crates.io パッケージ | — *（Java プロジェクト）* | ✅ `gtfs-analyzer` |
@@ -240,9 +240,9 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 ---
 
-## 5 つの利用方法
+## 6 つの利用方法
 
-同じ検証コア（`gtfs_pipeline::validate_bytes`）を 5 つの方法で実行できます。すべて同じ 618 ルールと同じ結果モデルを使用します。
+同じ検証コア（`gtfs_pipeline::validate_bytes`）を 6 つの方法で実行できます。すべて同じ 618 ルールと同じ結果モデルを使用します。
 
 | 方法 | 用途 | データの送信先 |
 |---|---|---|
@@ -251,6 +251,7 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 | **Rust ライブラリ**（[`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)） | 自分の Rust サービスへの組み込み | どこにも送信しない — 自分のプロセス |
 | **CI/CD**（終了コード + `--fail-on`） | フィード公開前のパイプラインゲート | どこにも送信しない — 自分の runner |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み | どこにも送信しない — ローカル WASM |
+| **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python パッケージ**（`pip install gtfs-analyzer`） | Python アプリへの組み込み | どこにも送信しない — ローカル Rust ネイティブモジュール |
 
 どの方法でもフィードがサーバーにアップロードされることはありません。組織のポリシーや契約上、外部に出せないデータにも利用できます。
 
@@ -316,6 +317,28 @@ console.log(result.notices.length, result.reports.r5.score);
 公開 API には `validateGtfs`、`getVersion`、および進捗・キャッシュイベントが必要なアプリ向けの `createValidatorSession` が含まれます。低レベルの `gtfs-wasm` binding は SDK 契約の一部ではなく、WASM64 と threaded engine の選択は最初の SDK パッケージでは内部実装です。
 
 パッケージのソースは `sdk/` にあります。詳細な使い方、結果モデル、config リファレンスは [`sdk/README.md`](sdk/README.md) を参照してください。WASM binding はビルド時に `crates/wasm` から生成されます。
+
+### Python パッケージ
+
+[PyPI](https://pypi.org/project/gtfs-analyzer/) からインストールできます（CPython 3.9 以上）。
+
+```bash
+pip install gtfs-analyzer
+```
+
+PyO3 ネイティブモジュールを通じて同じ Rust パイプラインを実行するため、Cargo や
+CLI のインストールは不要です。ZIP はパスまたはバイト列で渡せます。
+
+```python
+from gtfs_analyzer import validate_gtfs
+
+result = validate_gtfs("feed.zip", today="2026-09-30")
+print(result["validation_status"])
+print(len(result["notices"]))
+```
+
+`result` は npm SDK や CLI の JSON 出力と同じ基本結果を持ちます。パラメータ、結果の構造、
+エラー型は [`python/README.md`](python/README.md)（英語）を参照してください。
 
 ---
 

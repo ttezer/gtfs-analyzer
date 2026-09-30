@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Le fichier `.zip` téléversé n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous forme d’application navigateur, de CLI (`cargo install gtfs-analyzer`), de bibliothèque Rust, de barrière CI/CD et de paquet npm `gtfs-sdk`.
+GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Le fichier `.zip` téléversé n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous forme d’application navigateur, de CLI (`cargo install gtfs-analyzer`), de bibliothèque Rust, de barrière CI/CD, de paquet npm `gtfs-sdk` et de paquet Python `gtfs-analyzer`.
 
 Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **618 règles**, **424** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 343 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
 
@@ -50,7 +50,7 @@ GTFS Validator & Analyzer prolonge la validation de la spécification par une an
 | Validation Tarifs v2 | Partielle | ✅ |
 | Validation du profil GTFS-JP | ❌ | ✅ |
 | Formats de sortie | HTML, JSON | HTML, CSV, JSON, PDF |
-| Distribution | Web · installeurs bureau (msi/dmg/deb) · JAR CLI · Docker | Web · binaire CLI · `cargo install` · SDK npm |
+| Distribution | Web · installeurs bureau (msi/dmg/deb) · JAR CLI · Docker | Web · binaire CLI · `cargo install` · SDK npm · PyPI |
 | Intégration CI/CD documentée | Non documentée dans le README (possible via Docker/CLI) | ✅ `--fail-on` + codes de sortie |
 | Paquet npm | ❌ | ✅ `gtfs-sdk` |
 | Paquet crates.io | — *(projet Java)* | ✅ `gtfs-analyzer` |
@@ -240,9 +240,9 @@ Même lorsque l’interface ne conserve qu’un nombre limité d’exemples de s
 
 ---
 
-## Cinq façons de l’utiliser
+## Six façons de l’utiliser
 
-Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de cinq manières — toutes utilisent les mêmes 618 règles et produisent le même modèle de résultat :
+Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de six manières — toutes utilisent les mêmes 618 règles et produisent le même modèle de résultat :
 
 | Voie | Idéal pour | Où vont les données |
 |---|---|---|
@@ -251,6 +251,7 @@ Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de c
 | **Bibliothèque Rust** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | Intégrer la validation dans votre propre service Rust | Nulle part — votre propre processus |
 | **CI/CD** (codes de sortie + `--fail-on`) | Une barrière de publication avant de diffuser un jeu de données | Nulle part — votre propre runner |
 | **Paquet npm [`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk)** | Intégrer la validation dans votre application web ou Node | Nulle part — WASM local |
+| **Paquet Python [`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/)** (`pip install gtfs-analyzer`) | Intégrer la validation dans votre application Python | Nulle part — module natif Rust local |
 
 Dans aucun de ces modes le jeu de données n’est téléversé vers un serveur. L’outil convient donc à des données qui ne peuvent pas quitter votre organisation pour des raisons de politique interne ou contractuelles.
 
@@ -316,6 +317,30 @@ console.log(result.notices.length, result.reports.r5.score);
 L’API publique comprend `validateGtfs`, `getVersion` et `createValidatorSession` pour les applications ayant besoin d’événements de progression et de cache. La liaison bas niveau `gtfs-wasm` ne fait pas partie du contrat du SDK ; la sélection des moteurs WASM64 et multithread reste interne au premier paquet SDK.
 
 Les sources du paquet se trouvent sous `sdk/` ; l’utilisation détaillée, le modèle de résultat et la référence de configuration sont dans [`sdk/README.md`](sdk/README.md). La liaison WASM est générée à partir de `crates/wasm` lors de la construction.
+
+### Paquet Python
+
+Installation depuis [PyPI](https://pypi.org/project/gtfs-analyzer/) (CPython 3.9+) :
+
+```bash
+pip install gtfs-analyzer
+```
+
+Le paquet exécute le même pipeline Rust via un module natif PyO3 ; aucune
+installation de Cargo ou de la CLI n’est nécessaire. Le ZIP se passe sous forme
+de chemin ou d’octets :
+
+```python
+from gtfs_analyzer import validate_gtfs
+
+result = validate_gtfs("feed.zip", today="2026-09-30")
+print(result["validation_status"])
+print(len(result["notices"]))
+```
+
+`result` contient le même résultat de base que le SDK npm et la sortie JSON de
+la CLI. Paramètres, structure du résultat et types d’erreur :
+[`python/README.md`](python/README.md) (en anglais).
 
 ---
 

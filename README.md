@@ -12,7 +12,7 @@
 [![PyPI](https://img.shields.io/pypi/v/gtfs-analyzer?style=flat&label=PyPI)](https://pypi.org/project/gtfs-analyzer/)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi** ve yayınlandığında **`gtfs-analyzer` Python paketi** olmak üzere altı yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi** ve **`gtfs-analyzer` Python paketi** olmak üzere altı yoldan kullanılabilir.
 
 **618 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **424'ü** son 4.343 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
@@ -51,7 +51,7 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 | Fares v2 doğrulama | Kısmi | ✅ |
 | GTFS-JP profil doğrulama | ❌ | ✅ |
 | Çıktı formatı | HTML, JSON | HTML, CSV, JSON, PDF |
-| Dağıtım | Web · masaüstü kurulum (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK |
+| Dağıtım | Web · masaüstü kurulum (msi/dmg/deb) · CLI JAR · Docker | Web · CLI binary · `cargo install` · npm SDK · PyPI |
 | Belgelenmiş CI/CD entegrasyonu | README'de tarif yok (Docker/CLI ile mümkün) | ✅ `--fail-on` + exit kodu |
 | npm paketi | ❌ | ✅ `gtfs-sdk` |
 | crates.io paketi | — *(Java projesi)* | ✅ `gtfs-analyzer` |
@@ -254,7 +254,7 @@ Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) altı şekilde ç
 | **Rust kütüphanesi** ([`gtfs-pipeline`](https://crates.io/crates/gtfs-pipeline)) | doğrulamayı kendi Rust servisinize gömmek | hiçbir yere — kendi süreciniz |
 | **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
-| **`gtfs-analyzer` Python paketi** *(PyPI yayını sonrası)* | Python uygulamasına doğrulama gömmek | hiçbir yere — yerel Rust native modülü |
+| **`gtfs-analyzer` Python paketi** (`pip install gtfs-analyzer`) | Python uygulamasına doğrulama gömmek | hiçbir yere — yerel Rust native modülü |
 
 Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan temel farktır: ticari sözleşme gereği dışarı çıkamayan veriyi de doğrulayabilirsiniz.
 
@@ -324,7 +324,7 @@ Web UI worker'ı da aynı `ValidatorSession` facade'ını kullanır; seri/thread
 
 ### Python paketi
 
-PyPI yayını tamamlandıktan sonra:
+[PyPI](https://pypi.org/project/gtfs-analyzer/) üzerinden kurulur (CPython 3.9+):
 
 ```bash
 pip install gtfs-analyzer
@@ -342,8 +342,9 @@ print(result["validation_status"])
 print(len(result["notices"]))
 ```
 
-`result`, npm SDK ve CLI JSON çıktısıyla aynı temel sonucu taşır. Ayrıntılı
-Python API ve yayın durumu için [`workplan.md`](workplan.md) dosyasına bakın.
+`result`, npm SDK ve CLI JSON çıktısıyla aynı temel sonucu taşır. Parametreler,
+sonuç yapısı ve hata türleri için [`python/README.md`](python/README.md)
+dosyasına bakın.
 
 ## CLI (Terminal)
 
