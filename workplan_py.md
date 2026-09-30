@@ -164,12 +164,13 @@ kurması beklenmeyecek.
 - Tek engine release tag'i `vX.Y.Z` kabul edilir. Mevcut
   `.github/workflows/release.yml` bu tag'i `crates/cli/Cargo.toml` sürümüyle
   karşılaştırır; tag CLI/engine sürümüyle eşleşmezse release durur.
-- Aynı engine bump'ında workspace crate'leri, `crates/wasm`,
-  `crates/python/Cargo.toml` ve `pyproject.toml` aynı `X.Y.Z` değerine
-  getirilmelidir.
-- `sdk/src/index.ts` içindeki `ENGINE_VERSION` engine sürümünü izler; mevcut
-  `sdk/scripts/check-version.mjs` artık Python sürümünün de engine ile eşit
-  olduğunu kontrol eder.
+- Motor sürümünün tek kaynağı kök `Cargo.toml` `[workspace.package] version`
+  (2026-09-30). Yedi crate `version.workspace = true` ile, Python paketi
+  `pyproject.toml` `dynamic = ["version"]` ile oradan okur; `__version__`
+  native modülden gelir.
+- Elle tutulan kopyalar (dört iç crate pini, SDK `ENGINE_VERSION`,
+  `ui/package.json` + lock) `node scripts/bump-version.mjs X.Y.Z` ile yazılır;
+  `sdk/scripts/check-version.mjs` hepsini workspace sürümüne karşı denetler.
 - `sdk/package.json` ve `SDK_VERSION` npm SDK'nin kendi sürümüdür (`0.5.0`);
   bu sürüm engine sürümüyle aynı olmak zorunda değildir.
 - Engine release tag'i yayımlandığında Python workflow'u aynı tag'den wheel ve
@@ -181,11 +182,11 @@ kurması beklenmeyecek.
 
 ### Engine release bump sırası
 
-1. Workspace/Cargo engine sürümlerini ve `crates/python/Cargo.toml` ile
-   `pyproject.toml` sürümünü aynı değere bump et.
-2. `sdk/src/index.ts` içindeki `ENGINE_VERSION` değerini güncelle.
+1. `node scripts/bump-version.mjs X.Y.Z` — tüm motor sürümü kopyalarını ve
+   `Cargo.lock`'u yazar, sonunda sürüm kapısını çalıştırır.
+2. `CHANGELOG.md`'ye `X.Y.Z` bölümünü yaz.
 3. SDK değiştiyse yalnız ayrıca `SDK_VERSION` ve `sdk/package.json` sürümünü
-   bump et; `sdk/scripts/check-version.mjs` çalıştır.
+   bump et (SDK'nın kendi sürümü; betik ona dokunmaz).
 4. Cargo, SDK ve Python build/test kapılarını çalıştır.
 5. `vX.Y.Z` tag'ini engine sürümüyle aynı oluştur ve push et.
 6. `release.yml` CLI asset'lerini üretir, release'i yayına alır ve
