@@ -7,10 +7,10 @@ import json as _json
 from pathlib import Path
 from typing import Any, Mapping, Optional, Union
 
+from .gtfs_analyzer import __version__
 from .gtfs_analyzer import validate as _validate_native
 
 __all__ = ["ValidationError", "validate_gtfs"]
-__version__ = "0.14.0"
 
 
 class ValidationError(RuntimeError):

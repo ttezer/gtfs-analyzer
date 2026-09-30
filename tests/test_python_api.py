@@ -17,6 +17,11 @@ def make_feed() -> bytes:
 
 
 class PythonApiTests(unittest.TestCase):
+    def test_version_matches_package_metadata(self):
+        from importlib.metadata import version
+
+        self.assertEqual(gtfs_analyzer.__version__, version("gtfs-analyzer"))
+
     def test_validate_returns_shared_result_shape(self):
         result = gtfs_analyzer.validate_gtfs(make_feed(), today="2026-09-24")
 
