@@ -7,18 +7,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-30
+
+This release carries the multi-feed rule-semantics triage of 2026-09-21 into every
+distribution channel. The web app has run it since then; the CLI, crates, SDK,
+and Python package now report the same notices and scores. Most changes remove
+double counting and score penalties for optional or context-only facts, so
+Quality scores rise for many feeds while Spec findings and the publishability
+verdict are unchanged. The triage was checked on the full MobilityDatabase
+corpus (run 35634998374, 4,301 feeds completed by both validators).
+
 ### Added
 
+- **Python package `gtfs-analyzer` on PyPI.** `validate_gtfs()` runs the same
+  Rust pipeline as the CLI and returns the result as a dict; one abi3 wheel per
+  platform covers CPython 3.9+. `gtfs_analyzer.__version__` comes from the
+  native module, so it always matches the engine.
 - **`disabled_rule_ids_gtfs_jp` config key and `--disable-rule-gtfs-jp` CLI
   option.** Rules listed there are dropped only when the feed is detected as
   GTFS-JP, so a check that Japanese publishing practice makes meaningless can be
   turned off without changing what feeds elsewhere report. The general
   `disabled_rule_ids` list still applies to every feed, and both lists reject
-  unknown ids and Spec-class rules.
+  unknown ids and Spec-class rules. The SDK exposes the same option.
 - **Exclude a rule straight from the finding.** Each finding in the fix page
   carries a labelled "exclude" button, and a bar on both report pages lists what
   is excluded, states that the scores cover the remaining rules only, and brings
   a rule back on click. Spec rules have no button.
+
+### Changed
+
+- **Rules reclassified as INFO Analytics and excluded from scoring.** They
+  describe the feed's context rather than a defect, so they stay visible but no
+  longer lower the Quality score:
+  - calendar freshness: `CAL_009` (all services expired, was CRITICAL),
+    `CAL_015`, `CAL_017`, `CAL_024`; `CAL_007` (gap in service) drops from
+    MEDIUM to INFO;
+  - service shape: `DQ_013` (too few trips), `TRP_013` (route with one trip),
+    `CLD_006` (many exception days), `STM_045` (departure beyond the service-day
+    window), `STM_053` (many consecutive stops with the same time);
+  - distances and speed already owned by other rules: `STM_021`, `STM_026`,
+    `OPR_008`;
+  - telemetry: `ARC_006` (optional file present), `ARC_022` (more than 1,000,000
+    rows).
+- **Score removed where the same fact was already scored, or the field is
+  optional.** Severity and visibility are unchanged; only the score weight is
+  zero: `ATR_001`, `DQ_006`, `RTS_017`, `TRP_011` (optional shape and headsign
+  data), `STP_022`, `STP_039`, `STM_017`, `PTH_008`, `PTH_009`, `PTH_025`,
+  `PTH_029`, `GEO_009` (duplicate of `SHP_012`), `CAL_014`, `CAL_019`,
+  `XFL_011` (duplicate calendar-window scores), `OPR_007`, `STM_035` (duplicate
+  loop-pattern scores). `ARC_010` (UTF-8 BOM) is INFO and no longer scored.
+- **Conditional zero weights instead of double penalties:** `TRP_026` scores
+  nothing when `OPR_011` is present, and `OPR_006` nothing when `STM_033` is
+  present, since each pair reports one root cause. Both stay fully weighted on
+  their own.
+- **`SHP_021` (negative or non-numeric `shape_dist_traveled`) is Spec, not
+  Quality**, matching the field definition. `CAL_018` drops from LOW to INFO.
+- **`XFL_027` is an INFO Interop notice.** When a route's cEMV flag and Fares v2
+  disagree, GTFS precedence makes Fares v2 authoritative, so the notice now says
+  so instead of calling the feed contradictory.
+- **23 high-volume rules are aggregated** at feed, file, trip, or pathway
+  level instead of one notice per row: `STM_036`, `DQ_021`, `ARC_012`,
+  `CLD_003`, `SHP_005`, `STM_008`, `STM_022`, `STM_047`, `STM_053`, `PTH_007`,
+  `PTH_012`, `TRP_003`, `TRP_005`, `TRN_001`, `STP_004`, `STP_005`, `STP_032`,
+  `STP_042`, `TRF_005`, `TRF_019`, `FRQ_007`, `CAL_008`, `GGL_001`. The same
+  feeds fire; each aggregate carries its count and example rows, and the example
+  list no longer repeats a trip. Corpus notices fell from 38.5 million to 24.8
+  million. The executive report summarises high-volume analytics evidence.
+- **Fewer false positives:**
+  - `DQ_018` and `DQ_019` no longer check the case of `agency_name` or
+    `feed_publisher_name`; institution names are often acronyms.
+  - `SHP_015` no longer reports shapes with fewer than three points; a
+    two-point shape is valid.
+  - `CLD_007` is skipped for calendars defined only by `calendar_dates.txt`.
+  - Services that start entirely in the future no longer trigger the feed-window
+    checks (`CAL_019`, `XFL_011`); their freshness belongs to the calendar
+    analytics rules.
+  - A single agency is no longer reported as unused when routes leave
+    `agency_id` blank, which the spec allows for single-agency feeds.
+  - When a trip needs `shapes.txt` because of continuous pickup or drop-off,
+    only `TRP_019` (Spec) reports it; the `ARC_020` recommendation no longer
+    fires on top.
+  - The `stop_access` remediation (`STP_024`) no longer suggests the value 2,
+    which GTFS does not define; `STP_026` (Spec) accepts only 0 and 1.
+- The spec baseline is google/transit `3c9e7b90`: `shapes.txt` is Conditionally
+  Required (google/transit#660), already enforced by `TRP_019`.
+- READMEs report the current **618-rule** catalog.
+
+### Removed
+
+Rule count 624 → 618. Each identifier is retired and cannot be reused.
+
+- **`STM_013` (mixed intermediate-stop time coverage).** It treated an optional
+  untimed intermediate stop as a HIGH Quality defect, so timing-point feeds such
+  as Unitrans were systematically penalized. `STM_034`, `STM_047`, and
+  `STM_015`/`STM_016` keep the enforceable row, timepoint, and endpoint
+  requirements.
+- **`STP_027` (`stop_access` not set on a pathway station).** `stop_access=0`
+  and an empty value are both valid; the field is optional.
+- **`TRP_033` (trips sharing a `block_id` carry different route types).** It
+  reported the same fact as `TRP_024`.
+- **`FAR_009` (fare has no route rules).** `fare_rules.txt` is optional, and a
+  single general fare without rules is a valid model.
+- **`XFL_017` and `XFL_026` (cEMV flag checks).** Under GTFS precedence a
+  route's `cemv_support` overrides the agency's, and Fares v2 overrides both, so
+  neither difference is an error.
+
+### Build and release
+
+- The engine version has one source, `[workspace.package] version` in the root
+  `Cargo.toml`; `node scripts/bump-version.mjs X.Y.Z` writes the remaining copies
+  and a CI check compares them all.
+- PyPI releases are built only from a `vX.Y.Z` tag and started by the release
+  workflow, so every channel ships the same commit. (PyPI 0.14.0 had been built
+  from `main`, 138 commits after the `v0.14.0` tag.)
+- CI setup lives in two composite actions and the nightly toolchain for the
+  threaded and memory64 WASM builds is pinned by date.
 
 ## [0.14.0] - 2026-09-20
 
@@ -118,18 +221,12 @@ CLI, WebAssembly, UI, and SDK surfaces.
   single-agency feeds. `AGN_011` now also counts fare rows whose `fare_id` is
   empty (`FAR_012` still reports the empty id), so such a feed can newly become
   non-publishable. Its remediation text now mentions fare records.
-- READMEs report the current **623-rule** catalog, list `JPN_032`/`JPN_033` in
+- READMEs report the current **624-rule** catalog, list `JPN_032`/`JPN_033` in
   the GTFS-JP rule tables, and use the qualified coverage badge wording.
 - Corpus-audit workflow artifacts are retained for 30 days instead of 90.
 
 ### Removed
 
-- **`STM_013` (mixed intermediate-stop time coverage), rule count 624 → 623.** The
-  predicate treated an optional untimed intermediate stop as a HIGH Quality defect,
-  so timing-point feeds such as Unitrans were systematically penalized. The existing
-  `STM_034`, `STM_047`, and `STM_015`/`STM_016` checks retain the independently
-  enforceable row, timepoint, and endpoint requirements. The identifier is retired
-  and cannot be reused.
 - **`BKR_002` (prior_notice_start_day requires prior_notice_last_day), rule
   count 624 → 623.** This was not
   required by the GTFS specification and produced a false positive for valid
@@ -2255,7 +2352,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.12.0...v0.13.0
