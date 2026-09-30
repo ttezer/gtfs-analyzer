@@ -7,6 +7,7 @@
 //   - kök Cargo.toml: workspace sürümü + crates.io için dört iç crate pini
 //   - sdk/src/index.ts: ENGINE_VERSION
 //   - ui/package.json + ui/package-lock.json (arayüzdeki __APP_VERSION__)
+//   - README'ler (dört dil) ve sdk/README.md'deki sürüm örnekleri
 //   - Cargo.lock (cargo update --workspace)
 //
 // DOKUNMADIKLARI (bilinçli): SDK'nın kendi sürümü (sdk/package.json, SDK_VERSION),
@@ -69,6 +70,13 @@ const edits = [
   // JSON: aynı sürüm numarasını taşıyan bir bağımlılık yanlışlıkla değişmesin. npm bu
   // dosyaları JSON.stringify(_, null, 2) + "\n" biçiminde yazar; biçim korunur.
   ['ui/package-lock.json', setJsonVersion('ui/package-lock.json', (j) => [j, j.packages?.['']])],
+  // README'lerdeki kurulum örneği (üç crate satırı) ve SDK tanıtım cümlesindeki `vX.Y.Z`.
+  ...['README.md', 'README.en.md', 'README.fr.md', 'README.ja.md'].map((file) => [file, replaceExact(file,
+    new RegExp(`^(gtfs-(?:pipeline|config|core)\\s*=\\s*")${esc}(")|v${esc}(?=\\D)`, 'gm'),
+    (m, a, b) => (a ? `${a}${next}${b}` : `v${next}`), 4)]),
+  ['sdk/README.md', replaceExact('sdk/README.md',
+    new RegExp(`(\`)${esc}(\` validator engine)|(engine: ')${esc}(')`, 'g'),
+    (m, a, b, c, d) => (a ? `${a}${next}${b}` : `${c}${next}${d}`), 2)],
 ];
 
 for (const [file, text] of edits) writeFileSync(path(file), text);
