@@ -1,0 +1,63 @@
+name: Rust + wasm32 araç zinciri
+description: >
+  WASM derleyen job'ların ortak kurulumu: stable + wasm32 target, isteğe bağlı cargo
+  cache, wasm-pack ve nightly. Sürümler ve action SHA'ları yalnız burada tutulur.
+
+inputs:
+  cache-key:
+    description: >
+      Cargo cache anahtarının job'a özgü parçası (ör. wasm-serial). Boşsa cache
+      kullanılmaz — sdk-test bilinçli olarak cache'siz koşar.
+    default: ''
+  wasm-pack:
+    description: "'true' ise sabit sürüm wasm-pack kurulur"
+    default: 'false'
+  nightly:
+    description: "'true' ise build-std için nightly + rust-src + wasm32 kurulur"
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Rust toolchain + wasm32 target kur
+      uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Cargo cache
+      if: inputs.cache-key != ''
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-${{ inputs.cache-key }}-${{ hashFiles('**/Cargo.lock') }}
+        # Son satır bölünmeden önceki ortak anahtar: ilk koşum soğuk başlamasın.
+        restore-keys: |
+          ${{ runner.os }}-${{ inputs.cache-key }}-
+          ${{ runner.os }}-wasm-
+
+    # 2026-08-12'de ana dal bu adımda kırmızı yandı: `curl: (56) Connection died` —
+    # init.sh, wasm-pack ikilisini GitHub release'inden indiremedi. Kodla ilgisi yoktu,
+    # tek re-run düzeltti. Script'in KENDİ retry'ı var ("tried 5 times") ve yetmedi;
+    # eksik olan denemeler ARASINDA BEKLEMEKTİ, geçici kesinti aynı saniyelerde 5 kez
+    # denenince aşılmıyor.
+    #
+    # ⚠️ `cargo audit`/`npm audit` DESENİNDEN AYRILIR: orada ağa ulaşamamak yalnızca
+    # "tarama yapılamadı" demektir, job yeşil kalabilir. Burada araç kurulmazsa sonraki
+    # adımların hiçbiri (WASM derleme, UI build, determinizm karşılaştırması) çalışamaz —
+    # ağ hatasında yeşil geçmek yapılmamış işi yapılmış göstermek olurdu. O yüzden üç
+    # deneme de düşerse adım KIRMIZI yanar, ama sebebi mesajda yazılı olur.
+    - name: wasm-pack kur (sabit sürüm)
+      if: inputs.wasm-pack == 'true'
+      uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
+      with:
+        tool: wasm-pack@0.15.0
+
+    - name: Nightly toolchain (threaded WASM / build-std için)
+      if: inputs.nightly == 'true'
+      shell: bash
+      run: |
+        rustup toolchain install nightly --component rust-src --profile minimal
+        rustup target add wasm32-unknown-unknown --toolchain nightly

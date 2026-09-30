@@ -1,0 +1,28 @@
+name: Node.js + npm bağımlılıkları
+description: >
+  CI job'larının ortak Node kurulumu. Node sürümü ve setup-node SHA'sı yalnız burada
+  tutulur; job'lar bu action'ı çağırır.
+
+inputs:
+  directory:
+    description: package-lock.json'ın bulunduğu dizin (ui veya sdk)
+    default: ui
+  install:
+    description: "'false' ise yalnız Node kurulur, npm ci çalışmaz (npm audit lockfile'la yetinir)"
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Node.js kur
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: ${{ inputs.directory }}/package-lock.json
+
+    - name: npm bağımlılıkları yükle
+      if: inputs.install == 'true'
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: npm ci
