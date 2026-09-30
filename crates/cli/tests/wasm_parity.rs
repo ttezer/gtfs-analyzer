@@ -94,6 +94,7 @@ fn project(result: &Value) -> Value {
     json!({
         "publishable": result["reports"]["r1"]["publishable"],
         "score": result["reports"]["r5"]["score"],
+        "agency_breakdown": result["agency_breakdown"],
         "notices": notices,
     })
 }
@@ -116,6 +117,7 @@ fn diff(case: &Value, base: &Value) -> Value {
     json!({
         "publishable": case["publishable"],
         "score": case["score"],
+        "agency_breakdown": case["agency_breakdown"],
         "added": added,
         "removed": removed,
     })

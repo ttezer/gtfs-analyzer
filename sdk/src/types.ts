@@ -145,6 +145,8 @@ export interface ValidationResult {
   metrics: FeedMetrics;
   name_index: NameIndex;
   capped_totals: Record<string, number>;
+  /** Kural × agency dökümü (#2201). Eklemeli alan: eski motor sürümleri taşımaz. */
+  agency_breakdown?: AgencyBreakdown;
 }
 
 export interface FatalError {
@@ -284,4 +286,36 @@ export interface SessionResult {
 export interface SdkVersion {
   sdk: string;
   engine: string;
+}
+
+/** Bir agency kümesinin etkilediği kayıtlar (MobilityData gtfs-validator #2201). */
+export interface AgencySetCount {
+  /** Bugün her zaman tek eleman; paylaşılan varlıklar (stop/shape/service) gelince çoğalabilir. */
+  agency_ids: string[];
+  affected_entity_count: number;
+  /** Kimliği ancak kenar boşluğu kırpılarak eşleşen (tek aday) kayıtlar. */
+  trim_fallback_count: number;
+}
+
+/**
+ * Bir kuralın sayımları. `finding_count`: rapora giren bulgu (cap öncesi);
+ * `affected_entity_count`: özetlerin altındaki ham kayıtlar dahil; `displayed_sample_count`:
+ * sonuçtaki `notices` içinde taşınan. `agency_sets` + `unattributed` + `unsupported` +
+ * `not_applicable` toplamı `affected_entity_count`'tur.
+ */
+export interface RuleAgencyCounts {
+  finding_count: number;
+  affected_entity_count: number;
+  displayed_sample_count: number;
+  agency_sets: AgencySetCount[];
+  unattributed: Record<string, number>;
+  unsupported: number;
+  not_applicable: number;
+}
+
+/** Kural × agency dökümü. Severity ve skoru etkilemez. `complete=false`: notice bütçesi aşıldı, sayımlar alt sınırdır. */
+export interface AgencyBreakdown {
+  complete: boolean;
+  agencies: string[];
+  rules: Record<string, RuleAgencyCounts>;
 }

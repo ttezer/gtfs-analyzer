@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agency breakdown (MobilityData gtfs-validator #2201).** Results carry a new
+  `agency_breakdown` field in the CLI JSON, the npm SDK (`AgencyBreakdown`) and
+  the Python package. Per rule it reports `finding_count` (findings before any
+  display cap), `affected_entity_count` (raw records, so a feed-level summary
+  counts every trip or row behind it) and `displayed_sample_count`, split by
+  agency in `agency_sets`, with `unattributed` reasons (for example a broken
+  `route_id`), `unsupported` (stop, shape and service scopes) and
+  `not_applicable` (feed- and file-level findings). Notices resolve to an agency
+  through the rule's `route_id`, `trip_id`, `agency_id` or `fare_id`; a
+  single-agency feed owns routes and fares without `agency_id`. `complete` is
+  false when the web app's notice budget truncated the input. The field is
+  additive; severities and scores are unchanged.
+
 ### Changed
 
 - **Python package: localized texts, English by default.** `validate_gtfs()`

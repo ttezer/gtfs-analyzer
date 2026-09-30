@@ -91,6 +91,7 @@ function project(result) {
   return {
     publishable: result.reports.r1.publishable,
     score: result.reports.r5.score,
+    agency_breakdown: result.agency_breakdown,
     notices: result.notices.map((n) => Object.fromEntries(FIELDS.map((f) => [f, n[f] ?? null]))),
   };
 }
@@ -103,12 +104,19 @@ function diff(caseResult, base) {
     if (i >= 0) remaining.splice(i, 1);
     else added.push(notice);
   }
-  return { publishable: caseResult.publishable, score: caseResult.score, added, removed: remaining };
+  return {
+    publishable: caseResult.publishable,
+    score: caseResult.score,
+    agency_breakdown: caseResult.agency_breakdown,
+    added,
+    removed: remaining,
+  };
 }
 
 function assertSameDiff(actual, want, label) {
   assert.equal(actual.publishable, want.publishable, `${label}: publishable`);
   assert.equal(actual.score, want.score, `${label}: score`);
+  assert.equal(canonical(actual.agency_breakdown), canonical(want.agency_breakdown), `${label}: agency_breakdown`);
   assert.deepEqual(multiset(actual.added), multiset(want.added), `${label}: eklenen notice'lar`);
   assert.deepEqual(actual.removed.sort(), multiset(want.removed), `${label}: kaybolan notice'lar`);
 }
@@ -132,6 +140,7 @@ const baseRuns = await runAllPaths(makeZip(cases.base));
 for (const [path, base] of Object.entries(baseRuns)) {
   assert.equal(base.publishable, expected.base.publishable, `base/${path}: publishable`);
   assert.equal(base.score, expected.base.score, `base/${path}: score`);
+  assert.equal(canonical(base.agency_breakdown), canonical(expected.base.agency_breakdown), `base/${path}: agency_breakdown`);
   assert.deepEqual(multiset(base.notices), multiset(expected.base.notices), `base/${path}: notice'lar`);
 }
 

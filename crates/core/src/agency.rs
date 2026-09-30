@@ -110,3 +110,100 @@ pub struct AgencyBreakdown {
     pub agencies: Vec<String>,
     pub rules: BTreeMap<String, RuleAgencyCounts>,
 }
+
+// ── JSON sözleşmesi ─────────────────────────────────────────────────────────
+//
+// {
+//   "complete": true,
+//   "agencies": ["A", "B"],
+//   "rules": {
+//     "TRP_005": {
+//       "finding_count": 1, "affected_entity_count": 2, "displayed_sample_count": 1,
+//       "agency_sets": [
+//         { "agency_ids": ["A"], "affected_entity_count": 1, "trim_fallback_count": 0 }, …
+//       ],
+//       "unattributed": { "UnknownRoute": 3 }, "unsupported": 0, "not_applicable": 0
+//     }
+//   }
+// }
+//
+// `agency_sets` yapısaldır (agency_id `|` içerebilir); bugün her küme tek agency'lidir,
+// paylaşılan varlıklar (stop/shape/service) gelince birden fazla kimlik taşıyabilir.
+// Sıralar deterministiktir: kurallar ve nedenler BTreeMap, kümeler agency sırasıyla.
+
+#[derive(serde::Serialize)]
+struct AgencySetJson<'a> {
+    agency_ids: [&'a str; 1],
+    affected_entity_count: u64,
+    trim_fallback_count: u64,
+}
+
+#[derive(serde::Serialize)]
+struct RuleJson<'a> {
+    finding_count: u64,
+    affected_entity_count: u64,
+    displayed_sample_count: u64,
+    agency_sets: Vec<AgencySetJson<'a>>,
+    unattributed: BTreeMap<String, u64>,
+    unsupported: u64,
+    not_applicable: u64,
+}
+
+impl serde::Serialize for AgencyBreakdown {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let rules: BTreeMap<&str, RuleJson<'_>> = self
+            .rules
+            .iter()
+            .map(|(rule, counts)| {
+                let mut sets: BTreeMap<AgencyRef, (u64, u64)> = BTreeMap::new();
+                let mut unattributed = BTreeMap::new();
+                let (mut unsupported, mut not_applicable) = (0, 0);
+                for (attribution, n) in &counts.by_attribution {
+                    match attribution {
+                        AgencyAttribution::Direct { agency, resolution }
+                        | AgencyAttribution::Resolved { agency, resolution } => {
+                            let slot = sets.entry(*agency).or_default();
+                            slot.0 += n;
+                            if *resolution == Resolution::UniqueTrimFallback {
+                                slot.1 += n;
+                            }
+                        }
+                        AgencyAttribution::Unattributed(reason) => {
+                            *unattributed.entry(format!("{reason:?}")).or_default() += n;
+                        }
+                        AgencyAttribution::Unsupported => unsupported += n,
+                        AgencyAttribution::NotApplicable => not_applicable += n,
+                    }
+                }
+                let agency_sets = sets
+                    .into_iter()
+                    .map(|(agency, (affected, trimmed))| AgencySetJson {
+                        agency_ids: [self
+                            .agencies
+                            .get(agency.0 as usize)
+                            .map(String::as_str)
+                            .unwrap_or("")],
+                        affected_entity_count: affected,
+                        trim_fallback_count: trimmed,
+                    })
+                    .collect();
+                let json = RuleJson {
+                    finding_count: counts.finding_count,
+                    affected_entity_count: counts.affected_entity_count,
+                    displayed_sample_count: counts.displayed_sample_count,
+                    agency_sets,
+                    unattributed,
+                    unsupported,
+                    not_applicable,
+                };
+                (rule.as_str(), json)
+            })
+            .collect();
+        let mut state = serializer.serialize_struct("AgencyBreakdown", 3)?;
+        state.serialize_field("complete", &self.complete)?;
+        state.serialize_field("agencies", &self.agencies)?;
+        state.serialize_field("rules", &rules)?;
+        state.end()
+    }
+}

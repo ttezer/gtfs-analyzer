@@ -24,6 +24,9 @@ import type {
 } from './types.js';
 
 export type {
+  AgencyBreakdown,
+  AgencySetCount,
+  RuleAgencyCounts,
   EntityType,
   EngineMode,
   EngineResult,
