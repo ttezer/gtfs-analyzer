@@ -9,6 +9,9 @@
 //     CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS.
 //
 // CI/linux'ta davranış öncekiyle aynı (toolchain = "nightly").
+//
+// `RUST_NIGHTLY` tanımlıysa (CI, setup-rust-wasm action'ı) tarihli nightly kullanılır;
+// yerelde tanımsızdır ve kurulu "nightly" kullanılır.
 import { spawnSync } from 'node:child_process';
 
 const rustflags = [
@@ -25,7 +28,8 @@ const rustflags = [
 ].join(' ');
 
 const isWin = process.platform === 'win32';
-const toolchain = isWin ? 'nightly-x86_64-pc-windows-gnu' : 'nightly';
+const nightly = process.env.RUST_NIGHTLY || 'nightly';
+const toolchain = isWin ? `${nightly}-x86_64-pc-windows-gnu` : nightly;
 
 const env = {
   ...process.env,

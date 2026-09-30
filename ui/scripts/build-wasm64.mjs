@@ -17,8 +17,9 @@ function run(command, args, cwd = repoDir) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+// `RUST_NIGHTLY`: CI'da tarihli nightly (setup-rust-wasm action'ı); yerelde kurulu "nightly".
 run('cargo', [
-  '+nightly', 'build',
+  `+${process.env.RUST_NIGHTLY || 'nightly'}`, 'build',
   '-Z', 'build-std=std,panic_abort',
   '--target', 'wasm64-unknown-unknown',
   '-p', 'gtfs-wasm',

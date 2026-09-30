@@ -55,9 +55,17 @@ runs:
       with:
         tool: wasm-pack@0.15.0
 
+    # Nightly TARİHLE sabit: tarihsiz "nightly" her gün değişir ve CI'ı koddan bağımsız
+    # kırabilir. Tarih yalnız burada tutulur; betikler `RUST_NIGHTLY` ile okur
+    # (ui/scripts/build-wasm-threads.mjs, build-wasm64.mjs). 2026-09-30 = rustc
+    # 1.101.0-nightly (5c543b0b8 2026-09-29), CI'ın o gün yeşil geçtiği sürüm.
+    # Güncellerken: tarihi değiştir, CI'ın üç WASM job'unu yeşil gör.
     - name: Nightly toolchain (threaded WASM / build-std için)
       if: inputs.nightly == 'true'
       shell: bash
+      env:
+        NIGHTLY: nightly-2026-09-30
       run: |
-        rustup toolchain install nightly --component rust-src --profile minimal
-        rustup target add wasm32-unknown-unknown --toolchain nightly
+        rustup toolchain install "$NIGHTLY" --component rust-src --profile minimal
+        rustup target add wasm32-unknown-unknown --toolchain "$NIGHTLY"
+        echo "RUST_NIGHTLY=$NIGHTLY" >> "$GITHUB_ENV"
