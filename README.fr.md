@@ -449,7 +449,7 @@ Le cœur de validation produit ses textes de signalement en turc ; `--lang en` /
 
 Lorsqu’une règle n’a pas de traduction, la chaîne est : langue demandée → anglais → turc (le texte propre au cœur), de sorte que la sortie n’est jamais vide.
 
-Les dictionnaires sont dérivés de `ui/src/locales/{en,ja,fr}.ts` vers `crates/cli/locales/*.json` par `npm run locales:export`, puis intégrés au binaire de la CLI. Si un fichier de locale est modifié sans relancer l’export, `locale-parity.test.ts` échoue en CI — les fichiers de locale restent l’unique source de vérité.
+Les dictionnaires sont dérivés de `ui/src/locales/{en,ja,fr}.ts` vers `crates/core/locales/*.json` par `npm run locales:export`, puis intégrés au binaire de la CLI et au paquet Python. Si un fichier de locale est modifié sans relancer l’export, `locale-parity.test.ts` échoue en CI — les fichiers de locale restent l’unique source de vérité.
 
 ---
 

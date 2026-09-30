@@ -44,8 +44,15 @@ def validate_gtfs(
     today: Optional[Union[int, str]] = None,
     config: Optional[Mapping[str, Any]] = None,
     include_name_index: bool = False,
+    lang: str = "en",
 ) -> dict[str, Any]:
-    """Validate a GTFS ZIP path or bytes and return the result as a dict."""
+    """Validate a GTFS ZIP path or bytes and return the result as a dict.
+
+    ``lang`` selects the language of ``title``, ``message`` and ``remediation``:
+    ``"en"`` (default), ``"fr"``, ``"ja"`` or ``"tr"``, the same as the CLI's
+    ``--lang``. Rules missing from a dictionary fall back to English, then to the
+    engine's Turkish text.
+    """
     if isinstance(feed, (str, Path)):
         feed_bytes = Path(feed).read_bytes()
     elif isinstance(feed, bytes):
@@ -65,8 +72,11 @@ def validate_gtfs(
     else:
         raise TypeError("config must be a mapping or None")
 
+    if not isinstance(lang, str):
+        raise TypeError("lang must be a string such as 'en'")
+
     envelope = _json.loads(
-        _validate_native(feed_bytes, today_value, config_json, include_name_index)
+        _validate_native(feed_bytes, today_value, config_json, include_name_index, lang)
     )
     if "Fatal" in envelope:
         fatal = envelope["Fatal"]

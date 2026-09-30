@@ -6,7 +6,7 @@ use serde_json::Value;
 
 fn main() {
     let locale_path =
-        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../cli/locales/en.json");
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../core/locales/en.json");
     println!("cargo:rerun-if-changed={}", locale_path.display());
 
     let raw = fs::read_to_string(&locale_path).expect("English locale file is not readable");

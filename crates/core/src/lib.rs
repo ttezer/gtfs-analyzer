@@ -1,4 +1,6 @@
 pub mod enums;
+#[cfg(feature = "i18n")]
+pub mod i18n;
 pub mod metrics;
 pub mod notice;
 pub mod reports;

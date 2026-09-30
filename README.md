@@ -454,7 +454,7 @@ Doğrulama çekirdeği bulgu metinlerini Türkçe üretir; `--lang en` / `--lang
 
 Bir kuralın çevirisi yoksa sıra şudur: istenen dil → İngilizce → Türkçe (çekirdeğin ürettiği metin). Böylece çıktı hiçbir zaman boş kalmaz.
 
-Sözlükler `ui/src/locales/{en,ja}.ts` dosyalarından `npm run locales:export` ile `crates/cli/locales/*.json` içine türetilir ve CLI binary'sine gömülür. Locale güncellenip export çalıştırılmazsa `locale-parity.test.ts` CI'da kırmızı yanar — tek kaynak locale dosyalarıdır.
+Sözlükler `ui/src/locales/{en,ja}.ts` dosyalarından `npm run locales:export` ile `crates/core/locales/*.json` içine türetilir; CLI binary'sine ve Python paketine gömülür. Locale güncellenip export çalıştırılmazsa `locale-parity.test.ts` CI'da kırmızı yanar — tek kaynak locale dosyalarıdır.
 
 ---
 

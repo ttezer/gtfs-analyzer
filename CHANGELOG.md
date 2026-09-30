@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Python package: localized texts, English by default.** `validate_gtfs()`
+  takes `lang="en"` (also `"fr"`, `"ja"`, `"tr"`), matching the CLI's `--lang`
+  default, and translates `title`, `message`, `remediation`, and fatal error
+  messages. 0.15.0 returned the engine's Turkish text; pass `lang="tr"` to keep
+  it. An unknown language raises `ValueError`.
+- The translation dictionaries and code moved from the CLI to `gtfs-core`
+  (`crates/core/locales/`, `gtfs_core::i18n` behind the `i18n` feature) so the
+  CLI and the Python package share them. CLI output is byte-identical; the WASM
+  build does not enable the feature and its size is unchanged.
+- PyPI shows a dedicated English README (`python/README.md`) instead of the
+  Turkish repository README.
+
 ## [0.15.0] - 2026-09-30
 
 This release carries the multi-feed rule-semantics triage of 2026-09-21 into every

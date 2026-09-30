@@ -1,5 +1,5 @@
 // Exports the rule dictionaries from the TypeScript locales into JSON the Rust
-// CLI can embed (`crates/cli/locales/`).
+// CLI and Python package embed (`crates/core/locales/`, `gtfs_core::i18n`).
 //
 // The locales stay the single source of truth: this script only derives from
 // them, and `src/__tests__/locale-export-drift.test.ts` fails the build if the
@@ -11,10 +11,10 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const OUT_DIR = fileURLToPath(new URL('../../crates/cli/locales/', import.meta.url));
+const OUT_DIR = fileURLToPath(new URL('../../crates/core/locales/', import.meta.url));
 const LANGS = ['en', 'ja', 'fr'];
 
-/** Shape embedded by the CLI. Keep in sync with `crates/cli/src/i18n.rs`. */
+/** Shape embedded by the CLI. Keep in sync with `crates/core/src/i18n.rs`. */
 function payloadOf(locale) {
   return {
     messages: locale.ruleMessages ?? {},
@@ -55,7 +55,7 @@ for (const lang of LANGS) {
   const counts = Object.entries(JSON.parse(next))
     .map(([k, v]) => `${k}=${Object.keys(v).length}`)
     .join(' ');
-  console.log(`wrote crates/cli/locales/${lang}.json (${counts})`);
+  console.log(`wrote crates/core/locales/${lang}.json (${counts})`);
 }
 
 if (drifted) process.exit(1);

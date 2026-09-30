@@ -115,7 +115,7 @@ fn locale_placeholders_can_be_filled() {
     let mut problems: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for locale in ["en", "ja", "fr"] {
         let path = repo_root()
-            .join("crates/cli/locales")
+            .join("crates/core/locales")
             .join(format!("{locale}.json"));
         let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path:?} okunamadı: {e}"));
         let json: serde_json::Value =
@@ -252,7 +252,7 @@ fn emitted_notices_fill_their_locale_placeholders() {
         "fixture hiç notice üretmedi — kapı ölçmüyor demektir"
     );
 
-    let raw = fs::read_to_string(repo_root().join("crates/cli/locales/en.json")).unwrap();
+    let raw = fs::read_to_string(repo_root().join("crates/core/locales/en.json")).unwrap();
     let templates: serde_json::Value = serde_json::from_str(&raw).unwrap();
     let templates = templates["messages"].as_object().unwrap();
 

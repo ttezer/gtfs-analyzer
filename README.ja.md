@@ -447,7 +447,7 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 
 ルールの翻訳がない場合の順序は、指定言語 → 英語 → トルコ語（コアが生成したテキスト）です。出力が空になることはありません。
 
-辞書は `npm run locales:export` により `ui/src/locales/{en,ja}.ts` から `crates/cli/locales/*.json` へ生成され、CLI バイナリに埋め込まれます。locale を更新して export を実行しなかった場合は `locale-parity.test.ts` が CI で失敗します — 単一の情報源は locale ファイルです。
+辞書は `npm run locales:export` により `ui/src/locales/{en,ja}.ts` から `crates/core/locales/*.json` へ生成され、CLI バイナリと Python パッケージに埋め込まれます。locale を更新して export を実行しなかった場合は `locale-parity.test.ts` が CI で失敗します — 単一の情報源は locale ファイルです。
 
 ---
 

@@ -34,7 +34,7 @@ for notice in result["notices"]:
     print(notice["rule_id"], notice["severity"], notice["file"], notice["line"])
 ```
 
-`validate_gtfs(feed, *, today=None, config=None, include_name_index=False)`
+`validate_gtfs(feed, *, today=None, config=None, include_name_index=False, lang="en")`
 
 | Argument | Meaning |
 |---|---|
@@ -42,6 +42,7 @@ for notice in result["notices"]:
 | `today` | Reference date for calendar checks: `YYYYMMDD` int or `"YYYY-MM-DD"` / `"YYYYMMDD"` string. Defaults to the local date. Pin it for reproducible results. |
 | `config` | Optional mapping of engine settings, e.g. `{"disabled_rule_ids": ["TRP_020"]}`. Unknown keys are rejected. |
 | `include_name_index` | Include the stop/route name lookup table (large; omitted by default) |
+| `lang` | Language of `title`, `message`, and `remediation`: `"en"` (default), `"fr"`, `"ja"`, or `"tr"`, as the CLI's `--lang`. Missing entries fall back to English. |
 
 The returned `dict` is the engine's result object:
 
@@ -53,18 +54,17 @@ The returned `dict` is the engine's result object:
 | `metrics` | Scores and feed statistics (service window, trip counts, notice counts per class) |
 | `capped_totals` | True counts for rules whose notices were capped |
 
-`message` and `remediation` are currently in Turkish, the engine's source
-language; use `rule_id` for program logic and the
-[rule reference](https://github.com/ttezer/gtfs-analyzer/blob/main/RULES.en.md)
-for English descriptions.
+Texts follow `lang`; use `rule_id`, not the message text, for program logic.
+The [rule reference](https://github.com/ttezer/gtfs-analyzer/blob/main/RULES.en.md)
+describes every rule.
 
 ### Errors
 
 - `gtfs_analyzer.ValidationError`: the feed could not be validated at all, for
   example an unreadable ZIP. The message starts with the error code
-  (`ZipUnreadable: ...`).
-- `ValueError`: invalid `today` or `config`.
-- `TypeError`: `feed`, `today`, or `config` has the wrong type.
+  (`ZipUnreadable: ...`) and follows `lang`.
+- `ValueError`: invalid `today`, `config`, or `lang`.
+- `TypeError`: `feed`, `today`, `config`, or `lang` has the wrong type.
 
 A feed with errors is not an exception: its findings are in `notices`.
 

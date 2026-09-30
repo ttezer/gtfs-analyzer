@@ -448,7 +448,7 @@ The validation core emits its finding texts in Turkish; `--lang en` / `--lang ja
 
 When a rule has no translation the chain is: requested language → English → Turkish (the core's own text), so the output is never blank.
 
-The dictionaries are derived from `ui/src/locales/{en,ja}.ts` into `crates/cli/locales/*.json` by `npm run locales:export` and embedded in the CLI binary. If a locale is edited without re-running the export, `locale-parity.test.ts` fails in CI — the locale files remain the single source of truth.
+The dictionaries are derived from `ui/src/locales/{en,ja}.ts` into `crates/core/locales/*.json` by `npm run locales:export` and embedded in the CLI binary and the Python package. If a locale is edited without re-running the export, `locale-parity.test.ts` fails in CI — the locale files remain the single source of truth.
 
 ---
 

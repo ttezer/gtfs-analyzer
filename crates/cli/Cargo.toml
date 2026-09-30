@@ -14,7 +14,7 @@ name = "gtfs-analyzer"
 path = "src/main.rs"
 
 [dependencies]
-gtfs-core = { workspace = true }
+gtfs-core = { workspace = true, features = ["i18n"] }
 gtfs-pipeline = { workspace = true }
 gtfs-config = { workspace = true }
 gtfs-rules = { workspace = true }

@@ -361,7 +361,7 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
 
     // Parsed before the pipeline runs: a broken dictionary should fail fast
     // rather than after a multi-minute validation.
-    let translator = match Translator::new(args.lang) {
+    let translator = match Translator::new(args.lang.into()) {
         Ok(translator) => translator,
         Err(err) => return cli_error(err),
     };
@@ -705,7 +705,7 @@ fn run_rules(args: RulesArgs) -> ExitCode {
     let min_severity: Option<Severity> = args.min_severity.map(Into::into);
     let classes: Vec<RuleClass> = args.class.iter().copied().map(Into::into).collect();
 
-    let translator = match Translator::new(args.lang) {
+    let translator = match Translator::new(args.lang.into()) {
         Ok(translator) => translator,
         Err(err) => return cli_error(err),
     };

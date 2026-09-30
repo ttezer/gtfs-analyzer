@@ -18,7 +18,7 @@ struct Dictionary {
     messages: HashMap<String, String>,
     remediations: HashMap<String, String>,
     titles: HashMap<String, String>,
-    /// `{FatalCode}.{variant}` → şablon; CLI ile aynı sözlük (`crates/cli/locales/en.json`).
+    /// `{FatalCode}.{variant}` → şablon; CLI ile aynı sözlük (`crates/core/locales/en.json`).
     #[serde(default)]
     fatal_messages: HashMap<String, String>,
 }

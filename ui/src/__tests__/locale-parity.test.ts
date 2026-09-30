@@ -3,9 +3,9 @@ import tr from '../locales/tr';
 import en from '../locales/en';
 import ja from '../locales/ja';
 import fr from '../locales/fr';
-import enExport from '../../../crates/cli/locales/en.json';
-import jaExport from '../../../crates/cli/locales/ja.json';
-import frExport from '../../../crates/cli/locales/fr.json';
+import enExport from '../../../crates/core/locales/en.json';
+import jaExport from '../../../crates/core/locales/ja.json';
+import frExport from '../../../crates/core/locales/fr.json';
 
 const keys = (o: Record<string, string>): Set<string> => new Set(Object.keys(o));
 const minus = (a: Set<string>, b: Set<string>): string[] => [...a].filter((x) => !b.has(x));
@@ -29,7 +29,7 @@ describe('locale parity (registry kural anahtarları)', () => {
     const e = keys(en.ruleMessages);
     const j = keys(ja.ruleMessages);
     // en'de olup ja'da olmayan: SERBEST. `ja` sözlüğü çeviri bulamadığında
-    // İngilizce'ye düşer (crates/cli/src/i18n.rs `fallback`), yani boşluk
+    // İngilizce'ye düşer (crates/core/src/i18n.rs `fallback`), yani boşluk
     // Türkçe sızıntısı değil çeviri borcudur. `en` tamlığını Rust tarafındaki
     // `every_registered_rule_resolves_in_every_dictionary` kapısı zorlar.
     expect(minus(j, e)).toEqual([]);
@@ -40,7 +40,7 @@ describe('locale parity (registry kural anahtarları)', () => {
     const e = keys(en.ruleRemediations);
     const j = keys(ja.ruleRemediations);
     // en'de olup ja'da olmayan: SERBEST. `ja` sözlüğü çeviri bulamadığında
-    // İngilizce'ye düşer (crates/cli/src/i18n.rs `fallback`), yani boşluk
+    // İngilizce'ye düşer (crates/core/src/i18n.rs `fallback`), yani boşluk
     // Türkçe sızıntısı değil çeviri borcudur. `en` tamlığını Rust tarafındaki
     // `every_registered_rule_resolves_in_every_dictionary` kapısı zorlar.
     expect(minus(j, e)).toEqual([]); // ja'da olup en'de olmayan (orphan)
@@ -48,9 +48,9 @@ describe('locale parity (registry kural anahtarları)', () => {
 });
 
 // Rust CLI'nin `--lang` çıktısı bu locale'lerden TÜRETİLİR: `npm run locales:export`
-// crates/cli/locales/{en,ja}.json üretir, CLI onu include_str! ile gömer. Locale
+// crates/core/locales/{en,ja}.json üretir, CLI onu include_str! ile gömer. Locale
 // güncellenip export çalıştırılmazsa CLI eski metni yayınlar — bu test onu yakalar.
-describe('CLI locale export (crates/cli/locales)', () => {
+describe('CLI locale export (crates/core/locales)', () => {
   it.each([
     ['en', en, enExport],
     ['ja', ja, jaExport],

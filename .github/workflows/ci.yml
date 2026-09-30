@@ -176,7 +176,7 @@ jobs:
       # izlenmez) import eder; bu job wasm build etmez. Tip kontrolü build-wasm job'undaki
       # `npm run build` adımında yapılır (`tsc --noEmit && vite build`, pkg mevcutken).
 
-      # `crates/cli/locales/*.json` TS locale'lerden TÜRETİLİR; export çalıştırılmazsa
+      # `crates/core/locales/*.json` TS locale'lerden TÜRETİLİR; export çalıştırılmazsa
       # CLI eski metni yayınlar. Üç türetilmiş dosya olduğundan (en/ja/fr) kapı burada.
       - name: "locale export drift (bayat ise: npm run locales:export)"
         working-directory: ui
