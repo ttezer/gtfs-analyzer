@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "2 trips have an invalid direction_id"). Both WASM paths now call the same
   `gtfs_pipeline::aggregate_feed_level_notices` as the CLI, before report scope
   and the per-rule cap, and a source-level test guards the call order.
+- **`CAL_008` message in English, French and Japanese.** The feed-level summary
+  carries the end date in `observed_value`, but the templates read it as the
+  service count ("20261007 services expire on the same date."). They now use
+  `affected_services`: "12 services expire on 20261007."
+- **`STM_053` representative row is the same on every platform.** The route
+  summary kept the first affected trip in hash-map order, which differs between
+  the 64-bit native build and 32-bit WASM, so the CLI and the web app showed
+  different `line` and example trip for the same feed. It now keeps the trip
+  with the lowest `stop_times.txt` line.
 
 ## [0.15.0] - 2026-09-30
 

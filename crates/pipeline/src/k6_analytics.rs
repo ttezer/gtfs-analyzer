@@ -1642,11 +1642,16 @@ fn check_speed_and_duration<'a>(
                 previous_time = event_time;
             }
             if max_same_run >= 3 {
-                let entry = stm053_routes.entry(route).or_insert((0, 0, trip_id, 0));
+                let first_line = stimes.first().map(|s| s.line as u64).unwrap_or(0);
+                let entry = stm053_routes.entry(route).or_insert((0, 0, trip_id, first_line));
                 entry.0 = entry.0.max(max_same_run);
                 entry.1 += 1;
-                if entry.3 == 0 {
-                    entry.3 = stimes.first().map(|s| s.line as u64).unwrap_or(0);
+                // Temsilci = en küçük satırlı sefer. `by_trip` FxHashMap'tir ve FxHash
+                // `usize` genişliğine bağlıdır: "ilk görülen" sefer 64-bit native ile
+                // 32-bit WASM'da farklı çıkıyordu (aynı feed, farklı line/example_trip).
+                if (first_line == 0, first_line, trip_id) < (entry.3 == 0, entry.3, entry.2) {
+                    entry.2 = trip_id;
+                    entry.3 = first_line;
                 }
             }
 
@@ -12046,6 +12051,44 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].entity_type, EntityType::Route);
         assert_eq!(found[0].entity_id.as_deref(), Some("R1"));
+    }
+
+    #[test]
+    fn stm_053_representative_is_lowest_line_not_hash_order() {
+        // `by_trip` FxHashMap'tir; temsilci "ilk görülen" sefer olursa 64-bit native ile
+        // 32-bit WASM farklı satır gösterir. En küçük satırlı sefer seçilmelidir.
+        let trips: Vec<String> = (0..24).map(|i| format!("T{i:02}")).collect();
+        let mut stop_times = Vec::new();
+        // Satırlar sefer adının TERSİNE artar: en küçük satır T23'te.
+        for (i, trip_id) in trips.iter().rev().enumerate() {
+            let base = 2 + (i as u64) * 3;
+            stop_times.push(stoptime(trip_id, 1, "A", (8, 0, 0), (8, 0, 0), base));
+            stop_times.push(stoptime(trip_id, 2, "B", (8, 0, 0), (8, 0, 0), base + 1));
+            stop_times.push(stoptime(trip_id, 3, "C", (8, 0, 0), (8, 0, 0), base + 2));
+        }
+        let records = records_with(
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.001, 29.0),
+                stop("C", 41.002, 29.0),
+            ],
+            vec![route("R1", 3)],
+            trips.iter().map(|t| trip(t, "R1")).collect(),
+            stop_times,
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let found: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_053")
+            .collect();
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].line, Some(2));
+        assert!(
+            found[0].message.contains("'T23'"),
+            "örnek sefer en küçük satırlı sefer olmalı: {}",
+            found[0].message
+        );
     }
 
     // ── OPR_008 ───────────────────────────────────────────────────────────────
