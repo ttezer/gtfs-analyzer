@@ -193,6 +193,13 @@
         "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n",
         "feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nPublisher,http://publisher.example,de\n"
       }
+    },
+    {
+      "name": "WS_PADDED_REFERENCE",
+      "rule": "DQ_016",
+      "files": {
+        "trips.txt": "route_id,service_id,trip_id\n R1,SVC1,T1\n"
+      }
     }
   ]
 }

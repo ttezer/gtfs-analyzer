@@ -50,7 +50,7 @@ fn wasm_full_pipeline_aggregates_before_scope_and_cap() {
     assert_aggregates_before(
         body_of(&src, "run_full_pipeline"),
         "run_full_pipeline",
-        &["apply_report_scope(", "cap_per_rule("],
+        &["apply_report_scope(", "prepare_count_cap("],
     );
 }
 
@@ -60,7 +60,7 @@ fn wasm_cached_rerun_aggregates_before_scope_and_cap() {
     assert_aggregates_before(
         body_of(&src, "rerun_k6_k7_inner"),
         "rerun_k6_k7_inner",
-        &["apply_report_scope(", "cap_per_rule("],
+        &["apply_report_scope(", "prepare_count_cap("],
     );
 }
 

@@ -34,7 +34,8 @@ use gtfs_core::Notice;
 use crate::k2::EntityRecords;
 
 pub use gtfs_core::agency::{
-    AgencyAttribution, AgencyDistribution, AgencyRef, Resolution, UnattributedReason,
+    AgencyAttribution, AgencyBreakdown, AgencyDistribution, AgencyRef, Resolution,
+    RuleAgencyCounts, UnattributedReason,
 };
 
 /// Ham kimlik → değer; kırpılmış kimlik → değer ya da belirsizlik.
@@ -227,4 +228,69 @@ fn unattributed(miss: Miss, unknown: UnattributedReason) -> AgencyAttribution {
         Miss::Unknown => unknown,
         Miss::Ambiguous => UnattributedReason::AmbiguousPaddedId,
     })
+}
+
+/// Kural × agency dökümünü notice notice biriktirir. Toplulanmış özetler altlarındaki
+/// dağılımla, diğerleri [`AgencyResolver::attribute_member`] ile sayılır: toplulamayla aynı
+/// atıf kuralı. Beslenen notice'lar K7 hazırlığından çıkmış olmalıdır (boşluk türevleri
+/// bastırılmış, dedup edilmiş, cap uygulanmamış).
+pub struct AgencyCounter<'a> {
+    resolver: AgencyResolver<'a>,
+    rules: std::collections::BTreeMap<String, RuleAgencyCounts>,
+}
+
+impl<'a> AgencyCounter<'a> {
+    pub fn new(records: &'a EntityRecords) -> Self {
+        Self { resolver: AgencyResolver::new(records), rules: Default::default() }
+    }
+
+    pub fn add(&mut self, notice: &Notice) {
+        let counts = self.rules.entry(notice.rule_id.clone()).or_default();
+        counts.finding_count += 1;
+        counts.displayed_sample_count += 1;
+        match notice.agency_distribution.as_deref() {
+            Some(distribution) => {
+                for (attribution, n) in distribution {
+                    *counts.by_attribution.entry(*attribution).or_default() += n;
+                    counts.affected_entity_count += n;
+                }
+            }
+            None => {
+                let attribution = self.resolver.attribute_member(notice);
+                *counts.by_attribution.entry(attribution).or_default() += 1;
+                counts.affected_entity_count += 1;
+            }
+        }
+    }
+
+    /// `displayed_sample_count` burada `finding_count`'tur; WASM cap'ten sonra
+    /// [`set_displayed`] ile düzeltir.
+    pub fn finish(self, complete: bool) -> AgencyBreakdown {
+        AgencyBreakdown {
+            complete,
+            agencies: self.resolver.agency_ids.iter().map(|id| id.to_string()).collect(),
+            rules: self.rules,
+        }
+    }
+}
+
+/// Hazır bir notice listesinin dökümü (native: cap yok).
+pub fn breakdown(notices: &[Notice], records: &EntityRecords, complete: bool) -> AgencyBreakdown {
+    let mut counter = AgencyCounter::new(records);
+    for notice in notices {
+        counter.add(notice);
+    }
+    counter.finish(complete)
+}
+
+/// Cap'ten sonra sonuçta kalan notice'lara göre `displayed_sample_count`'u yeniler.
+pub fn set_displayed(breakdown: &mut AgencyBreakdown, shown: &[Notice]) {
+    for counts in breakdown.rules.values_mut() {
+        counts.displayed_sample_count = 0;
+    }
+    for notice in shown {
+        if let Some(counts) = breakdown.rules.get_mut(&notice.rule_id) {
+            counts.displayed_sample_count += 1;
+        }
+    }
 }

@@ -33,8 +33,9 @@ pub use k6_analytics::{
     analyze as analyze_k6, analyze_with_files as analyze_k6_with_files, K6Result,
 };
 pub use k7_reporting::{
-    report as report_k7, report_with_whitespace_suppressions as report_k7_with_suppressions,
-    K7Result,
+    prepare_notices as prepare_k7_notices, report as report_k7,
+    report_prepared as report_k7_prepared,
+    report_with_whitespace_suppressions as report_k7_with_suppressions, K7Result,
 };
 use agency_attribution::AgencyResolver;
 use k7_reporting::annotate_whitespace_join_provenance;
@@ -1746,17 +1747,17 @@ pub fn validate_bytes_inspected(
         .any(|f| k1_parse::is_certification_critical(f))
         && partial.root_structural_errors.is_empty();
 
-    let k7 = {
+    let (k7, agency_breakdown) = {
         let _t = Timer::start("K7-reporting");
-        report_k7_with_suppressions(
-            all,
-            &k2.records,
-            &k5.derived,
-            file_stats,
-            false,
-            coverage_complete,
-            whitespace_suppressions,
-        )
+        let prepared =
+            prepare_k7_notices(all, &k2.records, &k5.derived, false, whitespace_suppressions);
+        // #2201: bastırmadan SONRA sayılır; native'de cap yoktur, döküm tamdır.
+        let agency_breakdown = {
+            let _t = Timer::start("K7::agency_breakdown");
+            agency_attribution::breakdown(&prepared, &k2.records, true)
+        };
+        let k7 = report_k7_prepared(prepared, &k2.records, &k5.derived, file_stats, coverage_complete);
+        (k7, agency_breakdown)
     };
 
     // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar
@@ -1774,6 +1775,7 @@ pub fn validate_bytes_inspected(
         metrics: k7.metrics,
         name_index,
         capped_totals: std::collections::BTreeMap::new(),
+        agency_breakdown,
     })
 }
 

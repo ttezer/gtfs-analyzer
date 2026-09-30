@@ -5,11 +5,12 @@ use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::{
     FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
 };
+use gtfs_pipeline::agency_attribution::{set_displayed, AgencyBreakdown, AgencyCounter};
 use gtfs_pipeline::{
     aggregate_feed_level_notices, analyze_k6_with_files, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
-    report_k7_with_suppressions, validate_k2_with_whitespace_roots, DerivedData, EntityRecords,
-    FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
+    prepare_k7_notices, report_k7_prepared, validate_k2_with_whitespace_roots, DerivedData,
+    EntityRecords, FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
@@ -83,6 +84,8 @@ pub struct CachedState {
     file_stats: Vec<FileInfo>,
     partial: PartialReport,
     present_files: HashSet<String>,
+    /// K1–K5 notice bütçesi aşıldı mı: rerun'da agency dökümü `complete=false` olmalı.
+    k1_k5_budget_exceeded: bool,
 }
 
 // ── Yardımcı: aşama callback çağrısı ─────────────────────────────────────────
@@ -449,7 +452,14 @@ fn rerun_k6_k7_inner(
         top_rules_str(&all_notices)
     ));
 
-    let real_totals = cap_per_rule(&mut all_notices);
+    let complete = !(cache.k1_k5_budget_exceeded || notice_budget_exceeded);
+    let (mut all_notices, real_totals, agency_breakdown) = prepare_count_cap(
+        all_notices,
+        &cache.records,
+        &cache.derived,
+        cache.whitespace_suppressions.clone(),
+        complete,
+    );
     if notice_budget_exceeded {
         wasm_warn!(format!(
             "[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."
@@ -468,14 +478,12 @@ fn rerun_k6_k7_inner(
 
     let t = js_sys::Date::now();
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7_with_suppressions(
+    let mut k7 = report_k7_prepared(
         all_notices,
         &cache.records,
         &cache.derived,
         cache.file_stats.clone(),
-        true,
         coverage_complete,
-        cache.whitespace_suppressions.clone(),
     );
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
 
@@ -495,6 +503,7 @@ fn rerun_k6_k7_inner(
         metrics: k7.metrics,
         name_index,
         capped_totals,
+        agency_breakdown,
     });
     // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
     // bu satır basılıp sonrası gelmiyorsa OOM serialize'da demektir.
@@ -619,9 +628,17 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
     apply_report_scope(&mut all_notices, &k2.records, config);
 
-    // 1) Dedup sonrası gerçek totalleri say, ardından kural başına gösterim cap'ini uygula.
-    // Native pipeline K7'de dedup yaptığı için karşılaştırılabilir "gerçek" sayı bu noktadadır.
-    let real_totals = cap_per_rule(&mut all_notices);
+    // 1) Boşluk türevlerini bastır, dedup sonrası gerçek totalleri ve agency dökümünü say,
+    // ardından kural başına gösterim cap'ini uygula (native ile aynı sayım noktası).
+    let mut whitespace_suppressions = k2.whitespace_suppressions;
+    whitespace_suppressions.merge(k4.whitespace_suppressions);
+    let (mut all_notices, real_totals, agency_breakdown) = prepare_count_cap(
+        all_notices,
+        &k2.records,
+        &k5.derived,
+        whitespace_suppressions,
+        !notice_budget_exceeded,
+    );
     if notice_budget_exceeded {
         wasm_warn!(format!(
             "[uyarı] notice bütçesi aşıldı; ilk {NOTICE_LIMIT} kayıt işlendi."
@@ -638,17 +655,13 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         ));
     }
 
-    let mut whitespace_suppressions = k2.whitespace_suppressions;
-    whitespace_suppressions.merge(k4.whitespace_suppressions);
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7_with_suppressions(
+    let mut k7 = report_k7_prepared(
         all_notices,
         &k2.records,
         &k5.derived,
         file_stats,
-        true,
         coverage_complete,
-        whitespace_suppressions,
     );
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
@@ -666,6 +679,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         metrics: k7.metrics,
         name_index,
         capped_totals,
+        agency_breakdown,
     })
 }
 
@@ -812,6 +826,7 @@ fn run_k1_k5(
         file_stats,
         partial,
         present_files: k1.present_files,
+        k1_k5_budget_exceeded: notice_budget_exceeded,
     })
 }
 
@@ -906,6 +921,33 @@ fn scale_r9_deltas(
     }
 }
 
+/// K7 hazırlığı (boşluk türevlerini bastırma) → tek geçişte dedup + agency sayımı + cap.
+/// Native ile AYNI sayım noktası (#2201): bastırılan türevler sayılmaz, cap sayımdan SONRA
+/// gelir. Dedup ayrı bir tam boy `Vec` ayırmaz.
+fn prepare_count_cap(
+    notices: Vec<gtfs_core::Notice>,
+    records: &EntityRecords,
+    derived: &DerivedData,
+    suppressions: WhitespaceSuppressions,
+    complete: bool,
+) -> (
+    Vec<gtfs_core::Notice>,
+    std::collections::HashMap<String, u32>,
+    AgencyBreakdown,
+) {
+    let prepared = prepare_k7_notices(notices, records, derived, true, suppressions);
+    let mut counter = AgencyCounter::new(records);
+    let (kept, totals) = gtfs_pipeline::k7_reporting::dedup_and_cap_by_rule_visit(
+        prepared,
+        cap_for_rule,
+        |notice| counter.add(notice),
+    );
+    let mut breakdown = counter.finish(complete);
+    set_displayed(&mut breakdown, &kept);
+    (kept, totals, breakdown)
+}
+
+#[cfg(test)]
 fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashMap<String, u32> {
     // Determinizm + tam temsil: önce dedup (kararlı sıralı, distinct entity), sonra cap.
     // Cap ham notice'lara değil distinct entity'lere uygulanır → gösterilen temsilciler

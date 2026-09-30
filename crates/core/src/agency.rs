@@ -79,3 +79,34 @@ impl AgencyAttribution {
 /// Bir özet notice'ın altındaki ham notice'ların atıf dağılımı: atıf → ham notice sayısı.
 /// Toplamı özetin taşıdığı etkilenen kayıt sayısına eşittir.
 pub type AgencyDistribution = BTreeMap<AgencyAttribution, u64>;
+
+/// Bir kuralın sayımları. Üç birim birbirine karıştırılmaz:
+/// - `finding_count`: rapora giren bulgu sayısı — boşluk türevleri bastırılmış, dedup
+///   edilmiş, kural başına cap UYGULANMAMIŞ.
+/// - `affected_entity_count`: bulguların temsil ettiği ham kayıt sayısı; toplulanmış bir
+///   özet, altındaki bütün ham notice'lar kadar sayılır (özet başına 1 değil). Emitter
+///   içinde özetlenmiş bulgular (üyeleri görülmez) 1 sayılır ve `FeedLevelSummary`
+///   kovasına düşer.
+/// - `displayed_sample_count`: sonuçta taşınan notice sayısı (WASM cap'i; native'de
+///   `finding_count`'a eşit).
+///
+/// `by_attribution`, `affected_entity_count`'un atıf dağılımıdır; toplamı ona eşittir.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RuleAgencyCounts {
+    pub finding_count: u64,
+    pub affected_entity_count: u64,
+    pub displayed_sample_count: u64,
+    pub by_attribution: AgencyDistribution,
+}
+
+/// Feed'in kural × agency dökümü (MobilityData gtfs-validator #2201). Raporlama katmanıdır:
+/// severity ve skor bundan etkilenmez.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AgencyBreakdown {
+    /// `false`: WASM notice bütçesi aşıldı, ham notice'ların bir kısmı hiç işlenmedi;
+    /// sayımlar alt sınırdır.
+    pub complete: bool,
+    /// [`AgencyRef`] sırasıyla agency kimlikleri (tek agency'de boş olabilir).
+    pub agencies: Vec<String>,
+    pub rules: BTreeMap<String, RuleAgencyCounts>,
+}

@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "2 trips have an invalid direction_id"). Both WASM paths now call the same
   `gtfs_pipeline::aggregate_feed_level_notices` as the CLI, before report scope
   and the per-rule cap, and a source-level test guards the call order.
+- **Web app and npm SDK: whitespace derivatives no longer count toward the
+  per-rule cap.** The WASM build capped each rule before suppressing findings
+  that exist only because of padded IDs, so suppressed derivatives filled display
+  slots and inflated `capped_totals`. Suppression now runs first, as in the CLI.
 - **Per-entity findings no longer collapse to one notice.** `DQ_010` (agency not
   used by any route), `AGN_013` (agency language differs from `feed_lang`),
   `XFL_011` (service dates outside the `feed_info` range) and `XFL_013` (shape

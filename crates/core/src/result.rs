@@ -146,6 +146,9 @@ pub struct ValidationResult {
     /// Cap'e çarpan kurallar ve gerçek notice sayıları.
     /// Yalnızca cap'i aşan kuralları içerir; aşmayanlar burada yer almaz.
     pub capped_totals: BTreeMap<String, u32>,
+    /// Kural × agency dökümü (#2201). Pipeline-içi; JSON sözleşmesi ayrı karardır.
+    #[serde(skip)]
+    pub agency_breakdown: crate::agency::AgencyBreakdown,
 }
 
 /// Validator ana dönüş tipi.
