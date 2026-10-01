@@ -113,6 +113,11 @@ pub struct AgencyBreakdown {
     /// `agencies` ile aynı sırada, route'u üzerinden o agency'ye çözülen sefer sayısı.
     /// Bulgu yoğunluğunun paydasıdır (etkilenen kayıt / 1.000 sefer).
     pub agency_trip_counts: Vec<u64>,
+    /// `agencies` ile aynı sırada: sonuçtaki `notices` dizisinde o agency'ye düşen
+    /// notice'ların indeksleri (artan). Özetler dağılımındaki her agency'de listelenir.
+    /// Arayüz bu listeyle ayrıntıları agency'ye göre süzer; WASM'da yalnız cap sonrası
+    /// gösterilen notice'lar listededir.
+    pub agency_notice_indices: Vec<Vec<u32>>,
     pub rules: BTreeMap<String, RuleAgencyCounts>,
 }
 
@@ -120,7 +125,8 @@ pub struct AgencyBreakdown {
 //
 // {
 //   "complete": true,
-//   "agencies": [{ "agency_id": "A", "agency_name": "Alpha", "trip_count": 120 }, …],
+//   "agencies": [{ "agency_id": "A", "agency_name": "Alpha", "trip_count": 120,
+//                  "notice_indices": [0, 7, 9] }, …],
 //   "rules": {
 //     "TRP_005": {
 //       "finding_count": 1, "affected_entity_count": 2, "displayed_sample_count": 1,
@@ -141,6 +147,7 @@ struct AgencyJson<'a> {
     agency_id: &'a str,
     agency_name: &'a str,
     trip_count: u64,
+    notice_indices: &'a [u32],
 }
 
 #[derive(serde::Serialize)]
@@ -222,6 +229,7 @@ impl serde::Serialize for AgencyBreakdown {
                 agency_id: id,
                 agency_name: self.agency_names.get(i).map(String::as_str).unwrap_or(""),
                 trip_count: self.agency_trip_counts.get(i).copied().unwrap_or(0),
+                notice_indices: self.agency_notice_indices.get(i).map_or(&[], Vec::as_slice),
             })
             .collect();
         state.serialize_field("agencies", &agencies)?;

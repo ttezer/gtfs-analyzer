@@ -189,6 +189,8 @@ export interface AgencyInfo {
   agency_name: string;
   /** Route üzerinden bu agency'ye çözülen sefer sayısı (yoğunluk paydası). */
   trip_count: number;
+  /** Sonuçtaki `notices` dizisinde bu agency'ye düşen notice indeksleri (WASM'da yalnız gösterilenler). */
+  notice_indices: number[];
 }
 
 /** Bir agency kümesinin etkilediği kayıtlar (MobilityData gtfs-validator #2201). */

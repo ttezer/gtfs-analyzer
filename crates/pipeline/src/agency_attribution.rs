@@ -283,6 +283,7 @@ impl<'a> AgencyCounter<'a> {
             agencies: self.resolver.agency_ids.iter().map(|id| id.to_string()).collect(),
             agency_names: self.resolver.records.agencies.iter().map(|a| a.agency_name.clone()).collect(),
             agency_trip_counts: self.resolver.trip_counts(),
+            agency_notice_indices: Vec::new(),
             rules: self.rules,
         }
     }
@@ -307,4 +308,34 @@ pub fn set_displayed(breakdown: &mut AgencyBreakdown, shown: &[Notice]) {
             counts.displayed_sample_count += 1;
         }
     }
+}
+
+/// Sonuçtaki nihai `notices` dizisi için agency → notice indeksleri. Atıf kuralı sayımla
+/// aynıdır ([`AgencyResolver::attribute_member`], özetlerde dağılım). Rapor kurulduktan
+/// SONRA çağrılır: indeksler serileştirilen dizinin sırasına bağlıdır.
+pub fn index_notices(breakdown: &mut AgencyBreakdown, notices: &[Notice], records: &EntityRecords) {
+    let resolver = AgencyResolver::new(records);
+    let mut index = vec![Vec::new(); breakdown.agencies.len()];
+    for (i, notice) in notices.iter().enumerate() {
+        let i = i as u32;
+        match notice.agency_distribution.as_deref() {
+            Some(distribution) => {
+                let mut agencies: Vec<u32> =
+                    distribution.keys().filter_map(|a| a.agency()).map(|a| a.0).collect();
+                // Anahtarlar önce varyanta göre sıralı: aynı agency Direct ve Resolved'da
+                // ayrı yerlerde olabilir.
+                agencies.sort_unstable();
+                agencies.dedup();
+                for agency in agencies {
+                    index[agency as usize].push(i);
+                }
+            }
+            None => {
+                if let Some(agency) = resolver.attribute_member(notice).agency() {
+                    index[agency.0 as usize].push(i);
+                }
+            }
+        }
+    }
+    breakdown.agency_notice_indices = index;
 }

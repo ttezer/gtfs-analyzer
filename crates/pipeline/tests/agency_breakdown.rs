@@ -99,6 +99,21 @@ fn breakdown_separates_findings_from_affected_entities_per_agency() {
     assert_eq!(breakdown.agencies, ["A", "B"]);
     assert_eq!(breakdown.agency_names, ["Alpha", "Beta"]);
     assert_eq!(breakdown.agency_trip_counts, [1, 1]);
+    // Ayrıntı süzgeci: her agency'nin indeksleri gerçekten o agency'nin notice'larını
+    // gösterir; TRP_005 özeti her iki agency'de de listelenir.
+    let trp005 = result.notices.iter().position(|n| n.rule_id == "TRP_005").unwrap() as u32;
+    assert!(breakdown.agency_notice_indices[0].contains(&trp005));
+    assert!(breakdown.agency_notice_indices[1].contains(&trp005));
+    let dq003_of = |agency: usize| -> Vec<&str> {
+        breakdown.agency_notice_indices[agency]
+            .iter()
+            .map(|&i| &result.notices[i as usize])
+            .filter(|n| n.rule_id == "DQ_003")
+            .map(|n| n.entity_id.as_deref().unwrap())
+            .collect()
+    };
+    assert_eq!(dq003_of(0), ["R1"]);
+    assert_eq!(dq003_of(1), ["R2"]);
 
     let per_agency = |rule: &str| -> Vec<(String, u64)> {
         breakdown.rules[rule]

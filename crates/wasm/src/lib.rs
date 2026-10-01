@@ -5,7 +5,7 @@ use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::{
     FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
 };
-use gtfs_pipeline::agency_attribution::{set_displayed, AgencyBreakdown, AgencyCounter};
+use gtfs_pipeline::agency_attribution::{index_notices, set_displayed, AgencyBreakdown, AgencyCounter};
 use gtfs_pipeline::{
     aggregate_feed_level_notices, analyze_k6_with_files, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
@@ -453,7 +453,7 @@ fn rerun_k6_k7_inner(
     ));
 
     let complete = !(cache.k1_k5_budget_exceeded || notice_budget_exceeded);
-    let (mut all_notices, real_totals, agency_breakdown) = prepare_count_cap(
+    let (mut all_notices, real_totals, mut agency_breakdown) = prepare_count_cap(
         all_notices,
         &cache.records,
         &cache.derived,
@@ -486,6 +486,7 @@ fn rerun_k6_k7_inner(
         coverage_complete,
     );
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
+    index_notices(&mut agency_breakdown, &k7.notices, &cache.records);
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
@@ -632,7 +633,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     // ardından kural başına gösterim cap'ini uygula (native ile aynı sayım noktası).
     let mut whitespace_suppressions = k2.whitespace_suppressions;
     whitespace_suppressions.merge(k4.whitespace_suppressions);
-    let (mut all_notices, real_totals, agency_breakdown) = prepare_count_cap(
+    let (mut all_notices, real_totals, mut agency_breakdown) = prepare_count_cap(
         all_notices,
         &k2.records,
         &k5.derived,
@@ -663,6 +664,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         file_stats,
         coverage_complete,
     );
+    index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
     // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);

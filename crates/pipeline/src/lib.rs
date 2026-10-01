@@ -1757,6 +1757,8 @@ pub fn validate_bytes_inspected(
             agency_attribution::breakdown(&prepared, &k2.records, true)
         };
         let k7 = report_k7_prepared(prepared, &k2.records, &k5.derived, file_stats, coverage_complete);
+        let mut agency_breakdown = agency_breakdown;
+        agency_attribution::index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
         (k7, agency_breakdown)
     };
 

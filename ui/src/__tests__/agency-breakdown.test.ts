@@ -4,7 +4,7 @@ import type { AgencyBreakdown, Severity } from '../types';
 
 const breakdown: AgencyBreakdown = {
   complete: true,
-  agencies: [{ agency_id: 'A', agency_name: 'Alpha', trip_count: 200 }, { agency_id: 'B', agency_name: '', trip_count: 0 }],
+  agencies: [{ agency_id: 'A', agency_name: 'Alpha', trip_count: 200, notice_indices: [] }, { agency_id: 'B', agency_name: '', trip_count: 0, notice_indices: [] }],
   rules: {
     TRP_005: {
       finding_count: 1, affected_entity_count: 3, displayed_sample_count: 1,
