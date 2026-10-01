@@ -4,7 +4,8 @@
       "agencies": [
         {
           "agency_id": "1",
-          "agency_name": "Test"
+          "agency_name": "Test",
+          "trip_count": 1
         }
       ],
       "complete": true,
@@ -968,15 +969,18 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           },
           {
             "agency_id": "A2",
-            "agency_name": "Two"
+            "agency_name": "Two",
+            "trip_count": 0
           },
           {
             "agency_id": "A3",
-            "agency_name": "Three"
+            "agency_name": "Three",
+            "trip_count": 0
           }
         ],
         "complete": true,
@@ -1524,7 +1528,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -1933,7 +1938,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -2261,7 +2267,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -2591,15 +2598,18 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           },
           {
             "agency_id": "A2",
-            "agency_name": "Two"
+            "agency_name": "Two",
+            "trip_count": 0
           },
           {
             "agency_id": "A3",
-            "agency_name": "Three"
+            "agency_name": "Three",
+            "trip_count": 0
           }
         ],
         "complete": true,
@@ -3062,7 +3072,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -3519,7 +3530,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -3867,7 +3879,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -4244,7 +4257,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -4579,7 +4593,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -5092,7 +5107,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -5627,7 +5643,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -5945,7 +5962,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -6232,7 +6250,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -6692,7 +6711,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 2
           }
         ],
         "complete": true,
@@ -7123,7 +7143,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -7464,7 +7485,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -7867,7 +7889,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -8265,7 +8288,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -8553,7 +8577,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -8905,7 +8930,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -9522,7 +9548,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 2
           }
         ],
         "complete": true,
@@ -10016,7 +10043,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,
@@ -10539,7 +10567,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 2
           }
         ],
         "complete": true,
@@ -11106,7 +11135,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 2
           }
         ],
         "complete": true,
@@ -11579,7 +11609,8 @@
         "agencies": [
           {
             "agency_id": "1",
-            "agency_name": "Test"
+            "agency_name": "Test",
+            "trip_count": 1
           }
         ],
         "complete": true,

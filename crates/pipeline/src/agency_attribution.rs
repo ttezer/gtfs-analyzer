@@ -212,6 +212,18 @@ impl<'a> AgencyResolver<'a> {
         }
     }
 
+    /// Agency başına sefer sayısı (route üzerinden; çözülemeyen seferler sayılmaz).
+    pub fn trip_counts(&self) -> Vec<u64> {
+        let mut counts = vec![0u64; self.agency_ids.len()];
+        let interns = &self.records.trip_interns;
+        for trip in &self.records.trips {
+            if let Ok((agency, _)) = self.route(interns.route_id(trip), Resolution::Exact) {
+                counts[agency.0 as usize] += 1;
+            }
+        }
+        counts
+    }
+
     fn route(&self, route_id: &str, via: Resolution) -> RouteAgency {
         match self.routes.get(route_id) {
             Ok((owner, route_hop)) => {
@@ -270,6 +282,7 @@ impl<'a> AgencyCounter<'a> {
             complete,
             agencies: self.resolver.agency_ids.iter().map(|id| id.to_string()).collect(),
             agency_names: self.resolver.records.agencies.iter().map(|a| a.agency_name.clone()).collect(),
+            agency_trip_counts: self.resolver.trip_counts(),
             rules: self.rules,
         }
     }

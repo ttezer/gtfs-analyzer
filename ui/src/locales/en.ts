@@ -261,6 +261,8 @@ const en: LocaleShape = {
     'agency.incomplete': "The notice budget was exceeded; these counts are lower bounds.",
     'agency.col.agency': "Agency",
     'agency.col.total': "Total",
+    'agency.col.density': "Per 1,000 trips",
+    'agency.density_tip': "Affected records per 1,000 of the agency's trips. Compares agencies of different size; it is not a score.",
     'agency.row.unattributed': "Not attributable (broken reference or feed-level summary)",
     'agency.row.unsupported': "Stops, shapes, services (not attributed yet)",
     'agency.row.not_applicable': "Feed- and file-level findings",

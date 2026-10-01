@@ -252,6 +252,8 @@ const ja: LocaleShape = {
     'agency.incomplete': "通知の上限を超えたため、これらの数値は下限値です。",
     'agency.col.agency': "事業者",
     'agency.col.total': "合計",
+    'agency.col.density': "1,000便あたり",
+    'agency.density_tip': "事業者の1,000便あたりの影響レコード数。規模の異なる事業者を比較するための指標で、スコアではありません。",
     'agency.row.unattributed': "帰属不可（参照切れまたはフィード単位の要約）",
     'agency.row.unsupported': "停留所・形状・運行日（未対応）",
     'agency.row.not_applicable': "フィード・ファイル単位の検出",

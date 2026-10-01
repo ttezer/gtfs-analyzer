@@ -12,16 +12,19 @@ interface Row {
   label: string;
   /** Agency satırında `agency_id` (ipucu olarak gösterilir); diğer satırlarda yok. */
   agencyId?: string;
+  /** Agency satırında route üzerinden çözülen sefer sayısı (yoğunluk paydası). */
+  tripCount?: number;
   bySeverity: Record<Severity, number>;
   total: number;
   /** kural → etkilenen kayıt */
   rules: Map<string, number>;
 }
 
-function emptyRow(label: string, agencyId?: string): Row {
+function emptyRow(label: string, agencyId?: string, tripCount?: number): Row {
   return {
     label,
     agencyId,
+    tripCount,
     bySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
     total: 0,
     rules: new Map(),
@@ -41,7 +44,7 @@ export function agencyRows(breakdown: AgencyBreakdown, severityOf: Map<string, S
   const agencies = new Map<string, Row>(
     breakdown.agencies.map(a => [
       a.agency_id,
-      emptyRow(a.agency_name || a.agency_id || t('agency.unnamed'), a.agency_id),
+      emptyRow(a.agency_name || a.agency_id || t('agency.unnamed'), a.agency_id, a.trip_count),
     ]),
   );
   const unattributed = emptyRow(t('agency.row.unattributed'));
@@ -62,6 +65,16 @@ export function agencyRows(breakdown: AgencyBreakdown, severityOf: Map<string, S
   return [...agencies.values(), unattributed, unsupported, notApplicable];
 }
 
+/**
+ * Bulgu yoğunluğu: 1.000 sefer başına etkilenen kayıt. Agency'ler arasında skor yerine
+ * kullanılır: skorlar feed geneline göre normalize edildiği ve bulguların yarısından
+ * fazlası (feed/dosya düzeyi, stop/shape/service) agency'ye bölünemediği için agency
+ * başına skor yanıltıcı olurdu. Seferi olmayan agency için `null`.
+ */
+export function findingDensity(total: number, tripCount: number | undefined): number | null {
+  return tripCount ? (total * 1000) / tripCount : null;
+}
+
 export function renderAgencyBreakdown(result: ValidationResult): string {
   const breakdown = result.agency_breakdown;
   if (!breakdown || breakdown.agencies.length < 2) return '';
@@ -77,6 +90,10 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([rule, n]) => `<li><code>${escHtml(rule)}</code> ${escHtml(t(`rule.${rule}`))} — <strong>${n.toLocaleString()}</strong></li>`)
     .join('');
+  const densityCell = (row: Row) => {
+    const d = findingDensity(row.total, row.tripCount);
+    return d === null ? '—' : d.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  };
   // Kural listesi satırın ALTINDA tam genişlik bir satırda açılır: ilk sütuna sığdırmak
   // tabloyu genişletip severity sütunlarını yatay kaydırmaya itiyordu.
   const body = rows
@@ -89,9 +106,10 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
         </td>
         ${cells(row)}
         <td class="num"><strong>${row.total.toLocaleString()}</strong></td>
+        <td class="num">${densityCell(row)}</td>
       </tr>
       <tr id="agency-rules-${i}" class="agency-rules-row" hidden>
-        <td colspan="${SEVERITIES.length + 2}">
+        <td colspan="${SEVERITIES.length + 3}">
           <ul>${ruleList(row) || `<li>${escHtml(t('agency.no_findings'))}</li>`}</ul>
         </td>
       </tr>`)
@@ -108,6 +126,7 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
             <th>${escHtml(t('agency.col.agency'))}</th>
             ${SEVERITIES.map(s => `<th class="num">${escHtml(t(`domain.sev.${s}`))}</th>`).join('')}
             <th class="num">${escHtml(t('agency.col.total'))}</th>
+            <th class="num" title="${escHtml(t('agency.density_tip'))}">${escHtml(t('agency.col.density'))}</th>
           </tr></thead>
           <tbody>${body}</tbody>
         </table>

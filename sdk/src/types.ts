@@ -292,6 +292,8 @@ export interface SdkVersion {
 export interface AgencyInfo {
   agency_id: string;
   agency_name: string;
+  /** Route üzerinden bu agency'ye çözülen sefer sayısı (yoğunluk paydası). */
+  trip_count: number;
 }
 
 /** Bir agency kümesinin etkilediği kayıtlar (MobilityData gtfs-validator #2201). */

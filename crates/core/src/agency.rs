@@ -110,6 +110,9 @@ pub struct AgencyBreakdown {
     pub agencies: Vec<String>,
     /// `agencies` ile aynı sırada `agency_name` değerleri (gösterim için).
     pub agency_names: Vec<String>,
+    /// `agencies` ile aynı sırada, route'u üzerinden o agency'ye çözülen sefer sayısı.
+    /// Bulgu yoğunluğunun paydasıdır (etkilenen kayıt / 1.000 sefer).
+    pub agency_trip_counts: Vec<u64>,
     pub rules: BTreeMap<String, RuleAgencyCounts>,
 }
 
@@ -117,7 +120,7 @@ pub struct AgencyBreakdown {
 //
 // {
 //   "complete": true,
-//   "agencies": [{ "agency_id": "A", "agency_name": "Alpha" }, …],
+//   "agencies": [{ "agency_id": "A", "agency_name": "Alpha", "trip_count": 120 }, …],
 //   "rules": {
 //     "TRP_005": {
 //       "finding_count": 1, "affected_entity_count": 2, "displayed_sample_count": 1,
@@ -137,6 +140,7 @@ pub struct AgencyBreakdown {
 struct AgencyJson<'a> {
     agency_id: &'a str,
     agency_name: &'a str,
+    trip_count: u64,
 }
 
 #[derive(serde::Serialize)]
@@ -217,6 +221,7 @@ impl serde::Serialize for AgencyBreakdown {
             .map(|(i, id)| AgencyJson {
                 agency_id: id,
                 agency_name: self.agency_names.get(i).map(String::as_str).unwrap_or(""),
+                trip_count: self.agency_trip_counts.get(i).copied().unwrap_or(0),
             })
             .collect();
         state.serialize_field("agencies", &agencies)?;

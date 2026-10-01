@@ -263,6 +263,8 @@ const fr: LocaleShape = {
     'agency.incomplete': "Le budget d’avis a été dépassé ; ces nombres sont des minorants.",
     'agency.col.agency': "Réseau",
     'agency.col.total': "Total",
+    'agency.col.density': "Pour 1 000 trajets",
+    'agency.density_tip': "Enregistrements concernés pour 1 000 trajets du réseau. Permet de comparer des réseaux de tailles différentes ; ce n’est pas un score.",
     'agency.row.unattributed': "Non attribuables (référence cassée ou résumé global)",
     'agency.row.unsupported': "Arrêts, tracés, services (pas encore attribués)",
     'agency.row.not_applicable': "Constats au niveau du jeu de données ou du fichier",
