@@ -9,7 +9,10 @@
 //! - `route_id`  → route.agency_id → agency       ⇒ [`AgencyAttribution::Resolved`]
 //! - `trip_id`   → trip.route_id → route → agency ⇒ [`AgencyAttribution::Resolved`]
 //! - `fare_id`   → fare_attributes.agency_id → agency ⇒ [`AgencyAttribution::Resolved`]
-//! - başka bir scope (stop, shape, service…)      ⇒ [`AgencyAttribution::Unsupported`]
+//! - `stop_id` / `shape_id` / `service_id` → onu kullanan seferlerin agency'leri: tek agency
+//!   ⇒ `Resolved`, birden fazla ⇒ [`AgencyAttribution::Shared`] (istasyon ve girişler alt
+//!   duraklarının agency'lerini devralır)
+//! - başka bir scope (pathway, transfer çifti…)   ⇒ [`AgencyAttribution::Unsupported`]
 //! - scope beyanı yok (feed/dosya düzeyi)         ⇒ [`AgencyAttribution::NotApplicable`]
 //!
 //! Kimlik eşleşmesi HAM ID ile yapılır (`"R1"` ile `" R1 "` farklı kimliklerdir). K2 bazı
@@ -35,7 +38,7 @@ use crate::k2::EntityRecords;
 
 pub use gtfs_core::agency::{
     AgencyAttribution, AgencyBreakdown, AgencyDistribution, AgencyRef, Resolution,
-    RuleAgencyCounts, UnattributedReason,
+    RuleAgencyCounts, SharedKind, UnattributedReason,
 };
 
 /// Ham kimlik → değer; kırpılmış kimlik → değer ya da belirsizlik.
@@ -100,6 +103,33 @@ pub struct AgencyResolver<'a> {
     /// Büyük feed'de (VBB 282k sefer) iki hash haritası demektir; WASM belleği için
     /// toplulanan kuralların çoğu trip scope'lu olmadığında hiç ödenmez.
     trips: std::cell::OnceCell<IdIndex<'a, &'a str>>,
+    /// stop/shape/service → agency kümesi. TEMBEL ve tür başına ayrı: o türden bir bulgu
+    /// sorulana kadar kurulmaz.
+    shared: [std::cell::OnceCell<SharedIndex<'a>>; 3],
+}
+
+/// Paylaşılabilen bir varlığın sahibi.
+#[derive(Debug, Clone, Copy)]
+enum Owner {
+    One(AgencyRef),
+    /// `SharedIndex::sets` içinde indeks (en az iki üye).
+    Set(u32),
+    /// Hiçbir atfedilebilir sefer kullanmıyor.
+    Unused,
+}
+
+struct SharedIndex<'a> {
+    by_id: IdIndex<'a, Owner>,
+    /// Sıralı, tekrarsız üye kümeleri; sıra deterministiktir (aynı kayıtlar → aynı indeks).
+    sets: Vec<Vec<u32>>,
+}
+
+fn kind_slot(kind: SharedKind) -> usize {
+    match kind {
+        SharedKind::Stop => 0,
+        SharedKind::Shape => 1,
+        SharedKind::Service => 2,
+    }
 }
 
 impl<'a> AgencyResolver<'a> {
@@ -134,7 +164,15 @@ impl<'a> AgencyResolver<'a> {
             (fare.fare_id.as_str(), agency)
         }));
 
-        Self { records, agency_ids, agencies, routes, fares, trips: std::cell::OnceCell::new() }
+        Self {
+            records,
+            agency_ids,
+            agencies,
+            routes,
+            fares,
+            trips: std::cell::OnceCell::new(),
+            shared: Default::default(),
+        }
     }
 
     fn trips(&self) -> &IdIndex<'a, &'a str> {
@@ -169,14 +207,18 @@ impl<'a> AgencyResolver<'a> {
     pub fn attribute_member(&self, notice: &Notice) -> AgencyAttribution {
         match self.attribute(notice) {
             AgencyAttribution::NotApplicable => {
+                // Varlık türü belli ama kimliği yok: feed düzeyi özet (ör. TRP_021).
+                if notice.entity_id.as_deref().is_none_or(str::is_empty) {
+                    return AgencyAttribution::NotApplicable;
+                }
                 let scope = match notice.entity_type {
                     gtfs_core::EntityType::Agency => "agency_id",
                     gtfs_core::EntityType::Route => "route_id",
                     gtfs_core::EntityType::Trip => "trip_id",
                     gtfs_core::EntityType::Fare => "fare_id",
-                    gtfs_core::EntityType::Stop
-                    | gtfs_core::EntityType::Shape
-                    | gtfs_core::EntityType::Service => return AgencyAttribution::Unsupported,
+                    gtfs_core::EntityType::Stop => "stop_id",
+                    gtfs_core::EntityType::Shape => "shape_id",
+                    gtfs_core::EntityType::Service => "service_id",
                     _ => return AgencyAttribution::NotApplicable,
                 };
                 self.attribute_scoped(notice, scope, notice.entity_id.as_deref())
@@ -186,9 +228,13 @@ impl<'a> AgencyResolver<'a> {
     }
 
     fn attribute_scoped(&self, notice: &Notice, scope: &str, key: Option<&str>) -> AgencyAttribution {
-        if !matches!(scope, "agency_id" | "route_id" | "trip_id" | "fare_id") {
-            return AgencyAttribution::Unsupported;
-        }
+        let shared_kind = match scope {
+            "stop_id" => Some(SharedKind::Stop),
+            "shape_id" => Some(SharedKind::Shape),
+            "service_id" => Some(SharedKind::Service),
+            "agency_id" | "route_id" | "trip_id" | "fare_id" => None,
+            _ => return AgencyAttribution::Unsupported,
+        };
         let Some(key) = key.filter(|k| !k.is_empty()) else {
             return AgencyAttribution::Unattributed(
                 if notice.entity_type == gtfs_core::EntityType::Feed {
@@ -198,6 +244,22 @@ impl<'a> AgencyResolver<'a> {
                 },
             );
         };
+        if let Some(kind) = shared_kind {
+            let index = self.shared(kind);
+            return match index.by_id.get(key) {
+                Ok((Owner::One(agency), resolution)) => AgencyAttribution::Resolved { agency, resolution },
+                Ok((Owner::Set(set), _)) => AgencyAttribution::Shared { kind, set },
+                Ok((Owner::Unused, _)) => AgencyAttribution::Unattributed(UnattributedReason::UnusedEntity),
+                Err(miss) => unattributed(
+                    miss,
+                    match kind {
+                        SharedKind::Stop => UnattributedReason::UnknownStop,
+                        SharedKind::Shape => UnattributedReason::UnknownShape,
+                        SharedKind::Service => UnattributedReason::UnknownService,
+                    },
+                ),
+            };
+        }
         let resolved = match scope {
             "agency_id" => {
                 return match self.agencies.get(key) {
@@ -219,6 +281,121 @@ impl<'a> AgencyResolver<'a> {
             Ok((agency, resolution)) => AgencyAttribution::Resolved { agency, resolution },
             Err(reason) => AgencyAttribution::Unattributed(reason),
         }
+    }
+
+    /// Paylaşılan kümenin üyeleri (agency sırası).
+    pub fn shared_members(&self, kind: SharedKind, set: u32) -> &[u32] {
+        self.shared(kind).sets.get(set as usize).map_or(&[], Vec::as_slice)
+    }
+
+    fn trip_agency(&self, trip: &crate::k2::trips::TripRecord) -> Option<u32> {
+        self.route(self.records.trip_interns.route_id(trip), Resolution::Exact)
+            .ok()
+            .map(|(agency, _)| agency.0)
+    }
+
+    fn shared(&self, kind: SharedKind) -> &SharedIndex<'a> {
+        self.shared[kind_slot(kind)].get_or_init(|| self.build_shared(kind))
+    }
+
+    fn build_shared(&self, kind: SharedKind) -> SharedIndex<'a> {
+        use std::collections::BTreeSet;
+        let records = self.records;
+        let interns = &records.trip_interns;
+        let mut users: FxHashMap<&'a str, BTreeSet<u32>> = FxHashMap::default();
+        // Evren: feed'deki bütün kimlikler (kullanılmayanlar dahil).
+        let universe: Vec<&'a str> = match kind {
+            SharedKind::Stop => {
+                let index = &records.stop_times_index;
+                let trip_agency: FxHashMap<&str, u32> = records
+                    .trips
+                    .iter()
+                    .filter_map(|t| self.trip_agency(t).map(|a| (t.trip_id.as_str(), a)))
+                    .collect();
+                for (trip_id, rows) in index.iter_trips() {
+                    let Some(&agency) = trip_agency.get(trip_id.as_str()) else { continue };
+                    for row in rows {
+                        let stop = index.stop_id_of(row);
+                        if !stop.is_empty() {
+                            users.entry(stop).or_default().insert(agency);
+                        }
+                        // Flex satırı durak yerine lokasyon grubu gösterebilir.
+                        if let Some(group) = index.flex_of(row).and_then(|f| f.location_group_id.as_deref()) {
+                            users.entry(group).or_default().insert(agency);
+                        }
+                    }
+                }
+                // Flex: stop_times bir lokasyon grubunu gösteriyorsa grubun durakları o seferin
+                // agency'sine aittir (location_group_stops).
+                for member in &records.location_group_stops {
+                    if let Some(group) = users.get(member.location_group_id.as_str()).cloned() {
+                        users.entry(member.stop_id.as_str()).or_default().extend(group);
+                    }
+                }
+                // İstasyon/giriş: alt duraklarının agency'lerini devralır (iki kademe:
+                // giriş/bekleme alanı → durak → istasyon).
+                let known: rustc_hash::FxHashSet<&str> =
+                    records.stops.iter().map(|s| s.stop_id.as_str()).collect();
+                for _ in 0..2 {
+                    for stop in &records.stops {
+                        let Some(parent) = stop
+                            .row
+                            .get("parent_station")
+                            .map(String::as_str)
+                            .filter(|p| !p.trim().is_empty() && known.contains(p))
+                        else {
+                            continue;
+                        };
+                        let Some(child) = users.get(stop.stop_id.as_str()).cloned() else { continue };
+                        users.entry(parent).or_default().extend(child);
+                    }
+                }
+                records.stops.iter().map(|s| s.stop_id.as_str()).collect()
+            }
+            SharedKind::Shape => {
+                for trip in &records.trips {
+                    let (Some(shape), Some(agency)) = (interns.shape_id(trip), self.trip_agency(trip)) else { continue };
+                    users.entry(shape).or_default().insert(agency);
+                }
+                let mut ids: Vec<&'a str> = (1..records.shape_interns.len())
+                    .map(|i| records.shape_interns.id_at(i as u32))
+                    .collect();
+                ids.extend(users.keys().copied());
+                ids
+            }
+            SharedKind::Service => {
+                for trip in &records.trips {
+                    let Some(agency) = self.trip_agency(trip) else { continue };
+                    users.entry(interns.service_id(trip)).or_default().insert(agency);
+                }
+                let mut ids: Vec<&'a str> = records.calendars.iter().map(|c| c.service_id.as_str()).collect();
+                ids.extend(records.calendar_dates.added.keys().map(|k| k.as_str()));
+                ids.extend(records.calendar_dates.removed.keys().map(|k| k.as_str()));
+                ids.extend(users.keys().copied());
+                ids
+            }
+        };
+        let mut sets: Vec<Vec<u32>> = users
+            .values()
+            .filter(|s| s.len() > 1)
+            .map(|s| s.iter().copied().collect())
+            .collect();
+        sets.sort_unstable();
+        sets.dedup();
+        let single = (self.agency_ids.len() == 1).then_some(AgencyRef(0));
+        let owner = |id: &str| -> Owner {
+            match users.get(id) {
+                Some(set) if set.len() == 1 => Owner::One(AgencyRef(*set.iter().next().unwrap())),
+                Some(set) if set.len() > 1 => {
+                    let members: Vec<u32> = set.iter().copied().collect();
+                    Owner::Set(sets.binary_search(&members).unwrap() as u32)
+                }
+                // Tek agency'li feed'de kullanılmayan varlığın sahibi de o agency'dir.
+                _ => single.map_or(Owner::Unused, Owner::One),
+            }
+        };
+        let by_id = IdIndex::build(universe.into_iter().filter(|id| !id.is_empty()).map(|id| (id, owner(id))));
+        SharedIndex { by_id, sets }
     }
 
     /// Agency başına sefer sayısı (route üzerinden; çözülemeyen seferler sayılmaz).
@@ -293,6 +470,19 @@ impl<'a> AgencyCounter<'a> {
             agency_names: self.resolver.records.agencies.iter().map(|a| a.agency_name.clone()).collect(),
             agency_trip_counts: self.resolver.trip_counts(),
             agency_notice_indices: Vec::new(),
+            // Kümeler deterministik numaralıdır: toplamada başka bir resolver'ın yazdığı
+            // anahtarlar da bu resolver'da aynı üyelere çözülür.
+            shared_sets: self
+                .rules
+                .values()
+                .flat_map(|c| c.by_attribution.keys())
+                .filter_map(|a| match a {
+                    AgencyAttribution::Shared { kind, set } => {
+                        Some(((*kind, *set), self.resolver.shared_members(*kind, *set).to_vec()))
+                    }
+                    _ => None,
+                })
+                .collect(),
             rules: self.rules,
         }
     }
@@ -330,7 +520,7 @@ pub fn index_notices(breakdown: &mut AgencyBreakdown, notices: &[Notice], record
         match notice.agency_distribution.as_deref() {
             Some(distribution) => {
                 let mut agencies: Vec<u32> =
-                    distribution.keys().filter_map(|a| a.agency()).map(|a| a.0).collect();
+                    distribution.keys().flat_map(|a| members(&resolver, a)).collect();
                 // Anahtarlar önce varyanta göre sıralı: aynı agency Direct ve Resolved'da
                 // ayrı yerlerde olabilir.
                 agencies.sort_unstable();
@@ -340,11 +530,19 @@ pub fn index_notices(breakdown: &mut AgencyBreakdown, notices: &[Notice], record
                 }
             }
             None => {
-                if let Some(agency) = resolver.attribute_member(notice).agency() {
-                    index[agency.0 as usize].push(i);
+                for agency in members(&resolver, &resolver.attribute_member(notice)) {
+                    index[agency as usize].push(i);
                 }
             }
         }
     }
     breakdown.agency_notice_indices = index;
+}
+
+/// Atfın agency üyeleri: tek agency, paylaşılan kümenin üyeleri ya da hiçbiri.
+fn members(resolver: &AgencyResolver<'_>, attribution: &AgencyAttribution) -> Vec<u32> {
+    match attribution {
+        AgencyAttribution::Shared { kind, set } => resolver.shared_members(*kind, *set).to_vec(),
+        other => other.agency().map(|a| vec![a.0]).unwrap_or_default(),
+    }
 }

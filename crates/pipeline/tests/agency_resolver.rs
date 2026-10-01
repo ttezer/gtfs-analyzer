@@ -8,7 +8,7 @@ use std::io::Write as _;
 
 use gtfs_core::{EntityType, Notice};
 use gtfs_pipeline::agency_attribution::{
-    AgencyAttribution, AgencyResolver, Resolution, UnattributedReason,
+    AgencyAttribution, AgencyResolver, Resolution, SharedKind, UnattributedReason,
 };
 use gtfs_pipeline::{validate_bytes, validate_bytes_inspected, ValidateResult, ValidatorConfig};
 use zip::write::SimpleFileOptions;
@@ -233,7 +233,7 @@ fn scope_kinds_outside_p0_are_classified_statically() {
         "route_id,service_id,trip_id\nR1,SVC,T1\n",
         &[
             (None, None),                   // feed/dosya düzeyi
-            (Some("stop_id"), Some("S1")),  // P6
+            (Some("pathway_id"), Some("P1")), // desteklenmeyen kapsam
             (Some("trip_id"), None),        // beyan var, değer yok
         ],
     );
@@ -370,4 +370,115 @@ F1,1.00,USD,0,0,A\nF2,2.00,USD,0,0,B\nF3,3.00,USD,0,0,B\n",
         .map(|(attribution, n)| (attribution.agency().expect("atfedilmeli").0, *n))
         .collect();
     assert_eq!(agencies, [(1, 2)], "{distribution:?}");
+}
+
+/// P6: durak/shape/servis onu kullanan seferlerin agency'lerine çözülür; birden fazla
+/// agency ⇒ paylaşılan küme. İstasyon alt durağının agency'lerini devralır.
+#[test]
+fn stops_shapes_and_services_resolve_to_the_agencies_that_use_them() {
+    let files = [
+        ("agency.txt", AGENCIES_AB),
+        (
+            "stops.txt",
+            "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n\
+ST,Station,41.0,29.0,1,\nS1,One,41.0,29.0,0,ST\nS2,Two,41.1,29.1,0,\n\
+S3,Three,41.2,29.2,0,\nS4,Unused,41.3,29.3,0,\n",
+        ),
+        ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\nR2,B,2,3\n"),
+        ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC,T1,SH1\nR2,SVC,T2,SH2\n"),
+        (
+            "stop_times.txt",
+            "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n\
+T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S3,2\n",
+        ),
+        (
+            "shapes.txt",
+            "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
+SH1,41.0,29.0,1\nSH1,41.1,29.1,2\nSH2,41.0,29.0,1\nSH2,41.2,29.2,2\nSH9,41.0,29.0,1\nSH9,41.3,29.3,2\n",
+        ),
+        ("calendar.txt", CALENDAR),
+    ];
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, body) in files {
+        writer.start_file(name, SimpleFileOptions::default()).unwrap();
+        writer.write_all(body.as_bytes()).unwrap();
+    }
+    let zip = writer.finish().unwrap().into_inner();
+
+    let probes = [
+        (Some("stop_id"), Some("S1")),
+        (Some("stop_id"), Some("ST")),
+        (Some("stop_id"), Some("S2")),
+        (Some("stop_id"), Some("S3")),
+        (Some("stop_id"), Some("S4")),
+        (Some("stop_id"), Some("NOPE")),
+        (Some("shape_id"), Some("SH1")),
+        (Some("shape_id"), Some("SH9")),
+        (Some("service_id"), Some("SVC")),
+    ];
+    let mut out: Vec<(AgencyAttribution, Vec<String>)> = Vec::new();
+    validate_bytes_inspected(&zip, &ValidatorConfig::default(), 20_260_930, &mut |_, records, _, _| {
+        let resolver = AgencyResolver::new(records);
+        for (scope, key) in probes {
+            let a = resolver.attribute(&probe(scope, key));
+            let ids: Vec<String> = match a {
+                AgencyAttribution::Shared { kind, set } => resolver
+                    .shared_members(kind, set)
+                    .iter()
+                    .map(|m| resolver.agency_id(gtfs_core::agency::AgencyRef(*m)).to_string())
+                    .collect(),
+                other => other.agency().map(|r| vec![resolver.agency_id(r).to_string()]).unwrap_or_default(),
+            };
+            out.push((a, ids));
+        }
+    });
+    assert_eq!(out.len(), probes.len());
+    let shared = |i: usize, kind: SharedKind| {
+        assert!(matches!(out[i].0, AgencyAttribution::Shared { kind: k, .. } if k == kind), "{i}: {:?}", out[i]);
+        assert_eq!(out[i].1, ["A", "B"], "{i}");
+    };
+    shared(0, SharedKind::Stop); // S1: iki agency'nin seferleri
+    shared(1, SharedKind::Stop); // ST: S1'in istasyonu
+    assert_eq!(out[2].1, ["A"]);
+    assert_eq!(out[3].1, ["B"]);
+    assert_eq!(out[4].0, unattributed(UnattributedReason::UnusedEntity));
+    assert_eq!(out[5].0, unattributed(UnattributedReason::UnknownStop));
+    assert_eq!(out[6].1, ["A"]);
+    assert_eq!(out[7].0, unattributed(UnattributedReason::UnusedEntity)); // shapes.txt'te var, sefer yok
+    shared(8, SharedKind::Service);
+}
+
+/// Flex: stop_times lokasyon grubunu gösterir; grubun durakları o seferin agency'sine aittir.
+#[test]
+fn flex_location_group_members_belong_to_the_trips_agency() {
+    let files = [
+        ("agency.txt", AGENCIES_AB),
+        ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,One,41.0,29.0\nS2,Two,41.1,29.1\nZ1,Zone,41.2,29.2\n"),
+        ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\n"),
+        ("trips.txt", "route_id,service_id,trip_id\nR1,SVC,T1\n"),
+        ("location_groups.txt", "location_group_id,location_group_name\nG1,Group\n"),
+        ("location_group_stops.txt", "location_group_id,stop_id\nG1,Z1\n"),
+        (
+            "stop_times.txt",
+            "trip_id,stop_id,location_group_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
+T1,,G1,1,08:00:00,10:00:00,2,2\nT1,,G1,2,08:00:00,10:00:00,2,2\n",
+        ),
+        ("calendar.txt", CALENDAR),
+    ];
+    let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, body) in files {
+        writer.start_file(name, SimpleFileOptions::default()).unwrap();
+        writer.write_all(body.as_bytes()).unwrap();
+    }
+    let zip = writer.finish().unwrap().into_inner();
+    let mut got = None;
+    validate_bytes_inspected(&zip, &ValidatorConfig::default(), 20_260_930, &mut |_, records, _, _| {
+        let resolver = AgencyResolver::new(records);
+        let a = resolver.attribute(&probe(Some("stop_id"), Some("Z1")));
+        got = Some((a, a.agency().map(|r| resolver.agency_id(r).to_string())));
+    });
+    let (a, id) = got.expect("gözlemci çalışmadı");
+    assert!(matches!(a, AgencyAttribution::Resolved { .. }), "{a:?}");
+    assert_eq!(id.as_deref(), Some("A"));
 }

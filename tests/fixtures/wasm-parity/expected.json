@@ -8,8 +8,11 @@
           "notice_indices": [
             9,
             10,
+            15,
             16,
             17,
+            19,
+            20,
             22
           ],
           "trip_count": 1
@@ -125,12 +128,20 @@
         },
         "GEO_019": {
           "affected_entity_count": 1,
-          "agency_sets": [],
+          "agency_sets": [
+            {
+              "affected_entity_count": 1,
+              "agency_ids": [
+                "1"
+              ],
+              "trim_fallback_count": 0
+            }
+          ],
           "displayed_sample_count": 1,
           "finding_count": 1,
           "not_applicable": 0,
           "unattributed": {},
-          "unsupported": 1
+          "unsupported": 0
         },
         "OPR_004": {
           "affected_entity_count": 1,
@@ -172,17 +183,27 @@
           "displayed_sample_count": 1,
           "finding_count": 1,
           "not_applicable": 0,
-          "unattributed": {},
-          "unsupported": 1
+          "unattributed": {
+            "FeedLevelSummary": 1
+          },
+          "unsupported": 0
         },
         "STP_033": {
           "affected_entity_count": 2,
-          "agency_sets": [],
+          "agency_sets": [
+            {
+              "affected_entity_count": 2,
+              "agency_ids": [
+                "1"
+              ],
+              "trim_fallback_count": 0
+            }
+          ],
           "displayed_sample_count": 2,
           "finding_count": 2,
           "not_applicable": 0,
           "unattributed": {},
-          "unsupported": 2
+          "unsupported": 0
         },
         "STP_038": {
           "affected_entity_count": 1,
@@ -215,10 +236,8 @@
           "agency_sets": [],
           "displayed_sample_count": 1,
           "finding_count": 1,
-          "not_applicable": 0,
-          "unattributed": {
-            "MissingScopeKey": 1
-          },
+          "not_applicable": 1,
+          "unattributed": {},
           "unsupported": 0
         },
         "TRP_029": {
@@ -981,8 +1000,11 @@
               0,
               17,
               18,
+              28,
               29,
               30,
+              32,
+              33,
               35
             ],
             "trip_count": 1
@@ -1207,12 +1229,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -1254,17 +1284,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -1297,10 +1337,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -1557,6 +1595,12 @@
               11,
               17,
               18,
+              19,
+              20,
+              21,
+              23,
+              24,
+              25,
               27
             ],
             "trip_count": 1
@@ -1724,21 +1768,37 @@
           },
           "STP_007": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_020": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "STP_022": {
             "affected_entity_count": 1,
@@ -1746,17 +1806,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 3,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 3,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 3,
             "finding_count": 3,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 3
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -1789,10 +1859,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -1970,9 +2038,14 @@
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
+              9,
+              10,
               11,
               12,
+              17,
               18,
+              20,
+              21,
               23
             ],
             "trip_count": 1
@@ -2018,21 +2091,37 @@
           },
           "CAL_008": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "CAL_011": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "DQ_003": {
             "affected_entity_count": 1,
@@ -2106,12 +2195,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "RTS_017": {
             "affected_entity_count": 1,
@@ -2136,17 +2233,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -2179,10 +2286,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -2305,10 +2410,14 @@
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
+              11,
               12,
               13,
+              18,
               19,
               20,
+              22,
+              23,
               25
             ],
             "trip_count": 1
@@ -2354,12 +2463,20 @@
           },
           "CLD_003": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "DQ_003": {
             "affected_entity_count": 1,
@@ -2433,12 +2550,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -2480,17 +2605,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -2523,10 +2658,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -2645,8 +2778,11 @@
             "notice_indices": [
               11,
               12,
+              19,
               20,
               21,
+              23,
+              24,
               26
             ],
             "trip_count": 1
@@ -2802,12 +2938,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -2849,17 +2993,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -2892,10 +3046,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -3132,8 +3284,12 @@
             "notice_indices": [
               11,
               12,
+              17,
+              20,
               21,
               22,
+              24,
+              26,
               28
             ],
             "trip_count": 1
@@ -3240,12 +3396,20 @@
           },
           "DQ_021": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 1,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "GEO_013": {
             "affected_entity_count": 1,
@@ -3267,12 +3431,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -3314,17 +3486,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "UnknownStop": 1
+            },
+            "unsupported": 0
           },
           "STP_001": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "STP_022": {
             "affected_entity_count": 1,
@@ -3332,17 +3514,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -3375,10 +3567,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -3598,6 +3788,7 @@
               13,
               14,
               18,
+              21,
               22,
               23,
               26
@@ -3741,12 +3932,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -3788,8 +3987,10 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -3822,10 +4023,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -3955,8 +4154,11 @@
               11,
               12,
               16,
+              18,
               19,
               20,
+              22,
+              23,
               25
             ],
             "trip_count": 1
@@ -4089,12 +4291,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -4136,17 +4346,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -4179,10 +4399,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -4340,8 +4558,11 @@
             "notice_indices": [
               11,
               12,
+              17,
               19,
               20,
+              22,
+              23,
               29
             ],
             "trip_count": 1
@@ -4457,12 +4678,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "GGL_001": {
             "affected_entity_count": 2,
@@ -4513,17 +4742,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -4574,10 +4813,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -4683,8 +4920,12 @@
             "notice_indices": [
               11,
               12,
+              17,
               18,
               20,
+              22,
+              23,
+              24,
               26
             ],
             "trip_count": 1
@@ -4800,12 +5041,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -4856,26 +5105,44 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_032": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -4908,10 +5175,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -5204,8 +5469,17 @@
             "notice_indices": [
               11,
               12,
+              17,
+              18,
+              19,
               20,
+              21,
               24,
+              25,
+              26,
+              28,
+              29,
+              30,
               32
             ],
             "trip_count": 1
@@ -5321,12 +5595,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 3,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 3,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 3,
             "finding_count": 3,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 3
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -5347,12 +5629,20 @@
           },
           "PTH_012": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "PTH_019": {
             "affected_entity_count": 1,
@@ -5360,8 +5650,10 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "UnknownStop": 1
+            },
+            "unsupported": 0
           },
           "PTH_029": {
             "affected_entity_count": 1,
@@ -5391,21 +5683,37 @@
           },
           "STP_016": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "STP_020": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "STP_022": {
             "affected_entity_count": 1,
@@ -5413,17 +5721,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 3,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 3,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 3,
             "finding_count": 3,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 3
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -5456,10 +5774,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -5747,8 +6063,18 @@
             "notice_indices": [
               11,
               12,
+              16,
+              17,
+              19,
               20,
               21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              28,
+              29,
               31
             ],
             "trip_count": 1
@@ -5855,12 +6181,20 @@
           },
           "GEO_006": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "GEO_013": {
             "affected_entity_count": 1,
@@ -5873,12 +6207,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -5916,30 +6258,54 @@
           },
           "SHP_005": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "SHP_015": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "SHP_018": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_022": {
             "affected_entity_count": 1,
@@ -5947,17 +6313,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -5990,10 +6366,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -6073,9 +6447,12 @@
             "notice_indices": [
               9,
               10,
+              15,
               16,
               17,
               18,
+              20,
+              21,
               23
             ],
             "trip_count": 1
@@ -6191,12 +6568,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -6255,17 +6640,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -6298,10 +6693,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -6369,9 +6762,12 @@
             "notice_indices": [
               9,
               10,
+              15,
               16,
               17,
               18,
+              20,
+              21,
               23
             ],
             "trip_count": 1
@@ -6487,12 +6883,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -6551,17 +6955,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -6594,10 +7008,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -6838,11 +7250,14 @@
             "notice_indices": [
               9,
               10,
+              15,
               16,
               17,
               18,
               19,
-              20
+              20,
+              22,
+              23
             ],
             "trip_count": 2
           }
@@ -6957,12 +7372,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -7038,17 +7461,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -7064,10 +7497,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -7279,10 +7710,13 @@
             "notice_indices": [
               9,
               10,
+              15,
               16,
               17,
               18,
               19,
+              21,
+              22,
               24
             ],
             "trip_count": 1
@@ -7398,12 +7832,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -7479,17 +7921,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -7522,10 +7974,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -7632,6 +8082,9 @@
               10,
               15,
               16,
+              17,
+              19,
+              20,
               22
             ],
             "trip_count": 1
@@ -7781,12 +8234,20 @@
           },
           "STP_004": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_022": {
             "affected_entity_count": 1,
@@ -7794,17 +8255,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -7837,10 +8308,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -8041,10 +8510,14 @@
             "notice_indices": [
               9,
               10,
+              16,
               17,
               18,
               19,
               20,
+              21,
+              23,
+              24,
               26
             ],
             "trip_count": 1
@@ -8169,12 +8642,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -8246,12 +8727,20 @@
           },
           "STP_005": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "STP_022": {
             "affected_entity_count": 1,
@@ -8259,17 +8748,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -8302,10 +8801,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -8449,8 +8946,12 @@
             "notice_indices": [
               11,
               12,
+              17,
               18,
               20,
+              22,
+              23,
+              24,
               26
             ],
             "trip_count": 1
@@ -8566,12 +9067,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -8622,26 +9131,44 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_032": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -8674,10 +9201,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -8745,8 +9270,12 @@
             "notice_indices": [
               9,
               10,
+              15,
               16,
               17,
+              19,
+              20,
+              22,
               23
             ],
             "trip_count": 1
@@ -8862,12 +9391,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -8909,17 +9446,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -8932,12 +9479,20 @@
           },
           "STP_042": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "TRP_013": {
             "affected_entity_count": 1,
@@ -8961,10 +9516,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -9105,8 +9658,11 @@
             "notice_indices": [
               11,
               12,
+              17,
               18,
               19,
+              21,
+              22,
               27
             ],
             "trip_count": 1
@@ -9222,12 +9778,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -9269,17 +9833,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -9330,10 +9904,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -9732,10 +10304,13 @@
               12,
               13,
               14,
+              19,
               21,
               22,
               23,
               24,
+              26,
+              27,
               32,
               33,
               36,
@@ -9854,12 +10429,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "GGL_001": {
             "affected_entity_count": 1,
@@ -9910,17 +10493,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -9980,10 +10573,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -10239,8 +10830,11 @@
             "notice_indices": [
               12,
               13,
+              18,
               19,
               20,
+              22,
+              23,
               26
             ],
             "trip_count": 1
@@ -10365,12 +10959,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -10412,17 +11014,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -10464,10 +11076,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -10768,11 +11378,19 @@
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
+              9,
+              10,
+              11,
               12,
               13,
+              18,
               19,
+              20,
+              21,
               22,
               23,
+              25,
+              26,
               28,
               30,
               31,
@@ -10821,21 +11439,37 @@
           },
           "CAL_011": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "CAL_024": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "DQ_003": {
             "affected_entity_count": 1,
@@ -10909,12 +11543,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -10935,12 +11577,20 @@
           },
           "OPR_011": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "RTS_016": {
             "affected_entity_count": 1,
@@ -10982,17 +11632,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -11025,10 +11685,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_026": {
@@ -11349,9 +12007,12 @@
             "notice_indices": [
               9,
               10,
+              15,
               16,
               17,
               18,
+              20,
+              21,
               23,
               26
             ],
@@ -11468,12 +12129,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -11532,17 +12201,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -11575,10 +12254,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {
@@ -11832,8 +12509,11 @@
             "notice_indices": [
               9,
               10,
+              16,
               17,
               18,
+              20,
+              21,
               23
             ],
             "trip_count": 1
@@ -11958,12 +12638,20 @@
           },
           "GEO_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 1
+            "unsupported": 0
           },
           "OPR_004": {
             "affected_entity_count": 1,
@@ -12005,17 +12693,27 @@
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {},
-            "unsupported": 1
+            "unattributed": {
+              "FeedLevelSummary": 1
+            },
+            "unsupported": 0
           },
           "STP_033": {
             "affected_entity_count": 2,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 2,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 2,
             "finding_count": 2,
             "not_applicable": 0,
             "unattributed": {},
-            "unsupported": 2
+            "unsupported": 0
           },
           "STP_038": {
             "affected_entity_count": 1,
@@ -12048,10 +12746,8 @@
             "agency_sets": [],
             "displayed_sample_count": 1,
             "finding_count": 1,
-            "not_applicable": 0,
-            "unattributed": {
-              "MissingScopeKey": 1
-            },
+            "not_applicable": 1,
+            "unattributed": {},
             "unsupported": 0
           },
           "TRP_029": {

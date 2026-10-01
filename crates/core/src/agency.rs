@@ -48,10 +48,25 @@ pub enum UnattributedReason {
     RouteWithoutAgency,
     /// `fare_id` feed'de (`fare_attributes.txt`) yok (kırık FK dahil).
     UnknownFare,
+    /// `stop_id` / `shape_id` / `service_id` feed'de yok (kırık FK dahil).
+    UnknownStop,
+    UnknownShape,
+    UnknownService,
+    /// Varlık feed'de var ama hiçbir (atfedilebilir) sefer onu kullanmıyor; birden fazla
+    /// agency'li feed'de sahibi belirlenemez.
+    UnusedEntity,
     /// Birden fazla agency varken tarifenin `agency_id`'si boş.
     FareWithoutAgency,
     /// Kırpılmış kimlik birden fazla ham kimliğe düşüyor.
     AmbiguousPaddedId,
+}
+
+/// Birden fazla agency'nin kullanabildiği varlık türleri.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum SharedKind {
+    Stop,
+    Shape,
+    Service,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -60,6 +75,10 @@ pub enum AgencyAttribution {
     Direct { agency: AgencyRef, resolution: Resolution },
     /// Route/trip ilişkisinden tek agency bulundu.
     Resolved { agency: AgencyRef, resolution: Resolution },
+    /// Durak/shape/servis birden fazla agency'nin seferlerince kullanılıyor. `set`, o tür
+    /// için agency kümeleri tablosunda deterministik bir indekstir (aynı kayıtlarla kurulan
+    /// her resolver aynı numarayı verir); üyeler [`AgencyBreakdown::shared_sets`]'tedir.
+    Shared { kind: SharedKind, set: u32 },
     Unattributed(UnattributedReason),
     /// Kuralın scope türü henüz çözülmüyor (stop, shape, service… — P6).
     Unsupported,
@@ -118,6 +137,8 @@ pub struct AgencyBreakdown {
     /// Arayüz bu listeyle ayrıntıları agency'ye göre süzer; WASM'da yalnız cap sonrası
     /// gösterilen notice'lar listededir.
     pub agency_notice_indices: Vec<Vec<u32>>,
+    /// Dağılımlarda geçen [`AgencyAttribution::Shared`] kümelerinin üyeleri (agency sırası).
+    pub shared_sets: BTreeMap<(SharedKind, u32), Vec<u32>>,
     pub rules: BTreeMap<String, RuleAgencyCounts>,
 }
 
@@ -138,8 +159,9 @@ pub struct AgencyBreakdown {
 //   }
 // }
 //
-// `agency_sets` yapısaldır (agency_id `|` içerebilir); bugün her küme tek agency'lidir,
-// paylaşılan varlıklar (stop/shape/service) gelince birden fazla kimlik taşıyabilir.
+// `agency_sets` yapısaldır (agency_id `|` içerebilir). Birden fazla agency'nin kullandığı
+// durak/shape/servis bulguları çok üyeli bir kümeye düşer; agency başına toplamlar bu yüzden
+// kural toplamını aşabilir (paylaşılan bulgu her üyede sayılır).
 // Sıralar deterministiktir: kurallar ve nedenler BTreeMap, kümeler agency sırasıyla.
 
 #[derive(serde::Serialize)]
@@ -152,7 +174,7 @@ struct AgencyJson<'a> {
 
 #[derive(serde::Serialize)]
 struct AgencySetJson<'a> {
-    agency_ids: [&'a str; 1],
+    agency_ids: Vec<&'a str>,
     affected_entity_count: u64,
     trim_fallback_count: u64,
 }
@@ -175,14 +197,20 @@ impl serde::Serialize for AgencyBreakdown {
             .rules
             .iter()
             .map(|(rule, counts)| {
-                let mut sets: BTreeMap<AgencyRef, (u64, u64)> = BTreeMap::new();
+                // Küme anahtarı üye listesidir: tek agency [a], paylaşılan [a, b, …]. Aynı üyeli
+                // durak/shape/servis kümeleri tek girdide birleşir.
+                let mut sets: BTreeMap<Vec<u32>, (u64, u64)> = BTreeMap::new();
                 let mut unattributed = BTreeMap::new();
                 let (mut unsupported, mut not_applicable) = (0, 0);
                 for (attribution, n) in &counts.by_attribution {
                     match attribution {
+                        AgencyAttribution::Shared { kind, set } => {
+                            let members = self.shared_sets.get(&(*kind, *set)).cloned().unwrap_or_default();
+                            sets.entry(members).or_default().0 += n;
+                        }
                         AgencyAttribution::Direct { agency, resolution }
                         | AgencyAttribution::Resolved { agency, resolution } => {
-                            let slot = sets.entry(*agency).or_default();
+                            let slot = sets.entry(vec![agency.0]).or_default();
                             slot.0 += n;
                             if *resolution == Resolution::UniqueTrimFallback {
                                 slot.1 += n;
@@ -197,12 +225,11 @@ impl serde::Serialize for AgencyBreakdown {
                 }
                 let agency_sets = sets
                     .into_iter()
-                    .map(|(agency, (affected, trimmed))| AgencySetJson {
-                        agency_ids: [self
-                            .agencies
-                            .get(agency.0 as usize)
-                            .map(String::as_str)
-                            .unwrap_or("")],
+                    .map(|(members, (affected, trimmed))| AgencySetJson {
+                        agency_ids: members
+                            .iter()
+                            .map(|m| self.agencies.get(*m as usize).map(String::as_str).unwrap_or(""))
+                            .collect(),
                         affected_entity_count: affected,
                         trim_fallback_count: trimmed,
                     })

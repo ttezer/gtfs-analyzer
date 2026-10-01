@@ -81,6 +81,7 @@ fn attribution_bucket(a: &AgencyAttribution) -> String {
     match a {
         AgencyAttribution::Direct { resolution, .. } => format!("direct_{}", res(resolution)),
         AgencyAttribution::Resolved { resolution, .. } => format!("resolved_{}", res(resolution)),
+        AgencyAttribution::Shared { kind, .. } => format!("shared_{kind:?}"),
         AgencyAttribution::Unattributed(reason) => format!("unattributed_{reason:?}"),
         AgencyAttribution::Unsupported => "unsupported".to_string(),
         AgencyAttribution::NotApplicable => "not_applicable".to_string(),
