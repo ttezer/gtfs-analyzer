@@ -1,7 +1,7 @@
 // Ayrıntıların agency'ye göre süzülmesi (MobilityData gtfs-validator #2201). Hangi notice'ın
 // hangi agency'ye düştüğünü motor hesaplar (`agency_breakdown.agencies[].notice_indices`);
 // arayüz atıf kuralını YENİDEN YAZMAZ, yalnız bu indeksleri kullanır.
-import type { Notice, ValidationResult } from './types';
+import type { Notice, R9Item, ValidationResult } from './types';
 import { t, intlLocale } from './i18n';
 import { escHtml } from './escape';
 
@@ -15,6 +15,26 @@ export function filterNoticesByAgency(result: ValidationResult, selected: readon
     for (const i of agency.notice_indices ?? []) allowed.add(i);
   }
   return result.notices.filter((_, i) => allowed.has(i));
+}
+
+/**
+ * R9 kalemlerini süzülmüş notice'lara daraltır. `renderR9` kuralın önemini, başlığını ve
+ * "çıkar" düğmesini `notice_ids[0]` üzerinden bulur; bu ilk notice seçili agency'ye ait
+ * değilse satır eksik çizilirdi. Bu yüzden süzgeçte kalan kimlikler başa alınır; hiçbiri
+ * kalmadıysa o kuralın süzgeçteki ilk notice'ı başa eklenir. Görünür notice'ı olmayan
+ * kurallar düşer; sayılar ve skor etkileri (feed geneli) değişmez.
+ */
+export function narrowR9Items(items: readonly R9Item[], notices: readonly Notice[]): R9Item[] {
+  const kept = new Set(notices.map(n => n.id));
+  const firstOfRule = new Map<string, string>();
+  for (const n of notices) if (!firstOfRule.has(n.rule_id)) firstOfRule.set(n.rule_id, n.id);
+  return items.flatMap(item => {
+    const fallback = firstOfRule.get(item.rule_id);
+    if (!fallback) return [];
+    const present = item.notice_ids.filter(id => kept.has(id));
+    const rest = item.notice_ids.filter(id => !kept.has(id));
+    return [{ ...item, notice_ids: present.length ? [...present, ...rest] : [fallback, ...item.notice_ids] }];
+  });
 }
 
 export function renderAgencyFilterBar(result: ValidationResult, selected: readonly string[]): string {

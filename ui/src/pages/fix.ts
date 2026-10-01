@@ -1,4 +1,4 @@
-﻿import { attachAgencyFilterListeners, filterNoticesByAgency, renderAgencyFilterBar } from '../agency-filter';
+﻿import { attachAgencyFilterListeners, filterNoticesByAgency, narrowR9Items, renderAgencyFilterBar } from '../agency-filter';
 import { getState, setAgencyFilter } from '../state';
 import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation, intlLocale } from '../i18n';
@@ -49,9 +49,8 @@ export function renderFix(root: HTMLElement, fullResult: ValidationResult, fileF
       }
     : fullResult;
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
-  const visibleRules = new Set(result.notices.map(n => n.rule_id));
   const r9Items = filtered
-    ? fullResult.reports.r9.items.filter(i => visibleRules.has(i.rule_id))
+    ? narrowR9Items(fullResult.reports.r9.items, filtered)
     : fullResult.reports.r9.items;
 
   const totalDelta    = result.reports.r9.items.reduce((s, i) => s + i.score_delta, 0);
