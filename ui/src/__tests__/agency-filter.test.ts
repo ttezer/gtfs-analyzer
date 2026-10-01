@@ -9,8 +9,8 @@ const result = {
   agency_breakdown: {
     complete: true,
     agencies: [
-      { agency_id: 'A', agency_name: 'Alpha', trip_count: 1, notice_indices: [0, 1] },
-      { agency_id: 'B', agency_name: 'Beta', trip_count: 1, notice_indices: [0, 2] },
+      { agency_id: 'A', agency_name: 'Alpha', trip_count: 1, affected_trip_count: 0, notice_indices: [0, 1] },
+      { agency_id: 'B', agency_name: 'Beta', trip_count: 1, affected_trip_count: 0, notice_indices: [0, 2] },
     ],
     rules: {},
   },

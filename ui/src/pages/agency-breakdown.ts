@@ -3,7 +3,7 @@
 // (`affected_entity_count`): toplulanmış bir özet altındaki bütün seferleri/satırları sayar.
 // Skorlar feed geneli kalır; bu panel onları agency'ye bölmez.
 import type { AgencyBreakdown, Severity, ValidationResult } from '../types';
-import { t } from '../i18n';
+import { t, intlLocale } from '../i18n';
 import { escHtml } from '../escape';
 
 const SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
@@ -12,19 +12,22 @@ interface Row {
   label: string;
   /** Agency satırında `agency_id` (ipucu olarak gösterilir); diğer satırlarda yok. */
   agencyId?: string;
-  /** Agency satırında route üzerinden çözülen sefer sayısı (yoğunluk paydası). */
+  /** Agency satırında route üzerinden çözülen sefer sayısı (oranın paydası). */
   tripCount?: number;
+  /** Agency satırında en az bir bulgunun konusu olan sefer sayısı. */
+  affectedTrips?: number;
   bySeverity: Record<Severity, number>;
   total: number;
   /** kural → etkilenen kayıt */
   rules: Map<string, number>;
 }
 
-function emptyRow(label: string, agencyId?: string, tripCount?: number): Row {
+function emptyRow(label: string, agencyId?: string, tripCount?: number, affectedTrips?: number): Row {
   return {
     label,
     agencyId,
     tripCount,
+    affectedTrips,
     bySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
     total: 0,
     rules: new Map(),
@@ -44,7 +47,7 @@ export function agencyRows(breakdown: AgencyBreakdown, severityOf: Map<string, S
   const agencies = new Map<string, Row>(
     breakdown.agencies.map(a => [
       a.agency_id,
-      emptyRow(a.agency_name || a.agency_id || t('agency.unnamed'), a.agency_id, a.trip_count),
+      emptyRow(a.agency_name || a.agency_id || t('agency.unnamed'), a.agency_id, a.trip_count, a.affected_trip_count),
     ]),
   );
   const unattributed = emptyRow(t('agency.row.unattributed'));
@@ -66,13 +69,13 @@ export function agencyRows(breakdown: AgencyBreakdown, severityOf: Map<string, S
 }
 
 /**
- * Bulgu yoğunluğu: 1.000 sefer başına etkilenen kayıt. Agency'ler arasında skor yerine
- * kullanılır: skorlar feed geneline göre normalize edildiği ve bulguların yarısından
- * fazlası (feed/dosya düzeyi, stop/shape/service) agency'ye bölünemediği için agency
- * başına skor yanıltıcı olurdu. Seferi olmayan agency için `null`.
+ * Etkilenen sefer oranı (%): en az bir bulgunun KONUSU olan seferler / agency'nin seferleri.
+ * Hat ve durak bulguları oranı etkilemez (Toplam sütununda görünür); böylece oran %0-100
+ * arasında kalır ve farklı büyüklükteki agency'ler karşılaştırılabilir. Agency başına skor
+ * bilinçli olarak yok: skorlar feed geneline göre normalize edilir. Seferi yoksa `null`.
  */
-export function findingDensity(total: number, tripCount: number | undefined): number | null {
-  return tripCount ? (total * 1000) / tripCount : null;
+export function affectedTripShare(affectedTrips: number | undefined, tripCount: number | undefined): number | null {
+  return tripCount ? ((affectedTrips ?? 0) * 100) / tripCount : null;
 }
 
 export function renderAgencyBreakdown(result: ValidationResult): string {
@@ -90,21 +93,22 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([rule, n]) => `<li><code>${escHtml(rule)}</code> ${escHtml(t(`rule.${rule}`))} — <strong>${n.toLocaleString()}</strong></li>`)
     .join('');
-  const fmtDensity = (d: number | null) =>
-    d === null ? '—' : d.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  // Yüzde işaretinin yeri dile göre değişir (tr "%60", en "60%", fr "60 %").
+  const fmtShare = (d: number | null) =>
+    d === null ? '—' : (d / 100).toLocaleString(intlLocale(), { style: 'percent', maximumFractionDigits: 1 });
   const columns = SEVERITIES.length + 4;
 
   // Her agency satırı kural listesiyle birlikte kendi <tbody>'sindedir: sıralama grupları
   // yer değiştirir, açık listeler satırından ayrılmaz. Agency dışı satırlar en alttaki
   // ayrı gövdede sabit kalır. Kural listesi satırın ALTINDA tam genişlikte açılır.
   const group = (row: Row, i: number) => {
-    const density = findingDensity(row.total, row.tripCount);
+    const share = affectedTripShare(row.affectedTrips, row.tripCount);
     const sortKeys = row.agencyId === undefined ? '' : [
       `data-k-agency="${escHtml(row.label.toLocaleLowerCase())}"`,
       ...SEVERITIES.map(s => `data-k-${s}="${row.bySeverity[s]}"`),
       `data-k-total="${row.total}"`,
       `data-k-trips="${row.tripCount ?? -1}"`,
-      `data-k-density="${density ?? -1}"`,
+      `data-k-share="${share ?? -1}"`,
     ].join(' ');
     return `
       <tr ${sortKeys ? 'class="agency-row"' : ''} ${sortKeys}>
@@ -115,7 +119,7 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
         ${cells(row)}
         <td class="num"><strong>${row.total.toLocaleString()}</strong></td>
         <td class="num">${row.tripCount === undefined ? '—' : row.tripCount.toLocaleString()}</td>
-        <td class="num">${fmtDensity(density)}</td>
+        <td class="num" ${row.affectedTrips === undefined ? '' : `title="${row.affectedTrips.toLocaleString()} / ${(row.tripCount ?? 0).toLocaleString()}"`}>${fmtShare(share)}</td>
       </tr>
       <tr id="agency-rules-${i}" class="agency-rules-row" hidden>
         <td colspan="${columns}">
@@ -147,7 +151,7 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
             ${SEVERITIES.map(s => th(s, t(`domain.sev.${s}`))).join('')}
             ${th('total', t('agency.col.total'))}
             ${th('trips', t('agency.col.trips'), t('agency.trips_tip'))}
-            ${th('density', t('agency.col.density'), t('agency.density_tip'))}
+            ${th('share', t('agency.col.affected_share'), t('agency.affected_share_tip'))}
           </tr></thead>
           ${agencyBodies}
           <tbody class="agency-other">${otherRows}</tbody>

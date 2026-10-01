@@ -3,6 +3,7 @@
     "agency_breakdown": {
       "agencies": [
         {
+          "affected_trip_count": 0,
           "agency_id": "1",
           "agency_name": "Test",
           "notice_indices": [
@@ -994,6 +995,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -1010,6 +1012,7 @@
             "trip_count": 1
           },
           {
+            "affected_trip_count": 0,
             "agency_id": "A2",
             "agency_name": "Two",
             "notice_indices": [
@@ -1019,6 +1022,7 @@
             "trip_count": 0
           },
           {
+            "affected_trip_count": 0,
             "agency_id": "A3",
             "agency_name": "Three",
             "notice_indices": [
@@ -1588,6 +1592,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -2035,6 +2040,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -2407,6 +2413,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -2773,6 +2780,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -2788,6 +2796,7 @@
             "trip_count": 1
           },
           {
+            "affected_trip_count": 0,
             "agency_id": "A2",
             "agency_name": "Two",
             "notice_indices": [
@@ -2796,6 +2805,7 @@
             "trip_count": 0
           },
           {
+            "affected_trip_count": 0,
             "agency_id": "A3",
             "agency_name": "Three",
             "notice_indices": [
@@ -3279,6 +3289,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -3782,6 +3793,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -4148,6 +4160,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 1,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -4553,6 +4566,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -4915,6 +4929,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -5464,6 +5479,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -6058,6 +6074,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -6442,6 +6459,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 1,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -6757,6 +6775,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 1,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -7245,6 +7264,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 2,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -7705,6 +7725,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 1,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -8075,6 +8096,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -8505,6 +8527,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 1,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -8941,6 +8964,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -9265,6 +9289,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -9653,6 +9678,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -10297,6 +10323,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 1,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -10825,6 +10852,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -11375,6 +11403,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 2,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -12002,6 +12031,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 2,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [
@@ -12504,6 +12534,7 @@
       "agency_breakdown": {
         "agencies": [
           {
+            "affected_trip_count": 0,
             "agency_id": "1",
             "agency_name": "Test",
             "notice_indices": [

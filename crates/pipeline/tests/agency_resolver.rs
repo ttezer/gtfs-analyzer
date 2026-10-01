@@ -115,6 +115,7 @@ fn probe(scope: Option<&str>, key: Option<&str>) -> Notice {
         base_effort: rule.base_effort,
         service_id: None,
         agency_distribution: None,
+        member_trips: None,
     }
 }
 

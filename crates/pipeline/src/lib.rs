@@ -1789,11 +1789,18 @@ fn take_representative(
     resolver: &AgencyResolver,
 ) -> gtfs_core::Notice {
     let mut distribution = gtfs_core::agency::AgencyDistribution::new();
+    let mut trips: Vec<u32> = Vec::new();
     for notice in group.iter() {
         *distribution.entry(resolver.attribute_member(notice)).or_default() += 1;
+        trips.extend(resolver.trip_of(notice));
     }
     let mut representative = group.swap_remove(0);
     representative.agency_distribution = Some(Box::new(distribution));
+    if !trips.is_empty() {
+        trips.sort_unstable();
+        trips.dedup();
+        representative.member_trips = Some(Box::new(trips));
+    }
     representative
 }
 
@@ -2277,6 +2284,7 @@ mod name_index_tests {
             base_effort: 1,
             service_id: None,
             agency_distribution: None,
+            member_trips: None,
         }
     }
 
@@ -2420,6 +2428,7 @@ mod aggregation_tests {
             base_effort: 1,
             service_id: None,
             agency_distribution: None,
+            member_trips: None,
         }
     }
 

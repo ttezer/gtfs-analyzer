@@ -1072,6 +1072,7 @@ mod tests {
             base_effort: 1,
             service_id: None,
             agency_distribution: None,
+            member_trips: None,
         }
     }
 
