@@ -45,7 +45,8 @@
     "build": "npm run clean && npm run version:check && npm run wasm:build && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:config-parity": "node scripts/config-parity-test.mjs",
-    "test:smoke": "npm run build && node scripts/smoke-test.mjs",
+    "test:smoke": "npm run build && node scripts/smoke-test.mjs && node scripts/parity-test.mjs",
+    "test:parity": "node scripts/parity-test.mjs",
     "package:check": "node scripts/check-package.mjs",
     "pack:check": "npm run build && npm run package:check",
     "prepublishOnly": "npm run pack:check"

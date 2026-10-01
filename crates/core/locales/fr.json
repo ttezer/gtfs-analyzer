@@ -326,7 +326,7 @@
     "FAR_005": "Tarif « {entity_id} » : transfers « {observed_value} » est invalide.",
     "FAR_006": "Tarif « {entity_id} » : transfer_duration « {observed_value} » est invalide.",
     "FAR_008": "Tarif « {entity_id} » : agency_id « {observed_value} » est introuvable.",
-    "FAR_010": "Tarif « {entity_id} » : règles tarifaires qui se chevauchent.",
+    "FAR_010": "{observed_value} règles tarifaires chevauchent les conditions d’un autre tarif dans fare_rules.txt.",
     "FAR_011": "fare_attributes.txt : payment_method est absent.",
     "FAR_012": "fare_attributes.txt : fare_id est absent.",
     "LVL_008": "levels.txt : level_id est absent.",

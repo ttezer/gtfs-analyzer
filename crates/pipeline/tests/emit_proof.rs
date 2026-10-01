@@ -1426,7 +1426,7 @@ fn fixtures() -> Vec<Fixture> {
         // ── AGN / ATR (kalan) ──────────────────────────────────────────────────
         // AGN_010: agency_id tekrarı (k3).
         fx("AGN_010", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n1,B,https://b.example,UTC\n")]),
-        // AGN_013: feed_lang ile agency_lang uyuşmuyor (k2).
+        // AGN_013: feed_lang ile agency_lang uyuşmuyor (k4 check_agencies).
         fx("AGN_013", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,fr\n"),

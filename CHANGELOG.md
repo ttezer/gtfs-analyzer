@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Agency breakdown (MobilityData gtfs-validator #2201).** Results carry a new
+  `agency_breakdown` field in the CLI JSON, the npm SDK (`AgencyBreakdown`) and
+  the Python package. Per rule it reports `finding_count` (findings before any
+  display cap), `affected_entity_count` (raw records, so a feed-level summary
+  counts every trip or row behind it) and `displayed_sample_count`, split by
+  agency in `agency_sets`, with `unattributed` reasons (for example a broken
+  `route_id`), `unsupported` (stop, shape and service scopes) and
+  `not_applicable` (feed- and file-level findings). Notices resolve to an agency
+  through the rule's `route_id`, `trip_id`, `agency_id` or `fare_id`; a
+  single-agency feed owns routes and fares without `agency_id`. `complete` is
+  false when the web app's notice budget truncated the input. The field is
+  additive; severities and scores are unchanged.
+
 ### Changed
 
 - **Python package: localized texts, English by default.** `validate_gtfs()`
@@ -31,6 +46,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "2 trips have an invalid direction_id"). Both WASM paths now call the same
   `gtfs_pipeline::aggregate_feed_level_notices` as the CLI, before report scope
   and the per-rule cap, and a source-level test guards the call order.
+- **Web app and npm SDK: whitespace derivatives no longer count toward the
+  per-rule cap.** The WASM build capped each rule before suppressing findings
+  that exist only because of padded IDs, so suppressed derivatives filled display
+  slots and inflated `capped_totals`. Suppression now runs first, as in the CLI.
+- **Per-entity findings no longer collapse to one notice.** `DQ_010` (agency not
+  used by any route), `AGN_013` (agency language differs from `feed_lang`),
+  `XFL_011` (service dates outside the `feed_info` range) and `XFL_013` (shape
+  used in both directions) are reported once per agency, service or shape
+  instead of once per feed; the registry deduplicated them at feed level, so
+  only the first entity was shown. `ARC_004` (required file missing) is reported
+  once per missing file. `XFL_011` now suppresses `CAL_019` for every affected
+  service, not only the first. Feeds with several affected entities show more
+  notices; scores change only through the added notices.
+- **`AGN_013` has a single source.** A second check compared only the first
+  agency and also fired when `feed_lang` was empty, which the rule card
+  excludes; it is removed. The remaining check compares every agency.
+- **`FAR_010` reports the number of overlapping fare rules.** It is emitted per
+  conflicting `fare_rules.txt` row (up to 846,630 in one corpus feed) and was
+  deduplicated to one arbitrary row. A feed-level summary now carries the count
+  (`affected_rows`) and up to five example fare pairs (`example_fares`); the
+  English, French and Japanese messages use the count.
+- **Rule identity fields.** `TRP_024` declares `block_id` (it reports one notice
+  per block), `TRP_021` declares none (it is a feed-level summary), and
+  `VAT_001`, `VAT_003`, `VAT_006` fill `scope_key` with the route or trip they
+  report. `DQ_010` reports its agency as an `Agency` entity.
+- **npm SDK: rule-specific English texts for message variants.** The SDK's
+  English translation used a message variant only together with a GTFS-JP
+  profile, and skipped profile-specific remediations, while the CLI and Python
+  package use both. Future-only GTFS-JP feeds therefore showed the generic
+  `CAL_015` "fix the calendar" text in the SDK. The SDK now selects texts in the
+  same order as the CLI, and a test compares both translators over every
+  dictionary key. CI now runs the `sdk-en` tests, which `--workspace` skipped.
 - **`CAL_008` message in English, French and Japanese.** The feed-level summary
   carries the end date in `observed_value`, but the templates read it as the
   service count ("20261007 services expire on the same date."). They now use

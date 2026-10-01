@@ -2838,7 +2838,8 @@ pub fn parse_with_limits(
                 // "Required file '' is missing." oluyordu.
                 EntityType::Feed,
                 Some(f.to_string()),
-                None,
+                // Eksik dosya başına tek bulgu: registry `File` dedup'ı bu alana göre ayırır.
+                Some(f),
                 None,
                 None,
                 Some(f.to_string()),

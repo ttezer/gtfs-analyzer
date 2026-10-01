@@ -445,6 +445,19 @@
     .score-delta-cell { text-align: right; }
     .muted-text { color: var(--color-muted); }
     .hint { font-size: .8rem; color: var(--color-muted); margin-bottom: .5rem; }
+    .agency-toggle { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+    .agency-filter-head { display: flex; align-items: center; gap: .8rem; margin-bottom: .4rem; font-size: .85rem; }
+    .agency-filter-clear { font-size: .8rem; }
+    .agency-filter-warning { color: var(--color-critical); font-size: .95rem; font-weight: 600; margin: .6rem 0 0; }
+    .agency-chip-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem 1.2rem; font-size: .85rem; }
+    @media (max-width: 720px) { .agency-chip-grid { grid-template-columns: 1fr; } }
+    .agency-chip { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .4rem; cursor: pointer; min-width: 0; }
+    .agency-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .agency-chip-count { color: var(--color-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+    .agency-sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .agency-sortable .sort-ind { font-size: .7rem; color: var(--color-muted); }
+    .agency-rules-row ul { font-size: .8rem; margin: .1rem 0 .2rem 1.2rem; }
+    .agency-incomplete { color: var(--color-warning, #b45309); }
 
     /* Export + Config */
     .page-export-wide { display: flex; flex-direction: column; gap: 1rem; max-width: 720px; }

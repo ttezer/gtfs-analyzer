@@ -50,6 +50,22 @@ pub fn report_with_whitespace_suppressions(
     coverage_complete: bool,
     early_suppressions: WhitespaceSuppressions,
 ) -> K7Result {
+    let notices =
+        prepare_notices(all_notices, records, derived, already_deduped, early_suppressions);
+    report_prepared(notices, records, derived, file_stats, coverage_complete)
+}
+
+/// K7'nin ilk yarısı: boşluk türevlerini bastırır, `service_id`'yi doldurur ve dedup
+/// eder. Dönen küme rapora GİRECEK bulgulardır; sayımlar (agency dağılımı, WASM'da gerçek
+/// kural toplamları) bu noktada yapılmalıdır: bastırılan türevler sayılmaz, cap henüz
+/// uygulanmamıştır.
+pub fn prepare_notices(
+    all_notices: Vec<Notice>,
+    records: &EntityRecords,
+    derived: &DerivedData,
+    already_deduped: bool,
+    early_suppressions: WhitespaceSuppressions,
+) -> Vec<Notice> {
     use crate::timing::Timer;
     let all_notices = {
         let _t = Timer::start("K7::suppress_whitespace_derivatives");
@@ -66,6 +82,19 @@ pub fn report_with_whitespace_suppressions(
         dedup(all_notices)
     };
     materialize_retained_whitespace_flags(&mut notices);
+    notices
+}
+
+/// K7'nin ikinci yarısı: [`prepare_notices`] çıktısından (WASM'da cap'lenmiş haliyle)
+/// kimlikleri, kök-semptom çözümünü, raporları ve metrikleri kurar.
+pub fn report_prepared(
+    mut notices: Vec<Notice>,
+    records: &EntityRecords,
+    derived: &DerivedData,
+    file_stats: Vec<FileInfo>,
+    coverage_complete: bool,
+) -> K7Result {
+    use crate::timing::Timer;
     // Determinizm: id'ler katmanların EMİSYON sırasından geliyordu ve o sıra HashMap
     // iterasyonlarına bağlı olduğu için koşudan koşuya kayıyordu (içerik aynı, id farklı).
     // Dedup çıktısı `notice_order_key` ile kararlı sıralı olduğundan, id'ler burada yeniden
@@ -100,7 +129,9 @@ pub fn report_with_whitespace_suppressions(
 /// burada veya daha erken normalleştirilmez. Kök bulguya sayısal ve kural bazlı audit özeti
 /// yazılır; böylece varsayılan rapor küçük kalırken strict/audit tüketicisi neyin bastırıldığını
 /// görebilir.
-fn suppress_whitespace_derivatives(
+/// `pub` yalnız denetim araçları için (`examples/scope_audit.rs`).
+#[doc(hidden)]
+pub fn suppress_whitespace_derivatives(
     mut notices: Vec<Notice>,
     records: &EntityRecords,
     derived: &DerivedData,
@@ -223,7 +254,8 @@ const JOIN_DERIVATIVE_RULES: &[&str] = &[
 
 /// Mark join-derived notices before feed-level aggregation can erase their entity id.
 /// K7 uses this marker to declare/suppress the notice in the file carrying the padding.
-pub(crate) fn annotate_whitespace_join_provenance(
+#[doc(hidden)]
+pub fn annotate_whitespace_join_provenance(
     notices: &mut [Notice],
     records: &EntityRecords,
     derived: &DerivedData,
@@ -934,11 +966,26 @@ pub fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
 /// temsilcileri saklar. Böylece milyonlarca dedup edilmiş Notice için ikinci bir
 /// büyük Vec ayrılmaz; `totals` yine cap öncesindeki gerçek distinct sayıları taşır.
 pub fn dedup_and_cap_by_rule<F>(
-    mut notices: Vec<Notice>,
+    notices: Vec<Notice>,
     cap_for_rule: F,
 ) -> (Vec<Notice>, HashMap<String, u32>)
 where
     F: Fn(&str) -> usize,
+{
+    dedup_and_cap_by_rule_visit(notices, cap_for_rule, |_| {})
+}
+
+/// [`dedup_and_cap_by_rule`] ile aynı; `visit` her AYRIK notice'ı cap onu atmadan ÖNCE
+/// görür. WASM'da gerçek sayımlar (agency dökümü) ikinci bir tam boy `Vec` ayırmadan
+/// bu geçişte yapılır.
+pub fn dedup_and_cap_by_rule_visit<F, V>(
+    mut notices: Vec<Notice>,
+    cap_for_rule: F,
+    mut visit: V,
+) -> (Vec<Notice>, HashMap<String, u32>)
+where
+    F: Fn(&str) -> usize,
+    V: FnMut(&Notice),
 {
     // STABLE olmak ZORUNDA: eşit anahtarlı iki bulgudan hangisinin keep-first temsilcisi
     // olacağı aksi halde girdi permütasyonuna, o da HashMap iterasyonuna kalır (nondeterminizm).
@@ -960,6 +1007,7 @@ where
             continue;
         }
 
+        visit(&notice);
         let total = totals.entry(notice.rule_id.clone()).or_insert(0);
         *total += 1;
         if (*total as usize) <= cap_for_rule(&notice.rule_id) {
@@ -1884,6 +1932,7 @@ mod tests {
             blocks: vec![],
             base_effort: 1,
             service_id: None,
+            agency_distribution: None,
         }
     }
 

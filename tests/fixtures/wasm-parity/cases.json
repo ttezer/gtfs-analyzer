@@ -1,0 +1,205 @@
+{
+  "_comment": "Native (CLI) ile WASM (SDK) paritesi. Her vaka taban feed'e override uygular; `rule` o vakanın ateşlemesi zorunlu kuraldır (toplulanan 23 kural + dedup seviyesi Entity'e alınan kurallar). Beklenen çıktı expected.json'dadır ve CLI testi (crates/cli/tests/wasm_parity.rs) GTFS_BLESS_PARITY=1 ile yeniden üretir. Hiçbir vaka kural başına cap'e yaklaşmamalı: cap WASM'da bilinçli fark üretir.",
+  "today": "20260515",
+  "base": {
+    "agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n",
+    "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n",
+    "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n",
+    "trips.txt": "route_id,service_id,trip_id\nR1,SVC1,T1\n",
+    "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n",
+    "calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n"
+  },
+  "cases": [
+    {
+      "name": "STM_036",
+      "rule": "STM_036",
+      "files": {
+        "trips.txt": "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n",
+        "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,2\nT1,08:10:00,08:10:00,S2,1\nT2,09:00:00,09:00:00,S1,2\nT2,09:10:00,09:10:00,S2,1\n"
+      }
+    },
+    {
+      "name": "DQ_021",
+      "rule": "DQ_021",
+      "files": {
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nS1,A,40.0,40.0\nS1,B,41.1,29.1\n",
+        "attributions.txt": "attribution_id,organization_name,is_producer\nA1,Org,1\nA1,Org2,1\n"
+      }
+    },
+    {
+      "name": "ARC_012",
+      "rule": "ARC_012",
+      "files": {
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2\n"
+      }
+    },
+    {
+      "name": "CLD_003",
+      "rule": "CLD_003",
+      "files": {
+        "calendar_dates.txt": "service_id,date,exception_type\nSVC1,20260601,5\nSVC1,20260602,7\n"
+      }
+    },
+    {
+      "name": "SHP_005",
+      "rule": "SHP_005",
+      "files": {
+        "shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,10\nSH1,41.1,29.1,2,5\nSH2,41.0,29.0,1,10\nSH2,41.1,29.1,2,5\n"
+      }
+    },
+    {
+      "name": "STM_008",
+      "rule": "STM_008",
+      "files": {
+        "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,09:00:00,09:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n"
+      }
+    },
+    {
+      "name": "STM_047",
+      "rule": "STM_047",
+      "files": {
+        "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,,,S1,1,1\nT1,08:10:00,08:10:00,S2,2,1\n"
+      }
+    },
+    {
+      "name": "PTH_007",
+      "rule": "PTH_007",
+      "files": {
+        "pathways.txt": "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\nP1,S1,S2,3,0,0\n"
+      }
+    },
+    {
+      "name": "TRP_003",
+      "rule": "TRP_003",
+      "files": {
+        "trips.txt": "route_id,service_id,trip_id\nR1,SVCX,T1\nR1,SVCY,T2\n"
+      }
+    },
+    {
+      "name": "TRN_001",
+      "rule": "TRN_001",
+      "files": {
+        "translations.txt": "table_name,field_name,language,translation\nbadtable,stop_name,en,X\nothertable,stop_name,en,Y\n"
+      }
+    },
+    {
+      "name": "STP_004",
+      "rule": "STP_004",
+      "files": {
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,abc,29.0\nS2,Stop2,xyz,29.1\n"
+      }
+    },
+    {
+      "name": "STP_005",
+      "rule": "STP_005",
+      "files": {
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,200\nS2,Stop2,41.1,29.1\n"
+      }
+    },
+    {
+      "name": "TRF_005",
+      "rule": "TRF_005",
+      "files": {
+        "transfers.txt": "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,abc\nS2,S1,2,xyz\n"
+      }
+    },
+    {
+      "name": "PTH_012",
+      "rule": "PTH_012",
+      "files": {
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST1,Station,41.0,29.0,1,\nPLAT,Platform,41.0,29.0,0,ST1\nGN,Node,41.01,29.01,3,ST1\n",
+        "pathways.txt": "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,PLAT,GN,3,0\n"
+      }
+    },
+    {
+      "name": "STP_042",
+      "rule": "STP_042",
+      "files": {
+        "stops.txt": "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,notaurl\nS2,Stop2,41.1,29.1,alsobad\n"
+      }
+    },
+    {
+      "name": "STP_032",
+      "rule": "STP_032",
+      "files": {
+        "pathways.txt": "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n"
+      }
+    },
+    {
+      "name": "TRP_005",
+      "rule": "TRP_005",
+      "files": {
+        "trips.txt": "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,5\nR1,SVC1,T2,x\n"
+      }
+    },
+    {
+      "name": "STM_022",
+      "rule": "STM_022",
+      "files": {
+        "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,08:00:00,08:00:00,S1,1,5\nT1,08:10:00,08:10:00,S2,2,7\n"
+      }
+    },
+    {
+      "name": "FRQ_007",
+      "rule": "FRQ_007",
+      "files": {
+        "frequencies.txt": "trip_id,start_time,end_time,headway_secs,exact_times\nT1,08:00:00,10:00:00,600,5\n"
+      }
+    },
+    {
+      "name": "TRF_019",
+      "rule": "TRF_019",
+      "files": {
+        "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,0\n",
+        "trips.txt": "route_id,service_id,trip_id\nR1,SVC1,T1\nR2,SVC1,T2\n",
+        "transfers.txt": "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\n"
+      }
+    },
+    {
+      "name": "CAL_008",
+      "rule": "CAL_008",
+      "files": {
+        "calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260101,20260525\nSVC2,1,1,1,1,1,1,1,20260101,20260525\n"
+      }
+    },
+    {
+      "name": "GGL_001",
+      "rule": "GGL_001",
+      "files": {
+        "transfers.txt": "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\nS2,S1,5\n"
+      }
+    },
+    {
+      "name": "FAR_010",
+      "rule": "FAR_010",
+      "files": {
+        "fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\nF2,2.00,USD,0,0\nF3,3.00,USD,0,0\n",
+        "fare_rules.txt": "fare_id,route_id\nF1,R1\nF2,R1\nF3,R1\n"
+      }
+    },
+    {
+      "name": "DQ_010",
+      "rule": "DQ_010",
+      "files": {
+        "agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\nA2,Two,http://two.example,UTC\nA3,Three,http://three.example,UTC\n",
+        "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"
+      }
+    },
+    {
+      "name": "AGN_013",
+      "rule": "AGN_013",
+      "files": {
+        "agency.txt": "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,en\nA2,Two,http://two.example,UTC,fr\nA3,Three,http://three.example,UTC,en\n",
+        "routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n",
+        "feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nPublisher,http://publisher.example,de\n"
+      }
+    },
+    {
+      "name": "WS_PADDED_REFERENCE",
+      "rule": "DQ_016",
+      "files": {
+        "trips.txt": "route_id,service_id,trip_id\n R1,SVC1,T1\n"
+      }
+    }
+  ]
+}

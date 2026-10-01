@@ -1,3 +1,4 @@
+pub mod agency_attribution;
 pub mod decompress_guard;
 pub(crate) mod k1_html_elements;
 pub(crate) mod k1_html_entities;
@@ -32,9 +33,11 @@ pub use k6_analytics::{
     analyze as analyze_k6, analyze_with_files as analyze_k6_with_files, K6Result,
 };
 pub use k7_reporting::{
-    report as report_k7, report_with_whitespace_suppressions as report_k7_with_suppressions,
-    K7Result,
+    prepare_notices as prepare_k7_notices, report as report_k7,
+    report_prepared as report_k7_prepared,
+    report_with_whitespace_suppressions as report_k7_with_suppressions, K7Result,
 };
+use agency_attribution::AgencyResolver;
 use k7_reporting::annotate_whitespace_join_provenance;
 pub use recovery::FileAvailability;
 pub use whitespace_suppression::WhitespaceSuppressions;
@@ -162,7 +165,7 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
 /// 3. Rules listed in `config.disabled_rule_ids_gtfs_jp` are dropped ONLY when the
 ///    feed is a detected GTFS-JP feed. Japanese publishing practice makes some
 ///    checks meaningless there; feeds elsewhere keep them.
-fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -178,7 +181,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_trips = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -219,7 +222,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>) {
 
 /// DQ_021 emits one notice per duplicate key. Keep file context while
 /// reducing large feeds to one deterministic summary per affected file.
-fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
 
     let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
@@ -244,7 +247,7 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (file, mut matches) in grouped {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_duplicates = matches.len() + 1;
     let mut examples: Vec<String> = aggregate.observed_value.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.observed_value.clone()))
@@ -298,7 +301,7 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>) {
 /// ARC_012 is emitted per malformed row by both buffered and streaming paths.
 /// Aggregate by file and severity so short optional tails remain INFO while
 /// rows with extra columns remain CRITICAL.
-fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
 
     let mut first_positions: BTreeMap<(String, u8), usize> = BTreeMap::new();
@@ -331,7 +334,7 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregates = Vec::with_capacity(grouped.len());
     for ((file, severity_key), mut matches) in grouped {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_rows = matches.len() + 1;
         let mut lines: Vec<u64> = aggregate.line.into_iter()
             .chain(matches.iter().filter_map(|notice| notice.line))
@@ -393,7 +396,7 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>) {
 
 /// CLD_003 is a file-local enum validation. Collapse its row notices while
 /// retaining the affected-row count and a few source line examples.
-fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
 
     let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
@@ -418,7 +421,7 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (file, mut matches) in grouped {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_rows = matches.len() + 1;
         let mut lines: Vec<u64> = aggregate.line.into_iter()
             .chain(matches.iter().filter_map(|notice| notice.line))
@@ -469,7 +472,7 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -485,7 +488,7 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_shapes = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -524,7 +527,7 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
 
     let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
@@ -549,7 +552,7 @@ fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (trip_id, mut matches) in grouped {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_segments = matches.len() + 1;
         aggregate.entity_type = gtfs_core::EntityType::Trip;
         aggregate.entity_id = Some(trip_id.clone());
@@ -583,7 +586,7 @@ fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
 
     let mut first_positions: BTreeMap<String, usize> = BTreeMap::new();
@@ -605,7 +608,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (trip_id, mut matches) in grouped {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_rows = matches.len() + 1;
         let mut fields: Vec<String> = aggregate.field.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.field.clone()))
@@ -648,7 +651,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     use std::collections::BTreeMap;
 
     let original_len = notices.len();
@@ -671,7 +674,7 @@ fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>) {
 
     let mut aggregates = Vec::with_capacity(grouped.len());
     for (pathway_id, mut matches) in grouped {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_rows = matches.len() + 1;
         aggregate.entity_type = gtfs_core::EntityType::Pathway;
         aggregate.entity_id = Some(pathway_id.clone());
@@ -728,7 +731,7 @@ fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = merged;
 }
 
-fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -756,7 +759,7 @@ fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>) {
         return;
     }
 
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_trips = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -805,7 +808,7 @@ fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -822,7 +825,7 @@ fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>) {
         return;
     }
 
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_rows = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.observed_value.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.observed_value.clone()))
@@ -861,7 +864,7 @@ fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -888,7 +891,7 @@ fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>) {
         return;
     }
 
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_stops = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -926,7 +929,7 @@ fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -943,7 +946,7 @@ fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>) {
         return;
     }
 
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_stops = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -981,7 +984,7 @@ fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -998,7 +1001,7 @@ fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>) {
         return;
     }
 
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_rows = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1036,7 +1039,7 @@ fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1053,7 +1056,7 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>) {
         return;
     }
 
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_platforms = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1091,7 +1094,7 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1107,7 +1110,7 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_stops = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1140,7 +1143,7 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1156,7 +1159,7 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_platforms = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1191,7 +1194,67 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>) {
+/// FAR_010 ham olarak çakışan her `fare_rules` satırı için üretilir (korpusta tek feed'de
+/// 846.630). Registry `Feed` dedup seviyesindedir: toplulama olmadan dedup rastgele tek
+/// satırı bırakıyor ve çakışma sayısı kayboluyordu. Tek özet, sayı ve örnek çiftlerle.
+fn aggregate_far010(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
+    let mut first_position = None;
+    let mut matched = Vec::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        if notice.rule_id == "FAR_010" {
+            first_position.get_or_insert(index);
+            matched.push(notice);
+        } else {
+            retained.push(notice);
+        }
+    }
+    if matched.is_empty() {
+        *notices = retained;
+        return;
+    }
+    let affected_rows = matched.len();
+    let mut examples: Vec<String> = matched
+        .iter()
+        .filter_map(|notice| {
+            let fare = notice.observed_value.as_deref()?;
+            let other = notice.expected_value.as_deref()?;
+            Some(format!("{fare} ↔ {other}"))
+        })
+        .collect();
+    examples.sort_unstable();
+    examples.dedup();
+    examples.truncate(5);
+    let mut aggregate = take_representative(&mut matched, resolver);
+    aggregate.entity_type = gtfs_core::EntityType::Feed;
+    aggregate.entity_id = None;
+    aggregate.scope_key = None;
+    aggregate.file = Some("fare_rules.txt".to_string());
+    aggregate.line = None;
+    aggregate.field = Some("fare_id".to_string());
+    aggregate.observed_value = Some(affected_rows.to_string());
+    aggregate.expected_value = None;
+    aggregate.message = format!(
+        "fare_rules.txt içinde {affected_rows} kural, aynı koşul kümesini başka bir tarifeyle çakışacak biçimde tanımlıyor."
+    );
+    aggregate.details = Some({
+        let mut details = std::collections::BTreeMap::new();
+        details.insert("affected_rows".to_string(), affected_rows.to_string());
+        if !examples.is_empty() {
+            details.insert("example_fares".to_string(), examples.join(", "));
+        }
+        details
+    });
+    aggregate.service_id = None;
+    aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
+        && aggregate.whitespace_derived;
+    aggregate.whitespace_candidate = matched.iter().all(|n| n.whitespace_candidate)
+        && aggregate.whitespace_candidate;
+    retained.insert(first_position.unwrap_or(retained.len()).min(retained.len()), aggregate);
+    *notices = retained;
+}
+
+fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1207,7 +1270,7 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_trips = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1240,7 +1303,7 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1256,7 +1319,7 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_rows = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1289,7 +1352,7 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1305,7 +1368,7 @@ fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_trips = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1339,7 +1402,7 @@ fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1355,7 +1418,7 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_transfers = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.observed_value.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.observed_value.clone()))
@@ -1389,7 +1452,7 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut groups: std::collections::BTreeMap<String, Vec<gtfs_core::Notice>> =
         std::collections::BTreeMap::new();
     let mut first_positions = std::collections::BTreeMap::new();
@@ -1409,7 +1472,7 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>) {
     }
     let mut aggregates = Vec::with_capacity(groups.len());
     for (end_date, mut matches) in groups {
-        let mut aggregate = matches.swap_remove(0);
+        let mut aggregate = take_representative(&mut matches, resolver);
         let affected_services = matches.len() + 1;
         let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
             .chain(matches.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1453,7 +1516,7 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>) {
     *notices = retained;
 }
 
-fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>) {
+fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
     let mut retained = Vec::with_capacity(notices.len());
@@ -1469,7 +1532,7 @@ fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>) {
         *notices = retained;
         return;
     }
-    let mut aggregate = matched.swap_remove(0);
+    let mut aggregate = take_representative(&mut matched, resolver);
     let affected_transfers = matched.len() + 1;
     let mut types: Vec<String> = aggregate.observed_value.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.observed_value.clone()))
@@ -1528,6 +1591,25 @@ pub fn apply_report_scope(
 /// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
 /// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
 pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
+    validate_bytes_inspected(zip, config, today, &mut |_, _, _, _| {})
+}
+
+/// [`validate_bytes_inspected`]'e verilen gözlemci: ham K1–K6 notice'ları ve onları
+/// yorumlamak için gereken kayıtlar, türev veri ve boşluk bastırma listeleri.
+#[doc(hidden)]
+pub type NoticeInspector<'a> =
+    dyn FnMut(&[gtfs_core::Notice], &EntityRecords, &DerivedData, &WhitespaceSuppressions) + 'a;
+
+/// [`validate_bytes`] ile aynı pipeline; `inspect` K1–K6 notice'larını feed-level
+/// toplulamadan ve rapor kapsamından ÖNCE, ham haliyle görür. Denetim araçları içindir
+/// (ör. `examples/scope_audit.rs`): toplulama `scope_key`/`entity_id`'yi siler.
+#[doc(hidden)]
+pub fn validate_bytes_inspected(
+    zip: &[u8],
+    config: &ValidatorConfig,
+    today: u32,
+    inspect: &mut NoticeInspector<'_>,
+) -> ValidateResult {
     use crate::timing::Timer;
 
     if let Err(e) = check_rule_scope(config) {
@@ -1648,6 +1730,10 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     all.extend(k5.notices);
     all.extend(k6.notices);
 
+    let mut whitespace_suppressions = k2.whitespace_suppressions;
+    whitespace_suppressions.merge(k4.whitespace_suppressions);
+
+    inspect(&all, &k2.records, &k5.derived, &whitespace_suppressions);
     aggregate_feed_level_notices(&mut all, &k2.records, &k5.derived);
     apply_report_scope(&mut all, &k2.records, config);
 
@@ -1661,20 +1747,19 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         .any(|f| k1_parse::is_certification_critical(f))
         && partial.root_structural_errors.is_empty();
 
-    let mut whitespace_suppressions = k2.whitespace_suppressions;
-    whitespace_suppressions.merge(k4.whitespace_suppressions);
-
-    let k7 = {
+    let (k7, agency_breakdown) = {
         let _t = Timer::start("K7-reporting");
-        report_k7_with_suppressions(
-            all,
-            &k2.records,
-            &k5.derived,
-            file_stats,
-            false,
-            coverage_complete,
-            whitespace_suppressions,
-        )
+        let prepared =
+            prepare_k7_notices(all, &k2.records, &k5.derived, false, whitespace_suppressions);
+        // #2201: bastırmadan SONRA sayılır; native'de cap yoktur, döküm tamdır.
+        let agency_breakdown = {
+            let _t = Timer::start("K7::agency_breakdown");
+            agency_attribution::breakdown(&prepared, &k2.records, true)
+        };
+        let k7 = report_k7_prepared(prepared, &k2.records, &k5.derived, file_stats, coverage_complete);
+        let mut agency_breakdown = agency_breakdown;
+        agency_attribution::index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
+        (k7, agency_breakdown)
     };
 
     // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar
@@ -1692,7 +1777,24 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
         metrics: k7.metrics,
         name_index,
         capped_totals: std::collections::BTreeMap::new(),
+        agency_breakdown,
     })
+}
+
+/// Grubun temsilcisini ayırır ve gruptaki TÜM ham notice'ların agency dağılımını ona
+/// yazar (#2201). Toplulayıcı temsilcinin `scope_key`/`entity_id`'sini silmeden ÖNCE
+/// çağrılır; dağılımın toplamı grubun boyudur, yani özetin taşıdığı etkilenen kayıt sayısı.
+fn take_representative(
+    group: &mut Vec<gtfs_core::Notice>,
+    resolver: &AgencyResolver,
+) -> gtfs_core::Notice {
+    let mut distribution = gtfs_core::agency::AgencyDistribution::new();
+    for notice in group.iter() {
+        *distribution.entry(resolver.attribute_member(notice)).or_default() += 1;
+    }
+    let mut representative = group.swap_remove(0);
+    representative.agency_distribution = Some(Box::new(distribution));
+    representative
 }
 
 /// K1–K6 notice'larını feed-level özetlere indirir. Native `validate_bytes` ve WASM
@@ -1708,13 +1810,14 @@ pub fn aggregate_feed_level_notices(
     // K7'nin whitespace join çözümlemesi entity_id üzerinden çalışır; feed-level
     // toplulama bunu silmeden önce padding'in hangi dosyada durduğunu işaretle.
     annotate_whitespace_join_provenance(all, records, derived);
+    let resolver = AgencyResolver::new(records);
 
     // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
     // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
     macro_rules! timed_aggregate {
         ($name:literal, $function:ident) => {{
             let _t = crate::timing::Timer::start(concat!("aggregate::", $name));
-            $function(all);
+            $function(all, &resolver);
         }};
     }
     timed_aggregate!("STM_036", aggregate_stm036);
@@ -1739,6 +1842,7 @@ pub fn aggregate_feed_level_notices(
     timed_aggregate!("TRF_019", aggregate_trf019);
     timed_aggregate!("CAL_008", aggregate_cal008);
     timed_aggregate!("GGL_001", aggregate_ggl001);
+    timed_aggregate!("FAR_010", aggregate_far010);
 }
 
 pub fn build_name_index(
@@ -2172,6 +2276,7 @@ mod name_index_tests {
             blocks: vec![],
             base_effort: 1,
             service_id: None,
+            agency_distribution: None,
         }
     }
 
@@ -2314,6 +2419,7 @@ mod aggregation_tests {
             blocks: vec![],
             base_effort: 1,
             service_id: None,
+            agency_distribution: None,
         }
     }
 
@@ -2332,7 +2438,8 @@ mod aggregation_tests {
             pth007("B", "b2"),
         ];
 
-        aggregate_pth007(&mut notices);
+        let records = EntityRecords::default();
+        aggregate_pth007(&mut notices, &AgencyResolver::new(&records));
 
         assert_eq!(
             notices

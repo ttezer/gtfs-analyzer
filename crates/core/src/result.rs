@@ -146,6 +146,10 @@ pub struct ValidationResult {
     /// Cap'e çarpan kurallar ve gerçek notice sayıları.
     /// Yalnızca cap'i aşan kuralları içerir; aşmayanlar burada yer almaz.
     pub capped_totals: BTreeMap<String, u32>,
+    /// Kural × agency dökümü (MobilityData gtfs-validator #2201). Eklemeli alandır: yalnız
+    /// yazılır, okurken yok sayılır; biçim `agency.rs`'deki JSON sözleşmesidir.
+    #[serde(default, skip_deserializing)]
+    pub agency_breakdown: crate::agency::AgencyBreakdown,
 }
 
 /// Validator ana dönüş tipi.

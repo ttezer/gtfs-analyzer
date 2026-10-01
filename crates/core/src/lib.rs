@@ -1,3 +1,4 @@
+pub mod agency;
 pub mod enums;
 #[cfg(feature = "i18n")]
 pub mod i18n;

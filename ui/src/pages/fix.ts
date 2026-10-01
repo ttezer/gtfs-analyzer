@@ -1,4 +1,6 @@
-﻿import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
+﻿import { attachAgencyFilterListeners, filterNoticesByAgency, narrowR9Items, renderAgencyFilterBar } from '../agency-filter';
+import { getState, setAgencyFilter } from '../state';
+import type { ValidationResult, Notice, R9Item, NameIndex, Severity } from '../types';
 import { SEVERITY_TR, SEVERITY_COLOR, RULE_CLASS_TR, t, tMsg, tRemediation, intlLocale } from '../i18n';
 import { MAX_MAP_PINS, openMapModal, type MapPin, type MapOptions } from '../map-modal';
 import { requestShapeCoords } from '../validator-client';
@@ -28,9 +30,28 @@ function hideBtn(notice: Notice | undefined): string {
   return `<button class="hide-rule-btn" data-rule="${escHtml(notice.rule_id)}" title="${hint}" aria-label="${hint}">✕ ${label}</button>`;
 }
 
-export function renderFix(root: HTMLElement, result: ValidationResult, fileFilter?: string, classFilter?: string): void {
-  augmentRouteLabels(result.notices, result.name_index);
+export function renderFix(root: HTMLElement, fullResult: ValidationResult, fileFilter?: string, classFilter?: string): void {
+  augmentRouteLabels(fullResult.notices, fullResult.name_index);
+  // Agency süzgeci: R2 seçili agency'lerin notice'larına, R9 o notice'ların kurallarına
+  // daralır. Skorlar ve R9 skor etkileri feed geneli kalır.
+  const agencyFilter = getState().agencyFilter;
+  const filtered = filterNoticesByAgency(fullResult, agencyFilter);
+  const keptIds = filtered ? new Set(filtered.map(n => n.id)) : null;
+  const result: ValidationResult = filtered
+    ? {
+        ...fullResult,
+        notices: filtered,
+        // R2 rozeti kalem sayısını gösterir; süzülmüş notice'lara düşmeyen kalemler çıkar.
+        reports: {
+          ...fullResult.reports,
+          r2: { ...fullResult.reports.r2, items: fullResult.reports.r2.items.filter(i => keptIds!.has(i.notice_id)) },
+        },
+      }
+    : fullResult;
   const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
+  const r9Items = filtered
+    ? narrowR9Items(fullResult.reports.r9.items, filtered)
+    : fullResult.reports.r9.items;
 
   const totalDelta    = result.reports.r9.items.reduce((s, i) => s + i.score_delta, 0);
   const normFactor    = totalDelta > 0 ? (100 - result.reports.r5.score) / totalDelta : 1;
@@ -48,9 +69,14 @@ export function renderFix(root: HTMLElement, result: ValidationResult, fileFilte
   root.innerHTML = `
     <section class="page-fix">
       ${renderHiddenRulesBar()}
-      ${renderR9(result.reports.r9.items, noticeMap, normFactor, pubNormFactor, result.capped_totals)}
+      ${renderAgencyFilterBar(fullResult, agencyFilter)}
+      ${renderR9(r9Items, noticeMap, normFactor, pubNormFactor, result.capped_totals)}
       ${renderR2(result, noticeMap, deltaMap, result.name_index, fileFilter, classFilter)}
     </section>`;
+  attachAgencyFilterListeners(root, ids => {
+    setAgencyFilter(ids);
+    window.dispatchEvent(new CustomEvent('gtfs-navigate'));
+  });
 }
 
 function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: number, pubNormFactor: number, cappedTotals: Record<string, number>): string {

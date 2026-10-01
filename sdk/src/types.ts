@@ -145,6 +145,8 @@ export interface ValidationResult {
   metrics: FeedMetrics;
   name_index: NameIndex;
   capped_totals: Record<string, number>;
+  /** Kural × agency dökümü (#2201). Eklemeli alan: eski motor sürümleri taşımaz. */
+  agency_breakdown?: AgencyBreakdown;
 }
 
 export interface FatalError {
@@ -284,4 +286,47 @@ export interface SessionResult {
 export interface SdkVersion {
   sdk: string;
   engine: string;
+}
+
+/** `agency.txt` kaydı. Tek agency'li feed'de `agency_id` boş olabilir. */
+export interface AgencyInfo {
+  agency_id: string;
+  agency_name: string;
+  /** Route üzerinden bu agency'ye çözülen sefer sayısı. */
+  trip_count: number;
+  /** Sonuçtaki `notices` dizisinde bu agency'ye düşen notice indeksleri (WASM'da yalnız gösterilenler). */
+  notice_indices: number[];
+}
+
+/** Bir agency kümesinin etkilediği kayıtlar (MobilityData gtfs-validator #2201). */
+export interface AgencySetCount {
+  /** Bugün her zaman tek eleman; paylaşılan varlıklar (stop/shape/service) gelince çoğalabilir. */
+  agency_ids: string[];
+  affected_entity_count: number;
+  /** Kimliği ancak kenar boşluğu kırpılarak eşleşen (tek aday) kayıtlar. */
+  trim_fallback_count: number;
+}
+
+/**
+ * Bir kuralın sayımları. `finding_count`: rapora giren bulgu (cap öncesi);
+ * `affected_entity_count`: özetlerin altındaki ham kayıtlar dahil; `displayed_sample_count`:
+ * sonuçtaki `notices` içinde taşınan. `agency_sets` + `unattributed` + `unsupported` +
+ * `not_applicable` toplamı `affected_entity_count`'tur.
+ */
+export interface RuleAgencyCounts {
+  finding_count: number;
+  affected_entity_count: number;
+  displayed_sample_count: number;
+  agency_sets: AgencySetCount[];
+  unattributed: Record<string, number>;
+  unsupported: number;
+  not_applicable: number;
+}
+
+/** Kural × agency dökümü. Severity ve skoru etkilemez. `complete=false`: notice bütçesi aşıldı, sayımlar alt sınırdır. */
+export interface AgencyBreakdown {
+  complete: boolean;
+  /** Feed sırasıyla agency'ler; `agency_sets` kimlikleri `agency_id` ile buraya bağlanır. */
+  agencies: AgencyInfo[];
+  rules: Record<string, RuleAgencyCounts>;
 }

@@ -686,26 +686,10 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         }
     }
 
-    // AGN_013: Feed dili ile ajans dili uyuşmuyor (feed_info_lang_and_agency_lang_mismatch)
-    if let (Some(fi), Some(ag)) = (records.feed_info.first(), records.agencies.first()) {
-        let feed_lang = fi.feed_lang.to_lowercase();
-        let agency_lang = ag.agency_lang.as_deref().unwrap_or("").to_lowercase();
-        if !agency_lang.is_empty() && feed_lang != agency_lang {
-            let mut ctr = 0u32;
-            notices.push(make_k2_notice(
-                &mut ctr, "AGN_013", gtfs_core::EntityType::Feed, None,
-                None, "feed_info.txt", None, Some("feed_lang"),
-                Some(fi.feed_lang.clone()),
-                Some(ag.agency_lang.clone().unwrap_or_default()),
-                format!(
-                    "feed_lang ('{}') ile agency_lang ('{}') uyuşmuyor.",
-                    fi.feed_lang,
-                    ag.agency_lang.as_deref().unwrap_or("")
-                ),
-                "feed_info.txt'deki feed_lang ile agency.txt'deki agency_lang değerlerini tutarlı hale getirin.",
-            ));
-        }
-    }
+    // AGN_013 burada ÜRETİLMEZ: K4 `check_agencies` her acenteyi karşılaştırır. Buradaki
+    // kopya yalnız ilk acenteye bakıyor ve boş `feed_lang` ile de ateşliyordu (kart:
+    // "`feed_lang` boşsa AGN_013 çalışmaz"). Registry `Feed` dedup'ı ikisini tek notice'a
+    // katladığı için görünmüyordu; dedup `Entity`'e alınınca çift bulgu oldu.
 
     K2Result {
         records,

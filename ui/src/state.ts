@@ -11,6 +11,7 @@ export interface AppState {
   fileSize: number;
   fixFileFilter: string; // files sayfasından fix'e filtreli geçiş için
   fixClassFilter: string; // skor bileşeni kartından fix R2'ye sınıf-filtreli geçiş için
+  agencyFilter: string[]; // fix sayfasında seçili agency_id'ler (boş = tümü)
   generatedAt: Date | null; // raporun hesaplandığı an (validasyon/yeniden çalıştırma)
   reportDurationMs: number | null; // dosya okuma + analiz + rapor üretimi duvar saati
 }
@@ -23,6 +24,7 @@ const state: AppState = {
   fileSize: 0,
   fixFileFilter: '',
   fixClassFilter: '',
+  agencyFilter: [],
   generatedAt: null,
   reportDurationMs: null,
 };
@@ -36,6 +38,7 @@ export function setResult(result: ValidationResult, fileName: string, fileSize =
   state.page = 'domain';
   state.generatedAt = new Date();
   state.reportDurationMs = reportDurationMs;
+  state.agencyFilter = [];
   logAction('validate', `${fileName} (${fileSize} B) → ${result.notices.length} notice`);
 }
 
@@ -50,6 +53,10 @@ export function setFixFileFilter(file: string): void {
 
 export function setFixClassFilter(cls: string): void {
   state.fixClassFilter = cls;
+}
+
+export function setAgencyFilter(ids: string[]): void {
+  state.agencyFilter = ids;
 }
 
 export function setConfigDelta(delta: string): void {

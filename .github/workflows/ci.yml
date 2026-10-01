@@ -52,6 +52,11 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+      # SDK çevirisi (`sdk-en`) yalnız bu feature ile derlenir; `--workspace` onu açmaz,
+      # testleri de hiç koşmazdı. CLI çevirmeniyle eşdeğerlik testi burada koşar.
+      - name: cargo test (gtfs-wasm sdk-en)
+        run: cargo test -p gtfs-wasm --features sdk-en
+
       # issue #91: clippy borcu çözüldüğü için tüm target'lar için warnings blocking.
       # `--all-targets`, test/example lintlerini de kapsar; tek crate'de erken durup
       # diğer workspace uyarılarını gizlememesi için workspace kapsamı korunur.

@@ -326,7 +326,7 @@
     "FAR_005": "Fare '{entity_id}': transfers '{observed_value}' is invalid.",
     "FAR_006": "Fare '{entity_id}': transfer_duration '{observed_value}' is invalid.",
     "FAR_008": "Fare '{entity_id}': agency_id '{observed_value}' not found.",
-    "FAR_010": "Fare '{entity_id}': overlapping fare rules.",
+    "FAR_010": "{observed_value} fare rules overlap another fare's conditions in fare_rules.txt.",
     "FAR_011": "fare_attributes.txt: payment_method is missing.",
     "FAR_012": "fare_attributes.txt: fare_id is missing.",
     "LVL_008": "levels.txt: level_id is missing.",
