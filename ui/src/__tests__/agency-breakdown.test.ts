@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agencyRows, findingDensity } from '../pages/agency-breakdown';
+import { agencyRows } from '../pages/agency-breakdown';
 import type { AgencyBreakdown, Severity } from '../types';
 
 const breakdown: AgencyBreakdown = {
@@ -35,9 +35,5 @@ describe('agencyRows', () => {
     const total = [a, b, unattributed, unsupported, notApplicable].reduce((s, r) => s + r.total, 0);
     expect(total).toBe(5);
     expect(a.rules.get('TRP_005')).toBe(1);
-    // Yoğunluk: 1.000 sefer başına; seferi olmayan agency ve agency dışı satırlar için yok.
-    expect(findingDensity(a.total, a.tripCount)).toBe(5);
-    expect(findingDensity(b.total, b.tripCount)).toBeNull();
-    expect(findingDensity(notApplicable.total, notApplicable.tripCount)).toBeNull();
   });
 });

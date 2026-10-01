@@ -268,8 +268,6 @@ const fr: LocaleShape = {
     'agency.filter.label': "Réseau",
     'agency.filter.all': "Tous les réseaux",
     'agency.filter.hint': "Constats des réseaux sélectionnés. Les scores et leur effet dans la file de correction restent globaux.",
-    'agency.col.density': "Pour 1 000 trajets",
-    'agency.density_tip': "Enregistrements concernés pour 1 000 trajets du réseau. Permet de comparer des réseaux de tailles différentes ; ce n’est pas un score.",
     'agency.row.unattributed': "Non attribuables (référence cassée ou résumé global)",
     'agency.row.unsupported': "Autres portées (pas encore attribuées)",
     'agency.row.not_applicable': "Constats au niveau du jeu de données ou du fichier",

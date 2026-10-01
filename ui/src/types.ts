@@ -187,7 +187,7 @@ export type ValidateResult =
 export interface AgencyInfo {
   agency_id: string;
   agency_name: string;
-  /** Route üzerinden bu agency'ye çözülen sefer sayısı (yoğunluk paydası). */
+  /** Route üzerinden bu agency'ye çözülen sefer sayısı. */
   trip_count: number;
   /** Sonuçtaki `notices` dizisinde bu agency'ye düşen notice indeksleri (WASM'da yalnız gösterilenler). */
   notice_indices: number[];

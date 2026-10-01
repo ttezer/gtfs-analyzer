@@ -130,7 +130,6 @@ pub struct AgencyBreakdown {
     /// `agencies` ile aynı sırada `agency_name` değerleri (gösterim için).
     pub agency_names: Vec<String>,
     /// `agencies` ile aynı sırada, route'u üzerinden o agency'ye çözülen sefer sayısı.
-    /// Bulgu yoğunluğunun paydasıdır (etkilenen kayıt / 1.000 sefer).
     pub agency_trip_counts: Vec<u64>,
     /// `agencies` ile aynı sırada: sonuçtaki `notices` dizisinde o agency'ye düşen
     /// notice'ların indeksleri (artan). Özetler dağılımındaki her agency'de listelenir.

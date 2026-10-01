@@ -265,8 +265,6 @@ const tr = {
     'agency.filter.label': "Acente",
     'agency.filter.all': "Tüm acenteler",
     'agency.filter.hint': "Seçili acentelerin bulguları gösteriliyor. Skorlar ve düzeltme kuyruğundaki skor etkileri feed geneli kalır.",
-    'agency.col.density': "1.000 sefer başına",
-    'agency.density_tip': "Acentenin 1.000 seferi başına etkilenen kayıt. Farklı büyüklükteki acenteleri karşılaştırır; skor değildir.",
     'agency.row.unattributed': "Atfedilemeyen (kırık referans veya feed özeti)",
     'agency.row.unsupported': "Diğer kapsamlar (henüz atfedilmiyor)",
     'agency.row.not_applicable': "Feed ve dosya düzeyi bulgular",

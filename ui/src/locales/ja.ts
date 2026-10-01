@@ -257,8 +257,6 @@ const ja: LocaleShape = {
     'agency.filter.label': "事業者",
     'agency.filter.all': "すべての事業者",
     'agency.filter.hint': "選択した事業者の検出結果を表示しています。スコアと修正キューのスコア影響はフィード全体のままです。",
-    'agency.col.density': "1,000便あたり",
-    'agency.density_tip': "事業者の1,000便あたりの影響レコード数。規模の異なる事業者を比較するための指標で、スコアではありません。",
     'agency.row.unattributed': "帰属不可（参照切れまたはフィード単位の要約）",
     'agency.row.unsupported': "その他の範囲（未対応）",
     'agency.row.not_applicable': "フィード・ファイル単位の検出",
