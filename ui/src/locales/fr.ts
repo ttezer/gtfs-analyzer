@@ -263,6 +263,8 @@ const fr: LocaleShape = {
     'agency.incomplete': "Le budget d’avis a été dépassé ; ces nombres sont des minorants.",
     'agency.col.agency': "Réseau",
     'agency.col.total': "Total",
+    'agency.col.trips': "Trajets",
+    'agency.trips_tip': "Trajets dont la ligne appartient au réseau (dénominateur de la densité).",
     'agency.filter.label': "Réseau",
     'agency.filter.all': "Tous les réseaux",
     'agency.filter.hint': "Constats des réseaux sélectionnés. Les scores et leur effet dans la file de correction restent globaux.",

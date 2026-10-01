@@ -261,6 +261,8 @@ const en: LocaleShape = {
     'agency.incomplete': "The notice budget was exceeded; these counts are lower bounds.",
     'agency.col.agency': "Agency",
     'agency.col.total': "Total",
+    'agency.col.trips': "Trips",
+    'agency.trips_tip': "Trips whose route belongs to the agency (denominator of the density).",
     'agency.filter.label': "Agency",
     'agency.filter.all': "All agencies",
     'agency.filter.hint': "Showing findings of the selected agencies. Scores and the score impact in the fix queue stay feed-wide.",

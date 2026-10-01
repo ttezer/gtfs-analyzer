@@ -252,6 +252,8 @@ const ja: LocaleShape = {
     'agency.incomplete': "通知の上限を超えたため、これらの数値は下限値です。",
     'agency.col.agency': "事業者",
     'agency.col.total': "合計",
+    'agency.col.trips': "便数",
+    'agency.trips_tip': "路線がこの事業者に属する便（密度の分母）。",
     'agency.filter.label': "事業者",
     'agency.filter.all': "すべての事業者",
     'agency.filter.hint': "選択した事業者の検出結果を表示しています。スコアと修正キューのスコア影響はフィード全体のままです。",

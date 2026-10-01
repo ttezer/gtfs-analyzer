@@ -20,21 +20,23 @@ export function filterNoticesByAgency(result: ValidationResult, selected: readon
 export function renderAgencyFilterBar(result: ValidationResult, selected: readonly string[]): string {
   const breakdown = result.agency_breakdown;
   if (!breakdown || breakdown.agencies.length < 2) return '';
+  // Izgara: satır başına üç çip; kutucuklar aynı hizada (dar ekranda tek sütun).
   const chips = breakdown.agencies.map(a => {
     const label = a.agency_name || a.agency_id || t('agency.unnamed');
     const checked = selected.includes(a.agency_id) ? 'checked' : '';
     return `<label class="agency-chip" title="agency_id: ${escHtml(a.agency_id)}">
-      <input type="checkbox" class="agency-filter-cb" value="${escHtml(a.agency_id)}" ${checked}> ${escHtml(label)}
+      <input type="checkbox" class="agency-filter-cb" value="${escHtml(a.agency_id)}" ${checked}>
+      <span class="agency-chip-name">${escHtml(label)}</span>
       <span class="agency-chip-count">${(a.notice_indices ?? []).length}</span>
     </label>`;
   }).join('');
   return `
     <div class="card agency-filter">
-      <div class="agency-filter-row">
+      <div class="agency-filter-head">
         <strong>${escHtml(t('agency.filter.label'))}</strong>
-        ${chips}
         ${selected.length ? `<button type="button" class="agency-filter-clear">${escHtml(t('agency.filter.all'))}</button>` : ''}
       </div>
+      <div class="agency-chip-grid">${chips}</div>
       ${selected.length ? `<p class="hint">${escHtml(t('agency.filter.hint'))}</p>` : ''}
     </div>`;
 }

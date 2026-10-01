@@ -90,30 +90,50 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([rule, n]) => `<li><code>${escHtml(rule)}</code> ${escHtml(t(`rule.${rule}`))} — <strong>${n.toLocaleString()}</strong></li>`)
     .join('');
-  const densityCell = (row: Row) => {
-    const d = findingDensity(row.total, row.tripCount);
-    return d === null ? '—' : d.toLocaleString(undefined, { maximumFractionDigits: 1 });
-  };
-  // Kural listesi satırın ALTINDA tam genişlik bir satırda açılır: ilk sütuna sığdırmak
-  // tabloyu genişletip severity sütunlarını yatay kaydırmaya itiyordu.
-  const body = rows
-    .filter(row => row.total > 0 || row.agencyId !== undefined)
-    .map((row, i) => `
-      <tr>
+  const fmtDensity = (d: number | null) =>
+    d === null ? '—' : d.toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const columns = SEVERITIES.length + 4;
+
+  // Her agency satırı kural listesiyle birlikte kendi <tbody>'sindedir: sıralama grupları
+  // yer değiştirir, açık listeler satırından ayrılmaz. Agency dışı satırlar en alttaki
+  // ayrı gövdede sabit kalır. Kural listesi satırın ALTINDA tam genişlikte açılır.
+  const group = (row: Row, i: number) => {
+    const density = findingDensity(row.total, row.tripCount);
+    const sortKeys = row.agencyId === undefined ? '' : [
+      `data-k-agency="${escHtml(row.label.toLocaleLowerCase())}"`,
+      ...SEVERITIES.map(s => `data-k-${s}="${row.bySeverity[s]}"`),
+      `data-k-total="${row.total}"`,
+      `data-k-trips="${row.tripCount ?? -1}"`,
+      `data-k-density="${density ?? -1}"`,
+    ].join(' ');
+    return `
+      <tr ${sortKeys ? 'class="agency-row"' : ''} ${sortKeys}>
         <td>
           <button type="button" class="agency-toggle" aria-expanded="false" aria-controls="agency-rules-${i}"
             ${row.agencyId ? `title="agency_id: ${escHtml(row.agencyId)}"` : ''}>▸ ${escHtml(row.label)}</button>
         </td>
         ${cells(row)}
         <td class="num"><strong>${row.total.toLocaleString()}</strong></td>
-        <td class="num">${densityCell(row)}</td>
+        <td class="num">${row.tripCount === undefined ? '—' : row.tripCount.toLocaleString()}</td>
+        <td class="num">${fmtDensity(density)}</td>
       </tr>
       <tr id="agency-rules-${i}" class="agency-rules-row" hidden>
-        <td colspan="${SEVERITIES.length + 3}">
+        <td colspan="${columns}">
           <ul>${ruleList(row) || `<li>${escHtml(t('agency.no_findings'))}</li>`}</ul>
         </td>
-      </tr>`)
+      </tr>`;
+  };
+  const visible = rows.filter(row => row.total > 0 || row.agencyId !== undefined);
+  const agencyBodies = visible
+    .map((row, i) => row.agencyId === undefined ? '' : `<tbody class="agency-group">${group(row, i)}</tbody>`)
     .join('');
+  const otherRows = visible
+    .map((row, i) => row.agencyId === undefined ? group(row, i) : '')
+    .join('');
+
+  const th = (key: string, label: string, title?: string, numeric = true) =>
+    `<th class="${numeric ? 'num ' : ''}agency-sortable" data-sort="${key}" ${title ? `title="${escHtml(title)}"` : ''}
+       role="button" tabindex="0">${escHtml(label)} <span class="sort-ind"></span></th>`;
 
   return `
     <div class="card agency-breakdown">
@@ -121,20 +141,38 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
       <p class="hint">${escHtml(t('agency.hint'))}</p>
       ${breakdown.complete ? '' : `<p class="hint agency-incomplete">${escHtml(t('agency.incomplete'))}</p>`}
       <div class="table-scroll">
-        <table class="data-table">
+        <table class="data-table agency-table">
           <thead><tr>
-            <th>${escHtml(t('agency.col.agency'))}</th>
-            ${SEVERITIES.map(s => `<th class="num">${escHtml(t(`domain.sev.${s}`))}</th>`).join('')}
-            <th class="num">${escHtml(t('agency.col.total'))}</th>
-            <th class="num" title="${escHtml(t('agency.density_tip'))}">${escHtml(t('agency.col.density'))}</th>
+            ${th('agency', t('agency.col.agency'), undefined, false)}
+            ${SEVERITIES.map(s => th(s, t(`domain.sev.${s}`))).join('')}
+            ${th('total', t('agency.col.total'))}
+            ${th('trips', t('agency.col.trips'), t('agency.trips_tip'))}
+            ${th('density', t('agency.col.density'), t('agency.density_tip'))}
           </tr></thead>
-          <tbody>${body}</tbody>
+          ${agencyBodies}
+          <tbody class="agency-other">${otherRows}</tbody>
         </table>
       </div>
     </div>`;
 }
 
-/** Agency satırlarının kural listesini aç/kapa. */
+/** Agency gruplarını `key` sütununa göre sıralar (`desc` için büyükten küçüğe). */
+export function sortAgencyGroups(table: HTMLTableElement, key: string, desc: boolean): void {
+  const groups = Array.from(table.querySelectorAll<HTMLTableSectionElement>('tbody.agency-group'));
+  // HTML öznitelik adları küçük harfe iner: data-k-CRITICAL → dataset.kCritical.
+  const k = key.toLowerCase();
+  const field = `k${k[0].toUpperCase()}${k.slice(1)}`;
+  const value = (g: HTMLTableSectionElement) => g.querySelector<HTMLElement>('.agency-row')?.dataset[field] ?? '';
+  groups.sort((a, b) => {
+    const [va, vb] = [value(a), value(b)];
+    const cmp = key === 'agency' ? va.localeCompare(vb) : Number(va) - Number(vb);
+    return desc ? -cmp : cmp;
+  });
+  const anchor = table.querySelector('tbody.agency-other');
+  for (const g of groups) table.insertBefore(g, anchor);
+}
+
+/** Kural listesini aç/kapa; sütun başlığıyla sırala (ikinci tıklama yönü çevirir). */
 export function attachAgencyBreakdownListeners(root: HTMLElement): void {
   root.querySelectorAll<HTMLButtonElement>('.agency-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -145,5 +183,22 @@ export function attachAgencyBreakdownListeners(root: HTMLElement): void {
       btn.setAttribute('aria-expanded', String(open));
       btn.textContent = `${open ? '▾' : '▸'}${btn.textContent!.slice(1)}`;
     });
+  });
+  const table = root.querySelector<HTMLTableElement>('.agency-table');
+  if (!table) return;
+  let current = '';
+  let desc = false;
+  table.querySelectorAll<HTMLElement>('.agency-sortable').forEach(th => {
+    const sort = () => {
+      const key = th.dataset['sort']!;
+      // Sayılar ilk tıklamada büyükten küçüğe, ad ilk tıklamada A→Z.
+      desc = key === current ? !desc : key !== 'agency';
+      current = key;
+      sortAgencyGroups(table, key, desc);
+      table.querySelectorAll<HTMLElement>('.agency-sortable .sort-ind').forEach(i => { i.textContent = ''; });
+      th.querySelector('.sort-ind')!.textContent = desc ? '▼' : '▲';
+    };
+    th.addEventListener('click', sort);
+    th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort(); } });
   });
 }

@@ -260,6 +260,8 @@ const tr = {
     'agency.incomplete': "Notice bütçesi aşıldı; bu sayılar alt sınırdır.",
     'agency.col.agency': "Acente",
     'agency.col.total': "Toplam",
+    'agency.col.trips': "Sefer",
+    'agency.trips_tip': "Hattı bu acenteye ait seferler (yoğunluğun paydası).",
     'agency.filter.label': "Acente",
     'agency.filter.all': "Tüm acenteler",
     'agency.filter.hint': "Seçili acentelerin bulguları gösteriliyor. Skorlar ve düzeltme kuyruğundaki skor etkileri feed geneli kalır.",
