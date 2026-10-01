@@ -2,7 +2,7 @@
 // hangi agency'ye düştüğünü motor hesaplar (`agency_breakdown.agencies[].notice_indices`);
 // arayüz atıf kuralını YENİDEN YAZMAZ, yalnız bu indeksleri kullanır.
 import type { Notice, ValidationResult } from './types';
-import { t } from './i18n';
+import { t, intlLocale } from './i18n';
 import { escHtml } from './escape';
 
 /** Seçili agency'lerin notice'ları (birleşim, sonuç sırasıyla). Filtre yoksa `null`. */
@@ -21,8 +21,12 @@ export function renderAgencyFilterBar(result: ValidationResult, selected: readon
   const breakdown = result.agency_breakdown;
   if (!breakdown || breakdown.agencies.length < 2) return '';
   // Izgara: satır başına üç çip; kutucuklar aynı hizada (dar ekranda tek sütun).
-  const chips = breakdown.agencies.map(a => {
-    const label = a.agency_name || a.agency_id || t('agency.unnamed');
+  // Ada göre sıralı (dile duyarlı); aynı adlı agency'ler kimliğe göre ayrılır.
+  const labelOf = (a: { agency_name: string; agency_id: string }) => a.agency_name || a.agency_id || t('agency.unnamed');
+  const sorted = [...breakdown.agencies].sort((x, y) =>
+    labelOf(x).localeCompare(labelOf(y), intlLocale(), { sensitivity: 'base' }) || x.agency_id.localeCompare(y.agency_id));
+  const chips = sorted.map(a => {
+    const label = labelOf(a);
     const checked = selected.includes(a.agency_id) ? 'checked' : '';
     return `<label class="agency-chip" title="agency_id: ${escHtml(a.agency_id)}">
       <input type="checkbox" class="agency-filter-cb" value="${escHtml(a.agency_id)}" ${checked}>
