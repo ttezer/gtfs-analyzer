@@ -10,15 +10,18 @@ const SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
 interface Row {
   label: string;
+  /** Agency satırında `agency_id` (ipucu olarak gösterilir); diğer satırlarda yok. */
+  agencyId?: string;
   bySeverity: Record<Severity, number>;
   total: number;
   /** kural → etkilenen kayıt */
   rules: Map<string, number>;
 }
 
-function emptyRow(label: string): Row {
+function emptyRow(label: string, agencyId?: string): Row {
   return {
     label,
+    agencyId,
     bySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
     total: 0,
     rules: new Map(),
@@ -34,8 +37,12 @@ function add(row: Row, rule: string, severity: Severity | undefined, n: number):
 
 /** Dökümü satırlara çevirir: agency'ler (feed sırasıyla), ardından atfedilemeyenler. */
 export function agencyRows(breakdown: AgencyBreakdown, severityOf: Map<string, Severity>): Row[] {
+  // Ad gösterilir; ad yoksa kimlik, o da yoksa "agency_id'siz agency".
   const agencies = new Map<string, Row>(
-    breakdown.agencies.map(id => [id, emptyRow(id === '' ? t('agency.unnamed') : id)]),
+    breakdown.agencies.map(a => [
+      a.agency_id,
+      emptyRow(a.agency_name || a.agency_id || t('agency.unnamed'), a.agency_id),
+    ]),
   );
   const unattributed = emptyRow(t('agency.row.unattributed'));
   const unsupported = emptyRow(t('agency.row.unsupported'));
@@ -70,18 +77,23 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([rule, n]) => `<li><code>${escHtml(rule)}</code> ${escHtml(t(`rule.${rule}`))} — <strong>${n.toLocaleString()}</strong></li>`)
     .join('');
+  // Kural listesi satırın ALTINDA tam genişlik bir satırda açılır: ilk sütuna sığdırmak
+  // tabloyu genişletip severity sütunlarını yatay kaydırmaya itiyordu.
   const body = rows
-    .filter(row => row.total > 0 || breakdown.agencies.includes(row.label))
-    .map(row => `
+    .filter(row => row.total > 0 || row.agencyId !== undefined)
+    .map((row, i) => `
       <tr>
         <td>
-          <details class="agency-rules">
-            <summary>${escHtml(row.label)}</summary>
-            <ul>${ruleList(row) || `<li>${escHtml(t('agency.no_findings'))}</li>`}</ul>
-          </details>
+          <button type="button" class="agency-toggle" aria-expanded="false" aria-controls="agency-rules-${i}"
+            ${row.agencyId ? `title="agency_id: ${escHtml(row.agencyId)}"` : ''}>▸ ${escHtml(row.label)}</button>
         </td>
         ${cells(row)}
         <td class="num"><strong>${row.total.toLocaleString()}</strong></td>
+      </tr>
+      <tr id="agency-rules-${i}" class="agency-rules-row" hidden>
+        <td colspan="${SEVERITIES.length + 2}">
+          <ul>${ruleList(row) || `<li>${escHtml(t('agency.no_findings'))}</li>`}</ul>
+        </td>
       </tr>`)
     .join('');
 
@@ -101,4 +113,18 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
         </table>
       </div>
     </div>`;
+}
+
+/** Agency satırlarının kural listesini aç/kapa. */
+export function attachAgencyBreakdownListeners(root: HTMLElement): void {
+  root.querySelectorAll<HTMLButtonElement>('.agency-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const detail = root.querySelector<HTMLElement>(`#${btn.getAttribute('aria-controls')}`);
+      if (!detail) return;
+      const open = detail.hidden;
+      detail.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+      btn.textContent = `${open ? '▾' : '▸'}${btn.textContent!.slice(1)}`;
+    });
+  });
 }

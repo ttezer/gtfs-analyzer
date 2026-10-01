@@ -6,7 +6,7 @@ import { escHtml } from '../escape';
 import { formatBytes } from '../format';
 import { gtfsJpBadgeKey, GTFS_JP_AUTOMATED_COVERAGE_COMPLETE } from '../gtfs-jp-badge';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
-import { renderAgencyBreakdown } from './agency-breakdown';
+import { renderAgencyBreakdown, attachAgencyBreakdownListeners } from './agency-breakdown';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;
@@ -24,6 +24,7 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
       ${renderAgencyBreakdown(result)}
     </div>`;
   attachHiddenRuleListeners(root);
+  attachAgencyBreakdownListeners(root);
 
   // Genel Skor bileşeni kartları → Ayrıntı ve Düzeltme (fix) sayfasındaki R2 bölümünü
   // o sınıfla filtreli aç. files sayfasıyla aynı navigasyon mekanizmasını yeniden kullan.

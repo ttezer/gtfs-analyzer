@@ -269,6 +269,7 @@ impl<'a> AgencyCounter<'a> {
         AgencyBreakdown {
             complete,
             agencies: self.resolver.agency_ids.iter().map(|id| id.to_string()).collect(),
+            agency_names: self.resolver.records.agencies.iter().map(|a| a.agency_name.clone()).collect(),
             rules: self.rules,
         }
     }

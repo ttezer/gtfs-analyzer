@@ -288,6 +288,12 @@ export interface SdkVersion {
   engine: string;
 }
 
+/** `agency.txt` kaydı. Tek agency'li feed'de `agency_id` boş olabilir. */
+export interface AgencyInfo {
+  agency_id: string;
+  agency_name: string;
+}
+
 /** Bir agency kümesinin etkilediği kayıtlar (MobilityData gtfs-validator #2201). */
 export interface AgencySetCount {
   /** Bugün her zaman tek eleman; paylaşılan varlıklar (stop/shape/service) gelince çoğalabilir. */
@@ -316,6 +322,7 @@ export interface RuleAgencyCounts {
 /** Kural × agency dökümü. Severity ve skoru etkilemez. `complete=false`: notice bütçesi aşıldı, sayımlar alt sınırdır. */
 export interface AgencyBreakdown {
   complete: boolean;
-  agencies: string[];
+  /** Feed sırasıyla agency'ler; `agency_sets` kimlikleri `agency_id` ile buraya bağlanır. */
+  agencies: AgencyInfo[];
   rules: Record<string, RuleAgencyCounts>;
 }

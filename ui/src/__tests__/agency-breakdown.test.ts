@@ -4,7 +4,7 @@ import type { AgencyBreakdown, Severity } from '../types';
 
 const breakdown: AgencyBreakdown = {
   complete: true,
-  agencies: ['A', 'B'],
+  agencies: [{ agency_id: 'A', agency_name: 'Alpha' }, { agency_id: 'B', agency_name: '' }],
   rules: {
     TRP_005: {
       finding_count: 1, affected_entity_count: 3, displayed_sample_count: 1,
@@ -25,7 +25,8 @@ describe('agencyRows', () => {
   it('splits affected records by agency and severity, keeping the rest visible', () => {
     const severity = new Map<string, Severity>([['TRP_005', 'MEDIUM'], ['ARC_011', 'INFO']]);
     const [a, b, unattributed, unsupported, notApplicable] = agencyRows(breakdown, severity);
-    expect([a.label, a.total, a.bySeverity.MEDIUM]).toEqual(['A', 1, 1]);
+    expect([a.label, a.agencyId, a.total, a.bySeverity.MEDIUM]).toEqual(['Alpha', 'A', 1, 1]);
+    // Ad yoksa kimlik gösterilir.
     expect([b.label, b.total]).toEqual(['B', 1]);
     expect(unattributed.total).toBe(1);
     expect(unsupported.total).toBe(0);

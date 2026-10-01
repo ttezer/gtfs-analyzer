@@ -108,6 +108,8 @@ pub struct AgencyBreakdown {
     pub complete: bool,
     /// [`AgencyRef`] sırasıyla agency kimlikleri (tek agency'de boş olabilir).
     pub agencies: Vec<String>,
+    /// `agencies` ile aynı sırada `agency_name` değerleri (gösterim için).
+    pub agency_names: Vec<String>,
     pub rules: BTreeMap<String, RuleAgencyCounts>,
 }
 
@@ -115,7 +117,7 @@ pub struct AgencyBreakdown {
 //
 // {
 //   "complete": true,
-//   "agencies": ["A", "B"],
+//   "agencies": [{ "agency_id": "A", "agency_name": "Alpha" }, …],
 //   "rules": {
 //     "TRP_005": {
 //       "finding_count": 1, "affected_entity_count": 2, "displayed_sample_count": 1,
@@ -130,6 +132,12 @@ pub struct AgencyBreakdown {
 // `agency_sets` yapısaldır (agency_id `|` içerebilir); bugün her küme tek agency'lidir,
 // paylaşılan varlıklar (stop/shape/service) gelince birden fazla kimlik taşıyabilir.
 // Sıralar deterministiktir: kurallar ve nedenler BTreeMap, kümeler agency sırasıyla.
+
+#[derive(serde::Serialize)]
+struct AgencyJson<'a> {
+    agency_id: &'a str,
+    agency_name: &'a str,
+}
 
 #[derive(serde::Serialize)]
 struct AgencySetJson<'a> {
@@ -202,7 +210,16 @@ impl serde::Serialize for AgencyBreakdown {
             .collect();
         let mut state = serializer.serialize_struct("AgencyBreakdown", 3)?;
         state.serialize_field("complete", &self.complete)?;
-        state.serialize_field("agencies", &self.agencies)?;
+        let agencies: Vec<AgencyJson<'_>> = self
+            .agencies
+            .iter()
+            .enumerate()
+            .map(|(i, id)| AgencyJson {
+                agency_id: id,
+                agency_name: self.agency_names.get(i).map(String::as_str).unwrap_or(""),
+            })
+            .collect();
+        state.serialize_field("agencies", &agencies)?;
         state.serialize_field("rules", &rules)?;
         state.end()
     }

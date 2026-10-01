@@ -97,6 +97,7 @@ fn breakdown_separates_findings_from_affected_entities_per_agency() {
     assert_contract("two-agency", &result);
     let breakdown = &result.agency_breakdown;
     assert_eq!(breakdown.agencies, ["A", "B"]);
+    assert_eq!(breakdown.agency_names, ["Alpha", "Beta"]);
 
     let per_agency = |rule: &str| -> Vec<(String, u64)> {
         breakdown.rules[rule]
