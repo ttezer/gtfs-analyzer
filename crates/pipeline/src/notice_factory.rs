@@ -61,6 +61,5 @@ pub(crate) fn build(
         base_effort: meta.base_effort,
         service_id: None,
         agency_distribution: None,
-        member_trips: None,
     }
 }

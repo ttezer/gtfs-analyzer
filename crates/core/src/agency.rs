@@ -132,10 +132,6 @@ pub struct AgencyBreakdown {
     /// `agencies` ile aynı sırada, route'u üzerinden o agency'ye çözülen sefer sayısı.
     /// Bulgu yoğunluğunun paydasıdır (etkilenen kayıt / 1.000 sefer).
     pub agency_trip_counts: Vec<u64>,
-    /// `agencies` ile aynı sırada: en az bir bulgunun KONUSU olan sefer sayısı (sefer
-    /// kapsamlı bulgular ve özetlerin altındaki seferler; hat/durak bulguları sayılmaz).
-    /// Etkilenen sefer oranı = bu / `agency_trip_counts`.
-    pub agency_affected_trip_counts: Vec<u64>,
     /// `agencies` ile aynı sırada: sonuçtaki `notices` dizisinde o agency'ye düşen
     /// notice'ların indeksleri (artan). Özetler dağılımındaki her agency'de listelenir.
     /// Arayüz bu listeyle ayrıntıları agency'ye göre süzer; WASM'da yalnız cap sonrası
@@ -173,7 +169,6 @@ struct AgencyJson<'a> {
     agency_id: &'a str,
     agency_name: &'a str,
     trip_count: u64,
-    affected_trip_count: u64,
     notice_indices: &'a [u32],
 }
 
@@ -261,7 +256,6 @@ impl serde::Serialize for AgencyBreakdown {
                 agency_id: id,
                 agency_name: self.agency_names.get(i).map(String::as_str).unwrap_or(""),
                 trip_count: self.agency_trip_counts.get(i).copied().unwrap_or(0),
-                affected_trip_count: self.agency_affected_trip_counts.get(i).copied().unwrap_or(0),
                 notice_indices: self.agency_notice_indices.get(i).map_or(&[], Vec::as_slice),
             })
             .collect();

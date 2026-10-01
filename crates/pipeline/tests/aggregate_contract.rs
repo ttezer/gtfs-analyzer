@@ -94,7 +94,6 @@ fn raw(rule_id: &str, group: Group, key: &str, row: u64) -> Notice {
         base_effort: meta.base_effort,
         service_id: None,
         agency_distribution: None,
-        member_trips: None,
     }
 }
 

@@ -102,7 +102,7 @@ pub struct AgencyResolver<'a> {
     /// trip_id → route_id (ham). TEMBEL: trip scope'lu bir notice sorulana kadar kurulmaz.
     /// Büyük feed'de (VBB 282k sefer) iki hash haritası demektir; WASM belleği için
     /// toplulanan kuralların çoğu trip scope'lu olmadığında hiç ödenmez.
-    trips: std::cell::OnceCell<IdIndex<'a, (&'a str, u32)>>,
+    trips: std::cell::OnceCell<IdIndex<'a, &'a str>>,
     /// stop/shape/service → agency kümesi. TEMBEL ve tür başına ayrı: o türden bir bulgu
     /// sorulana kadar kurulmaz.
     shared: [std::cell::OnceCell<SharedIndex<'a>>; 3],
@@ -175,30 +175,16 @@ impl<'a> AgencyResolver<'a> {
         }
     }
 
-    /// trip_id → (route_id, `records.trips` sırası).
-    fn trips(&self) -> &IdIndex<'a, (&'a str, u32)> {
+    fn trips(&self) -> &IdIndex<'a, &'a str> {
         self.trips.get_or_init(|| {
             let interns = &self.records.trip_interns;
             IdIndex::build(
                 self.records
                     .trips
                     .iter()
-                    .enumerate()
-                    .map(|(i, trip)| (trip.trip_id.as_str(), (interns.route_id(trip), i as u32))),
+                    .map(|trip| (trip.trip_id.as_str(), interns.route_id(trip))),
             )
         })
-    }
-
-    /// Bulgunun konusu bir seferse o seferin `records.trips` sırası: kural `trip_id` scope'u
-    /// beyan ediyorsa `scope_key`, scope beyan etmiyorsa `Trip` varlığının `entity_id`'si.
-    pub fn trip_of(&self, notice: &Notice) -> Option<u32> {
-        let scope = gtfs_rules::get_rule(&notice.rule_id).and_then(|meta| meta.scope_key_field);
-        let key = match scope {
-            Some("trip_id") => notice.scope_key.as_deref(),
-            None if notice.entity_type == gtfs_core::EntityType::Trip => notice.entity_id.as_deref(),
-            _ => None,
-        }?;
-        self.trips().get(key).ok().map(|((_, index), _)| index)
     }
 
     /// Resolver'ın atfettiği agency'nin ham kimliği (tek agency'de boş olabilir).
@@ -287,7 +273,7 @@ impl<'a> AgencyResolver<'a> {
                 Err(miss) => return unattributed(miss, UnattributedReason::UnknownFare),
             },
             _ => match self.trips().get(key) {
-                Ok(((route_id, _), resolution)) => self.route(route_id, resolution),
+                Ok((route_id, resolution)) => self.route(route_id, resolution),
                 Err(miss) => return unattributed(miss, UnattributedReason::UnknownTrip),
             },
         };
@@ -449,28 +435,14 @@ fn unattributed(miss: Miss, unknown: UnattributedReason) -> AgencyAttribution {
 pub struct AgencyCounter<'a> {
     resolver: AgencyResolver<'a>,
     rules: std::collections::BTreeMap<String, RuleAgencyCounts>,
-    /// `records.trips` sırasıyla: en az bir bulgunun konusu olan seferler.
-    affected_trips: Vec<bool>,
 }
 
 impl<'a> AgencyCounter<'a> {
     pub fn new(records: &'a EntityRecords) -> Self {
-        Self {
-            resolver: AgencyResolver::new(records),
-            rules: Default::default(),
-            affected_trips: vec![false; records.trips.len()],
-        }
+        Self { resolver: AgencyResolver::new(records), rules: Default::default() }
     }
 
     pub fn add(&mut self, notice: &Notice) {
-        match notice.member_trips.as_deref() {
-            Some(trips) => trips.iter().for_each(|&t| self.affected_trips[t as usize] = true),
-            None => {
-                if let Some(t) = self.resolver.trip_of(notice) {
-                    self.affected_trips[t as usize] = true;
-                }
-            }
-        }
         let counts = self.rules.entry(notice.rule_id.clone()).or_default();
         counts.finding_count += 1;
         counts.displayed_sample_count += 1;
@@ -497,16 +469,6 @@ impl<'a> AgencyCounter<'a> {
             agencies: self.resolver.agency_ids.iter().map(|id| id.to_string()).collect(),
             agency_names: self.resolver.records.agencies.iter().map(|a| a.agency_name.clone()).collect(),
             agency_trip_counts: self.resolver.trip_counts(),
-            agency_affected_trip_counts: {
-                let mut counts = vec![0u64; self.resolver.agency_ids.len()];
-                let trips = &self.resolver.records.trips;
-                for (i, _) in self.affected_trips.iter().enumerate().filter(|(_, hit)| **hit) {
-                    if let Some(agency) = self.resolver.trip_agency(&trips[i]) {
-                        counts[agency as usize] += 1;
-                    }
-                }
-                counts
-            },
             agency_notice_indices: Vec::new(),
             // Kümeler deterministik numaralıdır: toplamada başka bir resolver'ın yazdığı
             // anahtarlar da bu resolver'da aynı üyelere çözülür.

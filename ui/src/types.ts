@@ -189,8 +189,6 @@ export interface AgencyInfo {
   agency_name: string;
   /** Route üzerinden bu agency'ye çözülen sefer sayısı (yoğunluk paydası). */
   trip_count: number;
-  /** En az bir bulgunun konusu olan sefer sayısı (etkilenen sefer oranının payı). */
-  affected_trip_count: number;
   /** Sonuçtaki `notices` dizisinde bu agency'ye düşen notice indeksleri (WASM'da yalnız gösterilenler). */
   notice_indices: number[];
 }

@@ -99,9 +99,6 @@ fn breakdown_separates_findings_from_affected_entities_per_agency() {
     assert_eq!(breakdown.agencies, ["A", "B"]);
     assert_eq!(breakdown.agency_names, ["Alpha", "Beta"]);
     assert_eq!(breakdown.agency_trip_counts, [1, 1]);
-    // Etkilenen sefer: TRP_005 özetinin altındaki iki sefer (her agency'de bir); DQ_003
-    // hat bulgusu seferi konu almadığı için sayılmaz.
-    assert_eq!(breakdown.agency_affected_trip_counts, [1, 1]);
     // Ayrıntı süzgeci: her agency'nin indeksleri gerçekten o agency'nin notice'larını
     // gösterir; TRP_005 özeti her iki agency'de de listelenir.
     let trp005 = result.notices.iter().position(|n| n.rule_id == "TRP_005").unwrap() as u32;

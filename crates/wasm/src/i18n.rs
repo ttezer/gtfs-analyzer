@@ -218,7 +218,6 @@ mod tests {
             base_effort: 1,
             service_id: None,
             agency_distribution: None,
-            member_trips: None,
         }
     }
 
@@ -268,7 +267,6 @@ mod tests {
             base_effort: 1,
             service_id: None,
             agency_distribution: None,
-            member_trips: None,
         };
 
         translate_notices(std::slice::from_mut(&mut notice));

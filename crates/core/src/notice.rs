@@ -60,10 +60,6 @@ pub struct Notice {
     /// işarettir, serileştirilmez: JSON sözleşmesi ayrı karardır.
     #[serde(skip)]
     pub agency_distribution: Option<Box<crate::agency::AgencyDistribution>>,
-    /// Feed-level özetin altındaki seferlerin `EntityRecords::trips` sıraları (sıralı,
-    /// tekrarsız). Etkilenen sefer oranı içindir; yalnız sefer üyeli özetlerde dolar.
-    #[serde(skip)]
-    pub member_trips: Option<Box<Vec<u32>>>,
 }
 
 /// Canonical Notice'ı bir rapor görünümüne projekte eden referans nesnesi.
