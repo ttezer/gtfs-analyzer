@@ -27,7 +27,7 @@
 //! Yinelenen ID'lerde İLK kayıt kazanır (dosya sırası); kopya kimlik ayrı kurallarla
 //! raporlanır.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use gtfs_core::Notice;
 
@@ -39,10 +39,14 @@ pub use gtfs_core::agency::{
 };
 
 /// Ham kimlik → değer; kırpılmış kimlik → değer ya da belirsizlik.
+///
+/// Kırpılmış harita TEMBELDİR: yalnız birebir eşleşme ilk kez başarısız olduğunda,
+/// birebir haritadan türetilir (korpusta yedek 830 feed'in ikisinde gerekti). 1,43 milyon
+/// seferli feed'de iki harita ~140 MB tutuyordu; çoğu feed artık yalnız birini öder.
 struct IdIndex<'a, V> {
-    exact: HashMap<&'a str, V>,
+    exact: FxHashMap<&'a str, V>,
     /// `None`: kırpılmış karşılık birden fazla ham kimliğe düşüyor.
-    trimmed: HashMap<&'a str, Option<V>>,
+    trimmed: std::cell::OnceCell<FxHashMap<&'a str, Option<V>>>,
 }
 
 enum Miss {
@@ -52,26 +56,31 @@ enum Miss {
 
 impl<'a, V: Copy> IdIndex<'a, V> {
     fn build(entries: impl Iterator<Item = (&'a str, V)>) -> Self {
-        let mut exact = HashMap::new();
-        let mut trimmed: HashMap<&'a str, Option<V>> = HashMap::new();
+        let mut exact = FxHashMap::default();
         for (id, value) in entries {
-            if exact.contains_key(id) {
-                continue; // yinelenen kimlik: ilk kayıt kazanır
-            }
-            exact.insert(id, value);
-            trimmed
-                .entry(id.trim())
-                .and_modify(|slot| *slot = None)
-                .or_insert(Some(value));
+            exact.entry(id).or_insert(value); // yinelenen kimlik: ilk kayıt kazanır
         }
-        Self { exact, trimmed }
+        Self { exact, trimmed: std::cell::OnceCell::new() }
+    }
+
+    fn trimmed(&self) -> &FxHashMap<&'a str, Option<V>> {
+        self.trimmed.get_or_init(|| {
+            let mut trimmed: FxHashMap<&'a str, Option<V>> = FxHashMap::default();
+            for (id, value) in &self.exact {
+                trimmed
+                    .entry(id.trim())
+                    .and_modify(|slot| *slot = None)
+                    .or_insert(Some(*value));
+            }
+            trimmed
+        })
     }
 
     fn get(&self, key: &str) -> Result<(V, Resolution), Miss> {
         if let Some(v) = self.exact.get(key) {
             return Ok((*v, Resolution::Exact));
         }
-        match self.trimmed.get(key.trim()) {
+        match self.trimmed().get(key.trim()) {
             Some(Some(v)) => Ok((*v, Resolution::UniqueTrimFallback)),
             Some(None) => Err(Miss::Ambiguous),
             None => Err(Miss::Unknown),
