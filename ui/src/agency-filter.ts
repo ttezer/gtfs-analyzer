@@ -37,7 +37,7 @@ export function renderAgencyFilterBar(result: ValidationResult, selected: readon
         ${selected.length ? `<button type="button" class="agency-filter-clear">${escHtml(t('agency.filter.all'))}</button>` : ''}
       </div>
       <div class="agency-chip-grid">${chips}</div>
-      ${selected.length ? `<p class="hint">${escHtml(t('agency.filter.hint'))}</p>` : ''}
+      ${selected.length ? `<p class="agency-filter-warning" role="note">${escHtml(t('agency.filter.hint'))}</p>` : ''}
     </div>`;
 }
 
