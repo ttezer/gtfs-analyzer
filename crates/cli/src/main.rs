@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -67,8 +67,14 @@ struct ValidateArgs {
     feed: PathBuf,
 
     /// Emit the full result as JSON.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "compact_json")]
     json: bool,
+
+    /// Emit the canonical compact JSON projection for machine consumers.
+    #[arg(long, conflicts_with_all = [
+        "json", "summary", "rule", "severity", "min_severity", "class"
+    ])]
+    compact_json: bool,
 
     /// Emit a short text summary. This is also the default when --json is absent.
     #[arg(long, conflicts_with = "json")]
@@ -395,7 +401,12 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         }
     }
 
-    let rendered = if args.json {
+    let rendered = if args.compact_json {
+        match render_compact_json(&result, &config, today, args.lang, args.pretty) {
+            Ok(json) => json,
+            Err(err) => return cli_error(err),
+        }
+    } else if args.json {
         match render_json(&result, &filters, args.pretty) {
             Ok(json) => json,
             Err(err) => return cli_error(format!("failed to serialize result as JSON: {err}")),
@@ -525,6 +536,81 @@ struct JsonFatal<'a> {
 }
 
 #[derive(Serialize)]
+struct CompactJsonOk {
+    status: &'static str,
+    engine: &'static str,
+    engine_version: &'static str,
+    validation_date: u32,
+    partial: Option<gtfs_core::PartialReport>,
+    analysis: CompactAnalysis,
+    reports: CompactReports,
+    metrics: gtfs_core::FeedMetrics,
+    notice_counts: NoticeCounts,
+    triggered_rule_count: usize,
+}
+
+#[derive(Serialize)]
+struct CompactAnalysis {
+    today: u32,
+    lang: &'static str,
+    input_mode: &'static str,
+    source_url_provided: bool,
+    effective_config: serde_json::Value,
+}
+
+#[derive(Serialize)]
+struct CompactReports {
+    r1: CompactR1,
+    r5: gtfs_core::R5Report,
+    r9: CompactR9,
+}
+
+#[derive(Serialize)]
+struct CompactR1 {
+    publishable: bool,
+    coverage_complete: bool,
+    blocker_notice_count: usize,
+    blocker_rule_ids: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct CompactR9 {
+    items: Vec<CompactR9Item>,
+    r9_total_count: usize,
+    r9_returned_count: usize,
+    r9_truncated: bool,
+}
+
+#[derive(Serialize)]
+struct CompactR9Item {
+    rule_id: String,
+    title: String,
+    labels: Vec<gtfs_core::R9Label>,
+    priority_score: f64,
+    score_delta: f64,
+    pub_score_delta: f64,
+    affected_instance_count: u32,
+    realized_dependent_count: u32,
+    base_effort: u8,
+    fix_effort: f64,
+}
+
+#[derive(Serialize)]
+struct NoticeCounts {
+    total: usize,
+    #[serde(rename = "CRITICAL")]
+    critical: usize,
+    #[serde(rename = "HIGH")]
+    high: usize,
+    #[serde(rename = "MEDIUM")]
+    medium: usize,
+    #[serde(rename = "LOW")]
+    low: usize,
+    #[serde(rename = "INFO")]
+    info: usize,
+}
+
+#[derive(Serialize)]
 struct FilterMeta {
     applied: Vec<String>,
     note: &'static str,
@@ -570,6 +656,160 @@ fn render_json(
             };
             serialize(&payload, pretty)
         }
+    }
+}
+
+fn render_compact_json(
+    result: &ValidateResult,
+    config: &ValidatorConfig,
+    today: u32,
+    lang: LangArg,
+    pretty: bool,
+) -> Result<String, String> {
+    match result {
+        ValidateResult::Fatal(err) => {
+            let payload = JsonFatal {
+                status: "fatal",
+                code: &err.code,
+                message: &err.message,
+                params: &err.params,
+            };
+            serialize(&payload, pretty).map_err(|err| format!("failed to serialize compact result as JSON: {err}"))
+        }
+        ValidateResult::Ok(vr) => {
+            let reports = compact_reports(vr, lang.into())?;
+            let mut effective_config = serde_json::to_value(config)
+                .map_err(|err| format!("failed to serialize effective config: {err}"))?;
+            if let Some(object) = effective_config.as_object_mut() {
+                // source_url may contain signed credentials and is never emitted.
+                object.remove("source_url");
+            }
+
+            let payload = CompactJsonOk {
+                status: if vr.status == ValidationStatus::Partial {
+                    "partial"
+                } else {
+                    "ok"
+                },
+                engine: "gtfs-analyzer",
+                engine_version: env!("CARGO_PKG_VERSION"),
+                validation_date: today,
+                partial: vr.partial.clone(),
+                analysis: CompactAnalysis {
+                    today,
+                    lang: lang_name(lang),
+                    input_mode: "file",
+                    source_url_provided: config.source_url.is_some(),
+                    effective_config,
+                },
+                reports,
+                metrics: vr.metrics.clone(),
+                notice_counts: notice_counts(&vr.notices),
+                triggered_rule_count: vr
+                    .notices
+                    .iter()
+                    .map(|notice| notice.rule_id.as_str())
+                    .collect::<BTreeSet<_>>()
+                    .len(),
+            };
+            serialize(&payload, pretty)
+                .map_err(|err| format!("failed to serialize compact result as JSON: {err}"))
+        }
+    }
+}
+
+fn compact_reports(vr: &ValidationResult, lang: gtfs_core::i18n::Lang) -> Result<CompactReports, String> {
+    let notice_by_id: BTreeMap<&str, &Notice> = vr
+        .notices
+        .iter()
+        .map(|notice| (notice.id.as_str(), notice))
+        .collect();
+
+    let mut blocker_rule_ids = BTreeSet::new();
+    for notice_id in &vr.reports.r1.blocker_notice_ids {
+        let Some(notice) = notice_by_id.get(notice_id.as_str()) else {
+            return Err(format!(
+                "compact blocker projection failed: unresolved blocker notice id '{notice_id}'"
+            ));
+        };
+        blocker_rule_ids.insert(notice.rule_id.clone());
+    }
+
+    let translator = Translator::new(lang)
+        .map_err(|err| format!("failed to load compact result translator: {err}"))?;
+    let items = vr
+        .reports
+        .r9
+        .items
+        .iter()
+        .map(|item| {
+            let title = RULES
+                .iter()
+                .find(|rule| rule.id == item.rule_id)
+                .map(|rule| match &translator {
+                    Some(translator) => translator.rule_title(rule.id, rule.title),
+                    None => rule.title,
+                })
+                .ok_or_else(|| format!("compact R9 projection failed: unknown rule id '{}'", item.rule_id))?;
+            Ok(CompactR9Item {
+                rule_id: item.rule_id.clone(),
+                title: title.to_string(),
+                labels: item.labels.clone(),
+                priority_score: item.priority_score,
+                score_delta: item.score_delta,
+                pub_score_delta: item.pub_score_delta,
+                affected_instance_count: item.affected_instance_count,
+                realized_dependent_count: item.realized_dependent_count,
+                base_effort: item.base_effort,
+                fix_effort: item.fix_effort,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    Ok(CompactReports {
+        r1: CompactR1 {
+            publishable: vr.reports.r1.publishable,
+            coverage_complete: vr.reports.r1.coverage_complete,
+            blocker_notice_count: vr.reports.r1.blocker_notice_ids.len(),
+            blocker_rule_ids: blocker_rule_ids.into_iter().collect(),
+        },
+        r5: vr.reports.r5.clone(),
+        r9: CompactR9 {
+            r9_total_count: items.len(),
+            r9_returned_count: items.len(),
+            r9_truncated: false,
+            items,
+        },
+    })
+}
+
+fn notice_counts(notices: &[Notice]) -> NoticeCounts {
+    let mut counts = NoticeCounts {
+        total: notices.len(),
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        info: 0,
+    };
+    for notice in notices {
+        match notice.severity {
+            Severity::Kritik => counts.critical += 1,
+            Severity::Yuksek => counts.high += 1,
+            Severity::Orta => counts.medium += 1,
+            Severity::Dusuk => counts.low += 1,
+            Severity::Bilgi => counts.info += 1,
+        }
+    }
+    counts
+}
+
+fn lang_name(lang: LangArg) -> &'static str {
+    match lang {
+        LangArg::Tr => "tr",
+        LangArg::En => "en",
+        LangArg::Ja => "ja",
+        LangArg::Fr => "fr",
     }
 }
 

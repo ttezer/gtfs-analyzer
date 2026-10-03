@@ -297,6 +297,88 @@ fn json_envelope_is_flat_and_tagged_by_status() {
 }
 
 #[test]
+fn compact_json_projects_canonical_summary_without_notice_payload() {
+    let feed = feed_with_critical();
+    let out = validate(&feed, &["--compact-json", "--lang", "en"]);
+    assert_eq!(code(&out), 1);
+    let json = json_of(&out);
+    let full = json_of(&validate(&feed, &["--json", "--lang", "en"]));
+
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["engine"], "gtfs-analyzer");
+    assert_eq!(json["analysis"]["lang"], "en");
+    assert!(json["partial"].is_null());
+    assert!(json.get("notices").is_none());
+    assert!(json.get("name_index").is_none());
+    assert!(json["metrics"].is_object());
+    assert!(json["notice_counts"]["total"].as_u64().unwrap() > 0);
+    assert!(json["triggered_rule_count"].as_u64().unwrap() > 0);
+    assert!(json["reports"]["r9"]["items"].is_array());
+    assert_eq!(json["reports"]["r5"], full["reports"]["r5"]);
+    assert_eq!(json["metrics"], full["metrics"]);
+
+    let notices = full["notices"].as_array().unwrap();
+    let expected_counts = [
+        ("total", notices.len()),
+        (
+            "CRITICAL",
+            notices.iter().filter(|n| n["severity"] == "CRITICAL").count(),
+        ),
+        (
+            "HIGH",
+            notices.iter().filter(|n| n["severity"] == "HIGH").count(),
+        ),
+        (
+            "MEDIUM",
+            notices.iter().filter(|n| n["severity"] == "MEDIUM").count(),
+        ),
+        (
+            "LOW",
+            notices.iter().filter(|n| n["severity"] == "LOW").count(),
+        ),
+        (
+            "INFO",
+            notices.iter().filter(|n| n["severity"] == "INFO").count(),
+        ),
+    ];
+    for (key, expected) in expected_counts {
+        assert_eq!(json["notice_counts"][key], expected);
+    }
+}
+
+#[test]
+fn compact_json_resolves_r1_blockers_to_rule_ids() {
+    let json = json_of(&validate(&feed_with_critical(), &["--compact-json"]));
+    let r1 = &json["reports"]["r1"];
+
+    assert_eq!(r1["publishable"], false);
+    assert_eq!(
+        r1["blocker_notice_count"].as_u64().unwrap(),
+        r1["blocker_rule_ids"].as_array().unwrap().len() as u64
+    );
+    assert!(r1["blocker_rule_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|id| id == "TRP_002"));
+}
+
+#[test]
+fn compact_json_rejects_display_filters() {
+    let out = validate(&feed_ok(), &["--compact-json", "--class", "spec"]);
+    assert_eq!(code(&out), 2);
+}
+
+#[test]
+fn compact_json_preserves_partial_report() {
+    let json = json_of(&validate(&feed_partial(), &["--compact-json"]));
+    assert_eq!(json["status"], "partial");
+    assert_eq!(json["partial"]["unavailable_files"][0], "routes.txt");
+    assert_eq!(json["reports"]["r1"]["coverage_complete"], false);
+    assert_eq!(json["metrics"]["coverage_complete"], false);
+}
+
+#[test]
 fn name_index_is_omitted_unless_requested() {
     let feed = feed_with_critical();
 
