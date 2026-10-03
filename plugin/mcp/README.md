@@ -29,3 +29,9 @@ The total request deadline and the native Analyzer subprocess deadline are
 independent: `GTFS_TOTAL_TIMEOUT_SECONDS` bounds download plus validation, while
 `GTFS_ANALYZER_TIMEOUT_SECONDS` bounds the native process after the feed has been
 streamed to stdin.
+
+Run the local MCP boundary tests with:
+
+```bash
+python -m unittest test_server.py
+```
