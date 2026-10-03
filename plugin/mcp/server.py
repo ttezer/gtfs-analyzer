@@ -148,7 +148,11 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
     return result
 
 
-async def _download_and_validate(url: str, language: str) -> dict[str, Any]:
+async def _download_and_validate(
+    url: str,
+    language: str,
+    source_url_for_analyzer: str | None = None,
+) -> dict[str, Any]:
     _allowed_url(url)
     started = time.monotonic()
     timeout = httpx.Timeout(connect=10.0, read=30.0, write=30.0, pool=10.0)
@@ -168,7 +172,7 @@ async def _download_and_validate(url: str, language: str) -> dict[str, Any]:
                     length = response.headers.get("content-length")
                     if length and int(length) > MAX_DOWNLOAD_BYTES:
                         raise ToolError("FILE_TOO_LARGE", "The GTFS download exceeds the configured size limit.")
-                    result = await _validate_stream(response, language, url)
+                    result = await _validate_stream(response, language, source_url_for_analyzer)
                     if isinstance(result, dict):
                         result.setdefault("transport", {})["download_elapsed_ms"] = round(
                             (time.monotonic() - started) * 1000
@@ -221,7 +225,9 @@ async def analyze_gtfs_file(file: OpenAIFile, language: str = "en") -> dict[str,
         language = "en"
     try:
         _allowed_url(file["download_url"])
-        timeout = asyncio.wait_for(_download_and_validate(file["download_url"], language), TOTAL_TIMEOUT_SECONDS)
+        timeout = asyncio.wait_for(
+            _download_and_validate(file["download_url"], language), TOTAL_TIMEOUT_SECONDS
+        )
         return await timeout
     except asyncio.TimeoutError:
         return _tool_error(ToolError("ANALYSIS_TIMEOUT", "The GTFS analysis exceeded the total time limit."))
@@ -242,7 +248,9 @@ async def analyze_gtfs_url(url: str, language: str = "en") -> dict[str, Any]:
     if language not in {"tr", "en", "ja", "fr"}:
         language = "en"
     try:
-        return await asyncio.wait_for(_download_and_validate(url, language), TOTAL_TIMEOUT_SECONDS)
+        return await asyncio.wait_for(
+            _download_and_validate(url, language, url), TOTAL_TIMEOUT_SECONDS
+        )
     except asyncio.TimeoutError:
         return _tool_error(ToolError("ANALYSIS_TIMEOUT", "The GTFS analysis exceeded the total time limit."))
     except ToolError as error:
