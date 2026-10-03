@@ -19,6 +19,7 @@ GTFS_MAX_DOWNLOAD_BYTES       (default 20 MiB; provisional Phase 4 cap)
 GTFS_TOTAL_TIMEOUT_SECONDS    (default 105)
 GTFS_ANALYZER_TIMEOUT_SECONDS (default 90)
 GTFS_ANALYZER_WEB_URL         (default https://ttezer.github.io/gtfs-analyzer/)
+GTFS_MAX_CONCURRENT_ANALYSES  (default 1)
 MCP_ALLOWED_HOST              (temporary tunnel hostname, if used)
 ```
 

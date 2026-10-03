@@ -14,6 +14,7 @@ import os
 import socket
 import time
 import tempfile
+from collections.abc import Awaitable, Callable
 from typing import Any, NotRequired, Required, TypedDict
 from urllib.parse import urljoin, urlparse
 
@@ -48,9 +49,11 @@ TOTAL_TIMEOUT_SECONDS = float(os.environ.get("GTFS_TOTAL_TIMEOUT_SECONDS", "105"
 ANALYZER_TIMEOUT_SECONDS = float(os.environ.get("GTFS_ANALYZER_TIMEOUT_SECONDS", "90"))
 MAX_REDIRECTS = int(os.environ.get("GTFS_MAX_REDIRECTS", "5"))
 STDERR_LIMIT = 64 * 1024
+MAX_CONCURRENT_ANALYSES = int(os.environ.get("GTFS_MAX_CONCURRENT_ANALYSES", "1"))
 ANALYZER_WEB_URL = os.environ.get(
     "GTFS_ANALYZER_WEB_URL", "https://ttezer.github.io/gtfs-analyzer/"
 )
+_ANALYSIS_SLOTS = asyncio.Semaphore(MAX_CONCURRENT_ANALYSES)
 
 
 def _analyzer_bin() -> str:
@@ -234,6 +237,27 @@ def _tool_error(error: ToolError) -> dict[str, Any]:
     return {"error": {"type": error.error_type, "message": str(error), **error.details}}
 
 
+async def _run_bounded(operation: Callable[[], Awaitable[dict[str, Any]]]) -> dict[str, Any]:
+    if _ANALYSIS_SLOTS.locked():
+        return _tool_error(
+            ToolError(
+                "RESOURCE_LIMIT",
+                "Another GTFS analysis is already running. Please retry shortly.",
+            )
+        )
+
+    async def run() -> dict[str, Any]:
+        async with _ANALYSIS_SLOTS:
+            return await operation()
+
+    try:
+        return await asyncio.wait_for(run(), TOTAL_TIMEOUT_SECONDS)
+    except asyncio.TimeoutError:
+        return _tool_error(ToolError("ANALYSIS_TIMEOUT", "The GTFS analysis exceeded the total time limit."))
+    except ToolError as error:
+        return _tool_error(error)
+
+
 allowed_hosts = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
 if tunnel_host := os.environ.get("MCP_ALLOWED_HOST"):
     allowed_hosts.append(tunnel_host)
@@ -266,16 +290,11 @@ mcp = FastMCP(
 async def analyze_gtfs_file(file: OpenAIFile, language: str = "en") -> dict[str, Any]:
     if language not in {"tr", "en", "ja", "fr"}:
         language = "en"
-    try:
+    def operation() -> Awaitable[dict[str, Any]]:
         _allowed_url(file["download_url"])
-        timeout = asyncio.wait_for(
-            _download_and_validate(file["download_url"], language), TOTAL_TIMEOUT_SECONDS
-        )
-        return await timeout
-    except asyncio.TimeoutError:
-        return _tool_error(ToolError("ANALYSIS_TIMEOUT", "The GTFS analysis exceeded the total time limit."))
-    except ToolError as error:
-        return _tool_error(error)
+        return _download_and_validate(file["download_url"], language)
+
+    return await _run_bounded(operation)
 
 
 @mcp.tool(
@@ -290,14 +309,10 @@ async def analyze_gtfs_file(file: OpenAIFile, language: str = "en") -> dict[str,
 async def analyze_gtfs_url(url: str, language: str = "en") -> dict[str, Any]:
     if language not in {"tr", "en", "ja", "fr"}:
         language = "en"
-    try:
-        return await asyncio.wait_for(
-            _download_and_validate(url, language, url), TOTAL_TIMEOUT_SECONDS
-        )
-    except asyncio.TimeoutError:
-        return _tool_error(ToolError("ANALYSIS_TIMEOUT", "The GTFS analysis exceeded the total time limit."))
-    except ToolError as error:
-        return _tool_error(error)
+    def operation() -> Awaitable[dict[str, Any]]:
+        return _download_and_validate(url, language, url)
+
+    return await _run_bounded(operation)
 
 
 _rules_cache: dict[str, list[dict[str, Any]]] = {}

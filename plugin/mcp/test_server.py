@@ -104,6 +104,18 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.details["analyzer_web_url"], server.ANALYZER_WEB_URL)
         self.assertTrue(process.killed)
 
+    async def test_analysis_slot_rejects_concurrent_work(self):
+        await server._ANALYSIS_SLOTS.acquire()
+        try:
+            async def operation():
+                return {"status": "ok"}
+
+            result = await server._run_bounded(lambda: operation())
+        finally:
+            server._ANALYSIS_SLOTS.release()
+
+        self.assertEqual(result["error"]["type"], "RESOURCE_LIMIT")
+
     def test_tool_error_is_json_safe(self):
         result = server._tool_error(server.ToolError("FILE_TOO_LARGE", "too big", limit=10))
         self.assertEqual(result, {"error": {"type": "FILE_TOO_LARGE", "message": "too big", "limit": 10}})
