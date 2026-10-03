@@ -56,9 +56,18 @@ class _SlowProcess:
 
 class ServerTests(unittest.IsolatedAsyncioTestCase):
     def test_private_and_unsupported_urls_are_rejected(self):
-        with self.assertRaises(server.ToolError) as private:
-            server._allowed_url("http://127.0.0.1/feed.zip")
-        self.assertEqual(private.exception.error_type, "PRIVATE_NETWORK_URL")
+        for url in (
+            "http://127.0.0.1/feed.zip",
+            "http://10.0.0.1/feed.zip",
+            "http://172.16.0.1/feed.zip",
+            "http://192.168.0.1/feed.zip",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://[::1]/feed.zip",
+            "http://[fd00::1]/feed.zip",
+        ):
+            with self.subTest(url=url), self.assertRaises(server.ToolError) as private:
+                server._allowed_url(url)
+            self.assertEqual(private.exception.error_type, "PRIVATE_NETWORK_URL")
 
         with self.assertRaises(server.ToolError) as scheme:
             server._allowed_url("ftp://example.com/feed.zip")

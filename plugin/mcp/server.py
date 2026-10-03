@@ -188,8 +188,21 @@ async def _download_and_validate(
                         continue
                     response.raise_for_status()
                     length = response.headers.get("content-length")
-                    if length and int(length) > MAX_DOWNLOAD_BYTES:
-                        raise _file_too_large_error()
+                    if length:
+                        try:
+                            declared_length = int(length)
+                        except ValueError as exc:
+                            raise ToolError(
+                                "INVALID_DOWNLOAD",
+                                "The GTFS download returned an invalid Content-Length header.",
+                            ) from exc
+                        if declared_length < 0:
+                            raise ToolError(
+                                "INVALID_DOWNLOAD",
+                                "The GTFS download returned a negative Content-Length header.",
+                            )
+                        if declared_length > MAX_DOWNLOAD_BYTES:
+                            raise _file_too_large_error()
                     result = await _validate_stream(response, language, source_url_for_analyzer)
                     if isinstance(result, dict):
                         result.setdefault("transport", {})["download_elapsed_ms"] = round(
