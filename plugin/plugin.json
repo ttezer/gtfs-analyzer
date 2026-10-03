@@ -10,5 +10,24 @@
   "homepage": "https://ttezer.github.io/gtfs-analyzer/",
   "repository": "https://github.com/ttezer/gtfs-analyzer",
   "license": "MIT",
-  "keywords": ["gtfs", "transit", "validation", "public transport"]
+  "keywords": ["gtfs", "transit", "validation", "public transport"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "GTFS Validator",
+        "shortDescription": "GTFS validation and feed analysis",
+        "longDescription": "Validate uploaded GTFS Schedule ZIP files and public feed URLs with the GTFS Analyzer engine.",
+        "developerName": "Tacettin Tezer",
+        "category": "Productivity",
+        "websiteURL": "https://ttezer.github.io/gtfs-analyzer/",
+        "privacyPolicyURL": "https://ttezer.github.io/gtfs-analyzer/plugin/privacy/",
+        "termsOfServiceURL": "https://ttezer.github.io/gtfs-analyzer/plugin/terms/",
+        "defaultPrompt": [
+          "Validate this GTFS feed and summarize publishability, scores, and highest-impact findings.",
+          "Explain this GTFS rule and how to fix it."
+        ],
+        "brandColor": "#1d4ed8"
+      }
+    }
+  }
 }
