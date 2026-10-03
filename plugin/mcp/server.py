@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import logging
 import os
 import socket
 import time
@@ -20,6 +21,12 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
+
+
+# HTTPX INFO request logs include the complete URL, which may contain a signed
+# ChatGPT download token. Keep operational logs URL-free.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 class OpenAIFile(TypedDict):
@@ -213,8 +220,13 @@ async def _download_and_validate(
                 raise
             except httpx.TimeoutException as exc:
                 raise ToolError("DOWNLOAD_TIMEOUT", "The GTFS download timed out.") from exc
+            except httpx.HTTPStatusError as exc:
+                raise ToolError(
+                    "INVALID_DOWNLOAD",
+                    f"The GTFS download returned HTTP {exc.response.status_code}.",
+                ) from exc
             except httpx.HTTPError as exc:
-                raise ToolError("INVALID_DOWNLOAD", f"The GTFS download failed: {exc}") from exc
+                raise ToolError("INVALID_DOWNLOAD", "The GTFS download failed.") from exc
         raise ToolError("INVALID_DOWNLOAD", "Too many HTTP redirects.")
 
 
