@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "gtfs-validator",
+  "version": "0.1.0",
+  "description": "GTFS validation and feed analysis powered by GTFS Analyzer.",
+  "author": {
+    "name": "Tacettin Tezer",
+    "url": "https://github.com/ttezer"
+  },
+  "homepage": "https://ttezer.github.io/gtfs-analyzer/",
+  "repository": "https://github.com/ttezer/gtfs-analyzer",
+  "license": "MIT",
+  "keywords": ["gtfs", "transit", "validation", "public transport"]
+}

@@ -27,6 +27,10 @@ This is the first integration slice. Cloud deployment, production DNS rebinding
 pinning, rate limiting, resource ceilings, and container packaging remain separate
 release gates.
 
+The portable package manifest is at `../plugin.json`; its bundled usage skill is
+at `../skills/gtfs-validator/SKILL.md`. A portable `mcp.json` is intentionally
+not committed yet because the current tunnel endpoint is temporary.
+
 Operational logging is URL-free: HTTP client request logs are suppressed at INFO
 level and download errors do not echo source URLs or query strings.
 
