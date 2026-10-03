@@ -698,7 +698,7 @@ fn render_compact_json(
                 analysis: CompactAnalysis {
                     today,
                     lang: lang_name(lang),
-                    input_mode: "file",
+                    input_mode: if config.source_url.is_some() { "url" } else { "file" },
                     source_url_provided: config.source_url.is_some(),
                     effective_config,
                 },

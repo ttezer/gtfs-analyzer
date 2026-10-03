@@ -347,6 +347,34 @@ fn compact_json_projects_canonical_summary_without_notice_payload() {
 }
 
 #[test]
+fn compact_json_marks_source_url_as_url_input() {
+    let feed = feed_ok();
+    let config_path = std::env::temp_dir().join("gtfs-cli-test-url-config.json");
+    std::fs::write(
+        &config_path,
+        r#"{"source_url":"https://feeds.example.test/gtfs.zip"}"#,
+    )
+    .unwrap();
+
+    let out = run(&[
+        "validate",
+        feed.to_str().unwrap(),
+        "--today",
+        TODAY,
+        "--compact-json",
+        "--config",
+        config_path.to_str().unwrap(),
+    ]);
+    let _ = std::fs::remove_file(config_path);
+
+    assert_eq!(code(&out), 1);
+    let json = json_of(&out);
+    assert_eq!(json["analysis"]["input_mode"], "url");
+    assert_eq!(json["analysis"]["source_url_provided"], true);
+    assert!(json["analysis"]["effective_config"].get("source_url").is_none());
+}
+
+#[test]
 fn compact_json_resolves_r1_blockers_to_rule_ids() {
     let json = json_of(&validate(&feed_with_critical(), &["--compact-json"]));
     let r1 = &json["reports"]["r1"];
