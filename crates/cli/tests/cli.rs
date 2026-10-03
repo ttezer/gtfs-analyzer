@@ -297,6 +297,166 @@ fn json_envelope_is_flat_and_tagged_by_status() {
 }
 
 #[test]
+fn compact_json_projects_canonical_summary_without_notice_payload() {
+    let feed = feed_with_critical();
+    let out = validate(&feed, &["--compact-json", "--lang", "en"]);
+    assert_eq!(code(&out), 1);
+    let json = json_of(&out);
+    let full = json_of(&validate(&feed, &["--json", "--lang", "en"]));
+
+    assert_eq!(json["status"], "ok");
+    assert_eq!(json["engine"], "gtfs-analyzer");
+    assert!(json["engine_commit"].as_str().is_some_and(|commit| !commit.is_empty()));
+    assert_eq!(json["analysis"]["lang"], "en");
+    assert!(json["partial"].is_null());
+    assert!(json.get("notices").is_none());
+    assert!(json.get("name_index").is_none());
+    assert!(json["metrics"].is_object());
+    assert!(json["notice_counts"]["total"].as_u64().unwrap() > 0);
+    assert!(json["triggered_rule_count"].as_u64().unwrap() > 0);
+    assert!(json["reports"]["r9"]["items"].is_array());
+    assert_eq!(json["reports"]["r5"], full["reports"]["r5"]);
+    assert_eq!(json["metrics"], full["metrics"]);
+
+    let notices = full["notices"].as_array().unwrap();
+    let expected_counts = [
+        ("total", notices.len()),
+        (
+            "CRITICAL",
+            notices.iter().filter(|n| n["severity"] == "CRITICAL").count(),
+        ),
+        (
+            "HIGH",
+            notices.iter().filter(|n| n["severity"] == "HIGH").count(),
+        ),
+        (
+            "MEDIUM",
+            notices.iter().filter(|n| n["severity"] == "MEDIUM").count(),
+        ),
+        (
+            "LOW",
+            notices.iter().filter(|n| n["severity"] == "LOW").count(),
+        ),
+        (
+            "INFO",
+            notices.iter().filter(|n| n["severity"] == "INFO").count(),
+        ),
+    ];
+    for (key, expected) in expected_counts {
+        assert_eq!(json["notice_counts"][key], expected);
+    }
+}
+
+#[test]
+fn compact_json_marks_source_url_as_url_input() {
+    let feed = feed_ok();
+    let config_path = std::env::temp_dir().join("gtfs-cli-test-url-config.json");
+    std::fs::write(
+        &config_path,
+        r#"{"source_url":"https://feeds.example.test/gtfs.zip"}"#,
+    )
+    .unwrap();
+
+    let out = run(&[
+        "validate",
+        feed.to_str().unwrap(),
+        "--today",
+        TODAY,
+        "--compact-json",
+        "--config",
+        config_path.to_str().unwrap(),
+    ]);
+    let _ = std::fs::remove_file(config_path);
+
+    assert_eq!(code(&out), 1);
+    let json = json_of(&out);
+    assert_eq!(json["analysis"]["input_mode"], "url");
+    assert_eq!(json["analysis"]["source_url_provided"], true);
+    assert!(json["analysis"]["effective_config"].get("source_url").is_none());
+}
+
+#[test]
+fn compact_json_resolves_r1_blockers_to_rule_ids() {
+    let feed = feed_with_critical();
+    let json = json_of(&validate(&feed, &["--compact-json"]));
+    let full = json_of(&validate(&feed, &["--json"]));
+    let r1 = &json["reports"]["r1"];
+    let full_r1 = &full["reports"]["r1"];
+
+    assert_eq!(r1["publishable"], false);
+    assert_eq!(
+        r1["blocker_notice_count"].as_u64().unwrap(),
+        full_r1["blocker_notice_ids"].as_array().unwrap().len() as u64
+    );
+    let expected_rule_ids: std::collections::BTreeSet<_> = full["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|notice| {
+            full_r1["blocker_notice_ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|id| id == &notice["id"])
+        })
+        .map(|notice| notice["rule_id"].as_str().unwrap())
+        .collect();
+    let compact_rule_ids: std::collections::BTreeSet<_> = r1["blocker_rule_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|id| id.as_str().unwrap())
+        .collect();
+    assert_eq!(compact_rule_ids, expected_rule_ids);
+    assert!(r1["blocker_rule_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|id| id == "TRP_002"));
+}
+
+#[test]
+fn compact_json_preserves_r9_canonical_order() {
+    let feed = feed_with_critical();
+    let compact = json_of(&validate(&feed, &["--compact-json"]));
+    let full = json_of(&validate(&feed, &["--json"]));
+    let compact_items = compact["reports"]["r9"]["items"].as_array().unwrap();
+    let full_items = full["reports"]["r9"]["items"].as_array().unwrap();
+
+    assert_eq!(compact_items.len(), full_items.len());
+    for (compact_item, full_item) in compact_items.iter().zip(full_items) {
+        for field in [
+            "rule_id",
+            "labels",
+            "priority_score",
+            "score_delta",
+            "pub_score_delta",
+            "affected_instance_count",
+            "realized_dependent_count",
+            "base_effort",
+            "fix_effort",
+        ] {
+            assert_eq!(compact_item[field], full_item[field], "R9 field {field}");
+        }
+    }
+}
+
+#[test]
+fn compact_json_rejects_display_filters() {
+    let out = validate(&feed_ok(), &["--compact-json", "--class", "spec"]);
+    assert_eq!(code(&out), 2);
+}
+
+#[test]
+fn compact_json_preserves_partial_report() {
+    let json = json_of(&validate(&feed_partial(), &["--compact-json"]));
+    assert_eq!(json["status"], "partial");
+    assert_eq!(json["partial"]["unavailable_files"][0], "routes.txt");
+    assert_eq!(json["reports"]["r1"]["coverage_complete"], false);
+    assert_eq!(json["metrics"]["coverage_complete"], false);
+}
+
+#[test]
 fn name_index_is_omitted_unless_requested() {
     let feed = feed_with_critical();
 
@@ -311,6 +471,21 @@ fn name_index_is_omitted_unless_requested() {
 fn pretty_flag_indents_the_json() {
     let out = validate(&feed_with_critical(), &["--json", "--pretty"]);
     assert!(stdout_of(&out).contains("\n  \""));
+}
+
+#[test]
+fn pretty_flag_also_indents_compact_json() {
+    let out = validate(&feed_with_critical(), &["--compact-json", "--pretty"]);
+    assert!(stdout_of(&out).contains("\n  \"status\""));
+}
+
+#[test]
+fn pretty_flag_requires_a_json_output_mode() {
+    let out = validate(&feed_ok(), &["--pretty"]);
+    assert_eq!(code(&out), 2);
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("--pretty requires --json or --compact-json"));
 }
 
 #[test]

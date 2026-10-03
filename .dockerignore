@@ -1,0 +1,16 @@
+.git
+.gitignore
+.DS_Store
+target
+notgit
+regression
+ui/node_modules
+ui/dist
+ui/pkg
+sdk/node_modules
+sdk/dist
+sdk/pkg
+crates/wasm/pkg
+plugin/mcp/.venv
+plugin/mcp/__pycache__
+**/*.pyc
