@@ -18,5 +18,12 @@ Preserve the returned `status`, `analysis.input_mode`,
 counts, feed metrics, and R9 ordering. Do not invent findings or claim that a
 feed is publishable when the returned report says otherwise.
 
+Treat the Analyzer's scores, publishability verdict, severity counts, and R9
+ordering as canonical. Do not recalculate or reinterpret them in the client.
+Quality- or Analytics-only findings do not make a feed invalid by themselves;
+follow the returned publishability and blocker fields. Explain `partial`
+results as incomplete coverage, and explain `fatal` results as an analysis
+failure rather than a feed verdict.
+
 If the server returns `FILE_TOO_LARGE`, explain that synchronous ChatGPT
 validation is bounded and provide the returned `analyzer_web_url` when present.

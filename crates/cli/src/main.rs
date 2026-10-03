@@ -113,7 +113,7 @@ struct ValidateArgs {
     fail_on_class: Vec<RuleClassArg>,
 
     /// Pretty-print the JSON output.
-    #[arg(long, requires = "json")]
+    #[arg(long)]
     pretty: bool,
 
     /// Include name_index (stop/route/shape lookup tables) in the JSON output.
@@ -539,7 +539,7 @@ struct JsonFatal<'a> {
 struct CompactJsonOk {
     status: &'static str,
     engine: &'static str,
-    engine_version: &'static str,
+    engine_version: String,
     validation_date: u32,
     partial: Option<gtfs_core::PartialReport>,
     analysis: CompactAnalysis,
@@ -692,7 +692,8 @@ fn render_compact_json(
                     "ok"
                 },
                 engine: "gtfs-analyzer",
-                engine_version: env!("CARGO_PKG_VERSION"),
+                engine_version: std::env::var("GTFS_ANALYZER_ENGINE_VERSION")
+                    .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned()),
                 validation_date: today,
                 partial: vr.partial.clone(),
                 analysis: CompactAnalysis {

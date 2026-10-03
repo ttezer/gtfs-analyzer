@@ -18,7 +18,7 @@
         "shortDescription": "GTFS validation and feed analysis",
         "longDescription": "Validate uploaded GTFS Schedule ZIP files and public feed URLs with the GTFS Analyzer engine.",
         "developerName": "Tacettin Tezer",
-        "category": "Productivity",
+        "category": "Developer Tools",
         "websiteURL": "https://ttezer.github.io/gtfs-analyzer/",
         "privacyPolicyURL": "https://ttezer.github.io/gtfs-analyzer/plugin/privacy/",
         "termsOfServiceURL": "https://ttezer.github.io/gtfs-analyzer/plugin/terms/",

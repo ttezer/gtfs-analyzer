@@ -20,12 +20,17 @@ GTFS_TOTAL_TIMEOUT_SECONDS    (default 105)
 GTFS_ANALYZER_TIMEOUT_SECONDS (default 90)
 GTFS_ANALYZER_WEB_URL         (default https://ttezer.github.io/gtfs-analyzer/)
 GTFS_MAX_CONCURRENT_ANALYSES  (default 1)
-MCP_ALLOWED_HOST              (temporary tunnel hostname, if used)
+GTFS_SUBJECT_RATE_LIMIT       (default 12 requests)
+GTFS_SUBJECT_RATE_WINDOW_SECONDS (default 60)
+MCP_ALLOWED_HOST              (required public Cloud Run/tunnel host)
 ```
 
-This is the first integration slice. Cloud deployment, production DNS rebinding
-pinning, rate limiting, resource ceilings, and container packaging remain separate
-release gates.
+The boundary pins each resolved public download host for the actual HTTP
+connection, rejects every non-global address (including CGNAT, multicast, and
+unspecified ranges), kills the native process on either timeout path, and
+removes temporary URL context files. MCP requests are rate-limited by
+`openai/subject` when supplied; requests without that metadata share an
+anonymous bucket.
 
 The portable package manifest is at `../plugin.json`, its bundled usage skill is
 at `../skills/gtfs-validator/SKILL.md`, and the deployed MCP connection is
@@ -53,6 +58,9 @@ The total request deadline and the native Analyzer subprocess deadline are
 independent: `GTFS_TOTAL_TIMEOUT_SECONDS` bounds download plus validation, while
 `GTFS_ANALYZER_TIMEOUT_SECONDS` bounds the native process after the feed has been
 streamed to stdin.
+
+Set `MCP_ALLOWED_HOST` to the exact public hostname used by the MCP endpoint.
+The service intentionally does not accept arbitrary Host headers.
 
 Run the local MCP boundary tests with:
 

@@ -376,19 +376,68 @@ fn compact_json_marks_source_url_as_url_input() {
 
 #[test]
 fn compact_json_resolves_r1_blockers_to_rule_ids() {
-    let json = json_of(&validate(&feed_with_critical(), &["--compact-json"]));
+    let feed = feed_with_critical();
+    let json = json_of(&validate(&feed, &["--compact-json"]));
+    let full = json_of(&validate(&feed, &["--json"]));
     let r1 = &json["reports"]["r1"];
+    let full_r1 = &full["reports"]["r1"];
 
     assert_eq!(r1["publishable"], false);
     assert_eq!(
         r1["blocker_notice_count"].as_u64().unwrap(),
-        r1["blocker_rule_ids"].as_array().unwrap().len() as u64
+        full_r1["blocker_notice_ids"].as_array().unwrap().len() as u64
     );
+    let expected_rule_ids: std::collections::BTreeSet<_> = full["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|notice| {
+            full_r1["blocker_notice_ids"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|id| id == &notice["id"])
+        })
+        .map(|notice| notice["rule_id"].as_str().unwrap())
+        .collect();
+    let compact_rule_ids: std::collections::BTreeSet<_> = r1["blocker_rule_ids"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|id| id.as_str().unwrap())
+        .collect();
+    assert_eq!(compact_rule_ids, expected_rule_ids);
     assert!(r1["blocker_rule_ids"]
         .as_array()
         .unwrap()
         .iter()
         .any(|id| id == "TRP_002"));
+}
+
+#[test]
+fn compact_json_preserves_r9_canonical_order() {
+    let feed = feed_with_critical();
+    let compact = json_of(&validate(&feed, &["--compact-json"]));
+    let full = json_of(&validate(&feed, &["--json"]));
+    let compact_items = compact["reports"]["r9"]["items"].as_array().unwrap();
+    let full_items = full["reports"]["r9"]["items"].as_array().unwrap();
+
+    assert_eq!(compact_items.len(), full_items.len());
+    for (compact_item, full_item) in compact_items.iter().zip(full_items) {
+        for field in [
+            "rule_id",
+            "labels",
+            "priority_score",
+            "score_delta",
+            "pub_score_delta",
+            "affected_instance_count",
+            "realized_dependent_count",
+            "base_effort",
+            "fix_effort",
+        ] {
+            assert_eq!(compact_item[field], full_item[field], "R9 field {field}");
+        }
+    }
 }
 
 #[test]
@@ -421,6 +470,12 @@ fn name_index_is_omitted_unless_requested() {
 fn pretty_flag_indents_the_json() {
     let out = validate(&feed_with_critical(), &["--json", "--pretty"]);
     assert!(stdout_of(&out).contains("\n  \""));
+}
+
+#[test]
+fn pretty_flag_also_indents_compact_json() {
+    let out = validate(&feed_with_critical(), &["--compact-json", "--pretty"]);
+    assert!(stdout_of(&out).contains("\n  \"status\""));
 }
 
 #[test]

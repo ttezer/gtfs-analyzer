@@ -14,12 +14,13 @@ import os
 import socket
 import time
 import tempfile
+from collections import deque
 from collections.abc import Awaitable, Callable
 from typing import Any, NotRequired, Required, TypedDict
 from urllib.parse import urljoin, urlparse
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 
@@ -50,10 +51,14 @@ ANALYZER_TIMEOUT_SECONDS = float(os.environ.get("GTFS_ANALYZER_TIMEOUT_SECONDS",
 MAX_REDIRECTS = int(os.environ.get("GTFS_MAX_REDIRECTS", "5"))
 STDERR_LIMIT = 64 * 1024
 MAX_CONCURRENT_ANALYSES = int(os.environ.get("GTFS_MAX_CONCURRENT_ANALYSES", "1"))
+SUBJECT_RATE_LIMIT = int(os.environ.get("GTFS_SUBJECT_RATE_LIMIT", "12"))
+SUBJECT_RATE_WINDOW_SECONDS = float(os.environ.get("GTFS_SUBJECT_RATE_WINDOW_SECONDS", "60"))
 ANALYZER_WEB_URL = os.environ.get(
     "GTFS_ANALYZER_WEB_URL", "https://ttezer.github.io/gtfs-analyzer/"
 )
 _ANALYSIS_SLOTS = asyncio.Semaphore(MAX_CONCURRENT_ANALYSES)
+_SUBJECT_RATE_LOCK = asyncio.Lock()
+_SUBJECT_REQUESTS: dict[str, deque[float]] = {}
 
 
 def _analyzer_bin() -> str:
@@ -69,7 +74,7 @@ def _file_too_large_error() -> ToolError:
     )
 
 
-def _allowed_url(url: str) -> None:
+def _allowed_url(url: str) -> str:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ToolError("UNSUPPORTED_SCHEME", "Only HTTP and HTTPS URLs are supported.")
@@ -84,8 +89,79 @@ def _allowed_url(url: str) -> None:
             }
         except socket.gaierror as exc:
             raise ToolError("INVALID_DOWNLOAD", f"Could not resolve download host: {host}") from exc
-    if any(address.is_private or address.is_loopback or address.is_link_local or address.is_reserved for address in addresses):
+    if any(
+        not address.is_global
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+        for address in addresses
+    ):
         raise ToolError("PRIVATE_NETWORK_URL", "Private and local network URLs are not allowed.")
+    return str(sorted(addresses, key=str)[0])
+
+
+class _PinnedIPTransport(httpx.AsyncBaseTransport):
+    """Connect to the IP checked by _allowed_url while preserving HTTP host/SNI."""
+
+    def __init__(self, address: str, hostname: str) -> None:
+        self._address = address
+        self._hostname = hostname
+        self._transport = httpx.AsyncHTTPTransport()
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        host_header = self._hostname
+        if request.url.port is not None:
+            host_header = f"{host_header}:{request.url.port}"
+        headers = request.headers.copy()
+        headers["host"] = host_header
+        extensions = dict(request.extensions)
+        if request.url.scheme == "https":
+            extensions["sni_hostname"] = self._hostname
+        pinned_request = httpx.Request(
+            request.method,
+            request.url.copy_with(host=self._address),
+            headers=headers,
+            content=request.stream,
+            extensions=extensions,
+        )
+        return await self._transport.handle_async_request(pinned_request)
+
+    async def aclose(self) -> None:
+        await self._transport.aclose()
+
+
+def _subject_from_context(context: Context | None) -> str | None:
+    if context is None:
+        return None
+    try:
+        meta = context.request_context.meta
+    except (AttributeError, ValueError):
+        return "anonymous"
+    if meta is None:
+        return "anonymous"
+    values = meta.model_dump(by_alias=True) if hasattr(meta, "model_dump") else vars(meta)
+    return str(values.get("openai/subject") or "anonymous")
+
+
+async def _check_subject_rate_limit(context: Context | None) -> ToolError | None:
+    subject = _subject_from_context(context)
+    if subject is None:
+        return None
+    now = time.monotonic()
+    async with _SUBJECT_RATE_LOCK:
+        requests = _SUBJECT_REQUESTS.setdefault(subject, deque())
+        while requests and now - requests[0] >= SUBJECT_RATE_WINDOW_SECONDS:
+            requests.popleft()
+        if len(requests) >= SUBJECT_RATE_LIMIT:
+            return ToolError(
+                "RATE_LIMIT",
+                "Too many GTFS analyses for this subject. Please retry later.",
+                retry_after_seconds=max(1, round(SUBJECT_RATE_WINDOW_SECONDS - (now - requests[0]))),
+            )
+        requests.append(now)
+    return None
 
 
 async def _write_stderr(stream: asyncio.StreamReader) -> bytes:
@@ -95,6 +171,9 @@ async def _write_stderr(stream: asyncio.StreamReader) -> bytes:
 
 async def _validate_stream(response: httpx.Response, language: str, source_url: str | None) -> dict[str, Any]:
     config_path: str | None = None
+    process: asyncio.subprocess.Process | None = None
+    stdout_task: asyncio.Task[bytes] | None = None
+    stderr_task: asyncio.Task[bytes] | None = None
     command = [_analyzer_bin(), "validate", "-", "--compact-json", "--lang", language]
     if source_url:
         config = tempfile.NamedTemporaryFile(mode="w", suffix=".json", prefix="gtfs-validator-", delete=False)
@@ -113,17 +192,9 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-    except Exception:
-        if config_path:
-            try:
-                os.unlink(config_path)
-            except OSError:
-                pass
-        raise
-    assert process.stdin and process.stdout and process.stderr
-    stderr_task = asyncio.create_task(_write_stderr(process.stderr))
-    stdout_task = asyncio.create_task(process.stdout.read())
-    try:
+        assert process.stdin and process.stdout and process.stderr
+        stderr_task = asyncio.create_task(_write_stderr(process.stderr))
+        stdout_task = asyncio.create_task(process.stdout.read())
         bytes_seen = 0
         async for chunk in response.aiter_bytes():
             if not chunk:
@@ -145,23 +216,25 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
             ) from exc
         stdout = await stdout_task
         stderr = await stderr_task
-    except Exception:
-        if process.returncode is None:
+    except BaseException:
+        if process is not None and process.returncode is None:
             process.kill()
-        await process.wait()
-        await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+        if process is not None:
+            try:
+                await process.wait()
+            except BaseException:
+                pass
+        await asyncio.gather(
+            *(task for task in (stdout_task, stderr_task) if task is not None),
+            return_exceptions=True,
+        )
+        raise
+    finally:
         if config_path:
             try:
                 os.unlink(config_path)
             except OSError:
                 pass
-        raise
-
-    if config_path:
-        try:
-            os.unlink(config_path)
-        except OSError:
-            pass
     if not stdout:
         detail = stderr.decode("utf-8", errors="replace").strip()
         raise ToolError("INTERNAL_ERROR", "Analyzer returned no JSON output.", stderr=detail)
@@ -184,10 +257,14 @@ async def _download_and_validate(
     _allowed_url(url)
     started = time.monotonic()
     timeout = httpx.Timeout(connect=10.0, read=30.0, write=30.0, pool=10.0)
-    async with httpx.AsyncClient(follow_redirects=False, timeout=timeout) as client:
-        current = url
-        for _ in range(MAX_REDIRECTS + 1):
-            _allowed_url(current)
+    current = url
+    for _ in range(MAX_REDIRECTS + 1):
+        resolved_ip = _allowed_url(current)
+        parsed = urlparse(current)
+        transport = _PinnedIPTransport(resolved_ip, parsed.hostname or "")
+        async with httpx.AsyncClient(
+            follow_redirects=False, timeout=timeout, transport=transport
+        ) as client:
             try:
                 async with client.stream("GET", current) as response:
                     if response.is_redirect:
@@ -230,14 +307,18 @@ async def _download_and_validate(
                 ) from exc
             except httpx.HTTPError as exc:
                 raise ToolError("INVALID_DOWNLOAD", "The GTFS download failed.") from exc
-        raise ToolError("INVALID_DOWNLOAD", "Too many HTTP redirects.")
+    raise ToolError("INVALID_DOWNLOAD", "Too many HTTP redirects.")
 
 
 def _tool_error(error: ToolError) -> dict[str, Any]:
     return {"error": {"type": error.error_type, "message": str(error), **error.details}}
 
 
-async def _run_bounded(operation: Callable[[], Awaitable[dict[str, Any]]]) -> dict[str, Any]:
+async def _run_bounded(
+    operation: Callable[[], Awaitable[dict[str, Any]]], context: Context | None = None
+) -> dict[str, Any]:
+    if rate_error := await _check_subject_rate_limit(context):
+        return _tool_error(rate_error)
     if _ANALYSIS_SLOTS.locked():
         return _tool_error(
             ToolError(
@@ -287,14 +368,16 @@ mcp = FastMCP(
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False, idempotentHint=True),
     meta={"openai/fileParams": ["file"]},
 )
-async def analyze_gtfs_file(file: OpenAIFile, language: str = "en") -> dict[str, Any]:
+async def analyze_gtfs_file(
+    file: OpenAIFile, language: str = "en", ctx: Context = None
+) -> dict[str, Any]:
     if language not in {"tr", "en", "ja", "fr"}:
         language = "en"
     def operation() -> Awaitable[dict[str, Any]]:
         _allowed_url(file["download_url"])
         return _download_and_validate(file["download_url"], language)
 
-    return await _run_bounded(operation)
+    return await _run_bounded(operation, ctx)
 
 
 @mcp.tool(
@@ -306,13 +389,13 @@ async def analyze_gtfs_file(file: OpenAIFile, language: str = "en") -> dict[str,
     ),
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True, idempotentHint=True),
 )
-async def analyze_gtfs_url(url: str, language: str = "en") -> dict[str, Any]:
+async def analyze_gtfs_url(url: str, language: str = "en", ctx: Context = None) -> dict[str, Any]:
     if language not in {"tr", "en", "ja", "fr"}:
         language = "en"
     def operation() -> Awaitable[dict[str, Any]]:
         return _download_and_validate(url, language, url)
 
-    return await _run_bounded(operation)
+    return await _run_bounded(operation, ctx)
 
 
 _rules_cache: dict[str, list[dict[str, Any]]] = {}
@@ -337,10 +420,11 @@ async def get_gtfs_rule(rule_id: str, language: str = "en") -> dict[str, Any]:
             if process.returncode != 0:
                 raise ToolError("INTERNAL_ERROR", "Analyzer rule registry failed to load.", stderr=stderr.decode(errors="replace"))
             _rules_cache[language] = json.loads(stdout)
+        canonical_rule_id = rule_id.strip().upper()
         for rule in _rules_cache[language]:
-            if rule.get("id") == rule_id:
+            if rule.get("id") == canonical_rule_id:
                 return rule
-        return _tool_error(ToolError("ANALYZER_FATAL", f"Unknown GTFS rule ID: {rule_id}"))
+        return _tool_error(ToolError("UNKNOWN_RULE", f"Unknown GTFS rule ID: {rule_id}"))
     except asyncio.TimeoutError:
         return _tool_error(ToolError("ANALYSIS_TIMEOUT", "The Analyzer rule registry timed out."))
     except (ToolError, json.JSONDecodeError) as error:

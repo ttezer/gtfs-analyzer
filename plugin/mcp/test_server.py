@@ -1,7 +1,10 @@
 import asyncio
+import os
+import tempfile
 import unittest
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import server
 
 
@@ -64,6 +67,10 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             "http://169.254.169.254/latest/meta-data/",
             "http://[::1]/feed.zip",
             "http://[fd00::1]/feed.zip",
+            "http://100.64.0.1/feed.zip",
+            "http://0.0.0.0/feed.zip",
+            "http://224.0.0.1/feed.zip",
+            "http://192.0.0.1/feed.zip",
         ):
             with self.subTest(url=url), self.assertRaises(server.ToolError) as private:
                 server._allowed_url(url)
@@ -80,6 +87,29 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         ):
             server._allowed_url("https://feeds.example.test/feed.zip")
 
+    async def test_download_transport_uses_checked_ip_and_original_host(self):
+        class RecordingTransport:
+            request = None
+
+            async def handle_async_request(self, request):
+                self.request = request
+                return httpx.Response(200, request=request, content=b"ok")
+
+            async def aclose(self):
+                return None
+
+        recording = RecordingTransport()
+        with patch("server.httpx.AsyncHTTPTransport", return_value=recording):
+            transport = server._PinnedIPTransport("8.8.8.8", "feeds.example.test")
+            request = httpx.Request("GET", "https://feeds.example.test/feed.zip")
+            response = await transport.handle_async_request(request)
+            await response.aread()
+            await transport.aclose()
+
+        self.assertEqual(recording.request.url.host, "8.8.8.8")
+        self.assertEqual(recording.request.headers["host"], "feeds.example.test")
+        self.assertEqual(recording.request.extensions["sni_hostname"], "feeds.example.test")
+
     async def test_analyzer_timeout_kills_subprocess(self):
         process = _SlowProcess()
         with patch.object(server, "ANALYZER_TIMEOUT_SECONDS", 0.001), patch(
@@ -91,6 +121,31 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.error_type, "ANALYZER_TIMEOUT")
         self.assertTrue(process.killed)
         self.assertGreaterEqual(process.wait_calls, 2)
+
+    async def test_total_timeout_kills_process_and_deletes_url_config(self):
+        process = _SlowProcess()
+        created_paths = []
+        real_named_temporary_file = tempfile.NamedTemporaryFile
+
+        def capture_tempfile(*args, **kwargs):
+            handle = real_named_temporary_file(*args, **kwargs)
+            created_paths.append(handle.name)
+            return handle
+
+        with patch.object(server, "TOTAL_TIMEOUT_SECONDS", 0.001), patch(
+            "server.asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=process
+        ), patch.object(server.tempfile, "NamedTemporaryFile", side_effect=capture_tempfile):
+            result = await server._run_bounded(
+                lambda: server._validate_stream(
+                    _Response(), "en", "https://feeds.example.test/gtfs.zip?token=secret"
+                )
+            )
+
+        self.assertEqual(result["error"]["type"], "ANALYSIS_TIMEOUT")
+        self.assertTrue(process.killed)
+        self.assertGreaterEqual(process.wait_calls, 1)
+        self.assertTrue(created_paths)
+        self.assertTrue(all(not os.path.exists(path) for path in created_paths))
 
     async def test_download_limit_kills_subprocess(self):
         process = _SlowProcess()
@@ -119,6 +174,31 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
     def test_tool_error_is_json_safe(self):
         result = server._tool_error(server.ToolError("FILE_TOO_LARGE", "too big", limit=10))
         self.assertEqual(result, {"error": {"type": "FILE_TOO_LARGE", "message": "too big", "limit": 10}})
+
+    async def test_subject_rate_limit_and_rule_id_normalization(self):
+        class Meta:
+            def model_dump(self, by_alias=False):
+                return {"openai/subject": "subject-1"}
+
+        class RequestContext:
+            meta = Meta()
+
+        class Context:
+            request_context = RequestContext()
+
+        with patch.object(server, "SUBJECT_RATE_LIMIT", 1), patch.object(
+            server, "SUBJECT_RATE_WINDOW_SECONDS", 60
+        ):
+            server._SUBJECT_REQUESTS.clear()
+            self.assertIsNone(await server._check_subject_rate_limit(Context()))
+            error = await server._check_subject_rate_limit(Context())
+        self.assertEqual(error.error_type, "RATE_LIMIT")
+
+        with patch.dict(server._rules_cache, {"en": [{"id": "TRP_002", "title": "route_id missing"}]}, clear=True):
+            rule = await server.get_gtfs_rule(" trp_002 ")
+            unknown = await server.get_gtfs_rule("NOPE_999")
+        self.assertEqual(rule["id"], "TRP_002")
+        self.assertEqual(unknown["error"]["type"], "UNKNOWN_RULE")
 
 
 if __name__ == "__main__":

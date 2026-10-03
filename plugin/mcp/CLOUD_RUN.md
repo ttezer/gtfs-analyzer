@@ -36,7 +36,7 @@ gcloud run deploy gtfs-validator \
   --concurrency 1 \
   --max-instances 2 \
   --timeout 120s \
-  --set-env-vars GTFS_MAX_DOWNLOAD_BYTES=20971520,GTFS_TOTAL_TIMEOUT_SECONDS=105,GTFS_ANALYZER_TIMEOUT_SECONDS=90,GTFS_MAX_CONCURRENT_ANALYSES=1,GTFS_ANALYZER_WEB_URL=https://ttezer.github.io/gtfs-analyzer/
+  --set-env-vars GTFS_MAX_DOWNLOAD_BYTES=20971520,GTFS_TOTAL_TIMEOUT_SECONDS=105,GTFS_ANALYZER_TIMEOUT_SECONDS=90,GTFS_MAX_CONCURRENT_ANALYSES=1,GTFS_SUBJECT_RATE_LIMIT=12,GTFS_SUBJECT_RATE_WINDOW_SECONDS=60,GTFS_ANALYZER_ENGINE_VERSION=0.15.0+gtfs-validator.1,MCP_ALLOWED_HOST=SERVICE_HOST,GTFS_ANALYZER_WEB_URL=https://ttezer.github.io/gtfs-analyzer/
 ```
 
 After deployment, obtain the service URL:
@@ -47,6 +47,9 @@ gcloud run services describe gtfs-validator --region REGION --format='value(stat
 
 The MCP endpoint is that URL with `/mcp` appended. Verify it with an MCP
 initialize request and `tools/list` before putting it into a plugin connection.
+
+Replace `SERVICE_HOST` with the hostname returned by Cloud Run, without the
+scheme or `/mcp` path. Keep this value exact; it is also the Host-header allowlist.
 
 Do not put a signed ChatGPT download URL, API key, or other credential in the
 image, manifest, or committed files.
