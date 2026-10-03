@@ -423,7 +423,18 @@ async def get_gtfs_rule(rule_id: str, language: str = "en") -> dict[str, Any]:
                 _analyzer_bin(), "rules", "--json", "--lang", language,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(process.communicate(), ANALYZER_TIMEOUT_SECONDS)
+            try:
+                stdout, stderr = await asyncio.wait_for(process.communicate(), ANALYZER_TIMEOUT_SECONDS)
+            except BaseException:
+                # wait_for cancels communicate() but leaves the child running; kill and
+                # reap it so repeated lookups cannot accumulate orphaned processes.
+                if process.returncode is None:
+                    process.kill()
+                try:
+                    await process.wait()
+                except BaseException:
+                    pass
+                raise
             if process.returncode != 0:
                 raise ToolError("INTERNAL_ERROR", "Analyzer rule registry failed to load.", stderr=stderr.decode(errors="replace"))
             _rules_cache[language] = json.loads(stdout)

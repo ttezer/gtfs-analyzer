@@ -131,6 +131,21 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(process.killed)
         self.assertGreaterEqual(process.wait_calls, 2)
 
+    async def test_rules_timeout_kills_subprocess(self):
+        class HangingRulesProcess(_SlowProcess):
+            async def communicate(self):
+                await asyncio.sleep(10)
+
+        process = HangingRulesProcess()
+        with patch.object(server, "ANALYZER_TIMEOUT_SECONDS", 0.001), patch(
+            "server.asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=process
+        ), patch.dict(server._rules_cache, {}, clear=True):
+            result = await server.get_gtfs_rule("TRP_002")
+
+        self.assertEqual(result["error"]["type"], "ANALYSIS_TIMEOUT")
+        self.assertTrue(process.killed)
+        self.assertGreaterEqual(process.wait_calls, 1)
+
     async def test_total_timeout_kills_process_and_deletes_url_config(self):
         process = _SlowProcess()
         created_paths = []
