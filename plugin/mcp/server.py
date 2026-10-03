@@ -53,6 +53,7 @@ STDERR_LIMIT = 64 * 1024
 MAX_CONCURRENT_ANALYSES = int(os.environ.get("GTFS_MAX_CONCURRENT_ANALYSES", "1"))
 SUBJECT_RATE_LIMIT = int(os.environ.get("GTFS_SUBJECT_RATE_LIMIT", "12"))
 SUBJECT_RATE_WINDOW_SECONDS = float(os.environ.get("GTFS_SUBJECT_RATE_WINDOW_SECONDS", "60"))
+MAX_TRACKED_SUBJECTS = int(os.environ.get("GTFS_MAX_TRACKED_SUBJECTS", "10000"))
 ANALYZER_WEB_URL = os.environ.get(
     "GTFS_ANALYZER_WEB_URL", "https://ttezer.github.io/gtfs-analyzer/"
 )
@@ -123,7 +124,7 @@ class _PinnedIPTransport(httpx.AsyncBaseTransport):
             request.method,
             request.url.copy_with(host=self._address),
             headers=headers,
-            content=request.stream,
+            stream=request.stream,
             extensions=extensions,
         )
         return await self._transport.handle_async_request(pinned_request)
@@ -151,6 +152,12 @@ async def _check_subject_rate_limit(context: Context | None) -> ToolError | None
         return None
     now = time.monotonic()
     async with _SUBJECT_RATE_LOCK:
+        if subject not in _SUBJECT_REQUESTS and len(_SUBJECT_REQUESTS) >= MAX_TRACKED_SUBJECTS:
+            oldest_subject = min(
+                _SUBJECT_REQUESTS,
+                key=lambda key: _SUBJECT_REQUESTS[key][-1] if _SUBJECT_REQUESTS[key] else 0,
+            )
+            _SUBJECT_REQUESTS.pop(oldest_subject, None)
         requests = _SUBJECT_REQUESTS.setdefault(subject, deque())
         while requests and now - requests[0] >= SUBJECT_RATE_WINDOW_SECONDS:
             requests.popleft()
@@ -317,8 +324,6 @@ def _tool_error(error: ToolError) -> dict[str, Any]:
 async def _run_bounded(
     operation: Callable[[], Awaitable[dict[str, Any]]], context: Context | None = None
 ) -> dict[str, Any]:
-    if rate_error := await _check_subject_rate_limit(context):
-        return _tool_error(rate_error)
     if _ANALYSIS_SLOTS.locked():
         return _tool_error(
             ToolError(
@@ -326,6 +331,8 @@ async def _run_bounded(
                 "Another GTFS analysis is already running. Please retry shortly.",
             )
         )
+    if rate_error := await _check_subject_rate_limit(context):
+        return _tool_error(rate_error)
 
     async def run() -> dict[str, Any]:
         async with _ANALYSIS_SLOTS:

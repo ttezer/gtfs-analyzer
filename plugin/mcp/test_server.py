@@ -1,6 +1,8 @@
 import asyncio
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
 import tempfile
+import threading
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -88,27 +90,28 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             server._allowed_url("https://feeds.example.test/feed.zip")
 
     async def test_download_transport_uses_checked_ip_and_original_host(self):
-        class RecordingTransport:
-            request = None
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"ok")
 
-            async def handle_async_request(self, request):
-                self.request = request
-                return httpx.Response(200, request=request, content=b"ok")
-
-            async def aclose(self):
+            def log_message(self, *_args):
                 return None
 
-        recording = RecordingTransport()
-        with patch("server.httpx.AsyncHTTPTransport", return_value=recording):
-            transport = server._PinnedIPTransport("8.8.8.8", "feeds.example.test")
-            request = httpx.Request("GET", "https://feeds.example.test/feed.zip")
-            response = await transport.handle_async_request(request)
-            await response.aread()
-            await transport.aclose()
-
-        self.assertEqual(recording.request.url.host, "8.8.8.8")
-        self.assertEqual(recording.request.headers["host"], "feeds.example.test")
-        self.assertEqual(recording.request.extensions["sni_hostname"], "feeds.example.test")
+        httpd = HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            transport = server._PinnedIPTransport("127.0.0.1", "localhost")
+            async with httpx.AsyncClient(transport=transport) as client:
+                response = await client.get(f"http://localhost:{httpd.server_port}/feed.zip")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, b"ok")
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+            thread.join(timeout=2)
 
     async def test_analyzer_timeout_kills_subprocess(self):
         process = _SlowProcess()

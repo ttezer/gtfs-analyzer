@@ -22,6 +22,7 @@ GTFS_ANALYZER_WEB_URL         (default https://ttezer.github.io/gtfs-analyzer/)
 GTFS_MAX_CONCURRENT_ANALYSES  (default 1)
 GTFS_SUBJECT_RATE_LIMIT       (default 12 requests)
 GTFS_SUBJECT_RATE_WINDOW_SECONDS (default 60)
+GTFS_MAX_TRACKED_SUBJECTS     (default 10000)
 MCP_ALLOWED_HOST              (required public Cloud Run/tunnel host)
 ```
 
@@ -31,6 +32,12 @@ unspecified ranges), kills the native process on either timeout path, and
 removes temporary URL context files. MCP requests are rate-limited by
 `openai/subject` when supplied; requests without that metadata share an
 anonymous bucket.
+
+The rate-limit bucket is process-local in this release: multiple Cloud Run
+instances have separate buckets, anonymous requests share one bucket, expired
+entries are pruned when a subject is seen again, and the oldest keys are evicted
+when `GTFS_MAX_TRACKED_SUBJECTS` is reached. Requests rejected because the
+single analysis slot is busy do not consume a subject rate-limit token.
 
 The portable package manifest is at `../plugin.json`, its bundled usage skill is
 at `../skills/gtfs-validator/SKILL.md`, and the deployed MCP connection is

@@ -306,6 +306,7 @@ fn compact_json_projects_canonical_summary_without_notice_payload() {
 
     assert_eq!(json["status"], "ok");
     assert_eq!(json["engine"], "gtfs-analyzer");
+    assert!(json["engine_commit"].as_str().is_some_and(|commit| !commit.is_empty()));
     assert_eq!(json["analysis"]["lang"], "en");
     assert!(json["partial"].is_null());
     assert!(json.get("notices").is_none());
@@ -476,6 +477,15 @@ fn pretty_flag_indents_the_json() {
 fn pretty_flag_also_indents_compact_json() {
     let out = validate(&feed_with_critical(), &["--compact-json", "--pretty"]);
     assert!(stdout_of(&out).contains("\n  \"status\""));
+}
+
+#[test]
+fn pretty_flag_requires_a_json_output_mode() {
+    let out = validate(&feed_ok(), &["--pretty"]);
+    assert_eq!(code(&out), 2);
+    assert!(String::from_utf8(out.stderr)
+        .unwrap()
+        .contains("--pretty requires --json or --compact-json"));
 }
 
 #[test]

@@ -342,6 +342,9 @@ impl Filters {
 }
 
 fn run_validate(args: ValidateArgs) -> ExitCode {
+    if args.pretty && !args.json && !args.compact_json {
+        return cli_error("--pretty requires --json or --compact-json".to_owned());
+    }
     let zip_bytes = match read_feed(&args.feed) {
         Ok(bytes) => bytes,
         Err(err) => return cli_error(err),
@@ -540,6 +543,7 @@ struct CompactJsonOk {
     status: &'static str,
     engine: &'static str,
     engine_version: String,
+    engine_commit: &'static str,
     validation_date: u32,
     partial: Option<gtfs_core::PartialReport>,
     analysis: CompactAnalysis,
@@ -692,8 +696,8 @@ fn render_compact_json(
                     "ok"
                 },
                 engine: "gtfs-analyzer",
-                engine_version: std::env::var("GTFS_ANALYZER_ENGINE_VERSION")
-                    .unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_owned()),
+                engine_version: env!("CARGO_PKG_VERSION").to_owned(),
+                engine_commit: provenance::COMMIT,
                 validation_date: today,
                 partial: vr.partial.clone(),
                 analysis: CompactAnalysis {

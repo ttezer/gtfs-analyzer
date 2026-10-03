@@ -12,8 +12,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     MCP_HOST=0.0.0.0 \
     MCP_PORT=8080 \
-    GTFS_ANALYZER_BIN=/usr/local/bin/gtfs-analyzer \
-    GTFS_ANALYZER_ENGINE_VERSION=0.15.0+gtfs-validator.1
+    GTFS_ANALYZER_BIN=/usr/local/bin/gtfs-analyzer
 
 COPY --from=analyzer-builder /src/target/release/gtfs-analyzer /usr/local/bin/gtfs-analyzer
 COPY plugin/mcp /app
