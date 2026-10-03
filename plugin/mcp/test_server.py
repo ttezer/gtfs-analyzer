@@ -92,6 +92,7 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
                 await server._validate_stream(_LargeResponse(), "en", None)
 
         self.assertEqual(error.exception.error_type, "FILE_TOO_LARGE")
+        self.assertEqual(error.exception.details["analyzer_web_url"], server.ANALYZER_WEB_URL)
         self.assertTrue(process.killed)
 
     def test_tool_error_is_json_safe(self):

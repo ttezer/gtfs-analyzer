@@ -41,10 +41,22 @@ TOTAL_TIMEOUT_SECONDS = float(os.environ.get("GTFS_TOTAL_TIMEOUT_SECONDS", "105"
 ANALYZER_TIMEOUT_SECONDS = float(os.environ.get("GTFS_ANALYZER_TIMEOUT_SECONDS", "90"))
 MAX_REDIRECTS = int(os.environ.get("GTFS_MAX_REDIRECTS", "5"))
 STDERR_LIMIT = 64 * 1024
+ANALYZER_WEB_URL = os.environ.get(
+    "GTFS_ANALYZER_WEB_URL", "https://ttezer.github.io/gtfs-analyzer/"
+)
 
 
 def _analyzer_bin() -> str:
     return os.environ.get("GTFS_ANALYZER_BIN", "gtfs-analyzer")
+
+
+def _file_too_large_error() -> ToolError:
+    return ToolError(
+        "FILE_TOO_LARGE",
+        "The GTFS feed is too large for synchronous validation. "
+        f"Use GTFS Analyzer Web instead: {ANALYZER_WEB_URL}",
+        analyzer_web_url=ANALYZER_WEB_URL,
+    )
 
 
 def _allowed_url(url: str) -> None:
@@ -108,7 +120,7 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
                 continue
             bytes_seen += len(chunk)
             if bytes_seen > MAX_DOWNLOAD_BYTES:
-                raise ToolError("FILE_TOO_LARGE", "The GTFS download exceeds the configured size limit.")
+                raise _file_too_large_error()
             if process.stdin.is_closing():
                 raise ToolError("INVALID_DOWNLOAD", "Analyzer stdin closed before the download completed.")
             process.stdin.write(chunk)
@@ -177,7 +189,7 @@ async def _download_and_validate(
                     response.raise_for_status()
                     length = response.headers.get("content-length")
                     if length and int(length) > MAX_DOWNLOAD_BYTES:
-                        raise ToolError("FILE_TOO_LARGE", "The GTFS download exceeds the configured size limit.")
+                        raise _file_too_large_error()
                     result = await _validate_stream(response, language, source_url_for_analyzer)
                     if isinstance(result, dict):
                         result.setdefault("transport", {})["download_elapsed_ms"] = round(
