@@ -114,7 +114,13 @@ async def _validate_stream(response: httpx.Response, language: str, source_url: 
             process.stdin.write(chunk)
             await process.stdin.drain()
         process.stdin.close()
-        await process.wait()
+        try:
+            await asyncio.wait_for(process.wait(), ANALYZER_TIMEOUT_SECONDS)
+        except asyncio.TimeoutError as exc:
+            raise ToolError(
+                "ANALYZER_TIMEOUT",
+                "The GTFS Analyzer process exceeded its time limit.",
+            ) from exc
         stdout = await stdout_task
         stderr = await stderr_task
     except Exception:

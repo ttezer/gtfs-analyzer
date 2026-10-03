@@ -25,3 +25,7 @@ This is the first integration slice. Cloud deployment, production DNS rebinding
 pinning, rate limiting, resource ceilings, and container packaging remain separate
 release gates.
 
+The total request deadline and the native Analyzer subprocess deadline are
+independent: `GTFS_TOTAL_TIMEOUT_SECONDS` bounds download plus validation, while
+`GTFS_ANALYZER_TIMEOUT_SECONDS` bounds the native process after the feed has been
+streamed to stdin.
