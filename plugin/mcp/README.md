@@ -27,9 +27,9 @@ This is the first integration slice. Cloud deployment, production DNS rebinding
 pinning, rate limiting, resource ceilings, and container packaging remain separate
 release gates.
 
-The portable package manifest is at `../plugin.json`; its bundled usage skill is
-at `../skills/gtfs-validator/SKILL.md`. A portable `mcp.json` is intentionally
-not committed yet because the current tunnel endpoint is temporary.
+The portable package manifest is at `../plugin.json`, its bundled usage skill is
+at `../skills/gtfs-validator/SKILL.md`, and the deployed MCP connection is
+declared at `../mcp.json`.
 
 ## Container
 

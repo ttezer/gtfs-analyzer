@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "gtfs-validator": {
+      "type": "streamable-http",
+      "url": "https://gtfs-validator-i7fk2joqbq-ew.a.run.app/mcp"
+    }
+  }
+}
