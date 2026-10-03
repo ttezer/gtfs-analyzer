@@ -90,8 +90,11 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             server._allowed_url("https://feeds.example.test/feed.zip")
 
     async def test_download_transport_uses_checked_ip_and_original_host(self):
+        seen_hosts = []
+
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
+                seen_hosts.append(self.headers["Host"])
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(b"ok")
@@ -103,11 +106,14 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         thread.start()
         try:
-            transport = server._PinnedIPTransport("127.0.0.1", "localhost")
+            transport = server._PinnedIPTransport("127.0.0.1", "feeds.example.test")
             async with httpx.AsyncClient(transport=transport) as client:
-                response = await client.get(f"http://localhost:{httpd.server_port}/feed.zip")
+                response = await client.get(
+                    f"http://feeds.example.test:{httpd.server_port}/feed.zip"
+                )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, b"ok")
+            self.assertEqual(seen_hosts, [f"feeds.example.test:{httpd.server_port}"])
         finally:
             httpd.shutdown()
             httpd.server_close()

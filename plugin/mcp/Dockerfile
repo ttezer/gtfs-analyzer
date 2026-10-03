@@ -3,9 +3,10 @@
 
 FROM rust:bookworm AS analyzer-builder
 WORKDIR /src
+ARG GTFS_ANALYZER_COMMIT=unknown
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates ./crates
-RUN cargo build --release --locked -p gtfs-analyzer
+RUN GTFS_ANALYZER_COMMIT="$GTFS_ANALYZER_COMMIT" cargo build --release --locked -p gtfs-analyzer
 
 FROM python:3.12-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \

@@ -6,8 +6,12 @@ steps:
       - plugin/mcp/Dockerfile
       - -t
       - ${_IMAGE}
+      - --build-arg
+      - GTFS_ANALYZER_COMMIT=${_COMMIT_SHA}
       - .
 images:
   - ${_IMAGE}
+substitutions:
+  _COMMIT_SHA: unknown
 options:
   logging: CLOUD_LOGGING_ONLY

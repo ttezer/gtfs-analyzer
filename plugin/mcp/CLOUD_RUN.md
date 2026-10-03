@@ -13,7 +13,7 @@ gcloud config set project PROJECT_ID
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
 gcloud builds submit \
   --config plugin/mcp/cloudbuild.yaml \
-  --substitutions=_IMAGE=REGION-docker.pkg.dev/PROJECT_ID/REPOSITORY/gtfs-validator:0.1.0 \
+  --substitutions=_IMAGE=REGION-docker.pkg.dev/PROJECT_ID/REPOSITORY/gtfs-validator:0.1.0,_COMMIT_SHA=$(git rev-parse HEAD) \
   .
 ```
 

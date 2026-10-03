@@ -5,9 +5,14 @@ use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=.cargo_vcs_info.json");
+    println!("cargo:rerun-if-env-changed=GTFS_ANALYZER_COMMIT");
 
     let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let (commit, source) = commit_from_cargo_vcs_info(&manifest_dir)
+    let (commit, source) = env::var("GTFS_ANALYZER_COMMIT")
+        .ok()
+        .filter(|commit| !commit.trim().is_empty())
+        .map(|commit| (commit, "build_env".to_owned()))
+        .or_else(|| commit_from_cargo_vcs_info(&manifest_dir))
         .or_else(|| commit_from_git(&manifest_dir))
         .unwrap_or_else(|| ("unknown".to_owned(), "unavailable".to_owned()));
 
