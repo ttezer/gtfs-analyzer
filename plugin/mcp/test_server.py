@@ -10,6 +10,11 @@ class _Response:
         yield b"feed"
 
 
+class _LargeResponse:
+    async def aiter_bytes(self):
+        yield b"feed"
+
+
 class _Stdin:
     def is_closing(self):
         return False
@@ -77,6 +82,17 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(error.exception.error_type, "ANALYZER_TIMEOUT")
         self.assertTrue(process.killed)
         self.assertGreaterEqual(process.wait_calls, 2)
+
+    async def test_download_limit_kills_subprocess(self):
+        process = _SlowProcess()
+        with patch.object(server, "MAX_DOWNLOAD_BYTES", 3), patch(
+            "server.asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=process
+        ):
+            with self.assertRaises(server.ToolError) as error:
+                await server._validate_stream(_LargeResponse(), "en", None)
+
+        self.assertEqual(error.exception.error_type, "FILE_TOO_LARGE")
+        self.assertTrue(process.killed)
 
     def test_tool_error_is_json_safe(self):
         result = server._tool_error(server.ToolError("FILE_TOO_LARGE", "too big", limit=10))

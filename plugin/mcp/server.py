@@ -36,7 +36,7 @@ class ToolError(RuntimeError):
         self.details = details
 
 
-MAX_DOWNLOAD_BYTES = int(os.environ.get("GTFS_MAX_DOWNLOAD_BYTES", str(512 * 1024 * 1024)))
+MAX_DOWNLOAD_BYTES = int(os.environ.get("GTFS_MAX_DOWNLOAD_BYTES", str(20 * 1024 * 1024)))
 TOTAL_TIMEOUT_SECONDS = float(os.environ.get("GTFS_TOTAL_TIMEOUT_SECONDS", "105"))
 ANALYZER_TIMEOUT_SECONDS = float(os.environ.get("GTFS_ANALYZER_TIMEOUT_SECONDS", "90"))
 MAX_REDIRECTS = int(os.environ.get("GTFS_MAX_REDIRECTS", "5"))

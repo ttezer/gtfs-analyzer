@@ -15,7 +15,7 @@ Important environment settings:
 
 ```text
 GTFS_ANALYZER_BIN
-GTFS_MAX_DOWNLOAD_BYTES       (default 512 MiB)
+GTFS_MAX_DOWNLOAD_BYTES       (default 20 MiB; provisional Phase 4 cap)
 GTFS_TOTAL_TIMEOUT_SECONDS    (default 105)
 GTFS_ANALYZER_TIMEOUT_SECONDS (default 90)
 MCP_ALLOWED_HOST              (temporary tunnel hostname, if used)
