@@ -43,6 +43,9 @@ The image listens on `PORT`/`MCP_PORT` and exposes `/mcp`. The native Analyzer
 binary is built in the first stage and copied into the small Python runtime
 image.
 
+Cloud Build/Run commands are documented in `CLOUD_RUN.md`; deployment requires
+an authenticated Google Cloud environment and is not performed by local tests.
+
 Operational logging is URL-free: HTTP client request logs are suppressed at INFO
 level and download errors do not echo source URLs or query strings.
 
