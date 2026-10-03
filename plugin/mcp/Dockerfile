@@ -1,9 +1,10 @@
 # Build from the repository root:
-#   docker build -f plugin/mcp/Dockerfile -t gtfs-validator-mcp .
+#   docker build --build-arg GTFS_ANALYZER_COMMIT="$(git rev-parse HEAD)" \
+#     -f plugin/mcp/Dockerfile -t gtfs-validator-mcp .
 
 FROM rust:bookworm AS analyzer-builder
 WORKDIR /src
-ARG GTFS_ANALYZER_COMMIT=unknown
+ARG GTFS_ANALYZER_COMMIT
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
 COPY crates ./crates
 RUN GTFS_ANALYZER_COMMIT="$GTFS_ANALYZER_COMMIT" cargo build --release --locked -p gtfs-analyzer

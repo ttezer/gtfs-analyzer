@@ -11,7 +11,5 @@ steps:
       - .
 images:
   - ${_IMAGE}
-substitutions:
-  _COMMIT_SHA: unknown
 options:
   logging: CLOUD_LOGGING_ONLY

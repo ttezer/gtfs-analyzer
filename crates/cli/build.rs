@@ -8,10 +8,13 @@ fn main() {
     println!("cargo:rerun-if-env-changed=GTFS_ANALYZER_COMMIT");
 
     let manifest_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let (commit, source) = env::var("GTFS_ANALYZER_COMMIT")
-        .ok()
-        .filter(|commit| !commit.trim().is_empty())
-        .map(|commit| (commit, "build_env".to_owned()))
+    let build_commit = match env::var("GTFS_ANALYZER_COMMIT") {
+        Ok(commit) if !commit.trim().is_empty() => Some((commit, "build_env".to_owned())),
+        Ok(_) => panic!("GTFS_ANALYZER_COMMIT must be set for container builds"),
+        Err(env::VarError::NotPresent) => None,
+        Err(err) => panic!("could not read GTFS_ANALYZER_COMMIT: {err}"),
+    };
+    let (commit, source) = build_commit
         .or_else(|| commit_from_cargo_vcs_info(&manifest_dir))
         .or_else(|| commit_from_git(&manifest_dir))
         .unwrap_or_else(|| ("unknown".to_owned(), "unavailable".to_owned()));

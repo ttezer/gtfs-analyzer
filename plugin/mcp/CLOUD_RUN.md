@@ -17,6 +17,9 @@ gcloud builds submit \
   .
 ```
 
+Run `git status --short` first and require no output. The build command embeds
+the exact checked-out commit; do not build or deploy from a dirty worktree.
+
 The Artifact Registry repository must already exist in `REGION`.
 
 ## Deploy
