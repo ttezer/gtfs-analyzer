@@ -49,8 +49,18 @@ truncation için ölçüm sonrası bütçe bırakılmalıdır.
 - ChatGPT bağlantısında ilk hata `Invalid Host header` idi; geçici tünel hostname'i
   allowlist'e alınarak düzeltildi.
 
-## Eksik ölçüm
+## Gerçek ChatGPT file handoff
 
-ChatGPT'nin `_meta["openai/fileParams"]` ile gerçek yüklenmiş dosyayı MCP'ye aktarması
-henüz test edilmedi. Bu, küçük ve hassas olmayan bir dosya yüklenerek ayrıca ölçülmelidir.
+Küçük ve hassas olmayan `README.md` dosyası ChatGPT sohbetine yüklenerek `file_probe`
+ile test edildi:
 
+```text
+bytes_seen: 613
+content_type: text/markdown
+file_name: README.md
+Başarılı: Evet
+```
+
+Sonuç: `_meta["openai/fileParams"]` handoff'u bu testte başarılıdır. Bu yalnızca
+dosyanın MCP'ye erişebildiğini gösterir; büyük ZIP davranışı production limitlerini
+belirlemek için ayrıca benchmark edilmelidir.
