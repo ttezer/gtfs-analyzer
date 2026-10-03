@@ -269,7 +269,7 @@ mcp = FastMCP(
         "the returned status, scores, severity counts, partial coverage, and R9 order."
     ),
     host=os.environ.get("MCP_HOST", "127.0.0.1"),
-    port=int(os.environ.get("MCP_PORT", "8787")),
+    port=int(os.environ.get("MCP_PORT", os.environ.get("PORT", "8787"))),
     streamable_http_path="/mcp",
     json_response=True,
     stateless_http=True,
