@@ -81,7 +81,8 @@
             }
           ]
         },
-        "commerce": false
+        "commerce": false,
+        "demo_recording_url": "https://youtu.be/mtVU4qK1Sp8"
       },
       "publication": {
         "release_notes": "Initial public release of GTFS feed validation and rule lookup."
