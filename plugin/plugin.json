@@ -20,6 +20,7 @@
         "developerName": "Tacettin Tezer",
         "category": "Developer Tools",
         "websiteURL": "https://ttezer.github.io/gtfs-analyzer/",
+        "supportURL": "https://ttezer.github.io/gtfs-analyzer/plugin/support/",
         "privacyPolicyURL": "https://ttezer.github.io/gtfs-analyzer/plugin/privacy/",
         "termsOfServiceURL": "https://ttezer.github.io/gtfs-analyzer/plugin/terms/",
         "defaultPrompt": [

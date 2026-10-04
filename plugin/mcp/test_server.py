@@ -60,6 +60,20 @@ class _SlowProcess:
 
 
 class ServerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_openai_apps_challenge_returns_configured_token(self):
+        with patch.dict(server.os.environ, {"OPENAI_APPS_CHALLENGE_TOKEN": "challenge-token"}):
+            response = await server.openai_apps_challenge(None)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.body, b"challenge-token")
+
+    async def test_openai_apps_challenge_is_unavailable_without_token(self):
+        with patch.dict(server.os.environ, {}, clear=False):
+            server.os.environ.pop("OPENAI_APPS_CHALLENGE_TOKEN", None)
+            response = await server.openai_apps_challenge(None)
+
+        self.assertEqual(response.status_code, 404)
+
     def test_private_and_unsupported_urls_are_rejected(self):
         for url in (
             "http://127.0.0.1/feed.zip",

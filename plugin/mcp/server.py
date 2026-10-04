@@ -23,6 +23,8 @@ import httpx
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 
 # HTTPX INFO request logs include the complete URL, which may contain a signed
@@ -363,6 +365,15 @@ mcp = FastMCP(
     stateless_http=True,
     transport_security=TransportSecuritySettings(allowed_hosts=allowed_hosts),
 )
+
+
+@mcp.custom_route("/.well-known/openai-apps-challenge", methods=["GET"])
+async def openai_apps_challenge(_request: Request) -> PlainTextResponse:
+    """Serve the token used by OpenAI to verify ownership of this MCP host."""
+    token = os.environ.get("OPENAI_APPS_CHALLENGE_TOKEN")
+    if not token:
+        return PlainTextResponse("Not configured", status_code=404)
+    return PlainTextResponse(token)
 
 
 @mcp.tool(
