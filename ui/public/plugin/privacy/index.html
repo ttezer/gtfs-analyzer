@@ -9,9 +9,15 @@
 <body>
   <p><a href="../../">GTFS Analyzer</a></p>
   <h1>GTFS Validator privacy</h1>
-  <p>When you use the GTFS Validator plugin, an uploaded feed or public feed URL is temporarily processed by the GTFS Validator service using the GTFS Analyzer engine.</p>
-  <p>The service does not intentionally retain feed contents, validation reports, or full source URLs after processing. Operational diagnostics use limited metadata such as duration, status, input size, and engine version. Signed download URLs and query strings are excluded from HTTP client logs.</p>
-  <p>The browser-based GTFS Analyzer is a separate local/WASM path: files opened there are processed in your browser and are not uploaded by the web application.</p>
+  <h2>What we process</h2>
+  <p>When you use the GTFS Validator plugin, the service temporarily processes an uploaded GTFS feed or a public GTFS feed URL using the GTFS Analyzer engine. Processing may include the feed files needed for validation and the URL or file metadata required to complete the request.</p>
+  <h2>Retention and deletion</h2>
+  <p>Feed contents, validation reports, and temporary analyzer configuration files are processed for the duration of the request and are not intentionally retained after processing. Temporary files used for URL context are deleted during request cleanup.</p>
+  <p>Operational diagnostics may include limited metadata such as request status, duration, input size, error type, and engine version. Raw feed contents, signed download URLs, and URL query strings are excluded from application request logs. Infrastructure providers may retain operational logs according to their own policies.</p>
+  <h2>Sharing and use</h2>
+  <p>GTFS Validator does not sell feed data or use submitted feeds for advertising. The service sends the requested public feed to the validator running on Google Cloud infrastructure and returns the resulting analysis to the requesting ChatGPT session. Do not submit credentials, private URLs, or data that you are not authorized to process.</p>
+  <h2>Your choices and contact</h2>
+  <p>You can avoid submitting a feed to the plugin and use the browser-based GTFS Analyzer instead. Files opened there are processed in your browser and are not uploaded by the web application. For privacy questions or deletion requests, contact the maintainer through the <a href="https://github.com/ttezer/gtfs-analyzer/issues">GTFS Analyzer issue tracker</a>; do not include feed contents, signed URLs, credentials, or private data.</p>
   <p><small>Last updated: 2026-10-03</small></p>
 </body>
 </html>
