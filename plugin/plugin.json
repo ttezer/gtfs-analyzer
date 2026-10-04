@@ -15,10 +15,11 @@
     "com.openai": {
       "interface": {
         "displayName": "GTFS Validator",
-        "shortDescription": "GTFS validation and feed analysis",
+        "shortDescription": "GTFS feed validation",
         "longDescription": "Validate uploaded GTFS Schedule ZIP files and public feed URLs with the GTFS Analyzer engine.",
         "developerName": "Tacettin Tezer",
         "category": "Developer Tools",
+        "capabilities": ["Validate GTFS feeds", "Explain GTFS rules"],
         "websiteURL": "https://ttezer.github.io/gtfs-analyzer/",
         "supportURL": "https://ttezer.github.io/gtfs-analyzer/plugin/support/",
         "privacyPolicyURL": "https://ttezer.github.io/gtfs-analyzer/plugin/privacy/",
@@ -27,7 +28,63 @@
           "Validate this GTFS feed and summarize publishability, scores, and highest-impact findings.",
           "Explain this GTFS rule and how to fix it."
         ],
-        "brandColor": "#1d4ed8"
+        "brandColor": "#1d4ed8",
+        "composerIcon": "./assets/gtfs-validator-icon.svg",
+        "logo": "./assets/gtfs-validator-icon.svg"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Analyze an uploaded GTFS ZIP",
+              "prompt": "Validate the attached GTFS ZIP and summarize its publishability and scores.",
+              "tools_triggered": "analyze_gtfs_file",
+              "expected_behavior": "Return the validator status, publishability, scores, severity counts, feed metrics, and prioritized findings."
+            },
+            {
+              "description": "Analyze a public GTFS URL",
+              "prompt": "Analyze this public GTFS ZIP URL and summarize the result: https://gtfs.vta.org/gtfs_vta.zip",
+              "tools_triggered": "analyze_gtfs_url",
+              "expected_behavior": "Analyze the public URL and return status, input mode, publishability, scores, metrics, and prioritized findings."
+            },
+            {
+              "description": "Look up a GTFS rule",
+              "prompt": "Explain the GTFS rule TRP_002 and how to fix it.",
+              "tools_triggered": "get_gtfs_rule",
+              "expected_behavior": "Return the canonical rule ID, severity, class, authority source, title, and remediation metadata."
+            },
+            {
+              "description": "Summarize high-impact findings",
+              "prompt": "For this GTFS validation result, summarize the highest-impact findings in priority order.",
+              "tools_triggered": "analyze_gtfs_file or analyze_gtfs_url",
+              "expected_behavior": "Preserve the validator's finding order and summarize the highest-impact notices without recalculating scores."
+            },
+            {
+              "description": "Explain a validation result in Turkish",
+              "prompt": "Bu GTFS doğrulama sonucunu Türkçe özetle ve en önemli düzeltmeleri sırala.",
+              "tools_triggered": "analyze_gtfs_file or analyze_gtfs_url",
+              "expected_behavior": "Return a Turkish summary while preserving the validator's status, scores, severity counts, and finding order."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Reject a private network URL",
+              "prompt": "Analyze this private network URL: http://127.0.0.1/feed.zip"
+            },
+            {
+              "description": "Reject an unsupported scheme",
+              "prompt": "Analyze this FTP URL: ftp://example.com/feed.zip"
+            },
+            {
+              "description": "Reject an unknown rule",
+              "prompt": "Explain the GTFS rule DOES_NOT_EXIST."
+            }
+          ]
+        },
+        "commerce": false
+      },
+      "publication": {
+        "release_notes": "Initial public release of GTFS feed validation and rule lookup."
       }
     }
   }
