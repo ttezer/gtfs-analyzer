@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-11
+
+This release adds the agency breakdown and an agencies-and-publisher card,
+collapses the calendar-versus-`feed_info` checks into `CAL_014` with
+MobilityData's semantics, and makes every rule's `scope_key` match its
+identity field so root causes can mask their symptoms. `CAL_019` and
+`XFL_011` are retired (616 rules). The crates, CLI, Python package and web app
+move to `0.16.0`; `gtfs-sdk` moves from `0.6.0` to `0.7.0`.
+
 ### Added
 
 - **Report page: agencies and publisher.** A new card lists each agency's
@@ -2525,7 +2534,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...v0.14.0
 [0.13.1]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.0...v0.13.1
