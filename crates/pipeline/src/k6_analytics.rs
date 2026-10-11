@@ -7759,6 +7759,12 @@ fn check_remaining_analytics<'a>(
         .filter_map(|t| ti_rem.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
         .collect();
     let mut shape_cum: FxHashMap<&str, Vec<f64>> = FxHashMap::default();
+    // SHP_016/017 temsilci seferi ve notice sırası iterasyona bağlı olmasın: FxHashMap
+    // gezinme sırası 32-bit WASM ile 64-bit native arasında farklı (aynı feed'de web
+    // `1150B`, CLI `0850B` gösteriyordu). trip_id sırası iki platformda aynıdır.
+    let mut trips_by_id: Vec<(&str, &[CompactStopTime])> =
+        idx.by_trip.iter().map(|(&t, &st)| (t, st)).collect();
+    trips_by_id.sort_unstable_by_key(|&(t, _)| t);
 
     // ── SHP_016: shape tamamen ters yönde çizilmiş (varyant-farkında ön-geçiş) ─
     // İlk durak shape'in ikinci yarısına projekte oluyorsa shape ters takılmış.
@@ -7777,7 +7783,7 @@ fn check_remaining_analytics<'a>(
         // eler ve shape daha KOLAY ateşler — ölçüldü, `mdb-1138` 46 → 168 çıktı.
         // Doğrusu: şüpheli trip'in shape'i HAKKINDA KARAR VERİLMEZ.
         let mut unreliable: FxHashSet<&str> = FxHashSet::default();
-        for (trip_id, stimes) in &idx.by_trip {
+        for &(trip_id, stimes) in &trips_by_id {
             let Some(&shape_id) = trip_shape_local.get(trip_id) else {
                 continue;
             };
@@ -7899,7 +7905,7 @@ fn check_remaining_analytics<'a>(
         // (aynı route'un tüm tripleri aynı shape sorununu tekrarlamamalı)
         let mut shp017_seen: FxHashSet<(&str, &str)> = FxHashSet::default();
 
-        for (trip_id, stimes) in &idx.by_trip {
+        for &(trip_id, stimes) in &trips_by_id {
             let Some(&shape_id) = trip_shape_local.get(trip_id) else {
                 continue;
             };
@@ -11283,7 +11289,9 @@ fn check_vat_analytics(
     // ── VAT_006: Hizmet yoğunluğu dengesizliği (tek hat ≥ %40) ────────────
     {
         let total_trips: u32 = route_trip_count.values().sum();
-        if total_trips >= 50 {
+        // 1–2 hatta en yoğun hattın payı zorunlu olarak ≥%50: %40 eşiği koşulsuz ateşler
+        // ve hiçbir dengesizlik söylemez (tek hatlı feribot feed'i 76/76 %100 raporluyordu).
+        if total_trips >= 50 && route_trip_count.len() >= 3 {
             for (&route, &count) in &route_trip_count {
                 let ratio = count as f64 / total_trips as f64;
                 if ratio >= 0.40 {
@@ -17316,6 +17324,55 @@ mod tests {
     }
 
     #[test]
+    fn shp_017_representative_trip_is_iteration_independent() {
+        // Aynı (shape, durak) ihlalini paylaşan seferlerden tek notice çıkar; temsilci
+        // HashMap sırasına değil trip_id sırasına bağlı olmalı (WASM/native paritesi).
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        let ids = ["T7", "T3", "T9", "T1", "T5", "T8", "T2", "T6", "T4"];
+        let mut stop_times = Vec::new();
+        for (k, id) in ids.iter().enumerate() {
+            let h = 6 + k as u32;
+            stop_times.push(stoptime(id, 1, "A", (h, 0, 0), (h, 0, 0), 2));
+            stop_times.push(stoptime(id, 2, "C", (h, 10, 0), (h, 10, 0), 3));
+            stop_times.push(stoptime(id, 3, "B", (h, 20, 0), (h, 20, 0), 4));
+        }
+        let mut records = records_with(
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.0, 29.05),
+                stop("C", 41.0, 29.1),
+            ],
+            vec![route("R1", 3)],
+            ids.iter().map(|id| trip_sh(id, "R1", "S1")).collect(),
+            stop_times,
+        );
+        records.shapes = [29.0, 29.05, 29.1]
+            .iter()
+            .enumerate()
+            .map(|(i, &lon)| {
+                ShapePointRecord::new(
+                    shape_ti.intern("S1"),
+                    Some(41.0),
+                    Some(lon),
+                    Some(i as u32 + 1),
+                    None,
+                    i as u32 + 2,
+                )
+            })
+            .collect();
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let reps: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "SHP_017")
+            .map(|n| n.entity_id.as_deref())
+            .collect();
+        assert_eq!(reps, vec![Some("T1")]);
+    }
+
+    #[test]
     fn backtrack_that_recovers_no_shp_017() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
@@ -18949,6 +19006,32 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "VAT_006"),
             "VAT_006 olmalı"
+        );
+    }
+
+    #[test]
+    fn two_route_feed_has_no_vat_006() {
+        // 2 hatta en yoğun pay zorunlu olarak ≥%50 → %40 eşiği bilgi taşımaz.
+        let mut trips_v = Vec::new();
+        let mut st_v = Vec::new();
+        for i in 1..=80u32 {
+            let (tid, rid) = (format!("T{i}"), if i <= 70 { "R1" } else { "R2" });
+            trips_v.push(trip(&tid, rid));
+            st_v.push(stoptime(&tid, 1, "A", (i % 24, 0, 0), (i % 24, 0, 0), 2));
+            st_v.push(stoptime(&tid, 2, "B", (i % 24, 10, 0), (i % 24, 10, 0), 3));
+        }
+        let r = crate::k2::EntityRecords {
+            stops: vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            routes: vec![route("R1", 3), route("R2", 3)],
+            trips: trips_v,
+            trip_interns: take_ti(),
+            stop_times: st_v,
+            ..Default::default()
+        };
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_006"),
+            "1–2 hatlı feed'de VAT_006 olmamalı"
         );
     }
 

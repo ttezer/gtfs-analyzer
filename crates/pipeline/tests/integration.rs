@@ -593,6 +593,13 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
 
 #[test]
 fn stp_033_is_suppressed_only_for_proven_uniform_fares() {
+    // fare_rules yok → zone_id'nin tüketicisi yok → STP_033 yok.
+    let no_fares = match run(&base_files()) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert!(!has(&no_fares, "STP_033"));
+
     let mut uniform = base_files();
     uniform.push((
         "fare_attributes.txt",

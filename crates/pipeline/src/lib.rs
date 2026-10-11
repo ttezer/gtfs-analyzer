@@ -160,7 +160,7 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
 /// `validate_bytes` and both WASM paths). Runs after K6 and before K7 so that
 /// removed notices cannot affect scores, report views, or the R9 queue.
 ///
-/// 1. STP_033 is dropped when the feed proves uniform fare coverage.
+/// 1. STP_033 is dropped when the feed has no fare_rules or proves uniform fare coverage.
 /// 2. Rules listed in `config.disabled_rule_ids` are dropped.
 /// 3. Rules listed in `config.disabled_rule_ids_gtfs_jp` are dropped ONLY when the
 ///    feed is a detected GTFS-JP feed. Japanese publishing practice makes some
@@ -1568,7 +1568,11 @@ pub fn apply_report_scope(
     records: &EntityRecords,
     config: &ValidatorConfig,
 ) {
-    if notices.iter().any(|n| n.rule_id == "STP_033") && has_uniform_fare_coverage(records) {
+    // `zone_id` spec'te Optional; tek tüketicisi fare_rules'un bölge sütunları. fare_rules
+    // yoksa eksik zone hiçbir ücret hesabını bozmaz (ücretsiz/tek ücretli feed'ler dahil).
+    if notices.iter().any(|n| n.rule_id == "STP_033")
+        && (records.fare_rules.is_empty() || has_uniform_fare_coverage(records))
+    {
         notices.retain(|notice| notice.rule_id != "STP_033");
     }
     let jp_scope = records.is_gtfs_jp == Some(true);
