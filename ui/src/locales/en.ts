@@ -902,7 +902,7 @@ const en: LocaleShape = {
     'SHP_014': "Shape '{entity_id}': first or last stop is far from the shape endpoint.",
     'SHP_015': "Shape '{entity_id}' has statistically too few points.",
     'SHP_016': "Shape '{entity_id}': direction is inconsistent with the trip direction.",
-    'SHP_017': "Shape '{entity_id}': stop sequence conflicts with shape order.",
+    'SHP_017': "Trip '{entity_id}' on shape '{shape_id}': stop sequence conflicts with shape order.",
     'SHP_018': "Shape '{entity_id}' is not referenced by any trip.",
     'SHP_019': "Shape '{entity_id}': trips using this shape have no stop times.",
     'SHP_020': "{affected_shapes} shape(s) have repeated points, e.g. {example_shapes}.",

@@ -904,7 +904,7 @@ const fr: LocaleShape = {
     'SHP_014': 'Tracé « {entity_id} » : le premier ou le dernier arrêt est éloigné de l’extrémité du tracé.',
     'SHP_015': 'Le tracé « {entity_id} » comporte statistiquement trop peu de points.',
     'SHP_016': 'Tracé « {entity_id} » : le sens est incohérent avec celui de la course.',
-    'SHP_017': 'Tracé « {entity_id} » : la séquence d’arrêts est en conflit avec l’ordre du tracé.',
+    'SHP_017': 'Course « {entity_id} » sur le tracé « {shape_id} » : la séquence d’arrêts est en conflit avec l’ordre du tracé.',
     'SHP_018': 'Le tracé « {entity_id} » n’est référencé par aucune course.',
     'SHP_019': 'Tracé « {entity_id} » : les courses utilisant ce tracé n’ont aucun horaire d’arrêt.',
     'SHP_020': '{affected_shapes} tracé(s) ont des points répétés, p. ex. {example_shapes}.',

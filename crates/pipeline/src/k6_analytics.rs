@@ -8042,7 +8042,9 @@ fn check_remaining_analytics<'a>(
                     "SHP_017",
                     EntityType::Trip,
                     Some(trip_id.to_string()),
-                    Some(trip_id.to_string()),
+                    // Registry kimlik alanı `shape_id`: kökler (XFL_013, SHP_002/006,
+                    // TRP_004) shape kapsamlı; trip_id yazılınca `blocks` hiç eşleşmiyordu.
+                    Some(shape_id.to_string()),
                     "stop_times.txt",
                     Some(st.line as u64),
                     Some("stop_sequence"),
@@ -17302,10 +17304,15 @@ mod tests {
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            result.notices.iter().any(|n| n.rule_id == "SHP_017"),
-            "kısmi sıra ihlali → SHP_017 olmalı"
-        );
+        let n017 = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "SHP_017")
+            .expect("kısmi sıra ihlali → SHP_017 olmalı");
+        // scope_key shape'tir (registry kimlik alanı): shape kapsamlı kökler
+        // (XFL_013, SHP_002/006, TRP_004) ancak böyle bastırabilir.
+        assert_eq!(n017.entity_id.as_deref(), Some("T1"));
+        assert_eq!(n017.scope_key.as_deref(), Some("S1"));
     }
 
     #[test]
