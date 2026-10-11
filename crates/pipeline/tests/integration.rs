@@ -1282,6 +1282,31 @@ fn trf_006_blocks_only_trip_scoped_opr_007() {
     }
 }
 
+// TRF_003 aktarma SATIRINI kapsar (`from_stop_id|to_stop_id`). Eskiden `scope_key` taşımadığı
+// için feed düzeyi kökü sayılıyor, tek kırık durak referansı feed'deki BÜTÜN TRF_004
+// bulgularını R9'dan gizliyordu. Artık yalnız kendi satırının TRF_004'ü semptomdur.
+#[test]
+fn trf_003_masks_only_its_own_transfer_row() {
+    const TRANSFERS: &[u8] = b"from_stop_id,to_stop_id,transfer_type\nS1,MISSING,9\nS1,S2,9\n";
+    let mut files = base_files();
+    files.push(("transfers.txt", TRANSFERS));
+
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let trf003: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "TRF_003").collect();
+    assert_eq!(trf003.len(), 1);
+    assert_eq!(trf003[0].scope_key.as_deref(), Some("S1|MISSING"));
+    assert_eq!(vr.notices.iter().filter(|n| n.rule_id == "TRF_004").count(), 2);
+
+    let trf004 = vr.reports.r9.items.iter().find(|i| i.rule_id == "TRF_004");
+    assert_eq!(
+        trf004.map(|i| i.affected_instance_count),
+        Some(1),
+        "yalnız kırık satırın TRF_004'ü maskelenmeli"
+    );
+}
+
 // ── Test 5: TRP_019 — shape_id yalnız SÜREKLİ SERVİS varsa zorunludur ────────
 //
 // 🔴 Bu test 2026-08-19'a kadar HATALI DAVRANIŞI sabitliyordu: `continuous_pickup=1`

@@ -1960,6 +1960,11 @@ fn check_transfers(
     for rec in &records.transfers {
         let ttype = rec.transfer_type;
 
+        // Aktarma satırının kimliği: TRF_004/TRF_011 ile aynı `from_stop_id|to_stop_id`
+        // (K2 `derive_scope_key` gibi kırpılmış). Taraflardan biri boş olsa da DOLU kalır:
+        // `None` kök feed'in bütün aktarma bulgularını bastırırdı.
+        let row_scope = format!("{}|{}", rec.from_stop_id.trim(), rec.to_stop_id.trim());
+
         // TRF_003: from_stop_id veya to_stop_id stops.txt'te bulunamıyor
         for (field, stop_id) in [
             ("from_stop_id", rec.from_stop_id.as_str()),
@@ -1971,7 +1976,7 @@ fn check_transfers(
                     "TRF_003",
                     EntityType::Transfer,
                     None,
-                    None,
+                    Some(row_scope.clone()),
                     "transfers.txt",
                     Some(rec.line),
                     Some(field),
@@ -1989,7 +1994,7 @@ fn check_transfers(
             if mtt > MAX_TRANSFER_SEC {
                 notices.push(notice(
                     ctr, "TRF_010", EntityType::Transfer,
-                    None, None, "transfers.txt", Some(rec.line), Some("min_transfer_time"),
+                    None, Some(row_scope.clone()), "transfers.txt", Some(rec.line), Some("min_transfer_time"),
                     Some(format!("{mtt}s")), Some(format!("≤ {MAX_TRANSFER_SEC}s")),
                     format!("'{}' → '{}' aktarmasının min_transfer_time değeri {}s ({:.0} dakika) çok uzun.",
                         rec.from_stop_id, rec.to_stop_id, mtt, mtt as f64 / 60.0),
@@ -4355,7 +4360,7 @@ fn check_gtfs_jp_namespace(records: &EntityRecords, notices: &mut Vec<Notice>, c
                 "JPN_033",
                 EntityType::File,
                 Some(file_name.to_string()),
-                Some(file_name.to_string()),
+                None,
                 file_name,
                 Some(1),
                 None,
@@ -4376,7 +4381,7 @@ fn check_gtfs_jp_namespace(records: &EntityRecords, notices: &mut Vec<Notice>, c
                 "JPN_033",
                 EntityType::File,
                 Some(file_name.to_string()),
-                Some(file_name.to_string()),
+                None,
                 file_name,
                 Some(1),
                 Some(header),
@@ -4816,7 +4821,7 @@ fn check_gtfs_jp(
                     "JPN_022",
                     EntityType::Agency,
                     agency.agency_id.clone(),
-                    agency.agency_id.clone(),
+                    None,
                     "agency.txt",
                     Some(agency.line),
                     Some("agency_lang"),
@@ -4838,7 +4843,7 @@ fn check_gtfs_jp(
                     "JPN_022",
                     EntityType::Stop,
                     Some(stop.stop_id.clone()),
-                    Some(stop.stop_id.clone()),
+                    None,
                     "stops.txt",
                     Some(stop.line),
                     Some("location_type"),
@@ -5539,7 +5544,7 @@ fn check_gtfs_jp(
                         "JPN_016",
                         EntityType::Row,
                         Some(pattern.jp_pattern_id.clone()),
-                        Some(pattern.jp_pattern_id.clone()),
+                        None,
                         "pattern_jp.txt",
                         Some(pattern.line),
                         Some("route_update_date"),
@@ -5563,7 +5568,7 @@ fn check_gtfs_jp(
                             "JPN_016",
                             EntityType::Row,
                             Some(route.route_id.clone()),
-                            Some(route.route_id.clone()),
+                            None,
                             "routes_jp.txt",
                             Some(route.line),
                             Some("route_update_date"),

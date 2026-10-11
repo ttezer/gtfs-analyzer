@@ -2161,14 +2161,9 @@ fn scope_key_is_a_value_of_the_registry_identity_field() {
 /// Kimlik alanı beyan etmeyen (`scope_key_field = None`) kural runtime'da da `scope_key`
 /// taşımamalı: aşağıdaki `blocks` kapısı registry'ye bakar ve böyle bir kökü feed
 /// düzeyi sanar. SHP_004 (2026-10-11) `None` beyan ederken K2'nin `entity_id`
-/// geri dönüşüyle shape_id taşıyordu. Listede kalanlar `blocks` ilişkisi olmayan,
-/// henüz hizalanmamış kurallardır; her biri hâlâ sapıyor olmalı, düzelen listeden çıkar.
+/// geri dönüşüyle shape_id taşıyordu; ARC_035/JPN_033 dosya adını taşıyordu.
 #[test]
 fn rules_without_identity_field_carry_no_scope_key() {
-    const OPEN_DEBT: &[&str] = &[
-        "ARC_035", "FTR_001", "FTR_005", "FTR_006", "FTR_007", "FTR_008", "FTR_009", "FTR_010",
-        "FTR_011", "GGL_002", "JPN_016", "JPN_022", "JPN_033",
-    ];
     let mut drifting = BTreeSet::new();
     for f in fixtures() {
         if !f.no_read.is_empty() || f.flip_stream_flags {
@@ -2186,10 +2181,7 @@ fn rules_without_identity_field_carry_no_scope_key() {
             }
         }
     }
-    let unexpected: Vec<_> = drifting.iter().filter(|r| !OPEN_DEBT.contains(&r.as_str())).collect();
-    assert!(unexpected.is_empty(), "kimlik alanı yok ama scope_key taşıyor: {unexpected:?}");
-    let fixed: Vec<_> = OPEN_DEBT.iter().filter(|r| !drifting.contains(**r)).collect();
-    assert!(fixed.is_empty(), "artık sapmıyor, OPEN_DEBT'ten çıkarın: {fixed:?}");
+    assert!(drifting.is_empty(), "kimlik alanı yok ama scope_key taşıyor: {drifting:?}");
 }
 
 /// Feed-level toplulamadan sonra `scope_key`'i kalmayan kurallar. Bastırma toplulamadan
@@ -2230,18 +2222,21 @@ fn scope_dropped_by_aggregation(rule_id: &str) -> bool {
     notices.iter().all(|n| n.scope_key.is_none())
 }
 
-/// Kimlik alanının değer kümesi: `from_`/`to_`/`pickup_`/`drop_off_` öneki aynı
-/// tablonun kimliğini gösterir (`from_trip_id` bir trip_id'dir). Bileşik alanlar parçalanır.
-fn id_domains(field: &str) -> BTreeSet<&str> {
-    field
-        .split('|')
-        .map(|f| {
-            ["from_", "to_", "pickup_", "drop_off_"]
-                .iter()
-                .find_map(|p| f.strip_prefix(p))
-                .unwrap_or(f)
-        })
-        .collect()
+/// İki kimlik alanı aynı değeri taşıyabilir mi? `from_`/`to_`/`pickup_`/`drop_off_`
+/// öneki aynı tablonun kimliğini gösterir (`from_trip_id` bir trip_id'dir). Bileşik
+/// anahtar (`from_stop_id|to_stop_id` → "A|B") tekil bir kimlikle hiç eşleşmez; yalnız
+/// birebir aynı bileşik alanla eşleşir.
+fn same_id_domain(a: &str, b: &str) -> bool {
+    if a.contains('|') || b.contains('|') {
+        return a == b;
+    }
+    fn table(f: &str) -> &str {
+        ["from_", "to_", "pickup_", "drop_off_"]
+            .iter()
+            .find_map(|p| f.strip_prefix(p))
+            .unwrap_or(f)
+    }
+    table(a) == table(b)
 }
 
 /// Kapsamlı bir kök (`scope_key = Some(x)`) engellediği kuralı YALNIZ aynı `Some(x)`
@@ -2262,7 +2257,7 @@ fn scoped_root_blocks_only_rules_sharing_its_id_domain() {
             let reason = match meta.scope_key_field {
                 None => "kapsamsız".to_string(),
                 Some(_) if scope_dropped_by_aggregation(blocked) => "toplulamada kapsamsızlaşıyor".to_string(),
-                Some(field) if id_domains(root_field).is_disjoint(&id_domains(field)) => {
+                Some(field) if !same_id_domain(root_field, field) => {
                     format!("{field} taşıyor")
                 }
                 Some(_) => continue,

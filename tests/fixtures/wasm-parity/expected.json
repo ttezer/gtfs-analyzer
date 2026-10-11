@@ -12176,7 +12176,7 @@
           "remediation": "Trim leading and trailing whitespace from all field values.",
           "rule_class": "QUALITY",
           "rule_id": "DQ_016",
-          "scope_key": "trips.txt",
+          "scope_key": null,
           "service_id": null,
           "severity": "MEDIUM",
           "title": "Extra whitespace in field value"

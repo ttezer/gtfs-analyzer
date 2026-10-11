@@ -1000,10 +1000,14 @@ pub fn make_k2_notice(
     remediation: &str,
 ) -> Notice {
     // K2'ye özgü: scope_key satırdan, kuralın kendi scope_key_field tanımına göre türetilir.
+    // `entity_id` geri dönüşü YALNIZ kimlik alanı beyan eden kurallar içindir: beyan yoksa
+    // notice feed düzeyidir. Eskiden ARC_013/ARC_035 dosya adını, FTR/GGL ailesi beyansız
+    // kimliği scope olarak taşıyordu; `blocks` bunları kapsamlı kök sanıyordu.
     let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K2: bilinmeyen rule_id {rule_id}"));
-    let scope_key = row
-        .and_then(|r| derive_scope_key(r, meta.scope_key_field))
-        .or_else(|| entity_id.clone());
+    let scope_key = meta.scope_key_field.and_then(|field| {
+        row.and_then(|r| derive_scope_key(r, Some(field)))
+            .or_else(|| entity_id.clone())
+    });
 
     let whitespace_derived = row.zip(field).is_some_and(|(r, f)| {
         whitespace_parser_derivative(rule_id, r, f, observed_value.as_deref(), &message)

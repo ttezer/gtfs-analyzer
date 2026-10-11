@@ -94,11 +94,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PTH_012`/`PTH_013` and `TRF_006`/`TRF_007` → `TRF_013`–`TRF_018`. They
   masked a finding only when ids of two tables happened to be equal (stop `1`
   and pathway `1`), which was wrong; the rule cards no longer claim them. The registry now names the identity field that
-  `SHP_004` (`shape_id`) and `STP_026` (`stop_id`) already carried, so their
-  findings are attributed to agencies; `TRF_003` declares none, matching its
-  feed-level notices. Two tests guard this: a scoped root may only block rules
-  that carry an id from the same table after aggregation, and a rule without an
-  identity field must not emit a `scope_key`.
+  `SHP_004` (`shape_id`), `STP_026` (`stop_id`), `FTR_001`/`FTR_004`–`FTR_011`
+  (`from_leg_group_id`) and `GGL_002` (`fare_id`) already carried, so stop,
+  shape and fare findings are attributed to agencies. `ARC_035`, `JPN_016`,
+  `JPN_022` and `JPN_033` carried a file name or mixed ids and now report no
+  `scope_key`; K2 falls back to `entity_id` only for rules with an identity
+  field. Two tests guard this: a scoped root may only block rules that carry an
+  id from the same table after aggregation (a composite key only matches the
+  same composite key), and a rule without an identity field must not emit a
+  `scope_key`.
+- **`TRF_003` masks only its own transfer row.** It carried no `scope_key`, so
+  one broken stop reference hid every `TRF_004`, `TRF_010`, `TRF_011` and
+  `TRF_013`–`TRF_016` finding of the feed from the remediation queue. It is now
+  scoped by the row's `from_stop_id|to_stop_id`, like `TRF_004`; `TRF_010`
+  carries the same key. The links to `TRF_013`–`TRF_016`, which carry no
+  `scope_key`, are removed.
 - `CAL_014` also reports services that start after the validation date, as
   MobilityData does.
 - **`STP_033` is silent without `fare_rules.txt`.** `zone_id` is optional and is
