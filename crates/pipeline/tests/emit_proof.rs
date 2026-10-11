@@ -2158,6 +2158,125 @@ fn scope_key_is_a_value_of_the_registry_identity_field() {
     assert!(checked.len() > 100, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
 }
 
+/// Kimlik alanı beyan etmeyen (`scope_key_field = None`) kural runtime'da da `scope_key`
+/// taşımamalı: aşağıdaki `blocks` kapısı registry'ye bakar ve böyle bir kökü feed
+/// düzeyi sanar. SHP_004 (2026-10-11) `None` beyan ederken K2'nin `entity_id`
+/// geri dönüşüyle shape_id taşıyordu. Listede kalanlar `blocks` ilişkisi olmayan,
+/// henüz hizalanmamış kurallardır; her biri hâlâ sapıyor olmalı, düzelen listeden çıkar.
+#[test]
+fn rules_without_identity_field_carry_no_scope_key() {
+    const OPEN_DEBT: &[&str] = &[
+        "ARC_035", "FTR_001", "FTR_005", "FTR_006", "FTR_007", "FTR_008", "FTR_009", "FTR_010",
+        "FTR_011", "GGL_002", "JPN_016", "JPN_022", "JPN_033",
+    ];
+    let mut drifting = BTreeSet::new();
+    for f in fixtures() {
+        if !f.no_read.is_empty() || f.flip_stream_flags {
+            continue;
+        }
+        let files = with_opts(&f.overrides, &f.removes, &f.raw);
+        let cfg = f.config.clone().unwrap_or_default();
+        let ValidateResult::Ok(vr) = validate_bytes(&make_zip(&files), &cfg, TODAY) else {
+            continue;
+        };
+        for n in &vr.notices {
+            let undeclared = gtfs_rules::get_rule(&n.rule_id).is_some_and(|m| m.scope_key_field.is_none());
+            if undeclared && n.scope_key.is_some() {
+                drifting.insert(n.rule_id.as_str().to_owned());
+            }
+        }
+    }
+    let unexpected: Vec<_> = drifting.iter().filter(|r| !OPEN_DEBT.contains(&r.as_str())).collect();
+    assert!(unexpected.is_empty(), "kimlik alanı yok ama scope_key taşıyor: {unexpected:?}");
+    let fixed: Vec<_> = OPEN_DEBT.iter().filter(|r| !drifting.contains(**r)).collect();
+    assert!(fixed.is_empty(), "artık sapmıyor, OPEN_DEBT'ten çıkarın: {fixed:?}");
+}
+
+/// Feed-level toplulamadan sonra `scope_key`'i kalmayan kurallar. Bastırma toplulamadan
+/// SONRA çalıştığı için bunlar registry ne derse desin kapsamsızdır. Toplulama
+/// fonksiyonunun kendisine sorulur: kopya liste tutulmaz.
+fn scope_dropped_by_aggregation(rule_id: &str) -> bool {
+    let meta = gtfs_rules::get_rule(rule_id).expect("registry'de olmayan kural");
+    let probe = gtfs_core::Notice {
+        id: format!("probe/{rule_id}#1"),
+        rule_id: rule_id.to_string(),
+        severity: meta.severity,
+        rule_class: meta.rule_class,
+        entity_type: gtfs_core::EntityType::Row,
+        entity_id: Some("X".to_string()),
+        scope_key: Some("X".to_string()),
+        file: Some("stop_times.txt".to_string()),
+        line: Some(1),
+        field: Some("field".to_string()),
+        observed_value: Some("raw".to_string()),
+        expected_value: None,
+        details: None,
+        whitespace_derived: false,
+        whitespace_candidate: false,
+        title: meta.title.to_string(),
+        message: "raw".to_string(),
+        remediation: "raw".to_string(),
+        blocks: Vec::new(),
+        base_effort: meta.base_effort,
+        service_id: None,
+        agency_distribution: None,
+    };
+    let mut notices = vec![probe];
+    gtfs_pipeline::aggregate_feed_level_notices(
+        &mut notices,
+        &gtfs_pipeline::EntityRecords::default(),
+        &gtfs_pipeline::DerivedData::default(),
+    );
+    notices.iter().all(|n| n.scope_key.is_none())
+}
+
+/// Kimlik alanının değer kümesi: `from_`/`to_`/`pickup_`/`drop_off_` öneki aynı
+/// tablonun kimliğini gösterir (`from_trip_id` bir trip_id'dir). Bileşik alanlar parçalanır.
+fn id_domains(field: &str) -> BTreeSet<&str> {
+    field
+        .split('|')
+        .map(|f| {
+            ["from_", "to_", "pickup_", "drop_off_"]
+                .iter()
+                .find_map(|p| f.strip_prefix(p))
+                .unwrap_or(f)
+        })
+        .collect()
+}
+
+/// Kapsamlı bir kök (`scope_key = Some(x)`) engellediği kuralı YALNIZ aynı `Some(x)`
+/// ile bastırır (`resolve_symptoms`). Engellenen kural kapsamsızsa ya da başka bir
+/// tablonun kimliğini taşıyorsa bağlantı hiçbir zaman eşleşmez: kart "bloke eder"
+/// der, rapor bastırmaz. 2026-10-11'de 58 böyle ölü bağlantı kaldırıldı
+/// (ör. CAL_003 service_id → CAL_008 feed özeti, STP_001 stop_id → PTH_002 pathway_id).
+#[test]
+fn scoped_root_blocks_only_rules_sharing_its_id_domain() {
+    let mut failures = Vec::new();
+    for root in RULES {
+        let Some(root_field) = root.scope_key_field else { continue };
+        if root.blocks.is_empty() || scope_dropped_by_aggregation(root.id) {
+            continue;
+        }
+        for &blocked in root.blocks {
+            let meta = gtfs_rules::get_rule(blocked).expect("registry'de olmayan kural");
+            let reason = match meta.scope_key_field {
+                None => "kapsamsız".to_string(),
+                Some(_) if scope_dropped_by_aggregation(blocked) => "toplulamada kapsamsızlaşıyor".to_string(),
+                Some(field) if id_domains(root_field).is_disjoint(&id_domains(field)) => {
+                    format!("{field} taşıyor")
+                }
+                Some(_) => continue,
+            };
+            failures.push(format!("  {} ({root_field}) → {blocked}: {reason}", root.id));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "hiçbir zaman eşleşmeyen blocks bağlantısı:\n{}",
+        failures.join("\n")
+    );
+}
+
 #[test]
 fn shp030_aggregates_and_does_not_duplicate_related_findings() {
     let overrides = [

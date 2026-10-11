@@ -85,6 +85,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   service. They are now `Feed` entities without `scope_key`; the date stays
   in `entity_id` and the services in `details.services`. The links from
   `CAL_002`–`CAL_004` that never matched are removed.
+- **Root-cause links that could never match are removed.** A root cause with a
+  `scope_key` masks only findings with the same value, so 59 links pointed at
+  rules that carry another table's id or no `scope_key` at all (feed-level
+  summaries, including those aggregated before masking): for example
+  `CAL_003`/`CAL_004` → `CAL_008`/`CAL_009`/`DQ_006`, `STP_001` → `PTH_002`,
+  `TRP_004`/`SHP_006` → `STM_015`/`STM_016`, `PTH_002`/`PTH_003` →
+  `PTH_012`/`PTH_013` and `TRF_006`/`TRF_007` → `TRF_013`–`TRF_018`. They
+  masked a finding only when ids of two tables happened to be equal (stop `1`
+  and pathway `1`), which was wrong; the rule cards no longer claim them. The registry now names the identity field that
+  `SHP_004` (`shape_id`) and `STP_026` (`stop_id`) already carried, so their
+  findings are attributed to agencies; `TRF_003` declares none, matching its
+  feed-level notices. Two tests guard this: a scoped root may only block rules
+  that carry an id from the same table after aggregation, and a rule without an
+  identity field must not emit a `scope_key`.
 - `CAL_014` also reports services that start after the validation date, as
   MobilityData does.
 - **`STP_033` is silent without `fare_rules.txt`.** `zone_id` is optional and is

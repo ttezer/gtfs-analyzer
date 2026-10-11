@@ -1249,12 +1249,13 @@ fn stp_003_blocks_contain_geo_009() {
     }
 }
 
-// ── Test 4: TRF_006 → blocks[] TRF_017 + TRF_018 ─────────────────────────────
-// Geçersiz from_trip_id ("MISSING_TRIP") → K4 TRF_006 ateşler.
-// Registry tanımı: TRF_006 blocks = [TRF_013, TRF_014, TRF_015, TRF_017, TRF_018, OPR_007].
+// ── Test 4: TRF_006 → blocks[] OPR_007 ───────────────────────────────────────
+// Geçersiz from_trip_id ("MISSING_TRIP") → K4 TRF_006 ateşler; scope_key sefer kimliğidir.
+// Kapsamlı kök yalnız aynı scope_key'i bastırır: OPR_007 sefer kimliği taşır, TRF_013..018
+// scope_key taşımaz. O bağlantılar hiç eşleşmediği için 2026-10-11'de kaldırıldı.
 
 #[test]
-fn trf_006_blocks_contain_trf_017_and_trf_018() {
+fn trf_006_blocks_only_trip_scoped_opr_007() {
     const TRANSFERS: &[u8] =
         b"from_stop_id,to_stop_id,transfer_type,from_trip_id\nS1,S2,3,MISSING_TRIP\n";
 
@@ -1273,17 +1274,9 @@ fn trf_006_blocks_contain_trf_017_and_trf_018() {
                     .collect::<Vec<_>>(),
             );
 
-            let blocks = &trf006.unwrap().blocks;
-            assert!(
-                blocks.iter().any(|b| b == "TRF_017"),
-                "TRF_006.blocks TRF_017 içermeli. Mevcut blocks: {:?}",
-                blocks,
-            );
-            assert!(
-                blocks.iter().any(|b| b == "TRF_018"),
-                "TRF_006.blocks TRF_018 içermeli. Mevcut blocks: {:?}",
-                blocks,
-            );
+            let trf006 = trf006.unwrap();
+            assert_eq!(trf006.scope_key.as_deref(), Some("MISSING_TRIP"));
+            assert_eq!(trf006.blocks, vec!["OPR_007".to_string()]);
         }
         _ => panic!("ValidateResult::Ok beklendi"),
     }
