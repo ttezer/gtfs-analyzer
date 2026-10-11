@@ -68,6 +68,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`VAT_006` needs at least three routes.** With one or two routes the busiest
   route always carries at least half of the trips, so the 40% threshold fired
   unconditionally.
+- **`scope_key` matches each rule's identity field.** `LVL_006` and `PTH_019`
+  carried the stop name instead of the stop id, so their findings were
+  attributed to no agency. The registry named the checked field instead of
+  the identity field for `FAR_011` (`fare_id`), `FLG_001`–`FLG_006`
+  (`leg_group_id`), `LVL_007` (`level_id`), `PTH_021`–`PTH_024`
+  (`pathway_id`), `STM_048`/`STM_049`/`TRF_022`/`TRF_023` (`trip_id`) and
+  `TFR_008` (`timeframe_group_id`); trip- and fare-scoped findings are now
+  attributed to agencies. Root-cause links that could never match were
+  removed (`STM_015` → `XFL_013`/`SHP_017`, `XFL_013` → `STM_017`). A test
+  now checks every fixture notice's `scope_key` against the identity field.
+- `CAL_014` also reports services that start after the validation date, as
+  MobilityData does.
 - **`STP_033` is silent without `fare_rules.txt`.** `zone_id` is optional and is
   only read by the zone columns of `fare_rules.txt`; the notice said it was
   "required for fare calculation" on feeds with no fare rules.

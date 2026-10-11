@@ -703,7 +703,8 @@ pub static RULES: &[RuleMeta] = &[
     r!("STM_014", Yuksek, Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Segmentte aşırı hız"),
     r!("STM_015", Kritik, Spec, 2,
-        &["STM_016","STM_017","XFL_013","SHP_017"],
+        // XFL_013/SHP_017 shape kapsamlı: trip kapsamlı kök onları hiç eşleyemezdi (2026-10-11).
+        &["STM_016","STM_017"],
         Some("trip_id"), VS_K, Row,
         "İlk durakta arrival_time eksik"),
     r!("STM_016", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
@@ -801,9 +802,9 @@ pub static RULES: &[RuleMeta] = &[
         "trip_id eksik"),
     r!("STM_047", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "Kesin zaman noktasında (timepoint=1) arrival_time/departure_time eksik"),
-    r!("STM_048", Yuksek, Spec, 1, &[], Some("arrival_time"), VS, Row,
+    r!("STM_048", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
         "Gece yarısı sonrası saatler 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)"),
-    r!("STM_049", Yuksek, Spec, 1, &[], Some("departure_time"), VS, Row,
+    r!("STM_049", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Row,
         "Aynı satırda gece yarısı sonrası kalkış 00:xx yazılmış (GTFS servis günü için 24:xx kullanılmalı)"),
     r!("STM_050", Dusuk, Quality, 1, &[], None, VS, Feed,
         "timepoint sütunu mevcut ama satırda boş — değer açıkça belirtilmeli (0 yaklaşık / 1 kesin)"),
@@ -1132,9 +1133,9 @@ pub static RULES: &[RuleMeta] = &[
     // `to_trip_id`'lerin takvimlerine bakar, diğeri tam tersi. Düzeltme de farklı taraftadır.
     // Spec'in "n-to-n continuations must respect both constraints" cümlesi ikisinin
     // BİRLİKTE çalışmasıyla karşılanır.
-    r!("TRF_022", Yuksek, Spec, 2, &[], Some("to_trip_id"), VS, Entity,
+    r!("TRF_022", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "1-to-n devamlılıkta devam seferlerinin takvimleri çelişiyor"),
-    r!("TRF_023", Yuksek, Spec, 2, &[], Some("from_trip_id"), VS, Entity,
+    r!("TRF_023", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "n-to-1 devamlılıkta gelen seferlerin takvimleri çelişiyor"),
 
     // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
@@ -1162,7 +1163,7 @@ pub static RULES: &[RuleMeta] = &[
         "agency_id bulunamadı"),
     r!("FAR_010", Orta,   Quality, 2, &[], None, VS, Feed,
         "Çakışan ücret kuralları"),
-    r!("FAR_011", Kritik, Spec, 1, &[], Some("payment_method"), VS_K, Entity,
+    r!("FAR_011", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
         "payment_method eksik"),
     // FAR_013 — 2026-09-11'de `Dusuk·Spec` → `Bilgi·Quality`. Üç ölçüm bunu getirdi:
     //
@@ -1280,17 +1281,17 @@ pub static RULES: &[RuleMeta] = &[
     // gerçek default kategorisi rider_categories.is_default_fare_category ile ölçülür (RCT_006).
 
     // ── FLG: Fare Leg Rules (Fares v2) ────────────────────────────────────────
-    r!("FLG_001", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
+    r!("FLG_001", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "fare_product_id bulunamadı"),
-    r!("FLG_002", Kritik, Spec, 1, &[], Some("network_id"), VS_K, Row,
+    r!("FLG_002", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "network_id bulunamadı"),
-    r!("FLG_003", Kritik, Spec, 1, &[], Some("from_area_id"), VS_K, Row,
+    r!("FLG_003", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "from_area_id bulunamadı"),
-    r!("FLG_004", Kritik, Spec, 1, &[], Some("to_area_id"), VS_K, Row,
+    r!("FLG_004", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "to_area_id bulunamadı"),
-    r!("FLG_005", Kritik, Spec, 1, &[], Some("from_timeframe_group_id"), VS_K, Row,
+    r!("FLG_005", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "from_timeframe_group_id bulunamadı"),
-    r!("FLG_006", Kritik, Spec, 1, &[], Some("to_timeframe_group_id"), VS_K, Row,
+    r!("FLG_006", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "to_timeframe_group_id bulunamadı"),
     r!("FLG_007", Orta,   Spec, 1, &[], Some("leg_group_id"), VS, Row,
         "rule_priority geçersiz"),
@@ -1399,7 +1400,7 @@ pub static RULES: &[RuleMeta] = &[
         "start_time veya end_time 24:00:00'dan büyük"),
     r!("TFR_007", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
         "start_time ve end_time yalnızca biri tanımlı"),
-    r!("TFR_008", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
+    r!("TFR_008", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
         "timeframes'te service_id boş"),
 
     // ── PTH: Pathways ──────────────────────────────────────────────────────────
@@ -1461,13 +1462,13 @@ pub static RULES: &[RuleMeta] = &[
         "Generic node tek pathway'e bağlı (dead-end)"),
     r!("PTH_020", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "pathway_id eksik"),
-    r!("PTH_021", Kritik, Spec, 1, &[], Some("from_stop_id"), VS_K, Entity,
+    r!("PTH_021", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "from_stop_id eksik"),
-    r!("PTH_022", Kritik, Spec, 1, &[], Some("to_stop_id"), VS_K, Entity,
+    r!("PTH_022", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "to_stop_id eksik"),
-    r!("PTH_023", Kritik, Spec, 1, &[], Some("pathway_mode"), VS_K, Entity,
+    r!("PTH_023", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "pathway_mode eksik"),
-    r!("PTH_024", Kritik, Spec, 1, &[], Some("is_bidirectional"), VS_K, Entity,
+    r!("PTH_024", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Entity,
         "is_bidirectional eksik"),
     r_noscore!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway length bilgisi eksik"),
@@ -1524,7 +1525,7 @@ pub static RULES: &[RuleMeta] = &[
         "level_name çok uzun"),
     r!("LVL_006", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "Asansör bağlantısındaki durakta level_id eksik"),
-    r!("LVL_007", Kritik, Spec, 1, &[], Some("level_index"), VS_K, Row,
+    r!("LVL_007", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Row,
         "level_index eksik"),
     r!("LVL_008", Kritik, Spec, 1, &[], Some("level_id"), VS_K, Entity,
         "level_id eksik"),
@@ -1673,7 +1674,8 @@ pub static RULES: &[RuleMeta] = &[
     r!("XFL_012", Yuksek, Quality, 2, &[], Some("route_id"), VS, Entity,
         "Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik)"),
     r!("XFL_013", Yuksek, Quality, 2,
-        &["SHP_017","STM_017"],
+        // STM_017 trip ya da feed kapsamlı: shape kapsamlı kök onu hiç eşleyemezdi (2026-10-11).
+        &["SHP_017"],
         Some("shape_id"), VS, Entity,
         "shape_id birden fazla yönde kullanılıyor"),
     r!("XFL_014", Orta,   Quality, 1, &[], None, VS, Feed,

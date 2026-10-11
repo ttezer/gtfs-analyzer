@@ -2967,11 +2967,9 @@ fn check_calendar_analytics(
                 let (Some(&first), Some(&last)) = (dates.iter().min(), dates.iter().max()) else {
                     continue;
                 };
-                // A wholly future service is a freshness/publication-context
-                // signal, not proof that feed_info is already inconsistent.
-                if first > today_yyyymmdd {
-                    continue;
-                }
+                // Tümüyle gelecekteki servis de değerlendirilir: Interop sınıfı MD paritesidir
+                // ve MD `checkServiceWindow` böyle bir istisna yapmaz. Bilgi olduğu için
+                // yayın penceresi önceden ilan edilmiş feed'i cezalandırmaz.
                 let days_before = if first < fs_yyyymmdd {
                     yyyymmdd_to_jdn(fs_yyyymmdd) - yyyymmdd_to_jdn(first)
                 } else {

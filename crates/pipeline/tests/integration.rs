@@ -6040,3 +6040,33 @@ fn feed_summary_carries_trimmed_agency_and_feed_info_fields() {
     };
     assert!(vr.feed_summary.feed_info.is_none(), "feed_info.txt yoksa özet de yok");
 }
+
+#[test]
+fn cal_014_reports_future_only_service_like_mobilitydata() {
+    // MD `service_window_outside_feed_period` yalnız aktif pencereye bakar; servisin tümüyle
+    // gelecekte olması istisna değildir. CAL_014 Interop olduğu için aynı davranır.
+    let mut files = base_files();
+    files.retain(|(name, _)| *name != "calendar.txt");
+    files.push((
+        "calendar.txt",
+        b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
+          SVC1,1,1,1,1,1,1,1,20300101,20300630\n",
+    ));
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\n\
+          Pub,https://pub.example,en,20300101,20300331\n",
+    ));
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    let n = vr
+        .notices
+        .iter()
+        .find(|n| n.rule_id == "CAL_014")
+        .expect("gelecekteki servis feed döneminin dışına taşıyor → CAL_014");
+    let d = n.details.as_ref().unwrap();
+    assert_eq!(d.get("days_before").map(String::as_str), Some("0"));
+    assert_eq!(d.get("days_after").map(String::as_str), Some("91"));
+}

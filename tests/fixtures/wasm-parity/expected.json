@@ -5045,7 +5045,7 @@
           "remediation": "Ensure all generic nodes (location_type=3) are connected to at least two pathways.",
           "rule_class": "QUALITY",
           "rule_id": "PTH_019",
-          "scope_key": "Node",
+          "scope_key": "GN",
           "service_id": null,
           "severity": "MEDIUM",
           "title": "Generic node connected to single pathway (dead-end)"
@@ -5289,6 +5289,7 @@
               19,
               20,
               21,
+              22,
               24,
               25,
               26,
@@ -5458,13 +5459,19 @@
           },
           "PTH_019": {
             "affected_entity_count": 1,
-            "agency_sets": [],
+            "agency_sets": [
+              {
+                "affected_entity_count": 1,
+                "agency_ids": [
+                  "1"
+                ],
+                "trim_fallback_count": 0
+              }
+            ],
             "displayed_sample_count": 1,
             "finding_count": 1,
             "not_applicable": 0,
-            "unattributed": {
-              "UnknownStop": 1
-            },
+            "unattributed": {},
             "unsupported": 0
           },
           "PTH_029": {
