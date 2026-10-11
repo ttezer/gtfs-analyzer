@@ -53,6 +53,9 @@ The returned `dict` is the engine's result object:
 | `reports` | Report views `r1`–`r9`; `r1` holds the publishability verdict |
 | `metrics` | Scores and feed statistics (service window, trip counts, notice counts per class) |
 | `capped_totals` | True counts for rules whose notices were capped |
+| `agency_breakdown` | Per-rule finding counts by agency (`agencies`, `rules`) |
+| `feed_summary` | Agency contacts from `agency.txt` (up to 100, plus `agency_count`) and the publisher fields of `feed_info.txt` |
+| `partial` | Present only for `PARTIAL` results: what was skipped and why |
 
 Texts follow `lang`; use `rule_id`, not the message text, for program logic.
 The [rule reference](https://github.com/ttezer/gtfs-analyzer/blob/main/RULES.en.md)
