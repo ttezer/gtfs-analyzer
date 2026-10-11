@@ -2948,6 +2948,70 @@ fn check_calendar_analytics(
         }
     }
 
+    // CAL_014: servis aktif tarihleri feed_info geçerlilik penceresinin dışında.
+    // MD `service_window_outside_feed_period` ile aynı semantik: seferi olan her servisin ilk/son
+    // aktif günü (ham calendar aralığı değil) feed_start/end_date ile kıyaslanır. Spec pencere
+    // dışı veriyi TAVSİYE ettiği için bu bir kusur değil, yetkili dönem bilgisidir (Bilgi).
+    // ⚠️ Eskiden CLD_007'nin `calendar_dates.exception_count` döngüsündeydi: yalnız istisnası
+    // olan servisler denetleniyordu, calendar.txt'li servisler hiç görülmüyordu.
+    if let Some(fi) = records.feed_info.first() {
+        if let (Some(fs), Some(fe)) = (fi.feed_start_date, fi.feed_end_date) {
+            let fs_yyyymmdd = fs.0 * 10000 + fs.1 * 100 + fs.2;
+            let fe_yyyymmdd = fe.0 * 10000 + fe.1 * 100 + fe.2;
+            let mut services: Vec<&str> = service_trip_counts.keys().copied().collect();
+            services.sort_unstable();
+            for service_id in services {
+                let Some(dates) = derived.calendar_bitmap.active_dates.get(service_id) else {
+                    continue;
+                };
+                let (Some(&first), Some(&last)) = (dates.iter().min(), dates.iter().max()) else {
+                    continue;
+                };
+                // A wholly future service is a freshness/publication-context
+                // signal, not proof that feed_info is already inconsistent.
+                if first > today_yyyymmdd {
+                    continue;
+                }
+                let days_before = if first < fs_yyyymmdd {
+                    yyyymmdd_to_jdn(fs_yyyymmdd) - yyyymmdd_to_jdn(first)
+                } else {
+                    0
+                };
+                let days_after = if last > fe_yyyymmdd {
+                    yyyymmdd_to_jdn(last) - yyyymmdd_to_jdn(fe_yyyymmdd)
+                } else {
+                    0
+                };
+                if days_before == 0 && days_after == 0 {
+                    continue;
+                }
+                let mut n014 = k6_notice(
+                    ctr,
+                    "CAL_014",
+                    EntityType::Service,
+                    Some(service_id.to_string()),
+                    Some(service_id.to_string()),
+                    "calendar.txt",
+                    None,
+                    Some("feed_start_date|feed_end_date"),
+                    Some(format!("{first}..{last}")),
+                    Some(format!("{fs_yyyymmdd}..{fe_yyyymmdd}")),
+                    format!(
+                        "'{service_id}' servisinin aktif tarihleri ({first}–{last}) feed_info'nun yetkili dönemi \
+                         ({fs_yyyymmdd}–{fe_yyyymmdd}) dışına taşıyor: {days_before} gün önce, {days_after} gün sonra."
+                    ),
+                    "Spec bu dönem dışındaki veriyi olası servis bilgisi olarak tavsiye eder; tüketiciler onu yetkili \
+                     saymaz. Dönem bilinçliyse işlem gerekmez, değilse feed_start_date/feed_end_date'i güncelleyin.",
+                );
+                let mut d = std::collections::BTreeMap::new();
+                d.insert("days_before".to_string(), days_before.to_string());
+                d.insert("days_after".to_string(), days_after.to_string());
+                n014.details = Some(d);
+                notices.push(n014);
+            }
+        }
+    }
+
     // CLD_007: aynı service_id için çok sayıda calendar_dates exception (> total aktif gün / 2)
     // exception_count = ham geçerli satır sayısı (CalendarDateIndex semantiği)
     // CLD_007 ön koşulu: feed'in calendar.txt'te bir temel programı var mı?
@@ -2968,43 +3032,6 @@ fn check_calendar_analytics(
             .unwrap_or(false);
         // CAL_013 (süresi dolmuş) buradan kaldırıldı → tüm servisler için birleşik
         // active_dates üzerinden CAL_017 döngüsünde tek yerde hesaplanır (çift-emit önlenir).
-
-        // CAL_014: servis aktif tarihleri feed_info geçerlilik penceresinin dışında
-        if let Some(fi) = records.feed_info.first() {
-            if let (Some(fs), Some(fe)) = (fi.feed_start_date, fi.feed_end_date) {
-                let fs_yyyymmdd = fs.0 * 10000 + fs.1 * 100 + fs.2;
-                let fe_yyyymmdd = fe.0 * 10000 + fe.1 * 100 + fe.2;
-                if let Some(dates) = derived.calendar_bitmap.active_dates.get(service_id) {
-                    // A wholly future service is a freshness/publication-context
-                    // signal, not proof that feed_info is already inconsistent.
-                    if dates.iter().all(|&d| d > today_yyyymmdd) {
-                        continue;
-                    }
-                    let has_before = dates.iter().any(|&d| d < fs_yyyymmdd);
-                    let has_after = dates.iter().any(|&d| d > fe_yyyymmdd);
-                    if has_before || has_after {
-                        notices.push(k6_notice(
-                            ctr,
-                            "CAL_014",
-                            EntityType::Service,
-                            Some(service_id.to_string()),
-                            Some(service_id.to_string()),
-                            "calendar.txt",
-                            None,
-                            None,
-                            None,
-                            None,
-                            format!(
-                                "'{service_id}' servisinin aktif tarihleri feed_info geçerlilik aralığı \
-                                 ({fs_yyyymmdd}–{fe_yyyymmdd}) dışına taşıyor."
-                            ),
-                            "feed_info.txt'deki feed_start_date/feed_end_date değerlerini servis tarih \
-                             aralığını kapsayacak şekilde güncelleyin.",
-                        ));
-                    }
-                }
-            }
-        }
 
         // Aktif günlerin yarısından fazlası override ise şüpheli.
         //

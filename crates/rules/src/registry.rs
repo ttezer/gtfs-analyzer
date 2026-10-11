@@ -914,7 +914,9 @@ pub static RULES: &[RuleMeta] = &[
         "Yakın gelecekte servis boşluğu var"),
     r!("CAL_013", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
         "Geçmiş tarihli servis dönemi"),
-    r_noscore!("CAL_014", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
+    // CAL_014 (2026-10-11): MD `service_window_outside_feed_period` (INFO) ile aynı aktif-tarih
+    // semantiği → tek taşıyıcı. Spec pencere dışı veriyi tavsiye ettiği için Bilgi.
+    r_noscore!("CAL_014", Bilgi,  Interop,   1, &[], Some("service_id"), VI, Entity,
         "Servis tarihleri feed_info geçerlilik aralığı dışında"),
     r_noscore!("CAL_015", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Tüm takvim tarihleri gelecekte (bugün aktif sefer yok)"),
@@ -924,8 +926,8 @@ pub static RULES: &[RuleMeta] = &[
         "Takvim henüz başlamamış (tüm aktif tarihler gelecekte)"),
     r!("CAL_018", Bilgi,  Quality,   2, &[], Some("service_id"), VS, Entity,
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
-    r_noscore!("CAL_019", Dusuk,  Quality,   1, &[], Some("service_id"), VS, Entity,
-        "Ham takvim aralığı feed_info geçerlilik penceresini aşıyor"),
+    // CAL_019 (2026-10-11): retired. Ham calendar aralığını feed_info penceresiyle kıyaslayıp
+    // CAL_014 ile aynı olguyu ikinci kez raporluyordu. Kimlik yeniden kullanılmamalıdır.
     r!("CAL_020", Dusuk,  Quality,   1, &[], None, VS, Feed,
         "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
     r!("CAL_021", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
@@ -1666,11 +1668,8 @@ pub static RULES: &[RuleMeta] = &[
         "Seferin stop_times kaydı yok"),
     r!("XFL_006", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "service_id yalnızca iptal istisnası içeriyor (aktif gün yok)"),
-    // XFL_011 (Interop, iki feed tarihi de zorunlu) ile CAL_019 (Quality) aynı
-    // ham calendar–feed_info karşılaştırmasını yapar. XFL_011 tetiklendiğinde
-    // aynı service_id scope'undaki CAL_019 semptom olarak bastırılır (çift rapor önlenir).
-    r_noscore!("XFL_011", Orta,   Interop, 2, &["CAL_019"], Some("service_id"), VI, Entity,
-        "Takvim tarihleri feed_info aralığı dışında"),
+    // XFL_011 (2026-10-11): retired. Ham calendar aralığı spec'in tavsiye ettiği pencere dışı
+    // veriyi Orta/Interop sayıyordu; MD karşılığı aktif tarihlere bakan CAL_014'tür.
     r!("XFL_012", Yuksek, Quality, 2, &[], Some("route_id"), VS, Entity,
         "Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik)"),
     r!("XFL_013", Yuksek, Quality, 2,
@@ -2060,12 +2059,11 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("CAL_011", ProjectQuality),
     ("CAL_012", ProjectAnalytics),
     ("CAL_013", ProjectAnalytics),
-    ("CAL_014", ProjectQuality),
+    ("CAL_014", MobilitydataParity),
     ("CAL_015", ProjectAnalytics),
     ("CAL_016", ProjectQuality),
     ("CAL_017", ProjectAnalytics),
     ("CAL_018", ProjectQuality),
-    ("CAL_019", ProjectQuality),
     ("CAL_020", ProjectQuality),
     ("CAL_021", ProjectAnalytics),
     ("CAL_022", GtfsSpec),
@@ -2559,7 +2557,6 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("VAT_008", ProjectAnalytics),
     ("XFL_002", MobilitydataParity),
     ("XFL_006", ProjectAnalytics),
-    ("XFL_011", MobilitydataParity),
     ("XFL_012", ProjectQuality),
     ("XFL_013", ProjectQuality),
     ("XFL_014", ProjectQuality),
@@ -2756,6 +2753,10 @@ mod tests {
         // FAR_009 (2026-09-21): fare_rules.txt optional olduğu için genel fare + boş
         // fare_rules geçerli bir modeldir; FRL_006 referans tutarlılığını korur.
         assert!(get_rule("FAR_009").is_none());
+        // CAL_019 / XFL_011 (2026-10-11): ham calendar aralığını feed_info penceresiyle
+        // kıyaslayan iki kopya; spec pencere dışı veriyi tavsiye eder, MD karşılığı CAL_014.
+        assert!(get_rule("CAL_019").is_none());
+        assert!(get_rule("XFL_011").is_none());
     }
 
     #[test]
@@ -2764,7 +2765,7 @@ mod tests {
         let removed_ids = [
             "STM_011", "TRP_010", "GEO_001", "GEO_005", "DQ_007", "DQ_008", "DQ_015", "STM_027",
             "SHP_027", "STM_057", "AGN_001", "FPD_006", "STP_025", "BKR_002", "STM_013", "TRP_033",
-            "STP_027", "FAR_009",
+            "STP_027", "FAR_009", "CAL_019", "XFL_011",
         ];
         for rule in RULES {
             for &b in rule.blocks {
@@ -2800,8 +2801,8 @@ mod tests {
     #[test]
     fn no_score_rules_are_explicit() {
         for rule_id in [
-            "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_019", "CAL_024", "GEO_009", "ARC_006",
-            "STM_017", "STM_021", "STM_026", "STM_035", "XFL_011", "OPR_007", "OPR_008", "STM_045",
+            "CAL_009", "CAL_014", "CAL_015", "CAL_017", "CAL_024", "GEO_009", "ARC_006",
+            "STM_017", "STM_021", "STM_026", "STM_035", "OPR_007", "OPR_008", "STM_045",
             "STP_022", "ARC_022", "ARC_010", "CLD_006", "ATR_001", "DQ_006", "RTS_017", "TRP_011",
             "TRP_013", "DQ_013", "PTH_008", "PTH_009", "PTH_025", "PTH_029", "STP_039",
             "XFL_027",

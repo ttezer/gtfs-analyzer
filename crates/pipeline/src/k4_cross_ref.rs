@@ -379,7 +379,6 @@ pub fn check_with_files_and_whitespace_roots(
                 map,
                 &mut notices,
                 &mut ctr,
-                today,
                 &stm_trips_in_stm,
                 &stm_trip_stm_count,
             );
@@ -6296,7 +6295,6 @@ fn check_xfl(
     map: &EntityMap,
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
-    today: u32,
     trips_in_stm: &HashSet<&str>,
     trip_stm_count: &HashMap<&str, u32>,
 ) {
@@ -6808,130 +6806,6 @@ fn check_xfl(
                 ),
                 "calendar.txt'e servis ekleyin veya exception_type=1 kaydı tanımlayın.",
             ));
-        }
-    }
-
-    // XFL_011: feed_info start/end vs calendar aralıkları tutarlılı�Yı
-    {
-        if let Some(fi) = records.feed_info.first() {
-            if let (Some(fi_start), Some(fi_end)) = (fi.feed_start_date, fi.feed_end_date) {
-                let fi_start_u32 = date_to_u32(fi_start);
-                let fi_end_u32 = date_to_u32(fi_end);
-                for rec in &records.calendars {
-                    if rec.service_id.is_empty() {
-                        continue;
-                    }
-                    // A service whose calendar starts entirely in the future is not
-                    // evidence that the published feed window is wrong yet. Its
-                    // freshness is handled by the calendar analytics rules.
-                    if rec
-                        .start_date
-                        .map(date_to_u32)
-                        .is_some_and(|start| start > today)
-                    {
-                        continue;
-                    }
-                    let mut inconsistent = false;
-                    let mut observed = String::new();
-                    if let Some(cal_start) = rec.start_date {
-                        let cs = date_to_u32(cal_start);
-                        if cs < fi_start_u32 {
-                            inconsistent = true;
-                            observed = format!("cal_start={cs} < feed_start={fi_start_u32}");
-                        }
-                    }
-                    if let Some(cal_end) = rec.end_date {
-                        let ce = date_to_u32(cal_end);
-                        if ce > fi_end_u32 {
-                            inconsistent = true;
-                            if observed.is_empty() {
-                                observed = format!("cal_end={ce} > feed_end={fi_end_u32}");
-                            } else {
-                                observed =
-                                    format!("{observed}, cal_end={ce} > feed_end={fi_end_u32}");
-                            }
-                        }
-                    }
-                    if inconsistent {
-                        notices.push(notice(
-                            ctr,
-                            "XFL_011",
-                            EntityType::Service,
-                            Some(rec.service_id.clone()),
-                            Some(rec.service_id.clone()),
-                            "calendar.txt",
-                            Some(rec.line),
-                            Some("start_date|end_date"),
-                            Some(observed),
-                            Some(format!("{fi_start_u32}..{fi_end_u32}")),
-                            format!(
-                                "service_id '{}' takvim aralığı feed_info.txt'deki feed_start/end aralığıyla tutarsız.",
-                                rec.service_id
-                            ),
-                            "feed_info.txt'deki feed_start_date ve feed_end_date'i calendar.txt aralıklarıyla uyumlu hale getirin.",
-                        ));
-                    }
-                }
-            }
-        }
-    }
-
-    // CAL_019: Servis takvim aralığı feed_info.txt geçerlilik penceresi dışına taşıyor
-    {
-        if let Some(fi) = records.feed_info.first() {
-            let fi_start_opt = fi.feed_start_date.map(date_to_u32);
-            let fi_end_opt = fi.feed_end_date.map(date_to_u32);
-            if fi_start_opt.is_some() || fi_end_opt.is_some() {
-                for rec in &records.calendars {
-                    if rec.service_id.is_empty() {
-                        continue;
-                    }
-                    if rec
-                        .start_date
-                        .map(date_to_u32)
-                        .is_some_and(|start| start > today)
-                    {
-                        continue;
-                    }
-                    let mut outside = false;
-                    let mut observed = String::new();
-                    if let (Some(fi_s), Some(cal_start)) = (fi_start_opt, rec.start_date) {
-                        let cs = date_to_u32(cal_start);
-                        if cs < fi_s {
-                            outside = true;
-                            observed = format!("start_date={cs} < feed_start_date={fi_s}");
-                        }
-                    }
-                    if let (Some(fi_e), Some(cal_end)) = (fi_end_opt, rec.end_date) {
-                        let ce = date_to_u32(cal_end);
-                        if ce > fi_e {
-                            outside = true;
-                            if observed.is_empty() {
-                                observed = format!("end_date={ce} > feed_end_date={fi_e}");
-                            } else {
-                                observed =
-                                    format!("{observed}, end_date={ce} > feed_end_date={fi_e}");
-                            }
-                        }
-                    }
-                    if outside {
-                        notices.push(notice(
-                            ctr,
-                            "CAL_019",
-                            EntityType::Service,
-                            Some(rec.service_id.clone()),
-                            Some(rec.service_id.clone()),
-                            "calendar.txt",
-                            Some(rec.line),
-                            Some("start_date|end_date"),
-                            Some(observed),
-                            None,
-                            format!("Servis '{}' takvim tarihleri feed_info.txt geçerlilik penceresi dışında.", rec.service_id),
-                            "feed_info.txt'deki feed_start_date/feed_end_date'i ya da calendar.txt'deki servis tarihlerini güncelleyin.",
-                        ));
-                    }
-                }
-            }
         }
     }
 
@@ -10040,65 +9914,6 @@ mod tests {
             "mesaj da aynı sıralı listeyi taşımalı: {}",
             hit.message
         );
-    }
-
-    // �"?�"? XFL_011 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
-
-    #[test]
-    fn calendar_outside_feed_info_range_produces_xfl_011() {
-        use crate::k2::feed_info::FeedInfoRecord;
-        let (mut recs, _map) = empty();
-        recs.feed_info = vec![FeedInfoRecord {
-            feed_publisher_name: "Pub".into(),
-            feed_publisher_url: "https://example.com".into(),
-            feed_lang: "tr".into(),
-            feed_start_date: Some((2025, 1, 1)),
-            feed_end_date: Some((2025, 12, 31)),
-            feed_version: None,
-            feed_contact_email: None,
-            feed_contact_url: None,
-            row: Default::default(),
-            line: 2,
-        }];
-        recs.calendars = vec![CalendarRecord {
-            service_id: "SVC".into(),
-            days: [Some(1); 7],
-            start_date: Some((2024, 6, 1)), // feed başlangıcından önce
-            end_date: Some((2025, 6, 30)),
-            row: Default::default(),
-            line: 2,
-        }];
-        let result = check(&recs, &EntityMap::default(), 20260515);
-        assert!(result.notices.iter().any(|n| n.rule_id == "XFL_011"));
-    }
-
-    #[test]
-    fn future_only_calendar_does_not_produce_feed_window_errors() {
-        use crate::k2::feed_info::FeedInfoRecord;
-        let (mut recs, _map) = empty();
-        recs.feed_info = vec![FeedInfoRecord {
-            feed_publisher_name: "Pub".into(),
-            feed_publisher_url: "https://example.com".into(),
-            feed_lang: "tr".into(),
-            feed_start_date: Some((2026, 1, 1)),
-            feed_end_date: Some((2026, 12, 31)),
-            feed_version: None,
-            feed_contact_email: None,
-            feed_contact_url: None,
-            row: Default::default(),
-            line: 2,
-        }];
-        recs.calendars = vec![CalendarRecord {
-            service_id: "FUTURE".into(),
-            days: [Some(1); 7],
-            start_date: Some((2027, 1, 1)),
-            end_date: Some((2027, 12, 31)),
-            row: Default::default(),
-            line: 2,
-        }];
-        let result = check(&recs, &EntityMap::default(), 20260921);
-        assert!(!result.notices.iter().any(|n| n.rule_id == "XFL_011"));
-        assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_019"));
     }
 
     // �"?�"? XFL_012 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?

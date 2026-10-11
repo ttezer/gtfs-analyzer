@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-618 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+616 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -309,12 +309,11 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | CAL_011 | Kullanılmayan servis | DÜŞÜK | Quality |
 | CAL_012 | Yakın gelecekte servis boşluğu var | BİLGİ | Analytics |
 | CAL_013 | Geçmiş tarihli servis dönemi | BİLGİ | Analytics |
-| CAL_014 | Servis tarihleri feed_info geçerlilik aralığı dışında | DÜŞÜK | Quality |
+| CAL_014 | Servis tarihleri feed_info geçerlilik aralığı dışında | BİLGİ | Interop |
 | CAL_015 | Tüm takvim tarihleri gelecekte (bugün aktif sefer yok) | BİLGİ | Analytics |
 | CAL_016 | Servis çok uzak bir gelecek tarihine kadar uzanıyor | BİLGİ | Quality |
 | CAL_017 | Takvim henüz başlamamış (tüm aktif tarihler gelecekte) | BİLGİ | Analytics |
 | CAL_018 | Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok) | BİLGİ | Quality |
-| CAL_019 | Ham takvim aralığı feed_info geçerlilik penceresini aşıyor | DÜŞÜK | Quality |
 | CAL_020 | Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi | DÜŞÜK | Quality |
 | CAL_021 | Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok | BİLGİ | Analytics |
 | CAL_022 | service_id eksik | KRİTİK | Spec |
@@ -673,7 +672,6 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 |---|---|---|---|
 | XFL_002 | Seferin stop_times kaydı yok | YÜKSEK | Interop |
 | XFL_006 | service_id yalnızca iptal istisnası içeriyor (aktif gün yok) | ORTA | Analytics |
-| XFL_011 | Takvim tarihleri feed_info aralığı dışında | ORTA | Interop |
 | XFL_012 | Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik) | YÜKSEK | Quality |
 | XFL_013 | shape_id birden fazla yönde kullanılıyor | YÜKSEK | Quality |
 | XFL_014 | Geçersiz çeviri referansı (kaynak kayıt bulunamadı) | ORTA | Quality |

@@ -448,7 +448,7 @@ UNMAPPED_DECISIONS = {
     "feed_valid_beyond_total_service_window": (
         "deprecated-md-only",
         "MobilityData marks this notice deprecated. Its containment direction is not an exact "
-        "counterpart of CAL_014/CAL_019, which check service windows against feed dates.",
+        "counterpart of CAL_014, which checks service windows against feed dates.",
     ),
     "start_and_end_range_equal": (
         "deprecated-md-only",
@@ -846,12 +846,10 @@ MAPPED_DIVERGENCE_DECISIONS = {
     ),
     "service_window_outside_feed_period": (
         "aggregation",
-        "578 of the 688 md_mapped_over rows, and the ratio settles the question: the median "
-        "analyzer/MD count is exactly 2.00 across them. CAL_014 (service dates outside the "
-        "feed_info validity range) and CAL_019 (raw calendar range exceeds the window) both "
-        "dedup by service_id and both map to this one code, so a service that trips both is "
-        "counted twice on our side and once on theirs. The 1.33-1.75 ratios are services that "
-        "trip only one of the two. Reporting granularity, not disagreement.",
+        "578 of the 688 md_mapped_over rows (run 32311885577): the median analyzer/MD count was "
+        "exactly 2.00 because CAL_014 and CAL_019 both mapped to this code and both deduped by "
+        "service_id. CAL_019 and XFL_011 were retired on 2026-10-11; CAL_014 is now the sole "
+        "carrier, so later runs should converge to 1:1.",
     ),
     "trip_with_shape_dist_traveled_but_no_shape_distances": (
         "aggregation",
@@ -885,7 +883,7 @@ MAPPED_DIVERGENCE_DECISIONS = {
     "service_window_outside_feed_period": (
         "structural-fault-owns-it",
         "mdb-3155. feed_info.txt is written with a space after every comma, so feed_start_date reads "
-        "' 20260301' and feed_end_date ' 20281204'. CAL_014 and CAL_019 need both endpoints as dates to "
+        "' 20260301' and feed_end_date ' 20281204'. CAL_014 needs both endpoints as dates to "
         "compare a service window against them, and a value with a leading space is not one. DQ_016 fires on "
         "this feed and names the real defect. The comparison MobilityData makes is correct - the window does "
         "run 25 to 27 days past the feed period - but it is downstream of a lexical fault we already report.",

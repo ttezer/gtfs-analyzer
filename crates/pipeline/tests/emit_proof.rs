@@ -1236,8 +1236,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("XFL_002", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n")]),
         // XFL_006: calendar_dates yalnız exception_type=2 ve calendar'da yok.
         fx("XFL_006", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVCZ,20260601,2\n")]),
-        // XFL_011: calendar aralığı feed_info penceresiyle tutarsız (cal_start < feed_start).
-        fx("XFL_011", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20250601,20271231\n")]),
         // XFL_012: route'un tüm seferlerinin stop_times'ı yok (boş stop_times).
         fx("XFL_012", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
         // XFL_013: shape hem gidiş (0) hem dönüş (1) yönünde kullanılıyor.
@@ -1340,11 +1338,10 @@ fn fixtures() -> Vec<Fixture> {
         fx_rm("CAL_012", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260516,1\nSVC1,20260603,1\n")], vec!["calendar.txt"]),
         // CAL_013: tekil servis süresi dolmuş (k6).
         fx("CAL_013", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20190101,20201231\n")]),
-        // CAL_014: servis tarihleri feed_info penceresi dışında (servis calendar_dates'te
-        // görünmeli → override_counts döngüsüne girsin; base takvim 2025 tarihleri pencere-öncesi).
+        // CAL_014: servis aktif tarihleri feed_info penceresi dışında. calendar_dates YOK:
+        // 2026-10-11'e kadar kural yalnız istisnası olan servisleri görüyordu.
         fx("CAL_014", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260601,20260630\n"),
-            ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260615,1\n"),
         ]),
         // CAL_015: en erken aktif tarih gelecekte (feed-level).
         fx("CAL_015", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270107\n")]),
@@ -1354,8 +1351,6 @@ fn fixtures() -> Vec<Fixture> {
         fx("CAL_017", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270107\n")]),
         // CAL_018: haftanın tüm günleri pasif, exception_type=1 yok (k4).
         fx("CAL_018", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
-        // CAL_019: servis tarihleri feed_info geçerlilik penceresi dışında (k4).
-        fx("CAL_019", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260601,20271231\n")]),
         // CAL_020: feed geçerlilik penceresi > 5 yıl.
         fx("CAL_020", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20200101,20271231\n")]),
         // CAL_021: bugünü kapsıyor ama önümüzdeki 7 günde aktif gün yok.

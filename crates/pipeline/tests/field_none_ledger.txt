@@ -20,7 +20,6 @@ ARC_018  Quality
 CAL_007  Analytics
 CAL_010  Analytics
 CAL_012  Analytics
-CAL_014  Quality
 CAL_021  Analytics
 CLD_007  Analytics
 JPN_033  Interop

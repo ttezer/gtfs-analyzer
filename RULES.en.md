@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-618 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+616 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -309,12 +309,11 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | CAL_011 | Unused service | LOW | Quality |
 | CAL_012 | Service gap in the near future | INFO | Analytics |
 | CAL_013 | Expired service period | INFO | Analytics |
-| CAL_014 | Service dates outside feed_info validity range | LOW | Quality |
+| CAL_014 | Service dates outside feed_info validity range | INFO | Interop |
 | CAL_015 | All calendar dates in the future (no active trips today) | INFO | Analytics |
 | CAL_016 | Service extends to a very distant future date | INFO | Quality |
 | CAL_017 | Calendar has not yet started (all active dates in the future) | INFO | Analytics |
 | CAL_018 | Service has no active weekdays (all days 0, none overridden by calendar_dates) | INFO | Quality |
-| CAL_019 | Service calendar dates outside feed_info validity window | LOW | Quality |
 | CAL_020 | Feed validity window exceeds 5 years | LOW | Quality |
 | CAL_021 | Active today but no service in the upcoming days | INFO | Analytics |
 | CAL_022 | service_id missing | CRITICAL | Spec |
@@ -673,7 +672,6 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 |---|---|---|---|
 | XFL_002 | Trip has no stop_times records | HIGH | Interop |
 | XFL_006 | service_id contains only cancellation exceptions (no active days) | MEDIUM | Analytics |
-| XFL_011 | Calendar dates outside feed_info range | MEDIUM | Interop |
 | XFL_012 | Route with no operational trips | HIGH | Quality |
 | XFL_013 | shape_id used in multiple directions | HIGH | Quality |
 | XFL_014 | Invalid translation reference (source record not found) | MEDIUM | Quality |

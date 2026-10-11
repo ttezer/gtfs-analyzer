@@ -35,8 +35,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   build does not enable the feature and its size is unchanged.
 - PyPI shows a dedicated English README (`python/README.md`) instead of the
   Turkish repository README.
+- **`CAL_014` is the single service-window check and is now INFO / Interop.**
+  It compares each service's first and last active date with
+  `feed_start_date`/`feed_end_date`, the same semantics as MobilityData's
+  `service_window_outside_feed_period` (INFO). The GTFS reference recommends
+  publishing schedule data outside that period, so the finding is context, not
+  a defect. The message names the active window and the days before and after
+  the feed period (`details.days_before`, `details.days_after`).
 
 ### Fixed
+
+- **`CAL_014` checked only services with `calendar_dates.txt` exceptions.** It
+  ran inside the `CLD_007` exception loop, so calendar-only services were never
+  compared with `feed_info`; a wholly future service also skipped `CLD_007`.
+  It now runs over every service that has trips, in `service_id` order.
+- **`SHP_017` is scoped by shape.** Its `scope_key` carried the trip id although
+  the rule's identity field is `shape_id`, so shape-scoped root causes
+  (`XFL_013`, `SHP_002`, `SHP_006`, `TRP_004`) never masked it and agency
+  attribution reported `UnknownShape`. The English, French and Japanese
+  messages name both the trip and the shape.
+- **`SHP_016`/`SHP_017` pick the same sample trip on every platform.** The
+  representative trip followed hash-map iteration order, which differs between
+  the 32-bit WASM build and 64-bit native builds; trips are now visited in
+  `trip_id` order.
+- **`VAT_006` needs at least three routes.** With one or two routes the busiest
+  route always carries at least half of the trips, so the 40% threshold fired
+  unconditionally.
+- **`STP_033` is silent without `fare_rules.txt`.** `zone_id` is optional and is
+  only read by the zone columns of `fare_rules.txt`; the notice said it was
+  "required for fare calculation" on feeds with no fare rules.
 
 - **Web app and npm SDK: feed-level summaries for 22 rules.** The feed-level
   aggregation added on 2026-09-21 (`STM_036`, `TRP_005`, `FRQ_007`, `CAL_008` and
@@ -93,6 +120,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now `stop_times.txt`, as the rule card documents, and `field` names the
   measured columns (`arrival_time|departure_time`) instead of `route_id`, which
   is not a `stop_times.txt` column.
+
+### Removed
+
+- **`CAL_019` and `XFL_011` (calendar range outside the `feed_info` period),
+  rule count 618 → 616.** Both compared the raw `calendar.txt` range with the
+  feed period and repeated `CAL_014`'s finding; `XFL_011` rated as MEDIUM what
+  the GTFS reference recommends. `CAL_014` keeps the check with
+  MobilityData's active-date semantics. The identifiers are retired and cannot
+  be reused.
 
 ## [0.15.0] - 2026-09-30
 

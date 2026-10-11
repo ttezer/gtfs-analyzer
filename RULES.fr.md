@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-618 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+616 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -309,12 +309,11 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | CAL_011 | Service inutilisé | FAIBLE | Quality |
 | CAL_012 | Interruption de service dans un futur proche | INFO | Analytics |
 | CAL_013 | Période de service expirée | INFO | Analytics |
-| CAL_014 | Dates de service hors de la plage de validité de feed_info | FAIBLE | Quality |
+| CAL_014 | Dates de service hors de la plage de validité de feed_info | INFO | Interop |
 | CAL_015 | Toutes les dates du calendrier sont futures (aucune course active aujourd’hui) | INFO | Analytics |
 | CAL_016 | Le service s’étend jusqu’à une date très lointaine | INFO | Quality |
 | CAL_017 | Le calendrier n’a pas encore commencé (toutes les dates actives sont futures) | INFO | Analytics |
 | CAL_018 | Le service n’a aucun jour de semaine actif (tous les jours à 0, aucun remplacé par calendar_dates) | INFO | Quality |
-| CAL_019 | Dates du calendrier de service hors de la fenêtre de validité de feed_info | FAIBLE | Quality |
 | CAL_020 | La fenêtre de validité du jeu de données dépasse 5 ans | FAIBLE | Quality |
 | CAL_021 | Actif aujourd’hui mais aucun service dans les jours à venir | INFO | Analytics |
 | CAL_022 | service_id manquant | CRITIQUE | Spec |
@@ -673,7 +672,6 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 |---|---|---|---|
 | XFL_002 | La course n’a aucun enregistrement stop_times | ÉLEVÉE | Interop |
 | XFL_006 | service_id ne contient que des exceptions d’annulation (aucun jour actif) | MOYENNE | Analytics |
-| XFL_011 | Dates de calendrier hors de la plage feed_info | MOYENNE | Interop |
 | XFL_012 | Ligne sans course exploitée | ÉLEVÉE | Quality |
 | XFL_013 | shape_id utilisé dans plusieurs sens | ÉLEVÉE | Quality |
 | XFL_014 | Référence de traduction invalide (enregistrement source introuvable) | MOYENNE | Quality |

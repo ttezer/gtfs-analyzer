@@ -61,7 +61,7 @@ MAP = {
     # DQ_016 remains the lexical root; mdb-2830 replay recovered MD's 12 services.
     "service_has_no_active_day_of_the_week": ["CAL_006"],
     "service_extends_far_in_the_future":     ["CAL_023"],  # EŞİK FARKI: biz max_calendar_future_years=3 (yıl-granüler, tutucu); MD ~1-2y daha agresif → 2028'i işaretler biz etmeyiz. Configurable, by-design.
-    "service_window_outside_feed_period":    ["CAL_014", "CAL_019"],
+    "service_window_outside_feed_period":    ["CAL_014"],  # 2026-10-11: CAL_019/XFL_011 emekli; aktif-tarih semantiği tek taşıyıcı
     # ── Shapes ──
     "decreasing_shape_distance":            ["SHP_005"],   # sequence-sıralı monotonluk
     "stop_too_far_from_shape":              ["SHP_012"],   # geometrik en-yakın-nokta

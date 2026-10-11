@@ -881,7 +881,6 @@ const tr = {
     'CAL_016': 'Servis çok uzak bir gelecek tarihine kadar uzanıyor',
     'CAL_017': 'Takvim henüz başlamamış (tüm aktif tarihler gelecekte)',
     'CAL_018': 'Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)',
-    'CAL_019': 'Ham takvim aralığı feed_info geçerlilik penceresini aşıyor',
     'CAL_020': 'Feed geçerlilik penceresi 5 yılı aşıyor',
     'CAL_021': 'Servis bugünü kapsıyor ama yakın günlerde aktif sefer yok',
     'CAL_022': 'service_id eksik',
@@ -1149,7 +1148,6 @@ const tr = {
     // XFL
     'XFL_002': 'Seferin stop_times kaydı yok',
     'XFL_006': 'service_id yalnızca iptal istisnası içeriyor (aktif gün yok)',
-    'XFL_011': 'Takvim tarihleri feed_info aralığı dışında',
     'XFL_012': 'Çalıştırılabilir seferi olmayan hat',
     'XFL_013': 'shape_id birden fazla yönde kullanılıyor',
     'XFL_014': 'Geçersiz çeviri referansı (kaynak kayıt bulunamadı)',
