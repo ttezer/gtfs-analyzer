@@ -48,6 +48,39 @@ pub use gtfs_core::{
     FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult, ValidationStatus,
 };
 
+/// Rapor sayfasının ajans/yayıncı künyesi. Yalnız `EntityRecords` kullanır; native ve
+/// WASM aynı fonksiyonu çağırır (parite referansı ikisini de karşılaştırır).
+pub fn build_feed_summary(records: &EntityRecords) -> gtfs_core::feed_summary::FeedSummary {
+    use gtfs_core::feed_summary::{clean, AgencyContact, FeedInfoSummary, FeedSummary, MAX_AGENCIES};
+    let opt = |v: &Option<String>| v.as_deref().and_then(clean);
+    FeedSummary {
+        agency_count: records.agencies.len() as u32,
+        agencies: records
+            .agencies
+            .iter()
+            .take(MAX_AGENCIES)
+            .map(|a| AgencyContact {
+                agency_id: opt(&a.agency_id),
+                agency_name: a.agency_name.trim().to_string(),
+                agency_url: clean(&a.agency_url),
+                agency_timezone: clean(&a.agency_timezone),
+                agency_lang: opt(&a.agency_lang),
+                agency_phone: opt(&a.agency_phone),
+                agency_email: opt(&a.agency_email),
+                agency_fare_url: opt(&a.agency_fare_url),
+            })
+            .collect(),
+        feed_info: records.feed_info.first().map(|f| FeedInfoSummary {
+            feed_publisher_name: clean(&f.feed_publisher_name),
+            feed_publisher_url: clean(&f.feed_publisher_url),
+            feed_lang: clean(&f.feed_lang),
+            feed_version: opt(&f.feed_version),
+            feed_contact_email: opt(&f.feed_contact_email),
+            feed_contact_url: opt(&f.feed_contact_url),
+        }),
+    }
+}
+
 /// Returns true only when the feed itself proves that every served route has
 /// an all-trip fare. This is the narrow exception for STP_033: a uniform fare
 /// does not need stop zones, while a zone-based or ambiguous fare still does.
@@ -1782,6 +1815,7 @@ pub fn validate_bytes_inspected(
         name_index,
         capped_totals: std::collections::BTreeMap::new(),
         agency_breakdown,
+        feed_summary: build_feed_summary(&k2.records),
     })
 }
 

@@ -7,7 +7,7 @@ use gtfs_core::{
 };
 use gtfs_pipeline::agency_attribution::{index_notices, set_displayed, AgencyBreakdown, AgencyCounter};
 use gtfs_pipeline::{
-    aggregate_feed_level_notices, analyze_k6_with_files, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
+    aggregate_feed_level_notices, analyze_k6_with_files, build_feed_summary, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
     prepare_k7_notices, report_k7_prepared, validate_k2_with_whitespace_roots, DerivedData,
     EntityRecords, FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
@@ -505,6 +505,7 @@ fn rerun_k6_k7_inner(
         name_index,
         capped_totals,
         agency_breakdown,
+        feed_summary: build_feed_summary(&cache.records),
     });
     // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
     // bu satır basılıp sonrası gelmiyorsa OOM serialize'da demektir.
@@ -682,6 +683,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         name_index,
         capped_totals,
         agency_breakdown,
+        feed_summary: build_feed_summary(&k2.records),
     })
 }
 

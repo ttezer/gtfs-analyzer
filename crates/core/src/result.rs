@@ -150,6 +150,10 @@ pub struct ValidationResult {
     /// yazılır, okurken yok sayılır; biçim `agency.rs`'deki JSON sözleşmesidir.
     #[serde(default, skip_deserializing)]
     pub agency_breakdown: crate::agency::AgencyBreakdown,
+    /// Rapor sayfasının ajans/yayıncı künyesi (`agency.txt` + `feed_info.txt`). Eklemeli
+    /// alandır: yalnız yazılır, okurken yok sayılır.
+    #[serde(default, skip_deserializing)]
+    pub feed_summary: crate::feed_summary::FeedSummary,
 }
 
 /// Validator ana dönüş tipi.

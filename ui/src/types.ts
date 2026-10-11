@@ -161,6 +161,8 @@ export interface ValidationResult {
   capped_totals: Record<string, number>;
   /** Kural × agency dökümü (#2201). Eklemeli alan: eski motor sürümleri taşımaz. */
   agency_breakdown?: AgencyBreakdown;
+  /** Ajans/yayıncı künyesi. Eklemeli alan: eski motor sürümleri taşımaz. */
+  feed_summary?: FeedSummary;
 }
 
 export interface PartialReport {
@@ -224,4 +226,33 @@ export interface AgencyBreakdown {
   /** Feed sırasıyla agency'ler; `agency_sets` kimlikleri `agency_id` ile buraya bağlanır. */
   agencies: AgencyInfo[];
   rules: Record<string, RuleAgencyCounts>;
+}
+
+/** `agency.txt` iletişim alanları (kırpılmış; boş alanlar yok). */
+export interface AgencyContact {
+  agency_id?: string;
+  agency_name: string;
+  agency_url?: string;
+  agency_timezone?: string;
+  agency_lang?: string;
+  agency_phone?: string;
+  agency_email?: string;
+  agency_fare_url?: string;
+}
+
+/** `feed_info.txt` ilk kaydının yayıncı alanları (tarihler `metrics`'te). */
+export interface FeedInfoSummary {
+  feed_publisher_name?: string;
+  feed_publisher_url?: string;
+  feed_lang?: string;
+  feed_version?: string;
+  feed_contact_email?: string;
+  feed_contact_url?: string;
+}
+
+/** Ajans/yayıncı künyesi. `agencies` en fazla 100 kayıt; gerçek sayı `agency_count`. */
+export interface FeedSummary {
+  agency_count: number;
+  agencies?: AgencyContact[];
+  feed_info?: FeedInfoSummary;
 }

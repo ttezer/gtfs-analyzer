@@ -232,6 +232,17 @@
         }
       }
     },
+    "feed_summary": {
+      "agencies": [
+        {
+          "agency_id": "1",
+          "agency_name": "Test",
+          "agency_timezone": "UTC",
+          "agency_url": "http://test.example"
+        }
+      ],
+      "agency_count": 1
+    },
     "notices": [
       {
         "details": null,
@@ -1272,6 +1283,37 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_lang": "en",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          },
+          {
+            "agency_id": "A2",
+            "agency_lang": "fr",
+            "agency_name": "Two",
+            "agency_timezone": "UTC",
+            "agency_url": "http://two.example"
+          },
+          {
+            "agency_id": "A3",
+            "agency_lang": "en",
+            "agency_name": "Three",
+            "agency_timezone": "UTC",
+            "agency_url": "http://three.example"
+          }
+        ],
+        "agency_count": 3,
+        "feed_info": {
+          "feed_lang": "de",
+          "feed_publisher_name": "Publisher",
+          "feed_publisher_url": "http://publisher.example"
+        }
+      },
       "publishable": true,
       "removed": [
         {
@@ -1753,6 +1795,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": false,
       "removed": [
         {
@@ -2161,6 +2214,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [
         {
@@ -2513,6 +2577,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": false,
       "removed": [],
@@ -2882,6 +2957,29 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          },
+          {
+            "agency_id": "A2",
+            "agency_name": "Two",
+            "agency_timezone": "UTC",
+            "agency_url": "http://two.example"
+          },
+          {
+            "agency_id": "A3",
+            "agency_name": "Three",
+            "agency_timezone": "UTC",
+            "agency_url": "http://three.example"
+          }
+        ],
+        "agency_count": 3
       },
       "publishable": true,
       "removed": [
@@ -3386,6 +3484,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": false,
       "removed": [
         {
@@ -3821,6 +3930,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [],
       "score": 97.9
@@ -4134,6 +4254,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": true,
       "removed": [],
@@ -4530,6 +4661,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [],
       "score": 96.7
@@ -4872,6 +5014,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": true,
       "removed": [],
@@ -5430,6 +5583,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": true,
       "removed": [
@@ -6004,6 +6168,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": false,
       "removed": [
         {
@@ -6312,6 +6487,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [],
       "score": 96.3
@@ -6607,6 +6793,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": true,
       "removed": [
@@ -7078,6 +7275,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [
         {
@@ -7536,6 +7744,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": false,
       "removed": [
         {
@@ -7850,6 +8069,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": false,
       "removed": [
@@ -8325,6 +8555,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": false,
       "removed": [
         {
@@ -8706,6 +8947,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [],
       "score": 97.9
@@ -9001,6 +9253,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": true,
       "removed": [
@@ -9370,6 +9633,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": false,
       "removed": [],
@@ -10064,6 +10338,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [
         {
@@ -10504,6 +10789,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": false,
       "removed": [],
@@ -11129,6 +11425,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": false,
       "removed": [
         {
@@ -11662,6 +11969,17 @@
           }
         }
       },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
+      },
       "publishable": true,
       "removed": [
         {
@@ -12117,6 +12435,17 @@
             "unsupported": 0
           }
         }
+      },
+      "feed_summary": {
+        "agencies": [
+          {
+            "agency_id": "1",
+            "agency_name": "Test",
+            "agency_timezone": "UTC",
+            "agency_url": "http://test.example"
+          }
+        ],
+        "agency_count": 1
       },
       "publishable": true,
       "removed": [

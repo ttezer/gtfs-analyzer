@@ -7,6 +7,7 @@ import { formatBytes } from '../format';
 import { gtfsJpBadgeKey, GTFS_JP_AUTOMATED_COVERAGE_COMPLETE } from '../gtfs-jp-badge';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 import { renderAgencyBreakdown, attachAgencyBreakdownListeners } from './agency-breakdown';
+import { renderFeedSummary } from './feed-summary';
 
 export function renderDomain(root: HTMLElement, result: ValidationResult): void {
   const { r1, r5 } = result.reports;
@@ -21,6 +22,7 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
       ${renderSubScores(r5)}
       ${renderMetrics(metrics)}
       ${renderFeedCalendar(metrics)}
+      ${renderFeedSummary(result)}
       ${renderAgencyBreakdown(result)}
     </div>`;
   attachHiddenRuleListeners(root);

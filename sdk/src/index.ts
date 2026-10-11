@@ -25,6 +25,9 @@ import type {
 
 export type {
   AgencyBreakdown,
+  AgencyContact,
+  FeedInfoSummary,
+  FeedSummary,
   AgencySetCount,
   RuleAgencyCounts,
   EntityType,

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Report page: agencies and publisher.** A new card lists each agency's
+  website, phone, email, fare page, time zone and language from `agency.txt`
+  (a table when there are several) and the publisher, contact, language and
+  version from `feed_info.txt`. The data comes from the new
+  `ValidationResult.feed_summary` field (JSON, SDK `FeedSummary` type, Python),
+  which carries up to 100 agencies plus the total `agency_count`. Feed values
+  are escaped; only `http(s)` URLs and plain email addresses become links.
 - **Agency breakdown (MobilityData gtfs-validator #2201).** Results carry a new
   `agency_breakdown` field in the CLI JSON, the npm SDK (`AgencyBreakdown`) and
   the Python package. Per rule it reports `finding_count` (findings before any

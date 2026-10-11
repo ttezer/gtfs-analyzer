@@ -6011,3 +6011,32 @@ fn zone_only_flex_trip_is_not_an_overlap_or_shape_gap() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 }
+
+#[test]
+fn feed_summary_carries_trimmed_agency_and_feed_info_fields() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang,feed_version,feed_contact_email\n Pub ,https://pub.example,en,,ops@pub.example\n",
+    ));
+    let vr = match run(&files) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    let s = &vr.feed_summary;
+    assert_eq!(s.agency_count, 1);
+    assert_eq!(s.agencies[0].agency_id.as_deref(), Some("1"));
+    assert_eq!(s.agencies[0].agency_name, "Test");
+    assert_eq!(s.agencies[0].agency_url.as_deref(), Some("http://test.example"));
+    assert_eq!(s.agencies[0].agency_phone, None);
+    let fi = s.feed_info.as_ref().expect("feed_info özeti olmalı");
+    assert_eq!(fi.feed_publisher_name.as_deref(), Some("Pub"));
+    assert_eq!(fi.feed_version, None, "boş alan None olmalı");
+    assert_eq!(fi.feed_contact_email.as_deref(), Some("ops@pub.example"));
+
+    let vr = match run(&base_files()) {
+        ValidateResult::Ok(vr) => vr,
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert!(vr.feed_summary.feed_info.is_none(), "feed_info.txt yoksa özet de yok");
+}

@@ -95,6 +95,7 @@ fn project(result: &Value) -> Value {
         "publishable": result["reports"]["r1"]["publishable"],
         "score": result["reports"]["r5"]["score"],
         "agency_breakdown": result["agency_breakdown"],
+        "feed_summary": result["feed_summary"],
         "notices": notices,
     })
 }
@@ -118,6 +119,7 @@ fn diff(case: &Value, base: &Value) -> Value {
         "publishable": case["publishable"],
         "score": case["score"],
         "agency_breakdown": case["agency_breakdown"],
+        "feed_summary": case["feed_summary"],
         "added": added,
         "removed": removed,
     })

@@ -1,5 +1,6 @@
 pub mod agency;
 pub mod enums;
+pub mod feed_summary;
 #[cfg(feature = "i18n")]
 pub mod i18n;
 pub mod metrics;
