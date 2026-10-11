@@ -78,6 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attributed to agencies. Root-cause links that could never match were
   removed (`STM_015` → `XFL_013`/`SHP_017`, `XFL_013` → `STM_017`). A test
   now checks every fixture notice's `scope_key` against the identity field.
+- **`CAL_007`, `CAL_012` and `CAL_013` are feed-level summaries.** They group
+  services by gap or expiry date, but reported the date as a `Service` entity
+  and `scope_key`, so the service-scoped root causes `CAL_002`–`CAL_004`
+  could never match them and agency attribution looked the date up as a
+  service. They are now `Feed` entities without `scope_key`; the date stays
+  in `entity_id` and the services in `details.services`. The links from
+  `CAL_002`–`CAL_004` that never matched are removed.
 - `CAL_014` also reports services that start after the validation date, as
   MobilityData does.
 - **`STP_033` is silent without `fare_rules.txt`.** `zone_id` is optional and is

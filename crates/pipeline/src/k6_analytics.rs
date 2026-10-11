@@ -2840,6 +2840,8 @@ fn check_calendar_analytics(
 
     // CAL_007/012 emit: gap imzası başına TEK notice (#30). Aynı operasyonel boşluğu
     // paylaşan service_id varyantları details["services"]'te listelenir (VAT_002 deseni).
+    // Özet feed düzeyidir: `entity_id` boşluk imzası (Entity dedup anahtarı), `scope_key` yok —
+    // tarih aralığı bir service_id değildir ve servis kapsamlı kökler onu eşleyemezdi.
     // #29 mantığı korunur: yakın-gelecek boşluk CAL_012, geçmiş/uzak boşluk CAL_007.
     for ((gap_from, gap_to), mut svcs) in gap_services {
         svcs.sort_unstable();
@@ -2859,9 +2861,9 @@ fn check_calendar_analytics(
             k6_notice(
                 ctr,
                 "CAL_012",
-                EntityType::Service,
+                EntityType::Feed,
                 Some(entity.clone()),
-                Some(entity.clone()),
+                None,
                 "calendar.txt",
                 None,
                 None,
@@ -2874,9 +2876,9 @@ fn check_calendar_analytics(
             k6_notice(
                 ctr,
                 "CAL_007",
-                EntityType::Service,
+                EntityType::Feed,
                 Some(entity.clone()),
-                Some(entity.clone()),
+                None,
                 "calendar.txt",
                 None,
                 None,
@@ -3165,9 +3167,9 @@ fn check_calendar_analytics(
             let mut n = k6_notice(
                 ctr,
                 "CAL_013",
-                EntityType::Service,
+                EntityType::Feed,
                 Some(format!("{max_svc}")),
-                Some(format!("{max_svc}")),
+                None,
                 "calendar.txt",
                 None,
                 Some("end_date"),

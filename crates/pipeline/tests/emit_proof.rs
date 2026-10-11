@@ -2119,10 +2119,6 @@ fn scope_key_is_a_value_of_the_registry_identity_field() {
     // Bilerek bozuk CSV: basit ayrıştırıcı sütunu doğru okuyamaz (kapının değil fixture'ın
     // doğası). ARC_015 yinelenen başlık, ARC_030 tırnak içinde satır sonu.
     const MALFORMED_CSV_FIXTURES: &[&str] = &["ARC_015", "ARC_030"];
-    // KARAR BEKLİYOR (2026-10-11): boşluk/son-tarih imzası başına toplanan özet; scope_key
-    // tarih aralığıdır, registry `service_id` der. Servis kapsamlı kökler (CAL_002/003/004,
-    // TRP_003 hariç) bu yüzden onları hiç bastıramaz.
-    const OPEN_SCOPE_DEBT: &[&str] = &["CAL_007", "CAL_012", "CAL_013"];
     let mut failures = BTreeSet::new();
     let mut checked = BTreeSet::new();
     for f in fixtures() {
@@ -2138,9 +2134,6 @@ fn scope_key_is_a_value_of_the_registry_identity_field() {
             let Some(field) = gtfs_rules::get_rule(&n.rule_id).and_then(|m| m.scope_key_field) else {
                 continue;
             };
-            if OPEN_SCOPE_DEBT.contains(&n.rule_id.as_str()) {
-                continue;
-            }
             let Some(key) = n.scope_key.as_deref().filter(|k| !k.is_empty()) else {
                 continue;
             };
