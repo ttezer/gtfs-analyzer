@@ -678,10 +678,10 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
                 Some(format!("{rows}")),
                 None,
                 format!(
-                    "'{name}' dosyasında {rows} satır var; {} satır sınırını aşıyor.",
+                    "'{name}' dosyasında {rows} satır var; {} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı.",
                     cfg.max_file_rows
                 ),
-                "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
+                "Bilgi amaçlıdır; düzeltme gerekmez. Çok büyük dosyalar tüketicilerde işlem süresini ve bellek kullanımını artırabilir.",
             ));
         }
     }

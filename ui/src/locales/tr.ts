@@ -642,7 +642,7 @@ const tr = {
     'ARC_019': 'Başlıkta boş sütun adı',
     'ARC_020': 'Önerilen GTFS dosyası eksik (shapes.txt veya feed_info.txt)',
     'ARC_021': 'Alanda yazdırılamaz veya sorunlu karakter',
-    'ARC_022': "Dosya satır sayısı 1.000.000 sınırını aşıyor",
+    'ARC_022': "Dosya satır sayısı 1.000.000 bilgi eşiğini aşıyor",
     'ARC_023': "ZIP içinde iç içe ZIP dosyası",
     'ARC_024': "GTFS .txt dosyası alt dizinde (parse edilemez)",
     'ARC_026': 'Dosyada hatalı satır sonu karakteri',

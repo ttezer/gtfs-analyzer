@@ -165,7 +165,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("ARC_021", Dusuk,  Quality, 1, &[], None, VS, File,
         "Alanda yazdırılamaz veya sorunlu karakter"),
     r_noscore!("ARC_022", Bilgi, Analytics, 1, &[], None, VA, File,
-        "Dosya satır sayısı 1.000.000 sınırını aşıyor"),
+        "Dosya satır sayısı 1.000.000 bilgi eşiğini aşıyor"),
     r!("ARC_023", Orta,   Quality, 2, &[], None, VS, File,
         "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
     r!("ARC_024", Orta,   Spec,    2, &[], None, VS, File,

@@ -2468,7 +2468,7 @@ pub fn parse_with_limits(
         // maliyet satır okumakta değil, uydurma notice üretmekteydi). `max_file_rows`
         // yalnız ARC_022 eşiğidir; `buffered_entry_limit` bayt sınırı olarak kalır.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
-        let (mut records, csv_truncated, rfc4180) = match tokenize_csv(
+        let (mut records, _, rfc4180) = match tokenize_csv(
             text,
             if stream_mode { Some(0) } else { None },
         ) {
@@ -2851,11 +2851,10 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_022: Dosya satır sayısı limiti (stream_mode'da K2 üretir — rows burada boş).
-        // Tokenizer sınırı erken kestiği için `rows.len() > max_rows` artık tek başına
-        // yeterli değildir; `csv_truncated` gerçek aşımı taşır.
+        // ARC_022: Dosya satır sayısı bilgi eşiği (stream_mode'da K2 üretir — rows burada boş).
+        // Akış dışı dosyalar sınırsız tokenize edilir (#185), `rows.len()` gerçek sayıdır.
         let max_rows = cfg.max_file_rows as usize;
-        if !stream_mode && (csv_truncated || rows.len() > max_rows) {
+        if !stream_mode && rows.len() > max_rows {
             notices.push(make_notice(
                 &mut counter,
                 "ARC_022",
@@ -2864,24 +2863,13 @@ pub fn parse_with_limits(
                 Some(&raw_name),
                 None,
                 None,
-                Some(format!(
-                    "{}",
-                    if csv_truncated {
-                        max_rows.saturating_add(1)
-                    } else {
-                        rows.len()
-                    }
-                )),
+                Some(format!("{}", rows.len())),
                 format!(
-                    "'{raw_name}' dosyasında en az {} satır var; {} satır sınırını aşıyor.",
-                    if csv_truncated {
-                        max_rows.saturating_add(1)
-                    } else {
-                        rows.len()
-                    },
+                    "'{raw_name}' dosyasında {} satır var; {} satırlık bilgi eşiğini aşıyor. Dosyanın tamamı doğrulandı.",
+                    rows.len(),
                     max_rows
                 ),
-                "Dosyayı küçük parçalara bölün veya gereksiz satırları kaldırın.",
+                "Bilgi amaçlıdır; düzeltme gerekmez. Çok büyük dosyalar tüketicilerde işlem süresini ve bellek kullanımını artırabilir.",
             ));
         }
 

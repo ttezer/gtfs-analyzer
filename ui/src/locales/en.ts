@@ -665,7 +665,7 @@ const en: LocaleShape = {
     'ARC_019': 'Empty column name in header.',
     'ARC_020': "Recommended file '{file}' is missing (shapes.txt or feed_info.txt).",
     'ARC_021': "Non-printable or problematic character {observed_value} in '{entity_id}'.",
-    'ARC_022': "File '{entity_id}' exceeds the 1,000,000 row limit ({observed_value} rows).",
+    'ARC_022': "File '{entity_id}' has {observed_value} rows, above the 1,000,000-row informational threshold. The whole file was validated.",
     'ARC_023': "'{entity_id}' is a nested ZIP file inside the GTFS archive — not supported by the GTFS format.",
     'ARC_024': "'{entity_id}' is a .txt file inside a subdirectory — standard GTFS parsers will not read it.",
     // BKR
@@ -1886,7 +1886,7 @@ const en: LocaleShape = {
     'ARC_018': 'Remove empty rows from the file.',
     'ARC_019': 'Ensure all header column names are non-empty.',
     'ARC_021': 'Remove control/non-printable characters from field values; valid Unicode letters (e.g. ü, ö, 漢字) are fine.',
-    'ARC_022': 'Split the file into smaller parts or remove unnecessary rows.',
+    'ARC_022': 'Informational; no fix required. Very large files can increase processing time and memory use for consumers.',
     'ARC_023': 'Remove the nested ZIP file; GTFS files must be directly inside a single flat ZIP archive.',
     'ARC_024': 'Move the file to the root of the ZIP archive.',
     // AGN
@@ -2037,7 +2037,7 @@ const en: LocaleShape = {
     'ARC_019': 'Empty column name in header',
     'ARC_020': 'Recommended GTFS file missing (shapes.txt or feed_info.txt)',
     'ARC_021': 'Non-printable or problematic character in field',
-    'ARC_022': 'File row count exceeds 1,000,000 limit',
+    'ARC_022': 'File row count exceeds the 1,000,000 informational threshold',
     'ARC_023': 'Nested ZIP file inside GTFS archive',
     'ARC_024': 'GTFS .txt file in subdirectory (will not be parsed)',
     'ARC_026': 'Malformed end-of-line characters',
