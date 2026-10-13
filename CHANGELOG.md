@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `from_leg_group_id` does not equal a non-empty `to_leg_group_id` (and the
   reverse), so `transfer_count` is forbidden there. Rows where both are empty
   stay silent: the spec reading and MobilityData's disagree.
+- **`TRP_021` treated `bikes_allowed=0` as information.** The spec reads
+  "0 or empty - No bike information", so 0 now counts as missing and only
+  1 or 2 carry information. The remediation no longer suggests writing 0.
 
 ## [0.16.0] - 2026-10-11
 

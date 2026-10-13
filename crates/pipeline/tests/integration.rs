@@ -4962,6 +4962,41 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
     }
 }
 
+/// Spec: bikes_allowed *"0 or empty - No bike information for the trip."* Sıfır bilgi değil,
+/// bilginin YOKLUĞUdur; TRP_021 onu dolu sayıyordu (korpus mdb-1257: feribot seferlerinin
+/// hepsi 0, MD `missing_bike_allowance` 43 feed'de, biz 0). Yalnız 1 ve 2 bilgi taşır.
+#[test]
+fn trp021_counts_bikes_allowed_zero_as_no_information() {
+    let trips = |rows: &'static [u8]| {
+        let mut files = base_files();
+        files[3] = ("trips.txt", rows);
+        files
+    };
+    let trp021 = |files: &[(&str, &[u8])]| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "TRP_021")
+            .map(|n| n.observed_value.clone().unwrap_or_default()),
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    };
+    assert_eq!(
+        trp021(&trips(b"route_id,service_id,trip_id,bikes_allowed\nR1,SVC1,T1,0\n")),
+        Some("1/1".to_string()),
+        "hepsi 0 → bilgi yok"
+    );
+    assert_eq!(
+        trp021(&trips(b"route_id,service_id,trip_id,bikes_allowed\nR1,SVC1,T1,0\nR1,SVC1,T2,1\n")),
+        Some("1/2".to_string()),
+        "0 ile 1 karışık → 0'lı sefer eksik sayılır"
+    );
+    assert_eq!(
+        trp021(&trips(b"route_id,service_id,trip_id,bikes_allowed\nR1,SVC1,T1,1\nR1,SVC1,T2,2\n")),
+        None,
+        "1/2 bilgi taşır"
+    );
+}
+
 /// `feed_info` tarihlerinde aynı karar: `" 20260301"` biçim hükmünü (`FIN_005`/`FIN_006`) ham
 /// değerle alır ve `DQ_016` altında bastırılır, ama kayda `None` yazılırsa geçerlilik penceresi
 /// kaybolur ve `CAL_014` susar. MD değeri kırpıp okuyor (korpus `mdb-3155`, 2026-10-13).

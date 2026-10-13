@@ -567,8 +567,9 @@ pub fn validate_trips_with_limits(
             }
         };
 
-        // TRP_021: bikes_allowed eksik sayacı
-        if bikes_allowed.is_none() && ba_raw.is_empty() {
+        // TRP_021: bisiklet bilgisi yok sayacı. Spec: "0 or empty - No bike information";
+        // 0 bilginin yokluğudur, yalnız 1/2 bilgi taşır (korpus mdb-1257, 2026-10-13).
+        if (bikes_allowed.is_none() && ba_raw.is_empty()) || bikes_allowed == Some(0) {
             trp021_missing_count += 1;
             if trp021_first_line.is_none() {
                 trp021_first_line = Some(line);
@@ -576,7 +577,7 @@ pub fn validate_trips_with_limits(
             if trp021_missing_examples.len() < 5 && !trip_id.is_empty() {
                 trp021_missing_examples.push(trip_id.clone());
             }
-        } else if bikes_allowed.is_some() {
+        } else if matches!(bikes_allowed, Some(1 | 2)) {
             bikes_allowed_set_count += 1;
         }
 
@@ -819,9 +820,9 @@ pub fn validate_trips_with_limits(
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, None, Some("bikes_allowed"),
-                Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
-                format!("Bu feed'de bikes_allowed alanı hiçbir seferde belirtilmemiş ({trp021_missing_count} sefer)."),
-                "bikes_allowed değerini 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın.",
+                Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
+                format!("Bu feed'de hiçbir seferde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({trp021_missing_count} sefer)."),
+                "bikes_allowed değerini 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak ayarlayın; 0 ve boş 'bilgi yok' demektir.",
             ));
         } else {
             let examples = if trp021_missing_examples.is_empty() {
@@ -840,10 +841,10 @@ pub fn validate_trips_with_limits(
             notices.push(make_k2_notice(
                 &mut counter, "TRP_021", EntityType::Trip, None,
                 None, &file.name, trp021_first_line, Some("bikes_allowed"),
-                Some(format!("{trp021_missing_count}/{total}")), Some("0".to_string()),
-                format!("{total} seferin {trp021_missing_count} tanesinde bikes_allowed belirtilmemiş ({:.0}%).{examples}",
+                Some(format!("{trp021_missing_count}/{total}")), Some("1|2".to_string()),
+                format!("{total} seferin {trp021_missing_count} tanesinde bisiklet bilgisi yok: bikes_allowed boş veya 0 ({:.0}%).{examples}",
                     trp021_missing_count as f64 / total as f64 * 100.0),
-                "Tüm seferlerin bikes_allowed alanını 0 (bilgi yok), 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun.",
+                "Tüm seferlerin bikes_allowed alanını 1 (bisiklet izinli) veya 2 (bisiklet izinsiz) olarak doldurun; 0 ve boş 'bilgi yok' demektir.",
             ));
         }
     }
@@ -962,7 +963,8 @@ mod tests {
     fn valid_trip_produces_no_notices() {
         let file = make_file(
             vec!["route_id", "service_id", "trip_id", "bikes_allowed"],
-            vec![vec!["R1", "SVC1", "T1", "0"]],
+            // 0 "bilgi yok" demektir ve TRP_021 üretir (spec); bilgi taşıyan değer 1/2.
+            vec![vec!["R1", "SVC1", "T1", "1"]],
         );
         let (records, _ti, notices) = validate_trips(&file, None);
         assert_eq!(records.len(), 1);

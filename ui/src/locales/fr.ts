@@ -794,7 +794,7 @@ const fr: LocaleShape = {
     'TRP_017': 'La course basée sur la fréquence « {entity_id} » est absente de stop_times.',
     'TRP_019': 'Course « {entity_id} » : shape_id est obligatoire lorsque le service continu est actif.',
     'TRP_020': 'Course « {entity_id} » : trip_headsign correspond au nom d’un arrêt intermédiaire.',
-    'TRP_021': 'Certaines courses n’ont pas d’information bikes_allowed (transport des vélos) ({observed_value}).',
+    'TRP_021': 'Certaines courses n’indiquent pas le transport des vélos : bikes_allowed est vide ou vaut 0 ({observed_value}).',
     'TRP_022': 'Course « {entity_id} » : chevauchement des horaires au sein de l’enchaînement ({observed_value}).',
     'TRP_023': 'Aucune course active dans les 7 prochains jours.',
     'TRP_024': 'Course « {entity_id} » : type de ligne incohérent au sein de l’enchaînement (trouvé : {observed_value}, attendu : {expected_value}).',
@@ -1593,7 +1593,7 @@ const fr: LocaleShape = {
     'TRP_032': 'Mettez cars_allowed à 0 (pas d’information), 1 (autorisé) ou 2 (non autorisé).',
     'TRP_014': 'Raccourcissez trip_short_name.',
     'TRP_019': 'Ajoutez la géométrie du tracé dans shapes.txt et renseignez shape_id dans trips.txt.',
-    'TRP_021': 'Mettez bikes_allowed à 0 (pas d’information), 1 (vélos autorisés) ou 2 (vélos non autorisés).',
+    'TRP_021': 'Mettez bikes_allowed à 1 (vélos autorisés) ou 2 (vélos non autorisés) ; 0 et vide signifient tous deux « pas d’information ».',
     // STM (niveau champ)
     'STM_001': 'Utilisez un trip_id valide.',
     'STM_002': 'Utilisez un stop_id valide.',

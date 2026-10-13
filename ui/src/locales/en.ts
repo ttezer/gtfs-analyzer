@@ -792,7 +792,7 @@ const en: LocaleShape = {
     'TRP_017': "Frequency-based trip '{entity_id}' is missing from stop_times.",
     'TRP_019': "Trip '{entity_id}': shape_id is required when continuous service is active.",
     'TRP_020': "Trip '{entity_id}': trip_headsign matches an intermediate stop name.",
-    'TRP_021': "Some trips are missing bikes_allowed (bicycle allowance) information ({observed_value}).",
+    'TRP_021': "Some trips carry no bicycle information: bikes_allowed is empty or 0 ({observed_value}).",
     'TRP_022': "Trip '{entity_id}': overlapping trip times within block ({observed_value}).",
     'TRP_023': 'No active trips in the next 7 days.',
     'TRP_024': "Trip '{entity_id}': inconsistent route type within block (found: {observed_value}, expected: {expected_value}).",
@@ -1591,7 +1591,7 @@ const en: LocaleShape = {
     'TRP_032': 'Set cars_allowed to 0 (no info), 1 (allowed) or 2 (not allowed).',
     'TRP_014': 'Shorten trip_short_name.',
     'TRP_019': 'Add shape geometry to shapes.txt and fill in shape_id in trips.txt.',
-    'TRP_021': 'Set bikes_allowed to 0 (no info), 1 (bikes allowed) or 2 (bikes not allowed).',
+    'TRP_021': 'Set bikes_allowed to 1 (bikes allowed) or 2 (bikes not allowed); 0 and empty both mean no information.',
     // STM (field-level)
     'STM_001': 'Use a valid trip_id.',
     'STM_002': 'Use a valid stop_id.',

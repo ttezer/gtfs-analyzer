@@ -151,7 +151,7 @@
     "TRP_017": "フリークエンシー便'{entity_id}'がstop_timesにありません。",
     "TRP_019": "便'{entity_id}'：連続サービスが有効な場合はshape_idが必要です。",
     "TRP_020": "便'{entity_id}'：trip_headsignが中間停留所名と一致しています。",
-    "TRP_021": "自転車の持ち込み可否（bikes_allowed）が入力されていない便があります（{observed_value}）。",
+    "TRP_021": "自転車の持ち込み可否の情報がない便があります（bikes_allowedが空または0）（{observed_value}）。",
     "TRP_022": "便'{entity_id}'：ブロック内で運行時間が重複しています（{observed_value}）。",
     "TRP_023": "今後7日間に有効な便がありません。",
     "TRP_024": "便'{entity_id}'：ブロック内でroute_typeが一致しません（検出：{observed_value}、期待：{expected_value}）。",

@@ -639,7 +639,9 @@ BY_DESIGN = {
         "seferlere bakar → biz daha geniş, MD'nin vakalarını kapsıyoruz. (2) GRANÜLERLİK — TRP_021 "
         "feed-özeti (tek notice + 5 örnek), MD per-trip (mdb-2933: 118). Sayı kıyası anlamsız; "
         "AGG_RULES'a da eklendi. NOT: MD 'geçerli değer yok' der → GEÇERSİZ değeri de sayar "
-        "(ör. bikes_allowed=5); bizde o TRP_007'ye (enum ihlali) gider, TRP_021'e değil.",
+        "(ör. bikes_allowed=5); bizde o TRP_007'ye (enum ihlali) gider, TRP_021'e değil. "
+        "2026-10-13: TRP_021 artık 0'ı da 'bilgi yok' sayıyor (spec: '0 or empty - No bike "
+        "information'); run 38363983999'daki 43 MD-yalnız feed'in nedeni buydu (mdb-1257 hep 0).",
     "unexpected_enum_value":
         "Kalan fark YALNIZ route_type: MD temel 0-12 dışını 'beklenmedik' sayar, oysa "
         "genişletilmiş tipler (700 otobüs, 702 ekspres, 200 otokar, 109 banliyö, 712 okul, "
