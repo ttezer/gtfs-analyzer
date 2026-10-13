@@ -58,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reported; about 96% of corpus findings were of this kind. Blocks are now
   compared by vehicle mode, extended route types reduced to their basic
   type; messages still show the raw codes.
+- **`ARC_018`, `ARC_021` and `ARC_030` never ran on `trips.txt` and
+  `calendar_dates.txt`.** Both files are streamed and K1 reads only their
+  header; the row checks had moved to the other two streamed files but not
+  these. An empty row in `trips.txt` produced `TRP_001`/`TRP_031`/`TRP_035`
+  instead of one `ARC_018`.
 
 ## [0.16.0] - 2026-10-11
 

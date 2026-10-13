@@ -255,6 +255,8 @@ pub fn validate_trips_with_limits(
     let mut bikes_allowed_set_count: u32 = 0;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
     let mut arc037 = crate::k1_parse::Arc037Acc::default();
+    let mut arc021_fired = false;
+    let mut arc030_fired = false;
 
     let has_trip_id_col = file.headers.iter().any(|h| h == "trip_id");
     let has_route_id_col = file.headers.iter().any(|h| h == "route_id");
@@ -322,6 +324,42 @@ pub fn validate_trips_with_limits(
                 "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
             ));
             return;
+        }
+        // ARC_018: tamamen boş satır → notice + satırı KAYDETME (K1/stop_times emsali).
+        // ARC_018/021/030 #181'de taşınmamıştı: bu dosya K1'de stream edilir ve orada yalnız
+        // başlık okunur, kontrol hiç çalışmıyordu (2026-10-13). Boş satır TRP_001 vb. türetirdi.
+        if row.iter().all(|v| v.trim().is_empty()) {
+            notices.push(make_k2_notice(
+                &mut counter, "ARC_018", EntityType::File, Some(file.name.clone()),
+                None, &file.name, Some(line), None, None, None,
+                format!("'{}' {line}. satırı tamamen boş.", file.name),
+                "Boş satırları kaldırın.",
+            ));
+            return;
+        }
+        // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
+        if !arc021_fired {
+            if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
+                arc021_fired = true;
+                notices.push(make_k2_notice(
+                    &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, Some(line), None, Some(format!("U+{cp:04X}")), None,
+                    crate::k1_parse::arc021_message(&file.name, cp),
+                    crate::k1_parse::ARC021_REMEDIATION,
+                ));
+            }
+        }
+        // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+        if !arc030_fired {
+            if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
+                arc030_fired = true;
+                notices.push(make_k2_notice(
+                    &mut counter, "ARC_030", EntityType::File, Some(file.name.clone()),
+                    None, &file.name, Some(line), None, Some(format!("U+{cp:04X}")), None,
+                    crate::k1_parse::arc030_message(&file.name, cp),
+                    crate::k1_parse::ARC030_REMEDIATION,
+                ));
+            }
         }
         dq016.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         arc037.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);

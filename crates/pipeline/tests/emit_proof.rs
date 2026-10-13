@@ -2320,6 +2320,33 @@ fn scoped_root_with_blocks_never_emits_without_scope_key() {
     assert!(checked.len() > 20, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
 }
 
+/// `trips.txt` ve `calendar_dates.txt` K1'de yalnız başlık düzeyinde okunur (akış dosyaları);
+/// satır başına dosya hijyeni kontrolleri K2 akışında yapılmalı. ARC_012/034 bu iki dosyaya
+/// #181'de taşınmıştı, ARC_018/021/030 unutulmuştu (2026-10-13, ARC_037 yazılırken görüldü).
+#[test]
+fn row_hygiene_checks_run_on_streamed_trips_and_calendar_dates() {
+    let files = with_opts(
+        &[
+            ("trips.txt", "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,Merkez\u{1}\nR1,SVC1,T2,\"Doğu\tYönü\"\n,,,\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260101,2\n,,\nSVC1,20260102\u{1},2\nSVC1,\"2026\t0103\",2\n"),
+        ],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    for file in ["trips.txt", "calendar_dates.txt"] {
+        for rule in ["ARC_018", "ARC_021", "ARC_030"] {
+            assert!(
+                notices.iter().any(|n| n.rule_id == rule && n.file.as_deref() == Some(file)),
+                "{rule} {file} için çalışmalı: {:?}",
+                notices.iter().filter(|n| n.file.as_deref() == Some(file)).map(|n| &n.rule_id).collect::<Vec<_>>()
+            );
+        }
+    }
+    // Boş satır tek yapısal bulgudur; trip_id boş diye TRP_001 türetilmez (K1 emsali).
+    assert!(!notices.iter().any(|n| n.rule_id == "TRP_001"), "boş satır TRP_001 üretmemeli");
+}
+
 /// TRP_024 aynı ARACIN blokta tür değiştirmesini arar. Genişletilmiş kodlar aynı türün
 /// alt tipleridir: 3 ↔ 715 (talep-esaslı otobüs), 204 ↔ 712 (otokar ↔ okul otobüsü),
 /// 106 ↔ 109 (bölgesel ↔ banliyö treni). Korpus run 38363983999: 37 feed'in 23'ü, notice'ların
