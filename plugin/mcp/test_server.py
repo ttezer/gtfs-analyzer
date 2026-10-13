@@ -60,6 +60,57 @@ class _SlowProcess:
 
 
 class ServerTests(unittest.IsolatedAsyncioTestCase):
+    def test_tool_discovery_exposes_slash_routing_without_adding_a_new_tool(self):
+        tools = server.mcp._tool_manager._tools
+
+        self.assertEqual(
+            set(tools), {"analyze_gtfs_file", "analyze_gtfs_url", "get_gtfs_rule"}
+        )
+        self.assertNotIn("gtfs", tools)
+        self.assertIn("/gtfs", server.SERVER_INSTRUCTIONS)
+        self.assertIn("/gtfs TRP_002", tools["get_gtfs_rule"].description)
+        self.assertIn("uploaded GTFS Schedule ZIP", tools["analyze_gtfs_file"].description)
+        self.assertIn("`/gtfs` followed by a URL", tools["analyze_gtfs_url"].description)
+
+        file_schema = tools["analyze_gtfs_file"].parameters
+        self.assertEqual(file_schema["properties"]["file"]["$ref"], "#/$defs/OpenAIFile")
+        self.assertEqual(
+            file_schema["$defs"]["OpenAIFile"]["required"], ["download_url", "file_id"]
+        )
+
+    def test_server_instructions_make_bare_command_a_request_for_input(self):
+        self.assertIn("bare `/gtfs` must prompt", server.SERVER_INSTRUCTIONS)
+        self.assertIn("Bu GTFS dosyasını analiz et", server.SERVER_INSTRUCTIONS)
+
+    async def test_uploaded_file_routes_to_file_tool_path(self):
+        with patch.object(server, "_allowed_url", return_value="203.0.113.10"), patch(
+            "server._download_and_validate",
+            new_callable=AsyncMock,
+            return_value={"status": "ok"},
+        ) as download:
+            result = await server.analyze_gtfs_file(
+                {"download_url": "https://files.example.test/feed.zip", "file_id": "file-1"},
+                language="tr",
+            )
+
+        self.assertEqual(result, {"status": "ok"})
+        download.assert_awaited_once_with("https://files.example.test/feed.zip", "tr")
+
+    async def test_public_url_routes_to_url_tool_path(self):
+        with patch(
+            "server._download_and_validate",
+            new_callable=AsyncMock,
+            return_value={"status": "ok"},
+        ) as download:
+            result = await server.analyze_gtfs_url(
+                "https://feeds.example.test/feed.zip", language="ja"
+            )
+
+        self.assertEqual(result, {"status": "ok"})
+        download.assert_awaited_once_with(
+            "https://feeds.example.test/feed.zip", "ja", "https://feeds.example.test/feed.zip"
+        )
+
     async def test_openai_apps_challenge_returns_configured_token(self):
         with patch.dict(server.os.environ, {"OPENAI_APPS_CHALLENGE_TOKEN": "challenge-token"}):
             response = await server.openai_apps_challenge(None)

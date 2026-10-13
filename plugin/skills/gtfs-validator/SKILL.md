@@ -12,6 +12,19 @@ Use the connected GTFS Validator MCP server for GTFS Schedule validation.
 - Use `analyze_gtfs_file` for a user-uploaded GTFS Schedule ZIP.
 - Use `analyze_gtfs_url` for a public, directly downloadable GTFS ZIP URL.
 - Use `get_gtfs_rule` when the user asks what a rule ID means.
+- Treat `/gtfs` as routing intent, not as a fourth MCP tool:
+  - `/gtfs` plus an attached ZIP → `analyze_gtfs_file`.
+  - `/gtfs` plus a public URL → `analyze_gtfs_url`.
+  - `/gtfs TRP_002` (or another rule ID) → `get_gtfs_rule`.
+  - Bare `/gtfs` → ask for a GTFS ZIP upload or public feed URL.
+- A natural-language request such as `Bu GTFS dosyasını analiz et` routes to
+  `analyze_gtfs_file` when the file is attached.
+
+MCP tool metadata can guide this selection, but it does not register a native
+ChatGPT slash command. If the client does not interpret `/gtfs` as prompt text,
+the user must provide the same intent in ordinary language.
+
+Do not invoke the validator just to list or extract files from a generic ZIP.
 
 Preserve the returned `status`, `analysis.input_mode`,
 `analysis.source_url_provided`, publishability, coverage, scores, severity

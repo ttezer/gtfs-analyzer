@@ -62,6 +62,23 @@ ANALYZER_WEB_URL = os.environ.get(
 _ANALYSIS_SLOTS = asyncio.Semaphore(MAX_CONCURRENT_ANALYSES)
 _SUBJECT_RATE_LOCK = asyncio.Lock()
 _SUBJECT_REQUESTS: dict[str, deque[float]] = {}
+SUPPORTED_LANGUAGES = frozenset({"tr", "en", "ja", "fr"})
+
+
+SERVER_INSTRUCTIONS = (
+    "Use the existing GTFS Analyzer tools for clear GTFS Schedule validation or "
+    "analysis requests, including publishability checks, issue finding, and "
+    "explaining validation findings. Treat `/gtfs` as user intent text and route "
+    "it as follows: `/gtfs` with an uploaded GTFS ZIP goes to analyze_gtfs_file; "
+    "`/gtfs` with a public HTTP/HTTPS GTFS ZIP URL goes to analyze_gtfs_url; "
+    "`/gtfs` followed by a rule ID such as TRP_002 goes to get_gtfs_rule; and a "
+    "bare `/gtfs` must prompt the user for a ZIP upload or public feed URL. "
+    "The natural-language request `Bu GTFS dosyasını analiz et` also goes to "
+    "analyze_gtfs_file when a file is attached. Do not use these tools merely to "
+    "list or extract a generic ZIP. Preserve the Analyzer-returned status, "
+    "publishability, coverage, scores, severity counts, metrics, and R9 order; "
+    "never recalculate or invent validation results."
+)
 
 
 def _analyzer_bin() -> str:
@@ -354,10 +371,7 @@ if tunnel_host := os.environ.get("MCP_ALLOWED_HOST"):
 
 mcp = FastMCP(
     "GTFS Validator",
-    instructions=(
-        "Validate GTFS Schedule feeds using the GTFS Analyzer engine. Preserve "
-        "the returned status, scores, severity counts, partial coverage, and R9 order."
-    ),
+    instructions=SERVER_INSTRUCTIONS,
     host=os.environ.get("MCP_HOST", "127.0.0.1"),
     port=int(os.environ.get("MCP_PORT", os.environ.get("PORT", "8787"))),
     streamable_http_path="/mcp",
@@ -380,8 +394,13 @@ async def openai_apps_challenge(_request: Request) -> PlainTextResponse:
     name="analyze_gtfs_file",
     title="Analyze GTFS file",
     description=(
-        "Validate an uploaded GTFS Schedule ZIP using the GTFS Analyzer engine. "
-        "Returns publishability, scores, severity counts, feed metrics, and prioritized findings."
+        "Use for an attached/uploaded GTFS Schedule ZIP when the user asks to "
+        "validate or analyze it, check publishability, or find GTFS issues. "
+        "This includes `/gtfs` plus a ZIP and requests such as "
+        "`Bu GTFS dosyasını analiz et`. The file must be passed through the "
+        "ChatGPT file handoff. Returns the GTFS Analyzer engine's publishability, "
+        "scores, severity counts, feed metrics, and prioritized findings without "
+        "recalculating them in MCP."
     ),
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False, idempotentHint=True),
     meta={"openai/fileParams": ["file"]},
@@ -389,7 +408,7 @@ async def openai_apps_challenge(_request: Request) -> PlainTextResponse:
 async def analyze_gtfs_file(
     file: OpenAIFile, language: str = "en", ctx: Context = None
 ) -> dict[str, Any]:
-    if language not in {"tr", "en", "ja", "fr"}:
+    if language not in SUPPORTED_LANGUAGES:
         language = "en"
     def operation() -> Awaitable[dict[str, Any]]:
         _allowed_url(file["download_url"])
@@ -402,13 +421,16 @@ async def analyze_gtfs_file(
     name="analyze_gtfs_url",
     title="Analyze GTFS URL",
     description=(
-        "Validate a public GTFS Schedule ZIP URL using the GTFS Analyzer engine. "
-        "Only public HTTP/HTTPS URLs are accepted."
+        "Use for a public, directly downloadable GTFS Schedule ZIP URL when the "
+        "user asks to validate or analyze it, check publishability, or find GTFS "
+        "issues. This includes `/gtfs` followed by a URL. Only public HTTP/HTTPS "
+        "URLs are accepted; uploaded files belong to analyze_gtfs_file. Returns "
+        "the GTFS Analyzer engine's result without recomputing it in MCP."
     ),
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True, idempotentHint=True),
 )
 async def analyze_gtfs_url(url: str, language: str = "en", ctx: Context = None) -> dict[str, Any]:
-    if language not in {"tr", "en", "ja", "fr"}:
+    if language not in SUPPORTED_LANGUAGES:
         language = "en"
     def operation() -> Awaitable[dict[str, Any]]:
         return _download_and_validate(url, language, url)
@@ -422,11 +444,15 @@ _rules_cache: dict[str, list[dict[str, Any]]] = {}
 @mcp.tool(
     name="get_gtfs_rule",
     title="Get GTFS rule",
-    description="Return the canonical GTFS Analyzer rule metadata for a rule ID.",
+    description=(
+        "Use when the user asks what a GTFS Analyzer rule means or provides a "
+        "rule code, including `/gtfs TRP_002`. Returns the canonical Analyzer "
+        "metadata for that rule ID; do not infer or rewrite rule details."
+    ),
     annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=False, idempotentHint=True),
 )
 async def get_gtfs_rule(rule_id: str, language: str = "en") -> dict[str, Any]:
-    if language not in {"tr", "en", "ja", "fr"}:
+    if language not in SUPPORTED_LANGUAGES:
         language = "en"
     try:
         if language not in _rules_cache:

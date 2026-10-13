@@ -8,6 +8,24 @@ The server exposes:
 - `analyze_gtfs_url`
 - `get_gtfs_rule`
 
+## Routing contract
+
+The MCP server does not register a native ChatGPT slash command. The connected
+model can nevertheless treat `/gtfs` in a user message as routing intent using
+the server instructions and tool descriptions:
+
+| User request | Existing tool |
+|---|---|
+| `/gtfs` + attached GTFS ZIP | `analyze_gtfs_file` |
+| `/gtfs` + public GTFS URL | `analyze_gtfs_url` |
+| `/gtfs TRP_002` | `get_gtfs_rule` |
+| bare `/gtfs` | Ask for a ZIP upload or public URL |
+| `Bu GTFS dosyasını analiz et` + attached ZIP | `analyze_gtfs_file` |
+
+This routing does not add a fourth tool or change any existing tool schema. The
+Analyzer remains the source of validation results; MCP transports them and does
+not recalculate scores, publishability, severity, coverage, or R9 ordering.
+
 The analyzer binary is selected with `GTFS_ANALYZER_BIN`. The default transport
 endpoint is `http://127.0.0.1:8787/mcp`.
 
