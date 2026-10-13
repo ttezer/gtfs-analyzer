@@ -4962,6 +4962,40 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
     }
 }
 
+/// Saatsiz ara durakları aşan aralık: ardışık-çift döngüsü saatsiz durakta `continue` eder,
+/// STM_061 yalnız >10 km çiftlere bakar. Korpus mdb-2202: 15:15 → 15:15 arası 3,5 km,
+/// MD 210 km/h buluyor, biz hiçbir şey. (41.000 → 41.0315 enlem ≈ 3,5 km.)
+#[test]
+fn speed_checks_span_untimed_intermediate_stops() {
+    let stops: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+        A,A,41.0000,29.0\nM1,M1,41.0100,29.0\nM2,M2,41.0200,29.0\nB,B,41.0315,29.0\n\
+        C,C,41.0855,29.0\nD,D,41.0900,29.0\nE,E,41.1000,29.0\n";
+    let stop_times: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+        T1,15:15:00,15:15:00,A,1\nT1,,,M1,2\nT1,,,M2,3\nT1,15:15:00,15:15:00,B,4\n\
+        T1,15:17:00,15:17:00,C,5\n\
+        T1,,,D,6\nT1,15:30:00,15:30:00,E,7\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", stops);
+    files[4] = ("stop_times.txt", stop_times);
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let stm012: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_012").collect();
+            assert!(
+                stm012.iter().any(|n| n.message.contains("1-4")),
+                "A→B 3,5 km / 0 dk görülmeli: {stm012:?}"
+            );
+            // B→C ardışık (saatli) çift: 6 km / 2 dk = 180 km/h → mevcut döngü zaten görür.
+            // C→E saatsiz D üzerinden 1,6 km / 13 dk ≈ 7 km/h → bulgu yok.
+            let stm014: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
+            assert!(
+                stm014.iter().all(|n| !n.message.contains("5-7")),
+                "makul hızlı saatsiz aralık bulgu üretmemeli: {stm014:?}"
+            );
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 /// Renk boşlukla doldurulmuşsa (`'FFFFFF    '`) biçim hükmü ham değerle verilir (RTS_006/007,
 /// DQ_016 altında), ama kontrast kırpılmış renkle hesaplanır ve GÖRÜNÜR kalır: sarı/beyaz
 /// okunaksızlığı boşluktan bağımsız gerçek bir bulgudur (korpus mdb-1065/2653/465).

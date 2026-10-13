@@ -2094,6 +2094,139 @@ fn check_speed_and_duration<'a>(
                 }
             }
 
+            // Saatsiz ara durakları aşan aralıklar: yukarıdaki döngü yalnız ARDIŞIK iki durağa
+            // bakar ve saati olmayan durakta `continue` eder; STM_061 de yalnız >10 km çiftleri
+            // ölçer. Böylece 15:15 → 15:15 arasındaki 3,5 km (mdb-2202, 11 saatsiz durak) hiç
+            // görülmüyordu. Burada yalnız ARASINDA saatsiz durak olan saatli→saatli aralıklar
+            // değerlendirilir — ardışık çiftler zaten ölçüldüğü için çift sayım yok.
+            let mut prev_timed: Option<usize> = None;
+            for j in 0..stimes.len() {
+                let b = &stimes[j];
+                let Some(arr) = b.arrival_time().or(b.departure_time()).map(hms_to_secs) else {
+                    continue;
+                };
+                let p = prev_timed.replace(j);
+                let Some(p) = p.filter(|&p| j > p + 1) else {
+                    continue;
+                };
+                let a = &stimes[p];
+                let Some(dep) = a.departure_time().or(a.arrival_time()).map(hms_to_secs) else {
+                    continue;
+                };
+                if arr < dep {
+                    continue; // kronoloji STM_008'in alanı
+                }
+                // Yol: ara durakların kuş uçuşu toplamı (doğrudan mesafeden uzun, gerçek
+                // yoldan kısa). "İmkânsız" hükmü yine doğrudan (alt sınır) mesafeyle verilir.
+                let (Some((la1, lo1)), Some((la2, lo2))) = (coords_buf[p], coords_buf[j]) else {
+                    continue;
+                };
+                let mut path_km = 0.0;
+                let mut path_ok = true;
+                for k in p..j {
+                    match (coords_buf[k], coords_buf[k + 1]) {
+                        (Some(c1), Some(c2)) => path_km += haversine_km(c1.0, c1.1, c2.0, c2.1),
+                        _ => {
+                            path_ok = false;
+                            break;
+                        }
+                    }
+                }
+                let direct_km = haversine_km(la1, lo1, la2, lo2);
+                if !path_ok {
+                    path_km = direct_km;
+                }
+                let dt_sec = arr - dep;
+                let seq_a = a.stop_sequence().unwrap_or(0);
+                let seq_b = b.stop_sequence().unwrap_or(0);
+                let impossible = if dt_sec == 0 {
+                    // Sıfır süre: ardışık çiftteki kuralın aynısı — iki zaman da tam dakikaysa
+                    // gerçek süre 0-59 sn olabilir; tam bir dakikada bile aşılamayan mesafe imkânsızdır.
+                    let whole = a.departure_time().or(a.arrival_time()).map(|(_, _, s)| s) == Some(0)
+                        && b.arrival_time().or(b.departure_time()).map(|(_, _, s)| s) == Some(0);
+                    if whole && direct_km >= threshold / 60.0 {
+                        Some(format!("{direct_km:.1} km / 0 dk"))
+                    } else {
+                        if direct_km > 0.2
+                            && worst_zero_seg.as_ref().is_none_or(|&(d, ..)| direct_km > d)
+                        {
+                            worst_zero_seg = Some((
+                                direct_km,
+                                b.line as u64,
+                                SmolStr::from(idx.stop_id_of(a)),
+                                SmolStr::from(idx.stop_id_of(b)),
+                                seq_a,
+                                seq_b,
+                            ));
+                        }
+                        None
+                    }
+                } else {
+                    let hav_speed = direct_km / (dt_sec as f64 / 3600.0);
+                    (hav_speed > 700.0).then(|| format!("{hav_speed:.0} km/h"))
+                };
+                if let Some(observed) = impossible {
+                    let mut n012 = k6_notice(
+                        ctr, "STM_012", EntityType::Trip,
+                        Some(trip_id.to_string()), Some(trip_id.to_string()),
+                        "stop_times.txt", Some(b.line as u64), Some("arrival_time"),
+                        Some(observed.clone()), Some("<= 700 km/h".to_string()),
+                        format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {seq_a}-{seq_b} arası (aradaki duraklar saatsiz) {observed} — fiziksel olarak imkansız."),
+                        "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
+                    );
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                    n012.details = Some(d);
+                    notices.push(n012);
+                    trip_bad_seg_count += 1;
+                    trip_ws_bad_count += 1;
+                    continue;
+                }
+                if dt_sec == 0 {
+                    continue;
+                }
+                let speed = path_km / (dt_sec as f64 / 3600.0);
+                if speed > threshold {
+                    let seg = stm014_segs
+                        .entry((route, dir_sd, idx.stop_id_of(a), idx.stop_id_of(b)))
+                        .or_insert_with(|| Stm014Seg {
+                            route_label,
+                            seq_a,
+                            seq_b,
+                            threshold,
+                            line: b.line as u64,
+                            speed_min: speed,
+                            speed_max: speed,
+                            trips: Vec::new(),
+                            ws_real: false,
+                            ws_file: None,
+                        });
+                    seg.speed_min = seg.speed_min.min(speed);
+                    seg.speed_max = seg.speed_max.max(speed);
+                    seg.line = seg.line.min(b.line as u64);
+                    seg.trips.push(trip_id);
+                    match ws_join {
+                        Some((ws_threshold, file)) if speed <= ws_threshold => {
+                            seg.ws_file = Some(file);
+                        }
+                        _ => {
+                            seg.ws_real = true;
+                            trip_ws_bad_count += 1;
+                        }
+                    }
+                    if speed > trip_max_speed {
+                        trip_max_speed = speed;
+                        trip_max_speed_line = Some(b.line as u64);
+                    }
+                    trip_bad_seg_count += 1;
+                    bad_seg_stops.push((
+                        SmolStr::from(idx.stop_id_of(a)),
+                        SmolStr::from(idx.stop_id_of(b)),
+                    ));
+                }
+            }
+
             // OPR_008: yalnızca birden fazla bozuk segment varsa özet notice üret.
             // Tek segment bozuksa STM_014 zaten o bilgiyi taşır — OPR_008 tekrar olur.
             if trip_bad_seg_count > 1 {

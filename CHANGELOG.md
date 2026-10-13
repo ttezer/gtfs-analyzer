@@ -39,6 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hex check, so contrast was never measured and yellow on white went
   unreported. The format verdict stays with `RTS_006`/`RTS_007` on the raw
   value; contrast now uses the trimmed colour.
+- **Speed checks stopped at stops without times.** `STM_012`/`STM_014`
+  compared only consecutive stops, and `STM_061` only pairs over 10 km, so
+  3.5 km between two timepoints both at 15:15 with untimed stops in between
+  was never reported. Timed-to-timed spans across untimed stops are now
+  measured too; consecutive pairs are not counted twice.
 
 ## [0.16.0] - 2026-10-11
 
