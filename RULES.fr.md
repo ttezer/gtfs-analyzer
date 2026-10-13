@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-618 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+619 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -97,6 +97,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | AGN_015 | agency_url utilise http non sécurisé | INFO | Quality |
 | AGN_016 | agency_phone suspect ou factice | INFO | Quality |
 | AGN_017 | agency_lang incohérent entre agences | FAIBLE | Interop |
+| AGN_018 | agency_id vide dans un flux à agence unique | INFO | Quality |
 
 ## STP — Arrêts
 

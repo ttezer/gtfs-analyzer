@@ -714,6 +714,7 @@ const fr: LocaleShape = {
     'AGN_015': 'Agence « {entity_id} » : agency_url utilise « http:// » non sécurisé ; « https:// » est recommandé.',
     'AGN_016': 'Agence « {entity_id} » : agency_phone « {observed_value} » est un numéro factice connu ou hors service ; il peut ne pas être un contact réel.',
     'AGN_017': 'Les agences du jeu de données déclarent des valeurs agency_lang différentes ({observed_value}) — incohérence entre exploitants.',
+    'AGN_018': 'agency_id est vide dans un flux à agence unique ; la spécification le recommande aussi dans ce cas.',
     // STP
     'STP_001': 'stop_id en double : « {entity_id} ».',
     'STP_002': 'stop_id est vide.',
@@ -1896,6 +1897,7 @@ const fr: LocaleShape = {
     'AGN_015': 'Mettez à jour agency_url pour utiliser https://.',
     'AGN_016': 'Mettez à jour agency_phone avec le numéro réel et actif de l’agence exploitante.',
     'AGN_017': 'Rendez agency_lang cohérent entre les agences (ou ignorez pour un réseau réellement multilingue).',
+    'AGN_018': 'Ajoutez un agency_id dans agency.txt pour que lignes et tarifs puissent y faire référence quand une seconde agence sera ajoutée.',
     // ATR
     'ATR_009': 'Ne renseignez qu’un seul de ces champs de référence d’attribution.',
     'ATR_010': 'Utilisez un agency_id existant dans agency.txt.',
@@ -2109,6 +2111,7 @@ const fr: LocaleShape = {
     'AGN_015': 'agency_url utilise http non sécurisé',
     'AGN_016': 'agency_phone suspect ou factice',
     'AGN_017': 'agency_lang incohérent entre agences',
+    'AGN_018': 'agency_id vide dans un flux à agence unique',
     // STP
     'STP_001': 'stop_id en double',
     'STP_002': 'stop_id vide',

@@ -55,6 +55,25 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 "Çoklu kuruluş durumunda her agency satırına benzersiz bir agency_id girin.",
             ));
         }
+        // AGN_018: tek kuruluşta agency_id boş. Spec: "Conditionally Required: Required when
+        // the dataset contains data for multiple transit agencies. Recommended otherwise."
+        // Zorunluluk değil tavsiye → Bilgi, skor dışı (korpus mdb-2610, MD missing_recommended_field).
+        if !multiple_agencies && agency_id.is_none() {
+            notices.push(make_k2_notice(
+                &mut counter,
+                "AGN_018",
+                EntityType::Feed,
+                None,
+                Some(&row_map),
+                &file.name,
+                Some(line),
+                Some("agency_id"),
+                Some(String::new()),
+                None,
+                "Tek kuruluşlu feed'de agency_id boş; spec tek kuruluşta da önerir.".to_string(),
+                "agency.txt'e bir agency_id girin; ileride ikinci bir kuruluş eklenince routes ve ücretler ona bağlanabilir.",
+            ));
+        }
 
         // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
         let agency_name = get_trimmed_field(&row_map, "agency_name")
@@ -539,6 +558,24 @@ mod tests {
             "Çoklu kuruluşta boş agency_id → AGN_014: {:?}",
             notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
         );
+    }
+
+    /// Spec agency_id: "Conditionally Required ... Recommended otherwise." Tek kuruluşta boş
+    /// agency_id zorunluluk değil tavsiye ihlalidir → AGN_018 (Bilgi); AGN_014 SUSAR.
+    #[test]
+    fn single_agency_missing_agency_id_is_agn_018_recommendation() {
+        let with_id = |id: &'static str| {
+            make_file(
+                vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
+                vec![vec![id, "Transit Co", "https://transit.example", "Europe/Istanbul"]],
+            )
+        };
+        let (_, notices) = validate_agency(&with_id(""));
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "AGN_018").collect();
+        assert_eq!(hits.len(), 1, "{notices:?}");
+        assert!(!notices.iter().any(|n| n.rule_id == "AGN_014"));
+        let (_, notices) = validate_agency(&with_id("A1"));
+        assert!(!notices.iter().any(|n| n.rule_id == "AGN_018"));
     }
 
     #[test]

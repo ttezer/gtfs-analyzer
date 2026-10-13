@@ -346,6 +346,8 @@ pub static RULES: &[RuleMeta] = &[
         "agency_phone bilinen yer-tutucu/şüpheli numara"),
     r!("AGN_017", Dusuk,  Interop, 1, &[], None, VI, Feed,
         "Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık"),
+    r_noscore!("AGN_018", Bilgi, Quality, 1, &[], None, VS, Feed,
+        "Tek kuruluşta agency_id boş"),
 
     // ── STP: Stops ─────────────────────────────────────────────────────────────
     r!("STP_001", Kritik, Spec, 1,
@@ -1981,6 +1983,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("AGN_015", ProjectQuality),
     ("AGN_016", ProjectQuality),
     ("AGN_017", MobilitydataParity),
+    ("AGN_018", ProjectQuality),
     ("ARC_001", GtfsSpec),
     ("ARC_002", GtfsBestPractice),
     ("ARC_003", ProjectQuality),

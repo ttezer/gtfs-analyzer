@@ -717,6 +717,7 @@ const tr = {
     'AGN_015': 'agency_url güvensiz http (https önerilir)',
     'AGN_016': 'agency_phone şüpheli/yer-tutucu numara',
     'AGN_017': "Agency'ler arası agency_lang tutarsız",
+    'AGN_018': 'Tek kuruluşta agency_id boş',
     // STP
     'STP_001': 'stop_id yineleniyor',
     'STP_002': 'stop_id boş',

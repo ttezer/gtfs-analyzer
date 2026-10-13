@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a station)". One feed-level summary with the count and up to five example
   stops; Info, Quality, outside the score. Maps MobilityData's
   `platform_without_parent_station` (618 rules).
+- **`AGN_018` — `agency_id` empty in a single-agency feed.** The spec makes
+  `agency_id` required with several agencies and "recommended otherwise".
+  Info, Quality, outside the score; `AGN_014` keeps the multi-agency
+  requirement (619 rules).
 
 ### Fixed
 

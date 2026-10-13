@@ -712,6 +712,7 @@ const en: LocaleShape = {
     'AGN_015': "Agency '{entity_id}': agency_url uses insecure 'http://'; 'https://' is recommended.",
     'AGN_016': "Agency '{entity_id}': agency_phone '{observed_value}' is a known placeholder or out-of-service number; it may not be a real contact.",
     'AGN_017': "Agencies in the feed declare different agency_lang values ({observed_value}) — an inconsistency across operators.",
+    'AGN_018': 'agency_id is empty in a single-agency feed; the spec recommends it there too.',
     // STP
     'STP_001': "Duplicate stop_id: '{entity_id}'.",
     'STP_002': 'stop_id is empty.',
@@ -1894,6 +1895,7 @@ const en: LocaleShape = {
     'AGN_015': 'Update agency_url to use https://.',
     'AGN_016': "Update agency_phone to the operating agency's real, working number.",
     'AGN_017': 'Make agency_lang consistent across agencies (or ignore for a genuinely multilingual network).',
+    'AGN_018': 'Add an agency_id to agency.txt so routes and fares can reference it once a second agency is added.',
     // ATR
     'ATR_009': 'Fill in only one of these attribution reference fields.',
     'ATR_010': 'Use an agency_id that exists in agency.txt.',
@@ -2107,6 +2109,7 @@ const en: LocaleShape = {
     'AGN_015': 'agency_url uses insecure http',
     'AGN_016': 'agency_phone suspect/placeholder',
     'AGN_017': 'Inconsistent agency_lang across agencies',
+    'AGN_018': 'agency_id empty in a single-agency feed',
     // STP
     'STP_001': 'Duplicate stop_id',
     'STP_002': 'stop_id is empty',

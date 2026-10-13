@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-618 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+619 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -97,6 +97,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | AGN_015 | agency_url güvensiz http kullanıyor (https önerilir) | BİLGİ | Quality |
 | AGN_016 | agency_phone bilinen yer-tutucu/şüpheli numara | BİLGİ | Quality |
 | AGN_017 | Birden çok agency farklı agency_lang taşıyor — diller arası tutarsızlık | DÜŞÜK | Interop |
+| AGN_018 | Tek kuruluşta agency_id boş | BİLGİ | Quality |
 
 ## STP — Stops (Duraklar)
 

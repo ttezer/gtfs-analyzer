@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-618 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+619 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -97,6 +97,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | AGN_015 | agency_url uses insecure http | INFO | Quality |
 | AGN_016 | agency_phone suspect/placeholder | INFO | Quality |
 | AGN_017 | Inconsistent agency_lang across agencies | LOW | Interop |
+| AGN_018 | agency_id empty in a single-agency feed | INFO | Quality |
 
 ## STP — Stops
 

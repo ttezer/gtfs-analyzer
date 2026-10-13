@@ -409,6 +409,7 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("start_and_end_range_out_of_order", "FIN_012", filename=("feed_info.txt",), label="feed_info.txt::feed range"),
     _ctx("start_and_end_range_out_of_order", "STM_007", filename=("stop_times.txt",), label="stop_times.txt::time range"),
     # missing_recommended_field
+    _ctx("missing_recommended_field", "AGN_018", filename=("agency.txt",), fields=("agency_id",), label="agency.txt::agency_id (tek kuruluş)"),
     _ctx("missing_recommended_field", "RTS_025", filename=("routes.txt",), fields=("agency_id",), label="routes.txt::agency_id"),
     _ctx("missing_recommended_field", "FIN_013", filename=("fare_attributes.txt",), fields=("agency_id",), label="fare_attributes.txt::agency_id"),
     _ctx("missing_recommended_field", "FIN_007", filename=("feed_info.txt",), fields=("feed_version",), label="feed_info.txt::feed_version"),
