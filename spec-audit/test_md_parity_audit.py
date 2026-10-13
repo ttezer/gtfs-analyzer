@@ -309,9 +309,11 @@ class LedgerDriftGate(unittest.TestCase):
         "deprecated-md-only", "md-implementation-limit",
         "config-dependent", "context-dependent", "disjoint", "exact-parity",
     }
+    # 🔑 `analyzer-defect` ve `not-adjudicated` 2026-10-13'te düştü: son kusur kaydı
+    # (`inconsistent_route_type_for_block_id`) #169 A kararıyla kapandı, son açık kayıt
+    # (`invalid_color`, tfs-342) feed okunarak hükme bağlandı. Yeni kusur kaydı gelirse geri eklenir.
     MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it", "md-implementation-limit", "scope-difference",
-                      "config-dependent", "analyzer-defect",
-                      "not-adjudicated", "aggregation"}
+                      "config-dependent", "aggregation"}
 
     def test_ledger_labels_stay_within_the_frozen_vocabulary(self):
         """Etiketsiz ya da tanınmayan karar sayımlardan sessizce düşer."""

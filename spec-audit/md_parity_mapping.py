@@ -205,6 +205,8 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("unexpected_enum_value", "STP_008", filename=("stops.txt",), fields=("location_type",), label="stops.txt::location_type"),
     _ctx("unexpected_enum_value", "STP_013", filename=("stops.txt",), fields=("wheelchair_boarding",), label="stops.txt::wheelchair_boarding"),
     _ctx("unexpected_enum_value", "STM_009", filename=("stop_times.txt",), fields=("pickup_type",), label="stop_times.txt::pickup_type"),
+    _ctx("unexpected_enum_value", "STM_010", filename=("stop_times.txt",), fields=("drop_off_type",), label="stop_times.txt::drop_off_type"),
+    _ctx("unexpected_enum_value", "STM_022", filename=("stop_times.txt",), fields=("timepoint",), label="stop_times.txt::timepoint"),
     _ctx("unexpected_enum_value", "STM_018", filename=("stop_times.txt",), fields=("continuous_pickup",), label="stop_times.txt::continuous_pickup"),
     _ctx("unexpected_enum_value", "STM_019", filename=("stop_times.txt",), fields=("continuous_drop_off",), label="stop_times.txt::continuous_drop_off"),
     _ctx("unexpected_enum_value", "FRQ_007", filename=("frequencies.txt",), fields=("exact_times",), label="frequencies.txt::exact_times"),
@@ -293,8 +295,12 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     # tek `duplicate_key` altında raporlar. AYRI iki `_ctx` girişi aynı bağlamı
     # paylaşınca çözücü haklı olarak `context-mixed` der; tek girişte listelenir.
     _ctx("duplicate_key", "TRN_005", "TRN_006", filename=("translations.txt",), fields=("table_name",), label="translations.txt::çeviri anahtarı"),
-    _ctx("duplicate_key", "TRF_012", filename=("transfers.txt",), fields=("from_stop_id",), label="transfers.txt::(from_stop_id, to_stop_id)"),
-    _ctx("duplicate_key", "DQ_021", filename=("fare_leg_rules.txt", "fare_transfer_rules.txt", "location_groups.txt"), label="Fares v2 / Flex bileşik anahtarları"),
+    # TRF_012 bağlamsız satırları, TRF_016 trip/route bağlamlı satırları ölçer; MD anahtarı
+    # tek kodda verir (run 38363983999: mdb-2661 117=117, mdb-1078 12=12 TRF_016'da).
+    _ctx("duplicate_key", "TRF_012", "TRF_016", filename=("transfers.txt",), fields=("from_stop_id",), label="transfers.txt::(from_stop_id, to_stop_id[, trip/route])"),
+    _ctx("duplicate_key", "SHP_008", filename=("shapes.txt",), fields=("shape_id",), label="shapes.txt::(shape_id, shape_pt_sequence)"),
+    _ctx("duplicate_key", "FRQ_011", filename=("frequencies.txt",), fields=("trip_id",), label="frequencies.txt::(trip_id, start_time) — yinelenen dönem çakışmadır"),
+    _ctx("duplicate_key", "DQ_021", filename=("fare_leg_rules.txt", "fare_transfer_rules.txt", "location_groups.txt", "fare_rules.txt", "calendar_dates.txt"), label="Fares v1/v2, Flex ve calendar_dates bileşik anahtarları (DQ_021 servis/dosya başına toplular)"),
     _ctx("invalid_time", "BKR_025", filename=("booking_rules.txt",), fields=("prior_notice_start_time", "prior_notice_last_time"), label="booking_rules.txt::prior_notice zamanları"),
     _ctx("invalid_float", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("invalid_float", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),
@@ -375,6 +381,7 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("missing_required_field", "FIN_002", filename=("feed_info.txt",), fields=("feed_publisher_url",), label="feed_info.txt::feed_publisher_url"),
     _ctx("missing_required_field", "FIN_003", filename=("feed_info.txt",), fields=("feed_lang",), label="feed_info.txt::feed_lang"),
     _ctx("missing_required_field", "TRN_003", filename=("translations.txt",), fields=("language",), label="translations.txt::language"),
+    _ctx("missing_required_field", "TRN_008", filename=("translations.txt",), fields=("translation",), label="translations.txt::translation"),
     _ctx("missing_required_field", "BKR_019", filename=("booking_rules.txt",), fields=("booking_rule_id",), label="booking_rules.txt::booking_rule_id"),
     _ctx("missing_required_field", "BKR_016", filename=("booking_rules.txt",), fields=("booking_type",), label="booking_rules.txt::booking_type"),
     # transfers.txt::min_transfer_time — ÖNLEYİCİ eşleme. google/transit#640 bu alanı
@@ -533,29 +540,36 @@ BY_DESIGN = {
     "platform_without_parent_station":
         "MD parent'sız HER durağı işaretler (tüm feed gürültü); STP_032 kapsamlandırılmış.",
     "mixed_case_recommended_field":
-        "DQ_018 yalnız ALL-CAPS işaretler; MD mixed_case'i küçük-harfsiz dillerde (JP) over-fire eder.",
+        "DQ_018 yalnız ALL-CAPS işaretler; spec yalnız 'Mixed Case (not ALL CAPS)' der. MD harfi "
+        "büyük/küçük olmayan yazılarda (JP 567/985 feed, ör. '吉野・焼笹線') ve kod niteliğindeki "
+        "değerlerde ('0GAJ', 'F-SJR-MOY', 'trip_bajada_10.0') ya da küçük harfli marka adlarında "
+        "('rab', 'walz', 'enno') da uyarır (run 38363983999, JP dışı örnekler okundu).",
     "missing_recommended_field":
         "Bizde tek MD koduna karşılık BİRDEN ÇOK kural var (DQ_003/004, RTS_025, FIN_013/018) "
         "→ üst-küme; eşleşme 1-1 değil, sayı kıyası anlamsız.",
     "foreign_key_violation":
         "STM_002 distinct-stop agregasyonu (biz 4, MD 2886 per-row) — #2. corpus'ta doğrulandı.",
     "duplicate_key":
-        "SHP_008 per-SHAPE agregasyonu (K2 6159 emit → entity-dedup 6 distinct shape; MD per-row).",
+        "Dosya bağlamı `_ctx` ile eşlenir (shapes→SHP_008, fare_rules/calendar_dates→DQ_021, "
+        "transfers→TRF_012/016, frequencies→FRQ_011; 2026-10-13). Kalan sayı farkı toplulamadır: "
+        "SHP_008 shape başına, DQ_021 servis/dosya başına özetler, MD satır başına sayar "
+        "(mdb-2668 calendar_dates: MD 16.228 satır / DQ_021 62 servis, hepsi örnek listede).",
     "trip_distance_exceeds_shape_distance_below_threshold":
         "SHP_025 eşik altı varyantı — bizim eşiğimiz farklı, kapsam kararı.",
     "stops_match_shape_out_of_order":
-        "SHP_016 kavramsal olarak AYRIK (Faz 5'te doğrulandı) — aynı şeyi ölçmüyorlar.",
+        "SHP_017 bilinçli tutucu: 500 m projeksiyon toleransı + 3 durakta toparlanma filtresi, "
+        "Bilgi/Analytics. Tamamen ters shape SHP_016'ya gider (run 38363983999: MD-yalnız 250 "
+        "feed'in 43'ünde SHP_016 var). mdb-10 örneği: iki eşleşme ~400 m, tolerans içinde. "
+        "Monoton projeksiyon workplan'da açık.",
     "unused_trip":
         "XFL_002 ile exact-parite: trips.txt'te tanımlı ancak stop_times.txt'te hiç satırı olmayan trip.",
     # ── MAP yorumlarında ZATEN adjudicate edilmiş, makine-okunur hâle getirildi ──
     # ── UNDECIDABLE (sprint ilkesi: "undecidable = bulgu") ──
     "stop_too_far_from_shape_using_user_distance":
-        "SHP_024'e eşlenir. tdg-83134'teki 139.4m/165.6m otobüs vakalarının kök nedeni "
-        "stop koordinatlarının baş/son boşluk taşımasıydı: K2 strict lexical kaydı boş bırakıyor, "
-        "geometri kontrolü ise trim edilmiş sayısal payload'ı artık kullanıyor. Reduced fixture ve "
-        "aynı-input feed replay'i iki vakayı geri getiriyor (SHP_024=69; MD=124). Kalan farklar "
-        "tam corpus adjudication'ı için açık: MD/analyzer granülerliği ve sdt interpolasyon farkları "
-        "ayrıca incelenmeli; 200m rail eşiği bilinçli korunuyor.",
+        "SHP_024'e eşlenir. tdg-83134'teki boşluklu koordinat vakası trim edilmiş payload ile "
+        "kapandı (SHP_024=69; MD=124). Run 38363983999'da MD-yalnız kalan 3 feed (mdb-3107 "
+        "Verviers-Central 106 m, mdb-3108 Biləcəri 114 m, tld-715 Coina 136 m) raylı hat: "
+        "stop_far_from_shape_m_rail = 200 m bilinçli eşik, MD 100 m genel eşik.",
     "service_has_no_active_day_of_the_week":
         "Exact CAL_006 parity. #123 fixed the false negative caused by whitespace-wrapped "
         "weekday zeros: K2 trims only the numeric payload for the weekly-pattern decision, "
@@ -571,8 +585,10 @@ BY_DESIGN = {
         "currentDate}), CAL_017 ise SERVİS başına. mdb-777: biz 67 (67 servis) ↔ MD 1. "
         "Sayı kıyası anlamsız; içerik aynı.",
     "route_color_contrast":
-        "Kontrast eşiği farkı: RTS_008 daha sıkı (20-feed: biz 132 vs MD 3). Erişilebilirlik "
-        "tercihi, MD paritesi hedeflenmiyor.",
+        "Ölçüt farkı: RTS_008 WCAG oranı < 3:1, MD rec601 luma farkı < 72. Çoğu feed'de biz "
+        "fazlayız; MD-yalnız 12 feed'in 9'u WCAG 3,06-3,89 (siyah üzerine kırmızı/mor) — bizim "
+        "eşiğin üstünde. Kalan 3'ü (mdb-1065/2653/465, sarı/beyaz ≈1,5) renk değeri boşlukla "
+        "dolu olduğu için hesaplanmıyor (RTS_006/007 ham hükmü veriyor) — workplan'da açık.",
     "trip_distance_exceeds_shape_distance":
         "SHP_025 eşiği >%0,1 (yuvarlamayı tolere eder, SHP_029 felsefesi). mdb-1909: 170 "
         "aşımın 165'i <%0,1 = yuvarlama → biz 5 doğru, MD 170'in hepsini basar.",
@@ -596,7 +612,9 @@ BY_DESIGN = {
         "farklar threshold/mesafe ve analyzer segment agregasyonu açısından hâlâ adjudication "
         "gerektiriyor). mdb-2712 pinned 801515, 1049→253 segmenti artık trace edilebilir.",
     "trip_headsign_matches_intermediate_stop":
-        "Kalan OVER = YAKIN-YAZIM farkı, bilinçli bırakıldı. 2026-07-17 fix'i (107f929) asıl "
+        "Run 38363983999 (MD-yalnız 286 feed): MD halka hatta ilk=son durak adını (jbda-chikumacity "
+        "'屋代駅') ve aynı adlı iki terminal durağının sondan ikincisini (mdb-1024) 'ara durak' "
+        "sayıyor; TRP_020 terminal adını atlıyor, doğru. Kalan OVER = YAKIN-YAZIM farkı, bilinçli bırakıldı. 2026-07-17 fix'i (107f929) asıl "
         "FP'yi kapattı (terminal ADI headsign ise atla → mdb-1294: 9.162→171). Kalanlar: "
         "headsign 'MONTI SAN PAOLO/CONFORTI' ↔ terminal 'MONTI S. PAOLO/CONFORTI' = aynı yer, "
         "kısaltma. Çözüm bulanık eşleştirme olurdu → gerçek vakaları bastırma riski; bir FP "
@@ -624,7 +642,9 @@ BY_DESIGN = {
         "genişletilmiş tipler (700 otobüs, 702 ekspres, 200 otokar, 109 banliyö, 712 okul, "
         "715 talep-esaslı) GEÇERLİ ve biz kabul ediyoruz → 0'ımız DOĞRU, MD over-fire. "
         "250-feed: 4.434 örneğin 4.434'ü route_type. Alan-bazlı vakalar MATCH kalır "
-        "(EXPLAINED yalnız non-MATCH'i ezer): direction_id→TRP_005 26=26, transfers→FAR_005 6=6.",
+        "(EXPLAINED yalnız non-MATCH'i ezer): direction_id→TRP_005 26=26, transfers→FAR_005 6=6. "
+        "stop_times timepoint→STM_022 ve drop_off_type→STM_010 bağlamı 2026-10-13'te eklendi "
+        "(mdb-2805: MD 3.000 = STM_022 '3000 rows' özeti).",
 }
 
 
@@ -734,12 +754,12 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "inspected feeds, verified against the run's analyzer-rules.csv.",
     ),
     "invalid_color": (
-        "not-adjudicated",
-        "tfs-342, 2 findings against RTS_006/RTS_007. The one row in this batch that could not be settled: "
-        "the feed returns HTTP 403 on three attempts, so the colour values were never read. Everything "
-        "recorded about tfs-342 elsewhere comes from the run's own data rather than the archive. Two findings "
-        "on route colours, so the stake is small, but it stays open rather than being guessed - the "
-        "invalid_url hypothesis in this same round looked just as safe and was wrong.",
+        "structural-fault-owns-it",
+        "tfs-342, 2 findings against RTS_006/RTS_007. Downloaded in run 38363983999 (sha256 dd6e31b9..., "
+        "the earlier 403 is gone): routes.txt rows 22 and 57 carry route_color as a single space (\" \"). "
+        "MobilityData trims to '' and still reports invalid_color. Trimmed, the optional field is empty and "
+        "there is no colour to judge; the fault is the whitespace, which DQ_016 reports on routes.txt "
+        "(45 rows, route_color among the affected columns, raw sample route_color=\" \").",
     ),
     "pathway_unreachable_location": (
         "scope-difference",
@@ -761,18 +781,15 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "date in their sample rather than from reading the cache against this feed.",
     ),
     "inconsistent_route_type_for_block_id": (
-        "analyzer-defect",
-        "mdb-2653, 1,502 findings, and MobilityData is right about every one - the count matches exactly once "
-        "the join is done on trimmed ids. routes.txt is space-padded to a fixed width, so route_id reads "
-        "'10T0001C1  ' while trips.txt carries '10T0001C1'; 838 of 854 routes are affected. TRP_024 builds "
-        "its lookup off RouteRecord.route_id and every lookup misses, so it reports nothing across 138,903 "
-        "trips. Reading identity raw is the deliberate convention rather than an oversight - every entity "
-        "parser does it (routes.rs:53, stops.rs:49, agency.rs:37, calendar.rs:33, shapes.rs:285) and "
-        "k2/common.rs:140 cites #85 for it - and k6_analytics.rs alone has 116 sites keying maps off a raw "
-        "id field, so this is a policy question and not a one-line fix. Running the analyzer directly on the "
-        "feed shows TRP_002 is also silent, which under raw identity should not happen: it should report "
-        "138,821 broken references. Two halves of our own pipeline therefore disagree about what an id is. "
-        "Tracked in #169; recorded here as our defect because MobilityData's finding is correct.",
+        "structural-fault-owns-it",
+        "Run 38363983999 re-reads this after #169 closed on decision A (identities stay raw, #85). "
+        "mdb-2653 (MD 902 / TRP_024 0): routes.txt pads route_id to a fixed width ('10T0001C1  ' vs "
+        "trips.txt '10T0001C1', 838 of 854 routes), so the raw lookup misses and TRP_024 has nothing to "
+        "report. MobilityData trims and is right about the blocks; the gap is owned by the whitespace "
+        "fault, which DQ_016 declares with identity_whitespace_fields and cross_file_analysis: unreliable. "
+        "The earlier claim that TRP_002 disagreed was withdrawn in #169: it is suppressed as a whitespace "
+        "derivative, not silent. Elsewhere the counts match one to one (23 feeds) or we count per trip "
+        "where MobilityData counts per block (mdb-3233 7/2, mdb-782 9/2, tdg-83634 1,859/203).",
     ),
     "transfer_distance_too_large": (
         "structural-fault-owns-it",
@@ -895,8 +912,10 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "comma-space separated, so feed_end_date reads ' 20250819' and FIN_010/FIN_019 have no parseable date "
         "to compare against today. DQ_016 fires, and so does FIN_008 on the ' planning@wavetransit.com' in the "
         "same row - the whitespace is reported twice under its own name. Note the feed expired a year before "
-        "the run date, so CAL_009 and CAL_013 do report the expiry from the calendar side. Verified on mdb-2026; "
-        "mdb-3235 not inspected.",
+        "the run date, so CAL_009 and CAL_013 do report the expiry from the calendar side. Since 7e4a32dd the "
+        "validity window uses the trimmed date and FIN_010 fires on mdb-2026 (re-run 2026-10-13), so this "
+        "entry now covers mdb-3235 only: feed_info.txt has 25 rows and MobilityData judges row 17; FIN_015 "
+        "reports the multi-row fault.",
     ),
     "stop_time_with_arrival_before_previous_departure_time": (
         "structural-fault-owns-it",
@@ -1018,6 +1037,9 @@ ARC034_DERIVATIVE_MD_CODES: frozenset[str] = frozenset({
     "invalid_date", "invalid_integer", "invalid_float", "invalid_timezone", "invalid_time",
 })
 
+# TRF_016 ve TRN_008 2026-10-13'te bu listeden çıktı: run 38363983999'da MD `duplicate_key`
+# (transfers, trip bağlamlı anahtar; mdb-2661 117=117) ve `missing_required_field`
+# (translations::translation) aynı olguyu raporluyor — artık `_ctx` ile eşleniyorlar.
 NO_MD_EQUIVALENT: dict[str, str] = {
     "ARC_032": "Alan değerinde HTML etiketi/kaçış dizisi. Katalogda 'html' geçen tek bir kod yok.",
     "ARC_013": "CSV ayrıştırma hatası. MD'nin `csv_parsing_failed`'i onların ayrıştırıcısının 4096 karakterlik alan sınırıdır (mdb-982'de mesajı bunu yazar) ve aynı feed'i biz sorunsuz okuyoruz — UNMAPPED_DECISIONS'ta kayıtlı. Bizim ARC_013'ümüz gerçek bir ayrıştırma hatasıdır; ikisini eşlemek onların ayrıştırıcı sınırını bizim körlüğümüz gibi gösterirdi.",
@@ -1030,10 +1052,8 @@ NO_MD_EQUIVALENT: dict[str, str] = {
     "FRQ_012": "exact_times=1 iken end_time headway sınırına denk geliyor. `overlapping_frequency` ve `start_and_end_range_equal` farklı olgulardır.",
     "TRF_022": "1-to-n devamlılıkta devam seferlerinin service_id'leri çelişiyor. MD'nin in-seat kodları rota MODUNU ve durak konumunu ölçer, takvim tutarlılığını değil.",
     "TRF_023": "n-to-1 devamlılıkta gelen seferlerin service_id'leri çelişiyor. TRF_022 ile aynı gerekçe.",
-    "TRF_016": "Aynı altı-alanlı aktarma anahtarı (from/to stop, trip, route) birden fazla satırda tanımlı; hangi kuralın öncelikli olduğu belirsiz kalır. MD'nin `duplicate_key`'i transfers.txt için yalnız durak çiftini anahtar sayar (o bizde TRF_012); bağlamlı altı-alanlı çakışmayı ölçen kod yok.",
     "TRN_002": "field_name bu tablo için geçersiz. MD'nin üç çeviri kodu table_name'i, referansı ve boş olması gereken alanı ölçer; field_name'in tablo için geçerliliğini değil.",
     "TRN_011": "field_name çevrilebilir bir içerik türüne benzemiyor (ad/desc/url/email/phone/headsign sezgisi). MD'nin üç çeviri kodu table_name'i, kayıt referansını ve boş olması gereken alanı ölçer; hangi ALANLARIN çevrilebilir olduğunu hiçbiri denetlemez.",
-    "TRN_008": "translations.txt::translation boş; satır bir çeviri tanımladığını söyler ama içerik taşımaz. MD katalogunda boş çeviri değerini denetleyen kod yok — translation_unexpected_value boş OLMASI GEREKEN alanın dolu olmasını ölçer, tersini değil.",
     "TRN_015": "record_id ve field_value ikisi de boş. MD'nin `translation_unexpected_value`'su TERSİNİ ölçer (dolu olmamalıyken dolu).",
     "STM_060": "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşmesi. Spec bunu yasaklar; MD'de kod yok ve bizde de geometri saklanmadığı için kapsam sınırlıdır.",
     "ARC_036": "ZIP girdisinin akış görünümü (data-descriptor bayrağı + descriptor kaydı) merkez diziniyle çelişiyor. MD katalogunda ZIP çerçeve tutarlılığını denetleyen kod YOK; MD bu arşivlerde bulgu üretmek yerine ÇÖKER (`GtfsInput.hasSubfolderWithGtfsFile` akış okuyucusu `ZipException` fırlatır, doğrulama hiç başlamaz — `tdg-81618` ve `mdb-2607` 15. koşumda böyle düştü). Çökme bir kod değildir, dolayısıyla eşlenecek karşılık da yoktur.",
