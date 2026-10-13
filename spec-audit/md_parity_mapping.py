@@ -317,6 +317,7 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("number_out_of_range", "STM_030", filename=("stop_times.txt",), fields=("shape_dist_traveled",), label="stop_times.txt::shape_dist_traveled negatif"),
     _ctx("number_out_of_range", "SHP_021", filename=("shapes.txt",), fields=("shape_dist_traveled",), label="shapes.txt::shape_dist_traveled negatif"),
     _ctx("missing_required_field", "CAL_025", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanı boş"),
+    _ctx("number_out_of_range", "FAR_002", filename=("fare_attributes.txt",), fields=("price",), label="fare_attributes.txt::price negatif"),
     _ctx("number_out_of_range", "PTH_007", filename=("pathways.txt",), fields=("traversal_time",), label="pathways.txt::traversal_time"),
     _ctx("number_out_of_range", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("number_out_of_range", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),
@@ -919,6 +920,39 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "single-label hosts are legal, and TLD validation needs a maintained list that would reject new TLDs. "
         "#144 removed an is_ascii() gate from url_strict_ok for the same asymmetry; a general host-shape "
         "check risks reintroducing it.",
+    ),
+
+    "overlapping_frequency": (
+        "md-implementation-limit",
+        "Run 38363983999: mdb-3122 in md_mapped_over, MD 2 / FRQ_011 4. Trip 205755_7563 has five "
+        "frequencies rows; row 3 (06:41-19:33) covers the other four (13:48-14:48, 14:52-15:36, "
+        "16:11-18:29, 18:06-19:32). MobilityData sorts by start_time and compares adjacent pairs "
+        "only, so it sees 3/4 and 6/7. FRQ_011 tracks the running maximum end_time and reports every "
+        "period that starts inside an earlier one, which is what the spec sentence 'must not overlap' "
+        "asks for. All four of ours are real overlaps; theirs is a lower bound.",
+    ),
+    "unusable_trip": (
+        "structural-fault-owns-it",
+        "Run 38363983999: mdb-2653 in md_mapped_under, MD 955 / STM_033+XFL_002 881. Trimmed ids give "
+        "696 trips with no stop_times and 259 with one; XFL_002 matches the 696 exactly. The missing "
+        "74 are single-stop trips whose trips.txt trip_id carries a trailing space that stop_times.txt "
+        "does not ('1004D17125C8b ' vs '1004D17125C8b'). Identities stay raw (#85, user decision "
+        "2026-09-18), so those trips have no stop_times on our side; their XFL_002 is declared at the "
+        "trips.txt DQ_016 root as a whitespace derivative and STM_033 never sees them. MobilityData "
+        "trims and joins. The gap is the documented cost of raw identities, owned by the whitespace "
+        "fault that DQ_016 reports; OPR_006 still counts all 259.",
+    ),
+    "fare_transfer_rule_with_forbidden_transfer_count": (
+        "tolerance-by-design",
+        "Run 38363983999: mdb-3115 in md_mapped_missing, MD 1 / FTR_010 0. Its single row leaves "
+        "both from_leg_group_id and to_leg_group_id empty and sets transfer_count=2. MobilityData "
+        "allows transfer_count only when both ids are present and equal (FareTransferRuleTransferCount"
+        "Validator checks hasFromLegGroupId/hasToLegGroupId), so two empty ids count as unequal. The "
+        "spec text forbids it only if from_leg_group_id 'does not equal' to_leg_group_id and requires "
+        "it if they are equal; an empty id is a wildcard for all leg groups, and two empty values are "
+        "equal on a plain reading. The norm is ambiguous for this case, so FTR_010 and FTR_009 both stay "
+        "silent rather than reject a valid global transfer row. The case where only one id is empty "
+        "is unambiguous (spec and MD agree) and FTR_010 fires on it since this run.",
     ),
 
     "missing_required_file": (

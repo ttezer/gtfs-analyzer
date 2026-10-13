@@ -4962,6 +4962,39 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
     }
 }
 
+/// `feed_info` tarihlerinde aynı karar: `" 20260301"` biçim hükmünü (`FIN_005`/`FIN_006`) ham
+/// değerle alır ve `DQ_016` altında bastırılır, ama kayda `None` yazılırsa geçerlilik penceresi
+/// kaybolur ve `CAL_014` susar. MD değeri kırpıp okuyor (korpus `mdb-3155`, 2026-10-13).
+#[test]
+fn whitespace_padded_feed_info_dates_keep_the_validity_window() {
+    let mut files = base_files();
+    files.push((
+        "feed_info.txt",
+        b"feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\n\
+          Test,http://test.example,en, 20250101, 20261231\n",
+    ));
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            assert!(
+                vr.notices.iter().any(|n| n.rule_id == "CAL_014"),
+                "kırpılmış feed_end_date servisin taştığını göstermeli"
+            );
+            let root = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("feed_info.txt"))
+                .expect("feed_info.txt DQ_016 kökü");
+            let rules = root
+                .details
+                .as_ref()
+                .and_then(|d| d.get("suppressed_derivative_rules"))
+                .expect("tarih hükmü kökte beyan edilmeli");
+            assert!(rules.contains("FIN_005") && rules.contains("FIN_006"), "{rules}");
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 /// Kimlik birleşimi yalnız boşlukla kırık (2b). #85 gereği kimlik HAM kalır; değişen,
 /// SONUÇ bulgusunun boşluğu taşıyan dosyanın `DQ_016` kökünde beyan edilmesi.
 fn join_run(

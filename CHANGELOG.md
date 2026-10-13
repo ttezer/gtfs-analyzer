@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Scoped roots masked findings across the whole feed.** `SHP_005` and
+  `PTH_012` are aggregated to one feed-level notice before masking, so one
+  decreasing shape hid `SHP_009`/`SHP_012`/`GEO_006`/`GEO_007` on every shape
+  and one unreachable platform hid `PTH_013` on every station; their links are
+  removed. `TRP_001` for an empty `trip_id` no longer masks anything; the
+  duplicate `trip_id` variant still does. `STM_015` no longer blocks `STM_016`
+  or `STM_017`.
+- **Whitespace-padded `feed_info` dates hid `CAL_014`.** `" 20260301"` is still
+  reported as a format violation (under `DQ_016`), but the validity window now
+  uses the trimmed date, as `calendar.txt` already did.
+- **`FTR_010` skipped rows with one empty leg group.** An empty
+  `from_leg_group_id` does not equal a non-empty `to_leg_group_id` (and the
+  reverse), so `transfer_count` is forbidden there. Rows where both are empty
+  stay silent: the spec reading and MobilityData's disagree.
+
 ## [0.16.0] - 2026-10-11
 
 This release adds the agency breakdown and an agencies-and-publisher card,

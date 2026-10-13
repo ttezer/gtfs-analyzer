@@ -243,9 +243,13 @@ pub fn validate_fare_transfer_rules(
 
         // FTR_009/010: transfer_count, leg grupları AYNIYKEN zorunlu, FARKLIYKEN yasaktır
         // (GTFS spec + MD: from_leg_group_id == to_leg_group_id → gerekli; != → yasak).
-        // Yalnız iki leg grubu da tanımlıyken uygulanır (global/area kuralında atlanır → FP önlemi).
+        // Biri boş biri doluysa değerler eşit değildir: spec ve MD ikisi de yasak der (2026-10-13;
+        // eskiden atlanıyordu). İKİSİ DE boşsa atlanır: spec'in düz okuması "" = "" (zorunlu),
+        // MD'ninki yasak (`hasFromLegGroupId` şartı) — hüküm belirsiz, geçerli global transfer
+        // satırını reddetmemek için iki yön de susar (mdb-3115).
         // Varlık kontrolü ham alan üzerinden (transfer_count_raw); geçersiz değer FTR_008'e bırakılır.
-        if let (Some(f), Some(t)) = (from_leg.as_deref(), to_leg.as_deref()) {
+        if from_leg.is_some() || to_leg.is_some() {
+            let (f, t) = (from_leg.as_deref(), to_leg.as_deref());
             if f == t && transfer_count_raw.is_none() {
                 notices.push(make_k2_notice(
                     &mut counter, "FTR_009", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -371,6 +375,24 @@ mod tests {
         );
         let (_, n2) = validate_fare_transfer_rules(&f2);
         assert!(!has(&n2, "FTR_009") && !has(&n2, "FTR_010"));
+    }
+
+    /// Boş leg grubu dolu olana eşit değildir: spec ve MD ikisi de yasak der. İki grup da
+    /// boşken hüküm belirsiz (spec "" = "", MD yasak), iki kural da susar (mdb-3115).
+    #[test]
+    fn transfer_count_with_one_empty_leg_group_is_ftr_010() {
+        let header = vec!["from_leg_group_id", "to_leg_group_id", "transfer_count"];
+        for row in [vec!["", "L1", "2"], vec!["L1", "", "2"]] {
+            let f = make_file(header.clone(), vec![row.clone()]);
+            let (_, n) = validate_fare_transfer_rules(&f);
+            assert!(has(&n, "FTR_010"), "{row:?} → FTR_010: {n:?}");
+            assert!(!has(&n, "FTR_009"));
+        }
+        for row in [vec!["", "", "2"], vec!["", "", ""]] {
+            let f = make_file(header.clone(), vec![row.clone()]);
+            let (_, n) = validate_fare_transfer_rules(&f);
+            assert!(!has(&n, "FTR_009") && !has(&n, "FTR_010"), "{row:?}: {n:?}");
+        }
     }
 
     #[test]

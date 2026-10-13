@@ -2,7 +2,8 @@ use gtfs_core::EntityType;
 
 use super::common::{
     build_row_map, get_lexical_field, get_trimmed_field, looks_like_bcp47, looks_like_email,
-    looks_like_url, make_k2_notice, parse_service_date, whitespace_only_format_failure, RowMap,
+    looks_like_url, make_k2_notice, parse_service_date, whitespace_only_format_failure,
+    whitespace_trimmed_service_date, RowMap,
 };
 use crate::k1_parse::RawFile;
 
@@ -299,7 +300,9 @@ fn parse_date_field(
                 err,
                 "Alanı geçerli bir GTFS servis tarihi formatına (YYYYMMDD) ayarlayın.",
             ));
-            None
+            // Takvimle aynı karar: hüküm ham değerle verildi, geçerlilik penceresi kırpılmış
+            // tarihi taşır. Yoksa `" 20260301"` CAL_014'ü susturur (mdb-3155).
+            whitespace_trimmed_service_date(row_map, field)
         }
     }
 }
