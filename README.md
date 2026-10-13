@@ -6,7 +6,7 @@
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20%25100%20Makineyle%20Denetlenebilir%20Kapsam%20%28insan%20yorumu%20ve%20yaln%C4%B1zca%20%C3%B6neriler%20hari%C3%A7%29-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Kural sayısı](https://img.shields.io/badge/kural-619-blue?style=flat)](RULES.md)
 ![GTFS Spec kapsamı](https://img.shields.io/badge/GTFS%20Spec-97.2%25-007ec6?style=flat)
-[![Korpus doğrulaması](https://img.shields.io/badge/korpus-4343%20feed%20%C3%97%2018%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
+[![Korpus doğrulaması](https://img.shields.io/badge/korpus-4382%20feed%20%C3%97%2025%20ko%C5%9Fum-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![PyPI](https://img.shields.io/pypi/v/gtfs-analyzer?style=flat&label=PyPI)](https://pypi.org/project/gtfs-analyzer/)
@@ -14,9 +14,9 @@
 
 **GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi** ve **`gtfs-analyzer` Python paketi** olmak üzere altı yoldan kullanılabilir.
 
-**619 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **422'si** son 4.343 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
+**619 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **417'si** son 4.382 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
-Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **on sekiz tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.343** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
+Doğruluk iddiası, MobilityData'nın resmî `gtfs-validator` aracına karşı **yirmi beş tam katalog koşumuyla** sınanmıştır: her koşumda MobilityDatabase kataloğunun test edilebilir her GTFS Schedule feed'i — son koşumda **4.382** —, iki validatörle **aynı makinede, aynı gün** doğrulanır — MobilityData tarafında gerçek **Java** `gtfs-validator v8.0.1` çalıştırılır, rapor karşılaştırması yapılmaz. Ham sonuçların tamamı depoda: [`audit-results/`](audit-results/).
 
 GTFS Validator & Analyzer yalnızca dosyanın spesifikasyona uygun olup olmadığını kontrol etmez; feed'in ne kadar güvenilir, tutarlı ve kullanılabilir olduğunu da analiz eder. Hataları ilgili dosya ve satır numarasıyla birlikte gösterir, her bulgu için düzeltme adımları sunar ve coğrafi sorunları — örneğin sapan güzergâhlar, bozuk koordinatlar veya erişilemeyen duraklar — interaktif harita üzerinde işaretler.
 
@@ -60,101 +60,103 @@ GTFS Validator & Analyzer, spesifikasyon doğrulamasını operasyonel kalite ana
 
 ### Korpus Doğrulaması
 
-Doğruluk birkaç feed'le gösterilemez. Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur: son koşumda **4.343 feed**, 640 paralel shard. Karşı tarafta MobilityData'nın **`gtfs-validator` v8.0.1**'i, yayımlanmış raporları okunarak değil **aynı arşiv üzerinde yeniden çalıştırılarak** — böylece fark "kim ne buldu" olur, "kimin raporu ne zaman üretildi" değil.
+Doğruluk birkaç feed'le gösterilemez. Her sürüm, **MobilityDatabase'in tüm GTFS Schedule kataloğuna** karşı koşturulur: son koşumda **4.382 feed**, 640 paralel shard. Karşı tarafta MobilityData'nın **`gtfs-validator` v8.0.1**'i, yayımlanmış raporları okunarak değil **aynı arşiv üzerinde yeniden çalıştırılarak** — böylece fark "kim ne buldu" olur, "kimin raporu ne zaman üretildi" değil.
 
-Son koşumdan (`34718902532`, 4.311 test edilebilir feed'in **4.298**'inde iki taraf da tamamlandı):
+Son koşumdan (`38421109536`, 4.350 test edilebilir feed'in **4.339**'unda iki taraf da tamamlandı):
 
 | | GTFS Analyzer | MobilityData |
 |---|---|---|
-| Medyan süre | **0,05 sn** | 2,93 sn |
-| Medyan tepe bellek | **14 MB** | 329 MB |
-| Bitiremediği feed | **0** | 13 |
+| Medyan süre | **0,05 sn** | 2,96 sn |
+| Medyan tepe bellek | **15 MB** | 331 MB |
+| Bitiremediği feed | **1** | 11 |
 | MD'nin görüp bizim göremediğimiz | **0 olgu** | — |
-| Toplam süre | **63,2 dk** | 361,4 dk |
+| Toplam süre | **83,3 dk** | 385,7 dk |
 
-⚠️ **Medyan hız oranı feed boyutuna göre çok değişir ve tek bir çarpanla anlatılamaz:** 1 MB altında **78,8×**, 1-5 MB'da 11,6×, 5-20 MB'da 5,1×, 20-100 MB'da 2,9×, 100 MB üstünde **2,2×**. Korpusun %71'i 1 MB'ın altında olduğu için medyan oranı büyük ölçüde JVM başlangıç maliyeti belirler. Bellek avantajı her bantta daha istikrarlıdır.
+Bizim bitiremediğimiz tek feed `mdb-2014`'tür: arşivi 1,83 GB'a büyüdü ve koşumun feed başına 7 dakikalık sınırına takıldı; aynı kodun yerel ölçümünde gerileme yoktur. MobilityData'nın 11'i belgelenmiş çökme sınıflarıdır (7 kısmi çalışma, 2 rapor üretmeyen, 2 zaman aşımı).
+
+⚠️ **Medyan hız oranı feed boyutuna göre çok değişir ve tek bir çarpanla anlatılamaz:** 1 MB altında **~128×** (analizör süreleri 10 ms çözünürlükte ölçüldüğü için kaba), 1-5 MB'da 11,7×, 5-20 MB'da 4,9×, 20-100 MB'da 2,8×, 100 MB üstünde **2,2×**. Korpusun %72'si 1 MB'ın altında olduğu için medyan oranı büyük ölçüde JVM başlangıç maliyeti belirler. Bellek avantajı her bantta daha istikrarlıdır.
 
 Ham çıktılar [`audit-results/`](audit-results/) altında — ilk yedi koşum depoda, sonrakiler `audit-<run-id>` prerelease'i olarak arşivleniyor.
 
 ### Feed Analizi Örnekleri
 
-Aşağıdaki sayılar yukarıdaki korpus koşumundan alınmıştır: aynı arşiv, aynı analiz günü (2026-08-20), MobilityData tarafında Java `gtfs-validator v8.0.1`. `mdb-3175`'in arşivi koşumdan sonra değiştiği için o feed'in künyesinde yalnız boyut verilmiştir; tablodaki iki sütun da koşumun okuduğu arşivden gelir.
+Aşağıdaki sayılar yukarıdaki korpus koşumundan alınmıştır: aynı arşiv, aynı analiz günü (2026-08-20), MobilityData tarafında Java `gtfs-validator v8.0.1`. Süreler iki taraf için de koşum kaydının duvar saatidir (aynı makine). Dört arşiv indirilip sha256'ları koşumla karşılaştırıldı; hat, durak ve sefer sayıları koşumun okuduğu arşivden gelir.
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
-Feed: `mdb-53` · 14 hat, 287 durak, 4.417 sefer · 0,9 MB
+Feed: `mdb-53` · 12 hat, 287 durak, 4.417 sefer · 0,9 MB
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam bulgu | 2.715 | 740 |
+| Toplam bulgu | 2.715 | 733 |
 | Kritik / Error | 2 | 2 |
 | Yüksek / Warning | 2.654 | 1 |
-| Orta | — | 11 |
-| Düşük | — | 24 |
-| Bilgi / Info | 59 | 702 |
-| Tetiklenen kural tipi | 13 | **37** |
-| Doğrulama süresi | 2,66 sn | **0,17 sn** |
+| Orta | — | 10 |
+| Düşük | — | 6 |
+| Bilgi / Info | 59 | 714 |
+| Tetiklenen kural tipi | 13 | **34** |
+| Doğrulama süresi | 2,92 sn | **0,18 sn** |
 | Yayın skoru | — | **92,6 / 100** |
-| Genel skor | — | **90,9 / 100** |
+| Genel skor | — | **93,7 / 100** |
 
-> MobilityData'nın 2.654 uyarısının neredeyse tamamı tek koddan gelir. GTFS Analyzer aynı iki kritik hatayı bulur, üstüne 24 farklı kural tipinde operasyonel bulgu ekler.
+> MobilityData'nın 2.654 uyarısının 2.514'ü tek koddan (`missing_recommended_field`) gelir. GTFS Analyzer aynı iki kritik hatayı bulur ve bulgularını 34 kural tipine dağıtır.
 
 #### TriMet (Portland, Oregon)
 
-Feed: `mdb-247` · 81 hat, 6.020 durak, 45.521 sefer · 28,2 MB
+Feed: `mdb-247` · 81 hat, 6.027 durak, 67.515 sefer · 41,4 MB
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam bulgu | 31 | 3.162 |
+| Toplam bulgu | 31 | 4.685 |
 | Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 19 | 16 |
-| Orta | — | 73 |
-| Düşük | — | 480 |
-| Bilgi / Info | 12 | 2.593 |
-| Tetiklenen kural tipi | 9 | **44** |
-| Doğrulama süresi | 14,22 sn | **4,87 sn** |
+| Yüksek / Warning | 20 | 1 |
+| Orta | — | 36 |
+| Düşük | — | 688 |
+| Bilgi / Info | 11 | 3.960 |
+| Tetiklenen kural tipi | 8 | **41** |
+| Doğrulama süresi | 19,92 sn | **7,10 sn** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **91,3 / 100** |
+| Genel skor | — | **94,9 / 100** |
 
-> Spec açısından temiz bir feed: iki araç da 0 kritik bulur ve yayın skoru 100'dür. Aradaki 44'e 9'luk kural farkı, GTFS Analyzer'ın spec uyumunun ötesinde operasyonel kalite de ölçmesinden gelir.
+> Spec açısından temiz bir feed: iki araç da 0 kritik bulur ve yayın skoru 100'dür. Aradaki 41'e 8'lik kural farkı, GTFS Analyzer'ın spec uyumunun ötesinde operasyonel kalite de ölçmesinden gelir.
 
 #### Tokyo Toei (Tokyo Metropolitan Bureau of Transportation)
 
-Feed: `mdb-3175` · 7,3 MB · **GTFS-JP profili**
+Feed: `mdb-3175` · 150 hat, 5.365 durak, 55.846 sefer · 7,2 MB · **GTFS-JP profili**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam bulgu | 1.883 | 1.869 |
+| Toplam bulgu | 1.674 | 3.106 |
 | Kritik / Error | 0 | 0 |
 | Yüksek / Warning | 301 | 10 |
-| Orta | — | 800 |
-| Düşük | — | 684 |
-| Bilgi / Info | 1.582 | 375 |
-| Tetiklenen kural tipi | 11 | **54** |
-| Doğrulama süresi | 8,50 sn | **2,17 sn** |
+| Orta | — | 2.189 |
+| Düşük | — | 518 |
+| Bilgi / Info | 1.373 | 389 |
+| Tetiklenen kural tipi | 11 | **51** |
+| Doğrulama süresi | 8,61 sn | **2,24 sn** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **85,2 / 100** |
+| Genel skor | — | **87,6 / 100** |
 
-> GTFS-JP profili gerçek bir Japon feed'inde yanlış pozitif üretmez: feed spec açısından temizdir (0 kritik, yayın skoru 100) ve profil kuralları yalnız Japonya'ya özgü alanları denetler.
+> GTFS-JP profili gerçek bir Japon feed'inde yanlış pozitif üretmez: feed spec açısından temizdir (0 kritik, yayın skoru 100) ve profil kuralları yalnız Japonya'ya özgü alanları denetler. Orta bulguların 1.673'ü `JPN_001`'dir: durak adının kana (ja-Hrkt) okuması eksik — bir kalite önerisidir, spec ihlali değil.
 
 #### VBB (Berlin-Brandenburg Ulaşım Birliği)
 
-Feed: `mdb-782` · 1.259 hat, 42.133 durak, 247.834 sefer, 14.969 shape · **73,8 MB**
+Feed: `mdb-782` · 1.254 hat, 41.970 durak, 186.138 sefer, 14.241 shape · **63,2 MB**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Toplam bulgu | 12.210 | 26.529 |
-| Kritik / Error | 0 | 0 |
-| Yüksek / Warning | 11.336 | 1.260 |
-| Orta | — | 7.409 |
-| Düşük | — | 10.443 |
-| Bilgi / Info | 874 | 7.417 |
-| Tetiklenen kural tipi | 18 | **85** |
-| Doğrulama süresi | 42,55 sn | **18,66 sn** |
+| Toplam bulgu | 11.616 | 20.305 |
+| Kritik / Error | 5 | 0 |
+| Yüksek / Warning | 10.843 | 802 |
+| Orta | — | 3.826 |
+| Düşük | — | 5.784 |
+| Bilgi / Info | 768 | 9.893 |
+| Tetiklenen kural tipi | 20 | **83** |
+| Doğrulama süresi | 28,22 sn | **13,17 sn** |
 | Yayın skoru | — | **100 / 100** |
-| Genel skor | — | **77,3 / 100** |
+| Genel skor | — | **79,7 / 100** |
 
-> 🇩🇪 **Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür.** GTFS Analyzer aynı feed'i **doğrudan tarayıcıda**, dosyayı hiçbir sunucuya göndermeden doğrular. MobilityData toplamının yarıdan fazlası (`non_ascii_or_non_printable_char`) feed'in Almanca metnindeki meşru ü/ö/ä/ß karakterleridir; GTFS Analyzer geçerli Unicode harfleri işaretlemez. Çekirdek kontrollerde iki araç hizalıdır.
+> 🇩🇪 **Bu feed, MobilityData'nın barındırılan web doğrulayıcısının işleyemeyeceği kadar büyüktür.** GTFS Analyzer aynı feed'i **doğrudan tarayıcıda**, dosyayı hiçbir sunucuya göndermeden doğrular. MobilityData toplamının yarıdan fazlası (6.823) `non_ascii_or_non_printable_char`'dır: ID alanlarındaki ü/ö/ä/ß (ör. `zone_id` `7958 Prösen, Bahnhof`). Spec ID'lerde yazdırılabilir ASCII'yi önerir; GTFS Analyzer bunu `ARC_037` ile dosya başına tek özet olarak bildirir. MobilityData'nın 5 hatası (`pathway_unreachable_location`) bizde `PTH_012` (Yüksek, feed özeti) olarak görünür.
 
 ---
 
