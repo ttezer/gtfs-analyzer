@@ -2347,6 +2347,33 @@ fn row_hygiene_checks_run_on_streamed_trips_and_calendar_dates() {
     assert!(!notices.iter().any(|n| n.rule_id == "TRP_001"), "boş satır TRP_001 üretmemeli");
 }
 
+/// ARC_032 dört akış dosyasında da çalışmalı. Kartında "stream edilen dosyalar kapsam dışı"
+/// sınırı yazılıydı: `trip_headsign`/`stop_headsign` hiç denetlenmiyordu (2026-10-13).
+#[test]
+fn arc032_runs_on_every_streamed_file() {
+    let files = with_opts(
+        &[
+            ("trips.txt", "route_id,service_id,trip_id,trip_headsign,shape_id\nR1,SVC1,T1,Merkez<br>Gar,SH1\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,Ana&nbsp;Cadde\nT1,08:10:00,08:10:00,S2,2,\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_note\nSH1,41.0,29.0,1,<b>x</b>\nSH1,41.1,29.1,2,\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type,note\nSVC1,20260101,2,Bayram&amp;Tatil\n"),
+        ],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let arc032: BTreeSet<&str> = notices
+        .iter()
+        .filter(|n| n.rule_id == "ARC_032")
+        .filter_map(|n| n.file.as_deref())
+        .collect();
+    assert_eq!(
+        arc032,
+        BTreeSet::from(["calendar_dates.txt", "shapes.txt", "stop_times.txt", "trips.txt"]),
+    );
+    assert_eq!(notices.iter().filter(|n| n.rule_id == "ARC_032").count(), 4, "dosya başına tek");
+}
+
 /// TRP_024 aynı ARACIN blokta tür değiştirmesini arar. Genişletilmiş kodlar aynı türün
 /// alt tipleridir: 3 ↔ 715 (talep-esaslı otobüs), 204 ↔ 712 (otokar ↔ okul otobüsü),
 /// 106 ↔ 109 (bölgesel ↔ banliyö treni). Korpus run 38363983999: 37 feed'in 23'ü, notice'ların

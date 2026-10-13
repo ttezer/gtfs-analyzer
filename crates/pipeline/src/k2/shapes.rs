@@ -258,6 +258,7 @@ pub fn validate_shapes_with_limits(
     let mut stream_truncated = false;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
     let mut arc037 = crate::k1_parse::Arc037Acc::default();
+    let mut arc032 = crate::k1_parse::Arc032Acc::default();
 
     {
         // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
@@ -383,6 +384,7 @@ pub fn validate_shapes_with_limits(
             // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
             dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
             arc037.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
+            arc032.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Shape-özel kurallar ──
             let shape_id = get_col_raw(row, cols.shape_id);
@@ -810,6 +812,25 @@ pub fn validate_shapes_with_limits(
         );
         n.details = dq016.evidence_details();
         notices.push(n);
+    }
+
+    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
+    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    if let Some((observed, msg, cols)) = arc032.summary(&file.name) {
+        notices.push(make_k2_notice(
+            &mut counter,
+            "ARC_032",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            arc032.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::ARC032_REMEDIATION,
+        ));
     }
 
     // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).

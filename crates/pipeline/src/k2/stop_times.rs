@@ -1364,6 +1364,8 @@ struct StChunk {
     dq016: crate::k1_parse::Dq016Acc,
     /// ARC_037 birikimi — chunk'lar `merge` ile birleşir, döngü sonu TEK özet.
     arc037: crate::k1_parse::Arc037Acc,
+    /// ARC_032 birikimi — chunk'lar `merge` ile birleşir.
+    arc032: crate::k1_parse::Arc032Acc,
     /// OOM/perf: per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
     /// dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
     all_rows: Vec<CompactStopTime>,
@@ -1554,6 +1556,7 @@ impl StChunk {
         self.stm050_empty += other.stm050_empty;
         self.dq016.merge(other.dq016);
         self.arc037.merge(other.arc037);
+        self.arc032.merge(other.arc032);
     }
 }
 
@@ -1730,6 +1733,8 @@ pub fn validate_stop_times_with_limits(
             st.dq016
                 .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
             st.arc037
+                .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
+            st.arc032
                 .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Mevcut STM_* doğrulamaları + index ──
@@ -2876,6 +2881,25 @@ pub fn validate_stop_times_with_limits(
         );
         n.details = st.dq016.evidence_details();
         st.notices.push(n);
+    }
+
+    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
+    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    if let Some((observed, msg, cols)) = st.arc032.summary(&file.name) {
+        st.notices.push(make_k2_notice(
+            &mut st.counter,
+            "ARC_032",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            st.arc032.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::ARC032_REMEDIATION,
+        ));
     }
 
     // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).

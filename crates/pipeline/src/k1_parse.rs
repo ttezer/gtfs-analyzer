@@ -1270,6 +1270,11 @@ impl Arc032Acc {
         headers: &[String],
     ) {
         for (i, s) in values.enumerate() {
+            // Hızlı yol: işaret ancak `<` ya da `&` ile başlar. Akış dosyalarında (stop_times)
+            // değerlerin neredeyse hepsi buradan döner; başlık adı karşılaştırması atlanır.
+            if !s.bytes().any(|b| b == b'<' || b == b'&') {
+                continue;
+            }
             let Some(name) = headers.get(i).map(|h| h.as_str()) else {
                 continue;
             };
@@ -1294,6 +1299,20 @@ impl Arc032Acc {
                 self.example = Some(found);
             }
         }
+    }
+
+    /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    pub(crate) fn merge(&mut self, other: Arc032Acc) {
+        self.rows += other.rows;
+        self.cols.extend(other.cols);
+        if self.example.is_none() {
+            self.example = other.example;
+        }
+        self.first_line = match (self.first_line, other.first_line) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        self.last_line = self.last_line.max(other.last_line);
     }
 
     /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.

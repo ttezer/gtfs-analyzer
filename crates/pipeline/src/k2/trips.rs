@@ -255,6 +255,7 @@ pub fn validate_trips_with_limits(
     let mut bikes_allowed_set_count: u32 = 0;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
     let mut arc037 = crate::k1_parse::Arc037Acc::default();
+    let mut arc032 = crate::k1_parse::Arc032Acc::default();
     let mut arc021_fired = false;
     let mut arc030_fired = false;
 
@@ -363,6 +364,7 @@ pub fn validate_trips_with_limits(
         }
         dq016.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         arc037.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
+        arc032.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         let trip_id = SmolStr::new(get_col_raw(row, cols.trip_id));
         let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
 
@@ -815,6 +817,25 @@ pub fn validate_trips_with_limits(
     }
 
     // DQ_016: stream edilen trips.txt için DOSYA başına tek kök özet.
+    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
+    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    if let Some((observed, msg, cols)) = arc032.summary(&file.name) {
+        notices.push(make_k2_notice(
+            &mut counter,
+            "ARC_032",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            arc032.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::ARC032_REMEDIATION,
+        ));
+    }
+
     // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
     if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
         notices.push(make_k2_notice(

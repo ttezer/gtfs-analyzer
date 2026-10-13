@@ -63,6 +63,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   header; the row checks had moved to the other two streamed files but not
   these. An empty row in `trips.txt` produced `TRP_001`/`TRP_031`/`TRP_035`
   instead of one `ARC_018`.
+- **`ARC_032` skipped the four streamed files.** HTML markup in
+  `trip_headsign`, `stop_headsign` or any other column of `stop_times.txt`,
+  `shapes.txt`, `trips.txt` and `calendar_dates.txt` was never checked; the
+  rule card listed it as a known limit. Each stream now keeps the same
+  per-file summary as K1.
 
 ## [0.16.0] - 2026-10-11
 
