@@ -257,6 +257,7 @@ pub fn validate_shapes_with_limits(
     let mut total_rows: usize = 0;
     let mut stream_truncated = false;
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
+    let mut arc037 = crate::k1_parse::Arc037Acc::default();
 
     {
         // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
@@ -381,6 +382,7 @@ pub fn validate_shapes_with_limits(
             // DQ_016: değerlerde baştaki/sondaki boşluk
             // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
             dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
+            arc037.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Shape-özel kurallar ──
             let shape_id = get_col_raw(row, cols.shape_id);
@@ -808,6 +810,24 @@ pub fn validate_shapes_with_limits(
         );
         n.details = dq016.evidence_details();
         notices.push(n);
+    }
+
+    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
+        notices.push(make_k2_notice(
+            &mut counter,
+            "ARC_037",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            arc037.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::ARC037_REMEDIATION,
+        ));
     }
 
     (records, intern, notices)

@@ -6,7 +6,7 @@ package runs the same pipeline as the web app, the CLI, the Rust crates, and the
 `gtfs-sdk` npm package, so a feed gets the same findings and scores everywhere.
 Validation happens in-process; the feed is never uploaded.
 
-- 616 rules across GTFS Schedule, GTFS-Flex, Fares v2, and GTFS-JP
+- 617 rules across GTFS Schedule, GTFS-Flex, Fares v2, and GTFS-JP
 - Spec / Interop / Quality / Analytics classification, per-feed scores, and a
   publishability verdict
 - One abi3 wheel per platform for CPython 3.9+ (Linux x86_64, macOS arm64,

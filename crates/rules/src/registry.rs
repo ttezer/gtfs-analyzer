@@ -224,6 +224,9 @@ pub static RULES: &[RuleMeta] = &[
     // feed'e yanlış bulgu basar; descriptor merkez dizinle KARŞILAŞTIRILMADAN ateşleme.
     r!("ARC_036", Dusuk, Quality, 1, &[], None, VS, Feed,
         "ZIP akış başlığı merkez diziniyle çelişiyor"),
+    // Spec ID tavsiyesi ("printable ASCII recommended"); GTFS-JP ID'leri bilinçli Japonca → skor dışı.
+    r_noscore!("ARC_037", Dusuk, Quality, 1, &[], None, VS, File,
+        "ID alanında ASCII dışı karakter"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -1982,6 +1985,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("ARC_004", GtfsSpec),
     ("ARC_035", GtfsSpec),
     ("ARC_036", ProjectQuality),
+    ("ARC_037", ProjectQuality),
     ("ARC_006", ProjectAnalytics),
     ("ARC_007", ProjectQuality),
     ("ARC_008", GtfsSpec),

@@ -111,6 +111,7 @@ pub fn validate_calendar_dates_with_limits(
     let has_service_id_col = file.headers.iter().any(|h| h == "service_id");
     let has_exception_type_col = file.headers.iter().any(|h| h == "exception_type");
     let mut dq016 = crate::k1_parse::Dq016Acc::default();
+    let mut arc037 = crate::k1_parse::Arc037Acc::default();
 
     let header_count = file.headers.len();
     let mut process = |row: &[Cow<'_, str>], line: u64| {
@@ -156,6 +157,7 @@ pub fn validate_calendar_dates_with_limits(
         }
         index.raw_row_count += 1;
         dq016.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
+        arc037.observe(line, row.iter().map(|value| value.as_ref()), &file.headers);
         let raw_sid = get_col_raw(row, cols.service_id);
         let service_id: SmolStr = if raw_sid.is_empty() {
             SmolStr::default()
@@ -480,6 +482,23 @@ pub fn validate_calendar_dates_with_limits(
     }
 
     // DQ_016: stream edilen calendar_dates.txt için DOSYA başına tek kök özet.
+    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
+        notices.push(make_k2_notice(
+            &mut counter,
+            "ARC_037",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            arc037.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::ARC037_REMEDIATION,
+        ));
+    }
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
         let mut n = make_k2_notice(
             &mut counter,

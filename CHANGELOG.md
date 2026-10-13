@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`ARC_037` — non-ASCII character in an ID field.** The spec recommends
+  printable ASCII for every `ID` field. One summary per file names the
+  affected columns and an example; it runs on all four streamed files too.
+  Low, Quality and outside the score: GTFS-JP feeds use Japanese IDs on
+  purpose. MobilityData's `non_ascii_or_non_printable_char` now maps to it
+  (617 rules).
+
 ### Fixed
 
 - **Scoped roots masked findings across the whole feed.** `SHP_005` and

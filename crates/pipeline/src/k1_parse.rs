@@ -1320,6 +1320,106 @@ impl Arc032Acc {
     }
 }
 
+/// Spec'te tipi `ID` / `Foreign ID` olan sütunlar (GTFS Reference "Field Types").
+/// `direction_id` bir Enum'dur, listede YOK; `jp_*` uzantı sütunları spec dışıdır.
+pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
+    "agency_id", "stop_id", "parent_station", "zone_id", "level_id", "route_id", "network_id",
+    "trip_id", "service_id", "block_id", "shape_id", "fare_id", "origin_id", "destination_id",
+    "contains_id", "from_stop_id", "to_stop_id", "from_route_id", "to_route_id", "from_trip_id",
+    "to_trip_id", "pathway_id", "area_id", "from_area_id", "to_area_id", "fare_media_id",
+    "fare_product_id", "leg_group_id", "from_leg_group_id", "to_leg_group_id",
+    "rider_category_id", "timeframe_group_id", "from_timeframe_group_id",
+    "to_timeframe_group_id", "location_group_id", "location_id", "booking_rule_id",
+    "pickup_booking_rule_id", "drop_off_booking_rule_id", "prior_notice_service_id",
+    "attribution_id", "record_id", "record_sub_id",
+];
+
+/// ARC_037 birikimi — ID alanında yazdırılabilir ASCII (0x20-0x7E) dışı karakter.
+/// Spec: *"Using only printable ASCII characters is recommended."* Tavsiye olduğu için
+/// DOSYA başına TEK özet (`Arc032Acc` deseni); MD satır başına sayar (bir feed'de 58K).
+/// Yazdırılamayan karakterler ARC_021'in alanıdır; burada yalnız 0x7E'nin üstü sayılır.
+#[derive(Default)]
+pub(crate) struct Arc037Acc {
+    pub rows: u64,
+    pub cols: std::collections::BTreeSet<String>,
+    pub first_line: Option<u64>,
+    pub example: Option<(String, String)>,
+    last_line: u64,
+}
+
+impl Arc037Acc {
+    pub fn observe<'a>(
+        &mut self,
+        line: u64,
+        values: impl Iterator<Item = &'a str>,
+        headers: &[String],
+    ) {
+        for (i, s) in values.enumerate() {
+            if s.is_ascii() {
+                continue;
+            }
+            let Some(name) = headers.get(i).map(|h| h.as_str()) else {
+                continue;
+            };
+            if !GTFS_ID_FIELDS.contains(&name) {
+                continue;
+            }
+            if self.last_line != line || self.rows == 0 {
+                self.last_line = line;
+                self.rows += 1;
+                if self.first_line.is_none() {
+                    self.first_line = Some(line);
+                }
+            }
+            self.cols.insert(name.to_string());
+            if self.example.is_none() {
+                self.example = Some((name.to_string(), s.to_string()));
+            }
+        }
+    }
+
+    /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    pub(crate) fn merge(&mut self, other: Arc037Acc) {
+        self.rows += other.rows;
+        self.cols.extend(other.cols);
+        if self.example.is_none() {
+            self.example = other.example;
+        }
+        self.first_line = match (self.first_line, other.first_line) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        self.last_line = self.last_line.max(other.last_line);
+    }
+
+    /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.
+    pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
+        if self.rows == 0 {
+            return None;
+        }
+        let cols = self
+            .cols
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let (col, value) = self.example.clone().unwrap_or_default();
+        Some((
+            value.clone(),
+            format!(
+                "'{file_name}' dosyasında {} satırda ID alanı ASCII dışı karakter içeriyor \
+                 (ör. {col}='{value}'); etkilenen sütunlar: {cols}.",
+                self.rows
+            ),
+            cols,
+        ))
+    }
+}
+
+pub(crate) const ARC037_REMEDIATION: &str =
+    "ID değerlerinde yalnız yazdırılabilir ASCII karakterler kullanın; ID'ler yolculara \
+     gösterilmez, görünen ad için name/desc alanları vardır.";
+
 pub(crate) const ARC032_REMEDIATION: &str =
     "HTML etiketlerini ve karakter kaçışlarını alan değerlerinden kaldırın; \
      GTFS alanları düz metin taşır ve tüketiciler bu işaretleri olduğu gibi gösterir.";
@@ -2534,6 +2634,7 @@ pub fn parse_with_limits(
         let _ = dq016_pk_idx; // özet dosya seviyesinde → satır kimliği gerekmiyor
         let mut dq016 = Dq016Acc::default();
         let mut arc032 = Arc032Acc::default();
+        let mut arc037 = Arc037Acc::default();
         let mut rows: Vec<Vec<SmolStr>> = Vec::new();
         let mut arc021_fired = false;
         let mut arc030_fired = false;
@@ -2653,6 +2754,7 @@ pub fn parse_with_limits(
 
             // ARC_032: HTML etiketi/kaçış dizisi — aynı birikim deseni.
             arc032.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
+            arc037.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
             rows.push(row);
         }
@@ -2688,6 +2790,22 @@ pub fn parse_with_limits(
                 Some(observed),
                 msg,
                 ARC032_REMEDIATION,
+            ));
+        }
+
+        // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (ARC_032 deseni).
+        if let Some((observed, msg, cols)) = arc037.summary(&raw_name) {
+            notices.push(make_notice(
+                &mut counter,
+                "ARC_037",
+                EntityType::File,
+                Some(raw_name.clone()),
+                Some(raw_name.as_str()),
+                arc037.first_line,
+                Some(cols.as_str()),
+                Some(observed),
+                msg,
+                ARC037_REMEDIATION,
             ));
         }
 

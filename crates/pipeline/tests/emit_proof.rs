@@ -613,6 +613,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
         // ARC_032: `<BR>` biçimi vahşi doğadan (mdb-1924, 1176 durak adı).
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
+        fx("ARC_037", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSüd,Stop3,41.2,29.2\n")]),
         fx("ARS_002", vec![("areas.txt","area_id,area_name\n,Bolge\n")]),
         // ⚠️ YEDİ AYRI SERVİS ŞART. Tek satırda yedi günü birden boşaltmak YETMEZ: dedup
         // aynı satır için tek notice bırakır ve yalnız bir gün alanı çapalanır. Aynı tuzak
@@ -2315,6 +2316,37 @@ fn scoped_root_with_blocks_never_emits_without_scope_key() {
         failures.into_iter().collect::<Vec<_>>().join("\n")
     );
     assert!(checked.len() > 20, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
+}
+
+/// ARC_037 üç ayrıştırma yolunda da çalışmalı: K1 (genel dosyalar), K2 `stop_times` akışı
+/// (paralel parçalar birleşir) ve K2 `shapes` akışı. Dosya başına TEK özet; görünen ad
+/// alanındaki ASCII dışı metin (stop_name) kuralın konusu değildir.
+#[test]
+fn arc037_reports_non_ascii_ids_once_per_file_on_every_parse_path() {
+    let files = with_opts(
+        &[
+            ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Hauptbahnhof Süd,41.0,29.0\nS2,Stop2,41.1,29.1\n"),
+            ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n平日,1,1,1,1,1,0,0,20250101,20271231\n休日,0,0,0,0,0,1,1,20250101,20271231\n"),
+            ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,Tü2,SH1\n"),
+            ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nTü2,09:00:00,09:00:00,S1,1\nTü2,09:10:00,09:10:00,S2,2\n"),
+            ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\nŞ2,41.0,29.0,1\nŞ2,41.1,29.1,2\n"),
+            ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260101,2\n祝日,20260101,1\n"),
+        ],
+        &[],
+        &[],
+    );
+    let notices = notices_for(&files, &ValidatorConfig::default());
+    let arc037: Vec<_> = notices.iter().filter(|n| n.rule_id == "ARC_037").collect();
+    let by_file: BTreeSet<&str> = arc037.iter().filter_map(|n| n.file.as_deref()).collect();
+    assert_eq!(
+        by_file,
+        BTreeSet::from(["calendar.txt", "calendar_dates.txt", "shapes.txt", "stop_times.txt", "trips.txt"]),
+        "{arc037:#?}"
+    );
+    assert_eq!(arc037.len(), 5, "dosya başına tek özet: {arc037:#?}");
+    let cal = arc037.iter().find(|n| n.file.as_deref() == Some("calendar.txt")).unwrap();
+    assert!(cal.message.contains("2 satırda") || cal.message.contains("2 rows"), "{}", cal.message);
+    assert!(!by_file.contains("stops.txt"), "stop_name görünen ad, ID değil");
 }
 
 #[test]

@@ -2,7 +2,7 @@
 
 🇹🇷 **Türkçe** · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-616 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
+617 kural, 38 grup. Her kural benzersiz bir ID, önem seviyesi ve sınıf ile tanımlanır.
 Önem seviyeleri: **KRİTİK** (yayın engelleyici) · **YÜKSEK** · **ORTA** · **DÜŞÜK** · **BİLGİ**
 Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · **Quality** (GTFS Kalitesi) · **Analytics** (GTFS Analitiği)
 
@@ -46,6 +46,7 @@ Sınıflar: **Spec** (GTFS Geçerliliği) · **Interop** (GTFS Uyumluluğu) · *
 | ARC_034 | Başlık satırı veri satırı olarak tekrarlanmış | YÜKSEK | Spec |
 | ARC_035 | Zorunlu dosya boş | KRİTİK | Spec |
 | ARC_036 | ZIP akış başlığı merkez diziniyle çelişiyor | DÜŞÜK | Quality |
+| ARC_037 | ID alanında ASCII dışı karakter | DÜŞÜK | Quality |
 
 ## BKR — Booking Rules (Rezervasyon Kuralları)
 

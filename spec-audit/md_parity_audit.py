@@ -166,7 +166,7 @@ MAP = {
     "foreign_key_violation":          ["STM_002"],   # stop_times.stop_id→stops. BY-DESIGN agg: STM_002 distinct stop_id (4), MD per-occurrence (2886).
     "same_name_and_description_for_route": ["RTS_023"],
     # ── 2026-07-03 20-feed taramasından eklenen eşlemeler ──
-    "non_ascii_or_non_printable_char": ["ARC_021"],   # BİZ-DOĞRU: MD meşru UTF-8'i (Japonca vb.) işaretler; ARC_021 yalnız non-printable → 0 doğru
+    "non_ascii_or_non_printable_char": ["ARC_021", "ARC_037"],   # ARC_021 yazdırılamayan, ARC_037 ID'de ASCII dışı (dosya özeti)
     "unsorted_stop_times":            ["STM_036"],
     "leading_or_trailing_whitespaces":["DQ_016"],
     "missing_bike_allowance":         ["TRP_021"],
@@ -253,6 +253,7 @@ MAP = {
 AGG_RULES = {
     "STM_050", "STM_017", "TRN_007", "STP_022", "RTS_017",  # feed-özeti (changelog 0.1.3)
     "TRP_020",                                              # per-trip
+    "ARC_037",                                              # dosya-özeti; MD değer başına
     "SHP_023", "SHP_028", "SHP_029",                        # per-shape (tür başına)
     "CAL_007", "CAL_009", "CAL_012", "CAL_013",             # per-service/feed calendar aggregates; CAL_012 MD-only detail
     "STM_014",  # 2026-07-16: (hat, yön, segment) toplulaması (53ef3fb). MD per-occurrence

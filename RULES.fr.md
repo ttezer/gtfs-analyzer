@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-616 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+617 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -46,6 +46,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | ARC_034 | Ligne d’en-tête répétée comme enregistrement de données | ÉLEVÉE | Spec |
 | ARC_035 | Fichier obligatoire vide | CRITIQUE | Spec |
 | ARC_036 | En-tête de flux ZIP en contradiction avec le répertoire central | FAIBLE | Quality |
+| ARC_037 | Caractère non ASCII dans un champ d’identifiant | FAIBLE | Quality |
 
 ## BKR — Règles de réservation
 

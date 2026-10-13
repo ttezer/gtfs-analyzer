@@ -655,6 +655,7 @@ const tr = {
     'ARC_034': 'Başlık satırı veri satırı olarak tekrarlanmış',
     'ARC_035': 'Zorunlu dosya boş',
     'ARC_036': 'ZIP akış başlığı merkez diziniyle çelişiyor',
+    'ARC_037': 'ID alanında ASCII dışı karakter',
     'ARS_002': "areas.txt'te area_id boş",
     'CAL_025': 'Takvim gün alanı boş (değer verilmemiş)',
     'FMD_004': 'fare_media_id boş',

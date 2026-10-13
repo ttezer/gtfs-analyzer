@@ -1362,6 +1362,8 @@ struct StChunk {
     /// milyonlarca notice → tarayıcı OOM); döngü sonunda TEK feed-seviyesi özet emit edilir.
     stm050_empty: u32,
     dq016: crate::k1_parse::Dq016Acc,
+    /// ARC_037 birikimi — chunk'lar `merge` ile birleşir, döngü sonu TEK özet.
+    arc037: crate::k1_parse::Arc037Acc,
     /// OOM/perf: per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
     /// dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
     all_rows: Vec<CompactStopTime>,
@@ -1551,6 +1553,7 @@ impl StChunk {
         self.unsorted_seq_trips.extend(other.unsorted_seq_trips);
         self.stm050_empty += other.stm050_empty;
         self.dq016.merge(other.dq016);
+        self.arc037.merge(other.arc037);
     }
 }
 
@@ -1725,6 +1728,8 @@ pub fn validate_stop_times_with_limits(
             // DQ_016: değerlerde baştaki/sondaki boşluk
             // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
             st.dq016
+                .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
+            st.arc037
                 .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
             // ── Mevcut STM_* doğrulamaları + index ──
@@ -2871,6 +2876,24 @@ pub fn validate_stop_times_with_limits(
         );
         n.details = st.dq016.evidence_details();
         st.notices.push(n);
+    }
+
+    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    if let Some((observed, msg, cols)) = st.arc037.summary(&file.name) {
+        st.notices.push(make_k2_notice(
+            &mut st.counter,
+            "ARC_037",
+            EntityType::File,
+            Some(file.name.clone()),
+            None,
+            &file.name,
+            st.arc037.first_line,
+            Some(cols.as_str()),
+            Some(observed),
+            None,
+            msg,
+            crate::k1_parse::ARC037_REMEDIATION,
+        ));
     }
 
     // STM_050: feed-seviyesi TEK özet (satır-başına değil — büyük feed OOM önlemi).

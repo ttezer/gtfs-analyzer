@@ -535,8 +535,11 @@ BY_DESIGN = {
         "gibi gerçek bilinmeyen sütunlar zaten ARC_017 üretiyor ve md_mapped_under/over'da görünür; "
         "onlar granülerlik sorusudur, kapsam değil (#146).",
     "non_ascii_or_non_printable_char":
-        "MD Japonca/Kiril gibi ASCII-dışı DEĞERLERİ işaretler (ör. service_id='平日'); "
-        "ARC_021 yalnız non-printable arar → bizim 0'ımız DOĞRU, MD over-fire ediyor.",
+        "TOPLULAMA. MD bu kodda iki olguyu birleştirir: yazdırılamayan karakter (bizde ARC_021) ve "
+        "ID alanında ASCII dışı karakter (bizde ARC_037, 2026-10-13). Spec ID için 'Using only "
+        "printable ASCII characters is recommended' der; eski 'MD over-fire' hükmü YANLIŞTI "
+        "(run 38363983999: 833 feed, 242'si JP dışı — 'niedziele i święta', 'Kesälinja La-Su'). "
+        "MD değer başına sayar (bir feed'de 58K), ARC_037 dosya başına tek özet ve skor dışıdır.",
     "platform_without_parent_station":
         "MD parent'sız HER durağı işaretler (tüm feed gürültü); STP_032 kapsamlandırılmış.",
     "mixed_case_recommended_field":
