@@ -799,7 +799,10 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "fault, which DQ_016 declares with identity_whitespace_fields and cross_file_analysis: unreliable. "
         "The earlier claim that TRP_002 disagreed was withdrawn in #169: it is suppressed as a whitespace "
         "derivative, not silent. Elsewhere the counts match one to one (23 feeds) or we count per trip "
-        "where MobilityData counts per block (mdb-3233 7/2, mdb-782 9/2, tdg-83634 1,859/203).",
+        "where MobilityData counts per block (mdb-3233 7/2, mdb-782 9/2, tdg-83634 1,859/203). Since "
+        "2026-10-13 TRP_024 compares vehicle modes, not raw codes: 3 vs 715 or 204 vs 712 is one bus "
+        "and no longer a finding, while MobilityData still treats extended codes as UNRECOGNIZED and "
+        "flags them, so it reports more on such blocks by design.",
     ),
     "transfer_distance_too_large": (
         "structural-fault-owns-it",

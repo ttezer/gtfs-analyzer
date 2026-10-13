@@ -2320,6 +2320,35 @@ fn scoped_root_with_blocks_never_emits_without_scope_key() {
     assert!(checked.len() > 20, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
 }
 
+/// TRP_024 aynı ARACIN blokta tür değiştirmesini arar. Genişletilmiş kodlar aynı türün
+/// alt tipleridir: 3 ↔ 715 (talep-esaslı otobüs), 204 ↔ 712 (otokar ↔ okul otobüsü),
+/// 106 ↔ 109 (bölgesel ↔ banliyö treni). Korpus run 38363983999: 37 feed'in 23'ü, notice'ların
+/// ~%96'sı bu türdendi. Gerçek tür değişimi (3 ↔ 0) bulgu kalır.
+#[test]
+fn trp024_compares_vehicle_modes_not_raw_route_type_codes() {
+    let block = |a: u32, b: u32| {
+        with_opts(
+            &[
+                ("routes.txt", Box::leak(format!("route_id,agency_id,route_short_name,route_type\nR1,1,101,{a}\nR2,1,102,{b}\n").into_boxed_str())),
+                ("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\nR2,SVC1,T2,B1\n"),
+            ],
+            &[],
+            &[],
+        )
+    };
+    let fires = |a, b| {
+        notices_for(&block(a, b), &ValidatorConfig::default())
+            .iter()
+            .any(|n| n.rule_id == "TRP_024")
+    };
+    for (a, b) in [(3, 715), (204, 712), (106, 109), (700, 3), (1, 401), (0, 900)] {
+        assert!(!fires(a, b), "{a} ↔ {b} aynı araç türü, bulgu olmamalı");
+    }
+    for (a, b) in [(3, 0), (2, 3), (3, 11), (109, 3)] {
+        assert!(fires(a, b), "{a} ↔ {b} farklı araç türü, bulgu olmalı");
+    }
+}
+
 /// ARC_037 üç ayrıştırma yolunda da çalışmalı: K1 (genel dosyalar), K2 `stop_times` akışı
 /// (paralel parçalar birleşir) ve K2 `shapes` akışı. Dosya başına TEK özet; görünen ad
 /// alanındaki ASCII dışı metin (stop_name) kuralın konusu değildir.

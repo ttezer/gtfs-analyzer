@@ -859,6 +859,25 @@ fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
 }
 
+/// Genişletilmiş route_type'ı (Google "Extended GTFS Route Types") temel ARAÇ türüne indirger.
+/// `max_speed_kmh`'tan farkı: o hız eşiği için otobüs/troleybüs/taksiyi birleştirir; burada
+/// araç değişimi sorulduğu için troleybüs (11/800) ve monoray (12/405) ayrı kalır.
+/// Otokar (2xx) temel tabloda otobüstür (3). Tanınmayan kod kendisi olarak döner.
+fn route_type_vehicle_mode(route_type: u32) -> u32 {
+    match route_type {
+        0 | 900..=906 => 0,
+        1 | 400..=404 => 1,
+        2 | 100..=117 => 2,
+        3 | 200..=209 | 700..=716 => 3,
+        4 | 1000..=1021 | 1200 => 4,
+        6 | 1300..=1307 => 6,
+        7 | 1400 => 7,
+        11 | 800 => 11,
+        12 | 405 => 12,
+        other => other,
+    }
+}
+
 /// Tipli alanı olmayan ham CSV sütununu oku (ör. `parent_station`, k4'teki `row_field` ikizi).
 fn row_field_local<'a>(row: &'a std::collections::HashMap<String, String>, key: &str) -> &'a str {
     row.get(key).map(String::as_str).unwrap_or("").trim()
@@ -4453,7 +4472,9 @@ fn check_operational_analytics(
             let entry = block_route_types
                 .entry(bid)
                 .or_insert((rtype, t.trip_id.as_str(), t.line));
-            if entry.0 != rtype {
+            // Ham kod değil ARAÇ türü karşılaştırılır: 3 ↔ 715 aynı otobüstür (2026-10-13,
+            // korpusta TRP_024'ün ~%96'sı bu türdendi). Mesajlar ham kodları taşımaya devam eder.
+            if route_type_vehicle_mode(entry.0) != route_type_vehicle_mode(rtype) {
                 let c = conflicts.entry(bid).or_insert_with(|| BlockConflict {
                     first_type: entry.0,
                     first_trip: entry.1,

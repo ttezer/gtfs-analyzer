@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.5 km between two timepoints both at 15:15 with untimed stops in between
   was never reported. Timed-to-timed spans across untimed stops are now
   measured too; consecutive pairs are not counted twice.
+- **`TRP_024` treated sub-types of one vehicle as a change.** A block
+  mixing route types 3 and 715 (both buses) or 106 and 109 (both rail) was
+  reported; about 96% of corpus findings were of this kind. Blocks are now
+  compared by vehicle mode, extended route types reduced to their basic
+  type; messages still show the raw codes.
 
 ## [0.16.0] - 2026-10-11
 
