@@ -4962,6 +4962,27 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
     }
 }
 
+/// Renk boşlukla doldurulmuşsa (`'FFFFFF    '`) biçim hükmü ham değerle verilir (RTS_006/007,
+/// DQ_016 altında), ama kontrast kırpılmış renkle hesaplanır ve GÖRÜNÜR kalır: sarı/beyaz
+/// okunaksızlığı boşluktan bağımsız gerçek bir bulgudur (korpus mdb-1065/2653/465).
+#[test]
+fn rts008_measures_contrast_on_whitespace_padded_colours() {
+    let mut files = base_files();
+    files[2] = (
+        "routes.txt",
+        b"route_id,agency_id,route_short_name,route_type,route_color,route_text_color\n\
+          R1,1,101,3,FECB00    ,FFFFFF    \n",
+    );
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let rts008: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "RTS_008").collect();
+            assert_eq!(rts008.len(), 1, "sarı/beyaz ≈1,5:1 görünür olmalı: {rts008:?}");
+            assert!(vr.notices.iter().any(|n| n.rule_id == "DQ_016" && n.file.as_deref() == Some("routes.txt")));
+        }
+        other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
+    }
+}
+
 /// Spec: bikes_allowed *"0 or empty - No bike information for the trip."* Sıfır bilgi değil,
 /// bilginin YOKLUĞUdur; TRP_021 onu dolu sayıyordu (korpus mdb-1257: feribot seferlerinin
 /// hepsi 0, MD `missing_bike_allowance` 43 feed'de, biz 0). Yalnız 1 ve 2 bilgi taşır.

@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`TRP_021` treated `bikes_allowed=0` as information.** The spec reads
   "0 or empty - No bike information", so 0 now counts as missing and only
   1 or 2 carry information. The remediation no longer suggests writing 0.
+- **`RTS_008` skipped colours padded with spaces.** `'FFFFFF    '` failed the
+  hex check, so contrast was never measured and yellow on white went
+  unreported. The format verdict stays with `RTS_006`/`RTS_007` on the raw
+  value; contrast now uses the trimmed colour.
 
 ## [0.16.0] - 2026-10-11
 

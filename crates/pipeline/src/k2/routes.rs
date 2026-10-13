@@ -322,8 +322,11 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             }
         }
 
-        // RTS_008: WCAG contrast ratio check
-        if let (Some(ref fg), Some(ref bg)) = (&route_text_color, &route_color) {
+        // RTS_008: WCAG contrast ratio check. Biçim hükmü (RTS_006/007) ham değerle verildi;
+        // kontrast kırpılmış renkle ölçülür — `'FFFFFF    '` sarı zemin üzerinde yine okunmaz
+        // (korpus mdb-1065/2653/465, 2026-10-13; `whitespace_trimmed_service_date` emsali).
+        if let (Some(fg), Some(bg)) = (route_text_color.as_deref(), route_color.as_deref()) {
+            let (fg, bg) = (fg.trim(), bg.trim());
             if is_hex_color_6(fg) && is_hex_color_6(bg) {
                 if let Some(ratio) = wcag_contrast_ratio(fg, bg) {
                     if ratio < 3.0 {

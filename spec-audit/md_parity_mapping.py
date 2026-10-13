@@ -591,7 +591,7 @@ BY_DESIGN = {
         "Ölçüt farkı: RTS_008 WCAG oranı < 3:1, MD rec601 luma farkı < 72. Çoğu feed'de biz "
         "fazlayız; MD-yalnız 12 feed'in 9'u WCAG 3,06-3,89 (siyah üzerine kırmızı/mor) — bizim "
         "eşiğin üstünde. Kalan 3'ü (mdb-1065/2653/465, sarı/beyaz ≈1,5) renk değeri boşlukla "
-        "dolu olduğu için hesaplanmıyor (RTS_006/007 ham hükmü veriyor) — workplan'da açık.",
+        "dolu olduğu için hesaplanmıyordu; 2026-10-13'ten beri kırpılmış renkle ölçülüyor (RTS_006/007 ham hükmü korur).",
     "trip_distance_exceeds_shape_distance":
         "SHP_025 eşiği >%0,1 (yuvarlamayı tolere eder, SHP_029 felsefesi). mdb-1909: 170 "
         "aşımın 165'i <%0,1 = yuvarlama → biz 5 doğru, MD 170'in hepsini basar.",
