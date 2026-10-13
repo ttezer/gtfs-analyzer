@@ -2272,6 +2272,51 @@ fn scoped_root_blocks_only_rules_sharing_its_id_domain() {
     );
 }
 
+/// Ters yön: kimlik alanı beyan edip `blocks`'u olan bir kök `scope_key = None`
+/// üretirse `resolve_symptoms` onu feed düzeyi sayar ve engellediği kuralın feed'deki
+/// TÜM bulgularını bastırır (aşırı maskeleme). TRF_010'un eski hâli bu sınıftandı.
+/// İki yoldan olur: toplulama kapsamı düşürür ya da kural emit ederken doldurmaz.
+#[test]
+fn scoped_root_with_blocks_never_emits_without_scope_key() {
+    let mut failures = BTreeSet::new();
+    for root in RULES {
+        if root.scope_key_field.is_some() && !root.blocks.is_empty() && scope_dropped_by_aggregation(root.id) {
+            failures.insert(format!("  {}: toplulamada kapsamsızlaşıyor", root.id));
+        }
+    }
+    let mut checked = BTreeSet::new();
+    for f in fixtures() {
+        if !f.no_read.is_empty() || f.flip_stream_flags {
+            continue;
+        }
+        let files = with_opts(&f.overrides, &f.removes, &f.raw);
+        let cfg = f.config.clone().unwrap_or_default();
+        let ValidateResult::Ok(vr) = validate_bytes(&make_zip(&files), &cfg, TODAY) else {
+            continue;
+        };
+        for n in &vr.notices {
+            // Bastırma notice'ın kendi `blocks`'una bakar: kimliksiz satır varyantı
+            // (TRP_001 boş trip_id) onu boşaltarak kök olmaktan çıkar.
+            let scoped_root = !n.blocks.is_empty()
+                && gtfs_rules::get_rule(&n.rule_id).is_some_and(|m| m.scope_key_field.is_some());
+            if !scoped_root {
+                continue;
+            }
+            checked.insert(n.rule_id.clone());
+            if n.scope_key.is_none() {
+                failures.insert(format!("  {} ({} fixture'ı): scope_key None", n.rule_id, f.rule));
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "kapsamlı kök kapsamsız emit ediyor ({} kök denetlendi):\n{}",
+        checked.len(),
+        failures.into_iter().collect::<Vec<_>>().join("\n")
+    );
+    assert!(checked.len() > 20, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
+}
+
 #[test]
 fn shp030_aggregates_and_does_not_duplicate_related_findings() {
     let overrides = [

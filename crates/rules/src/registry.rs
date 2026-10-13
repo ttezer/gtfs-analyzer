@@ -703,8 +703,8 @@ pub static RULES: &[RuleMeta] = &[
     r!("STM_014", Yuksek, Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Segmentte aşırı hız"),
     r!("STM_015", Kritik, Spec, 2,
-        // XFL_013/SHP_017 shape kapsamlı: trip kapsamlı kök onları hiç eşleyemezdi (2026-10-11).
-        &["STM_016","STM_017"],
+        // XFL_013/SHP_017 (2026-10-11) ve STM_016/STM_017 (2026-10-13) kalktı: nedensellik yok.
+        &[],
         Some("trip_id"), VS_K, Row,
         "İlk durakta arrival_time eksik"),
     r!("STM_016", Kritik, Spec, 2, &[], Some("trip_id"), VS_K, Row,
@@ -975,7 +975,7 @@ pub static RULES: &[RuleMeta] = &[
         Some("shape_id"), VS_K, Feed,
         "shape_pt_sequence eksik veya geçersiz"),
     r!("SHP_005", Kritik, Spec, 2,
-        &["SHP_009","SHP_012","GEO_006","GEO_007"],
+        &[], // feed düzeyinde toplulanır: bağlantı her shape'i bastırıyordu (2026-10-13)
         Some("shape_id"), VS_K, Row,
         "shape_dist_traveled geriye gidiyor"),
     r!("SHP_006", Dusuk,  Quality, 2,
@@ -1440,7 +1440,7 @@ pub static RULES: &[RuleMeta] = &[
     // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
     // Hüküm: Pde6fb4a5
     r!("PTH_012", Yuksek, Spec, 3,
-        &["PTH_013"],
+        &[], // feed düzeyinde toplulanır: bağlantı her istasyonu bastırıyordu (2026-10-13)
         Some("stop_id"), VS_ACC, Entity,
         "İstasyona erişilebilir yol yok"),
     r!("PTH_013", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA_ACC, Entity,

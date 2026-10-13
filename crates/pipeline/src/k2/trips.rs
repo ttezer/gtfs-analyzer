@@ -328,7 +328,7 @@ pub fn validate_trips_with_limits(
 
         // TRP_001: trip_id zorunlu
         if trip_id.is_empty() && has_trip_id_col {
-            notices.push(make_k2_notice(
+            let mut n = make_k2_notice(
                 &mut counter,
                 "TRP_001",
                 EntityType::Trip,
@@ -341,7 +341,12 @@ pub fn validate_trips_with_limits(
                 None,
                 "trip_id zorunludur.".to_string(),
                 "Her sefere benzersiz bir trip_id atayın.",
-            ));
+            );
+            // Kimliksiz satır hangi seferin kökü olduğunu söyleyemez: scope_key None
+            // kalırsa `blocks` feed'deki TÜM STM_001/FRQ_001/XFL_002/OPR_006/OPR_007
+            // bulgularını bastırır. Yinelenen trip_id varyantı (K3) kapsamlı kök kalır.
+            n.blocks.clear();
+            notices.push(n);
         }
 
         let route_idx = intern_idx(
