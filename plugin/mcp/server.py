@@ -77,7 +77,8 @@ SERVER_INSTRUCTIONS = (
     "analyze_gtfs_file when a file is attached. Do not use these tools merely to "
     "list or extract a generic ZIP. Preserve the Analyzer-returned status, "
     "publishability, coverage, scores, severity counts, metrics, and R9 order; "
-    "never recalculate or invent validation results."
+    "never recalculate or invent validation results. Supported Analyzer language "
+    "codes are `tr`, `en`, `ja`, and `fr`; do not offer Spanish (`es`)."
 )
 
 

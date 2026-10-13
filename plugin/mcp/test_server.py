@@ -81,6 +81,8 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
     def test_server_instructions_make_bare_command_a_request_for_input(self):
         self.assertIn("bare `/gtfs` must prompt", server.SERVER_INSTRUCTIONS)
         self.assertIn("Bu GTFS dosyasını analiz et", server.SERVER_INSTRUCTIONS)
+        self.assertIn("`tr`, `en`, `ja`, and `fr`", server.SERVER_INSTRUCTIONS)
+        self.assertIn("do not offer Spanish (`es`)", server.SERVER_INSTRUCTIONS)
 
     async def test_uploaded_file_routes_to_file_tool_path(self):
         with patch.object(server, "_allowed_url", return_value="203.0.113.10"), patch(

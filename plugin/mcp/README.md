@@ -26,6 +26,10 @@ This routing does not add a fourth tool or change any existing tool schema. The
 Analyzer remains the source of validation results; MCP transports them and does
 not recalculate scores, publishability, severity, coverage, or R9 ordering.
 
+The context-free routing cases and their MCP-only preflight are documented in
+[`ROUTING_TEST_MATRIX.md`](ROUTING_TEST_MATRIX.md). The Analyzer language codes
+used by this adapter are `tr`, `en`, `ja`, and `fr`.
+
 The analyzer binary is selected with `GTFS_ANALYZER_BIN`. The default transport
 endpoint is `http://127.0.0.1:8787/mcp`.
 
