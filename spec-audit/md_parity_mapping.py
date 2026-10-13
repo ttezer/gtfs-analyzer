@@ -541,7 +541,11 @@ BY_DESIGN = {
         "(run 38363983999: 833 feed, 242'si JP dışı — 'niedziele i święta', 'Kesälinja La-Su'). "
         "MD değer başına sayar (bir feed'de 58K), ARC_037 dosya başına tek özet ve skor dışıdır.",
     "platform_without_parent_station":
-        "MD parent'sız HER durağı işaretler (tüm feed gürültü); STP_032 kapsamlandırılmış.",
+        "TOPLULAMA. MD yalnız platform_code DOLU + parent_station BOŞ durağı işaretler (eski 'MD her "
+        "parent'sız durağı işaretler' gerekçesi YANLIŞTI — jbda-akishimacity: 114 parent'sızdan 2'si). "
+        "Spec platform_code'u 'a platform stop (a stop belonging to a station)' diye tanımlar. 2026-10-13'ten "
+        "beri STP_045 (Bilgi, skor dışı) feed başına tek özetle ölçer; MD durak başına sayar. STP_032 "
+        "yalnız pathway uç noktası olan peronlara bakar.",
     "mixed_case_recommended_field":
         "DQ_018 yalnız ALL-CAPS işaretler; spec yalnız 'Mixed Case (not ALL CAPS)' der. MD harfi "
         "büyük/küçük olmayan yazılarda (JP 567/985 feed, ör. '吉野・焼笹線') ve kod niteliğindeki "

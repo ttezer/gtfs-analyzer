@@ -454,6 +454,8 @@ pub static RULES: &[RuleMeta] = &[
     // yasakladığı için opt-in DEĞİL. Ölçüldü (239 feed): 1 feed, 1 kayıt (`gleis`).
     r!("STP_044", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "platform_code gereksiz 'platform/track' sözcüğü içeriyor"),
+    r_noscore!("STP_045", Bilgi, Quality, 1, &[], None, VS, Feed,
+        "platform_code var ama parent_station boş"),
     r!("STP_041", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Alt durak adı üst istasyon adını içermiyor"),
     // STP_042: spec tipi `URL` — "fully qualified URL that includes http:// or https://".
@@ -2473,6 +2475,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("STP_042", GtfsSpec),
     ("STP_043", GtfsSpec),
     ("STP_044", ProjectQuality),
+    ("STP_045", ProjectQuality),
     ("TFR_001", GtfsSpec),
     ("TFR_002", GtfsSpec),
     ("TFR_003", GtfsSpec),

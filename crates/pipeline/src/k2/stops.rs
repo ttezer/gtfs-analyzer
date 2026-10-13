@@ -41,6 +41,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     // (DELFI: 548K durağın %91'i) — durak-başına on binlerce Bilgi notice yerine eşik
     // aşılırsa tek feed-özet üretilir. STP_022 emsali; karar döngü sonunda verilir.
     let mut stp033_pending: Vec<gtfs_core::Notice> = Vec::new();
+    // STP_045: platform_code dolu, parent_station boş — feed başına tek özet.
+    let mut stp045_count: usize = 0;
+    let mut stp045_examples: Vec<String> = Vec::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -526,6 +529,22 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         }
 
+        // STP_045: spec platform_code'u "a platform stop (a stop belonging to a station)" diye
+        // tanımlar; peron kodu taşıyıp bir istasyona bağlanmayan durak bu tanımla çelişir.
+        // MD `platform_without_parent_station` (INFO) aynı ekseni ölçer. STP_032 yalnız
+        // pathway uç noktalarına bakar; bu kural pathway'den bağımsızdır.
+        if matches!(location_type, None | Some(0))
+            && get_trimmed_field(&row_map, "platform_code").is_some_and(|v| !v.trim().is_empty())
+            && get_trimmed_field(&row_map, "parent_station").is_none_or(|v| v.trim().is_empty())
+        {
+            stp045_count += 1;
+            if stp045_examples.len() < 5 {
+                if let Some(id) = entity_id.clone() {
+                    stp045_examples.push(id);
+                }
+            }
+        }
+
         // STP_023: tts_stop_name işaret karakteri içeriyor (SSML/HTML markup)
         if let Some(ref tts) = tts_stop_name {
             if tts.contains('<') || tts.contains('>') {
@@ -692,6 +711,33 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         notices.push(notice);
     } else {
         notices.append(&mut stp033_pending);
+    }
+
+    // STP_045: feed başına TEK özet (STP_033 deseni, eşik yok — bilgi notu).
+    if stp045_count > 0 {
+        let mut notice = make_k2_notice(
+            &mut counter,
+            "STP_045",
+            EntityType::Feed,
+            None,
+            None,
+            &file.name,
+            None,
+            Some("parent_station"),
+            Some(stp045_count.to_string()),
+            None,
+            format!(
+                "{stp045_count} durak platform_code taşıyor ama parent_station boş — peron bir istasyona bağlanmamış."
+            ),
+            "Peronları location_type=1 olan istasyona parent_station ile bağlayın; peron değilse platform_code'u kaldırın.",
+        );
+        let mut d = std::collections::BTreeMap::new();
+        d.insert("affected_stops".to_string(), stp045_count.to_string());
+        if !stp045_examples.is_empty() {
+            d.insert("example_stops".to_string(), stp045_examples.join(", "));
+        }
+        notice.details = Some(d);
+        notices.push(notice);
     }
 
     // STP_018: stops.txt'te hiç durak yok
@@ -1072,6 +1118,29 @@ mod tests {
         let (_, notices) = validate_stops(&file);
         assert_eq!(notices.iter().filter(|n| n.rule_id == "STP_039").count(), 1);
     }
+    #[test]
+    fn stp_045_flags_platform_code_without_parent_station_once_per_feed() {
+        // Spec: platform_code "Platform identifier for a platform stop (a stop belonging to a
+        // station)". Korpus jbda-akishimacity: 114 parent'sız duraktan yalnız platform_code
+        // taşıyan 2'si MD platform_without_parent_station alıyor.
+        let file = make_file(
+            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type", "parent_station", "platform_code"],
+            vec![
+                vec!["P1", "Peron 1", "41.0", "29.0", "0", "", "1"],
+                vec!["P2", "Peron 2", "41.0", "29.0", "", "", "2"],
+                vec!["P3", "Peron 3", "41.0", "29.0", "0", "ST", "3"],
+                vec!["S1", "Durak", "41.0", "29.0", "0", "", ""],
+                vec!["ST", "İstasyon", "41.0", "29.0", "1", "", ""],
+            ],
+        );
+        let (_, notices) = validate_stops(&file);
+        let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_045").collect();
+        assert_eq!(hits.len(), 1, "feed başına tek özet: {hits:?}");
+        assert_eq!(hits[0].observed_value.as_deref(), Some("2"));
+        let ex = hits[0].details.as_ref().and_then(|d| d.get("example_stops")).unwrap();
+        assert_eq!(ex, "P1, P2");
+    }
+
     #[test]
     fn stp_044_flags_platform_word_in_platform_code() {
         let file = make_file(

@@ -183,7 +183,7 @@ MAP = {
     "feed_expiration_date7_days":     ["FIN_010", "FIN_019"],
     "same_stop_and_agency_url":       ["STP_034"],
     "same_stop_and_route_url":        ["STP_035"],
-    "platform_without_parent_station":["STP_032"],     # BİZ-TUTUCU: MD HER parentsiz lt=0 durağı INFO işaretler (mdb-981: 1632=tüm duraklar, gürültü). Biz yalnız pathway-bağlı platformu (STP_032) işaretleriz — standalone durak parentsiz NORMAL.
+    "platform_without_parent_station":["STP_032", "STP_045"],  # STP_045 platform_code+parent yok (feed özeti); STP_032 pathway peronu
     # ── 20-feed 2. tur eşlemeleri (kuralımız VAR, MAP eksikti) ──
     "route_color_contrast":           ["RTS_008"],     # over: biz 132 vs MD 3 (kontrast eşiği farkı)
     # DÜZELTİLDİ 2026-07-17: MD'nin tek kodunu bizim İKİ kuralımız durak SAYISINA göre böler:
@@ -253,6 +253,7 @@ MAP = {
 AGG_RULES = {
     "STM_050", "STM_017", "TRN_007", "STP_022", "RTS_017",  # feed-özeti (changelog 0.1.3)
     "TRP_020",                                              # per-trip
+    "STP_045",                                              # feed-özeti; MD durak başına
     "ARC_037",                                              # dosya-özeti; MD değer başına
     "SHP_023", "SHP_028", "SHP_029",                        # per-shape (tür başına)
     "CAL_007", "CAL_009", "CAL_012", "CAL_013",             # per-service/feed calendar aggregates; CAL_012 MD-only detail

@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 [English](RULES.en.md) · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 **Français**
 
-617 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
+618 règles, 38 groupes. Chaque règle est identifiée par un ID unique, un niveau de gravité et une classe.
 Niveaux de gravité : **CRITIQUE** (bloquant pour la publication) · **ÉLEVÉE** · **MOYENNE** · **FAIBLE** · **INFO**
 Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · **Quality** (qualité GTFS) · **Analytics** (analytique GTFS)
 
@@ -141,6 +141,7 @@ Classes : **Spec** (validité GTFS) · **Interop** (interopérabilité GTFS) · 
 | STP_039 | stop_code en double | FAIBLE | Quality |
 | STP_040 | Le nom de l’arrêt contient un mot redondant (arrêt ou station) | FAIBLE | Quality |
 | STP_044 | platform_code contient un mot redondant (quai ou voie) | FAIBLE | Quality |
+| STP_045 | platform_code sans parent_station | INFO | Quality |
 | STP_041 | Le nom de l’arrêt enfant ne reprend pas celui de la station parente | FAIBLE | Quality |
 | STP_042 | stop_url invalide | FAIBLE | Spec |
 | STP_043 | stop_access utilisé dans un contexte interdit | MOYENNE | Spec |

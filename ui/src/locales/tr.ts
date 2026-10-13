@@ -757,6 +757,7 @@ const tr = {
     'STP_039': 'stop_code birden fazla durakta kullanılıyor',
     'STP_040': 'Durak adı gereksiz genel stop/station sözcüğü içeriyor',
     'STP_044': "platform_code gereksiz 'platform/track' sözcüğü içeriyor",
+    'STP_045': 'platform_code var ama parent_station boş',
     'STP_041': 'Alt durak adı üst istasyon adını içermiyor',
     'STP_042': 'stop_url geçersiz',
     'STP_043': 'stop_access yasak bağlamda kullanılmış',

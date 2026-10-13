@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Low, Quality and outside the score: GTFS-JP feeds use Japanese IDs on
   purpose. MobilityData's `non_ascii_or_non_printable_char` now maps to it
   (617 rules).
+- **`STP_045` — `platform_code` without `parent_station`.** The spec defines
+  `platform_code` as the identifier of "a platform stop (a stop belonging to
+  a station)". One feed-level summary with the count and up to five example
+  stops; Info, Quality, outside the score. Maps MobilityData's
+  `platform_without_parent_station` (618 rules).
 
 ### Fixed
 

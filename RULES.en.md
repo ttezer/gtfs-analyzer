@@ -2,7 +2,7 @@
 
 🇹🇷 [Türkçe](RULES.md) · 🇬🇧 **English** · 🇯🇵 [日本語](RULES.ja.md) · 🇫🇷 [Français](RULES.fr.md)
 
-617 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
+618 rules, 38 groups. Each rule is identified by a unique ID, severity level, and class.
 Severity levels: **CRITICAL** (publish blocker) · **HIGH** · **MEDIUM** · **LOW** · **INFO**
 Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Quality** (GTFS Quality) · **Analytics** (GTFS Analytics)
 
@@ -141,6 +141,7 @@ Classes: **Spec** (GTFS Validity) · **Interop** (GTFS Interoperability) · **Qu
 | STP_039 | stop_code is duplicated | LOW | Quality |
 | STP_040 | Stop name contains a redundant stop/station word | LOW | Quality |
 | STP_044 | platform_code contains a redundant platform/track word | LOW | Quality |
+| STP_045 | platform_code without parent_station | INFO | Quality |
 | STP_041 | Child stop name does not include the parent station name | LOW | Quality |
 | STP_042 | stop_url is invalid | LOW | Spec |
 | STP_043 | stop_access used in a forbidden context | MEDIUM | Spec |

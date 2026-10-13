@@ -613,6 +613,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
         // ARC_032: `<BR>` biçimi vahşi doğadan (mdb-1924, 1176 durak adı).
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
+        fx("STP_045", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,platform_code\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,\n")]),
         fx("ARC_037", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSüd,Stop3,41.2,29.2\n")]),
         fx("ARS_002", vec![("areas.txt","area_id,area_name\n,Bolge\n")]),
         // ⚠️ YEDİ AYRI SERVİS ŞART. Tek satırda yedi günü birden boşaltmak YETMEZ: dedup
