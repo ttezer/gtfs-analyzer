@@ -1900,6 +1900,19 @@ fn check_speed_and_duration<'a>(
                             d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                             n012.details = Some(d);
                             notices.push(n012);
+                            // Saatsiz ara duraklı sıfır süreli aralıkla aynı: OPR_008 bu
+                            // segmenti de sayar; hız alt sınırı = tam bir dakika geçmiş say.
+                            let zero_speed = dist_km * 60.0;
+                            if zero_speed > trip_max_speed {
+                                trip_max_speed = zero_speed;
+                                trip_max_speed_line = Some(b.line as u64);
+                            }
+                            trip_bad_seg_count += 1;
+                            trip_ws_bad_count += 1;
+                            bad_seg_stops.push((
+                                SmolStr::from(idx.stop_id_of(a)),
+                                SmolStr::from(idx.stop_id_of(b)),
+                            ));
                         }
                         continue;
                     }
@@ -12477,6 +12490,37 @@ mod tests {
             result.notices.iter().any(|n| n.rule_id == "STM_012"),
             "bir dakikada alınamayacak mesafe STM_012 üretmeli"
         );
+    }
+
+    #[test]
+    fn whole_minute_zero_gap_stm_012_counts_toward_opr_008() {
+        // İki ardışık tam-dakika sıfır süreli segment, ikisi de ~29 km → iki STM_012.
+        // Saatsiz ara duraklı yol gibi bu yol da OPR_008 sayacına girmeli.
+        let records = records_with(
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.26, 29.0),
+                stop("C", 41.52, 29.0),
+            ],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 0, 0), (8, 0, 0), 3),
+                stoptime("T1", 3, "C", (8, 0, 0), (8, 0, 0), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let opr = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "OPR_008")
+            .expect("iki sıfır süreli STM_012 segmenti OPR_008 üretmeli");
+        assert_ne!(opr.observed_value.as_deref(), Some("0.0 km/h"));
+        assert!(opr.line.is_some(), "OPR_008 satırı olmalı");
+        let d = opr.details.as_ref().expect("details olmalı");
+        assert_eq!(d.get("bad_seg_0_a").map(String::as_str), Some("A"));
+        assert_eq!(d.get("bad_seg_1_b").map(String::as_str), Some("C"));
     }
 
     #[test]
