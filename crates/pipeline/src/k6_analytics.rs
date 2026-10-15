@@ -2066,8 +2066,18 @@ fn check_speed_and_duration<'a>(
                     d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                     n012.details = Some(d);
                     notices.push(n012);
+                    // OPR_008 bu segmenti de sayar; hızı ve durak çiftini de görmeli,
+                    // yoksa yalnız STM_012 segmentli seferde "en yüksek hız 0.0" basılır.
+                    if hav_speed > trip_max_speed {
+                        trip_max_speed = hav_speed;
+                        trip_max_speed_line = Some(b.line as u64);
+                    }
                     trip_bad_seg_count += 1;
                     trip_ws_bad_count += 1;
+                    bad_seg_stops.push((
+                        SmolStr::from(idx.stop_id_of(a)),
+                        SmolStr::from(idx.stop_id_of(b)),
+                    ));
                     continue;
                 }
 
@@ -2164,7 +2174,8 @@ fn check_speed_and_duration<'a>(
                     let whole = a.departure_time().or(a.arrival_time()).map(|(_, _, s)| s) == Some(0)
                         && b.arrival_time().or(b.departure_time()).map(|(_, _, s)| s) == Some(0);
                     if whole && direct_km >= threshold / 60.0 {
-                        Some(format!("{direct_km:.1} km / 0 dk"))
+                        // Hız alt sınırı: tam bir dakika geçmiş say (OPR_008 en yüksek hızı için).
+                        Some((format!("{direct_km:.1} km / 0 dk"), direct_km * 60.0))
                     } else {
                         if direct_km > 0.2
                             && worst_zero_seg.as_ref().is_none_or(|&(d, ..)| direct_km > d)
@@ -2182,9 +2193,9 @@ fn check_speed_and_duration<'a>(
                     }
                 } else {
                     let hav_speed = direct_km / (dt_sec as f64 / 3600.0);
-                    (hav_speed > 700.0).then(|| format!("{hav_speed:.0} km/h"))
+                    (hav_speed > 700.0).then(|| (format!("{hav_speed:.0} km/h"), hav_speed))
                 };
-                if let Some(observed) = impossible {
+                if let Some((observed, impossible_speed)) = impossible {
                     let mut n012 = k6_notice(
                         ctr, "STM_012", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
@@ -2198,8 +2209,16 @@ fn check_speed_and_duration<'a>(
                     d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
                     n012.details = Some(d);
                     notices.push(n012);
+                    if impossible_speed > trip_max_speed {
+                        trip_max_speed = impossible_speed;
+                        trip_max_speed_line = Some(b.line as u64);
+                    }
                     trip_bad_seg_count += 1;
                     trip_ws_bad_count += 1;
+                    bad_seg_stops.push((
+                        SmolStr::from(idx.stop_id_of(a)),
+                        SmolStr::from(idx.stop_id_of(b)),
+                    ));
                     continue;
                 }
                 if dt_sec == 0 {
@@ -12307,10 +12326,18 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            result.notices.iter().any(|n| n.rule_id == "OPR_008"),
-            "OPR_008 olmalı"
-        );
+        let opr = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "OPR_008")
+            .expect("OPR_008 olmalı");
+        // Her iki segment de STM_012 (>700 km/h) dalına düşer; OPR_008 yine de
+        // en yüksek hızı, satırı ve segment çiftlerini taşımalı (0.0 km/h değil).
+        assert_ne!(opr.observed_value.as_deref(), Some("0.0 km/h"));
+        assert!(opr.line.is_some(), "OPR_008 satırı olmalı");
+        let d = opr.details.as_ref().expect("details olmalı");
+        assert_eq!(d.get("bad_seg_0_a").map(String::as_str), Some("A"));
+        assert_eq!(d.get("bad_seg_1_b").map(String::as_str), Some("C"));
     }
 
     // ── STM_028 ───────────────────────────────────────────────────────────────
