@@ -501,8 +501,10 @@ jobs:
         run: |
           set -uo pipefail
           for attempt in 1 2 3; do
-            cargo audit --json > cargo-audit.json 2> cargo-audit.err
-            code=$?
+            # Adımın kabuğu `bash -e`: sıfır dışı çıkış betiği burada sessizce bitirirdi ve
+            # aşağıdaki bulgu/ağ ayrımı hiç koşmazdı. `|| code=$?` çıkışı yakalar.
+            code=0
+            cargo audit --json > cargo-audit.json 2> cargo-audit.err || code=$?
             # Kriter bilinçli olarak GENİŞ: "stdout geçerli JSON mu?". cargo-audit ağ hatasında
             # stdout'a JSON basmaz (stderr'e insan-okunur hata yazar), dolayısıyla JSON varsa
             # tarama koşmuştur. Şema alan adına (`vulnerabilities`) bağlanmıyoruz: alan adı
@@ -543,8 +545,9 @@ jobs:
           set -uo pipefail
           mkdir -p audit
           for attempt in 1 2 3; do
-            npm audit --omit=dev --audit-level=high --json > audit/npm-audit-prod.json 2> audit/npm-audit-prod.err
-            code=$?
+            # `bash -e` altında çıkış kodunu yakala (cargo audit adımındaki açıklama).
+            code=0
+            npm audit --omit=dev --audit-level=high --json > audit/npm-audit-prod.json 2> audit/npm-audit-prod.err || code=$?
             if jq -e '.metadata.vulnerabilities' audit/npm-audit-prod.json > /dev/null 2>&1; then
               if [ "$code" -ne 0 ]; then
                 echo "::error::npm audit üretim bağımlılıklarında high/critical açık buldu (ağ hatası değil)."

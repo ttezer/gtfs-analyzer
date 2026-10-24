@@ -928,7 +928,7 @@ const fr: LocaleShape = {
     'SHP_021': 'Tracé « {entity_id} » : shape_dist_traveled est négatif ou non numérique.',
     'SHP_022': 'Tracé « {entity_id} » : la position de l’arrêt sur le tracé est ambiguë.',
     'SHP_023': 'Tracé « {entity_id} » : des points consécutifs partagent le même shape_dist_traveled aux mêmes coordonnées.',
-    'SHP_024': 'Tracé « {entity_id} » : la distance arrêt–tracé est incohérente avec shape_dist_traveled.',
+    'SHP_024': 'Arrêt « {entity_id} » : la distance arrêt–tracé est incohérente avec shape_dist_traveled.',
     'SHP_025': 'Tracé « {entity_id} » : la distance des stop_times dépasse la longueur totale du tracé.',
     'SHP_026': 'Le tracé « {entity_id} » comporte {observed_value} points — un nombre élevé peut affecter les performances de rendu chez les consommateurs.',
     'SHP_028': 'Tracé « {entity_id} » : des points consécutifs partagent le même shape_dist_traveled mais ont des coordonnées différentes — la distance n’a pas augmenté alors que la position a changé.',

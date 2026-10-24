@@ -27,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`STM_017` always collapsed to one feed-level notice.** The check for
+  "`shape_dist_traveled` is never used in the feed" read an in-memory row list
+  that is empty in production, where stop_times live in the streamed index. A
+  feed with the column filled on some trips was therefore told it never used
+  it, and the affected trips were not listed. It now reads the index: a
+  partially filled feed gets one notice per affected trip, and the summary is
+  kept for feeds that never use the column. No score change (`STM_017` is
+  outside the score).
+- **`SHP_024` messages called the stop a shape.** The English, Japanese and
+  French templates read "Shape '{stop_id}'"; they now name the stop.
 - **Scoped roots masked findings across the whole feed.** `SHP_005` and
   `PTH_012` are aggregated to one feed-level notice before masking, so one
   decreasing shape hid `SHP_009`/`SHP_012`/`GEO_006`/`GEO_007` on every shape

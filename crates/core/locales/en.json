@@ -279,7 +279,7 @@
     "SHP_021": "Shape '{entity_id}': shape_dist_traveled is negative or not a number.",
     "SHP_022": "Shape '{entity_id}': stop position on shape is ambiguous.",
     "SHP_023": "Shape '{entity_id}': consecutive points share the same shape_dist_traveled at the same coordinates.",
-    "SHP_024": "Shape '{entity_id}': stop-to-shape distance is inconsistent with shape_dist_traveled.",
+    "SHP_024": "Stop '{entity_id}': stop-to-shape distance is inconsistent with shape_dist_traveled.",
     "SHP_025": "Shape '{entity_id}': stop_times distance exceeds total shape length.",
     "SHP_026": "Shape '{entity_id}' has {observed_value} points — high point count may impact consumer rendering performance.",
     "SHP_028": "Shape '{entity_id}': consecutive points share the same shape_dist_traveled but have different coordinates — distance did not increase while position changed.",

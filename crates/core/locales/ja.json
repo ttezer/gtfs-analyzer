@@ -280,7 +280,7 @@
     "SHP_021": "シェープ'{entity_id}'：shape_dist_traveledが負または数値ではありません。",
     "SHP_022": "シェープ'{entity_id}'：シェープ上の停留所位置が曖昧です。",
     "SHP_023": "シェープ'{entity_id}'：同じ座標の連続する点が同じshape_dist_traveledを持っています。",
-    "SHP_024": "シェープ'{entity_id}'：停留所からシェープまでの距離がshape_dist_traveledと一致しません。",
+    "SHP_024": "停留所'{entity_id}'：停留所からシェープまでの距離がshape_dist_traveledと一致しません。",
     "SHP_025": "シェープ'{entity_id}'：stop_timesの距離がシェープの総延長を超えています。",
     "SHP_026": "シェープ'{entity_id}'は{observed_value}個の点があります — 多すぎるためトランジットアプリの地図描画パフォーマンスに影響します。",
     "SHP_028": "シェープ'{entity_id}'：連続する点が同じshape_dist_traveledを持ちますが座標が異なります — 距離が増加せずに位置が変化しています。",

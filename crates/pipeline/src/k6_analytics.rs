@@ -6778,10 +6778,11 @@ fn check_remaining_analytics<'a>(
         // shape_dist_traveled feed genelinde hiç kullanılmamışsa, trip-başına on
         // binlerce özdeş notice yerine tek feed-seviyesi özet üret (STM_050 emsali).
         // Kısmen doluysa (gerçek tutarsızlık) trip granülerliği korunur.
-        let any_sdt_present = records
-            .stop_times
-            .iter()
-            .any(|s| s.shape_dist_traveled.is_some());
+        // Index'ten okunur: üretimde `records.stop_times` Vec'i boştur, satırlar K2 index'indedir.
+        let any_sdt_present = idx
+            .by_trip
+            .values()
+            .any(|stops| stops.iter().any(|s| s.shape_dist_traveled().is_some()));
 
         // rail dışı (intercity rail shape_dist_traveled sağlamaz — beklenen davranış),
         // shape'i olup sdt eksik trip'ler.
@@ -15572,6 +15573,68 @@ mod tests {
             stm017[0].observed_value.as_deref(),
             Some("2"),
             "etkilenen sefer sayısı 2 olmalı"
+        );
+    }
+
+    #[test]
+    fn stm_017_partial_sdt_keeps_trip_level_on_production_index_path() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        // T1 sdt taşıyor, T2/T3 taşımıyor → kısmen dolu, trip-başına 2 notice beklenir.
+        // Üretimde stop_times yalnız K2 index'inde durur; `records.stop_times` Vec'i boştur.
+        // Bu yol test edilmeden kip kararı Vec'e bakıyordu ve her feed özet kipine düşüyordu.
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![
+                trip_sh("T1", "R1", "S1"),
+                trip_sh("T2", "R1", "S1"),
+                trip_sh("T3", "R1", "S1"),
+            ],
+            vec![
+                stoptime_with_dist("T1", 1, "A", (8, 0, 0), (8, 0, 0), 0.0, 2),
+                stoptime_with_dist("T1", 2, "B", (8, 10, 0), (8, 10, 0), 14.0, 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+                stoptime("T3", 1, "A", (10, 0, 0), (10, 0, 0), 6),
+                stoptime("T3", 2, "B", (10, 10, 0), (10, 10, 0), 7),
+            ],
+        );
+        records.stop_times.clear();
+        records.shapes = vec![
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.1),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let mut stm017: Vec<_> = result
+            .notices
+            .iter()
+            .filter(|n| n.rule_id == "STM_017")
+            .map(|n| (n.entity_type, n.entity_id.clone(), n.line))
+            .collect();
+        stm017.sort_by(|a, b| a.1.cmp(&b.1));
+        assert_eq!(
+            stm017,
+            vec![
+                (gtfs_core::EntityType::Trip, Some("T2".to_string()), Some(4)),
+                (gtfs_core::EntityType::Trip, Some("T3".to_string()), Some(6)),
+            ],
+            "kısmen dolu sdt'de trip-başına STM_017 beklenir"
         );
     }
 
