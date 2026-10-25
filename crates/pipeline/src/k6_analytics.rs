@@ -505,6 +505,40 @@ fn k6_notice(
     )
 }
 
+fn stm012_details(
+    stop_a: &str,
+    stop_b: &str,
+    seq_a: u32,
+    seq_b: u32,
+    distance_km: f64,
+    scheduled_gap_seconds: u32,
+    speed_kmh: Option<f64>,
+    speed_lower_bound_kmh: Option<f64>,
+    intermediate_stop_count: Option<usize>,
+) -> BTreeMap<String, String> {
+    let mut details = BTreeMap::new();
+    details.insert("stop_a".to_string(), stop_a.to_string());
+    details.insert("stop_b".to_string(), stop_b.to_string());
+    details.insert("stop_sequence_a".to_string(), seq_a.to_string());
+    details.insert("stop_sequence_b".to_string(), seq_b.to_string());
+    details.insert("distance_km".to_string(), format!("{distance_km:.1}"));
+    details.insert(
+        "scheduled_gap_seconds".to_string(),
+        scheduled_gap_seconds.to_string(),
+    );
+    details.insert("distance_method".to_string(), "haversine".to_string());
+    if let Some(speed) = speed_kmh {
+        details.insert("speed_kmh".to_string(), format!("{speed:.1}"));
+    }
+    if let Some(speed) = speed_lower_bound_kmh {
+        details.insert("speed_lower_bound_kmh".to_string(), format!("{speed:.1}"));
+    }
+    if let Some(count) = intermediate_stop_count {
+        details.insert("intermediate_stop_count".to_string(), count.to_string());
+    }
+    details
+}
+
 /// Returns the first active service date when a detected GTFS-JP feed contains
 /// no active date on or before today. This is a publication-state signal, not
 /// a global GTFS quality defect: non-JP feeds retain the existing rules.
@@ -1895,10 +1929,17 @@ fn check_speed_and_duration<'a>(
                                 dist_km * 60.0),
                             "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz.",
                         );
-                            let mut d = std::collections::BTreeMap::new();
-                            d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                            d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                            n012.details = Some(d);
+                            n012.details = Some(stm012_details(
+                                idx.stop_id_of(a),
+                                idx.stop_id_of(b),
+                                a.stop_sequence().unwrap_or(0),
+                                b.stop_sequence().unwrap_or(0),
+                                dist_km,
+                                0,
+                                None,
+                                Some(dist_km * 60.0),
+                                None,
+                            ));
                             notices.push(n012);
                             // Saatsiz ara duraklı sıfır süreli aralıkla aynı: OPR_008 bu
                             // segmenti de sayar; hız alt sınırı = tam bir dakika geçmiş say.
@@ -2074,10 +2115,17 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    n012.details = Some(d);
+                    n012.details = Some(stm012_details(
+                        idx.stop_id_of(a),
+                        idx.stop_id_of(b),
+                        a.stop_sequence().unwrap_or(0),
+                        b.stop_sequence().unwrap_or(0),
+                        haver_km,
+                        dt_sec,
+                        Some(hav_speed),
+                        None,
+                        None,
+                    ));
                     notices.push(n012);
                     // OPR_008 bu segmenti de sayar; hızı ve durak çiftini de görmeli,
                     // yoksa yalnız STM_012 segmentli seferde "en yüksek hız 0.0" basılır.
@@ -2217,10 +2265,17 @@ fn check_speed_and_duration<'a>(
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {seq_a}-{seq_b} arası (aradaki duraklar saatsiz) {observed} — fiziksel olarak imkansız."),
                         "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                     );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    n012.details = Some(d);
+                    n012.details = Some(stm012_details(
+                        idx.stop_id_of(a),
+                        idx.stop_id_of(b),
+                        seq_a,
+                        seq_b,
+                        direct_km,
+                        dt_sec,
+                        (dt_sec > 0).then_some(impossible_speed),
+                        (dt_sec == 0).then_some(impossible_speed),
+                        Some(j - p - 1),
+                    ));
                     notices.push(n012);
                     if impossible_speed > trip_max_speed {
                         trip_max_speed = impossible_speed;
@@ -12487,10 +12542,21 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            result.notices.iter().any(|n| n.rule_id == "STM_012"),
-            "bir dakikada alınamayacak mesafe STM_012 üretmeli"
+        let notice = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_012")
+            .expect("bir dakikada alınamayacak mesafe STM_012 üretmeli");
+        let details = notice.details.as_ref().expect("STM_012 yapılandırılmış kanıt taşımalı");
+        assert_eq!(details.get("stop_sequence_a").map(String::as_str), Some("1"));
+        assert_eq!(details.get("stop_sequence_b").map(String::as_str), Some("2"));
+        assert_eq!(
+            details.get("scheduled_gap_seconds").map(String::as_str),
+            Some("0")
         );
+        assert_eq!(details.get("distance_method").map(String::as_str), Some("haversine"));
+        assert!(details.contains_key("distance_km"));
+        assert!(details.contains_key("speed_lower_bound_kmh"));
     }
 
     #[test]

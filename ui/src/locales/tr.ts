@@ -39,6 +39,8 @@ const tr = {
     'producer.card.departure_context': '{departure} kalkışlı sefer',
     'producer.card.departure_list_context': '{departure} kalkış',
     'producer.card.trip_count_context': '{count} sefer',
+    'producer.card.speed_value': '{speed} km/h',
+    'producer.card.zero_duration_value': 'kayıtlı süre: 0 saniye · mesafe: {distance} km',
     'producer.card.adjacent_stops': 'iki ardışık durak',
     'producer.card.stop_pair': '{from} ile {to}',
     'producer.card.ARC_004.title': 'Zorunlu dosya eksik',

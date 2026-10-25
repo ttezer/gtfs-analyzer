@@ -67,6 +67,31 @@ function speedStopPair(n: Notice, result: ValidationResult): string {
     : t('producer.card.adjacent_stops');
 }
 
+function localizedNumber(value: string): string {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? new Intl.NumberFormat(getLocale(), { maximumFractionDigits: 1 }).format(number)
+    : value;
+}
+
+function stm012Observed(n: Notice): string | undefined {
+  const details = n.details;
+  const distance = details?.distance_km;
+  const duration = details?.scheduled_gap_seconds;
+  if (distance && duration === '0') {
+    return t('producer.card.zero_duration_value', {
+      distance: localizedNumber(distance),
+    });
+  }
+  const speed = details?.speed_kmh;
+  if (speed) {
+    return t('producer.card.speed_value', { speed: localizedNumber(speed) });
+  }
+  return /^\s*\d+(?:\.\d+)?\s+km\/h\s*$/i.test(n.observed_value || '')
+    ? n.observed_value || undefined
+    : undefined;
+}
+
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
@@ -79,7 +104,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           stops: speedStopPair(n, result),
         }),
         action: t('producer.card.STM_012.action'),
-        observed: n.observed_value || undefined,
+        observed: stm012Observed(n),
       };
     }
     case 'STP_001': {

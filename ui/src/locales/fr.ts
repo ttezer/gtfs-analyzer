@@ -41,6 +41,8 @@ const fr: LocaleShape = {
     'producer.card.departure_context': 'départ {departure}',
     'producer.card.departure_list_context': 'départs {departure}',
     'producer.card.trip_count_context': '{count} trajets',
+    'producer.card.speed_value': '{speed} km/h',
+    'producer.card.zero_duration_value': 'durée enregistrée : 0 seconde · distance : {distance} km',
     'producer.card.adjacent_stops': 'deux arrêts consécutifs',
     'producer.card.stop_pair': '{from} et {to}',
     'producer.card.ARC_004.title': 'Fichier obligatoire absent',

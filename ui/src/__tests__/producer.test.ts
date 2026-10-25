@@ -247,7 +247,7 @@ describe('Üretici kartı görünümü', () => {
     const r = result(
       [notice('a', 'STM_012', 'HIGH', {
         entity_type: 'Trip', entity_id: 'T1', observed_value: '768 km/h',
-        details: { stop_a: 'S1', stop_b: 'S2' },
+        details: { stop_a: 'S1', stop_b: 'S2', distance_km: '29.4', scheduled_gap_seconds: '140', speed_kmh: '768.0' },
       })],
       [],
       [['STM_012', 3, 500]],
@@ -269,13 +269,14 @@ describe('Üretici kartı görünümü', () => {
     const r = result(
       [notice('a', 'STM_012', 'HIGH', {
         entity_type: 'Trip', entity_id: 'T1', observed_value: 'sıfır süre, 29.4 km',
+        details: { distance_km: '29.4', scheduled_gap_seconds: '0', speed_lower_bound_kmh: '1764.0' },
       })],
       [],
       [['STM_012', 3, 1]],
     );
     const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
     renderProducer(root, r);
-    expect(root.innerHTML).toContain('Görülen değer:</span> <code>sıfır süre, 29.4 km</code>');
+    expect(root.innerHTML).toContain('Görülen değer:</span> <code>kayıtlı süre: 0 saniye · mesafe: 29,4 km</code>');
     expect(root.innerHTML).toContain('iki ardışık durak arasında hesaplanan hız gerçekçi görünmüyor');
     expect(root.innerHTML).not.toContain('sıfır süre, 29.4 km hız');
     expect(root.innerHTML).not.toContain('belirtilmemiş hattı');

@@ -41,6 +41,8 @@ const en: LocaleShape = {
     'producer.card.departure_context': '{departure} departure',
     'producer.card.departure_list_context': '{departure} departures',
     'producer.card.trip_count_context': '{count} trips',
+    'producer.card.speed_value': '{speed} km/h',
+    'producer.card.zero_duration_value': 'recorded duration: 0 seconds · distance: {distance} km',
     'producer.card.adjacent_stops': 'two consecutive stops',
     'producer.card.stop_pair': '{from} and {to}',
     'producer.card.ARC_004.title': 'Required file is missing',
