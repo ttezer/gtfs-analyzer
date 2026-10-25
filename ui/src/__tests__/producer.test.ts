@@ -29,10 +29,13 @@ function result(
   blockers: string[],
   r9: [string, number, number][],
   coverageComplete = true,
+  name_index: NameIndex = emptyNameIndex,
+  feed_summary?: ValidationResult['feed_summary'],
 ): ValidationResult {
   return {
     notices,
-    name_index: emptyNameIndex,
+    name_index,
+    feed_summary,
     reports: {
       r1: { publishable: blockers.length === 0, coverage_complete: coverageComplete, blocker_notice_ids: blockers },
       r9: { items: r9.map(([rule_id, priority_score, affected_instance_count]) => ({ rule_id, priority_score, affected_instance_count, labels: [] })) },
@@ -147,5 +150,151 @@ describe('Üretici kartı görünümü', () => {
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Kontrol eksik kaldı');
     expect(root.innerHTML).not.toContain('motor metni');
+  });
+
+  it('STM_002 kartında teknik başlık yerine durak değeri ve kullanan hatları gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      routes: { R1: 'Dial-a-Ride' },
+      trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_stops: { T1: ['area_803'], T2: ['area_803'] },
+    };
+    const r = result(
+      [notice('a', 'STM_002', 'CRITICAL', { entity_type: 'Stop', entity_id: 'area_803' })],
+      ['a'],
+      [['STM_002', 4, 1]],
+      true,
+      ni,
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Seferde kullanılan durak bulunamadı');
+    expect(root.innerHTML).toContain('Dial-a-Ride · 2 sefer');
+    expect(root.innerHTML).not.toContain('stop_id bulunamadı');
+  });
+
+  it('STM_047 kartında hat ve ilk kalkış bağlamını gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      routes: { R6: '6' },
+      trip_routes: { T1: 'R6', T2: 'R6' },
+      trip_first_dep: { T1: '07:15', T2: '07:45' },
+    };
+    const r = result(
+      [
+        notice('a', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1' }),
+        notice('b', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T2' }),
+      ],
+      ['a', 'b'],
+      [['STM_047', 5, 2]],
+      true,
+      ni,
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Bazı seferlerde kesin durak saatleri eksik');
+    expect(root.innerHTML).toContain('6 hattı · İlk kalkış 07:15, 07:45 · 2 sefer');
+  });
+
+  it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {
+    const r = result(
+      [notice('a', 'AGN_003', 'CRITICAL', {
+        entity_type: 'Agency', entity_id: 'A1', observed_value: ' http://www.wavetransit.com',
+      })],
+      ['a'],
+      [['AGN_003', 4, 1]],
+      true,
+      emptyNameIndex,
+      { agency_count: 1, agencies: [{ agency_id: 'A1', agency_name: 'Wave Transit' }] },
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain("İşletmecinin web adresi geçersiz");
+    expect(root.innerHTML).toContain('␠http://www.wavetransit.com');
+    expect(root.innerHTML).not.toContain('başındaki boşluğu');
+  });
+
+  it('STP_001 ve STP_012 kartlarında planlamacı dili ve durak kodu gösterilir', () => {
+    const r = result(
+      [
+        notice('a', 'STP_001', 'CRITICAL', { entity_type: 'Stop', entity_id: '71717' }),
+        notice('b', 'STP_012', 'CRITICAL', { entity_type: 'Stop', entity_id: '71717' }),
+      ],
+      ['a', 'b'],
+      [['STP_001', 5, 1], ['STP_012', 5, 1]],
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Aynı durak kodu birden fazla kayıtta kullanılmış');
+    expect(root.innerHTML).toContain('İstasyon veya giriş kaydı seferde kullanılmış');
+    expect(root.innerHTML).toContain('Kullanılan durak kodu: 71717');
+    expect(root.innerHTML).not.toContain('top_id yineleniyor');
+  });
+
+  it('STM_012 kartında hızı ve duraklar arasındaki kontrol sırasını planlamacı diliyle gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      routes: { R6: '6' },
+      trips: { T1: 'Hastane' },
+      trip_routes: { T1: 'R6' },
+      trip_first_dep: { T1: '08:45' },
+      stops: { S1: 'Merkez', S2: 'Hastane' },
+    };
+    const r = result(
+      [notice('a', 'STM_012', 'HIGH', {
+        entity_type: 'Trip', entity_id: 'T1', observed_value: '768 km/h',
+        details: { stop_a: 'S1', stop_b: 'S2' },
+      })],
+      [],
+      [['STM_012', 3, 500]],
+      true,
+      ni,
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Duraklar arasında gerçekçi olmayan hız');
+    expect(root.innerHTML).toContain('6 hattı · Hastane yönü · 08:45 kalkışlı sefer');
+    expect(root.innerHTML).toContain('Merkez ile Hastane arasında 768 km/h hız hesaplanmış');
+    expect(root.innerHTML).toContain('Önce bu seferin iki durak arasındaki varış ve kalkış saatlerini kontrol edin');
+    expect(root.innerHTML).not.toContain('trip_id');
+  });
+
+  it('STM_015 ve STM_016 kartlarında hat ve yolcuya gösterilen yön bağlamını gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      routes: { R6: '6' },
+      trips: { T1: 'Hastane' },
+      trip_routes: { T1: 'R6' },
+      trip_first_dep: { T1: '07:15' },
+    };
+    const r = result(
+      [
+        notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1' }),
+        notice('b', 'STM_016', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1' }),
+      ],
+      ['a', 'b'],
+      [['STM_015', 5, 1], ['STM_016', 5, 1]],
+      true,
+      ni,
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('İlk durakta varış saati eksik');
+    expect(root.innerHTML).toContain('Son durakta varış saati eksik');
+    expect(root.innerHTML).toContain('6 hattı · Hastane yönü · 07:15 kalkışlı sefer');
+    expect(root.innerHTML).not.toContain('trip_id');
+  });
+
+  it('ARC_031 kartında veri seti bilgisi planlamacı diliyle gösterilir', () => {
+    const r = result(
+      [notice('a', 'ARC_031', 'CRITICAL', { entity_type: 'Feed' })],
+      ['a'],
+      [['ARC_031', 5, 1]],
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Çeviri dosyası varken veri seti bilgisi eksik');
+    expect(root.innerHTML).toContain('feed dilini belirtin');
+    expect(root.innerHTML).not.toContain('translations.txt varken feed_info.txt eksik');
   });
 });

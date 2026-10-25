@@ -4,7 +4,7 @@ import type { ValidationResult, Notice, Severity } from '../types';
 import { t, tMsg, tRemediation, severityForLocale, getLocale } from '../i18n';
 import { setPage } from '../state';
 import { escHtml } from '../escape';
-import { buildProducerModel, type RuleGroup } from './producer-helpers';
+import { buildProducerModel, stopUsage, type RuleGroup } from './producer-helpers';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 
 function countLabel(g: RuleGroup): string {
@@ -21,30 +21,231 @@ function where(n: Notice): string {
   return parts.join(' · ');
 }
 
-function blockerCard(g: RuleGroup): string {
+function visibleValue(value: string | null): string {
+  if (!value) return '';
+  return value.replace(/ /g, '␠').replace(/\t/g, '⇥').replace(/\r?\n/g, '↵');
+}
+
+interface PlannerCardCopy {
+  title: string;
+  context?: string;
+  what: string;
+  action: string;
+  observed?: string;
+  usage?: string;
+}
+
+function agencyLabel(n: Notice, result: ValidationResult): string {
+  const agency = result.feed_summary?.agencies?.find(a => a.agency_id === n.entity_id);
+  return agency?.agency_name || n.entity_id || t('producer.card.unnamed_agency');
+}
+
+function tripContext(n: Notice, result: ValidationResult): { route: string; headsign: string; departure: string } {
+  const tripId = n.entity_id;
+  const routeId = tripId ? result.name_index.trip_routes?.[tripId] : undefined;
+  return {
+    route: routeId
+      ? result.name_index.routes?.[routeId] || t('producer.card.unknown_route')
+      : t('producer.card.unknown_route'),
+    headsign: tripId
+      ? result.name_index.trips?.[tripId] || t('producer.card.unknown_headsign')
+      : t('producer.card.unknown_headsign'),
+    departure: tripId
+      ? result.name_index.trip_first_dep?.[tripId] || t('producer.card.unknown_departure')
+      : t('producer.card.unknown_departure'),
+  };
+}
+
+function speedStopPair(n: Notice, result: ValidationResult): string {
+  const stopA = n.details?.stop_a ? result.name_index.stops?.[n.details.stop_a] : undefined;
+  const stopB = n.details?.stop_b ? result.name_index.stops?.[n.details.stop_b] : undefined;
+  return stopA && stopB
+    ? t('producer.card.stop_pair', { from: stopA, to: stopB })
+    : t('producer.card.adjacent_stops');
+}
+
+function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
+  switch (g.ruleId) {
+    case 'STM_012': {
+      const context = tripContext(n, result);
+      return {
+        title: t('producer.card.STM_012.title'),
+        context: t('producer.card.STM_012.context', context),
+        what: t('producer.card.STM_012.what', {
+          stops: speedStopPair(n, result),
+          speed: n.observed_value || t('producer.card.unknown_speed'),
+        }),
+        action: t('producer.card.STM_012.action'),
+      };
+    }
+    case 'STP_001': {
+      const stop = n.entity_id || n.observed_value || '';
+      return {
+        title: t('producer.card.STP_001.title'),
+        context: t('producer.card.STP_001.context', { stop }),
+        what: t('producer.card.STP_001.what'),
+        action: t('producer.card.STP_001.action'),
+      };
+    }
+    case 'STP_012': {
+      const stop = n.entity_id || n.observed_value || '';
+      return {
+        title: t('producer.card.STP_012.title'),
+        context: t('producer.card.STP_012.context', { stop }),
+        what: t('producer.card.STP_012.what'),
+        action: t('producer.card.STP_012.action'),
+      };
+    }
+    case 'STM_015': {
+      const context = tripContext(n, result);
+      return {
+        title: t('producer.card.STM_015.title'),
+        context: t('producer.card.STM_015.context', context),
+        what: t('producer.card.STM_015.what'),
+        action: t('producer.card.STM_015.action'),
+      };
+    }
+    case 'STM_016': {
+      const context = tripContext(n, result);
+      return {
+        title: t('producer.card.STM_016.title'),
+        context: t('producer.card.STM_016.context', context),
+        what: t('producer.card.STM_016.what'),
+        action: t('producer.card.STM_016.action'),
+      };
+    }
+    case 'ARC_031':
+      return {
+        title: t('producer.card.ARC_031.title'),
+        what: t('producer.card.ARC_031.what'),
+        action: t('producer.card.ARC_031.action'),
+      };
+    case 'ARC_004':
+      return {
+        title: t('producer.card.ARC_004.title'),
+        what: t('producer.card.ARC_004.what'),
+        action: t('producer.card.ARC_004.action'),
+      };
+    case 'ARC_008':
+      return {
+        title: t('producer.card.ARC_008.title'),
+        what: t('producer.card.ARC_008.what'),
+        action: t('producer.card.ARC_008.action'),
+      };
+    case 'ARC_012':
+      return {
+        title: t('producer.card.ARC_012.title'),
+        what: t('producer.card.ARC_012.what', { file: n.file || t('producer.card.unknown_file') }),
+        action: t('producer.card.ARC_012.action'),
+      };
+    case 'ARC_025':
+      return {
+        title: t('producer.card.ARC_025.title'),
+        what: t('producer.card.ARC_025.what', {
+          file: n.file || t('producer.card.unknown_file'),
+          field: n.field || t('producer.card.unknown_field'),
+        }),
+        action: t('producer.card.ARC_025.action'),
+      };
+    case 'ARC_035':
+      return {
+        title: t('producer.card.ARC_035.title'),
+        what: t('producer.card.ARC_035.what', { file: n.file || t('producer.card.unknown_file') }),
+        action: t('producer.card.ARC_035.action'),
+      };
+    case 'AGN_003':
+      return {
+        title: t('producer.card.AGN_003.title'),
+        what: t('producer.card.AGN_003.what', { agency: agencyLabel(n, result) }),
+        action: t('producer.card.AGN_003.action'),
+        observed: visibleValue(n.observed_value),
+      };
+    case 'STM_002': {
+      const stop = n.details?.stop_id || n.entity_id || n.observed_value || '';
+      const usage = stop
+        ? stopUsage(stop, result.name_index)
+          .map(u => t('producer.card.route_usage', { route: u.route, trips: u.trips }))
+          .join(', ')
+        : '';
+      return {
+        title: t('producer.card.STM_002.title'),
+        context: t('producer.card.STM_002.context', { stop }),
+        what: t('producer.card.STM_002.what'),
+        action: t('producer.card.STM_002.action'),
+        usage,
+      };
+    }
+    case 'STM_047': {
+      const routeLabels = [...new Set(g.notices
+        .map(item => item.entity_id ? result.name_index.trip_routes?.[item.entity_id] : null)
+        .filter((routeId): routeId is string => Boolean(routeId))
+        .map(routeId => result.name_index.routes?.[routeId] || routeId))];
+      const departures = [...new Set(g.notices
+        .map(item => item.entity_id ? result.name_index.trip_first_dep?.[item.entity_id] : null)
+        .filter((departure): departure is string => Boolean(departure)))];
+      return {
+        title: t('producer.card.STM_047.title'),
+        context: t('producer.card.STM_047.context', {
+          route: routeLabels.join(', ') || t('producer.card.unknown_route'),
+          departure: departures.join(', ') || t('producer.card.unknown_departure'),
+          count: g.count,
+        }),
+        what: t('producer.card.STM_047.what'),
+        action: t('producer.card.STM_047.action'),
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function blockerCard(g: RuleGroup, result: ValidationResult): string {
+  const n = g.notices[0];
+  const planner = plannerCardCopy(g, result);
+  const title = planner?.title || t(`rule.${g.ruleId}`);
+  const what = planner?.what || tMsg(n);
+  const action = planner?.action || tRemediation(n);
   const location = where(n);
-  const remediation = tRemediation(n);
+  const usage = planner?.usage
+    ? `<p class="producer-card-usage"><span class="producer-card-label">${t('producer.card.usage')}:</span> ${escHtml(planner.usage)}</p>`
+    : '';
+  const observed = planner?.observed
+    ? `<p class="producer-card-observed"><span class="producer-card-label">${t('producer.card.observed')}:</span> <code>${escHtml(planner.observed)}</code></p>`
+    : '';
+  const technical = [
+    `<span>${t('producer.card.rule')}:</span> <code>${escHtml(g.ruleId)}</code>`,
+    location ? `<span>${t('producer.card.location')}:</span> <code>${escHtml(location)}</code>` : '',
+  ].filter(Boolean).join(' · ');
   return `<article class="producer-card" data-rule="${escHtml(g.ruleId)}">
     <div class="producer-card-top">
-      <span class="producer-kicker">${escHtml(g.ruleId)}</span>
+      <h4 class="producer-card-title">${escHtml(title)}</h4>
       <span class="producer-muted">${escHtml(sevLabel(g.severity))}</span>
     </div>
-    <p class="producer-card-message">${escHtml(tMsg(n))}</p>
-    ${location ? `<p class="producer-where">${escHtml(location)}</p>` : ''}
-    ${remediation ? `<p class="producer-card-remediation">${escHtml(remediation)}</p>` : ''}
+    ${planner?.context ? `<p class="producer-card-context">${escHtml(planner.context)}</p>` : ''}
+    <div class="producer-card-block"><span class="producer-card-label">${t('producer.card.what')}</span><p class="producer-card-message">${escHtml(what)}</p></div>
+    ${usage}${observed}
+    <div class="producer-card-block producer-card-action"><span class="producer-card-label">${t('producer.card.action')}</span><p class="producer-card-remediation">${escHtml(action)}</p></div>
+    <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><p>${technical}</p></details>
     <div class="producer-actions">
       <button type="button" class="btn btn-ghost producer-open-fix">${t('producer.open_fix')}</button>
     </div>
   </article>`;
 }
 
-function improvementRow(g: RuleGroup): string {
+function improvementRow(g: RuleGroup, result: ValidationResult): string {
   const n = g.notices[0];
+  const planner = plannerCardCopy(g, result);
+  const title = planner?.title || t(`rule.${g.ruleId}`);
+  const body = planner
+    ? `${planner.context ? `<p class="producer-card-context">${escHtml(planner.context)}</p>` : ''}
+        <p><span class="producer-card-label">${t('producer.card.what')}</span> ${escHtml(planner.what)}</p>
+        <p class="producer-muted"><span class="producer-card-label">${t('producer.card.action')}</span> ${escHtml(planner.action)}</p>`
+    : `<p>${escHtml(tMsg(n))}</p><p class="producer-muted">${escHtml(tRemediation(n))}</p>`;
   return `<details class="producer-row">
-    <summary><span class="producer-row-title">${escHtml(t(`rule.${g.ruleId}`))}</span>
+    <summary><span class="producer-row-title">${escHtml(title)}</span>
       <span class="producer-muted">${escHtml(sevLabel(g.severity))} · ${escHtml(countLabel(g))}</span></summary>
-    <div class="producer-row-body"><p>${escHtml(tMsg(n))}</p><p class="producer-muted">${escHtml(tRemediation(n))}</p></div>
+    <div class="producer-row-body">${body}</div>
   </details>`;
 }
 
@@ -60,17 +261,17 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
     : `<div class="producer-verdict bad"><h2>${t('producer.not_publishable', { n: m.blockers.length })}</h2><p>${t('producer.not_publishable_desc')}</p></div>`;
   const coverage = coverageNotice(m.coverageComplete);
   const blockers = m.blockers.length
-    ? `<h3 class="producer-section">${t('producer.blockers_title')}</h3>${m.blockers.map(blockerCard).join('')}`
+    ? `<h3 class="producer-section">${t('producer.blockers_title')}</h3>${m.blockers.map(g => blockerCard(g, result)).join('')}`
     : '';
   const infos = m.infos.length
     ? `<details class="producer-row producer-infos"><summary><span class="producer-row-title">${t('producer.infos', { n: m.infos.length })}</span></summary>
-        <div class="producer-row-body">${m.infos.map(improvementRow).join('')}</div></details>`
+        <div class="producer-row-body">${m.infos.map(g => improvementRow(g, result)).join('')}</div></details>`
     : '';
 
   root.innerHTML = `<section class="producer-page">
     ${renderHiddenRulesBar()}${verdict}${coverage}${blockers}
     <h3 class="producer-section">${t('producer.improvements_title')} <span class="producer-muted">${t('producer.improvements_hint')}</span></h3>
-    <div class="producer-list">${m.improvements.map(improvementRow).join('')}${infos}</div>
+    <div class="producer-list">${m.improvements.map(g => improvementRow(g, result)).join('')}${infos}</div>
     <p class="producer-foot">${t('producer.footer')}</p>
   </section>`;
 

@@ -487,9 +487,19 @@
     .producer-card { background: var(--color-surface); border: 1px solid var(--color-border); border-left: 5px solid var(--color-critical); border-radius: 10px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .55rem; }
     .producer-card p { margin: 0; line-height: 1.55; }
     .producer-card-top { display: flex; justify-content: space-between; align-items: center; }
+    .producer-card-title { margin: 0; font-size: 1.05rem; line-height: 1.3; }
+    .producer-card-context { color: var(--color-text); font-weight: 600; }
+    .producer-card-block { display: grid; gap: .18rem; }
+    .producer-card-label { font-size: .75rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--color-muted); }
     .producer-kicker { font-size: .75rem; font-weight: 700; letter-spacing: .04em; color: var(--color-critical); }
     .producer-card-message { font-size: 1rem; }
-    .producer-card-remediation { color: var(--color-muted); font-size: .88rem; }
+    .producer-card-remediation { color: var(--color-text); font-size: .92rem; }
+    .producer-card-action { border-left: 3px solid var(--color-primary); padding-left: .75rem; }
+    .producer-card-usage, .producer-card-observed { color: var(--color-muted); font-size: .86rem; }
+    .producer-card-observed code, .producer-card-details code { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .producer-card-details { color: var(--color-muted); font-size: .78rem; }
+    .producer-card-details summary { cursor: pointer; }
+    .producer-card-details p { margin-top: .35rem; }
     .producer-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
     .producer-where { color: var(--color-muted); font-size: .78rem; }
     .producer-list { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
