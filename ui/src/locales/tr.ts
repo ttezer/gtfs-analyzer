@@ -9,6 +9,7 @@ const tr = {
     'nav.compare': 'Karşılaştır',
     'nav.producer': "Üretici Özeti",
     'producer.count': "{n} bulgu",
+    'producer.all_feed': "tüm feed",
     'producer.line': "satır {n}",
     'producer.used_by': "Kullanan seferler",
     'producer.trips': "{n} sefer",

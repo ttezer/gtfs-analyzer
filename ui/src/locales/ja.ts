@@ -10,6 +10,7 @@ const ja: LocaleShape = {
     'nav.compare': '比較',
     'nav.producer': "作成者向け概要",
     'producer.count': "{n} 件",
+    'producer.all_feed': "フィード全体",
     'producer.line': "{n} 行目",
     'producer.used_by': "使用している便",
     'producer.trips': "{n} 便",

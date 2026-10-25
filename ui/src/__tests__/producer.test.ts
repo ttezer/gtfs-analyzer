@@ -17,12 +17,17 @@ const emptyNameIndex: NameIndex = {
   shape_trips: {}, route_shapes: {}, map_data_deferred: false,
 };
 
-function result(notices: Notice[], blockers: string[], r9: [string, number, number][]): ValidationResult {
+function result(
+  notices: Notice[],
+  blockers: string[],
+  r9: [string, number, number][],
+  coverageComplete = true,
+): ValidationResult {
   return {
     notices,
     name_index: emptyNameIndex,
     reports: {
-      r1: { publishable: blockers.length === 0, coverage_complete: true, blocker_notice_ids: blockers },
+      r1: { publishable: blockers.length === 0, coverage_complete: coverageComplete, blocker_notice_ids: blockers },
       r9: { items: r9.map(([rule_id, priority_score, affected_instance_count]) => ({ rule_id, priority_score, affected_instance_count, labels: [] })) },
     },
   } as unknown as ValidationResult;
@@ -74,6 +79,18 @@ describe('buildProducerModel', () => {
     const m = buildProducerModel(r);
     expect(m.blockers[0].notices.map(n => n.id)).toEqual(['a']);
     expect(m.improvements).toEqual([]);
+  });
+
+  it('feed düzeyi notice grubunu korur ve kapsam kararını R1 den alır', () => {
+    const r = result(
+      [notice('a', 'ARC_024', 'MEDIUM', { entity_type: 'Feed' })],
+      ['a'],
+      [['ARC_024', 2, 1]],
+      false,
+    );
+    const m = buildProducerModel(r);
+    expect(m.blockers[0].notices[0].entity_type).toBe('Feed');
+    expect(m.coverageComplete).toBe(false);
   });
 });
 

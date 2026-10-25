@@ -11,6 +11,7 @@ const en: LocaleShape = {
     'nav.compare': 'Compare',
     'nav.producer': "Producer Summary",
     'producer.count': "{n} findings",
+    'producer.all_feed': "whole feed",
     'producer.line': "line {n}",
     'producer.used_by': "Used by",
     'producer.trips': "{n} trips",

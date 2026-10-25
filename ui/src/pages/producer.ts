@@ -5,8 +5,10 @@ import { t, tMsg, tRemediation, severityForLocale, getLocale } from '../i18n';
 import { setPage } from '../state';
 import { escHtml } from '../escape';
 import { buildProducerModel, stopUsage, entityLabel, type RuleGroup } from './producer-helpers';
+import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 
 function countLabel(g: RuleGroup): string {
+  if (g.notices[0]?.entity_type === 'Feed') return t('producer.all_feed');
   return t('producer.count', { n: g.count });
 }
 
@@ -63,13 +65,22 @@ function improvementRow(g: RuleGroup): string {
   </details>`;
 }
 
+function coverageNotice(result: ValidationResult, complete: boolean): string {
+  if (complete) return '';
+  const reasons = result.partial?.root_structural_errors ?? [];
+  const reasonList = reasons.length
+    ? `<ul>${reasons.map(reason => `<li>${escHtml(reason)}</li>`).join('')}</ul>`
+    : '';
+  return `<div class="producer-coverage">${t('producer.coverage_incomplete')}${reasonList}</div>`;
+}
+
 export function renderProducer(root: HTMLElement, result: ValidationResult): void {
   const m = buildProducerModel(result);
   const ni = result.name_index;
   const verdict = m.publishable
     ? `<div class="producer-verdict ok"><h2>${t('producer.publishable')}</h2><p>${t('producer.improvements_count', { n: m.improvements.length })}</p></div>`
     : `<div class="producer-verdict bad"><h2>${t('producer.not_publishable', { n: m.blockers.length })}</h2><p>${t('producer.not_publishable_desc')}</p></div>`;
-  const coverage = m.coverageComplete ? '' : `<div class="producer-coverage">${t('producer.coverage_incomplete')}</div>`;
+  const coverage = coverageNotice(result, m.coverageComplete);
   const blockers = m.blockers.length
     ? `<h3 class="producer-section">${t('producer.blockers_title')}</h3>${m.blockers.map((g, i) => blockerCard(g, i, m.blockers.length, ni)).join('')}`
     : '';
@@ -79,11 +90,13 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
     : '';
 
   root.innerHTML = `<section class="producer-page">
-    ${verdict}${coverage}${blockers}
+    ${renderHiddenRulesBar()}${verdict}${coverage}${blockers}
     <h3 class="producer-section">${t('producer.improvements_title')} <span class="producer-muted">${t('producer.improvements_hint')}</span></h3>
     <div class="producer-list">${m.improvements.map(improvementRow).join('')}${infos}</div>
     <p class="producer-foot">${t('producer.footer')}</p>
   </section>`;
+
+  attachHiddenRuleListeners(root);
 
   root.querySelectorAll<HTMLButtonElement>('.producer-copy').forEach(btn => {
     btn.addEventListener('click', () => {
