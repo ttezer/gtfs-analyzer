@@ -38,6 +38,7 @@ const ja: LocaleShape = {
     'producer.card.route_context': '{route} 路線',
     'producer.card.headsign_context': '{headsign} 方面',
     'producer.card.departure_context': '{departure} 発の便',
+    'producer.card.departure_list_context': '{departure} 発',
     'producer.card.trip_count_context': '{count} 便',
     'producer.card.adjacent_stops': '連続する2つの停留所',
     'producer.card.stop_pair': '{from} と {to}',

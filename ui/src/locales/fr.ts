@@ -39,6 +39,7 @@ const fr: LocaleShape = {
     'producer.card.route_context': 'Ligne {route}',
     'producer.card.headsign_context': 'direction {headsign}',
     'producer.card.departure_context': 'départ {departure}',
+    'producer.card.departure_list_context': 'départs {departure}',
     'producer.card.trip_count_context': '{count} trajets',
     'producer.card.adjacent_stops': 'deux arrêts consécutifs',
     'producer.card.stop_pair': '{from} et {to}',

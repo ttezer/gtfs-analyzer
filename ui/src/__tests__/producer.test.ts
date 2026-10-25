@@ -196,7 +196,7 @@ describe('Üretici kartı görünümü', () => {
     const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Bazı seferlerde kesin durak saatleri eksik');
-    expect(root.innerHTML).toContain('6 hattı · 07:15, 07:45, 08:15 kalkışlı sefer · 5 sefer');
+    expect(root.innerHTML).toContain('6 hattı · 07:15, 07:45, 08:15… kalkış · 5 sefer');
     expect(root.innerHTML).not.toContain('08:45');
   });
 

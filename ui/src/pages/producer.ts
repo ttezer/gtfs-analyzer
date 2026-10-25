@@ -189,7 +189,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         .filter((departure): departure is string => Boolean(departure)))];
       const contextParts = [
         routeLabels.length ? t('producer.card.route_context', { route: routeLabels.join(', ') }) : '',
-        departures.length ? t('producer.card.departure_context', { departure: departures.slice(0, 3).join(', ') }) : '',
+        departures.length
+          ? t('producer.card.departure_list_context', {
+            departure: departures.slice(0, 3).join(', ') + (departures.length > 3 ? '…' : ''),
+          })
+          : '',
         t('producer.card.trip_count_context', { count: g.count }),
       ].filter(Boolean);
       return {

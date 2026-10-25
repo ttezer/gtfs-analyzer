@@ -37,6 +37,7 @@ const tr = {
     'producer.card.route_context': '{route} hattı',
     'producer.card.headsign_context': '{headsign} yönü',
     'producer.card.departure_context': '{departure} kalkışlı sefer',
+    'producer.card.departure_list_context': '{departure} kalkış',
     'producer.card.trip_count_context': '{count} sefer',
     'producer.card.adjacent_stops': 'iki ardışık durak',
     'producer.card.stop_pair': '{from} ile {to}',
