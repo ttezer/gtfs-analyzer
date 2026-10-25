@@ -472,6 +472,40 @@
     /* Dışa Aktar — yeniden tasarım */
     .export-page { max-width: 1180px; }
     .compare-page { max-width: 1480px; margin: 0 auto; display: flex; flex-direction: column; gap: .85rem; }
+
+    /* Üretici özeti */
+    .producer-page { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: .85rem; }
+    .producer-verdict { border-radius: 12px; padding: 1.1rem 1.3rem; border: 1px solid var(--color-border); background: var(--color-surface); }
+    .producer-verdict h2 { margin: 0 0 .3rem; font-size: 1.45rem; }
+    .producer-verdict p { margin: 0; color: var(--color-muted); }
+    .producer-verdict.bad { border-left: 5px solid var(--color-critical); }
+    .producer-verdict.bad h2 { color: var(--color-critical); }
+    .producer-verdict.ok { border-left: 5px solid var(--color-low); }
+    .producer-coverage { padding: .65rem .85rem; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; border-radius: 8px; font-size: .85rem; }
+    .producer-section { margin: .6rem 0 0; font-size: 1rem; }
+    .producer-muted { color: var(--color-muted); font-size: .82rem; font-weight: 400; }
+    .producer-card { background: var(--color-surface); border: 1px solid var(--color-border); border-left: 5px solid var(--color-critical); border-radius: 10px; padding: 1rem 1.2rem; display: flex; flex-direction: column; gap: .55rem; }
+    .producer-card h3 { margin: 0; font-size: 1.1rem; }
+    .producer-card p { margin: 0; line-height: 1.55; }
+    .producer-card-top { display: flex; justify-content: space-between; align-items: center; }
+    .producer-kicker { font-size: .75rem; font-weight: 700; letter-spacing: .04em; color: var(--color-critical); }
+    .producer-usage { color: var(--color-muted); font-size: .9rem; }
+    .producer-todo { display: flex; flex-direction: column; gap: .2rem; background: var(--color-bg); border-radius: 8px; padding: .65rem .8rem; font-size: .9rem; }
+    .producer-actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .producer-where { margin-left: auto; color: var(--color-muted); font-size: .78rem; }
+    .producer-list { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+    .producer-row { border-top: 1px solid var(--color-border); }
+    .producer-list > .producer-row:first-child { border-top: 0; }
+    .producer-row > summary { display: flex; gap: .75rem; align-items: center; padding: .7rem 1rem; cursor: pointer; list-style: none; }
+    .producer-row > summary::-webkit-details-marker { display: none; }
+    .producer-row > summary::after { content: '›'; color: var(--color-muted); margin-left: .25rem; }
+    .producer-row[open] > summary::after { content: '⌄'; }
+    .producer-row-title { flex: 1 1 auto; }
+    .producer-row-body { padding: 0 1rem .8rem; font-size: .88rem; }
+    .producer-row-body p { margin: .3rem 0; }
+    .producer-infos > summary { background: var(--color-bg); color: var(--color-muted); }
+    .producer-infos .producer-row-body { padding: 0; }
+    .producer-foot { text-align: center; color: var(--color-muted); font-size: .78rem; margin: .4rem 0 0; }
     .compare-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
     .compare-head h2 { margin:0 0 .25rem; } .compare-head p { margin:0; color:var(--color-muted); }
     .compare-empty { min-height:260px; border:1px dashed var(--color-border); border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.45rem; color:var(--color-muted); background:var(--color-card); }
