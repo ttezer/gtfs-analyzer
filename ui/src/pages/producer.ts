@@ -40,20 +40,23 @@ function agencyLabel(n: Notice, result: ValidationResult): string {
   return agency?.agency_name || n.entity_id || t('producer.card.unnamed_agency');
 }
 
-function tripContext(n: Notice, result: ValidationResult): { route: string; headsign: string; departure: string } {
+function tripContext(n: Notice, result: ValidationResult): { route?: string; headsign?: string; departure?: string } {
   const tripId = n.entity_id;
   const routeId = tripId ? result.name_index.trip_routes?.[tripId] : undefined;
   return {
-    route: routeId
-      ? result.name_index.routes?.[routeId] || t('producer.card.unknown_route')
-      : t('producer.card.unknown_route'),
-    headsign: tripId
-      ? result.name_index.trips?.[tripId] || t('producer.card.unknown_headsign')
-      : t('producer.card.unknown_headsign'),
-    departure: tripId
-      ? result.name_index.trip_first_dep?.[tripId] || t('producer.card.unknown_departure')
-      : t('producer.card.unknown_departure'),
+    route: routeId ? result.name_index.routes?.[routeId] : undefined,
+    headsign: tripId ? result.name_index.trips?.[tripId] : undefined,
+    departure: tripId ? result.name_index.trip_first_dep?.[tripId] : undefined,
   };
+}
+
+function tripContextText(context: ReturnType<typeof tripContext>, includeHeadsign = true): string {
+  const parts = [
+    context.route ? t('producer.card.route_context', { route: context.route }) : '',
+    includeHeadsign && context.headsign ? t('producer.card.headsign_context', { headsign: context.headsign }) : '',
+    context.departure ? t('producer.card.departure_context', { departure: context.departure }) : '',
+  ].filter(Boolean);
+  return parts.join(t('producer.card.context_separator'));
 }
 
 function speedStopPair(n: Notice, result: ValidationResult): string {
@@ -71,12 +74,12 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const context = tripContext(n, result);
       return {
         title: t('producer.card.STM_012.title'),
-        context: t('producer.card.STM_012.context', context),
+        context: tripContextText(context),
         what: t('producer.card.STM_012.what', {
           stops: speedStopPair(n, result),
-          speed: n.observed_value || t('producer.card.unknown_speed'),
         }),
         action: t('producer.card.STM_012.action'),
+        observed: n.observed_value || undefined,
       };
     }
     case 'STP_001': {
@@ -101,7 +104,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const context = tripContext(n, result);
       return {
         title: t('producer.card.STM_015.title'),
-        context: t('producer.card.STM_015.context', context),
+        context: tripContextText(context),
         what: t('producer.card.STM_015.what'),
         action: t('producer.card.STM_015.action'),
       };
@@ -110,7 +113,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const context = tripContext(n, result);
       return {
         title: t('producer.card.STM_016.title'),
-        context: t('producer.card.STM_016.context', context),
+        context: tripContextText(context),
         what: t('producer.card.STM_016.what'),
         action: t('producer.card.STM_016.action'),
       };
@@ -184,13 +187,14 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const departures = [...new Set(g.notices
         .map(item => item.entity_id ? result.name_index.trip_first_dep?.[item.entity_id] : null)
         .filter((departure): departure is string => Boolean(departure)))];
+      const contextParts = [
+        routeLabels.length ? t('producer.card.route_context', { route: routeLabels.join(', ') }) : '',
+        departures.length ? t('producer.card.departure_context', { departure: departures.slice(0, 3).join(', ') }) : '',
+        t('producer.card.trip_count_context', { count: g.count }),
+      ].filter(Boolean);
       return {
         title: t('producer.card.STM_047.title'),
-        context: t('producer.card.STM_047.context', {
-          route: routeLabels.join(', ') || t('producer.card.unknown_route'),
-          departure: departures.join(', ') || t('producer.card.unknown_departure'),
-          count: g.count,
-        }),
+        context: contextParts.join(t('producer.card.context_separator')),
         what: t('producer.card.STM_047.what'),
         action: t('producer.card.STM_047.action'),
       };
@@ -239,6 +243,7 @@ function improvementRow(g: RuleGroup, result: ValidationResult): string {
   const title = planner?.title || t(`rule.${g.ruleId}`);
   const body = planner
     ? `${planner.context ? `<p class="producer-card-context">${escHtml(planner.context)}</p>` : ''}
+        ${planner.observed ? `<p class="producer-card-observed"><span class="producer-card-label">${t('producer.card.observed')}:</span> <code>${escHtml(planner.observed)}</code></p>` : ''}
         <p><span class="producer-card-label">${t('producer.card.what')}</span> ${escHtml(planner.what)}</p>
         <p class="producer-muted"><span class="producer-card-label">${t('producer.card.action')}</span> ${escHtml(planner.action)}</p>`
     : `<p>${escHtml(tMsg(n))}</p><p class="producer-muted">${escHtml(tRemediation(n))}</p>`;

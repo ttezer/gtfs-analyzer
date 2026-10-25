@@ -177,23 +177,27 @@ describe('Üretici kartı görünümü', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,
       routes: { R6: '6' },
-      trip_routes: { T1: 'R6', T2: 'R6' },
-      trip_first_dep: { T1: '07:15', T2: '07:45' },
+      trip_routes: { T1: 'R6', T2: 'R6', T3: 'R6', T4: 'R6', T5: 'R6' },
+      trip_first_dep: { T1: '07:15', T2: '07:45', T3: '08:15', T4: '08:45', T5: '09:15' },
     };
     const r = result(
       [
         notice('a', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1' }),
         notice('b', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T2' }),
+        notice('c', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T3' }),
+        notice('d', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T4' }),
+        notice('e', 'STM_047', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T5' }),
       ],
-      ['a', 'b'],
-      [['STM_047', 5, 2]],
+      ['a', 'b', 'c', 'd', 'e'],
+      [['STM_047', 5, 5]],
       true,
       ni,
     );
     const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Bazı seferlerde kesin durak saatleri eksik');
-    expect(root.innerHTML).toContain('6 hattı · İlk kalkış 07:15, 07:45 · 2 sefer');
+    expect(root.innerHTML).toContain('6 hattı · 07:15, 07:45, 08:15 kalkışlı sefer · 5 sefer');
+    expect(root.innerHTML).not.toContain('08:45');
   });
 
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {
@@ -254,9 +258,28 @@ describe('Üretici kartı görünümü', () => {
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Duraklar arasında gerçekçi olmayan hız');
     expect(root.innerHTML).toContain('6 hattı · Hastane yönü · 08:45 kalkışlı sefer');
-    expect(root.innerHTML).toContain('Merkez ile Hastane arasında 768 km/h hız hesaplanmış');
+    expect(root.innerHTML).toContain('Görülen değer:</span> <code>768 km/h</code>');
+    expect(root.innerHTML).toContain('Merkez ile Hastane arasında hesaplanan hız gerçekçi görünmüyor');
+    expect(root.innerHTML).not.toContain('768 km/h hız hesaplanmış');
     expect(root.innerHTML).toContain('Önce bu seferin iki durak arasındaki varış ve kalkış saatlerini kontrol edin');
     expect(root.innerHTML).not.toContain('trip_id');
+  });
+
+  it('STM_012 serbest gözlenen değeri ayrı gösterir ve eksik bağlamı cümleye katmaz', () => {
+    const r = result(
+      [notice('a', 'STM_012', 'HIGH', {
+        entity_type: 'Trip', entity_id: 'T1', observed_value: 'sıfır süre, 29.4 km',
+      })],
+      [],
+      [['STM_012', 3, 1]],
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Görülen değer:</span> <code>sıfır süre, 29.4 km</code>');
+    expect(root.innerHTML).toContain('iki ardışık durak arasında hesaplanan hız gerçekçi görünmüyor');
+    expect(root.innerHTML).not.toContain('sıfır süre, 29.4 km hız');
+    expect(root.innerHTML).not.toContain('belirtilmemiş hattı');
+    expect(root.innerHTML).not.toContain('belirtilmemiş yönü');
   });
 
   it('STM_015 ve STM_016 kartlarında hat ve yolcuya gösterilen yön bağlamını gösterir', () => {
