@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { buildProducerModel, stopUsage, entityLabel } from '../pages/producer-helpers';
+import { renderProducer } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
+
+vi.mock('../state', () => ({ setPage: vi.fn() }));
+vi.mock('../hidden-rules', () => ({
+  renderHiddenRulesBar: () => '',
+  attachHiddenRuleListeners: () => undefined,
+}));
 
 function notice(id: string, rule_id: string, severity: Notice['severity'], extra: Partial<Notice> = {}): Notice {
   return {
@@ -114,5 +121,31 @@ describe('NameIndex okumaları', () => {
     expect(entityLabel(notice('x', 'STM_002', 'CRITICAL', { entity_type: 'Stop', entity_id: 'area_803' }), ni)).toBe('area_803');
     expect(entityLabel(notice('x', 'TRP_011', 'HIGH', { entity_type: 'Trip', entity_id: 'T3' }), ni)).toBe('Dial-a-Ride · 07:15');
     expect(entityLabel(notice('x', 'ARC_020', 'LOW'), ni)).toBeNull();
+  });
+});
+
+describe('Üretici kartı görünümü', () => {
+  it('feed düzeyi satırda gerçekten tüm feed etiketini gösterir', () => {
+    const r = result(
+      [notice('a', 'ARC_024', 'MEDIUM', { entity_type: 'Feed' })],
+      [],
+      [['ARC_024', 2, 1]],
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('tüm feed');
+  });
+
+  it('kapsam nedeni için ham motor metnini yeniden göstermeyip yerelleştirilmiş uyarıyı korur', () => {
+    const r = result([], [], [], false);
+    r.partial = {
+      root_structural_errors: ['ZIP kökü hatası — motor metni'],
+      unavailable_files: [],
+      skipped_stages: [],
+    };
+    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Kontrol eksik kaldı');
+    expect(root.innerHTML).not.toContain('motor metni');
   });
 });
