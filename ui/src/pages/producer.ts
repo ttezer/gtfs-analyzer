@@ -250,18 +250,37 @@ function blockerCard(g: RuleGroup, result: ValidationResult): string {
     `<span>${t('producer.card.rule')}:</span> <code>${escHtml(g.ruleId)}</code>`,
     location ? `<span>${t('producer.card.location')}:</span> <code>${escHtml(location)}</code>` : '',
   ].filter(Boolean).join(' · ');
-  return `<article class="producer-card" data-rule="${escHtml(g.ruleId)}">
-    <div class="producer-card-top">
-      <h4 class="producer-card-title">${escHtml(title)}</h4>
-      <span class="producer-muted">${escHtml(sevLabel(g.severity))}</span>
-    </div>
-    ${planner?.context ? `<p class="producer-card-context">${escHtml(planner.context)}</p>` : ''}
-    <div class="producer-card-block"><span class="producer-card-label">${t('producer.card.what')}</span><p class="producer-card-message">${escHtml(what)}</p></div>
-    ${usage}${observed}
-    <div class="producer-card-block producer-card-action"><span class="producer-card-label">${t('producer.card.action')}</span><p class="producer-card-remediation">${escHtml(action)}</p></div>
-    <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><p>${technical}</p></details>
-    <div class="producer-actions">
-      <button type="button" class="btn btn-ghost producer-open-fix">${t('producer.open_fix')}</button>
+  const severityClass = g.severity.toLowerCase();
+  return `<article class="producer-card producer-card-${severityClass}" data-rule="${escHtml(g.ruleId)}">
+    <div class="producer-card-rail" aria-hidden="true"></div>
+    <div class="producer-card-content">
+      <header class="producer-card-header">
+        <div>
+          <div class="producer-card-kicker">
+            <span class="producer-card-severity"><span class="producer-card-severity-mark" aria-hidden="true">!</span>${escHtml(sevLabel(g.severity))}</span>
+            <span class="producer-card-count">${escHtml(countLabel(g))}</span>
+          </div>
+          <h4 class="producer-card-title">${escHtml(title)}</h4>
+        </div>
+      </header>
+      ${planner?.context ? `<p class="producer-card-context">${escHtml(planner.context)}</p>` : ''}
+      <div class="producer-card-main">
+        <div class="producer-card-evidence">
+          <span class="producer-card-label">${t('producer.card.what')}</span>
+          <p class="producer-card-message">${escHtml(what)}</p>
+          ${observed || usage ? `<div class="producer-card-facts">${observed}${usage}</div>` : ''}
+        </div>
+        <div class="producer-card-action">
+          <span class="producer-card-label">${t('producer.card.action')}</span>
+          <p class="producer-card-remediation">${escHtml(action)}</p>
+        </div>
+      </div>
+      <footer class="producer-card-footer">
+        <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><p>${technical}</p></details>
+        <div class="producer-actions">
+          <button type="button" class="btn btn-primary producer-open-fix">${t('producer.open_fix')} <span aria-hidden="true">→</span></button>
+        </div>
+      </footer>
     </div>
   </article>`;
 }
