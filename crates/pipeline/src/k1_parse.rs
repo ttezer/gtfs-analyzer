@@ -519,6 +519,13 @@ tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").";
 pub(crate) const RFC4180_BARE_QUOTE: &str = "tırnaksız alan tırnak işareti içeriyor";
 pub(crate) const RFC4180_AFTER_CLOSE: &str = "kapanış tırnağından sonra karakter var";
 
+pub(crate) fn rfc4180_issue_code(kind: &str) -> &'static str {
+    match kind {
+        RFC4180_AFTER_CLOSE => "characters_after_closing_quote",
+        _ => "bare_quote",
+    }
+}
+
 impl Rfc4180Acc {
     pub(crate) fn observe(&mut self, line: u64, kind: &'static str, example: &str) {
         if self.last_line != line || self.rows == 0 {
@@ -2479,7 +2486,7 @@ pub fn parse_with_limits(
                     &mut counter, "ARC_013",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
-                    Some(msg.clone()),
+                    Some("issue=unclosed_quote".to_string()),
                     format!("'{raw_name}' CSV tokenization hatası: {msg}"),
                     "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
                 ));
@@ -2567,7 +2574,7 @@ pub fn parse_with_limits(
                     Some(&raw_name),
                     Some(1),
                     None,
-                    Some("(boş)".to_string()),
+                    Some("\"\"".to_string()),
                     format!("'{raw_name}' başlığında boş sütun adı var."),
                     "Tüm sütun adlarının dolu olduğundan emin olun.",
                 ));
@@ -2842,7 +2849,11 @@ pub fn parse_with_limits(
                 Some(raw_name.as_str()),
                 rfc4180.first_line,
                 None,
-                Some(format!("{} rows · {kind}", rfc4180.rows)),
+                Some(format!(
+                    "rows={}; issue={}",
+                    rfc4180.rows,
+                    rfc4180_issue_code(kind)
+                )),
                 format!(
                     "'{raw_name}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
                     rfc4180.rows
@@ -3423,32 +3434,54 @@ fn check_polygon_rings(
         // yönelim şart koşmaz** — saat yönü kuralı GeoJSON RFC 7946 §3.1.6'nın SERİLEŞTİRME
         // kuralıdır ve RFC ayrıca ayrıştırıcıların uymayan geometriyi reddetmemesini söyler.
         // Yönü ihlal saymak `PTH_017` tuzağının aynısı olurdu → BİLİNÇLİ ÖLÇÜLMÜYOR.
-        let mut bad: Option<String> = None;
+        let mut bad: Option<Loc011Failure> = None;
         if !ring_is_simple(outer) {
-            bad = Some("dış ring kendini kesiyor".to_string());
+            bad = Some(Loc011Failure::new(
+                "issue=outer_ring_self_intersection",
+                "dış ring kendini kesiyor",
+            ));
         } else if has_spike(outer) {
-            bad = Some("zero-area spike (spike/cut line) on the outer ring".to_string());
+            bad = Some(Loc011Failure::new(
+                "issue=outer_ring_zero_area_spike",
+                "zero-area spike (spike/cut line) on the outer ring",
+            ));
         } else if ring_touches_itself(outer) {
-            bad = Some("dış ring kendine dokunuyor — iç kısım bölünüyor".to_string());
+            bad = Some(Loc011Failure::new(
+                "issue=outer_ring_self_touch",
+                "dış ring kendine dokunuyor — iç kısım bölünüyor",
+            ));
         }
         for (i, hole) in all_rings.iter().enumerate().skip(1) {
             if bad.is_some() {
                 break;
             }
             if !ring_is_simple(hole) {
-                bad = Some(format!("{i}. delik kendini kesiyor"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_self_intersection; ring={i}"),
+                    format!("{i}. delik kendini kesiyor"),
+                ));
             } else if has_spike(hole) {
-                bad = Some(format!("zero-area spike (spike/cut line) in hole {i}"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_zero_area_spike; ring={i}"),
+                    format!("zero-area spike (spike/cut line) in hole {i}"),
+                ));
             } else if ring_touches_itself(hole) {
-                bad = Some(format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_self_touch; ring={i}"),
+                    format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"),
+                ));
             } else if rings_cross(outer, hole) {
                 // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
-                bad = Some(format!("{i}. delik dış ring'i kesiyor"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_crosses_outer_ring; ring={i}"),
+                    format!("{i}. delik dış ring'i kesiyor"),
+                ));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
                 // görünmüyordu. Artık TÜM köşeler denetlenir.
-                bad = Some(format!(
-                    "hole {i} lies partly or wholly outside the outer ring"
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_outside_outer_ring; ring={i}"),
+                    format!("hole {i} lies partly or wholly outside the outer ring"),
                 ));
             }
         }
@@ -3460,7 +3493,10 @@ fn check_polygon_rings(
             }
             for j in (i + 1)..all_rings.len() {
                 if rings_cross(&all_rings[i], &all_rings[j]) {
-                    bad = Some(format!("{i}. ve {j}. delikler birbirini kesiyor"));
+                    bad = Some(Loc011Failure::new(
+                        format!("issue=holes_cross; rings={i},{j}"),
+                        format!("{i}. ve {j}. delikler birbirini kesiyor"),
+                    ));
                     break 'outer;
                 }
                 if all_rings[j]
@@ -3470,7 +3506,10 @@ fn check_polygon_rings(
                         .first()
                         .is_some_and(|&p| point_in_ring(p, &all_rings[j]))
                 {
-                    bad = Some(format!("{i}. ve {j}. delikler iç içe"));
+                    bad = Some(Loc011Failure::new(
+                        format!("issue=nested_holes; rings={i},{j}"),
+                        format!("{i}. ve {j}. delikler iç içe"),
+                    ));
                     break 'outer;
                 }
             }
@@ -3481,11 +3520,11 @@ fn check_polygon_rings(
         if bad.is_none() {
             bad = interior_disconnection(&all_rings);
         }
-        if let Some(why) = bad {
+        if let Some(failure) = bad {
             notices.push(make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
-                Some(fname), Some(feat_num), Some("coordinates"), Some(why.clone()),
-                format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {why}."),
+                Some(fname), Some(feat_num), Some("coordinates"), Some(failure.observed),
+                format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {}.", failure.explanation),
                 "Poligon halkalarını kendini kesmeyecek şekilde düzeltin; delikleri dış ring'in içinde tutun.",
             ));
         }
@@ -3725,7 +3764,21 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
 /// kalıntı olarak yazıyordu. Ölçüt çevrime çevrilince özel hâl kendiliğinden kapsandı.
 ///
 /// Öz-döngüler (`ring_touches_itself`) çağıran tarafta ring başına ayrıca denetlenir.
-fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
+struct Loc011Failure {
+    observed: String,
+    explanation: String,
+}
+
+impl Loc011Failure {
+    fn new(observed: impl Into<String>, explanation: impl Into<String>) -> Self {
+        Self {
+            observed: observed.into(),
+            explanation: explanation.into(),
+        }
+    }
+}
+
+fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
     let label = |i: usize| {
         if i == 0 {
             "dış ring".to_string()
@@ -3754,17 +3807,24 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
                 continue;
             }
             if contacts > 1 {
-                return Some(format!(
-                    "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
-                    label(i),
-                    label(j)
+                return Some(Loc011Failure::new(
+                    format!("issue=multiple_ring_contacts; rings={i},{j}; contacts={contacts}"),
+                    format!(
+                        "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
+                        label(i),
+                        label(j)
+                    ),
                 ));
             }
             let (ri, rj) = (find(&mut parent, i), find(&mut parent, j));
             if ri == rj {
-                return Some(format!(
-                    "ring temasları çevrim oluşturuyor ({} ile {} teması zinciri kapatıyor) — iç kısım bölünüyor",
-                    label(i), label(j)));
+                return Some(Loc011Failure::new(
+                    format!("issue=ring_contact_cycle; rings={i},{j}"),
+                    format!(
+                        "ring temasları çevrim oluşturuyor ({} ile {} teması zinciri kapatıyor) — iç kısım bölünüyor",
+                        label(i), label(j)
+                    ),
+                ));
             }
             parent[ri] = rj;
         }

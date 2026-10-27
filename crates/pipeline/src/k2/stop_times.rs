@@ -2221,7 +2221,7 @@ pub fn validate_stop_times_with_limits(
                     st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_042", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("stop_headsign"),
-                    Some(format!("'{bad}' karakteri içeriyor")), None,
+                    Some(bad.to_string()), None,
                     format!("stop_headsign '{}' Google Transit tarafından desteklenmeyen karakter içeriyor: '{bad}'.", hs),
                     "stop_headsign değerinden ! $ % \\ * = _ karakterlerini kaldırın.",
                 ));
@@ -2371,7 +2371,11 @@ pub fn validate_stop_times_with_limits(
                             st.notices.push(make_k2_notice(
                         &mut st.counter, "STM_051", EntityType::Trip, eid(),
                         None, &file.name, Some(line), Some("pickup_type"),
-                        Some(if implicit_pickup { "(boş → örtük 0)".to_string() } else { pt.to_string() }),
+                Some(if implicit_pickup {
+                    "value=0; source=implicit_default".to_string()
+                } else {
+                    pt.to_string()
+                }),
                         Some("1 or 2".to_string()),
                         format!(
                             "trip_id '{trip_id}' Flex penceresi tanımlı iken pickup_type={pt} yasaktır.{}",
@@ -2387,7 +2391,11 @@ pub fn validate_stop_times_with_limits(
                         st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
                     None, &file.name, Some(line), Some("drop_off_type"),
-                    Some(if implicit_drop_off { "(boş → örtük 0)".to_string() } else { "0".to_string() }),
+                Some(if implicit_drop_off {
+                    "value=0; source=implicit_default".to_string()
+                } else {
+                    "0".to_string()
+                }),
                     Some("1 or 2".to_string()),
                     format!(
                         "trip_id '{trip_id}' Flex penceresi tanımlı iken drop_off_type=0 yasaktır.{}",
@@ -3890,7 +3898,10 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "STM_052")
             .expect("boş drop_off_type örtük 0'dır, STM_052 bekleniyor");
-        assert_eq!(hit.observed_value.as_deref(), Some("(boş → örtük 0)"));
+        assert_eq!(
+            hit.observed_value.as_deref(),
+            Some("value=0; source=implicit_default")
+        );
         assert!(
             notices.iter().any(|n| n.rule_id == "STM_051"),
             "aynı satırda pickup_type=0 açık yazılı → STM_051 de konuşmalı"
@@ -3917,7 +3928,10 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "STM_051")
             .expect("boş pickup_type örtük 0'dır, STM_051 bekleniyor");
-        assert_eq!(hit.observed_value.as_deref(), Some("(boş → örtük 0)"));
+        assert_eq!(
+            hit.observed_value.as_deref(),
+            Some("value=0; source=implicit_default")
+        );
         assert!(
             !notices.iter().any(|n| n.rule_id == "STM_052"),
             "drop_off_type=1 açıkça yazılı → STM_052 susmalı"

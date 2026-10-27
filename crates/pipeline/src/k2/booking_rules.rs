@@ -177,11 +177,12 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         // alan yoksa `Ok(None)` döner. İkisini birbirine karıştırmak bu depoda
         // dört kez kural körleştirdi.
         for field in ["prior_notice_start_time", "prior_notice_last_time"] {
-            if let Err(raw) = parse_gtfs_time(&row_map, field) {
+            if parse_gtfs_time(&row_map, field).is_err() {
+                let raw = get_raw_field(&row_map, field).unwrap_or("");
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_025", EntityType::Row, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some(field),
-                    Some(raw), Some("HH:MM:SS".to_string()),
+                    Some(raw.to_string()), Some("HH:MM:SS".to_string()),
                     format!("{field} '{}' geçerli bir GTFS saati değil.",
                             get_trimmed_field(&row_map, field).unwrap_or("")),
                     "Saati HH:MM:SS biçiminde yazın; gece yarısını aşan servisler için 24'ten büyük saat kullanın (örn. 25:10:00).",

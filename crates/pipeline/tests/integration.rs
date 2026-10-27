@@ -4466,7 +4466,7 @@ fn arc033_reports_one_summary_per_file_not_one_per_row() {
             );
             let observed = hits[0].observed_value.clone().unwrap_or_default();
             assert!(
-                observed.starts_with("5 rows"),
+                observed.starts_with("rows=5;"),
                 "özet satır sayısını taşımalı: {observed}"
             );
         }

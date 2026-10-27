@@ -816,7 +816,7 @@ fn check_agencies(
             "fare_attributes.txt",
             None,
             Some("agency_id"),
-            Some(format!("{fares_without_agency} ücret")),
+            Some(fares_without_agency.to_string()),
             Some("dolu".to_string()),
             format!(
                 "Feed'de {} işletici var; {fares_without_agency} ücret kaydında agency_id belirtilmemiş — hangi işleticinin ücreti olduğu belirlenemiyor.",
@@ -7577,7 +7577,7 @@ fn check_flex_zone_overlap(
                 ctr, "STM_060", EntityType::Trip,
                 Some(trip.to_string()), Some(trip.to_string()),
                 "stop_times.txt", Some(line), Some("location_id"),
-                Some(zones.clone()), None,
+                Some(format!("location_ids={l1},{l2}")), None,
                 format!(
                     "'{trip}' seferinde {zones} eşzamanlı örtüşüyor: geojson geometrileri kesişiyor, \
                      pickup/drop-off pencereleri çakışıyor ve ikisi de aynı hizmeti sunuyor."
