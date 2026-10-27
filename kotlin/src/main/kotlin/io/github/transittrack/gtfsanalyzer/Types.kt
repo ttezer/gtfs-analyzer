@@ -3,18 +3,14 @@ package io.github.transittrack.gtfsanalyzer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-// Kotlin data classes mirroring `sdk/src/types.ts` (lines 1-147) plus `FatalCode`/
-// `FatalError` from the same file. These decode the JSON produced by the Rust
-// engine — the same engine the npm SDK, Python SDK, and CLI all read.
+// Kotlin data classes mirroring `sdk/src/types.ts` plus `FatalCode`/`FatalError`
+// from the same file. These decode the JSON produced by the Rust engine — the
+// same engine the npm SDK, Python SDK, and CLI all read.
 //
 // Field naming: snake_case JSON keys (the engine's wire format) map to camelCase
 // Kotlin properties via `@SerialName`. Nullability and defaults mirror the TS
 // `?`/`| null` markers so that partial/older-engine JSON missing an additive
 // field still decodes (TS comment: "Eklemeli alan: eski motor sürümleri taşımaz").
-//
-// Scope note: `ValidationResult.agency_breakdown`/`feed_summary` (and the
-// `AgencyBreakdown`/`FeedSummary` type family) live past line 147 of types.ts
-// and are intentionally out of scope for this file — a later task's job.
 
 @Serializable
 enum class Severity {
@@ -198,9 +194,14 @@ data class ReportSet(
 @Serializable
 data class FileInfo(
     val name: String,
-    // Rust: `rows: u32`, `bytes: u32`.
-    val rows: Int,
-    val bytes: Int,
+    // Rust: `rows: u32`, `bytes: u32`. Long (not Int): real feeds have been measured
+    // with a single file around 2.74 GiB, which exceeds Int.MAX_VALUE (~2.1B) but
+    // still fits in u32 (max ~4.29B) — decoding such a value into an Int throws a
+    // SerializationException for the whole result. `rows` is converted alongside
+    // `bytes` for the same sibling-u32-field reason, even though a rows overflow is
+    // far less likely in practice.
+    val rows: Long,
+    val bytes: Long,
 )
 
 @Serializable
@@ -264,6 +265,84 @@ data class PartialReport(
     @SerialName("skipped_checks") val skippedChecks: List<String> = emptyList(),
 )
 
+// `agency.txt` record, as seen through the per-rule agency breakdown (#2201).
+// Rust (crates/core/src/agency.rs `AgencyJson`): `trip_count` is `u64`, so it maps
+// to Long; `notice_indices` indexes into the (capped) `notices` array and stays Int.
+@Serializable
+data class AgencyInfo(
+    @SerialName("agency_id") val agencyId: String,
+    @SerialName("agency_name") val agencyName: String,
+    @SerialName("trip_count") val tripCount: Long,
+    @SerialName("notice_indices") val noticeIndices: List<Int>,
+)
+
+// A set of agencies jointly affected by a finding (shared stop/shape/service).
+// Rust `AgencySetJson`: both counts are `u64` -> Long.
+@Serializable
+data class AgencySetCount(
+    @SerialName("agency_ids") val agencyIds: List<String>,
+    @SerialName("affected_entity_count") val affectedEntityCount: Long,
+    @SerialName("trim_fallback_count") val trimFallbackCount: Long,
+)
+
+// Per-rule counts in the agency breakdown. Rust `RuleJson`: every count field is
+// `u64` -> Long, matching the existing `Notice.line`/`u64` convention in this file.
+@Serializable
+data class RuleAgencyCounts(
+    @SerialName("finding_count") val findingCount: Long,
+    @SerialName("affected_entity_count") val affectedEntityCount: Long,
+    @SerialName("displayed_sample_count") val displayedSampleCount: Long,
+    @SerialName("agency_sets") val agencySets: List<AgencySetCount>,
+    val unattributed: Map<String, Long>,
+    val unsupported: Long,
+    @SerialName("not_applicable") val notApplicable: Long,
+)
+
+// Rule x agency breakdown (MobilityData gtfs-validator #2201 parity). Reporting-only:
+// does not affect severity or score. Rust: `AgencyBreakdown` (crates/core/src/agency.rs).
+@Serializable
+data class AgencyBreakdown(
+    val complete: Boolean,
+    val agencies: List<AgencyInfo>,
+    val rules: Map<String, RuleAgencyCounts>,
+)
+
+// `agency.txt` contact fields (trimmed; blank fields omitted). Rust: `AgencyContact`
+// (crates/core/src/feed_summary.rs) — only `agency_name` is required.
+@Serializable
+data class AgencyContact(
+    @SerialName("agency_id") val agencyId: String? = null,
+    @SerialName("agency_name") val agencyName: String,
+    @SerialName("agency_url") val agencyUrl: String? = null,
+    @SerialName("agency_timezone") val agencyTimezone: String? = null,
+    @SerialName("agency_lang") val agencyLang: String? = null,
+    @SerialName("agency_phone") val agencyPhone: String? = null,
+    @SerialName("agency_email") val agencyEmail: String? = null,
+    @SerialName("agency_fare_url") val agencyFareUrl: String? = null,
+)
+
+// `feed_info.txt` first-record publisher fields (dates live in `FeedMetrics`).
+// Rust: `FeedInfoSummary` — every field optional.
+@Serializable
+data class FeedInfoSummary(
+    @SerialName("feed_publisher_name") val feedPublisherName: String? = null,
+    @SerialName("feed_publisher_url") val feedPublisherUrl: String? = null,
+    @SerialName("feed_lang") val feedLang: String? = null,
+    @SerialName("feed_version") val feedVersion: String? = null,
+    @SerialName("feed_contact_email") val feedContactEmail: String? = null,
+    @SerialName("feed_contact_url") val feedContactUrl: String? = null,
+)
+
+// Agency/publisher summary card data. Rust: `FeedSummary` — `agencies` capped at
+// `MAX_AGENCIES` (100); the true count is `agency_count` (`u32`, kept as Int: bounded
+// by `agency.txt` row count, which stays far below Int range in practice).
+@Serializable
+data class FeedSummary(
+    @SerialName("agency_count") val agencyCount: Int,
+    val agencies: List<AgencyContact> = emptyList(),
+    @SerialName("feed_info") val feedInfo: FeedInfoSummary? = null,
+)
+
 @Serializable
 data class ValidationResult(
     // TS: `validation_status?: 'COMPLETE' | 'PARTIAL'`.
@@ -275,6 +354,10 @@ data class ValidationResult(
     @SerialName("name_index") val nameIndex: NameIndex,
     // Rust: `BTreeMap<String, u32>`.
     @SerialName("capped_totals") val cappedTotals: Map<String, Int>,
+    // TS: `agency_breakdown?: AgencyBreakdown` — additive field (#2201).
+    @SerialName("agency_breakdown") val agencyBreakdown: AgencyBreakdown? = null,
+    // TS: `feed_summary?: FeedSummary` — additive field.
+    @SerialName("feed_summary") val feedSummary: FeedSummary? = null,
 )
 
 @Serializable

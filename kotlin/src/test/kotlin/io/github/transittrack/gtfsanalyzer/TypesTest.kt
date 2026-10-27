@@ -128,6 +128,38 @@ class TypesTest {
     }
 
     @Test
+    fun decodesFileInfoBytesAboveIntMaxValueAsLong() {
+        // Regression test for a `FileInfo.bytes`/`rows` overflow: the Rust field is
+        // `u32` (max ~4.29B), but a real feed has been measured with a file around
+        // 2.74 GiB (~2,942,000,000 bytes) — above Int.MAX_VALUE (~2.1B). Decoding this
+        // into a Kotlin `Int` throws a SerializationException for the whole result;
+        // `Long` must decode it cleanly.
+        val overflowingBytes = 2_942_000_000L
+        check(overflowingBytes > Int.MAX_VALUE.toLong())
+        val json = """{"name":"stop_times.txt","rows":50000000,"bytes":$overflowingBytes}"""
+        val fileInfo = Json.decodeFromString<FileInfo>(json)
+        assertEquals(overflowingBytes, fileInfo.bytes)
+        assertEquals(50_000_000L, fileInfo.rows)
+    }
+
+    @Test
+    fun decodesFeedMetricsWithAFileStatsEntryAboveIntMaxValue() {
+        // Same overflow, exercised through the nested path FeedMetrics.file_stats
+        // actually decodes through in production JSON.
+        val overflowingBytes = (Int.MAX_VALUE.toLong()) + 500_000_000L
+        val json = """
+            {"stop_count":10,"route_count":2,"trip_count":5,"shape_count":2,
+             "active_service_days":30,"avg_daily_trips":12.5,
+             "feed_start_date":null,"feed_end_date":null,"service_start_date":null,
+             "service_end_date":null,"spec_notice_count":0,"interop_notice_count":0,
+             "quality_notice_count":0,"analytics_notice_count":0,"overall_score":95.5,
+             "file_stats":[{"name":"stop_times.txt","rows":1,"bytes":$overflowingBytes}]}
+        """.trimIndent()
+        val metrics = Json.decodeFromString<FeedMetrics>(json)
+        assertEquals(overflowingBytes, metrics.fileStats[0].bytes)
+    }
+
+    @Test
     fun decodesAFullValidationResultWithNestedReportsAndNameIndex() {
         val json = """
             {
@@ -185,6 +217,105 @@ class TypesTest {
             result.nameIndex.shapeCoords["sh1"],
         )
         assertEquals(501, result.cappedTotals["RUL_1"])
+    }
+
+    @Test
+    fun decodesAValidationResultWithAgencyBreakdownAndFeedSummary() {
+        // Finding 1 regression: `agency_breakdown`/`feed_summary` (sdk/src/types.ts
+        // ~149-151, ~293-363) were missing from ValidationResult entirely, so any
+        // engine JSON carrying them silently lost that data under
+        // `ignoreUnknownKeys = true`.
+        val json = """
+            {
+              "notices":[],
+              "reports":{
+                "r1":{"publishable":true,"coverage_complete":true,"blocker_notice_ids":[]},
+                "r2":{"items":[]},"r3":{"items":[]},"r4":{"items":[]},
+                "r5":{"score":0.0,"pub_score":0.0,"spec_score":0.0,"interop_score":0.0,"quality_score":0.0,"analytics_score":0.0},
+                "r7":{"items":[]},"r8":{"items":[]},"r9":{"items":[]}
+              },
+              "metrics":{
+                "stop_count":0,"route_count":0,"trip_count":0,"shape_count":0,
+                "active_service_days":0,"avg_daily_trips":0.0,
+                "feed_start_date":null,"feed_end_date":null,"service_start_date":null,"service_end_date":null,
+                "spec_notice_count":0,"interop_notice_count":0,"quality_notice_count":0,"analytics_notice_count":0,
+                "overall_score":0.0,"file_stats":[]
+              },
+              "name_index":{
+                "stops":{},"routes":{},"trips":{},"trip_routes":{},"trip_directions":{},
+                "stop_coords":{},"trip_first_dep":{},"shape_routes":{},"shape_coords":{},
+                "trip_shapes":{},"trip_stops":{},"shape_trips":{},"route_shapes":{},
+                "map_data_deferred":true
+              },
+              "capped_totals":{},
+              "agency_breakdown":{
+                "complete":true,
+                "agencies":[{"agency_id":"A1","agency_name":"Alpha Transit","trip_count":9000000000,"notice_indices":[0,2]}],
+                "rules":{
+                  "TRP_005":{
+                    "finding_count":1,"affected_entity_count":2,"displayed_sample_count":1,
+                    "agency_sets":[{"agency_ids":["A1"],"affected_entity_count":1,"trim_fallback_count":0}],
+                    "unattributed":{"UnknownRoute":3},"unsupported":0,"not_applicable":0
+                  }
+                }
+              },
+              "feed_summary":{
+                "agency_count":1,
+                "agencies":[{"agency_name":"Alpha Transit","agency_url":"https://alpha.example"}],
+                "feed_info":{"feed_publisher_name":"Alpha Transit","feed_lang":"en"}
+              }
+            }
+        """.trimIndent()
+        val result = Json.decodeFromString<ValidationResult>(json)
+
+        val breakdown = result.agencyBreakdown
+        assertEquals(true, breakdown?.complete)
+        assertEquals("A1", breakdown?.agencies?.get(0)?.agencyId)
+        // trip_count is u64 on the Rust side; this value is above Int.MAX_VALUE.
+        assertEquals(9_000_000_000L, breakdown?.agencies?.get(0)?.tripCount)
+        val ruleCounts = breakdown?.rules?.get("TRP_005")
+        assertEquals(2L, ruleCounts?.affectedEntityCount)
+        assertEquals("A1", ruleCounts?.agencySets?.get(0)?.agencyIds?.get(0))
+        assertEquals(3L, ruleCounts?.unattributed?.get("UnknownRoute"))
+
+        val summary = result.feedSummary
+        assertEquals(1, summary?.agencyCount)
+        assertEquals("Alpha Transit", summary?.agencies?.get(0)?.agencyName)
+        assertEquals("en", summary?.feedInfo?.feedLang)
+    }
+
+    @Test
+    fun decodesAValidationResultWithAgencyBreakdownAndFeedSummaryOmitted() {
+        // The additive fields must stay null when an older-engine payload doesn't
+        // carry them at all (not just when explicitly null).
+        val json = """
+            {
+              "notices":[],
+              "reports":{
+                "r1":{"publishable":true,"coverage_complete":true,"blocker_notice_ids":[]},
+                "r2":{"items":[]},"r3":{"items":[]},"r4":{"items":[]},
+                "r5":{"score":0.0,"pub_score":0.0,"spec_score":0.0,"interop_score":0.0,"quality_score":0.0,"analytics_score":0.0},
+                "r7":{"items":[]},"r8":{"items":[]},"r9":{"items":[]}
+              },
+              "metrics":{
+                "stop_count":0,"route_count":0,"trip_count":0,"shape_count":0,
+                "active_service_days":0,"avg_daily_trips":0.0,
+                "feed_start_date":null,"feed_end_date":null,"service_start_date":null,"service_end_date":null,
+                "spec_notice_count":0,"interop_notice_count":0,"quality_notice_count":0,"analytics_notice_count":0,
+                "overall_score":0.0,"file_stats":[]
+              },
+              "name_index":{
+                "stops":{},"routes":{},"trips":{},"trip_routes":{},"trip_directions":{},
+                "stop_coords":{},"trip_first_dep":{},"shape_routes":{},"shape_coords":{},
+                "trip_shapes":{},"trip_stops":{},"shape_trips":{},"route_shapes":{},
+                "map_data_deferred":true
+              },
+              "capped_totals":{}
+            }
+        """.trimIndent()
+        val result = Json.decodeFromString<ValidationResult>(json)
+        assertNull(result.agencyBreakdown)
+        assertNull(result.feedSummary)
     }
 
     @Test
