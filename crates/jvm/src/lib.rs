@@ -2,6 +2,9 @@ use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::i18n::{Lang, Translator};
 use gtfs_core::{NameIndex, ValidateResult};
 use gtfs_pipeline::validate_bytes;
+use jni::objects::{JByteArray, JClass, JString};
+use jni::sys::{jboolean, jint};
+use jni::JNIEnv;
 
 /// Validate one GTFS ZIP buffer using the shared Rust validation pipeline.
 pub fn validate_to_json(
@@ -72,6 +75,86 @@ pub fn validate_guarded(
     lang: &str,
 ) -> ValidateJvmOutcome {
     catch_unwind_to_outcome(|| validate_to_json(feed, today, config_json, include_name_index, lang))
+}
+
+/// JNI entry point for `GtfsAnalyzerNative.validate(...)` on the Kotlin side.
+///
+/// Converts the JNI arguments to Rust types, dispatches to [`validate_guarded`],
+/// and converts the outcome back across the JNI boundary:
+/// - `Json(s)` returns a new Java string containing `s`.
+/// - `InvalidArgument(msg)` throws `java.lang.IllegalArgumentException` with `msg`.
+/// - `Panicked(msg)` throws `io/github/transittrack/gtfsanalyzer/GtfsEngineException` with `msg`.
+///
+/// In both error cases a pending exception is set via `throw_new`; JNI still requires
+/// this function to return a value of its declared return type, so an empty string is
+/// returned (the JVM observes the pending exception on return, not this value).
+#[no_mangle]
+pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNative_validate<
+    'local,
+>(
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    feed: JByteArray<'local>,
+    today: jint,
+    config_json: JString<'local>,
+    include_name_index: jboolean,
+    lang: JString<'local>,
+) -> JString<'local> {
+    let feed_bytes = match env.convert_byte_array(&feed) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            let _ = env.throw_new(
+                "java/lang/IllegalArgumentException",
+                format!("invalid feed byte array: {e}"),
+            );
+            return env.new_string("").unwrap();
+        }
+    };
+
+    let config_json_str: String = match env.get_string(&config_json) {
+        Ok(s) => s.into(),
+        Err(e) => {
+            let _ = env.throw_new(
+                "java/lang/IllegalArgumentException",
+                format!("invalid config_json string: {e}"),
+            );
+            return env.new_string("").unwrap();
+        }
+    };
+
+    let lang_str: String = match env.get_string(&lang) {
+        Ok(s) => s.into(),
+        Err(e) => {
+            let _ = env.throw_new(
+                "java/lang/IllegalArgumentException",
+                format!("invalid lang string: {e}"),
+            );
+            return env.new_string("").unwrap();
+        }
+    };
+
+    let include_name_index_bool = include_name_index != 0;
+
+    match validate_guarded(
+        &feed_bytes,
+        today as u32,
+        &config_json_str,
+        include_name_index_bool,
+        &lang_str,
+    ) {
+        ValidateJvmOutcome::Json(s) => env.new_string(s).unwrap(),
+        ValidateJvmOutcome::InvalidArgument(msg) => {
+            let _ = env.throw_new("java/lang/IllegalArgumentException", msg);
+            env.new_string("").unwrap()
+        }
+        ValidateJvmOutcome::Panicked(msg) => {
+            let _ = env.throw_new(
+                "io/github/transittrack/gtfsanalyzer/GtfsEngineException",
+                msg,
+            );
+            env.new_string("").unwrap()
+        }
+    }
 }
 
 #[cfg(test)]
