@@ -17,6 +17,12 @@
 /sdk/node_modules/
 /crates/wasm/pkg/
 
+# Gradle (kotlin/ SDK)
+/kotlin/.gradle/
+/kotlin/.kotlin/
+/kotlin/build/
+/kotlin/src/main/resources/natives/
+
 # Built UI bundle — CI builds and deploys it from source (see deploy.yml),
 # so the committed copy was dead weight. Build locally only for preview.
 /ui/dist/
