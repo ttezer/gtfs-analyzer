@@ -35,16 +35,34 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.named("test") { dependsOn("buildNativeForCurrentPlatform") }
+// Local-dev convenience: `./gradlew test` (or `:compileTestKotlin`/an IDE run) builds and
+// installs the current platform's native lib automatically, with no extra steps.
+//
+// This must NOT happen during CI's publish job. That job downloads per-platform native
+// artifacts built by a matrix job (one leg per target, including linux-x86_64) and copies
+// them into place with `copyNativeLib`, then runs `./gradlew publish`. `publish` also
+// depends on `processResources`, so without an opt-out, CI would rerun a full LTO release
+// `cargo build` for the runner's own platform (linux-x86_64, since the publish job runs on
+// ubuntu-latest) right after copyNativeLib placed the matrix-built artifact there —
+// overwriting it, making that matrix leg pointless, and risking a timeout from the rebuild.
+//
+// `-PskipNativeBuild=true` (passed by publish-kotlin.yml's publish job) skips both
+// `dependsOn` wirings below, so `processResources`/`test` run with whatever native libs are
+// already on disk (the ones copyNativeLib just placed) instead of triggering a rebuild.
+val skipNativeBuild = providers.gradleProperty("skipNativeBuild").map { it.toBoolean() }.getOrElse(false)
 
-// buildNativeForCurrentPlatform copies the native lib into src/main/resources/natives/<tag>/,
-// which processResources then copies into build/resources/main (what's actually on the test
-// classpath). `test dependsOn buildNativeForCurrentPlatform` alone only orders it before `test`
-// itself — processResources sits on a separate dependency branch (test -> classes ->
-// processResources) and Gradle was scheduling it before buildNativeForCurrentPlatform, so the
-// native lib resource missed this run's processResources copy. Order processResources after the
-// native build too so the freshly copied library is actually present when resources are processed.
-tasks.named("processResources") { dependsOn("buildNativeForCurrentPlatform") }
+if (!skipNativeBuild) {
+    tasks.named("test") { dependsOn("buildNativeForCurrentPlatform") }
+
+    // buildNativeForCurrentPlatform copies the native lib into src/main/resources/natives/<tag>/,
+    // which processResources then copies into build/resources/main (what's actually on the test
+    // classpath). `test dependsOn buildNativeForCurrentPlatform` alone only orders it before `test`
+    // itself — processResources sits on a separate dependency branch (test -> classes ->
+    // processResources) and Gradle was scheduling it before buildNativeForCurrentPlatform, so the
+    // native lib resource missed this run's processResources copy. Order processResources after the
+    // native build too so the freshly copied library is actually present when resources are processed.
+    tasks.named("processResources") { dependsOn("buildNativeForCurrentPlatform") }
+}
 
 val generatedVersionDir = layout.buildDirectory.dir("generated/version")
 
@@ -80,12 +98,20 @@ tasks.named("compileKotlin") {
 }
 
 tasks.register<Copy>("copyNativeLib") {
-    val libFile = (project.findProperty("nativeLibFile") as String?)
-        ?: error("usage: -PnativeLibFile=<path> -PplatformTag=<tag>")
-    val tag = (project.findProperty("platformTag") as String?)
-        ?: error("usage: -PnativeLibFile=<path> -PplatformTag=<tag>")
+    // `providers.gradleProperty(...)` returns a `Provider<String>` that Gradle resolves
+    // lazily at task-EXECUTION time, not during configuration/registration. The previous
+    // `project.findProperty(...) as String? ?: error(...)` ran eagerly during registration,
+    // so any command that must realize every registered task (`./gradlew tasks`, an IDE
+    // Gradle sync) failed with this task's usage error even when nobody intended to run it.
+    // Passing the providers straight to from()/into() keeps that validation lazy; if a
+    // property is genuinely missing when the task actually runs, Gradle's file-collection
+    // resolution calls Provider.get() internally and that throws a MissingValueException —
+    // a perfectly good substitute for the old hand-rolled message, surfaced only when this
+    // task actually executes rather than whenever Gradle merely registers it.
+    val libFile = providers.gradleProperty("nativeLibFile")
+    val tag = providers.gradleProperty("platformTag")
     from(libFile)
-    into(layout.projectDirectory.dir("src/main/resources/natives/$tag"))
+    into(tag.map { layout.projectDirectory.dir("src/main/resources/natives/$it") })
 }
 
 tasks.register("buildNativeForCurrentPlatform") {

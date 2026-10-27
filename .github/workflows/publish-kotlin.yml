@@ -135,10 +135,15 @@ jobs:
 
       - name: Copy native libraries into Gradle resources
         working-directory: kotlin
+        # -PskipNativeBuild=true: without it, the later `./gradlew publish` would pull in
+        # processResources -> buildNativeForCurrentPlatform and rerun `cargo build --release`
+        # for this runner's own platform (linux-x86_64, since this job runs on ubuntu-latest),
+        # overwriting the linux-x86_64 artifact copied in here by the matrix job and risking a
+        # timeout from a full LTO rebuild. See build.gradle.kts for the full explanation.
         run: |
-          ./gradlew copyNativeLib -PnativeLibFile=../artifacts/linux-x86_64/libgtfs_jvm.so -PplatformTag=linux-x86_64
-          ./gradlew copyNativeLib -PnativeLibFile=../artifacts/linux-aarch64/libgtfs_jvm.so -PplatformTag=linux-aarch64
-          ./gradlew copyNativeLib -PnativeLibFile=../artifacts/darwin-aarch64/libgtfs_jvm.dylib -PplatformTag=darwin-aarch64
+          ./gradlew copyNativeLib -PnativeLibFile=../artifacts/linux-x86_64/libgtfs_jvm.so -PplatformTag=linux-x86_64 -PskipNativeBuild=true
+          ./gradlew copyNativeLib -PnativeLibFile=../artifacts/linux-aarch64/libgtfs_jvm.so -PplatformTag=linux-aarch64 -PskipNativeBuild=true
+          ./gradlew copyNativeLib -PnativeLibFile=../artifacts/darwin-aarch64/libgtfs_jvm.dylib -PplatformTag=darwin-aarch64 -PskipNativeBuild=true
 
       - name: Publish to Maven Central
         working-directory: kotlin
@@ -147,4 +152,4 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.CENTRAL_PORTAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SIGNING_PASSPHRASE }}
-        run: ./gradlew publish
+        run: ./gradlew publish -PskipNativeBuild=true
