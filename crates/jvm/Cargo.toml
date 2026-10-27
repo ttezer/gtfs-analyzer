@@ -1,0 +1,23 @@
+[package]
+name = "gtfs-analyzer-jvm"
+version.workspace = true
+edition = "2021"
+license.workspace = true
+description = "JVM/Kotlin bindings for the GTFS Analyzer validation engine."
+repository = "https://github.com/TransitTrack/gtfs-analyzer"
+homepage = "https://github.com/TransitTrack/gtfs-analyzer"
+publish = false
+
+[lib]
+name = "gtfs_jvm"
+crate-type = ["cdylib"]
+
+[dependencies]
+gtfs-config = { path = "../config" }
+gtfs-core = { path = "../core", features = ["i18n"] }
+gtfs-pipeline = { path = "../pipeline" }
+jni = "0.21"
+serde_json = { workspace = true }
+
+[dev-dependencies]
+zip = { workspace = true }
