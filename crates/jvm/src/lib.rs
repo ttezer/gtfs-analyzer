@@ -39,6 +39,41 @@ pub fn validate_to_json(
     serde_json::to_string(&result).map_err(|e| e.to_string())
 }
 
+#[derive(Debug)]
+pub enum ValidateJvmOutcome {
+    Json(String),
+    InvalidArgument(String),
+    Panicked(String),
+}
+
+fn catch_unwind_to_outcome<F>(f: F) -> ValidateJvmOutcome
+where
+    F: FnOnce() -> Result<String, String> + std::panic::UnwindSafe,
+{
+    match std::panic::catch_unwind(f) {
+        Ok(Ok(json)) => ValidateJvmOutcome::Json(json),
+        Ok(Err(msg)) => ValidateJvmOutcome::InvalidArgument(msg),
+        Err(payload) => {
+            let msg = payload
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "unknown panic payload".to_string());
+            ValidateJvmOutcome::Panicked(msg)
+        }
+    }
+}
+
+pub fn validate_guarded(
+    feed: &[u8],
+    today: u32,
+    config_json: &str,
+    include_name_index: bool,
+    lang: &str,
+) -> ValidateJvmOutcome {
+    catch_unwind_to_outcome(|| validate_to_json(feed, today, config_json, include_name_index, lang))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,5 +152,34 @@ mod tests {
         let zip = make_zip(&base_files());
         let err = validate_to_json(&zip, TODAY, "{}", false, "xx").unwrap_err();
         assert!(!err.is_empty());
+    }
+
+    #[test]
+    fn validate_guarded_returns_json_on_success() {
+        let zip = make_zip(&base_files());
+        match validate_guarded(&zip, TODAY, "{}", false, "en") {
+            ValidateJvmOutcome::Json(_) => {}
+            other => panic!("expected Json, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_guarded_returns_invalid_argument_on_bad_config() {
+        let zip = make_zip(&base_files());
+        match validate_guarded(&zip, TODAY, r#"{"not_a_real_key": 1}"#, false, "en") {
+            ValidateJvmOutcome::InvalidArgument(msg) => assert!(msg.contains("not_a_real_key")),
+            other => panic!("expected InvalidArgument, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn catch_unwind_to_outcome_converts_panic_into_panicked_variant() {
+        let outcome = catch_unwind_to_outcome(|| -> Result<String, String> {
+            panic!("boom");
+        });
+        match outcome {
+            ValidateJvmOutcome::Panicked(msg) => assert!(msg.contains("boom")),
+            other => panic!("expected Panicked, got {other:?}"),
+        }
     }
 }
