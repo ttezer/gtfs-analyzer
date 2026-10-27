@@ -9,8 +9,9 @@ use gtfs_pipeline::agency_attribution::{index_notices, set_displayed, AgencyBrea
 use gtfs_pipeline::{
     aggregate_feed_level_notices, analyze_k6_with_files, build_feed_summary, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
     check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
-    prepare_k7_notices, report_k7_prepared, validate_k2_with_whitespace_roots, DerivedData,
-    EntityRecords, FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
+    prepare_k7_notices, reconcile_flex_stop_requirement, report_k7_prepared,
+    validate_k2_with_whitespace_roots, DerivedData, EntityRecords, FileAvailability, FileInfo,
+    WhitespaceSuppressions, GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
@@ -522,7 +523,7 @@ fn rerun_k6_k7_inner(
 
 fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     t_start!("K1-parse");
-    let k1 = match parse_with_limits(
+    let mut k1 = match parse_with_limits(
         zip_bytes,
         config,
         gtfs_pipeline::decompress_guard::SDK_DECOMPRESSION_LIMITS,
@@ -532,8 +533,11 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Err(e) => return ValidateResult::Fatal(e),
     };
     let mut partial = k1.partial;
-    let unavailable_files = partial.unavailable_files.clone();
-    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let stops_present = k1.present_files.contains("stops.txt");
+    let stops_empty = k1
+        .files
+        .get("stops.txt")
+        .is_some_and(|file| file.rows.is_empty());
     let has_gtfs_jp_file = GTFS_JP_FILES
         .iter()
         .any(|file| k1.present_files.contains(*file));
@@ -561,6 +565,17 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Some(has_gtfs_jp_file),
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
+    reconcile_flex_stop_requirement(
+        &mut k1.notices,
+        &mut k2.notices,
+        &mut partial,
+        stops_present,
+        stops_empty,
+        &k1.valid_geojson_location_ids,
+        &k2.records,
+    );
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     t_end!("K2-validate");
     // K1 deliberately retains headers for unknown custom files only; carry that
     // lightweight inventory into K4 so GTFS-JP namespace checks see the same
@@ -701,7 +716,7 @@ fn run_k1_k5(
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
-    let k1 = parse_with_limits(
+    let mut k1 = parse_with_limits(
         zip_bytes,
         config,
         gtfs_pipeline::decompress_guard::SDK_DECOMPRESSION_LIMITS,
@@ -711,8 +726,11 @@ fn run_k1_k5(
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
     log_mem("after-K1-parse");
     let mut partial = k1.partial;
-    let unavailable_files = partial.unavailable_files.clone();
-    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let stops_present = k1.present_files.contains("stops.txt");
+    let stops_empty = k1
+        .files
+        .get("stops.txt")
+        .is_some_and(|file| file.rows.is_empty());
     let has_gtfs_jp_file = GTFS_JP_FILES
         .iter()
         .any(|file| k1.present_files.contains(*file));
@@ -740,6 +758,17 @@ fn run_k1_k5(
         Some(has_gtfs_jp_file),
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
+    reconcile_flex_stop_requirement(
+        &mut k1.notices,
+        &mut k2.notices,
+        &mut partial,
+        stops_present,
+        stops_empty,
+        &k1.valid_geojson_location_ids,
+        &k2.records,
+    );
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     t_end!("K2-validate");
     // Keep the cached WASM path in parity with the full native/WASM pipeline:
     // unknown custom headers are needed by the GTFS-JP namespace rule.

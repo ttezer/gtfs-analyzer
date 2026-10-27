@@ -1555,7 +1555,7 @@ const en: LocaleShape = {
     'STP_013': 'Set wheelchair_boarding to 0 (no info), 1 (accessible) or 2 (not accessible).',
     'STP_014': 'Enter a valid IANA timezone (e.g., Europe/Istanbul).',
     'STP_015': 'Use a valid level_id or add the level to levels.txt.',
-    'STP_018': 'Add at least one stop record to stops.txt.',
+    'STP_018': 'Add at least one stop record to stops.txt, or reference a valid locations.geojson zone with stop_times.location_id.',
     'STP_019': 'Keep stop_name under 100 characters.',
     'STP_021': "Set the boarding area's parent_station to a platform with location_type=0.",
     'STP_022': 'Provide a short stop_code that passengers can recognise.',

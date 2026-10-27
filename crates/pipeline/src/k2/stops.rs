@@ -754,7 +754,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             None,
             None,
             "stops.txt dosyasında hiç durak kaydı yok.".to_string(),
-            "stops.txt'e en az bir durak kaydı ekleyin.",
+            "stops.txt'e en az bir durak kaydı ekleyin veya geçerli bir locations.geojson bölgesini stop_times.location_id ile kullanın.",
         ));
     }
 

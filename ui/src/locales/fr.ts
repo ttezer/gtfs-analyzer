@@ -1557,7 +1557,7 @@ const fr: LocaleShape = {
     'STP_013': 'Mettez wheelchair_boarding à 0 (pas d’information), 1 (accessible) ou 2 (non accessible).',
     'STP_014': 'Saisissez un fuseau horaire IANA valide (par exemple Europe/Paris).',
     'STP_015': 'Utilisez un level_id valide, ou ajoutez le niveau dans levels.txt.',
-    'STP_018': 'Ajoutez au moins un enregistrement d’arrêt dans stops.txt.',
+    'STP_018': 'Ajoutez au moins un arrêt dans stops.txt, ou référencez une zone locations.geojson valide avec stop_times.location_id.',
     'STP_019': 'Gardez stop_name en dessous de 100 caractères.',
     'STP_021': 'Faites pointer la parent_station de la zone d’embarquement vers un quai ayant location_type=0.',
     'STP_022': 'Fournissez un stop_code court, reconnaissable par les voyageurs.',

@@ -3050,19 +3050,20 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
 // 2026-08-01'e kadar stops.txt koşulsuz REQUIRED_FILES'taydı → geçerli bir yalnızca-Flex
 // feed ARC_004 Fatal'ı alıyor ve HİÇ açılmıyordu; kullanıcı tek bulgu bile göremiyordu.
 
+static FLEX_GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[
+    {"type":"Feature","id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
+    [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]}}]}"#;
+static FLEX_STOP_TIMES: &[u8] =
+    b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+      T1,zone_a,1,08:00:00,12:00:00\nT1,zone_a,2,08:00:00,12:00:00\n";
+static EMPTY_STOPS: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n";
+
 #[test]
 fn flex_only_feed_without_stops_txt_is_not_fatal() {
-    static GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[
-        {"type":"Feature","id":"zone_a","geometry":{"type":"Polygon","coordinates":
-        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]},"properties":{}}]}"#;
-    static FLEX_STOP_TIMES: &[u8] =
-        b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
-          T1,zone_a,1,08:00:00,12:00:00\nT1,zone_a,2,08:00:00,12:00:00\n";
-
     let mut files = base_files();
     files.retain(|(n, _)| *n != "stops.txt" && *n != "stop_times.txt");
     files.push(("stop_times.txt", FLEX_STOP_TIMES));
-    files.push(("locations.geojson", GEOJSON));
+    files.push(("locations.geojson", FLEX_GEOJSON));
 
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Fatal(e) => {
@@ -3078,7 +3079,85 @@ fn flex_only_feed_without_stops_txt_is_not_fatal() {
                         && n.observed_value.as_deref() == Some("stops.txt")),
                 "stops.txt için ARC_004 üretilmemeli"
             );
+            assert!(!has(&vr, "STP_018"), "geçerli Flex feed duraksız sayılmamalı");
         }
+    }
+}
+
+#[test]
+fn referenced_valid_flex_zone_exempts_header_only_stops() {
+    let mut files = base_files();
+    files.retain(|(n, _)| *n != "stops.txt" && *n != "stop_times.txt");
+    files.push(("stops.txt", EMPTY_STOPS));
+    files.push(("stop_times.txt", FLEX_STOP_TIMES));
+    files.push(("locations.geojson", FLEX_GEOJSON));
+
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("geçerli Flex feed okunmalı");
+    };
+    assert!(!has(&vr, "ARC_035"), "boş stops.txt Flex bölgesiyle muaf olmalı");
+    assert!(!has(&vr, "STP_018"), "STP_018 aynı Flex muafiyetini uygulamalı");
+}
+
+#[test]
+fn unreferenced_geojson_zone_does_not_exempt_empty_or_missing_stops() {
+    static OTHER_ZONE_STOP_TIMES: &[u8] =
+        b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n\
+          T1,other_zone,1,08:00:00,12:00:00\nT1,other_zone,2,08:00:00,12:00:00\n";
+
+    let mut empty = base_files();
+    empty.retain(|(n, _)| *n != "stops.txt" && *n != "stop_times.txt");
+    empty.push(("stops.txt", EMPTY_STOPS));
+    empty.push(("stop_times.txt", OTHER_ZONE_STOP_TIMES));
+    empty.push(("locations.geojson", FLEX_GEOJSON));
+    let ValidateResult::Ok(vr) = run(&empty) else {
+        panic!("feed okunmalı");
+    };
+    assert!(has(&vr, "ARC_035"), "kullanılmayan bölge boş stops.txt'i muaf etmemeli");
+    assert!(has(&vr, "STP_018"), "kullanılmayan bölge STP_018'i bastırmamalı");
+
+    empty.retain(|(n, _)| *n != "stops.txt");
+    let ValidateResult::Ok(vr) = run(&empty) else {
+        panic!("eksik stops.txt PARTIAL rapor üretmeli");
+    };
+    assert!(vr.partial.is_some(), "stops.txt kanıtı yoksa kapsam eksik olmalı");
+    assert!(has(&vr, "ARC_004"), "kullanılmayan bölge eksik stops.txt'i muaf etmemeli");
+}
+
+#[test]
+fn readable_polygon_with_invalid_or_duplicate_feature_does_not_exempt_stops() {
+    static MISSING_TYPE: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]}}]}"#;
+    static MISSING_PROPERTIES: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","id":"zone_a","geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]}}]}"#;
+    static DUPLICATE_ID: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1],[29.0,41.0]]]}},
+        {"type":"Feature","id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
+        [[[30.0,41.0],[30.1,41.0],[30.1,41.1],[30.0,41.1],[30.0,41.0]]]}}]}"#;
+    static OPEN_RING: &[u8] = br#"{"type":"FeatureCollection","features":[
+        {"type":"Feature","id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
+        [[[29.0,41.0],[29.1,41.0],[29.1,41.1],[29.0,41.1]]]}}]}"#;
+
+    for (label, geojson, expected_rule) in [
+        ("type eksik", MISSING_TYPE, "LOC_008"),
+        ("properties eksik", MISSING_PROPERTIES, "LOC_009"),
+        ("id yinelenmiş", DUPLICATE_ID, "LOC_007"),
+        ("poligon halkası açık", OPEN_RING, "LOC_004"),
+    ] {
+        let mut files = base_files();
+        files.retain(|(n, _)| *n != "stops.txt" && *n != "stop_times.txt");
+        files.push(("stops.txt", EMPTY_STOPS));
+        files.push(("stop_times.txt", FLEX_STOP_TIMES));
+        files.push(("locations.geojson", geojson));
+        let ValidateResult::Ok(vr) = run(&files) else {
+            panic!("{label}: feed okunmalı");
+        };
+        assert!(has(&vr, expected_rule), "{label}: kök GeoJSON bulgusu görünmeli");
+        assert!(has(&vr, "ARC_035"), "{label}: geçersiz bölge muafiyet vermemeli");
+        assert!(has(&vr, "STP_018"), "{label}: geçersiz bölge STP_018'i bastırmamalı");
     }
 }
 

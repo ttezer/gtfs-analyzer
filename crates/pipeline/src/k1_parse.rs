@@ -125,9 +125,15 @@ pub struct K1Result {
     /// K1 tarafından keşfedilen dosyalar; bozuk/eksik optional dosyalar için
     /// dependency-aware recovery planı bunun üzerinden kurulur.
     pub present_files: HashSet<String>,
-    /// `stops.txt`'in koşullu yokluğunu yalnızca kullanılabilir Flex bölgeleri
-    /// karşılıyorsa kabul ederiz; dosya adının tek başına varlığı yeterli değildir.
+    /// `stops.txt`'in koşullu yokluğunu yalnızca yapısal olarak geçerli Flex bölgeleri
+    /// karşılıyorsa K1'de geçici olarak kabul ederiz; dosya adının veya yalnızca okunabilen
+    /// bir poligonun varlığı yeterli değildir. Tam pipeline, K2'den sonra bu kümedeki en az
+    /// bir kimliğin `stop_times.location_id` tarafından kullanıldığını da doğrular.
     pub has_valid_locations_geojson: bool,
+    /// Zorunlu Feature üyeleri ve geometrisi eksiksiz, benzersiz string `id` değerleri.
+    /// `geojson_location_ids` tüm yazılmış kimlikleri XFL_025 için korurken bu dar küme
+    /// yalnız `stops.txt` Flex muafiyetinin kanıtıdır.
+    pub valid_geojson_location_ids: std::collections::HashSet<String>,
     /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
     /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
@@ -2018,6 +2024,8 @@ pub fn parse_with_limits(
     let mut counter: u32 = 0;
     let mut geojson_location_ids: std::collections::HashSet<String> =
         std::collections::HashSet::new();
+    let mut valid_geojson_location_ids: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> =
         std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
@@ -2136,6 +2144,7 @@ pub fn parse_with_limits(
                         &mut notices,
                         &mut counter,
                         &mut geojson_location_ids,
+                        &mut valid_geojson_location_ids,
                         &mut geojson_geometries,
                     );
                     if !has_valid_locations_geojson {
@@ -3064,6 +3073,7 @@ pub fn parse_with_limits(
         present_files,
         has_valid_locations_geojson,
         geojson_location_ids,
+        valid_geojson_location_ids,
         geojson_geometries,
         custom_file_headers,
     })
@@ -3077,6 +3087,7 @@ fn validate_locations_geojson(
     notices: &mut Vec<Notice>,
     counter: &mut u32,
     geojson_ids: &mut std::collections::HashSet<String>,
+    valid_geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
 ) -> bool {
     let text = match std::str::from_utf8(bytes) {
@@ -3165,7 +3176,10 @@ fn validate_locations_geojson(
         return false;
     }
 
-    // LOC_007: Yinelenen feature 'id' değerleri
+    // LOC_007: Yinelenen feature 'id' değerleri. Sayaç ayrıca Flex muafiyetinin yalnız
+    // gerçekten benzersiz string kimliklere dayanmasını sağlar.
+    let mut id_counts: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
     {
         let mut seen_ids: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
@@ -3179,6 +3193,9 @@ fn validate_locations_geojson(
                         .map(str::to_string)
                         .unwrap_or_else(|| id_str.clone()),
                 );
+                if let Some(id) = id_val.as_str() {
+                    *id_counts.entry(id.to_string()).or_insert(0) += 1;
+                }
                 if let Some(first_idx) = seen_ids.get(&id_str) {
                     notices.push(make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
@@ -3193,9 +3210,14 @@ fn validate_locations_geojson(
         }
     }
 
-    let mut has_valid_geometry = false;
     for (i, feature) in features.iter().enumerate() {
         let feat_num = (i + 1) as u64;
+        let valid_type = feature.get("type").and_then(|v| v.as_str()) == Some("Feature");
+        let valid_properties = feature.get("properties").is_some_and(|v| v.is_object());
+        let valid_id = feature
+            .get("id")
+            .and_then(|v| v.as_str())
+            .filter(|id| !id.is_empty() && id_counts.get(*id) == Some(&1));
 
         // LOC_008: her Feature'ın "type" alanı Required ve değeri "Feature" olmalı (spec tablosu).
         match feature.get("type").and_then(|v| v.as_str()) {
@@ -3271,7 +3293,7 @@ fn validate_locations_geojson(
         let geometry = geometry.unwrap();
 
         let geom_type = geometry.get("type").and_then(|t| t.as_str());
-        match geom_type {
+        let valid_geometry = match geom_type {
             Some("Polygon") => {
                 // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
                 // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
@@ -3284,15 +3306,22 @@ fn validate_locations_geojson(
                         notices,
                         Some(&mut geom),
                     ),
-                    None => missing_coordinates(counter, fname, feat_num, notices),
+                    None => {
+                        missing_coordinates(counter, fname, feat_num, notices);
+                        false
+                    }
                 }
             }
             Some("MultiPolygon") => match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                None => missing_coordinates(counter, fname, feat_num, notices),
+                None => {
+                    missing_coordinates(counter, fname, feat_num, notices);
+                    false
+                }
                 Some(polygons) => {
+                    let mut valid = !polygons.is_empty();
                     for poly in polygons {
                         if let Some(rings) = poly.as_array() {
-                            check_polygon_rings(
+                            valid &= check_polygon_rings(
                                 counter,
                                 fname,
                                 feat_num,
@@ -3300,8 +3329,11 @@ fn validate_locations_geojson(
                                 notices,
                                 Some(&mut geom),
                             );
+                        } else {
+                            valid = false;
                         }
                     }
+                    valid
                 }
             },
             Some(t) => {
@@ -3311,6 +3343,7 @@ fn validate_locations_geojson(
                     format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
                     "locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.",
                 ));
+                false
             }
             None => {
                 notices.push(make_notice(
@@ -3325,21 +3358,22 @@ fn validate_locations_geojson(
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
                     "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
                 ));
+                false
             }
-        }
+        };
 
         // Pa1fdaa0d: geometri, feature 'id'siyle eşleşerek K6'ya taşınır.
         if let Some(id) = feature_id {
             if !geom.outer_rings.is_empty() {
-                has_valid_geometry = true;
-                geoms.insert(id, geom);
+                geoms.insert(id.clone(), geom);
             }
-        } else if !geom.outer_rings.is_empty() {
-            has_valid_geometry = true;
+            if valid_type && valid_properties && valid_geometry && valid_id == Some(id.as_str()) {
+                valid_geojson_ids.insert(id);
+            }
         }
     }
 
-    has_valid_geometry
+    !valid_geojson_ids.is_empty()
 }
 
 /// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
@@ -3369,17 +3403,23 @@ fn check_polygon_rings(
     // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
     // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
     collect: Option<&mut LocationGeometry>,
-) {
+) -> bool {
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
     // LOC_006 için ring başına işaretli alan: ilk ring dış sınır, sonrakiler deliktir.
     let mut all_rings: Vec<Vec<(f64, f64)>> = Vec::new();
     let mut ring_areas: Vec<f64> = Vec::new();
+    let mut structurally_valid = !rings.is_empty();
 
     for ring in rings {
-        let Some(pts) = ring.as_array() else { continue };
-        if pts.len() < 2 {
+        let Some(pts) = ring.as_array() else {
+            structurally_valid = false;
+            continue;
+        };
+        // RFC 7946 LinearRing: en az dört konum ve ilk/son konum aynı olmalıdır.
+        if pts.len() < 4 {
+            structurally_valid = false;
             continue;
         }
 
@@ -3402,7 +3442,10 @@ fn check_polygon_rings(
                         "GeoJSON Polygon ring'inin ilk ve son koordinatı aynı olmalıdır.",
                     ));
                     already_reported_closure = true;
+                    structurally_valid = false;
                 }
+            } else {
+                structurally_valid = false;
             }
         }
 
@@ -3416,6 +3459,8 @@ fn check_polygon_rings(
                 all_lats.push(lat);
                 all_lons.push(lon);
                 ring_pts.push((lon, lat));
+            } else {
+                structurally_valid = false;
             }
         }
         ring_areas.push(signed_ring_area_km2(&ring_pts));
@@ -3521,6 +3566,7 @@ fn check_polygon_rings(
             bad = interior_disconnection(&all_rings);
         }
         if let Some(failure) = bad {
+            structurally_valid = false;
             notices.push(make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
                 Some(fname), Some(feat_num), Some("coordinates"), Some(failure.observed),
@@ -3564,6 +3610,7 @@ fn check_polygon_rings(
         }
         g.outer_rings.push(outer.clone());
     }
+    structurally_valid && all_rings.first().is_some_and(|ring| ring.len() >= 4)
 }
 
 /// İki doğru parçası KESİŞİYOR mu (uç nokta paylaşımı ve teğetlik hariç).
