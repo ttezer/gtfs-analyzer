@@ -108,3 +108,84 @@ tasks.register("buildNativeForCurrentPlatform") {
         }
     }
 }
+
+// Maven Central (via its OSSRH-compatible staging endpoint) requires a POM with
+// license/developer/scm info, plus sources and javadoc jars, before it will accept
+// a publish — these aren't optional boilerplate, a publish without them is rejected.
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+// sourcesJar bundles src/main/kotlin plus the generatedVersionDir source root added
+// above; without this, Gradle only infers an implicit ordering (flagged as an
+// unsafe task dependency) rather than a real one, and can run sourcesJar before
+// Version.kt exists.
+tasks.named("sourcesJar") { dependsOn(generateVersion) }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+
+            groupId = "io.github.transittrack"
+            artifactId = "gtfs-analyzer"
+            version = sdkVersion
+
+            pom {
+                name.set("gtfs-analyzer")
+                description.set("JVM/Kotlin bindings for the GTFS Analyzer validation engine.")
+                url.set("https://github.com/TransitTrack/gtfs-analyzer")
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("transittrack")
+                        name.set("TransitTrack")
+                        url.set("https://github.com/TransitTrack")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/TransitTrack/gtfs-analyzer.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/TransitTrack/gtfs-analyzer.git")
+                    url.set("https://github.com/TransitTrack/gtfs-analyzer")
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "centralPortal"
+            // Central Portal's legacy OSSRH-compatible ingestion endpoint — the
+            // standard way to publish with plain maven-publish + signing, without
+            // pulling in a third-party Gradle plugin.
+            url = uri("https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/")
+            credentials {
+                // Populated in CI via ORG_GRADLE_PROJECT_mavenCentralUsername /
+                // ORG_GRADLE_PROJECT_mavenCentralPassword (see
+                // .github/workflows/publish-kotlin.yml), which Gradle exposes here
+                // as the project properties below.
+                username = providers.gradleProperty("mavenCentralUsername").orNull
+                password = providers.gradleProperty("mavenCentralPassword").orNull
+            }
+        }
+    }
+}
+
+signing {
+    // Populated in CI via ORG_GRADLE_PROJECT_signingInMemoryKey /
+    // ORG_GRADLE_PROJECT_signingInMemoryKeyPassword (see
+    // .github/workflows/publish-kotlin.yml). Locally, these are simply absent and
+    // signing is skipped rather than failing the build.
+    val signingKey = providers.gradleProperty("signingInMemoryKey").orNull
+    val signingPassword = providers.gradleProperty("signingInMemoryKeyPassword").orNull
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+        sign(publishing.publications["maven"])
+    }
+}
