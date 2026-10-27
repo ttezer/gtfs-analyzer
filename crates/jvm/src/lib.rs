@@ -154,7 +154,12 @@ pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNati
         include_name_index_bool,
         &lang_str,
     ) {
-        ValidateJvmOutcome::Json(s) => env.new_string(s).unwrap(),
+        // `new_string` can fail (e.g. JVM heap exhaustion on a very large result, realistic
+        // when `includeNameIndex=true`). The `jni` crate already turns that failure into a
+        // pending exception, so — same as every other branch in this function — just hand
+        // back a null `JString` (`unwrap_or_default()`, which does not touch the JVM again
+        // on the `Err` path) rather than `.unwrap()`ing and aborting the whole JVM process.
+        ValidateJvmOutcome::Json(s) => env.new_string(s).unwrap_or_default(),
         ValidateJvmOutcome::InvalidArgument(msg) => {
             let _ = env.throw_new("java/lang/IllegalArgumentException", msg);
             // See the comment above: no further JNI calls once an exception is pending.
