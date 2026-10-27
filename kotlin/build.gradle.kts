@@ -35,6 +35,17 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.named("test") { dependsOn("buildNativeForCurrentPlatform") }
+
+// buildNativeForCurrentPlatform copies the native lib into src/main/resources/natives/<tag>/,
+// which processResources then copies into build/resources/main (what's actually on the test
+// classpath). `test dependsOn buildNativeForCurrentPlatform` alone only orders it before `test`
+// itself — processResources sits on a separate dependency branch (test -> classes ->
+// processResources) and Gradle was scheduling it before buildNativeForCurrentPlatform, so the
+// native lib resource missed this run's processResources copy. Order processResources after the
+// native build too so the freshly copied library is actually present when resources are processed.
+tasks.named("processResources") { dependsOn("buildNativeForCurrentPlatform") }
+
 val generatedVersionDir = layout.buildDirectory.dir("generated/version")
 
 val generateVersion = tasks.register("generateVersion") {
