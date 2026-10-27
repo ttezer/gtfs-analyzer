@@ -86,8 +86,11 @@ pub fn validate_guarded(
 /// - `Panicked(msg)` throws `io/github/transittrack/gtfsanalyzer/GtfsEngineException` with `msg`.
 ///
 /// In both error cases a pending exception is set via `throw_new`; JNI still requires
-/// this function to return a value of its declared return type, so an empty string is
-/// returned (the JVM observes the pending exception on return, not this value).
+/// this function to return a value of its declared return type, so a null `JString`
+/// (`JString::default()`) is returned without making any further JNI call — the JVM observes
+/// the pending exception on return and discards this value, but the JNI spec forbids calling
+/// most JNI functions (including `NewStringUTF`, i.e. `env.new_string`) while an exception is
+/// pending, so building that placeholder must not touch the JVM at all.
 #[no_mangle]
 pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNative_validate<
     'local,
@@ -107,7 +110,12 @@ pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNati
                 "java/lang/IllegalArgumentException",
                 format!("invalid feed byte array: {e}"),
             );
-            return env.new_string("").unwrap();
+            // Must not make any further JNI calls now that an exception is pending (the JNI
+            // spec only permits a handful of Exception*/Release* calls in that state) — the
+            // `jni` crate's 0.21 pending-exception check turns a violation (e.g. `new_string`)
+            // into `Err(JavaException)`, so the prior `.unwrap()` here aborted the JVM process.
+            // `JString::default()` wraps a null pointer without calling into the JVM at all.
+            return JString::default();
         }
     };
 
@@ -118,7 +126,9 @@ pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNati
                 "java/lang/IllegalArgumentException",
                 format!("invalid config_json string: {e}"),
             );
-            return env.new_string("").unwrap();
+            // See the comment on the matching branch above: no further JNI calls once an
+            // exception is pending.
+            return JString::default();
         }
     };
 
@@ -129,7 +139,9 @@ pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNati
                 "java/lang/IllegalArgumentException",
                 format!("invalid lang string: {e}"),
             );
-            return env.new_string("").unwrap();
+            // See the comment on the matching branch above: no further JNI calls once an
+            // exception is pending.
+            return JString::default();
         }
     };
 
@@ -145,14 +157,15 @@ pub extern "system" fn Java_io_github_transittrack_gtfsanalyzer_GtfsAnalyzerNati
         ValidateJvmOutcome::Json(s) => env.new_string(s).unwrap(),
         ValidateJvmOutcome::InvalidArgument(msg) => {
             let _ = env.throw_new("java/lang/IllegalArgumentException", msg);
-            env.new_string("").unwrap()
+            // See the comment above: no further JNI calls once an exception is pending.
+            JString::default()
         }
         ValidateJvmOutcome::Panicked(msg) => {
             let _ = env.throw_new(
                 "io/github/transittrack/gtfsanalyzer/GtfsEngineException",
                 msg,
             );
-            env.new_string("").unwrap()
+            JString::default()
         }
     }
 }
