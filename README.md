@@ -12,7 +12,7 @@
 [![PyPI](https://img.shields.io/pypi/v/gtfs-analyzer?style=flat&label=PyPI)](https://pypi.org/project/gtfs-analyzer/)
 [![Lisans MIT](https://img.shields.io/badge/lisans-MIT-yellow?style=flat)](LICENSE)
 
-**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi** ve **`gtfs-analyzer` Python paketi** olmak üzere altı yoldan kullanılabilir.
+**GTFS Validator & Analyzer**, GTFS dosyalarını doğrudan tarayıcıda doğrulayan açık kaynak bir **GTFS validator** ve feed kalite analiz aracıdır. Web uygulamasına yüklenen `.zip` hiçbir sunucuya gönderilmez; doğrulama tamamen **WebAssembly** ile kullanıcının cihazında çalışır. Tarayıcı, **CLI** (`cargo install gtfs-analyzer`), **Rust kütüphanesi**, **CI/CD**, **`gtfs-sdk` npm paketi**, **`gtfs-analyzer` Python paketi** ve ChatGPT'deki **GTFS Validator** olmak üzere yedi yoldan kullanılabilir.
 
 **619 doğrulama kuralı** ile GTFS spesifikasyonunun ölçülebilir hükümlerinin **%97,2'sini** karşılar ve alan tablosunun **300 atomunun 300'ünde** en az bir Spec çapası taşır. Bu kuralların **417'si** son 4.382 feed'lik tam katalog koşumunda en az bir bulgu üretti. Kuralların tamamı [`RULES.md`](RULES.md) altında listelidir.
 
@@ -225,6 +225,20 @@ ekranında gösterilir. Hata ayıklamak için `?wasm32=1`, `?wasm64=1` veya `?se
 4. Önceki bir analizi karşılaştırmak için **Karşılaştır** sekmesinden eski Golden JSON'u yükleyin. Düzeltilen, yeni, azalan ve artan kurallar; skorlar, feed tarihleri ve normalize edilmiş notice yoğunlukları birlikte gösterilir.
 5. Paylaşılabilir bir çıktı için **Dışa Aktar → Yönetici PDF Raporu** yolunu açın, rapor dilini seçin ve önizlemedeki **Yazdır / PDF Kaydet** düğmesini kullanın.
 
+### ChatGPT GTFS Validator
+
+GTFS feed'ini sohbet içinde incelemek için ChatGPT'nin
+[GTFS Validator sayfasını](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
+açın. Bir GTFS ZIP yükleyebilir, herkese açık bir
+feed URL'si verebilir veya `TRP_002` gibi bir kuralı sorabilirsiniz. Doğrulama ve
+skorları yine GTFS Analyzer motoru hesaplar; ChatGPT sonucu açıklayıp öncelikli
+düzeltmeleri anlaşılır biçimde özetler, skorları yeniden hesaplamaz.
+
+Tarayıcı uygulamasından farklı olarak ChatGPT yolu, feed'i istek süresince GTFS
+Validator MCP hizmetinde geçici olarak işler. Feed içeriği ve doğrulama raporu
+işlem sonrasında bilinçli olarak saklanmaz. Kurum dışına çıkmaması gereken veriler
+için tarayıcı, CLI veya yerel paketlerden birini kullanın.
+
 ### Yönetici PDF Raporu
 
 **Yönetici PDF Raporu**, ayrıntılı doğrulama sonuçlarını karar vericiler ve feed üreticileri için okunabilir, renkli ve A4 uyumlu bir belgeye dönüştürür. Rapor yalnızca **GTFS Analyzer** sonuçlarından oluşturulur; başka bir validator sonucu veya harici karşılaştırma içermez.
@@ -245,9 +259,9 @@ Arayüzde performans için sınırlandırılmış bulgu örnekleri bulunsa bile 
 
 ---
 
-## Altı Kullanım Yolu
+## Yedi Kullanım Yolu
 
-Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) altı şekilde çalışır — hepsi aynı 619 kuralı, aynı sonucu üretir:
+Aynı 619 kurallı doğrulama motoruna yedi farklı yoldan erişilebilir; arayüzler sonucu kendi kullanım biçimlerine göre sunar:
 
 | yol | ne için | veri nereye gider |
 |---|---|---|
@@ -257,8 +271,11 @@ Aynı doğrulama çekirdeği (`gtfs_pipeline::validate_bytes`) altı şekilde ç
 | **CI/CD** (exit kodu + `--fail-on`) | feed yayına çıkmadan önce pipeline kapısı | hiçbir yere — kendi runner'ınız |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm paketi** | kendi web veya Node uygulamanıza gömmek | hiçbir yere — yerel WASM |
 | **`gtfs-analyzer` Python paketi** (`pip install gtfs-analyzer`) | Python uygulamasına doğrulama gömmek | hiçbir yere — yerel Rust native modülü |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | ZIP veya URL'yi sohbet içinde doğrulatmak ve bulguları açıklatmak | GTFS Validator MCP hizmeti — yalnız istek süresince geçici işleme |
 
-Hiçbirinde feed sunucuya yüklenmez. Bu, barındırılan doğrulayıcılardan temel farktır: ticari sözleşme gereği dışarı çıkamayan veriyi de doğrulayabilirsiniz.
+İlk altı yol yerel veya sizin yönettiğiniz altyapıda çalışır. ChatGPT yolu bunun
+istisnasıdır: feed, analiz isteği sırasında MCP hizmetine aktarılır. Kurum dışına
+çıkamayan veriler için tarayıcı uygulamasını, CLI'yi veya yerel paketleri seçin.
 
 ### CI/CD entegrasyonu
 

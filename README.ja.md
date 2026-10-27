@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。アップロードされた .zip ファイルはいかなるサーバーにも送信されず、すべての処理は WebAssembly によってユーザーのデバイス上で実行されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージ、`gtfs-analyzer` Python パッケージの 6 つの方法で利用できます。
+GTFS Validator & Analyzer は、ブラウザ上で動作するオープンソースの GTFS バリデーター兼フィード品質分析ツールです。ブラウザ版にアップロードした `.zip` はサーバーへ送信されず、WebAssembly によってユーザーのデバイス上で検証されます。ブラウザ、CLI（`cargo install gtfs-analyzer`）、Rust ライブラリ、CI/CD ゲート、`gtfs-sdk` npm パッケージ、`gtfs-analyzer` Python パッケージ、ChatGPT の **GTFS Validator** の 7 つの方法で利用できます。
 
 測定可能な GTFS 仕様要件の **97.2%** をカバーし、フィールドインベントリの 300 個のアトムすべてを少なくとも 1 つの Spec ルールにアンカーしています。**619 個の検証ルール**のうち **417 個**が直近の 4,382 フィード完全カタログ実行で少なくとも 1 件の指摘を出しました。すべてのルールは [`RULES.ja.md`](RULES.ja.md) に一覧化されています。
 
@@ -222,6 +222,20 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 4. 以前の解析と比較するには、**比較**タブで旧 Golden JSON をアップロードします。修正済み・新規・減少・増加ルールに加え、スコア、フィード期間、正規化した通知密度の変化を表示します。
 5. 共有可能な成果物を作成するには、**エクスポート → エグゼクティブPDFレポート**を開き、レポート言語を選択して、プレビューの**印刷 / PDF保存**を使用します。
 
+### ChatGPT の GTFS Validator
+
+会話内でフィードを解析するには、ChatGPT の
+[GTFS Validator ページ](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)
+を開いてください。GTFS ZIP のアップロード、
+公開フィード URL の指定、または `TRP_002` のようなルールの質問ができます。
+検証とスコア計算は引き続き GTFS Analyzer エンジンが行い、ChatGPT はスコアを
+再計算せずに結果と優先修正項目を説明します。
+
+ブラウザ版とは異なり、ChatGPT 経由ではリクエスト処理中に GTFS Validator の
+MCP サービスでフィードを一時的に処理します。フィード内容と検証レポートは、
+処理後に意図的に保持されません。組織外へ出せないデータには、ブラウザ版、
+CLI、またはローカルパッケージを使用してください。
+
 ### エグゼクティブPDFレポート
 
 **エグゼクティブPDFレポート**は、詳細な検証結果を意思決定者やフィード作成者向けの、読みやすく色分けされたA4対応文書に変換します。レポートは **GTFS Analyzer** の結果だけから生成され、他のバリデーターの結果や外部比較は含みません。
@@ -242,9 +256,9 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 
 ---
 
-## 6 つの利用方法
+## 7 つの利用方法
 
-同じ検証コア（`gtfs_pipeline::validate_bytes`）を 6 つの方法で実行できます。すべて同じ 619 ルールと同じ結果モデルを使用します。
+同じ 619 ルールの検証エンジンを 7 つの方法で利用でき、各インターフェースが用途に合わせて結果を表示します。
 
 | 方法 | 用途 | データの送信先 |
 |---|---|---|
@@ -254,8 +268,11 @@ GTFS Analyzer は Web アプリケーションです — インストール不�
 | **CI/CD**（終了コード + `--fail-on`） | フィード公開前のパイプラインゲート | どこにも送信しない — 自分の runner |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm パッケージ** | Web または Node アプリへの組み込み | どこにも送信しない — ローカル WASM |
 | **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python パッケージ**（`pip install gtfs-analyzer`） | Python アプリへの組み込み | どこにも送信しない — ローカル Rust ネイティブモジュール |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | 会話内で ZIP または URL を検証し、指摘内容を説明 | GTFS Validator MCP サービス — リクエスト中のみ一時処理 |
 
-どの方法でもフィードがサーバーにアップロードされることはありません。組織のポリシーや契約上、外部に出せないデータにも利用できます。
+最初の 6 つはローカル環境または自分で管理するインフラ上で実行されます。
+ChatGPT は例外で、解析リクエストの処理中にフィードを MCP サービスへ転送します。
+組織外へ出せないデータには、ブラウザ版、CLI、またはローカルパッケージを使用してください。
 
 ### CI/CD 統合
 

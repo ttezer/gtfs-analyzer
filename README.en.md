@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![License MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. The uploaded `.zip` file is never sent to any server; all validation runs on the user's device via WebAssembly. It is available as a browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, and the `gtfs-analyzer` Python package.
+GTFS Validator & Analyzer is an open-source GTFS validator and feed quality analyzer. A `.zip` uploaded to the browser application is never sent to a server; validation runs on the user's device via WebAssembly. It is available in seven forms: the browser application, a CLI (`cargo install gtfs-analyzer`), a Rust library, a CI/CD gate, the `gtfs-sdk` npm package, the `gtfs-analyzer` Python package, and **GTFS Validator** in ChatGPT.
 
 The project covers **97.2% of the measurable GTFS Specification requirements** and anchors all 300 atoms in the field inventory to at least one Spec rule. Of its **619 rules**, **417** produced at least one finding in the most recent full 4,382-feed catalog run. Every rule is listed in [`RULES.en.md`](RULES.en.md).
 
@@ -222,6 +222,21 @@ shown on the upload screen. For diagnostics, use `?wasm32=1`, `?wasm64=1`, or `?
 4. To compare an earlier analysis, open **Compare** and upload its Golden JSON. Fixed, new, decreased, and increased rules are shown alongside score, feed-date, and normalized notice-density changes.
 5. For a shareable deliverable, open **Export → Executive PDF Report**, choose the report language, and use **Print / Save PDF** in the preview.
 
+### ChatGPT GTFS Validator
+
+To analyze a feed in a conversation, open ChatGPT's
+[GTFS Validator page](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c).
+You can upload a GTFS ZIP, provide a public
+feed URL, or ask about a rule such as `TRP_002`. The GTFS Analyzer engine still
+performs validation and scoring; ChatGPT explains the result and summarizes the
+priority fixes without recalculating the scores.
+
+Unlike the browser application, the ChatGPT path temporarily processes the feed
+through the GTFS Validator MCP service for the duration of the request. Feed
+contents and validation reports are not intentionally retained after processing.
+Use the browser, CLI, or a local package for data that must not leave your
+organization.
+
 ### Executive PDF Report
 
 The **Executive PDF Report** turns detailed validation results into a readable, color-coded, A4-ready document for decision-makers and feed producers. It is generated exclusively from **GTFS Analyzer** results and does not include output from another validator or an external comparison.
@@ -242,9 +257,9 @@ Even when the UI retains a limited number of finding examples for performance, t
 
 ---
 
-## Six Ways to Use It
+## Seven Ways to Use It
 
-The same validation core (`gtfs_pipeline::validate_bytes`) runs in six ways — all of them use the same 619 rules and produce the same result model:
+The same 619-rule validation engine is available through seven paths; each interface presents the result for its own use case:
 
 | Path | Best for | Where the data goes |
 |---|---|---|
@@ -254,8 +269,12 @@ The same validation core (`gtfs_pipeline::validate_bytes`) runs in six ways — 
 | **CI/CD** (exit codes + `--fail-on`) | A release gate before publishing a feed | Nowhere — your own runner |
 | **[`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk) npm package** | Embedding validation in your web or Node application | Nowhere — local WASM |
 | **[`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/) Python package** (`pip install gtfs-analyzer`) | Embedding validation in your Python application | Nowhere — local Rust native module |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Validating a ZIP or URL in a conversation and explaining the findings | GTFS Validator MCP service — temporary processing for the request |
 
-The feed is never uploaded to a server in any of these modes. This makes it suitable for data that cannot leave your organization under policy or contract.
+The first six paths run locally or on infrastructure you control. ChatGPT is the
+exception: it transfers the feed to the MCP service while processing the
+analysis request. Use the browser application, CLI, or local packages for data
+that cannot leave your organization.
 
 ### CI/CD integration
 

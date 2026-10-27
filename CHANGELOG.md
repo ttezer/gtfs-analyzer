@@ -25,6 +25,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Info, Quality, outside the score; `AGN_014` keeps the multi-agency
   requirement (619 rules).
 
+### Changed
+
+- **MCP/ChatGPT intent routing is explicit.** `/gtfs` with an uploaded GTFS
+  ZIP, a public feed URL or a rule ID is routed to the existing file, URL or
+  rule tool. Natural-language GTFS validation requests use the same routes.
+  The adapter preserves Analyzer-produced status, coverage, scores, severity
+  counts, metrics and R9 order; this adds no new tool or native slash command.
+- **`ARC_022` is an informational threshold, not a read limit.** Its title,
+  messages and remediation now state that files above `max_file_rows` are
+  still read and validated in full. The dead non-stream truncation branch was
+  removed; the rule remains an unscored size notice and no longer asks
+  producers to split a valid large file.
+
 ### Fixed
 
 - **`STM_017` always collapsed to one feed-level notice.** The check for
@@ -63,6 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.5 km between two timepoints both at 15:15 with untimed stops in between
   was never reported. Timed-to-timed spans across untimed stops are now
   measured too; consecutive pairs are not counted twice.
+- **`OPR_008` omitted evidence from segments already reported as `STM_012`.**
+  Repeated excessive-speed trips could show a maximum of `0.0 km/h`, no source
+  line and no stop pair, and directly consecutive whole-minute zero-gap
+  segments did not count at all. Both paths now contribute their measured or
+  lower-bound speed, source line and stop-pair details to `OPR_008`.
 - **`TRP_024` treated sub-types of one vehicle as a change.** A block
   mixing route types 3 and 715 (both buses) or 106 and 109 (both rail) was
   reported; about 96% of corpus findings were of this kind. Blocks are now
@@ -78,6 +96,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `shapes.txt`, `trips.txt` and `calendar_dates.txt` was never checked; the
   rule card listed it as a known limit. Each stream now keeps the same
   per-file summary as K1.
+- **Localized output leaked Turkish through `observed_value`.** Eighteen rules
+  now emit raw values or language-neutral technical fields instead of
+  Analyzer-authored Turkish prose. Translated messages remain localized; rule
+  logic, finding counts, severities and scores are unchanged.
 
 ## [0.16.0] - 2026-10-11
 

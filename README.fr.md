@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
-GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Le fichier `.zip` téléversé n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous forme d’application navigateur, de CLI (`cargo install gtfs-analyzer`), de bibliothèque Rust, de barrière CI/CD, de paquet npm `gtfs-sdk` et de paquet Python `gtfs-analyzer`.
+GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Un fichier `.zip` téléversé dans l’application navigateur n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous sept formes : application navigateur, CLI (`cargo install gtfs-analyzer`), bibliothèque Rust, barrière CI/CD, paquet npm `gtfs-sdk`, paquet Python `gtfs-analyzer` et **GTFS Validator** dans ChatGPT.
 
 Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **619 règles**, **417** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 382 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
 
@@ -222,6 +222,23 @@ indiqué sur l’écran de téléversement. Pour le diagnostic, utilisez `?wasm3
 4. Pour comparer avec une analyse antérieure, ouvrez **Comparer** et téléversez son fichier Golden JSON. Les règles corrigées, nouvelles, en baisse et en hausse sont présentées avec l’évolution des scores, des dates du jeu de données et de la densité de signalements normalisée.
 5. Pour un livrable partageable, ouvrez **Exporter → Rapport de direction PDF**, choisissez la langue du rapport, puis utilisez **Imprimer / Enregistrer en PDF** dans l’aperçu.
 
+### GTFS Validator dans ChatGPT
+
+Pour analyser un jeu de données dans une conversation, ouvrez la
+[page GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c).
+Vous pouvez téléverser un ZIP GTFS, fournir
+l’URL publique d’un jeu de données ou demander l’explication d’une règle telle
+que `TRP_002`. Le moteur GTFS Analyzer effectue toujours la validation et le
+calcul des scores ; ChatGPT explique le résultat et résume les corrections
+prioritaires sans recalculer les scores.
+
+Contrairement à l’application navigateur, le parcours ChatGPT traite
+temporairement le jeu de données par le service MCP de GTFS Validator pendant
+la requête. Le contenu du jeu et le rapport de validation ne sont pas
+intentionnellement conservés après le traitement. Pour des données qui ne
+doivent pas quitter votre organisation, utilisez le navigateur, la CLI ou un
+paquet local.
+
 ### Rapport de direction PDF
 
 Le **Rapport de direction PDF** transforme les résultats détaillés de validation en un document lisible, à code couleur, prêt pour l’impression A4, destiné aux décideurs et aux producteurs de données. Il est généré exclusivement à partir des résultats de **GTFS Analyzer** et n’intègre ni la sortie d’un autre validateur ni une comparaison externe.
@@ -242,9 +259,9 @@ Même lorsque l’interface ne conserve qu’un nombre limité d’exemples de s
 
 ---
 
-## Six façons de l’utiliser
+## Sept façons de l’utiliser
 
-Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de six manières — toutes utilisent les mêmes 619 règles et produisent le même modèle de résultat :
+Le même moteur de validation à 619 règles est accessible par sept parcours ; chaque interface présente le résultat selon son usage :
 
 | Voie | Idéal pour | Où vont les données |
 |---|---|---|
@@ -254,8 +271,13 @@ Le même cœur de validation (`gtfs_pipeline::validate_bytes`) s’exécute de s
 | **CI/CD** (codes de sortie + `--fail-on`) | Une barrière de publication avant de diffuser un jeu de données | Nulle part — votre propre runner |
 | **Paquet npm [`gtfs-sdk`](https://www.npmjs.com/package/gtfs-sdk)** | Intégrer la validation dans votre application web ou Node | Nulle part — WASM local |
 | **Paquet Python [`gtfs-analyzer`](https://pypi.org/project/gtfs-analyzer/)** (`pip install gtfs-analyzer`) | Intégrer la validation dans votre application Python | Nulle part — module natif Rust local |
+| **ChatGPT — [GTFS Validator](https://chatgpt.com/plugins/plugin_asdk_app_6ac28e6e2354819182f3b14bce32014c)** | Valider un ZIP ou une URL dans une conversation et expliquer les signalements | Service MCP de GTFS Validator — traitement temporaire pendant la requête |
 
-Dans aucun de ces modes le jeu de données n’est téléversé vers un serveur. L’outil convient donc à des données qui ne peuvent pas quitter votre organisation pour des raisons de politique interne ou contractuelles.
+Les six premiers parcours s’exécutent localement ou sur une infrastructure que
+vous contrôlez. ChatGPT est l’exception : le jeu de données est transféré au
+service MCP pendant le traitement de la demande. Pour des données qui ne peuvent
+pas quitter votre organisation, utilisez l’application navigateur, la CLI ou
+les paquets locaux.
 
 ### Intégration CI/CD
 
