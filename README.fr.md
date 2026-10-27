@@ -6,16 +6,16 @@
 [![GTFS-JP](https://img.shields.io/badge/GTFS--JP-v3%2Fv4%20100%25%20Couverture%20V%C3%A9rifiable%20par%20Machine%20%28avis%20humain%20et%20recommandations%20seules%20exclus%29-c8102e?style=flat)](https://www.gtfs.jp/)
 [![Nombre de règles](https://img.shields.io/badge/r%C3%A8gles-619-blue?style=flat)](RULES.fr.md)
 ![Couverture de la spécification GTFS](https://img.shields.io/badge/Sp%C3%A9cification%20GTFS-97.2%25-007ec6?style=flat)
-[![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C382%20jeux%20de%20donn%C3%A9es%20%C3%97%2025%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)
+[![Validation sur corpus](https://img.shields.io/badge/corpus-4%2C435%20jeux%20de%20donn%C3%A9es%20%C3%97%2026%20ex%C3%A9cutions-brightgreen?style=flat)](audit-results/)
 [![crates.io](https://img.shields.io/crates/v/gtfs-analyzer?style=flat&label=crates.io)](https://crates.io/crates/gtfs-analyzer)
 [![npm](https://img.shields.io/npm/v/gtfs-sdk?style=flat&label=npm)](https://www.npmjs.com/package/gtfs-sdk)
 [![Licence MIT](https://img.shields.io/badge/licence-MIT-yellow?style=flat)](LICENSE)
 
 GTFS Validator & Analyzer est un validateur GTFS et un analyseur de qualité de jeux de données open source. Un fichier `.zip` téléversé dans l’application navigateur n’est jamais envoyé à un serveur ; toute la validation s’exécute sur l’appareil de l’utilisateur via WebAssembly. L’outil est disponible sous sept formes : application navigateur, CLI (`cargo install gtfs-analyzer`), bibliothèque Rust, barrière CI/CD, paquet npm `gtfs-sdk`, paquet Python `gtfs-analyzer` et **GTFS Validator** dans ChatGPT.
 
-Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **619 règles**, **417** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 382 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
+Le projet couvre **97,2 % des exigences mesurables de la spécification GTFS** et rattache les 300 atomes de l’inventaire des champs à au moins une règle Spec. Sur ses **619 règles**, **415** ont produit au moins un signalement lors de la dernière exécution complète sur le catalogue de 4 435 jeux de données. Toutes les règles sont listées dans [`RULES.fr.md`](RULES.fr.md).
 
-L’exactitude est éprouvée face au `gtfs-validator` officiel de MobilityData au fil de **vingt-cinq exécutions complètes sur le catalogue**. Chaque exécution valide tous les jeux de données GTFS Schedule testables du catalogue — **4 382** lors de la dernière en date — avec les deux validateurs sur la même machine et à la même date, en utilisant réellement le `gtfs-validator v8.0.1` Java. Les sorties brutes sont disponibles dans [`audit-results/`](audit-results/).
+L’exactitude est éprouvée face au `gtfs-validator` officiel de MobilityData au fil de **vingt-six exécutions complètes sur le catalogue**. Chaque exécution valide tous les jeux de données GTFS Schedule testables du catalogue — **4 435** lors de la dernière en date — avec les deux validateurs sur la même machine et à la même date, en utilisant réellement le `gtfs-validator v8.0.1` Java. Les sorties brutes sont disponibles dans [`audit-results/`](audit-results/).
 
 GTFS Validator & Analyzer ne se contente pas de vérifier la conformité d’un fichier à la spécification ; il analyse aussi la fiabilité, la cohérence et l’exploitabilité du jeu de données. Il présente chaque erreur avec le fichier et le numéro de ligne concernés, fournit des étapes de correction pour chaque signalement, et localise sur une carte interactive les problèmes géographiques — tracés déviants, coordonnées erronées ou arrêts inatteignables.
 
@@ -59,78 +59,78 @@ GTFS Validator & Analyzer prolonge la validation de la spécification par une an
 
 ### Validation sur corpus
 
-L’exactitude ne se démontre pas avec une poignée de jeux de données. Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule de MobilityDatabase** — **4 382 jeux de données** lors de la dernière exécution, répartis sur plus de 640 fragments parallèles. En face se trouve le **`gtfs-validator` v8.0.1** de MobilityData, exécuté lui aussi sur la même archive plutôt que lu depuis ses rapports publiés : la différence porte donc sur « qui a trouvé quoi », et non sur « quel rapport a été produit quand ».
+L’exactitude ne se démontre pas avec une poignée de jeux de données. Chaque version est exécutée sur **l’intégralité du catalogue GTFS Schedule de MobilityDatabase** — **4 435 jeux de données** lors de la dernière exécution, répartis sur 640 fragments parallèles. En face se trouve le **`gtfs-validator` v8.0.1** de MobilityData, exécuté lui aussi sur la même archive plutôt que lu depuis ses rapports publiés : la différence porte donc sur « qui a trouvé quoi », et non sur « quel rapport a été produit quand ».
 
-D’après la dernière exécution (`38421109536`, les deux validateurs ayant abouti sur **4 339** des 4 350 jeux de données testables) :
+D’après la dernière exécution (`40411348163` : 4 435 jeux tentés, 4 403 ZIP valides téléchargés et les deux validateurs ayant abouti sur **4 390** jeux) :
 
 | | GTFS Analyzer | MobilityData |
 |---|---|---|
-| Temps d’exécution médian | **0,05 s** | 2,96 s |
-| Pic mémoire médian | **15 Mo** | 331 Mo |
-| Jeux de données non traités | **1** | 11 |
+| Temps d’exécution médian | **0,05 s** | 2,77 s |
+| Pic mémoire médian | **15 Mo** | 332 Mo |
+| ZIP téléchargés non terminés | **0** | 13 |
 | Faits vus par MobilityData et pas par nous | **0** | — |
-| Temps d’exécution total | **83,3 min** | 385,7 min |
+| Temps d’exécution total | **78,3 min** | 351,3 min |
 
-Le seul jeu de données que nous n’avons pas terminé est `mdb-2014` : son archive a atteint 1,83 Go et a buté sur la limite de 7 minutes par jeu de données ; une mesure locale du même code ne montre aucune régression. Les 11 de MobilityData relèvent de ses classes de plantage documentées (7 exécutions partielles, 2 sans rapport, 2 dépassements de délai).
+GTFS Analyzer a terminé les 4 403 ZIP téléchargés. `mdb-2014`, agrégat BODS UK de 1 282 Mo compressé et 7 452 Mo décompressé, est désormais exclu explicitement lors de la sélection après avoir arrêté son fragment lors de deux tentatives ; l’exclusion reste enregistrée. Les 13 exécutions incomplètes de MobilityData se répartissent en 8 partielles, 3 sans rapport et 2 dépassements de délai.
 
-⚠️ **Le rapport de vitesse médian varie fortement selon la taille du jeu de données et ne peut se résumer à un seul facteur :** **~128×** en dessous de 1 Mo (approximatif, les temps de l’analyseur étant enregistrés à 10 ms près), 11,7× entre 1 et 5 Mo, 4,9× entre 5 et 20 Mo, 2,8× entre 20 et 100 Mo et **2,2×** au-delà de 100 Mo. 72 % du corpus pèse moins de 1 Mo, si bien que le rapport médian reflète surtout le coût de démarrage de la JVM. L’avantage mémoire est plus stable sur toutes les tranches.
+⚠️ **Le rapport de vitesse médian varie fortement selon la taille du jeu de données et ne peut se résumer à un seul facteur :** **~123×** en dessous de 1 Mo (approximatif, les temps de l’analyseur étant enregistrés à 10 ms près), 11,1× entre 1 et 5 Mo, 4,8× entre 5 et 20 Mo, 2,8× entre 20 et 100 Mo et **2,0×** au-delà de 100 Mo. 71 % du corpus pèse moins de 1 Mo, si bien que le rapport médian reflète surtout le coût de démarrage de la JVM. L’avantage mémoire est plus stable sur toutes les tranches.
 
 Les sorties brutes se trouvent dans [`audit-results/`](audit-results/) — les sept premières exécutions sont versionnées, les suivantes sont archivées sous forme de préversion `audit-<run-id>`.
 
 ### Exemples d’analyse de jeux de données
 
-Les chiffres ci-dessous proviennent de la dernière exécution sur corpus : même archive et même date d’analyse (2026-08-20), MobilityData utilisant le `gtfs-validator v8.0.1` Java. Les temps sont, des deux côtés, l’horloge murale de l’enregistrement d’exécution (même machine). Les quatre archives ont été téléchargées et leur sha256 vérifié contre l’exécution ; les nombres de lignes, d’arrêts et de courses viennent de l’archive lue par l’exécution.
+Les chiffres ci-dessous proviennent de l’exécution `40411348163` : même archive et même date d’analyse (2026-08-20), MobilityData utilisant le `gtfs-validator v8.0.1` Java. Les temps sont, des deux côtés, l’horloge murale sur la même machine. Les tailles ZIP et les signalements viennent de l’artefact ; les sha256 de BART, TriMet et VBB ont été revérifiés. Le `latest.zip` de Tokyo ayant changé après l’exécution, les nombres structurels impossibles à revérifier sur l’ancienne archive sont omis.
 
 #### BART (Bay Area Rapid Transit, San Francisco)
 
-Jeu de données : `mdb-53` · 12 lignes, 287 arrêts, 4 417 courses · 0,9 Mo
+Jeu de données : `mdb-53` · 14 lignes, 291 arrêts, 6 377 courses · 1,0 Mo
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Signalements totaux | 2 715 | 733 |
+| Signalements totaux | 2 716 | 1 027 |
 | Critique / Error | 2 | 2 |
-| Élevé / Warning | 2 654 | 1 |
-| Moyen | — | 10 |
-| Faible | — | 6 |
-| Info | 59 | 714 |
-| Types de règles déclenchés | 13 | **34** |
-| Temps de validation | 2,92 s | **0,18 s** |
+| Élevé / Warning | 2 653 | 2 |
+| Moyen | — | 13 |
+| Faible | — | 10 |
+| Info | 61 | 1 000 |
+| Types de règles déclenchés | 13 | **38** |
+| Temps de validation | 3,03 s | **0,22 s** |
 | Score de publication | — | **92,6 / 100** |
-| Score global | — | **93,7 / 100** |
+| Score global | — | **92,3 / 100** |
 
 #### TriMet (Portland, Oregon)
 
-Jeu de données : `mdb-247` · 81 lignes, 6 027 arrêts, 67 515 courses · 41,4 Mo
+Jeu de données : `mdb-247` · 82 lignes, 6 031 arrêts, 67 957 courses · 41,4 Mo
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Signalements totaux | 31 | 4 685 |
+| Signalements totaux | 31 | 4 690 |
 | Critique / Error | 0 | 0 |
 | Élevé / Warning | 20 | 1 |
-| Moyen | — | 36 |
-| Faible | — | 688 |
-| Info | 11 | 3 960 |
-| Types de règles déclenchés | 8 | **41** |
-| Temps de validation | 19,92 s | **7,10 s** |
+| Moyen | — | 33 |
+| Faible | — | 692 |
+| Info | 11 | 3 964 |
+| Types de règles déclenchés | 8 | **40** |
+| Temps de validation | 21,22 s | **6,70 s** |
 | Score de publication | — | **100 / 100** |
-| Score global | — | **94,9 / 100** |
+| Score global | — | **95,1 / 100** |
 
 > Ce jeu de données est conforme à la spécification : les deux outils signalent zéro constat critique et un score de publication de 100. L’écart du nombre de règles reflète l’analyse de qualité opérationnelle supplémentaire de GTFS Analyzer.
 
 #### Tokyo Toei (Bureau des transports de la métropole de Tokyo)
 
-Jeu de données : `mdb-3175` · 150 lignes, 5 365 arrêts, 55 846 courses · 7,2 Mo · **profil GTFS-JP**
+Jeu de données : `mdb-3175` · 6,8 Mo · **profil GTFS-JP**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Signalements totaux | 1 674 | 3 106 |
+| Signalements totaux | 1 673 | 3 095 |
 | Critique / Error | 0 | 0 |
 | Élevé / Warning | 301 | 10 |
-| Moyen | — | 2 189 |
+| Moyen | — | 2 182 |
 | Faible | — | 518 |
-| Info | 1 373 | 389 |
-| Types de règles déclenchés | 11 | **51** |
-| Temps de validation | 8,61 s | **2,24 s** |
+| Info | 1 372 | 385 |
+| Types de règles déclenchés | 11 | **50** |
+| Temps de validation | 8,30 s | **2,12 s** |
 | Score de publication | — | **100 / 100** |
 | Score global | — | **87,6 / 100** |
 
@@ -138,22 +138,22 @@ Jeu de données : `mdb-3175` · 150 lignes, 5 365 arrêts, 55 846 courses · 7,2
 
 #### VBB (Communauté de transport Berlin-Brandebourg)
 
-Jeu de données : `mdb-782` · 1 254 lignes, 41 970 arrêts, 186 138 courses, 14 241 tracés · **63,2 Mo**
+Jeu de données : `mdb-782` · 1 254 lignes, 41 904 arrêts, 183 349 courses, 14 189 tracés · **62,5 Mo**
 
 | | MobilityData | GTFS Analyzer |
 |---|---:|---:|
-| Signalements totaux | 11 616 | 20 305 |
+| Signalements totaux | 11 573 | 19 979 |
 | Critique / Error | 5 | 0 |
-| Élevé / Warning | 10 843 | 802 |
-| Moyen | — | 3 826 |
-| Faible | — | 5 784 |
-| Info | 768 | 9 893 |
-| Types de règles déclenchés | 20 | **83** |
-| Temps de validation | 28,22 s | **13,17 s** |
+| Élevé / Warning | 10 704 | 788 |
+| Moyen | — | 3 739 |
+| Faible | — | 5 626 |
+| Info | 864 | 9 826 |
+| Types de règles déclenchés | 19 | **83** |
+| Temps de validation | 35,36 s | **15,79 s** |
 | Score de publication | — | **100 / 100** |
 | Score global | — | **79,7 / 100** |
 
-> 🇩🇪 **Jeu de données volumineux :** le validateur web hébergé de MobilityData ne peut pas traiter un jeu de données de cette taille. GTFS Analyzer le valide directement dans le navigateur, sans envoyer le fichier à un serveur. Plus de la moitié du total de MobilityData (6 823) est `non_ascii_or_non_printable_char` : des ü/ö/ä/ß dans des champs d’identifiant (par exemple `zone_id` `7958 Prösen, Bahnhof`). La spécification recommande l’ASCII imprimable pour les identifiants ; GTFS Analyzer le signale par un résumé `ARC_037` par fichier. Les 5 erreurs de MobilityData (`pathway_unreachable_location`) apparaissent chez nous comme `PTH_012` (élevé, résumé au niveau du jeu de données).
+> 🇩🇪 **Jeu de données volumineux :** le validateur web hébergé de MobilityData ne peut pas traiter un jeu de données de cette taille. GTFS Analyzer le valide directement dans le navigateur, sans envoyer le fichier à un serveur. Plus de la moitié du total de MobilityData (6 818) est `non_ascii_or_non_printable_char` : des ü/ö/ä/ß dans des champs d’identifiant (par exemple `zone_id` `7958 Prösen, Bahnhof`). La spécification recommande l’ASCII imprimable pour les identifiants ; GTFS Analyzer le signale par un résumé `ARC_037` par fichier. Les 5 erreurs de MobilityData (`pathway_unreachable_location`) apparaissent chez nous comme `PTH_012` (élevé, résumé au niveau du jeu de données).
 
 ---
 
@@ -299,9 +299,9 @@ Pour intégrer la validation dans votre propre service Rust, utilisez directemen
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.16.0"
-gtfs-config   = "0.16.0"
-gtfs-core     = "0.16.0"
+gtfs-pipeline = "0.17.0"
+gtfs-config   = "0.17.0"
+gtfs-core     = "0.17.0"
 ```
 
 ```rust
@@ -327,7 +327,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ### Paquet npm `gtfs-sdk`
 
-`gtfs-sdk` expose le moteur de validation v0.16.0 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
+`gtfs-sdk` expose le moteur de validation v0.17.0 sous forme d’API JavaScript/TypeScript typée. Le jeu de données est validé par WASM local et ne quitte jamais l’application :
 
 ```js
 import { validateGtfs } from "gtfs-sdk";

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-27
+
+This release adds three rules, bringing the registry to 619, and ships the
+accumulated parser, suppression, speed-analysis, localization, Flex and MCP
+fixes. The parser, suppression and speed-analysis changes were validated by the
+latest full-catalog corpus run; the later output, Flex and MCP changes are
+covered separately by tests and dependency audit. The crates, CLI, Python
+package and web app move to `0.17.0`; `gtfs-sdk` moves from `0.7.0` to `0.8.0`.
+
 ### Added
 
 - **`ARC_037` — non-ASCII character in an ID field.** The spec recommends
@@ -37,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still read and validated in full. The dead non-stream truncation branch was
   removed; the rule remains an unscored size notice and no longer asks
   producers to split a valid large file.
+- **The Python MCP SDK floor is now `mcp>=1.30`.** Fresh installs already
+  resolved to 1.30.0, but the old `>=1.20` range still permitted unsupported
+  releases with published transport advisories. The server remains on
+  stateless Streamable HTTP with an explicit host allowlist.
+- **Full-catalog evidence was refreshed.** Run `40411348163` attempted 4,435
+  feeds and downloaded 4,403; Analyzer completed all downloaded feeds while
+  MobilityData Validator completed 4,390. The documented sample-feed reports,
+  performance bands and resource figures now come from this run. Oversized
+  `mdb-2014` remains explicitly excluded from the runnable corpus after twice
+  terminating its shard at 1,282 MB compressed and 7,452 MB extracted.
 
 ### Fixed
 
@@ -100,6 +119,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now emit raw values or language-neutral technical fields instead of
   Analyzer-authored Turkish prose. Translated messages remain localized; rule
   logic, finding counts, severities and scores are unchanged.
+- **`STP_018` ignored valid zone-only Flex feeds.** `stops.txt` is optional
+  when `stop_times.location_id` references a usable polygon in
+  `locations.geojson`; the rule now applies the same exemption as `ARC_004`.
+  Unused, malformed or non-polygon GeoJSON still does not suppress the missing
+  stops finding.
 
 ## [0.16.0] - 2026-10-11
 
@@ -2628,7 +2652,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...v0.14.0
