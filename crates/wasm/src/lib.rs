@@ -430,6 +430,12 @@ pub fn prepare_with_today(
     // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
     // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
     let config = parse_config(&config_delta_json).map_err(fatal_js)?;
+    wasm_log!(format!(
+        "[mem] K0 input Vec: len={} cap={} bytes ({:.1} MB)",
+        zip_bytes.len(),
+        zip_bytes.capacity(),
+        zip_bytes.capacity() as f64 / 1_048_576.0
+    ));
     run_k1_k5(&zip_bytes, &config, on_stage, today).map_err(fatal_js)
 }
 

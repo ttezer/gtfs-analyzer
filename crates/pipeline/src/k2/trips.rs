@@ -331,8 +331,16 @@ pub fn validate_trips_with_limits(
         // başlık okunur, kontrol hiç çalışmıyordu (2026-10-13). Boş satır TRP_001 vb. türetirdi.
         if row.iter().all(|v| v.trim().is_empty()) {
             notices.push(make_k2_notice(
-                &mut counter, "ARC_018", EntityType::File, Some(file.name.clone()),
-                None, &file.name, Some(line), None, None, None,
+                &mut counter,
+                "ARC_018",
+                EntityType::File,
+                Some(file.name.clone()),
+                None,
+                &file.name,
+                Some(line),
+                None,
+                None,
+                None,
                 format!("'{}' {line}. satırı tamamen boş.", file.name),
                 "Boş satırları kaldırın.",
             ));
@@ -343,8 +351,16 @@ pub fn validate_trips_with_limits(
             if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                 arc021_fired = true;
                 notices.push(make_k2_notice(
-                    &mut counter, "ARC_021", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, Some(line), None, Some(format!("U+{cp:04X}")), None,
+                    &mut counter,
+                    "ARC_021",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    Some(line),
+                    None,
+                    Some(format!("U+{cp:04X}")),
+                    None,
                     crate::k1_parse::arc021_message(&file.name, cp),
                     crate::k1_parse::ARC021_REMEDIATION,
                 ));
@@ -352,11 +368,20 @@ pub fn validate_trips_with_limits(
         }
         // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
         if !arc030_fired {
-            if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref())) {
+            if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
+            {
                 arc030_fired = true;
                 notices.push(make_k2_notice(
-                    &mut counter, "ARC_030", EntityType::File, Some(file.name.clone()),
-                    None, &file.name, Some(line), None, Some(format!("U+{cp:04X}")), None,
+                    &mut counter,
+                    "ARC_030",
+                    EntityType::File,
+                    Some(file.name.clone()),
+                    None,
+                    &file.name,
+                    Some(line),
+                    None,
+                    Some(format!("U+{cp:04X}")),
+                    None,
                     crate::k1_parse::arc030_message(&file.name, cp),
                     crate::k1_parse::ARC030_REMEDIATION,
                 ));

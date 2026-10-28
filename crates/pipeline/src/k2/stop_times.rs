@@ -512,12 +512,13 @@ impl StopTimesIndex {
         let rows_cap = self.rows.capacity();
         let rows_used_mb = mb(n * CST);
         let rows_cap_mb = mb(rows_cap * CST);
-        let tr_mb = mb(nt * (SS + 8)); // trip_ranges: SmolStr key + (u32,u32)
-        let tid_mb = mb(nt * SS); // trip_id_set
-        let sid_mb = mb(ns * SS); // stop_id_set
-        let tfl_mb = mb(nt * (SS + 8)); // trip_first_line
-        let sfl_mb = mb(ns * (SS + 8)); // stop_first_line
-        let intern_mb = mb(ni * (SS + 4)); // stop_intern Vec + stop_id_to_idx SmolStr→u32
+        let tr_mb = mb(self.trip_ranges.capacity() * (SS + 8));
+        let tid_mb = mb(self.trip_id_set.capacity() * SS);
+        let sid_mb = mb(self.stop_id_set.capacity() * SS);
+        let tfl_mb = mb(self.trip_first_line.capacity() * (SS + 8));
+        let sfl_mb = mb(self.stop_first_line.capacity() * (SS + 8));
+        let intern_vec_mb = mb(self.stop_intern.capacity() * SS);
+        let intern_map_mb = mb(self.stop_id_to_idx.capacity() * (SS + 4));
         let tss_outer_mb = mb(self.trip_stop_set.capacity() * (SS + SET_U32));
         let tss_inner_entries: usize = self.trip_stop_set.values().map(|s| s.capacity()).sum();
         let tss_inner_mb = mb(tss_inner_entries * 4); // u32 = 4 byte, heap yok
@@ -532,12 +533,13 @@ impl StopTimesIndex {
         crate::timing::mem_note(&format!(
             "stop_times index canli boyut (len x size_of, high-water DEGIL): \
              rows len {n} kullanilan {rows_used_mb:.1} MB / kapasite {rows_cap} ayrilan {rows_cap_mb:.1} MB | trip_ranges {nt} ~{tr_mb:.1} | \
-             trip_id_set ~{tid_mb:.1} | stop_id_set {ns} ~{sid_mb:.1} | \
-             stop_intern {ni} ~{intern_mb:.1} | \
+             trip_id_set {nt} cap({}) ~{tid_mb:.1} | stop_id_set {ns} cap({}) ~{sid_mb:.1} | \
+             stop_intern {ni} cap({}) ~{intern_vec_mb:.1} + stop_id_to_idx cap({}) ~{intern_map_mb:.1} | \
              trip_stop_set dis ~{tss_outer_mb:.1} ic({tss_inner_entries}) ~{tss_inner_mb:.1} | \
              trip_first_line ~{tfl_mb:.1} | stop_first_line ~{sfl_mb:.1} | \
              continuous {nc} | unsorted_seq {nu} ~{useq_mb:.1} | \
              SmolStr heap: trip ~{heap_tid_mb:.1} stop ~{heap_sid_mb:.1} intern ~{heap_intern_mb:.1} MB"
+            , self.trip_id_set.capacity(), self.stop_id_set.capacity(), self.stop_intern.capacity(), self.stop_id_to_idx.capacity()
         ));
     }
 
@@ -1484,6 +1486,42 @@ struct StChunk {
     /// dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
     all_rows: Vec<CompactStopTime>,
     row_trip: Vec<u32>,
+}
+
+impl StChunk {
+    /// K2 geçici yapılarının kapasite tabanlı canlı tahmini. Hash tablosu bucket
+    /// metadata'sı ve Vec içindeki String heap'leri ayrıca not edilir; alanlar
+    /// birbirine eklenirken aynı buffer iki kez sayılmaz.
+    fn log_mem_report(&self, label: &str) {
+        const SS: usize = std::mem::size_of::<SmolStr>();
+        const ROW: usize = std::mem::size_of::<CompactStopTime>();
+        const AGG: usize = std::mem::size_of::<TripAgg>();
+        let mb = |bytes: usize| bytes as f64 / 1_048_576.0;
+        fn heap_bytes<'a>(it: impl Iterator<Item = &'a SmolStr>) -> usize {
+            it.filter(|s| s.len() > 23).map(|s| s.len()).sum::<usize>()
+        }
+        let rows = mb(self.all_rows.capacity() * ROW);
+        let row_trip = mb(self.row_trip.capacity() * std::mem::size_of::<u32>());
+        let trips = mb(self.trips_agg.capacity() * (SS + AGG));
+        let stop_vec = mb(self.stop_intern.capacity() * SS);
+        let stop_map = mb(self.stop_id_to_idx.capacity() * (SS + 4));
+        let notices = mb(self.notices.capacity() * std::mem::size_of::<Notice>());
+        let pending = mb(
+            (self.stm018_pending.capacity() + self.stm019_pending.capacity())
+                * std::mem::size_of::<Notice>(),
+        );
+        let trip_heap = mb(heap_bytes(self.trips_agg.keys()));
+        let stop_heap = mb(heap_bytes(self.stop_intern.iter()));
+        crate::timing::mem_note(&format!(
+            "K2 st {label}: all_rows {}/{} ~{rows:.1}MB; row_trip {}/{} ~{row_trip:.1}MB; trips_agg {}/{} ~{trips:.1}MB +trip_heap {trip_heap:.1}MB; stop_intern {}/{} ~{stop_vec:.1}MB +heap {stop_heap:.1}MB; stop_id_to_idx {}/{} ~{stop_map:.1}MB; notices cap {} ~{notices:.1}MB; pending ~{pending:.1}MB",
+            self.all_rows.len(), self.all_rows.capacity(),
+            self.row_trip.len(), self.row_trip.capacity(),
+            self.trips_agg.len(), self.trips_agg.capacity(),
+            self.stop_intern.len(), self.stop_intern.capacity(),
+            self.stop_id_to_idx.len(), self.stop_id_to_idx.capacity(),
+            self.notices.capacity(),
+        ));
+    }
 }
 
 /// Gövdeyi `n` parçaya böler. Her sınır bir SATIR başına ve TRIP DEĞİŞİMİNE hizalanır:
@@ -3173,6 +3211,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         }
     }
 
+    st.log_mem_report("stream-end");
+
     if stream_truncated {
         if let Some(max) = max_data_rows {
             st.total_rows = st.total_rows.max(max.saturating_add(1));
@@ -3320,7 +3360,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     // Drop it before the large sort/finalize phase so duplicate trip-id storage
     // cannot overlap with the finalized rows.
     let _t_finalize = crate::timing::Timer::start("K2::st::finalize");
-    drop(st.trip_id_cache);
+    drop(std::mem::take(&mut st.trip_id_cache));
+    st.log_mem_report("pre-finalize");
     crate::timing::mem_log("  stop_times: st.all_rows + st.trips_agg built (pre-finalize)");
 
     // ── Finalize: in-place gruplama (Asama 1b + #15 W1) ──
@@ -3337,6 +3378,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     for i in 0..n_trips {
         offsets[i + 1] = offsets[i] + counts[i];
     }
+    crate::timing::mem_note(&format!(
+        "K2 finalize temp: counts len/cap {}/{} ~{:.1}MB; offsets len/cap {}/{} ~{:.1}MB",
+        counts.len(),
+        counts.capacity(),
+        counts.capacity() as f64 * std::mem::size_of::<u32>() as f64 / 1_048_576.0,
+        offsets.len(),
+        offsets.capacity(),
+        offsets.capacity() as f64 * std::mem::size_of::<u32>() as f64 / 1_048_576.0,
+    ));
     // #15 W1: ikinci tam Vec ASLA ayrilmaz. Cikti sirasi = (trip_idx ASC, stop_sequence
     // [None=MAX] ASC, dosya-ordinali ASC). Dosya-ordinali son tie-breaker => TAM siralama;
     // esit-anahtar nondeterminizmi YOK. Eski davranisla birebir: trip gruplama + trip-ici
@@ -3352,25 +3402,60 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             .then_with(|| a.cmp(&b))
     });
     drop(_t_sort);
+    crate::timing::mem_note(&format!(
+        "K2 finalize temp: perm len/cap {}/{} ~{:.1}MB",
+        perm.len(),
+        perm.capacity(),
+        perm.capacity() as f64 * std::mem::size_of::<u32>() as f64 / 1_048_576.0,
+    ));
+    st.log_mem_report("after-sort");
     crate::timing::mem_log("K2 after stop_times perm sort");
-    drop(st.row_trip); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
-                       // perm[pos] = pos. cikti pozisyonuna gelecek KAYNAK indeks. In-place icin dest'e
-                       // (eleman i NEREYE gider) cevir, sonra cycle-swap uygula (ikinci Vec yok).
-    let mut dest: Vec<u32> = vec![0u32; n];
-    for (pos, &src) in perm.iter().enumerate() {
-        dest[src as usize] = pos as u32;
+    // Deney B: perm'i ikinci bir `dest` Vec'i ayırmadan yerinde tersine çevir.
+    // Sort sonucu perm[pos] = src'tir; cycle-swap için gereken yön src -> pos.
+    // Yüksek bit geçici ziyaret işareti olarak güvenlidir: gerçek indeksler bu
+    // WASM feed'lerinde 2^31'in altındadır ve ikinci 228 MB tampon oluşmaz.
+    const PERM_MARK: u32 = 1 << 31;
+    debug_assert!(n < PERM_MARK as usize);
+    for i in 0..n {
+        if perm[i] & PERM_MARK != 0 {
+            continue;
+        }
+        let mut current = i;
+        let mut next = perm[current] as usize;
+        loop {
+            let next_next = perm[next] as usize;
+            perm[next] = PERM_MARK | current as u32;
+            current = next;
+            next = next_next;
+            if next == i {
+                break;
+            }
+        }
+        perm[i] = PERM_MARK | current as u32;
     }
-    drop(perm);
-    crate::timing::mem_log("K2 after stop_times dest build");
+    for value in &mut perm {
+        *value &= !PERM_MARK;
+    }
+    crate::timing::mem_note(&format!(
+        "K2 finalize temp: perm inverse in-place len/cap {}/{} ~{:.1}MB",
+        perm.len(),
+        perm.capacity(),
+        perm.capacity() as f64 * std::mem::size_of::<u32>() as f64 / 1_048_576.0,
+    ));
+    drop(std::mem::take(&mut st.row_trip)); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
+                                            // perm[src] = pos. Cycle-swap ikinci Vec olmadan uygulanir.
+    st.log_mem_report("after-row_trip-perm-drop");
+    crate::timing::mem_log("K2 after stop_times perm inverse");
     let _t_perm = crate::timing::Timer::start("K2::st::fin::permute");
     for k in 0..n {
-        while dest[k] as usize != k {
-            let d = dest[k] as usize;
+        while perm[k] as usize != k {
+            let d = perm[k] as usize;
             st.all_rows.swap(k, d);
-            dest.swap(k, d);
+            perm.swap(k, d);
         }
     }
     drop(_t_perm);
+    drop(perm);
     let rows = st.all_rows; // zero-copy: yerinde gruplandi + siralandi
     crate::timing::mem_log("K2 after stop_times in-place permute");
 

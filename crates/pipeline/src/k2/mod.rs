@@ -306,6 +306,32 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         .collect();
     let mut stream_budget = max_stream_rows.map(|_| StreamBudget::new(K2_MAX_STREAM_BYTES));
     mem_log("K2-start (=after-K1, K1 raw alive)");
+    let raw_text_len: usize = files
+        .values()
+        .filter_map(|file| file.raw_text.as_ref())
+        .map(String::len)
+        .sum();
+    let raw_text_cap: usize = files
+        .values()
+        .filter_map(|file| file.raw_text.as_ref())
+        .map(String::capacity)
+        .sum();
+    let rows_outer_cap: usize = files.values().map(|file| file.rows.capacity()).sum();
+    let rows_inner_cap: usize = files
+        .values()
+        .flat_map(|file| file.rows.iter())
+        .map(Vec::capacity)
+        .sum();
+    crate::timing::mem_note(&format!(
+        "K2 RawFiles: files={} raw_text {raw_text_len}/{raw_text_cap}B; rows_outer cap={} ~{:.1}MB; rows_inner cap={} SmolStr slots ~{:.1}MB",
+        files.len(),
+        rows_outer_cap,
+        rows_outer_cap as f64 * std::mem::size_of::<Vec<smol_str::SmolStr>>() as f64
+            / 1_048_576.0,
+        rows_inner_cap,
+        rows_inner_cap as f64 * std::mem::size_of::<smol_str::SmolStr>() as f64
+            / 1_048_576.0,
+    ));
     // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in
     // kalanı (özellikle dev shapes ham satırları) drop edildikten SONRA işlenir. Böylece
     // stop_times index'i kurulurken K1 raw ile AYNI ANDA canlı olmaz (~K1-raw kadar düşük peak).
