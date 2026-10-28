@@ -133,10 +133,20 @@ pub fn analyze_with_files(
     use crate::timing::Timer;
 
     let ti_analyze = &records.trip_interns;
-    let trip_shape: HashMap<&str, &str> = records
+    // K2 already interns shape ids. K6 keeps the compact index here instead of
+    // repeating an 8-byte shape-id pointer for every stop_times association.
+    let shape_id_to_idx: HashMap<&str, u32> = (1..records.shape_interns.len())
+        .map(|i| (records.shape_interns.id_at(i as u32), i as u32))
+        .collect();
+    let trip_shape: HashMap<&str, u32> = records
         .trips
         .iter()
-        .filter_map(|t| ti_analyze.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
+        .filter_map(|t| {
+            ti_analyze
+                .shape_id(t)
+                .and_then(|s| shape_id_to_idx.get(s).copied())
+                .map(|shape_idx| (t.trip_id.as_str(), shape_idx))
+        })
         .collect();
     // OOM fix Plan D (güncellendi): K6 K2 index'ini KLONLAMAZ. Test yolunda (stop_times_index boş
     // ama records.stop_times dolu) owned K2 index kurulur; üretimde records.stop_times_index ödünç.
@@ -425,10 +435,12 @@ pub fn analyze_with_files(
 
     #[cfg(feature = "parallel")]
     let parts: Vec<Vec<Notice>> = {
-        // Büyük feed'de (>15M stop_times) 15 eşzamanlı görev 4GB WASM sınırını aşıyor.
-        // 3'lü batch: peak ~600MB/batch, 1850MB headroom içinde. Küçük feedlerde değişmez.
+        // Büyük feed'de (>15M stop_times) K6 görevlerini sınırsız paralel çalıştırmak, her
+        // görevin kendi geçici haritaları nedeniyle peak RAM'i büyütür. Tek görevli batch,
+        // hız ile bellek arasında bounded bir denge sağlar; küçük feed'lerde tam paralellik
+        // korunur.
         let large = records.stop_times_index.total_rows > 15_000_000;
-        let batch = if large { 3 } else { tasks.len() };
+        let batch = if large { 1 } else { tasks.len() };
         let mut out: Vec<Vec<Notice>> = tasks.iter().map(|_| Vec::new()).collect();
         for (i, (out_chunk, task_chunk)) in
             out.chunks_mut(batch).zip(tasks.chunks(batch)).enumerate()
@@ -1090,7 +1102,9 @@ impl<'a> ShapeIndex<'a> {
 struct StopTimesIndex<'a> {
     by_trip: FxHashMap<&'a str, &'a [CompactStopTime]>,
     trip_first_dep: FxHashMap<&'a str, u32>,
-    stop_shapes: FxHashMap<&'a str, Vec<&'a str>>,
+    // Shape ids are already interned by K2; retaining u32 indices halves the
+    // per-association storage versus Vec<&str> and avoids pointer-heavy peaks.
+    stop_shapes: FxHashMap<&'a str, Vec<u32>>,
     trips_missing_sdt: FxHashMap<&'a str, u64>,
     // STM_036: K2'de tespit edilen sırasız stop_sequence bilgisi
     unsorted_seq_trips: &'a Vec<(SmolStr, u32, u32, u64)>,
@@ -1101,7 +1115,7 @@ struct StopTimesIndex<'a> {
 impl<'a> StopTimesIndex<'a> {
     fn build(
         records: &'a EntityRecords,
-        trip_shape: &HashMap<&'a str, &'a str>,
+        trip_shape: &HashMap<&'a str, u32>,
         k2: &'a K2StopTimesIndex,
     ) -> Self {
         let n_trips = records.trips.len();
@@ -1109,18 +1123,18 @@ impl<'a> StopTimesIndex<'a> {
 
         // K2 index dilimlerini ÖDÜNÇ al (klon yok); test yolunda fallback K2 ref'i gelir.
         let mut by_trip: FxHashMap<&'a str, &'a [CompactStopTime]> = FxHashMap::default();
-        let mut stop_shapes: FxHashMap<&'a str, Vec<&'a str>> = FxHashMap::default();
+        let mut stop_shapes: FxHashMap<&'a str, Vec<u32>> = FxHashMap::default();
         by_trip.reserve(n_trips);
         stop_shapes.reserve(n_stops);
 
         for (trip_id, stops) in k2.iter_trips() {
             let tid: &'a str = trip_id.as_str();
             by_trip.insert(tid, stops);
-            if let Some(&shape_id) = trip_shape.get(tid) {
+                if let Some(&shape_idx) = trip_shape.get(tid) {
                 for st in stops {
                     let sid = k2.stop_id_of(st);
                     if !sid.is_empty() {
-                        stop_shapes.entry(sid).or_default().push(shape_id);
+                            stop_shapes.entry(sid).or_default().push(shape_idx);
                     }
                 }
             }
@@ -7005,7 +7019,8 @@ fn check_remaining_analytics<'a>(
             // Option-1 karşılaştırması da eşikle birlikte taşınır; her shape kendi eşiğiyle ölçülür.
             let dists: Vec<(&str, f64, f64)> = shape_ids
                 .iter()
-                .filter_map(|&sid| {
+                .filter_map(|&shape_idx| {
+                    let sid = records.shape_interns.id_at(shape_idx);
                     let pts = shape_coords.get(sid)?;
                     if pts.is_empty() {
                         return None;

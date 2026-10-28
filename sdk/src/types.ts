@@ -228,7 +228,7 @@ export interface ValidateOptions {
   config?: ValidatorConfigDelta;
 }
 
-export type EngineMode = 'wasm32-serial' | 'wasm32-threaded' | 'wasm64-serial';
+export type EngineMode = 'wasm32-serial' | 'wasm32-threaded' | 'wasm64-serial' | 'wasm64-threaded';
 export type ValidationStage = 'K1' | 'K2' | 'K3' | 'K4' | 'K5' | 'K6' | 'K7';
 
 export interface ZipFileInfo {

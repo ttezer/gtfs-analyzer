@@ -1744,6 +1744,7 @@ pub fn validate_bytes_inspected(
             Err(e) => return ValidateResult::Fatal(e),
         }
     };
+    crate::timing::mem_log("after K1-parse");
     let mut partial = k1.partial;
     let stops_present = k1.present_files.contains("stops.txt");
     let stops_empty = k1
@@ -1774,6 +1775,7 @@ pub fn validate_bytes_inspected(
         )
         // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
+    crate::timing::mem_log("after K2-validate");
     reconcile_flex_stop_requirement(
         &mut k1.notices,
         &mut k2.notices,
@@ -1822,6 +1824,7 @@ pub fn validate_bytes_inspected(
         k3.entity_map.geojson_geometries = k1.geojson_geometries.clone();
         k3
     };
+    crate::timing::mem_log("after K3-entity-map");
 
     let k4 = {
         let _t = Timer::start("K4-cross-ref");
@@ -1833,6 +1836,7 @@ pub fn validate_bytes_inspected(
             Some(&whitespace_root_files),
         )
     };
+    crate::timing::mem_log("after K4-cross-ref");
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
     // build_name_index kullanmaz → K4 biter bitmez serbest bırak (K6 öncesi canlı belleği düşürür).
@@ -1842,11 +1846,13 @@ pub fn validate_bytes_inspected(
         let _t = Timer::start("K5-derived");
         build_derived_with_files(&k2.records, &k3.entity_map, &availability)
     };
+    crate::timing::mem_log("after K5-derived");
 
     let k6 = {
         let _t = Timer::start("K6-analytics");
         analyze_k6_with_files(&k2.records, &k5.derived, config, today, &availability)
     };
+    crate::timing::mem_log("after K6-analytics");
 
     let mut all = Vec::new();
     // `skipped_checks` explains reduced coverage; an ordinary complete feed may
@@ -1896,10 +1902,12 @@ pub fn validate_bytes_inspected(
         agency_attribution::index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
         (k7, agency_breakdown)
     };
+    crate::timing::mem_log("after K7-reporting");
 
     // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar
     // ödünç verilirken taşınmamalı.
     let name_index = build_name_index(&k2.records, &k7.notices);
+    crate::timing::mem_log("after name-index");
     ValidateResult::Ok(ValidationResult {
         status: if partial.is_empty() {
             ValidationStatus::Complete

@@ -23,15 +23,19 @@ type DeterministicModule = SerialModule & {
 };
 type ThreadedModule = DeterministicModule & { initThreadPool: (n: number) => Promise<void> };
 type Memory64Module = DeterministicModule;
+type Memory64ThreadedModule = Memory64Module & { initThreadPool: (n: number) => Promise<void> };
 
 let ready = false;
 let mod: DeterministicModule | null = null;
 let usingThreads = false;
 let usingMemory64 = false;
 
-export type EngineMode = 'wasm64-serial' | 'wasm32-threaded' | 'wasm32-serial';
+export type EngineMode = 'wasm64-threaded' | 'wasm64-serial' | 'wasm32-threaded' | 'wasm32-serial';
 
-export const MAX_INPUT_BYTES = 512 * 1024 * 1024;
+// Large feeds must reach the WASM64 path; 512 MiB rejected valid feeds before
+// the analyzer could inspect their ZIP directory. Keep a finite safety bound
+// while allowing the 1.28 GiB MD-2014 feed and similar inputs.
+export const MAX_INPUT_BYTES = 2 * 1024 * 1024 * 1024;
 
 function assertInputLimit(zip: Uint8Array): void {
   if (zip.byteLength > MAX_INPUT_BYTES) {
@@ -53,7 +57,7 @@ export function isMemory64(): boolean {
 }
 
 export function engineMode(): EngineMode {
-  if (usingMemory64) return 'wasm64-serial';
+  if (usingMemory64) return usingThreads ? 'wasm64-threaded' : 'wasm64-serial';
   return usingThreads ? 'wasm32-threaded' : 'wasm32-serial';
 }
 
@@ -70,9 +74,37 @@ function supportsMemory64(): boolean {
 export async function initWasm(forceSerial = false, forceMemory64 = false, forceWasm32 = false): Promise<void> {
   if (ready) return;
 
-  // Memory64 destekleyen tarayıcıda varsayılan motor budur. Paket yüklenemezse
-  // uygulama kullanılabilir kalmak için aşağıdaki wasm32 yoluna döner.
+  // Real threads require cross-origin isolation and SharedArrayBuffer. The
+  // memory64-threaded package is preferred for large inputs because wasm32's
+  // 4 GiB address ceiling is too small for them.
+  const isolated = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
+  const canThread = !forceSerial && typeof SharedArrayBuffer !== 'undefined' && isolated;
+  // wasm-bindgen-rayon currently emits wasm32-only js-sys atomics glue. A
+  // wasm64 build can compile with the feature flag, but its exported memory is
+  // not shared/cloneable by browser workers; do not pay the failed init cost.
+  const canMemory64Thread = false;
+
+  // Memory64 destekleyen tarayıcıda varsayılan motor seri WASM64'tür. Deneysel
+  // threaded paket şu an aşağıdaki açık uyumluluk kapısı nedeniyle seçilmez;
+  // paket yüklenemezse uygulama kullanılabilir kalmak için wasm32 yoluna döner.
   if (!forceWasm32 && (forceMemory64 || supportsMemory64())) {
+    if (canThread && canMemory64Thread) {
+      try {
+        const t = (await import('../pkg64-threads/gtfs_wasm')) as unknown as Memory64ThreadedModule;
+        await t.default();
+        const hw = (navigator as Navigator & { hardwareConcurrency?: number }).hardwareConcurrency || 4;
+        const n = Math.max(1, Math.min(hw, 8));
+        await t.initThreadPool(n);
+        mod = t;
+        usingThreads = true;
+        usingMemory64 = true;
+        ready = true;
+        console.info(`[WASM] wasm64 threaded mode (${n} iş parçacığı)`);
+        return;
+      } catch (err) {
+        console.warn('[WASM] wasm64-threaded init başarısız → wasm64 serial fallback', err);
+      }
+    }
     try {
       const m64 = await import('../pkg64/gtfs_wasm') as Memory64Module;
       await m64.default();
@@ -87,14 +119,9 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
     }
   }
 
-  // Gerçek thread'ler yalnızca crossOriginIsolated + SharedArrayBuffer varken kurulur.
-  // GitHub Pages'te bunu coi-serviceworker, dev/preview'de vite COOP/COEP başlıkları sağlar.
-  // Yoksa SERİ paket yüklenir → çıktı birebir aynı (yalnızca yavaş). Bu, sistemin
-  // her koşulda çalışmasını garanti eden geri-dönüş (fallback) yoludur.
-  // forceSerial: A/B ölçümü/hata-ayıklama için thread'leri kapatır (sayfa ?serial=1).
-  const isolated = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
-  const canThread = !forceSerial && typeof SharedArrayBuffer !== 'undefined' && isolated;
-
+  // GitHub Pages'te coi-serviceworker, dev/preview'de Vite COOP/COEP başlıkları
+  // izolasyonu sağlar. Memory64 kullanılamıyorsa wasm32-threaded son çaredir;
+  // o da yoksa seri paketle devam edilir.
   if (canThread) {
     try {
       const t = (await import('../pkg-threads/gtfs_wasm')) as unknown as ThreadedModule;

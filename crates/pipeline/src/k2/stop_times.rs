@@ -2,7 +2,7 @@ use gtfs_core::{EntityType, Notice, Severity};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 use std::borrow::Cow;
-use std::io::{Cursor, Read};
+use std::io::{self, Cursor, Read};
 
 use super::common::{get_col, get_col_raw, make_k2_notice};
 #[cfg(feature = "parallel")]
@@ -11,6 +11,10 @@ use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
 
 /// K2'nin K1'den sonra ZIP'i yeniden açtığı yollar için entry başına sert bütçe.
 pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
+/// Native parallel parsing keeps a decompressed body only for smaller entries.
+/// Above this threshold the ZIP entry is consumed directly to avoid materialising
+/// a multi-gigabyte `stop_times.txt` before any rows are indexed.
+const PARALLEL_BODY_STREAM_THRESHOLD: u64 = 512 * 1024 * 1024;
 
 /// SDK builds pass `max_data_rows`; native callers keep the historical large-feed
 /// path and therefore do not receive the SDK's per-entry byte cap.
@@ -215,8 +219,10 @@ pub struct StopTimesIndex {
     pub trip_id_set: FxHashSet<SmolStr>,
     /// K4: STP_012 / STM_001/002 — stop_times'ta geçen stop_id'ler
     pub stop_id_set: FxHashSet<SmolStr>,
-    /// K4: XFL_021 — per-trip stop_idx seti (u32 intern indeksleri; eski SmolStr'dan ~560 MB tasarruf)
-    pub trip_stop_set: FxHashMap<SmolStr, FxHashSet<u32>>,
+    /// K4: XFL_021 — per-trip stop_idx listesi (sıralı/benzersiz u32 intern indeksleri).
+    /// HashSet yerine Vec kullanmak, büyük feed'lerde set başına hash kapasitesi ve
+    /// bucket overhead'ini kaldırır; üyelik kontrolleri binary_search ile yapılır.
+    pub trip_stop_set: FxHashMap<SmolStr, Vec<u32>>,
     /// K4: TRP_019 — continuous pickup/drop-off olan seferler
     pub continuous_trips: FxHashSet<SmolStr>,
     /// K2/K6: toplam satır sayısı (STM_044 için)
@@ -255,7 +261,11 @@ pub const NO_DROP_OFF: u8 = 2;
 
 fn boarding_restriction_bits(pickup_type: Option<u32>, drop_off_type: Option<u32>) -> u8 {
     (if pickup_type == Some(1) { NO_PICKUP } else { 0 })
-        | (if drop_off_type == Some(1) { NO_DROP_OFF } else { 0 })
+        | (if drop_off_type == Some(1) {
+            NO_DROP_OFF
+        } else {
+            0
+        })
 }
 
 /// Raw saatlerin küçük bir gün-içi hatadan ziyade gece yarısı yazımına döndüğünü
@@ -332,7 +342,10 @@ impl StopTimesIndex {
     }
     /// CompactStopTime'ın biniş/iniş yasağı bitleri (`NO_PICKUP` | `NO_DROP_OFF`); 0 = serbest.
     pub fn boarding_restriction_of(&self, st: &CompactStopTime) -> u8 {
-        self.boarding_restrictions.get(&st.line).copied().unwrap_or(0)
+        self.boarding_restrictions
+            .get(&st.line)
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Raw stop_times'ta açık bir saat dönümünü, normalization ayarından bağımsız ölçer.
@@ -565,7 +578,7 @@ impl StopTimesIndex {
                 idx.trip_stop_set
                     .entry(st.trip_id.clone())
                     .or_default()
-                    .insert(stop_idx);
+                    .push(stop_idx);
             }
             // Enum kümesi {0,2,3}: 1 ve boş "sürekli biniş YOK" demektir (#170).
             // Bu set TRP_019'u besler; 1'i dahil etmek geçerli feed'den shape_id
@@ -581,7 +594,8 @@ impl StopTimesIndex {
             }
             let restriction = boarding_restriction_bits(st.pickup_type, st.drop_off_type);
             if restriction != 0 {
-                idx.boarding_restrictions.insert(st.line as u32, restriction);
+                idx.boarding_restrictions
+                    .insert(st.line as u32, restriction);
             }
             // flex side map — streaming yolun (build_index) yaptığının aynısı; fixture'lardan
             // kurulan index'te de location_id/location_group_id görünür olsun diye.
@@ -622,6 +636,10 @@ impl StopTimesIndex {
             idx.rows.extend(stops);
             let end = idx.rows.len() as u32;
             idx.trip_ranges.insert(tid, (start, end));
+        }
+        for stops in idx.trip_stop_set.values_mut() {
+            stops.sort_unstable();
+            stops.dedup();
         }
         idx
     }
@@ -751,20 +769,69 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
         return Ok(None);
     }
     let bad = || format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}");
+    let width_bad = || {
+        format!("'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}")
+    };
     // ⚠️ SÖZLÜKSEL GENİŞLİK — `common::gtfs_time_widths_ok` ile AYNI karar (issue #82).
     // İki yol ayrışırsa aynı feed akış modunda başka, tam modda başka sonuç verir.
-    let parts: Vec<&str> = raw.split(':').collect();
-    if !super::common::gtfs_time_widths_ok(&parts) {
-        return Err(format!(
-            "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
-        ));
+    // `split().collect()` yerine tek geçişli byte taraması kullan: bu fonksiyon her
+    // arrival/departure alanında çalıştığı için büyük feed'lerde on milyonlarca
+    // geçici Vec tahsisini önlüyoruz.
+    let bytes = raw.as_bytes();
+    let mut section = 0u8;
+    let mut section_digits = 0u8;
+    let mut hour_digits = 0u32;
+    let mut hour = 0u32;
+    let mut hour_overflow = false;
+    let mut minute = 0u32;
+    let mut second = 0u32;
+
+    for &byte in bytes {
+        if byte == b':' {
+            if section == 0 {
+                if hour_digits == 0 {
+                    return Err(width_bad());
+                }
+                section = 1;
+                section_digits = 0;
+            } else if section == 1 {
+                if section_digits != 2 {
+                    return Err(width_bad());
+                }
+                section = 2;
+                section_digits = 0;
+            } else {
+                return Err(width_bad());
+            }
+            continue;
+        }
+        if !byte.is_ascii_digit() {
+            return Err(width_bad());
+        }
+
+        let digit = (byte - b'0') as u32;
+        section_digits = section_digits.saturating_add(1);
+        match section {
+            0 => {
+                hour_digits = hour_digits.saturating_add(1);
+                if let Some(next) = hour.checked_mul(10).and_then(|n| n.checked_add(digit)) {
+                    hour = next;
+                } else {
+                    hour_overflow = true;
+                }
+            }
+            1 => minute = minute * 10 + digit,
+            2 => second = second * 10 + digit,
+            _ => unreachable!(),
+        }
     }
-    let mut it = raw.splitn(3, ':');
-    // parse_u32_ascii(seg).is_some() == seg.parse::<u32>().is_ok() (parse_tests garantisi) →
-    // Ok/Err kararı orijinalle birebir; splitn + ok_or_else(bad) yapısı değişmedi.
-    let hour = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
-    let minute = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
-    let second = parse_u32_ascii(it.next().ok_or_else(bad)?).ok_or_else(bad)?;
+
+    if section != 2 || section_digits != 2 {
+        return Err(width_bad());
+    }
+    if hour_overflow {
+        return Err(bad());
+    }
     if minute > 59 || second > 59 {
         return Err(format!("'{field}' dakika/saniye aralığı geçersiz: {raw}"));
     }
@@ -1053,8 +1120,8 @@ pub(super) fn next_csv_record<'a>(
 struct TripAgg {
     idx: u32,
     first_line: u32,
-    last_seq: u32,      // u32::MAX = None; STM_036 sıralama takibi
-    last_stop: SmolStr, // boş = None; last_seq'i ayarlayan durak
+    last_seq: u32,  // u32::MAX = None; STM_036 sıralama takibi
+    last_stop: u32, // u32::MAX = None; stop_intern içindeki last_seq durağı
     unsorted_fired: bool,
     continuous: bool,
     // stop_idx_set KALDIRILDI (#38 peak-2): 3M trip × ~80B heap → ~240 MB ekstra peak.
@@ -1182,6 +1249,46 @@ impl<R: Read> ZipCsvReader<R> {
         }
     }
 
+    /// Unquoted alanda özel karaktere kadar olan buffer bölümünü tek hamlede ekler.
+    /// Normal GTFS satırlarının çoğu bu yoldan geçer; byte-byte `next_byte()` çağrısını
+    /// yalnız ayraç/tırnak/satır sonlarında bırakır.
+    #[inline(always)]
+    fn append_plain_chunk(&mut self, field: &mut Vec<u8>) -> bool {
+        if self.pending.is_some() || self.pos == self.filled {
+            return false;
+        }
+        let available = &self.buf[self.pos..self.filled];
+        let count = available
+            .iter()
+            .position(|&b| matches!(b, b'"' | b',' | b'\n' | b'\r'))
+            .unwrap_or(available.len());
+        if count == 0 {
+            return false;
+        }
+        field.extend_from_slice(&available[..count]);
+        self.pos += count;
+        true
+    }
+
+    /// Quoted alanda kapanış tırnağına kadar olan buffer bölümünü tek hamlede ekler.
+    #[inline(always)]
+    fn append_quoted_chunk(&mut self, field: &mut Vec<u8>) -> bool {
+        if self.pending.is_some() || self.pos == self.filled {
+            return false;
+        }
+        let available = &self.buf[self.pos..self.filled];
+        let count = available
+            .iter()
+            .position(|&b| b == b'"')
+            .unwrap_or(available.len());
+        if count == 0 {
+            return false;
+        }
+        field.extend_from_slice(&available[..count]);
+        self.pos += count;
+        true
+    }
+
     /// Sonraki CSV kaydını `out`'a yazar (ham bayt alanları). EOF'ta false döner.
     ///
     /// Alan tamponları KORUNUR: `out` içindeki `Vec`'ler drop edilmez, `clear`
@@ -1218,6 +1325,13 @@ impl<R: Read> ZipCsvReader<R> {
             }};
         }
         loop {
+            if in_quotes {
+                if self.append_quoted_chunk(&mut out[fi]) {
+                    continue;
+                }
+            } else if self.append_plain_chunk(&mut out[fi]) {
+                continue;
+            }
             let b = match self.next_byte() {
                 Some(b) => b,
                 None => {
@@ -1382,6 +1496,22 @@ fn split_body_at_trip_boundaries(
     trip_col: Option<usize>,
     n: usize,
 ) -> Vec<(usize, usize, u64)> {
+    let header_end = match body.iter().position(|&b| b == b'\n') {
+        Some(i) => i + 1,
+        None => return Vec::new(),
+    };
+    split_chunk_at_trip_boundaries(body, trip_col, n, header_end, 2)
+}
+
+/// `body` header içermeyen bir ZIP parçası olabilir. `data_start` ve `first_line`
+/// parametreleri bu yüzden header'lı ve header'sız parçaları aynı mantıkla böler.
+fn split_chunk_at_trip_boundaries(
+    body: &[u8],
+    trip_col: Option<usize>,
+    n: usize,
+    data_start: usize,
+    first_line: u64,
+) -> Vec<(usize, usize, u64)> {
     // Satırın `trip_col`'uncu alanını kaba okur (tırnak yok varsayımı; trip_id'de nadirdir).
     // Okunamazsa None döner ve sınır bir satır ileri kayar — muhafazakâr taraf.
     fn trip_of(line: &[u8], col: usize) -> Option<&[u8]> {
@@ -1390,24 +1520,23 @@ fn split_body_at_trip_boundaries(
     let Some(tcol) = trip_col else {
         return Vec::new();
     };
-    let header_end = match body.iter().position(|&b| b == b'\n') {
-        Some(i) => i + 1,
-        None => return Vec::new(),
-    };
-    if n <= 1 || body.len() - header_end < 4 * 1024 * 1024 {
-        return vec![(header_end, body.len(), 2)];
+    if data_start > body.len() {
+        return Vec::new();
+    }
+    if n <= 1 || body.len() - data_start < 4 * 1024 * 1024 {
+        return vec![(data_start, body.len(), first_line)];
     }
 
     // Satır başlangıçları + numaraları tek geçişte.
     let mut starts: Vec<usize> = Vec::new();
-    starts.push(header_end);
-    for (i, &b) in body.iter().enumerate().skip(header_end) {
+    starts.push(data_start);
+    for (i, &b) in body.iter().enumerate().skip(data_start) {
         if b == b'\n' && i + 1 < body.len() {
             starts.push(i + 1);
         }
     }
     if starts.len() < n {
-        return vec![(header_end, body.len(), 2)];
+        return vec![(data_start, body.len(), first_line)];
     }
 
     let per = starts.len() / n;
@@ -1441,13 +1570,122 @@ fn split_body_at_trip_boundaries(
         } else {
             body.len()
         };
-        out.push((byte_start, byte_end, cut_idx as u64 + 2));
+        out.push((byte_start, byte_end, first_line + cut_idx as u64));
         if next >= starts.len() {
             break;
         }
         cut_idx = next;
     }
     out
+}
+
+/// Sıkıştırılmış ZIP girdisini sınırlı büyüklükte, trip sınırında kapanan parçalara
+/// ayırır. Böylece native `parallel` yolu `stop_times.txt` gövdesinin tamamını
+/// `Vec<u8>` olarak canlı tutmaz. Bir trip hedef boyutu aşarsa o trip parçaya sığar;
+/// bu, yanlış bir trip bölmesinden daha güvenli olan kontrollü istisnadır.
+fn read_bounded_trip_chunk<R: Read>(
+    reader: &mut R,
+    pending: &mut Vec<u8>,
+    target_bytes: usize,
+    trip_col: Option<usize>,
+    first_chunk: bool,
+    eof: &mut bool,
+) -> io::Result<Option<Vec<u8>>> {
+    let data_start = if first_chunk {
+        match pending.iter().position(|&b| b == b'\n') {
+            Some(i) => i + 1,
+            None => usize::MAX,
+        }
+    } else {
+        0
+    };
+
+    while !*eof && (pending.len() < target_bytes || data_start == usize::MAX) {
+        let mut buf = [0u8; 64 * 1024];
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            *eof = true;
+            break;
+        }
+        pending.extend_from_slice(&buf[..n]);
+    }
+
+    if pending.is_empty() {
+        return Ok(None);
+    }
+    let data_start = if first_chunk {
+        match pending.iter().position(|&b| b == b'\n') {
+            Some(i) => i + 1,
+            None => return Ok(Some(std::mem::take(pending))),
+        }
+    } else {
+        0
+    };
+
+    if *eof {
+        return Ok(Some(std::mem::take(pending)));
+    }
+
+    let Some(mut cut) = pending[..pending.len().min(target_bytes)]
+        .iter()
+        .rposition(|&b| b == b'\n')
+        .map(|i| i + 1)
+        .filter(|&i| i > data_start)
+    else {
+        // Hedef büyüklükte tam satır yoksa bir sonraki okuma ile büyüt.
+        let mut buf = [0u8; 64 * 1024];
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            *eof = true;
+        } else {
+            pending.extend_from_slice(&buf[..n]);
+        }
+        return read_bounded_trip_chunk(reader, pending, target_bytes, trip_col, first_chunk, eof);
+    };
+
+    let Some(tcol) = trip_col else {
+        let tail = pending.split_off(cut);
+        return Ok(Some(std::mem::replace(pending, tail)));
+    };
+
+    loop {
+        let prev_start = if cut == data_start {
+            data_start
+        } else {
+            pending[..cut.saturating_sub(1)]
+                .iter()
+                .rposition(|&b| b == b'\n')
+                .map(|i| i + 1)
+                .unwrap_or(data_start)
+        };
+        let prev_trip = pending[prev_start..cut]
+            .split(|&b| b == b',')
+            .nth(tcol)
+            .unwrap_or_default();
+
+        let Some(next_end_rel) = pending[cut..].iter().position(|&b| b == b'\n') else {
+            let mut buf = [0u8; 64 * 1024];
+            let n = reader.read(&mut buf)?;
+            if n == 0 {
+                *eof = true;
+                return Ok(Some(std::mem::take(pending)));
+            }
+            pending.extend_from_slice(&buf[..n]);
+            continue;
+        };
+        let next_end = cut + next_end_rel + 1;
+        let next_trip = pending[cut..next_end]
+            .split(|&b| b == b',')
+            .nth(tcol)
+            .unwrap_or_default();
+        if next_trip != prev_trip {
+            break;
+        }
+        cut = next_end;
+    }
+
+    let tail = pending.split_off(cut);
+    Ok(Some(std::mem::replace(pending, tail)))
 }
 
 impl StChunk {
@@ -1544,7 +1782,8 @@ impl StChunk {
         self.trip_id_cache.extend(other.trip_id_cache);
         self.stop_headsigns.extend(other.stop_headsigns); // anahtar = CSV satırı, çakışmaz
         self.flex_map.extend(other.flex_map);
-        self.boarding_restrictions.extend(other.boarding_restrictions);
+        self.boarding_restrictions
+            .extend(other.boarding_restrictions);
         for (sid, line) in other.stop_first_line {
             self.stop_first_line
                 .entry(sid)
@@ -1576,13 +1815,34 @@ pub fn validate_stop_times_with_limits(
     zip_bytes: Option<&[u8]>,
     has_booking_rules: bool,
     max_data_rows: Option<usize>,
+    stream_budget: Option<&mut StreamBudget>,
+) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
+    validate_stop_times_with_limits_and_trip_stop_set(
+        file,
+        zip_bytes,
+        has_booking_rules,
+        max_data_rows,
+        stream_budget,
+        true,
+    )
+}
+
+pub fn validate_stop_times_with_limits_and_trip_stop_set(
+    file: &RawFile,
+    zip_bytes: Option<&[u8]>,
+    has_booking_rules: bool,
+    max_data_rows: Option<usize>,
     mut stream_budget: Option<&mut StreamBudget>,
+    build_trip_stop_set: bool,
 ) -> (StopTimesIndex, Vec<gtfs_core::Notice>) {
     let mut st = StChunk {
         has_booking_rules,
         ..StChunk::default()
     };
     let cols = Cols::from_headers(&file.headers);
+    let has_trip_id_col = cols.trip_id.is_some();
+    let has_stop_sequence_col = cols.stop_sequence.is_some();
+    let has_stop_id_col = cols.stop_id.is_some();
     // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
     // Çıktı birebir aynı: get_col hep "" döner → STM_037-041 boş-yere-false, 6 alan None.
     let has_flex_cols = cols.start_pickup_drop_off_window.is_some()
@@ -1744,7 +2004,7 @@ pub fn validate_stop_times_with_limits(
             let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
 
             // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
-            if trip_id.is_empty() && file.headers.iter().any(|h| h == "trip_id") {
+            if trip_id.is_empty() && has_trip_id_col {
                 st.notices.push(make_k2_notice(
                     &mut st.counter,
                     "STM_046",
@@ -1765,7 +2025,7 @@ pub fn validate_stop_times_with_limits(
             let seq_raw = get_col(row, cols.stop_sequence);
             let stop_sequence = match parse_u32_raw(seq_raw, "stop_sequence") {
                 Ok(v) => {
-                    if v.is_none() && file.headers.iter().any(|h| h == "stop_sequence") {
+                    if v.is_none() && has_stop_sequence_col {
                         st.notices.push(make_k2_notice(
                             &mut st.counter,
                             "STM_005",
@@ -1803,6 +2063,7 @@ pub fn validate_stop_times_with_limits(
             };
 
             // STM_036: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
+            let mut advance_last_stop = false;
             if let Some(seq) = stop_sequence {
                 let cur_stop = get_col_raw(row, cols.stop_id);
                 let next_idx = st.trips_agg.len() as u32;
@@ -1830,7 +2091,12 @@ pub fn validate_stop_times_with_limits(
                             // Daha küçük stop_sequence'li satır, daha büyük sequence'li satırdan SONRA
                             // yazılmış → dosya artan sırada değil. Mesaj durak-odaklı: hangi durak
                             // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
-                            let prev_stop = agg.last_stop.clone();
+                            let prev_stop = st
+                                .stop_intern
+                                .get(agg.last_stop as usize)
+                                .map(SmolStr::as_str)
+                                .unwrap_or("")
+                                .to_string();
                             let mut n = make_k2_notice(
                             &mut st.counter, "STM_036", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("stop_sequence"),
@@ -1864,11 +2130,11 @@ pub fn validate_stop_times_with_limits(
                                 .push((trip_id.clone(), last, seq, line));
                         } else if seq > last {
                             agg.last_seq = seq;
-                            agg.last_stop = SmolStr::from(cur_stop);
+                            advance_last_stop = true;
                         }
                     } else {
                         agg.last_seq = seq;
-                        agg.last_stop = SmolStr::from(cur_stop);
+                        advance_last_stop = true;
                     }
                 }
             } // if let Some(seq)
@@ -1879,12 +2145,13 @@ pub fn validate_stop_times_with_limits(
             // location_id veya location_group_id taşır ve bu GEÇERLİDİR. Guard'sız hâlde her
             // Flex satırı KRİTİK STM_006 alıyordu.
             let raw_stop = get_col_raw(row, cols.stop_id);
-            let has_flex_location = !get_col_raw(row, cols.location_id).is_empty()
-                || !get_col_raw(row, cols.location_group_id).is_empty();
-            if raw_stop.is_empty()
-                && !has_flex_location
-                && file.headers.iter().any(|h| h == "stop_id")
-            {
+            let location_id_raw = get_col_raw(row, cols.location_id);
+            let location_group_id_raw = get_col_raw(row, cols.location_group_id);
+            let pickup_booking_rule_raw = get_col_raw(row, cols.pickup_booking_rule_id);
+            let drop_off_booking_rule_raw = get_col_raw(row, cols.drop_off_booking_rule_id);
+            let has_flex_location =
+                !location_id_raw.is_empty() || !location_group_id_raw.is_empty();
+            if raw_stop.is_empty() && !has_flex_location && has_stop_id_col {
                 st.notices.push(make_k2_notice(
                     &mut st.counter,
                     "STM_006",
@@ -1912,6 +2179,14 @@ pub fn validate_stop_times_with_limits(
                 st.stop_intern.push(ss);
                 i
             };
+
+            // Geçerli trip'lerde `last_stop` yazımını aşağıdaki tek TripAgg erişimine
+            // bırakıyoruz; boş trip_id için mevcut davranışı korumak üzere burada kalır.
+            if advance_last_stop && trip_id.is_empty() {
+                if let Some(agg) = st.trips_agg.get_mut(&trip_id) {
+                    agg.last_stop = stop_idx;
+                }
+            }
 
             // arrival_time
             let arr_raw = get_col(row, cols.arrival_time);
@@ -1971,8 +2246,10 @@ pub fn validate_stop_times_with_limits(
             // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
 
             // STM_009: pickup_type 0-3
+            let pickup_type_raw = get_col(row, cols.pickup_type);
+            let drop_off_type_raw = get_col(row, cols.drop_off_type);
             let pickup_type = parse_pickup_dropoff_col(
-                get_col(row, cols.pickup_type),
+                pickup_type_raw,
                 &mut st.notices,
                 &mut st.counter,
                 "STM_009",
@@ -1984,7 +2261,7 @@ pub fn validate_stop_times_with_limits(
 
             // STM_010: drop_off_type 0-3
             let drop_off_type = parse_pickup_dropoff_col(
-                get_col(row, cols.drop_off_type),
+                drop_off_type_raw,
                 &mut st.notices,
                 &mut st.counter,
                 "STM_010",
@@ -2240,10 +2517,10 @@ pub fn validate_stop_times_with_limits(
             // ⚠️ `booking_rules.txt` YOKSA susar: o dosya olmadan bir id yazmak FK'yı kırar
             // (`BKR_017`). Ölçümde bu kapı olmadan 97.355 satır çıkmıştı, kapıyla 27.
             if st.has_booking_rules {
-                let pu2 = get_col(row, cols.pickup_type) == "2";
-                let do2 = get_col(row, cols.drop_off_type) == "2";
-                let pbr = get_col_raw(row, cols.pickup_booking_rule_id);
-                let dobr = get_col_raw(row, cols.drop_off_booking_rule_id);
+                let pu2 = pickup_type_raw == "2";
+                let do2 = drop_off_type_raw == "2";
+                let pbr = pickup_booking_rule_raw;
+                let dobr = drop_off_booking_rule_raw;
                 if (pu2 && pbr.is_empty()) || (do2 && dobr.is_empty()) {
                     let (which, field) = if pu2 && pbr.is_empty() {
                         ("pickup_type=2", "pickup_booking_rule_id")
@@ -2279,10 +2556,10 @@ pub fn validate_stop_times_with_limits(
             ): ParsedFlexColumns = if has_flex_cols {
                 let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
                 let end_window_raw = get_col(row, cols.end_pickup_drop_off_window);
-                let loc_id_raw = get_col_raw(row, cols.location_id);
-                let loc_grp_raw = get_col_raw(row, cols.location_group_id);
-                let pbr_raw = get_col_raw(row, cols.pickup_booking_rule_id);
-                let dobr_raw = get_col_raw(row, cols.drop_off_booking_rule_id);
+                let loc_id_raw = location_id_raw;
+                let loc_grp_raw = location_group_id_raw;
+                let pbr_raw = pickup_booking_rule_raw;
+                let dobr_raw = drop_off_booking_rule_raw;
 
                 // STM_058: Flex pencere alanları `Time` tipindedir — biçim hatası arrival_time gibi
                 // RAPOR EDİLİR. Eskiden `.ok().flatten()` ile yutuluyordu: değer kayboluyor, STM_038
@@ -2350,10 +2627,9 @@ pub fn validate_stop_times_with_limits(
                 // demektir, ama o iddia bambaşka bir hacim üretir (pickup_type sütunu olmayan her
                 // Flex feed'inin her satırı) ve MD'nin o vakadaki davranışı ÖLÇÜLMEDİ. Dar kapsam
                 // bilinçli: `cols.*.is_some()` şartı bunu sabitler.
-                let implicit_pickup =
-                    cols.pickup_type.is_some() && get_col(row, cols.pickup_type).is_empty();
+                let implicit_pickup = cols.pickup_type.is_some() && pickup_type_raw.is_empty();
                 let implicit_drop_off =
-                    cols.drop_off_type.is_some() && get_col(row, cols.drop_off_type).is_empty();
+                    cols.drop_off_type.is_some() && drop_off_type_raw.is_empty();
                 let effective_pickup = if implicit_pickup {
                     Some(0)
                 } else {
@@ -2535,6 +2811,9 @@ pub fn validate_stop_times_with_limits(
                 {
                     agg.continuous = true;
                 }
+                if advance_last_stop {
+                    agg.last_stop = stop_idx;
+                }
                 let trip_idx = agg.idx;
                 st.row_trip.push(trip_idx);
                 // side map'ler: CSV satır numarası anahtarlı (permutation'dan bağımsız)
@@ -2586,6 +2865,7 @@ pub fn validate_stop_times_with_limits(
         let mut scan = CsvScanState::default();
         // ── Sürücü: stream raw_text (başlığı atla), ZIP stream veya rows fallback ──
         if let Some(text) = &file.raw_text {
+            let _t_raw_stream = crate::timing::Timer::start("K2::st::raw_text::stream_process");
             let mut pos = 0usize;
             let mut buf: Vec<Cow<'_, str>> = Vec::with_capacity(16);
             let mut data_idx = 0usize;
@@ -2606,6 +2886,8 @@ pub fn validate_stop_times_with_limits(
                 process(&mut st, &buf, (data_idx + 2) as u64);
                 data_idx += 1;
             }
+            drop(_t_raw_stream);
+            crate::timing::mem_note(&format!("K2::st::raw_text rows={}", data_idx));
         } else if let Some(zb) = zip_bytes {
             // #38: stop_times.txt K1'de yalnızca başlık okundu; K2 ZIP'i yeniden açıp stream eder.
             let cursor = Cursor::new(zb);
@@ -2647,85 +2929,189 @@ pub fn validate_stop_times_with_limits(
                         #[cfg(feature = "parallel")]
                         Ok(entry) => {
                             use rayon::prelude::*;
-                            // Deflate akışı rastgele erişilemez → gövdeyi bir kez aç, sonra
-                            // satır/trip sınırlarında bölüp parçaları paralel ayrıştır. ZIP
-                            // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
-                            // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
-                            // boyutuyla tahsis saldırısına açıktı.
-                            let stream_limit = stream_budget
-                                .as_ref()
-                                .map(|budget| budget.limit())
-                                .unwrap_or(stream_byte_limit(max_data_rows));
-                            let mut limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
-                            if max_data_rows.is_some() {
-                                limits.max_entry_decompressed = stream_limit as u64;
-                                limits.max_total_decompressed = stream_limit as u64;
-                            }
-                            let compressed_size = entry.compressed_size();
-                            let mut total_decompressed = 0u64;
-                            let mut guarded = GuardedReader::new(
-                                entry,
-                                limits,
-                                &mut total_decompressed,
-                                compressed_size,
-                            );
-                            let mut body: Vec<u8> = Vec::new();
-                            if guarded.read_to_end(&mut body).is_ok() {
-                                let n = std::thread::available_parallelism()
-                                    .map(|v| v.get())
-                                    .unwrap_or(4);
-                                let ranges = split_body_at_trip_boundaries(&body, cols.trip_id, n);
-                                let parts: Vec<StChunk> = ranges
-                                    .par_iter()
-                                    .map(|&(bs, be, first_line)| {
-                                        let mut c = StChunk {
-                                            has_booking_rules,
-                                            ..StChunk::default()
-                                        };
-                                        // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
-                                        // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
-                                        // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
-                                        let mut rdr = ZipCsvReader::with_limits(
-                                            Cursor::new(&body[bs..be]),
-                                            stream_limit,
-                                            max_data_rows,
-                                        );
-                                        let mut fields: Vec<Vec<u8>> =
-                                            Vec::with_capacity(header_count + 1);
-                                        let mut line = first_line;
-                                        while rdr.next_record(&mut fields) {
-                                            if fields.len() == 1 && fields[0].is_empty() {
-                                                continue;
+                            if max_data_rows.is_none()
+                                && entry.size() > PARALLEL_BODY_STREAM_THRESHOLD
+                            {
+                                const STREAM_CHUNK_BYTES: usize = 256 * 1024 * 1024;
+                                let stream_limit = stream_budget
+                                    .as_ref()
+                                    .map(|budget| budget.limit())
+                                    .unwrap_or(stream_byte_limit(max_data_rows));
+                                let limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
+                                let compressed_size = entry.compressed_size();
+                                let mut total_decompressed = 0u64;
+                                let mut guarded = GuardedReader::new(
+                                    entry,
+                                    limits,
+                                    &mut total_decompressed,
+                                    compressed_size,
+                                );
+                                let mut pending = Vec::with_capacity(STREAM_CHUNK_BYTES);
+                                let mut first_chunk = true;
+                                let mut eof = false;
+                                let workers = std::thread::available_parallelism()
+                                    .map(|v| v.get().clamp(1, 3))
+                                    .unwrap_or(2);
+                                let mut next_line = 2u64;
+                                while let Ok(Some(chunk)) = read_bounded_trip_chunk(
+                                    &mut guarded,
+                                    &mut pending,
+                                    STREAM_CHUNK_BYTES,
+                                    cols.trip_id,
+                                    first_chunk,
+                                    &mut eof,
+                                ) {
+                                    let data_start = if first_chunk {
+                                        chunk
+                                            .iter()
+                                            .position(|&b| b == b'\n')
+                                            .map(|i| i + 1)
+                                            .unwrap_or(chunk.len())
+                                    } else {
+                                        0
+                                    };
+                                    let ranges = split_chunk_at_trip_boundaries(
+                                        &chunk,
+                                        cols.trip_id,
+                                        workers,
+                                        data_start,
+                                        next_line,
+                                    );
+                                    let parts: Vec<StChunk> = ranges
+                                        .par_iter()
+                                        .map(|&(bs, be, first_line)| {
+                                            let mut c = StChunk {
+                                                has_booking_rules,
+                                                ..StChunk::default()
+                                            };
+                                            let mut rdr = ZipCsvReader::with_limits(
+                                                Cursor::new(&chunk[bs..be]),
+                                                stream_limit,
+                                                None,
+                                            );
+                                            let mut fields: Vec<Vec<u8>> =
+                                                Vec::with_capacity(header_count + 1);
+                                            let mut line = first_line;
+                                            while rdr.next_record(&mut fields) {
+                                                if fields.len() == 1 && fields[0].is_empty() {
+                                                    continue;
+                                                }
+                                                let row: Vec<Cow<'_, str>> = fields
+                                                    .iter()
+                                                    .map(|f| match std::str::from_utf8(f) {
+                                                        Ok(x) => Cow::Borrowed(x),
+                                                        Err(_) => Cow::Owned(
+                                                            String::from_utf8_lossy(f).into_owned(),
+                                                        ),
+                                                    })
+                                                    .collect();
+                                                c.unclosed |= rdr.unclosed;
+                                                if let Some((k, ex)) = rdr.rfc.take() {
+                                                    c.rfc.observe(line, k, &ex);
+                                                }
+                                                process(&mut c, &row, line);
+                                                line += 1;
                                             }
-                                            let row: Vec<Cow<'_, str>> = fields
-                                                .iter()
-                                                .map(|f| match std::str::from_utf8(f) {
-                                                    Ok(x) => Cow::Borrowed(x),
-                                                    Err(_) => Cow::Owned(
-                                                        String::from_utf8_lossy(f).into_owned(),
-                                                    ),
-                                                })
-                                                .collect();
-                                            c.unclosed |= rdr.unclosed;
-                                            if let Some((k, ex)) = rdr.rfc.take() {
-                                                c.rfc.observe(line, k, &ex);
+                                            c
+                                        })
+                                        .collect();
+                                    for c in parts {
+                                        st.merge(c);
+                                    }
+                                    let data_lines =
+                                        chunk[data_start..].iter().filter(|&&b| b == b'\n').count()
+                                            as u64;
+                                    next_line += data_lines;
+                                    first_chunk = false;
+                                    if eof {
+                                        break;
+                                    }
+                                }
+                                if let Some(budget) = stream_budget.as_mut() {
+                                    budget.consume(total_decompressed as usize);
+                                }
+                            } else {
+                                // Deflate akışı rastgele erişilemez → gövdeyi bir kez aç, sonra
+                                // satır/trip sınırlarında bölüp parçaları paralel ayrıştır. ZIP
+                                // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
+                                // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
+                                // boyutuyla tahsis saldırısına açıktı.
+                                let stream_limit = stream_budget
+                                    .as_ref()
+                                    .map(|budget| budget.limit())
+                                    .unwrap_or(stream_byte_limit(max_data_rows));
+                                let mut limits: DecompressionLimits = DEFAULT_DECOMPRESSION_LIMITS;
+                                if max_data_rows.is_some() {
+                                    limits.max_entry_decompressed = stream_limit as u64;
+                                    limits.max_total_decompressed = stream_limit as u64;
+                                }
+                                let compressed_size = entry.compressed_size();
+                                let mut total_decompressed = 0u64;
+                                let mut guarded = GuardedReader::new(
+                                    entry,
+                                    limits,
+                                    &mut total_decompressed,
+                                    compressed_size,
+                                );
+                                let mut body: Vec<u8> = Vec::new();
+                                if guarded.read_to_end(&mut body).is_ok() {
+                                    let n = std::thread::available_parallelism()
+                                        .map(|v| v.get())
+                                        .unwrap_or(4);
+                                    let ranges =
+                                        split_body_at_trip_boundaries(&body, cols.trip_id, n);
+                                    let parts: Vec<StChunk> = ranges
+                                        .par_iter()
+                                        .map(|&(bs, be, first_line)| {
+                                            let mut c = StChunk {
+                                                has_booking_rules,
+                                                ..StChunk::default()
+                                            };
+                                            // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
+                                            // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
+                                            // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
+                                            let mut rdr = ZipCsvReader::with_limits(
+                                                Cursor::new(&body[bs..be]),
+                                                stream_limit,
+                                                max_data_rows,
+                                            );
+                                            let mut fields: Vec<Vec<u8>> =
+                                                Vec::with_capacity(header_count + 1);
+                                            let mut line = first_line;
+                                            while rdr.next_record(&mut fields) {
+                                                if fields.len() == 1 && fields[0].is_empty() {
+                                                    continue;
+                                                }
+                                                let row: Vec<Cow<'_, str>> = fields
+                                                    .iter()
+                                                    .map(|f| match std::str::from_utf8(f) {
+                                                        Ok(x) => Cow::Borrowed(x),
+                                                        Err(_) => Cow::Owned(
+                                                            String::from_utf8_lossy(f).into_owned(),
+                                                        ),
+                                                    })
+                                                    .collect();
+                                                c.unclosed |= rdr.unclosed;
+                                                if let Some((k, ex)) = rdr.rfc.take() {
+                                                    c.rfc.observe(line, k, &ex);
+                                                }
+                                                process(&mut c, &row, line);
+                                                line += 1;
                                             }
-                                            process(&mut c, &row, line);
-                                            line += 1;
-                                        }
-                                        c
-                                    })
-                                    .collect();
-                                let mut it = parts.into_iter();
-                                if let Some(first) = it.next() {
-                                    st = first;
+                                            c
+                                        })
+                                        .collect();
+                                    let mut it = parts.into_iter();
+                                    if let Some(first) = it.next() {
+                                        st = first;
+                                    }
+                                    for c in it {
+                                        st.merge(c);
+                                    }
                                 }
-                                for c in it {
-                                    st.merge(c);
+                                if let Some(budget) = stream_budget.as_mut() {
+                                    budget.consume(total_decompressed as usize);
                                 }
-                            }
-                            if let Some(budget) = stream_budget.as_mut() {
-                                budget.consume(total_decompressed as usize);
                             }
                         }
                         #[cfg(not(feature = "parallel"))]
@@ -2739,17 +3125,10 @@ pub fn validate_stop_times_with_limits(
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
-                            // ── Parçalama (Adım 2: SERİ) ────────────────────────────────
-                            // Sınır TRIP DEĞİŞİMİNDE kurulur: stop_times trip'e göre gruplu
-                            // olduğundan aynı trip iki parçaya düşmez, dolayısıyla STM_036'nın
-                            // parça-sınırı sorunu doğmaz. Şu an paralellik YOK; amaç `merge`
-                            // yolunun çıktıyı birebir koruduğunu tek başına kanıtlamak.
-                            const CHUNK_ROWS: usize = 500_000;
-                            let mut chunks: Vec<StChunk> = Vec::new();
-                            let mut cur = StChunk::default();
-                            cur.has_booking_rules = has_booking_rules;
-                            let mut rows_in_chunk: usize = 0;
-                            let mut boundary_trip: Option<SmolStr> = None;
+                            // Deney: seri akışta tek StChunk kullan. Böylece satırları
+                            // parçalara ayırıp 120 kez `StChunk::merge` etme maliyeti yok.
+                            let _t_stream =
+                                crate::timing::Timer::start("K2::st::single::stream_process");
                             while csv_reader.next_record(&mut raw_fields) {
                                 if raw_fields.len() == 1 && raw_fields[0].is_empty() {
                                     continue;
@@ -2758,54 +3137,23 @@ pub fn validate_stop_times_with_limits(
                                     header_skipped = true;
                                     continue;
                                 }
-                                // Alanlar `raw_fields`ten ÖDÜNÇ alınır: geçerli UTF-8'de kopya
-                                // yok. `cow_row` `process` dönüşünde düşer, dolayısıyla bir
-                                // sonraki `next_record(&mut raw_fields)` ile çakışmaz. (Eskiden
-                                // her alan `to_owned()` ile kopyalanıyordu — VBB'de satır başına
-                                // 1 Vec + ~10 String, yani ~68M tahsis.) Bozuk UTF-8 nadir
-                                // istisnadır ve yalnız o satırda `Cow::Owned`a düşer.
                                 let cow_row: Vec<Cow<'_, str>> = raw_fields
                                     .iter()
-                                    .map(|f| match std::str::from_utf8(f) {
-                                        Ok(s) => Cow::Borrowed(s),
+                                    .map(|field| match std::str::from_utf8(field) {
+                                        Ok(value) => Cow::Borrowed(value),
                                         Err(_) => {
-                                            Cow::Owned(String::from_utf8_lossy(f).into_owned())
+                                            Cow::Owned(String::from_utf8_lossy(field).into_owned())
                                         }
                                     })
                                     .collect();
-                                // Sınıra gelindiyse trip değişimini BEKLE, sonra böl.
-                                if rows_in_chunk >= CHUNK_ROWS {
-                                    let tid = get_col_raw(&cow_row, cols.trip_id);
-                                    match &boundary_trip {
-                                        None => boundary_trip = Some(SmolStr::from(tid)),
-                                        Some(b) if b.as_str() != tid => {
-                                            chunks.push(std::mem::take(&mut cur));
-                                            // `mem::take` chunk'ı Default'a sıfırlar → bayrak
-                                            // yeniden kurulmalı, yoksa ilk chunk'tan sonrası sessizleşir.
-                                            cur.has_booking_rules = has_booking_rules;
-                                            rows_in_chunk = 0;
-                                            boundary_trip = None;
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                                cur.unclosed |= csv_reader.unclosed;
+                                st.unclosed |= csv_reader.unclosed;
                                 if let Some((k, ex)) = csv_reader.rfc.take() {
-                                    cur.rfc.observe(zip_line, k, &ex);
+                                    st.rfc.observe(zip_line, k, &ex);
                                 }
-                                process(&mut cur, &cow_row, zip_line);
-                                rows_in_chunk += 1;
+                                process(&mut st, &cow_row, zip_line);
                                 zip_line += 1;
                             }
-                            chunks.push(cur);
-                            // Dosya sırasında birleştir: ilki temel, sonrakiler katılır.
-                            let mut it = chunks.into_iter();
-                            if let Some(first) = it.next() {
-                                st = first;
-                            }
-                            for c in it {
-                                st.merge(c);
-                            }
+                            drop(_t_stream);
                             if let Some(budget) = stream_budget.as_mut() {
                                 budget.consume(csv_reader.bytes_read());
                             }
@@ -2967,6 +3315,12 @@ pub fn validate_stop_times_with_limits(
         STM018_019_AGG_THRESHOLD,
     );
 
+    // Parsing is complete: the cache only kept temporary String -> SmolStr
+    // interning aliases and is not read by finalize or the resulting index.
+    // Drop it before the large sort/finalize phase so duplicate trip-id storage
+    // cannot overlap with the finalized rows.
+    let _t_finalize = crate::timing::Timer::start("K2::st::finalize");
+    drop(st.trip_id_cache);
     crate::timing::mem_log("  stop_times: st.all_rows + st.trips_agg built (pre-finalize)");
 
     // ── Finalize: in-place gruplama (Asama 1b + #15 W1) ──
@@ -2998,6 +3352,7 @@ pub fn validate_stop_times_with_limits(
             .then_with(|| a.cmp(&b))
     });
     drop(_t_sort);
+    crate::timing::mem_log("K2 after stop_times perm sort");
     drop(st.row_trip); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
                        // perm[pos] = pos. cikti pozisyonuna gelecek KAYNAK indeks. In-place icin dest'e
                        // (eleman i NEREYE gider) cevir, sonra cycle-swap uygula (ikinci Vec yok).
@@ -3006,6 +3361,7 @@ pub fn validate_stop_times_with_limits(
         dest[src as usize] = pos as u32;
     }
     drop(perm);
+    crate::timing::mem_log("K2 after stop_times dest build");
     let _t_perm = crate::timing::Timer::start("K2::st::fin::permute");
     for k in 0..n {
         while dest[k] as usize != k {
@@ -3016,6 +3372,7 @@ pub fn validate_stop_times_with_limits(
     }
     drop(_t_perm);
     let rows = st.all_rows; // zero-copy: yerinde gruplandi + siralandi
+    crate::timing::mem_log("K2 after stop_times in-place permute");
 
     // STM_032 post-finalize: sıralanmış satırlarda ardışık aynı stop_sequence → dup.
     // Process closure'da değil (seen_seq set kaldırıldı); burada windows(2) ile O(n) tespit.
@@ -3223,21 +3580,25 @@ pub fn validate_stop_times_with_limits(
     // TripAgg'lar drop edildi (stop_idx_set heap'leri serbest); trip_ranges+rows üzerinden
     // per-trip unique stop_idx setleri yeniden inşa edilir. Semantik birebir: same sets.
     crate::timing::mem_log("K2 before trip_stop_set rebuild (st.trips_agg freed)");
-    {
+    if build_trip_stop_set {
         let _t_tss = crate::timing::Timer::start("K2::st::fin::trip_stop_set");
         for (tid, &(s, e)) in &index.trip_ranges {
             if s == e {
                 continue;
             }
-            let set: FxHashSet<u32> = index.rows[s as usize..e as usize]
+            let mut set: Vec<u32> = index.rows[s as usize..e as usize]
                 .iter()
                 .map(|st| st.stop_idx)
                 .filter(|&i| i != u32::MAX)
                 .collect();
+            set.sort_unstable();
+            set.dedup();
             if !set.is_empty() {
                 index.trip_stop_set.insert(tid.clone(), set);
             }
         }
+    } else {
+        crate::timing::mem_note("trip_stop_set skipped: K4 consumer files absent");
     }
     crate::timing::mem_log("K2 after trip_stop_set rebuild");
 
@@ -3245,6 +3606,7 @@ pub fn validate_stop_times_with_limits(
         "  stop_times: index finalized (rows placed, st.all_rows freed, maps built)",
     );
     index.log_mem_report();
+    drop(_t_finalize);
     (index, st.notices)
 }
 
@@ -4214,7 +4576,13 @@ mod tests {
     #[test]
     fn stm019_aggregate_examples_do_not_repeat_trips() {
         let rows: Vec<Vec<String>> = (0..52)
-            .map(|i| vec![format!("T{:02}", i / 2), format!("S{i:02}"), "9".to_string()])
+            .map(|i| {
+                vec![
+                    format!("T{:02}", i / 2),
+                    format!("S{i:02}"),
+                    "9".to_string(),
+                ]
+            })
             .collect();
         let rows: Vec<Vec<&str>> = rows
             .iter()
@@ -4223,7 +4591,11 @@ mod tests {
         let file = make_file(vec!["trip_id", "stop_id", "continuous_drop_off"], rows);
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
-        assert_eq!(stm019.len(), 1, "52 ihlal tek feed-özeti olmalı: {stm019:?}");
+        assert_eq!(
+            stm019.len(),
+            1,
+            "52 ihlal tek feed-özeti olmalı: {stm019:?}"
+        );
         assert_eq!(stm019[0].observed_value.as_deref(), Some("52"));
         assert_eq!(
             stm019[0]

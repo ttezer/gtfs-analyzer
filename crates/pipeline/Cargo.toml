@@ -14,6 +14,7 @@ gtfs-rules = { workspace = true }
 gtfs-config = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+libc = { workspace = true }
 zip = { workspace = true }
 chrono-tz = "0.10"
 smol_str = "0.2"

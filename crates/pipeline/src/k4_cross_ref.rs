@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use gtfs_config::GtfsJpProfile;
 use gtfs_core::{EntityType, Notice};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
 use crate::k2::{detect_gtfs_jp, EntityRecords, GTFS_JP_FILES};
@@ -1953,7 +1953,7 @@ fn check_transfers(
     ctr: &mut u32,
     trips_in_stm: &HashSet<&str>,
     // #15/#38: trip_stop_set iç tipi u32 (intern indeks); stop_id_to_idx ile dönüştür.
-    trip_stops: &FxHashMap<SmolStr, FxHashSet<u32>>,
+    trip_stops: &FxHashMap<SmolStr, Vec<u32>>,
     stop_id_to_idx: &FxHashMap<smol_str::SmolStr, u32>,
 ) {
     let ti_trf = &records.trip_interns;
@@ -2246,7 +2246,11 @@ fn check_transfers(
             if !fsid.is_empty() && map.trips.contains_key(fti.as_str()) {
                 let in_trip = stop_id_to_idx
                     .get(fsid)
-                    .and_then(|idx| trip_stops.get(fti.as_str()).map(|s| s.contains(idx)))
+                    .and_then(|idx| {
+                        trip_stops
+                            .get(fti.as_str())
+                            .map(|s| s.binary_search(idx).is_ok())
+                    })
                     .unwrap_or(false);
                 if !in_trip {
                     notices.push(notice(
@@ -2264,7 +2268,11 @@ fn check_transfers(
             if !tsid.is_empty() && map.trips.contains_key(tti.as_str()) {
                 let in_trip = stop_id_to_idx
                     .get(tsid)
-                    .and_then(|idx| trip_stops.get(tti.as_str()).map(|s| s.contains(idx)))
+                    .and_then(|idx| {
+                        trip_stops
+                            .get(tti.as_str())
+                            .map(|s| s.binary_search(idx).is_ok())
+                    })
                     .unwrap_or(false);
                 if !in_trip {
                     notices.push(notice(

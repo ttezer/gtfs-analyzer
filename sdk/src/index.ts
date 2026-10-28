@@ -74,7 +74,10 @@ export type {
 
 const SDK_VERSION = '0.8.0';
 const ENGINE_VERSION = '0.17.0';
-const MAX_INPUT_BYTES = 512 * 1024 * 1024;
+// Keep the public SDK limit aligned with the browser WASM64 engine. The old
+// 512 MiB guard rejected valid large feeds before the validator could inspect
+// their ZIP directory.
+const MAX_INPUT_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
 
 let initialization: Promise<void> | undefined;

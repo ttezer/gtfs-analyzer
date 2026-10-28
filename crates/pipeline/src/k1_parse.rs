@@ -1355,15 +1355,49 @@ impl Arc032Acc {
 /// Spec'te tipi `ID` / `Foreign ID` olan sütunlar (GTFS Reference "Field Types").
 /// `direction_id` bir Enum'dur, listede YOK; `jp_*` uzantı sütunları spec dışıdır.
 pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
-    "agency_id", "stop_id", "parent_station", "zone_id", "level_id", "route_id", "network_id",
-    "trip_id", "service_id", "block_id", "shape_id", "fare_id", "origin_id", "destination_id",
-    "contains_id", "from_stop_id", "to_stop_id", "from_route_id", "to_route_id", "from_trip_id",
-    "to_trip_id", "pathway_id", "area_id", "from_area_id", "to_area_id", "fare_media_id",
-    "fare_product_id", "leg_group_id", "from_leg_group_id", "to_leg_group_id",
-    "rider_category_id", "timeframe_group_id", "from_timeframe_group_id",
-    "to_timeframe_group_id", "location_group_id", "location_id", "booking_rule_id",
-    "pickup_booking_rule_id", "drop_off_booking_rule_id", "prior_notice_service_id",
-    "attribution_id", "record_id", "record_sub_id",
+    "agency_id",
+    "stop_id",
+    "parent_station",
+    "zone_id",
+    "level_id",
+    "route_id",
+    "network_id",
+    "trip_id",
+    "service_id",
+    "block_id",
+    "shape_id",
+    "fare_id",
+    "origin_id",
+    "destination_id",
+    "contains_id",
+    "from_stop_id",
+    "to_stop_id",
+    "from_route_id",
+    "to_route_id",
+    "from_trip_id",
+    "to_trip_id",
+    "pathway_id",
+    "area_id",
+    "from_area_id",
+    "to_area_id",
+    "fare_media_id",
+    "fare_product_id",
+    "leg_group_id",
+    "from_leg_group_id",
+    "to_leg_group_id",
+    "rider_category_id",
+    "timeframe_group_id",
+    "from_timeframe_group_id",
+    "to_timeframe_group_id",
+    "location_group_id",
+    "location_id",
+    "booking_rule_id",
+    "pickup_booking_rule_id",
+    "drop_off_booking_rule_id",
+    "prior_notice_service_id",
+    "attribution_id",
+    "record_id",
+    "record_sub_id",
 ];
 
 /// ARC_037 birikimi — ID alanında yazdırılabilir ASCII (0x20-0x7E) dışı karakter.
@@ -3178,8 +3212,7 @@ fn validate_locations_geojson(
 
     // LOC_007: Yinelenen feature 'id' değerleri. Sayaç ayrıca Flex muafiyetinin yalnız
     // gerçekten benzersiz string kimliklere dayanmasını sağlar.
-    let mut id_counts: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
+    let mut id_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     {
         let mut seen_ids: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();

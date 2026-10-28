@@ -364,6 +364,7 @@ dependencies = [
  "gtfs-config",
  "gtfs-core",
  "gtfs-rules",
+ "libc",
  "rayon",
  "robust",
  "rustc-hash",

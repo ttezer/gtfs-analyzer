@@ -78,7 +78,8 @@ use shapes::{validate_shapes_with_limits, ShapePointRecord};
 use std::collections::HashSet;
 use stop_areas::{parse_stop_areas, StopAreaRecord};
 use stop_times::{
-    validate_stop_times_with_limits, StopTimeRecord, StreamBudget, K2_MAX_STREAM_BYTES,
+    validate_stop_times_with_limits_and_trip_stop_set, StopTimeRecord, StreamBudget,
+    K2_MAX_STREAM_BYTES,
 };
 pub use stop_times::{CompactStopTime, StopTimesIndex};
 use stops::{validate_stops, StopRecord};
@@ -628,17 +629,31 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
     // #15 W2: diğer tüm ham dosyalar parse edildi; stop_times index'ini kurmadan ÖNCE
     // k1.files'in kalanını (büyük shapes raw dahil) bırak → K2 peak'i ~K1-raw kadar düşer.
     mem_log("K2 before stop_times (dropping raw files)");
+    let build_trip_stop_set = stop_times_file.is_some()
+        && [
+            "transfers.txt",
+            "fare_rules.txt",
+            "fare_attributes.txt",
+            "fare_media.txt",
+            "fare_products.txt",
+            "fare_leg_rules.txt",
+            "fare_leg_join_rules.txt",
+            "fare_transfer_rules.txt",
+        ]
+        .iter()
+        .any(|name| files.contains_key(*name));
     drop(files);
     mem_log("K2 after drop(files)");
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
-        let (stm_index, stop_time_notices) = validate_stop_times_with_limits(
+        let (stm_index, stop_time_notices) = validate_stop_times_with_limits_and_trip_stop_set(
             file,
             zip_bytes,
             has_booking_rules,
             max_stream_rows,
             stream_budget.as_mut().map(|budget| &mut *budget),
+            build_trip_stop_set,
         );
         records.stop_times_index = stm_index;
         notices.extend(stop_time_notices);
