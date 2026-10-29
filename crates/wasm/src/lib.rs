@@ -78,6 +78,9 @@ const MAX_SHAPE_COORDS: usize = 100_000;
 const MAX_INPUT_BYTES: usize = 2 * 1024 * 1024 * 1024;
 // Browser açılışını K6'nın geometri/istatistik geçişlerine bağlamamak için yalnızca
 // WASM büyük-feed profilinde kullanılır. Native/CLI pipeline bu eşiği kullanmaz.
+// Varsayılan davranış tam doğrulamadır: MDB-2014 ölçümünde K1-K7 ve final rapor
+// başarıyla tamamlandığı için partial hızlı-açılış profili kapalı tutulur.
+const LARGE_FEED_FAST_OPEN_ENABLED: bool = false;
 const LARGE_FEED_STOP_TIMES_ROWS: usize = 15_000_000;
 const LARGE_FEED_K6_PROFILE_STAGE: &str = "K6-large-feed-fast-open";
 const LARGE_FEED_K6_CHECKS: &[&str] = &[
@@ -132,7 +135,7 @@ fn coverage_complete_of(partial: &PartialReport) -> bool {
 }
 
 fn is_large_feed(records: &EntityRecords) -> bool {
-    records.stop_times_index.total_rows > LARGE_FEED_STOP_TIMES_ROWS
+    LARGE_FEED_FAST_OPEN_ENABLED && records.stop_times_index.total_rows > LARGE_FEED_STOP_TIMES_ROWS
 }
 
 /// Büyük feed'de ilk ekranı K1–K5 + K7 ile açabilmek için ağır K6 geçişlerini
