@@ -18,7 +18,7 @@ on:
       search_heaps:
         description: MobilityData heaps (GB) tried below the 12 GB comparison run, in order
         required: false
-        default: 10,8,6,4
+        default: '10,8,6,4'
       today:
         description: Validation date (YYYYMMDD) passed to both validators
         required: false

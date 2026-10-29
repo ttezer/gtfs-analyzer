@@ -39,6 +39,14 @@ def sha256(path):
     return h.hexdigest()
 
 
+def mem_total_kb():
+    try:
+        with open("/proc/meminfo") as f:
+            return next((int(l.split()[1]) for l in f if l.startswith("MemTotal")), None)
+    except OSError:
+        return None
+
+
 def parse_time(text):
     def grab(label):
         m = re.search(rf"{re.escape(label)}: (.+)", text)
@@ -87,15 +95,17 @@ def md_completed(outdir, result):
 
 def md_run(jar, zip_path, work, heap_gb, today, timeout_s):
     outdir = work / f"md-{heap_gb}g" / "out"
+    # The analyzer takes YYYYMMDD; MobilityData's -d takes an ISO date.
+    md_date = f"{today[:4]}-{today[4:6]}-{today[6:]}"
     res = run_timed(
         ["java", f"-Xmx{heap_gb}g", "-XX:+ExitOnOutOfMemoryError",
-         "-jar", str(jar), "-i", str(zip_path), "-o", str(outdir), "-d", today],
+         "-jar", str(jar), "-i", str(zip_path), "-o", str(outdir), "-d", md_date],
         work / f"md-{heap_gb}g", timeout_s)
-    stderr_text = (work / f"md-{heap_gb}g" / "stderr.txt").read_text(errors="replace").lower()
+    stderr_raw = (work / f"md-{heap_gb}g" / "stderr.txt").read_text(errors="replace")
     ok, why = md_completed(outdir, res)
-    if ok and "outofmemoryerror" in stderr_text:
+    if "outofmemoryerror" in stderr_raw.lower() and not res["timed_out"]:
         ok, why = False, "oom"
-    res.update({"heap_gb": heap_gb, "completed": ok, "reason": why})
+    res.update({"heap_gb": heap_gb, "completed": ok, "reason": why, "stderr_tail": stderr_raw[-1500:]})
     report = outdir / "report.json"
     if report.exists():
         try:
@@ -132,36 +142,52 @@ def main():
         "feed": args.feed, "url": url, "zip_bytes": zip_path.stat().st_size, "zip_sha256": sha256(zip_path),
         "md_label": args.md_label, "today": args.today,
         "runner": {"nproc": os.cpu_count(), "machine": platform.machine(),
-                   "mem_total_kb": next((int(l.split()[1]) for l in open("/proc/meminfo") if l.startswith("MemTotal")), None)},
+                   "mem_total_kb": mem_total_kb()},
         "started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 
-    if not args.skip_analyzer:
-        a = run_timed([args.analyzer, "validate", str(zip_path), "--summary", "--lang", "en",
-                       "--today", args.today], work / "analyzer", args.timeout)
-        a["summary"] = (work / "analyzer" / "stdout.txt").read_text(errors="replace")[:2000]
-        record["analyzer"] = a
-        print(f"[analyzer] {args.feed}: exit={a['exit']} wall={a.get('wall_s')} rss_kb={a.get('max_rss_kb')}", flush=True)
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
 
+    def save():
+        # Written after every run: a runner that dies mid-job (e.g. the kernel's OOM
+        # killer on a 16 GB runner) still leaves the runs that finished.
+        out.write_text(json.dumps(record, indent=1))
+
+    # MobilityData first, the analyzer last, so a failing analyzer run on a huge
+    # feed cannot take the MobilityData measurements down with it.
     jar = Path(args.md_jar)
-    runs = [md_run(jar, zip_path, work, args.compare_heap, args.today, args.timeout)]
+    runs = record["md_runs"] = []
+    record["md_min_completed_heap_gb"] = None
+    runs.append(md_run(jar, zip_path, work, args.compare_heap, args.today, args.timeout))
+    save()
     print(f"[md {args.md_label}] {args.compare_heap}g: {runs[-1]['reason']} wall={runs[-1].get('wall_s')}", flush=True)
-    min_ok = args.compare_heap if runs[-1]["completed"] else None
-    if min_ok is not None:
+    if runs[-1]["completed"]:
+        record["md_min_completed_heap_gb"] = args.compare_heap
         for heap in (int(h) for h in args.search_heaps.split(",") if h):
             if heap >= args.compare_heap:
                 continue
             r = md_run(jar, zip_path, work, heap, args.today, args.timeout)
             runs.append(r)
             print(f"[md {args.md_label}] {heap}g: {r['reason']} wall={r.get('wall_s')}", flush=True)
+            if r["completed"]:
+                record["md_min_completed_heap_gb"] = heap
+            save()
             if not r["completed"]:
                 break
-            min_ok = heap
-    record["md_runs"] = runs
-    record["md_min_completed_heap_gb"] = min_ok
+
+    if not args.skip_analyzer:
+        record["analyzer"] = {"exit": None, "reason": "started"}
+        save()
+        a = run_timed([args.analyzer, "validate", str(zip_path), "--summary", "--lang", "en",
+                       "--today", args.today], work / "analyzer", args.timeout)
+        a["summary"] = (work / "analyzer" / "stdout.txt").read_text(errors="replace")[:2000]
+        a["stderr_tail"] = (work / "analyzer" / "stderr.txt").read_text(errors="replace")[-1500:]
+        record["analyzer"] = a
+        print(f"[analyzer] {args.feed}: exit={a['exit']} wall={a.get('wall_s')} rss_kb={a.get('max_rss_kb')}", flush=True)
+
     record["finished"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.out).write_text(json.dumps(record, indent=1))
+    save()
 
 
 if __name__ == "__main__":
