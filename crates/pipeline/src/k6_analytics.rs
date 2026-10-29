@@ -9355,11 +9355,35 @@ fn check_remaining_analytics<'a>(
             }
             // O(n²) segment-crossing: büyük shape'lerde maksimum 300 segment kontrol et
             let n = pts.len().min(301);
+            // `segments_cross` yalnızca gerçek kesişimde karar verir; önce eksen hizalı
+            // bounding-box'ları elemek aynı sonucu koruyarak pahalı çapraz çarpımları
+            // keser. Strict `<` kullanılır: bbox sınırında kesişen bir çift, endpoint
+            // semantiğini değiştirmemek için `segments_cross`'a bırakılır.
+            let segment_bbox: Vec<(f64, f64, f64, f64)> = pts[..n]
+                .windows(2)
+                .map(|w| {
+                    (
+                        w[0].0.min(w[1].0),
+                        w[0].0.max(w[1].0),
+                        w[0].1.min(w[1].1),
+                        w[0].1.max(w[1].1),
+                    )
+                })
+                .collect();
             'seg_outer: for i in 0..n.saturating_sub(1) {
+                let (amin_lat, amax_lat, amin_lon, amax_lon) = segment_bbox[i];
                 for j in i + 2..n.saturating_sub(1) {
                     if i == 0 && j == n - 2 {
                         continue;
                     } // bitişik uçlar
+                    let (bmin_lat, bmax_lat, bmin_lon, bmax_lon) = segment_bbox[j];
+                    if amax_lat < bmin_lat
+                        || bmax_lat < amin_lat
+                        || amax_lon < bmin_lon
+                        || bmax_lon < amin_lon
+                    {
+                        continue;
+                    }
                     if segments_cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
                         let key = (
                             (pts[i].0 * 1e3).round() as i64,
@@ -10867,6 +10891,26 @@ fn check_pathway_analytics(
 
 // ── VAT: Varlık Analitik Tespiti ─────────────────────────────────────────────
 
+/// Canonical ordering for VAT_005 connected components.
+///
+/// Component membership is independent of traversal order, but the notice keeps
+/// a representative component and up to 200 stop IDs. Sort both levels so BFS,
+/// DSU, hash-map iteration, and input ordering produce the same notice content.
+fn canonicalize_stop_components<'a>(mut components: Vec<Vec<&'a str>>) -> Vec<Vec<&'a str>> {
+    for component in &mut components {
+        component.sort_unstable();
+    }
+    components.sort_unstable_by(|left, right| {
+        right.len().cmp(&left.len()).then_with(|| {
+            left.first()
+                .copied()
+                .unwrap_or("")
+                .cmp(&right.first().copied().unwrap_or(""))
+        })
+    });
+    components
+}
+
 fn check_vat_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
@@ -11397,48 +11441,82 @@ fn check_vat_analytics(
     // dahil) kullanır, daha doğru. İkisi de BİLGİ (weight 0, skor nötr), MD paritesi
     // yok. Pratikte VAT_004 ⊂ OPR_004 (corpus %99,6 örtüşme).
 
-    // ── VAT_005: İzole durak kümesi (BFS bağlı bileşenler) ─────────────────
+    // ── VAT_005: İzole durak kümesi (Union-Find bağlı bileşenler) ───────────
     {
-        let mut adj: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
+        // K2'nin stop_idx değerleri aynı stop_id için aynı sayısal düğümü gösterir.
+        // Böylece VAT_005 için 59,7M satırdan kalıcı çift yönlü HashSet grafiği
+        // kurmak yerine yalnızca bileşen ebeveyni ve boyutunu tutuyoruz.
+        let stop_count = idx.k2.stop_intern.len();
+        let mut parent: Vec<u32> = (0..stop_count as u32).collect();
+        let mut component_size = vec![1usize; stop_count];
+        let mut active = vec![false; stop_count];
+
+        let find_root = |parent: &mut [u32], mut node: u32| -> u32 {
+            let mut root = node;
+            while parent[root as usize] != root {
+                root = parent[root as usize];
+            }
+            while parent[node as usize] != node {
+                let next = parent[node as usize];
+                parent[node as usize] = root;
+                node = next;
+            }
+            root
+        };
+
         for stops in idx.by_trip.values() {
             for w in stops.windows(2) {
-                let a = idx.stop_id_of(&w[0]);
-                let b = idx.stop_id_of(&w[1]);
-                if a.is_empty() || b.is_empty() {
+                let a = w[0].stop_idx;
+                let b = w[1].stop_idx;
+                if a == u32::MAX
+                    || b == u32::MAX
+                    || idx.k2.stop_id_of_idx(a).is_empty()
+                    || idx.k2.stop_id_of_idx(b).is_empty()
+                {
                     continue;
                 }
-                adj.entry(a).or_default().insert(b);
-                adj.entry(b).or_default().insert(a);
+                let (a_idx, b_idx) = (a as usize, b as usize);
+                if a_idx >= stop_count || b_idx >= stop_count {
+                    continue;
+                }
+                active[a_idx] = true;
+                active[b_idx] = true;
+                let mut root_a = find_root(&mut parent, a);
+                let mut root_b = find_root(&mut parent, b);
+                if root_a == root_b {
+                    continue;
+                }
+                if component_size[root_a as usize] < component_size[root_b as usize] {
+                    std::mem::swap(&mut root_a, &mut root_b);
+                }
+                parent[root_b as usize] = root_a;
+                component_size[root_a as usize] += component_size[root_b as usize];
             }
         }
-        let total = adj.len();
-        if total >= 5 {
-            let mut visited: FxHashSet<&str> = FxHashSet::default();
-            let mut comp_nodes: Vec<Vec<&str>> = Vec::new();
-            let all_nodes: Vec<&str> = adj.keys().copied().collect();
 
-            for &start in &all_nodes {
-                if visited.contains(start) {
-                    continue;
-                }
-                let mut nodes: Vec<&str> = Vec::new();
-                let mut stack = vec![start];
-                visited.insert(start);
-                while let Some(node) = stack.pop() {
-                    nodes.push(node);
-                    if let Some(neighbors) = adj.get(node) {
-                        for &nb in neighbors {
-                            if visited.insert(nb) {
-                                stack.push(nb);
-                            }
-                        }
-                    }
-                }
-                comp_nodes.push(nodes);
+        let mut components: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
+        for (node, is_active) in active.iter().copied().enumerate() {
+            if !is_active {
+                continue;
             }
-
+            let root = find_root(&mut parent, node as u32);
+            components.entry(root).or_default().push(node as u32);
+        }
+        let comp_nodes = canonicalize_stop_components(
+            components
+                .into_iter()
+                .map(|(_, nodes)| {
+                    nodes
+                        .into_iter()
+                        .map(|node| idx.k2.stop_id_of_idx(node))
+                        .collect()
+                })
+                .collect(),
+        );
+        let total: usize = comp_nodes.iter().map(Vec::len).sum();
+        if total >= 5 {
             if comp_nodes.len() > 1 {
-                let main_size = comp_nodes.iter().map(|c| c.len()).max().unwrap_or(0);
+                let main_size = comp_nodes.first().map(Vec::len).unwrap_or(0);
                 let small_thresh = (total / 20).max(2);
 
                 // Durak koordinatları: parent_station'sız feed'lerde aynı fiziksel yer
@@ -11451,12 +11529,7 @@ fn check_vat_analytics(
                         stop_coords.insert(s.stop_id.as_str(), c);
                     }
                 }
-                let main_idx = comp_nodes
-                    .iter()
-                    .enumerate()
-                    .max_by_key(|(_, c)| c.len())
-                    .map(|(i, _)| i)
-                    .unwrap_or(0);
+                let main_idx = 0;
                 let main_coords: Vec<(f64, f64)> = comp_nodes[main_idx]
                     .iter()
                     .filter_map(|s| stop_coords.get(s).copied())
@@ -19303,6 +19376,78 @@ mod tests {
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "VAT_005"),
             "İzole küme ana şebekeye <200m yakın → VAT_005 bastırılmalı"
+        );
+    }
+
+    #[test]
+    fn vat_005_canonical_components_match_bfs_and_dsu_order() {
+        // Aynı bağlı bileşenlerin BFS/DSU traversal sırası farklı olsa da kanonik
+        // sıralama ana bileşeni, izole bileşenleri ve self-loop'u aynı seçmeli.
+        let bfs = vec![
+            vec!["B3", "B1", "B2"],
+            vec!["Z2", "Z1"],
+            vec!["A3", "A1", "A2"],
+            vec!["LOOP"],
+        ];
+        let dsu = vec![
+            vec!["A2", "A3", "A1"],
+            vec!["LOOP"],
+            vec!["Z1", "Z2"],
+            vec!["B2", "B1", "B3"],
+        ];
+
+        let bfs = canonicalize_stop_components(bfs);
+        let dsu = canonicalize_stop_components(dsu);
+        assert_eq!(bfs, dsu);
+        assert_eq!(bfs[0], vec!["A1", "A2", "A3"]);
+        assert_eq!(bfs[1], vec!["B1", "B2", "B3"]);
+        assert_eq!(bfs[2], vec!["Z1", "Z2"]);
+        assert_eq!(bfs[3], vec!["LOOP"]);
+    }
+
+    #[test]
+    fn vat_005_self_loop_is_an_active_single_node_component() {
+        // Self-loop, eski HashSet grafiğinde düğümü görünür kılar; DSU da aynı düğümü
+        // active olarak işaretlemeli ve bağlı bileşen hesabından düşürmemeli.
+        let mut trips_v = Vec::new();
+        let mut st_v = Vec::new();
+        for i in 1..=12u32 {
+            let tid = format!("M{i}");
+            trips_v.push(trip(&tid, "R1"));
+            st_v.push(stoptime(&tid, 1, "A", (i, 0, 0), (i, 0, 0), 2));
+            st_v.push(stoptime(&tid, 2, "B", (i, 5, 0), (i, 5, 0), 3));
+            st_v.push(stoptime(&tid, 3, "C", (i, 10, 0), (i, 10, 0), 4));
+            st_v.push(stoptime(&tid, 4, "D", (i, 15, 0), (i, 15, 0), 5));
+            st_v.push(stoptime(&tid, 5, "E", (i, 20, 0), (i, 20, 0), 6));
+        }
+        trips_v.push(trip("LOOP", "R2"));
+        st_v.push(stoptime("LOOP", 1, "X", (8, 0, 0), (8, 0, 0), 2));
+        st_v.push(stoptime("LOOP", 2, "X", (8, 1, 0), (8, 1, 0), 3));
+
+        let r = crate::k2::EntityRecords {
+            stops: vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.1, 29.0),
+                stop("C", 41.2, 29.0),
+                stop("D", 41.3, 29.0),
+                stop("E", 41.4, 29.0),
+                stop("X", 42.0, 30.0),
+            ],
+            routes: vec![route("R1", 3), route("R2", 3)],
+            trips: trips_v,
+            trip_interns: take_ti(),
+            stop_times: st_v,
+            ..Default::default()
+        };
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        let vat005 = result.notices.iter().find(|n| n.rule_id == "VAT_005");
+        assert!(vat005.is_some(), "self-loop izole bileşeni VAT_005 üretmeli");
+        assert!(
+            vat005
+                .and_then(|n| n.details.as_ref())
+                .and_then(|d| d.get("isolated_stops"))
+                .is_some_and(|stops| stops == "X"),
+            "self-loop bileşeninin tek düğümü details içinde korunmalı"
         );
     }
 
