@@ -14,7 +14,7 @@ use gtfs_pipeline::{
     check_cross_ref_with_whitespace_roots, check_rule_scope, collect_file_stats, parse_with_limits,
     prepare_k7_notices, reconcile_flex_stop_requirement, report_k7_prepared,
     validate_k2_with_whitespace_roots, DerivedData, EntityRecords, FileAvailability, FileInfo,
-    K3Result, K4Result, K5Result, K6Result, WhitespaceSuppressions, GTFS_JP_FILES,
+    WhitespaceSuppressions, GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
@@ -76,33 +76,6 @@ const MAX_SHAPE_COORDS: usize = 100_000;
 // Keep a finite input guard, but do not reject valid large feeds before the
 // Memory64 large-feed path can inspect them. The UI mirrors this value.
 const MAX_INPUT_BYTES: usize = 2 * 1024 * 1024 * 1024;
-// Browser açılışını K6'nın geometri/istatistik geçişlerine bağlamamak için yalnızca
-// WASM büyük-feed profilinde kullanılır. Native/CLI pipeline bu eşiği kullanmaz.
-// Varsayılan davranış tam doğrulamadır: MDB-2014 ölçümünde K1-K7 ve final rapor
-// başarıyla tamamlandığı için partial hızlı-açılış profili kapalı tutulur.
-const LARGE_FEED_FAST_OPEN_ENABLED: bool = false;
-const LARGE_FEED_STOP_TIMES_ROWS: usize = 15_000_000;
-const LARGE_FEED_K6_PROFILE_STAGE: &str = "K6-large-feed-fast-open";
-const LARGE_FEED_K6_CHECKS: &[&str] = &[
-    "K6::speed_and_duration",
-    "K6::frequency_headway",
-    "K6::route_headway",
-    "K6::calendar_analytics",
-    "K6::geo_stops",
-    "K6::geo_shapes",
-    "K6::geo_shape_trips",
-    "K6::operational_analytics",
-    "K6::stoptimes_derived",
-    "K6::route_trip_quality",
-    "K6::data_quality",
-    "K6::remaining_analytics",
-    "K6::shp012",
-    "K6::shp022",
-    "K6::pathway_analytics",
-    "K6::calendar_override",
-    "K6::vat_analytics",
-    "K6::linked_trips",
-];
 const HIGH_CAP: usize = 2_000;
 const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 
@@ -131,37 +104,6 @@ fn coverage_complete_of(partial: &PartialReport) -> bool {
         .iter()
         .any(|f| gtfs_pipeline::k1_parse::is_certification_critical(f))
         && partial.root_structural_errors.is_empty()
-        && partial.skipped_stages.is_empty()
-}
-
-fn is_large_feed(records: &EntityRecords) -> bool {
-    LARGE_FEED_FAST_OPEN_ENABLED && records.stop_times_index.total_rows > LARGE_FEED_STOP_TIMES_ROWS
-}
-
-/// Büyük feed'de ilk ekranı K1–K5 + K7 ile açabilmek için ağır K6 geçişlerini
-/// bilinçli olarak çalıştırmaz. Sonuç PARTIAL olur; hiçbir zaman tam doğrulama
-/// yapılmış gibi raporlanmaz. Bu yalnızca WASM orkestrasyonundaki browser profilidir.
-fn analyze_k6_for_browser(
-    records: &EntityRecords,
-    derived: &DerivedData,
-    config: &ValidatorConfig,
-    today: u32,
-    availability: &FileAvailability<'_>,
-) -> K6Result {
-    if is_large_feed(records) {
-        wasm_warn!(format!(
-            "[large-feed] K6 ağır analitikleri açılış için atlandı ({} stop_times)",
-            records.stop_times_index.total_rows
-        ));
-        return K6Result {
-            notices: Vec::new(),
-            skipped_checks: LARGE_FEED_K6_CHECKS
-                .iter()
-                .map(|name| (*name).to_string())
-                .collect(),
-        };
-    }
-    analyze_k6_with_files(records, derived, config, today, availability)
 }
 
 fn call_stage(f: &js_sys::Function, name: &str, elapsed_ms: u32) {
@@ -490,16 +432,13 @@ fn rerun_k6_k7_inner(
     let mut partial = cache.partial.clone();
     let unavailable_files = partial.unavailable_files.clone();
     let availability = FileAvailability::from_k1(&cache.present_files, &unavailable_files);
-    let k6 = analyze_k6_for_browser(
+    let k6 = analyze_k6_with_files(
         &cache.records,
         &cache.derived,
         &config,
         today,
         &availability,
     );
-    if is_large_feed(&cache.records) {
-        partial.skip_stage(LARGE_FEED_K6_PROFILE_STAGE);
-    }
     if !partial.is_empty() {
         partial.extend_skipped_checks(k6.skipped_checks);
     }
@@ -694,10 +633,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     t_end!("K5-derived");
 
     t_start!("K6-analytics");
-    let k6 = analyze_k6_for_browser(&k2.records, &k5.derived, config, today, &availability);
-    if is_large_feed(&k2.records) {
-        partial.skip_stage(LARGE_FEED_K6_PROFILE_STAGE);
-    }
+    let k6 = analyze_k6_with_files(&k2.records, &k5.derived, config, today, &availability);
     t_end!("K6-analytics");
 
     let mut all_notices = Vec::new();
@@ -867,53 +803,35 @@ fn run_k1_k5(
         }
     }
 
-    let (k3, k4, k5) = if is_large_feed(&k2.records) {
-        // K3's full entity/shape graph and its K4/K5 consumers are not needed to
-        // render the fast-open report. Running them here would still spend ~15 s
-        // before the browser can show anything. Their omission is explicit in the
-        // partial report; no cross-reference result is presented as complete.
-        k2.records.stop_times_index.trip_stop_set = Default::default();
-        for stage in ["K3", "K4", "K5"] {
-            partial.skip_stage(format!("{stage}-large-feed-fast-open"));
-            call_stage(on_stage, stage, 0);
-        }
-        (
-            K3Result::default(),
-            K4Result::default(),
-            K5Result::default(),
-        )
-    } else {
-        t = js_sys::Date::now();
-        t_start!("K3-entity-map");
-        let k3 = build_entity_map(&k2.records);
-        t_end!("K3-entity-map");
-        call_stage(on_stage, "K3", (js_sys::Date::now() - t) as u32);
-        log_mem("after-K3-entity-map");
+    t = js_sys::Date::now();
+    t_start!("K3-entity-map");
+    let k3 = build_entity_map(&k2.records);
+    t_end!("K3-entity-map");
+    call_stage(on_stage, "K3", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K3-entity-map");
 
-        t = js_sys::Date::now();
-        t_start!("K4-cross-ref");
-        let k4 = check_cross_ref_with_whitespace_roots(
-            &k2.records,
-            &k3.entity_map,
-            today,
-            &availability,
-            Some(&whitespace_root_files),
-        );
-        t_end!("K4-cross-ref");
-        call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
-        // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır;
-        // cache'lenen records'tan K6 continuation öncesi serbest bırak.
-        k2.records.stop_times_index.trip_stop_set = Default::default();
-        log_mem("after-K4-cross-ref");
+    t = js_sys::Date::now();
+    t_start!("K4-cross-ref");
+    let k4 = check_cross_ref_with_whitespace_roots(
+        &k2.records,
+        &k3.entity_map,
+        today,
+        &availability,
+        Some(&whitespace_root_files),
+    );
+    t_end!("K4-cross-ref");
+    call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
+    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; cache'lenen records'tan
+    // K6 continuation öncesi serbest bırak (K6 peak'ini ~226 MB düşürme potansiyeli).
+    k2.records.stop_times_index.trip_stop_set = Default::default();
+    log_mem("after-K4-cross-ref");
 
-        t = js_sys::Date::now();
-        t_start!("K5-derived");
-        let k5 = build_derived_with_files(&k2.records, &k3.entity_map, &availability);
-        t_end!("K5-derived");
-        call_stage(on_stage, "K5", (js_sys::Date::now() - t) as u32);
-        log_mem("after-K5-derived");
-        (k3, k4, k5)
-    };
+    t = js_sys::Date::now();
+    t_start!("K5-derived");
+    let k5 = build_derived_with_files(&k2.records, &k3.entity_map, &availability);
+    t_end!("K5-derived");
+    call_stage(on_stage, "K5", (js_sys::Date::now() - t) as u32);
+    log_mem("after-K5-derived");
 
     let mut k1_k5_notices = Vec::new();
     let mut notice_budget_exceeded = false;

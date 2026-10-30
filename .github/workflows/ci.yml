@@ -359,23 +359,11 @@ jobs:
         working-directory: ui
         run: npm run wasm:64
 
-      - name: Memory64 threaded WASM derle (ui/pkg64-threads/)
-        working-directory: ui
-        run: npm run wasm:64:threads
-
       - name: ui/pkg64 artifact yükle
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wasm64
           path: ui/pkg64
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: ui/pkg64-threads artifact yükle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: wasm64-threads
-          path: ui/pkg64-threads
           if-no-files-found: error
           retention-days: 1
 
@@ -406,12 +394,6 @@ jobs:
         with:
           name: wasm64
           path: ui/pkg64
-
-      - name: ui/pkg64-threads artifact indir
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: wasm64-threads
-          path: ui/pkg64-threads
 
       # UI, gtfs-sdk'yı kaynaktan (sdk/src) derler ve sdk/pkg'deki WASM'ı paketler.
       # O WASM'ı `sdk-test` job'u aynı betikle (build-wasm.mjs, wasm-pack 0.15.0,

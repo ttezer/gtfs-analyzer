@@ -62,5 +62,5 @@ test('Memory64 destekleniyorsa büyük-feed varsayılanı güvenli serial WASM64
   await expect(page.locator('#drop-zone.loading')).not.toBeVisible({ timeout: 25_000 });
   expect(await page.locator('#score-panel.score-compact').isVisible()).toBe(true);
   expect(logs.some((line) => line.includes('[WASM] wasm64 serial mode'))).toBe(true);
-  expect(logs.some((line) => /DataCloneError|wasm64-threaded init başarısız/i.test(line))).toBe(false);
+  expect(logs.some((line) => /DataCloneError/i.test(line))).toBe(false);
 });
