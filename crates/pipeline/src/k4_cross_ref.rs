@@ -6744,32 +6744,44 @@ fn check_xfl(
             }
         }
 
-        for (shape_id, trip_ids) in &shape_to_trips {
-            if trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)) {
-                let line = records
-                    .shapes
-                    .iter()
-                    .find(|sp| records.shape_interns.id(sp) == *shape_id)
-                    .map(|sp| sp.line_u64());
-                let trip_count = trip_ids.len();
-                notices.push(notice(
-                    ctr,
-                    "SHP_019",
-                    EntityType::Shape,
-                    Some((*shape_id).to_string()),
-                    Some((*shape_id).to_string()),
-                    "shapes.txt",
-                    line,
-                    Some("shape_id"),
-                    Some(format!("{trip_count}")),
-                    None,
-                    format!(
-                        "'{}' güzergah şekli {} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.",
-                        shape_id, trip_count
-                    ),
-                    "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.",
-                ));
+        let orphan_shapes: Vec<(&str, usize)> = shape_to_trips
+            .iter()
+            .filter(|(_, trip_ids)| trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)))
+            .map(|(shape_id, trip_ids)| (*shape_id, trip_ids.len()))
+            .collect();
+        // Her shape için ayrı `records.shapes.iter().find(..)` taraması shape noktası ×
+        // yetim shape sayısı kadar sürüyordu (mdb-992: K4'ün 7,8 s'inin ~3,3 s'i). İlk
+        // satırları tek geçişte topla; `find` gibi ilk eşleşen nokta korunur.
+        let mut first_line: HashMap<&str, u64> = HashMap::new();
+        if !orphan_shapes.is_empty() {
+            let wanted: HashSet<&str> = orphan_shapes.iter().map(|(sid, _)| *sid).collect();
+            for sp in &records.shapes {
+                let sid = records.shape_interns.id(sp);
+                if wanted.contains(sid) {
+                    first_line.entry(sid).or_insert_with(|| sp.line_u64());
+                }
             }
+        }
+
+        for (shape_id, trip_count) in orphan_shapes {
+            let line = first_line.get(shape_id).copied();
+            notices.push(notice(
+                ctr,
+                "SHP_019",
+                EntityType::Shape,
+                Some((*shape_id).to_string()),
+                Some((*shape_id).to_string()),
+                "shapes.txt",
+                line,
+                Some("shape_id"),
+                Some(format!("{trip_count}")),
+                None,
+                format!(
+                    "'{}' güzergah şekli {} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.",
+                    shape_id, trip_count
+                ),
+                "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.",
+            ));
         }
     }
 
