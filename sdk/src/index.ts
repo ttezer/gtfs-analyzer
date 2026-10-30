@@ -404,7 +404,11 @@ async function loadAndInitializeWasm(): Promise<BundledWasm> {
   if (pinned !== 'wasm32' && (pinned === 'wasm64' || supportsMemory64())) {
     try {
       const module = await initializePackage(
-        await import('../pkg64/gtfs_wasm.js'),
+        // pkg64 is the same crate built for wasm64, so its bindings match pkg's
+        // (BundledWasm). CI builds it in a separate job, and the wasm32 job
+        // type-checks before sdk/pkg64 exists; the literal path stays for bundlers.
+        // @ts-ignore TS2307 while sdk/pkg64 has not been built
+        (await import('../pkg64/gtfs_wasm.js')) as BundledWasm,
         new URL('../pkg64/gtfs_wasm_bg.wasm', import.meta.url),
       );
       bundledMode = 'wasm64-serial';
