@@ -550,6 +550,7 @@ impl Rfc4180Acc {
         }
     }
 
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: &Rfc4180Acc) {
         if other.rows == 0 {
             return;
@@ -890,6 +891,7 @@ impl Dq016Acc {
     /// Başka bir parçadan biriken sayaçları katar (stop_times chunk birleştirmesi).
     /// `other` dosyada DAHA SONRA gelen parçadır; `first_line` en küçüğü, `last_line`
     /// en büyüğü tutar, `rows` toplanır, `cols` birleşir.
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Dq016Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);
@@ -1315,6 +1317,7 @@ impl Arc032Acc {
     }
 
     /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc032Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);
@@ -1445,6 +1448,7 @@ impl Arc037Acc {
     }
 
     /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc037Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);

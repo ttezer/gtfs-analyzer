@@ -2,7 +2,9 @@ use gtfs_core::{EntityType, Notice, Severity};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smol_str::SmolStr;
 use std::borrow::Cow;
-use std::io::{self, Cursor, Read};
+#[cfg(feature = "parallel")]
+use std::io;
+use std::io::{Cursor, Read};
 
 use super::common::{get_col, get_col_raw, make_k2_notice};
 #[cfg(feature = "parallel")]
@@ -14,6 +16,7 @@ pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
 /// Native parallel parsing keeps a decompressed body only for smaller entries.
 /// Above this threshold the ZIP entry is consumed directly to avoid materialising
 /// a multi-gigabyte `stop_times.txt` before any rows are indexed.
+#[cfg(feature = "parallel")]
 const PARALLEL_BODY_STREAM_THRESHOLD: u64 = 512 * 1024 * 1024;
 
 /// SDK builds pass `max_data_rows`; native callers keep the historical large-feed
@@ -1543,6 +1546,7 @@ fn split_body_at_trip_boundaries(
 
 /// `body` header içermeyen bir ZIP parçası olabilir. `data_start` ve `first_line`
 /// parametreleri bu yüzden header'lı ve header'sız parçaları aynı mantıkla böler.
+#[cfg(feature = "parallel")]
 fn split_chunk_at_trip_boundaries(
     body: &[u8],
     trip_col: Option<usize>,
@@ -1621,6 +1625,7 @@ fn split_chunk_at_trip_boundaries(
 /// ayırır. Böylece native `parallel` yolu `stop_times.txt` gövdesinin tamamını
 /// `Vec<u8>` olarak canlı tutmaz. Bir trip hedef boyutu aşarsa o trip parçaya sığar;
 /// bu, yanlış bir trip bölmesinden daha güvenli olan kontrollü istisnadır.
+#[cfg(feature = "parallel")]
 fn read_bounded_trip_chunk<R: Read>(
     reader: &mut R,
     pending: &mut Vec<u8>,
@@ -1736,6 +1741,7 @@ impl StChunk {
     /// Chunk sınırı TRIP DEĞİŞİMİNDE kurulduğu için normal feed'de aynı trip iki parçaya
     /// düşmez. Düşerse (aynı trip'in satırları dosyada dağınıksa) `TripAgg` alanları
     /// birleştirilir; bu durumda dosya sırası zaten bozuktur ve STM_036 onu ayrıca raporlar.
+    #[cfg(feature = "parallel")]
     fn merge(&mut self, other: StChunk) {
         // ARC_033: satır numarası min-merge, sayım toplanır (`Rfc4180Acc::merge`).
         self.rfc.merge(&other.rfc);
