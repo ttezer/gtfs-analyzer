@@ -5290,15 +5290,13 @@ fn check_gtfs_jp(
         .fare_attributes
         .iter()
         .map(|fare| {
+            let raw = |field| fare.raw_field(field).unwrap_or_default().to_string();
             (
-                fare.row.get("price").cloned().unwrap_or_default(),
-                fare.row.get("currency_type").cloned().unwrap_or_default(),
-                fare.row.get("payment_method").cloned().unwrap_or_default(),
-                fare.row.get("transfers").cloned().unwrap_or_default(),
-                fare.row
-                    .get("transfer_duration")
-                    .cloned()
-                    .unwrap_or_default(),
+                raw("price"),
+                raw("currency_type"),
+                raw("payment_method"),
+                raw("transfers"),
+                raw("transfer_duration"),
             )
         })
         .collect();
@@ -5311,7 +5309,7 @@ fn check_gtfs_jp(
                     && crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_some()
                     && matches!(fare.payment_method, Some(0 | 1))
                     && (matches!(fare.transfers, Some(0..=2))
-                        || row_field(&fare.row, "transfers").is_empty())
+                        || fare.raw_field("transfers").unwrap_or("").trim().is_empty())
             }));
     let fare_problem = fare_attributes_unusable
         || (fare_rules_conditionally_required && records.fare_rules.is_empty());
@@ -7283,7 +7281,17 @@ fn translation_target_values<'a>(
         "levels" => from_rows(&records.levels, |r| &r.row, field),
         "pathways" => from_rows(&records.pathways, |r| &r.row, field),
         "calendar" => from_rows(&records.calendars, |r| &r.row, field),
-        "fare_attributes" => from_rows(&records.fare_attributes, |r| &r.row, field),
+        // Ham satır yerine sütun listesi + değerler tutulur; anlam `from_rows` ile aynı.
+        "fare_attributes" => {
+            records.fare_attributes.first()?.raw_field(field)?;
+            Some(
+                records
+                    .fare_attributes
+                    .iter()
+                    .filter_map(|f| f.raw_field(field))
+                    .collect(),
+            )
+        }
         "feed_info" => from_rows(&records.feed_info, |r| &r.row, field),
         // trips ham satır tutmaz; değerler intern tablosundan okunur.
         "trips" => {
@@ -8291,7 +8299,8 @@ mod tests {
             transfers: None,
             transfer_duration: None,
             agency_id: Some("MISSING_AGENCY".into()),
-            row: Default::default(),
+            columns: Default::default(),
+            values: Default::default(),
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
@@ -9676,10 +9685,6 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        let mut row = std::collections::HashMap::new();
-        row.insert("price".into(), "200".into());
-        row.insert("currency_type".into(), "JPY".into());
-        row.insert("payment_method".into(), "0".into());
         recs.fare_attributes = vec![FareAttributeRecord {
             fare_id: "F1".into(),
             price: Some(200.0),
@@ -9688,7 +9693,8 @@ mod tests {
             transfers: None,
             transfer_duration: None,
             agency_id: None,
-            row,
+            columns: ["price", "currency_type", "payment_method"].map(String::from).into(),
+            values: ["200", "JPY", "0"].map(smol_str::SmolStr::from).into(),
             line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -9710,10 +9716,6 @@ mod tests {
             line: 2,
         }];
         let fare = |id: &str, price: &str| {
-            let mut row = std::collections::HashMap::new();
-            row.insert("price".into(), price.into());
-            row.insert("currency_type".into(), "JPY".into());
-            row.insert("payment_method".into(), "0".into());
             FareAttributeRecord {
                 fare_id: id.into(),
                 price: price.parse().ok(),
@@ -9722,7 +9724,8 @@ mod tests {
                 transfers: None,
                 transfer_duration: None,
                 agency_id: None,
-                row,
+                columns: ["price", "currency_type", "payment_method"].map(String::from).into(),
+                values: [price, "JPY", "0"].map(smol_str::SmolStr::from).into(),
                 line: 2,
             }
         };
@@ -10456,7 +10459,8 @@ mod tests {
                 transfers: None,
                 transfer_duration: None,
                 agency_id: None,
-                row: Default::default(),
+                columns: Default::default(),
+                values: Default::default(),
                 line: i as u64 + 2,
             })
             .collect();

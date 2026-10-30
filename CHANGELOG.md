@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existing keys. On mdb-992 the browser engine went from 48 s to 18 s (wasm32)
   and from 79 s to 24 s (wasm64); native K4 from 7.8 s to 1.1 s. Output is
   unchanged.
+- `fare_attributes.txt` records keep the column list once and each row's raw
+  values instead of a per-row map. mdb-992: the stage drops from 8.3 s to 1.9 s
+  in wasm64 (3.9 s to 2.0 s in wasm32), the whole run from 24 s to 19.5 s
+  (wasm64). Output identical on 627 feeds, 614 of them with fare_attributes and
+  translations (`JPN_006`, `TRN_016`).
 
 ## [0.17.0] - 2026-10-27
 

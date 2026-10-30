@@ -7,6 +7,8 @@ use super::common::{
 };
 use crate::k1_parse::RawFile;
 use crate::WhitespaceSuppressions;
+use smol_str::SmolStr;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct FareAttributeRecord {
@@ -17,8 +19,24 @@ pub struct FareAttributeRecord {
     pub transfers: Option<u32>,
     pub transfer_duration: Option<u32>,
     pub agency_id: Option<String>,
-    pub row: RowMap,
+    /// Dosyanın sütun adları; bütün kayıtlar aynı listeyi paylaşır.
+    pub columns: Arc<[String]>,
+    /// Satırın ham değerleri (`columns` sırasıyla, fazla hücreler atılır).
+    ///
+    /// Eskiden satır başına bir `RowMap` saklanıyordu: büyük fare_attributes dosyalarında
+    /// (mdb-992) milyonlarca HashMap bellekte kalıyor, WASM'da yalnız bu aşamayı 1,2 s'den
+    /// 8,3 s'ye (wasm64), feed'in tamamını 12,9 s'den 23,8 s'ye çıkarıyordu.
+    pub values: Box<[SmolStr]>,
     pub line: u64,
+}
+
+impl FareAttributeRecord {
+    /// Eski `RowMap::get` ile aynı: sütun yoksa `None`; satır kısaysa `Some("")`;
+    /// yinelenen başlıkta son sütun.
+    pub fn raw_field(&self, field: &str) -> Option<&str> {
+        let col = self.columns.iter().rposition(|h| h == field)?;
+        Some(self.values.get(col).map(SmolStr::as_str).unwrap_or(""))
+    }
 }
 
 pub fn validate_fare_attributes(
@@ -53,6 +71,7 @@ fn validate_fare_attributes_inner(
     // FAR_013: dosya başına TEK özet — ölçümde tek feed 1,1M satır üretiyordu.
     let mut iso_bad: u64 = 0;
     let mut iso_first: Option<(u64, String, String)> = None;
+    let columns: Arc<[String]> = file.headers.clone().into();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
         let line = (row_idx + 2) as u64;
@@ -288,7 +307,8 @@ fn validate_fare_attributes_inner(
             agency_id: get_raw_field(&row_map, "agency_id")
                 .filter(|v| !v.trim().is_empty())
                 .map(str::to_string),
-            row: row_map,
+            columns: Arc::clone(&columns),
+            values: row.iter().take(columns.len()).cloned().collect(),
             line,
         });
     }
@@ -399,6 +419,30 @@ mod tests {
             raw_text: None,
             zip_entry_name: None,
         }
+    }
+
+    #[test]
+    fn raw_field_matches_the_former_row_map() {
+        // Eski `RowMap` (build_row_map) ile aynı üç kural: sütun yoksa None, satır kısaysa "",
+        // yinelenen başlıkta son sütun. JPN_006 ve TRN_016 bu sözleşmeye dayanır.
+        let file = make_file(
+            &["fare_id", "price", "currency_type", "price"],
+            vec![vec!["F1", "100", "JPY", "200"], vec!["F2", "300"]],
+        );
+        let (records, _) = validate_fare_attributes(&file);
+        for (record, row) in records.iter().zip(&file.rows) {
+            let map = build_row_map(&file.headers, row);
+            for field in ["fare_id", "price", "currency_type", "transfers"] {
+                assert_eq!(
+                    record.raw_field(field),
+                    map.get(field).map(String::as_str),
+                    "{field}"
+                );
+            }
+        }
+        assert_eq!(records[0].raw_field("price"), Some("200"));
+        assert_eq!(records[1].raw_field("currency_type"), Some(""));
+        assert_eq!(records[0].raw_field("transfers"), None);
     }
 
     #[test]
