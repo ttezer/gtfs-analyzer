@@ -8344,7 +8344,9 @@ fn check_remaining_analytics<'a>(
     // ── SHP_014: ilk/son durak güzergah ucundan uzakta (varyant-farkında) ─────
     // Bir shape birden çok trip varyantı (short-turn, farklı terminal) tarafından
     // paylaşılabilir. Shape ucu HİÇBİR varyantın ucuna yakın değilse ateşle:
-    // shape başına min(dist) > eşik. En yakın varyant raporlanır. Deterministik.
+    // shape başına min(dist) > eşik. En yakın varyant raporlanır; eşit uzaklıkta en küçük
+    // trip_id. by_trip FxHashMap sırası 32/64-bit arasında değişir, eşitliği ona bırakmak
+    // wasm32 ile native/wasm64'ün farklı örnek sefer raporlamasına yol açıyordu.
     {
         let _t14 = Timer::start("K6::rem::shp_014");
         // shape_id → (min_dist_km, problem_stop, trip_id)
@@ -8370,7 +8372,7 @@ fn check_remaining_analytics<'a>(
                     let e = start_agg
                         .entry(shape_id)
                         .or_insert_with(|| (f64::INFINITY, String::new(), String::new()));
-                    if d_km < e.0 {
+                    if d_km < e.0 || (d_km == e.0 && trip_id < e.2.as_str()) {
                         e.0 = d_km;
                         e.1 = idx.stop_id_of(first_st).to_string();
                         e.2 = trip_id.to_string();
@@ -8384,7 +8386,7 @@ fn check_remaining_analytics<'a>(
                     let e = end_agg
                         .entry(shape_id)
                         .or_insert_with(|| (f64::INFINITY, String::new(), String::new()));
-                    if d_km < e.0 {
+                    if d_km < e.0 || (d_km == e.0 && trip_id < e.2.as_str()) {
                         e.0 = d_km;
                         e.1 = idx.stop_id_of(last_st).to_string();
                         e.2 = trip_id.to_string();
@@ -10904,7 +10906,7 @@ fn check_pathway_analytics(
 /// Component membership is independent of traversal order, but the notice keeps
 /// a representative component and up to 200 stop IDs. Sort both levels so BFS,
 /// DSU, hash-map iteration, and input ordering produce the same notice content.
-fn canonicalize_stop_components<'a>(mut components: Vec<Vec<&'a str>>) -> Vec<Vec<&'a str>> {
+fn canonicalize_stop_components(mut components: Vec<Vec<&str>>) -> Vec<Vec<&str>> {
     for component in &mut components {
         component.sort_unstable();
     }
@@ -10913,7 +10915,7 @@ fn canonicalize_stop_components<'a>(mut components: Vec<Vec<&'a str>>) -> Vec<Ve
             left.first()
                 .copied()
                 .unwrap_or("")
-                .cmp(&right.first().copied().unwrap_or(""))
+                .cmp(right.first().copied().unwrap_or(""))
         })
     });
     components
@@ -11512,8 +11514,8 @@ fn check_vat_analytics(
         }
         let comp_nodes = canonicalize_stop_components(
             components
-                .into_iter()
-                .map(|(_, nodes)| {
+                .into_values()
+                .map(|nodes| {
                     nodes
                         .into_iter()
                         .map(|node| idx.k2.stop_id_of_idx(node))
@@ -11522,79 +11524,77 @@ fn check_vat_analytics(
                 .collect(),
         );
         let total: usize = comp_nodes.iter().map(Vec::len).sum();
-        if total >= 5 {
-            if comp_nodes.len() > 1 {
-                let main_size = comp_nodes.first().map(Vec::len).unwrap_or(0);
-                let small_thresh = (total / 20).max(2);
+        if total >= 5 && comp_nodes.len() > 1 {
+            let main_size = comp_nodes.first().map(Vec::len).unwrap_or(0);
+            let small_thresh = (total / 20).max(2);
 
-                // Durak koordinatları: parent_station'sız feed'lerde aynı fiziksel yer
-                // (ör. otogar peronları) ayrı stop_id'lere bölünür → sahte izole bileşen.
-                // Bir izole adayın herhangi bir durağı ana şebekedeki bir durağa bu mesafeden
-                // yakınsa fiziksel olarak aynı ağ kabul edilir, izole sayılmaz (yanlış pozitif önleme).
-                let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
-                for s in &records.stops {
-                    if let Some(c) = recoverable_stop_coord(s) {
-                        stop_coords.insert(s.stop_id.as_str(), c);
-                    }
+            // Durak koordinatları: parent_station'sız feed'lerde aynı fiziksel yer
+            // (ör. otogar peronları) ayrı stop_id'lere bölünür → sahte izole bileşen.
+            // Bir izole adayın herhangi bir durağı ana şebekedeki bir durağa bu mesafeden
+            // yakınsa fiziksel olarak aynı ağ kabul edilir, izole sayılmaz (yanlış pozitif önleme).
+            let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
+            for s in &records.stops {
+                if let Some(c) = recoverable_stop_coord(s) {
+                    stop_coords.insert(s.stop_id.as_str(), c);
                 }
-                let main_idx = 0;
-                let main_coords: Vec<(f64, f64)> = comp_nodes[main_idx]
-                    .iter()
-                    .filter_map(|s| stop_coords.get(s).copied())
-                    .collect();
-                const VAT005_MERGE_M: f64 = 200.0;
+            }
+            let main_idx = 0;
+            let main_coords: Vec<(f64, f64)> = comp_nodes[main_idx]
+                .iter()
+                .filter_map(|s| stop_coords.get(s).copied())
+                .collect();
+            const VAT005_MERGE_M: f64 = 200.0;
 
-                // İzole bileşenler: hem küçük hem ana şebekeden coğrafi olarak da kopuk.
-                let isolated_comps: Vec<&Vec<&str>> = comp_nodes
-                    .iter()
-                    .filter(|c| c.len() < main_size && c.len() <= small_thresh)
-                    .filter(|c| {
-                        !c.iter().any(|s| {
-                            stop_coords.get(s).is_some_and(|&(la, lo)| {
-                                main_coords.iter().any(|&(mla, mlo)| {
-                                    haversine_km(la, lo, mla, mlo) * 1000.0 <= VAT005_MERGE_M
-                                })
+            // İzole bileşenler: hem küçük hem ana şebekeden coğrafi olarak da kopuk.
+            let isolated_comps: Vec<&Vec<&str>> = comp_nodes
+                .iter()
+                .filter(|c| c.len() < main_size && c.len() <= small_thresh)
+                .filter(|c| {
+                    !c.iter().any(|s| {
+                        stop_coords.get(s).is_some_and(|&(la, lo)| {
+                            main_coords.iter().any(|&(mla, mlo)| {
+                                haversine_km(la, lo, mla, mlo) * 1000.0 <= VAT005_MERGE_M
                             })
                         })
                     })
-                    .collect();
+                })
+                .collect();
 
-                if !isolated_comps.is_empty() {
-                    // İzole bileşenlere ait tüm durakları topla (maks 200)
-                    let mut isolated_all: Vec<&str> = Vec::new();
-                    'outer: for c in &isolated_comps {
-                        for &node in c.iter() {
-                            isolated_all.push(node);
-                            if isolated_all.len() >= 200 {
-                                break 'outer;
-                            }
+            if !isolated_comps.is_empty() {
+                // İzole bileşenlere ait tüm durakları topla (maks 200)
+                let mut isolated_all: Vec<&str> = Vec::new();
+                'outer: for c in &isolated_comps {
+                    for &node in c.iter() {
+                        isolated_all.push(node);
+                        if isolated_all.len() >= 200 {
+                            break 'outer;
                         }
                     }
-
-                    let isolated_count = isolated_all.len();
-                    let comp_count = isolated_comps.len();
-                    let example = isolated_comps[0][0];
-                    let ex_name = stop_name_map.get(example).copied().unwrap_or(example);
-
-                    let mut n005 = k6_notice(
-                        ctr,
-                        "VAT_005",
-                        EntityType::Feed,
-                        None,
-                        None,
-                        "stop_times.txt",
-                        None,
-                        None,
-                        Some(format!("{isolated_count} / {comp_count}")),
-                        None,
-                        format!("Ağ grafında ana şebekeden (seferlerle bağlı en büyük durak kümesi) kopuk {comp_count} izole durak kümesi var ({isolated_count} durak) — bu duraklar kendi aralarında seferlerle bağlı ama ana şebekeye hiçbir seferle bağlanmıyor. Örnek: '{ex_name}' ('{example}')."),
-                        "Ayrı bir servis bölgesi değilse, ortak durakların başka rotalarla aynı stop_id'yi paylaştığını veya bağlantı seferlerinin tanımlı olduğunu kontrol edin (sık neden: aynı yerin platform-özel ayrı stop_id'lerle modellenmesi).",
-                    );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("isolated_stops".to_string(), isolated_all.join(","));
-                    n005.details = Some(d);
-                    notices.push(n005);
                 }
+
+                let isolated_count = isolated_all.len();
+                let comp_count = isolated_comps.len();
+                let example = isolated_comps[0][0];
+                let ex_name = stop_name_map.get(example).copied().unwrap_or(example);
+
+                let mut n005 = k6_notice(
+                    ctr,
+                    "VAT_005",
+                    EntityType::Feed,
+                    None,
+                    None,
+                    "stop_times.txt",
+                    None,
+                    None,
+                    Some(format!("{isolated_count} / {comp_count}")),
+                    None,
+                    format!("Ağ grafında ana şebekeden (seferlerle bağlı en büyük durak kümesi) kopuk {comp_count} izole durak kümesi var ({isolated_count} durak) — bu duraklar kendi aralarında seferlerle bağlı ama ana şebekeye hiçbir seferle bağlanmıyor. Örnek: '{ex_name}' ('{example}')."),
+                    "Ayrı bir servis bölgesi değilse, ortak durakların başka rotalarla aynı stop_id'yi paylaştığını veya bağlantı seferlerinin tanımlı olduğunu kontrol edin (sık neden: aynı yerin platform-özel ayrı stop_id'lerle modellenmesi).",
+                );
+                let mut d = std::collections::BTreeMap::new();
+                d.insert("isolated_stops".to_string(), isolated_all.join(","));
+                n005.details = Some(d);
+                notices.push(n005);
             }
         }
     }
@@ -17675,6 +17675,56 @@ mod tests {
             result.notices.iter().any(|n| n.rule_id == "SHP_014"),
             "shape sonu hiçbir varyantın son durağına yakın değil → SHP_014"
         );
+    }
+
+    #[test]
+    fn shp_014_tied_variants_report_smallest_trip_id() {
+        let mut shape_ti = ShapeInternTable::new();
+        use crate::k2::shapes::ShapePointRecord;
+        // Sekiz sefer aynı A→C dizisini kullanıyor: shape sonuna uzaklıkları EŞİT. Örnek
+        // sefer hash sırasına bırakılırsa wasm32 (32-bit FxHash) ile native/wasm64 farklı
+        // trip_id raporluyordu; eşitlikte en küçük trip_id seçilmeli.
+        let ids = ["T9", "T4", "T7", "T1", "T8", "T3", "T6", "T2"];
+        let mut stop_times = Vec::new();
+        for (i, id) in ids.iter().enumerate() {
+            let line = 2 + 2 * i as u64;
+            stop_times.push(stoptime(id, 1, "A", (8, 0, 0), (8, 0, 0), line));
+            stop_times.push(stoptime(id, 2, "C", (8, 10, 0), (8, 10, 0), line + 1));
+        }
+        let mut records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("C", 42.0, 30.0)],
+            vec![route("R1", 3)],
+            ids.iter().map(|id| trip_sh(id, "R1", "S1")).collect(),
+            stop_times,
+        );
+        records.shapes = vec![
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.0),
+                Some(1),
+                None,
+                2,
+            ),
+            ShapePointRecord::new(
+                shape_ti.intern("S1"),
+                Some(41.0),
+                Some(29.1),
+                Some(2),
+                None,
+                3,
+            ),
+        ];
+        records.shape_interns = shape_ti.clone();
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let trip = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "SHP_014")
+            .and_then(|n| n.details.as_ref())
+            .and_then(|d| d.get("trip_id"))
+            .cloned();
+        assert_eq!(trip.as_deref(), Some("T1"));
     }
 
     #[test]
