@@ -13,9 +13,14 @@ CATALOG_URL="https://files.mobilitydatabase.org/feeds_v2.csv"
 # refresh_rule_stats.py, corpus_report.py) but this selector is a separate code path
 # and never learned about it, so the feed entered the full-catalog corpus anyway (#150).
 #
+# `mdb-2014` is the 1,282 MB compressed / 7,452 MB extracted BODS UK aggregate feed.
+# It reproducibly terminated the GitHub-hosted shard runner with exit 143 in both
+# attempts of workflow run 40399346692, preventing every later feed in that shard
+# from producing a result row.
+#
 # ⚠️ Excluded feeds are RECORDED, not silently dropped: they appear in the exclusions
 # list with an explicit reason, so "not run by instruction" never reads as "not found".
-EXCLUDED_FEEDS = {"mdb-2904"}
+EXCLUDED_FEEDS = {"mdb-2014", "mdb-2904"}
 
 
 def norm(s):

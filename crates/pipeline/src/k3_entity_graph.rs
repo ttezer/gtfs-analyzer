@@ -995,7 +995,8 @@ mod tests {
             transfers: None,
             transfer_duration: None,
             agency_id: None,
-            row: Default::default(),
+            columns: Default::default(),
+            values: Default::default(),
             line: 2,
         };
         records.fare_attributes = vec![base.clone(), FareAttributeRecord { line: 3, ..base }];

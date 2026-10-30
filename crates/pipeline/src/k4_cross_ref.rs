@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use gtfs_config::GtfsJpProfile;
 use gtfs_core::{EntityType, Notice};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use smol_str::SmolStr;
 
 use crate::k2::{detect_gtfs_jp, EntityRecords, GTFS_JP_FILES};
@@ -816,7 +816,7 @@ fn check_agencies(
             "fare_attributes.txt",
             None,
             Some("agency_id"),
-            Some(format!("{fares_without_agency} ücret")),
+            Some(fares_without_agency.to_string()),
             Some("dolu".to_string()),
             format!(
                 "Feed'de {} işletici var; {fares_without_agency} ücret kaydında agency_id belirtilmemiş — hangi işleticinin ücreti olduğu belirlenemiyor.",
@@ -1953,7 +1953,7 @@ fn check_transfers(
     ctr: &mut u32,
     trips_in_stm: &HashSet<&str>,
     // #15/#38: trip_stop_set iç tipi u32 (intern indeks); stop_id_to_idx ile dönüştür.
-    trip_stops: &FxHashMap<SmolStr, FxHashSet<u32>>,
+    trip_stops: &FxHashMap<SmolStr, Vec<u32>>,
     stop_id_to_idx: &FxHashMap<smol_str::SmolStr, u32>,
 ) {
     let ti_trf = &records.trip_interns;
@@ -2246,7 +2246,11 @@ fn check_transfers(
             if !fsid.is_empty() && map.trips.contains_key(fti.as_str()) {
                 let in_trip = stop_id_to_idx
                     .get(fsid)
-                    .and_then(|idx| trip_stops.get(fti.as_str()).map(|s| s.contains(idx)))
+                    .and_then(|idx| {
+                        trip_stops
+                            .get(fti.as_str())
+                            .map(|s| s.binary_search(idx).is_ok())
+                    })
                     .unwrap_or(false);
                 if !in_trip {
                     notices.push(notice(
@@ -2264,7 +2268,11 @@ fn check_transfers(
             if !tsid.is_empty() && map.trips.contains_key(tti.as_str()) {
                 let in_trip = stop_id_to_idx
                     .get(tsid)
-                    .and_then(|idx| trip_stops.get(tti.as_str()).map(|s| s.contains(idx)))
+                    .and_then(|idx| {
+                        trip_stops
+                            .get(tti.as_str())
+                            .map(|s| s.binary_search(idx).is_ok())
+                    })
                     .unwrap_or(false);
                 if !in_trip {
                     notices.push(notice(
@@ -5282,15 +5290,13 @@ fn check_gtfs_jp(
         .fare_attributes
         .iter()
         .map(|fare| {
+            let raw = |field| fare.raw_field(field).unwrap_or_default().to_string();
             (
-                fare.row.get("price").cloned().unwrap_or_default(),
-                fare.row.get("currency_type").cloned().unwrap_or_default(),
-                fare.row.get("payment_method").cloned().unwrap_or_default(),
-                fare.row.get("transfers").cloned().unwrap_or_default(),
-                fare.row
-                    .get("transfer_duration")
-                    .cloned()
-                    .unwrap_or_default(),
+                raw("price"),
+                raw("currency_type"),
+                raw("payment_method"),
+                raw("transfers"),
+                raw("transfer_duration"),
             )
         })
         .collect();
@@ -5303,7 +5309,7 @@ fn check_gtfs_jp(
                     && crate::k2::common::iso4217_minor_unit(&fare.currency_type).is_some()
                     && matches!(fare.payment_method, Some(0 | 1))
                     && (matches!(fare.transfers, Some(0..=2))
-                        || row_field(&fare.row, "transfers").is_empty())
+                        || fare.raw_field("transfers").unwrap_or("").trim().is_empty())
             }));
     let fare_problem = fare_attributes_unusable
         || (fare_rules_conditionally_required && records.fare_rules.is_empty());
@@ -6736,32 +6742,44 @@ fn check_xfl(
             }
         }
 
-        for (shape_id, trip_ids) in &shape_to_trips {
-            if trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)) {
-                let line = records
-                    .shapes
-                    .iter()
-                    .find(|sp| records.shape_interns.id(sp) == *shape_id)
-                    .map(|sp| sp.line_u64());
-                let trip_count = trip_ids.len();
-                notices.push(notice(
-                    ctr,
-                    "SHP_019",
-                    EntityType::Shape,
-                    Some((*shape_id).to_string()),
-                    Some((*shape_id).to_string()),
-                    "shapes.txt",
-                    line,
-                    Some("shape_id"),
-                    Some(format!("{trip_count}")),
-                    None,
-                    format!(
-                        "'{}' güzergah şekli {} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.",
-                        shape_id, trip_count
-                    ),
-                    "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.",
-                ));
+        let orphan_shapes: Vec<(&str, usize)> = shape_to_trips
+            .iter()
+            .filter(|(_, trip_ids)| trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)))
+            .map(|(shape_id, trip_ids)| (*shape_id, trip_ids.len()))
+            .collect();
+        // Her shape için ayrı `records.shapes.iter().find(..)` taraması shape noktası ×
+        // yetim shape sayısı kadar sürüyordu (mdb-992: K4'ün 7,8 s'inin ~3,3 s'i). İlk
+        // satırları tek geçişte topla; `find` gibi ilk eşleşen nokta korunur.
+        let mut first_line: HashMap<&str, u64> = HashMap::new();
+        if !orphan_shapes.is_empty() {
+            let wanted: HashSet<&str> = orphan_shapes.iter().map(|(sid, _)| *sid).collect();
+            for sp in &records.shapes {
+                let sid = records.shape_interns.id(sp);
+                if wanted.contains(sid) {
+                    first_line.entry(sid).or_insert_with(|| sp.line_u64());
+                }
             }
+        }
+
+        for (shape_id, trip_count) in orphan_shapes {
+            let line = first_line.get(shape_id).copied();
+            notices.push(notice(
+                ctr,
+                "SHP_019",
+                EntityType::Shape,
+                Some((*shape_id).to_string()),
+                Some((*shape_id).to_string()),
+                "shapes.txt",
+                line,
+                Some("shape_id"),
+                Some(format!("{trip_count}")),
+                None,
+                format!(
+                    "'{}' güzergah şekli {} sefer tarafından referans alınmış ama bu seferlerin hiçbirinde stop_times kaydı yok.",
+                    shape_id, trip_count
+                ),
+                "Seferlere stop_times ekleyin veya ilgili sefer ve güzergah şekli kayıtlarını kaldırın.",
+            ));
         }
     }
 
@@ -7263,7 +7281,17 @@ fn translation_target_values<'a>(
         "levels" => from_rows(&records.levels, |r| &r.row, field),
         "pathways" => from_rows(&records.pathways, |r| &r.row, field),
         "calendar" => from_rows(&records.calendars, |r| &r.row, field),
-        "fare_attributes" => from_rows(&records.fare_attributes, |r| &r.row, field),
+        // Ham satır yerine sütun listesi + değerler tutulur; anlam `from_rows` ile aynı.
+        "fare_attributes" => {
+            records.fare_attributes.first()?.raw_field(field)?;
+            Some(
+                records
+                    .fare_attributes
+                    .iter()
+                    .filter_map(|f| f.raw_field(field))
+                    .collect(),
+            )
+        }
         "feed_info" => from_rows(&records.feed_info, |r| &r.row, field),
         // trips ham satır tutmaz; değerler intern tablosundan okunur.
         "trips" => {
@@ -7577,7 +7605,7 @@ fn check_flex_zone_overlap(
                 ctr, "STM_060", EntityType::Trip,
                 Some(trip.to_string()), Some(trip.to_string()),
                 "stop_times.txt", Some(line), Some("location_id"),
-                Some(zones.clone()), None,
+                Some(format!("location_ids={l1},{l2}")), None,
                 format!(
                     "'{trip}' seferinde {zones} eşzamanlı örtüşüyor: geojson geometrileri kesişiyor, \
                      pickup/drop-off pencereleri çakışıyor ve ikisi de aynı hizmeti sunuyor."
@@ -8271,7 +8299,8 @@ mod tests {
             transfers: None,
             transfer_duration: None,
             agency_id: Some("MISSING_AGENCY".into()),
-            row: Default::default(),
+            columns: Default::default(),
+            values: Default::default(),
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
@@ -8289,7 +8318,6 @@ mod tests {
             origin_id: None,
             destination_id: None,
             contains_id: None,
-            row: Default::default(),
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
@@ -8313,7 +8341,6 @@ mod tests {
                 origin_id: None,
                 destination_id: None,
                 contains_id: None,
-                row: Default::default(),
                 line: (i + 2) as u64,
             })
             .collect();
@@ -8349,7 +8376,6 @@ mod tests {
                 origin_id: Some("NO_ZONE".into()),
                 destination_id: Some("NO_ZONE".into()),
                 contains_id: None,
-                row: Default::default(),
                 line: (i + 2) as u64,
             })
             .collect();
@@ -9659,10 +9685,6 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        let mut row = std::collections::HashMap::new();
-        row.insert("price".into(), "200".into());
-        row.insert("currency_type".into(), "JPY".into());
-        row.insert("payment_method".into(), "0".into());
         recs.fare_attributes = vec![FareAttributeRecord {
             fare_id: "F1".into(),
             price: Some(200.0),
@@ -9671,7 +9693,8 @@ mod tests {
             transfers: None,
             transfer_duration: None,
             agency_id: None,
-            row,
+            columns: ["price", "currency_type", "payment_method"].map(String::from).into(),
+            values: ["200", "JPY", "0"].map(smol_str::SmolStr::from).into(),
             line: 2,
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -9693,10 +9716,6 @@ mod tests {
             line: 2,
         }];
         let fare = |id: &str, price: &str| {
-            let mut row = std::collections::HashMap::new();
-            row.insert("price".into(), price.into());
-            row.insert("currency_type".into(), "JPY".into());
-            row.insert("payment_method".into(), "0".into());
             FareAttributeRecord {
                 fare_id: id.into(),
                 price: price.parse().ok(),
@@ -9705,7 +9724,8 @@ mod tests {
                 transfers: None,
                 transfer_duration: None,
                 agency_id: None,
-                row,
+                columns: ["price", "currency_type", "payment_method"].map(String::from).into(),
+                values: [price, "JPY", "0"].map(smol_str::SmolStr::from).into(),
                 line: 2,
             }
         };
@@ -9862,7 +9882,6 @@ mod tests {
             origin_id: None,
             destination_id: None,
             contains_id: None,
-            row: Default::default(),
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
@@ -10440,7 +10459,8 @@ mod tests {
                 transfers: None,
                 transfer_duration: None,
                 agency_id: None,
-                row: Default::default(),
+                columns: Default::default(),
+                values: Default::default(),
                 line: i as u64 + 2,
             })
             .collect();

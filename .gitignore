@@ -13,6 +13,7 @@
 /ui/node_modules/
 /ui/pkg64/
 /sdk/pkg/
+/sdk/pkg64/
 /sdk/dist/
 /sdk/node_modules/
 /crates/wasm/pkg/

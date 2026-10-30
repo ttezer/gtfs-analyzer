@@ -39,8 +39,16 @@ jobs:
       - name: Rust toolchain kur
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
 
-      - name: Cargo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      # Önbellek her koşuda OKUNUR ama yalnız main'e push'ta ve anahtar yeniyse YAZILIR
+      # (işin sonundaki iki adım). Eskiden PR'lar da kendi kopyasını yazıyordu ve
+      # restore-keys eski target'ı yeni anahtara taşıdığı için her Cargo.lock değişiminde
+      # önceki derlemenin test programları birikiyordu (2026-10-30, Linux-cargo:
+      # 1,07 → 1,45 → 1,87 GB); her koşu bunu indirdi ve hesabın önbellek indirme
+      # kotası doldu. Yazmadan önce kendi paketlerimizin çıktıları silinir; yalnız
+      # bağımlılıkların derlenmiş hali saklanır.
+      - name: Cargo cache (oku)
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cargo/registry
@@ -168,6 +176,20 @@ jobs:
           path: spec-audit-report/
           if-no-files-found: warn
 
+      - name: Cargo cache — kendi paketlerimizin çıktılarını sil
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        run: cargo clean -p gtfs-analyzer -p gtfs-analyzer-python -p gtfs-config -p gtfs-core -p gtfs-pipeline -p gtfs-rules -p gtfs-wasm
+
+      - name: Cargo cache (yaz)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
   ts-test:
     name: TypeScript Unit Tests + Coverage
     runs-on: ubuntu-latest
@@ -205,8 +227,12 @@ jobs:
             ui/test-results/vitest-junit.xml
           if-no-files-found: ignore
 
+  # SDK iki motor paketler. wasm32 (`sdk-test`) ve wasm64 (`sdk-wasm64`) PARALEL
+  # derlenir: tek job'da art arda derlenince SDK job'u 4,3 → 6,0 dk'ya çıkmış ve UI
+  # build/deploy'a giden kritik yolu uzatmıştı (2026-10-30). wasm64 motorunun testleri
+  # ve paket kapısı iki çıktıyı birleştiren `sdk-wasm64-test`te, UI build'iyle aynı anda koşar.
   sdk-test:
-    name: SDK Build + Smoke
+    name: SDK Build + Smoke (wasm32)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -227,9 +253,13 @@ jobs:
         working-directory: sdk
         run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
 
-      - name: SDK smoke + paket dry-run
+      # Yalnız wasm32 derlenir; GTFS_SDK_ENGINE testleri bu motora sabitler.
+      - name: SDK smoke (wasm32 motoru)
         working-directory: sdk
-        run: npm run test:config-parity && npm run test:smoke && npm run package:check
+        env:
+          SDK_WASM_TARGETS: wasm32
+          GTFS_SDK_ENGINE: wasm32
+        run: npm run test:config-parity && npm run test:smoke
 
       # UI build'i (build-wasm job'u) bu WASM'ı paketler; ikinci kez derlenmesin.
       - name: sdk/pkg artifact yükle
@@ -239,6 +269,88 @@ jobs:
           path: sdk/pkg
           if-no-files-found: error
           retention-days: 1
+
+  sdk-wasm64:
+    name: SDK wasm64 build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # Büyük feed'ler için wasm64 motoru: nightly build-std + wasm-bindgen
+      # (ui/pkg64 ile aynı yol, bkz. `wasm64` job'u).
+      - uses: ./.github/actions/setup-rust-wasm
+        with:
+          nightly: 'true'
+
+      - uses: ./.github/actions/setup-node-deps
+        with:
+          directory: sdk
+
+      # Sürüm Cargo.lock'tan okunur; gerekçe `wasm64` job'undaki aynı adımda.
+      - name: wasm-bindgen sürümünü Cargo.lock'tan oku
+        run: |
+          set -uo pipefail
+          VER=$(grep -A 1 '^name = "wasm-bindgen"$' Cargo.lock \
+                | grep '^version' | head -1 | cut -d'"' -f2)
+          if [ -z "$VER" ]; then
+            echo "::error::wasm-bindgen sürümü Cargo.lock'tan okunamadı."
+            exit 1
+          fi
+          echo "WBG_VER=$VER" >> "$GITHUB_ENV"
+
+      - name: wasm-bindgen CLI kur (SDK wasm64 — sürüm Cargo.lock'tan)
+        uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
+        with:
+          tool: wasm-bindgen-cli@${{ env.WBG_VER }}
+
+      - name: Binaryen (wasm-opt) kur
+        working-directory: sdk
+        run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
+
+      - name: SDK wasm64 derle (sdk/pkg64)
+        working-directory: sdk
+        env:
+          SDK_WASM_TARGETS: wasm64
+        run: npm run wasm:build
+
+      - name: sdk/pkg64 artifact yükle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sdk-pkg64
+          path: sdk/pkg64
+          if-no-files-found: error
+          retention-days: 1
+
+  sdk-wasm64-test:
+    name: SDK Smoke (wasm64) + package
+    needs: [sdk-test, sdk-wasm64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: ./.github/actions/setup-node-deps
+        with:
+          directory: sdk
+
+      - name: sdk/pkg artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sdk-pkg
+          path: sdk/pkg
+
+      - name: sdk/pkg64 artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sdk-pkg64
+          path: sdk/pkg64
+
+      # Node 24 Memory64 destekler, motor seçimi wasm64'e düşer. dist WASM'sız
+      # derlenir (yalnız tsc); paket kapısı iki motorun dosyalarını birlikte görür.
+      - name: SDK smoke + parite (wasm64 motoru) + paket dry-run
+        working-directory: sdk
+        run: npx tsc -p tsconfig.json && node scripts/smoke-test.mjs && node scripts/parity-test.mjs && npm run package:check
 
   # Üç WASM varyantı (seri, threaded, memory64) PARALEL job'larda derlenir; eskiden
   # tek job'da art arda koşuyorlardı ve CI'ın kritik yolu buydu (2026-09-23 ölçümü:
@@ -369,7 +481,7 @@ jobs:
 
   build-wasm:
     name: WASM parity + UI Build
-    needs: [wasm-serial, wasm-threads, wasm64, sdk-test]
+    needs: [wasm-serial, wasm-threads, wasm64, sdk-test, sdk-wasm64]
     runs-on: ubuntu-latest
     timeout-minutes: 15   # normal: ~1-2dk
     steps:
@@ -403,6 +515,12 @@ jobs:
         with:
           name: sdk-pkg
           path: sdk/pkg
+
+      - name: sdk/pkg64 artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sdk-pkg64
+          path: sdk/pkg64
 
       - name: wasm32 / wasm64 deterministik çıktı eşitliği
         working-directory: ui
@@ -597,8 +715,10 @@ jobs:
         with:
           components: llvm-tools-preview
 
-      - name: Cargo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      # Okuma/budama/yazma ayrımı Rust Tests işindekiyle aynı (gerekçe orada).
+      - name: Cargo cache (oku)
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cargo/registry
@@ -628,6 +748,20 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
 
+      - name: Cargo cache — kendi paketlerimizin çıktılarını sil
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        run: cargo clean -p gtfs-analyzer -p gtfs-analyzer-python -p gtfs-config -p gtfs-core -p gtfs-pipeline -p gtfs-rules -p gtfs-wasm
+
+      - name: Cargo cache (yaz)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
+
   python-package:
     name: Python package
     runs-on: ubuntu-latest
@@ -655,7 +789,7 @@ jobs:
   # kaynaktan-taze olarak deploy eder (committed dist yok; drift imkânsız).
   deploy:
     name: Deploy
-    needs: [rust-test, ts-test, sdk-test, build-wasm, e2e, security-audit, python-package]
+    needs: [rust-test, ts-test, sdk-test, sdk-wasm64-test, build-wasm, e2e, security-audit, python-package]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10   # normal: Deploy ~11sn

@@ -2541,13 +2541,13 @@ T1,08:10:00,08:10:00,S2,2,2.387\n";
         .any(|n| n.entity_id.as_deref() == Some("S1")
             && n.observed_value
                 .as_deref()
-                .is_some_and(|v| v.starts_with("139."))));
+                .is_some_and(|v| v.starts_with("distance=139."))));
     assert!(bus_shp024
         .iter()
         .any(|n| n.entity_id.as_deref() == Some("S2")
             && n.observed_value
                 .as_deref()
-                .is_some_and(|v| v.starts_with("165."))));
+                .is_some_and(|v| v.starts_with("distance=165."))));
 
     // Same geometry on a rail route: the intentional 200m rail threshold keeps both
     // ~139m/~166m platform-center offsets unflagged.

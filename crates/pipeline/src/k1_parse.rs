@@ -125,9 +125,15 @@ pub struct K1Result {
     /// K1 tarafından keşfedilen dosyalar; bozuk/eksik optional dosyalar için
     /// dependency-aware recovery planı bunun üzerinden kurulur.
     pub present_files: HashSet<String>,
-    /// `stops.txt`'in koşullu yokluğunu yalnızca kullanılabilir Flex bölgeleri
-    /// karşılıyorsa kabul ederiz; dosya adının tek başına varlığı yeterli değildir.
+    /// `stops.txt`'in koşullu yokluğunu yalnızca yapısal olarak geçerli Flex bölgeleri
+    /// karşılıyorsa K1'de geçici olarak kabul ederiz; dosya adının veya yalnızca okunabilen
+    /// bir poligonun varlığı yeterli değildir. Tam pipeline, K2'den sonra bu kümedeki en az
+    /// bir kimliğin `stop_times.location_id` tarafından kullanıldığını da doğrular.
     pub has_valid_locations_geojson: bool,
+    /// Zorunlu Feature üyeleri ve geometrisi eksiksiz, benzersiz string `id` değerleri.
+    /// `geojson_location_ids` tüm yazılmış kimlikleri XFL_025 için korurken bu dar küme
+    /// yalnız `stops.txt` Flex muafiyetinin kanıtıdır.
+    pub valid_geojson_location_ids: std::collections::HashSet<String>,
     /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
     /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
@@ -519,6 +525,13 @@ tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").";
 pub(crate) const RFC4180_BARE_QUOTE: &str = "tırnaksız alan tırnak işareti içeriyor";
 pub(crate) const RFC4180_AFTER_CLOSE: &str = "kapanış tırnağından sonra karakter var";
 
+pub(crate) fn rfc4180_issue_code(kind: &str) -> &'static str {
+    match kind {
+        RFC4180_AFTER_CLOSE => "characters_after_closing_quote",
+        _ => "bare_quote",
+    }
+}
+
 impl Rfc4180Acc {
     pub(crate) fn observe(&mut self, line: u64, kind: &'static str, example: &str) {
         if self.last_line != line || self.rows == 0 {
@@ -537,6 +550,7 @@ impl Rfc4180Acc {
         }
     }
 
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: &Rfc4180Acc) {
         if other.rows == 0 {
             return;
@@ -877,6 +891,7 @@ impl Dq016Acc {
     /// Başka bir parçadan biriken sayaçları katar (stop_times chunk birleştirmesi).
     /// `other` dosyada DAHA SONRA gelen parçadır; `first_line` en küçüğü, `last_line`
     /// en büyüğü tutar, `rows` toplanır, `cols` birleşir.
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Dq016Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);
@@ -1004,6 +1019,19 @@ pub(crate) fn is_identity_column(col: &str) -> bool {
 
 pub(crate) const DQ016_REMEDIATION: &str =
     "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
+
+/// zip 9'da `name()` `Result` döner: UTF-8 olmayan ad cp437 ile çözülür ve bu yalnız
+/// erişilemeyen bir dalda hata verir. Yine de sessizce yutulmaz; komşu `by_index`
+/// hatasıyla aynı biçimde "ZIP okunamadı" olarak raporlanır.
+fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
+    FatalError::new(
+        FatalCode::ZipUnreadable,
+        format!("ZIP girdisinin adı çözülemedi (index {index}): {e}"),
+    )
+    .variant("entry_index")
+    .param("index", index)
+    .param("detail", e)
+}
 
 // ── ARC_012 / ARC_021: K1 ↔ K2-stream ortak mantığı ──────────────────────────
 //
@@ -1302,6 +1330,7 @@ impl Arc032Acc {
     }
 
     /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc032Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);
@@ -1342,15 +1371,49 @@ impl Arc032Acc {
 /// Spec'te tipi `ID` / `Foreign ID` olan sütunlar (GTFS Reference "Field Types").
 /// `direction_id` bir Enum'dur, listede YOK; `jp_*` uzantı sütunları spec dışıdır.
 pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
-    "agency_id", "stop_id", "parent_station", "zone_id", "level_id", "route_id", "network_id",
-    "trip_id", "service_id", "block_id", "shape_id", "fare_id", "origin_id", "destination_id",
-    "contains_id", "from_stop_id", "to_stop_id", "from_route_id", "to_route_id", "from_trip_id",
-    "to_trip_id", "pathway_id", "area_id", "from_area_id", "to_area_id", "fare_media_id",
-    "fare_product_id", "leg_group_id", "from_leg_group_id", "to_leg_group_id",
-    "rider_category_id", "timeframe_group_id", "from_timeframe_group_id",
-    "to_timeframe_group_id", "location_group_id", "location_id", "booking_rule_id",
-    "pickup_booking_rule_id", "drop_off_booking_rule_id", "prior_notice_service_id",
-    "attribution_id", "record_id", "record_sub_id",
+    "agency_id",
+    "stop_id",
+    "parent_station",
+    "zone_id",
+    "level_id",
+    "route_id",
+    "network_id",
+    "trip_id",
+    "service_id",
+    "block_id",
+    "shape_id",
+    "fare_id",
+    "origin_id",
+    "destination_id",
+    "contains_id",
+    "from_stop_id",
+    "to_stop_id",
+    "from_route_id",
+    "to_route_id",
+    "from_trip_id",
+    "to_trip_id",
+    "pathway_id",
+    "area_id",
+    "from_area_id",
+    "to_area_id",
+    "fare_media_id",
+    "fare_product_id",
+    "leg_group_id",
+    "from_leg_group_id",
+    "to_leg_group_id",
+    "rider_category_id",
+    "timeframe_group_id",
+    "from_timeframe_group_id",
+    "to_timeframe_group_id",
+    "location_group_id",
+    "location_id",
+    "booking_rule_id",
+    "pickup_booking_rule_id",
+    "drop_off_booking_rule_id",
+    "prior_notice_service_id",
+    "attribution_id",
+    "record_id",
+    "record_sub_id",
 ];
 
 /// ARC_037 birikimi — ID alanında yazdırılabilir ASCII (0x20-0x7E) dışı karakter.
@@ -1398,6 +1461,7 @@ impl Arc037Acc {
     }
 
     /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc037Acc) {
         self.rows += other.rows;
         self.cols.extend(other.cols);
@@ -1916,7 +1980,8 @@ pub fn parse_with_limits(
     // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
     let mut entry_names = Vec::with_capacity(archive.len());
     let mut metadata_bytes = 0usize;
-    for name in archive.file_names() {
+    for (i, name) in archive.file_names().enumerate() {
+        let name = name.map_err(|e| entry_name_error(i, &e))?;
         metadata_bytes = metadata_bytes.saturating_add(name.len());
         if metadata_bytes > MAX_ZIP_METADATA_BYTES {
             return Err(FatalError::new(
@@ -2011,6 +2076,8 @@ pub fn parse_with_limits(
     let mut counter: u32 = 0;
     let mut geojson_location_ids: std::collections::HashSet<String> =
         std::collections::HashSet::new();
+    let mut valid_geojson_location_ids: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     let mut geojson_geometries: std::collections::HashMap<String, LocationGeometry> =
         std::collections::HashMap::new();
     let mut raw_files: RawFiles = HashMap::new();
@@ -2040,7 +2107,7 @@ pub fn parse_with_limits(
             .param("detail", &e)
         })?;
 
-        let entry_name = zf.name().to_string();
+        let entry_name = zf.name().map_err(|e| entry_name_error(i, &e))?.into_owned();
         // Sarılı feed'de kök öneki düşülür; sonraki tüm mantık dosyayı kökteymiş gibi görür.
         // Bulgu mesajları yine ZIP'teki GERÇEK yolu gösterir (entry_name).
         let raw_name = match &root_prefix {
@@ -2129,6 +2196,7 @@ pub fn parse_with_limits(
                         &mut notices,
                         &mut counter,
                         &mut geojson_location_ids,
+                        &mut valid_geojson_location_ids,
                         &mut geojson_geometries,
                     );
                     if !has_valid_locations_geojson {
@@ -2479,7 +2547,7 @@ pub fn parse_with_limits(
                     &mut counter, "ARC_013",
                     EntityType::File, Some(raw_name.clone()),
                     Some(&raw_name), None, None,
-                    Some(msg.clone()),
+                    Some("issue=unclosed_quote".to_string()),
                     format!("'{raw_name}' CSV tokenization hatası: {msg}"),
                     "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",
                 ));
@@ -2567,7 +2635,7 @@ pub fn parse_with_limits(
                     Some(&raw_name),
                     Some(1),
                     None,
-                    Some("(boş)".to_string()),
+                    Some("\"\"".to_string()),
                     format!("'{raw_name}' başlığında boş sütun adı var."),
                     "Tüm sütun adlarının dolu olduğundan emin olun.",
                 ));
@@ -2842,7 +2910,11 @@ pub fn parse_with_limits(
                 Some(raw_name.as_str()),
                 rfc4180.first_line,
                 None,
-                Some(format!("{} rows · {kind}", rfc4180.rows)),
+                Some(format!(
+                    "rows={}; issue={}",
+                    rfc4180.rows,
+                    rfc4180_issue_code(kind)
+                )),
                 format!(
                     "'{raw_name}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
                     rfc4180.rows
@@ -3053,6 +3125,7 @@ pub fn parse_with_limits(
         present_files,
         has_valid_locations_geojson,
         geojson_location_ids,
+        valid_geojson_location_ids,
         geojson_geometries,
         custom_file_headers,
     })
@@ -3066,6 +3139,7 @@ fn validate_locations_geojson(
     notices: &mut Vec<Notice>,
     counter: &mut u32,
     geojson_ids: &mut std::collections::HashSet<String>,
+    valid_geojson_ids: &mut std::collections::HashSet<String>,
     geoms: &mut std::collections::HashMap<String, LocationGeometry>,
 ) -> bool {
     let text = match std::str::from_utf8(bytes) {
@@ -3154,7 +3228,9 @@ fn validate_locations_geojson(
         return false;
     }
 
-    // LOC_007: Yinelenen feature 'id' değerleri
+    // LOC_007: Yinelenen feature 'id' değerleri. Sayaç ayrıca Flex muafiyetinin yalnız
+    // gerçekten benzersiz string kimliklere dayanmasını sağlar.
+    let mut id_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     {
         let mut seen_ids: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
@@ -3168,6 +3244,9 @@ fn validate_locations_geojson(
                         .map(str::to_string)
                         .unwrap_or_else(|| id_str.clone()),
                 );
+                if let Some(id) = id_val.as_str() {
+                    *id_counts.entry(id.to_string()).or_insert(0) += 1;
+                }
                 if let Some(first_idx) = seen_ids.get(&id_str) {
                     notices.push(make_notice(
                         counter, "LOC_007", EntityType::File, Some(fname.to_string()),
@@ -3182,9 +3261,14 @@ fn validate_locations_geojson(
         }
     }
 
-    let mut has_valid_geometry = false;
     for (i, feature) in features.iter().enumerate() {
         let feat_num = (i + 1) as u64;
+        let valid_type = feature.get("type").and_then(|v| v.as_str()) == Some("Feature");
+        let valid_properties = feature.get("properties").is_some_and(|v| v.is_object());
+        let valid_id = feature
+            .get("id")
+            .and_then(|v| v.as_str())
+            .filter(|id| !id.is_empty() && id_counts.get(*id) == Some(&1));
 
         // LOC_008: her Feature'ın "type" alanı Required ve değeri "Feature" olmalı (spec tablosu).
         match feature.get("type").and_then(|v| v.as_str()) {
@@ -3260,7 +3344,7 @@ fn validate_locations_geojson(
         let geometry = geometry.unwrap();
 
         let geom_type = geometry.get("type").and_then(|t| t.as_str());
-        match geom_type {
+        let valid_geometry = match geom_type {
             Some("Polygon") => {
                 // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
                 // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
@@ -3273,15 +3357,22 @@ fn validate_locations_geojson(
                         notices,
                         Some(&mut geom),
                     ),
-                    None => missing_coordinates(counter, fname, feat_num, notices),
+                    None => {
+                        missing_coordinates(counter, fname, feat_num, notices);
+                        false
+                    }
                 }
             }
             Some("MultiPolygon") => match geometry.get("coordinates").and_then(|c| c.as_array()) {
-                None => missing_coordinates(counter, fname, feat_num, notices),
+                None => {
+                    missing_coordinates(counter, fname, feat_num, notices);
+                    false
+                }
                 Some(polygons) => {
+                    let mut valid = !polygons.is_empty();
                     for poly in polygons {
                         if let Some(rings) = poly.as_array() {
-                            check_polygon_rings(
+                            valid &= check_polygon_rings(
                                 counter,
                                 fname,
                                 feat_num,
@@ -3289,8 +3380,11 @@ fn validate_locations_geojson(
                                 notices,
                                 Some(&mut geom),
                             );
+                        } else {
+                            valid = false;
                         }
                     }
+                    valid
                 }
             },
             Some(t) => {
@@ -3300,6 +3394,7 @@ fn validate_locations_geojson(
                     format!("'{fname}' özellik {feat_num} geçersiz geometri tipi: '{t}'. GTFS Flex yalnızca Polygon ve MultiPolygon destekler."),
                     "locations.geojson'da yalnızca Polygon ve MultiPolygon geometrileri kullanın.",
                 ));
+                false
             }
             None => {
                 notices.push(make_notice(
@@ -3314,21 +3409,22 @@ fn validate_locations_geojson(
                     format!("'{fname}' özellik {feat_num} için geometri tipi eksik."),
                     "Her feature için Polygon veya MultiPolygon geometrisi tanımlayın.",
                 ));
+                false
             }
-        }
+        };
 
         // Pa1fdaa0d: geometri, feature 'id'siyle eşleşerek K6'ya taşınır.
         if let Some(id) = feature_id {
             if !geom.outer_rings.is_empty() {
-                has_valid_geometry = true;
-                geoms.insert(id, geom);
+                geoms.insert(id.clone(), geom);
             }
-        } else if !geom.outer_rings.is_empty() {
-            has_valid_geometry = true;
+            if valid_type && valid_properties && valid_geometry && valid_id == Some(id.as_str()) {
+                valid_geojson_ids.insert(id);
+            }
         }
     }
 
-    has_valid_geometry
+    !valid_geojson_ids.is_empty()
 }
 
 /// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
@@ -3358,17 +3454,23 @@ fn check_polygon_rings(
     // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
     // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
     collect: Option<&mut LocationGeometry>,
-) {
+) -> bool {
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
     // LOC_006 için ring başına işaretli alan: ilk ring dış sınır, sonrakiler deliktir.
     let mut all_rings: Vec<Vec<(f64, f64)>> = Vec::new();
     let mut ring_areas: Vec<f64> = Vec::new();
+    let mut structurally_valid = !rings.is_empty();
 
     for ring in rings {
-        let Some(pts) = ring.as_array() else { continue };
-        if pts.len() < 2 {
+        let Some(pts) = ring.as_array() else {
+            structurally_valid = false;
+            continue;
+        };
+        // RFC 7946 LinearRing: en az dört konum ve ilk/son konum aynı olmalıdır.
+        if pts.len() < 4 {
+            structurally_valid = false;
             continue;
         }
 
@@ -3391,7 +3493,10 @@ fn check_polygon_rings(
                         "GeoJSON Polygon ring'inin ilk ve son koordinatı aynı olmalıdır.",
                     ));
                     already_reported_closure = true;
+                    structurally_valid = false;
                 }
+            } else {
+                structurally_valid = false;
             }
         }
 
@@ -3405,6 +3510,8 @@ fn check_polygon_rings(
                 all_lats.push(lat);
                 all_lons.push(lon);
                 ring_pts.push((lon, lat));
+            } else {
+                structurally_valid = false;
             }
         }
         ring_areas.push(signed_ring_area_km2(&ring_pts));
@@ -3423,32 +3530,54 @@ fn check_polygon_rings(
         // yönelim şart koşmaz** — saat yönü kuralı GeoJSON RFC 7946 §3.1.6'nın SERİLEŞTİRME
         // kuralıdır ve RFC ayrıca ayrıştırıcıların uymayan geometriyi reddetmemesini söyler.
         // Yönü ihlal saymak `PTH_017` tuzağının aynısı olurdu → BİLİNÇLİ ÖLÇÜLMÜYOR.
-        let mut bad: Option<String> = None;
+        let mut bad: Option<Loc011Failure> = None;
         if !ring_is_simple(outer) {
-            bad = Some("dış ring kendini kesiyor".to_string());
+            bad = Some(Loc011Failure::new(
+                "issue=outer_ring_self_intersection",
+                "dış ring kendini kesiyor",
+            ));
         } else if has_spike(outer) {
-            bad = Some("zero-area spike (spike/cut line) on the outer ring".to_string());
+            bad = Some(Loc011Failure::new(
+                "issue=outer_ring_zero_area_spike",
+                "zero-area spike (spike/cut line) on the outer ring",
+            ));
         } else if ring_touches_itself(outer) {
-            bad = Some("dış ring kendine dokunuyor — iç kısım bölünüyor".to_string());
+            bad = Some(Loc011Failure::new(
+                "issue=outer_ring_self_touch",
+                "dış ring kendine dokunuyor — iç kısım bölünüyor",
+            ));
         }
         for (i, hole) in all_rings.iter().enumerate().skip(1) {
             if bad.is_some() {
                 break;
             }
             if !ring_is_simple(hole) {
-                bad = Some(format!("{i}. delik kendini kesiyor"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_self_intersection; ring={i}"),
+                    format!("{i}. delik kendini kesiyor"),
+                ));
             } else if has_spike(hole) {
-                bad = Some(format!("zero-area spike (spike/cut line) in hole {i}"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_zero_area_spike; ring={i}"),
+                    format!("zero-area spike (spike/cut line) in hole {i}"),
+                ));
             } else if ring_touches_itself(hole) {
-                bad = Some(format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_self_touch; ring={i}"),
+                    format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"),
+                ));
             } else if rings_cross(outer, hole) {
                 // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
-                bad = Some(format!("{i}. delik dış ring'i kesiyor"));
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_crosses_outer_ring; ring={i}"),
+                    format!("{i}. delik dış ring'i kesiyor"),
+                ));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
                 // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
                 // görünmüyordu. Artık TÜM köşeler denetlenir.
-                bad = Some(format!(
-                    "hole {i} lies partly or wholly outside the outer ring"
+                bad = Some(Loc011Failure::new(
+                    format!("issue=hole_outside_outer_ring; ring={i}"),
+                    format!("hole {i} lies partly or wholly outside the outer ring"),
                 ));
             }
         }
@@ -3460,7 +3589,10 @@ fn check_polygon_rings(
             }
             for j in (i + 1)..all_rings.len() {
                 if rings_cross(&all_rings[i], &all_rings[j]) {
-                    bad = Some(format!("{i}. ve {j}. delikler birbirini kesiyor"));
+                    bad = Some(Loc011Failure::new(
+                        format!("issue=holes_cross; rings={i},{j}"),
+                        format!("{i}. ve {j}. delikler birbirini kesiyor"),
+                    ));
                     break 'outer;
                 }
                 if all_rings[j]
@@ -3470,7 +3602,10 @@ fn check_polygon_rings(
                         .first()
                         .is_some_and(|&p| point_in_ring(p, &all_rings[j]))
                 {
-                    bad = Some(format!("{i}. ve {j}. delikler iç içe"));
+                    bad = Some(Loc011Failure::new(
+                        format!("issue=nested_holes; rings={i},{j}"),
+                        format!("{i}. ve {j}. delikler iç içe"),
+                    ));
                     break 'outer;
                 }
             }
@@ -3481,11 +3616,12 @@ fn check_polygon_rings(
         if bad.is_none() {
             bad = interior_disconnection(&all_rings);
         }
-        if let Some(why) = bad {
+        if let Some(failure) = bad {
+            structurally_valid = false;
             notices.push(make_notice(
                 counter, "LOC_011", EntityType::File, Some(fname.to_string()),
-                Some(fname), Some(feat_num), Some("coordinates"), Some(why.clone()),
-                format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {why}."),
+                Some(fname), Some(feat_num), Some("coordinates"), Some(failure.observed),
+                format!("'{fname}' özellik {feat_num} poligonu OpenGIS Simple Features 6.1.11'e göre geçersiz: {}.", failure.explanation),
                 "Poligon halkalarını kendini kesmeyecek şekilde düzeltin; delikleri dış ring'in içinde tutun.",
             ));
         }
@@ -3525,6 +3661,7 @@ fn check_polygon_rings(
         }
         g.outer_rings.push(outer.clone());
     }
+    structurally_valid && all_rings.first().is_some_and(|ring| ring.len() >= 4)
 }
 
 /// İki doğru parçası KESİŞİYOR mu (uç nokta paylaşımı ve teğetlik hariç).
@@ -3725,7 +3862,21 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
 /// kalıntı olarak yazıyordu. Ölçüt çevrime çevrilince özel hâl kendiliğinden kapsandı.
 ///
 /// Öz-döngüler (`ring_touches_itself`) çağıran tarafta ring başına ayrıca denetlenir.
-fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
+struct Loc011Failure {
+    observed: String,
+    explanation: String,
+}
+
+impl Loc011Failure {
+    fn new(observed: impl Into<String>, explanation: impl Into<String>) -> Self {
+        Self {
+            observed: observed.into(),
+            explanation: explanation.into(),
+        }
+    }
+}
+
+fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
     let label = |i: usize| {
         if i == 0 {
             "dış ring".to_string()
@@ -3754,17 +3905,24 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<String> {
                 continue;
             }
             if contacts > 1 {
-                return Some(format!(
-                    "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
-                    label(i),
-                    label(j)
+                return Some(Loc011Failure::new(
+                    format!("issue=multiple_ring_contacts; rings={i},{j}; contacts={contacts}"),
+                    format!(
+                        "{} ile {} birden fazla noktada ({contacts}) dokunuyor — iç kısım bölünüyor",
+                        label(i),
+                        label(j)
+                    ),
                 ));
             }
             let (ri, rj) = (find(&mut parent, i), find(&mut parent, j));
             if ri == rj {
-                return Some(format!(
-                    "ring temasları çevrim oluşturuyor ({} ile {} teması zinciri kapatıyor) — iç kısım bölünüyor",
-                    label(i), label(j)));
+                return Some(Loc011Failure::new(
+                    format!("issue=ring_contact_cycle; rings={i},{j}"),
+                    format!(
+                        "ring temasları çevrim oluşturuyor ({} ile {} teması zinciri kapatıyor) — iç kısım bölünüyor",
+                        label(i), label(j)
+                    ),
+                ));
             }
             parent[ri] = rj;
         }

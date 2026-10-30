@@ -48,6 +48,90 @@ pub use gtfs_core::{
     FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult, ValidationStatus,
 };
 
+/// `stops.txt` muafiyetinin iki aşamalı kanıtını tamamlar.
+///
+/// K1, `locations.geojson` Feature'larının yapısal geçerliliğini bilir; ancak büyük
+/// `stop_times.txt` dosyalarının gövdesi K2'de akışla okunduğu için bu bölgelerin gerçekten
+/// kullanılıp kullanılmadığını bilemez. K2 tamamlandıktan sonra yalnız geçerli bir feature
+/// kimliğine yönelen `stop_times.location_id` varsa muafiyet uygulanır.
+pub fn reconcile_flex_stop_requirement(
+    k1_notices: &mut Vec<gtfs_core::Notice>,
+    k2_notices: &mut Vec<gtfs_core::Notice>,
+    partial: &mut gtfs_core::PartialReport,
+    stops_present: bool,
+    stops_empty: bool,
+    valid_geojson_location_ids: &std::collections::HashSet<String>,
+    records: &EntityRecords,
+) {
+    let has_referenced_valid_zone = records
+        .stop_times_index
+        .flex_map
+        .values()
+        .filter_map(|flex| flex.location_id.as_deref())
+        .any(|id| valid_geojson_location_ids.contains(id));
+
+    let is_stops_notice = |notice: &gtfs_core::Notice, rule_id: &str| {
+        notice.rule_id == rule_id
+            && (notice.file.as_deref() == Some("stops.txt")
+                || notice.observed_value.as_deref() == Some("stops.txt"))
+    };
+
+    if has_referenced_valid_zone {
+        // K1 zaten ARC_004/035'i yapısal olarak geçerli bölge sayesinde üretmez. Bu
+        // retain'ler savunmacıdır: doğrudan/gelecekteki çağrı yolları aynı hükümde kalsın.
+        k1_notices.retain(|n| {
+            !is_stops_notice(n, "ARC_004") && !is_stops_notice(n, "ARC_035")
+        });
+        k2_notices.retain(|n| n.rule_id != "STP_018");
+        if !stops_present {
+            partial.unavailable_files.retain(|f| f != "stops.txt");
+        }
+        return;
+    }
+
+    // Yapısal olarak geçerli fakat hiçbir sefer tarafından kullanılmayan bir GeoJSON,
+    // hizmet yerini tanımlamaz. K1'in geçici muafiyetini geri al.
+    let mut counter = 0;
+    if !stops_present && !k1_notices.iter().any(|n| is_stops_notice(n, "ARC_004")) {
+        partial.mark_unavailable("stops.txt");
+        k1_notices.push(notice_factory::build(
+            "K1/K2 Flex reconciliation",
+            Some("k2"),
+            &mut counter,
+            "ARC_004",
+            gtfs_core::EntityType::Feed,
+            Some("stops.txt".to_string()),
+            None,
+            Some("stops.txt".to_string()),
+            None,
+            None,
+            Some("stops.txt".to_string()),
+            None,
+            "Zorunlu GTFS dosyası eksik: 'stops.txt'.".to_string(),
+            "Eksik dosyayı feed ZIP arşivine ekleyin.",
+        ));
+    } else if stops_empty
+        && !k1_notices.iter().any(|n| is_stops_notice(n, "ARC_035"))
+    {
+        k1_notices.push(notice_factory::build(
+            "K1/K2 Flex reconciliation",
+            Some("k2"),
+            &mut counter,
+            "ARC_035",
+            gtfs_core::EntityType::File,
+            Some("stops.txt".to_string()),
+            None,
+            Some("stops.txt".to_string()),
+            None,
+            None,
+            Some("stops.txt".to_string()),
+            None,
+            "Zorunlu GTFS dosyası 'stops.txt' hiç veri satırı içermiyor.".to_string(),
+            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
+        ));
+    }
+}
+
 /// Rapor sayfasının ajans/yayıncı künyesi. Yalnız `EntityRecords` kullanır; native ve
 /// WASM aynı fonksiyonu çağırır (parite referansı ikisini de karşılaştırır).
 pub fn build_feed_summary(records: &EntityRecords) -> gtfs_core::feed_summary::FeedSummary {
@@ -1653,16 +1737,20 @@ pub fn validate_bytes_inspected(
         return ValidateResult::Fatal(e);
     }
 
-    let k1 = {
+    let mut k1 = {
         let _t = Timer::start("K1-parse");
         match parse(zip, config) {
             Ok(r) => r,
             Err(e) => return ValidateResult::Fatal(e),
         }
     };
+    crate::timing::mem_log("after K1-parse");
     let mut partial = k1.partial;
-    let unavailable_files = partial.unavailable_files.clone();
-    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let stops_present = k1.present_files.contains("stops.txt");
+    let stops_empty = k1
+        .files
+        .get("stops.txt")
+        .is_some_and(|file| file.rows.is_empty());
     let has_gtfs_jp_file = GTFS_JP_FILES
         .iter()
         .any(|file| k1.present_files.contains(*file));
@@ -1687,6 +1775,18 @@ pub fn validate_bytes_inspected(
         )
         // #15 W2 + #38: ZIP bytes K2'ye → stop_times stream
     };
+    crate::timing::mem_log("after K2-validate");
+    reconcile_flex_stop_requirement(
+        &mut k1.notices,
+        &mut k2.notices,
+        &mut partial,
+        stops_present,
+        stops_empty,
+        &k1.valid_geojson_location_ids,
+        &k2.records,
+    );
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     // K1 deliberately drops unknown file bodies after recording their headers;
     // retain that lightweight inventory alongside K2's known-file headers so K4
     // can apply GTFS-JP namespace rules without reopening or retaining payloads.
@@ -1724,6 +1824,7 @@ pub fn validate_bytes_inspected(
         k3.entity_map.geojson_geometries = k1.geojson_geometries.clone();
         k3
     };
+    crate::timing::mem_log("after K3-entity-map");
 
     let k4 = {
         let _t = Timer::start("K4-cross-ref");
@@ -1735,6 +1836,7 @@ pub fn validate_bytes_inspected(
             Some(&whitespace_root_files),
         )
     };
+    crate::timing::mem_log("after K4-cross-ref");
 
     // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
     // build_name_index kullanmaz → K4 biter bitmez serbest bırak (K6 öncesi canlı belleği düşürür).
@@ -1744,11 +1846,13 @@ pub fn validate_bytes_inspected(
         let _t = Timer::start("K5-derived");
         build_derived_with_files(&k2.records, &k3.entity_map, &availability)
     };
+    crate::timing::mem_log("after K5-derived");
 
     let k6 = {
         let _t = Timer::start("K6-analytics");
         analyze_k6_with_files(&k2.records, &k5.derived, config, today, &availability)
     };
+    crate::timing::mem_log("after K6-analytics");
 
     let mut all = Vec::new();
     // `skipped_checks` explains reduced coverage; an ordinary complete feed may
@@ -1798,10 +1902,12 @@ pub fn validate_bytes_inspected(
         agency_attribution::index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
         (k7, agency_breakdown)
     };
+    crate::timing::mem_log("after K7-reporting");
 
     // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar
     // ödünç verilirken taşınmamalı.
     let name_index = build_name_index(&k2.records, &k7.notices);
+    crate::timing::mem_log("after name-index");
     ValidateResult::Ok(ValidationResult {
         status: if partial.is_empty() {
             ValidationStatus::Complete

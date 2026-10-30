@@ -9,6 +9,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`gtfs-sdk` validates large feeds.** The package now ships a wasm64 engine
+  next to the wasm32 one and picks it where the runtime supports Memory64
+  (Node.js 24+, current Chrome/Firefox). Feeds that failed with
+  `ResourceLimit` on wasm32 (36–60 million `stop_times` rows, ZIPs up to
+  1.28 GB) now complete; results are identical on both engines. The input
+  limit follows the engine: 512 MiB on wasm32, 2 GiB on wasm64.
+  `GTFS_SDK_ENGINE` pins one engine in Node.js. The package grows to about
+  2.0 MB packed. When a feed runs the wasm32 engine out of memory, the
+  `ResourceLimit` error's `detail` now says so and points to Node.js 24+
+  instead of only `unreachable`.
+
+### Changed
+
+- **`STM_017` skips trips whose `shape_id` is not defined in `shapes.txt`.** There
+  is no shape to place the stops on; `TRP_004` (undefined `shape_id`) and
+  `ARC_020` (missing `shapes.txt`) already report the problem. This came in as a
+  side effect of the large-feed memory work and is now intended and tested:
+  8 feeds in the 2026-10-30 corpus, none of them with a `shapes.txt`.
+- **`VAT_005` needs a main network.** The rule now fires only when the largest
+  trip-connected stop cluster holds at least half of the active stops. Feeds made
+  of several unconnected networks of similar size have no "main network" to be cut
+  off from: mdb-905 (386 stops, 34 clusters, largest 13) was reported because
+  of an arbitrary choice among equal clusters. On 632 local feeds 9 of 33
+  findings are dropped; the other 24 are unchanged.
+
+### Security
+
+- **`zip` 2.4.2 → 9.1.3.** Clears RUSTSEC-2026-0367, -0368 and -0369, which were
+  ignored with a reason because they affect only archive extraction to disk; the
+  analyzer reads entries in memory. The deflate backend stays `miniz_oxide`
+  (pure Rust, wasm32/wasm64). Output is unchanged on the measured feeds.
+  ZIP entry names without the UTF-8 flag that are valid UTF-8 (common for
+  archives made on macOS, e.g. Japanese folder names) are now shown correctly
+  instead of as CP437 mojibake.
+
+### Fixed
+
+- **`SHP_014` reports the same example trip on every platform.** When several
+  trips were equally far from the shape endpoint, the reported trip depended on
+  hash-map order, which differs between 32- and 64-bit targets.
+
+### Performance
+
+- Large fare and shape files: `fare_rules.txt` no longer builds a per-row map,
+  `SHP_019` finds shape lines in one pass and the fare network stops copying
+  existing keys. On mdb-992 the browser engine went from 48 s to 18 s (wasm32)
+  and from 79 s to 24 s (wasm64); native K4 from 7.8 s to 1.1 s. Output is
+  unchanged.
+- `fare_attributes.txt` records keep the column list once and each row's raw
+  values instead of a per-row map. mdb-992: the stage drops from 8.3 s to 1.9 s
+  in wasm64 (3.9 s to 2.0 s in wasm32), the whole run from 24 s to 19.5 s
+  (wasm64). Output identical on 627 feeds, 614 of them with fare_attributes and
+  translations (`JPN_006`, `TRN_016`).
+
+## [0.17.0] - 2026-10-27
+
+This release adds three rules, bringing the registry to 619, and ships the
+accumulated parser, suppression, speed-analysis, localization, Flex and MCP
+fixes. The parser, suppression and speed-analysis changes were validated by the
+latest full-catalog corpus run; the later output, Flex and MCP changes are
+covered separately by tests and dependency audit. The crates, CLI, Python
+package and web app move to `0.17.0`; `gtfs-sdk` moves from `0.7.0` to `0.8.0`.
+
+### Added
+
 - **`ARC_037` — non-ASCII character in an ID field.** The spec recommends
   printable ASCII for every `ID` field. One summary per file names the
   affected columns and an example; it runs on all four streamed files too.
@@ -24,6 +89,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `agency_id` required with several agencies and "recommended otherwise".
   Info, Quality, outside the score; `AGN_014` keeps the multi-agency
   requirement (619 rules).
+
+### Changed
+
+- **MCP/ChatGPT intent routing is explicit.** `/gtfs` with an uploaded GTFS
+  ZIP, a public feed URL or a rule ID is routed to the existing file, URL or
+  rule tool. Natural-language GTFS validation requests use the same routes.
+  The adapter preserves Analyzer-produced status, coverage, scores, severity
+  counts, metrics and R9 order; this adds no new tool or native slash command.
+- **`ARC_022` is an informational threshold, not a read limit.** Its title,
+  messages and remediation now state that files above `max_file_rows` are
+  still read and validated in full. The dead non-stream truncation branch was
+  removed; the rule remains an unscored size notice and no longer asks
+  producers to split a valid large file.
+- **The Python MCP SDK floor is now `mcp>=1.30`.** Fresh installs already
+  resolved to 1.30.0, but the old `>=1.20` range still permitted unsupported
+  releases with published transport advisories. The server remains on
+  stateless Streamable HTTP with an explicit host allowlist.
+- **Full-catalog evidence was refreshed.** Run `40411348163` attempted 4,435
+  feeds and downloaded 4,403; Analyzer completed all downloaded feeds while
+  MobilityData Validator completed 4,390. The documented sample-feed reports,
+  performance bands and resource figures now come from this run. Oversized
+  `mdb-2014` remains explicitly excluded from the runnable corpus after twice
+  terminating its shard at 1,282 MB compressed and 7,452 MB extracted.
 
 ### Fixed
 
@@ -63,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.5 km between two timepoints both at 15:15 with untimed stops in between
   was never reported. Timed-to-timed spans across untimed stops are now
   measured too; consecutive pairs are not counted twice.
+- **`OPR_008` omitted evidence from segments already reported as `STM_012`.**
+  Repeated excessive-speed trips could show a maximum of `0.0 km/h`, no source
+  line and no stop pair, and directly consecutive whole-minute zero-gap
+  segments did not count at all. Both paths now contribute their measured or
+  lower-bound speed, source line and stop-pair details to `OPR_008`.
 - **`TRP_024` treated sub-types of one vehicle as a change.** A block
   mixing route types 3 and 715 (both buses) or 106 and 109 (both rail) was
   reported; about 96% of corpus findings were of this kind. Blocks are now
@@ -78,6 +171,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `shapes.txt`, `trips.txt` and `calendar_dates.txt` was never checked; the
   rule card listed it as a known limit. Each stream now keeps the same
   per-file summary as K1.
+- **Localized output leaked Turkish through `observed_value`.** Eighteen rules
+  now emit raw values or language-neutral technical fields instead of
+  Analyzer-authored Turkish prose. Translated messages remain localized; rule
+  logic, finding counts, severities and scores are unchanged.
+- **`STP_018` ignored valid zone-only Flex feeds.** `stops.txt` is optional
+  when `stop_times.location_id` references a usable polygon in
+  `locations.geojson`; the rule now applies the same exemption as `ARC_004`.
+  Unused, malformed or non-polygon GeoJSON still does not suppress the missing
+  stops finding.
 
 ## [0.16.0] - 2026-10-11
 
@@ -2606,7 +2708,8 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.13.1...v0.14.0

@@ -22,6 +22,8 @@ const expectedFiles = new Set([
   'dist/types.js',
   'pkg/gtfs_wasm.js',
   'pkg/gtfs_wasm_bg.wasm',
+  'pkg64/gtfs_wasm.js',
+  'pkg64/gtfs_wasm_bg.wasm',
 ]);
 const actualFiles = pack.files.map(({ path }) => path).sort();
 const unexpectedFiles = actualFiles.filter((path) => !expectedFiles.has(path));

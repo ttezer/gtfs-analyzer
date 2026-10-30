@@ -116,7 +116,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
                     &file.name,
                     Some(line),
                     Some("level_name"),
-                    Some(format!("{} karakter", name.len())),
+                    Some(name.len().to_string()),
                     Some("≤ 255 karakter".to_string()),
                     format!(
                         "'{}' katmanının level_name değeri {} karakter — 255 sınırını aşıyor.",

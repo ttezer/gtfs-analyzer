@@ -5,12 +5,16 @@ use gtfs_config::{merge_delta, ValidatorConfig};
 use gtfs_core::{
     FatalCode, FatalError, PartialReport, ValidateResult, ValidationResult, ValidationStatus,
 };
-use gtfs_pipeline::agency_attribution::{index_notices, set_displayed, AgencyBreakdown, AgencyCounter};
+use gtfs_pipeline::agency_attribution::{
+    index_notices, set_displayed, AgencyBreakdown, AgencyCounter,
+};
 use gtfs_pipeline::{
-    aggregate_feed_level_notices, analyze_k6_with_files, build_feed_summary, apply_report_scope, build_derived_with_files, check_rule_scope, build_entity_map, build_name_index,
-    check_cross_ref_with_whitespace_roots, collect_file_stats, parse_with_limits,
-    prepare_k7_notices, report_k7_prepared, validate_k2_with_whitespace_roots, DerivedData,
-    EntityRecords, FileAvailability, FileInfo, WhitespaceSuppressions, GTFS_JP_FILES,
+    aggregate_feed_level_notices, analyze_k6_with_files, apply_report_scope,
+    build_derived_with_files, build_entity_map, build_feed_summary, build_name_index,
+    check_cross_ref_with_whitespace_roots, check_rule_scope, collect_file_stats, parse_with_limits,
+    prepare_k7_notices, reconcile_flex_stop_requirement, report_k7_prepared,
+    validate_k2_with_whitespace_roots, DerivedData, EntityRecords, FileAvailability, FileInfo,
+    WhitespaceSuppressions, GTFS_JP_FILES,
 };
 
 #[cfg(feature = "sdk-en")]
@@ -69,7 +73,9 @@ const NOTICE_LIMIT: usize = 1_000_000;
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SHAPE_COORDS: usize = 100_000;
-const MAX_INPUT_BYTES: usize = 512 * 1024 * 1024;
+// Keep a finite input guard, but do not reject valid large feeds before the
+// Memory64 large-feed path can inspect them. The UI mirrors this value.
+const MAX_INPUT_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const HIGH_CAP: usize = 2_000;
 const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
 
@@ -142,7 +148,7 @@ pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
     let mut metadata_bytes = 0usize;
     for i in 0..archive.len() {
         let Ok(f) = archive.by_index(i) else { continue };
-        let name = f.name().to_string();
+        let Ok(name) = f.name().map(|n| n.into_owned()) else { continue };
         metadata_bytes = metadata_bytes.saturating_add(name.len());
         if metadata_bytes > MAX_ZIP_METADATA_BYTES {
             return JsValue::from_str("[]");
@@ -369,6 +375,12 @@ pub fn prepare_with_today(
     // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
     // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
     let config = parse_config(&config_delta_json).map_err(fatal_js)?;
+    wasm_log!(format!(
+        "[mem] K0 input Vec: len={} cap={} bytes ({:.1} MB)",
+        zip_bytes.len(),
+        zip_bytes.capacity(),
+        zip_bytes.capacity() as f64 / 1_048_576.0
+    ));
     run_k1_k5(&zip_bytes, &config, on_stage, today).map_err(fatal_js)
 }
 
@@ -522,7 +534,7 @@ fn rerun_k6_k7_inner(
 
 fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     t_start!("K1-parse");
-    let k1 = match parse_with_limits(
+    let mut k1 = match parse_with_limits(
         zip_bytes,
         config,
         gtfs_pipeline::decompress_guard::SDK_DECOMPRESSION_LIMITS,
@@ -532,8 +544,11 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Err(e) => return ValidateResult::Fatal(e),
     };
     let mut partial = k1.partial;
-    let unavailable_files = partial.unavailable_files.clone();
-    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let stops_present = k1.present_files.contains("stops.txt");
+    let stops_empty = k1
+        .files
+        .get("stops.txt")
+        .is_some_and(|file| file.rows.is_empty());
     let has_gtfs_jp_file = GTFS_JP_FILES
         .iter()
         .any(|file| k1.present_files.contains(*file));
@@ -561,6 +576,17 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         Some(has_gtfs_jp_file),
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
+    reconcile_flex_stop_requirement(
+        &mut k1.notices,
+        &mut k2.notices,
+        &mut partial,
+        stops_present,
+        stops_empty,
+        &k1.valid_geojson_location_ids,
+        &k2.records,
+    );
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     t_end!("K2-validate");
     // K1 deliberately retains headers for unknown custom files only; carry that
     // lightweight inventory into K4 so GTFS-JP namespace checks see the same
@@ -701,7 +727,7 @@ fn run_k1_k5(
 
     let mut t = js_sys::Date::now();
     t_start!("K1-parse");
-    let k1 = parse_with_limits(
+    let mut k1 = parse_with_limits(
         zip_bytes,
         config,
         gtfs_pipeline::decompress_guard::SDK_DECOMPRESSION_LIMITS,
@@ -711,8 +737,11 @@ fn run_k1_k5(
     call_stage(on_stage, "K1", (js_sys::Date::now() - t) as u32);
     log_mem("after-K1-parse");
     let mut partial = k1.partial;
-    let unavailable_files = partial.unavailable_files.clone();
-    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
+    let stops_present = k1.present_files.contains("stops.txt");
+    let stops_empty = k1
+        .files
+        .get("stops.txt")
+        .is_some_and(|file| file.rows.is_empty());
     let has_gtfs_jp_file = GTFS_JP_FILES
         .iter()
         .any(|file| k1.present_files.contains(*file));
@@ -740,6 +769,17 @@ fn run_k1_k5(
         Some(has_gtfs_jp_file),
         Some(&whitespace_root_files),
     ); // #15 W2 + #38: stop_times ZIP stream
+    reconcile_flex_stop_requirement(
+        &mut k1.notices,
+        &mut k2.notices,
+        &mut partial,
+        stops_present,
+        stops_empty,
+        &k1.valid_geojson_location_ids,
+        &k2.records,
+    );
+    let unavailable_files = partial.unavailable_files.clone();
+    let availability = FileAvailability::from_k1(&k1.present_files, &unavailable_files);
     t_end!("K2-validate");
     // Keep the cached WASM path in parity with the full native/WASM pipeline:
     // unknown custom headers are needed by the GTFS-JP namespace rule.
@@ -1104,7 +1144,10 @@ mod tests {
         assert_eq!(n.entity_type, EntityType::Feed);
         assert_eq!(n.observed_value.as_deref(), Some("3"));
         assert_eq!(
-            n.details.as_ref().and_then(|d| d.get("affected_trips")).map(String::as_str),
+            n.details
+                .as_ref()
+                .and_then(|d| d.get("affected_trips"))
+                .map(String::as_str),
             Some("3")
         );
     }

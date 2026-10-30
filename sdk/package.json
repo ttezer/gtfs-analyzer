@@ -1,6 +1,6 @@
 {
   "name": "gtfs-sdk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "GTFS Analyzer validation engine for Browser and Node.js.",
   "license": "MIT",
   "keywords": [
@@ -24,6 +24,8 @@
     "dist",
     "pkg/gtfs_wasm.js",
     "pkg/gtfs_wasm_bg.wasm",
+    "pkg64/gtfs_wasm.js",
+    "pkg64/gtfs_wasm_bg.wasm",
     "README.md",
     "LICENSE"
   ],

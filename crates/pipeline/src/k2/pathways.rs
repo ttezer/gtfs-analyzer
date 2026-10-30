@@ -357,7 +357,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                     &file.name,
                     Some(line),
                     Some("signposted_as"),
-                    Some(format!("{} karakter", sign.len())),
+                    Some(sign.len().to_string()),
                     Some("≤ 255 karakter".to_string()),
                     format!(
                         "signposted_as alanı {} karakter uzunluğunda; önerilen maksimum 255.",

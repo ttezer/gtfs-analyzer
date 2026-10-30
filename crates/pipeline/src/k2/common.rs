@@ -939,7 +939,11 @@ pub(crate) fn arc033_summary(
         file,
         acc.first_line,
         None,
-        Some(format!("{} rows · {kind}", acc.rows)),
+        Some(format!(
+            "rows={}; issue={}",
+            acc.rows,
+            crate::k1_parse::rfc4180_issue_code(kind)
+        )),
         None,
         format!(
             "'{file}' RFC 4180'e uymuyor: {kind} ({} satırda; ilk örnek: '{example}').",
@@ -975,7 +979,7 @@ pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notic
         file,
         None,
         None,
-        Some(msg.to_string()),
+        Some("issue=unclosed_quote".to_string()),
         None,
         format!("'{file}' CSV tokenization hatası: {msg} — kaydın kalanı okunamadı."),
         "CSV formatını kontrol edin; tırnak işaretlerinin doğru kapandığından emin olun.",

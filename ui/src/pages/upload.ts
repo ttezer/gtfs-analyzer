@@ -3,7 +3,7 @@ import { FATAL_CODE_TR, t, tFatal, getLocale, intlLocale } from '../i18n';
 import type { FatalError, ValidationResult, FileInfo } from '../types';
 import { renderApp } from '../main';
 import { validateFile } from '../validator-client';
-import type { EngineMode } from '../wasm';
+import { MAX_INPUT_BYTES, type EngineMode } from '../wasm';
 import { validateFeedUrl, urlFileName, isZipSignature } from './url-helpers';
 import { parseRuleIdList } from './rule-list';
 import { escHtml } from '../escape';
@@ -394,7 +394,7 @@ function resetSettings(root: HTMLElement): void {
 
 // wasm.ts MAX_INPUT_BYTES ve crates/wasm MAX_INPUT_BYTES ile AYNI olmalı;
 // hata mesajındaki sayı buradan türetilir (elle yazılmaz).
-const MAX_FILE_BYTES = 512 * 1024 * 1024;
+const MAX_FILE_BYTES = MAX_INPUT_BYTES;
 const MAX_FILE_MB = MAX_FILE_BYTES / 1_048_576;
 
 async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
