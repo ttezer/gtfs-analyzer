@@ -3,7 +3,7 @@ import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } f
 import { renderProducer } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
 
-vi.mock('../state', () => ({ setPage: vi.fn() }));
+vi.mock('../state', () => ({ setPage: vi.fn(), getState: () => ({ agencyFilter: [] }), setAgencyFilter: vi.fn() }));
 vi.mock('../hidden-rules', () => ({
   renderHiddenRulesBar: () => '',
   attachHiddenRuleListeners: () => undefined,
@@ -440,5 +440,40 @@ describe('Saatsiz sefer', () => {
     renderProducer(el, r);
     expect(el.innerHTML).toContain('Bu seferin 85 durağının hiçbirinde varış ya da kalkış saati yok');
     expect(el.innerHTML).toContain('<td>Seferde hiç saat yok (85 durak)</td>');
+  });
+});
+
+describe('Hat, durak, güzergâh ve takvim seçmeli süzgeci', () => {
+  it('her boyut için seçmeli liste kurar ve seçenek adlarını planlamacının tanıdığı biçimde yazar', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex, routes: { R1: 'K701' }, route_long_names: { R1: 'İstasyon - Hisar Köy' },
+      stops: { A: 'Çarşı', B: 'Liman' }, stop_codes: { A: '1204' }, trip_routes: { T1: 'R1' }, trip_shapes: { T1: 'SH1' },
+      shape_routes: { SH1: [['R1', '0']] }, shape_trips: { SH1: 'T1' }, trips: { T1: 'Hisar Köy' },
+      service_days: { HI: ['1111100', '20260101', '20261231', '0'] },
+    };
+    const r = result([
+      notice('a', 'STM_012', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', service_id: 'HI', observed_value: '987 km/h', details: { stop_a: 'A', stop_b: 'B', speed_kmh: '987' } }),
+    ], [], [['STM_012', 4, 1]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    for (const dim of ['route', 'stop', 'shape', 'service']) expect(el.innerHTML).toContain(`data-dim="${dim}"`);
+    expect(el.innerHTML).toContain('<td>Çarşı → Liman · 987 km/h</td>');
+  });
+});
+
+describe('İşletmeci süzgeci', () => {
+  it('iki ve daha fazla işletmecide süzgeci en üstte gösterir', () => {
+    const r = result([notice('a', 'DQ_016', 'MEDIUM'), notice('b', 'DQ_016', 'MEDIUM')], [], [['DQ_016', 2, 2]]);
+    r.agency_breakdown = { agencies: [
+      { agency_id: 'A1', agency_name: 'Gaziulaş', notice_indices: [0] },
+      { agency_id: 'A2', agency_name: 'Belediye Otobüsleri', notice_indices: [1] },
+    ] } as unknown as ValidationResult['agency_breakdown'];
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    const html = el.innerHTML;
+    expect(html.indexOf('agency-filter')).toBeGreaterThan(-1);
+    expect(html.indexOf('agency-filter')).toBeLessThan(html.indexOf('planner-top'));
+    expect(html).toContain('Gaziulaş');
+    expect(html).toContain('Belediye Otobüsleri');
   });
 });

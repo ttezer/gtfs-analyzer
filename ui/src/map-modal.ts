@@ -38,13 +38,28 @@ export interface MapOptions {
 }
 
 /**
+ * Harita altlığı: OpenStreetMap standart katmanı, atıf satırıyla. Yalnız görünen bölgenin
+ * karoları istenir; feed verisi hiçbir sunucuya gönderilmez.
+ */
+function addBaseLayer(map: L.Map): void {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    // Sayfa COEP require-corp ile çalışıyor (WASM thread'leri). OSM karoları CORP başlığı
+    // göndermez ama CORS'a izin verir; karo CORS isteğiyle alınmazsa tarayıcı onu engeller.
+    crossOrigin: 'anonymous',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+  }).addTo(map);
+}
+
+/**
  * Aynı Leaflet çizimini kart içine yerleştirmek için kullanılır.
  * Modal ile ortak MapOptions sözleşmesini kullanır; çağıran kapanırken dönen
  * cleanup fonksiyonunu çalıştırmalıdır.
  */
 export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => void {
   container.innerHTML = '';
-  const map = L.map(container, { zoomControl: true, attributionControl: false, preferCanvas: true });
+  const map = L.map(container, { zoomControl: true, attributionControl: true, preferCanvas: true });
+  addBaseLayer(map);
   const bounds: [number, number][] = [];
   const polyline = capPoints(opts.polyline, MAX_MAP_POLYLINE_POINTS);
 
@@ -86,14 +101,28 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
     bounds.push([pin.lat, pin.lon]);
   }
 
-  if (opts.focus) map.setView(opts.focus, 15);
-  else if (zoomTarget && zoomTarget.length > 1) map.fitBounds(zoomTarget, { padding: [24, 24], maxZoom: 16 });
-  else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
-  else if (bounds.length === 1) map.setView(bounds[0], 14);
-  else map.setView([39, 35], 5);
+  const target = zoomTarget;
+  const applyView = () => {
+    if (opts.focus) map.setView(opts.focus, 15);
+    else if (target && target.length > 1) map.fitBounds(target, { padding: [24, 24], maxZoom: 16 });
+    else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
+    else if (bounds.length === 1) map.setView(bounds[0], 14);
+    else map.setView([39, 35], 5);
+  };
+  applyView();
 
-  setTimeout(() => map.invalidateSize(), 0);
-  return () => map.remove();
+  // Kart açılırken kutu henüz son boyutunda olmayabilir; Leaflet o anki boyutla karo ve
+  // görünüm hesaplar (tek karo, köşeye sıkışmış etiketler). Boyut oturunca yeniden ölçülür.
+  let sized = false;
+  const observer = typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(() => {
+      map.invalidateSize();
+      if (!sized && container.clientWidth > 0 && container.clientHeight > 0) { sized = true; applyView(); }
+    })
+    : null;
+  observer?.observe(container);
+  setTimeout(() => { map.invalidateSize(); applyView(); }, 0);
+  return () => { observer?.disconnect(); map.remove(); };
 }
 
 export function openMapModal(title: string, opts: MapOptions): void {
@@ -105,6 +134,7 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   if (!leafletMap) {
     leafletMap = L.map(mapDiv);
+    addBaseLayer(leafletMap);
   } else {
     leafletMap.eachLayer((layer: L.Layer) => {
       if (!(layer instanceof L.TileLayer)) leafletMap!.removeLayer(layer);

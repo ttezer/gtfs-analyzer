@@ -545,6 +545,26 @@
     .planner-sev::before { content:''; width:.55rem; height:.55rem; border-radius:1px; background:var(--sev); }
     .planner-rule-id { display:inline-block; margin-right:.5rem; padding:.05rem .35rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-bg); color:var(--color-muted); font-family:ui-monospace, monospace; font-size:.8rem; font-weight:600; vertical-align:.1em; }
     .planner-filter-bar { margin:0; }
+    .producer-page .agency-filter { margin:0; border-radius:2px; box-shadow:none; }
+    .producer-page .agency-chip input { border-radius:2px; }
+    .planner-entity-filters { gap:.5rem; }
+    .planner-pick { position:relative; }
+    .planner-pick-btn { display:flex; align-items:center; gap:.5rem; min-width:14rem; max-width:24rem; padding:.3rem .55rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-surface); color:var(--color-text); font:inherit; font-size:.85rem; cursor:pointer; text-align:left; }
+    .planner-pick-btn::after { content:'▾'; margin-left:auto; color:var(--color-muted); }
+    .planner-pick-cap { color:var(--color-muted); font-weight:600; white-space:nowrap; }
+    .planner-pick-value { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .planner-pick.active .planner-pick-btn { border-color:var(--color-text); }
+    .planner-pick-panel { position:absolute; z-index:1100; top:calc(100% + 2px); left:0; width:28rem; max-width:80vw; padding:.5rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-surface); box-shadow:0 6px 18px rgba(15,23,42,.14); }
+    .planner-pick-panel[hidden] { display:none; }
+    .planner-pick-head { display:flex; gap:.4rem; margin-bottom:.4rem; }
+    .planner-pick-search { flex:1; padding:.3rem .5rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-bg); color:var(--color-text); font:inherit; font-size:.85rem; }
+    .planner-pick-clear { padding:.3rem .6rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-surface); color:var(--color-text); font:inherit; font-size:.8rem; cursor:pointer; }
+    .planner-pick-list { max-height:18rem; overflow:auto; display:flex; flex-direction:column; }
+    .planner-pick-option { display:flex; align-items:flex-start; gap:.45rem; padding:.25rem .3rem; font-size:.85rem; cursor:pointer; }
+    .planner-pick-option:hover { background:var(--color-bg); }
+    .planner-pick-option input { margin-top:.2rem; }
+    .planner-pick-more, .planner-pick-empty { margin:.35rem 0 0; color:var(--color-muted); font-size:.78rem; }
+    .planner-match-count { color:var(--color-text); }
     .producer-page .sev-chip, .producer-page .cls-chip { border-radius:2px; }
     .planner-affected-row { cursor:pointer; }
     .planner-affected-row:hover td { background:var(--color-bg); }

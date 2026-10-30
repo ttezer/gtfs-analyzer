@@ -2345,6 +2345,24 @@ pub(crate) fn build_name_index_impl(
         );
     }
 
+    let route_long_names: BTreeMap<String, String> = records
+        .routes
+        .iter()
+        .filter_map(|r| {
+            let short = r.route_short_name.as_deref().map(str::trim).filter(|v| !v.is_empty())?;
+            let long = r.route_long_name.as_deref().map(str::trim).filter(|v| !v.is_empty() && *v != short)?;
+            Some((r.route_id.clone(), long.to_string()))
+        })
+        .collect();
+    let stop_codes: BTreeMap<String, String> = records
+        .stops
+        .iter()
+        .filter_map(|r| {
+            let code = r.stop_code.as_deref().map(str::trim).filter(|v| !v.is_empty())?;
+            Some((r.stop_id.clone(), code.to_string()))
+        })
+        .collect();
+
     gtfs_core::NameIndex {
         stops,
         routes,
@@ -2361,6 +2379,8 @@ pub(crate) fn build_name_index_impl(
         route_shapes,
         route_colors,
         service_days,
+        route_long_names,
+        stop_codes,
         map_data_deferred: skip_shape_coords,
     }
 }
@@ -2613,6 +2633,45 @@ mod name_index_tests {
         assert_eq!(idx.route_colors.get("B"), Some(&["0067a5".to_string(), String::new()]));
         assert!(!idx.route_colors.contains_key("C"), "# önekli değer GTFS hex biçimi değil");
         assert!(!idx.route_colors.contains_key("D"));
+    }
+
+    #[test]
+    fn route_long_names_and_stop_codes_keep_only_useful_values() {
+        let route = |id: &str, short: Option<&str>, long: Option<&str>| crate::k2::routes::RouteRecord {
+            route_id: id.into(),
+            agency_id: None,
+            route_short_name: short.map(Into::into),
+            route_long_name: long.map(Into::into),
+            route_desc: None,
+            route_type: Some(3),
+            route_url: None,
+            route_color: None,
+            route_text_color: None,
+            route_sort_order: None,
+            continuous_pickup: None,
+            continuous_drop_off: None,
+            network_id: None,
+            route_cemv_support: None,
+            jp_office_id: None,
+            row: Default::default(),
+            line: 2,
+        };
+        let mut recs = records();
+        recs.routes = vec![
+            route("A", Some("K701"), Some("İstasyon - Hisar Köy")),
+            route("B", None, Some("Yalnız uzun ad")),
+            route("C", Some("12"), Some("12")),
+        ];
+        recs.stops = vec![
+            crate::k2::stops::StopRecord { stop_id: "S1".into(), stop_code: Some(" 1204 ".into()), ..Default::default() },
+            crate::k2::stops::StopRecord { stop_id: "S2".into(), stop_code: Some("  ".into()), ..Default::default() },
+        ];
+        let idx = build_name_index_impl(&recs, &[], false);
+        assert_eq!(idx.route_long_names.get("A").map(String::as_str), Some("İstasyon - Hisar Köy"));
+        assert!(!idx.route_long_names.contains_key("B"), "kısa ad yoksa uzun ad zaten routes'ta");
+        assert!(!idx.route_long_names.contains_key("C"), "aynı ad tekrar yazılmaz");
+        assert_eq!(idx.stop_codes.get("S1").map(String::as_str), Some("1204"));
+        assert!(!idx.stop_codes.contains_key("S2"));
     }
 
     #[test]

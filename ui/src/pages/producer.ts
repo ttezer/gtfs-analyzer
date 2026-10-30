@@ -10,6 +10,8 @@ import {
   type RuleGroup, type PlannerArea,
 } from './producer-helpers';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
+import { attachAgencyFilterListeners, filterNoticesByAgency, renderAgencyFilterBar } from '../agency-filter';
+import { getState, setAgencyFilter } from '../state';
 
 function where(n: Notice): string {
   const parts = [n.file, n.line != null ? t('producer.line', { n: n.line }) : null, n.field].filter(Boolean);
@@ -353,6 +355,10 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   if (n.rule_id === 'STM_015') return t('producer.times.spot_first', { stop: name(d.stop_id), time: d.departure ?? d.next_time ?? '—' });
   if (n.rule_id === 'STM_016') return t('producer.times.spot_last', { stop: name(d.stop_id), time: d.prev_time ?? '—' });
   if (n.rule_id === 'STM_008') return `${name(d.stop_a, d.stop_a_name)} ${d.dep ?? '—'} → ${name(d.stop_b, d.stop_b_name)} ${d.arr ?? '—'}`;
+  if (n.rule_id === 'STM_012' && (d.stop_a || d.stop_b)) {
+    const speed = stm012Observed(n);
+    return `${name(d.stop_a)} → ${name(d.stop_b)}${speed ? ` · ${speed}` : ''}`;
+  }
   return null;
 }
 
@@ -535,7 +541,7 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
     ? `<p class="planner-capnote">${escHtml(t('producer.card.cap', { n: (g.count - visibleRows.length).toLocaleString(getLocale()) }))}</p>`
     : '';
   return `<div class="planner-affected">
-    <div class="planner-subhead"><span>${t('producer.card.affected')}</span><span>${g.count.toLocaleString(getLocale())}</span><span class="planner-subhead-hint">${t('producer.card.row_hint')}</span></div>
+    <div class="planner-subhead"><span>${t('producer.card.affected')}</span><span>${g.count.toLocaleString(getLocale())}</span><span class="planner-match-count"></span><span class="planner-subhead-hint">${t('producer.card.row_hint')}</span></div>
     <div class="planner-table-wrap"><table><thead><tr>${cols.head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows || `<tr><td colspan="${cols.head.length}">${t('producer.card.no_rows')}</td></tr>`}</tbody></table></div>
     <div class="planner-affected-foot">${more}${cap}</div>
   </div>`;
@@ -594,11 +600,75 @@ function coverageNotice(complete: boolean): string {
   return `<div class="producer-coverage">${t('producer.coverage_incomplete')}</div>`;
 }
 
-function feedTitle(result: ValidationResult): string {
+function feedTitle(result: ValidationResult, agencyIds: readonly string[]): string {
   const info = result.feed_summary?.feed_info;
-  const name = info?.feed_publisher_name || result.feed_summary?.agencies?.[0]?.agency_name || t('producer.feed_fallback');
+  // İşletmeci seçiliyse başlık o işletmecinin (işletmecilerin) adıdır.
+  const picked = (result.agency_breakdown?.agencies ?? [])
+    .filter(a => agencyIds.includes(a.agency_id))
+    .map(a => a.agency_name || a.agency_id);
+  const name = picked.length
+    ? picked.join(', ')
+    : info?.feed_publisher_name || result.feed_summary?.agencies?.[0]?.agency_name || t('producer.feed_fallback');
   const version = info?.feed_version ? `<span>${escHtml(t('producer.feed_version', { v: info.feed_version }))}</span>` : '';
   return `<header class="planner-top"><strong>${escHtml(name)}</strong>${version}</header>`;
+}
+
+type EntityDim = 'route' | 'stop' | 'shape' | 'service';
+const ENTITY_DIMS: EntityDim[] = ['route', 'stop', 'shape', 'service'];
+type NoticeKeys = Record<EntityDim, string[]>;
+
+/** Bir kaydın dokunduğu hat, durak, güzergâh ve takvim kimlikleri (arama süzgeci için). */
+function noticeKeys(n: Notice, result: ValidationResult): NoticeKeys {
+  const ni = result.name_index;
+  const d = n.details ?? {};
+  const trip = n.entity_type === 'Trip' ? n.entity_id : null;
+  const route = n.entity_type === 'Route' ? n.entity_id : trip ? ni.trip_routes?.[trip] : d.route_id;
+  const shape = n.entity_type === 'Shape' ? n.entity_id : trip ? ni.trip_shapes?.[trip] : d.shape_id;
+  const service = n.entity_type === 'Service' ? n.entity_id : n.service_id;
+  const stops = [n.entity_type === 'Stop' ? n.entity_id : null, d.stop_id, d.stop_a, d.stop_b, d.prev_stop_id, d.next_stop_id];
+  const ids = (values: Array<string | null | undefined>) => [...new Set(values.filter((v): v is string => Boolean(v)))];
+  return { route: ids([route]), stop: ids(stops), shape: ids([shape]), service: ids([service]) };
+}
+
+function entityLabelOf(dim: EntityDim, id: string, result: ValidationResult): string {
+  const ni = result.name_index;
+  const tail = (text: string) => (text && text !== id ? `${text} (${id})` : id);
+  const routeName = (routeId: string) =>
+    [ni.routes?.[routeId], ni.route_long_names?.[routeId]].filter(Boolean).join(' · ');
+  if (dim === 'route') return tail(routeName(id));
+  if (dim === 'stop') {
+    const code = ni.stop_codes?.[id];
+    return tail([ni.stops?.[id], code ? t('producer.filter.stop_code', { code }) : ''].filter(Boolean).join(' · '));
+  }
+  if (dim === 'shape') {
+    // GTFS'te güzergâhın adı yok: onu kullanan seferin hattı ve yönü ad yerine geçer.
+    const routeId = ni.shape_routes?.[id]?.[0]?.[0];
+    const tripId = ni.shape_trips?.[id];
+    const headsign = tripId ? ni.trips?.[tripId] : undefined;
+    return tail([routeId ? routeName(routeId) || routeId : '', headsign].filter(Boolean).join(' · '));
+  }
+  const days = serviceText(id, result);
+  return days === id ? id : `${days} (${id})`;
+}
+
+/** Hat, durak, güzergâh ve takvim için seçmeli, aranabilir açılır listeler. */
+function entityFilterBar(labels: Record<EntityDim, Map<string, string>>): string {
+  const fields = ENTITY_DIMS.filter(dim => labels[dim].size > 0).map(dim => `
+    <div class="planner-pick" data-dim="${dim}">
+      <button type="button" class="planner-pick-btn" id="planner-pick-${dim}" aria-expanded="false">
+        <span class="planner-pick-cap">${t(`producer.filter.${dim}`)}</span>
+        <span class="planner-pick-value">${t('fix.filter.all')}</span>
+      </button>
+      <div class="planner-pick-panel" hidden>
+        <div class="planner-pick-head">
+          <input type="search" class="planner-pick-search" id="planner-pick-search-${dim}" placeholder="${escHtml(t('producer.filter.search'))}" autocomplete="off">
+          <button type="button" class="planner-pick-clear">${t('producer.filter.clear')}</button>
+        </div>
+        <div class="planner-pick-list" role="listbox" aria-multiselectable="true"></div>
+        <p class="planner-pick-more"></p>
+      </div>
+    </div>`).join('');
+  return fields ? `<div class="filter-bar planner-filter-bar planner-entity-filters">${fields}</div>` : '';
 }
 
 /** Rapor sekmesindeki R2 süzgeçleriyle aynı: önem ve sınıf çoklu seçim, kural ve dosya listesi. */
@@ -622,8 +692,16 @@ function filterBar(groups: RuleGroup[], result: ValidationResult): string {
   </div>`;
 }
 
-export function renderProducer(root: HTMLElement, result: ValidationResult): void {
+export function renderProducer(root: HTMLElement, fullResult: ValidationResult): void {
+  // İşletmeci süzgeci "Ayrıntı ve Düzeltme" ile ortaktır: kayıtlar seçili işletmecilerinkine
+  // daralır; yayın kararı feed genelidir (motor onu işletmeci başına vermez).
+  const agencyFilter = getState()?.agencyFilter ?? [];
+  const filtered = filterNoticesByAgency(fullResult, agencyFilter);
+  const result: ValidationResult = filtered ? { ...fullResult, notices: filtered } : fullResult;
   const m = buildProducerModel(result);
+  if (filtered) {
+    for (const g of [...m.blockers, ...m.improvements, ...m.infos]) g.count = g.notices.length;
+  }
   const ordered = [...m.blockers, ...m.improvements, ...m.infos];
   const blockerRules = new Set(m.blockers.map(g => g.ruleId));
   // Planlamacı metni yazılmış konular ve yayını engelleyenler üstte; kalanlar motorun teknik
@@ -631,6 +709,21 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
   const primary = ordered.filter(g => blockerRules.has(g.ruleId) || plannerCardCopy(g, result) !== null);
   const technical = ordered.filter(g => !primary.includes(g));
   const groups = [...primary, ...technical];
+
+  const keys = groups.map(g => g.notices.slice(0, ROWS_CAP).map(n => noticeKeys(n, result)));
+  const labels = Object.fromEntries(ENTITY_DIMS.map(dim => [dim, new Map<string, string>()])) as Record<EntityDim, Map<string, string>>;
+  // Seçenekler yalnız veri setinde tanımlı kayıtlardır; bazı kuralların route_id gibi
+  // ayrıntıları hat değil desen kimliği taşır ("00020:0:11223→11224").
+  const ni = result.name_index;
+  const known: Record<EntityDim, (id: string) => boolean> = {
+    route: id => id in (ni.routes ?? {}) || id in (ni.route_shapes ?? {}),
+    stop: id => id in (ni.stops ?? {}) || id in (ni.stop_coords ?? {}),
+    shape: id => id in (ni.shape_routes ?? {}) || id in (ni.shape_coords ?? {}),
+    service: id => id in (ni.service_days ?? {}),
+  };
+  for (const rows of keys) for (const k of rows) for (const dim of ENTITY_DIMS) {
+    for (const id of k[dim]) if (!labels[dim].has(id) && known[dim](id)) labels[dim].set(id, entityLabelOf(dim, id, result));
+  }
 
   const verdict = m.publishable
     ? `<div class="planner-verdict ok"><h2>${t('domain.r1_ok_title')}</h2><p>${t('producer.planner_verdict', { n: groups.length })}</p></div>`
@@ -651,10 +744,12 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
     : '';
 
   root.innerHTML = `<section class="producer-page">
-    ${feedTitle(result)}
+    ${renderAgencyFilterBar(fullResult, agencyFilter)}
+    ${feedTitle(fullResult, agencyFilter)}
     ${verdict}<div class="planner-counts">${sevCounts}</div>
     ${coverageNotice(m.coverageComplete)}
     ${groups.length ? filterBar(groups, result) : ''}
+    ${groups.length ? entityFilterBar(labels) : ''}
     <div class="planner-body">
       <aside class="planner-areas"><h3>${t('producer.where_to_fix')}</h3>${areaNav}</aside>
       <main class="planner-list">
@@ -668,6 +763,10 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
   </section>`;
 
   attachHiddenRuleListeners(root);
+  attachAgencyFilterListeners(root, ids => {
+    setAgencyFilter(ids);
+    window.dispatchEvent(new CustomEvent('gtfs-navigate'));
+  });
   let openIndex: number | null = null;
   const cleanups = new Map<number, () => void>();
   const cardAt = (index: number) => root.querySelector<HTMLElement>(`[data-card-index="${index}"]`);
@@ -686,8 +785,11 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
     const rowCopy = plannerCardCopy({ ...g, notices: [notice] }, result);
     const contextEl = card.querySelector<HTMLElement>('.producer-card-context');
     if (contextEl && rowCopy?.context) contextEl.textContent = rowCopy.context;
+    // "Ne olmuş / Ne yapmalı" seçilen kaydın kendi metnidir; planlamacı metni yoksa motorun metni.
     const messageEl = card.querySelector<HTMLElement>('.producer-card-message');
-    if (messageEl && rowCopy?.what) messageEl.textContent = rowCopy.what;
+    if (messageEl) messageEl.textContent = rowCopy?.what || tMsg(notice);
+    const actionEl = card.querySelector<HTMLElement>('.producer-card-remediation');
+    if (actionEl) actionEl.textContent = rowCopy?.action || tRemediation(notice);
     const strip = card.querySelector<HTMLElement>('.planner-times-host');
     if (strip) strip.innerHTML = timeStrip(notice, result);
     const map = plannerMap(notice, result);
@@ -739,27 +841,97 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
   const clsActive = new Set<string>();
   const ruleSelect = root.querySelector<HTMLSelectElement>('#planner-rule-filter');
   const fileSelect = root.querySelector<HTMLSelectElement>('#planner-file-filter');
+  const limits = new Map<number, number>();
+  const matchesByCard = new Map<number, Set<number> | null>();
+  // Etkilenenler tablosu: süzgeç varken eşleşen tüm satırlar, yokken sayfalı (10, +50).
+  const refreshRows = (card: HTMLElement, index: number) => {
+    const matches = matchesByCard.get(index) ?? null;
+    const limit = limits.get(index) ?? ROWS_FIRST;
+    const rows = card.querySelectorAll<HTMLTableRowElement>('.planner-affected-row');
+    rows.forEach(row => {
+      const i = Number(row.dataset['row']);
+      row.hidden = matches ? !matches.has(i) : i >= limit;
+    });
+    const more = card.querySelector<HTMLButtonElement>('.planner-more');
+    const remaining = rows.length - limit;
+    if (more) {
+      more.hidden = Boolean(matches) || remaining <= 0;
+      more.textContent = t('producer.card.more', { n: Math.min(ROWS_STEP, Math.max(remaining, 0)) });
+    }
+    const counter = card.querySelector<HTMLElement>('.planner-match-count');
+    if (counter) counter.textContent = matches ? t('producer.card.matching', { n: matches.size }) : '';
+  };
+  // Seçmeli listeler: her boyutta seçilen kimlikler; boyut içinde VEYA, boyutlar arası VE.
+  const picked = new Map<EntityDim, Set<string>>(ENTITY_DIMS.map(dim => [dim, new Set<string>()]));
+  const entityQuery = (): Map<EntityDim, Set<string>> =>
+    new Map([...picked].filter(([, ids]) => ids.size > 0));
+  const PICK_LIMIT = 300;
+  const sortedOptions = new Map(ENTITY_DIMS.map(dim => [dim,
+    [...labels[dim]].sort((a, b) => a[1].localeCompare(b[1], getLocale()))]));
+  const renderPick = (box: HTMLElement) => {
+    const dim = box.dataset['dim'] as EntityDim;
+    const ids = picked.get(dim)!;
+    const search = box.querySelector<HTMLInputElement>('.planner-pick-search')?.value.trim().toLocaleLowerCase(getLocale()) ?? '';
+    const options = sortedOptions.get(dim)!;
+    const hits = options.filter(([id, label]) => ids.has(id) || !search || label.toLocaleLowerCase(getLocale()).includes(search));
+    hits.sort((a, b) => Number(ids.has(b[0])) - Number(ids.has(a[0])));
+    const list = box.querySelector<HTMLElement>('.planner-pick-list');
+    if (list) {
+      list.innerHTML = hits.slice(0, PICK_LIMIT).map(([id, label]) =>
+        `<label class="planner-pick-option"><input type="checkbox" value="${escHtml(id)}"${ids.has(id) ? ' checked' : ''}><span>${escHtml(label)}</span></label>`).join('')
+        || `<p class="planner-pick-empty">${t('producer.filter.no_match')}</p>`;
+    }
+    const more = box.querySelector<HTMLElement>('.planner-pick-more');
+    if (more) more.textContent = hits.length > PICK_LIMIT ? t('producer.filter.refine', { n: hits.length - PICK_LIMIT }) : '';
+    const value = box.querySelector<HTMLElement>('.planner-pick-value');
+    if (value) {
+      value.textContent = ids.size === 0 ? t('fix.filter.all')
+        : ids.size === 1 ? labels[dim].get([...ids][0]) ?? '' : t('producer.filter.selected', { n: ids.size });
+    }
+    box.classList.toggle('active', ids.size > 0);
+  };
+  const pickBoxes = Array.from(root.querySelectorAll<HTMLElement>('.planner-pick'));
+  const closePicks = (except?: HTMLElement) => pickBoxes.forEach(box => {
+    if (box === except) return;
+    box.querySelector<HTMLElement>('.planner-pick-panel')!.hidden = true;
+    box.querySelector<HTMLButtonElement>('.planner-pick-btn')!.setAttribute('aria-expanded', 'false');
+  });
   const applyFilters = () => {
     const rule = ruleSelect?.value ?? '';
     const file = fileSelect?.value ?? '';
+    const entity = entityQuery();
     let visible = 0;
     root.querySelectorAll<HTMLElement>('.producer-card').forEach(card => {
+      const index = Number(card.dataset['cardIndex']);
+      let matches: Set<number> | null = null;
+      if (entity.size) {
+        matches = new Set(keys[index].flatMap((k, row) =>
+          [...entity].every(([dim, ids]) => k[dim].some(id => ids.has(id))) ? [row] : []));
+      }
+      matchesByCard.set(index, matches);
       const show = (area === 'all' || card.dataset['area'] === area)
         && (sevActive.size === 0 || sevActive.has(card.dataset['sev'] ?? ''))
         && (clsActive.size === 0 || clsActive.has(card.dataset['cls'] ?? ''))
         && (!rule || card.dataset['rule'] === rule)
-        && (!file || card.dataset['file'] === file);
+        && (!file || card.dataset['file'] === file)
+        && (!matches || matches.size > 0);
       card.hidden = !show;
       if (show) visible++;
+      refreshRows(card, index);
+      // Açık kartta seçili satır süzgeç dışında kaldıysa ilk eşleşeni göster.
+      if (show && openIndex === index && matches) {
+        const selected = Number(card.querySelector<HTMLElement>('.planner-affected-row.selected')?.dataset['row'] ?? -1);
+        if (!matches.has(selected)) showMap(card, index, Math.min(...matches));
+      }
     });
     const technicalBox = root.querySelector<HTMLDetailsElement>('.planner-technical');
     if (technicalBox) {
       technicalBox.hidden = !technicalBox.querySelector('.producer-card:not([hidden])');
-      if (rule || file) technicalBox.open = true;
+      if (rule || file || entity.size) technicalBox.open = true;
     }
     const counter = root.querySelector<HTMLElement>('#planner-filter-count');
-    const anyFilter = area !== 'all' || sevActive.size > 0 || clsActive.size > 0 || rule || file;
-    if (counter) counter.textContent = anyFilter ? t('fix.filter.count', { visible, total: groups.length }) : '';
+    const anyFilter = area !== 'all' || sevActive.size > 0 || clsActive.size > 0 || rule || file || entity.size > 0;
+    if (counter) counter.textContent = anyFilter ? t('producer.filter.count', { visible, total: groups.length }) : '';
   };
   root.querySelectorAll<HTMLButtonElement>('.planner-area').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -778,16 +950,52 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
     chip.addEventListener('click', () => toggleChip(chip, clsActive, chip.dataset['cls'] ?? '')));
   ruleSelect?.addEventListener('change', applyFilters);
   fileSelect?.addEventListener('change', applyFilters);
+  let typing: ReturnType<typeof setTimeout> | undefined;
+  pickBoxes.forEach(box => {
+    const dim = box.dataset['dim'] as EntityDim;
+    const panel = box.querySelector<HTMLElement>('.planner-pick-panel')!;
+    const btn = box.querySelector<HTMLButtonElement>('.planner-pick-btn')!;
+    renderPick(box);
+    btn.addEventListener('click', () => {
+      const opening = panel.hidden;
+      closePicks(box);
+      panel.hidden = !opening;
+      btn.setAttribute('aria-expanded', String(opening));
+      if (opening) box.querySelector<HTMLInputElement>('.planner-pick-search')?.focus();
+    });
+    box.querySelector<HTMLInputElement>('.planner-pick-search')?.addEventListener('input', () => {
+      clearTimeout(typing);
+      typing = setTimeout(() => renderPick(box), 120);
+    });
+    box.querySelector<HTMLElement>('.planner-pick-list')?.addEventListener('change', e => {
+      const input = e.target as HTMLInputElement;
+      if (input.checked) picked.get(dim)!.add(input.value); else picked.get(dim)!.delete(input.value);
+      renderPick(box);
+      applyFilters();
+    });
+    box.querySelector<HTMLButtonElement>('.planner-pick-clear')?.addEventListener('click', () => {
+      picked.get(dim)!.clear();
+      const search = box.querySelector<HTMLInputElement>('.planner-pick-search');
+      if (search) search.value = '';
+      renderPick(box);
+      applyFilters();
+    });
+  });
+  if (pickBoxes.length && typeof document !== 'undefined') {
+    document.addEventListener('click', e => {
+      if (!root.isConnected) return;
+      if (!pickBoxes.some(box => box.contains(e.target as Node))) closePicks();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicks(); });
+  }
 
   root.querySelectorAll<HTMLButtonElement>('.planner-more').forEach(btn => {
     btn.addEventListener('click', () => {
-      const affected = btn.closest<HTMLElement>('.planner-affected');
-      if (!affected) return;
-      const hiddenRows = Array.from(affected.querySelectorAll<HTMLTableRowElement>('.planner-affected-row[hidden]'));
-      hiddenRows.slice(0, Number(btn.dataset['moreStep']) || ROWS_STEP).forEach(row => { row.hidden = false; });
-      const remaining = affected.querySelectorAll('.planner-affected-row[hidden]').length;
-      if (remaining === 0) btn.remove();
-      else btn.textContent = t('producer.card.more', { n: Math.min(ROWS_STEP, remaining) });
+      const card = btn.closest<HTMLElement>('.producer-card');
+      if (!card) return;
+      const index = Number(card.dataset['cardIndex']);
+      limits.set(index, Math.min((limits.get(index) ?? ROWS_FIRST) + ROWS_STEP, ROWS_CAP));
+      refreshRows(card, index);
     });
   });
 

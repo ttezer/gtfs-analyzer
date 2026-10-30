@@ -149,6 +149,8 @@ export interface NameIndex {
   route_shapes: Record<string, string[]>;           // route_id → [shape_id, ...]
   route_colors?: Record<string, [string, string]>; // route_id → [route_color, route_text_color] (hex, # yok; metin rengi boş olabilir)
   service_days?: Record<string, [string, string, string, string]>; // service_id → [gün maskesi pzt..paz, başlangıç, bitiş, istisna sayısı]
+  route_long_names?: Record<string, string>;        // route_id → route_long_name (yalnız kısa adı da olan hatlar)
+  stop_codes?: Record<string, string>;              // stop_id → stop_code (dolu olanlar)
   map_data_deferred: boolean;                        // büyük feed: shape geometrisi on-demand (shape_coords_of)
 }
 
