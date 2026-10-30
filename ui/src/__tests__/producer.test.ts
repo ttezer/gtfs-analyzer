@@ -477,3 +477,13 @@ describe('İşletmeci süzgeci', () => {
     expect(html).toContain('Belediye Otobüsleri');
   });
 });
+
+describe('0,0 konumlu durak', () => {
+  it('STM_012 hızını saat değil durak konumu sorunu olarak anlatır', () => {
+    const ni: NameIndex = { ...emptyNameIndex, stops: { A: 'Osnabrück Altstadt', B: 'Hamburg-Harburg' }, stop_coords: { A: [52.28, 8.04], B: [0, 0] } };
+    const r = result([notice('a', 'STM_012', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', observed_value: '9999 km/h', details: { stop_a: 'A', stop_b: 'B' } })], [], [['STM_012', 4, 1]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Hamburg-Harburg (B) durağının konumu 0,0 girilmiş');
+  });
+});

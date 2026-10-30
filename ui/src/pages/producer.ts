@@ -89,11 +89,27 @@ function stm012Observed(n: Notice): string | undefined {
     : undefined;
 }
 
+/** 0,0 (Gine Körfezi) — konum girilmemiş durakların yaygın değeri; gerçek bir durak değildir. */
+function isNullIsland(p?: [number, number] | null): boolean {
+  return Boolean(p && Math.abs(p[0]) < 0.01 && Math.abs(p[1]) < 0.01);
+}
+
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
     case 'STM_012': {
       const context = tripContext(n, result);
+      // Duraklardan biri 0,0 konumundaysa hız o yüzden uçuyor; asıl düzeltilecek şey konum.
+      const zeroStop = [n.details?.stop_a, n.details?.stop_b].find(id => isNullIsland(result.name_index.stop_coords?.[id ?? '']));
+      if (zeroStop) {
+        return {
+          title: t('producer.card.STM_012.title'),
+          context: tripContextText(context),
+          what: t('producer.card.null_island', { stop: result.name_index.stops?.[zeroStop] || zeroStop, id: zeroStop }),
+          action: t('producer.card.null_island_action'),
+          observed: stm012Observed(n),
+        };
+      }
       return {
         title: t('producer.card.STM_012.title'),
         context: tripContextText(context),
@@ -369,8 +385,10 @@ interface PlannerMap { opts: MapOptions; caption: string; }
  *  Konuma bağlı olmayan kayıtta ağın tamamı. */
 function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const ni = result.name_index;
+  const zeroStops = new Set<string>();
   const coord = (stopId?: string | null): [number, number] | null => {
     const p = stopId ? ni.stop_coords?.[stopId] : undefined;
+    if (p && isNullIsland(p)) { zeroStops.add(stopId!); return null; }
     return p ? [p[0], p[1]] : null;
   };
   const routeColor = (routeId?: string) => (routeId ? routeBadge(routeId, ni).bg : null) ?? MAP_GREY;
@@ -400,7 +418,10 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
 
   const label = entityLabel(n, ni) || n.entity_id || '';
   const shown = label ? t('producer.map.shown', { record: label }) : '';
-  const focusCaption = [shown, t('producer.map.caption_focus')].filter(Boolean).join(' · ');
+  const zeroCaption = () => zeroStops.size
+    ? t('producer.map.null_island', { stops: [...zeroStops].slice(0, 3).map(id => ni.stops?.[id] || id).join(', ') })
+    : '';
+  const focusCaption = () => [zeroCaption(), shown, t('producer.map.caption_focus')].filter(Boolean).join(' · ');
 
   if (n.entity_type === 'Trip' && n.entity_id) {
     const tripStops = ni.trip_stops?.[n.entity_id] ?? [];
@@ -447,7 +468,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   addStop(n.details?.stop_id, true);
 
   if (lines.length || segments.length || pins.length) {
-    return { opts: { pins, extraPolylines: [...lines, ...segments], focus }, caption: focusCaption };
+    return { opts: { pins, extraPolylines: [...lines, ...segments], focus }, caption: focusCaption() };
   }
 
   // Konuma bağlı olmayan kayıt: ağın tamamı.
@@ -547,6 +568,17 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
   </div>`;
 }
 
+/** Görülen değer ve kullanım satırları; seçilen kayda göre yeniden yazılır. */
+function factsHtml(planner: PlannerCardCopy | null): string {
+  const usage = planner?.usage
+    ? `<p class="producer-card-usage"><span class="producer-card-label">${t('producer.card.usage')}:</span> ${escHtml(planner.usage)}</p>`
+    : '';
+  const observed = planner?.observed
+    ? `<p class="producer-card-observed"><span class="producer-card-label">${t('producer.card.observed')}:</span> <code>${escHtml(planner.observed)}</code></p>`
+    : '';
+  return observed + usage;
+}
+
 function topicCard(g: RuleGroup, result: ValidationResult, index: number): string {
   const n = g.notices[0];
   const planner = plannerCardCopy(g, result);
@@ -554,12 +586,6 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
   const what = planner?.what || tMsg(n);
   const action = planner?.action || tRemediation(n);
   const context = planner?.context || (n.entity_type === 'Feed' ? t('producer.all_feed') : '');
-  const usage = planner?.usage
-    ? `<p class="producer-card-usage"><span class="producer-card-label">${t('producer.card.usage')}:</span> ${escHtml(planner.usage)}</p>`
-    : '';
-  const observed = planner?.observed
-    ? `<p class="producer-card-observed"><span class="producer-card-label">${t('producer.card.observed')}:</span> <code>${escHtml(planner.observed)}</code></p>`
-    : '';
   const routes = routeIdsOf(g, result);
   return `<article class="producer-card" data-rule="${escHtml(g.ruleId)}" data-area="${groupArea(g)}" data-sev="${g.severity}" data-cls="${escHtml(n.rule_class)}" data-file="${escHtml(n.file || '')}" data-card-index="${index}">
     <button type="button" class="planner-card-header" aria-expanded="false">
@@ -581,7 +607,7 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
             <span class="producer-card-label">${t('producer.card.what')}</span>
             <p class="producer-card-message">${escHtml(what)}</p>
             <div class="planner-times-host"></div>
-            ${observed || usage ? `<div class="producer-card-facts">${observed}${usage}</div>` : ''}
+            <div class="producer-card-facts"${factsHtml(planner) ? '' : ' hidden'}>${factsHtml(planner)}</div>
           </div>
           <div class="producer-card-action">
             <span class="producer-card-label">${t('producer.card.action')}</span>
@@ -790,6 +816,8 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     if (messageEl) messageEl.textContent = rowCopy?.what || tMsg(notice);
     const actionEl = card.querySelector<HTMLElement>('.producer-card-remediation');
     if (actionEl) actionEl.textContent = rowCopy?.action || tRemediation(notice);
+    const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
+    if (factsEl) { const facts = factsHtml(rowCopy); factsEl.innerHTML = facts; factsEl.hidden = !facts; }
     const strip = card.querySelector<HTMLElement>('.planner-times-host');
     if (strip) strip.innerHTML = timeStrip(notice, result);
     const map = plannerMap(notice, result);
