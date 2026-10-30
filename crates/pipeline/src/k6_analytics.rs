@@ -762,6 +762,12 @@ fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
     min_dist
 }
 
+/// Bir stop_times satırının gösterilecek saati (önce varış, yoksa kalkış), "HH:MM:SS".
+/// Planlamacı kartında komşu durağın saatini yazmak için; ikisi de yoksa None.
+fn row_time_text(st: &CompactStopTime) -> Option<String> {
+    st.arrival_time().or_else(|| st.departure_time()).map(|t| format_hms(hms_to_secs(t)))
+}
+
 fn hms_to_secs(t: (u32, u32, u32)) -> u32 {
     t.0 * 3600 + t.1 * 60 + t.2
 }
@@ -1739,9 +1745,9 @@ fn check_speed_and_duration<'a>(
             // This pass is deliberately separate from the adjacent-segment speed
             // loop below.  Speed and zero-duration checks still require a physically
             // adjacent pair, while chronology may span any number of untimed rows.
-            let mut previous_departure: Option<(&CompactStopTime, u32)> = None;
-            for st in stimes.iter() {
-                if let (Some(arrival), Some((departure_row, departure))) =
+            let mut previous_departure: Option<(&CompactStopTime, u32, usize)> = None;
+            for (row_index, st) in stimes.iter().enumerate() {
+                if let (Some(arrival), Some((departure_row, departure, departure_index))) =
                     (st.arrival_time().map(hms_to_secs), previous_departure)
                 {
                     if arrival < departure {
@@ -1784,12 +1790,26 @@ fn check_speed_and_duration<'a>(
                         d.insert("dir".to_string(), dir_sd.to_string());
                         d.insert("dep".to_string(), dep_hms.clone());
                         d.insert("arr".to_string(), arr_hms.clone());
+                        // Planlamacı hatalı saati bağlamıyla görsün: kalkış durağından önceki ve
+                        // varış durağından sonraki durak, saatleriyle.
+                        if let Some(prev) = departure_index.checked_sub(1).and_then(|i| stimes.get(i)) {
+                            d.insert("prev_stop_id".to_string(), idx.stop_id_of(prev).to_string());
+                            if let Some(time) = row_time_text(prev) {
+                                d.insert("prev_time".to_string(), time);
+                            }
+                        }
+                        if let Some(next) = stimes.get(row_index + 1) {
+                            d.insert("next_stop_id".to_string(), idx.stop_id_of(next).to_string());
+                            if let Some(time) = row_time_text(next) {
+                                d.insert("next_time".to_string(), time);
+                            }
+                        }
                         n.details = Some(d);
                         notices.push(n);
                     }
                 }
                 if let Some(departure) = st.departure_time() {
-                    previous_departure = Some((st, hms_to_secs(departure)));
+                    previous_departure = Some((st, hms_to_secs(departure), row_index));
                 }
             }
 
@@ -4767,6 +4787,39 @@ fn check_operational_analytics(
 
 // ── WP-09d: Stop times derived kontrolleri ────────────────────────────────────
 
+/// STM_015/016 kanıtı: saati eksik uç durak, aynı satırın kalkış saati (varsa), en yakın
+/// saatli durak (`next` = ilk durağın ilerisinde, `prev` = son durağın gerisinde) ve seferin
+/// kaç durağında saat bulunduğu. Planlamacı eksik saati hangi saatler arasında arayacağını,
+/// ya da seferin hiç saati olmadığını görsün diye.
+fn edge_time_details(
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+    edge: &CompactStopTime,
+    side: &str,
+) -> std::collections::BTreeMap<String, String> {
+    let mut d = std::collections::BTreeMap::new();
+    d.insert("stop_id".to_string(), idx.stop_id_of(edge).to_string());
+    if let Some(dep) = edge.departure_time() {
+        d.insert("departure".to_string(), format_hms(hms_to_secs(dep)));
+    }
+    let timed = stimes.iter().filter(|st| row_time_text(st).is_some()).count();
+    d.insert("stop_count".to_string(), stimes.len().to_string());
+    d.insert("timed_stops".to_string(), timed.to_string());
+    fn with_time<'a>(st: &'a CompactStopTime, edge: &CompactStopTime) -> Option<(&'a CompactStopTime, String)> {
+        if std::ptr::eq(st, edge) { None } else { row_time_text(st).map(|time| (st, time)) }
+    }
+    let nearest = if side == "next" {
+        stimes.iter().find_map(|st| with_time(st, edge))
+    } else {
+        stimes.iter().rev().find_map(|st| with_time(st, edge))
+    };
+    if let Some((other, time)) = nearest {
+        d.insert(format!("{side}_stop_id"), idx.stop_id_of(other).to_string());
+        d.insert(format!("{side}_time"), time);
+    }
+    d
+}
+
 fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, ctr: &mut u32) {
     // STM_015 / STM_016: ilk/son durağın zorunlu zaman alanları
     for (&trip_id, stimes) in &idx.by_trip {
@@ -4803,7 +4856,7 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
         // Spec·Kritik olduğu için o yanlış iddia R1 yayın kapısına giriyordu.
         if let Some(first) = stimes.first() {
             if !is_flex(first) && first.arrival_is_absent() {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr,
                     "STM_015",
                     EntityType::Trip,
@@ -4816,7 +4869,9 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
                     Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."),
                     "İlk stop_times satırına arrival_time girin.",
-                ));
+                );
+                n.details = Some(edge_time_details(idx, stimes, first, "next"));
+                notices.push(n);
             }
         }
 
@@ -4830,14 +4885,16 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
 
         if let Some(last) = stimes.last() {
             if !is_flex(last) && last.arrival_is_absent() {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "STM_016", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(last.line as u64),
                     Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
                     "Son stop_times satırına arrival_time girin.",
-                ));
+                );
+                n.details = Some(edge_time_details(idx, stimes, last, "prev"));
+                notices.push(n);
             }
         }
     }

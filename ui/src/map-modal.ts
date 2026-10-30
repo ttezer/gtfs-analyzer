@@ -34,6 +34,7 @@ export interface MapOptions {
   }>;
   legendItems?: Array<{ color: string; label: string }>;
   showArrows?: boolean;           // polyline üzerine yön okları (her ~250m)
+  focus?: [number, number];       // satır içi harita: bu noktaya yakınlaş (ilk/son durak gibi)
 }
 
 /**
@@ -65,20 +66,28 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
     if (seg.zoomTo) zoomTarget = coords;
   }
 
-  for (const pin of opts.pins.slice(0, MAX_MAP_PINS)) {
+  let primaryLabels = 0;
+  const ordered = [...opts.pins.slice(0, MAX_MAP_PINS)].sort((a, b) => Number(a.primary) - Number(b.primary));
+  for (const pin of ordered) {
     // Kart haritasında birincil = konunun işaret ettiği yer (kırmızı), diğerleri bağlam (gri).
     const color = pin.color ?? (pin.primary ? '#dc2626' : '#64748b');
     L.circleMarker([pin.lat, pin.lon], {
-      radius: pin.small ? 4 : 8,
+      radius: pin.small ? 4 : 9,
       fillColor: color,
       color: '#fff',
       weight: pin.small ? 1.5 : 2,
       fillOpacity: 0.9,
     }).addTo(map).bindPopup(pin.label, { maxWidth: 260 });
+    // İşaretli durak adı kalıcı etiketle yazılır: hat rengi de kırmızı olabilir, nokta tek başına ayırt edilmez.
+    if (pin.primary && primaryLabels++ < 5) {
+      L.tooltip({ permanent: true, direction: 'top', offset: [0, -8], className: 'planner-map-label' })
+        .setLatLng([pin.lat, pin.lon]).setContent(pin.label).addTo(map);
+    }
     bounds.push([pin.lat, pin.lon]);
   }
 
-  if (zoomTarget && zoomTarget.length > 1) map.fitBounds(zoomTarget, { padding: [24, 24], maxZoom: 16 });
+  if (opts.focus) map.setView(opts.focus, 15);
+  else if (zoomTarget && zoomTarget.length > 1) map.fitBounds(zoomTarget, { padding: [24, 24], maxZoom: 16 });
   else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
   else if (bounds.length === 1) map.setView(bounds[0], 14);
   else map.setView([39, 35], 5);

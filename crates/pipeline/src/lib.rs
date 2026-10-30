@@ -2319,6 +2319,32 @@ pub(crate) fn build_name_index_impl(
         })
         .collect();
 
+    // service_id → [gün maskesi, başlangıç, bitiş, istisna sayısı]; yalnız calendar_dates'te
+    // tanımlı serviste maske boş, aralık eklenen tarihlerin ilk/son günüdür.
+    let ymd = |d: (u32, u32, u32)| format!("{:04}{:02}{:02}", d.0, d.1, d.2);
+    let cd = &records.calendar_dates;
+    let exceptions = |sid: &str| cd.exception_count.get(sid).copied().unwrap_or(0).to_string();
+    let mut service_days: BTreeMap<String, [String; 4]> = records
+        .calendars
+        .iter()
+        .map(|c| {
+            let mask: String = c.days.iter().map(|d| if *d == Some(1) { '1' } else { '0' }).collect();
+            let start = c.start_date.map(ymd).unwrap_or_default();
+            let end = c.end_date.map(ymd).unwrap_or_default();
+            (c.service_id.clone(), [mask, start, end, exceptions(c.service_id.as_str())])
+        })
+        .collect();
+    for (sid, dates) in &cd.added {
+        if service_days.contains_key(sid.as_str()) || dates.is_empty() {
+            continue;
+        }
+        let (first, last) = (dates[0], dates[dates.len() - 1]);
+        service_days.insert(
+            sid.to_string(),
+            [String::new(), first.to_string(), last.to_string(), exceptions(sid.as_str())],
+        );
+    }
+
     gtfs_core::NameIndex {
         stops,
         routes,
@@ -2334,6 +2360,7 @@ pub(crate) fn build_name_index_impl(
         shape_trips,
         route_shapes,
         route_colors,
+        service_days,
         map_data_deferred: skip_shape_coords,
     }
 }
@@ -2586,6 +2613,30 @@ mod name_index_tests {
         assert_eq!(idx.route_colors.get("B"), Some(&["0067a5".to_string(), String::new()]));
         assert!(!idx.route_colors.contains_key("C"), "# önekli değer GTFS hex biçimi değil");
         assert!(!idx.route_colors.contains_key("D"));
+    }
+
+    #[test]
+    fn service_days_summarise_weekdays_and_date_only_services() {
+        let mut recs = records();
+        recs.calendars = vec![crate::k2::calendar::CalendarRecord {
+            service_id: "HI".into(),
+            days: [Some(1), Some(1), Some(1), Some(1), Some(1), Some(0), Some(0)],
+            start_date: Some((2026, 1, 1)),
+            end_date: Some((2026, 12, 31)),
+            row: Default::default(),
+            line: 2,
+        }];
+        recs.calendar_dates.added.insert("BAYRAM".into(), vec![20260520, 20260521]);
+        recs.calendar_dates.exception_count.insert("BAYRAM".into(), 2);
+        let idx = build_name_index_impl(&recs, &[], false);
+        assert_eq!(
+            idx.service_days.get("HI"),
+            Some(&["1111100".to_string(), "20260101".into(), "20261231".into(), "0".into()])
+        );
+        assert_eq!(
+            idx.service_days.get("BAYRAM"),
+            Some(&[String::new(), "20260520".into(), "20260521".into(), "2".into()])
+        );
     }
 }
 

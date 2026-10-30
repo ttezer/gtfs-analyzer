@@ -3038,6 +3038,63 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
     }
 }
 
+#[test]
+fn stm015_016_carry_edge_stop_and_neighbour_time() {
+    // Planlamacı kartı eksik saati komşu durağın saatiyle gösterir: ilk durak için ikinci
+    // durak, son durak için sondan bir önceki durak.
+    static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,,08:00:00,S1,1\nT1,,08:10:00,S2,2\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", EDGE_STOP_TIMES);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let detail = |rule: &str, key: &str| {
+                vr.notices
+                    .iter()
+                    .find(|n| n.rule_id == rule)
+                    .and_then(|n| n.details.as_ref())
+                    .and_then(|d| d.get(key).cloned())
+            };
+            assert_eq!(detail("STM_015", "stop_id").as_deref(), Some("S1"));
+            assert_eq!(detail("STM_015", "departure").as_deref(), Some("08:00:00"));
+            assert_eq!(detail("STM_015", "next_stop_id").as_deref(), Some("S2"));
+            assert_eq!(detail("STM_015", "next_time").as_deref(), Some("08:10:00"));
+            assert_eq!(detail("STM_016", "stop_id").as_deref(), Some("S2"));
+            assert_eq!(detail("STM_016", "prev_stop_id").as_deref(), Some("S1"));
+            assert_eq!(detail("STM_016", "prev_time").as_deref(), Some("08:00:00"));
+            assert_eq!(detail("STM_015", "stop_count").as_deref(), Some("2"));
+            assert_eq!(detail("STM_015", "timed_stops").as_deref(), Some("2"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
+#[test]
+fn stm008_carries_previous_and_next_stop_times() {
+    // Zaman geriye giden bölümde planlamacı bir önceki ve bir sonraki durağın saatini de görür.
+    static BACKWARDS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,07:50:00,07:50:00,S0,1\nT1,08:00:00,08:00:00,S1,2\nT1,07:55:00,07:55:00,S2,3\nT1,08:20:00,08:20:00,S3,4\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", BACKWARDS);
+
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "STM_008")
+                .and_then(|n| n.details.clone())
+                .expect("STM_008 ayrıntısı bekleniyor");
+            assert_eq!(d.get("prev_stop_id").map(String::as_str), Some("S0"));
+            assert_eq!(d.get("prev_time").map(String::as_str), Some("07:50:00"));
+            assert_eq!(d.get("next_stop_id").map(String::as_str), Some("S3"));
+            assert_eq!(d.get("next_time").map(String::as_str), Some("08:20:00"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
 // ── STM_057 KALDIRILDI (2026-08-01, WP-1) ─────────────────────────────────────
 // Kuralın iki testi de buradaydı. Spec cümlesi koşulludur ("travel WITHIN THE SAME
 // location group…requires two records"); kural bunu her konum için iki kayıt şartına

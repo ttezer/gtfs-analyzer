@@ -131,6 +131,11 @@ pub struct NameIndex {
     /// Yalnız geçerli `route_color` taşıyan hatlar girer. Eklemeli alan: eski sonuçlarda yoktur.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub route_colors: BTreeMap<String, [String; 2]>,
+    /// service_id → [gün maskesi "1111100" (pzt..paz; calendar.txt yoksa boş), başlangıç YYYYMMDD,
+    /// bitiş YYYYMMDD, calendar_dates istisna sayısı]. Planlamacıya "hangi günler" demek için.
+    /// Eklemeli alan: eski sonuçlarda yoktur.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub service_days: BTreeMap<String, [String; 4]>,
     /// Büyük feed modunda harita geometrisi (shape_coords vb.) peşinen serialize
     /// EDİLMEZ; UI ikona tıklayınca WASM'dan on-demand çeker (shape_coords_of).
     pub map_data_deferred: bool,

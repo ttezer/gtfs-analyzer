@@ -1,7 +1,8 @@
 // Üretici özeti: motorun mevcut sonucunu (R1 kararı, R9 önceliği, NameIndex adları) tek
 // ekranda toplar. Yeni bulgu, skor ya da kök neden hesaplamaz; yalnız gruplar ve sıralar.
-import type { ValidationResult, Notice } from '../types';
-import { t, tMsg, tRemediation, getLocale } from '../i18n';
+import type { ValidationResult, Notice, Severity } from '../types';
+import { t, tMsg, tRemediation, getLocale, intlLocale, severityForLocale, SEVERITY_COLOR, RULE_CLASS_TR } from '../i18n';
+import { SEVERITY_ORDER } from '../severity-order';
 import { escHtml } from '../escape';
 import type { MapOptions, MapPin } from '../map-modal';
 import {
@@ -110,6 +111,15 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.STP_001.action'),
       };
     }
+    case 'STP_009': {
+      const stop = n.entity_id ? result.name_index.stops?.[n.entity_id] || n.entity_id : '';
+      return {
+        title: t('producer.card.STP_009.title'),
+        context: t('producer.card.STP_009.context', { stop, parent: n.observed_value || '—' }),
+        what: t('producer.card.STP_009.what'),
+        action: t('producer.card.STP_009.action'),
+      };
+    }
     case 'STP_012': {
       const stop = n.entity_id || n.observed_value || '';
       return {
@@ -119,22 +129,36 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.STP_012.action'),
       };
     }
-    case 'STM_015': {
-      const context = tripContext(n, result);
-      return {
-        title: t('producer.card.STM_015.title'),
-        context: tripContextText(context),
-        what: t('producer.card.STM_015.what'),
-        action: t('producer.card.STM_015.action'),
-      };
-    }
+    case 'STM_015':
     case 'STM_016': {
       const context = tripContext(n, result);
+      const stopId = n.details?.stop_id;
+      const stop = stopId ? result.name_index.stops?.[stopId] || stopId : '';
+      // Seferin hiçbir durağında saat yoksa sorun tek bir uç durak değil, saatsiz aktarılmış seferdir.
+      const untimed = n.details?.timed_stops === '0';
       return {
-        title: t('producer.card.STM_016.title'),
+        title: t(`producer.card.${g.ruleId}.title`),
         context: tripContextText(context),
-        what: t('producer.card.STM_016.what'),
-        action: t('producer.card.STM_016.action'),
+        what: untimed
+          ? t('producer.card.trip_untimed', { n: n.details?.stop_count ?? '?' })
+          : stop
+            ? t(`producer.card.${g.ruleId}.what_at`, { stop })
+            : t(`producer.card.${g.ruleId}.what`),
+        action: untimed ? t('producer.card.trip_untimed_action') : t(`producer.card.${g.ruleId}.action`),
+      };
+    }
+    case 'STM_008': {
+      const context = tripContext(n, result);
+      const d = n.details ?? {};
+      const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '';
+      return {
+        title: t('producer.card.STM_008.title'),
+        context: tripContextText(context),
+        what: t('producer.card.STM_008.what', {
+          from: name(d.stop_a, d.stop_a_name), dep: d.dep ?? '—',
+          to: name(d.stop_b, d.stop_b_name), arr: d.arr ?? '—',
+        }),
+        action: t('producer.card.STM_008.action'),
       };
     }
     case 'ARC_031':
@@ -228,14 +252,11 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
 }
 
 type AreaFilter = 'all' | PlannerArea;
-type Tier = 'blocker' | 'fix' | 'info';
 
 const AREAS: PlannerArea[] = ['tarife', 'durak', 'hat', 'takvim', 'guzergah', 'ucret', 'kurum', 'teknik'];
-const TIER_CLASS: Record<Tier, string> = { blocker: 'critical', fix: 'high', info: 'info' };
+const CLASS_ORDER = ['SPEC', 'INTEROP', 'QUALITY', 'ANALYTICS'];
 const MAP_RED = '#dc2626';
 const MAP_GREY = '#64748b';
-const MAP_ROUTE_LIMIT = 12;
-const MAP_SHAPE_LIMIT = 24;
 const ROWS_FIRST = 10;
 const ROWS_STEP = 50;
 const ROWS_CAP = 500;
@@ -245,7 +266,7 @@ function groupArea(g: RuleGroup): PlannerArea {
 }
 
 /** Konunun dokunduğu hatlar (route_id), bildirim sırasıyla. */
-function routeIdsOf(g: RuleGroup, result: ValidationResult): string[] {
+function routeIdsOf(g: RuleGroup, result: ValidationResult, limit = 8): string[] {
   const ni = result.name_index;
   const routes = new Set<string>();
   for (const n of g.notices) {
@@ -253,7 +274,7 @@ function routeIdsOf(g: RuleGroup, result: ValidationResult): string[] {
       ? n.entity_id
       : n.entity_type === 'Trip' && n.entity_id ? ni.trip_routes?.[n.entity_id] : n.details?.route_id;
     if (routeId) routes.add(routeId);
-    if (routes.size >= MAP_ROUTE_LIMIT) break;
+    if (routes.size >= limit) break;
   }
   return [...routes];
 }
@@ -264,11 +285,83 @@ function routeBadgeHtml(routeId: string, result: ValidationResult): string {
   return `<span class="planner-route-badge"${style}>${escHtml(b.label)}</span>`;
 }
 
+function severityHtml(sev: Severity): string {
+  return `<span class="planner-sev" style="--sev:${SEVERITY_COLOR[sev]}">${escHtml(severityForLocale(getLocale(), sev))}</span>`;
+}
+
+/** Çalışma günleri: calendar maskesini planlamacı diliyle söyler ("Hafta içi", "Ct, Pz"). */
+function serviceText(serviceId: string | null | undefined, result: ValidationResult): string {
+  if (!serviceId) return '—';
+  const entry = result.name_index.service_days?.[serviceId];
+  if (!entry) return serviceId;
+  const [mask, , , exceptions] = entry;
+  let text: string;
+  if (!mask) text = t('producer.days.dates');
+  else if (mask === '1111111') text = t('producer.days.everyday');
+  else if (mask === '1111100') text = t('producer.days.weekdays');
+  else if (mask === '0000011') text = t('producer.days.weekend');
+  else if (mask === '0000000') text = t('producer.days.none');
+  else {
+    const fmt = new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', timeZone: 'UTC' });
+    // 2026-01-05 bir pazartesi; maske pzt..paz sırasında.
+    text = [...mask].map((on, i) => on === '1' ? fmt.format(new Date(Date.UTC(2026, 0, 5 + i))) : '').filter(Boolean).join(', ');
+  }
+  return Number(exceptions) > 0 ? `${text} ${t('producer.days.exceptions', { n: exceptions })}` : text;
+}
+
+/** Saat kurallarında seçili seferin ilgili durakları sırayla, saatleriyle; hatalı satır işaretli. */
+function timeStrip(n: Notice, result: ValidationResult): string {
+  const d = n.details;
+  if (!d) return '';
+  const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
+  const missing = t('producer.times.missing');
+  type Row = [string, string, string, boolean];
+  let rows: Row[] = [];
+  if ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016') && d.timed_stops === '0') return '';
+  if (n.rule_id === 'STM_015') {
+    rows = [
+      [name(d.stop_id), missing, d.departure ?? '—', true],
+      ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_time ?? '—', '', false] as Row] : []),
+    ];
+  } else if (n.rule_id === 'STM_016') {
+    rows = [
+      ...(d.prev_stop_id ? [[name(d.prev_stop_id), '', d.prev_time ?? '—', false] as Row] : []),
+      [name(d.stop_id), missing, d.departure ?? '—', true],
+    ];
+  } else if (n.rule_id === 'STM_008') {
+    rows = [
+      ...(d.prev_stop_id ? [[name(d.prev_stop_id), '', d.prev_time ?? '—', false] as Row] : []),
+      [name(d.stop_a, d.stop_a_name), '', d.dep ?? '—', false],
+      [name(d.stop_b, d.stop_b_name), d.arr ?? '—', '', true],
+      ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_time ?? '—', '', false] as Row] : []),
+    ];
+  }
+  if (!rows.length) return '';
+  return `<table class="planner-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+    rows.map(([stop, arr, dep, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(arr)}</td><td>${escHtml(dep)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+/** Etkilenenler tablosunda saat kurallarının "hatalı yer" sütunu. */
+function timeSpot(n: Notice, result: ValidationResult): string | null {
+  const d = n.details;
+  if (!d) return null;
+  const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
+  if ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016') && d.timed_stops === '0') {
+    return t('producer.times.spot_untimed', { n: d.stop_count ?? '?' });
+  }
+  if (n.rule_id === 'STM_015') return t('producer.times.spot_first', { stop: name(d.stop_id), time: d.departure ?? d.next_time ?? '—' });
+  if (n.rule_id === 'STM_016') return t('producer.times.spot_last', { stop: name(d.stop_id), time: d.prev_time ?? '—' });
+  if (n.rule_id === 'STM_008') return `${name(d.stop_a, d.stop_a_name)} ${d.dep ?? '—'} → ${name(d.stop_b, d.stop_b_name)} ${d.arr ?? '—'}`;
+  return null;
+}
+
 interface PlannerMap { opts: MapOptions; caption: string; }
 
-/** Harita her kartta vardır: konunun işaret ettiği durak/bölüm kırmızı, etkilenen hatlar kendi
- *  renginde. Konuma bağlı olmayan konuda ağın tamamı gösterilir. */
-function plannerMap(g: RuleGroup, result: ValidationResult): PlannerMap {
+/** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
+ *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
+ *  Konuma bağlı olmayan kayıtta ağın tamamı. */
+function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const ni = result.name_index;
   const coord = (stopId?: string | null): [number, number] | null => {
     const p = stopId ? ni.stop_coords?.[stopId] : undefined;
@@ -278,15 +371,13 @@ function plannerMap(g: RuleGroup, result: ValidationResult): PlannerMap {
   const lines: NonNullable<MapOptions['extraPolylines']> = [];
   const segments: NonNullable<MapOptions['extraPolylines']> = [];
   const pins: MapPin[] = [];
-  const shapes = new Set<string>();
   const stops = new Set<string>();
+  let focus: [number, number] | undefined;
 
   const addShape = (shapeId: string | null | undefined, color: string) => {
-    if (!shapeId || shapes.has(shapeId) || shapes.size >= MAP_SHAPE_LIMIT) return;
-    const coords = ni.shape_coords?.[shapeId];
-    if (!coords || coords.length < 2) return;
-    shapes.add(shapeId);
-    lines.push({ coords, color, weight: 4 });
+    const coords = shapeId ? ni.shape_coords?.[shapeId] : undefined;
+    if (coords && coords.length > 1) lines.push({ coords, color, weight: 5 });
+    return Boolean(coords && coords.length > 1);
   };
   const addStop = (stopId: string | null | undefined, primary: boolean) => {
     if (!stopId || stops.has(stopId)) return;
@@ -298,49 +389,62 @@ function plannerMap(g: RuleGroup, result: ValidationResult): PlannerMap {
       lat: p[0], lon: p[1], label: name ? `${name} (${stopId})` : stopId,
       primary, small: !primary, color: primary ? MAP_RED : MAP_GREY,
     });
+    if (primary && !focus) focus = p;
   };
 
-  const sample = g.notices.slice(0, ROWS_CAP);
-  for (const n of sample) {
-    if (n.entity_type === 'Stop') addStop(n.entity_id, true);
+  const label = entityLabel(n, ni) || n.entity_id || '';
+  const shown = label ? t('producer.map.shown', { record: label }) : '';
+  const focusCaption = [shown, t('producer.map.caption_focus')].filter(Boolean).join(' · ');
+
+  if (n.entity_type === 'Trip' && n.entity_id) {
+    const tripStops = ni.trip_stops?.[n.entity_id] ?? [];
+    const color = routeColor(ni.trip_routes?.[n.entity_id]);
+    if (!addShape(ni.trip_shapes?.[n.entity_id], color)) {
+      const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+      if (coords.length > 1) lines.push({ coords, color, weight: 4 });
+    }
+    // Kuralın işaret ettiği durak: ilk/son durak saati eksikse o durak, aksi halde bildirimin durakları.
+    if (n.rule_id === 'STM_015') addStop(tripStops[0], true);
+    if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
     addStop(n.details?.stop_id, true);
     const a = coord(n.details?.stop_a);
     const b = coord(n.details?.stop_b);
-    if (a && b && segments.length < 50) {
-      segments.push({ coords: [a, b], color: MAP_RED, weight: 7, zoomTo: segments.length === 0 });
+    if (a && b) {
+      segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
       addStop(n.details?.stop_a, true);
       addStop(n.details?.stop_b, true);
     }
-  }
-
-  for (const n of sample) {
-    if (n.entity_type === 'Trip' && n.entity_id) {
-      addShape(ni.trip_shapes?.[n.entity_id], routeColor(ni.trip_routes?.[n.entity_id]));
+    for (const stopId of tripStops) addStop(stopId, false);
+  } else if (n.entity_type === 'Stop' && n.entity_id) {
+    addStop(n.entity_id, true);
+    const here = coord(n.entity_id);
+    if (here) {
+      // Bağlam: durağı kullanan en fazla üç hattın çizimi ve 600 m içindeki duraklar.
+      const routesHere = new Map<string, string>();
+      for (const [tripId, tripStops] of Object.entries(ni.trip_stops ?? {})) {
+        if (routesHere.size >= 3) break;
+        const routeId = ni.trip_routes?.[tripId];
+        if (!routeId || routesHere.has(routeId) || !tripStops.includes(n.entity_id)) continue;
+        routesHere.set(routeId, tripId);
+      }
+      for (const [routeId, tripId] of routesHere) addShape(ni.trip_shapes?.[tripId], routeColor(routeId));
+      const near = Object.entries(ni.stop_coords ?? {})
+        .filter(([, p]) => Math.abs(p[0] - here[0]) < 0.0055 && Math.abs(p[1] - here[1]) < 0.0075)
+        .slice(0, 150);
+      for (const [stopId] of near) addStop(stopId, false);
     }
-    const shapeId = n.entity_type === 'Shape' ? n.entity_id : n.details?.shape_id;
-    if (shapeId) addShape(shapeId, routeColor(ni.shape_routes?.[shapeId]?.[0]?.[0]));
+  } else if (n.entity_type === 'Route' && n.entity_id) {
+    for (const shapeId of (ni.route_shapes?.[n.entity_id] ?? []).slice(0, 4)) addShape(shapeId, routeColor(n.entity_id));
+  } else if (n.entity_type === 'Shape' && n.entity_id) {
+    addShape(n.entity_id, routeColor(ni.shape_routes?.[n.entity_id]?.[0]?.[0]));
   }
-  const routeIds = routeIdsOf(g, result);
-  for (const routeId of routeIds) {
-    for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 2)) addShape(shapeId, routeColor(routeId));
-  }
-
-  // Güzergâh çizimi olmayan seferde durak sırası çizilir; ilk seferin durakları bağlam olarak gri.
-  const firstTrip = sample.find(n => n.entity_type === 'Trip' && n.entity_id)?.entity_id;
-  if (firstTrip) {
-    const tripStops = ni.trip_stops?.[firstTrip] ?? [];
-    if (!ni.trip_shapes?.[firstTrip]) {
-      const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-      if (coords.length > 1) lines.push({ coords, color: routeColor(ni.trip_routes?.[firstTrip]), weight: 3 });
-    }
-    for (const stopId of tripStops.slice(0, 120)) addStop(stopId, false);
-  }
+  addStop(n.details?.stop_id, true);
 
   if (lines.length || segments.length || pins.length) {
-    return { opts: { pins, extraPolylines: [...lines, ...segments] }, caption: t('producer.map.caption_focus') };
+    return { opts: { pins, extraPolylines: [...lines, ...segments], focus }, caption: focusCaption };
   }
 
-  // Konuma bağlı olmayan konu: ağın tamamı.
+  // Konuma bağlı olmayan kayıt: ağın tamamı.
   for (const routeId of Object.keys(ni.route_shapes ?? {}).slice(0, 40)) {
     addShape(ni.route_shapes[routeId][0], routeColor(routeId));
   }
@@ -368,25 +472,33 @@ function technicalDetails(g: RuleGroup): string {
     .join('');
 }
 
-/** Etkilenenler tablosu planlamacının tanıdığı sütunlarla: sefer → hat/yön/kalkış, durak → ad/kod. */
+/** Etkilenenler tablosu planlamacının tanıdığı sütunlarla: sefer → hat/yön/kalkış/günler,
+ *  durak → ad/kod, takvim → günler. */
 function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => string[] } {
   const ni = result.name_index;
   const dash = (v?: string | null) => v || '—';
   const first = g.notices[0];
+  const withDays = g.notices.some(n => n.service_id);
+  const days = (cols: string[], row: (n: Notice) => string[]) => withDays
+    ? { head: [...cols, t('producer.col.service')], row: (n: Notice) => [...row(n), serviceText(n.service_id, result)] }
+    : { head: cols, row };
   // Kimliksiz bildirim (feed düzeyi özet) varlık sütunlarını doldurmaz; genel sütunlara düşer.
   switch (first.entity_id ? first.entity_type : 'Feed') {
-    case 'Trip':
-      return {
-        head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure')],
-        row: n => {
+    case 'Trip': {
+      const withSpot = timeSpot(first, result) !== null;
+      return days(
+        [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), ...(withSpot ? [t('producer.col.spot')] : [])],
+        n => {
           const routeId = n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined;
           return [
             dash(routeId ? ni.routes?.[routeId] || routeId : n.entity_id),
             dash(n.entity_id ? ni.trips?.[n.entity_id] : null),
             dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null),
+            ...(withSpot ? [dash(timeSpot(n, result))] : []),
           ];
         },
-      };
+      );
+    }
     case 'Stop':
       return {
         head: [t('producer.col.stop'), t('producer.col.stop_code')],
@@ -397,21 +509,23 @@ function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string
         head: [t('producer.col.route'), t('producer.col.route_code')],
         row: n => [dash(n.entity_id ? ni.routes?.[n.entity_id] : null), dash(n.entity_id)],
       };
-    default:
+    case 'Service':
       return {
-        head: [t('producer.col.record'), t('producer.col.row')],
-        row: n => [
-          entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
-          n.line != null ? String(n.line) : '—',
-        ],
+        head: [t('producer.col.service_code'), t('producer.col.service')],
+        row: n => [dash(n.entity_id), serviceText(n.entity_id, result)],
       };
+    default:
+      return days(
+        [t('producer.col.record'), t('producer.col.row')],
+        n => [entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'), n.line != null ? String(n.line) : '—'],
+      );
   }
 }
 
 function affectedRows(g: RuleGroup, result: ValidationResult): string {
   const cols = affectedColumns(g, result);
   const visibleRows = g.notices.slice(0, ROWS_CAP);
-  const rows = visibleRows.map((n, index) => `<tr class="planner-affected-row"${index >= ROWS_FIRST ? ' hidden' : ''}>
+  const rows = visibleRows.map((n, index) => `<tr class="planner-affected-row${index === 0 ? ' selected' : ''}" data-row="${index}" tabindex="0"${index >= ROWS_FIRST ? ' hidden' : ''}>
     ${cols.row(n).map(v => `<td>${escHtml(v)}</td>`).join('')}
   </tr>`).join('');
   const more = visibleRows.length > ROWS_FIRST
@@ -421,13 +535,13 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
     ? `<p class="planner-capnote">${escHtml(t('producer.card.cap', { n: (g.count - visibleRows.length).toLocaleString(getLocale()) }))}</p>`
     : '';
   return `<div class="planner-affected">
-    <div class="planner-subhead"><span>${t('producer.card.affected')}</span><span>${g.count.toLocaleString(getLocale())}</span></div>
+    <div class="planner-subhead"><span>${t('producer.card.affected')}</span><span>${g.count.toLocaleString(getLocale())}</span><span class="planner-subhead-hint">${t('producer.card.row_hint')}</span></div>
     <div class="planner-table-wrap"><table><thead><tr>${cols.head.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows || `<tr><td colspan="${cols.head.length}">${t('producer.card.no_rows')}</td></tr>`}</tbody></table></div>
     <div class="planner-affected-foot">${more}${cap}</div>
   </div>`;
 }
 
-function topicCard(g: RuleGroup, tier: Tier, result: ValidationResult, index: number): string {
+function topicCard(g: RuleGroup, result: ValidationResult, index: number): string {
   const n = g.notices[0];
   const planner = plannerCardCopy(g, result);
   const title = planner?.title || t(`rule.${g.ruleId}`);
@@ -440,13 +554,13 @@ function topicCard(g: RuleGroup, tier: Tier, result: ValidationResult, index: nu
   const observed = planner?.observed
     ? `<p class="producer-card-observed"><span class="producer-card-label">${t('producer.card.observed')}:</span> <code>${escHtml(planner.observed)}</code></p>`
     : '';
-  const routes = routeIdsOf(g, result).slice(0, 8);
-  return `<article class="producer-card producer-card-${TIER_CLASS[tier]}" data-rule="${escHtml(g.ruleId)}" data-area="${groupArea(g)}" data-card-index="${index}">
+  const routes = routeIdsOf(g, result);
+  return `<article class="producer-card" data-rule="${escHtml(g.ruleId)}" data-area="${groupArea(g)}" data-sev="${g.severity}" data-cls="${escHtml(n.rule_class)}" data-file="${escHtml(n.file || '')}" data-card-index="${index}">
     <button type="button" class="planner-card-header" aria-expanded="false">
       <div>
-        <h4 class="producer-card-title">${escHtml(title)}</h4>
+        <h4 class="producer-card-title"><span class="planner-rule-id">${escHtml(g.ruleId)}</span>${escHtml(title)}</h4>
         <div class="producer-card-kicker">
-          <span class="planner-tier planner-tier-${TIER_CLASS[tier]}">${escHtml(t(`producer.tier.${tier}`))}</span>
+          ${severityHtml(g.severity)}
           ${routes.map(routeId => routeBadgeHtml(routeId, result)).join('')}
         </div>
       </div>
@@ -455,11 +569,12 @@ function topicCard(g: RuleGroup, tier: Tier, result: ValidationResult, index: nu
     <div class="planner-card-collapsible" hidden>
       ${context ? `<p class="producer-card-context">${escHtml(context)}</p>` : ''}
       <div class="producer-card-main">
-        <figure class="planner-map-wrap"><div class="planner-map" data-planner-map="${index}"><span>${t('producer.map.loading')}</span></div><figcaption class="planner-map-caption"></figcaption></figure>
+        <figure class="planner-map-wrap"><div class="planner-map"><span>${t('producer.map.loading')}</span></div><figcaption class="planner-map-caption"></figcaption></figure>
         <div class="planner-card-text">
           <div class="producer-card-evidence">
             <span class="producer-card-label">${t('producer.card.what')}</span>
             <p class="producer-card-message">${escHtml(what)}</p>
+            <div class="planner-times-host"></div>
             ${observed || usage ? `<div class="producer-card-facts">${observed}${usage}</div>` : ''}
           </div>
           <div class="producer-card-action">
@@ -486,42 +601,60 @@ function feedTitle(result: ValidationResult): string {
   return `<header class="planner-top"><strong>${escHtml(name)}</strong>${version}</header>`;
 }
 
+/** Rapor sekmesindeki R2 süzgeçleriyle aynı: önem ve sınıf çoklu seçim, kural ve dosya listesi. */
+function filterBar(groups: RuleGroup[], result: ValidationResult): string {
+  const sevPresent = new Set(groups.map(g => g.severity));
+  const clsPresent = new Set(groups.map(g => g.notices[0].rule_class));
+  const files = [...new Set(groups.map(g => g.notices[0].file).filter((f): f is string => Boolean(f)))].sort();
+  const sevChips = SEVERITY_ORDER.filter(s => sevPresent.has(s)).map(s =>
+    `<button type="button" class="sev-chip" data-sev="${s}" style="--chip-color:${SEVERITY_COLOR[s]}">${escHtml(severityForLocale(getLocale(), s))}</button>`).join('');
+  const clsChips = CLASS_ORDER.filter(c => clsPresent.has(c as Notice['rule_class'])).map(c =>
+    `<button type="button" class="cls-chip" data-cls="${c}">${escHtml(RULE_CLASS_TR[c as keyof typeof RULE_CLASS_TR])}</button>`).join('');
+  const ruleOptions = [...groups].sort((a, b) => a.ruleId.localeCompare(b.ruleId))
+    .map(g => `<option value="${escHtml(g.ruleId)}">${escHtml(g.ruleId)} — ${escHtml(plannerCardCopy(g, result)?.title || t(`rule.${g.ruleId}`))}</option>`).join('');
+  const all = t('fix.filter.all');
+  return `<div class="filter-bar planner-filter-bar">
+    ${sevPresent.size > 1 ? `<div class="filter-chip-group" id="planner-sev-filter"><span class="filter-cap">${t('fix.filter.severity')}</span>${sevChips}</div>` : ''}
+    ${clsPresent.size > 1 ? `<div class="filter-chip-group" id="planner-cls-filter"><span class="filter-cap">${t('fix.filter.class')}</span>${clsChips}</div>` : ''}
+    <label>${t('fix.filter.rule')} <select id="planner-rule-filter"><option value="">${all}</option>${ruleOptions}</select></label>
+    ${files.length ? `<label>${t('fix.filter.file')} <select id="planner-file-filter"><option value="">${all}</option>${files.map(f => `<option value="${escHtml(f)}">${escHtml(f)}</option>`).join('')}</select></label>` : ''}
+    <span class="filter-count" id="planner-filter-count"></span>
+  </div>`;
+}
+
 export function renderProducer(root: HTMLElement, result: ValidationResult): void {
   const m = buildProducerModel(result);
-  const tiered: Array<[RuleGroup, Tier]> = [
-    ...m.blockers.map(g => [g, 'blocker'] as [RuleGroup, Tier]),
-    ...m.improvements.map(g => [g, 'fix'] as [RuleGroup, Tier]),
-    ...m.infos.map(g => [g, 'info'] as [RuleGroup, Tier]),
-  ];
-  // Planlamacı metni yazılmış konular ve yayını durduranlar üstte; kalanlar motorun teknik
+  const ordered = [...m.blockers, ...m.improvements, ...m.infos];
+  const blockerRules = new Set(m.blockers.map(g => g.ruleId));
+  // Planlamacı metni yazılmış konular ve yayını engelleyenler üstte; kalanlar motorun teknik
   // metniyle ayrı bölümde, iki dil aynı listede karışmasın diye.
-  const primary = tiered.filter(([g, tier]) => tier === 'blocker' || plannerCardCopy(g, result) !== null);
-  const technical = tiered.filter(entry => !primary.includes(entry));
-  const ordered = [...primary, ...technical];
-  const groups = ordered.map(([g]) => g);
+  const primary = ordered.filter(g => blockerRules.has(g.ruleId) || plannerCardCopy(g, result) !== null);
+  const technical = ordered.filter(g => !primary.includes(g));
+  const groups = [...primary, ...technical];
 
   const verdict = m.publishable
-    ? `<div class="planner-verdict ok"><h2>${t('producer.publishable')}</h2><p>${t('producer.planner_verdict', { fix: m.improvements.length, info: m.infos.length })}</p></div>`
-    : `<div class="planner-verdict bad"><h2>${t('producer.not_publishable', { n: m.blockers.length })}</h2><p>${t('producer.not_publishable_desc')}</p></div>`;
-  const counts = `<div class="planner-counts">
-    <span class="planner-tier planner-tier-critical">${t('producer.count.blockers', { n: m.blockers.length })}</span>
-    <span class="planner-tier planner-tier-high">${t('producer.count.passenger', { n: m.improvements.length })}</span>
-    <span class="planner-tier planner-tier-info">${t('producer.count.improvement', { n: m.infos.length })}</span>
-  </div>`;
+    ? `<div class="planner-verdict ok"><h2>${t('domain.r1_ok_title')}</h2><p>${t('producer.planner_verdict', { n: groups.length })}</p></div>`
+    : `<div class="planner-verdict bad"><h2>${t('domain.r1_blocked_title')}</h2><p>${t('producer.not_publishable', { n: m.blockers.length })} ${t('producer.not_publishable_desc')}</p></div>`;
+  const sevCounts = SEVERITY_ORDER
+    .map(s => [s, groups.filter(g => g.severity === s).length] as [Severity, number])
+    .filter(([, count]) => count > 0)
+    .map(([s, count]) => `<span class="planner-count">${severityHtml(s)}<strong>${count}</strong></span>`).join('');
   const areaNav = (['all', ...AREAS] as AreaFilter[]).map(id => {
-    const count = id === 'all' ? groups.length : groups.filter(g => groupArea(g) === id).length;
-    return `<button type="button" class="planner-area" data-area-filter="${id}" aria-pressed="${id === 'all'}"><span>${t(`producer.area.${id}`)}</span><span class="planner-area-count${count === 0 ? ' zero' : ''}">${count || t('producer.area.none')}</span></button>`;
+    // Kayıt sayısı: kartlardaki "kayıt" ile aynı birim.
+    const count = groups.filter(g => id === 'all' || groupArea(g) === id).reduce((sum, g) => sum + g.count, 0);
+    return `<button type="button" class="planner-area" data-area-filter="${id}" aria-pressed="${id === 'all'}"><span>${t(`producer.area.${id}`)}</span><span class="planner-area-count${count === 0 ? ' zero' : ''}">${count ? count.toLocaleString(getLocale()) : t('producer.area.none')}</span></button>`;
   }).join('');
-  const primaryCards = primary.map(([g, tier], i) => topicCard(g, tier, result, i)).join('');
-  const technicalCards = technical.map(([g, tier], i) => topicCard(g, tier, result, primary.length + i)).join('');
+  const primaryCards = primary.map((g, i) => topicCard(g, result, i)).join('');
+  const technicalCards = technical.map((g, i) => topicCard(g, result, primary.length + i)).join('');
   const technicalSection = technical.length
     ? `<details class="planner-technical"${primary.length ? '' : ' open'}><summary>${t('producer.technical.title', { n: technical.length })}</summary><p class="planner-technical-hint">${t('producer.technical.hint')}</p>${technicalCards}</details>`
     : '';
 
   root.innerHTML = `<section class="producer-page">
     ${feedTitle(result)}
-    ${verdict}${counts}
+    ${verdict}<div class="planner-counts">${sevCounts}</div>
     ${coverageNotice(m.coverageComplete)}
+    ${groups.length ? filterBar(groups, result) : ''}
     <div class="planner-body">
       <aside class="planner-areas"><h3>${t('producer.where_to_fix')}</h3>${areaNav}</aside>
       <main class="planner-list">
@@ -538,24 +671,26 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
   let openIndex: number | null = null;
   const cleanups = new Map<number, () => void>();
   const cardAt = (index: number) => root.querySelector<HTMLElement>(`[data-card-index="${index}"]`);
-  const closeCard = (card: HTMLElement, index: number) => {
-    card.querySelector<HTMLElement>('.planner-card-collapsible')!.hidden = true;
-    card.querySelector<HTMLButtonElement>('.planner-card-header')!.setAttribute('aria-expanded', 'false');
-    cleanups.get(index)?.();
-    cleanups.delete(index);
-  };
-  const openCard = (card: HTMLElement, index: number) => {
-    if (openIndex !== null && openIndex !== index) {
-      const previous = cardAt(openIndex);
-      if (previous) closeCard(previous, openIndex);
-    }
-    card.querySelector<HTMLElement>('.planner-card-collapsible')!.hidden = false;
-    card.querySelector<HTMLButtonElement>('.planner-card-header')!.setAttribute('aria-expanded', 'true');
-    openIndex = index;
+  const unmount = (index: number) => { cleanups.get(index)?.(); cleanups.delete(index); };
+
+  const showMap = (card: HTMLElement, index: number, row: number) => {
     const mapHost = card.querySelector<HTMLElement>('.planner-map');
     const caption = card.querySelector<HTMLElement>('.planner-map-caption');
+    const g = groups[index];
+    const notice = g.notices[row] ?? g.notices[0];
     if (!mapHost) return;
-    const map = plannerMap(groups[index], result);
+    unmount(index);
+    card.querySelectorAll('.planner-affected-row.selected').forEach(el => el.classList.remove('selected'));
+    card.querySelector(`.planner-affected-row[data-row="${row}"]`)?.classList.add('selected');
+    // Kartın bağlam satırı (hat · yön · kalkış) seçilen kayda göre yazılır; harita ile çelişmesin.
+    const rowCopy = plannerCardCopy({ ...g, notices: [notice] }, result);
+    const contextEl = card.querySelector<HTMLElement>('.producer-card-context');
+    if (contextEl && rowCopy?.context) contextEl.textContent = rowCopy.context;
+    const messageEl = card.querySelector<HTMLElement>('.producer-card-message');
+    if (messageEl && rowCopy?.what) messageEl.textContent = rowCopy.what;
+    const strip = card.querySelector<HTMLElement>('.planner-times-host');
+    if (strip) strip.innerHTML = timeStrip(notice, result);
+    const map = plannerMap(notice, result);
     if (caption) caption.textContent = map.caption;
     if (!map.opts.extraPolylines?.length && map.opts.pins.length === 0) {
       mapHost.innerHTML = `<span>${t('producer.map.no_evidence')}</span>`;
@@ -567,6 +702,21 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
       }
     });
   };
+  const closeCard = (card: HTMLElement, index: number) => {
+    card.querySelector<HTMLElement>('.planner-card-collapsible')!.hidden = true;
+    card.querySelector<HTMLButtonElement>('.planner-card-header')!.setAttribute('aria-expanded', 'false');
+    unmount(index);
+  };
+  const openCard = (card: HTMLElement, index: number) => {
+    if (openIndex !== null && openIndex !== index) {
+      const previous = cardAt(openIndex);
+      if (previous) closeCard(previous, openIndex);
+    }
+    card.querySelector<HTMLElement>('.planner-card-collapsible')!.hidden = false;
+    card.querySelector<HTMLButtonElement>('.planner-card-header')!.setAttribute('aria-expanded', 'true');
+    openIndex = index;
+    showMap(card, index, 0);
+  };
   root.querySelectorAll<HTMLButtonElement>('.planner-card-header').forEach(header => {
     header.addEventListener('click', () => {
       const card = header.closest<HTMLElement>('.producer-card')!;
@@ -574,19 +724,61 @@ export function renderProducer(root: HTMLElement, result: ValidationResult): voi
       if (openIndex === index) { closeCard(card, index); openIndex = null; } else openCard(card, index);
     });
   });
+  root.querySelectorAll<HTMLTableRowElement>('.planner-affected-row').forEach(rowEl => {
+    const select = () => {
+      const card = rowEl.closest<HTMLElement>('.producer-card')!;
+      showMap(card, Number(card.dataset['cardIndex']), Number(rowEl.dataset['row']));
+    };
+    rowEl.addEventListener('click', select);
+    rowEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
+  });
+
+  // Süzgeçler: iş alanı + önem + sınıf + kural + dosya birlikte uygulanır.
+  let area: AreaFilter = 'all';
+  const sevActive = new Set<string>();
+  const clsActive = new Set<string>();
+  const ruleSelect = root.querySelector<HTMLSelectElement>('#planner-rule-filter');
+  const fileSelect = root.querySelector<HTMLSelectElement>('#planner-file-filter');
+  const applyFilters = () => {
+    const rule = ruleSelect?.value ?? '';
+    const file = fileSelect?.value ?? '';
+    let visible = 0;
+    root.querySelectorAll<HTMLElement>('.producer-card').forEach(card => {
+      const show = (area === 'all' || card.dataset['area'] === area)
+        && (sevActive.size === 0 || sevActive.has(card.dataset['sev'] ?? ''))
+        && (clsActive.size === 0 || clsActive.has(card.dataset['cls'] ?? ''))
+        && (!rule || card.dataset['rule'] === rule)
+        && (!file || card.dataset['file'] === file);
+      card.hidden = !show;
+      if (show) visible++;
+    });
+    const technicalBox = root.querySelector<HTMLDetailsElement>('.planner-technical');
+    if (technicalBox) {
+      technicalBox.hidden = !technicalBox.querySelector('.producer-card:not([hidden])');
+      if (rule || file) technicalBox.open = true;
+    }
+    const counter = root.querySelector<HTMLElement>('#planner-filter-count');
+    const anyFilter = area !== 'all' || sevActive.size > 0 || clsActive.size > 0 || rule || file;
+    if (counter) counter.textContent = anyFilter ? t('fix.filter.count', { visible, total: groups.length }) : '';
+  };
   root.querySelectorAll<HTMLButtonElement>('.planner-area').forEach(btn => {
     btn.addEventListener('click', () => {
-      const filter = btn.dataset['areaFilter']!;
+      area = btn.dataset['areaFilter'] as AreaFilter;
       root.querySelectorAll<HTMLButtonElement>('.planner-area').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
-      root.querySelectorAll<HTMLElement>('.producer-card').forEach(card => {
-        card.hidden = filter !== 'all' && card.dataset['area'] !== filter;
-      });
-      const technicalBox = root.querySelector<HTMLDetailsElement>('.planner-technical');
-      if (technicalBox) {
-        technicalBox.hidden = !technicalBox.querySelector('.producer-card:not([hidden])');
-      }
+      applyFilters();
     });
   });
+  const toggleChip = (chip: HTMLButtonElement, set: Set<string>, value: string) => {
+    if (set.has(value)) { set.delete(value); chip.classList.remove('active'); } else { set.add(value); chip.classList.add('active'); }
+    applyFilters();
+  };
+  root.querySelectorAll<HTMLButtonElement>('#planner-sev-filter .sev-chip').forEach(chip =>
+    chip.addEventListener('click', () => toggleChip(chip, sevActive, chip.dataset['sev'] ?? '')));
+  root.querySelectorAll<HTMLButtonElement>('#planner-cls-filter .cls-chip').forEach(chip =>
+    chip.addEventListener('click', () => toggleChip(chip, clsActive, chip.dataset['cls'] ?? '')));
+  ruleSelect?.addEventListener('change', applyFilters);
+  fileSelect?.addEventListener('change', applyFilters);
+
   root.querySelectorAll<HTMLButtonElement>('.planner-more').forEach(btn => {
     btn.addEventListener('click', () => {
       const affected = btn.closest<HTMLElement>('.planner-affected');

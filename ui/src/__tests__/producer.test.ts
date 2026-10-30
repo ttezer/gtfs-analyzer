@@ -358,12 +358,40 @@ describe('Planlamacılar İçin sayfası', () => {
     expect(el.innerHTML.indexOf('data-rule="DQ_016"')).toBeGreaterThan(technicalAt);
   });
 
-  it('önem katmanını kanıtsız yolcu iddiasıyla değil düzeltme diliyle adlandırır', () => {
-    const r = result([notice('a', 'DQ_016', 'MEDIUM')], [], [['DQ_016', 2, 1]]);
+  it('mevcut önem derecesini ve kural kodunu kart başlığında gösterir, yayın kararını rapordaki dille söyler', () => {
+    const r = result([notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1' })], ['a'], [['STM_015', 4, 1]]);
     const el = root();
     renderProducer(el, r);
-    expect(el.innerHTML).toContain('Düzeltilmeli');
-    expect(el.innerHTML).not.toContain('Yolcuyu yanıltır');
+    expect(el.innerHTML).toContain('<span class="planner-rule-id">STM_015</span>');
+    expect(el.innerHTML).toContain('KRİTİK');
+    expect(el.innerHTML).toContain('Yayınlanması Tavsiye Edilmez');
+    expect(el.innerHTML).not.toContain('Yayınlanamaz');
+    expect(el.innerHTML).not.toContain('Düzeltilmeli');
+  });
+
+  it('sefer satırına takvimin çalışma günlerini yazar', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex, routes: { R1: '34' }, trip_routes: { T1: 'R1', T2: 'R1' },
+      service_days: { HI: ['1111100', '20260101', '20261231', '0'], OZ: ['', '20260520', '20260521', '2'] },
+    };
+    const r = result([
+      notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', service_id: 'HI' }),
+      notice('b', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T2', service_id: 'OZ' }),
+    ], ['a', 'b'], [['STM_015', 4, 2]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).toContain('<td>Belirli tarihler (+2 istisna)</td>');
+  });
+
+  it('STP_009 kartında alan adı yerine planlamacı dili kullanılır', () => {
+    const ni: NameIndex = { ...emptyNameIndex, stops: { '10043': 'Onkoloji' } };
+    const r = result([notice('a', 'STP_009', 'CRITICAL', { entity_type: 'Stop', entity_id: '10043', observed_value: '0' })], ['a'], [['STP_009', 4, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Durağın bağlı olduğu istasyon bulunamadı');
+    expect(el.innerHTML).toContain('Durak: Onkoloji · bağlı gösterilen istasyon kodu: 0');
   });
 
   it('sefer konusunun tablosunda dosya/alan değil hat, yön ve kalkış sütunları vardır', () => {
@@ -371,8 +399,46 @@ describe('Planlamacılar İçin sayfası', () => {
     const r = result([notice('a', 'STM_015', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt' })], [], [['STM_015', 2, 1]], true, ni);
     const el = root();
     renderProducer(el, r);
-    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>İlk kalkış</th>');
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>İlk kalkış</th></tr>');
     expect(el.innerHTML).toContain('<td>Üniversite</td>');
     expect(el.innerHTML).not.toContain('<th>Dosya</th>');
+  });
+});
+
+describe('Saat kuralları ve kayıt sayıları', () => {
+  const root = () => ({ innerHTML: '', querySelectorAll: () => [], querySelector: () => null }) as unknown as HTMLElement;
+
+  it('STM_015 için hatalı yeri durak adı ve kalkış saatiyle, STM_008 için iki durağın saatiyle yazar', () => {
+    const ni: NameIndex = { ...emptyNameIndex, stops: { S1: 'Onkoloji', S2: 'Binevler', A: 'Çarşı', B: 'Liman' }, trip_routes: { T1: 'R1', T2: 'R1' }, routes: { R1: 'S08' } };
+    const r = result([
+      notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', details: { stop_id: 'S1', departure: '06:15:00', next_stop_id: 'S2', next_time: '06:18:00' } }),
+      notice('b', 'STM_008', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T2', details: { stop_a: 'A', stop_b: 'B', dep: '08:00:00', arr: '07:55:00' } }),
+    ], ['a', 'b'], [['STM_015', 4, 1], ['STM_008', 4, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Seferin ilk durağı olan Onkoloji için varış saati girilmemiş.');
+    expect(el.innerHTML).toContain('<td>Onkoloji · kalkış 06:15:00</td>');
+    expect(el.innerHTML).toContain('<td>Çarşı 08:00:00 → Liman 07:55:00</td>');
+    expect(el.innerHTML).toContain('Çarşı durağından 08:00:00 kalkışından sonra Liman durağına 07:55:00 varışı yazılmış');
+    expect(el.innerHTML).not.toContain('stop_times.txt zaman değerlerini');
+  });
+
+  it('sol menü konu değil kayıt sayısını gösterir', () => {
+    const r = result([notice('a', 'DQ_016', 'MEDIUM')], [], [['DQ_016', 2, 37]]);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toMatch(/data-area-filter="all"[^>]*><span>Tüm konular<\/span><span class="planner-area-count">37<\/span>/);
+  });
+});
+
+describe('Saatsiz sefer', () => {
+  it('seferin hiçbir durağında saat yoksa bunu söyler, tek uç durak demez', () => {
+    const r = result([
+      notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', details: { stop_id: 'S1', stop_count: '85', timed_stops: '0' } }),
+    ], ['a'], [['STM_015', 4, 1]]);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Bu seferin 85 durağının hiçbirinde varış ya da kalkış saati yok');
+    expect(el.innerHTML).toContain('<td>Seferde hiç saat yok (85 durak)</td>');
   });
 });
