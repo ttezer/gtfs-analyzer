@@ -84,7 +84,10 @@ fn corpus_zip(feed: &str) -> Vec<u8> {
 /// Arşivdeki tek bir üyeyi yeniden yazar, kalan üyeleri aynen kopyalar.
 fn rewrite_member(zip: &[u8], target: &str, f: impl FnOnce(String) -> String) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
-    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let names: Vec<String> = archive
+        .file_names()
+        .map(|n| n.expect("üye adı çözülemedi").into_owned())
+        .collect();
     let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let opts = zip::write::SimpleFileOptions::default();
 
@@ -667,9 +670,9 @@ fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
         let mut a = zip::ZipArchive::new(std::io::Cursor::new(&zip)).unwrap();
         let name = a
             .file_names()
+            .map(|n| n.expect("üye adı çözülemedi").into_owned())
             .find(|n| Path::new(n).file_name().and_then(|s| s.to_str()) == Some("stops.txt"))
-            .unwrap()
-            .to_string();
+            .unwrap();
         let mut e = a.by_name(&name).unwrap();
         let mut buf = String::new();
         std::io::Read::read_to_string(&mut e, &mut buf).unwrap();
@@ -722,9 +725,9 @@ fn member_text(zip: &[u8], file: &str) -> String {
     let mut a = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
     let name = a
         .file_names()
+        .map(|n| n.expect("üye adı çözülemedi").into_owned())
         .find(|n| Path::new(n).file_name().and_then(|s| s.to_str()) == Some(file))
-        .unwrap_or_else(|| panic!("{file} arşivde yok"))
-        .to_string();
+        .unwrap_or_else(|| panic!("{file} arşivde yok"));
     let mut e = a.by_name(&name).expect("üye okunamadı");
     let mut buf = String::new();
     std::io::Read::read_to_string(&mut e, &mut buf).expect("üye UTF-8 değil");
@@ -1163,7 +1166,10 @@ fn fatal_code(zip: &[u8]) -> Option<FatalCode> {
 /// Bir üyenin BAYTLARINI yeniden yazar (metin olmayan içerik için).
 fn rewrite_member_bytes(zip: &[u8], target: &str, bytes: Vec<u8>) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
-    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let names: Vec<String> = archive
+        .file_names()
+        .map(|n| n.expect("üye adı çözülemedi").into_owned())
+        .collect();
     let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let opts = zip::write::SimpleFileOptions::default();
     let mut hit = false;
@@ -1189,7 +1195,10 @@ fn rewrite_member_bytes(zip: &[u8], target: &str, bytes: Vec<u8>) -> Vec<u8> {
 /// Arşive yeni bir üye ekler.
 fn add_member(zip: &[u8], name: &str, bytes: &[u8]) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
-    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let names: Vec<String> = archive
+        .file_names()
+        .map(|n| n.expect("üye adı çözülemedi").into_owned())
+        .collect();
     let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let opts = zip::write::SimpleFileOptions::default();
     for n in &names {
@@ -1208,7 +1217,10 @@ fn add_member(zip: &[u8], name: &str, bytes: &[u8]) -> Vec<u8> {
 /// Verilen dosya adlarını arşivden ÇIKARIR.
 fn drop_members(zip: &[u8], drop: &[&str]) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
-    let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+    let names: Vec<String> = archive
+        .file_names()
+        .map(|n| n.expect("üye adı çözülemedi").into_owned())
+        .collect();
     let mut out = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     let opts = zip::write::SimpleFileOptions::default();
     for n in &names {

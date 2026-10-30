@@ -24,6 +24,13 @@ serde_json = { workspace = true }
 zip = { workspace = true }
 wasm-bindgen-rayon = { version = "1.3", optional = true }
 
+# zip 9 always depends on getrandom 0.4 and turns on its `wasm_js` backend only for
+# `target_arch = "wasm32"`; on wasm64 getrandom then fails to compile. Enable the same
+# backend for the Memory64 builds (ui/pkg64, sdk/pkg64). zip calls it only for AES and
+# stream extraction, neither of which the analyzer uses.
+[target.'cfg(target_arch = "wasm64")'.dependencies]
+getrandom = { version = "0.4", default-features = false, features = ["wasm_js"] }
+
 [build-dependencies]
 serde_json = { workspace = true }
 

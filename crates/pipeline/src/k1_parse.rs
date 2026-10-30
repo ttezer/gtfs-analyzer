@@ -1020,6 +1020,19 @@ pub(crate) fn is_identity_column(col: &str) -> bool {
 pub(crate) const DQ016_REMEDIATION: &str =
     "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
 
+/// zip 9'da `name()` `Result` döner: UTF-8 olmayan ad cp437 ile çözülür ve bu yalnız
+/// erişilemeyen bir dalda hata verir. Yine de sessizce yutulmaz; komşu `by_index`
+/// hatasıyla aynı biçimde "ZIP okunamadı" olarak raporlanır.
+fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
+    FatalError::new(
+        FatalCode::ZipUnreadable,
+        format!("ZIP girdisinin adı çözülemedi (index {index}): {e}"),
+    )
+    .variant("entry_index")
+    .param("index", index)
+    .param("detail", e)
+}
+
 // ── ARC_012 / ARC_021: K1 ↔ K2-stream ortak mantığı ──────────────────────────
 //
 // stream_mode'da bu kontroller K1'den K2'ye taşındı, ama iki hedefe (stop_times,
@@ -1967,7 +1980,8 @@ pub fn parse_with_limits(
     // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
     let mut entry_names = Vec::with_capacity(archive.len());
     let mut metadata_bytes = 0usize;
-    for name in archive.file_names() {
+    for (i, name) in archive.file_names().enumerate() {
+        let name = name.map_err(|e| entry_name_error(i, &e))?;
         metadata_bytes = metadata_bytes.saturating_add(name.len());
         if metadata_bytes > MAX_ZIP_METADATA_BYTES {
             return Err(FatalError::new(
@@ -2093,7 +2107,7 @@ pub fn parse_with_limits(
             .param("detail", &e)
         })?;
 
-        let entry_name = zf.name().to_string();
+        let entry_name = zf.name().map_err(|e| entry_name_error(i, &e))?.into_owned();
         // Sarılı feed'de kök öneki düşülür; sonraki tüm mantık dosyayı kökteymiş gibi görür.
         // Bulgu mesajları yine ZIP'teki GERÇEK yolu gösterir (entry_name).
         let raw_name = match &root_prefix {

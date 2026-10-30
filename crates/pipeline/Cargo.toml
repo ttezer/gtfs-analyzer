@@ -16,6 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 libc = { workspace = true }
 zip = { workspace = true }
+flate2 = { workspace = true }
 chrono-tz = "0.10"
 smol_str = "0.2"
 url = "2"

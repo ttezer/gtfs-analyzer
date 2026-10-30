@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GTFS_SDK_ENGINE` pins one engine in Node.js. The package grows to about
   2.0 MB packed.
 
+### Security
+
+- **`zip` 2.4.2 → 9.1.3.** Clears RUSTSEC-2026-0367, -0368 and -0369, which were
+  ignored with a reason because they affect only archive extraction to disk; the
+  analyzer reads entries in memory. The deflate backend stays `miniz_oxide`
+  (pure Rust, wasm32/wasm64). Output is unchanged on the measured feeds.
+  ZIP entry names without the UTF-8 flag that are valid UTF-8 (common for
+  archives made on macOS, e.g. Japanese folder names) are now shown correctly
+  instead of as CP437 mojibake.
+
 ### Fixed
 
 - **`SHP_014` reports the same example trip on every platform.** When several

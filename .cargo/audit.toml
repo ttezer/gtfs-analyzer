@@ -4,15 +4,4 @@
 # removed once the dependency is upgraded.
 
 [advisories]
-ignore = [
-    # zip 2.4.2 — all three affect only ZipArchive::extract / ZipStreamReader::extract,
-    # which write the archive to disk (SUID/SGID bits, symlink targets, permissions
-    # applied through symlinks). The analyzer never extracts: entries are read into
-    # memory with by_name / by_index / by_index_raw, unix_mode() is read as metadata
-    # only (ARC check in k1_parse.rs), and nothing is written to the filesystem.
-    # Fix is zip >= 9.0.0 (name() returns Result; new zlib-rs backend), tracked as a
-    # separate upgrade. If any code starts calling extract(), remove these first.
-    "RUSTSEC-2026-0367", # SUID/SGID bits preserved on extraction
-    "RUSTSEC-2026-0368", # extract creates symlinks pointing outside the destination
-    "RUSTSEC-2026-0369", # extract applies Unix permissions through symlinks
-]
+ignore = []

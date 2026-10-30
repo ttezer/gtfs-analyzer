@@ -148,7 +148,7 @@ pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
     let mut metadata_bytes = 0usize;
     for i in 0..archive.len() {
         let Ok(f) = archive.by_index(i) else { continue };
-        let name = f.name().to_string();
+        let Ok(name) = f.name().map(|n| n.into_owned()) else { continue };
         metadata_bytes = metadata_bytes.saturating_add(name.len());
         if metadata_bytes > MAX_ZIP_METADATA_BYTES {
             return JsValue::from_str("[]");
