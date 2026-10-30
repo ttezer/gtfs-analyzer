@@ -6794,7 +6794,10 @@ fn check_remaining_analytics<'a>(
     }
 
     // ── STM_017: shape olan trip'te stop_times'da shape_dist_traveled eksik ──
-    // idx.trips_missing_sdt: build'de trip_shape filtreli, line numarası hazır
+    // idx.trips_missing_sdt: build'de trip_shape filtreli, line numarası hazır.
+    // trip_shape yalnız shapes.txt'te TANIMLI şekilleri içerir: tanımsız shape_id'ye bağlı
+    // trip'te doğrulanacak şekil yoktur, sorunu TRP_004/ARC_020 bildirir (bilinçli, test:
+    // `trip_referencing_undefined_shape_no_stm_017`).
     {
         let _ts = Timer::start("K6::rem::stm_017");
         // shape_dist_traveled feed genelinde hiç kullanılmamışsa, trip-başına on
@@ -15735,6 +15738,27 @@ mod tests {
             ],
             "kısmen dolu sdt'de trip-başına STM_017 beklenir"
         );
+    }
+
+    #[test]
+    fn trip_referencing_undefined_shape_no_stm_017() {
+        // shape_id dolu ama shapes.txt'te tanımlı değil (dosya hiç yok). Durak konumu
+        // doğrulanacak bir şekil yok; asıl sorunu TRP_004 (tanımsız shape_id) ve ARC_020
+        // (shapes.txt eksik) bildirir. STM_017 bu türevi tekrarlamaz (2026-10-30 korpusu:
+        // 8 feed, hepsinde shapes.txt yok).
+        let records = records_with(
+            vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
+            vec![route("R1", 3)],
+            vec![trip_sh("T1", "R1", "S1"), trip_sh("T2", "R1", "S2")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
+                stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
+                stoptime("T2", 2, "B", (9, 10, 0), (9, 10, 0), 5),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        assert!(!result.notices.iter().any(|n| n.rule_id == "STM_017"));
     }
 
     #[test]

@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `GTFS_SDK_ENGINE` pins one engine in Node.js. The package grows to about
   2.0 MB packed.
 
+### Changed
+
+- **`STM_017` skips trips whose `shape_id` is not defined in `shapes.txt`.** There
+  is no shape to place the stops on; `TRP_004` (undefined `shape_id`) and
+  `ARC_020` (missing `shapes.txt`) already report the problem. This came in as a
+  side effect of the large-feed memory work and is now intended and tested:
+  8 feeds in the 2026-10-30 corpus, none of them with a `shapes.txt`.
+
 ### Security
 
 - **`zip` 2.4.2 → 9.1.3.** Clears RUSTSEC-2026-0367, -0368 and -0369, which were
