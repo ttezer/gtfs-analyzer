@@ -20,6 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ResourceLimit` error's `detail` now says so and points to Node.js 24+
   instead of only `unreachable`.
 
+### Fixed
+
+- **The browser and `gtfs-sdk` no longer drop findings past one million.** The
+  WASM path stopped collecting notices at a global budget of 1,000,000 and
+  silently dropped the rest, then counted totals and scores on what was left.
+  The notices were already produced at that point, so the budget saved no
+  memory. On mdb-2014 the site lost 58,836 findings and 4 rules (`OPR_024`,
+  `VAT_003`, `VAT_005`, `VAT_007`), showed analytics 44.4 instead of 42.9 and
+  still reported `COMPLETE`. Now it matches the CLI: 91 rules, the same totals
+  in `capped_totals` and the same scores. WASM memory is unchanged (11.6 GB);
+  the run takes 6% longer. Display stays capped per rule as before.
+
+- **`SHP_014` reports the same example trip on every platform.** When several
+  trips were equally far from the shape endpoint, the reported trip depended on
+  hash-map order, which differs between 32- and 64-bit targets.
+
 ### Changed
 
 - **`STM_017` skips trips whose `shape_id` is not defined in `shapes.txt`.** There
@@ -43,12 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ZIP entry names without the UTF-8 flag that are valid UTF-8 (common for
   archives made on macOS, e.g. Japanese folder names) are now shown correctly
   instead of as CP437 mojibake.
-
-### Fixed
-
-- **`SHP_014` reports the same example trip on every platform.** When several
-  trips were equally far from the shape endpoint, the reported trip depended on
-  hash-map order, which differs between 32- and 64-bit targets.
 
 ### Performance
 
