@@ -1303,7 +1303,6 @@ mod tests {
             origin_id: origin.map(str::to_string),
             destination_id: dest.map(str::to_string),
             contains_id: None,
-            row: Default::default(),
             line: 2,
         }
     }

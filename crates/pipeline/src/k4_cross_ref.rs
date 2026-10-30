@@ -8297,7 +8297,6 @@ mod tests {
             origin_id: None,
             destination_id: None,
             contains_id: None,
-            row: Default::default(),
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
@@ -8321,7 +8320,6 @@ mod tests {
                 origin_id: None,
                 destination_id: None,
                 contains_id: None,
-                row: Default::default(),
                 line: (i + 2) as u64,
             })
             .collect();
@@ -8357,7 +8355,6 @@ mod tests {
                 origin_id: Some("NO_ZONE".into()),
                 destination_id: Some("NO_ZONE".into()),
                 contains_id: None,
-                row: Default::default(),
                 line: (i + 2) as u64,
             })
             .collect();
@@ -9870,7 +9867,6 @@ mod tests {
             origin_id: None,
             destination_id: None,
             contains_id: None,
-            row: Default::default(),
             line: 2,
         }];
         let result = check(&recs, &map, 20260515);
