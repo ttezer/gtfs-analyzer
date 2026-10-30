@@ -27,12 +27,12 @@
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/leaflet": "^1.9.21",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.12",
     "binaryen": "^130.0.0",
     "typescript": "^5.4.0",
     "vite": "^7.3.6",
     "vite-plugin-wasm": "^3.3.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.12"
   },
   "dependencies": {
     "cytoscape": "^3.34.0",
