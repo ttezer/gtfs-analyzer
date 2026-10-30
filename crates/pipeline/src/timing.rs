@@ -38,7 +38,8 @@ impl Drop for Timer {
 }
 
 /// #15 Adım-2: K2-içi peak attribution. WASM linear memory high-water (MB) konsola basar.
-/// Bellek yalnız büyür → her etiket o ana dek erişilen tepe. Native'de no-op.
+/// Native'de de process high-water RSS'i yazılır; böylece toplam `/usr/bin/time` değerinin
+/// hangi pipeline aşamasında oluştuğu görülebilir.
 #[cfg(all(target_arch = "wasm32", not(feature = "quiet")))]
 pub(crate) fn mem_log(label: &str) {
     let pages = core::arch::wasm32::memory_size(0);
@@ -46,12 +47,37 @@ pub(crate) fn mem_log(label: &str) {
     web_sys::console::log_1(&format!("[mem] {label}: {mb:.1} MB").into());
 }
 // Rust core henüz wasm64 için wasm32::memory_size eşdeğeri sunmuyor. Memory64
-// smoke testinde yanlış native zaman/bellek yoluna düşmek yerine teşhisi no-op yap.
-#[cfg(any(
-    target_arch = "wasm64",
-    not(target_family = "wasm"),
-    all(target_family = "wasm", feature = "quiet"),
-))]
+// smoke testinde teşhisi no-op yap.
+#[cfg(any(target_arch = "wasm64", all(target_family = "wasm", feature = "quiet")))]
+pub(crate) fn mem_log(_label: &str) {}
+
+#[cfg(all(not(target_family = "wasm"), unix))]
+pub(crate) fn mem_log(label: &str) {
+    if std::env::var_os("GTFS_QUIET").is_some() {
+        return;
+    }
+
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+    // SAFETY: getrusage initializes the caller-provided rusage structure when it
+    // returns success; the zero argument selects this process.
+    let result = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+    if result != 0 {
+        return;
+    }
+    // SAFETY: result == 0 means libc filled the structure.
+    let usage = unsafe { usage.assume_init() };
+    let rss_bytes = if cfg!(target_os = "macos") {
+        usage.ru_maxrss as u64
+    } else {
+        (usage.ru_maxrss as u64).saturating_mul(1024)
+    };
+    eprintln!(
+        "[mem] {label}: native maxrss={:.1} MB",
+        rss_bytes as f64 / 1_048_576.0
+    );
+}
+
+#[cfg(all(not(target_family = "wasm"), not(unix)))]
 pub(crate) fn mem_log(_label: &str) {}
 
 /// #15: serbest teşhis satırı (yapı-boyutu kırılımı vb.). high-water DEĞİL — çağıran

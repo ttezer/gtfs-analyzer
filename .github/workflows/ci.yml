@@ -208,17 +208,37 @@ jobs:
   sdk-test:
     name: SDK Build + Smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25   # wasm32 + wasm64 derlemesi
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      # SDK iki motor paketler: wasm32 (wasm-pack) ve büyük feed'ler için wasm64
+      # (nightly build-std + wasm-bindgen; ui/pkg64 ile aynı yol, bkz. `wasm64` job'u).
       - uses: ./.github/actions/setup-rust-wasm
         with:
           wasm-pack: 'true'
+          nightly: 'true'
 
       - uses: ./.github/actions/setup-node-deps
         with:
           directory: sdk
+
+      # Sürüm Cargo.lock'tan okunur; gerekçe `wasm64` job'undaki aynı adımda.
+      - name: wasm-bindgen sürümünü Cargo.lock'tan oku
+        run: |
+          set -uo pipefail
+          VER=$(grep -A 1 '^name = "wasm-bindgen"$' Cargo.lock \
+                | grep '^version' | head -1 | cut -d'"' -f2)
+          if [ -z "$VER" ]; then
+            echo "::error::wasm-bindgen sürümü Cargo.lock'tan okunamadı."
+            exit 1
+          fi
+          echo "WBG_VER=$VER" >> "$GITHUB_ENV"
+
+      - name: wasm-bindgen CLI kur (SDK wasm64 — sürüm Cargo.lock'tan)
+        uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
+        with:
+          tool: wasm-bindgen-cli@${{ env.WBG_VER }}
 
       # SDK release build'i wasm-opt'i doğrudan çağırır. wasm-pack kendi build'inde
       # bunu sağlasa da SDK smoke job'ı ayrı bir runner'da çalışır; Binaryen'i burada
@@ -227,9 +247,16 @@ jobs:
         working-directory: sdk
         run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
 
+      # Node 24 wasm64'ü seçer; ikinci tur GTFS_SDK_ENGINE ile wasm32 yolunu da koşar.
       - name: SDK smoke + paket dry-run
         working-directory: sdk
         run: npm run test:config-parity && npm run test:smoke && npm run package:check
+
+      - name: SDK smoke (wasm32 motoru)
+        working-directory: sdk
+        env:
+          GTFS_SDK_ENGINE: wasm32
+        run: node scripts/smoke-test.mjs && node scripts/parity-test.mjs
 
       # UI build'i (build-wasm job'u) bu WASM'ı paketler; ikinci kez derlenmesin.
       - name: sdk/pkg artifact yükle
@@ -237,6 +264,14 @@ jobs:
         with:
           name: sdk-pkg
           path: sdk/pkg
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: sdk/pkg64 artifact yükle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: sdk-pkg64
+          path: sdk/pkg64
           if-no-files-found: error
           retention-days: 1
 
@@ -403,6 +438,12 @@ jobs:
         with:
           name: sdk-pkg
           path: sdk/pkg
+
+      - name: sdk/pkg64 artifact indir
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: sdk-pkg64
+          path: sdk/pkg64
 
       - name: wasm32 / wasm64 deterministik çıktı eşitliği
         working-directory: ui

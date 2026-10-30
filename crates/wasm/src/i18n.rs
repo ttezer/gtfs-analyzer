@@ -65,7 +65,11 @@ pub fn translate_notices(notices: &mut [Notice]) {
         if let Some(remediation) = specific
             .as_ref()
             .and_then(|k| dictionary.remediations.get(k))
-            .or_else(|| profile.as_ref().and_then(|k| dictionary.remediations.get(k)))
+            .or_else(|| {
+                profile
+                    .as_ref()
+                    .and_then(|k| dictionary.remediations.get(k))
+            })
             .or_else(|| dictionary.remediations.get(&notice.rule_id))
         {
             notice.remediation = remediation.clone();

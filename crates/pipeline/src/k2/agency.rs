@@ -567,7 +567,12 @@ mod tests {
         let with_id = |id: &'static str| {
             make_file(
                 vec!["agency_id", "agency_name", "agency_url", "agency_timezone"],
-                vec![vec![id, "Transit Co", "https://transit.example", "Europe/Istanbul"]],
+                vec![vec![
+                    id,
+                    "Transit Co",
+                    "https://transit.example",
+                    "Europe/Istanbul",
+                ]],
             )
         };
         let (_, notices) = validate_agency(&with_id(""));

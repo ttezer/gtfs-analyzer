@@ -31,7 +31,10 @@ let usingMemory64 = false;
 
 export type EngineMode = 'wasm64-serial' | 'wasm32-threaded' | 'wasm32-serial';
 
-export const MAX_INPUT_BYTES = 512 * 1024 * 1024;
+// Large feeds must reach the WASM64 path; 512 MiB rejected valid feeds before
+// the analyzer could inspect their ZIP directory. Keep a finite safety bound
+// while allowing the 1.28 GiB MD-2014 feed and similar inputs.
+export const MAX_INPUT_BYTES = 2 * 1024 * 1024 * 1024;
 
 function assertInputLimit(zip: Uint8Array): void {
   if (zip.byteLength > MAX_INPUT_BYTES) {

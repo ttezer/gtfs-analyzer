@@ -566,13 +566,16 @@ fn build_fare_network(records: &EntityRecords, derived: &mut DerivedData) {
         if rule.fare_id.is_empty() {
             continue;
         }
+        // Anahtar/değer zaten varken String ayırma: büyük fare_rules dosyalarında
+        // (mdb-992) kural başına kopya WASM'da K5'i native'in 6-13 katına çıkarıyordu.
         if let Some(route_id) = rule.route_id.as_deref() {
-            derived
-                .fare_network
-                .fare_routes
-                .entry(rule.fare_id.clone())
-                .or_default()
-                .push(route_id.to_string());
+            let routes = &mut derived.fare_network.fare_routes;
+            match routes.get_mut(rule.fare_id.as_str()) {
+                Some(list) => list.push(route_id.to_string()),
+                None => {
+                    routes.insert(rule.fare_id.clone(), vec![route_id.to_string()]);
+                }
+            }
         }
         for zone in [
             rule.origin_id.as_deref(),
@@ -582,7 +585,9 @@ fn build_fare_network(records: &EntityRecords, derived: &mut DerivedData) {
         .into_iter()
         .flatten()
         {
-            derived.fare_network.zone_ids.insert(zone.to_string());
+            if !derived.fare_network.zone_ids.contains(zone) {
+                derived.fare_network.zone_ids.insert(zone.to_string());
+            }
         }
     }
 }
@@ -1303,7 +1308,6 @@ mod tests {
             origin_id: origin.map(str::to_string),
             destination_id: dest.map(str::to_string),
             contains_id: None,
-            row: Default::default(),
             line: 2,
         }
     }

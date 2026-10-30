@@ -16,5 +16,5 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src", "pkg"]
+  "include": ["src", "pkg", "pkg64"]
 }

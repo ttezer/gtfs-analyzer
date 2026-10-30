@@ -452,34 +452,42 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
 
         // K2 compatibility domain: 0, 1, or 2. Normative GTFS validity is checked by
         // STP_026 in K4, where only 0 and 1 are accepted.
-        let stop_access = match parse_u32(&row_map, "stop_access") {
-            Ok(v) => {
-                if let Some(val) = v {
-                    if !validate_enum(&val.to_string(), &["0", "1", "2"]) {
-                        notices.push(make_k2_notice(
+        let stop_access =
+            match parse_u32(&row_map, "stop_access") {
+                Ok(v) => {
+                    if let Some(val) = v {
+                        if !validate_enum(&val.to_string(), &["0", "1", "2"]) {
+                            notices.push(make_k2_notice(
                             &mut counter, "STP_024", EntityType::Stop, entity_id.clone(),
                             Some(&row_map), &file.name, Some(line), Some("stop_access"),
                             Some(val.to_string()), Some("0–2".to_string()),
                             format!("'{}' durağında stop_access '{val}' geçersiz.", stop_id),
                             "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
                         ));
+                        }
                     }
+                    v
                 }
-                v
-            }
-            Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_024 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
-                notices.push(make_k2_notice(
-                    &mut counter, "STP_024", EntityType::Stop, entity_id.clone(),
-                    Some(&row_map), &file.name, Some(line), Some("stop_access"),
-                    get_trimmed_field(&row_map, "stop_access").map(str::to_string), Some("0–2".to_string()),
-                    err,
-                    "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
-                ));
-                None
-            }
-        };
+                Err(err) => {
+                    // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_024 üretirken
+                    // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                    notices.push(make_k2_notice(
+                        &mut counter,
+                        "STP_024",
+                        EntityType::Stop,
+                        entity_id.clone(),
+                        Some(&row_map),
+                        &file.name,
+                        Some(line),
+                        Some("stop_access"),
+                        get_trimmed_field(&row_map, "stop_access").map(str::to_string),
+                        Some("0–2".to_string()),
+                        err,
+                        "stop_access için 0 veya 1 kullanın; 2 GTFS tarafından tanımlanmaz.",
+                    ));
+                    None
+                }
+            };
 
         let level_id = get_raw_field(&row_map, "level_id")
             .filter(|v| !v.trim().is_empty())
@@ -1124,7 +1132,15 @@ mod tests {
         // station)". Korpus jbda-akishimacity: 114 parent'sız duraktan yalnız platform_code
         // taşıyan 2'si MD platform_without_parent_station alıyor.
         let file = make_file(
-            vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "location_type", "parent_station", "platform_code"],
+            vec![
+                "stop_id",
+                "stop_name",
+                "stop_lat",
+                "stop_lon",
+                "location_type",
+                "parent_station",
+                "platform_code",
+            ],
             vec![
                 vec!["P1", "Peron 1", "41.0", "29.0", "0", "", "1"],
                 vec!["P2", "Peron 2", "41.0", "29.0", "", "", "2"],
@@ -1137,7 +1153,11 @@ mod tests {
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_045").collect();
         assert_eq!(hits.len(), 1, "feed başına tek özet: {hits:?}");
         assert_eq!(hits[0].observed_value.as_deref(), Some("2"));
-        let ex = hits[0].details.as_ref().and_then(|d| d.get("example_stops")).unwrap();
+        let ex = hits[0]
+            .details
+            .as_ref()
+            .and_then(|d| d.get("example_stops"))
+            .unwrap();
         assert_eq!(ex, "P1, P2");
     }
 
