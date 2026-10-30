@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import process from 'node:process';
 
 const cargoEnv = {
@@ -43,6 +44,46 @@ execFileSync('wasm-opt', [
   'pkg/gtfs_wasm_bg.wasm',
   '-o',
   'pkg/gtfs_wasm_bg.wasm',
+], { stdio: 'inherit' });
+
+// Memory64 engine for large feeds. wasm32 caps the engine at 4 GiB, which
+// feeds above ~30M stop_times rows exceed; Node 24 and Memory64 browsers run
+// this build instead. wasm64 is Tier 3 in Rust: nightly build-std, and
+// wasm-bindgen directly because wasm-pack has no wasm64 flow (same path as
+// ui/scripts/build-wasm64.mjs). `RUST_NIGHTLY`: dated nightly in CI.
+execFileSync('cargo', [
+  `+${process.env.RUST_NIGHTLY || 'nightly'}`,
+  'build',
+  '-Z',
+  'build-std=std,panic_abort',
+  '--target',
+  'wasm64-unknown-unknown',
+  '-p',
+  'gtfs-wasm',
+  '--release',
+  '--features',
+  'quiet,sdk-en',
+], { cwd: '..', env: cargoEnv, stdio: 'inherit' });
+
+rmSync('pkg64', { recursive: true, force: true });
+execFileSync(process.env.WASM_BINDGEN_BIN ?? 'wasm-bindgen', [
+  '../target/wasm64-unknown-unknown/release/gtfs_wasm.wasm',
+  '--target',
+  'web',
+  '--out-dir',
+  'pkg64',
+], { stdio: 'inherit' });
+
+execFileSync('wasm-opt', [
+  '-Oz',
+  '--enable-memory64',
+  '--strip-producers',
+  '--strip-target-features',
+  '--strip-toolchain-annotations',
+  '--strip-debug',
+  'pkg64/gtfs_wasm_bg.wasm',
+  '-o',
+  'pkg64/gtfs_wasm_bg.wasm',
 ], { stdio: 'inherit' });
 
 execFileSync(process.execPath, ['scripts/prepare-wasm-package.mjs'], {

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`gtfs-sdk` validates large feeds.** The package now ships a wasm64 engine
+  next to the wasm32 one and picks it where the runtime supports Memory64
+  (Node.js 24+, current Chrome/Firefox). Feeds that failed with
+  `ResourceLimit` on wasm32 (36–60 million `stop_times` rows, ZIPs up to
+  1.28 GB) now complete; results are identical on both engines. The input
+  limit follows the engine: 512 MiB on wasm32, 2 GiB on wasm64.
+  `GTFS_SDK_ENGINE` pins one engine in Node.js. The package grows to about
+  2.0 MB packed.
+
+### Fixed
+
+- **`SHP_014` reports the same example trip on every platform.** When several
+  trips were equally far from the shape endpoint, the reported trip depended on
+  hash-map order, which differs between 32- and 64-bit targets.
+
+### Performance
+
+- Large fare and shape files: `fare_rules.txt` no longer builds a per-row map,
+  `SHP_019` finds shape lines in one pass and the fare network stops copying
+  existing keys. On mdb-992 the browser engine went from 48 s to 18 s (wasm32)
+  and from 79 s to 24 s (wasm64); native K4 from 7.8 s to 1.1 s. Output is
+  unchanged.
+
 ## [0.17.0] - 2026-10-27
 
 This release adds three rules, bringing the registry to 619, and ships the

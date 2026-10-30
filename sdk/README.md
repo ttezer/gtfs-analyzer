@@ -13,6 +13,24 @@ npm install gtfs-sdk
 
 The package requires Node.js 20+ in Node environments. In browsers, pass a
 `Uint8Array` or `ArrayBuffer`; the SDK does not upload the feed anywhere.
+
+### Large feeds
+
+The package ships two builds of the same engine and picks one on first use:
+
+| Engine | Chosen when | Input limit |
+|---|---|---|
+| `wasm64-serial` | the runtime supports Memory64: Node.js 24+, current Chrome/Firefox | 2 GiB |
+| `wasm32-serial` | otherwise (Node.js 20/22, browsers without Memory64) | 512 MiB |
+
+Both produce the same result. wasm32 is limited to 4 GiB of engine memory, which
+large feeds exceed: feeds with roughly 30 million or more `stop_times` rows, or
+ZIPs above about 320 MB, fail with `ResourceLimit` there. Validate them on
+Node.js 24+, and allow for the memory they need: 9–13 GB for the largest
+feeds we measured (36–60 million `stop_times` rows). `session.engineMode` tells
+which engine ran. In Node.js, `GTFS_SDK_ENGINE=wasm32` or `GTFS_SDK_ENGINE=wasm64`
+pins one engine; a pinned `wasm64` that the runtime cannot load is an error
+instead of a fallback.
 Notice titles, messages, and remediation text returned by the SDK are English.
 
 ## Quick start
@@ -370,11 +388,11 @@ getVersion(); // { sdk: '0.8.0', engine: '0.17.0' }
 ```
 
 The generated `gtfs-wasm` binding is an internal implementation detail and is not
-part of the public API. The bundled SDK engine is serial by default; the Analyzer
-UI supplies its selected threaded or memory64 engine through the adapter contract
+part of the public API. The bundled SDK engines are serial; the Analyzer UI
+supplies its selected threaded or memory64 engine through the adapter contract
 without exposing those bindings as public API.
 
-The SDK release uses Rust `opt-level=2` and keeps `wasm-opt -O3`. This is
+The SDK release uses Rust `opt-level=s` and `wasm-opt -Oz`. This is
 intentionally separate from the application's and CLI's `opt-level=3` profile:
 the SDK's WASM is inside the npm tarball, so the package build keeps measurable
 size headroom without changing the engine code or the application's release

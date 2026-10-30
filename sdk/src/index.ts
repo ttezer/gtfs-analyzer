@@ -74,15 +74,17 @@ export type {
 
 const SDK_VERSION = '0.8.0';
 const ENGINE_VERSION = '0.17.0';
-// Keep the public SDK limit aligned with the browser WASM64 engine. The old
-// 512 MiB guard rejected valid large feeds before the validator could inspect
-// their ZIP directory.
-const MAX_INPUT_BYTES = 2 * 1024 * 1024 * 1024;
+// Input limits follow the engine's address space. wasm32 tops out at 4 GiB, and
+// measured large feeds already fail above ~320 MB there; wasm64 completed a
+// 1.28 GiB feed. The limit is checked after the engine is chosen.
+const MAX_INPUT_BYTES_WASM32 = 512 * 1024 * 1024;
+const MAX_INPUT_BYTES_WASM64 = 2 * 1024 * 1024 * 1024;
 const MAX_CONFIG_BYTES = 4 * 1024 * 1024;
 
 let initialization: Promise<void> | undefined;
 let bundledWasmModule: BundledWasm | undefined;
 let bundledWasmLoading: Promise<BundledWasm> | undefined;
+let bundledMode: EngineMode = 'wasm32-serial';
 
 /** Returns the public SDK version and the validator engine version it embeds. */
 export function getVersion(): SdkVersion {
@@ -96,7 +98,10 @@ export function initialize(): Promise<void> {
 }
 
 const bundledEngine: ValidatorEngine = {
-  mode: 'wasm32-serial',
+  // Known only after initialize(): wasm64 where the runtime supports Memory64.
+  get mode() {
+    return bundledMode;
+  },
   initialize,
   listZipFiles: (input) => parseJson<ZipFileInfo[]>(bundledWasm().list_zip_files(input), []),
   prepare: (input, configDelta, onStage, today) => bundledWasm().prepare_with_today(input, configDelta, onStage, today),
@@ -110,12 +115,12 @@ export async function validateGtfs(
   input: Uint8Array | ArrayBuffer,
   options: ValidateOptions = {},
 ): Promise<ValidationResult> {
-  const bytes = normalizeInput(input);
   const today = normalizeToday(options.today);
   // `serializeConfig` (not a bare JSON.stringify) so a circular or BigInt config
   // throws ValidationError here exactly as it does on the session path.
   const configDelta = serializeConfig(options.config);
   await initialize();
+  const bytes = normalizeInput(input, bundledMode);
 
   let result: EngineResult;
   try {
@@ -146,8 +151,6 @@ export async function createValidatorSession(options: ValidatorSessionOptions = 
  * a host-selected engine adapter for threaded or memory64 builds.
  */
 export class ValidatorSession {
-  readonly engineMode: EngineMode;
-
   private readonly today: number;
   private readonly defaultConfig?: ValidatorConfigDelta;
   private readonly engine: ValidatorEngine;
@@ -159,7 +162,11 @@ export class ValidatorSession {
     this.today = normalizeToday(options.today);
     this.defaultConfig = options.config;
     this.engine = engine;
-    this.engineMode = engine.mode;
+  }
+
+  /** The engine running this session; the bundled engine settles it on first use. */
+  get engineMode(): EngineMode {
+    return this.engine.mode;
   }
 
   async validate(
@@ -167,8 +174,8 @@ export class ValidatorSession {
     options: SessionRunOptions = {},
   ): Promise<SessionResult> {
     this.ensureOpen();
-    const bytes = normalizeInput(input);
     await this.engine.initialize();
+    const bytes = normalizeInput(input, this.engine.mode);
 
     this.releaseCache();
     const config = options.config ?? this.defaultConfig;
@@ -304,11 +311,12 @@ function serializeConfig(config: ValidatorConfigDelta | undefined): string {
   }
 }
 
-function normalizeInput(input: Uint8Array | ArrayBuffer): Uint8Array {
-  if (input.byteLength > MAX_INPUT_BYTES) {
+function normalizeInput(input: Uint8Array | ArrayBuffer, mode: EngineMode): Uint8Array {
+  const limit = mode.startsWith('wasm64') ? MAX_INPUT_BYTES_WASM64 : MAX_INPUT_BYTES_WASM32;
+  if (input.byteLength > limit) {
     throw new ValidationError({
       code: 'ResourceLimit',
-      message: `GTFS ZIP exceeds the ${MAX_INPUT_BYTES} byte SDK safety limit.`,
+      message: `GTFS ZIP exceeds the ${limit} byte SDK safety limit of the ${mode} engine.`,
     });
   }
   return input instanceof Uint8Array ? input : new Uint8Array(input);
@@ -379,8 +387,32 @@ async function initializeWasm(): Promise<void> {
 }
 
 async function loadAndInitializeWasm(): Promise<BundledWasm> {
-  const module = await import('../pkg/gtfs_wasm.js');
-  const wasmUrl = new URL('../pkg/gtfs_wasm_bg.wasm', import.meta.url);
+  // wasm64 lifts wasm32's 4 GiB ceiling for large feeds. Node 20/22 and some
+  // browsers lack final Memory64 support, so they keep the wasm32 engine; a wasm64
+  // package that still fails to compile also falls back. GTFS_SDK_ENGINE (Node
+  // only) pins one engine: `wasm32`, or `wasm64` without the fallback.
+  const pinned = pinnedEngine();
+  if (pinned !== 'wasm32' && (pinned === 'wasm64' || supportsMemory64())) {
+    try {
+      const module = await initializePackage(
+        await import('../pkg64/gtfs_wasm.js'),
+        new URL('../pkg64/gtfs_wasm_bg.wasm', import.meta.url),
+      );
+      bundledMode = 'wasm64-serial';
+      return module;
+    } catch (error: unknown) {
+      if (pinned === 'wasm64') throw error;
+    }
+  }
+  const module = await initializePackage(
+    await import('../pkg/gtfs_wasm.js'),
+    new URL('../pkg/gtfs_wasm_bg.wasm', import.meta.url),
+  );
+  bundledMode = 'wasm32-serial';
+  return module;
+}
+
+async function initializePackage(module: BundledWasm, wasmUrl: URL): Promise<BundledWasm> {
   if (isNodeRuntime()) {
     const nodeFsPromises = 'node:fs/promises';
     const { readFile } = await import(/* @vite-ignore */ nodeFsPromises);
@@ -389,6 +421,26 @@ async function loadAndInitializeWasm(): Promise<BundledWasm> {
     await module.default(wasmUrl);
   }
   return module;
+}
+
+function supportsMemory64(): boolean {
+  // The final Memory64 JS API takes BigInt limits; older experimental builds
+  // reject them, which is the distinction that matters here.
+  try {
+    const descriptor = { address: 'i64', initial: 1n, maximum: 1n };
+    new WebAssembly.Memory(descriptor as unknown as WebAssembly.MemoryDescriptor);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function pinnedEngine(): 'wasm32' | 'wasm64' | undefined {
+  const runtimeProcess = (globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> };
+  }).process;
+  const value = runtimeProcess?.env?.GTFS_SDK_ENGINE;
+  return value === 'wasm32' || value === 'wasm64' ? value : undefined;
 }
 
 function bundledWasm(): BundledWasm {

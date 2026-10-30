@@ -24,6 +24,8 @@
     "dist",
     "pkg/gtfs_wasm.js",
     "pkg/gtfs_wasm_bg.wasm",
+    "pkg64/gtfs_wasm.js",
+    "pkg64/gtfs_wasm_bg.wasm",
     "README.md",
     "LICENSE"
   ],
