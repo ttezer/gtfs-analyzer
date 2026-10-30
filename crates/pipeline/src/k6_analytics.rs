@@ -438,9 +438,17 @@ pub fn analyze_with_files(
         // Büyük feed'de (>15M stop_times) K6 görevlerini sınırsız paralel çalıştırmak, her
         // görevin kendi geçici haritaları nedeniyle peak RAM'i büyütür. Tek görevli batch,
         // hız ile bellek arasında bounded bir denge sağlar; küçük feed'lerde tam paralellik
-        // korunur.
+        // korunur. Tek görevli batch yalnız WASM'da (tarayıcı bellek sınırı); native'de
+        // 3'lü batch kalır — native'de batch 1, >15M feed'lerde süreyi +1…+11 % uzattı
+        // (2026-10-30, 5 feed ölçümü).
         let large = records.stop_times_index.total_rows > 15_000_000;
-        let batch = if large { 1 } else { tasks.len() };
+        let batch = if !large {
+            tasks.len()
+        } else if cfg!(target_family = "wasm") {
+            1
+        } else {
+            3
+        };
         let mut out: Vec<Vec<Notice>> = tasks.iter().map(|_| Vec::new()).collect();
         for (i, (out_chunk, task_chunk)) in
             out.chunks_mut(batch).zip(tasks.chunks(batch)).enumerate()
