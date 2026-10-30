@@ -25,7 +25,8 @@ The package ships two builds of the same engine and picks one on first use:
 
 Both produce the same result. wasm32 is limited to 4 GiB of engine memory, which
 large feeds exceed: feeds with roughly 30 million or more `stop_times` rows, or
-ZIPs above about 320 MB, fail with `ResourceLimit` there. Validate them on
+ZIPs above about 320 MB, fail with `ResourceLimit` there; the error's `detail`
+says the wasm32 engine ran out of memory. Validate them on
 Node.js 24+, and allow for the memory they need: 9–13 GB for the largest
 feeds we measured (36–60 million `stop_times` rows). `session.engineMode` tells
 which engine ran. In Node.js, `GTFS_SDK_ENGINE=wasm32` or `GTFS_SDK_ENGINE=wasm64`

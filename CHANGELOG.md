@@ -16,7 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1.28 GB) now complete; results are identical on both engines. The input
   limit follows the engine: 512 MiB on wasm32, 2 GiB on wasm64.
   `GTFS_SDK_ENGINE` pins one engine in Node.js. The package grows to about
-  2.0 MB packed.
+  2.0 MB packed. When a feed runs the wasm32 engine out of memory, the
+  `ResourceLimit` error's `detail` now says so and points to Node.js 24+
+  instead of only `unreachable`.
 
 ### Changed
 

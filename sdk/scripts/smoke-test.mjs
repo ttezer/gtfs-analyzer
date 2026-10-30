@@ -74,6 +74,29 @@ assert.equal(rerun.result.reports.r5.score, sessionRun.result.reports.r5.score);
 assert.deepEqual(session.getShapeCoords('missing-shape'), []);
 session.dispose();
 
+// Bellek tuzağı: wasm32 motorunda açıklama `detail`e girer, genel mesaj sözleşmesi değişmez.
+const trappingEngine = (mode) => ({
+  mode,
+  initialize: async () => {},
+  listZipFiles: () => [],
+  prepare: () => { throw new WebAssembly.RuntimeError('unreachable'); },
+  rerun: () => { throw new Error('not reached'); },
+  getCachedFileStats: () => [],
+  getShapeCoords: () => [],
+});
+for (const mode of ['wasm32-serial', 'wasm64-serial']) {
+  const trapped = await createValidatorSession({ today: '2026-08-20', engine: trappingEngine(mode) });
+  await assert.rejects(
+    () => trapped.validate(fixture),
+    (error) => error instanceof ValidationError
+      && error.code === 'ResourceLimit'
+      && error.message === 'A memory, size, or runtime safety limit was reached.'
+      && (mode.startsWith('wasm32')
+        ? error.detail?.includes('4 GiB') && error.detail.includes('Node.js 24+')
+        : !error.detail?.includes('Node.js 24+')),
+  );
+}
+
 console.log(
   `gtfs-sdk smoke test passed: ${result.notices.length} notices, score ${result.reports.r5.score}, session rerun ok`,
 );

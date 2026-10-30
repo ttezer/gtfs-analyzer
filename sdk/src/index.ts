@@ -129,7 +129,7 @@ export async function validateGtfs(
     // A WASM trap (out of memory, unreachable) surfaces as a raw RuntimeError.
     // The session path already maps it to ResourceLimit; this one must too.
     if (error instanceof ValidationError) throw error;
-    throw new ValidationError(normalizeFatalError(error));
+    throw new ValidationError(normalizeFatalError(error, bundledMode));
   }
 
   if ('Fatal' in result) {
@@ -198,7 +198,7 @@ export class ValidatorSession {
         engineMode: this.engineMode,
       };
     } catch (error: unknown) {
-      throw new ValidationError(normalizeFatalError(error));
+      throw new ValidationError(normalizeFatalError(error, this.engine.mode));
     }
   }
 
@@ -231,7 +231,7 @@ export class ValidatorSession {
     try {
       return this.engine.getShapeCoords(this.cache, shapeId);
     } catch (error: unknown) {
-      throw new ValidationError(normalizeFatalError(error));
+      throw new ValidationError(normalizeFatalError(error, this.engine.mode));
     }
   }
 
@@ -250,7 +250,7 @@ export class ValidatorSession {
       return unwrapEngineResult(this.engine.rerun(this.cache, configDelta, onStage, this.today));
     } catch (error: unknown) {
       if (error instanceof ValidationError) throw error;
-      throw new ValidationError(normalizeFatalError(error));
+      throw new ValidationError(normalizeFatalError(error, this.engine.mode));
     }
   }
 
@@ -322,7 +322,7 @@ function normalizeInput(input: Uint8Array | ArrayBuffer, mode: EngineMode): Uint
   return input instanceof Uint8Array ? input : new Uint8Array(input);
 }
 
-function normalizeFatalError(error: unknown): FatalError {
+function normalizeFatalError(error: unknown, mode?: EngineMode): FatalError {
   if (error instanceof ValidationError) {
     return toPublicFatal({ code: error.code, message: error.message, detail: error.detail });
   }
@@ -336,10 +336,19 @@ function normalizeFatalError(error: unknown): FatalError {
   if (parsed && 'Fatal' in parsed) return toPublicFatal(parsed.Fatal);
   if (parsed && 'code' in parsed && 'message' in parsed) return toPublicFatal(parsed);
 
-  const code: FatalError['code'] = /unreachable|RuntimeError|out of memory|memory access/i.test(raw)
-    ? 'ResourceLimit'
-    : 'ZipUnreadable';
-  return toPublicFatal({ code, message: raw });
+  const trap = /unreachable|RuntimeError|out of memory|memory access/i.test(raw);
+  if (trap && mode?.startsWith('wasm32')) {
+    // wasm32 caps the engine at 4 GiB; a feed past that traps instead of failing
+    // cleanly. Its size is not knowable up front (rows, not bytes, drive memory:
+    // nv_free is smaller than tld-725 yet only nv_free fails), so explain it here.
+    return toPublicFatal({
+      code: 'ResourceLimit',
+      message: raw,
+      detail: `The feed exceeded the 4 GiB memory of the ${mode} engine (engine trap: ${raw}). `
+        + 'Large feeds need the wasm64 engine: Node.js 24+ or a browser with WebAssembly Memory64.',
+    });
+  }
+  return toPublicFatal({ code: trap ? 'ResourceLimit' : 'ZipUnreadable', message: raw });
 }
 
 function toPublicFatal(error: FatalError): FatalError {
