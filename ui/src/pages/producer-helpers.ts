@@ -101,3 +101,48 @@ export function entityLabel(n: Notice, ni: NameIndex): string | null {
       return id;
   }
 }
+
+/** Planlamacının düzeltmeyi yaptığı iş alanı. Kural önekine değil, bildirimin dosyasına bakar;
+ *  arşiv/dosya yapısı (ARC) her zaman bilgi işlem konusudur. */
+export type PlannerArea = 'tarife' | 'durak' | 'hat' | 'takvim' | 'guzergah' | 'ucret' | 'kurum' | 'teknik';
+
+const FILE_AREA: Record<string, PlannerArea> = {
+  'stop_times.txt': 'tarife', 'trips.txt': 'tarife', 'frequencies.txt': 'tarife', 'transfers.txt': 'tarife',
+  'booking_rules.txt': 'tarife', 'location_groups.txt': 'tarife', 'location_group_stops.txt': 'tarife',
+  'stops.txt': 'durak', 'pathways.txt': 'durak', 'levels.txt': 'durak', 'locations.geojson': 'durak',
+  'routes.txt': 'hat',
+  'calendar.txt': 'takvim', 'calendar_dates.txt': 'takvim',
+  'shapes.txt': 'guzergah',
+  'fare_attributes.txt': 'ucret', 'fare_rules.txt': 'ucret', 'fare_media.txt': 'ucret', 'fare_products.txt': 'ucret',
+  'fare_leg_rules.txt': 'ucret', 'fare_leg_join_rules.txt': 'ucret', 'fare_transfer_rules.txt': 'ucret',
+  'rider_categories.txt': 'ucret', 'timeframes.txt': 'ucret', 'areas.txt': 'ucret', 'stop_areas.txt': 'ucret',
+  'networks.txt': 'ucret', 'route_networks.txt': 'ucret',
+  'agency.txt': 'kurum', 'feed_info.txt': 'kurum', 'attributions.txt': 'kurum', 'translations.txt': 'kurum',
+};
+
+const ENTITY_AREA: Partial<Record<Notice['entity_type'], PlannerArea>> = {
+  Stop: 'durak', Pathway: 'durak', Level: 'durak', Trip: 'tarife', Transfer: 'tarife', Route: 'hat',
+  Service: 'takvim', Shape: 'guzergah', Fare: 'ucret', Agency: 'kurum', Attribution: 'kurum', Translation: 'kurum',
+};
+
+export function plannerArea(ruleId: string, n: Notice): PlannerArea {
+  if (ruleId.startsWith('ARC_')) return 'teknik';
+  const file = n.file?.split('/').pop()?.toLowerCase();
+  if (file && FILE_AREA[file]) return FILE_AREA[file];
+  return ENTITY_AREA[n.entity_type] ?? 'teknik';
+}
+
+export interface RouteBadge { label: string; bg: string | null; fg: string | null; }
+
+const HEX6 = /^[0-9a-f]{6}$/i;
+
+/** Hattın tarifedeki rengini okur; metin rengi yoksa arka plana göre siyah/beyaz seçer. */
+export function routeBadge(routeId: string, ni: NameIndex): RouteBadge {
+  const label = ni.routes?.[routeId] || routeId;
+  const [bg, fg] = ni.route_colors?.[routeId] ?? ['', ''];
+  if (!HEX6.test(bg)) return { label, bg: null, fg: null };
+  if (HEX6.test(fg)) return { label, bg: `#${bg}`, fg: `#${fg}` };
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(bg.slice(i, i + 2), 16));
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return { label, bg: `#${bg}`, fg: luminance > 0.6 ? '#000000' : '#ffffff' };
+}

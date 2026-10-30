@@ -147,6 +147,7 @@ export interface NameIndex {
   trip_stops: Record<string, string[]>;             // trip_id → [stop_id, ...] sıralı
   shape_trips: Record<string, string>;              // shape_id → ilk trip_id
   route_shapes: Record<string, string[]>;           // route_id → [shape_id, ...]
+  route_colors?: Record<string, [string, string]>; // route_id → [route_color, route_text_color] (hex, # yok; metin rengi boş olabilir)
   map_data_deferred: boolean;                        // büyük feed: shape geometrisi on-demand (shape_coords_of)
 }
 

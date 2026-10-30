@@ -36,6 +36,57 @@ export interface MapOptions {
   showArrows?: boolean;           // polyline üzerine yön okları (her ~250m)
 }
 
+/**
+ * Aynı Leaflet çizimini kart içine yerleştirmek için kullanılır.
+ * Modal ile ortak MapOptions sözleşmesini kullanır; çağıran kapanırken dönen
+ * cleanup fonksiyonunu çalıştırmalıdır.
+ */
+export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => void {
+  container.innerHTML = '';
+  const map = L.map(container, { zoomControl: true, attributionControl: false, preferCanvas: true });
+  const bounds: [number, number][] = [];
+  const polyline = capPoints(opts.polyline, MAX_MAP_POLYLINE_POINTS);
+
+  if (polyline && polyline.length > 1) {
+    L.polyline(polyline, {
+      color: opts.polylineColor ?? '#64748b',
+      weight: opts.polylineColor ? 5 : 3,
+      opacity: 0.95,
+    }).addTo(map);
+    bounds.push(...polyline);
+  }
+
+  let zoomTarget: [number, number][] | null = null;
+  for (const seg of opts.extraPolylines?.slice(0, MAX_MAP_EXTRA_POLYLINES) ?? []) {
+    const coords = capPoints(seg.coords, MAX_MAP_EXTRA_POINTS);
+    if (!coords || coords.length < 2) continue;
+    L.polyline(coords, { color: seg.color, weight: seg.weight ?? 4, opacity: 0.95 }).addTo(map);
+    bounds.push(...coords);
+    if (seg.zoomTo) zoomTarget = coords;
+  }
+
+  for (const pin of opts.pins.slice(0, MAX_MAP_PINS)) {
+    // Kart haritasında birincil = konunun işaret ettiği yer (kırmızı), diğerleri bağlam (gri).
+    const color = pin.color ?? (pin.primary ? '#dc2626' : '#64748b');
+    L.circleMarker([pin.lat, pin.lon], {
+      radius: pin.small ? 4 : 8,
+      fillColor: color,
+      color: '#fff',
+      weight: pin.small ? 1.5 : 2,
+      fillOpacity: 0.9,
+    }).addTo(map).bindPopup(pin.label, { maxWidth: 260 });
+    bounds.push([pin.lat, pin.lon]);
+  }
+
+  if (zoomTarget && zoomTarget.length > 1) map.fitBounds(zoomTarget, { padding: [24, 24], maxZoom: 16 });
+  else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
+  else if (bounds.length === 1) map.setView(bounds[0], 14);
+  else map.setView([39, 35], 5);
+
+  setTimeout(() => map.invalidateSize(), 0);
+  return () => map.remove();
+}
+
 export function openMapModal(title: string, opts: MapOptions): void {
   ensureOverlay();
   overlay!.querySelector<HTMLElement>('.mm-title')!.textContent = title;

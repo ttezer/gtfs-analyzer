@@ -2302,6 +2302,23 @@ pub(crate) fn build_name_index_impl(
         map
     };
 
+    // route_id → [route_color, route_text_color]; geçersiz hex yazılmaz, metin rengi yoksa boş kalır.
+    let is_hex6 = |v: &str| v.len() == 6 && v.bytes().all(|b| b.is_ascii_hexdigit());
+    let route_colors: BTreeMap<String, [String; 2]> = records
+        .routes
+        .iter()
+        .filter_map(|r| {
+            let bg = r.route_color.as_deref().map(str::trim).filter(|v| is_hex6(v))?;
+            let fg = r
+                .route_text_color
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| is_hex6(v))
+                .unwrap_or("");
+            Some((r.route_id.clone(), [bg.to_string(), fg.to_string()]))
+        })
+        .collect();
+
     gtfs_core::NameIndex {
         stops,
         routes,
@@ -2316,6 +2333,7 @@ pub(crate) fn build_name_index_impl(
         trip_stops,
         shape_trips,
         route_shapes,
+        route_colors,
         map_data_deferred: skip_shape_coords,
     }
 }
@@ -2533,6 +2551,41 @@ mod name_index_tests {
             shapes.contains(&"SH1".to_string()) && shapes.contains(&"SH2".to_string()),
             "hattın shape'leri çözülmeli: {shapes:?}"
         );
+    }
+
+    #[test]
+    fn route_colors_keep_only_valid_hex_values() {
+        let route = |id: &str, color: Option<&str>, text: Option<&str>| crate::k2::routes::RouteRecord {
+            route_id: id.into(),
+            agency_id: None,
+            route_short_name: None,
+            route_long_name: None,
+            route_desc: None,
+            route_type: Some(3),
+            route_url: None,
+            route_color: color.map(Into::into),
+            route_text_color: text.map(Into::into),
+            route_sort_order: None,
+            continuous_pickup: None,
+            continuous_drop_off: None,
+            network_id: None,
+            route_cemv_support: None,
+            jp_office_id: None,
+            row: Default::default(),
+            line: 2,
+        };
+        let mut recs = records();
+        recs.routes = vec![
+            route("A", Some("B5121B"), Some("FFFFFF")),
+            route("B", Some("0067a5"), Some("bad")),
+            route("C", Some("#B5121B"), None),
+            route("D", None, Some("000000")),
+        ];
+        let idx = build_name_index_impl(&recs, &[], false);
+        assert_eq!(idx.route_colors.get("A"), Some(&["B5121B".to_string(), "FFFFFF".to_string()]));
+        assert_eq!(idx.route_colors.get("B"), Some(&["0067a5".to_string(), String::new()]));
+        assert!(!idx.route_colors.contains_key("C"), "# önekli değer GTFS hex biçimi değil");
+        assert!(!idx.route_colors.contains_key("D"));
     }
 }
 

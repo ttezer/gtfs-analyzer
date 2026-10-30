@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildProducerModel, stopUsage, entityLabel } from '../pages/producer-helpers';
+import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } from '../pages/producer-helpers';
 import { renderProducer } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
 
@@ -134,7 +134,7 @@ describe('Üretici kartı görünümü', () => {
       [],
       [['ARC_024', 2, 1]],
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('tüm feed');
   });
@@ -146,7 +146,7 @@ describe('Üretici kartı görünümü', () => {
       unavailable_files: [],
       skipped_stages: [],
     };
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Kontrol eksik kaldı');
     expect(root.innerHTML).not.toContain('motor metni');
@@ -166,7 +166,7 @@ describe('Üretici kartı görünümü', () => {
       true,
       ni,
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Seferde kullanılan durak bulunamadı');
     expect(root.innerHTML).toContain('Dial-a-Ride · 2 sefer');
@@ -193,11 +193,12 @@ describe('Üretici kartı görünümü', () => {
       true,
       ni,
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Bazı seferlerde kesin durak saatleri eksik');
     expect(root.innerHTML).toContain('6 hattı · 07:15, 07:45, 08:15… kalkış · 5 sefer');
-    expect(root.innerHTML).not.toContain('08:45');
+    // İlk üç kalkış kart bağlamında özetlenir; ayrıntılı tablo artık kartın içinde tutulur.
+    expect(root.innerHTML).toContain('07:15, 07:45, 08:15…');
   });
 
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {
@@ -211,7 +212,7 @@ describe('Üretici kartı görünümü', () => {
       emptyNameIndex,
       { agency_count: 1, agencies: [{ agency_id: 'A1', agency_name: 'Wave Transit' }] },
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain("İşletmecinin web adresi geçersiz");
     expect(root.innerHTML).toContain('␠http://www.wavetransit.com');
@@ -227,7 +228,7 @@ describe('Üretici kartı görünümü', () => {
       ['a', 'b'],
       [['STP_001', 5, 1], ['STP_012', 5, 1]],
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Aynı durak kodu birden fazla kayıtta kullanılmış');
     expect(root.innerHTML).toContain('İstasyon veya giriş kaydı seferde kullanılmış');
@@ -254,7 +255,7 @@ describe('Üretici kartı görünümü', () => {
       true,
       ni,
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Duraklar arasında gerçekçi olmayan hız');
     expect(root.innerHTML).toContain('6 hattı · Hastane yönü · 08:45 kalkışlı sefer');
@@ -274,7 +275,7 @@ describe('Üretici kartı görünümü', () => {
       [],
       [['STM_012', 3, 1]],
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Görülen değer:</span> <code>kayıtlı süre: 0 saniye · mesafe: 29,4 km</code>');
     expect(root.innerHTML).toContain('iki ardışık durak arasında hesaplanan hız gerçekçi görünmüyor');
@@ -301,7 +302,7 @@ describe('Üretici kartı görünümü', () => {
       true,
       ni,
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('İlk durakta varış saati eksik');
     expect(root.innerHTML).toContain('Son durakta varış saati eksik');
@@ -315,10 +316,63 @@ describe('Üretici kartı görünümü', () => {
       ['a'],
       [['ARC_031', 5, 1]],
     );
-    const root = { innerHTML: '', querySelectorAll: () => [] } as unknown as HTMLElement;
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Çeviri dosyası varken veri seti bilgisi eksik');
     expect(root.innerHTML).toContain('feed dilini belirtin');
     expect(root.innerHTML).not.toContain('translations.txt varken feed_info.txt eksik');
+  });
+});
+
+describe('Planlamacı alanı ve hat rengi', () => {
+  it('iş alanını kural önekine değil bildirimin dosyasına göre seçer', () => {
+    expect(plannerArea('STM_002', notice('a', 'STM_002', 'CRITICAL', { file: 'stop_times.txt', entity_type: 'Stop' }))).toBe('tarife');
+    expect(plannerArea('RTS_005', notice('a', 'RTS_005', 'MEDIUM', { file: 'routes.txt', entity_type: 'Route' }))).toBe('hat');
+    expect(plannerArea('CAL_014', notice('a', 'CAL_014', 'MEDIUM', { entity_type: 'Service' }))).toBe('takvim');
+    expect(plannerArea('ARC_025', notice('a', 'ARC_025', 'CRITICAL', { file: 'stops.txt', entity_type: 'File' }))).toBe('teknik');
+    expect(plannerArea('DQ_016', notice('a', 'DQ_016', 'MEDIUM', { entity_type: 'Feed' }))).toBe('teknik');
+  });
+
+  it('hat rozetini tarifedeki renkle kurar, metin rengi yoksa okunur karşıtını seçer', () => {
+    const ni: NameIndex = { ...emptyNameIndex, routes: { R1: '34', R2: '12', R3: '7' }, route_colors: { R1: ['B5121B', 'FFFFFF'], R2: ['FFE100', ''] } };
+    expect(routeBadge('R1', ni)).toEqual({ label: '34', bg: '#B5121B', fg: '#FFFFFF' });
+    expect(routeBadge('R2', ni)).toEqual({ label: '12', bg: '#FFE100', fg: '#000000' });
+    expect(routeBadge('R3', ni)).toEqual({ label: '7', bg: null, fg: null });
+  });
+});
+
+describe('Planlamacılar İçin sayfası', () => {
+  const root = () => ({ innerHTML: '', querySelectorAll: () => [], querySelector: () => null }) as unknown as HTMLElement;
+
+  it('planlamacı metni olmayan konuyu teknik bölüme ayırır, yazılmış olanı üstte tutar', () => {
+    const r = result(
+      [notice('a', 'STM_002', 'CRITICAL', { entity_type: 'Stop', entity_id: 'S1' }), notice('b', 'DQ_016', 'MEDIUM')],
+      [],
+      [['STM_002', 4, 1], ['DQ_016', 2, 1]],
+    );
+    const el = root();
+    renderProducer(el, r);
+    const technicalAt = el.innerHTML.indexOf('planner-technical');
+    expect(technicalAt).toBeGreaterThan(0);
+    expect(el.innerHTML.indexOf('data-rule="STM_002"')).toBeLessThan(technicalAt);
+    expect(el.innerHTML.indexOf('data-rule="DQ_016"')).toBeGreaterThan(technicalAt);
+  });
+
+  it('önem katmanını kanıtsız yolcu iddiasıyla değil düzeltme diliyle adlandırır', () => {
+    const r = result([notice('a', 'DQ_016', 'MEDIUM')], [], [['DQ_016', 2, 1]]);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Düzeltilmeli');
+    expect(el.innerHTML).not.toContain('Yolcuyu yanıltır');
+  });
+
+  it('sefer konusunun tablosunda dosya/alan değil hat, yön ve kalkış sütunları vardır', () => {
+    const ni: NameIndex = { ...emptyNameIndex, routes: { R1: '34' }, trip_routes: { T1: 'R1' }, trips: { T1: 'Üniversite' }, trip_first_dep: { T1: '07:15' } };
+    const r = result([notice('a', 'STM_015', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt' })], [], [['STM_015', 2, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>İlk kalkış</th>');
+    expect(el.innerHTML).toContain('<td>Üniversite</td>');
+    expect(el.innerHTML).not.toContain('<th>Dosya</th>');
   });
 });
