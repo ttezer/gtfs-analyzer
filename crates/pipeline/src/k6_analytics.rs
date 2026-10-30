@@ -11527,7 +11527,11 @@ fn check_vat_analytics(
                 .collect(),
         );
         let total: usize = comp_nodes.iter().map(Vec::len).sum();
-        if total >= 5 && comp_nodes.len() > 1 {
+        // Ana ağ = aktif durakların en az yarısını taşıyan bileşen. Yoksa feed birbirine
+        // bağlı olmayan eşdeğer ağlardan oluşur ve "ana ağdan kopuk" anlamsızdır
+        // (2026-10-30 korpusu, mdb-905: 386 durak, 34 bileşen, en büyüğü 13).
+        let has_main_network = comp_nodes.first().is_some_and(|main| main.len() * 2 >= total);
+        if total >= 5 && comp_nodes.len() > 1 && has_main_network {
             let main_size = comp_nodes.first().map(Vec::len).unwrap_or(0);
             let small_thresh = (total / 20).max(2);
 
@@ -19414,6 +19418,47 @@ mod tests {
         assert!(
             result.notices.iter().any(|n| n.rule_id == "VAT_005"),
             "VAT_005 olmalı"
+        );
+    }
+
+    #[test]
+    fn no_majority_component_suppresses_vat_005() {
+        // Üç eşit hat (3'er durak) + uzak X-Y: en büyük bileşen durakların yalnız %27'si.
+        // Ana ağ yok; X-Y'yi rastgele seçilen bir hattan "kopuk" saymak anlamsız
+        // (2026-10-30 korpusu, mdb-905: 386 durak, 34 bileşen, en büyüğü 13).
+        let mut trips_v = Vec::new();
+        let mut st_v = Vec::new();
+        for (line, stops) in [("L1", ["A", "B", "C"]), ("L2", ["D", "E", "F"]), ("L3", ["G", "H", "I"])] {
+            for i in 1..=3u32 {
+                let tid = format!("{line}-{i}");
+                trips_v.push(trip(&tid, "R1"));
+                for (seq, sid) in stops.iter().enumerate() {
+                    let h = i + seq as u32;
+                    st_v.push(stoptime(&tid, seq as u32 + 1, sid, (h, 0, 0), (h, 0, 0), 2));
+                }
+            }
+        }
+        trips_v.push(trip("ISO", "R2"));
+        st_v.push(stoptime("ISO", 1, "X", (8, 0, 0), (8, 0, 0), 2));
+        st_v.push(stoptime("ISO", 2, "Y", (8, 10, 0), (8, 10, 0), 3));
+        // Duraklar 0,1° (~11 km) arayla: 200 m yakınlık bastırması devreye girmez.
+        let stops_v = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "X", "Y"]
+            .iter()
+            .enumerate()
+            .map(|(i, sid)| stop(sid, 40.0 + i as f64 * 0.1, 29.0))
+            .collect();
+        let r = crate::k2::EntityRecords {
+            stops: stops_v,
+            routes: vec![route("R1", 3), route("R2", 3)],
+            trips: trips_v,
+            trip_interns: take_ti(),
+            stop_times: st_v,
+            ..Default::default()
+        };
+        let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "VAT_005"),
+            "ana ağ yokken VAT_005 olmamalı"
         );
     }
 

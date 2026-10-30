@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ARC_020` (missing `shapes.txt`) already report the problem. This came in as a
   side effect of the large-feed memory work and is now intended and tested:
   8 feeds in the 2026-10-30 corpus, none of them with a `shapes.txt`.
+- **`VAT_005` needs a main network.** The rule now fires only when the largest
+  trip-connected stop cluster holds at least half of the active stops. Feeds made
+  of several unconnected networks of similar size have no "main network" to be cut
+  off from: mdb-905 (386 stops, 34 clusters, largest 13) was reported because
+  of an arbitrary choice among equal clusters. On 632 local feeds 9 of 33
+  findings are dropped; the other 24 are unchanged.
 
 ### Security
 
