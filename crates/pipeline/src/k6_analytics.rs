@@ -1681,11 +1681,14 @@ fn check_speed_and_duration<'a>(
                         if is_rail {
                             n.severity = gtfs_core::Severity::Bilgi;
                         }
+                        if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
+                            n.details = Some(trip_span_details(idx, first, last));
+                        }
                         notices.push(n);
                     }
 
                     if duration_sec < config.min_trip_duration_sec {
-                        notices.push(k6_notice(
+                        let mut n = k6_notice(
                         ctr,
                         "STM_029",
                         EntityType::Trip,
@@ -1701,7 +1704,11 @@ fn check_speed_and_duration<'a>(
                             if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
                             duration_sec, config.min_trip_duration_sec),
                         "stop_times zaman değerlerini kontrol edin; sefer gerçekten bu kadar kısa olmamalı.",
-                    ));
+                    );
+                        if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
+                            n.details = Some(trip_span_details(idx, first, last));
+                        }
+                        notices.push(n);
                     }
                 }
             }
@@ -2082,7 +2089,7 @@ fn check_speed_and_duration<'a>(
                     ));
                     } else {
                         // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
-                        notices.push(k6_notice(
+                        let mut n = k6_notice(
                         ctr, "STM_021", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -2091,7 +2098,12 @@ fn check_speed_and_duration<'a>(
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası mesafe 0: '{}' ve '{}' farklı duraklar ama aynı koordinatta.",
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a), idx.stop_id_of(b)),
                         "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
-                    ));
+                    );
+                        let mut d = std::collections::BTreeMap::new();
+                        d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                        d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                        n.details = Some(d);
+                        notices.push(n);
                     }
                     continue;
                 }
@@ -4117,14 +4129,22 @@ fn check_geo_shape_trip_analytics(
                     continue;
                 };
                 if h > max_dep_h || (h == max_dep_h && (m > 0 || s > 0)) {
-                    notices.push(k6_notice(
+                    let mut n = k6_notice(
                         ctr, "STM_045", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("departure_time"),
                         Some(format!("{h:02}:{m:02}:{s:02}")), Some(format!("≤{max_dep_h}:00:00")),
                         format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."),
                         "departure_time ve service_day_start_hour ayarını kontrol edin; bu pencereyi aşan değerler genellikle veri hatasıdır.",
-                    ));
+                    );
+                    // Planlamacı pencereyi aşan kalkışın hangi durakta olduğunu görsün.
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert(
+                        "stop_id".to_string(),
+                        records.stop_times_index.stop_id_of(st).to_string(),
+                    );
+                    n.details = Some(d);
+                    notices.push(n);
                     break; // trip başına bir notice yeterli
                 }
             }
@@ -4791,6 +4811,25 @@ fn check_operational_analytics(
 /// saatli durak (`next` = ilk durağın ilerisinde, `prev` = son durağın gerisinde) ve seferin
 /// kaç durağında saat bulunduğu. Planlamacı eksik saati hangi saatler arasında arayacağını,
 /// ya da seferin hiç saati olmadığını görsün diye.
+/// STM_028/029: toplam süre seferin uçlarından ölçülür; planlamacı ilk kalkış ve son varış
+/// duraklarını saatleriyle görsün.
+fn trip_span_details(
+    idx: &StopTimesIndex<'_>,
+    first: &CompactStopTime,
+    last: &CompactStopTime,
+) -> std::collections::BTreeMap<String, String> {
+    let mut d = std::collections::BTreeMap::new();
+    d.insert("first_stop_id".to_string(), idx.stop_id_of(first).to_string());
+    if let Some(dep) = first.departure_time() {
+        d.insert("first_departure".to_string(), format_hms(hms_to_secs(dep)));
+    }
+    d.insert("last_stop_id".to_string(), idx.stop_id_of(last).to_string());
+    if let Some(arr) = last.arrival_time() {
+        d.insert("last_arrival".to_string(), format_hms(hms_to_secs(arr)));
+    }
+    d
+}
+
 fn edge_time_details(
     idx: &StopTimesIndex<'_>,
     stimes: &[CompactStopTime],

@@ -33,7 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `STM_016` add `stop_id`, `departure`, `stop_count`, `timed_stops` and the
   nearest timed neighbour (`next_*` / `prev_*`). `STM_008` adds the stop
   before the departure row and after the arrival row with their times.
-  Existing keys are unchanged.
+  `STM_028` and `STM_029` add the first and last stop with their times
+  (`first_stop_id`, `first_departure`, `last_stop_id`, `last_arrival`),
+  `STM_045` the `stop_id` of the late departure, and `STM_021` the
+  `stop_a`/`stop_b` pair its rule card already described. Existing keys are
+  unchanged.
 - **`name_index` carries four more lookups:** `route_colors` (valid hex
   `route_color`/`route_text_color` only), `route_long_names`, `stop_codes`
   and `service_days` (weekday summary per `service_id`, or date-only

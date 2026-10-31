@@ -579,6 +579,18 @@ describe('Hatalı yer sütunu', () => {
     expect(repeat).toContain('<td>Otogar (2 kez)</td>');
   });
 
+  it('STM_029 seferin uç duraklarını saatleriyle, STM_045 pencereyi aşan kalkışın durağını yazar', () => {
+    const short = render(notice('a', 'STM_029', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '30s', expected_value: '≥ 60s',
+      details: { first_stop_id: 'S2', first_departure: '08:00:00', last_stop_id: 'S3', last_arrival: '08:00:30' },
+    }));
+    expect(short).toContain('<td>Çarşı 08:00:00 → Liman 08:00:30</td>');
+    const late = render(notice('a', 'STM_045', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '28:00:00', expected_value: '≤27:00:00', details: { stop_id: 'S4' },
+    }));
+    expect(late).toContain('<td>Otogar · kalkış 28:00:00</td>');
+  });
+
   it('hat düzeyindeki hız bulgusunda durak çiftini hat sütunlarının yanına yazar', () => {
     const html = render(notice('a', 'STM_014', 'MEDIUM', {
       entity_type: 'Route', entity_id: 'R1', observed_value: '468.0 km/h (S2 → S3)', expected_value: '≤ 120 km/h',

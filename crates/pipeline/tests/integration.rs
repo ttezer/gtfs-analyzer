@@ -3095,6 +3095,54 @@ fn stm008_carries_previous_and_next_stop_times() {
     }
 }
 
+#[test]
+fn trip_level_time_rules_carry_the_stops_to_fix() {
+    // Planlamacı kartı hatalı yeri durak adıyla gösterir: STM_028/029 seferin uç durakları,
+    // STM_045 pencereyi aşan kalkışın durağı, STM_021 aynı konumdaki iki durak.
+    fn details_of(files: &[(&str, &[u8])], rule: &str) -> std::collections::BTreeMap<String, String> {
+        match run(files) {
+            ValidateResult::Ok(vr) => vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == rule)
+                .and_then(|n| n.details.clone())
+                .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+            other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+        }
+    }
+    let get = |d: &std::collections::BTreeMap<String, String>, k: &str| d.get(k).cloned();
+
+    static SHORT: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:00:30,08:00:30,S2,2\n";
+    let mut files = base_files();
+    files[4] = ("stop_times.txt", SHORT);
+    let d = details_of(&files, "STM_029");
+    assert_eq!(get(&d, "first_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "first_departure").as_deref(), Some("08:00:00"));
+    assert_eq!(get(&d, "last_stop_id").as_deref(), Some("S2"));
+    assert_eq!(get(&d, "last_arrival").as_deref(), Some("08:00:30"));
+
+    static LONG: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,01:00:00,01:00:00,S1,1\nT1,26:00:00,26:00:00,S2,2\n";
+    files[4] = ("stop_times.txt", LONG);
+    let d = details_of(&files, "STM_028");
+    assert_eq!(get(&d, "first_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "last_arrival").as_deref(), Some("26:00:00"));
+
+    static LATE: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,28:00:00,28:00:00,S2,2\n";
+    files[4] = ("stop_times.txt", LATE);
+    assert_eq!(get(&details_of(&files, "STM_045"), "stop_id").as_deref(), Some("S2"));
+
+    static SAME_PLACE: &[u8] =
+        b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", SAME_PLACE);
+    let d = details_of(&files, "STM_021");
+    assert_eq!(get(&d, "stop_a").as_deref(), Some("S1"));
+    assert_eq!(get(&d, "stop_b").as_deref(), Some("S2"));
+}
+
 // ── STM_057 KALDIRILDI (2026-08-01, WP-1) ─────────────────────────────────────
 // Kuralın iki testi de buradaydı. Spec cümlesi koşulludur ("travel WITHIN THE SAME
 // location group…requires two records"); kural bunu her konum için iki kayıt şartına

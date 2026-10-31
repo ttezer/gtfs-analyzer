@@ -438,6 +438,11 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     return times ? t('producer.times.spot_repeat', { stop: name(d.dup_stop), n: times }) : name(d.dup_stop);
   }
   if (n.rule_id === 'SHP_017' && d.bad_stop) return name(d.bad_stop);
+  // Toplam süre seferin uçlarından ölçülür: ilk kalkış ve son varış durakları saatleriyle.
+  if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
+    return `${name(d.first_stop_id)} ${d.first_departure ?? '—'} → ${name(d.last_stop_id)} ${d.last_arrival ?? '—'}`;
+  }
+  if (n.rule_id === 'STM_045' && d.stop_id) return t('producer.times.spot_first', { stop: name(d.stop_id), time: n.observed_value ?? '—' });
   // Durak çifti taşıyan diğer kurallar (STM_014, STM_020, STM_025, STM_026, STM_061): iki durağın adı.
   if (d.stop_a && d.stop_b) return stopPair(d.stop_a, d.stop_b, result);
   return null;
@@ -569,6 +574,8 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
     addStop(n.details?.stop_id, true);
     addStop(n.details?.bad_stop, true);
+    addStop(n.details?.first_stop_id, true);
+    addStop(n.details?.last_stop_id, true);
     addStop(n.details?.dup_stop, true);
     const pairs: Array<[string | undefined, string | undefined]> = [[n.details?.stop_a, n.details?.stop_b], ...(n.details ? badSegments(n.details) : [])];
     for (const [idA, idB] of pairs) {
