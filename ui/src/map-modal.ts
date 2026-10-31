@@ -11,6 +11,7 @@ export interface MapPin {
   primary: boolean; // mavi = birincil, kırmızı = referans
   small?: boolean;  // küçük marker (çok sayıda pin olduğunda)
   color?: string;   // özel renk (verilirse primary mavi/kırmızı yerine bu kullanılır)
+  stroke?: string;  // satır içi harita: halka rengi (varsayılan beyaz)
 }
 
 let overlay: HTMLElement | null = null;
@@ -31,6 +32,7 @@ export interface MapOptions {
     color: string;
     weight?: number;
     zoomTo?: boolean;             // bu segmente zoom yap
+    arrows?: boolean;             // satır içi harita: güzergâh yönü okları
   }>;
   legendItems?: Array<{ color: string; label: string }>;
   showArrows?: boolean;           // polyline üzerine yön okları (her ~250m)
@@ -79,6 +81,19 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
     L.polyline(coords, { color: seg.color, weight: seg.weight ?? 4, opacity: 0.95 }).addTo(map);
     bounds.push(...coords);
     if (seg.zoomTo) zoomTarget = coords;
+    if (seg.arrows) {
+      // Yön okları: çizgi boyunca en fazla ~20 ok, hat renginde.
+      const total = coords.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - coords[i][0], p[1] - coords[i][1]) * 111_000, 0);
+      for (const arrow of arrowsAlongPolyline(coords, Math.max(150, total / 20)).slice(0, 40)) {
+        L.marker([arrow.lat, arrow.lon], {
+          icon: L.divIcon({
+            html: `<svg width="14" height="14" viewBox="-7 -7 14 14" style="transform:rotate(${arrow.angle}deg);display:block"><polygon points="0,-6 5,4 -5,4" fill="${seg.color}" stroke="#fff" stroke-width="1.5"/></svg>`,
+            className: '', iconSize: [14, 14], iconAnchor: [7, 7],
+          }),
+          interactive: false,
+        }).addTo(map);
+      }
+    }
   }
 
   let primaryLabels = 0;
@@ -89,8 +104,8 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
     L.circleMarker([pin.lat, pin.lon], {
       radius: pin.small ? 4 : 9,
       fillColor: color,
-      color: '#fff',
-      weight: pin.small ? 1.5 : 2,
+      color: pin.stroke ?? '#fff',
+      weight: 2,
       fillOpacity: 0.9,
     }).addTo(map).bindPopup(pin.label, { maxWidth: 260 });
     // İşaretli durak adı kalıcı etiketle yazılır: hat rengi de kırmızı olabilir, nokta tek başına ayırt edilmez.

@@ -378,6 +378,56 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   return null;
 }
 
+/** Takvim görünümü: haftanın hangi günleri çalıştığı ve geçerlilik aralığı. */
+function serviceBlock(serviceId: string | null | undefined, result: ValidationResult): string {
+  if (!serviceId) return '';
+  const entry = result.name_index.service_days?.[serviceId];
+  if (!entry) return '';
+  const [mask, start, end, exceptions] = entry;
+  const fmt = new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', timeZone: 'UTC' });
+  const ymd = (v: string) => (/^\d{8}$/.test(v)
+    ? new Intl.DateTimeFormat(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(Number(v.slice(0, 4)), Number(v.slice(4, 6)) - 1, Number(v.slice(6, 8)))))
+    : v);
+  const days = mask
+    ? [...mask].map((on, i) => `<span class="planner-day${on === '1' ? ' on' : ''}">${escHtml(fmt.format(new Date(Date.UTC(2026, 0, 5 + i))))}</span>`).join('')
+    : `<span class="planner-day-note">${escHtml(t('producer.days.dates'))}</span>`;
+  const range = start || end ? `${ymd(start)} – ${ymd(end)}` : '';
+  const extra = Number(exceptions) > 0 ? ` · ${t('producer.days.exceptions', { n: exceptions })}` : '';
+  return `<div class="planner-calendar"><span class="producer-card-label">${t('producer.calendar.title', { id: serviceId })}</span>
+    <div class="planner-days">${days}</div><p class="planner-calendar-range">${escHtml(range + extra)}</p></div>`;
+}
+
+/** Yolcu uygulamasında hat aranınca: aynı adı taşıyan hatlar alt alta, ayırt edilemez. */
+function searchView(n: Notice, result: ValidationResult): string {
+  if (!['RTS_019', 'RTS_026', 'RTS_027'].includes(n.rule_id) || n.entity_type !== 'Route' || !n.entity_id) return '';
+  const ni = result.name_index;
+  const nameOf = (id: string) => n.rule_id === 'RTS_027' ? ni.route_long_names?.[id] || ni.routes?.[id] : ni.routes?.[id];
+  const name = nameOf(n.entity_id);
+  if (!name) return '';
+  const same = Object.keys(ni.routes ?? {}).filter(id => nameOf(id) === name).slice(0, 6);
+  if (same.length < 2) return '';
+  return `<div class="planner-search-view"><span class="producer-card-label">${t('producer.seen.search')}</span>
+    <div class="planner-search-box">${escHtml(name)}</div>
+    ${same.map(id => `<div class="planner-search-hit">${routeBadgeHtml(id, result)}<span>${escHtml(ni.routes?.[id] ?? id)}</span><span class="planner-search-kind">${escHtml(t('producer.filter.route'))}</span></div>`).join('')}
+  </div>`;
+}
+
+/** "Ne yapmalı" cümlelerini numaralı adımlara böler. */
+function stepsHtml(action: string): string {
+  const parts = action.split(/(?<=[.。])\s+/).map(p => p.trim()).filter(Boolean);
+  return parts.length > 1
+    ? `<ol class="planner-steps">${parts.map(p => `<li>${escHtml(p)}</li>`).join('')}</ol>`
+    : `<p class="producer-card-remediation">${escHtml(action)}</p>`;
+}
+
+/** Kartın sağ üstündeki sayının birimi: sefer, durak, hat... */
+function unitOf(g: RuleGroup): string {
+  const n = g.notices[0];
+  const unit = n.entity_id ? ({ Trip: 'trip', Stop: 'stop', Route: 'route', Shape: 'shape', Service: 'service' } as Record<string, string>)[n.entity_type] : undefined;
+  return t(unit ? `producer.unit.${unit}` : 'producer.card.affected_short');
+}
+
 interface PlannerMap { opts: MapOptions; caption: string; }
 
 /** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
@@ -397,10 +447,11 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const pins: MapPin[] = [];
   const stops = new Set<string>();
   let focus: [number, number] | undefined;
+  let stopRing = MAP_GREY;
 
   const addShape = (shapeId: string | null | undefined, color: string) => {
     const coords = shapeId ? ni.shape_coords?.[shapeId] : undefined;
-    if (coords && coords.length > 1) lines.push({ coords, color, weight: 5 });
+    if (coords && coords.length > 1) lines.push({ coords, color, weight: 5, arrows: true });
     return Boolean(coords && coords.length > 1);
   };
   const addStop = (stopId: string | null | undefined, primary: boolean) => {
@@ -411,7 +462,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const name = ni.stops?.[stopId];
     pins.push({
       lat: p[0], lon: p[1], label: name ? `${name} (${stopId})` : stopId,
-      primary, small: !primary, color: primary ? MAP_RED : MAP_GREY,
+      primary, small: !primary, color: primary ? MAP_RED : '#ffffff', stroke: primary ? '#ffffff' : stopRing,
     });
     if (primary && !focus) focus = p;
   };
@@ -428,8 +479,9 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     if (!addShape(ni.trip_shapes?.[n.entity_id], color)) {
       const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-      if (coords.length > 1) lines.push({ coords, color, weight: 4 });
+      if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
     }
+    stopRing = color;
     // Kuralın işaret ettiği durak: ilk/son durak saati eksikse o durak, aksi halde bildirimin durakları.
     if (n.rule_id === 'STM_015') addStop(tripStops[0], true);
     if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
@@ -501,14 +553,16 @@ function technicalDetails(g: RuleGroup): string {
 
 /** Etkilenenler tablosu planlamacının tanıdığı sütunlarla: sefer → hat/yön/kalkış/günler,
  *  durak → ad/kod, takvim → günler. */
-function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => string[] } {
+type Cell = string | { html: string };
+function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
   const ni = result.name_index;
   const dash = (v?: string | null) => v || '—';
   const first = g.notices[0];
   const withDays = g.notices.some(n => n.service_id);
-  const days = (cols: string[], row: (n: Notice) => string[]) => withDays
+  const days = (cols: string[], row: (n: Notice) => Cell[]) => withDays
     ? { head: [...cols, t('producer.col.service')], row: (n: Notice) => [...row(n), serviceText(n.service_id, result)] }
     : { head: cols, row };
+  const badge = (routeId?: string | null, fallback?: string | null): Cell => routeId ? { html: routeBadgeHtml(routeId, result) } : dash(fallback);
   // Kimliksiz bildirim (feed düzeyi özet) varlık sütunlarını doldurmaz; genel sütunlara düşer.
   switch (first.entity_id ? first.entity_type : 'Feed') {
     case 'Trip': {
@@ -518,7 +572,7 @@ function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string
         n => {
           const routeId = n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined;
           return [
-            dash(routeId ? ni.routes?.[routeId] || routeId : n.entity_id),
+            badge(routeId, n.entity_id),
             dash(n.entity_id ? ni.trips?.[n.entity_id] : null),
             dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null),
             ...(withSpot ? [dash(timeSpot(n, result))] : []),
@@ -533,8 +587,8 @@ function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string
       };
     case 'Route':
       return {
-        head: [t('producer.col.route'), t('producer.col.route_code')],
-        row: n => [dash(n.entity_id ? ni.routes?.[n.entity_id] : null), dash(n.entity_id)],
+        head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code')],
+        row: n => [badge(n.entity_id), dash(n.entity_id ? ni.route_long_names?.[n.entity_id] : null), dash(n.entity_id)],
       };
     case 'Service':
       return {
@@ -553,7 +607,7 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
   const cols = affectedColumns(g, result);
   const visibleRows = g.notices.slice(0, ROWS_CAP);
   const rows = visibleRows.map((n, index) => `<tr class="planner-affected-row${index === 0 ? ' selected' : ''}" data-row="${index}" tabindex="0"${index >= ROWS_FIRST ? ' hidden' : ''}>
-    ${cols.row(n).map(v => `<td>${escHtml(v)}</td>`).join('')}
+    ${cols.row(n).map(v => typeof v === 'string' ? `<td>${escHtml(v)}</td>` : `<td>${v.html}</td>`).join('')}
   </tr>`).join('');
   const more = visibleRows.length > ROWS_FIRST
     ? `<button type="button" class="planner-more" data-more-step="${ROWS_STEP}">${t('producer.card.more', { n: Math.min(ROWS_STEP, visibleRows.length - ROWS_FIRST) })}</button>`
@@ -596,13 +650,14 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
           ${routes.map(routeId => routeBadgeHtml(routeId, result)).join('')}
         </div>
       </div>
-      <span class="planner-card-impact"><strong>${g.count.toLocaleString(getLocale())}</strong><span>${t('producer.card.affected_short')}</span></span>
+      <span class="planner-card-impact"><strong>${g.count.toLocaleString(getLocale())}</strong><span>${escHtml(unitOf(g))}</span></span>
     </button>
     <div class="planner-card-collapsible" hidden>
       ${context ? `<p class="producer-card-context">${escHtml(context)}</p>` : ''}
       <div class="producer-card-main">
         <figure class="planner-map-wrap"><div class="planner-map"><span>${t('producer.map.loading')}</span></div><figcaption class="planner-map-caption"></figcaption></figure>
         <div class="planner-card-text">
+          <div class="planner-seen-host"></div>
           <div class="producer-card-evidence">
             <span class="producer-card-label">${t('producer.card.what')}</span>
             <p class="producer-card-message">${escHtml(what)}</p>
@@ -611,7 +666,7 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
           </div>
           <div class="producer-card-action">
             <span class="producer-card-label">${t('producer.card.action')}</span>
-            <p class="producer-card-remediation">${escHtml(action)}</p>
+            <div class="planner-steps-host">${stepsHtml(action)}</div>
           </div>
         </div>
       </div>
@@ -636,7 +691,7 @@ function feedTitle(result: ValidationResult, agencyIds: readonly string[]): stri
     ? picked.join(', ')
     : info?.feed_publisher_name || result.feed_summary?.agencies?.[0]?.agency_name || t('producer.feed_fallback');
   const version = info?.feed_version ? `<span>${escHtml(t('producer.feed_version', { v: info.feed_version }))}</span>` : '';
-  return `<header class="planner-top"><strong>${escHtml(name)}</strong>${version}</header>`;
+  return `<header class="planner-top"><strong>${escHtml(name)}</strong>${version}<span class="planner-beta" title="${escHtml(t('producer.beta_hint'))}">BETA</span><span class="planner-beta-hint">${escHtml(t('producer.beta_hint'))}</span></header>`;
 }
 
 type EntityDim = 'route' | 'stop' | 'shape' | 'service';
@@ -814,8 +869,13 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     // "Ne olmuş / Ne yapmalı" seçilen kaydın kendi metnidir; planlamacı metni yoksa motorun metni.
     const messageEl = card.querySelector<HTMLElement>('.producer-card-message');
     if (messageEl) messageEl.textContent = rowCopy?.what || tMsg(notice);
-    const actionEl = card.querySelector<HTMLElement>('.producer-card-remediation');
-    if (actionEl) actionEl.textContent = rowCopy?.action || tRemediation(notice);
+    const actionEl = card.querySelector<HTMLElement>('.planner-steps-host');
+    if (actionEl) actionEl.innerHTML = stepsHtml(rowCopy?.action || tRemediation(notice));
+    const seenEl = card.querySelector<HTMLElement>('.planner-seen-host');
+    if (seenEl) {
+      const serviceId = notice.entity_type === 'Service' ? notice.entity_id : notice.service_id;
+      seenEl.innerHTML = searchView(notice, result) + serviceBlock(serviceId, result);
+    }
     const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
     if (factsEl) { const facts = factsHtml(rowCopy); factsEl.innerHTML = facts; factsEl.hidden = !facts; }
     const strip = card.querySelector<HTMLElement>('.planner-times-host');

@@ -545,6 +545,21 @@
     .planner-sev::before { content:''; width:.55rem; height:.55rem; border-radius:1px; background:var(--sev); }
     .planner-rule-id { display:inline-block; margin-right:.5rem; padding:.05rem .35rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-bg); color:var(--color-muted); font-family:ui-monospace, monospace; font-size:.8rem; font-weight:600; vertical-align:.1em; }
     .planner-filter-bar { margin:0; }
+    .planner-beta { padding:.05rem .4rem; border:1px solid var(--color-high); border-radius:2px; color:var(--color-high); font-size:.7rem; font-weight:800; letter-spacing:.08em; }
+    .planner-beta-hint { color:var(--color-muted); font-size:.78rem; }
+    .planner-route-badge { background:#475569; border-color:#475569; color:#fff; }
+    .planner-calendar { display:flex; flex-direction:column; gap:.35rem; margin-bottom:.6rem; }
+    .planner-days { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:.25rem; max-width:22rem; }
+    .planner-day { padding:.3rem 0; border:1px solid var(--color-border); border-radius:2px; color:var(--color-muted); font-size:.75rem; text-align:center; }
+    .planner-day.on { border-color:var(--color-text); background:var(--color-text); color:var(--color-surface); font-weight:700; }
+    .planner-day-note { grid-column:1/-1; color:var(--color-muted); font-size:.8rem; }
+    .planner-calendar-range { margin:0; color:var(--color-muted); font-size:.8rem; font-variant-numeric:tabular-nums; }
+    .planner-search-view { display:flex; flex-direction:column; margin-bottom:.6rem; border:1px solid var(--color-border); border-radius:2px; }
+    .planner-search-view > .producer-card-label { padding:.35rem .6rem 0; }
+    .planner-search-box { margin:.35rem .6rem; padding:.3rem .5rem; border:1px solid var(--color-border); border-radius:2px; color:var(--color-muted); font-size:.85rem; }
+    .planner-search-hit { display:flex; align-items:center; gap:.5rem; padding:.35rem .6rem; border-top:1px solid var(--color-border); font-size:.85rem; }
+    .planner-search-kind { margin-left:auto; color:var(--color-muted); font-size:.75rem; }
+    .planner-steps { margin:0; padding-left:1.2rem; display:flex; flex-direction:column; gap:.3rem; }
     .producer-page .agency-filter { margin:0; border-radius:2px; box-shadow:none; }
     .producer-page .agency-chip input { border-radius:2px; }
     .planner-entity-filters { gap:.5rem; }
@@ -587,7 +602,7 @@
     .producer-page .producer-card-kicker { margin:.35rem 0 0; }
     .planner-card-impact { text-align:right; color:var(--color-muted); font-size:.75rem; white-space:nowrap; }
     .planner-card-impact strong { display:block; color:var(--color-text); font-size:1.2rem; font-variant-numeric:tabular-nums; }
-    .planner-route-badge { display:inline-block; min-width:1.9rem; padding:.05rem .4rem; border:1px solid var(--color-border); border-radius:2px; background:var(--color-bg); color:var(--color-text); font-size:.75rem; font-weight:700; text-align:center; }
+    .planner-route-badge { display:inline-block; min-width:1.9rem; padding:.05rem .4rem; border:1px solid; border-radius:2px; font-size:.75rem; font-weight:700; text-align:center; }
     .planner-card-collapsible { padding:1rem 1.1rem 1.1rem; display:flex; flex-direction:column; gap:1rem; }
     .planner-card-collapsible[hidden], .planner-technical[hidden], .producer-card[hidden] { display:none; }
     .producer-page .producer-card-context { padding:0; border:0; background:none; color:var(--color-muted); font-weight:600; }

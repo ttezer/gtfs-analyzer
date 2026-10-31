@@ -487,3 +487,15 @@ describe('0,0 konumlu durak', () => {
     expect(el.innerHTML).toContain('Hamburg-Harburg (B) durağının konumu 0,0 girilmiş');
   });
 });
+
+describe('Tasarım ayrıntıları', () => {
+  it('sayıyı birimiyle, hat sütununu renkli kutucukla ve Beta etiketini gösterir', () => {
+    const ni: NameIndex = { ...emptyNameIndex, routes: { R1: '34' }, trip_routes: { T1: 'R1' }, route_colors: { R1: ['B5121B', 'FFFFFF'] } };
+    const r = result([notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1' })], ['a'], [['STM_015', 4, 1]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<strong>1</strong><span>sefer</span>');
+    expect(el.innerHTML).toContain('<td><span class="planner-route-badge" style="background:#B5121B;border-color:#B5121B;color:#FFFFFF">34</span></td>');
+    expect(el.innerHTML).toContain('>BETA</span>');
+  });
+});
