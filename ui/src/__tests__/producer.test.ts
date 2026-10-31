@@ -538,3 +538,60 @@ describe('Genel kalıpta görülen değer', () => {
     expect(html).not.toContain('<th>Görülen değer</th>');
   });
 });
+
+describe('Hatalı yer sütunu', () => {
+  const ni: NameIndex = {
+    ...emptyNameIndex,
+    stops: { S1: 'Şehreküstü İtfaiyesi', S2: 'Çarşı', S3: 'Liman', S4: 'Otogar', S5: 'Garaj' },
+    routes: { R1: 'S08' }, trip_routes: { T1: 'R1' },
+  };
+  const render = (n: Notice) => {
+    const r = result([n], [], [[n.rule_id, 4, 1]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    return el.innerHTML;
+  };
+
+  it('STM_048 saatin geriye döndüğü durağı ve önceki saati, STM_049 aynı duraktaki varış ve kalkışı yazar', () => {
+    const wrap = render(notice('a', 'STM_048', 'HIGH', {
+      entity_type: 'Trip', entity_id: 'T1', field: 'arrival_time', observed_value: '00:00:43', expected_value: '24:00:43',
+      details: { stop_id: 'S1', previous_time: '23:58:51', observed_time: '00:00:43', expected_time: '24:00:43' },
+    }));
+    expect(wrap).toContain('<th>Hatalı yer</th>');
+    expect(wrap).toContain('<td>Şehreküstü İtfaiyesi · önceki durak 23:58:51</td>');
+    expect(wrap).toContain('Gece yarısından sonraki durak geçiş saatleri 00:xx yazılmış');
+    const dwell = render(notice('a', 'STM_049', 'HIGH', {
+      entity_type: 'Trip', entity_id: 'T1', field: 'departure_time', observed_value: '00:00:05', expected_value: '24:00:05',
+      details: { stop_id: 'S1', previous_time: '23:59:45', observed_time: '00:00:05', expected_time: '24:00:05' },
+    }));
+    expect(dwell).toContain('<td>Şehreküstü İtfaiyesi · varış 23:59:45, kalkış 00:00:05</td>');
+  });
+
+  it('OPR_008 ilk hızlı bölümü ve kalan bölüm sayısını, OPR_007 tekrar eden durağı yazar', () => {
+    const fast = render(notice('a', 'OPR_008', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '318.8 km/h',
+      details: { bad_seg_0_a: 'S2', bad_seg_0_b: 'S3', bad_seg_1_a: 'S4', bad_seg_1_b: 'S5', departure: '08:00' },
+    }));
+    expect(fast).toContain('<td>Çarşı → Liman (+1 bölüm daha)</td>');
+    const repeat = render(notice('a', 'OPR_007', 'LOW', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '2× repeat', details: { dup_stop: 'S4', stops: 'S2,S4,S3,S4' },
+    }));
+    expect(repeat).toContain('<td>Otogar (2 kez)</td>');
+  });
+
+  it('hat düzeyindeki hız bulgusunda durak çiftini hat sütunlarının yanına yazar', () => {
+    const html = render(notice('a', 'STM_014', 'MEDIUM', {
+      entity_type: 'Route', entity_id: 'R1', observed_value: '468.0 km/h (S2 → S3)', expected_value: '≤ 120 km/h',
+      details: { route_id: 'R1', stop_a: 'S2', stop_b: 'S3', speed_max: '468.0' },
+    }));
+    expect(html).toContain('<td>Çarşı → Liman</td>');
+  });
+
+  it('aynı adlı iki durağı durak koduyla ayırır', () => {
+    const local: NameIndex = { ...ni, stops: { ...ni.stops, K1: 'Kubilay Cad.', K2: 'Kubilay Cad.' }, stop_codes: { K1: '71508' } };
+    const r = result([notice('a', 'STM_025', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '6s', details: { stop_a: 'K1', stop_b: 'K2' } })], [], [['STM_025', 4, 1]], true, local);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<td>Kubilay Cad. (71508) → Kubilay Cad. (K2)</td>');
+  });
+});

@@ -425,7 +425,39 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     const speed = stm012Observed(n);
     return `${name(d.stop_a)} → ${name(d.stop_b)}${speed ? ` · ${speed}` : ''}`;
   }
+  // Gece yarısı: saatin geriye döndüğü durak ve bir önceki saat (STM_048) ya da aynı duraktaki varış (STM_049).
+  if (n.rule_id === 'STM_048' && d.stop_id) return t('producer.times.spot_wrap', { stop: name(d.stop_id), prev: d.previous_time ?? '—' });
+  if (n.rule_id === 'STM_049' && d.stop_id) return t('producer.times.spot_dwell', { stop: name(d.stop_id), arr: d.previous_time ?? '—', dep: d.observed_time ?? '—' });
+  if (n.rule_id === 'OPR_008' && d.bad_seg_0_a) {
+    const first = `${name(d.bad_seg_0_a)} → ${name(d.bad_seg_0_b)}`;
+    const more = badSegments(d).length - 1;
+    return more > 0 ? t('producer.times.spot_more_segments', { first, n: more }) : first;
+  }
+  if (n.rule_id === 'OPR_007' && d.dup_stop) {
+    const times = /^(\d+)×/.exec(n.observed_value ?? '')?.[1];
+    return times ? t('producer.times.spot_repeat', { stop: name(d.dup_stop), n: times }) : name(d.dup_stop);
+  }
+  if (n.rule_id === 'SHP_017' && d.bad_stop) return name(d.bad_stop);
+  // Durak çifti taşıyan diğer kurallar (STM_014, STM_020, STM_025, STM_026, STM_061): iki durağın adı.
+  if (d.stop_a && d.stop_b) return stopPair(d.stop_a, d.stop_b, result);
   return null;
+}
+
+/** "A → B"; iki durağın adı aynıysa (karşılıklı duraklar) planlamacı ayırt edebilsin diye durak kodlarıyla. */
+function stopPair(a: string, b: string, result: ValidationResult): string {
+  const ni = result.name_index;
+  const nameA = ni.stops?.[a] || a;
+  const nameB = ni.stops?.[b] || b;
+  if (nameA !== nameB) return `${nameA} → ${nameB}`;
+  const code = (id: string) => ni.stop_codes?.[id] || id;
+  return `${nameA} (${code(a)}) → ${nameB} (${code(b)})`;
+}
+
+/** OPR_008: motorun bildirdiği tüm hızlı bölümler (bad_seg_<i>_a → bad_seg_<i>_b). */
+function badSegments(d: Record<string, string>): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  for (let i = 0; d[`bad_seg_${i}_a`] && d[`bad_seg_${i}_b`]; i++) out.push([d[`bad_seg_${i}_a`], d[`bad_seg_${i}_b`]]);
+  return out;
 }
 
 /** Takvim görünümü: haftanın hangi günleri çalıştığı ve geçerlilik aralığı. */
@@ -536,12 +568,16 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     if (n.rule_id === 'STM_015') addStop(tripStops[0], true);
     if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
     addStop(n.details?.stop_id, true);
-    const a = coord(n.details?.stop_a);
-    const b = coord(n.details?.stop_b);
-    if (a && b) {
+    addStop(n.details?.bad_stop, true);
+    addStop(n.details?.dup_stop, true);
+    const pairs: Array<[string | undefined, string | undefined]> = [[n.details?.stop_a, n.details?.stop_b], ...(n.details ? badSegments(n.details) : [])];
+    for (const [idA, idB] of pairs) {
+      const a = coord(idA);
+      const b = coord(idB);
+      if (!a || !b) continue;
       segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
-      addStop(n.details?.stop_a, true);
-      addStop(n.details?.stop_b, true);
+      addStop(idA, true);
+      addStop(idB, true);
     }
     for (const stopId of tripStops) addStop(stopId, false);
   } else if (n.entity_type === 'Stop' && n.entity_id) {
@@ -564,6 +600,14 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     }
   } else if (n.entity_type === 'Route' && n.entity_id) {
     for (const shapeId of (ni.route_shapes?.[n.entity_id] ?? []).slice(0, 4)) addShape(shapeId, routeColor(n.entity_id));
+    // Hat düzeyindeki hız bulguları (STM_014, STM_061) hatalı durak çiftini taşır.
+    const a = coord(n.details?.stop_a);
+    const b = coord(n.details?.stop_b);
+    if (a && b) {
+      segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
+      addStop(n.details?.stop_a, true);
+      addStop(n.details?.stop_b, true);
+    }
   } else if (n.entity_type === 'Shape' && n.entity_id) {
     addShape(n.entity_id, routeColor(ni.shape_routes?.[n.entity_id]?.[0]?.[0]));
   }
@@ -653,11 +697,16 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         head: [t('producer.col.stop'), t('producer.col.stop_code')],
         row: n => [dash(n.entity_id ? ni.stops?.[n.entity_id] : null), dash(n.entity_id)],
       };
-    case 'Route':
+    case 'Route': {
+      const withSpot = timeSpot(first, result) !== null;
       return {
-        head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code')],
-        row: n => [badge(n.entity_id), dash(n.entity_id ? ni.route_long_names?.[n.entity_id] : null), dash(n.entity_id)],
+        head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code'), ...(withSpot ? [t('producer.col.spot')] : [])],
+        row: n => [
+          badge(n.entity_id), dash(n.entity_id ? ni.route_long_names?.[n.entity_id] : null), dash(n.entity_id),
+          ...(withSpot ? [dash(timeSpot(n, result))] : []),
+        ],
       };
+    }
     case 'Service':
       return {
         head: [t('producer.col.service_code'), t('producer.col.service')],
