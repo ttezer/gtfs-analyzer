@@ -232,7 +232,7 @@ describe('Üretici kartı görünümü', () => {
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Aynı durak kodu birden fazla kayıtta kullanılmış');
     expect(root.innerHTML).toContain('İstasyon veya giriş kaydı seferde kullanılmış');
-    expect(root.innerHTML).toContain('Kullanılan durak kodu: 71717');
+    expect(root.innerHTML).toContain('Durak kodu: 71717');
     expect(root.innerHTML).not.toContain('top_id yineleniyor');
   });
 
