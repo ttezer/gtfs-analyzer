@@ -346,16 +346,16 @@ describe('Planlamacılar İçin sayfası', () => {
 
   it('planlamacı metni olmayan konuyu teknik bölüme ayırır, yazılmış olanı üstte tutar', () => {
     const r = result(
-      [notice('a', 'STM_002', 'CRITICAL', { entity_type: 'Stop', entity_id: 'S1' }), notice('b', 'DQ_016', 'MEDIUM')],
+      [notice('a', 'STM_002', 'CRITICAL', { entity_type: 'Stop', entity_id: 'S1' }), notice('b', 'ZZZ_999', 'MEDIUM')],
       [],
-      [['STM_002', 4, 1], ['DQ_016', 2, 1]],
+      [['STM_002', 4, 1], ['ZZZ_999', 2, 1]],
     );
     const el = root();
     renderProducer(el, r);
     const technicalAt = el.innerHTML.indexOf('planner-technical');
     expect(technicalAt).toBeGreaterThan(0);
     expect(el.innerHTML.indexOf('data-rule="STM_002"')).toBeLessThan(technicalAt);
-    expect(el.innerHTML.indexOf('data-rule="DQ_016"')).toBeGreaterThan(technicalAt);
+    expect(el.innerHTML.indexOf('data-rule="ZZZ_999"')).toBeGreaterThan(technicalAt);
   });
 
   it('mevcut önem derecesini ve kural kodunu kart başlığında gösterir, yayın kararını rapordaki dille söyler', () => {

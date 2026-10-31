@@ -264,8 +264,13 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t('producer.card.STM_047.action'),
       };
     }
-    default:
-      return null;
+    default: {
+      // Özel bağlam gerektirmeyen kurallar: metin dil dosyasındaki producer.card.<KURAL>.* anahtarlarından.
+      const base = `producer.card.${g.ruleId}`;
+      const title = t(`${base}.title`);
+      if (title === `${base}.title`) return null;
+      return { title, what: t(`${base}.what`), action: t(`${base}.action`) };
+    }
   }
 }
 
