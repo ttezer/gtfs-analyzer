@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   2.0 MB packed. When a feed runs the wasm32 engine out of memory, the
   `ResourceLimit` error's `detail` now says so and points to Node.js 24+
   instead of only `unreachable`.
+- **"For Planners" tab (beta) in the web UI.** Findings are grouped by the
+  part of the timetable a planner edits (trip times, stops, service days,
+  shapes, routes, fares, agency) and told in plain language in tr, en, fr
+  and ja: what happened, where, and what to do. Each topic has a map with
+  route-coloured shapes and direction arrows, an affected-records table
+  (10 rows first, up to 500), and agency, route, stop, shape and service
+  filters. The base map uses OpenStreetMap tiles.
+- **More structured evidence on notices.** `STM_012` details add
+  `stop_sequence_a/b`, `distance_km`, `scheduled_gap_seconds`,
+  `distance_method`, and `speed_kmh` or `speed_lower_bound_kmh`
+  (`intermediate_stop_count` when untimed stops were skipped). `STM_015` and
+  `STM_016` add `stop_id`, `departure`, `stop_count`, `timed_stops` and the
+  nearest timed neighbour (`next_*` / `prev_*`). `STM_008` adds the stop
+  before the departure row and after the arrival row with their times.
+  Existing keys are unchanged.
+- **`name_index` carries four more lookups:** `route_colors` (valid hex
+  `route_color`/`route_text_color` only), `route_long_names`, `stop_codes`
+  and `service_days` (weekday summary per `service_id`, or date-only
+  services). Empty maps are omitted from JSON.
 
 ### Changed
 

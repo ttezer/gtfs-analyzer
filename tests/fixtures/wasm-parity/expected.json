@@ -7428,24 +7428,6 @@
       "added": [
         {
           "details": null,
-          "entity_id": "T1",
-          "entity_type": "Trip",
-          "expected_value": "HH:MM:SS",
-          "field": "arrival_time",
-          "file": "stop_times.txt",
-          "line": 2,
-          "message": "Trip 'T1': first stop is missing arrival_time.",
-          "observed_value": null,
-          "remediation": "Enter an arrival_time for the first stop_times row.",
-          "rule_class": "SPEC",
-          "rule_id": "STM_015",
-          "scope_key": "T1",
-          "service_id": "SVC1",
-          "severity": "CRITICAL",
-          "title": "First stop is missing arrival_time"
-        },
-        {
-          "details": null,
           "entity_id": "stop_times.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -7481,6 +7463,30 @@
           "service_id": "SVC1",
           "severity": "CRITICAL",
           "title": "timepoint=1 without arrival/departure time"
+        },
+        {
+          "details": {
+            "next_stop_id": "S2",
+            "next_time": "08:10:00",
+            "stop_count": "2",
+            "stop_id": "S1",
+            "timed_stops": "1"
+          },
+          "entity_id": "T1",
+          "entity_type": "Trip",
+          "expected_value": "HH:MM:SS",
+          "field": "arrival_time",
+          "file": "stop_times.txt",
+          "line": 2,
+          "message": "Trip 'T1': first stop is missing arrival_time.",
+          "observed_value": null,
+          "remediation": "Enter an arrival_time for the first stop_times row.",
+          "rule_class": "SPEC",
+          "rule_id": "STM_015",
+          "scope_key": "T1",
+          "service_id": "SVC1",
+          "severity": "CRITICAL",
+          "title": "First stop is missing arrival_time"
         }
       ],
       "agency_breakdown": {
@@ -8226,6 +8232,33 @@
         },
         {
           "details": {
+            "distance_km": "10840.0",
+            "distance_method": "haversine",
+            "scheduled_gap_seconds": "600",
+            "speed_kmh": "65039.8",
+            "stop_a": "S1",
+            "stop_b": "S2",
+            "stop_sequence_a": "1",
+            "stop_sequence_b": "2"
+          },
+          "entity_id": "T1",
+          "entity_type": "Trip",
+          "expected_value": "<= 700 km/h",
+          "field": "arrival_time",
+          "file": "stop_times.txt",
+          "line": 3,
+          "message": "Trip 'T1': unrealistic speed — 65040 km/h (limit: <= 700 km/h).",
+          "observed_value": "65040 km/h",
+          "remediation": "Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.",
+          "rule_class": "INTEROP",
+          "rule_id": "STM_012",
+          "scope_key": "T1",
+          "service_id": "SVC1",
+          "severity": "HIGH",
+          "title": "Unrealistic speed between stops"
+        },
+        {
+          "details": {
             "stop_a": "S1",
             "stop_b": "S2"
           },
@@ -8244,27 +8277,6 @@
           "service_id": "SVC1",
           "severity": "INFO",
           "title": "Excessive distance between stops"
-        },
-        {
-          "details": {
-            "stop_a": "S1",
-            "stop_b": "S2"
-          },
-          "entity_id": "T1",
-          "entity_type": "Trip",
-          "expected_value": "<= 700 km/h",
-          "field": "arrival_time",
-          "file": "stop_times.txt",
-          "line": 3,
-          "message": "Trip 'T1': unrealistic speed — 65040 km/h (limit: <= 700 km/h).",
-          "observed_value": "65040 km/h",
-          "remediation": "Verify stop_times.txt time values; two stops cannot be that far apart within the same minute.",
-          "rule_class": "INTEROP",
-          "rule_id": "STM_012",
-          "scope_key": "T1",
-          "service_id": "SVC1",
-          "severity": "HIGH",
-          "title": "Unrealistic speed between stops"
         }
       ],
       "agency_breakdown": {
