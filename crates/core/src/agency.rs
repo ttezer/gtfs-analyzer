@@ -122,8 +122,9 @@ pub struct RuleAgencyCounts {
 /// severity ve skor bundan etkilenmez.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AgencyBreakdown {
-    /// `false`: WASM notice bütçesi aşıldı, ham notice'ların bir kısmı hiç işlenmedi;
-    /// sayımlar alt sınırdır.
+    /// `false`: ham notice'ların bir kısmı işlenmedi, sayımlar alt sınırdır. WASM yolundaki
+    /// 1M notice bütçesi 2026-10-30'da kaldırıldığından bugün her yolda `true`; alan JSON
+    /// şemasında ve UI uyarısında geriye dönük uyumluluk için kalır.
     pub complete: bool,
     /// [`AgencyRef`] sırasıyla agency kimlikleri (tek agency'de boş olabilir).
     pub agencies: Vec<String>,
