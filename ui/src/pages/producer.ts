@@ -13,60 +13,6 @@ import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules
 import { attachAgencyFilterListeners, filterNoticesByAgency, renderAgencyFilterBar } from '../agency-filter';
 import { getState, setAgencyFilter } from '../state';
 
-type PlannerPerfStat = { count: number; total: number; max: number };
-type PlannerPerfState = { stats: Record<string, PlannerPerfStat>; marks: Array<[string, number]> };
-
-function plannerPerfEnabled(): boolean {
-  return Boolean((globalThis as { process?: { env?: { PLANNER_PERF_DIR?: string } } }).process?.env?.PLANNER_PERF_DIR);
-}
-
-function plannerPerfState(): PlannerPerfState | null {
-  if (!plannerPerfEnabled()) return null;
-  const target = globalThis as typeof globalThis & { __plannerPerf?: PlannerPerfState };
-  return target.__plannerPerf ??= { stats: {}, marks: [] };
-}
-
-function plannerPerfReset(): void {
-  if (!plannerPerfEnabled()) return;
-  const target = globalThis as typeof globalThis & { __plannerPerf?: PlannerPerfState; __plannerTimes?: Array<[string, number]> };
-  target.__plannerPerf = { stats: {}, marks: [] };
-  target.__plannerTimes = [];
-}
-
-function plannerPerfMark(label: string): void {
-  const state = plannerPerfState();
-  if (!state) return;
-  const now = performance.now();
-  state.marks.push([label, now]);
-  const target = globalThis as typeof globalThis & { __plannerTimes?: Array<[string, number]> };
-  target.__plannerTimes?.push([label, now]);
-}
-
-function plannerPerfMeasure<T>(label: string, fn: () => T): T {
-  const state = plannerPerfState();
-  if (!state) return fn();
-  const start = performance.now();
-  try {
-    return fn();
-  } finally {
-    const elapsed = performance.now() - start;
-    const stat = state.stats[label] ??= { count: 0, total: 0, max: 0 };
-    stat.count += 1;
-    stat.total += elapsed;
-    stat.max = Math.max(stat.max, elapsed);
-  }
-}
-
-function plannerPerfReport(): void {
-  const state = plannerPerfState();
-  if (!state) return;
-  const detail = Object.entries(state.stats)
-    .sort(([, a], [, b]) => b.total - a.total)
-    .map(([label, stat]) => `${label}=total:${stat.total.toFixed(0)}ms,count:${stat.count},max:${stat.max.toFixed(0)}ms`)
-    .join(' | ');
-  console.log(`[perf-detail] ${detail}`);
-}
-
 function where(n: Notice): string {
   const parts = [n.file, n.line != null ? t('producer.line', { n: n.line }) : null, n.field].filter(Boolean);
   return parts.join(' · ');
@@ -201,24 +147,20 @@ const FEED_TEXT_FIELDS = new Set([
 ]);
 
 function plainValue(value: string | null | undefined, field: string | null | undefined): string | null {
-  return plannerPerfMeasure('plainValue', () => {
-    const v = value?.trim();
-    if (!v || v === 'None') return null;
-    if (isNeutralValue(v)) return v;
-    const fromFeedText = (field ?? '').split('|').some(f => FEED_TEXT_FIELDS.has(f));
-    // "7 rows", "1469min (hour-based …)" gibi sayı + kelime ya da "a=b; c" biçimli motor özetleri feed verisi değildir.
-    return fromFeedText && !/[=;]/.test(v) && !/^\d+(?:[.,]\d+)?\s*\p{L}{2,}(?![\p{L}\d])/u.test(v) && !/\(\s*\p{L}/u.test(v) ? v : null;
-  });
+  const v = value?.trim();
+  if (!v || v === 'None') return null;
+  if (isNeutralValue(v)) return v;
+  const fromFeedText = (field ?? '').split('|').some(f => FEED_TEXT_FIELDS.has(f));
+  // "7 rows", "1469min (hour-based …)" gibi sayı + kelime ya da "a=b; c" biçimli motor özetleri feed verisi değildir.
+  return fromFeedText && !/[=;]/.test(v) && !/^\d+(?:[.,]\d+)?\s*\p{L}{2,}(?![\p{L}\d])/u.test(v) && !/\(\s*\p{L}/u.test(v) ? v : null;
 }
 
 /** Bildirimin görülen değeri; beklenen değer yalnız dilden bağımsızsa eklenir. */
 function observedValue(n: Notice): { value: string; expected: string | null } | null {
-  return plannerPerfMeasure('observedValue', () => {
-    const value = plainValue(n.observed_value, n.field);
-    if (!value) return null;
-    const expected = n.expected_value?.trim();
-    return { value, expected: expected && expected !== 'None' && isNeutralValue(expected) ? expected : null };
-  });
+  const value = plainValue(n.observed_value, n.field);
+  if (!value) return null;
+  const expected = n.expected_value?.trim();
+  return { value, expected: expected && expected !== 'None' && isNeutralValue(expected) ? expected : null };
 }
 
 function observedLine(n: Notice): string | undefined {
@@ -235,10 +177,6 @@ function evidenceFacts(copy: PlannerCardCopy | null, n: Notice): Pick<PlannerCar
 }
 
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
-  return plannerPerfMeasure('plannerCardCopy', () => plannerCardCopyImpl(g, result));
-}
-
-function plannerCardCopyImpl(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
     case 'STM_012': {
@@ -447,11 +385,9 @@ function routeIdsOf(g: RuleGroup, result: ValidationResult, limit = 8): string[]
 }
 
 function routeBadgeHtml(routeId: string, result: ValidationResult): string {
-  return plannerPerfMeasure('routeBadgeHtml', () => {
-    const b = routeBadge(routeId, result.name_index);
-    const style = b.bg ? ` style="background:${b.bg};border-color:${b.bg};color:${b.fg}"` : '';
-    return `<span class="planner-route-badge"${style}>${escHtml(b.label)}</span>`;
-  });
+  const b = routeBadge(routeId, result.name_index);
+  const style = b.bg ? ` style="background:${b.bg};border-color:${b.bg};color:${b.fg}"` : '';
+  return `<span class="planner-route-badge"${style}>${escHtml(b.label)}</span>`;
 }
 
 function severityHtml(sev: Severity): string {
@@ -460,24 +396,22 @@ function severityHtml(sev: Severity): string {
 
 /** Çalışma günleri: calendar maskesini planlamacı diliyle söyler ("Hafta içi", "Ct, Pz"). */
 function serviceText(serviceId: string | null | undefined, result: ValidationResult): string {
-  return plannerPerfMeasure('serviceText', () => {
-    if (!serviceId) return '—';
-    const entry = result.name_index.service_days?.[serviceId];
-    if (!entry) return serviceId;
-    const [mask, , , exceptions] = entry;
-    let text: string;
-    if (!mask) text = t('producer.days.dates');
-    else if (mask === '1111111') text = t('producer.days.everyday');
-    else if (mask === '1111100') text = t('producer.days.weekdays');
-    else if (mask === '0000011') text = t('producer.days.weekend');
-    else if (mask === '0000000') text = t('producer.days.none');
-    else {
-      const fmt = new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', timeZone: 'UTC' });
-      // 2026-01-05 bir pazartesi; maske pzt..paz sırasında.
-      text = [...mask].map((on, i) => on === '1' ? fmt.format(new Date(Date.UTC(2026, 0, 5 + i))) : '').filter(Boolean).join(', ');
-    }
-    return Number(exceptions) > 0 ? `${text} ${t('producer.days.exceptions', { n: exceptions })}` : text;
-  });
+  if (!serviceId) return '—';
+  const entry = result.name_index.service_days?.[serviceId];
+  if (!entry) return serviceId;
+  const [mask, , , exceptions] = entry;
+  let text: string;
+  if (!mask) text = t('producer.days.dates');
+  else if (mask === '1111111') text = t('producer.days.everyday');
+  else if (mask === '1111100') text = t('producer.days.weekdays');
+  else if (mask === '0000011') text = t('producer.days.weekend');
+  else if (mask === '0000000') text = t('producer.days.none');
+  else {
+    const fmt = new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', timeZone: 'UTC' });
+    // 2026-01-05 bir pazartesi; maske pzt..paz sırasında.
+    text = [...mask].map((on, i) => on === '1' ? fmt.format(new Date(Date.UTC(2026, 0, 5 + i))) : '').filter(Boolean).join(', ');
+  }
+  return Number(exceptions) > 0 ? `${text} ${t('producer.days.exceptions', { n: exceptions })}` : text;
 }
 
 /** Saat kurallarında seçili seferin ilgili durakları sırayla, saatleriyle; hatalı satır işaretli. */
@@ -515,10 +449,6 @@ function timeStrip(n: Notice, result: ValidationResult): string {
 
 /** Etkilenenler tablosunda saat kurallarının "hatalı yer" sütunu. */
 function timeSpot(n: Notice, result: ValidationResult): string | null {
-  return plannerPerfMeasure('timeSpot', () => timeSpotImpl(n, result));
-}
-
-function timeSpotImpl(n: Notice, result: ValidationResult): string | null {
   const d = n.details;
   if (!d) return null;
   const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
@@ -850,7 +780,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       return days(
         [t('producer.col.record'), ...(withLine ? [t('producer.col.row')] : []), ...(withServices ? [t('producer.col.service_code')] : [])],
         n => [
-          plannerPerfMeasure('entityLabel', () => entityLabel(n, ni)) || n.observed_value || t('producer.map.unknown_context'),
+          entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
           ...(withLine ? [n.line != null ? String(n.line) : '—'] : []),
           ...(withServices ? [servicesText(n)] : []),
         ],
@@ -860,19 +790,11 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
 }
 
 function affectedRows(g: RuleGroup, result: ValidationResult): string {
-  return plannerPerfMeasure('affectedRows', () => affectedRowsImpl(g, result));
-}
-
-function affectedRowsImpl(g: RuleGroup, result: ValidationResult): string {
   const cols = affectedColumns(g, result);
   const visibleRows = g.notices.slice(0, ROWS_CAP);
-  const rows = visibleRows.map((n, index) => {
-    const cells = plannerPerfMeasure('rowColumns', () => cols.row(n));
-    const cellsHtml = plannerPerfMeasure('rowCellsHtml', () => cells.map(v => typeof v === 'string' ? `<td>${escHtml(v)}</td>` : `<td>${v.html}</td>`).join(''));
-    return `<tr class="planner-affected-row${index === 0 ? ' selected' : ''}" data-row="${index}" tabindex="0"${index >= ROWS_FIRST ? ' hidden' : ''}>
-    ${cellsHtml}
-  </tr>`;
-  }).join('');
+  const rows = visibleRows.map((n, index) => `<tr class="planner-affected-row${index === 0 ? ' selected' : ''}" data-row="${index}" tabindex="0"${index >= ROWS_FIRST ? ' hidden' : ''}>
+    ${cols.row(n).map(v => typeof v === 'string' ? `<td>${escHtml(v)}</td>` : `<td>${v.html}</td>`).join('')}
+  </tr>`).join('');
   const more = visibleRows.length > ROWS_FIRST
     ? `<button type="button" class="planner-more" data-more-step="${ROWS_STEP}">${t('producer.card.more', { n: Math.min(ROWS_STEP, visibleRows.length - ROWS_FIRST) })}</button>`
     : '';
@@ -898,10 +820,6 @@ function factsHtml(planner: Pick<PlannerCardCopy, 'observed' | 'usage'> | null):
 }
 
 function topicCard(g: RuleGroup, result: ValidationResult, index: number): string {
-  return plannerPerfMeasure('topicCard', () => topicCardImpl(g, result, index));
-}
-
-function topicCardImpl(g: RuleGroup, result: ValidationResult, index: number): string {
   const n = g.notices[0];
   const planner = plannerCardCopy(g, result);
   const title = planner?.title || t(`rule.${g.ruleId}`);
@@ -1072,10 +990,6 @@ function exampleTotal(n: Notice, examples: number): number {
 }
 
 function expandExamples(g: RuleGroup): void {
-  plannerPerfMeasure('expandExamples', () => expandExamplesImpl(g));
-}
-
-function expandExamplesImpl(g: RuleGroup): void {
   let total = 0;
   let expanded = false;
   g.notices = g.notices.flatMap(n => {
@@ -1089,21 +1003,17 @@ function expandExamplesImpl(g: RuleGroup): void {
 }
 
 export function renderProducer(root: HTMLElement, fullResult: ValidationResult): void {
-  plannerPerfReset();
-  plannerPerfMark('render:start');
   // İşletmeci süzgeci "Ayrıntı ve Düzeltme" ile ortaktır: kayıtlar seçili işletmecilerinkine
   // daralır; yayın kararı feed genelidir (motor onu işletmeci başına vermez).
   const agencyFilter = getState()?.agencyFilter ?? [];
   const filtered = filterNoticesByAgency(fullResult, agencyFilter);
   const result: ValidationResult = filtered ? { ...fullResult, notices: filtered } : fullResult;
   const m = buildProducerModel(result);
-  plannerPerfMark('model:built');
   if (filtered) {
     for (const g of [...m.blockers, ...m.improvements, ...m.infos]) g.count = g.notices.length;
   }
   const ordered = [...m.blockers, ...m.improvements, ...m.infos];
   for (const g of ordered) expandExamples(g);
-  plannerPerfMark('examples:expanded');
   const blockerRules = new Set(m.blockers.map(g => g.ruleId));
   // Planlamacı metni yazılmış konular ve yayını engelleyenler üstte; kalanlar motorun teknik
   // metniyle ayrı bölümde, iki dil aynı listede karışmasın diye.
@@ -1125,7 +1035,6 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   for (const rows of keys) for (const k of rows) for (const dim of ENTITY_DIMS) {
     for (const id of k[dim]) if (!labels[dim].has(id) && known[dim](id)) labels[dim].set(id, entityLabelOf(dim, id, result));
   }
-  plannerPerfMark('filters:indexed');
 
   const verdict = m.publishable
     ? `<div class="planner-verdict ok"><h2>${t('domain.r1_ok_title')}</h2><p>${t('producer.planner_verdict', { n: groups.length })}</p></div>`
@@ -1163,7 +1072,6 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     ${renderHiddenRulesBar()}
     <p class="producer-foot">${t('producer.footer')}</p>
   </section>`;
-  plannerPerfMark('html:built');
 
   attachHiddenRuleListeners(root);
   attachAgencyFilterListeners(root, ids => {
@@ -1278,7 +1186,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   const PICK_LIMIT = 300;
   const sortedOptions = new Map(ENTITY_DIMS.map(dim => [dim,
     [...labels[dim]].sort((a, b) => a[1].localeCompare(b[1], getLocale()))]));
-  const renderPick = (box: HTMLElement) => plannerPerfMeasure('renderPick', () => {
+  const renderPick = (box: HTMLElement) => {
     const dim = box.dataset['dim'] as EntityDim;
     const ids = picked.get(dim)!;
     const search = box.querySelector<HTMLInputElement>('.planner-pick-search')?.value.trim().toLocaleLowerCase(getLocale()) ?? '';
@@ -1299,7 +1207,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
         : ids.size === 1 ? labels[dim].get([...ids][0]) ?? '' : t('producer.filter.selected', { n: ids.size });
     }
     box.classList.toggle('active', ids.size > 0);
-  });
+  };
   const pickBoxes = Array.from(root.querySelectorAll<HTMLElement>('.planner-pick'));
   const closePicks = (except?: HTMLElement) => pickBoxes.forEach(box => {
     if (box === except) return;
@@ -1411,6 +1319,4 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
 
   const first = groups.length ? cardAt(0) : null;
   if (first) openCard(first, 0);
-  plannerPerfMark('render:end');
-  plannerPerfReport();
 }
