@@ -1922,6 +1922,7 @@ const tr = {
     'producer.col.stop': "Durak",
     'producer.col.stop_code': "Durak kodu",
     'producer.col.route_code': "Hat kodu",
+    'producer.col.shape_code': "Güzergâh kodu",
     'producer.col.record': "Kayıt",
     'producer.col.row': "Satır",
     'producer.map.caption_focus': "Kırmızı: bu konunun işaret ettiği durak veya bölüm. Renkli çizgiler: etkilenen hatlar, kendi renkleriyle.",

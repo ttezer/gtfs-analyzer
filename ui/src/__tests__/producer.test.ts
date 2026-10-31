@@ -595,3 +595,42 @@ describe('Hatalı yer sütunu', () => {
     expect(el.innerHTML).toContain('<td>Kubilay Cad. (71508) → Kubilay Cad. (K2)</td>');
   });
 });
+
+describe('Feed düzeyi özetin örnek kayıtları', () => {
+  const ni: NameIndex = { ...emptyNameIndex, stops: { P1: 'Çarşı', P2: 'Liman' }, stop_codes: { P1: '1204' } };
+  const render = (notices: Notice[], rule: string) => {
+    const r = result(notices, [], [[rule, 4, 1]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    return el.innerHTML;
+  };
+
+  it('örnek durakları satır satır açar, toplamı motorun sayısından alır, özetin sayısını satıra yazmaz', () => {
+    const html = render([notice('a', 'STP_022', 'LOW', {
+      observed_value: '3537', details: { affected_stops: '3537', example_stops: 'P1, P2' },
+    })], 'STP_022');
+    expect(html).toContain('<td>Çarşı</td><td>P1</td>');
+    expect(html).toContain('<td>Liman</td><td>P2</td>');
+    expect(html).toContain('<strong>3.537</strong><span>durak</span>');
+    expect(html).toContain('Kalan 3.535 kayıt listede yok');
+    expect(html).not.toContain('<th>Görülen değer</th>');
+  });
+
+  it('örnek güzergâhları hat rozeti ve güzergâh koduyla açar', () => {
+    const local: NameIndex = { ...ni, routes: { R1: '34' }, shape_routes: { SH1: [['R1', '0']] } };
+    const r = result([notice('a', 'SHP_009', 'LOW', { observed_value: '2', details: { affected_shapes: '2', example_shapes: 'SH1, SH2' } })], [], [['SHP_009', 4, 1]], true, local);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Güzergâh kodu</th>');
+    expect(el.innerHTML).toContain('>34</span></td><td>SH1</td>');
+    expect(el.innerHTML).toContain('<td>—</td><td>SH2</td>');
+  });
+
+  it('takvim dönemi bildiriminde dönem satırını korur ve etkilenen takvim kodlarını yazar', () => {
+    const html = render([notice('a', 'CAL_007', 'LOW', {
+      entity_id: '20260812-20261002', observed_value: '50', expected_value: '< 14', details: { services: '287.328.1,287.65.1' },
+    })], 'CAL_007');
+    expect(html).toContain('<th>Takvim kodu</th>');
+    expect(html).toContain('<td>287.328.1, 287.65.1</td>');
+  });
+});

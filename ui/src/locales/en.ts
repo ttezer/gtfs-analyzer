@@ -1924,6 +1924,7 @@ const en: LocaleShape = {
     'producer.col.stop': "Stop",
     'producer.col.stop_code': "Stop ID",
     'producer.col.route_code': "Route ID",
+    'producer.col.shape_code': "Shape ID",
     'producer.col.record': "Record",
     'producer.col.row': "Row",
     'producer.map.caption_focus': "Red: the stop or segment this topic points to. Coloured lines: affected routes in their own colours.",

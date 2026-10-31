@@ -1923,6 +1923,7 @@ const ja: LocaleShape = {
     'producer.col.stop': "停留所",
     'producer.col.stop_code': "停留所ID",
     'producer.col.route_code': "路線ID",
+    'producer.col.shape_code': "経路形状ID",
     'producer.col.record': "レコード",
     'producer.col.row': "行",
     'producer.map.caption_focus': "赤: この項目が指す停留所または区間。色付きの線: 影響を受ける路線(路線色)。",

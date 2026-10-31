@@ -1924,6 +1924,7 @@ const fr: LocaleShape = {
     'producer.col.stop': "Arrêt",
     'producer.col.stop_code': "Identifiant arrêt",
     'producer.col.route_code': "Identifiant ligne",
+    'producer.col.shape_code': "Identifiant tracé",
     'producer.col.record': "Enregistrement",
     'producer.col.row': "Ligne du fichier",
     'producer.map.caption_focus': "Rouge : l’arrêt ou le tronçon concerné. Lignes colorées : lignes touchées, dans leur propre couleur.",

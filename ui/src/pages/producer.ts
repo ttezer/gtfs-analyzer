@@ -707,16 +707,41 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         ],
       };
     }
+    case 'Shape':
+      // Güzergâh çizimi: onu kullanan hat(lar) ve güzergâh kodu.
+      return {
+        head: [t('producer.col.route'), t('producer.col.shape_code')],
+        row: n => {
+          const routeIds = [...new Set((n.entity_id ? ni.shape_routes?.[n.entity_id] ?? [] : []).map(([routeId]) => routeId))];
+          const routes: Cell = routeIds.length
+            ? { html: routeIds.slice(0, 4).map(routeId => routeBadgeHtml(routeId, result)).join(' ') + (routeIds.length > 4 ? ` +${routeIds.length - 4}` : '') }
+            : '—';
+          return [routes, dash(n.entity_id)];
+        },
+      };
     case 'Service':
       return {
         head: [t('producer.col.service_code'), t('producer.col.service')],
         row: n => [dash(n.entity_id), serviceText(n.entity_id, result)],
       };
-    default:
+    default: {
+      // Takvim dönemi bildirimleri (CAL_007/012/013) etkilenen takvimleri liste olarak taşır.
+      const withServices = g.notices.some(n => n.details?.services);
+      const servicesText = (n: Notice) => {
+        const ids = listOf(n.details?.services);
+        return ids.length ? ids.slice(0, 5).join(', ') + (ids.length > 5 ? ` (+${ids.length - 5})` : '') : '—';
+      };
+      // Satır numarası taşımayan (feed/dönem düzeyi) kayıtlarda boş "Satır" sütunu gösterilmez.
+      const withLine = g.notices.some(n => n.line != null);
       return days(
-        [t('producer.col.record'), t('producer.col.row')],
-        n => [entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'), n.line != null ? String(n.line) : '—'],
+        [t('producer.col.record'), ...(withLine ? [t('producer.col.row')] : []), ...(withServices ? [t('producer.col.service_code')] : [])],
+        n => [
+          entityLabel(n, ni) || n.observed_value || t('producer.map.unknown_context'),
+          ...(withLine ? [n.line != null ? String(n.line) : '—'] : []),
+          ...(withServices ? [servicesText(n)] : []),
+        ],
       );
+    }
   }
 }
 
@@ -823,9 +848,10 @@ function noticeKeys(n: Notice, result: ValidationResult): NoticeKeys {
   const route = n.entity_type === 'Route' ? n.entity_id : trip ? ni.trip_routes?.[trip] : d.route_id;
   const shape = n.entity_type === 'Shape' ? n.entity_id : trip ? ni.trip_shapes?.[trip] : d.shape_id;
   const service = n.entity_type === 'Service' ? n.entity_id : n.service_id;
+  const services = listOf(d.services);
   const stops = [n.entity_type === 'Stop' ? n.entity_id : null, d.stop_id, d.stop_a, d.stop_b, d.prev_stop_id, d.next_stop_id];
   const ids = (values: Array<string | null | undefined>) => [...new Set(values.filter((v): v is string => Boolean(v)))];
-  return { route: ids([route]), stop: ids(stops), shape: ids([shape]), service: ids([service]) };
+  return { route: ids([route]), stop: ids(stops), shape: ids([shape]), service: ids([service, ...services]) };
 }
 
 function entityLabelOf(dim: EntityDim, id: string, result: ValidationResult): string {
@@ -890,6 +916,48 @@ function filterBar(groups: RuleGroup[], result: ValidationResult): string {
   </div>`;
 }
 
+// Feed düzeyi özet bildirimleri motorun verdiği örnek kayıtları liste olarak taşır; planlamacı
+// tek bir "Tüm feed" satırı yerine bu kayıtları (durak, sefer, takvim, güzergâh) satır satır görsün.
+const EXAMPLE_LISTS: Array<[string, Notice['entity_type']]> = [
+  ['example_stops', 'Stop'], ['isolated_stops', 'Stop'], ['example_platforms', 'Stop'],
+  ['example_trips', 'Trip'], ['example_services', 'Service'], ['example_shapes', 'Shape'],
+  ['example_pathways', 'Pathway'],
+];
+
+function listOf(value: string | undefined): string[] {
+  return value ? value.split(/\s*,\s*/).filter(Boolean) : [];
+}
+
+/** Özet bildirimi örnek kayıtlarına açar; özetin sayısı (görülen değer) tek kayda ait olmadığı için taşınmaz. */
+function exampleNotices(n: Notice): Notice[] | null {
+  if (n.entity_id || !n.details) return null;
+  for (const [key, entity_type] of EXAMPLE_LISTS) {
+    const ids = listOf(n.details[key]);
+    if (ids.length) return ids.map(entity_id => ({ ...n, entity_type, entity_id, observed_value: null, expected_value: null }));
+  }
+  return null;
+}
+
+/** Özetin bildirdiği toplam kayıt sayısı (affected_*); yoksa örnek sayısı. */
+function exampleTotal(n: Notice, examples: number): number {
+  const total = Object.entries(n.details ?? {}).find(([key]) => key.startsWith('affected_'))?.[1];
+  const value = Number(total);
+  return Number.isFinite(value) && value > examples ? value : examples;
+}
+
+function expandExamples(g: RuleGroup): void {
+  let total = 0;
+  let expanded = false;
+  g.notices = g.notices.flatMap(n => {
+    const rows = exampleNotices(n);
+    if (!rows) { total += 1; return [n]; }
+    expanded = true;
+    total += exampleTotal(n, rows.length);
+    return rows;
+  });
+  if (expanded) g.count = Math.max(g.count, total);
+}
+
 export function renderProducer(root: HTMLElement, fullResult: ValidationResult): void {
   // İşletmeci süzgeci "Ayrıntı ve Düzeltme" ile ortaktır: kayıtlar seçili işletmecilerinkine
   // daralır; yayın kararı feed genelidir (motor onu işletmeci başına vermez).
@@ -901,6 +969,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     for (const g of [...m.blockers, ...m.improvements, ...m.infos]) g.count = g.notices.length;
   }
   const ordered = [...m.blockers, ...m.improvements, ...m.infos];
+  for (const g of ordered) expandExamples(g);
   const blockerRules = new Set(m.blockers.map(g => g.ruleId));
   // Planlamacı metni yazılmış konular ve yayını engelleyenler üstte; kalanlar motorun teknik
   // metniyle ayrı bölümde, iki dil aynı listede karışmasın diye.
