@@ -196,7 +196,7 @@ describe('Üretici kartı görünümü', () => {
     const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Bazı seferlerde kesin durak saatleri eksik');
-    expect(root.innerHTML).toContain('6 hattı · 07:15, 07:45, 08:15… kalkış · 5 sefer');
+    expect(root.innerHTML).toContain('6 hattı · sefer başlangıcı 07:15, 07:45, 08:15… · 5 sefer');
     // İlk üç kalkış kart bağlamında özetlenir; ayrıntılı tablo artık kartın içinde tutulur.
     expect(root.innerHTML).toContain('07:15, 07:45, 08:15…');
   });
@@ -258,7 +258,7 @@ describe('Üretici kartı görünümü', () => {
     const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Duraklar arasında gerçekçi olmayan hız');
-    expect(root.innerHTML).toContain('6 hattı · Hastane yönü · 08:45 kalkışlı sefer');
+    expect(root.innerHTML).toContain('6 hattı · Hastane yönü · sefer başlangıcı 08:45');
     expect(root.innerHTML).toContain('Görülen değer:</span> <code>768 km/h</code>');
     expect(root.innerHTML).toContain('Merkez ile Hastane arasında hesaplanan hız gerçekçi görünmüyor');
     expect(root.innerHTML).not.toContain('768 km/h hız hesaplanmış');
@@ -306,7 +306,7 @@ describe('Üretici kartı görünümü', () => {
     renderProducer(root, r);
     expect(root.innerHTML).toContain('İlk durakta varış saati eksik');
     expect(root.innerHTML).toContain('Son durakta varış saati eksik');
-    expect(root.innerHTML).toContain('6 hattı · Hastane yönü · 07:15 kalkışlı sefer');
+    expect(root.innerHTML).toContain('6 hattı · Hastane yönü · sefer başlangıcı 07:15');
     expect(root.innerHTML).not.toContain('trip_id');
   });
 
@@ -399,7 +399,7 @@ describe('Planlamacılar İçin sayfası', () => {
     const r = result([notice('a', 'STM_015', 'MEDIUM', { entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt' })], [], [['STM_015', 2, 1]], true, ni);
     const el = root();
     renderProducer(el, r);
-    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>İlk kalkış</th></tr>');
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th></tr>');
     expect(el.innerHTML).toContain('<td>Üniversite</td>');
     expect(el.innerHTML).not.toContain('<th>Dosya</th>');
   });
@@ -597,6 +597,78 @@ describe('Hatalı yer sütunu', () => {
       entity_type: 'Trip', entity_id: 'T1', observed_value: '28:00:00', expected_value: '≤27:00:00', details: { stop_id: 'S4' },
     }));
     expect(late).toContain('<td>Otogar · kalkış 28:00:00</td>');
+  });
+
+  it('STM_003 bozuk varış saatini durak adıyla yazar', () => {
+    const html = render(notice('a', 'STM_003', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1', field: 'arrival_time', observed_value: '-15:46:01', expected_value: 'HH:MM:SS',
+      details: {
+        stop_id: 'S2', arrival: '?', departure: '?',
+        prev_stop_id: 'S1', prev_arrival: '09:44:16', prev_departure: '09:44:16',
+        next_stop_id: 'S3', next_arrival: '?', next_departure: '?',
+      },
+    }));
+    expect(html).toContain('<td>Çarşı · varış -15:46:01</td>');
+  });
+
+  it('varışı da bozuk satırların STM_004 tekrarını STM_003 kartına katar, birimi durak saati yazar', () => {
+    const bad = (id: string, rule: string, line: number, extra: Partial<Notice> = {}) =>
+      notice(id, rule, 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt', line, observed_value: '-15:46:01', ...extra });
+    const r = result([
+      bad('a', 'STM_003', 10), bad('b', 'STM_003', 11),
+      bad('c', 'STM_004', 10), bad('d', 'STM_004', 11), bad('e', 'STM_004', 12),
+    ], ['a', 'b', 'c', 'd', 'e'], [['STM_003', 4, 2], ['STM_004', 4, 3]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('data-rule="STM_003"');
+    expect(el.innerHTML).toContain('<strong>2</strong><span>durak saati</span>');
+    // STM_004'te yalnız varışı sağlam satır (12) kalır.
+    expect(el.innerHTML).toContain('data-rule="STM_004"');
+    expect(el.innerHTML).toContain('<strong>1</strong><span>sefer</span>');
+  });
+
+  it('teknik ayrıntıda kayıt kodunu türüyle adlandırır, motorun iç anahtarlarını dökmez', () => {
+    const html = render(notice('a', 'STM_003', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: '203536-0', file: 'stop_times.txt', line: 1232681, field: 'arrival_time',
+      observed_value: '-15:46:01', expected_value: 'HH:MM:SS', details: { stop_id: 'S2', prev_arrival: '09:44:16' },
+    }));
+    expect(html).toContain('<span>Sefer kodu</span><code>203536-0</code>');
+    expect(html).toContain('<span>Durak kodu</span><code>S2</code>');
+    expect(html).not.toContain('<span>prev_arrival</span>');
+    expect(html).not.toContain('Varlık');
+  });
+
+  it('STM_007 özetini örnek satırlara açar, deseni ve birimi doğru yazar', () => {
+    const r = result([notice('a', 'STM_007', 'HIGH', {
+      file: 'stop_times.txt', field: 'departure_time', observed_value: '60010',
+      details: {
+        affected_rows: '60010', affected_trips: '11586', example_trips: 'T1',
+        typical_gap_seconds: '19', typical_gap_rows: '30997', top_stops: 'S2,S3',
+        example_0_trip: 'T1', example_0_line: '50', example_0_stop: 'S2', example_0_arrival: '06:50:45', example_0_departure: '06:50:30',
+        example_0_prev_stop: 'S1', example_0_prev_arrival: '06:50:20', example_0_prev_departure: '06:50:20',
+      },
+    })], [], [['STM_007', 4, 60010]], true, ni);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<strong>60.010</strong><span>durak saati</span>');
+    expect(el.innerHTML).toContain('<td>Çarşı · varış 06:50:45, kalkış 06:50:30</td>');
+    expect(el.innerHTML).toContain('60.010 durak saatinde (11.586 sefer) kalkış varıştan önce.');
+    expect(el.innerHTML).toContain('Bunların %52 kadarında fark aynı: kalkış varıştan 19 sn önce.');
+    expect(el.innerHTML).toContain('saatleri üreten ayardan gelebilir');
+    expect(el.innerHTML).toContain('En çok etkilenen duraklar: Çarşı, Liman.');
+  });
+
+  it('teknik ayrıntıda motorun İngilizce açıklamasını göstermez, STM_008 sayacını adıyla yazar', () => {
+    const html = render(notice('a', 'STM_008', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: '450055-0', file: 'stop_times.txt', line: 226349, field: 'arrival_time',
+      observed_value: '2', expected_value: 'monotonic trip chronology', details: { affected_segments: '2', stop_a: 'S1', stop_b: 'S2' },
+    }));
+    expect(html).toContain('<span>Geriye giden bölüm sayısı</span><code>2</code>');
+    expect(html).not.toContain('monotonic trip chronology');
+    const mask = render(notice('a', 'STM_003', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1', field: 'arrival_time', observed_value: '-15:46:01', expected_value: 'HH:MM:SS', details: { stop_id: 'S2' },
+    }));
+    expect(mask).toContain('<span>Beklenen değer</span><code>HH:MM:SS</code>');
   });
 
   it('hat düzeyindeki hız bulgusunda durak çiftini hat sütunlarının yanına yazar', () => {

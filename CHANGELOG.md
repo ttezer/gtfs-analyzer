@@ -36,8 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `STM_028` and `STM_029` add the first and last stop with their times
   (`first_stop_id`, `first_departure`, `last_stop_id`, `last_arrival`),
   `STM_045` the `stop_id` of the late departure, and `STM_021` the
-  `stop_a`/`stop_b` pair its rule card already described. Existing keys are
-  unchanged.
+  `stop_a`/`stop_b` pair its rule card already described. `STM_003` and
+  `STM_004` (unparseable arrival/departure time) add the row's `stop_id` and
+  times and the previous and next rows of the trip (`prev_*`, `next_*`;
+  unparseable times keep their raw text). The planner view folds `STM_004`
+  rows whose arrival is also unparseable into the `STM_003` topic. `STM_007`
+  rows add the stop and the neighbouring rows' times; its feed-level summary
+  (above 50 rows) adds `affected_trips`, up to 20 example rows from different
+  trips (`example_<i>_*`), the most common departure-before-arrival gap
+  (`typical_gap_seconds`, `typical_gap_rows`) and the five most affected stops
+  (`top_stops`), and no longer repeats a trip in `example_trips`. Existing
+  keys are unchanged.
 - **`name_index` carries four more lookups:** `route_colors` (valid hex
   `route_color`/`route_text_color` only), `route_long_names`, `stop_codes`
   and `service_days` (weekday summary per `service_id`, or date-only

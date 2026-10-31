@@ -600,6 +600,28 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
         .collect()
 }
 
+/// STM_007 özetinde planlamacıya açılan örnek satır sayısı (farklı seferlerden).
+const STM007_EXAMPLE_ROWS: usize = 20;
+/// Satır ayrıntısı → özetteki `example_<i>_<ad>` anahtarı.
+const STM007_EXAMPLE_KEYS: &[(&str, &str)] = &[
+    ("stop_id", "stop"),
+    ("arr", "arrival"),
+    ("dep", "departure"),
+    ("prev_stop_id", "prev_stop"),
+    ("prev_arrival", "prev_arrival"),
+    ("prev_departure", "prev_departure"),
+    ("next_stop_id", "next_stop"),
+    ("next_arrival", "next_arrival"),
+    ("next_departure", "next_departure"),
+];
+
+/// "HH:MM:SS" (24+ saat dahil) → saniye; format_hms çıktısını geri okur.
+fn hms_text_secs(text: &str) -> Option<u32> {
+    let mut parts = text.split(':').map(|p| p.parse::<u32>().ok());
+    let (h, m, s) = (parts.next()??, parts.next()??, parts.next()??);
+    Some(h * 3600 + m * 60 + s)
+}
+
 fn finalize_stm007_pending(
     pending: &mut Vec<Notice>,
     notices: &mut Vec<Notice>,
@@ -609,13 +631,12 @@ fn finalize_stm007_pending(
 ) {
     let n = pending.len();
     if n > threshold {
-        // HashMap/chunk kaynaklı ham take(5) deterministik değildir: önce sırala.
-        let mut examples: Vec<String> = pending
-            .iter()
-            .filter_map(|notice| notice.entity_id.clone())
-            .collect();
-        examples.sort_unstable();
-        examples.truncate(5);
+        // HashMap/chunk kaynaklı sıra deterministik değildir: (sefer, satır) sırasına diz.
+        pending.sort_by(|a, b| (&a.entity_id, a.line).cmp(&(&b.entity_id, b.line)));
+        let mut trips: Vec<&str> = pending.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+        trips.dedup();
+        let affected_trips = trips.len();
+        let examples: Vec<String> = trips.iter().take(5).map(|t| t.to_string()).collect();
         let mut notice = k6_notice(
             ctr,
             rule_id,
@@ -632,8 +653,79 @@ fn finalize_stm007_pending(
         );
         let mut details = BTreeMap::new();
         details.insert("affected_rows".to_string(), n.to_string());
+        details.insert("affected_trips".to_string(), affected_trips.to_string());
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
+        }
+        // Planlamacı için STM007_EXAMPLE_ROWS satır, komşu saatleriyle (example_<i>_*): önce her
+        // biri farklı durakta ve farklı seferde olanlar (aynı hattın ardışık seferleri aynı durağı
+        // tekrarlamasın), yer kalırsa farklı seferlerden kalanlar. Özetin sayısı ve metni değişmez.
+        let stop_of = |row: &Notice| row.details.as_ref().and_then(|d| d.get("stop_id")).cloned();
+        let mut chosen: Vec<&Notice> = Vec::new();
+        let mut used_trips: FxHashSet<&str> = FxHashSet::default();
+        let mut used_stops: FxHashSet<String> = FxHashSet::default();
+        for distinct_stop in [true, false] {
+            for row in pending.iter() {
+                if chosen.len() >= STM007_EXAMPLE_ROWS {
+                    break;
+                }
+                let Some(trip) = row.entity_id.as_deref() else { continue };
+                if used_trips.contains(trip) {
+                    continue;
+                }
+                let stop = stop_of(row).unwrap_or_default();
+                if distinct_stop && used_stops.contains(&stop) {
+                    continue;
+                }
+                used_trips.insert(trip);
+                used_stops.insert(stop);
+                chosen.push(row);
+            }
+        }
+        for (i, row) in chosen.into_iter().enumerate() {
+            let trip = row.entity_id.as_deref();
+            details.insert(format!("example_{i}_trip"), trip.unwrap_or_default().to_string());
+            if let Some(line) = row.line {
+                details.insert(format!("example_{i}_line"), line.to_string());
+            }
+            if let Some(service) = row.service_id.as_deref() {
+                details.insert(format!("example_{i}_service"), service.to_string());
+            }
+            if let Some(d) = row.details.as_ref() {
+                for (from, to) in STM007_EXAMPLE_KEYS {
+                    if let Some(v) = d.get(*from) {
+                        details.insert(format!("example_{i}_{to}"), v.clone());
+                    }
+                }
+            }
+        }
+        // Desen: kalkış varıştan en sık kaç saniye önce ve bu farkı taşıyan satır sayısı;
+        // en çok etkilenen beş durak. Aynı fark binlerce satırda tekrarlanıyorsa tek tek
+        // yazım hatası değil üretim kuralıdır.
+        let mut gaps: FxHashMap<u32, usize> = FxHashMap::default();
+        let mut stops: FxHashMap<&str, usize> = FxHashMap::default();
+        for row in pending.iter() {
+            let Some(d) = row.details.as_ref() else { continue };
+            if let (Some(arr), Some(dep)) = (d.get("arr"), d.get("dep")) {
+                if let (Some(a), Some(b)) = (hms_text_secs(arr), hms_text_secs(dep)) {
+                    *gaps.entry(a.saturating_sub(b)).or_default() += 1;
+                }
+            }
+            if let Some(stop) = d.get("stop_id") {
+                *stops.entry(stop.as_str()).or_default() += 1;
+            }
+        }
+        if let Some((gap, rows)) = gaps.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0))) {
+            details.insert("typical_gap_seconds".to_string(), gap.to_string());
+            details.insert("typical_gap_rows".to_string(), rows.to_string());
+        }
+        let mut top: Vec<(&str, usize)> = stops.into_iter().collect();
+        top.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        if !top.is_empty() {
+            details.insert(
+                "top_stops".to_string(),
+                top.iter().take(5).map(|(s, _)| *s).collect::<Vec<_>>().join(","),
+            );
         }
         notice.details = Some(details);
         notices.push(notice);
@@ -1593,7 +1685,7 @@ fn check_speed_and_duration<'a>(
             // service_day_start ile elenir; gerçek satır-içi hatalar zenginleştirilmiş mesajla verilir.
             {
                 let sds_secs = config.service_day_start_hour * 3600;
-                for st in stimes.iter() {
+                for (row_index, st) in stimes.iter().enumerate() {
                     let (Some(arr), Some(dep)) = (st.arrival_time(), st.departure_time()) else {
                         continue;
                     };
@@ -1628,6 +1720,21 @@ fn check_speed_and_duration<'a>(
                     d.insert("dir".to_string(), dir_sd.to_string());
                     d.insert("dep".to_string(), format_hms(dep_s));
                     d.insert("arr".to_string(), format_hms(arr_s));
+                    // Planlamacı hatalı satırı komşularıyla görsün: durak ve bir önceki/sonraki satırın saatleri.
+                    d.insert("stop_id".to_string(), idx.stop_id_of(st).to_string());
+                    let neighbours = [("prev", row_index.checked_sub(1)), ("next", Some(row_index + 1))];
+                    for (side, other) in neighbours {
+                        let Some(other) = other.and_then(|j| stimes.get(j)) else {
+                            continue;
+                        };
+                        d.insert(format!("{side}_stop_id"), idx.stop_id_of(other).to_string());
+                        if let Some(t) = other.arrival_time() {
+                            d.insert(format!("{side}_arrival"), format_hms(hms_to_secs(t)));
+                        }
+                        if let Some(t) = other.departure_time() {
+                            d.insert(format!("{side}_departure"), format_hms(hms_to_secs(t)));
+                        }
+                    }
                     // Feed özeti dalı (`finalize_stm007_pending`) affected_rows/example_trips yazar;
                     // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı, yoksa özet
                     // notice'ın en/ja/fr metni boş placeholder'la çıkar (korpusta ölçüldü).
@@ -13536,6 +13643,22 @@ mod tests {
                 .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
+        // Planlamacı görünümü için örnek satırlar ve desen (özetin sayısı değişmeden).
+        let d = stm007[0].details.as_ref().expect("özet ayrıntısı");
+        let get = |k: &str| d.get(k).map(String::as_str);
+        assert_eq!(get("affected_trips"), Some("51"));
+        assert_eq!(get("example_0_trip"), Some("T00"));
+        assert_eq!(get("example_0_stop"), Some("B"));
+        assert!(get("example_0_service").is_some(), "örnek satır takvimini taşımalı");
+        assert_eq!(get("example_0_arrival"), Some("09:00:00"));
+        assert_eq!(get("example_0_departure"), Some("08:00:00"));
+        assert_eq!(get("example_0_prev_stop"), Some("A"));
+        assert_eq!(get("example_0_prev_departure"), Some("08:00:00"));
+        assert_eq!(get("example_19_trip"), Some("T19"));
+        assert_eq!(get("example_20_trip"), None, "en fazla 20 örnek satır");
+        assert_eq!(get("typical_gap_seconds"), Some("3600"));
+        assert_eq!(get("typical_gap_rows"), Some("51"));
+        assert_eq!(get("top_stops"), Some("B"));
     }
 
     #[test]

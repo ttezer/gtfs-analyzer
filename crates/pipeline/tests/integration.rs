@@ -3143,6 +3143,39 @@ fn trip_level_time_rules_carry_the_stops_to_fix() {
     assert_eq!(get(&d, "stop_b").as_deref(), Some("S2"));
 }
 
+#[test]
+fn malformed_time_carries_stop_and_neighbour_rows() {
+    // Gaziantep (mdb-3401) örneği: sefer 09:44'te geçerliyken sonraki duraklarda "-15:46:01"
+    // gibi negatif saatler başlıyor. Planlamacı bozuk saatin durağını ve iki komşusunu görmeli.
+    static STOPS3: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.01,29.01\nS3,Stop3,41.02,29.02\n";
+    static NEGATIVE: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,09:44:16,09:44:16,S1,1\nT1,-15:46:01,-15:46:01,S2,2\nT1,-15:47:54,-15:47:54,S3,3\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS3);
+    files[4] = ("stop_times.txt", NEGATIVE);
+    match run(&files) {
+        ValidateResult::Ok(vr) => {
+            let d = vr
+                .notices
+                .iter()
+                .find(|n| n.rule_id == "STM_003" && n.observed_value.as_deref() == Some("-15:46:01"))
+                .and_then(|n| n.details.clone())
+                .expect("STM_003 ayrıntısı bekleniyor");
+            let get = |k: &str| d.get(k).map(String::as_str);
+            assert_eq!(get("stop_id"), Some("S2"));
+            assert_eq!(get("arrival"), Some("-15:46:01"));
+            assert_eq!(get("departure"), Some("-15:46:01"));
+            assert_eq!(get("prev_stop_id"), Some("S1"));
+            assert_eq!(get("prev_arrival"), Some("09:44:16"));
+            assert_eq!(get("prev_departure"), Some("09:44:16"));
+            assert_eq!(get("next_stop_id"), Some("S3"));
+            assert_eq!(get("next_arrival"), Some("-15:47:54"));
+            assert_eq!(get("next_departure"), Some("-15:47:54"));
+        }
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    }
+}
+
 // ── STM_057 KALDIRILDI (2026-08-01, WP-1) ─────────────────────────────────────
 // Kuralın iki testi de buradaydı. Spec cümlesi koşulludur ("travel WITHIN THE SAME
 // location group…requires two records"); kural bunu her konum için iki kayıt şartına

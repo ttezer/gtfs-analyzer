@@ -323,6 +323,33 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         usage,
       };
     }
+    case 'STM_007': {
+      // Feed düzeyi özet: kaç satır ve sefer, en sık fark ve en çok etkilenen duraklar.
+      const d = n.details ?? {};
+      const rows = Number(d.affected_rows);
+      const gapRows = Number(d.typical_gap_rows);
+      const parts: string[] = [];
+      if (rows > 1 && d.affected_trips) {
+        parts.push(t('producer.card.STM_007.summary', {
+          rows: rows.toLocaleString(getLocale()), trips: Number(d.affected_trips).toLocaleString(getLocale()),
+        }));
+      }
+      if (rows > 1 && d.typical_gap_seconds && gapRows) {
+        parts.push(t('producer.card.STM_007.gap', {
+          share: new Intl.NumberFormat(getLocale(), { style: 'percent' }).format(gapRows / rows), gap: d.typical_gap_seconds,
+        }));
+        // Aynı fark satırların yarısından fazlasında tekrarlanıyorsa tek tek yazım hatası değildir.
+        if (gapRows / rows >= 0.5) parts.push(t('producer.card.STM_007.pattern'));
+      }
+      const top = listOf(d.top_stops).map(id => result.name_index.stops?.[id] || id);
+      if (rows > 1 && top.length) parts.push(t('producer.card.STM_007.top_stops', { stops: top.join(', ') }));
+      return {
+        title: t('producer.card.STM_007.title'),
+        context: parts.join(' ') || undefined,
+        what: t('producer.card.STM_007.what'),
+        action: t('producer.card.STM_007.action'),
+      };
+    }
     case 'STM_047': {
       const routeLabels = [...new Set(g.notices
         .map(item => item.entity_id ? result.name_index.trip_routes?.[item.entity_id] : null)
@@ -441,6 +468,21 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       [name(d.stop_b, d.stop_b_name), d.arr ?? '—', '', true],
       ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_time ?? '—', '', false] as Row] : []),
     ];
+  } else if (n.rule_id === 'STM_007' && d.stop_id) {
+    rows = [
+      ...(d.prev_stop_id ? [[name(d.prev_stop_id), d.prev_arrival ?? '—', d.prev_departure ?? '—', false] as Row] : []),
+      [name(d.stop_id), d.arr ?? '—', d.dep ?? '—', true],
+      ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_arrival ?? '—', d.next_departure ?? '—', false] as Row] : []),
+    ];
+  } else if ((n.rule_id === 'STM_003' || n.rule_id === 'STM_004') && d.stop_id) {
+    // Motor bozuk saati "?" ile, boş alanı "" ile taşır; hatalı satırın kendi değeri görülen değerdir.
+    const time = (v?: string) => v === '?' ? t('producer.times.invalid') : v || '—';
+    const raw = n.observed_value ?? '?';
+    rows = [
+      ...(d.prev_stop_id ? [[name(d.prev_stop_id), time(d.prev_arrival), time(d.prev_departure), false] as Row] : []),
+      [name(d.stop_id), n.rule_id === 'STM_003' ? raw : time(d.arrival), n.rule_id === 'STM_004' ? raw : time(d.departure), true],
+      ...(d.next_stop_id ? [[name(d.next_stop_id), time(d.next_arrival), time(d.next_departure), false] as Row] : []),
+    ];
   }
   if (!rows.length) return '';
   return `<table class="planner-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
@@ -457,6 +499,9 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     return t('producer.times.spot_untimed', { n: d.stop_count ?? '?' });
   }
   if (n.rule_id === 'STM_015') return t('producer.times.spot_first', { stop: name(d.stop_id), time: d.departure ?? d.next_time ?? '—' });
+  if (n.rule_id === 'STM_003' && d.stop_id) return t('producer.times.spot_arrival', { stop: name(d.stop_id), time: n.observed_value ?? '?' });
+  if (n.rule_id === 'STM_007' && d.stop_id) return t('producer.times.spot_dwell', { stop: name(d.stop_id), arr: d.arr ?? '—', dep: d.dep ?? '—' });
+  if (n.rule_id === 'STM_004' && d.stop_id) return t('producer.times.spot_first', { stop: name(d.stop_id), time: n.observed_value ?? '?' });
   if (n.rule_id === 'STM_016') return t('producer.times.spot_last', { stop: name(d.stop_id), time: d.prev_time ?? '—' });
   if (n.rule_id === 'STM_008') return `${name(d.stop_a, d.stop_a_name)} ${d.dep ?? '—'} → ${name(d.stop_b, d.stop_b_name)} ${d.arr ?? '—'}`;
   if (n.rule_id === 'STM_012' && (d.stop_a || d.stop_b)) {
@@ -550,6 +595,13 @@ function stepsHtml(action: string): string {
 /** Kartın sağ üstündeki sayının birimi: sefer, durak, hat... */
 function unitOf(g: RuleGroup): string {
   const n = g.notices[0];
+  // Özet satır sayısını taşıyorsa (affected_rows) ya da aynı sefer birden çok kez geçiyorsa sayı sefer değil
+  // satırdır (STM_003: bir seferin her bozuk durak saati; STM_007 özeti: 60.010 durak saati).
+  if (n.details?.affected_rows && n.file === 'stop_times.txt') return t('producer.unit.stop_time');
+  const trips = g.notices.filter(item => item.entity_type === 'Trip').map(item => item.entity_id);
+  if (n.entity_type === 'Trip' && new Set(trips).size < trips.length) {
+    return t(n.file === 'stop_times.txt' ? 'producer.unit.stop_time' : 'producer.card.affected_short');
+  }
   const unit = n.entity_id ? ({ Trip: 'trip', Stop: 'stop', Route: 'route', Shape: 'shape', Service: 'service' } as Record<string, string>)[n.entity_type] : undefined;
   return t(unit ? `producer.unit.${unit}` : 'producer.card.affected_short');
 }
@@ -675,19 +727,39 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   return { opts: { pins, extraPolylines: lines }, caption: t('producer.map.caption_network') };
 }
 
-function technicalDetails(g: RuleGroup): string {
-  const n = g.notices[0];
+/** Görülen/beklenen değer: motorun çevrilmemiş açıklamaları ("monotonic trip chronology", "7 rows")
+ *  gösterilmez; biçim kalıpları (HH:MM:SS, YYYYMMDD) dilden bağımsız sayılır. Sefer düzeyine toplanmış
+ *  bildirimde (STM_008) görülen değer bir sayaçtır ve kendi adıyla yazılır. */
+function technicalValues(n: Notice): Array<[string, string | null | undefined]> {
+  const formatMask = (v: string) => /^[A-Z]+(?:[:/\- ][A-Z]+)*$/.test(v);
+  const expected = n.expected_value?.trim();
+  const shownExpected = expected && (isNeutralValue(expected) || formatMask(expected)) ? expected : null;
+  if (n.details?.affected_segments && n.details.affected_segments === n.observed_value) {
+    return [[t('producer.card.affected_segments'), n.observed_value]];
+  }
+  return [
+    [t('producer.card.observed'), plainValue(n.observed_value, n.field)],
+    [t('producer.card.expected'), shownExpected],
+  ];
+}
+
+/** Bilgi işlem ekibi için seçilen kaydın künyesi: kural, dosyadaki yeri, kayıt kodları ve ham değerler.
+ *  Motorun iç anahtarları (prev_arrival …) planlamacı görünümünde zaten tabloda; burada tekrar edilmez. */
+function technicalDetails(n: Notice): string {
+  const codeLabel: Record<string, string> = {
+    Trip: 'producer.col.trip_code', Stop: 'producer.col.stop_code', Route: 'producer.col.route_code',
+    Service: 'producer.col.service_code', Shape: 'producer.col.shape_code',
+  };
+  const entityId = n.entity_type === 'Route' ? routeIdOfNotice(n) : n.entity_id;
+  const stopId = n.entity_type === 'Stop' ? null : n.details?.stop_id;
   const fields = [
-    [t('producer.card.rule'), g.ruleId],
+    [t('producer.card.rule'), n.rule_id],
     [t('producer.card.location'), where(n)],
-    [t('producer.card.entity'), n.entity_id],
-    [t('producer.card.observed'), n.observed_value],
-    [t('producer.card.expected'), n.expected_value],
-  ] as Array<[string, string | null]>;
-  const extra = n.details
-    ? Object.entries(n.details).slice(0, 8).map(([key, value]) => [key, value] as [string, string])
-    : [];
-  return [...fields, ...extra]
+    [t(codeLabel[n.entity_type] ?? 'producer.col.record'), entityId],
+    [t('producer.col.stop_code'), stopId],
+    ...technicalValues(n),
+  ] as Array<[string, string | null | undefined]>;
+  return fields
     .filter(([, value]) => value != null && value !== '')
     .map(([label, value]) => `<span>${escHtml(label)}</span><code>${escHtml(String(value))}</code>`)
     .join('');
@@ -863,7 +935,7 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
         </div>
       </div>
       ${affectedRows(g, result)}
-      <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><dl>${technicalDetails(g)}</dl></details>
+      <details class="producer-card-details"><summary>${t('producer.card.technical')}</summary><dl>${technicalDetails(n)}</dl></details>
     </div>
   </article>`;
 }
@@ -981,11 +1053,39 @@ function listOf(value: string | undefined): string[] {
 /** Özet bildirimi örnek kayıtlarına açar; özetin sayısı (görülen değer) tek kayda ait olmadığı için taşınmaz. */
 function exampleNotices(n: Notice): Notice[] | null {
   if (n.entity_id || !n.details) return null;
+  const rows = exampleRows(n);
+  if (rows) return rows;
   for (const [key, entity_type] of EXAMPLE_LISTS) {
     const ids = listOf(n.details[key]);
     if (ids.length) return ids.map(entity_id => ({ ...n, entity_type, entity_id, observed_value: null, expected_value: null }));
   }
   return null;
+}
+
+/** STM_007 özeti örnek satırları `example_<i>_*` anahtarlarıyla taşır: her biri sefer, durak ve
+ *  komşu satırların saatleriyle satır düzeyindeki bildirimin ayrıntısına çevrilir. */
+function exampleRows(n: Notice): Notice[] | null {
+  const d = n.details ?? {};
+  if (!d.example_0_trip) return null;
+  const summary = Object.fromEntries(Object.entries(d).filter(([key]) => !key.startsWith('example_')));
+  const rows: Notice[] = [];
+  for (let i = 0; d[`example_${i}_trip`]; i++) {
+    const at = (key: string) => d[`example_${i}_${key}`];
+    const details: Record<string, string> = { ...summary };
+    const pairs: Array<[string, string]> = [
+      ['stop_id', 'stop'], ['arr', 'arrival'], ['dep', 'departure'],
+      ['prev_stop_id', 'prev_stop'], ['prev_arrival', 'prev_arrival'], ['prev_departure', 'prev_departure'],
+      ['next_stop_id', 'next_stop'], ['next_arrival', 'next_arrival'], ['next_departure', 'next_departure'],
+    ];
+    for (const [to, from] of pairs) if (at(from)) details[to] = at(from);
+    const line = Number(at('line'));
+    rows.push({
+      ...n, entity_type: 'Trip', entity_id: at('trip'), line: Number.isFinite(line) && at('line') ? line : null,
+      service_id: at('service') ?? n.service_id,
+      observed_value: null, expected_value: null, details,
+    });
+  }
+  return rows;
 }
 
 /** Özetin bildirdiği toplam kayıt sayısı (affected_*); yoksa örnek sayısı. */
@@ -1008,6 +1108,23 @@ function expandExamples(g: RuleGroup): void {
   if (expanded) g.count = Math.max(g.count, total);
 }
 
+/** Aynı satırda varış da kalkış da bozuksa planlamacı tek konu görsün: STM_003 kartının saat
+ *  tablosu iki saati birlikte gösterir; STM_004'te yalnız varışı sağlam satırlar kalır. */
+function foldDepartureIntoArrival(m: ReturnType<typeof buildProducerModel>): void {
+  const arrival = [...m.blockers, ...m.improvements, ...m.infos].find(g => g.ruleId === 'STM_003');
+  if (!arrival) return;
+  const rows = new Set(arrival.notices.map(n => `${n.entity_id}\u0000${n.line}`));
+  for (const list of [m.blockers, m.improvements, m.infos]) {
+    const i = list.findIndex(g => g.ruleId === 'STM_004');
+    if (i < 0) continue;
+    const g = list[i];
+    const rest = g.notices.filter(n => !rows.has(`${n.entity_id}\u0000${n.line}`));
+    if (rest.length === g.notices.length) continue;
+    if (rest.length === 0) list.splice(i, 1);
+    else { g.notices = rest; g.count = rest.length; }
+  }
+}
+
 export function renderProducer(root: HTMLElement, fullResult: ValidationResult): void {
   // İşletmeci süzgeci "Ayrıntı ve Düzeltme" ile ortaktır: kayıtlar seçili işletmecilerinkine
   // daralır; yayın kararı feed genelidir (motor onu işletmeci başına vermez).
@@ -1018,6 +1135,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   if (filtered) {
     for (const g of [...m.blockers, ...m.improvements, ...m.infos]) g.count = g.notices.length;
   }
+  foldDepartureIntoArrival(m);
   const ordered = [...m.blockers, ...m.improvements, ...m.infos];
   for (const g of ordered) expandExamples(g);
   const blockerRules = new Set(m.blockers.map(g => g.ruleId));
@@ -1114,6 +1232,8 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     }
     const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
     if (factsEl) { const facts = factsHtml(evidenceFacts(rowCopy, notice)); factsEl.innerHTML = facts; factsEl.hidden = !facts; }
+    const technicalEl = card.querySelector<HTMLElement>('.producer-card-details dl');
+    if (technicalEl) technicalEl.innerHTML = technicalDetails(notice);
     const strip = card.querySelector<HTMLElement>('.planner-times-host');
     if (strip) strip.innerHTML = timeStrip(notice, result);
     const map = plannerMap(notice, result);
