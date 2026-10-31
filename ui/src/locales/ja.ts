@@ -1938,6 +1938,7 @@ const ja: LocaleShape = {
     'producer.card.affected_short': 'レコード',
     'producer.card.entity': '対象',
     'producer.card.expected': '期待値',
+    'producer.card.expected_inline': "期待値 {value}",
     'producer.card.no_rows': '表示できるレコードはありません。',
     'producer.card.more': 'さらに{n}件を表示',
     'producer.card.cap': '残り {n} 件は一覧に表示していません。技術レポートを参照してください。',

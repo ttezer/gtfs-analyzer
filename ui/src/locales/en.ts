@@ -1939,6 +1939,7 @@ const en: LocaleShape = {
     'producer.card.affected_short': 'records',
     'producer.card.entity': 'Entity',
     'producer.card.expected': 'Expected value',
+    'producer.card.expected_inline': "expected {value}",
     'producer.card.no_rows': 'No displayable records for this topic.',
     'producer.card.more': 'Show {n} more records',
     'producer.card.cap': '{n} remaining records are not listed; see the technical report.',

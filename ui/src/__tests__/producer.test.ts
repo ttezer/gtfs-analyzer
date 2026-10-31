@@ -499,3 +499,42 @@ describe('Tasarım ayrıntıları', () => {
     expect(el.innerHTML).toContain('>BETA</span>');
   });
 });
+
+describe('Genel kalıpta görülen değer', () => {
+  const render = (notices: Notice[], rule: string) => {
+    const r = result(notices, [], [[rule, 4, notices.length]]);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    return el.innerHTML;
+  };
+
+  it('her satıra kendi görülen değerini ve dilden bağımsız beklenen değeri yazar', () => {
+    const html = render([
+      notice('a', 'STM_048', 'HIGH', { entity_type: 'Trip', entity_id: 'T1', field: 'arrival_time', observed_value: '00:10:00', expected_value: '24:10:00' }),
+      notice('b', 'STM_048', 'HIGH', { entity_type: 'Trip', entity_id: 'T2', field: 'arrival_time', observed_value: '00:25:00', expected_value: '24:25:00' }),
+    ], 'STM_048');
+    expect(html).toContain('<th>Görülen değer</th>');
+    expect(html).toContain('<td>00:10:00 <span class="planner-expected">beklenen 24:10:00</span></td>');
+    expect(html).toContain('<td>00:25:00 <span class="planner-expected">beklenen 24:25:00</span></td>');
+    expect(html).toContain('<code>00:10:00 · beklenen 24:10:00</code>');
+  });
+
+  it('feed metin sütunundaki veriyi gösterir, motorun dil içeren özetini ve beklenen metnini göstermez', () => {
+    const name = render([notice('a', 'DQ_019', 'LOW', { entity_type: 'Trip', entity_id: 'T1', field: 'route_long_name', observed_value: 'test-test', expected_value: 'inceleyin' })], 'DQ_019');
+    expect(name).toContain('<td>test-test</td>');
+    expect(name).not.toContain('beklenen inceleyin');
+    const engine = render([notice('a', 'DQ_016', 'LOW', { entity_type: 'Trip', entity_id: 'T1', field: 'stop_name', observed_value: '7 rows' })], 'DQ_016');
+    expect(engine).not.toContain('<th>Görülen değer</th>');
+    expect(engine).not.toContain('<td>7 rows');
+    const glued = render([notice('a', 'VAT_003', 'LOW', { entity_type: 'Trip', entity_id: 'T1', field: 'trip_id', observed_value: '1469min (hour-based expected 29min)' })], 'VAT_003');
+    expect(glued).not.toContain('<td>1469min');
+    const ids = render([notice('a', 'STM_021', 'LOW', { entity_type: 'Trip', entity_id: 'T1', field: 'stop_id', observed_value: '43GX03 → 44GX02' })], 'STM_021');
+    expect(ids).toContain('<td>43GX03 → 44GX02</td>');
+    expect(engine).toContain('class="producer-card-facts" hidden');
+  });
+
+  it('kendi kanıtını yazan kurala sütun eklemez', () => {
+    const html = render([notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', field: 'arrival_time', expected_value: 'HH:MM:SS' })], 'STM_015');
+    expect(html).not.toContain('<th>Görülen değer</th>');
+  });
+});

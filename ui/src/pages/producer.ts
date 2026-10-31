@@ -30,6 +30,8 @@ interface PlannerCardCopy {
   action: string;
   observed?: string;
   usage?: string;
+  /** Metin dil dosyasından geldi; kanıt (görülen değer) genel kalıpla gösterilir. */
+  generic?: boolean;
 }
 
 function agencyLabel(n: Notice, result: ValidationResult): string {
@@ -92,6 +94,49 @@ function stm012Observed(n: Notice): string | undefined {
 /** 0,0 (Gine Körfezi) — konum girilmemiş durakların yaygın değeri; gerçek bir durak değildir. */
 function isNullIsland(p?: [number, number] | null): boolean {
   return Boolean(p && Math.abs(p[0]) < 0.01 && Math.abs(p[1]) < 0.01);
+}
+
+// Motorun görülen/beklenen değeri çevrilmez. Planlamacıya yalnız dilden bağımsız değerler
+// (sayı, saat, tarih, birim, koordinat) ve feed'in kendi metin sütunlarından gelen veri gösterilir;
+// "7 rows", "dolu", "segment 8→9" gibi motor ekleri dil karıştırmasın diye gizli kalır.
+const NEUTRAL_VALUE = /^(?:[-+]?\d+(?:[.,]\d+)?(?:km\/h|m\/s|km|min|m|s|h|%)?|km\/h|m\/s|km|min|m|s|h|[<>≤≥=→/×()[\],;:+\-–.%·]|\s)+$/;
+const FEED_TEXT_FIELDS = new Set([
+  'agency_id', 'agency_name', 'agency_url', 'agency_phone', 'agency_email', 'agency_fare_url',
+  'stop_id', 'stop_code', 'stop_name', 'tts_stop_name', 'stop_desc', 'platform_code', 'zone_id',
+  'from_stop_id', 'to_stop_id', 'parent_station', 'level_id', 'level_name',
+  'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_url',
+  'trip_id', 'trip_headsign', 'trip_short_name', 'block_id', 'stop_headsign',
+  'service_id', 'shape_id', 'fare_id', 'feed_publisher_name', 'feed_publisher_url',
+]);
+
+function plainValue(value: string | null | undefined, field: string | null | undefined): string | null {
+  const v = value?.trim();
+  if (!v || v === 'None') return null;
+  if (NEUTRAL_VALUE.test(v)) return v;
+  const fromFeedText = (field ?? '').split('|').some(f => FEED_TEXT_FIELDS.has(f));
+  // "7 rows", "1469min (hour-based …)" gibi sayı + kelime ya da "a=b; c" biçimli motor özetleri feed verisi değildir.
+  return fromFeedText && !/[=;]/.test(v) && !/^\d+(?:[.,]\d+)?\s*\p{L}{2,}(?![\p{L}\d])/u.test(v) && !/\(\s*\p{L}/u.test(v) ? v : null;
+}
+
+/** Bildirimin görülen değeri; beklenen değer yalnız dilden bağımsızsa eklenir. */
+function observedValue(n: Notice): { value: string; expected: string | null } | null {
+  const value = plainValue(n.observed_value, n.field);
+  if (!value) return null;
+  const expected = n.expected_value?.trim();
+  return { value, expected: expected && expected !== 'None' && NEUTRAL_VALUE.test(expected) ? expected : null };
+}
+
+function observedLine(n: Notice): string | undefined {
+  const o = observedValue(n);
+  if (!o) return undefined;
+  return o.expected ? `${o.value} · ${t('producer.card.expected_inline', { value: o.expected })}` : o.value;
+}
+
+/** Kural kendi kanıtını yazmıyorsa (genel kalıp ya da metinsiz kural) seçilen kaydın görülen değeri. */
+function evidenceFacts(copy: PlannerCardCopy | null, n: Notice): Pick<PlannerCardCopy, 'observed' | 'usage'> | null {
+  if (copy && !copy.generic) return copy;
+  const observed = observedLine(n);
+  return observed ? { observed } : null;
 }
 
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
@@ -269,7 +314,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const base = `producer.card.${g.ruleId}`;
       const title = t(`${base}.title`);
       if (title === `${base}.title`) return null;
-      return { title, what: t(`${base}.what`), action: t(`${base}.action`) };
+      return { title, what: t(`${base}.what`), action: t(`${base}.action`), generic: true };
     }
   }
 }
@@ -552,6 +597,7 @@ function technicalDetails(g: RuleGroup): string {
     ? Object.entries(n.details).slice(0, 8).map(([key, value]) => [key, value] as [string, string])
     : [];
   return [...fields, ...extra]
+    .filter(([, value]) => value != null && value !== '')
     .map(([label, value]) => `<span>${escHtml(label)}</span><code>${escHtml(String(value))}</code>`)
     .join('');
 }
@@ -560,6 +606,23 @@ function technicalDetails(g: RuleGroup): string {
  *  durak → ad/kod, takvim → günler. */
 type Cell = string | { html: string };
 function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
+  const base = entityColumns(g, result);
+  // Kendi kanıtını yazmayan kurallarda her satır kendi görülen değerini taşır.
+  const copy = plannerCardCopy(g, result);
+  if ((copy && !copy.generic) || !g.notices.some(n => observedValue(n))) return base;
+  return {
+    head: [...base.head, t('producer.card.observed')],
+    row: n => {
+      const o = observedValue(n);
+      const cell: Cell = o
+        ? { html: `${escHtml(o.value)}${o.expected ? ` <span class="planner-expected">${escHtml(t('producer.card.expected_inline', { value: o.expected }))}</span>` : ''}` }
+        : '—';
+      return [...base.row(n), cell];
+    },
+  };
+}
+
+function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
   const ni = result.name_index;
   const dash = (v?: string | null) => v || '—';
   const first = g.notices[0];
@@ -628,7 +691,7 @@ function affectedRows(g: RuleGroup, result: ValidationResult): string {
 }
 
 /** Görülen değer ve kullanım satırları; seçilen kayda göre yeniden yazılır. */
-function factsHtml(planner: PlannerCardCopy | null): string {
+function factsHtml(planner: Pick<PlannerCardCopy, 'observed' | 'usage'> | null): string {
   const usage = planner?.usage
     ? `<p class="producer-card-usage"><span class="producer-card-label">${t('producer.card.usage')}:</span> ${escHtml(planner.usage)}</p>`
     : '';
@@ -667,7 +730,7 @@ function topicCard(g: RuleGroup, result: ValidationResult, index: number): strin
             <span class="producer-card-label">${t('producer.card.what')}</span>
             <p class="producer-card-message">${escHtml(what)}</p>
             <div class="planner-times-host"></div>
-            <div class="producer-card-facts"${factsHtml(planner) ? '' : ' hidden'}>${factsHtml(planner)}</div>
+            <div class="producer-card-facts"${factsHtml(evidenceFacts(planner, n)) ? '' : ' hidden'}>${factsHtml(evidenceFacts(planner, n))}</div>
           </div>
           <div class="producer-card-action">
             <span class="producer-card-label">${t('producer.card.action')}</span>
@@ -882,7 +945,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
       seenEl.innerHTML = searchView(notice, result) + serviceBlock(serviceId, result);
     }
     const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
-    if (factsEl) { const facts = factsHtml(rowCopy); factsEl.innerHTML = facts; factsEl.hidden = !facts; }
+    if (factsEl) { const facts = factsHtml(evidenceFacts(rowCopy, notice)); factsEl.innerHTML = facts; factsEl.hidden = !facts; }
     const strip = card.querySelector<HTMLElement>('.planner-times-host');
     if (strip) strip.innerHTML = timeStrip(notice, result);
     const map = plannerMap(notice, result);

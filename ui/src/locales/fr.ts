@@ -1939,6 +1939,7 @@ const fr: LocaleShape = {
     'producer.card.affected_short': 'enregistrements',
     'producer.card.entity': 'Entité',
     'producer.card.expected': 'Valeur attendue',
+    'producer.card.expected_inline': "attendu {value}",
     'producer.card.no_rows': 'Aucun enregistrement affichable pour ce sujet.',
     'producer.card.more': 'Afficher {n} enregistrements de plus',
     'producer.card.cap': '{n} enregistrements restants ne sont pas listés ; voir le rapport technique.',

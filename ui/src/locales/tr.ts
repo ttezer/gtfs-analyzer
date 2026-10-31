@@ -1937,6 +1937,7 @@ const tr = {
     'producer.card.affected_short': 'kayıt',
     'producer.card.entity': 'Varlık',
     'producer.card.expected': 'Beklenen değer',
+    'producer.card.expected_inline': "beklenen {value}",
     'producer.card.no_rows': 'Bu konu için gösterilebilir kayıt yok.',
     'producer.card.more': '+{n} kayıt göster',
     'producer.card.cap': 'Kalan {n} kayıt listede yok; tamamı teknik raporda.',
