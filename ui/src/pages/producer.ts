@@ -7,6 +7,7 @@ import { escHtml } from '../escape';
 import type { MapOptions, MapPin } from '../map-modal';
 import {
   buildProducerModel, entityLabel, stopUsage, plannerArea, routeBadge,
+  routeIdOfNotice,
   type RuleGroup, type PlannerArea,
 } from './producer-helpers';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
@@ -376,7 +377,7 @@ function routeIdsOf(g: RuleGroup, result: ValidationResult, limit = 8): string[]
   const routes = new Set<string>();
   for (const n of g.notices) {
     const routeId = n.entity_type === 'Route'
-      ? n.entity_id
+      ? routeIdOfNotice(n)
       : n.entity_type === 'Trip' && n.entity_id ? ni.trip_routes?.[n.entity_id] : n.details?.route_id;
     if (routeId) routes.add(routeId);
     if (routes.size >= limit) break;
@@ -524,10 +525,11 @@ function serviceBlock(serviceId: string | null | undefined, result: ValidationRe
 
 /** Yolcu uygulamasında hat aranınca: aynı adı taşıyan hatlar alt alta, ayırt edilemez. */
 function searchView(n: Notice, result: ValidationResult): string {
-  if (!['RTS_019', 'RTS_026', 'RTS_027'].includes(n.rule_id) || n.entity_type !== 'Route' || !n.entity_id) return '';
+  const routeId = routeIdOfNotice(n);
+  if (!['RTS_019', 'RTS_026', 'RTS_027'].includes(n.rule_id) || !routeId) return '';
   const ni = result.name_index;
   const nameOf = (id: string) => n.rule_id === 'RTS_027' ? ni.route_long_names?.[id] || ni.routes?.[id] : ni.routes?.[id];
-  const name = nameOf(n.entity_id);
+  const name = nameOf(routeId);
   if (!name) return '';
   const same = Object.keys(ni.routes ?? {}).filter(id => nameOf(id) === name).slice(0, 6);
   if (same.length < 2) return '';
@@ -642,8 +644,9 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         .slice(0, 150);
       for (const [stopId] of near) addStop(stopId, false);
     }
-  } else if (n.entity_type === 'Route' && n.entity_id) {
-    for (const shapeId of (ni.route_shapes?.[n.entity_id] ?? []).slice(0, 4)) addShape(shapeId, routeColor(n.entity_id));
+  } else if (n.entity_type === 'Route' && routeIdOfNotice(n)) {
+    const routeId = routeIdOfNotice(n)!;
+    for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 4)) addShape(shapeId, routeColor(routeId));
     // Hat düzeyindeki hız bulguları (STM_014, STM_061) hatalı durak çiftini taşır.
     const a = coord(n.details?.stop_a);
     const b = coord(n.details?.stop_b);
@@ -745,10 +748,13 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       const withSpot = timeSpot(first, result) !== null;
       return {
         head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code'), ...(withSpot ? [t('producer.col.spot')] : [])],
-        row: n => [
-          badge(n.entity_id), dash(n.entity_id ? ni.route_long_names?.[n.entity_id] : null), dash(n.entity_id),
-          ...(withSpot ? [dash(timeSpot(n, result))] : []),
-        ],
+        row: n => {
+          const routeId = routeIdOfNotice(n);
+          return [
+            badge(routeId), dash(routeId ? ni.route_long_names?.[routeId] : null), dash(routeId),
+            ...(withSpot ? [dash(timeSpot(n, result))] : []),
+          ];
+        },
       };
     }
     case 'Shape':
@@ -889,7 +895,7 @@ function noticeKeys(n: Notice, result: ValidationResult): NoticeKeys {
   const ni = result.name_index;
   const d = n.details ?? {};
   const trip = n.entity_type === 'Trip' ? n.entity_id : null;
-  const route = n.entity_type === 'Route' ? n.entity_id : trip ? ni.trip_routes?.[trip] : d.route_id;
+  const route = n.entity_type === 'Route' ? routeIdOfNotice(n) : trip ? ni.trip_routes?.[trip] : d.route_id;
   const shape = n.entity_type === 'Shape' ? n.entity_id : trip ? ni.trip_shapes?.[trip] : d.shape_id;
   const service = n.entity_type === 'Service' ? n.entity_id : n.service_id;
   const services = listOf(d.services);

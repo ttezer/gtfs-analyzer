@@ -80,9 +80,14 @@ export function stopUsage(stopId: string, ni: NameIndex): StopUsage[] {
   return [...counts].map(([route, trips]) => ({ route, trips }));
 }
 
+/** Route düzeyindeki notice'larda entity_id bazen segment kimliğidir (ör. STM_014). */
+export function routeIdOfNotice(n: Notice): string | null {
+  return n.entity_type === 'Route' ? n.details?.route_id || n.entity_id : null;
+}
+
 /** Notice'ın varlığını üreticinin tanıdığı adla söyler; ad yoksa kimliği döner. */
 export function entityLabel(n: Notice, ni: NameIndex): string | null {
-  const id = n.entity_id;
+  const id = n.entity_type === 'Route' ? routeIdOfNotice(n) : n.entity_id;
   if (!id) return null;
   switch (n.entity_type) {
     case 'Stop': {

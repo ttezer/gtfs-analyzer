@@ -607,6 +607,19 @@ describe('Hatalı yer sütunu', () => {
     expect(html).toContain('<td>Çarşı → Liman</td>');
   });
 
+  it('STM_014 segment kimliğini değil details.route_id değerini hat olarak gösterir', () => {
+    const local: NameIndex = { ...ni, routes: { R1: '34' }, route_long_names: { R1: 'Merkez – Liman' } };
+    const r = result([notice('a', 'STM_014', 'HIGH', {
+      entity_type: 'Route', entity_id: 'R1:0:S2→S3',
+      details: { route_id: 'R1', stop_a: 'S2', stop_b: 'S3' },
+    })], [], [['STM_014', 4, 1]], true, local);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<span class="planner-route-badge">34</span>');
+    expect(el.innerHTML).toContain('<td>Merkez – Liman</td>');
+    expect(el.innerHTML).toContain('<td>R1</td>');
+  });
+
   it('aynı adlı iki durağı durak koduyla ayırır', () => {
     const local: NameIndex = { ...ni, stops: { ...ni.stops, K1: 'Kubilay Cad.', K2: 'Kubilay Cad.' }, stop_codes: { K1: '71508' } };
     const r = result([notice('a', 'STM_025', 'LOW', { entity_type: 'Trip', entity_id: 'T1', observed_value: '6s', details: { stop_a: 'K1', stop_b: 'K2' } })], [], [['STM_025', 4, 1]], true, local);
