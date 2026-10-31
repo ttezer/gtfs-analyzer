@@ -1,6 +1,8 @@
-// GEÇİCİ ölçüm düzeneği — commit edilmez. PLANNER_PERF_DIR içindeki notices.json + rest.json ile
+// Yerel ölçüm düzeneği. PLANNER_PERF_DIR içindeki notices.json + rest.json ile
 // planlamacı sayfasının HTML üretimini zamanlar.
 import { it, vi } from 'vitest';
+// Bu UI paketinde @types/node yok; dosya yalnızca Node tabanlı Vitest'te çalışır.
+// @ts-expect-error Node runtime modülü, yerel perf testinin çalışma ortamında mevcut.
 import { readFileSync } from 'node:fs';
 import { renderProducer } from '../pages/producer';
 import type { ValidationResult } from '../types';
@@ -8,7 +10,7 @@ import type { ValidationResult } from '../types';
 vi.mock('../state', () => ({ setPage: vi.fn(), getState: () => ({ agencyFilter: [] }), setAgencyFilter: vi.fn() }));
 vi.mock('../hidden-rules', () => ({ renderHiddenRulesBar: () => '', attachHiddenRuleListeners: () => undefined }));
 
-const dir = process.env.PLANNER_PERF_DIR;
+const dir = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.PLANNER_PERF_DIR;
 
 it.skipIf(!dir)('planlamacı sayfası büyük feed ölçümü', () => {
   const rest = JSON.parse(readFileSync(`${dir}/rest.json`, 'utf8'));

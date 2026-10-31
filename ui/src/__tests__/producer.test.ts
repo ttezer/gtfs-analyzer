@@ -533,6 +533,14 @@ describe('Genel kalıpta görülen değer', () => {
     expect(engine).toContain('class="producer-card-facts" hidden');
   });
 
+  it('sayı ve noktalama içeren uzun motor özetinde geri izleme yapmaz', () => {
+    const summary = render([notice('a', 'DQ_016', 'LOW', {
+      entity_type: 'Stop', entity_id: 'S1', field: 'stop_lat|stop_lon',
+      observed_value: "(52.603570904925725, 1.2203111959399426) == '29002900H555'",
+    })], 'DQ_016');
+    expect(summary).not.toContain('<th>Görülen değer</th>');
+  });
+
   it('kendi kanıtını yazan kurala sütun eklemez', () => {
     const html = render([notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', field: 'arrival_time', expected_value: 'HH:MM:SS' })], 'STM_015');
     expect(html).not.toContain('<th>Görülen değer</th>');

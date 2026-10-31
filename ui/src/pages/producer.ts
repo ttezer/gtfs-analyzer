@@ -153,7 +153,44 @@ function isNullIsland(p?: [number, number] | null): boolean {
 // Motorun görülen/beklenen değeri çevrilmez. Planlamacıya yalnız dilden bağımsız değerler
 // (sayı, saat, tarih, birim, koordinat) ve feed'in kendi metin sütunlarından gelen veri gösterilir;
 // "7 rows", "dolu", "segment 8→9" gibi motor ekleri dil karıştırmasın diye gizli kalır.
-const NEUTRAL_VALUE = /^(?:[-+]?\d+(?:[.,]\d+)?(?:km\/h|m\/s|km|min|m|s|h|%)?|km\/h|m\/s|km|min|m|s|h|[<>≤≥=→/×()[\],;:+\-–.%·]|\s)+$/;
+const NEUTRAL_UNITS = ['km/h', 'm/s', 'min', 'km', 'm', 's', 'h', '%'] as const;
+const NEUTRAL_PUNCTUATION = new Set(['<', '>', '≤', '≥', '=', '→', '/', '×', '(', ')', '[', ']', ',', ';', ':', '+', '-', '–', '.', '%', '·']);
+
+/**
+ * Nötr değerleri regex yerine soldan sağa tarar. Önceki regex, özellikle sayı ve
+ * noktalama işaretlerini bir arada taşıyan motor özetlerinde üstel geri izleme
+ * yaparak tek bir değeri dakikalarca işleyebiliyordu.
+ */
+function isNeutralValue(value: string): boolean {
+  let i = 0;
+  while (i < value.length) {
+    const char = value[i];
+    if (/\s/u.test(char) || NEUTRAL_PUNCTUATION.has(char)) {
+      i += 1;
+      continue;
+    }
+
+    if (char >= '0' && char <= '9') {
+      i += 1;
+      while (i < value.length && value[i] >= '0' && value[i] <= '9') i += 1;
+      if ((value[i] === '.' || value[i] === ',') && value[i + 1] >= '0' && value[i + 1] <= '9') {
+        i += 1;
+        while (i < value.length && value[i] >= '0' && value[i] <= '9') i += 1;
+      }
+      const unit = NEUTRAL_UNITS.find(candidate => value.startsWith(candidate, i));
+      if (unit) i += unit.length;
+      continue;
+    }
+
+    const unit = NEUTRAL_UNITS.find(candidate => value.startsWith(candidate, i));
+    if (unit) {
+      i += unit.length;
+      continue;
+    }
+    return false;
+  }
+  return value.length > 0;
+}
 const FEED_TEXT_FIELDS = new Set([
   'agency_id', 'agency_name', 'agency_url', 'agency_phone', 'agency_email', 'agency_fare_url',
   'stop_id', 'stop_code', 'stop_name', 'tts_stop_name', 'stop_desc', 'platform_code', 'zone_id',
@@ -167,7 +204,7 @@ function plainValue(value: string | null | undefined, field: string | null | und
   return plannerPerfMeasure('plainValue', () => {
     const v = value?.trim();
     if (!v || v === 'None') return null;
-    if (NEUTRAL_VALUE.test(v)) return v;
+    if (isNeutralValue(v)) return v;
     const fromFeedText = (field ?? '').split('|').some(f => FEED_TEXT_FIELDS.has(f));
     // "7 rows", "1469min (hour-based …)" gibi sayı + kelime ya da "a=b; c" biçimli motor özetleri feed verisi değildir.
     return fromFeedText && !/[=;]/.test(v) && !/^\d+(?:[.,]\d+)?\s*\p{L}{2,}(?![\p{L}\d])/u.test(v) && !/\(\s*\p{L}/u.test(v) ? v : null;
@@ -180,7 +217,7 @@ function observedValue(n: Notice): { value: string; expected: string | null } | 
     const value = plainValue(n.observed_value, n.field);
     if (!value) return null;
     const expected = n.expected_value?.trim();
-    return { value, expected: expected && expected !== 'None' && NEUTRAL_VALUE.test(expected) ? expected : null };
+    return { value, expected: expected && expected !== 'None' && isNeutralValue(expected) ? expected : null };
   });
 }
 
