@@ -33,7 +33,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         let publisher_name = get_trimmed_field(&row_map, "feed_publisher_name")
             .unwrap_or("")
             .to_string();
-        // sütun başlıkta yoksa ARC_025 devralır → atla
+        // if the column is absent from the header, ARC_025 takes over → skip
         if get_trimmed_field(&row_map, "feed_publisher_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -136,7 +136,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
             &file.name,
         );
 
-        // FIN_014: feed_start_date veya feed_end_date eksik (missing_feed_info_date)
+        // FIN_014: feed_start_date or feed_end_date is missing (missing_feed_info_date)
         let raw_start = get_trimmed_field(&row_map, "feed_start_date")
             .unwrap_or("")
             .to_string();
@@ -250,7 +250,7 @@ pub fn validate_feed_info(file: &RawFile) -> (Vec<FeedInfoRecord>, Vec<gtfs_core
         });
     }
 
-    // FIN_015: Birden fazla feed_info kaydı (more_than_one_entity)
+    // FIN_015: multiple feed_info records (more_than_one_entity)
     if records.len() > 1 {
         notices.push(make_k2_notice(
             &mut counter,
@@ -300,8 +300,8 @@ fn parse_date_field(
                 err,
                 "Alanı geçerli bir GTFS servis tarihi formatına (YYYYMMDD) ayarlayın.",
             ));
-            // Takvimle aynı karar: hüküm ham değerle verildi, geçerlilik penceresi kırpılmış
-            // tarihi taşır. Yoksa `" 20260301"` CAL_014'ü susturur (mdb-3155).
+            // Same decision as calendar: the rule used the raw value, while the validity window
+            // carries the trimmed date. Otherwise `" 20260301"` would suppress CAL_014 (mdb-3155).
             whitespace_trimmed_service_date(row_map, field)
         }
     }

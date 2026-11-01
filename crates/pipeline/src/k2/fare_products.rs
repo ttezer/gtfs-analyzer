@@ -22,7 +22,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
-    // FPD_007: dosya başına TEK özet — ölçümde tek feed 1,1M satır üretiyordu.
+    // FPD_007: ONE summary per file — one feed produced 1.1M rows in the measurement.
     let mut iso_bad: u64 = 0;
     let mut iso_first: Option<(u64, String, String)> = None;
 
@@ -34,7 +34,7 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
             .to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
-        // FPD_007: tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı.
+        // FPD_007: the amount must use the currency's ISO 4217 number of decimal places.
         {
             let a = get_trimmed_field(&row_map, "amount").unwrap_or("");
             let c = get_trimmed_field(&row_map, "currency").unwrap_or("");
@@ -46,12 +46,12 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
             }
         }
 
-        // NEGATİF TUTAR GEÇERLİDİR — işaretlenmez. Spec (fare_products.amount):
+        // NEGATIVE AMOUNTS ARE VALID — do not flag them. Spec (fare_products.amount):
         //   "May be negative to represent transfer discounts. May be zero to represent a
         //    fare product that is free."
-        // Eskiden her negatif değer FPD_002 ile KRİTİK·Spec işaretleniyordu; aktarma
-        // indirimi tanımlayan geçerli bir feed yayın skorunu kaybediyordu. FPD_002 artık
-        // yalnız alanın EKSİK veya SAYISAL OLMAMASI durumunu ölçer.
+        // Previously every negative value was flagged as Kritik·Spec by FPD_002; a valid feed
+        // defining a transfer discount lost its publication score. FPD_002 now measures only
+        // that the field is MISSING or NON-NUMERIC.
         let amount = match parse_f64(&row_map, "amount") {
             Ok(value) => {
                 if value.is_none() && get_trimmed_field(&row_map, "amount") == Some("") {
@@ -94,8 +94,8 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
         let currency = get_trimmed_field(&row_map, "currency")
             .unwrap_or("")
             .to_string();
-        // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
-        // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.
+        // ⚠️ ISO 4217 ACTIVE code list (issue #82): the old check was "three uppercase letters",
+        // so `ZZZ` passed and `iso4217_minor_unit` silently treated it as two decimal places.
         if !super::common::is_iso4217(&currency) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -131,11 +131,11 @@ pub fn validate_fare_products(file: &RawFile) -> (Vec<FareProductRecord>, Vec<gt
         });
     }
 
-    // FPD_007: DOSYA başına tek özet (DQ_016/ARC_032 deseni). Satır başına emit ölçümde
-    // 2 milyon notice demekti ve toplamın %99,7'si iki feed'den geliyordu.
+    // FPD_007: one summary per FILE (DQ_016/ARC_032 pattern). Per-row emission meant
+    // 2 million notices in the measurement, with 99.7% coming from two feeds.
     if let Some((line, amount, currency)) = iso_first {
-        // ⚠️ `None` = kod tabloda yok ya da ondalığı tanımsız; mesajda sayı yerine bunu
-        // söylemek gerekir — uydurma bir "2 basamak" beklentisi yazmak yanlış olurdu.
+        // ⚠️ `None` = the code is not in the table or its decimal places are undefined;
+        // the message must say this instead of inventing a "2 places" expectation.
         let want = iso4217_minor_unit(&currency)
             .map(|u| u.to_string())
             .unwrap_or_else(|| "tanımsız".to_string());
@@ -171,7 +171,7 @@ mod tests {
     }
 
     /// Spec: "amount … May be negative to represent transfer discounts."
-    /// Aktarma indirimi tanımlayan geçerli bir feed KRİTİK·Spec hatası almamalı.
+    /// A valid feed defining a transfer discount must not receive a Kritik·Spec finding.
     #[test]
     fn negative_amount_is_valid_and_not_flagged() {
         let (recs, notices) = validate_fare_products(&raw(&["P1,-1.50,USD"]));
@@ -192,7 +192,7 @@ mod tests {
         );
     }
 
-    /// Daraltmanın bedeli olmamalı: eksik ve sayısal-olmayan tutar YİNE yakalanır.
+    /// Narrowing the rule must not weaken it: missing and non-numeric amounts are STILL caught.
     #[test]
     fn missing_or_non_numeric_amount_still_flagged() {
         let (_, n1) = validate_fare_products(&raw(&["P1,,USD"]));

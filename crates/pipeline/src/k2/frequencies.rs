@@ -29,7 +29,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         let trip_id = get_raw_field(&row_map, "trip_id").unwrap_or("").to_string();
         let entity_id = (!trip_id.is_empty()).then_some(trip_id.clone());
 
-        // FRQ_001: trip_id required (sütun yoksa ARC_025 devralır → atla)
+        // FRQ_001: trip_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "trip_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -132,7 +132,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             Ok(v) => {
                 match v {
                     None => {
-                        // sütun yoksa ARC_025 devralır → atla
+                        // if the column is absent, ARC_025 takes over → skip
                         if get_trimmed_field(&row_map, "headway_secs") == Some("") {
                             notices.push(make_k2_notice(
                                 &mut counter,
@@ -169,7 +169,7 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                                 "headway_secs değerini pozitif bir saniye sayısına ayarlayın.",
                             ));
                         }
-                        // FRQ_009: headway_secs çok kısa (< 60s)
+        // FRQ_009: headway_secs is too short (< 60s)
                         if val > 0 && val < 60 {
                             notices.push(make_k2_notice(
                                 &mut counter, "FRQ_009", EntityType::Trip, entity_id.clone(),
@@ -224,14 +224,14 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
             }
         }
 
-        // FRQ_012: exact_times=1 iken end_time, son seferin kalkışından SONRA ama bir
-        // headway İÇİNDE olmalı → (end - start) headway'in tam katı olamaz.
+        // FRQ_012: with exact_times=1, end_time must be AFTER the last departure but WITHIN
+        // one headway → (end - start) cannot be an exact multiple of the headway.
         //
-        // ⚠️ Spec'in aynı bölümü "New headways may start at the exact time the previous
-        // headway ends" der ve bitişik dönemi GENEL olarak serbest bırakır. `exact_times=1`
-        // kısıtı bu genel izni daraltır: son seferin nerede olduğu belirsizleşmesin diye
-        // end_time bir sonraki kalkışa DENK GELEMEZ. Bitişik modelleme yapan üreticiler
-        // `exact_times=1` ile bunu ihlal eder — ölçüldü, 4 feed / 452 satır.
+        // ⚠️ The same section of the spec says "New headways may start at the exact time the previous
+        // headway ends" and GENERALLY permits adjacent periods. `exact_times=1`
+        // constraint narrows this general permission: to avoid ambiguity about the last departure,
+        // end_time cannot COINCIDE with the next departure. Producers modeling adjacent periods
+        // violate this with `exact_times=1` — measured in 4 feeds / 452 rows.
         if let (Some(s), Some(e), Some(h)) = (start_time, end_time, headway_secs) {
             let s_secs = s.0 * 3600 + s.1 * 60 + s.2;
             let e_secs = e.0 * 3600 + e.1 * 60 + e.2;
@@ -269,8 +269,9 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
                 v
             }
             Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı FRQ_007 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // FRQ_007, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter,
                     "FRQ_007",
@@ -300,9 +301,9 @@ pub fn validate_frequencies(file: &RawFile) -> (Vec<FrequencyRecord>, Vec<gtfs_c
         });
     }
 
-    // FRQ_011: aynı trip için frequencies dönemleri zaman aralığı çakışıyor (MD overlapping_frequency).
-    // Geçerli [start, end) aralıklarını trip başına grupla, start'a göre sırala, max-end takibiyle
-    // ardışık olmayan çakışmaları da yakala. Geçersiz aralık (end ≤ start, FRQ_005) hariç.
+    // FRQ_011: frequency periods overlap in time for the same trip (MD overlapping_frequency).
+    // Group valid [start, end) intervals per trip, sort by start, and track max-end to catch
+    // non-adjacent overlaps too. Exclude invalid intervals (end ≤ start, FRQ_005).
     use std::collections::HashMap;
     let mut by_trip: HashMap<&str, Vec<(u32, u32, u64, &RowMap)>> = HashMap::new();
     for rec in &records {
@@ -451,7 +452,7 @@ mod tests {
     }
     #[test]
     fn frq_012_flags_end_time_on_headway_boundary() {
-        // exact_times=1, 05:00→06:00, headway 3600 → (end-start) tam kat → son sefer belirsiz.
+        // exact_times=1, 05:00→06:00, headway 3600 → (end-start) is an exact multiple → last departure ambiguous.
         let file = make_file(
             vec![
                 "trip_id",
@@ -479,7 +480,7 @@ mod tests {
 
     #[test]
     fn frq_012_silent_when_frq_005_owns_the_row() {
-        // end <= start → FRQ_005'in alanı; FRQ_012 aynı satırda konuşmamalı.
+        // end <= start → FRQ_005's responsibility; FRQ_012 must not speak on the same row.
         let file = make_file(
             vec![
                 "trip_id",

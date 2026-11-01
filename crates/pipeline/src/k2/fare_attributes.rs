@@ -19,20 +19,20 @@ pub struct FareAttributeRecord {
     pub transfers: Option<u32>,
     pub transfer_duration: Option<u32>,
     pub agency_id: Option<String>,
-    /// Dosyanın sütun adları; bütün kayıtlar aynı listeyi paylaşır.
+    /// The file's column names; all records share the same list.
     pub columns: Arc<[String]>,
-    /// Satırın ham değerleri (`columns` sırasıyla, fazla hücreler atılır).
+    /// The row's raw values (in `columns` order; extra cells are discarded).
     ///
-    /// Eskiden satır başına bir `RowMap` saklanıyordu: büyük fare_attributes dosyalarında
-    /// (mdb-992) milyonlarca HashMap bellekte kalıyor, WASM'da yalnız bu aşamayı 1,2 s'den
-    /// 8,3 s'ye (wasm64), feed'in tamamını 12,9 s'den 23,8 s'ye çıkarıyordu.
+    /// Previously a `RowMap` was stored per row: in large fare_attributes files
+    /// (mdb-992), millions of HashMaps stayed in memory, increasing this stage alone from 1.2 s
+    /// to 8.3 s (wasm64), and the whole feed from 12.9 s to 23.8 s.
     pub values: Box<[SmolStr]>,
     pub line: u64,
 }
 
 impl FareAttributeRecord {
-    /// Eski `RowMap::get` ile aynı: sütun yoksa `None`; satır kısaysa `Some("")`;
-    /// yinelenen başlıkta son sütun.
+    /// Same behavior as the old `RowMap::get`: `None` if the column is absent; `Some("")`
+    /// if the row is short; the last column wins for a duplicate header.
     pub fn raw_field(&self, field: &str) -> Option<&str> {
         let col = self.columns.iter().rposition(|h| h == field)?;
         Some(self.values.get(col).map(SmolStr::as_str).unwrap_or(""))
@@ -68,7 +68,7 @@ fn validate_fare_attributes_inner(
     let mut records = Vec::new();
     let mut whitespace_suppressions = WhitespaceSuppressions::default();
     let mut counter = 0;
-    // FAR_013: dosya başına TEK özet — ölçümde tek feed 1,1M satır üretiyordu.
+    // FAR_013: ONE summary per file — one feed produced 1.1M rows in the measurement.
     let mut iso_bad: u64 = 0;
     let mut iso_first: Option<(u64, String, String)> = None;
     let columns: Arc<[String]> = file.headers.clone().into();
@@ -77,7 +77,7 @@ fn validate_fare_attributes_inner(
         let line = (row_idx + 2) as u64;
         let row_map = build_row_map(&file.headers, row);
         let fare_id = get_raw_field(&row_map, "fare_id").unwrap_or("").to_string();
-        // FAR_012: fare_id required (sütun yoksa ARC_025 devralır → atla)
+        // FAR_012: fare_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "fare_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -96,7 +96,7 @@ fn validate_fare_attributes_inner(
         }
         let entity_id = (!fare_id.is_empty()).then_some(fare_id.clone());
 
-        // FAR_013: tutar, para biriminin ISO 4217 ondalık basamak sayısını taşımalı.
+        // FAR_013: the amount must use the currency's ISO 4217 number of decimal places.
         {
             let a = get_trimmed_field(&row_map, "price").unwrap_or("");
             let c = get_trimmed_field(&row_map, "currency_type").unwrap_or("");
@@ -172,9 +172,9 @@ fn validate_fare_attributes_inner(
             }
         };
 
-        // GGL_002: Google Transit'in Japonya'ya özel ic_price uzantısı
-        // fare_attributes.txt'te tanımlıdır; Fares v2 fare_products.txt'te değil.
-        // Değer varsa -1 (indirim bilinmiyor) veya sıfır/pozitif olmalıdır.
+        // GGL_002: Google Transit's Japan-specific ic_price extension is defined in
+        // fare_attributes.txt, not in Fares v2 fare_products.txt.
+        // When present, the value must be -1 (discount unknown) or zero/positive.
         if let Some(ic_price_raw) =
             get_trimmed_field(&row_map, "ic_price").filter(|v| !v.trim().is_empty())
         {
@@ -220,8 +220,8 @@ fn validate_fare_attributes_inner(
         let currency_type = get_trimmed_field(&row_map, "currency_type")
             .unwrap_or("")
             .to_string();
-        // ⚠️ ISO 4217 AKTİF kod listesi (issue #82): eski denetim "üç büyük harf" idi,
-        // `ZZZ` geçiyordu ve `iso4217_minor_unit` onu sessizce 2 ondalık sayıyordu.
+        // ⚠️ ISO 4217 ACTIVE code list (issue #82): the old check was "three uppercase letters",
+        // so `ZZZ` passed and `iso4217_minor_unit` silently treated it as two decimal places.
         if !super::common::is_iso4217(&currency_type) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -252,7 +252,7 @@ fn validate_fare_attributes_inner(
             suppress_whitespace_derivatives,
             &mut whitespace_suppressions,
         );
-        // FAR_011: payment_method required (sütun yoksa ARC_025 devralır → atla)
+        // FAR_011: payment_method required (if the column is absent, ARC_025 takes over → skip)
         if get_trimmed_field(&row_map, "payment_method") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -313,11 +313,11 @@ fn validate_fare_attributes_inner(
         });
     }
 
-    // FAR_013: DOSYA başına tek özet (DQ_016/ARC_032 deseni). Satır başına emit ölçümde
-    // 2 milyon notice demekti ve toplamın %99,7'si iki feed'den geliyordu.
+    // FAR_013: one summary per FILE (DQ_016/ARC_032 pattern). Per-row emission meant
+    // 2 million notices in the measurement, with 99.7% coming from two feeds.
     if let Some((line, amount, currency)) = iso_first {
-        // ⚠️ `None` = kod tabloda yok ya da ondalığı tanımsız; mesajda sayı yerine bunu
-        // söylemek gerekir — uydurma bir "2 basamak" beklentisi yazmak yanlış olurdu.
+        // ⚠️ `None` = the code is not in the table or its decimal places are undefined;
+        // the message must say this instead of inventing a "2 places" expectation.
         let want = iso4217_minor_unit(&currency)
             .map(|u| u.to_string())
             .unwrap_or_else(|| "tanımsız".to_string());
@@ -336,8 +336,8 @@ fn validate_fare_attributes_inner(
     (records, notices, whitespace_suppressions)
 }
 
-// Bu yardımcı farklı FAR enum alanlarını aynı açık parse/emit tablosuyla işler;
-// tek kullanımlık bir parametre struct'ı semantik alanları daha görünür kılmaz.
+// This helper handles different FAR enum fields with the same explicit parse/emit table;
+// a one-use parameter struct would not make the semantic fields clearer.
 #[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
@@ -423,8 +423,9 @@ mod tests {
 
     #[test]
     fn raw_field_matches_the_former_row_map() {
-        // Eski `RowMap` (build_row_map) ile aynı üç kural: sütun yoksa None, satır kısaysa "",
-        // yinelenen başlıkta son sütun. JPN_006 ve TRN_016 bu sözleşmeye dayanır.
+        // The same three rules as the old `RowMap` (build_row_map): None if the column is absent,
+        // "" if the row is short, and the last column for a duplicate header. JPN_006 and TRN_016
+        // rely on this contract.
         let file = make_file(
             &["fare_id", "price", "currency_type", "price"],
             vec![vec!["F1", "100", "JPY", "200"], vec!["F2", "300"]],

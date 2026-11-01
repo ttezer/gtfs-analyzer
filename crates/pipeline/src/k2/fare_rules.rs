@@ -10,11 +10,11 @@ pub struct FareRuleRecord {
     pub line: u64,
 }
 
-/// Satır başına `RowMap` kurulmaz: hiçbir tüketici okumuyordu ve büyük fare_rules
-/// dosyalarında (mdb-992: 37 MB) her satır için HashMap + başlık/değer String'leri
-/// ayırmak K2'yi native'de 0,3 s iken WASM'da 5,6 s (wasm32) / 25 s (wasm64) yapıyordu.
+/// No `RowMap` is built per row: no consumer read it, and allocating a HashMap plus
+/// header/value Strings for every row in large fare_rules files (mdb-992: 37 MB) made K2 take
+/// 0.3 s natively versus 5.6 s (wasm32) / 25 s (wasm64) in WASM.
 pub fn parse_fare_rules(file: &RawFile) -> Vec<FareRuleRecord> {
-    // Yinelenen başlıkta eski RowMap son sütunu tutuyordu; rposition aynı sonucu verir.
+    // For a duplicate header, the old RowMap kept the last column; rposition gives the same result.
     let col = |name: &str| file.headers.iter().rposition(|h| h == name);
     let fare_id_col = col("fare_id");
     let route_id_col = col("route_id");

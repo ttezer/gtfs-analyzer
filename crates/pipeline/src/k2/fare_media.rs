@@ -81,7 +81,7 @@ pub fn validate_fare_media(file: &RawFile) -> (Vec<FareMediaRecord>, Vec<gtfs_co
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // FMD_003: TransitCard/MobileApp için fare_media_name tavsiye edilir
+        // FMD_003: fare_media_name is recommended for TransitCard/MobileApp
         if fare_media_name.is_none() && matches!(fare_media_type, Some(2) | Some(4)) {
             let type_label = match fare_media_type {
                 Some(2) => "fiziksel transit kartı",
