@@ -1,6 +1,6 @@
-// Ajans ve yayıncı künyesi kartı (`result.feed_summary`). Değerler feed'den gelir, yani
-// güvenilmezdir: her metin kaçışlanır, bağlantı yalnız http(s) URL'si ve düz e-posta
-// adresi için kurulur (javascript:, data: vb. düz metin kalır).
+// Agency and publisher metadata card (`result.feed_summary`). Values come from the feed and
+// are therefore untrusted: every string is escaped, and links are created only for http(s)
+// URLs and plain email addresses (javascript:, data:, etc. remain plain text).
 import type { AgencyContact, FeedInfoSummary, ValidationResult } from '../types';
 import { t, intlLocale } from '../i18n';
 import { escHtml } from '../escape';

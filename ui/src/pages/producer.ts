@@ -1,5 +1,5 @@
-// Üretici özeti: motorun mevcut sonucunu (R1 kararı, R9 önceliği, NameIndex adları) tek
-// ekranda toplar. Yeni bulgu, skor ya da kök neden hesaplamaz; yalnız gruplar ve sıralar.
+// Producer summary: collects the engine's existing result (R1 decision, R9 priority, NameIndex
+// names) on one screen. It computes no new findings, scores, or root causes; it only groups and sorts.
 import type { ValidationResult, Notice, Severity } from '../types';
 import { t, tMsg, tRemediation, getLocale, intlLocale, severityForLocale, SEVERITY_COLOR, RULE_CLASS_TR } from '../i18n';
 import { SEVERITY_ORDER } from '../severity-order';
@@ -97,9 +97,10 @@ function isNullIsland(p?: [number, number] | null): boolean {
   return Boolean(p && Math.abs(p[0]) < 0.01 && Math.abs(p[1]) < 0.01);
 }
 
-// Motorun görülen/beklenen değeri çevrilmez. Planlamacıya yalnız dilden bağımsız değerler
-// (sayı, saat, tarih, birim, koordinat) ve feed'in kendi metin sütunlarından gelen veri gösterilir;
-// "7 rows", "dolu", "segment 8→9" gibi motor ekleri dil karıştırmasın diye gizli kalır.
+  // The engine's observed/expected values are not translated. The planner shows only
+  // language-independent values (numbers, times, dates, units, coordinates) and data from the
+  // feed's own text columns; engine additions such as "7 rows", "full", or "segment 8→9"
+  // stay hidden so languages are not mixed.
 const NEUTRAL_UNITS = ['km/h', 'm/s', 'min', 'km', 'm', 's', 'h', '%'] as const;
 const NEUTRAL_PUNCTUATION = new Set(['<', '>', '≤', '≥', '=', '→', '/', '×', '(', ')', '[', ']', ',', ';', ':', '+', '-', '–', '.', '%', '·']);
 
@@ -152,7 +153,7 @@ function plainValue(value: string | null | undefined, field: string | null | und
   if (!v || v === 'None') return null;
   if (isNeutralValue(v)) return v;
   const fromFeedText = (field ?? '').split('|').some(f => FEED_TEXT_FIELDS.has(f));
-  // "7 rows", "1469min (hour-based …)" gibi sayı + kelime ya da "a=b; c" biçimli motor özetleri feed verisi değildir.
+  // Engine summaries such as "7 rows", "1469min (hour-based …)", or "a=b; c" are not feed data.
   return fromFeedText && !/[=;]/.test(v) && !/^\d+(?:[.,]\d+)?\s*\p{L}{2,}(?![\p{L}\d])/u.test(v) && !/\(\s*\p{L}/u.test(v) ? v : null;
 }
 
@@ -182,7 +183,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
   switch (g.ruleId) {
     case 'STM_012': {
       const context = tripContext(n, result);
-      // Duraklardan biri 0,0 konumundaysa hız o yüzden uçuyor; asıl düzeltilecek şey konum.
+    // If one stop is at 0,0, the speed spikes for that reason; the location is what needs fixing.
       const zeroStop = [n.details?.stop_a, n.details?.stop_b].find(id => isNullIsland(result.name_index.stop_coords?.[id ?? '']));
       if (zeroStop) {
         return {
@@ -235,7 +236,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const context = tripContext(n, result);
       const stopId = n.details?.stop_id;
       const stop = stopId ? result.name_index.stops?.[stopId] || stopId : '';
-      // Seferin hiçbir durağında saat yoksa sorun tek bir uç durak değil, saatsiz aktarılmış seferdir.
+    // If no stop in the trip has a time, the problem is not one endpoint but a trip imported without times.
       const untimed = n.details?.timed_stops === '0';
       return {
         title: t(`producer.card.${g.ruleId}.title`),
@@ -324,7 +325,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     case 'STM_007': {
-      // Feed düzeyi özet: kaç satır ve sefer, en sık fark ve en çok etkilenen duraklar.
+  // Feed-level summary: row and trip counts, the most common difference, and the most affected stops.
       const d = n.details ?? {};
       const rows = Number(d.affected_rows);
       const gapRows = Number(d.typical_gap_rows);
@@ -338,7 +339,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         parts.push(t('producer.card.STM_007.gap', {
           share: new Intl.NumberFormat(getLocale(), { style: 'percent' }).format(gapRows / rows), gap: d.typical_gap_seconds,
         }));
-        // Aynı fark satırların yarısından fazlasında tekrarlanıyorsa tek tek yazım hatası değildir.
+  // If the same difference occurs in more than half the rows, it is not an isolated typo.
         if (gapRows / rows >= 0.5) parts.push(t('producer.card.STM_007.pattern'));
       }
       const top = listOf(d.top_stops).map(id => result.name_index.stops?.[id] || id);
@@ -375,7 +376,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       };
     }
     default: {
-      // Özel bağlam gerektirmeyen kurallar: metin dil dosyasındaki producer.card.<KURAL>.* anahtarlarından.
+  // Rules that need no special context: from producer.card.<RULE>.* keys in the text dictionary.
       const base = `producer.card.${g.ruleId}`;
       const title = t(`${base}.title`);
       if (title === `${base}.title`) return null;
@@ -436,7 +437,7 @@ function serviceText(serviceId: string | null | undefined, result: ValidationRes
   else if (mask === '0000000') text = t('producer.days.none');
   else {
     const fmt = new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', timeZone: 'UTC' });
-    // 2026-01-05 bir pazartesi; maske pzt..paz sırasında.
+  // 2026-01-05 was a Monday; the mask is ordered Mon..Sun.
     text = [...mask].map((on, i) => on === '1' ? fmt.format(new Date(Date.UTC(2026, 0, 5 + i))) : '').filter(Boolean).join(', ');
   }
   return Number(exceptions) > 0 ? `${text} ${t('producer.days.exceptions', { n: exceptions })}` : text;
@@ -475,7 +476,7 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_arrival ?? '—', d.next_departure ?? '—', false] as Row] : []),
     ];
   } else if ((n.rule_id === 'STM_003' || n.rule_id === 'STM_004') && d.stop_id) {
-    // Motor bozuk saati "?" ile, boş alanı "" ile taşır; hatalı satırın kendi değeri görülen değerdir.
+  // The engine represents a malformed time as "?" and an empty field as ""; the faulty row's own value is observed.
     const time = (v?: string) => v === '?' ? t('producer.times.invalid') : v || '—';
     const raw = n.observed_value ?? '?';
     rows = [
@@ -508,7 +509,7 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     const speed = stm012Observed(n);
     return `${name(d.stop_a)} → ${name(d.stop_b)}${speed ? ` · ${speed}` : ''}`;
   }
-  // Gece yarısı: saatin geriye döndüğü durak ve bir önceki saat (STM_048) ya da aynı duraktaki varış (STM_049).
+  // Midnight: the stop where time moves backward and the previous time (STM_048), or the arrival at the same stop (STM_049).
   if (n.rule_id === 'STM_048' && d.stop_id) return t('producer.times.spot_wrap', { stop: name(d.stop_id), prev: d.previous_time ?? '—' });
   if (n.rule_id === 'STM_049' && d.stop_id) return t('producer.times.spot_dwell', { stop: name(d.stop_id), arr: d.previous_time ?? '—', dep: d.observed_time ?? '—' });
   if (n.rule_id === 'OPR_008' && d.bad_seg_0_a) {
@@ -521,12 +522,12 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     return times ? t('producer.times.spot_repeat', { stop: name(d.dup_stop), n: times }) : name(d.dup_stop);
   }
   if (n.rule_id === 'SHP_017' && d.bad_stop) return name(d.bad_stop);
-  // Toplam süre seferin uçlarından ölçülür: ilk kalkış ve son varış durakları saatleriyle.
+  // Total duration is measured between trip endpoints: the first departure and last arrival stop times.
   if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
     return `${name(d.first_stop_id)} ${d.first_departure ?? '—'} → ${name(d.last_stop_id)} ${d.last_arrival ?? '—'}`;
   }
   if (n.rule_id === 'STM_045' && d.stop_id) return t('producer.times.spot_first', { stop: name(d.stop_id), time: n.observed_value ?? '—' });
-  // Durak çifti taşıyan diğer kurallar (STM_014, STM_020, STM_025, STM_026, STM_061): iki durağın adı.
+  // Other rules carrying a stop pair (STM_014, STM_020, STM_025, STM_026, STM_061): the two stop names.
   if (d.stop_a && d.stop_b) return stopPair(d.stop_a, d.stop_b, result);
   return null;
 }
@@ -595,8 +596,8 @@ function stepsHtml(action: string): string {
 /** Kartın sağ üstündeki sayının birimi: sefer, durak, hat... */
 function unitOf(g: RuleGroup): string {
   const n = g.notices[0];
-  // Özet satır sayısını taşıyorsa (affected_rows) ya da aynı sefer birden çok kez geçiyorsa sayı sefer değil
-  // satırdır (STM_003: bir seferin her bozuk durak saati; STM_007 özeti: 60.010 durak saati).
+  // If the summary carries a row count (affected_rows), or the same trip occurs multiple times, the count is
+  // rows rather than trips (STM_003: every malformed stop time in a trip; STM_007 summary: 60,010 stop times).
   if (n.details?.affected_rows && n.file === 'stop_times.txt') return t('producer.unit.stop_time');
   const trips = g.notices.filter(item => item.entity_type === 'Trip').map(item => item.entity_id);
   if (n.entity_type === 'Trip' && new Set(trips).size < trips.length) {
@@ -660,7 +661,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
     }
     stopRing = color;
-    // Kuralın işaret ettiği durak: ilk/son durak saati eksikse o durak, aksi halde bildirimin durakları.
+  // Stop indicated by the rule: the endpoint when its time is missing, otherwise the notice's stops.
     if (n.rule_id === 'STM_015') addStop(tripStops[0], true);
     if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
     addStop(n.details?.stop_id, true);
@@ -682,7 +683,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     addStop(n.entity_id, true);
     const here = coord(n.entity_id);
     if (here) {
-      // Bağlam: durağı kullanan en fazla üç hattın çizimi ve 600 m içindeki duraklar.
+  // Context: up to three routes using the stop and stops within 600 m.
       const routesHere = new Map<string, string>();
       for (const [tripId, tripStops] of Object.entries(ni.trip_stops ?? {})) {
         if (routesHere.size >= 3) break;
@@ -699,7 +700,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   } else if (n.entity_type === 'Route' && routeIdOfNotice(n)) {
     const routeId = routeIdOfNotice(n)!;
     for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 4)) addShape(shapeId, routeColor(routeId));
-    // Hat düzeyindeki hız bulguları (STM_014, STM_061) hatalı durak çiftini taşır.
+  // Route-level speed findings (STM_014, STM_061) carry the faulty stop pair.
     const a = coord(n.details?.stop_a);
     const b = coord(n.details?.stop_b);
     if (a && b) {
@@ -716,7 +717,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     return { opts: { pins, extraPolylines: [...lines, ...segments], focus }, caption: focusCaption() };
   }
 
-  // Konuma bağlı olmayan kayıt: ağın tamamı.
+  // Location-independent record: the whole network.
   for (const routeId of Object.keys(ni.route_shapes ?? {}).slice(0, 40)) {
     addShape(ni.route_shapes[routeId][0], routeColor(routeId));
   }
@@ -770,7 +771,7 @@ function technicalDetails(n: Notice): string {
 type Cell = string | { html: string };
 function affectedColumns(g: RuleGroup, result: ValidationResult): { head: string[]; row: (n: Notice) => Cell[] } {
   const base = entityColumns(g, result);
-  // Kendi kanıtını yazmayan kurallarda her satır kendi görülen değerini taşır.
+  // For rules that do not provide their own evidence, each row carries its own observed value.
   const copy = plannerCardCopy(g, result);
   if ((copy && !copy.generic) || !g.notices.some(n => observedValue(n))) return base;
   return {
@@ -794,7 +795,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     ? { head: [...cols, t('producer.col.service')], row: (n: Notice) => [...row(n), serviceText(n.service_id, result)] }
     : { head: cols, row };
   const badge = (routeId?: string | null, fallback?: string | null): Cell => routeId ? { html: routeBadgeHtml(routeId, result) } : dash(fallback);
-  // Kimliksiz bildirim (feed düzeyi özet) varlık sütunlarını doldurmaz; genel sütunlara düşer.
+  // An identity-less notice (feed-level summary) does not fill entity columns; it falls into the general columns.
   switch (first.entity_id ? first.entity_type : 'Feed') {
     case 'Trip': {
       const withSpot = timeSpot(first, result) !== null;
@@ -830,7 +831,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       };
     }
     case 'Shape':
-      // Güzergâh çizimi: onu kullanan hat(lar) ve güzergâh kodu.
+  // Shape drawing: the route(s) using it and the shape ID.
       return {
         head: [t('producer.col.route'), t('producer.col.shape_code')],
         row: n => {
@@ -847,13 +848,13 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         row: n => [dash(n.entity_id), serviceText(n.entity_id, result)],
       };
     default: {
-      // Takvim dönemi bildirimleri (CAL_007/012/013) etkilenen takvimleri liste olarak taşır.
+  // Calendar-period notices (CAL_007/012/013) carry affected calendars as a list.
       const withServices = g.notices.some(n => n.details?.services);
       const servicesText = (n: Notice) => {
         const ids = listOf(n.details?.services);
         return ids.length ? ids.slice(0, 5).join(', ') + (ids.length > 5 ? ` (+${ids.length - 5})` : '') : '—';
       };
-      // Satır numarası taşımayan (feed/dönem düzeyi) kayıtlarda boş "Satır" sütunu gösterilmez.
+  // Records without a row number (feed/period level) do not show an empty "Row" column.
       const withLine = g.notices.some(n => n.line != null);
       return days(
         [t('producer.col.record'), ...(withLine ? [t('producer.col.row')] : []), ...(withServices ? [t('producer.col.service_code')] : [])],
@@ -947,7 +948,7 @@ function coverageNotice(complete: boolean): string {
 
 function feedTitle(result: ValidationResult, agencyIds: readonly string[]): string {
   const info = result.feed_summary?.feed_info;
-  // İşletmeci seçiliyse başlık o işletmecinin (işletmecilerin) adıdır.
+  // When an agency is selected, the heading is its name (or their names).
   const picked = (result.agency_breakdown?.agencies ?? [])
     .filter(a => agencyIds.includes(a.agency_id))
     .map(a => a.agency_name || a.agency_id);
@@ -987,7 +988,7 @@ function entityLabelOf(dim: EntityDim, id: string, result: ValidationResult): st
     return tail([ni.stops?.[id], code ? t('producer.filter.stop_code', { code }) : ''].filter(Boolean).join(' · '));
   }
   if (dim === 'shape') {
-    // GTFS'te güzergâhın adı yok: onu kullanan seferin hattı ve yönü ad yerine geçer.
+  // If GTFS has no shape name, the route and direction of the trip using it stand in for the name.
     const routeId = ni.shape_routes?.[id]?.[0]?.[0];
     const tripId = ni.shape_trips?.[id];
     const headsign = tripId ? ni.trips?.[tripId] : undefined;
@@ -1038,8 +1039,8 @@ function filterBar(groups: RuleGroup[], result: ValidationResult): string {
   </div>`;
 }
 
-// Feed düzeyi özet bildirimleri motorun verdiği örnek kayıtları liste olarak taşır; planlamacı
-// tek bir "Tüm feed" satırı yerine bu kayıtları (durak, sefer, takvim, güzergâh) satır satır görsün.
+  // Feed-level summary notices carry the sample records supplied by the engine; the planner should show
+  // these records (stop, trip, calendar, shape) row by row instead of one "Entire feed" row.
 const EXAMPLE_LISTS: Array<[string, Notice['entity_type']]> = [
   ['example_stops', 'Stop'], ['isolated_stops', 'Stop'], ['example_platforms', 'Stop'],
   ['example_trips', 'Trip'], ['example_services', 'Service'], ['example_shapes', 'Shape'],
@@ -1126,8 +1127,8 @@ function foldDepartureIntoArrival(m: ReturnType<typeof buildProducerModel>): voi
 }
 
 export function renderProducer(root: HTMLElement, fullResult: ValidationResult): void {
-  // İşletmeci süzgeci "Ayrıntı ve Düzeltme" ile ortaktır: kayıtlar seçili işletmecilerinkine
-  // daralır; yayın kararı feed genelidir (motor onu işletmeci başına vermez).
+  // The agency filter is shared with "Details and Fix": records narrow to selected agencies;
+  // publishability is feed-wide (the engine does not provide it per agency).
   const agencyFilter = getState()?.agencyFilter ?? [];
   const filtered = filterNoticesByAgency(fullResult, agencyFilter);
   const result: ValidationResult = filtered ? { ...fullResult, notices: filtered } : fullResult;
@@ -1139,16 +1140,16 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   const ordered = [...m.blockers, ...m.improvements, ...m.infos];
   for (const g of ordered) expandExamples(g);
   const blockerRules = new Set(m.blockers.map(g => g.ruleId));
-  // Planlamacı metni yazılmış konular ve yayını engelleyenler üstte; kalanlar motorun teknik
-  // metniyle ayrı bölümde, iki dil aynı listede karışmasın diye.
+  // Topics with planner text and publication blockers come first; the rest use the engine's technical
+  // text in a separate section so two languages are not mixed in one list.
   const primary = ordered.filter(g => blockerRules.has(g.ruleId) || plannerCardCopy(g, result) !== null);
   const technical = ordered.filter(g => !primary.includes(g));
   const groups = [...primary, ...technical];
 
   const keys = groups.map(g => g.notices.slice(0, ROWS_CAP).map(n => noticeKeys(n, result)));
   const labels = Object.fromEntries(ENTITY_DIMS.map(dim => [dim, new Map<string, string>()])) as Record<EntityDim, Map<string, string>>;
-  // Seçenekler yalnız veri setinde tanımlı kayıtlardır; bazı kuralların route_id gibi
-  // ayrıntıları hat değil desen kimliği taşır ("00020:0:11223→11224").
+  // Options are only records defined in the dataset; details for some rules, such as route_id,
+  // carry a pattern identity rather than a route ("00020:0:11223→11224").
   const ni = result.name_index;
   const known: Record<EntityDim, (id: string) => boolean> = {
     route: id => id in (ni.routes ?? {}) || id in (ni.route_shapes ?? {}),
@@ -1168,7 +1169,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     .filter(([, count]) => count > 0)
     .map(([s, count]) => `<span class="planner-count">${severityHtml(s)}<strong>${count}</strong></span>`).join('');
   const areaNav = (['all', ...AREAS] as AreaFilter[]).map(id => {
-    // Kayıt sayısı: kartlardaki "kayıt" ile aynı birim.
+  // Record count: the same unit as "records" in cards.
     const count = groups.filter(g => id === 'all' || groupArea(g) === id).reduce((sum, g) => sum + g.count, 0);
     return `<button type="button" class="planner-area" data-area-filter="${id}" aria-pressed="${id === 'all'}"><span>${t(`producer.area.${id}`)}</span><span class="planner-area-count${count === 0 ? ' zero' : ''}">${count ? count.toLocaleString(getLocale()) : t('producer.area.none')}</span></button>`;
   }).join('');
@@ -1216,11 +1217,11 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     unmount(index);
     card.querySelectorAll('.planner-affected-row.selected').forEach(el => el.classList.remove('selected'));
     card.querySelector(`.planner-affected-row[data-row="${row}"]`)?.classList.add('selected');
-    // Kartın bağlam satırı (hat · yön · kalkış) seçilen kayda göre yazılır; harita ile çelişmesin.
+  // The card's context line (route · direction · departure) follows the selected record so it does not contradict the map.
     const rowCopy = plannerCardCopy({ ...g, notices: [notice] }, result);
     const contextEl = card.querySelector<HTMLElement>('.producer-card-context');
     if (contextEl && rowCopy?.context) contextEl.textContent = rowCopy.context;
-    // "Ne olmuş / Ne yapmalı" seçilen kaydın kendi metnidir; planlamacı metni yoksa motorun metni.
+  // "What happened / What to do" uses the selected record's own text; if planner text is absent, use the engine text.
     const messageEl = card.querySelector<HTMLElement>('.producer-card-message');
     if (messageEl) messageEl.textContent = rowCopy?.what || tMsg(notice);
     const actionEl = card.querySelector<HTMLElement>('.planner-steps-host');
@@ -1279,7 +1280,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     rowEl.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
   });
 
-  // Süzgeçler: iş alanı + önem + sınıf + kural + dosya birlikte uygulanır.
+  // Filters: domain + severity + class + rule + file apply together.
   let area: AreaFilter = 'all';
   const sevActive = new Set<string>();
   const clsActive = new Set<string>();
@@ -1287,7 +1288,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   const fileSelect = root.querySelector<HTMLSelectElement>('#planner-file-filter');
   const limits = new Map<number, number>();
   const matchesByCard = new Map<number, Set<number> | null>();
-  // Etkilenenler tablosu: süzgeç varken eşleşen tüm satırlar, yokken sayfalı (10, +50).
+  // Affected-record table: all matching rows when filtered, paginated otherwise (10, +50).
   const refreshRows = (card: HTMLElement, index: number) => {
     const matches = matchesByCard.get(index) ?? null;
     const limit = limits.get(index) ?? ROWS_FIRST;
@@ -1305,7 +1306,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     const counter = card.querySelector<HTMLElement>('.planner-match-count');
     if (counter) counter.textContent = matches ? t('producer.card.matching', { n: matches.size }) : '';
   };
-  // Seçmeli listeler: her boyutta seçilen kimlikler; boyut içinde VEYA, boyutlar arası VE.
+  // Multi-select lists: selected IDs per dimension; OR within a dimension, AND across dimensions.
   const picked = new Map<EntityDim, Set<string>>(ENTITY_DIMS.map(dim => [dim, new Set<string>()]));
   const entityQuery = (): Map<EntityDim, Set<string>> =>
     new Map([...picked].filter(([, ids]) => ids.size > 0));
@@ -1362,7 +1363,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
       card.hidden = !show;
       if (show) visible++;
       refreshRows(card, index);
-      // Açık kartta seçili satır süzgeç dışında kaldıysa ilk eşleşeni göster.
+  // If the selected row in an open card falls outside the filter, show the first match.
       if (show && openIndex === index && matches) {
         const selected = Number(card.querySelector<HTMLElement>('.planner-affected-row.selected')?.dataset['row'] ?? -1);
         if (!matches.has(selected)) showMap(card, index, Math.min(...matches));
