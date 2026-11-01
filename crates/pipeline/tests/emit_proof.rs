@@ -3869,7 +3869,7 @@ fn spec_claims_without_a_provision_match_ledger() {
 }
 
 #[test]
-#[ignore = "report: cargo test -p gtfs-pipeline --test emit_proof spec_partial -- --ignored --nocapture"]
+#[ignore = "rapor: cargo test -p gtfs-pipeline --test emit_proof spec_partial -- --ignored --nocapture"]
 fn spec_partial_coverage_report() {
     let rows = coverage_rows();
     let total: usize = rows.iter().map(|(_, _, a, _, _)| a.len()).sum();
@@ -3927,7 +3927,7 @@ fn spec_partial_coverage_report() {
 /// An overfull field does not mean "unsupported" — one rule may legitimately measure several
 /// atoms (`STP_003` checks both `presence` and `format`). This is a suspicion list, not debt.
 #[test]
-#[ignore = "report: cargo test -- --ignored anchor_granularity_report --nocapture"]
+#[ignore = "rapor: cargo test -- --ignored anchor_granularity_report --nocapture"]
 fn anchor_granularity_report() {
     let rows = coverage_rows();
     let (mut atoms, mut fields_with_atoms, mut suspect) = (0usize, 0usize, Vec::new());
