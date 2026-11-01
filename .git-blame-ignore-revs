@@ -180,3 +180,6 @@ d7972eba
 
 # Preserve emit proof code spans.
 57060c7e
+
+# Translate missed pipeline inline comments.
+61b9c2a2
