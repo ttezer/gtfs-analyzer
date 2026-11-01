@@ -294,3 +294,9 @@ d9aed1d6629f636d7b5461d55003c51bce9d2712
 
 # Translate UI runtime comments to English.
 f6a2b295597ee5e62cdfee071d626fa29b312a63
+
+# Translate UI upload comments to English.
+695c0cf2928c763d8555694104a88d14f2a6d76a
+
+# Preserve UI upload code span.
+096b9bfabcf977f469e2148f4f50d28d3060a1b3
