@@ -12,12 +12,12 @@ except Exception:
 ANALYZER_TIMEOUT=420
 MD_TIMEOUT=420
 DOWNLOAD_TIMEOUT=300
-# 1.2 GB kestiği için run-31934698855'te `mdb-2014` hiç indirilemedi
-# (`download_status=failed`, iki validatör de `not_run`) ve tek bir feed yüzünden ayrı bir
-# "residual" workflow'u önerilmişti (#139). Doğru çözüm ayrı iş değil, sınırın gerçek
-# katalogdaki en büyük feed'i kapsaması: 2.5 GB, #139'un kendi izole işinde kullandığı
-# değerin aynısı. Sınır KALDIRILMADI — sınırsız indirme runner diskini tüketir ve
-# feed'i "başarısız" değil "asılı" yapar.
+# `mdb-2014` could not be downloaded in run-31934698855 because it was 1.2 GB
+# (`download_status=failed`, both validators `not_run`), and a separate "residual" workflow
+# was proposed for a single feed (#139). The correct fix was not a separate job, but a limit
+# covering the largest feed in the real catalog: 2.5 GB, the same value used in #139's isolated
+# job. The limit was NOT REMOVED—unbounded downloads consume runner disk and leave the feed
+# "hung" rather than "failed".
 MAX_DOWNLOAD=2_500_000_000
 BENCH_DATE="20260820"
 MD_DATE="2026-08-20"
@@ -37,14 +37,14 @@ def timing(p):
         m=re.search(pat,s,re.M)
         return m.group(1).strip() if m else None
     return {
-      # ⚠️ Desen KAPANIŞ PARANTEZİNE çapalıdır, `.*?:` ile DEĞİL. `/usr/bin/time -v` şunu basar:
+      # ⚠️ The pattern is anchored to the CLOSING PARENTHESIS, NOT `.*?:`. `/usr/bin/time -v` prints:
       #     Elapsed (wall clock) time (h:mm:ss or m:ss): 0:01.23
-      # Tembel `.*?:` "time"dan sonraki İLK iki noktayı arar; o iki nokta değerde değil
-      # ETİKETİN İÇİNDEDİR (`(h:mm:ss`), dolayısıyla yakalanan grup `mm:ss or m:ss): 0:01.23`
-      # oluyordu. `elapsed_seconds()` onu 5 parçaya bölüp sessizce None döndürüyordu —
-      # run-31934698855'te 4.259 satırın 4.259'unda süre kolonu bu yüzden BOŞTU (#149).
-      # `max_rss_kb` etkilenmedi çünkü onun deseninde belirsizlik yok; ölçümün yarısının
-      # çalışıyor olması kusuru gizledi.
+      # The lazy `.*?:` searches for the FIRST colon after "time"; that colon is in the
+      # LABEL, not the value (`(h:mm:ss`), so the captured group became `mm:ss or m:ss): 0:01.23`.
+      # `elapsed_seconds()` split it into five parts and silently returned None—the time column
+      # was therefore EMPTY in all 4,259 rows of run-31934698855 (#149).
+      # `max_rss_kb` was unaffected because its pattern is unambiguous; having half the
+      # measurement work concealed the defect.
       "elapsed":g(r"Elapsed \(wall clock\) time[^)]*\):\s*(.+)$"),
       "user_s":g(r"User time \(seconds\):\s*(.+)$"),
       "system_s":g(r"System time \(seconds\):\s*(.+)$"),
@@ -136,13 +136,13 @@ def parse_analyzer(report):
             with report.open("rb") as f:
                 vals=ijson.items(f,"status")
                 status=next(vals,None)
-            # R5 skor kartı (`reports.r5`) ayrı bir geçişte okunur; notice akışıyla aynı
-            # prefix'ten gelmiyor. Skorlar koşum sırasında zaten hesaplanıyordu ama
-            # hiçbir tüketici saklamıyordu — 11 koşum boyunca ortalama skor ölçülemedi.
+            # The R5 scorecard (`reports.r5`) is read in a separate pass; it does not share
+            # the notice stream's prefix. Scores were already calculated during the run, but
+            # no consumer stored them—the average score could not be measured across 11 runs.
             with report.open("rb") as f:
                 r5=next(ijson.items(f,"reports.r5"),None)
-            # ijson sayıları `Decimal` döndürür ve `Decimal` JSONL'e yazılamaz —
-            # dönüştürülmezse shard çıktısı yazılırken TypeError ile patlar.
+            # ijson returns numbers as `Decimal`, and `Decimal` cannot be written to JSONL—
+            # without conversion, writing the shard output raises TypeError.
             if r5: scores={k:float(v) for k,v in r5.items()}
             with report.open("rb") as f:
                 for n in ijson.items(f,"notices.item"):

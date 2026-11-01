@@ -33,33 +33,33 @@ runs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-${{ inputs.cache-key }}-${{ hashFiles('**/Cargo.lock') }}
-        # Son satır bölünmeden önceki ortak anahtar: ilk koşum soğuk başlamasın.
+        # Common key before the final segment: keep the first run from starting cold.
         restore-keys: |
           ${{ runner.os }}-${{ inputs.cache-key }}-
           ${{ runner.os }}-wasm-
 
-    # 2026-08-12'de ana dal bu adımda kırmızı yandı: `curl: (56) Connection died` —
-    # init.sh, wasm-pack ikilisini GitHub release'inden indiremedi. Kodla ilgisi yoktu,
-    # tek re-run düzeltti. Script'in KENDİ retry'ı var ("tried 5 times") ve yetmedi;
-    # eksik olan denemeler ARASINDA BEKLEMEKTİ, geçici kesinti aynı saniyelerde 5 kez
-    # denenince aşılmıyor.
+    # On 2026-08-12 the main branch went red here: `curl: (56) Connection died`—
+    # init.sh could not download the wasm-pack binary from the GitHub release. It was unrelated
+    # to the code, and one re-run fixed it. The script has its OWN retry ("tried 5 times"), but
+    # what was missing was a WAIT BETWEEN attempts; a transient outage is not overcome when
+    # five attempts happen in the same seconds.
     #
-    # ⚠️ `cargo audit`/`npm audit` DESENİNDEN AYRILIR: orada ağa ulaşamamak yalnızca
-    # "tarama yapılamadı" demektir, job yeşil kalabilir. Burada araç kurulmazsa sonraki
-    # adımların hiçbiri (WASM derleme, UI build, determinizm karşılaştırması) çalışamaz —
-    # ağ hatasında yeşil geçmek yapılmamış işi yapılmış göstermek olurdu. O yüzden üç
-    # deneme de düşerse adım KIRMIZI yanar, ama sebebi mesajda yazılı olur.
+    # ⚠️ This DIFFERS from the `cargo audit`/`npm audit` PATTERN: there, no network access only
+    # means "the scan could not run", so the job may stay green. Here, if the tool is not installed,
+    # none of the next steps (WASM build, UI build, determinism comparison) can run—a green result
+    # on a network error would claim that unfinished work was done. Therefore the step goes RED if
+    # all three attempts fail, with the reason written in the message.
     - name: wasm-pack kur (sabit sürüm)
       if: inputs.wasm-pack == 'true'
       uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
       with:
         tool: wasm-pack@0.15.0
 
-    # Nightly TARİHLE sabit: tarihsiz "nightly" her gün değişir ve CI'ı koddan bağımsız
-    # kırabilir. Tarih yalnız burada tutulur; betikler `RUST_NIGHTLY` ile okur
+    # Nightly is pinned by DATE: undated "nightly" changes daily and can break CI independently
+    # of the code. The date lives only here; scripts read it through `RUST_NIGHTLY`
     # (ui/scripts/build-wasm-threads.mjs, build-wasm64.mjs). 2026-09-30 = rustc
-    # 1.101.0-nightly (5c543b0b8 2026-09-29), CI'ın o gün yeşil geçtiği sürüm.
-    # Güncellerken: tarihi değiştir, CI'ın üç WASM job'unu yeşil gör.
+    # 1.101.0-nightly (5c543b0b8 2026-09-29), the version whose three WASM CI jobs passed that day.
+    # When updating: change the date, then verify that all three WASM CI jobs are green.
     - name: Nightly toolchain (threaded WASM / build-std için)
       if: inputs.nightly == 'true'
       shell: bash

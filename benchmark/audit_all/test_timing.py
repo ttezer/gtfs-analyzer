@@ -28,7 +28,7 @@ shard = load("run_shard_test", "run_shard.py")
 agg = load("aggregate_test", "aggregate.py")
 probe = load("platform_probe_test", "platform_probe.py")
 
-# GNU time -v'nin gerçek çıktısı; etiket parantezinin İÇİNDE iki nokta vardır.
+# Real GNU time -v output; the label contains a colon INSIDE its parentheses.
 TIME_V = """\tCommand being timed: "gtfs-analyzer validate feed.zip"
 \tUser time (seconds): 1.20
 \tSystem time (seconds): 0.30
@@ -204,17 +204,17 @@ class StateClassification(unittest.TestCase):
     """
 
     def setUp(self):
-        self.present = HERE / "test_timing.py"          # var olan bir dosya
+        self.present = HERE / "test_timing.py"          # an existing file
         self.absent = HERE / "does-not-exist-report.json"
 
-    # ── kesilmiş koşum: rapor VAR ama süreç öldürülmüş ──────────────────────
+    # ── truncated run: the report EXISTS but the process was killed ──────────
     def test_analyzer_sigterm_with_report_is_not_completed(self):
         for code in (124, 137):
             with self.subTest(exit_code=code):
                 self.assertEqual(
                     shard.classify_analyzer(code, self.present, ""),
                     "partial_timeout",
-                    "rapor diskte olsa bile 124/137 bitmiş koşum DEĞİLDİR",
+                    "124/137 is NOT a completed run even if the report is on disk",
                 )
 
     def test_md_sigterm_with_report_is_not_completed(self):
@@ -225,7 +225,7 @@ class StateClassification(unittest.TestCase):
                     "partial_timeout",
                 )
 
-    # ── temiz koşum: analyzer'ın 1'i "bulgu var" demektir, arıza değil ──────
+    # ── clean run: analyzer exit 1 means "findings", not failure ─────────────
     def test_analyzer_normal_exit_codes_are_completed(self):
         for code in (0, 1, 2):
             with self.subTest(exit_code=code):
@@ -233,7 +233,7 @@ class StateClassification(unittest.TestCase):
                     shard.classify_analyzer(code, self.present, ""), "completed"
                 )
 
-    # ── rapor yoksa zaman aşımı zaten timeout'tur ───────────────────────────
+    # ── without a report, a timeout is simply a timeout ───────────────────────
     def test_no_report_after_sigterm_is_timeout(self):
         self.assertEqual(shard.classify_analyzer(124, self.absent, ""), "timeout")
         self.assertEqual(shard.classify_md(124, self.absent, None, ""), "timeout")

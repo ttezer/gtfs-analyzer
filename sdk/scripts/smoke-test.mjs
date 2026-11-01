@@ -13,10 +13,10 @@ import {
 const fixtureUrl = new URL('../../ui/tests/fixtures/minimal.zip', import.meta.url);
 const fixture = new Uint8Array(await readFile(fileURLToPath(fixtureUrl)));
 
-// Surum bilgisi package.json'dan okunur: bump sirasinda BES ayri yerde elle guncellenmesi
-// gerekiyordu (package.json · SDK_VERSION · ENGINE_VERSION · README ornegi · BU SATIR) ve
-// 0.12.0'da ucu unutuldu, CI iki kez ust uste kirmizi yandi. Testin iddiasi degismedi:
-// getVersion() paketin ilan ettigi surumu ve gomulu motorun surumunu dogru bildirmeli.
+// Read the version information from package.json: during a bump, FIVE separate locations had
+// to be updated manually (package.json · SDK_VERSION · ENGINE_VERSION · README example · THIS LINE)
+// and one was missed in 0.12.0, turning CI red twice in a row. The test's assertion is unchanged:
+// getVersion() must report the package's declared version and the embedded engine version correctly.
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const engineVersion = JSON.parse(
   readFileSync(new URL('../pkg/package.json', import.meta.url), 'utf8'),
@@ -74,7 +74,7 @@ assert.equal(rerun.result.reports.r5.score, sessionRun.result.reports.r5.score);
 assert.deepEqual(session.getShapeCoords('missing-shape'), []);
 session.dispose();
 
-// Bellek tuzağı: wasm32 motorunda açıklama `detail`e girer, genel mesaj sözleşmesi değişmez.
+// Memory trap: in the wasm32 engine the explanation goes into `detail`; the general message contract remains unchanged.
 const trappingEngine = (mode) => ({
   mode,
   initialize: async () => {},

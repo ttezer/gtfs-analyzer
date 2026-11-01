@@ -3,8 +3,8 @@ import argparse,csv,gzip,importlib.util,json,math,re,statistics
 from collections import Counter,defaultdict
 from pathlib import Path
 
-# Bağlam çözücü ve karar defterleri KANONİK modülden gelir (bridge `md_parity_mapping.py`).
-# Düz `MAP` yalnız GERİ DÜŞÜŞTÜR: bağlam entry'si olmayan kodlar için.
+# The context resolver and adjudication ledgers come from the CANONICAL module (bridge `md_parity_mapping.py`).
+# Use the flat `MAP` only as a FALLBACK for codes without a context entry.
 from md_parity_mapping import (CONTEXT_BY_CODE, classify_analyzer_divergence,
                                classify_divergence, resolve_mapping)
 
@@ -39,7 +39,7 @@ def md_sample(m,code):
 
 def priority(d):
     typ=d["type"]; sev=(d.get("md_severity") or "").upper()
-    # Yargılanmış sapma bir bulgu DEĞİLDİR; triyaj listesinin tepesini işgal etmemeli.
+    # An adjudicated divergence is NOT a finding; it must not occupy the top of the triage list.
     if typ=="adjudicated_divergence": return 10
     if typ=="context_unresolved": return 30
     if typ=="validator_state_asymmetry": return 110
@@ -55,7 +55,7 @@ def priority(d):
     return 40
 
 def percentile(values,q):
-    """q'ıncı yüzdelik, doğrusal ara değerle. Medyan tek başına bir kuyruk göstermez."""
+    """q-th percentile with linear interpolation. The median alone does not show a long tail."""
     xs=sorted(float(x) for x in values if x is not None)
     if not xs: return None
     pos=(len(xs)-1)*q
@@ -65,7 +65,7 @@ def percentile(values,q):
 
 
 def perf(values):
-    """n / medyan / p95 / azami — tek bir medyan, uzun kuyruklu bir dağılımı gizler."""
+    """n / median / p95 / maximum — one median can hide a long-tailed distribution."""
     xs=[float(x) for x in values if x is not None]
     return {"n":len(xs),
             "median":statistics.median(xs) if xs else None,
@@ -74,14 +74,14 @@ def perf(values):
 
 
 def require_measured(columns, attempted):
-    """Tamamen boş bir ölçüm kolonu ARIZADIR; `null` medyan basıp geçmek onu gizler.
+    """A wholly empty measurement column is an ERROR; printing a `null` median would hide it.
 
-    run-31934698855'te `analyzer_wall_s` ve `md_wall_s` 4.259 satırın 4.259'unda boştu.
-    Özet sessizce `null` bastı, `AUDIT_SUMMARY.md` "median: None s" yazdı ve koşum
-    yayımlandı — hız ekseni yokken var sanıldı (#149). Ayrıştırıcı hatası tek satırlıktı;
-    onu 4.259 satır boyunca görünmez kılan şey SESSİZ `None` idi.
+    In run-31934698855, `analyzer_wall_s` and `md_wall_s` were empty in all 4,259 rows.
+    The summary silently printed `null`, wrote "median: None s" to `AUDIT_SUMMARY.md`,
+    and the run was published—as if the speed axis existed when it did not (#149). The
+    parser bug was one line; SILENT `None` kept it invisible across 4,259 rows.
 
-    `attempted == 0` ise boş kolon beklenendir: ölçüm arızası ile boş korpus ayrılır.
+    If `attempted == 0`, an empty column is expected: distinguish a measurement failure from an empty corpus.
     """
     if not attempted:
         return
@@ -94,14 +94,14 @@ def require_measured(columns, attempted):
         )
 
 
-# `completed` diyen bir satır, sürecin gerçekten bittiğini iddia eder. Analyzer'ın
-# normal çıkışları 0 (temiz), 1 (bulgu var) ve 2'dir; 124/137 `timeout`/SIGKILL'dir
-# ve o satır KESİK bir çıktıyı temiz gibi sunuyor demektir.
+# A row saying `completed` claims that the process really finished. The analyzer's
+# normal exits are 0 (clean), 1 (findings), and 2; 124/137 are `timeout`/SIGKILL,
+# so that row would present truncated output as clean.
 #
-# run-32145833613'te `mdb-2014` tam bunu yaptı: 300 sn'de öldürüldü, "completed" +
-# 1.551.740 bulgu olarak kaydedildi ve buradan 11 sapma satırı türetildi. Kusur
-# `classify_analyzer`'daydı ve bu kapı onu YAKALAYABİLİRDİ; beş sağlık kapısının
-# hiçbiri sınıflandırmanın DOĞRULUĞUNA bakmıyordu.
+# In run-32145833613, `mdb-2014` did exactly this: it was killed at 300 seconds, recorded as
+# "completed" with 1,551,740 findings, and 11 divergence rows were derived from it. The bug
+# was in `classify_analyzer`, and this gate COULD HAVE CAUGHT it; none of the five health gates
+# checked classification ACCURACY.
 ANALYZER_CLEAN_EXITS = (0, 1, 2)
 
 
@@ -222,12 +222,12 @@ def main():
     out=Path(args.out_dir); out.mkdir(parents=True,exist_ok=True)
     MAP,AGG=load_map(args.map_file)
     inv=defaultdict(list)
-    # 🔴 TERS EŞLEME İKİ KAYNAKTAN KURULUR. Düz `MAP` kural→kod ilişkisinin YALNIZ
-    # bir yarısıdır; diğer yarısı `CONTEXT_BY_CODE`'dadır ve orada 88 kural düz
-    # tabloda hiç geçmez. Yalnız `MAP` okunduğunda o kurallar "hiçbir MD koduna
-    # eşlenmemiş" sayılır ve `analyzer_spec_unmapped` kovasına düşer — run
-    # 32290410755'te 226 satırın 217'si (65 kural) tam olarak buydu. #165'in
-    # dersinin birebir tekrarı: eşleme VARDI, tüketici okumuyordu.
+    # 🔴 REVERSE MAPPING IS BUILT FROM TWO SOURCES. Flat `MAP` is only HALF of the
+    # rule→code relationship; the other half is in `CONTEXT_BY_CODE`, where 88 rules
+    # do not appear in the flat table at all. Reading only `MAP` classifies those rules
+    # as "unmapped to any MD code" and puts them in `analyzer_spec_unmapped`—exactly
+    # what happened to 217 of 226 rows (65 rules) in run 32290410755. A direct repeat
+    # of lesson #165: the mapping existed, but the consumer did not read it.
     for code,rules in MAP.items():
         for r in rules: inv[r].append(code)
     for code,entries in CONTEXT_BY_CODE.items():
@@ -252,9 +252,9 @@ def main():
         json.dumps(profile_measurements["rules"],indent=2,ensure_ascii=False)+"\n"
     )
 
-    # Kapsam boşlukları (#135'ten taşındı): eksik bir shard SESSİZCE kaybolmamalı.
-    # Manifest verilmişse beklenen feed kümesiyle karşılaştırılır; verilmemişse yalnız
-    # mükerrer sonuç satırları raporlanır — "bakılmadı" ile "boşluk yok" KARIŞTIRILMAZ.
+    # Coverage gaps (carried over from #135): a missing shard must not disappear SILENTLY.
+    # With a manifest, compare against the expected feed set; without one, report only
+    # duplicate result rows—do not CONFUSE "not checked" with "no gap".
     seen_ids=[((r.get("feed") or {}).get("feed_id") or "") for r in rows]
     attempted_counts=Counter(x for x in seen_ids if x)
     expected_ids=set()
@@ -267,9 +267,9 @@ def main():
           "duplicate_result_rows":{k:v for k,v in attempted_counts.items() if v>1}}
     (out/"coverage-gaps.json").write_text(json.dumps(gaps,indent=2,ensure_ascii=False)+"\n")
 
-    # Mükerrer içerik (#135'ten taşındı): aynı SHA-256'yı paylaşan feed'ler DEDUP EDİLMEZ,
-    # raporlanır. mdb-1241 ve tfs-374 ikisi de 925 STM_002 bulgusu veriyordu; aynı içeriğin
-    # iki katalog kimliği altında sayılması bir bulguyu iki kez "bağımsız kanıt" yapar.
+    # Duplicate content (carried over from #135): feeds sharing a SHA-256 are NOT DEDUPLICATED;
+    # they are reported. mdb-1241 and tfs-374 both produced 925 STM_002 findings; counting the
+    # same content under two catalog IDs would turn one finding into two "independent proofs".
     sha_groups=defaultdict(set)
     for r in rows:
         sha=((r.get("download") or {}).get("sha256") or "")
@@ -344,11 +344,11 @@ def main():
         for code,mdc in mc.items():
             sev=md_severity(m,code)
             samples=md_sample(m,code)
-            # MD jenerik kodları dosya/alan bağlamıyla çözülür; düz MAP geri düşüştür.
-            # Tek kurala aliaslamak `missing_required_field`'i 17 alandan 2'sine bağlıyordu.
+            # MD generic codes are resolved by file/field context; the flat MAP is the fallback.
+            # Aliasing to one rule had tied `missing_required_field` to only 2 of 17 fields.
             res=resolve_mapping(code,{"sampleNotices":samples},fallback_rules=MAP.get(code,()))
             rules=list(res.analyzer_rules)
-            # Sapma zaten yargılanmış mı? BY_DESIGN/UNMAPPED/MAPPED_DIVERGENCE tek çağrıda.
+            # Has the divergence already been adjudicated? BY_DESIGN/UNMAPPED/MAPPED_DIVERGENCE in one call.
             decision,_reason=classify_divergence(code)
             adjudicated=decision!="unreviewed"
             if not rules:
@@ -359,8 +359,8 @@ def main():
                 continue
             our=sum(ac.get(x,0) for x in rules)
             agg=any(x in AGG for x in rules)
-            # ⚠️ AGREGASYON KONTROLÜ `our==0`'DAN ÖNCE. Tersi, bilinen bir agregasyon farkını
-            # priority 105'e çıkarıp "en yüksek öncelikli aday" tablosunu dolduruyordu.
+            # ⚠️ CHECK AGGREGATION BEFORE `our==0`. The reverse promoted a known aggregation
+            # difference to priority 105 and filled the "highest-priority candidate" table.
             if agg: typ="mapped_aggregation_present"
             elif our==0: typ="md_mapped_missing"
             elif our<mdc: typ="md_mapped_under"
@@ -382,10 +382,10 @@ def main():
             if codes:
                 mt=sum(mc.get(code,0) for code in codes)
                 if mt==0:
-                    # Analyzer tarafındaki hükümler `fp_adjudication.tsv`'de durur ve
-                    # KURAL KİMLİĞİYLE anahtarlanır — `classify_divergence` MD kodu alır,
-                    # buraya uymaz. Bu defter yıllardır hiç okunmuyordu: 251 satırın hepsi
-                    # yargılanmış olduğu hâlde her koşumda taze görünüyordu (#163).
+                    # Analyzer-side rulings live in `fp_adjudication.tsv` and are keyed by
+                    # RULE ID—`classify_divergence` takes an MD code and does not apply here.
+                    # This ledger had gone unread for years: all 251 rows looked fresh on every
+                    # run even though they had already been adjudicated (#163).
                     adj,areason=classify_analyzer_divergence(rid)
                     base="analyzer_spec_md_absent" if cls=="SPEC" else "analyzer_mapped_md_absent"
                     divergences.append({
@@ -396,10 +396,10 @@ def main():
                       "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,
                       "mapped_md_codes":codes,"analyzer_sample":sm})
             elif cls=="SPEC":
-                # 🔴 Bu kova da defterden GEÇER. Eşleme yokluğu, hüküm yokluğu DEĞİLDİR:
-                # `NO_MD_EQUIVALENT` ve `fp_adjudication.tsv` bir kuralı MD kodu olmadan
-                # da yargılar. Sorgu eklenene kadar run 32290410755'te ARC_033/ARC_032/
-                # FRQ_012/DQ_021 yargılanmış oldukları hâlde taze sapma sayıldı.
+                # 🔴 THIS BUCKET ALSO GOES THROUGH THE LEDGER. No mapping is not no ruling:
+                # `NO_MD_EQUIVALENT` and `fp_adjudication.tsv` can adjudicate a rule without
+                # an MD code. Until the lookup was added, ARC_033/ARC_032/FRQ_012/DQ_021 were
+                # counted as fresh divergences in run 32290410755 despite being adjudicated.
                 adj,areason=classify_analyzer_divergence(rid)
                 divergences.append({
                   "type":"adjudicated_divergence" if adj!="unreviewed" else "analyzer_spec_unmapped",
@@ -408,13 +408,13 @@ def main():
                   "feed_id":fid,"provider":feed.get("provider",""),"country":feed.get("country",""),"url":feed.get("url",""),
                   "analyzer_rule":rid,"analyzer_count":ourc,"analyzer_class":cls,"analyzer_severity":sev,"analyzer_sample":sm})
 
-    # 🔴 HİÇBİR SAPMA SATIRI DEFTER SORGUSUNDAN GEÇMEDEN ÜRETİLEMEZ.
-    # Bu invariant, run 32290410755'in iki kusurunu da YAPISAL olarak imkansız kılar.
-    # Orada `analyzer_spec_unmapped` kovası hiçbir defter sorgusu yapmadan satır
-    # üretiyordu ve kimse fark etmedi — kova sessizce doğru görünüyordu. Yeni bir
-    # kova eklenip sorgusu unutulursa koşum burada DURUR, yanlış sayı yayımlamaz.
-    # Tek istisna `validator_state_asymmetry`: o iki validatörün ÇALIŞMA DURUMU
-    # farkıdır, bir kural hükmü konusu değildir.
+    # 🔴 NO DIVERGENCE ROW MAY BE PRODUCED WITHOUT A LEDGER LOOKUP.
+    # This invariant makes both defects from run 32290410755 STRUCTURALLY impossible.
+    # There, `analyzer_spec_unmapped` emitted rows without any ledger query and nobody noticed—
+    # the bucket silently looked correct. If a new bucket is added and its lookup is forgotten,
+    # the run STOPS here instead of publishing a false count.
+    # The only exception is `validator_state_asymmetry`: it is a WORK-STATE difference between
+    # two validators, not a rule adjudication.
     LEDGERLESS_TYPES = {"validator_state_asymmetry"}
     undecided = sorted({d["type"] for d in divergences
                         if d["type"] not in LEDGERLESS_TYPES and not d.get("decision")})
@@ -476,7 +476,7 @@ def main():
     mclean=[x["md_wall_s"] for x in feed_csv if x["md_state"]=="completed" and x["md_wall_s"] is not None]
     arss=[x["analyzer_rss_kb"] for x in feed_csv if x["analyzer_state"]=="completed" and x["analyzer_rss_kb"]]
     mrss=[x["md_rss_kb"] for x in feed_csv if x["md_state"]=="completed" and x["md_rss_kb"]]
-    # Ölçüm kolonları özetlenmeden önce denetlenir (#149).
+    # Validate measurement columns before summarizing them (#149).
     require_consistent_states(feed_csv)
     require_measured({"analyzer_wall_s":aclean,"md_wall_s":mclean,
                       "analyzer_peak_rss_kb":arss,"md_peak_rss_kb":mrss}, attempted)
@@ -484,9 +484,9 @@ def main():
     summary={
       "attempted":attempted,"downloaded":downloaded,"both_completed_cleanly":both,
       "state_pairs":{f"{a} | {m}":n for (a,m),n in state_pairs.items()},
-      # Medyan + p95 + azami (#135'ten taşındı): tek bir medyan uzun kuyruğu gizler.
-      # `n` ayrıca ölçümün KAÇ feed'e dayandığını söyler — 0 ise kolon boştur, medyan
-      # `null` görünür ve bu bir ÖLÇÜM ARIZASIDIR, "veri yok" değil (#149).
+      # Median + p95 + maximum (carried over from #135): one median hides a long tail.
+      # `n` also says how MANY feeds support the measurement—if it is 0, the column is empty,
+      # the `null` median is a MEASUREMENT FAILURE, not "no data" (#149).
       "analyzer_wall_s":perf(aclean),
       "md_wall_s":perf(mclean),
       "analyzer_peak_rss_kb":perf(arss),
