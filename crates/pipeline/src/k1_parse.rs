@@ -1421,10 +1421,11 @@ pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
     "record_sub_id",
 ];
 
-/// ARC_037 birikimi — ID alanında yazdırılabilir ASCII (0x20-0x7E) dışı karakter.
-/// Spec: *"Using only printable ASCII characters is recommended."* Tavsiye olduğu için
-/// DOSYA başına TEK özet (`Arc032Acc` deseni); MD satır başına sayar (bir feed'de 58K).
-/// Yazdırılamayan karakterler ARC_021'in alanıdır; burada yalnız 0x7E'nin üstü sayılır.
+/// ARC_037 accumulator — a character outside printable ASCII (0x20–0x7E) in an ID field.
+/// Spec: *"Using only printable ASCII characters is recommended."* Because this is a
+/// recommendation, produce ONE summary per FILE (`Arc032Acc` pattern); MD counts per row
+/// (58K in one feed). Unprintable characters belong to ARC_021; this rule counts only values
+/// above 0x7E.
 #[derive(Default)]
 pub(crate) struct Arc037Acc {
     pub rows: u64,
@@ -1465,7 +1466,7 @@ impl Arc037Acc {
         }
     }
 
-    /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    /// stop_times chunk merge: `self` is the earlier chunk, so preserve its example.
     #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc037Acc) {
         self.rows += other.rows;
@@ -1480,7 +1481,7 @@ impl Arc037Acc {
         self.last_line = self.last_line.max(other.last_line);
     }
 
-    /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.
+    /// Summary: (observed, message, column list). `None` when empty.
     pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
         if self.rows == 0 {
             return None;
@@ -1513,23 +1514,23 @@ pub(crate) const ARC032_REMEDIATION: &str =
      GTFS alanları düz metin taşır ve tüketiciler bu işaretleri olduğu gibi gösterir.";
 
 pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
-    // "ASCII dışı" DEME: kural geçerli Unicode harfleri (ü, ö, 漢字…) bilerek muaf tutar;
-    // yalnız kontrol/DEL/surrogate/private-use işaretlenir. Mesaj yaptığından fazlasını
-    // iddia etmemeli (VBB Almanca metin tartışması, 2026-07-24).
+    // Do not say "non-ASCII": the rule deliberately exempts valid Unicode letters (ü, ö, 漢字…);
+    // only control/DEL/surrogate/private-use characters are flagged. The message must not claim
+    // more than the rule does (VBB German-text discussion, 2026-07-24).
     format!("'{file_name}' dosyasında yazdırılamaz veya sorunlu karakter içeren değer var (U+{cp:04X}).")
 }
 
 pub(crate) const ARC021_REMEDIATION: &str =
     "Alan değerlerindeki kontrol/yazdırılamaz karakterleri kaldırın; geçerli Unicode harfler (ü, ö, 漢字 vb.) sorun değildir.";
 
-/// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
-/// `translations.txt::table_name` uzantısız tablo adı taşır; sütun listesi dosya adına
-/// anahtarlıdır. Kol, `translations.txt` için eski ve profil-özel kolon listelerini
-/// taşır; resmi GTFS tablolarının tamamı için çeviri alan kataloğu ayrıca generated
-/// `spec_fields.json` kaynağından çözülür.
+/// Column names defined in the GTFS specification (ARC_017).
+/// `translations.txt::table_name` carries a table name without its extension; the column list
+/// is keyed by file name. This arm carries the legacy and profile-specific column lists for
+/// `translations.txt`; for all official GTFS tables, the translation-field catalogue is also
+/// resolved from the generated `spec_fields.json` source.
 ///
-/// 🔑 Ad birleştirmek (`format!("{table}.txt")`) satır başına tahsis demektir;
-/// `mdb-2126`'nın `translations.txt`'si 158.531 satır taşıyor.
+/// 🔑 Constructing a name (`format!("{table}.txt")`) allocates once per row;
+/// `mdb-2126`'s `translations.txt` contains 158,531 rows.
 pub(crate) fn known_columns_for_table(table: &str) -> &'static [&'static str] {
     match table {
         "agency" => known_columns("agency.txt"),
