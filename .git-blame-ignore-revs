@@ -420,3 +420,6 @@ cccc0b157ec34edd82b8a9158f47dccd878188a8
 
 # Translate remaining developer console messages to English.
 2402371f1f8f77b1d2790973df36d5c75ac4fffa
+
+# Keep original line layout for translated console messages.
+e93b0761dd2fa2b6a6bf59fdd3dc2ac6327f6a28
