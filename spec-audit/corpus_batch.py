@@ -463,35 +463,35 @@ def cmd_report(args):
     slow = sorted(ok, key=lambda r: -r["elapsed_sec"])[:10]
 
     lines = [
-        "# Corpus toplu koşum raporu",
+        "# Corpus batch run report",
         "",
-        f"- Feed: **{len(res)}** (temiz {len(ok)}, fatal {len(fatals)})",
-        f"- Tetiklenen kural: **{len(feeds_with)}** · corpus'ta hiç çıkmayan: **{len(never)}**",
-        f"- Toplam notice: **{sum(totals.values()):,}**",
+        f"- Feeds: **{len(res)}** (clean {len(ok)}, fatal {len(fatals)})",
+        f"- Triggered rules: **{len(feeds_with)}** · never seen in corpus: **{len(never)}**",
+        f"- Total notices: **{sum(totals.values()):,}**",
         "",
-        "## 🔴 Fatal (en yüksek sinyal — MD açabildiyse bizde bug)",
+        "## 🔴 Fatal (strongest signal — if MD opened it, it is a bug in our validator)",
         "",
     ]
     if fatals:
         lines += ["| feed | kod | mesaj |", "|---|---|---|"]
         lines += [f"| {r['feed']} | `{r['fatal']}` | {r.get('fatal_message','')[:80]} |" for r in fatals[:25]]
     else:
-        lines.append("Yok — hiçbir feed pipeline'ı durdurmadı.")
+        lines.append("None — no feed stopped the pipeline.")
 
-    lines += ["", "## ⚠️ Aşırı-tetikleme adayları (tek feed'de en yüksek)", "",
-              "Bir feed'de binlerce kez çıkan kural = ya gerçek sistemik hata ya FP ya da",
-              "agregasyon adayı (STM_014 emsali). Sıralama kanıt değil, **triyaj sinyali**.", "",
-              "| kural | sınıf | önem | max/feed | feed | toplam | feed% |", "|---|---|---|---:|---|---:|---:|"]
+    lines += ["", "## ⚠️ Over-triggering candidates (highest count in one feed)", "",
+              "A rule firing thousands of times in one feed is either a real systemic error, an FP, or an",
+              "aggregation candidate (the STM_014 precedent). Ranking is not evidence, but a **triage signal**.", "",
+              "| rule | class | severity | max/feed | feed | total | feed% |", "|---|---|---|---:|---|---:|---:|"]
     for r in sorted(rows, key=lambda x: -x["max_in_one_feed"])[:20]:
         lines.append(f"| {r['rule_id']} | {r['rule_class']} | {r['severity']} | {r['max_in_one_feed']:,} | "
                      f"{r['max_feed']} | {r['total_notices']:,} | {r['feeds_pct']} |")
 
-    lines += ["", "## 🌱 Corpus'ta hiç tetiklenmeyen kurallar", "",
-              "Ölü kural değil demek DEĞİL (dar kapsam/nadir profil olabilir) — ama",
-              "emit-proof'u olmayanlar için kanıt boşluğu sinyali.", "",
-              "```", ", ".join(never) if never else "(yok)", "```"]
+    lines += ["", "## 🌱 Rules never triggered in the corpus", "",
+              "This does NOT mean a rule is dead (the scope may be narrow or the profile rare) — but",
+              "it signals an evidence gap for rules without emit proof.", "",
+              "```", ", ".join(never) if never else "(none)", "```"]
 
-    lines += ["", "## ⏱ En yavaş 10 feed", "", "| feed | sn | trip |", "|---|---:|---:|"]
+    lines += ["", "## ⏱ 10 slowest feeds", "", "| feed | sec | trips |", "|---|---:|---:|"]
     for r in slow:
         lines.append(f"| {r['feed']} | {r['elapsed_sec']} | {(r.get('feed_metrics') or {}).get('trip_count')} |")
 
@@ -503,21 +503,21 @@ def cmd_report(args):
     if md_rows:
         write_csv(os.path.join(args.dir, "md_volume.csv"), md_rows)
         big = [r for r in md_rows if r["ratio"] and (r["ratio"] >= 3 or r["ratio"] <= 0.34)]
-        lines += ["", "## 🔬 MD hacim kıyası (kaba — kural paritesi DEĞİL)", "",
-                  f"MD raporu eşleşen feed: **{len(md_rows)}**; hacim sapması (≥3× veya ≤0.34×): **{len(big)}**.",
+        lines += ["", "## 🔬 MD volume comparison (coarse — NOT rule parity)", "",
+                  f"Feeds with matching MD reports: **{len(md_rows)}**; volume deviations (≥3× or ≤0.34×): **{len(big)}**.",
                   "",
-                  "MD total = error+warning+info. Bizde fazlalık NORMAL (Quality/Analytics/JP/Flex",
-                  "kurallarımızın MD karşılığı yok) — bu tablo **triyaj sinyali**, kanıt değil.",
-                  "Gerçek parite: `python3 notgit/md_parity_audit.py <dir>` (kural eşlemeli).", "",
-                  "| feed | biz | MD | oran | MD ver |", "|---|---:|---:|---:|---|"]
+                  "MD total = error+warning+info. Extra findings on our side are NORMAL (Quality/Analytics/JP/Flex",
+                  "rules have no MD equivalent) — this table is a **triage signal**, not evidence.",
+                  "Real parity: `python3 notgit/md_parity_audit.py <dir>` (rule-mapped).", "",
+                  "| feed | ours | MD | ratio | MD version |", "|---|---:|---:|---:|---|"]
         for r in sorted(big, key=lambda x: -(x["ratio"] or 0))[:15]:
             lines.append(f"| {r['feed']} | {r['ours']:,} | {r['md_total']:,} | {r['ratio']}× | {r['md_version']} |")
-        lines += ["", f"Parite için hazır: `{os.path.join(args.dir, 'pairs')}` "
-                      f"(her feed = 1 MD raporu + 1 golden) → md_parity_audit.py", ""]
+        lines += ["", f"Ready for parity: `{os.path.join(args.dir, 'pairs')}` "
+                      f"(each feed = 1 MD report + 1 golden) → md_parity_audit.py", ""]
     else:
-        lines += ["", "## MD karşılaştırması yok", "",
-                  "`resolve` çalıştırılmadı ya da rapor inmedi → MD raporu eşleşmemiş.",
-                  "Parite için: `corpus_batch.py resolve` (notgit/.md_token gerekir), sonra fetch.", ""]
+        lines += ["", "## No MD comparison", "",
+                  "`resolve` was not run or no report was downloaded → no MD report matched.",
+                  "For parity: `corpus_batch.py resolve` (requires notgit/.md_token), then fetch.", ""]
 
     path = os.path.join(args.dir, "report.md")
     with open(path, "w") as f:
@@ -678,33 +678,33 @@ def main():
     # Defining it only at the top level would make `sample --dir x` fail.
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default=os.path.join(REPO, "notgit", "corpus"),
-                        help="çalışma dizini (varsayılan notgit/corpus)")
+                        help="working directory (default: notgit/corpus)")
     ap.add_argument("--dir", default=os.path.join(REPO, "notgit", "corpus"), help=argparse.SUPPRESS)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    s = sub.add_parser("sample", parents=[common], help="katalogdan katmanlı N feed seç")
+    s = sub.add_parser("sample", parents=[common], help="select N stratified feeds from the catalogue")
     s.add_argument("--n", type=int, default=250)
-    s.add_argument("--seed", type=int, default=42, help="tekrarlanabilirlik için sabit")
-    s.add_argument("--per-country", type=int, default=8, help="ülke başına tavan (çeşitlilik)")
+    s.add_argument("--seed", type=int, default=42, help="fixed for reproducibility")
+    s.add_argument("--per-country", type=int, default=8, help="per-country cap (diversity)")
     s.set_defaults(fn=cmd_sample)
 
     rs = sub.add_parser("resolve", parents=[common],
-                        help="MD API ile snapshot + rapor URL'i çöz (token gerekir)")
-    rs.add_argument("--delay", type=float, default=0.2, help="API çağrıları arası saniye")
+                        help="resolve snapshot + report URLs through the MD API (token required)")
+    rs.add_argument("--delay", type=float, default=0.2, help="seconds between API calls")
     rs.set_defaults(fn=cmd_resolve)
 
-    f = sub.add_parser("fetch", parents=[common], help="zip + MD raporu indir (devam ettirilebilir)")
-    f.add_argument("--max-mb", type=int, default=200, help="bundan büyük feed atlanır")
-    f.add_argument("--delay", type=float, default=1.0, help="indirmeler arası saniye")
+    f = sub.add_parser("fetch", parents=[common], help="download ZIPs + MD reports (resumable)")
+    f.add_argument("--max-mb", type=int, default=200, help="skip feeds larger than this")
+    f.add_argument("--delay", type=float, default=1.0, help="seconds between downloads")
     f.set_defaults(fn=cmd_fetch)
 
-    v = sub.add_parser("validate", parents=[common], help="bizim CLI ile koş (devam ettirilebilir)")
+    v = sub.add_parser("validate", parents=[common], help="run our CLI (resumable)")
     v.add_argument("--today", required=True,
-                   help="YYYYMMDD (sabit, tekrarlanabilir) VEYA 'md' = her feed kendi MD "
-                        "raporunun doğrulama gününde koşulur (tarihe göreli kural pariteleri için ŞART)")
+                   help="YYYYMMDD (fixed, reproducible) OR 'md' = run each feed on its MD "
+                        "report's validation date (REQUIRED for date-relative rule parity)")
     v.add_argument("--timeout", type=int, default=900)
-    v.add_argument("--only", help="virgülle ayrılmış feed id listesi — YALNIZ bunları koş "
-                                  "(yeni feed eklerken korpusun geri kalanını kilitler)")
+    v.add_argument("--only", help="comma-separated feed ID list — run ONLY these "
+                                  "(isolates a newly added feed from the rest of the corpus)")
     v.set_defaults(fn=cmd_validate)
 
     r = sub.add_parser("report", parents=[common], help="rule_stats.csv + fatals.csv + report.md")
@@ -713,7 +713,7 @@ def main():
     args = ap.parse_args()
     if getattr(args, "today", None) is not None and args.today != "md":
         if not re.fullmatch(r"\d{8}", str(args.today)):
-            ap.error("--today: YYYYMMDD ya da 'md' olmalı")
+            ap.error("--today must be YYYYMMDD or 'md'")
         args.today = int(args.today)
     os.makedirs(args.dir, exist_ok=True)
     args.fn(args)
