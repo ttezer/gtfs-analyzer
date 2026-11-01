@@ -42,18 +42,18 @@ use k7_reporting::annotate_whitespace_join_provenance;
 pub use recovery::FileAvailability;
 pub use whitespace_suppression::WhitespaceSuppressions;
 
-// Re-exported for integration tests
+// Entegrasyon testlerine açık yeniden ihracat
 pub use gtfs_config::{CalendarOverrideRule, GtfsJpProfile, ValidatorConfig};
 pub use gtfs_core::{
     FatalCode, FatalError, FileInfo, ValidateResult, ValidationResult, ValidationStatus,
 };
 
-/// Completes the two-stage proof for the `stops.txt` exemption.
+/// `stops.txt` muafiyetinin iki aşamalı kanıtını tamamlar.
 ///
-/// K1 knows the structural validity of `locations.geojson` Features, but cannot know whether
-/// those zones are actually used because large `stop_times.txt` bodies are streamed in K2.
-/// After K2 completes, the exemption applies only when `stop_times.location_id` points to a
-/// valid feature ID.
+/// K1, `locations.geojson` Feature'larının yapısal geçerliliğini bilir; ancak büyük
+/// `stop_times.txt` dosyalarının gövdesi K2'de akışla okunduğu için bu bölgelerin gerçekten
+/// kullanılıp kullanılmadığını bilemez. K2 tamamlandıktan sonra yalnız geçerli bir feature
+/// kimliğine yönelen `stop_times.location_id` varsa muafiyet uygulanır.
 pub fn reconcile_flex_stop_requirement(
     k1_notices: &mut Vec<gtfs_core::Notice>,
     k2_notices: &mut Vec<gtfs_core::Notice>,
@@ -77,8 +77,8 @@ pub fn reconcile_flex_stop_requirement(
     };
 
     if has_referenced_valid_zone {
-        // K1 already avoids ARC_004/035 because the zone is structurally valid. These
-        // retains are defensive: direct/future call paths should preserve the same invariant.
+        // K1 zaten ARC_004/035'i yapısal olarak geçerli bölge sayesinde üretmez. Bu
+        // retain'ler savunmacıdır: doğrudan/gelecekteki çağrı yolları aynı hükümde kalsın.
         k1_notices.retain(|n| {
             !is_stops_notice(n, "ARC_004") && !is_stops_notice(n, "ARC_035")
         });
@@ -89,8 +89,8 @@ pub fn reconcile_flex_stop_requirement(
         return;
     }
 
-    // Structurally valid GeoJSON that is used by no trip does not define a service location.
-    // Revoke K1's temporary exemption.
+    // Yapısal olarak geçerli fakat hiçbir sefer tarafından kullanılmayan bir GeoJSON,
+    // hizmet yerini tanımlamaz. K1'in geçici muafiyetini geri al.
     let mut counter = 0;
     if !stops_present && !k1_notices.iter().any(|n| is_stops_notice(n, "ARC_004")) {
         partial.mark_unavailable("stops.txt");
@@ -107,8 +107,8 @@ pub fn reconcile_flex_stop_requirement(
             None,
             Some("stops.txt".to_string()),
             None,
-            "Required GTFS file is missing: 'stops.txt'.".to_string(),
-            "Add the missing file to the feed ZIP archive.",
+            "Zorunlu GTFS dosyası eksik: 'stops.txt'.".to_string(),
+            "Eksik dosyayı feed ZIP arşivine ekleyin.",
         ));
     } else if stops_empty
         && !k1_notices.iter().any(|n| is_stops_notice(n, "ARC_035"))
@@ -126,14 +126,14 @@ pub fn reconcile_flex_stop_requirement(
             None,
             Some("stops.txt".to_string()),
             None,
-            "Required GTFS file 'stops.txt' contains no data rows.".to_string(),
-            "Add real data to the file; leaving it empty is equivalent to omitting it.",
+            "Zorunlu GTFS dosyası 'stops.txt' hiç veri satırı içermiyor.".to_string(),
+            "Dosyaya gerçek verileri ekleyin; boş bırakmak dosyayı eklememekle aynıdır.",
         ));
     }
 }
 
-/// Agency/publisher metadata for the report page. Uses only `EntityRecords`; native and WASM
-/// call the same function (the parity reference compares both).
+/// Rapor sayfasının ajans/yayıncı künyesi. Yalnız `EntityRecords` kullanır; native ve
+/// WASM aynı fonksiyonu çağırır (parite referansı ikisini de karşılaştırır).
 pub fn build_feed_summary(records: &EntityRecords) -> gtfs_core::feed_summary::FeedSummary {
     use gtfs_core::feed_summary::{clean, AgencyContact, FeedInfoSummary, FeedSummary, MAX_AGENCIES};
     let opt = |v: &Option<String>| v.as_deref().and_then(clean);
@@ -252,7 +252,7 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
             None => {
                 return Err(FatalError::new(
                     FatalCode::InvalidInput,
-                    format!("disabled_rule_ids: '{rule_id}' is not a known rule ID."),
+                    format!("disabled_rule_ids: '{rule_id}' bilinen bir kural kimliği değil."),
                 )
                 .variant("disabled_rule_unknown")
                 .param("rule_id", rule_id));
@@ -261,7 +261,7 @@ pub fn check_rule_scope(config: &ValidatorConfig) -> Result<(), FatalError> {
                 return Err(FatalError::new(
                     FatalCode::InvalidInput,
                     format!(
-                        "disabled_rule_ids: '{rule_id}' is a Spec rule and cannot be disabled because publication decisions depend on these rules."
+                        "disabled_rule_ids: '{rule_id}' bir Spec kuralı; yayın kararı bu kurallara dayandığı için kapatılamaz."
                     ),
                 )
                 .variant("disabled_rule_spec")
@@ -316,7 +316,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("feed-level aggregate".to_string());
     aggregate.message = format!(
-        "Rows for {affected_trips} trips in stop_times.txt are not ordered by trip_id + stop_sequence."
+        "stop_times.txt içinde {affected_trips} seferin satırları trip_id + stop_sequence düzeninde değil."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -382,7 +382,7 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
         aggregate.observed_value = Some(affected_duplicates.to_string());
         aggregate.expected_value = Some("file-level aggregate".to_string());
         aggregate.message = format!(
-            "{affected_duplicates} duplicate primary keys detected in {file}."
+            "{file} içinde {affected_duplicates} birincil anahtar yinelenmesi tespit edildi."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -470,10 +470,10 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.expected_value = Some("file-level aggregate".to_string());
         aggregate.message = match severity_key {
             4 => format!(
-                "Trailing optional columns are missing in {affected_rows} rows in {file}."
+                "{file} içinde {affected_rows} satırda sondaki isteğe bağlı sütunlar eksik."
             ),
             _ => format!(
-                "The column count does not match the header in {affected_rows} rows in {file}."
+                "{file} içinde {affected_rows} satırın sütun sayısı başlıkla uyuşmuyor."
             ),
         };
         aggregate.details = Some({
@@ -556,7 +556,7 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_rows.to_string());
         aggregate.expected_value = Some("1 or 2".to_string());
         aggregate.message = format!(
-            "exception_type is missing or invalid in {affected_rows} rows in {file}."
+            "{file} içinde {affected_rows} satırda exception_type eksik veya geçersiz."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -622,7 +622,7 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_shapes.to_string());
     aggregate.expected_value = Some("feed-level aggregate".to_string());
     aggregate.message = format!(
-        "shape_dist_traveled decreases for {affected_shapes} shapes in shapes.txt."
+        "shapes.txt içinde {affected_shapes} shape için shape_dist_traveled azalıyor."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -677,7 +677,7 @@ fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_segments.to_string());
         aggregate.expected_value = Some("monotonic trip chronology".to_string());
         aggregate.message = format!(
-            "{affected_segments} backward time transitions break this trip's chronology."
+            "{affected_segments} zaman geriye gidişi bu seferin kronolojisini bozuyor."
         );
         aggregate.details.get_or_insert_with(BTreeMap::new).insert(
             "affected_segments".to_string(),
@@ -741,7 +741,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_rows.to_string());
         aggregate.expected_value = Some("filled at timepoint=1".to_string());
         aggregate.message = format!(
-            "Time is missing in {affected_rows} exact-time rows for trip_id '{trip_id}'."
+            "trip_id '{trip_id}' için {affected_rows} kesin zaman noktası satırında saat eksik."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -800,7 +800,7 @@ fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.observed_value = Some(affected_rows.to_string());
         aggregate.expected_value = Some("positive integer seconds".to_string());
         aggregate.message = format!(
-            "traversal_time is invalid in {affected_rows} rows for pathway_id '{pathway_id}'."
+            "pathway_id '{pathway_id}' için {affected_rows} satırda traversal_time geçersiz."
         );
         aggregate.details = Some({
             let mut details = BTreeMap::new();
@@ -900,7 +900,7 @@ fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("service_id defined in calendar.txt or calendar_dates.txt".to_string());
     aggregate.message = format!(
-        "service_id is not defined in the calendar for {affected_trips} trips in trips.txt."
+        "trips.txt içinde {affected_trips} seferin service_id değeri takvimde tanımlı değil."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -959,7 +959,7 @@ fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = Some("supported GTFS table name".to_string());
     aggregate.message = format!(
-        "table_name is invalid in {affected_rows} rows in translations.txt."
+        "translations.txt içinde {affected_rows} satırda table_name geçersiz."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1024,7 +1024,7 @@ fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_stops.to_string());
     aggregate.expected_value = Some("valid floating-point latitude".to_string());
     aggregate.message = format!(
-        "stop_lat is not numeric for {affected_stops} stops in stops.txt."
+        "stops.txt içinde {affected_stops} stop için stop_lat sayısal değil."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1079,7 +1079,7 @@ fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_stops.to_string());
     aggregate.expected_value = Some("valid longitude in [-180, 180]".to_string());
     aggregate.message = format!(
-        "stop_lon is invalid or out of range for {affected_stops} stops in stops.txt."
+        "stops.txt içinde {affected_stops} stop için stop_lon geçersiz veya aralık dışında."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1134,7 +1134,7 @@ fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = Some("non-negative integer seconds".to_string());
     aggregate.message = format!(
-        "min_transfer_time is missing or invalid in {affected_rows} rows in transfers.txt."
+        "transfers.txt içinde {affected_rows} satırda min_transfer_time eksik veya geçersiz."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1189,7 +1189,7 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_platforms.to_string());
     aggregate.expected_value = Some("every platform reachable from an entrance".to_string());
     aggregate.message = format!(
-        "{affected_platforms} platforms in the pathways.txt graph are unreachable through an entrance."
+        "pathways.txt grafiğinde {affected_platforms} platform entrance üzerinden erişilemiyor."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1242,7 +1242,7 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.observed_value = Some(affected_stops.to_string());
     aggregate.expected_value = Some("valid http/https URL".to_string());
-    aggregate.message = format!("stop_url is invalid for {affected_stops} stops in stops.txt.");
+    aggregate.message = format!("stops.txt içinde {affected_stops} stop için stop_url geçersiz.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_stops".to_string(), affected_stops.to_string());
@@ -1292,7 +1292,7 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_platforms.to_string());
     aggregate.expected_value = Some("parent_station defined".to_string());
     aggregate.message = format!(
-        "parent_station is missing for {affected_platforms} platforms connected to the pathway network."
+        "pathway ağına bağlı {affected_platforms} platform için parent_station eksik."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1311,9 +1311,9 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     *notices = retained;
 }
 
-/// FAR_010 is emitted for every raw conflicting `fare_rules` row (846,630 in one corpus feed).
-/// The registry uses `Feed` deduplication: without aggregation, dedup kept one arbitrary row
-/// and the conflict count was lost. Keep one summary with the count and example pairs.
+/// FAR_010 ham olarak çakışan her `fare_rules` satırı için üretilir (korpusta tek feed'de
+/// 846.630). Registry `Feed` dedup seviyesindedir: toplulama olmadan dedup rastgele tek
+/// satırı bırakıyor ve çakışma sayısı kayboluyordu. Tek özet, sayı ve örnek çiftlerle.
 fn aggregate_far010(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
@@ -1352,7 +1352,7 @@ fn aggregate_far010(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = None;
     aggregate.message = format!(
-        "{affected_rows} rules in fare_rules.txt define the same condition set in a way that conflicts with another fare."
+        "fare_rules.txt içinde {affected_rows} kural, aynı koşul kümesini başka bir tarifeyle çakışacak biçimde tanımlıyor."
     );
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
@@ -1402,7 +1402,7 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("direction_id 0 or 1".to_string());
-    aggregate.message = format!("direction_id is invalid in {affected_trips} trips in trips.txt.");
+    aggregate.message = format!("trips.txt içinde {affected_trips} seferde direction_id geçersiz.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_trips".to_string(), affected_trips.to_string());
@@ -1451,7 +1451,7 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.observed_value = Some(affected_rows.to_string());
     aggregate.expected_value = Some("timepoint 0 or 1".to_string());
-    aggregate.message = format!("timepoint is invalid in {affected_rows} rows in stop_times.txt.");
+    aggregate.message = format!("stop_times.txt içinde {affected_rows} satırda timepoint geçersiz.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_rows".to_string(), affected_rows.to_string());
@@ -1501,7 +1501,7 @@ fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.field = Some("exact_times".to_string());
     aggregate.observed_value = Some(affected_trips.to_string());
     aggregate.expected_value = Some("exact_times 0 or 1".to_string());
-    aggregate.message = format!("exact_times is invalid in {affected_trips} trips in frequencies.txt.");
+    aggregate.message = format!("frequencies.txt içinde {affected_trips} seferde exact_times geçersiz.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_trips".to_string(), affected_trips.to_string());
@@ -1550,8 +1550,8 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.line = None;
     aggregate.field = Some("route_type".to_string());
     aggregate.observed_value = Some(affected_transfers.to_string());
-    aggregate.expected_value = Some("from_trip_id and to_trip_id have the same route_type".to_string());
-    aggregate.message = format!("route_type is inconsistent in {affected_transfers} in-seat transfers in transfers.txt.");
+    aggregate.expected_value = Some("from_trip_id ve to_trip_id aynı route_type".to_string());
+    aggregate.message = format!("transfers.txt içinde {affected_transfers} in-seat aktarmada route_type uyumsuz.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_transfers".to_string(), affected_transfers.to_string());
@@ -1605,7 +1605,7 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.field = Some("end_date".to_string());
         aggregate.observed_value = Some(end_date.clone());
         aggregate.message = format!(
-        "end_date for {affected_services} services in calendar.txt ends on {end_date}."
+            "calendar.txt içinde {affected_services} servisinin end_date değeri {end_date} tarihinde sona eriyor."
         );
         aggregate.details = Some({
             let mut details = std::collections::BTreeMap::new();
@@ -1664,7 +1664,7 @@ fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     aggregate.field = Some("transfer_type".to_string());
     aggregate.observed_value = Some(affected_transfers.to_string());
     aggregate.expected_value = Some("0, 1, 2 veya 3".to_string());
-    aggregate.message = format!("{affected_transfers} records in transfers.txt are ignored by Google Transit.");
+    aggregate.message = format!("transfers.txt içinde {affected_transfers} kayıt Google Transit tarafından yoksayılıyor.");
     aggregate.details = Some({
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_transfers".to_string(), affected_transfers.to_string());
@@ -1685,9 +1685,8 @@ pub fn apply_report_scope(
     records: &EntityRecords,
     config: &ValidatorConfig,
 ) {
-    // `zone_id` is Optional in the spec; its only consumers are fare_rules zone columns.
-    // Without fare_rules, a missing zone cannot break fare calculations (including free or
-    // single-fare feeds).
+    // `zone_id` spec'te Optional; tek tüketicisi fare_rules'un bölge sütunları. fare_rules
+    // yoksa eksik zone hiçbir ücret hesabını bozmaz (ücretsiz/tek ücretli feed'ler dahil).
     if notices.iter().any(|n| n.rule_id == "STP_033")
         && (records.fare_rules.is_empty() || has_uniform_fare_coverage(records))
     {
@@ -1710,21 +1709,21 @@ pub fn apply_report_scope(
     }
 }
 
-/// Full K1–K7 pipeline for integration tests and tool integration.
-/// Unlike the WASM version: there is no notice limit, and `today` is supplied externally.
+/// K1–K7 tam pipeline — entegrasyon testleri ve araç entegrasyonu için.
+/// WASM sürümünden farkı: notice limit yok, `today` dışarıdan verilir.
 pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     validate_bytes_inspected(zip, config, today, &mut |_, _, _, _| {})
 }
 
-/// Observer supplied to [`validate_bytes_inspected`]: raw K1–K6 notices and the records,
-/// derived data, and whitespace-suppression lists needed to interpret them.
+/// [`validate_bytes_inspected`]'e verilen gözlemci: ham K1–K6 notice'ları ve onları
+/// yorumlamak için gereken kayıtlar, türev veri ve boşluk bastırma listeleri.
 #[doc(hidden)]
 pub type NoticeInspector<'a> =
     dyn FnMut(&[gtfs_core::Notice], &EntityRecords, &DerivedData, &WhitespaceSuppressions) + 'a;
 
-/// The same pipeline as [`validate_bytes`]; `inspect` sees raw K1–K6 notices before feed-level
-/// aggregation and report scoping. For audit tools (e.g. [`examples/scope_audit.rs`):
-/// aggregation removes `scope_key`/`entity_id`.
+/// [`validate_bytes`] ile aynı pipeline; `inspect` K1–K6 notice'larını feed-level
+/// toplulamadan ve rapor kapsamından ÖNCE, ham haliyle görür. Denetim araçları içindir
+/// (ör. `examples/scope_audit.rs`): toplulama `scope_key`/`entity_id`'yi siler.
 #[doc(hidden)]
 pub fn validate_bytes_inspected(
     zip: &[u8],
@@ -1798,10 +1797,10 @@ pub fn validate_bytes_inspected(
     );
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
 
-    // Normalize trips crossing midnight (00:xx) into service-day notation (24:xx).
-    // K2 emits the STM_048 raw Spec finding before this pass; this pass only ensures that
-    // derived/analytic K3–K6 rules (STM_008/014/028, headway…) see consistent values.
-    // No-op for monotonic trips; only trips containing a midnight rollover are shifted.
+    // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et.
+    // K2, STM_048 raw Spec bulgusunu bu pass'ten önce üretir; bu pass yalnızca
+    // K3–K6 türetilmiş/analitik kuralların (STM_008/014/028, headway…) tutarlı görmesini sağlar.
+    // Monoton seferlerde no-op; yalnızca gece dönümü içeren seferler kayar.
     {
         let _t = Timer::start("K2-service-day-normalize");
         k2.records
@@ -1809,8 +1808,8 @@ pub fn validate_bytes_inspected(
             .normalize_service_day(config.service_day_start_hour);
     }
 
-    // K1 rows remain empty for streamed files; overwrite them when K2 has counters.
-    // When a new file is streamed, adding it to k2/mod.rs streaming_row_counts is sufficient.
+    // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
+    // Yeni bir dosya stream edildiğinde k2/mod.rs streaming_row_counts'a eklenmesi yeterli.
     for fi in file_stats.iter_mut() {
         if let Some(&count) = k2.records.streaming_row_counts.get(fi.name.as_str()) {
             fi.rows = count as u32;
@@ -1820,7 +1819,7 @@ pub fn validate_bytes_inspected(
     let k3 = {
         let _t = Timer::start("K3-entity-map");
         let mut k3 = build_entity_map(&k2.records);
-        // XFL_025: GeoJSON feature IDs were collected in K1; move them into EntityMap.
+        // XFL_025: geojson feature id'leri K1'de toplandı; EntityMap'e taşı.
         k3.entity_map.geojson_location_ids = k1.geojson_location_ids.clone();
         k3.entity_map.geojson_geometries = k1.geojson_geometries.clone();
         k3
@@ -1839,8 +1838,8 @@ pub fn validate_bytes_inspected(
     };
     crate::timing::mem_log("after K4-cross-ref");
 
-    // #15: trip_stop_set (~226 MB on a large feed) is used only in K4; K5/K6/K7 and
-    // build_name_index do not use it → release it as soon as K4 ends (reduces live memory before K6).
+    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; K5/K6/K7 ve
+    // build_name_index kullanmaz → K4 biter bitmez serbest bırak (K6 öncesi canlı belleği düşürür).
     k2.records.stop_times_index.trip_stop_set = Default::default();
 
     let k5 = {
@@ -1879,10 +1878,10 @@ pub fn validate_bytes_inspected(
     aggregate_feed_level_notices(&mut all, &k2.records, &k5.derived);
     apply_report_scope(&mut all, &k2.records, config);
 
-    // issue #133 — the publication decision and score must expose coverage loss. If a required
-    // file could not be read, its dependent rules never ran; absence of findings is not proof.
-    // ⚠️ Optional-file loss does not LOWER this flag (measured: a corrupt `attributions.txt`
-    // also makes the run PARTIAL) — blocking a valid feed from publication is the heavier error.
+    // issue #133 — yayın kararı ve skor, KAPSAM kaybını görmek zorunda. Zorunlu bir dosya
+    // okunamadıysa ona bağlı kurallar hiç koşmamıştır; bulgu yokluğu kanıt yokluğudur.
+    // ⚠️ İsteğe bağlı dosya kaybı bu bayrağı DÜŞÜRMEZ (ölçüldü: bozuk `attributions.txt` de
+    // koşumu PARTIAL yapıyor) — geçerli feed'i yayından men etmek ağır taraftır.
     let coverage_complete = !partial
         .unavailable_files
         .iter()
@@ -1893,7 +1892,7 @@ pub fn validate_bytes_inspected(
         let _t = Timer::start("K7-reporting");
         let prepared =
             prepare_k7_notices(all, &k2.records, &k5.derived, false, whitespace_suppressions);
-        // #2201: counted AFTER suppression; native has no cap, so the inventory is complete.
+        // #2201: bastırmadan SONRA sayılır; native'de cap yoktur, döküm tamdır.
         let agency_breakdown = {
             let _t = Timer::start("K7::agency_breakdown");
             agency_attribution::breakdown(&prepared, &k2.records, true)
@@ -1905,8 +1904,8 @@ pub fn validate_bytes_inspected(
     };
     crate::timing::mem_log("after K7-reporting");
 
-    // name_index filters map data by notice (large-feed mode) → notices must not be moved
-    // while they are borrowed.
+    // name_index harita verisini notice'lara göre filtreler (büyük feed modu) → notice'lar
+    // ödünç verilirken taşınmamalı.
     let name_index = build_name_index(&k2.records, &k7.notices);
     crate::timing::mem_log("after name-index");
     ValidateResult::Ok(ValidationResult {
@@ -1926,10 +1925,9 @@ pub fn validate_bytes_inspected(
     })
 }
 
-/// Selects the group's representative and writes the agency distribution of ALL raw notices
-/// in the group to it (#2201). Called BEFORE aggregation removes the representative's
-/// `scope_key`/`entity_id`; the distribution total is the group size, i.e. the affected-record
-/// count carried by the summary.
+/// Grubun temsilcisini ayırır ve gruptaki TÜM ham notice'ların agency dağılımını ona
+/// yazar (#2201). Toplulayıcı temsilcinin `scope_key`/`entity_id`'sini silmeden ÖNCE
+/// çağrılır; dağılımın toplamı grubun boyudur, yani özetin taşıdığı etkilenen kayıt sayısı.
 fn take_representative(
     group: &mut Vec<gtfs_core::Notice>,
     resolver: &AgencyResolver,
@@ -1943,22 +1941,23 @@ fn take_representative(
     representative
 }
 
-/// Reduces K1–K6 notices to feed-level summaries. Native `validate_bytes` and WASM orchestrators
-/// MUST call the SAME function before `apply_report_scope`: the registry defines these rules at
-/// `Feed` dedup level, and locale text reads `observed_value` as the affected-record count.
-/// If aggregation is skipped, dedup selects one raw-row notice and the count is lost.
+/// K1–K6 notice'larını feed-level özetlere indirir. Native `validate_bytes` ve WASM
+/// orkestratörleri AYNI fonksiyonu `apply_report_scope`'tan önce çağırmak zorundadır:
+/// registry bu kuralları `Feed` dedup seviyesinde tanımlar, locale metinleri de
+/// `observed_value`'yu etkilenen kayıt sayısı olarak okur. Toplulama atlanırsa dedup
+/// ham satır notice'larından birini seçer ve sayı kaybolur.
 pub fn aggregate_feed_level_notices(
     all: &mut Vec<gtfs_core::Notice>,
     records: &EntityRecords,
     derived: &DerivedData,
 ) {
-    // K7's whitespace-join resolution operates through entity_id; mark which file contains
-    // the padding before feed-level aggregation removes it.
+    // K7'nin whitespace join çözümlemesi entity_id üzerinden çalışır; feed-level
+    // toplulama bunu silmeden önce padding'in hangi dosyada durduğunu işaretle.
     annotate_whitespace_join_provenance(all, records, derived);
     let resolver = AgencyResolver::new(records);
 
-    // STM_036's K2 sequence regression and K6 scattered-row subcases share the same
-    // feed-level unsorted_stop_times signal; show one summary to the user.
+    // STM_036'in K2 sequence-gerilemesi ve K6 dağınık-satır alt-vakaları aynı
+    // feed-level unsorted_stop_times sinyaline aittir; kullanıcıya tek özet göster.
     macro_rules! timed_aggregate {
         ($name:literal, $function:ident) => {{
             let _t = crate::timing::Timer::start(concat!("aggregate::", $name));
@@ -1998,8 +1997,8 @@ pub fn build_name_index(
     build_name_index_impl(records, notices, records.trips.len() > LARGE_FEED_TRIP_CAP)
 }
 
-/// The body of [`build_name_index`] is split out so `large_feed_mode` can be forced by tests
-/// (60,000-trip threshold — building that volume in a unit test is impractical).
+/// [`build_name_index`]'in gövdesi; `large_feed_mode` testten zorlanabilsin diye ayrıldı
+/// (eşik 60.000 sefer — birim testte o hacmi kurmak pratik değil).
 pub(crate) fn build_name_index_impl(
     records: &EntityRecords,
     notices: &[gtfs_core::Notice],
@@ -2007,33 +2006,33 @@ pub(crate) fn build_name_index_impl(
 ) -> gtfs_core::NameIndex {
     use std::collections::BTreeMap;
 
-    // ── LARGE-FEED MEMORY MODE (#15 large_feed_memory_mode) ──────────────────────
-    // On a very large feed, name_index's heavy fields caused JS serialization (to_js) to
-    // exhaust memory (100+ MB JSON, exceeding the 4 GB ceiling and causing OOM). DETERMINISTIC
-    // threshold (entity count — NOT runtime memory; for reproducibility).
+    // ── BÜYÜK FEED BELLEK MODU (#15 large_feed_memory_mode) ──────────────────────
+    // Çok büyük feed'de name_index'in ağır alanları sonucu JS'e serialize ederken (to_js)
+    // belleği patlatıyor (yüz MB+ JSON, 4 GB tavanını aşıp OOM). DETERMİNİSTİK eşik (entity
+    // sayısı — runtime bellek DEĞİL; reprodüksiyon için).
     //
-    // 2026-07-25 FIX — above the threshold these maps were emptied ENTIRELY, justified by
-    // \"the map cannot be drawn at that scale\". That was wrong: the map opens for ONE notice,
-    // not the entire feed. On VBB (282k trips), shape rules showed no stops and trip/route
-    // rules showed no map icon.
+    // 2026-07-25 DÜZELTME — eşik üstünde bu map'ler TÜMÜYLE boşaltılıyordu ve gerekçe
+    // "o ölçekte harita zaten çizilemez"di. Yanlıştı: harita TEK bir notice için açılıyor,
+    // feed'in tamamı için değil. VBB'de (282k sefer) sonuç şuydu: shape kurallarında duraklar
+    // görünmüyor, sefer/hat kurallarında harita ikonu hiç çıkmıyordu.
     //
-    // Now FILTER instead of emptying: populate only entities mentioned by a notice.
-    // Memory is bounded by notice count (not feed size) — a few thousand instead of 282k trips
-    // on VBB. Small/normal feeds have NO BEHAVIOR CHANGE (the filter equals \"all\").
+    // Artık boşaltma yerine FİLTRE: yalnız bir notice'ta geçen varlıklar için doldurulur.
+    // Bellek notice sayısıyla sınırlıdır (feed büyüklüğüyle değil) — VBB'de 282k sefer yerine
+    // birkaç bin. Küçük/normal feed'de DAVRANIŞ DEĞİŞMEZ (filtre "hepsi"ne eşittir).
     const SHAPE_PT_CAP: usize = 800_000;
-    // ⚠️ IDs are CHEAP, GEOMETRY IS EXPENSIVE (2026-07-25 measurement). I tried filtering and
-    // serializing shape_coords by notice: on VBB, one ROUTE notice (OPR_001=3004) pulled all
-    // trips on that route and all their shapes, so the filter became \"all\" and to_js jumped
-    // 3079 → 3591 MB (+512 MB, dangerously near the 4 GB ceiling) — 4.7M shape points.
-    // Geometry is NEVER serialized for large feeds; the UI fetches it on demand for one notice
-    // (requestShapeCoords + buildMapOptions run again). Filter only ID maps:
-    // trip_stops/trip_shapes/shape_trips/route_shapes are a few hundred KB, and they restore
-    // the map icon and stops.
+    // ⚠️ ID'ler UCUZ, GEOMETRİ PAHALI (2026-07-25 ölçümü). shape_coords'u notice'lara göre
+    // filtreleyip serialize etmeyi denedim: VBB'de bir HAT notice'ı (OPR_001=3004) o hattın
+    // tüm seferlerini, onlar da tüm shape'lerini çekince filtre "hepsi"ne dönüştü ve to_js
+    // 3079 → 3591 MB (+512 MB, 4 GB tavanına tehlikeli yakın) sıçradı — 4,7M shape noktası.
+    // Geometri büyük feed'de HİÇ serialize edilmez; UI tek notice için on-demand çeker
+    // (requestShapeCoords + buildMapOptions yeniden çalışır). Filtre yalnız id map'lerinde:
+    // trip_stops/trip_shapes/shape_trips/route_shapes birkaç yüz KB, harita ikonunu ve
+    // durakları geri getiren de zaten onlar.
     let skip_shape_coords = records.shapes.len() > SHAPE_PT_CAP || large_feed_mode;
 
-    // ALL ID candidates mentioned by notices (entity_id + details values). No rule-specific
-    // knowledge is needed: SHP_014's details.trip_id and OPR_008's bad_seg stops all arrive here.
-    // The candidate pool is then intersected with real ID sets.
+    // Notice'larda geçen TÜM id adayları (entity_id + details değerleri). Kural bazlı bilgi
+    // gerektirmez: SHP_014'ün details.trip_id'si, OPR_008'in
+    // bad_seg durakları hep buradan gelir. Aday havuzu sonra gerçek id kümeleriyle kesiştirilir.
     let mut cand: std::collections::HashSet<&str> = std::collections::HashSet::new();
     if large_feed_mode {
         for n in notices {
@@ -2042,7 +2041,7 @@ pub(crate) fn build_name_index_impl(
             }
             if let Some(d) = &n.details {
                 for v in d.values() {
-                    // Comma-separated ID lists (ctx_a/ctx_b/stops/pattern_trips)
+                    // Virgülle ayrılmış id listeleri (ctx_a/ctx_b/stops/pattern_trips)
                     for part in v.split(',') {
                         let p = part.trim();
                         if !p.is_empty() {
@@ -2053,29 +2052,28 @@ pub(crate) fn build_name_index_impl(
             }
         }
     }
-    // Interest sets — notices in large-feed mode, \"all\" otherwise.
+    // İlgi kümeleri — büyük feed modunda notice'lara, aksi hâlde "hepsi"ne karşılık gelir.
     let ti_f = &records.trip_interns;
     let mut want_trip: std::collections::HashSet<&str> = std::collections::HashSet::new();
     let mut want_shape: std::collections::HashSet<&str> = std::collections::HashSet::new();
     if large_feed_mode {
-        // 1) Notices with a direct shape entity (SHP_*/GEO_006/007). Intersect in one pass —
-        //    scanning shapes.txt per candidate would be O(candidate × point) (4.7M points on VBB).
+        // 1) Doğrudan shape entity'li notice'lar (SHP_*/GEO_006/007). Tek geçişte kesiştirilir —
+        //    aday başına shapes.txt taramak O(aday × nokta) olurdu (VBB'de 4,7M nokta).
         for p in &records.shapes {
             let sid = records.shape_interns.id(p);
             if cand.contains(sid) {
                 want_shape.insert(sid);
             }
         }
-        // 2) Trips: keep a trip if the notice touches its trip, route, or shape. For
-        //    shape-entity rules, stops are drawn through shape_trips → trip_stops, so the
-        //    representative trip for that shape must also be kept (otherwise \"shape exists,
-        //    no stops\" would remain).
+        // 2) Seferler: notice sefere, hattına ya da shape'ine değiyorsa tut. Shape entity'li
+        //    kurallarda duraklar shape_trips → trip_stops üzerinden çizildiği için o shape'in
+        //    temsilci seferi de tutulmalı (yoksa "shape var, durak yok" durumu sürerdi).
         for t in &records.trips {
             let tid = t.trip_id.as_str();
             let sid = ti_f.shape_id(t).unwrap_or("");
-            // Route candidates do NOT pull in trips: the UI route map draws only route_shapes →
-            // shapes, not stops. If it did, one route notice would pull hundreds of trips and
-            // shapes from that route, destroying the filter's meaning.
+            // Hat adayı seferleri İÇERİ ÇEKMEZ: UI'nin hat haritası yalnız route_shapes →
+            // shape çizer, durak göstermez. Çekseydi tek hat notice'ı o hattın yüzlerce
+            // seferini ve shape'ini sürükler, filtre anlamını yitirirdi.
             let shape_hit = !sid.is_empty() && (cand.contains(sid) || want_shape.contains(sid));
             if cand.contains(tid) || shape_hit {
                 want_trip.insert(tid);
@@ -2084,10 +2082,10 @@ pub(crate) fn build_name_index_impl(
                 }
             }
         }
-        // 3) Route candidates: SHAPE IDs only (no trips; geometry is not serialized anyway).
-        //    The UI draws at most 4 shapes on a route map → limit to 4 per route.
-        //    Trips are decided in step 2, so this pass is SEPARATE: shapes added here must not
-        //    pull in new trips.
+        // 3) Hat adayları: yalnız SHAPE id'leri (sefer yok, geometri zaten serialize edilmiyor).
+        //    UI hat haritasında en fazla 4 shape çiziyor → hat başına 4 ile sınırlanır.
+        //    Seferler 2. adımdan sonra kararlaştığı için bu geçiş AYRI: buradan eklenen
+        //    shape'ler yeni sefer sürüklemesin.
         let mut per_route: std::collections::BTreeMap<&str, u8> = std::collections::BTreeMap::new();
         for t in &records.trips {
             let rid = ti_f.route_id(t);
@@ -2134,7 +2132,7 @@ pub(crate) fn build_name_index_impl(
 
     let ti = &records.trip_interns;
 
-    // Per-trip label maps (#15): skipped in large-feed mode → notices show raw trip_id values.
+    // Per-trip etiket map'leri (#15): büyük feed modunda atlanır → notice'lar ham trip_id gösterir.
     let trips: BTreeMap<String, String> = records
         .trips
         .iter()
@@ -2152,7 +2150,7 @@ pub(crate) fn build_name_index_impl(
         .map(|r| (r.trip_id.to_string(), ti.route_id(r).to_string()))
         .collect();
 
-    // trip_id → direction_id ("0"/"1"); exclude trips without direction information.
+    // trip_id → direction_id ("0"/"1"); yön bilgisi olmayan sefer dahil edilmez.
     let trip_directions: BTreeMap<String, String> = records
         .trips
         .iter()
@@ -2175,7 +2173,7 @@ pub(crate) fn build_name_index_impl(
         })
         .collect();
 
-    // trip_id → first departure time "HH:MM" (skipped in large-feed mode)
+    // trip_id → ilk kalkış saati "HH:MM" (büyük feed modunda atlanır)
     let trip_first_dep: BTreeMap<String, String> = records
         .stop_times_index
         .iter_trips()
@@ -2188,7 +2186,7 @@ pub(crate) fn build_name_index_impl(
         })
         .collect();
 
-    // shape_id → unique [[route_id, direction]] list (map; skipped in large-feed mode)
+    // shape_id → benzersiz [[route_id, yön]] listesi (harita; büyük feed modunda atlanır)
     let shape_routes: BTreeMap<String, Vec<[String; 2]>> = {
         let mut seen: std::collections::HashSet<(String, String, String)> =
             std::collections::HashSet::new();
@@ -2202,8 +2200,8 @@ pub(crate) fn build_name_index_impl(
             }
             let rid = ti.route_id(trip);
             let dir = match trip.direction_id {
-                Some(0) => "Outbound",
-                Some(1) => "Inbound",
+                Some(0) => "Gidiş",
+                Some(1) => "Dönüş",
                 _ => "",
             };
             let key = (shape_id.to_string(), rid.to_string(), dir.to_string());
@@ -2216,8 +2214,8 @@ pub(crate) fn build_name_index_impl(
         map
     };
 
-    // shape_id → ordered [[lat, lon]] point list (for map drawing).
-    // #15: skipped for very large feeds (prevents serialization OOM).
+    // shape_id → sıralı [[lat, lon]] nokta listesi (harita çizimi için).
+    // #15: çok büyük feed'de atlanır (serialize OOM önlemi).
     let shape_coords: BTreeMap<String, Vec<[f64; 2]>> = if skip_shape_coords {
         BTreeMap::new()
     } else {
@@ -2244,7 +2242,7 @@ pub(crate) fn build_name_index_impl(
         map
     };
 
-    // trip_id → shape_id (map; skipped in large-feed mode)
+    // trip_id → shape_id (harita; büyük feed modunda atlanır)
     let trip_shapes: BTreeMap<String, String> = records
         .trips
         .iter()
@@ -2255,7 +2253,7 @@ pub(crate) fn build_name_index_impl(
         })
         .collect();
 
-    // trip_id → [stop_id, ...] ordered by stop_sequence (map; notices touching it on large feeds)
+    // trip_id → [stop_id, ...] stop_sequence sıralı (harita; büyük feed'de notice'a değenler)
     let trip_stops: BTreeMap<String, Vec<String>> = records
         .stop_times_index
         .iter_trips()
@@ -2272,7 +2270,7 @@ pub(crate) fn build_name_index_impl(
         })
         .collect();
 
-    // shape_id → first trip_id (map; skipped in large-feed mode)
+    // shape_id → ilk trip_id (harita; büyük feed modunda atlanır)
     let shape_trips: BTreeMap<String, String> = {
         let mut map: BTreeMap<String, String> = BTreeMap::new();
         for t in &records.trips {
@@ -2287,7 +2285,7 @@ pub(crate) fn build_name_index_impl(
         map
     };
 
-    // route_id → [distinct shape_ids] (terminus map; skipped in large-feed mode)
+    // route_id → [distinct shape_ids] (terminus haritası; büyük feed modunda atlanır)
     let route_shapes: BTreeMap<String, Vec<String>> = {
         let mut map: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for t in &records.trips {
@@ -2342,7 +2340,7 @@ mod name_index_tests {
     use crate::k2::stop_times::{StopTimeRecord, StopTimesIndex};
     use crate::k2::trips::TripInternTable;
 
-    /// Two trips (T1/T2) + two shapes (SH1/SH2); only T1 has a notice.
+    /// İki sefer (T1/T2) + iki shape (SH1/SH2); yalnız T1'in bir notice'ı var.
     fn records() -> EntityRecords {
         let mut recs = EntityRecords::default();
         let mut ti = TripInternTable::new();
@@ -2432,24 +2430,24 @@ mod name_index_tests {
         let idx = build_name_index_impl(&recs, &[], false);
         assert!(
             idx.trip_stops.contains_key("T1") && idx.trip_stops.contains_key("T2"),
-            "small feeds must not be filtered"
+            "küçük feed'de filtre uygulanmamalı"
         );
         assert!(!idx.map_data_deferred);
     }
 
     #[test]
     fn large_feed_keeps_only_entities_referenced_by_notices() {
-        // OLD BEHAVIOR: these maps were entirely EMPTY → no map icon appeared.
+        // ESKİ DAVRANIŞ: bu map'ler tümüyle BOŞTU → harita ikonu hiç çıkmıyordu.
         let recs = records();
         let idx = build_name_index_impl(&recs, &[notice_for("T1")], true);
         assert!(
             idx.trip_stops.contains_key("T1"),
-            "a trip with a notice must be drawable on the map"
+            "notice'lı sefer haritada çizilebilmeli"
         );
         assert_eq!(idx.trip_stops.get("T1").map(|v| v.len()), Some(2));
         assert!(
             !idx.trip_stops.contains_key("T2"),
-            "a trip without a notice must be excluded to save memory"
+            "notice'sız sefer bellek için dışarıda kalmalı"
         );
         assert_eq!(idx.trip_shapes.get("T1").map(String::as_str), Some("SH1"));
         assert!(!idx.trip_shapes.contains_key("T2"));
@@ -2457,8 +2455,8 @@ mod name_index_tests {
 
     #[test]
     fn large_feed_resolves_shape_entity_to_its_trip_stops() {
-        // Shape-entity rule (SHP_012/GEO_006): stops are drawn through shape_trips → trip_stops
-        // through them; the representative trip for the shape must also be kept.
+        // Shape entity'li kural (SHP_012/GEO_006): duraklar shape_trips → trip_stops
+        // üzerinden çizilir; shape'in temsilci seferi de tutulmalı.
         let recs = records();
         let mut n = notice_for("SH2");
         n.rule_id = "SHP_012".into();
@@ -2466,20 +2464,20 @@ mod name_index_tests {
         assert_eq!(
             idx.shape_trips.get("SH2").map(String::as_str),
             Some("T2"),
-            "the shape must retain its representative trip"
+            "shape'in temsilci seferi olmalı"
         );
         assert!(
             idx.trip_stops.contains_key("T2"),
-            "that trip's stops must be present (otherwise 'shape exists, no stops')"
+            "o seferin durakları olmalı (yoksa 'shape var, durak yok')"
         );
-        assert!(!idx.trip_stops.contains_key("T1"), "unrelated trip is excluded");
+        assert!(!idx.trip_stops.contains_key("T1"), "ilgisiz sefer dışarıda");
     }
 
     #[test]
     fn large_feed_never_serializes_shape_geometry() {
         let mut shape_ti = ShapeInternTable::new();
-        // MEMORY PROTECTION: geometry is not put into JSON for large feeds (+512 MB measured on VBB).
-        // The UI fetches missing geometry on demand; map_data_deferred is the flag for this.
+        // BELLEK KORUMASI: geometri büyük feed'de JSON'a girmez (VBB'de +512 MB ölçüldü).
+        // UI eksik geometriyi on-demand çeker; map_data_deferred bunun bayrağıdır.
         let mut recs = records();
         recs.shapes = vec![crate::k2::shapes::ShapePointRecord::new(
             shape_ti.intern("SH1"),
@@ -2493,39 +2491,39 @@ mod name_index_tests {
         let idx = build_name_index_impl(&recs, &[notice_for("T1")], true);
         assert!(
             idx.shape_coords.is_empty(),
-            "geometry must not be serialized for large feeds"
+            "büyük feed'de geometri serialize edilmemeli"
         );
         assert!(
             idx.map_data_deferred,
-            "the UI must see the flag so it can fetch on demand"
+            "UI on-demand çekebilmek için bayrağı görmeli"
         );
-        // Geometry remains in place for small feeds:
+        // Küçük feed'de geometri yerinde:
         let small = build_name_index_impl(&recs, &[], false);
         assert!(small.shape_coords.contains_key("SH1"));
     }
 
     #[test]
     fn large_feed_route_notice_does_not_drag_in_trips() {
-        // If a route notice pulls HUNDREDS of trips from the route, the filter loses meaning
-        // (on VBB, route notice OPR_001=3004 had pulled in the entire feed).
+        // Hat notice'ı hattın YÜZLERCE seferini çekerse filtre anlamını yitirir (VBB'de
+        // OPR_001=3004 hat notice'ı feed'in tamamını içeri almıştı).
         let recs = records();
         let mut n = notice_for("R1");
         n.rule_id = "RTS_012".into();
         let idx = build_name_index_impl(&recs, &[n], true);
         assert!(
             idx.trip_stops.is_empty(),
-            "route notice must not pull trip stops: {:?}",
+            "hat notice'ı sefer duraklarını çekmemeli: {:?}",
             idx.trip_stops.keys().collect::<Vec<_>>()
         );
         assert!(
             !idx.route_shapes.is_empty(),
-            "but the route's shape IDs must remain (map icon)"
+            "ama hattın shape id'leri kalmalı (harita ikonu)"
         );
     }
 
     #[test]
     fn large_feed_resolves_route_entity_to_its_shapes() {
-        // Route-entity rule (OPR_001/RTS_*): no icon appears if route_shapes is empty.
+        // Hat entity'li kural (OPR_001/RTS_*): route_shapes boş kalırsa ikon hiç çıkmaz.
         let recs = records();
         let mut n = notice_for("R1");
         n.rule_id = "RTS_012".into();
@@ -2533,7 +2531,7 @@ mod name_index_tests {
         let shapes = idx.route_shapes.get("R1").cloned().unwrap_or_default();
         assert!(
             shapes.contains(&"SH1".to_string()) && shapes.contains(&"SH2".to_string()),
-            "the route's shapes must be resolved: {shapes:?}"
+            "hattın shape'leri çözülmeli: {shapes:?}"
         );
     }
 }
