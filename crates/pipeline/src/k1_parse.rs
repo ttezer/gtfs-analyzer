@@ -3136,7 +3136,7 @@ pub fn parse_with_limits(
     })
 }
 
-// ── locations.geojson validasyon ─────────────────────────────────────────────
+// ── locations.geojson validation ─────────────────────────────────────────────
 
 fn validate_locations_geojson(
     bytes: &[u8],
@@ -3216,7 +3216,7 @@ fn validate_locations_geojson(
         return false;
     };
 
-    // LOC_005: FeatureCollection boş
+    // LOC_005: empty FeatureCollection.
     if features.is_empty() {
         notices.push(make_notice(
             counter,
@@ -3233,8 +3233,8 @@ fn validate_locations_geojson(
         return false;
     }
 
-    // LOC_007: Yinelenen feature 'id' değerleri. Sayaç ayrıca Flex muafiyetinin yalnız
-    // gerçekten benzersiz string kimliklere dayanmasını sağlar.
+    // LOC_007: duplicate feature 'id' values. The counter also ensures that the Flex exemption
+    // relies only on genuinely unique string IDs.
     let mut id_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     {
         let mut seen_ids: std::collections::HashMap<String, usize> =
@@ -3242,7 +3242,7 @@ fn validate_locations_geojson(
         for (i, feature) in features.iter().enumerate() {
             if let Some(id_val) = feature.get("id") {
                 let id_str = id_val.to_string();
-                // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
+                // XFL_025: unquoted raw ID so it matches the raw CSV value of stop_times.location_id.
                 geojson_ids.insert(
                     id_val
                         .as_str()
@@ -3275,7 +3275,7 @@ fn validate_locations_geojson(
             .and_then(|v| v.as_str())
             .filter(|id| !id.is_empty() && id_counts.get(*id) == Some(&1));
 
-        // LOC_008: her Feature'ın "type" alanı Required ve değeri "Feature" olmalı (spec tablosu).
+        // LOC_008: every Feature's "type" field is Required and must be "Feature" (spec table).
         match feature.get("type").and_then(|v| v.as_str()) {
             Some("Feature") => {}
             other => {
@@ -3296,8 +3296,8 @@ fn validate_locations_geojson(
             }
         }
 
-        // LOC_009: "properties" nesnesi Required (spec tablosu). Boş nesne GEÇERLİDİR —
-        // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
+        // LOC_009: the "properties" object is Required (spec table). An empty object is VALID —
+        // stop_name/stop_desc are optional; missing or non-object values are violations.
         if !feature.get("properties").is_some_and(|v| v.is_object()) {
             notices.push(make_notice(
                 counter,
@@ -3313,7 +3313,7 @@ fn validate_locations_geojson(
             ));
         }
 
-        // LOC_003: Feature'da 'id' property eksik
+        // LOC_003: 'id' property missing from Feature.
         if feature.get("id").is_none() {
             notices.push(make_notice(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
@@ -3323,8 +3323,8 @@ fn validate_locations_geojson(
             ));
         }
 
-        // Pa1fdaa0d: geometriyi feature 'id'sine bağlamak için ham id (XFL_025 ile AYNI
-        // normalleştirme — `stop_times.location_id` ham CSV değeriyle eşleşmeli).
+        // Pa1fdaa0d: raw ID used to bind geometry to the feature's 'id' (the SAME normalization
+        // as XFL_025 — it must match the raw CSV value of `stop_times.location_id`).
         let feature_id: Option<String> = feature.get("id").map(|v| {
             v.as_str()
                 .map(str::to_string)
@@ -3336,7 +3336,7 @@ fn validate_locations_geojson(
         };
         let geometry = feature.get("geometry");
 
-        // LOC_002: Feature'da geometry null veya eksik
+        // LOC_002: geometry null or missing from Feature.
         if geometry.is_none_or(|g| g.is_null()) {
             notices.push(make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
@@ -3351,8 +3351,8 @@ fn validate_locations_geojson(
         let geom_type = geometry.get("type").and_then(|t| t.as_str());
         let valid_geometry = match geom_type {
             Some("Polygon") => {
-                // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
-                // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
+                // LOC_010: "coordinates" is Required. A missing/non-array value used to be
+                // silently skipped by `if let Some(..)` → geometry passed without validation.
                 match geometry.get("coordinates").and_then(|c| c.as_array()) {
                     Some(rings) => check_polygon_rings(
                         counter,
@@ -3418,7 +3418,7 @@ fn validate_locations_geojson(
             }
         };
 
-        // Pa1fdaa0d: geometri, feature 'id'siyle eşleşerek K6'ya taşınır.
+        // Pa1fdaa0d: geometry is moved to K6 keyed by the feature's 'id'.
         if let Some(id) = feature_id {
             if !geom.outer_rings.is_empty() {
                 geoms.insert(id.clone(), geom);
@@ -3432,9 +3432,9 @@ fn validate_locations_geojson(
     !valid_geojson_ids.is_empty()
 }
 
-/// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
-/// LOC_010: geometry.coordinates eksik veya dizi değil. Spec bu alanı Required işaretler;
-/// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
+/// Checks LOC_004 (not closed) and LOC_006 (area > 500 km²) for polygon rings.
+/// LOC_010: geometry.coordinates missing or not an array. The spec marks this field Required;
+/// without it, the region geometry cannot be resolved at all, so the finding is CRITICAL.
 fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
     notices.push(make_notice(
         counter,
@@ -3456,8 +3456,8 @@ fn check_polygon_rings(
     feat_num: u64,
     rings: &[serde_json::Value],
     notices: &mut Vec<Notice>,
-    // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
-    // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
+    // Pa1fdaa0d: move the outer ring to K6. With `None`, do not collect geometry
+    // (validation only) — for tests and legacy call paths.
     collect: Option<&mut LocationGeometry>,
 ) -> bool {
     let mut all_lats = Vec::new();
@@ -3473,13 +3473,13 @@ fn check_polygon_rings(
             structurally_valid = false;
             continue;
         };
-        // RFC 7946 LinearRing: en az dört konum ve ilk/son konum aynı olmalıdır.
+        // RFC 7946 LinearRing: at least four positions, with the first and last equal.
         if pts.len() < 4 {
             structurally_valid = false;
             continue;
         }
 
-        // LOC_004: İlk ve son nokta eşit değilse ring kapalı değil
+        // LOC_004: the ring is open when the first and last points differ.
         if !already_reported_closure {
             let first = &pts[0];
             let last = &pts[pts.len() - 1];
@@ -3505,7 +3505,7 @@ fn check_polygon_rings(
             }
         }
 
-        // Ring koordinatlarını topla: alan hesabı ve enlem ölçeği için.
+        // Collect ring coordinates for area calculation and latitude scaling.
         let mut ring_pts: Vec<(f64, f64)> = Vec::with_capacity(pts.len());
         for pt in pts {
             if let (Some(lon), Some(lat)) = (
@@ -3523,12 +3523,12 @@ fn check_polygon_rings(
         all_rings.push(ring_pts);
     }
 
-    // LOC_011: OpenGIS 6.1.11 — ring BASİT olmalı ve delikler dış ring İÇİNDE kalmalı.
-    // LOC_004 yalnız kapalılığı ölçer; bunlar 6.1.11'in asıl maddeleridir.
+    // LOC_011: OpenGIS 6.1.11 — rings must be SIMPLE and holes must remain INSIDE the outer ring.
+    // LOC_004 checks closure only; these are the actual 6.1.11 requirements.
     if let Some(outer) = all_rings.first() {
-        // ── OpenGIS SFS 6.1.11 poligon geçerlilik iddiaları ──────────────────────
-        // (1) ring'ler basit · (3) hiçbir iki ring KESİŞMEZ (yalnız noktada teğet olabilir)
-        // (4) kesik/diken/delik yok · (5) iç kısım bağlantılı · delikler kabuğun İÇİNDE.
+        // ── OpenGIS SFS 6.1.11 polygon-validity requirements ────────────────────
+        // (1) rings are simple · (3) no two rings CROSS (they may touch at one point)
+        // (4) no cut lines/spikes/punctures · (5) connected interior · holes INSIDE the shell.
         //
         // ⚠️ RING YÖNÜ BU LİSTEDE YOKTUR. 2026-08-06 dış denetimi `LOC_011`'in ölçmediği
         // maddeler arasında "ring yönü"nü de saymıştı; **spec'in atıf yaptığı 6.1.11
@@ -3572,22 +3572,22 @@ fn check_polygon_rings(
                     format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"),
                 ));
             } else if rings_cross(outer, hole) {
-                // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
+                // 6.1.11 (3): rings must not cross. This was not measured before.
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_crosses_outer_ring; ring={i}"),
                     format!("{i}. delik dış ring'i kesiyor"),
                 ));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
-                // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
-                // görünmüyordu. Artık TÜM köşeler denetlenir.
+                // Previously only the FIRST point was sampled → a hole partly outside the ring
+                // went unnoticed. Now ALL vertices are checked.
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_outside_outer_ring; ring={i}"),
                     format!("hole {i} lies partly or wholly outside the outer ring"),
                 ));
             }
         }
-        // Delik-delik ilişkisi: kesişme yasak (6.1.11/3); iç içe delik de geçersizdir
-        // (içteki "delik" aslında dolu alan olur, iç kısım tanımsızlaşır).
+        // Hole-hole relationship: crossing is forbidden (6.1.11/3); nested holes are also
+        // invalid (the inner "hole" would actually be filled area, making the interior undefined).
         'outer: for i in 1..all_rings.len() {
             if bad.is_some() {
                 break;
