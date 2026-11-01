@@ -731,28 +731,28 @@ fn fixtures() -> Vec<Fixture> {
             "T2,S1,1,09:00:00,10pm\n",
         ))]),
         fx("STM_040", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,LOC1,09:00:00,10:00:00\n")]),
-        // STM_060: aynı seferde İKİ FARKLI bölge — geometrileri kesişiyor, pencereleri
-        // çakışıyor, ikisi de biniş sunuyor. ⚠️ AYNI bölgeye ait iki kayıt İHLAL DEĞİLDİR
-        // (spec bölge-içi seyahat için onu zorunlu kılar) → fixture bilerek FARKLI id kullanır.
-        // OPR_024: hat başına aşırı sefer. Eşik `config.max_trips_per_route` (varsayılan 500,
-        // yapılandırma alt sınırı 50) → fixture eşiği 50'ye indirip 51 sefer yazar.
-        // 2026-08-07 dış denetimi "7 fixture borcu HÂLÂ 7" dedi; borç defterindeki kayıtların
-        // hepsi "inline yazılamaz" gerekçesiyle duruyordu ama BU kural config ile yazılabilirdi.
-        // VAT_006: >=50 sefer, >=3 hat VE tek hat toplamın >=%40'ı (R1 25/50). 2026-08-07'de borç defterinden
-        // çıkarıldı — "inline yazılamaz" etiketi YANLIŞTI, 50 satır yetiyor.
+        // STM_060: TWO DIFFERENT areas on one trip — their geometries intersect, their windows
+        // overlap, and both offer boarding. ⚠️ Two records for the SAME area are NOT a VIOLATION
+        // (the spec requires this for intra-area travel) → the fixture deliberately uses DIFFERENT IDs.
+        // OPR_024: too many trips per route. The threshold is `config.max_trips_per_route` (default 500,
+        // configurable minimum 50) → the fixture lowers it to 50 and writes 51 trips.
+        // The 2026-08-07 external audit said "7 fixture debts STILL 7"; all ledger entries
+        // claimed "cannot be written inline", but THIS rule could be written with config.
+        // VAT_006: >=50 trips, >=3 routes AND one route >=40% of total (R1 25/50). Removed from
+        // the debt ledger on 2026-08-07 — the "cannot be written inline" label was WRONG; 50 rows suffice.
         fx("VAT_006", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,3\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\nR1,SVC1,T5\nR1,SVC1,T6\nR1,SVC1,T7\nR1,SVC1,T8\nR1,SVC1,T9\nR1,SVC1,T10\nR1,SVC1,T11\nR1,SVC1,T12\nR1,SVC1,T13\nR1,SVC1,T14\nR1,SVC1,T15\nR1,SVC1,T16\nR1,SVC1,T17\nR1,SVC1,T18\nR1,SVC1,T19\nR1,SVC1,T20\nR1,SVC1,T21\nR1,SVC1,T22\nR1,SVC1,T23\nR1,SVC1,T24\nR1,SVC1,T25\nR2,SVC1,T26\nR2,SVC1,T27\nR2,SVC1,T28\nR2,SVC1,T29\nR2,SVC1,T30\nR2,SVC1,T31\nR2,SVC1,T32\nR2,SVC1,T33\nR2,SVC1,T34\nR2,SVC1,T35\nR2,SVC1,T36\nR2,SVC1,T37\nR2,SVC1,T38\nR3,SVC1,T39\nR3,SVC1,T40\nR3,SVC1,T41\nR3,SVC1,T42\nR3,SVC1,T43\nR3,SVC1,T44\nR3,SVC1,T45\nR3,SVC1,T46\nR3,SVC1,T47\nR3,SVC1,T48\nR3,SVC1,T49\nR3,SVC1,T50\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:01:00,08:01:00,S1,1\nT1,09:01:00,09:01:00,S2,2\nT2,08:02:00,08:02:00,S1,1\nT2,09:02:00,09:02:00,S2,2\nT3,08:03:00,08:03:00,S1,1\nT3,09:03:00,09:03:00,S2,2\nT4,08:04:00,08:04:00,S1,1\nT4,09:04:00,09:04:00,S2,2\nT5,08:05:00,08:05:00,S1,1\nT5,09:05:00,09:05:00,S2,2\nT6,08:06:00,08:06:00,S1,1\nT6,09:06:00,09:06:00,S2,2\nT7,08:07:00,08:07:00,S1,1\nT7,09:07:00,09:07:00,S2,2\nT8,08:08:00,08:08:00,S1,1\nT8,09:08:00,09:08:00,S2,2\nT9,08:09:00,08:09:00,S1,1\nT9,09:09:00,09:09:00,S2,2\nT10,08:10:00,08:10:00,S1,1\nT10,09:10:00,09:10:00,S2,2\nT11,08:11:00,08:11:00,S1,1\nT11,09:11:00,09:11:00,S2,2\nT12,08:12:00,08:12:00,S1,1\nT12,09:12:00,09:12:00,S2,2\nT13,08:13:00,08:13:00,S1,1\nT13,09:13:00,09:13:00,S2,2\nT14,08:14:00,08:14:00,S1,1\nT14,09:14:00,09:14:00,S2,2\nT15,08:15:00,08:15:00,S1,1\nT15,09:15:00,09:15:00,S2,2\nT16,08:16:00,08:16:00,S1,1\nT16,09:16:00,09:16:00,S2,2\nT17,08:17:00,08:17:00,S1,1\nT17,09:17:00,09:17:00,S2,2\nT18,08:18:00,08:18:00,S1,1\nT18,09:18:00,09:18:00,S2,2\nT19,08:19:00,08:19:00,S1,1\nT19,09:19:00,09:19:00,S2,2\nT20,08:20:00,08:20:00,S1,1\nT20,09:20:00,09:20:00,S2,2\nT21,08:21:00,08:21:00,S1,1\nT21,09:21:00,09:21:00,S2,2\nT22,08:22:00,08:22:00,S1,1\nT22,09:22:00,09:22:00,S2,2\nT23,08:23:00,08:23:00,S1,1\nT23,09:23:00,09:23:00,S2,2\nT24,08:24:00,08:24:00,S1,1\nT24,09:24:00,09:24:00,S2,2\nT25,08:25:00,08:25:00,S1,1\nT25,09:25:00,09:25:00,S2,2\nT26,08:26:00,08:26:00,S1,1\nT26,09:26:00,09:26:00,S2,2\nT27,08:27:00,08:27:00,S1,1\nT27,09:27:00,09:27:00,S2,2\nT28,08:28:00,08:28:00,S1,1\nT28,09:28:00,09:28:00,S2,2\nT29,08:29:00,08:29:00,S1,1\nT29,09:29:00,09:29:00,S2,2\nT30,08:30:00,08:30:00,S1,1\nT30,09:30:00,09:30:00,S2,2\nT31,08:31:00,08:31:00,S1,1\nT31,09:31:00,09:31:00,S2,2\nT32,08:32:00,08:32:00,S1,1\nT32,09:32:00,09:32:00,S2,2\nT33,08:33:00,08:33:00,S1,1\nT33,09:33:00,09:33:00,S2,2\nT34,08:34:00,08:34:00,S1,1\nT34,09:34:00,09:34:00,S2,2\nT35,08:35:00,08:35:00,S1,1\nT35,09:35:00,09:35:00,S2,2\nT36,08:36:00,08:36:00,S1,1\nT36,09:36:00,09:36:00,S2,2\nT37,08:37:00,08:37:00,S1,1\nT37,09:37:00,09:37:00,S2,2\nT38,08:38:00,08:38:00,S1,1\nT38,09:38:00,09:38:00,S2,2\nT39,08:39:00,08:39:00,S1,1\nT39,09:39:00,09:39:00,S2,2\nT40,08:40:00,08:40:00,S1,1\nT40,09:40:00,09:40:00,S2,2\nT41,08:41:00,08:41:00,S1,1\nT41,09:41:00,09:41:00,S2,2\nT42,08:42:00,08:42:00,S1,1\nT42,09:42:00,09:42:00,S2,2\nT43,08:43:00,08:43:00,S1,1\nT43,09:43:00,09:43:00,S2,2\nT44,08:44:00,08:44:00,S1,1\nT44,09:44:00,09:44:00,S2,2\nT45,08:45:00,08:45:00,S1,1\nT45,09:45:00,09:45:00,S2,2\nT46,08:46:00,08:46:00,S1,1\nT46,09:46:00,09:46:00,S2,2\nT47,08:47:00,08:47:00,S1,1\nT47,09:47:00,09:47:00,S2,2\nT48,08:48:00,08:48:00,S1,1\nT48,09:48:00,09:48:00,S2,2\nT49,08:49:00,08:49:00,S1,1\nT49,09:49:00,09:49:00,S2,2\nT50,08:50:00,08:50:00,S1,1\nT50,09:50:00,09:50:00,S2,2\n"),
         ]),
-        // STM_043: tek seferde 200'den fazla stop_time. Aynı şekilde yazılabilirmiş.
+        // STM_043: more than 200 stop_times in one trip. This could likewise be written inline.
         fx("STM_043", vec![
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,06:01:00,06:01:00,S1,1\nT1,06:02:00,06:02:00,S2,2\nT1,06:03:00,06:03:00,S1,3\nT1,06:04:00,06:04:00,S2,4\nT1,06:05:00,06:05:00,S1,5\nT1,06:06:00,06:06:00,S2,6\nT1,06:07:00,06:07:00,S1,7\nT1,06:08:00,06:08:00,S2,8\nT1,06:09:00,06:09:00,S1,9\nT1,06:10:00,06:10:00,S2,10\nT1,06:11:00,06:11:00,S1,11\nT1,06:12:00,06:12:00,S2,12\nT1,06:13:00,06:13:00,S1,13\nT1,06:14:00,06:14:00,S2,14\nT1,06:15:00,06:15:00,S1,15\nT1,06:16:00,06:16:00,S2,16\nT1,06:17:00,06:17:00,S1,17\nT1,06:18:00,06:18:00,S2,18\nT1,06:19:00,06:19:00,S1,19\nT1,06:20:00,06:20:00,S2,20\nT1,06:21:00,06:21:00,S1,21\nT1,06:22:00,06:22:00,S2,22\nT1,06:23:00,06:23:00,S1,23\nT1,06:24:00,06:24:00,S2,24\nT1,06:25:00,06:25:00,S1,25\nT1,06:26:00,06:26:00,S2,26\nT1,06:27:00,06:27:00,S1,27\nT1,06:28:00,06:28:00,S2,28\nT1,06:29:00,06:29:00,S1,29\nT1,06:30:00,06:30:00,S2,30\nT1,06:31:00,06:31:00,S1,31\nT1,06:32:00,06:32:00,S2,32\nT1,06:33:00,06:33:00,S1,33\nT1,06:34:00,06:34:00,S2,34\nT1,06:35:00,06:35:00,S1,35\nT1,06:36:00,06:36:00,S2,36\nT1,06:37:00,06:37:00,S1,37\nT1,06:38:00,06:38:00,S2,38\nT1,06:39:00,06:39:00,S1,39\nT1,06:40:00,06:40:00,S2,40\nT1,06:41:00,06:41:00,S1,41\nT1,06:42:00,06:42:00,S2,42\nT1,06:43:00,06:43:00,S1,43\nT1,06:44:00,06:44:00,S2,44\nT1,06:45:00,06:45:00,S1,45\nT1,06:46:00,06:46:00,S2,46\nT1,06:47:00,06:47:00,S1,47\nT1,06:48:00,06:48:00,S2,48\nT1,06:49:00,06:49:00,S1,49\nT1,06:50:00,06:50:00,S2,50\nT1,06:51:00,06:51:00,S1,51\nT1,06:52:00,06:52:00,S2,52\nT1,06:53:00,06:53:00,S1,53\nT1,06:54:00,06:54:00,S2,54\nT1,06:55:00,06:55:00,S1,55\nT1,06:56:00,06:56:00,S2,56\nT1,06:57:00,06:57:00,S1,57\nT1,06:58:00,06:58:00,S2,58\nT1,06:59:00,06:59:00,S1,59\nT1,07:00:00,07:00:00,S2,60\nT1,07:01:00,07:01:00,S1,61\nT1,07:02:00,07:02:00,S2,62\nT1,07:03:00,07:03:00,S1,63\nT1,07:04:00,07:04:00,S2,64\nT1,07:05:00,07:05:00,S1,65\nT1,07:06:00,07:06:00,S2,66\nT1,07:07:00,07:07:00,S1,67\nT1,07:08:00,07:08:00,S2,68\nT1,07:09:00,07:09:00,S1,69\nT1,07:10:00,07:10:00,S2,70\nT1,07:11:00,07:11:00,S1,71\nT1,07:12:00,07:12:00,S2,72\nT1,07:13:00,07:13:00,S1,73\nT1,07:14:00,07:14:00,S2,74\nT1,07:15:00,07:15:00,S1,75\nT1,07:16:00,07:16:00,S2,76\nT1,07:17:00,07:17:00,S1,77\nT1,07:18:00,07:18:00,S2,78\nT1,07:19:00,07:19:00,S1,79\nT1,07:20:00,07:20:00,S2,80\nT1,07:21:00,07:21:00,S1,81\nT1,07:22:00,07:22:00,S2,82\nT1,07:23:00,07:23:00,S1,83\nT1,07:24:00,07:24:00,S2,84\nT1,07:25:00,07:25:00,S1,85\nT1,07:26:00,07:26:00,S2,86\nT1,07:27:00,07:27:00,S1,87\nT1,07:28:00,07:28:00,S2,88\nT1,07:29:00,07:29:00,S1,89\nT1,07:30:00,07:30:00,S2,90\nT1,07:31:00,07:31:00,S1,91\nT1,07:32:00,07:32:00,S2,92\nT1,07:33:00,07:33:00,S1,93\nT1,07:34:00,07:34:00,S2,94\nT1,07:35:00,07:35:00,S1,95\nT1,07:36:00,07:36:00,S2,96\nT1,07:37:00,07:37:00,S1,97\nT1,07:38:00,07:38:00,S2,98\nT1,07:39:00,07:39:00,S1,99\nT1,07:40:00,07:40:00,S2,100\nT1,07:41:00,07:41:00,S1,101\nT1,07:42:00,07:42:00,S2,102\nT1,07:43:00,07:43:00,S1,103\nT1,07:44:00,07:44:00,S2,104\nT1,07:45:00,07:45:00,S1,105\nT1,07:46:00,07:46:00,S2,106\nT1,07:47:00,07:47:00,S1,107\nT1,07:48:00,07:48:00,S2,108\nT1,07:49:00,07:49:00,S1,109\nT1,07:50:00,07:50:00,S2,110\nT1,07:51:00,07:51:00,S1,111\nT1,07:52:00,07:52:00,S2,112\nT1,07:53:00,07:53:00,S1,113\nT1,07:54:00,07:54:00,S2,114\nT1,07:55:00,07:55:00,S1,115\nT1,07:56:00,07:56:00,S2,116\nT1,07:57:00,07:57:00,S1,117\nT1,07:58:00,07:58:00,S2,118\nT1,07:59:00,07:59:00,S1,119\nT1,08:00:00,08:00:00,S2,120\nT1,08:01:00,08:01:00,S1,121\nT1,08:02:00,08:02:00,S2,122\nT1,08:03:00,08:03:00,S1,123\nT1,08:04:00,08:04:00,S2,124\nT1,08:05:00,08:05:00,S1,125\nT1,08:06:00,08:06:00,S2,126\nT1,08:07:00,08:07:00,S1,127\nT1,08:08:00,08:08:00,S2,128\nT1,08:09:00,08:09:00,S1,129\nT1,08:10:00,08:10:00,S2,130\nT1,08:11:00,08:11:00,S1,131\nT1,08:12:00,08:12:00,S2,132\nT1,08:13:00,08:13:00,S1,133\nT1,08:14:00,08:14:00,S2,134\nT1,08:15:00,08:15:00,S1,135\nT1,08:16:00,08:16:00,S2,136\nT1,08:17:00,08:17:00,S1,137\nT1,08:18:00,08:18:00,S2,138\nT1,08:19:00,08:19:00,S1,139\nT1,08:20:00,08:20:00,S2,140\nT1,08:21:00,08:21:00,S1,141\nT1,08:22:00,08:22:00,S2,142\nT1,08:23:00,08:23:00,S1,143\nT1,08:24:00,08:24:00,S2,144\nT1,08:25:00,08:25:00,S1,145\nT1,08:26:00,08:26:00,S2,146\nT1,08:27:00,08:27:00,S1,147\nT1,08:28:00,08:28:00,S2,148\nT1,08:29:00,08:29:00,S1,149\nT1,08:30:00,08:30:00,S2,150\nT1,08:31:00,08:31:00,S1,151\nT1,08:32:00,08:32:00,S2,152\nT1,08:33:00,08:33:00,S1,153\nT1,08:34:00,08:34:00,S2,154\nT1,08:35:00,08:35:00,S1,155\nT1,08:36:00,08:36:00,S2,156\nT1,08:37:00,08:37:00,S1,157\nT1,08:38:00,08:38:00,S2,158\nT1,08:39:00,08:39:00,S1,159\nT1,08:40:00,08:40:00,S2,160\nT1,08:41:00,08:41:00,S1,161\nT1,08:42:00,08:42:00,S2,162\nT1,08:43:00,08:43:00,S1,163\nT1,08:44:00,08:44:00,S2,164\nT1,08:45:00,08:45:00,S1,165\nT1,08:46:00,08:46:00,S2,166\nT1,08:47:00,08:47:00,S1,167\nT1,08:48:00,08:48:00,S2,168\nT1,08:49:00,08:49:00,S1,169\nT1,08:50:00,08:50:00,S2,170\nT1,08:51:00,08:51:00,S1,171\nT1,08:52:00,08:52:00,S2,172\nT1,08:53:00,08:53:00,S1,173\nT1,08:54:00,08:54:00,S2,174\nT1,08:55:00,08:55:00,S1,175\nT1,08:56:00,08:56:00,S2,176\nT1,08:57:00,08:57:00,S1,177\nT1,08:58:00,08:58:00,S2,178\nT1,08:59:00,08:59:00,S1,179\nT1,09:00:00,09:00:00,S2,180\nT1,09:01:00,09:01:00,S1,181\nT1,09:02:00,09:02:00,S2,182\nT1,09:03:00,09:03:00,S1,183\nT1,09:04:00,09:04:00,S2,184\nT1,09:05:00,09:05:00,S1,185\nT1,09:06:00,09:06:00,S2,186\nT1,09:07:00,09:07:00,S1,187\nT1,09:08:00,09:08:00,S2,188\nT1,09:09:00,09:09:00,S1,189\nT1,09:10:00,09:10:00,S2,190\nT1,09:11:00,09:11:00,S1,191\nT1,09:12:00,09:12:00,S2,192\nT1,09:13:00,09:13:00,S1,193\nT1,09:14:00,09:14:00,S2,194\nT1,09:15:00,09:15:00,S1,195\nT1,09:16:00,09:16:00,S2,196\nT1,09:17:00,09:17:00,S1,197\nT1,09:18:00,09:18:00,S2,198\nT1,09:19:00,09:19:00,S1,199\nT1,09:20:00,09:20:00,S2,200\nT1,09:21:00,09:21:00,S1,201\n"),
         ]),
-        // SHP_026 / STM_044: eşikleri 2026-08-07'de `ValidatorConfig`'e taşındı (OPR_024
+        // SHP_026 / STM_044: thresholds moved to `ValidatorConfig` on 2026-08-07 (the OPR_024
         // emsali) — tek sebebi fixture yazılabilmesiydi, varsayılan davranış değişmedi.
-        // Borç defteri bunları "inline yazılamaz" diye tutuyordu; doğrusu "eşik sabit
-        // kodluydu" idi ve o düzeltilebilir bir şeydi.
+        // The debt ledger called these "cannot be written inline"; the truth was that the
+        // threshold was hard-coded, which was fixable.
         fx_cfg("SHP_026", vec![
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.001,29.001,1\nSH1,41.002,29.002,2\nSH1,41.003,29.003,3\nSH1,41.004,29.004,4\nSH1,41.005,29.005,5\nSH1,41.006,29.006,6\nSH1,41.007,29.007,7\nSH1,41.008,29.008,8\nSH1,41.009,29.009,9\nSH1,41.010,29.010,10\nSH1,41.011,29.011,11\nSH1,41.012,29.012,12\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
@@ -760,30 +760,30 @@ fn fixtures() -> Vec<Fixture> {
         fx_cfg("STM_044", vec![
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,06:01:00,06:01:00,S1,1\nT1,06:02:00,06:02:00,S2,2\nT1,06:03:00,06:03:00,S1,3\nT1,06:04:00,06:04:00,S2,4\nT1,06:05:00,06:05:00,S1,5\nT1,06:06:00,06:06:00,S2,6\nT1,06:07:00,06:07:00,S1,7\nT1,06:08:00,06:08:00,S2,8\nT1,06:09:00,06:09:00,S1,9\nT1,06:10:00,06:10:00,S2,10\nT1,06:11:00,06:11:00,S1,11\nT1,06:12:00,06:12:00,S2,12\nT1,06:13:00,06:13:00,S1,13\nT1,06:14:00,06:14:00,S2,14\nT1,06:15:00,06:15:00,S1,15\nT1,06:16:00,06:16:00,S2,16\nT1,06:17:00,06:17:00,S1,17\nT1,06:18:00,06:18:00,S2,18\nT1,06:19:00,06:19:00,S1,19\nT1,06:20:00,06:20:00,S2,20\nT1,06:21:00,06:21:00,S1,21\nT1,06:22:00,06:22:00,S2,22\nT1,06:23:00,06:23:00,S1,23\nT1,06:24:00,06:24:00,S2,24\nT1,06:25:00,06:25:00,S1,25\nT1,06:26:00,06:26:00,S2,26\nT1,06:27:00,06:27:00,S1,27\nT1,06:28:00,06:28:00,S2,28\nT1,06:29:00,06:29:00,S1,29\nT1,06:30:00,06:30:00,S2,30\nT1,06:31:00,06:31:00,S1,31\nT1,06:32:00,06:32:00,S2,32\nT1,06:33:00,06:33:00,S1,33\nT1,06:34:00,06:34:00,S2,34\nT1,06:35:00,06:35:00,S1,35\nT1,06:36:00,06:36:00,S2,36\nT1,06:37:00,06:37:00,S1,37\nT1,06:38:00,06:38:00,S2,38\nT1,06:39:00,06:39:00,S1,39\nT1,06:40:00,06:40:00,S2,40\nT1,06:41:00,06:41:00,S1,41\nT1,06:42:00,06:42:00,S2,42\nT1,06:43:00,06:43:00,S1,43\nT1,06:44:00,06:44:00,S2,44\nT1,06:45:00,06:45:00,S1,45\nT1,06:46:00,06:46:00,S2,46\nT1,06:47:00,06:47:00,S1,47\nT1,06:48:00,06:48:00,S2,48\nT1,06:49:00,06:49:00,S1,49\nT1,06:50:00,06:50:00,S2,50\nT1,06:51:00,06:51:00,S1,51\nT1,06:52:00,06:52:00,S2,52\nT1,06:53:00,06:53:00,S1,53\nT1,06:54:00,06:54:00,S2,54\nT1,06:55:00,06:55:00,S1,55\nT1,06:56:00,06:56:00,S2,56\nT1,06:57:00,06:57:00,S1,57\nT1,06:58:00,06:58:00,S2,58\nT1,06:59:00,06:59:00,S1,59\nT1,07:00:00,07:00:00,S2,60\nT1,07:01:00,07:01:00,S1,61\nT1,07:02:00,07:02:00,S2,62\nT1,07:03:00,07:03:00,S1,63\nT1,07:04:00,07:04:00,S2,64\nT1,07:05:00,07:05:00,S1,65\nT1,07:06:00,07:06:00,S2,66\nT1,07:07:00,07:07:00,S1,67\nT1,07:08:00,07:08:00,S2,68\nT1,07:09:00,07:09:00,S1,69\nT1,07:10:00,07:10:00,S2,70\nT1,07:11:00,07:11:00,S1,71\nT1,07:12:00,07:12:00,S2,72\nT1,07:13:00,07:13:00,S1,73\nT1,07:14:00,07:14:00,S2,74\nT1,07:15:00,07:15:00,S1,75\nT1,07:16:00,07:16:00,S2,76\nT1,07:17:00,07:17:00,S1,77\nT1,07:18:00,07:18:00,S2,78\nT1,07:19:00,07:19:00,S1,79\nT1,07:20:00,07:20:00,S2,80\nT1,07:21:00,07:21:00,S1,81\nT1,07:22:00,07:22:00,S2,82\nT1,07:23:00,07:23:00,S1,83\nT1,07:24:00,07:24:00,S2,84\nT1,07:25:00,07:25:00,S1,85\nT1,07:26:00,07:26:00,S2,86\nT1,07:27:00,07:27:00,S1,87\nT1,07:28:00,07:28:00,S2,88\nT1,07:29:00,07:29:00,S1,89\nT1,07:30:00,07:30:00,S2,90\nT1,07:31:00,07:31:00,S1,91\nT1,07:32:00,07:32:00,S2,92\nT1,07:33:00,07:33:00,S1,93\nT1,07:34:00,07:34:00,S2,94\nT1,07:35:00,07:35:00,S1,95\nT1,07:36:00,07:36:00,S2,96\nT1,07:37:00,07:37:00,S1,97\nT1,07:38:00,07:38:00,S2,98\nT1,07:39:00,07:39:00,S1,99\nT1,07:40:00,07:40:00,S2,100\nT1,07:41:00,07:41:00,S1,101\n"),
         ], ValidatorConfig { max_total_stop_times: 100, ..ValidatorConfig::default() }),
-        // ARC_033: RFC 4180 — tırnaksız alanda tırnak. `12" Street` GEÇERSİZ; doğrusu
-        // `"12"" Street"`. Tokenizer 2026-08-07'ye kadar bunu sıradan karakter sayıyordu.
+        // ARC_033: RFC 4180 — quote in an unquoted field. `12" Street` is INVALID; the correct
+        // form is `"12"" Street"`. The tokenizer treated this as an ordinary character until 2026-08-07.
         fx("ARC_033", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,12\" Street,41.0,29.0\nS2,Stop2,41.1,29.1\n"),
         ]),
-        // ARC_022: dosya satır sayısı eşiği. 2026-08-07'de (issue #71) eşik `k1_parse`'ın
-        // SABİT KODUNDAN `ValidatorConfig`'e taşındı — borç defteri "1M satır gerektirir,
-        // inline yazılamaz" diyordu, doğrusu "K1 `parse()` config ALMIYORDU" idi ve o
-        // düzeltilebilir bir şeydi. Burada K1 yolu (stops.txt akış-dışı okunur) kanıtlanır;
-        // K2 akış yolları (shapes/stop_times) integration.rs::arc022_* ile kanıtlı.
-        // Config alt sınırı 10 → 11 satır yeter.
+        // ARC_022: file row-count threshold. On 2026-08-07 (issue #71), the threshold moved
+        // from hard-coded `k1_parse` to `ValidatorConfig` — the debt ledger said "requires 1M
+        // rows, cannot be written inline", but the truth was "K1 `parse()` did not accept config",
+        // which was fixable. This proves the K1 path (stops.txt is read out of stream);
+        // K2 streaming paths (shapes/stop_times) are proven by integration.rs::arc022_*.
+        // Config minimum is 10 → 11 rows suffice.
         fx_cfg("ARC_022", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.001,29.001\nS2,Stop2,41.002,29.002\nS3,Stop3,41.003,29.003\nS4,Stop4,41.004,29.004\nS5,Stop5,41.005,29.005\nS6,Stop6,41.006,29.006\nS7,Stop7,41.007,29.007\nS8,Stop8,41.008,29.008\nS9,Stop9,41.009,29.009\nS10,Stop10,41.010,29.010\nS11,Stop11,41.011,29.011\n"),
         ], ValidatorConfig { max_file_rows: 10, ..ValidatorConfig::default() }),
-        // ARC_027: ZIP girdisinde sahip-okuma biti yok (0o200). İçerikle değil zip ÜST
-        // VERİSİYLE tetiklendiği için normal fixture yolu üretemiyordu; harness'a
-        // `unix_permissions` yazan bir kurucu eklendi.
+        // ARC_027: the ZIP entry lacks the owner-read bit (0o200). It is triggered by zip
+        // METADATA, not content, so the normal fixture path could not produce it; the harness
+        // gained a constructor that writes `unix_permissions`.
         fx_noread("ARC_027", vec!["stops.txt"]),
-        // ARC_036: base feed'in zip'i kurulduktan sonra yalnız yerel başlık bayraklarına
-        // bit 3 eklenir. Merkez dizin sağlam kalır — arşiv açılır, çelişen tek şey akış
-        // görünümüdür. Gerçek karşılığı: `tdg-81618` (aktif feed, MD bu yüzden çöküyor).
+        // ARC_036: after building the baseline feed's zip, add only bit 3 to local-header flags.
+        // The central directory remains sound — the archive opens, and only the stream view is
+        // inconsistent. Real counterpart: `tdg-81618` (active feed, MD therefore crashes).
         fx_stream_flag("ARC_036"),
-        // STM_061: ardışık OLMAYAN uzak çift. A→C kuş uçuşu ~60 km, 6 dakikada
-        // kapatılıyor (600 km/h, otobüs eşiği 120). Ara durak B zamanı geç yazılmış.
+        // STM_061: a distant NON-CONSECUTIVE pair. A→C is ~60 km as the crow flies, covered
+        // in 6 minutes (600 km/h, bus threshold 120). The intermediate stop B has a late time.
         fx("STM_061", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nA,A,41.000,29.000\nB,B,41.100,29.000\nC,C,41.540,29.000\n"),
             ("routes.txt", "route_id,route_short_name,route_long_name,route_type\nR1,R,Route,3\n"),
@@ -808,18 +808,18 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_041", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,S1,1,LOC1,09:00:00,10:00:00,BR1\n")]),
         fx("STM_051", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,pickup_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
         fx("STM_052", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_type\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
-        // STM_054/055: Flex penceresi tanımlıyken continuous_pickup/drop_off 1/boş dışında (satır kapsamlı).
+        // STM_054/055: continuous_pickup/drop_off is outside 1/empty while a Flex window is defined (row-wide).
         fx("STM_054", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,continuous_pickup\nT1,1,LOC1,09:00:00,10:00:00,BR1,0\n")]),
         fx("STM_055", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,continuous_drop_off\nT1,1,LOC1,09:00:00,10:00:00,BR1,2\n")]),
 
-        // ── PTH grubu (pathways.txt; base'te yok, eklenir) ─────────────────────
-        // K2 satır kontrolleri (k2/pathways.rs). Temiz satır şablonu: mode=3, bidir=0.
+        // ── PTH group (pathways.txt; absent from baseline, added) ──────────────
+        // K2 row checks (k2/pathways.rs). Clean row template: mode=3, bidir=0.
         fx("PTH_004", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,9,0\n")]),
         fx("PTH_005", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,5\n")]),
         fx("PTH_006", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length\nP1,S1,S2,3,0,-1\n")]),
         fx("PTH_007", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_008", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,2,0\n")]),
-        // PTH_027: stair_count sıfır — `Non-null integer` tipinin dışladığı tek değer.
+        // PTH_027: stair_count zero — the only value excluded by the `Non-null integer` type.
         fx("PTH_027", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,stair_count\nP1,S1,S2,2,0,0\n")]),
         fx("PTH_025", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length\nP1,S1,S2,6,0,\n")]),
         fx("PTH_029", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\nP1,S1,S2,4,0,\n")]),
@@ -828,13 +828,13 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_010", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,min_width\nP1,S1,S2,3,0,0\n")]),
         fx("PTH_011", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S1,3,0\n")]),
         fx("PTH_016", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,7,1\n")]),
-        // PTH_017 artık YALNIZ tip ihlali: max_slope sayı değil (spec tipi `Float`).
+        // PTH_017 is now ONLY a type violation: max_slope is not numeric (spec type `Float`).
         fx("PTH_017", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,max_slope\nP1,S1,S2,1,0,abc\n")]),
-        // PTH_028: max_slope geçerli ama pathway_mode 1/3 değil — spec burada "should" der.
+        // PTH_028: max_slope is valid but pathway_mode is not 1/3 — the spec says "should" here.
         fx("PTH_028", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,max_slope\nP1,S1,S2,4,0,0.05\n")]),
-        // TRP_034: safe_duration alanı ondalık sayı değil (eskiden sessizce yutuluyordu).
-        // İKİ sefer: TRP_034 de Entity (trip_id) dedup'lıdır, tek satırda iki alanı bozmak
-        // yalnız birini çapalar (CAL_002 ile aynı ders).
+        // TRP_034: safe_duration is not a decimal number (formerly silently swallowed).
+        // TWO trips: TRP_034 also deduplicates by Entity (trip_id); breaking two fields in one
+        // row anchors only one (same lesson as CAL_002).
         fx("TRP_034", vec![("trips.txt", concat!(
             "route_id,service_id,trip_id,safe_duration_factor,safe_duration_offset\n",
             "R1,SVC1,T1,abc,\n",
@@ -851,97 +851,97 @@ fn fixtures() -> Vec<Fixture> {
         fx("PTH_001", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\nP1,S2,S1,3,0\n")]),
         // K4: cross-ref (k4_cross_ref::check_pathways).
         fx("PTH_002", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,NOPE,S2,3,0\n")]),
-        // PTH_026: pathway uç noktası istasyon (loc=1) olamaz (k4).
+        // PTH_026: a pathway endpoint cannot be a station (loc=1) (k4).
         fx("PTH_026", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Station,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n"),
         ]),
-        // PTH_031: aynı spec cümlesinin ikinci kolu — uç nokta stop_access=1 olan bir peron.
-        // `stop_access` yalnız parent_station'ı olan peronda meşrudur (yoksa STP_026/028),
-        // bu yüzden fixture bir istasyon + iki peron kurar.
+        // PTH_031: the second arm of the same spec sentence — a platform endpoint with stop_access=1.
+        // `stop_access` is valid only on a platform with parent_station (otherwise STP_026/028),
+        // so the fixture builds one station and two platforms.
         fx("PTH_031", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\nST,Station,41.0,29.0,1,,\nS1,Platform1,41.0,29.0,0,ST,1\nS2,Platform2,41.1,29.1,0,ST,0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,1,1\n"),
         ]),
         fx("PTH_003", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,NOPE,3,0\n")]),
-        // PTH_014: from/to farklı istasyonlarda (parent_station ile çözülür).
+        // PTH_014: from/to belong to different stations (resolved through parent_station).
         fx("PTH_014", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST_A,StationA,41.0,29.0,1,\nST_B,StationB,41.2,29.2,1,\nP_A,PlatA,41.0,29.0,0,ST_A\nP_B,PlatB,41.2,29.2,0,ST_B\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,P_A,P_B,3,0\n"),
         ]),
-        // PTH_019: generic node (location_type=3) tek pathway'e bağlı → çıkmaz.
+        // PTH_019: a generic node (location_type=3) has one pathway → dead end.
         fx("PTH_019", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,0\nS2,Stop2,41.1,29.1,0\nGN,Node,41.05,29.05,3\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,GN,S1,3,0\n"),
         ]),
-        // K6 analitik (k6_analytics::check_pathway_analytics).
-        // PTH_012: istasyonda entrance (location_type=2) yok, platform pathway grafında.
+        // K6 analytics (k6_analytics::check_pathway_analytics).
+        // PTH_012: the station has no entrance (location_type=2), while a platform is in the pathway graph.
         fx("PTH_012", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST1,Station,41.0,29.0,1,\nPLAT,Platform,41.0,29.0,0,ST1\nGN,Node,41.01,29.01,3,ST1\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,PLAT,GN,3,0\n"),
         ]),
-        // PTH_013: entrance→platform rotası var ama erişilebilir değil (max_slope>8%).
+        // PTH_013: an entrance→platform route exists but is not accessible (max_slope>8%).
         fx("PTH_013", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST1,Station,41.0,29.0,1,\nENT,Entrance,41.0,29.0,2,ST1\nPLAT,Platform,41.0,29.0,0,ST1\n"),
             ("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,max_slope\nP1,ENT,PLAT,1,1,0.5\n"),
         ]),
-        // PTH_015: length/traversal_time'dan türetilen hız > 3 m/s (100m / 10s = 10 m/s).
+        // PTH_015: speed derived from length/traversal_time exceeds 3 m/s (100m / 10s = 10 m/s).
         fx("PTH_015", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,length,traversal_time\nP1,S1,S2,3,0,100,10\n")]),
 
-        // ── JPN grubu (GTFS-JP; k4_cross_ref::check_gtfs_jp) ───────────────────
-        // Kapı: geçerli feed_lang=ja, agency_lang=ja + Asia/Tokyo, ja-Hrkt çevirisi
-        // veya office_jp/agency_jp dosyası (is_gtfs_jp).
-        // JPN_001/008/009/010 de aynı GTFS-JP tespit kapısının arkasındadır.
-        // JPN_001: Japonca durak adında kana (ja-Hrkt) okuması yok.
+        // ── JPN group (GTFS-JP; k4_cross_ref::check_gtfs_jp) ───────────────────
+        // Gate: valid feed_lang=ja, agency_lang=ja + Asia/Tokyo, a ja-Hrkt translation,
+        // or an office_jp/agency_jp file (is_gtfs_jp).
+        // JPN_001/008/009/010 are behind the same GTFS-JP detection gate.
+        // JPN_001: Japanese stop name has no kana (ja-Hrkt) reading.
         fx("JPN_001", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,東京駅,41.0,29.0\nS2,渋谷駅,41.1,29.1\n"),
         ]),
-        // JPN_008: route_long_name dolu ama kana okuması yok.
+        // JPN_008: route_long_name is populated but has no kana reading.
         fx("JPN_008", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_long_name\nR1,1,101,3,渋谷線\n"),
         ]),
-        // JPN_009: trip_headsign dolu ama kana okuması yok.
+        // JPN_009: trip_headsign is populated but has no kana reading.
         fx("JPN_009", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("trips.txt", "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,渋谷\n"),
         ]),
-        // JPN_010: Japonca agency_name dolu ama kana okuması yok.
+        // JPN_010: Japanese agency_name is populated but has no kana reading.
         fx("JPN_010", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,東京交通,http://test.example,UTC\n"),
         ]),
-        // JPN_002: trips.jp_office_id office_jp.txt'te tanımsız.
+        // JPN_002: trips.jp_office_id is undefined in office_jp.txt.
         fx_v3("JPN_002", vec![
             ("office_jp.txt", "office_id,office_name\nO1,Office1\n"),
             ("trips.txt", "route_id,service_id,trip_id,jp_office_id\nR1,SVC1,T1,BADREF\n"),
         ]),
-        // JPN_003: agency_jp.agency_id agency.txt'te tanımsız.
+        // JPN_003: agency_jp.agency_id is undefined in agency.txt.
         fx_v3("JPN_003", vec![("agency_jp.txt", "agency_id\nNOPE\n")]),
         // JPN_004: GTFS-JP sinyali (office_jp) var ama translations.txt yok.
         fx("JPN_004", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
-        // JPN_005: office_jp.office_name boş.
+        // JPN_005: office_jp.office_name is empty.
         fx_v3("JPN_005", vec![("office_jp.txt", "office_id,office_name\nO1,\n")]),
         // JPN_006: GTFS-JP (feed_lang=ja) ama fare_attributes/fare_rules yok.
         fx("JPN_006", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
         // JPN_007: GTFS-JP sinyali (office_jp) var ama feed_info.txt yok.
         fx("JPN_007", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
-        // JPN_011: GTFS-JP'de agency_id boş (tek işletici olsa bile zorunlu).
+        // JPN_011: agency_id is empty in GTFS-JP (required even with one operator).
         fx("JPN_011", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"),
         ]),
-        // JPN_012: agency_jp satırında agency_id eksik.
+        // JPN_012: agency_id is missing from the agency_jp row.
         fx_v3("JPN_012", vec![
             ("agency_jp.txt", "agency_id,agency_zip_number\n,1234567\n"),
         ]),
-        // JPN_013: agency_zip_number tam yedi ASCII rakam biçiminde değil.
+        // JPN_013: agency_zip_number is not exactly seven ASCII digits.
         fx_v3("JPN_013", vec![
             ("agency_jp.txt", "agency_id,agency_zip_number\n1,123-4567\n"),
         ]),
-        // JPN_014: boş office_id ve yinelenen office_id.
+        // JPN_014: empty office_id and duplicate office_id.
         fx_v3("JPN_014", vec![
             ("office_jp.txt", "office_id,office_name\n,OfficeEmpty\nO1,OfficeA\nO1,OfficeB\n"),
         ]),
@@ -949,39 +949,39 @@ fn fixtures() -> Vec<Fixture> {
         fx_v3("JPN_015", vec![
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,20260101,Origin,Via,Destination\n"),
         ]),
-        // JPN_016: explicit V3 pattern_jp route_update_date geçersiz.
+        // JPN_016: explicit V3 pattern_jp route_update_date is invalid.
         fx_v3("JPN_016", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nP1,20260231,Origin,Via,Destination\n"),
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nR1,令和8年4月6日,Origin,Via,Destination\n"),
         ]),
-        // JPN_017: pattern_jp'te boş jp_pattern_id ve yinelenen jp_pattern_id.
+        // JPN_017: empty and duplicate jp_pattern_id values in pattern_jp.
         fx_v3("JPN_017", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\n,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\nP1,20260101,Origin,Via,Destination\n"),
         ]),
-        // JPN_018: pattern_jp.txt mevcut ama trips.jp_pattern_id karşılığı yok.
+        // JPN_018: pattern_jp.txt exists but no trips.jp_pattern_id references it.
         fx_v3("JPN_018", vec![
             ("pattern_jp.txt", "jp_pattern_id,route_update_date,origin_stop,via_stop,destination_stop\nKNOWN_PATTERN,20260101,Origin,Via,Destination\n"),
             ("trips.txt", "route_id,service_id,trip_id,jp_pattern_id\nR1,SVC1,T1,MISSING_PATTERN\n"),
         ]),
-        // JPN_019: ja-Hrkt çevirisi mevcut olmayan bir stop kaydını gösteriyor.
+        // JPN_019: ja-Hrkt translation points to a stop record that does not exist.
         fx("JPN_019", vec![
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,MISSING_STOP\n"),
         ]),
-        // JPN_020: office_url ve office_phone biçimleri şüpheli.
+        // JPN_020: office_url and office_phone have suspicious formats.
         fx_v3("JPN_020", vec![
             ("office_jp.txt", "office_id,office_name,office_url,office_phone\nO1,Office1,not-a-url,x\n"),
         ]),
-        // JPN_021: aynı ja-Hrkt çeviri hedefi iki farklı kana değeri taşıyor.
+        // JPN_021: the same ja-Hrkt translation target has two different kana values.
         fx("JPN_021", vec![
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,ja-Hrkt,とうきょう,S1\nstops,stop_name,ja-Hrkt,トウキョウ,S1\n"),
         ]),
-        // JPN_022: GTFS-JP v4'te agency_lang, location_type ve feed_info ana alanları eksik.
+        // JPN_022: GTFS-JP v4 is missing the agency_lang, location_type, and feed_info core fields.
         fx_v4("JPN_022", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,\n"),
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,35.0,139.0\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
-        // JPN_023-026: Japonya sabit değerleri yalnız açık profilde denetlenir.
+        // JPN_023-026: Japan-specific constants are checked only in the explicit profile.
         fx_v4("JPN_023", vec![(
             "feed_info.txt",
             "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n",
@@ -1010,8 +1010,8 @@ fn fixtures() -> Vec<Fixture> {
             "feed_info.txt",
             "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n",
         )]),
-        // Açık V3 sayısal route_type=3 sabitini doğrudan uygular; bu fixture route_type=2
-        // ihlalini dağılımdan bağımsız olarak kanıtlar.
+        // Explicit V3 applies the numeric route_type=3 constant directly; this fixture proves
+        // the route_type=2 violation independently of the distribution.
         // JP detector gate is provided by feed_info.txt in the fixture.
         fx_v3("JPN_027", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\nR3,1,103,2\n"),
@@ -1023,17 +1023,17 @@ fn fixtures() -> Vec<Fixture> {
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z\nS2,Stop2,41.1,29.1,\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
-        // JPN_032: strict V3 agency_id Corporate Number biçimi.
+        // JPN_032: strict V3 agency_id Corporate Number format.
         fx_v3("JPN_032", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\nA-1,Test,http://test.example,UTC,ja\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
-        // JPN_033: detection gate açıkken reserved custom file suffix.
+        // JPN_033: reserved custom file suffix while the detection gate is open.
         fx_v3("JPN_033", vec![
             ("custom_jp.txt", "foo,bar\n1,2\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
-        // JPN_028/030: V3'te Japonca route_desc için kana ve ja kayıtları birlikte gerekir.
+        // JPN_028/030: V3 requires both kana and ja records for Japanese route_desc.
         fx_v3("JPN_028", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
@@ -1043,365 +1043,371 @@ fn fixtures() -> Vec<Fixture> {
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_desc\nR1,1,101,3,渋谷線\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\nroutes,route_desc,ja-Hrkt,シブヤ線,R1\n"),
         ]),
-        // JPN_029: V4'te Japonca stop_headsign için önerilen kana okuması eksik.
+        // JPN_029: V4 is missing the recommended kana reading for Japanese stop_headsign.
         fx_v4("JPN_029", vec![
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,渋谷\nT1,08:10:00,08:10:00,S2,2,\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,Stop,S1\n"),
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n"),
         ]),
 
-        // ── LOC grubu (locations.geojson; k1_parse::validate_locations_geojson) ─
-        // LOC_001: feature geometri tipi desteklenmiyor (Point). ⚠️ Fixture 2026-09-11'de
-        // DEĞİŞTİ: eskiden "not valid json" idi, ama o kol artık LOC_012'nin — belge hiç
-        // ayrıştırılamıyorsa geometri okunmamıştır ve LOC_001 konuşmamalıdır.
+        // ── LOC group (locations.geojson; k1_parse::validate_locations_geojson) ─
+        // LOC_001: feature geometry type is unsupported (Point). ⚠️ The fixture changed on
+        // 2026-09-11: it used to be "not valid json", but that path now belongs to LOC_012 —
+        // if the document cannot be parsed, geometry was not read and LOC_001 must not speak.
         fx("LOC_001", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"properties\":{},\"geometry\":{\"type\":\"Point\",\"coordinates\":[0,0]}}]}")]),
-        // LOC_012: belge hiç JSON değil (korpus: tdg-81648..tdg-81652).
+        // LOC_012: document is not JSON at all (corpus: tdg-81648..tdg-81652).
         fx("LOC_012", vec![("locations.geojson", "not valid json")]),
-        // LOC_005: FeatureCollection boş.
+        // LOC_005: empty FeatureCollection.
         fx("LOC_005", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[]}")]),
-        // LOC_007: yinelenen feature 'id'.
+        // LOC_007: duplicate feature 'id'.
         fx("LOC_007", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}},{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}}]}")]),
-        // LOC_003: feature'da 'id' yok.
-        // LOC_008: feature "type" yok.
+        // LOC_003: feature has no 'id'.
+        // LOC_008: feature has no "type".
         fx("LOC_008", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"id\":\"L1\",\"properties\":{},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}}]}")]),
-        // LOC_009: feature "properties" yok.
+        // LOC_009: feature has no "properties".
         fx("LOC_009", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}}]}")]),
-        // LOC_010: geometry var ama "coordinates" yok.
+        // LOC_010: geometry exists but has no "coordinates".
         fx("LOC_010", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"properties\":{},\"geometry\":{\"type\":\"Polygon\"}}]}")]),
-        // Kelebek (bowtie): dış ring kendini keser — OpenGIS 6.1.11 ihlali.
+        // Bowtie: the exterior ring self-intersects — OpenGIS 6.1.11 violation.
         fx("LOC_011", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"properties\":{},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[2,2],[2,0],[0,2],[0,0]]]}}]}")]),
         fx("LOC_003", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0,0]]]}}]}")]),
         // LOC_002: geometry null.
         fx("LOC_002", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":null}]}")]),
-        // LOC_004: Polygon ring kapalı değil (ilk≠son nokta).
+        // LOC_004: Polygon ring is not closed (first point != last point).
         fx("LOC_004", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,0.01],[0.01,0.01],[0.01,0]]]}}]}")]),
-        // LOC_006: bbox alanı > 500km² (~5°×5°).
+        // LOC_006: bbox area > 500 km² (~5°×5°).
         fx("LOC_006", vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"id\":\"L1\",\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[0,0],[0,5],[5,5],[0,0]]]}}]}")]),
 
-        // ── GEO grubu (coğrafi analitik; k6_analytics::check_geo_analytics) ─────
-        // Config varsayılan: max_shape_jump_km=10, stop_too_close_m=5, stop_far_from_shape_m=100.
-        // GEO_006: shape segmenti > 10km atlama (~22km).
+        // ── GEO group (geospatial analytics; k6_analytics::check_geo_analytics) ─────
+        // Config defaults: max_shape_jump_km=10, stop_too_close_m=5, stop_far_from_shape_m=100.
+        // GEO_006: shape segment jumps > 10 km (~22 km).
         fx("GEO_006", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.2,40.0,2\n")]),
-        // GEO_007: kritik shape atlaması > 30km (3× eşik, ~55km).
+        // GEO_007: critical shape jump > 30 km (3× threshold, ~55 km).
         fx("GEO_007", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.5,40.0,2\n")]),
-        // GEO_009: durak kendi seferinin shape'inden > 100m uzak.
+        // GEO_009: stop is > 100 m from its trip's shape.
         fx("GEO_009", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.05\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\n"),
         ]),
-        // GEO_002: durak feed medianından > 200km uzak (>=3 koordinatlı durak).
+        // GEO_002: stop is > 200 km from the feed median (>=3 stops with coordinates).
         fx("GEO_002", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Far,10.123,10.123\n")]),
-        // GEO_012: 3+ durak 5m içinde kümelenmiş.
+        // GEO_012: 3+ stops clustered within 5 m.
         fx("GEO_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.00001,40.0\nS3,Stop3,40.0,40.00001\n")]),
-        // GEO_013: koordinatlı durak içeren feed (Bilgi) — base zaten tetikler.
+        // GEO_013: feed containing stops with coordinates (Info) — base already triggers it.
         fx("GEO_013", vec![]),
-        // GEO_014: feed bbox köşegeni > 500km (Bilgi).
+        // GEO_014: feed bbox diagonal > 500 km (Info).
         fx("GEO_014", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,29.0\nS2,Stop2,45.0,35.0\n")]),
-        // GEO_015: feed_lang=ja ama durak Japonya sınırları dışında (base lon 29).
+        // GEO_015: feed_lang=ja but stops are outside Japan (base lon 29).
         fx("GEO_015", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
-        // GEO_016: durak Null Island yakınında (|lat|,|lon| < 0.1).
+        // GEO_016: stop near Null Island (|lat|,|lon| < 0.1).
         fx("GEO_016", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,0.01,0.01\nS2,Stop2,41.1,29.1\n")]),
-        // GEO_017: shape noktası Null Island yakınında.
+        // GEO_017: shape point near Null Island.
         fx("GEO_017", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,0.01,0.01,1\nSH1,0.02,0.02,2\n")]),
-        // GEO_018: tüm duraklar < 200m'lik alanda (test/placeholder veri).
+        // GEO_018: all stops within a < 200 m area (test/placeholder data).
         fx("GEO_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\nS3,Stop3,40.0,40.0005\n")]),
-        // GEO_019: tam sayı koordinat — base S1 (41.0,29.0) zaten tetikler.
+        // GEO_019: integer coordinates — base S1 (41.0,29.0) already triggers it.
         fx("GEO_019", vec![]),
-        // GEO_020: shape'in tüm noktaları aynı koordinatta (dejenere geometri).
+        // GEO_020: all shape points have the same coordinates (degenerate geometry).
         fx("GEO_020", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.0,2\n")]),
-        // GEO_021: durakların > %30'u koordinat paylaşıyor (total>=5).
+        // GEO_021: >30% of stops share coordinates (total>=5).
         fx("GEO_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,40.1,40.1\nS2,B,40.1,40.1\nS3,C,40.1,40.1\nS4,D,40.1,40.1\nS5,E,41.1,29.1\n")]),
-        // GEO_022: durak enlemi kutba aşırı yakın (|lat| > 89).
+        // GEO_022: stop latitude is extremely close to a pole (|lat| > 89).
         fx("GEO_022", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,89.5,29.0\nS2,Stop2,41.1,29.1\n")]),
 
-        // ── DQ grubu (veri kalitesi; k6_analytics::check_data_quality + k1_parse) ─
-        // DQ_003: route_desc boş — base R1 zaten tetikler.
+        // ── DQ group (data quality; k6_analytics::check_data_quality + k1_parse) ─
+        // DQ_003: route_desc empty — base R1 already triggers it.
         fx("DQ_003", vec![]),
-        // DQ_004: route_url boş — base R1 zaten tetikler.
+        // DQ_004: route_url empty — base R1 already triggers it.
         fx("DQ_004", vec![]),
-        // DQ_005: bugün itibarıyla aktif servis yok (takvim süresi dolmuş).
+        // DQ_005: no active service as of today (calendar period has expired).
         fx("DQ_005", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20200101,20201231\n")]),
-        // DQ_005b: hiçbir trip'in stop_times kaydı yok.
+        // DQ_005b: no trip has a stop_times record.
         fx("DQ_005b", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
-        // DQ_005c: durakların > %50'sinde koordinat eksik.
+        // DQ_005c: >50% of stops lack coordinates.
         fx("DQ_005c", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,,\nS2,Stop2,,\n")]),
-        // DQ_006: trips'in > %80'inde shape_id eksik — base (shape'siz tek trip) tetikler.
+        // DQ_006: shape_id is missing from >80% of trips — base (one trip without a shape)
+        // triggers it.
         fx("DQ_006", vec![]),
-        // DQ_009: trip var ama stop_times tamamen boş.
+        // DQ_009: trip exists but stop_times is completely empty.
         fx("DQ_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
-        // DQ_010: hiçbir hatta kullanılmayan agency (agency_id=2 boşta).
+        // DQ_010: agency unused by any route (agency_id=2 is idle).
         fx("DQ_010", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n")]),
-        // DQ_011: feed'de yalnızca 1 durak.
+        // DQ_011: feed contains only 1 stop.
         fx("DQ_011", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n")]),
-        // DQ_012: >5 agency ve hiçbir rotada agency_id yok.
+        // DQ_012: >5 agencies and no route has an agency_id.
         fx("DQ_012", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n3,C,https://c.example,UTC\n4,D,https://d.example,UTC\n5,E,https://e.example,UTC\n6,F,https://f.example,UTC\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
         ]),
-        // DQ_013: feed'de < 3 sefer — base (tek trip) tetikler.
+        // DQ_013: <3 trips in the feed — base (one trip) triggers it.
         fx("DQ_013", vec![]),
-        // DQ_016: değerde baştaki/sondaki boşluk (k1_parse).
+        // DQ_016: leading/trailing whitespace in a value (k1_parse).
         fx("DQ_016", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1, Stop1 ,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // DQ_017: şüpheli koordinat (|lat|,|lon| < 1°).
+        // DQ_017: suspicious coordinates (|lat|,|lon| < 1°).
         fx("DQ_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,0.5,0.5\nS2,Stop2,41.1,29.1\n")]),
-        // DQ_018: önerilen metin alanı tamamen büyük harf (stop_name).
+        // DQ_018: recommended text field is all uppercase (stop_name).
         fx("DQ_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,MERKEZ,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // DQ_019: önerilen metin alanı tamamen küçük harf (stop_name).
+        // DQ_019: recommended text field is all lowercase (stop_name).
         fx("DQ_019", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,merkez,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // DQ_020: önerilen trip_headsign boş — base (headsign'sız trip) tetikler.
+        // DQ_020: recommended trip_headsign is empty — base (trip without a headsign)
+        // triggers it.
         fx("DQ_020", vec![]),
-        // DQ_021: birincil anahtar yineleniyor (stop_id duplicate).
-        // DQ_021 iki tekil birincil anahtarı birden kanıtlar: stops.stop_id ve
-        // attributions.attribution_id (spec tipi `Unique ID`). İkincisi ayrı bir fixture
-        // gerektirmez — aynı kural, aynı olgu, iki dosya.
+        // DQ_021: duplicate primary key (stop_id duplicate).
+        // DQ_021 proves two unique primary keys: stops.stop_id and
+        // attributions.attribution_id (spec type `Unique ID`). The second needs no
+        // separate fixture — one rule, one fact, two files.
         fx("DQ_021", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,40.0,40.0\nS1,B,41.1,29.1\n"),
             ("attributions.txt", "attribution_id,organization_name,is_producer\nA1,Org,1\nA1,Org2,1\n"),
         ]),
-        // DQ_022: durakların > %80'i aynı stop_name (total>=5).
+        // DQ_022: >80% of stops have the same stop_name (total>=5).
         fx("DQ_022", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop,40.0,40.0\nS2,Stop,40.1,40.1\nS3,Stop,40.2,40.2\nS4,Stop,40.3,40.3\nS5,Stop,40.4,40.4\n")]),
 
-        // ── OPR grubu (operasyonel analitik; k6_analytics) ─────────────────────
+        // ── OPR group (operational analytics; k6_analytics) ─────────────────────
         // Config: max_headway_warning_min=240, bunching_threshold_min=2, max_speed_bus=120,
         // service_gap_days=7, max_trips_per_route=500, headway_outlier_sigma=2.5.
-        // NOT: OPR_021/022/023 yalnız config.calendar_override_rules ile (default'ta imkânsız);
-        // OPR_024 >500 sefer gerektirir (inline yazılamaz) → debt'te bırakıldı.
-        // OPR_001: hat genelinde maksimum sefer aralığı > 240dk ve düzensiz.
+        // NOTE: OPR_021/022/023 only work with config.calendar_override_rules (impossible
+        // by default); OPR_024 requires >500 trips (cannot be written inline) → left in debt.
+        // OPR_001: maximum headway across a route > 240 min and irregular.
         fx("OPR_001", vec![
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT2,08:10:00,08:10:00,S1,1\nT2,08:15:00,08:15:00,S2,2\nT3,18:00:00,18:00:00,S1,1\nT3,18:05:00,18:05:00,S2,2\n"),
         ]),
-        // OPR_003: aynı kalkış durağında ardışık seferler 2dk'dan sık (sıkışma).
+        // OPR_003: consecutive trips at the same departure stop are less than 2 min apart
+        // (bunching).
         fx("OPR_003", vec![
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:01:00,08:01:00,S1,1\nT2,08:11:00,08:11:00,S2,2\n"),
         ]),
-        // OPR_004: hatta hafta sonu servisi yok — base (SVC1 Pzt-Cum) tetikler.
+        // OPR_004: route has no weekend service — base (SVC1 Monday-Friday) triggers it.
         fx("OPR_004", vec![]),
-        // OPR_005: route_type-göreli headway aykırısı (6 grup; R6 6× medyan).
+        // OPR_005: route_type-relative headway outlier (6 groups; R6 is 6× the median).
         fx("OPR_005", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,1,3\nR2,1,2,3\nR3,1,3,3\nR4,1,4,3\nR5,1,5,3\nR6,1,6,3\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR2,SVC1,T3\nR2,SVC1,T4\nR3,SVC1,T5\nR3,SVC1,T6\nR4,SVC1,T7\nR4,SVC1,T8\nR5,SVC1,T9\nR5,SVC1,T10\nR6,SVC1,T11\nR6,SVC1,T12\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S1,1\nT3,08:00:00,08:00:00,S1,1\nT4,08:10:00,08:10:00,S1,1\nT5,08:00:00,08:00:00,S1,1\nT6,08:10:00,08:10:00,S1,1\nT7,08:00:00,08:00:00,S1,1\nT8,08:10:00,08:10:00,S1,1\nT9,08:00:00,08:00:00,S1,1\nT10,08:10:00,08:10:00,S1,1\nT11,08:00:00,08:00:00,S1,1\nT12,09:00:00,09:00:00,S1,1\n"),
         ]),
-        // OPR_006: seferde < 2 durak.
+        // OPR_006: <2 stops in a trip.
         fx("OPR_006", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n")]),
-        // OPR_007: seferde ardışık olmayan aynı durak tekrarı (ring değil).
+        // OPR_007: non-consecutive repeated stop in a trip (not a ring).
         fx("OPR_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\nT1,08:30:00,08:30:00,S2,4\n")]),
-        // OPR_008: seferde >1 bozuk hız segmenti (~660 km/h, eşik bus 120).
+        // OPR_008: >1 invalid speed segment in a trip (~660 km/h, bus threshold 120).
         fx("OPR_008", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.0\nS3,Stop3,40.10,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:30,08:00:30,S2,2\nT1,08:01:00,08:01:00,S3,3\n"),
         ]),
-        // OPR_009: gece seferi (kalkış >= 23:00).
+        // OPR_009: nighttime trip (departure >= 23:00).
         fx("OPR_009", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:30:00,23:30:00,S1,1\nT1,23:40:00,23:40:00,S2,2\n")]),
-        // OPR_010: hatta wheelchair_accessible tutarsız (1 ve 2).
+        // OPR_010: inconsistent wheelchair_accessible values on a route (1 and 2).
         fx("OPR_010", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,2\n")]),
-        // OPR_011: trip'in service_id'si aktif gün içermiyor (takvimde yok).
+        // OPR_011: trip's service_id has no active days (not in the calendar).
         fx("OPR_011", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
-        // OPR_012: serviste >= 7 günlük boşluk (calendar_dates iki uzak tarih).
+        // OPR_012: >=7-day service gap (two distant dates in calendar_dates).
         fx_rm("OPR_012",
             vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260518,1\nSVC1,20260601,1\n")],
             vec!["calendar.txt"]),
-        // OPR_013: hattın tüm seferleri tek yönde (direction_id tek değer).
+        // OPR_013: all trips on the route run in one direction (one direction_id value).
         fx("OPR_013", vec![("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,0\n")]),
-        // OPR_014: feed genelinde ortalama aktarma süresi > 10dk (type=2).
+        // OPR_014: average transfer time across the feed > 10 min (type=2).
         fx("OPR_014", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,1200\n")]),
-        // OPR_015: çift yönlü hat tek shape kullanıyor (bus).
+        // OPR_015: bidirectional route uses one shape (bus).
         fx("OPR_015", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id,direction_id\nR1,SVC1,T1,SH1,0\nR1,SVC1,T2,SH1,1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
         ]),
-        // OPR_016: feed'de hiçbir service aktif gün içermiyor (tüm flag 0).
+        // OPR_016: no service in the feed has active days (all flags are 0).
         fx("OPR_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20260518,20260524\n")]),
-        // OPR_017: sefer çok kısa mesafe (< 100m, shape'siz → durak koordinatı).
+        // OPR_017: trip covers a very short distance (< 100 m, no shape → stop coordinates).
         fx("OPR_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\n")]),
-        // OPR_019: hatta aynı (exception'sız) günde >1 aktif servis.
-        // T1 ve T2 AYNI operasyonel sefer (aynı yön, aynı kalkış, aynı durak dizisi) ama
-        // iki ayrı servisten aktif → gerçek çakışma. Farklı seferler olsaydı meşru olurdu.
+        // OPR_019: >1 active service on a route on the same (non-exception) day.
+        // T1 and T2 are the SAME operational trip (same direction, departure, and stop
+        // sequence), but are active from two separate services → a real collision. It would
+        // be legitimate if they were different trips.
         fx("OPR_019", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\nSVC2,1,1,1,1,1,1,1,20260518,20260524\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC2,T2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S2,2\n"),
         ]),
-        // OPR_020: hatta exception gününde >1 aktif servis (override çakışması).
+        // OPR_020: >1 active service on a route on an exception day (override collision).
         fx("OPR_020", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260518\n"),
             ("calendar_dates.txt", "service_id,date,exception_type\nSVC2,20260518,1\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC2,T2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:10:00,08:10:00,S2,2\n"),
         ]),
-        // OPR_025: feed ortalama sefer süresi < 60s (5 trip, 10s'lik).
+        // OPR_025: average trip duration in the feed < 60 s (5 trips, 10 s each).
         fx("OPR_025", vec![
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\nR1,SVC1,T5\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:10,08:00:10,S2,2\nT2,08:00:00,08:00:00,S1,1\nT2,08:00:10,08:00:10,S2,2\nT3,08:00:00,08:00:00,S1,1\nT3,08:00:10,08:00:10,S2,2\nT4,08:00:00,08:00:00,S1,1\nT4,08:00:10,08:00:10,S2,2\nT5,08:00:00,08:00:00,S1,1\nT5,08:00:10,08:00:10,S2,2\n"),
         ]),
 
-        // ── XFL grubu (cross-file FK; k4_cross_ref::check_xfl + cemv/fares v2) ──
-        // XFL_002: trip'in stop_times kaydı yok (T2).
+        // ── XFL group (cross-file FK; k4_cross_ref::check_xfl + cemv/fares v2) ──
+        // XFL_002: trip has no stop_times record (T2).
         fx("XFL_002", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n")]),
-        // XFL_006: calendar_dates yalnız exception_type=2 ve calendar'da yok.
+        // XFL_006: calendar_dates has only exception_type=2 and is absent from calendar.
         fx("XFL_006", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVCZ,20260601,2\n")]),
-        // XFL_012: route'un tüm seferlerinin stop_times'ı yok (boş stop_times).
+        // XFL_012: none of the route's trips has stop_times (empty stop_times).
         fx("XFL_012", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n")]),
-        // XFL_013: shape hem gidiş (0) hem dönüş (1) yönünde kullanılıyor.
+        // XFL_013: shape is used in both outbound (0) and return (1) directions.
         fx("XFL_013", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id,direction_id\nR1,SVC1,T1,SH1,0\nR1,SVC1,T2,SH1,1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
         ]),
-        // XFL_014: translation record_id var olmayan kayda işaret ediyor.
+        // XFL_014: translation record_id points to a nonexistent record.
         fx("XFL_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,X,NOPE\n")]),
-        // XFL_015: attribution geçersiz referans (agency_id).
+        // XFL_015: attribution has an invalid reference (agency_id).
         fx("XFL_015", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id\nA1,Org,1,NOPE\n")]),
-        // XFL_016: translation table_name=feed_info ama feed_info.txt yok.
+        // XFL_016: translation table_name=feed_info but feed_info.txt is absent.
         fx("XFL_016", vec![("translations.txt", "table_name,field_name,language,translation\nfeed_info,feed_publisher_name,en,X\n")]),
-        // XFL_019: network_id hem routes.txt hem route_networks.txt'te (çakışma).
+        // XFL_019: network_id appears in both routes.txt and route_networks.txt (collision).
         fx("XFL_019", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n"),
             ("route_networks.txt", "network_id,route_id\nN1,R1\n"),
         ]),
-        // XFL_020: transfer (trip_id, route_id) çifti geçersiz.
+        // XFL_020: transfer (trip_id, route_id) pair is invalid.
         fx("XFL_020", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,from_route_id\nS1,S2,1,T1,RWRONG\n")]),
-        // XFL_021: from_stop_id, from_trip_id'nin stop_times'ında yok.
+        // XFL_021: from_stop_id is absent from from_trip_id's stop_times.
         fx("XFL_021", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id\nS3,S2,1,T1\n"),
         ]),
-        // XFL_022: location_group_stops group location_groups.txt'te yok.
+        // XFL_022: location_group_stops group is absent from location_groups.txt.
         fx("XFL_022", vec![("location_group_stops.txt", "location_group_id,stop_id\nLGNOPE,S1\n")]),
-        // XFL_023: location_group_stops stop_id stops.txt'te yok.
+        // XFL_023: location_group_stops stop_id is absent from stops.txt.
         fx("XFL_023", vec![
             ("location_groups.txt", "location_group_id,location_group_name\nLG1,Group1\n"),
             ("location_group_stops.txt", "location_group_id,stop_id\nLG1,NOPE\n"),
         ]),
-        // XFL_024: stop_times.location_group_id location_groups.txt'te yok (Flex).
+        // XFL_024: stop_times.location_group_id is absent from location_groups.txt (Flex).
         fx("XFL_024", vec![("stop_times.txt", "trip_id,stop_sequence,location_group_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,NOPE,09:00:00,10:00:00\n")]),
-        // XFL_025: stop_times.location_id locations.geojson'da yok (Flex).
+        // XFL_025: stop_times.location_id is absent from locations.geojson (Flex).
         fx("XFL_025", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,NOPE,09:00:00,10:00:00\n")]),
-        // XFL_031: location_group_id ile stop_id aynı isim alanında çakışıyor.
+        // XFL_031: location_group_id and stop_id collide in the same namespace.
         fx("XFL_031", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nLG1,Cakisan,41.2,29.2\n"),
             ("location_groups.txt", "location_group_id,location_group_name\nLG1,Bolge\n"),
         ]),
-        // XFL_027: route cemv=2 ama uygulanabilir contactless fare product var (çelişki).
+        // XFL_027: route cemv=2 but a usable contactless fare product exists (contradiction).
         fx("XFL_027", vec![
             ("fare_media.txt", "fare_media_id,fare_media_type\nM3,3\n"),
             ("fare_products.txt", "fare_product_id,fare_media_id,amount,currency\nP1,M3,2.5,USD\n"),
             ("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,P1\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,2\n"),
         ]),
-        // XFL_028: agency_cemv_support=1 + Fares v2 var ama type3 media yok.
+        // XFL_028: agency_cemv_support=1 + Fares v2 exists but no type-3 media.
         fx("XFL_028", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,cemv_support\n1,Test,http://test.example,UTC,1\n"),
             ("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\n"),
         ]),
-        // XFL_029: route_cemv_support=1 + Fares v2 var ama type3 media yok.
+        // XFL_029: route_cemv_support=1 + Fares v2 exists but no type-3 media.
         fx("XFL_029", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,1\n"),
             ("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,USD\n"),
         ]),
-        // XFL_030: type3 media var ama hiçbir agency/route'da cemv=1 yok.
+        // XFL_030: type-3 media exists but no agency/route has cemv=1.
         fx("XFL_030", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM3,3\n")]),
 
         // ── NET / PDW ──────────────────────────────────────────────────────────
-        // NET_001: networks.txt network_id tekrarı (k3).
+        // NET_001: duplicate network_id in networks.txt (k3).
         fx("NET_001", vec![("networks.txt", "network_id,network_name\nN1,Net1\nN1,Net2\n")]),
-        // NET_002: route_networks.network_id networks.txt'te yok (k4).
+        // NET_002: route_networks.network_id is absent from networks.txt (k4).
         fx("NET_002", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("route_networks.txt", "network_id,route_id\nNOPE,R1\n"),
         ]),
-        // NET_003: route_networks.route_id routes.txt'te yok (k4).
+        // NET_003: route_networks.route_id is absent from routes.txt (k4).
         fx("NET_003", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("route_networks.txt", "network_id,route_id\nN1,NOPE\n"),
         ]),
-        // PDW_006: aynı trip+zone içinde örtüşen pickup/drop-off pencereleri (k6 Flex).
+        // PDW_006: overlapping pickup/drop-off windows in the same trip+zone (k6 Flex).
         fx("PDW_006", vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,1,Z1,09:00:00,10:00:00\nT1,2,Z1,09:30:00,11:00:00\n")]),
 
-        // ── CAL grubu (takvim analitiği k6 + cross-ref k4 + k2) ────────────────
-        // TODAY=20260515. CAL_006: mdb-2830 biçimindeki boşluklu all-zero row (k2),
-        // calendar_dates override'ı olsa da haftalık pattern bulgusu korunur.
+        // ── CAL group (calendar analytics k6 + cross-ref k4 + k2) ────────────────
+        // TODAY=20260515. CAL_006: whitespace-padded all-zero row in mdb-2830 format (k2);
+        // the weekly pattern finding remains even with a calendar_dates override.
         fx("CAL_006", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1, 0, 0, 0, 0, 0, 0, 0, 20250101, 20271231\n"),
             ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260520,1\n"),
         ]),
-        // CAL_007: serviste >= 7 günlük boşluk (calendar_dates, calendar yok). Boşluk GEÇMİŞTE
-        // (today=20260515 öncesi) → yakın-gelecek değil, CAL_007 üretir (yakın gelecekte CAL_012
-        // onun yerine geçer, #29).
+        // CAL_007: >=7-day service gap (calendar_dates, no calendar). The gap is IN THE PAST
+        // (before today=20260515) → produces CAL_007, not near-future CAL_012
+        // (which takes its place in the near future, #29).
         fx_rm("CAL_007", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260401,1\nSVC1,20260420,1\n")], vec!["calendar.txt"]),
-        // CAL_008: end_date 30 gün içinde bitiyor (bugün+10).
+        // CAL_008: end_date expires within 30 days (today+10).
         fx("CAL_008", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260101,20260525\n")]),
-        // CAL_009: tüm servisler sona ermiş (k4 kritik).
+        // CAL_009: all services have expired (k4 critical).
         fx("CAL_009", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20200101,20201231\n")]),
-        // CAL_010: toplam aktif gün <= 7 (1 haftalık pencere).
-        // CAL_010: kısa servis. SVC2 yayın penceresini ≥30 güne açar (mutlak eşik yolu);
-        // pencere kısa olsaydı kural ORAN testine düşer ve %100 kapsayan SVC1 susardı.
+        // CAL_010: total active days <= 7 (one-week window).
+        // CAL_010: short service. SVC2 opens the publication window to ≥30 days (absolute
+        // threshold path); with a short window the rule would use the RATIO path and SVC1,
+        // which covers 100%, would be silent.
         fx("CAL_010", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\nSVC2,1,1,1,1,1,1,1,20260101,20261231\n")]),
-        // CAL_011: hiçbir sefer kullanmıyor (SVC2 boşta).
+        // CAL_011: unused by any trip (SVC2 is idle).
         fx("CAL_011", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,0,0,20250101,20271231\n")]),
-        // CAL_012: yakın gelecekte servis boşluğu.
+        // CAL_012: service gap in the near future.
         fx_rm("CAL_012", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260516,1\nSVC1,20260603,1\n")], vec!["calendar.txt"]),
-        // CAL_013: tekil servis süresi dolmuş (k6).
+        // CAL_013: individual service has expired (k6).
         fx("CAL_013", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20190101,20201231\n")]),
-        // CAL_014: servis aktif tarihleri feed_info penceresi dışında. calendar_dates YOK:
-        // 2026-10-11'e kadar kural yalnız istisnası olan servisleri görüyordu.
+        // CAL_014: service active dates are outside the feed_info window. NO calendar_dates:
+        // until 2026-10-11, the rule only considered services with exceptions.
         fx("CAL_014", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260601,20260630\n"),
         ]),
-        // CAL_015: en erken aktif tarih gelecekte (feed-level).
+        // CAL_015: earliest active date is in the future (feed-level).
         fx("CAL_015", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270107\n")]),
-        // CAL_016: en geç aktif tarih > bugün+2yıl.
+        // CAL_016: latest active date > today+2 years.
         fx("CAL_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20300101\n")]),
-        // CAL_017: tekil servisin tüm tarihleri gelecekte.
+        // CAL_017: all dates for an individual service are in the future.
         fx("CAL_017", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270107\n")]),
-        // CAL_018: haftanın tüm günleri pasif, exception_type=1 yok (k4).
+        // CAL_018: all weekdays are inactive, with no exception_type=1 (k4).
         fx("CAL_018", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
-        // CAL_020: feed geçerlilik penceresi > 5 yıl.
+        // CAL_020: feed validity window > 5 years.
         fx("CAL_020", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20200101,20271231\n")]),
-        // CAL_021: bugünü kapsıyor ama önümüzdeki 7 günde aktif gün yok.
+        // CAL_021: covers today but has no active day in the next 7 days.
         fx_rm("CAL_021", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260101,1\nSVC1,20261231,1\n")], vec!["calendar.txt"]),
-        // CAL_023: end_date >= today_year+3 (sınır yılı dahil; ör. 2026+3=2029 eşikte).
+        // CAL_023: end_date >= today_year+3 (including the boundary year; e.g. 2026+3=2029
+        // is exactly on the threshold).
         fx("CAL_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20260101,20290101\n")]),
-        // CAL_024: servis önümüzdeki 7 günde aktif değil (service-başına).
+        // CAL_024: service is inactive in the next 7 days (per service).
         fx("CAL_024", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260401,20260630\n"), ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260515,2\nSVC1,20260516,2\nSVC1,20260517,2\nSVC1,20260518,2\nSVC1,20260519,2\nSVC1,20260520,2\nSVC1,20260521,2\n")]),
 
-        // ── FIN grubu (feed_info.txt k2 + k6) ──────────────────────────────────
-        // FIN_007: feed_version eksik.
+        // ── FIN group (feed_info.txt k2 + k6) ──────────────────────────────────
+        // FIN_007: feed_version missing.
         fx("FIN_007", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n")]),
-        // FIN_008: feed_contact_email geçersiz.
+        // FIN_008: feed_contact_email invalid.
         fx("FIN_008", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_contact_email\nPub,https://x.example,en,notanemail\n")]),
-        // FIN_009: feed_contact_url geçersiz.
+        // FIN_009: feed_contact_url invalid.
         fx("FIN_009", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_contact_url\nPub,https://x.example,en,notaurl\n")]),
-        // FIN_010: feed_end_date geçmişte (k6).
+        // FIN_010: feed_end_date in the past (k6).
         fx("FIN_010", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20190101,20200101\n")]),
         // FIN_012: feed_start_date > feed_end_date (k2).
         fx("FIN_012", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20271231,20250101\n")]),
-        // FIN_013: tek agency'de bile fare_attribute agency_id eksikse tetiklenir (k4).
+        // FIN_013: triggers when fare_attribute agency_id is missing even with one agency (k4).
         fx("FIN_013", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n"),
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
         ]),
-        // FIN_014: feed_start_date/feed_end_date eksik.
+        // FIN_014: feed_start_date/feed_end_date missing.
         fx("FIN_014", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_version\nPub,https://x.example,en,1.0\n")]),
-        // FIN_015: birden fazla feed_info kaydı.
+        // FIN_015: multiple feed_info records.
         fx("FIN_015", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\nPub2,https://y.example,en\n")]),
-        // FIN_016: feed_start_date gelecekte (k6).
+        // FIN_016: feed_start_date in the future (k6).
         fx("FIN_016", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20270101,20271231\n")]),
-        // FIN_017: feed_end_date > bugün+2yıl (k6).
+        // FIN_017: feed_end_date > today+2 years (k6).
         fx("FIN_017", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20300101\n")]),
-        // FIN_018: feed_contact_email ve feed_contact_url ikisi de yok (k6).
+        // FIN_018: both feed_contact_email and feed_contact_url are missing (k6).
         fx("FIN_018", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20261231\n")]),
-        // FIN_019: feed 7 gün içinde sona eriyor (bugün+5).
+        // FIN_019: feed expires within 7 days (today+5).
         fx("FIN_019", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20260520\n")]),
-        // FIN_020: feed geçerlilik penceresi < 7 gün.
+        // FIN_020: feed validity window < 7 days.
         fx("FIN_020", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nPub,https://x.example,en,20260101,20260103\n")]),
 
-        // ── CLD grubu (calendar_dates) ─────────────────────────────────────────
-        // CLD_004: calendar yok, trip servisinin exception_type=1 kaydı yok (k4).
+        // ── CLD group (calendar_dates) ─────────────────────────────────────────
+        // CLD_004: no calendar and no exception_type=1 record for the trip's service (k4).
         fx_rm("CLD_004", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260601,2\n")], vec!["calendar.txt"]),
-        // CLD_006: bir service_id için > 60 istisna günü (k2).
+        // CLD_006: >60 exception days for one service_id (k2).
         fx("CLD_006", vec![("calendar_dates.txt", concat!(
             "service_id,date,exception_type\n",
             "SVC1,20260101,1\nSVC1,20260102,1\nSVC1,20260103,1\nSVC1,20260104,1\nSVC1,20260105,1\nSVC1,20260106,1\nSVC1,20260107,1\nSVC1,20260108,1\nSVC1,20260109,1\nSVC1,20260110,1\n",
@@ -1411,29 +1417,29 @@ fn fixtures() -> Vec<Fixture> {
             "SVC1,20260210,1\nSVC1,20260211,1\nSVC1,20260212,1\nSVC1,20260213,1\nSVC1,20260214,1\nSVC1,20260215,1\nSVC1,20260216,1\nSVC1,20260217,1\nSVC1,20260218,1\nSVC1,20260219,1\n",
             "SVC1,20260220,1\nSVC1,20260221,1\nSVC1,20260222,1\nSVC1,20260223,1\nSVC1,20260224,1\nSVC1,20260225,1\nSVC1,20260226,1\nSVC1,20260227,1\nSVC1,20260228,1\nSVC1,20260301,1\nSVC1,20260302,1\n"
         ))]),
-        // CLD_007: aktif günlerin yarısından fazlası override (kısa servis + 4 removal).
+        // CLD_007: more than half of active days are overridden (short service + 4 removals).
         fx("CLD_007", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20260518,20260524\n"),
             ("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260518,2\nSVC1,20260519,2\nSVC1,20260520,2\nSVC1,20260521,2\n"),
         ]),
 
-        // ── FAR grubu (fares v1) ───────────────────────────────────────────────
-        // FAR_001: fare_id tekrarı (k3).
+        // ── FAR group (fares v1) ───────────────────────────────────────────────
+        // FAR_001: duplicate fare_id (k3).
         fx("FAR_001", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\nF1,2.5,USD,0\n")]),
-        // FAR_008: fare_attribute agency_id agency.txt'te yok (k4).
+        // FAR_008: fare_attribute agency_id is absent from agency.txt (k4).
         fx("FAR_008", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,agency_id\nF1,2.5,USD,0,NOPE\n")]),
-        // FAR_010: aynı (route,origin,destination,contains) için birden fazla fare_id (k4).
+        // FAR_010: multiple fare_id values for the same (route,origin,destination,contains) (k4).
         fx("FAR_010", vec![("fare_rules.txt", "fare_id,route_id\nF1,R1\nF2,R1\n")]),
 
-        // ── AGN / ATR (kalan) ──────────────────────────────────────────────────
-        // AGN_010: agency_id tekrarı (k3).
+        // ── AGN / ATR (remaining) ──────────────────────────────────────────────
+        // AGN_010: duplicate agency_id (k3).
         fx("AGN_010", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n1,B,https://b.example,UTC\n")]),
-        // AGN_013: feed_lang ile agency_lang uyuşmuyor (k4 check_agencies).
+        // AGN_013: feed_lang does not match agency_lang (k4 check_agencies).
         fx("AGN_013", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Test,http://test.example,UTC,fr\n"),
         ]),
-        // ATR_009: agency_id/route_id/trip_id'den birden fazlası dolu (k4).
+        // ATR_009: more than one of agency_id/route_id/trip_id is populated (k4).
         fx("ATR_009", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id,route_id\nA1,Org,1,1,R1\n")]),
         // ATR_010: attribution agency_id agency.txt'te yok (k4).
         fx("ATR_010", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id\nA1,Org,1,NOPE\n")]),
@@ -1442,24 +1448,24 @@ fn fixtures() -> Vec<Fixture> {
         // ATR_012: attribution trip_id trips.txt'te yok (k4).
         fx("ATR_012", vec![("attributions.txt", "attribution_id,organization_name,is_producer,trip_id\nA1,Org,1,NOPE\n")]),
 
-        // ── LVL grubu (levels.txt) ─────────────────────────────────────────────
-        // LVL_001: level_id tekrarı (k3).
+        // ── LVL group (levels.txt) ─────────────────────────────────────────────
+        // LVL_001: duplicate level_id (k3).
         fx("LVL_001", vec![("levels.txt", "level_id,level_index\nL1,0\nL1,1\n")]),
-        // LVL_002: level_index sayısal değil (k2).
+        // LVL_002: level_index is not numeric (k2).
         fx("LVL_002", vec![("levels.txt", "level_id,level_index\nL1,abc\n")]),
         // LVL_003: level_name eksik (k2).
         fx("LVL_003", vec![("levels.txt", "level_id,level_index\nL1,0\n")]),
-        // LVL_004: level hiçbir durak tarafından kullanılmıyor (k4).
+        // LVL_004: level is unused by any stop (k4).
         fx("LVL_004", vec![("levels.txt", "level_id,level_index,level_name\nL1,0,Ground\n")]),
         // LVL_005: level_name > 255 karakter (k2).
         fx("LVL_005", vec![("levels.txt", concat!("level_id,level_index,level_name\nL1,0,",
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"))]),
-        // LVL_006: asansör (pathway_mode=5) uç durağında level_id yok (k4).
+        // LVL_006: endpoint stop of an elevator (pathway_mode=5) has no level_id (k4).
         fx("LVL_006", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,5,0\n")]),
 
         // ── FLG grubu (fare_leg_rules cross-ref k4) ────────────────────────────
         fx("FLG_001", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,NOPE\n")]),
-        // FLG_008: fare_product_id BOŞ — FLG_001'in FK kontrolü !is_empty() ile korunur (#153).
+        // FLG_008: fare_product_id EMPTY — FLG_001's FK check is guarded by !is_empty() (#153).
         fx("FLG_008", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,\n")]),
         fx("FLG_002", vec![("fare_leg_rules.txt", "leg_group_id,network_id\nLG1,NOPE\n")]),
         fx("FLG_003", vec![("fare_leg_rules.txt", "leg_group_id,from_area_id\nLG1,NOPE\n")]),
@@ -1468,12 +1474,13 @@ fn fixtures() -> Vec<Fixture> {
         fx("FLG_006", vec![("fare_leg_rules.txt", "leg_group_id,to_timeframe_group_id\nLG1,NOPE\n")]),
 
         // ── FPD grubu (fare_products) ──────────────────────────────────────────
-        // FPD_001: bileşik PK tekrarı (k3), aynı fare_product_id + rider_category_id + fare_media_id.
+        // FPD_001: duplicate composite PK (k3), same fare_product_id + rider_category_id +
+        // fare_media_id.
         fx("FPD_001", vec![
             ("fare_media.txt", "fare_media_id,fare_media_name,fare_media_type\ncash,Cash,0\n"),
             ("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,cash\nP1,2.5,USD,cash\n"),
         ]),
-        // FPD_003: currency geçersiz (k2).
+        // FPD_003: invalid currency (k2).
         fx("FPD_003", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,usd\n")]),
         // FPD_004: fare_media_id fare_media.txt'te yok (k4).
         fx("FPD_004", vec![("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,MNOPE\n")]),
@@ -1490,9 +1497,9 @@ fn fixtures() -> Vec<Fixture> {
         fx("FTR_011", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type,duration_limit\nLG1,0,3600\n")]),
 
         // ── RCT / SAR / TFR / FMD / GGL ────────────────────────────────────────
-        // RCT_001: rider_category_id tekrarı (k3).
+        // RCT_001: duplicate rider_category_id (k3).
         fx("RCT_001", vec![("rider_categories.txt", "rider_category_id,rider_category_name\nRC1,A\nRC1,B\n")]),
-        // RCT_006: fare_product başına birden fazla varsayılan rider_category (k4).
+        // RCT_006: multiple default rider_categories per fare_product (k4).
         fx("RCT_006", vec![
             ("rider_categories.txt", "rider_category_id,rider_category_name,is_default_fare_category\nRC1,Adult,1\nRC2,Senior,1\n"),
             ("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RC1\nP1,3.5,USD,RC2\n"),
@@ -1506,30 +1513,30 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // TFR_002: timeframes service_id calendar'da yok (k4).
         fx("TFR_002", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,10:00:00,SVCX\n")]),
-        // FMD_001: fare_media_id tekrarı (k3).
+        // FMD_001: duplicate fare_media_id (k3).
         fx("FMD_001", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\nM1,2\n")]),
         // GGL_001: transfer_type=4/5 (in-seat) Google desteklemiyor (k2).
         fx("GGL_001", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\n")]),
-        // GGL_002: fare_attributes.txt içindeki Google ic_price uzantısı geçersiz (-5) (k2).
+        // GGL_002: invalid Google ic_price extension (-5) in fare_attributes.txt (k2).
         fx("GGL_002", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,ic_price\nF1,2.5,JPY,0,-5\n")]),
 
         // ── FRQ grubu (kalan) ──────────────────────────────────────────────────
         // FRQ_006: headway > 240dk (k6).
         fx("FRQ_006", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,20000\n")]),
-        // FRQ_010: headway <= sıkışma eşiği (k6).
+        // FRQ_010: headway <= bunching threshold (k6).
         fx("FRQ_010", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,60\n")]),
-        // FRQ_011: aynı trip'in frequencies dönemleri çakışıyor (k2).
+        // FRQ_011: frequencies periods for the same trip overlap (k2).
         fx("FRQ_011", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,600\nT1,09:00:00,11:00:00,600\n")]),
         fx("FRQ_012", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs,exact_times\nT1,05:00:00,06:00:00,3600,1\n"), ("trips.txt","route_id,service_id,trip_id\nR1,SVC,T1\n")]),
 
-        // ── RTS grubu (kalan: k2 alan + k3 dup + k4 FK + k6) ───────────────────
-        // RTS_001: route_id tekrarı (k3).
+        // ── RTS group (remaining: k2 field + k3 dup + k4 FK + k6) ──────────────
+        // RTS_001: duplicate route_id (k3).
         fx("RTS_001", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR1,1,102,3\n")]),
-        // RTS_002: agency_id agency.txt'te yok (k4 per-route).
+        // RTS_002: agency_id is absent from agency.txt (k4 per-route).
         fx("RTS_002", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,NOPE,101,3\n")]),
-        // RTS_007: route_text_color geçersiz hex (k2).
+        // RTS_007: invalid route_text_color hex (k2).
         fx("RTS_007", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_text_color\nR1,1,101,3,ZZZ\n")]),
-        // RTS_008: route_text_color/route_color düşük kontrast (k2).
+        // RTS_008: low route_text_color/route_color contrast (k2).
         fx("RTS_008", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_color,route_text_color\nR1,1,101,3,FFFFFF,FEFEFE\n")]),
         // RTS_010: route_short_name > 12 karakter (k2).
         fx("RTS_010", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,ABCDEFGHIJKLM,3\n")]),
@@ -1537,51 +1544,53 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_011", vec![("routes.txt", concat!("route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,101,",
             "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna",
             ",3\n"))]),
-        // RTS_012: hiçbir trip'te kullanılmayan rota (k4 orphan).
+        // RTS_012: route unused by any trip (k4 orphan).
         fx("RTS_012", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n")]),
-        // RTS_016: hattın hiçbir seferinde aktif takvim günü yok (k6).
+        // RTS_016: no trip on the route has an active calendar day (k6).
         fx("RTS_016", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
         // RTS_019: yinelenen route_short_name (k2).
         fx("RTS_019", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,101,3\n")]),
-        // RTS_020: route_url acente URL'siyle aynı (k6).
+        // RTS_020: route_url matches the agency URL (k6).
         fx("RTS_020", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://test.example\n")]),
-        // RTS_021: route_short_name > 6 karakter (Google eşiği) (k2).
+        // RTS_021: route_short_name > 6 characters (Google threshold) (k2).
         fx("RTS_021", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,ABCDEFG,3\n")]),
-        // RTS_022: route_long_name route_short_name'i içeriyor (k6).
+        // RTS_022: route_long_name contains route_short_name (k6).
         fx("RTS_022", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,5A,5A Line,3\n")]),
         // RTS_023: route_long_name == route_desc (k2).
         fx("RTS_023", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_desc,route_type\nR1,1,101,Main Line,Main Line,3\n")]),
         // RTS_024: cemv_support > 2 (k2).
         fx("RTS_024", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,cemv_support\nR1,1,101,3,5\n")]),
-        // RTS_025: tek agency'de route agency_id boş (k6 best-practice).
+        // RTS_025: route agency_id empty with one agency (k6 best practice).
         fx("RTS_025", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\nA1,Test Agency,https://test.example,Europe/Istanbul\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
         ]),
-        // RTS_031: route_id BOŞ — RTS_001 yinelenmeyi ölçer, olmayan kimlik yinelenemez (#153).
+        // RTS_031: route_id EMPTY — RTS_001 measures duplicates; a missing ID cannot duplicate
+        // (#153).
         fx("RTS_031", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\n,1,101,3\n")]),
 
-        // ── TRP grubu (kalan: k2 + k4 FK + k6) ─────────────────────────────────
+        // ── TRP group (remaining: k2 + k4 FK + k6) ─────────────────────────────
         // TRP_002: route_id routes.txt'te yok (k4).
         fx("TRP_002", vec![("trips.txt", "route_id,service_id,trip_id\nRNOPE,SVC1,T1\n")]),
         // TRP_003: service_id calendar'da yok (k4).
         fx("TRP_003", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
         // TRP_004: shape_id shapes.txt'te yok (k4).
         fx("TRP_004", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SHNOPE\n")]),
-        // TRP_011: trip_headsign + trip_short_name yok VE route da adsız (route-telafi guard #29).
-        // (Base route_short_name=101 → guard eler; route adsız feed gerekiyor.)
+        // TRP_011: no trip_headsign + trip_short_name AND route is also unnamed
+        // (route-compensation guard #29).
+        // (Base route_short_name=101 → guard filters it; an unnamed route is required.)
         fx("TRP_011", vec![("routes.txt", "route_id,agency_id,route_type\nR1,1,3\n")]),
-        // TRP_012: çift yönlü hatta bazı seferlerde direction_id yok (k6).
+        // TRP_012: direction_id missing from some trips on a bidirectional route (k6).
         fx("TRP_012", vec![("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,0\nR1,SVC1,T2,1\nR1,SVC1,T3,\n")]),
-        // TRP_013: route başına tek sefer — base tetikler (k6).
+        // TRP_013: one trip per route — base triggers it (k6).
         fx("TRP_013", vec![]),
         // TRP_014: trip_short_name > 20 karakter (k2).
         fx("TRP_014", vec![("trips.txt", "route_id,service_id,trip_id,trip_short_name\nR1,SVC1,T1,ABCDEFGHIJKLMNOPQRSTU\n")]),
-        // TRP_015: block_id hiçbir seferi gruplamıyor (k6, FEED başına tek bulgu).
-        // Tek sefer + tek block → gruplama yok. (Tek seferlik blok spec'e göre GEÇERLİ;
-        // bulgu onun için değil, alanın hiç gruplamamasi için.)
+        // TRP_015: block_id groups no trips (k6, one finding per FEED).
+        // One trip + one block → no grouping. (A single-trip block is VALID under the spec;
+        // the finding is for the field not grouping anything.)
         fx("TRP_015", vec![("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\n")]),
-        // TRP_017: frekans tabanlı sefer stop_times'ta yok (k4).
+        // TRP_017: frequency-based trip is absent from stop_times (k4).
         fx("TRP_017", vec![
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT2,08:00:00,10:00:00,600\n"),
@@ -1589,173 +1598,175 @@ fn fixtures() -> Vec<Fixture> {
         // TRP_019: continuous pickup/drop-off aktif ama shape_id yok (k4).
         fx("TRP_019", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,0\n")]),
         fx("STM_053", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\nT1,08:00:00,08:00:00,S1,3\n")]),
-        // TRP_020: trip_headsign terminal değil ara durak adıyla eşleşiyor (k6).
+        // TRP_020: trip_headsign matches an intermediate, not terminal, stop name (k6).
         fx("TRP_020", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n"),
             ("trips.txt", "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,Stop2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\n"),
         ]),
-        // TRP_021: bikes_allowed hiç belirtilmemiş — base tetikler (k2).
+        // TRP_021: bikes_allowed is never specified — base triggers it (k2).
         fx("TRP_021", vec![]),
-        // TRP_022: block içinde çakışan sefer saatleri (k6).
+        // TRP_022: overlapping trip times within a block (k6).
         fx("TRP_022", vec![
             ("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\nR1,SVC1,T2,B1\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,09:00:00,09:00:00,S2,2\nT2,08:30:00,08:30:00,S1,1\nT2,09:30:00,09:30:00,S2,2\n"),
         ]),
-        // TRP_023: önümüzdeki 7 günde aktif sefer yok (feed-level k6).
+        // TRP_023: no active trip in the next 7 days (feed-level k6).
         fx("TRP_023", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,1,1,20270101,20270131\n")]),
-        // TRP_024: block içinde tutarsız route_type (k6).
+        // TRP_024: inconsistent route_type within a block (k6).
         fx("TRP_024", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,0\n"),
             ("trips.txt", "route_id,service_id,trip_id,block_id\nR1,SVC1,T1,B1\nR2,SVC1,T2,B1\n"),
         ]),
-        // TRP_025: wheelchair_accessible bilinmeyen oran %80–99. Base feed'in tek seferi
-        // %100 verirdi, o ise TRP_029'un kapsamı — burada 6 seferin 1'i bildirilmiş (%83).
+        // TRP_025: wheelchair_accessible unknown ratio 80–99%. The base feed's one trip would
+        // give 100%, which belongs to TRP_029 — here 1 of 6 trips is specified (83%).
         fx("TRP_025", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\n\
               R1,SVC1,T1,1\nR1,SVC1,T2,\nR1,SVC1,T3,\nR1,SVC1,T4,\nR1,SVC1,T5,\nR1,SVC1,T6,\n")]),
-        // TRP_026: servisin hiç aktif tarihi yok (k6).
+        // TRP_026: service has no active dates (k6).
         fx("TRP_026", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,0,0,0,0,0,0,0,20250101,20271231\n")]),
-        // TRP_028: bazı seferlerde wheelchair_accessible eksik (k6).
+        // TRP_028: wheelchair_accessible missing from some trips (k6).
         fx("TRP_028", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,1\nR1,SVC1,T2,\n")]),
-        // TRP_029: hiçbir seferde wheelchair_accessible yok — base tetikler (k6).
+        // TRP_029: no trip has wheelchair_accessible — base triggers it (k6).
         fx("TRP_029", vec![]),
 
-        // ── TRN grubu (kalan: k4 + k2) ─────────────────────────────────────────
-        // TRN_004: record_id başvurulan tabloda yok (k4).
+        // ── TRN group (remaining: k4 + k2) ─────────────────────────────────────
+        // TRN_004: record_id is absent from the referenced table (k4).
         fx("TRN_004", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,X,NOPE\n")]),
-        // TRN_005: aynı anahtar + aynı çeviri birden çok satırda (k4).
+        // TRN_005: same key + same translation on multiple rows (k4).
         fx("TRN_005", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,X,S1\nstops,stop_name,fr,X,S1\n")]),
-        // TRN_006: aynı anahtar + farklı çeviri (çelişki) (k4).
+        // TRN_006: same key + different translation (conflict) (k4).
         fx("TRN_006", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,X,S1\nstops,stop_name,fr,Y,S1\n")]),
-        // TRN_007: çeviri dili feed_lang ile aynı (>1 satır → feed-level) (k4).
+        // TRN_007: translation language matches feed_lang (>1 row → feed-level) (k4).
         fx("TRN_007", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,en,X,S1\nstops,stop_name,en,Y,S2\n"),
         ]),
-        // TRN_008: translation değeri boş (k2).
+        // TRN_008: translation value is empty (k2).
         fx("TRN_008", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,,S1\n")]),
-        // TRN_010: stop_times çevirisindeki record_sub_id ilgili trip'in stop_sequence'i değil (k4).
+        // TRN_010: record_sub_id in a stop_times translation is not the trip's stop_sequence (k4).
         fx("TRN_010", vec![
             ("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n"),
             ("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstop_times,stop_headsign,fr,X,T1,99\n"),
         ]),
-        // TRN_013: feed_info çevirisi record_id/sub_id/field_value kullanıyor (k2).
+        // TRN_013: feed_info translation uses record_id/sub_id/field_value (k2).
         fx("TRN_013", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nfeed_info,feed_publisher_name,fr,X,FI\n")]),
-        // TRN_014: stop_times dışı tabloda record_sub_id (k2).
+        // TRN_014: record_sub_id in a table other than stop_times (k2).
         fx("TRN_014", vec![("translations.txt", "table_name,field_name,language,translation,record_id,record_sub_id\nstops,stop_name,fr,X,S1,2\n")]),
-        // TRN_015: record_id ve field_value ikisi de boş — "Required if record_id is empty".
+        // TRN_015: both record_id and field_value are empty — "Required if record_id is empty".
         fx("TRN_015", vec![("translations.txt", "table_name,field_name,language,translation\nstops,stop_name,fr,X\n")]),
         fx("TRN_016", vec![("stops.txt","stop_id,stop_name,stop_lat,stop_lon\nS1,Merkez,41.0,29.0\n"), ("translations.txt","table_name,field_name,language,translation,field_value\nstops,stop_name,en,Centre,Yokistan\n")]),
         fx("TRN_017", vec![("stop_times.txt","trip_id,stop_id,stop_sequence,arrival_time,departure_time\nT1,S1,1,08:00:00,08:00:00\n"), ("translations.txt","table_name,field_name,language,translation,record_id\nstop_times,stop_headsign,en,Centre,T1\n")]),
 
-        // ── STP grubu (kalan: k2 + k3 dup + k4 FK + k6) ────────────────────────
-        // STP_001: stop_id tekrarı (k3).
+        // ── STP group (remaining: k2 + k3 dup + k4 FK + k6) ────────────────────
+        // STP_001: duplicate stop_id (k3).
         fx("STP_001", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS1,B,41.1,29.1\n")]),
         // STP_009: parent_station stops.txt'te yok (k4).
         fx("STP_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,parent_station\nS1,Stop1,41.0,29.0,\nS2,Stop2,41.1,29.1,NOPE\n")]),
-        // STP_010: parent_station location_type=1 değil (k4).
+        // STP_010: parent_station is not location_type=1 (k4).
         fx("STP_010", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,S1\n")]),
-        // STP_011: location_type 2/3/4 için parent_station yok (k4).
+        // STP_011: no parent_station for location_type 2/3/4 (k4).
         fx("STP_011", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,2\nS2,Stop2,41.1,29.1,0\n")]),
-        // STP_012: stop_times'ta kullanılan durak location_type != 0 (k4).
+        // STP_012: stop used in stop_times has location_type != 0 (k4).
         fx("STP_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n")]),
         // STP_015: level_id levels.txt'te yok (k4).
         fx("STP_015", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,level_id\nS1,Stop1,41.0,29.0,NOPE\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_017: iki durak çok yakın (< 5m, > 0) (k6).
+        // STP_017: two stops are very close (< 5 m, > 0) (k6).
         fx("STP_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.00002,40.0\n")]),
         // STP_019: stop_name > 100 karakter (k2).
         fx("STP_019", vec![("stops.txt", concat!("stop_id,stop_name,stop_lat,stop_lon\nS1,",
             "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
             ",41.0,29.0\nS2,Stop2,41.1,29.1\n"))]),
-        // STP_020: stop_times'ta kullanılmayan fiziksel durak (k6).
+        // STP_020: physical stop unused in stop_times (k6).
         fx("STP_020", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n")]),
-        // STP_021: boarding area (loc=4) parent'ı platform (loc=0) değil — BA1 parent'ı istasyon (loc=1) (k4).
+        // STP_021: boarding area (loc=4) parent is not a platform (loc=0) — BA1 parent is a
+        // station (loc=1) (k4).
         fx("STP_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nBA1,BoardArea,41.0,29.0,4,ST1\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\n")]),
-        // STP_023: tts_stop_name '<'/'>' içeriyor (k2).
+        // STP_023: tts_stop_name contains '<'/'>' (k2).
         fx("STP_023", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,tts_stop_name\nS1,Stop1,41.0,29.0,<b>X\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_024: stop_access geçersiz enum (k2).
+        // STP_024: invalid stop_access enum (k2).
         fx("STP_024", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,5\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_026: stop_access ham geçersiz enum (k4).
+        // STP_026: invalid raw stop_access enum (k4).
         fx("STP_026", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_access\nS1,Stop1,41.0,29.0,2\nS2,Stop2,41.1,29.1,9\n")]),
         // STP_028: stop_code > 50 karakter (k2).
         fx("STP_028", vec![("stops.txt", "stop_id,stop_code,stop_name,stop_lat,stop_lon\nS1,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,Stop1,41.0,29.0\nS2,C2,Stop2,41.1,29.1\n")]),
-        // STP_029: durak parent_station'dan çok uzak (> 150m) (k6).
+        // STP_029: stop is far from parent_station (> 150 m) (k6).
         fx("STP_029", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station,41.0,29.0,1,\nS1,Stop1,41.5,29.5,0,ST1\nS2,Stop2,41.1,29.1,0,\n")]),
-        // STP_030: çocuğu olmayan üst istasyon (loc=1) (k6).
+        // STP_030: parent station with no children (loc=1) (k6).
         fx("STP_030", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,0\nS2,Stop2,41.1,29.1,0\nST1,Station,41.2,29.2,1\n")]),
         // STP_031: stop_name == stop_desc (k2).
         fx("STP_031", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_desc\nS1,Stop1,41.0,29.0,Stop1\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_032: pathway bağlı platform için parent_station yok (k4).
+        // STP_032: no parent_station for the platform connected by the pathway (k4).
         fx("STP_032", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,3,0\n")]),
-        // STP_034: stop_url acente URL'siyle aynı (k6).
+        // STP_034: stop_url matches the agency URL (k6).
         fx("STP_034", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,http://test.example\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_042: stop_url URL biçiminde değil.
+        // STP_042: stop_url is not a URL.
         fx("STP_042", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,notaurl\n")]),
-        // STP_043: stop_access, parent_station'ı olmayan bir durakta kullanılmış (spec: yasak).
+        // STP_043: stop_access used on a stop without parent_station (spec: forbidden).
         fx("STP_043", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\nS1,Stop1,41.0,29.0,0,,1\nS2,Stop2,41.1,29.1,,,\n")]),
         fx("STP_044", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,platform_code\nS1,Stop1,41.0,29.0,Gleis 5\n")]),
-        // STP_035: stop_url hat URL'siyle aynı (k6).
+        // STP_035: stop_url matches the route URL (k6).
         fx("STP_035", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,http://r1.example\n"),
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_url\nS1,Stop1,41.0,29.0,http://r1.example\nS2,Stop2,41.1,29.1,\n"),
         ]),
-        // STP_036: istasyon (loc=1) parent_station içeriyor (k4).
+        // STP_036: station (loc=1) contains parent_station (k4).
         fx("STP_036", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Station1,41.0,29.0,1,ST2\nST2,Station2,41.2,29.2,1,\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\n")]),
-        // STP_037: bazı fiziksel duraklarda wheelchair_boarding eksik (k6).
+        // STP_037: wheelchair_boarding missing from some physical stops (k6).
         fx("STP_037", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,wheelchair_boarding\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,\n")]),
-        // STP_022: stop_code eksik — base tetikler (k2).
+        // STP_022: stop_code missing — base triggers it (k2).
         fx("STP_022", vec![]),
-        // STP_033: zone_id eksik — yalnız bölge kullanan fare_rules varken anlamlı (k2 + lib).
+        // STP_033: zone_id missing — meaningful when fare_rules use zones (k2 + lib).
         fx("STP_033", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,2.5,USD,0,0\n"),
             ("fare_rules.txt", "fare_id,route_id,origin_id,destination_id\nF1,R1,A,B\n"),
         ]),
-        // STP_038: hiçbir durakta wheelchair_boarding yok — base tetikler (k6).
+        // STP_038: no stop has wheelchair_boarding — base triggers it (k6).
         fx("STP_038", vec![]),
         fx("STP_039", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_code\nS1,Stop1,41.0,29.0,100\nS2,Stop2,41.1,29.1,100\n")]),
 
-        // ── SHP grubu (kalan: k5 geometri + k4 + k6). SHP_026 (>5000 nokta) inline
-        //    yazılamaz → debt'te bırakıldı. ─────────────────────────────────────
-        // SHP_006: kullanılan tek noktalı shape (k5); kullanılmayan tek nokta SHP_018 kapsamındadır.
+        // ── SHP group (remaining: k5 geometry + k4 + k6). SHP_026 (>5000 points) cannot
+        //    be written inline → left in debt. ──────────────────────────────────
+        // SHP_006: one-point shape in use (k5); unused one-point shapes are covered by SHP_018.
         fx("SHP_006", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\n"),
         ]),
-        // SHP_009: kendisiyle kesişen shape — seg(2→3) ile seg(4→5) kesişir (k6).
-        // (4 nokta yetmez: tek karşılaştırma (0,n-2) "bitişik uç" guard'ıyla atlanır.)
+        // SHP_009: self-intersecting shape — seg(2→3) intersects seg(4→5) (k6).
+        // (Four points are insufficient: the only comparison (0,n-2) is skipped by the
+        // "adjacent endpoint" guard.)
         fx("SHP_009", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.1,40.1,3\nSH1,40.05,40.15,4\nSH1,40.05,40.05,5\n")]),
-        // SHP_010: ardışık özdeş koordinat (k5).
+        // SHP_010: consecutive identical coordinates (k5).
         fx("SHP_010", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.0,2\nSH1,40.1,40.1,3\n")]),
-        // SHP_012: shape duraklardan > eşik uzakta (k6).
+        // SHP_012: shape is farther from stops than the threshold (k6).
         fx("SHP_012", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.05,40.05\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.05,2\nSH1,40.0,40.1,3\n"),
         ]),
-        // SHP_014: shape başlangıç noktası ilk duraktan > 100m uzak (k6).
+        // SHP_014: shape start point is > 100 m from the first stop (k6).
         fx("SHP_014", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,41.0\nS2,Stop2,40.0,40.1\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\n"),
         ]),
-        // SHP_015: düşük nokta yoğunluğu (3 nokta / ~66km) (k6).
+        // SHP_015: low point density (3 points / ~66 km) (k6).
         fx("SHP_015", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.3,2\nSH1,40.0,40.6,3\n")]),
-        // SHP_016: ters yönde çizilmiş shape (k6).
+        // SHP_016: shape drawn in the reverse direction (k6).
         fx("SHP_016", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.5\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.5,1\nSH1,40.0,40.25,2\nSH1,40.0,40.0,3\n"),
         ]),
-        // SHP_017: durak sırası shape projeksiyonuyla çelişiyor (azalan sdt) (k6).
+        // SHP_017: stop order conflicts with shape projection (decreasing sdt) (k6).
         fx("SHP_017", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.1\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.1,2\nSH1,40.0,40.2,3\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,1000\nT1,08:10:00,08:10:00,S2,2,500\n"),
         ]),
-        // SHP_018: hiçbir sefer tarafından referans edilmeyen shape (k5).
+        // SHP_018: shape referenced by no trip (k5).
         fx("SHP_018", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.001,40.001,2\nSH1,40.002,40.002,3\n")]),
-        // SHP_019: shape referans alan tüm seferlerin stop_times'ı yok (k4).
+        // SHP_019: all trips referencing the shape have no stop_times (k4).
         fx_rm("SHP_019",
             vec![
                 ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
@@ -1763,18 +1774,18 @@ fn fixtures() -> Vec<Fixture> {
                 ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"),
             ],
             vec![]),
-        // SHP_020: ardışık olmayan tekrarlayan nokta (k6).
+        // SHP_020: non-consecutive repeated point (k6).
         fx("SHP_020", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.1,40.1,2\nSH1,40.0,40.0,3\n")]),
-        // SHP_022: durak shape'in 2 ayrı bölümüne yakın (loop, sdt yok) (k6).
-        // #52: kural artık geçerli stop_sequence'lı trip'i atlar (sıra belirsizliği çözer);
-        // fixture DUPLICATE stop_sequence kullanır → sıra kullanılamaz → SHP_022 emit eder.
+        // SHP_022: stop is near 2 separate sections of the shape (loop, no sdt) (k6).
+        // #52: rule now skips trips with valid stop_sequence (resolves order ambiguity);
+        // fixture uses DUPLICATE stop_sequence → order is unusable → emits SHP_022.
         fx("SHP_022", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.1,40.1\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,40.0,40.0,1\nSH1,40.0,40.2,2\nSH1,40.2,40.2,3\nSH1,40.2,40.0,4\nSH1,40.0,40.0,5\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,1\n"),
         ]),
-        // SHP_023: aynı dist_traveled + aynı koordinat (k6).
+        // SHP_023: same dist_traveled + same coordinates (k6).
         fx("SHP_023", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.0,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
         // SHP_024: durak shape_dist_traveled konumundan uzak (k6).
         fx("SHP_024", vec![
@@ -1783,37 +1794,38 @@ fn fixtures() -> Vec<Fixture> {
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,0\nSH1,40.0,40.1,2,1000\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S2,1,0\nT1,08:10:00,08:10:00,S1,2,500\n"),
         ]),
-        // SHP_025: trip shape_dist_traveled şeklin maksimumunu aşıyor (k6).
+        // SHP_025: trip shape_dist_traveled exceeds the shape maximum (k6).
         fx("SHP_025", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,0\nSH1,40.0,40.1,2,100\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,200\n"),
         ]),
-        // SHP_028: aynı dist farklı koordinat (eşik üstü ~0.1°) (k6).
+        // SHP_028: same distance, different coordinates (above threshold ~0.1°) (k6).
         fx("SHP_028", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.1,40.0,2,5\nSH1,40.2,40.2,3,10\n")]),
-        // SHP_029: aynı dist farklı koordinat (eşik altı ~1e-6°) (k6).
+        // SHP_029: same distance, different coordinates (below threshold ~1e-6°) (k6).
         fx("SHP_029", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.000001,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
-        // SHP_030: stop_times shape_dist_traveled kullanıyor, ancak shape noktalarının
-        // yalnızca birinde karşılık gelen shapes.txt mesafesi var (k6, shape özeti).
+        // SHP_030: stop_times uses shape_dist_traveled, but only one shape point has a
+        // corresponding shapes.txt distance (k6, shape summary).
         fx("SHP_030", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,1\n"),
         ]),
 
-        // ── STM grubu (kalan: k4 + k6 + k2). STM_043 (>200 durak) ve STM_044
-        //    (>2M satır) inline yazılamaz → debt'te bırakıldı. ──────────────────
+        // ── STM group (remaining: k4 + k6 + k2). STM_043 (>200 stops) and STM_044
+        //    (>2M rows) cannot be written inline → left in debt. ─────────────────
         // STM_001: stop_times trip_id trips.txt'te yok (k4).
         fx("STM_001", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nTGHOST,08:00:00,08:00:00,S1,1\n")]),
         // STM_002: stop_times stop_id stops.txt'te yok (k4).
         fx("STM_002", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,SNOPE,2\n")]),
-        // STM_007: aynı durakta kalkış < varış (k6).
+        // STM_007: departure < arrival at the same stop (k6).
         fx("STM_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:10:00,08:00:00,S1,1\nT1,08:20:00,08:20:00,S2,2\n")]),
-        // STM_008: duraklar arası zaman geriye gidiyor (k6).
+        // STM_008: time moves backward between stops (k6).
         fx("STM_008", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,09:00:00,09:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n")]),
-        // STM_012: sıfır geçiş süresi ama mesafe >= 1km (base duraklar ~14km) (k6).
+        // STM_012: zero travel time but distance >= 1 km (base stops ~14 km apart) (k6).
         fx("STM_012", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\n")]),
-        // STM_014: hız eşiği aşımı (~208 km/h: bus eşik 120 < hız < 700 imkânsız sınırı) (k6).
+        // STM_014: speed threshold exceeded (~208 km/h: bus threshold 120 < speed < 700
+        // impossible limit) (k6).
         fx("STM_014", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:04:00,08:04:00,S2,2\n")]),
         // STM_015: ilk durakta departure_time yok (k6).
         fx("STM_015", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
@@ -1824,58 +1836,58 @@ fn fixtures() -> Vec<Fixture> {
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.05,29.05,2\nSH1,41.1,29.1,3\n"),
         ]),
-        // STM_020: sıfır geçiş süreli segment, mesafe 0.2-1km, saniye dolu (k6).
+        // STM_020: zero-travel-time segment, distance 0.2-1 km, seconds present (k6).
         fx("STM_020", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.005,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:30,08:00:30,S1,1\nT1,08:00:30,08:00:30,S2,2\n"),
         ]),
-        // STM_021: farklı durak aynı koordinatta (k6).
+        // STM_021: different stops at the same coordinates (k6).
         fx("STM_021", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n"),
         ]),
-        // STM_024: shape_dist_traveled birim uyumsuzluğu (oran 10×) (k4).
+        // STM_024: shape_dist_traveled unit mismatch (10× ratio) (k4).
         fx("STM_024", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,100\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,1000\n"),
         ]),
-        // STM_025: segment seyahat süresi < 10s (k6).
+        // STM_025: segment travel time < 10 s (k6).
         fx("STM_025", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.001,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:05,08:00:05,S2,2\n"),
         ]),
-        // STM_026: durak arası mesafe > 50km (k6).
+        // STM_026: distance between stops > 50 km (k6).
         fx("STM_026", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,41.0,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,10:00:00,10:00:00,S2,2\n"),
         ]),
-        // STM_028: trip süresi > 24 saat (k6).
+        // STM_028: trip duration > 24 hours (k6).
         fx("STM_028", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,33:00:00,33:00:00,S2,2\n")]),
-        // STM_029: trip süresi < 60s (k6).
+        // STM_029: trip duration < 60 s (k6).
         fx("STM_029", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.0005,40.0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:30,08:00:30,S2,2\n"),
         ]),
-        // STM_032: (trip_id, stop_sequence) tekrarı (k2).
+        // STM_032: duplicate (trip_id, stop_sequence) (k2).
         fx("STM_032", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,1\n")]),
-        // STM_056: ardışık shape_dist_traveled artmıyor (ikinci değer birinciye eşit).
+        // STM_056: consecutive shape_dist_traveled values do not increase (second equals first).
         fx("STM_056", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\nT1,08:00:00,08:00:00,S1,1,100.0\nT1,08:10:00,08:10:00,S2,2,100.0\n")]),
-        // STM_033: tek duraklı sefer (k4).
+        // STM_033: one-stop trip (k4).
         fx("STM_033", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n")]),
-        // STM_035: aynı durak ardışık iki kez (k6).
+        // STM_035: same stop twice consecutively (k6).
         fx("STM_035", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S1,2\n")]),
-        // STM_036: stop_sequence azalan sırada (k6, k2 tespit).
+        // STM_036: stop_sequence in descending order (k6, detected by k2).
         fx("STM_036", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,2\nT1,08:10:00,08:10:00,S2,1\n")]),
-        // STM_042: stop_headsign yasaklı karakter içeriyor (k2).
+        // STM_042: stop_headsign contains a forbidden character (k2).
         fx("STM_042", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\nT1,08:00:00,08:00:00,S1,1,Bad!Sign\nT1,08:10:00,08:10:00,S2,2,\n")]),
-        // STM_045: kalkış saati servis-günü penceresini aşıyor (>27h) (k6).
+        // STM_045: departure time exceeds the service-day window (>27 h) (k6).
         fx("STM_045", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,28:00:00,28:00:00,S2,2\n")]),
-        // STM_048: gece yarısı sonrası 00:xx yazılmış (k2 raw Spec, normalization öncesi).
+        // STM_048: 00:xx written after midnight (k2 raw Spec, before normalization).
         fx("STM_048", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,23:50:00,S1,1\nT1,00:10:00,00:10:00,S2,2\n")]),
-        // STM_049: gece yarısı sonrası 00:xx kalkış aynı satırda (k2 raw Spec).
+        // STM_049: 00:xx departure after midnight on the same row (k2 raw Spec).
         fx("STM_049", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,23:50:00,00:10:00,S1,1\nT1,24:10:00,24:10:00,S2,2\n")]),
-        // STM_050: timepoint sütunu var ama değer boş (k2).
+        // STM_050: timepoint column exists but the value is empty (k2).
         fx("STM_050", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,08:00:00,08:00:00,S1,1,\nT1,08:10:00,08:10:00,S2,2,\n")]),
 
         // ── ARC grubu (k1_parse arşiv/dosya/başlık). ARC_002/003 ham byte fixture'ıyla
