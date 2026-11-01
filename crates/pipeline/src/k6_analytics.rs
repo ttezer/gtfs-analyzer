@@ -12074,7 +12074,7 @@ mod tests {
 
     #[test]
     fn max_speed_kmh_maps_extended_route_types() {
-        // #15/MD: genişletilmiş Avrupa route_type'ları doğru kategoriye eşlenmeli.
+        // #15/MD: extended European route_type values must map to the correct category.
         let cfg = ValidatorConfig::default();
         assert_eq!(
             max_speed_kmh(100, &cfg),
@@ -12116,7 +12116,7 @@ mod tests {
             cfg.max_speed_bus_kmh,
             "standart 3 hâlâ bus"
         );
-        // Asıl bug: rail extended kodları bus eşiği ALMAMALI.
+        // The actual bug: extended rail codes MUST NOT receive the bus threshold.
         assert_ne!(
             max_speed_kmh(100, &cfg),
             cfg.max_speed_bus_kmh,
@@ -12135,19 +12135,19 @@ mod tests {
         ValidatorConfig::default()
     }
 
-    // Regresyon: contains_as_word çok-baytlı UTF-8'de (CJK) char sınırı içinde
-    // dilimleme yapıp panik atmamalı. Eskiden `start = pos + 1` Japonca feed'lerde
-    // (ör. "市バス１号系統") wasm worker'ını çökertiyordu.
+    // Regression: contains_as_word must not slice inside a character boundary in multibyte
+    // UTF-8 (CJK) and panic. Previously `start = pos + 1` crashed the wasm worker on Japanese
+    // feeds (e.g. "市バス１号系統").
     #[test]
     fn contains_as_word_handles_multibyte_utf8() {
-        // Panik atmadan tamamlanmalı (asıl regresyon koşulu).
+        // Must complete without panicking (the actual regression condition).
         assert!(!contains_as_word("市バス１号系統", "bus"));
         assert!(!contains_as_word("六本木ヒルズ前", "ab"));
         assert!(!contains_as_word("東京", ""));
-        // ASCII davranışı korunmalı.
+        // ASCII behavior must remain unchanged.
         assert!(contains_as_word("Route 5 Express", "5"));
         assert!(!contains_as_word("Route 51", "5"));
-        // CJK gövdesi içinde gömülü ASCII kelimesi de sınırda bulunmalı.
+        // An embedded ASCII word inside CJK text must also be found at a boundary.
         assert!(contains_as_word("市バス bus 系統", "bus"));
     }
 
@@ -12286,19 +12286,19 @@ mod tests {
     use crate::k2::trips::TripInternTable;
     use smol_str::SmolStr;
 
-    // Thread-local TripInternTable: test yardımcıları stringleri buraya intern eder.
-    // Her test kendi iş parçacığında çalıştığından izolasyon otomatik sağlanır.
+    // Thread-local TripInternTable: test helpers intern strings here.
+    // Each test runs in its own thread, so isolation is automatic.
     thread_local! {
         static TEST_TI: std::cell::RefCell<TripInternTable> =
             std::cell::RefCell::new(TripInternTable::new());
     }
 
-    /// Birikmiş TripInternTable'ı al ve yerine yeni boş tablo koy.
+    /// Take the accumulated TripInternTable and replace it with a new empty table.
     fn take_ti() -> TripInternTable {
         TEST_TI.with(|cell| std::mem::replace(&mut *cell.borrow_mut(), TripInternTable::new()))
     }
 
-    /// Temel sefer kaydı: route_id + service="SVC" thread-local intern tablosuna eklenir.
+    /// Basic trip record: route_id + service="SVC" is added to the thread-local intern table.
     fn trip(trip_id: &str, route_id: &str) -> TripRecord {
         TEST_TI.with(|cell| {
             let mut ti = cell.borrow_mut();
@@ -12327,7 +12327,7 @@ mod tests {
         })
     }
 
-    /// Sefer + shape_id (thread-local intern tablosuna eklenir).
+    /// Trip + shape_id (added to the thread-local intern table).
     fn trip_sh(trip_id: &str, route_id: &str, shape_id: &str) -> TripRecord {
         let mut t = trip(trip_id, route_id);
         if !shape_id.is_empty() {
@@ -12341,7 +12341,7 @@ mod tests {
         t
     }
 
-    /// Sefer + trip_headsign (thread-local intern tablosuna eklenir).
+    /// Trip + trip_headsign (added to the thread-local intern table).
     fn trip_hs(trip_id: &str, route_id: &str, headsign: &str) -> TripRecord {
         let mut t = trip(trip_id, route_id);
         TEST_TI.with(|cell| {
@@ -12353,7 +12353,7 @@ mod tests {
         t
     }
 
-    /// Sefer + block_id (thread-local intern tablosuna eklenir).
+    /// Trip + block_id (added to the thread-local intern table).
     fn trip_blk(trip_id: &str, route_id: &str, block_id: &str) -> TripRecord {
         let mut t = trip(trip_id, route_id);
         if !block_id.is_empty() {
@@ -12386,7 +12386,7 @@ mod tests {
         }
     }
 
-    /// records_with: trip intern tablosunu thread-local'dan otomatik alır (take_ti).
+    /// records_with: automatically takes the trip intern table from thread-local storage (take_ti).
     fn records_with(
         stops: Vec<StopRecord>,
         routes: Vec<RouteRecord>,
@@ -12410,15 +12410,15 @@ mod tests {
 
     #[test]
     fn excessive_speed_produces_stm_014() {
-        // İstanbul (~41.0, 29.0) → Ankara (~39.9, 32.9) ≈ 350 km, 2 saatte → ~175 km/h
-        // 30 dk olsaydı ~703 km/h → STM_012 tetiklenirdi; 2 saat STM_014 eşiğini (120 km/h) aşar
+        // Istanbul (~41.0, 29.0) → Ankara (~39.9, 32.9) ≈ 350 km, in 2 hours → ~175 km/h.
+        // At 30 min it would be ~703 km/h → STM_012 would fire; 2 hours exceeds STM_014's threshold (120 km/h).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9)],
             vec![route("R1", 3)], // bus
             vec![trip("T1", "R1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // 2 saat, ~350 km → ~175 km/h
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // 2 hours, ~350 km → ~175 km/h
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12462,11 +12462,11 @@ mod tests {
         );
     }
 
-    // Toplulaştırma (Güvenilirlik Sprint'i Checkpoint 6): aynı fiziksel segment o
-    // segmentten geçen her seferde ayrı notice üretiyordu (TriMet'te tek segment 604×).
+    // Aggregation (Reliability Sprint Checkpoint 6): the same physical segment used to emit
+    // a separate notice for every trip passing through it (604× for one segment in TriMet).
     #[test]
     fn stm_014_aggregates_same_segment_across_trips() {
-        // Aynı hat/yön, AYNI A→B segmenti, 3 sefer → 3 değil 1 notice.
+        // Same route/direction, SAME A→B segment, 3 trips → 1 notice, not 3.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9)],
             vec![route("R1", 3)],
@@ -12475,7 +12475,7 @@ mod tests {
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // ~175 km/h
                 stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
-                stoptime("T2", 2, "B", (11, 30, 0), (11, 30, 0), 5), // ~140 km/h (daha yavaş)
+                stoptime("T2", 2, "B", (11, 30, 0), (11, 30, 0), 5), // ~140 km/h (slower)
                 stoptime("T3", 1, "A", (12, 0, 0), (12, 0, 0), 6),
                 stoptime("T3", 2, "B", (14, 0, 0), (14, 0, 0), 7), // ~175 km/h
             ],
@@ -12501,22 +12501,22 @@ mod tests {
         );
         assert_eq!(d.get("stop_a").map(String::as_str), Some("A"));
         assert_eq!(d.get("stop_b").map(String::as_str), Some("B"));
-        // Örnek sefer listesi deterministik ve sıralı
+        // Example trip list is deterministic and sorted.
         assert_eq!(d.get("trips").map(String::as_str), Some("T1,T2,T3"));
-        // Hız aralığı en yavaş/en hızlı seferi kapsamalı (tek değere çökmemeli)
+        // Speed range must include the slowest/fastest trip (must not collapse to one value).
         let (lo, hi) = (
             d["speed_min"].parse::<f64>().unwrap(),
             d["speed_max"].parse::<f64>().unwrap(),
         );
         assert!(lo < hi, "hız aralığı olmalı, alınan {lo}-{hi}");
-        // scope_key hat bazlı filtre için route_id kalmalı
+        // scope_key must remain route_id for route-level filtering.
         assert_eq!(hits[0].scope_key.as_deref(), Some("R1"));
     }
 
     #[test]
     fn stm_014_keeps_distinct_segments_separate() {
-        // Aynı hatta İKİ ayrı bozuk segment (A→B ve B→C) → dedup=Entity onları
-        // yutmamalı; entity_id bileşik olduğu için 2 notice çıkmalı.
+        // TWO separate bad segments on the same route (A→B and B→C) → dedup=Entity must
+        // not swallow them; entity_id is composite, so 2 notices should be emitted.
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -12552,7 +12552,7 @@ mod tests {
 
     #[test]
     fn normal_speed_no_stm_014() {
-        // İki yakın durak, 10 dk → düşük hız
+        // Two nearby stops, 10 min → low speed.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.05, 29.05)],
             vec![route("R1", 3)],
@@ -12622,11 +12622,11 @@ mod tests {
 
     #[test]
     fn stm_053_representative_is_lowest_line_not_hash_order() {
-        // `by_trip` FxHashMap'tir; temsilci "ilk görülen" sefer olursa 64-bit native ile
-        // 32-bit WASM farklı satır gösterir. En küçük satırlı sefer seçilmelidir.
+        // `by_trip` is an FxHashMap; if the representative were the "first seen" trip, 64-bit native
+        // and 32-bit WASM would show different rows. Choose the trip with the smallest line.
         let trips: Vec<String> = (0..24).map(|i| format!("T{i:02}")).collect();
         let mut stop_times = Vec::new();
-        // Satırlar sefer adının TERSİNE artar: en küçük satır T23'te.
+        // Lines increase in REVERSE trip-name order: the smallest line is on T23.
         for (i, trip_id) in trips.iter().rev().enumerate() {
             let base = 2 + (i as u64) * 3;
             stop_times.push(stoptime(trip_id, 1, "A", (8, 0, 0), (8, 0, 0), base));
@@ -12664,7 +12664,7 @@ mod tests {
 
     #[test]
     fn excessive_speed_produces_opr_008() {
-        // OPR_008 için trip_bad_seg_count > 1 gerekir: 3 durak, 2 anormal segment
+        // OPR_008 requires trip_bad_seg_count > 1: 3 stops, 2 anomalous segments.
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -12675,8 +12675,8 @@ mod tests {
             vec![trip("T1", "R1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3), // ~350km / 10dk → aşırı hız
-                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4), // ~350km / 10dk → aşırı hız
+                stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3), // ~350 km / 10 min → excessive speed
+                stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4), // ~350 km / 10 min → excessive speed
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12685,8 +12685,8 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "OPR_008")
             .expect("OPR_008 olmalı");
-        // Her iki segment de STM_012 (>700 km/h) dalına düşer; OPR_008 yine de
-        // en yüksek hızı, satırı ve segment çiftlerini taşımalı (0.0 km/h değil).
+        // Both segments enter the STM_012 (>700 km/h) branch; OPR_008 must still carry
+        // the highest speed, line, and segment pairs (not 0.0 km/h).
         assert_ne!(opr.observed_value.as_deref(), Some("0.0 km/h"));
         assert!(opr.line.is_some(), "OPR_008 satırı olmalı");
         let d = opr.details.as_ref().expect("details olmalı");
@@ -12698,7 +12698,7 @@ mod tests {
 
     #[test]
     fn long_trip_produces_stm_028() {
-        // 30 saatlik sefer > 24 saatlik eşik
+        // 30-hour trip > 24-hour threshold.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -12714,8 +12714,8 @@ mod tests {
 
     #[test]
     fn long_rail_trip_under_rail_threshold_no_stm_028() {
-        // 30 saatlik TREN seferi: şehir içi eşiği (24s) aşar ama raylı eşiğin (48s) altında.
-        // Gerçek vaka: TCDD Ankara-Kars 26:26, Ankara-Tatvan 26:37 — meşru tarifeler.
+        // 30-hour TRAIN trip: exceeds the urban threshold (24h) but stays below the rail threshold (48h).
+        // Real cases: TCDD Ankara-Kars 26:26, Ankara-Tatvan 26:37 — legitimate schedules.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 2)], // 2 = Rail
@@ -12731,7 +12731,7 @@ mod tests {
 
     #[test]
     fn very_long_rail_trip_produces_stm_028_as_info() {
-        // 50 saat: raylı eşiği de aşar → notice VAR, ama severity Bilgi (şehir içi HIGH değil).
+        // 50 hours: also exceeds the rail threshold → notice PRESENT, but severity is Info (not urban HIGH).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 2)],
@@ -12769,7 +12769,7 @@ mod tests {
 
     #[test]
     fn short_trip_produces_stm_029() {
-        // 30 saniyelik sefer < 60 saniyelik eşik
+        // 30-second trip < 60-second threshold.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -12783,17 +12783,17 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_029"));
     }
 
-    // ── STM_012: tam-dakika sıfır süre — eşik rota tipine bağlı ───────────────
-    // Her iki zaman da tam dakikaysa gerçek geçiş süresi bilinmez (0-59 sn). "İmkânsız"
-    // diyebilmek için mesafe, tam bir dakika geçse bile azami hızı aşmalı → max_speed/60.
-    // Corpus kanıtı (mdb-2155): sabit 1.0 km eşiği 42 bulgunun 41'ini FP yapıyordu.
+    // ── STM_012: exact-minute zero duration — threshold depends on route type ─────────
+    // If both times are exact minutes, the real travel time is unknown (0–59 sec). To call it
+    // "impossible", the distance must exceed the maximum speed even if a full minute elapsed → max_speed/60.
+    // Corpus evidence (mdb-2155): a fixed 1.0 km threshold made 41 of 42 findings false positives.
 
     #[test]
     fn whole_minute_zero_gap_below_one_minute_reach_is_not_stm_012() {
-        // ~1.1 km / otobüs: tam dakikada 66 km/h eder — olağan, eşik 120 → SUSMALI.
+        // ~1.1 km / bus: 66 km/h in a full minute — ordinary, threshold 120 → MUST STAY SILENT.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0099, 29.0)],
-            vec![route("R1", 3)], // bus → 120 km/h → imkânsızlık sınırı 2.0 km
+            vec![route("R1", 3)], // bus → 120 km/h → impossibility limit 2.0 km
             vec![trip("T1", "R1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
@@ -12815,8 +12815,8 @@ mod tests {
 
     #[test]
     fn whole_minute_zero_gap_beyond_one_minute_reach_is_stm_012() {
-        // ~29 km / otobüs: tam dakikada bile ~1740 km/h gerekir → GERÇEK hata, fire etmeli.
-        // (mdb-2155'te MD'nin de bulduğu tek vaka bu sınıftı.)
+        // ~29 km / bus: even a full minute requires ~1740 km/h → REAL error, must fire.
+        // (This was the only case of this class also found by MD in mdb-2155.)
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.26, 29.0)],
             vec![route("R1", 3)],
@@ -12846,8 +12846,8 @@ mod tests {
 
     #[test]
     fn whole_minute_zero_gap_stm_012_counts_toward_opr_008() {
-        // İki ardışık tam-dakika sıfır süreli segment, ikisi de ~29 km → iki STM_012.
-        // Saatsiz ara duraklı yol gibi bu yol da OPR_008 sayacına girmeli.
+        // Two consecutive exact-minute zero-duration segments, both ~29 km → two STM_012 findings.
+        // Like a route with an untimed intermediate stop, this route must also count toward OPR_008.
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -12879,10 +12879,10 @@ mod tests {
     fn projected_speed_above_700_but_haversine_below_is_not_stm_012() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Duraklar kuş uçuşu ~0.5 km, 6 sn → hav ~300 km/h (≤700). Shape yolu ~1.5 km
-        // (3× dolambaç, 4× tavanın altında) → projeksiyonlu hız ~900 km/h. "İmkânsız"
-        // iddiası alt-sınırla (haversine) kanıtlanmadığından STM_012 ÇIKMAMALI;
-        // vaka aşırı-hız olarak STM_014'e düşmeli.
+        // Stops are ~0.5 km apart as the crow flies, 6 sec → hav ~300 km/h (≤700). Shape route ~1.5 km
+        // (3× detour, below the 4× ceiling) → projected speed ~900 km/h. Since the "impossible"
+        // claim is not proven by the lower bound (haversine), STM_012 MUST NOT fire;
+        // the case should fall to STM_014 as excessive speed.
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0045, 29.0)],
             vec![route("R1", 3)],
@@ -12942,9 +12942,9 @@ mod tests {
     fn projected_shape_distance_cannot_reduce_haversine_speed_floor() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // A ve B yaklaşık 8.4 km uzakta. Shape, iki durağı birbirine yakın iki paralel
-        // düşey bölüm üzerinde projekte ediyor; arc farkı yaklaşık 2.8 km ve eski kod bu
-        // değeri kullanarak 3 dakikalık segmenti otobüs eşiğinin altında bırakıyordu.
+        // A and B are about 8.4 km apart. The shape projects the two stops onto nearby parallel
+        // vertical sections; the arc difference is about 2.8 km, and the old code used that value
+        // to leave the 3-minute segment below the bus threshold.
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
@@ -13022,8 +13022,8 @@ mod tests {
     fn shp_020_saturation_aggregates_to_single_feed_notice() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // 51 shape'te tekrar noktası (eşik 50 üstü) → shape-başına 51 yerine TEK
-        // feed-özet SHP_020 (SHP_010 emsali; VBB %66 doyum dersi).
+        // Repeated point in 51 shapes (above the threshold of 50) → ONE feed-summary SHP_020
+        // instead of 51 per-shape notices (SHP_010 precedent; VBB 66% saturation lesson).
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -13036,9 +13036,9 @@ mod tests {
         let mut shapes = Vec::new();
         for k in 0..51u32 {
             let sid = format!("S{k}");
-            // apex deseni: 1. ve 3. nokta özdeş. Her shape KENDİ koordinatında tekrarlıyor —
-            // doyum artık ayrı KOORDİNAT sayısıyla ölçülür (aynı noktayı paylaşan shape'ler
-            // tek bildirimde toplanır), o yüzden 51 ayrı konum gerekir.
+            // Apex pattern: points 1 and 3 are identical. Each shape repeats at its OWN coordinate —
+            // saturation is now measured by distinct COORDINATES (shapes sharing a point are grouped
+            // into one notice), so 51 separate locations are required.
             let lat = 41.0 + k as f64 * 0.01;
             shapes.push(ShapePointRecord::new(
                 shape_ti.intern(&sid),
@@ -13080,9 +13080,9 @@ mod tests {
         );
     }
 
-    /// WP-S: Bir istasyon/makas geometrisi gidiş ve dönüş shape'lerinde TEKRAR EDER;
-    /// shape başına emit aynı FİZİKSEL noktayı defalarca sayıyordu (TCDD: 28 bildirim =
-    /// 8 ayrı koordinat). Artık koordinat başına tek bildirim.
+    /// WP-S: A station/junction geometry REPEATS in outbound and return shapes;
+    /// per-shape emission counted the same PHYSICAL point repeatedly (TCDD: 28 notices =
+    /// 8 distinct coordinates). Now emit one notice per coordinate.
     #[test]
     fn shp_020_reports_one_notice_per_physical_coordinate() {
         let mut shape_ti = ShapeInternTable::new();
@@ -13096,7 +13096,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
-        // 8 shape (yön varyantları), HEPSİ aynı istasyon noktasında tekrarlıyor.
+        // 8 shapes (direction variants), ALL repeating at the same station point.
         let mut shapes = Vec::new();
         for k in 0..8u32 {
             let sid = format!("S{k}");
@@ -13165,7 +13165,7 @@ mod tests {
     fn shp_009_saturation_aggregates_to_single_feed_notice() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // 51 shape'te kendisiyle kesişme → TEK feed-özet SHP_009.
+        // Self-intersection in 51 shapes → ONE feed-summary SHP_009.
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -13178,9 +13178,9 @@ mod tests {
         let mut shapes = Vec::new();
         for k in 0..51u32 {
             let sid = format!("X{k}");
-            // 5 nokta; segment 0 (p1→p2) ile segment 2 (p3→p4) X biçiminde kesişir.
-            // Her shape KENDİ konumunda kesişir: doyum artık ayrı KESİŞME KONUMU sayar
-            // (aynı makası paylaşan yön varyantları tek bildirimde toplanır).
+            // 5 points; segment 0 (p1→p2) intersects segment 2 (p3→p4) in an X.
+            // Each shape intersects at its OWN location: saturation now counts distinct INTERSECTION
+            // LOCATIONS (direction variants sharing the same junction are grouped into one notice).
             let d = k as f64 * 0.1;
             let pts = [
                 (41.000 + d, 29.000),
@@ -13215,8 +13215,8 @@ mod tests {
         );
     }
 
-    /// Bir makas/istasyon yaklaşması gidiş ve dönüş shape'lerinde TEKRAR EDER; shape başına
-    /// emit aynı fiziksel kesişmeyi defalarca sayıyordu (TCDD v2: 9 bildirim = 4 bölge).
+    /// A junction/station approach REPEATS in outbound and return shapes; per-shape emission
+    /// counted the same physical intersection repeatedly (TCDD v2: 9 notices = 4 areas).
     #[test]
     fn shp_009_reports_one_notice_per_crossing_location() {
         let mut shape_ti = ShapeInternTable::new();
@@ -13230,7 +13230,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 30, 0), (8, 30, 0), 3),
             ],
         );
-        // 4 shape (yön varyantları), HEPSİ aynı makasta kesişiyor.
+        // 4 shapes (direction variants), ALL intersecting at the same junction.
         let mut shapes = Vec::new();
         for k in 0..4u32 {
             let sid = format!("X{k}");
@@ -13282,8 +13282,8 @@ mod tests {
 
     #[test]
     fn stm_061_catches_a_far_pair_that_consecutive_checks_miss() {
-        // A→B ve B→C ayrı ayrı makul, A→C imkânsız: ara durak zamanı geç yazılmış,
-        // uçtan uca 60 km 6 dakikada kapatılıyor (600 km/h, otobüs eşiği 120).
+        // A→B and B→C are reasonable separately, A→C is impossible: the intermediate stop time
+        // is too late, covering 60 km end-to-end in 6 minutes (600 km/h, bus threshold 120).
         let records = records_with(
             vec![
                 stop("A", 41.000, 29.000),
@@ -13312,7 +13312,7 @@ mod tests {
 
     #[test]
     fn stm_061_stays_silent_on_a_plausible_long_trip() {
-        // Aynı 60 km, ama 90 dakikada = 40 km/h. Hiçbir çift ihlal etmez.
+        // Same 60 km, but in 90 minutes = 40 km/h. No pair violates the rule.
         let records = records_with(
             vec![
                 stop("A", 41.000, 29.000),
@@ -13333,8 +13333,8 @@ mod tests {
 
     #[test]
     fn stm_061_ignores_pairs_closer_than_the_far_threshold() {
-        // 10 km'nin altındaki çiftler komşu kontrolünün alanıdır; hız imkânsız olsa
-        // bile STM_061 susar, yoksa STM_012/STM_014 ile aynı olguyu iki kez sayardık.
+        // Pairs under 10 km belong to the adjacent-pair check; even if the speed is impossible,
+        // STM_061 stays silent, otherwise we would count the same fact as STM_012/STM_014 twice.
         let records = records_with(
             vec![
                 stop("A", 41.000, 29.000),
@@ -13355,8 +13355,8 @@ mod tests {
 
     #[test]
     fn whole_minute_zero_gap_threshold_follows_route_type() {
-        // Aynı ~1.1 km mesafe, teleferik (30 km/h → sınır 0.5 km) için İMKÂNSIZ.
-        // Eşik sabit olsaydı bu vaka kaçardı; rota tipine bağlı olduğu için yakalanır.
+        // Same ~1.1 km distance is IMPOSSIBLE for a cable car (30 km/h → limit 0.5 km).
+        // A fixed threshold would miss this case; it is caught because the threshold depends on route type.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0099, 29.0)],
             vec![route("R1", 6)], // teleferik
@@ -13373,18 +13373,18 @@ mod tests {
         );
     }
 
-    // ── STM_020: sıfır seyahat süresi ─────────────────────────────────────────
+    // ── STM_020: zero travel time ─────────────────────────────────────────
 
     #[test]
     fn zero_travel_time_with_distance_produces_stm_020() {
-        // Aynı varış/kalkış saati (saniyeli → dakika yuvarlama değil), farklı konumda → STM_020
+        // Same arrival/departure time (with seconds → not minute rounding), different locations → STM_020.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.05, 29.05)], // ~6 km
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 30), (8, 0, 30), 2),
-                stoptime("T1", 2, "B", (8, 0, 30), (8, 0, 30), 3), // aynı zaman, farklı konum
+                stoptime("T1", 2, "B", (8, 0, 30), (8, 0, 30), 3), // same time, different location
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -13396,7 +13396,7 @@ mod tests {
 
     #[test]
     fn zero_travel_time_same_stop_no_stm_020() {
-        // Aynı durak, aynı zaman → mesafe 0 → STM_020 üretmemeli
+        // Same stop, same time → distance 0 → STM_020 must not fire.
         let records = records_with(
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
@@ -13425,7 +13425,7 @@ mod tests {
         assert!(result.notices.is_empty());
     }
 
-    // ── Format yardımcısı ─────────────────────────────────────────────────────
+    // ── Format helper ─────────────────────────────────────────────────────────
 
     #[test]
     fn format_hms_correct() {
@@ -13436,7 +13436,7 @@ mod tests {
 
     #[test]
     fn is_regular_headway_distinguishes_rural_from_gap() {
-        // Düzenli seyrek (kırsal): eşit aralıklar → düzenli (true) → OPR_001 bastırılır
+        // Regular sparse (rural): equal intervals → regular (true) → OPR_001 suppressed.
         assert!(
             is_regular_headway(&[18000, 18000, 18000]),
             "5sa eşit aralık = düzenli"
@@ -13446,7 +13446,7 @@ mod tests {
             "tek aralık (2 sefer) = kasıtlı"
         );
         assert!(is_regular_headway(&[]), "boş = kasıtlı");
-        // Düzensiz (gerçek boşluk): çoğu sık + bir dev boşluk → düzensiz (false) → OPR_001 üretilir
+        // Irregular (real gap): mostly frequent + one huge gap → irregular (false) → OPR_001 emitted.
         assert!(
             !is_regular_headway(&[900, 900, 900, 14400]),
             "15dk×3 + 4sa boşluk = düzensiz"
@@ -13476,7 +13476,7 @@ mod tests {
     #[test]
     fn long_headway_produces_frq_006() {
         let r = crate::k2::EntityRecords {
-            frequencies: vec![frq("T1", 14401, 2)], // 4 saat 1 dakika > 240 dk eşiği
+            frequencies: vec![frq("T1", 14401, 2)], // 4 hours 1 minute > 240 min threshold
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
@@ -13486,7 +13486,7 @@ mod tests {
     #[test]
     fn short_headway_produces_frq_010() {
         let r = crate::k2::EntityRecords {
-            frequencies: vec![frq("T1", 60, 2)], // 1 dk ≤ 2 dk bunching eşiği
+            frequencies: vec![frq("T1", 60, 2)], // 1 min ≤ 2 min bunching threshold
             ..Default::default()
         };
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
@@ -13508,8 +13508,8 @@ mod tests {
 
     #[test]
     fn large_route_headway_produces_opr_001() {
-        // DÜZENSIZ büyük boşluk: 08:00/08:15/08:30 sık, sonra 13:00 → aralıklar [15,15,270]dk
-        // yüksek CV → gerçek servis boşluğu → OPR_001 (kırsal otomatik bastırma DEVREYE GİRMEZ).
+        // IRREGULAR large gap: 08:00/08:15/08:30 frequent, then 13:00 → gaps [15,15,270] min
+        // high CV → real service gap → OPR_001 (rural automatic suppression does NOT apply).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13536,8 +13536,8 @@ mod tests {
 
     #[test]
     fn regular_sparse_headway_suppresses_opr_001() {
-        // Düzenli seyrek (kırsal): 06:00/11:00/16:00 → eşit 300dk aralık → düşük CV → kasıtlı
-        // servis → OPR_001 ÜRETİLMEZ, eşik aşılsa bile (yanlış-pozitif önlenir).
+        // Regular sparse (rural): 06:00/11:00/16:00 → equal 300-min gaps → low CV → intentional
+        // service → OPR_001 is NOT emitted, even if the threshold is exceeded (prevents false positives).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13560,7 +13560,7 @@ mod tests {
 
     #[test]
     fn departure_before_arrival_produces_stm_007() {
-        // Gerçek satır-içi hata: B durağında varış 09:00 ama kalkış 08:00 → STM_007.
+        // Real row-level error: stop B arrives at 09:00 but departs at 08:00 → STM_007.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13619,7 +13619,7 @@ mod tests {
                 .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
-        // Planlamacı görünümü için örnek satırlar ve desen (özetin sayısı değişmeden).
+        // Sample rows and pattern for the planner view (without changing the summary count).
         let d = stm007[0].details.as_ref().expect("özet ayrıntısı");
         let get = |k: &str| d.get(k).map(String::as_str);
         assert_eq!(get("affected_trips"), Some("51"));
@@ -13667,7 +13667,7 @@ mod tests {
 
     #[test]
     fn midnight_departure_suppresses_stm_007() {
-        // Gece yarısı: son durakta varış 23:58, kalkış 00:00 (24:00 yazılmalıydı) → bastırılır.
+        // Midnight: final stop arrives at 23:58, departs at 00:00 (should have been 24:00) → suppressed.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13686,7 +13686,7 @@ mod tests {
 
     #[test]
     fn stm045_threshold_respects_service_day_start_hour() {
-        // 26:30 kalkış: default config (service_day_start_hour=3 → eşik 27h) altında MEŞRU.
+        // 26:30 departure: VALID under the default config (service_day_start_hour=3 → threshold 27h).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13702,7 +13702,7 @@ mod tests {
             "26:30 default eşik (27h) altında STM_045 üretmemeli"
         );
 
-        // start_hour=0 (normalizasyon kapalı) → eşik 26h → 26:30 anomali.
+        // start_hour=0 (normalization disabled) → threshold 26h → 26:30 anomaly.
         let mut cfg0 = default_config();
         cfg0.service_day_start_hour = 0;
         let r0 = analyze(&records, &empty_derived(), &cfg0, 20260514);
@@ -13711,7 +13711,7 @@ mod tests {
             "start_hour=0 iken 26:30 STM_045 üretmeli"
         );
 
-        // 28:30 → default eşik (27h) üstünde → anomali.
+        // 28:30 → above the default threshold (27h) → anomaly.
         let records2 = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13744,7 +13744,7 @@ mod tests {
         let mut a = stop("A", 41.0, 29.0);
         let mut b = stop("B", 41.01, 29.01);
 
-        // Tüm fiziksel duraklar eksik (wheelchair_boarding None) → STP_038, STP_037 yok.
+        // All physical stops missing (wheelchair_boarding None) → STP_038, no STP_037.
         let r = analyze(
             &mk(vec![a.clone(), b.clone()]),
             &empty_derived(),
@@ -13757,7 +13757,7 @@ mod tests {
         );
         assert!(!r.notices.iter().any(|n| n.rule_id == "STP_037"));
 
-        // Biri dolu, biri eksik → STP_037, STP_038 yok.
+        // One populated, one missing → STP_037, no STP_038.
         a.wheelchair_boarding = Some(1);
         let r2 = analyze(
             &mk(vec![a.clone(), b.clone()]),
@@ -13771,7 +13771,7 @@ mod tests {
         );
         assert!(!r2.notices.iter().any(|n| n.rule_id == "STP_038"));
 
-        // Hepsi dolu → ikisi de yok.
+        // All populated → neither notice.
         b.wheelchair_boarding = Some(2);
         let r3 = analyze(
             &mk(vec![a, b]),
@@ -13789,7 +13789,7 @@ mod tests {
 
     #[test]
     fn small_route_headway_produces_opr_003() {
-        // İki sefer: 08:00 ve 08:01 → 1 dk ≤ 2 dk bunching eşiği
+        // Two trips: 08:00 and 08:01 → 1 min ≤ 2 min bunching threshold.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.01, 29.01)],
             vec![route("R1", 3)],
@@ -13805,7 +13805,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "OPR_003"));
     }
 
-    // ── OPR_001/OPR_003 yeni testler: dedup davranışı ────────────────────────
+    // ── OPR_001/OPR_003 new tests: dedup behavior ────────────────────────────
 
     fn trip_with_service(trip_id: &str, route_id: &str, service_id: &str) -> TripRecord {
         TEST_TI.with(|cell| {
@@ -13837,8 +13837,8 @@ mod tests {
 
     #[test]
     fn dedup_same_time_suppresses_opr_003() {
-        // 5 trip, hepsi 08:00 kalkış → dedup sonrası tek unique saat → bucket atlanır → OPR_003 yok
-        // Config: bunching_threshold_min = 2 (default ile aynı)
+        // 5 trips, all departing at 08:00 → one unique time after dedup → bucket skipped → no OPR_003.
+        // Config: bunching_threshold_min = 2 (same as default).
         let cfg = ValidatorConfig {
             bunching_threshold_min: 2,
             ..default_config()
@@ -13929,7 +13929,7 @@ mod tests {
             stoptimes,
         );
         let result = analyze(&records, &empty_derived(), &cfg, 20260514);
-        // dedup sonrası [28800, 28860] → min headway = 60s < 120s (2dk) → OPR_003 tetiklenmeli
+        // After dedup [28800, 28860] → min headway = 60s < 120s (2 min) → OPR_003 must fire.
         assert!(
             result.notices.iter().any(|n| n.rule_id == "OPR_003"),
             "gerçek sıkışma (60s < 120s eşiği) dedup'tan sonra da OPR_003 üretmeli"
@@ -13962,8 +13962,8 @@ mod tests {
 
     #[test]
     fn expired_service_produces_cal_013_not_cal_009() {
-        // Tek servis süresi dolmuş → bilgi seviyesi CAL_013, KRİTİK CAL_009 değil.
-        // CAL_013 birleşik active_dates'e göre hesaplanır (gerçek boru hattında k5 doldurur).
+        // One service expired → Info-level CAL_013, not CRITICAL CAL_009.
+        // CAL_013 is calculated from combined active_dates (k5 populates it in the real pipeline).
         use crate::k5_derived::CalendarBitmap;
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
