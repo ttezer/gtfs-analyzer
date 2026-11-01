@@ -156,7 +156,7 @@ fn main() {
                     r9_fix += 1;
                 }
             }
-            // 2) Metadata Önem / Sınıf.
+            // 2) Metadata `Önem` / `Sınıf`.
             else if line.trim_start().starts_with("| Önem |") {
                 let dbg = format!("{:?}", rule.severity);
                 let want = severity_display(&dbg);

@@ -26,7 +26,7 @@ fn repo_root() -> PathBuf {
         .expect("repo kökü bulunamadı")
 }
 
-/// Table row: `| ARC_001 | Başlık | KRİTİK | Spec |`
+/// Table row: `| ARC_001 | title | KRİTİK | Spec |`
 #[derive(Debug, PartialEq)]
 struct Row {
     title: String,

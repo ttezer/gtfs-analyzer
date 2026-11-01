@@ -1,6 +1,6 @@
 //! Cosmetic normalization for rule cards (one-time maintenance).
 //!
-//! - H1 heading separator: `# ID - başlık` → `# ID — başlık` (em dash)
+//! - H1 heading separator: `# ID - title` → `# ID — title` (em dash)
 //! - Diacritic-free all-caps severity: KRITIK→KRİTİK, BILGI→BİLGİ
 //!
 //! Run: cargo run -p gtfs-rules --example fix_cosmetics
