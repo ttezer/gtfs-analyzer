@@ -1,11 +1,11 @@
-// Ayrıntıların agency'ye göre süzülmesi (MobilityData gtfs-validator #2201). Hangi notice'ın
-// hangi agency'ye düştüğünü motor hesaplar (`agency_breakdown.agencies[].notice_indices`);
-// arayüz atıf kuralını YENİDEN YAZMAZ, yalnız bu indeksleri kullanır.
+// Filter details by agency (MobilityData gtfs-validator #2201). The engine determines
+// which agency owns each notice (`agency_breakdown.agencies[].notice_indices`);
+// the UI does not REWRITE the attribution rule, it only uses these indices.
 import type { Notice, R9Item, ValidationResult } from './types';
 import { t, intlLocale } from './i18n';
 import { escHtml } from './escape';
 
-/** Seçili agency'lerin notice'ları (birleşim, sonuç sırasıyla). Filtre yoksa `null`. */
+/** Notices for selected agencies (union, in result order). `null` when there is no filter. */
 export function filterNoticesByAgency(result: ValidationResult, selected: readonly string[]): Notice[] | null {
   const breakdown = result.agency_breakdown;
   if (!breakdown || breakdown.agencies.length < 2 || selected.length === 0) return null;
@@ -18,11 +18,11 @@ export function filterNoticesByAgency(result: ValidationResult, selected: readon
 }
 
 /**
- * R9 kalemlerini süzülmüş notice'lara daraltır. `renderR9` kuralın önemini, başlığını ve
- * "çıkar" düğmesini `notice_ids[0]` üzerinden bulur; bu ilk notice seçili agency'ye ait
- * değilse satır eksik çizilirdi. Bu yüzden süzgeçte kalan kimlikler başa alınır; hiçbiri
- * kalmadıysa o kuralın süzgeçteki ilk notice'ı başa eklenir. Görünür notice'ı olmayan
- * kurallar düşer; sayılar ve skor etkileri (feed geneli) değişmez.
+ * Narrows R9 items to filtered notices. `renderR9` finds the rule's severity, title, and
+ * "extract" button through `notice_ids[0]`; if that first notice belonged to a different
+ * agency, the row was rendered incompletely. Therefore retained IDs are moved to the front;
+ * if none remain, the first filtered notice for that rule is prepended. Rules with no visible
+ * notices are dropped; counts and score effects (which are feed-wide) do not change.
  */
 export function narrowR9Items(items: readonly R9Item[], notices: readonly Notice[]): R9Item[] {
   const kept = new Set(notices.map(n => n.id));
@@ -40,8 +40,8 @@ export function narrowR9Items(items: readonly R9Item[], notices: readonly Notice
 export function renderAgencyFilterBar(result: ValidationResult, selected: readonly string[]): string {
   const breakdown = result.agency_breakdown;
   if (!breakdown || breakdown.agencies.length < 2) return '';
-  // Izgara: satır başına üç çip; kutucuklar aynı hizada (dar ekranda tek sütun).
-  // Ada göre sıralı (dile duyarlı); aynı adlı agency'ler kimliğe göre ayrılır.
+  // Grid: three chips per row; boxes align (one column on narrow screens).
+  // Sorted by name (locale-aware); agencies with the same name are separated by ID.
   const labelOf = (a: { agency_name: string; agency_id: string }) => a.agency_name || a.agency_id || t('agency.unnamed');
   const sorted = [...breakdown.agencies].sort((x, y) =>
     labelOf(x).localeCompare(labelOf(y), intlLocale(), { sensitivity: 'base' }) || x.agency_id.localeCompare(y.agency_id));
