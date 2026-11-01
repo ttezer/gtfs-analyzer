@@ -106,7 +106,7 @@ def main() -> int:
             print(f"html_entities OK — {len(ns)} names ({len(legacy)} also valid without a semicolon)")
             return 0
         added, gone = sorted(want - cur_names), sorted(cur_names - want)
-        print(f"🔴 HTML entity DRIFT — eklenen {len(added)}, kaybolan {len(gone)}")
+        print(f"🔴 HTML entity DRIFT — added {len(added)}, missing {len(gone)}")
         print(f"  {added[:8]} / {gone[:8]}")
         print("  → python3 spec-audit/gen_html_entities.py")
         return 1

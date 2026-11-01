@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const next = process.argv[2];
 if (!/^\d+\.\d+\.\d+$/.test(next ?? '')) {
-  console.error('kullanım: node scripts/bump-version.mjs X.Y.Z');
+  console.error('usage: node scripts/bump-version.mjs X.Y.Z');
   process.exit(2);
 }
 
@@ -28,11 +28,11 @@ const path = (p) => resolve(root, p);
 const cargoToml = readFileSync(path('Cargo.toml'), 'utf8');
 const current = cargoToml.match(/^\[workspace\.package\][^[]*?^version\s*=\s*"([^"]+)"/ms)?.[1];
 if (!current) {
-  console.error('Kök Cargo.toml içinde [workspace.package] version bulunamadı.');
+  console.error('The root Cargo.toml has no [workspace.package] version.');
   process.exit(1);
 }
 if (current === next) {
-  console.error(`Sürüm zaten ${next}.`);
+  console.error(`Version is already ${next}.`);
   process.exit(1);
 }
 
@@ -42,7 +42,7 @@ function replaceExact(file, pattern, replacement, expected) {
   const text = readFileSync(path(file), 'utf8');
   const hits = text.match(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`))?.length ?? 0;
   if (hits !== expected) {
-    throw new Error(`${file}: ${pattern} için ${expected} eşleşme bekleniyordu, ${hits} bulundu.`);
+    throw new Error(`${file}: expected ${expected} matches for ${pattern}, found ${hits}.`);
   }
   return text.replace(pattern, replacement);
 }
@@ -53,7 +53,7 @@ function setJsonVersion(file, targets) {
   const json = JSON.parse(readFileSync(path(file), 'utf8'));
   for (const node of targets(json)) {
     if (node?.version !== current) {
-      throw new Error(`${file}: sürüm ${node?.version}, beklenen ${current}.`);
+      throw new Error(`${file}: version is ${node?.version}, expected ${current}.`);
     }
     node.version = next;
   }
@@ -86,7 +86,7 @@ execFileSync('cargo', ['update', '--workspace', '--offline'], { cwd: root, stdio
 execFileSync(process.execPath, ['sdk/scripts/check-version.mjs'], { cwd: root, stdio: 'inherit' });
 
 console.log(`
-[bump] Tamam. Kalan elle adımlar:
-  1. CHANGELOG.md'ye ${next} bölümünü yaz.
-  2. SDK değiştiyse sdk/package.json + SDK_VERSION'ı ayrıca yükselt.
-  3. Commit + push; CI yeşil olduktan SONRA v${next} tag'ini at.`);
+[bump] Done. Remaining manual steps:
+  1. Add a ${next} section to CHANGELOG.md.
+  2. If the SDK changed, update sdk/package.json + SDK_VERSION separately.
+  3. Commit + push; create the v${next} tag only AFTER CI is green.`);

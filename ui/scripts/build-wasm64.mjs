@@ -46,10 +46,10 @@ const [optCmd, optCmdArgs] = existsSync(localWasmOpt)
 const opt = spawnSync(optCmd, optCmdArgs, { cwd: repoDir, stdio: 'inherit' });
 if (!opt.error && opt.status === 0 && existsSync(optTmp)) {
   renameSync(optTmp, bgWasm);
-  console.log('[wasm64] wasm-opt uygulandı');
+  console.log('[wasm64] wasm-opt applied');
 } else {
   rmSync(optTmp, { force: true });
-  console.warn('[wasm64] wasm-opt atlandı (uyumlu binaryen yok veya parse edemedi) — optimize edilmemiş pkg64 kullanılıyor');
+  console.warn('[wasm64] wasm-opt skipped (compatible binaryen unavailable or parsing failed) — using unoptimized pkg64');
 }
 
-console.log(`[wasm64] hazır: ${outDir}`);
+console.log(`[wasm64] ready: ${outDir}`);

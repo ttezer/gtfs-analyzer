@@ -204,7 +204,7 @@ def main() -> int:
                 "fields": fields,
             }
     if len(table) < 25:
-        print(f"HATA: yalnız {len(table)} dosya bulundu; spec düzeni değişmiş olabilir.",
+        print(f"ERROR: found only {len(table)} files; the spec layout may have changed.",
               file=sys.stderr)
         return 1
     OUT.write_text(
@@ -225,9 +225,9 @@ def main() -> int:
     total = sum(len(v["fields"]) for v in table.values())
     no_type = sum(1 for v in table.values() for f in v["fields"] if not f["type"])
     no_pres = sum(1 for v in table.values() for f in v["fields"] if not f["presence"])
-    print(f"yazıldı: {OUT.name} ({len(table)} dosya, {total} alan)")
+    print(f"wrote: {OUT.name} ({len(table)} files, {total} fields)")
     if no_type or no_pres:
-        print(f"  ⚠️ type boş: {no_type} · presence boş: {no_pres} (spec düzeni değişmiş olabilir)",
+        print(f"  ⚠️ empty type: {no_type} · empty presence: {no_pres} (the spec layout may have changed)",
               file=sys.stderr)
     return 0
 

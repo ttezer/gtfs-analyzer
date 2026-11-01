@@ -18,7 +18,7 @@ const engineVersion = indexSource.match(/const ENGINE_VERSION = '([^']+)'/)?.[1]
 const workspaceVersion = rootCargo.match(/^\[workspace\.package\][^[]*?^version\s*=\s*"([^"]+)"/ms)?.[1];
 
 if (!sdkVersion || !engineVersion || !workspaceVersion) {
-  throw new Error('SDK, engine veya workspace sürümü kaynaklardan okunamadı.');
+  throw new Error('Could not read the SDK, engine, or workspace version from the sources.');
 }
 
 const errors = [];
@@ -64,7 +64,7 @@ for (const [label, version] of [
 }
 
 if (errors.length) {
-  throw new Error(`Sürüm uyuşmazlığı (düzeltmek için: node scripts/bump-version.mjs ${workspaceVersion}):\n- ${errors.join('\n- ')}`);
+  throw new Error(`Version mismatch (to fix: node scripts/bump-version.mjs ${workspaceVersion}):\n- ${errors.join('\n- ')}`);
 }
 
 console.log(`version check ok: gtfs-sdk ${sdkVersion}, engine ${engineVersion}`);

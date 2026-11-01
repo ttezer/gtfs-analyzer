@@ -22,8 +22,8 @@ function canonical(value) {
 }
 
 if (JSON.stringify(canonical(result32)) !== JSON.stringify(canonical(result64))) {
-  console.error('[wasm64:parity] FAIL — wasm32 ve wasm64 sonuçları farklı');
+  console.error('[wasm64:parity] FAIL — wasm32 and wasm64 results differ');
   process.exit(1);
 }
 
-console.log(`[wasm64:parity] PASS — ${result64.Ok?.notices?.length ?? 0} notice birebir eşit`);
+console.log(`[wasm64:parity] PASS — ${result64.Ok?.notices?.length ?? 0} notices match exactly`);

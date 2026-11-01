@@ -33,4 +33,4 @@ assert.deepEqual(difference(sdkKeys, rustKeys), [], 'SDK interface\'inde Rust ta
 assert.equal(rustKeys.length, 39, 'Beklenen Rust config anahtar sayısı değişti; parity listesini gözden geçirin.');
 assert.equal(sdkKeys.length, rustKeys.length, 'Rust ve SDK config anahtar sayıları eşit değil.');
 
-console.log(`config parity ok: ${rustKeys.length} Rust/SDK anahtarı`);
+console.log(`config parity OK: ${rustKeys.length} Rust/SDK keys`);
