@@ -140,13 +140,13 @@ def main() -> int:
         for k in ORDER:
             if c[k]:
                 print(f"  {k:12s} {c[k]:3d}")
-        print(f"  toplam {total} · ölçülemez {unmeasurable} · payda {denom} · ölçülen {num}")
+        print(f"  total {total} · unmeasurable {unmeasurable} · denominator {denom} · measured {num}")
         if denom:
             print(f"  → %{100 * num / denom:.1f}")
         return num, denom
 
-    n, d = report("SERT hükümler (rozet paydası)", hard)
-    report("YUMUŞAK hükümler (ayrı eksen — Quality)", soft)
+    n, d = report("STRONG provisions (badge denominator)", hard)
+    report("SOFT provisions (separate axis — Quality)", soft)
 
     # ⚠️ UNADJUDICATED PROVISION = SILENT DENOMINATOR LOSS. A candidate not named in the ledger
     # enters none of the counts above, so the percentage continues to say "%100". This is exactly
@@ -154,11 +154,11 @@ def main() -> int:
     # when the catalogue grows, old IDs do not shift; only the NEW ones remain unadjudicated.
     orphans = sorted(set(prov) - set(verdict))
     if orphans:
-        print(f"\n🔴 ADJUDİKE EDİLMEMİŞ {len(orphans)} HÜKÜM — yüzde EKSİK PAYDA üzerinden.")
+        print(f"\n🔴 {len(orphans)} UNADJUDICATED PROVISIONS — percentage uses an incomplete denominator.")
         for pid in orphans:
             print(f"  {pid} [{prov[pid]['strength']}] [{prov[pid]['section']}] "
                   f"{prov[pid]['sentence'][:70]}")
-        print("  → PROVISION_TRIAGE.md'ye karar satırı ekleyin; yüzde ancak ondan sonra geçerlidir.")
+        print("  → Add decision rows to PROVISION_TRIAGE.md; the percentage is valid only afterward.")
 
     # 🔴 THE LEDGER HEADER MUST MATCH THE CALCULATED PERCENTAGE — this is a GATE.
     # 2026-08-07: after `STM_060` was added, the ledger header remained at 145/147,
@@ -172,9 +172,9 @@ def main() -> int:
     # Deliberately breaking the gate exposed the lesson: anchor a gate to the LINE it protects.
     durum = next((l for l in text.split("\n") if l.startswith("> **DURUM")), "")
     if f"{n}/{d}" not in durum:
-        print(f"\n🔴 DEFTER BAŞLIĞI BAYAT — hesaplanan {n}/{d}, ama PROVISION_TRIAGE.md'nin"
-              f" '> **DURUM' satırında '{n}/{d}' geçmiyor.\n  satır: {durum[:110]}")
-        print("  → Başlıktaki DURUM satırını güncelleyin; yüzde iki yerde farklı duramaz.")
+        print(f"\n🔴 STALE LEDGER HEADER — calculated {n}/{d}, but PROVISION_TRIAGE.md's"
+              f" '> **DURUM' line does not contain '{n}/{d}'.\n  line: {durum[:110]}")
+        print("  → Update the DURUM line in the header; the percentage cannot differ in two places.")
         orphans = list(orphans) + ["<defter-başlığı>"]
 
     stale: list[str] = []
@@ -202,15 +202,15 @@ def main() -> int:
     for pid in dolayli:
         row = ev_rows.get(pid)
         if row is None:
-            stale.append(f"DOLAYLI {pid} kanıtsız: dolayli_evidence.tsv'de satırı YOK "
-                         f"(pay onu ölçülmüş sayıyor).")
+            stale.append(f"DOLAYLI {pid} lacks evidence: no row in dolayli_evidence.tsv "
+                         f"(the denominator counts it as measured).")
             continue
         if len(row) < 5 or not all(row[:5]):
-            stale.append(f"DOLAYLI {pid} kanıt satırı eksik alan taşıyor: {row}")
+            stale.append(f"DOLAYLI {pid} evidence row has missing fields: {row}")
             continue
         test_name = row[4]
         if f"fn {test_name}(" not in tests_src:
-            stale.append(f"DOLAYLI {pid} kanıtı olmayan bir testi gösteriyor: {test_name}")
+            stale.append(f"DOLAYLI {pid} points to a test without evidence: {test_name}")
 
     # 🔴 EVIDENCE CLASS GATE (issue #96) — the numerator did not inspect the CLASS of the rule being measured.
     # A hard Spec provision could be counted as "evidenced" even when all supporting rules were Quality/Interop;
@@ -230,16 +230,16 @@ def main() -> int:
     for pid in sorted(k for k, v in hard.items() if v in ("KANITLI", "DOLAYLI")):
         rules = prov_ev.get(pid)
         if rules is None:
-            stale.append(f"SERT {pid} paya sayılıyor ama provision_evidence.tsv'de satırı YOK.")
+            stale.append(f"SERT {pid} is counted in the numerator but has no row in provision_evidence.tsv.")
             continue
         unknown = [r for r in rules if r not in rule_class]
         if unknown:
-            stale.append(f"SERT {pid} registry'de olmayan kural gösteriyor: {unknown}")
+            stale.append(f"SERT {pid} references rules absent from the registry: {unknown}")
             continue
         if not any(rule_class[r] == "Spec" for r in rules):
             shown = ", ".join(f"{r}({rule_class[r]})" for r in rules) or "<boş>"
-            stale.append(f"SERT {pid} hiçbir Spec sınıflı kurala dayanmıyor: {shown} "
-                         f"→ kuralı Spec'e taşıyın, atomik Spec kuralı yazın ya da hükmü KISMİ'ye düşürün.")
+            stale.append(f"SERT {pid} is backed by no Spec-class rule: {shown} "
+                         f"→ move a rule to Spec, add an atomic Spec rule, or downgrade the provision to KISMİ.")
 
     # 🔐 Evidence fingerprint gate: prevent an old adjudication from silently remaining valid when
     # a rule ID or class changes. This catches STALENESS only; a fingerprint is not proof of semantic
@@ -270,52 +270,52 @@ def main() -> int:
     arith_text = (arith_line + " " + arith_next).replace("−", "-")
     want_arith = f"{total} - {excluded} = {d}"
     if want_arith not in arith_text:
-        stale.append(f"§0/4 aritmetiği: '{want_arith}' geçmiyor → {arith_text.strip()[:90]}")
+        stale.append(f"§0/4 arithmetic missing '{want_arith}' → {arith_text.strip()[:90]}")
     for label in ("KAPSAM DIŞI", "META"):
         want = counts.get(label, 0)
         # ⚠️ Anchor the number to the LABEL. Asking whether it occurs on the line is insufficient:
         # an arithmetic digit (for example, 37) could coincidentally equal the target number.
         # `\S*` permits the Turkish suffix form ("24'ü") without permitting the number to drift.
         if not re.search(rf"{want}\S*\s+(?:\*\*)?{label}", arith_text):
-            stale.append(f"§0/4 {label} sayısı {want} değil → {arith_text.strip()[:90]}")
+            stale.append(f"§0/4 {label} count is not {want} → {arith_text.strip()[:90]}")
 
     # The ratio in the §1 table also comes from the calculation (it remained 147/147 on 2026-08-07).
     axis_line = next((l for l in ev_lines if "Düzyazı hükümleri" in l), "")
     if f"{n} / {d}" not in axis_line and f"{n}/{d}" not in axis_line:
-        stale.append(f"§1 eksen satırı {n}/{d} demiyor → {axis_line.strip()[:90]}")
+        stale.append(f"§1 axis line does not say {n}/{d} → {axis_line.strip()[:90]}")
 
     # The manifest is the corpus size's SINGLE SOURCE; §0/3 must not diverge from it.
     man = ROOT / "corpus-evidence" / "corpus_manifest.csv"
     feeds = max(len(man.read_text(encoding="utf-8").strip().split("\n")) - 1, 0)
     corpus_line = next((l for l in ev_lines if "Korpus" in l and "feed'dir" in l), "")
     if not re.search(rf"Korpus {feeds} feed'dir", corpus_line):
-        stale.append(f"§0/3 korpus sayısı {feeds} değil (manifest {feeds} satır) → "
+        stale.append(f"§0/3 corpus count is not {feeds} (manifest has {feeds} rows) → "
                      f"{corpus_line.strip()[:90]}")
 
     if stale:
-        print("\n🔴 KANIT KAPISI — aşağıdakiler payı hak etmiyor:")
+        print("\n🔴 EVIDENCE GATE — the following do not earn a share:")
         for msg in stale:
             print(f"  {msg}")
-        print("  → §0'ı güncelleyin; aynı sayı iki belgede farklı duramaz.")
+        print("  → Update §0; the same number cannot differ between two documents.")
         orphans = list(orphans) + ["<kanıt-belgesi-§0>"]
 
-    print(f"\n{'='*52}\nDÜZYAZI EKSENİ: {n}/{d} = %{100*n/d:.1f}")
+    print(f"\n{'='*52}\nPROSE AXIS: {n}/{d} = %{100*n/d:.1f}")
     gaps = [k for k, v in hard.items() if v == "BOŞLUK"]
     for g in gaps:
-        print(f"  kalan: {g}  {prov[g]['sentence'][:70]}")
-    print("\n⚠️ Bu yüzde YALNIZ düzyazı eksenidir. Alan tablosu ekseni AYRI ölçülür ve iki")
-    print("   eksen ÖRTÜŞÜR — toplanamazlar. Alan tablosu durumu (2026-08-05 triyajı):")
-    print("   300 GEÇERLİ atomun tamamı çapalı (2 atom HATALI ÜRETİM: transfer_type ve")
-    print("   continuous_drop_off — enum düzyazısı boşa izin veriyor, presence sütunu değil);")
-    print("   32'si tek kuralla paylaşımlı ve triyajda MEŞRU bulundu; 12 boşluk kapatıldı.")
-    print("   Ölçüm: cargo test -- --ignored anchor_granularity_report --nocapture")
-    print("⚠️ Payda kataloğun kendi kapsamıdır. Modalsiz cümlelerin TAMAMI 2026-08-06'da okundu")
-    print("   ve payda İKİ KEZ düzeldi: büyük harf RFC 2119 (273→279), sonra cümle başı modal +")
-    print("   küçük harf `are forbidden` + `requires` (279→299). Ayrıca `Primary key ( … )`")
-    print("   bildirimleri (31) BENZERSİZLİK eksenidir, düzyazı paydasında değil — oradaki 3")
-    print("   boşluk `DQ_021`'e eklendi.")
-    print("   🔴 KALAN ZAYIF NOKTA SAYI DEĞİL, PAYDANIN NASIL KURULDUĞU: üç tur üst üste hata")
-    print("   çıktı (iki case varsayımı + bir yanlış KAPSAM DIŞI). Cümle bölme kaba, ~%14 gürültü.")
+        print(f"  remaining: {g}  {prov[g]['sentence'][:70]}")
+    print("\n⚠️ This percentage is ONLY the prose axis. The field-table axis is measured separately, and the two")
+    print("   axes OVERLAP — they must not be added. Field-table status (2026-08-05 triage):")
+    print("   all 300 VALID atoms are anchored (2 atoms are BAD GENERATION: transfer_type and")
+    print("   continuous_drop_off — enum prose permits empty, not the presence column);")
+    print("   32 are shared by one rule and were found LEGITIMATE in triage; 12 gaps were closed.")
+    print("   Measurement: cargo test -- --ignored anchor_granularity_report --nocapture")
+    print("⚠️ The denominator is the catalogue's own scope. ALL modal-free sentences were read on 2026-08-06")
+    print("   and the denominator was corrected TWICE: uppercase RFC 2119 (273→279), then sentence-initial modal +")
+    print("   lowercase `are forbidden` + `requires` (279→299). Also, `Primary key ( … )`")
+    print("   notices (31) belong to the UNIQUENESS axis, not the prose denominator — its 3")
+    print("   gaps were added to `DQ_021`.")
+    print("   🔴 THE REMAINING WEAK POINT IS NOT THE COUNT, BUT HOW THE DENOMINATOR IS BUILT: three consecutive")
+    print("   rounds produced errors (two case assumptions + one incorrect OUT-OF-SCOPE). Sentence splitting is crude, ~14% noise.")
     # ⚠️ EXIT CODE 1 WHEN ORPHANS EXIST — printing a warning and exiting 0 is not a GATE, but advice.
     # The 2026-08-06 external audit caught this: the document said to "treat the percentage as invalid",
     # but the script still printed it and exited successfully → a "gate" dependent on human interpretation.
