@@ -6,57 +6,57 @@ use crate::k2::EntityRecords;
 use crate::k3_entity_graph::EntityMap;
 use crate::recovery::FileAvailability;
 
-// ── Çıktı tipleri ─────────────────────────────────────────────────────────────
+// ── Output types ─────────────────────────────────────────────────────────────
 
-/// K5'te hesaplanan shape geometry verileri.
+/// Shape geometry data computed by K5.
 #[derive(Debug, Default)]
 pub struct ShapeGeometry {
-    /// shape_id → segment verileri (sıralı nokta çiftleri arası Haversine km, toplam uzunluk, bbox)
+    /// shape_id → segment data (Haversine km between ordered point pairs, total length, bbox)
     pub shapes: HashMap<String, ShapeSegments>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ShapeSegments {
-    /// Ardışık nokta çiftleri arası mesafe (km). Uzunluk = nokta sayısı - 1.
+    /// Distance between consecutive point pairs (km). Length = point count - 1.
     pub segment_distances_km: Vec<f64>,
-    /// Toplam polyline uzunluğu (km).
+    /// Total polyline length (km).
     pub total_length_km: f64,
     /// (min_lat, max_lat, min_lon, max_lon)
     pub bbox: (f64, f64, f64, f64),
 }
 
-/// K5 takvim bitmap — K6 takvim kuralları tarafından tüketilir.
+/// K5 calendar bitmap — consumed by K6 calendar rules.
 #[derive(Debug, Default)]
 pub struct CalendarBitmap {
-    /// service_id → aktif YYYYMMDD günleri kümesi
+    /// service_id → set of active YYYYMMDD dates
     pub active_dates: HashMap<String, HashSet<u32>>,
 }
 
-/// K5 uzamsal indeks — K6 STP_016/017 tarafından tüketilir.
+/// K5 spatial index — consumed by K6 STP_016/017.
 #[derive(Debug, Default)]
 pub struct SpatialIndex {
-    /// Grid-tabanlı durak koordinat indeksi: (grid_row, grid_col) → stop Vec indeksleri
+    /// Grid-based stop coordinate index: (grid_row, grid_col) → stop Vec indices
     pub grid: HashMap<(i32, i32), Vec<usize>>,
     pub cell_deg: f64,
 }
 
-/// K5 pathway graph — K6 PTH_012–015 tarafından tüketilir.
+/// K5 pathway graph — consumed by K6 PTH_012–015.
 #[derive(Debug, Default)]
 pub struct PathwayGraph {
-    /// stop_id → komşu (stop_id, pathway_idx) listesi
+    /// stop_id → list of neighboring (stop_id, pathway_idx) pairs
     pub adjacency: HashMap<String, Vec<(String, usize)>>,
 }
 
-/// K5 fare network — fare_id → routes ve zone referansları.
+/// K5 fare network — fare_id → route and zone references.
 #[derive(Debug, Default)]
 pub struct FareNetwork {
-    /// fare_id → fare_rules'tan gelen route_id listesi
+    /// fare_id → route_id list from fare_rules
     pub fare_routes: HashMap<String, Vec<String>>,
-    /// fare_rules'ta kullanılan tüm zone ID'leri (origin/destination/contains)
+    /// All zone IDs used in fare_rules (origin/destination/contains)
     pub zone_ids: HashSet<String>,
 }
 
-/// K5 türev veri yapılarının kapsayıcısı.
+/// Container for K5 derived data structures.
 #[derive(Debug, Default)]
 pub struct DerivedData {
     pub shape_geometry: ShapeGeometry,
@@ -66,7 +66,7 @@ pub struct DerivedData {
     pub fare_network: FareNetwork,
 }
 
-/// K5 çıktısı.
+/// K5 output.
 #[derive(Debug, Default)]
 pub struct K5Result {
     pub derived: DerivedData,
@@ -74,7 +74,7 @@ pub struct K5Result {
     pub skipped_checks: Vec<String>,
 }
 
-// ── Ana fonksiyon ─────────────────────────────────────────────────────────────
+// ── Main function ─────────────────────────────────────────────────────────────
 
 pub fn build(records: &EntityRecords, entity_map: &EntityMap) -> K5Result {
     build_with_files(records, entity_map, &FileAvailability::complete())
@@ -145,10 +145,10 @@ pub fn build_with_files(
     }
 }
 
-// ── Notice yardımcısı ─────────────────────────────────────────────────────────
+// ── Notice helper ─────────────────────────────────────────────────────────────
 
-// K5 notice'ları canonical emit tablosuyla aynı sırada kurulur; bu ortak yardımcıda
-// parametre struct'ı mevcut rule çağrılarını daha güvenli veya daha okunur yapmaz.
+// K5 notices are built in the same order as the canonical emit table; in this shared
+// helper, a parameter struct would not make the existing rule calls safer or clearer.
 #[allow(clippy::too_many_arguments)]
 fn k5_notice(
     ctr: &mut u32,
@@ -182,7 +182,7 @@ fn k5_notice(
     )
 }
 
-// ── Haversine mesafe (km) ─────────────────────────────────────────────────────
+// ── Haversine distance (km) ───────────────────────────────────────────────────
 
 pub(crate) fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     const R: f64 = 6371.0;
@@ -241,7 +241,7 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
 
         let mut jdn = start_jdn;
         while jdn <= end_jdn {
-            // JDN % 7: 0=Mon … 6=Sun — calendar.txt days[] sırası aynı
+            // JDN % 7: 0=Mon … 6=Sun — same order as calendar.txt days[]
             let dow = (jdn % 7) as usize;
             if rec.days[dow] == Some(1) {
                 set.insert(jdn_to_yyyymmdd(jdn));
@@ -251,9 +251,9 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
     }
 
     // calendar_dates.txt: exception overlay.
-    // Önce tüm exception_type=1 (added) tarihleri ekle, ardından exception_type=2 (removed) kaldır.
-    // ⚠️ Çakışma davranışı: aynı (service_id, date) hem added hem removed'daysa removed kazanır
-    // (CSV satır sırasından bağımsız). Geçerli GTFS feed'lerinde bu çakışma olmamalı.
+    // First add all exception_type=1 (added) dates, then remove exception_type=2 (removed) dates.
+    // ⚠️ Conflict behavior: when the same (service_id, date) is both added and removed,
+    // removed wins regardless of CSV row order. Valid GTFS feeds should not contain this conflict.
     for (svc, dates) in &records.calendar_dates.added {
         let set = derived
             .calendar_bitmap
@@ -282,7 +282,7 @@ fn build_shape_geometry(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // Hangi shape_id'lerin trip tarafından kullanıldığını topla (SHP_018 için)
+    // Collect the shape_ids used by trips (for SHP_018).
     let ti = &records.trip_interns;
     let referenced_shapes: HashSet<&str> = records
         .trips
@@ -291,9 +291,10 @@ fn build_shape_geometry(
         .filter(|s| !s.is_empty())
         .collect();
 
-    // SHP_010 agregasyonu (#48): ardışık özdeş koordinat büyük feed'de neredeyse-evrensel
-    // (DELFI: 268K shape'in %98'i) — shape-başına Düşük notice yerine eşik aşılırsa tek
-    // feed-özet üretilir. STP_022 emsali; karar dış döngü sonunda verilir.
+            // SHP_010 aggregation (#48): consecutive identical coordinates are nearly universal
+            // in large feeds (DELFI: 98% of 268K shapes) — emit one feed summary above the
+            // threshold instead of one Low notice per shape. STP_022 is the precedent; decide
+            // after the outer loop.
     let mut shp010_pending: Vec<Notice> = Vec::new();
 
     for (shape_id, point_indices) in &entity_map.shape_points {
@@ -303,9 +304,9 @@ fn build_shape_geometry(
         }
         let first_line = point_indices.first().map(|&i| records.shapes[i].line_u64());
         if n_pts == 1 {
-            // SHP_006 yalnızca kullanılan shape'ler için bir tüketici-uyumluluk sinyalidir.
-            // Kullanılmayan tek-nokta kaydı SHP_018 orphan-shape bulgusunun kapsamındadır;
-            // iki notice ile aynı kök nedeni çoğaltıp puanı şişirmeyiz.
+            // SHP_006 is a consumer-compatibility signal only for used shapes.
+            // An unused one-point record is covered by the SHP_018 orphan-shape finding;
+            // do not inflate the score by duplicating the same root cause in two notices.
             if referenced_shapes.contains(shape_id.as_str()) {
                 let mut notice = k5_notice(
                     ctr,
@@ -336,8 +337,8 @@ fn build_shape_geometry(
             }
             continue;
         }
-        // n_pts == 2: geçerli düz segment (GTFS ≥3 nokta dayatmaz; feribat/kısa
-        // düz hat meşru). Geometri aşağıda tek segment olarak hesaplanır.
+        // n_pts == 2: valid straight segment (GTFS does not require ≥3 points; a
+        // ferry/short straight route is legitimate). Geometry is computed below as one segment.
 
         let mut segment_distances_km: Vec<f64> = Vec::with_capacity(point_indices.len() - 1);
         let mut total_km = 0.0f64;
@@ -350,24 +351,25 @@ fn build_shape_geometry(
         let mut prev_lon: Option<f64> = None;
         let mut prev_line: u64 = 0;
         let mut prev_dist: Option<f64> = None;
-        // SHP_010 Entity-scope (shape_id) → dedup shape başına TEKE çökertir. Büyük feed'de
-        // bir shape'in her ardışık-tekrar noktası için emit etmek yüz binlerce ara-notice
-        // üretip sonra atıyordu (#15 Mode A). Shape başına bir kez emit = birebir aynı sonuç.
+        // SHP_010 entity scope (shape_id) → deduplicate to one finding per shape. In large feeds,
+        // emitting for every consecutive duplicate point produced hundreds of thousands of
+        // intermediate notices and discarded them later (#15 Mode A). One emission per shape
+        // produces exactly the same result.
         let mut shp010_fired = false;
 
         for &idx in point_indices {
             let pt = &records.shapes[idx];
 
-            // SHP_005: shape_dist_traveled shape_pt_sequence ile artmalı. point_indices K3'te
-            // sequence'a göre SIRALI olduğundan burada kontrol edilir — K2 dosya-satır sırasında
-            // baksaydı (ve bakıyordu) sequence-dışı sıralı feed'lerde sahte "azalma" görürdü (FP fix).
-            // Karşılaştırma TAM (#94): eskiden `d < prev - 1e-6` idi ve 1e-6'dan küçük GERÇEK
-            // azalmaları sessizce kabul ediyordu — kritik bir Spec predikatının kabul kümesini
-            // spec'te olmayan bir toleransla genişletmek. Tolerans gerekmiyor: değerler
-            // `parse_f64_col` ile ÜRETİCİNİN yazdığı metinden doğrudan okunuyor, üzerlerinde
-            // aritmetik yapılmıyor. Ondalık→f64 dönüşümü monoton olduğundan `d < prev` ancak
-            // ondalık değer de azalmışsa doğrudur (FP yok); ayırt edilemeyecek kadar yakın iki
-            // değer eşitliğe çöker ve eşitlik zaten emit etmez.
+            // SHP_005: shape_dist_traveled must increase with shape_pt_sequence. point_indices
+            // are ORDERED by sequence in K3, so check here — checking K2 file order would
+            // produce false "decrease" findings for feeds whose rows are not sequence-ordered (FP fix).
+            // Exact comparison (#94): it used to be `d < prev - 1e-6`, silently accepting real
+            // decreases smaller than 1e-6 — widening a critical Spec predicate's accepted set
+            // with a tolerance absent from the spec. No tolerance is needed: values are read
+            // directly from the producer-written text by `parse_f64_col`, without arithmetic.
+            // Because decimal-to-f64 conversion is monotonic, `d < prev` is true only when the
+            // decimal value also decreased (no FP false positive); indistinguishably close values
+            // collapse to equality, which does not emit a finding anyway.
             if let Some(d) = pt.shape_dist_traveled() {
                 if let Some(prev) = prev_dist {
                     if d < prev {
@@ -387,21 +389,21 @@ fn build_shape_geometry(
             let (lat, lon) = match (pt.shape_pt_lat(), pt.shape_pt_lon()) {
                 (Some(la), Some(lo)) => (la, lo),
                 _ => {
-                    // lat/lon yoksa geometri için bu noktayı atla; SHP_003/004 K2'de yakalandı.
+                    // Skip this point for geometry when lat/lon is absent; SHP_003/004 caught it in K2.
                     prev_lat = None;
                     prev_lon = None;
                     continue;
                 }
             };
 
-            // Bounding box güncelle
+            // Update the bounding box.
             min_lat = min_lat.min(lat);
             max_lat = max_lat.max(lat);
             min_lon = min_lon.min(lon);
             max_lon = max_lon.max(lon);
 
             if let (Some(plat), Some(plon)) = (prev_lat, prev_lon) {
-                // SHP_010: ardışık özdeş koordinat — shape başına bir kez (dedup zaten teke indirir)
+                // SHP_010: consecutive identical coordinates — once per shape (dedup already reduces it to one).
                 if (lat - plat).abs() < f64::EPSILON
                     && (lon - plon).abs() < f64::EPSILON
                     && !shp010_fired
@@ -424,9 +426,9 @@ fn build_shape_geometry(
                         ),
                         "Tekrarlanan güzergah noktasını kaldırın.",
                     );
-                    // Kural iki ölçekte emit edilir (shape başına / feed özeti) ama tek mesaj
-                    // şablonu vardır. Tekil dalda da sayaç+örnek yazılır ki en/ja/fr metni
-                    // iki dalda da dolsun (STP_022 emsali, 2026-08-29).
+                    // The rule emits at two scopes (per shape / feed summary) but has one message
+                    // template. The single-shape branch also includes count+example so the en/ja/fr
+                    // text is populated in both branches (STP_022 precedent, 2026-08-29).
                     let details = notice.details.get_or_insert_with(Default::default);
                     details.insert("affected_shapes".to_string(), "1".to_string());
                     details.insert("example_shapes".to_string(), shape_id.to_string());
@@ -453,13 +455,14 @@ fn build_shape_geometry(
         );
     }
 
-    // SHP_010 karar (#48): ardışık-özdeş-koordinatlı shape sayısı eşiği aşarsa tek feed-özet;
-    // aksi halde shape-başına notice korunur (düşük hacimde pinpoint değerli).
+    // SHP_010 decision (#48): if the number of shapes with consecutive identical coordinates
+    // exceeds the threshold, emit one feed summary; otherwise retain per-shape notices
+    // (pinpointing is valuable at low volume).
     const SHP010_AGG_THRESHOLD: usize = 50;
     let n10 = shp010_pending.len();
     if n10 > SHP010_AGG_THRESHOLD {
-        // shp010_pending, shape_points (HashMap) iterasyon sırasında dolduğu için ham
-        // `take(5)` her koşuda başka örnekler veriyordu. Önce sırala, sonra ilk 5'i al.
+        // Because shp010_pending is populated while iterating over shape_points (a HashMap),
+        // raw `take(5)` returned different examples on each run. Sort first, then take the first five.
         let mut examples: Vec<String> = shp010_pending
             .iter()
             .filter_map(|x| x.entity_id.clone())
@@ -484,10 +487,10 @@ fn build_shape_geometry(
         notices.append(&mut shp010_pending);
     }
 
-    // SHP_018: orphan shape — trip tarafından referans edilmeyen shape
+    // SHP_018: orphan shape — not referenced by a trip
     for shape_id in entity_map.shape_points.keys() {
         if !referenced_shapes.contains(shape_id.as_str()) {
-            // İlk noktanın satır numarasını bul
+            // Find the first point's line number.
             let line = entity_map.shape_points[shape_id]
                 .first()
                 .map(|&i| records.shapes[i].line_u64());
@@ -566,8 +569,8 @@ fn build_fare_network(records: &EntityRecords, derived: &mut DerivedData) {
         if rule.fare_id.is_empty() {
             continue;
         }
-        // Anahtar/değer zaten varken String ayırma: büyük fare_rules dosyalarında
-        // (mdb-992) kural başına kopya WASM'da K5'i native'in 6-13 katına çıkarıyordu.
+        // Avoid splitting into a String when the key/value already exist: in large fare_rules
+        // files (mdb-992), copying per rule made K5 6–13 times slower in WASM than native.
         if let Some(route_id) = rule.route_id.as_deref() {
             let routes = &mut derived.fare_network.fare_routes;
             match routes.get_mut(rule.fare_id.as_str()) {
@@ -806,8 +809,8 @@ mod tests {
     #[test]
     fn shp_005_no_false_positive_when_file_order_differs_from_sequence() {
         let mut shape_ti = ShapeInternTable::new();
-        // Dosyada seq 2 (dist 20) seq 1 (dist 10)'dan ÖNCE listelenmiş; K3 sequence'a göre sıralar.
-        // Sequence-sıralı dist artıyor → SHP_005 ÇIKMAMALI (Athens mdb-3220 FP'sinin köku).
+        // The file lists seq 2 (dist 20) before seq 1 (dist 10); K3 sorts by sequence.
+        // Distance increases in sequence order → SHP_005 MUST NOT fire (Athens mdb-3220 FP root).
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
@@ -830,7 +833,7 @@ mod tests {
     #[test]
     fn shp_005_fires_on_true_sequence_decrease() {
         let mut shape_ti = ShapeInternTable::new();
-        // shape_pt_sequence sırasında gerçekten azalıyor (seq1=10 → seq2=5) → SHP_005 çıkmalı.
+        // It really decreases in shape_pt_sequence order (seq1=10 → seq2=5) → SHP_005 must fire.
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
@@ -850,8 +853,8 @@ mod tests {
         );
     }
 
-    /// #94 sınır matrisi: azalma eski `1e-6` toleransından KÜÇÜK olsa da emit edilmeli,
-    /// eşitlik ve artış ise sessiz kalmalı.
+    /// #94 boundary matrix: emit even when the decrease is smaller than the old `1e-6`
+    /// tolerance; equality and increase must remain silent.
     fn shp_005_fires_for(d1: f64, d2: f64) -> bool {
         let mut shape_ti = ShapeInternTable::new();
         let mut records = empty_records();
@@ -874,12 +877,12 @@ mod tests {
 
     #[test]
     fn shp_005_fires_on_decrease_below_old_epsilon() {
-        // issue #94 karşı-örneği: azalma 5e-7, eski `d < prev - 1e-6` eşiğinin ALTINDA.
+        // issue #94 counterexample: decrease of 5e-7, BELOW the old `d < prev - 1e-6` threshold.
         assert!(
             shp_005_fires_for(1.0000005, 1.0000000),
             "1e-6'dan küçük gerçek azalma da SHP_005 üretmeli (#94)"
         );
-        // f64'te temsil edilebilen en küçük azalma da yakalanmalı.
+        // The smallest decrease representable by f64 must also be caught.
         assert!(
             shp_005_fires_for(1.0, 1.0 - f64::EPSILON / 2.0),
             "bir ULP'lik azalma da SHP_005 üretmeli (#94)"
@@ -952,8 +955,9 @@ mod tests {
     #[test]
     fn shp_010_fires_once_per_shape_despite_many_duplicates() {
         let mut shape_ti = ShapeInternTable::new();
-        // #15 Mode A: bir shape'te ÇOK ardışık-tekrar nokta olsa da SHP_010 shape başına
-        // TEK üretilmeli (dedup zaten teke indirir; ara-üretim patlamasını önle).
+        // #15 Mode A: even with MANY consecutive duplicate points in one shape, SHP_010
+        // must be emitted ONCE per shape (dedup already reduces it to one; prevent an
+        // intermediate-emission explosion).
         let mut records = empty_records();
         let mut map = empty_map();
         records.shapes = vec![
@@ -985,14 +989,14 @@ mod tests {
     #[test]
     fn shp_010_high_volume_aggregates_to_single_feed_notice() {
         let mut shape_ti = ShapeInternTable::new();
-        // #48: ardışık-özdeş-koordinatlı shape sayısı yüksek (>50) → tek feed-özet.
+        // #48: high count of shapes with consecutive identical coordinates (>50) → one feed summary.
         let mut records = empty_records();
         let mut map = empty_map();
         let mut shapes = Vec::new();
         for i in 0..=51u32 {
             let sid = format!("S{i}");
             let base = shapes.len();
-            // her shape: 2 özdeş nokta (dup) → SHP_010 tetikler
+            // each shape: 2 identical points (dup) → triggers SHP_010
             shapes.push(shape_pt(&mut shape_ti, &sid, 1, 41.0, 29.0, 1));
             shapes.push(shape_pt(&mut shape_ti, &sid, 2, 41.0, 29.0, 2));
             map.shape_points.insert(sid, vec![base, base + 1]);
@@ -1031,7 +1035,7 @@ mod tests {
             shape_pt(&mut shape_ti, "ORPHAN", 2, 41.1, 29.1, 3),
         ];
         records.shape_interns = shape_ti.clone();
-        // trips: shape'e referans yok
+        // trips: no reference to the shape
         map.shape_points.insert("ORPHAN".into(), vec![0, 1]);
 
         let result = build(&records, &map);
@@ -1058,7 +1062,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_018"));
     }
 
-    // ── Boş feed ─────────────────────────────────────────────────────────────
+    // ── Empty feed ────────────────────────────────────────────────────────────
 
     #[test]
     fn empty_feed_produces_no_notices() {
@@ -1144,7 +1148,7 @@ mod tests {
     #[test]
     fn calendar_dates_exception_type2_removes_date() {
         let mut records = empty_records();
-        // Tüm hafta aktif
+        // The whole week is active.
         records.calendars = vec![calendar_rec(
             "SVC1",
             [
@@ -1159,7 +1163,7 @@ mod tests {
             (2026, 5, 11),
             (2026, 5, 11),
         )];
-        // Pazartesi'yi kaldır (exception_type=2)
+        // Remove Monday (exception_type=2).
         records.calendar_dates = cal_date_idx("SVC1", (2026, 5, 11), 2);
         let result = build(&records, &empty_map());
         let dates = result
@@ -1174,7 +1178,7 @@ mod tests {
     #[test]
     fn calendar_dates_exception_type1_adds_date() {
         let mut records = empty_records();
-        // Takvim yok, sadece ek gün
+        // No calendar, only an added date.
         records.calendar_dates = cal_date_idx("SVC_NEW", (2026, 6, 1), 1);
         let result = build(&records, &empty_map());
         let dates = result
@@ -1210,7 +1214,7 @@ mod tests {
     #[test]
     fn spatial_index_places_stops_in_correct_cells() {
         let mut records = empty_records();
-        // İki durak aynı 0.5° hücresinde (41.0 → cell row=82, 29.0 → cell col=58)
+        // Two stops in the same 0.5° cell (41.0 → cell row=82, 29.0 → cell col=58).
         records.stops = vec![
             stop_rec("S1", 41.0, 29.0),
             stop_rec("S2", 41.2, 29.3),
