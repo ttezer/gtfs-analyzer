@@ -151,14 +151,14 @@ class ContextMappingFixtures(unittest.TestCase):
             self.assertTrue(reason.strip(), "a BY_DESIGN entry without reasoning is a blind spot")
 
     def test_far_stop_speed_is_mapped_to_its_own_rule_not_to_the_consecutive_ones(self):
-        """Bu test eskiden `fast_travel_between_far_stops`'un bir KAPSAM BOŞLUĞU
-        olarak kaldığını sabitliyordu. #168'de kural yazıldı (`STM_061`), dolayısıyla
-        sabitlenen şey değişti — ama ASIL koruma aynı kaldı: uzak çift kontrolü
-        komşu kontrollerine (`STM_012`/`STM_014`) TAKMA AD OLARAK verilemez.
+        """This test used to pin `fast_travel_between_far_stops` as a COVERAGE GAP.
+        The rule was added in #168 (`STM_061`), so what is pinned changed — but the CORE
+        protection stayed the same: the far-pair check cannot be given the neighboring
+        checks (`STM_012`/`STM_014`) AS AN ALIAS.
 
-        Neden önemli: ikisi aynı olguyu ölçmez. `run-32197267205`'te 20 feed uzak-çift
-        bildirip ardışık hiç bildirmiyordu; takma ad, o 20 feed'i "zaten kapsıyoruz"
-        diye gösterip kuralın yazılmasını engellerdi.
+        Why it matters: they measure different phenomena. In `run-32197267205`, 20 feeds
+        reported far pairs and none reported consecutive pairs; an alias would have shown
+        those 20 feeds as "already covered" and prevented the rule from being written.
         """
         self.assertEqual(audit.MAP.get("fast_travel_between_far_stops"), ["STM_061"])
         for consecutive in ("STM_012", "STM_014"):
@@ -167,7 +167,7 @@ class ContextMappingFixtures(unittest.TestCase):
                 audit.MAP.get("fast_travel_between_far_stops", []),
                 "uzak çift kontrolü komşu hız kuralına takma ad olamaz",
             )
-        # Boşluk defterinden çıkmış olmalı: kural artık VAR.
+        # It must have left the gap ledger: the rule now EXISTS.
         self.assertNotIn("fast_travel_between_far_stops", mapping.UNMAPPED_DECISIONS)
 
     def test_feed_expiration_30_day_parity_is_config_dependent(self):
@@ -285,38 +285,38 @@ class AuditFixture(unittest.TestCase):
 
 
 class LedgerDriftGate(unittest.TestCase):
-    """Defter ve eşleme değişiklikleri yayımlanan sayıları SESSİZCE oynatabilir.
+    """Ledger and mapping changes can SILENTLY alter published counts.
 
-    Kural setinin kart tutarlılık testi, drift kapısı ve mutasyon sınanmış rozet
-    kapısı var; onu yargılayan araçta hiçbiri yoktu (#159). Bu sınıf, bir kararın
-    ya da eşlemenin şeklini SABİTLER — değiştirmek serbest, ama sessizce
-    değiştirmek değil.
+    The rule set has a card-consistency test, a drift gate, and a mutation-tested badge
+    gate; the tool judging it had none of them (#159). This class PINS the shape of a
+    decision or mapping — changing it is allowed, but not silently.
 
-    🔴 Bu kapının varlık sebebi somut: `transfer_with_invalid_trip_and_stop` ve
-    `transfer_with_invalid_trip_and_route` defterde `genuine-gap` olarak
-    kayıtlıydı ve karar YANLIŞTI — kurallar (`XFL_021`, `TRF_017`) zaten vardı ve
-    ateşliyordu. Yanlış karar bir issue'ya, oradan da yol haritasına taşındı.
+    🔴 The reason this gate exists is concrete: `transfer_with_invalid_trip_and_stop` and
+    `transfer_with_invalid_trip_and_route` were recorded as `genuine-gap` in the ledger,
+    and the decision was WRONG — the rules (`XFL_021`, `TRF_017`) already existed and fired.
+    The wrong decision propagated into an issue and then into the roadmap.
     """
 
-    # Sözlük UYDURULMAZ, kullanımdan DONDURULUR. Yeni bir etiket eklemek serbest —
-    # ama bu listeyi de güncellemek gerekir, yani karar bilinçli olur. Bir etiketin
-    # buradan düşmesi de sinyaldir: o kararı taşıyan kod silinmiş demektir.
-    # 🔑 `genuine-gap` 2026-08-19'da sözlükten DÜŞTÜ ve bu bir başarıdır, bir eksik
-    # değil: defterdeki son gerçek kapsam boşluğu `fast_travel_between_far_stops`'tu
-    # ve #168'de `STM_061` yazılarak kapatıldı. Yeni bir boşluk kaydedilirse etiket
-    # buraya geri eklenir — sözlük kullanımdan dondurulduğu için bu bilinçli olur.
+    # The vocabulary is NOT INVENTED; it is FROZEN from usage. Adding a new label is allowed —
+    # but this list must also be updated, making the decision conscious. A label disappearing
+    # from here is also a signal: the code carrying that decision was deleted.
+    # 🔑 `genuine-gap` LEFT the vocabulary on 2026-08-19, and that is a success, not a gap:
+    # the last real coverage gap in the ledger was `fast_travel_between_far_stops`, and it was
+    # closed by adding `STM_061` in #168. If a new gap is recorded, add the label back here —
+    # because the vocabulary is frozen from usage, that will be deliberate.
     UNMAPPED_LABELS = {
         "deprecated-md-only", "md-implementation-limit",
         "config-dependent", "context-dependent", "disjoint", "exact-parity",
     }
-    # 🔑 `analyzer-defect` ve `not-adjudicated` 2026-10-13'te düştü: son kusur kaydı
-    # (`inconsistent_route_type_for_block_id`) #169 A kararıyla kapandı, son açık kayıt
-    # (`invalid_color`, tfs-342) feed okunarak hükme bağlandı. Yeni kusur kaydı gelirse geri eklenir.
+    # 🔑 `analyzer-defect` and `not-adjudicated` were removed on 2026-10-13: the last defect
+    # record (`inconsistent_route_type_for_block_id`) was closed by decision #169 A, and the
+    # last open record (`invalid_color`, tfs-342) was adjudicated by reading the feed. Add them
+    # back if a new defect record arrives.
     MAPPED_LABELS = {"tolerance-by-design", "structural-fault-owns-it", "md-implementation-limit", "scope-difference",
                       "config-dependent", "aggregation"}
 
     def test_ledger_labels_stay_within_the_frozen_vocabulary(self):
-        """Etiketsiz ya da tanınmayan karar sayımlardan sessizce düşer."""
+        """An unlabeled or unknown decision silently disappears from the counts."""
         for table, allowed, name in (
             (mapping.UNMAPPED_DECISIONS, self.UNMAPPED_LABELS, "UNMAPPED_DECISIONS"),
             (mapping.MAPPED_DIVERGENCE_DECISIONS, self.MAPPED_LABELS, "MAPPED_DIVERGENCE_DECISIONS"),
@@ -332,11 +332,11 @@ class LedgerDriftGate(unittest.TestCase):
                              f"{name}: sözlükte artık kullanılmayan etiket var: {allowed - used}")
 
     def test_a_mapped_code_is_never_labelled_a_coverage_gap(self):
-        """Eşlemesi olan bir kod KAPSAM BOŞLUĞU olamaz — kural vardır.
+        """A mapped code cannot be a COVERAGE GAP — the rule exists.
 
-        Kural var ama tesisat yüzünden ateşlemiyorsa bu bir KUSURDUR (`analyzer-defect`),
-        boşluk değil. Ayrımı kaybetmek "yazılacak kural" ile "onarılacak hata"yı
-        aynı kovaya koyar; `inconsistent_route_type_for_block_id` ikincisidir (#169).
+        If the rule exists but does not fire because of plumbing, that is a DEFECT
+        (`analyzer-defect`), not a gap. Losing the distinction puts "rule to write" and
+        "bug to fix" in the same bucket; `inconsistent_route_type_for_block_id` is the latter (#169).
         """
         for code, entry in mapping.MAPPED_DIVERGENCE_DECISIONS.items():
             with self.subTest(code=code):
@@ -344,9 +344,9 @@ class LedgerDriftGate(unittest.TestCase):
                                     f"{code} eşlemeli: boşluk değil, kusur olabilir")
 
     def test_a_code_is_never_both_mapped_and_declared_a_gap(self):
-        """Kapsam boşluğu ilan edilen bir kodun eşlemesi OLAMAZ — ikisi çelişir.
+        """A code declared a coverage gap CANNOT have a mapping — the two conflict.
 
-        Tam olarak bu çelişki iki kod için aylarca sürdü ve #158'i yanlış açtırdı.
+        Exactly this conflict persisted for two codes for months and incorrectly opened #158.
         """
         for code, entry in mapping.UNMAPPED_DECISIONS.items():
             if entry[0] != "genuine-gap":
@@ -362,7 +362,7 @@ class LedgerDriftGate(unittest.TestCase):
                 )
 
     def test_classify_divergence_is_stable_for_known_codes(self):
-        """Bu üç kod üç AYRI deftere düşer; kaynak etiketi karışırsa sayım kayar."""
+        """These three codes land in three SEPARATE ledgers; a source-label mix-up shifts counts."""
         for code, expected_source in (
             ("non_ascii_or_non_printable_char", "by-design"),
             ("feed_expiration_date30_days", "unmapped:config-dependent"),
@@ -372,7 +372,7 @@ class LedgerDriftGate(unittest.TestCase):
                 self.assertEqual(mapping.classify_divergence(code)[0], expected_source)
 
     def test_the_two_transfer_consistency_codes_are_mapped_not_gaps(self):
-        """#158 regresyonu: bu ikisi bir daha 'kapsam boşluğu' olarak geri dönmesin."""
+        """#158 regression: these two must never return as 'coverage gaps'."""
         for code, rule in (
             ("transfer_with_invalid_trip_and_stop", "XFL_021"),
             ("transfer_with_invalid_trip_and_route", "TRF_017"),
@@ -385,8 +385,8 @@ class LedgerDriftGate(unittest.TestCase):
     def test_the_analyzer_side_ledger_is_actually_consulted(self):
         """#163: `fp_adjudication.tsv` hiçbir tüketici tarafından okunmuyordu.
 
-        251 satırın hepsi yargılanmış olduğu hâlde her koşumda taze görünüyordu —
-        #146'nın (`BY_DESIGN` yüklenmeyen bir modüldeydi) birebir tekrarı.
+        Although all 251 rows had been adjudicated, they appeared fresh on every run —
+        an exact repeat of #146 (`BY_DESIGN` lived in a module that was not loaded).
         """
         self.assertGreater(len(mapping._fp_verdicts()), 50, "defter boş okundu — ÖNCE SORGUYU şüphelen")
         self.assertEqual(mapping.classify_analyzer_divergence("ARC_030")[0], "adjudicated:TRUE_POSITIVE")
@@ -402,9 +402,9 @@ class LedgerDriftGate(unittest.TestCase):
         for verdict in mapping.REGRESSION_SENSITIVE_VERDICTS:
             self.assertNotIn(verdict, mapping.SETTLING_VERDICTS,
                              f"{verdict} bir değişiklik iddia eder, ayrışmayı KAPATAMAZ")
-        # Örnek, nöbeti HÂLÂ SÜREN bir kuraldan seçilir. `FIN_002` bu testin örneğiydi
-        # ve run 32290410755 nöbetini kapattı (mdb-912 hâlâ ateşliyor, ki ateşlemesi
-        # gerekiyordu) — örneği güncellemek ilkeyi değil, ilkenin ÖRNEĞİNİ takip eder.
+        # The example comes from a rule whose watch is STILL ACTIVE. `FIN_002` was this test's
+        # example and closed the watch in run 32290410755 (mdb-912 still fires, as it should)
+        # — updating the example follows the EXAMPLE of the principle, not the principle itself.
         still_watched = [rid for rid, (v, _, _) in mapping._fp_verdicts().items()
                          if v in mapping.REGRESSION_SENSITIVE_VERDICTS]
         self.assertTrue(still_watched, "hiç açık nöbet yoksa bu testin örneği kalmamıştır")
@@ -507,12 +507,12 @@ class LedgerDriftGate(unittest.TestCase):
                 self.assertEqual(result.unresolved_samples, 0)
 
     def test_context_extractor_reads_the_child_and_composite_key_shapes(self):
-        """Çıkarıcı sessizce boş dönerse bağlam "yok" sanılır ve kod eşlemesiz kalır."""
+        """If the extractor silently returns empty, context looks absent and the code stays unmapped."""
         self.assertEqual(mapping._filename({"childFilename": "trips.txt"}), "trips.txt")
         self.assertEqual(mapping._field({"childFieldName": "shape_id"}), "shape_id")
-        # duplicate_key bileşik anahtarın TÜM sütunlarını tek dizede verir.
+        # duplicate_key gives ALL columns of a composite key as one string.
         self.assertEqual(mapping._field({"fieldName1": "table_name,field_name,language"}), "table_name")
-        # Standart anahtarlar önceliğini korur.
+        # Standard keys retain priority.
         self.assertEqual(mapping._field({"fieldName": "stop_id", "childFieldName": "trip_id"}), "stop_id")
 
     def test_no_md_equivalent_entries_name_real_rules_and_are_not_also_mapped(self):
