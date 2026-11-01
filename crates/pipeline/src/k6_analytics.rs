@@ -148,9 +148,9 @@ pub fn analyze_with_files(
                 .map(|shape_idx| (t.trip_id.as_str(), shape_idx))
         })
         .collect();
-// OOM fix Plan D (updated): K6 does NOT CLONE the K2 index. In tests (stop_times_index empty
-// but records.stop_times populated), an owned K2 index is built; in production,
-// records.stop_times_index is borrowed.
+    // OOM fix Plan D (updated): K6 does NOT CLONE the K2 index. In tests (stop_times_index empty
+    // but records.stop_times populated), an owned K2 index is built; in production,
+    // records.stop_times_index is borrowed.
     let fallback_k2_owned: Option<K2StopTimesIndex> =
         if records.stop_times_index.total_rows == 0 && !records.stop_times.is_empty() {
             Some(K2StopTimesIndex::from_records(&records.stop_times))
@@ -164,24 +164,24 @@ pub fn analyze_with_files(
         let _t = Timer::start("K6::idx::build");
         StopTimesIndex::build(records, &trip_shape, k2_for_idx)
     };
-// Shape geometry: ONE setup for four consumers (speed_and_duration, remaining_analytics, shp012, shp022).
-// See the measurement note in the ShapeIndex definition.
+    // Shape geometry: ONE setup for four consumers (speed_and_duration, remaining_analytics, shp012, shp022).
+    // See the measurement note in the ShapeIndex definition.
     let shape_idx = {
         let _t = Timer::start("K6::shape_idx::build");
         ShapeIndex::build(records)
     };
-// Rail trip/shape sets: ONE setup for the three consumers that relax geometry thresholds
-// (geo_analytics, remaining_analytics, shp012) and for STM_045 — the shape_idx precedent.
+    // Rail trip/shape sets: ONE setup for the three consumers that relax geometry thresholds
+    // (geo_analytics, remaining_analytics, shp012) and for STM_045 — the shape_idx precedent.
     let rail = {
         let _t = Timer::start("K6::rail_index::build");
         rail_index(records)
     };
 
-// Each independent K6 check produces its OWN (notices, ctr); results are merged in CANONICAL
-// order (1→13), and the final renumbered IDs map EXACTLY through a single-threaded global ctr.
-// Parallelism is BETWEEN checks (each check has its own dedup set and only READS
-// `records/derived/config/idx`) → count/content/order are independent of emission order.
-// With the `parallel` feature, checks run in parallel through rayon::scope; otherwise serially — SAME output.
+    // Each independent K6 check produces its OWN (notices, ctr); results are merged in CANONICAL
+    // order (1→13), and the final renumbered IDs map EXACTLY through a single-threaded global ctr.
+    // Parallelism is BETWEEN checks (each check has its own dedup set and only READS
+    // `records/derived/config/idx`) → count/content/order are independent of emission order.
+    // With the `parallel` feature, checks run in parallel through rayon::scope; otherwise serially — SAME output.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
     let mut tasks: Vec<K6Task> = Vec::new();
     let mut skipped_checks = Vec::new();
@@ -195,9 +195,9 @@ pub fn analyze_with_files(
             }
         };
     }
-// Each task runs only when the readable files it directly needs are present.
-// Thus a broken shapes.txt disables shape analytics but does not lose stop/route/calendar
-// analytics; an independent file such as feed_info does not cut off all of K6.
+    // Each task runs only when the readable files it directly needs are present.
+    // Thus a broken shapes.txt disables shape analytics but does not lose stop/route/calendar
+    // analytics; an independent file such as feed_info does not cut off all of K6.
     add_task!(
         "K6::speed_and_duration",
         availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]),
@@ -248,9 +248,9 @@ pub fn analyze_with_files(
             v
         }
     );
-// Three separate gates: each requires the files its own block ACTUALLY reads.
-// A single `all(&[stops, routes, trips, stop_times])` gate killed checks that needed only
-// `stops.txt` because of an unrelated missing file (#160).
+    // Three separate gates: each requires the files its own block ACTUALLY reads.
+    // A single `all(&[stops, routes, trips, stop_times])` gate killed checks that needed only
+    // `stops.txt` because of an unrelated missing file (#160).
     add_task!("K6::geo_stops", availability.available("stops.txt"), || {
         let _t = Timer::start("K6::geo_stops");
         let mut v = Vec::new();
@@ -420,8 +420,8 @@ pub fn analyze_with_files(
             v
         }
     );
-// APPENDED at the end: because merge order is canonical, existing notice IDs do NOT SHIFT
-// when a new task stays last (renumbering follows position).
+    // APPENDED at the end: because merge order is canonical, existing notice IDs do NOT SHIFT
+    // when a new task stays last (renumbering follows position).
     add_task!(
         "K6::linked_trips",
         availability.all(&["trips.txt", "stop_times.txt"]),
@@ -436,11 +436,11 @@ pub fn analyze_with_files(
 
     #[cfg(feature = "parallel")]
     let parts: Vec<Vec<Notice>> = {
-// Running K6 tasks with unlimited parallelism on a large feed (>15M stop_times) raises peak RAM
-// because each task has its own temporary maps. A single-task batch provides a bounded balance
-// between speed and memory; small feeds retain full parallelism. The single-task batch applies
-// only to WASM (browser memory limit); native keeps batches of 3 — on native, batch 1 increased
-// runtime by +1…+11% on >15M feeds (2026-10-30, measurement of 5 feeds).
+        // Running K6 tasks with unlimited parallelism on a large feed (>15M stop_times) raises peak RAM
+        // because each task has its own temporary maps. A single-task batch provides a bounded balance
+        // between speed and memory; small feeds retain full parallelism. The single-task batch applies
+        // only to WASM (browser memory limit); native keeps batches of 3 — on native, batch 1 increased
+        // runtime by +1…+11% on >15M feeds (2026-10-30, measurement of 5 feeds).
         let large = records.stop_times_index.total_rows > 15_000_000;
         let batch = if !large {
             tasks.len()
@@ -476,8 +476,8 @@ pub fn analyze_with_files(
     for p in parts {
         notices.extend(p);
     }
-// Renumber → EXACT IDs (k6/{rule}#{N}) through the single-threaded global ctr.
-// Because merge order is fixed (canonical), parallel and serial runs are indistinguishable.
+    // Renumber → EXACT IDs (k6/{rule}#{N}) through the single-threaded global ctr.
+    // Because merge order is fixed (canonical), parallel and serial runs are indistinguishable.
     for (i, n) in notices.iter_mut().enumerate() {
         n.id = format!("k6/{}#{}", n.rule_id, i + 1);
     }
@@ -603,7 +603,7 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
 
 /// Number of example rows (from different trips) exposed to the planner in the STM_007 summary.
 const STM007_EXAMPLE_ROWS: usize = 20;
-/// Row detail → the `example_<i>_<name>` key in the summary.
+/// Row detail → the `example_<i>_<ad>` key in the summary.
 const STM007_EXAMPLE_KEYS: &[(&str, &str)] = &[
     ("stop_id", "stop"),
     ("arr", "arrival"),
@@ -632,7 +632,7 @@ fn finalize_stm007_pending(
 ) {
     let n = pending.len();
     if n > threshold {
-// HashMap/chunk order is not deterministic: sort by (trip, row).
+        // HashMap/chunk order is not deterministic: sort by (trip, row).
         pending.sort_by(|a, b| (&a.entity_id, a.line).cmp(&(&b.entity_id, b.line)));
         let mut trips: Vec<&str> = pending.iter().filter_map(|n| n.entity_id.as_deref()).collect();
         trips.dedup();
@@ -658,9 +658,9 @@ fn finalize_stm007_pending(
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
-// For the planner, STM007_EXAMPLE_ROWS rows with neighboring times (example_<i>_*): first rows
-// at different stops and on different trips (consecutive trips on the same route must not repeat
-// the same stop), then remaining rows from different trips if space remains. Summary count/text unchanged.
+        // For the planner, STM007_EXAMPLE_ROWS rows with neighboring times (example_<i>_*): first rows
+        // at different stops and on different trips (consecutive trips on the same route must not repeat
+        // the same stop), then remaining rows from different trips if space remains. Summary count/text unchanged.
         let stop_of = |row: &Notice| row.details.as_ref().and_then(|d| d.get("stop_id")).cloned();
         let mut chosen: Vec<&Notice> = Vec::new();
         let mut used_trips: FxHashSet<&str> = FxHashSet::default();
@@ -700,9 +700,9 @@ fn finalize_stm007_pending(
                 }
             }
         }
-// Pattern: how many seconds departure most often precedes arrival and the number of rows carrying
-// that difference; the five most affected stops. If the same difference repeats across thousands
-// of rows, it is a production rule rather than isolated typos.
+        // Pattern: how many seconds departure most often precedes arrival and the number of rows carrying
+        // that difference; the five most affected stops. If the same difference repeats across thousands
+        // of rows, it is a production rule rather than isolated typos.
         let mut gaps: FxHashMap<u32, usize> = FxHashMap::default();
         let mut stops: FxHashMap<&str, usize> = FxHashMap::default();
         for row in pending.iter() {
@@ -768,8 +768,8 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
         if before_ok && after_ok {
             return true;
         }
-    // pos+1 may not be a char boundary in multibyte UTF-8 (CJK, etc.) → advance to the next
-    // char boundary; otherwise slicing h[start..] panics.
+        // pos+1 may not be a char boundary in multibyte UTF-8 (CJK, etc.) → advance to the next
+        // char boundary; otherwise slicing h[start..] panics.
         start = pos + h[pos..].chars().next().map_or(1, |c| c.len_utf8());
     }
     false
@@ -801,7 +801,7 @@ fn is_all_caps(s: &str) -> bool {
     n >= DQ018_MIN_LETTERS
 }
 
-    // All letters lowercase — mixed_case_recommended_field (all-lowercase variant)
+// All letters lowercase — mixed_case_recommended_field (all-lowercase variant)
 fn is_all_lower(s: &str) -> bool {
     let mut n = 0usize;
     for c in s.chars().filter(|c| c.is_alphabetic()) {
@@ -1037,9 +1037,9 @@ fn row_field_local<'a>(row: &'a std::collections::HashMap<String, String>, key: 
 
 /// Trip and shape IDs linked to rail routes — ONE setup at K6 entry.
 pub(crate) struct RailIndex<'a> {
-/// trip_ids linked to a rail route (STM_045).
+    /// trip_ids linked to a rail route (STM_045).
     pub trips: FxHashSet<&'a str>,
-/// shape_ids used by a rail route (GEO_006/007/009, SHP_012/014/024).
+    /// shape_ids used by a rail route (GEO_006/007/009, SHP_012/014/024).
     pub shapes: FxHashSet<&'a str>,
 }
 
@@ -1154,13 +1154,13 @@ const FAR_STOP_MIN_KM: f64 = 10.0;
 
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
-    0 | 900..=906 => cfg.max_speed_tram_kmh, // tram / light rail
+        0 | 900..=906 => cfg.max_speed_tram_kmh, // tram / light rail
         1 | 400..=405 => cfg.max_speed_metro_kmh, // metro / U-Bahn
-    2 | 12 | 100..=117 => cfg.max_speed_rail_kmh, // rail / S-Bahn / regional
-    3 | 11 | 200..=209 | 700..=716 | 800 | 1500..=1507 => cfg.max_speed_bus_kmh, // bus / coach / trolleybus / taxi
+        2 | 12 | 100..=117 => cfg.max_speed_rail_kmh, // rail / S-Bahn / regional
+        3 | 11 | 200..=209 | 700..=716 | 800 | 1500..=1507 => cfg.max_speed_bus_kmh, // bus / coach / trolleybus / taxi
         4 | 1000..=1021 | 1200 => cfg.max_speed_ferry_kmh,                           // su / feribot
-    5 | 6 | 7 | 1300..=1307 | 1400 => cfg.max_speed_cablecar_kmh, // cable car / funicular
-    _ => cfg.max_speed_bus_kmh, // unknown type → safe default
+        5 | 6 | 7 | 1300..=1307 | 1400 => cfg.max_speed_cablecar_kmh, // cable car / funicular
+        _ => cfg.max_speed_bus_kmh,                                   // unknown type → safe default
     }
 }
 
@@ -1178,10 +1178,10 @@ struct ShapeIndex<'a> {
 }
 
 impl<'a> ShapeIndex<'a> {
-/// #15 (build_maps OOM/312s): shape_coords is built with POINT INDICES. Grouping each point
-/// in a (u32,f64,f64)=24B temporary buffer and then copying to (f64,f64)=16B created transient
+    /// #15 (build_maps OOM/312s): shape_coords is built with POINT INDICES. Grouping each point
+    /// in a (u32,f64,f64)=24B temporary buffer and then copying to (f64,f64)=16B created transient
     /// ~40B/nokta demekti; indeks (4B) + coords (16B) = ~20B/nokta tepe.
-/// Sorting is STABLE (`sort_by_key`) — file order is preserved for equal `shape_pt_sequence`.
+    /// Sorting is STABLE (`sort_by_key`) — file order is preserved for equal `shape_pt_sequence`.
     fn build(records: &'a EntityRecords) -> Self {
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
@@ -1411,7 +1411,7 @@ fn check_speed_and_duration<'a>(
             }
         }
 
-// stop_id → stop_name (for display; omitted when empty/missing, fallback stop_id)
+        // stop_id → stop_name (for display; omitted when empty/missing, fallback stop_id)
         let mut stop_name_sd: FxHashMap<&str, &str> = FxHashMap::default();
         stop_name_sd.reserve(records.stops.len());
         for s in &records.stops {
@@ -1443,10 +1443,10 @@ fn check_speed_and_duration<'a>(
             trip_to_route.insert(t.trip_id.as_str(), ti_sd.route_id(t));
         }
 
-// Route type is lost ONLY because of a whitespace ID (`mdb-1065`: padded `routes.route_id`
-// made 243 rail routes fall to the bus threshold). The threshold remains calculated from the raw
-// type; this map tests only whether the finding also arises in the trimmed world.
-// It is not built when there is no miss.
+        // Route type is lost ONLY because of a whitespace ID (`mdb-1065`: padded `routes.route_id`
+        // made 243 rail routes fall to the bus threshold). The threshold remains calculated from the raw
+        // type; this map tests only whether the finding also arises in the trimmed world.
+        // It is not built when there is no miss.
         let mut ws_route_type: FxHashMap<&str, (u32, &'static str)> = FxHashMap::default();
         let stop_times_trip_missing = idx.by_trip.keys().any(|t| !trip_to_route.contains_key(t));
         if trip_route_type.len() < records.trips.len() || stop_times_trip_missing {
@@ -1467,7 +1467,7 @@ fn check_speed_and_duration<'a>(
                     ws_route_type.insert(t.trip_id.as_str(), (rt, file));
                 }
             }
-// The trip ID in stop_times differs from trips.txt only by whitespace.
+            // The trip ID in stop_times differs from trips.txt only by whitespace.
             if stop_times_trip_missing {
                 let trips_trimmed: FxHashMap<&str, &crate::k2::trips::TripRecord> = records
                     .trips
