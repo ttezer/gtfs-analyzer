@@ -115,11 +115,11 @@ def main() -> int:
         cur = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         cur_names = set(re.findall(r'^    "([a-z0-9]+)",$', cur, re.M))
         if cur_names == want:
-            print(f"html_elements OK — {len(want)} names (index {len(indexed)} + {len(want)-len(indexed)} extra)")
+            print(f"html_elements OK — {len(want)} ad (dizin {len(indexed)} + ek {len(want)-len(indexed)})")
             return 0
         added, gone = sorted(want - cur_names), sorted(cur_names - want)
-        print(f"🔴 HTML element DRIFT — added {added[:8]} · missing {gone[:8]}")
-        print("  → run python3 spec-audit/gen_html_elements.py")
+        print(f"🔴 HTML eleman DRIFT — eklenen {added[:8]} · kaybolan {gone[:8]}")
+        print("  → python3 spec-audit/gen_html_elements.py")
         return 1
     OUT.write_text(text, encoding="utf-8")
     print(f"wrote: {OUT.name} ({len(want)} names · index {len(indexed)} + {len(want)-len(indexed)} extra)")
