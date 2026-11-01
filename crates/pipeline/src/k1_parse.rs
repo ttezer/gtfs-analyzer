@@ -277,7 +277,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
             .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     };
 
-    // 1) EOCD: dosya sonundan geriye doğru, comment penceresi kadar.
+    // 1) EOCD: search backwards from the end of the file through the comment window.
     let start = zip_bytes.len().saturating_sub(EOCD_SEARCH_WINDOW);
     let eocd = (start..zip_bytes.len().saturating_sub(EOCD_LEN - 1))
         .rev()
@@ -286,11 +286,11 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
     let cd_offset = read_u32(eocd + 16)?;
     let entry_count = read_u16(eocd + 10)?;
     if cd_offset == ZIP64_SENTINEL || entry_count == u16::MAX {
-        return None; // zip64 → gerçek değerler başka kayıtta
+        return None; // zip64 → the real values are in another record
     }
     let cd_offset = cd_offset as usize;
 
-    // 2) Merkez dizin, EOCD'nin işaret ettiği yerde mi?
+    // 2) Is the central directory where EOCD points?
     if read_u32(cd_offset) != Some(CDH_SIGNATURE) {
         return Some(ZipDiagnosis {
             kind: "cd_signature",
@@ -301,7 +301,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
         });
     }
 
-    // 3) Merkez dizin girdilerini yürü: her girdinin yerel başlığı yerinde mi?
+    // 3) Walk the central-directory entries: is each local header in place?
     let mut cursor = cd_offset;
     for _ in 0..entry_count {
         if read_u32(cursor) != Some(CDH_SIGNATURE) {
@@ -340,7 +340,8 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
         cursor += CDH_LEN + name_len + extra_len + comment_len;
     }
 
-    // EOCD, merkez dizin ve tüm yerel başlıklar yerinde: bozukluk girdi VERİSİNDE.
+    // EOCD, the central directory, and all local headers are in place: the corruption is in
+    // the entry DATA.
     Some(ZipDiagnosis {
         kind: "entry_data",
         params: Vec::new(),
@@ -349,19 +350,21 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
     })
 }
 
-/// ARC_036: bir girdinin AKIŞ görünümü (yerel başlık + data descriptor) merkez diziniyle
-/// çelişiyor mu?
+/// ARC_036: does an entry's STREAM view (local header + data descriptor) contradict the
+/// central directory?
 ///
 /// `entries`, merkez dizinden okunan `(header_start, compressed_size, uncompressed_size, crc32)`
-/// dörtlüleridir. Yalnız data-descriptor bayrağı set olan girdiler incelenir; descriptor hiç
-/// yoksa ya da içindeki üçlü merkez dizinle tutmuyorsa girdi tutarsız sayılır.
+/// quadruples read from the central directory. Only entries with the data-descriptor flag set
+/// are inspected; an entry is inconsistent if the descriptor is absent or its triple does not
+/// match the central directory.
 ///
-/// 🔑 Bayrağın set olması TEK BAŞINA kusur DEĞİLDİR — korpus örnekleminin %40'ı descriptor'ı
-/// kurallara uygun kullanıyor (yerel boyutlar 0, descriptor yerinde ve doğru). Karşılaştırma
-/// yapılmadan ateşlenirse ~1.700 feed'e yanlış bulgu basılır.
+/// 🔑 Setting the flag is NOT A DEFECT BY ITSELF — 40% of the corpus sample uses descriptors
+/// correctly (local sizes are 0, and the descriptor is present and correct). Firing without a
+/// comparison would produce a false finding on ~1,700 feeds.
 ///
-/// zip64 girdileri ATLANIR: 32-bit alanlar `0xFFFFFFFF` kaçışını taşır, gerçek değer extra
-/// field'dadır ve buradan okunamaz — okunamayan şeyi "çelişkili" saymak FP üretir.
+/// zip64 entries are SKIPPED: 32-bit fields contain the `0xFFFFFFFF` sentinel, the real value
+/// is in the extra field and cannot be read here — treating an unreadable value as
+/// "inconsistent" would produce a false positive.
 fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64, u32)]) -> usize {
     let mut inconsistent = 0usize;
     for &(header_start, csize, usize_declared, crc) in entries {
@@ -389,8 +392,8 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
         {
             continue;
         }
-        // Verinin bittiği yer MERKEZ DİZİNDEKİ boyutla bulunur; yerel alan (kurallara uygun
-        // akış zip'inde) sıfırdır ve buradan konum hesaplanamaz.
+        // The end of the data is found from the central-directory size; the local field is zero
+        // in a compliant streaming ZIP and cannot be used to calculate the position.
         let Ok(csize_usize) = usize::try_from(csize) else {
             continue;
         };
@@ -400,7 +403,7 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
             .saturating_add(extra_len)
             .saturating_add(csize_usize);
         let Some(head) = zip_bytes.get(data_end..data_end.saturating_add(4)) else {
-            inconsistent += 1; // descriptor için yer bile yok
+            inconsistent += 1; // there is not even room for the descriptor
             continue;
         };
         let body_off = if u32::from_le_bytes([head[0], head[1], head[2], head[3]])
@@ -424,8 +427,8 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
     inconsistent
 }
 
-/// GuardedReader okuma hatasını Fatal'a çevirir: guard tetiklendiyse ARC_029
-/// (DecompressionLimit), aksi halde ham ZIP okuma hatası (ARC_001 ZipUnreadable).
+/// Converts a GuardedReader read error to a Fatal: ARC_029 (DecompressionLimit) if the guard
+/// tripped, otherwise the raw ZIP read error (ARC_001 ZipUnreadable).
 fn read_fatal<R: Read>(
     guarded: &GuardedReader<'_, R>,
     raw_name: &str,
@@ -457,22 +460,22 @@ fn read_fatal<R: Read>(
     }
 }
 
-/// Kısmi okunan tamponu son TAM UTF-8 karakter sınırına kırpar.
+/// Truncates a partially read buffer to the last COMPLETE UTF-8 character boundary.
 ///
-/// YALNIZ `is_zip_stream` (8 KB başlık okuması) için çağrılır: oradaki eksik kuyruk
-/// BİZİM kesme noktamızın eseridir, dosyanın kusuru değil.
+/// Called ONLY for `is_zip_stream` (the 8 KB header read): the incomplete tail there is caused
+/// by OUR cut-off point, not by a defect in the file.
 ///
-/// **Gerçek bozuk baytları GİZLEMEZ.** `Utf8Error` iki durumu ayırır:
-/// - `error_len() == None`  → "girdi beklenmedik şekilde bitti" = yarım karakter
-///   (yalnızca tamponun EN SONUNDA olabilir) → kırp, sorun yok.
-/// - `error_len() == Some(n)` → gövdede geçersiz bayt dizisi → DOKUNMA; ARC_002 /
-///   Utf8Critical eskisi gibi tetiklenir.
+/// **Does not HIDE genuinely invalid bytes.** `Utf8Error` distinguishes two cases:
+/// - `error_len() == None` → "input ended unexpectedly" = an incomplete character
+///   (it can occur only at the END of the buffer) → truncate; no problem.
+/// - `error_len() == Some(n)` → invalid byte sequence in the body → DO NOT TOUCH; ARC_002 /
+///   Utf8Critical still fires as before.
 ///
-/// `from_utf8` İLK hatayı bildirdiğinden, gövdede gerçek bir hata varsa `Some` döner
-/// ve kırpma yapılmaz — yani gerçek ihlal her zaman kazanır.
+/// Because `from_utf8` reports the FIRST error, a genuine body error returns `Some` and is not
+/// truncated — genuine violations always win.
 ///
-/// Regresyon: mdb-3176 (JP), mdb-1834 (LT), mdb-1831 (TH) — üçü de geçerli UTF-8
-/// trips.txt'e sahipken 8190-8191. bayttaki kesik yüzünden feed'i fatal ediyordu.
+/// Regression: mdb-3176 (JP), mdb-1834 (LT), mdb-1831 (TH) — all had valid UTF-8 in
+/// trips.txt but were made fatal by a cut at bytes 8190–8191.
 fn truncate_to_utf8_boundary(buf: &mut Vec<u8>) {
     if let Err(e) = std::str::from_utf8(buf) {
         if e.error_len().is_none() {
@@ -496,21 +499,21 @@ fn has_malformed_eol(bytes: &[u8]) -> bool {
         .any(|(i, b)| *b == b'\r' && bytes.get(i + 1) != Some(&b'\n'))
 }
 
-// ── CSV tokenizer ─────────────────────────────────────────────────────────────
+// ── CSV tokenizer ──────────────────────────────────────────────────────────────
 
-/// RFC 4180 ihlali birikimi — `ARC_033`. DOSYA başına TEK notice (`Arc032Acc` deseni).
+/// RFC 4180 violation accumulator — `ARC_033`. ONE notice per FILE (`Arc032Acc` pattern).
 ///
-/// 🔴 **Neden burada, ayrıştırılmış değerde DEĞİL:** tespit alan SINIRLARINI bilmeyi
-/// gerektirir. `"12"" Street"` (GEÇERLİ) ile `12" Street` (İHLAL) ayrıştırıldıktan sonra
-/// AYNI değeri üretir: `12" Street`. Değere bakan bir denetim ikisini ayıramaz ve geçerli
-/// veriyi ihlal sayardı. Bu yüzden karar tokenizer'da, alan tırnaklı mı tırnaksız mı
-/// bilindiği yerde verilir.
+/// 🔴 **Why here, NOT in the parsed value:** detection needs to know the field BOUNDARIES.
+/// After parsing, `"12"" Street"` (VALID) and `12" Street` (VIOLATION) produce the SAME value:
+/// `12" Street`. A value-based check cannot distinguish them and would mark valid data as a
+/// violation. Therefore the decision is made in the tokenizer, where it is known whether the
+/// field was quoted or unquoted.
 #[derive(Default, Clone)]
 pub(crate) struct Rfc4180Acc {
     pub rows: u64,
     pub first_line: Option<u64>,
     pub example: Option<String>,
-    /// İhlalin türü — iki ayrı spec cümlesi (bkz. `ARC_033` kartı).
+    /// Violation type — two separate spec sentences (see the `ARC_033` card).
     pub kind: Option<&'static str>,
     last_line: u64,
 }
