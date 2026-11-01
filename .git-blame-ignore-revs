@@ -27,3 +27,6 @@ d7e4dbfb
 
 # Translate WASM test guards to English.
 03ced544
+
+# Translate decompression guard comments to English.
+a437b7fe
