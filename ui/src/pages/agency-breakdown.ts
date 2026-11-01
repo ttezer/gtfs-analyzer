@@ -1,7 +1,7 @@
-// Agency dökümü paneli (MobilityData gtfs-validator #2201). Rapor sayfasının sonunda,
-// yalnız birden fazla agency'li feed'lerde görünür. Sayılar ETKİLENEN KAYITLARDIR
-// (`affected_entity_count`): toplulanmış bir özet altındaki bütün seferleri/satırları sayar.
-// Skorlar feed geneli kalır; bu panel onları agency'ye bölmez.
+// Agency breakdown panel (MobilityData gtfs-validator #2201). Visible at the end of the
+// report page only for feeds with multiple agencies. Counts are AFFECTED RECORDS
+// (`affected_entity_count`): all trips/rows under an aggregated summary.
+// Scores remain feed-wide; this panel does not split them by agency.
 import type { AgencyBreakdown, Severity, ValidationResult } from '../types';
 import { t } from '../i18n';
 import { escHtml } from '../escape';
@@ -10,13 +10,13 @@ const SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 
 interface Row {
   label: string;
-  /** Agency satırında `agency_id` (ipucu olarak gösterilir); diğer satırlarda yok. */
+  /** `agency_id` on an agency row (shown as a hint); absent on other rows. */
   agencyId?: string;
-  /** Agency satırında route üzerinden çözülen sefer sayısı. */
+  /** Number of trips resolved through routes on an agency row. */
   tripCount?: number;
   bySeverity: Record<Severity, number>;
   total: number;
-  /** kural → etkilenen kayıt */
+  /** rule → affected records */
   rules: Map<string, number>;
 }
 
@@ -38,9 +38,9 @@ function add(row: Row, rule: string, severity: Severity | undefined, n: number):
   row.rules.set(rule, (row.rules.get(rule) ?? 0) + n);
 }
 
-/** Dökümü satırlara çevirir: agency'ler (feed sırasıyla), ardından atfedilemeyenler. */
+/** Converts the breakdown to rows: agencies (in feed order), followed by unattributed rows. */
 export function agencyRows(breakdown: AgencyBreakdown, severityOf: Map<string, Severity>): Row[] {
-  // Ad gösterilir; ad yoksa kimlik, o da yoksa "agency_id'siz agency".
+  // Show the name; if absent, use the ID, and if that is absent, "agency without agency_id".
   const agencies = new Map<string, Row>(
     breakdown.agencies.map(a => [
       a.agency_id,
@@ -82,9 +82,9 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
     .join('');
   const columns = SEVERITIES.length + 3;
 
-  // Her agency satırı kural listesiyle birlikte kendi <tbody>'sindedir: sıralama grupları
-  // yer değiştirir, açık listeler satırından ayrılmaz. Agency dışı satırlar en alttaki
-  // ayrı gövdede sabit kalır. Kural listesi satırın ALTINDA tam genişlikte açılır.
+  // Each agency row lives in its own <tbody> with its rule list: sorting moves groups without
+  // separating expanded lists from their rows. Non-agency rows stay fixed in the bottom body.
+  // The rule list opens at full width BELOW the row.
   const group = (row: Row, i: number) => {
     const sortKeys = row.agencyId === undefined ? '' : [
       `data-k-agency="${escHtml(row.label.toLocaleLowerCase())}"`,
@@ -140,10 +140,10 @@ export function renderAgencyBreakdown(result: ValidationResult): string {
     </div>`;
 }
 
-/** Agency gruplarını `key` sütununa göre sıralar (`desc` için büyükten küçüğe). */
+/** Sorts agency groups by the `key` column (descending for `desc`). */
 export function sortAgencyGroups(table: HTMLTableElement, key: string, desc: boolean): void {
   const groups = Array.from(table.querySelectorAll<HTMLTableSectionElement>('tbody.agency-group'));
-  // HTML öznitelik adları küçük harfe iner: data-k-CRITICAL → dataset.kCritical.
+  // HTML attribute names are lowercased: data-k-CRITICAL → dataset.kCritical.
   const k = key.toLowerCase();
   const field = `k${k[0].toUpperCase()}${k.slice(1)}`;
   const value = (g: HTMLTableSectionElement) => g.querySelector<HTMLElement>('.agency-row')?.dataset[field] ?? '';
@@ -156,7 +156,7 @@ export function sortAgencyGroups(table: HTMLTableElement, key: string, desc: boo
   for (const g of groups) table.insertBefore(g, anchor);
 }
 
-/** Kural listesini aç/kapa; sütun başlığıyla sırala (ikinci tıklama yönü çevirir). */
+/** Opens/closes rule lists; sort by the column header (the second click reverses direction). */
 export function attachAgencyBreakdownListeners(root: HTMLElement): void {
   root.querySelectorAll<HTMLButtonElement>('.agency-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -175,7 +175,7 @@ export function attachAgencyBreakdownListeners(root: HTMLElement): void {
   table.querySelectorAll<HTMLElement>('.agency-sortable').forEach(th => {
     const sort = () => {
       const key = th.dataset['sort']!;
-      // Sayılar ilk tıklamada büyükten küçüğe, ad ilk tıklamada A→Z.
+      // Numbers sort descending on the first click; names sort A→Z on the first click.
       desc = key === current ? !desc : key !== 'agency';
       current = key;
       sortAgencyGroups(table, key, desc);
