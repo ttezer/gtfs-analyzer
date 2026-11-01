@@ -5,10 +5,10 @@ use gtfs_pipeline::{
     k1_parse::parse, validate_bytes, FatalCode, GtfsJpProfile, ValidateResult, ValidatorConfig,
 };
 
-// Tüm testler için sabit tarih — deterministik analytics çıktısı
+// Fixed date for all tests — deterministic analytics output.
 const TODAY: u32 = 20_260_515;
 
-// ── Yardımcılar ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
     let cur = std::io::Cursor::new(Vec::new());
@@ -21,8 +21,8 @@ fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
     zw.finish().unwrap().into_inner()
 }
 
-// Tarih aralığı (20250101–20271231) test gününü (20260515, Cuma) kapsar.
-// Pazartesi–Cuma=1 → SVC1 aktif → servis boşluğu uyarısı çıkmaz.
+// The date range (20250101–20271231) contains the test day (20260515, Friday).
+// Monday–Friday=1 → SVC1 is active → no service-gap warning is emitted.
 static AGENCY: &[u8] =
     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 static STOPS: &[u8] =
@@ -59,9 +59,8 @@ fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> Validate
     validate_bytes(&make_zip(files), &config, TODAY)
 }
 
-/// GTFS-JP listesi YALNIZ tespit edilmiş JP feed'inde uygulanır: Japonya'ya özgü
-/// yayın pratiği yüzünden anlamsızlaşan kontroller, dünyanın geri kalanındaki
-/// feed'lerde görünmeye devam etmelidir.
+/// The GTFS-JP list applies ONLY to a detected JP feed: checks made meaningless
+/// by Japanese publishing practice must remain visible in feeds from elsewhere.
 #[test]
 fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
     let config = ValidatorConfig {
@@ -78,15 +77,15 @@ fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
         }
     };
 
-    // JP olmayan feed: kural görünmeye devam eder.
+    // Non-JP feed: the rule remains visible.
     check(&base_files(), false, "global feed");
 
-    // `office_jp.txt` GTFS-JP tespitini açar: kural gizlenir.
+    // `office_jp.txt` activates GTFS-JP detection: the rule is hidden.
     let mut jp = base_files();
     jp.push(("office_jp.txt", b"office_id,office_name\nO1,Test\n"));
     check(&jp, true, "GTFS-JP feed");
 
-    // Genel liste her iki feed'de de uygulanır (kapsam farkının kanıtı).
+    // The general list applies to both feeds (proof of the scope distinction).
     let global = ValidatorConfig {
         disabled_rule_ids: vec!["DQ_004".to_string()],
         ..ValidatorConfig::default()
@@ -99,13 +98,13 @@ fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
 
 #[test]
 fn disabled_rule_ids_reject_unknown_and_spec_rules() {
-    // Bilinmeyen/emekli kimlik sessizce hiçbir şeyi kapatmamalı; Spec kuralı yayın
-    // kararının kanıtıdır ve gizlenemez.
+    // An unknown/retired ID must not silently disable anything; a Spec rule is
+    // evidence for the publication decision and must not be hidden.
     for (rule, variant, jp_scope) in [
         ("DQ_04", "disabled_rule_unknown", false),
         ("BKR_002", "disabled_rule_unknown", false),
         ("BKR_001", "disabled_rule_spec", false),
-        // Aynı kapı GTFS-JP listesinde de geçerlidir.
+        // The same gate also applies to the GTFS-JP list.
         ("DQ_04", "disabled_rule_unknown", true),
         ("BKR_001", "disabled_rule_spec", true),
     ] {
@@ -390,8 +389,9 @@ fn v3_requires_bus_route_type_and_routes_agency_id() {
         "feed_info.txt",
         b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
     ));
-    // Açık V3 artık sayısal route_type=3 sabitini doğrudan uygular; iki otobüs + bir demiryolu
-    // fixture'ında route_type=2 ihlali, dağılımdan bağımsız olarak raporlanmalıdır.
+    // Explicit V3 now applies the numeric route_type=3 constant directly; in the
+    // two-bus-plus-one-rail fixture, the route_type=2 violation must be reported
+    // regardless of the distribution.
     files[2] = (
         "routes.txt",
         b"route_id,route_short_name,route_type\nR1,101,3\nR2,102,3\nR3,103,2\n",
@@ -529,7 +529,7 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         "fare_attributes.txt",
         b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
     ));
-    // Seferler S1(A)→S2(B) yönünde; yalnız ters yön fiyatlıysa A→B eksiktir.
+    // Trips run S1(A)→S2(B); A→B is missing when only the reverse direction is priced.
     files.push((
         "fare_rules.txt",
         b"fare_id,route_id,origin_id,destination_id\nF1,R1,B,A\n",
@@ -550,8 +550,8 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
     assert_eq!(missing["missing_pairs"], "1");
     assert!(missing["example_pairs"].contains("origin_id=A, destination_id=B"));
 
-    // Seferin bağladığı tek çift fiyatlıysa bulgu yok: ters yön (B→A) ve aynı-bölge
-    // (A→A, B→B) çiftleri hiçbir seferde yapılamadığı için istenmez.
+    // There is no finding when the only connected pair is priced: the reverse (B→A)
+    // and same-zone (A→A, B→B) pairs are not required because no trip can make them.
     let mut served_only = files.clone();
     served_only.pop();
     served_only.push((
@@ -563,8 +563,8 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 
-    // S2'de inilemiyorsa (drop_off_type=1) A→B yolcuya açık değildir; yalnız B→A
-    // fiyatlı olsa da eksik çift yoktur.
+    // If alighting at S2 is forbidden (drop_off_type=1), A→B is not passenger-accessible;
+    // there is no missing pair even if only B→A is priced.
     let mut no_drop_off = files.clone();
     assert_eq!(no_drop_off[4].0, "stop_times.txt");
     no_drop_off[4] = (
@@ -593,7 +593,7 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
 
 #[test]
 fn stp_033_is_suppressed_only_for_proven_uniform_fares() {
-    // fare_rules yok → zone_id'nin tüketicisi yok → STP_033 yok.
+    // No fare_rules → zone_id has no consumer → no STP_033.
     let no_fares = match run(&base_files()) {
         ValidateResult::Ok(vr) => vr,
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -936,15 +936,15 @@ fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct(
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            // S1'de çelişki + Latin içerik iki JPN_021 predicate'ini tetikleyebilir;
-            // JPN_021 Entity kapsamı nedeniyle K7 aynı record_id için tek temsilci tutar.
+            // The contradiction plus Latin content at S1 can trigger two JPN_021 predicates;
+            // because JPN_021 is Entity-scoped, K7 keeps one representative per record_id.
             assert_eq!(
                 vr.notices.iter().filter(|n| n.rule_id == "JPN_021").count(),
                 2,
                 "JPN_021 S1 ve S2 için birer final bulgu üretmeli"
             );
-            // Profil kuralı, genel GTFS translations kurallarının yerine geçmez:
-            // aynı feed'de TRN_006 (çelişki) ve TRN_008 (boş translation) korunur.
+            // The profile rule does not replace the general GTFS translations rules:
+            // TRN_006 (contradiction) and TRN_008 (empty translation) remain in the same feed.
             assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_006"));
             assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_008"));
         }
@@ -952,7 +952,7 @@ fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct(
     }
 }
 
-// ── issue #108: RTS_022 tek karakterli tam eşitliği kaçırmamalı ───────────────
+// ── issue #108: RTS_022 must not miss a one-character exact match ─────────────
 
 fn rts022_route_name_feed(routes: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -1004,7 +1004,7 @@ fn rts022_keeps_multicharacter_containment() {
 }
 
 // ── Test 1: Bozuk bayt → Fatal(ZipUnreadable) ─────────────────────────────────
-// ARC_001 yolu: pipeline ilk adımda durur, hiçbir kural çalışmaz.
+// ARC_001 path: the pipeline stops at the first step; no rule runs.
 
 #[test]
 fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
@@ -1020,9 +1020,9 @@ fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
     }
 }
 
-// ── Test 1b: Zorunlu dosya eksik → PARTIAL + ARC_004 ─────────────────────────
-// ZIP okunabilir kaldığı için bağımsız bulgular korunur; yalnızca eksik dosyaya
-// gerçekten bağlı alt kurallar çalışmaz.
+// ── Test 1b: Required file missing → PARTIAL + ARC_004 ───────────────────────
+// The ZIP remains readable, so independent findings are preserved; only rules
+// genuinely dependent on the missing file do not run.
 
 #[test]
 fn arc004_missing_required_file_returns_partial_report() {
@@ -1052,8 +1052,8 @@ fn arc004_missing_required_file_returns_partial_report() {
 
 #[test]
 fn malformed_optional_file_is_skipped_with_partial_report() {
-    // feed_info.txt opsiyoneldir; bozuk UTF-8 typed kayda dönüştürülmemeli,
-    // fakat okunabilir feed'in bağımsız K1/K2 kapsamı korunmalıdır.
+    // feed_info.txt is optional; malformed UTF-8 must not become a typed record,
+    // but the readable feed's independent K1/K2 scope must be preserved.
     let mut files = base_files();
     files.push((
         "feed_info.txt",
@@ -1191,7 +1191,7 @@ fn malformed_feed_info_keeps_independent_cross_ref_findings() {
     }
 }
 
-// ── Test 2: Minimal geçerli feed yayınlanabilir ───────────────────────────────
+// ── Test 2: Minimal valid feed is publishable ─────────────────────────────────
 
 #[test]
 fn minimal_valid_feed_is_publishable() {
@@ -1206,11 +1206,11 @@ fn minimal_valid_feed_is_publishable() {
     }
 }
 
-// ── Test 3: STP_003 → blocks[] GEO_009 ──────────────────────────────────────
-// parse_coordinate: ilk kural range_rule_id (STP_003 = aralık dışı).
-// stop_lat=999.0 → aralık dışı [-90,90] → STP_003 ateşlenir.
-// Feed'de shape yok → GEO_009 doğal olarak üretilmez; STP_003.blocks içinde mevcuttur.
-// Not: SHP_013 kaldırıldı (GEO_009 ile çift sayım yapıyordu).
+// ── Test 3: STP_003 → blocks[] GEO_009 ───────────────────────────────────────
+// parse_coordinate: the first rule is range_rule_id (STP_003 = out of range).
+// stop_lat=999.0 → outside [-90,90] → STP_003 fires.
+// The feed has no shape → GEO_009 is not produced naturally; it is present in STP_003.blocks.
+// Note: SHP_013 was removed (it double-counted with GEO_009).
 
 #[test]
 fn stp_003_blocks_contain_geo_009() {
@@ -1239,7 +1239,7 @@ fn stp_003_blocks_contain_geo_009() {
                 blocks,
             );
 
-            // S1 koordinatsız → GEO_009 kök neden olarak ateşlenmemeli
+            // S1 has no coordinates → GEO_009 must not fire as the root cause.
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "GEO_009"),
                 "GEO_009 koordinat eksikken kök neden olarak üretilmemeli",
@@ -1250,9 +1250,9 @@ fn stp_003_blocks_contain_geo_009() {
 }
 
 // ── Test 4: TRF_006 → blocks[] OPR_007 ───────────────────────────────────────
-// Geçersiz from_trip_id ("MISSING_TRIP") → K4 TRF_006 ateşler; scope_key sefer kimliğidir.
-// Kapsamlı kök yalnız aynı scope_key'i bastırır: OPR_007 sefer kimliği taşır, TRF_013..018
-// scope_key taşımaz. O bağlantılar hiç eşleşmediği için 2026-10-11'de kaldırıldı.
+// Invalid from_trip_id ("MISSING_TRIP") → K4 fires TRF_006; scope_key is the trip ID.
+// A scoped root suppresses only the same scope_key: OPR_007 carries a trip ID, while
+// TRF_013..018 carry no scope_key. Those links never matched and were removed on 2026-10-11.
 
 #[test]
 fn trf_006_blocks_only_trip_scoped_opr_007() {
@@ -1282,9 +1282,9 @@ fn trf_006_blocks_only_trip_scoped_opr_007() {
     }
 }
 
-// TRF_003 aktarma SATIRINI kapsar (`from_stop_id|to_stop_id`). Eskiden `scope_key` taşımadığı
-// için feed düzeyi kökü sayılıyor, tek kırık durak referansı feed'deki BÜTÜN TRF_004
-// bulgularını R9'dan gizliyordu. Artık yalnız kendi satırının TRF_004'ü semptomdur.
+// TRF_003 covers a transfer ROW (`from_stop_id|to_stop_id`). It used to be treated as a
+// feed-level root because it carried no `scope_key`, so one broken stop reference hid ALL
+// TRF_004 findings in the feed from R9. Now only that row's TRF_004 is a symptom.
 #[test]
 fn trf_003_masks_only_its_own_transfer_row() {
     const TRANSFERS: &[u8] = b"from_stop_id,to_stop_id,transfer_type\nS1,MISSING,9\nS1,S2,9\n";
@@ -1307,12 +1307,12 @@ fn trf_003_masks_only_its_own_transfer_row() {
     );
 }
 
-// ── Test 5: TRP_019 — shape_id yalnız SÜREKLİ SERVİS varsa zorunludur ────────
+// ── Test 5: TRP_019 — shape_id is required only for CONTINUOUS SERVICE ───────
 //
-// 🔴 Bu test 2026-08-19'a kadar HATALI DAVRANIŞI sabitliyordu: `continuous_pickup=1`
-// ile bulgu BEKLİYORDU. Spec'te 1 (ve boş) "sürekli biniş YOK" demektir; sürekli
-// servis 0, 2 ve 3'tür. Yani test, geçerli bir feed'den shape_id talep etmemizi
-// doğru sanıyordu. Korpusta 100 feed / 215.288 bulgu bu yüzden üretiliyordu.
+// 🔴 Until 2026-08-19 this test locked in the WRONG BEHAVIOR: it EXPECTED a finding
+// for `continuous_pickup=1`. In the Spec, 1 (and empty) means "NO continuous pickup";
+// continuous service is 0, 2, and 3. Thus the test treated requiring shape_id from a
+// valid feed as correct. This produced 215,288 findings across 100 corpus feeds.
 
 #[test]
 fn trp_019_fires_when_continuous_service_is_actually_active() {
@@ -1341,8 +1341,8 @@ fn trp_019_fires_when_continuous_service_is_actually_active() {
 
 #[test]
 fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
-    // 1 = "No continuous stopping pickup". Boş bırakmakla aynı anlama gelir ve
-    // shape_id'yi ZORUNLU KILMAZ; aksi hâlde geçerli feed reddedilir.
+    // 1 = "No continuous stopping pickup". It has the same meaning as empty and
+    // does NOT REQUIRE shape_id; otherwise a valid feed would be rejected.
     for value in ["1", ""] {
         let routes = format!(
             "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,{value}\n"
@@ -1362,8 +1362,8 @@ fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
     }
 }
 
-// ── Test 6: TRP_019 — continuous service yok → sessiz ────────────────────────
-// route'ta continuous_pickup/drop_off yok, stop_times'ta da yok → TRP_019 üretilmez.
+// ── Test 6: TRP_019 — no continuous service → silent ──────────────────────────
+// The route has no continuous_pickup/drop_off, nor do stop_times → no TRP_019.
 
 #[test]
 fn trp_019_silent_when_no_continuous_service() {
@@ -1400,11 +1400,11 @@ fn trp_019_fires_when_stop_time_enables_continuous_service() {
     }
 }
 
-// ── RTS_028: rotanın herhangi bir seferinde Flex penceresi varken routes.continuous_* ─────
-// Rota kapsamlı koşul (MD `forbidden_continuous_pickup_drop_off` paritesi). İhlal eden satır
-// stop_times'ta DEĞİL routes.txt'te; pencereyi taşıyan sefer başka bir satır olabilir.
+// ── RTS_028: routes.continuous_* while any trip on the route has a Flex window ──
+// Route-scoped condition (MD `forbidden_continuous_pickup_drop_off` parity). The violating
+// row is in routes.txt, NOT stop_times; another row may carry the window.
 
-// T1'in 2. durağı Flex pencereli (T1 → R1) — R1 böylece "Flex rotası" olur.
+// T1's second stop has a Flex window (T1 → R1) — R1 therefore becomes a "Flex route".
 static STOP_TIMES_FLEX_WINDOW: &[u8] =
     b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\n\
       T1,08:00:00,08:00:00,S1,1,,,,\n\
@@ -1442,7 +1442,7 @@ fn rts_028_fires_when_route_has_flex_window_trip_and_continuous_pickup() {
 
 #[test]
 fn rts_028_silent_when_route_has_no_flex_window() {
-    // continuous_pickup=0 ama hiçbir seferde pencere yok → spec'e göre Optional.
+    // continuous_pickup=0 but no trip has a window → Optional according to the Spec.
     const ROUTES_CONTINUOUS: &[u8] =
         b"route_id,agency_id,route_short_name,route_type,continuous_pickup\n\
           R1,1,101,3,0\n";
@@ -1465,7 +1465,7 @@ fn rts_028_silent_when_route_has_no_flex_window() {
 
 #[test]
 fn rts_028_silent_when_continuous_is_one() {
-    // Flex pencereli rota ama continuous_pickup=1 (izinli değer) → sessiz.
+    // Route has a Flex window but continuous_pickup=1 (allowed value) → silent.
     const ROUTES_CONTINUOUS: &[u8] =
         b"route_id,agency_id,route_short_name,route_type,continuous_pickup,continuous_drop_off\n\
           R1,1,101,3,1,\n";
@@ -1487,16 +1487,17 @@ fn rts_028_silent_when_continuous_is_one() {
     }
 }
 
-/// Ölçüm, 17. korpus koşumu (`tfs-789`): 829 aktarma satırının tamamı 2 km üstüydü ama yalnız
-/// 57 farklı durak çifti vardı, çift başına ortalama 14,5 satır. Kural künyesinde kimlik alanı
-/// zaten `from_stop_id|to_stop_id`, yani çift; emisyon satır başınaydı ve kendi beyanıyla
-/// çelişiyordu. MD `transfer_distance_above_2_km` 69 diyordu — o da çift başına sayıyor.
-/// Ölçüm, 17. korpus koşumu (`mdb-2653`): `stop_times` kaydı olmayan 421 seferin 108'inin
-/// `trip_id`'sinde boşluk vardı ve 108'i de K7'de bastırılıyordu — biz 313 rapor ederken MD 732
-/// diyordu. Bastırma "kimlik yalnız boşluk yüzünden eşleşmiyor" varsayımını `trip_id` referans
-/// kümesine bakarak kuruyordu, ama o küme `trips.txt`'nin KENDİ kimliklerinden doluyor ve
-/// `XFL_002`'nin gözlenen değeri zaten seferin kendi kimliği — koşul her zaman sağlanıyordu.
-/// Doğru küme `stop_times`'ta GEÇEN kimlikler.
+/// Measurement from the 17th corpus run (`tfs-789`): all 829 transfer rows were above 2 km,
+/// but there were only 57 distinct stop pairs, averaging 14.5 rows per pair. The rule's
+/// identity field is already `from_stop_id|to_stop_id`, i.e. the pair; emitting per row
+/// contradicted its own declaration. MD reported 69 for `transfer_distance_above_2_km` —
+/// it also counts per pair.
+/// Measurement from the 17th corpus run (`mdb-2653`): 108 of 421 trips without a `stop_times`
+/// record had whitespace in `trip_id`, and all 108 were suppressed by K7 — we reported 313
+/// while MD reported 732. Suppression assumed that the ID failed to match only because of
+/// whitespace by consulting the `trip_id` reference set, but that set is populated from the
+/// IDs in `trips.txt` ITSELF, and `XFL_002`'s observed value is already the trip's own ID —
+/// the condition was therefore always true. The correct set is the IDs PRESENT in `stop_times`.
 #[test]
 fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
     let trips = "route_id,service_id,trip_id\nR1,SVC1,T1 \nR1,SVC1,T2 \n";
@@ -1517,17 +1518,17 @@ fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
                 .filter(|n| n.rule_id == "XFL_002")
                 .filter_map(|n| n.entity_id.as_deref())
                 .collect();
-            // `T1 ` hiçbir yazımla stop_times'ta YOK → bulgu GERÇEK, görünür kalmalı.
+            // `T1 ` is NOT present in stop_times under any spelling → the finding is REAL and must remain visible.
             assert!(
                 ids.iter().any(|id| id.trim() == "T1"),
                 "stop_times'ta hiç geçmeyen sefer bastırılmamalı: {ids:?}"
             );
-            // `T2 ` trim'lenince stop_times'ta VAR → fark yalnız boşluk, bastırılmalı.
+            // `T2 ` is PRESENT in stop_times after trimming → whitespace is the only difference, so suppress it.
             assert!(
                 !ids.iter().any(|id| id.trim() == "T2"),
                 "yalnız boşlukla ayrılan sefer DQ_016'nın konusudur, ayrı bulgu değil: {ids:?}"
             );
-            // Bastırma izsiz olmamalı: kök DQ_016 sayıyı beyan etmeli.
+            // Suppression must not be untraceable: the DQ_016 root must declare the count.
             let root = vr
                 .notices
                 .iter()
@@ -1545,7 +1546,7 @@ fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
 
 #[test]
 fn trf_011_skips_null_island_stops_and_leaves_the_root_to_geo_016() {
-    // SN (0,0) yer tutucusu: S1→SN mesafesi anlamsız, kök GEO_016. S1→S2 gerçek ~13,7 km.
+    // SN (0,0) placeholder: S1→SN distance is meaningless, with GEO_016 as the root. S1→S2 is a real ~13.7 km.
     let stops: &[u8] =
         b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSN,StopNull,0.0,0.0\n";
     let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,SN,2,300\nSN,S2,2,300\nS1,S2,2,300\n";
@@ -1578,7 +1579,7 @@ fn trf_011_skips_null_island_stops_and_leaves_the_root_to_geo_016() {
 
 #[test]
 fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
-    // Aynı uzak çift ÜÇ satırda, ters yönlü çift bir satırda (S1↔S2 ~13,7 km).
+    // The same distant pair appears in THREE rows, and the reverse pair in one row (S1↔S2 ~13.7 km).
     let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,300\nS1,S2,2,300\nS1,S2,2,300\nS2,S1,2,300\n";
     let mut files = base_files();
     files.push(("transfers.txt", transfers.as_bytes()));
@@ -1610,7 +1611,7 @@ fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
                 Some("3"),
                 "üç satırda tekrarlanan çift sayıyı details'te taşımalı"
             );
-            // Tek satırlık çift `details` taşımaz — gereksiz alan üretilmesin.
+            // A single-row pair carries no `details` — do not emit an unnecessary field.
             let single = hits
                 .iter()
                 .find(|n| n.entity_id.as_deref() == Some("S2|S1"))
@@ -1687,9 +1688,9 @@ fn pathway_recommendations_respect_mode_boundaries() {
     match run(&files) {
         ValidateResult::Ok(vr) => {
             assert!(vr.notices.iter().any(|n| n.rule_id == "PTH_008"));
-            // 2026-08-02: bu vaka PTH_017'den PTH_028'e taşındı. PTH_017 artık yalnız TİP
-            // ihlalini (sayı olmayan max_slope) ölçer; "yanlış pathway_mode ile kullanılmış"
-            // dalı spec'te "should" olduğu için Quality sınıfında ayrı kuraldır.
+            // 2026-08-02: this case moved from PTH_017 to PTH_028. PTH_017 now measures only
+            // the TYPE violation (non-numeric max_slope); the "used with the wrong pathway_mode"
+            // branch is a separate Quality rule because the Spec says "should".
             let wrong_mode = vr
                 .notices
                 .iter()
