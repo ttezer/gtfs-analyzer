@@ -85,8 +85,8 @@ def main() -> int:
         raw = fetch(sys.argv)
         published, rows = parse(raw)
     except Exception as e:
-        print(f"ÖLÇÜLEMEDİ: {type(e).__name__}: {e}", file=sys.stderr)
-        print("⚠️ Bu 'drift yok' DEĞİLDİR — kaynağa bakılamadı.", file=sys.stderr)
+        print(f"NOT MEASURED: {type(e).__name__}: {e}", file=sys.stderr)
+        print("⚠️ This does NOT mean 'no drift' — the source could not be read.", file=sys.stderr)
         return 2
     digest = hashlib.sha256(raw).hexdigest()
     text = render(published, digest, rows)
@@ -96,19 +96,19 @@ def main() -> int:
         cur_codes = set(re.findall(r'\("([A-Z]{3})", (\d+)\)', cur))
         new_codes = set(re.findall(r'\("([A-Z]{3})", (\d+)\)', text))
         if cur_codes == new_codes:
-            print(f"iso4217 OK — {len(rows)} kod, kaynak yayını {published}")
+            print(f"iso4217 OK — {len(rows)} codes, source release {published}")
             return 0
         added, gone = sorted(new_codes - cur_codes), sorted(cur_codes - new_codes)
-        print(f"🔴 ISO 4217 DRIFT — kaynak yayını {published}")
+        print(f"🔴 ISO 4217 DRIFT — source release {published}")
         if added:
-            print(f"  eklenen/değişen: {added[:12]}")
+            print(f"  added/changed: {added[:12]}")
         if gone:
-            print(f"  kaybolan/eski  : {gone[:12]}")
-        print("  → python3 spec-audit/gen_iso4217.py ile tabloyu yenileyin.")
+            print(f"  missing/stale  : {gone[:12]}")
+        print("  → run python3 spec-audit/gen_iso4217.py to regenerate the table.")
         return 1
 
     OUT.write_text(text, encoding="utf-8")
-    print(f"yazıldı: {OUT.name} ({len(rows)} kod · yayın {published})")
+    print(f"wrote: {OUT.name} ({len(rows)} codes · release {published})")
     return 0
 
 

@@ -86,22 +86,22 @@ def main() -> int:
         raw = fetch(sys.argv)
         file_date, tags = parse(raw)
     except Exception as e:
-        print(f"ÖLÇÜLEMEDİ: {type(e).__name__}: {e}", file=sys.stderr)
-        print("⚠️ Bu 'drift yok' DEĞİLDİR — kaynağa bakılamadı.", file=sys.stderr)
+        print(f"NOT MEASURED: {type(e).__name__}: {e}", file=sys.stderr)
+        print("⚠️ This does NOT mean 'no drift' — the source could not be read.", file=sys.stderr)
         return 2
     text = render(file_date, hashlib.sha256(raw).hexdigest(), tags)
     if check:
         cur = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
         cur_tags = set(re.findall(r'^    "([a-z0-9-]+)",$', cur, re.M))
         if cur_tags == set(tags):
-            print(f"bcp47 grandfathered OK — {len(tags)} etiket (kayıt defteri {file_date})")
+            print(f"bcp47 grandfathered OK — {len(tags)} tags (registry {file_date})")
             return 0
         added, gone = sorted(set(tags) - cur_tags), sorted(cur_tags - set(tags))
-        print(f"🔴 GRANDFATHERED DRIFT — eklenen {added[:6]} · kaybolan {gone[:6]}")
-        print("  → python3 spec-audit/gen_bcp47_grandfathered.py")
+        print(f"🔴 GRANDFATHERED DRIFT — added {added[:6]} · missing {gone[:6]}")
+        print("  → run python3 spec-audit/gen_bcp47_grandfathered.py")
         return 1
     OUT.write_text(text, encoding="utf-8")
-    print(f"yazıldı: {OUT.name} ({len(tags)} etiket · kayıt defteri {file_date})")
+    print(f"wrote: {OUT.name} ({len(tags)} tags · registry {file_date})")
     return 0
 
 

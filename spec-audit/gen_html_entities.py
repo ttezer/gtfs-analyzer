@@ -103,7 +103,7 @@ def main() -> int:
         cur_names = set(re.findall(r'^    "([A-Za-z0-9]+)",$', cur, re.M))
         want = set(ns) | set(legacy)
         if cur_names == want:
-            print(f"html_entities OK — {len(ns)} ad ({len(legacy)} tanesi noktalı virgülsüz de geçerli)")
+            print(f"html_entities OK — {len(ns)} names ({len(legacy)} also valid without a semicolon)")
             return 0
         added, gone = sorted(want - cur_names), sorted(cur_names - want)
         print(f"🔴 HTML entity DRIFT — eklenen {len(added)}, kaybolan {len(gone)}")
