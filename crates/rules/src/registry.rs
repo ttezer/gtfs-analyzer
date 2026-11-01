@@ -744,7 +744,7 @@ pub static RULES: &[RuleMeta] = &[
     // appears in TWO places: the `stop_sequence` field definition *"The values must increase along the trip but do
     // not need to be consecutive"*, and the `stop_times.txt` heading *"Primary key (trip_id,
     // stop_sequence)"*. `DQ_021`, measuring the same fact in other files, is already Spec.
-    // ⚠️ SEVERITY UNCHANGED (Low): the R1 gate is `Spec ∧ Critical`, so publish behavior is unchanged.
+    // ⚠️ SEVERITY UNCHANGED (Low): the R1 gate is `Spec ∧ Kritik`, so publish behavior is unchanged.
     // The asymmetry with DQ_021 being HIGH was intentionally left as a SEPARATE task—changing severity
     // would affect the R5 score of 3 corpus feeds and requires measurement.
     r!("STM_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
