@@ -97,7 +97,7 @@ def main() -> int:
             print(f"bcp47 grandfathered OK — {len(tags)} tags (registry {file_date})")
             return 0
         added, gone = sorted(set(tags) - cur_tags), sorted(cur_tags - set(tags))
-        print(f"🔴 GRANDFATHERED DRIFT — eklenen {added[:6]} · kaybolan {gone[:6]}")
+        print(f"🔴 GRANDFATHERED DRIFT — added {added[:6]} · missing {gone[:6]}")
         print("  → python3 spec-audit/gen_bcp47_grandfathered.py")
         return 1
     OUT.write_text(text, encoding="utf-8")

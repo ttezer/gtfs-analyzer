@@ -115,14 +115,14 @@ def main():
         if added:
             print(f"  added/changed: {added[:12]}")
         if gone:
-            print(f"  kaybolan/eski  : {gone[:12]}")
+            print(f"  missing/stale  : {gone[:12]}")
         added_tables = sorted(new_tables - cur_tables)
         gone_tables = sorted(cur_tables - new_tables)
         if added_tables:
-            print(f"  eklenen tablolar: {added_tables[:12]}")
+            print(f"  added tables: {added_tables[:12]}")
         if gone_tables:
             print(f"  removed tables: {gone_tables[:12]}")
-        print("  → python3 spec-audit/gen_translatable_fields.py ile tabloyu yenileyin.")
+        print("  → run python3 spec-audit/gen_translatable_fields.py to regenerate the table.")
         return 1
     OUT.write_text(text, encoding="utf-8")
     print(f"wrote: {OUT.name} ({len(rows)} fields · {yes} translatable)")

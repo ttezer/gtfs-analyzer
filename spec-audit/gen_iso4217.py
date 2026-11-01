@@ -103,8 +103,8 @@ def main() -> int:
         if added:
             print(f"  added/changed: {added[:12]}")
         if gone:
-            print(f"  kaybolan/eski  : {gone[:12]}")
-        print("  → python3 spec-audit/gen_iso4217.py ile tabloyu yenileyin.")
+            print(f"  missing/stale  : {gone[:12]}")
+        print("  → run python3 spec-audit/gen_iso4217.py to regenerate the table.")
         return 1
 
     OUT.write_text(text, encoding="utf-8")
