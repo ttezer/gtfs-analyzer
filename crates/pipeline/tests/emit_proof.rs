@@ -1,4 +1,4 @@
-//! Runtime emit-proof (#5 "full version" / C).
+//! Runtime emit proof (#5 "full version" / C).
 //!
 //! emit_coverage.rs (rules crate) statik *reference proof* verir (kural prod kodda
 //! geçiyor mu). Bu test ise *gerçek emit proof* verir: her fixture bir feed kurup
@@ -20,7 +20,7 @@ use gtfs_rules::RULES;
 
 const TODAY: u32 = 20_260_515;
 
-// ── Geçerli temel feed (integration.rs ile aynı; tek başına notice üretmez) ─────
+// ── Valid baseline feed (same as integration.rs; produces no notices by itself) ──
 const AGENCY: &str =
     "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 const STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
@@ -29,8 +29,8 @@ const TRIPS: &str = "route_id,service_id,trip_id\nR1,SVC1,T1\n";
 const STOP_TIMES: &str = "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n";
 const CALENDAR: &str = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n";
 
-// Dosya içeriği byte olarak tutulur: string fixture'lar UTF-8'e çevrilir, ham (invalid-UTF-8)
-// fixture'lar doğrudan byte geçer (ARC_002/003 için).
+// File contents are kept as bytes: string fixtures are converted to UTF-8, while raw
+// (invalid-UTF-8) fixtures pass bytes directly (for ARC_002/003).
 fn base() -> Vec<(String, Vec<u8>)> {
     [
         ("agency.txt", AGENCY),
@@ -45,8 +45,8 @@ fn base() -> Vec<(String, Vec<u8>)> {
     .collect()
 }
 
-/// Temel feed'i alır; string override'ları, ham byte override'larını uygular (yeni dosya da ekler)
-/// ve `removes`'taki dosyaları çıkarır (örn. "agency.txt eksik" senaryosu).
+/// Takes the baseline feed, applies string and raw-byte overrides (also adding new files),
+/// and removes files listed in `removes` (for example, the "agency.txt missing" scenario).
 fn with_opts(
     overrides: &[(&str, &str)],
     removes: &[&str],
@@ -74,7 +74,7 @@ fn make_zip(files: &[(String, Vec<u8>)]) -> Vec<u8> {
     make_zip_with_modes(files, &[])
 }
 
-/// `no_read`'teki dosyalar OKUMA İZNİ OLMADAN yazılır (0o200) — ARC_027 için.
+/// Writes files in `no_read` WITHOUT READ PERMISSION (0o200) — for ARC_027.
 /// Diğerleri varsayılan izinle gider.
 fn make_zip_with_modes(files: &[(String, Vec<u8>)], no_read: &[&str]) -> Vec<u8> {
     let cur = std::io::Cursor::new(Vec::new());
@@ -91,7 +91,7 @@ fn make_zip_with_modes(files: &[(String, Vec<u8>)], no_read: &[&str]) -> Vec<u8>
     zw.finish().unwrap().into_inner()
 }
 
-/// ARC_027 fixture'ı: verilen dosyalar okuma izinsiz yazılır.
+/// ARC_027 fixture: writes the given files without read permission.
 fn fx_noread(rule: &'static str, no_read: Vec<&'static str>) -> Fixture {
     Fixture {
         rule,
@@ -104,8 +104,9 @@ fn fx_noread(rule: &'static str, no_read: Vec<&'static str>) -> Fixture {
     }
 }
 
-/// ARC_036 fixture'ı: zip KURULDUKTAN SONRA yerel başlıkların bayrağına bit 3 eklenir.
-/// İçerik ve merkez dizin değişmez — arşiv hâlâ açılabilir; çelişen tek şey akış görünümüdür.
+/// ARC_036 fixture: adds bit 3 to local-header flags AFTER the zip is BUILT.
+/// Contents and the central directory stay unchanged — the archive remains readable;
+/// only the stream view is inconsistent.
 /// `ARC_027` emsali: kural zip ÜST VERİSİYLE tetikleniyor, normal fixture yolu üretemiyor.
 fn flip_data_descriptor_flags(mut zip_bytes: Vec<u8>) -> Vec<u8> {
     let starts: Vec<u64> = {
@@ -122,7 +123,7 @@ fn flip_data_descriptor_flags(mut zip_bytes: Vec<u8>) -> Vec<u8> {
     zip_bytes
 }
 
-/// ARC_036 fixture'ı: base feed, yalnız zip çerçevesi bozulur.
+/// ARC_036 fixture: baseline feed with only the zip framing corrupted.
 fn fx_stream_flag(rule: &'static str) -> Fixture {
     Fixture {
         rule,
@@ -154,7 +155,8 @@ fn emitted_rules_modes(
     match validate_bytes(&zip_bytes, config, TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.clone()).collect(),
         ValidateResult::Fatal(e) => {
-            // Fatal yol: rule_id'yi koddan türetmek yerine boş set; arşiv fatal'ları allowlist'te.
+            // Fatal path: return an empty set instead of deriving a rule_id; archive Fatals
+            // are in the allowlist.
             let _ = e;
             BTreeSet::new()
         }
@@ -168,19 +170,19 @@ fn notices_for(files: &[(String, Vec<u8>)], config: &ValidatorConfig) -> Vec<gtf
     }
 }
 
-/// Bir fixture: beklenen rule_id + onu tetikleyen feed (base üzerine override'lar).
+/// A fixture: expected rule_id plus the feed that triggers it (overrides on the baseline).
 struct Fixture {
     rule: &'static str,
     overrides: Vec<(&'static str, &'static str)>,
     removes: Vec<&'static str>,
     raw: Vec<(&'static str, &'static [u8])>,
     config: Option<ValidatorConfig>,
-    /// ARC_027 için: bu dosyalar zip'e OKUMA İZNİ OLMADAN yazılır (unix mode 0o200).
-    /// Kural `zf.unix_mode() & 0o400 == 0` arıyor; içerikle değil zip ÜST VERİSİYLE
-    /// tetikleniyor, bu yüzden normal fixture yolu onu üretemiyordu.
+    /// For ARC_027: these files are written to the zip WITHOUT READ PERMISSION (unix mode 0o200).
+    /// The rule checks the unix mode; it is triggered by zip METADATA, not content, so the
+    /// normal fixture path could not produce it.
     no_read: Vec<&'static str>,
-    /// ARC_036 için: zip kurulduktan SONRA yerel başlık bayraklarına bit 3 eklenir.
-    /// Aynı gerekçe — tetikleyici içerik değil, zip çerçevesi.
+    /// For ARC_036: bit 3 is added to local-header flags AFTER the zip is built.
+    /// Same rationale — the trigger is zip framing, not content.
     flip_stream_flags: bool,
 }
 
@@ -196,9 +198,9 @@ fn fx(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixtu
     }
 }
 
-/// V3 uzantı kurallarının emit kanıtı: üretim varsayılanı Auto olsa da bu fixture'lar
-/// bilerek legacy/v3 profilini seçer. Böylece kanıt testi, V4'ün bu kuralları susturmasını
-/// değil, V3 davranışının hâlâ çalıştığını ölçer.
+/// Emit proof for V3 extension rules: although production defaults to Auto, these fixtures
+/// deliberately select the legacy/V3 profile. The proof test therefore measures that V3
+/// behavior still works, rather than whether V4 suppresses these rules.
 fn fx_v3(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
     Fixture {
         rule,
@@ -214,7 +216,7 @@ fn fx_v3(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fi
     }
 }
 
-/// V4 kuralı için emit-proof fixture'ı: profil sürümü fixture tarafından açıkça seçilir.
+/// Emit-proof fixture for a V4 rule: the profile version is selected explicitly by the fixture.
 fn fx_v4(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fixture {
     Fixture {
         rule,
@@ -230,7 +232,7 @@ fn fx_v4(rule: &'static str, overrides: Vec<(&'static str, &'static str)>) -> Fi
     }
 }
 
-/// Dosya çıkarmalı fixture ("X.txt eksik" senaryoları).
+/// Fixture that removes files ("X.txt missing" scenarios).
 fn fx_rm(
     rule: &'static str,
     overrides: Vec<(&'static str, &'static str)>,
@@ -247,7 +249,7 @@ fn fx_rm(
     }
 }
 
-/// Ham byte fixture — geçersiz UTF-8 senaryoları (ARC_002/003).
+/// Raw-byte fixture — invalid UTF-8 scenarios (ARC_002/003).
 fn fx_raw(rule: &'static str, raw: Vec<(&'static str, &'static [u8])>) -> Fixture {
     Fixture {
         rule,
@@ -260,7 +262,7 @@ fn fx_raw(rule: &'static str, raw: Vec<(&'static str, &'static [u8])>) -> Fixtur
     }
 }
 
-/// Config-override fixture — ör. calendar_override_rules (OPR_021/022/023).
+/// Config-override fixture — for example, calendar_override_rules (OPR_021/022/023).
 fn fx_cfg(
     rule: &'static str,
     overrides: Vec<(&'static str, &'static str)>,
@@ -277,44 +279,44 @@ fn fx_cfg(
     }
 }
 
-/// Notice olarak emit edilmeyen kurallar (fatal yol veya dinamik) — proof'tan muaf.
-/// Notice olarak emit edilmeyen kurallar — bu harness'tan MUAF.
+/// Rules that are not emitted as notices (Fatal path or dynamic) — exempt from proof.
+/// Rules that are not emitted as notices — EXEMPT from this harness.
 ///
-/// ⚠️ **MUAFİYET, KANIT YOKLUĞU DEMEK DEĞİLDİR.** Bu listeye giren her kural için kanıtın
-/// NEREDE olduğu yazılmalıdır; yazılamıyorsa kural ya ölüdür ya da eksiktir. 2026-08-02'de
-/// denetlendi: üç girişin ikisinin kanıtı vardı; artık ARC_004 için doğrudan fixture vardır.
+/// ⚠️ **EXEMPTION DOES NOT MEAN LACK OF PROOF.** For every rule on this list, the location
+/// of its proof must be written down; if it cannot be, the rule is dead or incomplete.
+/// Audited on 2026-08-02: two of the three entries had proof; ARC_004 now has a direct fixture.
 ///
-/// Bu liste iki defterin de kör noktasıdır: buradaki kurallar hiç notice üretmediği için
-/// kapsam defterinde, iddia defterinde ve field=None defterinde GÖRÜNMEZLER.
+/// This list is a blind spot in both ledgers: because these rules never emit notices,
+/// they are INVISIBLE in the coverage ledger, claim ledger, and field=None ledger.
 const PROOF_ALLOWLIST: &[&str] = &[
-    // Fatal yol — kanıt: integration.rs::arc001_corrupt_zip_returns_fatal_zip_unreadable
+    // Fatal path — proof: integration.rs::arc001_corrupt_zip_returns_fatal_zip_unreadable
     "ARC_001",
-    // Fatal yol — kanıt: integration.rs::arc029_* (DEFAULT limitlerle iki read_fatal yolu +
-    // ratio_floor FP guard'ı). Notice fixture'ı yapısal olarak yazılamaz.
+    // Fatal path — proof: integration.rs::arc029_* (two read_fatal paths with DEFAULT limits
+    // plus the ratio_floor FP guard). A notice fixture is structurally impossible.
     "ARC_029",
 ];
 
-// ── DEBT DEFTERİ ARTIK BOŞ (coverage_debt.txt) ──
-// #28 ÇÖZÜLEN: ARC_002/003 (fx_raw ham byte), OPR_021/022/023 + ARC_028/STP_040/STP_041 (fx_cfg
-// config) fixtures()'ta runtime-kanıtlı.
+// ── DEBT LEDGER IS NOW EMPTY (coverage_debt.txt) ──
+// #28 RESOLVED: ARC_002/003 (raw bytes via fx_raw), OPR_021/022/023 + ARC_028/STP_040/STP_041
+// (config via fx_cfg) have runtime proof in fixtures().
 //
-// 2026-08-07 (issue #71): kalan YEDİ kaydın hepsi kapandı. Defterdeki gerekçeler
-// ("inline yazılamaz", "pratik değil") ÇOĞUNLUKLA YANLIŞTI; gerçek engel üç kez eşiğin
-// SABİT KODLU olmasıydı, bir kez de zip üst verisiydi:
-//   OPR_024/VAT_006/STM_043 — eşik zaten config'teydi ya da satır sayısı zaten yazılabilirdi
-//   SHP_026/STM_044/ARC_022 — eşik `ValidatorConfig`'e taşındı (varsayılan DEĞİŞMEDİ)
-//   ARC_027                 — harness'a `unix_permissions` yazan kurucu eklendi (fx_noread)
-// ⚠️ DERS: "yazılamaz" etiketi bir ÖLÇÜM DEĞİL, bir tahmindi. Her biri denendiğinde düştü.
-// ARC_001/ARC_029 PROOF_ALLOWLIST'te (Fatal yol). NOT (2026-07-16): ARC_029 borç
-// ledger'ındaydı ama borç DEĞİLDİ — ARC_001 gibi Fatal yol; allowlist'e taşındı, uçtan uca
-// kanıtı integration.rs::arc029_*'ta.
+// 2026-08-07 (issue #71): all seven remaining entries were closed. The ledger rationales
+// ("cannot be written inline", "impractical") were MOSTLY WRONG; the real blocker was a
+// hard-coded threshold three times, and zip metadata once:
+//   OPR_024/VAT_006/STM_043 — the threshold was already configurable or the row count was writable
+//   SHP_026/STM_044/ARC_022 — the threshold moved to ValidatorConfig (default UNCHANGED)
+//   ARC_027                 — the harness gained a constructor writing unix_permissions (fx_noread)
+// ⚠️ LESSON: "cannot be written" was a guess, not a MEASUREMENT. Each entry fell when tried.
+// ARC_001/ARC_029 are in PROOF_ALLOWLIST (Fatal path). NOTE (2026-07-16): ARC_029 was in
+// the debt ledger but was NOT debt — like ARC_001, it is a Fatal path; it moved to the
+// allowlist, with end-to-end proof in integration.rs::arc029_*.
 
-// #28 Grup 1 yardımcıları ─────────────────────────────────────────────────────
-// OPSİYONEL dosyada (feed_info.txt) geçersiz UTF-8 (0xFF/0xFE) → ARC_002 + ARC_003 (fatal değil).
+// #28 Group 1 helpers ─────────────────────────────────────────────────────────
+// Invalid UTF-8 (0xFF/0xFE) in an OPTIONAL file (feed_info.txt) → ARC_002 + ARC_003 (not Fatal).
 const BAD_UTF8_FEED_INFO: &[u8] =
     b"feed_publisher_name,feed_publisher_url,feed_lang\n\xff\xfe,https://x.example,en\n";
-// calendar_dates: SVC_B 0101+0102, SVC_O yalnız 0101 aktif. Kural penceresi 0101-0103'te:
-// 0101 base+override → OPR_021, 0102 yalnız base → OPR_022, 0103 hiçbiri → OPR_023.
+// calendar_dates: SVC_B active on 0101+0102, SVC_O only on 0101. The rule window is 0101-0103:
+// 0101 base+override → OPR_021, 0102 base only → OPR_022, 0103 neither → OPR_023.
 const OVERRIDE_CD: &str =
     "service_id,date,exception_type\nSVC_B,20260101,1\nSVC_B,20260102,1\nSVC_O,20260101,1\n";
 fn override_config() -> ValidatorConfig {
@@ -329,15 +331,15 @@ fn override_config() -> ValidatorConfig {
         ..ValidatorConfig::default()
     }
 }
-// ARC_028: source_url verilir ve .zip ile bitmezse tetiklenir (config-gated).
+// ARC_028: triggered when source_url is provided and does not end in .zip (config-gated).
 fn source_url_config() -> ValidatorConfig {
     ValidatorConfig {
         source_url: Some("https://example.org/gtfs".into()),
         ..ValidatorConfig::default()
     }
 }
-// STP_040/041: opt-in stop-adı profili. P1 "Main Stop" → generic 'stop' sözcüğü (STP_040) VE
-// parent ST1 "Central Hub" adını içermiyor (STP_041). S1/S2 stop_times referansları için korunur.
+// STP_040/041: opt-in stop-name profile. P1 "Main Stop" → generic 'stop' word (STP_040)
+// AND does not contain parent ST1 "Central Hub" name (STP_041). S1/S2 remain for stop_times references.
 fn stop_name_config() -> ValidatorConfig {
     ValidatorConfig {
         stop_name_best_practices: true,
@@ -346,7 +348,7 @@ fn stop_name_config() -> ValidatorConfig {
 }
 const STOP_NAME_STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,\nST1,Central Hub,41.0,29.0,1,\nP1,Main Stop,41.0,29.0,0,ST1\n";
 
-/// rule_id → tetikleyici fixture. Kademeli doldurulur; her satır gerçek runtime proof.
+/// rule_id → triggering fixture. Filled incrementally; every row is real runtime proof.
 fn fixtures() -> Vec<Fixture> {
     vec![
         // ── #28 Grup 1: ham-byte (ARC_002/003) + config-override (OPR_021/022/023) ──
@@ -359,17 +361,17 @@ fn fixtures() -> Vec<Fixture> {
         fx_cfg("ARC_028", vec![], source_url_config()),
         fx_cfg("STP_040", vec![("stops.txt", STOP_NAME_STOPS)], stop_name_config()),
         fx_cfg("STP_041", vec![("stops.txt", STOP_NAME_STOPS)], stop_name_config()),
-        // ── Tohum parti: tetikleme koşulu net K2/K6 kuralları ──────────────────
-        // STP_003: stop_lat aralık dışı.
+        // ── Seed batch: K2/K6 rules with clear trigger conditions ──────────────
+        // STP_003: stop_lat outside the allowed range.
         fx("STP_003", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,999.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // STP_016: iki durak birebir aynı koordinat (parent/child değil).
+        // STP_016: two stops with identical coordinates (not parent/child).
         fx("STP_016", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n")]),
-        // STP_022: stop_code yok (base zaten stop_code'suz → feed-özeti/per-stop). base'te 2 durak.
+        // STP_022: no stop_code (the baseline already has none → feed summary/per-stop). Two baseline stops.
         fx("STP_022", vec![]),
-        // RTS_017: hat shape'siz (base'te shape yok).
+        // RTS_017: route without a shape (the baseline has no shape).
         fx("RTS_017", vec![]),
 
-        // ── AGN grubu (agency.txt alan doğrulamaları) ──────────────────────────
+        // ── AGN group (agency.txt field validation) ────────────────────────────
         fx("AGN_002", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,,https://x.example,UTC\n")]),
         fx("AGN_003", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,Test,notaurl,UTC\n")]),
         fx("AGN_004", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,Test,https://x.example,NotAZone\n")]),
@@ -380,43 +382,43 @@ fn fixtures() -> Vec<Fixture> {
         fx("AGN_012", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,cemv_support\n1,Test,https://x.example,UTC,5\n")]),
         fx("AGN_015", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.example,UTC\n")]),
         fx("AGN_016", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_phone\n1,Test,https://x.example,UTC,888-281-2681\n")]),
-        // Çoklu kuruluş senaryoları:
+        // Multiple-agency scenarios:
         fx("AGN_014", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n,B,https://b.example,UTC\n")]),
         fx("AGN_005", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,Europe/Istanbul\n")]),
         fx("AGN_017", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,A,https://a.example,UTC,tr\n2,B,https://b.example,UTC,en\n")]),
-        // AGN_011: birden fazla işletici varken route'ta agency_id boş.
-        // AGN_011 İKİ dosyayı kapsar: routes.txt ve fare_attributes.txt (spec aynı hükmü
-        // ikisi için de yazar). Fixture ikisini de tetikler ki her iki çapa da düşsün.
+        // AGN_011: route agency_id is empty while multiple agencies exist.
+        // AGN_011 covers TWO files: routes.txt and fare_attributes.txt (the spec states the
+        // same requirement for both). The fixture triggers both so both anchors are covered.
         fx("AGN_011", vec![
             ("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,A,https://a.example,UTC\n2,B,https://b.example,UTC\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,,101,3\n"),
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method,transfers\nF1,1.00,USD,0,0\n"),
         ]),
-        // ── ARC grubu (arşiv/dosya/başlık seviyesi) ────────────────────────────
-        // ARC_008: takvim dosyası yok (calendar + calendar_dates ikisi de).
+        // ── ARC group (archive/file/header level) ─────────────────────────────
+        // ARC_008: no calendar file (neither calendar nor calendar_dates).
         fx_rm("ARC_008", vec![], vec!["calendar.txt"]),
-        // ARC_004: eksik required file notice + PARTIAL olarak raporlanır.
+        // ARC_004: missing required file, reported as a notice and PARTIAL.
         fx_rm("ARC_004", vec![], vec!["routes.txt"]),
-        // ARC_031: translations.txt var, feed_info.txt yok → spec bu hâlde feed_info'yu
-        // ZORUNLU kılar (koşul sağlanmazsa yalnız tavsiye eder → ARC_020, Quality).
+        // ARC_031: translations.txt exists but feed_info.txt does not → the spec makes
+        // feed_info REQUIRED in this case (otherwise it is only recommended → ARC_020, Quality).
         fx("ARC_031", vec![("translations.txt", "table_name,field_name,language,translation,record_id\nstops,stop_name,fr,Gare,S1\n")]),
-        // ARC_009: dosyada veri satırı yok (sadece başlık).
-        // ARC_009 artık YALNIZ opsiyonel dosyaları raporlar; zorunlu dosyanın boşluğu
-        // ARC_035'e devredildi (2026-08-31), bu yüzden fixture opsiyonel bir dosyadır.
+        // ARC_009: the file has no data rows (header only).
+        // ARC_009 now reports ONLY optional files; the empty required-file case moved to
+        // ARC_035 (2026-08-31), so this fixture is an optional file.
         fx("ARC_009", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\n")]),
-        // ARC_012: satır sütun sayısı başlıkla uyuşmuyor.
+        // ARC_012: row column count does not match the header.
         fx("ARC_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0\nS2,Stop2,41.1,29.1\n")]),
-        // ARC_015: yinelenen başlık sütunu.
+        // ARC_015: duplicate header column.
         fx("ARC_015", vec![("stops.txt", "stop_id,stop_id,stop_lat,stop_lon\nS1,X,41.0,29.0\nS2,Y,41.1,29.1\n")]),
-        // ARC_019: başlıkta boş sütun adı.
+        // ARC_019: empty column name in the header.
         fx("ARC_019", vec![("stops.txt", "stop_id,,stop_lat,stop_lon\nS1,X,41.0,29.0\nS2,Y,41.1,29.1\n")]),
-        // ARC_025: zorunlu sütun başlıkta yok (stop_id).
+        // ARC_025: required column missing from the header (stop_id).
         fx("ARC_025", vec![("stops.txt", "stop_name,stop_lat,stop_lon\nStop1,41.0,29.0\nStop2,41.1,29.1\n")]),
-        // ARC_024: GTFS .txt ZIP içinde alt dizinde.
+        // ARC_024: GTFS .txt file nested in a ZIP subdirectory.
         fx("ARC_024", vec![("feed/stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS9,Extra,41.0,29.0\n")]),
         fx("ARC_026", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\rPub,https://x.example,en\r")]),
 
-        // ── ATR grubu (attributions.txt; base'te yok, eklenir) ─────────────────
+        // ── ATR group (attributions.txt; absent from baseline, added) ──────────
         fx("ATR_001", vec![("attributions.txt", "organization_name,is_producer\nOrg,1\n")]),
         fx("ATR_002", vec![("attributions.txt", "attribution_id,organization_name,is_producer\nA1,,1\n")]),
         fx("ATR_003", vec![("attributions.txt", "attribution_id,organization_name,is_producer,is_operator,is_authority\nA1,Org,0,0,0\n")]),
@@ -426,7 +428,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("ATR_007", vec![("attributions.txt", "attribution_id,organization_name,is_producer,attribution_url\nA1,Org,1,notaurl\n")]),
         fx("ATR_008", vec![("attributions.txt", "attribution_id,organization_name,is_producer,attribution_email\nA1,Org,1,notanemail\n")]),
 
-        // ── BKR grubu (booking_rules.txt; prior_notice tutarlılığı) ────────────
+        // ── BKR group (booking_rules.txt; prior_notice consistency) ───────────
         fx("BKR_001", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_last_day\nBR1,1,30,2\n")]),
         fx("BKR_003", vec![("booking_rules.txt", "booking_rule_id,prior_notice_start_time\nBR1,09:00:00\n")]),
         fx("BKR_004", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,0,15\n")]),
@@ -440,18 +442,19 @@ fn fixtures() -> Vec<Fixture> {
         fx("BKR_012", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_last_day,prior_notice_last_time,prior_notice_duration_min\nBR1,2,3,12:00:00,30\n")]),
         fx("BKR_013", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_last_time\nBR1,1,30,17:00:00\n")]),
         fx("BKR_014", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_service_id\nBR1,1,30,SVC1\n")]),
-        // BKR_015: type=2'de alan meşru ama servis calendar'da yok (k4 cross-ref).
+        // BKR_015: the field is valid for type=2, but the service is absent from calendar
+        // (k4 cross-reference).
         fx("BKR_015", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_last_day,prior_notice_last_time,prior_notice_service_id\nBR1,2,3,12:00:00,MISSING_SVC\n")]),
-        // BKR_016: booking_type enum dışı. BKR_019: booking_rule_id yineleniyor.
+        // BKR_016: booking_type outside the enum. BKR_019: duplicate booking_rule_id.
         fx("BKR_016", vec![("booking_rules.txt", "booking_rule_id,booking_type\nBR1,7\n")]),
         fx("BKR_019", vec![("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\nBR1,1,45\n")]),
-        // BKR_020/021/022: üç iletişim alanı hiç okunmuyordu (#60).
+        // BKR_020/021/022: the three contact fields were never read (#60).
         fx("BKR_020", vec![("booking_rules.txt", "booking_rule_id,booking_type,booking_url\nBR1,0,notaurl\n")]),
         fx("BKR_021", vec![("booking_rules.txt", "booking_rule_id,booking_type,info_url\nBR1,0,notaurl\n")]),
         fx("BKR_022", vec![("booking_rules.txt", "booking_rule_id,booking_type,phone_number\nBR1,0,abc\n")]),
-        // BKR_023: prior_notice sayı alanı tam sayı değil (eskiden opt_int sessizce yutuyordu).
-        // DÖRT satır: BKR_023 dört alanı da ölçer, dedup Entity (booking_rule_id) → her alan
-        // için ayrı kayıt gerekir, yoksa yalnız biri çapalanır (CAL_002 dersi).
+        // BKR_023: a prior_notice numeric field is not an integer (opt_int used to swallow it).
+        // FOUR rows: BKR_023 measures all four fields, with Entity (booking_rule_id) dedup →
+        // a separate record is needed for each field, or only one is anchored (CAL_002 lesson).
         fx("BKR_023", vec![("booking_rules.txt", concat!(
             "booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_last_day,prior_notice_start_day\n",
             "BR1,2,abc,,,\n",
@@ -460,15 +463,15 @@ fn fixtures() -> Vec<Fixture> {
             "BR4,2,,,,abc\n",
         ))]),
         fx("BKR_024", vec![("booking_rules.txt","booking_rule_id,booking_type,prior_notice_duration_min,prior_notice_duration_max,prior_notice_start_day,prior_notice_last_day\nB1,1,30,120,2,3\n")]),
-        // BKR_025: prior_notice zaman alanı GTFS Time olarak ayrıştırılamıyor.
-        // İKİ satır: kural iki alanı da (start_time / last_time) ölçer ve dedup
-        // Entity'dir — tek satır yalnız birini çapalar (BKR_023'ün dersi).
+        // BKR_025: a prior_notice time field cannot be parsed as GTFS Time.
+        // TWO rows: the rule measures both fields (start_time / last_time) and deduplicates
+        // by Entity — one row anchors only one of them (the BKR_023 lesson).
         fx("BKR_025", vec![("booking_rules.txt", concat!(
             "booking_rule_id,booking_type,prior_notice_start_day,prior_notice_start_time,prior_notice_last_day,prior_notice_last_time\n",
             "BR1,2,3,yarin sabah,3,12:00:00\n",
             "BR2,2,3,08:00:00,3,12:60\n",
         ))]),
-        // BKR_017/018: stop_times'taki booking_rule_id booking_rules.txt'te yok (k4 cross-ref).
+        // BKR_017/018: booking_rule_id in stop_times is absent from booking_rules.txt (k4 cross-reference).
         fx("BKR_017", vec![
             ("booking_rules.txt", "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,30\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,MISSING_BR\n"),
@@ -478,18 +481,18 @@ fn fixtures() -> Vec<Fixture> {
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,drop_off_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,MISSING_BR\n"),
         ]),
 
-        // ── ARS: areas.txt area_id tekrarı ─────────────────────────────────────
+        // ── ARS: duplicate areas.txt area_id ───────────────────────────────────
         fx("ARS_001", vec![("areas.txt", "area_id,area_name\nA1,Area1\nA1,Area2\n")]),
 
         // ── CAL grubu (calendar.txt) ───────────────────────────────────────────
         fx("CAL_001", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n")]),
-        // CAL_002 YEDİ günü de denetler; fixture eskiden yalnız `monday`'i bozuyordu, bu yüzden
-        // kapsam ölçümü diğer altı sütunu "çapasız" sayıyordu — kural boşluğu DEĞİL, fixture
-        // zayıflığıydı.
+        // CAL_002 also checks all SEVEN days; the fixture used to break only monday, so
+        // coverage measurement called the other six columns "unanchored" — not a rule gap,
+        // but a fixture weakness.
         //
-        // ⚠️ Tek satırda yedi günü birden bozmak YETMEZ: CAL_002'nin dedup düzeyi Entity
-        // (`service_id`), yani servis başına TEK notice kalır ve yalnız bir gün çapalanır.
-        // Bu yüzden yedi AYRI servis, her biri farklı bir günü bozuyor.
+        // ⚠️ Breaking all seven days in one row is NOT ENOUGH: CAL_002 deduplicates at Entity
+        // (service_id) level, so each service produces only ONE notice and only one day is anchored.
+        // Therefore use seven SEPARATE services, each breaking a different day.
         fx("CAL_002", vec![("calendar.txt", concat!(
             "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n",
             "SVC1,5,1,1,1,1,0,0,20250101,20271231\n",
@@ -505,13 +508,13 @@ fn fixtures() -> Vec<Fixture> {
         fx("CAL_005", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20271231,20250101\n")]),
         fx("CAL_022", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n,1,1,1,1,1,0,0,20250101,20271231\n")]),
 
-        // ── CLD grubu (calendar_dates.txt; base'te yok) ────────────────────────
+        // ── CLD group (calendar_dates.txt; absent from baseline) ──────────────
         fx("CLD_001", vec![("calendar_dates.txt", "service_id,date,exception_type\n,20260601,1\n")]),
         fx("CLD_002", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,notadate,1\n")]),
         fx("CLD_003", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260601,5\n")]),
         fx("CLD_005", vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,30000601,1\n")]),
 
-        // ── FAR grubu (fare_attributes.txt; fares v1) ──────────────────────────
+        // ── FAR group (fare_attributes.txt; Fares v1) ──────────────────────────
         fx("FAR_002", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,-1,USD,0\n")]),
         fx("FAR_003", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,usd,0\n")]),
         fx("FAR_004", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,5\n")]),
@@ -521,7 +524,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FAR_012", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\n,2.5,USD,0\n")]),
         fx("FAR_013", vec![("fare_attributes.txt","fare_id,price,currency_type,payment_method,transfers\nF1,0.9,EUR,0,0\n")]),
 
-        // ── FIN grubu (feed_info.txt; base'te yok) ─────────────────────────────
+        // ── FIN group (feed_info.txt; absent from baseline) ────────────────────
         fx("FIN_001", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\n,https://x.example,en\n")]),
         fx("FIN_002", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,notaurl,en\n")]),
         fx("FIN_003", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,!!bad\n")]),
@@ -531,8 +534,9 @@ fn fixtures() -> Vec<Fixture> {
 
         // ── FLG: rule_priority negatif (fare_leg_rules.txt) ────────────────────
         fx("FLG_007", vec![("fare_leg_rules.txt", "leg_group_id,rule_priority\nLG1,-5\n")]),
-        // FLJ_001..004: fare_leg_join_rules.txt (#59) — dosya 2026-08-02'ye kadar hiç
-        // tanınmıyordu. Ağ alanları koşulsuz Required; durak alanları KARŞILIKLI koşullu.
+        // FLJ_001..004: fare_leg_join_rules.txt (#59) — the file was not recognized at all
+        // until 2026-08-02. Network fields are unconditionally Required; stop fields are
+        // mutually conditional.
         fx("FLJ_001", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("fare_leg_join_rules.txt", "from_network_id,to_network_id\nNOPE,N1\n"),
@@ -541,9 +545,9 @@ fn fixtures() -> Vec<Fixture> {
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("fare_leg_join_rules.txt", "from_network_id,to_network_id\nN1,NOPE\n"),
         ]),
-        // FLJ_003 İKİ hükmü birden ölçer; iki satır ikisini de kanıtlar:
-        //   satır 1 — from_stop_id boş ama to_stop_id dolu → karşılıklı KOŞUL ihlali
-        //   satır 2 — from_stop_id dolu ama stops.txt'te yok → YABANCI ANAHTAR ihlali
+        // FLJ_003 measures TWO requirements; two rows prove both:
+        //   row 1 — from_stop_id empty but to_stop_id populated → mutual CONDITION violation
+        //   row 2 — from_stop_id populated but absent from stops.txt → FOREIGN KEY violation
         fx("FLJ_003", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("fare_leg_join_rules.txt", concat!(
@@ -552,7 +556,7 @@ fn fixtures() -> Vec<Fixture> {
                 "N1,N1,NOPE,S1\n",
             )),
         ]),
-        // FLJ_004 aynı biçimde: satır 1 yabancı anahtar, satır 2 karşılıklı koşul.
+        // FLJ_004 follows the same pattern: row 1 foreign key, row 2 mutual condition.
         fx("FLJ_004", vec![
             ("networks.txt", "network_id,network_name\nN1,Net1\n"),
             ("fare_leg_join_rules.txt", concat!(
@@ -572,7 +576,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FRQ_008", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,0\n")]),
         fx("FRQ_009", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,30\n")]),
 
-        // ── FTR grubu (fare_transfer_rules.txt; K2 alan kontrolleri) ───────────
+        // ── FTR group (fare_transfer_rules.txt; K2 field checks) ──────────────
         fx("FTR_001", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type\nLG1,5\n")]),
         fx("FTR_005", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type,duration_limit_type,duration_limit\nLG1,0,9,100\n")]),
         fx("FTR_006", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type,duration_limit\nLG1,0,0\n")]),
@@ -582,8 +586,8 @@ fn fixtures() -> Vec<Fixture> {
         // ── FMD / FPD (fare_media.txt / fare_products.txt) ─────────────────────
         fx("FMD_002", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,9\n")]),
         fx("FMD_003", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\n")]),
-        // FPD_002 artık EKSİK/SAYISAL-OLMAYAN tutarı ölçer. Negatif tutar GEÇERLİDİR
-        // (spec: "May be negative to represent transfer discounts") → fixture sayısal olmayan.
+        // FPD_002 now measures a MISSING/NON-NUMERIC amount. A negative amount is VALID
+        // (spec: "May be negative to represent transfer discounts") → the fixture is non-numeric.
         fx("FPD_002", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,abc,USD\n")]),
 
         // ── LVL (levels.txt) ───────────────────────────────────────────────────
@@ -595,7 +599,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("RCT_003", vec![("rider_categories.txt", "rider_category_id,rider_category_name,is_default_fare_category\nRC1,Adult,5\n")]),
         fx("RCT_004", vec![("rider_categories.txt", "rider_category_id,rider_category_name,min_age\nRC1,Adult,abc\n")]),
         fx("RCT_005", vec![("rider_categories.txt", "rider_category_id,rider_category_name,min_age,max_age\nRC1,Adult,65,18\n")]),
-        // RCT_007: eligibility_url URL biçiminde değil.
+        // RCT_007: eligibility_url is not URL-shaped.
         fx("RCT_007", vec![("rider_categories.txt", "rider_category_id,rider_category_name,eligibility_url\nRC1,Adult,notaurl\n")]),
 
         // ── TFR (timeframes.txt) ───────────────────────────────────────────────
@@ -604,22 +608,22 @@ fn fixtures() -> Vec<Fixture> {
         fx("TFR_004", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,10:00:00,08:00:00,SVC1\n")]),
         fx("TFR_005", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,12:00:00,SVC1\nTG1,10:00:00,14:00:00,SVC1\n")]),
         fx("TFR_006", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,25:00:00,26:00:00,SVC1\n")]),
-        // İKİ yön: TFR_007 eksik olanı adlandırır, tek satır yalnız birini çapalar.
+        // TWO directions: TFR_007 names the missing side; one row anchors only one side.
         fx("TFR_007", vec![("timeframes.txt", concat!(
             "timeframe_group_id,start_time,end_time,service_id\n",
             "TG1,08:00:00,,SVC1\n",
             "TG2,,17:00:00,SVC1\n",
         ))]),
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
-        // ARC_032: `<BR>` biçimi vahşi doğadan (mdb-1924, 1176 durak adı).
+        // ARC_032: <BR> form observed in the wild (mdb-1924, 1176 stop names).
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
         fx("AGN_018", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"), ("routes.txt", "route_id,route_short_name,route_type\nR1,101,3\n")]),
         fx("STP_045", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,platform_code\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,\n")]),
         fx("ARC_037", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSüd,Stop3,41.2,29.2\n")]),
         fx("ARS_002", vec![("areas.txt","area_id,area_name\n,Bolge\n")]),
-        // ⚠️ YEDİ AYRI SERVİS ŞART. Tek satırda yedi günü birden boşaltmak YETMEZ: dedup
-        // aynı satır için tek notice bırakır ve yalnız bir gün alanı çapalanır. Aynı tuzak
-        // CAL_002 fixture'ında da yaşanmıştı (kapsam defteri 2026-08-03 triyajı).
+        // ⚠️ SEVEN SEPARATE SERVICES ARE REQUIRED. Clearing all seven days in one row is
+        // NOT ENOUGH: dedup leaves one notice for the row and anchors only one day field.
+        // The same trap occurred in the CAL_002 fixture (coverage-ledger triage, 2026-08-03).
         fx("CAL_025", vec![("calendar.txt","service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,,1,1,1,1,1,1,20250101,20261231\nSVC2,1,,1,1,1,1,1,20250101,20261231\nSVC3,1,1,,1,1,1,1,20250101,20261231\nSVC4,1,1,1,,1,1,1,20250101,20261231\nSVC5,1,1,1,1,,1,1,20250101,20261231\nSVC6,1,1,1,1,1,,1,20250101,20261231\nSVC7,1,1,1,1,1,1,,20250101,20261231\n")]),
         fx("FMD_004", vec![("fare_media.txt","fare_media_id,fare_media_name,fare_media_type\n,Kart,2\n")]),
         fx("NET_004", vec![("networks.txt","network_id,network_name\n,Ag\n")]),
@@ -632,7 +636,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("TFR_008", vec![("timeframes.txt","timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,10:00:00,\n")]),
         fx("TRP_035", vec![("trips.txt","route_id,service_id,trip_id\nR1,,T1\n")]),
 
-        // ── STP grubu (stops.txt; K2 alan kontrolleri) ─────────────────────────
+        // ── STP group (stops.txt; K2 field checks) ─────────────────────────────
         fx("STP_002", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
         fx("STP_004", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,abc,29.0\nS2,Stop2,41.1,29.1\n")]),
         fx("STP_005", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,200\nS2,Stop2,41.1,29.1\n")]),
@@ -643,22 +647,22 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_014", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,stop_timezone\nS1,Stop1,41.0,29.0,NotAZone\nS2,Stop2,41.1,29.1,UTC\n")]),
         fx("STP_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n")]),
 
-        // ── RTS grubu (routes.txt; K2 alan kontrolleri) ────────────────────────
+        // ── RTS group (routes.txt; K2 field checks) ────────────────────────────
         fx("RTS_003", vec![("routes.txt", "route_id,agency_id,route_type\nR1,1,3\n")]),
         fx("RTS_004", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,9999\n")]),
         fx("RTS_005", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_url\nR1,1,101,3,notaurl\n")]),
-        // RTS_030: genişletilmiş (HVT) route_type — çekirdek enum dışı, RTS_004 DEĞİL (#93).
+        // RTS_030: extended (HVT) route_type — outside the core enum, not RTS_004 (#93).
         fx("RTS_030", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,1501\n")]),
-        // RTS_029: route_sort_order negatif olmayan tam sayı değil (eskiden sessizdi).
+        // RTS_029: route_sort_order is not a non-negative integer (formerly silent).
         fx("RTS_029", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_sort_order\nR1,1,101,3,-5\n")]),
         fx("RTS_006", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,route_color\nR1,1,101,3,XYZ\n")]),
         fx("RTS_013", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,9\n")]),
         fx("RTS_018", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_drop_off\nR1,1,101,3,9\n")]),
-        // RTS_026: aynı kısa ad, FARKLI uzun ad (→ RTS_019 değil, Bilgi).
+        // RTS_026: same short name, DIFFERENT long name (→ not RTS_019, Bilgi).
         fx("RTS_026", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,100,Line North,3\nR2,1,100,Line South,3\n")]),
-        // RTS_027: aynı uzun ad, FARKLI kısa ad (→ RTS_019 değil, Bilgi).
+        // RTS_027: same long name, DIFFERENT short name (→ not RTS_019, Bilgi).
         fx("RTS_027", vec![("routes.txt", "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,1,10,City Line,3\nR2,1,20,City Line,3\n")]),
-        // RTS_028: rotanın bir seferinde Flex penceresi var → routes.continuous_pickup=0 yasak (K4).
+        // RTS_028: one trip on the route has a Flex window → routes.continuous_pickup=0 forbidden (K4).
         fx("RTS_028", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,0\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,BR1\n"),
@@ -694,7 +698,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRN_009", vec![("translations.txt", "table_name,field_name,language,translation,record_id,field_value\nstops,stop_name,en,X,S1,val\n")]),
         fx("TRN_011", vec![("translations.txt", "table_name,field_name,language,translation\nstops,stop_lat,en,X\n")]),
 
-        // ── STM grubu (stop_times.txt; K2 satır kontrolleri) ───────────────────
+        // ── STM group (stop_times.txt; K2 row checks) ──────────────────────────
         fx("STM_003", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,notatime,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
         fx("STM_004", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,notatime,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
         fx("STM_005", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,\nT1,08:10:00,08:10:00,S2,2\n")]),
@@ -708,19 +712,19 @@ fn fixtures() -> Vec<Fixture> {
         fx("STM_034", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
         fx("STM_046", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
         fx("STM_047", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,,,S1,1,1\nT1,08:10:00,08:10:00,S2,2,1\n")]),
-        // Flex (has_flex_cols → window sütunları)
+        // Flex (has_flex_cols → window columns)
         fx("STM_037", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,08:00:00,08:00:00,S1,1,09:00:00,10:00:00\n")]),
         fx("STM_038", vec![("stop_times.txt", "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\nT1,S1,1,10:00:00,09:00:00\n")]),
-        // İKİ sefer: STM_039 eksik olan pencere alanını adlandırır; tek satır yalnız birini
-        // çapalar. T1'de end_ eksik, T2'de start_ eksik.
+        // TWO trips: STM_039 names the missing window field; one row anchors only one.
+        // end_ is missing in T1, start_ is missing in T2.
         fx("STM_039", vec![("stop_times.txt", concat!(
             "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window\n",
             "T1,1,LOC1,09:00:00,\n",
             "T2,1,LOC1,,17:00:00\n",
         ))]),
-        // STM_058: pencere alanı Time olarak parse edilemiyor (eskiden sessizce yutuluyordu).
-        // İKİ satır: STM_058 iki pencere alanını da ölçer ama dedup düzeyi Entity (trip_id),
-        // yani tek satırda ikisini birden bozmak yalnız BİRİNİ çapalar (CAL_002 ile aynı ders).
+        // STM_058: a window field cannot be parsed as Time (formerly silently swallowed).
+        // TWO rows: STM_058 measures both window fields but deduplicates at Entity (trip_id),
+        // so breaking both in one row anchors only ONE (same lesson as CAL_002).
         fx("STM_058", vec![("stop_times.txt", concat!(
             "trip_id,stop_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window\n",
             "T1,S1,1,9am,10:00:00\n",
