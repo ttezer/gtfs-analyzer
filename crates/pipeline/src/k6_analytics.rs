@@ -14021,8 +14021,8 @@ mod tests {
     #[test]
     fn pth_012_nested_platform_reachable_via_boarding_area_no_fp() {
         // #50: station ST → platform PL(lt0) → boarding area BA(lt4); entrance EN(lt2).
-        // Pathway EN↔BA. Peron-record PL grafikte düğüm DEĞİL ama çocuğu BA
-        // entrance'tan erişilebilir → PTH_012 sahte-pozitif ÇIKMAMALI.
+        // Pathway EN↔BA. Platform record PL is NOT a graph node, but its child BA is reachable
+        // from the entrance → PTH_012 MUST NOT produce a false positive.
         let recs = crate::k2::EntityRecords {
             stops: vec![
                 pth_stop("ST", Some(1), ""),
@@ -14053,8 +14053,8 @@ mod tests {
 
     #[test]
     fn pth_012_genuinely_unreachable_platform_fires() {
-        // Peron PL grafikte düğüm ama entrance'tan erişilemiyor ve lt4 çocuğu yok
-        // → PTH_012 ÇIKMALI (gerçek erişilebilirlik boşluğu korunur).
+        // Platform PL is a graph node but unreachable from the entrance and has no lt4 child
+        // → PTH_012 MUST fire (preserve the genuine accessibility gap).
         let recs = crate::k2::EntityRecords {
             stops: vec![
                 pth_stop("ST", Some(1), ""),
@@ -14084,8 +14084,8 @@ mod tests {
 
     #[test]
     fn pth_013_nested_platform_accessible_via_boarding_area_no_fp() {
-        // #51: iç içe peron (PL lt0) → boarding area (BA lt4); EN→BA erişilebilir
-        // (slope/width None). Çocuk erişilebilir → PTH_013 sahte-pozitif ÇIKMAMALI.
+        // #51: nested platform (PL lt0) → boarding area (BA lt4); EN→BA is accessible
+        // (slope/width None). The child is reachable → PTH_013 MUST NOT produce a false positive.
         let recs = crate::k2::EntityRecords {
             stops: vec![
                 pth_stop("ST", Some(1), ""),
@@ -14116,8 +14116,8 @@ mod tests {
 
     #[test]
     fn pth_013_inaccessible_station_fires() {
-        // Tek rota dik (max_slope 0.20 > 0.08) → tekerlekli sandalye erişimi yok
-        // → PTH_013 ÇIKMALI (gerçek erişilebilirlik boşluğu korunur).
+        // The only route is steep (max_slope 0.20 > 0.08) → no wheelchair access
+        // → PTH_013 MUST fire (preserve the genuine accessibility gap).
         let mut pw = pth_pw("P1", "EN", "BA");
         pw.max_slope = Some(0.20);
         let recs = crate::k2::EntityRecords {
@@ -14150,12 +14150,12 @@ mod tests {
 
     #[test]
     fn calendar_dates_extended_service_no_cal_013() {
-        // CAL_013 FP fix: calendar.txt end_date geçmişte olsa da calendar_dates ile
-        // servis bugüne/geleceğe uzatılmışsa (birleşik max_date >= today) süresi
-        // DOLMAMIŞTIR → CAL_013 ÜRETİLMEMELİ. (TriMet over-fire kök nedeni.)
+        // CAL_013 FP fix: even if calendar.txt end_date is in the past, if calendar_dates extends
+        // the service through today/the future (combined max_date >= today), it has NOT EXPIRED
+        // → CAL_013 MUST NOT be emitted. (Root cause of the TriMet over-fire.)
         use crate::k5_derived::CalendarBitmap;
-        // calendar.txt end_date geçmişte olurdu ama calendar_dates 20260601'i eklemiş →
-        // birleşik active_dates gelecekte bir tarih içeriyor.
+        // calendar.txt end_date would be in the past, but calendar_dates added 20260601 →
+        // combined active_dates contains a future date.
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [(
@@ -14171,7 +14171,7 @@ mod tests {
             calendars: vec![cal_rec("SVC", all_days(), (2025, 1, 1), (2025, 12, 31))],
             ..Default::default()
         };
-        // today = 20260514 < 20260601 (uzatılmış aktif tarih)
+        // today = 20260514 < 20260601 (extended active date).
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "CAL_013"),
@@ -14181,8 +14181,8 @@ mod tests {
 
     #[test]
     fn expired_variants_same_date_aggregate_to_one_cal_013() {
-        // Aynı son-aktif-tarihte (20251231) biten iki service_id varyantı (#30 deseni):
-        // per-service 2 CAL_013 yerine expiry-imzası başına TEK notice beklenir.
+        // Two service_id variants ending on the same last active date (20251231, #30 pattern):
+        // expect ONE notice per expiry signature instead of 2 CAL_013 notices per service.
         use crate::k5_derived::CalendarBitmap;
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
@@ -14228,7 +14228,7 @@ mod tests {
 
     #[test]
     fn expiring_soon_produces_cal_008() {
-        // Bitiş tarihi 10 gün sonra (< 30 gün uyarı eşiği)
+        // End date is 10 days away (< 30-day warning threshold).
         let records = crate::k2::EntityRecords {
             calendars: vec![cal_rec("SVC", all_days(), (2026, 5, 1), (2026, 5, 24))],
             ..Default::default()
@@ -14239,8 +14239,8 @@ mod tests {
 
     #[test]
     fn short_service_produces_cal_010() {
-        // Uzun yayın penceresi (≥30 gün) → mutlak eşik yolu: 3 aktif gün < 7.
-        // LONG servisi pencereyi açar; SVC o pencerede gerçekten kısa kalır.
+        // Long publication window (≥30 days) → absolute-threshold path: 3 active days < 7.
+        // The LONG service opens the window; SVC is genuinely short within that window.
         use crate::k5_derived::CalendarBitmap;
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
@@ -14270,17 +14270,17 @@ mod tests {
         );
     }
 
-    // ── WP-P: OPR_019/OPR_020 operasyonel sefer kimliği ──────────────────────
+    // ── WP-P: OPR_019/OPR_020 operational trip identity ──────────────────────
     //
-    // Aynı gün ≥2 servisin aktif olması TEK BAŞINA çakışma değildir: zıt yönde çalışan
-    // iki tren ayrı service_id kullanır (Ankara→Kurtalan 22014 / Kurtalan→Ankara 52013).
-    // Çakışma, AYNI operasyonel seferin iki servisten birden aktif olmasıdır.
+    // Having ≥2 services active on the same day is NOT a conflict BY ITSELF: two trains running
+    // in opposite directions use separate service_id values (Ankara→Kurtalan 22014 / Kurtalan→Ankara 52013).
+    // A conflict is the SAME operational trip being active from both services.
 
-    /// İki farklı yönde çalışan tren aynı gün aktif → çakışma DEĞİL.
+    /// Two trains running in different directions active on the same day → NOT a conflict.
     #[test]
     fn opr_019_ignores_opposite_direction_trains_on_the_same_day() {
         use crate::k5_derived::CalendarBitmap;
-        // 22014 Ankara→Kurtalan (SVC_A), 52013 Kurtalan→Ankara (SVC_B) — zıt yönler.
+        // 22014 Ankara→Kurtalan (SVC_A), 52013 Kurtalan→Ankara (SVC_B) — opposite directions.
         let mut t1 = trip_with_service("22014", "R1", "SVC_A");
         t1.direction_id = Some(0);
         let mut t2 = trip_with_service("52013", "R1", "SVC_B");
@@ -14319,9 +14319,9 @@ mod tests {
         );
     }
 
-    /// Pozitif kontrol: AYNI operasyonel sefer (aynı yön, kalkış, durak dizisi) iki
-    /// servisten birden aktifse gerçek override çakışmasıdır ve YAKALANMALIDIR.
-    /// Bu test olmadan yukarıdaki negatif test boş geçebilirdi.
+    /// Positive control: if the SAME operational trip (same direction, departure, stop sequence)
+    /// is active from both services, it is a real override conflict and MUST be caught.
+    /// Without this test, the negative test above could pass vacuously.
     #[test]
     fn opr_019_still_catches_the_same_trip_active_from_two_services() {
         use crate::k5_derived::CalendarBitmap;
@@ -14329,7 +14329,7 @@ mod tests {
         t1.direction_id = Some(0);
         let mut t2 = trip_with_service("T_OVERRIDE", "R1", "SVC_B");
         t2.direction_id = Some(0);
-        // İki sefer de aynı: 08:00 ANK → 20:00 KUR.
+        // Both trips are identical: 08:00 ANK → 20:00 KUR.
         let r = crate::k2::EntityRecords {
             stops: vec![stop("ANK", 39.9, 32.8), stop("KUR", 37.9, 41.8)],
             routes: vec![route("R1", 2)],
@@ -14361,16 +14361,16 @@ mod tests {
         );
     }
 
-    // ── WP-R: CLD_007 yalnız temel program varsa ─────────────────────────────
+    // ── WP-R: CLD_007 only when a base schedule exists ───────────────────────
 
-    /// Takvimini bilinçli olarak yalnız `calendar_dates.txt` ile tanımlayan bir feed'de
-    /// HER aktif gün bir exception'dır; `count > active/2` matematiksel olarak garantidir
-    /// ve notice "temel programdan sapma" diye bir şey ölçmez.
+    /// In a feed intentionally defined only through `calendar_dates.txt`, EVERY active day is
+    /// an exception; `count > active/2` is mathematically guaranteed, and the notice measures
+    /// nothing like a "deviation from a base schedule".
     #[test]
     fn cld_007_silent_when_the_feed_has_no_calendar_txt() {
         use crate::k2::calendar_dates::CalendarDateIndex;
         use crate::k5_derived::CalendarBitmap;
-        // calendars BOŞ — feed yalnız calendar_dates kullanıyor.
+        // calendars EMPTY — the feed uses only calendar_dates.
         let mut cd = CalendarDateIndex::default();
         cd.exception_count.insert("SVC".into(), 4);
         cd.added
@@ -14399,14 +14399,14 @@ mod tests {
         );
     }
 
-    // ── WP-O: CAL_010 / CAL_017 feed bağlamına göre ──────────────────────────
+    // ── WP-O: CAL_010 / CAL_017 according to feed context ────────────────────
 
-    /// 17 günlük bir yayın penceresinde 4-6 gün çalışan bir tren (Vangölü Ekspresi deseni)
-    /// seyrek değil NORMALdir; mutlak 7-gün eşiği orada her servisi işaretlerdi.
+    /// A train running 4–6 days in a 17-day publication window (Vangölü Ekspresi pattern)
+    /// is not sparse but NORMAL; an absolute 7-day threshold would flag every service there.
     #[test]
     fn cal_010_uses_a_ratio_on_short_feed_windows() {
         use crate::k5_derived::CalendarBitmap;
-        // Pencere 20260728–20260813 = 17 gün (Temmuz 28-31 + Ağustos 1-13).
+        // Window 20260728–20260813 = 17 days (July 28–31 + August 1–13).
         let full: std::collections::HashSet<u32> = (28..=31u32)
             .map(|d| 20260700 + d)
             .chain((1..=13u32).map(|d| 20260800 + d))
@@ -14415,14 +14415,14 @@ mod tests {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
                     ("DAILY".to_string(), full),
-                    // 5 gün aktif — 17 günün %29'u, %20 eşiğinin üstünde.
+                    // 5 active days — 29% of 17 days, above the 20% threshold.
                     (
                         "VANGOLU".to_string(),
                         [20260728u32, 20260730, 20260801, 20260803, 20260805]
                             .into_iter()
                             .collect(),
                     ),
-                    // 2 gün aktif — %12, eşiğin altında → gerçek stub.
+                    // 2 active days — 12%, below the threshold → genuine stub.
                     (
                         "STUB".to_string(),
                         [20260728u32, 20260729].into_iter().collect(),
@@ -14451,7 +14451,7 @@ mod tests {
         );
     }
 
-    /// Feed'de bugün aktif servisler varken ileride başlayan TEK servis hata değildir.
+    /// A SINGLE service starting in the future is not an error while other services are active today.
     #[test]
     fn cal_017_silent_when_the_feed_has_already_started() {
         use crate::k5_derived::CalendarBitmap;
@@ -14480,7 +14480,7 @@ mod tests {
         );
     }
 
-    /// Feed'in TAMAMI gelecekteyse uyarı anlamlıdır ve korunur.
+    /// If the ENTIRE feed is in the future, the warning is meaningful and retained.
     #[test]
     fn cal_017_fires_when_the_whole_feed_is_still_in_the_future() {
         use crate::k5_derived::CalendarBitmap;
@@ -14548,7 +14548,7 @@ mod tests {
                 "global future-only feed {rule} üretmeli"
             );
         }
-        // Henüz başlamamış servis CAL_024 konusu değildir; feed-seviyesi durum yukarıdakilerde.
+        // A service that has not started is not a CAL_024 case; the feed-level case is covered above.
         assert!(!result.notices.iter().any(|n| n.rule_id == "CAL_024"));
     }
 
@@ -14640,7 +14640,7 @@ mod tests {
                 .map(String::as_str),
             Some("20260601")
         );
-        // en/ja/fr şablonu bu varyanttan seçilir; yoksa genel "takvimi düzeltin" metni çıkar.
+        // The en/ja/fr template is selected for this variant; otherwise the generic "fix the calendar" text is used.
         assert_eq!(
             cal015[0]
                 .details
@@ -14680,7 +14680,7 @@ mod tests {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [
                     ("ACTIVE".to_string(), [20260514u32].into_iter().collect()),
-                    // Bugünü kapsayan ama önümüzdeki 7 günde aktif günü olmayan takvim.
+                    // Calendar covering today but with no active day in the next 7 days.
                     ("GAP".to_string(), [20260501u32, 20260601].into_iter().collect()),
                 ]
                 .into_iter()
@@ -14707,7 +14707,7 @@ mod tests {
     fn past_service_gap_produces_cal_007_not_cal_012() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        // Geçmişteki boşluk (Jan→Feb 2026, today=May 2026): CAL_007 evet, CAL_012 hayır
+        // Past gap (Jan→Feb 2026, today=May 2026): CAL_007 yes, CAL_012 no.
         let mut dates = std::collections::HashSet::new();
         dates.insert(20260101u32);
         dates.insert(20260201u32);
@@ -14726,9 +14726,9 @@ mod tests {
         );
     }
 
-    /// Goshogawara (2026-09-19): feed bugün çalışıyor, kış tarifesi 1 Aralık'ta başlıyor.
-    /// Aynı veri kümesindeki gelecek dönem CAL_024 değildir; kapıyı kanıtlamak için
-    /// başlamış ama 7 gün boşluklu takvim hâlâ raporlanır.
+    /// Goshogawara (2026-09-19): the feed runs today, and the winter schedule starts on December 1.
+    /// The future period in the same dataset is not CAL_024; to prove the guard, a calendar
+    /// that has started but has a 7-day gap is still reported.
     #[test]
     fn cal_024_skips_not_yet_started_service_in_an_active_feed() {
         use crate::k5_derived::CalendarBitmap;
@@ -14775,12 +14775,12 @@ mod tests {
     fn cal_024_aggregates_inactive_service_to_single_service_notice() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        // SVC takvimi yalnızca geçmişte aktif → önümüzdeki 7 günde (20260514+) değil.
+        // SVC calendar was active only in the past → not in the next 7 days (20260514+).
         let dates: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
         derived.calendar_bitmap = CalendarBitmap {
             active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
         };
-        // İki sefer de aynı SVC takvimine ait → sefer-başına 2 yerine takvim-başına 1 notice.
+        // Both trips use the same SVC calendar → one notice per calendar instead of two per trip.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -14817,7 +14817,7 @@ mod tests {
     fn near_future_service_gap_produces_cal_012_not_cal_007() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        // Yakın gelecekte boşluk (today=20260514, boşluk 20260516→20260601 = 15 gün > 7 eşik)
+        // Near-future gap (today=20260514, gap 20260516→20260601 = 15 days > threshold 7).
         let mut dates = std::collections::HashSet::new();
         dates.insert(20260516u32);
         dates.insert(20260601u32);
@@ -14826,7 +14826,7 @@ mod tests {
         };
         let records = crate::k2::EntityRecords::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
-        // #29: yakın-gelecek boşlukta CAL_012 (Yüksek) CAL_007'nin YERİNE raporlanır (çift-emit yok).
+        // #29: for a near-future gap, CAL_012 (High) is reported INSTEAD OF CAL_007 (no double emission).
         assert!(
             result.notices.iter().any(|n| n.rule_id == "CAL_012"),
             "Yakın gelecek boşluk CAL_012 üretmeli"
@@ -14841,8 +14841,8 @@ mod tests {
     fn shared_calendar_gap_aggregates_across_services_to_one_notice() {
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        // Aynı geçmiş boşluğu (20260101→20260201, ~30 gün ≥ big_gap_days) iki service_id
-        // paylaşıyor (#30): per-service 2 CAL_007 yerine gap-imzası başına TEK notice.
+        // Two service_ids share the same past gap (20260101→20260201, ~30 days ≥ big_gap_days)
+        // (#30): ONE notice per gap signature instead of 2 CAL_007 notices per service.
         let dates_a: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
         let dates_b: std::collections::HashSet<u32> = [20260101u32, 20260201].into_iter().collect();
         derived.calendar_bitmap = CalendarBitmap {
@@ -14880,11 +14880,11 @@ mod tests {
 
     #[test]
     fn gap_below_big_gap_threshold_no_cal_007() {
-        // big_gap_days=14: 10 günlük boşluk (< 14) CAL_007/012 üretmemeli. Bu, MD ile hizanın
-        // regresyon koruması — eski service_gap_days=7 eşiğinde bu boşluk (yanlışça) tetiklerdi.
+        // big_gap_days=14: a 10-day gap (< 14) must not produce CAL_007/012. This is the regression
+        // guard for MD alignment — with the old service_gap_days=7 threshold, this gap incorrectly fired.
         use crate::k5_derived::CalendarBitmap;
         let mut derived = DerivedData::default();
-        // 20260101 → 20260112 = 10 gün boşluk (< 14)
+        // 20260101 → 20260112 = 10-day gap (< 14).
         let dates: std::collections::HashSet<u32> = [20260101u32, 20260112].into_iter().collect();
         derived.calendar_bitmap = CalendarBitmap {
             active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
@@ -14900,7 +14900,7 @@ mod tests {
         );
     }
 
-    // ── CAL_021: bugünü kapsayan ama yakın günlerde aktif seferi olmayan servis ──
+    // ── CAL_021: service covering today but with no trips active soon ─────────
 
     fn trip_svc(trip_id: &str, sid: &str) -> TripRecord {
         TEST_TI.with(|cell| {
@@ -14934,7 +14934,7 @@ mod tests {
     fn spans_today_but_no_upcoming_produces_cal_021() {
         use crate::k5_derived::CalendarBitmap;
         // today=20260514, N=7 → pencere [20260514..20260521].
-        // SVC bugünü kapsıyor (20260510 ≤ today ≤ 20260601) ama pencerede aktif gün yok.
+        // SVC covers today (20260510 ≤ today ≤ 20260601) but has no active day in the window.
         let dates: std::collections::HashSet<u32> = [20260510u32, 20260601].into_iter().collect();
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
@@ -14962,7 +14962,7 @@ mod tests {
         derived.calendar_bitmap = CalendarBitmap {
             active_dates: [("SVC".to_string(), dates)].into_iter().collect(),
         };
-        let records = crate::k2::EntityRecords::default(); // sefer yok
+        let records = crate::k2::EntityRecords::default(); // no trips
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "CAL_021"),
@@ -14973,7 +14973,7 @@ mod tests {
     #[test]
     fn cal_021_not_for_active_or_expired() {
         use crate::k5_derived::CalendarBitmap;
-        // (a) yakın günde aktif → CAL_021 yok
+        // (a) active on a nearby day → no CAL_021.
         let mut derived = DerivedData::default();
         let active: std::collections::HashSet<u32> = [20260514u32, 20260515].into_iter().collect();
         derived.calendar_bitmap = CalendarBitmap {
@@ -14990,7 +14990,7 @@ mod tests {
             "yakın günde aktif servis CAL_021 üretmemeli"
         );
 
-        // (b) tamamen geçmiş → spans-today değil → CAL_021 yok (CAL_013 alanı)
+        // (b) entirely in the past → does not span today → no CAL_021 (CAL_013's domain).
         let mut derived2 = DerivedData::default();
         let past: std::collections::HashSet<u32> = [20251201u32, 20251231].into_iter().collect();
         derived2.calendar_bitmap = CalendarBitmap {
@@ -15003,13 +15003,13 @@ mod tests {
         );
     }
 
-    // ── CAL_013: bitmap üzerinden süresi dolmuş servis ────────────────────────
+    // ── CAL_013: expired service from the bitmap ─────────────────────────────
 
     #[test]
     fn expired_service_in_bitmap_produces_cal_013() {
         use crate::k2::calendar_dates::CalendarDateIndex;
         use crate::k5_derived::CalendarBitmap;
-        // Tüm tarihler geçmişte: max_date = 20251231 < today = 20260514
+        // All dates are in the past: max_date = 20251231 < today = 20260514.
         let mut dates = std::collections::HashSet::new();
         dates.insert(20251201u32);
         dates.insert(20251231u32);
@@ -15019,7 +15019,7 @@ mod tests {
             },
             ..Default::default()
         };
-        // exception_count'ta kayıt olmadan CLD_007/CAL_013 döngüsü çalışmaz
+        // Without a record in exception_count, the CLD_007/CAL_013 loop does not run.
         let mut idx = CalendarDateIndex::default();
         idx.exception_count.insert("EXPIRED_SVC".into(), 1);
         let records = crate::k2::EntityRecords {
@@ -15070,7 +15070,7 @@ mod tests {
                 shapes: [(
                     "S1".to_string(),
                     ShapeSegments {
-                        segment_distances_km: vec![0.5, 15.0, 0.3], // 15 km > 10 km eşiği
+                        segment_distances_km: vec![0.5, 15.0, 0.3], // 15 km > 10 km threshold
                         total_length_km: 15.8,
                         bbox: (40.0, 42.0, 28.0, 30.0),
                     },
@@ -15121,7 +15121,7 @@ mod tests {
     #[test]
     fn very_close_stops_produce_stp_017() {
         use crate::k5_derived::SpatialIndex;
-        // İki durak 4 metre arayla (< 5m eşiği): 0.000036° fark ≈ 4m
+        // Two stops 4 meters apart (< 5m threshold): 0.000036° difference ≈ 4m.
         let records = crate::k2::EntityRecords {
             stops: vec![
                 stop("A", 41.0, 29.0),
@@ -15148,12 +15148,12 @@ mod tests {
     #[test]
     fn sibling_platforms_same_parent_no_stp_016_017() {
         use crate::k5_derived::SpatialIndex;
-        // Aynı istasyonun iki peronu (aynı parent_station) 4 m arayla, hatta aynı
-        // koordinatta olabilir — station-hierarchy modellemesi, FP üretmemeli (VBB dersi).
+        // Two platforms of the same station (same parent_station) can be 4 m apart, or even at
+        // the same coordinates — station-hierarchy modeling, must not produce an FP (VBB lesson).
         let mut pa = stop("PA", 41.0, 29.0);
         pa.row
             .insert("parent_station".to_string(), "ST".to_string());
-        let mut pb = stop("PB", 41.0, 29.0); // aynı koordinat
+        let mut pb = stop("PB", 41.0, 29.0); // same coordinates
         pb.row
             .insert("parent_station".to_string(), "ST".to_string());
         let records = crate::k2::EntityRecords {
@@ -15182,8 +15182,8 @@ mod tests {
     #[test]
     fn entrance_at_stop_coordinate_no_stp_016() {
         use crate::k5_derived::SpatialIndex;
-        // Giriş düğümü (location_type=2) bir sokak durağıyla aynı koordinatta —
-        // modelleme tercihi; "durakları birleştirin" tavsiyesi yanlış olur (VBB: 3093 çift).
+        // An entrance node (location_type=2) at the same coordinates as a street stop —
+        // a modeling choice; "merge the stops" would be wrong (VBB: 3,093 pairs).
         let mut ent = stop("E1", 41.0, 29.0);
         ent.location_type = Some(2);
         let records = crate::k2::EntityRecords {
@@ -15212,8 +15212,8 @@ mod tests {
     #[test]
     fn geo_012_sibling_platforms_not_counted_as_cluster() {
         use crate::k5_derived::SpatialIndex;
-        // Bir istasyonun 3 kardeş peronu (aynı parent) + istasyonun kendisi aynı
-        // noktada — hiyerarşi modellemesi, küme değil (STP_016/017 ile tutarlı).
+        // Three sibling platforms of one station (same parent) + the station itself at the same
+        // point — hierarchy modeling, not a cluster (consistent with STP_016/017).
         let mut st = stop("ST", 41.0, 29.0);
         st.location_type = Some(1);
         let mk = |id: &str| {
@@ -15244,7 +15244,7 @@ mod tests {
     #[test]
     fn geo_012_independent_stops_still_cluster() {
         use crate::k5_derived::SpatialIndex;
-        // Parent'sız, binilebilir 3 durak aynı noktada → gerçek küme, GEO_012 ÇIKMALI.
+        // Three boardable stops without a parent at the same point → real cluster, GEO_012 MUST fire.
         let records = crate::k2::EntityRecords {
             stops: vec![
                 stop("A", 41.0, 29.0),
@@ -15270,9 +15270,9 @@ mod tests {
     #[test]
     fn geo_012_finds_cluster_when_first_cell_stop_is_a_station() {
         use crate::k5_derived::SpatialIndex;
-        // Hücrenin İLK durağı istasyon (lt=1) — eski kod guard'ı görüp `continue` ile
-        // hücreyi tümüyle atlıyordu ve arkasındaki gerçek kümeyi kaçırıyordu.
-        // Artık uygun olmayan anchor atlanır, sıradaki binilebilir durak anchor olur.
+        // The cell's FIRST stop is a station (lt=1) — the old code saw the guard and used `continue`,
+        // skipping the whole cell and missing the real cluster behind it.
+        // Now skip an unsuitable anchor and use the next boardable stop as the anchor.
         let mut station = stop("ST", 41.0, 29.0);
         station.location_type = Some(1);
         let records = crate::k2::EntityRecords {
@@ -15309,8 +15309,8 @@ mod tests {
     #[test]
     fn duplicate_stations_same_coordinate_produce_stp_016() {
         use crate::k5_derived::SpatialIndex;
-        // İki AYRI istasyon (location_type=1) tam aynı koordinatta — duplikat-istasyon
-        // şüphesi; iskelet muafiyeti bu çifti YUTMAMALI (review K1b istisnası).
+        // Two SEPARATE stations (location_type=1) at exactly the same coordinates — possible
+        // duplicate-station case; the skeleton exemption MUST NOT swallow this pair (review K1b exception).
         let mut s1 = stop("ST1", 41.0, 29.0);
         s1.location_type = Some(1);
         let mut s2 = stop("ST2", 41.0, 29.0);
@@ -15351,7 +15351,7 @@ mod tests {
 
     #[test]
     fn repeated_stop_in_trip_produces_opr_007() {
-        // A→B→C→B: non-ring (first=A, last=B), B ara durakta tekrar → OPR_007 tetiklenmeli
+        // A→B→C→B: non-ring (first=A, last=B), B repeats at an intermediate stop → OPR_007 must fire.
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -15364,7 +15364,7 @@ mod tests {
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
                 stoptime("T1", 3, "C", (8, 20, 0), (8, 20, 0), 4),
-                stoptime("T1", 4, "B", (8, 30, 0), (8, 30, 0), 5), // B tekrar, ring değil
+                stoptime("T1", 4, "B", (8, 30, 0), (8, 30, 0), 5), // B repeats, not a ring
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -15373,7 +15373,7 @@ mod tests {
 
     #[test]
     fn ring_route_terminal_repeat_no_opr_007() {
-        // A→B→A: first==last, ring hat → terminal tekrarı suppress edilmeli
+        // A→B→A: first==last, ring route → terminal repetition should be suppressed.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -15488,7 +15488,7 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
-            vec![trip("T1", "R1")], // tek sefer
+            vec![trip("T1", "R1")], // one trip
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
@@ -15500,7 +15500,7 @@ mod tests {
 
     #[test]
     fn route_without_active_service_produces_rts_016() {
-        // Sefer var ama service_id'si calendar_bitmap'te yok
+        // Trip exists, but its service_id is absent from calendar_bitmap.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -15510,7 +15510,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
-        // calendar_bitmap boş → aktif gün yok
+        // Empty calendar_bitmap → no active days.
         let derived = DerivedData::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(result.notices.iter().any(|n| n.rule_id == "RTS_016"));
@@ -15527,7 +15527,7 @@ mod tests {
             vec![trip("T1", "R1")],
             vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
-        // Tüm calendar_bitmap tarihleri geçmişte
+        // All calendar_bitmap dates are in the past.
         let derived = DerivedData {
             calendar_bitmap: CalendarBitmap {
                 active_dates: [("SVC".to_string(), [20250101u32].into_iter().collect())]
@@ -15576,10 +15576,10 @@ mod tests {
 
     #[test]
     fn geo_016_survives_a_broken_routes_file() {
-        // #160: `K6::geo_analytics` dört dosyaya birden kapılıydı ve `routes.txt`'i
-        // HİÇBİR blok okumuyordu. Bozuk bir routes.txt, yalnız `stops.txt` isteyen
-        // Null Island kontrolünü de öldürüyordu — `tdg-83820`'de MD `point_near_origin`
-        // raporlarken biz susuyorduk. Yüklem değil BAĞIMLILIK kusuruydu.
+        // #160: `K6::geo_analytics` depended on all four files and read `routes.txt` in NO block.
+        // A broken routes.txt also killed the Null Island check, which needs only `stops.txt` —
+        // MD reported `point_near_origin` for `tdg-83820` while we stayed silent. It was a
+        // DEPENDENCY defect, not an input defect.
         let records = records_with(
             vec![stop("A", 0.0, 0.0)], // Null Island
             vec![route("R1", 3)],
@@ -15615,7 +15615,7 @@ mod tests {
 
     #[test]
     fn geo_016_fires_with_stops_alone() {
-        // Kapının alt sınırı: tek dosyayla da çalışmalı.
+        // Gate floor: must work with a single file.
         let records = records_with(vec![stop("A", 0.0, 0.0)], vec![], vec![], vec![]);
         let present = std::collections::HashSet::from(["stops.txt".to_string()]);
         let availability = FileAvailability::from_k1(&present, &[]);
@@ -15648,7 +15648,7 @@ mod tests {
 
     #[test]
     fn config_change_changes_stm_014_threshold() {
-        // Aynı feed, farklı config → farklı sonuç (config değişikliği yalnızca K6'yı etkiler)
+        // Same feed, different config → different result (config change affects only K6).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.05, 29.05)],
             vec![route("R1", 3)],
@@ -15658,7 +15658,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 5, 0), (8, 5, 0), 3),
             ],
         );
-        // Bu sefer için ~8 km/h
+        // ~8 km/h for this trip.
         let result_default = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result_default
@@ -15668,7 +15668,7 @@ mod tests {
             "Default config'te STM_014 olmamalı"
         );
 
-        // Çok düşük hız eşiği → STM_014 tetiklenmeli
+        // Very low speed threshold → STM_014 must fire.
         let strict_cfg = ValidatorConfig {
             max_speed_bus_kmh: 1.0,
             ..default_config()
@@ -15682,18 +15682,18 @@ mod tests {
 
     #[test]
     fn full_pipeline_smoke_no_panic() {
-        // Tüm fonksiyonlar boş kayıtlarla paniksiz çalışmalı
+        // All functions must handle empty records without panicking.
         let result = analyze(
             &crate::k2::EntityRecords::default(),
             &DerivedData::default(),
             &default_config(),
             20260514,
         );
-        // Boş feed'de notice üretilmemeli
+        // No notice should be emitted for an empty feed.
         assert!(result.notices.is_empty());
     }
 
-    // ── OPR_011: service_id aktif gün içermiyor ──────────────────────────────
+    // ── OPR_011: service_id has no active days ───────────────────────────────
 
     #[test]
     fn service_with_no_active_dates_produces_opr_011() {
@@ -15706,7 +15706,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
-        // calendar_bitmap'te SVC yok → aktif gün yok
+        // SVC is absent from calendar_bitmap → no active days.
         let derived = DerivedData::default();
         let result = analyze(&records, &derived, &default_config(), 20260514);
         assert!(
@@ -15739,7 +15739,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_011"));
     }
 
-    // ── OPR_016: feed genelinde hiç aktif servis yok ─────────────────────────
+    // ── OPR_016: no active service anywhere in the feed ──────────────────────
 
     #[test]
     fn no_active_services_at_all_produces_opr_016() {
@@ -15749,7 +15749,7 @@ mod tests {
             vec![trip("T1", "R1")],
             vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
-        // calendar_bitmap tamamen boş
+        // calendar_bitmap is completely empty.
         let result = analyze(
             &records,
             &DerivedData::default(),
@@ -15783,7 +15783,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "OPR_016"));
     }
 
-    // ── DQ_009: feed'de stop_times yok ───────────────────────────────────────
+    // ── DQ_009: no stop_times in the feed ─────────────────────────────────────
 
     #[test]
     fn trips_with_no_stop_times_produces_dq_009() {
@@ -15791,7 +15791,7 @@ mod tests {
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")], // trip var
-            vec![],                 // stop_times yok
+            vec![],                 // no stop_times
         );
         let result = analyze(
             &records,
@@ -15831,7 +15831,7 @@ mod tests {
 
     #[test]
     fn no_trips_no_dq_009() {
-        // Sefer yoksa DQ_009 tetiklenmemeli (koşul: trips var + stop_times yok)
+        // Without trips, DQ_009 must not fire (condition: trips exist + no stop_times).
         let records = records_with(vec![], vec![], vec![], vec![]);
         let result = analyze(
             &records,
@@ -15842,7 +15842,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "DQ_009"));
     }
 
-    // ── STM_017: shape olan trip'te shape_dist_traveled eksik ───────────────
+    // ── STM_017: shape_dist_traveled missing on a trip with a shape ─────────
 
     #[test]
     fn trip_with_shape_but_no_dist_produces_stm_017() {
@@ -15887,8 +15887,8 @@ mod tests {
     fn stm_017_feed_wide_missing_aggregates_to_single_feed_notice() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // İki trip de shape'i olup sdt eksik; feed genelinde sdt hiç yok →
-        // trip-başına 2 yerine tek feed-seviyesi özet beklenir.
+        // Both trips have a shape but lack sdt; no sdt exists anywhere in the feed →
+        // expect one feed-level summary instead of 2 trip-level notices.
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -15947,9 +15947,9 @@ mod tests {
     fn stm_017_partial_sdt_keeps_trip_level_on_production_index_path() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // T1 sdt taşıyor, T2/T3 taşımıyor → kısmen dolu, trip-başına 2 notice beklenir.
-        // Üretimde stop_times yalnız K2 index'inde durur; `records.stop_times` Vec'i boştur.
-        // Bu yol test edilmeden kip kararı Vec'e bakıyordu ve her feed özet kipine düşüyordu.
+        // T1 carries sdt, T2/T3 do not → partially populated, expect 2 trip-level notices.
+        // In production, stop_times exists only in the K2 index; the `records.stop_times` Vec is empty.
+        // Before this path was tested, mode selection inspected the Vec and always fell into feed-summary mode.
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
