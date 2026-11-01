@@ -1,27 +1,29 @@
-//! Gerçek feed üzerinde MUTASYON kanıtı (issue #127).
+//! MUTATION evidence on real feeds (issue #127).
 //!
-//! Soru: korpusta hiç ateşlemeyen bir kural "doğru ama doğal olarak sessiz" mi, yoksa
-//! "predikatının kör noktası var" mı? Fixture bu ayrımı yapamaz — fixture kuralın
-//! ateşleyebildiğini kanıtlar, gerçek okuyucu yolunda doğru davrandığını değil. (#75'te
-//! `ARC_022`'nin fixture'ı yeşilken gerçek büyük feed'ler streaming yolundan geçiyordu ve
-//! kural susuyordu; İsviçre feed'inde 8,4M satır sessizce geçmişti.)
+//! Question: is a rule that never fires in the corpus "correct but naturally silent", or
+//! does its predicate have a blind spot? A fixture cannot distinguish these — it proves that
+//! a rule can fire, not that it behaves correctly on the real reader path. (In #75,
+//! `ARC_022`'s fixture was green while real large feeds used the streaming path and the
+//! rule stayed silent; 8.4M rows passed silently in the Swiss feed.)
 //!
-//! Yöntem: gerçek korpus feed'ini AL, asgari kusuru ENJEKTE ET, mutasyonlu ve mutasyonsuz
-//! hâli aynı `config` ve aynı `TODAY` ile koş, **kural id kümesinin FARKINA** bak.
+//! Method: TAKE a real corpus feed, INJECT the smallest defect, run mutated and unmutated
+//! versions with the same `config` and `TODAY`, and compare the **rule-ID set DELTA**.
 //!
-//! ⚠️ Fark iddiası "yalnız hedef kural" DEĞİLDİR. Gerçek feed'e satır enjekte etmek entity
-//! map'i, feed düzeyi özet kurallarını ve kaskad bastırmasını da oynatabilir. Ölçüt: hedef
-//! kural farkta GÖRÜNMELİ, farkta çıkan başka her kural id'si test içinde AÇIKLANMIŞ
-//! olmalı. Yasaklamak, mutasyonu kaskad üretmeyecek vakalara iter ve testi zayıflatır.
+//! ⚠️ The delta claim is NOT "only the target rule". Injecting a row into a real feed may
+//! affect the entity map, feed-level summary rules, and cascade suppression. The criterion:
+//! the target rule MUST appear in the delta, and every other rule ID in the delta must be
+//! EXPLAINED in the test. Forbidding them would force mutations into cases without cascades
+//! and weaken the test.
 //!
-//! Feed'ler repoda DEĞİL (`notgit/` git dışı) — bu yüzden testler `#[ignore]`. Koşmak için:
-//!   python3 spec-audit/corpus-evidence/verify_corpus.py     # indirir + sha256 doğrular
+//! Feeds are NOT in the repository (`notgit/` is outside git), so tests are `#[ignore]`.
+//! To run:
+//!   python3 spec-audit/corpus-evidence/verify_corpus.py     # downloads + verifies sha256
 //!   cargo test -p gtfs-pipeline --test real_feed_mutation -- --ignored
 //!
-//! Kimlik zinciri: `verify_corpus.py` indirirken **sha256**'yı doğrular; bu test ek bir
-//! tel olarak manifest'teki **bayt uzunluğunu** kontrol eder. Testin içinde sha256
-//! hesaplamak yeni bir crate bağımlılığı (`sha2`) gerektirirdi ve indirme yolu zaten
-//! hash'i denetlediği için eklenmedi.
+//! Identity chain: `verify_corpus.py` verifies **sha256** while downloading; this test
+//! additionally checks the manifest's **byte length**. Calculating sha256 inside the test
+//! would require a new crate dependency (`sha2`), and was omitted because the download
+//! path already verifies the hash.
 
 use std::collections::BTreeSet;
 use std::io::{Read as _, Write as _};
@@ -29,7 +31,7 @@ use std::path::{Path, PathBuf};
 
 use gtfs_pipeline::{validate_bytes, FatalCode, ValidateResult, ValidatorConfig};
 
-/// Sabit tarih — takvim kuralları tarihe göreli, deterministik olsun.
+/// Fixed date — keep calendar rules date-relative and deterministic.
 const TODAY: u32 = 20_260_515;
 
 fn repo_root() -> PathBuf {
@@ -39,7 +41,7 @@ fn repo_root() -> PathBuf {
         .expect("repo kökü bulunamadı")
 }
 
-/// Manifest'te kayıtlı bayt uzunluğu.
+/// Byte length recorded in the manifest.
 fn manifest_bytes(feed: &str) -> u64 {
     let path = repo_root().join("spec-audit/corpus-evidence/corpus_manifest.csv");
     let text = std::fs::read_to_string(&path).expect("corpus_manifest.csv okunamadı");
@@ -58,7 +60,7 @@ fn manifest_bytes(feed: &str) -> u64 {
     panic!("{feed} manifest'te yok");
 }
 
-/// Korpus arşivini oku; yoksa NASIL getirileceğini söyleyerek düş.
+/// Reads a corpus archive; if absent, fails while explaining HOW to obtain it.
 fn corpus_zip(feed: &str) -> Vec<u8> {
     let path = repo_root().join(format!("notgit/corpus/zips/{feed}.zip"));
     let bytes = std::fs::read(&path).unwrap_or_else(|e| {
@@ -81,7 +83,7 @@ fn corpus_zip(feed: &str) -> Vec<u8> {
     bytes
 }
 
-/// Arşivdeki tek bir üyeyi yeniden yazar, kalan üyeleri aynen kopyalar.
+/// Rewrites one archive member and copies the remaining members unchanged.
 fn rewrite_member(zip: &[u8], target: &str, f: impl FnOnce(String) -> String) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
     let names: Vec<String> = archive
@@ -114,7 +116,7 @@ fn rewrite_member(zip: &[u8], target: &str, f: impl FnOnce(String) -> String) ->
     out.finish().expect("arşiv kapanmadı").into_inner()
 }
 
-/// Feed'i koş, üretilen kural id kümesini döndür.
+/// Runs the feed and returns the generated rule-ID set.
 fn rule_ids(zip: &[u8]) -> BTreeSet<String> {
     match validate_bytes(zip, &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.to_string()).collect(),
@@ -122,10 +124,11 @@ fn rule_ids(zip: &[u8]) -> BTreeSet<String> {
     }
 }
 
-/// Bir dosyanın DQ_016 kök notice'ının bastırdığını BEYAN ETTİĞİ kurallar.
+/// Rules that a file's DQ_016 root notice DECLARES it suppressed.
 ///
-/// Bastırmayı "fark boş kaldı" diye ÇIKARSAMAK zayıftır — mutasyon hiç uygulanmamış olsa
-/// da fark boş kalırdı. K7 kök notice'a `suppressed_derivative_rules` yazar; ölçüt odur.
+/// Inferring suppression from an empty delta is weak — the delta would also be empty if the
+/// mutation never ran. K7 writes `suppressed_derivative_rules` to the root notice; that is
+/// the criterion.
 fn suppressed_rules_for(zip: &[u8], file: &str) -> Vec<String> {
     match validate_bytes(zip, &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => vr
@@ -140,7 +143,7 @@ fn suppressed_rules_for(zip: &[u8], file: &str) -> Vec<String> {
     }
 }
 
-/// Mutasyonun EKLEDİĞİ ve KALDIRDIĞI kural id'leri.
+/// Rule IDs ADDED and REMOVED by the mutation.
 fn delta(before: &BTreeSet<String>, after: &BTreeSet<String>) -> (Vec<String>, Vec<String>) {
     (
         after.difference(before).cloned().collect(),
@@ -148,7 +151,7 @@ fn delta(before: &BTreeSet<String>, after: &BTreeSet<String>) -> (Vec<String>, V
     )
 }
 
-/// Bir sütunun `n`. veri satırındaki değerini değiştirir (n = 1 → ilk veri satırı).
+/// Changes a column's value in data row `n` (n = 1 → first data row).
 fn set_field(text: &str, column: &str, row_ordinal: usize, value: &str) -> String {
     let mut lines: Vec<String> = text
         .lines()
@@ -168,7 +171,8 @@ fn set_field(text: &str, column: &str, row_ordinal: usize, value: &str) -> Strin
     lines.join("\n") + "\n"
 }
 
-/// Farkı denetler: hedef GÖRÜNMELİ, kalan her id `explained` içinde AÇIKLANMIŞ olmalı.
+/// Checks the delta: the target MUST APPEAR, and every remaining ID must be EXPLAINED in
+/// `explained`.
 fn assert_delta(added: &[String], removed: &[String], target: &str, explained: &[&str]) {
     assert!(
         added.iter().any(|r| r == target),
@@ -189,7 +193,7 @@ fn assert_delta(added: &[String], removed: &[String], target: &str, explained: &
     );
 }
 
-/// İlk veri satırını (başlıktan sonraki) döndürür; `\r` kırpılır.
+/// Returns the first data row (after the header); trims `\r`.
 fn first_data_line(text: &str) -> &str {
     text.lines()
         .nth(1)
@@ -197,7 +201,7 @@ fn first_data_line(text: &str) -> &str {
         .trim_end_matches('\r')
 }
 
-/// Metnin sonuna satır ekler (sondaki yeni satırı normalize ederek).
+/// Appends a line to the text (normalizing the trailing newline).
 fn append_line(text: &str, line: &str) -> String {
     let mut s = text.trim_end_matches(['\n', '\r']).to_string();
     s.push('\n');
@@ -206,12 +210,12 @@ fn append_line(text: &str, line: &str) -> String {
     s
 }
 
-/// Başlık satırını NORMALİZE EDEREK okur: BOM kırpılır, her hücre trim'lenir.
+/// Reads the header row NORMALIZED: trims the BOM and every cell.
 ///
-/// ⚠️ İkisi de ölçülmüş gerekliliktir, üslup değil. `ch-odv-flex`'in dosyaları UTF-8 BOM
-/// ile başlıyor (ilk hücre `\u{feff}stop_id`) ve `stop_times.txt` başlığında
-/// `location_group_id, location_id` yazıyor — hücre adı `" location_id"`. Ham karşılaştıran
-/// yardımcı ikisinde de "sütun yok" der ve testi ÜRÜN HATASI gibi düşürür.
+/// ⚠️ Both are measured requirements, not style. `ch-odv-flex` files start with a UTF-8 BOM
+/// (first cell `\u{feff}stop_id`) and the `stop_times.txt` header contains
+/// `location_group_id, location_id` — the cell name is `" location_id"`. A raw-comparison
+/// helper would report "column missing" for both and fail the test as a PRODUCT BUG.
 fn header_of(text: &str) -> Vec<String> {
     let first = text.lines().next().unwrap_or("").trim_end_matches('\r');
     let first = first.strip_prefix('\u{feff}').unwrap_or(first);
@@ -221,9 +225,9 @@ fn header_of(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// RFC 4180 alan bölme. Naif `split(',')` ŞART DEĞİL, ÖLÇÜLMÜŞ bir gereklilik:
-/// `mdb-3141`'in `calendar.txt`'inde `service_id` değeri `"1,2,3,4,5,6,7"` — tırnak içinde
-/// altı virgül. Naif bölme 10 alanlık satırı 16 alan sanıp bozuk satır üretirdi.
+/// RFC 4180 field splitting. Naive `split(',')` is NOT sufficient, as measured:
+/// `service_id` in `mdb-3141`'s `calendar.txt` is `"1,2,3,4,5,6,7"` — six commas
+/// inside quotes. Naive splitting would treat the 10-field row as 16 fields and corrupt it.
 fn split_csv_line(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
@@ -244,7 +248,7 @@ fn split_csv_line(line: &str) -> Vec<String> {
     out
 }
 
-/// Alanları geri birleştirir; virgül/tırnak/yeni satır taşıyan alanı yeniden tırnaklar.
+/// Joins fields again; quotes a field that contains a comma, quote, or newline.
 fn join_csv_fields(fields: &[String]) -> String {
     fields
         .iter()
@@ -259,7 +263,7 @@ fn join_csv_fields(fields: &[String]) -> String {
         .join(",")
 }
 
-/// Satırın ilk alanını boşaltır (alan sayısı başlıkla uyuşmalı).
+/// Clears the row's first field (the field count must match the header).
 fn blank_first_field(header: &str, line: &str) -> String {
     let n = split_csv_line(header.trim_end_matches('\r')).len();
     let mut cols = split_csv_line(line);
@@ -269,17 +273,18 @@ fn blank_first_field(header: &str, line: &str) -> String {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHP_005 — shape_dist_traveled shape_pt_sequence ile artmalı
+// SHP_005 — shape_dist_traveled must increase with shape_pt_sequence
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SHP_FEED: &str = "mdb-2927";
 
-/// İlk shape'in SON noktasının mesafesini bir öncekinin ALTINA (ya da EŞİTİNE) çeker.
+/// Moves the distance of the first shape's LAST point BELOW (or equal to) the previous one.
 ///
-/// ⚠️ İlk sürüm İKİNCİ noktayı `first - 1.0` yapıyordu ve DÜŞTÜ: `mdb-2927`'de ilk noktanın
-/// mesafesi `0`, `(0.0-1.0).max(0.0)` yine `0` → azalma değil EŞİTLİK üretiyordu ve
-/// beklenen SHP_005 yerine SHP_028 çıkıyordu. Kuralın değil MUTASYONUN hatasıydı; son
-/// noktayı hedeflemek mesafenin pozitif olmasını garanti eder.
+/// ⚠️ The first version set the SECOND point to `first - 1.0` and FAILED: in `mdb-2927`
+/// the first point's distance was `0`, so `(0.0-1.0).max(0.0)` was still `0` → it produced
+/// EQUALITY rather than a decrease and emitted SHP_028 instead of the expected SHP_005.
+/// This was a MUTATION bug, not a rule bug; targeting the last point guarantees a positive
+/// distance.
 fn break_last_distance(text: &str, equal_instead: bool) -> String {
     let mut lines: Vec<String> = text
         .lines()
@@ -296,7 +301,7 @@ fn break_last_distance(text: &str, equal_instead: bool) -> String {
         .expect("shape_dist_traveled yok");
 
     let first_id = split_csv_line(&lines[1])[id_i].clone();
-    // Aynı shape'in son iki satırının indeksleri.
+    // Indices of the last two rows of the same shape.
     let idxs: Vec<usize> = lines
         .iter()
         .enumerate()
@@ -336,12 +341,12 @@ fn shp_005_fires_when_shape_distance_decreases_on_a_real_feed() {
     let after = rule_ids(&mutated);
     let (added, removed) = delta(&before, &after);
 
-    // AÇIKLANAN yan etkiler (ölçüldü, yasaklanmadı):
-    //   SHP_024 — "duraktan şekle mesafe shape_dist_traveled ile tutarsız". Son noktanın
-    //             mesafesini geri almak, o noktaya eşlenen durağın mesafe tutarlılığını da
-    //             bozar. Mutasyonun DOĞRUDAN sonucu; kaskadı yasaklamak testi zayıflatırdı.
-    //   SHP_028/029/020 — mesafe artmadan konum değişmesi ailesi; eşitliğe düşen
-    //             varyantlarda ortaya çıkabilir.
+    // EXPLAINED side effects (measured, not forbidden):
+    //   SHP_024 — "stop-to-shape distance inconsistent with shape_dist_traveled". Reverting
+    //             the last point's distance also breaks the distance consistency of its stop.
+    //             A DIRECT consequence of the mutation; forbidding the cascade would weaken the test.
+    //   SHP_028/029/020 — family of location changes without increasing distance; may appear
+    //             in variants that land on equality.
     assert_delta(
         &added,
         &removed,
@@ -353,17 +358,17 @@ fn shp_005_fires_when_shape_distance_decreases_on_a_real_feed() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn shp_005_stays_silent_on_equal_distances_because_three_other_rules_measure_that() {
-    // SINIR DEĞERİ. Spec "must increase" der, yani EŞİTLİK de bir ihlaldir. Ama eşitliği
-    // SHP_005'e eklemek aynı olguyu ölçen BEŞİNCİ kural olurdu — koordinat eksenine göre
-    // olgu zaten TAM BÖLÜNMÜŞ durumda:
-    //   SHP_023 eşit mesafe + AYNI koordinat      (Orta   · Quality   · korpusta 38 feed)
-    //   SHP_028 eşit mesafe + FARKLI koordinat    (Yüksek · Quality   · korpusta  9 feed)
-    //   SHP_029 eşit mesafe + çok yakın koordinat (Bilgi  · Quality   · korpusta 24 feed)
-    //   SHP_020 tekrarlayan nokta                 (Bilgi  · Analytics · korpusta 152 feed)
-    // Bu test mevcut davranışı ÇAPALAR: eşitlik SHP_005 üretmez, başka kural üretir.
-    // Geriye kalan tek soru PREDİKAT değil SINIF: bir Spec normunun ihlali yalnız Quality
-    // olarak raporlanıyor. Yayın kapısını (R1 = Spec ∧ Kritik) etkilemez, çünkü hiçbiri
-    // Kritik değil.
+    // BOUNDARY VALUE. The spec says "must increase", so EQUALITY is also a violation. But
+    // adding equality to SHP_005 would make it the FIFTH rule measuring the same fact —
+    // the fact is already FULLY PARTITIONED by coordinate behavior:
+    //   SHP_023 equal distance + SAME coordinates      (Orta   · Quality   · 38 corpus feeds)
+    //   SHP_028 equal distance + DIFFERENT coordinates  (Yuksek · Quality   ·  9 corpus feeds)
+    //   SHP_029 equal distance + near coordinates       (Bilgi  · Quality   · 24 corpus feeds)
+    //   SHP_020 repeated point                         (Bilgi  · Analytics · 152 corpus feeds)
+    // This test ANCHORS current behavior: equality does not produce SHP_005; another rule fires.
+    // The remaining question is CLASS, not PREDICATE: a Spec violation is reported only as
+    // Quality. It does not affect the publication gate (R1 = Spec ∧ Kritik), because none is
+    // Kritik.
     let zip = corpus_zip(SHP_FEED);
     let before = rule_ids(&zip);
 
@@ -384,10 +389,10 @@ fn shp_005_stays_silent_on_equal_distances_because_three_other_rules_measure_tha
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Yineleme kuralları — CAL_001 · FAR_001 · LVL_001
+// Duplicate rules — CAL_001 · FAR_001 · LVL_001
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Ortak gövde: ilk veri satırını AYNEN tekrarla → yineleme kuralı ateşlemeli.
+/// Common body: duplicate the first data row EXACTLY → the duplicate rule must fire.
 fn duplicate_row_case(feed: &str, file: &str, target: &str, explained: &[&str]) {
     let zip = corpus_zip(feed);
     let before = rule_ids(&zip);
@@ -404,8 +409,8 @@ fn duplicate_row_case(feed: &str, file: &str, target: &str, explained: &[&str]) 
     assert_delta(&added, &removed, target, explained);
 }
 
-/// Ortak gövde: kimliği BOŞ iki satır ekle → yineleme kuralı ateşlememeli (boş anahtar
-/// `continue` ile atlanır), ama KÖK zorunlu-alan kuralı ateşlemeli.
+/// Common body: add two rows with an EMPTY identity → the duplicate rule must not fire
+/// (the empty key is skipped with `continue`), but the ROOT required-field rule must fire.
 fn empty_key_boundary(feed: &str, file: &str, dup_rule: &str, root_rule: &str) {
     let zip = corpus_zip(feed);
     let before = rule_ids(&zip);
@@ -465,13 +470,13 @@ fn lvl_001_ignores_duplicate_empty_level_ids_because_lvl_008_reports_the_root() 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TRN_005 — birebir yinelenen çeviri satırı
+// TRN_005 — exact duplicate translation row
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ⚠️ Feed seçimi ÖLÇÜLEREK yapıldı: issue'da önerilen `mdb-1158`'in translations.txt'i
-// ESKİ formatta (`trans_id,lang,translation`) ve SIFIR satır — mutasyona uygun değil.
-// `mdb-2638` modern formatta, hem `record_id` hem `field_value` sütunu var; ikinci
-// sütun TRN_005'in field_value tabanlı kimlik yolunu sınamak için gerekli.
+// ⚠️ Feed selection was MEASURED: the translations.txt in issue-suggested `mdb-1158` uses
+// the OLD format (`trans_id,lang,translation`) and has ZERO rows — unsuitable for mutation.
+// `mdb-2638` uses the modern format and has both `record_id` and `field_value`; the latter
+// is required to exercise TRN_005's field_value-based identity path.
 const TRN_FEED: &str = "mdb-2638";
 
 #[test]
@@ -480,18 +485,19 @@ fn trn_005_fires_on_an_exactly_duplicated_translation_row() {
     duplicate_row_case(TRN_FEED, "translations.txt", "TRN_005", &[]);
 }
 
-/// Kimliği `field_value`'dan alan feed. ⚠️ Aday ÖLÇÜLEREK seçildi: `mdb-2638`'de
-/// `field_value` SÜTUNU var ama 128 satırın hepsinde BOŞ — o feed bu yolu sınayamaz.
-/// `mdb-3176` `record_id` sütununu hiç taşımaz, kimlik tamamen `field_value`'dur.
+/// Feed whose identity comes from `field_value`. ⚠️ Candidate selection was MEASURED:
+/// `mdb-2638` has the `field_value` COLUMN but it is EMPTY in all 128 rows, so that feed
+/// cannot exercise this path. `mdb-3176` has no `record_id` column; identity is entirely
+/// `field_value`.
 const TRN_FIELD_VALUE_FEED: &str = "mdb-3176";
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn trn_005_uses_field_value_as_identity_when_there_is_no_record_id() {
-    // SINIR DEĞERİ. `has_translation_identity` table+field+language ister ve kimliği
-    // record_id VEYA field_value'dan alır. Kimliğin TAMAMINI silmek yanlış şeyi sınardı
-    // (bozuk-satır kapısını, yineleme tespitini değil) — bu yüzden kimliği yalnız
-    // field_value'dan gelen bir satır birebir tekrarlanır.
+    // BOUNDARY VALUE. `has_translation_identity` requires table+field+language and takes
+    // identity from record_id OR field_value. Removing the entire identity would test the
+    // wrong thing (the malformed-row gate, not duplicate detection), so a row whose identity
+    // comes only from field_value is duplicated exactly.
     let zip = corpus_zip(TRN_FIELD_VALUE_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -528,22 +534,21 @@ fn trn_005_uses_field_value_as_identity_when_there_is_no_record_id() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tipli alan kuralları — STM_003 · STM_004 · STP_004 · STP_005 (issue #129)
+// Typed-field rules — STM_003 · STM_004 · STP_004 · STP_005 (issue #129)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ⚠️ Aday feed İÇERİKLE seçildi, boyutla değil (batch 1'in dersi): `mdb-1903`'te
-// `arrival_time`/`departure_time` ilk 4000 satırın hepsinde DOLU, `stops.txt`'in 362
-// satırının hepsinde `stop_lat`/`stop_lon` DOLU, ve dört hedef kuralın dördü de taban
-// çizgisinde SIFIR.
+// ⚠️ Candidate feed was selected by CONTENT, not size (lesson from batch 1): in `mdb-1903`,
+// `arrival_time`/`departure_time` are populated in all first 4,000 rows, `stop_lat`/
+// `stop_lon` are populated in all 362 `stops.txt` rows, and all four target rules are
+// ZERO at baseline.
 //
-// 🔑 Kardeş kural kontrolü mutasyondan ÖNCE yapıldı ve soruyu daralttı: ayrıştırılmış
-// saati tüketen STM_012 (37 feed) · STM_036 (31) · STM_035 (21) ve ayrıştırılmış
-// koordinatı tüketen SHP_009 (162) · SHP_020 (152) · STM_045 (79) korpusta ateşliyor.
-// Yani BAŞARI dalı zaten kanıtlı; bu testlerin ölçtüğü şey HATA dalının bağlı olup
-// olmadığıdır.
+// 🔑 Sibling-rule checks ran BEFORE mutation and narrowed the question: rules consuming
+// parsed time — STM_012 (37 feeds) · STM_036 (31) · STM_035 (21) — and parsed coordinates —
+// SHP_009 (162) · SHP_020 (152) · STM_045 (79) — fire in the corpus. The SUCCESS path is
+// therefore already proven; these tests measure whether the ERROR path is wired.
 const TYPED_FEED: &str = "mdb-1903";
 
-/// Hedef görünmeli; eklenen VE kaldırılan yan etkilerin her biri açıklanmış olmalı.
+/// The target must appear; every added AND removed side effect must be explained.
 fn assert_delta_both(
     added: &[String],
     removed: &[String],
@@ -596,10 +601,10 @@ fn typed_field_case(
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn stm_003_fires_on_a_malformed_arrival_time() {
-    // AÇIKLANAN yan etkiler (ölçüldü): ayrıştırılamayan saat aşağı akışta YOK sayılır.
-    //   STM_015 — mutasyon bir seferin İLK durak satırına düştü → "ilk durakta
-    //             arrival_time eksik". Doğrudan sonuç.
-    //   STM_034 — varış/kalkıştan yalnız biri tanımlı kaldı (Interop).
+    // EXPLAINED side effects (measured): an unparseable time is treated as ABSENT downstream.
+    //   STM_015 — mutation hit a trip's FIRST stop row → "arrival_time missing at first stop".
+    //             Direct consequence.
+    //   STM_034 — only one of arrival/departure remained defined (Interop).
     typed_field_case(
         "stop_times.txt",
         "arrival_time",
@@ -613,9 +618,10 @@ fn stm_003_fires_on_a_malformed_arrival_time() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn stm_004_fires_on_a_malformed_departure_time() {
-    // STM_034 aynı sebeple: kalkış bozulunca varış/kalkıştan yalnız biri tanımlı kalır.
-    // STM_015 burada ÇIKMAZ — o kural arrival_time'a bakar; asimetri kasıtlıdır
-    // (spec ilk/son durakta arrival_time'ı şart koşar, departure_time'da bu madde YOK).
+    // STM_034 for the same reason: when departure is broken, only one of arrival/departure
+    // remains defined. STM_015 does NOT appear here — that rule checks arrival_time; the
+    // asymmetry is intentional (the spec requires arrival_time at the first/last stop, but
+    // has NO such requirement for departure_time).
     typed_field_case(
         "stop_times.txt",
         "departure_time",
@@ -629,38 +635,38 @@ fn stm_004_fires_on_a_malformed_departure_time() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn stp_004_fires_on_a_non_numeric_stop_lat() {
-    // Yan etki YOK (ölçüldü): tek durağın koordinatı bozulunca hiçbir toplu/kaskad
-    // kural sınıf değiştirmiyor.
+    // NO side effect (measured): corrupting one stop's coordinates changes no aggregated or
+    // cascade rule class.
     typed_field_case("stops.txt", "stop_lat", "abc", "STP_004", &[], &[]);
 }
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn stp_005_fires_on_an_invalid_stop_lon_without_whitespace() {
-    // KONTRASTIN BİRİNCİ YARISI. Boşluk YOK → DQ_016 kökü doğmaz → bastırma devreye
-    // girmez → STP_005 görünür. Bu, predikatın kendisinin çalıştığını kanıtlar.
+    // FIRST HALF OF THE CONTRAST. NO whitespace → no DQ_016 root → suppression does not run
+    // → STP_005 remains visible. This proves the predicate itself works.
     typed_field_case("stops.txt", "stop_lon", "abc", "STP_005", &[], &[]);
 }
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
-    // KONTRASTIN İKİNCİ YARISI — issue #129'un asıl sorusu.
+    // SECOND HALF OF THE CONTRAST — the actual question in issue #129.
     //
-    // STP_005'in korpustaki sessizliği "hiç doğmadı" DEĞİL, en azından kısmen "doğdu ve
-    // bastırıldı"dır: `mdb-2691`'de `stop_lon=" -4.732529"` STP_005'i ÜRETİR ve K7'nin
-    // whitespace-türev kaskadı onu DQ_016 kökü altında bastırır. Bu mekanizma
-    // `silent_rules.tsv`'de MODELLENEMEZ (tablo yalnız registry'de İLAN EDİLEN kaskadı
-    // görür), bu yüzden kanıt buraya yazılır.
+    // STP_005's silence in the corpus does NOT mean "never emitted"; at least partly it means
+    // "emitted and suppressed": in `mdb-2691`, `stop_lon=" -4.732529"` PRODUCES STP_005,
+    // and K7's whitespace-derivative cascade suppresses it under the DQ_016 root. This
+    // mechanism CANNOT BE MODELED in `silent_rules.tsv` (the table sees only cascades
+    // DECLARED in the registry), so the evidence is recorded here.
     //
-    // Tek başına hiçbir yarı bir şey söylemez: üstteki test boşluksuz geçersiz değerin
-    // ateşlediğini, bu test trim sonrası GEÇERLİ olan değerin ateşlemediğini gösterir.
-    // İkisi birlikte "bastırma mı, kırık predikat mı" sorusunu keser.
+    // Neither half says anything alone: the test above shows that a whitespace-free invalid
+    // value fires; this test shows that a value VALID after trimming does not. Together they
+    // settle the question "suppression or broken predicate?"
     let zip = corpus_zip(TYPED_FEED);
     let before = rule_ids(&zip);
     assert!(!before.contains("STP_005"));
-    // Taban çizgisi ZATEN bir DQ_016 taşıyor (stops.txt / stop_name), bu yüzden kök
-    // notice farkta görünmez; beklenen fark BOŞ kümedir.
+    // The baseline ALREADY carries a DQ_016 (stops.txt / stop_name), so the root notice does
+    // not appear in the delta; the expected delta is EMPTY.
     assert!(
         before.contains("DQ_016"),
         "taban çizgisi DQ_016 taşımalıydı"
@@ -696,10 +702,10 @@ fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
         "beklenen fark BOŞ kümeydi (kök DQ_016 zaten vardı). eklenen={added:?} kaldırılan={removed:?}"
     );
 
-    // 🔑 ASIL İDDİA. Boş fark tek başına "bastırıldı" demez — mutasyon hiç uygulanmamış
-    // olsa da fark boş kalırdı. K7 kök notice'a bastırdığı kuralları YAZAR; testin
-    // dayandığı şey o beyandır. Korpusta bağımsız örnek: `mdb-2691`'in stops.txt kökü
-    // `suppressed_derivative_rules = STP_005` taşıyor.
+    // 🔑 THE ACTUAL CLAIM. An empty delta alone does not say "suppressed" — it would remain
+    // empty if the mutation never ran. K7 WRITES the rules it suppressed to the root notice;
+    // the test relies on that declaration. Independent corpus example: the stops.txt root
+    // in `mdb-2691` carries `suppressed_derivative_rules = STP_005`.
     let suppressed = suppressed_rules_for(&mutated, "stops.txt");
     assert!(
         suppressed.iter().any(|r| r == "STP_005"),
@@ -709,18 +715,18 @@ fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Çapraz referans + Flex — PTH_001 · PTH_026 · TRF_021 · STM_058 (issue #130)
+// Cross-reference + Flex — PTH_001 · PTH_026 · TRF_021 · STM_058 (issue #130)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Batch 1/2 K3 yineleme ve K2 tip yollarını kapsadı; bu parti bilinçli olarak KOD YOLU
-// değiştiriyor: K4 çapraz referans (PTH_026, TRF_021) ve K2 Flex akışı (STM_058).
+// Batch 1/2 covered K3 repetition and K2 type paths; this batch deliberately changes
+// CODE PATHS: K4 cross-reference (PTH_026, TRF_021) and K2 Flex flow (STM_058).
 //
-// 🔑 Kardeş kontrolü (mutasyondan önce, bedava): pathways okunuyor (`PTH_007` · `PTH_011` ·
-// `PTH_012`), transfers okunuyor (`TRF_016` 5204 bulgu · `TRF_019` · `TRF_022/023`),
-// Flex yolu okunuyor (`STM_056` 3,97M bulgu · `XFL_002` 1315 · `LOC_006`). Üçünde de
-// dosyanın işlendiği kanıtlı; ölçülen şey yine HATA/İHLAL dalı.
+// 🔑 Sibling check (before mutation, free): pathways are read (`PTH_007` · `PTH_011` ·
+// `PTH_012`), transfers are read (`TRF_016` 5204 findings · `TRF_019` · `TRF_022/023`),
+// and the Flex path is read (`STM_056` 3.97M findings · `XFL_002` 1315 · `LOC_006`).
+// All three prove that the file was processed; what is measured is still the ERROR/VIOLATION path.
 
-/// Arşivdeki bir üyenin metnini döndürür.
+/// Returns an archive member's text.
 fn member_text(zip: &[u8], file: &str) -> String {
     let mut a = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
     let name = a
@@ -734,7 +740,7 @@ fn member_text(zip: &[u8], file: &str) -> String {
     buf
 }
 
-/// `stops.txt`'te verilen `location_type` değerine sahip ilk `stop_id`.
+/// The first `stop_id` in `stops.txt` with the given `location_type` value.
 fn stop_id_with_location_type(zip: &[u8], want: &str) -> String {
     let text = member_text(zip, "stops.txt");
     let header = header_of(&text);
@@ -754,7 +760,7 @@ fn stop_id_with_location_type(zip: &[u8], want: &str) -> String {
         .unwrap_or_else(|| panic!("location_type={want} olan durak yok"))
 }
 
-/// `key_col`'u boş OLMAYAN ilk veri satırının sıra numarası (1 = ilk veri satırı).
+/// Ordinal of the first data row whose `key_col` is NOT empty (1 = first data row).
 fn first_row_with_value(text: &str, key_col: &str) -> usize {
     let header = header_of(text);
     let ki = header
@@ -785,8 +791,8 @@ fn pth_001_fires_on_a_duplicated_pathway_row() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn pth_026_fires_when_a_pathway_endpoint_is_a_station() {
-    // K4 çapraz referans. `from_stop_id` GERÇEKTEN VAR OLAN bir istasyona (location_type=1)
-    // çevrilir — uydurma id kullanmak FK kuralını sınardı, uç-nokta TİPİ kuralını değil.
+    // K4 cross-reference. `from_stop_id` is changed to a station that REALLY EXISTS
+    // (location_type=1) — using a fabricated ID would test the FK rule, not the endpoint TYPE rule.
     let zip = corpus_zip(PTH_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -804,7 +810,7 @@ fn pth_026_fires_when_a_pathway_endpoint_is_a_station() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn trf_021_fires_when_a_transfer_endpoint_is_neither_stop_nor_station() {
-    // Aynı gerekçe: var olan bir GİRİŞ (location_type=2) hedeflenir.
+    // Same rationale: target an existing ENTRANCE (location_type=2).
     let zip = corpus_zip(TRF_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -816,20 +822,20 @@ fn trf_021_fires_when_a_transfer_endpoint_is_neither_stop_nor_station() {
         set_field(&t, "from_stop_id", 1, &entrance)
     });
     let (added, removed) = delta(&before, &rule_ids(&mutated));
-    // AÇIKLANAN yan etki: `TRF_011` (aktarma tanımlandı ama mesafe uzak, Bilgi·Quality).
-    // Aktarmayı ağın başka bir yerindeki girişe çevirmek iki ucu coğrafi olarak
-    // uzaklaştırır; doğrudan geometrik sonuç.
+    // EXPLAINED side effect: `TRF_011` (transfer defined but distance is far, Bilgi·Quality).
+    // Changing the transfer to an entrance elsewhere in the network moves the two endpoints
+    // farther apart geographically; this is the direct geometric result.
     assert_delta_both(&added, &removed, "TRF_021", &["TRF_011"], &[]);
 }
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn stm_058_fires_on_a_malformed_flex_pickup_window() {
-    // K2 akış yolu + Flex. ⚠️ Satır seçimi ÖLÇÜMLE yapılır: korpusun 19 feed'i bu başlığı
-    // taşıyor ama YALNIZ 7'sinde değer var; boş bir pencereye mutasyon uygulamak hiçbir
-    // şeyi sınamazdı. Bu yüzden penceresi DOLU ilk satır aranır.
-    // STM_058 ayrıca `Err(_) => None` yutma sınıfının ilk üyesiydi (`778c462b`'de kapandı);
-    // onarılmış bir parse yolunun hâlâ emit ettiğini kanıtlamak bu testin asıl amacı.
+    // K2 flow path + Flex. ⚠️ Row selection is MEASURED: 19 corpus feeds carry this header,
+    // but ONLY 7 have a value; mutating an empty window would test nothing. Therefore find
+    // the first row with a POPULATED window.
+    // STM_058 was also the first member of the `Err(_) => None` swallowing class (closed in
+    // `778c462b`); this test's purpose is to prove that a repaired parse path still emits.
     let zip = corpus_zip(FLEX_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -842,26 +848,26 @@ fn stm_058_fires_on_a_malformed_flex_pickup_window() {
         set_field(&t, "start_pickup_drop_off_window", row, "abc")
     });
     let (added, removed) = delta(&before, &rule_ids(&mutated));
-    // AÇIKLANAN yan etki — ve bu KAYBOLAN bir bulgu: `PDW_006` (aynı trip+zone'da örtüşen
-    // pickup/drop-off penceresi, Orta·Analytics). Pencereyi ayrıştırılamaz yapmak örtüşme
-    // analizinden o pencereyi DÜŞÜRÜR, dolayısıyla parçası olduğu örtüşme bulgusu da yok
-    // olur. Meşru sonuç — ve testin kaldırmaları YASAKLAMAYIP açıklamasının sebebi tam bu:
-    // yasaklasaydık bu mutasyon hiç yazılamazdı.
+    // EXPLAINED side effect — and this is a LOST finding: `PDW_006` (overlapping pickup/drop-off
+    // window for the same trip+zone, Orta·Analytics). Making the window unparsable DROPS that
+    // window from overlap analysis, so the overlap finding it belonged to also disappears.
+    // This is legitimate — and exactly why the test explains rather than FORBIDS removals:
+    // forbidding them would make this mutation impossible to write.
     assert_delta_both(&added, &removed, "STM_058", &[], &["PDW_006"]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Kritik∧Spec şüpheli kovasının SONU — 9 kural, tek K2 parse-and-reject şekli (#131)
+// END OF THE Critical∧Spec suspicious bucket — 9 rules, one K2 parse-and-reject shape (#131)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// 🔑 Kardeş kontrolü beş dosyanın da okunduğunu gösterdi: `ATR_001`(8 feed)/`ATR_009`(89
-// bulgu) · `CAL_024`(673.569 bulgu)/`CAL_013`(3296) · `FAR_009`(1091)/`FAR_013`(38) ·
-// `FRQ_010`(4033)/`FRQ_007`(1583) · `LVL_006`(114)/`LVL_004`. Ölçülen yine HATA dalı.
+// 🔑 The sibling check showed that all five files were read: `ATR_001` (8 feeds)/`ATR_009` (89
+// findings) · `CAL_024` (673,569 findings)/`CAL_013` (3296) · `FAR_009` (1091)/`FAR_013` (38) ·
+// `FRQ_010` (4033)/`FRQ_007` (1583) · `LVL_006` (114)/`LVL_004`. The ERROR path is still measured.
 //
-// Üç feed önceki partilerden YENİDEN KULLANILIYOR (bayt uzunlukları ve temiz taban
-// çizgileri zaten doğrulanmıştı); ikisi yeni ve İÇERİKLE seçildi.
+// Three feeds are REUSED from earlier batches (byte lengths and clean baselines were already
+// verified); two are new and were selected by CONTENT.
 
-/// Genel gövde: `feed`/`file`/`column`'un `row`. satırına `value` yaz, farkı denetle.
+/// Common body: write `value` to row `row` of `feed`/`file`/`column`, then check the delta.
 #[allow(clippy::too_many_arguments)]
 fn mutate_field_case(
     feed: &str,
@@ -877,7 +883,7 @@ fn mutate_field_case(
     let before = rule_ids(&zip);
     assert!(
         !before.contains(target),
-        "{feed} mutasyondan ÖNCE zaten {target} üretiyor — kontrol feed'i olamaz"
+        "{feed} already produces {target} BEFORE mutation — it cannot be the control feed"
     );
     let (col, val) = (column.to_string(), value.to_string());
     let mutated = rewrite_member(&zip, file, move |t| set_field(&t, &col, row, &val));
@@ -885,8 +891,8 @@ fn mutate_field_case(
     assert_delta_both(&added, &removed, target, explained_added, explained_removed);
 }
 
-/// `column`'u dolu olan ilk satırı bulup oraya yazar (boş hücreye mutasyon hiçbir şey
-/// sınamaz — bu tuzak #130'da `start_pickup_drop_off_window`'da ölçüldü).
+/// Finds the first row with a populated `column` and writes there (mutating an empty cell
+/// tests nothing — this trap was measured in `start_pickup_drop_off_window` in #130).
 fn mutate_first_populated(
     feed: &str,
     file: &str,
@@ -905,16 +911,16 @@ fn mutate_first_populated(
     assert_delta_both(&added, &removed, target, explained_added, &[]);
 }
 
-// `mdb-2931`: 18 atıf satırı, üç `is_*` sütunu hepsinde dolu, `attribution_url` 8'inde.
-// ⚠️ Taban çizgisi ZATEN `ATR_009` (karşılıklı dışlama) üretiyor — 18 satırın hepsinde.
-// Mutasyondan önce var olduğu için farkta GÖRÜNEMEZ; kaskad kirliliği bu sayede yok.
+// `mdb-2931`: 18 attribution rows; all three `is_*` columns are populated, `attribution_url` in 8.
+// ⚠️ The baseline ALREADY produces `ATR_009` (mutual exclusion) — in all 18 rows.
+// It is invisible in the delta because it predates the mutation; this avoids cascade noise.
 const ATR_FEED: &str = "mdb-2931";
 const FRQ_FEED: &str = "mdb-1914"; // 3909 frequencies satırı
-/// Peron uçlu pathway taşıyan en küçük feed (232 uç).
+/// Smallest feed carrying platform-ended pathways (232 endpoints).
 ///
-/// 🔴 **Korpusun HİÇBİR feed'inde `stops.stop_access` sütunu YOK** (6 pathway feed'i de
-/// tarandı). Alan sahada benimsenmemiş, dolayısıyla `PTH_031` ve `STP_043` gerçek veriyle
-/// ASLA sınanamaz; tek yol sütunu üreten bir mutasyondur.
+/// 🔴 **NO corpus feed has a `stops.stop_access` column** (all 6 pathway feeds were scanned).
+/// The field is not adopted in the wild, so `PTH_031` and `STP_043` can NEVER be tested with
+/// real data; this mutation is the only way to produce the column.
 const PTH_PLATFORM_FEED: &str = "mdb-2933";
 
 #[test]
@@ -935,11 +941,11 @@ fn atr_004_fires_on_an_invalid_is_producer() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn atr_005_fires_on_an_invalid_is_operator() {
-    // AÇIKLANAN yan etki: `ATR_003` ("attribution rolü tanımlanmamış", Yüksek·Spec).
-    // `mdb-2931`'in ilk satırı `is_producer=0, is_operator=1, is_authority=0` — TEK tanımlı
-    // rol `is_operator`. Onu geçersiz yapmak geriye HİÇ geçerli rol bırakmaz, ATR_003 doğar.
-    // `ATR_004` (is_producer 0→9) testinde bu YAN ETKİ YOKTUR ve asimetri kural
-    // tutarsızlığı DEĞİL, verinin sonucudur: orada is_operator=1 rolü ayakta kalır.
+    // EXPLAINED side effect: `ATR_003` ("attribution role is undefined", Yüksek·Spec).
+    // The first row of `mdb-2931` has `is_producer=0, is_operator=1, is_authority=0` —
+    // `is_operator` is the ONLY defined role. Invalidating it leaves no valid role, producing
+    // ATR_003. The `ATR_004` (is_producer 0→9) test has NO such SIDE EFFECT; this is a data
+    // result, not rule asymmetry: its is_operator=1 role remains valid.
     mutate_field_case(
         ATR_FEED,
         "attributions.txt",
@@ -970,7 +976,7 @@ fn atr_006_fires_on_an_invalid_is_authority() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn atr_007_fires_on_an_invalid_attribution_url() {
-    // `attribution_url` 18 satırın yalnız 8'inde dolu → dolu olan ilk satır seçilir.
+    // `attribution_url` is populated in only 8 of 18 rows → choose the first populated row.
     mutate_first_populated(
         ATR_FEED,
         "attributions.txt",
@@ -1056,12 +1062,12 @@ fn lvl_002_fires_on_a_non_numeric_level_index() {
     );
 }
 
-/// Dosyaya YENİ bir sütun ekler; yalnız `row_ordinal`. satırda dolu, diğerlerinde boş.
+/// Adds a NEW column to the file; populated only at `row_ordinal`, empty elsewhere.
 ///
-/// `PTH_031` isteğe bağlı `stops.stop_access` alanına bakar ve korpustaki pathway
-/// feed'lerinde o sütun YOK. Mevcut bir değeri değiştirmek mümkün olmadığı için mutasyon
-/// sütunu üretir. Satır uzunlukları başlıkla TUTARLI tutulur — kısa satır bırakmak
-/// bambaşka bir kuralı (CSV alan sayısı) tetikler ve testi yanlış şeyi ölçer hâle getirir.
+/// `PTH_031` checks optional `stops.stop_access`, and that column is ABSENT from the
+/// corpus pathway feeds. Since no existing value can be changed, the mutation creates the
+/// column. Row lengths stay CONSISTENT with the header — leaving short rows would trigger a
+/// different rule (CSV field count) and make the test measure the wrong thing.
 fn add_column(text: &str, name: &str, row_ordinal: usize, value: &str) -> String {
     let mut out: Vec<String> = Vec::new();
     for (i, line) in text.lines().enumerate() {
@@ -1085,13 +1091,14 @@ fn add_column(text: &str, name: &str, row_ordinal: usize, value: &str) -> String
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
-    // Kovadaki son kural. `stop_access=1` (sokaktan erişilen durak) bir pathway ucu
-    // olamaz. Korpusun 10 pathway feed'inin hiçbirinde `stop_access` sütunu YOK, bu yüzden
-    // mutasyon sütunu ÜRETİR ve yalnız pathway'in `from_stop_id`'sinin işaret ettiği
-    // durakta 1 yapar.
-    // ⚠️ FEED SEÇİMİ ÖLÇÜLDÜ: `mdb-3357` dahil 4 pathway feed'inde HİÇBİR pathway ucu
-    // peron değil — hepsi istasyon/giriş/ara düğüm bağlıyor. Altı pathway feed'i tarandı;
-    // yalnız `mdb-2933` (232 peron uç) ve `mdb-990` (103) uygun.
+    // Last rule in the bucket. `stop_access=1` (a street-accessible stop) cannot be a
+    // pathway endpoint. None of the corpus's 10 pathway feeds has a `stop_access` column,
+    // so the mutation CREATES the column and sets it to 1 only at the stop referenced by
+    // the pathway's `from_stop_id`.
+    // ⚠️ FEED SELECTION WAS MEASURED: in 4 pathway feeds including `mdb-3357`, NO pathway
+    // endpoint is a platform — all connect stations/entrances/intermediate nodes. Six
+    // pathway feeds were scanned; only `mdb-2933` (232 platform endpoints) and `mdb-990`
+    // (103) were suitable.
     let zip = corpus_zip(PTH_PLATFORM_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1099,10 +1106,11 @@ fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
         "{PTH_PLATFORM_FEED} zaten PTH_031 üretiyor"
     );
 
-    // ⚠️ Uç nokta PERON/DURAK olmalı (`location_type` boş ya da 0). İlk denemede ilk
-    // pathway'in ucu bir İSTASYONDU ve `stop_access` orada zaten Conditionally Forbidden
-    // olduğu için `STP_043` ateşledi, `PTH_031` değil. Yani mutasyon yanlış hükmü
-    // sınıyordu; komşu kural bunu yakaladı. Aday artık ÖLÇÜLEREK seçiliyor.
+    // ⚠️ The endpoint must be a PLATFORM/STOP (`location_type` empty or 0). In the first
+    // attempt, the first pathway endpoint was a STATION and `stop_access` was already
+    // Conditionally Forbidden there, so `STP_043` fired instead of `PTH_031`. The mutation
+    // was testing the wrong assertion; the neighboring rule caught it. The candidate is now
+    // selected by MEASUREMENT.
     let stops = member_text(&zip, "stops.txt");
     let sh = header_of(&stops);
     let si = sh.iter().position(|h| h == "stop_id").expect("stop_id yok");
@@ -1143,19 +1151,19 @@ fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FATAL yol — ARC_001 · ARC_002 · ARC_013 · ARC_029
+// FATAL path — ARC_001 · ARC_002 · ARC_013 · ARC_029
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Bu dört kural notice DEĞİL `FatalError` üretir, bu yüzden `rule_ids()` onları göremez —
-// o yardımcı Fatal'da panikler. Korpusta hiç görünmemelerinin sebebi de bu değil: bir
-// yayıncı açılamayan, UTF-8 olmayan ya da zip-bomba bir arşiv yayımlamaz. Yani en saf
-// SEÇİLİM YANLILIĞI vakası, ve mutasyondan başka ölçüm yolu yok.
+// These four rules produce `FatalError`, not notices, so `rule_ids()` cannot see them —
+// that helper panics on Fatal. That is not why they never appear in the corpus: a publisher
+// does not publish an archive that cannot be opened, is not UTF-8, or is a zip bomb. This is
+// therefore the purest SELECTION BIAS case, with no measurement path other than mutation.
 //
-// ⚠️ `ARC_004` bu listede YOK: `fatals.csv` onun korpusta 4 feed'de GERÇEKTEN ateşlediğini
-// gösteriyor (`NoRequiredFiles`). Sessiz sanılmasının sebebi `rule_stats.csv`'nin fatal
-// taşımamasıydı — `silent_rules_scan.py` bu tuzağı artık kapatıyor.
+// ⚠️ `ARC_004` is NOT on this list: `fatals.csv` shows that it REALLY fired in 4 corpus
+// feeds (`NoRequiredFiles`). It looked silent because `rule_stats.csv` did not carry Fatals —
+// `silent_rules_scan.py` now closes that trap.
 
-/// Fatal üretiliyorsa kodunu döndürür; notice üretiliyorsa `None`.
+/// Returns the code if Fatal is produced; `None` if a notice is produced.
 fn fatal_code(zip: &[u8]) -> Option<FatalCode> {
     match validate_bytes(zip, &ValidatorConfig::default(), TODAY) {
         ValidateResult::Fatal(e) => Some(e.code),
@@ -1163,7 +1171,7 @@ fn fatal_code(zip: &[u8]) -> Option<FatalCode> {
     }
 }
 
-/// Bir üyenin BAYTLARINI yeniden yazar (metin olmayan içerik için).
+/// Rewrites a member's BYTES (for non-text content).
 fn rewrite_member_bytes(zip: &[u8], target: &str, bytes: Vec<u8>) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
     let names: Vec<String> = archive
@@ -1192,7 +1200,7 @@ fn rewrite_member_bytes(zip: &[u8], target: &str, bytes: Vec<u8>) -> Vec<u8> {
     out.finish().expect("arşiv kapanmadı").into_inner()
 }
 
-/// Arşive yeni bir üye ekler.
+/// Adds a new member to the archive.
 fn add_member(zip: &[u8], name: &str, bytes: &[u8]) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
     let names: Vec<String> = archive
@@ -1214,7 +1222,7 @@ fn add_member(zip: &[u8], name: &str, bytes: &[u8]) -> Vec<u8> {
     out.finish().expect("arşiv kapanmadı").into_inner()
 }
 
-/// Verilen dosya adlarını arşivden ÇIKARIR.
+/// REMOVES the given file names from the archive.
 fn drop_members(zip: &[u8], drop: &[&str]) -> Vec<u8> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(zip)).expect("arşiv açılamadı");
     let names: Vec<String> = archive
@@ -1241,11 +1249,11 @@ fn drop_members(zip: &[u8], drop: &[&str]) -> Vec<u8> {
     out.finish().expect("arşiv kapanmadı").into_inner()
 }
 
-/// `archive.by_name` ödünçlemesini erken bitirmek için.
+/// Ends the `archive.by_name` borrow early.
 fn drop_guard<T>(_: &mut T) {}
 
-/// Fatal testleri için taban arşiv. Boyut burada ÖNEMSİZ — ölçülen şey arşiv düzeyinde
-/// bir başarısızlık, feed içeriği değil; önemli olan GERÇEK yayımlanmış bir arşiv olması.
+/// Baseline archive for Fatal tests. Size is IRRELEVANT here — what is measured is an
+/// archive-level failure, not feed content; what matters is that this is a REAL published archive.
 const FATAL_FEED: &str = "mdb-1903";
 
 #[test]
@@ -1256,7 +1264,7 @@ fn arc_001_fatal_when_the_archive_is_truncated() {
         fatal_code(&zip).is_none(),
         "taban arşiv zaten Fatal veriyor"
     );
-    // Sondaki merkezi-dizin kaydını kes → arşiv açılamaz.
+    // Cut the trailing central-directory record → the archive cannot be opened.
     let cut = &zip[..zip.len() - 256];
     assert_eq!(fatal_code(cut), Some(FatalCode::ZipUnreadable));
 }
@@ -1264,16 +1272,16 @@ fn arc_001_fatal_when_the_archive_is_truncated() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn arc_002_reports_invalid_utf8_as_a_notice_not_a_fatal() {
-    // 🔴 BU TEST BİR VARSAYIMI ÇÜRÜTEREK YAZILDI. İlk hâli `Fatal(Utf8Critical)` bekliyordu,
-    // çünkü `core::enums::FatalCode` şu yorumu taşıyor: "Utf8Critical → ARC_002 — UTF-8
-    // ihlali, dosya okunamıyor". Ölçüm bunu çürüttü: zorunlu bir dosyaya geçersiz bayt
-    // dizisi koymak Fatal DEĞİL, NOTICE üretiyor.
+    // 🔴 THIS TEST WAS WRITTEN TO DISPROVE AN ASSUMPTION. Its first version expected
+    // `Fatal(Utf8Critical)`, because `core::enums::FatalCode` carries this comment:
+    // "Utf8Critical → ARC_002 — UTF-8 violation, file cannot be read". Measurement disproved
+    // it: putting invalid bytes in a required file produces a NOTICE, not Fatal.
     //
-    // Sebep: `FatalCode::Utf8Critical` üretim kodunda HİÇ KURULMUYOR (yalnız enum tanımında
-    // ve bir yorumda geçiyor). Aynı durum `NoRequiredFiles` ve `CsvMalformed` için de
-    // geçerli — üçü de hiçbir Rust kodunun üretmediği varyantlar (issue #132).
-    // ⚠️ `ResourceLimit` bu listede DEĞİL: onu UI'ın TypeScript'i üretiyor
-    // (`ui/src/validator-client.ts`), yani ölü değil, yalnız Rust tarafında üreticisi yok.
+    // Reason: `FatalCode::Utf8Critical` is NEVER CONSTRUCTED in production code (it appears
+    // only in the enum definition and one comment). The same applies to `NoRequiredFiles`
+    // and `CsvMalformed` — all three are variants no Rust code produces (issue #132).
+    // ⚠️ `ResourceLimit` is NOT on this list: the UI's TypeScript produces it
+    // (`ui/src/validator-client.ts`), so it is not dead; it simply has no Rust producer.
     let zip = corpus_zip(FATAL_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1303,10 +1311,10 @@ fn arc_002_reports_invalid_utf8_as_a_notice_not_a_fatal() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn arc_004_reports_missing_required_files_as_a_notice_since_partial_recovery() {
-    // `fatals.csv` (2026-08-06 korpus koşumu) `NoRequiredFiles` fatal'ini 4 feed'de
-    // kaydeder. O dosya BAYAT: `66e009c2` ("recover and report partial feeds",
-    // 2026-08-09) pipeline'ı kısmi feed'i kurtarıp RAPORLAMAYA çevirdi. Bugün zorunlu
-    // dosyalar eksikken Fatal YOK, `ARC_004` NOTICE olarak çıkıyor.
+    // `fatals.csv` (2026-08-06 corpus run) records the `NoRequiredFiles` Fatal in 4 feeds.
+    // That file is STALE: `66e009c2` ("recover and report partial feeds", 2026-08-09) changed
+    // the pipeline to recover and REPORT partial feeds. Today missing required files produce
+    // NO Fatal; `ARC_004` appears as a NOTICE.
     let zip = corpus_zip(FATAL_FEED);
     let required = [
         "stops.txt",
@@ -1331,10 +1339,10 @@ fn arc_004_reports_missing_required_files_as_a_notice_since_partial_recovery() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn arc_029_fatal_when_a_member_is_a_decompression_bomb() {
-    // `ratio_floor` 16 MiB, `max_ratio` 100 → 24 MiB tek bayt tekrarı ~1000:1 sıkışır,
-    // yani ORAN yolundan (zip-bomba imzası) düşer, mutlak tavanlardan değil.
-    // ⚠️ Bomba KÖK dizinde `.txt` OLMALI: K1 `.txt` olmayan girdiyi okumadan atlar
-    // (ARC_007) ve guard hiç devreye girmez.
+    // `ratio_floor` 16 MiB, `max_ratio` 100 → 24 MiB of one repeated byte compresses at
+    // about 1000:1, so it fails through the RATIO path (zip-bomb signature), not an absolute cap.
+    // ⚠️ The bomb MUST be a root-level `.txt`: K1 skips non-`.txt` entries without reading them
+    // (ARC_007), so the guard never activates.
     let zip = corpus_zip(FATAL_FEED);
     let bomb = vec![b'A'; 24 * 1024 * 1024];
     let mutated = add_member(&zip, "bomb.txt", &bomb);
@@ -1344,9 +1352,9 @@ fn arc_029_fatal_when_a_member_is_a_decompression_bomb() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn arc_013_reports_csv_tokenization_failure_as_a_notice_not_a_fatal() {
-    // `FatalCode::CsvMalformed` de ÖLÜ varyant (bkz. arc_002 testi). `tokenize_csv` hata
-    // döndürünce K1 dosyayı `partial.unavailable_files`'a alır ve `ARC_013` NOTICE üretir;
-    // feed tümüyle reddedilmez.
+    // `FatalCode::CsvMalformed` is also a DEAD variant (see the arc_002 test). When
+    // `tokenize_csv` returns an error, K1 adds the file to `partial.unavailable_files` and
+    // produces an `ARC_013` NOTICE; the feed is not rejected wholesale.
     let zip = corpus_zip(FATAL_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1354,7 +1362,7 @@ fn arc_013_reports_csv_tokenization_failure_as_a_notice_not_a_fatal() {
         "taban feed zaten ARC_013 üretiyor"
     );
 
-    // Kapanmamış tırnak → tokenization başarısız.
+    // Unclosed quote → tokenization fails.
     let broken = "route_id,agency_id,route_short_name,route_type\nR1,\"1,ACIK TIRNAK,3\n";
     let mutated = rewrite_member_bytes(&zip, "routes.txt", broken.as_bytes().to_vec());
 
@@ -1366,7 +1374,7 @@ fn arc_013_reports_csv_tokenization_failure_as_a_notice_not_a_fatal() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Kapsam kaybı yayın kararını ve skoru etkilemeli (issue #133)
+// Coverage loss must affect the publication decision and score (issue #133)
 // ─────────────────────────────────────────────────────────────────────────────
 
 fn r1_of(zip: &[u8]) -> (bool, bool, f64) {
@@ -1383,9 +1391,9 @@ fn r1_of(zip: &[u8]) -> (bool, bool, f64) {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn losing_a_required_file_withdraws_the_publishable_verdict() {
-    // 🔴 ESKİ DAVRANIŞ: `stops.txt` çözülemez hâle gelince 29 kontrol atlanıyor, notice
-    // 604→178 düşüyor, ve feed HÂLÂ `publishable=true` diyordu — üstelik skor 89,4→93,5
-    // YÜKSELİYORDU. Bulgu yokluğu kanıt yokluğudur.
+    // 🔴 OLD BEHAVIOR: when `stops.txt` became unreadable, 29 checks were skipped, notices
+    // fell from 604 to 178, and the feed STILL reported `publishable=true` — while the score
+    // ROSE from 89.4 to 93.5. Absence of findings is not evidence of absence.
     let zip = corpus_zip(FATAL_FEED);
     let (pub_before, cov_before, score_before) = r1_of(&zip);
     assert!(
@@ -1403,8 +1411,8 @@ fn losing_a_required_file_withdraws_the_publishable_verdict() {
 
     assert!(!cov_after, "zorunlu dosya okunamadı ama kapsam TAM sayıldı");
     assert!(!pub_after, "kapsam eksikken feed YAYINA UYGUN sayıldı");
-    // Skorun yükselmesi hâlâ gerçek — bilerek düzeltilmiyor, KIYASLANAMAZ diye
-    // işaretleniyor. Bu iddia o gerçeği ÇAPALAR ki sessizce değişmesin.
+    // The score increase is still real — it is deliberately not corrected, but marked
+    // INCOMPARABLE. This assertion ANCHORS that fact so it cannot change silently.
     assert!(
         score_after > score_before,
         "eksik kapsamda skorun YÜKSELDİĞİ olgusu kayboldu ({score_before} → {score_after}); \
@@ -1415,9 +1423,9 @@ fn losing_a_required_file_withdraws_the_publishable_verdict() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn losing_an_optional_file_does_not_withdraw_the_verdict() {
-    // ⚠️ ASİMETRİ TESTİ. İsteğe bağlı bir dosyanın okunamaması da koşumu PARTIAL yapar
-    // (ölçüldü). Kapıyı ona da düşürmek, bozuk bir `attributions.txt` yüzünden geçerli
-    // feed'i yayından men etmek olurdu — `PTH_017`'de adı konmuş ağır hata.
+    // ⚠️ ASYMMETRY TEST. An unreadable optional file also makes the run PARTIAL
+    // (measured). Dropping the gate for that case would ban a valid feed from publication
+    // because of a broken `attributions.txt` — the severe error named in `PTH_017`.
     let zip = corpus_zip(ATR_FEED);
     let (_, cov_before, _) = r1_of(&zip);
     assert!(cov_before, "taban feed tam kapsamlı olmalı");
@@ -1435,13 +1443,14 @@ fn losing_an_optional_file_does_not_withdraw_the_verdict() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn trn_006_fires_on_a_conflicting_translation() {
-    // `TRN_006` kovaya SONRADAN girdi: 2026-08-06 baseline'ında 101.871 bulguyla
-    // ateşliyordu, `67fc99b0` (#99) çeviri satır kontrollerini şema ön koşullarına
-    // bağlayınca SIFIRA düştü. Yani sessizliği yeni ve ölçülmemişti.
+    // `TRN_006` entered the bucket LATE: it fired with 101,871 findings in the 2026-08-06
+    // baseline, then fell to ZERO when `67fc99b0` (#99) tied translation-row checks to schema
+    // prerequisites. Its silence was therefore new and unmeasured.
     //
-    // `TRN_005` ile AYNI `match`'in öteki kolu: anahtar çakışıyor ama `translation`
-    // değeri FARKLI. Mutasyon bu yüzden satırı aynen değil, DEĞERİ DEĞİŞTİREREK tekrarlar —
-    // birebir kopya TRN_005 üretirdi ve yanlış kolu sınardık.
+    // The other arm of the SAME `match` as `TRN_005`: the key collides but the
+    // `translation` value is DIFFERENT. The mutation therefore repeats the row with a
+    // CHANGED VALUE rather than verbatim — an exact copy would produce TRN_005 and test the
+    // wrong arm.
     let zip = corpus_zip(TRN_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1466,11 +1475,11 @@ fn trn_006_fires_on_a_conflicting_translation() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Whitespace kaskadı FK'nın İKİ YAKASINA da bakmalı (issue #134)
+// The whitespace cascade must inspect BOTH SIDES of the FK (issue #134)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// `trips.txt`'teki her `trip_id`'nin başına boşluk koyar — `stop_times.txt`'e DOKUNMAZ.
-/// Korpustaki `mdb-992`'nin gerçek biçimi budur: bir dosyada boşluklu, ötekinde temiz.
+/// Prepends a space to every `trip_id` in `trips.txt` — it does not touch `stop_times.txt`.
+/// This is the real shape of corpus feed `mdb-992`: spaced in one file, clean in the other.
 fn pad_trip_ids(text: &str) -> String {
     let mut lines: Vec<String> = text
         .lines()
@@ -1494,10 +1503,10 @@ fn pad_trip_ids(text: &str) -> String {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
-    // Kaskad yalnız TEK YÖNÜ kapsıyordu: gözlenen değerde boşluk varsa. Bu AYNA vaka —
-    // gözlenen (`stop_times.trip_id`) tertemiz, boşluk REFERANS tarafında (`trips.trip_id`).
-    // Korpusta `mdb-992` tam olarak böyle: ham kesişim 0, trim'li kesişim 6523, ve tek bir
-    // üretici alışkanlığı 103.649 bulguya dönüşüyordu.
+    // The cascade covered only ONE DIRECTION: when the observed value had whitespace. This is
+    // the MIRROR case — the observed side (`stop_times.trip_id`) is clean, while whitespace
+    // is on the REFERENCE side (`trips.trip_id`). Corpus feed `mdb-992` is exactly this:
+    // raw intersection 0, trimmed intersection 6523, and one producer habit became 103,649 findings.
     let zip = corpus_zip(FATAL_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1510,8 +1519,8 @@ fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
     let declared = suppressed_rules_for(&mutated, "trips.txt");
     let after = rule_ids(&mutated);
 
-    // `XFL_002`'nin dosyası `trips.txt` — boşluğun ve dolayısıyla `DQ_016` kökünün olduğu
-    // yer. Bastırılır VE beyan edilir.
+    // `XFL_002`'s file is `trips.txt` — where the whitespace and therefore the `DQ_016`
+    // root live. It is suppressed AND declared.
     assert!(
         !after.contains("XFL_002"),
         "referans tarafındaki boşluktan doğan XFL_002 hâlâ ham bulgu olarak raporlanıyor"
@@ -1521,9 +1530,10 @@ fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
         "DQ_016 kökü XFL_002'yi bastırdığını BEYAN ETMİYOR: {declared:?}"
     );
 
-    // ⚠️ `STM_001`'in dosyası `stop_times.txt` ve ORADA boşluk YOK → kök de yok.
-    // Beyan yazacak yer olmadığı için bastırma UYGULANMAZ; bulgu görünür kalır.
-    // Bu bir eksiklik değil, bilinçli değişmez: izsiz kaybolan bulgu istemiyoruz.
+    // ⚠️ `STM_001`'s file is `stop_times.txt`, and there is NO whitespace THERE → no root.
+    // Suppression is NOT APPLIED because there is nowhere to write a declaration; the finding
+    // remains visible. This is not a gap, but a deliberate invariant: findings must not vanish
+    // without a trace.
     assert!(
         after.contains("STM_001"),
         "kökü olmayan dosyada bastırma yapıldı → bulgu izsiz kayboldu"
@@ -1533,9 +1543,9 @@ fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn a_genuinely_unknown_id_is_not_swallowed_by_the_cascade() {
-    // AŞIRI-BASTIRMA KORUMASI. Kaskadın gevşetilmesi gerçek FK hatalarını yutarsa
-    // düzeltme hastalıktan beter olur. Var olmayan bir trip_id'nin trim'li karşılığı da
-    // yoktur → görünür KALMALI.
+    // OVER-SUPPRESSION GUARD. If relaxing the cascade swallows real FK errors, the fix is
+    // worse than the disease. A nonexistent trip_id also has no trimmed counterpart → it MUST
+    // remain visible.
     let zip = corpus_zip(FATAL_FEED);
     let mutated = rewrite_member(&zip, "stop_times.txt", |t| {
         set_field(&t, "trip_id", 1, "BOYLE-BIR-SEFER-YOK")
@@ -1543,31 +1553,33 @@ fn a_genuinely_unknown_id_is_not_swallowed_by_the_cascade() {
     let (added, _) = delta(&rule_ids(&zip), &rule_ids(&mutated));
     assert!(
         added.iter().any(|r| r == "STM_001"),
-        "gerçekten bilinmeyen sefer kodu BASTIRILDI — kaskad fazla geniş. Eklenen: {added:?}"
+        "genuinely unknown trip ID was SUPPRESSED — cascade is too broad. Added: {added:?}"
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// KATMANLI ÖRNEKLEM — Faz 2'yi kararla kapatmak için (2026-08-16)
+// STRATIFIED SAMPLING — close Phase 2 by decision (2026-08-16)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Buraya kadar ölçülen 35 kural RASTGELE DEĞİLDİ: bilerek en şüphelilerden seçilmişti
-// (sıkılaştırılmış predikatlar, onarılmış yutma sınıfı, bilinen bastırma belirsizliği).
-// O yanlılık "sıfır bozuk predikat" sonucunu KALANA TAŞIMAZ.
+// The 35 rules measured so far were NOT RANDOM: they were deliberately chosen from the most
+// suspicious (tightened predicates, repaired swallowing class, known suppression uncertainty).
+// That bias does not transfer the "zero broken predicates" result to the REMAINDER.
 //
-// Bu blok kalan üç kovadan (SELECTION_BIAS 66 · CROSS_FILE 27 · THIN_FEATURE 28 — hepsi
-// Kritik∧Spec) kova başına 4 kural, TOHUMU SABİT rastgele örneklemle seçilmiştir:
+// This block selects 4 rules per bucket from the three remaining buckets
+// (SELECTION_BIAS 66 · CROSS_FILE 27 · THIN_FEATURE 28 — all Critical∧Spec), using a
+// FIXED-SEED random sample:
 //     random.Random(20260816).sample(sorted(pool), 4)
-// Amaç kalanı tüketmek değil, "sıfır bozuk" sonucunun genelleşip genelleşmediğini sınamak.
+// The goal is not to exhaust the remainder, but to test whether the "zero broken" result
+// generalizes.
 
-const SEL_PATH_FEED: &str = "mdb-3357"; // pathways 7388 satır
-const SEL_ST_FEED: &str = "mdb-1903"; // stop_times, hedefler taban çizgisinde 0
-const XREF_FEED: &str = "mdb-892"; // stop_areas + route_networks + fare_* tek feed'de
-const RCT_FEED: &str = "mdb-1246"; // rider_categories 3 satır
-const TFR_TIME_FEED: &str = "mdb-2143"; // timeframes (korpustaki TEK feed) + dolu fare_leg_rules
-const TRF_TRIP_FEED: &str = "mdb-2919"; // transfers'ta from/to_trip_id DOLU (1614 satır)
+const SEL_PATH_FEED: &str = "mdb-3357"; // pathways, 7388 rows
+const SEL_ST_FEED: &str = "mdb-1903"; // stop_times, targets are 0 in the baseline
+const XREF_FEED: &str = "mdb-892"; // stop_areas + route_networks + fare_* in one feed
+const RCT_FEED: &str = "mdb-1246"; // rider_categories, 3 rows
+const TFR_TIME_FEED: &str = "mdb-2143"; // timeframes (the ONLY corpus feed) + populated fare_leg_rules
+const TRF_TRIP_FEED: &str = "mdb-2919"; // from/to_trip_id POPULATED in transfers (1614 rows)
 
-// ── SELECTION_BIAS örneklemi ─────────────────────────────────────────────────
+// ── SELECTION_BIAS sample ────────────────────────────────────────────────────
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
@@ -1587,7 +1599,7 @@ fn sample_pth_023_fires_on_a_missing_pathway_mode() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_stm_006_fires_on_a_missing_stop_id() {
-    // AÇIKLANAN yan etkiler ölçümle doldurulur; boş `stop_id` FK zincirini de kırar.
+    // EXPLAINED side effects are filled in by measurement; an empty `stop_id` also breaks the FK chain.
     mutate_field_case(
         SEL_ST_FEED,
         "stop_times.txt",
@@ -1603,9 +1615,9 @@ fn sample_stm_006_fires_on_a_missing_stop_id() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_trf_006_fires_on_an_unknown_from_trip_id() {
-    // ⚠️ FEED DEĞİŞTİ: `mdb-2848`'de `from_trip_id` SÜTUNU var ama 141.458 satırın
-    // hepsinde BOŞ. Sütunun varlığını denetleyip DOLULUĞUNU denetlememek, bu turda
-    // üçüncü kez aynı tuzak. `mdb-2919`'da 1614 satır dolu.
+    // ⚠️ FEED CHANGED: `mdb-2848` has a `from_trip_id` COLUMN, but it is EMPTY in all
+    // 141,458 rows. Checking that the column exists but not that it is POPULATED is the same
+    // trap for the third time in this round. `mdb-2919` has 1614 populated rows.
     mutate_first_populated(
         TRF_TRIP_FEED,
         "transfers.txt",
@@ -1629,14 +1641,14 @@ fn sample_trf_007_fires_on_an_unknown_to_trip_id() {
     );
 }
 
-// ── CROSS_FILE örneklemi ─────────────────────────────────────────────────────
+// ── CROSS_FILE sample ────────────────────────────────────────────────────────
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_ars_001_fires_on_a_duplicated_area_row() {
-    // ⚠️ İlk deneme `stop_areas.txt`'i mutasyona uğrattı ve `DQ_021` (genel yineleme)
-    // çıktı — `ARS_001` `areas.txt`'e bakıyor. Kural değil MUTASYON yanlıştı; kuralın
-    // adındaki "ARS" durak-alan eşlemesini değil ALAN tanımını gösteriyor.
+    // ⚠️ The first attempt mutated `stop_areas.txt` and produced `DQ_021` (generic
+    // duplication) — `ARS_001` reads `areas.txt`. The rule was not wrong; the MUTATION
+    // was. "ARS" in the rule name refers to the AREA definition, not the stop-area mapping.
     duplicate_row_case(XREF_FEED, "areas.txt", "ARS_001", &[]);
 }
 
@@ -1655,12 +1667,13 @@ fn sample_net_003_fires_on_an_unknown_route_in_route_networks() {
     );
 }
 
-// ── THIN_FEATURE örneklemi ───────────────────────────────────────────────────
+// ── THIN_FEATURE sample ──────────────────────────────────────────────────────
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_flg_005_fires_on_an_unknown_from_timeframe_group() {
-    // `mdb-892`'de sütun boş; `mdb-2143`'te 45 satır dolu (timeframes taşıyan tek feed).
+    // The column is empty in `mdb-892`; `mdb-2143` has 45 populated rows (the only feed
+    // carrying timeframes).
     mutate_first_populated(
         TFR_TIME_FEED,
         "fare_leg_rules.txt",
@@ -1702,9 +1715,9 @@ fn sample_rct_003_fires_on_an_invalid_default_flag() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_tfr_006_fires_when_a_timeframe_exceeds_24_hours() {
-    // `timeframes.txt` korpusta TEK feed'de var; küçük ama gerçek üretici verisi.
-    // AÇIKLANAN yan etki: `TFR_004` (end_time < start_time). Başlangıcı 25:00:00 yapmak
-    // pencereyi ters çevirir; doğrudan sonuç.
+    // `timeframes.txt` exists in only ONE corpus feed; it is small but real producer data.
+    // EXPLAINED side effect: `TFR_004` (end_time < start_time). Making the start 25:00:00
+    // reverses the window; this is the direct result.
     mutate_field_case(
         TFR_TIME_FEED,
         "timeframes.txt",
@@ -1717,12 +1730,12 @@ fn sample_tfr_006_fires_when_a_timeframe_exceeds_24_hours() {
     );
 }
 
-const GEOJSON_FEED: &str = "ch-odv-flex"; // locations.geojson + dolu stop_times.location_id
+const GEOJSON_FEED: &str = "ch-odv-flex"; // locations.geojson + populated stop_times.location_id
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_xfl_025_fires_on_an_unknown_location_id() {
-    // `stop_times.location_id` `locations.geojson`'daki bir feature id'sine işaret etmeli.
+    // `stop_times.location_id` must point to a feature ID in `locations.geojson`.
     mutate_first_populated(
         GEOJSON_FEED,
         "stop_times.txt",
@@ -1736,9 +1749,9 @@ fn sample_xfl_025_fires_on_an_unknown_location_id() {
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
-    // Kimlik uzayı ÇAKIŞMASI: `locations.geojson`'daki bir feature id'si `stops.txt`'teki
-    // bir `stop_id` ile aynı olamaz — `stop_times.stop_id` ve `stop_times.location_id`
-    // aynı ada iki farklı anlam yükler. Mutasyon GERÇEK bir stop_id'yi geojson'a taşır.
+    // ID-SPACE COLLISION: a feature ID in `locations.geojson` cannot equal a `stop_id` in
+    // `stops.txt` — `stop_times.stop_id` and `stop_times.location_id` would give two
+    // different meanings to the same name. The mutation moves a REAL stop_id into GeoJSON.
     let zip = corpus_zip(GEOJSON_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1752,8 +1765,8 @@ fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
     let victim = split_csv_line(first_data_line(&stops))[si].clone();
 
     let mutated = rewrite_member(&zip, "locations.geojson", move |t| {
-        // İlk feature'ın "id" alanını gerçek bir stop_id ile değiştir. JSON'u yeniden
-        // biçimlendirmemek için hedefli metin değişimi yapılır; ilk `"id":` yeterli.
+        // Replace the first feature's "id" field with a real stop_id. Use targeted text
+        // replacement to avoid reformatting JSON; the first `"id":` is sufficient.
         let key = "\"id\"";
         let i = t.find(key).expect("geojson'da \"id\" alanı yok");
         let q1 = t[i + key.len()..].find('"').expect("id değeri yok") + i + key.len() + 1;
@@ -1766,15 +1779,15 @@ fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Faz 3.1 — yoğunlaşma triyajının bulduğu iki ATIF kusuru
+// Phase 3.1 — two ATTRIBUTION defects found by concentration triage
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn trn_002_still_fires_when_the_table_is_known_but_the_field_is_not() {
-    // AŞIRI-BASTIRMA KORUMASI. `TRN_002` artık tablo BİLİNMİYORSA susuyor (kök `TRN_001`
-    // zaten raporlanıyor ve "bu alan bu tablo için geçerli mi" sorusu cevapsız). Bu daralt-
-    // manın geçerli vakayı yutmadığını kanıtlamak şart: tablo GEÇERLİ, alan geçersiz.
+    // OVER-SUPPRESSION GUARD. `TRN_002` now stays silent when the table is UNKNOWN (root
+    // `TRN_001` is already reported and "does this field apply to this table?" is unanswered).
+    // Prove that this narrowing does not swallow the valid case: the table is VALID, the field invalid.
     let zip = corpus_zip(TRN_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1786,17 +1799,17 @@ fn trn_002_still_fires_when_the_table_is_known_but_the_field_is_not() {
         set_field(&t, "field_name", 1, "boyle_bir_alan_yok")
     });
     let (added, removed) = delta(&before, &rule_ids(&mutated));
-    // AÇIKLANAN yan etki: `TRN_011` ("field_name çevrilebilir değil") — geçersiz bir alan
-    // adı, o alan için çeviri kaydını da anlamsız kılar. Doğrudan sonuç.
+    // EXPLAINED side effect: `TRN_011` ("field_name is not translatable") — an invalid field
+    // name also makes the translation record for that field meaningless. Direct result.
     assert_delta_both(&added, &removed, "TRN_002", &["TRN_011"], &[]);
 }
 
 #[test]
 #[ignore = "gerçek korpus feed'i gerektirir"]
 fn trf_016_still_fires_on_a_duplicate_that_carries_trip_context() {
-    // AŞIRI-BASTIRMA KORUMASI. `TRF_016` artık trip/route bağlamı OLMAYAN satırları
-    // atlıyor (onlar `TRF_012`'nin alanı — iki kartın da yazdığı ayrım). Bağlam TAŞIYAN
-    // yineleme hâlâ görünmeli.
+    // OVER-SUPPRESSION GUARD. `TRF_016` now skips rows WITHOUT trip/route context (those
+    // belong to `TRF_012` — the distinction both cards documented). A duplicate WITH context
+    // must remain visible.
     let zip = corpus_zip(TRF_TRIP_FEED);
     let before = rule_ids(&zip);
     assert!(
@@ -1815,6 +1828,6 @@ fn trf_016_still_fires_on_a_duplicate_that_carries_trip_context() {
         append_line(&t, &dup)
     });
     let (added, removed) = delta(&before, &rule_ids(&mutated));
-    // Bağlamlı yinelemede TRF_012 ateşlemez (onun şartı bağlamın BOŞ olması).
+    // `TRF_012` does not fire for a contextual duplicate (its condition is an EMPTY context).
     assert_delta_both(&added, &removed, "TRF_016", &["TRF_012"], &[]);
 }
