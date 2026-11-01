@@ -3653,10 +3653,10 @@ fn check_polygon_rings(
         }
     }
 
-    // Pa1fdaa0d: DIŞ ring'i biriktir. Delikler tutulmaz — örtüşme kararı için dış sınır
-    // yeterli ve deliği hesaba katmamak yalnız "daha kapsayıcı" davranmak demek olurdu;
-    // bu bir YASAK hükmü olduğu için o yön güvenli DEĞİL, o yüzden K6 tarafında karar
-    // kesişme/kapsama ile ayrıca doğrulanır.
+    // Pa1fdaa0d: accumulate the OUTER ring. Holes are not retained — the outer boundary is
+    // sufficient for the overlap decision, and ignoring holes would make the decision merely
+    // "more inclusive"; because this is a PROHIBITION, that direction is NOT SAFE, so K6 also
+    // verifies the decision by intersection/containment.
     if let (Some(g), Some(outer)) = (collect, all_rings.first()) {
         for &(x, y) in outer {
             g.bbox.0 = g.bbox.0.min(x);
@@ -3669,15 +3669,16 @@ fn check_polygon_rings(
     structurally_valid && all_rings.first().is_some_and(|ring| ring.len() >= 4)
 }
 
-/// İki doğru parçası KESİŞİYOR mu (uç nokta paylaşımı ve teğetlik hariç).
+/// Do two line segments CROSS (excluding shared endpoints and tangency)?
 ///
-/// ⚠️ `robust::orient2d` ZORUNLU. 2026-08-06 ölçümü: naif `f64` determinantıyla aynı 21
-/// poligonda sonuç epsilon seçimine göre 5↔17 arası oynuyor ve monoton bile değil.
+/// ⚠️ `robust::orient2d` is REQUIRED. A 2026-08-06 measurement found that the naive `f64`
+/// determinant varied from 5↔17 on the same 21 polygons depending on epsilon, and was not even
+/// monotonic.
 ///
-/// ⚠️ Dört yönelimin de SIFIR OLMAMASI şart koşulur, yani **doğrusal (collinear) örtüşme
-/// kesişme SAYILMAZ**. Bu bilinçli: OpenGIS 6.1.11 ring'lerin bir NOKTADA teğet olmasına
-/// izin verir. Ama bunun bedeli, doğrusal örtüşmeden doğan "spike/cut line" ihlallerinin
-/// buradan geçmesidir → `has_spike` onları ayrıca yakalar.
+/// ⚠️ All four orientations must be NONZERO, so **collinear overlap does NOT COUNT as a CROSS**.
+/// This is deliberate: OpenGIS 6.1.11 permits rings to be tangent at ONE POINT. The cost is that
+/// "spike/cut line" violations caused by collinear overlap pass here → `has_spike` catches them
+/// separately.
 pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
     let o = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
         let v = robust::orient2d(
@@ -3697,8 +3698,8 @@ pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f6
     o1 != o2 && o3 != o4 && o1 != 0 && o2 != 0 && o3 != 0 && o4 != 0
 }
 
-/// Ring'in bounding box'ı — ring çiftlerini karşılaştırmadan önce ucuz eleme.
-/// O(n·m) kesişim taramasını, kutuları ayrık olan çiftlerde hiç başlatmamak için.
+/// Ring bounding box — cheap pre-filter before comparing ring pairs.
+/// Avoid starting the O(n·m) intersection scan for pairs with disjoint boxes.
 fn ring_bbox(pts: &[(f64, f64)]) -> (f64, f64, f64, f64) {
     let mut b = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
     for &(x, y) in pts {
@@ -3714,9 +3715,9 @@ fn bboxes_disjoint(a: (f64, f64, f64, f64), b: (f64, f64, f64, f64)) -> bool {
     a.2 < b.0 || b.2 < a.0 || a.3 < b.1 || b.3 < a.1
 }
 
-/// İKİ RING BİRBİRİNİ KESİYOR mu (OpenGIS 6.1.11: *"No two Rings in the boundary cross"*).
-/// 2026-08-06 dış denetimi bu maddenin hiç ölçülmediğini gösterdi — `LOC_011` yalnız her
-/// ring'in KENDİ basitliğine ve deliğin İLK NOKTASININ kapsanmasına bakıyordu.
+/// Do TWO RINGS CROSS (OpenGIS 6.1.11: *"No two Rings in the boundary cross"*)?
+/// The 2026-08-06 audit showed this was not measured — `LOC_011` checked only each ring's OWN
+/// simplicity and containment of the hole's FIRST POINT.
 fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
     if r1.len() < 2 || r2.len() < 2 {
         return false;
@@ -3734,25 +3735,25 @@ fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
     false
 }
 
-/// İki ring KAÇ NOKTADA dokunuyor (temas noktası sayısı).
+/// At HOW MANY POINTS do two rings touch (number of contact points)?
 ///
-/// OpenGIS SFS 6.1.11 madde 3 ring'lerin **bir noktada** teğet olmasına izin verir; madde 5
-/// ise iç kısmın BAĞLANTILI olmasını ister. Sayı tek başına karar vermez — kararı
-/// [`interior_disconnection`] çevrim ölçütüyle verir.
+/// OpenGIS SFS 6.1.11 item 3 permits rings to be tangent at **one point**; item 5 requires the
+/// interior to be CONNECTED. The count does not decide by itself — [`interior_disconnection`]
+/// applies the cycle criterion.
 fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
     if bboxes_disjoint(ring_bbox(a), ring_bbox(b)) {
         return 0;
     }
-    // Temas iki biçimde olur ve İKİSİ de sayılmalı:
-    //   (1) ortak KÖŞE — iki ring aynı koordinatı yazar
-    //   (2) bir ring'in köşesi diğerinin KENARI üzerinde — köşe paylaşımı yok ama
-    //       geometrik temas var. İlk uygulamam yalnız (1)'i sayıyordu ve kendi testim
-    //       düştü: delik kabuğa (0,3)/(0,7) ile dokunuyordu, ikisi de kabuğun köşesi
-    //       değildi. Yalnız köşe saymak iddia edilenden DAR bir denetim olurdu.
+    // There are two forms of contact and BOTH must count:
+    //   (1) shared VERTEX — both rings write the same coordinate
+    //   (2) a vertex of one ring lies on the EDGE of the other — no shared vertex but there is
+    //       geometric contact. My first implementation counted only (1) and its own test failed:
+    //       the hole touched the shell at (0,3)/(0,7), neither of which was a shell vertex.
+    //       Counting only vertices would be a narrower check than claimed.
     //
-    // ⚠️ Koordinatlar TAM eşitlikle karşılaştırılır; kenar üzerindelik `robust::orient2d`
-    // ile SIFIR yönelim + aralık kontrolüdür. Epsilon toleransı yakın ama ayrı köşeleri
-    // temas sayar ve yanlış pozitif üretirdi.
+    // ⚠️ Compare coordinates by EXACT equality; point-on-edge uses `robust::orient2d` with ZERO
+    // orientation plus a range check. Epsilon tolerance would count nearby but distinct vertices
+    // as touching and produce false positives.
     let touches = |p: (f64, f64), ring: &[(f64, f64)]| -> bool {
         if ring.contains(&p) {
             return true;
@@ -3773,10 +3774,10 @@ fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
     seen.len()
 }
 
-/// `p` noktası `s`–`e` doğru parçası ÜZERİNDE mi.
+/// Is point `p` ON segment `s`–`e`?
 ///
-/// ⚠️ Yönelim `robust::orient2d` ile SIFIR aranarak karara bağlanır, epsilon toleransıyla
-/// DEĞİL: tolerans yakın ama AYRI köşeleri temas sayar ve yanlış pozitif üretir.
+/// ⚠️ Decide using ZERO orientation from `robust::orient2d`, NOT epsilon tolerance: tolerance
+/// counts nearby but DISTINCT vertices as touching and produces false positives.
 fn point_on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
     if robust::orient2d(
         robust::Coord { x: s.0, y: s.1 },
@@ -3789,28 +3790,27 @@ fn point_on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
     p.0 >= s.0.min(e.0) && p.0 <= s.0.max(e.0) && p.1 >= s.1.min(e.1) && p.1 <= s.1.max(e.1)
 }
 
-/// Ring KENDİNE dokunuyor mu — temas grafiğinde ÖZ-DÖNGÜ.
+/// Does the ring touch ITSELF — a SELF-LOOP in the contact graph?
 ///
-/// `ring_is_simple` yalnız KESİŞMEYE bakar ve teğetliği bilinçli olarak dışarıda bırakır
-/// (`segments_cross` dört yönelimin de sıfır olmamasını şart koşar). Bu yüzden sekiz
-/// şeklinde bir ring — aynı köşeye iki kez uğrayan ya da bir köşesi kendi uzak kenarının
-/// üstüne düşen ring — oradan geçiyordu. Böyle bir ring'in İÇİ iki loba ayrılır, yani
-/// 6.1.11 madde 5 ihlalidir.
+/// `ring_is_simple` checks only CROSSING and deliberately excludes tangency
+/// (`segments_cross` requires all four orientations to be nonzero). Thus a figure-eight ring —
+/// one that visits the same vertex twice or has a vertex on its own distant edge — passed through.
+/// Such a ring's INTERIOR splits into two lobes, violating item 5 of 6.1.11.
 ///
-/// ⚠️ KOMŞU indeksler bilinçle atlanır: ardışık yinelenen koordinat (sıfır uzunluklu
-/// kenar) ve düz kenar üzerindeki ara köşeler gerçek veride yaygındır ve öz-temas
-/// DEĞİLDİR; onları saymak yanlış pozitif üretirdi. Sıfır alanlı geri dönüş `has_spike`in
-/// işidir.
+/// ⚠️ ADJACENT indices are deliberately skipped: consecutive duplicate coordinates (zero-length
+/// edges) and intermediate vertices on straight edges are common in real data and are NOT
+/// self-contacts; counting them would produce false positives. Zero-area reversals are
+/// `has_spike`'s job.
 ///
-/// 🔴 ÖLÇÜM DERSİ (2026-08-07): ilk sürüm yalnız |i−j| ≤ 1 atlıyordu ve korpustaki
-/// `locations.geojson` taşıyan 6 feed'in ÜÇÜNDE yanlış pozitif verdi — aynı koordinat
-/// ARDIŞIK ÜÇ kez yazılmıştı (mdb-2045'te 84 köşe böyle), 189 ile 191 "komşu değil"
-/// sayılıyordu. Ring artık önce ardışık yinelemelerden ARINDIRILIR; komşuluk kararı
-/// arındırılmış diziye göre verilir. Tahminle yazılan koruyucu gerçek veride düştü.
+/// 🔴 MEASUREMENT LESSON (2026-08-07): the first version skipped only |i−j| ≤ 1 and produced
+/// false positives in THREE of the 6 corpus feeds carrying `locations.geojson` — the same
+/// coordinate was written THREE times consecutively (84 vertices in mdb-2045), so 189 and 191
+/// were considered "not adjacent". The ring is now CLEANED of consecutive repeats first; adjacency
+/// is decided on the cleaned sequence. The protection written by guess failed on real data.
 fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
-    // Ardışık yinelenen köşeleri (çevrimsel olarak, kapanış noktası dahil) at.
+    // Remove consecutive duplicate vertices (cyclically, including the closing point).
     let mut pts: Vec<(f64, f64)> = {
-        let body = &pts[..pts.len().saturating_sub(1)]; // kapanış kopyası
+        let body = &pts[..pts.len().saturating_sub(1)]; // closing copy
         let mut out: Vec<(f64, f64)> = Vec::with_capacity(body.len());
         for &p in body {
             if out.last() != Some(&p) {
@@ -3822,7 +3822,7 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
         }
         out
     };
-    pts.push(*pts.first().unwrap_or(&(0.0, 0.0))); // ring'i yeniden kapat
+    pts.push(*pts.first().unwrap_or(&(0.0, 0.0))); // close the ring again
     let pts = &pts[..];
     let n = pts.len().saturating_sub(1);
     if n < 4 {
@@ -3832,7 +3832,7 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
         let d = (a + n - b) % n;
         d <= 1 || d >= n - 1
     };
-    // (1) aynı koordinat, komşu OLMAYAN iki köşede
+    // (1) the same coordinate at two NON-ADJACENT vertices
     for i in 0..n {
         for j in (i + 1)..n {
             if !adjacent(i, j) && pts[i] == pts[j] {
@@ -3840,7 +3840,7 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
             }
         }
     }
-    // (2) köşe, komşu OLMAYAN bir kenarın üzerinde (T-temas; köşe paylaşımı yok)
+    // (2) a vertex on a NON-ADJACENT edge (T-contact; no shared vertex)
     for i in 0..n {
         for j in 0..n {
             if adjacent(i, j) || adjacent(i, (j + 1) % n) {
@@ -3854,19 +3854,19 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
     false
 }
 
-/// OpenGIS SFS 6.1.11 madde 5 — *"the interior of every Polygon is a connected point set"*.
+/// OpenGIS SFS 6.1.11 item 5 — *"the interior of every Polygon is a connected point set"*.
 ///
-/// ÖLÇÜT: ring'leri düğüm, her TEMAS NOKTASINI bir kenar sayan çoklu-grafik ÇEVRİMSİZ
-/// (orman) olmalıdır. Tek bir temas iç kısmı bölmez — kıstırma noktasının etrafından
-/// dolaşılır; temaslar bir çevrim kapatır kapatmaz kapalı bir eğri doğar ve iç kısmı iki
-/// bileşene ayırır. (JTS `ConnectedInteriorTester` aynı ölçütü kullanır.)
+/// CRITERION: the multigraph whose nodes are rings and whose edges are CONTACT POINTS must be
+/// ACYCLIC (a forest). One contact does not split the interior — it can be walked around; as soon
+/// as contacts close a cycle, a closed curve forms and splits the interior into two components.
+/// (JTS `ConnectedInteriorTester` uses the same criterion.)
 ///
-/// 🔴 2026-08-07'ye kadar (issue #74) yalnız ÖZEL HÂL ölçülüyordu: "iki ring iki noktada
-/// dokunuyor" — grafik dilinde iki paralel kenar, yani en kısa çevrim. Üç ring'in ikişer
-/// ikişer birer noktada dokunarak kapattığı ÜÇGEN çevrim kaçıyordu; kart ve defter bunu
-/// kalıntı olarak yazıyordu. Ölçüt çevrime çevrilince özel hâl kendiliğinden kapsandı.
+/// 🔴 Until 2026-08-07 (issue #74), only the SPECIAL CASE was measured: "two rings touch at two
+/// points" — two parallel edges in graph terms, the shortest cycle. The TRIANGLE cycle closed by
+/// three rings touching pairwise at one point escaped; the card and ledger recorded it as a
+/// remnant. Converting the criterion to cycles covered the special case automatically.
 ///
-/// Öz-döngüler (`ring_touches_itself`) çağıran tarafta ring başına ayrıca denetlenir.
+/// Self-loops (`ring_touches_itself`) are checked separately per ring by the caller.
 struct Loc011Failure {
     observed: String,
     explanation: String,
@@ -3935,10 +3935,11 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
     None
 }
 
-/// Ring'de SPIKE / CUT LINE var mı (OpenGIS 6.1.11: *"may not have cut lines, spikes or
-/// punctures"*). Spike = ring bir doğru boyunca gidip AYNI doğru üzerinden geri dönüyor;
-/// sıfır alanlı çıkıntı. `segments_cross` bunu göremez çünkü doğrusal örtüşmede yönelimler
-/// sıfırdır ve kesişme sayılmaz. Burada ardışık üç noktanın 180° dönüşü aranır.
+/// Does the ring contain a SPIKE / CUT LINE (OpenGIS 6.1.11: *"may not have cut lines, spikes or
+/// punctures"*)? A spike means the ring follows a line and returns along the SAME line, forming
+/// a zero-area protrusion. `segments_cross` cannot see this because orientations are zero for
+/// collinear overlap and it does not count as a crossing. Here we look for a 180° turn in three
+/// consecutive points.
 fn has_spike(pts: &[(f64, f64)]) -> bool {
     let n = pts.len().saturating_sub(1);
     if n < 3 {
@@ -3952,35 +3953,36 @@ fn has_spike(pts: &[(f64, f64)]) -> bool {
             robust::Coord { x: c.0, y: c.1 },
         );
         if v != 0.0 {
-            continue; // doğrusal değil → spike olamaz
+            continue; // not collinear → cannot be a spike
         }
-        // Doğrusal: b'den a'ya ve b'den c'ye vektörler TERS yönlüyse geri dönüş var.
+        // Collinear: a reversal exists when the vectors from b to a and b to c point in OPPOSITE
+        // directions.
         let (ux, uy) = (a.0 - b.0, a.1 - b.1);
         let (vx, vy) = (c.0 - b.0, c.1 - b.1);
         if ux * vx + uy * vy > 0.0 {
-            return true; // aynı yöne bakıyorlar → b bir uçtan geri dönmüş
+            return true; // they point in the same direction → b has returned from one end
         }
     }
     false
 }
 
-/// Ring BASİT mi — yani kendisiyle kesişmiyor mu (OpenGIS 6.1.11).
+/// Is the ring SIMPLE — that is, does it not cross itself (OpenGIS 6.1.11)?
 ///
-/// ⚠️ `robust::orient2d` ZORUNLU, naif `f64` determinantı DEĞİL. 2026-08-06 ölçümü: aynı 21
-/// poligon üzerinde epsilon seçimi sonucu 5 ile 17 arasında değiştiriyor ve monoton bile
-/// değil. Adaptive-precision predikat bu kararsızlığı ortadan kaldırır.
+/// ⚠️ `robust::orient2d` is REQUIRED, not the naive `f64` determinant. A 2026-08-06
+/// measurement varied between 5 and 17 on the same 21 polygons depending on epsilon, and was
+/// not even monotonic. The adaptive-precision predicate removes this instability.
 ///
-/// Komşu segmentler ve ring'in kapanış çifti bilinçli atlanır: onlar uç nokta PAYLAŞIR,
-/// kesişme sayılmazlar.
+/// Adjacent segments and the ring's closing pair are deliberately skipped: they SHARE endpoints
+/// and do not count as crossings.
 fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
-    let n = pts.len().saturating_sub(1); // son nokta = ilk nokta
+    let n = pts.len().saturating_sub(1); // last point = first point
     if n < 4 {
         return true;
     }
     for i in 0..n {
         for j in (i + 2)..n {
             if i == 0 && j == n - 1 {
-                continue; // kapanış çifti komşudur
+                continue; // closing pair is adjacent
             }
             if segments_cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
                 return false;
@@ -3990,7 +3992,7 @@ fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
     true
 }
 
-/// Nokta ring'in içinde mi (ray casting). Delik kapsama kontrolü için.
+/// Is a point inside the ring (ray casting)? Used for hole-containment checks.
 pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
     let mut inside = false;
     let n = ring.len();
@@ -4009,16 +4011,16 @@ pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
     inside
 }
 
-/// Bir GeoJSON ring'inin işaretli alanı (km²), equirectangular izdüşümde shoelace ile.
-/// Hizmet bölgeleri küçük olduğu için ring'in kendi ortalama enlemi ölçek olarak yeterlidir;
-/// işaret ring yönünü taşır, çağıran mutlak değeri alır.
+/// Signed area (km²) of a GeoJSON ring, using shoelace on an equirectangular projection.
+/// Because service regions are small, the ring's own mean latitude is sufficient for scaling;
+/// the sign carries ring orientation, and the caller takes the absolute value.
 fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
     if pts.len() < 3 {
         return 0.0;
     }
     let lat0 = pts.iter().map(|p| p.1).sum::<f64>() / pts.len() as f64;
-    let kx = 111.320 * lat0.to_radians().cos(); // 1° boylam → km
-    let ky = 110.574; // 1° enlem   → km
+    let kx = 111.320 * lat0.to_radians().cos(); // 1° longitude → km
+    let ky = 110.574; // 1° latitude → km
     let mut sum = 0.0;
     for i in 0..pts.len() {
         let (x1, y1) = (pts[i].0 * kx, pts[i].1 * ky);
@@ -4031,19 +4033,19 @@ fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
     sum / 2.0
 }
 
-// ── Testler ───────────────────────────────────────────────────────────────────
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Notice üretimi notice_factory'ye taşındıktan sonra get_rule yalnız burada
-    // (all_notices_have_valid_rule_ids) kullanılıyor.
+    // After Notice creation moved to notice_factory, get_rule is used only here
+    // (all_notices_have_valid_rule_ids).
     use gtfs_rules::get_rule;
     use std::io::Write;
     use zip::write::SimpleFileOptions;
 
-    /// Testler ARC_022 eşiğiyle ilgilenmez; VARSAYILAN config ile çağırır. Glob import'u
-    /// gölgeler, böylece #71'in imza değişikliği 40+ çağrıyı ellemedi.
+    /// Tests do not concern themselves with the ARC_022 threshold; call with the DEFAULT config.
+    /// This glob import shadows it, so the signature change in #71 did not touch 40+ calls.
     fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         super::parse(zip_bytes, &ValidatorConfig::default())
     }
