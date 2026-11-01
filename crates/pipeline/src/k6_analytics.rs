@@ -10013,7 +10013,7 @@ fn check_shp022<'a>(
                     continue;
                 }
 
-                // Cluster sayısını bul (art arda gelmeyen arc grupları)
+                // Find the number of clusters (non-consecutive arc groups).
                 close_arcs.sort_by(|a, b| a.total_cmp(b));
                 let mut clusters = 1usize;
                 let mut prev = close_arcs[0];
@@ -10028,7 +10028,7 @@ fn check_shp022<'a>(
                 }
 
                 shp022_seen.insert((shape_id, stop_id));
-                // Stop başına yalnız en küçük (st.line, shape_id) temsilciyi tut (dedup eşdeğeri).
+                // Keep only the smallest (st.line, shape_id) representative per stop (dedup-equivalent).
                 let best_key = (st.line as u64, shape_id);
                 if shp022_best
                     .get(stop_id)
@@ -10062,15 +10062,15 @@ fn check_shp022<'a>(
                 shp022_best.insert(stop_id, (best_key, notice));
             }
         }
-        // Buffer'ı boşalt: stop başına tek (deterministik) temsilci. Sıra önemsiz (K6 renumber
-        // + K7 dedup sonradan kanonik sıralar).
+        // Flush the buffer: one (deterministic) representative per stop. Order is irrelevant
+        // (K6 renumbering + K7 dedup canonicalizes it later).
         for (_stop, (_key, notice)) in shp022_best {
             notices.push(notice);
         }
     }
 }
 
-/// İki 2D çizgi segmentinin kesişip kesişmediğini kontrol eder (çapraz çarpım yöntemi).
+/// Check whether two 2D line segments intersect (cross-product method).
 fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
     let cross = |o: (f64, f64), p: (f64, f64), q: (f64, f64)| -> f64 {
         (p.0 - o.0) * (q.1 - o.1) - (p.1 - o.1) * (q.0 - o.0)
@@ -10085,8 +10085,8 @@ fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) ->
     false
 }
 
-/// Paketlenmiş YYYYMMDD → Julian Day Number. Formül `k5_derived::ymd_to_jdn`'de;
-/// burada yalnızca u32 açma + geçersiz tarih (0 bileşen) koruması var.
+/// Packed YYYYMMDD → Julian Day Number. The formula is in `k5_derived::ymd_to_jdn`;
+/// here we only unpack u32 and guard invalid dates (a zero component).
 pub(crate) fn yyyymmdd_to_jdn(yyyymmdd: u32) -> u32 {
     let y = yyyymmdd / 10000;
     let m = (yyyymmdd / 100) % 100;
@@ -10104,29 +10104,29 @@ fn format_hms(total_secs: u32) -> String {
     format!("{h:02}:{m:02}:{s:02}")
 }
 
-// ── Bağlı sefer devamlılıkları (TRF_022 / TRF_023) ───────────────────────────
+// ── Linked trip continuations (TRF_022 / TRF_023) ───────────────────────────
 //
-// GTFS Reference, `transfers.txt` → "Linked trips" bölümü (`transfer_type=4` ve `=5`):
+// GTFS Reference, `transfers.txt` → "Linked trips" section (`transfer_type=4` and `=5`):
 //   • "In a 1-to-n continuation, the trips.service_id for each to_trip_id MUST be identical."
 //   • "In an n-to-1 continuation, the trips.service_id for each from_trip_id MUST be identical."
 //   • "Trips may be linked together as part of multiple distinct continuations, provided that
 //      the trip.service_id MUST NOT overlap on any day of service."
 //
-// ⚠️ ÜÇÜNCÜ CÜMLE İLK İKİSİNİ SINIRLAR — harfiyen uygulamak YANLIŞ POZİTİF üretir.
-// "Hepsi özdeş olmalı" kuralını düz uygularsak, spec'in AÇIKÇA İZİN VERDİĞİ durumu
-// reddederiz: aynı sefer hafta içi A'ya, cumartesi B'ye devam edebilir (iki AYRI
-// devamlılık, farklı `service_id`, çakışan gün YOK). Bu tam olarak `PTH_017` hatasının
-// biçimi olurdu — spec'in iznini norm sanmak.
+// ⚠️ THE THIRD SENTENCE LIMITS THE FIRST TWO — applying them literally produces FALSE POSITIVES.
+// If we apply "all of them must be identical" directly, we reject a case the spec EXPLICITLY
+// ALLOWS: the same trip may continue to A on weekdays and B on Saturdays (two SEPARATE
+// continuations, different `service_id`, NO overlapping days). That would be exactly the
+// `PTH_017` failure mode — treating a spec permission as a requirement.
 //
-// Veride bir satırın hangi devamlılığa ait olduğunu söyleyen alan YOKTUR; gruplama
-// örtüktür. Bu yüzden uygulanabilir TEK okuma ikisinin BİLEŞİMİdir:
+// The data has NO field saying which continuation a row belongs to; grouping is implicit.
+// Therefore the only workable reading is the COMBINATION of both:
 //
-//     ihlal = iki ortak seferin `service_id`'si FARKLI **ve** en az bir hizmet gününde
-//             AYNI ANDA aktif
+//     violation = the two shared trips have DIFFERENT `service_id` values **and** are active
+//                 AT THE SAME TIME on at least one service day
 //
-// Bu, gerçek 1-to-n ayrımını (özdeş `service_id` → sessiz) ve ayrı devamlılıkları
-// (çakışmayan günler → sessiz) doğru bırakır; yalnız belirsiz kalan hâli bildirir:
-// o gün sefer İKİ farklı devamlılığa birden girer ve tüketici hangisini seçeceğini bilemez.
+// This preserves genuine 1-to-n splits (identical `service_id` → silent) and separate
+// continuations (non-overlapping days → silent); it reports only the ambiguous case:
+// on that day the trip belongs to TWO different continuations and the consumer cannot know which to choose.
 
 fn check_linked_trip_continuations(
     records: &EntityRecords,
@@ -10146,9 +10146,9 @@ fn check_linked_trip_continuations(
         return;
     }
 
-    // transfer_type 4/5 = bağlı sefer. Eksik trip_id → TRF_013'ün alanı; tanımsız trip_id →
-    // TRF_006/007'nin alanı; from==to → TRF_018'in alanı. Üçü de burada sessizce elenir,
-    // yoksa aynı bozukluk iki kez raporlanır.
+    // transfer_type 4/5 = linked trip. Missing trip_id → TRF_013's domain; undefined trip_id →
+    // TRF_006/007's domain; from==to → TRF_018's domain. All three are silently excluded here,
+    // otherwise the same defect is reported twice.
     let mut by_from: HashMap<&str, Vec<(&str, u64)>> = HashMap::new();
     let mut by_to: HashMap<&str, Vec<(&str, u64)>> = HashMap::new();
     for trf in &records.transfers {
@@ -10166,11 +10166,11 @@ fn check_linked_trip_continuations(
     }
 
     let active = &derived.calendar_bitmap.active_dates;
-    // Bir grubun içindeki İLK çelişkiyi döndürür: (seferA, servisA, seferB, servisB, ortak gün,
-    // satır). Grup başına tek notice yeter — aynı belirsizliğin her çiftini saymak gürültüdür.
+    // Return the FIRST contradiction in a group: (tripA, serviceA, tripB, serviceB, shared day,
+    // row). One notice per group is enough — counting every pair for the same ambiguity is noise.
     let first_conflict =
         |partners: &[(&str, u64)]| -> Option<(String, String, String, String, u32, u64)> {
-            // Servis başına İLK sefer (trip_id'ye göre sıralı) → çıktı deterministik.
+            // FIRST trip per service (sorted by trip_id) → deterministic output.
             let mut sorted: Vec<(&str, u64)> = partners.to_vec();
             sorted.sort_unstable();
             sorted.dedup_by_key(|(t, _)| *t);
@@ -10188,9 +10188,9 @@ fn check_linked_trip_continuations(
                 for j in (i + 1)..per_service.len() {
                     let (svc_a, trip_a, _) = per_service[i];
                     let (svc_b, trip_b, line_b) = per_service[j];
-                    // Takvim çözülemiyorsa (calendar/calendar_dates eksik ya da hatalı) çakışma
-                    // KANITLANAMAZ → sessiz kal. Boş küme "çakışma yok" demektir, "bilmiyorum" değil,
-                    // ama ikisinde de bildirecek bir şey yok.
+                    // If the calendar cannot be resolved (calendar/calendar_dates missing or invalid), the conflict
+                    // is UNPROVABLE → stay silent. An empty set means "no conflict", not "I don't know",
+                    // but neither case has anything to report.
                     let (Some(days_a), Some(days_b)) = (active.get(svc_a), active.get(svc_b))
                     else {
                         continue;
@@ -10215,7 +10215,7 @@ fn check_linked_trip_continuations(
             None
         };
 
-    // HashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
+    // HashMap traversal order is nondeterministic → sort the keys.
     let mut from_keys: Vec<&str> = by_from.keys().copied().collect();
     from_keys.sort_unstable();
     for trip in from_keys {
@@ -10281,7 +10281,7 @@ fn check_calendar_override_analytics(
 ) {
     use crate::timing::Timer;
     let ti_cal_ov = &records.trip_interns;
-    // ── route_id → service_id kümesi ─────────────────────────────────────────
+    // ── route_id → service_id set ─────────────────────────────────────────────
     let mut route_services: HashMap<&str, Vec<&str>> = HashMap::new();
     for trip in &records.trips {
         if !ti_cal_ov.route_id(trip).is_empty() && !ti_cal_ov.service_id(trip).is_empty() {
@@ -10291,17 +10291,17 @@ fn check_calendar_override_analytics(
                 .push(ti_cal_ov.service_id(trip));
         }
     }
-    // Servis listelerini sırala ve dedup et
+    // Sort and deduplicate service lists.
     for svcs in route_services.values_mut() {
         svcs.sort_unstable();
         svcs.dedup();
     }
 
-    // ── calendar_dates'te exception kaydı olan (service_id → tarih üyelik) ──
-    // OPR_020: conflict günü, bu tabloda herhangi bir çakışan servis varsa HIGH.
-    // CalendarDateIndex.added / .removed zaten parse anında sort_unstable yapılmış;
-    // binary_search ile O(log n) üyelik sorgusu — ayrı svc_date_exc map'i YOK.
-    // has_exc helper: serviste belirtilen tarih için herhangi bir exception (type 1 veya 2) var mı?
+    // ── Services with calendar_dates exceptions (service_id → date membership) ──
+    // OPR_020: HIGH on a conflict day if any conflicting service appears in this table.
+    // CalendarDateIndex.added / .removed are already sorted with sort_unstable during parsing;
+    // binary_search provides O(log n) membership queries — NO separate svc_date_exc map.
+    // has_exc helper: does the service have any exception (type 1 or 2) for the given date?
     let has_exc_date = |svc: &str, date: u32| -> bool {
         records
             .calendar_dates
@@ -10315,25 +10315,24 @@ fn check_calendar_override_analytics(
                 .is_some_and(|v| v.binary_search(&date).is_ok())
     };
 
-    // ── Operasyonel sefer kimliği (OPR_019/OPR_020 çakışma tanımı) ──────────
+    // ── Operational trip identity (OPR_019/OPR_020 conflict definition) ──────────
     //
-    // Bir route'ta aynı gün ≥2 servisin aktif olması TEK BAŞINA çakışma DEĞİLDİR. Zıt
-    // yönlerde çalışan iki tren (Ankara→Kurtalan 22014 ile Kurtalan→Ankara 52013) ayrı
-    // service_id kullanır; aynı rotada ek sefer olarak tanımlanmış farklı tren numaraları
-    // da meşrudur. Eski tanım (route_id + tarih + ≥2 service_id) bunların hepsini çakışma
-    // sayıyordu.
+    // Having ≥2 services active on the same day for a route is NOT a conflict BY ITSELF. Two
+    // trains in opposite directions (Ankara→Kurtalan 22014 and Kurtalan→Ankara 52013) use
+    // separate service_id values; different train numbers defined as extra trips on the same route
+    // are also legitimate. The old definition (route_id + date + ≥2 service_id) counted all of these as conflicts.
     //
-    // Gerçek çakışma: AYNI operasyonel seferin o gün iki servisten birden aktif olması —
-    // yani base takvim ile override takviminin ikisi de aynı seferi üretmesi. Sefer kimliği
-    // = yön + tren adı (trip_short_name) + ilk kalkış saati + sıralı durak dizisi.
+    // A real conflict: the SAME operational trip is active from two services on that day —
+    // that is, both the base calendar and an override calendar produce the same trip. Trip identity
+    // = direction + train name (trip_short_name) + first departure time + ordered stop sequence.
     //
-    // Perf: imzalar yalnız ≥2 servisli route'lar için hesaplanır.
+    // Perf: signatures are computed only for routes with ≥2 services.
     let multi_svc_routes: FxHashSet<&str> = route_services
         .iter()
         .filter(|(_, svcs)| svcs.len() >= 2)
         .map(|(&r, _)| r)
         .collect();
-    // route_id → (service_id → o servisin operasyonel sefer imzaları)
+    // route_id → (service_id → that service's operational trip signatures)
     let mut route_svc_sigs: HashMap<&str, HashMap<&str, FxHashSet<u64>>> = HashMap::new();
     if !multi_svc_routes.is_empty() {
         use std::hash::{Hash, Hasher};
@@ -10372,7 +10371,7 @@ fn check_calendar_override_analytics(
                 .insert(h.finish());
         }
     }
-    // Bir günde aktif servisler arasında AYNI imzayı paylaşan var mı?
+    // Do any services active on one day share the SAME signature?
     let day_has_conflict = |route_id: &str, svcs: &[&str]| -> bool {
         let Some(svc_sigs) = route_svc_sigs.get(route_id) else {
             return false;
@@ -10391,12 +10390,12 @@ fn check_calendar_override_analytics(
         false
     };
 
-    // ── OPR_019 / OPR_020: config gerektirmeyen çakışma analizi ─────────────
+    // ── OPR_019 / OPR_020: conflict analysis without config ─────────────
     let mut date_services: HashMap<u32, Vec<&str>> = HashMap::new();
 
     for (&route_id, service_ids) in &route_services {
         if service_ids.len() < 2 {
-            // Tek servis → çakışma mümkün değil
+            // One service → no conflict possible.
             continue;
         }
 
@@ -10409,9 +10408,9 @@ fn check_calendar_override_analytics(
             }
         }
 
-        // Çakışmalı günleri sırala
-        let mut plain_dates: Vec<u32> = Vec::new(); // exception yok
-        let mut exc_dates: Vec<u32> = Vec::new(); // en az bir servis exception günü
+        // Sort conflict days.
+        let mut plain_dates: Vec<u32> = Vec::new(); // no exception
+        let mut exc_dates: Vec<u32> = Vec::new(); // day with an exception for at least one service
         let mut plain_patterns: Vec<String> = Vec::new();
         let mut exc_patterns: Vec<String> = Vec::new();
 
@@ -10419,7 +10418,7 @@ fn check_calendar_override_analytics(
             if svcs.len() < 2 {
                 continue;
             }
-            // Aynı operasyonel sefer iki servisten birden aktif değilse çakışma yok.
+            // If the same operational trip is not active from more than one service, there is no conflict.
             if !day_has_conflict(route_id, svcs) {
                 continue;
             }
@@ -10486,9 +10485,9 @@ fn check_calendar_override_analytics(
             exc_dates.sort_unstable();
             let count = exc_dates.len();
             let patterns_str = summarize_patterns(&exc_patterns);
-            // Her örnek tarihin yanında o tarihte çakışan service_id'leri göster:
-            // "20260720 (X, Y)". Dil-nötr (yalnız tarih + service_id'ler) tutulur ki
-            // tr mesajı ve en/ja şablonu aynı stringi güvenle kullanabilsin.
+            // Show the conflicting service_id values next to each example date:
+            // "20260720 (X, Y)". Keep this language-neutral (date + service_id values only) so
+            // the Turkish message and the en/ja templates can safely use the same string.
             let sample_detail: String = exc_dates
                 .iter()
                 .take(3)
@@ -10579,7 +10578,7 @@ fn check_calendar_override_analytics(
                 (true, true) => dates_021.push(date),
                 (true, false) => dates_022.push(date),
                 (false, false) => dates_023.push(date),
-                (false, true) => {} // doğru: base kaldırılmış, override eklenmiş
+                (false, true) => {} // correct: base removed, override added
             }
         }
 
@@ -10666,7 +10665,7 @@ fn check_calendar_override_analytics(
         }
     }
 
-    // ── OPR_004: hatta hafta sonu sefer yok ──────────────────────────────────
+    // ── OPR_004: no weekend trips on a route ─────────────────────────────────
     if !derived.calendar_bitmap.active_dates.is_empty() {
         let _t04 = Timer::start("K6::rem::opr_004");
         let route_short_o4: FxHashMap<&str, &str> = records
@@ -10713,7 +10712,7 @@ fn check_calendar_override_analytics(
                     format!("'{label}' kodlu hattın aktif servislerinde hafta sonu (Cumartesi/Pazar) günü yok."),
                     "Bu bilgi notudur; aksiyon gerekmez.",
                 );
-                // en/ja/fr şablonları `{route_label}` ile doldurulur.
+                // The en/ja/fr templates are filled with `{route_label}`.
                 let details = notice.details.get_or_insert_with(Default::default);
                 details.insert("route_label".to_string(), label.to_string());
                 notices.push(notice);
@@ -10721,7 +10720,7 @@ fn check_calendar_override_analytics(
         }
     }
 
-    // ── OPR_012: servis döneminde büyük boşluk ───────────────────────────────
+    // ── OPR_012: large gap in the service period ────────────────────────────
     {
         let _t12 = Timer::start("K6::rem::opr_012");
         let gap_threshold = config.service_gap_days;
@@ -10744,7 +10743,7 @@ fn check_calendar_override_analytics(
             let mut gap_start = 0u32;
             let mut gap_end = 0u32;
             for w in sorted.windows(2) {
-                // CAL_007 ile aynı sayım: iki tarih arasındaki eksik günler (dışlayıcı)
+                // Same counting as CAL_007: missing days between two dates (exclusive).
                 let d = yyyymmdd_to_jdn(w[1])
                     .saturating_sub(yyyymmdd_to_jdn(w[0]))
                     .saturating_sub(1);
@@ -10770,7 +10769,7 @@ fn check_calendar_override_analytics(
         }
     }
 
-    // ── OPR_015: hatta yalnızca tek shape tanımlı ─────────────────────────────
+    // ── OPR_015: only one shape defined on a route ───────────────────────────
     {
         let _t15b = Timer::start("K6::rem::opr_015");
         let mut route_shape_set: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
@@ -10792,7 +10791,7 @@ fn check_calendar_override_analytics(
                     .insert(d);
             }
         }
-        // route_id → route_type (raylı sistemler için skip)
+        // route_id → route_type (skip for rail systems).
         let rt_map: FxHashMap<&str, u32> = records
             .routes
             .iter()
@@ -10812,15 +10811,15 @@ fn check_calendar_override_analytics(
             })
             .collect();
         for (route_id, shapes) in &route_shape_set {
-            // Tram(0), Metro(1), Demiryolu(2), Kablo tramvay(5), Monoray(12):
-            // tek yönlü ray hattı; tek shape beklenen davranış
+            // Tram(0), Metro(1), Railway(2), Cable tram(5), Monorail(12):
+            // one-way rail route; one shape is expected behavior.
             let rt = rt_map.get(*route_id).copied().unwrap_or(3);
             if matches!(rt, 0 | 1 | 2 | 5 | 12) {
                 continue;
             }
-            // OPR_015 yalnız ÇİFT YÖNLÜ hatlarda anlamlı: iki yön aynı tek shape'i paylaşıyorsa
-            // "gidiş-dönüş için ayrı shape" önerilir. Tek yönlü / yön-tanımsız hatta tek shape
-            // beklenen davranıştır (öneri yanıltıcı olur) → susulur.
+            // OPR_015 is meaningful only for TWO-WAY routes: if both directions share one shape,
+            // recommend "a separate shape for each direction". On a one-way / directionless route,
+            // one shape is expected behavior (the recommendation would mislead) → stay silent.
             let bidirectional = route_dirs.get(*route_id).is_some_and(|d| d.len() > 1);
             if shapes.len() == 1 && bidirectional {
                 let shape_id = shapes.iter().next().copied().unwrap_or("");
@@ -10849,7 +10848,7 @@ fn check_calendar_override_analytics(
     }
 }
 
-/// Unique servis kombinasyonlarını say ve özetle: "SVC_A+SVC_B: 12 gün; SVC_A+SVC_C: 3 gün"
+/// Count and summarize unique service combinations: "SVC_A+SVC_B: 12 days; SVC_A+SVC_C: 3 days".
 fn summarize_patterns(patterns: &[String]) -> String {
     let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
     for p in patterns {
@@ -10862,7 +10861,7 @@ fn summarize_patterns(patterns: &[String]) -> String {
         .join("; ")
 }
 
-/// OPR_021/022/023 için details HashMap'i oluşturur.
+/// Build the details HashMap for OPR_021/022/023.
 fn build_override_details(
     count: usize,
     dates: &[u32],
@@ -10909,7 +10908,7 @@ fn check_pathway_analytics(
         .filter(|(_, p)| !p.is_empty())
         .collect();
 
-    // İstasyon (location_type=1) → alt duraklar
+    // Station (location_type=1) → child stops.
     let mut station_children: HashMap<&str, Vec<&crate::k2::stops::StopRecord>> = HashMap::new();
     for stop in &records.stops {
         if let Some(&parent) = stop_parent.get(stop.stop_id.as_str()) {
@@ -10917,7 +10916,7 @@ fn check_pathway_analytics(
         }
     }
 
-    // Pathway graph'ta yer alan duraklar
+    // Stops present in the pathway graph.
     let graph_stops: HashSet<&str> = derived
         .pathway_graph
         .adjacency
@@ -10926,7 +10925,7 @@ fn check_pathway_analytics(
         .collect();
 
     // Wheelchair-accessible pathway indeksleri:
-    // max_slope ≤ 8% (0.08) VE min_width ≥ 0.9 m — ikisi de None ise geçer
+    // max_slope ≤ 8% (0.08) AND min_width ≥ 0.9 m — passes if both are None.
     let accessible_pw_idx: HashSet<usize> = records
         .pathways
         .iter()
@@ -10937,7 +10936,7 @@ fn check_pathway_analytics(
         .map(|(i, _)| i)
         .collect();
 
-    // ── PTH_012 ve PTH_013: her istasyon için ────────────────────────────────
+    // ── PTH_012 and PTH_013: for each station ─────────────────────────────────
     for station in records.stops.iter().filter(|s| s.location_type == Some(1)) {
         let station_id = station.stop_id.as_str();
         if station_id.is_empty() {
@@ -10948,7 +10947,7 @@ fn check_pathway_analytics(
             _ => continue,
         };
 
-        // Bu istasyona ait pathway bağlantısı var mı?
+        // Is there a pathway connection belonging to this station?
         let any_connected = children
             .iter()
             .any(|s| graph_stops.contains(s.stop_id.as_str()));
@@ -10971,7 +10970,7 @@ fn check_pathway_analytics(
             continue;
         }
 
-        // Entrance yoksa → pathway grafiği olan tüm platformlar entrance'sız erişilemez
+        // Without an entrance → every platform in the pathway graph is inaccessible without an entrance.
         if entrances.is_empty() {
             for &platform in &platforms {
                 if graph_stops.contains(platform) {
@@ -10996,7 +10995,7 @@ fn check_pathway_analytics(
             continue;
         }
 
-        // Entrance kümesinden BFS ile erişilebilen tüm durakları bul (tam graf)
+        // Find all stops reachable from the entrance set by BFS (full graph).
         let reachable_from_entrances: HashSet<&str> = {
             let mut visited: HashSet<&str> = HashSet::new();
             let mut queue = std::collections::VecDeque::new();
@@ -11017,11 +11016,11 @@ fn check_pathway_analytics(
             visited
         };
 
-        // PTH_012: her platform için en az bir entrance'tan erişilebilir olmalı.
-        // İç içe modellemede (peron lt=0 → boarding area lt=4) asıl pathway düğümü
-        // boarding area'dır; peron-container'ın kendisi grafikte olmayabilir. Çocuk
-        // düğümlerinden biri entrance'tan erişilebilirse peron da erişilebilir sayılır
-        // (#50, #49 ile aynı iç içe-istasyon kalıbı; mdb-3127 Santiago Metro 286 FP).
+        // PTH_012: every platform must be reachable from at least one entrance.
+        // In nested models (platform lt=0 → boarding area lt=4), the actual pathway node
+        // is the boarding area; the platform container itself may not be in the graph. If one
+        // child node is reachable from an entrance, the platform is also considered reachable
+        // (same nested-station pattern as #50 and #49; mdb-3127 Santiago Metro 286 FP).
         for &platform in &platforms {
             let reachable = reachable_from_entrances.contains(platform)
                 || station_children.get(platform).is_some_and(|kids| {
@@ -11048,8 +11047,8 @@ fn check_pathway_analytics(
             }
         }
 
-        // PTH_013: en az bir entrance-to-platform path'inde tüm pathway'ler
-        // max_slope ≤ 8% VE min_width ≥ 0.9 m (tekerlekli sandalye erişim testi)
+        // PTH_013: on at least one entrance-to-platform path, every pathway must have
+        // max_slope ≤ 8% AND min_width ≥ 0.9 m (wheelchair accessibility test).
         let accessible_reachable: HashSet<&str> = {
             let mut visited: HashSet<&str> = HashSet::new();
             let mut queue = std::collections::VecDeque::new();
@@ -11070,9 +11069,9 @@ fn check_pathway_analytics(
             visited
         };
 
-        // #51 (#50 ile aynı iç içe-istasyon kalıbı): peron-container (lt0) accessible
-        // graph düğümü olmayabilir; boarding-area (lt4) çocuğu erişilebilirse peron da
-        // erişilebilir sayılır. Aksi halde erişilebilir istasyon "rotasız" sanılır.
+        // #51 (same nested-station pattern as #50): the platform container (lt0) may not be an
+        // accessible graph node; if its boarding-area (lt4) child is reachable, the platform is
+        // also considered reachable. Otherwise an accessible station is falsely treated as "unroutable".
         let any_platform_accessible = platforms.iter().any(|p| {
             accessible_reachable.contains(p)
                 || station_children.get(p).is_some_and(|kids| {
@@ -11101,8 +11100,8 @@ fn check_pathway_analytics(
         }
     }
 
-    // ── PTH_015: traversal_time ile length tutarlılığı (makul hız) ───────────
-    // Hız = length (m) / traversal_time (s); > 3.0 m/s → tutarsız
+    // ── PTH_015: traversal_time and length consistency (reasonable speed) ────
+    // Speed = length (m) / traversal_time (s); > 3.0 m/s → inconsistent.
     const MAX_PATHWAY_SPEED_MS: f64 = 3.0;
 
     for pw in &records.pathways {
@@ -11136,7 +11135,7 @@ fn check_pathway_analytics(
     }
 }
 
-// ── VAT: Varlık Analitik Tespiti ─────────────────────────────────────────────
+// ── VAT: Entity Analytics Detection ──────────────────────────────────────────
 
 /// Canonical ordering for VAT_005 connected components.
 ///
@@ -11167,7 +11166,7 @@ fn check_vat_analytics(
     ctr: &mut u32,
 ) {
     let ti_vat = &records.trip_interns;
-    // ── Ortak indeksler ─────────────────────────────────────────────────────
+    // ── Shared indexes ──────────────────────────────────────────────────────
 
     let route_label: FxHashMap<&str, &str> = records
         .routes
@@ -11200,7 +11199,7 @@ fn check_vat_analytics(
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
 
-    // Tek geçiş: route_stops, stop_routes, route_trip_count
+    // One pass: route_stops, stop_routes, route_trip_count.
     let mut route_stops: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
     let mut stop_routes: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
     let mut route_trip_count: FxHashMap<&str, u32> = FxHashMap::default();
@@ -11222,7 +11221,7 @@ fn check_vat_analytics(
         }
     }
 
-    // Transfers'daki stop'lar
+    // Stops appearing in transfers.
     let transfer_stops: FxHashSet<&str> = records
         .transfers
         .iter()
@@ -11230,9 +11229,9 @@ fn check_vat_analytics(
         .filter(|s| !s.is_empty())
         .collect();
 
-    // ── VAT_001: Hat güzergah benzerliği (Jaccard ≥ 0.85) ───────────────────
+    // ── VAT_001: route similarity (Jaccard ≥ 0.85) ───────────────────────────
     {
-        // Her hattın kullandığı service_id'ler — takvim-kesişim guard'ı için (aşağıda).
+        // service_id values used by each route — for the calendar-overlap guard below.
         let route_services: FxHashMap<&str, FxHashSet<&str>> = {
             let mut m: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
             for t in &records.trips {
@@ -11242,9 +11241,9 @@ fn check_vat_analytics(
             }
             m
         };
-        // İki hat herhangi bir günde birlikte çalışıyor mu? (servis takvimleri kesişiyor mu)
-        // Bir service_id'nin çözülebilir aktif günü varsa "tarihli" sayılır; ikisi de tarihliyse
-        // VE hiç ortak gün yoksa → bunlar zamansal olarak ayrık (kopya değil, bk. #29 yorumu).
+        // Do both routes operate on any common day? (Do their service calendars overlap?)
+        // A service_id is "dated" if it has resolvable active days; if both are dated
+        // AND have no common day → they are temporally separate (not duplicates; see #29).
         let active = &derived.calendar_bitmap.active_dates;
         let route_has_dates = |svcs: &FxHashSet<&str>| -> bool {
             svcs.iter()
@@ -11273,7 +11272,7 @@ fn check_vat_analytics(
             .filter_map(|(&rid, stops)| route_type_map.get(rid).map(|&rt| (rid, stops, rt)))
             .collect();
 
-        // O(n²) → büyük feed'de atla
+        // O(n²) → skip on large feeds.
         if route_list.len() <= 300 {
             for i in 0..route_list.len() {
                 for j in (i + 1)..route_list.len() {
@@ -11292,11 +11291,11 @@ fn check_vat_analytics(
                         continue;
                     }
 
-                    // Takvim-kesişim guard'ı (#29): aynı public hat servis-değişiminde yeni
-                    // route_id alabilir (TriMet '20'/'20a': '20' yaz takvimi, '20a' sonbahar,
-                    // tarih aralıkları ayrık). Bu kopya değil zamansal bölünmedir; "birleştir"
-                    // önerisi geçersiz. İki hat da çözülebilir tarihliyse VE hiç ortak günü
-                    // yoksa atla. Takvim eksikse (kanıt yok) eski davranış: emit.
+                    // Calendar-overlap guard (#29): the same public route may receive a new
+                    // route_id during a service change (TriMet '20'/'20a': '20' summer schedule,
+                    // '20a' autumn, separate date ranges). This is a temporal split, not a duplicate;
+                    // the "merge" recommendation is invalid. If both routes have resolvable dates
+                    // AND no common day, skip. If the calendar is missing (no evidence), emit as before.
                     let (Some(svcs_a), Some(svcs_b)) =
                         (route_services.get(rid_a), route_services.get(rid_b))
                     else {
@@ -11311,8 +11310,8 @@ fn check_vat_analytics(
 
                     let la = route_label.get(rid_a).copied().unwrap_or(rid_a);
                     let lb = route_label.get(rid_b).copied().unwrap_or(rid_b);
-                    // Etiket route_id'den farklıysa route_id'yi de göster (aynı kısa-adlı iki
-                    // farklı hat "'20' ve '20'" gibi ayırt edilemez bir mesaj üretmesin).
+                    // If the label differs from route_id, show route_id too (so two different routes
+                    // with the same short name do not produce an indistinguishable message like "'20' and '20'").
                     let disp = |rid: &str, label: &str| {
                         if label == rid {
                             format!("'{rid}'")
@@ -11335,9 +11334,9 @@ fn check_vat_analytics(
                             disp(rid_a, la), disp(rid_b, lb), jaccard * 100.0),
                         "İki hattı birleştirin ya da güzergahları ayırt edilir biçimde farklılaştırın.",
                     );
-                    // Harita: her iki hattı farklı renkte çizebilmek için ikisini de ver.
-                    // route_b: EN/JA mesaj şablonu ikinci hattı adlandırabilsin diye (details
-                    // anahtarları tMsg'de parametre olur).
+                    // Map: provide both routes so they can be drawn in different colors.
+                    // route_b: lets the EN/JA message template name the second route (details
+                    // keys become parameters in tMsg).
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
                     d.insert("route_b".to_string(), rid_b.to_string());
@@ -11348,17 +11347,17 @@ fn check_vat_analytics(
         }
     }
 
-    // ── Aktarma-boşluğu ön koşulu (VAT_002 + VAT_007 ORTAK) ──────────────────
+    // ── Transfer-gap prerequisite (SHARED by VAT_002 + VAT_007) ──────────────
     //
-    // GTFS'te AYNI stop_id'de aktarma zaten örtüktür: tüketici o durakta inip binebileceğini
-    // bilir, `transfers.txt` gerekmez. O dosya FARKLI duraklar arası bağlantıyı, minimum
-    // aktarma süresini veya YASAK aktarmayı tanımlamak içindir. Dolayısıyla "bu duraktan 4
-    // hat geçiyor, aktarma tanımlayın" önerisi tek başına yanlıştı — Ankara Gar gibi bütün
-    // trenlerin aynı stop_id'yi kullandığı bir terminalde tanımlanacak bir şey yoktur.
+    // In GTFS, a transfer at the SAME stop_id is implicit: a consumer knows passengers can
+    // get off and board there, so `transfers.txt` is not needed. That file defines connections
+    // between DIFFERENT stops, minimum transfer time, or forbidden transfers. Therefore the
+    // suggestion "this stop has 4 routes, define a transfer" was wrong by itself — at a terminal
+    // like Ankara Gar, where all trains use the same stop_id, there is nothing to define.
     //
-    // Sinyal ancak YAKINDA, aktarma kurulabilecek AYRI bir durak varsa anlamlıdır. Ayrıca
-    // `parent_station`'ı olan duraklar elenir: kompleks zaten modellenmiştir (eski kod
-    // yalnız location_type=1 istasyonun KENDİSİNİ eliyordu, peron çocuklarını değil).
+    // The signal is meaningful only if a nearby, SEPARATE stop exists where a transfer could
+    // be defined. Also exclude stops with `parent_station`: the complex is already modeled
+    // (the old code excluded only the location_type=1 station ITSELF, not its platform children).
     let has_parent: FxHashSet<&str> = records
         .stops
         .iter()
@@ -11366,7 +11365,7 @@ fn check_vat_analytics(
         .map(|s| s.stop_id.as_str())
         .collect();
 
-    // Lat-sıralı durak dizisi (STP_017 emsali): banda sınırlı komşu taraması.
+    // Latitude-sorted stop list (following STP_017): band-limited neighbor scan.
     let xfer_sorted_stops: Vec<(f64, f64, &str)> = {
         let mut v: Vec<(f64, f64, &str)> = records
             .stops
@@ -11381,8 +11380,8 @@ fn check_vat_analytics(
         .map(|&(la, lo, id)| (id, (la, lo)))
         .collect();
 
-    // Yakında, bu durağın SUNMADIĞI bir hattı sunan ayrı bir durak var mı?
-    // Varsa gerçekten tanımlanmamış bir duraklar-arası aktarma söz konusudur.
+    // Is there a nearby separate stop serving a route that this stop DOES NOT serve?
+    // If so, there is a genuinely undefined transfer between stops.
     let has_nearby_unlinked_route = |stop_id: &str, own: &FxHashSet<&str>| -> bool {
         let Some(&(la, lo)) = xfer_stop_pos.get(stop_id) else {
             return false;
@@ -11409,7 +11408,7 @@ fn check_vat_analytics(
         false
     };
 
-    // ── VAT_002: Aktarma merkezi tanımsız (≥ 4 route, transfer yok) ─────────
+    // ── VAT_002: undefined transfer hub (≥ 4 routes, no transfer) ────────────
     {
         let is_station: FxHashSet<&str> = records
             .stops
@@ -11435,7 +11434,7 @@ fn check_vat_analytics(
                 continue;
             }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
-            // Hatları kararlı sırada topla: harita için route_id'ler, mesaj için okunur etiketler.
+            // Collect routes in stable order: route_ids for the map, readable labels for the message.
             let mut route_ids: Vec<&str> = routes.iter().copied().collect();
             route_ids.sort_unstable();
             let route_labels: Vec<&str> = route_ids
@@ -11467,14 +11466,14 @@ fn check_vat_analytics(
         }
     }
 
-    // ── VAT_003: Sefer süresi istatistiksel aykırı değer (MAD yöntemi) ───────
-    // Gruplama anahtarı route_id DEĞİL, sefer DESENİ'dir: bir route_id çoğu zaman
-    // birden çok desen içerir (kısa-dönüş, varyant, yön) ve bunların süreleri doğal
-    // olarak farklıdır; hepsini tek medyanla karşılaştırmak kitlesel FP üretir.
-    // Anahtar shape_id + sıralı durak desenidir. Aynı shape kısa-dönüş ve tam sefer
-    // gibi farklı stop dizileriyle paylaşılabilir; yalnız shape_id ile gruplamak bunların
-    // doğal süre farkını aykırı değer sanır (BART Green-N: 5 durak/23dk vs 22 durak/83dk).
-    // Shape yoksa route_id + sıralı durak dizisi hash'ine düşülür.
+    // ── VAT_003: statistical trip-duration outlier (MAD method) ──────────────
+    // The grouping key is NOT route_id, but the trip PATTERN: one route_id often contains
+    // multiple patterns (short-turn, variant, direction) whose durations naturally differ;
+    // comparing all of them to one median creates mass false positives.
+    // The key is shape_id + ordered stop pattern. The same shape may be shared by different
+    // stop sequences such as a short-turn and a full trip; grouping only by shape_id treats
+    // their natural duration difference as an outlier (BART Green-N: 5 stops/23 min vs 22 stops/83 min).
+    // Without a shape, fall back to the route_id + ordered stop-sequence hash.
     {
         let trip_shape: FxHashMap<&str, &str> = records
             .trips
@@ -11504,8 +11503,8 @@ fn check_vat_analytics(
             let last_arr = stops.last().and_then(|s| s.arrival_time()).map(hms_to_secs);
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 if arr > dep {
-                    // Durakların SIRALI dizisini hash'le. Durak sayısı yeterince ayırt edici
-                    // değildir: aynı sayıda durağa sahip farklı desenler karışabilir.
+                    // Hash the ORDERED stop sequence. Stop count is not distinctive enough:
+                    // different patterns with the same number of stops can be mixed together.
                     use std::hash::{Hash, Hasher};
                     let mut h = std::collections::hash_map::DefaultHasher::new();
                     for st in stops.iter() {
@@ -11524,34 +11523,36 @@ fn check_vat_analytics(
             }
         }
 
-        // Gün-içi (peak/off-peak) deseasonalize: süre, kalkış SAATİNE göre beklenenden
-        // sapması ölçülür. Bir saatte ≥BUCKET_MIN_TRIPS sefer varsa o saatin medyanı
-        // referans alınır; aksi halde desen-global medyanına düşülür (seyrek saatte
-        // veri-açlığını önler). Robust-z artık residual üzerinde; min-dakika tabanı
-        // tamamlayıcı (tiny-MAD'da küçük sapmaları işaretleme). Bkz. issue #24.
+        // Intra-day (peak/off-peak) deseasonalization: measure duration's deviation from the
+        // expected value for its departure HOUR. If an hour has ≥BUCKET_MIN_TRIPS, use that
+        // hour's median; otherwise fall back to the pattern-global median (avoids data starvation
+        // in sparse hours). Robust-z is now on the residual; the minimum-minute floor is
+        // complementary (prevents flagging small deviations with tiny MAD). See issue #24.
         const BUCKET_MIN_TRIPS: usize = 5;
-        // Operasyonel min sapma: bundan küçük residual'lar (gün-içi gürültü) hiç işaretlenmez.
-        // Deseasonalize residual'ları sıkıştırdığından σ tek başına aşırı hassas olur; bu taban
-        // AND-gate olarak küçük sapmaları eler (issue #24 katkıcısının "min-dakika tamamlayıcı" notu).
+        // Operational minimum deviation: residuals smaller than this (intra-day noise) are never flagged.
+        // Deseasonalization compresses residuals, making σ alone overly sensitive; this floor acts
+        // as an AND gate that filters small deviations (the issue #24 contributor's "minimum-minute
+        // complement" note).
         const RESIDUAL_FLOOR_SECS: f64 = 300.0;
 
         for (_key, trips) in groups {
-            // ── Tarih-genişletmesi çökertme ──────────────────────────────────
-            // Bazı üreticiler (TCDD deseni) aynı tarifeyi her işletim günü için AYRI trip_id
-            // olarak yazar. Desen + kalkış + süre birebir aynı olan bu kayıtlar tek bir
-            // TARİFEdir; ayrı sefer değil. Çökertmeden iki ayrı zarar doğuyordu:
-            //   (1) Rapor şişmesi — 4 gerçek tarife 40 notice üretiyordu.
-            //   (2) İstatistik bozulması — 10 özdeş kopya grubun dörtte birini oluşturunca
-            //       MAD yapay olarak büyür ve GERÇEK aykırı değerler maskelenir.
-            // Bu yüzden çökertme emisyondan ÖNCE, istatistiğin girdisinde yapılır.
+            // ── Date-expansion collapse ─────────────────────────────────────
+            // Some producers (TCDD pattern) write the same schedule with a SEPARATE trip_id
+            // for every operating day. Records with identical pattern + departure + duration
+            // are one SCHEDULE, not separate trips. Without collapsing them, two harms occurred:
+            //   (1) Report inflation — 4 real schedules produced 40 notices.
+            //   (2) Statistical distortion — 10 identical copies made up a quarter of the group,
+            //       artificially increasing MAD and masking REAL outliers.
+            // Therefore collapse before emission, in the statistical input.
             //
-            // ⚠️ ≥5 kapısı artık BENZERSİZ TARİFE sayar. 40 sefer / 4 tarife bir aykırı değer
-            // iddiası için yeterli kanıt değildir (4 gözlemde robust-z anlamsızdır) → sessiz
-            // kalınır. Bu bilinçli: eski davranış aynı kanıtı 10 kez sayıp güven üretiyordu.
+            // ⚠️ The ≥5 gate now counts UNIQUE SCHEDULES. 40 trips / 4 schedules is not enough
+            // evidence for an outlier claim (robust-z is meaningless with 4 observations) → stay
+            // silent. This is intentional: the old behavior counted the same evidence 10 times
+            // and manufactured confidence.
             let mut sched: FxHashMap<(u32, u32), (&str, u32, &str)> = FxHashMap::default();
             for &(trip_id, dur, dep, route) in &trips {
                 let e = sched.entry((dur, dep)).or_insert((trip_id, 0, route));
-                // Temsili = leksikografik en küçük trip_id (FxHashMap sırasından bağımsız).
+                // Representative = lexicographically smallest trip_id (independent of FxHashMap order).
                 if trip_id < e.0 {
                     e.0 = trip_id;
                 }
@@ -11561,7 +11562,7 @@ fn check_vat_analytics(
                 .iter()
                 .map(|(&(dur, dep), &(tid, cnt, route))| (tid, dur, dep, route, cnt))
                 .collect();
-            // Determinizm: FxHashMap iterasyon sırası tanımsız → temsili trip_id'ye göre sırala.
+            // Determinism: FxHashMap iteration order is undefined → sort by representative trip_id.
             durs.sort_unstable_by(|a, b| a.0.cmp(b.0));
 
             if durs.len() < 5 {
@@ -11574,24 +11575,24 @@ fn check_vat_analytics(
                 continue;
             }
 
-            // Kaba zaman bandı (saatlik yerine): gün-içi yapıyı yakalar ama bucket'ları
-            // veri-aç bırakmaz (katkıcının "coarse buckets degrade more gracefully" notu).
+            // Coarse time bands (instead of hourly): capture intra-day structure without starving
+            // buckets of data (the contributor's "coarse buckets degrade more gracefully" note).
             let band = |dep: u32| -> u32 {
-                // % 24: bandlama trip'in İLK kalkışına göredir. Bir feed gece yarısını aşan bir
-                // seferin ilk kalkışını 24:xx+ (≥86400 sn) yazarsa (geçerli GTFS), ham saatle akşam
-                // (band 4) yerine yanlış banda düşerdi; % 24 ile gece bandına (band 0) eşlenir.
-                // NOT: normalize_service_day İLK durağı kaydırmaz (offset 0'dan başlar), o yüzden
-                // bu yalnız feed'in kendisi 24:xx-ilk-kalkış yazdığında devreye girer (savunmacı;
-                // Toei gibi 00:xx yazan feed'lerde no-op). Bkz. issue #26.
+                // % 24: banding uses the trip's FIRST departure. If a feed writes a cross-midnight
+                // trip's first departure as 24:xx+ (≥86400 sec, valid GTFS), raw hours would put it
+                // in the evening (band 4) instead of the night band (band 0); % 24 maps it correctly.
+                // NOTE: normalize_service_day does not shift the FIRST stop (it starts at offset 0),
+                // so this applies only when the feed itself writes a 24:xx first departure (defensive;
+                // no-op for feeds such as Toei that write 00:xx). See issue #26.
                 match (dep / 3600) % 24 {
-                    0..=5 => 0,   // gece / erken (24:xx, 25:xx… buraya döner)
-                    6..=9 => 1,   // sabah zirve
-                    10..=15 => 2, // gündüz
-                    16..=19 => 3, // akşam zirve
-                    _ => 4,       // akşam / gece (20:00–23:59)
+                    0..=5 => 0,   // night / early (24:xx, 25:xx… map here)
+                    6..=9 => 1,   // morning peak
+                    10..=15 => 2, // daytime
+                    16..=19 => 3, // evening peak
+                    _ => 4,       // evening / night (20:00–23:59)
                 }
             };
-            // Yoğun bandların (≥BUCKET_MIN_TRIPS) kendi medyanı; seyrek bandlar global'e düşer.
+            // Dense bands (≥BUCKET_MIN_TRIPS) use their own median; sparse bands fall back to global.
             let mut by_band: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
             for &(_, d, dep, _, _) in &durs {
                 by_band.entry(band(dep)).or_default().push(d);
@@ -11605,7 +11606,7 @@ fn check_vat_analytics(
             }
             let reference = |dep: u32| band_med.get(&band(dep)).copied().unwrap_or(med_all);
 
-            // residual = süre − saat-bazlı beklenen; MAD residual üzerinde.
+            // residual = duration − hour-based expected value; MAD is computed on residuals.
             let mut res: Vec<f64> = durs
                 .iter()
                 .map(|&(_, d, dep, _, _)| d as f64 - reference(dep))
@@ -11616,14 +11617,14 @@ fn check_vat_analytics(
             dev.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let mad_r = dev[dev.len() / 2] * 1.4826;
 
-            // Residual-z eşiği (config; varsayılan 3.5 — issue #24, deseasonalize residual'ı sıkı).
+            // Residual-z threshold (config; default 3.5 — issue #24, tightens deseasonalized residuals).
             let sigma = config.duration_outlier_sigma;
             for &(trip_id, dur, dep_secs, route, repeats) in &durs {
                 let ref_med = reference(dep_secs);
                 let residual = dur as f64 - ref_med;
-                // İki koşul birlikte (AND): (1) operasyonel olarak anlamlı sapma (≥ taban),
-                // (2) istatistiksel aykırılık (residual > σ·MAD). mad_r≈0 ise (residual'lar
-                // birebir aynı) σ testi atlanır; yalnızca taban karar verir.
+                // Both conditions together (AND): (1) operationally meaningful deviation (≥ floor),
+                // (2) statistical outlier (residual > σ·MAD). If mad_r≈0 (residuals are identical),
+                // skip the σ test; only the floor decides.
                 let mag_ok = residual.abs() >= RESIDUAL_FLOOR_SECS;
                 let stat_ok = mad_r < 1.0 || residual.abs() > sigma * mad_r;
                 if !(mag_ok && stat_ok) {
@@ -11649,8 +11650,8 @@ fn check_vat_analytics(
                 } else {
                     format!("{:+}dk, {yon}", (residual / 60.0).round() as i64)
                 };
-                // Aynı tarife birden çok trip_id'ye yayılmışsa bunu mesajda söyle: kullanıcı
-                // tek bir bulgunun kaç kaydı ilgilendirdiğini bilmeli (düzeltme hepsine gider).
+                // If the same schedule spans multiple trip_ids, say so in the message: the user
+                // should know how many records one finding affects (the fix applies to all).
                 let repeat_suffix = if repeats > 1 {
                     format!(" Aynı tarife {repeats} sefer kaydında tekrarlanıyor.")
                 } else {
@@ -11680,19 +11681,18 @@ fn check_vat_analytics(
         }
     }
 
-    // VAT_004 (hat hafta içi ≥5 sefer, hafta sonu calendar kaydı yok) KALDIRILDI
-    // (2026-07-23): OPR_004'ün (hattın aktif servislerinde hafta sonu yok) daha
-    // yanlış versiyonuydu. VAT_004 ham calendar.txt bayraklarına bakıyor,
-    // calendar_dates.txt istisnalarını GÖRMÜYORDU → hafta sonu yalnız exception ile
-    // tanımlanan hatta yanlış-pozitif. OPR_004 türetilmiş bitmap (calendar_dates
-    // dahil) kullanır, daha doğru. İkisi de BİLGİ (weight 0, skor nötr), MD paritesi
-    // yok. Pratikte VAT_004 ⊂ OPR_004 (corpus %99,6 örtüşme).
+    // VAT_004 (route has ≥5 weekday trips, no weekend calendar record) REMOVED
+    // (2026-07-23): it was a more incorrect version of OPR_004 (no weekend days in a route's
+    // active services). VAT_004 looked at raw calendar.txt flags and DID NOT SEE calendar_dates.txt
+    // exceptions → false positive for a route defined only through weekend exceptions. OPR_004
+    // uses the derived bitmap (including calendar_dates) and is more accurate. Both are INFO
+    // (weight 0, score-neutral), with no MD parity. In practice VAT_004 ⊂ OPR_004 (99.6% corpus overlap).
 
-    // ── VAT_005: İzole durak kümesi (Union-Find bağlı bileşenler) ───────────
+    // ── VAT_005: isolated stop cluster (Union-Find connected components) ────
     {
-        // K2'nin stop_idx değerleri aynı stop_id için aynı sayısal düğümü gösterir.
-        // Böylece VAT_005 için 59,7M satırdan kalıcı çift yönlü HashSet grafiği
-        // kurmak yerine yalnızca bileşen ebeveyni ve boyutunu tutuyoruz.
+        // K2's stop_idx values identify the same numeric node for the same stop_id.
+        // Thus, instead of building a persistent bidirectional HashSet graph from 59.7M rows
+        // for VAT_005, keep only the component parent and size.
         let stop_count = idx.k2.stop_intern.len();
         let mut parent: Vec<u32> = (0..stop_count as u32).collect();
         let mut component_size = vec![1usize; stop_count];
@@ -11761,18 +11761,18 @@ fn check_vat_analytics(
                 .collect(),
         );
         let total: usize = comp_nodes.iter().map(Vec::len).sum();
-        // Ana ağ = aktif durakların en az yarısını taşıyan bileşen. Yoksa feed birbirine
-        // bağlı olmayan eşdeğer ağlardan oluşur ve "ana ağdan kopuk" anlamsızdır
-        // (2026-10-30 korpusu, mdb-905: 386 durak, 34 bileşen, en büyüğü 13).
+        // Main network = the component containing at least half of the active stops. Otherwise
+        // the feed consists of equivalent disconnected networks and "detached from the main
+        // network" is meaningless (2026-10-30 corpus, mdb-905: 386 stops, 34 components, largest 13).
         let has_main_network = comp_nodes.first().is_some_and(|main| main.len() * 2 >= total);
         if total >= 5 && comp_nodes.len() > 1 && has_main_network {
             let main_size = comp_nodes.first().map(Vec::len).unwrap_or(0);
             let small_thresh = (total / 20).max(2);
 
-            // Durak koordinatları: parent_station'sız feed'lerde aynı fiziksel yer
-            // (ör. otogar peronları) ayrı stop_id'lere bölünür → sahte izole bileşen.
-            // Bir izole adayın herhangi bir durağı ana şebekedeki bir durağa bu mesafeden
-            // yakınsa fiziksel olarak aynı ağ kabul edilir, izole sayılmaz (yanlış pozitif önleme).
+            // Stop coordinates: in feeds without parent_station, one physical place (e.g. bus
+            // terminal platforms) is split into separate stop_ids → a false isolated component.
+            // If any stop in an isolated candidate is within this distance of a stop in the main
+            // network, treat it as the same physical network and not isolated (false-positive guard).
             let mut stop_coords: FxHashMap<&str, (f64, f64)> = FxHashMap::default();
             for s in &records.stops {
                 if let Some(c) = recoverable_stop_coord(s) {
@@ -11786,7 +11786,7 @@ fn check_vat_analytics(
                 .collect();
             const VAT005_MERGE_M: f64 = 200.0;
 
-            // İzole bileşenler: hem küçük hem ana şebekeden coğrafi olarak da kopuk.
+            // Isolated components: both small and geographically detached from the main network.
             let isolated_comps: Vec<&Vec<&str>> = comp_nodes
                 .iter()
                 .filter(|c| c.len() < main_size && c.len() <= small_thresh)
@@ -11802,7 +11802,7 @@ fn check_vat_analytics(
                 .collect();
 
             if !isolated_comps.is_empty() {
-                // İzole bileşenlere ait tüm durakları topla (maks 200)
+                // Collect all stops belonging to isolated components (max 200).
                 let mut isolated_all: Vec<&str> = Vec::new();
                 'outer: for c in &isolated_comps {
                     for &node in c.iter() {
@@ -11840,11 +11840,11 @@ fn check_vat_analytics(
         }
     }
 
-    // ── VAT_006: Hizmet yoğunluğu dengesizliği (tek hat ≥ %40) ────────────
+    // ── VAT_006: service-density imbalance (one route ≥ 40%) ────────────────
     {
         let total_trips: u32 = route_trip_count.values().sum();
-        // 1–2 hatta en yoğun hattın payı zorunlu olarak ≥%50: %40 eşiği koşulsuz ateşler
-        // ve hiçbir dengesizlik söylemez (tek hatlı feribot feed'i 76/76 %100 raporluyordu).
+        // With 1–2 routes, the busiest route is necessarily ≥50%: a 40% threshold fires
+        // unconditionally and says nothing about imbalance (a single-route ferry feed reported 76/76, 100%).
         if total_trips >= 50 && route_trip_count.len() >= 3 {
             for (&route, &count) in &route_trip_count {
                 let ratio = count as f64 / total_trips as f64;
@@ -11870,7 +11870,7 @@ fn check_vat_analytics(
         }
     }
 
-    // ── VAT_007: Terminus aktarma eksikliği (≥ 3 route terminusu, transfer yok) ──
+    // ── VAT_007: missing terminus transfer (≥ 3 route termini, no transfer) ──
     {
         let mut terminus_routes: FxHashMap<&str, FxHashSet<&str>> = FxHashMap::default();
         for (&trip_id, stops) in &idx.by_trip {
@@ -11904,17 +11904,17 @@ fn check_vat_analytics(
             if has_parent.contains(stop_id) {
                 continue;
             }
-            // VAT_002 ile aynı ön koşul: aynı stop_id'deki aktarma zaten örtük. Komşuluk
-            // testi durağın TÜM hatlarına bakar (yalnız terminus olduklarına değil) —
-            // yanındaki durak buradan geçen bir hattı sunuyorsa yeni bağlantı yoktur.
+            // Same prerequisite as VAT_002: a transfer at the same stop_id is implicit. The
+            // neighbor test considers ALL routes serving the stop (not only routes terminating
+            // there) — if the neighboring stop serves a route passing through here, there is no new connection.
             let own_all = stop_routes.get(stop_id);
             let empty: FxHashSet<&str> = FxHashSet::default();
             if !has_nearby_unlinked_route(stop_id, own_all.unwrap_or(&empty)) {
                 continue;
             }
             let name = stop_name_map.get(stop_id).copied().unwrap_or(stop_id);
-            // Determinizm: FxHashSet iterasyon sırası tanımsız. Eskiden take(5) SIRALAMADAN
-            // ÖNCE geliyordu → hangi 5 hattın mesaja girdiği koşudan koşuya değişebiliyordu.
+            // Determinism: FxHashSet iteration order is undefined. Previously take(5) came
+            // BEFORE sorting → which 5 routes entered the message could vary between runs.
             let mut route_ids: Vec<&str> = routes.iter().copied().collect();
             route_ids.sort_unstable();
             let mut labels: Vec<&str> = route_ids
@@ -11945,9 +11945,9 @@ fn check_vat_analytics(
         }
     }
 
-    // OPR_024: Bir hat TEK çalışma takviminde (route_id + service_id) çok fazla sefer içeriyor.
-    // Eşik route-toplam değil service-başına uygulanır: haftaya yayılan normal sefer sayısı
-    // (7 gün × günlük sefer) yanlış-pozitif vermez; gerçek "veri birleştirme" tek takvimde patlar.
+    // OPR_024: a route contains too many trips in ONE operating schedule (route_id + service_id).
+    // Apply the threshold per service, not per route total: normal trips spread across a week
+    // (7 days × daily trips) do not create a false positive; real "data merging" explodes in one schedule.
     {
         let route_short_o24: HashMap<&str, &str> = records
             .routes
@@ -11970,7 +11970,7 @@ fn check_vat_analytics(
                     .or_default() += 1;
             }
         }
-        // HashMap iterasyonu → sırala (dedup temsilcisi deterministik olsun).
+        // HashMap iteration → sort (make the dedup representative deterministic).
         let mut rs_trip_counts_sorted: Vec<_> = rs_trip_counts.iter().collect();
         rs_trip_counts_sorted.sort_unstable_by_key(|(k, _)| **k);
         for ((route_id, service_id), count) in rs_trip_counts_sorted {
@@ -11997,7 +11997,7 @@ fn check_vat_analytics(
         }
     }
 
-    // OPR_025: Ortalama sefer süresi 60 saniyeden kısa (feed genelinde)
+    // OPR_025: average trip duration is under 60 seconds (feed-wide).
     {
         let mut trip_durations: Vec<u64> = Vec::new();
         for stops in records.stop_times_index.iter_stops() {
@@ -12030,7 +12030,7 @@ fn check_vat_analytics(
         }
     }
 
-    // VAT_008: Aynı shape feed hatlarının >%30'unda kullanılıyor
+    // VAT_008: the same shape is used by >30% of the feed's routes.
     {
         let total_routes = records.routes.len();
         if total_routes >= 3 {
