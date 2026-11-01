@@ -5873,12 +5873,12 @@ fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
     }
 }
 
-// ── issue #84: akış dosyası GÖVDESİNDE kapanmamış tırnak ───────────────────────
+// ── issue #84: unclosed quote in a stream file BODY ────────────────────────────
 //
-// K1 bu dört dosyanın gövdesini hiç açmaz; K1'in gövde tarayıcısına giden dal ÖLÜYDÜ
-// (kaldırıldı) ve K2 okuyucuları kapanmamış tırnağı sessizce tolere ediyordu. Yani tek
-// kaçak tırnak dosyanın kalanını yutabilir ve doğrulayıcı bunu HİÇ söylemezdi.
-// ⚠️ Bulgu KRİTİK ama FATAL DEĞİL — gerekçe `common::arc013_unclosed_stream` doc'unda.
+// K1 never opens the bodies of these four files; the branch leading to K1's body scanner was DEAD
+// (removed), and K2 readers silently tolerated an unclosed quote. A single stray quote could therefore
+// swallow the rest of the file and the validator would say NOTHING.
+// ⚠️ The finding is CRITICAL but NOT FATAL — rationale is in the `common::arc013_unclosed_stream` doc.
 
 fn stream_quote_feed(stop_times: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -5981,8 +5981,9 @@ fn arc013_stream_reports_unclosed_final_quoted_field() {
 
 #[test]
 fn arc013_stream_bare_quote_is_arc033_not_arc013() {
-    // İki olgu AYRI: kaçırma ihlali veriyi bozmaz (ARC_033), kapanmamış tırnak dosyanın
-    // kalanını yutar (ARC_013). Aynı kanaldan raporlamak ikisini karıştırırdı.
+    // The two cases are DISTINCT: a quote-escaping violation does not corrupt data (ARC_033),
+    // while an unclosed quote swallows the rest of the file (ARC_013). Reporting them through
+    // the same channel would conflate them.
     match run(&stream_quote_feed(
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
          T1,08:00:00,08:00:00,S1,1,5\" Hat\n\
@@ -5999,13 +6000,12 @@ fn arc013_stream_bare_quote_is_arc033_not_arc013() {
     }
 }
 
-// ── issue #92: SERT tip predikatı HAM değeri görmeli ───────────────────────────
+// ── issue #92: STRICT type predicates must see the RAW value ──────────────────
 //
-// `#85` kimliği ham yaptı; bu, tip predikatlarındaki karşılığı. `" https://example.com "`
-// ham hâlde kaçırılmamış boşluk taşır — spec "özel karakterler doğru kaçırılmalı" der —
-// ama predikat kırpılmış vekili görüyordu ve sert kural SUSUYORDU. Geriye yalnız `DQ_016`
-// kalite sinyali kalıyordu, yani bir Spec iddiası (`P5f72fb5a` KANITLI) normalize edilmiş
-// bir değer üzerinden kuruluyordu.
+// `#85` made IDs raw; this is the corresponding change for type predicates. `" https://example.com "`
+// carries unescaped whitespace in raw form — the Spec says "special characters must be escaped correctly" —
+// but the predicate saw a trimmed proxy and the strict rule stayed SILENT. Only the `DQ_016`
+// quality signal remained, so a Spec provision (`P5f72fb5a` KANITLI) was being asserted over a normalized value.
 
 fn agency_url_feed(agency: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -6045,8 +6045,8 @@ fn url92_clean_url_stays_valid() {
 
 #[test]
 fn url92_whitespace_only_url_is_missing_not_invalid() {
-    // 🔴 SINIR: `"   "` EKSİK alandır, "geçersiz URL" değil. Varlık teşhisi kırpar,
-    // geçerlilik hamı görür — tek okumaya indirmek bu ayrımı yok ederdi.
+    // 🔴 BOUNDARY: `"   "` is a MISSING field, not an "invalid URL". Presence diagnosis trims,
+    // while validity sees the raw value — reducing this to one read would erase the distinction.
     match run(&agency_url_feed(
         "agency_id,agency_name,agency_url,agency_timezone\n1,T,\"   \",UTC\n",
     )) {
@@ -6066,10 +6066,10 @@ fn url92_whitespace_only_url_is_missing_not_invalid() {
     }
 }
 
-// ── issue #94: SHP_005 monotonluğu TAM karşılaştırma ────────────────────────
-// Eski predikat `d < prev - 1e-6` idi: 1e-6'dan küçük GERÇEK azalma sessizce kabul
-// ediliyordu. Bu test CSV'den geçer — yalnız K5 birim testi, ondalık→f64 okumasının
-// üreticinin sırasını koruduğunu göstermez.
+// ── issue #94: SHP_005 exact monotonicity comparison ───────────────────────────
+// The old predicate was `d < prev - 1e-6`: a REAL decrease smaller than 1e-6 was silently
+// accepted. This test passes through CSV — only the K5 unit test shows that decimal→f64 parsing
+// preserves the producer's order.
 
 fn shp005_feed(shapes: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -6079,7 +6079,7 @@ fn shp005_feed(shapes: &'static str) -> Vec<(&'static str, &'static [u8])> {
 
 #[test]
 fn shp005_detects_decrease_smaller_than_old_epsilon() {
-    // issue #94'ün karşı-örneği birebir: azalma 5e-7.
+    // Exact counterexample from issue #94: decrease of 5e-7.
     match run(&shp005_feed(
         "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
         S1,41.0,29.0,1,1.0000005\nS1,41.1,29.1,2,1.0000000\n",
@@ -6094,7 +6094,7 @@ fn shp005_detects_decrease_smaller_than_old_epsilon() {
 
 #[test]
 fn shp005_silent_on_tiny_increase_from_csv() {
-    // Aynı ondalık basamak sayısı, ters yön → susmalı (tolerans kaldırma FP getirmemeli).
+    // Same number of decimal places, reverse direction → silent (removing tolerance must not create an FP).
     match run(&shp005_feed(
         "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
         S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000005\n",
@@ -6109,7 +6109,7 @@ fn shp005_silent_on_tiny_increase_from_csv() {
 
 #[test]
 fn shp005_silent_on_equal_values_from_csv() {
-    // Eşitlik AYRI vaka (#94): kural yalnız `önceki > güncel` içindir.
+    // Equality is a SEPARATE case (#94): the rule is only for `previous > current`.
     match run(&shp005_feed(
         "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
         S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000000\n",
@@ -6122,12 +6122,11 @@ fn shp005_silent_on_equal_values_from_csv() {
     }
 }
 
-/// ATR_010/011/012 dedup'ı `Entity` iken `attribution_id` boş olan her satır aynı
-/// dedup anahtarına düşüyordu ve feed'de kaç bozuk referans olursa olsun TEK bulgu
-/// kalıyordu. `attributions.attribution_id` spec'te **Optional**, yani kimliksiz dosya
-/// geçerlidir — dedup'ın opsiyonel bir alana dayanması kuralı sessizce susturuyordu.
-/// Ölçüm (`tdg-80245`): 26 dangling `trip_id` → 1 bulgu; MobilityData aynı feed'de
-/// `foreign_key_violation` ile 26'nın hepsini raporluyordu.
+/// When ATR_010/011/012 deduped as `Entity`, every row with an empty `attribution_id` used the same
+/// dedup key, so any number of broken references in a feed collapsed to ONE finding. The Spec makes
+/// `attributions.attribution_id` **Optional**, so an identity-free file is valid — basing dedup on
+/// an optional field silently suppressed the rule. Measurement (`tdg-80245`): 26 dangling `trip_id`
+/// → 1 finding; MobilityData reported all 26 in the same feed with `foreign_key_violation`.
 #[test]
 fn attribution_fk_violations_are_reported_per_row_without_attribution_id() {
     const ATTRIBUTIONS: &[u8] = b"organization_name,is_producer,trip_id\n\
@@ -6160,12 +6159,12 @@ fn attribution_fk_violations_are_reported_per_row_without_attribution_id() {
     }
 }
 
-/// ATR_001/ATR_003 dedup'ı `Entity` iken kimliksiz dosyada tek bulguya çöküyordu ve
-/// mesaj kaç kaydın etkilendiğini söylemiyordu. Her iki ihlal de TEK sistemik nedenden
-/// doğar (sütunun hiç yazılmaması, rol sütunlarının hiç doldurulmaması), bu yüzden satır
-/// başına emit aynı cümleyi tekrarlar: ölçümde 124 feed için ATR_001'de 391.871,
-/// ATR_003'te 6.472 notice demekti. Dosya başına tek özet + `observed_value` içinde sayı
-/// hem tekrarı önler hem etkilenen kayıt sayısını korur (FAR_013/DQ_016 deseni).
+/// When ATR_001/ATR_003 deduped as `Entity`, an identity-free file collapsed to one finding and
+/// the message did not say how many records were affected. Both violations arise from ONE systemic
+/// cause (the column is never written, or role columns are never populated), so per-row emission
+/// repeats the same sentence: measurement across 124 feeds meant 391,871 notices for ATR_001 and
+/// 6,472 for ATR_003. One file-level summary plus a count in `observed_value` prevents repetition
+/// while preserving the affected-record count (FAR_013/DQ_016 pattern).
 #[test]
 fn attribution_systemic_violations_are_summarized_once_with_a_count() {
     const ATTRIBUTIONS: &[u8] = b"organization_name\nOrg A\nOrg B\nOrg C\n";
@@ -6197,11 +6196,11 @@ fn attribution_systemic_violations_are_summarized_once_with_a_count() {
     }
 }
 
-/// ATR_009 da ATR_001/ATR_003 ile aynı sınıfa girer: ölçümde ihlal sayısı her feed'de
-/// SATIR sayısına eşitti (`tdg-82555` 12.240/12.240, `tld-4477` 3.379/3.379), yani üretici
-/// her satırda aynı iki referans alanını birlikte yazıyor. `Entity` dedup kimlik başına
-/// tekilleştirdiği için 5 feed'de 93 notice çıkıyor ve hiçbiri kaç satırın etkilendiğini
-/// söylemiyordu. Dosya başına tek özet + sayı hem tekrarı önler hem hacmi korur.
+/// ATR_009 belongs to the same class as ATR_001/ATR_003: measured violations equaled the ROW
+/// count in every feed (`tdg-82555` 12,240/12,240, `tld-4477` 3,379/3,379), meaning the producer
+/// wrote the same two reference fields together on every row. `Entity` dedup reduced this to
+/// one per ID, yielding 93 notices in 5 feeds, none saying how many rows were affected.
+/// One file-level summary plus a count both avoids repetition and preserves volume.
 #[test]
 fn attribution_mutually_exclusive_refs_are_summarized_once_with_a_count() {
     const ATTRIBUTIONS: &[u8] =
@@ -6330,9 +6329,9 @@ fn kanji_only_text_does_not_open_jp_validation() {
     }
 }
 
-/// Goshogawara talep üzerine taksi deseni (2026-09-19): tek durak grubu içinde yalnız-biniş
-/// ve yalnız-iniş satırı aynı pencereyi paylaşır. Spec'in yasakladığı örtüşme ROL de
-/// örtüştüğünde vardır; sabit güzergâhı olmayan sefer shape kuralına da girmez.
+/// Goshogawara demand-responsive taxi pattern (2026-09-19): within one stop group, pickup-only
+/// and drop-off-only rows share the same window. The overlap forbidden by the Spec exists when
+/// the ROLE also overlaps; a trip without a fixed route is not subject to the shape rule.
 #[test]
 fn zone_only_flex_trip_is_not_an_overlap_or_shape_gap() {
     fn flex_files(stop_times: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
@@ -6366,7 +6365,7 @@ fn zone_only_flex_trip_is_not_an_overlap_or_shape_gap() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 
-    // Kapının kanıtı: iki satır da binişe açıksa örtüşme gerçektir.
+    // Proof of the gate: when both rows allow pickup, the overlap is real.
     let same_role = flex_files(
         b"trip_id,stop_sequence,location_group_id,pickup_type,drop_off_type,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_booking_rule_id\n\
           T1,1,C1,2,2,09:00:00,18:00:00,BR1,BR1\n\
@@ -6409,8 +6408,8 @@ fn feed_summary_carries_trimmed_agency_and_feed_info_fields() {
 
 #[test]
 fn cal_014_reports_future_only_service_like_mobilitydata() {
-    // MD `service_window_outside_feed_period` yalnız aktif pencereye bakar; servisin tümüyle
-    // gelecekte olması istisna değildir. CAL_014 Interop olduğu için aynı davranır.
+    // MD `service_window_outside_feed_period` checks only the active window; a service entirely
+    // in the future is not an exception. CAL_014 behaves the same because it is Interop.
     let mut files = base_files();
     files.retain(|(name, _)| *name != "calendar.txt");
     files.push((
