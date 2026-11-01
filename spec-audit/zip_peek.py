@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Zip'in DOSYA LİSTESİNİ tam indirmeden oku (HTTP Range, curl ile).
+"""Read a ZIP's FILE LIST without downloading it in full (HTTP Range, with curl).
 
-Zip'in merkezî dizini dosyanın SONUNDADIR. Son ~64 KB'ı çekip EOCD kaydını bulmak,
-oradan dizin bloğunun ofsetini okuyup gerekirse ikinci bir Range isteğiyle yalnız o
-bloğu almak yeterli — 57 feed × ~100 KB, tamamını indirmek yerine.
+The ZIP central directory is at the END of the file. Fetching the last ~64 KB to find the EOCD
+record, reading the directory block offset from it, and making a second Range request for only
+that block when needed is sufficient — 57 feeds × ~100 KB instead of downloading everything.
 
-⚠️ `urllib` DEĞİL `curl`: bu makinede Python'un sertifika deposu yok
+⚠️ Use `curl`, NOT `urllib`: this machine has no Python certificate store
 (`extract_provisions.py` docstring'i aynı tuzağı not ediyor).
-⚠️ Sunucu Range desteklemiyorsa o feed ATLANIR ve öyle raporlanır —
-"dosya yok" ile "bakılamadı" KARIŞTIRILMAZ.
+⚠️ If the server does not support Range, SKIP that feed and report it as such —
+do not CONFUSE "file absent" with "could not inspect".
 """
 import struct, subprocess, sys
 
@@ -27,9 +27,9 @@ def _curl(url, rng, timeout=90, max_bytes=52428800):
 
 def filenames(url, tail=65536):
     code, buf = _curl(url, f"-{tail}")
-    # Sunucuların çoğu Range'i yok sayıp TAM gövdeyi 200 ile döndürüyor. O hâlde
-    # elimizde zaten bütün zip var — indirme yapılmış, atmanın anlamı yok.
-    # (Boyut `--max-filesize` ile sınırlı; aşarsa curl hata verir ve feed "bakılamadı"ya düşer.)
+    # Most servers ignore Range and return the FULL body with 200. In that case we already
+    # have the entire ZIP — it has been downloaded, so there is no point in discarding it.
+    # (Size is limited by `--max-filesize`; curl errors when exceeded and the feed becomes "uninspectable".)
     if code not in ("206", "200"):
         raise RuntimeError(f"HTTP {code}")
     if code == "200" and not buf.startswith(b"PK"):
@@ -40,8 +40,8 @@ def filenames(url, tail=65536):
     cd_size, cd_off = struct.unpack("<II", buf[i + 12:i + 20])
     if cd_off == 0xFFFFFFFF:
         raise RuntimeError("zip64 — desteklenmiyor")
-    # Kuyruğun dosya içindeki başlangıcı bilinmiyor; dizin kuyruğa sığıyorsa
-    # imzayı doğrudan arayarak buluruz, sığmıyorsa ikinci istek atarız.
+    # The tail's start position in the file is unknown; if the directory fits in the tail,
+    # find its signature directly, otherwise make a second request.
     j = buf.find(b"PK\x01\x02")
     if j >= 0 and len(buf) - j >= cd_size:
         cd = buf[j:j + cd_size]

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""12 presence boşluğu korpusta ne kadar gerçekleşiyor?
+"""How often do the 12 presence gaps occur in the corpus?
 
-Her (dosya, alan) için: sütun VARSA ve değer BOŞSA say. Sütun hiç yoksa ayrı sayılır —
-o durum `ARC_025` (zorunlu sütun başlıkta yok) alanıdır, bu boşlukların değil.
+For each (file, field): count when the column EXISTS and the value is EMPTY. Count a missing column separately — that is the domain of `ARC_025` (required column absent from the header), not a presence gap.
 """
 import csv, io, zipfile, pathlib, collections, json
 
@@ -23,9 +22,9 @@ FIELDS = [
     ("trips.txt", "service_id"),
 ]
 csv.field_size_limit(10_000_000)
-empty = collections.Counter()          # (file,field) -> boş satır
-feeds = collections.defaultdict(set)   # (file,field) -> feed kümesi
-present = collections.Counter()        # (file,field) -> dosyayı taşıyan feed sayısı
+empty = collections.Counter()          # (file,field) -> empty rows
+feeds = collections.defaultdict(set)   # (file,field) -> feed set
+present = collections.Counter()        # (file,field) -> feeds carrying the file
 
 for z in sorted(pathlib.Path("notgit/corpus/zips").glob("*.zip")):
     try: zf = zipfile.ZipFile(z)
@@ -44,15 +43,15 @@ for z in sorted(pathlib.Path("notgit/corpus/zips").glob("*.zip")):
                 except Exception: cache[fname] = None
         if not cache[fname]: continue
         hdr, rows = cache[fname]
-        if field not in hdr: continue          # sütun yok → ARC_025'in alanı
+        if field not in hdr: continue          # column absent → ARC_025's domain
         present[(fname, field)] += 1
         i = hdr.index(field)
-        # ⚠️ TAMAMEN BOŞ SATIRI SAYMA. İlk ölçüm sayıyordu ve "trips.service_id 24 satır"
-        # gibi bir sonuç verdi; o satırlar aslında CSV'nin sonundaki boş satırlardı.
-        # Pipeline onları `ARC_018` ile eler ve kayıt üretmez, dolayısıyla presence
-        # kuralları o satırları hiç görmez. Ölçüm kuralın gördüğü şeyi saymalı.
+        # ⚠️ DO NOT COUNT A COMPLETELY EMPTY ROW. The first measurement did so and reported
+        # results such as "trips.service_id 24 rows"; those were actually trailing empty CSV rows.
+        # The pipeline filters them with `ARC_018` and emits no record, so presence rules never see them.
+        # The measurement must count what the rule sees.
         n = sum(1 for row in rows
-                if any(c.strip() for c in row)                # boş satır değil
+                if any(c.strip() for c in row)                # not an empty row
                 and (i >= len(row) or not row[i].strip()))
         if n:
             empty[(fname, field)] += n
