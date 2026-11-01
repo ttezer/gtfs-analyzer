@@ -328,7 +328,7 @@ fn break_last_distance(text: &str, equal_instead: bool) -> String {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn shp_005_fires_when_shape_distance_decreases_on_a_real_feed() {
     let zip = corpus_zip(SHP_FEED);
     let before = rule_ids(&zip);
@@ -356,7 +356,7 @@ fn shp_005_fires_when_shape_distance_decreases_on_a_real_feed() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn shp_005_stays_silent_on_equal_distances_because_three_other_rules_measure_that() {
     // BOUNDARY VALUE. The spec says "must increase", so EQUALITY is also a violation. But
     // adding equality to SHP_005 would make it the FIFTH rule measuring the same fact —
@@ -434,37 +434,37 @@ fn empty_key_boundary(feed: &str, file: &str, dup_rule: &str, root_rule: &str) {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn cal_001_fires_on_a_duplicated_calendar_row() {
     duplicate_row_case("mdb-3141", "calendar.txt", "CAL_001", &[]);
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn cal_001_ignores_duplicate_empty_service_ids_because_cal_022_reports_the_root() {
     empty_key_boundary("mdb-3141", "calendar.txt", "CAL_001", "CAL_022");
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn far_001_fires_on_a_duplicated_fare_attribute_row() {
     duplicate_row_case("mdb-1996", "fare_attributes.txt", "FAR_001", &[]);
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn far_001_ignores_duplicate_empty_fare_ids_because_far_012_reports_the_root() {
     empty_key_boundary("mdb-1996", "fare_attributes.txt", "FAR_001", "FAR_012");
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn lvl_001_fires_on_a_duplicated_level_row() {
     duplicate_row_case("mdb-3357", "levels.txt", "LVL_001", &[]);
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn lvl_001_ignores_duplicate_empty_level_ids_because_lvl_008_reports_the_root() {
     empty_key_boundary("mdb-3357", "levels.txt", "LVL_001", "LVL_008");
 }
@@ -480,7 +480,7 @@ fn lvl_001_ignores_duplicate_empty_level_ids_because_lvl_008_reports_the_root() 
 const TRN_FEED: &str = "mdb-2638";
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn trn_005_fires_on_an_exactly_duplicated_translation_row() {
     duplicate_row_case(TRN_FEED, "translations.txt", "TRN_005", &[]);
 }
@@ -492,7 +492,7 @@ fn trn_005_fires_on_an_exactly_duplicated_translation_row() {
 const TRN_FIELD_VALUE_FEED: &str = "mdb-3176";
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn trn_005_uses_field_value_as_identity_when_there_is_no_record_id() {
     // BOUNDARY VALUE. `has_translation_identity` requires table+field+language and takes
     // identity from record_id OR field_value. Removing the entire identity would test the
@@ -599,7 +599,7 @@ fn typed_field_case(
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn stm_003_fires_on_a_malformed_arrival_time() {
     // EXPLAINED side effects (measured): an unparseable time is treated as ABSENT downstream.
     //   STM_015 — mutation hit a trip's FIRST stop row → "arrival_time missing at first stop".
@@ -616,7 +616,7 @@ fn stm_003_fires_on_a_malformed_arrival_time() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn stm_004_fires_on_a_malformed_departure_time() {
     // STM_034 for the same reason: when departure is broken, only one of arrival/departure
     // remains defined. STM_015 does NOT appear here — that rule checks arrival_time; the
@@ -633,7 +633,7 @@ fn stm_004_fires_on_a_malformed_departure_time() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn stp_004_fires_on_a_non_numeric_stop_lat() {
     // NO side effect (measured): corrupting one stop's coordinates changes no aggregated or
     // cascade rule class.
@@ -641,7 +641,7 @@ fn stp_004_fires_on_a_non_numeric_stop_lat() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn stp_005_fires_on_an_invalid_stop_lon_without_whitespace() {
     // FIRST HALF OF THE CONTRAST. NO whitespace → no DQ_016 root → suppression does not run
     // → STP_005 remains visible. This proves the predicate itself works.
@@ -649,7 +649,7 @@ fn stp_005_fires_on_an_invalid_stop_lon_without_whitespace() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn stp_005_is_born_and_suppressed_when_the_value_only_wears_whitespace() {
     // SECOND HALF OF THE CONTRAST — the actual question in issue #129.
     //
@@ -783,13 +783,13 @@ const TRF_FEED: &str = "mdb-2848";
 const FLEX_FEED: &str = "mdb-3037";
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn pth_001_fires_on_a_duplicated_pathway_row() {
     duplicate_row_case(PTH_FEED, "pathways.txt", "PTH_001", &[]);
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn pth_026_fires_when_a_pathway_endpoint_is_a_station() {
     // K4 cross-reference. `from_stop_id` is changed to a station that REALLY EXISTS
     // (location_type=1) — using a fabricated ID would test the FK rule, not the endpoint TYPE rule.
@@ -808,7 +808,7 @@ fn pth_026_fires_when_a_pathway_endpoint_is_a_station() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn trf_021_fires_when_a_transfer_endpoint_is_neither_stop_nor_station() {
     // Same rationale: target an existing ENTRANCE (location_type=2).
     let zip = corpus_zip(TRF_FEED);
@@ -829,7 +829,7 @@ fn trf_021_fires_when_a_transfer_endpoint_is_neither_stop_nor_station() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn stm_058_fires_on_a_malformed_flex_pickup_window() {
     // K2 flow path + Flex. ⚠️ Row selection is MEASURED: 19 corpus feeds carry this header,
     // but ONLY 7 have a value; mutating an empty window would test nothing. Therefore find
@@ -924,7 +924,7 @@ const FRQ_FEED: &str = "mdb-1914"; // 3909 frequencies rows
 const PTH_PLATFORM_FEED: &str = "mdb-2933";
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn atr_004_fires_on_an_invalid_is_producer() {
     mutate_field_case(
         ATR_FEED,
@@ -939,7 +939,7 @@ fn atr_004_fires_on_an_invalid_is_producer() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn atr_005_fires_on_an_invalid_is_operator() {
     // EXPLAINED side effect: `ATR_003` ("attribution role is undefined", Yüksek·Spec).
     // The first row of `mdb-2931` has `is_producer=0, is_operator=1, is_authority=0` —
@@ -959,7 +959,7 @@ fn atr_005_fires_on_an_invalid_is_operator() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn atr_006_fires_on_an_invalid_is_authority() {
     mutate_field_case(
         ATR_FEED,
@@ -974,7 +974,7 @@ fn atr_006_fires_on_an_invalid_is_authority() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn atr_007_fires_on_an_invalid_attribution_url() {
     // `attribution_url` is populated in only 8 of 18 rows → choose the first populated row.
     mutate_first_populated(
@@ -988,7 +988,7 @@ fn atr_007_fires_on_an_invalid_attribution_url() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn cal_002_fires_on_an_invalid_weekday_value() {
     mutate_field_case(
         "mdb-3141",
@@ -1003,7 +1003,7 @@ fn cal_002_fires_on_an_invalid_weekday_value() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn far_004_fires_on_an_invalid_payment_method() {
     mutate_field_case(
         "mdb-1996",
@@ -1018,7 +1018,7 @@ fn far_004_fires_on_an_invalid_payment_method() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn frq_002_fires_on_a_malformed_start_time() {
     mutate_field_case(
         FRQ_FEED,
@@ -1033,7 +1033,7 @@ fn frq_002_fires_on_a_malformed_start_time() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn frq_003_fires_on_a_malformed_end_time() {
     mutate_field_case(
         FRQ_FEED,
@@ -1048,7 +1048,7 @@ fn frq_003_fires_on_a_malformed_end_time() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn lvl_002_fires_on_a_non_numeric_level_index() {
     mutate_field_case(
         "mdb-3357",
@@ -1089,7 +1089,7 @@ fn add_column(text: &str, name: &str, row_ordinal: usize, value: &str) -> String
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn pth_031_fires_when_a_pathway_endpoint_is_street_accessed() {
     // Last rule in the bucket. `stop_access=1` (a street-accessible stop) cannot be a
     // pathway endpoint. None of the corpus's 10 pathway feeds has a `stop_access` column,
@@ -1257,7 +1257,7 @@ fn drop_guard<T>(_: &mut T) {}
 const FATAL_FEED: &str = "mdb-1903";
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn arc_001_fatal_when_the_archive_is_truncated() {
     let zip = corpus_zip(FATAL_FEED);
     assert!(
@@ -1270,7 +1270,7 @@ fn arc_001_fatal_when_the_archive_is_truncated() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn arc_002_reports_invalid_utf8_as_a_notice_not_a_fatal() {
     // 🔴 THIS TEST WAS WRITTEN TO DISPROVE AN ASSUMPTION. Its first version expected
     // `Fatal(Utf8Critical)`, because `core::enums::FatalCode` carries this comment:
@@ -1309,7 +1309,7 @@ fn arc_002_reports_invalid_utf8_as_a_notice_not_a_fatal() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn arc_004_reports_missing_required_files_as_a_notice_since_partial_recovery() {
     // `fatals.csv` (2026-08-06 corpus run) records the `NoRequiredFiles` Fatal in 4 feeds.
     // That file is STALE: `66e009c2` ("recover and report partial feeds", 2026-08-09) changed
@@ -1337,7 +1337,7 @@ fn arc_004_reports_missing_required_files_as_a_notice_since_partial_recovery() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn arc_029_fatal_when_a_member_is_a_decompression_bomb() {
     // `ratio_floor` 16 MiB, `max_ratio` 100 → 24 MiB of one repeated byte compresses at
     // about 1000:1, so it fails through the RATIO path (zip-bomb signature), not an absolute cap.
@@ -1350,7 +1350,7 @@ fn arc_029_fatal_when_a_member_is_a_decompression_bomb() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn arc_013_reports_csv_tokenization_failure_as_a_notice_not_a_fatal() {
     // `FatalCode::CsvMalformed` is also a DEAD variant (see the arc_002 test). When
     // `tokenize_csv` returns an error, K1 adds the file to `partial.unavailable_files` and
@@ -1389,7 +1389,7 @@ fn r1_of(zip: &[u8]) -> (bool, bool, f64) {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn losing_a_required_file_withdraws_the_publishable_verdict() {
     // 🔴 OLD BEHAVIOR: when `stops.txt` became unreadable, 29 checks were skipped, notices
     // fell from 604 to 178, and the feed STILL reported `publishable=true` — while the score
@@ -1421,7 +1421,7 @@ fn losing_a_required_file_withdraws_the_publishable_verdict() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn losing_an_optional_file_does_not_withdraw_the_verdict() {
     // ⚠️ ASYMMETRY TEST. An unreadable optional file also makes the run PARTIAL
     // (measured). Dropping the gate for that case would ban a valid feed from publication
@@ -1441,7 +1441,7 @@ fn losing_an_optional_file_does_not_withdraw_the_verdict() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn trn_006_fires_on_a_conflicting_translation() {
     // `TRN_006` entered the bucket LATE: it fired with 101,871 findings in the 2026-08-06
     // baseline, then fell to ZERO when `67fc99b0` (#99) tied translation-row checks to schema
@@ -1501,7 +1501,7 @@ fn pad_trip_ids(text: &str) -> String {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
     // The cascade covered only ONE DIRECTION: when the observed value had whitespace. This is
     // the MIRROR case — the observed side (`stop_times.trip_id`) is clean, while whitespace
@@ -1541,7 +1541,7 @@ fn whitespace_on_the_reference_side_is_attributed_to_the_dq_016_root() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn a_genuinely_unknown_id_is_not_swallowed_by_the_cascade() {
     // OVER-SUPPRESSION GUARD. If relaxing the cascade swallows real FK errors, the fix is
     // worse than the disease. A nonexistent trip_id also has no trimmed counterpart → it MUST
@@ -1582,7 +1582,7 @@ const TRF_TRIP_FEED: &str = "mdb-2919"; // from/to_trip_id POPULATED in transfer
 // ── SELECTION_BIAS sample ────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_pth_023_fires_on_a_missing_pathway_mode() {
     mutate_field_case(
         SEL_PATH_FEED,
@@ -1597,7 +1597,7 @@ fn sample_pth_023_fires_on_a_missing_pathway_mode() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_stm_006_fires_on_a_missing_stop_id() {
     // EXPLAINED side effects are filled in by measurement; an empty `stop_id` also breaks the FK chain.
     mutate_field_case(
@@ -1613,7 +1613,7 @@ fn sample_stm_006_fires_on_a_missing_stop_id() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_trf_006_fires_on_an_unknown_from_trip_id() {
     // ⚠️ FEED CHANGED: `mdb-2848` has a `from_trip_id` COLUMN, but it is EMPTY in all
     // 141,458 rows. Checking that the column exists but not that it is POPULATED is the same
@@ -1629,7 +1629,7 @@ fn sample_trf_006_fires_on_an_unknown_from_trip_id() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_trf_007_fires_on_an_unknown_to_trip_id() {
     mutate_first_populated(
         TRF_TRIP_FEED,
@@ -1644,7 +1644,7 @@ fn sample_trf_007_fires_on_an_unknown_to_trip_id() {
 // ── CROSS_FILE sample ────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_ars_001_fires_on_a_duplicated_area_row() {
     // ⚠️ The first attempt mutated `stop_areas.txt` and produced `DQ_021` (generic
     // duplication) — `ARS_001` reads `areas.txt`. The rule was not wrong; the MUTATION
@@ -1653,7 +1653,7 @@ fn sample_ars_001_fires_on_a_duplicated_area_row() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_net_003_fires_on_an_unknown_route_in_route_networks() {
     mutate_field_case(
         XREF_FEED,
@@ -1670,7 +1670,7 @@ fn sample_net_003_fires_on_an_unknown_route_in_route_networks() {
 // ── THIN_FEATURE sample ──────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_flg_005_fires_on_an_unknown_from_timeframe_group() {
     // The column is empty in `mdb-892`; `mdb-2143` has 45 populated rows (the only feed
     // carrying timeframes).
@@ -1685,7 +1685,7 @@ fn sample_flg_005_fires_on_an_unknown_from_timeframe_group() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_fpd_004_fires_on_an_unknown_fare_media() {
     mutate_first_populated(
         XREF_FEED,
@@ -1698,7 +1698,7 @@ fn sample_fpd_004_fires_on_an_unknown_fare_media() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_rct_003_fires_on_an_invalid_default_flag() {
     mutate_field_case(
         RCT_FEED,
@@ -1713,7 +1713,7 @@ fn sample_rct_003_fires_on_an_invalid_default_flag() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_tfr_006_fires_when_a_timeframe_exceeds_24_hours() {
     // `timeframes.txt` exists in only ONE corpus feed; it is small but real producer data.
     // EXPLAINED side effect: `TFR_004` (end_time < start_time). Making the start 25:00:00
@@ -1733,7 +1733,7 @@ fn sample_tfr_006_fires_when_a_timeframe_exceeds_24_hours() {
 const GEOJSON_FEED: &str = "ch-odv-flex"; // locations.geojson + populated stop_times.location_id
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_xfl_025_fires_on_an_unknown_location_id() {
     // `stop_times.location_id` must point to a feature ID in `locations.geojson`.
     mutate_first_populated(
@@ -1747,7 +1747,7 @@ fn sample_xfl_025_fires_on_an_unknown_location_id() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
     // ID-SPACE COLLISION: a feature ID in `locations.geojson` cannot equal a `stop_id` in
     // `stops.txt` — `stop_times.stop_id` and `stop_times.location_id` would give two
@@ -1783,7 +1783,7 @@ fn sample_xfl_031_fires_when_a_geojson_id_collides_with_a_stop_id() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn trn_002_still_fires_when_the_table_is_known_but_the_field_is_not() {
     // OVER-SUPPRESSION GUARD. `TRN_002` now stays silent when the table is UNKNOWN (root
     // `TRN_001` is already reported and "does this field apply to this table?" is unanswered).
@@ -1805,7 +1805,7 @@ fn trn_002_still_fires_when_the_table_is_known_but_the_field_is_not() {
 }
 
 #[test]
-#[ignore = "gerçek korpus feed'i gerektirir"]
+#[ignore = "requires a real corpus feed"]
 fn trf_016_still_fires_on_a_duplicate_that_carries_trip_context() {
     // OVER-SUPPRESSION GUARD. `TRF_016` now skips rows WITHOUT trip/route context (those
     // belong to `TRF_012` — the distinction both cards documented). A duplicate WITH context
