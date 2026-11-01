@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { tFatal } from '../i18n';
 import type { FatalError } from '../types';
 
-// Fatal mesajı pipeline'ın Türkçe metniydi; UI başlığı çeviriyor ama altındaki mesajı
-// olduğu gibi gösteriyordu. Artık bildirimlerle aynı modelde `{code}.{variant}` şablonundan.
+// The fatal message was the pipeline's Turkish text; the UI translated the heading but showed
+// the message below it unchanged. It now uses the same `{code}.{variant}` template model as notices.
 const zip: FatalError = {
   code: 'ZipUnreadable',
   message: "'stops.txt' okunamadı: bad crc",

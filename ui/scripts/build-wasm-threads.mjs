@@ -1,22 +1,22 @@
-// Threaded (rayon/atomics) WASM derlemesi — cross-platform (#19).
+// Cross-platform threaded (rayon/atomics) WASM build (#19).
 //
-// İki Windows tuzağını çözer:
-//  1) `rustup run nightly` Windows'ta MSVC host'a (link.exe) çözülüp, MSVC C++ build
-//     tools yoksa build-std'nin host build-script'lerini (compiler_builtins/rustversion)
-//     linklerken patlıyordu. Windows'ta GNU nightly'yi (gcc linker) AÇIKÇA seçiyoruz.
-//  2) Global `RUSTFLAGS` (atomics + wasm link-arg'ları) host build-script'lerine sızıp
-//     onları bozuyordu. Bayrakları yalnız wasm hedefine uygula:
+// Fixes two Windows traps:
+//  1) `rustup run nightly` resolved to the MSVC host (link.exe) on Windows and failed while
+//     linking build-std host build scripts (compiler_builtins/rustversion) when MSVC C++ build
+//     tools were absent. Explicitly select the GNU nightly (gcc linker) on Windows.
+//  2) Global `RUSTFLAGS` (atomics + wasm link args) leaked into host build scripts and broke
+//     them. Apply the flags only to the wasm target:
 //     CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS.
 //
-// CI/linux'ta davranış öncekiyle aynı (toolchain = "nightly").
+// Behavior on CI/Linux is unchanged (toolchain = "nightly").
 //
-// `RUST_NIGHTLY` tanımlıysa (CI, setup-rust-wasm action'ı) tarihli nightly kullanılır;
-// yerelde tanımsızdır ve kurulu "nightly" kullanılır.
+// When `RUST_NIGHTLY` is set (CI, setup-rust-wasm action), use the dated nightly;
+// locally it is unset and the installed "nightly" is used.
 import { spawnSync } from 'node:child_process';
 
 const rustflags = [
   '-C target-feature=+atomics,+bulk-memory,+mutable-globals',
-  '-A warnings',              // atomics nightly-only unstable feature — beklenen uyarıyı bastır
+  '-A warnings',              // atomics nightly-only unstable feature — suppress the expected warning
   '-C link-arg=--shared-memory',
   '-C link-arg=--max-memory=4294967296',
   '-C link-arg=--import-memory',

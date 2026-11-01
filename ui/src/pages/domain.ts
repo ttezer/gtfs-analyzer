@@ -28,8 +28,8 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
   attachHiddenRuleListeners(root);
   attachAgencyBreakdownListeners(root);
 
-  // Genel Skor bileşeni kartları → Ayrıntı ve Düzeltme (fix) sayfasındaki R2 bölümünü
-  // o sınıfla filtreli aç. files sayfasıyla aynı navigasyon mekanizmasını yeniden kullan.
+// General Score component cards → open the R2 section on the Details and Fix page,
+// filtered to that class. Reuse the same navigation mechanism as the files page.
   root.querySelectorAll<HTMLButtonElement>('.rpt-sub-chip[data-class]').forEach(btn => {
     btn.addEventListener('click', () => {
       setFixClassFilter(btn.dataset['class']!);
@@ -39,15 +39,15 @@ export function renderDomain(root: HTMLElement, result: ValidationResult): void 
   });
 }
 
-// ── İki büyük skor kartı ──────────────────────────────────────────────────────
+// ── Two large score cards ────────────────────────────────────────────────────
 
 function renderScoreRow(r5: R5Report, c: SevCount, coverageComplete = true): string {
   const pubColor  = scoreColor(r5.pub_score);
   const qualColor = scoreColor(r5.score);
 
-  // #133 — eksik kapsamdaki skor DAHA YÜKSEK çıkar (koşmayan kural ceza üretemez).
-  // Ölçüldü: `stops.txt` okunamaz olunca 89,4 → 93,5. Sayı bilerek DÜZELTİLMİYOR
-  // (atlanan kontrol başına ceza uydurmak olurdu); kıyaslanamaz olduğu SÖYLENİYOR.
+// #133 — a score with incomplete coverage is HIGHER (a rule that did not run cannot penalize).
+// Measured: 89.4 → 93.5 when `stops.txt` cannot be read. The number is deliberately NOT
+// CORRECTED (that would invent a penalty per skipped check); it is labeled incomparable.
   const warn = coverageComplete
     ? ''
     : `<div class="rpt-score-warn">${t('domain.score_incomplete_warn')}</div>`;
@@ -75,13 +75,13 @@ function scoreColor(v: number): string {
   return v >= 80 ? '#16a34a' : v >= 60 ? '#d97706' : '#dc2626';
 }
 
-// ── R1 yayınlanabilirlik kartı ────────────────────────────────────────────────
+// ── R1 publishability card ──────────────────────────────────────────────────
 
 function renderR1Card(r1: ValidationResult['reports']['r1'], result: ValidationResult): string {
   const noticeMap = new Map(result.notices.map(n => [n.id, n]));
 
-  // #133 — kapsam eksikse "engellendi" DEMEK YANLIŞ olur: engel bulunmadı, BAKILAMADI.
-  // İki durumu aynı kartta göstermek, doğrulanamamış bir feed'i doğrulanmış gibi sunar.
+// #133 — saying "blocked" when coverage is incomplete is WRONG: no blocker was found, it was
+// NOT CHECKED. Showing both states in one card would present an unverified feed as verified.
   if (r1.coverage_complete === false) {
     const files = (result.partial?.unavailable_files ?? []).slice(0, 5);
     const list = files.map(f => `<li><code>${escHtml(f)}</code></li>`).join('');
@@ -157,7 +157,7 @@ function renderSubScores(r5: R5Report): string {
     </div>`;
 }
 
-// ── Pasta grafiği (donut) ─────────────────────────────────────────────────────
+// ── Donut chart ─────────────────────────────────────────────────────────────
 
 type SevCount = { CRITICAL: number; HIGH: number; MEDIUM: number; LOW: number; INFO: number };
 
@@ -275,17 +275,17 @@ function renderMetrics(m: FeedMetrics): string {
     </div>`;
 }
 
-// ── Feed takvimi: geçerlilik penceresi (F1) + servis kapsama görseli (F2) + zaman damgası (F3) ──
+// ── Feed calendar: validity window (F1) + service coverage visual (F2) + timestamp (F3) ──
 
 function renderFeedCalendar(m: FeedMetrics): string {
   const { feed_start_date: fs, feed_end_date: fe, service_start_date: ss, service_end_date: se } = m;
 
-  // F1 — feed_info geçerlilik penceresi
+// F1 — feed_info validity window
   const validityVal = (fs != null && fe != null)
     ? `${escHtml(fmtServiceDate(fs) ?? '')} – ${escHtml(fmtServiceDate(fe) ?? '')}`
     : `<span class="muted-text">${t('domain.not_specified')}</span>`;
 
-  // F2 — gerçek servis kapsaması + yoğunluk
+// F2 — actual service coverage + density
   let serviceVal: string;
   if (ss != null && se != null) {
     const span = inclusiveDaySpan(ss, se);
@@ -301,7 +301,7 @@ function renderFeedCalendar(m: FeedMetrics): string {
     serviceVal = `<span class="muted-text">${t('domain.no_service')}</span>`;
   }
 
-  // F3 — rapor oluşturulma zaman damgası (validasyon anında yakalandı)
+// F3 — report creation timestamp (captured at validation time)
   const gen = getState().generatedAt;
   const genHtml = gen
     ? `<div class="cal-generated">${t('domain.generated_at')}: ${escHtml(fmtTimestamp(gen))}</div>`
@@ -319,7 +319,7 @@ function renderFeedCalendar(m: FeedMetrics): string {
     </div>`;
 }
 
-// Eksen = feed penceresi ile servis aralığının birleşimi; iki bant orantılı çizilir.
+// Axis = the union of the feed window and service range; the two bands are drawn proportionally.
 function renderTimelineBar(fs: number | null, fe: number | null, ss: number | null, se: number | null): string {
   const starts = [fs, ss].filter((x): x is number => x != null);
   const ends = [fe, se].filter((x): x is number => x != null);

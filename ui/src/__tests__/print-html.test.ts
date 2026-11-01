@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { withAutoPrint, withLang } from '../print-doc';
 
-// Rapor sekmesi artık `noopener` ile açılıyor → pencere handle'ı YOK. Eskiden pencerede
-// yapılan iki iş (documentElement.lang ataması ve win.print() çağrısı) bu yüzden belgenin
-// kendisine taşındı. Aşağıdaki testler o taşımanın doğru yapıldığını sabitler.
+// The report tab now opens with `noopener` → there is NO window handle. The two operations
+// previously performed on the window (setting documentElement.lang and calling win.print())
+// were therefore moved to the document itself. The tests below pin down that move.
 
 const CLASSIC = '<!DOCTYPE html>\n<html lang="tr">\n<head><title>x</title></head>\n<body><p>rapor</p></body>\n</html>';
 const EXECUTIVE = '<!doctype html>\n<html lang="ja">\n<head></head>\n<body><section>y</section></body>\n</html>';
 
 describe('withLang', () => {
   it('replaces the lang of the first html tag, not the doctype', () => {
-    // İlk yazımda regex `^`'a bağlıydı; <!DOCTYPE> önde olduğu için hiç eşleşmiyordu.
+    // The first implementation anchored the regex to `^`; it never matched because <!DOCTYPE> came first.
     expect(withLang(CLASSIC, 'en')).toContain('<html lang="en">');
     expect(withLang(CLASSIC, 'en')).not.toContain('lang="tr"');
     expect(withLang(CLASSIC, 'en').startsWith('<!DOCTYPE html>')).toBe(true);

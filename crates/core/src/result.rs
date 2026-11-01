@@ -1,23 +1,23 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-// BTreeMap (HashMap değil): bu tiplerin tamamı JSON'a serialize edilir ve `HashMap`
-// iterasyon sırası her SÜREÇTE farklı tohumla değişir → aynı binary + aynı feed iki
-// koşuda farklı BAYT üretirdi. İçerik hep aynıydı, yalnız anahtar sırası oynuyordu;
-// bu da `cmp`/`shasum` ile golden karşılaştırmayı ve "çıktı bit-özdeş" kapısını
-// (K2 chunk-paralel işinin ön koşulu) imkânsız kılıyordu. BTreeMap sırayı anahtar
-// üzerinden sabitler. Bkz. 2026-07-27 determinizm turu — o tur `dedup` temsilcisini
-// düzeltti, bu tur serileştirme sırasını kapatıyor.
+// BTreeMap (not HashMap): all of these types are serialized to JSON, and `HashMap`
+// iteration order changes with a different seed on every PROCESS → the same binary + feed
+// would produce different BYTES on two runs. The content was always the same; only key order moved.
+// That made golden comparisons with `cmp`/`shasum` and the "bit-identical output" gate
+// (a prerequisite for K2 chunk-parallel work) impossible. BTreeMap fixes order by key.
+// See the 2026-07-27 determinism round — that round fixed the `dedup` representative;
+// this round closes serialization ordering.
 use crate::{FatalCode, FeedMetrics, Notice, ReportSet};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FatalError {
     pub code: FatalCode,
-    /// Pipeline'ın kendi (Türkçe) metni. `params` çevrilemezse gösterilen metin budur.
+    /// The pipeline's own (Turkish) text. This is shown if `params` cannot be translated.
     pub message: String,
-    /// Mesaj şablonunun parametreleri. `variant`, şablon anahtarını `{code}.{variant}`
-    /// olarak seçer; diğer anahtarlar `{placeholder}` doldurur. CLI, SDK ve UI fatal
-    /// mesajını bildirimlerle AYNI modelle çevirir; boşsa JSON'a hiç yazılmaz.
+    /// Message-template parameters. `variant` selects the template key as `{code}.{variant}`;
+    /// other keys fill `{placeholder}`. CLI, SDK, and UI translate the fatal message using the
+    /// SAME model as notices; an empty map is omitted from JSON.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub params: BTreeMap<String, String>,
 }
@@ -40,7 +40,7 @@ impl FatalError {
         self
     }
 
-    /// Şablon sözlüğündeki anahtar: `ZipUnreadable.entry_read` gibi.
+    /// Key in the template dictionary, such as `ZipUnreadable.entry_read`.
     pub fn template_key(&self) -> String {
         match self.params.get("variant") {
             Some(variant) => format!("{:?}.{variant}", self.code),
@@ -111,44 +111,44 @@ pub enum ValidationStatus {
     Partial,
 }
 
-/// UI'da entity_id yerine okunabilir ad göstermek için arama tablosu.
+/// Lookup table for showing readable names in the UI instead of entity_id.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NameIndex {
     pub stops: BTreeMap<String, String>,       // stop_id → stop_name
-    pub routes: BTreeMap<String, String>,      // route_id → short_name (veya long_name)
+    pub routes: BTreeMap<String, String>,      // route_id → short_name (or long_name)
     pub trips: BTreeMap<String, String>,       // trip_id → trip_headsign
-    pub trip_routes: BTreeMap<String, String>, // trip_id → route_id (filtre için)
-    pub trip_directions: BTreeMap<String, String>, // trip_id → "0"/"1" (direction_id; yoksa yok)
-    pub stop_coords: BTreeMap<String, [f64; 2]>, // stop_id → [lat, lon] (harita için)
-    pub trip_first_dep: BTreeMap<String, String>, // trip_id → "HH:MM" (sefer saati)
-    pub shape_routes: BTreeMap<String, Vec<[String; 2]>>, // shape_id → [[route_id, yön]]
-    pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>, // shape_id → [[lat, lon], ...] sıralı nokta listesi
+    pub trip_routes: BTreeMap<String, String>, // trip_id → route_id (for filtering)
+    pub trip_directions: BTreeMap<String, String>, // trip_id → "0"/"1" (direction_id; absent if missing)
+    pub stop_coords: BTreeMap<String, [f64; 2]>,   // stop_id → [lat, lon] (for the map)
+    pub trip_first_dep: BTreeMap<String, String>,  // trip_id → "HH:MM" (trip time)
+    pub shape_routes: BTreeMap<String, Vec<[String; 2]>>, // shape_id → [[route_id, direction]]
+    pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>, // shape_id → [[lat, lon], ...] ordered point list
     pub trip_shapes: BTreeMap<String, String>,         // trip_id  → shape_id
-    pub trip_stops: BTreeMap<String, Vec<String>>, // trip_id  → [stop_id, ...] stop_sequence sıralı
-    pub shape_trips: BTreeMap<String, String>,     // shape_id → ilk trip_id (shape durakları için)
-    pub route_shapes: BTreeMap<String, Vec<String>>, // route_id → [shape_id, ...] (terminus haritası için)
-    /// route_id → [route_color, route_text_color] (6 haneli hex, `#` yok; metin rengi yoksa boş).
-    /// Yalnız geçerli `route_color` taşıyan hatlar girer. Eklemeli alan: eski sonuçlarda yoktur.
+    pub trip_stops: BTreeMap<String, Vec<String>>, // trip_id  → [stop_id, ...] ordered by stop_sequence
+    pub shape_trips: BTreeMap<String, String>,     // shape_id → first trip_id (for shape stops)
+    pub route_shapes: BTreeMap<String, Vec<String>>, // route_id → [shape_id, ...] (for the terminus map)
+    /// route_id → [route_color, route_text_color] (6-digit hex, no `#`; empty if text color is absent).
+    /// Only routes carrying a valid `route_color` are included. Additive field: absent from older results.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub route_colors: BTreeMap<String, [String; 2]>,
-    /// service_id → [gün maskesi "1111100" (pzt..paz; calendar.txt yoksa boş), başlangıç YYYYMMDD,
-    /// bitiş YYYYMMDD, calendar_dates istisna sayısı]. Planlamacıya "hangi günler" demek için.
-    /// Eklemeli alan: eski sonuçlarda yoktur.
+    /// service_id → [day mask "1111100" (Mon..Sun; empty if calendar.txt is absent), start YYYYMMDD,
+    /// end YYYYMMDD, calendar_dates exception count]. Used to tell the planner "which days".
+    /// Additive field: absent from older results.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub service_days: BTreeMap<String, [String; 4]>,
-    /// route_id → route_long_name; yalnız kısa adı da olan ve uzun adı farklı hatlar
-    /// (kısa ad `routes`'ta). Arama süzgecinde "K701 · İstasyon–Hisar Köy" demek için.
+    /// route_id → route_long_name; only routes that also have a short name and a different long name
+    /// (short name in `routes`). Used to say "K701 · İstasyon–Hisar Köy" in the search filter.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub route_long_names: BTreeMap<String, String>,
-    /// stop_id → stop_code (yolcunun gördüğü durak kodu); yalnız dolu olanlar.
+    /// stop_id → stop_code (the stop code seen by passengers); non-empty values only.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub stop_codes: BTreeMap<String, String>,
-    /// Büyük feed modunda harita geometrisi (shape_coords vb.) peşinen serialize
-    /// EDİLMEZ; UI ikona tıklayınca WASM'dan on-demand çeker (shape_coords_of).
+    /// In large-feed mode, map geometry (shape_coords, etc.) is NOT serialized up front;
+    /// the UI fetches it on demand from WASM when the user clicks an icon (shape_coords_of).
     pub map_data_deferred: bool,
 }
 
-/// Tüm pipeline çıktısı — notices + raporlar + metrikler.
+/// Complete pipeline output — notices + reports + metrics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
     #[serde(rename = "validation_status")]
@@ -159,32 +159,32 @@ pub struct ValidationResult {
     pub reports: ReportSet,
     pub metrics: FeedMetrics,
     pub name_index: NameIndex,
-    /// Cap'e çarpan kurallar ve gerçek notice sayıları.
-    /// Yalnızca cap'i aşan kuralları içerir; aşmayanlar burada yer almaz.
+    /// Rules that hit the cap and their actual notice counts.
+    /// Contains only rules exceeding the cap; rules below it are omitted.
     pub capped_totals: BTreeMap<String, u32>,
-    /// Kural × agency dökümü (MobilityData gtfs-validator #2201). Eklemeli alandır: yalnız
-    /// yazılır, okurken yok sayılır; biçim `agency.rs`'deki JSON sözleşmesidir.
+    /// Rule × agency breakdown (MobilityData gtfs-validator #2201). Additive field: written only
+    /// and ignored when reading; its shape is the JSON contract in `agency.rs`.
     #[serde(default, skip_deserializing)]
     pub agency_breakdown: crate::agency::AgencyBreakdown,
-    /// Rapor sayfasının ajans/yayıncı künyesi (`agency.txt` + `feed_info.txt`). Eklemeli
-    /// alandır: yalnız yazılır, okurken yok sayılır.
+    /// Agency/publisher metadata for the report page (`agency.txt` + `feed_info.txt`). Additive
+    /// field: written only and ignored when reading.
     #[serde(default, skip_deserializing)]
     pub feed_summary: crate::feed_summary::FeedSummary,
 }
 
-/// Validator ana dönüş tipi.
+/// Validator's primary return type.
 ///
-/// Kontratlar:
-/// - `Ok`    → pipeline tamamlandı veya güvenli recovery ile PARTIAL rapor üretildi
-/// - `Fatal` → pipeline tamamen durdu; UI "feed açılamadı" gösterir
-// `large_enum_variant` burada bilinçli olarak kabul edilir. Ölçüm: `ValidationResult`
-// 704 bayt, `FatalError` 56 bayt (2026-09-18'de `params` ile 32'den büyüdü) ve enum 704
-// bayt; yayılım farkı 648 bayttır. Bu değer
-// notice başına değil, `pipeline::validate_bytes`/WASM `run_full_pipeline` çağrısı başına
-// bir kez oluşur. Yapının büyük kısmı Vec/BTreeMap gibi heap başlıklarıdır; boxing 648
-// baytlık stack/layout tasarrufu karşılığında her başarılı dönüşte ek allocation getirir.
-// CLI ayrıca kendi flat JSON envelope'unu kullanır; WASM sınırındaki externally-tagged
-// serde sözleşmesini lint temizliği uğruna değiştirmemek gerekir.
+/// Contract:
+/// - `Ok`    → pipeline completed or produced a PARTIAL report through safe recovery
+/// - `Fatal` → pipeline stopped completely; the UI shows "feed açılamadı"
+// `large_enum_variant` is deliberately accepted here. Measurement: `ValidationResult`
+// is 704 bytes, `FatalError` is 56 bytes (it grew from 32 with `params` on 2026-09-18), and
+// the enum is 704 bytes; the propagation difference is 648 bytes. This cost occurs once per
+// `pipeline::validate_bytes`/WASM `run_full_pipeline` call, not once per notice.
+// Most of the structure is heap headers such as Vec/BTreeMap; boxing adds an allocation on every
+// successful return in exchange for 648 bytes of stack/layout savings.
+// The CLI also uses its own flat JSON envelope; do not change the externally-tagged serde
+// contract at the WASM boundary merely for lint cleanliness.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ValidateResult {

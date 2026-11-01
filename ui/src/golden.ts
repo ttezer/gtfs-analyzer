@@ -68,9 +68,9 @@ export function buildGoldenSnapshot(
     gtfs_jp_profile: m.gtfs_jp_profile ?? null,
   };
   const iso = generatedAt.toISOString();
-  // deterministic=true (git-tracked regression export): per-second `generated_at` atlanır ki
-  // aynı feed+sürüm aynı gün birebir aynı byte'ları versin (temiz regresyon diff'i, #42).
-  // `validate_date` (gün granülü) kalır; in-app Compare (deterministic=false) tam timestamp'i tutar.
+  // deterministic=true (git-tracked regression export): omit per-second `generated_at` so the
+  // same feed+version produces identical bytes on the same day (clean regression diff, #42).
+  // `validate_date` remains day-granular; in-app Compare (deterministic=false) keeps the full timestamp.
   const golden = {
     schema: GOLDEN_SCHEMA,
     app_version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev',

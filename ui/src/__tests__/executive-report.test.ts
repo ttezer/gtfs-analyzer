@@ -150,9 +150,9 @@ describe('executive report', () => {
     expect(ja).toContain('フィード固有の改善計画');
     expect(fr).toContain('Synthèse');
     expect(fr).toContain('Plan de correction propre au jeu de données');
-    // INTL_LOCALE kapısı: fr-FR binlik ayracı U+202F, en-US ise virgül.
-    // `\d,\d` yazmak yetmez — en-US binlik ayracı da virgüldür ve testi
-    // yanlışlıkla yeşil tutar (ölçüldü).
+    // INTL_LOCALE guard: fr-FR uses U+202F as the thousands separator, while en-US uses a comma.
+    // Writing `\d,\d` is not enough — the en-US thousands separator is also a comma and would
+    // make the test pass accidentally (measured).
     expect(fr).toMatch(/\d\u202f\d{3}/);
     expect(fr).not.toMatch(/\d,\d{3}/);
   });
@@ -166,9 +166,9 @@ describe('executive report', () => {
     expect(html).toContain('harici bir API gerekmez');
   });
 
-  // Bir CSS sözdizimi hatası (kapanmayan kural) ikinci bir <style> bloğu tarafından
-  // maskelenmişti: hata sessizce kuralları yutuyordu ama görünüm bozulmuyordu. Tek blok
-  // + denge kontrolü bu sınıfı yakalar.
+  // A CSS syntax error (an unclosed rule) was masked by a second <style> block: the error
+  // silently swallowed rules without breaking the appearance. One block + a balance check
+  // catches this class.
   it('emits exactly one stylesheet with balanced braces', () => {
     const html = buildExecutiveReportHtml(build('en'));
     const styles = html.match(/<style[^>]*>[\s\S]*?<\/style>/g) ?? [];

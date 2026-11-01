@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-// ── parseConfigDelta (upload.ts'ten inline edilmiş saf fonksiyon) ─────────────
+// ── parseConfigDelta (pure function inlined from upload.ts) ──────────────────
 
 function parseConfigDelta(delta: string): Record<string, number> {
   if (!delta || delta === '{}') return {};
@@ -15,7 +15,7 @@ function parseConfigDelta(delta: string): Record<string, number> {
   } catch { return {}; }
 }
 
-// ── csvCell (export.ts'ten inline edilmiş saf fonksiyon) ──────────────────────
+// ── csvCell (pure function inlined from export.ts) ───────────────────────────
 
 function csvCell(v: string | number | null | undefined): string {
   const s = v == null ? '' : String(v);
@@ -25,7 +25,7 @@ function csvCell(v: string | number | null | undefined): string {
     : safe;
 }
 
-// ── Testler ───────────────────────────────────────────────────────────────────
+// ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('parseConfigDelta', () => {
   it('boş string → boş obje', () => {
@@ -114,4 +114,4 @@ describe('csvCell', () => {
   });
 });
 
-// escHtml testleri → escape.test.ts (kanonik, tırnak kaçışlamayı da kapsar)
+// escHtml tests → escape.test.ts (canonical, also covers quote escaping)

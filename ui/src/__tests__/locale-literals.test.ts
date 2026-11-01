@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
-// Sayı/tarih biçimi tek kaynaktan gelmeli: `intlLocale()` (i18n.ts).
-// Dağınık `toLocaleString('tr-TR')` çağrıları İngilizce ve Japonca arayüzde de
-// Türk biçimi basıyordu (16 çağrı ölçüldü); Fransızca eklenince aynı hata
-// binlik ayracı da bozacaktı (fr-FR ayracı U+202F). Bu kapı literalin geri
-// sızmasını engeller. `node:fs` yerine Vite glob'u: projede @types/node yok.
+// Number/date formatting must have one source: `intlLocale()` (i18n.ts).
+// Scattered `toLocaleString('tr-TR')` calls printed Turkish formatting in English and Japanese
+// interfaces too (16 calls measured); adding French would have broken its thousands separator
+// as well (fr-FR separator U+202F). This guard prevents the literal from leaking back in.
+// Use Vite's glob instead of `node:fs`: the project has no @types/node.
 const SOURCES = import.meta.glob('../**/*.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
 const ALLOWED = /\/i18n\.ts$/;

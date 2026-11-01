@@ -18,7 +18,7 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(minus(t, e)).toEqual([]); // tr'de olup en'de olmayan
     expect(minus(e, t)).toEqual([]); // en'de olup tr'de olmayan
     expect(minus(e, j)).toEqual([]); // en'de olup ja'da olmayan
-    expect(minus(j, e)).toEqual([]); // ja'da olup en'de olmayan (orphan → RTS_015 sınıfı)
+    expect(minus(j, e)).toEqual([]); // present in ja but absent in en (orphan → RTS_015 class)
     const r = keys(fr.ruleTitles);
     expect(minus(e, r)).toEqual([]); // en'de olup fr'de olmayan
     expect(minus(r, e)).toEqual([]); // fr'de olup en'de olmayan (orphan)
@@ -28,10 +28,10 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(Object.keys(tr.ruleMessages)).toHaveLength(0);
     const e = keys(en.ruleMessages);
     const j = keys(ja.ruleMessages);
-    // en'de olup ja'da olmayan: SERBEST. `ja` sözlüğü çeviri bulamadığında
-    // İngilizce'ye düşer (crates/core/src/i18n.rs `fallback`), yani boşluk
-    // Türkçe sızıntısı değil çeviri borcudur. `en` tamlığını Rust tarafındaki
-    // `every_registered_rule_resolves_in_every_dictionary` kapısı zorlar.
+    // Present in en but absent in ja: ALLOWED. When the `ja` dictionary lacks a translation,
+    // it falls back to English (crates/core/src/i18n.rs `fallback`), so this is translation
+    // debt, not Turkish leakage. The Rust-side `every_registered_rule_resolves_in_every_dictionary`
+    // guard enforces `en` completeness.
     expect(minus(j, e)).toEqual([]);
   });
 
@@ -39,17 +39,17 @@ describe('locale parity (registry kural anahtarları)', () => {
     expect(Object.keys(tr.ruleRemediations)).toHaveLength(0);
     const e = keys(en.ruleRemediations);
     const j = keys(ja.ruleRemediations);
-    // en'de olup ja'da olmayan: SERBEST. `ja` sözlüğü çeviri bulamadığında
-    // İngilizce'ye düşer (crates/core/src/i18n.rs `fallback`), yani boşluk
-    // Türkçe sızıntısı değil çeviri borcudur. `en` tamlığını Rust tarafındaki
-    // `every_registered_rule_resolves_in_every_dictionary` kapısı zorlar.
+    // Present in en but absent in ja: ALLOWED. When the `ja` dictionary lacks a translation,
+    // it falls back to English (crates/core/src/i18n.rs `fallback`), so this is translation
+    // debt, not Turkish leakage. The Rust-side `every_registered_rule_resolves_in_every_dictionary`
+    // guard enforces `en` completeness.
     expect(minus(j, e)).toEqual([]); // ja'da olup en'de olmayan (orphan)
   });
 });
 
-// Rust CLI'nin `--lang` çıktısı bu locale'lerden TÜRETİLİR: `npm run locales:export`
-// crates/core/locales/{en,ja}.json üretir, CLI onu include_str! ile gömer. Locale
-// güncellenip export çalıştırılmazsa CLI eski metni yayınlar — bu test onu yakalar.
+// The Rust CLI's `--lang` output is DERIVED from these locales: `npm run locales:export`
+// generates crates/core/locales/{en,ja}.json, which the CLI embeds with include_str!. If the
+// locale is updated without running export, the CLI publishes stale text — this test catches it.
 describe('CLI locale export (crates/core/locales)', () => {
   it.each([
     ['en', en, enExport],
@@ -62,10 +62,10 @@ describe('CLI locale export (crates/core/locales)', () => {
   });
 });
 
-// ── fr kapıları (WP1) ─────────────────────────────────────────────────────────
-// `fr` sözlüğü kademeli dolduruluyor; eksik anahtar İngilizce'ye düşer
-// (i18n.ts:61,63,106,120), yani boşluk çeviri borcudur. Bu iki kapı boşluğu
-// değil, YANLIŞ DOLDURMAYI yakalar — ikisi de sözlük büyüdükçe otomatik kapsar.
+// ── fr guards (WP1) ──────────────────────────────────────────────────────────
+// The `fr` dictionary is being filled gradually; a missing key falls back to English
+// (i18n.ts:61,63,106,120), so a gap is translation debt. These two guards catch not gaps but
+// WRONG FILLING — both automatically cover new entries as the dictionary grows.
 
 /** Fransızca'da bulunmayan Türkçe harfler — tr.ts'ten kopyala-yapıştırın imzası. */
 const TR_ONLY = /[şğİıŞĞ]/;
@@ -103,7 +103,7 @@ describe('fr locale — yer tutucu paritesi', () => {
     const drift: string[] = [];
     for (const [key, frText] of Object.entries(frTable)) {
       const enText = enTable[key];
-      if (enText === undefined) continue; // yetim anahtar: ruleTitles kapısının işi
+      if (enText === undefined) continue; // orphan key: handled by the ruleTitles guard
       const [a, b] = [holders(frText), holders(enText)];
       if (a.join() !== b.join()) drift.push(`${key}: fr=${a.join()} en=${b.join()}`);
     }

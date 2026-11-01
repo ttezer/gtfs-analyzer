@@ -43,8 +43,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CATALOG_URL = "https://bit.ly/catalogs-csv"
 UA = "gtfs-analyzer-corpus-batch/1.0 (+research; contact via repo)"
 
-# Katalog 3.358 satır; bunların bir kısmı gtfs-rt / auth'lu / ölü.
-# Bu filtreler memory'deki ölçümle uyumlu (~2.191 auth'suz, ~1.478 auth'suz+aktif).
+# The catalogue has 3,358 rows; some are gtfs-rt / authenticated / dead.
+# These filters match the measurement in memory (~2,191 without auth, ~1,478 without auth and active).
 def eligible(row):
     return (
         row.get("data_type") == "gtfs"
@@ -55,17 +55,17 @@ def eligible(row):
     )
 
 
-# ── Aşama 1: örnekleme ────────────────────────────────────────────────────────
+# ── Stage 1: sampling ─────────────────────────────────────────────────────────
 def cmd_sample(args):
     raw = fetch_bytes(CATALOG_URL, cache=os.path.join(args.dir, "catalog.csv"))
     rows = list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
     pool = [r for r in rows if eligible(r)]
     print(f"katalog {len(rows)} satır → uygun {len(pool)}")
 
-    # KATMANLI örnekleme: ülkeye göre grupla, ülke başına tavan uygula.
-    # Kör rastgele seçim kataloğun kendi dağılımını verir (ABD/Avrupa ağırlıklı)
-    # ve amacı ıskalar — amaç HACİM değil ÇEŞİTLİLİK (farklı üretici araçları,
-    # farklı profiller, farklı dil/coğrafya desenleri).
+# STRATIFIED sampling: group by country and apply a per-country cap.
+# Blind random selection reproduces the catalogue's own distribution (US/Europe-heavy)
+# and misses the goal — the goal is DIVERSITY, not VOLUME (different producer tools,
+# profiles, and language/geography patterns).
     rng = random.Random(args.seed)
     by_country = defaultdict(list)
     for r in pool:
@@ -75,8 +75,8 @@ def cmd_sample(args):
 
     picked, countries = [], sorted(by_country)
     rng.shuffle(countries)
-    # Tur tur dağıt: her turda her ülkeden 1 tane → küçük ülkeler temsil edilir,
-    # büyük ülkeler kotayı tek başına yemez.
+# Distribute round by round: one from each country per round → small countries are represented,
+# and large countries cannot consume the quota alone.
     depth = 0
     while len(picked) < args.n and depth < args.per_country:
         added = False
@@ -107,8 +107,8 @@ def cmd_sample(args):
         dist[r.get("location.country_code") or "??"] += 1
     print(f"seçildi {len(picked)} feed / {len(dist)} ülke → {plan}")
     print("en çok: " + ", ".join(f"{c}={n}" for c, n in sorted(dist.items(), key=lambda x: -x[1])[:8]))
-    # --n istenen ama tavan yüzünden ulaşılamayan sayı SESSİZCE düşerdi ("500 istedim,
-    # 276 geldi") → açıkça söyle ve tavanın ne demek olduğunu hatırlat.
+# The requested --n that could not be reached because of the cap used to disappear SILENTLY
+# ("I asked for 500, got 276") → say so clearly and explain what the cap means.
     if len(picked) < args.n:
         reach = sum(min(len(v), args.per_country) for v in by_country.values())
         print(
@@ -121,7 +121,7 @@ def cmd_sample(args):
     print(f"\nsonraki: python3 notgit/corpus_batch.py fetch --dir {args.dir}")
 
 
-# ── Aşama 1b: snapshot çözümleme (MD API) ─────────────────────────────────────
+# ── Stage 1b: snapshot resolution (MD API) ────────────────────────────────────
 TOKEN_FILE = os.path.join(REPO, "notgit", ".md_token")
 API = "https://api.mobilitydatabase.org"
 
@@ -170,12 +170,11 @@ def cmd_resolve(args):
     with open(out, "a", newline="") as f:
         w = csv.writer(f)
         if new:
-            # api_* sütunları MD API'sinin ÖZET sayıları — ön-eleme için pratik
-            # (indirmeden "MD burada error görmüş mü?").
-            # ⚠️ BUNLAR RAPORLA ÇELİŞEBİLİR: mdb-2077'de API total_warning=316
-            # derken aynı koşumun (validated_at birebir aynı) report_8.0.0.json'u
-            # 63 warning listeliyor. PARİTEDE RAPOR JSON'U ESAS AL — validator'ın
-            # gerçek çıktısı o, md_parity_audit.py da onu okur.
+# api_* columns are MD API SUMMARY counts — useful for pre-filtering
+# ("did MD see an error here?" without downloading).
+# ⚠️ THEY MAY CONTRADICT THE REPORT: for mdb-2077 the API said total_warning=316,
+# while report_8.0.0.json from the same run (identical validated_at) lists 63 warnings.
+# For PARITY, TRUST THE REPORT JSON — it is the validator's actual output, and md_parity_audit.py reads it.
             w.writerow(["id", "country", "snapshot", "zip_url", "report_url",
                         "validator_version", "zip_mb", "api_error", "api_warning", "api_info"])
         for i, row in enumerate(plan, 1):
@@ -214,10 +213,10 @@ def api_get(at, path):
     return json.loads(p.stdout)
 
 
-# ── Aşama 2: indirme ──────────────────────────────────────────────────────────
+# ── Stage 2: download ──────────────────────────────────────────────────────────
 def cmd_fetch(args):
-    # resolve çalıştıysa onun URL'lerini kullan (snapshot'lı, MD raporuyla eşleşen);
-    # yoksa plan.csv'deki katalog `urls.latest`'ine düş (rapor eşleşmesi OLMAZ).
+# If resolve ran, use its URLs (snapshotted and matching the MD report);
+# otherwise fall back to the catalogue `urls.latest` in plan.csv (NO report match).
     resolved = os.path.join(args.dir, "resolved.csv")
     reports = os.path.join(args.dir, "reports")
     if os.path.exists(resolved):
@@ -234,7 +233,7 @@ def cmd_fetch(args):
     skipped = failed = ok = 0
 
     for i, row in enumerate(plan, 1):
-        # MD raporu (varsa) — küçük dosya, zip atlansa bile indirmeye değmez → zip'le birlikte
+# MD report (if present) — a small file, not worth downloading when the ZIP is skipped → download with the ZIP
         rurl = row.get("report_url")
         if rurl:
             rdest = os.path.join(reports, f"{row['id']}.report.json")
@@ -248,8 +247,8 @@ def cmd_fetch(args):
         if os.path.exists(dest) and os.path.getsize(dest) > 0:
             skipped += 1
             continue
-        # resolve boyutu verdiyse İNDİRMEDEN ele: 580 MB'ı yarıya kadar çekip
-        # curl'ün hata metnine bakmak hem yavaş hem kırılgan.
+# If resolve provided a size, reject it BEFORE DOWNLOADING: fetching half of 580 MB
+# only to inspect curl's error text is slow and fragile.
         known_mb = parse_float(row.get("zip_mb"))
         if known_mb and known_mb > args.max_mb:
             failed += 1
@@ -268,13 +267,13 @@ def cmd_fetch(args):
             failed += 1
             note(args.dir, "fetch_skipped.csv", [row["id"], "error", str(e)[:120]])
             print(f"[{i}/{len(plan)}] {row['id']:12} HATA: {str(e)[:70]}")
-        time.sleep(args.delay)  # nazik ol: ortak altyapı
+        time.sleep(args.delay)  # be gentle: shared infrastructure
 
     print(f"\nindi={ok} zaten-vardı={skipped} başarısız={failed}")
     print(f"sonraki: python3 notgit/corpus_batch.py validate --dir {args.dir} --today YYYYMMDD")
 
 
-# ── Aşama 3: bizim validator ──────────────────────────────────────────────────
+# ── Stage 3: our validator ────────────────────────────────────────────────────
 def cmd_validate(args):
     zips = os.path.join(args.dir, "zips")
     out = os.path.join(args.dir, "results")
@@ -282,10 +281,9 @@ def cmd_validate(args):
     files = sorted(f for f in os.listdir(zips) if f.endswith(".zip"))
     if not files:
         sys.exit(f"{zips} boş — önce fetch çalıştırın")
-    # --only: sabit bir --today ile YENİ feed eklerken şart. Sabit tarih verildiğinde
-    # `md` modunda atlanmış her feed (MD raporu olmayanlar) birden koşmaya uygun hale
-    # gelir — korpus istemeden büyür ve rule_stats tabanı kayar. Filtre eklenen feed'i
-    # yalıtır.
+# --only: required when adding a NEW feed with a fixed --today. With a fixed date,
+# every feed skipped in `md` mode (those without an MD report) suddenly becomes eligible to run
+# — the corpus grows unintentionally and the rule_stats baseline shifts. The filter isolates the added feed.
     if args.only:
         want = set(args.only.split(","))
         files = [f for f in files if f[:-4] in want]
@@ -297,12 +295,12 @@ def cmd_validate(args):
     subprocess.run(["cargo", "build", "--release", "-p", "gtfs-analyzer"], cwd=REPO, check=True)
     binary = os.path.join(REPO, "target", "release", "gtfs-analyzer")
 
-    # `--today md` → her feed KENDİ MD raporunun doğrulama gününde koşulur.
-    # NEDEN: tarihe göreli kurallar (TRP_023 "7 günde sefer yok", feed_expiration_*,
-    # future_calendar, service_extends_far…) "bugün"e görelidir. MD raporlarının
-    # yarısı 2026-05'ten, sabit koşumumuz Temmuz'dan → farklı "bugün"lerle kıyas
-    # ANLAMSIZ; mevsimlik bir feed Mayıs'ta "sefer yok" verir, Temmuz'da vermez.
-    # Aynı güne hizalayınca fark yalnız KURAL semantiğinden gelir.
+# `--today md` → run each feed on the validation date of ITS OWN MD report.
+# WHY: date-relative rules (TRP_023 "no trips in 7 days", feed_expiration_*,
+# future_calendar, service_extends_far…) are relative to "today". Half of the MD reports are
+# from 2026-05 and our fixed run is from July → comparison with different "today" values is MEANINGLESS;
+# a seasonal feed may say "no trips" in May and not in July. Aligning the dates makes differences
+# come only from RULE semantics.
     md_days = {}
     if args.today == "md":
         reports = os.path.join(args.dir, "reports")
@@ -327,12 +325,12 @@ def cmd_validate(args):
             done += 1
             continue
         today = md_days.get(fid) if args.today == "md" else args.today
-        if today is None:  # md modunda raporu olmayan feed → kıyaslanamaz, atla
+        if today is None:  # feed without an MD report in md mode → cannot compare, skip
             note(args.dir, "validate_skipped.csv", [fid, "md raporu yok → today çözülemedi"])
             continue
         t0 = time.time()
-        # exit 0 = notice yok · 1 = notice VAR · 2 = fatal/config hatası.
-        # 1 bir HATA DEĞİL → check=True KULLANMA (bkz. project_cli memory).
+        # exit 0 = no notices · 1 = notices EXIST · 2 = fatal/config error.
+        # 1 is NOT AN ERROR → do not use check=True (see project_cli memory).
         p = subprocess.run(
             [binary, "validate", os.path.join(zips, fn), "--json", "--today", str(today)],
             capture_output=True, timeout=args.timeout,
@@ -377,7 +375,7 @@ def to_golden(parsed, fid, today, secs):
         base["fatal_message"] = str(parsed.get("message", ""))[:300]
         base["validation"] = {"rule_counts": {}, "scores": {}, "notice_total_actual": 0}
         return base
-    if "Fatal" in parsed:  # eski enum şekli
+    if "Fatal" in parsed:  # old enum shape
         base["fatal"] = parsed["Fatal"].get("code", "?")
         base["fatal_message"] = parsed["Fatal"].get("message", "")[:300]
         base["validation"] = {"rule_counts": {}, "scores": {}, "notice_total_actual": 0}
@@ -408,7 +406,7 @@ def to_golden(parsed, fid, today, secs):
     return base
 
 
-# ── Aşama 4: rapor ────────────────────────────────────────────────────────────
+# ── Stage 4: report ────────────────────────────────────────────────────────────
 def cmd_report(args):
     out = os.path.join(args.dir, "results")
     res = []
@@ -422,7 +420,7 @@ def cmd_report(args):
     ok = [r for r in res if not r["fatal"]]
     fatals = [r for r in res if r["fatal"]]
 
-    # Kural bazında: kaç feed'de çıktı, toplam, tek feed'deki en yüksek.
+    # Per rule: number of feeds with output, total, maximum in one feed.
     feeds_with = defaultdict(int)
     totals = defaultdict(int)
     worst = {}
@@ -448,7 +446,7 @@ def cmd_report(args):
         })
     write_csv(os.path.join(args.dir, "rule_stats.csv"), rows)
 
-    # Bizim registry'de olup corpus'ta HİÇ çıkmayan kurallar.
+# Rules present in our registry but NEVER seen in the corpus.
     try:
         allr = subprocess.run(
             ["cargo", "run", "-q", "-p", "gtfs-rules", "--example", "gen_rules"],
@@ -497,10 +495,10 @@ def cmd_report(args):
     for r in slow:
         lines.append(f"| {r['feed']} | {r['elapsed_sec']} | {(r.get('feed_metrics') or {}).get('trip_count')} |")
 
-    # ── MD kaba karşılaştırma (varsa) ──
-    # DİKKAT: bu YALNIZCA kaba bir hacim kontrolü. Kural-bazlı gerçek parite
-    # md_parity_audit.py'nin işi (MAP + AGG_RULES + MATCH/OVER/MISS/AGG).
-    # MD skor üretmez → skor karşılaştırması ANLAMSIZ ([[feedback_md_no_scoring]]).
+# ── Coarse MD comparison (if available) ──
+# NOTE: this is ONLY a coarse volume check. Real rule-level parity belongs to
+# md_parity_audit.py (MAP + AGG_RULES + MATCH/OVER/MISS/AGG).
+# MD does not produce scores → score comparison is MEANINGLESS ([[feedback_md_no_scoring]]).
     md_rows = md_compare(args.dir, ok)
     if md_rows:
         write_csv(os.path.join(args.dir, "md_volume.csv"), md_rows)
@@ -558,7 +556,7 @@ def md_compare(d, ours):
             "ratio": round(our_total / md_total, 2) if md_total else None,
             "md_version": (md.get("summary") or {}).get("validatorVersion", "?"),
         })
-        # parite aracı için ikili klasör
+        # binary directory for the parity tool
         pd_ = os.path.join(pairs, r["feed"])
         os.makedirs(pd_, exist_ok=True)
         for src, name in ((rp, "md_report.json"), (os.path.join(results, f"{r['feed']}.json"), "golden.json")):
@@ -568,32 +566,31 @@ def md_compare(d, ours):
     return rows
 
 
-# ── yardımcılar ───────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────────
 class SkipTooBig(Exception):
     pass
 
 
-# İndirme curl'e devredildi (urllib DEĞİL): python.org kurulumlarında CA bundle
-# gelmiyor ve urllib CERTIFICATE_VERIFY_FAILED veriyor. curl sistemin sertifika
-# deposunu kullanır, yönlendirme/timeout/retry'ı hazır çözer, yeni bağımlılık yok.
+# Downloading is delegated to curl (NOT urllib): python.org installations lack a CA bundle
+# and urllib raises CERTIFICATE_VERIFY_FAILED. curl uses the system certificate store, handles
+# redirects/timeout/retry, and adds no dependency.
 def curl(url, dest, max_mb=None, timeout=180):
     cmd = [
         "curl", "-sSL", "--fail", "-A", UA,
         "--max-time", str(timeout), "--retry", "2", "--retry-delay", "2",
         "-o", dest, url,
     ]
-    if max_mb:  # curl akışta kendi keser → dev feed indirme boşa gitmez
+    if max_mb:  # curl cuts the stream itself → development feed download is not wasted
         cmd += ["--max-filesize", str(int(max_mb * 1e6))]
     p = subprocess.run(cmd, capture_output=True)
     if p.returncode != 0:
         if os.path.exists(dest):
             os.remove(dest)
         err = p.stderr.decode()[:200].strip()
-        # Boyut sınırı: curl boyutu ÖNCEDEN bilirse 63, akış sırasında keserse 56
-        # döner. Yalnız 63'e bakmak "çok büyük"ü "ağ hatası" diye raporlar →
-        # 250 feed'lik koşumda sahte arıza avı demek. Metin curl sürümüne göre
-        # değişiyor ("Exceeded the maximum allowed file size" / "Maximum file size
-        # exceeded") → gevşek eşleştir.
+# Size limit: curl returns 63 when it knows the size BEFORE downloading and 56 when it cuts the stream.
+# Checking only 63 reports "too large" as a "network error" → a false-failure hunt in a 250-feed run.
+# The text varies by curl version ("Exceeded the maximum allowed file size" / "Maximum file size
+# exceeded") → match loosely.
         if p.returncode == 63 or "file size" in err.lower():
             raise SkipTooBig(f">{max_mb}MB")
         raise RuntimeError(f"curl rc={p.returncode}: {err[:100]}")
@@ -620,7 +617,7 @@ def download(url, dest, max_mb):
     curl(url, tmp, max_mb=max_mb)
     size = os.path.getsize(tmp)
     with open(tmp, "rb") as f:
-        if f.read(2) != b"PK":  # ZIP magic: HTML hata sayfası inmiş olabilir
+        if f.read(2) != b"PK":  # ZIP magic: an HTML error page may have been downloaded
             os.remove(tmp)
             raise ValueError("ZIP değil (muhtemelen hata sayfası)")
     os.replace(tmp, dest)
@@ -628,7 +625,9 @@ def download(url, dest, max_mb):
 
 
 def parse_float(v):
-    """API alanı boş/eksik olabilir → None (skip mantığı sessizce çökmesin)."""
+    """API fields may be empty or missing → None.
+    Do not let skip logic fail silently.
+    """
     try:
         return float(v)
     except (TypeError, ValueError):
@@ -659,8 +658,9 @@ def write_csv(path, rows):
 
 
 def known_rule_ids():
-    """RULES.md tablosundan kural ID'leri (registry'nin yayınlanmış hâli).
-    rules_doc_drift testi bunun registry ile eşitliğini garanti ediyor."""
+    """Rule IDs from the RULES.md table (the published registry form).
+    The rules_doc_drift test guarantees that this matches the registry.
+    """
     ids = []
     with open(os.path.join(REPO, "RULES.md")) as f:
         for line in f:
@@ -674,8 +674,8 @@ def known_rule_ids():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    # --dir her alt komutta geçerli olsun (alt komuttan sonra da yazılabilsin) →
-    # parent parser. Yalnız üst seviyede tanımlansa `sample --dir x` hata verirdi.
+    # Make --dir valid for every subcommand (and usable after the subcommand) → parent parser.
+    # Defining it only at the top level would make `sample --dir x` fail.
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default=os.path.join(REPO, "notgit", "corpus"),
                         help="çalışma dizini (varsayılan notgit/corpus)")

@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
-"""İKİ TARAYICI AYRIŞMASIN — `measure_modalless` sinyalleri ↔ `extract_provisions` sınıfı.
+"""KEEP THE TWO SCANNERS IN SYNC — `measure_modalless` signals ↔ `extract_provisions` classification.
 
-🔴 Neden var (issue #81): `measure_modalless.py` *"All file and field names are
+🔴 Why this exists (issue #81): `measure_modalless.py` treated *"All file and field names are
 case-sensitive."* cümlesini NORMATİF sinyal sayıyordu (`SIGNALS["case-sensitivity"]`), ama
 kataloğu üreten `extract_provisions.classify()` modal-güdümlüydü ve bu cümleye `""` diyordu.
 Sonuç: cümle katalogda hiç yer almadı. Katalogda olmayan hüküm **adjudike edilemez ve öksüz
 de sayılamaz** — yani rozetin öksüz kapısı bu boşluğu göremezdi. "147/147" bilinen sert
 düzyazı hükümlerinin tamamı hakkında bir cümle değildi.
 
-Bu betik ayrışmayı yapısal olarak kapatır: modalsiz taramanın normatif saydığı HER sinyal
+This script closes the divergence structurally: for EVERY signal the modal-less scan considers normative,
 için, o sinyali taşıyan örnek bir cümlenin `classify()` tarafından da normatif sayılması
 gerekir. Biri "bu normatiftir" derken diğeri susuyorsa aynı boşluk geri gelmiş demektir.
 
-⚠️ **BU KAPININ ÖLÇMEDİĞİ ŞEY:** spec sayfasındaki HER cümlenin katalogda olduğunu
+⚠️ **WHAT THIS GATE DOES NOT MEASURE:** it does not prove that EVERY sentence on the spec page
 kanıtlamaz — onun için sayfayı indirmek gerekir ve gtfs.org CI'dan 403 döner (bkz.
 `spec_drift.py`). Kanıtladığı şey daha dar ama gerçek: iki betiğin normatiflik TANIMI
 ayrışamaz. Sayfa düzeyindeki tam denetim geliştirici makinesinde
 `measure_modalless.py --residual` ile yapılır.
 
-Çalıştır: python3 spec-audit/signal_parity.py   (ağ istemez; exit 1 = ayrışma)
+Run: python3 spec-audit/signal_parity.py   (no network; exit 1 = divergence)
 """
 import importlib.util
 import pathlib
@@ -26,23 +26,23 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 
-# 🔴 DİKKAT: `SIGNALS` NORMATİFLİK İDDİASI DEĞİLDİR — kendi docstring'i "ADAY üreticisi,
-# sayaç değil" diyor. Sinyaller "bakılması gereken cümle" işaretidir. Bu kapının ilk
-# taslağı her sinyali "katalogda olmalı" diye okudu ve dokuz sinyalde birden düştü;
-# o tasarım `classify()`'ı koşul/emir kipi cümlelerini de hüküm saymaya zorlardı — yani
-# tavsiyeyi norm sayma hatasının (`PTH_017`) defter düzeyindeki kopyası.
+# 🔴 NOTE: `SIGNALS` is NOT A CLAIM OF NORMATIVITY — its docstring says "candidate generator,
+# not a counter". Signals mark a "sentence to review". The first draft of this gate read every
+# signal as "must be in the catalogue" and failed on all nine; that design would have forced
+# `classify()` to count conditional/imperative sentences as provisions — a ledger-level copy of
+# the mistake of treating advice as a norm (`PTH_017`).
 #
-# Doğru ölçüt issue #81'in kendi cümlesidir: bir sinyal ya kataloğa GİRER ya da neden
-# girmediği AÇIKÇA yazılır. İkisi de yoksa boşluk sessizdir — ve `case-sensitivity`
-# tam olarak öyle kaybolmuştu.
+# The correct criterion is issue #81's own sentence: a signal either ENTERS the catalogue or its
+# reason for exclusion is written CLEARLY. If neither exists, the gap is silent — exactly how
+# `case-sensitivity` was lost.
 
-# Kataloğa GİRMESİ gereken sinyaller: örnek cümle `classify()` tarafından "strong" sayılmalı.
+# Signals that MUST ENTER the catalogue: `classify()` must consider their sample sentence "strong".
 SAMPLES = {
     "case-sensitivity": "All file and field names are case-sensitive.",
 }
 
-# Kataloğa GİRMEYEN sinyaller — her biri için gerekçe ZORUNLU. Gerekçe "kalıp tek başına
-# normatiflik göstermez" biçiminde olmalı; "şimdilik bakmadık" bir gerekçe değildir.
+# Signals that do NOT ENTER the catalogue — each requires a reason. The reason must say that
+# "the pattern alone does not show normativity"; "we have not looked yet" is not a reason.
 TRIAGE_ONLY = {
     "kısıt (only/just)":
         "'only' çoğunlukla BETİMLEYİCİDİR ('only available in…'). 2026-08-06'da bu kalıbı "
@@ -102,7 +102,7 @@ def main() -> int:
                 f"diyor → cümle katalogda yer almaz, adjudike de öksüz de sayılamaz.\n"
                 f"     örnek: {sample}")
 
-    # Ters yön: karar verilmiş ama sinyal listesinden düşmüş bir ad da ayrışmadır.
+    # Reverse direction: a decided name missing from the signal list is also a divergence.
     for name in list(SAMPLES) + list(TRIAGE_ONLY):
         if name not in modalless.SIGNALS:
             problems.append(f"'{name}' burada kararlı ama measure_modalless.SIGNALS'ta YOK.")

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
-// `import.meta.glob` (locale-literals.test.ts kaynak taraması) buradan gelir;
-// vite zaten devDependency, yeni paket eklenmedi.
+// `import.meta.glob` (the source scan in locale-literals.test.ts) comes from here;
+// Vite is already a devDependency, so no package was added.
 
-// Vite `define` ile enjekte edilen build-time sabitleri.
+// Build-time constants injected by Vite's `define`.
 declare const __APP_VERSION__: string;

@@ -26,12 +26,12 @@ describe('agencyRows', () => {
     const severity = new Map<string, Severity>([['TRP_005', 'MEDIUM'], ['ARC_011', 'INFO']]);
     const [a, b, unattributed, unsupported, notApplicable] = agencyRows(breakdown, severity);
     expect([a.label, a.agencyId, a.total, a.bySeverity.MEDIUM]).toEqual(['Alpha', 'A', 1, 1]);
-    // Ad yoksa kimlik gösterilir.
+    // The ID is shown when the name is absent.
     expect([b.label, b.total]).toEqual(['B', 1]);
     expect(unattributed.total).toBe(1);
     expect(unsupported.total).toBe(0);
     expect([notApplicable.total, notApplicable.bySeverity.INFO]).toEqual([2, 2]);
-    // Satırların toplamı dökümün etkilenen kayıt toplamına eşittir.
+    // The row total equals the breakdown's affected-record total.
     const total = [a, b, unattributed, unsupported, notApplicable].reduce((s, r) => s + r.total, 0);
     expect(total).toBe(5);
     expect(a.rules.get('TRP_005')).toBe(1);

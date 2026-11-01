@@ -1,8 +1,8 @@
-// kk-date sarmalayıcısı — tüm tarih formatlama/aritmetiği tek noktadan.
-// kk-date (kentkartlab) GTFS takvim TARİHLERİ (YYYYMMDD) içindir; GTFS'nin
-// 24:00'ı aşan stop_times SAATLERİ için DEĞİL (onlar Rust tarafında işlenir).
-// kk-date geçersiz tarihte exception atar → bir doğrulama aracı çökmemeli,
-// bu yüzden her çağrı defansif sarılır ve ham değere düşer.
+// kk-date wrapper — the single point for all date formatting/arithmetic.
+// kk-date (kentkartlab) is for GTFS calendar DATES (YYYYMMDD), not GTFS stop_times
+// TIMES beyond 24:00 (those are handled on the Rust side).
+// kk-date throws on invalid dates → a validation tool must not crash, so every call is
+// guarded defensively and falls back to the raw value.
 import KkDate from 'kk-date';
 import { getLocale } from './i18n';
 import type { Locale } from './i18n';
@@ -12,7 +12,7 @@ function tag(): string {
   return LOCALE_TAG[getLocale()] ?? 'en';
 }
 
-/** YYYYMMDD tamsayısı → yerelleştirilmiş uzun tarih (örn. "23 Ağustos 2024"). null-güvenli. */
+/** YYYYMMDD integer → localized long date (e.g. "23 August 2024"). Null-safe. */
 export function fmtServiceDate(ymd: number | null | undefined, template = 'DD MMMM YYYY'): string | null {
   if (ymd == null) return null;
   try {
@@ -22,7 +22,7 @@ export function fmtServiceDate(ymd: number | null | undefined, template = 'DD MM
   }
 }
 
-/** İki YYYYMMDD arasındaki kapsayıcı gün sayısı (başlangıç ve bitiş dahil). */
+/** Inclusive number of days between two YYYYMMDD values (including both endpoints). */
 export function inclusiveDaySpan(startYmd: number, endYmd: number): number {
   try {
     const days = new KkDate(String(startYmd), 'YYYYMMDD').diff(new KkDate(String(endYmd), 'YYYYMMDD'), 'days');
@@ -32,7 +32,7 @@ export function inclusiveDaySpan(startYmd: number, endYmd: number): number {
   }
 }
 
-/** İki YYYYMMDD arasındaki gün ofseti (mutlak; eksen konumlandırması için). */
+/** Day offset between two YYYYMMDD values (absolute; for axis positioning). */
 export function dayOffset(fromYmd: number, toYmd: number): number {
   try {
     const d = new KkDate(String(fromYmd), 'YYYYMMDD').diff(new KkDate(String(toYmd), 'YYYYMMDD'), 'days');
@@ -42,7 +42,7 @@ export function dayOffset(fromYmd: number, toYmd: number): number {
   }
 }
 
-/** Date → yerelleştirilmiş tarih+saat damgası (rapor oluşturulma zamanı). */
+/** Date → localized date-time stamp (report creation time). */
 export function fmtTimestamp(d: Date, template = 'DD MMM YYYY HH:mm'): string {
   try {
     return new KkDate(d).config({ locale: tag() }).format(template);

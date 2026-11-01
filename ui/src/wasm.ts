@@ -4,8 +4,8 @@ import type { ValidateResult, ValidationResult, FatalError, FileInfo } from './t
 
 export type { CachedState };
 
-// İki WASM paketi de AYNI API'yi dışa verir; yalnızca threaded paket ek `initThreadPool` taşır.
-// Seri paket = pkg/ (stable, tek thread). Threaded paket = pkg-threads/ (nightly+atomics, rayon).
+// Both WASM packages export the SAME API; only the threaded package also exposes `initThreadPool`.
+// Serial package = pkg/ (stable, one thread). Threaded package = pkg-threads/ (nightly+atomics, rayon).
 type SerialModule = typeof import('../pkg/gtfs_wasm');
 type DeterministicModule = SerialModule & {
   prepare_with_today: (
@@ -45,12 +45,12 @@ function assertInputLimit(zip: Uint8Array): void {
   }
 }
 
-/** Doğrulamanın gerçek thread'lerle mi (paralel K6) yoksa seri mi çalıştığını döner. */
+/** Return whether validation runs with real threads (parallel K6) or serially. */
 export function isThreaded(): boolean {
   return usingThreads;
 }
 
-/** Memory64 paketinin gerçekten seçili olup olmadığını döner. */
+/** Return whether the Memory64 package is actually selected. */
 export function isMemory64(): boolean {
   return usingMemory64;
 }
@@ -73,8 +73,8 @@ function supportsMemory64(): boolean {
 export async function initWasm(forceSerial = false, forceMemory64 = false, forceWasm32 = false): Promise<void> {
   if (ready) return;
 
-  // Memory64 destekleyen tarayıcıda varsayılan motor budur. Paket yüklenemezse
-  // uygulama kullanılabilir kalmak için aşağıdaki wasm32 yoluna döner.
+  // This is the default engine in a browser that supports Memory64. If the package
+  // cannot be loaded, fall back to the wasm32 path below so the app remains usable.
   if (!forceWasm32 && (forceMemory64 || supportsMemory64())) {
     try {
       const m64 = await import('../pkg64/gtfs_wasm') as Memory64Module;
@@ -90,11 +90,11 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
     }
   }
 
-  // Gerçek thread'ler yalnızca crossOriginIsolated + SharedArrayBuffer varken kurulur.
-  // GitHub Pages'te bunu coi-serviceworker, dev/preview'de vite COOP/COEP başlıkları sağlar.
-  // Yoksa SERİ paket yüklenir → çıktı birebir aynı (yalnızca yavaş). Bu, sistemin
-  // her koşulda çalışmasını garanti eden geri-dönüş (fallback) yoludur.
-  // forceSerial: A/B ölçümü/hata-ayıklama için thread'leri kapatır (sayfa ?serial=1).
+  // Real threads are enabled only when crossOriginIsolated + SharedArrayBuffer are available.
+  // On GitHub Pages, coi-serviceworker provides this; Vite COOP/COEP headers do so in dev/preview.
+  // Otherwise load the SERIAL package → output is byte-for-byte identical (only slower). This
+  // fallback guarantees that the system works under all conditions.
+  // forceSerial: disables threads for A/B measurement/debugging (page ?serial=1).
   const isolated = (globalThis as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated === true;
   const canThread = !forceSerial && typeof SharedArrayBuffer !== 'undefined' && isolated;
 
@@ -159,7 +159,7 @@ export function getCachedFileStats(cache: CachedState): FileInfo[] {
   }
 }
 
-// Büyük feed modunda tek shape'in [[lat, lon]] noktalarını on-demand çeker.
+// In large-feed mode, fetch one shape's [[lat, lon]] points on demand.
 export function shapeCoordsOf(cache: CachedState, shapeId: string): [number, number][] {
   try {
     return JSON.parse(loaded().shape_coords_of(cache, shapeId)) as [number, number][];
@@ -177,7 +177,7 @@ export function runPrepare(zip: Uint8Array, configDelta: string, onStage: (name:
     const raw = typeof thrown === 'string' ? thrown : String(thrown);
     const parsed = tryParseJson<ValidateResult>(raw);
     if (parsed && 'Fatal' in parsed) throw parsed.Fatal;
-    // WASM çökmesi (OOM / unreachable / RuntimeError) → kullanıcı dostu mesaj
+    // WASM crash (OOM / unreachable / RuntimeError) → user-friendly message
     const isWasmCrash = /unreachable|RuntimeError|out of memory|memory access/i.test(raw);
     const message = isWasmCrash
       ? `Feed tarayıcı için çok büyük — WASM bellek yetersiz. Daha küçük bir feed deneyin. (${raw})`

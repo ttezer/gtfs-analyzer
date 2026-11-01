@@ -9,11 +9,11 @@ import { escHtml } from '../escape';
 import { SEVERITY_ORDER, SEVERITY_RANK } from '../severity-order';
 import { renderHiddenRulesBar, attachHiddenRuleListeners } from '../hidden-rules';
 
-// EN/JA parite: route-scoped bulgularda entity_id = route_id ve mesaj şablonu {route_label}
-// kullanır. name_index.routes[route_id] = route_short_name (yoksa long_name) → details'e enjekte
-// edilir ki en/ja şablonları Türkçe ile aynı dostça hat kodunu göstersin (Türkçe runtime message
-// zaten route_short_name içerir; bu yalnız en/ja şablon yolu için). Idempotent; route olmayan
-// entity'lere dokunmaz.
+// EN/JA parity: route-scoped findings use entity_id = route_id and the {route_label} message
+// template. Inject name_index.routes[route_id] = route_short_name (or long_name) into details
+// so the en/ja templates show the same friendly route code as Turkish (the Turkish runtime
+// message already contains route_short_name; this is only for the en/ja template path). Idempotent; non-route
+// It does not touch non-route entities.
 export function augmentRouteLabels(notices: Notice[], nameIndex: NameIndex): void {
   for (const n of notices) {
     const eid = n.entity_id ?? '';
@@ -22,7 +22,7 @@ export function augmentRouteLabels(notices: Notice[], nameIndex: NameIndex): voi
   }
 }
 
-/** Spec kuralları kapatılamaz (yayın kararı onlara dayanır) → düğme gösterilmez. */
+/** Spec rules cannot be disabled (the publication decision depends on them) → do not show the button. */
 function hideBtn(notice: Notice | undefined): string {
   if (!notice || notice.rule_class === 'SPEC') return '';
   const label = t('fix.hide_rule');
@@ -32,8 +32,8 @@ function hideBtn(notice: Notice | undefined): string {
 
 export function renderFix(root: HTMLElement, fullResult: ValidationResult, fileFilter?: string, classFilter?: string): void {
   augmentRouteLabels(fullResult.notices, fullResult.name_index);
-  // Agency süzgeci: R2 seçili agency'lerin notice'larına, R9 o notice'ların kurallarına
-  // daralır. Skorlar ve R9 skor etkileri feed geneli kalır.
+  // Agency filter: R2 narrows to notices from the selected agencies, and R9 to the rules
+  // in those notices. Scores and R9 score effects remain feed-wide.
   const agencyFilter = getState().agencyFilter;
   const filtered = filterNoticesByAgency(fullResult, agencyFilter);
   const keptIds = filtered ? new Set(filtered.map(n => n.id)) : null;
@@ -41,7 +41,7 @@ export function renderFix(root: HTMLElement, fullResult: ValidationResult, fileF
     ? {
         ...fullResult,
         notices: filtered,
-        // R2 rozeti kalem sayısını gösterir; süzülmüş notice'lara düşmeyen kalemler çıkar.
+        // The R2 badge shows the item count; items with no filtered notices are removed.
         reports: {
           ...fullResult.reports,
           r2: { ...fullResult.reports.r2, items: fullResult.reports.r2.items.filter(i => keptIds!.has(i.notice_id)) },
@@ -84,7 +84,7 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     return `<div class="card"><h2>${t('fix.r9_title')}</h2><p class="empty">${t('fix.r9_empty')}</p></div>`;
   }
 
-  // result.notices = display_notices (cap sonrası), kural başına kaç notice gösterildiğini hesapla
+  // result.notices = display_notices (after the cap); calculate how many notices are shown per rule.
   const shownCounts: Record<string, number> = {};
   for (const n of noticeMap.values()) {
     shownCounts[n.rule_id] = (shownCounts[n.rule_id] ?? 0) + 1;
@@ -100,11 +100,11 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
     const pubHtml  = pubSd  >= 0.05 ? `<span class="pub-delta">+${pubSd.toFixed(1)}</span>`   : '<span class="muted-text">—</span>';
     const qualHtml = qualSd >= 0.05 ? `<span class="score-delta">+${qualSd.toFixed(1)}</span>` : '<span class="muted-text">—</span>';
     const realTotal = cappedTotals[item.rule_id];
-    // Toplam: sadece cap'e çarpan kurullarda gerçek toplam
+    // Total: the actual total only for rules affected by the cap.
     const totalHtml = realTotal != null
       ? `<span class="cap-total">${realTotal.toLocaleString(intlLocale())}</span>`
       : '<span class="muted-text">—</span>';
-    // Hata: R2 tablosunda görünen sayı (cap sonrası)
+    // Error: the number shown in the R2 table (after the cap).
     const shownCount = shownCounts[item.rule_id] ?? item.affected_instance_count;
 
     const mainRow = `
@@ -175,16 +175,16 @@ function renderR9(items: R9Item[], noticeMap: Map<string, Notice>, normFactor: n
 }
 
 
-// Bir bulgu için TEK GTFS spec linki. Öncelik: GTFS-JP profil kuralları / _jp dosyaları → gtfs.jp;
-// aksi halde notice.file → gtfs.org schedule reference çapası (dosya adındaki nokta silinir:
-// stop_times.txt → #stop_timestxt). Dosyası olmayan feed-seviyesi bulgular → null (link yok).
-// Çoklu-dosya kuralında bile notice.file "sorunun raporlandığı asıl dosya"dır → tek link yeter.
+// ONE GTFS spec link for a finding. Priority: GTFS-JP profile rules / _jp files → gtfs.jp;
+// otherwise notice.file → gtfs.org schedule reference anchor (remove the dot from the filename:
+// stop_times.txt → #stop_timestxt). Feed-level findings without a file → null (no link).
+// Even for a multi-file rule, notice.file is the "primary file where the problem was reported" → one link is enough.
 function specUrl(notice: Notice, jpProfile?: string | null): string | null {
   const file = notice.file ?? '';
   if (notice.rule_id.startsWith('JPN_') || file.endsWith('_jp.txt')) {
-    // v4 (2026-03) MLIT'in COMmmmONS sayfasında yayımlanıyor; gtfs.jp'deki referans
-    // GTFS-JP 第2版'i anlatır ve v3/Auto için doğru adrestir. Eski link sitenin
-    // `testsite/` taslak yolunu gösteriyordu — kanonik yola taşındı (2026-09-20).
+    // v4 (2026-03) is published on MLIT's COMmmmONS page; the reference on gtfs.jp
+    // describes GTFS-JP 第2版 and is the correct address for v3/Auto. The old link pointed
+    // to the site's `testsite/` draft path — moved to the canonical path (2026-09-20).
     return jpProfile?.toLowerCase() === 'v4'
       ? 'https://www.mlit.go.jp/commmmons/document/007/'
       : 'https://www.gtfs.jp/developpers-guide/format-reference.html';
@@ -212,7 +212,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     .map(([id, title]) => `<option value="${escHtml(id)}">${escHtml(id)} — ${escHtml(title)}</option>`)
     .join('');
 
-  // Dosya filtresi için benzersiz dosya adları
+  // Unique filenames for the file filter.
   const uniqueFiles = [...new Set(
     items
       .filter(item => noticeMap.has(item.notice_id))
@@ -223,7 +223,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     .map(f => `<option value="${escHtml(f)}"${fileFilter && fileFilter === f ? ' selected' : ''}>${escHtml(f)}</option>`)
     .join('');
 
-  // Önem ve sınıf: R9'daki gibi çoklu seçilebilir chip filtresi (sadece mevcut değerler)
+  // Severity and class: a multi-select chip filter like R9 (only values that are present).
   const CLS_ORDER = ['SPEC', 'INTEROP', 'QUALITY', 'ANALYTICS'];
   const sevPresent = new Set<string>();
   const clsPresent = new Set<string>();
@@ -273,8 +273,8 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const mapBtn   = hasMapCoords(notice, nameIndex)
       ? `<button class="map-pin-btn" data-notice-id="${escHtml(notice.id)}" title="${mapLabel}" aria-label="${mapLabel}">📍</button>`
       : '';
-    // Desenler: yalnızca desen görmenin işe yaradığı hat-yapısı/servis kurallarında
-    // (PATTERN_RULES) ve entity gerçekten bir hat (route_id) ise göster.
+    // Patterns: show only for route-structure/service rules where viewing the pattern is useful
+    // (PATTERN_RULES), and only when the entity is actually a route (route_id).
     const patLabel = t('fix.pattern_btn');
     const patBtn   = patternRouteId(notice, nameIndex)
       ? `<button class="pattern-btn" data-notice-id="${escHtml(notice.id)}" title="${patLabel}" aria-label="${patLabel}">${PATTERN_ICON}</button>`
@@ -283,7 +283,7 @@ function renderR2(result: ValidationResult, noticeMap: Map<string, Notice>, delt
     const ruleLink = specHref
       ? `<a href="${escHtml(specHref)}" target="_blank" rel="noopener" class="spec-link" title="${t('fix.spec_link')}">${escHtml(item.display_label)}</a>`
       : escHtml(item.display_label);
-    // Gizle düğmesi ilk sütunda: son sütun yatay kaydırma ardında kalıyordu.
+    // Put the hide button in the first column: the last column was hidden behind horizontal scrolling.
     const ruleCell = `${ruleLink}${hideBtn(notice)}`;
     return `
       <tr data-severity="${notice.severity}" data-class="${notice.rule_class}" data-rule="${notice.rule_id}" data-file="${escHtml(notice.file ?? '')}">
@@ -331,14 +331,14 @@ function stopPin(id: string, nameIndex: NameIndex, primary: boolean, suffix?: st
   const coords = nameIndex.stop_coords[id];
   if (!coords) return null;
   const name = nameIndex.stops[id] ?? id;
-  // name ve id feed kaynaklı → Leaflet bindPopup HTML olarak render ettiği için escape şart.
+  // name and id come from the feed → escaping is required because Leaflet renders bindPopup as HTML.
   const label = `<strong>${escHtml(name)}</strong>${suffix ? ` ${escHtml(suffix)}` : ''}<br><code>${escHtml(id)}</code>`;
   return { lat: coords[0], lon: coords[1], label, primary };
 }
 
-// Feed kaynaklı ad + id'den güvenli (escape'li) harita popup etiketi üretir.
-// Harita etiketleri bindPopup/innerHTML ile HTML olarak render edildiğinden,
-// feed değerleri tek bir yerde escape edilir (tekrar eden <strong>/<code> kalıbı).
+// Build a safe (escaped) map popup label from the feed-provided name + id.
+// Because map labels are rendered as HTML through bindPopup/innerHTML,
+// escape feed values in one place (the repeated <strong>/<code> pattern).
 function stopLabel(name: string, id: string): string {
   return `<strong>${escHtml(name)}</strong><br><code>${escHtml(id)}</code>`;
 }
@@ -347,19 +347,19 @@ function pushMapPin(pins: MapPin[], pin: MapPin): void {
   if (pins.length < MAX_MAP_PINS) pins.push(pin);
 }
 
-// Harita ikon sistemi: whitelist tabanlı.
-// entity_id'nin stop_coords'ta bulunması yeterli DEĞİL — rule bazlı kontrol şart.
-// Yanlış eşleşmeyi önlemek için sadece burada tanımlı kurallar harita ikonu gösterir.
+// Map icon system: whitelist-based.
+// It is NOT enough for entity_id to exist in stop_coords — rule-based checking is required.
+// To prevent false matches, only rules defined here show a map icon.
 
-// entity_id stop_id olan kural listesi (stop pin gösterilir)
+// Rules whose entity_id is a stop_id (show a stop pin).
 const STOP_ID_RULES = new Set([
   'STP_003','STP_004','STP_005','STP_006','STP_007','STP_008','STP_009',
   'STP_010','STP_011','STP_012','STP_013','STP_014','STP_015','STP_016',
   'STP_017','STP_018','STP_019','STP_020','STP_021','STP_022','STP_023',
   'STP_024','STP_026','STP_028','STP_029','STP_030',
-  // NOT: GEO_001/003/004/005 emekli, GEO_010/011 yalnız R4 görüntü etiketi
-  // (k7_reporting::r4_display_label — notice.rule_id hep SHP_014/016 kalır), GEO_014
-  // feed seviyesi (entity_id yok) → hiçbiri gerçek bir notice ile eşleşmiyordu, kaldırıldı.
+  // NOTE: GEO_001/003/004/005 are retired, GEO_010/011 are only R4 display labels
+  // (k7_reporting::r4_display_label — notice.rule_id remains SHP_014/016), and GEO_014
+  // is feed-level (no entity_id) → none matched a real notice, so they were removed.
   'GEO_002','GEO_009','GEO_012','GEO_015','GEO_016','GEO_019','GEO_022',
   'PTH_012','PTH_013','PTH_015','PTH_016','PTH_017','PTH_018','PTH_019',
   'LVL_006',
@@ -368,7 +368,7 @@ const STOP_ID_RULES = new Set([
   'VAT_002','VAT_007',
 ]);
 
-// entity_id trip_id olan kural listesi — generic sefer haritası
+// Rules whose entity_id is a trip_id — generic trip map.
 const TRIP_ID_RULES = new Set([
   // TRP grubu
   'TRP_001','TRP_002','TRP_003','TRP_004','TRP_005','TRP_006','TRP_007','TRP_008',
@@ -376,42 +376,42 @@ const TRIP_ID_RULES = new Set([
   'TRP_017','TRP_018','TRP_019','TRP_020',
   // FRQ grubu
   'FRQ_001','FRQ_002','FRQ_003','FRQ_004','FRQ_005','FRQ_006','FRQ_007','FRQ_008','FRQ_009',
-  // STM grubu — özel handler olmayan kurallar (STM_008 özel handler'a taşındı)
+  // STM group — rules without a dedicated handler (STM_008 moved to a dedicated handler).
   'STM_001','STM_002','STM_003','STM_004','STM_005','STM_006','STM_007',
   'STM_009','STM_010','STM_011','STM_015','STM_016','STM_018','STM_019',
-  // STM_036 (satır sıralaması) coğrafi değil — durak konumları doğru, yalnız dosya satır
-  // sırası bozuk; harita yanıltıcı (boş/normal görünür). Bilinçli olarak haritasız.
+  // STM_036 (row ordering) is not geographic — stop locations are correct, only the file row
+  // order is wrong; the map would be misleading (empty/normal-looking). Deliberately no map.
   'STM_021','STM_022','STM_024','STM_028','STM_029','STM_030',
   'STM_031','STM_032','STM_034',
-  // VAT grubu — sefer bazlı
+  // VAT group — trip-based.
   'VAT_003',
-  // OPR grubu — sefer bazlı
+  // OPR group — trip-based.
   'OPR_006','OPR_017',
 ]);
 
-// entity_id route_id olan kural listesi — generic hat haritası
+// Rules whose entity_id is a route_id — generic route map.
 const ROUTE_ID_RULES = new Set([
   // RTS grubu
   'RTS_001','RTS_002','RTS_003','RTS_004','RTS_005','RTS_006','RTS_007','RTS_008',
   'RTS_010','RTS_011','RTS_012','RTS_013','RTS_015','RTS_016','RTS_017',
   'RTS_018','RTS_019','RTS_020','RTS_021','RTS_022','RTS_023',
-  // VAT grubu — hat bazlı
+  // VAT group — route-based.
   'VAT_001',
-  // OPR grubu — hat bazlı
+  // OPR group — route-based.
   'OPR_001','OPR_002','OPR_003',
 ]);
 
-// Sefer-deseni görünümü = hattın YAPISI (durak desenleri). Yalnızca bunun gerçekten
-// işe yaradığı iki kural: shape'siz hatta yapıyı görmek (RTS_017) ve süre-aykırı
-// seferin hangi desende olduğunu görmek (VAT_003). Sıklık (OPR_001/005 — modal hat-geneli
-// ort. verir, kuralın hat+yön+takvim dilimiyle çelişir) ve benzerlik (VAT_001 — hat ÇİFTİ,
-// tek-hat deseniyle alakasız) bilinçli olarak HARİÇ.
+// Trip-pattern view = the route's STRUCTURE (stop patterns). Only two rules genuinely
+// benefit from it: viewing the structure of a route without shapes (RTS_017) and seeing
+// which pattern a duration-outlier trip uses (VAT_003). Frequency (OPR_001/005 — the modal
+// gives a route-wide average that conflicts with the rule's route+direction+calendar slice)
+// and similarity (VAT_001 — a PAIR of routes, unrelated to a single-route pattern) are deliberately EXCLUDED.
 const PATTERN_RULES = new Set([
-  'VAT_003', // sefer süresi aykırı — sefer hangi desende?
-  'RTS_017', // shape'siz hat — shape yokken yapıyı göster
+  'VAT_003', // trip duration outlier — which pattern does the trip use?
+  'RTS_017', // route without shapes — show the structure when no shape exists
 ]);
 
-// "Sefer deseni" ikonu — dallanan hat (varyant) şeması; haritadan (📍) ayırt edilir.
+// "Trip pattern" icon — branching route (variant) diagram; distinct from the map (📍).
 const PATTERN_ICON =
   '<svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:middle">' +
   '<path d="M2.5 8h4l6-4M6.5 8l6 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
@@ -420,8 +420,8 @@ const PATTERN_ICON =
   '<circle cx="13" cy="12" r="1.7" fill="currentColor"/>' +
   '</svg>';
 
-// Desen modalının açılacağı route_id'yi çöz: RTS_017 entity'si route_id'dir; VAT_003
-// entity'si trip_id'dir → trip_routes ile hattına çevrilir. Uygun değilse null (buton çıkmaz).
+// Resolve the route_id for the pattern modal: RTS_017's entity is a route_id; VAT_003's
+// entity is a trip_id → convert it to its route through trip_routes. Return null when unsuitable (no button).
 function patternRouteId(notice: Notice, nameIndex: NameIndex): string | null {
   if (!PATTERN_RULES.has(notice.rule_id)) return null;
   const eid = notice.entity_id ?? '';
@@ -434,34 +434,34 @@ function patternRouteId(notice: Notice, nameIndex: NameIndex): string | null {
 function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
   const eid = notice.entity_id ?? '';
 
-  // Stop pin kuralları: entity_id stop_id olup koordinatları biliniyorsa
+  // Stop-pin rules: entity_id is a stop_id and its coordinates are known.
   if (STOP_ID_RULES.has(notice.rule_id)) {
     return !!(eid && eid in nameIndex.stop_coords);
   }
-  // Feed seviyesi coğrafi kurallar — kanıt "tüm durakların dağılımı": GEO_013 (özet),
-  // GEO_018 (hepsi 200m içinde), GEO_021 (koordinat paylaşımı). stop_coords doluysa göster.
+  // Feed-level geographic rules — evidence is "the distribution of all stops": GEO_013 (summary),
+  // GEO_018 (all within 200m), GEO_021 (shared coordinates). Show when stop_coords is populated.
   if (['GEO_013','GEO_018','GEO_021'].includes(notice.rule_id)) {
     return Object.keys(nameIndex.stop_coords).length > 0;
   }
-  // GEO_017 / GEO_020: shape kuralları ama pin observed_value'daki "lat,lon"dan gelir
-  // (deferred modda shape_coords boş olsa bile harita anlamlı).
+  // GEO_017 / GEO_020: shape rules, but the pin comes from "lat,lon" in observed_value
+  // (the map remains meaningful in deferred mode even when shape_coords is empty).
   if (notice.rule_id === 'GEO_017' || notice.rule_id === 'GEO_020') {
     return /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test((notice.observed_value ?? '').trim());
   }
-  // SHP_017: details'tan bad_stop veya ctx
+  // SHP_017: bad_stop or ctx from details.
   if (notice.rule_id === 'SHP_017') {
     const sid  = notice.details?.['bad_stop'] ?? '';
     const ctxB = notice.details?.['ctx_b'] ?? '';
     const ctxA = notice.details?.['ctx_a'] ?? '';
     return !!(sid && sid in nameIndex.stop_coords) || ctxB.length > 0 || ctxA.length > 0;
   }
-  // STM_014: hız ihlali iki durak arası + trip shape
+  // STM_014: speed violation between two stops + trip shape.
   if (notice.rule_id === 'STM_014') {
     const m = notice.observed_value?.match(/\(([^→ ]+)\s*→\s*([^)]+)\)/);
     if (m && (m[1] in nameIndex.stop_coords || m[2] in nameIndex.stop_coords)) return true;
     return !!(eid && eid in nameIndex.trip_shapes);
   }
-  // STM_008 / STM_020: iki sorunlu durak (kalkış/varış) + trip shape
+  // STM_008 / STM_020: two problematic stops (departure/arrival) + trip shape.
   if (notice.rule_id === 'STM_020' || notice.rule_id === 'STM_008') {
     const sa = notice.details?.['stop_a'] ?? '';
     const sb = notice.details?.['stop_b'] ?? '';
@@ -469,7 +469,7 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     if (sb && sb in nameIndex.stop_coords) return true;
     return !!(eid && eid in nameIndex.trip_shapes);
   }
-  // STM_025: kısa segment — iki durak pini + trip shape
+  // STM_025: short segment — two stop pins + trip shape.
   if (notice.rule_id === 'STM_025') {
     const sa = notice.details?.['stop_a'] ?? '';
     const sb = notice.details?.['stop_b'] ?? '';
@@ -477,58 +477,58 @@ function hasMapCoords(notice: Notice, nameIndex: NameIndex): boolean {
     if (sb && sb in nameIndex.stop_coords) return true;
     return !!(eid && eid in nameIndex.trip_shapes);
   }
-  // OPR_015: tek shape uyarısı — shape_id details'ta
+  // OPR_015: single-shape warning — shape_id is in details.
   if (notice.rule_id === 'OPR_015') {
     const shapeId = notice.details?.['shape_id'] ?? '';
     return !!(shapeId && shapeId in nameIndex.shape_coords);
   }
-  // PTH_014: farklı istasyonlar arası pathway — iki istasyon koordinatı
+  // PTH_014: pathway between different stations — coordinates of both stations.
   if (notice.rule_id === 'PTH_014') {
     const fs = notice.details?.['from_station'] ?? '';
     const ts = notice.details?.['to_station'] ?? '';
     return !!(fs && fs in nameIndex.stop_coords && ts && ts in nameIndex.stop_coords);
   }
   // OPR_007/OPR_008/STM_017: entity_id = trip_id.
-  // Harita shape polyline'a ek olarak durak koordinatlarından da çizilebilir
-  // (OPR_007 stops details, STM_017 trip_stops, OPR_008 bad_seg durakları).
-  // Bu yüzden shapes.txt'i olmayan feed'lerde de durak verisi varsa ikon gösterilir.
+  // In addition to the shape polyline, the map can also be drawn from stop coordinates
+  // (OPR_007 stops details, STM_017 trip_stops, OPR_008 bad_seg stops).
+  // Therefore show the icon for feeds without shapes.txt when stop data is available.
   if (['OPR_007','OPR_008','STM_017'].includes(notice.rule_id)) {
     return !!(eid && (eid in nameIndex.trip_shapes || eid in nameIndex.trip_stops));
   }
-  // Shape koordinatı gerektiren kurallar: entity_id = shape_id
-  // Büyük feed modunda (map_data_deferred) shape_coords boştur; geometri harita
-  // ikonuna tıklandığında on-demand çekilir → eid varsa ikon yine gösterilir.
+  // Rules requiring shape coordinates: entity_id = shape_id.
+  // In large-feed mode (map_data_deferred), shape_coords is empty; geometry is fetched
+  // on demand when the map icon is clicked → show the icon when eid is present.
   if (['SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016','SHP_018','SHP_019','SHP_020','GEO_006','GEO_007'].includes(notice.rule_id)) {
     return !!(eid && (eid in nameIndex.shape_coords || nameIndex.map_data_deferred));
   }
-  // Trip shape gerektiren kurallar: entity_id = trip_id
+  // Rules requiring a trip shape: entity_id = trip_id.
   if (['STM_012','STM_026','STM_033'].includes(notice.rule_id)) {
     return !!(eid && eid in nameIndex.trip_shapes) || !!(eid && eid in nameIndex.trip_stops);
   }
-  // STM_035: aynı durak ardışık iki kez — tekrar eden durak pini veya trip shape
+  // STM_035: the same stop twice in succession — repeated stop pin or trip shape.
   if (notice.rule_id === 'STM_035') {
     const stopId = notice.observed_value ?? '';
     return !!(stopId && stopId in nameIndex.stop_coords) || !!(eid && (eid in nameIndex.trip_shapes || eid in nameIndex.trip_stops));
   }
-  // VAT_005: izole duraksız da gösterebiliriz — stop_coords boş değilse
+  // VAT_005: can also show isolated stops — when stop_coords is non-empty.
   if (notice.rule_id === 'VAT_005') {
     return Object.keys(nameIndex.stop_coords).length > 0;
   }
-  // Generic sefer haritası: entity_id trip_id — shape veya stop listesi biliniyorsa
+  // Generic trip map: entity_id trip_id — when the shape or stop list is known.
   if (TRIP_ID_RULES.has(notice.rule_id)) {
     return !!(eid && (eid in nameIndex.trip_shapes || eid in nameIndex.trip_stops));
   }
-  // Generic hat haritası: entity_id route_id — en az bir shape varsa
+  // Generic route map: entity_id route_id — when at least one shape exists.
   if (ROUTE_ID_RULES.has(notice.rule_id)) {
     return !!(eid && (nameIndex.route_shapes[eid]?.length ?? 0) > 0);
   }
   return false;
 }
 
-// Büyük feed modunda haritaya on-demand çekilecek shape_id'yi notice'tan çıkarır.
-// entity_id = shape_id olan kurallar + details.shape_id taşıyan SHP_017/SHP_022.
-// Trip-bağlamlı kurallar (entity_id = trip_id): shape_id trip_shapes'ten çözülür.
-// large_feed_mode'da trip_shapes boştur → '' döner (harita zaten boş, by-design).
+// Extract the shape_id to fetch on demand for the map from a notice in large-feed mode.
+// Rules whose entity_id = shape_id + SHP_017/SHP_022 carrying details.shape_id.
+// Trip-context rules (entity_id = trip_id): resolve shape_id from trip_shapes.
+// In large_feed_mode, trip_shapes is empty → return '' (the map is already empty by design).
 const SHAPE_ENTITY_RULES = new Set([
   'SHP_009','SHP_010','SHP_012','SHP_014','SHP_015','SHP_016',
   'SHP_018','SHP_019','SHP_020','GEO_006','GEO_007',
@@ -536,25 +536,25 @@ const SHAPE_ENTITY_RULES = new Set([
 function shapeIdForNotice(notice: Notice, nameIndex: NameIndex): string {
   if (SHAPE_ENTITY_RULES.has(notice.rule_id)) return notice.entity_id ?? '';
   if (['SHP_017','SHP_022','GEO_009'].includes(notice.rule_id)) return notice.details?.['shape_id'] ?? '';
-  // buildMapOptions bu kurallarda shape'i trip_shapes[trip_id] ile çiziyor (STM_014/008/020/025/
-  // 012/026/033/035, OPR_007/008, STM_017, generic trip). Deferred modda on-demand için aynı yolu izle.
+  // buildMapOptions draws the shape for these rules from trip_shapes[trip_id] (STM_014/008/020/025/
+  // 012/026/033/035, OPR_007/008, STM_017, generic trip). Use the same path for on-demand deferred mode.
   const eid = notice.entity_id ?? '';
   if (eid && eid in nameIndex.trip_shapes) return nameIndex.trip_shapes[eid] ?? '';
-  // Hat kuralları: geometri büyük feed'de serialize edilmiyor; hattın ilk shape'i çekilir
-  // (hat haritası 4 shape'e kadar çizer, deferred modda bir tanesiyle açılır).
+  // Route rules: geometry is not serialized for large feeds; fetch the route's first shape
+  // (the route map draws up to 4 shapes, but opens with one in deferred mode).
   if (ROUTE_ID_RULES.has(notice.rule_id)) return nameIndex.route_shapes[eid]?.[0] ?? '';
   return '';
 }
 
-// Vurgulu segmenti olan haritalarda TABAN çizgi rengi. Gri (#9ca3af) denendi ve BAŞARISIZ:
-// harita altlığı Google "terrain" (lyrs=p) ve o da gri tonlu → çizgi arka planla kaynaşıp
-// görünmez oluyordu. Siyah her altlıkta okunur ve kırmızı hata segmentiyle yarışmaz.
+// BASE line color for maps with a highlighted segment. Gray (#9ca3af) was tried and FAILED:
+// the Google "terrain" basemap (lyrs=p) is also gray-toned → the line blended into the background
+// and became invisible. Black is readable on every basemap and does not compete with the red error segment.
 const SHAPE_BASE_COLOR = '#111827';
 
 function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
   const entityId = notice.entity_id ?? '';
 
-  // SHP_017: hatalı durak (kırmızı) + ±3 bağlam durağı (mavi) + shape polyline
+  // SHP_017: faulty stop (red) + ±3 context stops (blue) + shape polyline.
   if (notice.rule_id === 'SHP_017') {
     const sid    = notice.details?.['bad_stop'] ?? '';
     const shapeId = notice.details?.['shape_id'] ?? '';
@@ -565,17 +565,17 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const errSeq = notice.observed_value ?? '';
 
     const pins: MapPin[] = [];
-    // Önceki 3 durak — mavi (birincil olmayan)
+    // Previous 3 stops — blue (not primary).
     for (let i = 0; i < ctxB.length; i++) {
       const seq = seqB[i] ? `#${seqB[i]} ` : '';
       const p = stopPin(ctxB[i], nameIndex, true, `${seq}${t('fix.map.pin.prev')}`);
       if (p) pushMapPin(pins, p);
     }
-    // Hatalı durak — kırmızı
+    // Faulty stop — red.
     const seqLabel = errSeq ? `#${errSeq} ` : '';
     const errPin = sid ? stopPin(sid, nameIndex, false, `${seqLabel}${t('fix.map.pin.bad_seq')}`) : null;
     if (errPin) pushMapPin(pins, errPin);
-    // Sonraki 3 durak — mavi
+    // Next 3 stops — blue.
     for (let i = 0; i < ctxA.length; i++) {
       const seq = seqA[i] ? `#${seqA[i]} ` : '';
       const p = stopPin(ctxA[i], nameIndex, true, `${seq}${t('fix.map.pin.next')}`);
@@ -590,7 +590,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
-  // STM_014: iki pin + trip'in shape'i
+  // STM_014: two pins + the trip's shape.
   if (notice.rule_id === 'STM_014') {
     const m = notice.observed_value?.match(/\(([^→ ]+)\s*→\s*([^)]+)\)/);
     const pinA = m ? stopPin(m[1].trim(), nameIndex, true, t('fix.map.pin.depart')) : null;
@@ -607,7 +607,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
-  // STM_008 / STM_020: iki durak pini (kalkış/varış) + trip shape'i
+  // STM_008 / STM_020: two stop pins (departure/arrival) + the trip's shape.
   if (notice.rule_id === 'STM_020' || notice.rule_id === 'STM_008') {
     const pinA = notice.details?.['stop_a'] ? stopPin(notice.details['stop_a'], nameIndex, true, t('fix.map.pin.depart')) : null;
     const pinB = notice.details?.['stop_b'] ? stopPin(notice.details['stop_b'], nameIndex, false, t('fix.map.pin.arrive')) : null;
@@ -621,7 +621,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_010: tekrarlanan shape noktası — polyline + kırmızı pin
+  // SHP_010: repeated shape point — polyline + red pin.
   if (notice.rule_id === 'SHP_010') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const m = notice.observed_value?.match(/^\(([^,]+),([^)]+)\)$/);
@@ -639,7 +639,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_022: durak güzergah şeklinde belirsiz — stop pin + shape polyline
+  // SHP_022: stop ambiguous in the shape — stop pin + shape polyline.
   if (notice.rule_id === 'SHP_022') {
     const shapeId = notice.details?.['shape_id'] ?? '';
     const pin = stopPin(entityId, nameIndex, false, t('fix.map.pin.ambiguous'));
@@ -651,14 +651,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_018 / SHP_019: orphan shape — sadece polyline, durak pini yok
+  // SHP_018 / SHP_019: orphan shape — polyline only, no stop pin.
   if (notice.rule_id === 'SHP_018' || notice.rule_id === 'SHP_019') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const legendItems = polyline.length > 1 ? [{ color: '#f59e0b', label: t('fix.map.route_shape_unused') }] : [];
     return { pins: [], polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // OPR_007: tekrar eden durak — tüm duraklar + shape + yön okları
+  // OPR_007: repeated stop — all stops + shape + direction arrows.
   if (notice.rule_id === 'OPR_007') {
     const dupStopId = notice.details?.['dup_stop'] ?? '';
     const stops = (notice.details?.['stops'] ?? '').split(',').filter(Boolean);
@@ -681,7 +681,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // STM_017: sefer güzergahı (polyline) + tüm seferin durakları
+  // STM_017: trip shape (polyline) + all stops in the trip.
   if (notice.rule_id === 'STM_017') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -696,9 +696,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // GEO_006 / GEO_007: shape atlaması — shape gri, ATLAYAN SEGMENT kırmızı + iki uç pin.
-  // Atlama zaten polyline'ın bir parçası olarak çiziliyordu; aynı renkte olduğu için hangi
-  // parçanın hata olduğu görülmüyordu. Segment ayrı renkle üstüne çizilip ona zoom yapılır.
+  // GEO_006 / GEO_007: shape jump — shape gray, JUMPING SEGMENT red + two endpoint pins.
+  // The jump was already drawn as part of the polyline; because it had the same color, it was
+  // impossible to see which part was wrong. Draw the segment over it in a separate color and zoom to it.
   if (notice.rule_id === 'GEO_006' || notice.rule_id === 'GEO_007') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const m = notice.observed_value?.match(/segment\s+(\d+)→(\d+)/);
@@ -712,9 +712,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       if (ptA) pushMapPin(pins, { lat: ptA[0], lon: ptA[1], label: `<strong>${t('fix.map.pin.jump_start')}</strong><br>Segment ${idxA}`, primary: true });
       if (ptB) pushMapPin(pins, { lat: ptB[0], lon: ptB[1], label: `<strong>${t('fix.map.pin.jump_end')}</strong><br>Segment ${idxB}`, primary: false });
       if (ptA && ptB) {
-        // zoomTo YOK (2026-07-25): segmente zoom yapmak shape'in geri kalanını ekran dışına
-        // atıyor ve geriye bağlamsız tek çizgi kalıyordu ("haritada gözükmüyor"). Görünüm
-        // tüm shape'e sığdırılır; atlama rengiyle ve kalınlığıyla ayrışır.
+        // NO zoomTo (2026-07-25): zooming to the segment pushed the rest of the shape off-screen
+        // and left a single line without context ("not visible on the map"). Fit the whole shape;
+        // distinguish the jump with its color and width.
         extraPolylines.push({ coords: [[ptA[0], ptA[1]], [ptB[0], ptB[1]]], color: '#dc2626', weight: 7, zoomTo: false });
       }
     }
@@ -722,7 +722,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     if (polyline.length > 1) legendItems.push({ color: SHAPE_BASE_COLOR, label: t('fix.map.route_shape') });
     if (extraPolylines.length > 0) legendItems.push({ color: '#dc2626', label: t('fix.map.jump_segment') });
     if (pins.length > 0) {
-      // Renkler pinlerle aynı olmalı: başlangıç primary(mavi), bitiş referans(kırmızı).
+      // Colors must match the pins: start is primary (blue), end is reference (red).
       legendItems.push({ color: '#2563eb', label: t('fix.map.jump_start') });
       legendItems.push({ color: '#dc2626', label: t('fix.map.jump_end') });
     }
@@ -736,7 +736,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     };
   }
 
-  // SHP_020: ardışık olmayan tekrarlayan nokta — polyline + kırmızı pin
+  // SHP_020: non-consecutive repeated point — polyline + red pin.
   if (notice.rule_id === 'SHP_020') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     // observed_value: "nokta {i} ve {j}: ({lat},{lon})"
@@ -755,7 +755,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_009: güzergah şekli kendisiyle kesişiyor — polyline + kesişen segment uçları
+  // SHP_009: shape intersects itself — polyline + endpoints of the intersecting segment.
   if (notice.rule_id === 'SHP_009') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     // observed_value: "segment {a}-{b} ∩ {c}-{d}"
@@ -780,14 +780,14 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // OPR_008: tüm shape gri, tüm bozuk segmentler kırmızı
+  // OPR_008: entire shape gray, all faulty segments red.
   if (notice.rule_id === 'OPR_008') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
     const legendItems: Array<{ color: string; label: string }> = [];
     if (polyline.length > 1) legendItems.push({ color: SHAPE_BASE_COLOR, label: t('fix.map.route_shape') });
 
-    // Tüm bozuk segmentleri topla (bad_seg_0_a/b, bad_seg_1_a/b, ...)
+    // Collect all faulty segments (bad_seg_0_a/b, bad_seg_1_a/b, ...).
     const extraPolylines: Array<{ coords: [number, number][]; color: string; weight: number; zoomTo: boolean }> = [];
     const pins: import('../map-modal').MapPin[] = [];
     const seenStops = new Set<string>();
@@ -829,7 +829,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     };
   }
 
-  // STM_025: kısa segment — shape (sarı) + tüm duraklar (küçük mavi) + 2 sorunlu durak (mavi/kırmızı)
+  // STM_025: short segment — shape (yellow) + all stops (small blue) + 2 problematic stops (blue/red).
   if (notice.rule_id === 'STM_025') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -855,7 +855,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // OPR_015: tek shape uyarısı — sadece shape polyline
+  // OPR_015: single-shape warning — shape polyline only.
   if (notice.rule_id === 'OPR_015') {
     const shapeId = notice.details?.['shape_id'] ?? '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -863,9 +863,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins: [], polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // ── Shape kuralları: entity_id = shape_id, durakları shape_trips üzerinden bul ──
+  // ── Shape rules: entity_id = shape_id, find stops through shape_trips ──
 
-  // Yardımcı: shape'e ait sefer duraklarını küçük mavi pinler olarak döndür
+  // Helper: return the stops of trips using a shape as small blue pins.
   function shapeStopPins(shapeId: string): MapPin[] {
     const tripId = nameIndex.shape_trips[shapeId] ?? '';
     const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
@@ -875,7 +875,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
       .map(p => ({ ...p, small: true }));
   }
 
-  // SHP_012: shape + duraklar; EŞİĞİ AŞAN duraklar kırmızı ve büyük (details.far_stops).
+  // SHP_012: shape + stops; stops ABOVE THE THRESHOLD are red and large (details.far_stops).
   if (notice.rule_id === 'SHP_012') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const far = new Set((notice.details?.['far_stops'] ?? '').split(',').map(s => s.trim()).filter(Boolean));
@@ -883,7 +883,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
     const pins: MapPin[] = [];
     for (const id of stopIds.slice(0, MAX_MAP_PINS)) {
-      if (far.has(id)) continue;                       // uzak duraklar aşağıda, üstte kalsın
+      if (far.has(id)) continue;                       // far stops are added below, keep them on top
       const p = stopPin(id, nameIndex, true);
       if (p) pushMapPin(pins, { ...p, small: true });
     }
@@ -899,7 +899,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_014: ilk/son durak shape ucundan uzak — shape + duraklar + hatalı durak vurgulu
+  // SHP_014: first/last stop far from the shape endpoint — shape + stops + highlighted faulty stop.
   if (notice.rule_id === 'SHP_014') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const problemStopId = notice.details?.['problem_stop'] ?? '';
@@ -921,7 +921,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_015: shape nokta yoğunluğu yetersiz — shape + duraklar
+  // SHP_015: insufficient shape point density — shape + stops.
   if (notice.rule_id === 'SHP_015') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const pins = shapeStopPins(entityId);
@@ -931,7 +931,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // SHP_016: shape ters yönde — shape + duraklar + ilk durak kırmızı (hata noktası)
+  // SHP_016: shape runs in reverse — shape + stops + first stop red (error point).
   if (notice.rule_id === 'SHP_016') {
     const polyline = entityId ? (nameIndex.shape_coords[entityId] ?? []) : [];
     const firstStopId = notice.details?.['first_stop'] ?? '';
@@ -952,9 +952,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // ── Trip kuralları: entity_id = trip_id ───────────────────────────────────
+  // ── Trip rules: entity_id = trip_id ─────────────────────────────────────────
 
-  // STM_012: fiziksel olarak imkansız hız — shape + tüm duraklar + 2 sorunlu durak
+  // STM_012: physically impossible speed — shape + all stops + 2 problematic stops.
   if (notice.rule_id === 'STM_012') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -978,7 +978,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // STM_026: durak arası mesafe çok uzun — shape + tüm duraklar + 2 uzak durak
+  // STM_026: distance between stops is too long — shape + all stops + 2 distant stops.
   if (notice.rule_id === 'STM_026') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -1002,7 +1002,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: true };
   }
 
-  // STM_033: tek duraklı sefer — shape + tek durak
+  // STM_033: single-stop trip — shape + the single stop.
   if (notice.rule_id === 'STM_033') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -1016,7 +1016,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
-  // STM_035: aynı durak ardışık iki kez — shape + tüm duraklar + tekrar eden durak kırmızı
+  // STM_035: same stop twice in succession — shape + all stops + repeated stop in red.
   if (notice.rule_id === 'STM_035') {
     const shapeId = entityId ? (nameIndex.trip_shapes[entityId] ?? '') : '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -1037,15 +1037,15 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
-  // ── Pathway kuralları ────────────────────────────────────────────────────
+  // ── Pathway rules ─────────────────────────────────────────────────────────
 
-  // PTH_014: farklı istasyonlar arası pathway — iki istasyon pini + kesik çizgi bağlantı
+  // PTH_014: pathway between different stations — two station pins + dashed connection.
   if (notice.rule_id === 'PTH_014') {
     const fromId = notice.details?.['from_station'] ?? '';
     const toId   = notice.details?.['to_station']   ?? '';
     const fromCoord = nameIndex.stop_coords[fromId];
     const toCoord   = nameIndex.stop_coords[toId];
-    // hasMapCoords her iki istasyon koordinatını da şart koşar; bu dal savunma amaçlı.
+    // hasMapCoords requires coordinates for both stations; this branch is defensive.
     if (!fromCoord || !toCoord) return { pins: [], legendItems: [], showArrows: false };
     const fromName = nameIndex.stops[fromId] ?? fromId;
     const toName   = nameIndex.stops[toId]   ?? toId;
@@ -1066,16 +1066,16 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     };
   }
 
-  // ── Analytics / VAT kuralları ─────────────────────────────────────────────
+  // ── Analytics / VAT rules ─────────────────────────────────────────────────
 
-  // VAT_005: izole durak kümesi — bağlı duraklar (mavi küçük) + izole duraklar (kırmızı)
+  // VAT_005: isolated stop cluster — connected stops (small blue) + isolated stops (red).
   if (notice.rule_id === 'VAT_005') {
     const isolatedSet = new Set((notice.details?.['isolated_stops'] ?? '').split(',').filter(Boolean));
-    // Sadece gerçekten stop_times'ta geçen durakları göster — stop_times'sız duraklar mavi
-    // "bağlı" gibi görünür ki bu yanıltıcı olur.
+    // Show only stops that actually occur in stop_times — stops without stop_times would appear
+    // "connected" in blue, which would be misleading.
     const stopsInTrips = new Set<string>();
-    // İzole duraklar için durak→{hat seti, sefer sayısı} aggregate (client-side).
-    // İzole küme ≤200 durak olduğundan, yalnızca izole duraklar için biriktir.
+    // Aggregate {route set, trip count} for isolated stops (client-side).
+    // Since an isolated cluster has ≤200 stops, accumulate only isolated stops.
     const stopRoutes = new Map<string, Set<string>>(); // stop_id → route_id set
     const stopTrips  = new Map<string, number>();       // stop_id → distinct trip count
     for (const [tripId, stops] of Object.entries(nameIndex.trip_stops).slice(0, MAX_MAP_PINS)) {
@@ -1097,7 +1097,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     for (const [sid, coord] of Object.entries(nameIndex.stop_coords).slice(0, MAX_MAP_PINS)) {
       const isIsolated = isolatedSet.has(sid);
       const inTrips = stopsInTrips.has(sid);
-      if (!isIsolated && !inTrips) continue; // stop_times'sız durakları gizle
+      if (!isIsolated && !inTrips) continue; // hide stops without stop_times
       const name = nameIndex.stops[sid] ?? sid;
       let label: string;
       if (isIsolated) {
@@ -1136,7 +1136,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     };
   }
 
-  // VAT_007: terminus durağı — terminal stop (kırmızı) + hat şekilleri (farklı renkler)
+  // VAT_007: terminus stop — terminal stop (red) + route shapes (different colors).
   if (notice.rule_id === 'VAT_007') {
     const routeIds = (notice.details?.['routes'] ?? '').split(',').filter(Boolean);
     const routeColors = ['#3b82f6','#10b981','#8b5cf6','#f97316','#06b6d4'];
@@ -1169,7 +1169,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems, showArrows: false };
   }
 
-  // VAT_002: aktarma merkezi tanımsız — durak (kırmızı) + geçen hatlar farklı renkte
+  // VAT_002: transfer hub undefined — stop (red) + passing routes in different colors.
   if (notice.rule_id === 'VAT_002') {
     const routeIds = (notice.details?.['routes'] ?? '').split(',').filter(Boolean);
     const routeColors = ['#3b82f6', '#10b981', '#8b5cf6', '#f97316', '#06b6d4', '#eab308'];
@@ -1202,8 +1202,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems, showArrows: false };
   }
 
-  // VAT_001: muhtemel kopya hat — iki hattı farklı renkte çiz + her hattın kalkış/varış
-  // durağını aynı hat renginde göster (güzergahlar üst üste binse bile uçlar ayırt edilir).
+  // VAT_001: likely duplicate routes — draw the two routes in different colors + show each route's
+  // first/last stop in the same route color (the endpoints remain distinguishable even when shapes overlap).
   if (notice.rule_id === 'VAT_001') {
     const routeIds = (notice.details?.['routes'] ?? '').split(',').filter(Boolean);
     const routeColors = ['#3b82f6', '#f97316']; // mavi vs turuncu
@@ -1226,7 +1226,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
         const routeName = nameIndex.routes[rId] ?? rId;
         legendItems.push({ color, label: escHtml(routeName) });
 
-        // Hattın kalkış/varış durağını ilk shape'in seferinden bul.
+        // Find the route's first/last stop from a trip using its first shape.
         const firstShape = shapeIds[0] ?? '';
         const tripId = firstShape ? (nameIndex.shape_trips[firstShape] ?? '') : '';
         const stopIds = tripId ? (nameIndex.trip_stops[tripId] ?? []) : [];
@@ -1255,9 +1255,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems, showArrows: false };
   }
 
-  // GEO_017 / GEO_020: shape geometri hatası — observed_value'daki koordinata kırmızı pin.
-  // GEO_020'de shape'in TÜM noktaları aynı yerde olduğu için polyline çizilse bile
-  // görünmez (sıfır uzunluk); tek pin doğru gösterim. GEO_017'de shape varsa arkaya çizilir.
+  // GEO_017 / GEO_020: shape geometry error — red pin at the coordinates in observed_value.
+  // In GEO_020, the shape's ALL points are at the same location, so the polyline is invisible
+  // even when drawn (zero length); one pin is the correct display. Draw the shape behind it for GEO_017 when present.
   if (notice.rule_id === 'GEO_017' || notice.rule_id === 'GEO_020') {
     const m = (notice.observed_value ?? '').trim().match(/^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
     const pins: MapPin[] = [];
@@ -1280,9 +1280,9 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems };
   }
 
-  // GEO_013 / GEO_018 / GEO_021: feed'deki tüm durakları küçük pinlerle göster.
-  // Üçünün de kanıtı dağılımın kendisi: özet (013), hepsi 200m içinde (018),
-  // koordinatların üst üste yığılması (021).
+  // GEO_013 / GEO_018 / GEO_021: show all stops in the feed as small pins.
+  // For all three, the evidence is the distribution itself: summary (013), all within 200m (018),
+  // and coordinates piled on top of one another (021).
   if (['GEO_013','GEO_018','GEO_021'].includes(notice.rule_id)) {
     const pins: MapPin[] = Object.entries(nameIndex.stop_coords).slice(0, MAX_MAP_PINS).map(([stopId, coord]) => ({
       lat: coord[0],
@@ -1299,7 +1299,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     };
   }
 
-  // ── Generic sefer haritası: entity_id = trip_id ──────────────────────────
+  // ── Generic trip map: entity_id = trip_id ─────────────────────────────────
   if (TRIP_ID_RULES.has(notice.rule_id)) {
     const shapeId  = nameIndex.trip_shapes[entityId] ?? '';
     const polyline = shapeId ? (nameIndex.shape_coords[shapeId] ?? []) : [];
@@ -1318,7 +1318,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, polyline: polyline.length > 1 ? polyline : undefined, legendItems, showArrows: polyline.length > 1 };
   }
 
-  // ── Generic hat haritası: entity_id = route_id ───────────────────────────
+  // ── Generic route map: entity_id = route_id ───────────────────────────────
   if (ROUTE_ID_RULES.has(notice.rule_id)) {
     const shapeIds  = nameIndex.route_shapes[entityId] ?? [];
     const routeName = nameIndex.routes[entityId] ?? entityId;
@@ -1355,7 +1355,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, legendItems };
   }
 
-  // STP_016: aynı koordinatta iki durak
+  // STP_016: two stops at the same coordinates.
   if (notice.rule_id === 'STP_016') {
     const secondId = notice.observed_value?.match(/== '([^']+)'/)?.[1] ?? '';
     const secondName = secondId ? (nameIndex.stops[secondId] ?? secondId) : '';
@@ -1365,7 +1365,7 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins: [{ lat, lon, label, primary: true }] };
   }
 
-  // STP_017: iki yakın durak — ikincisi observed_value'dan
+  // STP_017: two nearby stops — the second comes from observed_value.
   if (notice.rule_id === 'STP_017') {
     const secondId = notice.observed_value?.match(/to '([^']+)'/)?.[1] ?? '';
     const pins: MapPin[] = [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }];
@@ -1377,8 +1377,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, legendItems };
   }
 
-  // GEO_002: uzak durak + feed medianı + aradaki mesafe çizgisi.
-  // Tek pin anlamsızdı: kural "feed medianından X km" diyor ama referans nokta
+  // GEO_002: distant stop + feed median + line showing the distance between them.
+  // One pin was meaningless: the rule says "X km from the feed median", but the reference point
   // haritada yoktu. med_lat/med_lon notice.details'tan gelir (k6_analytics).
   if (notice.rule_id === 'GEO_002') {
     const medLat = parseFloat(notice.details?.['med_lat'] ?? '');
@@ -1399,8 +1399,8 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     return { pins, extraPolylines, legendItems };
   }
 
-  // GEO_009: durak pin + shape polyline. shape_id details'tan gelir; eski raporlarla
-  // uyum için observed_value regex'i fallback olarak durur.
+  // GEO_009: stop pin + shape polyline. shape_id comes from details; the observed_value regex
+  // remains as a fallback for compatibility with older reports.
   if (notice.rule_id === 'GEO_009') {
     const shapeId = notice.details?.['shape_id']
       ?? notice.observed_value?.match(/\(shape '([^']+)'\)/)?.[1] ?? '';
@@ -1416,17 +1416,17 @@ function buildMapOptions(notice: Notice, nameIndex: NameIndex): MapOptions {
     };
   }
 
-  // Diğer durak kuralları — tek pin
+  // Other stop rules — single pin.
   return { pins: [{ lat, lon, label: stopLabel(stopName, entityId), primary: true }] };
 }
 
 export function attachFixListeners(root: HTMLElement, result?: ValidationResult, cappedTotals?: Record<string, number>): void {
-  // Kolon-bilgi (ℹ) tooltip'leri — hover + tıklama + klavye (native title yerine)
+  // Column-info (ℹ) tooltips — hover + click + keyboard (instead of native title).
   cinfoWire(root);
 
   attachHiddenRuleListeners(root);
 
-  // R9 expandable rows — blocks[] bağlamı
+  // R9 expandable rows — blocks[] context.
   root.querySelectorAll<HTMLTableRowElement>('.r9-main-row').forEach(row => {
     row.addEventListener('click', () => {
       const idx = row.dataset['idx'];
@@ -1438,7 +1438,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     });
   });
 
-  // R9 sütun sıralaması + ÖNEM filtresi
+  // R9 column sorting + SEVERITY filter.
   const r9Table = root.querySelector<HTMLTableElement>('#r9-table');
   const r9Tbody = r9Table?.querySelector('tbody');
   if (r9Table && r9Tbody) {
@@ -1447,7 +1447,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       (row.children[col] as HTMLElement | undefined)?.textContent?.trim() ?? '';
     r9Table.querySelectorAll<HTMLTableCellElement>('th.r9-sortable').forEach(th => {
       th.addEventListener('click', e => {
-        if ((e.target as HTMLElement).closest('.col-info')) return; // tooltip ikonu tıklaması
+        if ((e.target as HTMLElement).closest('.col-info')) return; // tooltip icon click
         const col = parseInt(th.dataset['col'] ?? '0', 10);
         const type = th.dataset['type'] ?? 'text';
         sortDir = sortCol === col ? -sortDir : 1;
@@ -1475,7 +1475,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       });
     });
 
-    // ÖNEM filtresi: chip'e tıkla → seçili önemleri göster (hiçbiri seçili değilse tümü), çoklu seçim.
+    // SEVERITY filter: click a chip → show selected severities (all when none are selected), multi-select.
     const sevFilter = root.querySelector('#r9-sev-filter');
     if (sevFilter) {
       const active = new Set<string>();
@@ -1499,7 +1499,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     }
   }
 
-  // R2 sütun sıralaması (R9 ile aynı mantık; R2 satırları data-severity taşır)
+  // R2 column sorting (same logic as R9; R2 rows carry data-severity).
   const r2Table = root.querySelector<HTMLTableElement>('#r2-table');
   const r2Tbody = r2Table?.querySelector('tbody');
   if (r2Table && r2Tbody) {
@@ -1533,7 +1533,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     });
   }
 
-  // R2 harita butonları
+  // R2 map buttons.
   if (result) {
     const noticeMap = new Map<string, Notice>(result.notices.map(n => [n.id, n]));
     root.querySelectorAll<HTMLButtonElement>('.map-pin-btn').forEach(btn => {
@@ -1543,20 +1543,20 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
         const notice = noticeMap.get(noticeId);
         if (!notice) return;
         let opts = buildMapOptions(notice, result.name_index);
-        // Büyük feed modunda shape geometrisi peşinen serialize edilmez. Geometriyi
-        // worker'dan çekip name_index'e yazdıktan sonra buildMapOptions'ı YENİDEN
-        // çalıştırıyoruz: kural-özel işaretler (GEO_006/007 atlama segmenti + uç pinleri,
-        // SHP_009/010/020 pinleri) polyline'dan TÜRETİLİYOR; yalnızca opts.polyline'ı
-        // enjekte etmek onları boş bırakıyordu (VBB'de harita çizgi gösterip hatayı
-        // işaretlemiyordu).
+        // In large-feed mode, shape geometry is not serialized up front.
+        // After fetching the geometry from the worker and writing it to name_index,
+        // run buildMapOptions AGAIN: rule-specific markers
+        // (GEO_006/007 jump segment + endpoint pins, SHP_009/010/020 pins) are DERIVED
+        // from the polyline; injecting only opts.polyline left them empty
+        // (VBB showed the map line but did not mark the error).
         if (result.name_index.map_data_deferred && (!opts.polyline || opts.polyline.length < 2)) {
           const shapeId = shapeIdForNotice(notice, result.name_index);
           if (shapeId) {
             const coords = await requestShapeCoords(shapeId);
             if (coords.length > 1) {
-              result.name_index.shape_coords[shapeId] = coords; // oturum içi cache
+              result.name_index.shape_coords[shapeId] = coords; // session cache
               opts = buildMapOptions(notice, result.name_index);
-              // Kuralın kendi dalı geometriyi kullanmıyorsa (generic yollar) yine de çiz.
+              // Draw it anyway when the rule's own branch does not use geometry (generic paths).
               if (!opts.polyline || opts.polyline.length < 2) {
                 opts.polyline = coords;
                 opts.showArrows = true;
@@ -1588,7 +1588,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       });
     });
 
-    // Desen butonları: hat-seviyesi notice → o hattın sefer desenleri modalı
+    // Pattern buttons: route-level notice → modal with that route's trip patterns.
     root.querySelectorAll<HTMLButtonElement>('.pattern-btn').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
@@ -1602,7 +1602,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     });
   }
 
-  // R2 önem + sınıf (chip, çoklu) + kural + dosya (dropdown) filtresi
+  // R2 severity + class (chip, multi-select) + rule + file (dropdown) filters.
   const sevChipBox = root.querySelector('#r2-sev-filter');
   const clsChipBox = root.querySelector('#r2-cls-filter');
   const ruleFilter = root.querySelector<HTMLSelectElement>('#rule-filter');
@@ -1617,7 +1617,7 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
     ? Array.from(fileFilterEl.options).filter(o => o.value !== '').map(o => [o.value, o.text])
     : [];
 
-  // Önem/sınıf: çoklu seçim (boş = tümü). Sınıf, dış filtreli gelişte önceden aktif olabilir.
+  // Severity/class: multi-select (empty = all). Class may already be active when arriving with an external filter.
   const sevActive = new Set<string>();
   const clsActive = new Set<string>();
   clsChipBox?.querySelectorAll<HTMLButtonElement>('.cls-chip.active')
@@ -1643,8 +1643,8 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
       const show = sevMatch && clsMatch && ruleMatch && fileMatch;
       row.style.display = show ? '' : 'none';
       if (show) visible++;
-      // Kural/dosya dropdown'ları çapraz filtreleme korur: seçenekleri diğer
-      // filtrelerin uygulandığı satır kümesinden türetilir.
+      // Rule/file dropdowns preserve cross-filtering: derive their options from the row set
+      // after the other filters have been applied.
       if (sevMatch && clsMatch && fileMatch) ruleSet.add(rowRule);
       if (sevMatch && clsMatch && ruleMatch) fileSet.add(rowFile);
     });
@@ -1702,8 +1702,8 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
   ruleFilter?.addEventListener('change', applyFilters);
   fileFilterEl?.addEventListener('change', applyFilters);
 
-  // files sayfasından (dosya filtresi) veya skor bileşeni kartından (sınıf filtresi)
-  // filtreli gelindiyse hemen uygula ve R2'ye scroll et
+  // If arriving with a filter from the files page (file filter) or a score-component card
+  // (class filter), apply it immediately and scroll to R2.
   if ((fileFilterEl && fileFilterEl.value) || clsActive.size > 0) {
     applyFilters();
     requestAnimationFrame(() => {
@@ -1713,8 +1713,8 @@ export function attachFixListeners(root: HTMLElement, result?: ValidationResult,
 }
 
 // ── Kolon-bilgi (ℹ) tooltip ─────────────────────────────────────────────────
-// Native `title` yalnızca hover'da (gecikmeli, mobilde/tıklamada hiç) çalıştığı
-// için hover + tıklama + klavye ile açılan özel bir tooltip kullanıyoruz.
+// Because native `title` works only on hover (with a delay, and not at all on mobile/click),
+// use a custom tooltip opened by hover + click + keyboard.
 let cinfoTipEl: HTMLElement | null = null;
 let cinfoTarget: HTMLElement | null = null;
 let cinfoPinned = false;
@@ -1740,7 +1740,7 @@ function cinfoShow(target: HTMLElement, pinned: boolean): void {
   cinfoTarget = target;
   cinfoPinned = pinned;
 
-  // İkonun altına konumla; viewport dışına taşarsa üste/yana sığdır.
+  // Position below the icon; fit above/to the side if it would leave the viewport.
   const r = target.getBoundingClientRect();
   const m = 6;
   const tw = tip.offsetWidth;
@@ -1760,14 +1760,14 @@ function cinfoHide(): void {
 }
 
 function cinfoWire(root: HTMLElement): void {
-  // Erişilebilir ad (screen reader) — data-tip'ten türet.
+  // Accessible name (screen reader) — derive from data-tip.
   root.querySelectorAll<HTMLElement>('.col-info').forEach(el => {
     if (!el.getAttribute('aria-label')) {
       el.setAttribute('aria-label', el.getAttribute('data-tip') ?? '');
     }
   });
 
-  // Hover: geçici göster/gizle (sabitlenmemişse).
+  // Hover: show/hide temporarily (when not pinned).
   root.addEventListener('mouseover', e => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('.col-info');
     if (el && !cinfoPinned) cinfoShow(el, false);
@@ -1777,7 +1777,7 @@ function cinfoWire(root: HTMLElement): void {
     if (el && !cinfoPinned) cinfoHide();
   });
 
-  // Tıklama: aç/kapat (sabitle).
+  // Click: open/close (pin).
   root.addEventListener('click', e => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('.col-info');
     if (!el) return;
@@ -1786,7 +1786,7 @@ function cinfoWire(root: HTMLElement): void {
     else cinfoShow(el, true);
   });
 
-  // Klavye: Enter/Space ile aç/kapat.
+  // Keyboard: open/close with Enter/Space.
   root.addEventListener('keydown', e => {
     const ke = e as KeyboardEvent;
     const el = (ke.target as HTMLElement).closest<HTMLElement>('.col-info');
@@ -1798,7 +1798,7 @@ function cinfoWire(root: HTMLElement): void {
     }
   });
 
-  // Global kapatma — yalnızca bir kez bağlanır.
+  // Global close — bind only once.
   if (!cinfoGlobalsBound) {
     cinfoGlobalsBound = true;
     document.addEventListener('click', ev => {

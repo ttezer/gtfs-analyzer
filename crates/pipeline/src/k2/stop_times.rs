@@ -11,7 +11,7 @@ use super::common::{get_col, get_col_raw, make_k2_notice};
 use crate::decompress_guard::{DecompressionLimits, GuardedReader, DEFAULT_DECOMPRESSION_LIMITS};
 use crate::k1_parse::{RawFile, RFC4180_AFTER_CLOSE, RFC4180_BARE_QUOTE};
 
-/// K2'nin K1'den sonra ZIP'i yeniden açtığı yollar için entry başına sert bütçe.
+/// Hard per-entry budget for paths where K2 reopens the ZIP after K1.
 pub(crate) const K2_MAX_STREAM_BYTES: usize = 512 * 1024 * 1024;
 /// Native parallel parsing keeps a decompressed body only for smaller entries.
 /// Above this threshold the ZIP entry is consumed directly to avoid materialising
@@ -48,24 +48,24 @@ impl StreamBudget {
     }
 }
 
-// ── CompactStopTime: 24B flat per row — trip_id taşımaz ──────────────────────
-// #38: Swiss feed 28M×112B=3.1GB → OOM; 28M×24B=672MB → bütçe dahilinde.
+// ── CompactStopTime: 24B flat per row—does not carry trip_id ───────────────────
+// #38: Swiss feed 28M×112B=3.1GB → OOM; 28M×24B=672MB → within budget.
 // stop_id → stop_idx (intern); zamanlar saniye (sentinel u32::MAX); f32 dist.
-// stop_headsign + flex → StopTimesIndex.stop_headsigns/flex_map (line-anahtarlı).
+// stop_headsign + flex → StopTimesIndex.stop_headsigns/flex_map (keyed by line).
 
 #[derive(Debug, Clone)]
 pub struct CompactStopTime {
-    /// stop_id intern indeksi (StopTimesIndex.stop_intern[stop_idx]); u32::MAX = boş/eksik
+    /// Intern index for stop_id (StopTimesIndex.stop_intern[stop_idx]); u32::MAX = empty/missing.
     pub stop_idx: u32,
-    /// Varış zamanı gece yarısından saniye; u32::MAX = None
+    /// Arrival time in seconds since midnight; u32::MAX = None.
     pub arrival_secs: u32,
-    /// Kalkış zamanı gece yarısından saniye; u32::MAX = None
+    /// Departure time in seconds since midnight; u32::MAX = None.
     pub departure_secs: u32,
-    /// stop_sequence değeri; u32::MAX = None
+    /// stop_sequence value; u32::MAX = None.
     pub sequence: u32,
-    /// shape_dist_traveled f32 olarak; f32::NAN = None. f64→f32 precision farkı kabul edildi.
+    /// shape_dist_traveled as f32; f32::NAN = None. The f64→f32 precision difference is accepted.
     pub dist_f32: f32,
-    /// CSV satır numarası (28M satır < u32::MAX; u64'ten u32'ye indirgendi)
+    /// CSV line number (28M rows < u32::MAX; reduced from u64 to u32).
     pub line: u32,
 }
 
@@ -82,21 +82,22 @@ impl Default for CompactStopTime {
     }
 }
 
-/// "Alan DOLU ama ayrıştırılamadı" sentineli — `u32::MAX` ("alan YOK") ile ayrı tutulur.
+/// Sentinel for "field PRESENT but could not be parsed"—kept separate from `u32::MAX`
+/// ("field ABSENT").
 ///
-/// 🔴 İki durum tek değere düşünce STM_015/016 mdb-2727'de 101.621 kez "ilk/son durakta
-/// arrival_time eksik" dedi; alan doluydu, yalnız `HH:MM` yazılmıştı. Aynı satırlarda
-/// `STM_003` zaten "HH:MM:SS bekleniyordu" diyordu, yani doğru kural konuşuyor ve
-/// yanındaki yanlış olanı Spec·Kritik ile R1 yayın kapısına sokuyordu. İddia "değer yok"
-/// olduğunda, değerin VARLIĞI kuralın önkoşuludur — `Err(_) => None` bu ayrımı siler.
+/// 🔴 When the two states collapsed into one value, STM_015/016 said "arrival_time missing at
+/// first/last stop" 101,621 times in mdb-2727; the field was present, only written as `HH:MM`.
+/// On the same rows, `STM_003` already said "HH:MM:SS expected", so the correct rule was speaking
+/// and its incorrect neighbor sent the finding through the Spec·Kritik R1 publication gate.
+/// When the claim is "value absent", the value's PRESENCE is a precondition of the rule—
+/// `Err(_) => None` erased that distinction.
 pub const TIME_MALFORMED: u32 = u32::MAX - 1;
 
 impl CompactStopTime {
-    /// arrival_time → Option<(saat, dakika, saniye)>; yok VEYA bozuk → None.
+    /// arrival_time → Option<(hour, minute, second)>; absent OR malformed → None.
     ///
-    /// Bozuk değeri de None döndürür, çünkü hesap yapan her çağrı yeri (hız, süre,
-    /// sıralama) için kullanılamaz bir değerdir. "Alan boş mu" diye SORAN kurallar
-    /// `arrival_is_absent()` kullanmalıdır.
+    /// Also returns None for a malformed value because it is unusable at every calculation call site
+    /// (speed, duration, ordering). Rules that ASK "is the field empty?" must use `arrival_is_absent()`.
     #[inline]
     pub fn arrival_time(&self) -> Option<(u32, u32, u32)> {
         if self.arrival_secs == u32::MAX || self.arrival_secs == TIME_MALFORMED {
@@ -106,12 +107,12 @@ impl CompactStopTime {
             Some((s / 3600, (s % 3600) / 60, s % 60))
         }
     }
-    /// Alan GERÇEKTEN boş mu — dolu-ama-bozuk vakası `false` döner.
+    /// Is the field ACTUALLY empty? A present-but-malformed value returns `false`.
     #[inline]
     pub fn arrival_is_absent(&self) -> bool {
         self.arrival_secs == u32::MAX
     }
-    /// Alan GERÇEKTEN boş mu — dolu-ama-bozuk vakası `false` döner.
+    /// Is the field ACTUALLY empty? A present-but-malformed value returns `false`.
     #[inline]
     pub fn departure_is_absent(&self) -> bool {
         self.departure_secs == u32::MAX
@@ -151,10 +152,10 @@ impl CompactStopTime {
     }
 }
 
-// #38: CompactStopTime boyut guard — 24B'ı aşarsa derleme kırılır.
+// #38: CompactStopTime size guard—compilation fails if it exceeds 24B.
 const _: () = assert!(std::mem::size_of::<CompactStopTime>() <= 24);
 
-/// CompactStopTime'ın nadir kullanılan GTFS-Flex alanları (Box'lanır — bkz. CompactStopTime.flex).
+/// Rarely used GTFS-Flex fields of CompactStopTime (boxed—see CompactStopTime.flex).
 #[derive(Debug, Clone, Default)]
 pub struct StopTimeFlex {
     pub start_pickup_drop_off_window: Option<(u32, u32, u32)>,
@@ -163,16 +164,16 @@ pub struct StopTimeFlex {
     pub location_group_id: Option<SmolStr>,
     pub pickup_booking_rule_id: Option<SmolStr>,
     pub drop_off_booking_rule_id: Option<SmolStr>,
-    /// STM_060 için: `CompactStopTime` 24 bayta sıkıştırıldığından pickup/drop_off tipini
-    /// TAŞIMAZ. Bu kutu yalnız Flex satırlarında ayrıldığı için tipleri burada tutmak
-    /// normal feed'lere SIFIR maliyettir (VBB'nin 6,1M satırında hiç kutu ayrılmaz).
+    /// For STM_060: `CompactStopTime` is compressed to 24 bytes and therefore does not CARRY the
+    /// pickup/drop_off type. Because this box is allocated only for Flex rows, keeping the types here
+    /// has ZERO cost for normal feeds (no box is allocated in VBB's 6.1M rows).
     pub pickup_type: Option<u32>,
     pub drop_off_type: Option<u32>,
 }
 
-/// 6 flex değerinden herhangi biri Some ise Box'lanmış StopTimeFlex, aksi halde None döner.
-// Flex alanları ayrı tutulur çünkü her biri doğrudan StopTimeFlex alanına karşılık
-// gelir; parametre struct'ı bu birebir tabloyu gizler.
+/// Returns a boxed StopTimeFlex if any of the 6 flex values is Some, otherwise None.
+// Flex fields are kept separate because each directly corresponds to a StopTimeFlex field;
+// a parameter struct would hide this one-to-one mapping.
 #[allow(clippy::too_many_arguments)]
 #[inline]
 pub fn build_flex(
@@ -182,8 +183,8 @@ pub fn build_flex(
     location_group_id: Option<SmolStr>,
     pickup_booking_rule_id: Option<SmolStr>,
     drop_off_booking_rule_id: Option<SmolStr>,
-    // ⚠️ Kutunun AYRILIP ayrılmayacağını bu ikisi ETKİLEMEZ — koşul yine 6 flex alanıdır.
-    // Aksi hâlde `pickup_type` yazan her normal satır kutu ayırırdı.
+    // ⚠️ These two do NOT affect whether the box is allocated—the condition is still the 6 flex fields.
+    // Otherwise every normal row containing `pickup_type` would allocate a box.
     pickup_type: Option<u32>,
     drop_off_type: Option<u32>,
 ) -> Option<Box<StopTimeFlex>> {
@@ -209,57 +210,57 @@ pub fn build_flex(
     }
 }
 
-// ── StopTimesIndex: K4/K6 için tek referans noktası ──────────────────────────
+// ── StopTimesIndex: single reference point for K4/K6 ──────────────────────────
 
 #[derive(Debug, Default)]
 pub struct StopTimesIndex {
-    /// Flat satır deposu — trip'e göre gruplu, her grup stop_sequence sıralı.
-    /// OOM/perf: per-trip ayrı `Vec` YOK; tek contiguous buffer (erişim accessor'lardan).
+    /// Flat row store—grouped by trip, with each group ordered by stop_sequence.
+    /// OOM/perf: NO separate per-trip `Vec`; one contiguous buffer (accessed through accessors).
     pub rows: Vec<CompactStopTime>,
-    /// trip_id → `rows` içindeki [start, end) aralığı
+    /// trip_id → [start, end) range within `rows`.
     pub trip_ranges: FxHashMap<SmolStr, (u32, u32)>,
-    /// K4: XFL_002 — stop_times'ta geçen trip_id'ler
+    /// K4: XFL_002—trip IDs appearing in stop_times.
     pub trip_id_set: FxHashSet<SmolStr>,
-    /// K4: STP_012 / STM_001/002 — stop_times'ta geçen stop_id'ler
+    /// K4: STP_012 / STM_001/002—stop IDs appearing in stop_times.
     pub stop_id_set: FxHashSet<SmolStr>,
-    /// K4: XFL_021 — per-trip stop_idx listesi (sıralı/benzersiz u32 intern indeksleri).
-    /// HashSet yerine Vec kullanmak, büyük feed'lerde set başına hash kapasitesi ve
-    /// bucket overhead'ini kaldırır; üyelik kontrolleri binary_search ile yapılır.
+    /// K4: XFL_021—per-trip stop_idx list (ordered/unique u32 intern indices).
+    /// Using Vec instead of HashSet removes per-set hash capacity and bucket overhead on large feeds;
+    /// membership checks use binary_search.
     pub trip_stop_set: FxHashMap<SmolStr, Vec<u32>>,
-    /// K4: TRP_019 — continuous pickup/drop-off olan seferler
+    /// K4: TRP_019—trips with continuous pickup/drop-off.
     pub continuous_trips: FxHashSet<SmolStr>,
-    /// K2/K6: toplam satır sayısı (STM_044 için)
+    /// K2/K6: total row count (for STM_044).
     pub total_rows: usize,
-    /// K4: STM_001 — her trip_id'nin stop_times.txt'teki ilk satır numarası
+    /// K4: STM_001—first stop_times.txt line number for each trip_id.
     pub trip_first_line: FxHashMap<SmolStr, u64>,
-    /// K4: STM_002 — her stop_id'nin stop_times.txt'teki ilk satır numarası
+    /// K4: STM_002—first stop_times.txt line number for each stop_id.
     pub stop_first_line: FxHashMap<SmolStr, u64>,
-    /// K6: STM_036 — dosya sırasında stop_sequence gerileyen seferler: (trip_id, prev_seq, curr_seq, line)
+    /// K6: STM_036—trips whose stop_sequence regresses in file order: (trip_id, prev_seq, curr_seq, line).
     pub unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)>,
-    /// K6/diagnostic: normalize_service_day'in 00:xx→24:xx kaydırdığı trip sayısı.
+    /// K6/diagnostic: number of trips shifted from 00:xx→24:xx by normalize_service_day.
     pub midnight_wrapped_trips: u32,
-    /// #38: stop_idx → stop_id (intern tablosu). Index = stop_idx değeri.
+    /// #38: stop_idx → stop_id (intern table). Index = stop_idx value.
     pub stop_intern: Vec<SmolStr>,
-    /// #38: stop_id → stop_idx (ters arama; K4 XFL_021 için)
+    /// #38: stop_id → stop_idx (reverse lookup; for K4 XFL_021).
     pub stop_id_to_idx: FxHashMap<SmolStr, u32>,
-    /// #38: CSV line → stop_headsign (nadir; CompactStopTime dışına taşındı)
-    /// Key = st.line (u32). Sort/permutation'dan bağımsız — line CSV'de sabittir.
+    /// #38: CSV line → stop_headsign (rare; moved outside CompactStopTime).
+    /// Key = st.line (u32). Independent of sorting/permutation—line is fixed in the CSV.
     pub stop_headsigns: FxHashMap<u32, SmolStr>,
     /// Header presence is kept separately because an entirely empty optional column
     /// is different from a missing column when translations.field_value is checked.
     pub has_stop_headsign_field: bool,
-    /// #38: CSV line → StopTimeFlex (feed'lerin %99'unda boş; CompactStopTime dışına taşındı)
+    /// #38: CSV line → StopTimeFlex (empty in 99% of feeds; moved outside CompactStopTime).
     pub flex_map: FxHashMap<u32, Box<StopTimeFlex>>,
-    /// CSV line → biniş/iniş yasağı bitleri (`NO_PICKUP` | `NO_DROP_OFF`); yalnız
-    /// `pickup_type=1` veya `drop_off_type=1` satırları girer (seyrek). `CompactStopTime`
-    /// 24 bayta sıkıştırıldığı için tipleri taşımaz; FRL_009 hangi kalkış-varış
-    /// çiftinin gerçekten yolcuya açık olduğunu buradan okur.
+    /// CSV line → boarding/alighting prohibition bits (`NO_PICKUP` | `NO_DROP_OFF`); only rows with
+    /// `pickup_type=1` or `drop_off_type=1` enter (rare). `CompactStopTime` does not carry the types
+    /// because it is compressed to 24 bytes; FRL_009 reads from here which departure-arrival pair is
+    /// actually open to passengers.
     pub boarding_restrictions: FxHashMap<u32, u8>,
 }
 
-/// `boarding_restrictions` biti: bu durakta binilemez (`pickup_type=1`).
+/// `boarding_restrictions` bit: boarding is not allowed at this stop (`pickup_type=1`).
 pub const NO_PICKUP: u8 = 1;
-/// `boarding_restrictions` biti: bu durakta inilemez (`drop_off_type=1`).
+/// `boarding_restrictions` bit: alighting is not allowed at this stop (`drop_off_type=1`).
 pub const NO_DROP_OFF: u8 = 2;
 
 fn boarding_restriction_bits(pickup_type: Option<u32>, drop_off_type: Option<u32>) -> u8 {
@@ -271,18 +272,18 @@ fn boarding_restriction_bits(pickup_type: Option<u32>, drop_off_type: Option<u32
         })
 }
 
-/// Raw saatlerin küçük bir gün-içi hatadan ziyade gece yarısı yazımına döndüğünü
-/// ayırt etmek için kullanılan sabit analiz sezgisi. Bu, servis-günü normalizasyonunun
-/// kullanıcı ayarı değildir; yalnızca `STM_048/049` raw Spec kanıtını sınıflandırır.
+/// Fixed analysis heuristic used to distinguish raw times that wrap around midnight from a small
+/// within-day error. This is not a user setting for service-day normalization; it only classifies
+/// raw Spec evidence for `STM_048/049`.
 const RAW_MIDNIGHT_MIN_BACKSTEP_SECS: u32 = 6 * 3600;
 
 fn raw_midnight_rollover(previous: u32, current: u32) -> bool {
     current < previous && previous.saturating_sub(current) >= RAW_MIDNIGHT_MIN_BACKSTEP_SECS
 }
 
-/// Tek bir raw after-midnight ihlalinin kullanıcıya gösterilecek kanıtı.
-/// Feed-level sayaç yerine bunu taşımak, High · Spec bulgusunun hangi trip/satırda
-/// düzeltileceğini kaybetmememizi sağlar.
+/// User-facing evidence for one raw after-midnight violation.
+/// Carrying this instead of a feed-level count preserves which trip/row should be fixed for the
+/// High · Spec finding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MidnightViolation {
     pub trip_id: SmolStr,
@@ -303,8 +304,8 @@ fn format_gtfs_time(secs: u32) -> String {
     )
 }
 
-/// Bozuk saat bildiriminde (STM_003/004) satırın ve komşularının saat metni: boş alan "",
-/// ayrıştırılamayan değer kendi STM_003/004 bildiriminin ham metni (yoksa "?").
+/// Time text for the row and its neighbors in a malformed-time notice (STM_003/004): empty field
+/// is "", and an unparsable value is the raw text from its own STM_003/004 notice (otherwise "?").
 fn row_time_label(secs: u32, raw: Option<&String>) -> String {
     if secs == u32::MAX {
         String::new()
@@ -316,12 +317,12 @@ fn row_time_label(secs: u32, raw: Option<&String>) -> String {
 }
 
 impl StopTimesIndex {
-    /// STM_003/004: planlamacı bozuk saatin hangi durakta olduğunu ve bir önceki/sonraki
-    /// durağın saatlerini görsün. Akış sırasında komşu satırlar bilinmez; bu yüzden
-    /// sıralı index kurulduktan sonra satır numarasıyla bulunup eklenir.
+    /// STM_003/004: let the planner see which stop has the malformed time and the times of the previous
+    /// and next stops. Neighboring rows are unknown while streaming, so they are found by line number
+    /// and added after the ordered index is built.
     fn add_malformed_time_context(&self, notices: &mut [Notice]) {
-        // Akış ham saat metnini tutmaz; ama bozuk her alan kendi bildirimini ham değeriyle
-        // üretmiştir. Satır → (varış, kalkış) ham metni oradan toplanır.
+        // The stream does not retain raw time text, but each malformed field produced its own notice with
+        // the raw value. Row → (arrival, departure) raw text is collected from there.
         let mut raw: FxHashMap<u64, (Option<String>, Option<String>)> = FxHashMap::default();
         for n in notices.iter() {
             let (Some(line), Some(value)) = (n.line, n.observed_value.as_ref()) else {
@@ -370,7 +371,7 @@ impl StopTimesIndex {
         }
     }
 
-    /// trip başına sıralı (stop_sequence artan) stop dilimi. `idx.trips.get(...)` yerine BU kullanılır.
+    /// Ordered (ascending stop_sequence) stop slice per trip. Use THIS instead of `idx.trips.get(...)`.
     pub fn sorted_stops(&self, trip_id: &str) -> Option<&[CompactStopTime]> {
         let &(s, e) = self.trip_ranges.get(trip_id)?;
         Some(&self.rows[s as usize..e as usize])
@@ -386,11 +387,11 @@ impl StopTimesIndex {
             .map(|s| s.as_str())
             .unwrap_or("")
     }
-    /// CompactStopTime'ın stop_id'sini &str olarak döner
+    /// Returns CompactStopTime's stop_id as `&str`.
     pub fn stop_id_of(&self, st: &CompactStopTime) -> &str {
         self.stop_id_of_idx(st.stop_idx)
     }
-    /// CompactStopTime'ın stop_id'sini SmolStr olarak döner
+    /// Returns CompactStopTime's stop_id as SmolStr.
     pub fn stop_smolstr_of(&self, st: &CompactStopTime) -> SmolStr {
         if st.stop_idx == u32::MAX {
             SmolStr::default()
@@ -401,15 +402,15 @@ impl StopTimesIndex {
                 .unwrap_or_default()
         }
     }
-    /// CompactStopTime'ın stop_headsign'ını döner (CSV line anahtarlı side map'ten)
+    /// Returns CompactStopTime's stop_headsign (from the CSV-line-keyed side map).
     pub fn stop_headsign_of(&self, st: &CompactStopTime) -> Option<&SmolStr> {
         self.stop_headsigns.get(&st.line)
     }
-    /// CompactStopTime'ın flex alanlarını döner (CSV line anahtarlı side map'ten)
+    /// Returns CompactStopTime's flex fields (from the CSV-line-keyed side map).
     pub fn flex_of(&self, st: &CompactStopTime) -> Option<&StopTimeFlex> {
         self.flex_map.get(&st.line).map(|b| b.as_ref())
     }
-    /// CompactStopTime'ın biniş/iniş yasağı bitleri (`NO_PICKUP` | `NO_DROP_OFF`); 0 = serbest.
+    /// CompactStopTime's boarding/alighting prohibition bits (`NO_PICKUP` | `NO_DROP_OFF`); 0 = allowed.
     pub fn boarding_restriction_of(&self, st: &CompactStopTime) -> u8 {
         self.boarding_restrictions
             .get(&st.line)
@@ -417,18 +418,18 @@ impl StopTimesIndex {
             .unwrap_or(0)
     }
 
-    /// Raw stop_times'ta açık bir saat dönümünü, normalization ayarından bağımsız ölçer.
-    /// GTFS raw Spec bulgusu için kullanılır; analitik normalizasyonun `start_hour` eşiği
-    /// burada uygulanmaz. Küçük gün-içi geriye gidişler (08:00 → 07:55 gibi) STM_008'e
-    /// bırakılır; büyük geri sıçrama ise ham 00:xx yazımının güçlü göstergesidir.
+    /// Measures an explicit time wrap in raw stop_times, independent of normalization settings.
+    /// Used for a raw GTFS Spec finding; the analytical normalization `start_hour` threshold is not
+    /// applied here. Small within-day regressions (such as 08:00 → 07:55) are left to STM_008;
+    /// a large backward jump strongly indicates raw 00:xx notation.
     pub fn find_raw_midnight_wraps(&self) -> Vec<MidnightViolation> {
         let mut violations = Vec::new();
         for (trip_id, &(s, e)) in &self.trip_ranges {
             let slice = &self.rows[s as usize..e as usize];
             let mut prev = None;
             for st in slice {
-                // `< TIME_MALFORMED` — `!= u32::MAX` DEĞİL: bozuk değer de kullanılamaz
-                // ve aritmetiğe sokulursa saçma bir saniye değeri gibi davranır.
+                // `< TIME_MALFORMED`—NOT `!= u32::MAX`: a malformed value is also unusable
+                // and would behave like a nonsensical seconds value if used in arithmetic.
                 if st.arrival_secs < TIME_MALFORMED {
                     let raw = st.arrival_secs;
                     if let Some(previous) = prev.filter(|p| raw_midnight_rollover(*p, raw)) {
@@ -449,14 +450,14 @@ impl StopTimesIndex {
         violations
     }
 
-    /// Eski aggregate API'nin uyumluluk ölçümü; production emit'i olay listesini kullanır.
+    /// Compatibility measurement for the old aggregate API; production emit uses the event list.
     pub fn count_raw_midnight_wrap_trips(&self) -> u32 {
         self.find_raw_midnight_wraps().len() as u32
     }
 
-    /// Aynı satırda arrival_time → departure_time yönündeki raw after-midnight
-    /// geçişlerini ölçer. STM_049 artık STM_048 ile aynı GTFS Spec dayanağını kullanır;
-    /// bu yüzden bu sayım da `service_day_start_hour`'dan bağımsızdır.
+    /// Measures raw after-midnight transitions from arrival_time → departure_time on the same row.
+    /// STM_049 now uses the same GTFS Spec basis as STM_048, so this count is also independent of
+    /// `service_day_start_hour`.
     pub fn find_raw_same_row_midnight_departures(&self) -> Vec<MidnightViolation> {
         let mut violations = Vec::new();
         for (trip_id, &(s, e)) in &self.trip_ranges {
@@ -484,15 +485,15 @@ impl StopTimesIndex {
         self.find_raw_same_row_midnight_departures().len() as u32
     }
 
-    /// Gece yarısını aşan seferleri servis-günü notasyonuna (24:xx, 25:xx…) normalize eder.
-    /// `start_hour` (0–6): servis günü başlangıç saati; `0` ise normalizasyon kapalıdır.
+    /// Normalizes trips crossing midnight to service-day notation (24:xx, 25:xx…).
+    /// `start_hour` (0–6): service-day start hour; `0` disables normalization.
     ///
-    /// Her trip'in sıralı duraklarını gezer: bir durağın `arrival_time`'ı önceki normalize
-    /// edilmiş zamandan KÜÇÜK **ve** ham değeri `start_hour*3600` saniyenin ALTINDA ise gece
-    /// dönümü kabul edilir; o noktadan itibaren `+24sa` offset uygulanır. `departure_time` aynı
-    /// offset'i takip eder ama kendi unwrap'ını TETİKLEMEZ — böylece aynı satırda `dep < arr`
-    /// (STM_007) gerçek hatası bozulmaz. Eşik ÜSTÜndeki geriye-gidişler (gerçek hata) dokunulmaz;
-    /// STM_008 onları yakalamaya devam eder. Monoton trip'lerde offset 0 kalır → satır yeniden yazılmaz.
+    /// Walks each trip's ordered stops: a midnight rollover is accepted when a stop's `arrival_time`
+    /// is LESS than the previous normalized time **and** its raw value is BELOW `start_hour*3600`
+    /// seconds; apply a `+24sa` offset from that point onward. `departure_time` follows the same offset
+    /// but does NOT trigger its own unwrap—so a real same-row `dep < arr` error (STM_007) is not hidden.
+    /// Regressions ABOVE the threshold (real errors) are untouched; STM_008 continues to catch them.
+    /// Monotonic trips keep offset 0 → rows are not rewritten.
     pub fn normalize_service_day(&mut self, start_hour: u32) {
         if start_hour == 0 {
             return;
@@ -518,7 +519,7 @@ impl StopTimesIndex {
                 }
                 if st.departure_secs < TIME_MALFORMED {
                     let raw = st.departure_secs;
-                    let v = raw + offset; // offset'i takip eder; kendi unwrap'ını tetiklemez
+                    let v = raw + offset; // follows the offset; does not trigger its own unwrap
                     if offset > 0 {
                         st.departure_secs = v;
                     }
@@ -532,36 +533,36 @@ impl StopTimesIndex {
         self.midnight_wrapped_trips = wrapped;
     }
 
-    /// Tüm trip'leri (trip_id, sıralı stop dilimi) olarak gez. `&idx.trips` iterasyonu yerine BU kullanılır.
+    /// Iterate over all trips as (trip_id, ordered stop slice). Use THIS instead of iterating `&idx.trips`.
     pub fn iter_trips(&self) -> impl Iterator<Item = (&SmolStr, &[CompactStopTime])> {
         self.trip_ranges
             .iter()
             .map(move |(tid, &(s, e))| (tid, &self.rows[s as usize..e as usize]))
     }
 
-    /// Sadece stop dilimlerini gez. `idx.trips.values()` yerine BU kullanılır.
+    /// Iterate over stop slices only. Use THIS instead of `idx.trips.values()`.
     pub fn iter_stops(&self) -> impl Iterator<Item = &[CompactStopTime]> {
         self.trip_ranges
             .values()
             .map(move |&(s, e)| &self.rows[s as usize..e as usize])
     }
 
-    /// trip_id'nin stop_times'ta olup olmadığı (K4)
+    /// Whether trip_id occurs in stop_times (K4).
     pub fn has_trip(&self, trip_id: &str) -> bool {
         self.trip_ranges.contains_key(trip_id)
     }
 
-    /// trip'in stop_times'taki stop sayısı (K6: STM_043)
+    /// Number of stops for a trip in stop_times (K6: STM_043).
     pub fn stop_count(&self, trip_id: &str) -> usize {
         self.trip_ranges
             .get(trip_id)
             .map_or(0, |&(s, e)| (e - s) as usize)
     }
 
-    /// #15 teşhis: index yapılarının GERÇEK (canlı) bellek maliyetini logla.
-    /// high-water (`memory_size`) DEĞİL — her yapının `len × size_of` + SmolStr heap (key
-    /// uzunlukları, >23B = heap) toplamı. K1-K5 bellek refactor'ını önceliklendirmek için.
-    /// Native'de mem_note no-op (hesap ucuz, O(trip+stop), tek seferlik).
+    /// #15 diagnosis: log the REAL (live) memory cost of index structures.
+    /// NOT high-water (`memory_size`)—the sum of each structure's `len × size_of` + SmolStr heap
+    /// (key lengths, >23B = heap). Used to prioritize the K1–K5 memory refactor.
+    /// mem_note is a no-op on native (cheap, O(trip+stop), one-time calculation).
     pub fn log_mem_report(&self) {
         const SS: usize = std::mem::size_of::<SmolStr>();
         const CST: usize = std::mem::size_of::<CompactStopTime>();
@@ -576,7 +577,7 @@ impl StopTimesIndex {
         let ns = self.stop_id_set.len();
         let nc = self.continuous_trips.len();
         let nu = self.unsorted_seq_trips.len();
-        let ni = self.stop_intern.len(); // intern tablo boyutu
+        let ni = self.stop_intern.len(); // intern table size
 
         let rows_cap = self.rows.capacity();
         let rows_used_mb = mb(n * CST);
@@ -590,7 +591,7 @@ impl StopTimesIndex {
         let intern_map_mb = mb(self.stop_id_to_idx.capacity() * (SS + 4));
         let tss_outer_mb = mb(self.trip_stop_set.capacity() * (SS + SET_U32));
         let tss_inner_entries: usize = self.trip_stop_set.values().map(|s| s.capacity()).sum();
-        let tss_inner_mb = mb(tss_inner_entries * 4); // u32 = 4 byte, heap yok
+        let tss_inner_mb = mb(tss_inner_entries * 4); // u32 = 4 bytes, no heap
         let useq_mb =
             mb(self.unsorted_seq_trips.capacity()
                 * std::mem::size_of::<(SmolStr, u32, u32, u64)>());
@@ -612,8 +613,8 @@ impl StopTimesIndex {
         ));
     }
 
-    /// Test yardımcısı: Vec<StopTimeRecord>'dan index oluşturur.
-    /// Gerçek pipeline'da K2 streaming tarafından doldurulur.
+    /// Test helper: builds an index from `Vec<StopTimeRecord>`.
+    /// In the real pipeline it is populated by K2 streaming.
     pub fn from_records(records: &[StopTimeRecord]) -> Self {
         let mut idx = Self {
             has_stop_headsign_field: records.iter().any(|st| st.stop_headsign.is_some()),
@@ -651,15 +652,15 @@ impl StopTimesIndex {
                     .or_default()
                     .push(stop_idx);
             }
-            // Enum kümesi {0,2,3}: 1 ve boş "sürekli biniş YOK" demektir (#170).
-            // Bu set TRP_019'u besler; 1'i dahil etmek geçerli feed'den shape_id
-            // talep ediyordu, 2/3'ü atlamak gerçek ihlali kaçırıyordu.
+            // Enum set {0,2,3}: 1 and empty mean "NO continuous boarding" (#170).
+            // This set feeds TRP_019; including 1 demanded shape_id from a valid feed,
+            // while skipping 2/3 missed real violations.
             if matches!(st.continuous_pickup, Some(0) | Some(2) | Some(3))
                 || matches!(st.continuous_drop_off, Some(0) | Some(2) | Some(3))
             {
                 idx.continuous_trips.insert(st.trip_id.clone());
             }
-            // stop_headsign side map (line-anahtarlı, sort'tan bağımsız)
+            // stop_headsign side map (line-keyed, independent of sorting).
             if let Some(ref hs) = st.stop_headsign {
                 idx.stop_headsigns.insert(st.line as u32, hs.clone());
             }
@@ -668,8 +669,8 @@ impl StopTimesIndex {
                 idx.boarding_restrictions
                     .insert(st.line as u32, restriction);
             }
-            // flex side map — streaming yolun (build_index) yaptığının aynısı; fixture'lardan
-            // kurulan index'te de location_id/location_group_id görünür olsun diye.
+            // flex side map—the same as the streaming path (build_index), so location_id/location_group_id
+            // also appear in an index built from fixtures.
             if let Some(flex) = build_flex(
                 st.start_pickup_drop_off_window,
                 st.end_pickup_drop_off_window,
@@ -700,7 +701,7 @@ impl StopTimesIndex {
                     line: st.line as u32,
                 });
         }
-        // Test yardımcısı: per-trip map → flat rows + trip_ranges (veri küçük, perf önemsiz).
+        // Test helper: per-trip map → flat rows + trip_ranges (small data, performance unimportant).
         for (tid, mut stops) in by_trip {
             stops.sort_by_key(|st| st.sequence);
             let start = idx.rows.len() as u32;
@@ -716,8 +717,8 @@ impl StopTimesIndex {
     }
 }
 
-// ── StopTimeRecord — sadece test fixture'ları için (production'da kullanılmaz) ─
-// Testler bu struct ile veri kurar; StopTimesIndex::from_records() index'e çevirir.
+// ── StopTimeRecord—only for test fixtures (not used in production) ─
+// Tests build data with this struct; StopTimesIndex::from_records() converts it to an index.
 
 #[derive(Debug, Clone, Default)]
 pub struct StopTimeRecord {
@@ -733,7 +734,7 @@ pub struct StopTimeRecord {
     pub timepoint: Option<u32>,
     pub continuous_pickup: Option<u32>,
     pub continuous_drop_off: Option<u32>,
-    // Flex GTFS alanları
+    // GTFS Flex fields.
     pub start_pickup_drop_off_window: Option<(u32, u32, u32)>,
     pub end_pickup_drop_off_window: Option<(u32, u32, u32)>,
     pub location_id: Option<SmolStr>,
@@ -743,7 +744,7 @@ pub struct StopTimeRecord {
     pub line: u64,
 }
 
-// ── Kolon indeks yapısı — header'dan bir kez hesaplanır ─────────────────────
+// ── Column index structure—computed once from the header ─────────────────────
 
 struct Cols {
     trip_id: Option<usize>,
@@ -793,12 +794,12 @@ impl Cols {
     }
 }
 
-// ── Parser yardımcıları (RowMap olmaksızın) ──────────────────────────────────
+// ── Parser helpers (without RowMap) ──────────────────────────────────────────
 
-/// `str::parse::<u32>()` ile BİREBİR aynı sonucu verir: opsiyonel tek '+' öneki,
-/// ardından ≥1 ASCII rakam; '-'/boşluk/ASCII-dışı/boş → None; overflow → None.
-/// (parse_tests modülü str::parse'a karşı brute-force + fuzz doğrular.) Hot path'te
-/// str::parse'ın generic FromStr dispatch + Result kurma maliyetini kaldırır.
+/// Produces EXACTLY the same result as `str::parse::<u32>()`: one optional '+' prefix,
+/// followed by ≥1 ASCII digit; '-'/whitespace/non-ASCII/empty → None; overflow → None.
+/// (The parse_tests module verifies this against str::parse with brute force + fuzzing.) Removes
+/// generic FromStr dispatch + Result construction cost from the hot path.
 #[inline]
 fn parse_u32_ascii(s: &str) -> Option<u32> {
     let b = s.as_bytes();
@@ -843,11 +844,10 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
     let width_bad = || {
         format!("'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}")
     };
-    // ⚠️ SÖZLÜKSEL GENİŞLİK — `common::gtfs_time_widths_ok` ile AYNI karar (issue #82).
-    // İki yol ayrışırsa aynı feed akış modunda başka, tam modda başka sonuç verir.
-    // `split().collect()` yerine tek geçişli byte taraması kullan: bu fonksiyon her
-    // arrival/departure alanında çalıştığı için büyük feed'lerde on milyonlarca
-    // geçici Vec tahsisini önlüyoruz.
+    // ⚠️ LEXICAL WIDTH—same decision as `common::gtfs_time_widths_ok` (issue #82).
+    // If the paths diverge, the same feed produces different results in streaming and full modes.
+    // Use a single-pass byte scan instead of `split().collect()`: this function runs on every
+    // arrival/departure field, avoiding tens of millions of temporary Vec allocations on large feeds.
     let bytes = raw.as_bytes();
     let mut section = 0u8;
     let mut section_digits = 0u8;
@@ -913,14 +913,13 @@ fn parse_gtfs_time_raw(raw: &str, field: &str) -> Result<Option<(u32, u32, u32)>
 mod parse_tests {
     use super::{parse_gtfs_time_raw, parse_u32_ascii};
 
-    // str::parse referans HH:MM:SS — değiştirdiğimiz fonksiyonun ESKİ mantığı.
+    // str::parse reference HH:MM:SS—the OLD logic of the function we changed.
     fn ref_time(raw: &str) -> Result<Option<(u32, u32, u32)>, ()> {
         if raw.is_empty() {
             return Ok(None);
         }
-        // issue #82: referans da SÖZLÜKSEL genişliği denetler — testin işi hızlı
-        // ayrıştırıcının referansla aynı kararı vermesi, ikisinin de ESKİ (gevşek)
-        // mantığı sürdürmesi değil.
+        // issue #82: the reference also checks LEXICAL width—the test's job is for the fast parser
+        // to make the same decision as the reference, not for both to preserve the OLD (loose) logic.
         let parts: Vec<&str> = raw.split(':').collect();
         if !crate::k2::common::gtfs_time_widths_ok(&parts) {
             return Err(());
@@ -1037,9 +1036,9 @@ mod parse_tests {
     }
 }
 
-// ── SmolStr interning: >22 byte string'ler için Arc alloc sayısını azaltır ──
+// ── SmolStr interning: reduces Arc allocations for strings >22 bytes ─────────
 
-/// ≤22 byte → inline SmolStr (no heap alloc). >22 byte → ilk karşılaşmada Arc alloc,
+/// ≤22 bytes → inline SmolStr (no heap alloc). >22 bytes → Arc alloc on first occurrence,
 /// sonraki hit'lerde Arc::clone (~2ns). Cache miss: O(N_unique), hit: O(1) no-alloc.
 #[inline]
 fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr {
@@ -1054,32 +1053,32 @@ fn intern_smolstr(raw: &str, cache: &mut FxHashMap<String, SmolStr>) -> SmolStr 
     }
 }
 
-// ── Ana doğrulayıcı ─────────────────────────────────────────────────────────
+// ── Main validator ───────────────────────────────────────────────────────────
 
-// ── Streaming CSV okuyucu: tek reused buffer, satır başına yeni Vec YOK ─────────
+// ── Streaming CSV reader: one reused buffer, NO new Vec per row ──────────────
 //
-// OOM fix Plan A: K1 stop_times'ı Vec<Vec<SmolStr>>'e açmaz; ham metni `raw_text`'te
-// verir. Bu fonksiyon ham metni satır satır, tek `out` buffer'ı yeniden kullanarak
-// işler — 2.48M satır için tek seferde 714 MB değil, anlık bir satır kadar bellek.
+// OOM fix Plan A: K1 does not expand stop_times into Vec<Vec<SmolStr>>; it supplies raw text
+// in `raw_text`. This function processes the raw text row by row, reusing one `out` buffer—
+// memory is one current row instead of 714 MB at once for 2.48M rows.
 //
-// RFC 4180 uyumlu (tokenize_csv ile aynı semantik). EOF'ta `false` döner.
-/// Akış okuyucularının kayıt başına bildirdiği CSV bulguları (issue #84).
+// RFC 4180 compatible (same semantics as tokenize_csv). Returns `false` at EOF.
+/// Per-record CSV findings reported by streaming readers (issue #84).
 ///
-/// İki AYRI olgu, tek kanal DEĞİL: `rfc` kaçırma ihlalidir (`ARC_033`, veri sağlam),
-/// `unclosed` ise tokenization hatasıdır (`ARC_013`, dosyanın kalanı yutulmuş olabilir).
+/// Two DISTINCT facts, NOT one channel: `rfc` is an escaping violation (`ARC_033`, data intact),
+/// while `unclosed` is a tokenization error (`ARC_013`, the rest of the file may be swallowed).
 #[derive(Default)]
 pub(super) struct CsvScanState {
     pub rfc: Option<(&'static str, String)>,
-    /// EOF'a tırnak İÇİNDE varıldı — kayıt hiç kapanmadı.
+    /// EOF was reached INSIDE quotes—the record never closed.
     pub unclosed: bool,
 }
 
-/// `rfc`: bu kayıtta görülen İLK RFC 4180 ihlali (tür + kısa örnek) buraya yazılır —
-/// `ARC_033`. Çağıran satır numarasını bilir, bu fonksiyon bilmez; birikimi çağıran yapar.
+/// `rfc`: the FIRST RFC 4180 violation seen in this record (type + short example) is stored here—
+/// `ARC_033`. The caller knows the row number; this function does not, so the caller accumulates it.
 ///
-/// 🔴 Neden K1'de değil burada: dört akış dosyasının GÖVDESİ K1'e hiç açılmıyor
-/// (`is_zip_stream`), K1'in gövde tarayıcısına giden dal 2026-08-07'de ÖLÜ olduğu ölçüldü.
-/// İhlal ancak baytların gerçekten okunduğu yerde görülebilir.
+/// 🔴 Why here instead of K1: K1 never opens the BODY of the four streamed files
+/// (`is_zip_stream`); the branch leading to K1's body scanner was measured DEAD on 2026-08-07.
+/// The violation can be seen only where the bytes are actually read.
 pub(super) fn next_csv_record<'a>(
     text: &'a str,
     pos: &mut usize,
@@ -1094,8 +1093,8 @@ pub(super) fn next_csv_record<'a>(
     out.clear();
     loop {
         if bytes[*pos] == b'"' {
-            // OOM fix Plan E: tırnaklı alan NADİR (stop_times'ta neredeyse yok) — owned String.
-            // Tırnaksız alanlar (asıl yol) ham metinden &str olarak ÖDÜNÇ alınır (alloc YOK).
+            // OOM fix Plan E: quoted fields are RARE (almost absent in stop_times)—owned String.
+            // Unquoted fields (the main path) are BORROWED from raw text as &str (NO alloc).
             *pos += 1;
             let mut buf = String::new();
             let mut closed_quote = false;
@@ -1119,18 +1118,17 @@ pub(super) fn next_csv_record<'a>(
                     *pos += ch.len_utf8();
                 }
             }
-            // RFC 4180: kapanış tırnağından sonra ayraç gelmeli.
+            // RFC 4180: a delimiter must follow a closing quote.
             if *pos < n && !matches!(bytes[*pos], b',' | b'\n' | b'\r') && st.rfc.is_none() {
                 st.rfc = Some((RFC4180_AFTER_CLOSE, buf.chars().take(40).collect()));
             }
-            // issue #84: tırnak hiç kapanmadan EOF'a varıldıysa kayıt EKSİKTİR. Eski kod
-            // burada sessizce elindekini push ediyordu ("best-effort") ve dosyanın kalanı
-            // görünmeden kayboluyordu.
+            // issue #84: if EOF is reached before a quote closes, the record is INCOMPLETE. The old code
+            // silently pushed what it had here ("best-effort"), and the rest of the file disappeared unseen.
             if *pos >= n && !closed_quote {
                 st.unclosed = true;
             }
-            // Kapanmamış tırnak: best-effort (zorunlu dosya CSV'si K1 header aşamasında
-            // ve gövdede burada toleranslı işlenir; satır düşürülmez).
+            // Unclosed quote: best-effort (required-file CSV is handled tolerantly at the K1 header stage
+            // and here in the body; the row is not dropped).
             out.push(Cow::Owned(buf));
         } else {
             let start = *pos;
@@ -1181,22 +1179,22 @@ pub(super) fn next_csv_record<'a>(
     true
 }
 
-// ── Per-trip toplama: trip_id-anahtarlı TÜM durum tek struct'ta (hashmap churn azaltma) ──
-// #38: seen_seq (FxHashSet<u32>) ve stop_set (FxHashSet<SmolStr>) kaldırıldı:
-//   seen_seq → STM_032 post-finalize'a taşındı (sorted rows'da adjacent aynı seq = tekrar)
+// ── Per-trip collection: ALL trip_id-keyed state in one struct (reduces hashmap churn) ──
+// #38: seen_seq (FxHashSet<u32>) and stop_set (FxHashSet<SmolStr>) removed:
+//   seen_seq → moved to STM_032 post-finalize (adjacent equal seq in sorted rows = duplicate)
 //   stop_set<SmolStr> → stop_idx_set<u32> (intern indeksler, ~560MB tasarruf)
-//   first_line: u64 → u32 (CSV satır numarası 28M < u32::MAX, güvenli)
+//   first_line: u64 → u32 (CSV line number 28M < u32::MAX, safe)
 //   last_seq: Option<u32> → u32 sentinel (u32::MAX = None, 4B tasarruf)
 #[derive(Default)]
 struct TripAgg {
     idx: u32,
     first_line: u32,
-    last_seq: u32,  // u32::MAX = None; STM_036 sıralama takibi
-    last_stop: u32, // u32::MAX = None; stop_intern içindeki last_seq durağı
+    last_seq: u32,  // u32::MAX = None; STM_036 ordering tracking
+    last_stop: u32, // u32::MAX = None; last_seq stop in stop_intern
     unsorted_fired: bool,
     continuous: bool,
     // stop_idx_set KALDIRILDI (#38 peak-2): 3M trip × ~80B heap → ~240 MB ekstra peak.
-    // trip_stop_set finalize SONRASI sorted rows'dan inşa edilir (semantik fark yok).
+    // trip_stop_set is built from sorted rows AFTER finalization (no semantic difference).
 }
 impl TripAgg {
     fn new(first_line: u64, idx: u32) -> Self {
@@ -1209,33 +1207,32 @@ impl TripAgg {
     }
 }
 
-// ── ZIP pre-count: stop_times satır sayısını exact ölçer (2-pass) ────────────
-// Pass-1: '\n' say (header dahil) → veri satırı = n - 1.
-// Amaç: all_rows + row_trip için reserve_exact → sıfır realloc, sıfır artık kapasite.
+// ── ZIP pre-count: measures stop_times row count exactly (2-pass) ────────────
+// Pass-1: count '\n' (including header) → data rows = n - 1.
+// Goal: reserve_exact for all_rows + row_trip → zero reallocations, zero spare capacity.
 // CPU bedeli: Swiss 2170 MB → ~10-20 s ekstra decompression. Memory deterministik.
-/// Ham alan baytlarından kısa, güvenli bir örnek — notice mesajına girer.
+/// Short, safe example from raw field bytes—appears in the notice message.
 fn lossy40(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).chars().take(40).collect()
 }
 
 // ── ZipCsvReader: ZIP entry'den incremental RFC 4180 CSV parse ───────────────
-// #38: Büyük dosyalar (stop_times, trips, calendar_dates) K2 ZIP'ten satır satır okur.
-// trips ve calendar_dates da aynı struct'ı kullanır (pub(crate)).
+// #38: Large files (stop_times, trips, calendar_dates) are read row by row from the K2 ZIP.
+// trips and calendar_dates use the same struct too (pub(crate)).
 pub(crate) struct ZipCsvReader<R: Read> {
     inner: R,
-    /// 64 KB okuma penceresi. `BufReader` yerine doğrudan tutulur: eskiden her bayt
-    /// `BufReader::read(&mut [0u8; 1])` ile alınıyordu — stop_times.txt'in 402 MB'ı için
-    /// ~402 milyon `read` çağrısı. Şimdi bayt başına yalnız indeks ilerlemesi var,
-    /// gerçek okuma 64 KB'da bir yapılır.
+    /// 64 KB read window. Kept directly instead of using `BufReader`: previously every byte was read
+    /// with `BufReader::read(&mut [0u8; 1])`—about 402 million `read` calls for 402 MB of stop_times.txt.
+    /// Now each byte only advances an index, and actual reads happen every 64 KB.
     buf: Box<[u8]>,
     pos: usize,
     filled: usize,
     pending: Option<u8>,
-    /// Bu kayıtta görülen İLK RFC 4180 ihlali (`ARC_033`). Çağıran `take()` ile alır ve
-    /// satır numarasını kendisi ekler. Ürün yolu BURASIDIR: dört akış dosyası da
-    /// gövdesini bu okuyucudan geçirir.
+    /// FIRST RFC 4180 violation seen in this record (`ARC_033`). The caller takes it with `take()` and
+    /// adds the line number itself. THIS IS THE PRODUCTION PATH: all four streamed files pass their
+    /// bodies through this reader.
     pub(crate) rfc: Option<(&'static str, String)>,
-    /// issue #84: EOF'a tırnak İÇİNDE varıldı → kayıt hiç kapanmadı (`ARC_013`).
+    /// issue #84: EOF was reached INSIDE quotes → the record never closed (`ARC_013`).
     pub(crate) unclosed: bool,
     max_bytes: Option<usize>,
     bytes_read: usize,
@@ -1262,8 +1259,8 @@ impl<R: Read> ZipCsvReader<R> {
         }
     }
 
-    /// SDK'nin ZIP'i ikinci kez açtığı K2 yolları için entry ve veri satırı bütçesi.
-    /// Native test/fallback yolu `new` ile sınırsız davranışını korur.
+    /// Entry and data-row budget for K2 paths where the SDK opens the ZIP a second time.
+    /// The native test/fallback path preserves unlimited behavior with `new`.
     pub(crate) fn with_limits(r: R, max_bytes: usize, max_data_rows: Option<usize>) -> Self {
         let mut reader = Self::new(r);
         reader.max_bytes = Some(max_bytes);
@@ -1284,7 +1281,7 @@ impl<R: Read> ZipCsvReader<R> {
             return Some(b);
         }
         if self.pos == self.filled {
-            // Kısa okuma normaldir (deflate akışı): 0 = EOF, hata = akış sonu.
+            // A short read is normal (deflate stream): 0 = EOF, error = end of stream.
             let read_buf: &mut [u8] = if let Some(max) = self.max_bytes {
                 if self.bytes_read >= max {
                     self.truncated = true;
@@ -1310,8 +1307,8 @@ impl<R: Read> ZipCsvReader<R> {
         Some(b)
     }
 
-    /// `out[fi]`'yi yazıma hazırlar: varsa içeriğini boşaltır (KAPASİTE KORUNUR),
-    /// yoksa yeni tampon ekler.
+    /// Prepares `out[fi]` for writing: clears existing content (CAPACITY PRESERVED),
+    /// or adds a new buffer when absent.
     #[inline(always)]
     fn begin_field(out: &mut Vec<Vec<u8>>, fi: usize) {
         match out.get_mut(fi) {
@@ -1320,9 +1317,9 @@ impl<R: Read> ZipCsvReader<R> {
         }
     }
 
-    /// Unquoted alanda özel karaktere kadar olan buffer bölümünü tek hamlede ekler.
-    /// Normal GTFS satırlarının çoğu bu yoldan geçer; byte-byte `next_byte()` çağrısını
-    /// yalnız ayraç/tırnak/satır sonlarında bırakır.
+    /// Appends the buffer portion up to the next special character in an unquoted field in one step.
+    /// Most normal GTFS rows use this path; byte-by-byte `next_byte()` calls remain only at delimiters,
+    /// quotes, and line endings.
     #[inline(always)]
     fn append_plain_chunk(&mut self, field: &mut Vec<u8>) -> bool {
         if self.pending.is_some() || self.pos == self.filled {
@@ -1341,7 +1338,7 @@ impl<R: Read> ZipCsvReader<R> {
         true
     }
 
-    /// Quoted alanda kapanış tırnağına kadar olan buffer bölümünü tek hamlede ekler.
+    /// Appends the buffer portion up to the closing quote in a quoted field in one step.
     #[inline(always)]
     fn append_quoted_chunk(&mut self, field: &mut Vec<u8>) -> bool {
         if self.pending.is_some() || self.pos == self.filled {
@@ -1360,15 +1357,15 @@ impl<R: Read> ZipCsvReader<R> {
         true
     }
 
-    /// Sonraki CSV kaydını `out`'a yazar (ham bayt alanları). EOF'ta false döner.
+    /// Writes the next CSV record to `out` (raw byte fields). Returns false at EOF.
     ///
-    /// Alan tamponları KORUNUR: `out` içindeki `Vec`'ler drop edilmez, `clear`
-    /// edilip yeniden doldurulur. Önceki sürüm her alan için `Vec::new()` açıp
-    /// `mem::take` ile kapasiteyi çöpe atıyordu; VBB'de (5,68M satır × ~10 alan)
-    /// bu ~57M tahsis demekti. Alan içerikleri, alan sayısı ve sıra birebir aynı.
+    /// Field buffers are PRESERVED: `Vec`s inside `out` are not dropped; they are `clear`ed
+    /// and refilled. The previous version created `Vec::new()` for every field and discarded
+    /// capacity with `mem::take`; on VBB (5.68M rows × ~10 fields) that meant ~57M allocations.
+    /// Field contents, field count, and order are exactly the same.
     pub(crate) fn next_record(&mut self, out: &mut Vec<Vec<u8>>) -> bool {
         if let Some(max) = self.max_data_rows {
-            // Header dahil kayıt sayısı: 1 + izin verilen veri satırı.
+            // Record count including the header: 1 + allowed data rows.
             if self.records_seen >= max.saturating_add(1) {
                 self.truncated = true;
                 out.clear();
@@ -1379,14 +1376,14 @@ impl<R: Read> ZipCsvReader<R> {
         Self::begin_field(out, fi);
         let mut in_quotes = false;
         let mut started = false;
-        // Alanı kapat ve sonrakini hazırla.
+        // Close the field and prepare the next one.
         macro_rules! commit {
             () => {{
                 fi += 1;
                 Self::begin_field(out, fi);
             }};
         }
-        // Kaydı bitir: kullanılan alan sayısı fi + 1 (son alan henüz kapatılmadı).
+        // Finish the record: used field count is fi + 1 (the final field is not closed yet).
         macro_rules! finish {
             () => {{
                 fi += 1;
@@ -1406,8 +1403,8 @@ impl<R: Read> ZipCsvReader<R> {
             let b = match self.next_byte() {
                 Some(b) => b,
                 None => {
-                    // issue #84: girdi kapanış tırnağını görmeden TIRNAK İÇİNDE bitti →
-                    // kayıt hiç kapanmadı ve dosyanın kalanı bu alana yutulmuş olabilir.
+                    // issue #84: input ended INSIDE QUOTES without seeing a closing quote →
+                    // the record never closed and the rest of the file may have been swallowed into this field.
                     if in_quotes {
                         self.unclosed = true;
                     }
@@ -1439,8 +1436,8 @@ impl<R: Read> ZipCsvReader<R> {
                             finish!();
                         }
                         Some(other) => {
-                            // RFC 4180: kapanış tırnağından sonra ayraç gelmeli. Gelmiyorsa
-                            // alan içindeki tırnak kaçırılmamıştır → ARC_033.
+                            // RFC 4180: a delimiter must follow a closing quote. If it does not, the quote inside
+                            // the field was not escaped → ARC_033.
                             if self.rfc.is_none() {
                                 self.rfc = Some((RFC4180_AFTER_CLOSE, lossy40(&out[fi])));
                             }
@@ -1448,10 +1445,9 @@ impl<R: Read> ZipCsvReader<R> {
                             self.pending = Some(other);
                         }
                         None => {
-                            // Bu tırnak zaten kapanış tırnağıydı. Hemen ardından EOF
-                            // gelmesi geçerli CSV'dir; son kaydın newline ile bitmesi
-                            // zorunlu değildir. Kapanış tırnağından ÖNCE EOF ise
-                            // yukarıdaki `in_quotes` yolu ARC_013 üretir.
+                            // This quote was already a closing quote. EOF immediately afterward is valid CSV; the final record
+                            // does not need to end with a newline. If EOF comes BEFORE the closing quote, the `in_quotes` path
+                            // above emits ARC_013.
                             finish!();
                         }
                     }
@@ -1464,14 +1460,12 @@ impl<R: Read> ZipCsvReader<R> {
                         in_quotes = true;
                     }
                     b'"' => {
-                        // 🔴 Alan ZATEN BAŞLAMIŞKEN gelen tırnak (`12" Street`) DÜZ
-                        // KARAKTERDİR — tırnak başlangıcı değil. Eski kod burada tırnak
-                        // moduna giriyordu ve dosyanın KALANINI o alana yutuyordu; issue
-                        // #84'ün testi bunu ortaya çıkardı: çıplak tırnak `ARC_013`
-                        // (kapanmamış tırnak) üretiyordu, oysa tokenization hatası YOK.
-                        // `tokenize_csv` en başından beri düz karakter sayıyordu; iki
-                        // okuyucu artık AYNI kararı veriyor (kabul ölçütü: akış/akış-dışı
-                        // eşdeğer yardımcılar aynı sonucu vermeli).
+                        // 🔴 A quote (`12" Street`) arriving after a field has ALREADY STARTED is a PLAIN CHARACTER,
+                        // not the start of a quote. The old code entered quote mode here and swallowed the REST OF THE
+                        // FILE into that field; issue #84's test exposed this: a bare quote produced `ARC_013`
+                        // (unclosed quote), although there was NO tokenization error.
+                        // `tokenize_csv` has always treated it as a plain character; both readers now make the SAME
+                        // decision (acceptance criterion: equivalent streaming/non-streaming helpers must agree).
                         if self.rfc.is_none() {
                             self.rfc = Some((RFC4180_BARE_QUOTE, lossy40(&out[fi])));
                         }
@@ -1498,69 +1492,68 @@ impl<R: Read> ZipCsvReader<R> {
     }
 }
 
-/// `validate_stop_times`in satır döngüsünde biriken TÜM değişken durum.
+/// ALL mutable state accumulated in `validate_stop_times`'s row loop.
 ///
-/// Chunk-paralel hazırlığı (Adım 1): bugün TEK örnekle çalışır, davranış birebir
-/// aynıdır. Durumun tek yerde toplanması, ileride her chunk'ın kendi örneğini
-/// doldurup birleştirmesini mümkün kılar. Alanların merge stratejileri:
-/// - `total_rows`, `stm050_empty`      → toplama
+/// Chunk-parallel preparation (Step 1): today it runs with ONE instance and behavior is exactly
+/// the same. Keeping state in one place allows each chunk to fill and merge its own instance later.
+/// Merge strategies for the fields:
+/// - `total_rows`, `stm050_empty`      → sum
 /// - `stop_first_line`                 → min-merge
-/// - `arc021_fired`                    → "dosya başına bir kez": en küçük satırlı kazanır
-/// - `notices`/`counter`               → satır sırasında birleştir + renumber (K6 deseni)
-/// - `all_rows`/`row_trip`             → chunk sırasında concat
-/// - `stop_id_to_idx`/`stop_intern`    → global tablo + `CompactStopTime.stop_idx` REMAP
-/// - `trips_agg`                       → `idx` remap; `last_seq`/`last_stop` chunk SINIRINDA
-///   ayrıca karşılaştırılmalı (STM_036)
+/// - `arc021_fired`                    → "once per file": the smallest row wins
+/// - `notices`/`counter`               → merge in row order + renumber (K6 pattern)
+/// - `all_rows`/`row_trip`             → concatenate during chunking
+/// - `stop_id_to_idx`/`stop_intern`    → global table + REMAP `CompactStopTime.stop_idx`
+/// - `trips_agg`                       → `idx` remap; `last_seq`/`last_stop` at the chunk BOUNDARY
+///   must also be compared (STM_036)
 #[derive(Default)]
 struct StChunk {
-    /// ARC_033 birikimi — chunk'lar birleşirken `merge` ile toplanır.
+    /// ARC_033 accumulation—collected with `merge` while chunks are combined.
     rfc: crate::k1_parse::Rfc4180Acc,
-    /// issue #84: bu parçada kapanmamış tırnak görüldü mü (`ARC_013`).
+    /// issue #84: whether an unclosed quote was seen in this chunk (`ARC_013`).
     unclosed: bool,
     notices: Vec<Notice>,
-    /// STM_018/019: yüksek hacimde satır-başına notice yerine döngü sonunda
-    /// deterministik karar vermek için geçici bulgular.
+    /// STM_018/019: temporary findings used to make a deterministic decision at the end of the loop
+    /// instead of emitting one notice per row at high volume.
     stm018_pending: Vec<Notice>,
     stm019_pending: Vec<Notice>,
     counter: u32,
-    /// `STM_059` kapısı — feed'de booking_rules.txt var mı.
+    /// `STM_059` gate—does the feed contain booking_rules.txt?
     has_booking_rules: bool,
-    /// Intern cache: unique long (>22 byte) trip_id başına bir Arc alloc
+    /// Intern cache: one Arc allocation per unique long (>22-byte) trip_id.
     trip_id_cache: FxHashMap<String, SmolStr>,
-    /// #38: stop_id intern tablosu (SmolStr yerine u32 indeks → CompactStopTime 4B stop alanı)
+    /// #38: stop_id intern table (u32 index instead of SmolStr → 4B stop field in CompactStopTime).
     stop_intern: Vec<SmolStr>,
     stop_id_to_idx: FxHashMap<SmolStr, u32>,
-    /// #38: side map'ler — CSV line anahtarlı (sort/permutation'dan bağımsız)
+    /// #38: side maps—keyed by CSV line (independent of sorting/permutation).
     stop_headsigns: FxHashMap<u32, SmolStr>,
     flex_map: FxHashMap<u32, Box<StopTimeFlex>>,
     boarding_restrictions: FxHashMap<u32, u8>,
-    /// OOM/perf: trip_id-anahtarlı TÜM per-trip durum tek map'te → satır başı ~8 hashmap op
-    /// yerine 1-2. Çıktı setleri finalize pass'le buradan TÜRETİLİR.
+    /// OOM/perf: ALL trip_id-keyed per-trip state in one map → 1–2 hashmap ops per row instead of ~8.
+    /// Output sets are DERIVED from here in the finalize pass.
     trips_agg: FxHashMap<SmolStr, TripAgg>,
-    /// stop_id_set bundan türetilir
+    /// stop_id_set is derived from this.
     stop_first_line: FxHashMap<SmolStr, u64>,
     total_rows: usize,
     unsorted_seq_trips: Vec<(SmolStr, u32, u32, u64)>,
     arc021_fired: bool,
     arc030_fired: bool,
-    /// STM_050: boş-timepoint satır sayısı. Satır-başına notice DEĞİL (büyük feed'lerde
-    /// milyonlarca notice → tarayıcı OOM); döngü sonunda TEK feed-seviyesi özet emit edilir.
+    /// STM_050: count of rows with an empty timepoint. NOT one notice per row (millions of notices
+    /// → browser OOM on large feeds); emit ONE feed-level summary at the end of the loop.
     stm050_empty: u32,
     dq016: crate::k1_parse::Dq016Acc,
-    /// ARC_037 birikimi — chunk'lar `merge` ile birleşir, döngü sonu TEK özet.
+    /// ARC_037 accumulation—chunks combine with `merge`, one summary at loop end.
     arc037: crate::k1_parse::Arc037Acc,
-    /// ARC_032 birikimi — chunk'lar `merge` ile birleşir.
+    /// ARC_032 accumulation—chunks combine with `merge`.
     arc032: crate::k1_parse::Arc032Acc,
-    /// OOM/perf: per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
-    /// dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
+    /// OOM/perf: NO per-trip Vec. All rows (tagged with trip_idx) are collected in one flat buffer
+    /// during file processing; finalize groups them by trip with counting-placement.
     all_rows: Vec<CompactStopTime>,
     row_trip: Vec<u32>,
 }
 
 impl StChunk {
-    /// K2 geçici yapılarının kapasite tabanlı canlı tahmini. Hash tablosu bucket
-    /// metadata'sı ve Vec içindeki String heap'leri ayrıca not edilir; alanlar
-    /// birbirine eklenirken aynı buffer iki kez sayılmaz.
+    /// Capacity-based live estimate for K2 temporary structures. Hash-table bucket metadata and String
+    /// heaps in Vecs are recorded separately; the same buffer is not counted twice when fields overlap.
     fn log_mem_report(&self, label: &str) {
         const SS: usize = std::mem::size_of::<SmolStr>();
         const ROW: usize = std::mem::size_of::<CompactStopTime>();
@@ -1593,10 +1586,10 @@ impl StChunk {
     }
 }
 
-/// Gövdeyi `n` parçaya böler. Her sınır bir SATIR başına ve TRIP DEĞİŞİMİNE hizalanır:
-/// stop_times trip'e göre gruplu olduğundan aynı trip iki parçaya düşmez, böylece STM_036'nın
-/// sıra durumu (last_seq/last_stop) parça sınırında kopmaz.
-/// Döner: (bayt_başı, bayt_sonu, ilk_satır_numarası). Başlık satırı atlanmıştır.
+/// Splits the body into `n` chunks. Each boundary is aligned to the start of a ROW and a TRIP
+/// CHANGE: because stop_times is grouped by trip, one trip does not land in two chunks, so STM_036's
+/// ordering state (last_seq/last_stop) does not break at chunk boundaries.
+/// Returns: (byte_start, byte_end, first_line_number). The header row is skipped.
 #[cfg(feature = "parallel")]
 fn split_body_at_trip_boundaries(
     body: &[u8],
@@ -1610,8 +1603,8 @@ fn split_body_at_trip_boundaries(
     split_chunk_at_trip_boundaries(body, trip_col, n, header_end, 2)
 }
 
-/// `body` header içermeyen bir ZIP parçası olabilir. `data_start` ve `first_line`
-/// parametreleri bu yüzden header'lı ve header'sız parçaları aynı mantıkla böler.
+/// `body` may be a ZIP chunk without a header. The `data_start` and `first_line` parameters
+/// therefore split header and headerless chunks with the same logic.
 #[cfg(feature = "parallel")]
 fn split_chunk_at_trip_boundaries(
     body: &[u8],
@@ -1620,8 +1613,8 @@ fn split_chunk_at_trip_boundaries(
     data_start: usize,
     first_line: u64,
 ) -> Vec<(usize, usize, u64)> {
-    // Satırın `trip_col`'uncu alanını kaba okur (tırnak yok varsayımı; trip_id'de nadirdir).
-    // Okunamazsa None döner ve sınır bir satır ileri kayar — muhafazakâr taraf.
+    // Roughly reads the row's `trip_col`-th field (assumes no quotes; rare in trip_id).
+    // Returns None when unreadable and advances the boundary by one row—the conservative side.
     fn trip_of(line: &[u8], col: usize) -> Option<&[u8]> {
         line.split(|&b| b == b',').nth(col)
     }
@@ -1635,7 +1628,7 @@ fn split_chunk_at_trip_boundaries(
         return vec![(data_start, body.len(), first_line)];
     }
 
-    // Satır başlangıçları + numaraları tek geçişte.
+    // Row starts + numbers in one pass.
     let mut starts: Vec<usize> = Vec::new();
     starts.push(data_start);
     for (i, &b) in body.iter().enumerate().skip(data_start) {
@@ -1652,7 +1645,7 @@ fn split_chunk_at_trip_boundaries(
     let mut cut_idx = 0usize;
     while cut_idx < starts.len() {
         let mut next = (cut_idx + per).min(starts.len());
-        // Sınırı trip değişimine hizala.
+        // Align the boundary to a trip change.
         if next < starts.len() {
             let line_of = |i: usize| -> &[u8] {
                 let s = starts[i];
@@ -1687,10 +1680,10 @@ fn split_chunk_at_trip_boundaries(
     out
 }
 
-/// Sıkıştırılmış ZIP girdisini sınırlı büyüklükte, trip sınırında kapanan parçalara
-/// ayırır. Böylece native `parallel` yolu `stop_times.txt` gövdesinin tamamını
-/// `Vec<u8>` olarak canlı tutmaz. Bir trip hedef boyutu aşarsa o trip parçaya sığar;
-/// bu, yanlış bir trip bölmesinden daha güvenli olan kontrollü istisnadır.
+/// Splits a compressed ZIP input into bounded chunks that close at trip boundaries. This keeps
+/// the native `parallel` path from holding the entire `stop_times.txt` body as `Vec<u8>`. If one
+/// trip exceeds the target size, that trip fits in one chunk; this controlled exception is safer
+/// than splitting a trip incorrectly.
 #[cfg(feature = "parallel")]
 fn read_bounded_trip_chunk<R: Read>(
     reader: &mut R,
@@ -1741,7 +1734,7 @@ fn read_bounded_trip_chunk<R: Read>(
         .map(|i| i + 1)
         .filter(|&i| i > data_start)
     else {
-        // Hedef büyüklükte tam satır yoksa bir sonraki okuma ile büyüt.
+        // If there is no complete row at the target size, grow with the next read.
         let mut buf = [0u8; 64 * 1024];
         let n = reader.read(&mut buf)?;
         if n == 0 {
@@ -1798,21 +1791,21 @@ fn read_bounded_trip_chunk<R: Read>(
 }
 
 impl StChunk {
-    /// Dosyada DAHA SONRA gelen `other` parçasını bu parçaya katar.
+    /// Merges the `other` chunk, which occurs LATER in the file, into this chunk.
     ///
-    /// İki yeniden eşleme (remap) zorunlu: `stop_id` ve trip indeksleri parça-yerel
-    /// üretilir, ama `CompactStopTime.stop_idx` ve `row_trip` bu sayıları GÖVDEDE taşır.
-    /// Her ikisi de `other`ın tablosundan bu parçanın tablosuna çevrilir.
+    /// Two remaps are required: `stop_id` and trip indices are produced per chunk, but
+    /// `CompactStopTime.stop_idx` and `row_trip` carry these numbers in the BODY.
+    /// Both are translated from `other`'s tables to this chunk's tables.
     ///
-    /// Chunk sınırı TRIP DEĞİŞİMİNDE kurulduğu için normal feed'de aynı trip iki parçaya
-    /// düşmez. Düşerse (aynı trip'in satırları dosyada dağınıksa) `TripAgg` alanları
-    /// birleştirilir; bu durumda dosya sırası zaten bozuktur ve STM_036 onu ayrıca raporlar.
+    /// Because chunk boundaries are set at TRIP CHANGES, a normal feed does not split one trip.
+    /// If it does (the same trip's rows are scattered in the file), `TripAgg` fields are merged;
+    /// the file is already out of order in that case and STM_036 reports it separately.
     #[cfg(feature = "parallel")]
     fn merge(&mut self, other: StChunk) {
-        // ARC_033: satır numarası min-merge, sayım toplanır (`Rfc4180Acc::merge`).
+        // ARC_033: line number uses min-merge, count is summed (`Rfc4180Acc::merge`).
         self.rfc.merge(&other.rfc);
         self.unclosed |= other.unclosed;
-        // ── stop_id intern: yerel indeks → global indeks ────────────────────────
+        // ── stop_id intern: local index → global index ───────────────────────────
         let mut stop_remap: Vec<u32> = Vec::with_capacity(other.stop_intern.len());
         for sid in other.stop_intern {
             let next = self.stop_intern.len() as u32;
@@ -1823,9 +1816,9 @@ impl StChunk {
             stop_remap.push(gidx);
         }
 
-        // ── trip indeksleri: yerel → global (TripAgg.idx üzerinden) ────────────
+        // ── trip indices: local → global (through TripAgg.idx) ──────────────────
         let mut trip_remap: Vec<u32> = vec![u32::MAX; other.trips_agg.len()];
-        // Yerel idx sırasında dolaş: `idx` atama sırası = ilk görülme sırası.
+        // Walk local idx order: `idx` assignment order = first-seen order.
         let mut others: Vec<(SmolStr, TripAgg)> = other.trips_agg.into_iter().collect();
         others.sort_unstable_by_key(|(_, a)| a.idx);
         for (tid, agg) in others {
@@ -1833,7 +1826,7 @@ impl StChunk {
             let next = self.trips_agg.len() as u32;
             match self.trips_agg.get_mut(&tid) {
                 Some(cur) => {
-                    // Aynı trip iki parçada: `other` sonra geldiği için son durum onunkidir.
+                    // Same trip in two chunks: `other` comes later, so its state is the final state.
                     if agg.last_seq != u32::MAX {
                         cur.last_seq = agg.last_seq;
                         cur.last_stop = agg.last_stop;
@@ -1856,7 +1849,7 @@ impl StChunk {
             }
         }
 
-        // ── gövdeyi taşı, indeksleri çevir ─────────────────────────────────────
+        // ── move the body, translate indices ────────────────────────────────────
         self.all_rows.reserve(other.all_rows.len());
         for mut row in other.all_rows {
             if row.stop_idx != u32::MAX {
@@ -1873,9 +1866,9 @@ impl StChunk {
             });
         }
 
-        // ── toplanabilir / birleşebilir durum ──────────────────────────────────
-        // arc021: "dosya başına BİR kez". Bu parça zaten ateşlediyse `other`ınkiler düşer —
-        // filtre extend'den ÖNCE, yoksa kendi notice'ımızı da silerdik.
+        // ── aggregatable / mergeable state ──────────────────────────────────────
+        // arc021: "ONCE per file". If this chunk already fired it, drop `other`'s—
+        // filter BEFORE extend, otherwise we would also delete our own notice.
         let mut incoming = other.notices;
         if self.arc021_fired {
             incoming.retain(|n| n.rule_id != "ARC_021");
@@ -1890,7 +1883,7 @@ impl StChunk {
         self.arc030_fired |= other.arc030_fired;
         self.counter += other.counter;
         self.trip_id_cache.extend(other.trip_id_cache);
-        self.stop_headsigns.extend(other.stop_headsigns); // anahtar = CSV satırı, çakışmaz
+        self.stop_headsigns.extend(other.stop_headsigns); // key = CSV line, no collision
         self.flex_map.extend(other.flex_map);
         self.boarding_restrictions
             .extend(other.boarding_restrictions);
@@ -1909,9 +1902,9 @@ impl StChunk {
     }
 }
 
-/// `has_booking_rules`: feed `booking_rules.txt` taşıyor mu — `STM_059` bu kapıya bağlı.
-/// O dosya yokken bir booking rule id yazmak FK'yı kırar (`BKR_017`), dolayısıyla tavsiye
-/// uygulanamaz ve kural susmalıdır.
+/// `has_booking_rules`: does the feed contain `booking_rules.txt`? `STM_059` depends on this gate.
+/// Writing a booking rule ID when the file is absent breaks the FK (`BKR_017`), so the recommendation
+/// cannot apply and the rule must stay silent.
 pub fn validate_stop_times(
     file: &RawFile,
     zip_bytes: Option<&[u8]>,
@@ -1953,8 +1946,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     let has_trip_id_col = cols.trip_id.is_some();
     let has_stop_sequence_col = cols.stop_sequence.is_some();
     let has_stop_id_col = cols.stop_id.is_some();
-    // B1: feed'de hiç Flex sütunu yoksa satır başı flex işini tümüyle atla.
-    // Çıktı birebir aynı: get_col hep "" döner → STM_037-041 boş-yere-false, 6 alan None.
+    // B1: if the feed has no Flex columns, skip all per-row Flex work.
+    // Output is exactly the same: get_col always returns "" → STM_037-041 empty/false, 6 fields None.
     let has_flex_cols = cols.start_pickup_drop_off_window.is_some()
         || cols.end_pickup_drop_off_window.is_some()
         || cols.location_id.is_some()
@@ -1962,25 +1955,25 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         || cols.pickup_booking_rule_id.is_some()
         || cols.drop_off_booking_rule_id.is_some();
     let header_count = file.headers.len();
-    // Intern cache: unique long (>22 byte) trip_id başına bir Arc alloc
-    // #38: stop_id intern tablosu (SmolStr yerine u32 indeks → CompactStopTime 4B stop alanı)
-    // #38: side map'ler — CSV line anahtarlı (sort/permutation'dan bağımsız)
-    // OOM/perf: trip_id-anahtarlı TÜM per-trip durum tek map'te (TripAgg) → satır başı ~8 hashmap op
-    // yerine 1-2. Çıktı setleri (trip_id_set/trip_first_line/trip_stop_set/continuous_trips/trips)
-    // finalize pass'le buradan TÜRETİLİR → StopTimesIndex şekli ve DAVRANIŞ değişmez.
-    // STM_050: boş-timepoint satır sayısı. Satır-başına notice DEĞİL (büyük feed'lerde milyonlarca
-    // notice → tarayıcı OOM, bkz. Kocaeli 2.4M); döngü sonunda TEK feed-seviyesi özet emit edilir.
-    // OOM/perf (Aşama 1b): per-trip Vec YOK. Tüm satırlar (trip_idx etiketli) tek flat buffer'da
-    // dosya sırasında toplanır; finalize'da counting-placement ile trip'e göre gruplanır.
-    // #15 W1: tag'siz CompactStopTime + paralel row_trip → finalize'da in-place permütasyon
-    // (ikinci tam Vec<CompactStopTime> ASLA ayrılmaz).
-    // Düz tamponun log₂(N) realloc/memcpy'sini önle: satır sayısını ham metin
-    // uzunluğundan tahmin et (stop_times satırı tipik ≥~40 bayt → muhafazakâr
-    // alt-sınır bölen). Yalnızca KAPASITE; eleman değeri/sırası etkilenmez.
+    // Intern cache: one Arc allocation per unique long (>22-byte) trip_id.
+    // #38: stop_id intern table (u32 index instead of SmolStr → 4B stop field in CompactStopTime).
+    // #38: side maps—keyed by CSV line (independent of sorting/permutation).
+    // OOM/perf: ALL trip_id-keyed per-trip state in one map (TripAgg) → 1–2 hashmap ops per row
+    // instead of ~8. Output sets (trip_id_set/trip_first_line/trip_stop_set/continuous_trips/trips)
+    // are DERIVED from here in the finalize pass → StopTimesIndex shape and BEHAVIOR unchanged.
+    // STM_050: empty-timepoint row count. NOT one notice per row (millions on large feeds → browser OOM,
+    // see Kocaeli 2.4M); emit ONE feed-level summary at loop end.
+    // OOM/perf (Stage 1b): NO per-trip Vec. All rows (tagged with trip_idx) are collected in one flat
+    // buffer during file processing; finalize groups them by trip with counting-placement.
+    // #15 W1: untagged CompactStopTime + parallel row_trip → in-place permutation during finalize
+    // (a second full Vec<CompactStopTime> is NEVER allocated).
+    // Avoid log₂(N) realloc/memcpy in the flat buffer: estimate row count from raw text.
+    // A stop_times row is typically ≥~40 bytes → use a conservative
+    // lower-bound divisor. CAPACITY ONLY; element values/order are unaffected.
     if let Some(text) = &file.raw_text {
-        // #15: eski text.len()/40 40B/satir varsayiyordu; VBB gercek ~71B/satir → ~1.78x
-        // FAZLA kapasite (~454 MB bos alan). Newline sayisi ~kesin satir sayisi verir
-        // (header + olasi gomulu-newline = kucuk UST tahmin, guvenli; realloc yok).
+        // #15: old text.len()/40 assumed 40B/row; VBB is actually ~71B/row → ~1.78x
+        // EXCESS capacity (~454 MB free). Newline count gives an almost exact row count
+        // (header + possible embedded newline = small UPPER estimate, safe; no realloc).
         // shrink_to_fit YAPILMAZ (1GB canliyken yeni buffer = transient peak/OOM).
         let est = text.bytes().filter(|&b| b == b'\n').count();
         st.all_rows.reserve(est);
@@ -1995,11 +1988,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     #[cfg(not(feature = "parallel"))]
     let mut stream_truncated = false;
     {
-        // Satır işleyici — hem stream (raw_text) hem rows yolundan çağrılır.
-        // Tüm değişken durum closure ile yakalanır (notices, counter, index, caches).
+        // Row handler—called from both stream (raw_text) and rows paths.
+        // All mutable state is captured by the closure (notices, counter, index, caches).
         let process = |st: &mut StChunk, row: &[Cow<'_, str>], line: u64| {
-            // ── Taşınan dosya/satır-seviye notice'lar (K1'den) — eksik veri YOK ──
-            // ARC_012: sütun sayısı tutarsız
+            // ── Carried file/row-level notices (from K1)—NO missing data ──
+            // ARC_012: inconsistent column count.
             if let Some((msg, tip, observed, is_info)) =
                 crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
             {
@@ -2023,8 +2016,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 st.notices.push(n);
             }
 
-            // ARC_034: başlık tekrarı → notice + indexleme YAPMA. K1 bu dosyayı stream
-            // eder ve yalnız başlığı okur; kontrol orada kalırsa burada hiç çalışmaz (#181).
+            // ARC_034: repeated header → do NOT notice + index. K1 streams this file and reads only
+            // the header; if the check stays there, it never runs here (#181).
             if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
                 st.notices.push(make_k2_notice(
                     &mut st.counter, "ARC_034", EntityType::File, Some(file.name.clone()),
@@ -2035,7 +2028,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 return;
             }
 
-            // ARC_018: tamamen boş satır → notice + indexleme YAPMA (K1'deki continue)
+            // ARC_018: completely empty row → do NOT notice + index (same continue as K1).
             if row.iter().all(|v| v.trim().is_empty()) {
                 st.notices.push(make_k2_notice(
                     &mut st.counter,
@@ -2054,7 +2047,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 return;
             }
 
-            // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
+            // ARC_021: non-printable/problematic character—once per file.
             if !st.arc021_fired {
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     st.arc021_fired = true;
@@ -2075,7 +2068,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
 
-            // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+            // ARC_030: tab/newline in a field value—once per file.
             if !st.arc030_fired {
                 if let Some(cp) =
                     crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
@@ -2098,8 +2091,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
 
-            // DQ_016: değerlerde baştaki/sondaki boşluk
-            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
+            // DQ_016: leading/trailing whitespace in values.
+            // DQ_016: file-level accumulation; ONE summary after the emit loop (prevents an explosion).
             st.dq016
                 .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
             st.arc037
@@ -2107,13 +2100,13 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             st.arc032
                 .observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
-            // ── Mevcut STM_* doğrulamaları + index ──
+            // ── Existing STM_* validations + index ──
             let trip_id_raw = get_col_raw(row, cols.trip_id);
             let trip_id = intern_smolstr(trip_id_raw, &mut st.trip_id_cache);
             // entity_id is only materialized when a notice is actually pushed
             let eid = || (!trip_id.is_empty()).then(|| trip_id.to_string());
 
-            // STM_046: trip_id required (sütun yoksa ARC_025 devralır → atla)
+            // STM_046: trip_id required (if the column is absent, ARC_025 takes over → skip).
             if trip_id.is_empty() && has_trip_id_col {
                 st.notices.push(make_k2_notice(
                     &mut st.counter,
@@ -2172,7 +2165,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             };
 
-            // STM_036: per-trip sıralama takibi. STM_032 (duplicate seq) post-finalize'a taşındı.
+            // STM_036: per-trip ordering tracking. STM_032 (duplicate seq) moved to post-finalize.
             let mut advance_last_stop = false;
             if let Some(seq) = stop_sequence {
                 let cur_stop = get_col_raw(row, cols.stop_id);
@@ -2181,26 +2174,27 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     .trips_agg
                     .entry(trip_id.clone())
                     .or_insert_with(|| TripAgg::new(line, next_idx));
-                // STM_036 (a) alt-vakası: dosya satır sırası stop_sequence sırasıyla uyuşmuyor.
-                // Trip başına TEK atış — MD unsorted_stop_times paritesi buna dayanır.
-                // (b) alt-vakası (dağınık satırlar) K6'da, finalize edilmiş index üzerinden.
+                // STM_036 (a) subcase: file row order does not match stop_sequence order.
+                // ONE firing per trip—the MD unsorted_stop_times parity depends on this.
+                // (b) subcase (scattered rows) is in K6, using the finalized index.
                 if !agg.unsorted_fired {
                     if agg.last_seq != u32::MAX {
                         let last = agg.last_seq;
-                        // ⚠️ `<=`, `<` DEĞİL. Spec: *"The values must increase along the trip"* —
-                        // EŞİT değer de artmıyordur. 2026-08-06 korpus koşumunda ölçüldü
-                        // (mdb-1229): 24 seferin TÜM satırlarında `stop_sequence=0` yazıyor;
-                        // sıra ne azalıyor ne satırlar dağınık, hep EŞİT. Eski `seq < last`
-                        // koşulu iki dala da girmiyordu → STM_036 sessizdi, MD ise
-                        // `unsorted_stop_times` = 24 diyordu.
-                        // ⚠️ `STM_032` (yinelenen stop_sequence) ile ÇAKIŞMAZ: o SATIR başına
-                        // "bu değer tekrar ediyor" der (MD `duplicate_key` ile birebir, 170.885),
-                        // bu ise SEFER başına "satırlar sıralı değil" der. MD de ikisini ayrı
-                        // notice olarak verir.
+                        // ⚠️ `<=`, NOT `<`. Spec: *"The values must increase along the trip"*—
+                        // an EQUAL value does not increase either. Measured in the 2026-08-06 corpus
+                        // run (mdb-1229): all rows of 24 trips contain `stop_sequence=0`; order
+                        // neither decreases nor is scattered, it is always EQUAL. The old `seq < last`
+                        // condition entered neither branch → STM_036 was silent, while MD reported
+                        // `unsorted_stop_times` = 24.
+                        // ⚠️ Does NOT OVERLAP `STM_032` (duplicate stop_sequence): that says per ROW
+                        // "this value repeats" (exactly MD `duplicate_key`, 170,885),
+                        // while this says per TRIP "rows are not ordered". MD also emits them as
+                        // separate notices.
                         if seq <= last {
-                            // Daha küçük stop_sequence'li satır, daha büyük sequence'li satırdan SONRA
-                            // yazılmış → dosya artan sırada değil. Mesaj durak-odaklı: hangi durak
-                            // hangi duraktan sonra yazılmış. prev_stop = max'ı ayarlayan satırın durağı.
+                            // A row with a smaller stop_sequence was written AFTER a row with a larger
+                            // sequence → the file is not in ascending order. The message is stop-focused:
+                            // which stop was written after which stop. prev_stop = the stop of the row
+                            // that set the max.
                             let prev_stop = st
                                 .stop_intern
                                 .get(agg.last_stop as usize)
@@ -2210,9 +2204,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             let mut n = make_k2_notice(
                             &mut st.counter, "STM_036", EntityType::Trip, eid(),
                             None, &file.name, Some(line), Some("stop_sequence"),
-                            // observed/expected durak bilgisini de taşır: STM_036'nın locale
-                            // şablonu (b) alt-vakasıyla ortak, bu yüzden şablona durak
-                            // placeholder'ı EKLENEMEZ — bilgi observed/expected içinde gider.
+                            // Also carries observed/expected stop information: it shares STM_036's locale
+                            // template with the (b) subcase, so a stop placeholder CANNOT be added—the
+                            // information travels in observed/expected.
                             Some(format!("{seq} @ '{cur_stop}'")),
                             Some(format!("> {last} @ '{prev_stop}'")),
                             if seq == last {
@@ -2249,11 +2243,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             } // if let Some(seq)
 
-            // STM_006: stop_id KOŞULLU zorunlu (sütun yoksa ARC_025 devralır → atla).
+            // STM_006: stop_id conditionally required (if the column is absent, ARC_025 takes over → skip).
             // Spec: "Required if stop_times.location_group_id AND stop_times.location_id are NOT
-            // defined. Forbidden if ... are defined." Yani bir Flex satırı stop_id yerine
-            // location_id veya location_group_id taşır ve bu GEÇERLİDİR. Guard'sız hâlde her
-            // Flex satırı KRİTİK STM_006 alıyordu.
+            // defined. Forbidden if ... are defined." Thus a Flex row may carry location_id or
+            // location_group_id instead of stop_id and this is VALID. Without the guard, every
+            // Flex row received a CRITICAL STM_006.
             let raw_stop = get_col_raw(row, cols.stop_id);
             let location_id_raw = get_col_raw(row, cols.location_id);
             let location_group_id_raw = get_col_raw(row, cols.location_group_id);
@@ -2290,8 +2284,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 i
             };
 
-            // Geçerli trip'lerde `last_stop` yazımını aşağıdaki tek TripAgg erişimine
-            // bırakıyoruz; boş trip_id için mevcut davranışı korumak üzere burada kalır.
+            // For valid trips, leave the `last_stop` write to the single TripAgg access below;
+            // this remains here to preserve existing behavior for an empty trip_id.
             if advance_last_stop && trip_id.is_empty() {
                 if let Some(agg) = st.trips_agg.get_mut(&trip_id) {
                     agg.last_stop = stop_idx;
@@ -2300,9 +2294,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
             // arrival_time
             let arr_raw = get_col(row, cols.arrival_time);
-            // `arr_malformed`: alan DOLU ama ayrıştırılamadı. `None` ile aynı kovaya
-            // atılırsa "değer yok" iddiasında bulunan kurallar (STM_015/016) dolu bir
-            // alan hakkında konuşur — bkz. TIME_MALFORMED.
+            // `arr_malformed`: field PRESENT but could not be parsed. If placed in the same bucket
+            // as `None`, rules claiming "value absent" (STM_015/016) would speak about a populated
+            // field—see TIME_MALFORMED.
             let mut arr_malformed = false;
             let arrival_time = match parse_gtfs_time_raw(arr_raw, "arrival_time") {
                 Ok(v) => v,
@@ -2351,9 +2345,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             };
 
-            // STM_007 (departure_time >= arrival_time) K6'ya taşındı: orada servis-günü
-            // normalize'li veri + hat/yön/servis bağlamı mevcut, gece-yarısı (00:xx kalkış)
-            // yanlış-pozitifleri elenir. Bkz. k6_analytics.rs.
+            // STM_007 (departure_time >= arrival_time) moved to K6: normalized service-day data
+            // plus route/direction/service context is available there, eliminating midnight (00:xx
+            // departure) false positives. See k6_analytics.rs.
 
             // STM_009: pickup_type 0-3
             let pickup_type_raw = get_col(row, cols.pickup_type);
@@ -2407,9 +2401,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
             // STM_022: timepoint 0 or 1
             let tp_raw = get_col(row, cols.timepoint);
-            // STM_050: timepoint sütunu feed'de mevcut ama bu satırda boş (MD missing_timepoint_value).
-            // Boş timepoint örtük 1 (kesin) sayılır → yaklaşık zamanlar yanlış kesin görünür; açık değer önerilir.
-            // Satır-başına DEĞİL sayılır; döngü sonunda tek feed-seviyesi özet (büyük feed OOM önlemi).
+            // STM_050: timepoint column exists in the feed but is empty on this row (MD missing_timepoint_value).
+            // Empty timepoint implicitly counts as 1 (exact) → approximate times appear falsely exact;
+            // an explicit value is recommended. Count it NOT per row; emit one feed-level summary at
+            // loop end (large-feed OOM prevention).
             if cols.timepoint.is_some() && tp_raw.trim().is_empty() {
                 st.stm050_empty += 1;
             }
@@ -2430,8 +2425,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         v
                     }
                     Err(err) => {
-                        // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_022 üretirken
-                        // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                        // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced STM_022,
+                        // while "abc" produced no finding. Two branches of the same fact → one rule (PTH_027 precedent).
                         st.notices.push(make_k2_notice(
                             &mut st.counter,
                             "STM_022",
@@ -2450,12 +2445,12 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     }
                 };
 
-            // STM_034: varış veya kalkış zamanından yalnızca biri tanımlı.
+            // STM_034: exactly one of arrival or departure time is defined.
             //
-            // `None` iki anlama gelebilir: alan gerçekten boş veya alan dolu ama biçimi bozuk.
-            // Bozuk değerleri aşağıdaki doluluk kontrolünde dolu kabul ediyoruz; STM_003/004
-            // zaten biçim ihlalini bildiriyor. `timepoint=1` ise iki alan da ayrı ayrı Spec
-            // gereğidir; eksik taraf STM_047 tarafından bildirilir ve STM_034 üretilmez.
+            // `None` can mean two things: the field is genuinely empty, or it is present but malformed.
+            // We treat malformed values as present in the occupancy check below; STM_003/004 already
+            // report the format violation. When `timepoint=1`, both fields are separate Spec
+            // requirements; STM_047 reports the missing side and STM_034 is not emitted.
             if timepoint != Some(1) {
                 match (
                     arrival_time.or(arr_malformed.then_some((0, 0, 0))),
@@ -2503,9 +2498,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
 
-            // STM_047: timepoint=1 iken arrival_time ve departure_time alanlarının her biri
-            // ayrı ayrı zorunludur. Yalnızca gerçekten boş alanlar eksik sayılır; dolu ama bozuk
-            // değerler STM_003/STM_004 tarafından raporlanır ve burada tekrar edilmez.
+            // STM_047: when timepoint=1, arrival_time and departure_time are each required separately.
+            // Only genuinely empty fields count as missing; present-but-malformed values are reported
+            // by STM_003/STM_004 and are not repeated here.
             if timepoint == Some(1) {
                 let arrival_missing = arrival_time.is_none() && !arr_malformed;
                 let departure_missing = departure_time.is_none() && !dep_malformed;
@@ -2574,8 +2569,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     v
                 }
                 Err(err) => {
-                    // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STM_030 üretirken
-                    // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                    // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced STM_030,
+                    // while "abc" produced no finding. Two branches of the same fact → one rule (PTH_027 precedent).
                     st.notices.push(make_k2_notice(
                         &mut st.counter,
                         "STM_030",
@@ -2601,7 +2596,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 Some(SmolStr::new(stop_headsign_raw))
             };
 
-            // STM_042: stop_headsign'da Google Transit'in yasakladığı özel karakterler
+            // STM_042: characters forbidden by Google Transit in stop_headsign.
             if let Some(ref hs) = stop_headsign {
                 const FORBIDDEN: &[char] = &['!', '$', '%', '\\', '*', '=', '_'];
                 if let Some(bad) = hs.chars().find(|c| FORBIDDEN.contains(c)) {
@@ -2615,17 +2610,17 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
 
-            // STM_059: `pickup_type=2` / `drop_off_type=2` ("ajansı telefonla arayın") iken
-            // spec ilgili booking rule'u ÖNERİR.
+            // STM_059: when `pickup_type=2` / `drop_off_type=2` ("call the agency by phone"),
+            // the spec RECOMMENDS the corresponding booking rule.
             //
-            // ⚠️ BU BLOK FLEX BLOĞUNUN DIŞINDADIR ve öyle kalmalı. `has_flex_cols` sütun
-            // VARLIĞINA bakar; `pickup_booking_rule_id` sütunu hiç yoksa Flex bloğu tümüyle
-            // atlanır — ama tam o durum bu kuralın hedefidir (klasik dial-a-ride pencere de
-            // booking sütunu da taşımaz). İlk yazımda blok içindeydi ve `emit_proof` kapısı
-            // "STM_059 emit etmedi" diyerek yakaladı.
+            // ⚠️ THIS BLOCK IS OUTSIDE THE FLEX BLOCK and must remain so. `has_flex_cols` checks column
+            // PRESENCE; when `pickup_booking_rule_id` is absent, the entire Flex block is skipped—but that
+            // exact case is this rule's target (a classic dial-a-ride window also has no booking column).
+            // It was inside the block in the first version and the `emit_proof` gate caught it saying
+            // "STM_059 did not emit".
             //
-            // ⚠️ `booking_rules.txt` YOKSA susar: o dosya olmadan bir id yazmak FK'yı kırar
-            // (`BKR_017`). Ölçümde bu kapı olmadan 97.355 satır çıkmıştı, kapıyla 27.
+            // ⚠️ Stays silent when `booking_rules.txt` is ABSENT: writing an ID without that file breaks the FK
+            // (`BKR_017`). The measurement produced 97,355 rows without this gate and 27 with it.
             if st.has_booking_rules {
                 let pu2 = pickup_type_raw == "2";
                 let do2 = drop_off_type_raw == "2";
@@ -2647,7 +2642,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
 
-            // ── Flex GTFS alanları (B1: yalnızca feed'de flex sütunu varsa işlenir) ──
+            // ── Flex GTFS fields (B1: processed only when the feed has Flex columns) ──
             type ParsedFlexColumns = (
                 Option<(u32, u32, u32)>,
                 Option<(u32, u32, u32)>,
@@ -2671,10 +2666,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 let pbr_raw = pickup_booking_rule_raw;
                 let dobr_raw = drop_off_booking_rule_raw;
 
-                // STM_058: Flex pencere alanları `Time` tipindedir — biçim hatası arrival_time gibi
-                // RAPOR EDİLİR. Eskiden `.ok().flatten()` ile yutuluyordu: değer kayboluyor, STM_038
-                // karşılaştıracak bir şey bulamıyor, satır "pencereli" sayıldığı için varlık kuralları
-                // da susuyordu → bozuk bir rezervasyon penceresi feed'de HİÇ bulgu üretmiyordu.
+                // STM_058: Flex window fields have type `Time`—format errors are REPORTED, like arrival_time.
+                // They used to be swallowed by `.ok().flatten()`: the value disappeared, STM_038 had nothing
+                // to compare, and entity rules stayed silent because the row was considered "windowed" → a
+                // malformed booking window produced NO finding in the feed.
                 let mut parse_window =
                     |raw: &str, field: &'static str| -> Option<(u32, u32, u32)> {
                         match parse_gtfs_time_raw(raw, field) {
@@ -2717,26 +2712,26 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             ));
                 }
 
-                // STM_051: Flex penceresi tanımlı iken pickup_type=0 (düzenli) veya 3 (sürücü koordinasyonu) yasak.
+                // STM_051: when a Flex window is defined, pickup_type=0 (regular) or 3 (driver coordination) is forbidden.
                 // GTFS spec [Kesin]: pickup_type 0/3 forbidden if start/end_pickup_drop_off_window defined.
                 //
-                // 🔴 ÖRTÜK 0 (17. korpus koşumu, 2026-09-11): spec enum'u
-                // *"0 or empty - Regularly scheduled pickup/drop off"* der — BOŞ HÜCRE 0'IN KENDİSİDİR,
-                // belirsizlik değil. Üretici alanı boş bırakarak "düzenli" demiş olur ve pencere
-                // varken yasak olan tam budur. Eskiden `Some(0)` şartı yalnız AÇIKÇA yazılmış 0'ı
-                // görüyordu; kartlar bunu "FP riski" diye gerekçelendiriyordu, oysa eşitliği spec
-                // kuruyor. `mdb-2796`/`mdb-2926` ile ölçüldü: Flex penceresi olan 5 satırın 5'inde
-                // `pickup_type=0` AÇIK ama `drop_off_type` BOŞ → `STM_051` 5 bulgu verirken
-                // `STM_052` 0 veriyordu; MD `forbidden_drop_off_type` 5 diyordu ve HAKLIYDI.
+                // 🔴 IMPLICIT 0 (17th corpus run, 2026-09-11): the spec enum says
+                // *"0 or empty - Regularly scheduled pickup/drop off"*—an EMPTY CELL IS 0 ITSELF,
+                // not uncertainty. Leaving the field empty means the producer said "regular", exactly what
+                // is forbidden when a window exists. The old `Some(0)` condition saw only an EXPLICIT 0;
+                // cards called this an "FP risk", although the spec establishes the equality.
+                // Measured with `mdb-2796`/`mdb-2926`: all 5 of 5 rows with a Flex window had
+                // `pickup_type=0` EXPLICIT but `drop_off_type` EMPTY → `STM_051` produced 5 findings while
+                // `STM_052` produced 0; MD said `forbidden_drop_off_type` = 5 and was RIGHT.
                 //
-                // ⚠️ BOŞ HÜCRE ile BOZUK DEĞER ayrılır: `parse_pickup_dropoff_col` ikisinde de `None`
-                // döner. Örtük 0 yalnız hücre GERÇEKTEN boşken varsayılır; `"abc"` gibi değerler
-                // `STM_009`/`STM_010`'un alanıdır ve burada çift raporlanmaz.
+                // ⚠️ EMPTY CELL and MALFORMED VALUE are distinct: `parse_pickup_dropoff_col` returns `None`
+                // for both. Implicit 0 is assumed only when the cell is ACTUALLY empty; values such as `"abc"`
+                // belong to `STM_009`/`STM_010` and are not double-reported here.
                 //
-                // ⚠️ SÜTUN HİÇ YOKSA örtük 0 VARSAYILMAZ. Spec açısından yok sayılan sütun da 0
-                // demektir, ama o iddia bambaşka bir hacim üretir (pickup_type sütunu olmayan her
-                // Flex feed'inin her satırı) ve MD'nin o vakadaki davranışı ÖLÇÜLMEDİ. Dar kapsam
-                // bilinçli: `cols.*.is_some()` şartı bunu sabitler.
+                // ⚠️ Do NOT assume implicit 0 when the COLUMN IS ABSENT. In the spec, an ignored column also
+                // means 0, but that claim produces a different volume (every row of every Flex feed without
+                // pickup_type), and MD behavior for that case was NOT MEASURED. The narrow scope is deliberate:
+                // `cols.*.is_some()` fixes it.
                 let implicit_pickup = cols.pickup_type.is_some() && pickup_type_raw.is_empty();
                 let implicit_drop_off =
                     cols.drop_off_type.is_some() && drop_off_type_raw.is_empty();
@@ -2771,8 +2766,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     ));
                         }
                     }
-                    // STM_052: Flex penceresi tanımlı iken drop_off_type=0 (düzenli) yasak.
-                    // Örtük 0 dahil — gerekçe yukarıda.
+                    // STM_052: when a Flex window is defined, drop_off_type=0 (regular) is forbidden.
+                    // Includes implicit 0—the rationale is above.
                     if effective_drop_off == Some(0) {
                         st.notices.push(make_k2_notice(
                     &mut st.counter, "STM_052", EntityType::Trip, eid(),
@@ -2790,11 +2785,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     "Flex penceresi olan stop_times satırlarında drop_off_type'ı 1 (iniş yok) veya 2 (telefonla) yapın.",
                 ));
                     }
-                    // STM_054/055: Flex penceresi tanımlı iken continuous_pickup/continuous_drop_off
-                    // 1 (veya boş) dışında yasak. GTFS spec [Kesin]: stop_times tarafındaki koşul SATIR
-                    // kapsamlıdır ("Forbidden if start/end_pickup_drop_off_window are defined") — routes
-                    // tarafındaki rota-kapsamlı koşul (RTS_028, K4) ile karıştırılmamalı.
-                    // Enum dışı değerler (>3) STM_018/019'un işi; burada çift emit etmemek için elenir.
+                    // STM_054/055: when a Flex window is defined, continuous_pickup/continuous_drop_off values
+                    // other than 1 (or empty) are forbidden. GTFS spec [Certain]: the stop_times condition is
+                    // ROW-scoped ("Forbidden if start/end_pickup_drop_off_window are defined")—do not confuse it
+                    // with the route-scoped condition in routes (RTS_028, K4).
+                    // Out-of-enum values (>3) belong to STM_018/019 and are filtered here to avoid double emission.
                     if matches!(continuous_pickup, Some(0) | Some(2) | Some(3)) {
                         let cp = continuous_pickup.unwrap();
                         st.notices.push(make_k2_notice(
@@ -2818,11 +2813,11 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
 
                 // STM_038: start_window >= end_window
-                // Eşitlik de hatadır: sıfır uzunluklu bir pencere hizmetin hiçbir an açık
-                // olmadığı anlamına gelir. Spec bu sıralamayı HİÇ yazmaz; kural Interop'tur
-                // ve şeklini MobilityData belirler: "end_pickup_drop_off_window must be
-                // strictly later than the start_pickup_drop_off_window". Eskiden yalnız
-                // `>` bakıyorduk ve eşitliği kaçırıyorduk (mdb-2741'de MD 38, bizde 0).
+                // Equality is also an error: a zero-length window means the service is never open.
+                // The Spec does NOT state this ordering; the rule is Interop and its shape is defined by
+                // MobilityData: "end_pickup_drop_off_window must be
+                // strictly later than the start_pickup_drop_off_window". We used to check only `>` and
+                // missed equality (MD 38 in mdb-2741, ours 0).
                 if let (Some(sw), Some(ew)) = (start_window, end_window) {
                     let sw_secs = sw.0 * 3600 + sw.1 * 60 + sw.2;
                     let ew_secs = ew.0 * 3600 + ew.1 * 60 + ew.2;
@@ -2837,7 +2832,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     }
                 }
 
-                // STM_039: location_id/group_id var ama pencere eksik
+                // STM_039: location_id/group_id present but window missing.
                 if has_location && (!has_start_window || !has_end_window) {
                     let missing = if !has_start_window {
                         "start_pickup_drop_off_window"
@@ -2853,7 +2848,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             ));
                 }
 
-                // STM_040: Flex penceresi var ama booking_rule_id yok
+                // STM_040: Flex window present but booking_rule_id missing.
                 if has_any_window && pbr_raw.is_empty() && dobr_raw.is_empty() {
                     st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_040", EntityType::Trip, eid(),
@@ -2864,13 +2859,13 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             ));
                 }
 
-                // STM_041: stop_id ve location_id/group_id aynı anda dolu (çakışma)
+                // STM_041: stop_id and location_id/group_id both present (conflict).
                 if !raw_stop.is_empty() && has_location {
                     st.notices.push(make_k2_notice(
                 &mut st.counter, "STM_041", EntityType::Trip, eid(),
                 None, &file.name, Some(line),
-                // Çakışma üç alan arasındadır; eskiden yalnız "location_id" yazılıyordu ve
-                // çakışma location_group_id ileyken kullanıcı yanlış alana bakıyordu.
+                // The conflict is between three fields; previously only "location_id" was written, so when
+                // the conflict was with location_group_id the user looked at the wrong field.
                 Some("stop_id|location_id|location_group_id"),
                 Some(if loc_id_raw.is_empty() { loc_grp_raw.to_string() } else { loc_id_raw.to_string() }),
                 Some("(boş)".to_string()),
@@ -2914,7 +2909,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 if stop_idx != u32::MAX {
                     let stop_smol = st.stop_intern[stop_idx as usize].clone();
                     st.stop_first_line.entry(stop_smol).or_insert(line);
-                    // stop_idx_set kaldırıldı; trip_stop_set finalize sonrası rows'dan inşa edilir
+                    // stop_idx_set removed; trip_stop_set is built from rows after finalization.
                 }
                 if matches!(continuous_pickup, Some(0) | Some(2) | Some(3))
                     || matches!(continuous_drop_off, Some(0) | Some(2) | Some(3))
@@ -2926,7 +2921,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
                 let trip_idx = agg.idx;
                 st.row_trip.push(trip_idx);
-                // side map'ler: CSV satır numarası anahtarlı (permutation'dan bağımsız)
+                // side maps: keyed by CSV line number (independent of permutation).
                 if let Some(ref hs) = stop_headsign {
                     st.stop_headsigns.insert(line as u32, hs.clone());
                 }
@@ -2948,8 +2943,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
                 st.all_rows.push(CompactStopTime {
                     stop_idx,
-                    // Bozuk değer u32::MAX'e DÜŞMEZ: "alan yok" ile "alan dolu ama okunamadı"
-                    // ayrı sentinellerdir, yoksa STM_015/016 dolu bir alan için "eksik" der.
+                    // A malformed value does NOT FALL to u32::MAX: "field absent" and "field present but unreadable"
+                    // are separate sentinels, otherwise STM_015/016 would call a populated field "missing".
                     arrival_secs: arrival_time
                         .map(|(h, m, s)| h * 3600 + m * 60 + s)
                         .unwrap_or(if arr_malformed {
@@ -2971,9 +2966,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             }
         };
 
-        // ARC_033: `next_csv_record` bu değişkene yazar, döngü satır numarasını ekler.
+        // ARC_033: `next_csv_record` writes to this variable; the loop adds the row number.
         let mut scan = CsvScanState::default();
-        // ── Sürücü: stream raw_text (başlığı atla), ZIP stream veya rows fallback ──
+        // ── Driver: stream raw_text (skip header), ZIP stream, or rows fallback ──
         if let Some(text) = &file.raw_text {
             let _t_raw_stream = crate::timing::Timer::start("K2::st::raw_text::stream_process");
             let mut pos = 0usize;
@@ -2981,7 +2976,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             let mut data_idx = 0usize;
             let mut header_skipped = false;
             while next_csv_record(text, &mut pos, &mut buf, &mut scan) {
-                // Boş satır (tek boş alan) — tokenize_csv ile aynı filtre
+                // Empty row (one empty field)—same filter as tokenize_csv.
                 if buf.len() == 1 && buf[0].is_empty() {
                     continue;
                 }
@@ -2999,7 +2994,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             drop(_t_raw_stream);
             crate::timing::mem_note(&format!("K2::st::raw_text rows={}", data_idx));
         } else if let Some(zb) = zip_bytes {
-            // #38: stop_times.txt K1'de yalnızca başlık okundu; K2 ZIP'i yeniden açıp stream eder.
+            // #38: K1 reads only the stop_times.txt header; K2 reopens the ZIP and streams it.
             let cursor = Cursor::new(zb);
             match zip::ZipArchive::new(cursor) {
                 Err(e) => {
@@ -3141,11 +3136,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                     budget.consume(total_decompressed as usize);
                                 }
                             } else {
-                                // Deflate akışı rastgele erişilemez → gövdeyi bir kez aç, sonra
-                                // satır/trip sınırlarında bölüp parçaları paralel ayrıştır. ZIP
-                                // metadata'sındaki `file.bytes` yalnızca başlangıç kapasitesidir;
-                                // doğrudan Vec::with_capacity kullanmak sahte merkezi-dizin
-                                // boyutuyla tahsis saldırısına açıktı.
+                                // A deflate stream is not randomly accessible → open the body once, then split at row/trip
+                                // boundaries and parse chunks in parallel. `file.bytes` in ZIP metadata is only an initial capacity;
+                                // using Vec::with_capacity directly was vulnerable to an allocation attack using a fake
+                                // central-directory size.
                                 let stream_limit = stream_budget
                                     .as_ref()
                                     .map(|budget| budget.limit())
@@ -3177,9 +3171,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                                                 has_booking_rules,
                                                 ..StChunk::default()
                                             };
-                                            // Bayrak chunk'a TAŞINMALI: `StChunk::default()` her chunk için
-                                            // yeniden kurulur ve `has_booking_rules` false kalırdı → STM_059
-                                            // yalnız tek parçalı feed'lerde çalışırdı. `emit_proof` yakaladı.
+                                            // The flag MUST BE CARRIED INTO THE CHUNK: `StChunk::default()` is rebuilt for every chunk and
+                                            // `has_booking_rules` would remain false → STM_059 would work only on single-chunk feeds.
+                                            // `emit_proof` caught this.
                                             let mut rdr = ZipCsvReader::with_limits(
                                                 Cursor::new(&body[bs..be]),
                                                 stream_limit,
@@ -3235,8 +3229,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             let mut raw_fields: Vec<Vec<u8>> = Vec::with_capacity(header_count + 1);
                             let mut zip_line: u64 = 2;
                             let mut header_skipped = false;
-                            // Deney: seri akışta tek StChunk kullan. Böylece satırları
-                            // parçalara ayırıp 120 kez `StChunk::merge` etme maliyeti yok.
+                            // Experiment: use one StChunk for serial streaming. This avoids splitting rows into chunks and
+                            // paying the cost of `StChunk::merge` 120 times.
                             let _t_stream =
                                 crate::timing::Timer::start("K2::st::single::stream_process");
                             while csv_reader.next_record(&mut raw_fields) {
@@ -3273,8 +3267,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
         } else {
-            // Fallback (test/legacy): önceden parse edilmiş rows üzerinden. SmolStr'ları
-            // Cow::Borrowed olarak sar (alloc yok) — closure'ın &[Cow] imzasıyla uyum.
+            // Fallback (test/legacy): use pre-parsed rows. Wrap SmolStr values as Cow::Borrowed (no alloc)—
+            // compatible with the closure's &[Cow] signature.
             for (row_idx, row) in file.rows.iter().enumerate() {
                 let cow_row: Vec<Cow<'_, str>> =
                     row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
@@ -3291,7 +3285,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         }
     }
 
-    // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84).
+    // ARC_013: unclosed quote in the stream body (issue #84).
     if st.unclosed {
         st.notices.push(super::common::arc013_unclosed_stream(
             &file.name,
@@ -3299,18 +3293,17 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         ));
     }
 
-    // ARC_033: DOSYA başına TEK özet (chunk'lar `StChunk::merge` ile birleşti).
+    // ARC_033: ONE summary per FILE (chunks were combined with `StChunk::merge`).
     if let Some(n) = super::common::arc033_summary(&st.rfc, &file.name, &mut st.counter) {
         st.notices.push(n);
     }
 
-    // ⚠️ ARC_022 BURADA DEĞİL — `k2/mod.rs`'teki tek geçişte (issue #75). Gerekçe
-    // shapes.rs'teki notla aynı.
+    // ⚠️ ARC_022 is NOT HERE—it is in the single pass in `k2/mod.rs` (issue #75). Same rationale
+    // as the note in shapes.rs.
 
-    // ARC_035: `stop_times.txt` ZORUNLU bir dosyadır; başlık var ama veri satırı yoksa
-    // hüküm "opsiyonel dosya boş" (ARC_009·Bilgi) değil, "zorunlu dosya boş"tur
-    // (Kritik·Spec). Bu dosya stream yolundan geçtiği için K1'in traversal'ı onu boş
-    // GÖREMEZ; devir bu yüzden burada yapılır.
+    // ARC_035: `stop_times.txt` is a REQUIRED file; if it has a header but no data rows, the finding is
+    // not "optional file empty" (ARC_009·Bilgi) but "required file empty" (Kritik·Spec). Because this
+    // file uses the streaming path, K1's traversal CANNOT SEE it as empty; ownership is transferred here.
     if (file.raw_text.is_some() || zip_bytes.is_some()) && st.total_rows == 0 {
         st.notices.push(make_k2_notice(
             &mut st.counter,
@@ -3331,7 +3324,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         ));
     }
 
-    // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
+    // DQ_016: ONE summary per FILE (not per row—prevents an explosion).
     if let Some((observed, msg, cols)) = st.dq016.summary(&file.name) {
         let mut n = make_k2_notice(
             &mut st.counter,
@@ -3351,8 +3344,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         st.notices.push(n);
     }
 
-    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
-    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    // ARC_032: HTML marker—ONE summary per FILE (same as K1). It did not run in streamed files until
+    // 2026-10-13 (trip_headsign/stop_headsign were not checked).
     if let Some((observed, msg, cols)) = st.arc032.summary(&file.name) {
         st.notices.push(make_k2_notice(
             &mut st.counter,
@@ -3370,7 +3363,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         ));
     }
 
-    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    // ARC_037: non-ASCII character in an ID field—ONE summary per FILE (same as K1).
     if let Some((observed, msg, cols)) = st.arc037.summary(&file.name) {
         st.notices.push(make_k2_notice(
             &mut st.counter,
@@ -3388,7 +3381,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         ));
     }
 
-    // STM_050: feed-seviyesi TEK özet (satır-başına değil — büyük feed OOM önlemi).
+    // STM_050: ONE feed-level summary (not per row—large-feed OOM prevention).
     if st.stm050_empty > 0 {
         st.notices.push(make_k2_notice(
             &mut st.counter, "STM_050", EntityType::Feed, None,
@@ -3399,10 +3392,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         ));
     }
 
-    // STM_018/019 agregasyonu (#151): üreticilerde aynı enum ihlali çoğu zaman
-    // stop_times satırlarının tamamına yayıldığı için satır-başına raporlamak
-    // R2/R5/R9'u gürültüyle doldurur. SHP_010/STP_022 emsali gibi düşük hacimde
-    // pinpoint korunur, eşik üstünde tek feed özeti üretilir.
+    // STM_018/019 aggregation (#151): because the same enum violation often spans all stop_times rows
+    // in producer feeds, reporting per row fills R2/R5/R9 with noise. As with SHP_010/STP_022, keep
+    // pinpoint findings at low volume and emit one feed summary above the threshold.
     const STM018_019_AGG_THRESHOLD: usize = 50;
     finalize_stm_pending(
         &mut st.stm018_pending,
@@ -3436,16 +3428,16 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     st.log_mem_report("pre-finalize");
     crate::timing::mem_log("  stop_times: st.all_rows + st.trips_agg built (pre-finalize)");
 
-    // ── Finalize: in-place gruplama (Asama 1b + #15 W1) ──
-    // counts/offsets sadece trip_ranges + cikti duzeni icin; satirlar all_rows icinde
-    // yerinde (permutasyon) gruplanir. Eski counting-placement ikinci tam rows Vec'i
-    // all_rows ile AYNI ANDA tutuyordu (~2x peak); kaldirildi.
+    // ── Finalize: in-place grouping (Stage 1b + #15 W1) ──
+    // counts/offsets are only for trip_ranges + output ordering; rows are grouped in all_rows
+    // in place (permutation). The old counting-placement kept a second full rows Vec alongside
+    // all_rows (~2x peak); removed.
     let n_trips = st.trips_agg.len();
     let mut counts = vec![0u32; n_trips];
     for &ti in &st.row_trip {
         counts[ti as usize] += 1;
     }
-    // offsets[i] = trip i'nin rows içindeki başlangıcı; offsets[n_trips] = toplam
+    // offsets[i] = start of trip i in rows; offsets[n_trips] = total.
     let mut offsets = vec![0u32; n_trips + 1];
     for i in 0..n_trips {
         offsets[i + 1] = offsets[i] + counts[i];
@@ -3459,10 +3451,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         offsets.capacity(),
         offsets.capacity() as f64 * std::mem::size_of::<u32>() as f64 / 1_048_576.0,
     ));
-    // #15 W1: ikinci tam Vec ASLA ayrilmaz. Cikti sirasi = (trip_idx ASC, stop_sequence
-    // [None=MAX] ASC, dosya-ordinali ASC). Dosya-ordinali son tie-breaker => TAM siralama;
-    // esit-anahtar nondeterminizmi YOK. Eski davranisla birebir: trip gruplama + trip-ici
-    // stable-by-sequence (file-order ties) == bu total-order key.
+    // #15 W1: a second full Vec is NEVER allocated. Output order = (trip_idx ASC, stop_sequence
+    // [None=MAX] ASC, file ordinal ASC). File ordinal is the final tie-breaker → TOTAL ordering;
+    // no equal-key nondeterminism. Exactly the old behavior: trip grouping + within-trip
+    // stable-by-sequence (file-order ties) == this total-order key.
     let n = st.all_rows.len();
     let mut perm: Vec<u32> = (0..n as u32).collect();
     let _t_sort = crate::timing::Timer::start("K2::st::fin::sort");
@@ -3482,10 +3474,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     ));
     st.log_mem_report("after-sort");
     crate::timing::mem_log("K2 after stop_times perm sort");
-    // Deney B: perm'i ikinci bir `dest` Vec'i ayırmadan yerinde tersine çevir.
-    // Sort sonucu perm[pos] = src'tir; cycle-swap için gereken yön src -> pos.
-    // Yüksek bit geçici ziyaret işareti olarak güvenlidir: gerçek indeksler bu
-    // WASM feed'lerinde 2^31'in altındadır ve ikinci 228 MB tampon oluşmaz.
+    // Experiment B: invert perm in place without allocating a second `dest` Vec.
+    // Sort result is perm[pos] = src; cycle-swap needs the direction src → pos.
+    // The high bit is safe as a temporary visited marker: real indices in these WASM feeds are below
+    // 2^31, and no second 228 MB buffer is created.
     const PERM_MARK: u32 = 1 << 31;
     debug_assert!(n < PERM_MARK as usize);
     for i in 0..n {
@@ -3514,8 +3506,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         perm.capacity(),
         perm.capacity() as f64 * std::mem::size_of::<u32>() as f64 / 1_048_576.0,
     ));
-    drop(std::mem::take(&mut st.row_trip)); // perm kuruldu; 4B/satir tag in-place uygulamadan ONCE serbest birak
-                                            // perm[src] = pos. Cycle-swap ikinci Vec olmadan uygulanir.
+    drop(std::mem::take(&mut st.row_trip)); // perm built; free the 4B/row tag ONCE before applying in place
+                                            // perm[src] = pos. Cycle-swap is applied without a second Vec.
     st.log_mem_report("after-row_trip-perm-drop");
     crate::timing::mem_log("K2 after stop_times perm inverse");
     let _t_perm = crate::timing::Timer::start("K2::st::fin::permute");
@@ -3531,23 +3523,23 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     let rows = st.all_rows; // zero-copy: yerinde gruplandi + siralandi
     crate::timing::mem_log("K2 after stop_times in-place permute");
 
-    // STM_032 post-finalize: sıralanmış satırlarda ardışık aynı stop_sequence → dup.
-    // Process closure'da değil (seen_seq set kaldırıldı); burada windows(2) ile O(n) tespit.
+    // STM_032 post-finalize: adjacent equal stop_sequence in sorted rows → duplicate.
+    // Not in the process closure (seen_seq set removed); detect it here with windows(2) in O(n).
     //
-    // 🔑 **Bu, `stop_sequence` ARTIŞ hükmünün TAMAMINI ölçer (#97).** Satırlar hemen yukarıda
-    // `(trip, stop_sequence, dosya-ordinali)` anahtarıyla sıralandığı için trip içindeki
-    // değerler bu görünümde tanım gereği azalmaz; hükmü ihlal edebilecek TEK durum eşitliktir.
-    // Yani "değerler sefer boyunca artmalı" ⇔ "(trip_id, stop_sequence) benzersiz" — ki spec
-    // bunu ikinci kez `stop_times.txt` başlığında "Primary key (trip_id, stop_sequence)" diye
-    // söyler. Ayrı bir "azalma" kuralı BOŞ KÜME ölçerdi.
-    // ⚠️ `STM_036` bu hükmün kanıtı DEĞİLDİR: o DOSYA SIRASINI ölçer (MD `unsorted_stop_times`,
-    // INFO) ve değerleri düzgün artan geçerli bir feed'de de ateşler. Spec dosya satırlarının
-    // sıralı olmasını istemez.
+    // 🔑 **This measures the ENTIRE `stop_sequence` INCREASE requirement (#97).** Rows were sorted
+    // immediately above by `(trip, stop_sequence, dosya-ordinali)`, so values within a trip cannot
+    // decrease by definition in this view; EQUALITY is the ONLY possible violation.
+    // Thus "values must increase along the trip" ⇔ "(trip_id, stop_sequence) is unique"—which the
+    // spec says again in the `stop_times.txt` heading as "Primary key (trip_id, stop_sequence)".
+    // A separate "decrease" rule would measure the EMPTY SET.
+    // ⚠️ `STM_036` is NOT evidence for this requirement: it measures FILE ORDER (MD
+    // `unsorted_stop_times`, INFO) and also fires in a valid feed whose values increase correctly.
+    // The Spec does not require file rows to be ordered.
     {
         let _t_032 = crate::timing::Timer::start("K2::st::fin::stm032");
         let mut stm032_pending = Vec::new();
         let mut stm056_pending = Vec::new();
-        // trips_agg bir HashMap; emisyon sırası deterministik olsun diye trip_id'ye göre gez.
+        // trips_agg is a HashMap; walk by trip_id for deterministic emission order.
         let mut tids: Vec<&SmolStr> = st.trips_agg.keys().collect();
         tids.sort_unstable();
         for tid in tids {
@@ -3579,8 +3571,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         ),
                         "Her (trip_id, stop_sequence) çifti stop_times.txt'te benzersiz olmalıdır.",
                     );
-                    // STM_056 ile aynı desen: feed özeti dalı affected_rows/example_trips yazar,
-                    // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı.
+                    // Same pattern as STM_056: the feed-summary branch writes affected_rows/example_trips,
+                    // and the pinpoint branch must carry them too because one template serves both branches.
                     {
                         let d = n032.details.get_or_insert_with(Default::default);
                         d.insert("affected_rows".to_string(), "1".to_string());
@@ -3589,8 +3581,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     stm032_pending.push(n032);
                 }
                 // STM_056 (MD `decreasing_or_equal_stop_time_distance`): stop_sequence boyunca
-                // shape_dist_traveled ARTMALI. Yalnız iki satırda da değer varsa karşılaştırılır;
-                // eksik değer STM_017'nin konusudur. NaN karşılaştırması false döner, guard şart.
+                // shape_dist_traveled MUST INCREASE. Compare only when both rows have a value; a missing
+                // value is STM_017's concern. NaN comparison returns false, so the guard is required.
                 if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
                     let mut n056 = make_k2_notice(
                         &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
@@ -3602,8 +3594,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         ),
                         "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
                     );
-                    // Feed özeti dalı (`finalize_stm_pending`) affected_rows/example_trips yazar;
-                    // tek şablonun iki dalda da dolması için tekil dal da aynı anahtarları taşır.
+                    // The feed-summary branch (`finalize_stm_pending`) writes affected_rows/example_trips;
+                    // the pinpoint branch carries the same keys so the one template is populated in both branches.
                     {
                         let d = n056.details.get_or_insert_with(Default::default);
                         d.insert("affected_rows".to_string(), "1".to_string());
@@ -3639,7 +3631,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         );
     }
 
-    // stop_id_set = stop_first_line anahtarları (aynı guard'larla → birebir aynı küme).
+    // stop_id_set = stop_first_line keys (same guards → exactly the same set).
     let mut index = StopTimesIndex {
         total_rows: st.total_rows,
         unsorted_seq_trips: st.unsorted_seq_trips,
@@ -3657,7 +3649,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     let _t_maps = crate::timing::Timer::start("K2::st::fin::maps");
     for (tid, agg) in st.trips_agg {
         if tid.is_empty() {
-            continue; // boş trip_id çıktıya girmez (orijinal `if !trip_id.is_empty()` guard'ı)
+            continue; // empty trip_id does not enter output (original `if !trip_id.is_empty()` guard)
         }
         let i = agg.idx as usize;
         index
@@ -3670,13 +3662,13 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         if agg.continuous {
             index.continuous_trips.insert(tid.clone());
         }
-        // stop_idx_set TripAgg'dan kaldırıldı — trip_stop_set aşağıda inşa edilir
+        // stop_idx_set removed from TripAgg—trip_stop_set is built below.
     }
     drop(_t_maps);
 
-    // STM_048: ham GTFS servis-günü ihlalini normalization'dan ÖNCE kaydet.
-    // K6 daha sonra aynı satırları analitik devamlılık için 24:xx'e çevirir; bu Spec
-    // notice'ı o düzeltme nedeniyle kaybolmamalıdır.
+    // STM_048: record the raw GTFS service-day violation BEFORE normalization.
+    // K6 later converts the same rows to 24:xx for analytical continuity; this Spec notice must
+    // not disappear because of that correction.
     for violation in index.find_raw_midnight_wraps() {
         let observed = format_gtfs_time(violation.observed_secs);
         let expected = format_gtfs_time(violation.expected_secs);
@@ -3735,9 +3727,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
     index.add_malformed_time_context(&mut st.notices);
 
-    // ── trip_stop_set post-finalize inşası (#38 peak-2) ──────────────────────────
-    // TripAgg'lar drop edildi (stop_idx_set heap'leri serbest); trip_ranges+rows üzerinden
-    // per-trip unique stop_idx setleri yeniden inşa edilir. Semantik birebir: same sets.
+    // ── trip_stop_set post-finalize construction (#38 peak-2) ──────────────────
+    // TripAggs were dropped (stop_idx_set heaps freed); rebuild per-trip unique stop_idx sets
+    // from trip_ranges+rows. Semantics are identical: same sets.
     crate::timing::mem_log("K2 before trip_stop_set rebuild (st.trips_agg freed)");
     if build_trip_stop_set {
         let _t_tss = crate::timing::Timer::start("K2::st::fin::trip_stop_set");
@@ -3783,9 +3775,9 @@ fn finalize_stm_pending(
 ) {
     let n = pending.len();
     if n > threshold {
-        // Pending listesi HashMap/chunk iterasyonundan geldiği için ham take(5)
-        // deterministik değildir. Önce sırala, sonra ilk 5'i al. Aynı seferde
-        // birden çok ihlal satırı olabilir; tekrarlar örnek listesini doldurmasın.
+        // The pending list comes from HashMap/chunk iteration, so a raw take(5) is not deterministic.
+        // Sort first, then take the first 5. One trip may have multiple violating rows; duplicates must
+        // not fill the sample list.
         let mut examples: Vec<String> =
             pending.iter().filter_map(|x| x.entity_id.clone()).collect();
         examples.sort_unstable();
@@ -3817,8 +3809,8 @@ fn finalize_stm_pending(
     }
 }
 
-// Bu validator ham değer, alan ve trip satırı bağlamını birlikte taşır; tek kullanımlık
-// bir parametre struct'ı emit edilen notice'ın kaynaklarını daha açık yapmaz.
+// This validator carries raw value, field, and trip-row context together; a one-use parameter
+// struct would not make the emitted notice's sources clearer.
 #[allow(clippy::too_many_arguments)]
 fn parse_pickup_dropoff_col(
     raw: &str,
@@ -3908,8 +3900,8 @@ mod tests {
             departure_time: Some(t),
             ..Default::default()
         };
-        // T1: gece dönümü — 23:58 → 00:01 (00:01 < 03:00 eşik) → 24:01'e normalize.
-        // T2: gerçek geriye-gidiş — 08:00 → 07:55 (07:55 ≥ 03:00) → dokunulmaz.
+        // T1: midnight rollover—23:58 → 00:01 (00:01 < 03:00 threshold) → normalized to 24:01.
+        // T2: real regression—08:00 → 07:55 (07:55 ≥ 03:00) → untouched.
         let recs = vec![
             rec("T1", 1, (23, 58, 0)),
             rec("T1", 2, (0, 1, 0)),
@@ -3942,7 +3934,7 @@ mod tests {
             "gerçek hata (eşik üstü) korunur"
         );
 
-        // start_hour = 0 → normalizasyon kapalı.
+        // start_hour = 0 → normalization disabled.
         let mut idx0 = StopTimesIndex::from_records(&recs);
         idx0.normalize_service_day(0);
         assert_eq!(
@@ -3952,8 +3944,8 @@ mod tests {
     }
 
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
-        // OOM fix Plan A: testler de streaming yolunu kullanır — headers+rows CSV'ye
-        // serialize edilir, rows boş bırakılır. (Test değerlerinde virgül/tırnak yok.)
+        // OOM fix Plan A: tests also use the streaming path—headers+rows are serialized to CSV and rows
+        // are left empty. (Test values contain no commas/quotes.)
         let mut text = headers.join(",");
         text.push('\n');
         for r in &rows {
@@ -4057,7 +4049,7 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "STM_006"));
     }
 
-    // STM_007 testi K6'ya taşındı (k6_analytics.rs: departure_before_arrival_*).
+    // STM_007 test moved to K6 (k6_analytics.rs: departure_before_arrival_*).
 
     #[test]
     fn invalid_pickup_type_produces_stm_009() {
@@ -4295,8 +4287,8 @@ mod tests {
 
     #[test]
     fn empty_timepoint_value_produces_stm_050() {
-        // 3 boş-timepoint satırı → TEK feed-seviyesi STM_050 özeti (satır-başına DEĞİL),
-        // observed_value = 3. (Büyük feed OOM önlemi: bkz. Kocaeli 2.4M.)
+        // 3 empty-timepoint rows → ONE feed-level STM_050 summary (NOT per row), observed_value = 3.
+        // (Large-feed OOM prevention: see Kocaeli 2.4M.)
         let file = make_file(
             vec![
                 "trip_id",
@@ -4396,10 +4388,10 @@ mod tests {
         );
     }
 
-    /// Ölçüm, 17. korpus koşumu (`mdb-2796`/`mdb-2926`): Flex penceresi olan 5 satırın 5'inde
-    /// `pickup_type=0` AÇIK ama `drop_off_type` BOŞ. `STM_051` 5 bulgu veriyordu, `STM_052` 0;
-    /// MD `forbidden_drop_off_type` 5 diyordu ve HAKLIYDI. Spec enum'u
-    /// *"0 or empty - Regularly scheduled drop off"* der — boş hücre 0'ın KENDİSİDİR.
+    /// Measurement, 17th corpus run (`mdb-2796`/`mdb-2926`): all 5 of 5 rows with a Flex window
+    /// had `pickup_type=0` EXPLICIT but `drop_off_type` EMPTY. `STM_051` produced 5 findings, `STM_052` 0;
+    /// MD said `forbidden_drop_off_type` = 5 and was RIGHT. The spec enum says
+    /// *"0 or empty - Regularly scheduled drop off"*—an empty cell IS 0 ITSELF.
     #[test]
     fn flex_window_with_empty_drop_off_type_produces_stm_052_implicit_zero() {
         let file = make_file(
@@ -4429,7 +4421,7 @@ mod tests {
         );
     }
 
-    /// Aynı örtük-0 kuralı pickup tarafında da geçerli; asimetri bırakmak yeni bir kör nokta olurdu.
+    /// The same implicit-0 rule applies on the pickup side; leaving an asymmetry would create a new blind spot.
     #[test]
     fn flex_window_with_empty_pickup_type_produces_stm_051_implicit_zero() {
         let file = make_file(
@@ -4459,9 +4451,9 @@ mod tests {
         );
     }
 
-    /// 🔴 ASIL RİSK: BOZUK değer örtük 0 SAYILMAZ. `parse_pickup_dropoff_col` boş ve bozuk
-    /// değerde de `None` döner; ayrım hücrenin gerçekten boş olmasına bakılarak kurulur.
-    /// Bozuk değer `STM_009`/`STM_010`'un alanıdır ve burada çift raporlanmamalıdır.
+    /// 🔴 REAL RISK: a MALFORMED value does not count as implicit 0. `parse_pickup_dropoff_col` returns
+    /// `None` for both empty and malformed values; distinguish them by checking whether the cell is truly empty.
+    /// A malformed value belongs to `STM_009`/`STM_010` and must not be double-reported here.
     #[test]
     fn flex_window_with_unparseable_pickup_type_is_not_treated_as_implicit_zero() {
         let file = make_file(
@@ -4484,7 +4476,7 @@ mod tests {
         );
     }
 
-    /// ⚠️ SÜTUN HİÇ YOKSA örtük 0 varsayılmaz — bilinçli dar kapsam (MD davranışı ölçülmedi).
+    /// ⚠️ Do not assume implicit 0 when the COLUMN IS ABSENT—a deliberate narrow scope (MD behavior was not measured).
     #[test]
     fn flex_window_without_a_drop_off_type_column_stays_silent() {
         let file = make_file(
@@ -4528,7 +4520,7 @@ mod tests {
         );
     }
 
-    // ── STM_054/055: Flex penceresi + continuous_pickup/drop_off (satır kapsamlı) ──
+    // ── STM_054/055: Flex window + continuous_pickup/drop_off (row-scoped) ──
     #[test]
     fn flex_window_forbidden_continuous_pickup_produces_stm_054() {
         let file = make_file(
@@ -4575,7 +4567,7 @@ mod tests {
 
     #[test]
     fn flex_window_continuous_one_or_empty_silent_for_stm_054_055() {
-        // 1 → izinli; boş → izinli (örtük 1 sayılır, susulur).
+        // 1 → allowed; empty → allowed (implicit 1, stays silent).
         let file = make_file(
             vec![
                 "trip_id",
@@ -4598,7 +4590,7 @@ mod tests {
 
     #[test]
     fn no_flex_window_continuous_zero_silent_for_stm_054() {
-        // Pencere yoksa continuous_pickup=0 tümüyle geçerlidir (rota-kapsamlı koşul RTS_028'in işi).
+        // Without a window, continuous_pickup=0 is fully valid (the route-scoped condition belongs to RTS_028).
         let file = make_file(
             vec![
                 "trip_id",
@@ -4620,7 +4612,7 @@ mod tests {
 
     #[test]
     fn invalid_continuous_enum_with_flex_window_only_produces_stm_018() {
-        // 9 = enum dışı → STM_018'in işi; STM_054 çift emit ETMEMELİ.
+        // 9 = outside the enum → STM_018's job; STM_054 MUST NOT double-emit.
         let file = make_file(
             vec![
                 "trip_id",
@@ -4646,7 +4638,7 @@ mod tests {
 
     #[test]
     fn stm018_above_threshold_aggregates_with_sorted_examples() {
-        // Girdi ters sırada: feed özeti HashMap/chunk iterasyon sırasına bağlı kalmamalı.
+        // Input is reversed: the feed summary must not depend on HashMap/chunk iteration order.
         let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
         let rows: Vec<Vec<&str>> = ids
             .iter()
@@ -4783,7 +4775,7 @@ mod tests {
         assert!(stm019.iter().all(|n| n.details.is_none()));
     }
 
-    // ── STM_036/032 + finalize çıktı alanları (K2 hashmap-birleştirme refactor güvenlik ağı) ──
+    // ── STM_036/032 + finalize output fields (K2 hashmap-merge refactor safety net) ──
     #[test]
     fn duplicate_stop_sequence_produces_stm_032() {
         let file = make_file(
@@ -4796,7 +4788,7 @@ mod tests {
             ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "1"],
-                vec!["T1", "08:10:00", "08:10:00", "S2", "1"], // aynı stop_sequence tekrar
+                vec!["T1", "08:10:00", "08:10:00", "S2", "1"], // repeated stop_sequence
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
@@ -4877,8 +4869,8 @@ mod tests {
             "düşük hacimde iki pinpoint notice korunmalı"
         );
         assert!(stm032.iter().all(|n| n.entity_type == EntityType::Trip));
-        // STM_056 ile aynı sözleşme değişikliği: pinpoint dal da `affected_rows`/`example_trips`
-        // taşır, çünkü tek mesaj şablonu hem satır-başına hem feed-özeti dalına hizmet ediyor.
+        // Same contract change as STM_056: the pinpoint branch also carries `affected_rows`/`example_trips`,
+        // because one message template serves both the per-row and feed-summary branches.
         assert!(
             stm032.iter().all(|n| n
                 .details
@@ -4890,8 +4882,8 @@ mod tests {
         );
     }
 
-    /// #97 kabul matrisi: `stop_sequence` ARTIŞ hükmünü ölçen kural SPEC sınıfında olmalı,
-    /// ve hükmü ihlal ETMEYEN iki meşru şekilde susmalı.
+    /// #97 acceptance matrix: the rule measuring the `stop_sequence` INCREASE requirement must be in
+    /// the SPEC class and must stay silent for two legitimate forms that do NOT violate the requirement.
     #[test]
     fn stop_sequence_increase_provision_is_measured_by_a_spec_rule() {
         let meta = gtfs_rules::RULES
@@ -4907,7 +4899,7 @@ mod tests {
 
     #[test]
     fn non_consecutive_increasing_stop_sequence_is_silent() {
-        // Spec AÇIKÇA izin verir: "do not need to be consecutive" (1, 5, 9).
+        // The Spec EXPLICITLY allows: "do not need to be consecutive" (1, 5, 9).
         let file = make_file(
             vec![
                 "trip_id",
@@ -4931,9 +4923,9 @@ mod tests {
 
     #[test]
     fn file_order_decrease_with_increasing_values_produces_no_spec_finding() {
-        // 🔑 #97'nin yanlış-pozitif kapısı: satırlar DOSYADA ters yazılmış (seq 2 önce),
-        // ama trip'in değerleri artıyor → hüküm İHLAL EDİLMEMİŞTİR, Spec bulgusu ÇIKMAMALI.
-        // (Dosya sırası sinyali STM_036'nın işidir ve o K6'da üretilir.)
+        // 🔑 #97 false-positive gate: rows are reversed IN THE FILE (seq 2 first),
+        // but the trip's values increase → the requirement is NOT VIOLATED, so no Spec finding.
+        // (The file-order signal belongs to STM_036 and is produced in K6.)
         let file = make_file(
             vec![
                 "trip_id",
@@ -4964,7 +4956,7 @@ mod tests {
             "stop_sequence",
             "shape_dist_traveled",
         ];
-        // eşit değer
+        // equal value
         let file = make_file(
             cols.clone(),
             vec![
@@ -4978,7 +4970,7 @@ mod tests {
             "eşit değer STM_056 üretmeli: {notices:?}"
         );
 
-        // azalan değer
+        // decreasing value
         let file = make_file(
             cols.clone(),
             vec![
@@ -5065,9 +5057,9 @@ mod tests {
             "düşük hacimde iki pinpoint notice korunmalı"
         );
         assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
-        // Pinpoint dal artık `details` TAŞIR: tek mesaj şablonu iki dala da hizmet ettiği
-        // için (feed özeti / satır başına) sayaç+örnek burada da yazılır, yoksa en/ja/fr
-        // metni boş placeholder ile çıkar. Ayırt edici olan sayaç: pinpoint'te 1.
+        // The pinpoint branch now carries `details`: because one message template serves both branches
+        // (feed summary / per row), count+sample are written here too, or the en/ja/fr text has empty
+        // placeholders. The distinguishing count is 1 for pinpoint.
         assert!(
             stm056.iter().all(|n| n
                 .details
@@ -5107,7 +5099,7 @@ mod tests {
             "artan değer temiz olmalı"
         );
 
-        // biri eksik → karşılaştırma yapılmaz (STM_017 kapsamı)
+        // one missing → no comparison (STM_017 scope)
         let file = make_file(
             cols,
             vec![
@@ -5134,7 +5126,7 @@ mod tests {
             ],
             vec![
                 vec!["T1", "08:00:00", "08:00:00", "S1", "5"],
-                vec!["T1", "08:10:00", "08:10:00", "S2", "2"], // 2 < 5 → dosya sırası bozuk
+                vec!["T1", "08:10:00", "08:10:00", "S2", "2"], // 2 < 5 → file order is broken
             ],
         );
         let (idx, notices) = validate_stop_times(&file, None, false);
@@ -5174,16 +5166,16 @@ mod tests {
         assert_eq!(idx.trip_ranges.len(), 2);
         assert!(idx.trip_id_set.contains("T1") && idx.trip_id_set.contains("T2"));
         assert!(idx.stop_id_set.contains("S1") && idx.stop_id_set.contains("S2"));
-        assert_eq!(idx.trip_first_line.get("T1").copied(), Some(2)); // ilk veri satırı = satır 2
+        assert_eq!(idx.trip_first_line.get("T1").copied(), Some(2)); // first data row = row 2
         assert_eq!(idx.trip_first_line.get("T2").copied(), Some(4));
-        assert_eq!(idx.stop_first_line.get("S1").copied(), Some(2)); // S1 ilk satır 2'de
+        assert_eq!(idx.stop_first_line.get("S1").copied(), Some(2)); // S1 first appears on row 2
         assert!(
             idx.continuous_trips.contains("T1"),
             "T1 continuous_pickup=0 → continuous_trips'te olmalı"
         );
         assert!(!idx.continuous_trips.contains("T2"));
         assert_eq!(idx.trip_stop_set.get("T1").map(|s| s.len()), Some(2)); // S1,S2
-                                                                           // trips stop_sequence'e göre sıralı
+                                                                           // trips ordered by stop_sequence.
         let t1 = idx.sorted_stops("T1").expect("T1 trips'te olmalı");
         assert_eq!(t1[0].stop_sequence(), Some(1));
         assert_eq!(t1[1].stop_sequence(), Some(2));
@@ -5191,9 +5183,9 @@ mod tests {
 
     #[test]
     fn w1_inplace_grouping_orders_by_seq_with_file_order_tiebreak() {
-        // #15 W1: trip'ler dosyada İÇ İÇE, sequence'ler bozuk, T1'de seq=1 İKİ kez.
-        // In-place permütasyon: (a) trip'e göre grupla, (b) trip-içi sequence ASC,
-        // (c) eşit sequence'te DOSYA sırası (determinizm), (d) trip_ranges doğru.
+        // #15 W1: trips interleaved in the file, sequences disordered, seq=1 twice in T1.
+        // In-place permutation: (a) group by trip, (b) within-trip sequence ASC,
+        // (c) file order for equal sequences (determinism), (d) trip_ranges correct.
         let file = make_file(
             vec![
                 "trip_id",
@@ -5203,12 +5195,12 @@ mod tests {
                 "stop_sequence",
             ],
             vec![
-                vec!["T2", "09:02:00", "09:02:00", "S_B", "2"], // satır 2  (T2 = idx 0)
-                vec!["T1", "08:30:00", "08:30:00", "S_a", "3"], // satır 3  (T1 = idx 1)
-                vec!["T2", "09:01:00", "09:01:00", "S_A", "1"], // satır 4
-                vec!["T1", "08:00:00", "08:00:00", "S_c", "1"], // satır 5  (seq=1 #1)
-                vec!["T1", "08:00:00", "08:00:00", "S_d", "1"], // satır 6  (seq=1 #2 dup)
-                vec!["T1", "08:10:00", "08:10:00", "S_b", "2"], // satır 7
+                vec!["T2", "09:02:00", "09:02:00", "S_B", "2"], // row 2 (T2 = idx 0)
+                vec!["T1", "08:30:00", "08:30:00", "S_a", "3"], // row 3 (T1 = idx 1)
+                vec!["T2", "09:01:00", "09:01:00", "S_A", "1"], // row 4
+                vec!["T1", "08:00:00", "08:00:00", "S_c", "1"], // row 5 (seq=1 #1)
+                vec!["T1", "08:00:00", "08:00:00", "S_d", "1"], // row 6 (seq=1 #2 dup)
+                vec!["T1", "08:10:00", "08:10:00", "S_b", "2"], // row 7
             ],
         );
         let (idx, _) = validate_stop_times(&file, None, false);
@@ -5375,9 +5367,8 @@ mod tests {
 
     #[test]
     fn stm_038_equal_windows_are_reported() {
-        // Sıfır uzunluklu pencere: MobilityData "strictly later" ister ve kural
-        // Interop'tur. Kod 2026-08-18'e kadar yalnız `>` bakıyordu; `mdb-2741`'de
-        // MD 38 bulgu verirken bizde 0'dı.
+        // Zero-length window: MobilityData requires "strictly later" and the rule is Interop.
+        // Until 2026-08-18 the code checked only `>`; in `mdb-2741` MD produced 38 findings while we produced 0.
         let file = make_file(
             vec![
                 "trip_id",
@@ -5418,18 +5409,18 @@ mod tests {
         );
     }
 
-    /// STM_034 "yalnız biri tanımlı" der — DOLULUK hakkında. Bozuk değer "yok" DEĞİLDİR.
+    /// STM_034 says "exactly one is defined"—about PRESENCE. A malformed value is NOT "absent".
     ///
-    /// 🔴 Regresyon: `arrival_time`/`departure_time` parse hatasında `None` döner ve kural
-    /// bunu boş alanla aynı saydığı sürece dolu bir satır için asimetri uydurur. Aynı satırda
-    /// STM_003/STM_004 zaten gerçek kusuru bildirir; ikinci ve YANLIŞ bulgu üretilmemeli.
-    /// STM_015/016 mdb-2727'de bu hatayı 101.621 kez yapmıştı.
+    /// 🔴 Regression: a parse error in `arrival_time`/`departure_time` returns `None`, and while
+    /// the rule treats that as an empty field it invents asymmetry for a populated row. STM_003/STM_004
+    /// already report the real defect on the same row; no second, WRONG finding should be emitted.
+    /// STM_015/016 made this mistake 101,621 times in mdb-2727.
     #[test]
     fn stm_034_does_not_fire_when_one_time_is_present_but_malformed() {
-        // 🔴 VAKA SEÇİMİ ÖNEMLİ: iki alan da bozuksa kural zaten susar, o yüzden böyle bir
-        // fixture kapıyı SINAMAZ (ilk yazımda bu hatayı yaptım ve boz-testi yakaladı).
-        // Yanlış pozitifin gerçek şekli: BİRİ bozuk, DİĞERİ geçerli — eski kod bunu
-        // "(None, Some)" olarak görüp asimetri uyduruyordu.
+        // 🔴 CASE SELECTION MATTERS: if both fields are malformed the rule is already silent, so such a
+        // fixture cannot TEST the gate (I made this mistake in the first version and the break-test caught it).
+        // The real false-positive shape: ONE malformed, the OTHER valid—the old code saw this as
+        // "(None, Some)" and invented asymmetry.
         let file = make_file(
             vec![
                 "trip_id",
@@ -5452,7 +5443,7 @@ mod tests {
         );
     }
 
-    /// Gerçekten tek taraflı boşlukta STM_034 hâlâ ateşlemeli — kapı fazla geniş olmamalı.
+    /// STM_034 must still fire for genuinely one-sided emptiness—the gate must not be too broad.
     #[test]
     fn stm_034_still_fires_when_one_side_is_genuinely_empty() {
         let file = make_file(
@@ -5473,7 +5464,7 @@ mod tests {
         );
     }
 
-    /// STM_047 "timepoint=1 ama iki zaman da tanımlı değil" der; bozuk değer tanımsız değildir.
+    /// STM_047 says "timepoint=1 but neither time is defined"; a malformed value is not undefined.
     #[test]
     fn stm_047_does_not_fire_when_times_are_present_but_malformed() {
         let file = make_file(
@@ -5495,7 +5486,7 @@ mod tests {
         );
     }
 
-    /// Gerçekten boş iki alan + timepoint=1 → STM_047 ateşlemeli.
+    /// Two genuinely empty fields + timepoint=1 → STM_047 must fire.
     #[test]
     fn stm_047_still_fires_when_both_times_are_genuinely_empty() {
         let file = make_file(
@@ -5519,8 +5510,8 @@ mod tests {
 
     #[test]
     fn stm_058_malformed_window_is_reported_not_swallowed() {
-        // Eskiden `.ok().flatten()` hatayı yutuyordu: hiç bulgu çıkmıyor, değer kayboluyor
-        // ve STM_038 karşılaştıracak bir şey bulamadığı için o da susuyordu.
+        // `.ok().flatten()` used to swallow the error: no finding was emitted, the value disappeared,
+        // and STM_038 also stayed silent because it had nothing to compare.
         let file = make_file(
             vec![
                 "trip_id",
@@ -5557,7 +5548,7 @@ mod tests {
                 "start_pickup_drop_off_window",
                 "end_pickup_drop_off_window",
             ],
-            vec![vec!["T1", "", "1", "09:00:00", "25:30:00"]], // 24:00 üstü GTFS'te geçerli
+            vec![vec!["T1", "", "1", "09:00:00", "25:30:00"]], // above 24:00 is valid in GTFS
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         assert!(
@@ -5663,10 +5654,10 @@ mod tests {
                 "pickup_booking_rule_id",
             ],
             vec![
-                vec!["T1", "S1", "1", "2", "0", ""], // pickup_type=2, kural yok → say
-                vec!["T2", "S1", "1", "0", "2", ""], // drop_off_type=2, kural yok → say
-                vec!["T3", "S1", "1", "2", "0", "BR1"], // kural var → sessiz
-                vec!["T4", "S1", "1", "0", "0", ""], // enum 2 değil → sessiz
+                vec!["T1", "S1", "1", "2", "0", ""], // pickup_type=2, no rule → count
+                vec!["T2", "S1", "1", "0", "2", ""], // drop_off_type=2, no rule → count
+                vec!["T3", "S1", "1", "2", "0", "BR1"], // rule exists → silent
+                vec!["T4", "S1", "1", "0", "0", ""], // not enum 2 → silent
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, true);
@@ -5676,8 +5667,8 @@ mod tests {
 
     #[test]
     fn stm_059_silent_without_booking_rules_file() {
-        // booking_rules.txt yoksa bir id yazmak FK'yı kırardı (BKR_017) → tavsiye uygulanamaz.
-        // Ölçümde bu kapı olmadan 97.355 satır çıkmıştı; kapıyla 27.
+        // Writing an ID without booking_rules.txt would break the FK (BKR_017) → recommendation cannot apply.
+        // The measurement produced 97,355 rows without this gate and 27 with it.
         let file = make_file(
             vec!["trip_id", "stop_id", "stop_sequence", "pickup_type"],
             vec![vec!["T1", "S1", "1", "2"]],
@@ -5691,8 +5682,8 @@ mod tests {
 
     #[test]
     fn stm_059_and_stm_040_measure_different_rows() {
-        // STM_040 Flex PENCERESİNE bakar, STM_059 talep-üzerine ENUM DEĞERİNE.
-        // Penceresiz dial-a-ride satırı STM_040'ta sessizdi — boşluk buydu.
+        // STM_040 checks the Flex WINDOW, STM_059 the on-demand ENUM VALUE.
+        // A windowless dial-a-ride row was silent in STM_040—that was the gap.
         let file = make_file(
             vec![
                 "trip_id",
@@ -5703,8 +5694,8 @@ mod tests {
                 "end_pickup_drop_off_window",
             ],
             vec![
-                vec!["T1", "S1", "1", "2", "", ""],               // yalnız STM_059
-                vec!["T2", "", "1", "0", "08:00:00", "10:00:00"], // yalnız STM_040
+                vec!["T1", "S1", "1", "2", "", ""],               // STM_059 only
+                vec!["T2", "", "1", "0", "08:00:00", "10:00:00"], // STM_040 only
             ],
         );
         let (_, notices) = validate_stop_times(&file, None, true);

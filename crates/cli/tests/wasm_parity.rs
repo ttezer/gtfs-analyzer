@@ -1,15 +1,14 @@
-//! Native ↔ WASM parite referansı.
+//! Native ↔ WASM parity reference.
 //!
-//! `tests/fixtures/wasm-parity/cases.json` vakalarını gerçek CLI ile koşar ve notice'ların
-//! karşılaştırılan alanlarını `expected.json` ile kıyaslar. SDK tarafı
-//! (`sdk/scripts/parity-test.mjs`) AYNI vakaları WASM'da koşup AYNI dosyayla kıyaslar;
-//! ikisi de eşleşirse native ve WASM birbirine eşittir. Böylece CI'da iki runtime aynı
-//! job'da derlenmek zorunda kalmaz.
+//! Runs `tests/fixtures/wasm-parity/cases.json` cases through the real CLI and compares the
+//! selected notice fields with `expected.json`. The SDK side (`sdk/scripts/parity-test.mjs`)
+//! runs the SAME cases in WASM and compares against the SAME file; if both match, native and
+//! WASM are equivalent. CI therefore does not need to build both runtimes in one job.
 //!
-//! 2026-09-30: 22 feed-level toplulama yalnız native'de çalışıyordu; native CLI koşan
-//! korpus denetimi WASM sapmasını göremediği için hata yayına çıktı. Bu kapı onu yakalar.
+//! 2026-09-30: 22 feed-level aggregations ran only natively; the corpus audit running the native
+//! CLI could not see WASM drift, so the defect reached release. This gate catches it.
 //!
-//! Beklenen çıktıyı yeniden üretmek (bilinçli davranış değişikliğinde):
+//! Regenerate expected output (for an intentional behavior change):
 //! `GTFS_BLESS_PARITY=1 cargo test -p gtfs-analyzer --test wasm_parity`
 
 use std::io::Write as _;
@@ -19,8 +18,9 @@ use std::process::{Command, Stdio};
 use serde_json::{json, Map, Value};
 use zip::write::SimpleFileOptions;
 
-/// Karşılaştırılan notice alanları. `id` bilinçli olarak yok: K7 numaralandırması
-/// cap'lenmiş listeden yapılır. SDK betiği aynı listeyi kullanır.
+/// Notice fields compared. `id` is deliberately omitted: K7 numbering is built from the
+/// capped list. The SDK script uses the same list.
+/// The comparison intentionally includes reports, summaries, and notices.
 const FIELDS: &[&str] = &[
     "rule_id",
     "severity",
@@ -66,7 +66,7 @@ fn run_cli(zip: &[u8], today: &str) -> Value {
         .expect("gtfs-analyzer başlatılamadı");
     child.stdin.take().unwrap().write_all(zip).unwrap();
     let out = child.wait_with_output().unwrap();
-    // 0 = temiz, 1 = yayın engeli; ikisi de geçerli sonuçtur.
+    // 0 = clean, 1 = publication blocker; both are valid results.
     assert!(
         matches!(out.status.code(), Some(0 | 1)),
         "CLI beklenmeyen çıkış: {:?}\n{}",
@@ -76,7 +76,7 @@ fn run_cli(zip: &[u8], today: &str) -> Value {
     serde_json::from_slice(&out.stdout).expect("CLI çıktısı JSON değil")
 }
 
-/// SDK betiğindeki `project` ile birebir aynı olmalı.
+/// Must be identical to `project` in the SDK script.
 fn project(result: &Value) -> Value {
     let mut notices: Vec<Value> = result["notices"]
         .as_array()
@@ -100,8 +100,8 @@ fn project(result: &Value) -> Value {
     })
 }
 
-/// `case` ile `base` notice çoklukümeleri arasındaki fark (her iki yönde, sıralı).
-/// SDK betiğindeki `diff` ile birebir aynı olmalı.
+/// Difference between the `case` and `base` notice multisets (both directions, ordered).
+/// Must be identical to `diff` in the SDK script.
 fn diff(case: &Value, base: &Value) -> Value {
     let key = |n: &Value| n.to_string();
     let mut remaining: Vec<&Value> = base["notices"].as_array().unwrap().iter().collect();
@@ -143,15 +143,15 @@ fn native_output_matches_the_shared_parity_reference() {
     let today = cases["today"].as_str().unwrap();
     let base_files = cases["base"].as_object().unwrap();
 
-    // Taban feed'in bulguları her vakada tekrar eder; bir kez saklanır, vakalar yalnız
-    // farkı taşır. Taban eşit VE fark eşitse tüm küme eşittir.
+    // The base feed's findings repeat in every case; store them once, and let cases carry only
+    // the difference. If the base and the difference match, the entire set matches.
     let base = project(&run_cli(&make_zip(&files_of(base_files, None)), today));
     let mut by_case = Map::new();
     for case in cases["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
         let projected = project(&run_cli(&make_zip(&files_of(base_files, Some(&case["files"]))), today));
 
-        // Vaka amacını kaybetmesin: hedef kural ateşlemeli.
+        // Keep the case meaningful: the target rule must fire.
         let rule = case["rule"].as_str().unwrap();
         assert!(
             projected["notices"]

@@ -1,13 +1,13 @@
-//! RULES.md / RULES.en.md / RULES.ja.md dosyalarını registry'den yeniden üretir.
+//! Regenerates RULES.md / RULES.en.md / RULES.ja.md from the registry.
 //!
-//! Tek doğruluk kaynağı `registry.rs` (`RULES`). Kural başlıkları:
-//! - TR: registry `title` alanı.
-//! - EN/JA: `ui/src/locales/{en,ja}.ts` `ruleTitles:` bloğundan.
+//! The single source of truth is `registry.rs` (`RULES`). Rule titles come from:
+//! - TR: the registry `title` field.
+//! - EN/JA: the `ruleTitles:` block in `ui/src/locales/{en,ja}.ts`.
 //!
-//! Grup açıklamaları (`## ARC — ...`) mevcut RULES dosyalarından korunur (registry'de yok).
+//! Group descriptions (`## ARC — ...`) are preserved from the existing RULES files (they are not in the registry).
 //!
-//! Çalıştır: cargo run -p gtfs-rules --example gen_rules
-//! Bu, manuel RULES drift'ini (kural sayısı + eksik kurallar) kalıcı olarak çözer.
+//! Run: cargo run -p gtfs-rules --example gen_rules
+//! This permanently resolves manually maintained RULES drift (rule counts + missing rules).
 
 use gtfs_rules::{RuleMeta, RULES};
 use std::collections::BTreeMap;
@@ -24,7 +24,7 @@ fn group_of(id: &str) -> &str {
     id.split('_').next().unwrap_or(id)
 }
 
-// severity enum (Debug adı) → [TR, EN, JA]
+// Severity enum (Debug name) → [TR, EN, JA]
 fn sev4(s: &str) -> [&'static str; 4] {
     match s {
         "Kritik" => ["KRİTİK", "CRITICAL", "致命的", "CRITIQUE"],
@@ -35,7 +35,7 @@ fn sev4(s: &str) -> [&'static str; 4] {
         _ => ["?", "?", "?", "?"],
     }
 }
-// class enum (Debug adı) → [TR, EN, JA, FR]
+// Class enum (Debug name) → [TR, EN, JA, FR]
 fn cls4(c: &str) -> [&'static str; 4] {
     match c {
         "Spec" => ["Spec", "Spec", "仕様", "Spec"],
@@ -60,7 +60,7 @@ fn parse_groups(md: &str) -> BTreeMap<String, String> {
     m
 }
 
-/// locale .ts dosyasındaki `ruleTitles: { 'ID': 'title', ... }` bloğunu okur.
+/// Reads the `ruleTitles: { 'ID': 'title', ... }` block from a locale .ts file.
 fn parse_titles(ts: &str) -> BTreeMap<String, String> {
     let mut m = BTreeMap::new();
     let mut in_block = false;
@@ -75,8 +75,8 @@ fn parse_titles(ts: &str) -> BTreeMap<String, String> {
         if t == "}," || t == "}" {
             break;
         }
-        // Satır biçimi: `'ID': 'title',` — ama hizalama için çift boşluk (`':  '`)
-        // ve bazı değerler çift tırnak (`"..."`) kullanabilir. Boşluk/tırnak-duyarsız ayrıştır.
+        // Line format: `'ID': 'title',` — but alignment may use two spaces (`':  '`)
+        // and some values may use double quotes (`"..."`). Parse without depending on spacing or quote style.
         if let Some((idp, valp)) = t.split_once(':') {
             let id = idp.trim().trim_matches(|c| c == '\'' || c == '"').trim();
             let v = valp.trim().trim_end_matches(',').trim();
@@ -98,7 +98,7 @@ struct Lang {
     idx: usize,
     title_hdr: &'static str, // `# ...`
     nav: &'static str,
-    intro: &'static str,     // {n}/{g} placeholder'lı 3 satır
+    intro: &'static str,     // Three lines containing {n}/{g} placeholders.
     table_hdr: &'static str, // `| Rule | Title | Severity | Class |`
     groups: BTreeMap<String, String>,
     titles: Option<BTreeMap<String, String>>, // None = registry.title (TR)
@@ -116,7 +116,7 @@ fn main() {
     let t_ja = parse_titles(&rd("ui/src/locales/ja.ts"));
     let t_fr = parse_titles(&rd("ui/src/locales/fr.ts"));
 
-    // registry sırası: grupların ilk görülme sırası + grup içi kural sırası
+    // Registry order: first-seen group order, then rule order within each group.
     let mut group_order: Vec<&str> = vec![];
     let mut by_group: BTreeMap<&str, Vec<&RuleMeta>> = BTreeMap::new();
     for r in RULES.iter() {
@@ -214,11 +214,11 @@ fn main() {
     if missing_titles.is_empty() {
         println!("Tüm başlıklar locale'den çözüldü.");
     } else {
-        // Eksik başlık registry'nin TÜRKÇE metnine düşer ve o metin dosyaya YAZILIR.
-        // `rules_doc_drift` başlık sütununu yalnız RULES.md için doğruladığından
-        // (turkish_rules_doc_titles_match_registry_titles), sızıntı hiçbir testi
-        // kırmazdı. Bu yüzden generator burada durur: yarım çevrilmiş bir locale ile
-        // RULES.<lang>.md üretmek sessiz bir Türkçe sızıntısıdır.
+        // A missing title falls back to the registry's TURKISH text, and that text is WRITTEN to the file.
+        // Because `rules_doc_drift` checks the title column only for RULES.md
+        // (turkish_rules_doc_titles_match_registry_titles), the leak would not
+        // break any test. The generator therefore stops here: generating RULES.<lang>.md
+        // with a partially translated locale would silently leak Turkish text.
         eprintln!(
             "HATA: locale'de başlığı bulunamayan (TR'ye düşen) {} kural:",
             missing_titles.len()

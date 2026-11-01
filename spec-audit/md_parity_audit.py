@@ -27,204 +27,201 @@ from collections import Counter, defaultdict
 
 from md_parity_mapping import BY_DESIGN, classify_unmapped, resolve_mapping
 
-# ── KANONİK MAP: MD kodu → bizim kural(lar) ──────────────────────────────────
-# Bu oturumda (2026-07-02/03) doğrulanan eşlemeler. MAP'te OLMAYAN MD kodu
-# otomatik "MD-ONLY" kovasına düşer = kapsam-eksiği review kuyruğu (bilerek).
-# Yeni eşleme eklerken: önce kuralın GERÇEKTEN aynı şeyi ölçtüğünü doğrula.
+# ── CANONICAL MAP: MD code → our rule(s) ──────────────────────────────────
+# Mappings verified in this session (2026-07-02/03). An MD code NOT IN MAP
+# automatically falls into the "MD-ONLY" bucket = coverage-gap review queue (deliberately).
+# Before adding a mapping: first verify that the rule REALLY measures the same thing.
 MAP = {
-    # ── Archive / dosya-sütun yapısı ──
+    # ── Archive / file-column structure ──
     "missing_required_column":  ["ARC_025"],
     "missing_recommended_file": ["ARC_020"],
-    "unknown_file":             ["ARC_007"],   # NOT: GTFS-JP agency_jp/office_jp → biz tanırız, MD bilmez
-    "unknown_column":           ["ARC_017"],   # NOT: jp_* sütunları → biz tanırız
+    "unknown_file":             ["ARC_007"],   # NOTE: GTFS-JP agency_jp/office_jp → we know them, MD does not
+    "unknown_column":           ["ARC_017"],   # NOTE: jp_* columns → we know them
     "invalid_row_length":        ["ARC_012"],
     "missing_required_file":     ["ARC_004"],
     "missing_calendar_and_calendar_date_files": ["ARC_008"],
     "invalid_input_files_in_subfolder": ["ARC_024"],
     # ── Routes ──
-    "duplicate_route_name":     ["RTS_019"],   # HEM short HEM long aynı. Tek-alan → RTS_026/027 (US-only, MD'de yok)
+    "duplicate_route_name":     ["RTS_019"],   # BOTH short AND long are the same. Single-field → RTS_026/027 (US-only, absent in MD)
     "same_route_and_agency_url":["RTS_020"],
     # ── Stops ──
     "same_name_and_description_for_stop": ["STP_031"],
     "stop_without_stop_time":   ["STP_020"],
     # ── Calendar ──
-    # Exact-parity taşıyıcısı CAL_007'dir. CAL_012 aynı boşluğun yakın-gelecek
-    # kullanıcı etkisi görünümüdür; aynı MD koduna ikinci kez bağlanmaz.
-    "big_gap_in_service":       ["CAL_007"],  # PER-SERVICE, eşik big_gap_days=14
-    # CAL_013 servisin BİRLEŞİK aktif tarih kümesine bakar (calendar + calendar_dates);
-    # MD ise calendar.txt end_date ve exception semantiğini servis düzeyinde değerlendirir.
-    # CAL_009 yalnızca bizim feed-seviyesi calendar.txt özetimizdir; exact parity taşıyıcısı
-    # değildir. CAL_024 ise "önümüzdeki 7 günde aktif değil" sorusudur; MD'nin
-    # expired_calendar koduyla kapsamı aynı değildir ve kendi yakın karşılığı TRP_023'tür.
+    # CAL_007 is the exact-parity owner. CAL_012 is the near-future user-impact view of the
+    # same gap; it must not be attached to the same MD code a second time.
+    "big_gap_in_service":       ["CAL_007"],  # PER-SERVICE, threshold big_gap_days=14
+    # CAL_013 examines the service's COMBINED active-date set (calendar + calendar_dates);
+    # MD evaluates calendar.txt end_date and exception semantics at service level.
+    # CAL_009 is only our feed-level calendar.txt summary; it is not the exact-parity owner.
+    # CAL_024 asks "not active in the next 7 days"; its scope differs from MD's expired_calendar
+    # code and its closest counterpart is TRP_023.
     "expired_calendar":         ["CAL_013"],
     # #123: whitespace-wrapped weekday zeros are parsed for the weekly decision while
     # DQ_016 remains the lexical root; mdb-2830 replay recovered MD's 12 services.
     "service_has_no_active_day_of_the_week": ["CAL_006"],
-    "service_extends_far_in_the_future":     ["CAL_023"],  # EŞİK FARKI: biz max_calendar_future_years=3 (yıl-granüler, tutucu); MD ~1-2y daha agresif → 2028'i işaretler biz etmeyiz. Configurable, by-design.
-    "service_window_outside_feed_period":    ["CAL_014"],  # 2026-10-11: CAL_019/XFL_011 emekli; aktif-tarih semantiği tek taşıyıcı
+    "service_extends_far_in_the_future":     ["CAL_023"],  # THRESHOLD DIFFERENCE: ours max_calendar_future_years=3 (year-granular, conservative); MD ~1–2y more aggressive → marks 2028, ours does not. Configurable, by design.
+    "service_window_outside_feed_period":    ["CAL_014"],  # 2026-10-11: CAL_019/XFL_011 retired; active-date semantics have one owner
     # ── Shapes ──
-    "decreasing_shape_distance":            ["SHP_005"],   # sequence-sıralı monotonluk
-    "stop_too_far_from_shape":              ["SHP_012"],   # geometrik en-yakın-nokta
-    "stop_too_far_from_shape_using_user_distance": ["SHP_024"],  # DÜZELTİLDİ: shape_dist_traveled konumu (SHP_012 değil). 20-feed: SHP_024=479 vs MD 721 (~eşleşme)
+    "decreasing_shape_distance":            ["SHP_005"],   # sequence-ordered monotonicity
+    "stop_too_far_from_shape":              ["SHP_012"],   # geometrically nearest point
+    "stop_too_far_from_shape_using_user_distance": ["SHP_024"],  # FIXED: shape_dist_traveled position (not SHP_012). 20-feed: SHP_024=479 vs MD 721 (~match)
     "stops_match_shape_out_of_order":       ["SHP_017"],
     "unused_shape":                         ["SHP_018"],
-    "equal_shape_distance_same_coordinates":["SHP_023"],   # tekrar-nokta
-    "equal_shape_distance_diff_coordinates":["SHP_028"],   # eşik ÜSTÜ = gerçek hata
-    "equal_shape_distance_diff_coordinates_distance_below_threshold": ["SHP_029"],  # eşik ALTI = yuvarlama
+    "equal_shape_distance_same_coordinates":["SHP_023"],   # repeated point
+    "equal_shape_distance_diff_coordinates":["SHP_028"],   # ABOVE threshold = real error
+    "equal_shape_distance_diff_coordinates_distance_below_threshold": ["SHP_029"],  # BELOW threshold = rounding
     "trip_with_shape_dist_traveled_but_no_shape_distances": ["SHP_030"],
-    "single_shape_point":          ["SHP_006"],  # near-parity: yalnız kullanılan shape'ler
-    # fare_products.txt::amount para birimi ondalık hassasiyetine uymuyor. Eşlemesizdi ve
-    # 11 feed "kuralımız yok" gibi görünüyordu; koşumda 11'in 11'i de FPD_007 alıyor (#146).
-    # ⚠️ FAR_013 2026-09-11'de BU EŞLEMEDEN ÇIKARILDI. MD'nin kodu YALNIZ
-    # `fare_products.amount`'u denetler (16. koşumda 11 feed'in örneklerinin HEPSİ öyle) ve
-    # `FAR_013` `fare_attributes.price`'a bakar — MD'nin hiç kuralı olmayan bir alan.
-    # 394 feed'in HİÇBİRİNDE Fares V2 yok, yani MD'nin kuralı yapısal olarak ateşleyemez.
-    # Eşleme dururken denetim her koşumda 394 sahte `..._md_absent` üretiyordu.
+    "single_shape_point":          ["SHP_006"],  # near-parity: used shapes only
+    # fare_products.txt::amount does not follow the currency's decimal precision. It was unmapped,
+    # making 11 feeds look like "we have no rule"; all 11 received FPD_007 in the run (#146).
+    # ⚠️ FAR_013 was REMOVED FROM THIS MAPPING on 2026-09-11. MD's code checks ONLY
+    # `fare_products.amount` (all samples from 11 feeds in run 16 did so), while `FAR_013` checks
+    # `fare_attributes.price` — a field for which MD has no rule.
+    # None of the 394 feeds has Fares V2, so MD's rule cannot fire structurally.
+    # While the mapping remained, the audit emitted 394 false `..._md_absent` findings every run.
     "invalid_currency_amount":     ["FPD_007"],
-    # Aşağıdaki altı kod eşlemesizdi ve "kuralımız yok" gibi sayılıyordu; her biri tam
-    # katalog koşumunda DOĞRULANDI — adayın o feed'lerde gerçekten ateşlediği ölçüldü (#146).
+    # The following six codes were unmapped and counted as "we have no rule"; each was VERIFIED
+    # in the full-catalog run — the candidate was measured to fire on those feeds (#146).
     "missing_required_agency_id":       ["AGN_011"],  # 9/9 feed
     "missing_prior_notice_duration_min": ["BKR_007"],  # 10/10 feed
     "feed_info_lang_and_agency_lang_mismatch": ["AGN_013"],  # 12/12 feed
-    "missing_trip_edge":                ["STM_015", "STM_016"],  # ilk/son durak arrival/departure
-    "empty_file":                       ["ARC_009", "ARC_035"],  # zorunlu → ARC_035 (2026-08-31), opsiyonel → ARC_009
+    "missing_trip_edge":                ["STM_015", "STM_016"],  # first/last stop arrival/departure
+    "empty_file":                       ["ARC_009", "ARC_035"],  # required → ARC_035 (2026-08-31), optional → ARC_009
     "invalid_color":                    ["RTS_006", "RTS_007"],  # route_color / route_text_color
-    # STP_003/STP_005 GEÇERSİZ değeri ölçer (parse edilebiliyorsa aralık kontrolü);
-    # BOŞ koordinatın sahibi STP_006/STP_007'dir. 7/7 feed doğrulandı — boşluk YOKTU,
-    # yalnız eşleme eksikti.
+    # STP_003/STP_005 measure INVALID values (range checks when parseable);
+    # STP_006/STP_007 own EMPTY coordinates. All 7/7 feeds were verified — there was no gap,
+    # only a missing mapping.
     "stop_without_location":            ["STP_006", "STP_007"],
-    # ── #147 turu: eşlemesiz 26 kodun 13'ü, her biri korpusta DOĞRULANDI (#155).
-    # Yöntem: aday kuralı ada göre değil, MD'nin raporladığı feed'lerde GERÇEKTEN
-    # ateşleyip ateşlemediğine göre seç. Ateşlemiyorsa eşleme YAZILMAZ.
+    # ── #147 round: 13 of 26 unmapped codes, each VERIFIED in the corpus (#155).
+    # Method: select the candidate rule not by name but by whether it REALLY fires on the feeds
+    # reported by MD. If it does not fire, DO NOT WRITE THE MAPPING.
     "route_both_short_and_long_name_missing": ["RTS_003"],      # 2/2 feed
     "missing_stop_name":                ["STP_003"],            # 2/2
     "inconsistent_agency_timezone":     ["AGN_005"],            # 2/2
     "invalid_language_code":            ["AGN_006"],            # 1/1
-    "fast_travel_between_far_stops":    ["STM_061"],  # >10 km ayrık, ardışık OLMAYAN çift — #168'de yazıldı
+    "fast_travel_between_far_stops":    ["STM_061"],  # >10 km apart, NON-CONSECUTIVE pair — added in #168
     "invalid_prior_notice_duration_min": ["BKR_006"],  # birebir (#165)
     "forbidden_prior_notice_start_day": ["BKR_024"],   # MD: "forbidden when prior_notice_duration_max is set" (#165)
     "unsupported_geometry_type":        ["LOC_001"],   # locations.geojson geometri tipi (#165)
     "fare_transfer_rule_duration_limit_without_type": ["FTR_011"],  # birebir (#165)
     "fare_product_with_multiple_default_rider_categories": ["RCT_006"],  # birebir (#165)
-    "forbidden_prior_day_booking_field_value": ["BKR_001"],  # önceki gün rezervasyon alanı yasak (#165)
-    # 17. korpus koşumu (2026-09-11): iki kod `md_unmapped` kovasında duruyordu.
-    # `mdb-2796`/`mdb-2926`: MD `forbidden_pickup_type` 5 ↔ bizim `STM_051` 5 — BİREBİR.
+    "forbidden_prior_day_booking_field_value": ["BKR_001"],  # prior-day booking field value forbidden (#165)
+    # Corpus run 17 (2026-09-11): two codes remained in the `md_unmapped` bucket.
+    # `mdb-2796`/`mdb-2926`: MD `forbidden_pickup_type` 5 ↔ our `STM_051` 5 — EXACT.
     "forbidden_pickup_type":            ["STM_051"],
-    # ⚠️ `forbidden_drop_off_type` eşlemesi AÇIK BİR SORU ORTAYA ÇIKARIR ve bilerek öyle bırakıldı:
-    # aynı iki feed'de MD 5 diyor, `STM_052` 0 diyor. Spec ayrımı şu: `pickup_type` için 0 VE 3
-    # yasak, `drop_off_type` için YALNIZ 0 (`P56388e97` / `P4280b626`). Satırlarda değer 3 ise
-    # MD fazla iddia ediyor, 0 ise bizde kör nokta var. Feed indirilmeden karara bağlanamaz.
+    # ⚠️ The `forbidden_drop_off_type` mapping raises an OPEN QUESTION and is deliberately left so:
+    # MD says 5 on the same two feeds, while `STM_052` says 0. The Spec distinction is: 0 AND 3
+    # are forbidden for `pickup_type`, ONLY 0 for `drop_off_type` (`P56388e97` / `P4280b626`).
+    # If the row value is 3, MD overclaims; if 0, we have a blind spot. Cannot decide without the feed.
     "forbidden_drop_off_type":          ["STM_052"],
-    "transfer_with_invalid_trip_and_route": ["TRF_017", "XFL_020"],  # XFL_020 aynı olgunun (trip,route) çifti (#165)
+    "transfer_with_invalid_trip_and_route": ["TRF_017", "XFL_020"],  # XFL_020 is the (trip,route) pair for the same phenomenon (#165)
     "invalid_timezone":                 ["AGN_004"],            # 1/1
-    "inconsistent_agency_lang":         ["AGN_017", "AGN_013"], # 4/4 ikisi de
-    "new_line_in_value":                ["ARC_030"],            # 3/3 — sekme/CR/LF yasağı
+    "inconsistent_agency_lang":         ["AGN_017", "AGN_013"], # 4/4 both
+    "new_line_in_value":                ["ARC_030"],            # 3/3 — tab/CR/LF forbidden
     "translation_unknown_table_name":   ["TRN_001"],            # 2/2
-    "translation_foreign_key_violation": ["TRN_016"],  # "field_value hiçbir kayıtla eşleşmiyor" — MD: record_id/record_sub_id ile varlık bulunamıyor (#165)
-    "translation_unexpected_value":     ["TRN_013"],  # "bu bağlamda dolu olmamalı" — MD: "a field has value but must be empty" (#165)
+    "translation_foreign_key_violation": ["TRN_016"],  # "field_value matches no record" — MD: entity cannot be found by record_id/record_sub_id (#165)
+    "translation_unexpected_value":     ["TRN_013"],  # "must not be populated in this context" — MD: "a field has value but must be empty" (#165)
     "stop_time_with_only_arrival_or_departure_time": ["STM_034"],  # 1/1
     "missing_prior_notice_last_time":   ["BKR_009"],            # 1/1
-    "empty_column_name":                ["ARC_017"],            # 5/5 — boş başlık tanınmayan sütundur
-    # ⚠️ `PDW_006` 2026-09-12'de BU EŞLEMEDEN ÇIKARILDI. MD'nin kodu pencerenin EKSİK olmasını
-    # ölçer; `PDW_006` ise aynı trip+zone'da pencerelerin ÖRTÜŞMESİNİ ölçer — başka olgu.
-    # Doğru karşılık `STM_039` ("Flex bağlamında pickup/drop_off penceresi eksik"). Çelişki
-    # betiğin kendi içinde duruyordu: alt satırın yorumu zaten "PDW_006 ÖRTÜŞME ölçer, bu değil"
-    # diyordu ama üst satır onu yine o koda bağlıyordu. 17. koşumda eşleme 75 sahte
-    # `analyzer_mapped_md_absent` vakası üretiyordu (kovanın %24'ü).
+    "empty_column_name":                ["ARC_017"],            # 5/5 — empty header is an unknown column
+    # ⚠️ `PDW_006` was REMOVED FROM THIS MAPPING on 2026-09-12. MD's code measures a MISSING
+    # window; `PDW_006` measures OVERLAPPING windows in the same trip+zone — a different phenomenon.
+    # The correct counterpart is `STM_039` ("pickup/drop_off window missing in Flex context").
+    # The contradiction was inside the script: the lower comment already said "PDW_006 measures
+    # OVERLAP, not this", but the upper row still attached it to that code. In run 17 the mapping
+    # produced 75 false `analyzer_mapped_md_absent` findings (24% of the bucket).
     "missing_pickup_or_drop_off_window": ["STM_039"],
-    "invalid_pickup_drop_off_window":   ["STM_038"],            # ters/sıfır pencere; PDW_006 ÖRTÜŞME ölçer, bu değil
-    # İlk aday turunda "hiçbiri" çıkmıştı çünkü YANLIŞ aday seçmiştim (FTR_002 =
-    # from_leg_group_id bulunamadı, FK kuralı). Doğru kurallar leg-grubu koşulunu
-    # ölçenler: aynıysa transfer_count ZORUNLU, farklıysa YASAK.
+    "invalid_pickup_drop_off_window":   ["STM_038"],            # reversed/zero window; PDW_006 measures OVERLAP, not this
+    # The first candidate round returned "none" because I selected the WRONG candidate (FTR_002 =
+    # from_leg_group_id missing, an FK rule). The correct rules measure the leg-group condition:
+    # transfer_count is REQUIRED when equal, and FORBIDDEN when different.
     "fare_transfer_rule_without_transfer_count":       ["FTR_009"],  # 4/4
     "fare_transfer_rule_with_forbidden_transfer_count": ["FTR_010"], # 2/2
-    "missing_level_id":                 ["LVL_006"],                 # 1/1 — asansör bağlantısı bağlamı
-    # ÜÇÜNCÜ aday turu (#147). Yine "hiçbiri ateşlemiyor" sonucu ADAY listesinden
-    # geliyordu: kurallar vardı, ben yanlış grupta ya da yanlış kimlikte aramıştım.
-    "invalid_email":                    ["FIN_008"],   # 1/1 — feed_contact_email; FIN_017/AGN_009 denemiştim
-    "attribution_without_role":         ["ATR_003"],   # 3/3 — "Attribution rolü tanımlanmamış"
-    "invalid_geometry":                 ["LOC_011"],   # 2/2 — ring kendini kesiyor / delik dışarıda
+    "missing_level_id":                 ["LVL_006"],                 # 1/1 — elevator connection context
+    # THIRD candidate round (#147). Again, the "none of them fires" result came from the
+    # CANDIDATE list: the rules existed, but I searched the wrong group or identity.
+    "invalid_email":                    ["FIN_008"],   # 1/1 — feed_contact_email; I had tried FIN_017/AGN_009
+    "attribution_without_role":         ["ATR_003"],   # 3/3 — "Attribution role is undefined"
+    "invalid_geometry":                 ["LOC_011"],   # 2/2 — ring self-intersects / hole is outside
     "bidirectional_exit_gate":          ["PTH_016"],   # 1/1
-    # ── Trips / bloklar ──
+    # ── Trips / blocks ──
     "trip_headsign_matches_intermediate_stop": ["TRP_020"],  # AGG: per-trip (MD per-occurrence)
-    "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; bizde ~eşleşir (aynı-gün blok)
+    "block_trips_with_overlapping_stop_times": ["TRP_022"],  # MD ERROR; approximately matches ours (same-day block)
     # ── Stop times ──
-    "missing_timepoint_value":  ["STM_050"],   # AGG: feed-özeti (MD per-row)
-    "decreasing_or_equal_stop_time_distance": ["STM_056"],  # MD ERROR ↔ stop_times.shape_dist_traveled monotonluğu
-    # DÜZELTİLDİ 2026-07-17: MD'nin TEK kodunu bizim İKİ kuralımız 700 km/h
-    # çizgisinden böler → STM_012 (>700, "fiziksel imkânsız", emit edip `continue`
-    # ile STM_014'ü gölgeler) + STM_014 (eşik..700). Yalnız STM_014'e eşlemek
-    # 963 km/h'lik segmentleri "kaçırdık" gösteriyordu. Kanıt: mdb-2015 bizim
-    # STM_012=78 ↔ MD 78 (birebir), mdb-3108 8 ↔ 8.
+    "missing_timepoint_value":  ["STM_050"],   # AGG: feed summary (MD per-row)
+    "decreasing_or_equal_stop_time_distance": ["STM_056"],  # MD ERROR ↔ stop_times.shape_dist_traveled monotonicity
+    # FIXED 2026-07-17: our TWO rules split MD's ONE code at 700 km/h
+    # → STM_012 (>700, "physically impossible", emits and `continue`s over STM_014)
+    # + STM_014 (threshold..700). Mapping only to STM_014 made 963 km/h segments appear missed.
+    # Evidence: mdb-2015 ours STM_012=78 ↔ MD 78 (exact), mdb-3108 8 ↔ 8.
     "fast_travel_between_consecutive_stops": ["STM_014", "STM_012"],
     # ── Quality / feed_info ──
-    "missing_recommended_field":["RTS_025", "FIN_007", "FIN_013", "FIN_018"],  # Generic kod; routes/fare/feed_info alanı sample context ile çözülür.
-    "mixed_case_recommended_field": ["DQ_018"],  # biz yalnız ALL-CAPS (bilinçli)
+    "missing_recommended_field":["RTS_025", "FIN_007", "FIN_013", "FIN_018"],  # Generic code; routes/fare/feed_info field resolved by sample context.
+    "mixed_case_recommended_field": ["DQ_018"],  # we check ALL-CAPS only (deliberate)
     "missing_feed_contact_email_and_url": ["FIN_018"],
-    # ── test2 (2. corpus) eşlemeleri ──
-    "duplicate_key":                  ["SHP_008"],   # shapes PK (shape_id,seq). BY-DESIGN agg: K2 6159 emit eder ama pipeline (rule,shape_id) başına dedup → 6 distinct shape (mdb-1935). MD per-row (6159). Bug DEĞİL.
+    # ── test2 (second corpus) mappings ──
+    "duplicate_key":                  ["SHP_008"],   # shapes PK (shape_id,seq). BY-DESIGN agg: K2 emits 6159 but pipeline deduplicates by (rule,shape_id) → 6 distinct shapes (mdb-1935). MD per-row (6159). Not a bug.
     "foreign_key_violation":          ["STM_002"],   # stop_times.stop_id→stops. BY-DESIGN agg: STM_002 distinct stop_id (4), MD per-occurrence (2886).
     "same_name_and_description_for_route": ["RTS_023"],
-    # ── 2026-07-03 20-feed taramasından eklenen eşlemeler ──
-    "non_ascii_or_non_printable_char": ["ARC_021", "ARC_037"],   # ARC_021 yazdırılamayan, ARC_037 ID'de ASCII dışı (dosya özeti)
+    # ── mappings added from the 2026-07-03 20-feed scan ──
+    "non_ascii_or_non_printable_char": ["ARC_021", "ARC_037"],   # ARC_021 non-printable, ARC_037 non-ASCII in ID (file summary)
     "unsorted_stop_times":            ["STM_036"],
     "leading_or_trailing_whitespaces":["DQ_016"],
     "missing_bike_allowance":         ["TRP_021"],
-    "route_short_name_too_long":      ["RTS_010"],     # RTS_010=MD birebir; RTS_021(Google 6-char) US-ONLY daha sıkı
+    "route_short_name_too_long":      ["RTS_010"],     # RTS_010=MD exact; RTS_021 (Google 6-char) is stricter and US-ONLY
     "route_long_name_contains_short_name": ["RTS_022"],
     "trip_coverage_not_active_for_next7_days": ["TRP_023"],
     "future_calendar":                ["CAL_017"],
     "future_feed":                    ["CAL_017"],
-    # MD tek kodla İKİ hâli birden sayar: süresi DOLMUŞ ve yakında DOLACAK. Bizde ayrık
-    # iki kural var (FIN_010 dolmuş · FIN_019 pencere içinde doluyor), o yüzden eşleme
-    # ikisine birden gider. Tek başına FIN_019'a bağlamak 841 feed'i sahte MISS yapıyordu:
-    # tam katalog koşumunda 841'in 837'si FIN_010 alıyor, 0'ı FIN_019 — MD'nin kendi
-    # örneklerinde de 841'in 839'u ZATEN DOLMUŞ feed'ler (#146).
+    # MD counts BOTH states under one code: already expired and expiring soon. We have separate
+    # rules (FIN_010 expired · FIN_019 expiring within the window), so the mapping goes to both.
+    # Mapping only to FIN_019 created a false MISS for 841 feeds: in the full-catalog run 837
+    # of 841 receive FIN_010, 0 receive FIN_019 — and 839 of MD's own 841 samples are ALREADY EXPIRED (#146).
     "feed_expiration_date7_days":     ["FIN_010", "FIN_019"],
     "same_stop_and_agency_url":       ["STP_034"],
     "same_stop_and_route_url":        ["STP_035"],
-    "platform_without_parent_station":["STP_032", "STP_045"],  # STP_045 platform_code+parent yok (feed özeti); STP_032 pathway peronu
-    # ── 20-feed 2. tur eşlemeleri (kuralımız VAR, MAP eksikti) ──
-    "route_color_contrast":           ["RTS_008"],     # over: biz 132 vs MD 3 (kontrast eşiği farkı)
-    # DÜZELTİLDİ 2026-07-17: MD'nin tek kodunu bizim İKİ kuralımız durak SAYISINA göre böler:
-    # 0 durak → XFL_002 ("seferin stop_times kaydı yok"), 1 durak → STM_033 ("tek duraklı").
-    # Yalnız STM_033'e eşlemek sıfır-duraklı seferleri "kaçırdık" gösteriyordu. Kanıt:
-    # mdb-2015/2036 XFL_002=13 ↔ MD 13, mdb-2381 XFL_002=35 ↔ MD 35 — hepsi BİREBİR
-    # (MD örneklerinin 13/13'ü gerçekten 0 stop_times'lı doğrulandı).
+    "platform_without_parent_station":["STP_032", "STP_045"],  # STP_045 platform_code+parent absent (feed summary); STP_032 pathway platform
+    # ── 20-feed second-round mappings (our rule EXISTS, MAP was missing) ──
+    "route_color_contrast":           ["RTS_008"],     # over: ours 132 vs MD 3 (contrast-threshold difference)
+    # FIXED 2026-07-17: our TWO rules split MD's one code by stop COUNT:
+    # 0 stops → XFL_002 ("trip has no stop_times record"), 1 stop → STM_033 ("single-stop").
+    # Mapping only to STM_033 made zero-stop trips appear missed. Evidence:
+    # mdb-2015/2036 XFL_002=13 ↔ MD 13, mdb-2381 XFL_002=35 ↔ MD 35 — all EXACT
+    # (13/13 MD samples were verified to have 0 stop_times rows).
     "unusable_trip":                  ["STM_033", "XFL_002"],
     "unused_trip":                    ["XFL_002"],
-    # DÜZELTİLDİ 2026-07-17: JENERİK kod → bizde alan başına AYRI kural var.
-    # 250-feed kanıtı: mdb-3230 direction_id=255 → TRP_005=26 ↔ MD 26 BİREBİR;
-    # mdb-2086 transfers=5 → FAR_005=6 ↔ MD 6 BİREBİR. Yalnız RTS_004'e eşlemek
-    # bu ikisini "kaçırdık" gösteriyordu.
+    # FIXED 2026-07-17: GENERIC code → we have a SEPARATE rule per field.
+    # 250-feed evidence: mdb-3230 direction_id=255 → TRP_005=26 ↔ MD 26 EXACT;
+    # mdb-2086 transfers=5 → FAR_005=6 ↔ MD 6 EXACT. Mapping only to RTS_004 made
+    # these two appear missed.
     "unexpected_enum_value":          ["RTS_004", "RTS_030", "TRP_005", "TRP_006", "TRP_007", "TRP_032", "FAR_005", "TRF_004", "RCT_003", "RTS_013", "RTS_018"],
     "unused_station":                 ["STP_030"],     # station without child ≈ unused_station (~19)
-    "trip_distance_exceeds_shape_distance": ["SHP_025"],  # VAR ama by-design: SHP_025 eşiği >%0.1 (rounding tolere, SHP_029 felsefesi). mdb-1909: 170 aşımın 165'i <%0.1 rounding → biz 5 doğru, MD 170 hepsini basar.
+    "trip_distance_exceeds_shape_distance": ["SHP_025"],  # EXISTS but by design: SHP_025 threshold >0.1% (tolerates rounding, SHP_029 philosophy). mdb-1909: 165 of 170 exceedances are <0.1% rounding → ours 5 correct, MD emits all 170.
     "trip_distance_exceeds_shape_distance_below_threshold": ["SHP_025"],
-    # ── 2026-07-05 DELFI (mdb-3215, Almanya ulusal) taramasından: MAP eksikleri (kuralımız VAR) ──
-    "number_out_of_range":            ["PTH_007", "STP_003", "STP_005", "SHP_002", "SHP_003", "RCT_004", "FRQ_008"],  # Generic kod; alan bağlamı olmadan yalnız aday kümesi.
+    # ── 2026-07-05 DELFI (mdb-3215, Germany national) scan: MAP gaps (our rule EXISTS) ──
+    "number_out_of_range":            ["PTH_007", "STP_003", "STP_005", "SHP_002", "SHP_003", "RCT_004", "FRQ_008"],  # Generic code; candidate set only without field context.
 
-    "inconsistent_route_type_for_block_id": ["TRP_024"],  # "Block içinde tutarsız rota tipi"
-    "transfer_distance_above_2_km":   ["TRF_011"],   # "aktarma tanımlandı ama mesafe uzak" (MD INFO variant)
-    "transfer_distance_too_large":    ["TRF_011"],   # aynı kural (MD WARNING variant)
+    "inconsistent_route_type_for_block_id": ["TRP_024"],  # "inconsistent route type within block"
+    "transfer_distance_above_2_km":   ["TRF_011"],   # "transfer defined but distance is large" (MD INFO variant)
+    "transfer_distance_too_large":    ["TRF_011"],   # same rule (MD WARNING variant)
     "pathway_loop":                   ["PTH_011"],   # from_stop_id==to_stop_id (k2/pathways.rs:91)
-    "location_with_unexpected_stop_time": ["STP_012"],  # stop_times durağı location_type≠0 (k4_cross_ref.rs:536)
+    "location_with_unexpected_stop_time": ["STP_012"],  # stop_times stop with location_type≠0 (k4_cross_ref.rs:536)
     "pathway_unreachable_location":   ["PTH_012"],
     "stop_without_zone_id":            ["STP_033"],
-    # point_near_origin bağlama taşındı (stops → GEO_016, shapes → GEO_017) — md_parity_mapping.CONTEXT_MAPPINGS
-    "point_near_pole":                  ["GEO_022"],   # 2/2 — |lat|>89; GEO_022 aynı iki feed'de ateşliyor
-    "pathway_dangling_generic_node":    ["PTH_019"],   # kural VARDI, eşleme yoktu (#158)
-    "transfer_with_invalid_trip_and_stop":  ["XFL_021"],  # kural VARDI (XFL grubunda), defter yanlış "genuine-gap" demişti
+    # point_near_origin moved to contextual mapping (stops → GEO_016, shapes → GEO_017) — md_parity_mapping.CONTEXT_MAPPINGS
+    "point_near_pole":                  ["GEO_022"],   # 2/2 — |lat|>89; GEO_022 fires on the same two feeds
+    "pathway_dangling_generic_node":    ["PTH_019"],   # rule EXISTED, mapping was missing (#158)
+    "transfer_with_invalid_trip_and_stop":  ["XFL_021"],  # rule EXISTED (XFL group), ledger incorrectly said "genuine-gap"
     "invalid_character":                ["ARC_021"],
     "missing_feed_info_date":           ["FIN_014"],
     "more_than_one_entity":             ["FIN_015"],
     "overlapping_frequency":            ["FRQ_011"],
-    # MD tek kodla iki olguyu birden sayar. Gece yarısını aşan seferde saat `24:xx`
-    # olarak devam etmelidir; feed `00:xx` yazarsa MD bunu "varış öncekinden erken"
-    # görür. Bizde o HAM YAZIM ihlali `STM_048` (K2, Spec), `STM_008` ise yalnız
-    # normalizasyonla açıklanamayan GERÇEK geri gidişleri ölçer — ayrım STM_008
-    # kartında yazılı. Yalnız STM_008'e bağlamak 6 feed'i sahte MISS yapıyordu;
-    # koşumda 6'nın 5'i STM_048 alıyor (#155).
+    # MD counts two phenomena under one code. A trip crossing midnight must continue with `24:xx`;
+    # if the feed writes `00:xx`, MD sees "arrival earlier than previous". Our RAW-WRITING violation
+    # is `STM_048` (K2, Spec), while `STM_008` measures only REAL reversals unexplained by normalization
+    # — the distinction is documented on the STM_008 card. Mapping only to STM_008 created false
+    # MISS for 6 feeds; 5 of 6 received STM_048 in the run (#155).
     "stop_time_with_arrival_before_previous_departure_time": ["STM_008", "STM_048"],
     "stop_time_timepoint_without_times": ["STM_047"],
     "missing_pickup_drop_off_booking_rule_id": ["STM_059"],
@@ -233,128 +230,131 @@ MAP = {
     "invalid_url":                      ["AGN_003", "RTS_005", "FIN_002"],
     "missing_required_field":           ["AGN_003", "FIN_002"],
     "start_and_end_range_out_of_order": ["CAL_005", "FIN_012", "STM_007"],
-    "unknown_file":                   ["ARC_007"],   # 2026-07-05 FIX: ARC_007 artık .txt-olmayan kök dosyaları da işaretler (.pdf/.out)
-    # ── KAPSAM BOŞLUĞU: bilerek MAP'TE DEĞİL → MD-ONLY'de görünsün ──
-    # `fast_travel_between_far_stops` (250-feed: 32 feed) KALDIRILDI 2026-07-17.
-    # Eskiden STM_012'ye eşliydi, YANLIŞTI: STM_012 ">700 km/h" mutlak kontrolü ve
-    # ARDIŞIK çiftlere bakar. MD'ninki ise coğrafi olarak >10 km ayrı, ARDIŞIK
-    # OLMAYAN durak çiftlerini karşılaştırır — kanıt: mdb-1229 örneği
-    # stopSequence 1 → 19 (18 durak atlıyor), 10 km / 600 km/h.
-    # Bizde ardışık-olmayan aralık kontrolü YOK → GERÇEK kapsam boşluğu.
-    # MD eşiği route_type başına consecutive ile AYNI (otobüs 150); ayıran tek şey
-    # 10 km mesafe. Kural eklenirse: yeni STM_* (ardışık-olmayan aralık) düşün.
+    "unknown_file":                   ["ARC_007"],   # 2026-07-05 FIX: ARC_007 now also flags non-.txt root files (.pdf/.out)
+    # ── COVERAGE GAP: deliberately NOT IN MAP → let it appear in MD-ONLY ──
+    # `fast_travel_between_far_stops` (250-feed: 32 feeds) was REMOVED on 2026-07-17.
+    # It used to map to STM_012, which was WRONG: STM_012 is an absolute ">700 km/h" check
+    # over CONSECUTIVE pairs. MD compares geographically separate, NON-CONSECUTIVE stop pairs
+    # >10 km apart — evidence: mdb-1229 sample, stopSequence 1 → 19 (skips 18 stops), 10 km / 600 km/h.
+    # We have NO non-consecutive gap check → a REAL coverage gap.
+    # MD's threshold is the SAME per route_type as consecutive (bus 150); only the 10 km distance
+    # separates them. If adding a rule: consider a new STM_* (non-consecutive gap).
     #
-    # ── GERÇEKTEN kalan minik (düşük değer, ertelenebilir) ──
-    # decreasing_or_equal_stop_time_distance (2): 1-2 vaka, düşük öncelik
+    # ── ACTUALLY remaining minor item (low value, deferrable) ──
+    # decreasing_or_equal_stop_time_distance (2): 1–2 cases, low priority
 }
 
-# ── AGREGE kurallar: biz per-entity/feed-özeti raporlarız, MD per-occurrence.
-# Bunlarda our_count << md_count NORMALDİR → UNDER sanma, "AGG" etiketle.
+# ── AGGREGATED rules: we report per-entity/feed summaries, MD per occurrence.
+# our_count << md_count is NORMAL for these → do not call it UNDER; label it "AGG".
 AGG_RULES = {
-    "STM_050", "STM_017", "TRN_007", "STP_022", "RTS_017",  # feed-özeti (changelog 0.1.3)
+    "STM_050", "STM_017", "TRN_007", "STP_022", "RTS_017",  # feed summary (changelog 0.1.3)
     "TRP_020",                                              # per-trip
-    "STP_045",                                              # feed-özeti; MD durak başına
-    "ARC_037",                                              # dosya-özeti; MD değer başına
-    "SHP_023", "SHP_028", "SHP_029",                        # per-shape (tür başına)
+    "STP_045",                                              # feed summary; MD per stop
+    "ARC_037",                                              # file summary; MD per value
+    "SHP_023", "SHP_028", "SHP_029",                        # per-shape (per type)
     "CAL_007", "CAL_009", "CAL_012", "CAL_013",             # per-service/feed calendar aggregates; CAL_012 MD-only detail
-    "STM_014",  # 2026-07-16: (hat, yön, segment) toplulaması (53ef3fb). MD per-occurrence
-                # sayar → our_count << md_count ARTIK NORMAL. Eklenmezse her koşumda
-                # sahte UNDER üretir (250-feed koşumunda 20 feed'de böyle çıktı).
-    "RTS_019",  # (kısa,uzun,tür,ajans) GRUBU başına tek notice, çakışan hatlar listelenir;
-                # MD ÇİFT-ÇİFT sayar (routeId1/routeId2) → 3 hatlık grup = MD C(3,2)=3.
-                # mdb-867: biz 1 ↔ MD 3. Granülerlik, uyuşmazlık değil.
-    "DQ_016",   # 2026-07-17: DOSYA başına tek özet (c95189e). MD alan-değeri başına sayar
-                # → our_count << md_count ARTIK NORMAL. (Kendi dersimizin tekrarı: kuralı
-                # agregat yapınca AGG_RULES'a da ekle — STM_014'te de unutulmuştu.)
-    "STM_018", "STM_019", "STM_032", "STM_007", "STM_056",  # 2026-08-18: >50 stop_times satırında tek feed özeti (#151);
-                            # MD satır-başına sayar → our_count << md_count NORMAL.
-    "STM_061",  # 2026-08-20: (hat, yön, uzak durak çifti) toplulaması. Sefer başına tek
-                # bulgu YETMİYORDU — aynı fiziksel çift her seferde yeniden raporlanınca
-                # sayı tarifenin sıklığıyla ölçekleniyordu: mdb-1003'te 9.533 bulgunun
-                # tamamı TEK çiftten geldi (11 oldu), mdb-1004'te 10.390 -> 20.
-                # MD per-occurrence sayar → our_count << md_count ARTIK NORMAL.
-    "TRP_024",  # 2026-08-20: BLOK başına tek notice. Kural her çakışan seferi sayıyordu ve
-                # sayı blok büyüklüğüyle ölçekleniyordu (tdg-83634: 5.798 -> 1.887).
-    "FIN_018", "FIN_007", "FIN_014",  # 2026-08-20: FEED BAŞINA tek bulgu (feed_info.txt tek
-                # satırlıktır). Kanıt sayının kendisidir: 1.491 ortak feed -> 1.491 bulgu,
-                # 288 -> 288, 264 -> 264. MD eksik ALAN başına sayar (55x / 12x / 7x).
-                # SHP_024 ile aynı atlama; kural agregat davranıyordu, liste bilmiyordu.
-    # 2026-09-01 (14. korpus koşumu): `md_mapped_under` sınıfının 68 kaleminin bir kısmı
-    # ürün körlüğü değil ARAÇ KUSURUYDU. Aşağıdaki sekiz kuralın hepsi registry'de zaten
-    # Feed veya File düzeyinde dedup ediliyor — yani tasarım gereği agregat — ama liste
-    # bunu bilmediği için her koşumda sahte UNDER üretiyorlardı. Bu, STM_014 · DQ_016 ·
-    # SHP_024'ten sonra aynı atlamanın DÖRDÜNCÜ tekrarı.
-    # 2026-09-12 (17. korpus koşumu): AYNI ATLAMANIN BEŞİNCİ, ALTINCI ve YEDİNCİ tekrarı.
-    # Üçü de registry'de zaten Entity düzeyinde dedup ediliyor — tasarım gereği agregat — ama
-    # liste bilmediği için her koşumda sahte `md_mapped_under` üretiyorlardı.
-    "GEO_017",  # [Entity=shape_id] Null Island'a yakın shape NOKTASI — SHAPE başına tek notice.
-                # MD nokta başına sayar: tdg-81559/tdg-82291'de MD 67 ↔ biz 19 (3,53×).
-                # Kardeşi `GEO_016` [Entity=stop_id] MD ile AYNI birimde sayar ve eşleşir —
-                # `mdb-3108`'deki 1,80× karışık çiftin yalnız GEO_017 kolundan gelir.
-    "STM_059",  # [Entity=trip_id] pickup/drop_off=2 iken booking_rule_id eksik — SEFER başına tek.
-                # MD stop_times SATIRI başına sayar: mdb-2884 MD 1.504 ↔ biz 140 (10,74×),
-                # mdb-2447 MD 598 ↔ biz 79 (7,57×).
-    "STM_038",  # [Entity=trip_id] start > end pickup/drop-off penceresi — SEFER başına tek.
-                # MD satır başına sayar: mdb-2741 MD 38 ↔ biz 23.
-    "SHP_002", "SHP_003",  # [Entity=shape] shape_pt_lat/lon geçersiz — SHAPE başına tek notice.
-                # MD NOKTA başına sayar. tfs-70 (ondalık ayırıcı virgül) ile ölçüldü: shapes.txt
-                # 36.491 nokta ama 397 shape → MD 72.982 (lat+lon), biz 794. Aynı feed'in
-                # stops tarafı BİREBİR eşleşiyor (STP_004 7.836 + STP_005 7.843 ↔ MD'nin kalanı),
-                # yani fark granülerlikte, kapsamda değil. Nokta başına emit 36.491 notice
-                # demek olurdu — STM_050/DQ_016 patlamalarının aynısı.
-    "ARC_021",  # [File] yazdırılamaz/sorunlu karakter — DOSYA başına tek özet. MD alan-değeri
-                # başına sayar: mdb-1926'da MD 777 ↔ biz 1, üstelik AYNI satırı (45556) ve aynı
-                # karakteri (U+FFFD) gösteriyoruz. Tespit birebir, granülerlik farklı.
-    "ARC_030",  # [File] sekme/satır sonu içeren değer — dosya başına tek (mdb-501: MD 29 ↔ 2).
-    "FAR_013",  # [File] price ISO 4217 ondalık basamak — dosya başına tek (mdb-114: MD 31 ↔ 1).
-    "FPD_007",  # [File] amount ISO 4217 ondalık basamak — FAR_013'ün fare_products karşılığı,
-                # aynı feed'lerde aynı oran (mdb-114: MD 31 ↔ 1).
-    "LOC_011",  # [File] geçersiz poligon (ring kendini kesiyor / delik dışarıda) — dosya başına
-                # tek (mdb-2164: MD 9 ↔ 1).
-    "AGN_011",  # [Feed] birden fazla kuruluşta agency_id yok — FEED başına tek; MD eksik alan
-                # taşıyan her agency satırını sayar (mdb-1134: MD 15 ↔ 1).
-    "AGN_013",  # [Feed] feed dili ↔ ajans dili uyuşmazlığı — feed başına tek (mdb-2826: 25 ↔ 2).
-    "AGN_017",  # [Feed] agency'ler arası agency_lang tutarsızlığı — AGN_013 ile aynı feed'lerde
-                # aynı oran; ikisi de feed düzeyi hüküm (mdb-2832: 21 ↔ 2).
-    "SHP_024",  # 2026-08-20: (stop_id, shape_id) ÇİFTİ başına tek notice (`seen_shp024`).
-                # MD (sefer, durak) başına sayar → aynı shape N seferde kullanılırsa MD N
-                # katı verir; ortak 581 feed'de biz 122.401, onlar 486.637 (3,98x). Kural
-                # dedup'u YAPIYORDU ama AGG_RULES'a yazılmamıştı - STM_014 ve DQ_016'dan
-                # sonra ÜÇÜNCÜ kez aynı atlama.
-    "SHP_012",  # per-SHAPE özeti: shape başına TEK notice, observed="N durak >100m".
-                # MD (sefer,durak) başına sayar → aynı shape N seferde kullanılırsa MD N katı.
-                # mdb-2366: bizim 171 notice içinde 3.338 uzak durak, MD 1.794 occurrence
-                # → granülerlik farklı, sayı kıyası anlamsız.
+    "STM_014",  # 2026-07-16: (route, direction, segment) aggregation (53ef3fb). MD counts per occurrence
+                # → our_count << md_count is NOW NORMAL. If omitted, every run produces
+                # a false UNDER (as happened on 20 feeds in the 250-feed run).
+    "RTS_019",  # one notice per (short,long,type,agency) GROUP, listing overlapping routes;
+                # MD counts PAIRS (routeId1/routeId2) → a 3-route group = MD C(3,2)=3.
+                # mdb-867: ours 1 ↔ MD 3. Granularity, not divergence.
+    "DQ_016",   # 2026-07-17: one FILE summary (c95189e). MD counts per field value
+                # → our_count << md_count is NOW NORMAL. (Repeat of our own lesson: when a rule
+                # becomes aggregate, also add it to AGG_RULES — it was forgotten for STM_014.)
+    "STM_018", "STM_019", "STM_032", "STM_007", "STM_056",  # 2026-08-18: one feed summary for >50 stop_times rows (#151);
+                            # MD counts per row → our_count << md_count is NORMAL.
+    "STM_061",  # 2026-08-20: (route, direction, far-stop pair) aggregation. One finding per trip
+                # was NOT ENOUGH — re-reporting the same physical pair per trip scaled the count
+                # with schedule frequency: all 9,533 findings in mdb-1003 came from ONE pair (then 11),
+                # and 10,390 -> 20 in mdb-1004.
+                # MD counts per occurrence → our_count << md_count is NOW NORMAL.
+    "TRP_024",  # 2026-08-20: one notice per BLOCK. The rule counted every overlapping trip and
+                # the count scaled with block size (tdg-83634: 5,798 -> 1,887).
+    "FIN_018", "FIN_007", "FIN_014",  # 2026-08-20: one finding per FEED (feed_info.txt has one
+                # row). The count itself is evidence: 1,491 common feeds -> 1,491 findings,
+                # 288 -> 288, 264 -> 264. MD counts per missing FIELD (55x / 12x / 7x).
+                # Same omission as SHP_024; the rule was aggregate, but the list did not know.
+    # 2026-09-01 (corpus run 14): some of the 68 `md_mapped_under` items were a TOOL DEFECT,
+    # not product blindness. All eight rules below are already deduplicated at Feed or File level
+    # in the registry — aggregate by design — but the list did not know, so every run produced
+    # false UNDER. This was the FOURTH repeat of the same omission after STM_014 · DQ_016 · SHP_024.
+    # 2026-09-12 (corpus run 17): the FIFTH, SIXTH, and SEVENTH repeat of the SAME omission.
+    # All three are already deduplicated at Entity level in the registry — aggregate by design —
+    # but the list did not know, so every run produced false `md_mapped_under`.
+    "GEO_017",  # [Entity=shape_id] shape POINT near Null Island — one notice per SHAPE.
+                # MD counts per point: tdg-81559/tdg-82291 MD 67 ↔ ours 19 (3.53×).
+                # Its sibling `GEO_016` [Entity=stop_id] counts in the SAME unit as MD and matches —
+                # the 1.80× mixed pair in `mdb-3108` comes only from the GEO_017 branch.
+    "STM_059",  # [Entity=trip_id] booking_rule_id missing when pickup/drop_off=2 — one per TRIP.
+                # MD counts per stop_times ROW: mdb-2884 MD 1,504 ↔ ours 140 (10.74×),
+                # mdb-2447 MD 598 ↔ ours 79 (7.57×).
+    "STM_038",  # [Entity=trip_id] start > end pickup/drop-off window — one per TRIP.
+                # MD counts per row: mdb-2741 MD 38 ↔ ours 23.
+    "SHP_002", "SHP_003",  # [Entity=shape] invalid shape_pt_lat/lon — one notice per SHAPE.
+                # MD counts per POINT. Measured with tfs-70 (comma decimal separator): shapes.txt
+                # has 36,491 points but 397 shapes → MD 72,982 (lat+lon), ours 794. The same feed's
+                # stops side matches EXACTLY (STP_004 7,836 + STP_005 7,843 ↔ MD remainder),
+                # so the difference is granularity, not scope. Emitting per point would mean 36,491 notices
+                # — the same explosion as STM_050/DQ_016.
+    "ARC_021",  # [File] non-printable/problematic character — one FILE summary. MD counts per field value:
+                # mdb-1926 MD 777 ↔ ours 1, and we show the SAME row (45556) and character (U+FFFD).
+                # Detection is exact, granularity differs.
+    "ARC_030",  # [File] value containing tab/line break — one per file (mdb-501: MD 29 ↔ 2).
+    "FAR_013",  # [File] price ISO 4217 decimal places — one per file (mdb-114: MD 31 ↔ 1).
+    "FPD_007",  # [File] amount ISO 4217 decimal places — fare_products counterpart of FAR_013,
+                # same ratio on the same feeds (mdb-114: MD 31 ↔ 1).
+    "LOC_011",  # [File] invalid polygon (ring self-intersects / hole is outside) — one per file
+                # (mdb-2164: MD 9 ↔ 1).
+    "AGN_011",  # [Feed] agency_id missing in multiple agencies — one per FEED; MD counts every agency
+                # row carrying the missing field (mdb-1134: MD 15 ↔ 1).
+    "AGN_013",  # [Feed] feed language ↔ agency language mismatch — one per feed (mdb-2826: 25 ↔ 2).
+    "AGN_017",  # [Feed] agency_lang inconsistency across agencies — same feeds as AGN_013,
+                # same ratio; both are feed-level provisions (mdb-2832: 21 ↔ 2).
+    "SHP_024",  # 2026-08-20: one notice per (stop_id, shape_id) PAIR (`seen_shp024`).
+                # MD counts per (trip, stop) → if the same shape is used by N trips, MD gives N
+                # times more; across 581 common feeds ours 122,401, theirs 486,637 (3.98x). The rule
+                # DID deduplicate, but was not in AGG_RULES — the THIRD repeat after STM_014 and DQ_016.
+    "SHP_012",  # per-SHAPE summary: ONE notice per shape, observed="N stops >100m".
+                # MD counts per (trip,stop) → if the same shape is used by N trips, MD gives N times more.
+                # mdb-2366: 3,338 far stops in our 171 notices, MD 1,794 occurrences
+                # → different granularity, count comparison is meaningless.
     "FRL_001", "FRL_003", "FRL_004", "FRL_005",
-                # 2026-07-17: AYRIK id başına tek notice (7727456), satır sayısı mesajda.
-                # MD fare_rules SATIRI başına foreign_key_violation sayar → mdb-2837'de
-                # 1.128.840 satır / 486 ayrık fare_id ⇒ biz 486, MD 1.128.840. AGG, UNDER değil.
-                # (STM_002 emsali: aynı FK vakasını zaten ayrık stop_id ile özetliyor.)
-    "TRP_021",  # feed-özeti: k2/trips.rs bikes_allowed-boş seferleri SAYAR, tek notice +
-                # ilk 5 örnek trip_id emit eder (kart: "feed genelinde tek özet").
-                # MD per-trip sayar (mdb-2933: 118) → bizim 1'imiz UNDER değil AGG.
-    # 2026-09-21: Kapı A toplulamalarının doğrudan MD eşlemeleri. Bu kurallar
-    # orchestration sonrasında feed/file/entity özeti taşıdığı için MD'nin satır
-    # başına sayımıyla oluşan düşük oran gerçek UNDER değildir.
+                # 2026-07-17: one notice per DISTINCT ID (7727456), row count in the message.
+                # MD counts foreign_key_violation per fare_rules ROW → in mdb-2837
+                # 1,128,840 rows / 486 distinct fare_id ⇒ ours 486, MD 1,128,840. AGG, not UNDER.
+                # (STM_002 precedent: it already summarizes the same FK finding by distinct stop_id.)
+    "TRP_021",  # feed summary: k2/trips.rs COUNTS bikes_allowed-empty trips, one notice +
+                # emits the first 5 sample trip_id values (card: "one feed-wide summary").
+                # MD counts per trip (mdb-2933: 118) → our 1 is AGG, not UNDER.
+    # 2026-09-21: direct MD mappings for Gate A aggregations. These rules carry feed/file/entity
+    # summaries after orchestration, so the low ratio caused by MD's per-row count is not real UNDER.
     "STM_036", "ARC_012", "SHP_005", "STM_008", "STM_047",
     "TRN_001", "PTH_012", "STP_032", "TRP_005",
-    # Context mapping üzerinden gelenler: çözümleme belirli bir Analyzer kuralını
-    # seçtiğinde bu kuralın kendi aggregation kapsamı da hesaba katılır.
+    # Entries coming through context mapping: when resolution selects a specific Analyzer rule,
+    # that rule's own aggregation scope is also taken into account.
     "DQ_021", "TRP_003",
     "CLD_003", "FRQ_007", "PTH_007", "STM_022", "STP_004", "STP_005",
     "STP_042", "TRF_005",
 }
 
+# Aggregation labels are explanatory, not a scoring override.
+# They describe why count ratios differ between validators.
+# A mapped rule still needs a context-aware resolution.
+# Unresolved context remains visible to parity consumers.
+# Exact matches remain MATCH even when a rule is aggregated.
+# This distinction prevents denominator errors from becoming findings.
+# Keep these annotations aligned with the rule cards.
 
-# ── JENERİK MD KODU TUZAĞI (kalıcı ders) ────────────────────────────────────
-# MD'nin JENERİK kodları (unexpected_enum_value, number_out_of_range,
-# missing_recommended_field) bizde ALAN BAŞINA ayrı kurala karşılık gelir → tek
-# kuralımıza 1-1 eşlemek sahte MISS üretir. BY_DESIGN kod-bazlıdır, alan-bazlı
-# ayrım YAPAMAZ; bu yüzden önce MAP'i tamamla (tüm alan kuralları), SONRA kalan
-# farkı gerekçelendir.
-# unexpected_enum_value bu yolla çözüldü (2026-07-17): MAP 4 kurala genişletildi
-# → direction_id/transfers BİREBİR eşleşti; kalan route_type farkı BY_DESIGN'a indi.
-# Karar vermeden ÖNCE örnekteki `fieldName` dağılımına bak — sayı tek başına aldatır.
+
+# ── GENERIC MD CODE TRAP (permanent lesson) ────────────────────────────────────
+# MD's GENERIC codes (unexpected_enum_value, number_out_of_range,
+# missing_recommended_field) correspond to a separate rule PER FIELD for us → mapping one-to-one
+# to a single rule produces a false MISS. BY_DESIGN is code-based and CANNOT distinguish fields;
+# therefore complete MAP first (all field rules), THEN explain the remaining difference.
+# unexpected_enum_value was resolved this way (2026-07-17): MAP expanded to 4 rules
+# → direction_id/transfers matched EXACTLY; the remaining route_type difference moved to BY_DESIGN.
+# Before deciding, inspect the `fieldName` distribution in samples — the count alone misleads.
 
 OVER_RATIO = 3.0
 UNDER_RATIO = 0.34
@@ -369,7 +369,7 @@ def load_json(path):
 
 
 def classify(d):
-    """İçeriğe göre: 'md' | 'golden' | None."""
+    """Classify by content: 'md' | 'golden' | None."""
     if not isinstance(d, dict):
         return None
     if "validation" in d and isinstance(d["validation"], dict):
@@ -377,7 +377,7 @@ def classify(d):
     notices = d.get("notices")
     if isinstance(notices, list) and notices and isinstance(notices[0], dict) and "code" in notices[0]:
         return "md"
-    # boş-notice MD raporu da olabilir
+    # An empty-notice MD report is possible too.
     if "notices" in d and "summary" in d:
         return "md"
     return None
@@ -408,9 +408,9 @@ def main():
     folders = [f for f in sorted(glob.glob(os.path.join(base, "*"))) if os.path.isdir(f)]
 
     mapped_ours = set(x for lst in MAP.values() for x in lst)
-    rows = []              # B: (feed, kod) satırları
+    rows = []              # B: (feed, code) rows
     md_only_rows = []      # C1
-    agg_md = defaultdict(int)   # D agregat
+    agg_md = defaultdict(int)   # D aggregate
     agg_our = defaultdict(int)
     agg_feeds = defaultdict(int)
     agg_diverge = defaultdict(int)
@@ -467,8 +467,8 @@ def main():
                 status = "AGG" if is_agg else "UNDER"
             else:
                 status = "MATCH"
-            # Adjudicate edilmiş sapmayı, sapma olarak SAYMA. MATCH'i ezmiyoruz:
-            # zaten uyuşuyorsa "explained" demek bilgi kaybı olurdu.
+            # Do not COUNT an adjudicated divergence as a divergence. Do not overwrite MATCH:
+            # if it already matches, calling it "explained" would lose information.
             if code in BY_DESIGN and status not in ("MATCH", "CONTEXT"):
                 status = "EXPLAINED"
             if status in ("OVER", "UNDER", "MISS"):
@@ -482,12 +482,12 @@ def main():
                          "|".join(resolution.contexts),
                          "complete" if resolution.context_complete else "partial"])
 
-        # US-ONLY: bizde ≥1, MAP'te MD karşılığı yok, sayı büyük
+        # US-ONLY: ours has ≥1, no MD counterpart in MAP, count is large
         for r, c in rc.items():
             if r not in mapped_ours and c > 0:
-                pass  # US-ONLY ayrı raporlanabilir; şimdilik parity_all dışı
+                pass  # US-ONLY can be reported separately; outside parity_all for now
 
-    # ── yaz ──
+    # ── write ──
     with open(os.path.join(base, "parity_all.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["feed", "md_code", "md_count", "md_severity", "our_rule", "our_count",
@@ -500,9 +500,9 @@ def main():
                     "rationale", "md_samples"])
         w.writerows(md_only_rows)
 
-    # ── ASIL ÇIKTI: açıklanamayan delta ──
-    # parity_all her şeyi tutar (denetlenebilirlik), ama insan bunu okur:
-    # MATCH gürültüsü ve adjudicate edilmiş sapmalar düşülmüş hâli.
+    # ── PRIMARY OUTPUT: unexplained delta ──
+    # parity_all keeps everything (auditability), but humans read this:
+    # MATCH noise and adjudicated divergences removed.
     unexplained = [r for r in rows if r[10] in ("MISS", "OVER", "UNDER")]
     with open(os.path.join(base, "parity_unexplained.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)

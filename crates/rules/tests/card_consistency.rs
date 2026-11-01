@@ -1,14 +1,14 @@
-//! Kural kartı ↔ registry ↔ kod tutarlılık testi.
+//! Rule card ↔ registry ↔ code consistency test.
 //!
-//! docs/rules/<GRUP>/<ID>.md kartlarının `gtfs_rules::RULES` ile ve atıf yaptıkları
-//! kaynak satırlarıyla senkron kalmasını garanti eder. Belge ile kod ayrışırsa CI kırmızı yanar.
+//! Ensures that `docs/rules/<GRUP>/<ID>.md` cards stay synchronized with `gtfs_rules::RULES`
+//! and the source lines they reference. CI fails if the document and code diverge.
 //!
-//! Kapsam:
-//!  1. Her registry kuralının kart dosyası var (ve yetim kart yok).
-//!  2. R9 "Kural mesajı" == registry `title` (TEMPLATE kuralı).
-//!  3. Künye `Önem`/`Sınıf` == registry severity/rule_class.
-//!  4. "Kod referansı"ndaki her `crates/...rs#Lnnn` atfı, o satırın ±3 penceresinde
-//!     kuralın ID'sini içeriyor (satır kayması / yanlış atıf yakalanır).
+//! Scope:
+//!  1. Every registry rule has a card file (and there are no orphan cards).
+//!  2. R9 "Rule message" == registry `title` (the TEMPLATE rule).
+//!  3. Metadata severity/class == registry severity/rule_class.
+//!  4. Every `crates/...rs#Lnnn` reference in "Code reference" contains the rule ID
+//!     within a ±3-line window (detecting line drift / incorrect references).
 
 use gtfs_rules::RULES;
 use std::collections::HashSet;
@@ -19,7 +19,7 @@ fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
-        .expect("repo kökü bulunamadı")
+        .expect("repository root not found")
 }
 
 fn cards_dir() -> PathBuf {
@@ -34,7 +34,7 @@ fn card_path(id: &str) -> PathBuf {
     cards_dir().join(group_of(id)).join(format!("{id}.md"))
 }
 
-/// Karttaki severity gösterimini enum Debug stringine eşler.
+/// Maps the card's severity display to the enum Debug string.
 fn severity_display_to_debug(card_val: &str) -> &str {
     match card_val.trim() {
         "Kritik" => "Kritik",
@@ -46,12 +46,12 @@ fn severity_display_to_debug(card_val: &str) -> &str {
     }
 }
 
-/// Künye tablosundan "| Etiket | Değer |" satırının değerini döndürür.
+/// Returns the value from the "| Label | Value |" row in the metadata table.
 fn kunye_value(text: &str, label: &str) -> Option<String> {
     for line in text.lines() {
         let l = line.trim();
         if l.starts_with('|') {
-            // Markdown tablosunda kaçışlı pipe (\|) sütun ayıracı değildir — koru.
+            // In a Markdown table, an escaped pipe (\|) is not a column separator—preserve it.
             let protected = l.replace("\\|", "\u{1}");
             let cells: Vec<String> = protected
                 .trim_matches('|')
@@ -66,7 +66,7 @@ fn kunye_value(text: &str, label: &str) -> Option<String> {
     None
 }
 
-/// R9 "Kural mesajı:" satırından mesajı döndürür.
+/// Returns the message from the R9 "Rule message:" line.
 fn r9_message(text: &str) -> Option<String> {
     const MARK: &str = "**Kural mesajı:**";
     for line in text.lines() {
@@ -77,13 +77,13 @@ fn r9_message(text: &str) -> Option<String> {
     None
 }
 
-/// Karttan tüm (kaynak_yolu, satır_no) kod atıflarını çıkarır (`crates/...rs#Lnnn`).
+/// Extracts all (source_path, line_number) code references from a card (`crates/...rs#Lnnn`).
 fn code_refs(text: &str) -> Vec<(String, usize)> {
     let mut out = Vec::new();
     for line in text.lines() {
         let mut rest = line;
         while let Some(pos) = rest.find(".rs#L") {
-            let head = &rest[..pos + 3]; // ".rs" dahil
+            let head = &rest[..pos + 3]; // Include ".rs".
             if let Some(cstart) = head.rfind("crates/") {
                 let path = head[cstart..].to_string();
                 let after = &rest[pos + 5..];
@@ -116,7 +116,7 @@ fn every_rule_has_card_with_matching_metadata() {
             }
         };
 
-        // R9 mesajı == title
+        // R9 message == title.
         match r9_message(&text) {
             Some(msg) if msg == rule.title => {}
             Some(msg) => problems.push(format!(
@@ -126,7 +126,7 @@ fn every_rule_has_card_with_matching_metadata() {
             None => problems.push(format!("{}: R9 'Kural mesajı:' satırı bulunamadı", rule.id)),
         }
 
-        // Önem == severity
+        // Severity metadata == severity.
         let exp_sev = format!("{:?}", rule.severity);
         match kunye_value(&text, "Önem") {
             Some(v) if severity_display_to_debug(&v) == exp_sev => {}
@@ -140,7 +140,7 @@ fn every_rule_has_card_with_matching_metadata() {
             None => problems.push(format!("{}: künye 'Önem' satırı yok", rule.id)),
         }
 
-        // Sınıf == rule_class
+        // Class metadata == rule_class.
         let exp_cls = format!("{:?}", rule.rule_class);
         match kunye_value(&text, "Sınıf") {
             Some(v) if v == exp_cls => {}
@@ -160,7 +160,7 @@ fn every_rule_has_card_with_matching_metadata() {
     );
 }
 
-/// Metindeki tüm R-rapor token'larını (R1, R2, ...) küme olarak döndürür.
+/// Returns all R-report tokens (R1, R2, ...) in the text as a set.
 fn r_tokens(s: &str) -> std::collections::BTreeSet<String> {
     let ch: Vec<char> = s.chars().collect();
     let mut set = std::collections::BTreeSet::new();
@@ -182,7 +182,7 @@ fn r_tokens(s: &str) -> std::collections::BTreeSet<String> {
     set
 }
 
-/// Metindeki tüm kural-ID token'larını (XFL_001, DQ_005b ...) küme olarak döndürür.
+/// Returns all rule-ID tokens (XFL_001, DQ_005b ...) in the text as a set.
 fn rule_id_tokens(s: &str) -> std::collections::BTreeSet<String> {
     let ch: Vec<char> = s.chars().collect();
     let mut set = std::collections::BTreeSet::new();
@@ -226,7 +226,7 @@ fn kunye_and_score_match_registry() {
             continue;
         };
 
-        // Skor tabanı == base_effort
+        // Score base == base_effort.
         if let Some(v) = kunye_value(&text, "Skor tabanı") {
             match v.trim().parse::<u8>() {
                 Ok(n) if n == rule.base_effort => {}
@@ -237,7 +237,7 @@ fn kunye_and_score_match_registry() {
             }
         }
 
-        // No-score durumu, base_effort'tan ayrı bir künye satırında açıkça yazılır.
+        // The no-score state is stated explicitly in a metadata row separate from base_effort.
         if rule.score_weight == 0.0 {
             match kunye_value(&text, "Skor ağırlığı") {
                 Some(v) if v.trim() == "0 (no-score)" => {}
@@ -252,7 +252,7 @@ fn kunye_and_score_match_registry() {
             }
         }
 
-        // Varlık == dedup_level
+        // Entity level == dedup_level.
         let exp_dedup = format!("{:?}", rule.dedup_level);
         if let Some(v) = kunye_value(&text, "Varlık") {
             if v.trim() != exp_dedup {
@@ -263,7 +263,7 @@ fn kunye_and_score_match_registry() {
             }
         }
 
-        // Kimlik alanı == scope_key_field
+        // Identity field == scope_key_field.
         if let Some(v) = kunye_value(&text, "Kimlik alanı") {
             let card = v.replace('`', "").replace("\\|", "|");
             let card = card.trim();
@@ -276,7 +276,7 @@ fn kunye_and_score_match_registry() {
             }
         }
 
-        // Bloke ettiği kurallar == blocks (küme)
+        // Blocked rules == blocks (set).
         if let Some(v) = kunye_value(&text, "Bloke ettiği kurallar") {
             let card: std::collections::BTreeSet<String> = rule_id_tokens(&v);
             let exp: std::collections::BTreeSet<String> =
@@ -289,7 +289,7 @@ fn kunye_and_score_match_registry() {
             }
         }
 
-        // Görünürlük R-seti == report_views
+        // Visibility R-set == report_views.
         if let Some(v) = kunye_value(&text, "Görünürlük") {
             let card = r_tokens(&v);
             let exp: std::collections::BTreeSet<String> = rule
@@ -305,7 +305,7 @@ fn kunye_and_score_match_registry() {
             }
         }
 
-        // severity.weight() == weight(severity)
+        // severity.weight() == weight(severity).
         if let Some(idx) = text.find("severity.weight() =") {
             let after = &text[idx + "severity.weight() =".len()..];
             let num: String = after
@@ -334,10 +334,10 @@ fn kunye_and_score_match_registry() {
     );
 }
 
-/// Eşik sabiti ↔ kart kontrolü. Küratörlü tablo: (rule_id, eşik değeri, kaynak dosya).
-/// Değer hem kartta hem kaynakta bulunmalı; kod sabiti değişirse kart bayatlar → yakalanır.
-/// Yalnızca AYIRT EDİCİ değerler eklenir (yaygın küçük sayılar gürültü yapar).
-/// Yeni eşik eklendikçe bu tablo elle genişletilir.
+/// Threshold constant ↔ card check. Curated table: (rule_id, threshold value, source file).
+/// The value must occur in both card and source; a changed code constant then stales the card → detected.
+/// Only DISTINGUISHING values are included (common small numbers create noise).
+/// Extend this table manually as new thresholds are added.
 const THRESHOLDS: &[(&str, &str, &str)] = &[
     ("SHP_026", "5000", "crates/pipeline/src/k6_analytics.rs"),
     ("TRF_010", "3600", "crates/pipeline/src/k4_cross_ref.rs"),
@@ -412,7 +412,7 @@ fn code_references_point_to_rule() {
         let path = card_path(rule.id);
         let text = match fs::read_to_string(&path) {
             Ok(t) => t,
-            Err(_) => continue, // dosya yokluğu diğer testte raporlanıyor
+            Err(_) => continue, // Missing files are reported by the other test.
         };
         for (src_rel, line_no) in code_refs(&text) {
             let src_path = root.join(&src_rel);
@@ -434,14 +434,14 @@ fn code_references_point_to_rule() {
                 ));
                 continue;
             }
-            // Generic/veri-güdümlü emit: kural ID'si dosyada literal olarak hiç geçmiyorsa
-            // (ör. veri-güdümlü döngülerden üretilen kurallar)
-            // içerik kontrolü yapılamaz — satır aralığı geçerliyken atla.
+            // Generic/data-driven emit: if the rule ID never occurs as a literal in the file
+            // (for example, rules generated by data-driven loops), content cannot be checked—
+            // skip it while the line range is valid.
             if !src.contains(&format!("\"{}\"", rule.id)) {
                 continue;
             }
-            // ±3 pencere içinde rule.id geçiyor mu?
-            let lo = line_no.saturating_sub(4); // 0-index, line_no-3 .. line_no+3 (1-index)
+            // Does rule.id occur within the ±3 window?
+            let lo = line_no.saturating_sub(4); // 0-index, line_no-3 .. line_no+3 (1-index).
             let hi = (line_no + 3).min(lines.len());
             let found = lines[lo..hi].iter().any(|l| l.contains(rule.id));
             if !found {
@@ -465,13 +465,13 @@ fn code_references_point_to_rule() {
     );
 }
 
-/// TEMPLATE.md iskelet uyumu (yapısal): her kartın Karar/Düzeltme satırı, 9 künye
-/// alanı ve çekirdek bölüm başlıklarını taşıdığını denetler. Proza değil YAPI kontrol
-/// edilir. Opsiyonel-doğası gereği bloklar (Bağımlılık, Dış araç eşleşmesi, GTFS spec
-/// referansı) zorunlu DEĞİL — her kurala anlamlı gelmez, filler üretmemek için.
+/// TEMPLATE.md skeleton compliance (structural): checks that each card has its Decision/Fix line,
+/// 9 metadata fields, and core section headings. It checks STRUCTURE, not prose.
+/// Optional-by-nature blocks (Dependency, External tool mapping, GTFS spec reference) are NOT
+/// required—they are not meaningful for every rule, and filler should not be generated.
 #[test]
 fn card_template_shape() {
-    // (etiket, kartta aranan alt-dize)
+    // (label, substring required in the card)
     let kunye = [
         "Grup",
         "Önem",
@@ -483,7 +483,7 @@ fn card_template_shape() {
         "Görünürlük",
         "Bloke ettiği kurallar",
     ];
-    // Başlık-seviyesinden bağımsız (## veya ###) aranan çekirdek bölümler.
+    // Core sections searched independently of heading level (## or ###).
     let sections = [
         "Tetikleme koşulu",
         "Yanlış pozitif / negatif",
@@ -507,25 +507,25 @@ fn card_template_shape() {
         };
         let mut missing: Vec<String> = Vec::new();
 
-        // Başlık metinlerini topla (#/##/### fark etmez) — seviye-agnostik eşleşme.
+        // Collect heading text (#/##/### does not matter)—level-agnostic matching.
         let headings: Vec<String> = text
             .lines()
             .filter(|l| l.trim_start().starts_with('#'))
             .map(|l| l.trim_start_matches('#').trim().to_string())
             .collect();
 
-        // Karar satırı — bold (`**Karar:**`) veya düz (`> Karar:`) kabul edilir;
-        // korpus çoğunlukla düz kullanıyor, format churn'ü için zorlamıyoruz.
+        // Decision line—bold (`**Karar:**`) or plain (`> Karar:`) is accepted;
+        // the corpus mostly uses plain text, so we do not force formatting churn.
         if !text.contains("Karar:") {
             missing.push("Karar".into());
         }
-        // Künye alanları
+        // Metadata fields.
         for k in kunye {
             if kunye_value(&text, k).is_none() {
                 missing.push(format!("künye:{k}"));
             }
         }
-        // Çekirdek bölümler (başlık-seviyesi bağımsız)
+        // Core sections (independent of heading level).
         for s in sections {
             if !headings.iter().any(|h| h.contains(s)) {
                 missing.push(s.to_string());
@@ -545,15 +545,15 @@ fn card_template_shape() {
     );
 }
 
-// ── CI koşul #6: Spec kuralı kartında alan-düzeyi GTFS spec anchor'ı zorunlu ──────
+// ── CI condition #6: Spec rule cards require a field-level GTFS spec anchor ──────
 //
-// `Sınıf=Spec` bir otorite iddiasıdır → kart "GTFS spec referansı" bölümünde resmi
-// GTFS Schedule Reference'a anchor'lı link (`gtfs.org/...#...`) taşımalı. Bare dosya
-// linki veya referanssız Spec = iddia kanıtsız. Allowlist Faz 4 boyunca karttan karta
-// düşürülür; boşalınca gate tam devrede. Yeni ekleme YAPILMAZ.
+// `Sınıf=Spec` is an authority claim → the card must carry an anchored link
+// (`gtfs.org/...#...`) to the official GTFS Schedule Reference in its "GTFS spec reference"
+// section. A bare file link or Spec without a reference is an unsupported claim. The allowlist
+// is reduced card by card during Phase 4; once empty, the gate is fully active. Do NOT add entries.
 const SPEC_ANCHOR_ALLOWLIST: &[&str] = &[];
 
-/// Bir metin bölümünde `gtfs.org/...#...` (bölüm/alan anchor'lı) bir URL var mı.
+/// Does a text section contain a `gtfs.org/...#...` URL with a section/field anchor?
 fn has_gtfs_anchor(section: &str) -> bool {
     let mut rest = section;
     while let Some(pos) = rest.find("gtfs.org/") {
@@ -569,7 +569,7 @@ fn has_gtfs_anchor(section: &str) -> bool {
     false
 }
 
-/// "### GTFS spec referansı" başlığından sonraki `###`/`## ` veya dosya sonuna kadar.
+/// From the "### GTFS spec reference" heading to the next `###`/`## ` or end of file.
 fn spec_ref_section(text: &str) -> &str {
     const H: &str = "### GTFS spec referansı";
     let Some(start) = text.find(H) else { return "" };

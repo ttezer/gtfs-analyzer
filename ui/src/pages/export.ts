@@ -11,16 +11,16 @@ import { withAutoPrint, withLang } from '../print-doc';
 import { escHtml } from '../escape';
 import { formatBytes } from '../format';
 
-// Bayt → insan-okur boyut (yerel ondalık ayraçla). Tahmini dışa aktarım boyutu için.
+// Bytes → human-readable size (with a locale decimal separator). Used for estimated export size.
 const byteLen = (s: string): number => new TextEncoder().encode(s).length;
 
-// Locale-duyarlı sayı biçimi (binlik ayraç tr "2.935.811" / en "2,935,811" /
-// ja "2,935,811" / fr "2 935 811"). `undefined` TARAYICI locale'ini kullanırdı;
-// uygulama dili tarayıcıdan farklı olduğunda biçim de yanlış çıkıyordu.
+// Locale-aware number formatting (thousands separator tr "2.935.811" / en "2,935,811" /
+// ja "2,935,811" / fr "2 935 811"). `undefined` used the BROWSER locale;
+// formatting was wrong when the application language differed from the browser.
 const fmtInt = (n: number): string => new Intl.NumberFormat(intlLocale()).format(n);
 const fmtDec1 = (n: number): string => new Intl.NumberFormat(intlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
 
-// Renkli daire içinde satır-ikonu (currentColor). Kart/stat başlıkları için.
+// Row icon inside a colored circle (currentColor). For card/stat headings.
 const ICON: Record<string, string> = {
   doc:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h8"/></svg>',
   chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></svg>',
@@ -32,15 +32,15 @@ const ICON: Record<string, string> = {
 
 interface SummaryData {
   file: string; ts: string; ruleTypes: number; pubScore: number; overallScore: number;
-  // disp = gösterilen (kural başına 500 cap'li); real = gerçek (capped_totals ile düzeltilmiş).
+  // disp = displayed (capped at 500 per rule); real = actual (corrected by capped_totals).
   disp: { total: number; critical: number; high: number; medium: number; low: number; info: number };
   real: { total: number; critical: number; high: number; medium: number; low: number; info: number };
-  capped: boolean;  // herhangi bir kural cap'e takıldı mı (real > disp)
-  ruleCounts: Array<[string, number]>;  // [rule_id, gerçek sayı] — #21 diff birimi
+  capped: boolean;  // did any rule hit the cap (real > disp)
+  ruleCounts: Array<[string, number]>;  // [rule_id, actual count] — #21 diff unit
 }
 
-// Özet snapshot. notices kural başına 500'de cap'li (WASM PER_RULE_CAP); gerçek totaller
-// result.capped_totals'tan alınır → hem cap'li hem gerçek sütun verilir.
+// Summary snapshot. Notices are capped at 500 per rule (WASM PER_RULE_CAP); actual totals
+// come from result.capped_totals → provide both capped and actual columns.
 function buildSummaryData(result: ValidationResult, fileName: string, ts: string): SummaryData {
   const sevDisp: Record<string, number> = {};
   const rcDisp: Record<string, number> = {};
@@ -72,8 +72,8 @@ function buildSummaryData(result: ValidationResult, fileName: string, ts: string
   };
 }
 
-// Teşhis paketi (#14): YALNIZCA whitelist alanlar. Feed içeriği (durak adı/koordinat,
-// notice mesajları) ASLA dahil edilmez — yalnızca metadata + agregat sayılar.
+// Diagnostic bundle (#14): whitelist fields ONLY. Feed content (stop names/coordinates,
+// notice messages) is NEVER included — only metadata + aggregate counts.
 function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: number, ts: string): string {
   const s = buildSummaryData(result, fileName, ts);
   const nav = navigator as Navigator & { hardwareConcurrency?: number };
@@ -108,7 +108,7 @@ function buildDebugBundle(result: ValidationResult, fileName: string, fileSize: 
   return JSON.stringify(bundle, null, 2);
 }
 
-// Severity satırları: [etiket, disp, real, renk]
+// Severity rows: [label, disp, real, color]
 function summaryRows(d: SummaryData): Array<[string, number, number, string | undefined]> {
   return [
     [t('export.html.total'), d.disp.total, d.real.total, undefined],
@@ -120,7 +120,7 @@ function summaryRows(d: SummaryData): Array<[string, number, number, string | un
   ];
 }
 
-// Kopyalanabilir Markdown: meta + Cap'li/Gerçek 2-sütunlu sayım tablosu + #21 için kural-sayım JSON.
+// Copyable Markdown: metadata + capped/actual two-column count table + rule-count JSON for #21.
 function summaryMarkdown(d: SummaryData): string {
   const meta = [
     `**${d.file} — ${t('export.summary.title')}**`,
@@ -132,29 +132,29 @@ function summaryMarkdown(d: SummaryData): string {
   return `${meta}\n\n${head}\n${body}\n\n<!-- rule_counts gerçek sayılar (#21 diff) -->\n\`\`\`json\n${ruleJson}\n\`\`\`\n`;
 }
 
-// Özetin PNG render'ı (kullanıcı kart içinde okur). Cap'li / Gerçek iki sütun.
+// PNG rendering of the summary (the user reads it in the card). Capped / Actual two columns.
 function summaryPng(d: SummaryData): string {
   const rows = summaryRows(d);
   const dpr = window.devicePixelRatio || 1;
   const W = 520, rowH = 30, top = 70, bot = 16;
-  const H = top + (rows.length + 1) * rowH + bot;  // +1 başlık satırı
+  const H = top + (rows.length + 1) * rowH + bot;  // +1 header row
   const cv = document.createElement('canvas');
   cv.width = W * dpr; cv.height = H * dpr;
   const x = cv.getContext('2d')!;
   x.scale(dpr, dpr);
   x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-  const colCap = W - 150, colReal = W - 22;  // sağ-hizalı sütun x'leri
-  // Başlık: "<feed.zip> — Özet Tablo"
+  const colCap = W - 150, colReal = W - 22;  // right-aligned column x positions
+  // Heading: "<feed.zip> — Summary Table"
   const suffix = ` — ${t('export.summary.title')}`;
   x.font = '700 15px system-ui, sans-serif'; x.textAlign = 'left';
   let f = d.file;
   while (f.length > 4 && x.measureText(f + suffix).width > W - 36) f = f.slice(0, -1);
   if (f.length < d.file.length) f = f.slice(0, -1) + '…';
   x.fillStyle = '#1e293b'; x.fillText(f + suffix, 18, 28);
-  // Meta satırı
+  // Metadata row
   x.fillStyle = '#64748b'; x.font = '12px system-ui, sans-serif';
   x.fillText(`${d.ts} · ${t('export.html.pub_score')} ${fmtDec1(d.pubScore)} · ${t('export.html.overall_score')} ${fmtDec1(d.overallScore)} · ${fmtInt(d.ruleTypes)} ${t('export.summary.rule_types')}`, 18, 48);
-  // Sütun başlıkları
+  // Column headings
   let y = top;
   x.fillStyle = '#94a3b8'; x.font = '600 11px system-ui, sans-serif';
   x.textAlign = 'right'; x.fillText(t('export.summary.capped').toUpperCase(), colCap, y); x.fillText(t('export.summary.real').toUpperCase(), colReal, y);
@@ -176,20 +176,19 @@ export function renderExport(
   result: ValidationResult,
   fileName: string,
 ): void {
-  // EN/JA parite: route-scoped bulgu mesajlarının {route_label}'ını doldur (R2 ile aynı).
+  // EN/JA parity: fill {route_label} in route-scoped finding messages (same as R2).
   augmentRouteLabels(result.notices, result.name_index);
 
-  // Tarih-zaman damgası: karşılaştırma (#21) için her çıktıya yazılır.
+  // Date-time stamp: written to every output for comparison (#21).
   const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
   const fnTs = now.replace(/[: ]/g, '-');
 
-  // Dışa aktarım içerikleri TALEP ÜZERİNE üretilir, açılışta DEĞİL.
+  // Export contents are generated ON DEMAND, not on page load.
   //
-  // Eskiden dokuzu birden burada kurulur ve tıklama handler'larının closure'ında canlı
-  // kalırdı. VBB Berlin'de tek başına girintili JSON 40 MB; feed'i doğrulamış bir sekme
-  // zaten ~2,6 GB analiz durumu taşıdığı için hiç indirilmeyecek içerikleri bellekte
-  // tutmanın bedeli yüksek. Artık her biri lazım olduğu anda kurulur ve iş bitince
-  // bırakılır → aynı anda en fazla BİRİ bellekte olur.
+  // Previously all nine were built here and kept alive in click-handler closures. In VBB Berlin,
+  // indented JSON alone is 40 MB; a tab that validated the feed already holds ~2.6 GB of analysis
+  // state, so keeping content that may never be downloaded is expensive. Each item is now built
+  // when needed and released when done → at most ONE is resident at a time.
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
   const engineMode = getLastEngineMode() ?? 'unknown';
   const generatedAt = getState().generatedAt ?? new Date();
@@ -198,19 +197,19 @@ export function renderExport(
   const makeCsv  = () => buildCsv(result);
   const makeJson = () => JSON.stringify(result, null, 2);
   const makeDebug = () => buildDebugBundle(result, fileName, getState().fileSize, now);
-  // İndirilen golden git-tracked regresyon baseline'ı olarak kullanılır → deterministik
-  // (per-saniye generated_at atlanır; validate_date gün granülü kalır). #42
+  // The downloaded golden is used as a git-tracked regression baseline → deterministic
+  // (per-second generated_at is omitted; validate_date remains day-granular). #42
   const makeGolden = () => buildGoldenSnapshot(result, fileName, generatedAt, getState().configDelta, getLastEngineMode() ?? 'unknown', { deterministic: true });
   const makeExecutive = (locale: Locale) => buildExecutiveReportHtml(buildExecutiveReportModel({
     result, fileName, generatedAt: now, locale, appVersion, engineMode,
   }));
 
-  // Boyut etiketi için üret-ölç-BIRAK: ölçülen string closure'da tutulmaz, tıklandığında
-  // yeniden kurulur. Yeniden kurma maliyeti, 40 MB'ı sayfa boyunca canlı tutmaya yeğdir.
+  // For the size label, build-measure-DROP: the measured string is not kept in a closure and is
+  // rebuilt on click. Rebuilding costs less than keeping 40 MB alive for the whole page lifetime.
   const sizeLabel = (build: () => string): string => formatBytes(byteLen(build()));
 
   const summary = buildSummaryData(result, fileName, now);
-  const summaryImg = summaryPng(summary); // <img src> olarak GÖSTERİLİYOR → eager kalmalı
+  const summaryImg = summaryPng(summary); // SHOWN as <img src> → must remain eager
 
   const { r5 } = result.reports;
   const fmtScore = (n: number) => new Intl.NumberFormat(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n);
@@ -323,8 +322,8 @@ export function renderExport(
   root.querySelector('#btn-debug-json')!.addEventListener('click', () =>
     triggerDownload(new Blob([makeDebug()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `-debug-${fnTs}.json`)));
   root.querySelector('#btn-golden-json')!.addEventListener('click', () => {
-    // İndirme adı: <feed adı>_<indirme tarihi>_<sürüm>.json. Sürüm hem dosya adında (kolay
-    // ayırt etme) hem JSON içeriğinde (app_version) bulunur.
+    // Download name: <feed name>_<download date>_<version>.json. The version appears both in
+    // the filename (easy identification) and in JSON content (app_version).
     const date = generatedAt.toISOString().slice(0, 19).replace(/[:T]/g, '-');
     const ver = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
     triggerDownload(new Blob([makeGolden()], { type: 'application/json' }), fileName.replace(/\.zip$/i, `_${date}_${ver}.json`));
@@ -355,7 +354,7 @@ function csvCell(v: string | number | null | undefined): string {
     : safe;
 }
 
-// CSV içeriğini üretir (BOM'suz; indirme sırasında BOM eklenir).
+// Builds CSV content (without BOM; BOM is added during download).
 function buildCsv(result: ValidationResult): string {
   const header = [
     t('export.csv.rule'), t('export.csv.severity'), t('export.csv.class'),
@@ -375,18 +374,18 @@ function buildCsv(result: ValidationResult): string {
   return [header.map(csvCell).join(','), ...rows].join('\r\n');
 }
 
-/// Yazdırma yolunda kural başına gösterilecek örnek bulgu sayısı.
+/// Number of sample findings shown per rule on the print path.
 ///
-/// İndirilen HTML her bulguyu listeler — tarayıcı onu yalnızca ekranda dizer. Yazdırma ise
-/// BAŞKA bir iş: belgeyi A4 sayfalarına bölüp her sayfayı rasterize eder. VBB Berlin'de
-/// tablo 22.904 satır (~206.000 DOM düğümü) ve rapor sekmesi render'ı geçtikten SONRA,
-/// yazdırma önizlemesi üretilirken çöküyordu.
+/// Downloaded HTML lists every finding — the browser lays it out only on screen. Printing is
+/// a DIFFERENT task: split the document into A4 pages and rasterize each page. In VBB Berlin,
+/// the table had 22,904 rows (~206,000 DOM nodes) and crashed AFTER the report tab rendered,
+/// while the print preview was being generated.
 ///
-/// Düz satır tavanı bu işi ÇÖZMEDİ: aynı feed'de önem sıralı ilk 2.000 satır 96 kuralın
-/// yalnızca 8'ini temsil ediyordu, çünkü 500 kritik bulgunun tamamı tek bir kuraldan
-/// (PTH_014) geliyor. Önem başına kota da 15/96'da kalıyor ve belgeyi uzatıyor.
-/// Kural bazında toplama ise 96/96 kuralı ~238 satırda veriyor — motorun STM_014/DQ_016'da
-/// zaten uyguladığı ilke. Tam liste HTML/CSV/JSON çıktılarında duruyor.
+/// A flat row cap did NOT SOLVE this: in the same feed, the first 2,000 rows by severity
+/// represented only 8 of 96 rules because all 500 critical findings came from one rule
+/// (PTH_014). A per-severity quota covered only 15/96 and still made the document long.
+/// Grouping by rule covers all 96/96 rules in ~238 rows — the same principle the engine already
+/// applies in STM_014/DQ_016. Full lists remain in HTML/CSV/JSON outputs.
 const PRINT_EXAMPLES_PER_RULE = 3;
 const PRINT_FULL_NOTICE_LIMIT = 2000;
 
@@ -453,14 +452,14 @@ export function buildReportHtml(result: ValidationResult, fileName: string, ts: 
     const list = byRule.get(n.rule_id);
     if (list) list.push(n); else byRule.set(n.rule_id, [n]);
   }
-  // Kural sırası: önce önem, sonra kural kimliği → deterministik ve okunur.
+  // Rule order: severity first, then rule ID → deterministic and readable.
   const groups = [...byRule.entries()].sort((a, b) =>
     (SEVERITY_RANK[a[1][0]!.severity] ?? 9) - (SEVERITY_RANK[b[1][0]!.severity] ?? 9)
     || a[0].localeCompare(b[0]));
 
   const noticeSections = groups.map(([ruleId, list]) => {
     const head = list[0]!;
-    // Gerçek toplam cap'ten önceki sayıdır; gösterilen liste kural başına cap'li olabilir.
+    // Actual total takes precedence over the cap; the displayed list may be capped per rule.
     const total = result.capped_totals?.[ruleId] ?? list.length;
     const examples = examplesPerRule == null ? list : list.slice(0, examplesPerRule);
     const shown = total > examples.length
@@ -575,25 +574,25 @@ export function buildReportHtml(result: ValidationResult, fileName: string, ts: 
 </html>`;
 }
 
-// Önceden üretilmiş raporu yazdırma penceresinde açar (PDF = tarayıcı yazdırma diyaloğu).
-/// Üretilmiş raporu ayrı bir sekmede açar (PDF = tarayıcının yazdırma diyaloğu).
+// Opens the pre-generated report in the print window (PDF = browser print dialog).
+/// Opens the generated report in a separate tab (PDF = the browser's print dialog).
 ///
-/// Rapor bir Blob URL'ine yazılır ve pencere `noopener` ile açılır — `document.write` ile
-/// aynı origin'e popup açmak YERİNE. Sebep: aynı origin'li popup açan sayfayla AYNI render
-/// sürecini paylaşır. VBB Berlin gibi bir feed doğrulandıktan sonra süreç ~2,6 GB'lık analiz
-/// yığınını taşıyor (WASM belleği geri verilmez, cache kayıtları canlı tutar); o noktada
-/// ikinci bir belge açmak ikisini birden düşürüyordu. `noopener` yeni bir tarayıcı bağlam
-/// grubu açar → ayrı süreç, kendi bellek bütçesi; rapor sekmesi artık uygulamayı yanında
-/// götüremez.
+/// The report is written to a Blob URL and the window opens with `noopener` — instead of opening
+/// an same-origin popup with `document.write`. This matters because a same-origin popup shares
+/// the rendering process with the page that opened it. After validating a feed such as VBB Berlin,
+/// the process holds ~2.6 GB of analysis state (WASM memory is not returned, cache records stay
+/// live); opening another document caused both to be dropped. `noopener` opens a new browser
+/// context group → separate process, separate memory budget; the report tab can no longer take
+/// the application along with it.
 ///
-/// ⚠️ Bedeli: `noopener` verildiğinde `window.open` spec gereği DAİMA `null` döner, yani
-/// popup engellendi mi anlaşılamaz. Engellenme uyarısı bu yüzden kalktı; çağrı doğrudan
-/// tıklama handler'ından yapıldığı için engellenme pratikte beklenmiyor.
+/// ⚠️ Cost: with `noopener`, `window.open` ALWAYS returns `null` by spec, so it is impossible to
+/// tell whether a popup was blocked. The blocked warning was removed for this reason; the call
+/// comes directly from a click handler, so blocking is not expected in practice.
 function printHtml(html: string, locale = getLocale(), autoPrint = true): void {
   const doc = withLang(autoPrint ? withAutoPrint(html) : html, locale);
   const url = URL.createObjectURL(new Blob([doc], { type: 'text/html;charset=utf-8' }));
   window.open(url, '_blank', 'noopener');
-  // Sekme belgeyi yükleyene kadar URL yaşamalı; erken revoke boş sayfa verir.
+  // Keep the URL alive until the tab loads the document; revoking early produces a blank page.
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 

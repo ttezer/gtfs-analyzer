@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Korpus manifestini ÜRET — feed kimliği + SHA-256 + indirme URL'i.
+"""BUILD the corpus manifest — feed ID + SHA-256 + download URL.
 
-⚠️ Manifest ELLE yazılmaz; bu betiğin çıktısıdır. 2026-08-07 dış denetimi manifestin
-İKİ feed'inde `download_url` boş olduğunu ve `verify_corpus.py --download`'ın onları
-sessizce atladığını gösterdi — yani üçüncü taraf 242/242'yi indiremiyordu.
+⚠️ Do not write the manifest MANUALLY; it is this script's output. The 2026-08-07 external audit
+showed that `download_url` was empty for TWO feeds and `verify_corpus.py --download` skipped them
+silently — so a third party could not download all 242/242.
 
 URL kaynakları, sırayla:
   1. `catalog.csv` → `urls.latest` (MobilityData aynası; en kararlı)
@@ -11,18 +11,18 @@ URL kaynakları, sırayla:
   3. `plan.csv`    → `zip_url` (katalog dışı, elle eklenmiş feed'ler)
   4. EXTRA_URLS    → yukarıdakilerin hiçbirinde olmayanlar, kaynağı yorumda yazılı
 
-Kullanım:  python3 spec-audit/corpus-evidence/build_manifest.py [--zips <dizin>]
+Usage:  python3 spec-audit/corpus-evidence/build_manifest.py [--zips <directory>]
 """
 import argparse, csv, hashlib, os, pathlib
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent.parent
 
-# Katalogda ve plan.csv'de bulunmayan feed'ler. Her satırın kaynağı YAZILI olmalı —
-# kaynağı yazılamayan bir URL manifeste girmez.
+# Feeds absent from the catalogue and plan.csv. The source of every row must be WRITTEN DOWN —
+# a URL whose source cannot be documented does not enter the manifest.
 EXTRA_URLS = {
-    # mdb-767 (Prazska integrovana doprava) `urls.direct_download` alanı; zip adı bu
-    # dosyadan geldiği için korpusta feed kimliği `PID_GTFS` olarak duruyor.
+    # `urls.direct_download` for mdb-767 (Prazska integrovana doprava); because the ZIP name
+    # came from this file, the feed ID remains `PID_GTFS` in the corpus.
     "PID_GTFS": "http://data.pid.cz/PID_GTFS.zip",
 }
 
@@ -53,9 +53,9 @@ def main() -> int:
     urls = url_index(corpus)
 
     out = HERE / "corpus_manifest.csv"
-    # URL DURUMU ÖLÇÜMDÜR, TÜRETİLEMEZ: bu betik zip'lere bakar, ağa bakmaz. Var olan
-    # `url_status`/`url_checked` değerleri KORUNUR, yoksa yeniden üretim 2026-08-12'de
-    # ölçülen 14 ölü URL işaretini sessizce silerdi.
+    # URL STATUS IS MEASURED, NOT DERIVED: this script inspects ZIPs, not the network. Preserve
+    # existing `url_status`/`url_checked` values; otherwise regeneration would silently erase
+    # the 14 dead-URL markers measured on 2026-08-12.
     prior = {}
     if out.exists():
         for r in csv.DictReader(out.open(encoding="utf-8")):
@@ -80,8 +80,8 @@ def main() -> int:
                      "url_status": status, "url_checked": checked})
 
     with out.open("w", newline="", encoding="utf-8") as fh:
-        # lineterminator: csv varsayılanı CRLF'tir; depodaki manifest LF ve satır sonu
-        # farkı tüm dosyayı diff'e sokar.
+        # lineterminator: CSV defaults to CRLF; the repository manifest uses LF, and a line-ending
+        # difference would put the entire file into the diff.
         w = csv.DictWriter(fh, lineterminator="\n",
                            fieldnames=["feed", "bytes", "sha256", "download_url",
                                        "url_status", "url_checked"])

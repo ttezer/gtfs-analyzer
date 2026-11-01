@@ -1,19 +1,18 @@
-//! RULES.md / RULES.en.md / RULES.ja.md ↔ `gtfs_rules::RULES` drift kapısı.
+//! RULES.md / RULES.en.md / RULES.ja.md ↔ `gtfs_rules::RULES` drift gate.
 //!
-//! Bu tablolar `gen_rules` example'ı ile registry'den ÜRETİLİR, ama üretimi
-//! zorlayan bir şey yoktu: registry değişip `gen_rules` çalıştırılmayınca
-//! yayınlanan tablolar sessizce bayatlıyordu. Gerçek vaka (2026-07-16'da
-//! yakalandı): tablolar `8b4fae3`'te üretilmiş, ardından `60e53b0` (TRP_017 →
-//! Quality, ATR_009 başlık düzeltmesi) ve `d24848f` (XFL_020/021 Spec → Quality)
-//! registry'yi değiştirmiş; RULES×3 iki commit boyunca yanlış sınıf yayınladı.
-//! `card_consistency` kartları registry'ye bağlıyordu, RULES dosyalarını hiçbir
-//! test bağlamıyordu.
+//! These tables are GENERATED from the registry by the `gen_rules` example, but nothing
+//! forced regeneration: when the registry changed and `gen_rules` was not run, the published
+//! tables silently became stale. A real case (caught on 2026-07-16): the tables were generated
+//! at `8b4fae3`, then `60e53b0` (TRP_017 → Quality, ATR_009 title fix) and `d24848f`
+//! (XFL_020/021 Spec → Quality) changed the registry; all three RULES files published the wrong
+//! class for two commits. `card_consistency` linked cards to the registry, but no test linked
+//! the RULES files.
 //!
-//! Bu test BİLEREK `gen_rules`'un kodunu yeniden kullanmaz: yayınlanmış tabloyu
-//! ayrıştırıp registry ile karşılaştırır. Generator'ın kendi mantığındaki bir
-//! hata, o mantığı çağıran bir teste görünmez olurdu — bağımsız iddia gerekir.
+//! This test deliberately does NOT reuse `gen_rules` code: it parses the published table and
+//! compares it with the registry. A bug in the generator's own logic would be invisible to a
+//! test that called that logic—an independent assertion is required.
 //!
-//! Kırmızı yanarsa: `cargo run -p gtfs-rules --example gen_rules`
+//! If red: `cargo run -p gtfs-rules --example gen_rules`
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -27,7 +26,7 @@ fn repo_root() -> PathBuf {
         .expect("repo kökü bulunamadı")
 }
 
-/// Tablo satırı: `| ARC_001 | Başlık | KRİTİK | Spec |`
+/// Table row: `| ARC_001 | title | KRİTİK | Spec |`
 #[derive(Debug, PartialEq)]
 struct Row {
     title: String,
@@ -35,12 +34,12 @@ struct Row {
     class: String,
 }
 
-/// Markdown tablo satırını KAÇIŞSIZ `|` karakterlerinden böler ve `\|` kaçışlarını çözer.
+/// Splits a Markdown table row on UNESCAPED `|` characters and resolves `\|` escapes.
 ///
-/// `gen_rules` başlıktaki `|` karakterini `\|` olarak escape'ler (ör. GEO_016:
-/// "Durak Null Island yakınında (\|lat\|<1 VE \|lon\|<1)"). Naif bir `split('|')`
-/// böyle satırları 4'ten fazla hücreye böler ve satır sessizce elenir — yani
-/// tam da denetlemesi gereken kuralları atlar.
+/// `gen_rules` escapes `|` in titles as `\|` (for example, GEO_016:
+/// "Stop near Null Island (\|lat\|<1 OR \|lon\|<1)"). A naive `split('|')`
+/// would split such rows into more than four cells and silently discard the row—skipping
+/// exactly the rules it is supposed to check.
 fn split_cells(line: &str) -> Vec<String> {
     let mut cells: Vec<String> = Vec::new();
     let mut cur = String::new();
@@ -49,7 +48,7 @@ fn split_cells(line: &str) -> Vec<String> {
         match c {
             '\\' if chars.peek() == Some(&'|') => {
                 chars.next();
-                cur.push('|'); // kaçış çözüldü: hücre içeriğinin parçası
+                cur.push('|'); // Escape resolved: part of the cell content.
             }
             '|' => {
                 cells.push(cur.trim().to_string());
@@ -59,7 +58,7 @@ fn split_cells(line: &str) -> Vec<String> {
         }
     }
     cells.push(cur.trim().to_string());
-    // `| a | b |` → baştaki ve sondaki boş hücreleri at
+    // `| a | b |` → drop the leading and trailing empty cells.
     if cells.first().is_some_and(String::is_empty) {
         cells.remove(0);
     }
@@ -69,9 +68,9 @@ fn split_cells(line: &str) -> Vec<String> {
     cells
 }
 
-/// RULES dosyasındaki tüm kural satırlarını ID → Row olarak ayrıştırır.
-/// Başlık satırı (`| Kural | ...`) ve ayırıcı (`|---|`) atlanır; kural ID'si
-/// `GRP_NNN` biçiminde olduğu için diğer tablolar yanlışlıkla yakalanmaz.
+/// Parses all rule rows in a RULES file as ID → Row.
+/// Skip the header (`| Kural | ...`) and separator (`|---|`) rows; because rule IDs use
+/// the `GRP_NNN` form, other tables are not accidentally captured.
 fn parse_rows(md: &str) -> BTreeMap<String, Row> {
     let mut out = BTreeMap::new();
     for line in md.lines() {
@@ -96,7 +95,7 @@ fn parse_rows(md: &str) -> BTreeMap<String, Row> {
         out.insert(
             id.to_string(),
             Row {
-                title: cells[1].clone(), // kaçışlar split_cells'te çözüldü
+                title: cells[1].clone(), // Escapes were resolved in split_cells.
                 severity: cells[2].clone(),
                 class: cells[3].clone(),
             },
@@ -105,8 +104,8 @@ fn parse_rows(md: &str) -> BTreeMap<String, Row> {
     out
 }
 
-/// Registry enum'unun her dildeki beklenen yazımı. gen_rules'taki tablonun
-/// BAĞIMSIZ yeniden ifadesi — kasıtlı kopya: biri değişirse test kırılmalı.
+/// Expected spelling of the registry enum in each language. An INDEPENDENT restatement of
+/// the table in gen_rules—a deliberate copy: the test must fail if either one changes.
 fn expected_severity(debug_name: &str, lang: usize) -> &'static str {
     match debug_name {
         "Kritik" => ["KRİTİK", "CRITICAL", "致命的", "CRITIQUE"][lang],
@@ -132,8 +131,8 @@ fn read(file: &str) -> String {
     std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{} okunamadı: {e}", p.display()))
 }
 
-/// Her dilde: yayınlanan kural kümesi = registry kümesi, ve her satırın
-/// önem/sınıf sütunu registry ile aynı.
+/// For every language: the published rule set equals the registry set, and each row's
+/// severity/class columns match the registry.
 #[test]
 fn rules_docs_match_registry() {
     let mut problems: Vec<String> = vec![];
@@ -165,7 +164,7 @@ fn rules_docs_match_registry() {
             }
         }
 
-        // Registry'den silinen kural tabloda kalmamalı.
+        // A rule removed from the registry must not remain in the table.
         for id in rows.keys() {
             if !RULES.iter().any(|r| r.id == id) {
                 problems.push(format!("{file}: '{id}' tabloda var ama registry'de YOK"));
@@ -182,14 +181,14 @@ fn rules_docs_match_registry() {
     );
 }
 
-/// Türkçe tablo başlıkları doğrudan `registry.title`'dan gelir → birebir eşleşmeli.
-/// (EN/JA başlıkları locale dosyalarından geldiği için ayrı testte kontrol edilir.)
-/// Türkçe sızıntı kapısı — çevrilmiş RULES dosyaları için.
+/// Turkish table titles come directly from `registry.title` → they must match exactly.
+/// (EN/JA titles come from locale files and are checked in a separate test.)
+/// Turkish-leak gate for translated RULES files.
 ///
-/// `gen_rules`, locale'de bulamadığı başlığın yerine registry'nin TÜRKÇE metnini
-/// yazar. Yukarıdaki başlık denetimi yalnız `RULES.md`'yi kapsadığından, yarım
-/// çevrilmiş bir locale ile üretilen `RULES.en/ja/fr.md` sessizce Türkçe satır
-/// taşıyabilirdi. `ş ğ İ ı` harfleri bu üç dilin hiçbirinde yoktur.
+/// `gen_rules` writes the registry's TURKISH text when it cannot find a title in the locale.
+/// Because the title check above covers only `RULES.md`, a partially translated locale could
+/// silently produce Turkish rows in `RULES.en/ja/fr.md`. The characters `ş ğ İ ı` occur in none
+/// of those three languages.
 #[test]
 fn translated_rules_docs_carry_no_turkish_titles() {
     let mut problems: Vec<String> = vec![];
@@ -237,9 +236,9 @@ fn turkish_rules_doc_titles_match_registry_titles() {
     );
 }
 
-/// `ui/index.html`'in SEO metinleri (meta description, og:description, JSON-LD) kural
-/// sayısını ELLE taşır ve hiçbir kapı onu denetlemiyordu: 0.14.0 yayınına kadar `526 rules`
-/// yazıyordu — katalog 624'e çıkmışken. Kullanıcıya görünen ilk metin budur.
+/// The SEO text in `ui/index.html` (meta description, og:description, JSON-LD) carried the rule
+/// count MANUALLY and no gate checked it: until the 0.14.0 release it said `526 rules` while the
+/// catalog had reached 624. This is the first text users see.
 #[test]
 fn ui_meta_rule_count_matches_registry() {
     let n = RULES.len().to_string();
@@ -267,8 +266,8 @@ fn ui_meta_rule_count_matches_registry() {
     assert!(seen >= 2, "ui/index.html'de kural sayısı taşıyan metin bulunamadı (desen değişti mi?)");
 }
 
-/// Tablodaki kural sayısı ve grup sayısı, giriş metninde yazan sayılarla tutmalı
-/// ("537 kural, 37 grup"). Elle düzenlenmiş bir tabloda ilk sapan şey budur.
+/// The rule and group counts in the table must match the counts in the introduction
+/// ("537 rules, 37 groups"). This is the first thing to drift in a manually edited table.
 #[test]
 fn rules_doc_intro_counts_match_registry() {
     let n = RULES.len();

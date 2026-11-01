@@ -49,7 +49,7 @@ export function renderCompare(root: HTMLElement, result: ValidationResult, fileN
     } catch (err) {
       error.className = 'upload-status error'; error.textContent = err instanceof Error ? err.message : String(err);
     } finally {
-      // Aynı dosya dahil her yeni seçimde change olayı yeniden çalışsın.
+      // Make the change event fire again for every new selection, including the same file.
       input.value = '';
     }
   });
@@ -102,7 +102,7 @@ function status(kind: ChangeKind, count: number): string {
   const icon: Record<ChangeKind, string> = { fixed: '✓', decreased: '↓', increased: '↑', new: '+', same: '−' };
   return `<div class="status-${kind}"><b>${icon[kind]}</b><strong>${count}</strong><span>${t(`compare.${kind}`)}</span></div>`;
 }
-// 'overall' alanı Golden /3'te eklendi; legacy /2'de yalnız 'score' var → alias.
+// The 'overall' field was added in Golden /3; legacy /2 has only 'score' → alias.
 function scoreVal(run: GoldenRun, key: typeof SCORE_KEYS[number]): number {
   return key === 'overall' ? n(run.scores.overall ?? run.scores.score) : n(run.scores[key]);
 }
@@ -117,8 +117,8 @@ function drawRows(body: HTMLElement, changes: RuleChange[]): void {
   }).join('') || `<tr><td colspan="7" class="compare-no-rows">${t('compare.no_rows')}</td></tr>`;
 }
 function distributionSection(before: GoldenRun, now: GoldenRun): string {
-  // beforeKnown=false → "Karşılaştırılan" verisi yok (legacy Golden sınıf kırılımı saklamaz):
-  // sayım yerine "—" gösterilir, böylece her sınıf yanlışlıkla "yeni artmış" gibi görünmez.
+  // beforeKnown=false → no "before" data (legacy Golden does not store class breakdowns):
+  // show "—" instead of a count, so every class is not mistakenly shown as newly increased.
   const head = `<thead><tr><th></th><th>${t('compare.before')}</th><th></th><th>${t('compare.now')}</th><th>${t('compare.delta')}</th></tr></thead>`;
   const table = (title: string, keys: string[], oldMap: Record<string, number>, newMap: Record<string, number>, beforeKnown: boolean) => `<div><strong>${title}</strong><table>${head}<tbody>${keys.map(key => {
     const cur = newMap[key] ?? 0;

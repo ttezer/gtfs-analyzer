@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { GOLDEN_SCHEMA, buildGoldenScores } from '../golden';
 
-// BART V014 golden'ından alınan gerçek R5Report değerleri.
-// Kaynak: Test Feed/V014/BART/mdb-53-202606250002_2026-06-27_0.1.4.json (schema v2, scores.score=83.6)
+// Actual R5Report values taken from the BART V014 golden.
+// Source: Test Feed/V014/BART/mdb-53-202606250002_2026-06-27_0.1.4.json (schema v2, scores.score=83.6)
 const BART_V014_R5 = {
   score:           83.6,
   pub_score:       92.6,
   spec_score:      92.6,
   interop_score:   90.1,
-  quality_score:   65.8,  // yalnız Quality sınıfı — score'dan farklı (karmaşanın özü buydu)
+  quality_score:   65.8,  // Quality class only — differs from score (this was the source of the confusion)
   analytics_score: 63.3,
 };
 

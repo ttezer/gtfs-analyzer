@@ -198,3 +198,156 @@ d08d91e6148301406c13399f175fca99a56e1170
 
 # Reverted pipeline library translation (card-overlap file).
 120848b5d04f837a18123d2722783d0aaaeff4b5
+
+# Translate rules maintenance examples.
+b11de19152bbfa489faf6d2511230be9ffc5628e
+
+# Preserve formatting in rules maintenance examples.
+7b826078b8a9aa092f21dd51e45a52cc54dc6758
+
+# Translate rules test comments.
+a490143cb0c0f075cab8e947ad0154e8a08fe96b
+
+# Preserve formatting in rules tests.
+c5d5ea94aa8c748db1b8c0c067a05e9db12a75ce
+
+# Translate rules registry comments.
+5a1d9eb30710d317e74b8055eccb9c4290cb5d36
+
+# Preserve registry code spans.
+cee272f4b0282c6e7bf55f492071e789d7f067c7
+
+# Translate pipeline library comments.
+4bceebf5963dd2875f8b2fdb7042117acc83a2df
+
+# Translate stop times comments (part 1).
+edd6fb373173b7ac2b7856ff8da77392c4acf0f0
+
+# Translate stop times comments (part 2).
+7937147f5c754ba0ae9bdfa347518b227396acbd
+
+# Translate integration test comments (part 1).
+8a19188ed8e8fff99d7c3efdc179d8f5730bae16
+
+# Translate integration test comments (part 2).
+084210a238fc254680831a11873ba8fcf70bc443
+
+# Translate integration test comments (part 3).
+1f9afd1d00f21b4e2b27e2db09b04e219ed43e28
+
+# Translate integration test comments (part 4).
+ab0ab6701fbf7964b39ec9dfcc565b79a2a00d0c
+
+# Translate integration test comments (part 5).
+4451fd7965081058addd514affdb8c9c05ab08c4
+
+# Translate integration test comments (part 6).
+55a3b1555664ce53a09718f7699f0be7f6dde1fb
+
+# Translate integration test comments (part 7).
+acf4ca3265219ba09a584db3d437baf9ba387be7
+
+# Translate K6 analytics comments (part 1).
+6a8da2035486a1388cda54e9aeafb840fd87bc8e
+
+# Translate K6 analytics comments (part 2).
+9e41132456206ae0a959c73e256e72100444c493
+
+# Translate K6 analytics comments (part 3).
+fe26f82e2d061315c957d011059bc525f37189cc
+
+# Translate K6 analytics comments (part 4).
+371d9b5c095fed5fb16e5bdffbe974fffdf5c9f1
+
+# Translate K6 analytics comments (part 5).
+688c4f2bfb502cadd72f650735c9e71f5a0afdce
+
+# Translate K6 analytics comments (part 6).
+5d56336f8e497823dca47b32f30d45a6b5cddcbd
+
+# Translate K6 analytics comments (part 7).
+201bb5d9a8295d9974f4ee42d00969b34824ed87
+
+# Translate K6 analytics comments (part 8).
+47dec1cdab0da4e33df62148888b01c8347d2999
+
+# Translate K6 analytics comments (part 9).
+d1ae6dcd2636d78af43feca21a81169d91f5a70c
+
+# Translate UI helper comments to English.
+9236235ed75f4ba2aa09d7f96764792e7d093043
+
+# Translate UI state and locale comments to English.
+8a6731341af7d0b42ca1bfb507723b8c45e726b4
+
+# Translate UI map and compare comments to English.
+d9aed1d6629f636d7b5461d55003c51bce9d2712
+
+# Translate UI test comments to English.
+0120e8b1c505b7d4f8ef8c99116c45512f113bb4
+
+# Translate UI report comments to English.
+78e77ae60d5e44891da9fc606f89732425c5c178
+
+# Translate UI export comments to English.
+90f5aa5659c825662c29927366858106237b99bc
+
+# Translate UI runtime comments to English.
+f6a2b295597ee5e62cdfee071d626fa29b312a63
+
+# Translate UI upload comments to English.
+695c0cf2928c763d8555694104a88d14f2a6d76a
+
+# Preserve UI upload code span.
+096b9bfabcf977f469e2148f4f50d28d3060a1b3
+
+# Translate UI fix comments to English.
+c05a7b5aa55d6c94be0ad656366cbe4144ca9895
+
+# Translate badge audit comments to English.
+01e04a187c91b3727efdbe8240a98e5de3121e44
+
+# Translate corpus audit comments to English.
+1bed663dea307f806feb10807a9afd0b9309e4ba
+
+# Translate spec measurement comments to English.
+7386c193e8ce413b111d77786ee5dcb98e65e194
+
+# Translate corpus helper comments to English.
+b3af4bb14de5a8a12404148580d49829b5053fd3
+
+# Translate rule scan comments to English.
+e5f0ea69d03b4a35b94972ac9189cc3d87c62d29
+
+# Translate corpus batch comments to English.
+2334865ea564899ef88f362a7d7d2a40eafd2d78
+
+# Translate provision extraction comments to English.
+0adc78054843cce7414d9079a8dc9d98e34ae86e
+
+# Translate parity mapping comments to English.
+d4b1b635ed9907ebae2480010e2552dfff20d7d0
+
+# Translate parity audit test comments to English.
+ccbd447e67a138f6af0e4cbe5a5370b6c8fdf887
+
+# Translate parity audit comments to English.
+f094bfe30f78edf146f05a12a9ec6ffcf71595b0
+
+# Translate rules comments to English.
+09ff158956ed65e23651889f2cb8022430104770
+
+# Translate CLI test comments to English.
+de2cae9ed76d19bae4faace07f1f371764580c4c
+
+# Translate result comments to English.
+0386daa5e64391841e66623e9efbaca4669ed380
+
+# Translate Python and proof-test comments to English.
+dd7d2488139cd23b2cfae3e6e23e7768bc620f8f
+
+# Translate version, benchmark, and CI comments to English.
+587601656db67803ff8e93ef663aee8dd353be99
+
+# Translate benchmark timing documentation to English.
+cb80fdf8dd449a9ce44d6e3c3189e248cda7481f

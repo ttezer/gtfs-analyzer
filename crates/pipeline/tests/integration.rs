@@ -5,10 +5,10 @@ use gtfs_pipeline::{
     k1_parse::parse, validate_bytes, FatalCode, GtfsJpProfile, ValidateResult, ValidatorConfig,
 };
 
-// Tüm testler için sabit tarih — deterministik analytics çıktısı
+// Fixed date for all tests — deterministic analytics output.
 const TODAY: u32 = 20_260_515;
 
-// ── Yardımcılar ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
     let cur = std::io::Cursor::new(Vec::new());
@@ -21,8 +21,8 @@ fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
     zw.finish().unwrap().into_inner()
 }
 
-// Tarih aralığı (20250101–20271231) test gününü (20260515, Cuma) kapsar.
-// Pazartesi–Cuma=1 → SVC1 aktif → servis boşluğu uyarısı çıkmaz.
+// The date range (20250101–20271231) contains the test day (20260515, Friday).
+// Monday–Friday=1 → SVC1 is active → no service-gap warning is emitted.
 static AGENCY: &[u8] =
     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 static STOPS: &[u8] =
@@ -59,9 +59,8 @@ fn run_with_profile(files: &[(&str, &[u8])], profile: GtfsJpProfile) -> Validate
     validate_bytes(&make_zip(files), &config, TODAY)
 }
 
-/// GTFS-JP listesi YALNIZ tespit edilmiş JP feed'inde uygulanır: Japonya'ya özgü
-/// yayın pratiği yüzünden anlamsızlaşan kontroller, dünyanın geri kalanındaki
-/// feed'lerde görünmeye devam etmelidir.
+/// The GTFS-JP list applies ONLY to a detected JP feed: checks made meaningless
+/// by Japanese publishing practice must remain visible in feeds from elsewhere.
 #[test]
 fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
     let config = ValidatorConfig {
@@ -78,15 +77,15 @@ fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
         }
     };
 
-    // JP olmayan feed: kural görünmeye devam eder.
+    // Non-JP feed: the rule remains visible.
     check(&base_files(), false, "global feed");
 
-    // `office_jp.txt` GTFS-JP tespitini açar: kural gizlenir.
+    // `office_jp.txt` activates GTFS-JP detection: the rule is hidden.
     let mut jp = base_files();
     jp.push(("office_jp.txt", b"office_id,office_name\nO1,Test\n"));
     check(&jp, true, "GTFS-JP feed");
 
-    // Genel liste her iki feed'de de uygulanır (kapsam farkının kanıtı).
+    // The general list applies to both feeds (proof of the scope distinction).
     let global = ValidatorConfig {
         disabled_rule_ids: vec!["DQ_004".to_string()],
         ..ValidatorConfig::default()
@@ -99,13 +98,13 @@ fn gtfs_jp_scoped_disabled_rules_apply_only_to_detected_jp_feeds() {
 
 #[test]
 fn disabled_rule_ids_reject_unknown_and_spec_rules() {
-    // Bilinmeyen/emekli kimlik sessizce hiçbir şeyi kapatmamalı; Spec kuralı yayın
-    // kararının kanıtıdır ve gizlenemez.
+    // An unknown/retired ID must not silently disable anything; a Spec rule is
+    // evidence for the publication decision and must not be hidden.
     for (rule, variant, jp_scope) in [
         ("DQ_04", "disabled_rule_unknown", false),
         ("BKR_002", "disabled_rule_unknown", false),
         ("BKR_001", "disabled_rule_spec", false),
-        // Aynı kapı GTFS-JP listesinde de geçerlidir.
+        // The same gate also applies to the GTFS-JP list.
         ("DQ_04", "disabled_rule_unknown", true),
         ("BKR_001", "disabled_rule_spec", true),
     ] {
@@ -390,8 +389,9 @@ fn v3_requires_bus_route_type_and_routes_agency_id() {
         "feed_info.txt",
         b"feed_publisher_name,feed_publisher_url,feed_lang\nTest,http://test.example,ja\n",
     ));
-    // Açık V3 artık sayısal route_type=3 sabitini doğrudan uygular; iki otobüs + bir demiryolu
-    // fixture'ında route_type=2 ihlali, dağılımdan bağımsız olarak raporlanmalıdır.
+    // Explicit V3 now applies the numeric route_type=3 constant directly; in the
+    // two-bus-plus-one-rail fixture, the route_type=2 violation must be reported
+    // regardless of the distribution.
     files[2] = (
         "routes.txt",
         b"route_id,route_short_name,route_type\nR1,101,3\nR2,102,3\nR3,103,2\n",
@@ -529,7 +529,7 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         "fare_attributes.txt",
         b"fare_id,price,currency_type,payment_method,transfers\nF1,200,JPY,0,0\n",
     ));
-    // Seferler S1(A)→S2(B) yönünde; yalnız ters yön fiyatlıysa A→B eksiktir.
+    // Trips run S1(A)→S2(B); A→B is missing when only the reverse direction is priced.
     files.push((
         "fare_rules.txt",
         b"fare_id,route_id,origin_id,destination_id\nF1,R1,B,A\n",
@@ -550,8 +550,8 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
     assert_eq!(missing["missing_pairs"], "1");
     assert!(missing["example_pairs"].contains("origin_id=A, destination_id=B"));
 
-    // Seferin bağladığı tek çift fiyatlıysa bulgu yok: ters yön (B→A) ve aynı-bölge
-    // (A→A, B→B) çiftleri hiçbir seferde yapılamadığı için istenmez.
+    // There is no finding when the only connected pair is priced: the reverse (B→A)
+    // and same-zone (A→A, B→B) pairs are not required because no trip can make them.
     let mut served_only = files.clone();
     served_only.pop();
     served_only.push((
@@ -563,8 +563,8 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 
-    // S2'de inilemiyorsa (drop_off_type=1) A→B yolcuya açık değildir; yalnız B→A
-    // fiyatlı olsa da eksik çift yoktur.
+    // If alighting at S2 is forbidden (drop_off_type=1), A→B is not passenger-accessible;
+    // there is no missing pair even if only B→A is priced.
     let mut no_drop_off = files.clone();
     assert_eq!(no_drop_off[4].0, "stop_times.txt");
     no_drop_off[4] = (
@@ -593,7 +593,7 @@ fn fare_origin_destination_coverage_checks_zone_pairs_but_accepts_route_uniform_
 
 #[test]
 fn stp_033_is_suppressed_only_for_proven_uniform_fares() {
-    // fare_rules yok → zone_id'nin tüketicisi yok → STP_033 yok.
+    // No fare_rules → zone_id has no consumer → no STP_033.
     let no_fares = match run(&base_files()) {
         ValidateResult::Ok(vr) => vr,
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
@@ -936,15 +936,15 @@ fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct(
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
-            // S1'de çelişki + Latin içerik iki JPN_021 predicate'ini tetikleyebilir;
-            // JPN_021 Entity kapsamı nedeniyle K7 aynı record_id için tek temsilci tutar.
+            // The contradiction plus Latin content at S1 can trigger two JPN_021 predicates;
+            // because JPN_021 is Entity-scoped, K7 keeps one representative per record_id.
             assert_eq!(
                 vr.notices.iter().filter(|n| n.rule_id == "JPN_021").count(),
                 2,
                 "JPN_021 S1 ve S2 için birer final bulgu üretmeli"
             );
-            // Profil kuralı, genel GTFS translations kurallarının yerine geçmez:
-            // aynı feed'de TRN_006 (çelişki) ve TRN_008 (boş translation) korunur.
+            // The profile rule does not replace the general GTFS translations rules:
+            // TRN_006 (contradiction) and TRN_008 (empty translation) remain in the same feed.
             assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_006"));
             assert!(vr.notices.iter().any(|n| n.rule_id == "TRN_008"));
         }
@@ -952,7 +952,7 @@ fn gtfs_jp_kana_profile_keeps_profile_and_general_translation_findings_distinct(
     }
 }
 
-// ── issue #108: RTS_022 tek karakterli tam eşitliği kaçırmamalı ───────────────
+// ── issue #108: RTS_022 must not miss a one-character exact match ─────────────
 
 fn rts022_route_name_feed(routes: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -1004,7 +1004,7 @@ fn rts022_keeps_multicharacter_containment() {
 }
 
 // ── Test 1: Bozuk bayt → Fatal(ZipUnreadable) ─────────────────────────────────
-// ARC_001 yolu: pipeline ilk adımda durur, hiçbir kural çalışmaz.
+// ARC_001 path: the pipeline stops at the first step; no rule runs.
 
 #[test]
 fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
@@ -1020,9 +1020,9 @@ fn arc001_corrupt_zip_returns_fatal_zip_unreadable() {
     }
 }
 
-// ── Test 1b: Zorunlu dosya eksik → PARTIAL + ARC_004 ─────────────────────────
-// ZIP okunabilir kaldığı için bağımsız bulgular korunur; yalnızca eksik dosyaya
-// gerçekten bağlı alt kurallar çalışmaz.
+// ── Test 1b: Required file missing → PARTIAL + ARC_004 ───────────────────────
+// The ZIP remains readable, so independent findings are preserved; only rules
+// genuinely dependent on the missing file do not run.
 
 #[test]
 fn arc004_missing_required_file_returns_partial_report() {
@@ -1052,8 +1052,8 @@ fn arc004_missing_required_file_returns_partial_report() {
 
 #[test]
 fn malformed_optional_file_is_skipped_with_partial_report() {
-    // feed_info.txt opsiyoneldir; bozuk UTF-8 typed kayda dönüştürülmemeli,
-    // fakat okunabilir feed'in bağımsız K1/K2 kapsamı korunmalıdır.
+    // feed_info.txt is optional; malformed UTF-8 must not become a typed record,
+    // but the readable feed's independent K1/K2 scope must be preserved.
     let mut files = base_files();
     files.push((
         "feed_info.txt",
@@ -1191,7 +1191,7 @@ fn malformed_feed_info_keeps_independent_cross_ref_findings() {
     }
 }
 
-// ── Test 2: Minimal geçerli feed yayınlanabilir ───────────────────────────────
+// ── Test 2: Minimal valid feed is publishable ─────────────────────────────────
 
 #[test]
 fn minimal_valid_feed_is_publishable() {
@@ -1206,11 +1206,11 @@ fn minimal_valid_feed_is_publishable() {
     }
 }
 
-// ── Test 3: STP_003 → blocks[] GEO_009 ──────────────────────────────────────
-// parse_coordinate: ilk kural range_rule_id (STP_003 = aralık dışı).
-// stop_lat=999.0 → aralık dışı [-90,90] → STP_003 ateşlenir.
-// Feed'de shape yok → GEO_009 doğal olarak üretilmez; STP_003.blocks içinde mevcuttur.
-// Not: SHP_013 kaldırıldı (GEO_009 ile çift sayım yapıyordu).
+// ── Test 3: STP_003 → blocks[] GEO_009 ───────────────────────────────────────
+// parse_coordinate: the first rule is range_rule_id (STP_003 = out of range).
+// stop_lat=999.0 → outside [-90,90] → STP_003 fires.
+// The feed has no shape → GEO_009 is not produced naturally; it is present in STP_003.blocks.
+// Note: SHP_013 was removed (it double-counted with GEO_009).
 
 #[test]
 fn stp_003_blocks_contain_geo_009() {
@@ -1239,7 +1239,7 @@ fn stp_003_blocks_contain_geo_009() {
                 blocks,
             );
 
-            // S1 koordinatsız → GEO_009 kök neden olarak ateşlenmemeli
+            // S1 has no coordinates → GEO_009 must not fire as the root cause.
             assert!(
                 !vr.notices.iter().any(|n| n.rule_id == "GEO_009"),
                 "GEO_009 koordinat eksikken kök neden olarak üretilmemeli",
@@ -1250,9 +1250,9 @@ fn stp_003_blocks_contain_geo_009() {
 }
 
 // ── Test 4: TRF_006 → blocks[] OPR_007 ───────────────────────────────────────
-// Geçersiz from_trip_id ("MISSING_TRIP") → K4 TRF_006 ateşler; scope_key sefer kimliğidir.
-// Kapsamlı kök yalnız aynı scope_key'i bastırır: OPR_007 sefer kimliği taşır, TRF_013..018
-// scope_key taşımaz. O bağlantılar hiç eşleşmediği için 2026-10-11'de kaldırıldı.
+// Invalid from_trip_id ("MISSING_TRIP") → K4 fires TRF_006; scope_key is the trip ID.
+// A scoped root suppresses only the same scope_key: OPR_007 carries a trip ID, while
+// TRF_013..018 carry no scope_key. Those links never matched and were removed on 2026-10-11.
 
 #[test]
 fn trf_006_blocks_only_trip_scoped_opr_007() {
@@ -1282,9 +1282,9 @@ fn trf_006_blocks_only_trip_scoped_opr_007() {
     }
 }
 
-// TRF_003 aktarma SATIRINI kapsar (`from_stop_id|to_stop_id`). Eskiden `scope_key` taşımadığı
-// için feed düzeyi kökü sayılıyor, tek kırık durak referansı feed'deki BÜTÜN TRF_004
-// bulgularını R9'dan gizliyordu. Artık yalnız kendi satırının TRF_004'ü semptomdur.
+// TRF_003 covers a transfer ROW (`from_stop_id|to_stop_id`). It used to be treated as a
+// feed-level root because it carried no `scope_key`, so one broken stop reference hid ALL
+// TRF_004 findings in the feed from R9. Now only that row's TRF_004 is a symptom.
 #[test]
 fn trf_003_masks_only_its_own_transfer_row() {
     const TRANSFERS: &[u8] = b"from_stop_id,to_stop_id,transfer_type\nS1,MISSING,9\nS1,S2,9\n";
@@ -1307,12 +1307,12 @@ fn trf_003_masks_only_its_own_transfer_row() {
     );
 }
 
-// ── Test 5: TRP_019 — shape_id yalnız SÜREKLİ SERVİS varsa zorunludur ────────
+// ── Test 5: TRP_019 — shape_id is required only for CONTINUOUS SERVICE ───────
 //
-// 🔴 Bu test 2026-08-19'a kadar HATALI DAVRANIŞI sabitliyordu: `continuous_pickup=1`
-// ile bulgu BEKLİYORDU. Spec'te 1 (ve boş) "sürekli biniş YOK" demektir; sürekli
-// servis 0, 2 ve 3'tür. Yani test, geçerli bir feed'den shape_id talep etmemizi
-// doğru sanıyordu. Korpusta 100 feed / 215.288 bulgu bu yüzden üretiliyordu.
+// 🔴 Until 2026-08-19 this test locked in the WRONG BEHAVIOR: it EXPECTED a finding
+// for `continuous_pickup=1`. In the Spec, 1 (and empty) means "NO continuous pickup";
+// continuous service is 0, 2, and 3. Thus the test treated requiring shape_id from a
+// valid feed as correct. This produced 215,288 findings across 100 corpus feeds.
 
 #[test]
 fn trp_019_fires_when_continuous_service_is_actually_active() {
@@ -1341,8 +1341,8 @@ fn trp_019_fires_when_continuous_service_is_actually_active() {
 
 #[test]
 fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
-    // 1 = "No continuous stopping pickup". Boş bırakmakla aynı anlama gelir ve
-    // shape_id'yi ZORUNLU KILMAZ; aksi hâlde geçerli feed reddedilir.
+    // 1 = "No continuous stopping pickup". It has the same meaning as empty and
+    // does NOT REQUIRE shape_id; otherwise a valid feed would be rejected.
     for value in ["1", ""] {
         let routes = format!(
             "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,{value}\n"
@@ -1362,8 +1362,8 @@ fn trp_019_stays_silent_when_continuous_service_is_declared_absent() {
     }
 }
 
-// ── Test 6: TRP_019 — continuous service yok → sessiz ────────────────────────
-// route'ta continuous_pickup/drop_off yok, stop_times'ta da yok → TRP_019 üretilmez.
+// ── Test 6: TRP_019 — no continuous service → silent ──────────────────────────
+// The route has no continuous_pickup/drop_off, nor do stop_times → no TRP_019.
 
 #[test]
 fn trp_019_silent_when_no_continuous_service() {
@@ -1400,11 +1400,11 @@ fn trp_019_fires_when_stop_time_enables_continuous_service() {
     }
 }
 
-// ── RTS_028: rotanın herhangi bir seferinde Flex penceresi varken routes.continuous_* ─────
-// Rota kapsamlı koşul (MD `forbidden_continuous_pickup_drop_off` paritesi). İhlal eden satır
-// stop_times'ta DEĞİL routes.txt'te; pencereyi taşıyan sefer başka bir satır olabilir.
+// ── RTS_028: routes.continuous_* while any trip on the route has a Flex window ──
+// Route-scoped condition (MD `forbidden_continuous_pickup_drop_off` parity). The violating
+// row is in routes.txt, NOT stop_times; another row may carry the window.
 
-// T1'in 2. durağı Flex pencereli (T1 → R1) — R1 böylece "Flex rotası" olur.
+// T1's second stop has a Flex window (T1 → R1) — R1 therefore becomes a "Flex route".
 static STOP_TIMES_FLEX_WINDOW: &[u8] =
     b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\n\
       T1,08:00:00,08:00:00,S1,1,,,,\n\
@@ -1442,7 +1442,7 @@ fn rts_028_fires_when_route_has_flex_window_trip_and_continuous_pickup() {
 
 #[test]
 fn rts_028_silent_when_route_has_no_flex_window() {
-    // continuous_pickup=0 ama hiçbir seferde pencere yok → spec'e göre Optional.
+    // continuous_pickup=0 but no trip has a window → Optional according to the Spec.
     const ROUTES_CONTINUOUS: &[u8] =
         b"route_id,agency_id,route_short_name,route_type,continuous_pickup\n\
           R1,1,101,3,0\n";
@@ -1465,7 +1465,7 @@ fn rts_028_silent_when_route_has_no_flex_window() {
 
 #[test]
 fn rts_028_silent_when_continuous_is_one() {
-    // Flex pencereli rota ama continuous_pickup=1 (izinli değer) → sessiz.
+    // Route has a Flex window but continuous_pickup=1 (allowed value) → silent.
     const ROUTES_CONTINUOUS: &[u8] =
         b"route_id,agency_id,route_short_name,route_type,continuous_pickup,continuous_drop_off\n\
           R1,1,101,3,1,\n";
@@ -1487,16 +1487,17 @@ fn rts_028_silent_when_continuous_is_one() {
     }
 }
 
-/// Ölçüm, 17. korpus koşumu (`tfs-789`): 829 aktarma satırının tamamı 2 km üstüydü ama yalnız
-/// 57 farklı durak çifti vardı, çift başına ortalama 14,5 satır. Kural künyesinde kimlik alanı
-/// zaten `from_stop_id|to_stop_id`, yani çift; emisyon satır başınaydı ve kendi beyanıyla
-/// çelişiyordu. MD `transfer_distance_above_2_km` 69 diyordu — o da çift başına sayıyor.
-/// Ölçüm, 17. korpus koşumu (`mdb-2653`): `stop_times` kaydı olmayan 421 seferin 108'inin
-/// `trip_id`'sinde boşluk vardı ve 108'i de K7'de bastırılıyordu — biz 313 rapor ederken MD 732
-/// diyordu. Bastırma "kimlik yalnız boşluk yüzünden eşleşmiyor" varsayımını `trip_id` referans
-/// kümesine bakarak kuruyordu, ama o küme `trips.txt`'nin KENDİ kimliklerinden doluyor ve
-/// `XFL_002`'nin gözlenen değeri zaten seferin kendi kimliği — koşul her zaman sağlanıyordu.
-/// Doğru küme `stop_times`'ta GEÇEN kimlikler.
+/// Measurement from the 17th corpus run (`tfs-789`): all 829 transfer rows were above 2 km,
+/// but there were only 57 distinct stop pairs, averaging 14.5 rows per pair. The rule's
+/// identity field is already `from_stop_id|to_stop_id`, i.e. the pair; emitting per row
+/// contradicted its own declaration. MD reported 69 for `transfer_distance_above_2_km` —
+/// it also counts per pair.
+/// Measurement from the 17th corpus run (`mdb-2653`): 108 of 421 trips without a `stop_times`
+/// record had whitespace in `trip_id`, and all 108 were suppressed by K7 — we reported 313
+/// while MD reported 732. Suppression assumed that the ID failed to match only because of
+/// whitespace by consulting the `trip_id` reference set, but that set is populated from the
+/// IDs in `trips.txt` ITSELF, and `XFL_002`'s observed value is already the trip's own ID —
+/// the condition was therefore always true. The correct set is the IDs PRESENT in `stop_times`.
 #[test]
 fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
     let trips = "route_id,service_id,trip_id\nR1,SVC1,T1 \nR1,SVC1,T2 \n";
@@ -1517,17 +1518,17 @@ fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
                 .filter(|n| n.rule_id == "XFL_002")
                 .filter_map(|n| n.entity_id.as_deref())
                 .collect();
-            // `T1 ` hiçbir yazımla stop_times'ta YOK → bulgu GERÇEK, görünür kalmalı.
+            // `T1 ` is NOT present in stop_times under any spelling → the finding is REAL and must remain visible.
             assert!(
                 ids.iter().any(|id| id.trim() == "T1"),
                 "stop_times'ta hiç geçmeyen sefer bastırılmamalı: {ids:?}"
             );
-            // `T2 ` trim'lenince stop_times'ta VAR → fark yalnız boşluk, bastırılmalı.
+            // `T2 ` is PRESENT in stop_times after trimming → whitespace is the only difference, so suppress it.
             assert!(
                 !ids.iter().any(|id| id.trim() == "T2"),
                 "yalnız boşlukla ayrılan sefer DQ_016'nın konusudur, ayrı bulgu değil: {ids:?}"
             );
-            // Bastırma izsiz olmamalı: kök DQ_016 sayıyı beyan etmeli.
+            // Suppression must not be untraceable: the DQ_016 root must declare the count.
             let root = vr
                 .notices
                 .iter()
@@ -1545,7 +1546,7 @@ fn xfl_002_survives_suppression_when_the_trip_is_absent_from_stop_times() {
 
 #[test]
 fn trf_011_skips_null_island_stops_and_leaves_the_root_to_geo_016() {
-    // SN (0,0) yer tutucusu: S1→SN mesafesi anlamsız, kök GEO_016. S1→S2 gerçek ~13,7 km.
+    // SN (0,0) placeholder: S1→SN distance is meaningless, with GEO_016 as the root. S1→S2 is a real ~13.7 km.
     let stops: &[u8] =
         b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nSN,StopNull,0.0,0.0\n";
     let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,SN,2,300\nSN,S2,2,300\nS1,S2,2,300\n";
@@ -1578,7 +1579,7 @@ fn trf_011_skips_null_island_stops_and_leaves_the_root_to_geo_016() {
 
 #[test]
 fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
-    // Aynı uzak çift ÜÇ satırda, ters yönlü çift bir satırda (S1↔S2 ~13,7 km).
+    // The same distant pair appears in THREE rows, and the reverse pair in one row (S1↔S2 ~13.7 km).
     let transfers = "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,300\nS1,S2,2,300\nS1,S2,2,300\nS2,S1,2,300\n";
     let mut files = base_files();
     files.push(("transfers.txt", transfers.as_bytes()));
@@ -1610,7 +1611,7 @@ fn trf_011_reports_one_finding_per_stop_pair_not_per_transfer_row() {
                 Some("3"),
                 "üç satırda tekrarlanan çift sayıyı details'te taşımalı"
             );
-            // Tek satırlık çift `details` taşımaz — gereksiz alan üretilmesin.
+            // A single-row pair carries no `details` — do not emit an unnecessary field.
             let single = hits
                 .iter()
                 .find(|n| n.entity_id.as_deref() == Some("S2|S1"))
@@ -1687,9 +1688,9 @@ fn pathway_recommendations_respect_mode_boundaries() {
     match run(&files) {
         ValidateResult::Ok(vr) => {
             assert!(vr.notices.iter().any(|n| n.rule_id == "PTH_008"));
-            // 2026-08-02: bu vaka PTH_017'den PTH_028'e taşındı. PTH_017 artık yalnız TİP
-            // ihlalini (sayı olmayan max_slope) ölçer; "yanlış pathway_mode ile kullanılmış"
-            // dalı spec'te "should" olduğu için Quality sınıfında ayrı kuraldır.
+            // 2026-08-02: this case moved from PTH_017 to PTH_028. PTH_017 now measures only
+            // the TYPE violation (non-numeric max_slope); the "used with the wrong pathway_mode"
+            // branch is a separate Quality rule because the Spec says "should".
             let wrong_mode = vr
                 .notices
                 .iter()
@@ -1709,7 +1710,7 @@ fn pathway_recommendations_respect_mode_boundaries() {
     }
 }
 
-// ── Test 7: PTH_014 — farklı istasyonları bağlayan pathway → ateşlenir ────────
+// ── Test 7: PTH_014 — pathway connecting different stations → fires ───────────
 // PLT_A parent=STA1, PLT_B parent=STA2; PW1 PLT_A→PLT_B → cross-station ihlali.
 
 #[test]
@@ -1745,8 +1746,8 @@ fn pth_014_fires_for_cross_station_pathway() {
     }
 }
 
-// ── Test 8: PTH_014 — aynı istasyon içi pathway → sessiz ─────────────────────
-// PLT_A ve PLT_B aynı istasyona (STA1) ait → PTH_014 üretilmez.
+// ── Test 8: PTH_014 — pathway within one station → silent ─────────────────────
+// PLT_A and PLT_B belong to the same station (STA1) → no PTH_014.
 
 #[test]
 fn pth_014_silent_for_same_station_pathway() {
@@ -1780,12 +1781,12 @@ fn pth_014_silent_for_same_station_pathway() {
     }
 }
 
-// ── Test 9: STP_016 — aynı koordinatlı iki durak → uyarı ─────────────────────
+// ── Test 9: STP_016 — two stops at the same coordinates → warning ─────────────
 
 #[test]
 fn stp_016_fires_for_stops_at_identical_coordinates() {
     const STOPS_SAME_COORD: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
-          S1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n"; // S1 ve S2 aynı koordinat
+          S1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n"; // S1 and S2 have the same coordinates
 
     let mut files = base_files();
     files[1] = ("stops.txt", STOPS_SAME_COORD);
@@ -1805,7 +1806,7 @@ fn stp_016_fires_for_stops_at_identical_coordinates() {
     }
 }
 
-// ── Test 10: STP_016 — farklı koordinatlı duraklar sessiz ────────────────────
+// ── Test 10: STP_016 — stops at different coordinates are silent ──────────────
 
 #[test]
 fn stp_016_silent_for_stops_at_different_coordinates() {
@@ -1820,9 +1821,9 @@ fn stp_016_silent_for_stops_at_different_coordinates() {
     }
 }
 
-// ── Test 10b: STP_016 — parent/child aynı koordinat sessiz ───────────────────
-// Çocuk durak, ait olduğu istasyonla aynı koordinatta olabilir (normal GTFS).
-// STP_016 bu çifti FP olarak işaretlememeli.
+// ── Test 10b: STP_016 — parent/child at the same coordinates is silent ─────────
+// A child stop may share coordinates with its station (normal GTFS).
+// STP_016 must not flag this pair as an FP.
 
 #[test]
 fn stp_016_silent_for_parent_child_at_identical_coordinates() {
@@ -1844,9 +1845,9 @@ fn stp_016_silent_for_parent_child_at_identical_coordinates() {
 }
 
 // ── Test 10c: TRN_017 — field_value modunda record_sub_id muaf ───────────────
-// stop_times çevirisi field_value ile eşleştirilirse record_id/record_sub_id boş
-// olmalıdır (spec). Bu modda TRN_010/TRN_017 ateşlenmemeli; record_id modunda
-// eksik record_sub_id için yalnız TRN_017 ateşlenmelidir.
+// If the stop_times translation is matched by field_value, record_id/record_sub_id
+// must be empty (Spec). TRN_010/TRN_017 must not fire in this mode; in record_id mode,
+// only TRN_017 should fire for a missing record_sub_id.
 
 #[test]
 fn trn_017_silent_in_field_value_mode_but_fires_in_record_id_mode() {
@@ -1879,13 +1880,13 @@ fn trn_017_silent_in_field_value_mode_but_fires_in_record_id_mode() {
     }
 }
 
-// ── Test 10d: TRN_007 — feed_lang ile aynı dildeki çeviriler tek özette toplanır ──
+// ── Test 10d: TRN_007 — translations in feed_lang are grouped into one summary ─
 
 #[test]
 fn trn_007_same_language_translations_aggregate_to_feed_summary() {
     const FEED_INFO: &[u8] =
         b"feed_publisher_name,feed_publisher_url,feed_lang\nP,http://x.example,ja\n";
-    // İki ja çeviri (feed_lang=ja) → satır-başına 2 yerine tek feed-seviyesi TRN_007.
+    // Two ja translations (feed_lang=ja) → one feed-level TRN_007 instead of two per row.
     const TR_JA: &[u8] =
         b"table_name,field_name,language,translation,record_id,record_sub_id,field_value\n\
           stops,stop_name,ja,S1 Stop,S1,,\n\
@@ -1915,10 +1916,10 @@ fn trn_007_same_language_translations_aggregate_to_feed_summary() {
     }
 }
 
-// ── Test 11: PTH_012 + PTH_013 — erişilemeyen platform → uyarı ───────────────
-// İstasyon: STA → ENT (loc=2), MID (loc=3), PLT (loc=0).
-// Pathway: ENT↔MID — PLT hiçbir entrance'tan erişilemiyor → PTH_012.
-// Accessible BFS'te de PLT erişilemez → PTH_013 (wheelchair path yok).
+// ── Test 11: PTH_012 + PTH_013 — inaccessible platform → warning ──────────────
+// Station: STA → ENT (loc=2), MID (loc=3), PLT (loc=0).
+// Pathway: ENT↔MID — PLT is unreachable from every entrance → PTH_012.
+// PLT is also unreachable in accessible BFS → PTH_013 (no wheelchair path).
 
 #[test]
 fn pth_012_fires_when_entrance_cannot_reach_platform() {
@@ -1930,7 +1931,7 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
           ENT,Entrance,41.05,29.05,2,STA\n\
           MID,Middle,41.05,29.05,3,STA\n\
           PLT,Platform,41.05,29.05,0,STA\n";
-    // PW1: ENT↔MID — PLT pathway bağlantısı yok
+    // PW1: ENT↔MID — no pathway connection to PLT
     const PATHWAYS: &[u8] =
         b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\n\
           PW1,ENT,MID,1,1,30\n";
@@ -1949,7 +1950,7 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
                     .map(|n| n.rule_id.as_str())
                     .collect::<Vec<_>>(),
             );
-            // PTH_013 kapsama bilgisi de üretilmeli
+            // Coverage information for PTH_013 must also be produced.
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_013"),
                 "PTH_013 bilgi notu olmalı",
@@ -1959,9 +1960,9 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
     }
 }
 
-// ── Test 12: PTH_013 negatif — erişilebilir rota varsa sessiz ────────────────
-// ENT→PLT: max_slope=0.05 (≤0.08) VE min_width=1.0 (≥0.9) → accessible path var.
-// PTH_013 üretilmemeli; PTH_012 de üretilmemeli.
+// ── Test 12: PTH_013 negative — silent when an accessible route exists ─────────
+// ENT→PLT: max_slope=0.05 (≤0.08) AND min_width=1.0 (≥0.9) → accessible path exists.
+// PTH_013 must not be produced; neither should PTH_012.
 
 #[test]
 fn pth_013_silent_when_accessible_path_exists() {
@@ -2004,8 +2005,8 @@ fn pth_013_silent_when_accessible_path_exists() {
     }
 }
 
-// ── Test 13: PTH_015 — hız > 3.0 m/s → ateşlenir ───────────────────────────
-// length=300m, traversal_time=50s → hız=6.0 m/s > eşik(3.0) → PTH_015.
+// ── Test 13: PTH_015 — speed > 3.0 m/s → fires ────────────────────────────────
+// length=300m, traversal_time=50s → speed=6.0 m/s > threshold (3.0) → PTH_015.
 
 #[test]
 fn pth_015_fires_when_speed_exceeds_3ms() {
@@ -2031,8 +2032,8 @@ fn pth_015_fires_when_speed_exceeds_3ms() {
     }
 }
 
-// ── Test 14: PTH_015 — hız ≤ 3.0 m/s → sessiz ──────────────────────────────
-// length=100m, traversal_time=60s → hız≈1.67 m/s ≤ eşik → PTH_015 üretilmez.
+// ── Test 14: PTH_015 — speed ≤ 3.0 m/s → silent ───────────────────────────────
+// length=100m, traversal_time=60s → speed≈1.67 m/s ≤ threshold → no PTH_015.
 
 #[test]
 fn pth_015_silent_when_speed_within_limit() {
@@ -2058,8 +2059,8 @@ fn pth_015_silent_when_speed_within_limit() {
     }
 }
 
-// ── Test 16: R9 skor hesabı — kritik notice priority_score > 0 üretir ────────
-// STP_003 (Kritik, base_effort=2) → R9'da görünür ve priority_score hesaplanır.
+// ── Test 16: R9 score calculation — critical notice produces priority_score > 0 ─
+// STP_003 (Critical, base_effort=2) → visible in R9 and included in priority_score.
 
 #[test]
 fn r9_priority_score_positive_for_critical_notice() {
@@ -2090,10 +2091,10 @@ fn r9_priority_score_positive_for_critical_notice() {
     }
 }
 
-// ── Test 16b: PTH_019 — çift yönü iki SATIRLA yazan feed'de de ateşlemeli ────
-// #158: kural pathway SATIRI sayıyordu. Aynı iki durak arasına her yön için bir
-// satır yazan feed'lerde sayı 2 çıkıyor ve node çıkmaz olduğu hâlde kural
-// susuyordu. MobilityData "only one incident LOCATION" der; ölçü komşu sayısıdır.
+// ── Test 16b: PTH_019 — must fire when both directions use two ROWS ────────────
+// #158: the rule counted pathway ROWS. In feeds with one row per direction between
+// the same two stops, the count is 2 and the rule stayed silent even for a dead-end node.
+// MobilityData says "only one incident LOCATION"; the measure is the neighbor count.
 
 #[test]
 fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
@@ -2103,7 +2104,7 @@ fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
           STA1,Station1,41.2,29.2,1,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1\n\
           GN1,GenericNode1,41.2,29.21,3,STA1\n";
-    // Tek komşu (PLT_A), iki satır — biri gidiş biri dönüş.
+    // One neighbor (PLT_A), two rows — one outbound and one return.
     const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,GN1,1,0\n\
           PW2,GN1,PLT_A,1,0\n";
@@ -2127,7 +2128,7 @@ fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
     }
 }
 
-// ── Test 16c: PTH_019 — iki FARKLI komşusu olan node susmalı ─────────────────
+// ── Test 16c: PTH_019 — a node with two DIFFERENT neighbors must be silent ─────
 
 #[test]
 fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
@@ -2161,8 +2162,8 @@ fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
     }
 }
 
-// ── Test 16: PTH_019 — generic node tek pathway'e bağlı → ateşlenir ──────────
-// GN1 (location_type=3) yalnızca 1 pathway'de geçiyor → dead-end → PTH_019.
+// ── Test 16: PTH_019 — generic node with one pathway → fires ──────────────────
+// GN1 (location_type=3) occurs in only 1 pathway → dead end → PTH_019.
 
 #[test]
 fn pth_019_fires_for_dangling_generic_node() {
@@ -2194,8 +2195,8 @@ fn pth_019_fires_for_dangling_generic_node() {
     }
 }
 
-// ── Test 17: PTH_019 — generic node iki pathway'e bağlı → sessiz ──────────────
-// GN1 hem PLT_A→GN1 hem GN1→PLT_B bağlantısında → köprü → PTH_019 üretilmez.
+// ── Test 17: PTH_019 — generic node with two pathways → silent ────────────────
+// GN1 is connected by both PLT_A→GN1 and GN1→PLT_B → bridge → no PTH_019.
 
 #[test]
 fn pth_019_silent_for_connected_generic_node() {
@@ -2229,8 +2230,8 @@ fn pth_019_silent_for_connected_generic_node() {
     }
 }
 
-// ── Test 18: LVL_006 — asansör pathway'inde level_id eksik → ateşlenir ────────
-// ELV_STOP asansöre bağlı ama level_id yok → LVL_006.
+// ── Test 18: LVL_006 — elevator pathway lacks level_id → fires ─────────────────
+// ELV_STOP is connected to an elevator but has no level_id → LVL_006.
 
 #[test]
 fn lvl_006_fires_when_elevator_stop_missing_level_id() {
@@ -2263,8 +2264,8 @@ fn lvl_006_fires_when_elevator_stop_missing_level_id() {
     }
 }
 
-// ── Test 19: LVL_006 — asansör pathway'inde level_id dolu → sessiz ────────────
-// PLT_A ve PLT_B her ikisinde de level_id var → LVL_006 üretilmez.
+// ── Test 19: LVL_006 — elevator pathway has level_id → silent ──────────────────
+// Both PLT_A and PLT_B have level_id → no LVL_006.
 
 #[test]
 fn lvl_006_silent_when_elevator_stops_have_level_id() {
@@ -2297,8 +2298,8 @@ fn lvl_006_silent_when_elevator_stops_have_level_id() {
     }
 }
 
-// ── Test 20: XFL_019 — routes.network_id + route_networks.txt ikisi birden → ateşlenir
-// routes.txt'te network_id dolu VE route_networks.txt mevcut → XFL_019.
+// ── Test 20: XFL_019 — both routes.network_id and route_networks.txt → fires ──
+// routes.txt has network_id AND route_networks.txt exists → XFL_019.
 
 #[test]
 fn xfl_019_fires_when_network_defined_in_both_files() {
@@ -2327,8 +2328,8 @@ fn xfl_019_fires_when_network_defined_in_both_files() {
     }
 }
 
-// ── Test 21: XFL_019 — yalnızca route_networks.txt var → sessiz ───────────────
-// routes.txt'te network_id yok, route_networks.txt var → XFL_019 üretilmez.
+// ── Test 21: XFL_019 — only route_networks.txt exists → silent ─────────────────
+// routes.txt has no network_id, while route_networks.txt exists → no XFL_019.
 
 #[test]
 fn xfl_019_silent_when_only_route_networks_file() {
@@ -2355,7 +2356,7 @@ fn xfl_019_silent_when_only_route_networks_file() {
 
 #[test]
 fn path_traversal_entries_rejected_and_root_file_intact() {
-    // ZIP icindeki traversal/nested giris adlari kok dosya yerine gecmemeli.
+    // Traversal/nested entry names inside the ZIP must not replace root files.
     let evil: &[u8] =
         b"agency_id,agency_name,agency_url,agency_timezone\n9,EVIL_TRAVERSAL,http://evil.com,UTC\n";
     let mut files = base_files();
@@ -2418,9 +2419,9 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
 #[test]
 fn nested_zip_is_reported_in_subdirectories_too() {
     // Korpus 13'te olculdu: bes feed (tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752)
-    // butun GTFS'ini ALT DIZINDEKI bir nested ZIP'te tasiyor. Eskiden ARC_023 yalnizca kok
+    // carries its entire GTFS in a nested ZIP in a SUBDIRECTORY. Previously ARC_023 only saw the root
     // dizini goruyordu; o feed'lerde tek cikti "zorunlu dosya eksik" oluyor, SEBEBI hicbir
-    // bulguda gorunmuyordu. Konum kuralin hukmunu degistirmez.
+    // and the reason was not visible in any finding. Location does not change the rule's verdict.
     let inner: &[u8] =
         b"PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     let mut files = base_files();
@@ -2450,9 +2451,9 @@ fn nested_zip_is_reported_in_subdirectories_too() {
 
 #[test]
 fn gtfs_named_file_with_wrong_extension_is_reported_in_subdirectories() {
-    // Korpus 13: mdb-3434 ve mdb-3135 butun GTFS'ini alt dizinde `.csv` uzantisiyla tasiyor.
-    // Eskiden tek cikti ARC_004 ("zorunlu dosya eksik") oluyor, dosyalarin ORADA oldugu
-    // hicbir bulguda gorunmuyordu. Alt dizindeki DIGER dosyalar sessiz kalmali — bir repo
+    // Corpus 13: mdb-3434 and mdb-3135 carry their entire GTFS in a subdirectory with a `.csv` extension.
+    // Previously the only output was ARC_004 ("required file missing"), while the files' presence THERE
+    // was not visible in any finding. OTHER files in the subdirectory must remain silent — reporting a repo's
     // zip'inin LICENSE/README'sini raporlamak gurultudur.
     let blob: &[u8] = b"x\n";
     let mut files = base_files();
@@ -2487,12 +2488,12 @@ fn gtfs_named_file_with_wrong_extension_is_reported_in_subdirectories() {
 
 #[test]
 fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
-    // 13. korpus kosumu: K1 sarili feed'in kok onekini duser ve dosyayi `stop_times.txt`
-    // adiyla isler, ama K2 buyuk dosyalari ZIP'i YENIDEN ACARAK stream eder ve
-    // `by_name("stop_times.txt")` sarili arsivde HICBIR SEY bulamiyordu. Dosya sessizce
-    // bos sayiliyor, sonucta ARC_024 atesleyen 44 feed'in 44'unde tek bir STM_* kurali
-    // bile atesleMIYORdu; ustelik her durak "hic sefer gecmiyor" gorunup STP_020 FP'si
-    // uretiyordu (mdb-3459'da 678 bulgu).
+    // 13th corpus run: K1 strips the root prefix from the wrapped feed and processes the file as
+    // `stop_times.txt`, but K2 reopens large files from the ZIP as streams and
+    // `by_name("stop_times.txt")` found NOTHING in the wrapped archive. The file was silently
+    // treated as empty, so in all 44 of the 44 feeds that triggered ARC_024, not a single STM_*
+    // rule fired; moreover every stop appeared to have "no trip passing through it", producing
+    // an STP_020 FP (678 findings in mdb-3459).
     let wrapped: Vec<(String, &[u8])> = base_files()
         .into_iter()
         .map(|(name, body)| (format!("GTFS/{name}"), body))
@@ -2514,14 +2515,14 @@ fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
     let ValidateResult::Ok(vr) = run(&files) else {
         panic!("sarili feed fatal olmamali")
     };
-    // stop_times gercekten okunduysa duraklar KULLANILIYOR demektir; okunmadiginda
-    // STP_020 ("hic sefer gecmeyen durak") her durak icin patlardi.
+    // If stop_times was actually read, the stops are USED; if it was not, STP_020
+    // ("stop with no trip passing through it") would fire for every stop.
     let stp020 = vr.notices.iter().filter(|n| n.rule_id == "STP_020").count();
     assert_eq!(
         stp020, 0,
         "sarili feed'de stop_times okunmali; STP_020 atesliyorsa stream yolu yine kor",
     );
-    // Bos sayilan dosya ARC_035'i de yanlis tetikliyordu (Kritik·Spec = yayin engeli).
+    // Treating the file as empty also incorrectly triggered ARC_035 (Critical·Spec = publication blocker).
     assert!(
         !vr.notices.iter().any(|n| n.rule_id == "ARC_035"),
         "dolu bir stop_times.txt ARC_035 uretmemeli",
@@ -2530,15 +2531,15 @@ fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
 
 #[test]
 fn empty_required_file_is_spec_critical_while_empty_optional_stays_informational() {
-    // 13. korpus kosumu: "zorunlu dosya var mi?" testi dosyanin VARLIGINA bakiyordu.
+    // 13th corpus run: the "does the required file exist?" test checked only the file's PRESENCE.
     // 0 baytlik bir stop_times.txt "mevcut" sayilip yayin kapisindan geciyordu — en az
-    // 32 feed'de zorunlu bir dosya bos, besi (mdb-1817 · mdb-342 · mdb-3181 · mdb-3459 ·
-    // mdb-1819) YAYIN SKORU 100,0 aliyordu. Dosyayi silmek ARC_004 uretirken bosaltmak
-    // cezasiz kaliyordu.
+    // In 32 feeds a required file was empty, and five (mdb-1817 · mdb-342 · mdb-3181 · mdb-3459 ·
+    // mdb-1819) received a PUBLICATION SCORE of 100.0. Deleting the file produced ARC_004, while
+    // emptying it went unpenalized.
     let empty_stops: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n";
-    // NOT: opsiyonel taraf `frequencies.txt` ile kuruldu. Baslik-only bir `shapes.txt`
+    // NOTE: the optional side was built with `frequencies.txt`. A header-only `shapes.txt`
     // bugun HIC ARC_009 uretmiyor (k2/shapes.rs kolu `raw_text.is_some()` istiyor, kucuk
-    // shapes stream yoluna girmiyor) — ayri ve daha kucuk bir bosluk, bu testin konusu degil.
+    // does not enter the shapes stream path) — a separate, smaller gap outside this test's scope.
     let empty_freq: &[u8] = b"trip_id,start_time,end_time,headway_secs\n";
     let mut files = base_files();
     files.retain(|(n, _)| *n != "stops.txt");
@@ -2575,15 +2576,15 @@ fn empty_required_file_is_spec_critical_while_empty_optional_stays_informational
 
 #[test]
 fn header_only_stream_files_are_not_silently_treated_as_present() {
-    // `is_zip_stream` listesindeki dort dosya (stop_times · shapes · trips ·
-    // calendar_dates) K1'de YALNIZ baslik okunur, govdeyi K2 stream eder. K1'in kendi
-    // bos-dosya kontrolu `!stream_mode` istedigi icin bu dorde HIC bakmaz; karsiligin
-    // K2'de yazilmis olmasi gerekir. 2026-08-31'de olculdu: yalnizca `stop_times.txt`
+    // For the four files in the `is_zip_stream` list (stop_times · shapes · trips ·
+    // calendar_dates), K1 reads ONLY the header and K2 streams the body. K1's own
+    // empty-file check requires `!stream_mode`, so it does not inspect these four; the
+    // corresponding check must exist in K2. Measured on 2026-08-31: only `stop_times.txt`
     // dogru davraniyordu.
-    //   · shapes.txt  → K2 kolu `raw_text.is_some()` istiyordu, ama is_zip_stream
-    //                   dosyalarda raw_text HER ZAMAN None → kol OLU KODDU.
-    //   · trips.txt   → karsiligi hic yazilmamisti (ve trips ZORUNLU → ARC_035).
-    // Not: 0 baytlik hal K1'in `records.is_empty()` kolundan zaten yakalaniyordu;
+    //   · shapes.txt  → the K2 branch required `raw_text.is_some()`, but for is_zip_stream
+    //                   files raw_text is ALWAYS None → the branch was DEAD CODE.
+    //   · trips.txt   → no corresponding branch had been written (and trips is REQUIRED → ARC_035).
+    // Note: the 0-byte case was already caught by K1's `records.is_empty()` branch;
     // gorunmeyen tam olarak "baslik var, veri yok" araligiydi.
     let mut files = base_files();
     files.push((
@@ -2616,8 +2617,8 @@ fn header_only_stream_files_are_not_silently_treated_as_present() {
 
 #[test]
 fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_service() {
-    // Kosullu cift toleransi: calendar.txt servisi tanimliyorsa bos calendar_dates.txt
-    // yanlis pozitiftir. Ama calendar.txt YOKSA bastirma da olmamalidir — yoksa
+    // Conditional pair tolerance: an empty calendar_dates.txt is a false positive when calendar.txt
+    // defines service. But suppression must not apply when calendar.txt is ABSENT — otherwise
     // "hic servis tanimi yok" hali sessizce gecerdi.
     let empty_cd: &[u8] = b"service_id,date,exception_type\n";
 
@@ -2649,12 +2650,12 @@ fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_ser
 
 #[test]
 fn empty_required_file_alone_blocks_publication() {
-    // ARC_035'in TEK GERCEK gerekcesi bu vakadir ve korpusta saf ornegi yoktu:
-    // agency/stops/routes/calendar DOLU, yalnizca trips.txt ve stop_times.txt
-    // baslik-only. O iki dosya `is_zip_stream` yolunda oldugu icin eski kodda
-    // ARC_009 BILE cikmiyordu — feed tek bir bulgu bile uretmeden `publishable`
+    // This is the ONLY REAL justification for ARC_035, and the corpus had no pure example:
+    // agency/stops/routes/calendar are FULL, while only trips.txt and stop_times.txt are
+    // header-only. Because those two files took the `is_zip_stream` path, the old code did not
+    // even emit ARC_009 — the feed was marked `publishable` without producing a single finding.
     // sayiliyordu. (55 feed'lik dogrulama orneklemindeki 10 ARC_035 feed'inin
-    // hepsinde ZATEN STP_018 veya ARC_025 engeli vardi, yani kapiyi orada bu kural
+    // all already had an STP_018 or ARC_025 blocker, so this rule did not turn the gate there
     // cevirmiyor; ceviren yer tam olarak burasi.)
     let files: Vec<(&str, &[u8])> = vec![
         ("agency.txt", AGENCY),
@@ -2694,11 +2695,11 @@ fn empty_required_file_alone_blocks_publication() {
     );
 }
 
-// ── ARC_025: zorunlu sutun basligta hic yok (header-level) ────────────────────
+// ── ARC_025: required column absent from the header (header-level) ───────────
 
 #[test]
 fn missing_required_column_produces_arc_025() {
-    // agency.txt'te zorunlu 'agency_name' sutunu basligta yok → ARC_025 (dosya basina bir kez).
+    // The required 'agency_name' column is absent from agency.txt's header → ARC_025 (once per file).
     let bad_agency: &[u8] = b"agency_id,agency_url,agency_timezone\n1,http://test.example,UTC\n";
     let mut files = base_files();
     files[0] = ("agency.txt", bad_agency);
@@ -2715,7 +2716,7 @@ fn missing_required_column_produces_arc_025() {
         "agency_name sutunu basligta yok → 1 ARC_025, bulunan: {arc025_name}",
     );
 
-    // Mevcut sutun (agency_url) icin ARC_025 CIKMAMALI — o, deger boslugu (k2 grup kurali) konusudur.
+    // ARC_025 must NOT fire for an existing column (agency_url) — that is a value-empty issue (K2 group rule).
     assert!(
         !k1.notices
             .iter()
@@ -2726,7 +2727,7 @@ fn missing_required_column_produces_arc_025() {
 
 #[test]
 fn complete_headers_produce_no_arc_025() {
-    // base_files tum zorunlu sutunlari icerir → hic ARC_025 olmamali.
+    // base_files contains all required columns → no ARC_025 should be emitted.
     let k1 = parse(&make_zip(&base_files()), &ValidatorConfig::default())
         .expect("gecerli kok dosyalar Ok donmeli");
     let arc025 = k1.notices.iter().filter(|n| n.rule_id == "ARC_025").count();
@@ -2736,9 +2737,9 @@ fn complete_headers_produce_no_arc_025() {
     );
 }
 
-// ── XFL_027: route-bazlı contactless EMV precedence bilgisi ───────────────────
-// Ortak: 1 route (R1, 2 durak), contactless fare_media(type=3) + fare_product.
-// Senaryoya göre routes.txt (cemv/network) + fare_leg_rules + networks değişir.
+// ── XFL_027: route-level contactless EMV precedence information ────────────────
+// Shared setup: 1 route (R1, 2 stops), contactless fare_media(type=3) + fare_product.
+// routes.txt (cemv/network) + fare_leg_rules + networks vary by scenario.
 fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
     vec![
         ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\nA1,T,http://t.co,UTC\n" as &[u8]),
@@ -2753,7 +2754,7 @@ fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
 
 #[test]
 fn xfl027_route_cemv2_with_global_contactless() {
-    // R1 cemv_support=2 (desteklenmiyor) ama leg rule GLOBAL (network/area yok) → her route kapsanır → celiski.
+    // R1 cemv_support=2 (unsupported) but the leg rule is GLOBAL (no network/area) → every route is covered → conflict.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2778,7 +2779,7 @@ fn xfl027_route_cemv2_with_global_contactless() {
 
 #[test]
 fn xfl026_route_cemv1_network_mismatch_is_not_reported() {
-    // cEMV=1 tek başına Fares v2 kanıtı gerektirmez; XFL_026 artık üretilmez.
+    // cEMV=1 alone does not require evidence of Fares v2; XFL_026 is no longer produced.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2818,7 +2819,7 @@ fn xfl_019_fires_when_networks_file_is_present() {
 
 #[test]
 fn xfl026_silent_when_route_coverage_unresolvable() {
-    // R1 cemv=1, network_id BOS; contactless leg rule network-based → route kapsami cozulemez → FP guard SUSAR.
+    // R1 cemv=1, network_id EMPTY; contactless leg rule is network-based → route coverage cannot be resolved → FP guard stays silent.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2841,15 +2842,15 @@ fn xfl026_silent_when_route_coverage_unresolvable() {
     }
 }
 
-// ── ARC_029: decompression guard (zip-bomb) uçtan uca ─────────────────────────
-// #46 guard'ı GuardedReader seviyesinde birim-testli (decompress_guard.rs), ancak
-// DEFAULT_DECOMPRESSION_LIMITS ile validate_bytes üzerinden kablolamayı hiçbir test
-// doğrulamıyordu. Bu testler ARC_029'un iki ayrı read_fatal çağrı yerini kanıtlar:
-// zip-stream yolu (stop_times/trips/calendar_dates) ve read_to_end yolu (diğer .txt).
+// ── ARC_029: decompression guard (zip bomb) end to end ─────────────────────────
+// The #46 guard is unit-tested at GuardedReader level (decompress_guard.rs), but no test
+// verified wiring it through validate_bytes with DEFAULT_DECOMPRESSION_LIMITS. These tests
+// prove ARC_029's two distinct read_fatal call sites: the zip-stream path
+// (stop_times/trips/calendar_dates) and the read_to_end path (other .txt files).
 //
-// Tetikleme koşulu (DEFAULT): entry_decompressed > ratio_floor (16 MiB) VE
-// entry_decompressed > 80 × entry_compressed. Sıfır baytlar ~1000:1 sıkışır.
-const BOMB_DECOMPRESSED: usize = 24 * 1024 * 1024; // 16 MiB ratio_floor'un üstünde
+// Trigger condition (DEFAULT): entry_decompressed > ratio_floor (16 MiB) AND
+// entry_decompressed > 80 × entry_compressed. Zero bytes compress at roughly 1000:1.
+const BOMB_DECOMPRESSED: usize = 24 * 1024 * 1024; // above the 16 MiB ratio_floor
 
 fn bomb_payload() -> Vec<u8> {
     vec![b'\n'; BOMB_DECOMPRESSED]
@@ -2872,7 +2873,7 @@ fn assert_decompression_limit(result: ValidateResult, ctx: &str) {
 fn arc029_zip_bomb_in_streamed_file_returns_fatal_decompression_limit() {
     let bomb = bomb_payload();
     let mut files = base_files();
-    // stop_times.txt = #38 zip-stream yolu (k1_parse.rs read_fatal çağrı yeri 1)
+    // stop_times.txt = #38 zip-stream path (k1_parse.rs read_fatal call site 1)
     files.retain(|(n, _)| *n != "stop_times.txt");
     files.push(("stop_times.txt", &bomb));
     let zip = make_zip(&files);
@@ -2886,7 +2887,7 @@ fn arc029_zip_bomb_in_streamed_file_returns_fatal_decompression_limit() {
 fn arc029_zip_bomb_in_buffered_file_returns_fatal_decompression_limit() {
     let bomb = bomb_payload();
     let mut files = base_files();
-    // shapes.txt = read_to_end yolu (k1_parse.rs read_fatal çağrı yeri 2)
+    // shapes.txt = read_to_end path (k1_parse.rs read_fatal call site 2)
     files.push(("shapes.txt", &bomb));
     let zip = make_zip(&files);
     assert_decompression_limit(
@@ -2897,8 +2898,8 @@ fn arc029_zip_bomb_in_buffered_file_returns_fatal_decompression_limit() {
 
 #[test]
 fn arc029_legitimate_small_high_ratio_file_does_not_trip_guard() {
-    // FP guard: ratio_floor'un ALTINDA kalan çok-sıkışan meşru dosya bombaya sayılmaz.
-    // (#46 kapanışında dış katılımcının işaret ettiği "meşru-yüksek-oran" riski.)
+    // FP guard: a legitimate highly compressed file BELOW ratio_floor is not a bomb.
+    // (The "legitimate-high-ratio" risk identified by an external participant when #46 closed.)
     let small_high_ratio = vec![b'\n'; 1024 * 1024]; // 1 MiB << 16 MiB floor, oran ~1000:1
     let mut files = base_files();
     files.push(("shapes.txt", &small_high_ratio));
@@ -2912,15 +2913,15 @@ fn arc029_legitimate_small_high_ratio_file_does_not_trip_guard() {
     }
 }
 
-// ── Determinizm kapısı ────────────────────────────────────────────────────────
-// Aynı feed, aynı `today` → BİREBİR aynı çıktı. Bu güvence 2026-07-27'ye kadar YOKTU:
-// notice içerikleri ve id'leri koşudan koşuya değişiyordu, çünkü emisyon sırası HashMap
-// iterasyonuna bağlıydı ve dedup'ın keep-first temsilcisi o sıradan seçiliyordu (VBB'de
-// 829 kayıt oynuyordu). Golden karşılaştırma ve A/B ölçümleri bu yüzden güvenilmezdi.
+// ── Determinism gate ──────────────────────────────────────────────────────────
+// Same feed, same `today` → EXACTLY the same output. This guarantee did NOT EXIST until
+// 2026-07-27: notice contents and IDs changed between runs because emission order depended
+// on HashMap iteration, and dedup selected its keep-first representative from that order
+// (829 records varied in VBB). Golden comparisons and A/B measurements were therefore unreliable.
 #[test]
 fn same_feed_twice_produces_identical_output() {
-    // Nondeterminizmi tetikleyen desenleri içerir: aynı seferde TEKRARLANAN durak (OPR_007),
-    // birden çok shape (SHP/GEO aileleri), birden çok hat+servis (OPR_001/003/024).
+    // Contains patterns that trigger nondeterminism: a REPEATED stop in one trip (OPR_007),
+    // multiple shapes (SHP/GEO families), and multiple route+service combinations (OPR_001/003/024).
     let shapes = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
         S1,41.0,29.0,1\nS1,41.0,29.0,2\nS1,41.5,29.5,3\n\
         S2,40.0,28.0,1\nS2,40.0,28.0,2\nS2,40.9,28.9,3\n\
@@ -2930,7 +2931,7 @@ fn same_feed_twice_produces_identical_output() {
             as &[u8];
     let trips = b"route_id,service_id,trip_id,shape_id\n\
         R1,SVC1,T1,S1\nR2,SVC1,T2,S2\nR3,SVC1,T3,S3\n" as &[u8];
-    // T1: S1 durağı iki kez, aralarında başka durak → OPR_007 adayı (birden çok tekrar olası)
+    // T1: stop S1 appears twice, with another stop between → OPR_007 candidate (multiple repeats possible)
     let stop_times = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
         T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S1,3\n\
         T2,09:00:00,09:00:00,S1,1\nT2,09:30:00,09:30:00,S2,2\n\
@@ -2944,11 +2945,11 @@ fn same_feed_twice_produces_identical_output() {
     files.push(("shapes.txt", shapes));
     let zip = make_zip(&files);
 
-    // Kapsam: TAM SERİLEŞTİRİLMİŞ JSON — yalnız notice alanları değil, `Notice.details`,
-    // `NameIndex` ve `capped_totals` dahil her şey. 2026-07-31'e kadar bu mümkün DEĞİLDİ:
-    // o alanlar `HashMap`'ti ve serde anahtarları her koşuda başka sırada yazıyordu, yani
-    // içerik aynıyken bayt farklıydı. Hepsi `BTreeMap`'e çevrildi; bu kapı o kazanımı korur.
-    // Zayıflatma: bu karşılaştırmayı alan-alt-kümesine geri çekmek, sessizce kaybetmek demektir.
+    // Scope: FULLY SERIALIZED JSON — everything, not only notice fields, including `Notice.details`,
+    // `NameIndex`, and `capped_totals`. This was NOT possible until 2026-07-31: those fields were
+    // `HashMap`s and serde wrote keys in a different order on each run, so bytes differed despite
+    // identical content. All were changed to `BTreeMap`; this gate protects that gain.
+    // Weakening it by narrowing the comparison to a field subset would silently lose the guarantee.
     let render = || match validate_bytes(&zip, &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => {
             serde_json::to_string(&vr).expect("ValidationResult serialize edilebilmeli")
@@ -2956,13 +2957,13 @@ fn same_feed_twice_produces_identical_output() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     };
 
-    // Aynı SÜREÇ içinde tekrar: Rust'ta her HashMap örneği kendi tohumunu aldığı için bu,
-    // ayrı süreçlerde koşmaktan daha sıkı bir kapıdır.
+    // Repetition within the SAME PROCESS: because each HashMap instance gets its own seed in Rust,
+    // this is a stricter gate than running in separate processes.
     let first = render();
     for run in 2..=4 {
         let cur = render();
         if cur != first {
-            // İlk ayrışan konumu göster: tam JSON'u basmak okunmaz olurdu.
+            // Show the first divergence: printing the full JSON would be unreadable.
             let at = first
                 .bytes()
                 .zip(cur.bytes())
@@ -2978,10 +2979,11 @@ fn same_feed_twice_produces_identical_output() {
     }
 }
 
-// ── STM_015/016: Flex guard ve ilk/son durak kapsamı ──────────────────────────
-// Spec, arrival_time/departure_time için "Forbidden when start_pickup_drop_off_window or
-// end_pickup_drop_off_window are defined" der. Flex seferde eksik zaman alanı ihlal DEĞİL,
-// beklenen durumdur; guard'sız hâlde bu iki kural her Flex seferde yanlış pozitif üretirdi.
+// ── STM_015/016: Flex guard and first/last stop scope ──────────────────────────
+// The Spec says "Forbidden when start_pickup_drop_off_window or
+// end_pickup_drop_off_window are defined" for arrival_time/departure_time. A missing time
+// field on a Flex trip is NOT a violation; it is expected. Without the guard, these two
+// rules would produce a false positive for every Flex trip.
 
 #[test]
 fn stm015_016_silent_for_flex_pickup_drop_off_window() {
@@ -3010,9 +3012,9 @@ fn stm015_016_silent_for_flex_pickup_drop_off_window() {
 
 #[test]
 fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
-    // İlk durakta arrival var/departure yok → STM_015 DEĞİL (spec departure'ı zorunlu
-    // kılmaz); bu vakayı STM_034 ("yalnız biri tanımlı") zaten karşılar.
-    // Son durakta departure var/arrival yok → STM_016 (spec arrival'ı zorunlu kılar).
+    // The first stop has arrival but no departure → NOT STM_015 (the Spec does not require
+    // departure); STM_034 ("only one defined") already covers this case.
+    // The last stop has departure but no arrival → STM_016 (the Spec requires arrival).
     static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,,S1,1\nT1,,08:10:00,S2,2\n";
     let mut files = base_files();
@@ -3040,8 +3042,8 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
 
 #[test]
 fn stm015_016_carry_edge_stop_and_neighbour_time() {
-    // Planlamacı kartı eksik saati komşu durağın saatiyle gösterir: ilk durak için ikinci
-    // durak, son durak için sondan bir önceki durak.
+    // The planner card shows a missing time using the neighboring stop's time: the second
+    // stop for the first stop, and the penultimate stop for the last stop.
     static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,,08:00:00,S1,1\nT1,,08:10:00,S2,2\n";
     let mut files = base_files();
@@ -3072,7 +3074,7 @@ fn stm015_016_carry_edge_stop_and_neighbour_time() {
 
 #[test]
 fn stm008_carries_previous_and_next_stop_times() {
-    // Zaman geriye giden bölümde planlamacı bir önceki ve bir sonraki durağın saatini de görür.
+    // In the backward-time segment, the planner also shows the previous and next stop times.
     static BACKWARDS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,07:50:00,07:50:00,S0,1\nT1,08:00:00,08:00:00,S1,2\nT1,07:55:00,07:55:00,S2,3\nT1,08:20:00,08:20:00,S3,4\n";
     let mut files = base_files();
@@ -3097,8 +3099,9 @@ fn stm008_carries_previous_and_next_stop_times() {
 
 #[test]
 fn trip_level_time_rules_carry_the_stops_to_fix() {
-    // Planlamacı kartı hatalı yeri durak adıyla gösterir: STM_028/029 seferin uç durakları,
-    // STM_045 pencereyi aşan kalkışın durağı, STM_021 aynı konumdaki iki durak.
+    // The planner card identifies the bad location by stop name: STM_028/029 use the trip's
+    // endpoint stops, STM_045 uses the stop whose departure exceeds the window, and STM_021
+    // uses the two stops at the same location.
     fn details_of(files: &[(&str, &[u8])], rule: &str) -> std::collections::BTreeMap<String, String> {
         match run(files) {
             ValidateResult::Ok(vr) => vr
@@ -3145,8 +3148,8 @@ fn trip_level_time_rules_carry_the_stops_to_fix() {
 
 #[test]
 fn malformed_time_carries_stop_and_neighbour_rows() {
-    // Gaziantep (mdb-3401) örneği: sefer 09:44'te geçerliyken sonraki duraklarda "-15:46:01"
-    // gibi negatif saatler başlıyor. Planlamacı bozuk saatin durağını ve iki komşusunu görmeli.
+    // Gaziantep (mdb-3401) example: the trip is valid at 09:44, but later stops begin with
+    // negative times such as "-15:46:01". The planner should show the bad-time stop and its two neighbors.
     static STOPS3: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.01,29.01\nS3,Stop3,41.02,29.02\n";
     static NEGATIVE: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,09:44:16,09:44:16,S1,1\nT1,-15:46:01,-15:46:01,S2,2\nT1,-15:47:54,-15:47:54,S3,3\n";
@@ -3177,16 +3180,16 @@ fn malformed_time_carries_stop_and_neighbour_rows() {
 }
 
 // ── STM_057 KALDIRILDI (2026-08-01, WP-1) ─────────────────────────────────────
-// Kuralın iki testi de buradaydı. Spec cümlesi koşulludur ("travel WITHIN THE SAME
-// location group…requires two records"); kural bunu her konum için iki kayıt şartına
-// çevirmişti ve L1 → L2 gibi normal noktadan noktaya Flex seferini reddediyordu.
-// Yerine geçen kapı: spec_conformance.rs — geçerli Flex feed'leri Spec notice ÜRETMEZ.
+// Both tests for the rule used to be here. The Spec sentence is conditional ("travel WITHIN THE SAME
+// location group…requires two records"); the rule had turned it into a requirement for two records at
+// every location and rejected a normal point-to-point Flex trip such as L1 → L2.
+// Replacement gate: spec_conformance.rs — valid Flex feeds PRODUCE NO Spec notice.
 
-// ── stops.txt KOŞULLU zorunlu (yalnızca-Flex feed) ────────────────────────────
-// Spec (Schedule Reference, dosya tablosu): "stops.txt — Conditionally Required —
+// ── stops.txt CONDITIONALLY required (Flex-only feed) ─────────────────────────
+// Spec (Schedule Reference, file table): "stops.txt — Conditionally Required —
 // Optional if demand-responsive zones are defined in locations.geojson. Required otherwise."
-// 2026-08-01'e kadar stops.txt koşulsuz REQUIRED_FILES'taydı → geçerli bir yalnızca-Flex
-// feed ARC_004 Fatal'ı alıyor ve HİÇ açılmıyordu; kullanıcı tek bulgu bile göremiyordu.
+// Until 2026-08-01 stops.txt was unconditionally in REQUIRED_FILES → a valid Flex-only
+// feed received ARC_004 Fatal and would not open at all; the user could not see even one finding.
 
 static FLEX_GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[
     {"type":"Feature","id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
@@ -3323,8 +3326,8 @@ fn invalid_geojson_does_not_make_missing_stops_optional() {
     }
 }
 
-/// stops.txt VE locations.geojson ikisi de yoksa hizmetin nerede verildiği hiç tanımlı
-/// değildir → PARTIAL raporlanır; ZIP okunabilir kaldığı için Fatal değildir.
+/// If both stops.txt AND locations.geojson are absent, where service is provided is undefined
+/// → report PARTIAL; it is not Fatal because the ZIP remains readable.
 #[test]
 fn feed_without_stops_txt_and_without_geojson_is_partial() {
     let mut files = base_files();
@@ -3342,13 +3345,13 @@ fn feed_without_stops_txt_and_without_geojson_is_partial() {
     }
 }
 
-// ── Flex stop_times: stop_id KOŞULLU zorunlu ──────────────────────────────────
+// ── Flex stop_times: stop_id CONDITIONALLY required ───────────────────────────
 // Spec (stop_times.stop_id): "Conditionally Required — Required if
 // stop_times.location_group_id AND stop_times.location_id are NOT defined.
 // Forbidden if stop_times.location_group_id or stop_times.location_id are defined."
-// 2026-08-01'e kadar K1 stop_id'yi koşulsuz zorunlu sayıyor, 6 resmî Flex sütunu
-// known_columns'ta bulunmuyor ve STM_006 boş stop_id'de koşulsuz ateşliyordu — oysa
-// K2 parser bu alanları ZATEN okuyordu. K1 ile K2 aynı satır hakkında farklı düşünüyordu.
+// Until 2026-08-01 K1 treated stop_id as unconditionally required, the six official Flex
+// columns were absent from known_columns, and STM_006 fired unconditionally for an empty
+// stop_id — although the K2 parser ALREADY read these fields. K1 and K2 disagreed about one row.
 
 #[test]
 fn flex_stop_times_row_is_valid_without_stop_id() {
@@ -3376,7 +3379,7 @@ pickup_booking_rule_id,drop_off_booking_rule_id\n\
         !ids.contains(&"ARC_025"),
         "Flex dosyada stop_id sütunu beklenmez → ARC_025 çıkmamalı"
     );
-    // 6 resmî Flex sütununun hiçbiri "bilinmeyen sütun" sayılmamalı.
+    // None of the six official Flex columns should count as an "unknown column".
     let unknown: Vec<&str> = vr
         .notices
         .iter()
@@ -3389,7 +3392,8 @@ pickup_booking_rule_id,drop_off_booking_rule_id\n\
     );
 }
 
-/// Daraltmanın bedeli olmamalı: Flex ALANI OLMAYAN bir satırda boş stop_id yine hatadır.
+/// Narrowing the requirement must not come at a cost: an empty stop_id is still an error
+/// on a row WITHOUT Flex fields.
 #[test]
 fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
     static BAD_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -3406,10 +3410,10 @@ fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
     }
 }
 
-// ── XFL_019: routes.network_id ile AYRI ağ dosyası birlikte kullanılamaz ───────
+// ── XFL_019: routes.network_id cannot be combined with a SEPARATE network file ─
 // Spec (routes.network_id): "Conditionally Forbidden — Forbidden if the route_networks.txt
-// OR networks.txt file exists." 2026-08-01'e kadar yalnız route_networks.txt kolu
-// denetleniyordu; networks.txt ile birlikte kullanım aynı derecede yasakken kaçıyordu.
+// OR networks.txt file exists." Until 2026-08-01 only the route_networks.txt branch
+// was checked; using networks.txt as well was equally forbidden but went undetected.
 
 #[test]
 fn xfl019_fires_when_networks_txt_is_used_with_routes_network_id() {
@@ -3429,7 +3433,7 @@ fn xfl019_fires_when_networks_txt_is_used_with_routes_network_id() {
     }
 }
 
-/// Ağ dosyası YOKKEN routes.network_id tek başına GEÇERLİDİR (spec: "Optional otherwise").
+/// routes.network_id is VALID by itself when no network file exists (Spec: "Optional otherwise").
 #[test]
 fn xfl019_silent_when_routes_network_id_is_used_alone() {
     static ROUTES_NET: &[u8] =
@@ -3446,14 +3450,14 @@ fn xfl019_silent_when_routes_network_id_is_used_alone() {
     }
 }
 
-// ── DQ_021: BİLEŞİK birincil anahtarlar ───────────────────────────────────────
-// Fares v2 ve Flex dosyalarının çoğunun anahtarı bileşiktir; DQ_021 yalnız stop_id,
-// route_id ve trip_id tekrarını tarıyordu. Anahtar listeleri spec'ten birebir alındı.
+// ── DQ_021: COMPOSITE primary keys ────────────────────────────────────────────
+// Most Fares v2 and Flex files use composite keys; DQ_021 used to scan only duplicates of
+// stop_id, route_id, and trip_id. The key lists were copied directly from the Spec.
 
 #[test]
 fn dq021_detects_duplicate_composite_key_in_fare_leg_rules() {
     // Spec PK: (network_id, from_area_id, to_area_id, from_timeframe_group_id,
-    //           to_timeframe_group_id, fare_product_id) — iki satır birebir aynı.
+    //           to_timeframe_group_id, fare_product_id) — two rows are exactly identical.
     static FLR: &[u8] = b"network_id,from_area_id,to_area_id,fare_product_id\n\
                           N1,A1,A2,P1\nN1,A1,A2,P1\n";
     let mut files = base_files();
@@ -3469,7 +3473,7 @@ fn dq021_detects_duplicate_composite_key_in_fare_leg_rules() {
     }
 }
 
-/// Anahtarın TEK bir alanı bile farklıysa satırlar ayrıdır — yanlış pozitif olmamalı.
+/// If even ONE key field differs, the rows are distinct — there must be no false positive.
 #[test]
 fn dq021_silent_when_one_composite_field_differs() {
     static FLR: &[u8] = b"network_id,from_area_id,to_area_id,fare_product_id\n\
@@ -3513,14 +3517,14 @@ fn dq021_detects_duplicate_location_group_id_and_group_stop_row() {
     }
 }
 
-// ── XFL_031: ortak kimlik isim alanı ──────────────────────────────────────────
+// ── XFL_031: shared identifier namespace ─────────────────────────────────────
 // Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
 // locations.geojson id, and location_groups.location_group_id values."
 
 #[test]
 fn xfl031_detects_location_group_id_clashing_with_stop_id() {
-    // LG1 hem stops.txt'te hem location_groups.txt'te → stop_times.location_group_id
-    // referansı belirsizleşir.
+    // LG1 appears in both stops.txt and location_groups.txt → the
+    // stop_times.location_group_id reference becomes ambiguous.
     static STOPS_CLASH: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
         S1,Durak1,41.0,29.0\nS2,Durak2,41.1,29.1\nLG1,Cakisan,41.2,29.2\n";
     static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\n";
@@ -3539,7 +3543,7 @@ fn xfl031_detects_location_group_id_clashing_with_stop_id() {
     }
 }
 
-/// Kimlikler ayrıksa notice çıkmamalı — kural sadece ÇAKIŞMAYI ölçer.
+/// No notice should be emitted when IDs are distinct — the rule measures only CLASHES.
 #[test]
 fn xfl031_silent_when_ids_are_distinct() {
     static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\n";
@@ -3572,10 +3576,10 @@ fn xfl031_detects_geojson_id_clashing_with_stop_id() {
     }
 }
 
-// ── LOC_008/009/010: locations.geojson zorunlu alanları ───────────────────────
-// Spec (locations.geojson alan tablosu) her Feature için type / properties /
-// geometry.coordinates alanlarını Required işaretler. Bunlar hiç denetlenmiyordu:
-// eksikliklerinde kod sessizce atlıyor, dosya "doğrulandı" görünüyordu.
+// ── LOC_008/009/010: required locations.geojson members ───────────────────────
+// The Spec (locations.geojson field table) marks type / properties /
+// geometry.coordinates as Required for every Feature. None were checked:
+// missing members were silently skipped and the file appeared "validated".
 
 fn geojson_feed(geojson: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -3585,7 +3589,7 @@ fn geojson_feed(geojson: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
 
 #[test]
 fn loc008_009_010_detect_missing_required_feature_members() {
-    // type yok · properties yok · coordinates yok
+    // no type · no properties · no coordinates
     static BAD: &[u8] = br#"{"type":"FeatureCollection","features":[
         {"id":"z1","geometry":{"type":"Polygon"}}]}"#;
     match validate_bytes(
@@ -3612,8 +3616,8 @@ fn loc008_009_010_detect_missing_required_feature_members() {
     }
 }
 
-/// Geçerli bir feature hiçbirini üretmemeli; boş `properties` nesnesi GEÇERLİDİR
-/// (stop_name/stop_desc opsiyoneldir).
+/// A valid feature must produce none of them; an empty `properties` object is VALID
+/// (stop_name/stop_desc are optional).
 #[test]
 fn loc008_009_010_silent_on_a_valid_feature() {
     static GOOD: &[u8] = br#"{"type":"FeatureCollection","features":[
@@ -3637,10 +3641,10 @@ fn loc008_009_010_silent_on_a_valid_feature() {
     }
 }
 
-// ── rule_priority yalnız fare_leg_rules.txt'in alanıdır ───────────────────────
-// Spec (27 Nisan 2026): `rule_priority` fare_leg_rules.txt'te tanımlıdır; fare_transfer_rules.txt
-// alan tablosunda YOKTUR. K1 ikisini de "bilinen sütun" sayıyordu, yani yanlış dosyaya konmuş
-// bir rule_priority sütunu ARC_017 üretmiyordu (WP-2 spec çapa turunda yakalandı).
+// ── rule_priority belongs only to fare_leg_rules.txt ───────────────────────────
+// Spec (27 April 2026): `rule_priority` is defined in fare_leg_rules.txt; it is NOT in the
+// fare_transfer_rules.txt field table. K1 treated it as a "known column" in both, so a
+// rule_priority column in the wrong file did not produce ARC_017 (caught in the WP-2 Spec anchor pass).
 
 #[test]
 fn rule_priority_in_fare_transfer_rules_is_an_unknown_column() {
@@ -3690,19 +3694,19 @@ fn rule_priority_in_fare_leg_rules_stays_a_known_column() {
     }
 }
 
-// ── Bağlı sefer devamlılıkları: TRF_022 / TRF_023 ────────────────────────────
+// ── Linked-trip continuations: TRF_022 / TRF_023 ─────────────────────────────
 //
-// Spec (`transfers.txt` → "Linked trips") ÜÇ cümle yazar ve üçüncüsü ilk ikisini SINIRLAR:
-// devam seferlerinin `service_id`'si özdeş OLMALI, AMA bir sefer birden çok ayrı
-// devamlılığa girebilir — yeter ki takvimler hiçbir günde çakışmasın. Veride devamlılık
-// grubunu işaretleyen alan olmadığı için uygulanabilir tek okuma ikisinin bileşimidir.
-// Aşağıdaki dört test tam olarak bu sınırı çiziyor: biri ateşlemeyi, ikisi SUSMAYI kanıtlıyor.
+// The Spec (`transfers.txt` → "Linked trips") has THREE sentences, and the third LIMITS the first two:
+// continuation trips MUST have identical `service_id`, BUT one trip may belong to multiple separate
+// continuations — as long as their calendars do not overlap on any day. Since the data has no field
+// identifying a continuation group, the only implementable reading is their combination.
+// The four tests below draw exactly that boundary: one proves firing, and two prove SILENCE.
 
 static CAL_TWO_SERVICES: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
       SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
       SVC2,1,1,1,1,1,1,1,20250101,20271231\n";
-// SVC3 yalnız hafta sonu → SVC1 (hafta içi) ile HİÇBİR gün çakışmaz.
+// SVC3 is weekends only → it overlaps with SVC1 (weekdays) on NO day.
 static CAL_DISJOINT: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
       SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
@@ -3732,8 +3736,8 @@ fn has(vr: &gtfs_core::ValidationResult, rule: &str) -> bool {
 
 #[test]
 fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
-    // T1 hem T2'ye (SVC1, hafta içi) hem T3'e (SVC2, her gün) bağlanıyor.
-    // Hafta içi günlerde İKİSİ birden aktif → hangi devamlılık geçerli belirsiz.
+    // T1 connects to both T2 (SVC1, weekdays) and T3 (SVC2, every day).
+    // Both are active on weekdays → which continuation applies is ambiguous.
     let files = linked_trip_files(
         CAL_TWO_SERVICES,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n",
@@ -3749,7 +3753,7 @@ fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
                     .map(|n| n.rule_id.as_str())
                     .collect::<Vec<_>>()
             );
-            // Ters yön ateşlememeli: T2 ve T3'ün her birine tek sefer bağlanıyor.
+            // The reverse direction must not fire: T2 and T3 each have only one incoming trip.
             assert!(
                 !has(&vr, "TRF_023"),
                 "n-to-1 çelişkisi yok, TRF_023 çıkmamalı"
@@ -3761,8 +3765,8 @@ fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
 
 #[test]
 fn trf022_silent_when_continuation_trips_share_one_service_id() {
-    // GERÇEK 1-to-n ayrımı: T1 ikiye ayrılıyor ama ikisi de AYNI takvimde.
-    // Spec'in istediği tam olarak bu — kural susmalı.
+    // A REAL 1-to-n split: T1 branches to two trips, but both use the SAME calendar.
+    // This is exactly what the Spec allows — the rule must stay silent.
     let files = linked_trip_files(
         CAL_TWO_SERVICES,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\n",
@@ -3779,9 +3783,9 @@ fn trf022_silent_when_continuation_trips_share_one_service_id() {
 
 #[test]
 fn trf022_silent_when_separate_continuations_do_not_share_a_service_day() {
-    // AYRI DEVAMLILIKLAR: T1 hafta içi T2'ye, hafta sonu T3'e devam ediyor.
-    // service_id'ler FARKLI ama hiçbir gün çakışmıyor → spec bunu AÇIKÇA serbest bırakır.
-    // Bu test olmasaydı kural, spec'in iznini norm sanan `PTH_017` hatasını tekrarlardı.
+    // SEPARATE CONTINUATIONS: T1 continues to T2 on weekdays and to T3 on weekends.
+    // The service_ids are DIFFERENT but never overlap → the Spec EXPLICITLY allows this.
+    // Without this test, the rule would repeat the `PTH_017` mistake of treating Spec permission as a norm.
     let files = linked_trip_files(
         CAL_DISJOINT,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC3,T3\n",
@@ -3802,7 +3806,7 @@ fn trf022_silent_when_separate_continuations_do_not_share_a_service_day() {
 
 #[test]
 fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
-    // T2 (SVC1) ve T3 (SVC2) ikisi de T1'e bağlanıyor → gelen taraf çelişiyor.
+    // Both T2 (SVC1) and T3 (SVC2) connect to T1 → the incoming side conflicts.
     let files = linked_trip_files(
         CAL_TWO_SERVICES,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n",
@@ -3827,12 +3831,12 @@ fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
     }
 }
 
-// ── DQ_021 birincil anahtar — 2026-08-06'da eklenen üç dosya ─────────────────
+// ── DQ_021 primary key — three files added on 2026-08-06 ─────────────────────
 
 #[test]
 fn dq021_flags_calendar_dates_with_conflicting_exception_types() {
-    // Aynı (service_id, date) hem exception_type=1 hem =2 → o günün servisi TANIMSIZ.
-    // Birincil anahtar ihlalinin en ağır biçimi; hiçbir CLD_* kuralı bunu görmüyordu.
+    // The same (service_id, date) has both exception_type=1 and =2 → service on that day is UNDEFINED.
+    // The most severe form of a primary-key violation; no CLD_* rule detected it.
     static CLD: &[u8] = b"service_id,date,exception_type\nSVC1,20260701,1\nSVC1,20260701,2\n";
     let mut files = base_files();
     files.push(("calendar_dates.txt", CLD));
@@ -3904,12 +3908,12 @@ fn dq021_flags_duplicate_rows_in_stop_areas_and_fare_rules() {
     }
 }
 
-// ── PTH_031: stop_access=1 olan durak pathway uç noktası olamaz ──────────────
+// ── PTH_031: a stop with stop_access=1 cannot be a pathway endpoint ──────────
 //
 // Spec `pathways.from_stop_id`/`to_stop_id`: "Values for stop_id that identify stations
 // (location_type=1), **or stops (location_type=0 or empty) with stop_access=1**, are
-// forbidden." İkinci kol 2026-08-06'ya kadar ölçülmüyordu; katalog da göremiyordu çünkü
-// yasak KÜÇÜK harfle ("are forbidden") yazılı.
+// forbidden." The second branch was not measured until 2026-08-06; the catalog could not see it
+// either because the prohibition was written in lowercase ("are forbidden").
 
 static STOPS_WITH_ACCESS: &[u8] =
     b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\n\
@@ -3945,8 +3949,8 @@ fn pth031_flags_pathway_endpoint_with_stop_access_1() {
 
 #[test]
 fn pth031_silent_when_endpoints_are_not_street_accessed() {
-    // stop_access=0 = "sokaktan doğrudan erişilemez, pathway kullanılmalı" → tam da
-    // pathway'in beklendiği hâl. Kural burada susmalı.
+    // stop_access=0 = "not directly accessible from the street; a pathway must be used" →
+    // exactly the case where a pathway is expected. The rule must be silent here.
     match run(&pathway_files(STOPS_NO_ACCESS)) {
         ValidateResult::Ok(vr) => assert!(
             !has(&vr, "PTH_031"),
@@ -3989,18 +3993,17 @@ fn stp024_k2_range_and_stp026_normative_enum_are_distinct() {
     }
 }
 
-// ── Pc3b911a6: "Dosyalar virgülle ayrılmış metin olmalı" — VARSAYIM DEĞİL, ÖLÇÜM ────
+// ── Pc3b911a6: "Files must be comma-delimited text" — MEASUREMENT, NOT ASSUMPTION ─
 //
-// Defter bu hükmü DOLAYLI sayıyordu ("ayraç virgül değilse başlık tek sütuna çöker →
-// ARC_025 fatal") ama gerekçenin yanında **[Varsayım] — bu yol ölçülmedi** yazıyordu.
-// 2026-08-06 dış denetimi haklı olarak şunu söyledi: `badge_status.py` payı
-// `KANITLI + DOLAYLI` diye hesaplıyor, yani test edilmemiş bir çıkarım "ölçülmüş"
-// sayılıyordu. Varsayımı düşürmek yerine ÖLÇÜYORUZ.
+// The ledger counted this provision as INDIRECT ("if the delimiter is not a comma, the header
+// collapses to one column → ARC_025 fatal"), but marked the rationale **[Assumption] — this path was not measured**.
+// The 2026-08-06 external review correctly pointed out that `badge_status.py` counted it as
+// `KANITLI + DOLAYLI`, so an untested inference was treated as "measured". We MEASURE it instead of dropping the assumption.
 
 #[test]
 fn semicolon_delimited_files_are_rejected_pc3b911a6() {
-    // Aynı içerik, ayraç NOKTALI VİRGÜL. Başlık tek sütuna çöker → zorunlu sütunlar
-    // bulunamaz. Beklenen: ya Fatal(NoRequiredFiles) ya da ARC_025 (zorunlu sütun eksik).
+    // Same content, with a SEMICOLON delimiter. The header collapses to one column → required
+    // columns cannot be found. Expected: either Fatal(NoRequiredFiles) or ARC_025 (required column missing).
     static SEMI_STOPS: &[u8] =
         b"stop_id;stop_name;stop_lat;stop_lon\nS1;Stop1;41.0;29.0\nS2;Stop2;41.1;29.1\n";
     let mut files = base_files();
@@ -4009,7 +4012,7 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
 
     match run(&files) {
         ValidateResult::Fatal(e) => {
-            // Zorunlu dosya sütunları çözülemedi → fatal. Hüküm ÖLÇÜLÜYOR.
+            // Required file columns could not be resolved → fatal. The provision is MEASURED.
             assert_eq!(
                 e.code,
                 FatalCode::NoRequiredFiles,
@@ -4029,9 +4032,9 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
         }
     }
 
-    // 🔴 KONTROL GİRDİSİ (issue #87). İhlalli girdi tek başına yetmez: komşu kural HER
-    // feed'de ateşliyorsa "ölçüm" bir şey kanıtlamaz. Aynı içerik VİRGÜLLE ayrılmış hâlde
-    // sessiz kalmalı — fark, hükmün gerçekten ölçüldüğünü gösteren şeydir.
+    // 🔴 CONTROL INPUT (issue #87). A violating input alone is insufficient: if a neighboring rule
+    // fires in EVERY feed, the "measurement" proves nothing. The same content with a COMMA delimiter
+    // must stay silent — the difference shows that the provision is genuinely measured.
     match run(&base_files()) {
         ValidateResult::Ok(vr) => assert!(
             !has(&vr, "ARC_025"),
@@ -4041,16 +4044,16 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
     }
 }
 
-// ── Pd59e5eaa: ilk satır ALAN ADLARINI içermeli (issue #87 kanıt çifti) ────────
+// ── Pd59e5eaa: the first row must contain FIELD NAMES (issue #87 evidence pair) ─
 //
-// Defter bu hükmü DOLAYLI sayıyordu ("başlık yerine veri satırı varsa ARC_025 + ARC_019 +
-// ARC_017 birlikte ateşler") ama bu bir KOD OKUMASIYDI, ölçüm değil. #87 haklı: pay
-// `KANITLI + DOLAYLI` diye hesaplanıyor, yani ölçülmemiş bir çıkarım sayılıyordu.
+// The ledger counted this provision as INDIRECT ("if a data row appears instead of a header,
+// ARC_025 + ARC_019 + ARC_017 fire together"), but that was a CODE READING, not a measurement.
+// #87 was right: it was counted as `KANITLI + DOLAYLI`, i.e. an unmeasured inference.
 
 #[test]
 fn first_line_must_be_a_header_pd59e5eaa() {
-    // İHLAL: başlık satırı yok — dosya doğrudan veriyle başlıyor. O zaman ilk VERİ satırı
-    // başlık sanılır, zorunlu sütun adları bulunamaz.
+    // VIOLATION: no header row — the file starts directly with data. The first DATA row is
+    // then treated as the header, so required column names cannot be found.
     static NO_HEADER: &[u8] = b"S1,Stop1,41.0,29.0
 S2,Stop2,41.1,29.1
 ";
@@ -4069,7 +4072,7 @@ S2,Stop2,41.1,29.1
         "başlıksız dosya zorunlu sütun ihlali üretmeli"
     );
 
-    // KONTROL: aynı veri, başlık satırıyla → sessiz.
+    // CONTROL: the same data with a header row → silent.
     match run(&base_files()) {
         ValidateResult::Ok(vr) => assert!(
             !has(&vr, "ARC_025"),
@@ -4079,15 +4082,15 @@ S2,Stop2,41.1,29.1
     }
 }
 
-// ── LOC_011: OpenGIS SFS 6.1.11 poligon geçerliliği — genişletilmiş maddeler ────────
+// ── LOC_011: OpenGIS SFS 6.1.11 polygon validity — extended clauses ───────────
 //
-// 2026-08-06 dış denetimi `LOC_011`'in kartında yazılı dört boşluğu gösterdi. Üçü
-// kapatıldı (delik-delik kesişimi · deliğin KISMEN dışarı taşması · spike/cut line);
-// dördüncüsü (ring yönü) ölçülmüyor çünkü **6.1.11 yönelim şart koşmuyor** — o GeoJSON
-// RFC 7946'nın serileştirme kuralıdır ve onu ihlal saymak yanlış pozitif üretirdi.
+// The 2026-08-06 external review identified four gaps written on the `LOC_011` card. Three
+// were closed (hole-hole intersection · hole PARTIALLY outside · spike/cut line); the fourth
+// (ring orientation) is not measured because **6.1.11 does not require orientation** — that is
+// a GeoJSON RFC 7946 serialization rule, and treating it as a violation would create false positives.
 
-/// Tek feature'lık `locations.geojson` kurar; geometri gövdesi test başına verilir.
-/// `Box::leak`: `run()` `&'static [u8]` bekliyor, test başına tek küçük sızıntı kabul.
+/// Builds a one-feature `locations.geojson`; the geometry body is supplied per test.
+/// `Box::leak`: `run()` expects `&'static [u8]`; one small leak per test is acceptable.
 fn loc011_feed(geometry: &str) -> Vec<(&'static str, &'static [u8])> {
     let doc: &'static [u8] = Box::leak(
         format!(
@@ -4109,7 +4112,7 @@ fn loc011_fires(geometry: &str) -> bool {
 
 #[test]
 fn loc011_flags_holes_that_intersect_each_other() {
-    // İki delik üst üste biniyor → 6.1.11 (3) "no two Rings cross".
+    // Two holes overlap → 6.1.11 (3) "no two Rings cross".
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4123,8 +4126,8 @@ fn loc011_flags_holes_that_intersect_each_other() {
 
 #[test]
 fn loc011_flags_hole_partially_outside_the_shell() {
-    // Deliğin İLK NOKTASI kabuğun içinde ama gövdesi dışarı taşıyor. Eski predikat
-    // yalnız ilk noktaya baktığı için bunu KAÇIRIYORDU.
+    // The hole's FIRST POINT is inside the shell, but its body extends outside. The old predicate
+    // MISSED this because it looked only at the first point.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4137,7 +4140,7 @@ fn loc011_flags_hole_partially_outside_the_shell() {
 
 #[test]
 fn loc011_flags_spike() {
-    // Kabuk bir doğru boyunca çıkıp aynı doğrudan dönüyor → sıfır alanlı çıkıntı.
+    // The shell leaves along a straight line and returns along the same line → zero-area spike.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4149,7 +4152,7 @@ fn loc011_flags_spike() {
 
 #[test]
 fn loc011_silent_on_valid_polygon_with_hole() {
-    // Tamamen geçerli: delik kabuğun içinde, kesişme yok, spike yok.
+    // Fully valid: the hole is inside the shell, with no intersection and no spike.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4162,8 +4165,8 @@ fn loc011_silent_on_valid_polygon_with_hole() {
 
 #[test]
 fn loc011_silent_on_clockwise_shell() {
-    // ⚠️ EN ÖNEMLİ TEST: ring yönü 6.1.11'in geçerlilik koşulu DEĞİLDİR. Saat yönünde
-    // yazılmış kabuk GEÇERLİDİR; burada ateşlemek `PTH_017` hatasını tekrarlamak olurdu.
+    // ⚠️ MOST IMPORTANT TEST: ring orientation is NOT a 6.1.11 validity condition. A clockwise
+    // shell is VALID; firing here would repeat the `PTH_017` mistake.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4173,10 +4176,10 @@ fn loc011_silent_on_clockwise_shell() {
     );
 }
 
-// ── STM_060: geojson bölgesi + pencere + davranış EŞZAMANLI örtüşmesi ──────────────
+// ── STM_060: simultaneous overlap of GeoJSON zone + window + behavior ─────────
 //
-// Hüküm ÜÇ koşulun BİRLİKTE sağlanmasını yasaklar. Testlerin çoğu bilerek NEGATİF:
-// koşullardan biri düşerse kural SUSMALI, yoksa Flex feed'lerinde yanlış pozitif üretir.
+// The provision forbids satisfying all THREE conditions TOGETHER. Most tests are deliberately NEGATIVE:
+// if one condition is absent, the rule must stay SILENT, or Flex feeds produce false positives.
 
 fn flex_overlap_feed(
     geojson: &'static [u8],
@@ -4189,7 +4192,7 @@ fn flex_overlap_feed(
     files
 }
 
-// İki bölge: Z1 ve Z2 ÜST ÜSTE biniyor; Z3 tamamen ayrı.
+// Two zones: Z1 and Z2 OVERLAP; Z3 is completely separate.
 static ZONES: &[u8] = br#"{"type":"FeatureCollection","features":[
   {"type":"Feature","id":"Z1","properties":{},"geometry":{"type":"Polygon","coordinates":
     [[[0,0],[0,10],[10,10],[10,0],[0,0]]]}},
@@ -4207,7 +4210,7 @@ fn stm060_fires(stop_times: &'static [u8]) -> bool {
 
 #[test]
 fn stm060_flags_overlapping_zone_window_and_behaviour() {
-    // Z1∩Z2 uzayda kesişiyor · 08:00-10:00 ile 09:00-11:00 zamanda kesişiyor · ikisi de biniş.
+    // Z1∩Z2 intersect in space · 08:00-10:00 and 09:00-11:00 intersect in time · both allow pickup.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,09:00:00,11:00:00,2,2\n";
     assert!(stm060_fires(ST), "üç koşul da sağlanıyor → STM_060 çıkmalı");
@@ -4215,7 +4218,7 @@ fn stm060_flags_overlapping_zone_window_and_behaviour() {
 
 #[test]
 fn stm060_silent_when_zones_are_spatially_disjoint() {
-    // Z1 ve Z3 hiç kesişmiyor → hüküm ihlal edilmiyor.
+    // Z1 and Z3 never intersect → the provision is not violated.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z3,2,09:00:00,11:00:00,2,2\n";
     assert!(!stm060_fires(ST), "ayrık bölgelerde STM_060 çıkmamalı");
@@ -4223,7 +4226,7 @@ fn stm060_silent_when_zones_are_spatially_disjoint() {
 
 #[test]
 fn stm060_silent_when_time_windows_do_not_overlap() {
-    // Bölgeler kesişiyor ama pencereler ardışık, çakışmıyor.
+    // The zones intersect, but the windows are consecutive and do not overlap.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,10:00:00,12:00:00,2,2\n";
     assert!(
@@ -4234,8 +4237,8 @@ fn stm060_silent_when_time_windows_do_not_overlap() {
 
 #[test]
 fn stm060_silent_when_behaviour_does_not_overlap() {
-    // Bölge ve zaman çakışıyor ama biri YALNIZ biniş, diğeri YALNIZ iniş sunuyor.
-    // pickup_type=1 → biniş yok · drop_off_type=1 → iniş yok.
+    // The zone and time overlap, but one allows ONLY pickup and the other ONLY drop-off.
+    // pickup_type=1 → no pickup · drop_off_type=1 → no drop-off.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,1\nT1,Z2,2,09:00:00,11:00:00,1,2\n";
     assert!(
@@ -4246,7 +4249,7 @@ fn stm060_silent_when_behaviour_does_not_overlap() {
 
 #[test]
 fn stm060_silent_across_different_trips() {
-    // Hüküm AYNI trip_id içindeki kayıtlar için. Farklı seferler serbesttir.
+    // The provision applies to records with the SAME trip_id. Different trips are allowed.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT2,Z2,1,09:00:00,11:00:00,2,2\n";
     assert!(!stm060_fires(ST), "farklı trip'lerde STM_060 çıkmamalı");
@@ -4254,15 +4257,15 @@ fn stm060_silent_across_different_trips() {
 
 #[test]
 fn stm060_silent_for_two_records_in_the_same_zone() {
-    // 🔴 EN ÖNEMLİ NEGATİF TEST. Spec'in KENDİSİ bunu zorunlu kılıyor:
+    // 🔴 MOST IMPORTANT NEGATIVE TEST. The Spec ITSELF requires this:
     // *"Travel within the same location group or GeoJSON location requires two records in
     // stop_times.txt with the same location_group_id or location_id."*
-    // Aynı bölgeye ait iki kayıt bölge-İÇİ seyahatin tek ifade biçimidir.
+    // Two records for the same zone are the only representation of travel WITHIN that zone.
     //
-    // İlk uygulamam bunu ihlal sayıyordu ve `ch-odv-flex`/`mdb-2053`'te **21 yanlış pozitif**
-    // üretti; MobilityData aynı kuralı (`overlapping_zone_and_pickup_drop_off_window`)
-    // uyguladığı hâlde o feed'de SUSUYOR. Spec'in bir yerde zorunlu kıldığını başka yerde
-    // yasak saymak `PTH_017` hatasının aynısıdır.
+    // My first implementation treated this as a violation and produced **21 false positives**
+    // in `ch-odv-flex`/`mdb-2053`; MobilityData applies the same rule
+    // (`overlapping_zone_and_pickup_drop_off_window`) yet stays SILENT on that feed.
+    // Treating something the Spec requires in one place as forbidden elsewhere repeats the `PTH_017` mistake.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,07:00:00,11:00:00,2,2\nT1,Z1,2,07:00:00,11:00:00,2,2\n";
     assert!(
@@ -4273,9 +4276,9 @@ fn stm060_silent_for_two_records_in_the_same_zone() {
 
 #[test]
 fn loc011_flags_hole_touching_shell_at_two_points() {
-    // OpenGIS 6.1.11 madde 5: iç kısım BAĞLANTILI olmalı. Delik dış ring'e İKİ noktada
-    // dokunursa poligonun içi o temaslar arasında ikiye bölünür.
-    // ⚠️ Madde 3 TEK noktada teğetliğe izin verir → aşağıdaki negatif test onu korur.
+    // OpenGIS 6.1.11 clause 5: the interior must be CONNECTED. If a hole touches the outer ring
+    // at TWO points, the polygon interior is split between those contacts.
+    // ⚠️ Clause 3 allows tangency at ONE point → the negative test below protects that case.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4288,8 +4291,8 @@ fn loc011_flags_hole_touching_shell_at_two_points() {
 
 #[test]
 fn loc011_silent_when_hole_touches_shell_at_one_point() {
-    // Tek noktada teğetlik 6.1.11'in AÇIKÇA izin verdiği hâldir. Burada ateşlemek
-    // `PTH_017` hatasını tekrarlamak olurdu.
+    // Tangency at one point is EXPLICITLY allowed by 6.1.11. Firing here would repeat
+    // the `PTH_017` mistake.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4313,22 +4316,21 @@ fn loc011_flags_two_holes_touching_at_two_points() {
     );
 }
 
-// ── ARC_022: dosya satır sayısı eşiği — ÜÇ emit noktası ───────────────────────
+// ── ARC_022: file row-count threshold — THREE emit sites ──────────────────────
 //
-// Issue #71. Eşik 2026-08-07'ye kadar üç yerde SABİT KODLUYDU (`k1_parse`, `k2::shapes`,
-// `k2::stop_times`) ve K1'in `parse()`'ı `ValidatorConfig` almadığı için kurala fixture
-// yazılamıyordu — borç defteri bunu "1M satır gerektirir, inline yazılamaz" diye
-// kaydetmişti. Doğru gerekçe "imza config almıyor" idi; imza değişti.
+// Issue #71. Until 2026-08-07 the threshold was HARDCODED in three places (`k1_parse`,
+// `k2::shapes`, `k2::stop_times`), and the rule could not have a fixture because K1's
+// `parse()` accepted no `ValidatorConfig` — the ledger recorded "requires 1M rows, cannot be inline".
+// The correct reason was "the signature does not accept config"; the signature changed.
 //
-// ⚠️ Fixture (emit_proof) kuralın YALNIZ K1 yolunu kanıtlar. Üç emit noktasının üçü de
-// aynı config alanını okumalı; burada üçü ayrı ayrı ölçülür, ayrıca eşiğe EŞİT satır
-// sayısında sustuğu (sınır davranışı) doğrulanır.
+// ⚠️ The fixture (emit_proof) proves ONLY the K1 path. All three emit sites must read
+// the same config field; here all three are measured separately, and silence at a row
+// count EQUAL to the threshold (boundary behavior) is also verified.
 //
-// ⚠️ BİLİNEN BOŞLUK (bu turda KAPATILMADI): `trips.txt` ve `calendar_dates.txt` K1'de
-// stream edilir (`rows` boş kalır) ve K2'de ARC_022 emit noktaları YOKTUR → bu iki dosya
-// kaç satır olursa olsun kural susar. Kapatmak yeni bulgular üretir (8M satırlık
-// calendar_dates taşıyan feed'ler var), yani davranış değişikliğidir; #71'in kapsamı
-// kanıttır, kapsam genişletmesi değil.
+// ⚠️ KNOWN GAP (NOT CLOSED in this round): `trips.txt` and `calendar_dates.txt` are streamed
+// in K1 (`rows` stays empty), and K2 has NO ARC_022 emit sites → the rule stays silent for
+// any row count in these two files. Closing it would produce new findings (feeds with 8M-row
+// calendar_dates exist), so it is a behavior change; #71's scope is evidence, not scope expansion.
 
 fn arc022_rows(file: &str, n: usize) -> String {
     let mut s = String::new();
@@ -4368,8 +4370,8 @@ fn arc022_rows(file: &str, n: usize) -> String {
     s
 }
 
-/// `file` dosyasını `n` satırla kurup ARC_022'nin O DOSYA için çıkıp çıkmadığını döner.
-/// Eşik `max_file_rows = 10` (config alt sınırı) — 1M satırlık zip üretmeye gerek yok.
+/// Builds `file` with `n` rows and returns whether ARC_022 fires for THAT FILE.
+/// Threshold `max_file_rows = 10` (config lower bound) — no need to build a 1M-row ZIP.
 fn arc022_fires_for(file: &str, n: usize) -> bool {
     let body = arc022_rows(file, n);
     let mut files = base_files();
@@ -4396,7 +4398,7 @@ fn arc022_fires_for(file: &str, n: usize) -> bool {
 
 #[test]
 fn arc022_fires_on_k1_non_streamed_file() {
-    // stops.txt akış-dışı okunur → eşik k1_parse'ta okunur.
+    // stops.txt is read outside the stream path → the threshold is read in k1_parse.
     assert!(
         arc022_fires_for("stops.txt", 11),
         "11 satır > eşik 10 → stops.txt için ARC_022 çıkmalı"
@@ -4405,7 +4407,7 @@ fn arc022_fires_on_k1_non_streamed_file() {
 
 #[test]
 fn arc022_fires_on_k2_stop_times_stream() {
-    // stop_times.txt K1'de stream edilir; ARC_022'yi K2 üretir (rows K1'de boştur).
+    // stop_times.txt is streamed in K1; K2 emits ARC_022 (rows is empty in K1).
     assert!(
         arc022_fires_for("stop_times.txt", 11),
         "11 satır > eşik 10 → stop_times.txt için ARC_022 çıkmalı"
@@ -4420,10 +4422,10 @@ fn arc022_fires_on_k2_shapes_stream() {
     );
 }
 
-// ── issue #75: akış dosyalarının KALAN İKİSİ ────────────────────────────────
-// `trips.txt` ve `calendar_dates.txt` de K1'de stream edilir ama K2'de emit noktaları
-// YOKTU → kural onlarda kaç satır olursa olsun susuyordu. Denetim artık `k2/mod.rs`'te
-// TEK geçişte; bu iki test o geçişin kapsadığını sabitler.
+// ── issue #75: the remaining TWO stream files ─────────────────────────────────
+// `trips.txt` and `calendar_dates.txt` are also streamed in K1, but they had NO emit sites
+// in K2 → the rule stayed silent for any row count in those files. The check is now in one
+// PASS in `k2/mod.rs`; these two tests lock in that coverage.
 
 #[test]
 fn arc022_fires_on_k2_trips_stream() {
@@ -4443,7 +4445,7 @@ fn arc022_fires_on_k2_calendar_dates_stream() {
 
 #[test]
 fn arc022_silent_at_the_threshold_on_every_path() {
-    // Sınır: eşiğe EŞİT satır sayısı ihlal DEĞİLDİR (`>` karşılaştırması).
+    // Boundary: a row count EQUAL to the threshold is NOT a violation (`>` comparison).
     for file in [
         "stops.txt",
         "stop_times.txt",
@@ -4460,11 +4462,11 @@ fn arc022_silent_at_the_threshold_on_every_path() {
 
 #[test]
 fn arc022_notice_order_is_stable_across_runs() {
-    // ⚠️ Bu test K2'deki sıralamanın bekçisi DEĞİLDİR — 2026-08-07'de ölçüldü: alfabetik
-    // çıktıyı asıl K7 garanti ediyor (`notice_order_key` ARC_022'yi `entity_id`'ye göre
-    // sıralar), K2'deki `sort` kaldırılınca da bu test geçiyordu. O sıralamayı denetleyen
+    // ⚠️ This test is NOT the guard for K2 ordering — measured on 2026-08-07: K7 itself guarantees
+    // alphabetical output (`notice_order_key` sorts ARC_022 by `entity_id`); this test still passed
+    // when K2's `sort` was removed. The unit test that checks that ordering is
     // birim testi `k2/mod.rs::files_over_row_limit_is_alphabetical_and_strict`.
-    // Buradaki iddia daha dar ama gerçek: uçtan uca çıktı sırası KARARLI ve alfabetik.
+    // The claim here is narrower but real: end-to-end output order is STABLE and alphabetical.
     let mut files = base_files();
     for name in ["shapes.txt", "trips.txt", "calendar_dates.txt"] {
         let body = Box::leak(arc022_rows(name, 11).into_bytes().into_boxed_slice());
@@ -4503,18 +4505,18 @@ fn arc022_notice_order_is_stable_across_runs() {
     }
 }
 
-// ── LOC_011 · 6.1.11 madde 5'in KALINTISI: temas grafiği çevrimi (issue #74) ───
+// ── LOC_011 · 6.1.11 clause 5 REMAINDER: contact graph cycle (issue #74) ─────
 //
-// 2026-08-07'ye kadar ölçülen ölçüt "iki ring İKİ noktada dokunuyor" idi; bu, temas
-// grafiğinin en kısa çevrimi (iki paralel kenar). Kalıntı: üç ring ikişer ikişer BİRER
-// noktada dokunarak da çevrim kapatabilir ve iç kısmı böler. Ölçüt artık çevrimin
-// kendisidir — özel hâl kendiliğinden kapsanır.
+// Until 2026-08-07 the measured criterion was "two rings touch at TWO points"; that is
+// the shortest cycle in the contact graph (two parallel edges). Remainder: three rings can
+// also close a cycle by touching pairwise at ONE point and split the interior. The criterion
+// is now the cycle itself — the special case is covered automatically.
 
 #[test]
 fn loc011_flags_three_holes_touching_pairwise_in_a_chain() {
-    // A–B, B–C, C–A: her temas TEK nokta (madde 3 tek tek hepsine izin verir) ama üçü
-    // birlikte çevrim kapatır → aralarında kalan alan iç kısmın geri kalanından KOPAR.
-    // Delikler kabuğa DOKUNMAZ; çevrim yalnız delikler arasındadır.
+    // A–B, B–C, C–A: each contact is ONE point (clause 3 allows each individually), but together
+    // they close a cycle → the enclosed area is CUT OFF from the rest of the interior.
+    // The holes do not touch the shell; the cycle is only among the holes.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4529,9 +4531,9 @@ fn loc011_flags_three_holes_touching_pairwise_in_a_chain() {
 
 #[test]
 fn loc011_silent_on_open_chain_of_single_point_contacts() {
-    // A–B ve B–C birer noktada dokunuyor, C–A DOKUNMUYOR → grafik AĞAÇ, çevrim yok.
-    // Kıstırma noktalarının etrafından dolaşılabildiği için iç kısım BAĞLANTILI kalır.
-    // Bu, çevrim ölçütünün yanlış pozitife dönüşmediğinin kanıtıdır (`PTH_017` dersi).
+    // A–B and B–C touch at one point each, C–A does NOT → the graph is a TREE, with no cycle.
+    // The interior remains CONNECTED because one can go around the pinch points.
+    // This proves that the cycle criterion does not become a false positive (`PTH_017` lesson).
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4546,9 +4548,9 @@ fn loc011_silent_on_open_chain_of_single_point_contacts() {
 
 #[test]
 fn loc011_flags_ring_that_touches_itself() {
-    // Sekiz şeklinde kabuk: (5,5) köşesine İKİ kez uğruyor. `ring_is_simple` bunu
-    // göremez — teğetlik bilinçli olarak "kesişme" sayılmaz — ama iç kısım iki loba
-    // ayrılır, yani madde 5 ihlalidir (temas grafiğinde ÖZ-DÖNGÜ).
+    // Figure-eight shell: it visits corner (5,5) TWICE. `ring_is_simple` cannot see this
+    // — tangency deliberately does not count as an "intersection" — but the interior splits
+    // into two lobes, violating clause 5 (a SELF-LOOP in the contact graph).
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4560,9 +4562,9 @@ fn loc011_flags_ring_that_touches_itself() {
 
 #[test]
 fn loc011_silent_on_duplicate_consecutive_vertex() {
-    // ARDIŞIK yinelenen koordinat (sıfır uzunluklu kenar) gerçek veride yaygındır ve
-    // öz-temas DEĞİLDİR. Öz-temas denetimi komşu indeksleri atlamasaydı bu yaygın
-    // özensizlik anında yanlış pozitif olurdu.
+    // A CONSECUTIVE repeated coordinate (zero-length edge) is common in real data and is
+    // NOT a self-contact. If self-contact checking did not skip adjacent indices, this common
+    // imperfection would immediately become a false positive.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4574,8 +4576,8 @@ fn loc011_silent_on_duplicate_consecutive_vertex() {
 
 #[test]
 fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
-    // Düz kenar üzerindeki ara köşe ((0,5)) kendi komşu kenarlarının üstündedir;
-    // öz-temas SAYILMAZ. Aksi hâlde her yoğunlaştırılmış (densified) sınır patlardı.
+    // The intermediate vertex ((0,5)) on a straight edge lies on its neighboring edges;
+    // it does NOT count as self-contact. Otherwise every densified boundary would fail.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4585,15 +4587,15 @@ fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
     );
 }
 
-// ── ARC_033: RFC 4180 tırnak kuralı ────────────────────────────────────────────
+// ── ARC_033: RFC 4180 quote rule ───────────────────────────────────────────────
 //
-// 🔴 İlk gerçek FALSIFIER (2026-08-07, dış okuma). Tokenizer'ın tırnaksız alan dalı yalnız
-// `,`, LF ve CR'de duruyordu; `"` sıradan karakter sayılıyordu. Yani spec'in İKİ sert
-// hükmü (`Pfedb83cf`, `Pa4c60372`) defterde `ARC_013` üzerinden DOLAYLI sayılırken ihlal
-// gerçekte HİÇ görünmüyordu — ölçüldü: bulgu kümesi geçerli feed'le BİREBİR aynıydı.
+// 🔴 First real FALSIFIER (2026-08-07, external reading). The tokenizer's unquoted-field branch
+// stopped only at `,`, LF, and CR; `"` counted as an ordinary character. Thus the Spec's TWO hard
+// provisions (`Pfedb83cf`, `Pa4c60372`) were counted INDIRECTLY through `ARC_013` in the ledger,
+// while the violation was actually NEVER visible — measured: the finding set matched a valid feed EXACTLY.
 //
-// ⚠️ Kuralın ÖLÇÜLEBİLİR olması alan sınırlarını bilmeyi gerektirir: `"12"" Street"`
-// (geçerli) ile `12" Street` (ihlal) AYNI değeri üretir. Bu yüzden karar tokenizer'da.
+// ⚠️ Making the rule MEASURABLE requires knowing field boundaries: `"12"" Street"`
+// (valid) and `12" Street` (violation) produce the SAME value. The decision therefore belongs in the tokenizer.
 
 fn arc033_feed(stops: &str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -4625,8 +4627,8 @@ fn arc033_flags_bare_quote_in_unquoted_field() {
 
 #[test]
 fn arc033_flags_characters_after_a_closing_quote() {
-    // `"Broadway"Ave` — içteki tırnak KAÇIRILMAMIŞ. Tokenizer bugüne dek kaydı sessizce
-    // bölüyordu; ARC_012 çıkıyordu ama sebep hiçbir yerde yazmıyordu.
+    // `"Broadway"Ave` — the inner quote is NOT ESCAPED. Until now the tokenizer silently
+    // split the record; ARC_012 appeared, but the reason was not recorded anywhere.
     assert!(arc033_fires(
         "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Broadway\"Ave,41.0,29.0\nS2,Stop2,41.1,29.1\n"
     ), "kapanış tırnağından sonra karakter RFC 4180 ihlalidir → ARC_033");
@@ -4634,9 +4636,9 @@ fn arc033_flags_characters_after_a_closing_quote() {
 
 #[test]
 fn arc033_silent_on_correctly_escaped_quotes() {
-    // 🔴 YANLIŞ POZİTİF KORUYUCUSU. Bu satır ayrıştırıldığında değer `12" Street` olur —
-    // yani ihlalli hâlle AYNI. Kural değere baksaydı burada da ateşlerdi ve GEÇERLİ veriyi
-    // reddederdi (`PTH_017` hatası).
+    // 🔴 FALSE-POSITIVE GUARD. When parsed, this row produces the value `12" Street` —
+    // the SAME value as the violating form. If the rule inspected the value, it would fire here
+    // too and reject valid data (`PTH_017` mistake).
     assert!(!arc033_fires(
         "stop_id,stop_name,stop_lat,stop_lon\nS1,\"12\"\" Street\",41.0,29.0\nS2,Stop2,41.1,29.1\n"
     ), "doğru kaçırılmış tırnak GEÇERLİDİR, ARC_033 çıkmamalı");
@@ -4644,7 +4646,7 @@ fn arc033_silent_on_correctly_escaped_quotes() {
 
 #[test]
 fn arc033_silent_on_quoted_value_containing_a_comma() {
-    // Virgül içeren değer tırnak içindeyse kural karşılanmıştır.
+    // A value containing a comma satisfies the rule when it is quoted.
     assert!(!arc033_fires(
         "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Main St, North\",41.0,29.0\nS2,Stop2,41.1,29.1\n"
     ), "tırnaklanmış virgül GEÇERLİDİR, ARC_033 çıkmamalı");
@@ -4662,8 +4664,8 @@ fn arc033_silent_on_a_feed_with_no_quotes_at_all() {
 
 #[test]
 fn arc033_reports_one_summary_per_file_not_one_per_row() {
-    // ARC_032/DQ_016 deseni: 1176 durak adı işaretli bir feed'de satır başına emit
-    // tarayıcıyı boğar. Özet, kaç SATIR etkilendiğini söyler.
+    // ARC_032/DQ_016 pattern: per-row emission for a feed with 1,176 marked stop names
+    // overwhelms the scanner. The summary says how many ROWS were affected.
     let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
     for i in 1..=5 {
         stops.push_str(&format!("S{i},{i}\" Street,41.{i:03},29.{i:03}\n"));
@@ -4693,9 +4695,9 @@ fn arc033_reports_one_summary_per_file_not_one_per_row() {
 
 #[test]
 fn arc033_covers_streamed_files_too() {
-    // ⚠️ `trips.txt` K1'de STREAM edilir (`rows` boş kalır) — tokenize_csv yalnız başlığı
-    // görür. Gövde taraması `csv_scan`'de; iki tarayıcı ayrışırsa aynı dosya akış modunda
-    // sessiz kalırdı. Bu, ARC_022'de yaşanan kapsam boşluğunun aynısı olurdu.
+    // ⚠️ `trips.txt` is STREAMED in K1 (`rows` stays empty) — tokenize_csv sees only the header.
+    // Body scanning happens in `csv_scan`; if the two scanners diverged, the same file would stay
+    // silent in stream mode. This would repeat the scope gap seen in ARC_022.
     let mut files = base_files();
     let trips: &'static [u8] = Box::leak(
         "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,5\" Line\n"
@@ -4719,16 +4721,16 @@ fn arc033_covers_streamed_files_too() {
     }
 }
 
-// ── P71943a6f: dosya ve alan adları büyük/küçük harfe DUYARLIDIR ───────────────
+// ── P71943a6f: file and field names are CASE-SENSITIVE ────────────────────────
 //
-// Spec (File Requirements): *"All file and field names are case-sensitive."* Bu cümle
-// modal taşımadığı için 2026-08-07'ye kadar KATALOGDA HİÇ YOKTU (issue #81) — yani
-// adjudike de öksüz de sayılamıyordu. Davranış zaten doğruydu ama YAZILI DEĞİLDİ;
+// Spec (File Requirements): *"All file and field names are case-sensitive."* Because this sentence
+// carries no modal, it was absent from the CATALOG until 2026-08-07 (issue #81) — so it could not
+// be adjudicated or counted as orphaned. The behavior was already correct but NOT WRITTEN DOWN;
 // bu testler onu sabitler.
 
 #[test]
 fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
-    // `Stops.txt` ≠ `stops.txt`. Yanlış-case dosya zorunlu dosya SAYILMAZ → PARTIAL.
+    // `Stops.txt` ≠ `stops.txt`. A wrong-case file does NOT count as required → PARTIAL.
     let mut files = base_files();
     for slot in files.iter_mut() {
         if slot.0 == "stops.txt" {
@@ -4746,7 +4748,7 @@ fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
 
 #[test]
 fn case_sensitivity_wrong_case_required_column_is_missing() {
-    // `STOP_ID` ≠ `stop_id` → zorunlu sütun YOK (ARC_025) + bilinmeyen sütun (ARC_017).
+    // `STOP_ID` ≠ `stop_id` → required column MISSING (ARC_025) + unknown column (ARC_017).
     let files =
         arc033_feed("STOP_ID,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
     match run(&files) {
@@ -4766,7 +4768,7 @@ fn case_sensitivity_wrong_case_required_column_is_missing() {
 
 #[test]
 fn case_sensitivity_correct_case_stays_silent() {
-    // Koruyucu: doğru yazım bu iki kuralı ÜRETMEMELİ.
+    // Guard: correct casing must produce neither rule.
     let files =
         arc033_feed("stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
     match run(&files) {
@@ -4778,14 +4780,14 @@ fn case_sensitivity_correct_case_stays_silent() {
     }
 }
 
-// ── issue #85: ID alanları PK/FK öncesi SESSİZCE kırpılıyordu ──────────────────
+// ── issue #85: ID fields were silently trimmed before PK/FK checks ─────────────
 //
-// 🔴 5. denetim turu. `get_trimmed_field`/`get_col` her değeri kırpıyor, ID'ler o
-// kırpılmış değerden kuruluyordu. `" A "` ile `A` aynı SÖZLÜKSEL değer değildir; PK/FK
-// sert semantiktir. `main = 44d516d8` üzerinde ölçülen iki hâl:
-//   1) stops `" A "` + stop_times FK `A` → eşleşiyordu (uydurma FK BAŞARISI)
-//   2) stops'ta `A` ve `" A "` → `STP_001` duplicate (uydurma ÇAKIŞMA)
-// Fazladan boşluk ayrı bir kalite sinyalidir ve `DQ_016` onu zaten bildiriyor.
+// 🔴 5th audit round. `get_trimmed_field`/`get_col` trimmed every value, and IDs were built
+// from the trimmed value. `" A "` and `A` are not the same LEXICAL value; PK/FK semantics are
+// strict. Two cases measured on `main = 44d516d8`:
+//   1) stops `" A "` + stop_times FK `A` → matched (fabricated FK SUCCESS)
+//   2) stops has `A` and `" A "` → `STP_001` duplicate (fabricated CLASH)
+// Extra whitespace is a separate quality signal, already reported by `DQ_016`.
 
 fn id_ws_feed(stops: &'static str, stop_times: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -4801,7 +4803,7 @@ fn id_ws_feed(stops: &'static str, stop_times: &'static str) -> Vec<(&'static st
 
 #[test]
 fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
-    // stops yalnız `" A "` tanımlıyor; stop_times `A`ya atıf yapıyor → FK KARŞILANMAMALI.
+    // stops defines only `" A "`; stop_times refers to `A` → the FK must NOT be satisfied.
     let files = id_ws_feed(
         "stop_id,stop_name,stop_lat,stop_lon\n\" A \",Bosluklu,41.0,29.0\nS2,Iki,41.1,29.1\n",
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -4818,7 +4820,7 @@ fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
 
 #[test]
 fn id85_padded_and_bare_ids_are_not_duplicates() {
-    // `A` ve `" A "` FARKLI kimliklerdir; duplicate raporlamak uydurma çakışmadır.
+    // `A` and `" A "` are DIFFERENT IDs; reporting a duplicate is a fabricated clash.
     let files = id_ws_feed(
         "stop_id,stop_name,stop_lat,stop_lon\nA,Bir,41.0,29.0\n\" A \",Iki,41.1,29.1\n",
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -4835,10 +4837,10 @@ fn id85_padded_and_bare_ids_are_not_duplicates() {
 
 #[test]
 fn id85_whitespace_only_id_still_reports_the_required_field() {
-    // ⚠️ SINIR: boşluk teşhisi kırpma KULLANIR ama kimliği değiştirmez. Yalnızca
-    // boşluktan oluşan `stop_id` hâlâ "zorunlu alan boş" (`STP_002`) saymalı — aksi
-    // hâlde bu düzeltme bir bulgu KAYBEDERDİ. Ayrıca fazladan boşluk kalite sinyali
-    // (`DQ_016`) ayrı yoldan bildirilmeye devam eder.
+    // ⚠️ BOUNDARY: whitespace diagnosis USES trimming but does not change the ID. A `stop_id`
+    // made only of whitespace must still count as "required field empty" (`STP_002`) — otherwise
+    // this fix would LOSE a finding. Extra whitespace also remains reported separately as a quality
+    // signal (`DQ_016`).
     let files = id_ws_feed(
         "stop_id,stop_name,stop_lat,stop_lon\n\"   \",Bosluk,41.0,29.0\nS2,Iki,41.1,29.1\n",
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -4859,23 +4861,23 @@ fn id85_whitespace_only_id_still_reports_the_required_field() {
     }
 }
 
-// ── issue #112: whitespace kökü, strict lexical semantik ve cascade kapısı ────
+// ── issue #112: whitespace root, strict lexical semantics, and cascade gate ───
 
 #[test]
 fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() {
     let files = vec![
         ("agency.txt", AGENCY),
-        // S1'in 91.0 enlemindeki aralık ihlali whitespace'ten bağımsızdır ve korunur;
-        // S2'nin 41.1 değeri ise yalnızca whitespace köküne indirgenebilir.
+    // The range violation at S1's latitude 91.0 is independent of whitespace and remains;
+    // S2's value 41.1 can be reduced to a whitespace-only root.
         ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1, 91.0,181.0\nS2,Stop2, 41.1,29.1\n" as &[u8]),
-        // R1'in 99 değeri semantik olarak da geçersizdir; R2'nin 3 değeri yalnızca
-        // lexical whitespace taşır. İki bağımsız URL hatası ayrıca görünür kalır.
+    // R1's value 99 is also semantically invalid; R2's value 3 carries only lexical
+    // whitespace. The two independent URL errors remain visible as well.
         ("routes.txt", b"route_id,agency_id,route_short_name,route_type,route_url\n\
           R1,1,101, 99,ftp://bad.example\nR2,1,102, 3,ftp://bad.example\n" as &[u8]),
         ("trips.txt", TRIPS),
-        // " S1" ham FK değeridir. Kök bulgu kanıtı bu değeri korur; STM_002 ise
-        // yalnızca aynı kaydın trim edilmiş karşılığı stops.txt'te bulunduğu için türetilmiştir.
-        // Bilinmeyen " UNKNOWN " değeri ise gerçek FK hatası olarak kalmalıdır.
+    // " S1" is the raw FK value. The root finding preserves this value as evidence; STM_002
+    // is derived only because the trimmed counterpart of the same record exists in stops.txt.
+    // The unknown " UNKNOWN " value must remain a real FK error.
         ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,08:00:00,\" S1\",1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,\" UNKNOWN \",3\n" as &[u8]),
         ("calendar.txt", CALENDAR),
@@ -5043,10 +5045,11 @@ fn whitespace_fare_derivatives_are_counted_before_notice_allocation() {
     }
 }
 
-/// FRL ailesi FK ihlallerini DISTINCT kimlik başına toplar. Toplama `observed_value`'ya
-/// `"Z1 (2 rows)"` yazdığı sürece K7 bastırması bu metni kimlik sanıp arıyor ve hiç
-/// eşleşmiyordu: 17 Eylül karşı-olgu ölçümünde 7 feed, 20.452 Kritik·Spec bulgu, 7 yayın
-/// kararı yalnız çevre boşluğundan geliyordu (`mdb-1196` `origin_id` "ADR ").
+/// The FRL family aggregates FK violations per DISTINCT ID. While aggregation wrote
+/// `"Z1 (2 rows)"` into `observed_value`, K7 suppression searched for that text as if it were
+/// the ID and never matched: in the 17 September counterfactual measurement, 7 feeds had
+/// 20,452 Critical·Spec findings and 7 publication decisions came only from surrounding whitespace
+/// (`mdb-1196` `origin_id` "ADR ").
 #[test]
 fn whitespace_fare_rule_fk_derivatives_are_suppressed_after_aggregation() {
     let mut files = base_files();
@@ -5117,11 +5120,12 @@ fn whitespace_fare_rule_fk_derivatives_are_suppressed_after_aggregation() {
     }
 }
 
-/// Sabit genişlikli dışa aktarım son sütunu boşlukla doldurur: `end_date` = `"20271231    "`.
-/// Hüküm (`CAL_004`) ham değerle verilir ve `DQ_016` altında bastırılır; ama takvim kaydına
-/// `None` yazılırsa servis "hiç aktif günü yok" sayılır ve her sefer `TRP_026` üretir
-/// (17 Eylül kısmi kırpma ölçümü: `TRP_026` 272.440, `OPR_011` 14.724 bulgu yalnız bundan).
-/// Gün bayraklarındaki aynı karar `CAL_006` için `2736bc79`'da verilmişti.
+/// Fixed-width export pads the final column with whitespace: `end_date` = `"20271231    "`.
+/// The provision (`CAL_004`) uses the raw value and suppresses it under `DQ_016`; but if
+/// `None` is written to the calendar record, service is treated as "no active day" and every
+/// run produces `TRP_026` (17 September partial-trimming measurement: 272,440 `TRP_026` and
+/// 14,724 `OPR_011` findings came only from this). The same decision for day flags was made
+/// for `CAL_006` in `2736bc79`.
 #[test]
 fn whitespace_padded_calendar_dates_keep_the_service_active() {
     let mut files = base_files();
@@ -5158,7 +5162,7 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 
-    // Kırpılınca da geçersiz olan tarih servis aralığına GİRMEZ ve görünür kalır.
+    // A date that is still invalid after trimming does NOT enter the service period and remains visible.
     files[5] = (
         "calendar.txt",
         b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
@@ -5179,9 +5183,9 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
     }
 }
 
-/// Saatsiz ara durakları aşan aralık: ardışık-çift döngüsü saatsiz durakta `continue` eder,
-/// STM_061 yalnız >10 km çiftlere bakar. Korpus mdb-2202: 15:15 → 15:15 arası 3,5 km,
-/// MD 210 km/h buluyor, biz hiçbir şey. (41.000 → 41.0315 enlem ≈ 3,5 km.)
+/// A span over an untimed intermediate stop: the consecutive-pair loop `continue`s at the
+/// untimed stop, and STM_061 checks only pairs over 10 km. Corpus mdb-2202: 3.5 km from
+/// 15:15 → 15:15, MD reports 210 km/h while we report nothing. (Latitude 41.000 → 41.0315 ≈ 3.5 km.)
 #[test]
 fn speed_checks_span_untimed_intermediate_stops() {
     let stops: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
@@ -5201,8 +5205,8 @@ fn speed_checks_span_untimed_intermediate_stops() {
                 stm012.iter().any(|n| n.message.contains("1-4")),
                 "A→B 3,5 km / 0 dk görülmeli: {stm012:?}"
             );
-            // B→C ardışık (saatli) çift: 6 km / 2 dk = 180 km/h → mevcut döngü zaten görür.
-            // C→E saatsiz D üzerinden 1,6 km / 13 dk ≈ 7 km/h → bulgu yok.
+            // B→C consecutive (timed) pair: 6 km / 2 min = 180 km/h → the existing loop already sees it.
+            // C→E over untimed D: 1.6 km / 13 min ≈ 7 km/h → no finding.
             let stm014: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
             assert!(
                 stm014.iter().all(|n| !n.message.contains("5-7")),
@@ -5213,9 +5217,10 @@ fn speed_checks_span_untimed_intermediate_stops() {
     }
 }
 
-/// Renk boşlukla doldurulmuşsa (`'FFFFFF    '`) biçim hükmü ham değerle verilir (RTS_006/007,
-/// DQ_016 altında), ama kontrast kırpılmış renkle hesaplanır ve GÖRÜNÜR kalır: sarı/beyaz
-/// okunaksızlığı boşluktan bağımsız gerçek bir bulgudur (korpus mdb-1065/2653/465).
+/// If a color is padded with whitespace (`'FFFFFF    '`), the format provision uses the raw value
+/// (under RTS_006/007 and `DQ_016`), but contrast is calculated from the trimmed color and remains
+/// VISIBLE: yellow/white illegibility is a real finding independent of whitespace
+/// (corpus mdb-1065/2653/465).
 #[test]
 fn rts008_measures_contrast_on_whitespace_padded_colours() {
     let mut files = base_files();
@@ -5234,9 +5239,9 @@ fn rts008_measures_contrast_on_whitespace_padded_colours() {
     }
 }
 
-/// Spec: bikes_allowed *"0 or empty - No bike information for the trip."* Sıfır bilgi değil,
-/// bilginin YOKLUĞUdur; TRP_021 onu dolu sayıyordu (korpus mdb-1257: feribot seferlerinin
-/// hepsi 0, MD `missing_bike_allowance` 43 feed'de, biz 0). Yalnız 1 ve 2 bilgi taşır.
+/// Spec: bikes_allowed *"0 or empty - No bike information for the trip."* Zero is not information;
+/// it is the ABSENCE of information. TRP_021 counted it as populated (corpus mdb-1257: all ferry
+/// trips were 0, MD reported `missing_bike_allowance` in 43 feeds, we reported 0). Only 1 and 2 carry information.
 #[test]
 fn trp021_counts_bikes_allowed_zero_as_no_information() {
     let trips = |rows: &'static [u8]| {
@@ -5269,9 +5274,10 @@ fn trp021_counts_bikes_allowed_zero_as_no_information() {
     );
 }
 
-/// `feed_info` tarihlerinde aynı karar: `" 20260301"` biçim hükmünü (`FIN_005`/`FIN_006`) ham
-/// değerle alır ve `DQ_016` altında bastırılır, ama kayda `None` yazılırsa geçerlilik penceresi
-/// kaybolur ve `CAL_014` susar. MD değeri kırpıp okuyor (korpus `mdb-3155`, 2026-10-13).
+/// The same decision applies to `feed_info` dates: `" 20260301"` gets its format verdict
+/// (`FIN_005`/`FIN_006`) from the raw value and is suppressed under `DQ_016`, but writing `None`
+/// to the record loses the validity window and makes `CAL_014` silent. MD trims the value when
+/// reading it (corpus `mdb-3155`, 2026-10-13).
 #[test]
 fn whitespace_padded_feed_info_dates_keep_the_validity_window() {
     let mut files = base_files();
@@ -5302,8 +5308,8 @@ fn whitespace_padded_feed_info_dates_keep_the_validity_window() {
     }
 }
 
-/// Kimlik birleşimi yalnız boşlukla kırık (2b). #85 gereği kimlik HAM kalır; değişen,
-/// SONUÇ bulgusunun boşluğu taşıyan dosyanın `DQ_016` kökünde beyan edilmesi.
+/// The ID join is broken only by whitespace (2b). Per #85 the ID remains RAW; what changes is
+/// that the RESULT finding must be declared under the `DQ_016` root of the file carrying the whitespace.
 fn join_run(
     files: &[(&str, &[u8])],
 ) -> (
@@ -5335,8 +5341,8 @@ fn entities(notices: &[gtfs_core::Notice], rule: &str) -> Vec<String> {
         .collect()
 }
 
-/// `mdb-1065`: `routes.route_id = "10T0001C1  "`, `trips.route_id` temiz → 113.649 seferin
-/// her biri "hat adı yok" diye `TRP_011` alıyordu. Gerçekten adsız hat görünür kalmalı.
+/// `mdb-1065`: `routes.route_id = "10T0001C1  "`, while `trips.route_id` is clean → each of 113,649
+/// trips received `TRP_011` for "missing route name". A genuinely unnamed route must remain visible.
 #[test]
 fn whitespace_join_route_id_padding_in_routes_is_declared_at_routes() {
     let mut files = base_files();
@@ -5369,8 +5375,8 @@ fn whitespace_join_route_id_padding_in_routes_is_declared_at_routes() {
     );
 }
 
-/// `trips.service_id = " SVC1"`, takvim temiz: `TRP_026`/`OPR_011`/`CAL_011` hepsi türev.
-/// Hiçbir yerde tanımlı olmayan takvim gerçek hata olarak kalır.
+/// `trips.service_id = " SVC1"`, calendar clean: `TRP_026`/`OPR_011`/`CAL_011` are all derivatives.
+/// A calendar defined nowhere remains a real error.
 #[test]
 fn whitespace_join_service_id_padding_in_trips_is_declared_at_trips() {
     let mut files = base_files();
@@ -5410,8 +5416,8 @@ fn whitespace_join_service_id_padding_in_trips_is_declared_at_trips() {
 }
 
 /// `mdb-2137`: `calendar.service_id = " 1"`, `trips.service_id = "1"` → Kritik·Spec `TRP_003`
-/// sefer başına. Boşluk calendar.txt'te; bulgu trips.txt'te — #134'ün eski "kendi dosyası"
-/// şartı bunu hiç bastıramıyordu.
+/// per trip. The whitespace is in calendar.txt, while the finding is in trips.txt — #134's old
+/// "own file" requirement could never suppress this.
 #[test]
 fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
     let mut files = base_files();
@@ -5434,8 +5440,9 @@ fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
         "calendar.txt kökünde beyan edilmeli: {declared:?}"
     );
 
-    // `mdb-488`: takvim `calendar.txt`'te TEMİZ ama tarihsiz; tarihi `calendar_dates.txt`'teki
-    // `" 6"` ekliyor. Beyan temiz tanımın değil, BOŞLUKLU karşılığın dosyasına yazılmalı.
+    // `mdb-488`: the calendar is CLEAN but dateless in `calendar.txt`; `calendar_dates.txt`
+    // adds date `" 6"`. The declaration belongs to the file with the WHITESPACE counterpart,
+    // not to the clean definition.
     files[5] = (
         "calendar.txt",
         b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
@@ -5466,10 +5473,10 @@ fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
     );
 }
 
-/// `stop_times.stop_id = " S2"` → `S2` kullanılmıyor görünür (`STP_020`); `trips.trip_id =
-/// " T1"` → seferin kaydı yok görünür (`XFL_002`) ve şekli "seferleri kayıtsız" (`SHP_019`);
-/// `trips.shape_id = " SH2"` → `SH2` kullanılmıyor görünür (`SHP_018`).
-/// Gerçekten kullanılmayan `S3` ve gerçekten kayıtsız `T3` görünür kalır.
+/// `stop_times.stop_id = " S2"` → `S2` appears unused (`STP_020`); `trips.trip_id =
+/// " T1"` → the trip record appears missing (`XFL_002`) and its shape "has no trips" (`SHP_019`);
+/// `trips.shape_id = " SH2"` → `SH2` appears unused (`SHP_018`).
+/// Truly unused `S3` and truly unrecorded `T3` remain visible.
 #[test]
 fn whitespace_join_stop_trip_and_shape_padding_is_declared_where_it_sits() {
     let mut files = base_files();
@@ -5524,14 +5531,15 @@ fn whitespace_join_stop_trip_and_shape_padding_is_declared_where_it_sits() {
     }
 }
 
-/// Hat düzeyinde toplayan kurallar (2c). Hepsi VAROLUŞSAL: hattın TEK bir seferinin
-/// birleşimi kırpınca düzelirse kırpılmış dünyada kural susar.
-///   · `R1`: tek seferi `" T1"`, `stop_times` `T1` → `XFL_012` (hiç kayıtlı seferi yok);
-///     `T1` 23:30'da kalkar ve hattı bulunamadığı için `OPR_009` hat yerine SEFER kimliğiyle
-///     çıkar — bu bilgi GERÇEKTİR, bastırılmaz (bastırmak hattın gece servisini gizler).
-///   · `R4`: seferinin takvimi `" WE"`, tanım `WE` (hafta sonu) → `RTS_016` + `OPR_004`.
-/// Gerçekler görünür kalır: `R3` seferinin hiç kaydı yok, `R5` takvimi hiçbir yerde yok,
-/// `R2` gerçekten yalnız hafta içi ve gece seferi var.
+/// Route-level aggregators (2c). All are EXISTENTIAL: if trimming the combination of a SINGLE
+/// trip on the route fixes it, the rule is silent in the trimmed world.
+///   · `R1`: its only trip is `" T1"`, while `stop_times` uses `T1` → `XFL_012` (no recorded trip);
+///     `T1` departs at 23:30 and, because the route cannot be found, `OPR_009` is emitted with
+///     the TRIP ID instead of the route — this is REAL information and is not suppressed
+///     (suppressing it would hide the route's night service).
+///   · `R4`: its trip uses calendar `" WE"`, definition `WE` (weekend) → `RTS_016` + `OPR_004`.
+/// The facts remain visible: `R3` has no trip record, `R5`'s calendar is defined nowhere,
+/// and `R2` really has only weekday and night trips.
 #[test]
 fn whitespace_join_route_level_rules_are_declared_where_it_sits() {
     let mut files = base_files();
@@ -5594,10 +5602,11 @@ fn whitespace_join_route_level_rules_are_declared_where_it_sits() {
     }
 }
 
-/// `mdb-1065`: 243 hattın hepsi raylı ve `route_id`'leri dolgulu. Hat bulunamayınca K6
-/// `route_type`'ı otobüse düşürür (`unwrap_or(3)`): 167 km/h tren "aşırı hızlı" (`STM_014`,
-/// `OPR_008`), 410 dk aralık "boşluk" (`OPR_001`) olur. Kırpılmış hattın ray eşiği (300 km/h,
-/// 720 dk) altında kalanlar türevdir; ray eşiğini de aşanlar gerçektir ve görünür kalır.
+/// `mdb-1065`: all 243 routes are rail and their `route_id`s are padded. When the route cannot
+/// be found, K6 falls back to bus `route_type` (`unwrap_or(3)`): a 167 km/h train becomes
+/// "too fast" (`STM_014`, `OPR_008`), and a 410-minute gap becomes a "gap" (`OPR_001`).
+/// Findings below the trimmed route's rail thresholds (300 km/h, 720 min) are derivatives;
+/// those exceeding the rail thresholds are real and remain visible.
 #[test]
 fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold() {
     let mut files = base_files();
@@ -5634,7 +5643,7 @@ fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold(
             .any(|e| e.contains("S1→S2") || e.contains("S2→S3")),
         "167 km/h tren ray eşiğinin altında: {stm014:?}"
     );
-    // S3→S4'ten T9 167 km/h ile (türev) ve T2 444 km/h ile (gerçek) geçer: segment kalır.
+    // T9 passes S3→S4 at 167 km/h (derivative) and T2 at 444 km/h (real): the segment remains.
     assert!(
         stm014.iter().any(|e| e.contains("S3→S4")),
         "444 km/h gerçek: {stm014:?}"
@@ -5662,10 +5671,10 @@ fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold(
     }
 }
 
-/// `mdb-1309`/`tfs-109`: 340 seferin 340'ında `block_id = " "`. Tek boşluk bir blok kimliği
-/// sayılınca bütün seferler AYNI araca düşüyor ve 286 `TRP_022` "çakışan blok" üretiyordu.
-/// #85: kimlik ham karşılaştırılır AMA boşluktan oluşan değer YOKTUR — opsiyonel alan boştur.
-/// Gerçek bir blokta çakışma görünür kalır.
+/// `mdb-1309`/`tfs-109`: all 340 trips had `block_id = " "`. Treating one space as a block ID
+/// assigned every trip to the SAME vehicle and produced 286 `TRP_022` "overlapping block" findings.
+/// #85: IDs are compared raw BUT a whitespace-only value DOES NOT EXIST — the optional field is empty.
+/// A real block conflict remains visible.
 #[test]
 fn whitespace_only_optional_trip_ids_are_absent() {
     let mut files = base_files();
@@ -5753,23 +5762,22 @@ fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     }
 }
 
-/// #126: `suppressed_derivative_*` sayacı OKUYUCU REJİMİNİ tarif eder, feed'i değil —
-/// `trips.txt` `get_col` ile trim ederek okur, orada türev hiç doğmaz ve anahtar hiç
-/// yazılmaz. Anahtarın yokluğu "burada gizlenmiş bir şey yok" diye okunabiliyordu.
-/// `typed_whitespace_fields` iki rejimde de üretilir ve boşluğun tipli bir değeri
-/// gizlediği yeri adıyla söyler.
+/// #126: the `suppressed_derivative_*` counter describes the READER MODE, not the feed —
+/// `trips.txt` is read with `get_col`, which trims it; no derivative arises there and no key
+/// is written. The missing key could be read as "nothing was hidden here".
+/// `typed_whitespace_fields` is produced in both modes and names where whitespace hid a typed value.
 #[test]
 fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
     let mut files = base_files();
     for slot in files.iter_mut() {
-        // RowMap yolu: ham okunur, türev doğar, K7 bastırır.
-        // `route_long_name` de boşluklu ama METİNDİR: trim edilse de sayı olmaz, bu yüzden
-        // listeye girmemeli — aksi halde anahtar "boşluklu her alan" demeye başlar.
+        // RowMap path: read raw, derivative arises, K7 suppresses it.
+        // `route_long_name` also contains whitespace but is TEXT: trimming it does not make it a number,
+        // so it must not enter the list — otherwise the key would mean "every whitespace field".
         if slot.0 == "routes.txt" {
             slot.1 = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
                        R1,1,101, Ana Hat , 3\n" as &[u8];
         }
-        // get_col yolu: trim edilir, türev HİÇ doğmaz.
+        // get_col path: trimmed, so NO derivative arises.
         if slot.0 == "trips.txt" {
             slot.1 =
                 b"route_id,service_id,trip_id,wheelchair_accessible\nR1,SV1,T1, 1 \n" as &[u8];
@@ -5792,7 +5800,7 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
             let routes = details("routes.txt");
             let trips = details("trips.txt");
 
-            // Asimetri hâlâ VAR ve doğrudur: türev yalnız ham okuyan yolda doğar.
+            // The asymmetry still EXISTS and is correct: the derivative arises only on the raw-reading path.
             assert!(
                 routes.contains_key("suppressed_derivative_rules"),
                 "ham okuyan yolda bastırılan türev kaydedilmeli: {routes:?}"
@@ -5802,7 +5810,7 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
                 "trim eden yolda bastırılacak türev yok: {trips:?}"
             );
 
-            // Kanıt ise artık İKİ rejimde de var — asimetriyi yanlış okumayı engelleyen şey bu.
+            // The evidence now exists in BOTH modes — this prevents misreading the asymmetry.
             assert_eq!(
                 routes.get("typed_whitespace_fields").map(String::as_str),
                 Some("route_type"),
@@ -5818,11 +5826,11 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
     }
 }
 
-/// #125'te kaldırılan K7 dalının DAYANAĞINI çapalar. O dal, akış yolundaki bir parse
-/// reddinin gözlenen değerinde boşluk bulacağını varsayıyordu; oysa `stop_times`/`shapes`
-/// emit'leri değeri `get_col` ile okur ve o `.trim()` uygular, yani böyle bir notice hiç
-/// doğmaz. `get_col` bir gün trim'i bırakırsa bu test düşer ve kaldırma kararı yeniden
-/// tartışılmalıdır — sessizce yanlışa dönmemeli.
+/// Anchors the BASIS for the K7 branch removed in #125. That branch assumed whitespace would
+/// appear in the observed value of a parse rejection on the stream path; but `stop_times`/`shapes`
+/// emitters read the value with `get_col`, which applies `.trim()`, so such a notice never arises.
+/// If `get_col` ever stops trimming, this test must fail and the removal decision must be revisited
+/// — it must not silently become wrong.
 #[test]
 fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
     let mut files = base_files();
@@ -5865,12 +5873,12 @@ fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
     }
 }
 
-// ── issue #84: akış dosyası GÖVDESİNDE kapanmamış tırnak ───────────────────────
+// ── issue #84: unclosed quote in a stream file BODY ────────────────────────────
 //
-// K1 bu dört dosyanın gövdesini hiç açmaz; K1'in gövde tarayıcısına giden dal ÖLÜYDÜ
-// (kaldırıldı) ve K2 okuyucuları kapanmamış tırnağı sessizce tolere ediyordu. Yani tek
-// kaçak tırnak dosyanın kalanını yutabilir ve doğrulayıcı bunu HİÇ söylemezdi.
-// ⚠️ Bulgu KRİTİK ama FATAL DEĞİL — gerekçe `common::arc013_unclosed_stream` doc'unda.
+// K1 never opens the bodies of these four files; the branch leading to K1's body scanner was DEAD
+// (removed), and K2 readers silently tolerated an unclosed quote. A single stray quote could therefore
+// swallow the rest of the file and the validator would say NOTHING.
+// ⚠️ The finding is CRITICAL but NOT FATAL — rationale is in the `common::arc013_unclosed_stream` doc.
 
 fn stream_quote_feed(stop_times: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -5973,8 +5981,9 @@ fn arc013_stream_reports_unclosed_final_quoted_field() {
 
 #[test]
 fn arc013_stream_bare_quote_is_arc033_not_arc013() {
-    // İki olgu AYRI: kaçırma ihlali veriyi bozmaz (ARC_033), kapanmamış tırnak dosyanın
-    // kalanını yutar (ARC_013). Aynı kanaldan raporlamak ikisini karıştırırdı.
+    // The two cases are DISTINCT: a quote-escaping violation does not corrupt data (ARC_033),
+    // while an unclosed quote swallows the rest of the file (ARC_013). Reporting them through
+    // the same channel would conflate them.
     match run(&stream_quote_feed(
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign\n\
          T1,08:00:00,08:00:00,S1,1,5\" Hat\n\
@@ -5991,13 +6000,12 @@ fn arc013_stream_bare_quote_is_arc033_not_arc013() {
     }
 }
 
-// ── issue #92: SERT tip predikatı HAM değeri görmeli ───────────────────────────
+// ── issue #92: STRICT type predicates must see the RAW value ──────────────────
 //
-// `#85` kimliği ham yaptı; bu, tip predikatlarındaki karşılığı. `" https://example.com "`
-// ham hâlde kaçırılmamış boşluk taşır — spec "özel karakterler doğru kaçırılmalı" der —
-// ama predikat kırpılmış vekili görüyordu ve sert kural SUSUYORDU. Geriye yalnız `DQ_016`
-// kalite sinyali kalıyordu, yani bir Spec iddiası (`P5f72fb5a` KANITLI) normalize edilmiş
-// bir değer üzerinden kuruluyordu.
+// `#85` made IDs raw; this is the corresponding change for type predicates. `" https://example.com "`
+// carries unescaped whitespace in raw form — the Spec says "special characters must be escaped correctly" —
+// but the predicate saw a trimmed proxy and the strict rule stayed SILENT. Only the `DQ_016`
+// quality signal remained, so a Spec provision (`P5f72fb5a` KANITLI) was being asserted over a normalized value.
 
 fn agency_url_feed(agency: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -6037,8 +6045,8 @@ fn url92_clean_url_stays_valid() {
 
 #[test]
 fn url92_whitespace_only_url_is_missing_not_invalid() {
-    // 🔴 SINIR: `"   "` EKSİK alandır, "geçersiz URL" değil. Varlık teşhisi kırpar,
-    // geçerlilik hamı görür — tek okumaya indirmek bu ayrımı yok ederdi.
+    // 🔴 BOUNDARY: `"   "` is a MISSING field, not an "invalid URL". Presence diagnosis trims,
+    // while validity sees the raw value — reducing this to one read would erase the distinction.
     match run(&agency_url_feed(
         "agency_id,agency_name,agency_url,agency_timezone\n1,T,\"   \",UTC\n",
     )) {
@@ -6058,10 +6066,10 @@ fn url92_whitespace_only_url_is_missing_not_invalid() {
     }
 }
 
-// ── issue #94: SHP_005 monotonluğu TAM karşılaştırma ────────────────────────
-// Eski predikat `d < prev - 1e-6` idi: 1e-6'dan küçük GERÇEK azalma sessizce kabul
-// ediliyordu. Bu test CSV'den geçer — yalnız K5 birim testi, ondalık→f64 okumasının
-// üreticinin sırasını koruduğunu göstermez.
+// ── issue #94: SHP_005 exact monotonicity comparison ───────────────────────────
+// The old predicate was `d < prev - 1e-6`: a REAL decrease smaller than 1e-6 was silently
+// accepted. This test passes through CSV — only the K5 unit test shows that decimal→f64 parsing
+// preserves the producer's order.
 
 fn shp005_feed(shapes: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -6071,7 +6079,7 @@ fn shp005_feed(shapes: &'static str) -> Vec<(&'static str, &'static [u8])> {
 
 #[test]
 fn shp005_detects_decrease_smaller_than_old_epsilon() {
-    // issue #94'ün karşı-örneği birebir: azalma 5e-7.
+    // Exact counterexample from issue #94: decrease of 5e-7.
     match run(&shp005_feed(
         "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
         S1,41.0,29.0,1,1.0000005\nS1,41.1,29.1,2,1.0000000\n",
@@ -6086,7 +6094,7 @@ fn shp005_detects_decrease_smaller_than_old_epsilon() {
 
 #[test]
 fn shp005_silent_on_tiny_increase_from_csv() {
-    // Aynı ondalık basamak sayısı, ters yön → susmalı (tolerans kaldırma FP getirmemeli).
+    // Same number of decimal places, reverse direction → silent (removing tolerance must not create an FP).
     match run(&shp005_feed(
         "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
         S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000005\n",
@@ -6101,7 +6109,7 @@ fn shp005_silent_on_tiny_increase_from_csv() {
 
 #[test]
 fn shp005_silent_on_equal_values_from_csv() {
-    // Eşitlik AYRI vaka (#94): kural yalnız `önceki > güncel` içindir.
+    // Equality is a SEPARATE case (#94): the rule is only for `previous > current`.
     match run(&shp005_feed(
         "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
         S1,41.0,29.0,1,1.0000000\nS1,41.1,29.1,2,1.0000000\n",
@@ -6114,12 +6122,11 @@ fn shp005_silent_on_equal_values_from_csv() {
     }
 }
 
-/// ATR_010/011/012 dedup'ı `Entity` iken `attribution_id` boş olan her satır aynı
-/// dedup anahtarına düşüyordu ve feed'de kaç bozuk referans olursa olsun TEK bulgu
-/// kalıyordu. `attributions.attribution_id` spec'te **Optional**, yani kimliksiz dosya
-/// geçerlidir — dedup'ın opsiyonel bir alana dayanması kuralı sessizce susturuyordu.
-/// Ölçüm (`tdg-80245`): 26 dangling `trip_id` → 1 bulgu; MobilityData aynı feed'de
-/// `foreign_key_violation` ile 26'nın hepsini raporluyordu.
+/// When ATR_010/011/012 deduped as `Entity`, every row with an empty `attribution_id` used the same
+/// dedup key, so any number of broken references in a feed collapsed to ONE finding. The Spec makes
+/// `attributions.attribution_id` **Optional**, so an identity-free file is valid — basing dedup on
+/// an optional field silently suppressed the rule. Measurement (`tdg-80245`): 26 dangling `trip_id`
+/// → 1 finding; MobilityData reported all 26 in the same feed with `foreign_key_violation`.
 #[test]
 fn attribution_fk_violations_are_reported_per_row_without_attribution_id() {
     const ATTRIBUTIONS: &[u8] = b"organization_name,is_producer,trip_id\n\
@@ -6152,12 +6159,12 @@ fn attribution_fk_violations_are_reported_per_row_without_attribution_id() {
     }
 }
 
-/// ATR_001/ATR_003 dedup'ı `Entity` iken kimliksiz dosyada tek bulguya çöküyordu ve
-/// mesaj kaç kaydın etkilendiğini söylemiyordu. Her iki ihlal de TEK sistemik nedenden
-/// doğar (sütunun hiç yazılmaması, rol sütunlarının hiç doldurulmaması), bu yüzden satır
-/// başına emit aynı cümleyi tekrarlar: ölçümde 124 feed için ATR_001'de 391.871,
-/// ATR_003'te 6.472 notice demekti. Dosya başına tek özet + `observed_value` içinde sayı
-/// hem tekrarı önler hem etkilenen kayıt sayısını korur (FAR_013/DQ_016 deseni).
+/// When ATR_001/ATR_003 deduped as `Entity`, an identity-free file collapsed to one finding and
+/// the message did not say how many records were affected. Both violations arise from ONE systemic
+/// cause (the column is never written, or role columns are never populated), so per-row emission
+/// repeats the same sentence: measurement across 124 feeds meant 391,871 notices for ATR_001 and
+/// 6,472 for ATR_003. One file-level summary plus a count in `observed_value` prevents repetition
+/// while preserving the affected-record count (FAR_013/DQ_016 pattern).
 #[test]
 fn attribution_systemic_violations_are_summarized_once_with_a_count() {
     const ATTRIBUTIONS: &[u8] = b"organization_name\nOrg A\nOrg B\nOrg C\n";
@@ -6189,11 +6196,11 @@ fn attribution_systemic_violations_are_summarized_once_with_a_count() {
     }
 }
 
-/// ATR_009 da ATR_001/ATR_003 ile aynı sınıfa girer: ölçümde ihlal sayısı her feed'de
-/// SATIR sayısına eşitti (`tdg-82555` 12.240/12.240, `tld-4477` 3.379/3.379), yani üretici
-/// her satırda aynı iki referans alanını birlikte yazıyor. `Entity` dedup kimlik başına
-/// tekilleştirdiği için 5 feed'de 93 notice çıkıyor ve hiçbiri kaç satırın etkilendiğini
-/// söylemiyordu. Dosya başına tek özet + sayı hem tekrarı önler hem hacmi korur.
+/// ATR_009 belongs to the same class as ATR_001/ATR_003: measured violations equaled the ROW
+/// count in every feed (`tdg-82555` 12,240/12,240, `tld-4477` 3,379/3,379), meaning the producer
+/// wrote the same two reference fields together on every row. `Entity` dedup reduced this to
+/// one per ID, yielding 93 notices in 5 feeds, none saying how many rows were affected.
+/// One file-level summary plus a count both avoids repetition and preserves volume.
 #[test]
 fn attribution_mutually_exclusive_refs_are_summarized_once_with_a_count() {
     const ATTRIBUTIONS: &[u8] =
@@ -6322,9 +6329,9 @@ fn kanji_only_text_does_not_open_jp_validation() {
     }
 }
 
-/// Goshogawara talep üzerine taksi deseni (2026-09-19): tek durak grubu içinde yalnız-biniş
-/// ve yalnız-iniş satırı aynı pencereyi paylaşır. Spec'in yasakladığı örtüşme ROL de
-/// örtüştüğünde vardır; sabit güzergâhı olmayan sefer shape kuralına da girmez.
+/// Goshogawara demand-responsive taxi pattern (2026-09-19): within one stop group, pickup-only
+/// and drop-off-only rows share the same window. The overlap forbidden by the Spec exists when
+/// the ROLE also overlaps; a trip without a fixed route is not subject to the shape rule.
 #[test]
 fn zone_only_flex_trip_is_not_an_overlap_or_shape_gap() {
     fn flex_files(stop_times: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
@@ -6358,7 +6365,7 @@ fn zone_only_flex_trip_is_not_an_overlap_or_shape_gap() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 
-    // Kapının kanıtı: iki satır da binişe açıksa örtüşme gerçektir.
+    // Proof of the gate: when both rows allow pickup, the overlap is real.
     let same_role = flex_files(
         b"trip_id,stop_sequence,location_group_id,pickup_type,drop_off_type,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_booking_rule_id\n\
           T1,1,C1,2,2,09:00:00,18:00:00,BR1,BR1\n\
@@ -6401,8 +6408,8 @@ fn feed_summary_carries_trimmed_agency_and_feed_info_fields() {
 
 #[test]
 fn cal_014_reports_future_only_service_like_mobilitydata() {
-    // MD `service_window_outside_feed_period` yalnız aktif pencereye bakar; servisin tümüyle
-    // gelecekte olması istisna değildir. CAL_014 Interop olduğu için aynı davranır.
+    // MD `service_window_outside_feed_period` checks only the active window; a service entirely
+    // in the future is not an exception. CAL_014 behaves the same because it is Interop.
     let mut files = base_files();
     files.retain(|(name, _)| *name != "calendar.txt");
     files.push((

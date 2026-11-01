@@ -1,9 +1,9 @@
-//! Kural kartlarında kozmetik normalizasyon (tek seferlik bakım).
+//! Cosmetic normalization for rule cards (one-time maintenance).
 //!
-//! - H1 başlık ayıracı: `# ID - başlık` → `# ID — başlık` (em-dash)
-//! - Diakritiksiz all-caps severity: KRITIK→KRİTİK, BILGI→BİLGİ
+//! - H1 heading separator: `# ID - title` → `# ID — title` (em dash)
+//! - Diacritic-free all-caps severity: KRITIK→KRİTİK, BILGI→BİLGİ
 //!
-//! Çalıştır: cargo run -p gtfs-rules --example fix_cosmetics
+//! Run: cargo run -p gtfs-rules --example fix_cosmetics
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,7 @@ fn fix(text: &str) -> String {
     let trailing_nl = text.ends_with('\n');
     let mut lines: Vec<String> = text.lines().map(|l| l.to_string()).collect();
     for l in lines.iter_mut() {
-        // H1 başlığında ve künye 'Grup' hücresinde ilk " - " → " — "
+        // Replace the first " - " with " — " in H1 headings and the metadata 'Grup' cell.
         if (l.starts_with("# ") || l.starts_with("| Grup |")) && l.contains(" - ") {
             *l = l.replacen(" - ", " — ", 1);
         }
@@ -50,7 +50,7 @@ fn main() {
                 continue;
             }
             let text = fs::read_to_string(&f).unwrap();
-            // sayım (düzeltmeden önce)
+            // Count before applying the fixes.
             if text
                 .lines()
                 .next()

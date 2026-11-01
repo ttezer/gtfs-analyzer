@@ -1,11 +1,11 @@
-// Üretici özeti için saf yardımcılar (render/state'ten bağımsız → doğrudan birim testlenebilir).
-// Motorun sonucunu yalnız gruplar ve sıralar; yeni bulgu, skor ya da kök neden hesaplamaz.
+// Pure helpers for the producer summary (independent of render/state → directly unit-testable).
+// Only groups and sorts the engine result; it does not compute findings, scores, or root causes.
 import type { ValidationResult, Notice, NameIndex, R9Item, Severity } from '../types';
 
 export interface RuleGroup {
   ruleId: string;
   severity: Severity;
-  /** R9'un etkilenen örnek sayısı; R9 kalemi yoksa notice sayısı. */
+  /** Number of affected instances from R9; notice count when no R9 item exists. */
   count: number;
   priority: number;
   notices: Notice[];
@@ -32,7 +32,7 @@ function groupOf(ruleId: string, notices: Notice[], r9: Map<string, R9Item>): Ru
   };
 }
 
-/** Önceliğe göre azalan; eşitlikte motorun verdiği sıra korunur (Array.sort kararlı). */
+/** Descending by priority; ties preserve the engine's order (Array.sort is stable). */
 function byPriority(a: RuleGroup, b: RuleGroup): number {
   return b.priority - a.priority;
 }
@@ -52,8 +52,8 @@ export function buildProducerModel(result: ValidationResult): ProducerModel {
     .map(id => groupOf(id, byRule.get(id)!.filter(n => blockerIds.has(n.id)), r9))
     .sort(byPriority);
 
-  // Liste R9 kalemlerinden kurulur: motorun kök neden bastırması (blocks) burada zaten
-  // uygulanmıştır. Ham notice'lardan gruplamak, bastırılan belirtileri geri getirirdi.
+  // Build the list from R9 items: the engine's root-cause suppression (blocks) has already
+  // been applied here. Grouping raw notices would bring suppressed symptoms back.
   const improvements: RuleGroup[] = [];
   const infos: RuleGroup[] = [];
   for (const item of result.reports.r9.items) {
@@ -68,7 +68,7 @@ export function buildProducerModel(result: ValidationResult): ProducerModel {
   return { publishable: r1.publishable, coverageComplete: r1.coverage_complete, blockers, improvements, infos };
 }
 
-/** Bir durağı kullanan seferler, hat adına göre (NameIndex üzerinden okuma; yeni hesap değil). */
+/** Trips using a stop, grouped by route name (read from NameIndex; no new calculation). */
 export function stopUsage(stopId: string, ni: NameIndex): StopUsage[] {
   const counts = new Map<string, number>();
   for (const [tripId, stops] of Object.entries(ni.trip_stops ?? {})) {
@@ -80,12 +80,12 @@ export function stopUsage(stopId: string, ni: NameIndex): StopUsage[] {
   return [...counts].map(([route, trips]) => ({ route, trips }));
 }
 
-/** Route düzeyindeki notice'larda entity_id bazen segment kimliğidir (ör. STM_014). */
+/** In route-level notices, entity_id is sometimes a segment ID (for example, STM_014). */
 export function routeIdOfNotice(n: Notice): string | null {
   return n.entity_type === 'Route' ? n.details?.route_id || n.entity_id : null;
 }
 
-/** Notice'ın varlığını üreticinin tanıdığı adla söyler; ad yoksa kimliği döner. */
+/** Return the producer-facing name for a notice's entity; fall back to its ID. */
 export function entityLabel(n: Notice, ni: NameIndex): string | null {
   const id = n.entity_type === 'Route' ? routeIdOfNotice(n) : n.entity_id;
   if (!id) return null;
@@ -107,8 +107,8 @@ export function entityLabel(n: Notice, ni: NameIndex): string | null {
   }
 }
 
-/** Planlamacının düzeltmeyi yaptığı iş alanı. Kural önekine değil, bildirimin dosyasına bakar;
- *  arşiv/dosya yapısı (ARC) her zaman bilgi işlem konusudur. */
+/** The domain the planner is fixing. It uses the notice's file, not the rule prefix;
+ *  archive/file structure (ARC) is always a technical concern. */
 export type PlannerArea = 'tarife' | 'durak' | 'hat' | 'takvim' | 'guzergah' | 'ucret' | 'kurum' | 'teknik';
 
 const FILE_AREA: Record<string, PlannerArea> = {
@@ -141,7 +141,7 @@ export interface RouteBadge { label: string; bg: string | null; fg: string | nul
 
 const HEX6 = /^[0-9a-f]{6}$/i;
 
-/** Hattın tarifedeki rengini okur; metin rengi yoksa arka plana göre siyah/beyaz seçer. */
+/** Read the route's scheduled color; if no text color is given, choose black or white from the background. */
 export function routeBadge(routeId: string, ni: NameIndex): RouteBadge {
   const label = ni.routes?.[routeId] || routeId;
   const [bg, fg] = ni.route_colors?.[routeId] ?? ['', ''];

@@ -17,9 +17,9 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-# Tek tanım: ana selektörün dışlama listesi burada da geçerlidir. Ayrı bir kopya
-# tutmak, iki listenin sessizce ayrışması demekti — #150 tam olarak öyle oldu
-# (kapı `spec-audit/`'teydi, `benchmark/` bilmiyordu).
+# Single definition: the primary selector's exclusion list applies here too. Keeping a separate
+# copy would let the two lists silently diverge—exactly what happened in #150
+# (the gate was in `spec-audit/`, and `benchmark/` did not know about it).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from select_corpus import EXCLUDED_FEEDS
 
@@ -60,7 +60,7 @@ def main():
         accounting_by_status[cat][status]+=1
 
     supplemental=[r for r in direct if (r.get("status") or "").strip() not in ("active", "")]
-    # Talimatla dışlananlar burada da koşulmaz; SESSİZCE düşmesin diye sayılır.
+    # Instruction-excluded rows are not run here either; count them so they do not disappear SILENTLY.
     excluded_by_instruction=sorted({feed_id(r) for r in supplemental} & EXCLUDED_FEEDS)
     supplemental=[r for r in supplemental if feed_id(r) not in EXCLUDED_FEEDS]
     supplemental.sort(key=lambda r: feed_id(r))

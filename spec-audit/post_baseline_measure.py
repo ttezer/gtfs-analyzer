@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Baseline sonrası eklenen kuralların GERÇEK korpus sayımı (issue #131 devamı).
+"""REAL corpus count for rules added after the baseline (continuation of issue #131).
 
-Sorun: `corpus-evidence/rule_stats.csv`'nin VERİSİ 2026-08-06 koşumundandır. O tarihten
-sonra eklenen kurallar o koşumda YOKTU, dolayısıyla onlar için "korpusta hiç çıkmadı"
-bir ÖLÇÜM DEĞİL, ölçümün YOKLUĞUDUR. `RTS_030` bunun kanıtı: tabloda sessiz görünür,
-oysa eklenirken 19 feed'de ateşlediği ölçülmüştü.
+Problem: the DATA in `corpus-evidence/rule_stats.csv` comes from the 2026-08-06 run. Rules added after
+that date were ABSENT from that run, so "never appeared in the corpus" for them is NOT A MEASUREMENT,
+but the ABSENCE of a measurement. `RTS_030` proves this: it looks silent in the table, although it was
+measured firing on 19 feeds when added.
 
-Bu betik mevcut binary'yi 242 feed'in tamamında koşar ve KURAL BAŞINA feed/bulgu sayısını
-yazar. `corpus_batch.py`'nin sonuçlarına DOKUNMAZ — o araç tamamlanmış feed'i atlar ve
-eski koşumun çıktısı korunmalıdır.
+This script runs the current binary on all 242 feeds and writes feed/finding counts PER RULE.
+It does NOT TOUCH `corpus_batch.py` results — that tool skips completed feeds, and the old run's
+output must be preserved.
 
     cargo build --release -p gtfs-analyzer
-    python3 spec-audit/post_baseline_measure.py            # devam ettirilebilir
-    python3 spec-audit/post_baseline_measure.py --report    # özet
+    python3 spec-audit/post_baseline_measure.py            # resumable
+    python3 spec-audit/post_baseline_measure.py --report    # summary
 """
 import argparse
 import collections
@@ -28,17 +28,17 @@ ZIPS = os.path.join(ROOT, "notgit/corpus/zips")
 OUT = os.path.join(ROOT, "notgit/corpus/postbaseline_counts.csv")
 BINARY = os.path.join(ROOT, "target/release/gtfs-analyzer")
 
-# `silent_rules.tsv`'de POST_BASELINE etiketli kurallar (2026-08-15).
+# Rules tagged POST_BASELINE in `silent_rules.tsv` (2026-08-15).
 WATCH = [
     "ARC_026", "ARC_033", "FIN_012", "RTS_030", "SHP_030",
     "STM_049", "STM_060", "STP_034", "TFR_005", "TRF_017",
 ]
-# Sabit tarih — tarihe göreli kurallar deterministik olsun.
+# Fixed date — keep date-relative rules deterministic.
 TODAY = "20260515"
 
-# 🚫 KULLANICI TALİMATI (2026-08-16): `mdb-2904` HİÇBİR ŞEKİLDE KOŞULMAZ.
-# 85 MB, tek başına 5.374.292 bulgu üretiyor ve her toplu koşumu kilitliyor.
-# Bu liste yorum değil KAPIDIR — feed listesinden çıkarılır, atlanma açıkça bildirilir.
+# 🚫 USER INSTRUCTION (2026-08-16): NEVER RUN `mdb-2904`.
+# At 85 MB it produces 5,374,292 findings by itself and locks every batch run.
+# This list is not commentary but a GATE — remove it from the feed list and report the skip explicitly.
 EXCLUDED_FEEDS = {"mdb-2904"}
 
 
@@ -52,7 +52,7 @@ def done_feeds():
 
 def run_one(feed, path):
     t0 = time.time()
-    # exit 1 = "notice var", HATA DEĞİL; check=True KULLANMA.
+    # exit 1 = "notice exists", NOT AN ERROR; do not use check=True.
     p = subprocess.run(
         [BINARY, "validate", path, "--json", "--today", TODAY],
         capture_output=True, timeout=1800,

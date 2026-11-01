@@ -3640,7 +3640,7 @@ fn spec_coverage_gaps_match_ledger() {
 ///    - `trips.shape_id` ✅ — *"Required if the trip has a continuous pickup or drop-off
 ///      behavior."* `TRP_019` measures exactly this.
 ///
-///    **Bu turda kapanan iki aday:**
+///    **Two candidates closed in this round:**
 ///    - `fare_attributes.agency_id` — *"Required if multiple agencies are defined."* is now
 ///      measured by `AGN_011`; `FAR_008` continues to measure the FK.
 ///    - `stop_times.departure_time` — has two sub-provisions: FORBIDDEN with a Flex window

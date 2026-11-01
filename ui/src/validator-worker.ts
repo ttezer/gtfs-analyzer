@@ -13,14 +13,14 @@ import {
 } from './wasm';
 import type { FatalError, ValidationResult } from './types';
 
-// ── İstek tipleri ─────────────────────────────────────────────────────────────
+// ── Request types ─────────────────────────────────────────────────────────────
 
 type ValidateRequest   = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean; forceMemory64?: boolean; forceWasm32?: boolean };
 type RerunRequest      = { id: number; type: 'rerun';    configDelta: string };
 type ShapeCoordsRequest = { id: number; type: 'shape-coords'; shapeId: string };
 type WorkerRequest     = ValidateRequest | RerunRequest | ShapeCoordsRequest;
 
-// ── Yanıt tipleri ─────────────────────────────────────────────────────────────
+// ── Response types ─────────────────────────────────────────────────────────────
 
 export type FileListMsg  = { id: number; type: 'file-list'; files: Array<{ name: string; uncompressed_size: number }> };
 export type FileDoneMsg  = { id: number; type: 'file-done'; name: string; rows: number; bytes: number };
@@ -32,11 +32,11 @@ export type ShapeCoordsMsg = { id: number; type: 'shape-coords-result'; coords: 
 
 export type WorkerMsg = FileListMsg | FileDoneMsg | StageDoneMsg | EngineMsg | ResultMsg | ShapeCoordsMsg;
 
-// ── Durum ─────────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 
 let session: ValidatorSession | null = null;
 
-// ── Ana mesaj dinleyici ───────────────────────────────────────────────────────
+// ── Main message listener ───────────────────────────────────────────────────────
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const req = event.data;
@@ -53,7 +53,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       session = await createValidatorSession({ today: currentToday(), engine: createSdkEngine() });
     }
 
-    // Harita ikonu: büyük feed'de shape geometrisini on-demand çek (cache canlı).
+    // Map icon: fetch shape geometry on demand for large feeds (cache is live).
     if (req.type === 'shape-coords') {
       const coords = session.getShapeCoords(req.shapeId);
       send<ShapeCoordsMsg>({ id: req.id, type: 'shape-coords-result', coords });
@@ -80,7 +80,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       return;
     }
 
-    // Rerun (config değişikliği)
+    // Rerun (config change)
     const tStart = performance.now();
     const stageHandler = (stage: string, elapsed_ms: number) => {
       send<StageDoneMsg>({ id: req.id, type: 'stage', stage, elapsed_ms });
@@ -93,8 +93,8 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     respondWithValidationResult(req.id, run.result);
 
   } catch (error: unknown) {
-    // Error subclass'larının custom alanları Worker structured clone'da kaybolabilir;
-    // UI'ya her zaman düz FatalError nesnesi gönder.
+    // Custom fields on Error subclasses may be lost by the Worker's structured clone;
+    // always send a plain FatalError object to the UI.
     if (error !== null && typeof error === 'object' && 'code' in error) {
       const candidate = error as { code: FatalError['code']; message?: unknown };
       send<ResultMsg>({
@@ -113,7 +113,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   }
 };
 
-// ── Yardımcılar ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 function send<T extends WorkerMsg>(msg: T): void {
   postMessage(msg);

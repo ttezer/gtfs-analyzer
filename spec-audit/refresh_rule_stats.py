@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Korpus kural istatistiğini TAZELE — 242 feed, tek binary, tek tarih.
+"""REFRESH corpus rule statistics — 242 feeds, one binary, one date.
 
-Neden: `corpus-evidence/rule_stats.csv`'nin VERİSİ 2026-08-06 koşumundandır ve o tarihten
-sonra kural eklendi/değişti. Bayat baseline bu turda İKİ KEZ yanlış sonuca yol açtı:
+Why: the DATA in `corpus-evidence/rule_stats.csv` comes from the 2026-08-06 run, and rules were
+added/changed after that date. The stale baseline produced wrong results TWICE in this round:
 `POST_BASELINE` kovası (10 kural "sessiz" sanıldı, üçü aslında ateşliyordu — `RTS_030`
 23 feed/16.804 bulgu) ve `fatals.csv`'den okunan "ARC_004 ateşledi" sonucu (o fatal yolu
 üç gün sonra kaldırılmıştı).
 
-🔴 **BİR BASELINE'IN DOSYA TARİHİ, VERİSİNİN TARİHİ DEĞİLDİR.** Çıktı bu yüzden koşumun
-tarihini ve binary'nin commit'ini KENDİ İÇİNE yazar.
+🔴 **A BASELINE'S FILE DATE IS NOT THE DATE OF ITS DATA.** Therefore the output records the run
+date and the binary commit INSIDE ITSELF.
 
-`corpus_batch.py`'nin `results/` dizinine DOKUNMAZ (o araç tamamlanmış feed'i atlar ve
-eski koşum kanıt olarak korunmalıdır); bu betik kendi ham çıktısını ayrı tutar.
+Do NOT TOUCH `corpus_batch.py`'s `results/` directory (that tool skips completed feeds and the
+old run must be preserved as evidence); this script keeps its raw output separately.
 
     cargo build --release -p gtfs-analyzer
-    python3 spec-audit/refresh_rule_stats.py            # devam ettirilebilir
-    python3 spec-audit/refresh_rule_stats.py --report   # eski baseline ile FARK
+    python3 spec-audit/refresh_rule_stats.py            # resumable
+    python3 spec-audit/refresh_rule_stats.py --report   # DIFF against the old baseline
 """
 import argparse
 import collections
@@ -31,15 +31,15 @@ EV = os.path.join(ROOT, "spec-audit/corpus-evidence")
 RAW = os.path.join(ROOT, "notgit/corpus/rule_stats_raw.csv")
 OUT = os.path.join(EV, "rule_stats.csv")
 BINARY = os.path.join(ROOT, "target/release/gtfs-analyzer")
-# 🔴 ESKİ BASELINE İLE AYNI GÜN OLMALI. İlk denemem 20260515 ile koştu ve kıyas
-# ANLAMSIZ çıktı: takvime göreli kurallar patladı (CAL_017 +%135490, CAL_008 −%89).
-# Projenin kendi kayıtlı tuzağı — farklı 'bugün'lerle kıyas kural semantiğini değil
-# TARİH FARKINI ölçer.
+# 🔴 MUST USE THE SAME DAY AS THE OLD BASELINE. My first attempt used 20260515 and the comparison
+# was MEANINGLESS: date-relative rules exploded (CAL_017 +%135490, CAL_008 −%89).
+# This project's recorded trap — comparing different 'today' values measures a DATE DIFFERENCE,
+# not rule semantics.
 TODAY = "20260717"
 
-# 🚫 KULLANICI TALİMATI (2026-08-16): `mdb-2904` HİÇBİR ŞEKİLDE KOŞULMAZ.
-# 85 MB, tek başına 5.374.292 bulgu üretiyor ve her toplu koşumu kilitliyor.
-# Bu liste yorum değil KAPIDIR — feed listesinden çıkarılır, atlanma açıkça bildirilir.
+# 🚫 USER INSTRUCTION (2026-08-16): NEVER RUN `mdb-2904`.
+# At 85 MB it produces 5,374,292 findings by itself and locks every batch run.
+# This list is not commentary but a GATE — remove it from the feed list and report the skip explicitly.
 EXCLUDED_FEEDS = {"mdb-2904"}
 
 

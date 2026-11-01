@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// Motor sürümünü tek komutla yükseltir:  node scripts/bump-version.mjs X.Y.Z
+// Bump the engine version with one command: node scripts/bump-version.mjs X.Y.Z
 //
-// Tek kaynak kök Cargo.toml `[workspace.package] version`; yedi crate ve Python paketi
-// (maturin, dynamic version) oradan okur. Bu betik yalnız ELLE tutulmak zorunda kalan
-// kopyaları yazar ve sonunda sdk/scripts/check-version.mjs ile hepsini doğrular:
-//   - kök Cargo.toml: workspace sürümü + crates.io için dört iç crate pini
+// The single source is the root Cargo.toml `[workspace.package] version`; seven crates and the Python package
+// (maturin, dynamic version) read it from there. This script writes only manually maintained copies and verifies
+// all of them with sdk/scripts/check-version.mjs:
+//   - root Cargo.toml: workspace version + four internal crate pins for crates.io
 //   - sdk/src/index.ts: ENGINE_VERSION
-//   - ui/package.json + ui/package-lock.json (arayüzdeki __APP_VERSION__)
-//   - README'ler (dört dil) ve sdk/README.md'deki sürüm örnekleri
+//   - ui/package.json + ui/package-lock.json (the UI's __APP_VERSION__)
+//   - READMEs (four languages) and version examples in sdk/README.md
 //   - Cargo.lock (cargo update --workspace)
 //
-// DOKUNMADIKLARI (bilinçli): SDK'nın kendi sürümü (sdk/package.json, SDK_VERSION),
-// CHANGELOG ve belgeler, tag. Tag CI yeşil olduktan SONRA atılır.
+// INTENTIONALLY UNCHANGED: the SDK's own version (sdk/package.json, SDK_VERSION),
+// CHANGELOG and documentation, and the tag. Create the tag only AFTER CI is green.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -36,8 +36,8 @@ if (current === next) {
   process.exit(1);
 }
 
-// Her değiştirme TAM beklenen sayıda eşleşmeli; sıfır ya da fazla eşleşme sessiz
-// yarım bump demektir, o yüzden dosya yazılmadan önce durulur.
+// Every replacement must match the EXACT expected count; zero or extra matches indicate
+// a silently partial bump, so stop before writing any file.
 function replaceExact(file, pattern, replacement, expected) {
   const text = readFileSync(path(file), 'utf8');
   const hits = text.match(new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`))?.length ?? 0;
@@ -66,11 +66,11 @@ const edits = [
   ['sdk/src/index.ts', replaceExact('sdk/src/index.ts',
     new RegExp(`(const ENGINE_VERSION = ')${esc}(')`), `$1${next}$2`, 1)],
   ['ui/package.json', setJsonVersion('ui/package.json', (j) => [j])],
-  // Lock'ta kök paket sürümü iki yerde durur: dosya başı ve packages[""]. Regex yerine
-  // JSON: aynı sürüm numarasını taşıyan bir bağımlılık yanlışlıkla değişmesin. npm bu
-  // dosyaları JSON.stringify(_, null, 2) + "\n" biçiminde yazar; biçim korunur.
+  // The root package version appears twice in the lockfile: at the top and in packages[""].
+  // Use JSON rather than a regex so a dependency with the same version is not changed by mistake.
+  // npm writes these files as JSON.stringify(_, null, 2) + "\n"; preserve that formatting.
   ['ui/package-lock.json', setJsonVersion('ui/package-lock.json', (j) => [j, j.packages?.['']])],
-  // README'lerdeki kurulum örneği (üç crate satırı) ve SDK tanıtım cümlesindeki `vX.Y.Z`.
+  // Installation examples in the READMEs (three crate lines) and the SDK introduction's `vX.Y.Z`.
   ...['README.md', 'README.en.md', 'README.fr.md', 'README.ja.md'].map((file) => [file, replaceExact(file,
     new RegExp(`^(gtfs-(?:pipeline|config|core)\\s*=\\s*")${esc}(")|v${esc}(?=\\D)`, 'gm'),
     (m, a, b) => (a ? `${a}${next}${b}` : `v${next}`), 4)]),

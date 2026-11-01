@@ -10,8 +10,8 @@ function run(rules: Record<string, number>): GoldenRun {
     noticeTotal: 0, configDelta: '', legacy: false };
 }
 
-// buildGoldenSnapshot'ın okuduğu alanları taşıyan minimal mock; geri kalan
-// ValidationResult alanları snapshot tarafından kullanılmaz.
+// Minimal mock containing the fields read by buildGoldenSnapshot; the remaining
+// ValidationResult fields are not used by the snapshot.
 function mockResult(): ValidationResult {
   const notice = (rule_id: string, severity: string, rule_class: string, title: string) =>
     ({ rule_id, severity, rule_class, title });
@@ -22,7 +22,7 @@ function mockResult(): ValidationResult {
       notice('CAL_013', 'MEDIUM', 'SPEC', 'Süresi geçmiş servis'),
       notice('ARC_007', 'LOW', 'INTEROP', 'Eksik alan'),
     ],
-    capped_totals: { STM_014: 500 }, // gerçek toplam görünür sayımı (2) geçersiz kılmalı
+    capped_totals: { STM_014: 500 }, // real total must override the visible count (2)
     reports: { r5: { score: 83.6, pub_score: 92.6, spec_score: 92.6, interop_score: 90.1, quality_score: 65.8, analytics_score: 63.3 } },
     metrics: {
       route_count: 10, stop_count: 200, trip_count: 1500, shape_count: 12,
@@ -64,21 +64,21 @@ describe('Golden comparison', () => {
     expect(parsed.validateDate).toBe('2026-06-28');
     expect(parsed.engineMode).toBe('wasm32-threaded');
 
-    // capped_totals görünür sayımı geçersiz kılar (2 görünür → 500 gerçek).
+    // capped_totals overrides the visible count (2 visible → 500 actual).
     expect(parsed.rules.STM_014.count).toBe(500);
     expect(parsed.rules.CAL_013.count).toBe(1);
     expect(parsed.rules.STM_014.rule_class).toBe('QUALITY');
 
-    // notice_total_actual = sayımların toplamı (500 + 1 + 1).
+    // notice_total_actual = sum of counts (500 + 1 + 1).
     expect(parsed.noticeTotal).toBe(502);
 
-    // Severity/class dağılımı capped sayımları kullanır.
+    // Severity/class distributions use capped counts.
     expect(parsed.severityCounts.HIGH).toBe(500);
     expect(parsed.severityCounts.MEDIUM).toBe(1);
     expect(parsed.classCounts.QUALITY).toBe(500);
     expect(parsed.classCounts.SPEC).toBe(1);
 
-    // Feed yapısı + metrikler taşınır.
+    // Feed structure + metrics are carried over.
     expect(parsed.files['stop_times.txt'].rows).toBe(60000);
     expect(parsed.metrics.trip_count).toBe(1500);
     expect(parsed.scores.overall).toBe(83.6);
@@ -86,7 +86,7 @@ describe('Golden comparison', () => {
   });
 
   it('deterministic export omits generated_at, keeps validate_date, byte-stable per feed+day (#42)', () => {
-    // Aynı feed+sürüm, aynı gün ama farklı saat → deterministik modda birebir aynı byte.
+    // Same feed+version, same day but different times → byte-for-byte identical in deterministic mode.
     const morning = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T10:00:00Z'), '{"foo":1}', 'wasm32-threaded', { deterministic: true });
     const evening = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T23:59:59Z'), '{"foo":1}', 'wasm32-threaded', { deterministic: true });
     expect(morning).toBe(evening);
@@ -97,7 +97,7 @@ describe('Golden comparison', () => {
     expect(parsed.generatedAt).toBe(null);
     expect(parsed.validateDate).toBe('2026-06-28');
 
-    // Varsayılan (in-app Compare) yol timestamp'i korur → deterministik moddan farklı.
+    // The default (in-app Compare) path keeps the timestamp → unlike deterministic mode.
     const withTs = buildGoldenSnapshot(mockResult(), 'BART.zip', new Date('2026-06-28T10:00:00Z'), '{"foo":1}', 'wasm32-threaded');
     expect(withTs).toContain('generated_at');
     expect(parseGolden(withTs).generatedAt).toBe('2026-06-28T10:00:00.000Z');

@@ -1,18 +1,17 @@
-//! Locale şablonu ↔ emit uyumu kapısı.
+//! Gate for locale-template ↔ emit consistency.
 //!
-//! `en/ja/fr` mesajları `{placeholder}` şablonlarıdır; `i18n::fill` bunları yalnız
-//! iki kaynaktan doldurabilir: altı sabit `Notice` alanı ve `notice.details` map'i.
-//! Bulunamayan anahtar HATA VERMEZ, sessizce boş stringe düşer (`params[k] ?? ''`).
-//! Türkçe metin kuraldaki `format!`'ten geldiği için kusur yalnız çeviri katmanında
-//! yaşar — 2026-08-29'da Katori feed'inin Japonca çıktısında `路線''：…` olarak göründü.
+//! `en/ja/fr` messages are `{placeholder}` templates; `i18n::fill` can fill them from only
+//! two sources: six fixed `Notice` fields and the `notice.details` map.
+//! A missing key does NOT ERROR; it silently becomes an empty string (`params[k] ?? ''`).
+//! Because the Turkish text came from `format!` in the rule, the defect lives only in the
+//! translation layer — on 2026-08-29 it appeared as `路線''：…` in Katori's Japanese output.
 //!
-//! İki kapı var, çünkü kusurun iki biçimi var:
-//!  1. `locale_placeholders_can_be_filled` — şablonun istediği ad kodda hiçbir yerde
-//!     üretilmiyor. Statiktir, tüm kuralları kapsar, ama "bu kuralın emit'i" sorusunu
-//!     cevaplayamaz: ad başka bir kuralda üretiliyorsa kapı susar.
-//!  2. `emitted_notices_fill_their_locale_placeholders` — üretilmiş bir notice şablonunu
-//!     dolduramıyor. Kural düzeyinde kesindir, ama yalnız fixture'ın ateşlediği
-//!     kuralları görür.
+//! There are two gates because the defect has two forms:
+//!  1. `locale_placeholders_can_be_filled` — the name requested by a template is produced nowhere
+//!     in code. It is static and covers every rule, but cannot answer "does this rule's emit"
+//!     produce the name: the name may be produced by another rule, leaving the gate silent.
+//!  2. `emitted_notices_fill_their_locale_placeholders` — a generated notice cannot fill its
+//!     template. It is exact at rule level, but sees only rules triggered by the fixture.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -22,7 +21,7 @@ use std::process::Command;
 
 use zip::write::SimpleFileOptions;
 
-/// `Notice`'ın sabit alanlarından doldurulabilen anahtarlar (`i18n::resolve`).
+/// Keys fillable from the fixed fields of `Notice` (`i18n::resolve`).
 const FIXED_KEYS: &[&str] = &[
     "entity_id",
     "observed_value",
@@ -56,13 +55,13 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Kaynakta string literal olarak geçen snake_case adlar.
+/// snake_case names that occur as string literals in the source.
 ///
-/// `details` map'i her emit'te farklı kuruluyor — `details.insert(…)`, `d.insert(…)`,
-/// `BTreeMap::from([("ad", …)])`, `[(…)].into_iter().collect()`. Anahtar adına göre
-/// aramak bu biçimlerin hepsini kapsayan tek yoldur. Kapı bilerek gevşektir: amacı,
-/// şablonun hiçbir yerde ÜRETİLMEYEN bir ad istemesini yakalamak; "bu kuralın emit'i
-/// bu anahtarı yazıyor mu" sorusunu runtime kapısı cevaplar.
+/// The `details` map is built differently at each emit — `details.insert(…)`, `d.insert(…)`,
+/// `BTreeMap::from([("ad", …)])`, `[(…)].into_iter().collect()`. Searching by key name is
+/// the only approach covering all these forms. The gate is deliberately loose: its purpose is
+/// to catch a template requesting a name PRODUCED NOWHERE; the runtime gate answers "does this
+/// rule's emit write this key?".
 fn source_string_literals() -> BTreeSet<String> {
     let mut sources = Vec::new();
     rust_sources(&repo_root().join("crates"), &mut sources);
@@ -157,13 +156,14 @@ fn locale_placeholders_can_be_filled() {
     );
 }
 
-// ── Runtime kapısı ────────────────────────────────────────────────────────────
+// ── Runtime gate ───────────────────────────────────────────────────────────────
 //
-// Ad düzeyi kapı yalnız "bu anahtar kodda hiç üretilmiyor" durumunu görür. Asıl
-// kusur kural düzeyindedir: anahtar başka bir kuralın emit'inde üretiliyor olabilir,
-// ama ŞU kuralın notice'ında yoktur — Katori feed'inde `OPR_004` için Japonca metin
-// `路線''：週末に運行がありません。` çıkıyordu. Bunu ancak üretilmiş bir notice'ı
-// şablonla eşleştirerek görebiliriz.
+// Static scanning catches missing names; runtime fixtures catch rule-specific omissions.
+// Keep both checks because neither one subsumes the other.
+// The name-level gate sees only "this key is never produced in code". The actual defect is at
+// rule level: another rule's emit may produce the key, but it may be absent from THIS rule's
+// notice — for `OPR_004` in the Katori feed, the Japanese text was
+// `路線''：週末に運行がありません。`. We can see this only by matching a generated notice to its template.
 
 static AGENCY: &[u8] =
     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
@@ -173,7 +173,7 @@ static ROUTES: &[u8] = b"route_id,agency_id,route_short_name,route_type\nR1,1,10
 static TRIPS: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\n";
 static STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
       T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n";
-/// Hafta sonu kapalı: OPR_004'ü ateşler.
+/// Closed on weekends: triggers OPR_004.
 static CALENDAR: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
       SVC1,1,1,1,1,1,0,0,20250101,20271231\n";
@@ -207,7 +207,7 @@ fn fixture_feed() -> PathBuf {
     path
 }
 
-/// `i18n::resolve` ile aynı sözleşme: sabit alanlar + `details`.
+/// Same contract as `i18n::resolve`: fixed fields + `details`.
 fn value_for(key: &str, notice: &serde_json::Value) -> Option<String> {
     if let Some(v) = notice
         .get("details")

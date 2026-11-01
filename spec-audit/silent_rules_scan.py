@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Faz 0 + Faz 1 — sessiz kuralların ULAŞILABİLİRLİK ve SEBEP triyajı.
+"""Phase 0 + Phase 1 — ACCESSIBILITY and REASON triage for silent rules.
 
-Faz 0 (ölü kural): registry'de ilan edilen her kural, üretim kodunda (test modülleri
-HARİÇ) TIRNAK İÇİNDE geçiyor mu? Mevcut CI kapısı `crates/rules/tests/emit_coverage.rs`
-aynı soruyu sorar ama TOKEN tarar — bir kural id'si yorum satırında geçse "canlı"
-sayılır. Bu tarayıcı daha sıkıdır; farkı raporlar.
+Phase 0 (dead rule): does every rule declared in the registry occur IN QUOTES in production code
+(EXCLUDING test modules)? The existing CI gate `crates/rules/tests/emit_coverage.rs` asks the same
+question but scans TOKENS — a rule ID in a comment would count as "live". This scanner is stricter
+and reports the difference.
 
-Faz 1 (sessizlik sebebi): korpusta hiç çıkmayan kurallar neden susuyor? Etiketler
-KANIT DURUMUNU belgeler; hiçbiri "kuralı kaldır" demez. Otorite spec'tir, korpus değil.
+Phase 1 (reason for silence): why are rules that never appear in the corpus silent? Labels document
+the EVIDENCE STATUS; none says "remove the rule". The authority is the spec, not the corpus.
 
-⚠️ Ölçüm tuzakları bu betikte bilinçli olarak kapalı:
+⚠️ Measurement traps are deliberately closed in this script:
   1. Zip taramasında `.txt` filtresi `locations.geojson`'ı gizler (2026-08-14'te
      6 feed "0" olarak raporlandı).
   2. `fatals.csv` BAYAT — bkz. aşağıdaki FATAL_RULES notu. Bir zamanlar buradan
@@ -33,30 +33,30 @@ EV = os.path.join(ROOT, "spec-audit/corpus-evidence")
 RULE_RE = re.compile(r'"([A-Z]{2,4}_\d{3})"')
 BARE_RE = re.compile(r'\b([A-Z]{2,4}_\d{3})\b')
 
-# Fatal yolla üretilen kurallar Notice değildir; rule_id kaynakta literal geçmez ve
-# rule_stats.csv'ye girmez.
+# Rules produced through a fatal path are not Notices; their rule_id does not occur as a literal
+# in the source and they do not enter rule_stats.csv.
 #
-# 🔴 BU HARİTA 2026-08-15'te DARALTILDI. İlk hâli `core/src/enums.rs`'teki `FatalCode`
-# YORUMLARINDAN türetilmişti ve beş kural içeriyordu. Ölçüm gösterdi ki enum'un yedi
-# varyantından DÖRDÜ üretim kodunda HİÇ KURULMUYOR: `Utf8Critical`, `NoRequiredFiles`,
-# `CsvMalformed`, `ResourceLimit`. Yani ARC_002/ARC_004/ARC_013 fatal DEĞİL NOTICE
-# üretiyor (üçü de `real_feed_mutation.rs`'te gerçek feed mutasyonuyla doğrulandı).
+# 🔴 THIS MAP WAS NARROWED on 2026-08-15. Its first version was derived from `FatalCode`
+# COMMENTS in `core/src/enums.rs` and contained five rules. Measurement showed that FOUR of
+# the enum's seven variants are NEVER CONSTRUCTED in production code: `Utf8Critical`,
+# `NoRequiredFiles`, `CsvMalformed`, `ResourceLimit`. Thus ARC_002/ARC_004/ARC_013 produce
+# Notices, NOT fatals (all three were verified by real feed mutations in `real_feed_mutation.rs`).
 #
-# ⚠️ Bir enum varyantının VARLIĞI onun ÜRETİLDİĞİ anlamına gelmez — `AGN_001` (ölü
-# registry kaydı) ve #125'in ulaşılamaz K7 dalıyla aynı sınıf.
+# ⚠️ The EXISTENCE of an enum variant does not mean it is CONSTRUCTED — the same class as
+# `AGN_001` (dead registry entry) and issue #125's unreachable K7 branch.
 FATAL_RULES = {
     "ARC_001": "ZipUnreadable",
     "ARC_029": "DecompressionLimit",
 }
 
-# 🔴 `corpus-evidence/fatals.csv` ARTIK KANIT OLARAK KULLANILMIYOR. O dosya 2026-08-06
-# koşumundan `NoRequiredFiles` fatal'ini 4 feed'de kaydeder, ama `66e009c2`
-# ("recover and report partial feeds", 2026-08-09) o yolu KALDIRDI: bugün zorunlu
-# dosyalar eksikken Fatal yok, `ARC_004` notice olarak çıkıyor. Bayat bir dosyadan
-# "ateşledi" sonucu çıkarmak, ölçüm gibi görünen bir tahmindir.
+# 🔴 `corpus-evidence/fatals.csv` IS NO LONGER USED AS EVIDENCE. It recorded the
+# `NoRequiredFiles` fatal for 4 feeds in the 2026-08-06 run, but `66e009c2`
+# ("recover and report partial feeds", 2026-08-09) REMOVED that path: today there is no Fatal
+# when required files are missing; `ARC_004` is emitted as a Notice. Inferring "fired" from a
+# stale file is an assumption that looks like measurement.
 
-# k2 modül adı → GTFS dosyası (modül-başına-dosya tasarımı). Dosyaya karşılık
-# gelmeyen yardımcı modüller dışarıda.
+# k2 module name → GTFS file (one-module-per-file design). Helper modules without a corresponding
+# file are excluded.
 K2_NOT_A_FILE = {"common", "mod", "bcp47_grandfathered", "iso4217_generated",
                  "agency_jp", "office_jp"}
 
@@ -199,11 +199,11 @@ def registry_meta():
 REQUIREMENT_RE = re.compile(r"eksik|bulunamad|boş|yok\b|zorunlu", re.I)
 
 
-# rule_stats.csv'nin VERİSİ 2026-08-06 koşumundandır (dosyanın commit tarihi değil —
-# "bir baseline'ın dosya tarihi, verisinin tarihi değildir"). Bu tarihten sonra
-# eklenen kurallar o koşumda YOKTU; "hiç ateşlemedi" onlar için bir ÖLÇÜM DEĞİL,
-# ölçüm YOKLUĞUDUR. Kanıt: RTS_030 burada "şüpheli" görünür, oysa eklenirken 19
-# feed'de ateşlediği ölçülmüştü.
+# The DATA in rule_stats.csv comes from the 2026-08-06 run (not the file's commit date —
+# "a baseline's file date is not the date of its data"). Rules added after that date were
+# ABSENT from the run; "never fired" is NOT A MEASUREMENT for them, but the ABSENCE of measurement.
+# Evidence: RTS_030 looks "suspicious" here, although it was measured firing on 19 feeds
+# when added.
 CORPUS_RUN_DATE = "2026-08-06"
 
 
@@ -292,7 +292,7 @@ def main():
     for r in silent:
         files = k2_files_for(r, mods)
         anchor = "modül"
-        if not files:                     # emit k4/k6'da → grubun ev dosyası
+        if not files:                     # emitted in k4/k6 → the group's home file
             hf = home.get(r.split("_")[0])
             if hf:
                 files, anchor = [hf], "grup"

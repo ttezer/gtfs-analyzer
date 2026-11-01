@@ -69,22 +69,24 @@ def _normalise(value: Any) -> str:
     return str(value or "").strip().lower()
 
 
-# 🔴 MobilityData her notice'ta bağlamı AYNI anahtarlarla taşımaz, ve bu sessizce
-# ısırır: eşleşmeyen bir anahtar "bağlam yok" gibi görünür, `_ctx` girişi hiç
-# tetiklenmez ve kod sonsuza kadar eşlemesiz sayılır.
+# 🔴 MobilityData does not carry context under the SAME keys in every notice, and this bites
+# silently: an unmatched key looks like "no context", the `_ctx` entry never triggers, and
+# the code remains unmapped forever.
 #
-# İki büyük jenerik kod tam bu yüzden hiç bağlamsal eşleme almamıştı (#165):
-#   `foreign_key_violation` → childFilename / childFieldName (+ parent* karşılığı)
-#   `duplicate_key`         → fieldName1 (anahtar sütun LİSTESİ, virgülle)
-# İkisi birlikte korpusta 9,3M notice taşıyor. `missing_required_field` (18 giriş)
-# ve `unexpected_enum_value` (11 giriş) standart anahtarları kullandığı için
-# eşlenebilmiş; bu ikisi görünmez kalmıştı.
+# Two major generic codes had therefore never received contextual mappings (#165):
+#   `foreign_key_violation` → childFilename / childFieldName (+ parent* counterpart)
+# Normalize both spellings before selecting a context mapping.
+# Keep the original sample values available for audit output.
+#   `duplicate_key`         → fieldName1 (the key-column LIST, comma-separated)
+# Together they account for 9.3M notices in the corpus. `missing_required_field` (18 entries)
+# and `unexpected_enum_value` (11 entries) were mappable because they use standard keys;
+# these two had remained invisible.
 def _filename(sample: dict[str, Any]) -> str:
     value = sample.get("filename", sample.get("fileName", sample.get("file")))
     if not value:
-        # FK ihlalinde ölçtüğümüz kural REFERANSI VEREN dosyada yaşar (child),
-        # hedeflenen dosyada (parent) değil: `trips.txt::shape_id` bulunamadı
-        # bulgusu TRP_004'ündür, SHP_*'ın değil.
+        # For an FK violation, the rule we measure lives in the file PROVIDING THE REFERENCE (child),
+        # not the target file (parent): the `trips.txt::shape_id` missing-reference finding belongs
+        # to TRP_004, not SHP_*.
         value = sample.get("childFilename", sample.get("child_filename"))
     return _normalise(value).rsplit("/", 1)[-1]
 
@@ -94,9 +96,9 @@ def _field(sample: dict[str, Any]) -> str:
     if not value:
         value = sample.get("childFieldName", sample.get("child_field_name"))
     if not value:
-        # `duplicate_key` birincil anahtarın TÜM sütunlarını tek dizede verir
-        # ("table_name,field_name,language,field_value"). Tek alan adı bekleyen
-        # eşleştirici bunu göremez; ilk sütun anahtarın sahibi olarak yeterlidir.
+        # `duplicate_key` gives ALL primary-key columns as one string
+        # ("table_name,field_name,language,field_value"). A mapper expecting one field name
+        # cannot see this; the first column is enough to identify the key owner.
         raw = sample.get("fieldName1", sample.get("field_name1"))
         if raw:
             value = str(raw).split(",", 1)[0]
@@ -187,20 +189,19 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("unexpected_enum_value", "FAR_005", filename=("fare_attributes.txt",), fields=("transfers",), label="fare_attributes.txt::transfers"),
     _ctx("unexpected_enum_value", "RCT_003", filename=("rider_categories.txt",), fields=("is_default_fare_category",), label="rider_categories.txt::is_default_fare_category"),
     # number_out_of_range
-    # point_near_origin — Null Island. MD tek kod basar; bizde dosyaya göre iki ayrı
-    # kural sahiplenir. Düz eşleme GEO_017'yi görünmez kılıyordu: tdg-80960'ta MD 5
-    # bulgu shapes.txt kaynaklıydı, bizde GEO_017 tam 5 ateşliyordu ama benchmark
-    # GEO_016=0 diye MISS sayıyordu.
+    # point_near_origin — Null Island. MD emits one code; we have two rules owning it by file.
+    # A flat mapping made GEO_017 invisible: in tdg-80960, MD's 5 findings came from shapes.txt,
+    # and our GEO_017 fired exactly 5 times, but the benchmark counted MISS because GEO_016=0.
     _ctx("point_near_origin", "GEO_016", filename=("stops.txt",), label="stops.txt Null Island"),
     _ctx("point_near_origin", "GEO_017", filename=("shapes.txt",), label="shapes.txt Null Island"),
-    # #164: `context_unresolved`'ın 16 satırının 14'ü. MobilityData bu jenerik kodları
-    # `filename` + `fieldName` İLE BİRLİKTE basıyor — bağlam raporda VARDI, bizde o
-    # kombinasyon için giriş yoktu. Aşağıdaki dokuz kuralın hepsi, MD'nin raporladığı
-    # feed'lerin tam olarak hepsinde ateşliyor; eşleme eksikti, kural değil.
-    # ── #165 ikinci dalga: jenerik kodların kalan bağlamları ──────────────────
-    # Hepsi bir ENUM/TİP kontrolüdür ve MD tek jenerik kod basar. Aşağıdakiler
-    # `unexpected_enum_value` / `invalid_integer` / `invalid_float` ailelerinin
-    # eksik kalan alanlarıdır; kural adı değil ALAN eşleştirilir.
+    # #164: 14 of 16 `context_unresolved` rows. MobilityData emits these generic codes
+    # WITH `filename` + `fieldName` — context WAS present in the report, but we had no entry
+    # for that combination. All nine rules below fire on exactly the feeds MD reports;
+    # the mapping was missing, not the rule.
+    # ── #165 second wave: remaining contexts for generic codes ──────────────────
+    # All are ENUM/TYPE checks and MD emits one generic code. These are the missing fields
+    # in the `unexpected_enum_value` / `invalid_integer` / `invalid_float` families;
+    # map the FIELD, not the rule name.
     _ctx("unexpected_enum_value", "CLD_003", filename=("calendar_dates.txt",), fields=("exception_type",), label="calendar_dates.txt::exception_type"),
     _ctx("unexpected_enum_value", "STP_008", filename=("stops.txt",), fields=("location_type",), label="stops.txt::location_type"),
     _ctx("unexpected_enum_value", "STP_013", filename=("stops.txt",), fields=("wheelchair_boarding",), label="stops.txt::wheelchair_boarding"),
@@ -215,43 +216,44 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_integer", "SHP_004", filename=("shapes.txt",), fields=("shape_pt_sequence",), label="shapes.txt::shape_pt_sequence"),
     _ctx("invalid_integer", "FAR_006", filename=("fare_attributes.txt",), fields=("transfer_duration",), label="fare_attributes.txt::transfer_duration"),
     _ctx("invalid_float", "STP_004", filename=("stops.txt",), fields=("stop_lat",), label="stops.txt::stop_lat"),
-    # 🔑 ASİMETRİ: `stop_lat`'in İKİ kuralı var (STP_004 sayısal değil · STP_003 aralık
-    # dışı), `stop_lon`'un TEK kuralı (STP_005) ikisini birden kapsar — başlığı zaten
-    # "geçersiz VEYA aralık dışı" der. Yalnız `number_out_of_range`'e eşlenmişti,
-    # dolayısıyla virgül ondalıklı feed'lerde sayı kıyası anlamsız çıkıyordu:
+    # 🔑 ASYMMETRY: `stop_lat` has TWO rules (STP_004 non-numeric · STP_003 out of range),
+    # while `stop_lon` has ONE rule (STP_005) covering both — its title already says
+    # "invalid OR out of range". It had been mapped only to `number_out_of_range`,
+    # making numeric comparison meaningless for feeds with comma decimals:
     # `tfs-70`'te MD 11 `number_out_of_range` + 88.657 `invalid_float` raporlarken
-    # bizim 7.844 STP_005'imizin tamamı 11'in karşısına konuyordu (#167, oran 713×).
-    # Feed'in 7.843 durağının hemen hepsinde `stop_lon` "-99,1056" biçiminde yazılmış.
+    # all 7,844 of our STP_005 findings were compared with 11 (#167, ratio 713×).
+    # Nearly all of the feed's 7,843 stops had `stop_lon` written as "-99,1056".
     _ctx("invalid_float", "STP_005", filename=("stops.txt",), fields=("stop_lon",), label="stops.txt::stop_lon"),
     _ctx("missing_required_field", "STP_002", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
     _ctx("missing_required_field", "FAR_003", filename=("fare_attributes.txt",), fields=("currency_type",), label="fare_attributes.txt::currency_type"),
     _ctx("invalid_email", "AGN_009", filename=("agency.txt",), fields=("agency_email",), label="agency.txt::agency_email"),
-    # 🔴 EKSİK BAĞLAM (17. koşum, 2026-09-12): bir koda BİR bağlam kaydedilince statik eşleme
-    # devre dışı kalır ve kaydedilmemiş HER bağlam `context_unresolved` olur. İki kod tam bu
-    # yüzden çözülemiyordu; ikisinde de bulguyu MD'nin bildirdiği DEĞERİN AYNISIYLA veriyoruz.
-    #   `mdb-1118`: feed_contact_email = "http://www.xpressga.com/contact/" (e-posta alanında URL)
+    # 🔴 MISSING CONTEXT (run 17, 2026-09-12): once ONE context is recorded for a code, static
+    # mapping is disabled and EVERY unrecorded context becomes `context_unresolved`. Two codes
+    # were unresolved for exactly this reason; in both cases we report the finding with the
+    # EXACT VALUE reported by MD.
+    #   `mdb-1118`: feed_contact_email = "http://www.xpressga.com/contact/" (URL in an email field)
     _ctx("invalid_email", "FIN_008", filename=("feed_info.txt",), fields=("feed_contact_email",), label="feed_info.txt::feed_contact_email"),
     _ctx("invalid_language_code", "FIN_004", filename=("feed_info.txt",), fields=("default_lang",), label="feed_info.txt::default_lang"),
-    #   `tdg-81284`: agency_lang = "Europe/Paris" (dil alanında saat dilimi)
+    #   `tdg-81284`: agency_lang = "Europe/Paris" (time zone in a language field)
     _ctx("invalid_language_code", "AGN_006", filename=("agency.txt",), fields=("agency_lang",), label="agency.txt::agency_lang"),
-    # empty_file — 13. korpus koşumunda ARAÇ KUSURU olarak bulundu (#md_mapped_missing).
-    # MD bu kodu HER boş dosya için basar; eşlemede yalnız `stops.txt` bağlamı vardı,
-    # dolayısıyla `routes.txt`/`trips.txt`/`calendar.txt` örnekleri `unresolved` sayılıp
-    # altı feed'de (ntd-60089 · tld-4456/4458/4461/4466/478) sahte "MD 7 / A 0" üretiyordu.
-    # Ölçüm: o feed'lerde ARC_009 = 7 ↔ MD empty_file = 7, BİREBİR. Genel karşılık ARC_009'dur;
-    # `stops.txt` boşken STP_018 ("hiç durak yok") her zaman ateşlemediği için o bağlamda
-    # iki kural da aday tutulur.
-    # 2026-08-31: zorunlu dosyanın boşluğu ARC_035'e (Kritik·Spec) devredildi; MD tek kod
-    # basmaya devam ettiği için eşleme her iki kuralı da aday tutar.
+    # empty_file — found as a TOOL DEFECT in corpus run 13 (#md_mapped_missing).
+    # MD emits this code for EVERY empty file; the mapping had only a `stops.txt` context,
+    # so `routes.txt`/`trips.txt`/`calendar.txt` examples were marked `unresolved` and produced
+    # a false "MD 7 / A 0" on six feeds (ntd-60089 · tld-4456/4458/4461/4466/478).
+    # Measurement: ARC_009 = 7 ↔ MD empty_file = 7 on those feeds, EXACTLY. The general match is ARC_009;
+    # because STP_018 ("no stops at all") does not always fire when `stops.txt` is empty,
+    # both rules remain candidates for that context.
+    # 2026-08-31: the empty required file was delegated to ARC_035 (Kritik·Spec); MD continues
+    # to emit one code, so the mapping keeps both rules as candidates.
     _ctx("empty_file", "ARC_009", "ARC_035", label="dosyada veri satırı yok"),
     _ctx("empty_file", "ARC_035", "STP_018", filename=("stops.txt",), label="stops.txt boş"),
     _ctx("foreign_key_violation", "XFL_015", filename=("attributions.txt",), label="attributions.txt referansları"),
 
     # ── foreign_key_violation ─    # ── foreign_key_violation ────────────────────────────────────────────────
-    # MobilityData tek kod basar ve bağlamı `childFilename`/`childFieldName` ile
-    # taşır; biz referansı VEREN dosyaya göre ayrı kural tutarız. Aşağıdaki
-    # bağlamların çoğu korpusta GÖZLENDİ (run-32197267205); kardeş yönler
-    # (`to_*` karşılıkları) yapısal kesinlik gereği eklendi ve yorumla işaretlendi.
+    # MobilityData emits one code and carries context through `childFilename`/`childFieldName`;
+    # we keep a separate rule for the file PROVIDING the reference. Most contexts below were
+    # OBSERVED in the corpus (run-32197267205); sibling directions (`to_*` counterparts) were
+    # added for structural completeness and marked in comments.
     _ctx("foreign_key_violation", "TRP_004", filename=("trips.txt",), fields=("shape_id",), label="trips.txt::shape_id"),
     _ctx("foreign_key_violation", "TRP_003", filename=("trips.txt",), fields=("service_id",), label="trips.txt::service_id"),
     _ctx("foreign_key_violation", "TRP_002", filename=("trips.txt",), fields=("route_id",), label="trips.txt::route_id"),
@@ -279,10 +281,10 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("foreign_key_violation", "SAR_001", "SAR_002", filename=("stop_areas.txt",), fields=("area_id", "stop_id"), label="stop_areas.txt"),
 
     # ── duplicate_key ────────────────────────────────────────────────────────
-    # Bağlam `fieldName1`'de gelir ve anahtarın TÜM sütunlarını virgülle taşır;
-    # ilk sütun sahibi belirlemeye yeter. Bileşik anahtarlı Fares v2 / Flex
-    # dosyalarını `DQ_021` sahiplenir, tekil anahtarlı çekirdek tabloları ise
-    # kendi kuralları — ikisi aynı dosyada örtüştüğünde İKİSİ de listelenir.
+    # Context arrives in `fieldName1` and carries ALL key columns separated by commas;
+    # the first column is enough to identify the owner. `DQ_021` owns Fares v2 / Flex files
+    # with composite keys, while core tables with singular keys have their own rules —
+    # both are listed when they overlap in the same file.
     _ctx("duplicate_key", "STP_001", "DQ_021", filename=("stops.txt",), fields=("stop_id",), label="stops.txt::stop_id"),
     _ctx("duplicate_key", "RTS_001", "DQ_021", filename=("routes.txt",), fields=("route_id",), label="routes.txt::route_id"),
     _ctx("duplicate_key", "TRP_001", "DQ_021", filename=("trips.txt",), fields=("trip_id",), label="trips.txt::trip_id"),
@@ -290,13 +292,13 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("duplicate_key", "CAL_001", filename=("calendar.txt",), fields=("service_id",), label="calendar.txt::service_id"),
     _ctx("duplicate_key", "AGN_010", filename=("agency.txt",), fields=("agency_id",), label="agency.txt::agency_id"),
     _ctx("duplicate_key", "FAR_001", filename=("fare_attributes.txt",), fields=("fare_id",), label="fare_attributes.txt::fare_id"),
-    # TRN_005 ve TRN_006 aynı olguyu iki açıdan ölçer — anahtar yineleniyor
-    # (005) ve yinelenen anahtar FARKLI değer taşıyor (006) — ve MD ikisini de
-    # tek `duplicate_key` altında raporlar. AYRI iki `_ctx` girişi aynı bağlamı
-    # paylaşınca çözücü haklı olarak `context-mixed` der; tek girişte listelenir.
+    # TRN_005 and TRN_006 measure the same phenomenon from two angles — the key is duplicated
+    # (005) and the duplicate key carries a DIFFERENT value (006) — while MD reports both under
+    # one `duplicate_key`. When two SEPARATE `_ctx` entries share the same context, the resolver
+    # correctly returns `context-mixed`; both are listed in one entry.
     _ctx("duplicate_key", "TRN_005", "TRN_006", filename=("translations.txt",), fields=("table_name",), label="translations.txt::çeviri anahtarı"),
-    # TRF_012 bağlamsız satırları, TRF_016 trip/route bağlamlı satırları ölçer; MD anahtarı
-    # tek kodda verir (run 38363983999: mdb-2661 117=117, mdb-1078 12=12 TRF_016'da).
+    # TRF_012 measures context-free rows, while TRF_016 measures trip/route-context rows; MD
+    # emits them under one code (run 38363983999: mdb-2661 117=117, mdb-1078 12=12 in TRF_016).
     _ctx("duplicate_key", "TRF_012", "TRF_016", filename=("transfers.txt",), fields=("from_stop_id",), label="transfers.txt::(from_stop_id, to_stop_id[, trip/route])"),
     _ctx("duplicate_key", "SHP_008", filename=("shapes.txt",), fields=("shape_id",), label="shapes.txt::(shape_id, shape_pt_sequence)"),
     _ctx("duplicate_key", "FRQ_011", filename=("frequencies.txt",), fields=("trip_id",), label="frequencies.txt::(trip_id, start_time) — yinelenen dönem çakışmadır"),
@@ -304,20 +306,20 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("invalid_time", "BKR_025", filename=("booking_rules.txt",), fields=("prior_notice_start_time", "prior_notice_last_time"), label="booking_rules.txt::prior_notice zamanları"),
     _ctx("invalid_float", "SHP_002", filename=("shapes.txt",), fields=("shape_pt_lat",), label="shapes.txt::shape_pt_lat"),
     _ctx("invalid_float", "SHP_003", filename=("shapes.txt",), fields=("shape_pt_lon",), label="shapes.txt::shape_pt_lon"),
-    # shape_dist_traveled ayrı bir Spec kuralıdır. Geçersiz sayı ile negatif/
-    # aralık-dışı sayı aynı MD generic kodlarına düşebilir; ARC_021'in aynı NUL
-    # satırında görünmesi bilinçli bir ikinci sinyaldir: lexical dosya hijyeni
-    # ve alan tipi ihlali ayrı bulgulardır.
+    # shape_dist_traveled is a separate Spec rule. An invalid number and a negative/
+    # out-of-range number can land under the same MD generic codes; ARC_021 appearing on the
+    # same NUL row is a deliberate second signal: lexical file hygiene and field-type violation
+    # are separate findings.
     _ctx("invalid_float", "SHP_021", filename=("shapes.txt",), fields=("shape_dist_traveled",), label="shapes.txt::shape_dist_traveled sayı değil"),
     _ctx("invalid_integer", "CAL_002", filename=("calendar.txt",), fields=("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"), label="calendar.txt::gün alanları"),
     _ctx("invalid_integer", "FAR_005", filename=("fare_attributes.txt",), fields=("transfers",), label="fare_attributes.txt::transfers"),
     _ctx("invalid_integer", "FAR_004", filename=("fare_attributes.txt",), fields=("payment_method",), label="fare_attributes.txt::payment_method"),
     _ctx("invalid_integer", "RTS_004", filename=("routes.txt",), fields=("route_type",), label="routes.txt::route_type"),
-    # 2026-09-01 (14. korpus koşumu): `md_mapped_under`'ın en büyük kalemi buradan doğuyordu.
-    # `mdb-2727` `exception_type` sütununa sayı yerine "Added" yazıyor. MD `invalid_integer`
-    # = 103.211 diyor; eşlemede yalnız `routes.txt::route_type` (RTS_004 = 1.590) vardı, geri
-    # kalan 101.621 hiçbir kurala bağlanamıyor ve sahte UNDER olarak raporlanıyordu. Bizde o
-    # 101.621 `CLD_003` olarak ZATEN raporlanıyor: 1.590 + 101.621 = 103.211, BİREBİR.
+    # 2026-09-01 (corpus run 14): this produced the largest component of `md_mapped_under`.
+    # `mdb-2727` writes "Added" instead of a number in the `exception_type` column. MD says
+    # `invalid_integer` = 103,211; the mapping had only `routes.txt::route_type` (RTS_004 = 1,590),
+    # leaving 101,621 unassigned and reported as a false UNDER. We ALREADY report those 101,621
+    # as `CLD_003`: 1,590 + 101,621 = 103,211, EXACTLY.
     _ctx("invalid_integer", "CLD_003", filename=("calendar_dates.txt",), fields=("exception_type",), label="calendar_dates.txt::exception_type"),
     _ctx("invalid_integer", "STM_022", filename=("stop_times.txt",), fields=("timepoint",), label="stop_times.txt::timepoint"),
     _ctx("number_out_of_range", "STM_030", filename=("stop_times.txt",), fields=("shape_dist_traveled",), label="stop_times.txt::shape_dist_traveled negatif"),
@@ -333,8 +335,8 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("number_out_of_range", "FRQ_008", filename=("frequencies.txt",), fields=("headway_secs",), value_range=(0, 0), label="frequencies.txt::headway_secs zero"),
     # Generic notices are resolved by filename/field. A partial sample stays
     # CONTEXT, so an unseen field cannot be presented as exact parity.
-    # invalid_time / invalid_float — alan bağlamıyla çözülür (#155). Düz eşleme yanlış
-    # olurdu: MD tek kodu iki ayrı alan için basıyor ve bizde iki ayrı kural sahipleniyor.
+    # invalid_time / invalid_float — resolved by field context (#155). A flat mapping would be
+    # wrong: MD emits one code for two separate fields, and we have two separate owning rules.
     _ctx("invalid_time", "STM_003", filename=("stop_times.txt",), fields=("arrival_time",), label="stop_times.txt::arrival_time"),
     _ctx("invalid_time", "STM_004", filename=("stop_times.txt",), fields=("departure_time",), label="stop_times.txt::departure_time"),
     _ctx("invalid_float", "FAR_002", filename=("fare_attributes.txt",), fields=("price",), label="fare_attributes.txt::price"),
@@ -384,22 +386,23 @@ CONTEXT_MAPPINGS: tuple[ContextMapping, ...] = (
     _ctx("missing_required_field", "TRN_008", filename=("translations.txt",), fields=("translation",), label="translations.txt::translation"),
     _ctx("missing_required_field", "BKR_019", filename=("booking_rules.txt",), fields=("booking_rule_id",), label="booking_rules.txt::booking_rule_id"),
     _ctx("missing_required_field", "BKR_016", filename=("booking_rules.txt",), fields=("booking_type",), label="booking_rules.txt::booking_type"),
-    # transfers.txt::min_transfer_time — ÖNLEYİCİ eşleme. google/transit#640 bu alanı
-    # `transfer_type=2` için açıkça Conditionally Required yaptı; MobilityData hükmü
-    # uyguladığında `missing_required_field` bu bağlamla gelecek. Eşleme şimdi yazılmazsa
-    # o gün doğrudan `md_mapped_missing`'e düşer — bu oturumda temizlediğimiz sahte
-    # körlüğün aynısı. v8.0.1 henüz #640'ı içermediği için bugün sessiz kalır.
+    # transfers.txt::min_transfer_time — PREEMPTIVE mapping. google/transit#640 made this field
+    # Conditionally Required explicitly for `transfer_type=2`; when MobilityData applies the
+    # provision, `missing_required_field` will arrive with this context. If the mapping is not
+    # written now, it will fall directly into `md_mapped_missing` — the same false blindness
+    # cleaned up in this session. It is silent today because v8.0.1 does not yet include #640.
     _ctx("missing_required_field", "TRF_005", filename=("transfers.txt",), fields=("min_transfer_time",), label="transfers.txt::min_transfer_time"),
-    # #153 ile İKİSİ ARTIK EŞLENDİ — kural yazıldığı için eşleme yazılabilir hale geldi.
-    # Sıra önemli: boş değerin sahibi ayrı kuraldır, FK/yineleme kuralı değil.
+    # Both are now mapped by #153 — the mapping became writable once the rule existed.
+    # Order matters: the empty value has its own owning rule, not an FK/duplicate rule.
     _ctx("missing_required_field", "RTS_031", filename=("routes.txt",), fields=("route_id",), label="routes.txt::route_id"),
     _ctx("missing_required_field", "FLG_008", filename=("fare_leg_rules.txt",), fields=("fare_product_id",), label="fare_leg_rules.txt::fare_product_id"),
-    # ⚠️ BİR ÇİFT BİLEREK EŞLENMEDİ — aday kural korpusta o feed'lerde ATEŞLEMİYOR, yani
-    # eşleme yazmak boşluğu gizlemek olurdu (`classify_unmapped` felsefesi, alan düzeyinde):
-    #   calendar.txt::sunday (1 feed) — ÖLÇÜLDÜ (#153): boşluk YOKTU. `CAL_025` ("takvim gün
-    #   alanı boş") zaten var ve tld-6756'da tam bir kez ateşliyor; `CAL_002` geçersiz DEĞERİ,
-    #   `CAL_025` eksik değeri sahiplenir. Bağlam eşlemesi CAL_025'e yazılmadı çünkü MD'nin
-    #   bu bağlamdaki tek vakası zaten MATCH; yazmak sayıyı değiştirmez, kararı gizler.
+    # ⚠️ ONE PAIR IS DELIBERATELY UNMAPPED — the candidate rule does not fire on those feeds,
+    # so writing a mapping would hide a gap (`classify_unmapped` philosophy, at field level):
+    #   calendar.txt::sunday (1 feed) — MEASURED (#153): there was NO empty value. `CAL_025`
+    #   ("calendar day field is empty") already exists and fires exactly once in tld-6756;
+    #   `CAL_002` owns the invalid VALUE, `CAL_025` owns the missing value. No context mapping
+    #   was written for CAL_025 because MD's only case in that context is already MATCH;
+    #   writing it would not change the number, but would hide the decision.
     _ctx("invalid_date", "FIN_005", filename=("feed_info.txt",), fields=("feed_start_date",), label="feed_info.txt::feed_start_date"),
     _ctx("invalid_date", "FIN_006", filename=("feed_info.txt",), fields=("feed_end_date",), label="feed_info.txt::feed_end_date"),
     _ctx("invalid_date", "CAL_003", filename=("calendar.txt",), fields=("start_date",), label="calendar.txt::start_date"),
@@ -423,7 +426,7 @@ for _mapping in CONTEXT_MAPPINGS:
 CONTEXT_BY_CODE = {code: tuple(entries) for code, entries in CONTEXT_BY_CODE.items()}
 
 
-# These decisions are deliberately separate from the mapping.  A code can be
+    # These decisions are deliberately separate from the mapping. A code can be
 # known and reviewed as a real coverage gap without being assigned an Analyzer
 # rule (and therefore without being silently dropped from parity_md_only.csv).
 UNMAPPED_DECISIONS = {
@@ -441,12 +444,12 @@ UNMAPPED_DECISIONS = {
         "The populations are disjoint, so this MD code is reviewed but intentionally "
         "has no Analyzer mapping.",
     ),
-    # 🔴 2026-08-19: bu iki kod "genuine-gap" olarak KAYITLIYDI ve KARAR YANLIŞTI.
-    # Defter "would need its own rule" diyordu; kurallar zaten vardı ve ateşliyordu.
-    # Aranan yer yanlıştı: tutarlılık kontrolleri TRF_ önekinde değil, biri XFL_
-    # grubunda. TRF_006/003'ün VARLIK kontrolü olduğu tespiti doğruydu; eksik olan
-    # şey "başka bir kural bunu yapıyor mu" sorusuydu. Aday listesini kural ADINA
-    # göre değil, kuralların NE ÖLÇTÜĞÜNE göre kur.
+    # 🔴 2026-08-19: these two codes were RECORDED as "genuine-gap", and the DECISION WAS WRONG.
+    # The ledger said "would need its own rule"; the rules already existed and fired.
+    # The search location was wrong: consistency checks are not all under the TRF_ prefix; one is
+    # in the XFL_ group. The finding that TRF_006/003 are EXISTENCE checks was correct; what was
+    # missing was the question "does another rule already do this?" Build the candidate list by
+    # WHAT THE RULES MEASURE, not by rule name.
     "feed_expiration_date30_days": (
         "config-dependent",
         "The MD notice is a feed_info-level 30-day horizon. FIN_019 uses a 7-day default, but "
@@ -478,16 +481,16 @@ UNMAPPED_DECISIONS = {
 }
 
 
-# ── BİLİNÇLİ SAPMALAR: adjudicate EDİLMİŞ, tekrar yargılanmayacak ────────────
-# Bu MD kodlarında sapma BEKLENEN davranıştır; status "EXPLAINED" olur ve
-# parity_unexplained.csv'ye DÜŞMEZ. Amaç: her koşumda aynı 90+ satırı elle
-# ayıklamak zorunda kalmamak → çıktı yalnız AÇIKLANAMAYAN delta olsun.
+    # ── INTENTIONAL DIVERGENCES: adjudicated, not re-litigated ────────────
+    # Divergence for these MD codes is EXPECTED behavior; status becomes "EXPLAINED" and does
+    # not enter parity_unexplained.csv. The goal is to avoid manually filtering the same 90+
+    # rows on every run → output should contain only UNEXPLAINED deltas.
 #
-# ⚠️ KURAL: buraya kayıt eklemek "görmezden gel" demek DEĞİL, "yargılandı ve
-# gerekçesi şu" demektir. GEREKÇESİZ KAYIT EKLEME — gerekçesiz bir liste,
-# sonradan kimsenin sorgulayamayacağı bir kör noktaya dönüşür. Yeni kod önce
-# MD-ONLY / MISS'te görünsün, adjudicate edilsin, SONRA buraya insin.
-# Kaynak: 2×20-feed kampanyası (memory: project_20feed_campaign) + MD_PARITY_GUIDE.
+    # ⚠️ RULE: adding a record here does NOT mean "ignore it", but "it was adjudicated and
+    # the reason is this". DO NOT ADD UNJUSTIFIED RECORDS — an unjustified list becomes a blind
+    # spot that nobody can question later. A new code must first appear in MD-ONLY / MISS, be
+    # adjudicated, and ONLY THEN land here.
+    # Source: 2×20-feed campaign (memory: project_20feed_campaign) + MD_PARITY_GUIDE.
 BY_DESIGN = {
     "missing_trip_edge":
         "OTORİTE AYRIMI, gerekçesi k6_analytics.rs'te yazılı ve ölçüldü. Spec `arrival_time` "
@@ -571,7 +574,7 @@ BY_DESIGN = {
         "Monoton projeksiyon workplan'da açık.",
     "unused_trip":
         "XFL_002 ile exact-parite: trips.txt'te tanımlı ancak stop_times.txt'te hiç satırı olmayan trip.",
-    # ── MAP yorumlarında ZATEN adjudicate edilmiş, makine-okunur hâle getirildi ──
+    # ── Already adjudicated in MAP comments, made machine-readable ──
     # ── UNDECIDABLE (sprint ilkesi: "undecidable = bulgu") ──
     "stop_too_far_from_shape_using_user_distance":
         "SHP_024'e eşlenir. tdg-83134'teki boşluklu koordinat vakası trim edilmiş payload ile "
@@ -669,10 +672,10 @@ def classify_unmapped(code: str) -> tuple[str, str]:
 #
 # Key is the MD code; value is (decision, reasoning).
 MAPPED_DIVERGENCE_DECISIONS = {
-    # ── 17. korpus koşumu, 2026-09-12 ────────────────────────────────────────────
-    # ⚠️ Bu tablo MD KODUNA anahtarlıdır; `fp_adjudication.tsv` KURAL KİMLİĞİNE.
-    # `md_mapped_under`/`over` satırlarının kararı `classify_divergence` üzerinden BURADAN
-    # gelir — o kovaları kural defterine yazarak kapatmaya çalışmak işe yaramaz.
+    # ── Corpus run 17, 2026-09-12 ────────────────────────────────────────────
+    # ⚠️ This table is keyed by MD CODE; `fp_adjudication.tsv` is keyed by RULE IDENTITY.
+    # Decisions for `md_mapped_under`/`over` rows come from HERE through `classify_divergence`
+    # — adding those buckets to the rule ledger will not close them.
     "invalid_row_length": (
         "md-implementation-limit",
         "mdb-3215 in md_mapped_missing with a single MobilityData notice against zero of ours, and "
@@ -754,7 +757,7 @@ MAPPED_DIVERGENCE_DECISIONS = {
         "parent station or a location group, and that definitional edge is the whole of it. STP_020 is "
         "Analytics class, so no score and no gate.",
     ),
-    # #162: `md_mapped_missing` — MD raporluyor, eşlediğimiz kural susuyor.
+    # #162: `md_mapped_missing` — MD reports it, while the mapped rule is silent.
     "missing_required_field": (
         "structural-fault-owns-it",
         "Four feeds, and all four carry a wholly empty CSV row: routes.txt on tld-7825/7876/7877 and "
@@ -1025,34 +1028,32 @@ def classify_mapped_divergence(code: str) -> tuple[str, str]:
     )
 
 
-# ── MobilityData v8.0.1'de KARŞILIĞI OLMAYAN Spec kontrolleri ────────────────
+# ── Spec checks with NO EQUIVALENT in MobilityData v8.0.1 ────────────────
 #
-# #165'in aradığı liste budur ve tek bir şeyi hak ediyor: **iddia edilmeden önce
-# aranmış olmak.** Aşağıdakilerin her biri, MD'nin YAYIMLANMIŞ 200 kodluk
-# kataloğunda kavram bazında arandı ve karşılığı bulunamadı. Bir kodun bizim
-# parite tablomuzda geçmemesi kanıt DEĞİLDİR (#57'nin dersi); burada aranan şey
-# MD'nin kendi kataloğudur.
+# This is the list sought by #165 and it deserves one thing: to have been **searched before
+# being claimed**. Each item below was searched by concept in MD's PUBLISHED 200-code catalog
+# and no equivalent was found. A code's absence from our parity table is NOT evidence (#57 lesson);
+# what is searched here is MD's own catalog.
 #
-# ⚠️ Bu liste "biz daha iyiyiz" demez. Yalnız "bu kontrolün MD'de eşleniği yok"
-# der; kontrolün kendisinin doğru olup olmadığı ayrı bir sorudur ve kural
-# kartlarında yanıtlanır.
-# ── MD'nin ARC_034 satırlarında ürettiği TÜREV kodlar ───────────────────────────
+# ⚠️ This list does not say "we are better". It only says "this check has no equivalent in MD";
+# whether the check itself is correct is a separate question answered in the rule cards.
+# ── DERIVATIVE codes produced by MD's ARC_034 rows ───────────────────────────
 #
-# `mdb-1003`/`mdb-1004` başlık satırını veri olarak tekrarlar. Biz `ARC_034` ile TEK
-# yapısal bulgu üretip satırı ATLARIZ; MobilityData satırı veri sayıp her alan için ayrı
-# hata basar — `invalid_date`, `invalid_integer`, `invalid_float`, `invalid_timezone`,
-# `invalid_time`. 7. koşumda `md_mapped_missing`'in 15 satırının 9'u tam olarak budur.
+# `mdb-1003`/`mdb-1004` repeat the header row as data. We produce ONE structural finding with
+# `ARC_034` and SKIP the row; MobilityData treats the row as data and emits one error per field —
+# `invalid_date`, `invalid_integer`, `invalid_float`, `invalid_timezone`, `invalid_time`.
+# Nine of the 15 `md_mapped_missing` rows in run 7 were exactly this.
 #
-# 🔴 Bu bir KÖRLÜK DEĞİL, `ARC_034` kartında yazılı bilinçli karardır: "tek yapısal kusur,
-# aksi hâlde onlarca alan hatasına dağılır" (`ARC_018` emsali). Kodun kaynağını söylemek,
-# aynı satırı dokuz kez farklı adla bildirmekten iyidir.
+# 🔴 This is NOT BLINDNESS, but a deliberate decision written on the `ARC_034` card: "one
+# structural defect, otherwise it becomes dozens of field errors" (`ARC_018` precedent).
+# Naming the source of the code is better than reporting the same row nine times under different names.
 ARC034_DERIVATIVE_MD_CODES: frozenset[str] = frozenset({
     "invalid_date", "invalid_integer", "invalid_float", "invalid_timezone", "invalid_time",
 })
 
-# TRF_016 ve TRN_008 2026-10-13'te bu listeden çıktı: run 38363983999'da MD `duplicate_key`
-# (transfers, trip bağlamlı anahtar; mdb-2661 117=117) ve `missing_required_field`
-# (translations::translation) aynı olguyu raporluyor — artık `_ctx` ile eşleniyorlar.
+# TRF_016 and TRN_008 left this list on 2026-10-13: in run 38363983999, MD `duplicate_key`
+# (transfers, trip-context key; mdb-2661 117=117) and `missing_required_field`
+# (translations::translation) report the same phenomenon — they are now mapped through `_ctx`.
 NO_MD_EQUIVALENT: dict[str, str] = {
     "ARC_032": "Alan değerinde HTML etiketi/kaçış dizisi. Katalogda 'html' geçen tek bir kod yok.",
     "ARC_013": "CSV ayrıştırma hatası. MD'nin `csv_parsing_failed`'i onların ayrıştırıcısının 4096 karakterlik alan sınırıdır (mdb-982'de mesajı bunu yazar) ve aynı feed'i biz sorunsuz okuyoruz — UNMAPPED_DECISIONS'ta kayıtlı. Bizim ARC_013'ümüz gerçek bir ayrıştırma hatasıdır; ikisini eşlemek onların ayrıştırıcı sınırını bizim körlüğümüz gibi gösterirdi.",
@@ -1100,49 +1101,48 @@ def classify_divergence(code: str) -> tuple[str, str]:
     return ("unreviewed", "No decision recorded for this MD code in any parity ledger.")
 
 
-# ── Analyzer tarafı defteri ────────────────────────────────────────────────────
+    # ── Analyzer-side ledger ────────────────────────────────────────────────────
 #
-# Yukarıdaki üç defter MD KODUNA göre anahtarlanır ve `classify_divergence()` onları
-# okur. Ama sapmanın diğer yönü — "biz bir Spec ihlali iddia ediyoruz, MobilityData
-# susuyor" — KURAL KİMLİĞİNE göre anahtarlanır ve hükümleri `fp_adjudication.tsv`'de
-# durur. O dosyayı hiçbir tüketici okumuyordu.
+# The three ledgers above are keyed by MD CODE and read by `classify_divergence()`.
+# The other direction of divergence — "we claim a Spec violation and MobilityData is
+# silent" — is keyed by RULE IDENTITY, with its verdicts in `fp_adjudication.tsv`.
+# No consumer was reading that file.
 #
-# 🔴 Sonuç #146'nın birebir tekrarıydı: 251 satırın HEPSİ yargılanmış olduğu hâlde
-# her koşumda "yargılanmamış" raporlanıyordu. Okunmayan defter defter değildir.
+# 🔴 This was an exact repeat of result #146: although ALL 251 rows had been adjudicated,
+# every run reported them as "unreviewed". A ledger nobody reads is not a ledger.
 
 _FP_LEDGER = Path(__file__).resolve().parent / "fp_adjudication.tsv"
 
-# Bir hükmün ayrışmayı KAPATIP kapatmadığı, hükmün NE İDDİA ETTİĞİNE bağlıdır.
+# Whether a verdict CLOSES a divergence depends on WHAT THE VERDICT CLAIMS.
 #
-# Kapatanlar KALICI bir durum anlatır: "biz haklıyız, onlar dar" (TRUE_POSITIVE),
-# "eşleme yanlış kodu gösteriyor" (MAPPING_ARTIFACT), "kök neden başka kuralda"
-# (CASCADE_*). Bunlar bir sonraki koşumda da geçerlidir.
+# Settling verdicts describe a PERMANENT state: "we are correct, they are narrower"
+# (TRUE_POSITIVE), "the mapping points to the wrong code" (MAPPING_ARTIFACT), or
+# "the root cause is another rule" (CASCADE_*). These remain valid on the next run.
 #
-# Kapatmayanlar bir DEĞİŞİKLİK iddia eder: `FALSE_POSITIVE_FIXED` "kuralı bunu
-# yapmasın diye değiştirdik" demektir. Kural yine ateşliyorsa bu bir GERİLEMEDİR ve
-# görünmelidir — bastırmak, tam da yakalamak için var olduğu şeyi gizler.
+# Non-settling verdicts claim a CHANGE: `FALSE_POSITIVE_FIXED` means "we changed the rule
+# so it would not do this". If the rule still fires, that is a REGRESSION and must remain
+# visible — suppressing it hides exactly what the gate exists to catch.
 SETTLING_VERDICTS = frozenset({
     "TRUE_POSITIVE",
     "MAPPING_ARTIFACT",
     "SPLIT_VERDICT",
     "CASCADE_NOT_SUPPRESSIBLE",
     "SUPPRESSED_SINCE",
-    # Aşağıdaki üçü #166'da eklendi. Hepsi KALICI bir durum anlatır — eşik/birim
-    # farkı, MD'nin kendi belgelediği dar koşulu, ya da onların ayrıştırıcı sınırı —
-    # dolayısıyla bir sonraki koşumda da geçerlidir ve ayrışmayı KAPATIR.
+    # The following three were added in #166. All describe a PERMANENT state — a threshold/unit
+    # difference, a narrow condition documented by MD itself, or their parser boundary —
+    # so they remain valid on the next run and CLOSE the divergence.
     "SCOPE_DIFFERENCE",
     "AGGREGATION",
     "MD_IMPLEMENTATION_LIMIT",
     "THRESHOLD_DIFFERENCE",
     "DISJOINT",
-    # `FIX_CONFIRMED` #171'de eklendi ve NÖBETİ SONLANDIRIR, bulguyu değil.
-    # `FALSE_POSITIVE_FIXED` bilerek regresyon duyarlıdır: bir düzeltme İDDİA eder
-    # ve bir koşum kanıtlayana kadar satırları görünür tutar. Kanıt geldiğinde o
-    # nöbetin işi biter — sürdürmek, kapının yakalamak için var olduğu şeyi artık
-    # yakalamadığı hâlde gürültü üretmesidir. Bu verdict YALNIZ, hükümde ADI GEÇEN
-    # feed'in ölçülüp beklenen değere indiği koşumdan sonra yazılır ve gerekçesi o
-    # ölçümü taşır. Kuralın KALAN bulguları bu verdict'in konusu DEĞİLDİR; onlar
-    # kendi hükmünü hak eder.
+    # `FIX_CONFIRMED` was added in #171 and ENDS THE WATCH, not the finding.
+    # `FALSE_POSITIVE_FIXED` is deliberately regression-sensitive: it claims a fix and keeps
+    # rows visible until a run proves it. Once proven, that watch ends — keeping it would create
+    # noise after the gate no longer catches what it was meant to catch. This verdict is written
+    # ONLY after the feed NAMED in the verdict has been measured and reached the expected value,
+    # and it carries that measurement. The rule's REMAINING findings are not covered by this
+    # verdict; they deserve their own verdict.
     "FIX_CONFIRMED",
 })
 REGRESSION_SENSITIVE_VERDICTS = frozenset({
@@ -1157,16 +1157,16 @@ REGRESSION_SENSITIVE_VERDICTS = frozenset({
 def _fp_verdicts():
     """rule_id → (verdict, run_id, reasoning).
 
-    Aynı kural birden çok koşumda yargılandıysa EN SON koşumun hükmü geçerlidir:
-    kural o arada değişmiş olabilir ve eski hüküm eski davranış hakkındadır.
+    If the same rule was adjudicated in multiple runs, the verdict from the MOST RECENT run
+    applies: the rule may have changed in the meantime, and an old verdict concerns old behavior.
     """
     out = {}
-    # 🔴 EKSİK DEFTER SESSİZCE GEÇİLMEZ. Burası `return {}` diyordu ve run
-    # 32290410755 tam olarak bu satır yüzünden yargılanmış 14.980 satırı taze
-    # sapma diye yayımladı: defter yolu yanlış çözülmüştü, dosya bulunamadı,
-    # fonksiyon boş sözlük döndü, hiçbir tüketici farkı anlamadı. Defter repoda
-    # versiyonludur — YOKLUĞU her zaman bir arızadır, hiçbir zaman "hüküm yok"
-    # demek değildir. Patlamak, yanlış sayı yayımlamaktan ucuzdur.
+    # 🔴 A MISSING LEDGER MUST NOT FAIL SILENTLY. This used to say `return {}`, and run
+    # 32290410755 published 14,980 adjudicated rows as fresh divergences precisely because of
+    # this line: the ledger path was resolved incorrectly, the file was missing, the function
+    # returned an empty dictionary, and no consumer understood the difference. The ledger is
+    # versioned in the repository — its ABSENCE is always a failure, never "no verdict".
+    # Crashing is cheaper than publishing a wrong number.
     if not _FP_LEDGER.exists():
         raise FileNotFoundError(
             f"Hüküm defteri bulunamadı: {_FP_LEDGER}. Bu dosya repoda versiyonludur; "
@@ -1181,12 +1181,12 @@ def _fp_verdicts():
             run = (row.get("run_id") or "").strip()
             verdict = (row.get("verdict") or "").strip()
             prev = out.get(rid)
-            # 🔴 "En son kazanır" TEK BAŞINA yanlıştır. `NOT_ADJUDICATED` bir HÜKÜM
-            # DEĞİL, hüküm verilmediğinin kaydıdır — genellikle bir kuralın YENİ bir
-            # alt vakası bulunduğunda düşülür. Onun daha eski bir gerçek hükmü ezmesi,
-            # verilmiş bir kararı geri almaktır. `AGN_003` tam bu durumdadır: 
-            # run 31934698855'te TRUE_POSITIVE, run 31981225727'de çift-şema alt
-            # vakası için NOT_ADJUDICATED. İkisi aynı soruya iki cevap değildir.
+            # 🔴 "Last one wins" is WRONG ON ITS OWN. `NOT_ADJUDICATED` is NOT A VERDICT,
+            # but a record that no verdict was given — usually added when a rule's NEW
+            # subcase is found. Letting it overwrite an older real verdict would revoke
+            # a decision already made. `AGN_003` is exactly this case:
+            # run 31934698855 has TRUE_POSITIVE, while run 31981225727 has NOT_ADJUDICATED
+            # for a dual-schema subcase. They are not two answers to the same question.
             if verdict == "NOT_ADJUDICATED" and prev is not None:
                 continue
             if prev is not None and prev[0] != "NOT_ADJUDICATED" and run <= prev[1]:
@@ -1196,18 +1196,18 @@ def _fp_verdicts():
 
 
 def classify_analyzer_divergence(rule_id: str):
-    """`classify_divergence`'ın analyzer tarafındaki karşılığı.
+    """Analyzer-side counterpart of `classify_divergence`.
 
-    ``("adjudicated:<verdict>", gerekçe)`` ya da ``("unreviewed", sebep)`` döner.
-    `CASCADE_ROOT_ARC_012` gibi son ek taşıyan hükümler önekle eşleşir.
+    Returns ``("adjudicated:<verdict>", gerekçe)`` ya da ``("unreviewed", sebep)``.
+    Verdicts with suffixes such as `CASCADE_ROOT_ARC_012` match by prefix.
     """
     entry = _fp_verdicts().get(rule_id)
     if entry is None:
-        # `NO_MD_EQUIVALENT` de bir hükümdür: "MD susuyor çünkü onların kataloğunda
-        # bu kontrol YOK" kalıcı bir durumdur ve sapmayı KAPATIR. #165 bu 17 kararı
-        # gerekçesiyle yazdı, ama hiçbir tüketici okumuyordu — run 32290410755'te
-        # TRP_019/ARC_033/ARC_032/FRQ_012 dahil hepsi `analyzer_spec_unmapped`
-        # kovasında yargılanmamış görünüyordu. Okunmayan defter defter değildir.
+        # `NO_MD_EQUIVALENT` is also a verdict: "MD is silent because this check DOES NOT
+        # EXIST in its catalog" is a permanent state and CLOSES the divergence. #165 recorded
+        # these 17 decisions with reasons, but no consumer read them — in run 32290410755 all,
+        # including TRP_019/ARC_033/ARC_032/FRQ_012, appeared unreviewed in the
+        # `analyzer_spec_unmapped` bucket. A ledger nobody reads is not a ledger.
         no_equiv = NO_MD_EQUIVALENT.get(rule_id)
         if no_equiv is not None:
             return ("adjudicated:NO_MD_EQUIVALENT", no_equiv)

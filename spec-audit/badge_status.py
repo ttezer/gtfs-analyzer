@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""GTFS Spec rozeti: düzyazı ekseninde tamamlanma yüzdesi.
+"""GTFS Spec badge: completion percentage for the prose axis.
 
-Girdi `PROVISION_TRIAGE.md`'dir — karar etiketleri satırlardan, kapanışlar "DURUM MAKİNESİ"
-bölümünden okunur. Yüzde ELLE hesaplanmaz.
+Input is `PROVISION_TRIAGE.md` — verdict labels are read from its rows, and closures from the
+"STATUS MACHINE" section. The percentage is not calculated MANUALLY.
 
-⚠️ PAYDA SERT HÜKÜMLERDİR. Yumuşak (`should`) hükümler spec'in zorunlu kılmadığı şeylerdir;
-onları "karşılanmamış spec hükmü" saymak PTH_017'nin hatasının defter düzeyinde tekrarıdır.
-⚠️ KAPSAM DIŞI + META paydadan DÜŞER: tüketici davranışını bağlayan ya da tanım olan bir
-cümleyi bir doğrulayıcının ölçmemesi eksiklik değil, tanım gereğidir.
+⚠️ The DENOMINATOR is HARD PROVISIONS. Soft (`should`) provisions are not required by the spec;
+counting them as "unmet spec provisions" repeats PTH_017's mistake at the ledger level.
+⚠️ OUT-OF-SCOPE + META are REMOVED from the denominator: when a validator does not measure a
+sentence that constrains consumer behavior or defines a term, that is required by definition, not a gap.
 """
 import collections, hashlib, json, pathlib, re, sys
 
@@ -28,7 +28,7 @@ def extract_verdicts(prov: dict[str, dict], text: str) -> dict[str, str]:
             seen.add(x)
             verdict[x] = v
 
-    # KISMİ adjudikasyonu ve kapanışlar — "DURUM MAKİNESİ" bölümünden
+    # KISMİ adjudications and closures — from the "STATUS MACHINE" section.
     section = text[text.index("## 📊 DURUM MAKİNESİ"):text.index("# ✅ KATALOG TAMAMLANDI")]
     closed = set()
     for line in section.split("\n"):
@@ -148,10 +148,10 @@ def main() -> int:
     n, d = report("SERT hükümler (rozet paydası)", hard)
     report("YUMUŞAK hükümler (ayrı eksen — Quality)", soft)
 
-    # ⚠️ ADJUDİKE EDİLMEMİŞ HÜKÜM = SESSİZ PAYDA KAYBI. Defterde adı geçmeyen bir aday
-    # yukarıdaki sayımların hiçbirine girmez; yüzde "%100" demeye devam eder. 2026-08-06'da
-    # katalog 273→279 büyüdüğünde tam olarak bu olurdu. Kimlik hash'tir, sıra numarası değil:
-    # katalog büyüdüğünde eski kimlikler kaymaz, yalnız YENİLER adjudike edilmemiş kalır.
+    # ⚠️ UNADJUDICATED PROVISION = SILENT DENOMINATOR LOSS. A candidate not named in the ledger
+    # enters none of the counts above, so the percentage continues to say "%100". This is exactly
+    # what happened when the catalogue grew 273→279 on 2026-08-06. The ID is a hash, not a row number:
+    # when the catalogue grows, old IDs do not shift; only the NEW ones remain unadjudicated.
     orphans = sorted(set(prov) - set(verdict))
     if orphans:
         print(f"\n🔴 ADJUDİKE EDİLMEMİŞ {len(orphans)} HÜKÜM — yüzde EKSİK PAYDA üzerinden.")
@@ -160,16 +160,16 @@ def main() -> int:
                   f"{prov[pid]['sentence'][:70]}")
         print("  → PROVISION_TRIAGE.md'ye karar satırı ekleyin; yüzde ancak ondan sonra geçerlidir.")
 
-    # 🔴 DEFTER BAŞLIĞI HESAPLANAN YÜZDEYLE TUTMALI — bu bir KAPIDIR.
-    # 2026-08-07: `STM_060` eklendikten sonra defterin başlığı 145/147'de kaldı,
-    # EVIDENCE_BASE.md 146/147 yazıyordu. `ledger_header_counts_match_catalogue` testi
-    # yalnız KATALOG SAYISINI ("299 aday") denetliyordu, yüzdeye hiç bakmıyordu — üstelik
-    # defterin o satırı "test bayatlarsa CI'ı kırar" DİYE İDDİA EDİYORDU.
-    # Kontrol buraya kondu çünkü sayıyı hesaplayan tek yer burası; Rust tarafına
-    # taşımak hesabı ikinci kez yazmak olurdu.
-    # ⚠️ "ilk 20 satırda geçiyor mu" YETMEZ — başlık bloğu bir de SEYİR satırı taşıyor
-    # ("131/131 → … → 146/147") ve orada geçtiği için DURUM satırı bayatlasa bile kontrol
-    # geçiyordu. Kapıyı bilerek bozunca çıktı: kapı, koruduğu SATIRA çapalanmalı.
+    # 🔴 THE LEDGER HEADER MUST MATCH THE CALCULATED PERCENTAGE — this is a GATE.
+    # 2026-08-07: after `STM_060` was added, the ledger header remained at 145/147,
+    # EVIDENCE_BASE.md said 146/147. The `ledger_header_counts_match_catalogue` test checked
+    # only the CATALOGUE COUNT ("299 candidates"), never the percentage — even though the ledger
+    # claimed that line would "break CI if the test went stale".
+    # The check belongs here because this is the only place that calculates the count; moving it
+    # to Rust would duplicate the calculation.
+    # ⚠️ "Does it occur in the first 20 lines?" is NOT ENOUGH — the header block also contains a
+    # PROGRESS line ("131/131 → … → 146/147"), so the check passed there even when the STATUS line was stale.
+    # Deliberately breaking the gate exposed the lesson: anchor a gate to the LINE it protects.
     durum = next((l for l in text.split("\n") if l.startswith("> **DURUM")), "")
     if f"{n}/{d}" not in durum:
         print(f"\n🔴 DEFTER BAŞLIĞI BAYAT — hesaplanan {n}/{d}, ama PROVISION_TRIAGE.md'nin"
@@ -179,12 +179,12 @@ def main() -> int:
 
     stale: list[str] = []
 
-    # 🔴 DOLAYLI = PAYDA DEĞİL PAYDA SAYILIYOR — kanıt ZORUNLU (issue #87).
-    # `num = KANITLI + DOLAYLI` olduğu için DOLAYLI bir satır yüzdeyi yukarı çeker; ama
-    # etiket, komşu kuralın ihlali gerçekten ürettiğine dair hiçbir şey istemiyordu.
-    # `Pfedb83cf`/`Pa4c60372` tam böyle çürüdü: kod okuması ölçüm sanılıyordu.
-    # ⚠️ İHLALLİ girdi tek başına yetmez — komşu kural her feed'de ateşliyorsa fark yoktur.
-    # Bu yüzden defter satırı KONTROL girdisini de adlandırmak ZORUNDA.
+    # 🔴 DOLAYLI = COUNTED IN THE NUMERATOR WITHOUT EVIDENCE — proof is REQUIRED (issue #87).
+    # Because `num = KANITLI + DOLAYLI`, a DOLAYLI row raises the percentage, but the
+    # label asked for nothing proving that the neighboring rule actually produced a violation.
+    # `Pfedb83cf`/`Pa4c60372` failed exactly this way: code reading was mistaken for measurement.
+    # ⚠️ A VIOLATING input alone is insufficient — there is no difference if the neighboring rule fires on every feed.
+    # Therefore the ledger row MUST also name the CHECK input.
     ev_file = ROOT / "dolayli_evidence.tsv"
     ev_rows: dict[str, list[str]] = {}
     if ev_file.exists():
@@ -212,14 +212,14 @@ def main() -> int:
         if f"fn {test_name}(" not in tests_src:
             stale.append(f"DOLAYLI {pid} kanıtı olmayan bir testi gösteriyor: {test_name}")
 
-    # 🔴 KANIT SINIFI KAPISI (issue #96) — pay, ölçen kuralın SINIFINA bakmıyordu.
-    # Sert bir Spec hükmü, arkasındaki kuralların hepsi Quality/Interop iken "kanıtlı"
-    # sayılabiliyordu; Spec'e filtreleyen kullanıcı ya da R1 görünümünü okuyan biri o ihlali
-    # HİÇ görmüyordu. 2026-08-09 taraması 21 böyle satır buldu (issue 14 demişti ve alt sınır
-    # olduğunu kendisi yazıyordu — düzyazıdan kural adı çıkarmak retorik atıfları da sayıyor).
-    # ⚠️ Kapı DÜZYAZIYI OKUMAZ: kanıt `provision_evidence.tsv`'dedir. Gerekçe, issue'nun
-    # kendi bulgusu — defterde on satır `PTH_017`'yi "bu hatayı tekrarlama" DERSİ olarak anar
-    # ve düzyazı taraması onu kanıt sanıyordu. Kanıt beyan edilir, çıkarılmaz.
+    # 🔴 EVIDENCE CLASS GATE (issue #96) — the numerator did not inspect the CLASS of the rule being measured.
+    # A hard Spec provision could be counted as "evidenced" even when all supporting rules were Quality/Interop;
+    # a user filtering to Spec or reading the R1 view would not see that violation AT ALL. The 2026-08-09 scan
+    # found 21 such rows (the issue said 14 and called it a lower bound — extracting rule names from prose also
+    # counts rhetorical references).
+    # ⚠️ The gate does NOT READ PROSE: evidence is in `provision_evidence.tsv`. The rationale is the issue's own
+    # finding — ten ledger rows mentioned `PTH_017` as a "lesson not to repeat" and the prose scan treated it as proof.
+    # Evidence is declared, not inferred.
     prov_ev_file = ROOT / "provision_evidence.tsv"
     prov_ev = load_provision_evidence(prov_ev_file)
 
@@ -241,10 +241,10 @@ def main() -> int:
             stale.append(f"SERT {pid} hiçbir Spec sınıflı kurala dayanmıyor: {shown} "
                          f"→ kuralı Spec'e taşıyın, atomik Spec kuralı yazın ya da hükmü KISMİ'ye düşürün.")
 
-    # 🔐 Kanıt fingerprint kapısı: kural kimliği veya sınıfı değiştiğinde eski
-    # adjudication sessizce geçerli kalmasın. Bu yalnız BAYATLIĞI yakalar; fingerprint
-    # semantic coverage kanıtı değildir (bir kuralın hükmün tamamını ölçüp ölçmediğini
-    # insan adjudication'ı belirler). Severity bilerek fingerprint'e dahil edilmez.
+    # 🔐 Evidence fingerprint gate: prevent an old adjudication from silently remaining valid when
+    # a rule ID or class changes. This catches STALENESS only; a fingerprint is not proof of semantic
+    # coverage (human adjudication determines whether a rule measures the whole provision). Severity
+    # is intentionally excluded from the fingerprint.
     stale.extend(
         check_evidence_fingerprints(
             hard,
@@ -254,13 +254,13 @@ def main() -> int:
         )
     )
 
-    # 🔴 KANIT BELGESİNİN §0 SAYILARI DA BU HESAPTAN TÜRER — ikinci kapı.
-    # 2026-08-07: kullanıcı iki bayat sayı yakaladı (İKİNCİ kez elle yakalıyordu).
-    # §0 "184 sert hükmün 25'i KAPSAM DIŞI, 13'ü META; 184 − 38 = 146" diyordu; o gün
-    # hesap 24 / 13 / 184 − 37 = 147'ydi. Defter başlığı kapısı bunu göremezdi çünkü
-    # BAŞKA DOSYAYA bakıyor. Sayının hesaplandığı yer burası, kapı da burada olmalı.
-    # ⚠️ Kapı KORUDUĞU SATIRA çapalanır (defter başlığı dersi): §0'ın 4. maddesi ve
-    # 3. maddesi ayrı ayrı bulunur, "dosyada geçiyor mu" denmez.
+    # 🔴 The evidence document's §0 COUNTS ALSO COME FROM THIS CALCULATION — a second gate.
+    # 2026-08-07: the user found two stale numbers (the SECOND manual catch).
+    # §0 said "25 of 184 hard provisions are OUT OF SCOPE, 13 are META; 184 − 38 = 146"; that day
+    # the calculation was 24 / 13 / 184 − 37 = 147. The ledger-header gate could not see this because
+    # it looked at a DIFFERENT FILE. The number is calculated here, so the gate belongs here too.
+    # ⚠️ Anchor the gate to the LINE IT PROTECTS (the ledger-header lesson): §0's items 4 and 3
+    # are found separately; do not ask merely whether the number occurs somewhere in the file.
     ev_lines = (ROOT / "EVIDENCE_BASE.md").read_text(encoding="utf-8").split("\n")
 
     total, excluded = len(hard), len(hard) - d
@@ -273,18 +273,18 @@ def main() -> int:
         stale.append(f"§0/4 aritmetiği: '{want_arith}' geçmiyor → {arith_text.strip()[:90]}")
     for label in ("KAPSAM DIŞI", "META"):
         want = counts.get(label, 0)
-        # ⚠️ Sayı ETİKETE çapalanır. "satırda geçiyor mu" demek yetmezdi: aritmetikteki
-        # bir rakam (ör. 37) tesadüfen aranan sayıya eşit olsaydı kontrol boşa geçerdi.
-        # `\S*` Türkçe ekin ("24'ü") biçimini serbest bırakır, sayıyı bırakmaz.
+        # ⚠️ Anchor the number to the LABEL. Asking whether it occurs on the line is insufficient:
+        # an arithmetic digit (for example, 37) could coincidentally equal the target number.
+        # `\S*` permits the Turkish suffix form ("24'ü") without permitting the number to drift.
         if not re.search(rf"{want}\S*\s+(?:\*\*)?{label}", arith_text):
             stale.append(f"§0/4 {label} sayısı {want} değil → {arith_text.strip()[:90]}")
 
-    # §1 tablosundaki oran da hesaptan türer (2026-08-07'de 147/147'de kalmıştı).
+    # The ratio in the §1 table also comes from the calculation (it remained 147/147 on 2026-08-07).
     axis_line = next((l for l in ev_lines if "Düzyazı hükümleri" in l), "")
     if f"{n} / {d}" not in axis_line and f"{n}/{d}" not in axis_line:
         stale.append(f"§1 eksen satırı {n}/{d} demiyor → {axis_line.strip()[:90]}")
 
-    # Korpus büyüklüğünün TEK KAYNAĞI manifesttir; §0/3 ondan sapmamalı.
+    # The manifest is the corpus size's SINGLE SOURCE; §0/3 must not diverge from it.
     man = ROOT / "corpus-evidence" / "corpus_manifest.csv"
     feeds = max(len(man.read_text(encoding="utf-8").strip().split("\n")) - 1, 0)
     corpus_line = next((l for l in ev_lines if "Korpus" in l and "feed'dir" in l), "")
@@ -316,9 +316,9 @@ def main() -> int:
     print("   boşluk `DQ_021`'e eklendi.")
     print("   🔴 KALAN ZAYIF NOKTA SAYI DEĞİL, PAYDANIN NASIL KURULDUĞU: üç tur üst üste hata")
     print("   çıktı (iki case varsayımı + bir yanlış KAPSAM DIŞI). Cümle bölme kaba, ~%14 gürültü.")
-    # ⚠️ ORPHAN VARSA ÇIKIŞ KODU 1 — uyarı basıp 0 ile çıkmak KAPI DEĞİL, TAVSİYEDİR.
-    # 2026-08-06 dış denetimi bunu yakaladı: belge "yüzdeyi geçersiz sayar" diyordu ama
-    # betik yine de yüzdeyi basıp başarıyla çıkıyordu → insan yorumuna bağlı bir "kapı".
+    # ⚠️ EXIT CODE 1 WHEN ORPHANS EXIST — printing a warning and exiting 0 is not a GATE, but advice.
+    # The 2026-08-06 external audit caught this: the document said to "treat the percentage as invalid",
+    # but the script still printed it and exited successfully → a "gate" dependent on human interpretation.
     return 1 if orphans else 0
 
 

@@ -8,37 +8,37 @@ use gtfs_core::RuleClass::{Analytics, Interop, Quality, Spec};
 use gtfs_core::Severity::{Bilgi, Dusuk, Kritik, Orta, Yuksek};
 use gtfs_core::{AuthoritySource, DedupLevel, ReportId, RuleClass, Severity};
 
-// ── Statik rapor görünüm kümeleri ────────────────────────────────────────────
+// ── Static report-view sets ──────────────────────────────────────────────────
 //
-// R1 → yayın-engeli (build_r1): YALNIZ KRİTİK+Spec (resmi GTFS spec kapısı). Interop/Quality/
-//      Analytics ASLA R1. R1'i taşıyan TEK görünüm VS_K (Spec+Kritik).
-// R2 → tüm notice'lar (filtrelenebilir)
-// R3 → ANALYTICS sınıfı
-// R4 → GEO ailesi + SHP_014/016 (coğrafi doğruluk)
-// R5 → genel skor (tüm sınıflar; Spec×40%+Interop×30%+Quality×20%+Analytics×10%)
-// R7 → erişilebilirlik (wheelchair_*, stop_access, PTH_012/013)
-// R8 → yalnızca INTEROP sınıfı
-// R9 → remediation queue (tüm sınıflar dahil ANALYTICS)
+// R1 → publish blocker (build_r1): ONLY CRITICAL+Spec (official GTFS spec gate). Interop/Quality/
+//      Analytics NEVER enter R1. VS_K (Spec+Kritik) is the ONLY view carrying R1.
+// R2 → all notices (filterable)
+// R3 → ANALYTICS class
+// R4 → GEO family + SHP_014/016 (geographic correctness)
+// R5 → overall score (all classes; Spec×40%+Interop×30%+Quality×20%+Analytics×10%)
+// R7 → accessibility (wheelchair_*, stop_access, PTH_012/013)
+// R8 → INTEROP class only
+// R9 → remediation queue (including ANALYTICS across all classes)
 
-/// Spec + KRİTİK → Blocker → R1 (R1 taşıyan TEK görünüm)
+/// Spec + KRİTİK → Blocker → R1 (the ONLY view carrying R1).
 const VS_K: &[ReportId] = &[R1, R2, R5, R9];
-/// Spec veya Quality, non-blocker
+/// Spec or Quality, non-blocker.
 const VS: &[ReportId] = &[R2, R5, R9];
-/// Interop (her severity) → R8; R1 yok (yayın-engeli değil)
+/// Interop (any severity) → R8; no R1 (not a publish blocker).
 const VI: &[ReportId] = &[R2, R5, R8, R9];
-/// Analytics → R3 (operasyonel kalite) + R9 (tüm notice'lar)
+/// Analytics → R3 (operational quality) + R9 (all notices).
 const VA: &[ReportId] = &[R2, R3, R5, R9];
 
-// Coğrafi ek (R4)
-/// Quality + Geo → R4 (R1/R8 yok)
+// Geographic addition (R4).
+/// Quality + Geo → R4 (no R1/R8).
 const VS_GEO: &[ReportId] = &[R2, R4, R5, R9];
-/// Analytics + Geo → R3+R4+R9
+/// Analytics + Geo → R3+R4+R9.
 const VA_GEO: &[ReportId] = &[R2, R3, R4, R5, R9];
 
-// Erişilebilirlik eki (R7)
-/// Analytics + Accessibility → R3+R7+R9
+// Accessibility addition (R7).
+/// Analytics + Accessibility → R3+R7+R9.
 const VA_ACC: &[ReportId] = &[R2, R3, R5, R7, R9];
-/// Spec/Quality + Accessibility → R7
+/// Spec/Quality + Accessibility → R7.
 const VS_ACC: &[ReportId] = &[R2, R5, R7, R9];
 
 pub struct RuleMeta {
@@ -46,18 +46,18 @@ pub struct RuleMeta {
     pub severity: Severity,
     pub rule_class: RuleClass,
     pub base_effort: u8,
-    /// R5 sınıf skoruna katkı katsayısı. 0.0 görünür ama no-score kuralıdır.
+    /// Contribution coefficient to the R5 class score. 0.0 is visible but marks a no-score rule.
     pub score_weight: f64,
-    /// Canonical rule ID'leri — GEO_008/010/011 gibi rapor görünüm ID'leri içermez.
+    /// Canonical rule IDs—does not include report-view IDs such as GEO_008/010/011.
     pub blocks: &'static [&'static str],
-    /// Notice üretiminde scope_key'e atanacak GTFS alanı.
-    /// Bileşik anahtar gerektiğinde pipe-separated (ör. "from_stop_id|to_stop_id").
+    /// GTFS field assigned to scope_key when producing a notice.
+    /// Pipe-separated when a composite key is needed (for example, "from_stop_id|to_stop_id").
     pub scope_key_field: Option<&'static str>,
-    /// Bu kuralın notice'larının hangi raporlarda göründüğü.
+    /// Reports in which this rule's notices appear.
     pub report_views: &'static [ReportId],
-    /// Notice dedup granülaritesi (architecture Bölüm K1).
+    /// Notice deduplication granularity (architecture Section K1).
     pub dedup_level: DedupLevel,
-    /// Kural için kısa genel Türkçe başlık — UI'da gösterilir.
+    /// Short general Turkish title for the rule—shown in the UI.
     pub title: &'static str,
 }
 
@@ -95,15 +95,15 @@ macro_rules! r_noscore {
     };
 }
 
-/// Tüm canonical kuralların statik metadata tablosu.
+/// Static metadata table for all canonical rules.
 ///
-/// Kapsam dışı (registry'de YOK):
-/// - GEO_008/010/011 — rapor görünüm ID'leri (R4 projeksiyonu, notice üretmez)
-/// - GEO_META — ön işlem adımı, kural değil
+/// Out of scope (NOT in the registry):
+/// - GEO_008/010/011 — report-view IDs (R4 projection, do not produce notices)
+/// - GEO_META — preprocessing step, not a rule
 /// - STM_011 → STM_008, TRP_010 → OPR_007, GEO_001 → GEO_META,
 ///   GEO_005 → STP_017, DQ_007 → MET_001, DQ_008 → MET_002, DQ_015 → RTS_007
 pub static RULES: &[RuleMeta] = &[
-    // ── ARC: Arşiv / Dosya Seviyesi ────────────────────────────────────────────
+    // ── ARC: Archive / File Level ─────────────────────────────────────────────
     r!("ARC_001", Kritik, Spec, 1, &[], None, VS_K, Feed,
         "ZIP arşivi açılamadı"),
     r!("ARC_002", Kritik, Quality, 1,
@@ -122,18 +122,18 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS dışı tanınmayan dosya"),
     r!("ARC_008", Kritik, Spec,    1, &[], None, VS_K, Feed,
         "Takvim dosyası eksik (calendar.txt ve calendar_dates.txt)"),
-    // ARC_031: spec'in DOSYA DÜZEYİ hükmü — "feed_info.txt · Conditionally Required:
-    // Required if translations.txt is provided. Recommended otherwise." İki cümle, iki sınıf:
-    // koşul sağlanınca NORM (bu kural, Spec), sağlanmayınca TAVSİYE (ARC_020, Quality).
-    // 2026-08-02'ye kadar iki hâl de ARC_020 ile "önerilen dosya eksik" (Düşük·Quality)
-    // sayılıyordu — yani bir NORM tavsiye diye raporlanıyordu (PTH_017'nin tam tersi hata).
-    // Pratik sonuç: translations.txt'in anlamı `feed_info.feed_lang`'a bağlıdır; o yoksa
-    // hangi dilin varsayılan olduğu bilinemez ve TRN_007 hiç çalışamaz.
+    // ARC_031: the spec's FILE-LEVEL requirement—"feed_info.txt · Conditionally Required:
+    // Required if translations.txt is provided. Recommended otherwise." Two sentences, two classes:
+    // when the condition holds, NORM (this rule, Spec); otherwise, RECOMMENDED (ARC_020, Quality).
+    // Until 2026-08-02 both cases were counted by ARC_020 as "recommended file missing" (Low·Quality),
+    // so a NORM was reported as a recommendation (the exact opposite of the PTH_017 failure).
+    // Practical result: the meaning of translations.txt depends on `feed_info.feed_lang`; without it,
+    // the default language is unknown and TRN_007 cannot run at all.
     r!("ARC_031", Kritik, Spec,    1, &[], None, VS_K, Feed,
         "translations.txt varken feed_info.txt eksik"),
-    // ARC_009 artık YALNIZ opsiyonel dosyaları raporlar: zorunlu dosyanın boş olması
-    // 2026-08-31'de ARC_035'e (Kritik·Spec) devredildi. Boş bir `shapes.txt`/`transfers.txt`
-    // zararsızdır, bu yüzden severity dinamik değil sabit Bilgi'dir.
+    // ARC_009 now reports ONLY optional files: an empty required file was moved to ARC_035
+    // (Kritik·Spec) on 2026-08-31. An empty `shapes.txt`/`transfers.txt` is harmless,
+    // so the severity is fixed Bilgi rather than dynamic.
     r!("ARC_009", Bilgi, Quality, 1, &[], None, VS, File,
         "Opsiyonel dosyada veri satırı yok"),
     r_noscore!("ARC_010", Bilgi, Quality, 1, &[], None, VS, File,
@@ -148,8 +148,8 @@ pub static RULES: &[RuleMeta] = &[
         "CSV ayrıştırma hatası"),
     r!("ARC_014", Orta,   Quality, 1, &[], None, VS, Field,
         "Başlıkta baştaki/sondaki boşluk"),
-    // ARC_015 2026-07-24: MD paritesi DOĞRULANDI (`duplicated_column`, ERROR,
-    // "Duplicated column in CSV ... same column name repeated") → Interop terfisi.
+    // ARC_015 2026-07-24: MD parity CONFIRMED (`duplicated_column`, ERROR,
+    // "Duplicated column in CSV ... same column name repeated") → promoted to Interop.
     r!("ARC_015", Kritik, Interop, 1, &[], None, VI, Field,
         "Yinelenen başlık sütunu"),
     r!("ARC_025", Kritik, Spec,    1, &[], None, VS_K, Field,
@@ -170,10 +170,10 @@ pub static RULES: &[RuleMeta] = &[
         "ZIP içinde nested ZIP dosyası — GTFS formatında desteklenmez"),
     r!("ARC_024", Orta,   Spec,    2, &[], None, VS, File,
         "GTFS .txt dosyası ZIP içinde alt dizinde — standart parser'lar tarafından atlanır"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: P536c3b95
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only
+    // this rule measured a strict Spec requirement, but the rule was not in the Spec class;
+    // users filtering for Spec could not see the violation. Severity UNCHANGED → the R1 gate
+    // (`Spec ∧ Kritik`) is unchanged. Ruling: P536c3b95.
     r!("ARC_026", Orta, Spec, 1, &[], None, VS, File,
         "Dosyada hatalı satır sonu karakteri"),
     r!("ARC_027", Bilgi, Quality, 1, &[], None, VS, File,
@@ -184,56 +184,56 @@ pub static RULES: &[RuleMeta] = &[
         "Sıkıştırma koruması: arşiv zip-bomb sınırını aştı"),
     r!("ARC_030", Yuksek, Spec, 1, &[], None, VS, File,
         "Alan değerinde sekme veya satır sonu karakteri"),
-    // ARC_032: aynı spec cümlesinin üçüncü yasağı — File Requirements, "Field values must not
-    // contain HTML tags, comments or escape sequences." ARC_030 (sekme/satır sonu) ve ARC_021
-    // (yazdırılamaz karakter) bunu KAÇIRIR: `<` (U+003C) ARC_021'in hiçbir aralığına girmez.
-    // Ölçüldü (239 feed): 4 feed, 1955 değer — bir feed'in 1176 durak adında `<BR>` var.
+    // ARC_032: the third prohibition in the same spec sentence—File Requirements, "Field values must not
+    // contain HTML tags, comments or escape sequences." ARC_030 (tab/newline) and ARC_021
+    // (non-printable character) MISS this: `<` (U+003C) is in none of ARC_021's ranges.
+    // Measured (239 feeds): 4 feeds, 1,955 values—one feed has `<BR>` in 1,176 stop names.
     r!("ARC_032", Yuksek, Spec, 1, &[], None, VS, File,
         "Alan değerinde HTML etiketi veya kaçış dizisi"),
-    // ARC_033: File Requirements'ın TIRNAK cümleleri — "Field values that contain quotation
+    // ARC_033: File Requirements' QUOTATION sentences—"Field values that contain quotation
     // marks or commas must be enclosed within quotation marks" + "each quotation mark in the
-    // field value must be preceded with a quotation mark". 2026-08-07'ye kadar tokenizer
-    // tırnaksız alandaki `"`'i SIRADAN KARAKTER sayıyordu; ihlal hiç görünmüyordu ve iki
-    // hüküm defterde `ARC_013` üzerinden DOLAYLI sayılıyordu — o dayanak YANLIŞTI.
-    // ⚠️ Kritik DEĞİL: veri okunabilir kalıyor, tokenizer kurtarıyor. `ARC_013`'e bağlamak
-    // (zorunlu dosyada FATAL) geçerliye yakın feed'i reddetmek olurdu — `PTH_017` dersi.
+    // field value must be preceded with a quotation mark". Until 2026-08-07 the tokenizer
+    // treated the `"` character in an unquoted field as an ORDINARY CHARACTER; the violation was invisible
+    // and both requirements were INDIRECTLY attributed to `ARC_013` in the ledger—that basis was WRONG.
+    // ⚠️ NOT Critical: the data remains readable and the tokenizer recovers. Linking it to `ARC_013`
+    // (FATAL in a required file) would reject a nearly valid feed—the `PTH_017` lesson.
     r!("ARC_033", Yuksek, Spec, 1, &[], None, VS, File,
         "Alan değerinde kaçırılmamış tırnak (RFC 4180)"),
     r!("ARC_034", Yuksek, Spec, 1, &[], None, VS, File,
         "Başlık satırı veri satırı olarak tekrarlanmış"),
-    // ARC_035 (13. korpus koşumu, 2026-08-31): "zorunlu dosya VAR" testi dosyanın
-    // VARLIĞINA bakıyordu, İÇERİĞİNE değil. 0 baytlık bir `stop_times.txt` "mevcut"
-    // sayılıyor, boşluğu yalnız ARC_009 (Quality) görüyordu; R1 kapısı `Spec ∧ Kritik`
-    // olduğu için yayın engeli doğmuyordu. Ölçüm: en az 32 feed'de zorunlu bir dosya boş
-    // ve BEŞİ (mdb-1817 · mdb-1819 · mdb-3181 · mdb-342 · mdb-3459) boş `stop_times.txt`
-    // ile YAYIN SKORU 100,0 alıyordu. Dosyayı silmek ARC_004 (Kritik·Spec) üretirken
-    // boşaltmak cezasız kalıyordu — yani boşaltmak skoru YÜKSELTİYORDU.
-    // ARC_004 ile aynı eksen ve aynı muafiyet: saf Flex feed'inde `stops.txt` muaftır.
+    // ARC_035 (13th corpus run, 2026-08-31): the "required file EXISTS" test checked file
+    // PRESENCE, not CONTENT. A zero-byte `stop_times.txt` counted as "present", and only
+    // ARC_009 (Quality) saw the emptiness; because the R1 gate is `Spec ∧ Kritik`, no publish
+    // blocker arose. Measurement: at least 32 feeds had an empty required file, and FIVE
+    // (mdb-1817 · mdb-1819 · mdb-3181 · mdb-342 · mdb-3459) scored 100.0 for PUBLISH SCORE
+    // with an empty `stop_times.txt`. Deleting the file produced ARC_004 (Kritik·Spec), while
+    // emptying it was penalty-free—so emptying the file INCREASED the score.
+    // Same axis and exemption as ARC_004: `stops.txt` is exempt in a pure Flex feed.
     r!("ARC_035", Kritik, Spec, 1, &[], None, VS_K, File,
         "Zorunlu dosya boş"),
-    // ARC_036 (2026-09-08): ZIP girdisinin AKIŞ görünümü merkez diziniyle çelişiyor —
-    // yerel başlıkta data-descriptor bayrağı (bit 3) set ama descriptor kaydı yok ya da
-    // içindeki crc/boyutlar merkez dizinle tutmuyor (APPNOTE 4.4.4). Merkez dizinden okuyan
-    // araçlar (biz, Python `zipfile`, commons-compress) hiç fark etmez; AKIŞTAN okuyanlar
-    // arşivi hiç açamaz. Korpusta ölçülen iki vaka: `tdg-81618` (bayrak set, boyutlar dolu,
-    // descriptor YOK) ve `mdb-2607` (descriptor var, `usize=0` yanlış).
-    // 🔑 Sınıf SPEC DEĞİL: ihlal edilen belge GTFS değil, ZIP APPNOTE'u; otorite ProjectQuality.
-    // Şiddet ÖLÇÜMLE Düşük: 200 feed'lik rastgele örneklemde 0 vaka, bilinen tüm vaka 4.332'de 2.
-    // ⚠️ FP kapısı: örneklemin %40'ı (80/200) data descriptor'ı MEŞRU kullanıyor (boyutlar 0,
-    // descriptor yerinde) — kural onların HİÇBİRİNDE ateşlemiyor. Koşul gevşetilirse ~1.700
-    // feed'e yanlış bulgu basar; descriptor merkez dizinle KARŞILAŞTIRILMADAN ateşleme.
+    // ARC_036 (2026-09-08): the ZIP entry's STREAM view conflicts with the central directory—
+    // the local header has the data-descriptor flag (bit 3) set but no descriptor record, or
+    // its crc/sizes do not match the central directory (APPNOTE 4.4.4). Tools reading the
+    // central directory (us, Python `zipfile`, commons-compress) notice nothing; stream readers
+    // cannot open the archive. Two corpus cases: `tdg-81618` (flag set, sizes present, NO descriptor)
+    // and `mdb-2607` (descriptor present, wrong `usize=0`).
+    // 🔑 Class is NOT SPEC: the violated document is the ZIP APPNOTE, not GTFS; authority is ProjectQuality.
+    // Severity is LOW BY MEASUREMENT: 0 cases in a random sample of 200 feeds, 2 of all known cases in 4,332.
+    // ⚠️ FP gate: 40% of the sample (80/200) uses data descriptors LEGITIMATELY (sizes 0, descriptor present)—
+    // the rule fires for NONE of them. Relaxing the condition would create false findings on ~1,700 feeds;
+    // do not fire without COMPARING the descriptor to the central directory.
     r!("ARC_036", Dusuk, Quality, 1, &[], None, VS, Feed,
         "ZIP akış başlığı merkez diziniyle çelişiyor"),
-    // Spec ID tavsiyesi ("printable ASCII recommended"); GTFS-JP ID'leri bilinçli Japonca → skor dışı.
+    // Spec ID recommendation ("printable ASCII recommended"); GTFS-JP IDs intentionally use Japanese → excluded from score.
     r_noscore!("ARC_037", Dusuk, Quality, 1, &[], None, VS, File,
         "ID alanında ASCII dışı karakter"),
 
     // ── BKR: Booking Rules ─────────────────────────────────────────────────────
     r!("BKR_001", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "Önceki gün rezervasyon alanı yasak bağlamda dolu"),
-    // BKR_002 (2026-09-19): retired. `prior_notice_start_day`,
-    // `prior_notice_duration_max` boşken booking_type=1 için isteğe bağlıdır; bu
-    // kimlik yeniden kullanılmamalıdır (removed_ids_absent testiyle korunur).
+    // BKR_002 (2026-09-19): retired. `prior_notice_start_day` is optional for booking_type=1
+    // when `prior_notice_duration_max` is empty; this ID must not be reused (enforced by the
+    // removed_ids_absent test).
     r!("BKR_003", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice_start_time yalnızca prior_notice_start_day ile kullanılabilir"),
     r!("BKR_004", Yuksek, Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
@@ -270,52 +270,51 @@ pub static RULES: &[RuleMeta] = &[
         "drop_off_booking_rule_id bulunamadı (booking_rules)"),
     r!("BKR_019", Kritik, Spec, 1, &["BKR_017","BKR_018"], Some("booking_rule_id"), VS_K, Entity,
         "booking_rule_id eksik veya yineleniyor"),
-    // BKR_020/021/022: dosyanın üç iletişim alanı `known_columns`'da listeliydi (yani
-    // "bilinmeyen sütun" uyarısı almıyorlardı) ama HİÇBİR denetim aşaması okumuyordu — issue #60.
-    // booking_url yolcunun rezervasyonu FİİLEN yaptığı adrestir; info_url yalnız açıklayıcıdır.
-    // BKR_024: spec `prior_notice_start_day` için "Forbidden for booking_type=1 if
-    // prior_notice_duration_max is defined" der. `duration_max` parser'da üç yerde geçer
-    // ve hiçbiri `start_day` ile ilişkilendirilmiyordu; BKR_024 yalnızca bu üç alanlı
-    // koşulu ölçer.
-    // ⚠️ Korpusta örnek YOK → sentetik fixture.
+    // BKR_020/021/022: the file's three communication fields were listed in `known_columns` (so
+    // they did not trigger an "unknown column" warning), but NO validation stage read them—issue #60.
+    // booking_url is the address where the passenger ACTUALLY makes the booking; info_url is explanatory only.
+    // BKR_024: the spec says `prior_notice_start_day` is "Forbidden for booking_type=1 if
+    // prior_notice_duration_max is defined". `duration_max` occurs in three parser locations,
+    // and none was linked to `start_day`; BKR_024 measures only this three-field condition.
+    // ⚠️ NO corpus example → synthetic fixture.
     r!("BKR_024", Orta, Spec, 1, &[], Some("booking_rule_id"), VS, Row,
         "booking_type=1 ve duration_max varken prior_notice_start_day yasak"),
     r!("BKR_020", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "booking_url geçersiz"),
     r!("BKR_021", Dusuk,  Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "info_url geçersiz"),
-    // phone_number: spec `Phone number` tipi bir DİLBİLGİSİ tanımlamaz ("A phone number."),
-    // bu yüzden katı bir kontrol geçerli uluslararası biçimleri reddeder. AGN_007 emsali
-    // gereği Spec DEĞİL, Quality.
+    // phone_number: the spec's `Phone number` type defines no GRAMMAR ("A phone number."),
+    // so a strict check would reject valid international formats. Following the AGN_007 precedent,
+    // this is NOT Spec, but Quality.
     r!("BKR_022", Dusuk,  Quality, 1, &[], Some("booking_rule_id"), VS, Entity,
         "phone_number geçersiz"),
-    // BKR_023: dört prior_notice sayı alanı spec'te `Integer`. Sayı olmayan değer eskiden
-    // `opt_int`'in `.parse().ok()`'ı ile SESSİZCE düşüyordu. BKR_001/002/004/005'i yeniden
-    // kullanmak YANLIŞ olurdu: onlar BAĞLAM kurallarıdır ("yalnızca booking_type=1 ile
-    // geçerli"), tip kuralı değil — `emit_identity` kapısı bu denemeyi yakaladı.
+    // BKR_023: the four prior_notice numeric fields are `Integer` in the spec. Non-numeric values
+    // used to be SILENTLY dropped by `opt_int`'s `.parse().ok()`. Reusing BKR_001/002/004/005
+    // would have been WRONG: those are CONTEXT rules ("valid only with booking_type=1"),
+    // not type rules—`emit_identity` caught this attempt.
     r!("BKR_023", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice sayı alanı tam sayı değil"),
     r!("BKR_025", Orta,   Spec, 1, &[], Some("booking_rule_id"), VS, Entity,
         "prior_notice zaman alanı geçerli saat değil"),
 
     // ── AGN: Agency ────────────────────────────────────────────────────────────
-    // AGN_001 KALDIRILDI (2026-08-02): hiçbir yolla emit EDİLMEYEN bir kayıttı — ne Notice
-    // ne fatal kodu. agency.txt eksikliğini ARC_004 (Fatal NoRequiredFiles) temsil eder.
-    // MD `missing_required_file` paritesini BELGELEMEK için tutuluyordu; belgeleme yeri
-    // ARC_004'ün kartıdır, sahte bir registry kaydı değil. Bedeli: Kritik·Spec sayıldığı için
-    // "kaç Spec kuralı / kaç R1 blocker" sayımlarını şişiriyor, kullanıcının göremeyeceği bir
-    // kartı ve 3 locale girdisi vardı, ve `sync_cards` her koşuda "çözülemedi" basıyordu.
-    // `blocks: ["RTS_002"]` bağlantısı da atıldı — hiç ateşlemeyen kural hiçbir şeyi bloke etmez.
+    // AGN_001 REMOVED (2026-08-02): it was never emitted by any path—neither as a Notice
+    // nor as a fatal code. ARC_004 (Fatal NoRequiredFiles) represents a missing agency.txt.
+    // It had been kept to DOCUMENT MD `missing_required_file` parity; the documentation belongs
+    // on ARC_004's card, not in a fake registry entry. The cost: counting it as Kritik·Spec inflated
+    // "number of Spec rules / R1 blockers", it had a card and 3 locale entries users could never see,
+    // and `sync_cards` printed "unresolved" on every run. The `blocks: ["RTS_002"]` link was also
+    // removed—a rule that never fires cannot block anything.
     r!("AGN_002", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_name eksik"),
     r!("AGN_003", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_url eksik veya geçersiz"),
     r!("AGN_004", Kritik, Spec, 1, &[], Some("agency_id"), VS_K, Entity,
         "agency_timezone eksik veya geçersiz"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: Pf27a2fd0
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only
+    // this rule measured a strict Spec requirement, but the rule was not in the Spec class;
+    // users filtering for Spec could not see the violation. Severity UNCHANGED → the R1 gate
+    // (`Spec ∧ Kritik`) is unchanged. Ruling: Pf27a2fd0.
     r!("AGN_005", Orta,   Spec, 1, &[], None, VS, Feed,
         "Kuruluşlar arası saat dilimi tutarsızlığı"),
     r!("AGN_006", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
@@ -330,10 +329,10 @@ pub static RULES: &[RuleMeta] = &[
         "agency_id yineleniyor"),
     r!("AGN_011", Kritik, Spec, 1, &[], None, VS_K, Feed,
         "Birden fazla kuruluşta agency_id yok"),
-    // Spec `Enum` tipini normatif tanımlar: "An option from a set of predefined constants
-    // defined in the Description column." Küme dışı değer spec ihlalidir → Sınıf Quality→Spec
-    // (2026-08-01, WP-3). Önem DÜŞÜK kalır: opsiyonel enum geçersizliğinin emsali RTS_013 /
-    // TRP_006 / TRP_007 (hepsi Düşük·Spec). Yayın kapısı etkilenmez (R1 = Spec ∧ Kritik).
+    // Spec defines the `Enum` type normatively: "An option from a set of predefined constants
+    // defined in the Description column." An out-of-set value is a spec violation → class Quality→Spec
+    // (2026-08-01, WP-3). Severity remains LOW: precedents for optional enum invalidity are RTS_013 /
+    // TRP_006 / TRP_007 (all Low·Spec). The publish gate is unaffected (R1 = Spec ∧ Critical).
     r!("AGN_012", Dusuk,  Spec, 1, &[], Some("agency_id"), VS, Entity,
         "agency_cemv_support geçersiz"),
     r!("AGN_013", Dusuk,  Interop, 1, &[], Some("agency_id"), VI, Entity,
@@ -364,9 +363,9 @@ pub static RULES: &[RuleMeta] = &[
         &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
         None, VS_K, Feed,
         "stop_lat sayısal değil"),
-    // STP_005 lat-ikizleriyle (STP_003/004/006/007) AYNI spec cümlesine dayanır;
-    // 2026-07-24 hizalaması: Quality→Spec, VS→VS_K, blocks eklendi (bozuk lon
-    // koordinat-türevi GEO/yakınlık kurallarını maskeler — lat ile simetrik).
+    // STP_005 relies on the SAME spec sentence as its lat siblings (STP_003/004/006/007);
+    // 2026-07-24 alignment: Quality→Spec, VS→VS_K, and blocks were added (a bad lon
+    // masks coordinate-derived GEO/proximity rules—symmetric with lat).
     r!("STP_005", Kritik, Spec, 2,
         &["STP_021","GEO_002","GEO_009","GEO_012","STP_016","STP_017"],
         None, VS_K, Feed,
@@ -397,8 +396,8 @@ pub static RULES: &[RuleMeta] = &[
         "wheelchair_boarding geçersiz"),
     r!("STP_014", Orta,   Spec, 1, &[], Some("stop_id"), VS, Entity,
         "stop_timezone geçersiz"),
-    // Kritik: kaldırılan XFL_009 aynı level_id FK ihlalini Kritik raporluyordu;
-    // severity düşürülseydi bu ihlal R1 yayın kapısından çıkardı.
+    // Critical: the removed XFL_009 reported the same level_id FK violation as Critical;
+    // lowering the severity would let this violation escape the R1 publish gate.
     r!("STP_015", Kritik, Spec, 1, &[], Some("stop_id"), VS_K, Entity,
         "level_id bulunamadı"),
     r!("STP_016", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
@@ -449,28 +448,29 @@ pub static RULES: &[RuleMeta] = &[
         "stop_code birden fazla durakta kullanılıyor"),
     r!("STP_040", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Durak adı gereksiz genel stop/station sözcüğü içeriyor"),
-    // STP_044: spec `platform_code` için "should be just the platform identifier" der ve
-    // "platform"/"track" (veya feed dilindeki karşılığı) sözcüğünü açıkça dışlar. Alan
-    // 2026-08-03'e kadar HİÇ parse edilmiyordu. STP_040 aynı şekli `stop_name` için uygular
-    // ama o OPT-IN'dir (genel ad meşru olabilir: "Union Station"); burada spec doğrudan
-    // yasakladığı için opt-in DEĞİL. Ölçüldü (239 feed): 1 feed, 1 kayıt (`gleis`).
+    // STP_044: the spec says `platform_code` "should be just the platform identifier" and
+    // explicitly excludes the words "platform"/"track" (or their feed-language equivalents).
+    // The field was not parsed AT ALL until 2026-08-03. STP_040 applies the same shape to
+    // `stop_name`, but that is OPT-IN (a generic name may be legitimate: "Union Station");
+    // here it is NOT opt-in because the spec directly forbids it. Measured (239 feeds):
+    // 1 feed, 1 record (`gleis`).
     r!("STP_044", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "platform_code gereksiz 'platform/track' sözcüğü içeriyor"),
     r_noscore!("STP_045", Bilgi, Quality, 1, &[], None, VS, Feed,
         "platform_code var ama parent_station boş"),
     r!("STP_041", Dusuk, Quality, 1, &[], Some("stop_id"), VS, Entity,
         "Alt durak adı üst istasyon adını içermiyor"),
-    // STP_042: spec tipi `URL` — "fully qualified URL that includes http:// or https://".
-    // Kardeş alanların hepsinde biçim kuralı vardı (agency_url→AGN_002, agency_fare_url→
-    // AGN_008, route_url→RTS_005, feed_publisher_url→FIN_002, attribution_url→ATR_007);
-    // stop_url'de yalnız STP_034/035 (başka URL ile aynı) vardı, biçim hiç ölçülmüyordu.
+    // STP_042: spec type `URL`—"fully qualified URL that includes http:// or https://".
+    // Every sibling field had a format rule (agency_url→AGN_002, agency_fare_url→AGN_008,
+    // route_url→RTS_005, feed_publisher_url→FIN_002, attribution_url→ATR_007); stop_url
+    // had only STP_034/035 (same as another URL), so its format was never measured.
     r!("STP_042", Dusuk, Spec, 1, &[], None, VS, Feed,
         "stop_url geçersiz"),
-    // STP_043: spec `stop_access` için AYRI bir koşullu-yasak hükmü koyar —
+    // STP_043: the spec gives `stop_access` a SEPARATE conditional prohibition—
     // "Forbidden for locations which are stations (1), entrances (2), generic nodes (3) or
-    // boarding areas (4). Forbidden if parent_station is empty." 2026-08-03'e kadar hiç
-    // denetlenmiyordu. STP_026'yı (enum geçerliliği) yeniden kullanmak YANLIŞ olurdu: enum
-    // hatası ile bağlam yasağı iki ayrı olgudur (ATR_006 dersi).
+    // boarding areas (4). Forbidden if parent_station is empty." It was not checked at all
+    // until 2026-08-03. Reusing STP_026 (enum validity) would be WRONG: an enum error and
+    // a contextual prohibition are two separate facts (the ATR_006 lesson).
     r!("STP_043", Orta,  Spec, 1, &[], Some("stop_id"), VS, Entity,
         "stop_access yasak bağlamda kullanılmış"),
 
@@ -493,13 +493,13 @@ pub static RULES: &[RuleMeta] = &[
         "route_url geçersiz"),
     r!("RTS_006", Orta,   Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_color geçersiz hex renk"),
-    // RTS_006 ile SİMETRİK (2026-08-01, WP-3): spec `route_color` ve `route_text_color`'ın
-    // İKİSİNİ de `Color` tipiyle tanımlar ve tip normatiftir — birebir: "A color encoded as a
-    // six-digit hexadecimal number … the leading '#' must not be included". Aynı hükmü ölçen
-    // iki kural (aynı yardımcı, aynı boş-değer filtresi) farklı sınıftaydı; RTS_007 Quality·Düşük
-    // idi. Ayrımın maddi gerekçesi yoktu. Alanın Optional olması tipi bağlayıcı olmaktan
-    // çıkarmaz: değer VARSA 6 haneli hex olmak zorundadır.
-    // NOT: kontrast hükmü "should" ile yazılmıştır → RTS_008 Quality kalır, doğrudur.
+    // SYMMETRIC with RTS_006 (2026-08-01, WP-3): the spec defines BOTH `route_color` and
+    // `route_text_color` with the `Color` type, and the type is normative—verbatim: "A color encoded as a
+    // six-digit hexadecimal number … the leading '#' must not be included". Two rules measuring
+    // the same requirement (same helper, same empty-value filter) were in different classes;
+    // RTS_007 was Quality·Low. There was no material reason for the distinction. Optionality
+    // does not make the type non-binding: when present, the value must be six-digit hex.
+    // NOTE: the contrast requirement uses "should" → RTS_008 correctly remains Quality.
     r!("RTS_007", Orta,   Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_text_color geçersiz hex renk"),
     r!("RTS_008", Orta,   Quality, 1, &[], Some("route_id"), VS, Entity,
@@ -528,10 +528,10 @@ pub static RULES: &[RuleMeta] = &[
         "Uzun hat adı kısa adı içeriyor"),
     r!("RTS_023", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
         "Hat açıklaması hat adının kopyası"),
-    // AGN_012 ile aynı gerekçe: `Enum` tipi normatiftir, küme dışı değer spec ihlalidir.
-    // Sınıf Quality→Spec (2026-08-01, WP-3); önem Düşük (emsal RTS_013/RTS_018).
-    // cEMV alanlarının enum geçerliliği burada ölçülür; Fares v2 ile cEMV arasındaki
-    // precedence ilişkisi bir feed ihlali değildir.
+    // Same rationale as AGN_012: the `Enum` type is normative, so an out-of-set value is a spec violation.
+    // Class Quality→Spec (2026-08-01, WP-3); severity Low (precedents RTS_013/RTS_018).
+    // Enum validity for cEMV fields is measured here; the precedence relationship between
+    // Fares v2 and cEMV is not a feed violation.
     r!("RTS_024", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_cemv_support geçersiz"),
     r!("RTS_025", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Entity,
@@ -540,30 +540,30 @@ pub static RULES: &[RuleMeta] = &[
         "Yinelenen kısa hat adı"),
     r!("RTS_027", Bilgi,  Quality, 1, &[], Some("route_id"), VS, Row,
         "Yinelenen uzun hat adı"),
-    // RTS_028 SINIFI DEĞİŞTİ (2026-08-03): Interop → Spec. Spec bu yasağı `routes.txt`
-    // alan tablosunda NORMATİF yazar: "Any value other than 1 or empty is Forbidden if
+    // RTS_028 CLASS CHANGED (2026-08-03): Interop → Spec. The spec states this prohibition NORMATIVELY
+    // in the `routes.txt` field table: "Any value other than 1 or empty is Forbidden if
     // stop_times.start/end_pickup_drop_off_window are defined for any trip of this route."
-    // Eski gerekçe (issue #57) MD'de `forbidden_continuous_pickup_drop_off` bulunmasıydı — ama
-    // MD paritesi kuralın ŞEKLİNİ (iki alan tek notice) belirler, SINIFINI değil. Aynı not
-    // stop_times tarafını "MD karşılığı yok → Spec" bırakmıştı; yani AYNI spec hükmü iki
-    // tarafta iki sınıftaydı. Otorite spec'tir; MD paritesi kartta not olarak durur.
+    // The old rationale (issue #57) was the MD `forbidden_continuous_pickup_drop_off`; but MD parity
+    // determines the rule SHAPE (two fields, one notice), not its CLASS. The same note left the
+    // stop_times side as "no MD counterpart → Spec", so the SAME spec requirement had two classes.
+    // The authority is the spec; MD parity remains a note on the card.
     r!("RTS_028", Yuksek, Spec, 1, &[], Some("route_id"), VS, Entity,
         "Flex pencereli rotada continuous_pickup/drop_off yasak"),
-    // RTS_029: spec tipi `Non-negative integer`. Negatif ya da sayı olmayan değer eskiden
-    // `Err(_) => None` ile SESSİZCE düşüyordu — hattın sıralaması kayboluyor, kullanıcı
-    // hiçbir şey görmüyordu. (Aynı yutma deseni STM_058 ve PTH_027'de de vardı.)
+    // RTS_029: spec type `Non-negative integer`. Negative or non-numeric values used to be
+    // SILENTLY dropped by `Err(_) => None`—route ordering disappeared and users saw nothing.
+    // (The same swallowing pattern also existed in STM_058 and PTH_027.)
     r!("RTS_029", Dusuk,  Spec, 1, &[], Some("route_id"), VS, Entity,
         "route_sort_order geçersiz"),
-    // RTS_030 (#93): çekirdek Schedule Reference `route_type` enum'u YALNIZ 0-7,11,12 sayar;
-    // 100-1799 Google Transit/HVT konvansiyonudur. Eskiden RTS_004 (KRİTİK·Spec, R1 kapısı)
-    // her ikisini de kabul ediyor, yani bir eklentiyi çekirdek spec uyumu gibi gösteriyordu.
-    // Sınıf Interop çünkü MD paritesi ELDE: korpus MD raporlarında genişletilmiş değerler
-    // `unexpected_enum_value` (WARNING) veriyor — 225 feed'in 19'unda.
+    // RTS_030 (#93): the core Schedule Reference `route_type` enum lists ONLY 0-7,11,12;
+    // 100-1799 is the Google Transit/HVT convention. RTS_004 used to accept both (Critical·Spec,
+    // R1 gate), presenting an extension as if it were core spec compliance.
+    // Class Interop because MD parity EXISTS: corpus MD reports issue `unexpected_enum_value`
+    // (WARNING) for extended values—in 19 of 225 feeds.
     r!("RTS_030", Dusuk,  Interop, 1, &[], Some("route_id"), VI, Entity,
         "route_type çekirdek enum dışında genişletilmiş değer"),
-    // RTS_031: `route_id` BOŞ. `RTS_001` yinelenmeyi ölçer, olmayan kimlik yinelenemez;
-    // `k2/routes.rs`'te boş id sessizce `entity_id=None` oluyordu ve hiçbir kural görmüyordu.
-    // Tam katalog koşumunda 4 feed (#153). Birincil anahtar → Kritik·Spec.
+    // RTS_031: `route_id` is EMPTY. `RTS_001` measures duplicates; a missing ID cannot be duplicated.
+    // In `k2/routes.rs`, an empty ID silently became `entity_id=None` and no rule saw it.
+    // Four feeds in the full catalog run (#153). Primary key → Kritik·Spec.
     r!("RTS_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Row,
         "route_id eksik"),
 
@@ -574,7 +574,7 @@ pub static RULES: &[RuleMeta] = &[
         "trip_id eksik veya yineleniyor"),
     r!("TRP_002", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "route_id bulunamadı"),
-    // OPR_016, kaldırılan XFL_001'den devralındı (aynı service_id FK ihlali).
+    // OPR_016 was inherited from the removed XFL_001 (same service_id FK violation).
     r!("TRP_003", Kritik, Spec, 1,
         &["DQ_005","DQ_005b","CAL_009","CAL_012","OPR_011","OPR_016"],
         None, VS_K, Feed,
@@ -599,28 +599,28 @@ pub static RULES: &[RuleMeta] = &[
         "Hat tek seferlik"),
     r!("TRP_014", Bilgi,  Quality, 1, &[], Some("trip_id"), VS, Entity,
         "trip_short_name çok uzun"),
-    // TRP_015 YENİDEN TANIMLANDI (2026-09-01, 13. korpus turu). Eski hüküm "blok en az 2
-    // sefer içermelidir" idi ve SPEC'E AYKIRIYDI: GTFS Schedule Reference `trips.block_id`
-    // için "A block consists of **a single trip** or many sequential trips ... defined by
+    // TRP_015 REDEFINED (2026-09-01, 13th corpus run). The old requirement was "a block must
+    // contain at least 2 trips" and was AGAINST THE SPEC: GTFS Schedule Reference `trips.block_id`
+    // says "A block consists of **a single trip** or many sequential trips ... defined by
     // shared service days and block_id. A block_id may have trips with different service
-    // days, making distinct blocks." — tek seferlik blok GEÇERLİDİR.
-    // Ölçüm: kural sefer başına ateşliyordu → 1.549.904 notice / 675 feed (korpusun %3,9'u),
-    // MD'de karşılığı YOK. 14 feed'lik örneklemde spec'in çift tanımı ((block_id, service_id))
-    // uygulanınca tek-seferlik blok sayısı AZALMIYOR, ARTIYOR (mdb-2727 101.089 → 101.621),
-    // çünkü aynı block_id farklı servis günlerinde ayrı bloklar oluşturuyor. Yani hükmü
-    // "doğru" tanımlamak gürültüyü büyütürdü; hükmün kendisi yanlıştı.
-    // Yeni hüküm — savunulabilir kalan tek sinyal: block_id HİÇBİR seferi gruplamıyorsa
-    // alan fiilen `trip_id` kopyasıdır ve araç devamlılığı bilgisi taşımaz. Aynı örneklemde
-    // 14 feed'in 8'i tam %100 oranındaydı, yani bu keyfi bir eşik değil veride net bir sınıf.
-    // FEED başına TEK bulgu.
+    // days, making distinct blocks."—a single-trip block IS VALID.
+    // Measurement: the rule fired per trip → 1,549,904 notices / 675 feeds (3.9% of the corpus),
+    // with NO MD counterpart. In a 14-feed sample, applying the spec's pair definition ((block_id, service_id))
+    // did NOT REDUCE single-trip blocks; it INCREASED them (mdb-2727 101,089 → 101,621),
+    // because the same block_id creates separate blocks on different service days. So defining
+    // the requirement "correctly" would increase noise; the requirement itself was wrong.
+    // New requirement—the only defensible remaining signal: if block_id groups NO trips,
+    // the field is effectively a `trip_id` copy and carries no vehicle-continuity information.
+    // In the same sample, 8 of 14 feeds were exactly 100%, so this is a clear data class, not an arbitrary threshold.
+    // ONE finding per FEED.
     r!("TRP_015", Dusuk,  Quality, 1, &[], None, VS, Feed,
         "block_id hiçbir seferi gruplamıyor"),
     r!("TRP_017", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Frekans tabanlı sefer stop_times'ta eksik"),
-    // TRP_019 SINIFI DEĞİŞTİ (2026-08-03): Quality → Spec. Spec `trips.shape_id` için
+    // TRP_019 CLASS CHANGED (2026-08-03): Quality → Spec. For `trips.shape_id`, the spec says
     // "Conditionally Required: Required if the trip has a continuous pickup or drop-off
-    // behavior defined either in routes.txt or in stop_times.txt" der — bu bir NORM, tercih
-    // değil. (ARC_020'de bunun tersi bulunmuştu: bir norm tavsiye diye raporlanıyordu.)
+    // behavior defined either in routes.txt or in stop_times.txt"—this is a NORM, not a preference.
+    // (ARC_020 had the opposite error: a norm was reported as a recommendation.)
     r!("TRP_019", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Continuous servis aktifken shape_id eksik"),
     r!("TRP_020", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Entity,
@@ -629,9 +629,9 @@ pub static RULES: &[RuleMeta] = &[
         "Bisiklet izni (bikes_allowed) belirtilmemiş"),
     r!("TRP_022", Yuksek, Interop, 3, &[], Some("trip_id"), VI, Entity,
         "Block içinde çakışan sefer saatleri"),
-    // Feed genelinde 7 günde hiç aktif sefer yoksa TRP_023 (feed-level, None scope)
-    // tek kök mesajdır ve her sefer için tekrar eden TRP_030 spam'ini bastırır.
-    // (Eski yön TRP_030→TRP_023 scope uyumsuzluğundan etkisizdi.)
+    // If the feed has no active trip on any of 7 days, TRP_023 (feed-level, None scope) is
+    // the single root message and suppresses repeated TRP_030 spam for every trip.
+    // (The old direction was ineffective because TRP_030→TRP_023 scopes did not match.)
     r!("TRP_023", Dusuk,  Quality, 1, &["CAL_024"], None, VS, Feed,
         "Önümüzdeki 7 günde aktif sefer yok"),
     r!("TRP_024", Dusuk,  Quality, 1, &[], Some("block_id"), VS, Entity,
@@ -646,10 +646,10 @@ pub static RULES: &[RuleMeta] = &[
         "Hiçbir sefer tekerlekli sandalye erişilebilirliği bildirmemiş"),
     r!("TRP_031", Kritik, Spec, 1, &[], Some("route_id"), VS_K, Entity,
         "route_id eksik"),
-    // TRP_034: `safe_duration_factor` ve `safe_duration_offset` spec'te `Float`'tır. Parse
-    // hatası eskiden `.ok().flatten()` ile SESSİZCE yutuluyordu (günün dördüncü örneği).
-    // Ayrıca `safe_duration_offset` u32 olarak okunuyordu — spec Float diyor, yani `12.5`
-    // saniyelik GEÇERLİ bir değer sessizce siliniyordu. İkisi de düzeltildi.
+    // TRP_034: `safe_duration_factor` and `safe_duration_offset` are `Float` in the spec. Parse
+    // errors used to be SILENTLY swallowed by `.ok().flatten()` (the day's fourth example).
+    // Also, `safe_duration_offset` was read as u32—the spec says Float, so a VALID `12.5`-second
+    // value was silently deleted. Both issues were fixed.
     r!("TRP_034", Orta, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "safe_duration alanı sayı değil"),
     r!("TRP_035", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
@@ -660,21 +660,21 @@ pub static RULES: &[RuleMeta] = &[
         &["STM_008","STM_056","OPR_008"],
         Some("trip_id"), VS_K, Row,
         "trip_id bulunamadı"),
-    // blocks: STP_012 + DQ_005c, kaldırılan XFL_005'ten devralındı — aynı FK ihlalini
-    // feed-level özet olarak tekrarlıyordu (bkz. CHANGELOG 0.8.0).
+    // blocks: inherited from the removed XFL_005, STP_012 + DQ_005c—it repeated the same FK
+    // violation as a feed-level summary (see CHANGELOG 0.8.0).
     r!("STM_002", Kritik, Spec, 1,
         &["GEO_002","STP_012"],
         Some("stop_id"), VS_K, Row,
         "stop_id bulunamadı"),
-    // STM_015/STM_016 eklendi (#155): ikisi de `arrival_time` YOKLUĞUNU ölçer, ama
-    // `arrival_time()` erişimcisi alan HİÇ YOKKEN de PARSE EDİLEMEDİĞİNDE de `None`
-    // döner. Saat `HH:MM` yazılmışsa STM_003 onu zaten reddetmiştir ve "ilk/son durakta
-    // saat yok" iddiası YANLIŞTIR — değer var, biçimi bozuk. mdb-2727'de 101.621
-    // STM_015'in 101.621'i aynı satırda STM_003 taşıyor.
-    // ⚠️ Bastırma scope eşleşmelidir (sefer): STM_003 hiç ateşlemeyen feed'lerde kök
-    // olmadığı için hiçbir şey bastırılmaz — korpusta STM_015'li 10 feed'in 9'u böyle
-    // ve onların bulguları MEŞRUDUR. Kalan risk, AYNI seferde hem geçersiz saat hem
-    // gerçekten eksik ilk-durak saati bulunması; mdb-2727'de bu vakadan 0 tane çıktı.
+    // STM_015/STM_016 were added (#155): both measure `arrival_time` ABSENCE, but the
+    // `arrival_time()` accessor returns `None` both when the field is MISSING and when it
+    // CANNOT BE PARSED. If the time is written as `HH:MM`, STM_003 already rejects it and the
+    // claim "no time at the first/last stop" is WRONG—the value exists but its format is bad.
+    // In mdb-2727, 101,621 of STM_015's 101,621 rows also carry STM_003.
+    // ⚠️ Suppression scopes must match (trip): in feeds where STM_003 never fires, nothing is
+    // suppressed because there is no root—9 of the 10 corpus feeds with STM_015 are like this,
+    // and their findings are LEGITIMATE. Remaining risk: the SAME trip has both an invalid time
+    // and a genuinely missing first-stop time; mdb-2727 had 0 such cases.
     r!("STM_003", Kritik, Spec, 1,
         &["STM_004","STM_008","STM_056","STM_015","STM_016"],
         Some("trip_id"), VS_K, Row,
@@ -701,16 +701,16 @@ pub static RULES: &[RuleMeta] = &[
         "drop_off_type geçersiz"),
     r!("STM_012", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Row,
         "Duraklar arası hız gerçekçi değil"),
-    // STM_013 (2026-09-21): retired. Ara stop'larda zaman bırakılması GTFS'te optional'dır;
-    // bu kural timepoint modelini bozuk feed olarak cezalandırıyor ve geçerli timing-point
-    // üreticilerinde sistemik false positive üretiyordu. Kimlik yeniden kullanılmamalıdır.
-    // Emit (hat, yön, segment) başına toplulanır → Entity; entity_id bileşik segment
-    // anahtarı, scope_key route_id (UI hat filtresi). Eski hâl: Row/trip_id, aynı
-    // segmenti her seferde tekrar raporluyordu (TriMet'te 604×).
+    // STM_013 (2026-09-21): retired. Leaving times out at intermediate stops is optional in GTFS;
+    // this rule penalized the timepoint model as a broken feed and created systematic false positives
+    // for valid timing-point producers. The ID must not be reused.
+    // Emit is grouped per (route, direction, segment) → Entity; entity_id is a composite segment
+    // key, scope_key is route_id (UI route filter). Formerly Row/trip_id, it reported the same
+    // segment repeatedly for every trip (604× in TriMet).
     r!("STM_014", Yuksek, Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Segmentte aşırı hız"),
     r!("STM_015", Kritik, Spec, 2,
-        // XFL_013/SHP_017 (2026-10-11) ve STM_016/STM_017 (2026-10-13) kalktı: nedensellik yok.
+        // XFL_013/SHP_017 (2026-10-11) and STM_016/STM_017 (2026-10-13) were removed: no causality.
         &[],
         Some("trip_id"), VS_K, Row,
         "İlk durakta arrival_time eksik"),
@@ -740,13 +740,13 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer süresi çok kısa"),
     r!("STM_030", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
         "shape_dist_traveled negatif veya sayı değil"),
-    // STM_032 SINIFI DEĞİŞTİ (#97, 2026-08-09): Quality → Spec. Hüküm normatif ve İKİ yerde
-    // yazıyor: `stop_sequence` alan tanımı *"The values must increase along the trip but do
-    // not need to be consecutive"*, `stop_times.txt` başlığı *"Primary key (trip_id,
-    // stop_sequence)"*. Aynı olguyu başka dosyalarda ölçen `DQ_021` zaten Spec.
-    // ⚠️ ÖNEM DEĞİŞMEDİ (Düşük): R1 kapısı `Spec ∧ Kritik` olduğu için yayın davranışı aynı.
-    // DQ_021'in YÜKSEK olması karşısındaki asimetri bilinçli olarak AYRI iş bırakıldı —
-    // önem değişikliği 3 korpus feed'inin R5 skorunu oynatır ve ölçüm ister.
+    // STM_032 CLASS CHANGED (#97, 2026-08-09): Quality → Spec. The requirement is normative and
+    // appears in TWO places: the `stop_sequence` field definition *"The values must increase along the trip but do
+    // not need to be consecutive"*, and the `stop_times.txt` heading *"Primary key (trip_id,
+    // stop_sequence)"*. `DQ_021`, measuring the same fact in other files, is already Spec.
+    // ⚠️ SEVERITY UNCHANGED (Low): the R1 gate is `Spec ∧ Kritik`, so publish behavior is unchanged.
+    // The asymmetry with DQ_021 being HIGH was intentionally left as a SEPARATE task—changing severity
+    // would affect the R5 score of 3 corpus feeds and requires measurement.
     r!("STM_032", Dusuk,  Spec, 1, &[], Some("trip_id"), VS, Row,
         "Aynı seferde yinelenen stop_sequence değeri"),
     r!("STM_033", Yuksek, Interop, 2, &[], Some("trip_id"), VI, Entity,
@@ -763,32 +763,32 @@ pub static RULES: &[RuleMeta] = &[
         "start_pickup_drop_off_window > end_pickup_drop_off_window"),
     r!("STM_039", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Entity,
         "Flex bağlamında pickup/drop_off penceresi eksik"),
-    // pickup_booking_rule_id / drop_off_booking_rule_id RESMÎ SPEC'TE **Optional**'dır —
-    // 27 Nisan 2026 Schedule Reference birebir: "Optional … Recommended when pickup_type=2".
-    // Tavsiye ≠ norm: eksikliğini Kritik·Spec saymak, geçerli bir Flex feed'ini yayın
-    // kapısından (R1 = Spec ∧ Kritik) düşürüyordu. Ayrıca tetikleyici koşul ("herhangi bir
-    // pencere var + iki booking_rule_id de boş") spec tavsiyesinin kendisi değil, projenin
-    // kendi sıkılaştırması → otorite ProjectQuality. Sınıf Spec→Quality (2026-08-01, WP-1).
+    // pickup_booking_rule_id / drop_off_booking_rule_id are **Optional** in the OFFICIAL SPEC—
+    // verbatim in the 27 April 2026 Schedule Reference: "Optional … Recommended when pickup_type=2".
+    // Recommendation ≠ norm: treating absence as Kritik·Spec dropped a valid Flex feed from the
+    // publish gate (R1 = Spec ∧ Kritik). Also, the trigger ("any window exists + both booking_rule_id
+    // values are empty") is the project's tightening, not the spec recommendation itself → authority
+    // ProjectQuality. Class Spec→Quality (2026-08-01, WP-1).
     r!("STM_040", Orta,   Quality, 1, &[], Some("trip_id"), VS, Entity,
         "Flex stop_times'ta pickup/drop_off_booking_rule_id eksik (spec'te Optional)"),
-    // STM_059: spec `pickup_booking_rule_id` için "Recommended when pickup_type=2" der
-    // (ve `drop_off_type=2` ikizi). `STM_040` bunun yerine FLEX PENCERESİ varken arar —
-    // farklı popülasyon: `pickup_type=2` ("ajansı telefonla arayın") klasik dial-a-ride'da
-    // pencere OLMADAN kullanılır. İki koşul tek kuralda birleştirilmedi; `emit_identity`
-    // kapısı kuralın başlığıyla emit'inin aynı şeyi söylemesini ister.
-    // Ölçüldü (239 feed): 4 feed, 27 satır — YALNIZ booking_rules.txt taşıyan feed'lerde.
-    // STM_060: GTFS Reference `stop_times.txt` düzyazısı — *"Simultaneous overlap of
+    // STM_059: the spec says `pickup_booking_rule_id` is "Recommended when pickup_type=2"
+    // (and its `drop_off_type=2` counterpart). `STM_040` instead looks when a FLEX WINDOW exists—
+    // a different population: `pickup_type=2` ("call the agency by phone") is used in classic
+    // dial-a-ride without a window. The conditions were not combined; the `emit_identity` gate
+    // requires the rule title and emit to say the same thing.
+    // Measured (239 feeds): 4 feeds, 27 rows—only in feeds carrying booking_rules.txt.
+    // STM_060: GTFS Reference `stop_times.txt` prose—*"Simultaneous overlap of
     // locations.geojson id geometry, start/end_pickup_drop_off_window time, and pickup_type
     // or drop_off_type between two or more stop_times.txt records with the same trip_id is
     // forbidden."*
     //
-    // 🔴 Bu hüküm 2026-08-06'ya kadar defterde **KAPSAM DIŞI** yazıyordu, gerekçesi
-    // "poligon geometrisi saklanmıyor"du. Dış denetim haklı olarak bunun bir MİMARİ EKSİK
-    // olduğunu, doğrulanamazlık OLMADIĞINI gösterdi: hükmün her girdisi feed'in içinde.
-    // Geometri artık K1'den K4'e taşınıyor (`EntityMap::geojson_geometries`).
+    // 🔴 Until 2026-08-06 this requirement was marked **OUT OF SCOPE** in the ledger because
+    // "polygon geometry is not stored". External review correctly showed this was an ARCHITECTURAL
+    // GAP, not unverifiability: every input to the requirement is inside the feed.
+    // Geometry is now carried from K1 to K4 (`EntityMap::geojson_geometries`).
     //
-    // Severity `Yuksek`, `Kritik` DEĞİL: hüküm bir YASAK ama ihlali yalnız Flex bölge
-    // semantiğini belirsizleştirir; R1 yayın kapısı (saf `Spec ∧ Kritik`) orantısız olurdu.
+    // Severity `Yuksek`, NOT `Kritik`: the requirement is a PROHIBITION, but violation only
+    // makes Flex-region semantics ambiguous; the R1 publish gate (pure `Spec ∧ Kritik`) would be disproportionate.
     r!("STM_060", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "Aynı seferde geojson bölgesi + zaman penceresi + pickup/drop_off eşzamanlı örtüşüyor"),
     r!("STM_061", Yuksek, Interop, 2, &[], Some("route_id"), VI, Entity,
@@ -825,15 +825,15 @@ pub static RULES: &[RuleMeta] = &[
         "Flex penceresi tanımlıyken continuous_pickup 1/boş dışında yasak"),
     r!("STM_055", Yuksek, Spec, 1, &[], Some("trip_id"), VS, Entity,
         "Flex penceresi tanımlıyken continuous_drop_off 1/boş dışında yasak"),
-    // MD paritesi: `decreasing_or_equal_stop_time_distance` (ERROR). GTFS Reference,
-    // stop_times.shape_dist_traveled için stop_sequence boyunca ARTAN değer şart koşar.
+    // MD parity: `decreasing_or_equal_stop_time_distance` (ERROR). GTFS Reference requires
+    // an INCREASING value along stop_sequence for stop_times.shape_dist_traveled.
     r!("STM_056", Kritik, Spec, 1, &[], Some("trip_id"), VS_K, Row,
         "shape_dist_traveled artmıyor"),
-    // STM_058: Flex pencere alanları da `Time` tipindedir; biçim hatası ESKİDEN sessizce
-    // yutuluyordu (`.ok().flatten()`) → değer kayboluyor, STM_038 karşılaştıracak bir şey
-    // bulamıyor, satır "pencereli" sayıldığı için varlık kuralları da susuyordu. arrival_time
-    // aynı yardımcıyla parse edilip STM_003 üretirken bu iki alan üretmiyordu.
-    // TEK kural, İKİ alan: olgu aynı (Time parse edilemedi), mesaj hangi alan olduğunu söyler.
+    // STM_058: Flex window fields are also `Time`; format errors used to be silently swallowed
+    // (`.ok().flatten()`) → the value disappeared, STM_038 had nothing to compare, and entity
+    // rules also fell silent because the row was considered "windowed". arrival_time was parsed
+    // with the same helper and produced STM_003, but these two fields were not.
+    // ONE rule, TWO fields: the fact is the same (Time could not be parsed); the message names the field.
     r!("STM_058", Kritik, Spec, 1, &["STM_038"], Some("trip_id"), VS_K, Entity,
         "Flex pickup/drop-off penceresi saati geçersiz"),
 
@@ -844,15 +844,15 @@ pub static RULES: &[RuleMeta] = &[
     // ── LOC: locations.geojson ───────────────────────────────────────────────
     r!("LOC_001", Yuksek, Spec, 2, &[], None, VS, File,
         "locations.geojson'da bilinmeyen veya geçersiz geometri tipi"),
-    // LOC_012 (16. korpus koşumu, 2026-09-11): `LOC_001` BEŞ AYRI olguyu taşıyordu —
-    // dosya okunamıyor · JSON ayrıştırılamıyor · kök tip FeatureCollection değil ·
-    // `features` dizisi yok · feature geometri tipi desteklenmiyor. Yerelleştirme
-    // katmanında kural başına TEK şablon var (`i18n.rs::translate`), o şablon da
-    // "Invalid geometry type" diyordu. Sonuç: `tdg-81648`..`tdg-81652`'de dosya HİÇ JSON
-    // değilken (`expected value at line 1 column 1`) en/fr/ja çıktısı "geçersiz geometri
-    // tipi" iddia ediyordu. Belge düzeyi kusurlar buraya taşındı; `LOC_001` yalnız
-    // `geometry.type` kolunda kaldı ve başlığı artık DOĞRU.
-    // 🔑 ARC_001 deseni: yerelleştirilmiş şablon değişmezi söyler, ayrıntı Türkçe mesajda.
+    // LOC_012 (16th corpus run, 2026-09-11): `LOC_001` carried FIVE DISTINCT facts—
+    // file unreadable · JSON unparsable · root type not FeatureCollection ·
+    // no `features` array · unsupported feature geometry type. The localization layer has ONE
+    // template per rule (`i18n.rs::translate`), and that template said "Invalid geometry type".
+    // Result: for `tdg-81648`..`tdg-81652`, when the file was NOT JSON at all
+    // (`expected value at line 1 column 1`), en/fr/ja output claimed "invalid geometry type".
+    // Document-level defects moved here; `LOC_001` now remains only on the `geometry.type`
+    // branch and its title is CORRECT.
+    // 🔑 ARC_001 pattern: the localized template states the invariant; detail remains in the Turkish message.
     r!("LOC_012", Yuksek, Spec, 2, &[], None, VS, File,
         "locations.geojson geçerli bir GeoJSON FeatureCollection değil"),
     r!("LOC_002", Kritik, Spec, 2, &[], None, VS_K, File,
@@ -867,21 +867,21 @@ pub static RULES: &[RuleMeta] = &[
         "Polygon alanı 500km²'yi aşıyor — gerçekçi olmayan Flex bölge"),
     r!("LOC_007", Orta,   Spec,    2, &[], None, VS, File,
         "FeatureCollection içinde yinelenen 'id' değeri — Flex referansı belirsizleşir"),
-    // Spec (locations.geojson alan tablosu) her Feature için type/properties/geometry.coordinates
-    // alanlarını Required işaretler. Bunlar 2026-08-01'e kadar hiç denetlenmiyordu: eksikliklerinde
-    // kod sessizce atlıyor, dosya "doğrulandı" görünüyordu.
+    // The spec (locations.geojson field table) marks type/properties/geometry.coordinates as Required
+    // for every Feature. They were not checked at all until 2026-08-01: when missing, the code
+    // silently skipped them and the file appeared "validated".
     r!("LOC_008", Orta,   Spec,    2, &[], None, VS, File,
         "Feature 'type' alanı eksik veya \"Feature\" değil"),
     r!("LOC_009", Orta,   Spec,    2, &[], None, VS, File,
         "Feature 'properties' nesnesi eksik"),
-    // LOC_011: spec `locations.geojson` için "Each polygon must be valid by the definition of
-    // the OpenGIS Simple Features Specification, section 6.1.11" der. `LOC_004` yalnız ring
-    // KAPALILIĞINI ölçüyordu; 6.1.11'in asıl maddesi ring'in BASİT olması (kendini kesmemesi)
-    // ve deliklerin dış ring İÇİNDE kalmasıdır.
+    // LOC_011: for `locations.geojson`, the spec says "Each polygon must be valid by the definition of
+    // the OpenGIS Simple Features Specification, section 6.1.11". `LOC_004` measured only ring
+    // CLOSURE; the core of 6.1.11 is that the ring is SIMPLE (does not self-intersect) and
+    // holes remain INSIDE the exterior ring.
     //
-    // ⚠️ Tespit `robust::orient2d` ile yapılır, naif f64 ile DEĞİL. Ölçüldü (2026-08-06):
-    // aynı 21 poligon üzerinde epsilon/uygulama seçimi 5 ile 17 arasında sonuç veriyor ve
-    // monoton bile değil — naif aritmetikle bu kural güvenilir yazılamaz.
+    // ⚠️ Detection uses `robust::orient2d`, NOT naive f64. Measured (2026-08-06):
+    // on the same 21 polygons, epsilon/implementation choices produce results from 5 to 17
+    // and are not even monotonic—this rule cannot be written reliably with naive arithmetic.
     r!("LOC_011", Yuksek, Spec,    2, &[], None, VS, File,
         "Poligon geçersiz: ring kendini kesiyor veya delik dışarıda"),
     r!("LOC_010", Kritik, Spec,    2, &[], None, VS_K, File,
@@ -922,8 +922,8 @@ pub static RULES: &[RuleMeta] = &[
         "Yakın gelecekte servis boşluğu var"),
     r!("CAL_013", Bilgi,  Analytics, 1, &[], None, VA, Entity,
         "Geçmiş tarihli servis dönemi"),
-    // CAL_014 (2026-10-11): MD `service_window_outside_feed_period` (INFO) ile aynı aktif-tarih
-    // semantiği → tek taşıyıcı. Spec pencere dışı veriyi tavsiye ettiği için Bilgi.
+    // CAL_014 (2026-10-11): same active-date semantics as MD `service_window_outside_feed_period` (INFO)
+    // → single carrier. Bilgi because the spec recommends data outside the window.
     r_noscore!("CAL_014", Bilgi,  Interop,   1, &[], Some("service_id"), VI, Entity,
         "Servis tarihleri feed_info geçerlilik aralığı dışında"),
     r_noscore!("CAL_015", Bilgi, Analytics, 1, &[], None, VA, Feed,
@@ -934,8 +934,8 @@ pub static RULES: &[RuleMeta] = &[
         "Takvim henüz başlamamış (tüm aktif tarihler gelecekte)"),
     r!("CAL_018", Bilgi,  Quality,   2, &[], Some("service_id"), VS, Entity,
         "Servisin aktif haftanın günü yok (tüm günler 0, calendar_dates ile geçersiz kılınan yok)"),
-    // CAL_019 (2026-10-11): retired. Ham calendar aralığını feed_info penceresiyle kıyaslayıp
-    // CAL_014 ile aynı olguyu ikinci kez raporluyordu. Kimlik yeniden kullanılmamalıdır.
+    // CAL_019 (2026-10-11): retired. It compared the raw calendar range with the feed_info window
+    // and reported the same fact as CAL_014 a second time. The ID must not be reused.
     r!("CAL_020", Dusuk,  Quality,   1, &[], None, VS, Feed,
         "Feed geçerlilik penceresi 5 yılı aşıyor — gerçekçi olmayan zaman dilimi"),
     r!("CAL_021", Bilgi,  Analytics, 1, &[], Some("service_id"), VA, Entity,
@@ -944,7 +944,7 @@ pub static RULES: &[RuleMeta] = &[
         "service_id eksik"),
     r!("CAL_023", Orta, Quality, 2, &[], Some("service_id"), VA, Entity,
         "end_date çok ileri (şüpheli uzak-gelecek tarih)"),
-    // CAL_024: eski TRP_030 (takvim odaklı olduğu için #23 ile CAL grubuna taşındı).
+    // CAL_024: former TRP_030 (moved to the CAL group because it focuses on calendars, with #23).
     r_noscore!("CAL_024", Bilgi, Analytics, 1, &[], Some("service_id"), VS, Entity,
         "Takvim önümüzdeki 7 günde aktif değil"),
     r!("CAL_025", Kritik, Spec, 1, &[], Some("service_id"), VS_K, Row,
@@ -982,7 +982,7 @@ pub static RULES: &[RuleMeta] = &[
         Some("shape_id"), VS_K, Feed,
         "shape_pt_sequence eksik veya geçersiz"),
     r!("SHP_005", Kritik, Spec, 2,
-        &[], // feed düzeyinde toplulanır: bağlantı her shape'i bastırıyordu (2026-10-13)
+        &[], // Grouped at feed level: the link suppressed every shape (2026-10-13).
         Some("shape_id"), VS_K, Row,
         "shape_dist_traveled geriye gidiyor"),
     r!("SHP_006", Dusuk,  Quality, 2,
@@ -1051,19 +1051,19 @@ pub static RULES: &[RuleMeta] = &[
         "Frekans aralığı çok kısa"),
     r!("FRQ_010", Bilgi,  Analytics, 1, &[], Some("trip_id"), VA, Row,
         "Çok sık frekans (sıkışma riski)"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: Pec6b6920
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only
+    // this rule measured a strict Spec requirement, but the rule was not in the Spec class;
+    // users filtering for Spec could not see the violation. Severity UNCHANGED → the R1 gate (`Spec ∧ Kritik`) is unchanged.
+    // Ruling: Pec6b6920.
     r!("FRQ_011", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Row,
         "Aynı trip için frequencies dönemleri zaman aralığı çakışıyor"),
-    // FRQ_012: spec `exact_times=1` için "the end_time value must be greater than the last
+    // FRQ_012: for `exact_times=1` the spec says "the end_time value must be greater than the last
     // desired trip start_time but less than the last desired trip start_time + headway_secs"
-    // der → `(end - start)` headway'in TAM KATI olamaz. `FRQ_005` yalnız `end <= start`'ı ölçer.
-    // ⚠️ GERİLİM: aynı bölüm "New headways may start at the exact time the previous headway
-    // ends" der; bitişik dönem GENEL olarak izinlidir. `exact_times=1` kısıtı bu genel izni
-    // DARALTIR (özel kural genel kuralı sınırlar) — kart bu gerilimi yazıyor.
-    // Ölçüldü (239 feed): 4 feed, 452 satır.
+    // → `(end - start)` cannot be an exact multiple of headway. `FRQ_005` measures only `end <= start`.
+    // ⚠️ TENSION: the same section says "New headways may start at the exact time the previous headway
+    // ends"; adjacent periods are GENERALLY allowed. The `exact_times=1` constraint NARROWS this
+    // general permission (a special rule limits the general rule)—the card documents the tension.
+    // Measured (239 feeds): 4 feeds, 452 rows.
     r!("FRQ_012", Dusuk, Spec, 1, &[], Some("trip_id"), VS, Row,
         "exact_times=1 iken end_time headway sınırına denk geliyor"),
 
@@ -1096,9 +1096,9 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma süresi çok uzun"),
     r!("TRF_011", Bilgi,  Quality, 2, &[], Some("from_stop_id|to_stop_id"), VS, Row,
         "Aktarma tanımlandı ama mesafe uzak"),
-    // GTFS Reference transfers.txt NORMATİF: "Primary key (from_stop_id, to_stop_id,
-    // from_trip_id, to_trip_id, from_route_id, to_route_id)". Birincil anahtarın tekilliği
-    // spec hükmüdür → Quality DEĞİL Spec. TRF_012 bu anahtarın trip/route'suz alt vakası.
+    // GTFS Reference transfers.txt is NORMATIVE: "Primary key (from_stop_id, to_stop_id,
+    // from_trip_id, to_trip_id, from_route_id, to_route_id)". Primary-key uniqueness is a spec
+    // requirement → NOT Quality, Spec. TRF_012 is the trip/route-free subcase of this key.
     r!("TRF_012", Kritik, Spec, 1, &[], None, VS_K, Row,
         "Yinelenen aktarma kaydı"),
     r!("TRF_013", Kritik, Quality, 2, &[], None, VS, Row,
@@ -1107,17 +1107,17 @@ pub static RULES: &[RuleMeta] = &[
         "in-seat aktarma için sefer yok"),
     r!("TRF_015", Yuksek, Quality, 2, &[], None, VS, Row,
         "in-seat aktarma geçersiz"),
-    // Aynı primary-key hükmü, tam kombinasyon hâli. MD karşılığı `duplicate_key` (ERROR);
-    // Entur mdb-1078'de MD 10, bu proje 10 → birebir parite. Spec normu olduğu için sınıf
-    // Interop DEĞİL Spec (MD paritesi tek başına sınıfı belirlemez, spec metni belirler).
+    // The same primary-key requirement, in its full combination. MD counterpart `duplicate_key` (ERROR);
+    // MD 10 in Entur mdb-1078, this project 10 → exact parity. Class is Spec, NOT Interop,
+    // because the spec text determines the class, not MD parity alone.
     r!("TRF_016", Kritik, Spec, 2, &[], None, VS_K, Row,
         "Aktarma koşulu çelişkili"),
-    // XFL_020 aynı (trip, route) uyumsuzluğunu kontrol eder; çift raporlamayı
-    // önlemek için TRF_017 kök kuraldır ve XFL_020'yi semptom olarak bastırır.
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: P0fa71358·P585a24d4·P134a2d40·P446972ca
+    // XFL_020 checks the same (trip, route) mismatch; TRF_017 is the root rule and suppresses
+    // XFL_020 as a symptom to prevent duplicate reporting.
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only this
+    // rule measured a strict Spec requirement, but was not in the Spec class; Spec-filtering users
+    // could not see the violation. Severity UNCHANGED → the R1 gate (`Spec ∧ Kritik`) is unchanged.
+    // Ruling: P0fa71358·P585a24d4·P134a2d40·P446972ca.
     r!("TRF_017", Yuksek, Spec, 2, &["XFL_020"], None, VS, Row,
         "Sefer aktarması yanlış hat"),
     r!("TRF_018", Orta,   Quality, 2, &[], None, VS, Row,
@@ -1128,24 +1128,23 @@ pub static RULES: &[RuleMeta] = &[
         "Aktarma için gereken yürüme hızı çok yüksek"),
     r!("TRF_021", Kritik, Spec, 1, &[], Some("from_stop_id|to_stop_id"), VS_K, Row,
         "Aktarma uç noktası durak veya istasyon değil"),
-    // TRF_022/023: GTFS Reference `transfers.txt` → "Linked trips". Spec BÜYÜK HARF `MUST`
-    // kullanır ve 2026-08-06'ya kadar düzyazı kataloğu bunu göremiyordu (regex case-sensitive
-    // `must` arıyordu) → üç sert hüküm hiç ölçülmüyordu.
+    // TRF_022/023: GTFS Reference `transfers.txt` → "Linked trips". The spec uses uppercase `MUST`
+    // and the prose catalog could not see it until 2026-08-06 (it searched for lowercase `must`
+    // with a case-sensitive regex) → three strict requirements were never measured.
     //
-    // ⚠️ Severity `Yuksek`, `Kritik` DEĞİL — bilinçli. R1 yayın kapısı saf `Spec ∧ Kritik`'tir;
-    // belirsiz bir devamlılık gerçek bir spec ihlalidir ama yalnız bağlı-sefer semantiğini
-    // bozar, feed'in geri kalanını kullanılamaz yapmaz. Yayından alıkoymak orantısız olurdu.
+    // ⚠️ Severity `Yuksek`, NOT `Kritik`—deliberate. The R1 publish gate is pure `Spec ∧ Kritik`;
+    // an ambiguous continuation is a real spec violation but only breaks linked-trip semantics,
+    // not the rest of the feed. Blocking publication would be disproportionate.
     //
-    // ⚠️ İkisi AYRI kural çünkü ölçüm de ayrı: biri `from_trip_id`'ye göre gruplar ve
-    // `to_trip_id`'lerin takvimlerine bakar, diğeri tam tersi. Düzeltme de farklı taraftadır.
-    // Spec'in "n-to-n continuations must respect both constraints" cümlesi ikisinin
-    // BİRLİKTE çalışmasıyla karşılanır.
+    // ⚠️ They are SEPARATE rules because the measurements are separate: one groups by `from_trip_id`
+    // and checks the calendars of `to_trip_id`, the other does the reverse. The fix is on a different side.
+    // The spec's "n-to-n continuations must respect both constraints" sentence is satisfied by both working TOGETHER.
     r!("TRF_022", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "1-to-n devamlılıkta devam seferlerinin takvimleri çelişiyor"),
     r!("TRF_023", Yuksek, Spec, 2, &[], Some("trip_id"), VS, Entity,
         "n-to-1 devamlılıkta gelen seferlerin takvimleri çelişiyor"),
 
-    // ── GGL: Google Transit Uyumluluk Kuralları ───────────────────────────────
+    // ── GGL: Google Transit Compatibility Rules ──────────────────────────────
     r!("GGL_001", Dusuk, Interop, 1, &[], None, VI, Feed,
         "transfer_type=4/5 Google Transit tarafından desteklenmiyor"),
     r!("GGL_002", Dusuk, Interop, 1, &[], Some("fare_id"), VI, Row,
@@ -1172,28 +1171,28 @@ pub static RULES: &[RuleMeta] = &[
         "Çakışan ücret kuralları"),
     r!("FAR_011", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
         "payment_method eksik"),
-    // FAR_013 — 2026-09-11'de `Dusuk·Spec` → `Bilgi·Quality`. Üç ölçüm bunu getirdi:
+    // FAR_013 — `Dusuk·Spec` → `Bilgi·Quality` on 2026-09-11. Three measurements led here:
     //
-    // 1. HÜKÜM BU ALAN İÇİN YAZILI DEĞİL. ISO 4217 ondalık cümlesini taşıyan tek hüküm
-    //    `P38cd4e78` ve kaydın bölümü `fare_products`, alanı `amount`. `fare_attributes`
-    //    bölümünde ondalıkla ilgili hüküm YOK; `price`/`currency_type` için spec'te hiç
-    //    cümle yok. Alan tipleri de ayrı: `amount` = "Currency amount" (ondalık şartı
-    //    TİPİN özelliği), `price` = "Non-negative float". Kural şartı benzeşimle taşıyordu.
-    // 2. HİÇBİR KOLU GERÇEK VERİ HATASI BULMUYOR. Eksik basamak (`2.8` USD) aynı tutardır.
-    //    Fazla basamak (`100.50` JPY) da geçersiz DEĞİLDİR: sıfır basamak nakit kademesini
-    //    söyler, bir ücretin o kademeden hassas hesaplanması hata değil (akaryakıt litre
-    //    fiyatı emsali). Tek ciddi tehlike 100× birim hatasıdır (`150` = 150 sent mi 150
-    //    dolar mı) ama kural bunu ayırt EDEMEZ, dolayısıyla sinyal eyleme dönüşmüyor.
-    // 3. SPEC'İN KENDİ HÜKMÜ DE BİÇİM KURALI. *"...must contain the number of decimal
-    //    places specified by the norm ISO 4217..."* değerin geçerliliği hakkında hiçbir şey
-    //    söylemiyor. `FPD_007` de biçim ölçer; farkı spec'in onu AÇIKÇA zorunlu kılması.
+    // 1. THE REQUIREMENT IS NOT WRITTEN FOR THIS FIELD. The only requirement containing the ISO 4217 decimal sentence
+    //    is `P38cd4e78`, in the `fare_products` section, for `amount`. The `fare_attributes`
+    //    section has NO decimal requirement; the spec has no sentence for `price`/`currency_type`.
+    //    The field types also differ: `amount` = "Currency amount" (the decimal requirement is a
+    //    property of the TYPE), `price` = "Non-negative float". The rule transferred the condition by analogy.
+    // 2. NO BRANCH FINDS A REAL DATA ERROR. A missing digit (`2.8` USD) is the same amount.
+    //    Extra digits (`100.50` JPY) are NOT invalid either: zero decimal places state the cash
+    //    denomination; calculating a fare to finer precision than that denomination is not an error
+    //    (the fuel price per liter precedent). The only serious danger is a 100× unit error (`150` =
+    //    150 cents or 150 dollars), but the rule CANNOT distinguish it, so the signal does not lead to action.
+    // 3. THE SPEC'S OWN REQUIREMENT IS ALSO A FORMAT RULE. *"...must contain the number of decimal
+    //    places specified by the norm ISO 4217..."* says nothing about value validity. `FPD_007` also
+    //    measures format; the difference is that the spec EXPLICITLY requires it there.
     //
-    // Ölçüm (16. korpus): 394 feed / 2.166.496 satır, feed başına medyan 2 satır, 190 feed'de
-    // tek satır. MD'nin karşılığı 0 — ve olamaz da: 394 feed'in HİÇBİRİNDE Fares V2 yok, MD'nin
-    // `invalid_currency_amount` kuralı `fare_products.amount`'u denetliyor. MD sessizliği
-    // "baktım, temiz" değil "bakacak kuralım yok" demek → MD burada HAKEM DEĞİL.
-    // `Bilgi` ağırlığı 0.0 olduğu için hiçbir skora ceza yazılmaz; gözlem raporda kalır,
-    // kusur iddiası kalkar. Sınıf `Quality` ZORUNLU: registry kapısı `Spec ∧ Bilgi`'yi yasaklar.
+    // Measurement (16th corpus): 394 feeds / 2,166,496 rows, median 2 rows per feed, one row in 190 feeds.
+    // MD counterpart 0—and cannot be otherwise: none of the 394 feeds has Fares V2, while MD's
+    // `invalid_currency_amount` rule checks `fare_products.amount`. MD silence means not
+    // "I checked and it is clean" but "I have no rule to check it" → MD is NOT THE ARBITER here.
+    // Since `Bilgi` has weight 0.0, it never penalizes a score; the observation remains in the report,
+    // and the defect claim is removed. Class `Quality` is REQUIRED: the registry gate forbids `Spec ∧ Bilgi`.
     r!("FAR_013", Bilgi, Quality, 1, &[], None, VS, File,
         "price para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
     r!("FAR_012", Kritik, Spec, 1, &[], Some("fare_id"), VS_K, Entity,
@@ -1227,22 +1226,22 @@ pub static RULES: &[RuleMeta] = &[
         "rider_category_name eksik"),
     r!("RCT_003", Kritik, Spec, 1, &[], Some("rider_category_id"), VS_K, Row,
         "is_default_fare_category geçersiz"),
-    // min_age/max_age RESMÎ GTFS ALANI DEĞİLDİR — 27 Nisan 2026 Schedule Reference'ta
-    // rider_categories.txt yalnız rider_category_id / rider_category_name /
-    // is_default_fare_category / eligibility_url taşır. Alanlar bazı üreticilerde uzantı
-    // olarak bulunuyor ve okunmaları zararsız; YANLIŞ olan bunu spec ihlali saymaktı.
-    // Sınıf Spec→Quality (2026-08-01): Spec YALNIZ resmî normla meşrudur ve Spec sınıfı
-    // yayın skoru kapısını besler; uzantı alanı oraya girmemeli.
+    // min_age/max_age are NOT OFFICIAL GTFS FIELDS—in the 27 April 2026 Schedule Reference,
+    // rider_categories.txt carries only rider_category_id / rider_category_name /
+    // is_default_fare_category / eligibility_url. The fields exist as extensions in some feeds
+    // and reading them is harmless; the WRONG part was treating them as a spec violation.
+    // Class Spec→Quality (2026-08-01): Spec is legitimate ONLY for an official norm and feeds
+    // the Spec publish-score gate; extension fields must not enter it.
     r!("RCT_004", Orta,   Quality, 1, &[], Some("rider_category_id"), VS, Row,
         "min_age veya max_age geçersiz (GTFS uzantı alanı — resmî spec'te yok)"),
     r!("RCT_005", Orta,   Quality, 1, &[], Some("rider_category_id"), VS, Row,
         "max_age min_age'den küçük"),
     r!("RCT_006", Orta,   Spec, 2, &[], Some("fare_product_id"), VS, Entity,
         "fare_product başına varsayılan yolcu kategorisi sayısı bir değil"),
-    // RCT_007: spec tipi `URL`. Kardeş URL alanlarının hepsinde biçim kuralı var
-    // (stop_url→STP_042, route_url→RTS_005, agency_fare_url→AGN_008); burada yoktu.
-    // ⚠️ Alan adı 2026-08-01'de düzeltildi — parser eskiden spec'te olmayan
-    // `rider_category_eligibility_url` sütununu okuyordu.
+    // RCT_007: spec type `URL`. Every sibling URL field has a format rule
+    // (stop_url→STP_042, route_url→RTS_005, agency_fare_url→AGN_008); this one did not.
+    // ⚠️ The field name was corrected on 2026-08-01—the parser used to read the non-spec
+    // `rider_category_eligibility_url` column.
     r!("RCT_007", Dusuk,  Spec, 1, &[], Some("rider_category_id"), VS, Entity,
         "eligibility_url geçersiz"),
     r!("RCT_008", Kritik, Spec, 1, &[], Some("rider_category_id"), VS_K, Row,
@@ -1271,21 +1270,21 @@ pub static RULES: &[RuleMeta] = &[
         "fare_media_id bulunamadı"),
     r!("FPD_005", Kritik, Spec, 1, &[], Some("fare_product_id"), VS_K, Row,
         "rider_category_id bulunamadı"),
-    // ISO 4217 minor unit — spec: "The currency amount must contain the number of decimal
+    // ISO 4217 minor unit—spec: "The currency amount must contain the number of decimal
     // places specified by the norm ISO 4217 for the accompanying Currency code."
     //
-    // ⚠️ ÖLÇÜM BU KURALIN ŞEKLİNİ BELİRLEDİ. Tam spec uygulaması 239 feed'de 2.001.806 satır
-    // eşleşiyor — `EUR 0.9` ve `HKD 6.7` gibi değerler teknik olarak ihlal ama anlam kaybı
-    // yok ve iki feed toplamın %99,7'sini üretiyor. Bu yüzden:
-    //   • emit DOSYA BAŞINA TEK ÖZET (DQ_016/ARC_032 deseni) — 2M değil 38 notice,
-    //   • severity DÜŞÜK: R1 yayın kapısı saf `Spec ∧ Kritik`'tir, bu kural onu HİÇ görmez.
-    // Sınıf yine de `Spec`: hüküm spec metninde açıkça yazılı, tavsiye değil.
+    // ⚠️ MEASUREMENT DETERMINED THIS RULE'S SHAPE. Full spec application matches 2,001,806 rows
+    // in 239 feeds—values such as `EUR 0.9` and `HKD 6.7` are technically violations but lose no
+    // meaning, and two feeds produce 99.7% of the total. Therefore:
+    //   • emit ONE FILE-LEVEL SUMMARY (DQ_016/ARC_032 pattern)—38 notices, not 2M,
+    //   • severity LOW: the R1 publish gate is pure `Spec ∧ Kritik`, so this rule NEVER reaches it.
+    // Class remains `Spec`: the requirement is explicit in the spec, not a recommendation.
     r!("FPD_007", Dusuk, Spec, 1, &[], None, VS, File,
         "amount para biriminin ISO 4217 ondalık basamak sayısını taşımıyor"),
-    // FPD_006 KALDIRILDI (2026-08-09): boş rider_category_id "default" değildir;
-    // ürünün herhangi bir rider category için uygun olduğunu belirtir. Aynı üçlü
-    // (fare_product_id, rider_category_id, fare_media_id) tekrarı FPD_001'e aittir;
-    // gerçek default kategorisi rider_categories.is_default_fare_category ile ölçülür (RCT_006).
+    // FPD_006 REMOVED (2026-08-09): an empty rider_category_id is not "default";
+    // it means the product is suitable for any rider category. Repetition of the same triple
+    // (fare_product_id, rider_category_id, fare_media_id) belongs to FPD_001;
+    // the actual default category is measured by rider_categories.is_default_fare_category (RCT_006).
 
     // ── FLG: Fare Leg Rules (Fares v2) ────────────────────────────────────────
     r!("FLG_001", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
@@ -1302,19 +1301,19 @@ pub static RULES: &[RuleMeta] = &[
         "to_timeframe_group_id bulunamadı"),
     r!("FLG_007", Orta,   Spec, 1, &[], Some("leg_group_id"), VS, Row,
         "rule_priority geçersiz"),
-    // FLG_008: `fare_product_id` BOŞ. `FLG_001` FK kontrolüdür ve `!is_empty()` koruması
-    // yüzünden boş değerde hiç koşmaz; kardeşlerinin tamamı FK ya da enum. 16 feed (#153).
+    // FLG_008: `fare_product_id` is EMPTY. `FLG_001` is an FK check and never runs for an empty
+    // value because of the `!is_empty()` guard; all siblings are FKs or enums. 16 feeds (#153).
     r!("FLG_008", Kritik, Spec, 1, &[], Some("leg_group_id"), VS_K, Row,
         "fare_product_id eksik"),
 
     // ── FLJ: Fare Leg Join Rules (Fares v2) ───────────────────────────────────
-    // `fare_leg_join_rules.txt` 2026-08-02'ye kadar pipeline'a HİÇ TANITILMAMIŞTI (issue #59):
-    // KNOWN_FILES'ta yoktu → "bilinmeyen dosya" uyarısı alıyordu, parser'ı yoktu, kuralı yoktu.
-    // UI'ın dosya haritası ise düğümü zaten çiziyordu — tutarsızlık aynı değişiklikte kapandı.
+    // `fare_leg_join_rules.txt` was NOT KNOWN to the pipeline until 2026-08-02 (issue #59):
+    // it was absent from KNOWN_FILES → an "unknown file" warning, no parser, and no rule.
+    // The UI file map already drew the node—the inconsistency was closed in the same change.
     //
-    // Her kural TEK alanın hem varlığını hem çözümünü ölçer (NET_002/003 ile aynı desen).
-    // Ağ alanları koşulsuz Required; durak alanları KARŞILIKLI koşulludur — spec: "Required if
-    // to_stop_id is defined. Optional otherwise." ve simetriği.
+    // Each rule measures both presence and resolution of ONE field (same pattern as NET_002/003).
+    // Network fields are unconditionally Required; stop fields are MUTUALLY conditional—the spec says
+    // "Required if to_stop_id is defined. Optional otherwise." and the symmetric condition.
     r!("FLJ_001", Kritik, Spec, 1, &[], Some("from_network_id"), VS_K, Row,
         "from_network_id eksik veya bulunamadı"),
     r!("FLJ_002", Kritik, Spec, 1, &[], Some("to_network_id"), VS_K, Row,
@@ -1352,11 +1351,11 @@ pub static RULES: &[RuleMeta] = &[
     r!("ARS_001", Kritik, Spec, 1, &["SAR_001"],
         Some("area_id"), VS_K, Row,
         "area_id yineleniyor"),
-    // ── presence:required boşlukları (çapa granülerliği triyajı, 2026-08-05) ──────
-    // Ölçüldü: "X yineleniyor" ve "X bulunamadı" başlıklı kurallar BOŞ DEĞERİ HİÇ GÖRMÜYOR.
-    // Yinelenme kontrolü boş anahtarları atlar (haklı — boşlar birbirinin kopyası değildir),
-    // FK çözümü boşu "referans yok" sayıp geçer. Aradaki hüküm — "bu alan zorunludur" —
-    // ikisinin arasından düşüyordu. `presence_probe.py` her birini boş değerle sınadı.
+    // ── presence:required gaps (anchor-granularity triage, 2026-08-05) ────────
+    // Measured: rules titled "X duplicated" and "X not found" NEVER see EMPTY VALUES.
+    // Duplicate checks skip empty keys (correct—empties are not copies of each other), and FK
+    // resolution treats empty as "no reference" and passes. The requirement between them—"this
+    // field is required"—fell through the gap. `presence_probe.py` tested each with an empty value.
     r!("ARS_002", Kritik, Spec, 1, &[], Some("area_id"), VS_K, Row,
         "areas.txt'te area_id boş"),
 
@@ -1374,11 +1373,11 @@ pub static RULES: &[RuleMeta] = &[
     r!("NET_001", Kritik, Spec, 1, &[],
         Some("network_id"), VS_K, Row,
         "network_id yineleniyor"),
-    // NET_002/003: route_networks.txt'in İKİ alanı da spec'te Required ve Foreign ID.
-    // Dosya 2026-08-01'e kadar parse ediliyor ama HİÇ denetlenmiyordu: var olmayan bir hatta
-    // ya da ağa atıf yapan satır sessizce geçiyordu — hat, ait olduğu ağdan sessizce düşer ve
-    // ücret kuralları o hatta uygulanmaz. Her kural tek alanın hem varlığını hem çözümünü ölçer;
-    // boş değer de "çözülemedi" hâlidir, mesaj hangisi olduğunu söyler.
+    // NET_002/003: both route_networks.txt fields are Required and Foreign ID in the spec.
+    // The file was parsed but NOT checked until 2026-08-01: a row referencing a nonexistent route
+    // or network passed silently—the route drops from its network and fare rules do not apply to it.
+    // Each rule measures both presence and resolution of one field; an empty value is also an
+    // "unresolved" state, and the message names which field it is.
     r!("NET_002", Kritik, Spec, 1, &[],
         Some("route_id"), VS_K, Row,
         "route_networks.network_id eksik veya bulunamadı"),
@@ -1397,10 +1396,10 @@ pub static RULES: &[RuleMeta] = &[
         "start_time veya end_time format hatası"),
     r!("TFR_004", Orta,   Quality, 1, &[], Some("timeframe_group_id"), VS, Row,
         "end_time start_time'dan küçük"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: Pa586fe5b
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only
+    // this rule measured a strict Spec requirement, but was not in the Spec class; Spec-filtering
+    // users could not see the violation. Severity UNCHANGED → the R1 gate (`Spec ∧ Kritik`) is unchanged.
+    // Ruling: Pa586fe5b.
     r!("TFR_005", Orta,   Spec, 1, &[], Some("timeframe_group_id"), VS, Row,
         "Aynı grup ve service_id içinde örtüşen zaman aralıkları"),
     r!("TFR_006", Kritik, Spec, 1, &[], Some("timeframe_group_id"), VS_K, Row,
@@ -1422,7 +1421,7 @@ pub static RULES: &[RuleMeta] = &[
         Some("pathway_id"), VS_K, Entity,
         "to_stop_id bulunamadı"),
     r!("PTH_004", Kritik, Spec, 1,
-        // PTH_008/009 feed-seviyesi özet oldu (#15) → per-pathway suppression'a uymaz, çıkarıldı.
+    // PTH_008/009 became feed-level summaries (#15) → incompatible with per-pathway suppression, removed.
         &["PTH_016","PTH_017","PTH_018"],
         Some("pathway_id"), VS_K, Entity,
         "pathway_mode eksik veya geçersiz"),
@@ -1442,12 +1441,12 @@ pub static RULES: &[RuleMeta] = &[
         "min_width geçersiz"),
     r!("PTH_011", Yuksek, Quality, 3, &[], Some("pathway_id"), VS, Entity,
         "Geçit döngü oluşturuyor"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: Pde6fb4a5
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ ruling authority. This was the only
+    // rule measuring a hard Spec requirement, but it was not in the Spec class; users filtering
+    // for Spec violations saw NOTHING. Severity UNCHANGED → the R1 gate (`Spec ∧ Kritik`) is the same.
+    // Ruling: Pde6fb4a5
     r!("PTH_012", Yuksek, Spec, 3,
-        &[], // feed düzeyinde toplulanır: bağlantı her istasyonu bastırıyordu (2026-10-13)
+        &[], // Grouped at feed level: the link suppressed every station (2026-10-13).
         Some("stop_id"), VS_ACC, Entity,
         "İstasyona erişilebilir yol yok"),
     r!("PTH_013", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA_ACC, Entity,
@@ -1458,9 +1457,9 @@ pub static RULES: &[RuleMeta] = &[
         "Geçit hedefi erişilemeyen durakta"),
     r!("PTH_016", Yuksek, Spec, 3, &[], Some("pathway_id"), VS, Entity,
         "Çıkış kapısı çift yönlü tanımlanmış"),
-    // PTH_017 ARTIK YALNIZ TİP İHLALİ: spec `max_slope`'u `Float` olarak tipler, sayı olmayan
-    // değer bu tipi ihlal eder → meşru Spec iddiası. "Yalnız pathway_mode 1/3 ile kullanılmalı"
-    // dalı PTH_028'e (Quality) taşındı; spec orada "should" der, norm koymaz.
+    // PTH_017 is now ONLY a TYPE violation: the spec types `max_slope` as `Float`, and a non-numeric
+    // value violates that type → legitimate Spec claim. The "use only with pathway_mode 1/3" branch
+    // moved to PTH_028 (Quality); the spec says "should" there, not a norm.
     r!("PTH_017", Orta,   Spec, 2, &[], Some("pathway_id"), VS, Entity,
         "max_slope sayı değil"),
     r!("PTH_018", Dusuk,  Quality, 1, &[], Some("pathway_id"), VS, Entity,
@@ -1479,41 +1478,40 @@ pub static RULES: &[RuleMeta] = &[
         "is_bidirectional eksik"),
     r_noscore!("PTH_025", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway length bilgisi eksik"),
-    // PTH_029: PTH_025'in kardeşi. Spec `traversal_time` için "recommended for moving
-    // sidewalks (3), escalators (4) and elevator (5)" der; PTH_007 değeri VARSA doğruluyor,
-    // eksikliği ölçmüyordu. Üç öneri alanından ikisi (length→PTH_025, stair_count→PTH_008)
-    // zaten ölçülüyordu. Ölçüldü (239 feed): 4 feed, 24 kayıt.
-    // PTH_030: spec, bir platformun boarding area'ları modellendiğinde pathway'lerin
-    // BOARDING AREA'lara bağlanmasını ister ve ekler: "In such cases, the platform must
-    // not have pathways assigned." Grafik kodu iç içe modellemeyi TOLERE ediyordu
-    // (k6_analytics.rs:7287) ama yasağı ölçmüyordu.
-    // ⚠️ Korpusta örnek YOK — endişe edilen gürültü gerçekleşmiyor → sentetik fixture.
+    // PTH_029: sibling of PTH_025. The spec says `traversal_time` is "recommended for moving
+    // sidewalks (3), escalators (4) and elevator (5)"; PTH_007 validates the value WHEN PRESENT,
+    // but did not measure absence. Two of the three recommended fields (length→PTH_025, stair_count→PTH_008)
+    // were already measured. Measured (239 feeds): 4 feeds, 24 records.
+    // PTH_030: when a platform's boarding areas are modeled, the spec requires pathways to connect
+    // to the BOARDING AREAS and adds: "In such cases, the platform must not have pathways assigned."
+    // Graph code TOLERATED nested modeling (k6_analytics.rs:7287) but did not measure the prohibition.
+    // ⚠️ NO corpus example—the feared noise does not occur → synthetic fixture.
     r!("PTH_030", Dusuk, Spec, 1, &[], Some("pathway_id"), VS, Row,
         "Boarding area'sı olan platforma pathway atanmış"),
     r_noscore!("PTH_029", Dusuk, Quality, 1, &[], None, VS, Feed,
         "Önerilen pathway traversal_time bilgisi eksik"),
     r!("PTH_026", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
         "Pathway uç noktası istasyon"),
-    // PTH_031: `PTH_026`'nın İKİNCİ KOLU. Spec `from_stop_id`/`to_stop_id` için TEK cümlede
-    // iki şeyi yasaklar: *"Values for stop_id that identify stations (location_type=1), **or
-    // stops (location_type=0 or empty) with stop_access=1**, are forbidden."* İstasyon kolu
-    // PTH_026'ydı; `stop_access=1` kolu 2026-08-06'ya kadar YAZILMAMIŞTI — kodda "kapsam
-    // dışıdır" diye bir yorum duruyordu ama hükmün kendisi ölçülmüyordu. Katalog da göremedi
-    // çünkü cümle yasağı KÜÇÜK harfle ("are forbidden") yazıyor.
-    // AYRI kural, PTH_026'ya eklenmedi: MD'de de ayrı notice ve olgular farklı — biri yanlış
-    // düğüm tipi, diğeri "bu durak zaten sokaktan erişiliyor, pathway'in konusu değil".
+    // PTH_031: the SECOND BRANCH of `PTH_026`. For `from_stop_id`/`to_stop_id`, the spec forbids two
+    // things in ONE sentence: *"Values for stop_id that identify stations (location_type=1), **or
+    // stops (location_type=0 or empty) with stop_access=1**, are forbidden."* The station branch
+    // was PTH_026; the `stop_access=1` branch was NOT WRITTEN until 2026-08-06—a comment in
+    // the code said "out of scope" but the requirement itself was not measured. The catalog also
+    // missed it because the prohibition sentence uses lowercase ("are forbidden").
+    // It was not added to PTH_026 as a separate rule: MD also has a separate notice and the facts differ—
+    // one is the wrong node type, the other is "this stop is already street-accessible and is not a pathway subject".
     r!("PTH_031", Kritik, Spec, 1, &[], Some("pathway_id"), VS_K, Row,
         "Pathway uç noktası sokaktan erişilen durak (stop_access=1)"),
-    // PTH_027: spec tipi `Non-null integer` — hem tam sayı olmayı hem SIFIR OLMAMAYI şart
-    // koşar. Sıfır anlamsızdır: pozitif değer yolcunun yukarı, negatif aşağı yürüdüğünü
-    // söyler, sıfır ikisini de söylemez. Sayı olmayan değer de eskiden sessizce düşüyordu.
+    // PTH_027: spec type `Non-null integer` requires both an integer and NON-ZERO value.
+    // Zero is meaningless: a positive value says the passenger walks upward, a negative value downward,
+    // while zero says neither. Non-numeric values also used to be silently dropped.
     r!("PTH_027", Orta, Spec, 1, &[], Some("pathway_id"), VS, Entity,
         "stair_count geçersiz (sıfır veya tam sayı değil)"),
-    // PTH_028: PTH_017'den AYRILDI. Spec `max_slope` için "This field SHOULD only be used with
-    // walkways (pathway_mode=1) and moving sidewalks (pathway_mode=3)" der — "should", ve
-    // Presence sütunu düz `Optional`. Spec gerçek yasakları 14 alanda `Conditionally Forbidden`
-    // yazarak ifade eder; burada bilinçli olarak yazmamıştır. Bir TAVSİYEYİ norm diye
-    // dayatamayız → Quality. (STM_040 ve AGN_007 ile aynı gerekçe.)
+    // PTH_028: SPLIT from PTH_017. For `max_slope`, the spec says "This field SHOULD only be used with
+    // walkways (pathway_mode=1) and moving sidewalks (pathway_mode=3)"—"should", with a plain
+    // `Optional` Presence column. The spec expresses real prohibitions in 14 fields using
+    // `Conditionally Forbidden`; it deliberately does not do so here. We cannot impose a RECOMMENDATION
+    // as a norm → Quality. (Same rationale as STM_040 and AGN_007.)
     r!("PTH_028", Dusuk, Quality, 1, &[], Some("pathway_id"), VS, Entity,
         "max_slope yürüme yolu dışında kullanılmış"),
 
@@ -1560,10 +1558,10 @@ pub static RULES: &[RuleMeta] = &[
         "feed_contact_url geçersiz"),
     r!("FIN_010", Yuksek, Analytics, 2, &[], None, VA, Feed,
         "Feed geçerlilik süresi dolmuş"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: P3e2e5c05
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only
+    // this rule measured a strict Spec requirement, but was not in the Spec class; Spec-filtering
+    // users could not see the violation. Severity UNCHANGED → the R1 gate (`Spec ∧ Kritik`) is unchanged.
+    // Ruling: P3e2e5c05.
     r!("FIN_012", Dusuk,  Spec, 1, &[], None, VS, Feed,
         "feed_start_date feed_end_date'den sonra"),
     r!("FIN_013", Bilgi,  Quality, 1, &[], None, VS, Feed,
@@ -1598,12 +1596,12 @@ pub static RULES: &[RuleMeta] = &[
         "Çeviri kaydı çelişkili"),
     r!("TRN_007", Dusuk,  Quality, 1, &[], None, VS, Row,
         "Çeviri feed_lang ile aynı dilde"),
-    // `translations.translation` spec'te **Required**'dır; boş değer zorunlu alanın
-    // sağlanmamasıdır → spec ihlali. Sınıf Quality→Spec, önem Bilgi→KRİTİK (2026-08-01, WP-3).
-    // Emsal: zorunlu alan boş/eksik = Kritik·Spec (FIN_001 feed_publisher_name, ATR_002
-    // organization_name, LVL_007/008) — dosyanın kendisinin Optional olması bunu değiştirmez;
-    // attributions.txt ve levels.txt de Optional dosyalardır. Kritik+Spec → görünürlük VS_K
-    // (R1'i taşımak ZORUNDA, registry testi bunu doğrular) ve bulgu yayın engeli olur.
+    // `translations.translation` is **Required** in the spec; an empty value fails the required field
+    // → spec violation. Class Quality→Spec, severity Bilgi→KRİTİK (2026-08-01, WP-3).
+    // Precedent: empty/missing required field = Kritik·Spec (FIN_001 feed_publisher_name, ATR_002
+    // organization_name, LVL_007/008)—the file being Optional does not change this;
+    // attributions.txt and levels.txt are Optional files too. Kritik+Spec → view VS_K
+    // (it MUST carry R1, verified by the registry test) and the finding blocks publication.
     r!("TRN_008", Kritik, Spec, 1, &[], None, VS_K, Row,
         "translation değeri boş"),
     r!("TRN_009", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
@@ -1616,24 +1614,24 @@ pub static RULES: &[RuleMeta] = &[
         "feed_info çevirisinde kimlik alanı kullanılamaz"),
     r!("TRN_014", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
         "record_sub_id yalnızca stop_times için geçerli"),
-    // TRN_015: spec `field_value` için ÜÇ hüküm koyar; ikisi zaten karşılanıyordu
-    // (feed_info'da yasak → TRN_013, record_id ile birlikte yasak → TRN_009). Üçüncüsü
-    // eksikti: "Required if record_id is empty". İkisi de boşsa satır hangi kaydı
-    // çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.
-    // TRN_017: `TRN_014`'ün TERS KOLU. Spec `record_sub_id` için iki yönlü hüküm koyar:
-    // stop_times DIŞINDA yasak (→TRN_014), stop_times İÇİNDE `record_id` doluyken ZORUNLU.
-    // `stop_times.txt`'in birincil anahtarı BİLEŞİKTİR (`trip_id`+`stop_sequence`);
-    // `record_id` yalnız ilkini taşır. İkincisi olmadan çeviri hangi SATIRA ait olduğunu
-    // söyleyemez — referans dangling değil, BELİRSİZdir; bu yüzden XFL_014 de görmez.
-    // ⚠️ Korpusta örnek YOK (hiçbir feed stop_times çevirmiyor) → sentetik fixture.
+    // TRN_015: the spec has THREE requirements for `field_value`; two were already covered
+    // (forbidden in feed_info → TRN_013, forbidden with record_id → TRN_009). The third was missing:
+    // "Required if record_id is empty". If both are empty, the row does not say which record it
+    // translates—the translation can never be applied.
+    // TRN_017: the REVERSE BRANCH of `TRN_014`. The spec has two directions for `record_sub_id`:
+    // forbidden OUTSIDE stop_times (→TRN_014), REQUIRED INSIDE stop_times when `record_id` is populated.
+    // The primary key of `stop_times.txt` is COMPOSITE (`trip_id`+`stop_sequence`); `record_id` carries
+    // only the first. Without the second, the translation cannot identify which ROW it belongs to—
+    // the reference is not dangling but AMBIGUOUS, so XFL_014 also does not see it.
+    // ⚠️ NO corpus example (no feed translates stop_times) → synthetic fixture.
     r!("TRN_017", Orta, Spec, 1, &[], Some("record_id"), VS, Row,
         "stop_times çevirisinde record_sub_id eksik — hangi satır olduğu belirsiz"),
     r!("TRN_015", Yuksek, Spec, 1, &[], Some("record_id"), VS, Row,
         "record_id ve field_value ikisi de boş"),
-    // TRN_016: `field_value` biçimi yalnız DEĞERE göre eşleşir — spec: "The field must have
-    // exactly the value defined in field_value." Eşleşen satır yoksa çeviri SESSİZCE etkisizdir:
-    // üretici çevirdiğini sanır, çevrilmez. `XFL_014` yalnız `record_id` kolunu kapsıyordu.
-    // Ölçüldü (239 feed): 6 feed, 998 satır; `mdb-2848`'de 2413 çevirinin 810'u ölü.
+    // TRN_016: `field_value` matching is based only on the VALUE—the spec says: "The field must have
+    // exactly the value defined in field_value." If no row matches, the translation is SILENTLY inert:
+    // the producer thinks it translated, but it is not translated. `XFL_014` covered only the `record_id` branch.
+    // Measured (239 feeds): 6 feeds, 998 rows; in `mdb-2848`, 810 of 2,413 translations were dead.
     r!("TRN_016", Orta, Spec, 1, &[], None, VS, Feed,
         "field_value hiçbir kayıtla eşleşmiyor — çeviri uygulanmıyor"),
 
@@ -1654,34 +1652,34 @@ pub static RULES: &[RuleMeta] = &[
         "attribution_url geçersiz"),
     r!("ATR_008", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Entity,
         "attribution_email geçersiz"),
-    // SINIF DEĞİŞTİ (#96, 2026-08-09): kanıt sınıfı ↔ hüküm otoritesi. Sert bir Spec
-    // hükmünü YALNIZ bu kural ölçüyordu ama kural Spec sınıfında değildi; Spec'e filtreleyen
-    // kullanıcı ihlali HİÇ görmüyordu. Önem DEĞİŞMEDİ → R1 kapısı (`Spec ∧ Kritik`) aynı.
-    // Hüküm: P7917f3c5
+    // CLASS CHANGED (#96, 2026-08-09): evidence class ↔ authority of the requirement. Only
+    // this rule measured a strict Spec requirement, but was not in the Spec class; Spec-filtering
+    // users could not see the violation. Severity UNCHANGED → the R1 gate (`Spec ∧ Kritik`) is unchanged.
+    // Ruling: P7917f3c5.
     r!("ATR_009", Yuksek, Spec, 1, &[], Some("attribution_id"), VS, File,
         "attribution hedef alanları (agency/route/trip) birlikte kullanılmış"),
     r!("ATR_010", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "agency_id bulunamadı"),
-    // ATR_011/012: attributions.txt'in üç referans alanı üç ayrı kuralla ölçülür. Daha önce
-    // route_id ATR_006, trip_id ise ATR_007 altında raporlanıyordu — yani enum/URL biçim
-    // hatalarıyla aynı ID'de. Feed-level özet XFL_015 (Kritik) üçünü de kapsadığı için
-    // yayın kapısı ATR_010 ile aynı emsalde DÜŞÜK kalır.
+    // ATR_011/012: the three reference fields in attributions.txt are measured by three separate
+    // rules. Previously route_id was reported under ATR_006 and trip_id under ATR_007—so they
+    // shared IDs with enum/URL format errors. Feed-level summary XFL_015 (Kritik) covers all
+    // three, so the publication gate remains LOW, matching ATR_010.
     r!("ATR_011", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "route_id bulunamadı"),
     r!("ATR_012", Dusuk,  Spec, 1, &[], Some("attribution_id"), VS, Row,
         "trip_id bulunamadı"),
 
-    // ── XFL: Çapraz Dosya / Semantik ───────────────────────────────────────────
+    // ── XFL: Cross-File / Semantic ───────────────────────────────────────────
     r!("XFL_002", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
         "Seferin stop_times kaydı yok"),
     r!("XFL_006", Orta,   Analytics, 2, &[], Some("service_id"), VA, Entity,
         "service_id yalnızca iptal istisnası içeriyor (aktif gün yok)"),
-    // XFL_011 (2026-10-11): retired. Ham calendar aralığı spec'in tavsiye ettiği pencere dışı
-    // veriyi Orta/Interop sayıyordu; MD karşılığı aktif tarihlere bakan CAL_014'tür.
+    // XFL_011 (2026-10-11): retired. The raw calendar range classified data outside the
+    // spec-recommended window as Medium/Interop; the MD counterpart is CAL_014, which checks active dates.
     r!("XFL_012", Yuksek, Quality, 2, &[], Some("route_id"), VS, Entity,
         "Çalıştırılabilir seferi olmayan hat (stop_times veya aktif servis bağlamı eksik)"),
     r!("XFL_013", Yuksek, Quality, 2,
-        // STM_017 trip ya da feed kapsamlı: shape kapsamlı kök onu hiç eşleyemezdi (2026-10-11).
+        // STM_017 is trip- or feed-scoped: a shape-scoped root could never match it (2026-10-11).
         &["SHP_017"],
         Some("shape_id"), VS, Entity,
         "shape_id birden fazla yönde kullanılıyor"),
@@ -1693,15 +1691,15 @@ pub static RULES: &[RuleMeta] = &[
         "Çeviri feed_info'ya referans veriyor ama feed_info.txt eksik"),
     r!("XFL_019", Orta,   Spec, 2, &[], None, VS, Feed,
         "Ağ tanımı iki ayrı dosyada (routes.network_id + networks.txt veya route_networks.txt)"),
-    // XFL_020 → Spec: GTFS Reference transfers.txt NORMATİF — "If both from_trip_id and
-    // from_route_id are defined, the trip_id MUST BELONG TO the route_id" (to_* için aynı).
-    // MD karşılığı `transfer_with_invalid_trip_and_route` (ERROR).
+    // XFL_020 → Spec: GTFS Reference transfers.txt is NORMATIVE—"If both from_trip_id and
+    // from_route_id are defined, the trip_id MUST BELONG TO the route_id" (the same applies to to_*).
+    // MD counterpart: `transfer_with_invalid_trip_and_route` (ERROR).
     r!("XFL_020", Kritik, Spec, 2, &[], None, VS_K, Row,
         "Transfers'de geçersiz (from_trip_id/to_trip_id, route_id) çifti"),
-    // XFL_021 → INTEROP, Spec DEĞİL: spec yalnız "the transfer will APPLY TO the arriving trip
-    // for the given from_stop_id" der; "trip stop'u içermeli" normatif hükmü YOKTUR (2026-07-27'de
-    // reference metninden doğrulandı). MD bunu ERROR sayıyor ve notice paritesi BİREBİR
-    // (`transfer_with_invalid_trip_and_stop`, Entur mdb-1078'de 12/12) → sınıf Interop.
+    // XFL_021 → INTEROP, NOT Spec: the spec only says "the transfer will APPLY TO the arriving trip
+    // for the given from_stop_id"; it has NO normative requirement that it contain the trip's stop
+    // (confirmed from the reference text on 2026-07-27). MD treats this as ERROR and notice parity is
+    // EXACT (`transfer_with_invalid_trip_and_stop`, 12/12 in Entur mdb-1078) → class Interop.
     r!("XFL_021", Yuksek, Interop, 2, &[], None, VI, Row,
         "Transfers'de geçersiz (from_trip_id/to_trip_id, stop_id) çifti"),
     r!("XFL_022", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
@@ -1713,9 +1711,9 @@ pub static RULES: &[RuleMeta] = &[
     r!("XFL_025", Kritik, Spec, 1, &[], Some("location_id"), VS_K, Row,
         "location_id bulunamadı (locations.geojson)"),
     // Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
-    // locations.geojson id, and location_groups.location_group_id values." Üç dosya TEK bir
-    // isim alanını paylaşır; çakışan bir kimlik stop_times.location_id / location_group_id
-    // referansını çözümlenemez hâle getirir.
+    // locations.geojson id, and location_groups.location_group_id values." The three files share
+    // ONE namespace; a colliding ID makes a stop_times.location_id / location_group_id reference
+    // impossible to resolve.
     r!("XFL_031", Kritik, Spec, 2, &[], Some("location_group_id"), VS_K, Row,
         "Kimlik çakışması: stop_id / locations.geojson id / location_group_id ortak isim alanını paylaşır"),
     r!("XFL_032", Kritik, Spec, 1, &[], Some("location_group_id"), VS_K, Row,
@@ -1733,7 +1731,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("XFL_030", Bilgi, Quality, 1, &[], None, VS, Feed,
         "contactless fare media var ama hiç cemv_support=1 yok"),
 
-    // ── OPR: Operasyonel Tutarlılık (tümü ANALYTICS) ───────────────────────────
+    // ── OPR: Operational Consistency (all ANALYTICS) ───────────────────────────
     r!("OPR_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Hat sefer sıklığı düşük"),
     r!("OPR_003", Dusuk,  Analytics, 2, &[], Some("route_id"), VA, Entity,
@@ -1768,10 +1766,10 @@ pub static RULES: &[RuleMeta] = &[
         "Sefer çok kısa mesafe"),
     r!("OPR_019", Bilgi,  Analytics, 2, &[], Some("route_id"),   VA, Entity,
         "Rota takvim çakışması (aynı günde birden fazla servis)"),
-    // OPR_020 2026-07-24: Yuksek→Dusuk. Kural base↔override ilişkisini kanıtlayamaz;
-    // "günde 2+ aktif servis + biri exception'lı" meşru çok-varyant modellemede de
-    // görülür (VBB: rotaların %74'ü ateşliyor). Kartın kendi FP notu bunu kabul ediyor.
-    // HIGH "muhtemel gerçek sorun" der; doyuma ulaşan kabul-edilmiş-FP heuristiğe uymaz.
+    // OPR_020 2026-07-24: High→Low. The rule cannot prove a base↔override relationship;
+    // it also appears in a legitimate multi-variant model with "2+ active services per day +
+    // one with an exception" (VBB: 74% of routes trigger it). The card's own FP note accepts this.
+    // HIGH means "probable real issue"; it does not fit a saturated accepted-FP heuristic.
     r!("OPR_020", Dusuk, Analytics, 2, &[], Some("route_id"),   VA, Entity,
         "Rota exception günü çakışması"),
     r!("OPR_021", Yuksek, Analytics, 3, &[], Some("route_id"),   VA, Entity,
@@ -1785,7 +1783,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("OPR_025", Yuksek, Analytics, 2, &[], None, VA, Feed,
         "Feed genelinde ortalama sefer süresi 60 saniyeden kısa — veri kalitesi sorunu"),
 
-    // ── GEO: Coğrafi / Uzamsal (canonical kurallar — GEO_008/010/011 hariç) ───
+    // ── GEO: Geographic / Spatial (canonical rules—excluding GEO_008/010/011) ─
     r!("GEO_002", Yuksek, Analytics, 2, &[], Some("stop_id"), VA_GEO, Entity,
         "Durak feed medianından çok uzakta"),
     r!("GEO_006", Yuksek, Analytics, 3, &[], Some("shape_id"), VA_GEO, Entity,
@@ -1817,9 +1815,9 @@ pub static RULES: &[RuleMeta] = &[
     r!("GEO_022", Yuksek, Quality,   1, &[], Some("stop_id"), VA_GEO, Entity,
         "Durak enlemi kutba aşırı yakın (|lat|>89) — olası koordinat hatası"),
 
-    // ── DQ: Veri Kalitesi / Kullanıcı Deneyimi ─────────────────────────────────
-    // DQ_001/DQ_002 (feed_publisher_name/url eksik) kaldırıldı: ARC_020 (dosya yok)
-    // + FIN_001/002 (değer boş) + ARC_025 (sütun yok) zaten kapsıyor.
+    // ── DQ: Data Quality / User Experience ───────────────────────────────────
+    // DQ_001/DQ_002 (missing feed_publisher_name/url) removed: ARC_020 (file absent)
+    // + FIN_001/002 (value empty) + ARC_025 (column absent) already cover them.
     r!("DQ_003",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
         "Hat açıklaması eksik"),
     r!("DQ_004",  Bilgi,  Quality,  1, &[], Some("route_id"), VS, Entity,
@@ -1842,9 +1840,9 @@ pub static RULES: &[RuleMeta] = &[
         "Çok fazla acente, agency_id kullanılmıyor"),
     r_noscore!("DQ_013", Bilgi, Analytics, 1, &[], None, VA, Feed,
         "Çok az sefer"),
-    // Emit DOSYA başına tek özet → Varlık=File. Eski hâl Row idi ve baş/son boşluk tek bir
-    // üretici alışkanlığı (ör. ayraç ', ') olduğu için dosyanın HER satırında çıkıyordu:
-    // mdb-992'de 2.361.873 notice (MD: 12) → tarayıcı OOM riski. STM_050 ile aynı karar.
+    // Emit one summary per FILE → Entity=File. Previously it was Row, and because leading/trailing
+    // whitespace was a generator habit (e.g. separator ', '), it appeared on EVERY row in the file:
+    // 2,361,873 notices in mdb-992 (MD: 12) → browser OOM risk. Same decision as STM_050.
     r!("DQ_016",  Orta,   Quality,  1, &[], None, VS, File,
         "Değerde fazladan boşluk karakteri"),
     r!("DQ_017",  Bilgi,  Quality,  1, &[], None, VS, Feed,
@@ -1860,7 +1858,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("DQ_022",  Yuksek, Quality,  2, &[], None, VS, Feed,
         "Durakların %80'inden fazlası aynı stop_name değerini paylaşıyor — yer tutucu/test verisi"),
 
-    // ── VAT: Varlık Analitik Tespiti (tümü ANALYTICS) ──────────────────────────
+    // ── VAT: Entity Analytics Detection (all ANALYTICS) ──────────────────────
     r!("VAT_001", Orta,   Analytics, 3, &[], Some("route_id"), VA, Entity,
         "Hat güzergah benzerliği (muhtemel kopya hat)"),
     r!("VAT_002", Bilgi,  Analytics, 3, &[], Some("stop_id"), VA, Entity,
@@ -1876,7 +1874,7 @@ pub static RULES: &[RuleMeta] = &[
     r!("VAT_008", Bilgi,  Analytics, 2, &[], Some("shape_id"), VA_GEO, Entity,
         "Aynı shape feed hatlarının %30'undan fazlasında kullanılıyor — olası yanlış shape ataması"),
 
-    // ── JPN — GTFS-JP (Japonya profili) kuralları; yalnız GTFS-JP feed'lerde ────
+    // ── JPN — GTFS-JP (Japan profile) rules; only on GTFS-JP feeds ────────────
     r!("JPN_001", Orta,   Quality, 2, &[], Some("stop_id"), VS, Entity,
         "GTFS-JP: durak adının kana (ja-Hrkt) okuması eksik"),
     r!("JPN_002", Yuksek, Interop, 1, &[], Some("trip_id"), VI, Entity,
@@ -1907,8 +1905,8 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: office_jp.office_id eksik veya tekrarlı"),
     r!("JPN_015", Yuksek, Interop, 1, &[], Some("route_id"), VI, Entity,
         "GTFS-JP legacy: routes_jp.route_id eksik, tekrarlı veya routes.txt'te yok"),
-    // K4 notice'ı pattern_jp için jp_pattern_id, legacy routes_jp için route_id
-    // taşır; tek bir K2 scope alanı bu iki dosya-bağımlı kimliği doğru ifade edemez.
+    // A K4 notice carries jp_pattern_id for pattern_jp and route_id for legacy routes_jp;
+    // a single K2 scope field cannot correctly express these two file-dependent identities.
     r!("JPN_016", Orta, Quality, 1, &[], None, VS, Row,
         "GTFS-JP: pattern_jp veya legacy routes_jp route_update_date geçersiz"),
     r!("JPN_017", Yuksek, Interop, 1, &[], Some("jp_pattern_id"), VI, Entity,
@@ -1947,25 +1945,26 @@ pub static RULES: &[RuleMeta] = &[
         "GTFS-JP: özel dosya veya alan adında ayrılmış jp ad alanı kullanılmış"),
 ];
 
-/// `RULES` üzerinden id → metadata için tek seferlik kurulan O(1) arama tablosu.
-/// `RULES` derleme-zamanı sabiti olduğundan ilk çağrıda bir kez kurulur; sonraki
-/// çağrılar lineer tarama yerine hash-lookup yapar. `OnceLock` thread-safe →
-/// `pkg-threads` (rayon) build'inde de güvenli. Çıktı/dönüş değeri lineer taramayla
-/// BİREBİR aynıdır (ID'ler `no_duplicate_ids` testiyle benzersiz garantili).
+/// One-time O(1) lookup table for id → metadata from `RULES`.
+/// Because `RULES` is a compile-time constant, it is initialized once on the first call;
+/// later calls use a hash lookup instead of a linear scan. `OnceLock` is thread-safe, so this
+/// is also safe in the `pkg-threads` (rayon) build. The output/return value is EXACTLY the
+/// same as a linear scan (IDs are guaranteed unique by the `no_duplicate_ids` test).
 fn rule_index() -> &'static std::collections::HashMap<&'static str, &'static RuleMeta> {
     static IDX: std::sync::OnceLock<std::collections::HashMap<&'static str, &'static RuleMeta>> =
         std::sync::OnceLock::new();
     IDX.get_or_init(|| RULES.iter().map(|r| (r.id, r)).collect())
 }
 
-/// Kural ID'sine göre metadata döndürür.
+/// Returns metadata for a rule ID.
 pub fn get_rule(id: &str) -> Option<&'static RuleMeta> {
     rule_index().get(id).copied()
 }
 
-/// Kural ID → otorite kaynağı (otorite denetim defterinden üretildi; yerelde notgit/audits/).
-/// Sınıf otorite bütünlüğü SSOT: `Spec` sınıfı YALNIZ `GtfsSpec` ile meşrudur. r!() çağrılarına
-/// dokunmadan tutulur; kapsam/tekillik `authority_covers_all_rules` testiyle denetlenir.
+/// Rule ID → authority source (generated from the authority audit ledger; local `notgit/audits/`).
+/// Class-authority integrity SSOT: the `Spec` class is legitimate ONLY with `GtfsSpec`.
+/// Kept separate from the r!() calls; coverage/uniqueness is checked by the
+/// `authority_covers_all_rules` test.
 static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("AGN_002", GtfsSpec),
     ("AGN_003", GtfsSpec),
@@ -2116,8 +2115,8 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("FAR_010", ProjectQuality),
     ("FAR_011", GtfsSpec),
     ("FAR_012", GtfsSpec),
-    // Yakaladığı olgu ISO 4217 biçim geleneği; GTFS spec'i `fare_attributes.price` için
-    // ondalık şartı YAZMIYOR (hüküm `fare_products.amount` içindir → `FPD_007`).
+    // The fact it catches is an ISO 4217 formatting convention; the GTFS spec does NOT require
+    // decimals for `fare_attributes.price` (the requirement is for `fare_products.amount` → `FPD_007`).
     ("FAR_013", ProjectQuality),
     ("FIN_001", GtfsSpec),
     ("FIN_002", GtfsSpec),
@@ -2557,7 +2556,7 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("TRP_029", ProjectQuality),
     ("TRP_031", GtfsSpec),
     ("TRP_032", GtfsSpec),
-    // Spec bir blokta tek mod şartını AÇIKÇA yazmaz → GtfsSpec DEĞİL, proje kararı.
+    // The Spec does not EXPLICITLY require a single mode in a block → NOT GtfsSpec, a project decision.
     ("TRP_034", GtfsSpec),
     ("TRP_035", GtfsSpec),
     ("VAT_001", ProjectAnalytics),
@@ -2591,14 +2590,14 @@ static AUTHORITY: &[(&str, AuthoritySource)] = &[
     ("XFL_030", ProjectQuality),
 ];
 
-/// `AUTHORITY` üzerinden id → AuthoritySource için O(1) arama (`rule_index` deseni).
+/// O(1) lookup through `AUTHORITY` from ID → AuthoritySource (`rule_index` pattern).
 fn authority_index() -> &'static std::collections::HashMap<&'static str, AuthoritySource> {
     static IDX: std::sync::OnceLock<std::collections::HashMap<&'static str, AuthoritySource>> =
         std::sync::OnceLock::new();
     IDX.get_or_init(|| AUTHORITY.iter().map(|&(k, v)| (k, v)).collect())
 }
 
-/// Kural ID'sinin otorite kaynağı. Bilinmiyorsa `Unknown`.
+/// Authority source for a rule ID. Returns `Unknown` when it is not known.
 pub fn authority_source(id: &str) -> AuthoritySource {
     authority_index()
         .get(id)
@@ -2607,7 +2606,7 @@ pub fn authority_source(id: &str) -> AuthoritySource {
 }
 
 impl RuleMeta {
-    /// Bu kuralın otorite kaynağı (sınıfın meşruiyet dayanağı).
+    /// Authority source for this rule (the basis legitimizing its class).
     pub fn authority_source(&self) -> AuthoritySource {
         authority_source(self.id)
     }
@@ -2617,9 +2616,9 @@ impl RuleMeta {
 mod tests {
     use super::*;
 
-    /// Otorite gate (Faz 3'te tamamlandı, Faz 4'te hard-fail): `Sınıf=Spec` YALNIZCA
-    /// `authority=GtfsSpec` ile meşrudur. Faz 1-3 boyunca 45→0 uyumsuz kural düşürüldü
-    /// (parti tarihçesi: `notgit/audits/`). Artık istisna/allowlist YOK — ihlal = CI kırmızı.
+    /// Authority gate (completed in Phase 3, hard-fail in Phase 4): `Sınıf=Spec` is legitimate ONLY
+    /// with `authority=GtfsSpec`. During Phases 1–3, 45→0 mismatched rules were removed
+    /// (batch history: `notgit/audits/`). There is now NO exception/allowlist—violation = CI red.
 
     #[test]
     fn no_duplicate_ids() {
@@ -2630,8 +2629,8 @@ mod tests {
         assert_eq!(before, ids.len(), "Tekrar eden kural ID'si var");
     }
 
-    /// AUTHORITY tablosu her RULES kuralını birebir kapsamalı (drift yok):
-    /// eksik yok, yetim yok, mükerrer yok. Otorite SSOT bütünlüğünün temeli.
+    /// The AUTHORITY table must cover every RULES rule exactly (no drift):
+    /// no missing, orphaned, or duplicate entries. This is the foundation of authority SSOT integrity.
     #[test]
     fn authority_covers_all_rules() {
         use std::collections::HashSet;
@@ -2650,9 +2649,9 @@ mod tests {
         );
     }
 
-    /// Otorite bütünlüğü çekirdek değişmezi: hiçbir kural `Spec` sınıfındayken
-    /// authority_source ≠ GtfsSpec olamaz. Faz 3 sonunda mevcut ihlaller
-    /// temizlendi; allowlist boş kalır.
+    /// Core authority-integrity invariant: while a rule is in the `Spec` class,
+    /// authority_source cannot be ≠ GtfsSpec. Existing violations were cleared at the end of
+    /// Phase 3; the allowlist remains empty.
     #[test]
     fn spec_class_requires_gtfs_spec_authority() {
         let violations: Vec<&str> = RULES
@@ -2667,15 +2666,16 @@ mod tests {
         );
     }
 
-    /// Sınıf ⟺ otorite biconditional'i: her kuralın `rule_class`'ı, `authority_source`'unun
-    /// beklenen sınıfıyla birebir eşleşmeli. `spec_class_requires_gtfs_spec_authority`'nin
-    /// güçlendirilmiş hâli — yalnız Spec⟹GtfsSpec'i değil, ters yönü de yakalar (ör. sınıf
-    /// Quality'e düşürülüp AUTHORITY tablosu GtfsSpec/MobilitydataParity'de unutulursa).
+    /// Class ⟺ authority biconditional: every rule's `rule_class` must exactly match the class
+    /// expected from its `authority_source`. Strengthened form of
+    /// `spec_class_requires_gtfs_spec_authority`—it catches not only Spec⟹GtfsSpec but also the
+    /// reverse direction (e.g. a rule downgraded to Quality while AUTHORITY is left at
+    /// GtfsSpec/MobilitydataParity).
     #[test]
     fn class_matches_authority_source() {
         use AuthoritySource::*;
         use RuleClass::*;
-        // authority → beklenen sınıf. Unknown: sabit sınıf yok, tek değişmez "asla Spec".
+        // authority → expected class. Unknown: no fixed class, only the invariant "never Spec".
         fn expected(a: AuthoritySource) -> Option<RuleClass> {
             match a {
                 GtfsSpec => Some(Spec),
@@ -2733,40 +2733,40 @@ mod tests {
         assert!(get_rule("DQ_007").is_none());
         assert!(get_rule("DQ_008").is_none());
         assert!(get_rule("DQ_015").is_none());
-        // STM_027 (2026-07-28): STM_056 ile aynı olgu, duplikasyon nedeniyle kaldırıldı.
+        // STM_027 (2026-07-28): removed because it duplicated the same finding as STM_056.
         assert!(get_rule("STM_027").is_none());
-        // SHP_027 (2026-07-31): shapes.txt FİZİKSEL güzergahı, stop_times DURUŞ MODELİNİ
-        // temsil eder; aynı koridorda farklı duraklarda duran trenlerin tek shape'i
-        // paylaşması normaldir. Geriye kalan gerçek sinyali (durak shape üzerinde değil)
-        // GEO_009/SHP_012 zaten DOĞRUDAN ölçüyor.
+        // SHP_027 (2026-07-31): shapes.txt represents the PHYSICAL route, while stop_times
+        // represents the STOPPING MODEL; trains stopping at different stops on the same corridor
+        // may normally share one shape. GEO_009/SHP_012 already measure the remaining real signal
+        // (the stop is not on the shape) DIRECTLY.
         assert!(get_rule("SHP_027").is_none());
-        // STM_057 (2026-08-01, WP-1): spec "travel WITHIN THE SAME location group…requires two
-        // records" der; kural bunu her konum için iki kayıt şartına çevirip normal noktadan
-        // noktaya Flex seferini (L1 → L2) Kritik·Spec ile reddediyordu. Denetlenebilir tek
-        // artığı (seferin tek kaydı bir Flex konumu) STM_033'ün konusudur.
+        // STM_057 (2026-08-01, WP-1): the spec says "travel WITHIN THE SAME location group…requires two
+        // records"; the rule turned this into a two-record requirement for every location and rejected
+        // a normal point-to-point Flex trip (L1 → L2) as Kritik·Spec. The only auditable remainder
+        // (a trip's sole record being a Flex location) is covered by STM_033.
         assert!(get_rule("STM_057").is_none());
-        // FPD_006 (2026-08-09): boş rider_category_id default değildir; duplicate
-        // composite key FPD_001, is_default_fare_category ise RCT_006 tarafından ölçülür.
+        // FPD_006 (2026-08-09): an empty rider_category_id is not a default; duplicate
+        // composite keys are measured by FPD_001, while is_default_fare_category is measured by RCT_006.
         assert!(get_rule("FPD_006").is_none());
-        // STP_025 (2026-09-18): `stop_name` baş/son boşluğu `DQ_016`'nın tam alt kümesiydi —
-        // 1.366 feed'lik ölçümde 481 feed'in 481'inde DQ_016 ile BİRLİKTE ateşledi; aynı hücre
-        // Quality skorunda iki kez sayılıyordu.
+        // STP_025 (2026-09-18): leading/trailing whitespace in `stop_name` was an exact subset of
+        // `DQ_016`—in a measurement of 1,366 feeds, it fired TOGETHER with DQ_016 in all 481 affected
+        // feeds; it was counted twice in the same Quality score cell.
         assert!(get_rule("STP_025").is_none());
-        // BKR_002 (2026-09-19): `prior_notice_start_day` ile `prior_notice_last_day`
-        // arasında spec'te bulunmayan eşlik zorunluluğu dayatıyordu. Kimlik emekli edildi
-        // ve ileride başka bir kurala verilemez.
+        // BKR_002 (2026-09-19): imposed a companion requirement between `prior_notice_start_day`
+        // and `prior_notice_last_day` that is not in the spec. The ID was retired and must not be
+        // assigned to another rule in the future.
         assert!(get_rule("BKR_002").is_none());
-        // STM_013 (2026-09-21): optional ara stop zamanlarını Quality ihlali sayıyordu;
-        // timing-point üreticilerinde sistemik false positive ürettiği için emekli edildi.
+        // STM_013 (2026-09-21): treated optional intermediate stop times as a Quality violation;
+        // retired because it produced systematic false positives in timing-point producers.
         assert!(get_rule("STM_013").is_none());
-        // STP_027 (2026-09-21): optional stop_access kontrolü STP_024/STP_026 ile
-        // örtüşüyordu; pathway istasyonunda alan yokluğu tek başına kusur değildir.
+        // STP_027 (2026-09-21): the optional stop_access check overlapped STP_024/STP_026;
+        // absence of the field at a pathway station is not a defect by itself.
         assert!(get_rule("STP_027").is_none());
-        // FAR_009 (2026-09-21): fare_rules.txt optional olduğu için genel fare + boş
-        // fare_rules geçerli bir modeldir; FRL_006 referans tutarlılığını korur.
+        // FAR_009 (2026-09-21): because fare_rules.txt is optional, a general fare + empty
+        // fare_rules is a valid model; FRL_006 preserves reference consistency.
         assert!(get_rule("FAR_009").is_none());
-        // CAL_019 / XFL_011 (2026-10-11): ham calendar aralığını feed_info penceresiyle
-        // kıyaslayan iki kopya; spec pencere dışı veriyi tavsiye eder, MD karşılığı CAL_014.
+        // CAL_019 / XFL_011 (2026-10-11): two copies comparing the raw calendar range with the
+        // feed_info window; the spec recommends data outside the window, and the MD counterpart is CAL_014.
         assert!(get_rule("CAL_019").is_none());
         assert!(get_rule("XFL_011").is_none());
     }
@@ -2871,10 +2871,10 @@ mod tests {
     #[test]
     fn blocker_rules_have_r1() {
         use gtfs_core::{ReportId::R1, RuleClass::Spec, Severity::Kritik};
-        // Otorite bütünlüğü (Faz 4): R1 yayın-engeli yalnız `Spec` + `Kritik`.
-        // build_r1/is_pub_relevant artık YALNIZ Spec+Kritik kapısını kullanır (Interop
-        // R1 üretmez). report_views/R1 metadata temizliği ayrı WP. Bu test yalnız
-        // Spec+Kritik kuralların report_views'ında R1 bulunduğunu doğrular (tersini değil).
+        // Authority integrity (Phase 4): the R1 publication block is only `Spec` + `Kritik`.
+        // build_r1/is_pub_relevant now uses ONLY the Spec+Kritik gate (Interop does not produce
+        // R1). report_views/R1 metadata cleanup is a separate WP. This test verifies only that
+        // Spec+Kritik rules have R1 in report_views (not the reverse).
         for rule in RULES {
             if rule.severity == Kritik && rule.rule_class == Spec {
                 assert!(

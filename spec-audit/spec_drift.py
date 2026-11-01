@@ -1,71 +1,71 @@
 #!/usr/bin/env python3
-"""Spec sürüklenmesi (drift) tespiti — issue #73.
+"""Detect spec drift — issue #73.
 
-Katalog CANLI bir sayfadan üretiliyor. gtfs.org bir revizyon yayımlarsa 299 adayımız
-sessizce ESKİ metni anlatır ve `EVIDENCE_BASE.md`'deki yüzde artık güncel spec'e ait
-olmaz. Bunu bugün hiçbir şey tespit etmiyor: `extract_provisions.py` elle koşuyor,
-CI'da yalnız `badge_status.py` var ve o, defteri ELİMİZDEKİ kataloğa karşı denetliyor —
-kataloğu spec'e karşı DEĞİL.
+The catalogue is generated from a LIVE page. If gtfs.org publishes a revision, our 299 candidates
+silently describe OLD text and the percentage in `EVIDENCE_BASE.md` no longer belongs to the current
+spec.
+Nothing currently detects this: `extract_provisions.py` is run manually, and CI has only
+`badge_status.py`, which checks the ledger against the catalogue WE HAVE — NOT the spec.
 
-## 🔴 Neden ham SHA-256 karşılaştırması TEK BAŞINA yetmez
+## 🔴 Why a raw SHA-256 comparison is NOT ENOUGH BY ITSELF
 
-Issue'nun ilk önerisi "sayfanın SHA-256'sını `_source.sha256` ile karşılaştır, farklıysa
-issue aç" idi. 2026-08-07'de ÖLÇÜLDÜ: sayfanın sha256'sı ZATEN farklıydı (295.559 →
-295.827 bayt) ama katalog **birebir aynı** çıktı — 299 adayın 299'u, aynı kimlikler, aynı
-`spec_revision`. Fark site iskeletindeydi (mkdocs yeniden derlemesi), normatif metinde
-değil. Ham sha kapısı ilk koşusunda yanlış alarm verirdi ve issue'nun kendi gerekçesi
-("insanları görmezden gelmeye alıştırır") tam da bunu yasaklıyor.
+The issue's first proposal was "compare the page SHA-256 with `_source.sha256` and open an issue
+if different". It was MEASURED on 2026-08-07: the page SHA-256 was ALREADY different (295,559 →
+295,827 bytes), but the catalogue was **exactly the same** — all 299 candidates, the same IDs, the same
+`spec_revision`. The difference was in the site scaffold (mkdocs rebuild), not normative text.
+A raw-SHA gate would false-alarm on its first run, exactly what the issue's own rationale
+("trains people to ignore it") forbids.
 
-Bu yüzden üç ayrı sinyal ölçülür ve AYRI raporlanır:
+Therefore measure and report three separate signals:
 
-  `same`      → sayfa baytları da katalog da aynı. Sessiz.
-  `cosmetic`  → sayfa baytları değişmiş, KATALOG AYNI. Haber DEĞİL; issue AÇILMAZ.
-                🔴 **BEKLENEN DURUM BUDUR.** Sayfa her yanıtta değişir (aşağıya bak).
-  `catalogue` → `provisions_sha256` değişmiş (aday eklendi/kayboldu ya da `spec_revision`).
-                HABER → issue.
-  `upstream`  → katalog aynı ama `reference.md`'ye yeni commit girmiş; sayfa henüz
-                yeniden derlenmemiş olabilir → HABER, ayrı sınıf.
+  `same`      → page bytes and catalogue are unchanged. Silent.
+  `cosmetic`  → page bytes changed, CATALOGUE UNCHANGED. NOT NEWS; DO NOT OPEN an issue.
+                🔴 **THIS IS THE EXPECTED STATE.** The page changes on every response (see below).
+  `catalogue` → `provisions_sha256` changed (candidate added/removed or `spec_revision`). NEWS → issue.
+  `upstream`  → catalogue unchanged but a new commit touched `reference.md`; the page may not have
+                been rebuilt yet → NEWS, a separate class.
+                This distinction avoids treating a delayed page rebuild as a catalogue change.
 
-## 🔴 Sayfanın SHA-256'sı YENİDEN ÜRETİLEMEZ (2026-08-07 ölçümü)
+## 🔴 The page SHA-256 CANNOT BE REPRODUCED (2026-08-07 measurement)
 
-Sayfa arka arkaya üç kez indirildi, üç FARKLI özet çıktı. Fark yalnız Cloudflare'in
-enjekte ettiği İKİ satırdı: `data-cfemail` token'ı ve `__CF$cv$params` ray id'si.
-Yani ham sha karşılaştırması her koşuda tetiklenir — kapı olarak DEĞERSİZDİR ve issue
-açsaydı haftada bir yanlış alarm üretirdi.
+The page was downloaded three times in succession and produced three DIFFERENT digests. The only
+difference was two lines injected by Cloudflare: the `data-cfemail` token and `__CF$cv$params` ray ID.
+Therefore a raw-SHA comparison triggers on every run — it is WORTHLESS as a gate and would produce
+a weekly false alarm if it opened an issue.
 
-Kararın dayandığı çapa `_source.provisions_sha256`: adaylardan hesaplanır, site
-iskeletinden bağımsızdır ve iki AYRI indirmede AYNI çıktığı ölçülmüştür.
+The decision anchor is `_source.provisions_sha256`: computed from candidates, independent of the site
+scaffold, and measured to be the SAME across two SEPARATE downloads.
 
-## 🔴 gtfs.org CI'dan ALINAMIYOR — sinyal ikiye ayrıldı (2026-08-07 ölçümü)
+## 🔴 Cannot be retrieved from gtfs.org CI — signal split in two (2026-08-07 measurement)
 
-İlk koşum CI'da **HTTP 403** aldı: gtfs.org Cloudflare arkasında ve barındırılan koşucu
-IP'lerini engelliyor (tarayıcı User-Agent'ı da yetmedi). Yani KATALOG sinyali CI'dan
-ölçülemez — bu bir hata değil, ortamın sınırı.
+The first CI run got **HTTP 403**: gtfs.org is behind Cloudflare and blocks hosted runner
+IPs (the browser User-Agent was not enough). The CATALOGUE signal therefore cannot be measured
+from CI — this is an environment limitation, not an error.
 
-Ama sürüklenmenin asıl sorusu "spec metni değişti mi", ve o soru CI'dan YANITLANABİLİR:
-`reference.md`'ye dokunan en yeni commit GitHub API'sinden okunur. Bu yüzden üç mod var:
+But drift's actual question is "did the spec text change?", and CI CAN ANSWER that:
+read the newest commit touching `reference.md` from the GitHub API. Therefore there are three modes:
 
-  `page`     → sayfayı indirir, KATALOĞU yeniden üretip karşılaştırır (yerel/geliştirici)
-  `upstream` → yalnız commit karşılaştırır (CI'dan çalışır)
-  `auto`     → sayfayı dener; alınamazsa upstream'e DÜŞER **ve bunu açıkça yazar**
+  `page`     → download the page and regenerate/compare the CATALOGUE (local/developer)
+  `upstream` → compare only the commit (runs in CI)
+  `auto`     → try the page; if unavailable, FALL BACK to upstream **and state this explicitly**
 
-⚠️ Düşüş SESSİZ DEĞİLDİR: rapor hangi sinyalin ölçülMEDİĞİNİ ve nedenini basar, issue
-gövdesine de girer. Sessiz düşüş, yeşil görünen kör bir denetim demek olurdu.
+⚠️ The fallback is NOT SILENT: the report prints which signal was NOT measured and why, and it
+also enters the issue body. A silent fallback would be a blind check that appears green.
 
-## Çıkış kodları — "sürüklenme yok" ile "bakılamadı" AYRI
+## Exit codes — "no drift" and "could not inspect" are SEPARATE
 
-  0 → EN AZ BİR sinyal ölçüldü (sonuç `same`/`cosmetic`/`catalogue`/`upstream`)
-  2 → HİÇBİR sinyal ölçülemedi (ne sayfa ne commit). İş kırmızı olur ve bu BİLİNÇLİDİR:
-      sessizce yeşil kalan bir denetim, denetim değildir (`zip_peek.py` ile aynı ders —
-      "dosya yok" ile "bakılamadı" karıştırılmaz).
+  0 → AT LEAST ONE signal was measured (result `same`/`cosmetic`/`catalogue`/`upstream`)
+  2 → NO signal was measured (neither page nor commit). The job turns red, DELIBERATELY:
+      a check that silently stays green is not a check (`zip_peek.py` teaches the same lesson —
+      do not confuse "file absent" with "could not inspect").
 
-Sürüklenmenin kendisi build'i KIRMAZ: spec revizyonu bu depoda bir regresyon değil,
-haberdir.
+Drift itself does not BREAK the build: a spec revision is news, not a regression in this
+repository.
 
 Çalıştır:
     python3 spec-audit/spec_drift.py                 # auto (sayfa → gerekirse upstream)
     python3 spec-audit/spec_drift.py spec.html       # yerel kopyadan (test)
-    python3 spec-audit/spec_drift.py --mode upstream # yalnız commit (CI bunu koşar)
+    python3 spec-audit/spec_drift.py --mode upstream # commit only (CI runs this)
     python3 spec-audit/spec_drift.py --baseline X.json spec.html
 """
 import hashlib
@@ -83,8 +83,8 @@ SPEC_URL = "https://gtfs.org/documentation/schedule/reference/"
 
 
 def load_extractor():
-    """`extract_provisions.py`'yi modül olarak yükle — cümle bölme mantığı TEK yerde
-    kalsın. Kopyalamak, iki tarafın sessizce ayrışması demek olurdu."""
+    """Load `extract_provisions.py` as a module — keep sentence-splitting logic in ONE place.
+    Copying it would let the two sides diverge silently."""
     spec = importlib.util.spec_from_file_location("extract_provisions", HERE / "extract_provisions.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -92,14 +92,14 @@ def load_extractor():
 
 
 def fetch(url: str) -> str:
-    """Spec sayfasını indir ve GERÇEKTEN spec olduğunu doğrula.
+    """Download the spec page and verify that it REALLY is the spec.
 
-    ⚠️ `urllib` DEĞİL `curl` — geliştirme makinesinde Python'un sertifika deposu yok.
-    ⚠️ Tarayıcı User-Agent'ı: gtfs.org Cloudflare arkasında ve varsayılan `curl/*` UA'sı
-    ile CI koşucularına ara sayfa (bot koruması) dönebiliyor. Böyle bir yanıt "sayfa
-    alındı" gibi görünür ama içinde tek bir hüküm yoktur → kataloğu 0 adaya düşürür.
-    Bu yüzden yanıt İÇERİK olarak doğrulanır ve sorun ayrı bir mesajla raporlanır:
-    sessizce "sürüklenme yok" demek, denetimin en kötü hâli olurdu.
+    ⚠️ Use `curl`, NOT `urllib` — the development machine has no Python certificate store.
+    ⚠️ Browser User-Agent: gtfs.org is behind Cloudflare and may return an interstitial (bot protection)
+    to CI runners with the default `curl/*` UA. Such a response looks like a fetched page but contains
+    no provisions → it reduces the catalogue to 0 candidates. Therefore validate the response by CONTENT
+    and report the problem separately: silently saying "no drift" would be the worst form of
+    audit.
     """
     ua = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
           "Chrome/126.0 Safari/537.36 (+gtfs-analyzer spec-drift)")
@@ -113,8 +113,8 @@ def fetch(url: str) -> str:
     body, _, code = p.stdout.decode("utf-8", "replace").rpartition("\n")
     if code.strip() != "200":
         raise RuntimeError(f"HTTP {code.strip()} — sayfa alınamadı ({len(body)} bayt)")
-    # Spec sayfasının değişmez çapası. Yoksa elimizdeki şey spec DEĞİL (ara sayfa,
-    # hata sayfası, yönlendirme gövdesi…).
+    # Immutable anchor for the spec page. Without it, what we have is NOT THE SPEC (interstitial,
+    # error page, redirect body…).
     if "field-definitions" not in body or "Revised" not in body:
         head = " ".join(body[:200].split())
         raise RuntimeError(
@@ -130,13 +130,13 @@ def catalogue_of(mod, doc: str) -> dict:
         out = pathlib.Path(tmp) / "spec_provisions.json"
         saved_out_path, real_argv = mod.OUT, sys.argv
         mod.OUT = out
-        # Katalog karşılaştırması commit çözmeyi GEREKTİRMEZ; ağ isteğini burada
-        # yapmamak, ölçümü GitHub API kotasından bağımsız kılar.
+        # Catalogue comparison does NOT REQUIRE resolving a commit; avoiding a network request here
+        # makes the measurement independent of the GitHub API quota.
         sys.argv = ["extract_provisions", "--no-upstream", "-"]
         try:
-            mod.fetch = lambda argv: doc  # noqa: ARG005 — belge zaten elimizde
-            # Üreticinin ilerleme satırları ve `--no-upstream` uyarısı bu bağlamda
-            # BEKLENEN çıktıdır (geçici katalog kasten pinlenmez) — raporu kirletmesin.
+            mod.fetch = lambda argv: doc  # noqa: ARG005 — document is already in memory
+            # The generator's progress lines and `--no-upstream` warning are EXPECTED here
+            # (the temporary catalogue is deliberately not pinned) — do not pollute the report.
             with open(os.devnull, "w", encoding="utf-8") as null:
                 saved_stdout, saved_stderr = sys.stdout, sys.stderr
                 sys.stdout = sys.stderr = null
@@ -163,8 +163,8 @@ def classify(base: dict, live_doc: str | None, live_cat: dict | None,
     added = sorted(l_ids - b_ids) if live_cat else []
     gone = sorted(b_ids - l_ids) if live_cat else []
     revision_changed = bool(live_cat) and b_src.get("spec_revision") != l_src.get("spec_revision")
-    # Asıl çapa: kataloğun kendi özeti. Kimlik kümesi issue gövdesini zenginleştirir ama
-    # kararı bu alan verir — cümle METNİ kimliği değiştirmeden düzelirse bile yakalar.
+    # Primary anchor: the catalogue's own digest. The ID set enriches the issue body, but this
+    # field makes the decision — it catches a corrected sentence even when its ID does not change.
     catalogue_changed = (bool(live_cat)
                          and b_src.get("provisions_sha256") != l_src.get("provisions_sha256"))
 
@@ -221,7 +221,7 @@ def main() -> int:
         base = json.loads(baseline_path.read_text(encoding="utf-8"))
 
         if mode == "upstream":
-            # ⚠️ İngilizce: bu metin issue gövdesine giriyor, depo herkese açık.
+            # ⚠️ English: this text enters the issue body, and the repository is public.
             page_error = "mode=upstream (page deliberately not fetched; CI gets 403)"
         else:
             try:
@@ -232,15 +232,15 @@ def main() -> int:
                 doc = None
                 if mode == "page":
                     raise
-                # auto: upstream'e DÜŞ ama sessizce değil.
+                # auto: FALL BACK to upstream, but not silently.
                 print(f"UYARI: sayfa sinyali ÖLÇÜLEMEDİ ({page_error}) — yalnız upstream "
                       f"commit karşılaştırılacak.", file=sys.stderr)
 
         try:
             live_upstream = mod.upstream_commit()["upstream_commit"]
         except Exception as e:
-            # Mesajı da bas: 2026-08-07'de yalnız tip basılıyordu ve CI'daki kota
-            # hatası "RuntimeError" olarak göründü, teşhis bir tur geciktirdi.
+            # Print the message too: on 2026-08-07 only the type was printed and the CI quota
+            # error appeared as "RuntimeError", delaying diagnosis by one round.
             print(f"UYARI: upstream commit çözülemedi ({type(e).__name__}: {e}) — "
                   f"'upstream' sinyali bu koşuda ÖLÇÜLMEDİ.", file=sys.stderr)
             live_upstream = None
@@ -271,8 +271,8 @@ def main() -> int:
     if out := os.environ.get("GITHUB_OUTPUT"):
         with open(out, "a", encoding="utf-8") as fh:
             fh.write(f"status={r['status']}\n")
-            # Tekilleştirme anahtarı KARARLI olmalı; sayfa sha'sı olamaz. Katalog
-            # ölçülemediyse (CI'da beklenen hâl) anahtar upstream commit'e düşer.
+            # The deduplication key must be STABLE; it cannot be the page SHA. If the catalogue
+            # was not measured (expected in CI), fall back to the upstream commit.
             key = (r["catalogue_sha_live"] or r["commit_live"] or "?")[:12]
             fh.write(f"fingerprint={(r['revision_live'] or r['revision_recorded'] or '?')} / {key}\n")
             fh.write("body<<EOF\n" + issue_body(r) + "\nEOF\n")
@@ -293,7 +293,7 @@ def issue_body(r: dict) -> str:
         f"{(r['commit_live'] or 'not measured')[:12]} |",
         f"| catalogue sha | {(r['catalogue_sha_recorded'] or '-')[:12]} | "
         f"{(r['catalogue_sha_live'] or 'not measured')[:12]} |",
-        # ⚠️ Sayfa hiç alınmadıysa `False` yazmak "denendi ve tutmadı" gibi okunur.
+        # ⚠️ If the page was never fetched, writing `False` would read like "tried and failed".
         f"| page bytes | | " + ("not fetched" if not r["catalogue_measured"]
                                 else f"{'same' if r['page_same'] else 'differ'} "
                                      "(they differ on every response — Cloudflare; "

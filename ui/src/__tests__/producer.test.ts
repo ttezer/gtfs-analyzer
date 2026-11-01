@@ -64,12 +64,12 @@ describe('buildProducerModel', () => {
     );
     const m = buildProducerModel(r);
     expect(m.improvements.map(g => g.ruleId)).toEqual(['ARC_024', 'ARC_020']);
-    expect(m.improvements[0].count).toBe(9); // R9 affected_instance_count, notice sayısı değil
+    expect(m.improvements[0].count).toBe(9); // R9 affected_instance_count, not the notice count
     expect(m.infos.map(g => g.ruleId)).toEqual(['CAL_014']);
   });
 
   it('R9 da olmayan (motorun bastırdığı) kuralları listelemez', () => {
-    // CAL_024, TRP_023 tarafından bloke edilir: notice listesinde vardır ama R9 kalemi yoktur.
+    // CAL_024 is blocked by TRP_023: it is in the notice list but has no R9 item.
     const r = result(
       [notice('a', 'TRP_023', 'LOW'), notice('b', 'CAL_024', 'INFO')],
       [],
@@ -197,7 +197,7 @@ describe('Üretici kartı görünümü', () => {
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Bazı seferlerde kesin durak saatleri eksik');
     expect(root.innerHTML).toContain('6 hattı · sefer başlangıcı 07:15, 07:45, 08:15… · 5 sefer');
-    // İlk üç kalkış kart bağlamında özetlenir; ayrıntılı tablo artık kartın içinde tutulur.
+    // The first three departures are summarized in the card context; the detailed table now lives inside the card.
     expect(root.innerHTML).toContain('07:15, 07:45, 08:15…');
   });
 
@@ -622,7 +622,7 @@ describe('Hatalı yer sütunu', () => {
     renderProducer(el, r);
     expect(el.innerHTML).toContain('data-rule="STM_003"');
     expect(el.innerHTML).toContain('<strong>2</strong><span>durak saati</span>');
-    // STM_004'te yalnız varışı sağlam satır (12) kalır.
+    // For STM_004, only the row with a valid arrival (12) remains.
     expect(el.innerHTML).toContain('data-rule="STM_004"');
     expect(el.innerHTML).toContain('<strong>1</strong><span>sefer</span>');
   });

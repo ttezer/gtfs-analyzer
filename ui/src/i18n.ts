@@ -4,7 +4,7 @@ import en from './locales/en';
 import ja from './locales/ja';
 import fr from './locales/fr';
 
-// ── Locale registry — yeni dil = buraya import + LOCALES'e ekle ──────────────
+// ── Locale registry — new language = import here and add to LOCALES ─────────
 
 const LOCALES = { tr, en, ja, fr };
 export type Locale = keyof typeof LOCALES;
@@ -17,17 +17,17 @@ let _locale: Locale = (() => {
   return (s && s in LOCALES) ? s as Locale : 'tr';
 })();
 
-// Belge dilini locale ile senkronla — CSS text-transform:uppercase doğru
-// dil kurallarını kullansın (örn. EN'de "VALIDITY", TR'de "GEÇERLİLİK";
-// aksi halde EN metni Türkçe noktalı-İ ile büyür).
+// Synchronize the document language with the locale so CSS text-transform:uppercase uses
+// the correct language rules (e.g. "VALIDITY" in EN, "GEÇERLİLİK" in TR;
+// otherwise English text is uppercased with Turkish dotted İ).
 if (typeof document !== 'undefined') document.documentElement.lang = _locale;
 
 export function getLocale(): Locale { return _locale; }
 
-// ── Intl etiketleri ───────────────────────────────────────────────────────────
-// Uygulama dilinin BCP-47 karşılığı; sayı/tarih/sıralama biçimlendirmesinin TEK
-// kaynağı. `Record<Locale, …>` olduğu için yeni bir dil eklendiğinde tsc kırılır
-// — sessizce yanlış locale'e düşmenin önündeki tek kapı budur.
+// ── Intl tags ───────────────────────────────────────────────────────────────
+// BCP-47 equivalent of the application language; the ONE source for number/date/sort
+// formatting. Because this is `Record<Locale, …>`, tsc fails when a new language is added
+// — the only guard against silently falling back to the wrong locale.
 export const INTL_LOCALE: Record<Locale, string> = {
   tr: 'tr-TR', en: 'en-US', ja: 'ja-JP', fr: 'fr-FR',
 };
@@ -43,8 +43,8 @@ export function setLocale(l: Locale): void {
 }
 
 // ── Locale-aware dicts (mutable — synced via Object.assign on locale change) ──
-// Fix.ts ve rules.ts bu nesneleri doğrudan kullanır; locale değişiminde
-// Object.assign ile güncellenir, yeniden render gerekmez.
+// Fix.ts and rules.ts use these objects directly; they are updated with Object.assign when
+// the locale changes, so no rerender is needed.
 
 export const SEVERITY_TR: Record<Severity, string>  = { ...tr.severity };
 export const RULE_CLASS_TR: Record<RuleClass, string> = { ...tr.ruleClass };
@@ -114,7 +114,7 @@ export function tMsg(n: NoticeLike): string {
 /** Translate a notice without mutating the application's active locale. */
 export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
   if (locale === 'tr') return n.message;
-  // JA: kendi mesajı yoksa EN şablonuna fallback
+  // JA: fall back to the EN template when there is no Japanese message
   const profile = n.details?.jp_profile?.toLowerCase();
   const variant = profile ? `${n.rule_id}.${profile}` : n.rule_id;
   const specific = n.details?.message_variant ? `${variant}.${n.details.message_variant}` : variant;
@@ -150,7 +150,7 @@ export function tRemediation(n: { rule_id: string; remediation?: string | null; 
 /** Translate remediation text without mutating the application's active locale. */
 export function tRemediationForLocale(locale: Locale, n: { rule_id: string; remediation?: string | null; details?: Record<string, string> | null }): string {
   if (locale === 'tr') return n.remediation ?? '';
-  // Mevcut locale → EN → TR (Rust mesajı)
+  // Current locale → EN → TR (Rust message)
   const specific = n.details?.message_variant
     ? n.details.jp_profile
       ? `${n.rule_id}.${n.details.jp_profile.toLowerCase()}.${n.details.message_variant}`
