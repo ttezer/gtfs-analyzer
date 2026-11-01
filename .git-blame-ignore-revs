@@ -153,3 +153,6 @@ f43597ba
 
 # Translate missed K5 inline comments and restore comment indentation.
 db19cd77
+
+# Translate K7 reporting comments.
+6476529f
