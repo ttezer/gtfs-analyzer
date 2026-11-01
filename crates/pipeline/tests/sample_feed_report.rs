@@ -62,5 +62,7 @@ fn run_and_print_sample_feed_notices() {
         }
     }
     println!("=== SUMMARY ===");
-    println!("Critical: {crit}  |  High: {high}  |  Medium: {med}  |  Low: {low}  |  Info: {info}");
+    println!(
+        "Critical: {crit}  |  High: {high}  |  Medium: {med}  |  Low: {low}  |  Information: {info}"
+    );
 }

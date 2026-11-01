@@ -255,10 +255,7 @@ fn main() {
                         continue;
                     };
                     let Some(new_n) = resolve_line(&src, rule.id, want_test) else {
-                        unresolved.push(format!(
-                            "{}: could not be resolved in '{}'",
-                            rule.id, src_rel
-                        ));
+                        unresolved.push(format!("{}: unresolved in '{}'", rule.id, src_rel));
                         continue;
                     };
                     if new_n == old_n {
