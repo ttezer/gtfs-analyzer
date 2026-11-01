@@ -16007,10 +16007,11 @@ mod tests {
 
     #[test]
     fn trip_referencing_undefined_shape_no_stm_017() {
-        // shape_id dolu ama shapes.txt'te tanımlı değil (dosya hiç yok). Durak konumu
-        // doğrulanacak bir şekil yok; asıl sorunu TRP_004 (tanımsız shape_id) ve ARC_020
-        // (shapes.txt eksik) bildirir. STM_017 bu türevi tekrarlamaz (2026-10-30 korpusu:
-        // 8 feed, hepsinde shapes.txt yok).
+        // shape_id is populated but not defined in shapes.txt (the file is absent). There
+        // is no shape against which to validate stop positions; TRP_004 (undefined
+        // shape_id) and ARC_020 (missing shapes.txt) report the actual issues. STM_017
+        // must not duplicate this variant (2026-10-30 corpus: 8 feeds, all missing
+        // shapes.txt).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -16031,7 +16032,7 @@ mod tests {
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
-            vec![trip("T1", "R1")], // shape_id yok
+            vec![trip("T1", "R1")], // no shape_id
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
@@ -16041,7 +16042,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "STM_017"));
     }
 
-    // ── GEO_007: çok büyük shape atlaması (severe = 3× eşik) ────────────────
+    // ── GEO_007: very large shape jump (severe = 3× threshold) ──────────────
 
     #[test]
     fn severe_shape_jump_produces_geo_007() {
@@ -16070,15 +16071,16 @@ mod tests {
         );
     }
 
-    /// 3× eşiği aşan segment YALNIZ GEO_007 üretmeli.
+    /// A segment exceeding 3× the threshold must produce GEO_007 ONLY.
     ///
-    /// Eskiden iki koşul birbirini dışlamıyordu: aynı segment hem GEO_006 hem GEO_007
-    /// üretiyor, kullanıcı aynı atlamayı iki kez görüyor ve R5 skorunda iki kez
-    /// sayılıyordu. SHP_011 de aynı eşikle üçüncü kez raporluyordu (kaldırıldı).
+    /// Previously the two conditions were not mutually exclusive: the same segment
+    /// produced both GEO_006 and GEO_007, so users saw the same jump twice and it was
+    /// counted twice in the R5 score. SHP_011 also reported it a third time with the
+    /// same threshold (now removed).
     #[test]
     fn severe_shape_jump_produces_geo_007_only_not_geo_006() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        // default max_shape_jump_km = 10.0 → severe = 30.0; 50 km ikisinin de üstünde
+        // default max_shape_jump_km = 10.0 → severe = 30.0; 50 km exceeds both
         let derived = DerivedData {
             shape_geometry: ShapeGeometry {
                 shapes: [(
@@ -16110,11 +16112,11 @@ mod tests {
         );
     }
 
-    /// Eşik ile 3× arasındaki segment GEO_006 üretir, GEO_007 üretmez (alt katman).
+    /// A segment between the threshold and 3× produces GEO_006, not GEO_007 (the lower tier).
     #[test]
     fn moderate_shape_jump_produces_geo_006_only() {
         use crate::k5_derived::{ShapeGeometry, ShapeSegments};
-        // default max_shape_jump_km = 10.0 → severe = 30.0; 15 km ikisinin arasında
+        // default max_shape_jump_km = 10.0 → severe = 30.0; 15 km lies between them
         let derived = DerivedData {
             shape_geometry: ShapeGeometry {
                 shapes: [(
@@ -16166,13 +16168,13 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "GEO_007"));
     }
 
-    // ── GEO_009 / SHP_013: durak shape'ten çok uzak ─────────────────────────
+    // ── GEO_009 / SHP_013: stop far from shape ──────────────────────────────
 
     #[test]
     fn stop_far_from_shape_produces_geo_009() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Durak İstanbul'da, shape Ankara'da → ~350 km uzak
+        // The stop is in Istanbul and the shape is in Ankara → about 350 km apart
         let mut records = records_with(
             vec![stop("IST", 41.0, 29.0)],
             vec![route("R1", 3)],
@@ -16199,8 +16201,8 @@ mod tests {
             !result.notices.iter().any(|n| n.rule_id == "SHP_013"),
             "SHP_013 artık üretilmemeli"
         );
-        // shape_id details'ta taşınmalı: büyük feed modunda name_index harita verisini
-        // notice'lardaki id'lere göre filtreliyor; yalnız mesaj metnindeki id görünmez.
+        // shape_id must be carried in details: large-feed mode filters map data in name_index
+        // by the IDs in notices; an ID that appears only in the message text is invisible.
         assert_eq!(
             n.details
                 .as_ref()
@@ -16214,9 +16216,9 @@ mod tests {
     fn shp_012_counts_distinct_stops_not_trip_occurrences() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // AYNI shape'i kullanan 3 sefer, hepsinde AYNI uzak durak.
-        // Eski sayaç sefer-durak örneği sayıyordu → "3 durak" derdi; doğrusu 1.
-        // (VBB'de shape '10342' 579 sefer × 1 uzak durak = "579 duraktan uzakta" oluyordu.)
+        // Three trips use the SAME shape, and all have the SAME far stop.
+        // The old counter counted trip-stop pairs and said "3 stops"; the correct count is 1.
+        // (In VBB, shape '10342' had 579 trips × 1 far stop = "far from 579 stops".)
         let mut records = records_with(
             vec![stop("NEAR", 41.0, 29.0), stop("FAR", 41.5, 29.5)],
             vec![route("R1", 3)],
@@ -16269,7 +16271,7 @@ mod tests {
             "mesaj da benzersiz sayıyı yazmalı: {}",
             n.message
         );
-        // Harita hatalı durağı AYRI RENKTE göstersin diye id'ler details'ta taşınır.
+        // IDs are carried in details so the map can show the faulty stop in a DISTINCT COLOR.
         assert_eq!(
             n.details
                 .as_ref()
@@ -16279,23 +16281,25 @@ mod tests {
         );
     }
 
-    /// `SHP_012` boşluklu koordinatları KAYBEDİYORDU — #121'in kurtarması buraya uğramamıştı.
+    /// `SHP_012` was DROPPING coordinates with surrounding whitespace — the #121 fix did
+    /// not reach this path.
     ///
-    /// K2 strict lexical okuma `" 29.5"` değerini geçersiz sayıp `stop_lon`'u `None`
-    /// bırakır (DQ_016 kökü orada kanıtlanır). `check_shp012` ham `stop_lat.zip(stop_lon)`
-    /// kullandığı için o duraklar `stop_coords`'a HİÇ girmiyor, dolayısıyla shape'ten ne
-    /// kadar uzak olurlarsa olsunlar sayılmıyorlardı.
+    /// K2 strict lexical parsing rejects `" 29.5"` as invalid and leaves `stop_lon` as
+    /// `None` (the root of DQ_016 is demonstrated there). Because `check_shp012` uses
+    /// raw `stop_lat.zip(stop_lon)`, those stops NEVER entered `stop_coords`, so they
+    /// were not counted no matter how far they were from the shape.
     ///
-    /// Tam katalog koşumunda 36 feed bu yüzden sessizdi; MobilityData hepsinde raporluyor
-    /// ve 62 örneğin 62'si de 100 m eşiğinin ÜSTÜNDE (medyan 146 m, azami 69 km).
-    /// `mdb-1216`'da 97 durağın 97'si, `mdb-1913`'te 204'ün 204'ü boşluklu koordinat
-    /// taşıyor — yani kural o feed'lerde tamamen körleşiyordu (#146).
+    /// In the full-catalog run, 36 feeds were silent for this reason; MobilityData reports
+    /// all of them, and all 62 examples exceed the 100 m threshold (median 146 m, maximum
+    /// 69 km). In `mdb-1216`, all 97 of 97 stops, and in `mdb-1913`, all 204 of 204 stops,
+    /// have whitespace-padded coordinates — the rule was therefore completely blind in
+    /// those feeds (#146).
     #[test]
     fn shp_012_recovers_whitespace_stop_coordinates() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let near = stop("NEAR", 41.0, 29.0);
-        // Uzak durak: K2 onu geçersiz saymış, ham satırda sayısal payload duruyor.
+        // Far stop: K2 rejected it, but the raw row still contains the numeric payload.
         let mut far = stop("FAR", 41.5, 29.5);
         far.stop_lat = None;
         far.stop_lon = None;
@@ -16347,10 +16351,10 @@ mod tests {
         );
     }
 
-    // ── WP-N: STM_045 / OPR_001 route_type farkındalığı ──────────────────────
+    // ── WP-N: STM_045 / OPR_001 route_type awareness ─────────────────────────
 
-    /// Uzun mesafe trende 38:10 kalkış GEÇERLİ GTFS'tir (gece yarısı sonrası servis-günü
-    /// notasyonu). Otobüste aynı değer 27 sa penceresini aşar ve işaretlenir.
+    /// A 38:10 departure is valid GTFS for a long-distance train (service-day notation
+    /// after midnight). The same value exceeds the 27-hour window for a bus and is flagged.
     #[test]
     fn stm_045_uses_a_wider_service_day_window_on_rail() {
         let build = |route_type: u32| {
@@ -16376,7 +16380,7 @@ mod tests {
         );
     }
 
-    /// Rail penceresi de sınırsız değil: 48 saati aşan değer gerçek yazım hatasıdır.
+    /// The rail window is not unlimited either: a value above 48 hours is a genuine typo.
     #[test]
     fn stm_045_still_catches_absurd_times_on_rail() {
         let mut r = crate::k2::EntityRecords::default();
@@ -16396,12 +16400,13 @@ mod tests {
         );
     }
 
-    /// Şehirlerarası trende 580 dk'lık sefer aralığı normaldir; otobüste 240 dk eşiğini aşar.
+    /// A 580-minute headway is normal for an intercity train; for a bus it exceeds the
+    /// 240-minute threshold.
     #[test]
     fn opr_001_uses_a_wider_headway_threshold_on_rail() {
         let build = |route_type: u32| {
-            // Düzensiz kalkışlar (is_regular_headway guard'ına takılmasın):
-            // 06:00, 08:00, 09:00, 18:40 → en büyük boşluk 580 dk.
+            // Irregular departures (so the is_regular_headway guard does not skip them):
+            // 06:00, 08:00, 09:00, 18:40 → the largest gap is 580 minutes.
             let deps = [(6u32, 0u32), (8, 0), (9, 0), (18, 40)];
             let mut trips_v = Vec::new();
             let mut sts = Vec::new();
@@ -16431,27 +16436,30 @@ mod tests {
         );
     }
 
-    // SHP_027 testleri KALDIRILDI (2026-07-31): kural kaldırıldı. Aynı ray koridorunda
-    // farklı duraklarda duran trenlerin tek shape'i paylaşması normaldir; geriye kalan
-    // gerçek sinyali GEO_009/SHP_012 doğrudan ölçüyor (bkz. check_geo_analytics'teki not).
+    // SHP_027 tests REMOVED (2026-07-31): the rule was removed. Trains stopping at
+    // different stations on the same rail corridor normally share one shape; the remaining
+    // genuine signal is measured directly by GEO_009/SHP_012 (see the note in
+    // check_geo_analytics).
 
-    // ── WP-B: raylı geometri eşikleri ───────────────────────────────────────
+    // ── WP-B: rail geometry thresholds ───────────────────────────────────────
     //
-    // Ray geometrisinde durak koordinatı peron/bina merkezini, shape ise tek bir ray
-    // merkez-hattını gösterir; 100 m eşiği bu yapıda meşru sapmayı FP yapıyordu (TCDD
-    // geri bildirimi). route_type raylıysa `stop_far_from_shape_m_rail` (200 m) kullanılır.
+    // In rail geometry, the stop coordinate represents the platform/building center, while
+    // the shape represents one track centerline; the 100 m threshold produced FPs for
+    // legitimate deviations in this setup (TCDD feedback). For rail route_types,
+    // `stop_far_from_shape_m_rail` (200 m) is used.
 
-    /// Aynı geometri: otobüs hattında GEO_009/SHP_012 çıkar, raylı hatta ÇIKMAZ.
-    /// Durak shape'ten ~166 m uzakta — 100 m eşiğinin üstünde, 200 m rail eşiğinin altında.
+    /// Same geometry: GEO_009/SHP_012 fires for a bus route, but NOT for a rail route.
+    /// The stop is about 166 m from the shape — above the 100 m threshold but below the
+    /// 200 m rail threshold.
     #[test]
     fn rail_route_widens_stop_shape_distance_threshold() {
         use crate::k2::shapes::ShapePointRecord;
 
-        // route_type parametrik: 3 = otobüs, 2 = tren.
+        // route_type is parameterized: 3 = bus, 2 = train.
         let build = |route_type: u32| {
             let mut shape_ti = ShapeInternTable::new();
             let mut records = records_with(
-                // Durak, shape hattının 0,0015° (~166 m) kuzeyinde.
+                // The stop is 0.0015° (~166 m) north of the shape line.
                 vec![stop("P1", 41.0015, 29.005)],
                 vec![route("R1", route_type)],
                 vec![trip_sh("T1", "R1", "S1")],
@@ -16500,14 +16508,14 @@ mod tests {
         );
     }
 
-    /// Rail eşiğinin de bir üst sınırı var: 200 m'yi aşan sapma raylı hatta da yakalanır
-    /// (eşik gevşetildi, kapatılmadı).
+    /// The rail threshold has an upper limit too: a deviation above 200 m is also caught
+    /// on a rail route (the threshold was relaxed, not disabled).
     #[test]
     fn rail_threshold_still_catches_truly_far_stop() {
         use crate::k2::shapes::ShapePointRecord;
         let mut shape_ti = ShapeInternTable::new();
         let mut records = records_with(
-            // 0,005° ≈ 555 m — rail eşiğinin (200 m) de üstünde.
+            // 0.005° ≈ 555 m — also above the rail threshold of 200 m.
             vec![stop("P1", 41.005, 29.005)],
             vec![route("R1", 2)],
             vec![trip_sh("T1", "R1", "S1")],
@@ -16538,7 +16546,7 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "GEO_009")
             .expect("555 m raylı hatta da GEO_009 üretmeli");
-        // Mesaj/observed shape'in KENDİ eşiğini yazmalı (100 değil 200).
+        // The message/observed shape must report its OWN threshold (200, not 100).
         assert_eq!(
             n.expected_value.as_deref(),
             Some("≤ 200m"),
@@ -16551,8 +16559,8 @@ mod tests {
         );
     }
 
-    /// Şehirlerarası ray sadeleştirilmiş uzun düz kesimler içerir (Konya-Karaman 13,4 km):
-    /// otobüste GEO_006 çıkar, raylı hatta çıkmaz.
+    /// Intercity rail shapes contain simplified long straight sections (13.4 km Konya–Karaman):
+    /// GEO_006 fires for a bus, but not for a rail route.
     #[test]
     fn rail_route_widens_shape_jump_threshold() {
         use crate::k2::shapes::ShapePointRecord;
@@ -16575,7 +16583,7 @@ mod tests {
                 2,
             )];
             records.shape_interns = shape_ti;
-            // 13,4 km: şehir içi eşiğin (10) üstünde, rail eşiğinin (30) altında.
+            // 13.4 km: above the urban threshold (10), below the rail threshold (30).
             let derived = DerivedData {
                 shape_geometry: ShapeGeometry {
                     shapes: [(
@@ -16604,15 +16612,16 @@ mod tests {
         );
     }
 
-    /// Genişletilmiş Avrupa kodları (100-117) da raylı sayılır — VBB/Entur gibi feed'ler
-    /// standart route_type kullanmaz. `is_rail_route_type` ile TEK tanım paylaşılır.
+    /// Extended European codes (100–117) also count as rail — feeds such as VBB/Entur do
+    /// not use the standard route_type values. `is_rail_route_type` provides ONE shared
+    /// definition.
     #[test]
     fn extended_rail_route_types_use_rail_threshold() {
         use crate::k2::shapes::ShapePointRecord;
         let mut shape_ti = ShapeInternTable::new();
         let mut records = records_with(
             vec![stop("P1", 41.0015, 29.005)],
-            vec![route("R1", 109)], // 109 = banliyö treni (S-Bahn)
+            vec![route("R1", 109)], // 109 = suburban train (S-Bahn)
             vec![trip_sh("T1", "R1", "S1")],
             vec![stoptime("T1", 1, "P1", (8, 0, 0), (8, 0, 0), 2)],
         );
@@ -16642,8 +16651,9 @@ mod tests {
         );
     }
 
-    /// Karışık kullanımda GEVŞEK yön: shape'i hem otobüs hem tren kullanıyorsa rail eşiği
-    /// geçerlidir. Bu kuralların FP'si (meşru geometriyi hata sanmak) FN'inden pahalıdır.
+    /// In mixed use, take the RELAXED direction: if a shape is used by both buses and
+    /// trains, the rail threshold applies. FPs for these rules (treating valid geometry
+    /// as an error) cost more than FNs.
     #[test]
     fn mixed_use_shape_takes_the_looser_rail_threshold() {
         use crate::k2::shapes::ShapePointRecord;
@@ -16693,7 +16703,7 @@ mod tests {
             vec![trip_sh("T1", "R1", "S1")],
             vec![stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2)],
         );
-        // Shape noktası durağın hemen yanında (< 1 m)
+        // The shape point is right beside the stop (< 1 m)
         records.shapes = vec![ShapePointRecord::new(
             shape_ti.intern("S1"),
             Some(41.0),
@@ -16708,7 +16718,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "SHP_013"));
     }
 
-    // ── GEO_013: feed koordinat özeti (Bilgi) ───────────────────────────────
+    // ── GEO_013: feed coordinate summary (Info) ─────────────────────────────
 
     #[test]
     fn stops_with_coords_produce_geo_013() {
@@ -16725,9 +16735,9 @@ mod tests {
         );
     }
 
-    // ── OPR_005: sıradışı sefer sıklığı (route_type bazlı göreli aykırı) ─────
+    // ── OPR_005: unusual service frequency (route_type-relative outlier) ────
 
-    // 15dk headway (08:00, 08:15) veren bir hat üretir.
+    // Produces a route with a 15-minute headway (08:00, 08:15).
     fn normal_route(rid: &str, stops: &mut Vec<StopTimeRecord>, trips: &mut Vec<TripRecord>) {
         let (ta, tb) = (format!("{rid}a"), format!("{rid}b"));
         trips.push(trip(&ta, rid));
@@ -16740,7 +16750,8 @@ mod tests {
 
     #[test]
     fn opr_005_flags_only_unusually_sparse_route() {
-        // 5 normal hat (15dk headway) + 1 seyrek hat (90dk): yalnızca seyrek olan işaretlenir.
+        // 5 normal routes (15-minute headway) + 1 sparse route (90 minutes): only the sparse
+        // route is flagged.
         let mut routes = Vec::new();
         let mut trips = Vec::new();
         let mut sts = Vec::new();
@@ -16749,7 +16760,7 @@ mod tests {
             routes.push(route(&rid, 3));
             normal_route(&rid, &mut sts, &mut trips);
         }
-        // Seyrek hat: 08:00 ve 09:30 → 90dk headway.
+        // Sparse route: 08:00 and 09:30 → 90-minute headway.
         routes.push(route("RS", 3));
         trips.push(trip("RSa", "RS"));
         trips.push(trip("RSb", "RS"));
@@ -16775,14 +16786,16 @@ mod tests {
 
     #[test]
     fn opr_017_stays_silent_when_the_distance_cannot_be_measured() {
-        // 14. korpus kosumu (2026-09-01): 13'teki dongu duzeltmesinden SONRA bile 91.417
-        // bulgu kalmisti ve orneklerin en yaygin degeri "0m"di (124 feed'in 47'si).
-        // SIFIR "olculdu ve sifir" DEGIL, "OLCULEMEDI" demektir; kural bir MESAFE iddiasidir.
-        // Uc vaka sinifi olculdu, ucunun de kok nedeni BASKA kuralda raporlaniyor:
-        //   tld-821  → sefer ayni durakta iki kez (STM_035 orada 5, OPR_017 de 5 idi: BIREBIR
-        //              ayni olgunun ikinci kez raporlanmasi)
-        //   mdb-1316 → 158 duragin 149'u (0,0) Null Island (GEO_016 = 149)
-        //   ntd-10183→ ayni durak uc kez + tek-durakli sefer (STM_033 = 37)
+        // 14th corpus run (2026-09-01): even AFTER the loop fix in run 13, 91,417
+        // findings remained and the most common example value was "0m" (47 of 124 feeds).
+        // ZERO does not mean "measured and zero"; it means "NOT MEASURABLE". The rule
+        // makes a DISTANCE claim.
+        // Three case classes were measured, and all three have their root cause reported
+        // by ANOTHER rule:
+        //   tld-821  → the trip visits the same stop twice (STM_035 had 5 there, OPR_017
+        //              also had 5: the same phenomenon reported a second time)
+        //   mdb-1316 → 149 of 158 stops are (0,0), Null Island (GEO_016 = 149)
+        //   ntd-10183 → the same stop three times + a one-stop trip (STM_033 = 37)
         let stops = vec![stop("A", 0.0, 0.0), stop("B", 0.0, 0.0)];
         let sts = vec![
             stoptime("ZERO", 1, "A", (8, 0, 0), (8, 0, 0), 2),
@@ -16798,8 +16811,8 @@ mod tests {
 
     #[test]
     fn opr_017_still_flags_a_genuinely_short_but_measurable_trip() {
-        // Karsi kanit: mdb-893'te shape 24 m, duraklar 17 m ayri ve bulgu DOGRU. Sifir
-        // susturmasi gercek kisa seferleri kapatmamali.
+        // Counterexample: in mdb-893, the shape is 24 m and the stops are 17 m apart, so
+        // the finding is CORRECT. Zero suppression must not hide genuinely short trips.
         let stops = vec![stop("A", 41.00000, 29.00000), stop("B", 41.00015, 29.00000)];
         let sts = vec![
             stoptime("SHORT", 1, "A", (8, 0, 0), (8, 0, 0), 2),
@@ -16815,10 +16828,11 @@ mod tests {
 
     #[test]
     fn opr_017_measures_the_path_not_the_straight_line_on_a_loop() {
-        // 🔴 13. korpus koşumunun bulduğu FP: shape yokken ilk-son kuş uçuşu ölçülüyordu, bu
-        // yüzden DÖNGÜSEL hat (ilk durak == son durak) her zaman 0 m çıkıyordu. Singapur LTA
-        // feed'inde 92.354 bulgunun neredeyse tamamı buydu; gerçek yol medyan 20,9 km.
-        // Burada sefer A→B→C→A dolaşıyor: kuş uçuşu 0, ardışık toplam ~44 km.
+        // 🔴 FP found by the 13th corpus run: when no shape existed, the straight-line
+        // distance from the first to the last stop was measured, so a LOOP route (first
+        // stop == last stop) always came out as 0 m. This accounted for almost all 92,354
+        // findings in the Singapore LTA feed; the median actual route length was 20.9 km.
+        // Here the trip loops A→B→C→A: straight-line distance 0, consecutive total ~44 km.
         let stops = vec![
             stop("A", 41.00, 29.00),
             stop("B", 41.10, 29.00),
@@ -16840,7 +16854,8 @@ mod tests {
 
     #[test]
     fn opr_017_still_flags_a_genuinely_short_trip() {
-        // Kapının koruduğu şey: gerçekten kısa sefer HÂLÂ yakalanmalı. İki durak ~8 m arayla.
+        // What the guard protects: genuinely short trips must STILL be detected. Two stops
+        // about 8 m apart.
         let stops = vec![
             stop("A", 41.000_00, 29.000_00),
             stop("B", 41.000_05, 29.000_05),
@@ -16859,7 +16874,7 @@ mod tests {
 
     #[test]
     fn opr_005_silent_when_frequency_is_uniform() {
-        // 6 hat, hepsi 15dk headway → aykırı yok.
+        // 6 routes, all with a 15-minute headway → no outlier.
         let mut routes = Vec::new();
         let mut trips = Vec::new();
         let mut sts = Vec::new();
@@ -16881,7 +16896,7 @@ mod tests {
         );
     }
 
-    // ── OPR_013: tek yönlü rota bilgisi ─────────────────────────────────────
+    // ── OPR_013: one-way route information ─────────────────────────────────
 
     #[test]
     fn single_direction_route_produces_opr_013() {
@@ -16905,16 +16920,16 @@ mod tests {
         );
     }
 
-    // ── DQ_005b: hiçbir trip için stop_times yok ─────────────────────────────
+    // ── DQ_005b: no stop_times for any trip ─────────────────────────────────
 
     #[test]
     fn trips_without_stoptimes_produces_dq_005b() {
-        // Trip var, stop_times yok
+        // Trip exists, but there are no stop_times.
         let records = records_with(
             vec![stop("A", 41.0, 29.0)],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
-            vec![], // stop_times boş
+            vec![], // stop_times is empty
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -16923,7 +16938,7 @@ mod tests {
         );
     }
 
-    // ── DQ_005c: koordinatsız durak oranı > %50 ──────────────────────────────
+    // ── DQ_005c: proportion of stops without coordinates > 50% ──────────────
 
     #[test]
     fn mostly_coord_missing_stops_produces_dq_005c() {
@@ -16954,7 +16969,7 @@ mod tests {
             vec![],
             vec![],
         );
-        // 1 koordinatlı, 2 koordinatsız → %67 > %50 → DQ_005c
+        // 1 with coordinates, 2 without → 67% > 50% → DQ_005c
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "DQ_005c"),
@@ -16962,7 +16977,7 @@ mod tests {
         );
     }
 
-    // ── DQ_010: agency_id hiçbir rotada kullanılmıyor ────────────────────────
+    // ── DQ_010: agency_id is unused by any route ────────────────────────────
 
     #[test]
     fn unused_agency_id_produces_dq_010() {
@@ -17002,7 +17017,7 @@ mod tests {
 
     #[test]
     fn route_without_shape_produces_rts_017() {
-        // Trip'in shape_id yok → route shape'siz
+        // The trip has no shape_id → the route has no shape.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -17036,7 +17051,8 @@ mod tests {
 
     #[test]
     fn rts_017_one_notice_per_shapeless_route() {
-        // İki shape'siz hat (R1, R2) + bir shape'li hat (R3) → yalnızca R1,R2 için ayrı notice.
+        // Two routes without shapes (R1, R2) + one with a shape (R3) → separate notices
+        // only for R1 and R2.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3), route("R2", 3), route("R3", 3)],
@@ -17069,7 +17085,7 @@ mod tests {
         assert!(ids.contains("R1") && ids.contains("R2") && !ids.contains("R3"));
     }
 
-    // ── TRP_012: çift yönlü rotada direction_id eksik sefer ──────────────────
+    // ── TRP_012: trip missing direction_id on a bidirectional route ──────────
 
     #[test]
     fn bidirectional_route_missing_direction_produces_trp_012() {
@@ -17087,7 +17103,7 @@ mod tests {
                     t.direction_id = Some(1);
                     t
                 },
-                trip("T3", "R1"), // direction_id = None — bu rotanın diğerleri var
+                trip("T3", "R1"), // direction_id = None — the other trips on this route have one
             ],
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
@@ -17106,8 +17122,8 @@ mod tests {
 
     #[test]
     fn block_id_that_groups_nothing_produces_one_feed_level_trp_015() {
-        // Iki sefer, iki AYRI block_id → hicbir blok iki seferi gruplamiyor.
-        // Alan fiilen trip_id kopyasi → FEED basina TEK bulgu.
+        // Two trips, two SEPARATE block_ids → no block groups two trips.
+        // The field effectively duplicates trip_id → ONE finding per FEED.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -17138,10 +17154,10 @@ mod tests {
     #[test]
     fn a_single_trip_block_is_valid_per_spec_and_stays_silent() {
         // 🔴 ESKI HUKUM SPEC'E AYKIRIYDI. GTFS Schedule Reference, trips.block_id:
-        // "A block consists of a single trip or many sequential trips ..." — tek seferlik
-        // blok GECERLIDIR. Eski kural onu sefer basina raporluyor ve korpusta 1.549.904
-        // notice / 675 feed uretiyordu. Burada BLK1 iki seferi gruplarken BLK2 tek
-        // seferliktir: gruplama VAR, dolayisiyla feed duzeyi bulgu da yoktur.
+        // "A block consists of a single trip or many sequential trips ..." — a single-trip
+        // block is VALID. The old rule reported it once per trip and produced 1,549,904
+        // notices across 675 feeds. Here BLK1 groups two trips while BLK2 is a single-trip
+        // block: grouping EXISTS, so there is no feed-level finding either.
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
             vec![route("R1", 3)],
@@ -17163,11 +17179,11 @@ mod tests {
         );
     }
 
-    // ── STP_020: kullanılmayan durak ─────────────────────────────────────────
+    // ── STP_020: unused stop ────────────────────────────────────────────────
 
     #[test]
     fn unused_stop_produces_stp_020() {
-        // Stop "X" stop_times'da yok → STP_020
+        // Stop "X" is absent from stop_times → STP_020
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("X", 41.5, 29.5)],
             vec![route("R1", 3)],
@@ -17196,9 +17212,9 @@ mod tests {
 
     #[test]
     fn stop_used_only_via_location_group_is_not_stp_020() {
-        // GTFS-Flex: stop_times location_group_id taşır, stop_id boştur. Gruba üye durak
-        // servis edilmektedir. İsviçre ODV feed'inde bu yol yokken 1259 durağın 1259'u da
-        // yanlışlıkla "kullanılmıyor" çıkıyordu.
+        // GTFS-Flex: stop_times carries location_group_id and stop_id is empty. The stops in
+        // the group are served. Without this path, all 1,259 of 1,259 stops in the Swiss ODV
+        // feed were incorrectly reported as "unused".
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("X", 41.5, 29.5)],
             vec![route("R1", 3)],
@@ -17225,7 +17241,7 @@ mod tests {
 
     #[test]
     fn parent_station_not_flagged_stp_020() {
-        // location_type=1 (parent station) stop_times'da kullanılmaz — bu normal
+        // location_type=1 (parent station) is not used in stop_times — this is normal
         let mut parent = stop("PS1", 41.0, 29.0);
         parent.location_type = Some(1);
         let records = records_with(
@@ -17247,14 +17263,14 @@ mod tests {
         );
     }
 
-    // ── SHP_017: durak sırası shape projeksiyonuyla çelişiyor ────────────────
+    // ── SHP_017: stop order conflicts with shape projection ─────────────────
 
     #[test]
     fn stops_in_correct_shape_order_no_shp_017() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Shape: (41.0,29.0) → (41.0,29.1) (doğuya giden düz çizgi)
-        // Stop A: 29.0 (başlangıç), Stop B: 29.1 (bitiş) — doğru sıra
+        // Shape: (41.0,29.0) → (41.0,29.1) (straight line heading east)
+        // Stop A: 29.0 (start), Stop B: 29.1 (end) — correct order
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
@@ -17294,9 +17310,9 @@ mod tests {
     fn fully_reversed_shape_produces_shp_016_not_shp_017() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Shape: A(29.0) → B(29.1) — doğuya giden çizgi
-        // stop_times: B önce, A sonra → shape tamamen ters takılmış → SHP_016
-        // (SHP_016 fires + continue, SHP_017 üretilmez)
+        // Shape: A(29.0) → B(29.1) — line heading east
+        // stop_times: B first, A second → shape is completely reversed → SHP_016
+        // (SHP_016 fires + continue, SHP_017 is not produced)
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
@@ -17340,23 +17356,26 @@ mod tests {
     fn shp_016_stays_silent_when_the_shape_crosses_itself() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // DART (Des Moines) feed'inde bulundu: route 97 / trip 751448 / shape 58782.
-        // Shape KENDI UZERINDEN gecince ilk durak IKI yere birden dusuyor; hangisinin
-        // secildigi metrelerle belirleniyor. Orada secilen projeksiyon 6,8 m, shape'in
-        // BASINDAKI aday 10,0 m — 3,1 m fark yuzunden kural "ters cizilmis" diyordu.
-        // Oysa uctan uca: ilk durak shape basina 10 m, son durak shape sonuna 9 m,
-        // duraklar shape boyunca 0 → 19 → 24 → 93 sirasiyla ilerliyor. Shape DOGRU.
+        // Found in the DART (Des Moines) feed: route 97 / trip 751448 / shape 58782.
+        // When the shape crosses ITSELF, the first stop projects to TWO places; the one
+        // selected is determined by the distances. The selected projection was 6.8 m, while
+        // the candidate at the BEGINNING of the shape was 10.0 m — the 3.1 m difference
+        // made the rule call it "reversed". But end to end: the first stop is 10 m from the
+        // shape start, the last stop is 9 m from the shape end, and the stops progress along
+        // the shape as 0 → 19 → 24 → 93. The shape is CORRECT.
         //
-        // Kurgu DART'in kosulunu birebir kurar ve OLCULDU: shape kuzeye 22 km gidip
-        // 17 m yandaki paralel koridordan geri doner, sonra doguya sapar. Ilk durak iki
-        // koridorun ARASINDA: donuse 4,2 m, gidise 12,6 m. Yani EN YAKIN projeksiyon
-        // ikinci gecistedir (arc = toplam yolun %91'i) ve koruma olmadan kural "ters" der.
-        // Fark 8,4 m < 50 m → belirsizlik korumasi devreye girer. Uzaklik korumasi (B)
-        // BURADA TETIKLENMEZ (4,2 m < 500 m), yani test yalnizca A'yi olcer.
+        // This fixture reproduces DART's condition exactly and was MEASURED: the shape
+        // travels 22 km north, returns along a parallel corridor 17 m away, then turns
+        // east. The first stop is BETWEEN the corridors: 4.2 m from the return and 12.6 m
+        // from the outbound path. Thus the NEAREST projection is on the second pass
+        // (arc = 91% of the total path), and without the guard the rule calls it "reversed".
+        // The difference is 8.4 m < 50 m → the uncertainty guard applies. Distance guard (B)
+        // does NOT FIRE HERE (4.2 m < 500 m), so the test measures only A.
         //
-        // ⚠️ Durak shape noktasinin TAM ustune ya da koridorun uzerine konursa projeksiyon
-        // mesafesi 0 cikar, kural zaten susar ve test HICBIR SEY olcmez — ilk iki kurgu
-        // bu yuzden gecersizdi ve korumayi bozdugumda yine yesil yaniyordu.
+        // ⚠️ If the stop is placed EXACTLY on a shape point or corridor, the projection
+        // distance is 0, the rule is already silent, and the test measures NOTHING — the
+        // first two fixtures were invalid for this reason and still passed when the guard
+        // was broken.
         let mut records = records_with(
             vec![stop("A", 41.0001, 29.00015), stop("C", 41.000, 29.0500)],
             vec![route("R1", 3)],
@@ -17420,13 +17439,13 @@ mod tests {
     fn shp_016_stays_silent_when_the_stop_is_nowhere_near_the_shape() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // `tdg-83210`: secilen projeksiyonun duraga uzakligi 2.561 KM. Orada durak
-        // koordinati bozuk ve asil kusuru GEO_016/SHP_014 raporluyor; SHP_016'nin
-        // konusmasi turev gurultuydu — tek basina 100 bulgu uretiyordu.
-        // Kurgu B'yi IZOLE eder: durak shape'in SON ucunun otesinde (arc = total, yani
-        // "ikinci yari" sarti saglanir) ama duraga 4 km uzakta — ve shape'in BASINA 12 km,
-        // yani fark 8 km olduğu icin belirsizlik korumasi (A) devreye GIRMEZ. Boylece test
-        // yalnizca uzaklik korumasini olcer.
+        // `tdg-83210`: the selected projection is 2.561 km from the stop. The stop's
+        // coordinates are corrupt and GEO_016/SHP_014 report the actual issue; SHP_016's
+        // output was derivative noise, producing 100 findings by itself.
+        // This ISOLATES fixture B: the stop is beyond the END of the shape (arc = total,
+        // so the "second half" condition holds), but 4 km from the stop and 12 km from the
+        // BEGINNING of the shape. Since the difference is 8 km, uncertainty guard (A) does
+        // NOT apply. Thus the test measures only the distance guard.
         let mut records = records_with(
             vec![stop("FAR", 41.000, 29.150), stop("B", 41.000, 29.100)],
             vec![route("R1", 3)],
@@ -17464,8 +17483,9 @@ mod tests {
 
     #[test]
     fn interleaved_stop_times_rows_produce_stm_036() {
-        // İki trip dosyada interleaved (T1,T2,T1,T2 satır sırası) → her trip'in satırları dağınık,
-        // sequence yine ARTAN. MD unsorted_stop_times (INFO) karşılığı: STM_036 iki trip için de çıkar
+        // Two trips are interleaved in the file (T1,T2,T1,T2 row order) → each trip's rows
+        // are scattered, but sequence is still INCREASING. This is the MD
+        // unsorted_stop_times (INFO) equivalent: STM_036 is emitted for both trips.
         // (sequence azalmasa bile non-contiguous).
         let records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.1)],
@@ -17505,7 +17525,8 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
-        // Aynı shape_dist_traveled (100.0) ama farklı koordinat (Δ=0.1° ≫ eşik) → SHP_028
+        // Same shape_dist_traveled (100.0) but different coordinates (Δ=0.1° ≫ threshold)
+        // → SHP_028
         records.shapes = vec![
             ShapePointRecord::new(
                 shape_ti.intern("S1"),
@@ -17543,8 +17564,9 @@ mod tests {
     fn shape_with_both_below_threshold_and_repeat_fires_both_types() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Bir shape hem eşik-altı fark (SHP_029, ÖNCE) hem tekrar-nokta (SHP_023, SONRA) içeriyor.
-        // Eski first-wins `break` SHP_023'ü kaçırırdı (Spelunca'da 6 kayıp); artık her tür bir kez.
+        // One shape contains both a below-threshold difference (SHP_029, FIRST) and a
+        // repeated point (SHP_023, LATER). The old first-wins `break` missed SHP_023 (6
+        // misses in Spelunca); now each type is reported once.
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
@@ -17563,7 +17585,7 @@ mod tests {
                 Some(100.0),
                 2,
             ),
-            // Δlat=5e-6 (< 1e-5 eşik) → SHP_029 (eşik-altı), ilk çift
+            // Δlat=5e-6 (< 1e-5 threshold) → SHP_029 (below threshold), first pair
             ShapePointRecord::new(
                 shape_ti.intern("S1"),
                 Some(41.000005),
@@ -17572,7 +17594,7 @@ mod tests {
                 Some(100.0),
                 3,
             ),
-            // 2. ile birebir aynı → SHP_023 (tekrar-nokta), ikinci çift
+            // Exactly the same as point 2 → SHP_023 (repeated point), second pair
             ShapePointRecord::new(
                 shape_ti.intern("S1"),
                 Some(41.000005),
@@ -17620,7 +17642,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
-        // Aynı dist, koordinat farkı eşik altı (Δ=1e-6° < 1e-5°) → SHP_029
+        // Same distance, coordinate difference below threshold (Δ=1e-6° < 1e-5°) → SHP_029
         records.shapes = vec![
             ShapePointRecord::new(
                 shape_ti.intern("S1"),
@@ -17674,11 +17696,12 @@ mod tests {
         );
     }
 
-    // ── GEO_002: median referansı + Null Island guard ────────────────────────
+    // ── GEO_002: median reference + Null Island guard ────────────────────
     #[test]
     fn geo_002_carries_median_in_details() {
-        // 3 durak İstanbul'da, 1 durak ~2000 km ötede → uzaktaki GEO_002 üretir ve
-        // notice median koordinatını taşımalı (harita "neye göre uzak" gösterebilsin).
+        // 3 stops are in Istanbul and 1 stop is ~2,000 km away → the distant stop produces
+        // GEO_002, and the notice must carry the median coordinates so the map can show
+        // "far from what".
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -17712,13 +17735,13 @@ mod tests {
 
     #[test]
     fn geo_002_threshold_is_relative_to_feed_extent() {
-        // VBB ölçümünün modeli: bölgesel/sınır-ötesi feed, duraklar ~280 km'ye yayılmış.
-        // Sabit 200 km eşiği bu feed'de 20 GERÇEK istasyonu hata sayıyordu; göreli eşik
-        // (3 × p99) bu dağılımda sessiz kalmalı.
+        // VBB measurement model: a regional/cross-border feed with stops spread over ~280 km.
+        // A fixed 200 km threshold treated 20 REAL stations in this feed as errors; the
+        // relative threshold (3 × p99) should remain silent for this distribution.
         let mut stops: Vec<_> = (0..120)
             .map(|i| stop(&format!("S{i}"), 52.5 + (i as f64) * 0.02, 13.4))
             .collect();
-        stops.push(stop("FAR", 55.0, 13.4)); // ~278 km — koridorun ucu, gerçek istasyon
+        stops.push(stop("FAR", 55.0, 13.4)); // ~278 km — corridor endpoint, real station
         let records = records_with(stops, vec![route("R1", 3)], vec![trip("T1", "R1")], vec![]);
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
@@ -17735,8 +17758,8 @@ mod tests {
 
     #[test]
     fn geo_002_still_fires_for_real_outlier_in_compact_feed() {
-        // Kompakt feed (~5 km) + tek bir aykırı durak (~2000 km) → gerçek koordinat hatası,
-        // göreli eşik taban 200 km'ye düşer ve kural ateşlemeye devam eder.
+        // Compact feed (~5 km) + one outlier stop (~2,000 km) → genuine coordinate error;
+        // the relative-threshold floor drops to 200 km and the rule continues to fire.
         let mut stops: Vec<_> = (0..120)
             .map(|i| stop(&format!("S{i}"), 41.0 + (i as f64) * 0.0004, 29.0))
             .collect();
@@ -17753,8 +17776,8 @@ mod tests {
 
     #[test]
     fn geo_002_skips_null_island_stop() {
-        // (0,0) placeholder median'dan kaçınılmaz olarak >200km uzaktır; kök nedeni
-        // GEO_016'dır → GEO_002 çift emit etmemeli (STP_016/017, GEO_012 ile tutarlı).
+        // The (0,0) placeholder is inevitably >200 km from the median; GEO_016 is the root
+        // cause → GEO_002 must not double-emit (consistent with STP_016/017 and GEO_012).
         let records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -17811,7 +17834,7 @@ mod tests {
 
     #[test]
     fn unidirectional_route_single_shape_no_opr_015() {
-        // İki trip de direction_id=0 → tek yönlü; tek shape beklenen davranış → OPR_015 yok
+        // Both trips have direction_id=0 → one-way; one shape is expected → no OPR_015
         let mut t0 = trip_sh("T0", "R1", "S1");
         t0.direction_id = Some(0);
         let mut t1 = trip_sh("T1", "R1", "S1");
@@ -17838,8 +17861,9 @@ mod tests {
     fn shape_reused_in_both_directions_no_shp_016() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // S1: A(29.0) → B(29.1). T1 ileri (A→B), T2 aynı shape'i ters kullanıyor (B→A).
-        // Bir ileri varyant olduğu için shape "ters çizilmiş" sayılmamalı (varyant-farkında min).
+        // S1: A(29.0) → B(29.1). T1 goes forward (A→B), while T2 uses the same shape in
+        // reverse (B→A). Because one forward variant exists, the shape must not be treated
+        // as "reversed" (variant-aware minimum).
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.1)],
             vec![route("R1", 3)],
@@ -17881,9 +17905,9 @@ mod tests {
     fn shape_end_matches_one_variant_no_shp_014() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // S1: A(29.0) → B(29.1). T1 tam (A→B, son durak B = shape sonu).
-        // T2 kısa varyant (A→FAR, son durak shape sonundan çok uzak).
-        // En yakın varyant (T1) shape sonuyla eşleştiği için SHP_014 ateşlememeli.
+        // S1: A(29.0) → B(29.1). T1 is complete (A→B, last stop B = shape end).
+        // T2 is a short variant (A→FAR, last stop far from the shape end).
+        // The nearest variant (T1) matches the shape end, so SHP_014 must not fire.
         let mut records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -17929,8 +17953,8 @@ mod tests {
     fn shape_end_far_from_all_variants_produces_shp_014() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // S1: A(29.0) → B(29.1). Tek sefer T1'in son durağı C, shape sonundan çok uzak.
-        // Hiçbir varyant shape sonuna yakın değil → SHP_014 ateşlemeli (regresyon koruması).
+        // S1: A(29.0) → B(29.1). The only trip, T1, ends at C, far from the shape end.
+        // No variant is near the shape end → SHP_014 must fire (regression guard).
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("C", 42.0, 30.0)],
             vec![route("R1", 3)],
@@ -17970,9 +17994,10 @@ mod tests {
     fn shp_014_tied_variants_report_smallest_trip_id() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Sekiz sefer aynı A→C dizisini kullanıyor: shape sonuna uzaklıkları EŞİT. Örnek
-        // sefer hash sırasına bırakılırsa wasm32 (32-bit FxHash) ile native/wasm64 farklı
-        // trip_id raporluyordu; eşitlikte en küçük trip_id seçilmeli.
+        // Eight trips use the same A→C sequence: their distances from the shape end are
+        // EQUAL. If the representative trip is left to hash order, wasm32 (32-bit FxHash)
+        // and native/wasm64 report different trip_ids; ties must choose the smallest
+        // trip_id.
         let ids = ["T9", "T4", "T7", "T1", "T8", "T3", "T6", "T2"];
         let mut stop_times = Vec::new();
         for (i, id) in ids.iter().enumerate() {
@@ -18020,9 +18045,9 @@ mod tests {
     fn partial_shape_order_violation_produces_shp_017() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Shape: A(29.0) → B(29.05) → C(29.1) — 3 noktalı çizgi
-        // stop_times: A(seq=1) → C(seq=2) → B(seq=3) → B, C'den sonra gelir ama shape'de önce
-        // İlk durak A shape'in başında → SHP_016 tetiklenmez; B sırası bozuk → SHP_017
+        // Shape: A(29.0) → B(29.05) → C(29.1) — three-point line
+        // stop_times: A(seq=1) → C(seq=2) → B(seq=3) → B follows C in stop_times but comes first on the shape
+        // First stop A is at the shape start → SHP_016 does not fire; B is out of order → SHP_017
         let mut records = records_with(
             vec![
                 stop("A", 41.0, 29.0),
@@ -18070,16 +18095,16 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "SHP_017")
             .expect("kısmi sıra ihlali → SHP_017 olmalı");
-        // scope_key shape'tir (registry kimlik alanı): shape kapsamlı kökler
-        // (XFL_013, SHP_002/006, TRP_004) ancak böyle bastırabilir.
+        // scope_key is the shape (the registry identity field): shape-scoped roots
+        // (XFL_013, SHP_002/006, TRP_004) can suppress it only this way.
         assert_eq!(n017.entity_id.as_deref(), Some("T1"));
         assert_eq!(n017.scope_key.as_deref(), Some("S1"));
     }
 
     #[test]
     fn shp_017_representative_trip_is_iteration_independent() {
-        // Aynı (shape, durak) ihlalini paylaşan seferlerden tek notice çıkar; temsilci
-        // HashMap sırasına değil trip_id sırasına bağlı olmalı (WASM/native paritesi).
+        // Emit one notice for trips sharing the same (shape, stop) violation; the representative
+        // must depend on trip_id order, not HashMap order (WASM/native parity).
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
         let ids = ["T7", "T3", "T9", "T1", "T5", "T8", "T2", "T6", "T4"];
@@ -18129,9 +18154,9 @@ mod tests {
     fn backtrack_that_recovers_no_shp_017() {
         let mut shape_ti = ShapeInternTable::new();
         use crate::k2::shapes::ShapePointRecord;
-        // Backtrack kurtarma filtresi (#17): doğuya giden düz shape 29.00 → 29.10 (lat 41.0).
+        // Backtrack recovery filter (#17): straight eastbound shape 29.00 → 29.10 (lat 41.0).
         // stop_times: A(29.00) → B(29.03) → C(29.015: B'nin ~1.3km gerisi, >500m tolerans) → D(29.05).
-        // C geri sıçrar AMA D 3 durak içinde önceki maksimumu (B) geçer → kurtarma → SHP_017 YOK.
+        // C jumps backward, BUT D exceeds the previous maximum (B) within 3 stops → recovery → NO SHP_017.
         let mut records = records_with(
             vec![
                 stop("A", 41.0, 29.00),
@@ -18180,13 +18205,13 @@ mod tests {
             "geri sıçrayıp 3 durak içinde toparlanan trip SHP_017 üretmemeli (backtrack kurtarma filtresi)");
     }
 
-    // ── STP_029: parent_station'dan çok uzak durak ───────────────────────────
+    // ── STP_029: stop far from parent_station ────────────────────────────────
 
     #[test]
     fn stop_far_from_parent_produces_stp_029() {
         let mut parent = stop("PS1", 41.0, 29.0);
         parent.location_type = Some(1);
-        let mut child = stop("S1", 41.1, 29.1); // ~15 km uzakta — eşik aşıldı
+        let mut child = stop("S1", 41.1, 29.1); // ~15 km away — threshold exceeded
         child
             .row
             .insert("parent_station".to_string(), "PS1".to_string());
@@ -18215,7 +18240,7 @@ mod tests {
     fn stop_close_to_parent_no_stp_029() {
         let mut parent = stop("PS1", 41.0, 29.0);
         parent.location_type = Some(1);
-        let mut child = stop("S1", 41.0001, 29.0001); // ~15m — eşik altı
+        let mut child = stop("S1", 41.0001, 29.0001); // ~15 m — below threshold
         child
             .row
             .insert("parent_station".to_string(), "PS1".to_string());
@@ -18232,17 +18257,17 @@ mod tests {
         );
     }
 
-    // ── STP_030: hiç çocuğu olmayan üst istasyon ─────────────────────────────
+    // ── STP_030: parent station with no children ────────────────────────────
 
-    /// Yalnız GİRİŞİ olan (peronu olmayan) istasyon da STP_030'dur: sefer perona durur,
-    /// girişe değil. Corpus kanıtı (mdb-2933): `MTR-POA`'nın 6 çocuğu da location_type=2
-    /// (giriş); biz susuyorduk, MD `unused_station` ile işaretliyordu.
+    /// A station with only ENTRANCES (no platforms) is also STP_030: service stops at the
+    /// platform, not the entrance. Corpus evidence (mdb-2933): all 6 children of `MTR-POA`
+    /// have location_type=2 (entrance); we stayed silent while MD flagged `unused_station`.
     #[test]
     fn station_with_only_entrances_produces_stp_030() {
         let mut station = stop("PS1", 41.0, 29.0);
         station.location_type = Some(1);
         let mut entrance = stop("E1", 41.0, 29.0);
-        entrance.location_type = Some(2); // giriş/çıkış — peron DEĞİL
+        entrance.location_type = Some(2); // entrance/exit — NOT a platform
         entrance
             .row
             .insert("parent_station".to_string(), "PS1".to_string());
@@ -18303,19 +18328,19 @@ mod tests {
         );
     }
 
-    // ── TRP_020: headsign ara durak adıyla eşleşiyor ────────────────────────
+    // ── TRP_020: headsign matches an intermediate stop name ────────────────
 
-    /// Headsign SON DURAĞIN adıyla eşleşiyorsa, aynı ad bir ara durakta da geçse bile
-    /// yön adı DOĞRUdur → TRP_020 üretilmemeli.
+    /// If the headsign matches the FINAL STOP'S name, the direction name is CORRECT even
+    /// if the same name also occurs at an intermediate stop → TRP_020 must not be emitted.
     ///
-    /// Eski kod terminali `stop_id` ile eliyor ama eşleşmeyi İSİM ile yapıyordu; aynı ada
-    /// sahip farklı stop_id (ayrı peron/yön kaydı, ortak parent YOK) filtreden geçiyordu.
-    /// Corpus kanıtı (mdb-1294, Roma): 9.162 sefer işaretleniyordu, MD 19.
+    /// The old code excluded the terminal by `stop_id` but matched by NAME; a different
+    /// stop_id with the same name (separate platform/direction record, NO shared parent)
+    /// passed the filter. Corpus evidence (mdb-1294, Rome): 9,162 trips were flagged, MD 19.
     #[test]
     fn headsign_matching_terminal_name_is_not_trp_020_even_if_name_repeats() {
         let mut a = stop("A", 41.0, 29.0);
         a.stop_name = Some("Başlangıç".into());
-        // Ara durak ile terminal AYNI ADA sahip, FARKLI stop_id, parent YOK.
+        // Intermediate stop and terminal have the SAME NAME, DIFFERENT stop_ids, and NO parent.
         let mut mid = stop("M", 41.05, 29.05);
         mid.stop_name = Some("Cimitero".into());
         let mut term = stop("T", 41.1, 29.1);
@@ -18323,7 +18348,7 @@ mod tests {
         let records = records_with(
             vec![a, mid, term],
             vec![route("R1", 3)],
-            vec![trip_hs("T1", "R1", "Cimitero")], // headsign = SON durağın adı → doğru
+            vec![trip_hs("T1", "R1", "Cimitero")], // headsign = FINAL stop name → correct
             vec![
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "M", (8, 5, 0), (8, 5, 0), 3),
@@ -18340,12 +18365,12 @@ mod tests {
     #[test]
     fn headsign_matches_intermediate_stop_produces_trp_020() {
         // Stop A (seq 1, ara), Stop B (seq 2, terminal)
-        // headsign = "Stop A" (ara durak adı) → TRP_020 olmalı
+        // headsign = "Stop A" (intermediate stop name) → TRP_020 should fire
         let mut sa = stop("A", 41.0, 29.0);
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
         sb.stop_name = Some("Stop B".into());
-        let t = trip_hs("T1", "R1", "Stop A"); // ara durak adı
+        let t = trip_hs("T1", "R1", "Stop A"); // intermediate stop name
         let records = records_with(
             vec![sa, sb],
             vec![route("R1", 3)],
@@ -18369,12 +18394,12 @@ mod tests {
 
     #[test]
     fn headsign_matches_terminal_stop_no_trp_020() {
-        // headsign = terminal durak adı → TRP_020 olmamalı
+        // headsign = terminal stop name → TRP_020 must not fire
         let mut sa = stop("A", 41.0, 29.0);
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
         sb.stop_name = Some("Stop B".into());
-        let t = trip_hs("T1", "R1", "Stop B"); // terminal durak adı
+        let t = trip_hs("T1", "R1", "Stop B"); // terminal stop name
         let records = records_with(
             vec![sa, sb],
             vec![route("R1", 3)],
@@ -18393,7 +18418,7 @@ mod tests {
 
     #[test]
     fn headsign_no_stop_match_no_trp_020() {
-        // headsign hiçbir durak adıyla eşleşmiyor → TRP_020 olmamalı
+        // headsign matches no stop name → TRP_020 must not fire
         let mut sa = stop("A", 41.0, 29.0);
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
@@ -18417,8 +18442,8 @@ mod tests {
 
     #[test]
     fn headsign_matches_repeated_turnaround_stop_no_trp_020() {
-        // Sefer: A → B → C → B (tekrar) → D. headsign = "Stop B" = TEKRAR EDEN durak.
-        // B bir uç/dönüş noktası (havalimanı wye gibi) → headsign meşru → TRP_020 olmamalı.
+        // Trip: A → B → C → B (repeat) → D. headsign = "Stop B" = REPEATED stop.
+        // B is a terminal/turnback point (like an airport wye) → legitimate headsign → TRP_020 must not fire.
         let mut sa = stop("A", 41.0, 29.0);
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
@@ -18449,9 +18474,9 @@ mod tests {
 
     #[test]
     fn headsign_intermediate_with_unrelated_repeat_produces_trp_020() {
-        // Sefer: A → B → C → B (tekrar) → D. headsign = "Stop C" = TEK GEÇEN ara durak.
-        // B'nin tekrarı ALAKASIZ; headsign C bir kez geçen meşru ara durak eşleşmesi.
-        // Eski "herhangi tekrar → loop" mantığı bunu yanlışlıkla bastırırdı (yanlış negatif).
+        // Trip: A → B → C → B (repeat) → D. headsign = "Stop C" = a SINGLE-PASSING intermediate stop.
+        // B's repetition is IRRELEVANT; headsign C is a legitimate intermediate-stop match occurring once.
+        // The old "any repeat → loop" logic would incorrectly suppress this (false negative).
         let mut sa = stop("A", 41.0, 29.0);
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
@@ -18487,9 +18512,10 @@ mod tests {
 
     #[test]
     fn headsign_intermediate_consecutive_duplicate_produces_trp_020() {
-        // #29: Sefer A → B → B → C; B aynı stop_id PEŞ PEŞE iki kez (dwell/timepoint çiftlemesi,
-        // BART SFO seq 26-27 deseni), terminal = C. headsign = "Stop B" = ara durak.
-        // Ardışık yineleme gerçek uç/dönüş DEĞİLDİR → TRP_020 ÇIKMALI (önceki mantık yanlış bastırırdı).
+        // #29: Trip A → B → B → C; B has the same stop_id twice IN A ROW (dwell/timepoint
+        // duplication, BART SFO seq 26–27 pattern), terminal = C. headsign = "Stop B" is an
+        // intermediate stop. An adjacent repeat is NOT a real terminal/turnback → TRP_020
+        // MUST fire (the previous logic incorrectly suppressed it).
         let mut sa = stop("A", 41.0, 29.0);
         sa.stop_name = Some("Stop A".into());
         let mut sb = stop("B", 41.1, 29.1);
@@ -18522,8 +18548,8 @@ mod tests {
 
     #[test]
     fn headsign_loop_via_parent_station_no_trp_020() {
-        // Loop: A1 → B → A2; A1 ve A2 farklı stop_id ama aynı parent_station P.
-        // first(A1) != terminal(A2) (stop_id) ama etkin istasyon aynı (P) → TRP_020 olmamalı.
+        // Loop: A1 → B → A2; A1 and A2 have different stop_ids but the same parent_station P.
+        // first(A1) != terminal(A2) (stop_id), but the effective station is the same (P) → TRP_020 must not fire.
         let mut sa1 = stop("A1", 41.0, 29.0);
         sa1.stop_name = Some("İstasyon P".into());
         sa1.row.insert("parent_station".into(), "P".into());
@@ -18532,7 +18558,7 @@ mod tests {
         sa2.row.insert("parent_station".into(), "P".into());
         let mut sb = stop("B", 41.1, 29.1);
         sb.stop_name = Some("Stop B".into());
-        let t = trip_hs("T1", "R1", "Stop B"); // ara durak adı
+        let t = trip_hs("T1", "R1", "Stop B"); // intermediate stop name
         let records = records_with(
             vec![sa1, sa2, sb],
             vec![route("R1", 3)],
@@ -18550,18 +18576,18 @@ mod tests {
         );
     }
 
-    // ── SHP_022: durak shape'te birden fazla eşleşme bölgesine yakın ─────────
+    // ── SHP_022: stop is near multiple matching regions on the shape ────────
 
     #[test]
     fn stop_near_two_shape_sections_produces_shp_022() {
         let mut shape_ti = ShapeInternTable::new();
-        // "U" şekli: gidip dönen hat — durak hem gidiş hem dönüş bölümüne yakın,
-        // shape_dist_traveled YOK. #52: sıra KULLANILAMAZ olmalı (burada duplicate
-        // stop_sequence=1) → konum belirsiz → SHP_022 beklenir.
+        // "U" shape: an out-and-back route — the stop is near both the outbound and return
+        // sections, and shape_dist_traveled is ABSENT. #52: sequence must be UNUSABLE here
+        // (stop_sequence=1 is duplicated) → ambiguous position → SHP_022 is expected.
         use crate::k2::shapes::ShapePointRecord;
         let t = trip_sh("T1", "R1", "SH1");
-        // Koordinatlar: lon=0.0 ekseni boyunca gidip, 0.001° ≈ 111m sağa kayıp dönüyor
-        // Durak: lat=0.5, lon=0.00005 — hem gidiş (lon≈0) hem dönüş (lon≈0.001) segmentine ~5m yakın
+        // Coordinates: travel along the lon=0.0 axis, shift 0.001° ≈ 111 m to the right, and return.
+        // Stop: lat=0.5, lon=0.00005 — about 5 m from both the outbound (lon≈0) and return (lon≈0.001) segments.
         let mut s = stop("S1", 0.5, 0.00005);
         s.stop_name = Some("Orta Durak".into());
         let mut records = records_with(
@@ -18570,11 +18596,11 @@ mod tests {
             vec![t],
             vec![
                 stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 1, "S1", (8, 10, 0), (8, 10, 0), 3), // duplicate seq → sıra kullanılamaz
+                stoptime("T1", 1, "S1", (8, 10, 0), (8, 10, 0), 3), // duplicate seq → sequence is unusable
             ],
         );
         // shape: (0,0)→(1,0)→(1,0.001)→(0,0.001) — U benzeri
-        // İki dikey kenar (lon=0 ve lon=0.001) stop'a ~5m uzaklıkta
+        // Two vertical edges (lon=0 and lon=0.001) are ~5 m from the stop
         records.shapes = vec![
             ShapePointRecord::new(
                 shape_ti.intern("SH1"),
@@ -18625,8 +18651,8 @@ mod tests {
     #[test]
     fn stop_near_two_sections_valid_sequence_no_shp_022() {
         let mut shape_ti = ShapeInternTable::new();
-        // #52: AYNI U-şekli geometrisi ama stop_sequence GEÇERLİ (1,2 kesin artan) →
-        // sıra-farkında eşleme belirsizliği çözer → SHP_022 ÇIKMAMALI (over-fire önlendi).
+        // #52: SAME U-shape geometry, but stop_sequence is VALID (strictly increasing 1,2) →
+        // sequence-aware matching resolves the ambiguity → SHP_022 MUST NOT FIRE (over-fire prevented).
         use crate::k2::shapes::ShapePointRecord;
         let t = trip_sh("T1", "R1", "SH1");
         let mut s = stop("S1", 0.5, 0.00005);
@@ -18637,7 +18663,7 @@ mod tests {
             vec![t],
             vec![
                 stoptime("T1", 1, "S1", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "S1", (8, 10, 0), (8, 10, 0), 3), // geçerli artan sıra
+                stoptime("T1", 2, "S1", (8, 10, 0), (8, 10, 0), 3), // valid increasing sequence
             ],
         );
         records.shapes = vec![
@@ -18685,10 +18711,10 @@ mod tests {
     #[test]
     fn stop_near_one_shape_section_no_shp_022() {
         let mut shape_ti = ShapeInternTable::new();
-        // Düz hat — stop yalnızca bir bölüme yakın → SHP_022 olmamalı
+        // Straight line — the stop is near only one section → SHP_022 must not fire
         use crate::k2::shapes::ShapePointRecord;
         let t = trip_sh("T1", "R1", "SH2");
-        let mut s = stop("S1", 0.5, 0.0001); // sadece ilk segmente yakın
+        let mut s = stop("S1", 0.5, 0.0001); // near only the first segment
         s.stop_name = Some("Tek Bölüm".into());
         let mut records = records_with(
             vec![s],
@@ -18699,7 +18725,7 @@ mod tests {
                 stoptime("T1", 2, "S1", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
-        // Düz shape, stop sadece ilk segmente (~11m) yakın
+        // Straight shape, stop near only the first segment (~11 m)
         records.shapes = vec![
             ShapePointRecord::new(
                 shape_ti.intern("SH2"),
@@ -18734,7 +18760,7 @@ mod tests {
         );
     }
 
-    // ── DQ_018: tamamen büyük harf metin alanı ───────────────────────────────
+    // ── DQ_018: all-caps text field ─────────────────────────────────────────
 
     #[test]
     fn all_caps_stop_name_produces_dq_018() {
@@ -18772,7 +18798,7 @@ mod tests {
 
     #[test]
     fn single_letter_stop_name_no_dq_018() {
-        // Tek harfli kısaltmalar (ör. "A") all_caps sayılmamalı (< 2 harf)
+        // Single-letter abbreviations (e.g. "A") must not count as all_caps (< 2 letters)
         let mut s = stop("S1", 41.0, 29.0);
         s.stop_name = Some("A".into());
         let records = records_with(
@@ -18824,15 +18850,15 @@ mod tests {
         );
     }
 
-    // ── Fix-8 (revize): patolojik shape projeksiyonu haversine'e düşer ────────
+    // ── Fix-8 (revised): pathological shape projection falls back to haversine ─
 
     #[test]
     fn pathological_shape_projection_falls_back_to_haversine() {
         let mut shape_ti = ShapeInternTable::new();
-        // Kuş uçuşu A→B ≈ 0.84 km. U biçimli shape projeksiyonu B'yi yanlış segmente
-        // eşleştirip arc ≈ 23 km verir (27× kuş uçuşu). Bu YANLIŞ segment eşleşmesidir
-        // (LA Metro grid bus rotalarındaki gibi). 4× kuralıyla haversine'e düşülmeli:
-        // 0.84 km / 5 dk ≈ 10 km/h → STM_012 de STM_014 de ÜRETİLMEMELİ.
+        // Straight-line A→B ≈ 0.84 km. U-shaped projection matches B to the wrong segment
+        // and gives arc ≈ 23 km (27× the straight-line distance). This is a WRONG segment
+        // match (as in LA Metro grid bus routes). The 4× rule must fall back to haversine:
+        // 0.84 km / 5 min ≈ 10 km/h → neither STM_012 nor STM_014 MUST be emitted.
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.0, 29.01)],
@@ -18843,8 +18869,8 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 5, 0), (8, 5, 0), 3), // 5 dk
             ],
         );
-        // U shape: (41.0,29.0) → kuzeye (41.1,29.0) → (41.1,29.01) → güneye (41.0,29.01)
-        // Arc ≈ 23 km vs haversine ~0.84 km → ratio ~27× → 4× eşiği aşar → fallback.
+        // U shape: (41.0,29.0) → north to (41.1,29.0) → (41.1,29.01) → south to (41.0,29.01)
+        // Arc ≈ 23 km vs haversine ~0.84 km → ratio ~27× → exceeds the 4× threshold → fallback.
         records.shapes = vec![
             ShapePointRecord::new(
                 shape_ti.intern("S1"),
@@ -18891,9 +18917,10 @@ mod tests {
     #[test]
     fn moderate_detour_within_ratio_still_uses_shape() {
         let mut shape_ti = ShapeInternTable::new();
-        // Makul detour: shape kuş uçuşunun 4× altında kalırsa shape mesafesi korunur.
-        // A→B kuş uçuşu ~11.1 km; shape hafif kavisli ~13 km (≈1.2×) → 4× altında.
-        // 13 km / 2 dk ≈ 390 km/h → 120 < 390 < 700 → STM_014 tetiklenir (shape kullanıldığının kanıtı).
+        // Reasonable detour: if the shape remains below 4× the straight-line distance, keep
+        // the shape distance. A→B straight-line distance ~11.1 km; gently curved shape ~13 km
+        // (≈1.2×) → below 4×. 13 km / 2 min ≈ 390 km/h → 120 < 390 < 700 → STM_014 fires
+        // (evidence that the shape distance was used).
         use crate::k2::shapes::ShapePointRecord;
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0), stop("B", 41.1, 29.0)],
@@ -18904,7 +18931,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 2, 0), (8, 2, 0), 3), // 2 dk
             ],
         );
-        // A(41.0,29.0) → orta nokta hafif doğuya (41.05,29.03) → B(41.1,29.0): kavisli ama ~1.2×
+        // A(41.0,29.0) → midpoint slightly east (41.05,29.03) → B(41.1,29.0): curved but ~1.2×
         records.shapes = vec![
             ShapePointRecord::new(
                 shape_ti.intern("S1"),
@@ -18942,7 +18969,7 @@ mod tests {
 
     #[test]
     fn trip_with_shape_id_but_no_shape_data_falls_back_to_haversine() {
-        // shape_id atanmış fakat records.shapes'te eşleşen kayıt yok.
+        // shape_id is set, but no matching record exists in records.shapes.
         // Kod `shape_pts_speed.get(sid)` → None → Haversine fallback devreye girer.
         // A→B: ~0.82 km / 10 dk → ~5 km/h → STM_014 tetiklenmemeli.
         let records = records_with(
@@ -18954,7 +18981,7 @@ mod tests {
                 stoptime("T1", 2, "B", (8, 10, 0), (8, 10, 0), 3),
             ],
         );
-        // records.shapes boş → "MISSING_SHAPE" bulunamaz → Haversine ile normal hız
+        // records.shapes is empty → "MISSING_SHAPE" cannot be found → normal speed via Haversine
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "STM_014"),
@@ -18962,11 +18989,11 @@ mod tests {
         );
     }
 
-    // ── VAT: Varlık Analitik Tespiti ────────────────────────────────────────
+    // ── VAT: entity analytics detection ────────────────────────────────────
 
     #[test]
     fn similar_routes_produce_vat_001() {
-        // R1 ve R2 aynı 6 durağa sahip → Jaccard=1.0 ≥ 0.85 → VAT_001
+        // R1 and R2 share the same 6 stops → Jaccard=1.0 ≥ 0.85 → VAT_001
         let stops: Vec<StopRecord> = (1..=6)
             .map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0))
             .collect();
@@ -19012,7 +19039,7 @@ mod tests {
 
     #[test]
     fn very_different_routes_no_vat_001() {
-        // R1: S1-S3, R2: S4-S6 → hiç ortak durak yok → Jaccard=0 → VAT_001 olmamalı
+        // R1: S1–S3, R2: S4–S6 → no shared stops → Jaccard=0 → VAT_001 must not fire
         let r = crate::k2::EntityRecords {
             stops: (1..=6)
                 .map(|i| stop(&format!("S{i}"), 41.0 + i as f64 * 0.01, 29.0))
@@ -19039,8 +19066,8 @@ mod tests {
 
     #[test]
     fn busy_stop_no_transfer_produces_vat_002() {
-        // S1'den 4 hat geçiyor VE 200 m ötedeki S9'dan S1'de olmayan bir hat (R5) geçiyor
-        // → gerçekten tanımlanmamış bir DURAKLAR ARASI aktarma var → VAT_002.
+        // Four routes serve S1, AND a route not serving S1 (R5) serves S9, 200 m away
+        // → a genuinely undefined TRANSFER BETWEEN STOPS exists → VAT_002.
         let mut sts: Vec<_> = (1..=4)
             .flat_map(|i| {
                 vec![
@@ -19049,14 +19076,14 @@ mod tests {
                 ]
             })
             .collect();
-        // R5 yalnız komşu durak S9'dan geçiyor — S1'de yok.
+        // R5 serves only neighboring stop S9 — not S1.
         sts.push(stoptime("T5", 1, "S9", (9, 0, 0), (9, 0, 0), 4));
         sts.push(stoptime("T5", 2, "S8", (9, 10, 0), (9, 10, 0), 5));
         let r = crate::k2::EntityRecords {
             stops: vec![
                 stop("S1", 41.0, 29.0),
                 stop("S2", 41.1, 29.1),
-                stop("S9", 41.0018, 29.0), // ~200 m — max_transfer_distance_m (500 m) içinde
+                stop("S9", 41.0018, 29.0), // ~200 m — within max_transfer_distance_m (500 m)
                 stop("S8", 41.2, 29.2),
             ],
             routes: (1..=5).map(|i| route(&format!("R{i}"), 3)).collect(),
@@ -19074,10 +19101,10 @@ mod tests {
         );
     }
 
-    // ── WP-D: aynı stop_id'deki aktarma örtüktür ─────────────────────────────
+    // ── WP-D: transfers at the same stop_id are implicit ────────────────────
 
-    /// Bütün hatlar AYNI stop_id'yi kullanıyorsa (Ankara Gar deseni) tanımlanacak bir
-    /// aktarma yoktur; GTFS tüketicisi o durakta aktarma kurulabileceğini zaten bilir.
+    /// If all routes use the SAME stop_id (the Ankara Gar pattern), there is no transfer to
+    /// define; GTFS consumers already know that transfers can be made at that stop.
     #[test]
     fn vat_002_silent_when_all_routes_share_one_stop_id() {
         let r = crate::k2::EntityRecords {
@@ -19104,8 +19131,8 @@ mod tests {
         );
     }
 
-    /// `parent_station`'ı olan peron durakları elenir: kompleks zaten modellenmiş.
-    /// (Eski kod yalnız location_type=1 istasyonun KENDİSİNİ eliyordu, çocuklarını değil.)
+    /// Platform stops with a `parent_station` are excluded: the complex is already modeled.
+    /// (The old code excluded only the location_type=1 station ITSELF, not its children.)
     #[test]
     fn vat_002_skips_child_stops_of_a_modelled_station() {
         use std::collections::HashMap as StdMap;
@@ -19127,7 +19154,7 @@ mod tests {
             stops: vec![
                 platform,
                 stop("S2", 41.1, 29.1),
-                stop("S9", 41.0018, 29.0), // yakın komşu + farklı hat → guard olmasa tetiklerdi
+                stop("S9", 41.0018, 29.0), // nearby neighbor + different route → would fire without the guard
                 stop("S8", 41.2, 29.2),
             ],
             routes: (1..=5).map(|i| route(&format!("R{i}"), 3)).collect(),
@@ -19148,13 +19175,13 @@ mod tests {
         );
     }
 
-    /// Komşu durak SADECE aynı hatları sunuyorsa yeni bir bağlantı yoktur → susar.
+    /// If the neighboring stop offers ONLY the same routes, there is no new connection → silent.
     #[test]
     fn vat_002_silent_when_neighbour_adds_no_new_route() {
         let r = crate::k2::EntityRecords {
             stops: vec![
                 stop("S1", 41.0, 29.0),
-                stop("S9", 41.0018, 29.0), // yakın ama aynı hatlar
+                stop("S9", 41.0018, 29.0), // nearby, but the same routes
                 stop("S2", 41.1, 29.1),
             ],
             routes: (1..=4).map(|i| route(&format!("R{i}"), 3)).collect(),
@@ -19185,8 +19212,8 @@ mod tests {
 
     #[test]
     fn outlier_trip_duration_produces_vat_003() {
-        // R1 hattında 5 sefer: 4 tanesi ~30dk, 1 tanesi ~3saat (aykırı değer) → VAT_003
-        // Normal: T1-T4 = 30dk, aykırı: T5 = 180dk
+        // Route R1 has 5 trips: 4 around 30 minutes, 1 around 3 hours (outlier) → VAT_003
+        // Normal: T1–T4 = 30 minutes, outlier: T5 = 180 minutes
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 1..=4u32 {
@@ -19195,7 +19222,7 @@ mod tests {
             stoptimes_vec.push(stoptime(&tid, 1, "A", (i, 0, 0), (i, 0, 0), 2));
             stoptimes_vec.push(stoptime(&tid, 2, "B", (i, 30, 0), (i, 30, 0), 3));
         }
-        // Aykırı sefer: 180 dakika (3 saat)
+        // Outlier trip: 180 minutes (3 hours)
         trips_vec.push(trip("T5", "R1"));
         stoptimes_vec.push(stoptime("T5", 1, "A", (6, 0, 0), (6, 0, 0), 2));
         stoptimes_vec.push(stoptime("T5", 2, "B", (9, 0, 0), (9, 0, 0), 3));
@@ -19214,20 +19241,20 @@ mod tests {
         );
     }
 
-    // ── WP-C: tarih-genişletmesi çökertme ────────────────────────────────────
+    // ── WP-C: date-expansion collapse ──────────────────────────────────────
     //
-    // Bazı üreticiler (TCDD deseni) aynı tarifeyi her işletim günü için ayrı trip_id
-    // olarak yazar. Bu kopyalar hem raporu şişirir hem MAD'i bozar.
+    // Some producers (the TCDD pattern) write the same timetable as a separate trip_id
+    // for every operating day. These duplicates inflate the report and distort MAD.
 
-    /// Aynı tarife 10 tarihe yayılmışsa TEK notice çıkar, 10 değil; mesaj kaç kayıtta
-    /// tekrarlandığını söyler.
+    /// If the same timetable spans 10 dates, emit ONE notice, not 10; the message says how
+    /// many records were duplicates.
     #[test]
     fn vat_003_collapses_date_expanded_duplicate_trips() {
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         let mut line = 2u64;
-        // 5 farklı tarife (kalkış saatleri farklı, hepsi ~30 dk) — ≥5 kapısını geçmek için.
-        // Her tarife 10 TARİHE yayılmış: aynı kalkış + aynı süre, farklı trip_id.
+        // 5 different timetables (different departure times, all ~30 minutes) — to pass the ≥5 guard.
+        // Each timetable spans 10 DATES: same departure + same duration, different trip_ids.
         for h in 1..=5u32 {
             for day in 0..10u32 {
                 let tid = format!("T{h}_D{day:02}");
@@ -19238,7 +19265,7 @@ mod tests {
                 line += 1;
             }
         }
-        // Aykırı tarife: 180 dk — o da 10 tarihe yayılmış.
+        // Outlier timetable: 180 minutes — also spanning 10 dates.
         for day in 0..10u32 {
             let tid = format!("X_D{day:02}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19271,7 +19298,7 @@ mod tests {
                 .collect::<Vec<_>>()
         );
         let n = vat[0];
-        // Temsili trip: leksikografik en küçük (deterministik).
+        // Representative trip: lexicographically smallest (deterministic).
         assert_eq!(
             n.entity_id.as_deref(),
             Some("X_D00"),
@@ -19292,12 +19319,12 @@ mod tests {
         );
     }
 
-    /// Kopyasız feed'de davranış DEĞİŞMEZ (çökertme no-op olmalı) — regresyon koruması.
+    /// Behavior is UNCHANGED on a feed without duplicates (the collapse must be a no-op) — regression guard.
     #[test]
     fn vat_003_unchanged_when_no_duplicate_schedules() {
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
-        // 5 benzersiz tarife (~30 dk) + 1 aykırı — hiçbiri tekrarlanmıyor.
+        // 5 unique timetables (~30 minutes) + 1 outlier — none are duplicated.
         for i in 1..=5u32 {
             let tid = format!("T{i}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19338,15 +19365,15 @@ mod tests {
         );
     }
 
-    /// ≥5 kapısı artık BENZERSİZ TARİFE sayar: 40 sefer ama yalnız 4 tarife varsa
-    /// aykırı-değer iddiası için kanıt yetersizdir → sessiz kalınır.
-    /// Eski davranış aynı 4 gözlemi 10 kez sayıp yapay güven üretiyordu.
+    /// The ≥5 guard now counts UNIQUE TIMETABLES: with 40 trips but only 4 timetables,
+    /// there is insufficient evidence for an outlier claim → remain silent.
+    /// The old behavior counted the same 4 observations 10 times and created artificial confidence.
     #[test]
     fn vat_003_requires_five_distinct_schedules_not_five_trips() {
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         let mut line = 2u64;
-        // Yalnız 3 normal tarife, her biri 10 tarihte (30 sefer).
+        // Only 3 normal timetables, each on 10 dates (30 trips).
         for h in 1..=3u32 {
             for day in 0..10u32 {
                 let tid = format!("T{h}_D{day:02}");
@@ -19357,7 +19384,7 @@ mod tests {
                 line += 1;
             }
         }
-        // + 1 aykırı tarife × 10 tarih = toplam 40 sefer / 4 tarife.
+        // + 1 outlier timetable × 10 dates = 40 trips / 4 timetables total.
         for day in 0..10u32 {
             let tid = format!("X_D{day:02}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19384,9 +19411,10 @@ mod tests {
 
     #[test]
     fn vat_003_does_not_cross_flag_distinct_patterns_on_same_route() {
-        // Aynı route_id, iki ayrı desen: 6 kısa sefer (2 durak, 10dk) + 5 uzun sefer
-        // (4 durak, 30dk). Eski route_id gruplaması uzun seferleri aykırı işaretlerdi;
-        // desen (durak sayısı) gruplamasıyla her küme kendi içinde tutarlı → VAT_003 yok.
+        // Same route_id, two separate patterns: 6 short trips (2 stops, 10 minutes) + 5 long
+        // trips (4 stops, 30 minutes). The old route_id grouping flagged the long trips as
+        // outliers; grouping by pattern (stop count) makes each cluster internally consistent
+        // → no VAT_003.
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 0..6u32 {
@@ -19425,9 +19453,9 @@ mod tests {
 
     #[test]
     fn vat_003_groups_by_stop_sequence_not_count() {
-        // Aynı route, shape yok, AYNI durak sayısı (2) ama FARKLI duraklar:
-        // 6 sefer A→B (10dk) + 5 sefer A→C (30dk). Durak SAYISI anahtarı bunları
-        // karıştırıp 30dk'ları aykırı işaretlerdi; durak SIRASI hash'iyle ayrılır → VAT_003 yok.
+        // Same route, no shape, SAME stop count (2) but DIFFERENT stops:
+        // 6 trips A→B (10 minutes) + 5 trips A→C (30 minutes). A stop-count key would mix
+        // them and flag the 30-minute trips; the stop-order hash separates them → no VAT_003.
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 0..6u32 {
@@ -19463,9 +19491,10 @@ mod tests {
 
     #[test]
     fn vat_003_same_shape_different_stop_patterns_do_not_cross_flag() {
-        // Gerçek BART regresyonu: aynı shape_id kısa-dönüş (A→B, 10dk) ve tam sefer
-        // (A→B→C→D, 30dk) tarafından paylaşılabilir. Shape tek başına desen değildir;
-        // stop dizisi de anahtara katılmalı, aksi halde kısa seferler kitlesel FP olur.
+        // Real BART regression: the same shape_id can be shared by a short-turn trip
+        // (A→B, 10 minutes) and a full trip (A→B→C→D, 30 minutes). Shape alone is not a
+        // pattern; the stop sequence must also be part of the key, otherwise short trips
+        // become mass FPs.
         let mut trips_vec = Vec::new();
         let mut stoptimes_vec = Vec::new();
         for i in 0..5u32 {
@@ -19504,13 +19533,13 @@ mod tests {
 
     #[test]
     fn vat_003_deseasonalizes_peak_offpeak_within_pattern() {
-        // Tek desen (A→B), tek route, shape yok. Baskın off-peak küme (saat 10, ~20dk),
-        // meşru daha uzun peak (saat 8, 28dk), 1 gerçek olay (saat 10, 40dk).
-        // Saat-bazlı deseasonalize ile peak FP üretmemeli; yalnızca olay işaretlenmeli.
-        // (Eski global medyan/MAD bu kurguda tüm peak seferlerini FP olarak işaretlerdi.)
+        // One pattern (A→B), one route, no shape. Dominant off-peak cluster (hour 10, ~20 minutes),
+        // legitimate longer peak trips (hour 8, 28 minutes), and 1 real event (hour 10, 40 minutes).
+        // Hour-based deseasonalization must not produce peak FPs; only the event should be flagged.
+        // (The old global median/MAD would flag all peak trips as FPs in this fixture.)
         let mut trips_vec = Vec::new();
         let mut sts = Vec::new();
-        // Off-peak: saat 10, 19/20/21dk (hafif spread), 20 sefer — baskın küme.
+        // Off-peak: hour 10, 19/20/21 minutes (slight spread), 20 trips — dominant cluster.
         for i in 0..20u32 {
             let tid = format!("O{i}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19518,7 +19547,7 @@ mod tests {
             sts.push(stoptime(&tid, 1, "A", (10, 0, 0), (10, 0, 0), 2));
             sts.push(stoptime(&tid, 2, "B", (10, mins, 0), (10, mins, 0), 3));
         }
-        // Peak: saat 8, 28dk, 6 sefer — meşru uzun.
+        // Peak: hour 8, 28 minutes, 6 trips — legitimately longer.
         for i in 0..6u32 {
             let tid = format!("P{i}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19553,17 +19582,19 @@ mod tests {
 
     #[test]
     fn vat_003_owl_trips_banded_by_clock_time_not_service_day() {
-        // Issue #26: gece yarısını aşan (owl) seferler servis-günü notasyonunda 24:xx+ ile
-        // kodlanır. Band fonksiyonu (% 24 olmadan) bunları akşam (band 4) yerine yanlış banda
-        // koyardı: gece seferi 20dk normaldir ama akşam medyanı (40dk) ile kıyaslanınca FP olur.
-        // % 24 ile owl seferleri gerçek gece bandına (band 0) döner.
+        // Issue #26: trips crossing midnight (owl trips) are encoded as 24:xx+ in service-day
+        // notation. Without % 24, the band function put them in the wrong band instead of
+        // evening (band 4): a 20-minute night trip is normal but becomes an FP when compared
+        // with the evening median (40 minutes). With % 24, owl trips return to the real night
+        // band (band 0).
         let mut trips_vec = Vec::new();
         let mut sts = Vec::new();
-        // NOT: kalkış dakikaları BİLEREK farklı. Kural artık aynı (kalkış, süre) ikilisini
-        // tek TARİFE sayıp çökerttiği için (tarih-genişletmesi düzeltmesi), birebir özdeş
-        // seferlerle doldurulmuş bir fixture ≥5 benzersiz-tarife kapısına takılırdı ve bu
-        // test band atamasını değil çökertmeyi ölçmüş olurdu.
-        // Gece bandı (saat 2, 20dk), 5 ayrı tarife.
+        // NOTE: departure minutes are intentionally different. Because the rule now treats
+        // identical (departure, duration) pairs as one TIMETABLE and collapses them (the
+        // date-expansion fix), a fixture filled with identical trips would hit the ≥5
+        // unique-timetable guard and this test would measure collapse rather than band
+        // assignment.
+        // Night band (hour 2, 20 minutes), 5 separate timetables.
         for i in 0..5u32 {
             let tid = format!("N{i}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19577,14 +19608,14 @@ mod tests {
                 3,
             ));
         }
-        // Akşam bandı (saat 21, 40dk — gece trafiğine göre uzun), 6 ayrı tarife.
+        // Evening band (hour 21, 40 minutes — long compared with night traffic), 6 separate timetables.
         for i in 0..6u32 {
             let tid = format!("E{i}");
             trips_vec.push(trip(&tid, "R1"));
             sts.push(stoptime(&tid, 1, "A", (21, i, 0), (21, i, 0), 2));
             sts.push(stoptime(&tid, 2, "B", (21, i + 40, 0), (21, i + 40, 0), 3));
         }
-        // Owl seferleri: 24:xx kalkış (ertesi gün 00:xx), gece rejimi için NORMAL 20dk.
+        // Owl trips: 24:xx departure (next day 00:xx), NORMAL 20 minutes for the night regime.
         for i in 0..3u32 {
             let tid = format!("W{i}");
             trips_vec.push(trip(&tid, "R1"));
@@ -19605,7 +19636,7 @@ mod tests {
                 3,
             ));
         }
-        // Owl olay: 24:35 kalkış, 40dk — gece bandı için ANORMAL.
+        // Owl event: 24:35 departure, 40 minutes — ABNORMAL for the night band.
         trips_vec.push(trip("WINC", "R1"));
         sts.push(stoptime("WINC", 1, "A", (24, 35, 0), (24, 35, 0), 2));
         sts.push(stoptime("WINC", 2, "B", (25, 15, 0), (25, 15, 0), 3));
@@ -19624,14 +19655,14 @@ mod tests {
             .filter(|n| n.rule_id == "VAT_003")
             .filter_map(|n| n.entity_id.as_deref())
             .collect();
-        // % 24 ile owl-normal seferleri gece bandına düşer → FP yok.
+        // With % 24, owl-normal trips fall into the night band → no FP.
         assert!(
             !flagged
                 .iter()
                 .any(|id| id.starts_with('W') && *id != "WINC"),
             "normal owl seferleri gece bandına göre kıyaslanmalı (yanlış akşam-FP olmamalı)"
         );
-        // Gerçek owl anomalisi gece bandına göre yine yakalanmalı.
+        // A genuine owl anomaly must still be caught against the night band.
         assert!(
             flagged.contains("WINC"),
             "gece bandı için anormal (40dk) owl seferi işaretlenmeli"
@@ -19640,8 +19671,8 @@ mod tests {
 
     #[test]
     fn isolated_stop_cluster_produces_vat_005() {
-        // Ana ağ: A-B-C-D (10+ bağlantı), izole küme: X-Y
-        // Ana ağ: birden fazla sefer A-B-C-D-E-F
+        // Main network: A-B-C-D (10+ connections), isolated cluster: X-Y
+        // Main network: multiple trips A-B-C-D-E-F
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=12u32 {
@@ -19654,7 +19685,7 @@ mod tests {
             st_v.push(stoptime(&tid, 5, "E", (i, 20, 0), (i, 20, 0), 6));
             st_v.push(stoptime(&tid, 6, "F", (i, 25, 0), (i, 25, 0), 7));
         }
-        // İzole küme: X-Y
+        // Isolated cluster: X-Y
         trips_v.push(trip("ISO", "R2"));
         st_v.push(stoptime("ISO", 1, "X", (8, 0, 0), (8, 0, 0), 2));
         st_v.push(stoptime("ISO", 2, "Y", (8, 10, 0), (8, 10, 0), 3));
@@ -19684,9 +19715,9 @@ mod tests {
 
     #[test]
     fn no_majority_component_suppresses_vat_005() {
-        // Üç eşit hat (3'er durak) + uzak X-Y: en büyük bileşen durakların yalnız %27'si.
-        // Ana ağ yok; X-Y'yi rastgele seçilen bir hattan "kopuk" saymak anlamsız
-        // (2026-10-30 korpusu, mdb-905: 386 durak, 34 bileşen, en büyüğü 13).
+        // Three equal routes (3 stops each) + distant X-Y: the largest component contains only
+        // 27% of stops. There is no main network; calling X-Y "detached" from a randomly chosen
+        // route is meaningless (2026-10-30 corpus, mdb-905: 386 stops, 34 components, largest 13).
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for (line, stops) in [("L1", ["A", "B", "C"]), ("L2", ["D", "E", "F"]), ("L3", ["G", "H", "I"])] {
@@ -19702,7 +19733,7 @@ mod tests {
         trips_v.push(trip("ISO", "R2"));
         st_v.push(stoptime("ISO", 1, "X", (8, 0, 0), (8, 0, 0), 2));
         st_v.push(stoptime("ISO", 2, "Y", (8, 10, 0), (8, 10, 0), 3));
-        // Duraklar 0,1° (~11 km) arayla: 200 m yakınlık bastırması devreye girmez.
+        // Stops are 0.1° (~11 km) apart: the 200 m proximity suppression does not apply.
         let stops_v = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "X", "Y"]
             .iter()
             .enumerate()
@@ -19725,8 +19756,8 @@ mod tests {
 
     #[test]
     fn isolated_cluster_near_main_network_suppressed_vat_005() {
-        // İzole küme ana şebekeye coğrafi olarak ÇOK yakın (parent_station'sız çoklu
-        // peron senaryosu, ör. otogar) → fiziksel olarak aynı yer → VAT_005 bastırılır.
+        // Isolated cluster is geographically VERY close to the main network (multiple platforms
+        // without parent_station, e.g. a bus terminal) → physically the same place → VAT_005 suppressed.
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=12u32 {
@@ -19739,7 +19770,7 @@ mod tests {
             st_v.push(stoptime(&tid, 5, "E", (i, 20, 0), (i, 20, 0), 6));
             st_v.push(stoptime(&tid, 6, "F", (i, 25, 0), (i, 25, 0), 7));
         }
-        // İzole küme P-Q: ana ağa trip bağı yok ama P koordinatı A'ya bitişik (<200m).
+        // Isolated cluster P-Q: no trip link to the main network, but P's coordinates are adjacent to A (<200 m).
         trips_v.push(trip("ISO", "R2"));
         st_v.push(stoptime("ISO", 1, "P", (8, 0, 0), (8, 0, 0), 2));
         st_v.push(stoptime("ISO", 2, "Q", (8, 10, 0), (8, 10, 0), 3));
@@ -19752,7 +19783,7 @@ mod tests {
                 stop("E", 41.4, 29.0),
                 stop("F", 41.5, 29.0),
                 stop("P", 41.0003, 29.0),
-                stop("Q", 41.0005, 29.0), // A'ya ~33m: aynı fiziksel yer
+                stop("Q", 41.0005, 29.0), // ~33 m from A: same physical place
             ],
             routes: vec![route("R1", 3), route("R2", 3)],
             trips: trips_v,
@@ -19769,8 +19800,8 @@ mod tests {
 
     #[test]
     fn vat_005_canonical_components_match_bfs_and_dsu_order() {
-        // Aynı bağlı bileşenlerin BFS/DSU traversal sırası farklı olsa da kanonik
-        // sıralama ana bileşeni, izole bileşenleri ve self-loop'u aynı seçmeli.
+        // Even if BFS/DSU traversal order differs for the same connected components, canonical
+        // sorting must select the same main component, isolated components, and self-loop.
         let bfs = vec![
             vec!["B3", "B1", "B2"],
             vec!["Z2", "Z1"],
@@ -19795,8 +19826,8 @@ mod tests {
 
     #[test]
     fn vat_005_self_loop_is_an_active_single_node_component() {
-        // Self-loop, eski HashSet grafiğinde düğümü görünür kılar; DSU da aynı düğümü
-        // active olarak işaretlemeli ve bağlı bileşen hesabından düşürmemeli.
+        // A self-loop makes the node visible in the old HashSet graph; DSU must also mark the
+        // same node as active and must not omit it from the connected-component calculation.
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=12u32 {
@@ -19841,7 +19872,7 @@ mod tests {
 
     #[test]
     fn dominant_route_produces_vat_006() {
-        // R1: 80 sefer, R2: 10 sefer, R3: 10 sefer → R1 %80 → VAT_006
+        // R1: 80 trips, R2: 10 trips, R3: 10 trips → R1 = 80% → VAT_006
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=80u32 {
@@ -19877,7 +19908,7 @@ mod tests {
 
     #[test]
     fn two_route_feed_has_no_vat_006() {
-        // 2 hatta en yoğun pay zorunlu olarak ≥%50 → %40 eşiği bilgi taşımaz.
+        // With 2 routes, the largest share is necessarily ≥50% → a 40% threshold carries no information.
         let mut trips_v = Vec::new();
         let mut st_v = Vec::new();
         for i in 1..=80u32 {
@@ -19903,8 +19934,8 @@ mod tests {
 
     #[test]
     fn shared_terminus_no_transfer_produces_vat_007() {
-        // 3 hat HUB'da başlıyor VE ~200 m ötedeki HUB2'den HUB'da olmayan bir hat (R4)
-        // geçiyor → gerçek duraklar-arası aktarma boşluğu → VAT_007.
+        // 3 routes start at HUB, AND a route not serving HUB (R4) passes through HUB2, ~200 m
+        // away → a genuine inter-stop transfer gap → VAT_007.
         let r = crate::k2::EntityRecords {
             stops: vec![
                 stop("HUB", 41.0, 29.0),
@@ -19926,13 +19957,13 @@ mod tests {
                 stoptime("T2", 2, "B", (8, 10, 0), (8, 10, 0), 3),
                 stoptime("T3", 1, "HUB", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T3", 2, "C", (8, 10, 0), (8, 10, 0), 3),
-                // R4 yalnız komşu HUB2'den geçiyor.
+                // R4 serves only neighboring HUB2.
                 stoptime("T4", 1, "HUB2", (9, 0, 0), (9, 0, 0), 4),
                 stoptime("T4", 2, "D", (9, 10, 0), (9, 10, 0), 5),
             ],
             ..Default::default()
         };
-        // transfers boş
+        // transfers is empty
         let result = analyze(&r, &empty_derived(), &default_config(), 20260514);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "VAT_007"),
@@ -19940,7 +19971,7 @@ mod tests {
         );
     }
 
-    /// Terminusta bütün hatlar aynı stop_id'yi kullanıyorsa aktarma örtüktür → susar.
+    /// If all routes use the same stop_id at the terminal, the transfer is implicit → silent.
     #[test]
     fn vat_007_silent_when_terminus_routes_share_one_stop_id() {
         let r = crate::k2::EntityRecords {
@@ -19972,7 +20003,7 @@ mod tests {
         );
     }
 
-    // ── EntityMap eksikliği ───────────────────────────────────────────────────
+    // ── Missing EntityMap ────────────────────────────────────────────────────
 
     fn _uses_entity_map(_: &EntityMap) {}
 
@@ -20025,11 +20056,12 @@ mod tests {
     }
 
     // ── ARC_020 · DRT muafiyeti ───────────────────────────────────────────────
-    // shapes.txt sabit hat geometrisi içindir; tümüyle talep-duyarlı bir feed'de
-    // beklenmez. Muafiyet KASITLI olarak sıkı: tek bir sabit duraklı sefer bile
-    // varsa shapes.txt beklentisi sürer.
+    // shapes.txt is for fixed-route geometry and is not expected in a fully demand-responsive
+    // feed. The exemption is intentionally strict: if even one fixed-stop trip exists,
+    // shapes.txt remains expected.
 
-    /// `stoptime` yardımcısının DRT karşılığı: stop_id boş, hizmet alanı flex alanla verilir.
+    /// DRT counterpart of the `stoptime` helper: stop_id is empty and the service area is
+    /// provided through the Flex field.
     fn drt_stoptime(
         trip_id: &str,
         seq: u32,
@@ -20071,14 +20103,14 @@ mod tests {
         records
     }
 
-    /// `feed_end_date == bugün` HİÇBİR kural tarafından görülmüyordu (#146).
+    /// `feed_end_date == today` was seen by NO rule (#146).
     ///
-    /// `FIN_010` `end < today` ister, `FIN_019` ise `days_left > 0` isterdi; tam sınırda
-    /// ikisi de susuyordu. Korpusta iki gerçek vaka: `mdb-923` ve `tld-366`
+    /// `FIN_010` required `end < today`, while `FIN_019` required `days_left > 0`; both
+    /// were silent exactly at the boundary. Two real corpus cases: `mdb-923` and `tld-366`.
     /// (`feedEndDate = currentDate = 20260816`), MobilityData ikisini de raporluyor.
     ///
-    /// "Bugün doluyor" mantıken SONA ERİYOR'dur, SONA ERMİŞ değil: feed bugün hâlâ
-    /// geçerli, yarın değil. Bu yüzden vaka `FIN_019`'a aittir, `FIN_010`'a değil.
+    /// "Expires today" logically means EXPIRING, not EXPIRED: the feed is still valid today,
+    /// but not tomorrow. Therefore the case belongs to `FIN_019`, not `FIN_010`.
     #[test]
     fn a_feed_expiring_exactly_today_is_reported() {
         let records = records_with_feed_end(Some((2026, 5, 14)));
@@ -20100,7 +20132,8 @@ mod tests {
             "bugün dolan feed HENÜZ dolmamıştır → FIN_010 ÜRETMEMELİ"
         );
 
-        // Sınırın öteki yakası değişmedi: dün dolmuş feed hâlâ yalnız FIN_010 alır.
+        // The other side of the boundary is unchanged: a feed that expired yesterday still gets
+        // only FIN_010.
         let expired = records_with_feed_end(Some((2026, 5, 13)));
         let r2 = analyze(&expired, &empty_derived(), &default_config(), 20260514);
         assert_eq!(
@@ -20287,7 +20320,7 @@ mod tests {
     #[test]
     fn arc_020_still_reports_missing_shapes_when_drt_is_partial() {
         use crate::k2::stop_times::StopTimesIndex;
-        // Tek bir sabit duraklı sefer → feed DRT-only değil, shapes.txt beklentisi sürer.
+        // One fixed-stop trip → the feed is not DRT-only; shapes.txt remains expected.
         let stoptimes = vec![
             drt_stoptime("T1", 1, Some("zone_1"), None, 2),
             stoptime("T2", 1, "A", (8, 0, 0), (8, 0, 0), 3),
@@ -20311,7 +20344,7 @@ mod tests {
     #[test]
     fn arc_020_still_reports_missing_feed_info_on_drt_feed() {
         use crate::k2::stop_times::StopTimesIndex;
-        // DRT muafiyeti YALNIZ shapes.txt kolunu düşürür; feed_info.txt beklentisi sürer.
+        // The DRT exemption removes ONLY the shapes.txt requirement; feed_info.txt remains expected.
         let stoptimes = vec![drt_stoptime("T1", 1, Some("zone_1"), None, 2)];
         let mut records = records_with(
             vec![stop("A", 41.0, 29.0)],
