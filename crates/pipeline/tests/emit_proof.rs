@@ -178,7 +178,7 @@ struct Fixture {
     raw: Vec<(&'static str, &'static [u8])>,
     config: Option<ValidatorConfig>,
     /// For ARC_027: these files are written to the zip WITHOUT READ PERMISSION (unix mode 0o200).
-    /// The rule checks the unix mode; it is triggered by zip METADATA, not content, so the
+    /// The rule checks `zf.unix_mode() & 0o400 == 0`; it is triggered by zip METADATA, not content, so the
     /// normal fixture path could not produce it.
     no_read: Vec<&'static str>,
     /// For ARC_036: bit 3 is added to local-header flags AFTER the zip is built.
@@ -304,8 +304,8 @@ const PROOF_ALLOWLIST: &[&str] = &[
 // ("cannot be written inline", "impractical") were MOSTLY WRONG; the real blocker was a
 // hard-coded threshold three times, and zip metadata once:
 //   OPR_024/VAT_006/STM_043 — the threshold was already configurable or the row count was writable
-//   SHP_026/STM_044/ARC_022 — the threshold moved to ValidatorConfig (default UNCHANGED)
-//   ARC_027                 — the harness gained a constructor writing unix_permissions (fx_noread)
+//   SHP_026/STM_044/ARC_022 — the threshold moved to `ValidatorConfig` (default UNCHANGED)
+//   ARC_027                 — the harness gained a constructor writing `unix_permissions` (fx_noread)
 // ⚠️ LESSON: "cannot be written" was a guess, not a MEASUREMENT. Each entry fell when tried.
 // ARC_001/ARC_029 are in PROOF_ALLOWLIST (Fatal path). NOTE (2026-07-16): ARC_029 was in
 // the debt ledger but was NOT debt — like ARC_001, it is a Fatal path; it moved to the
@@ -486,12 +486,12 @@ fn fixtures() -> Vec<Fixture> {
 
         // ── CAL grubu (calendar.txt) ───────────────────────────────────────────
         fx("CAL_001", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n")]),
-        // CAL_002 also checks all SEVEN days; the fixture used to break only monday, so
+        // CAL_002 also checks all SEVEN days; the fixture used to break only `monday`, so
         // coverage measurement called the other six columns "unanchored" — not a rule gap,
         // but a fixture weakness.
         //
         // ⚠️ Breaking all seven days in one row is NOT ENOUGH: CAL_002 deduplicates at Entity
-        // (service_id) level, so each service produces only ONE notice and only one day is anchored.
+        // (`service_id`) level, so each service produces only ONE notice and only one day is anchored.
         // Therefore use seven SEPARATE services, each breaking a different day.
         fx("CAL_002", vec![("calendar.txt", concat!(
             "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n",
@@ -615,7 +615,7 @@ fn fixtures() -> Vec<Fixture> {
             "TG2,,17:00:00,SVC1\n",
         ))]),
         fx("ARC_030", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n")]),
-        // ARC_032: <BR> form observed in the wild (mdb-1924, 1176 stop names).
+        // ARC_032: `<BR>` form observed in the wild (mdb-1924, 1176 stop names).
         fx("ARC_032", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Ana<br>Durak,41.0,29.0\n")]),
         fx("AGN_018", vec![("agency.txt", "agency_id,agency_name,agency_url,agency_timezone\n,Test,http://test.example,UTC\n"), ("routes.txt", "route_id,route_short_name,route_type\nR1,101,3\n")]),
         fx("STP_045", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,platform_code\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,\n")]),
