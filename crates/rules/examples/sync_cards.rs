@@ -243,7 +243,7 @@ fn main() {
                     let num_end = num_start + num.len();
                     search_from = num_end.max(pos + 5);
 
-                    let head = &line[..pos + 3]; // ".rs" dahil
+                    let head = &line[..pos + 3]; // Include ".rs".
                     let Some(cstart) = head.rfind("crates/") else {
                         continue;
                     };
@@ -261,12 +261,12 @@ fn main() {
                     if new_n == old_n {
                         continue;
                     }
-                // URL side: ...rs#L<old_n>.
+                    // URL side: ...rs#L<old_n>.
                     edits.push((num_start, num_end, new_n.to_string()));
-                // Link-label side: the anchor number may already have changed
-                // while the label number is still old. Therefore, instead of
-                // searching the label for `old_n`, locate the `[...rs:<digits>]`
-                // range immediately before the link structurally.
+                    // Link-label side: the anchor number may already have changed
+                    // while the label number is still old. Therefore, instead of
+                    // searching the label for `old_n`, locate the `[...rs:<digits>]`
+                    // range immediately before the link structurally.
                     if let Some(label_end) = line[..pos].rfind(']') {
                         if let Some(label_start) = line[..label_end].rfind('[') {
                             let label = &line[label_start + 1..label_end];
