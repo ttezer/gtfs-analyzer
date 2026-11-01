@@ -518,9 +518,9 @@ pub(crate) struct Rfc4180Acc {
     last_line: u64,
 }
 
-/// GTFS File Requirements iki ayrı cümle kurar ve ikisi de bu kuralın konusudur:
+/// GTFS File Requirements uses two separate sentences, and both are in scope for this rule:
 /// *"Field values that contain quotation marks or commas must be enclosed within quotation
-/// marks."* ve *"In addition, each quotation mark in the field value must be preceded with
+/// marks."* and *"In addition, each quotation mark in the field value must be preceded with
 /// a quotation mark."*
 const ARC033_REMEDIATION: &str =
     "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
@@ -1915,10 +1915,10 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
 /// K1 parse layer. Produces a raw file map and ARC_* notices from ZIP bytes.
 ///
 /// Fatal conditions (the pipeline stops):
-/// - ARC_001: ZIP açılamazsa
-/// - ARC_002: Zorunlu dosya UTF-8 ile okunamazsa
-/// - ARC_004: Zorunlu dosyalar eksikse
-/// - ARC_013: Zorunlu dosya CSV tokenization'ı başarısızsa
+/// - ARC_001: if the ZIP cannot be opened
+/// - ARC_002: if a required file cannot be read as UTF-8
+/// - ARC_004: if required files are missing
+/// - ARC_013: if CSV tokenization fails for a required file
 ///
 /// ARC_008: produces a Critical notice and lets the pipeline continue (non-Fatal).
 ///
@@ -3463,7 +3463,7 @@ fn check_polygon_rings(
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
-    // LOC_006 için ring başına işaretli alan: ilk ring dış sınır, sonrakiler deliktir.
+    // Signed area per ring for LOC_006: the first ring is the outer boundary; the rest are holes.
     let mut all_rings: Vec<Vec<(f64, f64)>> = Vec::new();
     let mut ring_areas: Vec<f64> = Vec::new();
     let mut structurally_valid = !rings.is_empty();
@@ -3530,11 +3530,12 @@ fn check_polygon_rings(
         // (1) rings are simple · (3) no two rings CROSS (they may touch at one point)
         // (4) no cut lines/spikes/punctures · (5) connected interior · holes INSIDE the shell.
         //
-        // ⚠️ RING YÖNÜ BU LİSTEDE YOKTUR. 2026-08-06 dış denetimi `LOC_011`'in ölçmediği
-        // maddeler arasında "ring yönü"nü de saymıştı; **spec'in atıf yaptığı 6.1.11
-        // yönelim şart koşmaz** — saat yönü kuralı GeoJSON RFC 7946 §3.1.6'nın SERİLEŞTİRME
-        // kuralıdır ve RFC ayrıca ayrıştırıcıların uymayan geometriyi reddetmemesini söyler.
-        // Yönü ihlal saymak `PTH_017` tuzağının aynısı olurdu → BİLİNÇLİ ÖLÇÜLMÜYOR.
+        // ⚠️ RING ORIENTATION IS NOT IN THIS LIST. The 2026-08-06 external audit also counted
+        // "ring orientation" among the items `LOC_011` did not measure; **6.1.11, which the
+        // spec cites, does not require orientation** — the clockwise rule belongs to the
+        // SERIALIZATION rule in GeoJSON RFC 7946 §3.1.6, and the RFC also says parsers should
+        // not reject non-conforming geometry. Treating orientation as a violation would repeat
+        // the `PTH_017` trap → IT IS DELIBERATELY NOT MEASURED.
         let mut bad: Option<Loc011Failure> = None;
         if !ring_is_simple(outer) {
             bad = Some(Loc011Failure::new(
@@ -3615,9 +3616,9 @@ fn check_polygon_rings(
                 }
             }
         }
-        // 6.1.11 madde 5 — iç kısmın BAĞLANTILI olması. Ring'ler arası temasların TAMAMI
-        // tek bir çevrim ölçütüyle değerlendirilir; "iki ring iki noktada dokunuyor" bu
-        // ölçütün yalnızca bir özel hâliydi (bkz. `interior_disconnection`).
+        // 6.1.11 item 5 — the interior must be CONNECTED. ALL contacts between rings are
+        // evaluated with a single cycle criterion; "two rings touch at two points" was only
+        // one special case of that criterion (see `interior_disconnection`).
         if bad.is_none() {
             bad = interior_disconnection(&all_rings);
         }
@@ -3632,13 +3633,14 @@ fn check_polygon_rings(
         }
     }
 
-    // LOC_006: GERÇEK poligon alanı > 500km²
+    // LOC_006: TRUE polygon area > 500 km²
     //
-    // 2026-08-01'e kadar burada bounding box alanı ölçülüyordu. Sekiz gerçek GTFS-Flex feed'inde
-    // ölçüldü: bbox gerçek alanı 1,4×–5,6× şişiriyor, ve kuralın 7 ateşlemesinden 3'ü (Columbia
-    // County ×2, Pueblo) SADECE bu şişmeden doğuyordu — gerçek alanları eşiğin altındaydı.
-    // Poligonlar dışbükey değil (hizmet bölgeleri idari sınırları izler), dolayısıyla bbox
-    // sistematik olarak yukarı saparr. Shoelace ile gerçek alan ölçülür; delikler düşülür.
+    // Until 2026-08-01 this measured the bounding-box area. Measurements on eight real
+    // GTFS-Flex feeds showed that the bbox inflates the true area by 1.4×–5.6×, and 3 of
+    // the rule's 7 firings (Columbia County ×2, Pueblo) came ONLY from that inflation — their
+    // true areas were below the threshold. Polygons are not convex (service zones follow
+    // administrative boundaries), so the bbox systematically skews upward. Shoelace measures
+    // the true area; holes are subtracted.
     if all_lats.len() >= 3 && !ring_areas.is_empty() {
         let outer = ring_areas[0].abs();
         let holes: f64 = ring_areas[1..].iter().map(|a| a.abs()).sum();
@@ -4421,16 +4423,16 @@ mod tests {
         );
     }
 
-    /// 8192. bayta denk gelen çok baytlı karakter, GEÇERLİ bir feed'i fatal etmemeli.
+    /// A multibyte character straddling byte 8192 must not make a VALID feed fatal.
     ///
-    /// Gerçek vaka: 250-feed corpus koşumunda 3 feed (JP/LT/TH) yalnız bu yüzden
-    /// reddediliyordu; MD aynı feed'lerde 0 error raporluyordu. trips.txt #38 ile
-    /// kısmi (8 KB) okunur → kesme noktası karakteri bölünce dosya bozuk sanılıyordu.
-    /// Yalnız ASCII-dışı trips.txt'i olan feed'leri vurur (ASCII corpus asla yakalamaz).
+    /// Real case: in a 250-feed corpus run, 3 feeds (JP/LT/TH) were rejected for this reason
+    /// alone; MD reported 0 errors on the same feeds. `trips.txt` is read partially (8 KB) at
+    /// #38 → when the boundary split a character, the file was considered corrupt.
+    /// It affects only feeds with non-ASCII `trips.txt` (the ASCII corpus never catches it).
     #[test]
     fn multibyte_char_across_partial_read_boundary_is_not_fatal() {
-        // Kesim K1'de tam 8192 baytta. 3 baytlık 'あ' 8190'da başlarsa baytları
-        // 8190/8191/8192'ye düşer → tampon ilk ikisini alır, üçüncüsü kesilir.
+        // K1 cuts at exactly byte 8192. If the three-byte 'あ' starts at 8190, its bytes
+        // land at 8190/8191/8192 → the buffer takes the first two and cuts the third.
         let mut trips = String::from("route_id,service_id,trip_id,trip_headsign\n");
         let mut i = 0;
         while trips.len() + 24 < 8_190 {
@@ -4478,7 +4480,7 @@ mod tests {
         );
     }
 
-    /// Kırpma, GÖVDEDEKİ gerçek bozuk baytları gizlememeli — kısmi okunan dosyada bile.
+    /// Truncation must not hide genuinely invalid bytes in the BODY — even in a partially read file.
     #[test]
     fn genuinely_invalid_utf8_in_streamed_file_is_partial_without_typed_records() {
         let mut trips: Vec<u8> = b"route_id,service_id,trip_id\n".to_vec();
@@ -4505,7 +4507,7 @@ mod tests {
 
     #[test]
     fn utf8_failure_on_required_file_is_partial_without_typed_records() {
-        // stops.txt içinde geçersiz UTF-8 bayt
+        // Invalid UTF-8 bytes in stops.txt
         let bad_bytes: &[u8] = b"stop_id,stop_name\nS1,\xFF\xFE invalid\n";
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -4526,8 +4528,8 @@ mod tests {
 
     #[test]
     fn csv_malformed_on_required_file_is_partial_without_typed_records() {
-        // #38: stop_times/trips/calendar_dates K1'de partial (8KB header) okunur → body K2'de.
-        // Malformed CSV testi için routes.txt kullanılır (K1'de hâlâ tam okunur).
+        // #38: stop_times/trips/calendar_dates are read partially in K1 (8 KB header) → body in K2.
+        // routes.txt is used for the malformed CSV test (it is still read in full in K1).
         let bad_routes = b"route_id,agency_id,route_short_name,route_type\n\"unclosed quote\n";
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -4566,8 +4568,8 @@ mod tests {
 
     #[test]
     fn non_txt_unknown_file_produces_arc007() {
-        // MobilityData unknown_file paritesi: ZIP içindeki .txt olmayan dosyalar
-        // (ör. .pdf/.out) da ARC_007 üretmeli — DELFI feed'inde .pdf + .out vardı.
+        // MobilityData unknown_file parity: non-.txt files in the ZIP
+        // (e.g. .pdf/.out) must also produce ARC_007 — the DELFI feed had .pdf + .out.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -5357,7 +5359,7 @@ mod tests {
 
     #[test]
     fn arc_021_silent_for_ascii_only() {
-        let zip = minimal_gtfs_zip(); // yalnızca ASCII içerir
+        let zip = minimal_gtfs_zip(); // ASCII only
         let k1 = parse(&zip).unwrap();
         assert!(
             !k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
@@ -5367,7 +5369,7 @@ mod tests {
 
     #[test]
     fn loc_001_fires_for_invalid_geometry_type() {
-        // locations.geojson ile birlikte ZIP
+        // ZIP together with locations.geojson
         let geojson = br#"{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[29.0,41.0]},"properties":{}}]}"#;
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -5404,9 +5406,9 @@ mod tests {
         );
     }
 
-    /// Ölçüm, 16. korpus koşumu (`tdg-81648`..`tdg-81652`): dosya HİÇ JSON değil. Eskiden bu
-    /// `LOC_001` üretiyordu ve yerelleştirilmiş şablon "geçersiz geometri tipi" diyordu;
-    /// ayrıştırıcı ilk karakterde düşerken hiçbir geometri okunmamıştı.
+    /// Measurement from corpus run 16 (`tdg-81648`..`tdg-81652`): the file was NOT JSON at all.
+    /// It used to produce `LOC_001`, whose localized template said "invalid geometry type";
+    /// the parser failed on the first character before reading any geometry.
     #[test]
     fn loc_012_fires_for_a_document_that_is_not_json_and_loc_001_stays_silent() {
         let zip = zip_with_files(&[
@@ -5429,7 +5431,7 @@ mod tests {
         );
     }
 
-    /// Kök tip yanlışsa da olgu belge düzeyindedir, geometri düzeyinde değil.
+    /// A wrong root type is still a document-level issue, not a geometry-level issue.
     #[test]
     fn loc_012_fires_when_the_root_type_is_not_a_feature_collection() {
         let zip = zip_with_files(&[
@@ -5451,7 +5453,7 @@ mod tests {
         assert_eq!(n.observed_value.as_deref(), Some("Feature"));
     }
 
-    /// LOC_006 fixture'ı: verilen ring ile bir locations.geojson üretir.
+    /// LOC_006 fixture: creates a locations.geojson with the supplied ring.
     fn zip_with_polygon(ring: &str) -> Vec<u8> {
         let geojson = format!(
             r#"{{"type":"FeatureCollection","features":[{{"type":"Feature","id":"z1","geometry":{{"type":"Polygon","coordinates":[{ring}]}},"properties":{{}}}}]}}"#
@@ -5469,8 +5471,8 @@ mod tests {
 
     #[test]
     fn loc_006_silent_for_thin_diagonal_zone_with_large_bounding_box() {
-        // Çapraz ince şerit: bbox ~4800km² (eski ölçüm ateşlerdi), gerçek alan ~186km².
-        // Hizmet bölgeleri dışbükey değildir; bu ayrım kuralın FP'lerinin kaynağıydı.
+        // Thin diagonal strip: bbox ~4800 km² (the old measurement would fire), actual area ~186 km².
+        // Service zones are not convex; this distinction caused the rule's false positives.
         let ring = "[[29.0,41.0],[30.0,41.5],[30.0,41.52],[29.0,41.02],[29.0,41.0]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
         assert!(
@@ -5481,7 +5483,7 @@ mod tests {
 
     #[test]
     fn loc_006_fires_for_genuinely_large_zone() {
-        // ~1.0° boylam × 0.1° enlem, 41. paralelde ≈ 929km² → eşiğin (500) üstünde.
+        // ~1.0° longitude × 0.1° latitude, ≈929 km² at the 41st parallel → above the (500) threshold.
         let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
         assert!(
@@ -5492,7 +5494,7 @@ mod tests {
 
     #[test]
     fn loc_006_subtracts_holes_from_the_outer_ring() {
-        // Dış ring ~929km², içine ~836km²'lik delik → net ~93km², eşiğin altında.
+        // Outer ring ~929 km², with a ~836 km² hole inside → net ~93 km², below the threshold.
         let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]],\
                     [[29.05,41.005],[29.95,41.005],[29.95,41.095],[29.05,41.095],[29.05,41.005]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
@@ -5502,14 +5504,14 @@ mod tests {
         );
     }
 
-    // ── ARC_036: ZIP akış görünümü tutarlılığı ─────────────────────────────────
+    // ── ARC_036: ZIP stream-view consistency ───────────────────────────────────
     //
-    // Birim testleri SAF fonksiyona kurulur, çünkü asıl risk uçtan uca akışta değil
-    // bayt yorumundadır: kural gevşetilirse korpusun %40'ına (descriptor'ı MEŞRU
-    // kullanan feed'lere) yanlış bulgu basar. `mesru_akis_zipinde_susar` o kapıdır.
+    // Unit tests target the PURE function because the real risk is in byte interpretation,
+    // not the end-to-end flow: if the rule is loosened, it would flag 40% of the corpus
+    // (feeds that use descriptors LEGITIMATELY). `mesru_akis_zipinde_susar` is that gate.
 
-    /// Tek girdilik sentetik yerel başlık + (opsiyonel) data descriptor üretir.
-    /// `descriptor`: `None` → hiç yazılmaz, ardından başka bir yerel başlık gelir.
+    /// Produces a single-entry synthetic local header plus an optional data descriptor.
+    /// `descriptor`: `None` → writes nothing, followed by another local header.
     fn synthetic_entry(
         flag: u16,
         local_csize: u32,
@@ -5542,7 +5544,7 @@ mod tests {
                 b.extend_from_slice(&csize.to_le_bytes());
                 b.extend_from_slice(&usize_.to_le_bytes());
             }
-            // Descriptor yok: `tdg-81618` deseni — hemen sonraki girdinin başlığı gelir.
+            // No descriptor: the `tdg-81618` pattern — the next entry's header follows immediately.
             None => b.extend_from_slice(&LFH_SIGNATURE.to_le_bytes()),
         }
         b
@@ -5550,8 +5552,8 @@ mod tests {
 
     const DATA: &[u8] = b"agency_id,agency_name\n1,Test\n";
 
-    /// Korpusun %40'ının kullandığı KURALLARA UYGUN akış zip'i: yerel boyutlar 0,
-    /// descriptor yerinde ve merkez dizinle birebir. Burada ateşlemek felakettir.
+    /// A RULE-COMPLIANT streaming ZIP used by 40% of the corpus: local sizes are 0,
+    /// the descriptor is present and matches the central directory exactly. Firing here is catastrophic.
     #[test]
     fn arc036_mesru_akis_zipinde_susar() {
         let crc = 0xDEAD_BEEF;
@@ -5574,7 +5576,7 @@ mod tests {
         }
     }
 
-    /// `tdg-81618` deseni: bayrak set, yerel boyutlar DOLU, descriptor kaydı YOK.
+    /// `tdg-81618` pattern: flag set, local sizes populated, no descriptor record.
     #[test]
     fn arc036_descriptor_yoksa_ateslenir() {
         let crc = 0xDEAD_BEEF;
@@ -5584,8 +5586,8 @@ mod tests {
         assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
     }
 
-    /// `mdb-2607` deseni: descriptor VAR, crc/csize doğru, ama `usize` sıfır yazılmış.
-    /// Dar bir "descriptor var mı" kontrolü bunu KAÇIRIRDI.
+    /// `mdb-2607` pattern: descriptor PRESENT, crc/csize correct, but `usize` is written as zero.
+    /// A narrow "is there a descriptor?" check would MISS this.
     #[test]
     fn arc036_descriptor_celisirse_ateslenir() {
         let crc = 0xDEAD_BEEF;
@@ -5595,8 +5597,8 @@ mod tests {
         assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
     }
 
-    /// Bayrak set değilse girdi hiç incelenmez; zip64 kaçışı taşıyan girdi ATLANIR
-    /// (gerçek boyut extra field'da, buradan okunamaz — okunamayanı suçlamayız).
+    /// If the flag is not set, the entry is not inspected; an entry using the ZIP64 escape is SKIPPED
+    /// (the real size is in the extra field and cannot be read here — we do not blame the unreadable).
     #[test]
     fn arc036_bayraksiz_ve_zip64_girdiler_atlanir() {
         let crc = 0xDEAD_BEEF;
@@ -5620,8 +5622,8 @@ mod tests {
         );
     }
 
-    /// Uçtan uca: normal feed sessiz, aynı feed'in yalnız bayrak bitleri çevrilmiş
-    /// hâli TEK bulgu üretir (feed düzeyi dedup) ve sayıyı `observed_value`da taşır.
+    /// End to end: the normal feed is silent, while the same feed with only its flag bits flipped
+    /// produces ONE finding (feed-level dedup) and carries the count in `observed_value`.
     #[test]
     fn arc036_uctan_uca_yalniz_bayrak_biti_cevrilince_atesler() {
         let clean = minimal_gtfs_zip();
@@ -5643,7 +5645,7 @@ mod tests {
             let flag = u16::from_le_bytes([flipped[off], flipped[off + 1]]);
             flipped[off..off + 2].copy_from_slice(&(flag | FLAG_DATA_DESCRIPTOR).to_le_bytes());
         }
-        // Merkez dizin bozulmadığı için arşiv hâlâ açılabilir olmalı; kural bunu ölçüyor.
+        // The archive should still open because the central directory is intact; the rule measures this.
         let r = parse(&flipped).unwrap();
         let hits: Vec<_> = r
             .notices
@@ -5658,15 +5660,15 @@ mod tests {
         );
     }
 }
-/// `required_fields` (ARC_025'in dayanağı) spec'in `Required` sütunlarıyla BİREBİR olmalı.
+/// `required_fields` (the basis for ARC_025) must match the spec's `Required` columns EXACTLY.
 ///
-/// ARC_025 Kritik·Spec'tir, yani R1'i bloke eder. Listeye KOŞULLU bir alan yazmak geçerli
-/// bir feed'i yayından alıkoyar; gerçekten Required olan bir alanı yazmamak ise hükmü
-/// denetimsiz bırakır. 2026-08-02'de `transfers.txt`'te İKİSİ BİRDEN vardı:
-/// `from_stop_id`/`to_stop_id` koşulluyken listedeydi (yanlış pozitif, gizli),
-/// `transfer_type` koşulsuz Required'ken listede değildi (denetimsiz).
+/// ARC_025 is Critical·Spec, so it blocks R1. Listing a CONDITIONAL field takes a valid
+/// feed out of publication; omitting a truly Required field leaves the rule unenforced.
+/// On 2026-08-02, `transfers.txt` had BOTH:
+/// `from_stop_id`/`to_stop_id` were listed while conditional (a hidden false positive),
+/// while `transfer_type` was not listed even though unconditionally Required (unenforced).
 ///
-/// Kaynak: `spec-audit/spec_fields.json` → `presence == "Required"`.
+/// Source: `spec-audit/spec_fields.json` → `presence == "Required"`.
 #[test]
 fn required_columns_match_the_specification() {
     let path =
