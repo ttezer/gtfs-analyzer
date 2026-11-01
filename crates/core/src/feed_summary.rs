@@ -1,11 +1,12 @@
-//! Rapor sayfasının "ajans ve yayıncı" kartı için ham künye: `agency.txt` iletişim
-//! alanları ve `feed_info.txt` yayıncı alanları. Değerler dosyada yazıldığı gibi
-//! (yalnız baş/son boşluk kırpılmış) taşınır; doğrulama bulguları ayrı kurallardadır.
+//! Raw metadata for the report page's "agency and publisher" card: contact fields from
+//! `agency.txt` and publisher fields from `feed_info.txt`. Values are carried as written
+//! in the files (with only leading/trailing whitespace trimmed); validation findings live
+//! in separate rules.
 
 use serde::{Deserialize, Serialize};
 
-/// Taşınan en fazla ajans sayısı. Çok ajanslı ulusal feed'lerde (binlerce kayıt) sonuç
-/// boyutunu sınırlar; gerçek sayı [`FeedSummary::agency_count`]'tadır.
+/// Maximum number of agencies carried in the result. Limits result size for national feeds
+/// with many agencies (thousands of records); the actual count is [`FeedSummary::agency_count`].
 pub const MAX_AGENCIES: usize = 100;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,17 +46,17 @@ pub struct FeedInfoSummary {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FeedSummary {
-    /// `agency.txt`'teki kayıt sayısı (taşınan listeden büyük olabilir).
+    /// Number of records in `agency.txt` (may exceed the carried list).
     pub agency_count: u32,
-    /// İlk [`MAX_AGENCIES`] ajans, dosya sırasıyla.
+    /// The first [`MAX_AGENCIES`] agencies, in file order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agencies: Vec<AgencyContact>,
-    /// `feed_info.txt`'in ilk kaydı; dosya yoksa `None`.
+    /// The first record in `feed_info.txt`; `None` if the file is absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub feed_info: Option<FeedInfoSummary>,
 }
 
-/// Boş ya da yalnız boşluktan oluşan değeri `None` yapar, kalanı kırpar.
+/// Returns `None` for an empty or whitespace-only value; trims all other values.
 pub fn clean(value: &str) -> Option<String> {
     let trimmed = value.trim();
     (!trimmed.is_empty()).then(|| trimmed.to_string())
