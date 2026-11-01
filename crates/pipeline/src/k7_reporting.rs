@@ -2343,7 +2343,7 @@ mod tests {
         let root_item = r9.items.iter().find(|i| i.rule_id == "ARC_001").unwrap();
         assert!(
             root_item.labels.contains(&R9Label::Propagation),
-            "realized_dep=3 → Propagation label expected"
+            "realized_dep=3 → Propagation etiketi beklenir"
         );
     }
 
