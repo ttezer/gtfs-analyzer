@@ -4070,11 +4070,11 @@ mod tests {
         zw.finish().unwrap().into_inner()
     }
 
-    /// `zip` crate'i (2.4.2) bozuk bir YEREL BAŞLIK için de "Could not find EOCD" döndürüyor;
-    /// o mesajı olduğu gibi aktarmak kullanıcıyı arşivin SONUNA baktırıyordu. Ölçüm
-    /// (`tld-5895`, korpusun tek `ZipUnreadable` feed'i): EOCD ve merkez dizin kusursuz, bozuk
-    /// olan `stop_times.txt`'in yerel başlığıydı (offset 570.618). Teşhis bozukluğun KATMANINI
-    /// ayırt etmeli.
+    /// The `zip` crate (2.4.2) also returns "Could not find EOCD" for a corrupt LOCAL HEADER;
+    /// passing that message through made users look at the END of the archive. Measurement
+    /// (`tld-5895`, the corpus's only `ZipUnreadable` feed): EOCD and central directory were
+    /// intact, and the corrupt part was the local header of `stop_times.txt` (offset 570.618).
+    /// Diagnosis must distinguish the LAYER of corruption.
     #[test]
     fn zip_diagnosis_points_at_the_broken_local_header() {
         let files: &[(&str, &[u8])] = &[
@@ -4083,7 +4083,7 @@ mod tests {
         ];
         let mut bytes = zip_with_files(files);
 
-        // Sağlam arşivde hiçbir katman suçlanmaz.
+        // No layer is blamed for a sound archive.
         let clean = diagnose_unreadable_zip(&bytes)
             .expect("sağlam arşivde de teşhis dönmeli")
             .text;
@@ -4092,7 +4092,8 @@ mod tests {
             "sağlam arşiv yanlış katmanı suçluyor: {clean}"
         );
 
-        // İkinci girdinin yerel başlık imzasını boz; merkez dizin ve EOCD'ye dokunma.
+        // Corrupt the local-header signature of the second entry; leave the central directory
+        // and EOCD untouched.
         let second = bytes
             .windows(4)
             .enumerate()
@@ -4112,7 +4113,8 @@ mod tests {
         );
     }
 
-    /// EOCD gerçekten yoksa kütüphane mesajı zaten doğrudur; ek teşhis UYDURULMAMALI.
+    /// If EOCD is genuinely absent, the library message is already correct; do not INVENT extra
+    /// diagnosis.
     #[test]
     fn zip_diagnosis_stays_quiet_without_an_eocd() {
         let files: &[(&str, &[u8])] = &[("agency.txt", b"agency_name\nA\n")];
@@ -4157,12 +4159,12 @@ mod tests {
 
     #[test]
     fn prealloc_capacity_caps_declared_size() {
-        // Devasa beyan → MAX_PREALLOC ile sınırlanır (lying-header DoS koruması).
+        // An enormous declaration is capped at MAX_PREALLOC (lying-header DoS protection).
         assert_eq!(prealloc_capacity(usize::MAX), MAX_PREALLOC);
         assert_eq!(prealloc_capacity(MAX_PREALLOC + 1), MAX_PREALLOC);
-        // Sıfır beyan → en az 1 (anlamsız 0-kapasite alloc'unu önle).
+        // A zero declaration → at least 1 (avoid a pointless zero-capacity allocation).
         assert_eq!(prealloc_capacity(0), 1);
-        // Tavanın altındaki gerçek boyutlar aynen geçer (davranış değişmez).
+        // Real sizes below the cap pass unchanged (behavior is unchanged).
         assert_eq!(prealloc_capacity(1000), 1000);
         assert_eq!(prealloc_capacity(MAX_PREALLOC), MAX_PREALLOC);
     }
@@ -4198,10 +4200,10 @@ mod tests {
         )
         .expect("SDK parse başarılı olmalı");
 
-        // #185: `max_file_rows` bir RAPORLAMA eşiğidir (ARC_022), bir kesme sınırı
-        // değil. Her iki yol da dosyanın tamamını okumalı; SDK yolu kesmeye başlarsa
-        // tarayıcı kesilmiş feed'i tam feed gibi doğrulayıp boşta kalan referansları
-        // kullanıcının kusuru olarak raporlar.
+        // #185: `max_file_rows` is a REPORTING threshold (ARC_022), not a truncation limit.
+        // Both paths must read the entire file; if the SDK path starts truncating, the browser
+        // validates the truncated feed as complete and reports dangling references as the user's
+        // fault.
         assert_eq!(native.files["fare_rules.txt"].rows.len(), 12);
         assert_eq!(
             sdk.files["fare_rules.txt"].rows.len(),
@@ -4218,7 +4220,7 @@ mod tests {
 
     #[test]
     fn missing_required_file_returns_partial_with_arc004() {
-        // agency.txt olmadan ZIP
+        // ZIP without agency.txt.
         let zip = zip_with_files(&[
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
             ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
@@ -4237,12 +4239,12 @@ mod tests {
         }));
     }
 
-    // ── Tek üst klasöre sarılmış feed (detect_wrapped_root) ───────────────────
-    // Gerçek vaka mdb-1814: `TEST GTFS/agency.txt` … geçerli feed, tek klasöre sarılı.
-    // Katı davranış kullanıcıya sıfır analiz veriyordu. Hoşgörü DAR; aşağıdaki testler
-    // hem kurtarmayı hem de karşıt örneklerin fatal kalmasını sabitler.
+    // ── Feed wrapped in one top-level folder (detect_wrapped_root) ─────────────
+    // Real case mdb-1814: `TEST GTFS/agency.txt` … a valid feed wrapped in one folder.
+    // Strict behavior gave the user zero analysis. Tolerance is NARROW; the tests below lock in
+    // both recovery and fatal behavior for counterexamples.
 
-    /// Minimal ama TAM bir feed; `prefix` verilirse her dosya o klasörün altına konur.
+    /// Minimal but COMPLETE feed; when `prefix` is supplied, every file is placed below that folder.
     fn wrapped_feed_zip(prefix: &str) -> Vec<u8> {
         let p = |name: &str| format!("{prefix}{name}");
         let files: Vec<(String, &[u8])> = vec![
@@ -4266,14 +4268,14 @@ mod tests {
         let k1 =
             parse(&wrapped_feed_zip("TEST GTFS/")).expect("sarılı geçerli feed fatal OLMAMALI");
         assert!(!k1.partial.root_structural_errors.is_empty());
-        // Dosyalar kökteymiş gibi görünür → zorunlu dosya kontrolü geçer.
+        // Files appear to be at the root → required-file checks pass.
         for required in REQUIRED_FILES {
             assert!(
                 k1.files.contains_key(*required),
                 "'{required}' kök adıyla görünmeli"
             );
         }
-        // Alt dizinde olmaları yine de bulgudur ve GERÇEK yolu gösterir.
+        // Their subdirectory location is still a finding and shows the REAL path.
         let arc024: Vec<_> = k1
             .notices
             .iter()
@@ -4291,7 +4293,7 @@ mod tests {
 
     #[test]
     fn wrapped_root_without_gtfs_files_is_partial_and_auditable() {
-        // GitHub repo zip'i (gerçek vaka mdb-3135): tek klasör ama GTFS değil.
+        // GitHub repository ZIP (real case mdb-3135): one folder, but not GTFS.
         let zip = zip_with_files(&[
             ("honduras-transit-main/agency.csv", b"a,b\n1,2\n" as &[u8]),
             ("honduras-transit-main/README.md", b"# repo\n"),
@@ -4305,7 +4307,7 @@ mod tests {
     fn wrapped_root_is_rejected_when_more_than_one_folder_holds_txt() {
         let mut files: Vec<(String, &[u8])> = Vec::new();
         for (i, name) in REQUIRED_FILES.iter().enumerate() {
-            // Zorunlu dosyalar İKİ ayrı klasöre dağıtılmış → hangisi kök belirsiz, hoşgörü yok.
+            // Required files are split across TWO folders → the root is ambiguous, so no tolerance.
             files.push((format!("dir{}/{name}", i % 2), b"x\n" as &[u8]));
         }
         let zip = zip_with_files(
@@ -4323,11 +4325,11 @@ mod tests {
         assert_eq!(result.partial.unavailable_files.len(), REQUIRED_FILES.len());
     }
 
-    // ── macOS AppleDouble artefaktları (`__MACOSX/`) ──────────────────────────
-    // Tam katalog koşumunda ARC_024 alan 42 feed'in 42'si de `__MACOSX/._agency.txt`
-    // yüzünden alıyordu (#144). `._agency.txt` bir GTFS dosyası değil, Finder'ın
-    // ZIP'e eklediği kaynak-çatal yan dosyasıdır; "kök dizine taşıyın" demek yanlış
-    // tavsiyedir. Asıl ağır sonucu ise ikinci testte: sarılı feed hoşgörüsünü düşürür.
+    // ── macOS AppleDouble artifacts (`__MACOSX/`) ─────────────────────────────
+    // In the full catalog run, all 42 feeds receiving ARC_024 did so because of
+    // `__MACOSX/._agency.txt` (#144). `._agency.txt` is not a GTFS file but a Finder resource-fork
+    // sidecar added to the ZIP; "move it to the root" is the wrong recommendation. The more
+    // serious consequence appears in the second test: it disables wrapped-feed tolerance.
 
     #[test]
     fn macosx_resource_fork_entries_do_not_produce_arc_024() {
@@ -4353,12 +4355,11 @@ mod tests {
         );
     }
 
-    /// `__MACOSX` sarılı feed hoşgörüsünü DÜŞÜRMEMELİ.
+    /// `__MACOSX` must not disable wrapped-feed tolerance.
     ///
-    /// `detect_wrapped_root` tüm `.txt` girdilerini gezer. Finder'ın eklediği
-    /// `__MACOSX/…` girdileri ikinci bir üst klasör (ya da iki kat derinlik) gibi
-    /// göründüğü için hoşgörü `None` dönüyordu → ARC_004 fatal → SIFIR analiz.
-    /// Geçerli bir feed'i reddetme sınıfı; ARC_024 gürültüsünden çok daha ağır.
+    /// `detect_wrapped_root` walks every `.txt` entry. Finder's `__MACOSX/…` entries looked like
+    /// a second top-level folder (or a second level), so tolerance returned `None` → ARC_004 fatal
+    /// → ZERO analysis. This is a valid-feed rejection class, much more serious than ARC_024 noise.
     #[test]
     fn macosx_sidecar_does_not_break_the_wrapper_tolerance() {
         let mut files: Vec<(String, &[u8])> = vec![
@@ -4369,7 +4370,7 @@ mod tests {
             ("TEST GTFS/stop_times.txt".into(), b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             ("TEST GTFS/calendar.txt".into(),   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ];
-        // Finder'ın gerçekte yazdığı iki şekil: kökte düz ve sarılı klasörü yansıtan.
+        // The two forms Finder actually writes: flat at the root and mirroring the wrapped folder.
         files.push(("__MACOSX/._agency.txt".into(), b"\x00\x05\x16\x07" as &[u8]));
         files.push(("__MACOSX/TEST GTFS/._stops.txt".into(), b"\x00\x05\x16\x07"));
 
@@ -4391,7 +4392,7 @@ mod tests {
             k1.notices.iter().all(|n| n.rule_id != "ARC_004"),
             "__MACOSX yüzünden ARC_004 ÜRETİLMEMELİ"
         );
-        // Gerçek sarılı dosyalar yine ARC_024 alır; yalnız __MACOSX girdileri sayılmaz.
+        // Genuine wrapped files still receive ARC_024; only __MACOSX entries are excluded.
         let arc024: Vec<_> = k1
             .notices
             .iter()
