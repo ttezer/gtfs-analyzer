@@ -230,7 +230,7 @@ fn build_calendar_bitmap(records: &EntityRecords, derived: &mut DerivedData) {
         let start_jdn = ymd_to_jdn(start.0, start.1, start.2);
         let end_jdn = ymd_to_jdn(end.0, end.1, end.2);
         if end_jdn < start_jdn {
-            continue; // CAL_005 K2'de zaten yakalandı
+            continue; // CAL_005 is already caught in K2
         }
 
         let set = derived
@@ -291,10 +291,10 @@ fn build_shape_geometry(
         .filter(|s| !s.is_empty())
         .collect();
 
-            // SHP_010 aggregation (#48): consecutive identical coordinates are nearly universal
-            // in large feeds (DELFI: 98% of 268K shapes) — emit one feed summary above the
-            // threshold instead of one Low notice per shape. STP_022 is the precedent; decide
-            // after the outer loop.
+    // SHP_010 aggregation (#48): consecutive identical coordinates are nearly universal
+    // in large feeds (DELFI: 98% of 268K shapes) — emit one feed summary above the
+    // threshold instead of one Low notice per shape. STP_022 is the precedent; decide
+    // after the outer loop.
     let mut shp010_pending: Vec<Notice> = Vec::new();
 
     for (shape_id, point_indices) in &entity_map.shape_points {
@@ -821,7 +821,7 @@ mod tests {
         let (t1, ti1) = trip_with_shape("T1", "S1");
         records.trips = vec![t1];
         records.trip_interns = ti1;
-        map.shape_points.insert("S1".into(), vec![1, 0]); // sequence-sıralı: seq1, seq2
+        map.shape_points.insert("S1".into(), vec![1, 0]); // sequence order: seq1, seq2
         map.trips.insert("T1".into(), 0);
         let result = build(&records, &map);
         assert!(
@@ -938,7 +938,7 @@ mod tests {
         let mut map = empty_map();
         records.shapes = vec![
             shape_pt(&mut shape_ti, "S1", 1, 41.0, 29.0, 2),
-            shape_pt(&mut shape_ti, "S1", 2, 41.0, 29.0, 3), // özdeş koordinat
+            shape_pt(&mut shape_ti, "S1", 2, 41.0, 29.0, 3), // identical coordinate
             shape_pt(&mut shape_ti, "S1", 3, 41.1, 29.1, 4),
         ];
         records.shape_interns = shape_ti.clone();
@@ -1218,7 +1218,7 @@ mod tests {
         records.stops = vec![
             stop_rec("S1", 41.0, 29.0),
             stop_rec("S2", 41.2, 29.3),
-            stop_rec("S3", 41.6, 29.0), // farklı hücre (row=83)
+            stop_rec("S3", 41.6, 29.0), // different cell (row=83)
         ];
         let result = build(&records, &empty_map());
         let idx = &result.derived.spatial_index;
