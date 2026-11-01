@@ -1,5 +1,5 @@
-/// Gerçek sample-feed-1.zip üzerinde pipeline çalıştırır ve notice'ları dosyaya yazar.
-/// Karşılaştırma amaçlı — normal CI'da ignore edilir.
+/// Runs the pipeline on the real sample-feed-1.zip and writes notices to a file.
+/// For comparison only — ignored in normal CI.
 ///   cargo test -p gtfs-pipeline --test sample_feed_report -- --nocapture --ignored
 #[test]
 #[ignore]
@@ -21,7 +21,7 @@ fn run_and_print_sample_feed_notices() {
 
     println!("\n=== BİZİM SONUÇLARIMIZ ({} notice) ===\n", notices.len());
 
-    // Severity + rule bazında grupla
+    // Group by severity + rule
     let mut by_rule: std::collections::BTreeMap<String, Vec<&gtfs_core::Notice>> =
         std::collections::BTreeMap::new();
     for n in notices {
@@ -46,7 +46,7 @@ fn run_and_print_sample_feed_notices() {
         println!();
     }
 
-    // Özet say
+    // Summary count
     let mut crit = 0usize;
     let mut high = 0;
     let mut med = 0;

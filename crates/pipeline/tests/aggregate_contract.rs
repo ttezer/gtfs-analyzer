@@ -1,31 +1,31 @@
-//! Feed-level toplulama sözleşmesi (`aggregate_feed_level_notices`).
+//! Feed-level aggregation contract (`aggregate_feed_level_notices`).
 //!
-//! 22 kural K1–K6'da satır/varlık başına notice üretir; toplulama bunları gruplarına
-//! göre tek özet notice'a indirir ve etkilenen kayıt sayısını taşır. Registry bu
-//! kuralların çoğunu `Feed` dedup seviyesinde tanımladığı için toplulama atlanırsa
-//! dedup ham notice'lardan birini seçer ve sayı sessizce kaybolur (WASM'da 2026-09-30'a
-//! kadar böyleydi). Bu test her kural için sözleşmeyi doğrudan fonksiyon üzerinde kurar:
-//! grup başına tek notice, doğru sayı, dokunulmayan komşu notice'lar.
+//! 22 rules emit per-row/entity notices in K1–K6; aggregation reduces them to one summary
+//! notice per group and carries the affected-record count. Because the registry defines most
+//! of these rules at `Feed` dedup level, skipping aggregation lets dedup choose one raw
+//! notice and silently lose the count (this was the behavior in WASM until 2026-09-30).
+//! This test establishes the contract directly on the function for every rule: one notice
+//! per group, the correct count, and untouched neighboring notices.
 
 use std::collections::BTreeMap;
 
 use gtfs_core::{EntityType, Notice};
 use gtfs_pipeline::{aggregate_feed_level_notices, DerivedData, EntityRecords};
 
-/// Toplulamanın grup anahtarı.
+/// Aggregation group key.
 #[derive(Clone, Copy)]
 enum Group {
-    /// Tüm feed tek özet.
+    /// One summary for the entire feed.
     Feed,
-    /// Dosya başına özet (`notice.file`).
+    /// Summary per file (`notice.file`).
     File,
-    /// Varlık başına özet (`notice.entity_id`).
+    /// Summary per entity (`notice.entity_id`).
     Entity(EntityType),
-    /// Aynı `observed_value` (bitiş tarihi) başına özet.
+    /// Summary per `observed_value` (end date).
     Observed,
 }
 
-/// Özet notice'ta etkilenen kayıt sayısının durduğu yer.
+/// Location of the affected-record count in a summary notice.
 #[derive(Clone, Copy)]
 enum Count {
     Observed,
@@ -58,7 +58,7 @@ const CASES: &[(&str, Group, Count)] = &[
     ("FAR_010", Group::Feed, Count::Observed),
 ];
 
-/// `group` anahtarlı ham notice. `row` satır ve ayrık varlık kimliği üretir.
+/// Raw notice with a `group` key. `row` produces a row and distinct entity identity.
 fn raw(rule_id: &str, group: Group, key: &str, row: u64) -> Notice {
     let meta = gtfs_rules::get_rule(rule_id).expect("registry'de olmayan kural");
     let (entity_type, entity_id) = match group {
@@ -113,7 +113,7 @@ fn aggregate(mut notices: Vec<Notice>) -> Vec<Notice> {
     notices
 }
 
-/// Yabancı bir kuralın notice'ı toplulamadan etkilenmemeli.
+/// A notice from an unrelated rule must not be affected by aggregation.
 fn bystander() -> Notice {
     let mut n = raw("STM_054", Group::Feed, "", 999);
     n.entity_type = EntityType::Trip;
@@ -147,7 +147,7 @@ fn every_aggregated_rule_carries_the_affected_count() {
         let kept: Vec<&Notice> = out.iter().filter(|n| n.rule_id == "STM_054").collect();
         assert_eq!(kept.len(), 1, "{rule_id}: başka kuralın notice'ı korunmalı");
         assert!(kept[0].agency_distribution.is_none(), "{rule_id}: toplulanmayan notice dağılım taşımaz");
-        // #2201: özet, altındaki ham notice'ların agency dağılımını taşır; toplamı sayıdır.
+        // #2201: the summary carries the agency distribution of its raw notices; the total is the count.
         let distribution = summaries[0]
             .agency_distribution
             .as_ref()
@@ -186,8 +186,8 @@ fn grouped_rules_summarise_each_group_separately() {
     }
 }
 
-/// Test tablosu ile gerçek çağrı listesi aynı kalmalı: yeni toplulayıcı eklenip buraya
-/// eklenmezse sözleşmesi sınanmadan kalırdı.
+/// The test table and actual call list must stay in sync: a new aggregator omitted here
+/// would remain untested.
 #[test]
 fn case_table_matches_the_aggregation_calls() {
     let src = include_str!("../src/lib.rs");
