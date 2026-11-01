@@ -1638,9 +1638,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "continuous_drop_off",
             "shape_dist_traveled",
             "timepoint",
-            // GTFS-Flex (resmî Schedule Reference): talep-duyarlı hizmet alanları.
-            // K2 parser bunları ZATEN okuyordu; burada eksik olmaları geçerli bir Flex
-            // feed'inde ARC_017 "bilinmeyen sütun" yanlış-pozitifi üretiyordu.
+            // GTFS-Flex (official Schedule Reference): demand-responsive service fields.
+            // The K2 parser ALREADY read these; omitting them here produced an ARC_017 "unknown
+            // column" false positive in a valid Flex feed.
             "location_id",
             "location_group_id",
             "start_pickup_drop_off_window",
@@ -1749,7 +1749,7 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "attribution_email",
             "attribution_phone",
         ],
-        // ── Fares v2 ── (sütun adları GTFS spec + repo k2 parser'larıyla doğrulandı)
+        // ── Fares v2 ── (column names verified against the GTFS spec + repository K2 parsers)
         "rider_categories.txt" => &[
             "rider_category_id",
             "rider_category_name",
@@ -1775,9 +1775,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "fare_product_id",
             "rule_priority",
         ],
-        // `rule_priority` BURADA YOK: 27 Nisan 2026 Schedule Reference'ta bu alan yalnız
-        // `fare_leg_rules.txt`'te tanımlıdır (FLG_007 orayı ölçer). fare_transfer_rules'un
-        // resmî alan listesi aşağıdaki yedidir.
+        // `rule_priority` is NOT HERE: in the 27 April 2026 Schedule Reference this field is
+        // defined only in `fare_leg_rules.txt` (FLG_007 checks it there). The official field list
+        // for fare_transfer_rules is the seven entries below.
         "fare_transfer_rules.txt" => &[
             "from_leg_group_id",
             "to_leg_group_id",
@@ -1818,8 +1818,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
         ],
         "location_groups.txt" => &["location_group_id", "location_group_name"],
         "location_group_stops.txt" => &["location_group_id", "stop_id"],
-        // ── GTFS-JP (Japonya profili) — sütunlar resmî format-reference + Tokyo Toei feed'iyle doğrulandı.
-        // Not: jp_ önekli sütunlar ARC_017'de zaten atlanır (ek güvenlik marjı).
+        // ── GTFS-JP (Japanese profile) — columns verified against the official format reference
+        // and a Tokyo Toei feed. Note: columns prefixed with jp_ are already skipped by ARC_017
+        // (an additional safety margin).
         "agency_jp.txt" => &[
             "agency_id",
             "agency_official_name",
@@ -1847,38 +1848,38 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
     }
 }
 
-/// macOS'un ZIP'e eklediği AppleDouble yan dosyası mı?
+/// Is this an AppleDouble sidecar file added to the ZIP by macOS?
 ///
-/// Finder bir klasörü sıkıştırırken her dosya için `__MACOSX/…/._<ad>` yolunda bir
-/// kaynak-çatal girdisi yazar. `._agency.txt` adı `.txt` ile bittiği için eski kod bunu
-/// "alt dizindeki GTFS dosyası" sanıyordu; oysa GTFS dosyası değil, ikili bir metadata
-/// yan dosyasıdır ve hiçbir parser onu okumaz.
+/// When Finder compresses a folder, it writes a resource-fork entry for every file at
+/// `__MACOSX/…/._<ad>`. Because `._agency.txt` ends in `.txt`, the old code treated it as a
+/// "GTFS file in a subdirectory"; it is actually a binary metadata sidecar, not a GTFS file,
+/// and no parser reads it.
 ///
-/// Tam katalog koşumunda (#144) ARC_024 alan 42 feed'in **42'si** de yalnız bu yüzden
-/// alıyordu. Gürültüden ağır olan sonuç `detect_wrapped_root`'taydı: `__MACOSX/` ikinci
-/// bir üst klasör gibi göründüğü için sarılı feed hoşgörüsü düşüyor, geçerli feed
-/// ARC_004 ile fatal oluyordu — yani sıfır analiz.
+/// In the full-catalog run (#144), **all 42 of 42** feeds receiving ARC_024 did so only for
+/// this reason. The more serious effect was in `detect_wrapped_root`: `__MACOSX/` looked like a
+/// second top-level folder, so wrapped-feed tolerance was dropped and valid feeds became fatal
+/// with ARC_004 — zero analysis.
 fn is_macos_metadata_entry(normalized_name: &str) -> bool {
     normalized_name == "__MACOSX" || normalized_name.starts_with("__MACOSX/")
 }
 
-/// Tek bir üst klasöre sarılmış feed'in kök önekini döndürür (ör. `"TEST GTFS/"`).
+/// Returns the root prefix of a feed wrapped in one top-level folder (e.g. `"TEST GTFS/"`).
 ///
-/// Bazı yayıncılar ZIP'i tek bir klasörle paketliyor: `TEST GTFS/agency.txt`. Spec
-/// dosyaların kökte olmasını ister, dolayısıyla bunlar ARC_024 alır — ama katı davranmak
-/// kullanıcıya ARC_004 fatal'ı ve **sıfır analiz** verir, oysa feed'in kendisi geçerlidir.
+/// Some publishers package the ZIP in one folder: `TEST GTFS/agency.txt`. The spec requires
+/// files at the root, so these receive ARC_024 — but strict behavior gives the user ARC_004
+/// fatal and **zero analysis**, even though the feed itself is valid.
 ///
-/// Hoşgörü KASITLI olarak dar; şu üç koşulun hepsi gerekir:
-/// 1. Kökte hiç `.txt` yok (varsa feed sarılı değildir, dokunma),
-/// 2. tüm `.txt` girdileri TEK ve AYNI üst klasörün DOĞRUDAN altında (iki kat derinlik yok),
-/// 3. o klasör zorunlu GTFS dosyalarının tamamını taşıyor.
+/// Tolerance is deliberately narrow; all three conditions must hold:
+/// 1. no `.txt` exists at the root (if one does, the feed is not wrapped; leave it alone),
+/// 2. all `.txt` entries are directly under ONE AND THE SAME top-level folder (no second level),
+/// 3. that folder contains all required GTFS files.
 ///
-/// Aksi halde `None` → eski davranış. Böylece "GTFS olmayan repo zip'i" (ör. tek klasör
-/// içinde `.csv`'ler) hâlâ fatal olur; hoşgörü yalnız gerçekten geçerli feed'i kurtarır.
+/// Otherwise `None` → the old behavior. A "non-GTFS repository ZIP" (e.g. `.csv` files in one
+/// folder) remains fatal; tolerance rescues only a genuinely valid feed.
 fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
     let normalized: Vec<String> = entry_names.iter().map(|n| n.replace('\\', "/")).collect();
-    // `__MACOSX/…/._x.txt` girdileri kök keşfine KATILMAZ; aksi halde ikinci bir üst
-    // klasör (ya da iki kat derinlik) gibi görünüp hoşgörüyü düşürürlerdi.
+    // `__MACOSX/…/._x.txt` entries do NOT participate in root discovery; otherwise they would
+    // look like a second top-level folder (or a second level) and disable tolerance.
     let txt = || {
         normalized
             .iter()
@@ -1886,19 +1887,19 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
     };
 
     if txt().any(|n| !n.contains('/')) {
-        return None; // kökte .txt var → sarılı değil
+        return None; // `.txt` at root → not wrapped
     }
 
     let mut prefix: Option<&str> = None;
     for name in txt() {
         let (dir, rest) = name.split_once('/')?;
         if rest.contains('/') {
-            return None; // ikinci seviye alt dizin → hoşgörü yok
+            return None; // second-level subdirectory → no tolerance
         }
         match prefix {
             None => prefix = Some(dir),
             Some(p) if p == dir => {}
-            Some(_) => return None, // birden fazla üst klasör
+            Some(_) => return None, // more than one top-level folder
         }
     }
 
@@ -1909,30 +1910,30 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
         .then(|| format!("{dir}/"))
 }
 
-// ── Ana parse fonksiyonu ──────────────────────────────────────────────────────
+// ── Main parse function ──────────────────────────────────────────────────────
 
-/// K1 Parse katmanı. ZIP baytlarından ham dosya haritası ve ARC_* notice'ları üretir.
+/// K1 parse layer. Produces a raw file map and ARC_* notices from ZIP bytes.
 ///
-/// Fatal durumlar (pipeline durur):
+/// Fatal conditions (the pipeline stops):
 /// - ARC_001: ZIP açılamazsa
 /// - ARC_002: Zorunlu dosya UTF-8 ile okunamazsa
 /// - ARC_004: Zorunlu dosyalar eksikse
 /// - ARC_013: Zorunlu dosya CSV tokenization'ı başarısızsa
 ///
-/// ARC_008: Kritik notice üretir, pipeline devam eder (non-Fatal).
+/// ARC_008: produces a Critical notice and lets the pipeline continue (non-Fatal).
 ///
-/// `cfg` yalnız ARC_022 eşiği (`max_file_rows`) için okunur. K1 tarihsel olarak
-/// yapılandırmasızdı; 2026-08-07'de (issue #71) imza değişti çünkü eşik sabit koddayken
-/// kurala fixture yazılamıyordu (1M satırlık zip). Aynı alan K2'nin akış yollarına da
-/// verilir — knob'ın YALNIZ K1'de çalışması, 1M satırı gerçekte aşan iki dosyada
-/// (stop_times/shapes) sessizce etkisiz kalması demek olurdu.
+/// `cfg` is read only for the ARC_022 threshold (`max_file_rows`). K1 was historically
+/// unconfigured; the signature changed on 2026-08-07 (issue #71) because the rule could not be
+/// fixture-tested while the threshold was hard-coded (a 1M-row ZIP). The same field is passed
+/// to K2's streaming paths — making the knob work ONLY in K1 would silently leave it ineffective
+/// for two files that actually exceed 1M rows (stop_times/shapes).
 pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalError> {
     parse_with_limits(zip_bytes, cfg, DEFAULT_DECOMPRESSION_LIMITS, None)
 }
 
-/// K1'in native ve SDK çağrıları için ortak gövdesi. SDK, WASM belleği daha
-/// küçük olduğu için stream edilmeyen tek dosyalara ayrıca daha düşük bir sınır
-/// verir; native CLI'nin büyük feed davranışı korunur.
+/// Shared body for K1's native and SDK callers. Because the SDK has less WASM memory, it applies
+/// a lower limit to individual files that are not streamed; the native CLI's large-feed behavior
+/// is preserved.
 pub fn parse_with_limits(
     zip_bytes: &[u8],
     cfg: &ValidatorConfig,
@@ -1942,9 +1943,9 @@ pub fn parse_with_limits(
     k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
-    // Kütüphane mesajı bozukluğun KATMANINI yanlış gösterebiliyor (bkz.
-    // `diagnose_unreadable_zip`), o yüzden ham byte teşhisi ÖNE alınır ve
-    // kütüphane metni arkasına eklenir.
+    // The library message can identify the WRONG layer of corruption (see
+    // `diagnose_unreadable_zip`), so raw-byte diagnosis takes PRIORITY and the library text is
+    // appended afterward.
     let mut archive = zip::ZipArchive::new(cursor).map_err(|e| {
         match diagnose_unreadable_zip(zip_bytes) {
             Some(diagnosis) => diagnosis.params.into_iter().fold(
