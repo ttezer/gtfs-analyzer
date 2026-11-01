@@ -1,34 +1,34 @@
-//! Notice → agency atfı (MobilityData gtfs-validator #2201 karşılığı, P1).
+//! Notice → agency attribution (MobilityData gtfs-validator #2201 counterpart, P1).
 //!
-//! Bir raporlama katmanıdır: severity, skor ve notice içeriği DEĞİŞMEZ. Emitter'lar agency
-//! hesaplamaz; atıf yalnız iki kaynaktan yapılır: kuralın registry'de beyan ettiği
-//! `scope_key_field` ve notice'ın runtime `scope_key` değeri.
+//! This is a reporting layer: severity, score, and notice content DO NOT CHANGE. Emitters
+//! do not calculate agencies; attribution uses only two sources: the rule's declared
+//! `scope_key_field` in the registry and the notice's runtime `scope_key` value.
 //!
-//! Çözüm sırası (`scope_key_field`'a göre):
+//! Resolution order (by `scope_key_field`):
 //! - `agency_id` → agency                         ⇒ [`AgencyAttribution::Direct`]
 //! - `route_id`  → route.agency_id → agency       ⇒ [`AgencyAttribution::Resolved`]
 //! - `trip_id`   → trip.route_id → route → agency ⇒ [`AgencyAttribution::Resolved`]
 //! - `fare_id`   → fare_attributes.agency_id → agency ⇒ [`AgencyAttribution::Resolved`]
-//! - `stop_id` / `shape_id` / `service_id` → onu kullanan seferlerin agency'leri: tek agency
-//!   ⇒ `Resolved`, birden fazla ⇒ [`AgencyAttribution::Shared`] (istasyon ve girişler alt
-//!   duraklarının agency'lerini devralır)
-//! - başka bir scope (pathway, transfer çifti…)   ⇒ [`AgencyAttribution::Unsupported`]
-//! - scope beyanı yok (feed/dosya düzeyi)         ⇒ [`AgencyAttribution::NotApplicable`]
+//! - `stop_id` / `shape_id` / `service_id` → agencies of the trips using it: one agency
+//!   ⇒ `Resolved`, multiple ⇒ [`AgencyAttribution::Shared`] (stations and entrances
+//!   inherit the agencies of their child stops)
+//! - another scope (pathway, transfer pair…)     ⇒ [`AgencyAttribution::Unsupported`]
+//! - no scope declaration (feed/file level)       ⇒ [`AgencyAttribution::NotApplicable`]
 //!
-//! Kimlik eşleşmesi HAM ID ile yapılır (`"R1"` ile `" R1 "` farklı kimliklerdir). K2 bazı
-//! yollarda `scope_key`'i kırpılmış üretir; bu yüzden birebir eşleşme yoksa ve kırpılmış
-//! karşılık TEK bir ham ID'ye düşüyorsa ona bağlanır ve [`Resolution::UniqueTrimFallback`]
-//! olarak işaretlenir. Birden fazla ham ID'ye düşüyorsa bağlanmaz
-//! ([`UnattributedReason::AmbiguousPaddedId`]). 2026-09-30 korpus denetimi: 830 feed'de
-//! yedek 463 notice'ta gerekti, belirsizlik hiç çıkmadı.
+//! Identity matching uses the RAW ID (`"R1"` and `" R1 "` are different identities). K2
+//! produces a trimmed `scope_key` on some paths; therefore, when exact matching fails and
+//! the trimmed counterpart maps to a SINGLE raw ID, it links to that ID and marks
+//! [`Resolution::UniqueTrimFallback`]. If it maps to multiple raw IDs, it does not link
+//! ([`UnattributedReason::AmbiguousPaddedId`]). Corpus audit on 2026-09-30: the fallback
+//! was needed for 463 notices in 830 feeds; no ambiguity occurred.
 //!
-//! Tek agency'li feed'de `routes.agency_id` ve `fare_attributes.agency_id` boş olabilir
-//! (GTFS koşullu zorunluluk); bu durumda kayıt o tek agency'ye bağlanır. Birden fazla agency
-//! varken boş `agency_id` bağlanmaz ([`UnattributedReason::RouteWithoutAgency`],
-//! [`UnattributedReason::FareWithoutAgency`]).
+//! In a single-agency feed, `routes.agency_id` and `fare_attributes.agency_id` may be empty
+//! (GTFS conditional requirement); the record is then linked to that sole agency. An empty
+//! `agency_id` is not linked when multiple agencies exist
+//! ([`UnattributedReason::RouteWithoutAgency`], [`UnattributedReason::FareWithoutAgency`]).
 //!
-//! Yinelenen ID'lerde İLK kayıt kazanır (dosya sırası); kopya kimlik ayrı kurallarla
-//! raporlanır.
+//! For duplicate IDs, the FIRST record wins (file order); duplicate identities are reported
+//! by separate rules.
 
 use rustc_hash::FxHashMap;
 
@@ -41,14 +41,14 @@ pub use gtfs_core::agency::{
     RuleAgencyCounts, SharedKind, UnattributedReason,
 };
 
-/// Ham kimlik → değer; kırpılmış kimlik → değer ya da belirsizlik.
+/// Raw identity → value; trimmed identity → value or ambiguity.
 ///
-/// Kırpılmış harita TEMBELDİR: yalnız birebir eşleşme ilk kez başarısız olduğunda,
-/// birebir haritadan türetilir (korpusta yedek 830 feed'in ikisinde gerekti). 1,43 milyon
-/// seferli feed'de iki harita ~140 MB tutuyordu; çoğu feed artık yalnız birini öder.
+/// The trimmed map is LAZY: it is derived from the exact map only when exact matching first
+/// fails (needed for two of 830 fallback feeds in the corpus). On a feed with 1.43 million
+/// trips, two maps used ~140 MB; most feeds now pay for only one.
 struct IdIndex<'a, V> {
     exact: FxHashMap<&'a str, V>,
-    /// `None`: kırpılmış karşılık birden fazla ham kimliğe düşüyor.
+    /// `None`: the trimmed counterpart maps to multiple raw identities.
     trimmed: std::cell::OnceCell<FxHashMap<&'a str, Option<V>>>,
 }
 
@@ -61,7 +61,7 @@ impl<'a, V: Copy> IdIndex<'a, V> {
     fn build(entries: impl Iterator<Item = (&'a str, V)>) -> Self {
         let mut exact = FxHashMap::default();
         for (id, value) in entries {
-            exact.entry(id).or_insert(value); // yinelenen kimlik: ilk kayıt kazanır
+            exact.entry(id).or_insert(value); // duplicate identity: first record wins
         }
         Self { exact, trimmed: std::cell::OnceCell::new() }
     }
@@ -99,28 +99,28 @@ pub struct AgencyResolver<'a> {
     agencies: IdIndex<'a, AgencyRef>,
     routes: IdIndex<'a, RouteAgency>,
     fares: IdIndex<'a, RouteAgency>,
-    /// trip_id → route_id (ham). TEMBEL: trip scope'lu bir notice sorulana kadar kurulmaz.
-    /// Büyük feed'de (VBB 282k sefer) iki hash haritası demektir; WASM belleği için
-    /// toplulanan kuralların çoğu trip scope'lu olmadığında hiç ödenmez.
+    /// trip_id → route_id (raw). LAZY: not built until a trip-scoped notice is requested.
+    /// On a large feed (VBB, 282k trips), this would mean two hash maps; it is avoided for
+    /// WASM memory when most aggregated rules are not trip-scoped.
     trips: std::cell::OnceCell<IdIndex<'a, &'a str>>,
-    /// stop/shape/service → agency kümesi. TEMBEL ve tür başına ayrı: o türden bir bulgu
-    /// sorulana kadar kurulmaz.
+    /// stop/shape/service → agency set. LAZY and separate per type: not built until a finding
+    /// of that type is requested.
     shared: [std::cell::OnceCell<SharedIndex<'a>>; 3],
 }
 
-/// Paylaşılabilen bir varlığın sahibi.
+/// Owner of a shareable entity.
 #[derive(Debug, Clone, Copy)]
 enum Owner {
     One(AgencyRef),
-    /// `SharedIndex::sets` içinde indeks (en az iki üye).
+    /// Index in `SharedIndex::sets` (at least two members).
     Set(u32),
-    /// Hiçbir atfedilebilir sefer kullanmıyor.
+    /// No attributable trip uses it.
     Unused,
 }
 
 struct SharedIndex<'a> {
     by_id: IdIndex<'a, Owner>,
-    /// Sıralı, tekrarsız üye kümeleri; sıra deterministiktir (aynı kayıtlar → aynı indeks).
+    /// Ordered, deduplicated member sets; order is deterministic (same records → same index).
     sets: Vec<Vec<u32>>,
 }
 
@@ -144,7 +144,7 @@ impl<'a> AgencyResolver<'a> {
         );
         let single = (agency_ids.len() == 1).then_some(AgencyRef(0));
 
-        // Kaydın `agency_id`'si → agency; boşsa tek agency, o da yoksa `without`.
+        // Record's `agency_id` → agency; if empty, use the sole agency, otherwise `without`.
         let owner = |agency_id: Option<&str>, without: UnattributedReason| -> RouteAgency {
             match agency_id.filter(|id| !id.trim().is_empty()) {
                 Some(id) => match agencies.get(id) {
@@ -187,7 +187,7 @@ impl<'a> AgencyResolver<'a> {
         })
     }
 
-    /// Resolver'ın atfettiği agency'nin ham kimliği (tek agency'de boş olabilir).
+    /// Raw ID of the agency attributed by the resolver (may be empty in a single-agency feed).
     pub fn agency_id(&self, agency: AgencyRef) -> &'a str {
         self.agency_ids[agency.0 as usize]
     }
@@ -200,14 +200,14 @@ impl<'a> AgencyResolver<'a> {
         self.attribute_scoped(notice, scope, notice.scope_key.as_deref())
     }
 
-    /// Feed-level toplulamanın ham grup üyesi için. Toplulanan kuralların registry scope'u
-    /// ÖZETİN kimliğini anlatır (feed düzeyi, çoğunlukla `None`), üyenin değil: ham TRP_005
-    /// sefer başınadır ama kural scope beyan etmez. Scope beyanı yoksa üyenin kendi varlığı
-    /// (`Agency`/`Route`/`Trip` + `entity_id`) kullanılır.
+    /// For a raw group member of feed-level aggregation. The registry scope of an aggregated
+    /// rule describes the SUMMARY identity (usually feed-level, `None`), not the member:
+    /// raw TRP_005 is per trip, but the rule declares no scope. Without a scope declaration,
+    /// the member's own entity (`Agency`/`Route`/`Trip` + `entity_id`) is used.
     pub fn attribute_member(&self, notice: &Notice) -> AgencyAttribution {
         match self.attribute(notice) {
             AgencyAttribution::NotApplicable => {
-                // Varlık türü belli ama kimliği yok: feed düzeyi özet (ör. TRP_021).
+                // Entity type is known but identity is absent: feed-level summary (e.g. TRP_021).
                 if notice.entity_id.as_deref().is_none_or(str::is_empty) {
                     return AgencyAttribution::NotApplicable;
                 }
@@ -283,7 +283,7 @@ impl<'a> AgencyResolver<'a> {
         }
     }
 
-    /// Paylaşılan kümenin üyeleri (agency sırası).
+    /// Members of a shared set (in agency order).
     pub fn shared_members(&self, kind: SharedKind, set: u32) -> &[u32] {
         self.shared(kind).sets.get(set as usize).map_or(&[], Vec::as_slice)
     }
@@ -303,7 +303,7 @@ impl<'a> AgencyResolver<'a> {
         let records = self.records;
         let interns = &records.trip_interns;
         let mut users: FxHashMap<&'a str, BTreeSet<u32>> = FxHashMap::default();
-        // Evren: feed'deki bütün kimlikler (kullanılmayanlar dahil).
+        // Universe: all identities in the feed (including unused ones).
         let universe: Vec<&'a str> = match kind {
             SharedKind::Stop => {
                 let index = &records.stop_times_index;
@@ -319,21 +319,21 @@ impl<'a> AgencyResolver<'a> {
                         if !stop.is_empty() {
                             users.entry(stop).or_default().insert(agency);
                         }
-                        // Flex satırı durak yerine lokasyon grubu gösterebilir.
+                        // A Flex row may identify a location group instead of a stop.
                         if let Some(group) = index.flex_of(row).and_then(|f| f.location_group_id.as_deref()) {
                             users.entry(group).or_default().insert(agency);
                         }
                     }
                 }
-                // Flex: stop_times bir lokasyon grubunu gösteriyorsa grubun durakları o seferin
-                // agency'sine aittir (location_group_stops).
+                // Flex: if stop_times identifies a location group, its stops belong to the
+                // trip's agency (location_group_stops).
                 for member in &records.location_group_stops {
                     if let Some(group) = users.get(member.location_group_id.as_str()).cloned() {
                         users.entry(member.stop_id.as_str()).or_default().extend(group);
                     }
                 }
-                // İstasyon/giriş: alt duraklarının agency'lerini devralır (iki kademe:
-                // giriş/bekleme alanı → durak → istasyon).
+                // Station/entrance: inherit the agencies of child stops (two levels:
+                // entrance/boarding area → stop → station).
                 let known: rustc_hash::FxHashSet<&str> =
                     records.stops.iter().map(|s| s.stop_id.as_str()).collect();
                 for _ in 0..2 {
@@ -390,7 +390,7 @@ impl<'a> AgencyResolver<'a> {
                     let members: Vec<u32> = set.iter().copied().collect();
                     Owner::Set(sets.binary_search(&members).unwrap() as u32)
                 }
-                // Tek agency'li feed'de kullanılmayan varlığın sahibi de o agency'dir.
+                // In a single-agency feed, the sole agency also owns an unused entity.
                 _ => single.map_or(Owner::Unused, Owner::One),
             }
         };
@@ -398,7 +398,7 @@ impl<'a> AgencyResolver<'a> {
         SharedIndex { by_id, sets }
     }
 
-    /// Agency başına sefer sayısı (route üzerinden; çözülemeyen seferler sayılmaz).
+    /// Trip count per agency (through routes; unresolved trips are not counted).
     pub fn trip_counts(&self) -> Vec<u64> {
         let mut counts = vec![0u64; self.agency_ids.len()];
         let interns = &self.records.trip_interns;
@@ -428,10 +428,10 @@ fn unattributed(miss: Miss, unknown: UnattributedReason) -> AgencyAttribution {
     })
 }
 
-/// Kural × agency dökümünü notice notice biriktirir. Toplulanmış özetler altlarındaki
-/// dağılımla, diğerleri [`AgencyResolver::attribute_member`] ile sayılır: toplulamayla aynı
-/// atıf kuralı. Beslenen notice'lar K7 hazırlığından çıkmış olmalıdır (boşluk türevleri
-/// bastırılmış, dedup edilmiş, cap uygulanmamış).
+/// Accumulates the rule × agency breakdown one notice at a time. Aggregated summaries use
+/// their nested distribution; others use [`AgencyResolver::attribute_member`]: the same
+/// attribution rule as aggregation. Supplied notices must come from K7 preparation
+/// (whitespace derivatives suppressed, deduplicated, and not capped).
 pub struct AgencyCounter<'a> {
     resolver: AgencyResolver<'a>,
     rules: std::collections::BTreeMap<String, RuleAgencyCounts>,
@@ -462,7 +462,7 @@ impl<'a> AgencyCounter<'a> {
     }
 
     /// `displayed_sample_count` burada `finding_count`'tur; WASM cap'ten sonra
-    /// [`set_displayed`] ile düzeltir.
+    /// [`set_displayed`] corrects it.
     pub fn finish(self, complete: bool) -> AgencyBreakdown {
         AgencyBreakdown {
             complete,
@@ -470,8 +470,8 @@ impl<'a> AgencyCounter<'a> {
             agency_names: self.resolver.records.agencies.iter().map(|a| a.agency_name.clone()).collect(),
             agency_trip_counts: self.resolver.trip_counts(),
             agency_notice_indices: Vec::new(),
-            // Kümeler deterministik numaralıdır: toplamada başka bir resolver'ın yazdığı
-            // anahtarlar da bu resolver'da aynı üyelere çözülür.
+            // Sets have deterministic numbering: keys written by another resolver during
+            // aggregation resolve to the same members in this resolver.
             shared_sets: self
                 .rules
                 .values()
@@ -488,7 +488,7 @@ impl<'a> AgencyCounter<'a> {
     }
 }
 
-/// Hazır bir notice listesinin dökümü (native: cap yok).
+/// Breakdown of a prepared notice list (native: no cap).
 pub fn breakdown(notices: &[Notice], records: &EntityRecords, complete: bool) -> AgencyBreakdown {
     let mut counter = AgencyCounter::new(records);
     for notice in notices {
@@ -497,7 +497,7 @@ pub fn breakdown(notices: &[Notice], records: &EntityRecords, complete: bool) ->
     counter.finish(complete)
 }
 
-/// Cap'ten sonra sonuçta kalan notice'lara göre `displayed_sample_count`'u yeniler.
+/// Refreshes `displayed_sample_count` according to notices remaining after the cap.
 pub fn set_displayed(breakdown: &mut AgencyBreakdown, shown: &[Notice]) {
     for counts in breakdown.rules.values_mut() {
         counts.displayed_sample_count = 0;
@@ -509,9 +509,9 @@ pub fn set_displayed(breakdown: &mut AgencyBreakdown, shown: &[Notice]) {
     }
 }
 
-/// Sonuçtaki nihai `notices` dizisi için agency → notice indeksleri. Atıf kuralı sayımla
-/// aynıdır ([`AgencyResolver::attribute_member`], özetlerde dağılım). Rapor kurulduktan
-/// SONRA çağrılır: indeksler serileştirilen dizinin sırasına bağlıdır.
+/// Agency → notice indices for the final `notices` array in the result. The attribution rule
+/// is the same as counting ([`AgencyResolver::attribute_member`], distribution for summaries).
+/// Called AFTER the report is built: indices depend on the serialized array order.
 pub fn index_notices(breakdown: &mut AgencyBreakdown, notices: &[Notice], records: &EntityRecords) {
     let resolver = AgencyResolver::new(records);
     let mut index = vec![Vec::new(); breakdown.agencies.len()];
@@ -521,8 +521,8 @@ pub fn index_notices(breakdown: &mut AgencyBreakdown, notices: &[Notice], record
             Some(distribution) => {
                 let mut agencies: Vec<u32> =
                     distribution.keys().flat_map(|a| members(&resolver, a)).collect();
-                // Anahtarlar önce varyanta göre sıralı: aynı agency Direct ve Resolved'da
-                // ayrı yerlerde olabilir.
+                // Keys are first sorted by variant: the same agency may appear separately
+                // under Direct and Resolved.
                 agencies.sort_unstable();
                 agencies.dedup();
                 for agency in agencies {
@@ -539,7 +539,7 @@ pub fn index_notices(breakdown: &mut AgencyBreakdown, notices: &[Notice], record
     breakdown.agency_notice_indices = index;
 }
 
-/// Atfın agency üyeleri: tek agency, paylaşılan kümenin üyeleri ya da hiçbiri.
+/// Agency members of an attribution: one agency, members of a shared set, or none.
 fn members(resolver: &AgencyResolver<'_>, attribution: &AgencyAttribution) -> Vec<u32> {
     match attribution {
         AgencyAttribution::Shared { kind, set } => resolver.shared_members(*kind, *set).to_vec(),
