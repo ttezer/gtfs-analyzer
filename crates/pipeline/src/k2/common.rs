@@ -1359,7 +1359,7 @@ mod tests {
             "a.@example.com",   // trailing dot
             "a..b@example.com", // empty atom
             "a b@example.com",  // whitespace
-            "a\t@example.com",  // sekme
+            "a\t@example.com",  // tab
             "noatsign.example.com",
             "",
         ] {
