@@ -5169,11 +5169,11 @@ mod tests {
         );
     }
 
-    /// issue #79: liste 26 addan HTML5'in TAMAMINA genişledi. Denetçinin istediği beş
-    /// vaka: listede zaten olan bir etiket · eski listede OLMAYAN geçerli bir etiket ·
-    /// HTML yorumu · desteklenen bir kaçış · `<`/`>`/`&` taşıyan düz metin.
-    /// issue #79 — entity/kaçış tarafı: liste altı addan HTML5'in TAMAMINA (2.125) çıktı.
-    /// issue #79 (yeniden açıldı) — `svg` ve `math` yabancı-içerik kök elemanlarıdır.
+    /// issue #79: the list expanded from 26 names to ALL OF HTML5. The auditor requested five
+    /// cases: a tag already in the list · a valid tag NOT in the old list · an HTML comment · a
+    /// supported escape · plain text containing `<`/`>`/`&`.
+    /// issue #79 — entity/escape side: the list expanded from six names to ALL OF HTML5 (2,125).
+    /// issue #79 (reopened) — `svg` and `math` are foreign-content root elements.
     #[test]
     fn arc_032_covers_foreign_content_roots() {
         assert!(arc032_markup("<svg>x</svg>").is_some(), "<svg> yakalanmalı");
@@ -5187,7 +5187,7 @@ mod tests {
 
     #[test]
     fn arc_032_covers_the_html5_named_entities() {
-        // Bildirilen karşı örnekler — hepsi eski listede YOKTU.
+        // Reported counterexamples — all were ABSENT from the old list.
         for v in [
             "© 2026 &copy; Metro",
             "Metro&reg; hattı",
@@ -5196,11 +5196,11 @@ mod tests {
         ] {
             assert!(arc032_markup(v).is_some(), "kaçış dizisi yakalanmalı: {v}");
         }
-        // Sayısal biçimler (zaten destekliydi, regresyon koruması).
+        // Numeric forms (already supported; regression protection).
         assert_eq!(arc032_markup("&#8212; tire"), Some("&#8212;".to_string()));
         assert_eq!(arc032_markup("&#x2014; tire"), Some("&#x2014;".to_string()));
-        // 🔴 YANLIŞ POZİTİF KORUYUCUSU: `&` + kelime + `;` deseni SERBEST BIRAKILAMAZ.
-        // Bu değer korpusta ölçüldü ve `Tire` bir entity adı DEĞİLDİR.
+        // 🔴 FALSE-POSITIVE GUARD: the `&` + word + `;` pattern MUST NOT be allowed freely.
+        // This value was measured in the corpus, and `Tire` is NOT an entity name.
         assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None);
         assert_eq!(arc032_markup("A & B"), None);
         assert_eq!(
@@ -5208,23 +5208,24 @@ mod tests {
             None,
             "ASCII olmayan ad entity değildir"
         );
-        // Büyük/küçük harf DUYARLI: `&COPY;` de listede ayrı bir giriştir, `&Copy;` de.
+        // CASE-SENSITIVE: `&COPY;` and `&Copy;` are separate entries in the list.
         assert!(arc032_markup("x &COPY; y").is_some());
         assert_eq!(
             arc032_markup("x &cOpY; y"),
             None,
             "listede olmayan yazım entity değildir"
         );
-        // Noktalı virgülsüz ESKİ biçim (HTML5 bunları `;` olmadan da tanır).
+        // LEGACY form without a semicolon (HTML5 recognises these without `;`).
         assert_eq!(arc032_markup("2026 &copy Metro"), Some("&copy".to_string()));
         assert!(arc032_markup("A &reg B").is_some());
-        // ⚠️ Ayrıcalık TÜM adlara YAYILMAZ: `&mdash` (noktalı virgülsüz) eski listede YOK.
+        // ⚠️ The exception does NOT APPLY to all names: `&mdash` (without a semicolon) was NOT in
+        // the old list.
         assert_eq!(
             arc032_markup("A &mdash B"),
             None,
             "yalnız kaynağın izin verdiği adlar"
         );
-        // Yanlış pozitif koruyucuları — `&` + kelime deseni serbest DEĞİL.
+        // False-positive guards — the `&` + word pattern is NOT free-form.
         assert_eq!(arc032_markup("Wheel&Tire servisi"), None);
         assert_eq!(arc032_markup("AT&T"), None);
         assert_eq!(arc032_markup("Rock&Roll"), None);
@@ -5232,25 +5233,26 @@ mod tests {
 
     #[test]
     fn arc_032_covers_the_whole_html_element_set() {
-        // Eski listede vardı — regresyon olmamalı.
+        // Was in the old list — must not regress.
         assert_eq!(
             arc032_markup("Merkez <b>Durağı</b>"),
             Some("<b>".to_string())
         );
-        // Eski listede YOKTU: hüküm "HTML etiketi" diyor, bunlar da HTML etiketi.
+        // NOT in the old list: the rule says "HTML tag", and these are HTML tags too.
         for tag in [
             "script", "section", "iframe", "style", "video", "article", "h4",
         ] {
             let v = format!("Durak <{tag}>x</{tag}>");
             assert!(arc032_markup(&v).is_some(), "<{tag}> yakalanmalı");
         }
-        // HTML elemanı OLMAYAN adlar sessiz kalmalı.
+        // Names that are NOT HTML elements must remain silent.
         assert_eq!(arc032_markup("Durak <bilinmeyen>x</bilinmeyen>"), None);
-        // 🔴 ÖZEL ELEMAN (tireli ad) `svg` DEĞİLDİR — bu testin ilk hâli tam bu yanlış
-        // eşleşmeyi yakaladı: ad ayıklama tirede duruyordu ve `<svg-yok>` "svg" sayılıyordu.
+        // 🔴 A CUSTOM ELEMENT (hyphenated name) is NOT `svg` — the first version of this test
+        // caught exactly this false match: name extraction stopped at the hyphen and `<svg-yok>`
+        // counted as "svg".
         assert_eq!(arc032_markup("<svg-yok>"), None, "tireli ad özel elemandır");
         assert_eq!(arc032_markup("<article-list>"), None);
-        // Ama gerçek `svg`/`math` ve öznitelikli biçimleri yakalanır.
+        // Genuine `svg`/`math` and attribute-bearing forms are still caught.
         assert!(arc032_markup("<svg width=\"3\">").is_some());
         assert!(arc032_markup("<math>").is_some());
         assert_eq!(
@@ -5261,7 +5263,7 @@ mod tests {
             arc032_markup("Kadıköy&nbsp;İskele"),
             Some("&nbsp;".to_string())
         );
-        // Düz metin: uydurma ad HTML etiketi DEĞİLDİR — liste bilinçli olarak kapalı.
+        // Plain text: a fabricated name is NOT an HTML tag — the list is deliberately closed.
         assert_eq!(arc032_markup("<Bilinmiyor>"), None);
         assert_eq!(arc032_markup("<TBD> hattı"), None);
         assert_eq!(arc032_markup("A & B < C > D"), None);
@@ -5269,15 +5271,15 @@ mod tests {
 
     #[test]
     fn arc_032_silent_for_legitimate_text() {
-        // Bu üç değer ölçüm sırasında GEVŞEK bir desenle yanlış eşleşmişti (1991 uydurma
-        // bulgunun kaynağı). Kapalı liste onları geçirmeli — regresyon buraya kilitlendi.
-        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None); // bilinmeyen "entity"
-        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None); // etiket değil
+        // These three values falsely matched a LOOSE pattern during measurement (the source of
+        // 1,991 spurious findings). The closed list must allow them — regression is locked here.
+        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None); // unknown "entity"
+        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None); // not a tag
         assert_eq!(arc032_markup("La Clisse >< Luchat >< Pisany"), None);
-        // Ayrıca: karşılaştırma işaretleri, bilinmeyen etiket adı, kapanmayan etiket.
+        // Also: comparison signs, an unknown tag name, and an unclosed tag.
         assert_eq!(arc032_markup("a < b ve c > d"), None);
-        assert_eq!(arc032_markup("<durak>"), None); // listede olmayan ad
-        assert_eq!(arc032_markup("3 <br sonra"), None); // `>` yok
+        assert_eq!(arc032_markup("<durak>"), None); // name not in the list
+        assert_eq!(arc032_markup("3 <br sonra"), None); // no `>`
         assert_eq!(arc032_markup("Fiyat < 5 TL > indirim"), None);
         assert_eq!(arc032_markup("Şişli Durağı"), None);
         assert_eq!(arc032_markup("東京駅"), None);
@@ -5299,7 +5301,7 @@ mod tests {
             .iter()
             .filter(|n| n.rule_id == "ARC_032")
             .collect();
-        // İki bozuk satır var ama emit DOSYA başına TEK — DQ_016/STM_050 patlama önlemi.
+        // Two malformed rows, but ONE emit per FILE — DQ_016/STM_050 burst prevention.
         assert_eq!(
             hits.len(),
             1,
@@ -5320,8 +5322,8 @@ mod tests {
 
     #[test]
     fn arc_032_defers_to_stp_023_on_tts_stop_name() {
-        // STP_023 tts_stop_name'de HERHANGİ bir `<`/`>` işaretini bildirir ve daha geniştir;
-        // ikisini birden emit etmek aynı olguyu iki kez raporlamak olur.
+        // STP_023 reports ANY `<`/`>` marker in tts_stop_name and is broader; emitting both would
+        // report the same phenomenon twice.
         let mut acc = Arc032Acc::default();
         let headers = vec!["stop_id".to_string(), "tts_stop_name".to_string()];
         acc.observe(2, ["S1", "Ana <b>Durak</b>"].into_iter(), &headers);
@@ -5333,7 +5335,7 @@ mod tests {
 
     #[test]
     fn arc_030_fires_for_tab_inside_value() {
-        // Spec sekmeyi de yasaklar: "must not contain tabs, carriage returns or new lines".
+        // The spec also forbids tabs: "must not contain tabs, carriage returns or new lines".
         assert_eq!(arc030_bad_whitespace(["ab\tcd"].into_iter()), Some(9));
         assert_eq!(arc030_bad_whitespace(["ab\rcd"].into_iter()), Some(13));
         assert_eq!(arc030_bad_whitespace(["ab\ncd"].into_iter()), Some(10));
@@ -5341,7 +5343,7 @@ mod tests {
 
     #[test]
     fn arc_030_silent_for_normal_and_unicode_values() {
-        // Boşluk, Türkçe/Japonca metin ve noktalama sorun değildir.
+        // Whitespace, Turkish/Japanese text, and punctuation are not problems.
         assert_eq!(
             arc030_bad_whitespace(["Şişli Durağı", "東京駅", "a, b"].into_iter()),
             None
