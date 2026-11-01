@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
 """
-Geniş corpus toplu koşumu — MobilityData kataloğundan N feed indir, bizim
-validator ile koş, güvenilirlik sinyallerini raporla.
+Run a large corpus batch — download N feeds from the MobilityData catalogue,
+run our validator, and report reliability signals.
 
-NEDEN: Güvenilirlik Sprint'i kapanışı "2. dalga kural seçimi, yeni ve daha
-çeşitli corpus hacmi görülmeden yapılmamalıdır" diyor. Mevcut corpus 3 feed
-(BART/Tokyo/TriMet) → aday sıralaması bu 3 feed'in gürültüsünü yansıtır.
-Bu script o corpus'u genişletir.
+WHY: The Reliability Sprint concluded that "second-wave rule selection must
+wait until a new and more diverse corpus volume has been observed." The
+existing corpus has 3 feeds (BART/Tokyo/TriMet), so candidate ranking reflects
+noise from those 3 feeds. This script expands that corpus.
 
-AŞAMALAR (her biri ayrı çalışır, hepsi DEVAM ETTİRİLEBİLİR):
+STAGES (each runs independently and all are RESUMABLE):
     python3 notgit/corpus_batch.py sample   --n 250 --seed 42
     python3 notgit/corpus_batch.py resolve                    # MD API: snapshot + rapor URL'i
     python3 notgit/corpus_batch.py fetch                       # zip + MD raporu
     python3 notgit/corpus_batch.py validate --today 20260717
     python3 notgit/corpus_batch.py report
 
-Varsayılan çalışma dizini: notgit/corpus/ (--dir ile değiştir).
-Her aşama kaldığı yerden devam eder: inen zip yeniden inmez, koşan feed
-yeniden koşmaz. Yarıda kesmek güvenli (Ctrl-C).
+Default working directory: notgit/corpus/ (change with --dir).
+Every stage resumes where it stopped: downloaded ZIPs are not downloaded
+again, and completed feeds are not rerun. Interrupting with Ctrl-C is safe.
 
-MD PARİTESİ: `resolve` MD API'sinden her feed'in SON snapshot'ını çözer →
-zip ve MD raporu AYNI snapshot dizininden gelir (rapor gerçekten o zip'e ait).
-Gerekli: refresh token → notgit/.md_token (gitignore, mod 600) veya
-MD_REFRESH_TOKEN env. `resolve` atlanırsa katalog urls.latest'e düşülür:
-çalışır ama BAYAT olabilir ve MD raporu eşleştirilemez.
-Karşılaştırma: notgit/md_parity_audit.py (MAP/AGG_RULES hazır) — bu script
-onun beklediği golden şeklini üretir.
+MD PARITY: `resolve` resolves each feed's LATEST snapshot through the MD API
+→ the ZIP and MD report come from the SAME snapshot directory (the report
+really belongs to that ZIP). Required: refresh token → notgit/.md_token
+(gitignored, mode 600) or the MD_REFRESH_TOKEN environment variable. If
+`resolve` is skipped, the script falls back to catalogue urls.latest: it works
+but may be STALE and the MD report cannot be matched.
+Comparison: notgit/md_parity_audit.py (MAP/AGG_RULES ready) — this script
+produces the golden shape it expects.
 """
 
 import argparse
