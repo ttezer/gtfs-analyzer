@@ -345,3 +345,6 @@ de2cae9ed76d19bae4faace07f1f371764580c4c
 
 # Translate Python and proof-test comments to English.
 dd7d2488139cd23b2cfae3e6e23e7768bc620f8f
+
+# Translate version, benchmark, and CI comments to English.
+587601656db67803ff8e93ef663aee8dd353be99
