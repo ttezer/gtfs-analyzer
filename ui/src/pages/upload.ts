@@ -741,7 +741,7 @@ function formatCount(n: number): string {
 // The file unit stays singular in the locale; en/fr pluralize by number (stop → stops,
 // arrêt → arrêts). tr/ja do not inflect the name by number → it stays unchanged.
 //
-// Irregular plurals come from the locale via `<key>.plural`: in French,
+// Irregular plurals come from the locale via `<anahtar>.plural`: in French,
 // `level` = niveau → niveaux is the only unit that breaks the regular `+s` rule
 // (15 units measured). Fall back to `+s` when the key is missing — correct for
 // English and French when both are regular.
