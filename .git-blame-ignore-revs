@@ -354,3 +354,6 @@ cb80fdf8dd449a9ce44d6e3c3189e248cda7481f
 
 # Translate generator developer messages to English.
 a653accf82a534dc140a47f49d1a11e8f295ba5f
+
+# Keep gate-compatible generator diagnostics.
+909b724cb874dab35157ddba0e0c7af37322fa60
