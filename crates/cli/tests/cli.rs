@@ -69,6 +69,12 @@ fn write_feed(name: &str, files: &[(&str, &[u8])]) -> PathBuf {
     path
 }
 
+fn write_config(name: &str, json: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("gtfs-cli-test-config-{name}.json"));
+    std::fs::write(&path, json).unwrap();
+    path
+}
+
 fn feed_ok() -> PathBuf {
     write_feed("ok", &base_files(TRIPS))
 }
@@ -83,6 +89,18 @@ fn feed_partial() -> PathBuf {
         .filter(|(name, _)| *name != "routes.txt")
         .collect();
     write_feed("partial", &files)
+}
+
+fn feed_wrapped() -> PathBuf {
+    let files = [
+        ("bundle/agency.txt", AGENCY),
+        ("bundle/stops.txt", STOPS),
+        ("bundle/routes.txt", ROUTES),
+        ("bundle/trips.txt", TRIPS),
+        ("bundle/stop_times.txt", STOP_TIMES),
+        ("bundle/calendar.txt", CALENDAR),
+    ];
+    write_feed("wrapped", &files)
 }
 
 // ── invocation helpers ────────────────────────────────────────────────────────
@@ -102,6 +120,10 @@ fn validate(feed: &Path, extra: &[&str]) -> Output {
 
 fn stdout_of(out: &Output) -> String {
     String::from_utf8(out.stdout.clone()).unwrap()
+}
+
+fn stderr_of(out: &Output) -> String {
+    String::from_utf8(out.stderr.clone()).unwrap()
 }
 
 fn json_of(out: &Output) -> serde_json::Value {
@@ -197,6 +219,67 @@ fn corrupt_zip_is_fatal_with_exit_2() {
     let out = validate(&path, &["--json"]);
     assert_eq!(code(&out), 2);
     assert_eq!(json_of(&out)["status"], "fatal");
+}
+
+#[test]
+fn unknown_config_key_is_english_with_lang_en() {
+    let config = write_config("unknown", r#"{"bogus_key":true}"#);
+    let feed = feed_ok();
+    let out = run(&[
+        "validate",
+        feed.to_str().unwrap(),
+        "--today",
+        TODAY,
+        "--lang",
+        "en",
+        "--config",
+        config.to_str().unwrap(),
+    ]);
+    assert_eq!(code(&out), 2);
+    assert_eq!(
+        stderr_of(&out),
+        format!(
+            "error: invalid config '{}': Unknown config keys: bogus_key\n",
+            config.display()
+        )
+    );
+}
+
+#[test]
+fn out_of_range_config_value_is_english_with_lang_en() {
+    let config = write_config("range", r#"{"max_speed_bus_kmh":99999}"#);
+    let feed = feed_ok();
+    let out = run(&[
+        "validate",
+        feed.to_str().unwrap(),
+        "--today",
+        TODAY,
+        "--lang",
+        "en",
+        "--config",
+        config.to_str().unwrap(),
+    ]);
+    assert_eq!(code(&out), 2);
+    assert_eq!(
+        stderr_of(&out),
+        format!(
+            "error: invalid config '{}': 'max_speed_bus_kmh' out of range: 99999 (expected 60-200)\n",
+            config.display()
+        )
+    );
+}
+
+#[test]
+fn wrapped_feed_partial_root_error_is_english_with_lang_en() {
+    let json = json_of(&validate(&feed_wrapped(), &["--json", "--lang", "en"]));
+    assert_eq!(json["status"], "partial");
+    let errors = json["partial"]["root_structural_errors"].as_array().unwrap();
+    assert!(errors.iter().any(|error| {
+        error == "GTFS files are not at the ZIP root; root prefix is 'bundle/'"
+    }));
+    assert!(errors.iter().all(|error| {
+        !error.as_str().unwrap().contains("GTFS dosyaları")
+    }));
 }
 
 /// The fatal message used to be Turkish pipeline text and `--lang` did not translate it: an English

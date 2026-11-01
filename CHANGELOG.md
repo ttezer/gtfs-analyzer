@@ -70,6 +70,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Config and partial-root error text is now English.** Config validation errors and
+  `PartialReport.root_structural_errors` keep their existing fields and `String`/`Vec<String>`
+  shapes; only the user-facing text changed.
 - **`STM_017` skips trips whose `shape_id` is not defined in `shapes.txt`.** There
   is no shape to place the stops on; `TRP_004` (undefined `shape_id`) and
   `ARC_020` (missing `shapes.txt`) already report the problem. This came in as a
