@@ -20,7 +20,7 @@ pub struct K4Result {
     pub whitespace_suppressions: WhitespaceSuppressions,
 }
 
-// �"?�"? Ana fonksiyon �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── Main function ─────────────────────────────────────────────────────────────
 
 pub fn check(records: &EntityRecords, entity_map: &EntityMap, today: u32) -> K4Result {
     check_with_files(records, entity_map, today, &FileAvailability::complete())
@@ -35,7 +35,7 @@ pub fn check_with_files(
     check_with_files_and_whitespace_roots(records, entity_map, today, availability, None)
 }
 
-/// Pipeline, erken bastırmayı yalnız K1'de DQ_016 kökü kanıtlanmış dosyalarda açar.
+/// The pipeline enables early suppression only for files whose DQ_016 root K1 has proven.
 /// Direct K4 calls preserve the legacy notice flow through the API above.
 pub fn check_with_files_and_whitespace_roots(
     records: &EntityRecords,
@@ -60,7 +60,7 @@ pub fn check_with_files_and_whitespace_roots(
         };
     }
 
-        // stop_times pass → through StopTimesIndex (Vec<StopTimeRecord> is not scanned)
+    // stop_times pass → through StopTimesIndex (Vec<StopTimeRecord> is not scanned)
     let (
         stm_used_stop_ids,
         stm_trip_continuous,
@@ -667,7 +667,7 @@ fn date_to_u32(t: (u32, u32, u32)) -> u32 {
     t.0 * 10000 + t.1 * 100 + t.2
 }
 
-// �"?�"? AGN_005: birden fazla ajans farklı timezone �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── AGN_005: multiple agencies with different timezones ───────────────────────
 
 fn check_agencies(
     records: &EntityRecords,
@@ -675,7 +675,7 @@ fn check_agencies(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // AGN_013: feed_info.feed_lang ile agency.agency_lang uyuşmuyor
+    // AGN_013: feed_info.feed_lang does not match agency.agency_lang
     if let Some(fi) = records.feed_info.first() {
         let feed_lang = fi.feed_lang.as_str();
         if !feed_lang.is_empty() {
@@ -828,7 +828,7 @@ fn check_agencies(
     }
 }
 
-// �"?�"? STP_009-012, STP_026-027: durak cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── STP_009-012, STP_026-027: stop cross-ref ──────────────────────────────────
 
 fn check_stops(
     records: &EntityRecords,
@@ -1103,7 +1103,7 @@ fn check_stops(
     }
 }
 
-// �"?�"? RTS_002, RTS_012: rota cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── RTS_002, RTS_012: route cross-ref ─────────────────────────────────────────
 
 fn check_routes(
     records: &EntityRecords,
@@ -1246,7 +1246,7 @@ fn check_booking_rules(
     ctr: &mut u32,
 ) {
     // BKR_017/018: stop_times.pickup/drop_off_booking_rule_id → booking_rules.booking_rule_id.
-    // Spec (stop_times.txt): iki alan da "Foreign ID referencing booking_rules.booking_rule_id".
+    // Spec (stop_times.txt): both fields are "Foreign ID referencing booking_rules.booking_rule_id".
     // Same pattern as XFL_024/025: one rule per field, one notice per ID (deduplicated).
     // flex_map is empty in ~99% of feeds → the gate skips the row scan entirely.
     let idx = &records.stop_times_index;
@@ -1333,7 +1333,7 @@ fn check_booking_rules(
     }
 }
 
-// �"?�"? TRP_002-004 / TRP_019: sefer cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── TRP_002-004 / TRP_019: trip cross-ref ─────────────────────────────────────
 
 fn check_trips(
     records: &EntityRecords,
@@ -1401,7 +1401,7 @@ fn check_trips(
         // TRP_004: shape_id reference (when present). Emit after the loop, once per route.
         //
         // ⚠️ A `shape_id` that becomes empty after trimming is NOT a dangling reference; it is
-        // an empty field. The field is optional and may be left empty. In `mdb-992`, `shape_id ' '` 
+        // an empty field. The field is optional and may be left empty. In `mdb-992`, `shape_id ' '`
         // produced a "' ' route not defined" finding. Surrounding whitespace belongs to `DQ_016`;
         // K7's whitespace suppression cannot see this case because the trimmed counterpart
         // (the empty string) is not in the target set.
@@ -1416,7 +1416,7 @@ fn check_trips(
             }
         }
 
-        // TRP_019: continuous service aktifken shape_id zorunlu
+        // TRP_019: shape_id is required while continuous service is active
         if rec.shape_idx == 0 {
             let route_continuous = map
                 .routes
@@ -1500,9 +1500,9 @@ fn check_trips(
     }
 }
 
-// �"?�"? STM_001-002: stop_times cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── STM_001-002: stop_times cross-ref ─────────────────────────────────────────
 
-// �"?�"? PTH_014: pathway_id referans bütünlü�Yü �?" aynı istasyon cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── PTH_014: pathway_id referential integrity — same-station cross-ref ────────
 
 /// PTH_014: cross-station pathways below this distance are realistic walking connections
 /// between neighboring stops and are suppressed (VBB Potsdam "Platz der Einheit" child stops,
@@ -1551,7 +1551,7 @@ fn check_pathways(
         return;
     }
 
-    // stop_id �?' parent_station
+    // stop_id → parent_station
     let stop_parent: HashMap<&str, &str> = records
         .stops
         .iter()
@@ -1563,7 +1563,7 @@ fn check_pathways(
         .filter(|(_, p)| !p.is_empty())
         .collect();
 
-    // stop_id �?' location_type
+    // stop_id → location_type
     let stop_loc: HashMap<&str, Option<u32>> = records
         .stops
         .iter()
@@ -1636,14 +1636,14 @@ fn check_pathways(
         }
     }
 
-    // PTH_019: generic node (location_type=3) yalnızca tek pathway'e bağlı → dead-end
+    // PTH_019: generic node (location_type=3) connected to only one pathway → dead end
     {
-        // Sayılan şey KOMŞU sayısıdır, pathway SATIRI değil. Aynı iki durak arasına
-        // iki ayrı pathway satırı (ör. her yön için bir tane) yazmak node'u çıkmaz
-        // olmaktan kurtarmaz: hâlâ tek bir yere açılıyordur. Satır saymak bu düzeni
-        // kullanan feed'lerde kuralı kör bırakıyordu. MobilityData da aynı şeyi
-        // söylüyor: "A generic node has only one incident location in a pathway graph."
-        // Kendine dönen kenar komşu sayılmaz; o PTH_012'nin (döngü) konusudur.
+        // What is counted is the number of NEIGHBORS, not pathway ROWS. Writing two
+        // separate pathway rows between the same two stops (e.g. one per direction) does
+        // not stop the node from being a dead end: it still opens onto only one place.
+        // Counting rows left the rule blind in feeds that use this layout. MobilityData
+        // says the same: "A generic node has only one incident location in a pathway graph."
+        // A self-loop edge does not count as a neighbor; that is PTH_012's (loop) concern.
         let mut neighbours: HashMap<&str, std::collections::BTreeSet<&str>> = HashMap::new();
         for rec in &records.pathways {
             let (f, t) = (rec.from_stop_id.as_str(), rec.to_stop_id.as_str());
@@ -1683,7 +1683,7 @@ fn check_pathways(
         }
     }
 
-    // LVL_006: asansör (pathway_mode=5) uç duraklarından birinde level_id eksik
+    // LVL_006: level_id missing on one of the end stops of an elevator (pathway_mode=5)
     {
         let stop_level: HashMap<&str, bool> = records
             .stops
@@ -1731,7 +1731,7 @@ fn check_pathways(
     }
 }
 
-// �"?�"? CAL_009, CAL_011: takvim cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── CAL_009, CAL_011: calendar cross-ref ──────────────────────────────────────
 
 fn check_calendar(
     records: &EntityRecords,
@@ -1836,7 +1836,7 @@ fn check_calendar(
     }
 }
 
-// �"?�"? CLD_004: calendar_dates kapsamlılık kontrolü �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── CLD_004: calendar_dates coverage check ────────────────────────────────────
 
 fn check_calendar_dates(
     records: &EntityRecords,
@@ -1885,7 +1885,7 @@ fn check_calendar_dates(
     }
 }
 
-// �"?�"? FRQ_001: frekans cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── FRQ_001: frequency cross-ref ──────────────────────────────────────────────
 
 fn check_frequencies(
     records: &EntityRecords,
@@ -1943,7 +1943,7 @@ fn check_frequencies(
     }
 }
 
-// �"?�"? TRF_006-009, TRF_013-015: transfer cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── TRF_006-009, TRF_013-015: transfer cross-ref ──────────────────────────────
 
 fn check_transfers(
     records: &EntityRecords,
@@ -2348,7 +2348,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_015: type=4/5 için from/to_stop_id station (location_type=1) olamaz
+        // TRF_015: for type=4/5, from/to_stop_id cannot be a station (location_type=1)
         if matches!(ttype, Some(4) | Some(5)) {
             for (field, stop_id) in [
                 ("from_stop_id", rec.from_stop_id.as_str()),
@@ -2467,7 +2467,7 @@ fn check_transfers(
     }
 }
 
-//�"?�"? FAR_008: fare referansı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── FAR_008: fare reference ───────────────────────────────────────────────────
 
 fn check_fare_attributes(
     records: &EntityRecords,
@@ -2535,7 +2535,7 @@ fn check_fare_attributes(
     }
 }
 
-// �"?�"? FRL_001-005: fare_rules cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── FRL_001-005: fare_rules cross-ref ─────────────────────────────────────────
 
 fn check_fare_rules(
     records: &EntityRecords,
@@ -3439,7 +3439,7 @@ fn check_fares_v2(
     }
 }
 
-// �"?�"? LVL_004: kullanılmayan level �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── LVL_004: unused level ─────────────────────────────────────────────────────
 
 fn check_levels(
     records: &EntityRecords,
@@ -3479,7 +3479,7 @@ fn check_levels(
     }
 }
 
-// �"?�"? TRN_005-006: çeviri cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── TRN_005-006: translation cross-ref ────────────────────────────────────────
 
 /// Translation tables with single-field primary keys not carried by `EntityMap` → ID set.
 ///
@@ -3611,7 +3611,7 @@ fn check_translations(
             ));
         }
 
-        // TRN_004: record_id başvurulan kayıt bulunamadı
+        // TRN_004: the record referenced by record_id was not found
         if let Some(ref rid) = rec.record_id {
             let exists =
                 translation_record_exists(map, &extra_ids, &rec.table_name, rid.as_str())
@@ -3764,7 +3764,7 @@ fn check_translations(
     }
 }
 
-// �"?�"? ATR_009-012: attribution cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── ATR_009-012: attribution cross-ref ────────────────────────────────────────
 
 /// record_id and field_value sets with a ja-Hrkt (かな) translation for a given (table, field)
 /// in translations.txt. Shared by the JPN_001/008/009/010 kana checks.
@@ -4772,7 +4772,7 @@ fn check_gtfs_jp(
             ));
         }
 
-        // ── JPN_032: GTFS-JP V3 agency_id法人番号 biçimi ────────────────
+        // ── JPN_032: GTFS-JP V3 agency_id corporate number (法人番号) format ───
         // V3 requires the operator's 13-digit Corporate Number. A branch
         // identifier may follow an underscore; its grammar is intentionally not
         // invented here because MLIT does not specify one.
@@ -5276,7 +5276,7 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_006: GTFS-JP ücret kapsamı ───────────────────────────────────────
+    // ── JPN_006: GTFS-JP fare coverage ───────────────────────────────────────
     // fare_attributes.txt is required in v3; fare_rules.txt is conditionally required when
     // not all routes use the same single fare. A missing fare_rules.txt alone does not make
     // the distinction between a uniform fare and route/zone-based fares observable, so report
@@ -5370,7 +5370,7 @@ fn check_gtfs_jp(
         notices.push(finding);
     }
 
-    // ── JPN_007: GTFS-JP'de feed_info.txt zorunlu ──
+    // ── JPN_007: feed_info.txt is required in GTFS-JP ──
     if jp_validation_enabled && records.feed_info.is_empty() {
         notices.push(notice(
             ctr,
@@ -5389,7 +5389,7 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-        // ── JPN_012: agency_jp.agency_id zorunlu ─────────────────────────────────
+        // ── JPN_012: agency_jp.agency_id is required ─────────────────────────────
         for aj in &records.agency_jp {
             if aj
                 .agency_id
@@ -5406,7 +5406,7 @@ fn check_gtfs_jp(
             }
         }
 
-        // ── JPN_013: agency_zip_number biçimi ────────────────────────────────────
+        // ── JPN_013: agency_zip_number format ────────────────────────────────────
         for aj in &records.agency_jp {
             let Some(raw) = aj.row.get("agency_zip_number").map(String::as_str) else {
                 continue;
@@ -5424,7 +5424,7 @@ fn check_gtfs_jp(
             }
         }
 
-        // ── JPN_014: office_jp.office_id zorunlu ve tekil ─────────────────────────
+        // ── JPN_014: office_jp.office_id is required and unique ───────────────────
         {
             let mut office_ids: HashMap<&str, u64> = HashMap::new();
             for office in &records.office_jp {
@@ -5461,7 +5461,7 @@ fn check_gtfs_jp(
             }
         }
 
-        // ── JPN_015: legacy routes_jp.route_id zorunlu, tekil ve routes.txt'e bağlı ──
+        // ── JPN_015: legacy routes_jp.route_id is required, unique, and linked to routes.txt ───
         // Preserve the historical V3/Auto compatibility behavior. This is not
         // part of the normative V3 inventory because routes_jp.txt was removed.
         if legacy_v3_extensions {
@@ -5585,7 +5585,7 @@ fn check_gtfs_jp(
             }
         }
 
-        // ── JPN_017: pattern_jp.jp_pattern_id zorunlu ve tekil ───────────────────
+        // ── JPN_017: pattern_jp.jp_pattern_id is required and unique ─────────────
         {
             let mut pattern_ids: HashMap<&str, u64> = HashMap::new();
             for pattern in &records.pattern_jp {
@@ -5661,7 +5661,7 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_019: ja-Hrkt çevirilerinde gerçek kayıt/alt kayıt bütünlüğü ───────
+    // ── JPN_019: real record/sub-record integrity in ja-Hrkt translations ─────
     {
         let agency_ids: HashSet<&str> = records
             .agencies
@@ -5792,7 +5792,7 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-        // ── JPN_020: office_url / office_phone kalite biçimi ─────────────────────
+        // ── JPN_020: office_url / office_phone quality format ────────────────────
         for office in &records.office_jp {
             if let Some(url) = office
                 .row
@@ -5855,7 +5855,7 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_021: kana satırı boş/çakışmalı/tutarsız ────────────────────────────
+    // ── JPN_021: kana row empty/conflicting/inconsistent ───────────────────────
     {
         let mut seen: HashMap<String, (String, u64)> = HashMap::new();
         for translation in records
@@ -5965,7 +5965,7 @@ fn check_fare_leg_join_rules(
     }
 
     for rec in &records.fare_leg_join_rules {
-        // ── Ağ alanları: koşulsuz Required + FK ──────────────────────────────
+        // ── Network fields: unconditionally Required + FK ────────────────────
         for (value, field, rule) in [
             (&rec.from_network_id, "from_network_id", "FLJ_001"),
             (&rec.to_network_id, "to_network_id", "FLJ_002"),
@@ -6003,7 +6003,7 @@ fn check_fare_leg_join_rules(
             }
         }
 
-        // ── Durak alanları: KARŞILIKLI koşullu + FK + location_type kısıtı ───
+        // ── Stop fields: MUTUALLY conditional + FK + location_type constraint ───
         let pairs = [
             (
                 &rec.from_stop_id,
@@ -6084,7 +6084,7 @@ fn check_fare_leg_join_rules(
     }
 }
 
-/// NET_002/NET_003 — `route_networks.txt`'in iki Required Foreign ID alanı.
+/// NET_002/NET_003 — the two Required Foreign ID fields of `route_networks.txt`.
 ///
 /// ⚠️ Resolve `network_id` against **only `networks.txt`**, not `EntityMap::network_ids`:
 /// that set also contains `routes.network_id` and the rows of `route_networks.txt` itself
@@ -6109,7 +6109,7 @@ fn check_route_networks(
     for rec in &records.route_networks {
         let eid = Some(rec.route_id.clone()).filter(|s| !s.is_empty());
 
-        // NET_002: network_id — Required + networks.txt'te tanımlı olmalı.
+        // NET_002: network_id — Required + must be defined in networks.txt.
         if rec.network_id.is_empty() {
             notices.push(notice(
                 ctr,
@@ -6145,7 +6145,7 @@ fn check_route_networks(
             ));
         }
 
-        // NET_003: route_id — Required + routes.txt'te tanımlı olmalı.
+        // NET_003: route_id — Required + must be defined in routes.txt.
         if rec.route_id.is_empty() {
             notices.push(notice(
                 ctr,
@@ -6257,7 +6257,7 @@ fn check_attributions(
             }
         }
 
-        // ATR_009: agency_id, route_id, trip_id kar�Yılıklı dı�Ylayıcı
+        // ATR_009: agency_id, route_id, and trip_id are mutually exclusive
         let filled = [&rec.agency_id, &rec.route_id, &rec.trip_id]
             .iter()
             .filter(|x| x.is_some())
@@ -6292,7 +6292,7 @@ fn check_attributions(
     }
 }
 
-// �"?�"? XFL: çapraz dosya kontrolleri �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── XFL: cross-file checks ────────────────────────────────────────────────────
 
 fn check_xfl(
     records: &EntityRecords,
@@ -7200,7 +7200,7 @@ fn check_xfl(
 
     // XFL_019: routes.network_id is used together with a separate network file → conflict.
     // Spec (routes.network_id): "Conditionally Forbidden: Forbidden if the route_networks.txt
-    // OR networks.txt file exists." Eskiden yalnız route_networks.txt kolu denetleniyordu;
+    // OR networks.txt file exists." Previously only the route_networks.txt branch was checked;
     // using networks.txt was equally forbidden but went undetected.
     if records.has_route_networks_file || records.has_networks_file {
         let has_route_network_id = records
@@ -7350,7 +7350,7 @@ fn translation_target_values<'a>(
     }
 }
 
-// ── STM_024: shape_dist_traveled birim tutarsızlığı ─────────────────────────
+// ── STM_024: shape_dist_traveled unit inconsistency ─────────────────────────
 
 fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
     let ti_stm = &records.trip_interns;
@@ -7459,7 +7459,7 @@ fn station_context<'a>(
 
 // ── STM_060: simultaneous geojson region + window + behavior overlap in one trip ──
 //
-// Spec (`stop_times.txt` düzyazısı): *"Simultaneous overlap of locations.geojson id
+// Spec (`stop_times.txt` prose): *"Simultaneous overlap of locations.geojson id
 // geometry, start/end_pickup_drop_off_window time, and pickup_type or drop_off_type
 // between two or more stop_times.txt records with the same trip_id is forbidden."*
 //
@@ -7610,7 +7610,7 @@ fn check_flex_zone_overlap(
     }
 }
 
-// �"?�"? Testler �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -7734,7 +7734,7 @@ mod tests {
         }
     }
 
-    // �"?�"? RTS_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── RTS_002 ───────────────────────────────────────────────────────────────
 
     /// A whitespace-only `parent_station` is EMPTY — all three rules must read it this way.
     ///
@@ -8000,7 +8000,7 @@ mod tests {
         );
     }
 
-    // �"?�"? TRP_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRP_002 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_route_ref_in_trip_produces_trp_002() {
@@ -8012,7 +8012,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_002"));
     }
 
-    // �"?�"? TRP_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRP_003 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_service_ref_in_trip_produces_trp_003() {
@@ -8025,7 +8025,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_003"));
     }
 
-    // �"?�"? TRP_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRP_004 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_shape_ref_in_trip_produces_trp_004() {
@@ -8039,9 +8039,9 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_004"));
     }
 
-        /// Measurement, corpus run 16: per-trip emission produced 32,797 findings in `mdb-3412`.
-        /// The defective object is the REFERENCED route. N trips using the same dangling `shape_id`
-        /// must produce ONE finding, with the count in `details.affected_trips`.
+    /// Measurement, corpus run 16: per-trip emission produced 32,797 findings in `mdb-3412`.
+    /// The defective object is the REFERENCED route. N trips using the same dangling `shape_id`
+    /// must produce ONE finding, with the count in `details.affected_trips`.
     #[test]
     fn trp_004_collapses_many_trips_of_one_dangling_shape_into_a_single_notice() {
         let (mut recs, mut map) = empty();
@@ -8067,7 +8067,7 @@ mod tests {
         assert_eq!(details.get("example_trip").map(String::as_str), Some("T1"));
     }
 
-        /// Two different dangling routes produce two findings, ordered deterministically by `shape_id`.
+    /// Two different dangling routes produce two findings, ordered deterministically by `shape_id`.
     #[test]
     fn trp_004_emits_one_notice_per_distinct_shape_in_sorted_order() {
         let (mut recs, mut map) = empty();
@@ -8089,10 +8089,10 @@ mod tests {
         assert_eq!(ids, vec!["AA_SHAPE", "ZZ_SHAPE"]);
     }
 
-        /// `mdb-992`: `shape_id` contained only whitespace and the rule said "' ' route not
-        /// defined". The field is optional; a value empty after trimming is an EMPTY FIELD.
-        /// `DQ_016` reports surrounding whitespace, and K7 suppression cannot see this (the
-        /// trimmed counterpart, the empty string, is not in the target set), so protection stops at emission.
+    /// `mdb-992`: `shape_id` contained only whitespace and the rule said "' ' route not
+    /// defined". The field is optional; a value empty after trimming is an EMPTY FIELD.
+    /// `DQ_016` reports surrounding whitespace, and K7 suppression cannot see this (the
+    /// trimmed counterpart, the empty string, is not in the target set), so protection stops at emission.
     #[test]
     fn trp_004_treats_a_whitespace_only_shape_id_as_an_empty_field() {
         let (mut recs, mut map) = empty();
@@ -8108,7 +8108,7 @@ mod tests {
         );
     }
 
-    // �"?�"? STM_001 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── STM_001 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_trip_ref_in_stop_times_produces_stm_001() {
@@ -8125,7 +8125,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_001"));
     }
 
-    // �"?�"? STM_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── STM_002 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_stop_ref_in_stop_times_produces_stm_002() {
@@ -8143,19 +8143,19 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_002"));
     }
 
-    // �"?�"? RTS_012 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── RTS_012 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn route_with_no_trips_produces_rts_012() {
         let (mut recs, mut map) = empty();
         map.routes.insert("R1".into(), 0);
         recs.routes = vec![route("R1")];
-        // trips bo�Y �?' rota kullanılmıyor
+        // trips empty → route unused
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "RTS_012"));
     }
 
-    // �"?�"? CAL_011 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── CAL_011 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn unused_service_produces_cal_011() {
@@ -8168,12 +8168,12 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // trips bo�Y �?' servis kullanılmıyor
+        // trips empty → service unused
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "CAL_011"));
     }
 
-    // �"?�"? FRQ_001 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── FRQ_001 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_trip_ref_in_frequencies_produces_frq_001() {
@@ -8191,7 +8191,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "FRQ_001"));
     }
 
-    // �"?�"? TRF_006 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRF_006 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_from_trip_in_transfer_produces_trf_006() {
@@ -8258,7 +8258,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_020"));
     }
 
-    // �"?�"? TRF_013 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRF_013 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn type4_transfer_missing_trip_ids_produces_trf_013() {
@@ -8268,8 +8268,8 @@ mod tests {
             to_stop_id: "S2".into(),
             transfer_type: Some(4),
             min_transfer_time: None,
-            from_trip_id: None, // eksik
-            to_trip_id: None,   // eksik
+            from_trip_id: None, // missing
+            to_trip_id: None,   // missing
             from_route_id: None,
             to_route_id: None,
             row: Default::default(),
@@ -8279,7 +8279,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRF_013"));
     }
 
-    // �"?�"? FAR_008 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── FAR_008 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_agency_ref_in_fare_produces_far_008() {
@@ -8300,7 +8300,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "FAR_008"));
     }
 
-    // �"?�"? FRL_001 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── FRL_001 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn invalid_fare_ref_in_fare_rules_produces_frl_001() {
@@ -8391,7 +8391,7 @@ mod tests {
         );
     }
 
-    // �"?�"? LVL_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── LVL_004 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn unreferenced_level_produces_lvl_004() {
@@ -8408,7 +8408,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "LVL_004"));
     }
 
-    // �"?�"? ATR_009 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── ATR_009 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn attribution_with_multiple_refs_produces_atr_009() {
@@ -8431,7 +8431,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "ATR_009"));
     }
 
-    // �"?�"? XFL_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_002 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn trip_without_stop_times_produces_xfl_002() {
@@ -8445,7 +8445,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_002"));
     }
 
-    // �"?�"? XFL_008 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_008 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn pathway_with_missing_stop_produces_pth_002() {
@@ -8660,8 +8660,8 @@ mod tests {
         );
     }
 
-    /// PTH_006 negatif `length`'i raporlar ama değeri yine de döndürür; geçersiz
-    /// beyan mesafe kanıtı sayılmamalı → kural normal yoluna devam eder.
+    /// PTH_006 reports a negative `length` but still returns the value; an invalid
+    /// declaration must not count as distance evidence → the rule takes its normal path.
     #[test]
     fn pth_014_negative_declared_length_is_not_distance_evidence() {
         let (mut recs, map) = empty();
@@ -8802,7 +8802,7 @@ mod tests {
         );
     }
 
-    // �"?�"? XFL_009 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_009 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn stop_with_missing_level_produces_stp_015() {
@@ -8815,7 +8815,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_015"));
     }
 
-    // �"?�"? AGN_005 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── AGN_005 ───────────────────────────────────────────────────────────────
 
     fn agency_tz(id: &str, tz: &str) -> AgencyRecord {
         AgencyRecord {
@@ -8907,7 +8907,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "AGN_005"));
     }
 
-    // �"?�"? STP_011 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── STP_011 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn entrance_without_parent_produces_stp_011() {
@@ -8920,7 +8920,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "STP_011"));
     }
 
-    // �"?�"? TRN_006 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRN_006 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn identical_translation_rows_produce_trn_005() {
@@ -9414,7 +9414,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_001"));
     }
 
-    // �"?�"? JPN_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── JPN_002 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn dangling_jp_office_id_produces_jpn_002() {
@@ -9508,7 +9508,7 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_002"));
     }
 
-    // �"?�"? JPN_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── JPN_003 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn dangling_agency_jp_id_produces_jpn_003() {
@@ -9760,7 +9760,7 @@ mod tests {
         assert!(!ids.contains(&"JPN_007"));
     }
 
-    // �"?�"? XFL_003 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_003 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn trip_with_missing_shape_produces_trp_004() {
@@ -9862,7 +9862,7 @@ mod tests {
         );
     }
 
-    //�"?�"? XFL_004 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_004 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn fare_rule_with_missing_route_produces_frl_002() {
@@ -9880,7 +9880,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "FRL_002"));
     }
 
-    // �"?�"? XFL_006 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_006 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn removal_only_service_produces_xfl_006() {
@@ -9931,7 +9931,7 @@ mod tests {
         );
     }
 
-    // �"?�"? XFL_012 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_012 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn route_with_trips_but_no_stop_times_produces_xfl_012() {
@@ -9947,7 +9947,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_012"));
     }
 
-    // �"?�"? XFL_014 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_014 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn dangling_translation_produces_xfl_014() {
@@ -9968,7 +9968,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_014"));
     }
 
-    // �"?�"? XFL_015 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_015 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn attribution_with_bad_refs_produces_xfl_015() {
@@ -9992,7 +9992,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_015"));
     }
 
-    // �"?�"? XFL_016 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_016 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn feed_info_translation_without_feed_info_produces_xfl_016() {
@@ -10014,9 +10014,9 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_016"));
     }
 
-    // �"?�"? XFL_017 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── XFL_017 ───────────────────────────────────────────────────────────────
 
-    // �"?�"? TRF_016 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+    // ── TRF_016 ───────────────────────────────────────────────────────────────
 
     #[test]
     fn duplicate_transfer_key_produces_trf_016() {
