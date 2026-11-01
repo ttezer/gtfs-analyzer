@@ -210,3 +210,9 @@ a490143cb0c0f075cab8e947ad0154e8a08fe96b
 
 # Preserve formatting in rules tests.
 c5d5ea94aa8c748db1b8c0c067a05e9db12a75ce
+
+# Translate rules registry comments.
+5a1d9eb30710d317e74b8055eccb9c4290cb5d36
+
+# Preserve registry code spans.
+cee272f4b0282c6e7bf55f492071e789d7f067c7
