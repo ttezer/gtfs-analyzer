@@ -1,12 +1,12 @@
-//! Kural kartlarını registry + kaynakla senkronlar (tek seferlik bakım aracı).
+//! Synchronizes rule cards with the registry and source (one-time maintenance tool).
 //!
-//! - R9 "Kural mesajı:" satırını registry `title`'a eşitler.
-//! - Künye `Önem`/`Sınıf` değerlerini registry severity/rule_class'a eşitler.
-//! - "Kod referansı"ndaki `crates/...rs#Lnnn` atıflarını, atıf yapılan dosyada
-//!   kuralın gerçek emit/test satırına yeniden çözer (satır kayması düzeltilir).
+//! - Makes the R9 "Rule message:" line equal to the registry `title`.
+//! - Makes the metadata `Önem`/`Sınıf` values equal to the registry severity/rule_class.
+//! - Resolves `crates/...rs#Lnnn` references in "Code reference" to the rule's
+//!   actual emit/test line in the referenced file (fixing line drift).
 //!
-//! Çalıştır: cargo run -p gtfs-rules --example sync_cards
-//! card_consistency testi bundan sonra yeşile yaklaşmalı.
+//! Run: cargo run -p gtfs-rules --example sync_cards
+//! The card_consistency test should then move closer to green.
 
 use gtfs_core::ReportId;
 use gtfs_rules::{RuleMeta, RULES};
@@ -101,8 +101,8 @@ fn severity_display(dbg: &str) -> &str {
     }
 }
 
-/// Kaynak dosyada kuralın satırını çöz: want_test=false → emit (test bloğu öncesi),
-/// true → test bloğu içi. Aranan: tırnaklı "ID".
+/// Resolve the rule's line in a source file: want_test=false → emit (before the test block),
+/// true → inside the test block. Search for quoted "ID".
 fn resolve_line(src: &str, id: &str, want_test: bool) -> Option<usize> {
     let lines: Vec<&str> = src.lines().collect();
     let test_start = lines
@@ -120,7 +120,7 @@ fn resolve_line(src: &str, id: &str, want_test: bool) -> Option<usize> {
             return Some(i + 1);
         }
     }
-    // fallback: dosyanın herhangi yerinde
+    // Fallback: anywhere in the file.
     lines
         .iter()
         .position(|l| l.contains(&needle))
@@ -147,7 +147,7 @@ fn main() {
         for line in text.lines() {
             let mut new_line = line.to_string();
 
-            // 1) R9 "Kural mesajı:"
+            // 1) R9 "Rule message:"
             if let Some(idx) = line.find("**Kural mesajı:**") {
                 let prefix = &line[..idx + "**Kural mesajı:**".len()];
                 let cur = line[idx + "**Kural mesajı:**".len()..].trim();
@@ -156,7 +156,7 @@ fn main() {
                     r9_fix += 1;
                 }
             }
-            // 2) künye Önem / Sınıf
+            // 2) Metadata Önem / Sınıf.
             else if line.trim_start().starts_with("| Önem |") {
                 let dbg = format!("{:?}", rule.severity);
                 let want = severity_display(&dbg);
@@ -224,18 +224,18 @@ fn main() {
                     meta_fix += 1;
                 }
             }
-            // 3) Kod referansı satırları (.rs#L)
+            // 3) Code-reference lines (.rs#L).
             else if line.contains(".rs#L") {
                 let want_test = line.contains("Test:") || line.to_lowercase().contains("test");
-                // Satırdaki her atfı tara; düzeltmeleri (start, end, yeni) byte-aralığı
-                // olarak topla ve sağdan sola uygula. Konum-temelli değişim, replace-all'ın
-                // aksine aynı satırdaki başka bir numarayı (ör. #L42 ile #L420) bozmaz ve
-                // offset kayması/UTF-8 panic riski taşımaz.
+                // Scan every reference on the line; collect edits (start, end, replacement)
+                // as byte ranges and apply them from right to left. Unlike replace-all,
+                // position-based editing does not corrupt another number on the same line
+                // (for example, #L42 versus #L420) and avoids offset drift/UTF-8 panic risk.
                 let mut edits: Vec<(usize, usize, String)> = Vec::new();
                 let mut search_from = 0usize;
                 while let Some(rel) = line[search_from..].find(".rs#L") {
                     let pos = search_from + rel;
-                    let num_start = pos + 5; // ".rs#L" sonrası ilk rakam
+                    let num_start = pos + 5; // First digit after ".rs#L".
                     let num: String = line[num_start..]
                         .chars()
                         .take_while(|c| c.is_ascii_digit())
@@ -261,12 +261,12 @@ fn main() {
                     if new_n == old_n {
                         continue;
                     }
-                    // URL tarafı: ...rs#L<old_n>
+                // URL side: ...rs#L<old_n>.
                     edits.push((num_start, num_end, new_n.to_string()));
-                    // Link metni tarafı: anchor numarası daha önce değişmiş,
-                    // etiket numarası eski kalmış olabilir. Bu yüzden etiketi
-                    // `old_n` ile aramak yerine, bağlantının hemen önündeki
-                    // `[...rs:<digits>]` aralığını yapısal olarak bul.
+                // Link-label side: the anchor number may already have changed
+                // while the label number is still old. Therefore, instead of
+                // searching the label for `old_n`, locate the `[...rs:<digits>]`
+                // range immediately before the link structurally.
                     if let Some(label_end) = line[..pos].rfind(']') {
                         if let Some(label_start) = line[..label_end].rfind('[') {
                             let label = &line[label_start + 1..label_end];
@@ -287,7 +287,7 @@ fn main() {
                     ref_fix += 1;
                 }
                 if !edits.is_empty() {
-                    edits.sort_by_key(|edit| std::cmp::Reverse(edit.0)); // sağdan sola: offset'ler geçerli kalır
+                    edits.sort_by_key(|edit| std::cmp::Reverse(edit.0)); // Right to left: offsets remain valid.
                     let mut s = line.to_string();
                     for (st, en, rep) in edits {
                         s.replace_range(st..en, &rep);
