@@ -199,9 +199,9 @@ fn corrupt_zip_is_fatal_with_exit_2() {
     assert_eq!(json_of(&out)["status"], "fatal");
 }
 
-/// Fatal mesajı pipeline'ın Türkçe metniydi ve `--lang` onu hiç çevirmiyordu: İngilizce
-/// kullanıcı "ZIP arşivi açılamadı" görüyordu. Artık bildirimlerle aynı modelde
-/// şablondan yazılır; kütüphanenin teknik ayrıntısı `{detail}` olarak korunur.
+/// The fatal message used to be Turkish pipeline text and `--lang` did not translate it: an English
+/// user saw "ZIP arşivi açılamadı". It is now rendered from a template using the same model as
+/// notices; the library's technical detail is preserved as `{detail}`.
 #[test]
 fn fatal_message_follows_the_requested_language() {
     let path = std::env::temp_dir().join("gtfs-cli-test-corrupt-lang.zip");
