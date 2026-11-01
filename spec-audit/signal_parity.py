@@ -87,35 +87,35 @@ def main() -> int:
     for name in modalless.SIGNALS:
         if name in TRIAGE_ONLY:
             if name in SAMPLES:
-                problems.append(f"'{name}' HEM SAMPLES hem TRIAGE_ONLY'de — karar tek olmalı.")
+                problems.append(f"'{name}' is in both SAMPLES and TRIAGE_ONLY — choose one.")
             continue
         sample = SAMPLES.get(name)
         if sample is None:
             problems.append(
-                f"'{name}' sinyali KARARSIZ: ne kataloğa giriyor (SAMPLES) ne de neden "
-                f"girmediği yazılı (TRIAGE_ONLY). Sessiz boşluk tam buradan doğar.")
+                f"'{name}' signal is undecided: it is neither in the catalogue (SAMPLES) nor "
+                f"documented as excluded (TRIAGE_ONLY). This is where a silent gap arises.")
             continue
         verdict = extract.classify(sample)
         if verdict != "strong":
             problems.append(
-                f"'{name}': kataloğa girmesi gerekiyor ama classify() '{verdict or 'hiçbir şey'}' "
-                f"diyor → cümle katalogda yer almaz, adjudike de öksüz de sayılamaz.\n"
-                f"     örnek: {sample}")
+                f"'{name}': should enter the catalogue but classify() says '{verdict or 'nothing'}' "
+                f"→ the sentence is absent from the catalogue and cannot be adjudicated or counted as orphaned.\n"
+                f"     example: {sample}")
 
     # Reverse direction: a decided name missing from the signal list is also a divergence.
     for name in list(SAMPLES) + list(TRIAGE_ONLY):
         if name not in modalless.SIGNALS:
-            problems.append(f"'{name}' burada kararlı ama measure_modalless.SIGNALS'ta YOK.")
+            problems.append(f"'{name}' is stable here but missing from measure_modalless.SIGNALS.")
 
     if problems:
-        print("🔴 SİNYAL AYRIŞMASI — iki tarayıcı 'normatif' tanımında uyuşmuyor:")
+        print("🔴 SIGNAL DIVERGENCE — the two scanners disagree on the 'normative' definition:")
         for p in problems:
             print(f"  {p}")
-        print("  → Ya classify()'a kalıbı ekleyin ya da sinyali modalsiz taramadan düşürün.")
+        print("  → Add the pattern to classify() or remove the signal from the modal-less scan.")
         return 1
 
-    print(f"signal_parity OK — {len(modalless.SIGNALS)} sinyalin tamamı kararlı "
-          f"({len(SAMPLES)} katalogda · {len(TRIAGE_ONLY)} gerekçeli triyaj sinyali).")
+    print(f"signal_parity OK — all {len(modalless.SIGNALS)} signals are stable "
+          f"({len(SAMPLES)} in the catalogue · {len(TRIAGE_ONLY)} justified triage signals).")
     return 0
 
 

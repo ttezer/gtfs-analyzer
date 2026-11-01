@@ -58,10 +58,10 @@ for z in sorted(pathlib.Path("notgit/corpus/zips").glob("*.zip")):
             feeds[(fname, field)].add(z.stem)
     zf.close()
 
-print(f"{'dosya.alan':44s} {'sütunu olan feed':>16s} {'boş satır':>10s} {'feed':>6s}")
+print(f"{'file.field':44s} {'feeds with field':>16s} {'empty rows':>10s} {'feeds':>6s}")
 for key in FIELDS:
     f, fl = key
     print(f"{f+'.'+fl:44s} {present[key]:16d} {empty[key]:10d} {len(feeds[key]):6d}")
-print("\nen yoğun örnekler:")
+print("\nmost frequent examples:")
 for key, n in empty.most_common(5):
-    print(f"  {key[0]}.{key[1]}: {n} satır · feed: {sorted(feeds[key])[:4]}")
+    print(f"  {key[0]}.{key[1]}: {n} rows · feeds: {sorted(feeds[key])[:4]}")

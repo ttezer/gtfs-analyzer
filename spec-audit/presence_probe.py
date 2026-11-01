@@ -51,8 +51,8 @@ with tempfile.TemporaryDirectory() as td:
             d=json.loads(r.stdout); d=d.get("Ok",d)
             ids={n["rule_id"] for n in d.get("notices",[])}
         except Exception:
-            out.append((rule,"?","koşturulamadı")); continue
-        out.append((rule, "ATEŞLER ✅" if rule in ids else "SESSİZ 🔴",
+            out.append((rule,"?","could not run")); continue
+        out.append((rule, "FIRES ✅" if rule in ids else "SILENT 🔴",
                     ",".join(sorted(i for i in ids if i.split("_")[0]==rule.split("_")[0]))[:56]))
-print(f"{'kural':9s} {'boş değerde':12s}  aynı gruptan ateşleyenler")
+print(f"{'rule':9s} {'empty value':12s}  triggers from same group")
 for r,s,extra in out: print(f"{r:9s} {s:12s}  {extra}")

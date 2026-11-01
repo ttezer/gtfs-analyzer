@@ -92,8 +92,8 @@ def main() -> int:
         pats = {k: re.compile(v) for k, v in STRUCTURAL.items()}
         rest = [(a, f, s) for a, f, s in untagged
                 if not any(p.search(s) for p in pats.values())]
-        print(f"# sinyalsiz {len(untagged)} · yapısal kategori {len(untagged) - len(rest)} "
-              f"· SINIFLANMAMIŞ KALAN {len(rest)}")
+        print(f"# signal-free {len(untagged)} · structural category {len(untagged) - len(rest)} "
+              f"· UNCLASSIFIED REMAINDER {len(rest)}")
         for i, (anchor, field, s) in enumerate(rest, 1):
             loc = anchor + (f".{field}" if field else "")
             print(f"{i:3d}. [{loc}] {s}")
@@ -101,7 +101,7 @@ def main() -> int:
 
     if SAMPLE:
         picked = random.Random(SEED).sample(untagged, min(SAMPLE, len(untagged)))
-        print(f"# sinyalsiz küme: {len(untagged)} · örneklem: {len(picked)} · seed={SEED}")
+        print(f"# signal-free set: {len(untagged)} · sample: {len(picked)} · seed={SEED}")
         for i, (anchor, field, s) in enumerate(sorted(picked), 1):
             loc = anchor + (f".{field}" if field else "")
             print(f"{i:3d}. [{loc}] {s}")
@@ -119,14 +119,14 @@ def main() -> int:
             else:
                 strong_candidates.append((combo, anchor, field, s))
 
-    print(f"modal TAŞIYAN cümle (katalogda)      : {modal_hits}")
-    print(f"modal TAŞIMAYAN cümle                : {total_modalless}")
-    print(f"  ├─ normatif sinyal taşıyan         : {signalled}")
-    print(f"  │    ├─ betimleyici kalıp da var   : {weak}  (düşük olasılık)")
-    print(f"  │    └─ SAF ADAY                   : {len(strong_candidates)}")
-    print(f"  └─ hiç sinyal yok                  : {len(untagged)}  (büyük olasılıkla betimleyici)")
+    print(f"modal-bearing sentences (catalogue) : {modal_hits}")
+    print(f"modal-free sentences                : {total_modalless}")
+    print(f"  ├─ carrying a normative signal     : {signalled}")
+    print(f"  │    ├─ also has a descriptive pattern: {weak}  (low likelihood)")
+    print(f"  │    └─ CLEAN CANDIDATES            : {len(strong_candidates)}")
+    print(f"  └─ no signal                       : {len(untagged)}  (probably descriptive)")
     print()
-    print("=== SAF ADAYLAR, sinyal grubuna göre ===")
+    print("=== CLEAN CANDIDATES, by signal group ===")
     by_combo = collections.Counter(c for c, *_ in strong_candidates)
     for combo, n in by_combo.most_common():
         print(f"\n--- {' + '.join(combo)}  ({n}) ---")
