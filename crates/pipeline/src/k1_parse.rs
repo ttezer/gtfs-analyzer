@@ -2376,9 +2376,9 @@ pub fn parse_with_limits(
                         "Satır sonlarını LF ya da CRLF olarak yeniden yazın.",
                     ));
                 }
-                // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
-                // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
-                // zorunlu dosyada Utf8Critical → feed tümüyle reddedilirdi.
+                // The 8192-byte cut can split a multibyte UTF-8 character.
+                // Without truncation, the from_utf8 below would treat a VALID file as corrupt
+                // and Utf8Critical on a required file would reject the entire feed.
                 truncate_to_utf8_boundary(&mut raw_vec);
             } else if let Err(e) = guarded.read_to_end(&mut raw_vec) {
                 return Err(read_fatal(&guarded, &raw_name, &e));
@@ -2399,8 +2399,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
-        // zip_stream partial_read'de raw_vec yalnızca başlık (~8KB); gerçek boyut ZIP metadata'sından.
+        // ARC_011: file size — for every root-level .txt file (including unknown files).
+        // In zip_stream partial_read, raw_vec contains only the header (~8 KB); the real size
+        // comes from ZIP metadata.
         let file_size_bytes = if is_zip_stream {
             uncompressed_hint
         } else {
@@ -2419,7 +2420,7 @@ pub fn parse_with_limits(
             "Bilgi amaçlı; düzeltme gerekmez.",
         ));
 
-        // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
+        // ARC_007: unknown file — skip after recording its size.
         if !is_known {
             // Unknown files are intentionally not retained in `raw_files`; keep only
             // their header names so K4 can enforce GTFS-JP's reserved namespace rule
@@ -2450,7 +2451,7 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // ARC_006: İsteğe bağlı dosya mevcut (BİLGİ)
+        // ARC_006: optional file present (INFO).
         if !is_required {
             notices.push(make_notice(
                 &mut counter,
@@ -2466,11 +2467,11 @@ pub fn parse_with_limits(
             ));
         }
 
-        // BOM kontrolü
+        // BOM check.
         let (bytes, has_bom) = strip_bom(&raw_vec);
         if has_bom {
-            // ARC_010 ve DQ_014 aynı koşul — ikisi ayrı ayrı ateşlenmez;
-            // DQ_014 sadece ARC_002 suppressor listesinde referans, ARC_010 onu kapsar.
+            // ARC_010 and DQ_014 have the same condition — do not fire both separately;
+            // DQ_014 is referenced only in the ARC_002 suppressor list, and ARC_010 covers it.
             notices.push(make_notice(
                 &mut counter, "ARC_010",
                 EntityType::File, Some(raw_name.clone()),
@@ -2482,12 +2483,12 @@ pub fn parse_with_limits(
         }
 
         k1dbg!("[K1] okundu: {raw_name} ({} bayt)", bytes.len());
-        // UTF-8 doğrulama — from_utf8 sıfır maliyetli &str döndürür (kopya yok).
-        // Geçersiz UTF-8 dosya güvenli typed doğrulama için atlanır; lossy kayıt üretilmez.
+        // UTF-8 validation — from_utf8 returns a zero-cost &str (no copy).
+        // Invalid UTF-8 files are skipped for safe typed validation; no lossy record is produced.
         let text: &str = match std::str::from_utf8(bytes) {
             Ok(s) => s,
             Err(_) => {
-                // ARC_002: Kritik UTF-8 ihlali
+                // ARC_002: Critical UTF-8 violation.
                 notices.push(make_notice(
                     &mut counter,
                     "ARC_002",
@@ -2519,28 +2520,28 @@ pub fn parse_with_limits(
             }
         };
 
-        // OOM fix Plan A + #15 W3: stop_times.txt ve shapes.txt çok büyük olabilir; K1'de tam
-        // Vec<Vec<SmolStr>>'e açmak yüzlerce MB tutar (shape-ağır feed'de ~920 MB ölçüldü).
-        // Bu dosyalarda SADECE header tokenize edilir; gövde ham metin (`raw_text`) olarak
-        // K2'ye verilip orada streaming işlenir. Per-satır notice'lar (ARC_012/016/018/021,
-        // DQ_016, ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
-        // #38: trips.txt + calendar_dates.txt K1'de stream edilir.
-        // trips: ~3M sefer × 8 alan Vec<Vec<SmolStr>> (~576 MB) TripRecord Vec ile çakışır.
-        // calendar_dates: Swiss feed ~8M+ satır → rows Vec<Vec<SmolStr>> 700MB+ tüketir,
-        // stop_times.txt decompress için yer kalmaz.
+        // OOM fix Plan A + #15 W3: stop_times.txt and shapes.txt can be very large; fully
+        // expanding them into Vec<Vec<SmolStr>> in K1 uses hundreds of MB (~920 MB measured in a
+        // shape-heavy feed). Tokenize ONLY the headers of these files; pass the body to K2 as raw
+        // text (`raw_text`) for streaming. Per-row notices (ARC_012/016/018/021, DQ_016, ARC_022,
+        // empty-data ARC_009) moved to K2's stream pass.
+        // #38: trips.txt + calendar_dates.txt are streamed in K1.
+        // trips: ~3M trips × 8 fields in Vec<Vec<SmolStr>> (~576 MB) overlaps the TripRecord Vec.
+        // calendar_dates: a Swiss feed with 8M+ rows uses 700MB+ in rows Vec<Vec<SmolStr>>, leaving
+        // no room to decompress stop_times.txt.
         let stream_mode = raw_name == "stop_times.txt"
             || raw_name == "shapes.txt"
             || raw_name == "trips.txt"
             || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
-        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), diğer her yerde
-        // SINIRSIZ. #185: SDK yolunda `cfg.max_file_rows` satır bütçesi uygulanıyordu;
-        // 1M satırı aşan dosyalar sessizce kesiliyor ve kesmenin ürettiği boşta
-        // referanslar feed'in kusuru sayılıyordu. Ölçüm sınırın gereksiz olduğunu
-        // gösterdi (VBB tarayıcıda tam hâlde 18,9 sn, kesilmiş hâlde 117 sn sürüyordu:
-        // maliyet satır okumakta değil, uydurma notice üretmekteydi). `max_file_rows`
-        // yalnız ARC_022 eşiğidir; `buffered_entry_limit` bayt sınırı olarak kalır.
+        // CSV tokenization — only the header (Some(0)) in stream_mode, UNLIMITED everywhere else.
+        // #185: the SDK path applied a `cfg.max_file_rows` row budget; files over 1M rows were
+        // silently cut off and the dangling references produced by the cut were blamed on the
+        // feed. Measurement showed the limit was unnecessary (VBB took 18.9 s in the browser
+        // whole and 117 s truncated: the cost was not reading rows but producing spurious
+        // notices). `max_file_rows` is only the ARC_022 threshold; `buffered_entry_limit` remains
+        // the byte limit.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
         let (mut records, _, rfc4180) = match tokenize_csv(
             text,
@@ -2548,7 +2549,7 @@ pub fn parse_with_limits(
         ) {
             Ok(r) => r,
             Err(msg) => {
-                // ARC_013
+                // ARC_013.
                 notices.push(make_notice(
                     &mut counter, "ARC_013",
                     EntityType::File, Some(raw_name.clone()),
@@ -2562,31 +2563,29 @@ pub fn parse_with_limits(
             }
         };
 
-        // stream_mode: K1 yalnızca başlığı tokenize eder; gövdedeki kapanmamış tırnağı
-        // (ARC_013) yine de tespit et — zorunlu dosyada Fatal davranışı korunur (alloc YOK).
-        // zip_stream dosyalarda gövde yoktur; unclosed quote kontrolü yanlış-pozitif üretir.
-        // 🔴 BURADA ÖLÜ BİR DAL VARDI (2026-08-07'de ölçülerek kaldırıldı).
-        // Koşulu `stream_mode && !is_zip_stream` idi; iki liste de AYNI dört dosyayı
-        // sayıyor (`stop_times`/`shapes`/`trips`/`calendar_dates`), yani koşul HİÇBİR
-        // zaman doğru olamazdı. `#38` streaming turunda `is_zip_stream` stop_times'tan
-        // dört dosyaya genişletilince dal sessizce ölmüş. Panic koyup tüm test paketi
-        // koşuldu: bir kez bile çalışmadı.
+        // stream_mode: K1 tokenizes only the header, but still detects an unclosed quote in the
+        // body (ARC_013) — preserve Fatal behavior for required files (NO allocation).
+        // zip_stream files have no body; checking for an unclosed quote would be a false positive.
+        // 🔴 THERE USED TO BE A DEAD BRANCH HERE (measured and removed on 2026-08-07).
+        // Its condition was `stream_mode && !is_zip_stream`; both lists named the SAME four files
+        // (`stop_times`/`shapes`/`trips`/`calendar_dates`), so the condition could NEVER be true.
+        // When `is_zip_stream` expanded from stop_times to four files in the `#38` streaming pass,
+        // the branch silently died. A panic was added and the full test suite was run: it never ran.
         //
-        // ⚠️ SİLİNEN ŞEY BİR DAVRANIŞ DEĞİL, BİR İDDİAYDI: akış dosyalarının gövdesinde
-        // kapanmamış tırnak (`ARC_013`) **hiçbir yerde denetlenmiyor** — K2 okuyucuları
-        // onu "best-effort" tolere ediyor. Bu boşluk ölü kodun ardında görünmez duruyordu;
-        // artık yazılı. RFC 4180'in tırnak kaçırma ihlalleri (`ARC_033`) ise K2'de,
-        // baytların gerçekten okunduğu yerde denetleniyor.
+        // ⚠️ WHAT WAS REMOVED WAS A CLAIM, NOT BEHAVIOR: an unclosed quote in a stream-file body
+        // (`ARC_013`) is **NOT CHECKED ANYWHERE** — K2 readers tolerate it "best-effort". This gap
+        // was hidden behind dead code; it is now documented. RFC 4180 quote-escaping violations
+        // (`ARC_033`), however, are checked in K2 where the bytes are actually read.
 
-        // ARC_009: Boş dosya
+        // ARC_009: empty file.
         if records.is_empty() {
-            // calendar.txt servisi tanımlıyorsa boş calendar_dates.txt yanlış-pozitiftir → bastır.
+            // An empty calendar_dates.txt is a false positive when calendar.txt defines service → suppress.
             let conditional_pair_covers_it = (raw_name == "calendar_dates.txt" && has_calendar_txt)
                 || (raw_name == "calendar.txt" && has_calendar_dates_txt);
             if !conditional_pair_covers_it {
                 empty_files.insert(raw_name.clone());
-                // Zorunlu dosyanın boşluğu ARC_035'in (Kritik·Spec) konusudur; ARC_009
-                // yalnız opsiyonel dosyaları raporlar ve sabit Bilgi'dir.
+                // An empty required file belongs to ARC_035 (Critical·Spec); ARC_009 reports only
+                // optional files and is always Info.
                 if !REQUIRED_FILES.contains(&raw_name.as_str()) {
                     notices.push(make_notice(
                         &mut counter,
@@ -2605,10 +2604,10 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // Başlık satırı (ownership al, clone yok)
+        // Header row (take ownership; no clone).
         let raw_headers = records.remove(0);
 
-        // ARC_014: Başlıkta boşluk
+        // ARC_014: whitespace in header.
         for (col_i, hdr) in raw_headers.iter().enumerate() {
             if hdr != hdr.trim() {
                 notices.push(make_notice(
@@ -2627,10 +2626,10 @@ pub fn parse_with_limits(
             }
         }
 
-        // Temiz başlıklar (trim)
+        // Clean headers (trim).
         let headers: Vec<String> = raw_headers.iter().map(|h| h.trim().to_string()).collect();
 
-        // ARC_019: Başlıkta boş sütun adı
+        // ARC_019: empty column name in header.
         for hdr in &headers {
             if hdr.is_empty() {
                 notices.push(make_notice(
@@ -2645,11 +2644,11 @@ pub fn parse_with_limits(
                     format!("'{raw_name}' başlığında boş sütun adı var."),
                     "Tüm sütun adlarının dolu olduğundan emin olun.",
                 ));
-                break; // Dosya başına bir kez yeter
+                break; // Once per file is enough.
             }
         }
 
-        // ARC_015: Tekrar eden sütun
+        // ARC_015: duplicate column.
         let mut seen_hdrs: HashSet<&str> = HashSet::new();
         for hdr in &headers {
             if !seen_hdrs.insert(hdr.as_str()) {
@@ -2668,7 +2667,7 @@ pub fn parse_with_limits(
             }
         }
 
-        // ARC_017: Bilinmeyen sütun (jp_ prefix = GTFS-JP uzantısı, atla)
+        // ARC_017: unknown column (jp_ prefix = GTFS-JP extension; skip).
         let known_cols = known_columns(&raw_name);
         if !known_cols.is_empty() {
             for hdr in &headers {
@@ -2693,18 +2692,18 @@ pub fn parse_with_limits(
 
         let header_count = headers.len();
         let req_flds = required_fields(&raw_name);
-        // stop_times.stop_id KOŞULLU zorunludur (spec): "Required if stop_times.location_group_id
-        // AND stop_times.location_id are NOT defined." Bu ikisinden biri başlıkta varsa dosya
-        // Flex kullanıyordur ve stop_id sütunu beklenmez → ARC_025 üretilmez.
+        // stop_times.stop_id is conditionally required (spec): "Required if stop_times.location_group_id
+        // AND stop_times.location_id are NOT defined." If either appears in the header, the file
+        // uses Flex and stop_id is not expected → do not produce ARC_025.
         let stop_id_required = raw_name == "stop_times.txt"
             && !headers
                 .iter()
                 .any(|h| h == "location_group_id" || h == "location_id");
         let extra_req: &[&str] = if stop_id_required { &["stop_id"] } else { &[] };
 
-        // ARC_025: req_flds'te olup başlıkta OLMAYAN zorunlu sütun (header-level, dosya başına
-        // bir kez). MD'nin missing_required_column karşılığı. Değer-boşluğu (sütun var) ilgili
-        // k2 grup kuralının konusudur.
+        // ARC_025: required column present in req_flds but ABSENT from the header (header-level,
+        // once per file). Equivalent to MD's missing_required_column. An empty value (column
+        // present) belongs to the relevant K2 group rule.
         for &f in req_flds.iter().chain(extra_req) {
             if !headers.iter().any(|h| h == f) {
                 notices.push(make_notice(
