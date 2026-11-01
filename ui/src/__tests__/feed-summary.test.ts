@@ -44,7 +44,7 @@ describe('feed summary card', () => {
     }));
     expect(html).toContain('<table class="data-table">');
     expect(html).toContain('<td class="fs-val">1</td>');
-    // Acente + telefon; boş e-posta/saat dilimi sütunları yok.
+    // Agency + phone; no empty email/timezone columns.
     expect((html.match(/<th>/g) ?? []).length).toBe(2);
   });
 

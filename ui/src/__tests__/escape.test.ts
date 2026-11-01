@@ -10,7 +10,7 @@ describe('escHtml — feed kaynaklı string XSS/attribute koruması', () => {
   });
 
   it('attribute bağlamı: çift ve tek tırnak kaçışlanır (attribute-break engellenir)', () => {
-    // Örn. <option value="${escHtml(f)}"> içinde değer dışına çıkma denemesi
+    // E.g. an attempt to break out of the value in <option value="${escHtml(f)}">
     expect(escHtml('x" autofocus onfocus=alert(1) "')).toBe(
       'x&quot; autofocus onfocus=alert(1) &quot;',
     );
@@ -29,7 +29,7 @@ describe('escHtml — feed kaynaklı string XSS/attribute koruması', () => {
   });
 
   it('& önce kaçışlanır (çift kaçış olmaz)', () => {
-    // < → &lt; üretildikten sonra tekrar & kaçışlanmamalı
+    // After < produces &lt;, the & must not be escaped a second time.
     expect(escHtml('<')).toBe('&lt;');
     expect(escHtml('&lt;')).toBe('&amp;lt;');
   });
