@@ -3517,14 +3517,14 @@ fn dq021_detects_duplicate_location_group_id_and_group_stop_row() {
     }
 }
 
-// ── XFL_031: ortak kimlik isim alanı ──────────────────────────────────────────
+// ── XFL_031: shared identifier namespace ─────────────────────────────────────
 // Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
 // locations.geojson id, and location_groups.location_group_id values."
 
 #[test]
 fn xfl031_detects_location_group_id_clashing_with_stop_id() {
-    // LG1 hem stops.txt'te hem location_groups.txt'te → stop_times.location_group_id
-    // referansı belirsizleşir.
+    // LG1 appears in both stops.txt and location_groups.txt → the
+    // stop_times.location_group_id reference becomes ambiguous.
     static STOPS_CLASH: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
         S1,Durak1,41.0,29.0\nS2,Durak2,41.1,29.1\nLG1,Cakisan,41.2,29.2\n";
     static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\n";
@@ -3543,7 +3543,7 @@ fn xfl031_detects_location_group_id_clashing_with_stop_id() {
     }
 }
 
-/// Kimlikler ayrıksa notice çıkmamalı — kural sadece ÇAKIŞMAYI ölçer.
+/// No notice should be emitted when IDs are distinct — the rule measures only CLASHES.
 #[test]
 fn xfl031_silent_when_ids_are_distinct() {
     static LG: &[u8] = b"location_group_id,location_group_name\nLG1,Bolge\n";
@@ -3576,10 +3576,10 @@ fn xfl031_detects_geojson_id_clashing_with_stop_id() {
     }
 }
 
-// ── LOC_008/009/010: locations.geojson zorunlu alanları ───────────────────────
-// Spec (locations.geojson alan tablosu) her Feature için type / properties /
-// geometry.coordinates alanlarını Required işaretler. Bunlar hiç denetlenmiyordu:
-// eksikliklerinde kod sessizce atlıyor, dosya "doğrulandı" görünüyordu.
+// ── LOC_008/009/010: required locations.geojson members ───────────────────────
+// The Spec (locations.geojson field table) marks type / properties /
+// geometry.coordinates as Required for every Feature. None were checked:
+// missing members were silently skipped and the file appeared "validated".
 
 fn geojson_feed(geojson: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -3589,7 +3589,7 @@ fn geojson_feed(geojson: &'static [u8]) -> Vec<(&'static str, &'static [u8])> {
 
 #[test]
 fn loc008_009_010_detect_missing_required_feature_members() {
-    // type yok · properties yok · coordinates yok
+    // no type · no properties · no coordinates
     static BAD: &[u8] = br#"{"type":"FeatureCollection","features":[
         {"id":"z1","geometry":{"type":"Polygon"}}]}"#;
     match validate_bytes(
@@ -3616,8 +3616,8 @@ fn loc008_009_010_detect_missing_required_feature_members() {
     }
 }
 
-/// Geçerli bir feature hiçbirini üretmemeli; boş `properties` nesnesi GEÇERLİDİR
-/// (stop_name/stop_desc opsiyoneldir).
+/// A valid feature must produce none of them; an empty `properties` object is VALID
+/// (stop_name/stop_desc are optional).
 #[test]
 fn loc008_009_010_silent_on_a_valid_feature() {
     static GOOD: &[u8] = br#"{"type":"FeatureCollection","features":[
@@ -3641,10 +3641,10 @@ fn loc008_009_010_silent_on_a_valid_feature() {
     }
 }
 
-// ── rule_priority yalnız fare_leg_rules.txt'in alanıdır ───────────────────────
-// Spec (27 Nisan 2026): `rule_priority` fare_leg_rules.txt'te tanımlıdır; fare_transfer_rules.txt
-// alan tablosunda YOKTUR. K1 ikisini de "bilinen sütun" sayıyordu, yani yanlış dosyaya konmuş
-// bir rule_priority sütunu ARC_017 üretmiyordu (WP-2 spec çapa turunda yakalandı).
+// ── rule_priority belongs only to fare_leg_rules.txt ───────────────────────────
+// Spec (27 April 2026): `rule_priority` is defined in fare_leg_rules.txt; it is NOT in the
+// fare_transfer_rules.txt field table. K1 treated it as a "known column" in both, so a
+// rule_priority column in the wrong file did not produce ARC_017 (caught in the WP-2 Spec anchor pass).
 
 #[test]
 fn rule_priority_in_fare_transfer_rules_is_an_unknown_column() {
@@ -3694,19 +3694,19 @@ fn rule_priority_in_fare_leg_rules_stays_a_known_column() {
     }
 }
 
-// ── Bağlı sefer devamlılıkları: TRF_022 / TRF_023 ────────────────────────────
+// ── Linked-trip continuations: TRF_022 / TRF_023 ─────────────────────────────
 //
-// Spec (`transfers.txt` → "Linked trips") ÜÇ cümle yazar ve üçüncüsü ilk ikisini SINIRLAR:
-// devam seferlerinin `service_id`'si özdeş OLMALI, AMA bir sefer birden çok ayrı
-// devamlılığa girebilir — yeter ki takvimler hiçbir günde çakışmasın. Veride devamlılık
-// grubunu işaretleyen alan olmadığı için uygulanabilir tek okuma ikisinin bileşimidir.
-// Aşağıdaki dört test tam olarak bu sınırı çiziyor: biri ateşlemeyi, ikisi SUSMAYI kanıtlıyor.
+// The Spec (`transfers.txt` → "Linked trips") has THREE sentences, and the third LIMITS the first two:
+// continuation trips MUST have identical `service_id`, BUT one trip may belong to multiple separate
+// continuations — as long as their calendars do not overlap on any day. Since the data has no field
+// identifying a continuation group, the only implementable reading is their combination.
+// The four tests below draw exactly that boundary: one proves firing, and two prove SILENCE.
 
 static CAL_TWO_SERVICES: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
       SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
       SVC2,1,1,1,1,1,1,1,20250101,20271231\n";
-// SVC3 yalnız hafta sonu → SVC1 (hafta içi) ile HİÇBİR gün çakışmaz.
+// SVC3 is weekends only → it overlaps with SVC1 (weekdays) on NO day.
 static CAL_DISJOINT: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
       SVC1,1,1,1,1,1,0,0,20250101,20271231\n\
@@ -3736,8 +3736,8 @@ fn has(vr: &gtfs_core::ValidationResult, rule: &str) -> bool {
 
 #[test]
 fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
-    // T1 hem T2'ye (SVC1, hafta içi) hem T3'e (SVC2, her gün) bağlanıyor.
-    // Hafta içi günlerde İKİSİ birden aktif → hangi devamlılık geçerli belirsiz.
+    // T1 connects to both T2 (SVC1, weekdays) and T3 (SVC2, every day).
+    // Both are active on weekdays → which continuation applies is ambiguous.
     let files = linked_trip_files(
         CAL_TWO_SERVICES,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n",
@@ -3753,7 +3753,7 @@ fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
                     .map(|n| n.rule_id.as_str())
                     .collect::<Vec<_>>()
             );
-            // Ters yön ateşlememeli: T2 ve T3'ün her birine tek sefer bağlanıyor.
+            // The reverse direction must not fire: T2 and T3 each have only one incoming trip.
             assert!(
                 !has(&vr, "TRF_023"),
                 "n-to-1 çelişkisi yok, TRF_023 çıkmamalı"
@@ -3765,8 +3765,8 @@ fn trf022_flags_one_to_n_continuation_with_overlapping_calendars() {
 
 #[test]
 fn trf022_silent_when_continuation_trips_share_one_service_id() {
-    // GERÇEK 1-to-n ayrımı: T1 ikiye ayrılıyor ama ikisi de AYNI takvimde.
-    // Spec'in istediği tam olarak bu — kural susmalı.
+    // A REAL 1-to-n split: T1 branches to two trips, but both use the SAME calendar.
+    // This is exactly what the Spec allows — the rule must stay silent.
     let files = linked_trip_files(
         CAL_TWO_SERVICES,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\n",
@@ -3783,9 +3783,9 @@ fn trf022_silent_when_continuation_trips_share_one_service_id() {
 
 #[test]
 fn trf022_silent_when_separate_continuations_do_not_share_a_service_day() {
-    // AYRI DEVAMLILIKLAR: T1 hafta içi T2'ye, hafta sonu T3'e devam ediyor.
-    // service_id'ler FARKLI ama hiçbir gün çakışmıyor → spec bunu AÇIKÇA serbest bırakır.
-    // Bu test olmasaydı kural, spec'in iznini norm sanan `PTH_017` hatasını tekrarlardı.
+    // SEPARATE CONTINUATIONS: T1 continues to T2 on weekdays and to T3 on weekends.
+    // The service_ids are DIFFERENT but never overlap → the Spec EXPLICITLY allows this.
+    // Without this test, the rule would repeat the `PTH_017` mistake of treating Spec permission as a norm.
     let files = linked_trip_files(
         CAL_DISJOINT,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC3,T3\n",
@@ -3806,7 +3806,7 @@ fn trf022_silent_when_separate_continuations_do_not_share_a_service_day() {
 
 #[test]
 fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
-    // T2 (SVC1) ve T3 (SVC2) ikisi de T1'e bağlanıyor → gelen taraf çelişiyor.
+    // Both T2 (SVC1) and T3 (SVC2) connect to T1 → the incoming side conflicts.
     let files = linked_trip_files(
         CAL_TWO_SERVICES,
         b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n",
@@ -3831,12 +3831,12 @@ fn trf023_flags_n_to_one_continuation_with_overlapping_calendars() {
     }
 }
 
-// ── DQ_021 birincil anahtar — 2026-08-06'da eklenen üç dosya ─────────────────
+// ── DQ_021 primary key — three files added on 2026-08-06 ─────────────────────
 
 #[test]
 fn dq021_flags_calendar_dates_with_conflicting_exception_types() {
-    // Aynı (service_id, date) hem exception_type=1 hem =2 → o günün servisi TANIMSIZ.
-    // Birincil anahtar ihlalinin en ağır biçimi; hiçbir CLD_* kuralı bunu görmüyordu.
+    // The same (service_id, date) has both exception_type=1 and =2 → service on that day is UNDEFINED.
+    // The most severe form of a primary-key violation; no CLD_* rule detected it.
     static CLD: &[u8] = b"service_id,date,exception_type\nSVC1,20260701,1\nSVC1,20260701,2\n";
     let mut files = base_files();
     files.push(("calendar_dates.txt", CLD));
@@ -3908,12 +3908,12 @@ fn dq021_flags_duplicate_rows_in_stop_areas_and_fare_rules() {
     }
 }
 
-// ── PTH_031: stop_access=1 olan durak pathway uç noktası olamaz ──────────────
+// ── PTH_031: a stop with stop_access=1 cannot be a pathway endpoint ──────────
 //
 // Spec `pathways.from_stop_id`/`to_stop_id`: "Values for stop_id that identify stations
 // (location_type=1), **or stops (location_type=0 or empty) with stop_access=1**, are
-// forbidden." İkinci kol 2026-08-06'ya kadar ölçülmüyordu; katalog da göremiyordu çünkü
-// yasak KÜÇÜK harfle ("are forbidden") yazılı.
+// forbidden." The second branch was not measured until 2026-08-06; the catalog could not see it
+// either because the prohibition was written in lowercase ("are forbidden").
 
 static STOPS_WITH_ACCESS: &[u8] =
     b"stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,stop_access\n\
@@ -3949,8 +3949,8 @@ fn pth031_flags_pathway_endpoint_with_stop_access_1() {
 
 #[test]
 fn pth031_silent_when_endpoints_are_not_street_accessed() {
-    // stop_access=0 = "sokaktan doğrudan erişilemez, pathway kullanılmalı" → tam da
-    // pathway'in beklendiği hâl. Kural burada susmalı.
+    // stop_access=0 = "not directly accessible from the street; a pathway must be used" →
+    // exactly the case where a pathway is expected. The rule must be silent here.
     match run(&pathway_files(STOPS_NO_ACCESS)) {
         ValidateResult::Ok(vr) => assert!(
             !has(&vr, "PTH_031"),
@@ -3993,18 +3993,17 @@ fn stp024_k2_range_and_stp026_normative_enum_are_distinct() {
     }
 }
 
-// ── Pc3b911a6: "Dosyalar virgülle ayrılmış metin olmalı" — VARSAYIM DEĞİL, ÖLÇÜM ────
+// ── Pc3b911a6: "Files must be comma-delimited text" — MEASUREMENT, NOT ASSUMPTION ─
 //
-// Defter bu hükmü DOLAYLI sayıyordu ("ayraç virgül değilse başlık tek sütuna çöker →
-// ARC_025 fatal") ama gerekçenin yanında **[Varsayım] — bu yol ölçülmedi** yazıyordu.
-// 2026-08-06 dış denetimi haklı olarak şunu söyledi: `badge_status.py` payı
-// `KANITLI + DOLAYLI` diye hesaplıyor, yani test edilmemiş bir çıkarım "ölçülmüş"
-// sayılıyordu. Varsayımı düşürmek yerine ÖLÇÜYORUZ.
+// The ledger counted this provision as INDIRECT ("if the delimiter is not a comma, the header
+// collapses to one column → ARC_025 fatal"), but marked the rationale **[Assumption] — this path was not measured**.
+// The 2026-08-06 external review correctly pointed out that `badge_status.py` counted it as
+// `KANITLI + DOLAYLI`, so an untested inference was treated as "measured". We MEASURE it instead of dropping the assumption.
 
 #[test]
 fn semicolon_delimited_files_are_rejected_pc3b911a6() {
-    // Aynı içerik, ayraç NOKTALI VİRGÜL. Başlık tek sütuna çöker → zorunlu sütunlar
-    // bulunamaz. Beklenen: ya Fatal(NoRequiredFiles) ya da ARC_025 (zorunlu sütun eksik).
+    // Same content, with a SEMICOLON delimiter. The header collapses to one column → required
+    // columns cannot be found. Expected: either Fatal(NoRequiredFiles) or ARC_025 (required column missing).
     static SEMI_STOPS: &[u8] =
         b"stop_id;stop_name;stop_lat;stop_lon\nS1;Stop1;41.0;29.0\nS2;Stop2;41.1;29.1\n";
     let mut files = base_files();
@@ -4013,7 +4012,7 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
 
     match run(&files) {
         ValidateResult::Fatal(e) => {
-            // Zorunlu dosya sütunları çözülemedi → fatal. Hüküm ÖLÇÜLÜYOR.
+            // Required file columns could not be resolved → fatal. The provision is MEASURED.
             assert_eq!(
                 e.code,
                 FatalCode::NoRequiredFiles,
@@ -4033,9 +4032,9 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
         }
     }
 
-    // 🔴 KONTROL GİRDİSİ (issue #87). İhlalli girdi tek başına yetmez: komşu kural HER
-    // feed'de ateşliyorsa "ölçüm" bir şey kanıtlamaz. Aynı içerik VİRGÜLLE ayrılmış hâlde
-    // sessiz kalmalı — fark, hükmün gerçekten ölçüldüğünü gösteren şeydir.
+    // 🔴 CONTROL INPUT (issue #87). A violating input alone is insufficient: if a neighboring rule
+    // fires in EVERY feed, the "measurement" proves nothing. The same content with a COMMA delimiter
+    // must stay silent — the difference shows that the provision is genuinely measured.
     match run(&base_files()) {
         ValidateResult::Ok(vr) => assert!(
             !has(&vr, "ARC_025"),
@@ -4045,16 +4044,16 @@ fn semicolon_delimited_files_are_rejected_pc3b911a6() {
     }
 }
 
-// ── Pd59e5eaa: ilk satır ALAN ADLARINI içermeli (issue #87 kanıt çifti) ────────
+// ── Pd59e5eaa: the first row must contain FIELD NAMES (issue #87 evidence pair) ─
 //
-// Defter bu hükmü DOLAYLI sayıyordu ("başlık yerine veri satırı varsa ARC_025 + ARC_019 +
-// ARC_017 birlikte ateşler") ama bu bir KOD OKUMASIYDI, ölçüm değil. #87 haklı: pay
-// `KANITLI + DOLAYLI` diye hesaplanıyor, yani ölçülmemiş bir çıkarım sayılıyordu.
+// The ledger counted this provision as INDIRECT ("if a data row appears instead of a header,
+// ARC_025 + ARC_019 + ARC_017 fire together"), but that was a CODE READING, not a measurement.
+// #87 was right: it was counted as `KANITLI + DOLAYLI`, i.e. an unmeasured inference.
 
 #[test]
 fn first_line_must_be_a_header_pd59e5eaa() {
-    // İHLAL: başlık satırı yok — dosya doğrudan veriyle başlıyor. O zaman ilk VERİ satırı
-    // başlık sanılır, zorunlu sütun adları bulunamaz.
+    // VIOLATION: no header row — the file starts directly with data. The first DATA row is
+    // then treated as the header, so required column names cannot be found.
     static NO_HEADER: &[u8] = b"S1,Stop1,41.0,29.0
 S2,Stop2,41.1,29.1
 ";
@@ -4073,7 +4072,7 @@ S2,Stop2,41.1,29.1
         "başlıksız dosya zorunlu sütun ihlali üretmeli"
     );
 
-    // KONTROL: aynı veri, başlık satırıyla → sessiz.
+    // CONTROL: the same data with a header row → silent.
     match run(&base_files()) {
         ValidateResult::Ok(vr) => assert!(
             !has(&vr, "ARC_025"),
@@ -4083,15 +4082,15 @@ S2,Stop2,41.1,29.1
     }
 }
 
-// ── LOC_011: OpenGIS SFS 6.1.11 poligon geçerliliği — genişletilmiş maddeler ────────
+// ── LOC_011: OpenGIS SFS 6.1.11 polygon validity — extended clauses ───────────
 //
-// 2026-08-06 dış denetimi `LOC_011`'in kartında yazılı dört boşluğu gösterdi. Üçü
-// kapatıldı (delik-delik kesişimi · deliğin KISMEN dışarı taşması · spike/cut line);
-// dördüncüsü (ring yönü) ölçülmüyor çünkü **6.1.11 yönelim şart koşmuyor** — o GeoJSON
-// RFC 7946'nın serileştirme kuralıdır ve onu ihlal saymak yanlış pozitif üretirdi.
+// The 2026-08-06 external review identified four gaps written on the `LOC_011` card. Three
+// were closed (hole-hole intersection · hole PARTIALLY outside · spike/cut line); the fourth
+// (ring orientation) is not measured because **6.1.11 does not require orientation** — that is
+// a GeoJSON RFC 7946 serialization rule, and treating it as a violation would create false positives.
 
-/// Tek feature'lık `locations.geojson` kurar; geometri gövdesi test başına verilir.
-/// `Box::leak`: `run()` `&'static [u8]` bekliyor, test başına tek küçük sızıntı kabul.
+/// Builds a one-feature `locations.geojson`; the geometry body is supplied per test.
+/// `Box::leak`: `run()` expects `&'static [u8]`; one small leak per test is acceptable.
 fn loc011_feed(geometry: &str) -> Vec<(&'static str, &'static [u8])> {
     let doc: &'static [u8] = Box::leak(
         format!(
@@ -4113,7 +4112,7 @@ fn loc011_fires(geometry: &str) -> bool {
 
 #[test]
 fn loc011_flags_holes_that_intersect_each_other() {
-    // İki delik üst üste biniyor → 6.1.11 (3) "no two Rings cross".
+    // Two holes overlap → 6.1.11 (3) "no two Rings cross".
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4127,8 +4126,8 @@ fn loc011_flags_holes_that_intersect_each_other() {
 
 #[test]
 fn loc011_flags_hole_partially_outside_the_shell() {
-    // Deliğin İLK NOKTASI kabuğun içinde ama gövdesi dışarı taşıyor. Eski predikat
-    // yalnız ilk noktaya baktığı için bunu KAÇIRIYORDU.
+    // The hole's FIRST POINT is inside the shell, but its body extends outside. The old predicate
+    // MISSED this because it looked only at the first point.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4141,7 +4140,7 @@ fn loc011_flags_hole_partially_outside_the_shell() {
 
 #[test]
 fn loc011_flags_spike() {
-    // Kabuk bir doğru boyunca çıkıp aynı doğrudan dönüyor → sıfır alanlı çıkıntı.
+    // The shell leaves along a straight line and returns along the same line → zero-area spike.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4153,7 +4152,7 @@ fn loc011_flags_spike() {
 
 #[test]
 fn loc011_silent_on_valid_polygon_with_hole() {
-    // Tamamen geçerli: delik kabuğun içinde, kesişme yok, spike yok.
+    // Fully valid: the hole is inside the shell, with no intersection and no spike.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4166,8 +4165,8 @@ fn loc011_silent_on_valid_polygon_with_hole() {
 
 #[test]
 fn loc011_silent_on_clockwise_shell() {
-    // ⚠️ EN ÖNEMLİ TEST: ring yönü 6.1.11'in geçerlilik koşulu DEĞİLDİR. Saat yönünde
-    // yazılmış kabuk GEÇERLİDİR; burada ateşlemek `PTH_017` hatasını tekrarlamak olurdu.
+    // ⚠️ MOST IMPORTANT TEST: ring orientation is NOT a 6.1.11 validity condition. A clockwise
+    // shell is VALID; firing here would repeat the `PTH_017` mistake.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4177,10 +4176,10 @@ fn loc011_silent_on_clockwise_shell() {
     );
 }
 
-// ── STM_060: geojson bölgesi + pencere + davranış EŞZAMANLI örtüşmesi ──────────────
+// ── STM_060: simultaneous overlap of GeoJSON zone + window + behavior ─────────
 //
-// Hüküm ÜÇ koşulun BİRLİKTE sağlanmasını yasaklar. Testlerin çoğu bilerek NEGATİF:
-// koşullardan biri düşerse kural SUSMALI, yoksa Flex feed'lerinde yanlış pozitif üretir.
+// The provision forbids satisfying all THREE conditions TOGETHER. Most tests are deliberately NEGATIVE:
+// if one condition is absent, the rule must stay SILENT, or Flex feeds produce false positives.
 
 fn flex_overlap_feed(
     geojson: &'static [u8],
@@ -4193,7 +4192,7 @@ fn flex_overlap_feed(
     files
 }
 
-// İki bölge: Z1 ve Z2 ÜST ÜSTE biniyor; Z3 tamamen ayrı.
+// Two zones: Z1 and Z2 OVERLAP; Z3 is completely separate.
 static ZONES: &[u8] = br#"{"type":"FeatureCollection","features":[
   {"type":"Feature","id":"Z1","properties":{},"geometry":{"type":"Polygon","coordinates":
     [[[0,0],[0,10],[10,10],[10,0],[0,0]]]}},
@@ -4211,7 +4210,7 @@ fn stm060_fires(stop_times: &'static [u8]) -> bool {
 
 #[test]
 fn stm060_flags_overlapping_zone_window_and_behaviour() {
-    // Z1∩Z2 uzayda kesişiyor · 08:00-10:00 ile 09:00-11:00 zamanda kesişiyor · ikisi de biniş.
+    // Z1∩Z2 intersect in space · 08:00-10:00 and 09:00-11:00 intersect in time · both allow pickup.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,09:00:00,11:00:00,2,2\n";
     assert!(stm060_fires(ST), "üç koşul da sağlanıyor → STM_060 çıkmalı");
@@ -4219,7 +4218,7 @@ fn stm060_flags_overlapping_zone_window_and_behaviour() {
 
 #[test]
 fn stm060_silent_when_zones_are_spatially_disjoint() {
-    // Z1 ve Z3 hiç kesişmiyor → hüküm ihlal edilmiyor.
+    // Z1 and Z3 never intersect → the provision is not violated.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z3,2,09:00:00,11:00:00,2,2\n";
     assert!(!stm060_fires(ST), "ayrık bölgelerde STM_060 çıkmamalı");
@@ -4227,7 +4226,7 @@ fn stm060_silent_when_zones_are_spatially_disjoint() {
 
 #[test]
 fn stm060_silent_when_time_windows_do_not_overlap() {
-    // Bölgeler kesişiyor ama pencereler ardışık, çakışmıyor.
+    // The zones intersect, but the windows are consecutive and do not overlap.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT1,Z2,2,10:00:00,12:00:00,2,2\n";
     assert!(
@@ -4238,8 +4237,8 @@ fn stm060_silent_when_time_windows_do_not_overlap() {
 
 #[test]
 fn stm060_silent_when_behaviour_does_not_overlap() {
-    // Bölge ve zaman çakışıyor ama biri YALNIZ biniş, diğeri YALNIZ iniş sunuyor.
-    // pickup_type=1 → biniş yok · drop_off_type=1 → iniş yok.
+    // The zone and time overlap, but one allows ONLY pickup and the other ONLY drop-off.
+    // pickup_type=1 → no pickup · drop_off_type=1 → no drop-off.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,1\nT1,Z2,2,09:00:00,11:00:00,1,2\n";
     assert!(
@@ -4250,7 +4249,7 @@ fn stm060_silent_when_behaviour_does_not_overlap() {
 
 #[test]
 fn stm060_silent_across_different_trips() {
-    // Hüküm AYNI trip_id içindeki kayıtlar için. Farklı seferler serbesttir.
+    // The provision applies to records with the SAME trip_id. Different trips are allowed.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,08:00:00,10:00:00,2,2\nT2,Z2,1,09:00:00,11:00:00,2,2\n";
     assert!(!stm060_fires(ST), "farklı trip'lerde STM_060 çıkmamalı");
@@ -4258,15 +4257,15 @@ fn stm060_silent_across_different_trips() {
 
 #[test]
 fn stm060_silent_for_two_records_in_the_same_zone() {
-    // 🔴 EN ÖNEMLİ NEGATİF TEST. Spec'in KENDİSİ bunu zorunlu kılıyor:
+    // 🔴 MOST IMPORTANT NEGATIVE TEST. The Spec ITSELF requires this:
     // *"Travel within the same location group or GeoJSON location requires two records in
     // stop_times.txt with the same location_group_id or location_id."*
-    // Aynı bölgeye ait iki kayıt bölge-İÇİ seyahatin tek ifade biçimidir.
+    // Two records for the same zone are the only representation of travel WITHIN that zone.
     //
-    // İlk uygulamam bunu ihlal sayıyordu ve `ch-odv-flex`/`mdb-2053`'te **21 yanlış pozitif**
-    // üretti; MobilityData aynı kuralı (`overlapping_zone_and_pickup_drop_off_window`)
-    // uyguladığı hâlde o feed'de SUSUYOR. Spec'in bir yerde zorunlu kıldığını başka yerde
-    // yasak saymak `PTH_017` hatasının aynısıdır.
+    // My first implementation treated this as a violation and produced **21 false positives**
+    // in `ch-odv-flex`/`mdb-2053`; MobilityData applies the same rule
+    // (`overlapping_zone_and_pickup_drop_off_window`) yet stays SILENT on that feed.
+    // Treating something the Spec requires in one place as forbidden elsewhere repeats the `PTH_017` mistake.
     static ST: &[u8] = b"trip_id,location_id,stop_sequence,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\n\
         T1,Z1,1,07:00:00,11:00:00,2,2\nT1,Z1,2,07:00:00,11:00:00,2,2\n";
     assert!(
@@ -4277,9 +4276,9 @@ fn stm060_silent_for_two_records_in_the_same_zone() {
 
 #[test]
 fn loc011_flags_hole_touching_shell_at_two_points() {
-    // OpenGIS 6.1.11 madde 5: iç kısım BAĞLANTILI olmalı. Delik dış ring'e İKİ noktada
-    // dokunursa poligonun içi o temaslar arasında ikiye bölünür.
-    // ⚠️ Madde 3 TEK noktada teğetliğe izin verir → aşağıdaki negatif test onu korur.
+    // OpenGIS 6.1.11 clause 5: the interior must be CONNECTED. If a hole touches the outer ring
+    // at TWO points, the polygon interior is split between those contacts.
+    // ⚠️ Clause 3 allows tangency at ONE point → the negative test below protects that case.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4292,8 +4291,8 @@ fn loc011_flags_hole_touching_shell_at_two_points() {
 
 #[test]
 fn loc011_silent_when_hole_touches_shell_at_one_point() {
-    // Tek noktada teğetlik 6.1.11'in AÇIKÇA izin verdiği hâldir. Burada ateşlemek
-    // `PTH_017` hatasını tekrarlamak olurdu.
+    // Tangency at one point is EXPLICITLY allowed by 6.1.11. Firing here would repeat
+    // the `PTH_017` mistake.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4317,22 +4316,21 @@ fn loc011_flags_two_holes_touching_at_two_points() {
     );
 }
 
-// ── ARC_022: dosya satır sayısı eşiği — ÜÇ emit noktası ───────────────────────
+// ── ARC_022: file row-count threshold — THREE emit sites ──────────────────────
 //
-// Issue #71. Eşik 2026-08-07'ye kadar üç yerde SABİT KODLUYDU (`k1_parse`, `k2::shapes`,
-// `k2::stop_times`) ve K1'in `parse()`'ı `ValidatorConfig` almadığı için kurala fixture
-// yazılamıyordu — borç defteri bunu "1M satır gerektirir, inline yazılamaz" diye
-// kaydetmişti. Doğru gerekçe "imza config almıyor" idi; imza değişti.
+// Issue #71. Until 2026-08-07 the threshold was HARDCODED in three places (`k1_parse`,
+// `k2::shapes`, `k2::stop_times`), and the rule could not have a fixture because K1's
+// `parse()` accepted no `ValidatorConfig` — the ledger recorded "requires 1M rows, cannot be inline".
+// The correct reason was "the signature does not accept config"; the signature changed.
 //
-// ⚠️ Fixture (emit_proof) kuralın YALNIZ K1 yolunu kanıtlar. Üç emit noktasının üçü de
-// aynı config alanını okumalı; burada üçü ayrı ayrı ölçülür, ayrıca eşiğe EŞİT satır
-// sayısında sustuğu (sınır davranışı) doğrulanır.
+// ⚠️ The fixture (emit_proof) proves ONLY the K1 path. All three emit sites must read
+// the same config field; here all three are measured separately, and silence at a row
+// count EQUAL to the threshold (boundary behavior) is also verified.
 //
-// ⚠️ BİLİNEN BOŞLUK (bu turda KAPATILMADI): `trips.txt` ve `calendar_dates.txt` K1'de
-// stream edilir (`rows` boş kalır) ve K2'de ARC_022 emit noktaları YOKTUR → bu iki dosya
-// kaç satır olursa olsun kural susar. Kapatmak yeni bulgular üretir (8M satırlık
-// calendar_dates taşıyan feed'ler var), yani davranış değişikliğidir; #71'in kapsamı
-// kanıttır, kapsam genişletmesi değil.
+// ⚠️ KNOWN GAP (NOT CLOSED in this round): `trips.txt` and `calendar_dates.txt` are streamed
+// in K1 (`rows` stays empty), and K2 has NO ARC_022 emit sites → the rule stays silent for
+// any row count in these two files. Closing it would produce new findings (feeds with 8M-row
+// calendar_dates exist), so it is a behavior change; #71's scope is evidence, not scope expansion.
 
 fn arc022_rows(file: &str, n: usize) -> String {
     let mut s = String::new();
@@ -4372,8 +4370,8 @@ fn arc022_rows(file: &str, n: usize) -> String {
     s
 }
 
-/// `file` dosyasını `n` satırla kurup ARC_022'nin O DOSYA için çıkıp çıkmadığını döner.
-/// Eşik `max_file_rows = 10` (config alt sınırı) — 1M satırlık zip üretmeye gerek yok.
+/// Builds `file` with `n` rows and returns whether ARC_022 fires for THAT FILE.
+/// Threshold `max_file_rows = 10` (config lower bound) — no need to build a 1M-row ZIP.
 fn arc022_fires_for(file: &str, n: usize) -> bool {
     let body = arc022_rows(file, n);
     let mut files = base_files();
@@ -4400,7 +4398,7 @@ fn arc022_fires_for(file: &str, n: usize) -> bool {
 
 #[test]
 fn arc022_fires_on_k1_non_streamed_file() {
-    // stops.txt akış-dışı okunur → eşik k1_parse'ta okunur.
+    // stops.txt is read outside the stream path → the threshold is read in k1_parse.
     assert!(
         arc022_fires_for("stops.txt", 11),
         "11 satır > eşik 10 → stops.txt için ARC_022 çıkmalı"
@@ -4409,7 +4407,7 @@ fn arc022_fires_on_k1_non_streamed_file() {
 
 #[test]
 fn arc022_fires_on_k2_stop_times_stream() {
-    // stop_times.txt K1'de stream edilir; ARC_022'yi K2 üretir (rows K1'de boştur).
+    // stop_times.txt is streamed in K1; K2 emits ARC_022 (rows is empty in K1).
     assert!(
         arc022_fires_for("stop_times.txt", 11),
         "11 satır > eşik 10 → stop_times.txt için ARC_022 çıkmalı"
@@ -4424,10 +4422,10 @@ fn arc022_fires_on_k2_shapes_stream() {
     );
 }
 
-// ── issue #75: akış dosyalarının KALAN İKİSİ ────────────────────────────────
-// `trips.txt` ve `calendar_dates.txt` de K1'de stream edilir ama K2'de emit noktaları
-// YOKTU → kural onlarda kaç satır olursa olsun susuyordu. Denetim artık `k2/mod.rs`'te
-// TEK geçişte; bu iki test o geçişin kapsadığını sabitler.
+// ── issue #75: the remaining TWO stream files ─────────────────────────────────
+// `trips.txt` and `calendar_dates.txt` are also streamed in K1, but they had NO emit sites
+// in K2 → the rule stayed silent for any row count in those files. The check is now in one
+// PASS in `k2/mod.rs`; these two tests lock in that coverage.
 
 #[test]
 fn arc022_fires_on_k2_trips_stream() {
@@ -4447,7 +4445,7 @@ fn arc022_fires_on_k2_calendar_dates_stream() {
 
 #[test]
 fn arc022_silent_at_the_threshold_on_every_path() {
-    // Sınır: eşiğe EŞİT satır sayısı ihlal DEĞİLDİR (`>` karşılaştırması).
+    // Boundary: a row count EQUAL to the threshold is NOT a violation (`>` comparison).
     for file in [
         "stops.txt",
         "stop_times.txt",
@@ -4464,11 +4462,11 @@ fn arc022_silent_at_the_threshold_on_every_path() {
 
 #[test]
 fn arc022_notice_order_is_stable_across_runs() {
-    // ⚠️ Bu test K2'deki sıralamanın bekçisi DEĞİLDİR — 2026-08-07'de ölçüldü: alfabetik
-    // çıktıyı asıl K7 garanti ediyor (`notice_order_key` ARC_022'yi `entity_id`'ye göre
-    // sıralar), K2'deki `sort` kaldırılınca da bu test geçiyordu. O sıralamayı denetleyen
+    // ⚠️ This test is NOT the guard for K2 ordering — measured on 2026-08-07: K7 itself guarantees
+    // alphabetical output (`notice_order_key` sorts ARC_022 by `entity_id`); this test still passed
+    // when K2's `sort` was removed. The unit test that checks that ordering is
     // birim testi `k2/mod.rs::files_over_row_limit_is_alphabetical_and_strict`.
-    // Buradaki iddia daha dar ama gerçek: uçtan uca çıktı sırası KARARLI ve alfabetik.
+    // The claim here is narrower but real: end-to-end output order is STABLE and alphabetical.
     let mut files = base_files();
     for name in ["shapes.txt", "trips.txt", "calendar_dates.txt"] {
         let body = Box::leak(arc022_rows(name, 11).into_bytes().into_boxed_slice());
