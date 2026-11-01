@@ -267,7 +267,7 @@ def cmd_fetch(args):
             failed += 1
             note(args.dir, "fetch_skipped.csv", [row["id"], "error", str(e)[:120]])
             print(f"[{i}/{len(plan)}] {row['id']:12} HATA: {str(e)[:70]}")
-    time.sleep(args.delay)  # be gentle: shared infrastructure
+        time.sleep(args.delay)  # be gentle: shared infrastructure
 
     print(f"\nindi={ok} zaten-vardı={skipped} başarısız={failed}")
     print(f"sonraki: python3 notgit/corpus_batch.py validate --dir {args.dir} --today YYYYMMDD")
