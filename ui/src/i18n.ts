@@ -134,10 +134,11 @@ export function tMsgForLocale(locale: Locale, n: NoticeLike): string {
  * yoksa İngilizcesi, o da yoksa pipeline'ın kendi (Türkçe) metni.
  */
 export function tFatal(error: FatalError, locale: Locale = _locale): string {
-  if (locale === 'tr' || !error.params) return error.message;
+  if (!error.params) return error.message;
   const variant = error.params.variant;
   const key = variant ? `${error.code}.${variant}` : error.code;
-  const tpl = LOCALES[locale].fatalMessages[key] ?? LOCALES.en.fatalMessages[key];
+  const tpl = LOCALES[locale].fatalMessages[key]
+    ?? (locale === 'tr' ? undefined : LOCALES.en.fatalMessages[key]);
   if (!tpl) return error.message;
   const params = error.params;
   return tpl.replace(/\{(\w+)\}/g, (_, k) => params[k] ?? '');

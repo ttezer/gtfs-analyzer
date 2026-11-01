@@ -2007,7 +2007,7 @@ pub fn parse_with_limits(
     let root_prefix = detect_wrapped_root(&entry_names);
     if let Some(prefix) = &root_prefix {
         partial.mark_root_error(format!(
-            "GTFS dosyaları ZIP kökünde değil; kök öneki '{prefix}'"
+            "GTFS files are not at the ZIP root; root prefix is '{prefix}'"
         ));
     }
     if root_prefix.is_none()
@@ -2019,7 +2019,7 @@ pub fn parse_with_limits(
         })
     {
         partial.mark_root_error(
-            "GTFS .txt dosyaları birden fazla/derin alt dizinde bulundu; kök keşfi güvenli değil",
+            "GTFS .txt files were found in multiple/deep subdirectories; root discovery is unsafe",
         );
     }
     // 🔴 "FILE EXISTS" and "FILE CARRIES DATA" are separate questions, and suppression must
@@ -4323,7 +4323,7 @@ mod tests {
             .partial
             .root_structural_errors
             .iter()
-            .any(|e| e.contains("alt dizin")));
+            .any(|e| e.contains("multiple/deep subdirectories")));
         assert_eq!(result.partial.unavailable_files.len(), REQUIRED_FILES.len());
     }
 

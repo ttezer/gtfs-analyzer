@@ -2610,8 +2610,9 @@ const tr = {
     InvalidInput   : 'Geçersiz girdi',
   },
 
-  // Türkçe: pipeline'ın kendi fatal metni; şablon gerekmez.
-  fatalMessages: {} as Record<string, string>,
+  fatalMessages: {
+    'InvalidInput.config_parse': "Config ayrıştırma hatası: {detail}",
+  } as Record<string, string>,
 
   ruleMessages: {} as Record<string, string>,
 

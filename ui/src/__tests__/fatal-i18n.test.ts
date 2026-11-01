@@ -22,4 +22,19 @@ describe('tFatal', () => {
     expect(tFatal({ ...zip, params: { variant: 'no_such_variant' } }, 'en')).toBe(zip.message);
     expect(tFatal({ code: 'ZipUnreadable', message: 'eski' }, 'en')).toBe('eski');
   });
+
+  it('translates a worker-side config parse error in all locales', () => {
+    const config: FatalError = {
+      code: 'InvalidInput',
+      message: 'Unexpected end of JSON input',
+      params: {
+        variant: 'config_parse',
+        detail: 'Unexpected end of JSON input',
+      },
+    };
+    expect(tFatal(config, 'en')).toBe('Config parse error: Unexpected end of JSON input');
+    expect(tFatal(config, 'fr')).toBe("Erreur d’analyse de la configuration : Unexpected end of JSON input");
+    expect(tFatal(config, 'ja')).toBe('設定の解析エラー：Unexpected end of JSON input');
+    expect(tFatal(config, 'tr')).toBe('Config ayrıştırma hatası: Unexpected end of JSON input');
+  });
 });

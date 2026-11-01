@@ -340,7 +340,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
         ($field:expr, $name:literal, $lo:expr, $hi:expr) => {
             if $field < $lo || $field > $hi {
                 return Err(format!(
-                    "'{}' aralık dışı: {} (beklenen {}-{})",
+                    "'{}' out of range: {} (expected {}-{})",
                     $name, $field, $lo, $hi
                 ));
             }
@@ -350,7 +350,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
         ($field:expr, $name:literal, $lo:expr, $hi:expr) => {
             if $field < $lo || $field > $hi {
                 return Err(format!(
-                    "'{}' aralık dışı: {} (beklenen {}-{})",
+                    "'{}' out of range: {} (expected {}-{})",
                     $name, $field, $lo, $hi
                 ));
             }
@@ -475,7 +475,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
     // the upper bound.
     if cfg.service_day_start_hour > 6 {
         return Err(format!(
-            "'{}' aralık dışı: {} (beklenen {}-{})",
+            "'{}' out of range: {} (expected {}-{})",
             "service_day_start_hour", cfg.service_day_start_hour, 0, 6
         ));
     }
@@ -496,7 +496,7 @@ fn validate_ranges(cfg: &ValidatorConfig) -> Result<(), String> {
 /// - A numeric type mismatch (a string where f64 is required, etc.) returns `Err`.
 pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<ValidatorConfig, String> {
     let map: serde_json::Map<String, serde_json::Value> =
-        serde_json::from_str(delta_json).map_err(|e| format!("JSON parse hatası: {e}"))?;
+        serde_json::from_str(delta_json).map_err(|e| format!("JSON parse error: {e}"))?;
 
     // Collect unknown keys first — nothing is applied if the result is Err.
     let unknown: Vec<&str> = map
@@ -505,18 +505,15 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         .map(String::as_str)
         .collect();
     if !unknown.is_empty() {
-        return Err(format!(
-            "Bilinmeyen config anahtarları: {}",
-            unknown.join(", ")
-        ));
+        return Err(format!("Unknown config keys: {}", unknown.join(", ")));
     }
 
     let mut cfg = base.clone();
 
     if let Some(v) = map.get("stop_name_best_practices") {
-        cfg.stop_name_best_practices = v.as_bool().ok_or_else(|| {
-            format!("'stop_name_best_practices' için bool bekleniyor, alınan: {v}")
-        })?;
+        cfg.stop_name_best_practices = v
+            .as_bool()
+            .ok_or_else(|| format!("'stop_name_best_practices' expects a bool, got: {v}"))?;
     }
     if let Some(v) = map.get("source_url") {
         cfg.source_url = if v.is_null() {
@@ -524,9 +521,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         } else {
             Some(
                 v.as_str()
-                    .ok_or_else(|| {
-                        format!("'source_url' için string veya null bekleniyor, alınan: {v}")
-                    })?
+                    .ok_or_else(|| format!("'source_url' expects a string or null, got: {v}"))?
                     .trim()
                     .to_string(),
             )
@@ -538,7 +533,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
 
     if let Some(v) = map.get("gtfs_jp_profile") {
         cfg.gtfs_jp_profile = serde_json::from_value(v.clone()).map_err(|e| {
-            format!("'gtfs_jp_profile' parse hatası (auto, v3 veya v4 bekleniyor): {e}")
+            format!("'gtfs_jp_profile' parse error (expected auto, v3, or v4): {e}")
         })?;
     }
 
@@ -547,7 +542,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             if let Some(v) = map.get($key) {
                 $field = v
                     .as_f64()
-                    .ok_or_else(|| format!("'{}' için f64 bekleniyor, alınan: {v}", $key))?;
+                    .ok_or_else(|| format!("'{}' expects f64, got: {v}", $key))?;
             }
         };
     }
@@ -556,9 +551,9 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             if let Some(v) = map.get($key) {
                 let n = v
                     .as_u64()
-                    .ok_or_else(|| format!("'{}' için u32 bekleniyor, alınan: {v}", $key))?;
+                    .ok_or_else(|| format!("'{}' expects u32, got: {v}", $key))?;
                 $field = u32::try_from(n)
-                    .map_err(|_| format!("'{}' değeri u32 sınırını aşıyor: {n}", $key))?;
+                    .map_err(|_| format!("'{}' exceeds the u32 limit: {n}", $key))?;
             }
         };
     }
@@ -610,35 +605,37 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
 
     if let Some(v) = map.get("rural_route_ids") {
         cfg.rural_route_ids = serde_json::from_value(v.clone())
-            .map_err(|e| format!("'rural_route_ids' parse hatası: {e}"))?;
+            .map_err(|e| format!("'rural_route_ids' parse error: {e}"))?;
     }
 
     if let Some(v) = map.get("calendar_override_rules") {
         cfg.calendar_override_rules = serde_json::from_value(v.clone())
-            .map_err(|e| format!("'calendar_override_rules' parse hatası: {e}"))?;
+            .map_err(|e| format!("'calendar_override_rules' parse error: {e}"))?;
         for (i, rule) in cfg.calendar_override_rules.iter().enumerate() {
             if rule.route_id.is_empty() {
-                return Err(format!("calendar_override_rules[{i}]: route_id boş olamaz"));
+                return Err(format!(
+                    "calendar_override_rules[{i}]: route_id must not be empty"
+                ));
             }
             if rule.base_service_ids.is_empty() {
                 return Err(format!(
-                    "calendar_override_rules[{i}]: base_service_ids boş olamaz"
+                    "calendar_override_rules[{i}]: base_service_ids must not be empty"
                 ));
             }
             if rule.override_service_ids.is_empty() {
                 return Err(format!(
-                    "calendar_override_rules[{i}]: override_service_ids boş olamaz"
+                    "calendar_override_rules[{i}]: override_service_ids must not be empty"
                 ));
             }
             if !valid_yyyymmdd(rule.start_date) {
                 return Err(format!(
-                    "calendar_override_rules[{i}]: start_date '{}' geçerli takvim tarihi değil (YYYYMMDD, 2000-2099)",
+                    "calendar_override_rules[{i}]: start_date '{}' is not a valid calendar date (YYYYMMDD, 2000-2099)",
                     rule.start_date
                 ));
             }
             if !valid_yyyymmdd(rule.end_date) {
                 return Err(format!(
-                    "calendar_override_rules[{i}]: end_date '{}' geçerli takvim tarihi değil (YYYYMMDD, 2000-2099)",
+                    "calendar_override_rules[{i}]: end_date '{}' is not a valid calendar date (YYYYMMDD, 2000-2099)",
                     rule.end_date
                 ));
             }
@@ -654,11 +651,11 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     for key in ["disabled_rule_ids", "disabled_rule_ids_gtfs_jp"] {
         let Some(v) = map.get(key) else { continue };
         let mut ids: Vec<String> = serde_json::from_value(v.clone())
-            .map_err(|e| format!("'{key}' parse hatası: {e}"))?;
+            .map_err(|e| format!("'{key}' parse error: {e}"))?;
         for (i, rule_id) in ids.iter_mut().enumerate() {
             *rule_id = rule_id.trim().to_string();
             if rule_id.is_empty() {
-                return Err(format!("{key}[{i}] boş olamaz"));
+                return Err(format!("{key}[{i}] must not be empty"));
             }
         }
         ids.sort_unstable();
@@ -672,13 +669,13 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
 
     if cfg.rural_route_ids.len() > MAX_RURAL_ROUTE_IDS {
         return Err(format!(
-            "'rural_route_ids' {} öğelik güvenlik sınırını aşıyor",
+            "'rural_route_ids' exceeds the {}-item safety limit",
             MAX_RURAL_ROUTE_IDS
         ));
     }
     if cfg.calendar_override_rules.len() > MAX_CALENDAR_OVERRIDE_RULES {
         return Err(format!(
-            "'calendar_override_rules' {} öğelik güvenlik sınırını aşıyor",
+            "'calendar_override_rules' exceeds the {}-item safety limit",
             MAX_CALENDAR_OVERRIDE_RULES
         ));
     }
@@ -688,7 +685,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
     ] {
         if ids.len() > MAX_DISABLED_RULE_IDS {
             return Err(format!(
-                "'{key}' {} öğelik güvenlik sınırını aşıyor",
+                "'{key}' exceeds the {}-item safety limit",
                 MAX_DISABLED_RULE_IDS
             ));
         }
@@ -707,7 +704,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         .sum();
     if total_config_string_bytes > MAX_CONFIG_STRING_BYTES {
         return Err(format!(
-            "config string alanları {} baytlık güvenlik sınırını aşıyor",
+            "config string fields exceed the {}-byte safety limit",
             MAX_CONFIG_STRING_BYTES
         ));
     }
@@ -716,7 +713,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             || rule.override_service_ids.len() > MAX_OVERRIDE_SERVICE_IDS_PER_RULE
         {
             return Err(format!(
-                "calendar_override_rules[{i}] servis listesi {} öğelik güvenlik sınırını aşıyor",
+                "calendar_override_rules[{i}] service list exceeds the {}-item safety limit",
                 MAX_OVERRIDE_SERVICE_IDS_PER_RULE
             ));
         }
@@ -815,6 +812,7 @@ mod tests {
         let base = ValidatorConfig::default();
         let err = merge_delta(&base, r#"{"unknown_param": 42}"#)
             .expect_err("an unknown key should return Err");
+        assert_eq!(err, "Unknown config keys: unknown_param");
         assert!(
             err.contains("unknown_param"),
             "the error message should contain the key name: {err}"
@@ -859,6 +857,10 @@ mod tests {
         // max_speed_bus_kmh lower bound = 60
         let err = merge_delta(&base, r#"{"max_speed_bus_kmh": 59.9}"#)
             .expect_err("below the lower bound should return Err");
+        assert_eq!(
+            err,
+            "'max_speed_bus_kmh' out of range: 59.9 (expected 60-200)"
+        );
         assert!(err.contains("max_speed_bus_kmh"), "{err}");
 
         // bunching_threshold_min lower bound = 1

@@ -127,12 +127,14 @@ function parseConfigDelta(configDelta: string): Record<string, unknown> | undefi
   if (!configDelta || configDelta === '{}') return undefined;
   try {
     const parsed: unknown = JSON.parse(configDelta);
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Config nesne olmalı.');
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error("Config must be an object.");
     return parsed as Record<string, unknown>;
   } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error);
     throw {
       code: 'InvalidInput',
-      message: `Config parse hatası: ${error instanceof Error ? error.message : String(error)}`,
+      message: detail,
+      params: { variant: 'config_parse', detail },
     } satisfies FatalError;
   }
 }
