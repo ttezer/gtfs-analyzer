@@ -515,7 +515,7 @@ def main():
     by_code = Counter((r[10], r[1]) for r in unexplained)
 
     with open(os.path.join(base, "parity_summary.md"), "w", encoding="utf-8") as f:
-        f.write("# MD-parite agregat\n\n")
+        f.write("# MD parity aggregate\n\n")
         f.write("## 🎯 Unexplained delta (review queue)\n\n")
         f.write(f"- Total rows: **{len(rows)}** · MATCH: **{sum(1 for r in rows if r[10]=='MATCH')}** "
                 f"· AGG: **{sum(1 for r in rows if r[10]=='AGG')}** "
@@ -527,8 +527,8 @@ def main():
         f.write("| status | md_code | rows |\n|---|---|--:|\n")
         for (st, code), n in by_code.most_common(25):
             f.write(f"| {st} | {code} | {n} |\n")
-        f.write("\n## Feed durumu\n\n")
-        f.write("| feed | durum | skor | | \n|---|---|---|---|\n")
+        f.write("\n## Feed status\n\n")
+        f.write("| feed | status | score | | \n|---|---|---|---|\n")
         for m in feed_meta:
             f.write(f"| {m[0]} | {m[1]} | {m[2]} | {m[3]} |\n")
         f.write("\n## Code aggregate (by divergence magnitude)\n\n")
