@@ -15,15 +15,15 @@ fn validate(
     include_name_index: bool,
     lang: &str,
 ) -> PyResult<String> {
-    // Dil, doğrulamadan ÖNCE denetlenir: geçersiz bir kod feed işlendikten sonra değil,
-    // hemen ValueError olmalı.
+    // The language is validated BEFORE validation: an invalid code must produce
+    // ValueError immediately, not after the feed has been processed.
     let lang: Lang = lang.parse().map_err(PyValueError::new_err)?;
     let translator = Translator::new(lang).map_err(PyRuntimeError::new_err)?;
     let config =
         merge_delta(&ValidatorConfig::default(), config_json).map_err(PyValueError::new_err)?;
     let mut result = validate_bytes(feed, &config, today);
 
-    // CLI ile aynı çeviri (crates/cli/src/main.rs): title/message/remediation ve fatal.
+    // Use the same translation as the CLI (crates/cli/src/main.rs): title/message/remediation and fatal.
     if let Some(translator) = &translator {
         match &mut result {
             ValidateResult::Ok(validation) => {
@@ -51,7 +51,8 @@ fn gtfs_analyzer(m: &Bound<'_, PyModule>) -> PyResult<()> {
         std::env::set_var("GTFS_QUIET", "1");
     }
     m.add_function(wrap_pyfunction!(validate, m)?)?;
-    // CARGO_PKG_VERSION = kök Cargo.toml [workspace.package] version; `__init__.py` buradan okur.
+    // CARGO_PKG_VERSION is the [workspace.package] version in the root Cargo.toml;
+    // `__init__.py` reads it from here.
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
