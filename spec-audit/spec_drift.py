@@ -109,17 +109,17 @@ def fetch(url: str) -> str:
         capture_output=True,
     )
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:160]}")
+        raise RuntimeError(f"curl failed: {p.stderr.decode()[:160]}")
     body, _, code = p.stdout.decode("utf-8", "replace").rpartition("\n")
     if code.strip() != "200":
-        raise RuntimeError(f"HTTP {code.strip()} — sayfa alınamadı ({len(body)} bayt)")
+        raise RuntimeError(f"HTTP {code.strip()} — could not fetch page ({len(body)} bytes)")
     # Immutable anchor for the spec page. Without it, what we have is NOT THE SPEC (interstitial,
     # error page, redirect body…).
     if "field-definitions" not in body or "Revised" not in body:
         head = " ".join(body[:200].split())
         raise RuntimeError(
-            f"gelen belge spec sayfası değil ({len(body)} bayt) — bot koruması ya da "
-            f"yönlendirme olabilir. Baş: {head!r}")
+            f"response is not the spec page ({len(body)} bytes) — it may be bot protection "
+            f"or a redirect. Head: {head!r}")
     return body
 
 
@@ -145,7 +145,7 @@ def catalogue_of(mod, doc: str) -> dict:
                 finally:
                     sys.stdout, sys.stderr = saved_stdout, saved_stderr
             if rc != 0:
-                raise RuntimeError("extract_provisions.main() hata döndü")
+                raise RuntimeError("extract_provisions.main() returned an error")
             return json.loads(out.read_text(encoding="utf-8"))
         finally:
             mod.OUT, sys.argv = saved_out_path, real_argv
@@ -211,7 +211,7 @@ def main() -> int:
         mode = argv[i + 1]
         del argv[i:i + 2]
     if mode not in ("auto", "page", "upstream"):
-        print(f"bilinmeyen --mode: {mode} (auto|page|upstream)", file=sys.stderr)
+        print(f"unknown --mode: {mode} (auto|page|upstream)", file=sys.stderr)
         return 2
     local = [a for a in argv if not a.startswith("--")]
 
@@ -233,40 +233,40 @@ def main() -> int:
                 if mode == "page":
                     raise
                 # auto: FALL BACK to upstream, but not silently.
-                print(f"UYARI: sayfa sinyali ÖLÇÜLEMEDİ ({page_error}) — yalnız upstream "
-                      f"commit karşılaştırılacak.", file=sys.stderr)
+                print(f"WARNING: page signal NOT MEASURED ({page_error}) — comparing only the "
+                      f"upstream commit.", file=sys.stderr)
 
         try:
             live_upstream = mod.upstream_commit()["upstream_commit"]
         except Exception as e:
             # Print the message too: on 2026-08-07 only the type was printed and the CI quota
             # error appeared as "RuntimeError", delaying diagnosis by one round.
-            print(f"UYARI: upstream commit çözülemedi ({type(e).__name__}: {e}) — "
-                  f"'upstream' sinyali bu koşuda ÖLÇÜLMEDİ.", file=sys.stderr)
+            print(f"WARNING: could not resolve upstream commit ({type(e).__name__}: {e}) — "
+                  f"the 'upstream' signal was NOT MEASURED in this run.", file=sys.stderr)
             live_upstream = None
 
         if live_cat is None and live_upstream is None:
-            raise RuntimeError(f"hiçbir sinyal ölçülemedi (sayfa: {page_error})")
+            raise RuntimeError(f"no signal was measured (page: {page_error})")
         r = classify(base, doc, live_cat, live_upstream, page_error)
     except Exception as e:
-        print(f"ÖLÇÜLEMEDİ: {type(e).__name__}: {e}", file=sys.stderr)
-        print("⚠️ Bu 'sürüklenme yok' DEĞİLDİR — bakılamadı.", file=sys.stderr)
+        print(f"NOT MEASURED: {type(e).__name__}: {e}", file=sys.stderr)
+        print("⚠️ This does NOT mean 'no drift' — the source could not be inspected.", file=sys.stderr)
         return 2
 
-    print(f"durum: {r['status']}")
+    print(f"status: {r['status']}")
     if not r["catalogue_measured"]:
-        print(f"  ⚠️ KATALOG SİNYALİ ÖLÇÜLMEDİ: {r['page_error']}")
-        print(f"     (yalnız upstream commit karşılaştırıldı — 'same' burada 'sayfa "
-              f"denetlendi' DEMEK DEĞİLDİR)")
+        print(f"  ⚠️ CATALOGUE SIGNAL NOT MEASURED: {r['page_error']}")
+        print(f"     (only the upstream commit was compared — 'same' does NOT mean 'the page "
+              f"was inspected' here)")
     else:
-        print(f"  katalog sha    : {(r['catalogue_sha_recorded'] or '-')[:12]} -> "
+        print(f"  catalogue sha  : {(r['catalogue_sha_recorded'] or '-')[:12]} -> "
               f"{(r['catalogue_sha_live'] or '-')[:12]}")
-        print(f"  sayfa sha eşit : {r['page_same']}  (⚠️ sayfa her yanıtta değişir — sinyal DEĞİL)")
-        print(f"  aday sayısı    : {r['candidates_recorded']} -> {r['candidates_live']}"
-              f" (eklenen {len(r['added'])}, kaybolan {len(r['gone'])})")
+        print(f"  page sha equal : {r['page_same']}  (⚠️ page changes on every response — NOT a signal)")
+        print(f"  candidates     : {r['candidates_recorded']} -> {r['candidates_live']}"
+              f" (added {len(r['added'])}, removed {len(r['gone'])})")
         print(f"  spec_revision  : {r['revision_recorded']} -> {r['revision_live']}")
     print(f"  upstream commit: {(r['commit_recorded'] or '-')[:12]} -> "
-          f"{(r['commit_live'] or 'ölçülmedi')[:12]}")
+          f"{(r['commit_live'] or 'not measured')[:12]}")
 
     if out := os.environ.get("GITHUB_OUTPUT"):
         with open(out, "a", encoding="utf-8") as fh:

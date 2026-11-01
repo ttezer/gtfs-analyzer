@@ -48,7 +48,7 @@ def run_all():
     feeds = sorted(f for f in os.listdir(ZIPS)
                 if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
     if EXCLUDED_FEEDS:
-        print(f"atlanan feed (kullanıcı talimatı): {sorted(EXCLUDED_FEEDS)}", flush=True)
+        print(f"skipped feeds (user instruction): {sorted(EXCLUDED_FEEDS)}", flush=True)
     done = set()
     if os.path.exists(RAW):
         with open(RAW) as fh:
@@ -86,7 +86,7 @@ def run_all():
             fh.flush()
             if i % 40 == 0:
                 print(f"{i}/{len(feeds)}", flush=True)
-    print("ham çıktı yazıldı:", RAW)
+    print("raw output written:", RAW)
 
 
 def aggregate():
@@ -137,21 +137,21 @@ def report():
 
     gained = sorted(set(new) - set(old))
     lost = sorted(set(old) - set(new))
-    print(f"taze koşum: {feeds_total} feed · tetiklenen kural {len(new)} "
-          f"(eski baseline {len(old)})")
-    print(f"\nYENİ ateşleyen ({len(gained)}):")
+    print(f"fresh run: {feeds_total} feeds · triggered rules {len(new)} "
+          f"(old baseline {len(old)})")
+    print(f"\nNEWLY firing ({len(gained)}):")
     for r in gained:
-        print(f"  {r:8} {new[r]['feeds_triggered']:>3} feed / {new[r]['total_notices']:>7} bulgu")
-    print(f"\nARTIK ateşlemeyen ({len(lost)}):")
+        print(f"  {r:8} {new[r]['feeds_triggered']:>3} feeds / {new[r]['total_notices']:>7} findings")
+    print(f"\nNO LONGER firing ({len(lost)}):")
     for r in lost:
-        print(f"  {r:8} (eski: {old[r]['feeds_triggered']} feed / {old[r]['total_notices']} bulgu)")
+        print(f"  {r:8} (old: {old[r]['feeds_triggered']} feeds / {old[r]['total_notices']} findings)")
 
     moved = []
     for rid in sorted(set(new) & set(old)):
         a, b = int(old[rid]["total_notices"]), new[rid]["total_notices"]
         if a and abs(b - a) / a > 0.2:
             moved.append((rid, a, b))
-    print(f"\nHACMİ %20'den ÇOK değişen ({len(moved)}):")
+    print(f"\nCHANGED BY MORE THAN 20% ({len(moved)}):")
     for rid, a, b in sorted(moved, key=lambda x: -abs(x[2] - x[1]))[:15]:
         print(f"  {rid:8} {a:>8} → {b:<8} ({(b-a)/a*100:+.0f}%)")
 
@@ -162,7 +162,7 @@ def write_out():
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()), lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
-    print("yazıldı:", OUT)
+    print("written:", OUT)
 
 
 if __name__ == "__main__":
@@ -176,6 +176,6 @@ if __name__ == "__main__":
         write_out()
     else:
         if not os.path.exists(BINARY):
-            sys.exit("release binary yok: cargo build --release -p gtfs-analyzer")
+            sys.exit("release binary not found: cargo build --release -p gtfs-analyzer")
         run_all()
     sys.exit(0)
