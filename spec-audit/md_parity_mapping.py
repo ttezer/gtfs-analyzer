@@ -1198,7 +1198,7 @@ def _fp_verdicts():
 def classify_analyzer_divergence(rule_id: str):
     """Analyzer-side counterpart of `classify_divergence`.
 
-    Returns ``("adjudicated:<verdict>", reason)`` or ``("unreviewed", cause)``.
+    Returns ``("adjudicated:<verdict>", gerekçe)`` or ``("unreviewed", sebep)``.
     Verdicts with suffixes such as `CASCADE_ROOT_ARC_012` match by prefix.
     """
     entry = _fp_verdicts().get(rule_id)
