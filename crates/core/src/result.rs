@@ -127,6 +127,22 @@ pub struct NameIndex {
     pub trip_stops: BTreeMap<String, Vec<String>>, // trip_id  → [stop_id, ...] stop_sequence sıralı
     pub shape_trips: BTreeMap<String, String>,     // shape_id → ilk trip_id (shape durakları için)
     pub route_shapes: BTreeMap<String, Vec<String>>, // route_id → [shape_id, ...] (terminus haritası için)
+    /// route_id → [route_color, route_text_color] (6 haneli hex, `#` yok; metin rengi yoksa boş).
+    /// Yalnız geçerli `route_color` taşıyan hatlar girer. Eklemeli alan: eski sonuçlarda yoktur.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub route_colors: BTreeMap<String, [String; 2]>,
+    /// service_id → [gün maskesi "1111100" (pzt..paz; calendar.txt yoksa boş), başlangıç YYYYMMDD,
+    /// bitiş YYYYMMDD, calendar_dates istisna sayısı]. Planlamacıya "hangi günler" demek için.
+    /// Eklemeli alan: eski sonuçlarda yoktur.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub service_days: BTreeMap<String, [String; 4]>,
+    /// route_id → route_long_name; yalnız kısa adı da olan ve uzun adı farklı hatlar
+    /// (kısa ad `routes`'ta). Arama süzgecinde "K701 · İstasyon–Hisar Köy" demek için.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub route_long_names: BTreeMap<String, String>,
+    /// stop_id → stop_code (yolcunun gördüğü durak kodu); yalnız dolu olanlar.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub stop_codes: BTreeMap<String, String>,
     /// Büyük feed modunda harita geometrisi (shape_coords vb.) peşinen serialize
     /// EDİLMEZ; UI ikona tıklayınca WASM'dan on-demand çeker (shape_coords_of).
     pub map_data_deferred: bool,

@@ -303,7 +303,73 @@ fn format_gtfs_time(secs: u32) -> String {
     )
 }
 
+/// Bozuk saat bildiriminde (STM_003/004) satırın ve komşularının saat metni: boş alan "",
+/// ayrıştırılamayan değer kendi STM_003/004 bildiriminin ham metni (yoksa "?").
+fn row_time_label(secs: u32, raw: Option<&String>) -> String {
+    if secs == u32::MAX {
+        String::new()
+    } else if secs == TIME_MALFORMED {
+        raw.cloned().unwrap_or_else(|| "?".to_string())
+    } else {
+        format_gtfs_time(secs)
+    }
+}
+
 impl StopTimesIndex {
+    /// STM_003/004: planlamacı bozuk saatin hangi durakta olduğunu ve bir önceki/sonraki
+    /// durağın saatlerini görsün. Akış sırasında komşu satırlar bilinmez; bu yüzden
+    /// sıralı index kurulduktan sonra satır numarasıyla bulunup eklenir.
+    fn add_malformed_time_context(&self, notices: &mut [Notice]) {
+        // Akış ham saat metnini tutmaz; ama bozuk her alan kendi bildirimini ham değeriyle
+        // üretmiştir. Satır → (varış, kalkış) ham metni oradan toplanır.
+        let mut raw: FxHashMap<u64, (Option<String>, Option<String>)> = FxHashMap::default();
+        for n in notices.iter() {
+            let (Some(line), Some(value)) = (n.line, n.observed_value.as_ref()) else {
+                continue;
+            };
+            match n.rule_id.as_str() {
+                "STM_003" => raw.entry(line).or_default().0 = Some(value.clone()),
+                "STM_004" => raw.entry(line).or_default().1 = Some(value.clone()),
+                _ => {}
+            }
+        }
+        let label = |row: &CompactStopTime, arrival: bool| {
+            let entry = raw.get(&row.line_u64());
+            if arrival {
+                row_time_label(row.arrival_secs, entry.and_then(|e| e.0.as_ref()))
+            } else {
+                row_time_label(row.departure_secs, entry.and_then(|e| e.1.as_ref()))
+            }
+        };
+        for n in notices
+            .iter_mut()
+            .filter(|n| n.rule_id == "STM_003" || n.rule_id == "STM_004")
+        {
+            let (Some(trip_id), Some(line)) = (n.entity_id.as_deref(), n.line) else {
+                continue;
+            };
+            let Some(rows) = self.sorted_stops(trip_id) else {
+                continue;
+            };
+            let Some(i) = rows.iter().position(|r| r.line_u64() == line) else {
+                continue;
+            };
+            let d = n.details.get_or_insert_with(Default::default);
+            let row = &rows[i];
+            d.insert("stop_id".to_string(), self.stop_id_of(row).to_string());
+            d.insert("arrival".to_string(), label(row, true));
+            d.insert("departure".to_string(), label(row, false));
+            for (side, other) in [("prev", i.checked_sub(1)), ("next", Some(i + 1))] {
+                let Some(other) = other.and_then(|j| rows.get(j)) else {
+                    continue;
+                };
+                d.insert(format!("{side}_stop_id"), self.stop_id_of(other).to_string());
+                d.insert(format!("{side}_arrival"), label(other, true));
+                d.insert(format!("{side}_departure"), label(other, false));
+            }
+        }
+    }
+
     /// trip başına sıralı (stop_sequence artan) stop dilimi. `idx.trips.get(...)` yerine BU kullanılır.
     pub fn sorted_stops(&self, trip_id: &str) -> Option<&[CompactStopTime]> {
         let &(s, e) = self.trip_ranges.get(trip_id)?;
@@ -3666,6 +3732,8 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
         );
         st.notices.push(notice);
     }
+
+    index.add_malformed_time_context(&mut st.notices);
 
     // ── trip_stop_set post-finalize inşası (#38 peak-2) ──────────────────────────
     // TripAgg'lar drop edildi (stop_idx_set heap'leri serbest); trip_ranges+rows üzerinden

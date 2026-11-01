@@ -366,6 +366,16 @@ print(len(result["notices"]))
 la CLI. Paramètres, structure du résultat et types d’erreur :
 [`python/README.md`](python/README.md) (en anglais).
 
+### Liaisons communautaires
+
+| Langage | Paquet | Maintenance |
+|---|---|---|
+| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | Par ses auteurs, hors de ce dépôt |
+
+Les liaisons communautaires ne sont pas testées dans ce dépôt et ne sont pas publiées
+par son processus de version. Signalez ici les problèmes du moteur, et ceux propres à
+la liaison dans le dépôt du paquet.
+
 ---
 
 ## CLI (terminal)

@@ -11,6 +11,7 @@ export interface MapPin {
   primary: boolean; // mavi = birincil, kırmızı = referans
   small?: boolean;  // küçük marker (çok sayıda pin olduğunda)
   color?: string;   // özel renk (verilirse primary mavi/kırmızı yerine bu kullanılır)
+  stroke?: string;  // satır içi harita: halka rengi (varsayılan beyaz)
 }
 
 let overlay: HTMLElement | null = null;
@@ -31,9 +32,112 @@ export interface MapOptions {
     color: string;
     weight?: number;
     zoomTo?: boolean;             // bu segmente zoom yap
+    arrows?: boolean;             // satır içi harita: güzergâh yönü okları
   }>;
   legendItems?: Array<{ color: string; label: string }>;
   showArrows?: boolean;           // polyline üzerine yön okları (her ~250m)
+  focus?: [number, number];       // satır içi harita: bu noktaya yakınlaş (ilk/son durak gibi)
+}
+
+/**
+ * Harita altlığı: OpenStreetMap standart katmanı, atıf satırıyla. Yalnız görünen bölgenin
+ * karoları istenir; feed verisi hiçbir sunucuya gönderilmez.
+ */
+function addBaseLayer(map: L.Map): void {
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    // Sayfa COEP require-corp ile çalışıyor (WASM thread'leri). OSM karoları CORP başlığı
+    // göndermez ama CORS'a izin verir; karo CORS isteğiyle alınmazsa tarayıcı onu engeller.
+    crossOrigin: 'anonymous',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+  }).addTo(map);
+}
+
+/**
+ * Aynı Leaflet çizimini kart içine yerleştirmek için kullanılır.
+ * Modal ile ortak MapOptions sözleşmesini kullanır; çağıran kapanırken dönen
+ * cleanup fonksiyonunu çalıştırmalıdır.
+ */
+export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => void {
+  container.innerHTML = '';
+  const map = L.map(container, { zoomControl: true, attributionControl: true, preferCanvas: true });
+  addBaseLayer(map);
+  const bounds: [number, number][] = [];
+  const polyline = capPoints(opts.polyline, MAX_MAP_POLYLINE_POINTS);
+
+  if (polyline && polyline.length > 1) {
+    L.polyline(polyline, {
+      color: opts.polylineColor ?? '#64748b',
+      weight: opts.polylineColor ? 5 : 3,
+      opacity: 0.95,
+    }).addTo(map);
+    bounds.push(...polyline);
+  }
+
+  let zoomTarget: [number, number][] | null = null;
+  for (const seg of opts.extraPolylines?.slice(0, MAX_MAP_EXTRA_POLYLINES) ?? []) {
+    const coords = capPoints(seg.coords, MAX_MAP_EXTRA_POINTS);
+    if (!coords || coords.length < 2) continue;
+    L.polyline(coords, { color: seg.color, weight: seg.weight ?? 4, opacity: 0.95 }).addTo(map);
+    bounds.push(...coords);
+    if (seg.zoomTo) zoomTarget = coords;
+    if (seg.arrows) {
+      // Yön okları: çizgi boyunca en fazla ~20 ok, hat renginde.
+      const total = coords.slice(1).reduce((sum, p, i) => sum + Math.hypot(p[0] - coords[i][0], p[1] - coords[i][1]) * 111_000, 0);
+      for (const arrow of arrowsAlongPolyline(coords, Math.max(150, total / 20)).slice(0, 40)) {
+        L.marker([arrow.lat, arrow.lon], {
+          icon: L.divIcon({
+            html: `<svg width="14" height="14" viewBox="-7 -7 14 14" style="transform:rotate(${arrow.angle}deg);display:block"><polygon points="0,-6 5,4 -5,4" fill="${seg.color}" stroke="#fff" stroke-width="1.5"/></svg>`,
+            className: '', iconSize: [14, 14], iconAnchor: [7, 7],
+          }),
+          interactive: false,
+        }).addTo(map);
+      }
+    }
+  }
+
+  let primaryLabels = 0;
+  const ordered = [...opts.pins.slice(0, MAX_MAP_PINS)].sort((a, b) => Number(a.primary) - Number(b.primary));
+  for (const pin of ordered) {
+    // Kart haritasında birincil = konunun işaret ettiği yer (kırmızı), diğerleri bağlam (gri).
+    const color = pin.color ?? (pin.primary ? '#dc2626' : '#64748b');
+    L.circleMarker([pin.lat, pin.lon], {
+      radius: pin.small ? 4 : 9,
+      fillColor: color,
+      color: pin.stroke ?? '#fff',
+      weight: 2,
+      fillOpacity: 0.9,
+    }).addTo(map).bindPopup(pin.label, { maxWidth: 260 });
+    // İşaretli durak adı kalıcı etiketle yazılır: hat rengi de kırmızı olabilir, nokta tek başına ayırt edilmez.
+    if (pin.primary && primaryLabels++ < 5) {
+      L.tooltip({ permanent: true, direction: 'top', offset: [0, -8], className: 'planner-map-label' })
+        .setLatLng([pin.lat, pin.lon]).setContent(pin.label).addTo(map);
+    }
+    bounds.push([pin.lat, pin.lon]);
+  }
+
+  const target = zoomTarget;
+  const applyView = () => {
+    if (opts.focus) map.setView(opts.focus, 15);
+    else if (target && target.length > 1) map.fitBounds(target, { padding: [24, 24], maxZoom: 16 });
+    else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
+    else if (bounds.length === 1) map.setView(bounds[0], 14);
+    else map.setView([39, 35], 5);
+  };
+  applyView();
+
+  // Kart açılırken kutu henüz son boyutunda olmayabilir; Leaflet o anki boyutla karo ve
+  // görünüm hesaplar (tek karo, köşeye sıkışmış etiketler). Boyut oturunca yeniden ölçülür.
+  let sized = false;
+  const observer = typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(() => {
+      map.invalidateSize();
+      if (!sized && container.clientWidth > 0 && container.clientHeight > 0) { sized = true; applyView(); }
+    })
+    : null;
+  observer?.observe(container);
+  setTimeout(() => { map.invalidateSize(); applyView(); }, 0);
+  return () => { observer?.disconnect(); map.remove(); };
 }
 
 export function openMapModal(title: string, opts: MapOptions): void {
@@ -45,6 +149,7 @@ export function openMapModal(title: string, opts: MapOptions): void {
 
   if (!leafletMap) {
     leafletMap = L.map(mapDiv);
+    addBaseLayer(leafletMap);
   } else {
     leafletMap.eachLayer((layer: L.Layer) => {
       if (!(layer instanceof L.TileLayer)) leafletMap!.removeLayer(layer);

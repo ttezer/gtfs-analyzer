@@ -5,6 +5,7 @@ import { renderFix, attachFixListeners } from './pages/fix';
 import { renderFiles } from './pages/files';
 import { renderExport } from './pages/export';
 import { renderCompare } from './pages/compare';
+import { renderProducer } from './pages/producer';
 import { getLocale, setLocale, t } from './i18n';
 import type { Locale } from './i18n';
 import { initDebugBuffer } from './debug-buffer';
@@ -101,9 +102,10 @@ export function renderApp(): void {
     return;
   }
 
-  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'fix', 'files', 'file-map', 'export', 'compare'];
+  const NAV_PAGES: Exclude<AppPage, 'upload'>[] = ['domain', 'producer', 'fix', 'files', 'file-map', 'export', 'compare'];
   const NAV_KEYS: Record<Exclude<AppPage, 'upload'>, string> = {
     domain : 'nav.report',
+    producer: 'nav.producer',
     fix    : 'nav.fix',
     files  : 'nav.files',
     'file-map': 'nav.fileMap',
@@ -163,6 +165,7 @@ export function renderApp(): void {
   const pageRoot = document.getElementById('page-root')!;
   switch (state.page) {
     case 'domain': renderDomain(pageRoot, state.result); break;
+    case 'producer': renderProducer(pageRoot, state.result); break;
     case 'fix':    renderFix(pageRoot, state.result, state.fixFileFilter, state.fixClassFilter); attachFixListeners(pageRoot, state.result, state.result.capped_totals); break;
     case 'files':  renderFiles(pageRoot, state.result); break;
     case 'file-map': {

@@ -362,6 +362,16 @@ print(len(result["notices"]))
 Parameters, the result structure, and error types are described in
 [`python/README.md`](python/README.md).
 
+### Community bindings
+
+| Language | Package | Maintained by |
+|---|---|---|
+| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | Its authors, outside this repository |
+
+Community bindings are not tested in this repository and do not ship from its release
+process. Report engine findings here and binding-specific issues to the package's own
+repository.
+
 ---
 
 ## CLI (Terminal)

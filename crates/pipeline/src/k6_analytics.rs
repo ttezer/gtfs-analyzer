@@ -525,6 +525,40 @@ fn k6_notice(
     )
 }
 
+fn stm012_details(
+    stop_a: &str,
+    stop_b: &str,
+    seq_a: u32,
+    seq_b: u32,
+    distance_km: f64,
+    scheduled_gap_seconds: u32,
+    speed_kmh: Option<f64>,
+    speed_lower_bound_kmh: Option<f64>,
+    intermediate_stop_count: Option<usize>,
+) -> BTreeMap<String, String> {
+    let mut details = BTreeMap::new();
+    details.insert("stop_a".to_string(), stop_a.to_string());
+    details.insert("stop_b".to_string(), stop_b.to_string());
+    details.insert("stop_sequence_a".to_string(), seq_a.to_string());
+    details.insert("stop_sequence_b".to_string(), seq_b.to_string());
+    details.insert("distance_km".to_string(), format!("{distance_km:.1}"));
+    details.insert(
+        "scheduled_gap_seconds".to_string(),
+        scheduled_gap_seconds.to_string(),
+    );
+    details.insert("distance_method".to_string(), "haversine".to_string());
+    if let Some(speed) = speed_kmh {
+        details.insert("speed_kmh".to_string(), format!("{speed:.1}"));
+    }
+    if let Some(speed) = speed_lower_bound_kmh {
+        details.insert("speed_lower_bound_kmh".to_string(), format!("{speed:.1}"));
+    }
+    if let Some(count) = intermediate_stop_count {
+        details.insert("intermediate_stop_count".to_string(), count.to_string());
+    }
+    details
+}
+
 /// Returns the first active service date when a detected GTFS-JP feed contains
 /// no active date on or before today. This is a publication-state signal, not
 /// a global GTFS quality defect: non-JP feeds retain the existing rules.
@@ -566,6 +600,28 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
         .collect()
 }
 
+/// STM_007 özetinde planlamacıya açılan örnek satır sayısı (farklı seferlerden).
+const STM007_EXAMPLE_ROWS: usize = 20;
+/// Satır ayrıntısı → özetteki `example_<i>_<ad>` anahtarı.
+const STM007_EXAMPLE_KEYS: &[(&str, &str)] = &[
+    ("stop_id", "stop"),
+    ("arr", "arrival"),
+    ("dep", "departure"),
+    ("prev_stop_id", "prev_stop"),
+    ("prev_arrival", "prev_arrival"),
+    ("prev_departure", "prev_departure"),
+    ("next_stop_id", "next_stop"),
+    ("next_arrival", "next_arrival"),
+    ("next_departure", "next_departure"),
+];
+
+/// "HH:MM:SS" (24+ saat dahil) → saniye; format_hms çıktısını geri okur.
+fn hms_text_secs(text: &str) -> Option<u32> {
+    let mut parts = text.split(':').map(|p| p.parse::<u32>().ok());
+    let (h, m, s) = (parts.next()??, parts.next()??, parts.next()??);
+    Some(h * 3600 + m * 60 + s)
+}
+
 fn finalize_stm007_pending(
     pending: &mut Vec<Notice>,
     notices: &mut Vec<Notice>,
@@ -575,13 +631,12 @@ fn finalize_stm007_pending(
 ) {
     let n = pending.len();
     if n > threshold {
-        // HashMap/chunk kaynaklı ham take(5) deterministik değildir: önce sırala.
-        let mut examples: Vec<String> = pending
-            .iter()
-            .filter_map(|notice| notice.entity_id.clone())
-            .collect();
-        examples.sort_unstable();
-        examples.truncate(5);
+        // HashMap/chunk kaynaklı sıra deterministik değildir: (sefer, satır) sırasına diz.
+        pending.sort_by(|a, b| (&a.entity_id, a.line).cmp(&(&b.entity_id, b.line)));
+        let mut trips: Vec<&str> = pending.iter().filter_map(|n| n.entity_id.as_deref()).collect();
+        trips.dedup();
+        let affected_trips = trips.len();
+        let examples: Vec<String> = trips.iter().take(5).map(|t| t.to_string()).collect();
         let mut notice = k6_notice(
             ctr,
             rule_id,
@@ -598,8 +653,79 @@ fn finalize_stm007_pending(
         );
         let mut details = BTreeMap::new();
         details.insert("affected_rows".to_string(), n.to_string());
+        details.insert("affected_trips".to_string(), affected_trips.to_string());
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
+        }
+        // Planlamacı için STM007_EXAMPLE_ROWS satır, komşu saatleriyle (example_<i>_*): önce her
+        // biri farklı durakta ve farklı seferde olanlar (aynı hattın ardışık seferleri aynı durağı
+        // tekrarlamasın), yer kalırsa farklı seferlerden kalanlar. Özetin sayısı ve metni değişmez.
+        let stop_of = |row: &Notice| row.details.as_ref().and_then(|d| d.get("stop_id")).cloned();
+        let mut chosen: Vec<&Notice> = Vec::new();
+        let mut used_trips: FxHashSet<&str> = FxHashSet::default();
+        let mut used_stops: FxHashSet<String> = FxHashSet::default();
+        for distinct_stop in [true, false] {
+            for row in pending.iter() {
+                if chosen.len() >= STM007_EXAMPLE_ROWS {
+                    break;
+                }
+                let Some(trip) = row.entity_id.as_deref() else { continue };
+                if used_trips.contains(trip) {
+                    continue;
+                }
+                let stop = stop_of(row).unwrap_or_default();
+                if distinct_stop && used_stops.contains(&stop) {
+                    continue;
+                }
+                used_trips.insert(trip);
+                used_stops.insert(stop);
+                chosen.push(row);
+            }
+        }
+        for (i, row) in chosen.into_iter().enumerate() {
+            let trip = row.entity_id.as_deref();
+            details.insert(format!("example_{i}_trip"), trip.unwrap_or_default().to_string());
+            if let Some(line) = row.line {
+                details.insert(format!("example_{i}_line"), line.to_string());
+            }
+            if let Some(service) = row.service_id.as_deref() {
+                details.insert(format!("example_{i}_service"), service.to_string());
+            }
+            if let Some(d) = row.details.as_ref() {
+                for (from, to) in STM007_EXAMPLE_KEYS {
+                    if let Some(v) = d.get(*from) {
+                        details.insert(format!("example_{i}_{to}"), v.clone());
+                    }
+                }
+            }
+        }
+        // Desen: kalkış varıştan en sık kaç saniye önce ve bu farkı taşıyan satır sayısı;
+        // en çok etkilenen beş durak. Aynı fark binlerce satırda tekrarlanıyorsa tek tek
+        // yazım hatası değil üretim kuralıdır.
+        let mut gaps: FxHashMap<u32, usize> = FxHashMap::default();
+        let mut stops: FxHashMap<&str, usize> = FxHashMap::default();
+        for row in pending.iter() {
+            let Some(d) = row.details.as_ref() else { continue };
+            if let (Some(arr), Some(dep)) = (d.get("arr"), d.get("dep")) {
+                if let (Some(a), Some(b)) = (hms_text_secs(arr), hms_text_secs(dep)) {
+                    *gaps.entry(a.saturating_sub(b)).or_default() += 1;
+                }
+            }
+            if let Some(stop) = d.get("stop_id") {
+                *stops.entry(stop.as_str()).or_default() += 1;
+            }
+        }
+        if let Some((gap, rows)) = gaps.iter().max_by(|a, b| a.1.cmp(b.1).then(b.0.cmp(a.0))) {
+            details.insert("typical_gap_seconds".to_string(), gap.to_string());
+            details.insert("typical_gap_rows".to_string(), rows.to_string());
+        }
+        let mut top: Vec<(&str, usize)> = stops.into_iter().collect();
+        top.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
+        if !top.is_empty() {
+            details.insert(
+                "top_stops".to_string(),
+                top.iter().take(5).map(|(s, _)| *s).collect::<Vec<_>>().join(","),
+            );
         }
         notice.details = Some(details);
         notices.push(notice);
@@ -726,6 +852,12 @@ fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
         }
     }
     min_dist
+}
+
+/// Bir stop_times satırının gösterilecek saati (önce varış, yoksa kalkış), "HH:MM:SS".
+/// Planlamacı kartında komşu durağın saatini yazmak için; ikisi de yoksa None.
+fn row_time_text(st: &CompactStopTime) -> Option<String> {
+    st.arrival_time().or_else(|| st.departure_time()).map(|t| format_hms(hms_to_secs(t)))
 }
 
 fn hms_to_secs(t: (u32, u32, u32)) -> u32 {
@@ -1553,7 +1685,7 @@ fn check_speed_and_duration<'a>(
             // service_day_start ile elenir; gerçek satır-içi hatalar zenginleştirilmiş mesajla verilir.
             {
                 let sds_secs = config.service_day_start_hour * 3600;
-                for st in stimes.iter() {
+                for (row_index, st) in stimes.iter().enumerate() {
                     let (Some(arr), Some(dep)) = (st.arrival_time(), st.departure_time()) else {
                         continue;
                     };
@@ -1588,6 +1720,21 @@ fn check_speed_and_duration<'a>(
                     d.insert("dir".to_string(), dir_sd.to_string());
                     d.insert("dep".to_string(), format_hms(dep_s));
                     d.insert("arr".to_string(), format_hms(arr_s));
+                    // Planlamacı hatalı satırı komşularıyla görsün: durak ve bir önceki/sonraki satırın saatleri.
+                    d.insert("stop_id".to_string(), idx.stop_id_of(st).to_string());
+                    let neighbours = [("prev", row_index.checked_sub(1)), ("next", Some(row_index + 1))];
+                    for (side, other) in neighbours {
+                        let Some(other) = other.and_then(|j| stimes.get(j)) else {
+                            continue;
+                        };
+                        d.insert(format!("{side}_stop_id"), idx.stop_id_of(other).to_string());
+                        if let Some(t) = other.arrival_time() {
+                            d.insert(format!("{side}_arrival"), format_hms(hms_to_secs(t)));
+                        }
+                        if let Some(t) = other.departure_time() {
+                            d.insert(format!("{side}_departure"), format_hms(hms_to_secs(t)));
+                        }
+                    }
                     // Feed özeti dalı (`finalize_stm007_pending`) affected_rows/example_trips yazar;
                     // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı, yoksa özet
                     // notice'ın en/ja/fr metni boş placeholder'la çıkar (korpusta ölçüldü).
@@ -1641,11 +1788,14 @@ fn check_speed_and_duration<'a>(
                         if is_rail {
                             n.severity = gtfs_core::Severity::Bilgi;
                         }
+                        if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
+                            n.details = Some(trip_span_details(idx, first, last));
+                        }
                         notices.push(n);
                     }
 
                     if duration_sec < config.min_trip_duration_sec {
-                        notices.push(k6_notice(
+                        let mut n = k6_notice(
                         ctr,
                         "STM_029",
                         EntityType::Trip,
@@ -1661,7 +1811,11 @@ fn check_speed_and_duration<'a>(
                             if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
                             duration_sec, config.min_trip_duration_sec),
                         "stop_times zaman değerlerini kontrol edin; sefer gerçekten bu kadar kısa olmamalı.",
-                    ));
+                    );
+                        if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
+                            n.details = Some(trip_span_details(idx, first, last));
+                        }
+                        notices.push(n);
                     }
                 }
             }
@@ -1705,9 +1859,9 @@ fn check_speed_and_duration<'a>(
             // This pass is deliberately separate from the adjacent-segment speed
             // loop below.  Speed and zero-duration checks still require a physically
             // adjacent pair, while chronology may span any number of untimed rows.
-            let mut previous_departure: Option<(&CompactStopTime, u32)> = None;
-            for st in stimes.iter() {
-                if let (Some(arrival), Some((departure_row, departure))) =
+            let mut previous_departure: Option<(&CompactStopTime, u32, usize)> = None;
+            for (row_index, st) in stimes.iter().enumerate() {
+                if let (Some(arrival), Some((departure_row, departure, departure_index))) =
                     (st.arrival_time().map(hms_to_secs), previous_departure)
                 {
                     if arrival < departure {
@@ -1750,12 +1904,26 @@ fn check_speed_and_duration<'a>(
                         d.insert("dir".to_string(), dir_sd.to_string());
                         d.insert("dep".to_string(), dep_hms.clone());
                         d.insert("arr".to_string(), arr_hms.clone());
+                        // Planlamacı hatalı saati bağlamıyla görsün: kalkış durağından önceki ve
+                        // varış durağından sonraki durak, saatleriyle.
+                        if let Some(prev) = departure_index.checked_sub(1).and_then(|i| stimes.get(i)) {
+                            d.insert("prev_stop_id".to_string(), idx.stop_id_of(prev).to_string());
+                            if let Some(time) = row_time_text(prev) {
+                                d.insert("prev_time".to_string(), time);
+                            }
+                        }
+                        if let Some(next) = stimes.get(row_index + 1) {
+                            d.insert("next_stop_id".to_string(), idx.stop_id_of(next).to_string());
+                            if let Some(time) = row_time_text(next) {
+                                d.insert("next_time".to_string(), time);
+                            }
+                        }
                         n.details = Some(d);
                         notices.push(n);
                     }
                 }
                 if let Some(departure) = st.departure_time() {
-                    previous_departure = Some((st, hms_to_secs(departure)));
+                    previous_departure = Some((st, hms_to_secs(departure), row_index));
                 }
             }
 
@@ -1917,10 +2085,17 @@ fn check_speed_and_duration<'a>(
                                 dist_km * 60.0),
                             "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz.",
                         );
-                            let mut d = std::collections::BTreeMap::new();
-                            d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                            d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                            n012.details = Some(d);
+                            n012.details = Some(stm012_details(
+                                idx.stop_id_of(a),
+                                idx.stop_id_of(b),
+                                a.stop_sequence().unwrap_or(0),
+                                b.stop_sequence().unwrap_or(0),
+                                dist_km,
+                                0,
+                                None,
+                                Some(dist_km * 60.0),
+                                None,
+                            ));
                             notices.push(n012);
                             // Saatsiz ara duraklı sıfır süreli aralıkla aynı: OPR_008 bu
                             // segmenti de sayar; hız alt sınırı = tam bir dakika geçmiş say.
@@ -2021,7 +2196,7 @@ fn check_speed_and_duration<'a>(
                     ));
                     } else {
                         // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
-                        notices.push(k6_notice(
+                        let mut n = k6_notice(
                         ctr, "STM_021", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -2030,7 +2205,12 @@ fn check_speed_and_duration<'a>(
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arası mesafe 0: '{}' ve '{}' farklı duraklar ama aynı koordinatta.",
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a), idx.stop_id_of(b)),
                         "stops.txt'te durak koordinatlarını doğrulayın; ardışık farklı duraklar aynı konumda olmamalıdır.",
-                    ));
+                    );
+                        let mut d = std::collections::BTreeMap::new();
+                        d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
+                        d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                        n.details = Some(d);
+                        notices.push(n);
                     }
                     continue;
                 }
@@ -2096,10 +2276,17 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    n012.details = Some(d);
+                    n012.details = Some(stm012_details(
+                        idx.stop_id_of(a),
+                        idx.stop_id_of(b),
+                        a.stop_sequence().unwrap_or(0),
+                        b.stop_sequence().unwrap_or(0),
+                        haver_km,
+                        dt_sec,
+                        Some(hav_speed),
+                        None,
+                        None,
+                    ));
                     notices.push(n012);
                     // OPR_008 bu segmenti de sayar; hızı ve durak çiftini de görmeli,
                     // yoksa yalnız STM_012 segmentli seferde "en yüksek hız 0.0" basılır.
@@ -2239,10 +2426,17 @@ fn check_speed_and_duration<'a>(
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {seq_a}-{seq_b} arası (aradaki duraklar saatsiz) {observed} — fiziksel olarak imkansız."),
                         "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                     );
-                    let mut d = std::collections::BTreeMap::new();
-                    d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
-                    d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    n012.details = Some(d);
+                    n012.details = Some(stm012_details(
+                        idx.stop_id_of(a),
+                        idx.stop_id_of(b),
+                        seq_a,
+                        seq_b,
+                        direct_km,
+                        dt_sec,
+                        (dt_sec > 0).then_some(impossible_speed),
+                        (dt_sec == 0).then_some(impossible_speed),
+                        Some(j - p - 1),
+                    ));
                     notices.push(n012);
                     if impossible_speed > trip_max_speed {
                         trip_max_speed = impossible_speed;
@@ -4042,14 +4236,22 @@ fn check_geo_shape_trip_analytics(
                     continue;
                 };
                 if h > max_dep_h || (h == max_dep_h && (m > 0 || s > 0)) {
-                    notices.push(k6_notice(
+                    let mut n = k6_notice(
                         ctr, "STM_045", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(st.line as u64), Some("departure_time"),
                         Some(format!("{h:02}:{m:02}:{s:02}")), Some(format!("≤{max_dep_h}:00:00")),
                         format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."),
                         "departure_time ve service_day_start_hour ayarını kontrol edin; bu pencereyi aşan değerler genellikle veri hatasıdır.",
-                    ));
+                    );
+                    // Planlamacı pencereyi aşan kalkışın hangi durakta olduğunu görsün.
+                    let mut d = std::collections::BTreeMap::new();
+                    d.insert(
+                        "stop_id".to_string(),
+                        records.stop_times_index.stop_id_of(st).to_string(),
+                    );
+                    n.details = Some(d);
+                    notices.push(n);
                     break; // trip başına bir notice yeterli
                 }
             }
@@ -4712,6 +4914,58 @@ fn check_operational_analytics(
 
 // ── WP-09d: Stop times derived kontrolleri ────────────────────────────────────
 
+/// STM_015/016 kanıtı: saati eksik uç durak, aynı satırın kalkış saati (varsa), en yakın
+/// saatli durak (`next` = ilk durağın ilerisinde, `prev` = son durağın gerisinde) ve seferin
+/// kaç durağında saat bulunduğu. Planlamacı eksik saati hangi saatler arasında arayacağını,
+/// ya da seferin hiç saati olmadığını görsün diye.
+/// STM_028/029: toplam süre seferin uçlarından ölçülür; planlamacı ilk kalkış ve son varış
+/// duraklarını saatleriyle görsün.
+fn trip_span_details(
+    idx: &StopTimesIndex<'_>,
+    first: &CompactStopTime,
+    last: &CompactStopTime,
+) -> std::collections::BTreeMap<String, String> {
+    let mut d = std::collections::BTreeMap::new();
+    d.insert("first_stop_id".to_string(), idx.stop_id_of(first).to_string());
+    if let Some(dep) = first.departure_time() {
+        d.insert("first_departure".to_string(), format_hms(hms_to_secs(dep)));
+    }
+    d.insert("last_stop_id".to_string(), idx.stop_id_of(last).to_string());
+    if let Some(arr) = last.arrival_time() {
+        d.insert("last_arrival".to_string(), format_hms(hms_to_secs(arr)));
+    }
+    d
+}
+
+fn edge_time_details(
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+    edge: &CompactStopTime,
+    side: &str,
+) -> std::collections::BTreeMap<String, String> {
+    let mut d = std::collections::BTreeMap::new();
+    d.insert("stop_id".to_string(), idx.stop_id_of(edge).to_string());
+    if let Some(dep) = edge.departure_time() {
+        d.insert("departure".to_string(), format_hms(hms_to_secs(dep)));
+    }
+    let timed = stimes.iter().filter(|st| row_time_text(st).is_some()).count();
+    d.insert("stop_count".to_string(), stimes.len().to_string());
+    d.insert("timed_stops".to_string(), timed.to_string());
+    fn with_time<'a>(st: &'a CompactStopTime, edge: &CompactStopTime) -> Option<(&'a CompactStopTime, String)> {
+        if std::ptr::eq(st, edge) { None } else { row_time_text(st).map(|time| (st, time)) }
+    }
+    let nearest = if side == "next" {
+        stimes.iter().find_map(|st| with_time(st, edge))
+    } else {
+        stimes.iter().rev().find_map(|st| with_time(st, edge))
+    };
+    if let Some((other, time)) = nearest {
+        d.insert(format!("{side}_stop_id"), idx.stop_id_of(other).to_string());
+        d.insert(format!("{side}_time"), time);
+    }
+    d
+}
+
 fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, ctr: &mut u32) {
     // STM_015 / STM_016: ilk/son durağın zorunlu zaman alanları
     for (&trip_id, stimes) in &idx.by_trip {
@@ -4748,7 +5002,7 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
         // Spec·Kritik olduğu için o yanlış iddia R1 yayın kapısına giriyordu.
         if let Some(first) = stimes.first() {
             if !is_flex(first) && first.arrival_is_absent() {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr,
                     "STM_015",
                     EntityType::Trip,
@@ -4761,7 +5015,9 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
                     Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."),
                     "İlk stop_times satırına arrival_time girin.",
-                ));
+                );
+                n.details = Some(edge_time_details(idx, stimes, first, "next"));
+                notices.push(n);
             }
         }
 
@@ -4775,14 +5031,16 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
 
         if let Some(last) = stimes.last() {
             if !is_flex(last) && last.arrival_is_absent() {
-                notices.push(k6_notice(
+                let mut n = k6_notice(
                     ctr, "STM_016", EntityType::Trip,
                     Some(trip_id.to_string()), Some(trip_id.to_string()),
                     "stop_times.txt", Some(last.line as u64),
                     Some("arrival_time"), None, Some("HH:MM:SS".to_string()),
                     format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
                     "Son stop_times satırına arrival_time girin.",
-                ));
+                );
+                n.details = Some(edge_time_details(idx, stimes, last, "prev"));
+                notices.push(n);
             }
         }
     }
@@ -12593,10 +12851,21 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            result.notices.iter().any(|n| n.rule_id == "STM_012"),
-            "bir dakikada alınamayacak mesafe STM_012 üretmeli"
+        let notice = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_012")
+            .expect("bir dakikada alınamayacak mesafe STM_012 üretmeli");
+        let details = notice.details.as_ref().expect("STM_012 yapılandırılmış kanıt taşımalı");
+        assert_eq!(details.get("stop_sequence_a").map(String::as_str), Some("1"));
+        assert_eq!(details.get("stop_sequence_b").map(String::as_str), Some("2"));
+        assert_eq!(
+            details.get("scheduled_gap_seconds").map(String::as_str),
+            Some("0")
         );
+        assert_eq!(details.get("distance_method").map(String::as_str), Some("haversine"));
+        assert!(details.contains_key("distance_km"));
+        assert!(details.contains_key("speed_lower_bound_kmh"));
     }
 
     #[test]
@@ -13374,6 +13643,22 @@ mod tests {
                 .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
+        // Planlamacı görünümü için örnek satırlar ve desen (özetin sayısı değişmeden).
+        let d = stm007[0].details.as_ref().expect("özet ayrıntısı");
+        let get = |k: &str| d.get(k).map(String::as_str);
+        assert_eq!(get("affected_trips"), Some("51"));
+        assert_eq!(get("example_0_trip"), Some("T00"));
+        assert_eq!(get("example_0_stop"), Some("B"));
+        assert!(get("example_0_service").is_some(), "örnek satır takvimini taşımalı");
+        assert_eq!(get("example_0_arrival"), Some("09:00:00"));
+        assert_eq!(get("example_0_departure"), Some("08:00:00"));
+        assert_eq!(get("example_0_prev_stop"), Some("A"));
+        assert_eq!(get("example_0_prev_departure"), Some("08:00:00"));
+        assert_eq!(get("example_19_trip"), Some("T19"));
+        assert_eq!(get("example_20_trip"), None, "en fazla 20 örnek satır");
+        assert_eq!(get("typical_gap_seconds"), Some("3600"));
+        assert_eq!(get("typical_gap_rows"), Some("51"));
+        assert_eq!(get("top_stops"), Some("B"));
     }
 
     #[test]
