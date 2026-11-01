@@ -1,15 +1,15 @@
-/// Regression test runner — tek bir feed ZIP'ini çalıştırıp JSON özet üretir.
+/// Regression test runner — runs one feed ZIP and produces a JSON summary.
 ///
-/// Kullanım:
+/// Usage:
 ///   cargo run --example regress --release -- <feed.zip> [today_yyyymmdd]
 ///
-/// Çıktı (stdout, JSON):
+/// Output (stdout, JSON):
 ///   {
 ///     "source": "feed.zip",
 ///     "notice_total": 42,
 ///     "by_rule": { "ARC_007": 3, "STP_003": 12, ... },
 ///     "by_severity": { "CRITICAL": 1, "HIGH": 5, "MEDIUM": 8, "LOW": 20, "INFO": 8 },
-///     "fatal": null          // veya { "code": "ZipUnreadable", "message": "..." }
+///     "fatal": null          // or { "code": "ZipUnreadable", "message": "..." }
 ///   }
 use std::collections::BTreeMap;
 

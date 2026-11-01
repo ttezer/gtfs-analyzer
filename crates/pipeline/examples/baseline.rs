@@ -1,9 +1,9 @@
-/// Adım 0 timing + notice baseline aracı.
+/// Step 0 timing + notice baseline tool.
 ///
-/// Kullanım:
+/// Usage:
 ///   cargo run --example baseline -- <feed.zip> [today_yyyymmdd]
 ///
-/// Timing → stderr (Timer::drop otomatik yazar)
+/// Timing → stderr (written automatically by Timer::drop)
 /// Notice baseline → stdout
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,7 +18,7 @@ fn main() {
     }
 
     let path = &args[1];
-    // today = path'ten sonraki ilk u32-parse edilebilen arg (--json bayrağını atlar)
+    // today = first u32-parseable argument after path (skips the --json flag)
     let today: u32 = args[2..]
         .iter()
         .find_map(|s| s.parse().ok())
@@ -43,17 +43,18 @@ fn main() {
 
     if json_mode {
         let mut vr = vr;
-        // R9 kuyruğu eşit (bucket, priority_score) kalemlerde sıra-belirsizdir (build_r9 sort'u
-        // tie'larda kararlı değil — bu MEVCUT, benim değişikliğimden bağımsız bir durum). Diff'in
-        // anlamlı olması için rule_id'ye göre KANONİK sırala (R9'da rule_id benzersiz). Bu yalnız
-        // dev-dump kanonikleştirmesi → pipeline çıktısını DEĞİŞTİRMEZ. Rapor eşitliği = içerik eşitliği.
+        // The R9 queue is order-ambiguous for items tied on (bucket, priority_score)
+        // (build_r9 sorting is not stable on ties — this is pre-existing and independent of
+        // my changes). Sort CANONICALLY by rule_id for a meaningful diff (rule_id is unique
+        // in R9). This canonicalizes only the dev dump → it DOES NOT CHANGE pipeline output.
+        // Report equality = content equality.
         vr.reports
             .r9
             .items
             .sort_by(|a, b| a.rule_id.cmp(&b.rule_id));
-        // Kanonik (anahtar-sıralı) TAM ValidationResult dökümü → kurallar VE raporlar
-        // (notices + R1–R9 + metrics + name_index + capped_totals). serde_json::Value::Object =
-        // BTreeMap olduğundan tüm map anahtarları sıralanır → HashMap sıra belirsizliği kalkar.
+        // Canonical (key-sorted) FULL ValidationResult dump → rules AND reports
+        // (notices + R1–R9 + metrics + name_index + capped_totals). serde_json::Value::Object
+        // is a BTreeMap, so all map keys are sorted → HashMap ordering ambiguity is removed.
         let canon: serde_json::Value = serde_json::to_value(&vr).expect("serialize");
         println!("{}", serde_json::to_string(&canon).expect("to_string"));
     } else {
