@@ -87,11 +87,11 @@ pub struct ShapePointRecord {
     shape_idx: u32,
     /// NaN = field missing/unparseable
     lat: f64,
-    /// NaN = alan yok/parse edilemedi
+    /// NaN = field missing/unparseable
     lon: f64,
     /// u32::MAX = field missing/unparseable
     seq: u32,
-    /// NaN = alan yok/parse edilemedi
+    /// NaN = field missing/unparseable
     dist: f64,
     pub line: u32,
 }

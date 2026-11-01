@@ -4440,7 +4440,7 @@ mod tests {
             i += 1;
         }
         while trips.len() < 8_190 {
-            trips.push('A'); // tam 8190'a hizala
+            trips.push('A'); // pad exactly to 8190
         }
         assert_eq!(trips.len(), 8_190, "test kurgusu: hizalama");
         trips.push('あ'); // bytes 8190,8191,8192 → the cut at 8192 splits in the MIDDLE
@@ -5528,7 +5528,7 @@ mod tests {
         b.extend_from_slice(&0u16.to_le_bytes()); // method: stored
         b.extend_from_slice(&0u16.to_le_bytes()); // time
         b.extend_from_slice(&0u16.to_le_bytes()); // date
-        b.extend_from_slice(&0u32.to_le_bytes()); // crc (yerel alan)
+        b.extend_from_slice(&0u32.to_le_bytes()); // crc (local field)
         b.extend_from_slice(&local_csize.to_le_bytes());
         b.extend_from_slice(&local_usize.to_le_bytes());
         b.extend_from_slice(&(name.len() as u16).to_le_bytes());

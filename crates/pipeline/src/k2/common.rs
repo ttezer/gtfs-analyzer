@@ -424,7 +424,7 @@ pub fn looks_like_url(value: &str) -> bool {
 /// ```text
 ///   "https://ｗｗｗ.city.chikuma.lg.jp" → https://www.city.chikuma.lg.jp/   (NFKC)
 ///   "https://thyon4vallées.ch"        → https://xn--thyon4valles-keb.ch/  (punycode)
-///   "https://a.example/ürün"          → https://a.example/%C3%BCr%C3%BCn  (yüzde kodlama)
+///   "https://a.example/ürün"          → https://a.example/%C3%BCr%C3%BCn  (percent encoding)
 /// ```
 /// In all three, the producer's intent is UNAMBIGUOUS. For real defects, the parser invents an
 /// interpretation (`a b` → `a%20b`) or passes the malformed value through (`a%zzb`);
@@ -1190,7 +1190,7 @@ mod tests {
         // Cases proven in #162 but deliberately NOT rejected. AGN_003 is Kritik+Spec,
         // a publication blocker; a false positive here would reject a valid feed.
         assert!(looks_like_url("https://www.keolis_littoral.com")); // underscored host
-        assert!(looks_like_url("http://localhost")); // tek etiket
+        assert!(looks_like_url("http://localhost")); // single label
         assert!(looks_like_url("http://167")); // parses as 0.0.0.167
         assert!(looks_like_url("http://www.takethehop.coml/")); // misspelled TLD
     }
@@ -1346,17 +1346,17 @@ mod tests {
         for bad in [
             "a@@b.com",         // reported counterexample: two separators
             "a@b@c.com",        // two separators, both in separate positions
-            "@example.com",     // local yok
-            "a@",               // domain yok
-            "a@b",              // tek etiket
+            "@example.com",     // local part missing
+            "a@",               // domain missing
+            "a@b",              // single label
             "a@.example.com",   // empty label
             "a@example..com",   // empty label (in the middle)
             "a@-example.com",   // label starts with a hyphen
-            "a@example-.com",   // etiket tire ile bitiyor
+            "a@example-.com",   // label ends with a hyphen
             "a@example.1",      // numeric TLD
-            "a@example.c",      // tek harfli TLD
+            "a@example.c",      // one-letter TLD
             ".a@example.com",   // leading dot
-            "a.@example.com",   // sondaki nokta
+            "a.@example.com",   // trailing dot
             "a..b@example.com", // empty atom
             "a b@example.com",  // whitespace
             "a\t@example.com",  // sekme

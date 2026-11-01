@@ -926,7 +926,7 @@ mod tests {
         let ids: Vec<String> = (0..=51).map(|i| format!("S{i}")).collect();
         let mut rows: Vec<Vec<&str>> = vec![vec![ids[0].as_str(), "Has", "41.0", "29.0", "C0"]];
         for id in &ids[1..] {
-            rows.push(vec![id.as_str(), "X", "41.0", "29.0", ""]); // stop_code eksik
+            rows.push(vec![id.as_str(), "X", "41.0", "29.0", ""]); // stop_code missing
         }
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
@@ -978,7 +978,7 @@ mod tests {
         let ids: Vec<String> = (0..=51).map(|i| format!("S{i}")).collect();
         let mut rows: Vec<Vec<&str>> = Vec::new();
         for id in &ids {
-            rows.push(vec![id.as_str(), "X", "41.0", "29.0", id.as_str()]); // stop_code dolu, zone_id yok
+            rows.push(vec![id.as_str(), "X", "41.0", "29.0", id.as_str()]); // stop_code populated, zone_id missing
         }
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],

@@ -376,8 +376,8 @@ mod tests {
                 "record_sub_id",
             ],
             vec![
-                vec!["stop_times", "stop_headsign", "en", "Centre", "T1", ""], // eksik → TRN_017
-                vec!["stop_times", "stop_headsign", "en", "Centre", "T2", "3"], // dolu → sessiz
+                vec!["stop_times", "stop_headsign", "en", "Centre", "T1", ""], // missing → TRN_017
+                vec!["stop_times", "stop_headsign", "en", "Centre", "T2", "3"], // populated → silent
                 vec!["stops", "stop_name", "en", "Centre", "S1", ""], // different table → silent
             ],
         );

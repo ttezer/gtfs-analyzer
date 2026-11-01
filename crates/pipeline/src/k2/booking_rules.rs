@@ -1103,8 +1103,8 @@ mod tests {
             ],
             vec![
                 vec!["B1", "1", "30", "120", "2", "3"], // type=1 + max + start_day → BKR_024
-                vec!["B2", "1", "30", "120", "", ""],   // start_day yok → sessiz
-                vec!["B3", "1", "30", "", "2", "3"],    // max yok → sessiz
+                vec!["B2", "1", "30", "120", "", ""],   // start_day missing → silent
+                vec!["B3", "1", "30", "", "2", "3"],    // max missing → silent
             ],
         );
         let (_, notices) = validate_booking_rules(&file);
