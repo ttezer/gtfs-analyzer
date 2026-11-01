@@ -365,6 +365,15 @@ print(len(result["notices"]))
 sonuç yapısı ve hata türleri için [`python/README.md`](python/README.md)
 dosyasına bakın.
 
+### Topluluk bağlamaları
+
+| Dil | Paket | Bakım |
+|---|---|---|
+| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | Bu deponun dışında, kendi yazarlarınca |
+
+Topluluk bağlamaları bu depoda test edilmez ve bu deponun yayın sürecinden çıkmaz.
+Motor bulgularını buraya, bağlamaya özgü sorunları paketin kendi deposuna bildirin.
+
 ## CLI (Terminal)
 
 Aynı doğrulama çekirdeğini terminalden çalıştırabilirsiniz — toplu iş, betikleme ve Python/otomasyon entegrasyonu için.

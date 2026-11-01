@@ -359,6 +359,16 @@ print(len(result["notices"]))
 `result` は npm SDK や CLI の JSON 出力と同じ基本結果を持ちます。パラメータ、結果の構造、
 エラー型は [`python/README.md`](python/README.md)（英語）を参照してください。
 
+### コミュニティ製バインディング
+
+| 言語 | パッケージ | 保守 |
+|---|---|---|
+| Kotlin / JVM | [`io.github.transittrack:gtfs-analyzer`](https://central.sonatype.com/artifact/io.github.transittrack/gtfs-analyzer) | 本リポジトリ外の作者 |
+
+コミュニティ製バインディングは本リポジトリではテストされず、本リポジトリのリリース工程からも
+公開されません。エンジンの問題はここへ、バインディング固有の問題はパッケージ側のリポジトリへ
+報告してください。
+
 ---
 
 ## CLI（ターミナル）
