@@ -111,9 +111,9 @@ export interface FeedMetrics {
   shape_count: number;
   active_service_days: number;
   avg_daily_trips: number;
-  feed_start_date: number | null;     // feed_info geçerlilik penceresi (YYYYMMDD)
+  feed_start_date: number | null;     // feed_info validity window (YYYYMMDD)
   feed_end_date: number | null;
-  service_start_date: number | null;  // gerçek servis kapsama aralığı (YYYYMMDD)
+  service_start_date: number | null;  // actual service coverage range (YYYYMMDD)
   service_end_date: number | null;
   spec_notice_count: number;
   interop_notice_count: number;
@@ -141,17 +141,17 @@ export interface NameIndex {
   trip_directions: Record<string, string>;          // trip_id → "0"/"1" (direction_id)
   stop_coords: Record<string, [number, number]>;    // stop_id → [lat, lon]
   trip_first_dep: Record<string, string>;           // trip_id → "HH:MM"
-  shape_routes: Record<string, [string, string][]>; // shape_id → [[route_id, yön]]
-  shape_coords: Record<string, [number, number][]>; // shape_id → [[lat, lon], ...] sıralı
+  shape_routes: Record<string, [string, string][]>; // shape_id → [[route_id, direction]]
+  shape_coords: Record<string, [number, number][]>; // shape_id → [[lat, lon], ...] in order
   trip_shapes: Record<string, string>;              // trip_id → shape_id
-  trip_stops: Record<string, string[]>;             // trip_id → [stop_id, ...] sıralı
-  shape_trips: Record<string, string>;              // shape_id → ilk trip_id
+  trip_stops: Record<string, string[]>;             // trip_id → [stop_id, ...] in order
+  shape_trips: Record<string, string>;              // shape_id → first trip_id
   route_shapes: Record<string, string[]>;           // route_id → [shape_id, ...]
-  route_colors?: Record<string, [string, string]>; // route_id → [route_color, route_text_color] (hex, # yok; metin rengi boş olabilir)
-  service_days?: Record<string, [string, string, string, string]>; // service_id → [gün maskesi pzt..paz, başlangıç, bitiş, istisna sayısı]
-  route_long_names?: Record<string, string>;        // route_id → route_long_name (yalnız kısa adı da olan hatlar)
-  stop_codes?: Record<string, string>;              // stop_id → stop_code (dolu olanlar)
-  map_data_deferred: boolean;                        // büyük feed: shape geometrisi on-demand (shape_coords_of)
+  route_colors?: Record<string, [string, string]>; // route_id → [route_color, route_text_color] (hex, no #; text color may be empty)
+  service_days?: Record<string, [string, string, string, string]>; // service_id → [Mon..Sun day mask, start, end, exception count]
+  route_long_names?: Record<string, string>;        // route_id → route_long_name (routes that also have a short name)
+  stop_codes?: Record<string, string>;              // stop_id → stop_code (non-empty values)
+  map_data_deferred: boolean;                        // large feed: shape geometry loaded on demand (shape_coords_of)
 }
 
 export interface ValidationResult {

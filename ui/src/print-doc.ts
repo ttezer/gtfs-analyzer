@@ -1,11 +1,11 @@
 import type { Locale } from './i18n';
 
-// Rapor sekmesi `noopener` ile açılır → pencere handle'ı YOK. Eskiden açılan pencerede
-// yapılan iki iş (documentElement.lang ataması, win.print() çağrısı) bu yüzden belgenin
-// kendisine gömülür. Bu modül saf string dönüşümleridir; DOM'a dokunmaz, böylece
-// test edilebilir kalır.
+// The report tab opens with `noopener` → there is NO window handle. The two operations
+// previously performed on the opened window (assigning documentElement.lang and calling
+// win.print()) are therefore embedded in the document itself. This module only transforms
+// strings; it does not touch the DOM, so it remains testable.
 
-/// `<html>` etiketinin `lang`'ını aktif dile çeker. Klasik rapor `lang="tr"` sabitler.
+/// Set the `<html>` tag's `lang` to the active locale. The classic report hard-codes `lang="tr"`.
 export function withLang(html: string, locale: Locale): string {
   const start = html.search(/<html\b/i);
   if (start < 0) return html;
@@ -15,7 +15,7 @@ export function withLang(html: string, locale: Locale): string {
   return html.slice(0, start) + tag.replace(/^<html/i, `<html lang="${locale}"`) + html.slice(end + 1);
 }
 
-/// Belge yüklenince yazdırma diyaloğunu kendi açsın diye `</body>` öncesine tetikleyici koyar.
+/// Insert a trigger before `</body>` so the document opens the print dialog when it loads.
 export function withAutoPrint(html: string): string {
   const trigger = '<script>addEventListener("load",()=>{focus();print();});<\/script>';
   return html.includes('</body>')

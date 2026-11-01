@@ -2,7 +2,7 @@ import type { FatalError, ValidationResult } from './types';
 import type { WorkerMsg } from './validator-worker';
 import type { EngineMode } from './wasm';
 
-// ── Dışa açık callback tipleri ────────────────────────────────────────────────
+// ── Public callback types ─────────────────────────────────────────────────────
 
 export type OnFileList  = (files: Array<{ name: string; uncompressed_size: number }>) => void;
 export type OnFileDone  = (name: string, rows: number, bytes: number) => void;
@@ -16,12 +16,12 @@ export interface ValidateCallbacks {
   onEngine?:    OnEngine;
 }
 
-// ── İç tipler ─────────────────────────────────────────────────────────────────
+// ── Internal types ─────────────────────────────────────────────────────────────
 
 type ValidateRequest = { id: number; type: 'validate'; buffer: ArrayBuffer; configDelta: string; forceSerial?: boolean; forceMemory64?: boolean; forceWasm32?: boolean };
 type RerunRequest    = { id: number; type: 'rerun';    configDelta: string };
 
-// Sayfa ?serial=1 ise WASM thread'lerini kapat (A/B ölçümü / hata-ayıklama).
+// Disable WASM threads when the page has ?serial=1 (A/B measurement / debugging).
 const FORCE_SERIAL = typeof location !== 'undefined' && /[?&]serial=1\b/.test(location.search);
 const FORCE_MEMORY64 = typeof location !== 'undefined' && /[?&]wasm64=1\b/.test(location.search);
 const FORCE_WASM32 = typeof location !== 'undefined' && /[?&]wasm32=1\b/.test(location.search);
@@ -38,15 +38,15 @@ type PendingEntry = {
 // ── Worker ────────────────────────────────────────────────────────────────────
 
 const pending = new Map<number, PendingEntry>();
-// Harita ikonu on-demand shape isteği — hafif, callback/timeout gerektirmez.
+// On-demand shape request for a map icon — lightweight, with no callback/timeout required.
 const shapePending = new Map<number, (coords: [number, number][]) => void>();
 let   nextId  = 1;
 let   worker  = createWorker();
 
-// #15 teşhis: UI her aşama mesajını alıyor (onWorkerMessage 'stage'). Son tamamlanan
-// aşamayı tut ki bir çökme/timeout olduğunda hata mesajına eklenebilsin — büyük feed'de
-// WASM trap'i (memory access out of bounds) rayon alt-worker'ında olup JS'te temiz
-// yakalanamıyor; en azından HANGİ aşamadan sonra öldüğü devtools'suz görünsün.
+// #15 diagnostics: the UI receives every stage message (onWorkerMessage 'stage'). Keep the
+// last completed stage so it can be added to an error on crash/timeout — on large feeds,
+// the WASM trap (memory access out of bounds) may occur in a rayon sub-worker and cannot be
+// caught cleanly in JS; at least show which stage had completed without requiring devtools.
 let lastStage = '';
 function stageHint(): string {
   return lastStage ? ` (son tamamlanan aşama: ${lastStage})` : '';
@@ -109,8 +109,8 @@ function onWorkerError(event: ErrorEvent): void {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-// #15: bellek artık tavanı aşmıyor (W1-W3 + Mode A fix); çok büyük feed'lerde tek kalan
-// sınır wall-clock SÜREsi. K2/K6 büyük feed'de dakikalar sürebildiğinden 5→15 dk.
+// #15: memory no longer exceeds the cap (W1-W3 + Mode A fix); the only remaining
+// limit for very large feeds is wall-clock TIME. K2/K6 can take minutes on large feeds, so 5→15 min.
 const VALIDATE_TIMEOUT_MS = 15 * 60 * 1000; // 15 dakika
 const VALIDATE_TIMEOUT_MIN = VALIDATE_TIMEOUT_MS / 60000;
 
@@ -144,14 +144,14 @@ export function validateFile(
   });
 }
 
-// Büyük feed modunda harita ikonu için tek shape'in noktalarını worker'dan çeker.
-// Cache yoksa veya shape bulunamazsa boş dizi döner (harita şekilsiz açılır).
+// In large-feed mode, fetch one shape's points from the worker for the map icon.
+// Return an empty array when there is no cache or the shape is missing (the map opens without a shape).
 export function requestShapeCoords(shapeId: string): Promise<[number, number][]> {
   const id = nextId++;
   return new Promise<[number, number][]>((resolve) => {
     shapePending.set(id, resolve);
     worker.postMessage({ id, type: 'shape-coords', shapeId });
-    // Worker beklenmedik şekilde ölürse takılmasın — 10 sn sonra boş dön.
+    // Do not hang if the worker dies unexpectedly — return empty after 10 seconds.
     setTimeout(() => {
       if (shapePending.has(id)) { shapePending.delete(id); resolve([]); }
     }, 10_000);

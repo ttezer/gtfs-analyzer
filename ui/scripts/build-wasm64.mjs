@@ -1,5 +1,5 @@
-// Deneysel serial Memory64 build'i. wasm64 Rust'ta Tier 3 olduğu için nightly
-// build-std gerekir; JS binding'i wasm-pack yerine doğrudan wasm-bindgen üretir.
+// Experimental serial Memory64 build. Because wasm64 is Tier 3 in Rust, nightly
+// build-std is required; wasm-bindgen generates the JS binding directly instead of wasm-pack.
 import { rmSync, renameSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,7 @@ function run(command, args, cwd = repoDir) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-// `RUST_NIGHTLY`: CI'da tarihli nightly (setup-rust-wasm action'ı); yerelde kurulu "nightly".
+// `RUST_NIGHTLY`: dated nightly in CI (setup-rust-wasm action); installed "nightly" locally.
 run('cargo', [
   `+${process.env.RUST_NIGHTLY || 'nightly'}`, 'build',
   '-Z', 'build-std=std,panic_abort',
@@ -29,16 +29,16 @@ run('cargo', [
 rmSync(outDir, { recursive: true, force: true });
 run('wasm-bindgen', [wasmPath, '--target', 'web', '--out-dir', outDir]);
 
-// wasm-opt (opsiyonel): wasm-bindgen çıktısı optimize edilmemiştir ve wasm-pack'in
-// bu paket için akışı yoktur. Binaryen >= ~119 memory64 çıktısını (64-bit tablo dahil)
-// optimize edebilir; wasm-pack'in paketlediği eski v117 bunu parse EDEMEZ.
-// Guarded: bir wasm-opt yoksa ya da parse edemezse optimize edilmemiş binary korunur;
-// build hiçbir koşulda kırılmaz. Çıktı yalnız exit==0'da değiştirilir.
+// wasm-opt (optional): wasm-bindgen output is unoptimized, and wasm-pack has no
+// flow for this package. Binaryen >= ~119 can optimize memory64 output (including
+// the 64-bit table); the older v117 bundled by wasm-pack CANNOT parse it.
+// Guarded: if wasm-opt is missing or cannot parse the binary, preserve the unoptimized
+// binary; the build never fails. Replace the output only when exit==0.
 const bgWasm = resolve(outDir, 'gtfs_wasm_bg.wasm');
 const optTmp = `${bgWasm}.opt`;
 const optArgs = ['-O', '--enable-memory64', bgWasm, '-o', optTmp];
-// binaryen devDependency'si (node-sarmalı wasm-opt) tercih edilir → CI dahil herkes
-// `npm ci` ile aynı sürümü alır. Yoksa PATH'teki standalone wasm-opt denenir.
+// Prefer the binaryen devDependency (node-wrapped wasm-opt) → everyone, including CI,
+// gets the same version with `npm ci`. Otherwise try the standalone wasm-opt on PATH.
 const localWasmOpt = resolve(uiDir, 'node_modules/binaryen/bin/wasm-opt');
 const [optCmd, optCmdArgs] = existsSync(localWasmOpt)
   ? [process.execPath, [localWasmOpt, ...optArgs]]

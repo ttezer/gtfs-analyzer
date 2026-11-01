@@ -1,12 +1,12 @@
-// #45 saf yardımcıları — render/worker importundan bağımsız → doğrudan birim testlenebilir.
+// #45 pure helpers — independent of render/worker imports → directly unit-testable.
 
 export type UrlCheck =
   | { ok: true; url: URL }
   | { ok: false; reason: 'invalid' | 'https' | 'credentials' };
 
 /**
- * Feed URL'sini client-side (ağ yok) doğrular: geçerli URL, yalnız `https`,
- * gömülü kimlik bilgisi (user:pass@) reddedilir. SSRF/gizlilik için ilk savunma.
+ * Validate a feed URL client-side (without network access): require a valid URL and `https`,
+ * and reject embedded credentials (user:pass@). This is the first defense against SSRF/privacy issues.
  */
 export function validateFeedUrl(raw: string): UrlCheck {
   let url: URL;
@@ -17,7 +17,7 @@ export function validateFeedUrl(raw: string): UrlCheck {
   return { ok: true, url };
 }
 
-/** URL yolundan okunabilir dosya adı türet (uzantı yoksa `.zip` ekle; yoksa `feed.zip`). */
+/** Derive a readable filename from the URL path (append `.zip` when there is no extension; use `feed.zip` when empty). */
 export function urlFileName(url: URL): string {
   const last = url.pathname.split('/').filter(Boolean).pop() ?? '';
   let decoded = last;
@@ -26,7 +26,7 @@ export function urlFileName(url: URL): string {
   return /\.[a-z0-9]+$/i.test(decoded) ? decoded : `${decoded}.zip`;
 }
 
-/** İlk 4 bayt yerel ZIP imzası mı? (PK\x03\x04) */
+/** Do the first 4 bytes match the local ZIP signature? (PK\x03\x04) */
 export function isZipSignature(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4B && bytes[2] === 0x03 && bytes[3] === 0x04;
 }

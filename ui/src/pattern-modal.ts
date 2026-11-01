@@ -2,10 +2,10 @@ import type { NameIndex } from './types';
 import { escHtml } from './escape';
 import { t } from './i18n';
 
-// Bir hattın farklı sefer DESENLERİNİ (sıralı durak dizisi) gösteren modal.
-// Veri tamamen client-side: name_index.trip_routes + trip_stops (+ yön/sıklık için
-// trip_directions + trip_first_dep). Backend'e ek alan: trip_directions.
-// Desen anahtarı VAT_003 ile aynı (sıralı durak dizisi).
+// Modal showing a route's different trip PATTERNS (ordered stop sequences).
+// Data is entirely client-side: name_index.trip_routes + trip_stops (+
+// trip_directions + trip_first_dep for direction/frequency). Extra backend field: trip_directions.
+// The pattern key matches VAT_003 (ordered stop sequence).
 
 let overlay: HTMLElement | null = null;
 
@@ -25,7 +25,7 @@ export function closePatternModal(): void {
   overlay?.classList.add('mm-hidden');
 }
 
-// Desendeki seferlerin baskın yönü (direction_id 0 → Gidiş, 1 → Dönüş; yoksa "—").
+// Dominant direction of the trips in a pattern (direction_id 0 → outbound, 1 → inbound; "—" if absent).
 function directionLabel(tripIds: string[], ni: NameIndex): string {
   const counts: Record<string, number> = {};
   for (const tid of tripIds) {
@@ -42,7 +42,7 @@ function directionLabel(tripIds: string[], ni: NameIndex): string {
 }
 
 function renderPatterns(routeId: string, ni: NameIndex): string {
-  // Hatta ait sefer'ler → sıralı durak dizisine göre grupla (trip listesiyle).
+  // Group the route's trips by ordered stop sequence (with the trip list).
   const groups = new Map<string, { stops: string[]; trips: string[] }>();
   let omittedTrips = 0;
   let storedTrips = 0;
@@ -86,7 +86,7 @@ function renderPatterns(routeId: string, ni: NameIndex): string {
     const parts: string[] = [
       `<strong>${t('fix.pattern.pat_n', { n: String(i + 1) })}</strong>`,
       `${t('fix.pattern.trips', { n: String(p.trips.length) })} (${pct}%)`,
-      // Yön her satırda uniform (yoksa "—") — tutarsız görünmesin.
+      // Keep the direction uniform within each row (or "—") so it does not look inconsistent.
       `<span class="pm-dir">${directionLabel(p.trips, ni)}</span>`,
       `${escHtml(first)} → ${escHtml(last)}`,
       t('fix.pattern.stops_n', { n: String(p.stops.length) }),

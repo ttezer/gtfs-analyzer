@@ -9,11 +9,11 @@ export interface AppState {
   configDelta: string;
   fileName: string;
   fileSize: number;
-  fixFileFilter: string; // files sayfasından fix'e filtreli geçiş için
-  fixClassFilter: string; // skor bileşeni kartından fix R2'ye sınıf-filtreli geçiş için
-  agencyFilter: string[]; // fix sayfasında seçili agency_id'ler (boş = tümü)
-  generatedAt: Date | null; // raporun hesaplandığı an (validasyon/yeniden çalıştırma)
-  reportDurationMs: number | null; // dosya okuma + analiz + rapor üretimi duvar saati
+  fixFileFilter: string; // filtered navigation from the files page to fix
+  fixClassFilter: string; // class-filtered navigation from a score-component card to fix R2
+  agencyFilter: string[]; // selected agency_ids on the fix page (empty = all)
+  generatedAt: Date | null; // when the report was computed (validation/rerun)
+  reportDurationMs: number | null; // wall-clock time for reading, analyzing, and generating the report
 }
 
 const state: AppState = {
@@ -67,6 +67,6 @@ export function setConfigDelta(delta: string): void {
 
 export function updateResult(result: ValidationResult): void {
   state.result = result;
-  state.generatedAt = new Date(); // yeniden çalıştırma yeni bir rapor üretir
+  state.generatedAt = new Date(); // a rerun produces a new report
   logAction('rerun', `${result.notices.length} notice`);
 }
