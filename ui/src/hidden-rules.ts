@@ -6,14 +6,13 @@ import { escHtml } from './escape';
 import { rerunValidation } from './validator-client';
 
 /**
- * Kullanıcının gizlediği kural kimlikleri, `configDelta`'nın `disabled_rule_ids`
- * alanında tutulur — yani ayar panelinin yazdığı yerin aynısı. Motor bu listeyi
- * K7'den ÖNCE uygular: gizlenen kural ne bulgularda, ne skorlarda, ne de düzeltme
- * kuyruğunda görünür.
+ * Rule IDs hidden by the user are stored in `configDelta`'s `disabled_rule_ids`
+ * field — the same place written by the settings panel. The engine applies this list
+ * BEFORE K7: a hidden rule appears neither in findings, scores, nor the fix queue.
  *
- * ⚠️ Spec sınıfı kurallar buraya GİREMEZ: yayın kararı onlara dayanır ve motor
- * (`gtfs_pipeline::check_rule_scope`) böyle bir isteği fatal hata ile reddeder.
- * Arayüz bu yüzden Spec kurallarında gizle düğmesini hiç göstermez.
+ * ⚠️ Spec-class rules CANNOT be added here: publication decisions depend on them, and the
+ * engine (`gtfs_pipeline::check_rule_scope`) rejects such a request as a fatal error.
+ * The UI therefore never shows a hide button for Spec rules.
  */
 export function hiddenRules(): string[] {
   return parseHiddenRules(getState().configDelta);
@@ -23,7 +22,7 @@ export function isHidden(ruleId: string): boolean {
   return hiddenRules().includes(ruleId);
 }
 
-/** Kuralı gizler. Zaten gizliyse hiçbir şey yapmaz; dönüş: liste değişti mi. */
+/** Hides a rule. No-op if already hidden; returns whether the list changed. */
 export function hideRule(ruleId: string): boolean {
   const next = withHiddenRule(getState().configDelta, ruleId);
   if (next === null) return false;
@@ -31,7 +30,7 @@ export function hideRule(ruleId: string): boolean {
   return true;
 }
 
-/** Kuralı yeniden görünür yapar. Dönüş: liste değişti mi. */
+/** Makes a rule visible again. Returns whether the list changed. */
 export function unhideRule(ruleId: string): boolean {
   const next = withoutHiddenRule(getState().configDelta, ruleId);
   if (next === null) return false;
@@ -40,9 +39,9 @@ export function unhideRule(ruleId: string): boolean {
 }
 
 /**
- * Gizlenen kuralların şeridi. HER rapor sayfasının en üstünde görünür (Rapor ve
- * Ayrıntı/Düzeltme): kullanıcı hangi sayfada olursa olsun neyin ölçüm dışı kaldığını
- * görebilmeli ve tek tıkla geri getirebilmeli.
+ * Bar for hidden rules. Appears at the top of EVERY report page (Report and
+ * Details/Fix): users must be able to see what is excluded from measurement and restore it
+ * with one click, regardless of the page they are on.
  */
 export function renderHiddenRulesBar(): string {
   const hidden = hiddenRules();
@@ -58,21 +57,21 @@ export function renderHiddenRulesBar(): string {
 }
 
 /**
- * Gizleme/gösterme tek yoldan işler: listeyi güncelle → K6+K7'yi cache'ten yeniden
- * koş → sonucu tazele. K1-K5 TEKRARLANMAZ, büyük feed'de de anlık gelir.
- * `setResult` sayfayı 'domain'e döndürdüğü için kullanıcının sayfası geri konur.
+ * Hiding/showing follows one path: update the list → rerun K6+K7 from cache → refresh the
+ * result. K1–K5 are NOT rerun, so this is immediate even on a large feed.
+ * `setResult` returns the page to 'domain', so the user's original page is restored.
  */
-// `main` statik içe aktarılır: `pages/upload.ts` de aynısını yapar, yani modül
-// döngüsü zaten mevcut ve ESM tarafından çözülüyor. Dinamik import vite'ta
-// "hem statik hem dinamik" uyarısı üretiyordu.
+// `main` is imported statically: `pages/upload.ts` does the same, so the module
+// cycle already exists and is resolved by ESM. A dynamic import produced Vite's
+// "both static and dynamic" warning.
 export async function applyRuleVisibility(changed: boolean): Promise<void> {
   if (!changed) return;
   const state = getState();
   const page = state.page;
-  // Yeniden çizim sayfayı sıfırdan kurar: R9 akordeonu kapanır, önem filtresi
-  // seçimi silinir ve sayfa başa döner. Kullanıcı okuduğu yerde kalmalı.
-  // Sınıf/dosya filtreleri state'te tutulduğu için kendiliğinden korunur; önem
-  // rozetleri yalnız DOM'da yaşar, bu yüzden burada yakalanır.
+  // Rerendering rebuilds the page from scratch: the R9 accordion closes, the severity filter
+  // selection disappears, and the page returns to the top. The user should stay where they were.
+  // Class/file filters live in state and are preserved automatically; severity chips live only
+  // in the DOM, so they are captured here.
   const r9Open = document.querySelector<HTMLDetailsElement>('.r9-card')?.open ?? false;
   const scrollY = window.scrollY;
   const activeSev = (id: string): string[] => {
@@ -85,13 +84,13 @@ export async function applyRuleVisibility(changed: boolean): Promise<void> {
     setResult(fresh, state.fileName, state.fileSize ?? 0, state.reportDurationMs);
     setPage(page);
   } catch {
-    // Yeniden koşum başarısızsa ayar yine de kayıtlı; sonraki koşumda uygulanır.
+    // If the rerun fails, the setting is still saved and applies on the next run.
   }
   renderApp();
   const r9 = document.querySelector<HTMLDetailsElement>('.r9-card');
   if (r9 && r9Open) r9.open = true;
-  // Rozete tıklamak hem 'active' işaretini hem de filtre uygulamasını geri getirir;
-  // filtre mantığını burada TEKRARLAMAK iki kopya demek olurdu.
+  // Clicking the chip restores both the 'active' marker and the filter; DUPLICATING the
+  // filter logic here would create two copies.
   for (const [id, sevs] of [['r2-sev-filter', sevSelection.r2], ['r9-sev-filter', sevSelection.r9]] as const) {
     for (const sev of sevs) {
       document.querySelector<HTMLButtonElement>(`#${id} .sev-chip[data-sev="${sev}"]`)?.click();
@@ -100,11 +99,11 @@ export async function applyRuleVisibility(changed: boolean): Promise<void> {
   window.scrollTo({ top: scrollY });
 }
 
-/** Şerit rozetleri ve bulgu satırındaki gizle düğmeleri için dinleyiciler. */
+/** Listeners for bar chips and hide buttons in finding rows. */
 export function attachHiddenRuleListeners(root: HTMLElement): void {
   root.querySelectorAll<HTMLButtonElement>('.hide-rule-btn').forEach(btn => {
     btn.addEventListener('click', e => {
-      e.stopPropagation();  // R9 satırı tıklanınca açılır; gizleme onu tetiklemesin.
+      e.stopPropagation();  // R9 row clicks open it; hiding must not trigger that.
       const rule = btn.dataset['rule'];
       if (rule) void applyRuleVisibility(hideRule(rule));
     });
