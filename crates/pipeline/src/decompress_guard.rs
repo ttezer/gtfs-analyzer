@@ -1,78 +1,79 @@
-//! Zip-bomb / sınırsız-decompression koruması.
+//! Zip-bomb / unbounded-decompression protection.
 //!
-//! `GuardedReader`, sardığı `Read` kaynağından **gerçekten açılan** baytları sayar
-//! ve bir arşiv girdisi ya da tüm arşiv traversal'ı sınırları aşarsa okumayı durdurur.
-//! Kontrol inflate sırasında (post-hoc değil) yapılır: sınır aşıldığı anda `read`
-//! hata döndürür, böylece OOM gerçekleşmeden önce akış kesilir.
+//! `GuardedReader` counts bytes **actually decompressed** from the wrapped `Read` source
+//! and stops reading when an archive entry or the entire archive traversal exceeds its limits.
+//! The check runs during inflate (not post-hoc): `read` returns an error as soon as a limit is
+//! exceeded, cutting the stream before an OOM can occur.
 //!
-//! Tasarım notları:
-//! - Ratio paydası daima `zf.compressed_size()` (elimizdeki gerçek bayt); beyan edilen
-//!   açılmış boyut (`zf.size()`) saldırgan-kontrollü olduğundan asla kullanılmaz.
-//! - `ratio_floor`: küçük ama çok sıkışan meşru girdilerde (ör. tekrarlı integer CSV)
-//!   yanlış-pozitifi önlemek için oran kontrolü yalnızca bu boyutun üstünde uygulanır.
-//! - Sabitler `DEFAULT_DECOMPRESSION_LIMITS` placeholder'dır; gerçek ~9.4 GB feed
-//!   ölçümü + wasm64 bellek zarfına göre kalibre edilmelidir.
+//! Design notes:
+//! - The ratio denominator is always `zf.compressed_size()` (the actual bytes available to us);
+//!   the declared decompressed size (`zf.size()`) is attacker-controlled and never used.
+//! - `ratio_floor`: to avoid false positives on small but highly compressed legitimate inputs
+//!   (e.g. repetitive integer CSV), apply the ratio check only above this size.
+//! - The constants in `DEFAULT_DECOMPRESSION_LIMITS` are placeholders; calibrate them against
+//!   a real ~9.4 GB feed measurement and the wasm64 memory envelope.
 
 use std::io::{self, Read};
 
-/// Decompression guard sınırları (bayt cinsinden, oran birimsiz).
+/// Decompression guard limits (bytes; ratio is dimensionless).
 #[derive(Clone, Copy, Debug)]
 pub struct DecompressionLimits {
-    /// Tek bir arşiv traversal'ında toplam açılmış bayt için mutlak tavan.
+    /// Absolute cap on total decompressed bytes in one archive traversal.
     pub max_total_decompressed: u64,
-    /// Tek bir girdi için açılmış bayt mutlak tavanı.
+    /// Absolute cap on decompressed bytes for one entry.
     pub max_entry_decompressed: u64,
-    /// Bu açılmış-boyutun altında oran kontrolü uygulanmaz (küçük girdiler zararsız).
+    /// Do not apply the ratio check below this decompressed size (small inputs are harmless).
     pub ratio_floor: u64,
-    /// Taban üstünde izin verilen en yüksek açılmış:sıkıştırılmış oranı.
+    /// Maximum allowed decompressed:compressed ratio above the floor.
     pub max_ratio: u64,
 }
 
-/// Decompression guard varsayılan sınırları — 2026-07 gerçek bir 419 MB DELFI
-/// aggregate feed'inin (46,3M stop_times) merkezi-dizin taramasıyla kalibre edildi
-/// (issue #46; rapor `list_zip_files` içindeki `log_zip_ratio_report`).
+/// Default decompression guard limits — calibrated in 2026-07 by scanning the central directory
+/// of a real 419 MB DELFI aggregate feed (46.3M stop_times) (issue #46; report in
+/// `log_zip_ratio_report` inside `list_zip_files`).
 ///
-/// Ölçülen (per-entry, decompress YOK; guard false-trip ETMEDİ):
-/// - en yüksek oran 17,8:1 (bir `.out` artefaktı); en yüksek GTFS dosyası trips.txt 12,3:1,
-/// - en büyük girdi stop_times ~2,74 GiB; toplam açılmış ~3,39 GiB; feed oranı ~8,3:1.
+/// Measured (per-entry, NO decompression; the guard did not false-trip):
+/// - maximum ratio 17.8:1 (an `.out` artifact); maximum GTFS file trips.txt 12.3:1,
+/// - largest entry stop_times ~2.74 GiB; total decompressed ~3.39 GiB; feed ratio ~8.3:1.
 ///
-/// **2026-08-01 — Entur (Norveç) yeni EN-KÖTÜ ORAN oldu; kalibrasyon tabanı güncellendi:**
-/// - `calendar_dates.txt` **32,8:1** (31,2 MiB açılmış / 1,0 MiB) — DELFI'deki 17,8:1'in ~1,8×'i
-///   ve `ratio_floor`'un (16 MiB) ÜSTÜNDE, yani oran kontrolüne TABİ,
-/// - en büyük girdi `shapes.txt` 2.651,8 MiB; toplam açılmış 3.640,2 MiB (feed oranı 6,2:1).
+/// **2026-08-01 — Entur (Norway) became the NEW WORST RATIO; the calibration baseline was updated:**
+/// - `calendar_dates.txt` **32.8:1** (31.2 MiB decompressed / 1.0 MiB) — ~1.8× DELFI's 17.8:1
+///   and ABOVE the `ratio_floor` (16 MiB), so it is SUBJECT to the ratio check,
+/// - largest entry `shapes.txt` 2,651.8 MiB; total decompressed 3,640.2 MiB (feed ratio 6.2:1).
 ///
-/// Entur 80 sınırını geçmedi ama pay 4,5×'ten **2,4×**'e düştü. `calendar_dates` yapısı gereği
-/// aşırı sıkışır (tekrar eden tarih + service_id) ve Entur'dan 2,4× daha tekrarlı meşru bir feed
-/// FATAL ARC_029 ile REDDEDİLİRDİ — mümkün olan en ağır yanlış pozitif. Sınır 80 → 100.
+/// Entur did not exceed the limit of 80, but the margin fell from **4.5×** to **2.4×**.
+/// `calendar_dates` is highly compressible by nature (repeating date + service_id), and a
+/// legitimate feed 2.4× more repetitive than Entur would be REJECTED with FATAL ARC_029 —
+/// the most severe possible false positive. Limit 80 → 100.
 ///
-/// Değerler ölçülen en-kötünün belirgin üstünde (meşru büyük feed'i reddetmemek için)
-/// ama gerçek zip-bomba şekillerini (minik zip → devasa açılım) yakalayacak kadar dar.
-/// Yeniden ayarlamak için TEK nokta burasıdır; yeni bir en-kötü feed'de raporu tekrar
-/// koştur ve pay bırakarak güncelle.
+/// Values are well above the measured worst case (so legitimate large feeds are not rejected),
+/// but narrow enough to catch real zip-bomb patterns (tiny ZIP → enormous expansion).
+/// This is the ONE place to retune: rerun the report on a new worst-case feed and update it
+/// while preserving a margin.
 pub const DEFAULT_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimits {
-    // 16 GiB — ölçülen ~3,4 GiB toplamın çok üstünde BİLİNÇLİ tutuldu: daha büyük
-    // gerçek feed'ler (~9.4 GB sınıfı) mevcut, "2× toplam" (~7 GiB) onları reddederdi.
-    // wasm64 OOM duvarının (~16 GiB) hemen altında. NOT: normal feed'de asıl OOM
-    // bariyeri bu DEĞİL (tepe bellek ~14 GiB K6 analitiğinden); bu tavan yalnızca
-    // decompression-baskın bombalar içindir.
+    // 16 GiB — deliberately far above the measured ~3.4 GiB total: larger real feeds
+    // (~9.4 GB class) exist, and a "2× total" limit (~7 GiB) would reject them.
+    // Just below the wasm64 OOM wall (~16 GiB). NOTE: this is NOT the real OOM barrier for
+    // a normal feed (peak memory is ~14 GiB from K6 analytics); this cap is only for
+    // decompression-dominant bombs.
     max_total_decompressed: 16 * 1024 * 1024 * 1024, // 16 GiB
-    // Ölçülen ~2,74 GiB en-büyük girdinin ~4,4×'i. Daha büyük tek girdi zaten 16 GiB
-    // duvarında işlenemez → false-trip riski yok; büyük girdilerde asıl kontrol ratio.
+    // ~4.4× the measured ~2.74 GiB largest entry. A larger single entry cannot be processed
+    // past the 16 GiB wall → no false-trip risk; ratio is the main check for large entries.
     max_entry_decompressed: 12 * 1024 * 1024 * 1024, // 12 GiB
-    // Bu açılmış-boyutun altında oran yok sayılır (küçük, çok sıkışan girdiler zararsız).
+    // Ignore the ratio below this decompressed size (small, highly compressed inputs are harmless).
     ratio_floor: 16 * 1024 * 1024, // 16 MiB
-    // Ölçülen en-kötü per-entry oran **32,8:1** (Entur `calendar_dates.txt`, 2026-08-01)
-    // → 100 ~3× pay bırakır. Bir bombanın ihtiyacı ~200:1+ ve tek DEFLATE tavanı ~1032:1,
-    // yani 100 hâlâ bomba bölgesinin bir kat altında; aradaki boşluğu entry/total cap'leri
-    // kapatır (mutlak zarar 12/16 GiB ile sınırlı, oran ne olursa olsun).
+    // Measured worst per-entry ratio **32.8:1** (Entur `calendar_dates.txt`, 2026-08-01)
+    // → 100 leaves ~3× margin. A bomb needs ~200:1+ and a single DEFLATE stream can reach
+    // ~1032:1, so 100 is still one order below the bomb region; entry/total caps close the
+    // gap (absolute damage is limited to 12/16 GiB regardless of ratio).
     max_ratio: 100,
 };
 
-/// Daha küçük wasm32 belleğinde çalışan SDK için decompression sınırları.
+/// Decompression limits for the SDK running with smaller wasm32 memory.
 ///
-/// Native CLI'nin büyük feed desteği için kullandığı placeholder sınırları WASM için
-/// fazla gevşektir. SDK kendi giriş boyutu kapısını ayrıca uygular; bu sınır ikinci
-/// savunma hattıdır ve özellikle K2'nin ZIP'i yeniden açtığı yollar için gereklidir.
+/// The placeholder limits used by the native CLI for large-feed support are too loose for
+/// WASM. The SDK applies its own input-size gate; this is the second line of defense and is
+/// particularly necessary on paths where K2 reopens the ZIP.
 pub const SDK_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimits {
     max_total_decompressed: 6 * 1024 * 1024 * 1024,
     max_entry_decompressed: 3 * 1024 * 1024 * 1024,
@@ -80,10 +81,10 @@ pub const SDK_DECOMPRESSION_LIMITS: DecompressionLimits = DecompressionLimits {
     max_ratio: 100,
 };
 
-/// K1'de ham Vec'e alınan (stream edilmeyen) tek dosyanın SDK üst sınırı.
+/// SDK upper bound for one file loaded into a raw Vec in K1 (not streamed).
 pub const SDK_MAX_BUFFERED_FILE_BYTES: u64 = 512 * 1024 * 1024;
 
-/// Bir K2 ZIP stream'inin satır okuyucusuna uygulanacak toplam bütçe.
+/// Total budget applied to a K2 ZIP stream's row reader.
 pub struct DecompressionBudget {
     limits: DecompressionLimits,
     total_decompressed: u64,
@@ -111,14 +112,14 @@ impl DecompressionBudget {
     }
 }
 
-/// Sınır aşımının nedeni (hata mesajı ve teşhis için).
+/// Reason for a limit breach (for error messages and diagnosis).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GuardTrip {
-    /// Girdi başına mutlak açılmış bayt tavanı aşıldı.
+    /// Absolute decompressed-byte cap per entry was exceeded.
     EntryCap { got: u64, cap: u64 },
-    /// Arşiv geneli toplam açılmış bayt tavanı aşıldı.
+    /// Archive-wide total decompressed-byte cap was exceeded.
     TotalCap { got: u64, cap: u64 },
-    /// Taban üstü açılmış:sıkıştırılmış oranı tavanı aştı.
+    /// Above-floor decompressed:compressed ratio cap was exceeded.
     Ratio {
         decompressed: u64,
         compressed: u64,
@@ -127,7 +128,7 @@ pub enum GuardTrip {
 }
 
 impl GuardTrip {
-    /// Fatal mesaj şablonunun varyantı ve parametreleri (CLI/SDK/UI çevirisi için).
+    /// Fatal message-template variant and parameters (for CLI/SDK/UI translation).
     pub fn fatal_params(&self) -> (&'static str, Vec<(&'static str, u64)>) {
         match *self {
             GuardTrip::EntryCap { got, cap } => ("entry_cap", vec![("got", got), ("cap", cap)]),
@@ -147,7 +148,7 @@ impl GuardTrip {
         }
     }
 
-    /// İnsan-okur açıklama (FatalError mesajına gömülür).
+    /// Human-readable description (embedded in the FatalError message).
     pub fn describe(&self) -> String {
         match self {
             GuardTrip::EntryCap { got, cap } =>
@@ -160,11 +161,11 @@ impl GuardTrip {
     }
 }
 
-/// Açılan baytları sayan `Read` adaptörü. Sınır aşılınca `read` hata döndürür ve
-/// nedeni [`GuardedReader::tripped`] ile okunabilir; çağıran plain ZIP hatasından
-/// ayırıp uygun `FatalCode`'u seçer.
+/// `Read` adapter that counts decompressed bytes. When a limit is exceeded, `read` returns an
+/// error whose reason is available through [`GuardedReader::tripped`]; the caller can distinguish
+/// it from a plain ZIP error and select the appropriate `FatalCode`.
 ///
-/// `total` bir traversal'ın tüm girdileri arasında paylaşılır (dış döngüde tutulur).
+/// `total` is shared across all entries in a traversal (held by the outer loop).
 pub struct GuardedReader<'a, R: Read> {
     inner: R,
     limits: DecompressionLimits,
@@ -191,7 +192,7 @@ impl<'a, R: Read> GuardedReader<'a, R> {
         }
     }
 
-    /// Sınır aşıldıysa nedenini döndürür (aksi halde `None`).
+    /// Returns the reason if a limit was exceeded (otherwise `None`).
     pub fn tripped(&self) -> Option<GuardTrip> {
         self.tripped
     }
@@ -204,7 +205,7 @@ fn tripped_err() -> io::Error {
 impl<R: Read> Read for GuardedReader<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if self.tripped.is_some() {
-            return Err(tripped_err()); // zaten tetiklendi → daha fazla okuma yok
+            return Err(tripped_err()); // already tripped → no more reading
         }
         let n = self.inner.read(buf)?;
         if n == 0 {
@@ -214,8 +215,8 @@ impl<R: Read> Read for GuardedReader<'_, R> {
         self.entry_decompressed += n64;
         *self.total += n64;
 
-        // Çarpım biçimli oran kontrolü: sıfıra bölme yok, taşma yok. Taban üstü
-        // sıfır-sıkıştırılmış girdi sonsuz oran demektir → doğru şekilde tetikler.
+        // Multiplication-based ratio check: no division by zero or overflow. An above-floor
+        // zero-compressed input has an infinite ratio → it trips correctly.
         let breach = if self.entry_decompressed > self.limits.max_entry_decompressed {
             Some(GuardTrip::EntryCap {
                 got: self.entry_decompressed,
@@ -266,7 +267,7 @@ mod tests {
     fn passes_within_limits() {
         let data = vec![0u8; 300];
         let mut total = 0u64;
-        // compressed=300 → ratio 1:1, entry 300<400, total 300<1000 → geçer
+        // compressed=300 → ratio 1:1, entry 300<400, total 300<1000 → passes
         let mut g = GuardedReader::new(&data[..], TEST_LIMITS, &mut total, 300);
         assert_eq!(read_all(&mut g).unwrap(), 300);
         assert_eq!(g.tripped(), None);
@@ -277,7 +278,7 @@ mod tests {
     fn trips_on_entry_cap() {
         let data = vec![0u8; 500];
         let mut total = 0u64;
-        // entry 500>400 → EntryCap (compressed büyük, oran tetiklenmez)
+        // entry 500>400 → EntryCap (compressed is large, ratio does not trip)
         let mut g = GuardedReader::new(&data[..], TEST_LIMITS, &mut total, 500);
         assert!(read_all(&mut g).is_err());
         assert!(matches!(g.tripped(), Some(GuardTrip::EntryCap { .. })));
@@ -287,7 +288,7 @@ mod tests {
     fn trips_on_ratio_above_floor() {
         let data = [0u8; 200];
         let mut total = 0u64;
-        // entry 200>ratio_floor 100 ve 200 > 10*compressed(1)=10 → Ratio
+        // entry 200>ratio_floor 100 and 200 > 10*compressed(1)=10 → Ratio
         let mut g = GuardedReader::new(&data[..], TEST_LIMITS, &mut total, 1);
         assert!(read_all(&mut g).is_err());
         assert!(matches!(g.tripped(), Some(GuardTrip::Ratio { .. })));
@@ -297,7 +298,7 @@ mod tests {
     fn small_high_ratio_entry_below_floor_passes() {
         let data = [0u8; 50];
         let mut total = 0u64;
-        // 50<=ratio_floor 100 → oran yok sayılır; entry/total altında → geçer
+        // 50<=ratio_floor 100 → ratio ignored; below entry/total limits → passes
         let mut g = GuardedReader::new(&data[..], TEST_LIMITS, &mut total, 1);
         assert_eq!(read_all(&mut g).unwrap(), 50);
         assert_eq!(g.tripped(), None);
@@ -306,7 +307,7 @@ mod tests {
     #[test]
     fn trips_on_total_across_entries() {
         let mut total = 0u64;
-        // İki girdi: her biri limit altında ama toplam total_cap'i aşar.
+        // Two entries: each is under the limit, but their total exceeds total_cap.
         let d1 = vec![0u8; 350];
         {
             let mut g = GuardedReader::new(&d1[..], TEST_LIMITS, &mut total, 350);
@@ -317,7 +318,7 @@ mod tests {
             let mut g = GuardedReader::new(&d2[..], TEST_LIMITS, &mut total, 350);
             assert_eq!(read_all(&mut g).unwrap(), 350);
         }
-        // total=700 < 1000; üçüncü girdi taşırır
+        // total=700 < 1000; the third entry trips the cap
         let d3 = vec![0u8; 350];
         let mut g = GuardedReader::new(&d3[..], TEST_LIMITS, &mut total, 350);
         assert!(read_all(&mut g).is_err());
