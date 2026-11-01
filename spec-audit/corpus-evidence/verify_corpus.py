@@ -1,33 +1,33 @@
 #!/usr/bin/env python3
-"""Korpus kanıtını ÜÇÜNCÜ TARAF olarak doğrula.
+"""Verify the corpus evidence as a THIRD PARTY.
 
-⚠️ NEDEN VAR: 2026-08-06 dış denetimi haklı olarak şunu söyledi — kanıt belgesindeki
-"yeniden üretim" komutları `notgit/` altındaki dosyalara işaret ediyordu ve o klasör
-`.gitignore`'da. Yani korpus rakamları dışarıdan doğrulanamıyordu, geliştirici beyanıydı.
+⚠️ WHY THIS EXISTS: the 2026-08-06 external audit correctly noted that the evidence document's
+"reproduction" commands pointed to files under `notgit/`, and that directory is in `.gitignore`.
+The corpus numbers therefore could not be verified externally; they were a developer assertion.
 
-Depoya ALINAN: feed kimlikleri + her zip'in SHA-256'sı + indirme URL'i + URL'in son
-ölçülen durumu (`url_status`/`url_checked`) + koşum çıktıları.
-Depoya ALINMAYAN: zip'lerin kendisi (2,33 GB).
+IN THE REPOSITORY: feed IDs + each ZIP's SHA-256 + download URL + the URL's last measured
+status (`url_status`/`url_checked`) + run outputs.
+NOT IN THE REPOSITORY: the ZIPs themselves (2.33 GB).
 
-Kullanım:
-    python3 spec-audit/corpus-evidence/verify_corpus.py --zips <dizin>       # hash doğrula
-    python3 spec-audit/corpus-evidence/verify_corpus.py --download <dizin>   # eksikleri indir
+Usage:
+    python3 spec-audit/corpus-evidence/verify_corpus.py --zips <directory>       # verify hashes
+    python3 spec-audit/corpus-evidence/verify_corpus.py --download <directory>   # download missing files
 
-Tam zincir:
-    1) --download ile feed'leri çek (manifest'teki URL'lerden)
-    2) --zips ile SHA-256'ları doğrula → bizim koştuğumuz BAYTLARIN aynısı mı
+Full chain:
+    1) fetch feeds with --download (from the manifest URLs)
+    2) verify SHA-256 values with --zips → are these the same BYTES we ran?
     3) python3 spec-audit/corpus_batch.py validate --dir <dizin> --today 20260717
     4) python3 spec-audit/corpus_batch.py report --dir <dizin>
-    5) üretilen rule_stats.csv'yi corpus-evidence/rule_stats.csv ile karşılaştır
+    5) compare the generated rule_stats.csv with corpus-evidence/rule_stats.csv
 
-⚠️ Feed'ler CANLI URL'lerden gelir; yayıncı dosyayı güncellerse hash TUTMAZ. Bu bir
-başarısızlık değil, korpusun bir ANLIK GÖRÜNTÜ olduğunun kanıtıdır — tutmayan feed'ler
-ayrı raporlanır ve "bozuk" sayılmaz.
+⚠️ Feeds come from LIVE URLs; the hash will not match if a publisher updates the file. This is
+not a failure, but evidence that the corpus is a SNAPSHOT — mismatching feeds are reported
+separately and are not considered "broken".
 
-⚠️ URL'in ÖLMESİ ayrı bir olgudur ve hash sapmasıyla KARIŞTIRILMAMALIDIR (2026-08-12'de
-14 feed'de ölçüldü). Ölü URL'li feed korpusta VARDI, ölçüme girdi, sha256'sı manifestte
-durur; satırı silmek ölçümün yapıldığı kümeyi geçmişe dönük değiştirir ve bayt kimliğini
-yok eder. Bu yüzden satır KALIR, yalnız `url_status` alanı `dead_404` olur.
+⚠️ A DEAD URL is a separate fact and MUST NOT BE CONFUSED with hash drift (measured for 14 feeds
+on 2026-08-12). A feed with a dead URL WAS in the corpus, entered the measurement, and its sha256
+remains in the manifest; deleting the row retroactively changes the measured set and destroys byte identity.
+Therefore the row REMAINS, with only its `url_status` field changed to `dead_404`.
 """
 import argparse, csv, hashlib, os, subprocess, sys
 
@@ -61,14 +61,14 @@ def main():
                 continue
             if not r["download_url"]:
                 miss += 1
-                continue  # manifest üreticisi bunu zaten exit 1 ile bildirir
+                continue  # the manifest generator already reports this with exit 1
             if r.get("url_status") == "dead_404":
                 dead.append(r["feed"])
                 continue
-            # ⚠️ `-f` ŞART. 2026-08-12 ölçümü: `-f` olmadan curl 404'te de EXIT 0 döner ve
-            # hata gövdesini (92 bayt JSON) `.zip` diye diske yazar. O sahte zip sonra
-            # hash doğrulamasına girip "yayıncı güncellemiş — hata DEĞİL" diye raporlanırdı;
-            # yani ölü URL, tazelenmiş feed gibi görünüyordu.
+            # ⚠️ `-f` is REQUIRED. The 2026-08-12 measurement showed that without `-f`, curl
+            # also returned EXIT 0 for a 404 and wrote the error body (92-byte JSON) to disk as `.zip`.
+            # That fake ZIP then entered hash verification and was reported as "publisher updated — NOT an error";
+            # a dead URL therefore looked like a refreshed feed.
             rc = subprocess.run(["curl", "-fsSL", "--max-time", "180", "-o", dst,
                                  r["download_url"]]).returncode
             if rc == 0:
@@ -76,12 +76,12 @@ def main():
             else:
                 failed.append(r["feed"])
                 if os.path.exists(dst):
-                    os.remove(dst)  # yarım/hatalı gövde hash adımını yanıltmasın
+                    os.remove(dst)  # do not let a partial/invalid body mislead hash verification
         print(f"indirilen {got} · URL'siz {miss} · manifeste göre ölü {len(dead)} · "
               f"indirilemeyen {len(failed)}")
         if miss:
-            # 2026-08-07 denetimi: URL'siz feed SESSİZCE atlanıyordu → üçüncü taraf
-            # 242/242'yi indiremiyor ama bunu fark etmiyordu. Artık gürültülü başarısızlık.
+            # 2026-08-07 audit: feeds without URLs were skipped SILENTLY → a third party could not
+            # download all 242/242 but did not notice. This is now a loud failure.
             print(f"🔴 {miss} feed'in URL'i YOK — bu manifestle tam korpus kurulamaz.")
         if dead:
             print(f"🔴 {len(dead)} feed'in URL'i {rows[0].get('url_checked', '?')} "

@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""GTFS Schedule Reference'tan dosya → alan tablosunu çıkarır (WP-2 çapası).
+"""Extract the file → field table from the GTFS Schedule Reference (WP-2 anchor).
 
-Neden: `GtfsSpec` otoriteli bir kural, spec'te var OLMAYAN bir alanı ölçüyorsa
-sınıfı yanlıştır (RCT_004 `min_age` vakası — bkz. CHANGELOG 2026-08-01). Elle
-tutulan bir alan listesi bayatlar; bu betik listeyi spec'in KENDİSİNDEN üretir,
+Why: if an authoritative `GtfsSpec` rule measures a field that does NOT exist in the spec,
+its class is wrong (RCT_004 `min_age` case — see CHANGELOG 2026-08-01). A manually maintained
+field list goes stale; this script generates the list from the spec ITSELF,
 `spec_fields.json`'a yazar ve o dosya repoda sabitlenir (CI ağa çıkmaz).
 
-Çalıştır:
-    python3 spec-audit/extract_fields.py            # ağdan indirir
-    python3 spec-audit/extract_fields.py spec.html  # yerel kopyadan
+Run:
+    python3 spec-audit/extract_fields.py            # download from the network
+    python3 spec-audit/extract_fields.py spec.html  # use a local copy
 
-Ayrıştırma DÜZYAZIDAN DEĞİL, HTML TABLOSUNDAN yapılır: her dosya bölümünde
+Parsing uses the HTML TABLE, NOT PROSE: in each file section,
 başlığı "Field Name" olan tabloların ilk sütunu alınır. Düzyazı regex'i
 `accompanying` gibi kelimeleri alan sanıyordu — bu yanlış-YEŞİL yönünde hata,
 yani kapıyı sessizce zayıflatır.
 
-⚠️ TABLOLAR İÇ İÇEDİR ve regex ile ayrıştırılamaz: `fare_transfer_type` gibi
-alanların açıklaması kendi değer tablosunu taşır. `<table>.*?</table>` iç tablonun
-kapanışında durup dış tabloyu kesiyordu — `fare_transfer_rules.fare_product_id`
-listeden düşmüştü. Bu yüzden gerçek bir HTML ayrıştırıcı (stdlib `HTMLParser`)
-kullanılır ve yalnız DIŞ tablonun DIŞ satırları sayılır.
+⚠️ TABLES ARE NESTED and cannot be parsed with a regex: descriptions of fields such as
+`fare_transfer_type` contain their own value table. `<table>.*?</table>` stopped at the
+inner table's closing tag and cut the outer table — `fare_transfer_rules.fare_product_id`
+was dropped from the list. Therefore use a real HTML parser (stdlib `HTMLParser`) and count
+only the OUTER rows of the OUTER table.
 """
 import html
 import json
@@ -41,25 +41,25 @@ def fetch(argv: list[str]) -> str:
 
 
 class FieldTableParser(HTMLParser):
-    """Yalnız DIŞ tabloların DIŞ satırlarının İLK hücresini toplar.
+    """Collect the FIRST cell of only the OUTER rows of OUTER tables.
 
-    `table_depth`: iç içe tabloları saymak için. Bir alanın açıklaması kendi
-    değer tablosunu taşıyabilir (`fare_transfer_type` → 0/1/2); o satırlar
-    alan DEĞİLDİR ve derinlik 2'de kaldıkları için atlanır.
+    `table_depth`: counts nested tables. A field description may contain its own
+    value table (`fare_transfer_type` → 0/1/2); those rows are NOT fields and are
+    skipped because they remain at depth 2.
     """
 
-    CAPTURE_COLS = (0, 1, 2)  # Field Name · Type · Presence (Description alınmaz)
+    CAPTURE_COLS = (0, 1, 2)  # Field Name · Type · Presence (Description is not captured)
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.table_depth = 0
-        self.cell_index = -1        # satırdaki hücre sırası (dış tabloda)
-        self.capturing = False      # şu an bir hücrenin metnini topluyor muyuz
+        self.cell_index = -1        # cell position in the row (outer table)
+        self.capturing = False      # are we collecting a cell's text now?
         self.buf: list[str] = []
-        self.header: list[str] = [] # dış tablonun <th> metinleri
+        self.header: list[str] = [] # <th> text from the outer table
         self.in_header_cell = False
         self.row: dict[int, str] = {}
-        self.rows: list[dict[int, str]] = []  # dış satırların {sütun: metin}
+        self.rows: list[dict[int, str]] = []  # outer rows as {column: text}
 
     def handle_starttag(self, tag, attrs):
         if tag == "table":
@@ -97,7 +97,7 @@ class FieldTableParser(HTMLParser):
 
 
 def section_bounds(doc: str) -> list[tuple[str, int, int]]:
-    """(dosya_adı, başlangıç, bitiş) — h3 çapalarından dosya bölümleri."""
+    """(filename, start, end) — file sections from h3 anchors."""
     heads = [
         (m.group(1), m.start(), m.end())
         for m in re.finditer(r'<h3[^>]*id="([^"]+)"[^>]*>', doc)
@@ -116,7 +116,7 @@ def section_bounds(doc: str) -> list[tuple[str, int, int]]:
 
 
 def outer_tables(section: str) -> list[str]:
-    """Bölümdeki DIŞ `<table>…</table>` bloklarını derinlik sayarak ayırır."""
+    """Separate the OUTER `<table>…</table>` blocks in a section by counting depth."""
     out, depth, start = [], 0, None
     for m in re.finditer(r"</?table\b[^>]*>", section):
         if m.group(0).startswith("</"):
@@ -132,7 +132,7 @@ def outer_tables(section: str) -> list[str]:
 
 
 def fields_in(section: str) -> list[dict[str, str]]:
-    """Bölümdeki "Field Name" başlıklı tabloların Field/Type/Presence sütunları."""
+    """Field/Type/Presence columns from the section's tables headed "Field Name"."""
     found: list[dict[str, str]] = []
     seen: set[str] = set()
     for table in outer_tables(section):
@@ -154,14 +154,14 @@ def fields_in(section: str) -> list[dict[str, str]]:
 
 
 def primary_key_of(section: str) -> list[str]:
-    """Bölüm başındaki "Primary key (…)" satırı → alan listesi.
+    """The "Primary key (…)" line at the start of a section → field list.
 
-    `(*)` = tüm satır, `(none)` = anahtar yok. İkisi de olduğu gibi korunur;
-    yorumu tüketiciye bırakılır (DQ_021 bu ayrımı zaten kullanıyor).
+    `(*)` = all rows, `(none)` = no key. Preserve both as-is; interpretation is
+    left to the consumer (DQ_021 already uses this distinction).
     """
     text = html.unescape(re.sub(r"<[^>]+>", " ", section))
-    # Spec'in KENDİSİ tutarsız: çoğu bölümde "Primary key", fare_leg_join_rules.txt'te
-    # "Primary Key". Büyük/küçük harfe duyarlı arama o dosyayı anahtarsız gösteriyordu.
+    # The spec ITSELF is inconsistent: "Primary key" in most sections, "Primary Key" in
+    # fare_leg_join_rules.txt. Case-sensitive search made that file appear to have no key.
     m = re.search(r"Primary key \(([^)]*)\)", text, re.I)
     if not m:
         return []
@@ -172,12 +172,12 @@ def primary_key_of(section: str) -> list[str]:
 
 
 def file_presence_of(section: str) -> str:
-    """Bölüm başındaki "File: …" satırı → dosya DÜZEYİ presence.
+    """The "File: …" line at the start of a section → file-level presence.
 
-    Spec'in normatif hükümleri yalnız alan tablosunda değil, dosya başlığında da yer alır:
-    `calendar.txt` "Conditionally Required", `networks.txt` "Conditionally Forbidden" gibi.
-    2026-08-02'ye kadar bu satır hiç çıkarılmıyordu, dolayısıyla 7 koşullu dosya hükmü
-    kapsam ölçümünün TAMAMEN dışındaydı.
+    Normative provisions in the spec appear not only in field tables but also in file headers:
+    `calendar.txt` "Conditionally Required", `networks.txt` "Conditionally Forbidden", for example.
+    Until 2026-08-02 this line was never extracted, so seven conditional file provisions were
+    COMPLETELY outside the scope measurement.
 
     Değerler spec'te dört tanedir: Required · Optional · Conditionally Required ·
     Conditionally Forbidden. Tanınmayan bir değer boş dönerse ölçüm o dosyayı atlar —

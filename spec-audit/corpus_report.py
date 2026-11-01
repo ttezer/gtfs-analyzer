@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Korpus koşumu → DÖRT KÜÇÜK DOSYA (ham bulgular değil).
+"""Corpus run → FOUR SMALL FILES (not raw findings).
 
     cargo build --release -p gtfs-analyzer
-    python3 spec-audit/corpus_report.py            # koşar, devam ettirilebilir
-    python3 spec-audit/corpus_report.py --report   # eski baseline ile FARK
+    python3 spec-audit/corpus_report.py            # run; resumable
+    python3 spec-audit/corpus_report.py --report   # DIFF against the old baseline
 
-Neden bu dört dosya — her biri bu projede yaşanmış bir hatanın karşılığı:
+Why these four files — each corresponds to a failure that happened in this project:
 
 1. `provenance.json` — binary commit'i, `--today`, feed kümesi, hariç tutulanlar.
    🔴 **BİR BASELINE'IN DOSYA TARİHİ, VERİSİNİN TARİHİ DEĞİLDİR.** 2026-08-15'te eski
@@ -36,10 +36,10 @@ OUTDIR = os.path.join(ROOT, "notgit/corpus/report")
 BINARY = os.path.join(ROOT, "target/release/gtfs-analyzer")
 BASELINE = os.path.join(ROOT, "spec-audit/corpus-evidence/rule_stats.csv")
 
-# 🚫 KULLANICI TALİMATI (2026-08-16): `mdb-2904` hiçbir şekilde koşulmaz.
+# 🚫 USER INSTRUCTION (2026-08-16): never run `mdb-2904`.
 EXCLUDED_FEEDS = {"mdb-2904"}
 
-# Eski baseline ile kıyas ancak AYNI GÜNDE anlamlıdır.
+# Comparison with the old baseline is meaningful only on the SAME DAY.
 TODAY = "20260717"
 SAMPLES_PER_RULE = 3
 RAW = os.path.join(OUTDIR, "per_feed_rules.tsv")
