@@ -867,7 +867,7 @@ pub(crate) struct Dq016Acc {
 }
 
 impl Dq016Acc {
-    /// Bir satırı işler. `values`/`headers` aynı sırada olmalı.
+    /// Processes one row. `values`/`headers` must have the same order.
     pub fn observe<'a>(
         &mut self,
         line: u64,
@@ -895,10 +895,10 @@ impl Dq016Acc {
         }
     }
 
-    /// Özet metni: (observed, mesaj, sütun listesi). Boşsa `None`.
-    /// Başka bir parçadan biriken sayaçları katar (stop_times chunk birleştirmesi).
-    /// `other` dosyada DAHA SONRA gelen parçadır; `first_line` en küçüğü, `last_line`
-    /// en büyüğü tutar, `rows` toplanır, `cols` birleşir.
+    /// Summary text: (observed, message, column list). `None` when empty.
+    /// Merges counters accumulated by another chunk (stop_times chunk merging).
+    /// `other` is the chunk that comes LATER in the file; keep the smallest `first_line`,
+    /// largest `last_line`, sum `rows`, and merge `cols`.
     #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Dq016Acc) {
         self.rows += other.rows;
@@ -933,21 +933,20 @@ impl Dq016Acc {
         ))
     }
 
-    /// DQ_016 kök bulgusuna ham değer kanıtı ekler. JSON'da boşluklar görünür kalır;
-    /// hiçbir değer trim edilmez veya kimlik olarak yeniden kullanılmaz.
+    /// Adds raw-value evidence to the DQ_016 root finding. Whitespace remains visible in JSON;
+    /// no value is trimmed or reused as an identity.
     ///
-    /// `typed_whitespace_fields` (#126): boşluğu kaldırılınca SAYI olarak okunabilen
-    /// alanlar. Bu alanlar, boşluk olmasaydı bir tip/aralık kuralına girecek olan
-    /// hücrelerdir — yani "boşluk yüzünden görünmeyen" olgunun asıl adresi.
+    /// `typed_whitespace_fields` (#126): fields that can be read as NUMBERS after whitespace is
+    /// removed. These are cells that would enter a type/range rule without the whitespace — the
+    /// actual location of the "hidden because of whitespace" phenomenon.
     ///
-    /// ⚠️ NEDEN AYRI BİR ANAHTAR GEREKTİ: K7 kök bulguya `suppressed_derivative_*`
-    /// yazar, ama o sayaç yalnızca türev NOTICE DOĞDUYSA oluşur. `stop_times`, `shapes`,
-    /// `trips` ve `calendar_dates` sütunlarını `get_col` ile okur ve o `.trim()` uygular,
-    /// yani bu dört dosyada türev hiç doğmaz ve anahtar hiç yazılmaz. Anahtarın yokluğu
-    /// "burada gizlenen bir şey yok" gibi okunuyordu; oysa okuyucunun rejimini
-    /// tarif ediyordu. Bu alan her iki rejimde de üretilir, böylece iki sayı
-    /// karşılaştırılabilir: türev doğan dosyada ikisi de dolu, trim eden dosyada
-    /// yalnız bu dolu.
+    /// ⚠️ WHY A SEPARATE KEY WAS NEEDED: K7 writes `suppressed_derivative_*` on the root finding,
+    /// but that counter exists only when a derivative NOTICE is created. `stop_times`, `shapes`,
+    /// `trips`, and `calendar_dates` read columns with `get_col` and apply `.trim()`, so no
+    /// derivative is created in those four files and the key is never written. The missing key
+    /// read as "nothing is hidden here", although it actually described the reader's regime.
+    /// This field is produced in both regimes so the numbers are comparable: both are populated
+    /// in a file that creates derivatives, while only this one is populated in a trimming file.
     pub(crate) fn evidence_details(&self) -> Option<std::collections::BTreeMap<String, String>> {
         if self.samples.is_empty() {
             return None;
@@ -965,9 +964,8 @@ impl Dq016Acc {
         .into_iter()
         .collect();
 
-        // Ham hali okunamayıp trim'li hali okunabiliyorsa, boşluk tek başına tipli bir
-        // değeri gizliyor demektir. Metin alanları (" Durak Adı ") iki halde de sayı
-        // vermez, bu yüzden listeye girmez.
+        // If the raw form cannot be read but the trimmed form can, whitespace alone hides a typed
+        // value. Text fields (" Durak Adı ") are not numbers in either form, so they are omitted.
         let typed: Vec<&str> = self
             .samples
             .iter()
@@ -978,22 +976,20 @@ impl Dq016Acc {
             details.insert("typed_whitespace_fields".to_string(), typed.join(", "));
         }
 
-        // 🔴 KİMLİK ALANINDA BOŞLUK, SIRADAN BİR BOŞLUKTAN BAŞKA BİR ŞEYDİR.
+        // 🔴 WHITESPACE IN AN IDENTITY FIELD IS NOT ORDINARY WHITESPACE.
         //
-        // Bir açıklama alanındaki `" Durak Adı "` yalnız çirkindir. Bir ANAHTAR
-        // alanındaki `"10T0001C1  "` ise dosyalar arası her aramayı sessizce
-        // ıskalatır: `routes.txt` anahtarı boşlukla yazar, `trips.txt` boşluksuz,
-        // ve ikisi ham bayt olarak eşleşmez. Bu, kimlikleri HAM karşılaştırma
-        // kararının (#85) doğrudan sonucudur ve karar KORUNUYOR — üreticinin
-        // düzeltmesi gereken budur.
+        // `" Durak Adı "` in a description field is merely ugly. `"10T0001C1  "` in a KEY
+        // field silently makes every cross-file lookup miss: `routes.txt` writes the key with
+        // whitespace, `trips.txt` without it, and the raw bytes do not match. This follows
+        // directly from the decision to compare identities RAW (#85), and that decision is
+        // PRESERVED — the producer must fix this.
         //
-        // Ama `suppress_whitespace_derivatives` yalnız BULGU ÜRETMİŞ kuralları
-        // beyan edebilir. Bir aramanın ıskalaması yüzünden HİÇ bulgu üretmeyen
-        // analiz izsiz kaybolur — k7_reporting'in kendi #134 değişmezinin
-        // ("bastırılan her bulgu bir yerde beyan edilmeli") tam tersi. `mdb-2653`
-        // bunu gösterdi: `trips.txt` 304.117 bastırılan bulguyu beyan ederken
-        // `TRP_024`'ün kaçırdığı 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu,
-        // çünkü o kural hiç konuşmamıştı (#169).
+        // But `suppress_whitespace_derivatives` can declare only rules that PRODUCED A FINDING.
+        // An analysis that produces no finding because a lookup missed would disappear without
+        // a trace — the exact opposite of k7_reporting's #134 invariant ("every suppressed
+        // finding must be declared somewhere"). `mdb-2653` showed this: `trips.txt` declared
+        // 304,117 suppressed findings, while the 1,502 block inconsistencies missed by
+        // `TRP_024` appeared nowhere because that rule had never spoken (#169).
         let identity: Vec<&str> = self
             .cols
             .iter()
@@ -1014,11 +1010,11 @@ impl Dq016Acc {
     }
 }
 
-/// GTFS'te dosyalar arası aramada ANAHTAR olarak kullanılan sütunlar.
+/// Columns used as KEYS for cross-file lookups in GTFS.
 ///
-/// Liste açık uçlu tutulur: `*_id` ile biten her şey anahtar değildir (`shape_dist_traveled`
-/// gibi), ama GTFS'te anahtar olan her sütun ya `_id` ile biter ya da `parent_station`dır.
-/// Yanlış pozitifin maliyeti burada düşük — bu yalnız bir BEYAN, bir bulgu değil.
+/// The list is intentionally open-ended: not everything ending in `*_id` is a key (such as
+/// `shape_dist_traveled`), but every GTFS key column either ends in `_id` or is `parent_station`.
+/// The cost of a false positive is low here — this is only a DECLARATION, not a finding.
 pub(crate) fn is_identity_column(col: &str) -> bool {
     const EXTRA: &[&str] = &["parent_station"];
     let c = col.trim();
@@ -1028,9 +1024,9 @@ pub(crate) fn is_identity_column(col: &str) -> bool {
 pub(crate) const DQ016_REMEDIATION: &str =
     "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
 
-/// zip 9'da `name()` `Result` döner: UTF-8 olmayan ad cp437 ile çözülür ve bu yalnız
-/// erişilemeyen bir dalda hata verir. Yine de sessizce yutulmaz; komşu `by_index`
-/// hatasıyla aynı biçimde "ZIP okunamadı" olarak raporlanır.
+/// In zip 9, `name()` returns a `Result`: a non-UTF-8 name is decoded as cp437 and errors only
+/// on an inaccessible branch. It is still not swallowed silently; it is reported as "ZIP could
+/// not be read" in the same way as the neighboring `by_index` error.
 fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
     FatalError::new(
         FatalCode::ZipUnreadable,
@@ -1041,18 +1037,18 @@ fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
     .param("detail", e)
 }
 
-// ── ARC_012 / ARC_021: K1 ↔ K2-stream ortak mantığı ──────────────────────────
+// ── ARC_012 / ARC_021: shared K1 ↔ K2-stream logic ───────────────────────────
 //
-// stream_mode'da bu kontroller K1'den K2'ye taşındı, ama iki hedefe (stop_times,
-// shapes) ayrı ayrı KOPYALANMIŞTI — üç yerde birebir aynı predicate ve aynı kullanıcı
-// mesajı. Eşik/aralık listesine dokunmak üç dosya düzenlemek demekti; ikisini unutmak
-// sessizce sapma üretirdi. DQ016_ACC ile aynı gerekçe: tek tanım, üç çağıran.
+// In stream_mode these checks moved from K1 to K2, but were COPIED separately for two targets
+// (stop_times, shapes) — the exact same predicate and user message in three places. Changing
+// the threshold/range list meant editing three files; forgetting one would silently diverge.
+// Same rationale as DQ016_ACC: one definition, three callers.
 
-/// ARC_012: satırın sütun sayısı başlıktan farklı mı?
+/// ARC_012: does the row have a different number of columns from the header?
 ///
-/// `None` → sorun yok. `Some((mesaj, öneri, observed, bilgi_mi))`; `bilgi_mi=true`
-/// ise satır KISA (sondaki opsiyonel alanlar atlanmış — geçerli CSV pratiği, severity
-/// Bilgi'ye düşürülür), `false` ise FAZLA alan var (kaçmamış virgül → nominal severity).
+/// `None` → no problem. `Some((message, recommendation, observed, bilgi_mi))`; when `bilgi_mi=true`,
+/// the row is SHORT (trailing optional fields omitted — valid CSV practice, severity is lowered
+/// to Info); `false` means there are EXTRA fields (an unescaped comma → nominal severity).
 pub(crate) fn arc012_check(
     file_name: &str,
     line: u64,
@@ -1083,21 +1079,21 @@ pub(crate) fn arc012_check(
     ))
 }
 
-/// ARC_021: satırda yazdırılamaz/sorunlu karakter arar, ilk bulunanın kod noktasını döner.
+/// ARC_021: searches the row for an unprintable/problematic character and returns the first
+/// code point found.
 ///
-/// Geçerli Unicode harf/rakam/boşluk (Japonca, Türkçe vb.) sorun DEĞİLDİR — yalnızca
-/// kontrol karakterleri, DEL, yedek alanlar (surrogate) ve özel kullanım alanı işaretlenir.
-/// ARC_034: satır başlık satırının birebir tekrarı mı?
+/// Valid Unicode letters/digits/whitespace (Japanese, Turkish, etc.) are NOT a problem — only
+/// control characters, DEL, surrogate code points, and private-use characters are flagged.
+/// ARC_034: is the row an exact repeat of the header row?
 ///
-/// 🔴 K1 ve K2'nin İKİSİ de bunu sormak zorundadır. `stop_times.txt`, `shapes.txt`,
-/// `trips.txt` ve `calendar_dates.txt` K1'de `stream_mode` ile YALNIZ başlığı okur;
-/// veri satırları K2'ye gider. Kontrol yalnız K1'de kaldığı sürece o dört dosyadaki
-/// tekrar eden başlık satırı VERİ olarak işlenir — `mdb-1004/trips.txt` satır 16873
-/// tam bu vakadır ve `TRP_002`'ye literal `"route_id"` değerini FK ihlali diye
-/// raporlatıyordu (#181).
+/// 🔴 BOTH K1 and K2 must perform this check. `stop_times.txt`, `shapes.txt`, `trips.txt`, and
+/// `calendar_dates.txt` read ONLY the header in K1 via `stream_mode`; data rows go to K2. If the
+/// check stays only in K1, a repeated header row in those four files is processed as DATA — row
+/// 16873 of `mdb-1004/trips.txt` is exactly this case, and it reported the literal `"route_id"`
+/// as an FK violation for `TRP_002` (#181).
 ///
-/// ⚠️ Yanlış pozitif kapısı: satırın BÜTÜN alanları kendi sütun adına eşit olmalı.
-/// Tek bir sütunda `route_id` değerinin "route_id" olması meşrudur.
+/// ⚠️ False-positive gate: EVERY field in the row must equal its own column name.
+/// It is legitimate for a single column's `route_id` value to be "route_id".
 pub(crate) fn arc034_is_header_repeat<S: AsRef<str>>(row: &[S], headers: &[String]) -> bool {
     row.len() == headers.len()
         && !headers.is_empty()
@@ -1127,7 +1123,8 @@ pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Opti
     None
 }
 
-/// ARC_030: alan değerinde sekme, satır sonu veya satır başı arar; ilk bulunanı döner.
+/// ARC_030: searches a field value for a tab, line feed, or carriage return and returns the first
+/// one found.
 ///
 /// GTFS spec, Dataset Files: "Field values must not contain tabs, carriage returns or new
 /// lines." ARC_021 bu üçünü BİLEREK kaçırır (`is_whitespace()` muafiyeti, ayrıca `cp != 9`):
