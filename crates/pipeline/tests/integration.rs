@@ -5045,10 +5045,11 @@ fn whitespace_fare_derivatives_are_counted_before_notice_allocation() {
     }
 }
 
-/// FRL ailesi FK ihlallerini DISTINCT kimlik başına toplar. Toplama `observed_value`'ya
-/// `"Z1 (2 rows)"` yazdığı sürece K7 bastırması bu metni kimlik sanıp arıyor ve hiç
-/// eşleşmiyordu: 17 Eylül karşı-olgu ölçümünde 7 feed, 20.452 Kritik·Spec bulgu, 7 yayın
-/// kararı yalnız çevre boşluğundan geliyordu (`mdb-1196` `origin_id` "ADR ").
+/// The FRL family aggregates FK violations per DISTINCT ID. While aggregation wrote
+/// `"Z1 (2 rows)"` into `observed_value`, K7 suppression searched for that text as if it were
+/// the ID and never matched: in the 17 September counterfactual measurement, 7 feeds had
+/// 20,452 Critical·Spec findings and 7 publication decisions came only from surrounding whitespace
+/// (`mdb-1196` `origin_id` "ADR ").
 #[test]
 fn whitespace_fare_rule_fk_derivatives_are_suppressed_after_aggregation() {
     let mut files = base_files();
@@ -5119,11 +5120,12 @@ fn whitespace_fare_rule_fk_derivatives_are_suppressed_after_aggregation() {
     }
 }
 
-/// Sabit genişlikli dışa aktarım son sütunu boşlukla doldurur: `end_date` = `"20271231    "`.
-/// Hüküm (`CAL_004`) ham değerle verilir ve `DQ_016` altında bastırılır; ama takvim kaydına
-/// `None` yazılırsa servis "hiç aktif günü yok" sayılır ve her sefer `TRP_026` üretir
-/// (17 Eylül kısmi kırpma ölçümü: `TRP_026` 272.440, `OPR_011` 14.724 bulgu yalnız bundan).
-/// Gün bayraklarındaki aynı karar `CAL_006` için `2736bc79`'da verilmişti.
+/// Fixed-width export pads the final column with whitespace: `end_date` = `"20271231    "`.
+/// The provision (`CAL_004`) uses the raw value and suppresses it under `DQ_016`; but if
+/// `None` is written to the calendar record, service is treated as "no active day" and every
+/// run produces `TRP_026` (17 September partial-trimming measurement: 272,440 `TRP_026` and
+/// 14,724 `OPR_011` findings came only from this). The same decision for day flags was made
+/// for `CAL_006` in `2736bc79`.
 #[test]
 fn whitespace_padded_calendar_dates_keep_the_service_active() {
     let mut files = base_files();
@@ -5160,7 +5162,7 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
         other => panic!("ValidateResult::Ok beklendi, alınan: {other:?}"),
     }
 
-    // Kırpılınca da geçersiz olan tarih servis aralığına GİRMEZ ve görünür kalır.
+    // A date that is still invalid after trimming does NOT enter the service period and remains visible.
     files[5] = (
         "calendar.txt",
         b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
@@ -5181,9 +5183,9 @@ fn whitespace_padded_calendar_dates_keep_the_service_active() {
     }
 }
 
-/// Saatsiz ara durakları aşan aralık: ardışık-çift döngüsü saatsiz durakta `continue` eder,
-/// STM_061 yalnız >10 km çiftlere bakar. Korpus mdb-2202: 15:15 → 15:15 arası 3,5 km,
-/// MD 210 km/h buluyor, biz hiçbir şey. (41.000 → 41.0315 enlem ≈ 3,5 km.)
+/// A span over an untimed intermediate stop: the consecutive-pair loop `continue`s at the
+/// untimed stop, and STM_061 checks only pairs over 10 km. Corpus mdb-2202: 3.5 km from
+/// 15:15 → 15:15, MD reports 210 km/h while we report nothing. (Latitude 41.000 → 41.0315 ≈ 3.5 km.)
 #[test]
 fn speed_checks_span_untimed_intermediate_stops() {
     let stops: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
@@ -5203,8 +5205,8 @@ fn speed_checks_span_untimed_intermediate_stops() {
                 stm012.iter().any(|n| n.message.contains("1-4")),
                 "A→B 3,5 km / 0 dk görülmeli: {stm012:?}"
             );
-            // B→C ardışık (saatli) çift: 6 km / 2 dk = 180 km/h → mevcut döngü zaten görür.
-            // C→E saatsiz D üzerinden 1,6 km / 13 dk ≈ 7 km/h → bulgu yok.
+            // B→C consecutive (timed) pair: 6 km / 2 min = 180 km/h → the existing loop already sees it.
+            // C→E over untimed D: 1.6 km / 13 min ≈ 7 km/h → no finding.
             let stm014: Vec<_> = vr.notices.iter().filter(|n| n.rule_id == "STM_014").collect();
             assert!(
                 stm014.iter().all(|n| !n.message.contains("5-7")),
@@ -5215,9 +5217,10 @@ fn speed_checks_span_untimed_intermediate_stops() {
     }
 }
 
-/// Renk boşlukla doldurulmuşsa (`'FFFFFF    '`) biçim hükmü ham değerle verilir (RTS_006/007,
-/// DQ_016 altında), ama kontrast kırpılmış renkle hesaplanır ve GÖRÜNÜR kalır: sarı/beyaz
-/// okunaksızlığı boşluktan bağımsız gerçek bir bulgudur (korpus mdb-1065/2653/465).
+/// If a color is padded with whitespace (`'FFFFFF    '`), the format provision uses the raw value
+/// (under RTS_006/007 and `DQ_016`), but contrast is calculated from the trimmed color and remains
+/// VISIBLE: yellow/white illegibility is a real finding independent of whitespace
+/// (corpus mdb-1065/2653/465).
 #[test]
 fn rts008_measures_contrast_on_whitespace_padded_colours() {
     let mut files = base_files();
@@ -5236,9 +5239,9 @@ fn rts008_measures_contrast_on_whitespace_padded_colours() {
     }
 }
 
-/// Spec: bikes_allowed *"0 or empty - No bike information for the trip."* Sıfır bilgi değil,
-/// bilginin YOKLUĞUdur; TRP_021 onu dolu sayıyordu (korpus mdb-1257: feribot seferlerinin
-/// hepsi 0, MD `missing_bike_allowance` 43 feed'de, biz 0). Yalnız 1 ve 2 bilgi taşır.
+/// Spec: bikes_allowed *"0 or empty - No bike information for the trip."* Zero is not information;
+/// it is the ABSENCE of information. TRP_021 counted it as populated (corpus mdb-1257: all ferry
+/// trips were 0, MD reported `missing_bike_allowance` in 43 feeds, we reported 0). Only 1 and 2 carry information.
 #[test]
 fn trp021_counts_bikes_allowed_zero_as_no_information() {
     let trips = |rows: &'static [u8]| {
@@ -5271,9 +5274,10 @@ fn trp021_counts_bikes_allowed_zero_as_no_information() {
     );
 }
 
-/// `feed_info` tarihlerinde aynı karar: `" 20260301"` biçim hükmünü (`FIN_005`/`FIN_006`) ham
-/// değerle alır ve `DQ_016` altında bastırılır, ama kayda `None` yazılırsa geçerlilik penceresi
-/// kaybolur ve `CAL_014` susar. MD değeri kırpıp okuyor (korpus `mdb-3155`, 2026-10-13).
+/// The same decision applies to `feed_info` dates: `" 20260301"` gets its format verdict
+/// (`FIN_005`/`FIN_006`) from the raw value and is suppressed under `DQ_016`, but writing `None`
+/// to the record loses the validity window and makes `CAL_014` silent. MD trims the value when
+/// reading it (corpus `mdb-3155`, 2026-10-13).
 #[test]
 fn whitespace_padded_feed_info_dates_keep_the_validity_window() {
     let mut files = base_files();
@@ -5304,8 +5308,8 @@ fn whitespace_padded_feed_info_dates_keep_the_validity_window() {
     }
 }
 
-/// Kimlik birleşimi yalnız boşlukla kırık (2b). #85 gereği kimlik HAM kalır; değişen,
-/// SONUÇ bulgusunun boşluğu taşıyan dosyanın `DQ_016` kökünde beyan edilmesi.
+/// The ID join is broken only by whitespace (2b). Per #85 the ID remains RAW; what changes is
+/// that the RESULT finding must be declared under the `DQ_016` root of the file carrying the whitespace.
 fn join_run(
     files: &[(&str, &[u8])],
 ) -> (
@@ -5337,8 +5341,8 @@ fn entities(notices: &[gtfs_core::Notice], rule: &str) -> Vec<String> {
         .collect()
 }
 
-/// `mdb-1065`: `routes.route_id = "10T0001C1  "`, `trips.route_id` temiz → 113.649 seferin
-/// her biri "hat adı yok" diye `TRP_011` alıyordu. Gerçekten adsız hat görünür kalmalı.
+/// `mdb-1065`: `routes.route_id = "10T0001C1  "`, while `trips.route_id` is clean → each of 113,649
+/// trips received `TRP_011` for "missing route name". A genuinely unnamed route must remain visible.
 #[test]
 fn whitespace_join_route_id_padding_in_routes_is_declared_at_routes() {
     let mut files = base_files();
@@ -5371,8 +5375,8 @@ fn whitespace_join_route_id_padding_in_routes_is_declared_at_routes() {
     );
 }
 
-/// `trips.service_id = " SVC1"`, takvim temiz: `TRP_026`/`OPR_011`/`CAL_011` hepsi türev.
-/// Hiçbir yerde tanımlı olmayan takvim gerçek hata olarak kalır.
+/// `trips.service_id = " SVC1"`, calendar clean: `TRP_026`/`OPR_011`/`CAL_011` are all derivatives.
+/// A calendar defined nowhere remains a real error.
 #[test]
 fn whitespace_join_service_id_padding_in_trips_is_declared_at_trips() {
     let mut files = base_files();
@@ -5412,8 +5416,8 @@ fn whitespace_join_service_id_padding_in_trips_is_declared_at_trips() {
 }
 
 /// `mdb-2137`: `calendar.service_id = " 1"`, `trips.service_id = "1"` → Kritik·Spec `TRP_003`
-/// sefer başına. Boşluk calendar.txt'te; bulgu trips.txt'te — #134'ün eski "kendi dosyası"
-/// şartı bunu hiç bastıramıyordu.
+/// per trip. The whitespace is in calendar.txt, while the finding is in trips.txt — #134's old
+/// "own file" requirement could never suppress this.
 #[test]
 fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
     let mut files = base_files();
@@ -5436,8 +5440,9 @@ fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
         "calendar.txt kökünde beyan edilmeli: {declared:?}"
     );
 
-    // `mdb-488`: takvim `calendar.txt`'te TEMİZ ama tarihsiz; tarihi `calendar_dates.txt`'teki
-    // `" 6"` ekliyor. Beyan temiz tanımın değil, BOŞLUKLU karşılığın dosyasına yazılmalı.
+    // `mdb-488`: the calendar is CLEAN but dateless in `calendar.txt`; `calendar_dates.txt`
+    // adds date `" 6"`. The declaration belongs to the file with the WHITESPACE counterpart,
+    // not to the clean definition.
     files[5] = (
         "calendar.txt",
         b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
@@ -5468,10 +5473,10 @@ fn whitespace_join_service_id_padding_in_calendar_is_declared_at_calendar() {
     );
 }
 
-/// `stop_times.stop_id = " S2"` → `S2` kullanılmıyor görünür (`STP_020`); `trips.trip_id =
-/// " T1"` → seferin kaydı yok görünür (`XFL_002`) ve şekli "seferleri kayıtsız" (`SHP_019`);
-/// `trips.shape_id = " SH2"` → `SH2` kullanılmıyor görünür (`SHP_018`).
-/// Gerçekten kullanılmayan `S3` ve gerçekten kayıtsız `T3` görünür kalır.
+/// `stop_times.stop_id = " S2"` → `S2` appears unused (`STP_020`); `trips.trip_id =
+/// " T1"` → the trip record appears missing (`XFL_002`) and its shape "has no trips" (`SHP_019`);
+/// `trips.shape_id = " SH2"` → `SH2` appears unused (`SHP_018`).
+/// Truly unused `S3` and truly unrecorded `T3` remain visible.
 #[test]
 fn whitespace_join_stop_trip_and_shape_padding_is_declared_where_it_sits() {
     let mut files = base_files();
@@ -5526,14 +5531,15 @@ fn whitespace_join_stop_trip_and_shape_padding_is_declared_where_it_sits() {
     }
 }
 
-/// Hat düzeyinde toplayan kurallar (2c). Hepsi VAROLUŞSAL: hattın TEK bir seferinin
-/// birleşimi kırpınca düzelirse kırpılmış dünyada kural susar.
-///   · `R1`: tek seferi `" T1"`, `stop_times` `T1` → `XFL_012` (hiç kayıtlı seferi yok);
-///     `T1` 23:30'da kalkar ve hattı bulunamadığı için `OPR_009` hat yerine SEFER kimliğiyle
-///     çıkar — bu bilgi GERÇEKTİR, bastırılmaz (bastırmak hattın gece servisini gizler).
-///   · `R4`: seferinin takvimi `" WE"`, tanım `WE` (hafta sonu) → `RTS_016` + `OPR_004`.
-/// Gerçekler görünür kalır: `R3` seferinin hiç kaydı yok, `R5` takvimi hiçbir yerde yok,
-/// `R2` gerçekten yalnız hafta içi ve gece seferi var.
+/// Route-level aggregators (2c). All are EXISTENTIAL: if trimming the combination of a SINGLE
+/// trip on the route fixes it, the rule is silent in the trimmed world.
+///   · `R1`: its only trip is `" T1"`, while `stop_times` uses `T1` → `XFL_012` (no recorded trip);
+///     `T1` departs at 23:30 and, because the route cannot be found, `OPR_009` is emitted with
+///     the TRIP ID instead of the route — this is REAL information and is not suppressed
+///     (suppressing it would hide the route's night service).
+///   · `R4`: its trip uses calendar `" WE"`, definition `WE` (weekend) → `RTS_016` + `OPR_004`.
+/// The facts remain visible: `R3` has no trip record, `R5`'s calendar is defined nowhere,
+/// and `R2` really has only weekday and night trips.
 #[test]
 fn whitespace_join_route_level_rules_are_declared_where_it_sits() {
     let mut files = base_files();
@@ -5596,10 +5602,11 @@ fn whitespace_join_route_level_rules_are_declared_where_it_sits() {
     }
 }
 
-/// `mdb-1065`: 243 hattın hepsi raylı ve `route_id`'leri dolgulu. Hat bulunamayınca K6
-/// `route_type`'ı otobüse düşürür (`unwrap_or(3)`): 167 km/h tren "aşırı hızlı" (`STM_014`,
-/// `OPR_008`), 410 dk aralık "boşluk" (`OPR_001`) olur. Kırpılmış hattın ray eşiği (300 km/h,
-/// 720 dk) altında kalanlar türevdir; ray eşiğini de aşanlar gerçektir ve görünür kalır.
+/// `mdb-1065`: all 243 routes are rail and their `route_id`s are padded. When the route cannot
+/// be found, K6 falls back to bus `route_type` (`unwrap_or(3)`): a 167 km/h train becomes
+/// "too fast" (`STM_014`, `OPR_008`), and a 410-minute gap becomes a "gap" (`OPR_001`).
+/// Findings below the trimmed route's rail thresholds (300 km/h, 720 min) are derivatives;
+/// those exceeding the rail thresholds are real and remain visible.
 #[test]
 fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold() {
     let mut files = base_files();
@@ -5636,7 +5643,7 @@ fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold(
             .any(|e| e.contains("S1→S2") || e.contains("S2→S3")),
         "167 km/h tren ray eşiğinin altında: {stm014:?}"
     );
-    // S3→S4'ten T9 167 km/h ile (türev) ve T2 444 km/h ile (gerçek) geçer: segment kalır.
+    // T9 passes S3→S4 at 167 km/h (derivative) and T2 at 444 km/h (real): the segment remains.
     assert!(
         stm014.iter().any(|e| e.contains("S3→S4")),
         "444 km/h gerçek: {stm014:?}"
@@ -5664,10 +5671,10 @@ fn whitespace_join_lost_route_type_keeps_only_findings_above_the_rail_threshold(
     }
 }
 
-/// `mdb-1309`/`tfs-109`: 340 seferin 340'ında `block_id = " "`. Tek boşluk bir blok kimliği
-/// sayılınca bütün seferler AYNI araca düşüyor ve 286 `TRP_022` "çakışan blok" üretiyordu.
-/// #85: kimlik ham karşılaştırılır AMA boşluktan oluşan değer YOKTUR — opsiyonel alan boştur.
-/// Gerçek bir blokta çakışma görünür kalır.
+/// `mdb-1309`/`tfs-109`: all 340 trips had `block_id = " "`. Treating one space as a block ID
+/// assigned every trip to the SAME vehicle and produced 286 `TRP_022` "overlapping block" findings.
+/// #85: IDs are compared raw BUT a whitespace-only value DOES NOT EXIST — the optional field is empty.
+/// A real block conflict remains visible.
 #[test]
 fn whitespace_only_optional_trip_ids_are_absent() {
     let mut files = base_files();
@@ -5755,23 +5762,22 @@ fn whitespace112_pathway_semantics_survive_when_trimmed_value_is_invalid() {
     }
 }
 
-/// #126: `suppressed_derivative_*` sayacı OKUYUCU REJİMİNİ tarif eder, feed'i değil —
-/// `trips.txt` `get_col` ile trim ederek okur, orada türev hiç doğmaz ve anahtar hiç
-/// yazılmaz. Anahtarın yokluğu "burada gizlenmiş bir şey yok" diye okunabiliyordu.
-/// `typed_whitespace_fields` iki rejimde de üretilir ve boşluğun tipli bir değeri
-/// gizlediği yeri adıyla söyler.
+/// #126: the `suppressed_derivative_*` counter describes the READER MODE, not the feed —
+/// `trips.txt` is read with `get_col`, which trims it; no derivative arises there and no key
+/// is written. The missing key could be read as "nothing was hidden here".
+/// `typed_whitespace_fields` is produced in both modes and names where whitespace hid a typed value.
 #[test]
 fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
     let mut files = base_files();
     for slot in files.iter_mut() {
-        // RowMap yolu: ham okunur, türev doğar, K7 bastırır.
-        // `route_long_name` de boşluklu ama METİNDİR: trim edilse de sayı olmaz, bu yüzden
-        // listeye girmemeli — aksi halde anahtar "boşluklu her alan" demeye başlar.
+        // RowMap path: read raw, derivative arises, K7 suppresses it.
+        // `route_long_name` also contains whitespace but is TEXT: trimming it does not make it a number,
+        // so it must not enter the list — otherwise the key would mean "every whitespace field".
         if slot.0 == "routes.txt" {
             slot.1 = b"route_id,agency_id,route_short_name,route_long_name,route_type\n\
                        R1,1,101, Ana Hat , 3\n" as &[u8];
         }
-        // get_col yolu: trim edilir, türev HİÇ doğmaz.
+        // get_col path: trimmed, so NO derivative arises.
         if slot.0 == "trips.txt" {
             slot.1 =
                 b"route_id,service_id,trip_id,wheelchair_accessible\nR1,SV1,T1, 1 \n" as &[u8];
@@ -5794,7 +5800,7 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
             let routes = details("routes.txt");
             let trips = details("trips.txt");
 
-            // Asimetri hâlâ VAR ve doğrudur: türev yalnız ham okuyan yolda doğar.
+            // The asymmetry still EXISTS and is correct: the derivative arises only on the raw-reading path.
             assert!(
                 routes.contains_key("suppressed_derivative_rules"),
                 "ham okuyan yolda bastırılan türev kaydedilmeli: {routes:?}"
@@ -5804,7 +5810,7 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
                 "trim eden yolda bastırılacak türev yok: {trips:?}"
             );
 
-            // Kanıt ise artık İKİ rejimde de var — asimetriyi yanlış okumayı engelleyen şey bu.
+            // The evidence now exists in BOTH modes — this prevents misreading the asymmetry.
             assert_eq!(
                 routes.get("typed_whitespace_fields").map(String::as_str),
                 Some("route_type"),
@@ -5820,11 +5826,11 @@ fn dq016_reports_typed_whitespace_in_both_reader_regimes() {
     }
 }
 
-/// #125'te kaldırılan K7 dalının DAYANAĞINI çapalar. O dal, akış yolundaki bir parse
-/// reddinin gözlenen değerinde boşluk bulacağını varsayıyordu; oysa `stop_times`/`shapes`
-/// emit'leri değeri `get_col` ile okur ve o `.trim()` uygular, yani böyle bir notice hiç
-/// doğmaz. `get_col` bir gün trim'i bırakırsa bu test düşer ve kaldırma kararı yeniden
-/// tartışılmalıdır — sessizce yanlışa dönmemeli.
+/// Anchors the BASIS for the K7 branch removed in #125. That branch assumed whitespace would
+/// appear in the observed value of a parse rejection on the stream path; but `stop_times`/`shapes`
+/// emitters read the value with `get_col`, which applies `.trim()`, so such a notice never arises.
+/// If `get_col` ever stops trimming, this test must fail and the removal decision must be revisited
+/// — it must not silently become wrong.
 #[test]
 fn streaming_files_never_report_a_value_with_surrounding_whitespace() {
     let mut files = base_files();
