@@ -1,17 +1,17 @@
-//! ÜRETİLMİŞ DOSYA — elle düzenlemeyin (issue #79).
+//! GENERATED FILE — do not edit by hand (issue #79).
 //!
-//! Kaynak : https://html.spec.whatwg.org/entities.json
+//! Source : https://html.spec.whatwg.org/entities.json
 //! SHA-256: d741d877ac77c4194c4ad526b5b4a19aef8dfe411ab840a466891cdbb9f362e6
-//! Üretim : `python3 spec-audit/gen_html_entities.py`
-//! Drift  : `python3 spec-audit/gen_html_entities.py --check`
+//! Generate: `python3 spec-audit/gen_html_entities.py`
+//! Drift   : `python3 spec-audit/gen_html_entities.py --check`
 //!
-//! HTML5'in adlandırılmış karakter referanslarının TAMAMI (2125 ad). `ARC_032` bir
-//! değerde `&<ad>;` görürse kaçış dizisi sayar.
+//! ALL HTML5 named character references (2125 names). `ARC_032` treats `&<ad>;`
+//! in a value as an escape sequence.
 //!
-//! ⚠️ Liste KAPALI olmak ZORUNDA: `&` + kelime + `;` desenini serbest bırakmak gerçek
-//! metni yakalar — korpusta ölçülmüş örnek `K.A.Wheel&Tire;`. `Tire` bu listede yoktur.
+//! ⚠️ The list MUST remain CLOSED: allowing the `&` + word + `;` pattern freely catches
+//! real text — the corpus contains `K.A.Wheel&Tire;`. `Tire` is not in this list.
 
-/// Alfabetik SIRALI — `binary_search` bunu varsayar.
+/// Alphabetically SORTED — `binary_search` relies on this.
 pub(crate) const HTML5_ENTITIES: &[&str] = &[
     "AElig",
     "AMP",
@@ -2140,9 +2140,9 @@ pub(crate) const HTML5_ENTITIES: &[&str] = &[
     "zwnj",
 ];
 
-/// Noktalı virgül OLMADAN da geçerli olan ESKİ adlar (106 ad) — `&copy` gibi.
-/// ⚠️ Bu ayrıcalık TÜM adlar için geçerli DEĞİLDİR; kaynak hangilerinin öyle olduğunu
-/// kendisi söyler ve tablo ondan üretilir.
+/// LEGACY names also valid WITHOUT a semicolon (106 names), such as `&copy`.
+/// ⚠️ This exception does NOT apply to ALL names; the source identifies which ones qualify,
+/// and the table is generated from that source.
 pub(crate) const HTML5_ENTITIES_NO_SEMI: &[&str] = &[
     "AElig", "AMP", "Aacute", "Acirc", "Agrave", "Aring", "Atilde", "Auml", "COPY", "Ccedil",
     "ETH", "Eacute", "Ecirc", "Egrave", "Euml", "GT", "Iacute", "Icirc", "Igrave", "Iuml", "LT",
