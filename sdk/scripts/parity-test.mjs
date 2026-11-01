@@ -145,7 +145,7 @@ for (const [path, base] of Object.entries(baseRuns)) {
   assert.equal(base.score, expected.base.score, `base/${path}: score`);
   assert.equal(canonical(base.agency_breakdown), canonical(expected.base.agency_breakdown), `base/${path}: agency_breakdown`);
   assert.equal(canonical(base.feed_summary), canonical(expected.base.feed_summary), `base/${path}: feed_summary`);
-    assert.deepEqual(multiset(base.notices), multiset(expected.base.notices), `base/${path}: notices`);
+  assert.deepEqual(multiset(base.notices), multiset(expected.base.notices), `base/${path}: notices`);
 }
 
 for (const testCase of cases.cases) {
