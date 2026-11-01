@@ -363,3 +363,6 @@ a653accf82a534dc140a47f49d1a11e8f295ba5f
 
 # Translate ignored test reasons.
 0cd90756cc4031daecaf266ad68fd0efc3212cb2
+
+# Retain gate-compatible ignored report labels.
+349f51c7919816634f9e29abbf748ced1e210545
