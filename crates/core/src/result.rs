@@ -119,8 +119,8 @@ pub struct NameIndex {
     pub trips: BTreeMap<String, String>,       // trip_id → trip_headsign
     pub trip_routes: BTreeMap<String, String>, // trip_id → route_id (for filtering)
     pub trip_directions: BTreeMap<String, String>, // trip_id → "0"/"1" (direction_id; absent if missing)
-    pub stop_coords: BTreeMap<String, [f64; 2]>, // stop_id → [lat, lon] (for the map)
-    pub trip_first_dep: BTreeMap<String, String>, // trip_id → "HH:MM" (trip time)
+    pub stop_coords: BTreeMap<String, [f64; 2]>,   // stop_id → [lat, lon] (for the map)
+    pub trip_first_dep: BTreeMap<String, String>,  // trip_id → "HH:MM" (trip time)
     pub shape_routes: BTreeMap<String, Vec<[String; 2]>>, // shape_id → [[route_id, direction]]
     pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>, // shape_id → [[lat, lon], ...] ordered point list
     pub trip_shapes: BTreeMap<String, String>,         // trip_id  → shape_id
