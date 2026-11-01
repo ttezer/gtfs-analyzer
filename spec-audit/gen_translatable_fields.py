@@ -45,7 +45,7 @@ def build():
     for table in tables:
         entry = files.get(f"{table}.txt")
         if entry is None:
-            raise SystemExit(f"spec_fields.json içinde {table}.txt yok")
+            raise SystemExit(f"{table}.txt is missing from spec_fields.json")
         for field in entry["fields"]:
             rows.append((table, field["name"], field["type"] in TRANSLATABLE_TYPES))
     rows.sort(key=lambda r: (r[0], r[1]))
