@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Tek bir GTFS dosyasına ait boyut ve satır bilgisi.
+/// Size and row information for one GTFS file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileInfo {
     pub name: String,
@@ -8,69 +8,69 @@ pub struct FileInfo {
     pub bytes: u32,
 }
 
-/// Feed düzeyinde özet metrikler.
+/// Feed-level summary metrics.
 ///
-/// MET_001: entity sayıları
-/// MET_002: servis kapsama yoğunluğu
-/// MET_003: sınıf bazında hata sayısı
-/// MET_004: genel skor (R5 ile eşdeğer; Spec×40%+Interop×30%+Quality×20%+Analytics×10%)
+/// MET_001: entity counts
+/// MET_002: service coverage density
+/// MET_003: error counts by class
+/// MET_004: overall score (equivalent to R5; Spec×40%+Interop×30%+Quality×20%+Analytics×10%)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeedMetrics {
-    // MET_001 — Toplam durak / hat / sefer / şekil sayısı
+    // MET_001 — Total stop / route / trip / shape counts
     pub stop_count: u32,
     pub route_count: u32,
     pub trip_count: u32,
     pub shape_count: u32,
 
-    // MET_002 — Servis kapsama yoğunluğu
+    // MET_002 — Service coverage density
     pub active_service_days: u32,
     pub avg_daily_trips: f64,
 
-    // Feed geçerlilik penceresi (feed_info.txt) — YYYYMMDD, yoksa None
+    // Feed validity window (feed_info.txt) — YYYYMMDD, None if absent
     pub feed_start_date: Option<u32>,
     pub feed_end_date: Option<u32>,
 
-    // Gerçek servis kapsama aralığı (calendar + calendar_dates) — YYYYMMDD, servis yoksa None
+    // Actual service coverage range (calendar + calendar_dates) — YYYYMMDD, None if no service
     pub service_start_date: Option<u32>,
     pub service_end_date: Option<u32>,
 
-    // MET_003 — Sınıf bazında hata sayısı
+    // MET_003 — Error counts by class
     pub spec_notice_count: u32,
     pub interop_notice_count: u32,
     pub quality_notice_count: u32,
     pub analytics_notice_count: u32,
 
-    // MET_004 — Genel skor 0.0–100.0 (R5 ağırlıklı: 0.4·spec + 0.3·interop + 0.2·quality + 0.1·analytics).
-    // NOT: R5Report.quality_score (yalnız Quality sınıfı bileşeni) ile karıştırılmamalı.
+    // MET_004 — Overall score 0.0–100.0 (R5 weighted: 0.4·spec + 0.3·interop + 0.2·quality + 0.1·analytics).
+    // NOTE: Do not confuse this with R5Report.quality_score (the Quality-class component only).
     pub overall_score: f64,
 
-    /// Skor TAM KAPSAMLI bir koşumdan mı geldi (issue #133).
+    /// Did the score come from a FULL-COVERAGE run (issue #133)?
     ///
-    /// 🔴 **`false` ise `overall_score` BAŞKA FEED'LERLE KIYASLANAMAZ.** Skor yalnız
-    /// ÜRETİLMİŞ notice'lardan hesaplanır; bir dosya okunamayınca ona bağlı kurallar
-    /// koşmaz, ceza üretemez ve skor YÜKSELİR. Ölçüldü (`mdb-1903`): `stops.txt`
-    /// okunamaz olunca 604 notice → 178 ve genel skor **89,4 → 93,5**. Korpusta canlı
-    /// örnek `mdb-3135`: 2 notice, 62 atlanan kontrol, skor **94,5**.
+    /// 🔴 **If `false`, `overall_score` CANNOT BE COMPARED WITH OTHER FEEDS.** The score is
+    /// calculated only from notices PRODUCED; when a file cannot be read, dependent rules
+    /// do not run, cannot produce penalties, and the score INCREASES. Measured (`mdb-1903`):
+    /// when `stops.txt` could not be read, 604 notices → 178 and the overall score **89,4 → 93,5**.
+    /// Live corpus example `mdb-3135`: 2 notices, 62 skipped checks, score **94,5**.
     ///
-    /// Skorun KENDİSİ bilerek düzeltilmiyor: atlanan kontrol başına ceza uydurmak
-    /// gerçek bir ölçüme dayanmayan bir sayı üretirdi. Doğru çözüm sayıyı oynatmak
-    /// değil, KIYASLANAMAZ olduğunu taşımaktır.
+    /// The score ITSELF is deliberately not adjusted: inventing a penalty per skipped check
+    /// would produce a number not based on a real measurement. The correct solution is not
+    /// to alter the number, but to carry the fact that it CANNOT BE COMPARED.
     #[serde(default = "default_true_metrics")]
     pub coverage_complete: bool,
 
-    // Dosya bazında istatistikler (K1 parse)
+    // File-level statistics (K1 parse)
     pub file_stats: Vec<FileInfo>,
 
-    /// Feed GTFS-JP sinyali taşıyor mu (`*_jp` dosyası, `feed_lang=ja`,
-    /// `agency_lang=ja` + `Asia/Tokyo`, ya da `ja-Hrkt` çevirisi).
-    /// UI'da "GTFS-JP" rozeti + JPN grubu kurallarının koşullu tetiklenmesi için.
+    /// Whether the feed carries a GTFS-JP signal (`*_jp` file, `feed_lang=ja`,
+    /// `agency_lang=ja` + `Asia/Tokyo`, or a `ja-Hrkt` translation).
+    /// Used for the "GTFS-JP" badge in the UI and conditional triggering of JPN rules.
     #[serde(default)]
     pub is_gtfs_jp: bool,
 
-    /// GTFS-JP için seçilmiş kural kapsamı.
+    /// Selected rule coverage for GTFS-JP.
     ///
-    /// Bu alan feed'in resmî v3/v4 sürümünü tespit etmez; yalnızca analizde
-    /// kullanılan açık profil seçimini UI/SDK tüketicilerine taşır.
+    /// This field does not detect the feed's official v3/v4 version; it only exposes the
+    /// explicit profile selection used for analysis to UI/SDK consumers.
     #[serde(default)]
     pub gtfs_jp_profile: Option<String>,
 }

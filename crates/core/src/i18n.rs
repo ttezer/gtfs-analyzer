@@ -51,7 +51,7 @@ struct Dictionary {
     messages: HashMap<String, String>,
     remediations: HashMap<String, String>,
     titles: HashMap<String, String>,
-    /// `{FatalCode}.{variant}` → şablon; parametreler `FatalError::params`'tan dolar.
+    /// `{FatalCode}.{variant}` → template; parameters are filled from `FatalError::params`.
     #[serde(default)]
     fatal_messages: HashMap<String, String>,
 }
@@ -242,14 +242,14 @@ mod tests {
             .collect()
     }
 
-    /// Her fatal şablonu üç dilde de var ve AYNI yer tutucuları kullanıyor; biri eksik
-    /// kalırsa o dilde parametre sessizce boş basılırdı.
+    /// Every fatal template exists in all three languages and uses the SAME placeholders;
+    /// if one were missing, the parameter would silently render empty in that language.
     #[test]
     fn fatal_templates_match_across_locales() {
         let en = Dictionary::parse(EN_JSON, "en").unwrap();
         assert!(
             !en.fatal_messages.is_empty(),
-            "İngilizce fatal şablonları boş"
+            "English fatal templates are empty"
         );
         for (lang, raw) in [("fr", FR_JSON), ("ja", JA_JSON)] {
             let other = Dictionary::parse(raw, lang).unwrap();
@@ -259,13 +259,13 @@ mod tests {
             other_keys.sort();
             assert_eq!(
                 en_keys, other_keys,
-                "{lang}: fatal şablon anahtarları farklı"
+                "{lang}: fatal template keys differ"
             );
             for (key, template) in &en.fatal_messages {
                 assert_eq!(
                     placeholders(template),
                     placeholders(&other.fatal_messages[key]),
-                    "{lang}: {key} yer tutucuları farklı"
+                    "{lang}: {key} placeholders differ"
                 );
             }
         }

@@ -1,76 +1,76 @@
-// BTreeMap (HashMap değil): `details` JSON'a serialize edilir ve HashMap iterasyon
-// sırası süreçten sürece değişir → aynı girdi iki koşuda farklı BAYT üretirdi
-// (içerik aynı, yalnız anahtar sırası). Bkz. NameIndex'teki aynı gerekçe.
+// BTreeMap (not HashMap): `details` is serialized to JSON, and HashMap iteration order
+// varies between processes → the same input would produce different BYTES in two runs
+// (same content, only key order differs). See the same rationale in NameIndex.
 use crate::{EntityType, RuleClass, Severity};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// Tek bir doğrulama bulgusunu temsil eden canonical veri yapısı.
+/// Canonical data structure representing one validation finding.
 ///
-/// Kritik kontratlar (architecture Bölüm 3):
-/// - `blocks`: yalnızca canonical rule ID'leri — report-view ID'leri (GEO_008/010/011) içermez
-/// - `scope_key`: kural tanımında hangi linking entity kullanılacağı belirlenir;
-///   runtime bu değeri notice üretiminde ilgili entity ID'sinden atar
-/// - `base_effort`: 1 / 2 / 3 — kural bazında sabit (1=tek alan/satır, 2=sınırlı çapraz-dosya, 3=yapısal/topoloji)
+/// Critical contracts (architecture Section 3):
+/// - `blocks`: canonical rule IDs only — does not include report-view IDs (GEO_008/010/011)
+/// - `scope_key`: determines which linking entity the rule definition uses; runtime assigns
+///   it from the relevant entity ID when producing the notice
+/// - `base_effort`: 1 / 2 / 3 — fixed per rule (1=single field/row, 2=limited cross-file, 3=structural/topological)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Notice {
-    /// Oluşturulma sırasında atanan benzersiz kimlik — ReportItem referansı için.
+    /// Unique ID assigned at creation — used by ReportItem references.
     pub id: String,
     pub rule_id: String,
     pub severity: Severity,
     pub rule_class: RuleClass,
     pub entity_type: EntityType,
     pub entity_id: Option<String>,
-    /// Root cause → semptom eşleşmesinde kullanılan linking entity ID.
-    /// Bileşik anahtar gerektiğinde pipe-separated: "from_stop_id|to_stop_id".
-    /// None ise feed-level notice; scope_key == None olan root cause tüm feed'i etkiler.
+    /// Linking entity ID used to match root causes to symptoms.
+    /// Pipe-separated when a compound key is required: "from_stop_id|to_stop_id".
+    /// If None, this is a feed-level notice; a root cause with scope_key == None affects the entire feed.
     pub scope_key: Option<String>,
     pub file: Option<String>,
     pub line: Option<u64>,
     pub field: Option<String>,
     pub observed_value: Option<String>,
-    /// Eşik veya beklenen değer (ör. "120 km/h") — dinamik bağlam için.
+    /// Threshold or expected value (e.g. "120 km/h") — for dynamic context.
     pub expected_value: Option<String>,
-    /// Ek bağlam: ikinci entity ID, hesaplanan değer, birim vb.
+    /// Additional context: second entity ID, calculated value, unit, etc.
     pub details: Option<BTreeMap<String, String>>,
-    /// K2'nin yalnız çevre boşluğu nedeniyle ürettiği tip/enum semptomu.
-    /// Pipeline-içi işarettir; K7'de korunan bulgular için eski `details` biçimi kurulur.
+    /// Type/enum symptom produced by K2 only because of surrounding whitespace.
+    /// An internal pipeline marker; K7 creates the old `details` shape for retained findings.
     #[serde(skip)]
     pub whitespace_derived: bool,
-    /// K4'te trim edilmiş referansla doğrulanmayı bekleyen çevre-boşluğu FK adayı.
-    /// Pipeline-içi işarettir; K7'de korunan bulgular için eski `details` biçimi kurulur.
+    /// Whitespace-adjacent FK candidate awaiting validation against the trimmed reference in K4.
+    /// An internal pipeline marker; K7 creates the old `details` shape for retained findings.
     #[serde(skip)]
     pub whitespace_candidate: bool,
-    /// Kural için kısa genel Türkçe başlık — UI'da gösterilir.
+    /// Short general Turkish title for the rule — displayed in the UI.
     pub title: String,
-    /// Kural tanımından gelen sabit metin — runtime'da üretilmez.
+    /// Fixed text from the rule definition — not generated at runtime.
     pub message: String,
-    /// Kural bazında sabit düzeltme talimatı.
+    /// Fixed remediation instruction for the rule.
     pub remediation: String,
-    /// Bu notice düzelirse kapanacak downstream canonical rule ID'leri.
+    /// Downstream canonical rule IDs that will be closed if this notice is fixed.
     pub blocks: Vec<String>,
-    /// 1=kolay, 3=zor. fix_effort = base_effort × instance_multiplier.
+    /// 1=easy, 3=hard. fix_effort = base_effort × instance_multiplier.
     pub base_effort: u8,
-    /// Bulgunun ait olduğu çalışma takvimi (service_id). Sefer-bazlı bulgularda
-    /// doldurulur (R2'de "Çalışma Takvimi" sütunu). Feed/dosya kurallarında None.
+    /// Service calendar the finding belongs to (service_id). Filled for trip-level findings
+    /// (the "Service Calendar" column in R2). None for feed/file rules.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub service_id: Option<String>,
-    /// Feed-level özetin altındaki ham notice'ların agency dağılımı (#2201). Yalnız
-    /// toplulanmış özetlerde dolar; diğer notice'larda `None` kalır (8 bayt). Pipeline-içi
-    /// işarettir, serileştirilmez: JSON sözleşmesi ayrı karardır.
+    /// Agency distribution of raw notices under a feed-level summary (#2201). Filled only for
+    /// aggregated summaries; remains `None` for other notices (8 bytes). An internal pipeline
+    /// marker, not serialized: the JSON contract is a separate decision.
     #[serde(skip)]
     pub agency_distribution: Option<Box<crate::agency::AgencyDistribution>>,
 }
 
-/// Canonical Notice'ı bir rapor görünümüne projekte eden referans nesnesi.
-/// Notice klonlanmaz; `notice_id` üzerinden referans edilir.
+/// Reference object projecting a canonical Notice into a report view.
+/// The Notice is not cloned; it is referenced through `notice_id`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportItem {
-    /// İlgili canonical Notice'ın `id` alanı.
+    /// The `id` field of the related canonical Notice.
     pub notice_id: String,
     pub report_id: crate::ReportId,
-    /// Rapor bağlamına özgü görüntüleme etiketi.
-    /// Ör. R4'te SHP_013 → "GEO_008".
+    /// Display label specific to the report context.
+    /// For example, SHP_013 → "GEO_008" in R4.
     pub display_label: String,
     pub is_primary: bool,
 }
