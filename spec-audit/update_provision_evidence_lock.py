@@ -61,7 +61,7 @@ def main() -> int:
     removed = sorted(set(previous) - set(current))
     changed = sorted(pid for pid in set(current) & set(previous) if current[pid] != previous[pid])
     if added:
-        print(f"Yeni fingerprint: {', '.join(added)}")
+        print(f"New fingerprints: {', '.join(added)}")
     if removed:
         print(f"Removed fingerprints: {', '.join(removed)}")
     if changed:
