@@ -2356,7 +2356,7 @@ fn xfl_019_silent_when_only_route_networks_file() {
 
 #[test]
 fn path_traversal_entries_rejected_and_root_file_intact() {
-    // ZIP icindeki traversal/nested giris adlari kok dosya yerine gecmemeli.
+    // Traversal/nested entry names inside the ZIP must not replace root files.
     let evil: &[u8] =
         b"agency_id,agency_name,agency_url,agency_timezone\n9,EVIL_TRAVERSAL,http://evil.com,UTC\n";
     let mut files = base_files();
@@ -2419,9 +2419,9 @@ fn path_traversal_entries_rejected_and_root_file_intact() {
 #[test]
 fn nested_zip_is_reported_in_subdirectories_too() {
     // Korpus 13'te olculdu: bes feed (tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752)
-    // butun GTFS'ini ALT DIZINDEKI bir nested ZIP'te tasiyor. Eskiden ARC_023 yalnizca kok
+    // carries its entire GTFS in a nested ZIP in a SUBDIRECTORY. Previously ARC_023 only saw the root
     // dizini goruyordu; o feed'lerde tek cikti "zorunlu dosya eksik" oluyor, SEBEBI hicbir
-    // bulguda gorunmuyordu. Konum kuralin hukmunu degistirmez.
+    // and the reason was not visible in any finding. Location does not change the rule's verdict.
     let inner: &[u8] =
         b"PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
     let mut files = base_files();
@@ -2451,9 +2451,9 @@ fn nested_zip_is_reported_in_subdirectories_too() {
 
 #[test]
 fn gtfs_named_file_with_wrong_extension_is_reported_in_subdirectories() {
-    // Korpus 13: mdb-3434 ve mdb-3135 butun GTFS'ini alt dizinde `.csv` uzantisiyla tasiyor.
-    // Eskiden tek cikti ARC_004 ("zorunlu dosya eksik") oluyor, dosyalarin ORADA oldugu
-    // hicbir bulguda gorunmuyordu. Alt dizindeki DIGER dosyalar sessiz kalmali — bir repo
+    // Corpus 13: mdb-3434 and mdb-3135 carry their entire GTFS in a subdirectory with a `.csv` extension.
+    // Previously the only output was ARC_004 ("required file missing"), while the files' presence THERE
+    // was not visible in any finding. OTHER files in the subdirectory must remain silent — reporting a repo's
     // zip'inin LICENSE/README'sini raporlamak gurultudur.
     let blob: &[u8] = b"x\n";
     let mut files = base_files();
@@ -2488,12 +2488,12 @@ fn gtfs_named_file_with_wrong_extension_is_reported_in_subdirectories() {
 
 #[test]
 fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
-    // 13. korpus kosumu: K1 sarili feed'in kok onekini duser ve dosyayi `stop_times.txt`
-    // adiyla isler, ama K2 buyuk dosyalari ZIP'i YENIDEN ACARAK stream eder ve
-    // `by_name("stop_times.txt")` sarili arsivde HICBIR SEY bulamiyordu. Dosya sessizce
-    // bos sayiliyor, sonucta ARC_024 atesleyen 44 feed'in 44'unde tek bir STM_* kurali
-    // bile atesleMIYORdu; ustelik her durak "hic sefer gecmiyor" gorunup STP_020 FP'si
-    // uretiyordu (mdb-3459'da 678 bulgu).
+    // 13th corpus run: K1 strips the root prefix from the wrapped feed and processes the file as
+    // `stop_times.txt`, but K2 reopens large files from the ZIP as streams and
+    // `by_name("stop_times.txt")` found NOTHING in the wrapped archive. The file was silently
+    // treated as empty, so in all 44 of the 44 feeds that triggered ARC_024, not a single STM_*
+    // rule fired; moreover every stop appeared to have "no trip passing through it", producing
+    // an STP_020 FP (678 findings in mdb-3459).
     let wrapped: Vec<(String, &[u8])> = base_files()
         .into_iter()
         .map(|(name, body)| (format!("GTFS/{name}"), body))
@@ -2515,14 +2515,14 @@ fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
     let ValidateResult::Ok(vr) = run(&files) else {
         panic!("sarili feed fatal olmamali")
     };
-    // stop_times gercekten okunduysa duraklar KULLANILIYOR demektir; okunmadiginda
-    // STP_020 ("hic sefer gecmeyen durak") her durak icin patlardi.
+    // If stop_times was actually read, the stops are USED; if it was not, STP_020
+    // ("stop with no trip passing through it") would fire for every stop.
     let stp020 = vr.notices.iter().filter(|n| n.rule_id == "STP_020").count();
     assert_eq!(
         stp020, 0,
         "sarili feed'de stop_times okunmali; STP_020 atesliyorsa stream yolu yine kor",
     );
-    // Bos sayilan dosya ARC_035'i de yanlis tetikliyordu (Kritik·Spec = yayin engeli).
+    // Treating the file as empty also incorrectly triggered ARC_035 (Critical·Spec = publication blocker).
     assert!(
         !vr.notices.iter().any(|n| n.rule_id == "ARC_035"),
         "dolu bir stop_times.txt ARC_035 uretmemeli",
@@ -2531,15 +2531,15 @@ fn wrapped_feed_streams_stop_times_instead_of_reading_it_as_empty() {
 
 #[test]
 fn empty_required_file_is_spec_critical_while_empty_optional_stays_informational() {
-    // 13. korpus kosumu: "zorunlu dosya var mi?" testi dosyanin VARLIGINA bakiyordu.
+    // 13th corpus run: the "does the required file exist?" test checked only the file's PRESENCE.
     // 0 baytlik bir stop_times.txt "mevcut" sayilip yayin kapisindan geciyordu — en az
-    // 32 feed'de zorunlu bir dosya bos, besi (mdb-1817 · mdb-342 · mdb-3181 · mdb-3459 ·
-    // mdb-1819) YAYIN SKORU 100,0 aliyordu. Dosyayi silmek ARC_004 uretirken bosaltmak
-    // cezasiz kaliyordu.
+    // In 32 feeds a required file was empty, and five (mdb-1817 · mdb-342 · mdb-3181 · mdb-3459 ·
+    // mdb-1819) received a PUBLICATION SCORE of 100.0. Deleting the file produced ARC_004, while
+    // emptying it went unpenalized.
     let empty_stops: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n";
-    // NOT: opsiyonel taraf `frequencies.txt` ile kuruldu. Baslik-only bir `shapes.txt`
+    // NOTE: the optional side was built with `frequencies.txt`. A header-only `shapes.txt`
     // bugun HIC ARC_009 uretmiyor (k2/shapes.rs kolu `raw_text.is_some()` istiyor, kucuk
-    // shapes stream yoluna girmiyor) — ayri ve daha kucuk bir bosluk, bu testin konusu degil.
+    // does not enter the shapes stream path) — a separate, smaller gap outside this test's scope.
     let empty_freq: &[u8] = b"trip_id,start_time,end_time,headway_secs\n";
     let mut files = base_files();
     files.retain(|(n, _)| *n != "stops.txt");
@@ -2576,15 +2576,15 @@ fn empty_required_file_is_spec_critical_while_empty_optional_stays_informational
 
 #[test]
 fn header_only_stream_files_are_not_silently_treated_as_present() {
-    // `is_zip_stream` listesindeki dort dosya (stop_times · shapes · trips ·
-    // calendar_dates) K1'de YALNIZ baslik okunur, govdeyi K2 stream eder. K1'in kendi
-    // bos-dosya kontrolu `!stream_mode` istedigi icin bu dorde HIC bakmaz; karsiligin
-    // K2'de yazilmis olmasi gerekir. 2026-08-31'de olculdu: yalnizca `stop_times.txt`
+    // For the four files in the `is_zip_stream` list (stop_times · shapes · trips ·
+    // calendar_dates), K1 reads ONLY the header and K2 streams the body. K1's own
+    // empty-file check requires `!stream_mode`, so it does not inspect these four; the
+    // corresponding check must exist in K2. Measured on 2026-08-31: only `stop_times.txt`
     // dogru davraniyordu.
-    //   · shapes.txt  → K2 kolu `raw_text.is_some()` istiyordu, ama is_zip_stream
-    //                   dosyalarda raw_text HER ZAMAN None → kol OLU KODDU.
-    //   · trips.txt   → karsiligi hic yazilmamisti (ve trips ZORUNLU → ARC_035).
-    // Not: 0 baytlik hal K1'in `records.is_empty()` kolundan zaten yakalaniyordu;
+    //   · shapes.txt  → the K2 branch required `raw_text.is_some()`, but for is_zip_stream
+    //                   files raw_text is ALWAYS None → the branch was DEAD CODE.
+    //   · trips.txt   → no corresponding branch had been written (and trips is REQUIRED → ARC_035).
+    // Note: the 0-byte case was already caught by K1's `records.is_empty()` branch;
     // gorunmeyen tam olarak "baslik var, veri yok" araligiydi.
     let mut files = base_files();
     files.push((
@@ -2617,8 +2617,8 @@ fn header_only_stream_files_are_not_silently_treated_as_present() {
 
 #[test]
 fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_service() {
-    // Kosullu cift toleransi: calendar.txt servisi tanimliyorsa bos calendar_dates.txt
-    // yanlis pozitiftir. Ama calendar.txt YOKSA bastirma da olmamalidir — yoksa
+    // Conditional pair tolerance: an empty calendar_dates.txt is a false positive when calendar.txt
+    // defines service. But suppression must not apply when calendar.txt is ABSENT — otherwise
     // "hic servis tanimi yok" hali sessizce gecerdi.
     let empty_cd: &[u8] = b"service_id,date,exception_type\n";
 
@@ -2650,12 +2650,12 @@ fn empty_calendar_dates_stays_suppressed_only_while_calendar_txt_carries_the_ser
 
 #[test]
 fn empty_required_file_alone_blocks_publication() {
-    // ARC_035'in TEK GERCEK gerekcesi bu vakadir ve korpusta saf ornegi yoktu:
-    // agency/stops/routes/calendar DOLU, yalnizca trips.txt ve stop_times.txt
-    // baslik-only. O iki dosya `is_zip_stream` yolunda oldugu icin eski kodda
-    // ARC_009 BILE cikmiyordu — feed tek bir bulgu bile uretmeden `publishable`
+    // This is the ONLY REAL justification for ARC_035, and the corpus had no pure example:
+    // agency/stops/routes/calendar are FULL, while only trips.txt and stop_times.txt are
+    // header-only. Because those two files took the `is_zip_stream` path, the old code did not
+    // even emit ARC_009 — the feed was marked `publishable` without producing a single finding.
     // sayiliyordu. (55 feed'lik dogrulama orneklemindeki 10 ARC_035 feed'inin
-    // hepsinde ZATEN STP_018 veya ARC_025 engeli vardi, yani kapiyi orada bu kural
+    // all already had an STP_018 or ARC_025 blocker, so this rule did not turn the gate there
     // cevirmiyor; ceviren yer tam olarak burasi.)
     let files: Vec<(&str, &[u8])> = vec![
         ("agency.txt", AGENCY),
@@ -2695,11 +2695,11 @@ fn empty_required_file_alone_blocks_publication() {
     );
 }
 
-// ── ARC_025: zorunlu sutun basligta hic yok (header-level) ────────────────────
+// ── ARC_025: required column absent from the header (header-level) ───────────
 
 #[test]
 fn missing_required_column_produces_arc_025() {
-    // agency.txt'te zorunlu 'agency_name' sutunu basligta yok → ARC_025 (dosya basina bir kez).
+    // The required 'agency_name' column is absent from agency.txt's header → ARC_025 (once per file).
     let bad_agency: &[u8] = b"agency_id,agency_url,agency_timezone\n1,http://test.example,UTC\n";
     let mut files = base_files();
     files[0] = ("agency.txt", bad_agency);
@@ -2716,7 +2716,7 @@ fn missing_required_column_produces_arc_025() {
         "agency_name sutunu basligta yok → 1 ARC_025, bulunan: {arc025_name}",
     );
 
-    // Mevcut sutun (agency_url) icin ARC_025 CIKMAMALI — o, deger boslugu (k2 grup kurali) konusudur.
+    // ARC_025 must NOT fire for an existing column (agency_url) — that is a value-empty issue (K2 group rule).
     assert!(
         !k1.notices
             .iter()
@@ -2727,7 +2727,7 @@ fn missing_required_column_produces_arc_025() {
 
 #[test]
 fn complete_headers_produce_no_arc_025() {
-    // base_files tum zorunlu sutunlari icerir → hic ARC_025 olmamali.
+    // base_files contains all required columns → no ARC_025 should be emitted.
     let k1 = parse(&make_zip(&base_files()), &ValidatorConfig::default())
         .expect("gecerli kok dosyalar Ok donmeli");
     let arc025 = k1.notices.iter().filter(|n| n.rule_id == "ARC_025").count();
@@ -2737,9 +2737,9 @@ fn complete_headers_produce_no_arc_025() {
     );
 }
 
-// ── XFL_027: route-bazlı contactless EMV precedence bilgisi ───────────────────
-// Ortak: 1 route (R1, 2 durak), contactless fare_media(type=3) + fare_product.
-// Senaryoya göre routes.txt (cemv/network) + fare_leg_rules + networks değişir.
+// ── XFL_027: route-level contactless EMV precedence information ────────────────
+// Shared setup: 1 route (R1, 2 stops), contactless fare_media(type=3) + fare_product.
+// routes.txt (cemv/network) + fare_leg_rules + networks vary by scenario.
 fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
     vec![
         ("agency.txt", b"agency_id,agency_name,agency_url,agency_timezone\nA1,T,http://t.co,UTC\n" as &[u8]),
@@ -2754,7 +2754,7 @@ fn cemv_base() -> Vec<(&'static str, &'static [u8])> {
 
 #[test]
 fn xfl027_route_cemv2_with_global_contactless() {
-    // R1 cemv_support=2 (desteklenmiyor) ama leg rule GLOBAL (network/area yok) → her route kapsanır → celiski.
+    // R1 cemv_support=2 (unsupported) but the leg rule is GLOBAL (no network/area) → every route is covered → conflict.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2779,7 +2779,7 @@ fn xfl027_route_cemv2_with_global_contactless() {
 
 #[test]
 fn xfl026_route_cemv1_network_mismatch_is_not_reported() {
-    // cEMV=1 tek başına Fares v2 kanıtı gerektirmez; XFL_026 artık üretilmez.
+    // cEMV=1 alone does not require evidence of Fares v2; XFL_026 is no longer produced.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2819,7 +2819,7 @@ fn xfl_019_fires_when_networks_file_is_present() {
 
 #[test]
 fn xfl026_silent_when_route_coverage_unresolvable() {
-    // R1 cemv=1, network_id BOS; contactless leg rule network-based → route kapsami cozulemez → FP guard SUSAR.
+    // R1 cemv=1, network_id EMPTY; contactless leg rule is network-based → route coverage cannot be resolved → FP guard stays silent.
     let mut files = cemv_base();
     files.push((
         "routes.txt",
@@ -2842,15 +2842,15 @@ fn xfl026_silent_when_route_coverage_unresolvable() {
     }
 }
 
-// ── ARC_029: decompression guard (zip-bomb) uçtan uca ─────────────────────────
-// #46 guard'ı GuardedReader seviyesinde birim-testli (decompress_guard.rs), ancak
-// DEFAULT_DECOMPRESSION_LIMITS ile validate_bytes üzerinden kablolamayı hiçbir test
-// doğrulamıyordu. Bu testler ARC_029'un iki ayrı read_fatal çağrı yerini kanıtlar:
-// zip-stream yolu (stop_times/trips/calendar_dates) ve read_to_end yolu (diğer .txt).
+// ── ARC_029: decompression guard (zip bomb) end to end ─────────────────────────
+// The #46 guard is unit-tested at GuardedReader level (decompress_guard.rs), but no test
+// verified wiring it through validate_bytes with DEFAULT_DECOMPRESSION_LIMITS. These tests
+// prove ARC_029's two distinct read_fatal call sites: the zip-stream path
+// (stop_times/trips/calendar_dates) and the read_to_end path (other .txt files).
 //
-// Tetikleme koşulu (DEFAULT): entry_decompressed > ratio_floor (16 MiB) VE
-// entry_decompressed > 80 × entry_compressed. Sıfır baytlar ~1000:1 sıkışır.
-const BOMB_DECOMPRESSED: usize = 24 * 1024 * 1024; // 16 MiB ratio_floor'un üstünde
+// Trigger condition (DEFAULT): entry_decompressed > ratio_floor (16 MiB) AND
+// entry_decompressed > 80 × entry_compressed. Zero bytes compress at roughly 1000:1.
+const BOMB_DECOMPRESSED: usize = 24 * 1024 * 1024; // above the 16 MiB ratio_floor
 
 fn bomb_payload() -> Vec<u8> {
     vec![b'\n'; BOMB_DECOMPRESSED]
@@ -2873,7 +2873,7 @@ fn assert_decompression_limit(result: ValidateResult, ctx: &str) {
 fn arc029_zip_bomb_in_streamed_file_returns_fatal_decompression_limit() {
     let bomb = bomb_payload();
     let mut files = base_files();
-    // stop_times.txt = #38 zip-stream yolu (k1_parse.rs read_fatal çağrı yeri 1)
+    // stop_times.txt = #38 zip-stream path (k1_parse.rs read_fatal call site 1)
     files.retain(|(n, _)| *n != "stop_times.txt");
     files.push(("stop_times.txt", &bomb));
     let zip = make_zip(&files);
@@ -2887,7 +2887,7 @@ fn arc029_zip_bomb_in_streamed_file_returns_fatal_decompression_limit() {
 fn arc029_zip_bomb_in_buffered_file_returns_fatal_decompression_limit() {
     let bomb = bomb_payload();
     let mut files = base_files();
-    // shapes.txt = read_to_end yolu (k1_parse.rs read_fatal çağrı yeri 2)
+    // shapes.txt = read_to_end path (k1_parse.rs read_fatal call site 2)
     files.push(("shapes.txt", &bomb));
     let zip = make_zip(&files);
     assert_decompression_limit(
@@ -2898,8 +2898,8 @@ fn arc029_zip_bomb_in_buffered_file_returns_fatal_decompression_limit() {
 
 #[test]
 fn arc029_legitimate_small_high_ratio_file_does_not_trip_guard() {
-    // FP guard: ratio_floor'un ALTINDA kalan çok-sıkışan meşru dosya bombaya sayılmaz.
-    // (#46 kapanışında dış katılımcının işaret ettiği "meşru-yüksek-oran" riski.)
+    // FP guard: a legitimate highly compressed file BELOW ratio_floor is not a bomb.
+    // (The "legitimate-high-ratio" risk identified by an external participant when #46 closed.)
     let small_high_ratio = vec![b'\n'; 1024 * 1024]; // 1 MiB << 16 MiB floor, oran ~1000:1
     let mut files = base_files();
     files.push(("shapes.txt", &small_high_ratio));
@@ -2913,15 +2913,15 @@ fn arc029_legitimate_small_high_ratio_file_does_not_trip_guard() {
     }
 }
 
-// ── Determinizm kapısı ────────────────────────────────────────────────────────
-// Aynı feed, aynı `today` → BİREBİR aynı çıktı. Bu güvence 2026-07-27'ye kadar YOKTU:
-// notice içerikleri ve id'leri koşudan koşuya değişiyordu, çünkü emisyon sırası HashMap
-// iterasyonuna bağlıydı ve dedup'ın keep-first temsilcisi o sıradan seçiliyordu (VBB'de
-// 829 kayıt oynuyordu). Golden karşılaştırma ve A/B ölçümleri bu yüzden güvenilmezdi.
+// ── Determinism gate ──────────────────────────────────────────────────────────
+// Same feed, same `today` → EXACTLY the same output. This guarantee did NOT EXIST until
+// 2026-07-27: notice contents and IDs changed between runs because emission order depended
+// on HashMap iteration, and dedup selected its keep-first representative from that order
+// (829 records varied in VBB). Golden comparisons and A/B measurements were therefore unreliable.
 #[test]
 fn same_feed_twice_produces_identical_output() {
-    // Nondeterminizmi tetikleyen desenleri içerir: aynı seferde TEKRARLANAN durak (OPR_007),
-    // birden çok shape (SHP/GEO aileleri), birden çok hat+servis (OPR_001/003/024).
+    // Contains patterns that trigger nondeterminism: a REPEATED stop in one trip (OPR_007),
+    // multiple shapes (SHP/GEO families), and multiple route+service combinations (OPR_001/003/024).
     let shapes = b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n\
         S1,41.0,29.0,1\nS1,41.0,29.0,2\nS1,41.5,29.5,3\n\
         S2,40.0,28.0,1\nS2,40.0,28.0,2\nS2,40.9,28.9,3\n\
@@ -2931,7 +2931,7 @@ fn same_feed_twice_produces_identical_output() {
             as &[u8];
     let trips = b"route_id,service_id,trip_id,shape_id\n\
         R1,SVC1,T1,S1\nR2,SVC1,T2,S2\nR3,SVC1,T3,S3\n" as &[u8];
-    // T1: S1 durağı iki kez, aralarında başka durak → OPR_007 adayı (birden çok tekrar olası)
+    // T1: stop S1 appears twice, with another stop between → OPR_007 candidate (multiple repeats possible)
     let stop_times = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
         T1,08:00:00,08:00:00,S1,1\nT1,08:05:00,08:05:00,S2,2\nT1,08:10:00,08:10:00,S1,3\n\
         T2,09:00:00,09:00:00,S1,1\nT2,09:30:00,09:30:00,S2,2\n\
@@ -2945,11 +2945,11 @@ fn same_feed_twice_produces_identical_output() {
     files.push(("shapes.txt", shapes));
     let zip = make_zip(&files);
 
-    // Kapsam: TAM SERİLEŞTİRİLMİŞ JSON — yalnız notice alanları değil, `Notice.details`,
-    // `NameIndex` ve `capped_totals` dahil her şey. 2026-07-31'e kadar bu mümkün DEĞİLDİ:
-    // o alanlar `HashMap`'ti ve serde anahtarları her koşuda başka sırada yazıyordu, yani
-    // içerik aynıyken bayt farklıydı. Hepsi `BTreeMap`'e çevrildi; bu kapı o kazanımı korur.
-    // Zayıflatma: bu karşılaştırmayı alan-alt-kümesine geri çekmek, sessizce kaybetmek demektir.
+    // Scope: FULLY SERIALIZED JSON — everything, not only notice fields, including `Notice.details`,
+    // `NameIndex`, and `capped_totals`. This was NOT possible until 2026-07-31: those fields were
+    // `HashMap`s and serde wrote keys in a different order on each run, so bytes differed despite
+    // identical content. All were changed to `BTreeMap`; this gate protects that gain.
+    // Weakening it by narrowing the comparison to a field subset would silently lose the guarantee.
     let render = || match validate_bytes(&zip, &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => {
             serde_json::to_string(&vr).expect("ValidationResult serialize edilebilmeli")
@@ -2957,13 +2957,13 @@ fn same_feed_twice_produces_identical_output() {
         ValidateResult::Fatal(e) => panic!("beklenmeyen fatal: {:?} {}", e.code, e.message),
     };
 
-    // Aynı SÜREÇ içinde tekrar: Rust'ta her HashMap örneği kendi tohumunu aldığı için bu,
-    // ayrı süreçlerde koşmaktan daha sıkı bir kapıdır.
+    // Repetition within the SAME PROCESS: because each HashMap instance gets its own seed in Rust,
+    // this is a stricter gate than running in separate processes.
     let first = render();
     for run in 2..=4 {
         let cur = render();
         if cur != first {
-            // İlk ayrışan konumu göster: tam JSON'u basmak okunmaz olurdu.
+            // Show the first divergence: printing the full JSON would be unreadable.
             let at = first
                 .bytes()
                 .zip(cur.bytes())
@@ -2979,10 +2979,11 @@ fn same_feed_twice_produces_identical_output() {
     }
 }
 
-// ── STM_015/016: Flex guard ve ilk/son durak kapsamı ──────────────────────────
-// Spec, arrival_time/departure_time için "Forbidden when start_pickup_drop_off_window or
-// end_pickup_drop_off_window are defined" der. Flex seferde eksik zaman alanı ihlal DEĞİL,
-// beklenen durumdur; guard'sız hâlde bu iki kural her Flex seferde yanlış pozitif üretirdi.
+// ── STM_015/016: Flex guard and first/last stop scope ──────────────────────────
+// The Spec says "Forbidden when start_pickup_drop_off_window or
+// end_pickup_drop_off_window are defined" for arrival_time/departure_time. A missing time
+// field on a Flex trip is NOT a violation; it is expected. Without the guard, these two
+// rules would produce a false positive for every Flex trip.
 
 #[test]
 fn stm015_016_silent_for_flex_pickup_drop_off_window() {
@@ -3011,9 +3012,9 @@ fn stm015_016_silent_for_flex_pickup_drop_off_window() {
 
 #[test]
 fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
-    // İlk durakta arrival var/departure yok → STM_015 DEĞİL (spec departure'ı zorunlu
-    // kılmaz); bu vakayı STM_034 ("yalnız biri tanımlı") zaten karşılar.
-    // Son durakta departure var/arrival yok → STM_016 (spec arrival'ı zorunlu kılar).
+    // The first stop has arrival but no departure → NOT STM_015 (the Spec does not require
+    // departure); STM_034 ("only one defined") already covers this case.
+    // The last stop has departure but no arrival → STM_016 (the Spec requires arrival).
     static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,,S1,1\nT1,,08:10:00,S2,2\n";
     let mut files = base_files();
@@ -3041,8 +3042,8 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
 
 #[test]
 fn stm015_016_carry_edge_stop_and_neighbour_time() {
-    // Planlamacı kartı eksik saati komşu durağın saatiyle gösterir: ilk durak için ikinci
-    // durak, son durak için sondan bir önceki durak.
+    // The planner card shows a missing time using the neighboring stop's time: the second
+    // stop for the first stop, and the penultimate stop for the last stop.
     static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,,08:00:00,S1,1\nT1,,08:10:00,S2,2\n";
     let mut files = base_files();
@@ -3073,7 +3074,7 @@ fn stm015_016_carry_edge_stop_and_neighbour_time() {
 
 #[test]
 fn stm008_carries_previous_and_next_stop_times() {
-    // Zaman geriye giden bölümde planlamacı bir önceki ve bir sonraki durağın saatini de görür.
+    // In the backward-time segment, the planner also shows the previous and next stop times.
     static BACKWARDS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,07:50:00,07:50:00,S0,1\nT1,08:00:00,08:00:00,S1,2\nT1,07:55:00,07:55:00,S2,3\nT1,08:20:00,08:20:00,S3,4\n";
     let mut files = base_files();
@@ -3098,8 +3099,9 @@ fn stm008_carries_previous_and_next_stop_times() {
 
 #[test]
 fn trip_level_time_rules_carry_the_stops_to_fix() {
-    // Planlamacı kartı hatalı yeri durak adıyla gösterir: STM_028/029 seferin uç durakları,
-    // STM_045 pencereyi aşan kalkışın durağı, STM_021 aynı konumdaki iki durak.
+    // The planner card identifies the bad location by stop name: STM_028/029 use the trip's
+    // endpoint stops, STM_045 uses the stop whose departure exceeds the window, and STM_021
+    // uses the two stops at the same location.
     fn details_of(files: &[(&str, &[u8])], rule: &str) -> std::collections::BTreeMap<String, String> {
         match run(files) {
             ValidateResult::Ok(vr) => vr
@@ -3146,8 +3148,8 @@ fn trip_level_time_rules_carry_the_stops_to_fix() {
 
 #[test]
 fn malformed_time_carries_stop_and_neighbour_rows() {
-    // Gaziantep (mdb-3401) örneği: sefer 09:44'te geçerliyken sonraki duraklarda "-15:46:01"
-    // gibi negatif saatler başlıyor. Planlamacı bozuk saatin durağını ve iki komşusunu görmeli.
+    // Gaziantep (mdb-3401) example: the trip is valid at 09:44, but later stops begin with
+    // negative times such as "-15:46:01". The planner should show the bad-time stop and its two neighbors.
     static STOPS3: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.01,29.01\nS3,Stop3,41.02,29.02\n";
     static NEGATIVE: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,09:44:16,09:44:16,S1,1\nT1,-15:46:01,-15:46:01,S2,2\nT1,-15:47:54,-15:47:54,S3,3\n";
@@ -3178,16 +3180,16 @@ fn malformed_time_carries_stop_and_neighbour_rows() {
 }
 
 // ── STM_057 KALDIRILDI (2026-08-01, WP-1) ─────────────────────────────────────
-// Kuralın iki testi de buradaydı. Spec cümlesi koşulludur ("travel WITHIN THE SAME
-// location group…requires two records"); kural bunu her konum için iki kayıt şartına
-// çevirmişti ve L1 → L2 gibi normal noktadan noktaya Flex seferini reddediyordu.
-// Yerine geçen kapı: spec_conformance.rs — geçerli Flex feed'leri Spec notice ÜRETMEZ.
+// Both tests for the rule used to be here. The Spec sentence is conditional ("travel WITHIN THE SAME
+// location group…requires two records"); the rule had turned it into a requirement for two records at
+// every location and rejected a normal point-to-point Flex trip such as L1 → L2.
+// Replacement gate: spec_conformance.rs — valid Flex feeds PRODUCE NO Spec notice.
 
-// ── stops.txt KOŞULLU zorunlu (yalnızca-Flex feed) ────────────────────────────
-// Spec (Schedule Reference, dosya tablosu): "stops.txt — Conditionally Required —
+// ── stops.txt CONDITIONALLY required (Flex-only feed) ─────────────────────────
+// Spec (Schedule Reference, file table): "stops.txt — Conditionally Required —
 // Optional if demand-responsive zones are defined in locations.geojson. Required otherwise."
-// 2026-08-01'e kadar stops.txt koşulsuz REQUIRED_FILES'taydı → geçerli bir yalnızca-Flex
-// feed ARC_004 Fatal'ı alıyor ve HİÇ açılmıyordu; kullanıcı tek bulgu bile göremiyordu.
+// Until 2026-08-01 stops.txt was unconditionally in REQUIRED_FILES → a valid Flex-only
+// feed received ARC_004 Fatal and would not open at all; the user could not see even one finding.
 
 static FLEX_GEOJSON: &[u8] = br#"{"type":"FeatureCollection","features":[
     {"type":"Feature","id":"zone_a","properties":{},"geometry":{"type":"Polygon","coordinates":
@@ -3324,8 +3326,8 @@ fn invalid_geojson_does_not_make_missing_stops_optional() {
     }
 }
 
-/// stops.txt VE locations.geojson ikisi de yoksa hizmetin nerede verildiği hiç tanımlı
-/// değildir → PARTIAL raporlanır; ZIP okunabilir kaldığı için Fatal değildir.
+/// If both stops.txt AND locations.geojson are absent, where service is provided is undefined
+/// → report PARTIAL; it is not Fatal because the ZIP remains readable.
 #[test]
 fn feed_without_stops_txt_and_without_geojson_is_partial() {
     let mut files = base_files();
@@ -3343,13 +3345,13 @@ fn feed_without_stops_txt_and_without_geojson_is_partial() {
     }
 }
 
-// ── Flex stop_times: stop_id KOŞULLU zorunlu ──────────────────────────────────
+// ── Flex stop_times: stop_id CONDITIONALLY required ───────────────────────────
 // Spec (stop_times.stop_id): "Conditionally Required — Required if
 // stop_times.location_group_id AND stop_times.location_id are NOT defined.
 // Forbidden if stop_times.location_group_id or stop_times.location_id are defined."
-// 2026-08-01'e kadar K1 stop_id'yi koşulsuz zorunlu sayıyor, 6 resmî Flex sütunu
-// known_columns'ta bulunmuyor ve STM_006 boş stop_id'de koşulsuz ateşliyordu — oysa
-// K2 parser bu alanları ZATEN okuyordu. K1 ile K2 aynı satır hakkında farklı düşünüyordu.
+// Until 2026-08-01 K1 treated stop_id as unconditionally required, the six official Flex
+// columns were absent from known_columns, and STM_006 fired unconditionally for an empty
+// stop_id — although the K2 parser ALREADY read these fields. K1 and K2 disagreed about one row.
 
 #[test]
 fn flex_stop_times_row_is_valid_without_stop_id() {
@@ -3377,7 +3379,7 @@ pickup_booking_rule_id,drop_off_booking_rule_id\n\
         !ids.contains(&"ARC_025"),
         "Flex dosyada stop_id sütunu beklenmez → ARC_025 çıkmamalı"
     );
-    // 6 resmî Flex sütununun hiçbiri "bilinmeyen sütun" sayılmamalı.
+    // None of the six official Flex columns should count as an "unknown column".
     let unknown: Vec<&str> = vr
         .notices
         .iter()
@@ -3390,7 +3392,8 @@ pickup_booking_rule_id,drop_off_booking_rule_id\n\
     );
 }
 
-/// Daraltmanın bedeli olmamalı: Flex ALANI OLMAYAN bir satırda boş stop_id yine hatadır.
+/// Narrowing the requirement must not come at a cost: an empty stop_id is still an error
+/// on a row WITHOUT Flex fields.
 #[test]
 fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
     static BAD_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -3407,10 +3410,10 @@ fn non_flex_row_with_empty_stop_id_still_produces_stm_006() {
     }
 }
 
-// ── XFL_019: routes.network_id ile AYRI ağ dosyası birlikte kullanılamaz ───────
+// ── XFL_019: routes.network_id cannot be combined with a SEPARATE network file ─
 // Spec (routes.network_id): "Conditionally Forbidden — Forbidden if the route_networks.txt
-// OR networks.txt file exists." 2026-08-01'e kadar yalnız route_networks.txt kolu
-// denetleniyordu; networks.txt ile birlikte kullanım aynı derecede yasakken kaçıyordu.
+// OR networks.txt file exists." Until 2026-08-01 only the route_networks.txt branch
+// was checked; using networks.txt as well was equally forbidden but went undetected.
 
 #[test]
 fn xfl019_fires_when_networks_txt_is_used_with_routes_network_id() {
@@ -3430,7 +3433,7 @@ fn xfl019_fires_when_networks_txt_is_used_with_routes_network_id() {
     }
 }
 
-/// Ağ dosyası YOKKEN routes.network_id tek başına GEÇERLİDİR (spec: "Optional otherwise").
+/// routes.network_id is VALID by itself when no network file exists (Spec: "Optional otherwise").
 #[test]
 fn xfl019_silent_when_routes_network_id_is_used_alone() {
     static ROUTES_NET: &[u8] =
@@ -3447,14 +3450,14 @@ fn xfl019_silent_when_routes_network_id_is_used_alone() {
     }
 }
 
-// ── DQ_021: BİLEŞİK birincil anahtarlar ───────────────────────────────────────
-// Fares v2 ve Flex dosyalarının çoğunun anahtarı bileşiktir; DQ_021 yalnız stop_id,
-// route_id ve trip_id tekrarını tarıyordu. Anahtar listeleri spec'ten birebir alındı.
+// ── DQ_021: COMPOSITE primary keys ────────────────────────────────────────────
+// Most Fares v2 and Flex files use composite keys; DQ_021 used to scan only duplicates of
+// stop_id, route_id, and trip_id. The key lists were copied directly from the Spec.
 
 #[test]
 fn dq021_detects_duplicate_composite_key_in_fare_leg_rules() {
     // Spec PK: (network_id, from_area_id, to_area_id, from_timeframe_group_id,
-    //           to_timeframe_group_id, fare_product_id) — iki satır birebir aynı.
+    //           to_timeframe_group_id, fare_product_id) — two rows are exactly identical.
     static FLR: &[u8] = b"network_id,from_area_id,to_area_id,fare_product_id\n\
                           N1,A1,A2,P1\nN1,A1,A2,P1\n";
     let mut files = base_files();
@@ -3470,7 +3473,7 @@ fn dq021_detects_duplicate_composite_key_in_fare_leg_rules() {
     }
 }
 
-/// Anahtarın TEK bir alanı bile farklıysa satırlar ayrıdır — yanlış pozitif olmamalı.
+/// If even ONE key field differs, the rows are distinct — there must be no false positive.
 #[test]
 fn dq021_silent_when_one_composite_field_differs() {
     static FLR: &[u8] = b"network_id,from_area_id,to_area_id,fare_product_id\n\
