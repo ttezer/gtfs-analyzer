@@ -2721,9 +2721,9 @@ pub fn parse_with_limits(
             }
         }
 
-        // DQ_016: birincil anahtar sütun indeksi döngü-değişmezdir — döngü dışında bir kez hesapla.
+        // DQ_016: the primary-key column index is loop-invariant — compute it once outside the loop.
         let dq016_pk_idx = headers.iter().position(|h| h.ends_with("_id"));
-        let _ = dq016_pk_idx; // özet dosya seviyesinde → satır kimliği gerekmiyor
+        let _ = dq016_pk_idx; // file-level summary → no row identity is needed
         let mut dq016 = Dq016Acc::default();
         let mut arc032 = Arc032Acc::default();
         let mut arc037 = Arc037Acc::default();
@@ -2733,9 +2733,9 @@ pub fn parse_with_limits(
         for (row_idx, row) in records.into_iter().enumerate() {
             let line_num = (row_idx + 2) as u64;
 
-            // ARC_012: Sütun sayısı tutarsız
-            // row < header: sondaki boş isteğe bağlı alanlar atlanmış — geçerli CSV pratiği → BİLGİ
-            // row > header: fazla alan — kaçmamış virgül veya format hatası → KRİTİK
+            // ARC_012: inconsistent column count.
+            // row < header: trailing empty optional fields omitted — valid CSV practice → INFO.
+            // row > header: extra fields — unescaped comma or format error → CRITICAL.
             if let Some((msg, tip, observed, is_info)) =
                 arc012_check(&raw_name, line_num, row.len(), header_count)
             {
@@ -2757,7 +2757,7 @@ pub fn parse_with_limits(
                 notices.push(n);
             }
 
-            // ARC_018: Boş veri satırı (tüm alanlar boş)
+            // ARC_018: empty data row (all fields empty).
             if row.iter().all(|v| v.trim().is_empty()) {
                 notices.push(make_notice(
                     &mut counter,
@@ -2771,25 +2771,24 @@ pub fn parse_with_limits(
                     format!("'{raw_name}' {line_num}. satırı tamamen boş."),
                     "Boş satırları kaldırın.",
                 ));
-                continue; // Boş satırı kaydetme
+                continue; // Do not store the empty row.
             }
 
-            // ARC_034: BAŞLIK SATIRI VERİ SATIRI OLARAK TEKRARLANMIŞ.
+            // ARC_034: HEADER ROW REPEATED AS A DATA ROW.
             //
-            // Dosyanın ortasında başlık yeniden yazılmışsa (iki dosyanın uç uca
-            // eklenmesi tipik sebep), ayrıştırıcı onu veri sanar ve HER ALAN kendi
-            // sütun adını "değer" olarak alır. Sonuç, tek bir yapısal kusurun
-            // onlarca alan hatasına dağılmasıdır: `mdb-1003`/`mdb-1004`'te hayalet
-            // bir agency'nin `agency_timezone`'u literal "agency_timezone" olur ve
-            // `AGN_004` + `AGN_005` üretir; `mdb-1004`'te aynı satır `trips.txt`'te
-            // `TRP_006`'yı tetikler. Hiçbiri kullanıcıya asıl sorunu söylemez.
+            // If the header is written again in the middle of a file (usually because two files
+            // were concatenated), the parser treats it as data and every field takes its own
+            // column name as the "value". One structural defect then spreads into dozens of
+            // field errors: in `mdb-1003`/`mdb-1004`, a phantom agency's `agency_timezone` becomes
+            // the literal "agency_timezone" and produces `AGN_004` + `AGN_005`; in `mdb-1004`,
+            // the same row in `trips.txt` triggers `TRP_006`. None tells the user the root problem.
             //
-            // Bu, `ARC_018`'in (tamamen boş satır = TEK hata, on üç eksik alan değil)
-            // kurduğu emsalin aynısıdır.
+            // This follows the precedent set by `ARC_018` (an entirely empty row = ONE error,
+            // not thirteen missing fields).
             //
-            // ⚠️ YANLIŞ POZİTİF KAPISI: satırın BÜTÜN alanları kendi sütun adına
-            // eşit olmalı. Tek bir sütunda `route_id` değerinin "route_id" olması
-            // meşrudur ve tetiklemez; hepsinin birden eşleşmesi başka türlü oluşamaz.
+            // ⚠️ FALSE-POSITIVE GATE: EVERY field in the row must equal its own column name. It is
+            // legitimate for one column's `route_id` value to be "route_id" and it must not fire;
+            // all fields matching cannot arise in another legitimate case.
             if arc034_is_header_repeat(&row[..], &headers[..]) {
                 notices.push(make_notice(
                     &mut counter, "ARC_034",
@@ -2799,10 +2798,10 @@ pub fn parse_with_limits(
                     format!("'{raw_name}' {line_num}. satırı başlık satırının tekrarı — veri olarak okunuyor."),
                     "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
                 ));
-                continue; // Başlık tekrarını veri olarak KAYDETME.
+                continue; // Do not STORE the repeated header as data.
             }
 
-            // ARC_021: yazdırılamaz veya sorunlu karakter — geçerli Unicode metni (Japonca vb.) hariç
+            // ARC_021: unprintable or problematic character — excluding valid Unicode text (Japanese, etc.).
             if !arc021_fired {
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
                     arc021_fired = true;
@@ -2821,7 +2820,7 @@ pub fn parse_with_limits(
                 }
             }
 
-            // ARC_030: alan değerinde sekme/satır sonu — spec bunları açıkça yasaklar.
+            // ARC_030: tab/line ending in a field value — the spec explicitly forbids these.
             if !arc030_fired {
                 if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
                     arc030_fired = true;
@@ -2840,18 +2839,18 @@ pub fn parse_with_limits(
                 }
             }
 
-            // DQ_016: değerlerde fazladan boşluk — alan ve satır bazında
-            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet.
+            // DQ_016: extra whitespace in values — field and row level.
+            // DQ_016: file-level accumulation; ONE summary after the emit loop.
             dq016.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
-            // ARC_032: HTML etiketi/kaçış dizisi — aynı birikim deseni.
+            // ARC_032: HTML tag/escape sequence — the same accumulation pattern.
             arc032.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
             arc037.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
             rows.push(row);
         }
 
-        // DQ_016: DOSYA başına TEK özet (satır-başına DEĞİL — patlama önlemi, STM_050 deseni).
+        // DQ_016: ONE summary per FILE (NOT per row — burst prevention, STM_050 pattern).
         if let Some((observed, msg, cols)) = dq016.summary(&raw_name) {
             let mut n = make_notice(
                 &mut counter,
@@ -2869,7 +2868,7 @@ pub fn parse_with_limits(
             notices.push(n);
         }
 
-        // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
+        // ARC_032: ONE summary per FILE (same burst prevention as DQ_016).
         if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
             notices.push(make_notice(
                 &mut counter,
@@ -2885,7 +2884,7 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (ARC_032 deseni).
+        // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (ARC_032 pattern).
         if let Some((observed, msg, cols)) = arc037.summary(&raw_name) {
             notices.push(make_notice(
                 &mut counter,
@@ -2901,9 +2900,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_033: RFC 4180 tırnak ihlali — DOSYA başına TEK özet (ARC_032 deseni).
-        // Emit K2 tarafında DEĞİL burada: karar tokenizer'da veriliyor, K2'nin gördüğü
-        // ayrıştırılmış değer ihlali GÖSTEREMEZ (bkz. `Rfc4180Acc` doc'u).
+        // ARC_033: RFC 4180 quote violation — ONE summary per FILE (ARC_032 pattern).
+        // Emit here, NOT in K2: the decision is made by the tokenizer, and the parsed value seen
+        // by K2 CANNOT SHOW the violation (see the `Rfc4180Acc` doc).
         if rfc4180.rows > 0 {
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
@@ -2928,8 +2927,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_022: Dosya satır sayısı bilgi eşiği (stream_mode'da K2 üretir — rows burada boş).
-        // Akış dışı dosyalar sınırsız tokenize edilir (#185), `rows.len()` gerçek sayıdır.
+        // ARC_022: file row-count information threshold (K2 produces it in stream_mode — rows is
+        // empty here). Non-stream files are tokenized without a limit (#185), and `rows.len()` is
+        // the real count.
         let max_rows = cfg.max_file_rows as usize;
         if !stream_mode && rows.len() > max_rows {
             notices.push(make_notice(
@@ -2950,9 +2950,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok).
-        // stream_mode'da rows boştur; stop_times/shapes için K2 üretir (total_rows var).
-        // calendar_dates.txt stream_mode'da da burada kontrol edilir (K2'nin total_rows'u yok).
+        // ARC_009 check for a header-only record (header exists, no data).
+        // rows is empty in stream_mode; K2 produces it for stop_times/shapes (total_rows exists).
+        // Check calendar_dates.txt stream_mode here too (K2 has no total_rows).
         let stream_empty = stream_mode
             && raw_name == "calendar_dates.txt"
             && text.lines().filter(|l| !l.trim().is_empty()).count() <= 1;
@@ -2961,7 +2961,7 @@ pub fn parse_with_limits(
             && !(raw_name == "calendar.txt" && has_calendar_dates_txt)
         {
             empty_files.insert(raw_name.clone());
-            // Zorunlu dosya → ARC_035 (traversal sonunda, Flex muafiyetiyle).
+            // Required file → ARC_035 (at traversal end, with the Flex exemption).
             if !REQUIRED_FILES.contains(&raw_name.as_str()) {
                 notices.push(make_notice(
                     &mut counter,
@@ -2978,20 +2978,20 @@ pub fn parse_with_limits(
             }
         }
 
-        // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
-        // NLL: bytes ödüncü burada biter (son kullanım), ardından raw_vec taşınabilir.
+        // In zip_stream partial_read, bytes = ~8 KB snippet; the real size is in ZIP metadata.
+        // NLL: the borrow of bytes ends here (last use), so raw_vec can move afterward.
         let bytes_len = if is_zip_stream {
             uncompressed_hint as u32
         } else {
             bytes.len() as u32
         };
-        // zip_stream dosyalarda (stop_times, trips, calendar_dates): raw_text=None.
-        // K2 zip_bytes alır, ZIP'i yeniden açarak gövdeyi stream eder.
-        // shapes.txt: raw_text yoluyla stream (zip_stream değil, raw_text=Some).
+        // For zip_stream files (stop_times, trips, calendar_dates): raw_text=None.
+        // K2 receives zip_bytes, reopens the ZIP, and streams the body.
+        // shapes.txt: stream through raw_text (not zip_stream, raw_text=Some).
         let raw_text = if is_zip_stream {
             None
         } else if stream_mode {
-            // shapes.txt — is_required=false, lossy yol kabul edilebilir.
+            // shapes.txt — is_required=false, so the lossy path is acceptable.
             Some(text.to_string())
         } else {
             None
@@ -3012,17 +3012,17 @@ pub fn parse_with_limits(
         );
     }
 
-    // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
+    // ── File presence checks ──────────────────────────────────────────────────
 
-    // ARC_004: Zorunlu dosya eksik → Fatal
+    // ARC_004: required file missing → Fatal.
     //
-    // `stops.txt` KOŞULLU zorunludur. Spec (Schedule Reference, dosya tablosu):
+    // `stops.txt` is CONDITIONALLY required. Spec (Schedule Reference, file table):
     //   "stops.txt — Conditionally Required — Optional if demand-responsive zones are
     //    defined in locations.geojson. Required otherwise."
-    // Yalnızca-Flex bir feed hizmetini `locations.geojson` bölgeleriyle tanımlar ve hiç
-    // stops.txt taşımayabilir. Koşulsuz listede tutmak, GEÇERLİ bir feed'i ARC_004 ile
-    // tamamen açılamaz yapıyordu — kullanıcı tek bir bulgu bile göremiyordu.
-    // İkisi de yoksa hizmetin nerede verildiği hiç tanımlı değildir → PARTIAL.
+    // A Flex-only feed defines service through `locations.geojson` regions and may carry no
+    // stops.txt. Keeping it in the unconditional list made a VALID feed completely unreadable
+    // with ARC_004 — the user could not see a single finding. If both are absent, service has no
+    // defined location → PARTIAL.
     let missing: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| !present_files.contains(f))
@@ -3036,11 +3036,11 @@ pub fn parse_with_limits(
             notices.push(make_notice(
                 &mut counter,
                 "ARC_004",
-                // Dosya adı elimizde; boş bırakılınca en/ja/fr metni
-                // "Required file '' is missing." oluyordu.
+                // We have the file name; leaving this empty produced the en/ja/fr message
+                // "Required file '' is missing.".
                 EntityType::Feed,
                 Some(f.to_string()),
-                // Eksik dosya başına tek bulgu: registry `File` dedup'ı bu alana göre ayırır.
+                // One finding per missing file: the registry's `File` dedup distinguishes by this field.
                 Some(f),
                 None,
                 None,
@@ -3051,10 +3051,10 @@ pub fn parse_with_limits(
         }
     }
 
-    // ARC_035: zorunlu dosya MEVCUT ama hiç veri satırı yok.
-    // ARC_004 ile aynı eksen ve aynı muafiyet — "dosya var" testi içeriğe bakmazsa
-    // 0 baytlık bir `stop_times.txt` yayın kapısından geçer (13. korpus koşumu: beş feed
-    // boş stop_times ile yayın skoru 100,0 alıyordu).
+    // ARC_035: required file EXISTS but has no data rows.
+    // Same axis and exemption as ARC_004 — if the "file exists" check does not inspect content,
+    // a zero-byte `stop_times.txt` passes the publication gate (in corpus run 13, five feeds with
+    // empty stop_times received a publication score of 100.0).
     let empty_required: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| empty_files.contains(f))
@@ -3076,8 +3076,8 @@ pub fn parse_with_limits(
         ));
     }
 
-    // ARC_036: ZIP akış görünümü merkez diziniyle çelişiyor. Feed düzeyinde TEK bulgu —
-    // girdi başına basmak yayıncının tek hatasını girdi sayısı kadar tekrarlar.
+    // ARC_036: ZIP stream view contradicts the central directory. ONE feed-level finding —
+    // emitting per entry repeats the publisher's one mistake once per entry.
     if inconsistent_stream_entries > 0 {
         notices.push(make_notice(
             &mut counter, "ARC_036",
@@ -3093,7 +3093,7 @@ pub fn parse_with_limits(
         ));
     }
 
-    // ARC_008: calendar.txt VE calendar_dates.txt ikisi de eksik (Kritik, non-Fatal)
+    // ARC_008: both calendar.txt AND calendar_dates.txt are missing (Critical, non-Fatal).
     let has_any_calendar = CALENDAR_FILES.iter().any(|&f| present_files.contains(f));
     if !has_any_calendar {
         notices.push(make_notice(
@@ -3110,8 +3110,8 @@ pub fn parse_with_limits(
         ));
     }
 
-    // ARC_031: spec dosya düzeyi hükmü — feed_info.txt, translations.txt varsa ZORUNLU.
-    // Koşul sağlanmadığında dosya yalnız TAVSİYE edilir; o hâli ARC_020 (Quality) taşır.
+    // ARC_031: spec file-level requirement — feed_info.txt is REQUIRED when translations.txt exists.
+    // When the condition is not met, the file is only RECOMMENDED; that case is ARC_020 (Quality).
     if present_files.contains("translations.txt") && !present_files.contains("feed_info.txt") {
         notices.push(make_notice(
             &mut counter, "ARC_031",
