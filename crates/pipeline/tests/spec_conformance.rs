@@ -204,7 +204,7 @@ SVC1,20260522,1\nSVC1,20260525,1\nSVC1,20260526,1\nSVC1,20260527,1\nSVC1,2026052
 SVC1,20260529,1\nSVC1,20260601,1\nSVC1,20260602,1\nSVC1,20260603,1\nSVC1,20260604,1\n";
 
 #[test]
-#[ignore = "geliştirme yardımcısı: cargo test --test spec_conformance dump -- --ignored --nocapture"]
+#[ignore = "development helper: cargo test --test spec_conformance dump -- --ignored --nocapture"]
 fn dump() {
     for feed in valid_feeds() {
         let ns = notices_of(&feed);
