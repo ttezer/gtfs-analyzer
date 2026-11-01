@@ -24,3 +24,6 @@ d7e4dbfb
 
 # Translate WASM pipeline comments to English.
 4adf932d
+
+# Translate WASM test guards to English.
+03ced544
