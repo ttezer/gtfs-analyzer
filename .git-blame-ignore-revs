@@ -177,3 +177,6 @@ a1b0e006
 
 # Translate emit proof helper comments.
 d7972eba
+
+# Preserve emit proof code spans.
+57060c7e
