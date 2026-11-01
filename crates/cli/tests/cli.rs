@@ -273,13 +273,15 @@ fn out_of_range_config_value_is_english_with_lang_en() {
 fn wrapped_feed_partial_root_error_is_english_with_lang_en() {
     let json = json_of(&validate(&feed_wrapped(), &["--json", "--lang", "en"]));
     assert_eq!(json["status"], "partial");
-    let errors = json["partial"]["root_structural_errors"].as_array().unwrap();
-    assert!(errors.iter().any(|error| {
-        error == "GTFS files are not at the ZIP root; root prefix is 'bundle/'"
-    }));
-    assert!(errors.iter().all(|error| {
-        !error.as_str().unwrap().contains("GTFS dosyaları")
-    }));
+    let errors = json["partial"]["root_structural_errors"]
+        .as_array()
+        .unwrap();
+    assert!(errors
+        .iter()
+        .any(|error| { error == "GTFS files are not at the ZIP root; root prefix is 'bundle/'" }));
+    assert!(errors
+        .iter()
+        .all(|error| { !error.as_str().unwrap().contains("GTFS dosyaları") }));
 }
 
 /// The fatal message used to be Turkish pipeline text and `--lang` did not translate it: an English

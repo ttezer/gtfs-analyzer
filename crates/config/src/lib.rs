@@ -505,18 +505,15 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         .map(String::as_str)
         .collect();
     if !unknown.is_empty() {
-        return Err(format!(
-            "Unknown config keys: {}",
-            unknown.join(", ")
-        ));
+        return Err(format!("Unknown config keys: {}", unknown.join(", ")));
     }
 
     let mut cfg = base.clone();
 
     if let Some(v) = map.get("stop_name_best_practices") {
-        cfg.stop_name_best_practices = v.as_bool().ok_or_else(|| {
-            format!("'stop_name_best_practices' expects a bool, got: {v}")
-        })?;
+        cfg.stop_name_best_practices = v
+            .as_bool()
+            .ok_or_else(|| format!("'stop_name_best_practices' expects a bool, got: {v}"))?;
     }
     if let Some(v) = map.get("source_url") {
         cfg.source_url = if v.is_null() {
@@ -524,9 +521,7 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
         } else {
             Some(
                 v.as_str()
-                    .ok_or_else(|| {
-                        format!("'source_url' expects a string or null, got: {v}")
-                    })?
+                    .ok_or_else(|| format!("'source_url' expects a string or null, got: {v}"))?
                     .trim()
                     .to_string(),
             )
@@ -618,7 +613,9 @@ pub fn merge_delta(base: &ValidatorConfig, delta_json: &str) -> Result<Validator
             .map_err(|e| format!("'calendar_override_rules' parse error: {e}"))?;
         for (i, rule) in cfg.calendar_override_rules.iter().enumerate() {
             if rule.route_id.is_empty() {
-                return Err(format!("calendar_override_rules[{i}]: route_id must not be empty"));
+                return Err(format!(
+                    "calendar_override_rules[{i}]: route_id must not be empty"
+                ));
             }
             if rule.base_service_ids.is_empty() {
                 return Err(format!(
