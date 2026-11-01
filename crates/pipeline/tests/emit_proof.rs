@@ -1,13 +1,12 @@
 //! Runtime emit proof (#5 "full version" / C).
 //!
-//! emit_coverage.rs (rules crate) statik *reference proof* verir (kural prod kodda
-//! geçiyor mu). Bu test ise *gerçek emit proof* verir: her fixture bir feed kurup
-//! pipeline'ı çalıştırır ve beklenen rule_id'nin `vr.notices` içinde gerçekten
-//! üretildiğini doğrular. Manifest'te (henüz) fixture'ı olmayan canonical kurallar
-//! `coverage_debt.txt` ledger'ında tutulur; zamanla fixture eklenip borç azaltılır
-//! (kademeli "full version"). Ledger eşitlik testi hem gerilemeyi (fixture silinir →
-//! borç artar) hem ilerlemeyi (fixture eklenir → borç azalır, ledger güncellenmeli)
-//! yakalar.
+//! emit_coverage.rs (rules crate) provides a static *reference proof* (the rule occurs in
+//! production code). This test provides a *real emit proof*: each fixture builds a feed, runs the
+//! pipeline, and verifies that the expected rule_id is actually produced in `vr.notices`.
+//! Canonical rules without a fixture (yet) are kept in the `coverage_debt.txt` ledger; fixtures
+//! are added over time to reduce the debt (an incremental "full version"). The ledger equality
+//! test catches both regressions (fixture removed → debt increases) and progress (fixture added
+//! → debt decreases, ledger must be updated).
 
 use std::collections::BTreeSet;
 use std::io::Write as _;
@@ -75,7 +74,7 @@ fn make_zip(files: &[(String, Vec<u8>)]) -> Vec<u8> {
 }
 
 /// Writes files in `no_read` WITHOUT READ PERMISSION (0o200) — for ARC_027.
-/// Diğerleri varsayılan izinle gider.
+/// The others use the default allowance.
 fn make_zip_with_modes(files: &[(String, Vec<u8>)], no_read: &[&str]) -> Vec<u8> {
     let cur = std::io::Cursor::new(Vec::new());
     let mut zw = zip::ZipWriter::new(cur);
@@ -107,7 +106,8 @@ fn fx_noread(rule: &'static str, no_read: Vec<&'static str>) -> Fixture {
 /// ARC_036 fixture: adds bit 3 to local-header flags AFTER the zip is BUILT.
 /// Contents and the central directory stay unchanged — the archive remains readable;
 /// only the stream view is inconsistent.
-/// `ARC_027` emsali: kural zip ÜST VERİSİYLE tetikleniyor, normal fixture yolu üretemiyor.
+/// `ARC_027` precedent: the rule fires from ZIP METADATA and cannot be produced through a
+/// normal fixture path.
 fn flip_data_descriptor_flags(mut zip_bytes: Vec<u8>) -> Vec<u8> {
     let starts: Vec<u64> = {
         let mut a = zip::ZipArchive::new(std::io::Cursor::new(&zip_bytes[..])).unwrap();
@@ -357,7 +357,7 @@ fn fixtures() -> Vec<Fixture> {
         fx_cfg("OPR_021", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
         fx_cfg("OPR_022", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
         fx_cfg("OPR_023", vec![("calendar_dates.txt", OVERRIDE_CD)], override_config()),
-        // Bonus: config-gated kurallar (fx_cfg ile).
+        // Bonus: config-gated rules (with fx_cfg).
         fx_cfg("ARC_028", vec![], source_url_config()),
         fx_cfg("STP_040", vec![("stops.txt", STOP_NAME_STOPS)], stop_name_config()),
         fx_cfg("STP_041", vec![("stops.txt", STOP_NAME_STOPS)], stop_name_config()),
@@ -484,7 +484,7 @@ fn fixtures() -> Vec<Fixture> {
         // ── ARS: duplicate areas.txt area_id ───────────────────────────────────
         fx("ARS_001", vec![("areas.txt", "area_id,area_name\nA1,Area1\nA1,Area2\n")]),
 
-        // ── CAL grubu (calendar.txt) ───────────────────────────────────────────
+        // ── CAL group (calendar.txt) ───────────────────────────────────────────
         fx("CAL_001", vec![("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC1,1,1,1,1,1,0,0,20250101,20271231\n")]),
         // CAL_002 also checks all SEVEN days; the fixture used to break only `monday`, so
         // coverage measurement called the other six columns "unanchored" — not a rule gap,
@@ -566,7 +566,7 @@ fn fixtures() -> Vec<Fixture> {
             )),
         ]),
 
-        // ── FRQ grubu (frequencies.txt; trip_id=T1 base'te var) ────────────────
+        // ── FRQ group (frequencies.txt; trip_id=T1 exists in the base) ─────────
         fx("FRQ_001", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\n,08:00:00,10:00:00,600\n")]),
         fx("FRQ_002", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,,10:00:00,600\n")]),
         fx("FRQ_003", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,,600\n")]),
@@ -668,7 +668,7 @@ fn fixtures() -> Vec<Fixture> {
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id\nT1,08:00:00,08:00:00,S1,1,,,,\nT1,,,,2,LOC1,09:00:00,10:00:00,BR1\n"),
         ]),
 
-        // ── TRP grubu (trips.txt; K2 alan kontrolleri) ─────────────────────────
+        // ── TRP group (trips.txt; K2 field checks) ─────────────────────────────
         fx("TRP_001", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,\n")]),
         fx("TRP_005", vec![("trips.txt", "route_id,service_id,trip_id,direction_id\nR1,SVC1,T1,5\n")]),
         fx("TRP_006", vec![("trips.txt", "route_id,service_id,trip_id,wheelchair_accessible\nR1,SVC1,T1,9\n")]),
@@ -676,14 +676,14 @@ fn fixtures() -> Vec<Fixture> {
         fx("TRP_031", vec![("trips.txt", "route_id,service_id,trip_id\n,SVC1,T1\n")]),
         fx("TRP_032", vec![("trips.txt", "route_id,service_id,trip_id,cars_allowed\nR1,SVC1,T1,9\n")]),
 
-        // ── TRF grubu (transfers.txt) ──────────────────────────────────────────
+        // ── TRF group (transfers.txt) ──────────────────────────────────────────
         fx("TRF_001", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\n,S2,1\n")]),
         fx("TRF_002", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,,1\n")]),
         fx("TRF_020", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,60\n")]),
         fx("TRF_004", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,9\n")]),
         fx("TRF_005", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,abc\n")]),
 
-        // ── SHP grubu (shapes.txt; K2) ─────────────────────────────────────────
+        // ── SHP group (shapes.txt; K2) ─────────────────────────────────────────
         fx("SHP_001", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n,41.0,29.0,1\n")]),
         fx("SHP_002", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,999,29.0,1\n")]),
         fx("SHP_003", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,999,1\n")]),
@@ -691,7 +691,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("SHP_005", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,41.0,29.0,1,10\nSH1,41.1,29.1,2,5\n")]),
         fx("SHP_008", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,1\n")]),
 
-        // ── TRN grubu (translations.txt; K2) ───────────────────────────────────
+        // ── TRN group (translations.txt; K2) ───────────────────────────────────
         fx("TRN_001", vec![("translations.txt", "table_name,field_name,language,translation\nbadtable,stop_name,en,X\n")]),
         fx("TRN_002", vec![("translations.txt", "table_name,field_name,language,translation\nstops,,en,X\n")]),
         fx("TRN_003", vec![("translations.txt", "table_name,field_name,language,translation\nstops,stop_name,!!bad,X\n")]),
@@ -750,7 +750,8 @@ fn fixtures() -> Vec<Fixture> {
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,06:01:00,06:01:00,S1,1\nT1,06:02:00,06:02:00,S2,2\nT1,06:03:00,06:03:00,S1,3\nT1,06:04:00,06:04:00,S2,4\nT1,06:05:00,06:05:00,S1,5\nT1,06:06:00,06:06:00,S2,6\nT1,06:07:00,06:07:00,S1,7\nT1,06:08:00,06:08:00,S2,8\nT1,06:09:00,06:09:00,S1,9\nT1,06:10:00,06:10:00,S2,10\nT1,06:11:00,06:11:00,S1,11\nT1,06:12:00,06:12:00,S2,12\nT1,06:13:00,06:13:00,S1,13\nT1,06:14:00,06:14:00,S2,14\nT1,06:15:00,06:15:00,S1,15\nT1,06:16:00,06:16:00,S2,16\nT1,06:17:00,06:17:00,S1,17\nT1,06:18:00,06:18:00,S2,18\nT1,06:19:00,06:19:00,S1,19\nT1,06:20:00,06:20:00,S2,20\nT1,06:21:00,06:21:00,S1,21\nT1,06:22:00,06:22:00,S2,22\nT1,06:23:00,06:23:00,S1,23\nT1,06:24:00,06:24:00,S2,24\nT1,06:25:00,06:25:00,S1,25\nT1,06:26:00,06:26:00,S2,26\nT1,06:27:00,06:27:00,S1,27\nT1,06:28:00,06:28:00,S2,28\nT1,06:29:00,06:29:00,S1,29\nT1,06:30:00,06:30:00,S2,30\nT1,06:31:00,06:31:00,S1,31\nT1,06:32:00,06:32:00,S2,32\nT1,06:33:00,06:33:00,S1,33\nT1,06:34:00,06:34:00,S2,34\nT1,06:35:00,06:35:00,S1,35\nT1,06:36:00,06:36:00,S2,36\nT1,06:37:00,06:37:00,S1,37\nT1,06:38:00,06:38:00,S2,38\nT1,06:39:00,06:39:00,S1,39\nT1,06:40:00,06:40:00,S2,40\nT1,06:41:00,06:41:00,S1,41\nT1,06:42:00,06:42:00,S2,42\nT1,06:43:00,06:43:00,S1,43\nT1,06:44:00,06:44:00,S2,44\nT1,06:45:00,06:45:00,S1,45\nT1,06:46:00,06:46:00,S2,46\nT1,06:47:00,06:47:00,S1,47\nT1,06:48:00,06:48:00,S2,48\nT1,06:49:00,06:49:00,S1,49\nT1,06:50:00,06:50:00,S2,50\nT1,06:51:00,06:51:00,S1,51\nT1,06:52:00,06:52:00,S2,52\nT1,06:53:00,06:53:00,S1,53\nT1,06:54:00,06:54:00,S2,54\nT1,06:55:00,06:55:00,S1,55\nT1,06:56:00,06:56:00,S2,56\nT1,06:57:00,06:57:00,S1,57\nT1,06:58:00,06:58:00,S2,58\nT1,06:59:00,06:59:00,S1,59\nT1,07:00:00,07:00:00,S2,60\nT1,07:01:00,07:01:00,S1,61\nT1,07:02:00,07:02:00,S2,62\nT1,07:03:00,07:03:00,S1,63\nT1,07:04:00,07:04:00,S2,64\nT1,07:05:00,07:05:00,S1,65\nT1,07:06:00,07:06:00,S2,66\nT1,07:07:00,07:07:00,S1,67\nT1,07:08:00,07:08:00,S2,68\nT1,07:09:00,07:09:00,S1,69\nT1,07:10:00,07:10:00,S2,70\nT1,07:11:00,07:11:00,S1,71\nT1,07:12:00,07:12:00,S2,72\nT1,07:13:00,07:13:00,S1,73\nT1,07:14:00,07:14:00,S2,74\nT1,07:15:00,07:15:00,S1,75\nT1,07:16:00,07:16:00,S2,76\nT1,07:17:00,07:17:00,S1,77\nT1,07:18:00,07:18:00,S2,78\nT1,07:19:00,07:19:00,S1,79\nT1,07:20:00,07:20:00,S2,80\nT1,07:21:00,07:21:00,S1,81\nT1,07:22:00,07:22:00,S2,82\nT1,07:23:00,07:23:00,S1,83\nT1,07:24:00,07:24:00,S2,84\nT1,07:25:00,07:25:00,S1,85\nT1,07:26:00,07:26:00,S2,86\nT1,07:27:00,07:27:00,S1,87\nT1,07:28:00,07:28:00,S2,88\nT1,07:29:00,07:29:00,S1,89\nT1,07:30:00,07:30:00,S2,90\nT1,07:31:00,07:31:00,S1,91\nT1,07:32:00,07:32:00,S2,92\nT1,07:33:00,07:33:00,S1,93\nT1,07:34:00,07:34:00,S2,94\nT1,07:35:00,07:35:00,S1,95\nT1,07:36:00,07:36:00,S2,96\nT1,07:37:00,07:37:00,S1,97\nT1,07:38:00,07:38:00,S2,98\nT1,07:39:00,07:39:00,S1,99\nT1,07:40:00,07:40:00,S2,100\nT1,07:41:00,07:41:00,S1,101\nT1,07:42:00,07:42:00,S2,102\nT1,07:43:00,07:43:00,S1,103\nT1,07:44:00,07:44:00,S2,104\nT1,07:45:00,07:45:00,S1,105\nT1,07:46:00,07:46:00,S2,106\nT1,07:47:00,07:47:00,S1,107\nT1,07:48:00,07:48:00,S2,108\nT1,07:49:00,07:49:00,S1,109\nT1,07:50:00,07:50:00,S2,110\nT1,07:51:00,07:51:00,S1,111\nT1,07:52:00,07:52:00,S2,112\nT1,07:53:00,07:53:00,S1,113\nT1,07:54:00,07:54:00,S2,114\nT1,07:55:00,07:55:00,S1,115\nT1,07:56:00,07:56:00,S2,116\nT1,07:57:00,07:57:00,S1,117\nT1,07:58:00,07:58:00,S2,118\nT1,07:59:00,07:59:00,S1,119\nT1,08:00:00,08:00:00,S2,120\nT1,08:01:00,08:01:00,S1,121\nT1,08:02:00,08:02:00,S2,122\nT1,08:03:00,08:03:00,S1,123\nT1,08:04:00,08:04:00,S2,124\nT1,08:05:00,08:05:00,S1,125\nT1,08:06:00,08:06:00,S2,126\nT1,08:07:00,08:07:00,S1,127\nT1,08:08:00,08:08:00,S2,128\nT1,08:09:00,08:09:00,S1,129\nT1,08:10:00,08:10:00,S2,130\nT1,08:11:00,08:11:00,S1,131\nT1,08:12:00,08:12:00,S2,132\nT1,08:13:00,08:13:00,S1,133\nT1,08:14:00,08:14:00,S2,134\nT1,08:15:00,08:15:00,S1,135\nT1,08:16:00,08:16:00,S2,136\nT1,08:17:00,08:17:00,S1,137\nT1,08:18:00,08:18:00,S2,138\nT1,08:19:00,08:19:00,S1,139\nT1,08:20:00,08:20:00,S2,140\nT1,08:21:00,08:21:00,S1,141\nT1,08:22:00,08:22:00,S2,142\nT1,08:23:00,08:23:00,S1,143\nT1,08:24:00,08:24:00,S2,144\nT1,08:25:00,08:25:00,S1,145\nT1,08:26:00,08:26:00,S2,146\nT1,08:27:00,08:27:00,S1,147\nT1,08:28:00,08:28:00,S2,148\nT1,08:29:00,08:29:00,S1,149\nT1,08:30:00,08:30:00,S2,150\nT1,08:31:00,08:31:00,S1,151\nT1,08:32:00,08:32:00,S2,152\nT1,08:33:00,08:33:00,S1,153\nT1,08:34:00,08:34:00,S2,154\nT1,08:35:00,08:35:00,S1,155\nT1,08:36:00,08:36:00,S2,156\nT1,08:37:00,08:37:00,S1,157\nT1,08:38:00,08:38:00,S2,158\nT1,08:39:00,08:39:00,S1,159\nT1,08:40:00,08:40:00,S2,160\nT1,08:41:00,08:41:00,S1,161\nT1,08:42:00,08:42:00,S2,162\nT1,08:43:00,08:43:00,S1,163\nT1,08:44:00,08:44:00,S2,164\nT1,08:45:00,08:45:00,S1,165\nT1,08:46:00,08:46:00,S2,166\nT1,08:47:00,08:47:00,S1,167\nT1,08:48:00,08:48:00,S2,168\nT1,08:49:00,08:49:00,S1,169\nT1,08:50:00,08:50:00,S2,170\nT1,08:51:00,08:51:00,S1,171\nT1,08:52:00,08:52:00,S2,172\nT1,08:53:00,08:53:00,S1,173\nT1,08:54:00,08:54:00,S2,174\nT1,08:55:00,08:55:00,S1,175\nT1,08:56:00,08:56:00,S2,176\nT1,08:57:00,08:57:00,S1,177\nT1,08:58:00,08:58:00,S2,178\nT1,08:59:00,08:59:00,S1,179\nT1,09:00:00,09:00:00,S2,180\nT1,09:01:00,09:01:00,S1,181\nT1,09:02:00,09:02:00,S2,182\nT1,09:03:00,09:03:00,S1,183\nT1,09:04:00,09:04:00,S2,184\nT1,09:05:00,09:05:00,S1,185\nT1,09:06:00,09:06:00,S2,186\nT1,09:07:00,09:07:00,S1,187\nT1,09:08:00,09:08:00,S2,188\nT1,09:09:00,09:09:00,S1,189\nT1,09:10:00,09:10:00,S2,190\nT1,09:11:00,09:11:00,S1,191\nT1,09:12:00,09:12:00,S2,192\nT1,09:13:00,09:13:00,S1,193\nT1,09:14:00,09:14:00,S2,194\nT1,09:15:00,09:15:00,S1,195\nT1,09:16:00,09:16:00,S2,196\nT1,09:17:00,09:17:00,S1,197\nT1,09:18:00,09:18:00,S2,198\nT1,09:19:00,09:19:00,S1,199\nT1,09:20:00,09:20:00,S2,200\nT1,09:21:00,09:21:00,S1,201\n"),
         ]),
         // SHP_026 / STM_044: thresholds moved to `ValidatorConfig` on 2026-08-07 (the OPR_024
-        // emsali) — tek sebebi fixture yazılabilmesiydi, varsayılan davranış değişmedi.
+        // precedent) — the only reason was that it could be written as a fixture; default
+        // behavior did not change.
         // The debt ledger called these "cannot be written inline"; the truth was that the
         // threshold was hard-coded, which was fixable.
         fx_cfg("SHP_026", vec![
@@ -920,13 +921,13 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // JPN_003: agency_jp.agency_id is undefined in agency.txt.
         fx_v3("JPN_003", vec![("agency_jp.txt", "agency_id\nNOPE\n")]),
-        // JPN_004: GTFS-JP sinyali (office_jp) var ama translations.txt yok.
+        // JPN_004: GTFS-JP signal (office_jp) exists but translations.txt is absent.
         fx("JPN_004", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
         // JPN_005: office_jp.office_name is empty.
         fx_v3("JPN_005", vec![("office_jp.txt", "office_id,office_name\nO1,\n")]),
-        // JPN_006: GTFS-JP (feed_lang=ja) ama fare_attributes/fare_rules yok.
+        // JPN_006: GTFS-JP (feed_lang=ja) but fare_attributes/fare_rules are absent.
         fx("JPN_006", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,ja\n")]),
-        // JPN_007: GTFS-JP sinyali (office_jp) var ama feed_info.txt yok.
+        // JPN_007: GTFS-JP signal (office_jp) exists but feed_info.txt is absent.
         fx("JPN_007", vec![("office_jp.txt", "office_id,office_name\nO1,Office1\n")]),
         // JPN_011: agency_id is empty in GTFS-JP (required even with one operator).
         fx("JPN_011", vec![
@@ -945,7 +946,7 @@ fn fixtures() -> Vec<Fixture> {
         fx_v3("JPN_014", vec![
             ("office_jp.txt", "office_id,office_name\n,OfficeEmpty\nO1,OfficeA\nO1,OfficeB\n"),
         ]),
-        // JPN_015: legacy routes_jp.route_id routes.txt'te yok (V3/Auto compatibility).
+        // JPN_015: legacy routes_jp.route_id is absent from routes.txt (V3/Auto compatibility).
         fx_v3("JPN_015", vec![
             ("routes_jp.txt", "route_id,route_update_date,origin_stop,via_stop,destination_stop\nMISSING,20260101,Origin,Via,Destination\n"),
         ]),
@@ -1441,11 +1442,11 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // ATR_009: more than one of agency_id/route_id/trip_id is populated (k4).
         fx("ATR_009", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id,route_id\nA1,Org,1,1,R1\n")]),
-        // ATR_010: attribution agency_id agency.txt'te yok (k4).
+        // ATR_010: attribution agency_id is absent from agency.txt (k4).
         fx("ATR_010", vec![("attributions.txt", "attribution_id,organization_name,is_producer,agency_id\nA1,Org,1,NOPE\n")]),
-        // ATR_011: attribution route_id routes.txt'te yok (k4).
+        // ATR_011: attribution route_id is absent from routes.txt (k4).
         fx("ATR_011", vec![("attributions.txt", "attribution_id,organization_name,is_producer,route_id\nA1,Org,1,NOPE\n")]),
-        // ATR_012: attribution trip_id trips.txt'te yok (k4).
+        // ATR_012: attribution trip_id is absent from trips.txt (k4).
         fx("ATR_012", vec![("attributions.txt", "attribution_id,organization_name,is_producer,trip_id\nA1,Org,1,NOPE\n")]),
 
         // ── LVL group (levels.txt) ─────────────────────────────────────────────
@@ -1453,7 +1454,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("LVL_001", vec![("levels.txt", "level_id,level_index\nL1,0\nL1,1\n")]),
         // LVL_002: level_index is not numeric (k2).
         fx("LVL_002", vec![("levels.txt", "level_id,level_index\nL1,abc\n")]),
-        // LVL_003: level_name eksik (k2).
+        // LVL_003: level_name missing (k2).
         fx("LVL_003", vec![("levels.txt", "level_id,level_index\nL1,0\n")]),
         // LVL_004: level is unused by any stop (k4).
         fx("LVL_004", vec![("levels.txt", "level_id,level_index,level_name\nL1,0,Ground\n")]),
@@ -1463,7 +1464,7 @@ fn fixtures() -> Vec<Fixture> {
         // LVL_006: endpoint stop of an elevator (pathway_mode=5) has no level_id (k4).
         fx("LVL_006", vec![("pathways.txt", "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\nP1,S1,S2,5,0\n")]),
 
-        // ── FLG grubu (fare_leg_rules cross-ref k4) ────────────────────────────
+        // ── FLG group (fare_leg_rules cross-ref k4) ────────────────────────────
         fx("FLG_001", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,NOPE\n")]),
         // FLG_008: fare_product_id EMPTY — FLG_001's FK check is guarded by !is_empty() (#153).
         fx("FLG_008", vec![("fare_leg_rules.txt", "leg_group_id,fare_product_id\nLG1,\n")]),
@@ -1473,7 +1474,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("FLG_005", vec![("fare_leg_rules.txt", "leg_group_id,from_timeframe_group_id\nLG1,NOPE\n")]),
         fx("FLG_006", vec![("fare_leg_rules.txt", "leg_group_id,to_timeframe_group_id\nLG1,NOPE\n")]),
 
-        // ── FPD grubu (fare_products) ──────────────────────────────────────────
+        // ── FPD group (fare_products) ──────────────────────────────────────────
         // FPD_001: duplicate composite PK (k3), same fare_product_id + rider_category_id +
         // fare_media_id.
         fx("FPD_001", vec![
@@ -1482,13 +1483,13 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // FPD_003: invalid currency (k2).
         fx("FPD_003", vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,2.5,usd\n")]),
-        // FPD_004: fare_media_id fare_media.txt'te yok (k4).
+        // FPD_004: fare_media_id is absent from fare_media.txt (k4).
         fx("FPD_004", vec![("fare_products.txt", "fare_product_id,amount,currency,fare_media_id\nP1,2.5,USD,MNOPE\n")]),
-        // FPD_005: rider_category_id rider_categories.txt'te yok (k4).
+        // FPD_005: rider_category_id is absent from rider_categories.txt (k4).
         fx("FPD_005", vec![("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RCNOPE\n")]),
         fx("FPD_007", vec![("fare_products.txt","fare_product_id,fare_product_name,amount,currency\nP1,Bilet,0.9,EUR\n")]),
 
-        // ── FTR grubu (fare_transfer_rules) ────────────────────────────────────
+        // ── FTR group (fare_transfer_rules) ────────────────────────────────────
         fx("FTR_002", vec![("fare_transfer_rules.txt", "from_leg_group_id,fare_transfer_type\nLGNOPE,0\n")]),
         fx("FTR_003", vec![("fare_transfer_rules.txt", "to_leg_group_id,fare_transfer_type\nLGNOPE,0\n")]),
         fx("FTR_004", vec![("fare_transfer_rules.txt", "fare_product_id,fare_transfer_type\nPNOPE,0\n")]),
@@ -1504,23 +1505,23 @@ fn fixtures() -> Vec<Fixture> {
             ("rider_categories.txt", "rider_category_id,rider_category_name,is_default_fare_category\nRC1,Adult,1\nRC2,Senior,1\n"),
             ("fare_products.txt", "fare_product_id,amount,currency,rider_category_id\nP1,2.5,USD,RC1\nP1,3.5,USD,RC2\n"),
         ]),
-        // SAR_001: stop_areas area_id areas.txt'te yok (k4).
+        // SAR_001: stop_areas area_id is absent from areas.txt (k4).
         fx("SAR_001", vec![("stop_areas.txt", "area_id,stop_id\nANOPE,S1\n")]),
-        // SAR_002: stop_areas stop_id stops.txt'te yok (k4).
+        // SAR_002: stop_areas stop_id is absent from stops.txt (k4).
         fx("SAR_002", vec![
             ("areas.txt", "area_id,area_name\nA1,Area1\n"),
             ("stop_areas.txt", "area_id,stop_id\nA1,NOPE\n"),
         ]),
-        // TFR_002: timeframes service_id calendar'da yok (k4).
+        // TFR_002: timeframes service_id is absent from calendar (k4).
         fx("TFR_002", vec![("timeframes.txt", "timeframe_group_id,start_time,end_time,service_id\nTG1,08:00:00,10:00:00,SVCX\n")]),
         // FMD_001: duplicate fare_media_id (k3).
         fx("FMD_001", vec![("fare_media.txt", "fare_media_id,fare_media_type\nM1,2\nM1,2\n")]),
-        // GGL_001: transfer_type=4/5 (in-seat) Google desteklemiyor (k2).
+        // GGL_001: Google does not support transfer_type=4/5 (in-seat) (k2).
         fx("GGL_001", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\n")]),
         // GGL_002: invalid Google ic_price extension (-5) in fare_attributes.txt (k2).
         fx("GGL_002", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method,ic_price\nF1,2.5,JPY,0,-5\n")]),
 
-        // ── FRQ grubu (kalan) ──────────────────────────────────────────────────
+        // ── FRQ group (remaining) ──────────────────────────────────────────────
         // FRQ_006: headway > 240dk (k6).
         fx("FRQ_006", vec![("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT1,08:00:00,10:00:00,20000\n")]),
         // FRQ_010: headway <= bunching threshold (k6).
@@ -1570,11 +1571,11 @@ fn fixtures() -> Vec<Fixture> {
         fx("RTS_031", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type\n,1,101,3\n")]),
 
         // ── TRP group (remaining: k2 + k4 FK + k6) ─────────────────────────────
-        // TRP_002: route_id routes.txt'te yok (k4).
+        // TRP_002: route_id is absent from routes.txt (k4).
         fx("TRP_002", vec![("trips.txt", "route_id,service_id,trip_id\nRNOPE,SVC1,T1\n")]),
-        // TRP_003: service_id calendar'da yok (k4).
+        // TRP_003: service_id is absent from calendar (k4).
         fx("TRP_003", vec![("trips.txt", "route_id,service_id,trip_id\nR1,SVCX,T1\n")]),
-        // TRP_004: shape_id shapes.txt'te yok (k4).
+        // TRP_004: shape_id is absent from shapes.txt (k4).
         fx("TRP_004", vec![("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SHNOPE\n")]),
         // TRP_011: no trip_headsign + trip_short_name AND route is also unnamed
         // (route-compensation guard #29).
@@ -1595,7 +1596,7 @@ fn fixtures() -> Vec<Fixture> {
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("frequencies.txt", "trip_id,start_time,end_time,headway_secs\nT2,08:00:00,10:00:00,600\n"),
         ]),
-        // TRP_019: continuous pickup/drop-off aktif ama shape_id yok (k4).
+        // TRP_019: continuous pickup/drop-off active but shape_id is absent (k4).
         fx("TRP_019", vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,continuous_pickup\nR1,1,101,3,0\n")]),
         fx("STM_053", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\nT1,08:00:00,08:00:00,S1,3\n")]),
         // TRP_020: trip_headsign matches an intermediate, not terminal, stop name (k6).
@@ -1660,7 +1661,7 @@ fn fixtures() -> Vec<Fixture> {
         // ── STP group (remaining: k2 + k3 dup + k4 FK + k6) ────────────────────
         // STP_001: duplicate stop_id (k3).
         fx("STP_001", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS1,B,41.1,29.1\n")]),
-        // STP_009: parent_station stops.txt'te yok (k4).
+        // STP_009: parent_station is absent from stops.txt (k4).
         fx("STP_009", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,parent_station\nS1,Stop1,41.0,29.0,\nS2,Stop2,41.1,29.1,NOPE\n")]),
         // STP_010: parent_station is not location_type=1 (k4).
         fx("STP_010", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Stop1,41.0,29.0,0,\nS2,Stop2,41.1,29.1,0,S1\n")]),
@@ -1668,7 +1669,7 @@ fn fixtures() -> Vec<Fixture> {
         fx("STP_011", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,2\nS2,Stop2,41.1,29.1,0\n")]),
         // STP_012: stop used in stop_times has location_type != 0 (k4).
         fx("STP_012", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n")]),
-        // STP_015: level_id levels.txt'te yok (k4).
+        // STP_015: level_id is absent from levels.txt (k4).
         fx("STP_015", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,level_id\nS1,Stop1,41.0,29.0,NOPE\nS2,Stop2,41.1,29.1,\n")]),
         // STP_017: two stops are very close (< 5 m, > 0) (k6).
         fx("STP_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,40.0,40.0\nS2,Stop2,40.00002,40.0\n")]),
@@ -1787,7 +1788,7 @@ fn fixtures() -> Vec<Fixture> {
         ]),
         // SHP_023: same dist_traveled + same coordinates (k6).
         fx("SHP_023", vec![("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nSH1,40.0,40.0,1,5\nSH1,40.0,40.0,2,5\nSH1,40.1,40.1,3,10\n")]),
-        // SHP_024: durak shape_dist_traveled konumundan uzak (k6).
+        // SHP_024: stop is far from its shape_dist_traveled position (k6).
         fx("SHP_024", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,41.0\nS2,Stop2,40.0,40.0\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
@@ -1814,9 +1815,9 @@ fn fixtures() -> Vec<Fixture> {
 
         // ── STM group (remaining: k4 + k6 + k2). STM_043 (>200 stops) and STM_044
         //    (>2M rows) cannot be written inline → left in debt. ─────────────────
-        // STM_001: stop_times trip_id trips.txt'te yok (k4).
+        // STM_001: stop_times trip_id is absent from trips.txt (k4).
         fx("STM_001", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nTGHOST,08:00:00,08:00:00,S1,1\n")]),
-        // STM_002: stop_times stop_id stops.txt'te yok (k4).
+        // STM_002: stop_times stop_id is absent from stops.txt (k4).
         fx("STM_002", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,SNOPE,2\n")]),
         // STM_007: departure < arrival at the same stop (k6).
         fx("STM_007", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:10:00,08:00:00,S1,1\nT1,08:20:00,08:20:00,S2,2\n")]),
@@ -1827,11 +1828,11 @@ fn fixtures() -> Vec<Fixture> {
         // STM_014: speed threshold exceeded (~208 km/h: bus threshold 120 < speed < 700
         // impossible limit) (k6).
         fx("STM_014", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:04:00,08:04:00,S2,2\n")]),
-        // STM_015: ilk durakta departure_time yok (k6).
+        // STM_015: departure_time missing at the first stop (k6).
         fx("STM_015", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,,S1,1\nT1,08:10:00,08:10:00,S2,2\n")]),
-        // STM_016: son durakta arrival_time yok (k6).
+        // STM_016: arrival_time missing at the last stop (k6).
         fx("STM_016", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,,,S2,2\n")]),
-        // STM_017: shape'i olan trip'te shape_dist_traveled eksik (k6).
+        // STM_017: shape_dist_traveled missing from a trip with a shape (k6).
         fx("STM_017", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.05,29.05,2\nSH1,41.1,29.1,3\n"),
@@ -1890,142 +1891,144 @@ fn fixtures() -> Vec<Fixture> {
         // STM_050: timepoint column exists but the value is empty (k2).
         fx("STM_050", vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,08:00:00,08:00:00,S1,1,\nT1,08:10:00,08:10:00,S2,2,\n")]),
 
-        // ── ARC grubu (k1_parse arşiv/dosya/başlık). ARC_002/003 ham byte fixture'ıyla
-        //    (fx_raw), ARC_022 config eşiğiyle (fx_cfg, yukarıda) kanıtlı; ARC_004 fatal
-        //    → allowlist. Debt defteri BOŞ. ──────────────────────────────────────
-        // ARC_006: isteğe bağlı dosya mevcut (feed_info.txt).
+        // ── ARC group (k1_parse archive/file/header). ARC_002/003 are proven with a raw-byte
+        //    fixture (fx_raw), ARC_022 with a config threshold (fx_cfg, above); ARC_004 is fatal
+        //    → allowlist. Debt ledger EMPTY. ──────────────────────────────────────
+        // ARC_006: optional file present (feed_info.txt).
         fx("ARC_006", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\nPub,https://x.example,en\n")]),
-        // ARC_007: GTFS dışı bilinmeyen dosya.
+        // ARC_007: unknown non-GTFS file.
         fx("ARC_007", vec![("extra.txt", "col1\nval1\n")]),
-        // ARC_010: UTF-8 BOM (EF BB BF) ile başlayan dosya.
+        // ARC_010: file starts with a UTF-8 BOM (EF BB BF).
         fx("ARC_010", vec![("stops.txt", "\u{feff}stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // ARC_011: dosya boyutu (Bilgi) — base zaten tetikler.
+        // ARC_011: file size (Info) — base already triggers it.
         fx("ARC_011", vec![]),
-        // ARC_013: CSV tokenization hatası (kapanmamış tırnak, opsiyonel dosya).
+        // ARC_013: CSV tokenization error (unclosed quote, optional file).
         fx("ARC_013", vec![("feed_info.txt", "feed_publisher_name,feed_publisher_url,feed_lang\n\"unclosed,https://x.example,en\n")]),
-        // ARC_014: başlıkta baştaki/sondaki boşluk.
+        // ARC_014: leading/trailing whitespace in a header.
         fx("ARC_014", vec![("stops.txt", "stop_id, stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // ARC_017: GTFS dışı bilinmeyen sütun.
+        // ARC_017: unknown non-GTFS column.
         fx("ARC_017", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,bogus_col\nS1,Stop1,41.0,29.0,x\nS2,Stop2,41.1,29.1,y\n")]),
-        // ARC_018: tamamen boş veri satırı.
+        // ARC_018: completely empty data row.
         fx("ARC_018", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n,,,\nS2,Stop2,41.1,29.1\n")]),
-        // ARC_034: başlık satırı dosyanın ortasında veri olarak tekrarlanmış.
-        // Tetiklemek için satırın BÜTÜN alanları kendi sütun adına eşit olmalı.
+        // ARC_034: header row repeated as data in the middle of the file.
+        // To trigger it, ALL fields in the row must equal their own column names.
         fx("ARC_034", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nstop_id,stop_name,stop_lat,stop_lon\nS2,Stop2,41.1,29.1\n")]),
-        // ARC_020: önerilen dosya eksik (shapes/feed_info) — base zaten tetikler.
+        // ARC_020: recommended file missing (shapes/feed_info) — base already triggers it.
         fx("ARC_020", vec![]),
-        // ARC_021: yazdırılamaz/kontrol karakteri (U+0001) içeren değer.
+        // ARC_021: value containing an unprintable/control character (U+0001).
         fx("ARC_021", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,A\u{1}B,41.0,29.0\nS2,Stop2,41.1,29.1\n")]),
-        // ARC_023: ZIP içinde iç içe ZIP dosyası.
+        // ARC_023: nested ZIP file inside the ZIP.
         fx("ARC_023", vec![("inner.zip", "dummy\n")]),
-        // ARC_035: zorunlu dosya mevcut ama yalnız başlık satırı taşıyor (veri yok).
+        // ARC_035: required file exists but contains only a header row (no data).
         fx("ARC_035", vec![("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\n")]),
 
-        // ── TRF grubu (kalan: transfers k4 FK + k6) ────────────────────────────
-        // TRF_003: from/to_stop_id stops.txt'te yok (k4).
+        // ── TRF group (remaining: transfers k4 FK + k6) ────────────────────────
+        // TRF_003: from/to_stop_id is absent from stops.txt (k4).
         fx("TRF_003", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nNOPE,S2,1\n")]),
-        // TRF_006: from_trip_id trips.txt'te yok (k4).
+        // TRF_006: from_trip_id is absent from trips.txt (k4).
         fx("TRF_006", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id\nS1,S2,1,TNOPE\n")]),
-        // TRF_007: to_trip_id trips.txt'te yok (k4).
+        // TRF_007: to_trip_id is absent from trips.txt (k4).
         fx("TRF_007", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,to_trip_id\nS1,S2,1,TNOPE\n")]),
-        // TRF_008: from_route_id routes.txt'te yok (k4).
+        // TRF_008: from_route_id is absent from routes.txt (k4).
         fx("TRF_008", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_route_id\nS1,S2,1,RNOPE\n")]),
-        // TRF_009: to_route_id routes.txt'te yok (k4).
+        // TRF_009: to_route_id is absent from routes.txt (k4).
         fx("TRF_009", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,to_route_id\nS1,S2,1,RNOPE\n")]),
         // TRF_010: min_transfer_time > 3600s (k4).
         fx("TRF_010", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,5000\n")]),
-        // TRF_011: aktarma mesafesi > 2000m (base S1↔S2 ~14km) (k6).
+        // TRF_011: transfer distance > 2000 m (base S1↔S2 ~14 km) (k6).
         fx("TRF_011", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nS1,S2,2,300\n")]),
-        // TRF_012: yinelenen from/to stop çifti (trip/route bağlamsız) (k4).
+        // TRF_012: duplicate from/to stop pair (without trip/route context) (k4).
         fx("TRF_012", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,1\nS1,S2,1\n")]),
-        // TRF_013: type=4/5 için from/to_trip_id zorunlu (k4).
+        // TRF_013: from/to_trip_id required for type=4/5 (k4).
         fx("TRF_013", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,4\n")]),
-        // TRF_014: in-seat aktarma seferinin stop_times kaydı yok (k4).
+        // TRF_014: in-seat transfer trip has no stop_times record (k4).
         fx("TRF_014", vec![
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T2,T1\n"),
         ]),
-        // TRF_015: type=4/5 için from/to_stop istasyon (loc=1) olamaz (k4).
+        // TRF_015: from/to_stop cannot be a station (loc=1) for type=4/5 (k4).
         fx("TRF_015", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Stop1,41.0,29.0,1\nS2,Stop2,41.1,29.1,0\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\n"),
         ]),
-        // TRF_021: aktarma uç noktası giriş/ara düğüm/biniş alanı olamaz (k4).
+        // TRF_021: transfer endpoint cannot be an entry/intermediate node/boarding area (k4).
         fx("TRF_021", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,location_type\nS1,Entrance,41.0,29.0,2\nS2,Stop2,41.1,29.1,0\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type\nS1,S2,1\n"),
         ]),
-        // TRF_016: aynı (stop,trip,route) kombinasyonunda çakışan transfer (k4).
+        // TRF_016: conflicting transfer for the same (stop,trip,route) combination (k4).
         fx("TRF_016", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id\nS1,S2,1,T1\nS1,S2,1,T1\n")]),
-        // TRF_017: from_trip_id'nin gerçek route'u from_route_id ile uyuşmuyor (k4).
+        // TRF_017: actual route of from_trip_id does not match from_route_id (k4).
         fx("TRF_017", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,from_route_id\nS1,S2,1,T1,RWRONG\n")]),
-        // TRF_018: from_trip_id == to_trip_id (anlamsız aktarma) (k4).
+        // TRF_018: from_trip_id == to_trip_id (meaningless transfer) (k4).
         fx("TRF_018", vec![("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,1,T1,T1\n")]),
-        // TRF_022: 1-to-n devamlılık — T1 hem T2'ye hem T3'e bağlanıyor, takvimleri FARKLI
-        // ama çakışıyor (SVC1 hafta içi ⊂ SVC2 her gün) → o günlerde hangi devamlılık
-        // geçerli belirsiz. ⚠️ Aynı takvimle yazılsa kural SUSMALI (gerçek 1-to-n ayrımı),
-        // çakışmasalar da SUSMALI (spec'in izin verdiği ayrı devamlılıklar) — bkz. k6 notu.
+        // TRF_022: 1-to-n continuation — T1 connects to both T2 and T3; their calendars differ
+        // but overlap (SVC1 weekdays ⊂ SVC2 every day) → continuation is ambiguous on those
+        // days. ⚠️ With the same calendar the rule should be SILENT (true 1-to-n split), and
+        // it should also be SILENT without overlap (separate continuations allowed by the spec)
+        // — see the k6 note.
         fx("TRF_022", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,1,1,20250101,20271231\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\nS1,S2,4,T1,T3\n"),
         ]),
-        // TRF_023: n-to-1 devamlılık — T2 ve T3'ün ikisi de T1'e bağlanıyor, aynı çakışma.
+        // TRF_023: n-to-1 continuation — both T2 and T3 connect to T1, same overlap.
         fx("TRF_023", vec![
             ("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20250101,20271231\nSVC2,1,1,1,1,1,1,1,20250101,20271231\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\nR1,SVC2,T3\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T2,T1\nS1,S2,4,T3,T1\n"),
         ]),
-        // TRF_019: in-seat aktarmada farklı route_type (k4).
+        // TRF_019: different route_type in an in-seat transfer (k4).
         fx("TRF_019", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,0\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR2,SVC1,T2\n"),
             ("transfers.txt", "from_stop_id,to_stop_id,transfer_type,from_trip_id,to_trip_id\nS1,S2,4,T1,T2\n"),
         ]),
 
-        // ── VAT grubu (varlık analitik, k6). VAT_006 (≥50 sefer) inline bloat →
-        //    debt'te bırakıldı. ─────────────────────────────────────────────────
-        // VAT_001: iki hat (aynı route_type) >= %85 durak paylaşıyor (route >=5 durak).
+        // ── VAT group (entity analytics, k6). VAT_006 (≥50 trips) inline bloat →
+        //    left in debt. ─────────────────────────────────────────────────────
+        // VAT_001: two routes (same route_type) share >=85% of stops (route >=5 stops).
         fx("VAT_001", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\nS4,Stop4,41.3,29.3\nS5,Stop5,41.4,29.4\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR2,SVC1,T2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\nT1,08:30:00,08:30:00,S4,4\nT1,08:40:00,08:40:00,S5,5\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT2,09:20:00,09:20:00,S3,3\nT2,09:30:00,09:30:00,S4,4\nT2,09:40:00,09:40:00,S5,5\n"),
         ]),
-        // VAT_002: durakta >= 4 hat ama transfers tanımlı değil (aktarma merkezi).
-        // S1'den 4 hat geçer VE ~200 m ötedeki S9'dan S1'de OLMAYAN bir hat (R5) geçer:
-        // aynı stop_id'deki aktarma örtük olduğu için kural artık yakında bağlanmamış
-        // ayrı bir durak ister.
+        // VAT_002: stop has >=4 routes but no transfers are defined (transfer hub).
+        // Four routes pass through S1 AND a route absent from S1 (R5) passes through S9
+        // ~200 m away: because transfer at the same stop_id is implicit, the rule now needs
+        // a separate nearby stop that is not connected.
         fx("VAT_002", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS9,Near,41.0018,29.0\nS8,Other,41.05,29.05\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,1,3\nR2,1,2,3\nR3,1,3,3\nR4,1,4,3\nR5,1,5,3\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR2,SVC1,T2\nR3,SVC1,T3\nR4,SVC1,T4\nR5,SVC1,T5\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:30:00,08:30:00,S1,1\nT2,08:40:00,08:40:00,S2,2\nT3,09:00:00,09:00:00,S1,1\nT3,09:10:00,09:10:00,S2,2\nT4,09:30:00,09:30:00,S1,1\nT4,09:40:00,09:40:00,S2,2\nT5,10:00:00,10:00:00,S9,1\nT5,10:10:00,10:10:00,S8,2\n"),
         ]),
-        // VAT_003: sefer süresi istatistiksel aykırı (aynı shape, 6 sefer, biri ~50dk).
+        // VAT_003: statistically unusual trip duration (same shape, 6 trips, one ~50 min).
         fx("VAT_003", vec![
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH1\nR1,SVC1,T3,SH1\nR1,SVC1,T4,SH1\nR1,SVC1,T5,SH1\nR1,SVC1,T6,SH1\n"),
             ("shapes.txt", "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,41.0,29.0,1\nSH1,41.1,29.1,2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:05:00,08:05:00,S1,1\nT2,08:15:00,08:15:00,S2,2\nT3,08:10:00,08:10:00,S1,1\nT3,08:20:00,08:20:00,S2,2\nT4,08:15:00,08:15:00,S1,1\nT4,08:25:00,08:25:00,S2,2\nT5,08:20:00,08:20:00,S1,1\nT5,08:30:00,08:30:00,S2,2\nT6,08:25:00,08:25:00,S1,1\nT6,09:15:00,09:15:00,S2,2\n"),
         ]),
-        // VAT_005: ana şebekeden kopuk izole durak kümesi (BFS bileşen).
+        // VAT_005: isolated stop cluster disconnected from the main network (BFS component).
         fx("VAT_005", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.01,29.01\nS3,Stop3,41.02,29.02\nS4,Stop4,41.03,29.03\nS5,Iso1,10.0,10.0\nS6,Iso2,10.01,10.01\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3\nT1,08:30:00,08:30:00,S4,4\nT2,09:00:00,09:00:00,S5,1\nT2,09:10:00,09:10:00,S6,2\n"),
         ]),
-        // VAT_007: terminus durağı >= 3 hat, transfer yok.
-        // S2 üç hattın terminusu VE ~200 m ötedeki S9'dan S2'de OLMAYAN bir hat (R4) geçer.
+        // VAT_007: terminus stop has >=3 routes, no transfer.
+        // S2 is the terminus of three routes AND a route absent from S2 (R4) passes through S9
+        // ~200 m away.
         fx("VAT_007", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\nS4,Stop4,41.3,29.3\nS9,Near,41.1018,29.1\nS5,Other,41.15,29.15\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,1,3\nR2,1,2,3\nR3,1,3,3\nR4,1,4,3\n"),
             ("trips.txt", "route_id,service_id,trip_id\nR1,SVC1,T1\nR2,SVC1,T2\nR3,SVC1,T3\nR4,SVC1,T4\n"),
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,08:30:00,08:30:00,S3,1\nT2,08:40:00,08:40:00,S2,2\nT3,09:00:00,09:00:00,S4,1\nT3,09:10:00,09:10:00,S2,2\nT4,10:00:00,10:00:00,S9,1\nT4,10:10:00,10:10:00,S5,2\n"),
         ]),
-        // VAT_008: aynı shape >%30 hatta VE >=3 hatta (5 hat, SH1 3'ünde) (k6).
+        // VAT_008: same shape on >30% of routes AND >=3 routes (5 routes, SH1 on 3) (k6).
         fx("VAT_008", vec![
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,1,3\nR2,1,2,3\nR3,1,3,3\nR4,1,4,3\nR5,1,5,3\n"),
             ("trips.txt", "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR2,SVC1,T2,SH1\nR3,SVC1,T3,SH1\nR4,SVC1,T4,\nR5,SVC1,T5,\n"),
@@ -2033,43 +2036,44 @@ fn fixtures() -> Vec<Fixture> {
             ("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\nT3,10:00:00,10:00:00,S1,1\nT3,10:10:00,10:10:00,S2,2\n"),
         ]),
 
-        // ── FRL grubu (fare_rules cross-ref k4) ────────────────────────────────
-        // FRL_001: fare_id fare_attributes.txt'te yok.
+        // ── FRL group (fare_rules cross-ref k4) ────────────────────────────────
+        // FRL_001: fare_id is absent from fare_attributes.txt.
         fx("FRL_001", vec![("fare_rules.txt", "fare_id,route_id\nFNOPE,R1\n")]),
-        // FRL_002: route_id routes.txt'te yok.
+        // FRL_002: route_id is absent from routes.txt.
         fx("FRL_002", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
             ("fare_rules.txt", "fare_id,route_id\nF1,RNOPE\n"),
         ]),
-        // FRL_003: origin_id geçerli bir zone değil.
+        // FRL_003: origin_id is not a valid zone.
         fx("FRL_003", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
             ("fare_rules.txt", "fare_id,origin_id\nF1,ZNOPE\n"),
         ]),
-        // FRL_004: destination_id geçerli bir zone değil.
+        // FRL_004: destination_id is not a valid zone.
         fx("FRL_004", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
             ("fare_rules.txt", "fare_id,destination_id\nF1,ZNOPE\n"),
         ]),
-        // FRL_005: contains_id geçerli bir zone değil.
+        // FRL_005: contains_id is not a valid zone.
         fx("FRL_005", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
             ("fare_rules.txt", "fare_id,contains_id\nF1,ZNOPE\n"),
         ]),
-        // FRL_006: fare_attributes var ama fare_rules yok.
+        // FRL_006: fare_attributes exists but fare_rules is absent.
         fx("FRL_006", vec![("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n")]),
-        // FRL_007: kuralda ayrıştırıcı kriter yok (route/zone/contains hepsi boş).
+        // FRL_007: rule has no discriminating criterion (route/zone/contains all empty).
         fx("FRL_007", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
             ("fare_rules.txt", "fare_id\nF1\n"),
         ]),
-        // FRL_008: route tabanlı ücret ama bazı hatlar kapsam dışı (R2).
+        // FRL_008: route-based fare but some routes are out of scope (R2).
         fx("FRL_008", vec![
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
             ("routes.txt", "route_id,agency_id,route_short_name,route_type\nR1,1,101,3\nR2,1,102,3\n"),
             ("fare_rules.txt", "fare_id,route_id\nF1,R1\n"),
         ]),
-        // FRL_009: yalnız ters yön (Z2→Z1) fiyatlı; seferin gerçekten bağladığı Z1→Z2 eksik.
+        // FRL_009: only reverse direction (Z2→Z1) is priced; Z1→Z2, which the trip actually
+        // connects, is missing.
         fx("FRL_009", vec![
             ("stops.txt", "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop1,41.0,29.0,Z1\nS2,Stop2,41.1,29.1,Z2\n"),
             ("fare_attributes.txt", "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0\n"),
@@ -2105,8 +2109,8 @@ fn each_fixture_actually_emits_its_rule() {
     );
 }
 
-/// Fixture dosyalarında `column` adlı sütunun bütün değerleri (kırpılmış). Basit CSV:
-/// fixture'lar tırnaklı virgül taşımaz; tırnak işaretleri yalnız soyulur.
+/// All values of the `column` column in fixture files (trimmed). Simple CSV:
+/// fixtures contain no quoted commas; quote marks are only stripped.
 fn column_values(files: &[(String, Vec<u8>)], column: &str) -> Option<BTreeSet<String>> {
     let mut values = BTreeSet::new();
     let mut seen = false;
@@ -2128,15 +2132,16 @@ fn column_values(files: &[(String, Vec<u8>)], column: &str) -> Option<BTreeSet<S
     seen.then_some(values)
 }
 
-/// `scope_key`, registry'nin kimlik alanı (`scope_key_field`) türünden olmalı: `blocks`
-/// bastırması ve agency atfı bu anahtarla eşleşir. SHP_017 (2026-10-11) kimlik alanı
-/// `shape_id` iken trip_id taşıyordu; XFL_013 → SHP_017 bağlantısı hiç eşleşmiyordu.
-/// Feed düzeyi özetler (`scope_key = None`) ve sütunu fixture'da bulunmayan alanlar
-/// değerlendirilemez, atlanır.
+/// `scope_key` must have the registry identity field's (`scope_key_field`) type: `blocks`
+/// suppression and agency attribution match on this key. SHP_017 (2026-10-11) carried
+/// trip_id while its identity field was `shape_id`; the XFL_013 → SHP_017 link never matched.
+/// Feed-level summaries (`scope_key = None`) and fields absent from the fixture column
+/// cannot be evaluated and are skipped.
 #[test]
 fn scope_key_is_a_value_of_the_registry_identity_field() {
-    // Bilerek bozuk CSV: basit ayrıştırıcı sütunu doğru okuyamaz (kapının değil fixture'ın
-    // doğası). ARC_015 yinelenen başlık, ARC_030 tırnak içinde satır sonu.
+    // Deliberately malformed CSV: the simple parser cannot read the column correctly (this is
+    // a fixture property, not a gate property). ARC_015 has a repeated header; ARC_030 has a
+    // newline inside quotes.
     const MALFORMED_CSV_FIXTURES: &[&str] = &["ARC_015", "ARC_030"];
     let mut failures = BTreeSet::new();
     let mut checked = BTreeSet::new();
@@ -2162,7 +2167,7 @@ fn scope_key_is_a_value_of_the_registry_identity_field() {
             checked.insert(n.rule_id.clone());
             if !values.contains(key.trim()) {
                 failures.insert(format!(
-                    "  {} ({} fixture'ı): scope_key '{}' bir {} değil; fixture'daki {}: {:?}",
+                    "  {} ({} fixture): scope_key '{}' is not a {}; fixture {} values: {:?}",
                     n.rule_id, f.rule, key, field, field, values
                 ));
             }
@@ -2170,17 +2175,17 @@ fn scope_key_is_a_value_of_the_registry_identity_field() {
     }
     assert!(
         failures.is_empty(),
-        "scope_key kimlik alanıyla uyuşmuyor ({} kural denetlendi):\n{}",
+        "scope_key does not match the identity field ({} rules checked):\n{}",
         checked.len(),
         failures.into_iter().collect::<Vec<_>>().join("\n")
     );
-    assert!(checked.len() > 100, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
+    assert!(checked.len() > 100, "gate checks almost nothing: {}", checked.len());
 }
 
-/// Kimlik alanı beyan etmeyen (`scope_key_field = None`) kural runtime'da da `scope_key`
-/// taşımamalı: aşağıdaki `blocks` kapısı registry'ye bakar ve böyle bir kökü feed
-/// düzeyi sanar. SHP_004 (2026-10-11) `None` beyan ederken K2'nin `entity_id`
-/// geri dönüşüyle shape_id taşıyordu; ARC_035/JPN_033 dosya adını taşıyordu.
+/// A rule that declares no identity field (`scope_key_field = None`) must not carry a
+/// `scope_key` at runtime either: the `blocks` gate below consults the registry and would
+/// treat such a root as feed-level. SHP_004 (2026-10-11) declared `None` but carried shape_id
+/// through K2's `entity_id` fallback; ARC_035/JPN_033 carried a file name.
 #[test]
 fn rules_without_identity_field_carry_no_scope_key() {
     let mut drifting = BTreeSet::new();
@@ -2200,12 +2205,12 @@ fn rules_without_identity_field_carry_no_scope_key() {
             }
         }
     }
-    assert!(drifting.is_empty(), "kimlik alanı yok ama scope_key taşıyor: {drifting:?}");
+    assert!(drifting.is_empty(), "no identity field declared but scope_key is present: {drifting:?}");
 }
 
-/// Feed-level toplulamadan sonra `scope_key`'i kalmayan kurallar. Bastırma toplulamadan
-/// SONRA çalıştığı için bunlar registry ne derse desin kapsamsızdır. Toplulama
-/// fonksiyonunun kendisine sorulur: kopya liste tutulmaz.
+/// Rules that lose `scope_key` after feed-level aggregation. Since suppression runs AFTER
+/// aggregation, these are unscoped regardless of the registry. Ask the aggregation function
+/// itself; do not maintain a duplicate list.
 fn scope_dropped_by_aggregation(rule_id: &str) -> bool {
     let meta = gtfs_rules::get_rule(rule_id).expect("registry'de olmayan kural");
     let probe = gtfs_core::Notice {
@@ -2241,10 +2246,10 @@ fn scope_dropped_by_aggregation(rule_id: &str) -> bool {
     notices.iter().all(|n| n.scope_key.is_none())
 }
 
-/// İki kimlik alanı aynı değeri taşıyabilir mi? `from_`/`to_`/`pickup_`/`drop_off_`
-/// öneki aynı tablonun kimliğini gösterir (`from_trip_id` bir trip_id'dir). Bileşik
-/// anahtar (`from_stop_id|to_stop_id` → "A|B") tekil bir kimlikle hiç eşleşmez; yalnız
-/// birebir aynı bileşik alanla eşleşir.
+/// Can two identity fields carry the same value? The `from_`/`to_`/`pickup_`/`drop_off_`
+/// prefix indicates the identity of the same table (`from_trip_id` is a trip_id). A composite
+/// key (`from_stop_id|to_stop_id` → "A|B") never matches a single identity; it only matches
+/// the exact same composite field.
 fn same_id_domain(a: &str, b: &str) -> bool {
     if a.contains('|') || b.contains('|') {
         return a == b;
@@ -2258,11 +2263,11 @@ fn same_id_domain(a: &str, b: &str) -> bool {
     table(a) == table(b)
 }
 
-/// Kapsamlı bir kök (`scope_key = Some(x)`) engellediği kuralı YALNIZ aynı `Some(x)`
-/// ile bastırır (`resolve_symptoms`). Engellenen kural kapsamsızsa ya da başka bir
-/// tablonun kimliğini taşıyorsa bağlantı hiçbir zaman eşleşmez: kart "bloke eder"
-/// der, rapor bastırmaz. 2026-10-11'de 58 böyle ölü bağlantı kaldırıldı
-/// (ör. CAL_003 service_id → CAL_008 feed özeti, STP_001 stop_id → PTH_002 pathway_id).
+/// A scoped root (`scope_key = Some(x)`) suppresses the rule it blocks ONLY with the same
+/// `Some(x)` (`resolve_symptoms`). If the blocked rule is unscoped or carries another table's
+/// identity, the link never matches: the card says "blocks" but does not suppress the report.
+/// On 2026-10-11, 58 such dead links were removed (e.g. CAL_003 service_id → CAL_008 feed
+/// summary, STP_001 stop_id → PTH_002 pathway_id).
 #[test]
 fn scoped_root_blocks_only_rules_sharing_its_id_domain() {
     let mut failures = Vec::new();
@@ -2274,10 +2279,10 @@ fn scoped_root_blocks_only_rules_sharing_its_id_domain() {
         for &blocked in root.blocks {
             let meta = gtfs_rules::get_rule(blocked).expect("registry'de olmayan kural");
             let reason = match meta.scope_key_field {
-                None => "kapsamsız".to_string(),
-                Some(_) if scope_dropped_by_aggregation(blocked) => "toplulamada kapsamsızlaşıyor".to_string(),
+                None => "unscoped".to_string(),
+                Some(_) if scope_dropped_by_aggregation(blocked) => "becomes unscoped during aggregation".to_string(),
                 Some(field) if !same_id_domain(root_field, field) => {
-                    format!("{field} taşıyor")
+                    format!("carries {field}")
                 }
                 Some(_) => continue,
             };
@@ -2286,21 +2291,21 @@ fn scoped_root_blocks_only_rules_sharing_its_id_domain() {
     }
     assert!(
         failures.is_empty(),
-        "hiçbir zaman eşleşmeyen blocks bağlantısı:\n{}",
+        "blocks link that can never match:\n{}",
         failures.join("\n")
     );
 }
 
-/// Ters yön: kimlik alanı beyan edip `blocks`'u olan bir kök `scope_key = None`
-/// üretirse `resolve_symptoms` onu feed düzeyi sayar ve engellediği kuralın feed'deki
-/// TÜM bulgularını bastırır (aşırı maskeleme). TRF_010'un eski hâli bu sınıftandı.
-/// İki yoldan olur: toplulama kapsamı düşürür ya da kural emit ederken doldurmaz.
+/// Reverse direction: if a root that declares an identity field and has `blocks`
+/// emits `scope_key = None`, `resolve_symptoms` treats it as feed-level and suppresses
+/// ALL findings for the blocked rule in the feed (over-masking). The old TRF_010 was in this
+/// class. This can happen in two ways: aggregation drops the scope or emission leaves it empty.
 #[test]
 fn scoped_root_with_blocks_never_emits_without_scope_key() {
     let mut failures = BTreeSet::new();
     for root in RULES {
         if root.scope_key_field.is_some() && !root.blocks.is_empty() && scope_dropped_by_aggregation(root.id) {
-            failures.insert(format!("  {}: toplulamada kapsamsızlaşıyor", root.id));
+            failures.insert(format!("  {}: becomes unscoped during aggregation", root.id));
         }
     }
     let mut checked = BTreeSet::new();
@@ -2314,8 +2319,8 @@ fn scoped_root_with_blocks_never_emits_without_scope_key() {
             continue;
         };
         for n in &vr.notices {
-            // Bastırma notice'ın kendi `blocks`'una bakar: kimliksiz satır varyantı
-            // (TRP_001 boş trip_id) onu boşaltarak kök olmaktan çıkar.
+            // Suppression looks at the notice's own `blocks`: an identity-less row variant
+            // (TRP_001 empty trip_id) empties it and removes the root status.
             let scoped_root = !n.blocks.is_empty()
                 && gtfs_rules::get_rule(&n.rule_id).is_some_and(|m| m.scope_key_field.is_some());
             if !scoped_root {
@@ -2323,22 +2328,23 @@ fn scoped_root_with_blocks_never_emits_without_scope_key() {
             }
             checked.insert(n.rule_id.clone());
             if n.scope_key.is_none() {
-                failures.insert(format!("  {} ({} fixture'ı): scope_key None", n.rule_id, f.rule));
+                failures.insert(format!("  {} ({} fixture): scope_key None", n.rule_id, f.rule));
             }
         }
     }
     assert!(
         failures.is_empty(),
-        "kapsamlı kök kapsamsız emit ediyor ({} kök denetlendi):\n{}",
+        "scoped root emits without scope ({} roots checked):\n{}",
         checked.len(),
         failures.into_iter().collect::<Vec<_>>().join("\n")
     );
-    assert!(checked.len() > 20, "kapı neredeyse hiçbir şey denetlemiyor: {}", checked.len());
+    assert!(checked.len() > 20, "gate checks almost nothing: {}", checked.len());
 }
 
-/// `trips.txt` ve `calendar_dates.txt` K1'de yalnız başlık düzeyinde okunur (akış dosyaları);
-/// satır başına dosya hijyeni kontrolleri K2 akışında yapılmalı. ARC_012/034 bu iki dosyaya
-/// #181'de taşınmıştı, ARC_018/021/030 unutulmuştu (2026-10-13, ARC_037 yazılırken görüldü).
+/// `trips.txt` and `calendar_dates.txt` are read only at header level in K1 (streamed files);
+/// per-row file hygiene checks must run in the K2 stream. ARC_012/034 had been moved to these
+/// two files in #181, while ARC_018/021/030 were missed (noticed on 2026-10-13 while writing
+/// ARC_037).
 #[test]
 fn row_hygiene_checks_run_on_streamed_trips_and_calendar_dates() {
     let files = with_opts(
@@ -2354,17 +2360,18 @@ fn row_hygiene_checks_run_on_streamed_trips_and_calendar_dates() {
         for rule in ["ARC_018", "ARC_021", "ARC_030"] {
             assert!(
                 notices.iter().any(|n| n.rule_id == rule && n.file.as_deref() == Some(file)),
-                "{rule} {file} için çalışmalı: {:?}",
+                "{rule} should run for {file}: {:?}",
                 notices.iter().filter(|n| n.file.as_deref() == Some(file)).map(|n| &n.rule_id).collect::<Vec<_>>()
             );
         }
     }
-    // Boş satır tek yapısal bulgudur; trip_id boş diye TRP_001 türetilmez (K1 emsali).
-    assert!(!notices.iter().any(|n| n.rule_id == "TRP_001"), "boş satır TRP_001 üretmemeli");
+    // An empty row is the only structural finding; TRP_001 must not be inferred from an empty
+    // trip_id (K1 precedent).
+    assert!(!notices.iter().any(|n| n.rule_id == "TRP_001"), "empty row must not produce TRP_001");
 }
 
-/// ARC_032 dört akış dosyasında da çalışmalı. Kartında "stream edilen dosyalar kapsam dışı"
-/// sınırı yazılıydı: `trip_headsign`/`stop_headsign` hiç denetlenmiyordu (2026-10-13).
+/// ARC_032 must run on all four streamed files. Its card used to state "streamed files are out
+/// of scope": `trip_headsign`/`stop_headsign` were never checked (2026-10-13).
 #[test]
 fn arc032_runs_on_every_streamed_file() {
     let files = with_opts(
@@ -2387,13 +2394,13 @@ fn arc032_runs_on_every_streamed_file() {
         arc032,
         BTreeSet::from(["calendar_dates.txt", "shapes.txt", "stop_times.txt", "trips.txt"]),
     );
-    assert_eq!(notices.iter().filter(|n| n.rule_id == "ARC_032").count(), 4, "dosya başına tek");
+    assert_eq!(notices.iter().filter(|n| n.rule_id == "ARC_032").count(), 4, "one per file");
 }
 
-/// TRP_024 aynı ARACIN blokta tür değiştirmesini arar. Genişletilmiş kodlar aynı türün
-/// alt tipleridir: 3 ↔ 715 (talep-esaslı otobüs), 204 ↔ 712 (otokar ↔ okul otobüsü),
-/// 106 ↔ 109 (bölgesel ↔ banliyö treni). Korpus run 38363983999: 37 feed'in 23'ü, notice'ların
-/// ~%96'sı bu türdendi. Gerçek tür değişimi (3 ↔ 0) bulgu kalır.
+/// TRP_024 looks for the same VEHICLE changing type within a block. Extended codes are
+/// subtypes of the same type: 3 ↔ 715 (demand-responsive bus), 204 ↔ 712 (coach ↔ school bus),
+/// 106 ↔ 109 (regional ↔ commuter rail). Corpus run 38363983999: 23 of 37 feeds, and ~96% of
+/// notices, had this pattern. A real type change (3 ↔ 0) remains a finding.
 #[test]
 fn trp024_compares_vehicle_modes_not_raw_route_type_codes() {
     let block = |a: u32, b: u32| {
@@ -2412,16 +2419,16 @@ fn trp024_compares_vehicle_modes_not_raw_route_type_codes() {
             .any(|n| n.rule_id == "TRP_024")
     };
     for (a, b) in [(3, 715), (204, 712), (106, 109), (700, 3), (1, 401), (0, 900)] {
-        assert!(!fires(a, b), "{a} ↔ {b} aynı araç türü, bulgu olmamalı");
+        assert!(!fires(a, b), "{a} ↔ {b} same vehicle type, must not report");
     }
     for (a, b) in [(3, 0), (2, 3), (3, 11), (109, 3)] {
-        assert!(fires(a, b), "{a} ↔ {b} farklı araç türü, bulgu olmalı");
+        assert!(fires(a, b), "{a} ↔ {b} different vehicle type, must report");
     }
 }
 
-/// ARC_037 üç ayrıştırma yolunda da çalışmalı: K1 (genel dosyalar), K2 `stop_times` akışı
-/// (paralel parçalar birleşir) ve K2 `shapes` akışı. Dosya başına TEK özet; görünen ad
-/// alanındaki ASCII dışı metin (stop_name) kuralın konusu değildir.
+/// ARC_037 must run on all three parsing paths: K1 (general files), K2 `stop_times` stream
+/// (parallel chunks are merged), and K2 `shapes` stream. ONE summary per file; non-ASCII
+/// text in display-name fields (stop_name) is not the subject of the rule.
 #[test]
 fn arc037_reports_non_ascii_ids_once_per_file_on_every_parse_path() {
     let files = with_opts(
@@ -2444,10 +2451,10 @@ fn arc037_reports_non_ascii_ids_once_per_file_on_every_parse_path() {
         BTreeSet::from(["calendar.txt", "calendar_dates.txt", "shapes.txt", "stop_times.txt", "trips.txt"]),
         "{arc037:#?}"
     );
-    assert_eq!(arc037.len(), 5, "dosya başına tek özet: {arc037:#?}");
+    assert_eq!(arc037.len(), 5, "one summary per file: {arc037:#?}");
     let cal = arc037.iter().find(|n| n.file.as_deref() == Some("calendar.txt")).unwrap();
     assert!(cal.message.contains("2 satırda") || cal.message.contains("2 rows"), "{}", cal.message);
-    assert!(!by_file.contains("stops.txt"), "stop_name görünen ad, ID değil");
+    assert!(!by_file.contains("stops.txt"), "stop_name is a display name, not an ID");
 }
 
 #[test]
@@ -2462,7 +2469,7 @@ fn shp030_aggregates_and_does_not_duplicate_related_findings() {
         &ValidatorConfig::default(),
     );
     let shp030: Vec<_> = positive.iter().filter(|n| n.rule_id == "SHP_030").collect();
-    assert_eq!(shp030.len(), 1, "aynı shape için tek SHP_030 beklenir");
+    assert_eq!(shp030.len(), 1, "one SHP_030");
     assert_eq!(shp030[0].entity_id.as_deref(), Some("SH1"));
     assert_eq!(
         shp030[0]
@@ -2475,7 +2482,7 @@ fn shp030_aggregates_and_does_not_duplicate_related_findings() {
     for related in ["STM_017", "SHP_024", "SHP_025"] {
         assert!(
             !positive.iter().any(|n| n.rule_id == related),
-            "{related} SHP_030 fixture'ında türememeli"
+            "{related} must not be derived by the SHP_030 fixture"
         );
     }
 
@@ -2490,7 +2497,7 @@ fn shp030_aggregates_and_does_not_duplicate_related_findings() {
     );
     assert!(
         !negative.iter().any(|n| n.rule_id == "SHP_030"),
-        "tam shape mesafesi SHP_030 üretmemeli"
+        "complete shape distance must not produce SHP_030"
     );
 }
 
@@ -2505,11 +2512,11 @@ SH1,41.1,29.1,2,10\n";
     );
     assert!(
         notices.iter().any(|n| n.rule_id == "ARC_021"),
-        "NUL karakteri dosya hijyeni sinyalini korumalı"
+        "NUL character must preserve the file-hygiene signal"
     );
     assert!(
         notices.iter().any(|n| n.rule_id == "SHP_021"),
-        "NUL karakteri shape_dist_traveled tip ihlalini de korumalı"
+        "NUL character must also preserve the shape_dist_traveled type violation"
     );
 }
 
@@ -2550,7 +2557,7 @@ T1,08:10:00,08:10:00,S2,2,2.387\n";
     assert_eq!(
         bus_shp024.len(),
         2,
-        "iki >100m otobüs vakası ayrı raporlanmalı: {bus_shp024:?}"
+        "two >100 m bus cases must be reported separately: {bus_shp024:?}"
     );
     assert!(bus_shp024
         .iter()
@@ -2582,7 +2589,7 @@ T1,08:10:00,08:10:00,S2,2,2.387\n";
     let rail = notices_for(&rail_files, &ValidatorConfig::default());
     assert!(
         !rail.iter().any(|n| n.rule_id == "SHP_024"),
-        "rail eşik istisnası korunmalı: {rail:?}"
+        "rail threshold exception must be preserved: {rail:?}"
     );
 }
 
@@ -2613,29 +2620,29 @@ T1,08:10:00,08:10:00,FAR,2,0.5\n";
     assert_eq!(
         shp024.len(),
         1,
-        "100m üzerindeki yalnız FAR vakası raporlanmalı: {shp024:?}"
+        "only the FAR case above 100 m must be reported: {shp024:?}"
     );
     assert_eq!(shp024[0].entity_id.as_deref(), Some("FAR"));
 }
 
-/// Aynı fixture gövdesini (overrides+removes+raw+config) paylaşan farklı kurallar.
-/// Bugünkü iki duplikasyon kaçışının ORTAK imzası tam buydu: STM_023/STM_036 ve
-/// OPR_006/STM_033 için `emit_proof.rs`'te BİREBİR aynı fixture kayıtlıydı ve
-/// `each_fixture_actually_emits_its_rule` (salt kapsama) ikisini de yeşil geçirdi.
+/// Different rules sharing the same fixture body (overrides+removes+raw+config).
+/// This was exactly the COMMON signature of today's two duplicate escapes: STM_023/STM_036
+/// and OPR_006/STM_033 had an IDENTICAL fixture record in `emit_proof.rs`, and
+/// `each_fixture_actually_emits_its_rule` (coverage only) passed both.
 ///
-/// Aynı gövde iki farklı kuralı tetikliyorsa ya (a) meşru — aynı senaryo doğal
-/// olarak birden çok kuralı ilgilendiriyor (allowlist'te gerekçesiyle) ya da
-/// (b) DUPLİKASYON — iki kural aynı olguyu raporluyor (SILINMELI/katmanlanmalı).
-/// Boş gövde (`vec![]`, base feed'i olduğu gibi kullananlar) hariç tutulur —
-/// base zaten ~15 kural üretir, hepsi aynı boş gövdeyi paylaşır (meşru).
+/// If the same body triggers two different rules, it is either (a) legitimate — the same
+/// scenario naturally concerns multiple rules (with a reason in the allowlist), or
+/// (b) DUPLICATION — two rules report the same fact (one must be REMOVED/layered).
+/// Empty bodies (`vec![]`, those using the base feed as-is) are excluded —
+/// the base already produces ~15 rules, all legitimately sharing the same empty body.
 #[test]
 fn shared_fixture_bodies_match_ledger() {
     let fxs = fixtures();
     let mut by_body: std::collections::HashMap<String, Vec<&str>> =
         std::collections::HashMap::new();
     for f in &fxs {
-        // Boş gövde = base feed doğal çıktısı (base zaten ~15 kural üretir, hepsi
-        // aynı boş gövdeyi paylaşır) — atla.
+        // Empty body = natural base-feed output (base already produces ~15 rules, all
+        // sharing the same empty body) — skip.
         if f.overrides.is_empty() && f.removes.is_empty() && f.raw.is_empty() {
             continue;
         }
@@ -2672,28 +2679,29 @@ fn shared_fixture_bodies_match_ledger() {
 
     if pairs != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
-            let header = "# Aynı fixture gövdesini paylaşan kural çiftleri (G2 duplikasyon-erken-uyarı).\n\
-                          # Bugünkü iki kaçışın ortak imzası: STM_023/STM_036 ve OPR_006/STM_033 için\n\
-                          # emit_proof'ta BİREBİR aynı fixture kayıtlıydı ve salt-kapsama testi yeşildi.\n\
-                          # YENİ satır = ya meşru (aynı senaryo doğal olarak birden çok kuralı ilgilendirir)\n\
-                          # ya DUPLİKASYON (aynı olgu iki kez). Şüpheliyse kaldır/katmanla; değilse işle.\n";
+            let header = "# Rule pairs sharing the same fixture body (G2 duplicate early warning).\n\
+                          # The common signature of today's two escapes: STM_023/STM_036 and\n\
+                          # OPR_006/STM_033 had an IDENTICAL fixture in emit_proof and the\n\
+                          # coverage-only test was green.\n\
+                          # NEW row = either legitimate (one scenario naturally concerns several rules)\n\
+                          # or DUPLICATION (same fact twice). If unsure, remove/layer it; otherwise adjudicate.\n";
             std::fs::write(&ledger_path, format!("{header}{}\n", pairs.join("\n"))).unwrap();
             return;
         }
         let added: Vec<&String> = pairs.iter().filter(|p| !ledger.contains(p)).collect();
         let removed: Vec<&String> = ledger.iter().filter(|l| !pairs.contains(l)).collect();
         panic!(
-            "shared_fixture_ledger güncel değil ({} hesaplanan, {} ledger).\n\
-             YENİ aynı-gövde çifti (olası DUPLİKASYON — adjudicate et!): {:#?}\n\
-             Ledger'da fazla (fixture değişti/kalktı): {:#?}\n\
-             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof shared_fixture_bodies_match_ledger",
+            "shared_fixture_ledger is stale ({} computed, {} in ledger).\n\
+             NEW same-body pair (possible DUPLICATION — adjudicate it!): {:#?}\n\
+             Extra in ledger (fixture changed/removed): {:#?}\n\
+             To update: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof shared_fixture_bodies_match_ledger",
             pairs.len(), ledger.len(), added, removed,
         );
     }
 }
 
-// FLG_002 regresyon: network_id networks.txt yerine routes.txt.network_id sütunuyla
-// tanımlanmışsa (GTFS Fares v2, ikinci geçerli kaynak) FLG_002 yanlış pozitif ÜRETMEMELİ.
+// FLG_002 regression: if network_id is defined by the routes.txt.network_id column instead of
+// networks.txt (GTFS Fares v2, second valid source), FLG_002 MUST NOT produce a false positive.
 #[test]
 fn flg_002_network_id_from_routes_txt_is_not_a_false_positive() {
     let routes = "route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,TRAM\n";
@@ -2706,13 +2714,13 @@ fn flg_002_network_id_from_routes_txt_is_not_a_false_positive() {
     let emitted = emitted_rules(&files, &ValidatorConfig::default());
     assert!(
         !emitted.contains("FLG_002"),
-        "routes.txt.network_id ile tanımlı TRAM için FLG_002 tetiklenmemeli, emit: {:?}",
+        "FLG_002 must not fire for TRAM defined by routes.txt.network_id, emitted: {:?}",
         emitted,
     );
 }
 
-// FLG_002 regresyon: network_id route_networks.txt satırıyla tanımlanmışsa (GTFS Fares v2,
-// üçüncü geçerli kaynak) FLG_002 yanlış pozitif ÜRETMEMELİ.
+// FLG_002 regression: if network_id is defined by a route_networks.txt row (GTFS Fares v2,
+// third valid source), FLG_002 MUST NOT produce a false positive.
 #[test]
 fn flg_002_network_id_from_route_networks_txt_is_not_a_false_positive() {
     let route_networks = "network_id,route_id\nTRAM,R1\n";
@@ -2728,12 +2736,12 @@ fn flg_002_network_id_from_route_networks_txt_is_not_a_false_positive() {
     let emitted = emitted_rules(&files, &ValidatorConfig::default());
     assert!(
         !emitted.contains("FLG_002"),
-        "route_networks.txt ile tanımlı TRAM için FLG_002 tetiklenmemeli, emit: {:?}",
+        "FLG_002 must not fire for TRAM defined by route_networks.txt, emitted: {:?}",
         emitted,
     );
 }
 
-// FLG_002 pozitif kontrol: network_id hiçbir kaynakta yoksa yine de tetiklenmeli.
+// FLG_002 positive control: it must still trigger when network_id is absent from every source.
 #[test]
 fn flg_002_still_fires_for_truly_undefined_network_id() {
     let flr = "leg_group_id,network_id\nLG1,NOPE\n";
@@ -2741,13 +2749,13 @@ fn flg_002_still_fires_for_truly_undefined_network_id() {
     let emitted = emitted_rules(&files, &ValidatorConfig::default());
     assert!(
         emitted.contains("FLG_002"),
-        "tanımsız network_id FLG_002 üretmeli, emit: {:?}",
+        "undefined network_id must produce FLG_002, emitted: {:?}",
         emitted
     );
 }
 
-// #105 regression: aynı fare_product_id'nin farklı fare_media_id varyantları
-// composite PK açısından birbirinden bağımsız geçerli kayıtlardır.
+// #105 regression: different fare_media_id variants of the same fare_product_id
+// are independently valid records for the composite PK.
 #[test]
 fn fpd_distinct_fare_media_variants_are_not_duplicate_fpd_001() {
     let files = with_opts(
@@ -2761,7 +2769,7 @@ fn fpd_distinct_fare_media_variants_are_not_duplicate_fpd_001() {
     let emitted = emitted_rules(&files, &ValidatorConfig::default());
     assert!(
         !emitted.contains("FPD_001"),
-        "farklı fare_media_id varyantları FPD_001 üretmemeli, emit: {:?}",
+        "different fare_media_id variants must not produce FPD_001, emitted: {:?}",
         emitted,
     );
 }
@@ -2785,7 +2793,7 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     assert_eq!(
         stm048.len(),
         1,
-        "raw rollover tek feed özeti olmalı: {stm048:?}"
+        "raw rollover must be one feed summary: {stm048:?}"
     );
     assert_eq!(stm048[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm048[0].severity, gtfs_core::Severity::Yuksek);
@@ -2797,7 +2805,7 @@ fn stm_048_reports_raw_rollover_as_spec_without_stm_008_duplicate() {
     assert_eq!(stm048[0].expected_value.as_deref(), Some("24:10:00"));
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_008"),
-        "normalization sonrası aynı olay STM_008 olarak tekrarlanmamalı: {notices:?}"
+        "the same event must not recur as STM_008 after normalization: {notices:?}"
     );
 }
 
@@ -2818,7 +2826,7 @@ fn stm_048_raw_detection_is_not_disabled_by_service_day_config() {
     let notices = notices_for(&files, &config);
     assert!(
         notices.iter().any(|n| n.rule_id == "STM_048"),
-        "service_day_start_hour=0 raw STM_048'i kapatmamalı: {notices:?}"
+        "service_day_start_hour=0 must not suppress raw STM_048: {notices:?}"
     );
 }
 
@@ -2835,7 +2843,7 @@ fn stm_048_detects_rollover_after_the_normalization_threshold() {
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(
         notices.iter().any(|n| n.rule_id == "STM_048"),
-        "03:30 raw rollover STM_048 üretmeli: {notices:?}"
+        "03:30 raw rollover must produce STM_048: {notices:?}"
     );
 }
 
@@ -2858,7 +2866,7 @@ fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
     assert_eq!(
         stm049.len(),
         1,
-        "same-row raw departure tek feed özeti olmalı: {stm049:?}"
+        "same-row raw departure must be one feed summary: {stm049:?}"
     );
     assert_eq!(stm049[0].rule_class, gtfs_core::RuleClass::Spec);
     assert_eq!(stm049[0].severity, gtfs_core::Severity::Yuksek);
@@ -2868,7 +2876,7 @@ fn raw_same_row_departure_is_stm_049_spec_without_config_gate() {
     assert_eq!(stm049[0].expected_value.as_deref(), Some("24:02:00"));
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_048"),
-        "aynı satır departure olayı STM_048'e karışmamalı: {notices:?}"
+        "same-row departure must not be mixed into STM_048: {notices:?}"
     );
 }
 
@@ -2893,12 +2901,12 @@ T2,24:10:00,24:10:00,S4,2\n",
     assert_eq!(
         stm048.len(),
         1,
-        "arrival rollover kendi finding'i olmalı: {stm048:?}"
+        "arrival rollover must have its own finding: {stm048:?}"
     );
     assert_eq!(
         stm049.len(),
         1,
-        "same-row departure rollover kendi finding'i olmalı: {stm049:?}"
+        "same-row departure rollover must have its own finding: {stm049:?}"
     );
     assert_eq!(stm048[0].field.as_deref(), Some("arrival_time"));
     assert_eq!(stm049[0].field.as_deref(), Some("departure_time"));
@@ -2933,7 +2941,7 @@ T4,23:53:00,23:53:00,S1,1\nT4,00:13:00,00:13:00,S2,2\n",
     assert_eq!(
         stm048.len(),
         4,
-        "dört raw olay dört ayrı finding olmalı: {stm048:?}"
+        "four raw events must yield four separate findings: {stm048:?}"
     );
     let trips: BTreeSet<_> = stm048
         .iter()
@@ -2958,15 +2966,15 @@ fn trip_starting_after_midnight_without_raw_wrap_is_silent() {
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_048"),
-        "gece yarısından başlayan trip STM_048 üretmemeli"
+        "a trip starting at midnight must not produce STM_048"
     );
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_049"),
-        "gece yarısından başlayan trip STM_049 üretmemeli"
+        "a trip starting at midnight must not produce STM_049"
     );
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_008"),
-        "monoton trip STM_008 üretmemeli"
+        "a monotonic trip must not produce STM_008"
     );
 }
 
@@ -2983,11 +2991,11 @@ fn valid_service_day_rollover_does_not_emit_stm_048() {
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_048"),
-        "valid 24:xx rollover işaretlenmemeli"
+        "a valid 24:xx rollover must not be flagged"
     );
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_008"),
-        "valid 24:xx rollover STM_008 üretmemeli"
+        "a valid 24:xx rollover must not produce STM_008"
     );
 }
 
@@ -3004,11 +3012,11 @@ fn real_non_midnight_decrease_remains_stm_008_without_stm_048() {
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(
         notices.iter().any(|n| n.rule_id == "STM_008"),
-        "gerçek gün-içi geriye gidiş STM_008 üretmeli"
+        "a real within-day backward step must produce STM_008"
     );
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_048"),
-        "gün-içi geriye gidiş STM_048 olmamalı"
+        "a within-day backward step must not be STM_048"
     );
 }
 
@@ -3027,12 +3035,12 @@ fn stm008_carries_previous_departure_across_one_untimed_stop() {
     assert_eq!(
         stm008.len(),
         1,
-        "untimed ara durak gerçek geriye gidişi gizlememeli: {stm008:?}"
+        "an untimed intermediate stop must not hide a real backward step: {stm008:?}"
     );
     assert_eq!(
         stm008[0].line,
         Some(4),
-        "finding sonraki zamanlı satırı göstermeli"
+        "the finding must point to the next timed row"
     );
     assert_eq!(
         stm008[0]
@@ -3066,7 +3074,7 @@ fn stm008_carries_previous_departure_across_multiple_untimed_stops() {
     assert_eq!(
         notices.iter().filter(|n| n.rule_id == "STM_008").count(),
         1,
-        "birden çok untimed ara durak gerçek geriye gidişi gizlememeli"
+        "multiple untimed intermediate stops must not hide a real backward step"
     );
 }
 
@@ -3083,7 +3091,7 @@ fn stm008_does_not_flag_monotonic_interpolation_across_untimed_stop() {
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_008"),
-        "monoton interpolasyon false-positive üretmemeli"
+        "monotonic interpolation must not produce a false positive"
     );
 }
 
@@ -3100,11 +3108,11 @@ fn stm008_keeps_midnight_normalization_silent_across_untimed_stop() {
     let notices = notices_for(&files, &ValidatorConfig::default());
     assert!(
         notices.iter().any(|n| n.rule_id == "STM_048"),
-        "raw rollover STM_048 olarak korunmalı"
+        "raw rollover must remain STM_048"
     );
     assert!(
         !notices.iter().any(|n| n.rule_id == "STM_008"),
-        "normalize edilen rollover STM_008'e çoğalmamalı"
+        "the normalized rollover must not multiply into STM_008"
     );
 }
 
@@ -3132,11 +3140,11 @@ fn coverage_debt_matches_ledger() {
         .collect();
 
     if debt != ledger {
-        // Yeni ledger içeriğini yaz (UPDATE_LEDGER=1) ya da sadece farkı raporla.
+        // Write the new ledger content (UPDATE_LEDGER=1) or only report the difference.
         if std::env::var("UPDATE_LEDGER").is_ok() {
             let header = format!(
-                "# emit-proof coverage debt (#5 C). Fixture'ı olmayan canonical kurallar.\n\
-                 # Azaltmak için emit_proof.rs::fixtures()'a fixture ekleyin. {} kural.\n",
+                "# emit-proof coverage debt (#5 C). Canonical rules without a fixture.\n\
+                 # Add a fixture to emit_proof.rs::fixtures() to reduce it. {} rules.\n",
                 debt.len()
             );
             std::fs::write(&ledger_path, format!("{header}{}\n", debt.join("\n"))).unwrap();
@@ -3145,35 +3153,35 @@ fn coverage_debt_matches_ledger() {
         let added: Vec<&&str> = debt.iter().filter(|d| !ledger.contains(d)).collect();
         let removed: Vec<&&str> = ledger.iter().filter(|l| !debt.contains(l)).collect();
         panic!(
-            "coverage_debt ledger güncel değil ({} hesaplanan, {} ledger).\n\
-             Ledger'da olmayan (fixture silindi/yeni kural?): {:?}\n\
-             Ledger'da fazla (fixture eklendi → ledger küçülmeli): {:?}\n\
-             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof coverage_debt_matches_ledger",
+            "coverage_debt ledger is stale ({} computed, {} in ledger).\n\
+             Missing from ledger (fixture removed/new rule?): {:?}\n\
+             Extra in ledger (fixture added → ledger should shrink): {:?}\n\
+             To update: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof coverage_debt_matches_ledger",
             debt.len(), ledger.len(), added, removed,
         );
     }
 }
 
-// ── WP-2: alan düzeyinde spec çapası ──────────────────────────────────────────
-// emit_proof "kural ateşleyebiliyor mu", spec_conformance.rs "geçerli veri sessiz mi"
-// der. Bu üçüncü kapı sorar: **kural spec'te GERÇEKTEN VAR OLAN bir alanı mı ölçüyor?**
-// Yakaladığı sınıf: yanlış SINIFLANDIRMA. RCT_004 (2026-08-01 öncesi) `min_age`/`max_age`
-// yayıyordu; bu alanlar 27 Nisan 2026 Schedule Reference'ta HİÇ geçmiyor — yani bir uzantı
-// alanı `Spec` sınıfındaydı ve yayın skoru kapısını besliyordu.
+// ── WP-2: field-level spec anchoring ──────────────────────────────────────────
+// emit_proof asks "can the rule fire?", while spec_conformance.rs asks "is valid data silent?"
+// This third gate asks: **does the rule measure a field that REALLY EXISTS in the spec?**
+// It catches MISCLASSIFICATION. Before 2026-08-01, RCT_004 emitted `min_age`/`max_age`;
+// these fields do not appear AT ALL in the 27 April 2026 Schedule Reference — an extension
+// field was classified as `Spec` and fed the publication-score gate.
 //
-// Çapa kuralın KENDİ ÇIKTISINDAN gelir (notice'ın `file` + `field` alanları), elle tutulan
-// bir listeden değil: elle liste bayatlar, notice bayatlayamaz.
+// The anchor comes from the rule's OWN OUTPUT (the notice's `file` + `field` fields), not
+// a hand-maintained list: a hand-maintained list goes stale; a notice cannot go stale.
 
-/// Spec'te alan tablosu OLMAYAN dosyalar — çapa kurulamaz, atlanır.
-/// Liste bilinçli olarak KISA tutulur: burada olmayan bilinmeyen bir dosya kapıyı düşürür
-/// (ör. `Spec` otoriteli bir kural GTFS-JP dosyasına çapalanırsa sınıfı yanlıştır).
+/// Files WITHOUT a field table in the spec — no anchor can be established, so they are skipped.
+/// The list is deliberately SHORT: an unknown file not listed here fails the gate
+/// (e.g. a `Spec`-authority rule anchored to a GTFS-JP file has the wrong class).
 const NO_FIELD_TABLE: &[&str] = &[
-    // GeoJSON; spec üyeleri (type/properties/geometry/coordinates) düzyazıyla anlatır,
-    // "Field Name" tablosu yoktur. LOC_002/003/004/007/008/009/010 buraya düşer.
+    // GeoJSON; the spec describes members (type/properties/geometry/coordinates) in prose,
+    // with no "Field Name" table. LOC_002/003/004/007/008/009/010 fall here.
     "locations.geojson",
 ];
 
-/// `file` alanında dosya adı olmayan sözde-değerler (feed düzeyi bağlam).
+/// Pseudo-values without a file name in the `file` field (feed-level context).
 const PSEUDO_FILES: &[&str] = &["feed"];
 
 #[test]
@@ -3181,14 +3189,14 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
     let path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../spec-audit/spec_fields.json");
     let raw = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("{} okunamadı: {e}", path.display()));
+        .unwrap_or_else(|e| panic!("{} could not be read: {e}", path.display()));
     let doc: serde_json::Value = serde_json::from_str(&raw).unwrap();
     let table = doc["files"]
         .as_object()
         .expect("spec_fields.json: 'files' nesnesi yok");
     assert!(
         table.len() >= 25,
-        "spec_fields.json çok küçük ({}) — yeniden üretin",
+        "spec_fields.json is too small ({}) — regenerate it",
         table.len()
     );
 
@@ -3210,11 +3218,11 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
             {
                 continue;
             }
-            // field yoksa çapalanacak bir alan da yok (dosya/feed düzeyi bulgu).
+            // No field means there is no field to anchor (file/feed-level finding).
             let (Some(file), Some(field)) = (n.file.as_deref(), n.field.as_deref()) else {
                 continue;
             };
-            // "a.txt/b.txt" gibi çok-dosyalı etiketler bölünür.
+            // Split multi-file labels such as "a.txt/b.txt".
             let parts: Vec<&str> = file.split('/').map(str::trim).collect();
             let known: Vec<&serde_json::Value> =
                 parts.iter().filter_map(|p| table.get(*p)).collect();
@@ -3228,14 +3236,14 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
                 }
                 failures.insert(format!(
                     "{}: '{}' spec dosya tablosunda YOK (GtfsSpec otoritesi bu dosyaya \
-                     çapalanamaz — sınıf yanlış olabilir)",
+                     cannot be anchored — the class may be wrong)",
                     n.rule_id, file,
                 ));
                 continue;
             }
 
-            // Bileşik alan etiketleri ("stop_lat|stop_lon") tek tek denetlenir; alan,
-            // etiketteki dosyalardan EN AZ BİRİNDE tanımlı olmalı.
+            // Composite field labels ("stop_lat|stop_lon") are checked separately; the field
+            // must be defined in AT LEAST ONE of the files named by the label.
             for one in field
                 .split(['|', ','])
                 .map(str::trim)
@@ -3250,7 +3258,7 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
                 });
                 if !ok {
                     failures.insert(format!(
-                        "{}: '{}' alanı '{}' içinde spec'te YOK",
+                        "{}: field '{}' is NOT in the spec for '{}'",
                         n.rule_id, one, file,
                     ));
                 }
@@ -3260,9 +3268,9 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
 
     assert!(
         failures.is_empty(),
-        "GtfsSpec otoriteli kural(lar) spec'te olmayan bir alana çapalanıyor — sınıf \
-         Quality/Interop olmalı ya da alan adı yanlış:\n{}\n\n\
-         (Spec listesi: spec-audit/spec_fields.json — yeniden üretmek için \
+        "GtfsSpec-authority rule(s) are anchored to a field absent from the spec — the class \
+         should be Quality/Interop or the field name is wrong:\n{}\n\n\
+         (Spec list: spec-audit/spec_fields.json — regenerate with \
          `python3 spec-audit/extract_fields.py`)",
         failures
             .iter()
@@ -3272,37 +3280,38 @@ fn spec_rules_anchor_to_fields_that_exist_in_the_spec() {
     );
 }
 
-// ── WP-3: hüküm kapsamı (A = eksik hüküm · B = kısmi kapsam) ──────────────────
-// WP-1 ve WP-2 KESİNLİK kapılarıdır: "yanlış yere hata atmıyoruz". Bu üçüncüsü
-// KAPSAM sorar: "spec'in normatif hükmü var, bizim onu ölçen kuralımız var mı?"
+// ── WP-3: provision coverage (A = missing provision · B = partial coverage) ──
+// WP-1 and WP-2 are CERTAINTY gates: "we are not reporting errors in the wrong place."
+// This third one asks about COVERAGE: "the spec has a normative provision; do we have a rule
+// that measures it?"
 //
-// KAPI DEĞİL, DEFTER: kapsam boşluğu bugün "hata" değil (eksik kural kimseyi yanlış
-// REDDETMEZ); ama SESSİZCE BÜYÜMEMELİ. `spec_coverage_ledger.txt` boşlukları sabitler;
-// spec yeni alan ekleyince ya da bir kural kaldırılınca defter değişir ve test düşer.
+// NOT A GATE, A LEDGER: a coverage gap is not an "error" today (a missing rule cannot
+// wrongly REJECT anyone); but it MUST NOT GROW SILENTLY. `spec_coverage_ledger.txt` records
+// the gaps; when the spec adds a field or a rule is removed, the ledger changes and the test fails.
 //
-// ══ ÖLÇÜMÜN ÜÇ SINIRI — SAYILARI AKTARIRKEN BUNLARI DA AKTAR ══════════════════
-// 1. ALT SINIRDIR. Soru "kural var mı" değil, "emit_proof korpusunda bu file+field'a
-//    Spec notice'ı çapalandı mı". Çok alanlı kural (CAL_002 yedi günü denetler, fixture
-//    yalnız `monday`'i bozar) ve `field=None` üretenler (RTS_003) boşluk GİBİ görünür.
-//    Doğru ifade: "32 alanın normatif hükmü var ama korpusta Spec çapası görünmüyor" —
-//    "32 eksik kuralımız var" DEĞİL.
-// 2. HÜKÜM ÜRETİMİ KABA. Yalnız alan tablosunun Presence/Type/PK sütunlarından türetilir.
-//    KAPSAM DIŞI: düzyazı koşullar ("yalnız B=1 iken kullanılabilir", "ikisinden biri
-//    zorunlu", "A ve B birlikte verilmeli", "şu dosya yoksa kullanılabilir"), dosyalar
-//    arası koşullar, sefer içi tutarlılık, GeoJSON iç yapı şartları. Yani "192 hüküm
-//    taşıyan alan" GTFS Spec'in TOPLAM normatif hüküm sayısı DEĞİLDİR.
-// 3. `[yalnız: …]` HÜKÜM KARŞILANDI DEMEZ. Yalnız "bu kural bu alanda notice üretti"
-//    der. Örnek: `route_text_color` → RTS_007 (hex format) + RTS_008 (kontrast). RTS_008
-//    meşru bir Quality kuralıdır ama spec'in Color-tipi hükmünü KARŞILAMAZ. Satırın
-//    sorduğu şey kapsam değil SINIFLANDIRMA'dır.
+// ══ THREE MEASUREMENT LIMITS — CARRY THESE ALONG WHEN REPORTING NUMBERS ══════
+// 1. IT IS A LOWER BOUND. The question is not "is there a rule?" but "is a Spec notice for
+//    this file+field anchored in the emit_proof corpus?" A multi-field rule (CAL_002 checks
+//    seven days, while the fixture breaks only `monday`) and rules emitting `field=None`
+//    look like gaps. The correct wording is "32 fields have normative provisions but no Spec
+//    anchor appears in the corpus" — NOT "we have 32 missing rules."
+// 2. PROVISION EXTRACTION IS CRUDE. It is derived only from Presence/Type/PK columns in the
+//    field table. OUT OF SCOPE: prose conditions ("usable only when B=1", "one of two is
+//    required", "A and B must be provided together", "usable if this file is absent"), cross-file
+//    conditions, per-trip consistency, and GeoJSON structure requirements. Thus an area with
+//    "192 provisions" is NOT the GTFS Spec's TOTAL number of normative provisions.
+// 3. `[only: …]` DOES NOT MEAN THE PROVISION IS SATISFIED. It only says "this rule emitted a
+//    notice for this field." Example: `route_text_color` → RTS_007 (hex format) + RTS_008
+//    (contrast). RTS_008 is a legitimate Quality rule but does not satisfy the spec's Color
+//    type provision. The row asks about CLASSIFICATION, not coverage.
 
-/// Bir alanın taşıdığı normatif hüküm sayısı (0 ise spec o alan için bir şey dayatmıyor).
-/// `presence` + `type` sütunlarından türetilir; ikisi de spec'in KENDİ sözlüğüdür.
-/// ⚠️ Yukarıdaki 2. sınır: düzyazı/çapraz-dosya hükümleri buradan çıkmaz.
+/// Number of normative provisions carried by a field (0 means the spec imposes nothing on it).
+/// Derived from the `presence` + `type` columns; both are the spec's OWN vocabulary.
+/// ⚠️ Limit 2 above: prose/cross-file provisions do not come from here.
 fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
     let mut atoms = Vec::new();
     match presence {
-        // "Optional"/"Recommended" bir şey DAYATMAZ → hüküm değil (STM_040 dersi).
+        // "Optional"/"Recommended" imposes nothing → not a provision (STM_040 lesson).
         "Required" => atoms.push("presence:required"),
         "Conditionally Required" => atoms.push("presence:conditional"),
         "Conditionally Forbidden" => atoms.push("presence:conditional-forbidden"),
@@ -3316,11 +3325,11 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
     }
     match ftype {
         "Enum" => atoms.push("enum-domain"),
-        // `Phone number` BİLİNÇLİ OLARAK YOK: spec'in tip tanımı birebir "A phone number." —
-        // dilbilgisi dayatmıyor, dolayısıyla DENETLENEBİLİR bir hüküm de yok. Onu buraya
-        // koymak defterde olmayan bir borç üretiyordu (agency_phone → AGN_007'yi "eksik"
-        // gösteriyordu, oysa AGN_007'nin Quality olması doğru). Katı bir telefon kontrolü
-        // geçerli uluslararası biçimleri reddeder.
+        // `Phone number` is INTENTIONALLY ABSENT: the spec's type definition is exactly
+        // "A phone number." — it imposes no grammar, so there is no CHECKABLE provision.
+        // Including it here created an untracked debt (agency_phone showed AGN_007 as "missing",
+        // although AGN_007 is correctly Quality). A strict phone check rejects valid
+        // international formats.
         "Time" | "Local time" | "Date" | "Color" | "URL" | "Email" | "Language code"
         | "Timezone" | "Currency code" | "Currency amount" | "Latitude" | "Longitude" => {
             atoms.push("format")
@@ -3331,22 +3340,22 @@ fn provision_atoms(ftype: &str, presence: &str) -> Vec<&'static str> {
         | "Positive float"
         | "Non-null integer"
         | "Non-zero integer" => atoms.push("range"),
-        // Nitelenmemiş sayısal tipler bir ARALIK dayatmaz ama PARSE EDİLEBİLİRLİK dayatır:
-        // "abc" bir Float değildir. Ayrı atom, çünkü `range` aralık kısıtını anlatır.
-        // `Text`, `ID` ve `Text or URL or …` BİLİNÇLİ OLARAK YOK: spec bunlara herhangi bir
-        // UTF-8 dizisi diyor, yani denetlenebilir bir hüküm yok (`Phone number` ile aynı ders).
+        // Unqualified numeric types impose no RANGE but do impose PARSEABILITY:
+        // "abc" is not a Float. This is a separate atom because `range` describes range
+        // `Text`, `ID`, and `Text or URL or …` are INTENTIONALLY ABSENT: the spec calls
+        // them any UTF-8 string, so there is no checkable provision (same lesson as `Phone number`).
         "Float" | "Integer" => atoms.push("numeric"),
         _ => {}
     }
     atoms
 }
 
-/// Alan bazında: hangi hükümler var · hangi `GtfsSpec` kuralları çapalı · hangi BAŞKA SINIF
-/// kuralları çapalı.
+/// Per field: which provisions exist · which `GtfsSpec` rules are anchored · which OTHER-CLASS
+/// rules are anchored.
 ///
-/// Üçüncü küme kritik: `agency_phone`'u AGN_007 (Quality) ölçer, hiçbir Spec kuralı ölçmez.
-/// Yalnız Spec'e bakan bir defter onu "denetimsiz" gösterir ve okuyanı VAR OLAN kuralı yeniden
-/// yazmaya iter. Ölçüldü: 32 defter satırının 11'i bu durumda.
+/// The third set is critical: AGN_007 (Quality) measures `agency_phone`; no Spec rule does.
+/// A Spec-only ledger shows it as "unchecked" and tempts the reader to rewrite an EXISTING rule.
+/// Measured: 11 of 32 ledger rows are in this situation.
 type CoverageRow = (
     String,
     String,
@@ -3362,7 +3371,7 @@ fn coverage_rows() -> Vec<CoverageRow> {
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     let table = doc["files"].as_object().unwrap();
 
-    // (dosya, alan) → çapalanan kurallar; Spec olanlar ve olmayanlar ayrı.
+    // (file, field) → anchored rules; Spec and non-Spec rules are separate.
     type Anchors = std::collections::HashMap<(String, String), BTreeSet<String>>;
     let (mut spec, mut other): (Anchors, Anchors) = Default::default();
     for f in fixtures() {
@@ -3427,16 +3436,16 @@ fn coverage_rows() -> Vec<CoverageRow> {
     rows
 }
 
-/// DENETİM aşamalarında (k2–k7) `"alan_adı"` literali geçiyor mu?
+/// Does the field_name literal occur in the CHECK stages (k2–k7)?
 ///
-/// `k1_parse.rs` BİLİNÇLİ DIŞLANIR: `known_columns` orada spec'in HER resmî sütununu literal
-/// olarak sayar (ARC_017 "bilinmeyen sütun" için). Onu da sayarsak ölçüt her alanı "kodda var"
-/// gösterir ve hiçbir şey ayırt etmez — ölçtüm: dışlamadan yalnız 2, dışlayınca 5 kesin boşluk
-/// çıkıyor (`booking_url`/`info_url`/`phone_number` YALNIZ sütun kaydında duruyor).
+/// `k1_parse.rs` is INTENTIONALLY EXCLUDED: `known_columns` counts every official spec
+/// column there as a literal (for ARC_017 "unknown column"). Including it would show every field
+/// as "present in code" and distinguish nothing — measured: 2 certain gaps without exclusion,
+/// 5 with exclusion (`booking_url`/`info_url`/`phone_number` occur ONLY in column records).
 ///
-/// Geçmiyorsa hiçbir denetim o alana bakmıyor → boşluk KESİN. Geçiyorsa yalnız "olabilir":
-/// literal başka bir dosya için konmuş olabilir (`from_stop_id` transfers/pathways'te var,
-/// fare_leg_join_rules için değil). Ölçüt YÜKSEK KESİNLİK / düşük duyarlılıktır.
+/// If it does not occur, no check examines that field → the gap is CERTAIN. If it occurs, only
+/// "possibly": the literal may belong to another file (`from_stop_id` exists in
+/// transfers/pathways, not fare_leg_join_rules). The metric has HIGH PRECISION / low recall.
 fn identifiers_in_check_stages() -> BTreeSet<String> {
     fn walk(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
         for e in std::fs::read_dir(dir).unwrap().flatten() {
@@ -3473,18 +3482,19 @@ fn identifiers_in_check_stages() -> BTreeSet<String> {
     ids
 }
 
-/// A kategorisi — normatif hükmü olan ama emit_proof korpusunda hiçbir `GtfsSpec` notice'ının
-/// çapalanmadığı alanlar. Defterle eşleşmeli: boşluk kapanınca defter küçülür, spec büyüyünce
-/// fark görünür.
+/// Category A — fields with normative provisions but no `GtfsSpec` notice anchored in the
+/// emit_proof corpus. It must match the ledger: the ledger shrinks when a gap closes and shows
+/// a difference when the spec grows.
 ///
-/// ⚠️ **ALT SINIRDIR — "kural yok" DEMEK DEĞİLDİR.** Bir kural alanı ölçüyor ama fixture'ı
-/// başka bir alanı bozuyorsa (CAL_002 yedi günü de denetler, fixture yalnız `monday`'i bozar)
-/// ya da notice'ı `field=None` ile üretiyorsa (RTS_003, "ikisinden biri zorunlu") satır burada
-/// çıkar. Bu yüzden defterde KANIT sütunu var: `[kaynakta-yok]` = alan adı üretim kaynağında
-/// hiç geçmiyor → boşluk KESİN. `[yalnız: …]` = alanı ölçen kural VAR ama Spec sınıfı değil
-/// (ör. `agency_phone` → AGN_007, Quality); önce "hüküm gerçekten Spec meselesi mi?" sorusu
-/// cevaplanmalı, yeni kural yazılmamalı. Kanıtsız satır ADJUDİKASYON ister.
-/// **Satıra yeni kural yazmadan önce mevcut kuralı ARA** (tekrar eden hata sınıfı).
+/// ⚠️ **LOWER BOUND — DOES NOT MEAN "NO RULE".** A rule may measure the field while its
+/// fixture breaks another field (CAL_002 also checks seven days, while the fixture breaks only
+/// `monday`), or it may emit its notice with `field=None` (RTS_003, "one of two required"),
+/// causing the row to appear here. That is why the ledger has a PROOF column:
+/// `[kaynakta-yok]` = the field name never occurs in the production source → gap CERTAIN.
+/// `[yalnız: …]` = a rule measures the field but is not Spec class (e.g. `agency_phone` → AGN_007,
+/// Quality); first ask "is the provision really a Spec matter?" before adding a rule. An
+/// unsupported row needs ADJUDICATION.
+/// **SEARCH FOR AN EXISTING RULE BEFORE ADDING ONE** (recurring error class).
 #[test]
 fn spec_coverage_gaps_match_ledger() {
     let ids = identifiers_in_check_stages();
@@ -3492,10 +3502,10 @@ fn spec_coverage_gaps_match_ledger() {
         .into_iter()
         .filter(|(_, _, atoms, spec, _)| !atoms.is_empty() && spec.is_empty())
         .map(|(file, field, atoms, _, other)| {
-            // Kanıt sırası: en kesinden en belirsize.
+            // Evidence order: from most certain to least specific.
             let proof = if !other.is_empty() {
-                // Alanı ölçen bir kural VAR, yalnız Spec sınıfı değil → yeni kural yazmadan
-                // önce karar: hüküm gerçekten Spec meselesi mi, yoksa mevcut kural yeterli mi?
+                // A rule DOES measure the field, but is not Spec class → before adding a rule,
+                // decide whether the provision is really a Spec matter or the existing rule suffices.
                 format!(
                     "  [yalnız: {}]",
                     other.iter().cloned().collect::<Vec<_>>().join(",")
@@ -3523,60 +3533,60 @@ fn spec_coverage_gaps_match_ledger() {
     if gaps != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
             let header = format!(
-                "# WP-3/A — spec'te normatif hükmü olan ama emit_proof korpusunda hiçbir\n\
-                 # GtfsSpec notice'ının ÇAPALANMADIĞI alanlar. Biçim: dosya:alan  hükümler [kanıt].\n\
-                 # {} alan.\n\
+                "# WP-3/A — fields with normative provisions in the spec but no\n\
+                 # GtfsSpec notice not ANCHORED in the emit_proof corpus. Format: file:field  provisions [proof].\n\
+                 # {} fields.\n\
                  #\n\
-                 # Bu bir BORÇ defteridir, kapı değil: eksik kural kimseyi yanlış REDDETMEZ,\n\
-                 # ama boşluk sessizce BÜYÜMEMELİ. Kural eklenince satır düşer.\n\
+                 # This is a DEBT ledger, not a gate: a missing rule does not wrongly REJECT anyone,\n\
+                 # but the gap MUST NOT GROW silently. The row disappears when a rule is added.\n\
                  #\n\
-                 # ⚠️ ALT SINIR — \"hiçbir kural yok\" DEMEK DEĞİL. Bir hüküm ölçülüyor olduğu\n\
-                 # hâlde burada GÖRÜNEBİLİR: fixture kuralın yalnız bir dalını tetiklerse ya da\n\
-                 # kural `field=None` emit ederse çapa düşmez. İkisi de 2026-08-02'de gerçekten\n\
-                 # oldu ve İKİSİ DE GİDERİLDİ (aşağıya bak) — ama desen tekrar edebilir.\n\
-                 # DOĞRU İFADE: \"bu alanların normatif hükmü var ama emit_proof korpusunda\n\
-                 # bunlara bağlı bir Spec notice çapası görünmüyor\" — \"N eksik kuralımız var\" DEĞİL.\n\
+                 # ⚠️ LOWER BOUND — this does NOT mean \"there is no rule\". A provision may be measured\n\
+                 # yet still appear here if the fixture triggers only one branch, or if\n\
+                 # the rule emits `field=None` and therefore has no anchor. Both happened on\n\
+                 # 2026-08-02 and BOTH WERE FIXED (see below), but the pattern may recur.\n\
+                 # PRECISE WORDING: \"these fields have normative provisions, but no Spec notice\n\
+                 # anchor for them appears in the emit_proof corpus\" — NOT \"we have N missing rules\".\n\
                  #\n\
-                 # ⚠️ HÜKÜM ÜRETİMİ KABA: yalnız alan tablosunun Presence/Type/PK sütunlarından\n\
-                 # türetilir. Düzyazı koşullar (\"yalnız B=1 iken\", \"ikisinden biri zorunlu\",\n\
-                 # \"A ve B birlikte\"), dosyalar arası koşullar, sefer içi tutarlılık ve GeoJSON\n\
-                 # iç yapı şartları KAPSAM DIŞIDIR. Bu defter spec'in TÜM normatif hükümlerini\n\
-                 # ölçmez, yalnız alan tablosundan türetilebilen bölümünü ölçer.\n\
-                 #   [denetim-yok] = alan adı k2–k7 denetim aşamalarında hiç geçmiyor → boşluk KESİN\n\
-                 #                   (k1_parse.rs dışlanır: known_columns her sütunu zaten sayar).\n\
-                 #   [yalnız: …]   = alanı ölçen kural VAR, ama Spec sınıfı DEĞİL. Boşluk değil;\n\
-                 #                   karar: hüküm Spec meselesi mi, mevcut kural yeterli mi?\n\
-                 #                   ⚠️ Bu işaret \"hüküm KARŞILANDI\" DEMEZ — yalnız \"bu kural bu\n\
-                 #                   alanda notice üretti\" der. Ör. route_text_color → RTS_007\n\
-                 #                   (hex format) + RTS_008 (kontrast); RTS_008 meşru Quality'dir\n\
-                 #                   ama spec'in Color-tipi hükmünü karşılamaz.\n\
-                 #   kanıtsız satır  = ADJUDİKASYON gerekir; ÖNCE MEVCUT KURALI ARA.\n\
+                 # ⚠️ PROVISION EXTRACTION IS COARSE: it is derived only from the field table's\n\
+                 # Presence/Type/PK columns. Prose conditions (\"only when B=1\", \"one of two is\n\
+                 # required\", \"A and B together\"), cross-file conditions, trip-level consistency,\n\
+                 # and GeoJSON internal-structure requirements are OUT OF SCOPE. This ledger does not\n\
+                 # measure ALL normative provisions, only the portion derivable from the field table.\n\
+                 #   [no-check] = the field name never occurs in k2–k7 checking stages → gap CERTAIN\n\
+                 #               (k1_parse.rs is excluded: known_columns already counts every column).\n\
+                 #   [only: …]  = a rule measures the field, but is NOT Spec class. Not a gap;\n\
+                 #               decide whether the provision is a Spec matter and whether the rule is enough.\n\
+                 #                   ⚠️ This marker does NOT mean \"provision SATISFIED\" — only that\n\
+                 #                   \"this rule emitted a notice for this field\". E.g. route_text_color → RTS_007\n\
+                 #                   (hex format) + RTS_008 (contrast); RTS_008 is valid Quality,\n\
+                 #                   but does not satisfy the spec's Color-type provision.\n\
+                 #   unsupported row = ADJUDICATION required; SEARCH FOR AN EXISTING RULE FIRST.\n\
                  #\n\
-                 # ── DURUM (2026-08-02): DEFTER BOŞ — ölçülebilen her hüküm çapalanıyor ────\n\
-                 # Defter 32 satırla açıldı; 9'u KAPANDI (RTS_007 Spec'e taşındı;\n\
-                 # AGN_012/RTS_024/TRN_008 sınıfı düzeltildi; `Phone number` hükmü uydurmaydı,\n\
-                 # atom kaldırıldı → 3 satır düştü; attributions route_id/trip_id issue #62\n\
-                 # ile ATR_011/ATR_012'ye ayrıldı → 2 satır düştü). Kalanların HER BİRİ incelendi:\n\
-                 #   • booking_rules booking_url/info_url .. ✅ KAPANDI (BKR_020/021)\n\
-                 #   • fare_leg_join_rules (4 alan) ........ ✅ KAPANDI (FLJ_001..004)\n\
-                 #   • issue #61 ........................... TAMAMI KAPANDI (9 satır):\n\
-                 #     STM_058 · DQ_021 genişletildi (attribution_id + route_networks.route_id)\n\
+                 # ── STATUS (2026-08-02): LEDGER EMPTY — every measurable provision is anchored ────\n\
+                 # The ledger opened with 32 rows; 9 CLOSED (RTS_007 moved to Spec;\n\
+                 # AGN_012/RTS_024/TRN_008 class fixed; the `Phone number` provision was invented,\n\
+                 # atom removed → 3 rows dropped; attributions route_id/trip_id issue #62\n\
+                 # split into ATR_011/ATR_012 → 2 rows dropped). Every remaining row was reviewed:\n\
+                 #   • booking_rules booking_url/info_url .. ✅ CLOSED (BKR_020/021)\n\
+                 #   • fare_leg_join_rules (4 fields) ...... ✅ CLOSED (FLJ_001..004)\n\
+                 #   • issue #61 ........................... FULLY CLOSED (9 rows):\n\
+                 #     STM_058 · DQ_021 expanded (attribution_id + route_networks.route_id)\n\
                  #     PTH_027 · STP_042 · NET_002 · NET_003 · RCT_007 · RTS_029 · TRN_015\n\
-                 #   • calendar 6 gün (enum) ............... ✅ KAPANDI: artefakt olduğu\n\
-                 #     doğrulandı ve GİDERİLDİ — fixture yedi AYRI servisle yedi günü de bozuyor\n\
-                 #     (tek satır yetmez: CAL_002 dedup düzeyi Entity, servis başına tek notice).\n\
-                 #   • routes route_short_name/route_long_name  ✅ KAPANDI: RTS_003 hükmü zaten\n\
-                 #     ölçüyordu ama `field=None` emit ediyordu. Artık iki alanı da adlandırıyor\n\
-                 #     (`route_short_name|route_long_name`) — repoda yerleşik boru konvansiyonu.\n\
-                 #     Değişikliğin gerekçesi defter DEĞİL: R2\'nin \"Alan\" sütunu, feed\'i yayından\n\
-                 #     alıkoyan bir bulguda boş kalıyordu.\n\
+                 #   • calendar 6 days (enum) ................ ✅ CLOSED: confirmed as an artifact\n\
+                 #     and FIXED — the fixture breaks all seven days with seven SEPARATE services\n\
+                 #     (one row is insufficient: CAL_002 is Entity-deduped, one notice per service).\n\
+                 #   • routes route_short_name/route_long_name ✅ CLOSED: RTS_003 already measured\n\
+                 #     them but emitted `field=None`. It now names both fields\n\
+                 #     (`route_short_name|route_long_name`) — the repository's established convention.\n\
+                 #     The reason was NOT this ledger: R2's \"Field\" column was empty in a finding\n\
+                 #     that blocks a feed from publication.\n\
                  #\n\
-                 # ⚠️ DEFTERİN BOŞ OLMASI \"SPEC\'İN TAMAMI ÖLÇÜLÜYOR\" DEMEK DEĞİLDİR — yalnız\n\
-                 # ALAN TABLOSUNDAN türetilebilen hükümler için geçerlidir (yukarıdaki kapsam\n\
-                 # uyarısına bak). YENİ bir satır çıkarsa ya spec değişmiştir ya bir kural\n\
-                 # kalkmıştır ya da bir fixture zayıflamıştır — testi düşürür, adjudike edilmelidir.\n\
+                 # ⚠️ AN EMPTY LEDGER DOES NOT MEAN \"THE ENTIRE SPEC IS MEASURED\" — it applies only\n\
+                 # to provisions derivable from the FIELD TABLE (see the scope warning above).\n\
+                 # If a NEW row appears, the spec changed, a rule was removed, or a fixture weakened\n\
+                 # — the test fails and the row requires adjudication.\n\
                  #\n\
-                 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
+                 # Regenerate: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
                  #   spec_coverage_gaps_match_ledger\n",
                 gaps.len());
             std::fs::write(&ledger_path, format!("{header}{}\n", gaps.join("\n"))).unwrap();
@@ -3585,10 +3595,10 @@ fn spec_coverage_gaps_match_ledger() {
         let added: Vec<&String> = gaps.iter().filter(|g| !ledger.contains(g)).collect();
         let removed: Vec<&String> = ledger.iter().filter(|l| !gaps.contains(l)).collect();
         panic!(
-            "spec kapsam defteri güncel değil ({} hesaplanan, {} defter).\n\
-             YENİ boşluk (spec alan mı ekledi, kural mı kalktı?): {:#?}\n\
-             Defterde fazla (boşluk KAPANDI → defter küçülmeli): {:#?}\n\
-             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+            "spec coverage ledger is stale ({} computed, {} in ledger).\n\
+             NEW gap (did the spec add a field, or was a rule removed?): {:#?}\n\
+             Extra in ledger (gap CLOSED → shrink the ledger): {:#?}\n\
+             To fix: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
              spec_coverage_gaps_match_ledger",
             gaps.len(),
             ledger.len(),
@@ -3598,105 +3608,111 @@ fn spec_coverage_gaps_match_ledger() {
     }
 }
 
-/// B kategorisi — RAPOR (kapı DEĞİL): hüküm sayısı çapalı kural sayısını aşan alanlar.
+/// Category B — REPORT (not a gate): fields whose provision count exceeds the number of anchored rules.
 ///
-/// ⚠️ Bu bir SİNYAL, karar değil. Bir kural birden çok hükmü aynı anda ölçebilir
-/// (ör. "monday geçersiz" hem varlığı hem enum kümesini kapsayabilir), o yüzden
-/// "2 hüküm, 1 kural" satırlarının çoğu meşrudur. Kural başlıklarından hangi hükmün
-/// ölçüldüğünü türetmeyi denedim: başlıkların yalnız %48'i sınıflanabiliyor
-/// (487'nin 252'si hiçbir anahtar sözcüğe uymuyor) — bu güvenilirlikte bir
-/// sınıflandırıcıyı repoya koymak, kaçınmaya çalıştığımız "bayatlayan elle liste"nin
-/// başka biçimi olurdu. Liste bu yüzden İNSAN adjudikasyonu için kuyruktur.
+/// ⚠️ This is a SIGNAL, not a decision. One rule can measure several provisions at once
+/// (e.g. "monday invalid" can cover both presence and the enum domain), so most
+/// "2 provisions, 1 rule" rows are legitimate. I tried to infer the measured provision from
+/// rule titles: only 48% of titles can be classified (252 of 487 match no keyword) — putting
+/// a classifier with this reliability in the repository would be another form of the
+/// "stale hand-maintained list" we are trying to avoid. The list is therefore a queue for
+/// HUMAN adjudication.
 ///
-/// ## ADJUDİKASYON (2026-08-02) — 62 satır 13'e indi
-/// Önce ölçüm düzeltildi: `presence:required` atomu, alan **ARC_025'in zorunlu-sütun
-/// listesindeyse** artık sayılmıyor. Gerekçe: ARC_025 eksik sütunu `field=<sütun>` ile emit
-/// eder (fixture'ı `stops.txt:stop_id` üzerinden kanıtlar), mekanizma tek bir döngüdür ve liste
-/// `required_columns_match_the_specification` ile spec'e kilitlidir. Bu 46 satırı düşürdü.
-/// Ardından `STM_058`'in fixture'ı iki pencere alanını da bozacak şekilde güçlendirildi (−1).
+/// ## ADJUDICATION (2026-08-02) — 62 rows reduced to 13
+/// First, the measurement was corrected: the `presence:required` atom is no longer counted
+/// when the field is in **ARC_025's required-column list**. ARC_025 emits the missing column
+/// as `field=<column>` (proved by the fixture through `stops.txt:stop_id`); the mechanism
+/// is one loop and the list is locked to the spec by `required_columns_match_the_specification`.
+/// This removed 46 rows. Then the `STM_058` fixture was strengthened to break both window
+/// fields (−1).
 ///
-/// **Kalan 13'ün triyajı — üç sınıf:**
-/// 1. **ÖLÇÜM KÖRLÜĞÜ, boşluk YOK** — tek kural iki atomu birden karşılıyor, ölçüm alan başına
-///    KURAL sayar, atom eşleştirmez: `FLJ_003`/`FLJ_004` (karşılıklı koşul + FK'yi birlikte
-///    ölçerler, ben yazdım), `STM_058`↔`STM_039` çifti (biçim + varlık).
-/// 2. **BAŞKA KURAL KARŞILIYOR ama çapalamıyor** — `routes.continuous_pickup/drop_off`'un
-///    koşullu-yasak hükmünü `RTS_028` (Interop) ölçer; `stops.stop_access`'inkini `STP_043`.
-///    İkisi de fixture'da o alanı çapalamıyor.
-/// 3. **SPEC METNİ OKUNDU (2026-08-02) — 7 adayın 2'si KAPALI çıktı:**
+/// **Triage of the remaining 13 — three classes:**
+/// 1. **MEASUREMENT BLINDNESS, NO GAP** — one rule covers two atoms, while the measurement
+///    counts RULES per field rather than matching atoms: `FLJ_003`/`FLJ_004` (they cover
+///    the reciprocal condition + FK together, written by me), and the `STM_058`↔`STM_039`
+///    pair (format + presence).
+/// 2. **ANOTHER RULE COVERS IT but does not anchor it** — `RTS_028` (Interop) measures the
+///    conditional-forbidden provision of `routes.continuous_pickup/drop_off`; `STP_043`
+///    covers `stops.stop_access`. Neither anchors that field in its fixture.
+/// 3. **SPEC TEXT READ (2026-08-02) — 2 of 7 candidates were CLOSED:**
 ///    - `timeframes.start_time` ✅ — *"Required if end_time is defined. Forbidden otherwise."*
-///      `TFR_007` tam bunu ölçer ("start_time ve end_time yalnızca biri tanımlı").
+///      `TFR_007` measures exactly this ("only one of start_time and end_time is defined").
 ///    - `trips.shape_id` ✅ — *"Required if the trip has a continuous pickup or drop-off
-///      behavior."* `TRP_019` tam bunu ölçer.
+///      behavior."* `TRP_019` measures exactly this.
 ///
 ///    **Bu turda kapanan iki aday:**
-///    - `fare_attributes.agency_id` — *"Required if multiple agencies are defined."* artık
-///      `AGN_011` tarafından ölçülüyor; `FAR_008` FK'yi ölçmeye devam ediyor.
-///    - `stop_times.departure_time` — iki alt hükmü var: Flex penceresiyle YASAK (`STM_037` ✅)
-///      ve *"Required for timepoint=1"* (`STM_047` ✅). ⚠️ Kalıcı incelik doğrulandı: spec
-///      ilk/son durak zorunluluğunu YALNIZ `arrival_time` için yazar.
+///    - `fare_attributes.agency_id` — *"Required if multiple agencies are defined."* is now
+///      measured by `AGN_011`; `FAR_008` continues to measure the FK.
+///    - `stop_times.departure_time` — has two sub-provisions: FORBIDDEN with a Flex window
+///      (`STM_037` ✅) and *"Required for timepoint=1"* (`STM_047` ✅). ⚠️ A lasting
+///      nuance was confirmed: the spec requires the first/last stop only for `arrival_time`.
 ///
-///    **Kalan 3 GERÇEK BOŞLUK ADAYI:**
-///    - `booking_rules.prior_notice_duration_max` — `numeric` atomu denetlenmiyor:
-///      `opt_int()` `.parse::<i64>().ok()` kullanıyor, sayı olmayan değer sessiz düşüyor.
-///    - `booking_rules.prior_notice_start_day` — aynı sessiz numeric-parse açığı.
-///    - `stop_times.location_group_id` — koşullu-yasak hükmü denetlenmiyor (`XFL_024` FK'dir).
-///      **Bu üçü SİSTEMİK desenin parçası, aşağıya bak.**
+///    **Three REAL GAP candidates remain:**
+///    - `booking_rules.prior_notice_duration_max` — the `numeric` atom is not checked:
+///      `opt_int()` uses `.parse::<i64>().ok()`, so non-numeric values are silently dropped.
+///    - `booking_rules.prior_notice_start_day` — the same silent numeric-parse gap.
+///    - `stop_times.location_group_id` — the conditional-forbidden provision is unchecked
+///      (`XFL_024` is an FK).
+///      **These three are part of a SYSTEMIC pattern; see below.**
 ///
-/// ## 🔁 SİSTEMİK BULGU — sessiz parse yutması (12 nokta)
-/// `Err(_) => None` / `.parse().ok()` deseni k2'de **12 yerde** duruyor ve 11'inin HEMEN
-/// YANINDA o alanın kuralı var: `location_type`→STP_008 · `wheelchair_boarding`→STP_013 ·
-/// `stop_access`→STP_024 · `timepoint`→STM_022 · `shape_dist_traveled`→STM_030/SHP_021 ·
-/// `cemv_support`→AGN_012/RTS_024 · `wheelchair_accessible`→TRP_006 · `bikes_allowed`→TRP_007 ·
-/// `exact_times`→FRQ_007 · booking_rules'un 4 alanı→`opt_int`.
-/// **Sonuç: ARALIK DIŞI sayı yakalanıyor, SAYI OLMAYAN değer sessizce düşüyor.** Bu oturumda
-/// aynı desen 5 kez tek tek düzeltildi (STM_058 · PTH_027 · RTS_029 · TRP_034 · ARC_031 turu);
-/// 12'si birden düzeltilmeli — çoğunda yanındaki kuralı yeniden kullanmak yeter (PTH_027 emsali).
-/// TERS YÖN — kapsam defterinin aynadaki görüntüsü.
+/// ## 🔁 SYSTEMIC FINDING — silent parse swallowing (12 points)
+/// The `Err(_) => None` / `.parse().ok()` pattern occurs in k2 at **12 points**, and 11 have
+/// a rule for the field RIGHT BESIDE them: `location_type`→STP_008 ·
+/// `wheelchair_boarding`→STP_013 · `stop_access`→STP_024 · `timepoint`→STM_022 ·
+/// `shape_dist_traveled`→STM_030/SHP_021 · `cemv_support`→AGN_012/RTS_024 ·
+/// `wheelchair_accessible`→TRP_006 · `bikes_allowed`→TRP_007 · `exact_times`→FRQ_007 ·
+/// four booking_rules fields→`opt_int`.
+/// **Result: OUT-OF-RANGE numbers are caught, NON-NUMERIC values are silently dropped.** This
+/// pattern was fixed five times individually in this session (STM_058 · PTH_027 · RTS_029 ·
+/// TRP_034 · ARC_031); all 12 should be fixed — in most cases reusing the adjacent rule is enough
+/// (PTH_027 precedent).
+/// REVERSE DIRECTION — the mirror image of the coverage ledger.
 ///
-/// Defter "her hüküm ölçülüyor mu" diye sorar; bu rapor "her Spec iddiası bir hükme dayanıyor
-/// mu" diye sorar. İkinci soru DAHA PAHALI bir hatayı arar: kapsam boşluğu kullanıcıya eksik
-/// bilgi verir, yanlış Spec iddiası ise GEÇERLİ BİR FEED'İ YAYINDAN ALIKOYAR (R1 kapısı saf
-/// `Spec ∧ Kritik`).
+/// The ledger asks "is every provision measured?"; this report asks "does every Spec claim rest
+/// on a provision?" The second question seeks a MORE EXPENSIVE error: a coverage gap gives the
+/// user incomplete information, while a false Spec claim KEEPS A VALID FEED FROM PUBLICATION
+/// (the R1 gate is pure `Spec ∧ Kritik`).
 ///
-/// Ölçüt: `Spec` sınıfı bir kural, spec'in HİÇBİR hüküm atomu üretmediği bir alana çapalanıyor
-/// mu? Alan `Optional`/`Recommended` ve tipi bir şey dayatmıyorsa, o alanda "spec böyle diyor"
-/// demek dayanaksızdır — STM_040 tam olarak buydu (Optional alanda Spec sınıfı, Quality'ye
-/// taşındı).
+/// Metric: is a `Spec`-class rule anchored to a field for which the spec produces NO
+/// provision atom? If the field is `Optional`/`Recommended` and its type imposes nothing,
+/// claiming "the spec says so" is unsupported — that was exactly STM_040 (Spec class on an
+/// Optional field, moved to Quality).
 ///
-/// KAPI DEĞİL, RAPOR: meşru örnekler olabilir (kuralın ölçtüğü hüküm alan tablosunda değil
-/// düzyazıda tanımlıdır). Her satır insan adjudikasyonu ister.
-/// İKİ DEFTERİN DE ORTAK KÖR NOKTASI: `field: None` emit eden kurallar.
+/// NOT A GATE, A REPORT: legitimate examples may exist (the measured provision is defined in
+/// prose rather than the field table). Every row needs human adjudication.
+/// SHARED BLIND SPOT OF BOTH LEDGERS: rules emitting `field: None`.
 ///
-/// Kapsam defteri de iddia defteri de çapayı `(file, field)` üzerinden kurar. Bir kural
-/// `field` yazmıyorsa HİÇBİRİNDE görünmez: ne "bu hüküm ölçülüyor" der, ne "bu iddia
-/// dayanaksız" denetimine girer. `RTS_003` tam bu yüzden defterde "boşluk" görünüyordu.
+/// Both the coverage and claim ledgers anchor on `(file, field)`. If a rule omits `field`,
+/// it appears in NEITHER: it does not say "this provision is measured" and is not checked as an
+/// "unsupported claim." `RTS_003` appeared as a "gap" in the ledger for exactly this reason.
 ///
-/// **Bu defter yalnız Entity/Row düzeyini tutar.** Dosya/feed düzeyi bulgularda (`DedupLevel::
-/// Feed`/`File`) tek bir alan yoktur ve `None` doğrudur — onlar sayılır ama listelenmez.
+/// **This ledger covers only Entity/Row level.** File/feed-level findings (`DedupLevel::
+/// Feed`/`File`) tek bir alan yoktur ve `None` is correct — they are counted but not listed.
 ///
-/// ## ADJUDİKASYON (2026-08-02) — iki sınıf
-/// **(A) TÜRETİLMİŞ OLGU → `None` DOĞRU.** Bulgu tek bir alanın değerinden değil, satırlar
-/// arası bir ilişkiden/istatistikten doğar: "hiç sefer geçmeyen durak" (STP_020) `stops.txt`'te
-/// yanlış bir alan göstermez, `stop_times` ile kurulan ilişkiden gelir. Bir alan adı yazmak
-/// kullanıcıyı yanlış yere bakmaya iter. Bu defterdeki satırların ÇOĞU budur:
-/// analiz (OPR_*, CAL_007/010/012/021, CLD_007, VAT_008, PTH_012/013, STP_020),
-/// graf/istatistik (RTS_016, STP_030, TRP_013, ATR_003'ün karşıtı değil).
+/// ## ADJUDICATION (2026-08-02) — two classes
+/// **(A) DERIVED FACT → `None` CORRECT.** The finding comes from a relation/statistic across
+/// rows, not one field's value: a "stop unused by any trip" (STP_020) does not point to a wrong
+/// field in `stops.txt`; it comes from the relation with `stop_times`. Naming a field
+/// would send the user to the wrong place. MOST rows in this ledger are of this kind:
+/// analytics (OPR_*, CAL_007/010/012/021, CLD_007, VAT_008, PTH_012/013, STP_020), and
+/// graph/statistics (RTS_016, STP_030, TRP_013, not the opposite of ATR_003).
 ///
-/// **(B) SATIRIN ŞEKLİ → `None` DOĞRU.** `ARC_012` (sütun sayısı başlıkla uyuşmuyor) ve
-/// `ARC_018` (boş veri satırı) satırın kendisiyle ilgilidir, herhangi bir alanla değil.
+/// **(B) ROW SHAPE → `None` CORRECT.** `ARC_012` (column count does not match the header)
+/// and `ARC_018` (empty data row) concern the row itself, not any field.
 ///
-/// **(C) ÇAPRAZ DOSYA → `None` ZORUNLU.** `RCT_006` ihlali `rider_categories.
-/// is_default_fare_category`'dedir ama notice `fare_products.txt`'i gösterir. O dosyada olmayan
-/// bir alan adı yazmak `spec_rules_anchor_to_fields_that_exist_in_the_spec` kapısını HAKLI
-/// olarak düşürür. Doğru çözüm notice'ın dosyasını değiştirmek olurdu — ayrı bir karar.
+/// **(C) CROSS-FILE → `None` REQUIRED.** `RCT_006` is violated at `rider_categories.
+/// is_default_fare_category`'dedir ama notice `fare_products.txt` is shown. Naming a field
+/// absent from that file would correctly fail the
+/// `spec_rules_anchor_to_fields_that_exist_in_the_spec` gate. The correct fix would be to
+/// change the notice's file — a separate decision.
 ///
-/// ## 2026-08-02'de DÜZELTİLENLER (belirli alanların ihlaliydi, `None` yanlıştı)
+/// ## FIXED ON 2026-08-02 (these violated specific fields; `None` was wrong)
 /// `RTS_003` · `ATR_003` · `PTH_016` · `TRF_012` · `TRF_016` · `TRN_005` · `TRN_006` ·
 /// `TRN_009` · `TRN_013` · `ATR_009` · `CAL_006` · `CAL_018` · `FRL_007` · `GEO_020` · `PTH_011`
 ///
-/// ## Sınır
-/// `PROOF_ALLOWLIST`'teki kurallar (fatal yola gidenler) hiç notice üretmediği için burada
-/// GÖRÜNMEZ — ayrı bir kör nokta, ayrı iş.
+/// ## Boundary
+/// Rules in `PROOF_ALLOWLIST` (those taking the fatal path) produce no notices and are therefore
+/// INVISIBLE here — a separate blind spot and separate work.
 #[test]
 fn field_none_emitters_match_ledger() {
     use gtfs_core::DedupLevel;
@@ -3746,23 +3762,23 @@ fn field_none_emitters_match_ledger() {
     if found != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
             let header = format!(
-                "# Entity/Row düzeyinde olup HER ZAMAN `field: None` emit eden kurallar. {} kural.\n\
-                 # Biçim: RULE_ID  sınıf\n\
+                "# Rules at Entity/Row level that ALWAYS emit `field: None`. {} rules.\n\
+                 # Format: RULE_ID  class\n\
                  #\n\
-                 # Kapsam defteri ve iddia defteri çapayı `(file, field)` üzerinden kurar; bu\n\
-                 # kurallar İKİSİNDE DE GÖRÜNMEZ. Dosya/feed düzeyi bulgular (DedupLevel Feed/\n\
-                 # File) burada SAYILMAZ — orada tek bir alan yoktur ve None doğrudur.\n\
+                 # The coverage and claim ledgers anchor on `(file, field)`; these\n\
+                 # rules appear in NEITHER. File/feed-level findings (DedupLevel Feed/\n\
+                 # File) is NOT COUNTED here — there is no single field, so None is correct.\n\
                  #\n\
-                 # ⚠️ SATIR OLMASI HATA DEĞİLDİR. Adjudikasyon testin doc yorumunda; üç meşru\n\
-                 # sınıf var: (A) türetilmiş olgu — bulgu satırlar arası ilişkiden doğar, bir\n\
-                 # alan adı kullanıcıyı yanlış yere baktırır; (B) satırın şekli (ARC_012/018);\n\
-                 # (C) çapraz dosya — alan başka dosyada, yazmak çapa kapısını düşürür (RCT_006).\n\
+                 # ⚠️ A ROW IS NOT AUTOMATICALLY AN ERROR. Adjudication is in the test doc comment; three legitimate\n\
+                 # classes exist: (A) derived fact — the finding comes from a relation across rows, so a\n\
+                 # field name would mislead the user; (B) row shape (ARC_012/018);\n\
+                 # (C) cross-file — the field is in another file, so anchoring fails (RCT_006).\n\
                  #\n\
-                 # YENİ bir satır çıkarsa: kural gerçekten türetilmiş bir olgu mu ölçüyor, yoksa\n\
-                 # belirli alanların ihlalini mi anlatıyor? İkincisiyse BORU KONVANSİYONU kullan\n\
-                 # (`a|b`), None bırakma — R2'nin \"Alan\" sütunu boş kalır.\n\
+                 # If a NEW row appears: does the rule really measure a derived fact, or does it\n\
+                 # describe violations of specific fields? If the latter, use the PIPE CONVENTION\n\
+                 # (`a|b`); do not leave None — R2's \"Field\" column would be empty.\n\
                  #\n\
-                 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
+                 # Regenerate: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
                  #   field_none_emitters_match_ledger\n",
                 found.len());
             std::fs::write(&ledger_path, format!("{header}{}\n", found.join("\n"))).unwrap();
@@ -3809,29 +3825,28 @@ fn spec_claims_without_a_provision_match_ledger() {
     if found != ledger {
         if std::env::var("UPDATE_LEDGER").is_ok() {
             let header = format!(
-                "# TERS YÖN — kapsam defterinin aynadaki görüntüsü. {} satır.\n\
-                 # Biçim: dosya:alan  kural[,kural]\n\
+                "# REVERSE DIRECTION — the mirror image of the coverage ledger. {} rows.\n\
+                 # Format: file:field  rule[,rule]\n\
                  #\n\
-                 # Kapsam defteri \"her hüküm ölçülüyor mu\" diye sorar. Bu defter tersini sorar:\n\
-                 # \"her Spec İDDİASI bir hükme dayanıyor mu?\" İkinci soru DAHA PAHALI bir hatayı\n\
-                 # arar — kapsam boşluğu kullanıcıya eksik bilgi verir, yanlış Spec iddiası ise\n\
-                 # GEÇERLİ BİR FEED'İ YAYINDAN ALIKOYAR (R1 kapısı saf `Spec ∧ Kritik`).\n\
+                 # The coverage ledger asks \"is every provision measured?\" This ledger asks the reverse:\n\
+                 # \"does every Spec CLAIM rest on a provision?\" The second question seeks a MORE EXPENSIVE\n\
+                 # error — a coverage gap gives the user incomplete information, while a false Spec claim\n\
+                 # KEEPS A VALID FEED FROM PUBLICATION (the R1 gate is pure `Spec ∧ Kritik`).\n\
                  #\n\
-                 # Ölçüt: `Spec` sınıfı bir kural, alan tablosunun HİÇBİR hüküm atomu üretmediği\n\
-                 # bir alana çapalanıyor mu? Alan Optional/Recommended ve tipi (Text/ID/Phone\n\
-                 # number gibi) bir şey dayatmıyorsa, orada \"spec böyle diyor\" demek dayanaksızdır.\n\
-                 # Emsal: STM_040 (Optional alanda Spec sınıfı → Quality'ye taşındı),\n\
-                 # PTH_017/PTH_028 (spec \"should\" der → tavsiye dalı Quality'ye ayrıldı).\n\
+                 # Is a `Spec`-class rule anchored to a field for which the field table produces no provision atom?\n\
+                 # If an Optional/Recommended field with type Text/ID/Phone imposes nothing, saying\n\
+                 # \"the spec says so\" there is unsupported. Precedent: STM_040 (Spec class on an\n\
+                 # Optional field moved to Quality), PTH_017/PTH_028 (spec says \"should\" → advice branch moved to Quality).\n\
                  #\n\
-                 # ⚠️ SATIR OLMASI HER ZAMAN HATA DEĞİLDİR: hüküm alan tablosunda değil DÜZYAZIDA\n\
-                 # tanımlı olabilir. Ama her satır spec metniyle DOĞRULANMALI; doğrulanamayan\n\
-                 # kuralın sınıfı Quality olmalıdır.\n\
+                 # ⚠️ A ROW IS NOT ALWAYS AN ERROR: the provision may be defined in PROSE rather than\n\
+                 # the field table. But every row MUST BE VERIFIED against the spec text; an unverified\n\
+                 # rule must be Quality class.\n\
                  #\n\
-                 # ⚠️ ALT SINIR, iki yönden: (1) `field=None` emit eden kurallar görünmez;\n\
-                 # (2) yalnız \"hiç atom yok\" hâli yakalanır — alanın BİR hükmü varsa ve kural\n\
-                 # BAŞKA bir şeyi dayatıyorsa görünmez (kapsam defterinin atom-körlüğünün aynası).\n\
+                 # ⚠️ LOWER BOUND, in two ways: (1) rules emitting `field=None` are invisible;\n\
+                 # (2) only the \"no atoms at all\" case is caught — if a field has ONE provision and\n\
+                 # the rule imposes something ELSE, it remains invisible (the coverage ledger's atom blindness mirrored).\n\
                  #\n\
-                 # Yeniden üretmek: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
+                 # Regenerate: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \\\n\
                  #   spec_claims_without_a_provision_match_ledger\n",
                 found.len());
             std::fs::write(&ledger_path, format!("{header}{}\n", found.join("\n"))).unwrap();
@@ -3840,10 +3855,10 @@ fn spec_claims_without_a_provision_match_ledger() {
         let added: Vec<&String> = found.iter().filter(|f| !ledger.contains(f)).collect();
         let removed: Vec<&String> = ledger.iter().filter(|l| !found.contains(l)).collect();
         panic!(
-            "spec iddia defteri güncel değil ({} hesaplanan, {} defter).\n\
-             YENİ dayanaksız Spec iddiası (spec metniyle DOĞRULA — yoksa Quality olmalı): {:#?}\n\
-             Defterde fazla (iddia kalktı/sınıf düzeldi): {:#?}\n\
-             Düzeltmek için: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
+            "spec claim ledger is stale ({} computed, {} in ledger).\n\
+             NEW unsupported Spec claim (VERIFY against spec text — otherwise it must be Quality): {:#?}\n\
+             Extra in ledger (claim removed/class fixed): {:#?}\n\
+             To fix: UPDATE_LEDGER=1 cargo test -p gtfs-pipeline --test emit_proof \
              spec_claims_without_a_provision_match_ledger",
             found.len(),
             ledger.len(),
@@ -3859,15 +3874,15 @@ fn spec_partial_coverage_report() {
     let rows = coverage_rows();
     let total: usize = rows.iter().map(|(_, _, a, _, _)| a.len()).sum();
     let (mut none, mut partial, mut full) = (0usize, 0usize, 0usize);
-    println!("\n### B — hüküm sayısı > çapalı kural sayısı (SİNYAL, karar değil)");
-    println!("`presence:required` atomu, alan ARC_025'in zorunlu-sütun listesindeyse SAYILMAZ:");
-    println!("kural eksik sütunu `field=<sütun>` ile emit eder, mekanizma tek döngüdür ve liste");
+    println!("\n### B — provision count > anchored-rule count (SIGNAL, not a decision)");
+    println!("The `presence:required` atom is excluded when the field is in ARC_025's required-column list:");
+    println!("missing column via `field=<column>`; same loop as the list");
     println!("`required_columns_match_the_specification` ile spec'e kilitlidir.\n");
     for (file, field, atoms, rules, _) in &rows {
         if atoms.is_empty() {
             continue;
         }
-        // Beyan edilmiş çapa kaynağı: ARC_025'in zorunlu-sütun listesi.
+        // Declared anchor source: ARC_025's required-column list.
         let declared_presence =
             gtfs_pipeline::k1_parse::required_fields(file).contains(&field.as_str());
         let atoms: Vec<&str> = atoms
@@ -3889,28 +3904,28 @@ fn spec_partial_coverage_report() {
         }
     }
     println!(
-        "\n### ÖZET ({} hüküm taşıyan alan · {total} hüküm atomu):",
+        "\n### SUMMARY ({} fields with provisions · {total} provision atoms):",
         none + partial + full
     );
-    println!("  Spec çapası YOK ....... {none}   (defterde; \"eksik kural\" DEĞİL — bkz. başlık)");
-    println!("  hüküm > çapalı kural .. {partial}   (sinyal, karar değil)");
-    println!("  hüküm <= çapalı kural . {full}");
-    println!("\n⚠️ Bu sayılar SPEC'İN TOPLAM NORMATİF HÜKMÜ DEĞİLDİR: yalnız alan tablosunun");
-    println!("   Presence/Type/PK sütunlarından türetilen hükümlerdir. Kapsam DIŞI kalanlar:");
-    println!("   düzyazı koşullar (\"yalnız B=1 iken\", \"ikisinden biri zorunlu\", \"A ve B birlikte\"),");
-    println!("   dosyalar arası koşullar, sefer içi tutarlılık, GeoJSON iç yapı şartları.");
+    println!("  NO Spec anchor ....... {none}   (ledger; NOT a \"missing rule\")");
+    println!("  provision > anchors .. {partial}   (signal, not a decision)");
+    println!("  provision <= anchors . {full}");
+    println!("\n⚠️ These are NOT THE SPEC'S TOTAL NORMATIVE PROVISIONS; they come only from");
+    println!("   from the field table's Presence/Type/PK columns. Out of scope:");
+    println!("   prose conditions (\"only when B=1\", \"one of two is required\", \"A and B together\"),");
+    println!("   cross-file conditions, trip-level consistency, and GeoJSON internal-structure requirements.");
 }
 
-/// RAPOR (kapı DEĞİL): çapa ALAN düzeyindedir, ATOM düzeyinde değil.
+/// REPORT (not a gate): anchoring is at FIELD level, not ATOM level.
 ///
-/// `spec_coverage_gaps_match_ledger` bir alanda EN AZ BİR Spec notice görürse o alanı
-/// "kapsanmış" sayar. Ama bir alanın birden çok hüküm atomu olabilir (`presence:required`,
-/// `format` ve `foreign-key`) ve tek bir notice hepsini birden çapalar. Bu rapor, o
-/// kabalığın BÜYÜKLÜĞÜNÜ ölçer: kaç atom, kaç alan, ve kaç alanda atom sayısı onu çapalayan
-/// farklı kural sayısını AŞIYOR.
+/// `spec_coverage_gaps_match_ledger` considers a field "covered" when it sees AT LEAST ONE
+/// Spec notice. But a field may have several provision atoms (`presence:required`, `format`,
+/// and `foreign-key`) and one notice may anchor all of them. This report measures the SIZE of
+/// that crudeness: how many atoms, how many fields, and how many fields have more atoms than
+/// the number of distinct rules anchoring them.
 ///
-/// Aşan alan "kanıtsız" DEMEK DEĞİL — tek kural birden çok atomu meşru olarak ölçebilir
-/// (`STP_003` hem `presence` hem `format` bakar). Şüphe listesidir, borç değil.
+/// An overfull field does not mean "unsupported" — one rule may legitimately measure several
+/// atoms (`STP_003` checks both `presence` and `format`). This is a suspicion list, not debt.
 #[test]
 #[ignore = "rapor: cargo test -- --ignored anchor_granularity_report --nocapture"]
 fn anchor_granularity_report() {
@@ -3935,16 +3950,16 @@ fn anchor_granularity_report() {
     suspect.sort_by_key(|(f, n, p, s, _)| {
         (std::cmp::Reverse(p.len() - s.len()), f.clone(), n.clone())
     });
-    println!("\n=== ÇAPA GRANÜLERLİĞİ ===");
-    println!("hüküm atomu           : {atoms}");
+    println!("\n=== ANCHOR GRANULARITY ===");
+    println!("provision atom        : {atoms}");
     println!("atomu olan alan       : {fields_with_atoms}");
-    println!("atom > Spec kuralı    : {} alan", suspect.len());
+    println!("atom > Spec rule      : {} fields", suspect.len());
     let gap: usize = suspect
         .iter()
         .map(|(_, _, p, s, _)| p.len() - s.len())
         .sum();
-    println!("kapatılmamış atom farkı: {gap}");
-    println!("\n--- en büyük 20 fark ---");
+    println!("uncovered atom gap    : {gap}");
+    println!("\n--- 20 largest gaps ---");
     for (file, field, provs, spec_rules, other) in suspect.iter() {
         let titles: Vec<String> = spec_rules
             .iter()
@@ -3966,16 +3981,16 @@ fn anchor_granularity_report() {
     }
 }
 
-/// `FILE_LEVEL_PROVISIONS.md`, spec'in DOSYA düzeyi koşullu hükümlerinin elle adjudikasyonudur
-/// ve hiçbir kapıya bağlı DEĞİLDİ.
+/// `FILE_LEVEL_PROVISIONS.md` is the manual adjudication of the spec's FILE-level conditional
+/// provisions and was attached to no gate.
 ///
-/// Bu hükümler alan tablosundan türemez, dolayısıyla kapsam defteri onları görmez; düzyazı
-/// kataloğu da `File: …` satırlarını BİLİNÇLİ dışarıda bırakır (`extract_provisions.py`,
-/// gerekçe: bu dosyada zaten adjudike edildiler). Yani yedi hüküm YALNIZ o belgede yaşıyor.
+/// These provisions do not derive from the field table, so the coverage ledger cannot see them;
+/// the prose catalogue also deliberately excludes `File: …` rows (`extract_provisions.py`,
+/// because they are already adjudicated in this document). Thus seven provisions live ONLY there.
 ///
-/// Belgenin kendisi şunu yazıyordu: "Bu ölçüm otomatik DEĞİLDİR — kimse bu adımı
-/// hatırlatmaz." Bu test o cümleyi geçersiz kılar: spec'e yeni bir koşullu dosya eklenir
-/// ya da mevcut biri koşulsuzlaşırsa, belge güncellenene kadar kırmızı yanar.
+/// The document itself said: "This measurement is NOT automatic — nobody reminds us to do it."
+/// This test invalidates that sentence: if the spec adds a conditional file or an existing one
+/// becomes unconditional, the test stays red until the document is updated.
 #[test]
 fn file_level_provisions_doc_covers_every_conditional_file() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -3999,34 +4014,34 @@ fn file_level_provisions_doc_covers_every_conditional_file() {
     }
     assert!(
         missing.is_empty(),
-        "spec'te koşullu ama FILE_LEVEL_PROVISIONS.md'de adjudike EDİLMEMİŞ {} dosya:\n  {}\n\n\
-         Bu hükümler başka hiçbir defterde yok. Belgeyi güncelleyin: koşul metnini, karşılayan \
-         kuralı ve kararı yazın (mevcut yedi satırın biçimi örnek).",
+        "spec has {} conditional files not adjudicated in FILE_LEVEL_PROVISIONS.md:\n  {}\n\n\
+         These provisions appear in no other ledger. Update the document with the condition text, \
+         the rule that satisfies it, and the decision (the existing seven rows are examples).",
         missing.len(),
         missing.join("\n  ")
     );
     assert!(
         conditional >= 7,
-        "spec_fields.json'da yalnız {conditional} koşullu dosya var; 2026-08-02'de yediydi. \
-         Bir dosya koşulsuzlaştıysa FILE_LEVEL_PROVISIONS.md'deki ilgili satır da düşmeli."
+        "spec_fields.json has only {conditional} conditional files; there were seven on 2026-08-02. \
+         If a file became unconditional, its row in FILE_LEVEL_PROVISIONS.md must also be removed."
     );
 }
 
-/// Defterin ÖZET bölümleri, DURUM MAKİNESİ tablosuyla çelişmemeli.
+/// The ledger's SUMMARY sections must not contradict the STATE MACHINE table.
 ///
-/// `PROVISION_TRIAGE.md` 900 satırı aşıyor ve tur bölümleri o günkü kararları taşıyor.
-/// Oturum içinde iki kez oldu: bir boşluk kapatıldı, kural yazıldı, ama özet tablo hâlâ
-/// "AÇIK" diyordu — ve `badge_status.py` durum makinesini okuduğu için yüzde ile belge
-/// birbirini tutmuyordu. Bu test o sapmayı yakalar.
+/// `PROVISION_TRIAGE.md` exceeds 900 lines and its round sections carry decisions from each day.
+/// It happened twice in one session: a gap was closed and a rule written, but the summary table
+/// still said "OPEN" — and because `badge_status.py` reads the state machine, the percentage
+/// and document disagreed. This test catches that drift.
 #[test]
 fn triage_ledger_has_no_stale_open_claims() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let md = std::fs::read_to_string(root.join("spec-audit/PROVISION_TRIAGE.md")).unwrap();
 
-    // Durum makinesinde kapanmış sayılan adaylar
+    // Candidates considered closed by the state machine.
     let start = md
         .find("## 📊 DURUM MAKİNESİ")
-        .expect("DURUM MAKİNESİ bölümü yok");
+        .expect("STATE MACHINE section is missing");
     let end = md[start..]
         .find("**KISMİ adjudikasyonu")
         .map(|i| start + i)
@@ -4039,11 +4054,11 @@ fn triage_ledger_has_no_stale_open_claims() {
         .collect();
     assert!(
         closed.len() >= 12,
-        "durum makinesi çok kısa: {} kayıt",
+        "state machine is too short: {} rows",
         closed.len()
     );
 
-    // Kapanmış bir aday, "AÇIK" ya da "KAPATILMAYACAK" diyen bir satırda geçmemeli
+    // A closed candidate must not occur in a line saying "OPEN" or "WILL NOT BE CLOSED".
     let mut stale = Vec::new();
     for line in md.lines() {
         if !line.contains("AÇIK") && !line.contains("KAPATILMAYACAK") {
@@ -4060,41 +4075,41 @@ fn triage_ledger_has_no_stale_open_claims() {
     }
     assert!(
         stale.is_empty(),
-        "durum makinesinde KAPALI olan {} aday, defterde hâlâ AÇIK görünüyor:\n  {}\n\n\
-         Kapanışı tek yerde tutun; özet satırını da güncelleyin.",
+        "{} candidates marked CLOSED in the state machine still appear OPEN in the ledger:\n  {}\n\n\
+         Record the closure in one place and update the summary row too.",
         stale.len(),
         stale.join("\n  ")
     );
 }
 
-/// Defterin BAŞLIK SAYAÇLARI katalogla ve hesaplanan yüzdeyle tutmalı.
+/// The ledger's HEADER COUNTS must agree with the catalogue and calculated percentage.
 ///
-/// ⚠️ 2026-08-06 DIŞ DENETİMİ: `triage_ledger_has_no_stale_open_claims` yalnız AÇIK/KAPALI
-/// etiketlerini denetliyordu. Denetçi defterin üst kısmının hâlâ "273 aday · 131/131"
-/// dediğini, alt kısmının ise "299 · 146/146" dediğini gösterdi — aynı dosya kendi içinde
-/// tutarsızdı ve bunun için yazılmış bir kapı VARDI ama sayaçları kapsamıyordu.
+/// ⚠️ 2026-08-06 EXTERNAL AUDIT: `triage_ledger_has_no_stale_open_claims` checked only OPEN/CLOSED
+/// labels. The auditor showed that the ledger header still said "273 candidates · 131/131"
+/// while the lower section said "299 · 146/146" — the same file contradicted itself, and a gate
+/// existed for this but did not cover the counts.
 ///
-/// Bu test iki şeyi bağlar: (a) defterdeki katalog toplamı `spec_provisions.json` ile,
-/// (b) paya sayılan (KANITLI/DOLAYLI) hiçbir satır "[Varsayım]" taşımamalı — test
-/// edilmemiş bir çıkarım "ölçülmüş" sayılamaz.
+/// This test binds two things: (a) the ledger catalogue total to `spec_provisions.json`,
+/// (b) no row counted in the numerator (PROVEN/INDIRECT) may carry "[Assumption]" — an untested
+/// inference cannot count as a "measured" number.
 #[test]
 fn ledger_header_counts_match_catalogue() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let md = std::fs::read_to_string(root.join("spec-audit/PROVISION_TRIAGE.md")).unwrap();
     let json = std::fs::read_to_string(root.join("spec-audit/spec_provisions.json")).unwrap();
 
-    // Katalogdaki aday sayısı: `"id": "P…"` satırlarını say (bağımlılıksız).
+    // Count catalogue candidates: count `"id": "P…"` lines (dependency-free).
     let total = json.matches("\"id\":").count();
-    assert!(total > 200, "katalog okunamadı ({total})");
+    assert!(total > 200, "catalogue could not be read ({total})");
     let head: String = md.lines().take(20).collect::<Vec<_>>().join("\n");
     assert!(
         head.contains(&format!("**{total} aday**")),
-        "defterin başlığı katalogla tutmuyor: katalogda {total} aday var ama ilk 20 satırda \
-         '**{total} aday**' geçmiyor. Katalog büyüdüğünde bu satır ELLE güncellenmeli.\n\
-         Başlık:\n{head}"
+        "ledger header disagrees with the catalogue: the catalogue has {total} candidates, but the first 20 lines \
+         do not contain '**{total} aday**'. Update this line MANUALLY when the catalogue grows.\n\
+         Header:\n{head}"
     );
 
-    // Paya sayılan satırlarda test edilmemiş varsayım olmamalı.
+    // Rows counted in the numerator must contain no untested assumption.
     let bad: Vec<&str> = md
         .lines()
         .filter(|l| l.starts_with('|'))
@@ -4103,10 +4118,10 @@ fn ledger_header_counts_match_catalogue() {
         .collect();
     assert!(
         bad.is_empty(),
-        "paya (KANITLI+DOLAYLI) sayılan {} satır 'varsayım' kelimesi taşıyor — ya ÖLÇ ya \
-         KISMİ'ye indir. ⚠️ Kapı bilinçli olarak KATI: kelime yalnız CANLI bir varsayımı \
-         anlatmak için kullanılmalı, tarihsel notta bile geçmemeli (aksi hâlde kapı \
-         ayırt edemez ve zekileştirilirse güvenilmez olur):\n  {}",
+        "{} rows counted in the numerator (KANITLI+DOLAYLI) contain the word 'varsayım' — either MEASURE it \
+         or downgrade it to PARTIAL. ⚠️ The gate is intentionally STRICT: the word should describe only a \
+         LIVE assumption and must not appear even in historical notes (otherwise the gate cannot distinguish \
+         them and becomes unreliable if made clever):\n  {}",
         bad.len(),
         bad.join("\n  ")
     );
