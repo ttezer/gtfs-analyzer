@@ -1,47 +1,48 @@
-//! Kural KİMLİĞİ denetimi — "bir rule_id kaç ayrı OLGU için emit ediliyor?"
+//! Rule IDENTITY check — "for how many distinct FACTS is a rule_id emitted?"
 //!
-//! `emit_coverage.rs` "kural kodda geçiyor mu" (ölü kural) der.
-//! `emit_proof.rs` "kural ateşleyebiliyor mu" der.
-//! `spec_conformance.rs` "geçerli veri sessiz mi" der.
-//! Hiçbiri şunu sormuyordu: **bir rule_id, registry'nin anlattığından BAŞKA bir olgu için de
-//! kullanılıyor mu?**
+//! `emit_coverage.rs` asks "does the rule occur in code" (dead rule).
+//! `emit_proof.rs` asks "can the rule fire?".
+//! `spec_conformance.rs` asks "is valid data silent?".
+//! None asked: **is a rule_id also used for a fact OTHER than the one described by the
+//! registry?**
 //!
-//! Bu kör noktayı ATR_006/ATR_007 gösterdi (issue #62): ATR_006 hem `is_authority` enum'unu
-//! (k2) hem `attributions.route_id` çapraz referansını (k4) emit ediyor; registry başlığı
-//! yalnız birincisini anlatıyor. Bozuk bir `route_id` taşıyan feed, başlığı "is_authority
-//! geçersiz" olan ama çözümü "Geçerli bir route_id kullanın" diyen bir bulgu alıyor. Var olan
-//! bir rule_id'ye ikinci emit noktası eklemek mevcut kapıların HİÇBİRİNE görünmüyordu.
+//! ATR_006/ATR_007 exposed this blind spot (issue #62): ATR_006 emits both the
+//! `is_authority` enum (k2) and the `attributions.route_id` cross-reference (k4), while the
+//! registry title describes only the first. A feed with a bad `route_id` gets a finding whose
+//! title says "is_authority invalid" but whose fix says "Use a valid route_id". Adding a
+//! second emit point to an existing rule_id was visible to NONE of the existing gates.
 //!
-//! ## Ölçüt: AYRIK alan kümeleri
-//! Bir kuralın birden çok emit noktası olması normaldir (eksik/geçersiz dalları, aynı olgunun
-//! birden çok dosyada ölçülmesi). Ayırt edici olan, noktaların **hiç ortak alanı olmaması**:
-//!   `CAL_003` → `[start_date]` ve `[end_date, start_date]`  → kesişiyor, aynı olgu, SESSİZ
-//!   `ATR_006` → `[is_authority]` ve `[route_id]`            → AYRIK, iki farklı olgu, RAPOR
-//! Ölçüldü: ayrıklık filtresi olmadan 32 satır (çoğu pencere taşması), filtreyle 8.
+//! ## Criterion: DISJOINT field sets
+//! Multiple emit points for a rule are normal (missing/invalid branches, or measuring the same
+//! fact in multiple files). The distinguishing case is when points have **no fields in common**:
+//!   `CAL_003` → `[start_date]` and `[end_date, start_date]`  → overlap, same fact, SILENT
+//!   `ATR_006` → `[is_authority]` and `[route_id]`            → DISJOINT, two facts, REPORT
+//! Measured: 32 rows without the disjointness filter (mostly window spillover), 8 with it.
 //!
-//! ## Denenip ELENEN ikinci kontrol
-//! "Registry başlığı bir alan adı içeriyorsa emit noktasında o ad geçmeli" de denendi:
-//! 47 uyarı üretti, neredeyse hepsi gürültü (başlıktaki `feed_info.txt` dosya adından gelen
-//! `feed_info` token'ı; `agency_cemv_support` başlığına karşı `cemv_support` alanı; pencere
-//! taşması). Gerçekten yakaladığı ATR_006/ATR_007'yi bu kontrol zaten yakalıyor → ikinci bir
-//! gürültü kaynağı eklemenin karşılığı YOK, eklenmedi.
+//! ## Second check, tried and REJECTED
+//! We also tried "if a registry title contains a field name, that name must occur at the emit
+//! point": it produced 47 warnings, almost all noise (`feed_info` from the `feed_info.txt`
+//! filename in a title, `cemv_support` for the `agency_cemv_support` field, and window spillover).
+//! This check already catches ATR_006/ATR_007 → adding a second noise source has NO payoff and
+//! was not kept.
 //!
-//! KAPI DEĞİL, DEFTER: meşru örnekler var (DQ_018 yedi metin alanında aynı olguyu ölçer).
-//! Defter yeni satırı reddeder; her yeni satır adjudike edilmelidir.
+//! NOT A GATE, A LEDGER: legitimate examples exist (DQ_018 measures the same fact in seven text fields).
+//! The ledger rejects new rows; every new row must be adjudicated.
 //!
-//! ## Defterin ADJUDİKASYONU (2026-08-01) — gerekçeler burada, çünkü defter yeniden üretilir
-//! | Kural | Karar |
+//! ## Ledger ADJUDICATION (2026-08-01) — reasons live here because the ledger is regenerated
+//! | Rule | Decision |
 //! |---|---|
-//! | ~~ATR_006~~ | ✅ **ÇÖZÜLDÜ (issue #62)** — `route_id` FK'sı `ATR_011`'e ayrıldı; ATR_006 artık yalnız `is_authority` enum'unu ölçer. Defterden düştü. |
-//! | ~~ATR_007~~ | ✅ **ÇÖZÜLDÜ (issue #62)** — `trip_id` FK'sı `ATR_012`'ye ayrıldı; ATR_007 artık yalnız `attribution_url`'i ölçer. Defterden düştü. |
-//! | **STP_003** | ⚠️ Aynı biçim ama **başlıkta AÇIKÇA beyan edilmiş**: *"stop_name eksik veya stop_lat/stop_lon aralık dışı (aynı ID altında iki ayrı koşul)"*. Kullanıcı yanlış etiketlenmiş bulgu almıyor. Bölünmesi ayrı bir karar; #62'de not düşüldü. |
-//! | ~~AGN_013~~ | ✅ **ÇÖZÜLDÜ (2026-09-30)** — K2'deki ilk-acente kopyası kaldırıldı; tek emitter K4 `check_agencies` (acente başına). Defterden düştü. |
-//! | BKR_001 | ✅ Tek olgu: `prior_notice_start_day` / `prior_notice_last_day` aynı yasak bağlamı |
-//! | DQ_018 · DQ_019 | ✅ Tek olgu (all-caps / kontrol karakteri), yedi metin alanında ölçülür |
-//! | OPR_010 | ✅ Başlık ikisini de adlandırır: *"erişilebilirlik VEYA bisiklet politikası çelişiyor"* |
-//! | SHP_009 · SHP_020 | ✅ **Sezgisel gürültü:** yakalanan literaller alan değil, `details` haritası anahtarları (`affected_shapes`, `repeated_shapes`) |
-//! | TRF_017 | ✅ Tek olgu, aktarmanın iki ucu: `from_route_id` / `to_route_id` |
-//! | XFL_021 | ✅ Başlık zaten çifti adlandırır: *"(from_trip_id/to_trip_id, stop_id) çifti"* |
+//! | Rule | Decision |
+//! | ~~ATR_006~~ | ✅ **RESOLVED (issue #62)** — The `route_id` FK was split into `ATR_011`; ATR_006 now measures only the `is_authority` enum. Removed from the ledger. |
+//! | ~~ATR_007~~ | ✅ **RESOLVED (issue #62)** — The `trip_id` FK was split into `ATR_012`; ATR_007 now measures only `attribution_url`. Removed from the ledger. |
+//! | **STP_003** | ⚠️ Same shape, but **EXPLICITLY stated in the title**: *"stop_name missing or stop_lat/stop_lon out of range (two separate conditions under the same ID)"*. Users do not receive a mislabeled finding. Splitting it is a separate decision; noted in #62. |
+//! | ~~AGN_013~~ | ✅ **RESOLVED (2026-09-30)** — The first-agency duplicate in K2 was removed; the sole emitter is K4 `check_agencies` (per agency). Removed from the ledger. |
+//! | BKR_001 | ✅ One fact: `prior_notice_start_day` / `prior_notice_last_day` share the same forbidden context |
+//! | DQ_018 · DQ_019 | ✅ One fact (all-caps / control character), measured across seven text fields |
+//! | OPR_010 | ✅ The title names both: *"accessibility OR bicycle policy conflicts"* |
+//! | SHP_009 · SHP_020 | ✅ **Heuristic noise:** the detected literals are not fields but `details` map keys (`affected_shapes`, `repeated_shapes`) |
+//! | TRF_017 | ✅ One fact, the two ends of a transfer: `from_route_id` / `to_route_id` |
+//! | XFL_021 | ✅ The title already names the pair: *"(from_trip_id/to_trip_id, stop_id) pair"* |
 
 use gtfs_rules::RULES;
 use std::collections::{BTreeMap, BTreeSet};
@@ -55,7 +56,7 @@ fn repo_root() -> PathBuf {
         .unwrap()
 }
 
-/// `#[cfg(test)]` bloklarını brace-eşleştirerek çıkarır (emit_coverage.rs ile aynı yöntem).
+/// Removes `#[cfg(test)]` blocks by matching braces (same method as emit_coverage.rs).
 fn strip_test_mods(src: &str) -> String {
     let marker = "#[cfg(test)]";
     let (mut out, mut rest) = (String::new(), src);
@@ -99,7 +100,7 @@ fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
     }
 }
 
-/// Bir string literal GTFS alan adı gibi mi görünüyor? (snake_case, dosya adı/cümle değil)
+/// Does a string literal look like a GTFS field name? (snake_case, not a filename/sentence)
 fn looks_like_field(s: &str) -> bool {
     s.contains('_')
         && !s.contains('.')
@@ -109,11 +110,11 @@ fn looks_like_field(s: &str) -> bool {
             .all(|b| b.is_ascii_lowercase() || b == b'_' || b.is_ascii_digit())
 }
 
-/// Pencere: rule_id literalinden sonraki satır sayısı. Emit çağrılarının argüman listesi
-/// bundan kısadır; başka bir rule_id literali görülünce erken kesilir.
+/// Window: number of lines after the rule_id literal. Emit call argument lists are
+/// shorter than this; stop early when another rule_id literal appears.
 const WINDOW: usize = 14;
 
-/// rule_id → her emit noktasında görülen alan-benzeri literaller.
+/// rule_id → field-like literals seen at each emit point.
 fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
     let mut files = Vec::new();
     rs_files(&repo_root().join("crates/pipeline/src"), &mut files);
@@ -121,7 +122,7 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
     let mut out: BTreeMap<String, Vec<(String, BTreeSet<String>)>> = BTreeMap::new();
 
     for f in &files {
-        // k7 rapor görünüm mantığı emit kaynağı değil (emit_coverage.rs ile aynı istisna).
+        // k7 report-view logic is not an emit source (same exception as emit_coverage.rs).
         if f.file_name().and_then(|n| n.to_str()) == Some("k7_reporting.rs") {
             continue;
         }
@@ -143,11 +144,11 @@ fn emit_field_sets() -> BTreeMap<String, Vec<(String, BTreeSet<String>)>> {
                     {
                         break;
                     }
-                    // `details` anahtarları (`route_label`, `affected_stops` …) mesaj
-                    // şablonunu doldurur, emit'in HANGİ ALAN için üretildiğini söylemez.
-                    // Alan adı gibi göründükleri için kimlik kümesini kirletiyorlardı:
-                    // OPR_010'un iki emit'i ortak bir `route_label` yüzünden ayrık
-                    // olmaktan çıkıp defterden düşmüştü (2026-08-29).
+                    // `details` keys (`route_label`, `affected_stops` …) fill the message
+                    // template; they do not say WHICH FIELD the emit concerns.
+                    // They looked like field names and polluted the identity set:
+                    // OPR_010's two emits ceased to be disjoint because of a shared `route_label`
+                    // and were removed from the ledger (2026-08-29).
                     if l.contains(".insert(") {
                         continue;
                     }
@@ -175,7 +176,7 @@ fn rule_ids_emitted_for_disjoint_fields_match_ledger() {
         if sites.len() < 2 {
             continue;
         }
-        // Herhangi iki nokta ORTAK alan taşıyorsa aynı olgunun dalları sayılır.
+        // If any two points share a field, treat them as branches of the same fact.
         let overlap = sites
             .iter()
             .enumerate()

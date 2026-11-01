@@ -1,29 +1,29 @@
-//! Emit kapsamı (dead-rule koruması) — issue #5 initial version.
+//! Emit coverage (dead-rule protection) — issue #5 initial version.
 //!
-//! Soru: registry'deki bir kural, pipeline ÜRETİM kodunda gerçekten geçiyor mu, yoksa
-//! "registry'de var ama implementasyon ölü" (dead/orphan rule) mu? card_consistency
-//! kart↔registry tutarlılığını test eder; bu test ise her canonical rule_id'nin
-//! pipeline/src üretim kodunda (test modülleri ve k7 rapor-helper'ı hariç) en az bir
-//! kez string literal olarak geçtiğini doğrular.
+//! Question: does a registry rule actually occur in pipeline PRODUCTION code, or is it
+//! "in the registry but dead in implementation" (a dead/orphan rule)? card_consistency
+//! tests card↔registry consistency; this test verifies that every canonical rule_id occurs
+//! at least once as a string literal in pipeline/src production code (excluding test modules
+//! and the k7 report helper).
 //!
-//! Kapsam: bu "reference proof"tur, tam "emit proof" değildir (gerçek emit-proof için
-//! her kurala kasıtlı fixture gerekir — issue #5 "full version"/C, ayrı iş). Yine de
-//! asıl korkuyu — registry'ye eklenip emit kodu hiç yazılmayan ya da emit kodu silinen
-//! kural — güvenilir biçimde yakalar. Feed gerektirmez, CI'da çalışır.
+//! Scope: this is "reference proof", not full "emit proof" (a real emit proof needs
+//! an intentional fixture for every rule — issue #5 "full version"/C, a separate task).
+//! It nevertheless reliably catches the main concern: a rule added to the registry without
+//! emit code, or a rule whose emit code was deleted. It needs no feed and runs in CI.
 
 use gtfs_rules::RULES;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Statik string-literal taramasıyla görünmeyen, ama gerçekten emit edilen kurallar.
-/// Bunlar dinamik/fatal yollarla üretilir; rule_id kaynak kodda literal geçmez.
+/// Rules that are emitted in reality but are invisible to static string-literal scanning.
+/// These are produced through dynamic/fatal paths; the rule_id does not occur as a source literal.
 const DYNAMIC_EMIT_ALLOWLIST: &[&str] = &[
-    // Fatal yol: FatalCode::ZipUnreadable olarak döner (Notice değil), rule_id literal yok.
-    "ARC_001", // "ZIP arşivi açılamadı"
+// Fatal path: returned as FatalCode::ZipUnreadable (not a Notice); no rule_id literal exists.
+        "ARC_001", // "ZIP archive could not be opened"
     // Fatal yol: FatalCode::DecompressionLimit (k1_parse.rs, GuardedReader).
-    // 2026-08-15'e kadar listede DEĞİLDİ ve kapıdan yalnız yorum satırlarındaki
-    // "ARC_029" geçişleri sayesinde geçiyordu; collect_rule_ids sıkılaşınca ortaya çıktı.
-    "ARC_029", // "Sıkıştırma sınırı aşıldı (zip-bomb koruması)"
+// This was NOT in the list until 2026-08-15 and passed the gate only because of
+// "ARC_029" occurrences in comments; tightening collect_rule_ids exposed it.
+        "ARC_029", // "Compression limit exceeded (zip-bomb protection)"
 ];
 
 fn repo_root() -> PathBuf {
@@ -33,8 +33,8 @@ fn repo_root() -> PathBuf {
         .expect("repo kökü bulunamadı")
 }
 
-/// `#[cfg(test)]` ile başlayan modül bloklarını brace-eşleştirerek metinden çıkarır.
-/// (Bir dosyada birden çok test bloğu olabilir; emit kodu bloklar arasında kalabilir.)
+/// Removes module blocks beginning with `#[cfg(test)]` from the text by matching braces.
+/// (A file may contain multiple test blocks; emit code may occur between them.)
 fn strip_test_mods(src: &str) -> String {
     let marker = "#[cfg(test)]";
     let mut out = String::new();
@@ -42,7 +42,7 @@ fn strip_test_mods(src: &str) -> String {
     while let Some(pos) = rest.find(marker) {
         out.push_str(&rest[..pos]);
         let after = &rest[pos..];
-        // Modül gövdesinin ilk '{'ını bul, eşleşen '}'a kadar atla.
+            // Find the module body's first '{' and skip through its matching '}'.
         if let Some(brace) = after.find('{') {
             let bytes = after.as_bytes();
             let mut depth = 0i32;
@@ -63,7 +63,7 @@ fn strip_test_mods(src: &str) -> String {
             }
             rest = &after[k..];
         } else {
-            // '{' yoksa kalan her şeyi at (güvenli taraf).
+            // If there is no '{', discard the remainder (safe side).
             rest = "";
         }
     }
@@ -86,22 +86,22 @@ fn is_rule_id(s: &str) -> bool {
     !digits.is_empty() && digits.bytes().all(|c| c.is_ascii_digit()) && suffix.len() <= 1
 }
 
-/// STRING LİTERALİ içindeki rule_id token'larını toplar.
+/// Collects rule_id tokens inside STRING LITERALS.
 ///
-/// 🔴 Eskiden tırnak-bağımsızdı ve "bir rule_id'nin kaynakta token olarak geçmesi kod
-/// canlı sayılır" diyordu. Bu kapıyı bir YORUM SATIRI tatmin edebiliyordu: `ARC_029`
-/// üretim kodunda yalnız `// ... ARC_029 (DecompressionLimit) Fatal'ı üretilir` gibi
-/// yorumlarda geçtiği hâlde kapı yeşildi. Emit noktası `notice(..., "ARC_029", ...)`
-/// biçiminde bir literaldir; ölçü artık o. Tırnaksız geçiş sayılmaz.
+/// 🔴 It used to be quote-independent and said "a rule_id occurring as a source token
+/// counts as live code." A COMMENT LINE could satisfy that gate: the gate was green when
+/// `ARC_029` occurred only in comments such as `// ... ARC_029 (DecompressionLimit) Fatal
+/// is emitted` in production code. The emit point is a literal in the form
+/// `notice(..., "ARC_029", ...)`; that is the measure now. Unquoted occurrences do not count.
 ///
-/// Ölçüldü (2026-08-15): sıkılaştırma yalnız iki kuralı düşürüyor — ikisi de Fatal
-/// yolla üretilen ve `DYNAMIC_EMIT_ALLOWLIST`'e ait olanlar.
+/// Measured (2026-08-15): the tightening drops only two rules—both are produced through
+/// the Fatal path and belong to `DYNAMIC_EMIT_ALLOWLIST`.
 fn collect_rule_ids(text: &str, into: &mut std::collections::HashSet<String>) {
     let bytes = text.as_bytes();
     let is_word = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
     let mut i = 0;
     while i < bytes.len() {
-        // Yorum: satır sonuna kadar atla (string içindeki `//` aşağıda korunur).
+            // Comment: skip to end of line (the `//` inside strings is preserved below).
         if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
             i = text[i..].find('\n').map_or(bytes.len(), |n| i + n);
             continue;
@@ -154,7 +154,7 @@ fn every_canonical_rule_referenced_in_production_code() {
 
     let mut referenced = std::collections::HashSet::new();
     for f in &files {
-        // k7_reporting.rs rapor görünüm mantığı + test-helper içerir; emit kaynağı değil.
+        // k7_reporting.rs contains report-view logic and test helpers; it is not an emit source.
         if f.file_name().and_then(|n| n.to_str()) == Some("k7_reporting.rs") {
             continue;
         }
@@ -179,8 +179,8 @@ fn every_canonical_rule_referenced_in_production_code() {
     );
 }
 
-/// Allowlist'in çürümesini önler: allowlist'teki bir kural artık gerçekten kodda
-/// geçmeye başladıysa (veya registry'den kalktıysa) allowlist'ten çıkarılmalı.
+/// Prevents allowlist rot: if an allowlisted rule starts occurring in real code
+/// (or is removed from the registry), it must be removed from the allowlist.
 #[test]
 fn dynamic_emit_allowlist_has_no_stale_entries() {
     let canonical: std::collections::HashSet<&str> = RULES.iter().map(|r| r.id).collect();
