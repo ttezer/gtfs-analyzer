@@ -150,3 +150,6 @@ f43597ba
 
 # Translate K5 derived-data comments.
 77a9da7c
+
+# Translate missed K5 inline comments and restore comment indentation.
+db19cd77
