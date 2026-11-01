@@ -571,14 +571,14 @@ impl Rfc4180Acc {
     }
 }
 
-/// RFC 4180 uyumlu CSV tokenizer. Byte-level scanner; büyük dosyalarda hızlı.
-/// `max_data_rows`: başlık hariç maksimum satır sayısı (None = sınırsız).
-/// Limit aşıldığında kalan baytlar işlenmez; dönen vec truncated olur.
+/// RFC 4180-compatible CSV tokenizer. Byte-level scanner; fast on large files.
+/// `max_data_rows`: maximum number of rows excluding the header (None = unlimited).
+/// When the limit is exceeded, remaining bytes are not processed and the returned vec is truncated.
 ///
-/// Üçüncü dönüş değeri RFC 4180 ihlallerinin birikimidir (`ARC_033`); tokenizer HATA
-/// vermez, ayrıştırmaya bugünkü gibi devam eder. Bilinçli: ihlal edilmiş bir tırnak
-/// veriyi okunamaz yapmıyor, `ARC_013`'e (zorunlu dosyada FATAL) bağlamak geçerliye yakın
-/// feed'leri reddetmek olurdu — `PTH_017` asimetrisi.
+/// The third return value accumulates RFC 4180 violations (`ARC_033`); the tokenizer does not
+/// return an ERROR and continues parsing as before. Deliberately: making a malformed quote make
+/// data unreadable and connecting it to `ARC_013` (FATAL for a required file) would reject
+/// near-valid feeds — the `PTH_017` asymmetry.
 fn tokenize_csv(
     text: &str,
     max_data_rows: Option<usize>,
@@ -595,14 +595,14 @@ fn tokenize_csv(
     let mut rfc = Rfc4180Acc::default();
 
     while pos < n {
-        // `records.len()` şu an kurulan kaydın indeksidir; başlık 0 → satır 1, ilk veri
-        // satırı 1 → satır 2. Çağıran döngü de aynı kabulü kullanıyor (`row_idx + 2`).
+        // `records.len()` is the index of the record being built; header 0 → row 1, first data
+        // row 1 → row 2. The caller's loop uses the same convention (`row_idx + 2`).
         let line_no = (records.len() + 1) as u64;
         let mut record: Vec<SmolStr> = Vec::with_capacity(col_hint);
 
         loop {
             if bytes[pos] == b'"' {
-                // Quoted field — SmolStr dönüştürme için geçici String gerekir
+                // Quoted field — converting to SmolStr requires a temporary String.
                 pos += 1;
                 let mut buf = String::new();
                 let mut closed = false;
@@ -629,22 +629,23 @@ fn tokenize_csv(
                 if !closed {
                     return Err("Kapanmamış tırnak işareti (unclosed quote)".to_string());
                 }
-                // RFC 4180: kapanış tırnağından sonra ayraç gelmeli. Gelmiyorsa alan
-                // içindeki bir tırnak KAÇIRILMAMIŞ demektir (`"Broadway"Ave`). Tokenizer
-                // bugüne dek burada sessizce kaydı bölüyordu — veri de kayboluyordu.
+                // RFC 4180: a delimiter must follow a closing quote. If it does not, a quote
+                // inside the field was NOT ESCAPED (`"Broadway"Ave`). Until now the tokenizer
+                // silently split the record here — and data was lost.
                 if pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
                     rfc.observe(line_no, RFC4180_AFTER_CLOSE, &buf);
-                    // 🔴 Kalan metin AYNI alana eklenir, YENİ bir alan açılmaz.
+                    // 🔴 The remaining text is appended to the SAME field; no NEW field is opened.
                     //
-                    // Eski davranış alanı burada kapatıyordu ve `"Thonon Les Arts" A compter
-                    // du 01/09/2026` gibi bir hücre İKİ alana bölünüyordu. Sonuç sütun
-                    // kaymasıdır: `tdg-80973/routes.txt`'te 7 satır böyle yazılmış ve
-                    // `route_id` bir sonraki sütuna kaydığı için `RTS_031` "route_id
-                    // zorunludur" diye Spec·KRİTİK bulgu üretiyordu — ARC_033'ün saydığı
-                    // 7 satırla BİREBİR aynı satırlar.
+                    // The old behavior closed the field here and split a cell such as
+                    // `"Thonon Les Arts" A compter du 01/09/2026` into TWO fields. The result
+                    // was column drift: 7 rows in `tdg-80973/routes.txt` were written this way,
+                    // and `route_id` shifted into the next column, producing a Spec·CRITICAL
+                    // finding that "route_id is required" for `RTS_031` — exactly the 7 rows
+                    // counted by ARC_033.
                     //
-                    // İhlal yine bildirilir (yukarıdaki `observe`); değişen, ihlalin VERİYİ
-                    // BOZMAMASI. Python'un `csv` modülü de aynı toleransı uygular.
+                    // The violation is still reported (by the `observe` above); what changes is
+                    // that the violation does NOT CORRUPT THE DATA. Python's `csv` module uses
+                    // the same tolerance.
                     while pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
                         let b = bytes[pos];
                         if b < 0x80 {
@@ -659,7 +660,7 @@ fn tokenize_csv(
                 }
                 record.push(SmolStr::new(&buf));
             } else {
-                // Unquoted field — doğrudan slice'tan SmolStr (≤22 byte → inline, heap alloc yok)
+                // Unquoted field — SmolStr directly from the slice (≤22 bytes → inline, no heap allocation).
                 let start = pos;
                 let mut bare_quote = false;
                 while pos < n {
@@ -667,8 +668,8 @@ fn tokenize_csv(
                     if b == b',' || b == b'\n' || b == b'\r' {
                         break;
                     }
-                    // RFC 4180 §2.5: tırnaksız alanda tırnak GEÇEMEZ. Eski tarayıcı bunu
-                    // sıradan bir karakter sayıyordu, yani ihlal HİÇ görünmüyordu.
+                    // RFC 4180 §2.5: a quote MUST NOT occur in an unquoted field. The old scanner
+                    // treated it as an ordinary character, so the violation was NEVER reported.
                     bare_quote |= b == b'"';
                     pos += 1;
                 }
@@ -685,7 +686,7 @@ fn tokenize_csv(
                 b',' => {
                     pos += 1;
                     if pos >= n {
-                        // Sondaki virgül + newline yok: boş alan push et
+                        // Trailing comma with no newline: push an empty field.
                         record.push(SmolStr::new(""));
                         break;
                     }
@@ -710,7 +711,7 @@ fn tokenize_csv(
             col_hint = record.len();
             records.push(record);
             if let Some(max) = max_data_rows {
-                // records[0] başlık; veri satırı sayısı records.len()-1
+                // records[0] is the header; the number of data rows is records.len()-1.
                 if records.len().saturating_sub(1) > max {
                     records.pop();
                     truncated = true;
@@ -723,29 +724,30 @@ fn tokenize_csv(
     Ok((records, truncated, rfc))
 }
 
-// ── Şema yardımcıları ─────────────────────────────────────────────────────────
+// ── Schema helpers ────────────────────────────────────────────────────────────
 
-/// Dosya başına zorunlu sütun seti. Sütun başlıkta yoksa ARC_025; değer boşsa ilgili k2 grup kuralı.
+/// Required column set per file. A missing header produces ARC_025; an empty value is handled by
+/// the relevant K2 group rule.
 ///
-/// ⚠️ **ELLE BAKIMLI ve ARC_025 Kritik·Spec'tir** — buraya KOŞULLU bir alan yazmak geçerli bir
-/// feed'i yayından alıkoyar. 2026-08-02'de `transfers.from_stop_id`/`to_stop_id` tam olarak
-/// böyleydi (spec: "Optional if transfer_type is 4 or 5"). Liste artık spec'e karşı
-/// `required_columns_match_the_specification` testiyle kilitli.
+/// ⚠️ **MANUALLY MAINTAINED and ARC_025 Critical·Spec** — adding a CONDITIONAL field here blocks
+/// a valid feed from publication. That was exactly the case for
+/// `transfers.from_stop_id`/`to_stop_id` on 2026-08-02 (spec: "Optional if transfer_type is 4 or 5").
+/// The list is now locked against the spec by `required_columns_match_the_specification`.
 ///
-/// `pub`: üretimde tek çağıranı bu dosyadır, ama kapsam ölçümü (`emit_proof.rs`) bu listeyi
-/// **beyan edilmiş çapa kaynağı** olarak kullanır — ARC_025 eksik sütunu `field=<sütun>` ile
-/// emit eder ve mekanizma tek bir döngüdür, dolayısıyla listede olmak o alanın
-/// `presence:required` hükmünün denetlendiğinin kanıtıdır. (Fixture'la her sütunu tek tek
-/// tetiklemek ~100 fixture demek olurdu; CAL_002'de yapılan şey burada ölçeklenmiyor.)
+/// `pub`: this file is the only production caller, but scope measurement (`emit_proof.rs`) uses
+/// this list as the **declared anchor source** — ARC_025 emits the missing column as
+/// `field=<sütun>`, and the mechanism is one loop, so membership proves that the field's
+/// `presence:required` requirement is checked. (Triggering every column one by one with fixtures
+/// would require ~100 fixtures; what was done for CAL_002 does not scale here.)
 pub fn required_fields(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt" => &["agency_name", "agency_url", "agency_timezone"],
         "stops.txt" => &["stop_id"],
         "routes.txt" => &["route_id", "route_type"],
         "trips.txt" => &["route_id", "service_id", "trip_id"],
-        // stop_id KOŞULLU zorunlu (spec): "Required if stop_times.location_group_id AND
-        // stop_times.location_id are NOT defined. Forbidden if ... are defined." Koşul
-        // başlıklara bakılarak `required_fields_for` içinde uygulanır.
+        // stop_id is CONDITIONALLY required (spec): "Required if stop_times.location_group_id AND
+        // stop_times.location_id are NOT defined. Forbidden if ... are defined." The condition
+        // is applied in `required_fields_for` based on the headers.
         "stop_times.txt" => &["trip_id", "stop_sequence"],
         "calendar.txt" => &[
             "service_id",
@@ -767,15 +769,16 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
             "shape_pt_sequence",
         ],
         "frequencies.txt" => &["trip_id", "start_time", "end_time", "headway_secs"],
-        // ⚠️ `from_stop_id`/`to_stop_id` BURADA OLMAMALI — spec ikisini de KOŞULLU yapar:
+        // ⚠️ `from_stop_id`/`to_stop_id` MUST NOT BE HERE — the spec makes both conditional:
         // "Required if transfer_type is empty, 0, 1, 2, or 3. Optional if transfer_type is 4 or 5."
-        // 4/5 koltuk-içi aktarmalardır ve `from_trip_id`/`to_trip_id` kullanırlar. Yalnız 4/5
-        // aktarması olan GEÇERLİ bir feed, sütunları taşımadığı için ARC_025 (Kritik·Spec) alıyor
-        // ve R1'de düşüyordu — geçerli feed'i yayından alıkoyan bir yanlış pozitif.
-        // Gerçekten koşulsuz Required olan alan `transfer_type`'tır ve listede YOKTU.
-        // (2026-08-02, ARC_025'in listesi spec'le karşılaştırıldı.)
+        // 4/5 are onboard transfers and use `from_trip_id`/`to_trip_id`. A VALID feed with only
+        // type-4/5 transfers received ARC_025 (Critical·Spec) and failed R1 because it omitted
+        // these columns — a false positive that blocked a valid feed from publication.
+        // The only truly unconditional Required field is `transfer_type`, which was missing.
+        // (2026-08-02, the ARC_025 list was compared with the spec.)
         "transfers.txt" => &["transfer_type"],
-        // transfers boş = sınırsız transfer (geçerli GTFS değeri) — değer-boş kuralı tetiklenmemeli
+        // Empty transfers = unlimited transfers (a valid GTFS value) — the empty-value rule must
+        // not fire.
         "fare_attributes.txt" => &[
             "fare_id",
             "price",
@@ -802,9 +805,9 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
         "fare_media.txt" => &["fare_media_id", "fare_media_type"],
         "fare_products.txt" => &["fare_product_id", "amount", "currency"],
         "fare_leg_rules.txt" => &["fare_product_id"],
-        // Spec: dört alanın da bileşik birincil anahtar parçası; ağ alanları Required,
-        // durak alanları karşılıklı koşullu (FLJ_003/004 ölçer) → required_fields'a yalnız
-        // koşulsuz Required olan ikisi girer.
+        // Spec: all four fields are part of the composite primary key; network fields are
+        // Required, while stop fields are mutually conditional (measured by FLJ_003/004) → only
+        // the two unconditional Required fields belong in required_fields.
         "fare_leg_join_rules.txt" => &["from_network_id", "to_network_id"],
         "fare_transfer_rules.txt" => &["fare_transfer_type"],
         "areas.txt" => &["area_id"],
@@ -814,45 +817,46 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
         "booking_rules.txt" => &["booking_rule_id", "booking_type"],
         "location_groups.txt" => &["location_group_id"],
         "location_group_stops.txt" => &["location_group_id", "stop_id"],
-        // organization_name spec'te Required; liste boş bırakılmıştı (2026-08-02'de eklendi).
+        // organization_name is Required in the spec; it was missing from the list (added on 2026-08-02).
         "attributions.txt" => &["organization_name"],
-        // route_networks.txt'in İKİ alanı da spec'te Required (dosya 2026-08-02'de tanıtıldı).
+        // Both fields in route_networks.txt are Required in the spec (the file was introduced on 2026-08-02).
         "route_networks.txt" => &["network_id", "route_id"],
         _ => &[],
     }
 }
 
-/// ARC_009: boş (yalnız-başlık) dosya KRİTİK mi? Zorunlu dosyalar (agency/stops/routes/trips/
-/// stop_times) + servis tanımlayan takvim dosyaları (calendar/calendar_dates) boşsa veri beklenen
-/// yerde yoktur → KRİTİK. Diğer OPSİYONEL dosyaların (transfers, fare_*, shapes, frequencies,
-/// translations, Fares v2/Flex/JP …) boş eklenmesi zararsızdır → BİLGİ'ye düşürülür.
+/// ARC_009: is an empty (header-only) file CRITICAL? If required files (agency/stops/routes/trips/
+/// stop_times) plus service-defining calendar files (calendar/calendar_dates) are empty, data is
+/// absent where it is expected → CRITICAL. Empty optional files (transfers, fare_*, shapes,
+/// frequencies, translations, Fares v2/Flex/JP …) are harmless → downgraded to INFO.
 fn arc009_critical(filename: &str) -> bool {
     REQUIRED_FILES.contains(&filename) || CALENDAR_FILES.contains(&filename)
 }
 
-/// Bu dosyanın OKUNAMAMASI yayın kararını sakatlar mı (issue #133).
+/// Would being unable to READ this file invalidate the publication decision (issue #133)?
 ///
-/// Zorunlu dosyalar + servis tanımlayan takvim dosyaları. Bunlardan biri okunamazsa ona
-/// bağlı kuralların hiçbiri koşmaz ve "bulgu yok" ifadesi "temiz" anlamına gelmez.
-/// İsteğe bağlı dosyalar (`attributions`, `fare_*`, `shapes`, …) BİLEREK dışarıda: onların
-/// kaybı koşumu PARTIAL yapar ama kapıyı düşürmemelidir.
+/// Required files plus service-defining calendar files. If one cannot be read, none of its
+/// dependent rules run, and "no findings" does not mean "clean".
+/// Optional files (`attributions`, `fare_*`, `shapes`, …) are deliberately excluded: losing one
+/// makes the run PARTIAL but must not fail the gate.
 pub fn is_certification_critical(filename: &str) -> bool {
     arc009_critical(filename)
 }
 
-/// DQ_016: baştaki/sondaki boşluk **ham sözlükbilimsel ihlaldir**. Bu, yalnız string/id
-/// alanları için değil, sayısal, enum, tarih ve saat alanları için de geçerlidir: parser'ın
-/// boşluğu tolere etmesi üretici girdisini değiştirmez. Tipli kontroller ham değeri görmeye
-/// devam eder; aşağı akıştaki yalnızca bu kök nedenden doğan bulgular K7'de bastırılır.
-/// DQ_016 dosya-seviyesi toplayıcı: boşluklu satır sayısı + etkilenen sütun kümesi + ham örnek.
+/// DQ_016: leading/trailing whitespace is a **raw lexical violation**. This applies not only to
+/// string/id fields but also to numeric, enum, date, and time fields: the parser tolerating
+/// whitespace does not change the producer's input. Typed checks continue to see the raw value;
+/// K7 suppresses only downstream findings caused by this root cause.
+/// DQ_016 file-level accumulator: count of rows with whitespace + affected column set + raw sample.
 ///
-/// **Neden özet, satır-başına değil:** baş/son boşluk tek bir ÜRETİCİ ALIŞKANLIĞIDIR
-/// (en sık: ayraç olarak `,` yerine `, ` yazmak) → dosyanın HER satırında çıkar.
-/// Satır-başına emit `mdb-992`'de **2.361.873** notice üretiyordu (feed toplamının
-/// %98,6'sı; MobilityData aynı feed'de 12) — tarayıcıyı OOM eden STM_050 vakasının
-/// aynısı. Tespit doğru (RFC 4180'e göre o boşluk alanın parçası), sorun sunum.
+/// **Why aggregate instead of emitting per row:** leading/trailing whitespace is one PRODUCER
+/// HABIT (most often writing `, ` instead of `,`) → it appears on EVERY row in the file.
+/// Per-row emission produced **2,361,873** notices in `mdb-992` (98.6% of the feed total;
+/// MobilityData produced 12 for the same feed) — the same case where STM_050 exhausted the
+/// browser. Detection is correct (under RFC 4180 the whitespace is part of the field); the
+/// problem is presentation.
 ///
-/// Üç emit sitesi de (K1 genel, K2 stop_times, K2 shapes) bunu kullanır.
+/// All three emit sites (general K1, K2 stop_times, K2 shapes) use this.
 #[derive(Default)]
 pub(crate) struct Dq016Acc {
     pub rows: u64,
