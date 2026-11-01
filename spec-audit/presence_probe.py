@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Her şüpheli alan için: değeri BOŞ bırakıldığında çapalayan kural ateşliyor mu?
+"""For each suspicious field: does the anchoring rule fire when its value is EMPTY?
 
-`presence:required` atomu ancak boş değerde bir notice çıkarsa GERÇEKTEN ölçülüyordur.
-grep ile `is_empty()` aramak yetmez — yönü söylemez (ARS_001'de "boşsa atla" çıktı).
+The `presence:required` atom is REALLY measured only if an empty value produces a notice.
+Searching for `is_empty()` with grep is insufficient — it does not show the direction (ARS_001 turned out to say "skip when empty").
 """
 import json, subprocess, sys, zipfile, pathlib, tempfile
 
@@ -14,7 +14,7 @@ BASE = {
  "stop_times.txt":"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\n",
  "calendar.txt":"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC,1,1,1,1,1,0,0,20250101,20261231\n",
 }
-# (kural, dosya, ek/değiştirilen içerik) — hedef alan BOŞ
+# (rule, file, added/modified content) — target field EMPTY.
 CASES = [
  ("ARS_001","areas.txt","area_id,area_name\n,Bolge\n"),
  ("CAL_002","calendar.txt","service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC,,1,1,1,1,0,0,20250101,20261231\n"),

@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""T5'in 9 boşluğu + 2 yanlış pozitifi için korpus ölçümü (statik tarama).
+"""Corpus measurement for T5's 9 gaps + 2 false positives (static scan).
 
-Doğrulayıcı KOŞULMAZ — zip+csv okunur, token maliyeti ~0.
+The validator is NOT RUN — ZIP+CSV files are read, with ~0 token cost.
 
-⚠️ BAŞLIK TUZAĞI: gerçek feed başlıkları tırnaklı ("from_stop_id") ya da baştan
-boşluklu (" agency_id") olabilir. Pipeline normalize eder, naif bir sözlük sorgusu
-etmez. 2026-08-02'de bu tuzak İKİ KEZ uydurma sonuç üretti. Bu yüzden başlık
-csv.reader ile okunur ve strip+tırnak temizliği yapılır.
+⚠️ HEADER TRAP: real feed headers may be quoted ("from_stop_id") or have leading
+spaces (" agency_id"). The pipeline normalizes them; do not use a naive dictionary lookup.
+This trap produced false results TWICE on 2026-08-02. Therefore read headers with csv.reader
+and strip whitespace and quotes.
 
-⚠️ Bu tarama kural predicate'ini YAKLAŞIK taklit eder. "0 eşleşme" gerçek predicate
-farklıysa yanlış olabilir; çelişki hâlinde taramaya değil doğrulayıcı koşusuna güven.
+⚠️ This scan APPROXIMATES the rule predicates. "0 matches" may be wrong if the real predicate
+differs; when they conflict, trust the validator run, not the scan.
 """
 import csv, io, json, re, sys, zipfile, pathlib, collections
 
-# Korpus repoda DEĞİL (notgit/ gitignore). Yol kullanıcının yerel kopyasına göre.
+# The corpus is NOT IN THE REPO (notgit/ is gitignored). The path is relative to the user's local copy.
 CORPUS = pathlib.Path("notgit/corpus/zips")
 csv.field_size_limit(10_000_000)
 
-# ISO 4217 minor units — varsayılan 2, aşağıdakiler ayrıksı.
+# ISO 4217 minor units — default 2, with the exceptions below.
 MINOR = {**{c: 0 for c in "BIF CLP DJF GNF ISK JPY KMF KRW PYG RWF UGX UYI VND VUV XAF XOF XPF".split()},
          **{c: 3 for c in "BHD IQD JOD KWD LYD OMR TND".split()}}
 
@@ -27,22 +27,22 @@ URL_FIELDS = {
     "attributions.txt": ["attribution_url"], "booking_rules.txt": ["booking_url", "info_url"],
     "rider_categories.txt": ["eligibility_url"],
 }
-# HTML taraması: metin taşıyan küçük/orta dosyalar. stop_times bilinçli DIŞARIDA (hacim).
+# HTML scan: small/medium files carrying text. stop_times is deliberately EXCLUDED (volume).
 HTML_FILES = ["agency.txt", "stops.txt", "routes.txt", "trips.txt", "feed_info.txt",
               "attributions.txt", "levels.txt", "pathways.txt", "translations.txt"]
-# İlk ölçüm çok gevşekti: "K.A.Wheel&Tire;" entity sanıldı, "St Sauvant >< St Césaire"
-# etiket sanıldı → 1991 uydurma eşleşme. Yalnız GERÇEK HTML etiket adları ve BİLİNEN
-# entity'ler sayılır.
+# The first measurement was too loose: "K.A.Wheel&Tire;" was treated as an entity, and
+# "St Sauvant >< St Césaire" as a tag → 1,991 false matches. Count only REAL HTML tag names
+# and KNOWN entities.
 TAGS = "a|b|i|u|p|br|hr|em|strong|span|div|img|font|ul|ol|li|table|tr|td|th|h1|h2|h3|small|sub|sup"
 HTML_RE = re.compile(rf"<\s*/?\s*({TAGS})\b[^<>]*>|<!--|&(nbsp|amp|lt|gt|quot|apos|#\d{{2,5}}|#x[0-9a-fA-F]{{2,4}});", re.I)
 
 
 def rows(zf, name):
-    """(başlık-normalize edilmiş) sözlük satırları. Dosya yoksa boş."""
+    """(Header-normalized) dictionary rows. Empty when the file is absent."""
     try:
         raw = zf.read(name)
     except KeyError:
-        # sarılı kök: tek üst klasöre gömülü feed
+        # Wrapped root: feed nested under one top-level directory.
         cand = [n for n in zf.namelist() if n.endswith("/" + name)]
         if not cand:
             return
@@ -73,21 +73,21 @@ def main():
         except Exception:
             continue
         try:
-            # ── 1. URL şeması ────────────────────────────────────────────────
+            # ── 1. URL scheme ────────────────────────────────────────────────
             for fname, fields in URL_FIELDS.items():
                 for row in rows(zf, fname):
                     for f in fields:
                         v = get(row, f)
-                        # Şemasız veya bozuk değer ('1', '-') zaten looks_like_url'den
-                        # düşer ve mevcut kural ateşler; yeni bulgu üretmez. Ölçülen şey:
-                        # geçerli bir ŞEMA taşıyan ama http/https OLMAYAN değer.
+                        # Values without a scheme or with a malformed value ('1', '-') already
+                        # fail looks_like_url and fire the existing rule; they produce no new finding.
+                        # Measure values carrying a valid SCHEME but not http/https.
                         if v and re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*:", v) \
                                 and not v.lower().startswith(("http://", "https://")):
                             hit["1_url_scheme"][fid] += 1
                             if len(sample["1_url_scheme"]) < 25:
                                 sample["1_url_scheme"].append(f"{fid} {fname}.{f}={v[:60]}")
 
-            # ── 2. HTML etiketi / kaçış dizisi ───────────────────────────────
+            # ── 2. HTML tag / entity ─────────────────────────────────────────
             for fname in HTML_FILES:
                 for row in rows(zf, fname):
                     for k, v in row.items():
@@ -96,19 +96,19 @@ def main():
                             if len(sample["2_html"]) < 25:
                                 sample["2_html"].append(f"{fid} {fname}.{k}={v[:60]}")
 
-            # ── 3. record_sub_id gereklilik yönü ─────────────────────────────
+            # ── 3. record_sub_id requirement direction ──────────────────────
             for row in rows(zf, "translations.txt"):
                 if get(row, "table_name") == "stop_times" and get(row, "record_id") \
                         and not get(row, "record_sub_id"):
                     hit["3_record_sub_id"][fid] += 1
 
-            # ── 4. start_day yasağı (booking_type=1 + duration_max) ──────────
+            # ── 4. start_day prohibition (booking_type=1 + duration_max) ─────
             for row in rows(zf, "booking_rules.txt"):
                 if get(row, "booking_type") == "1" and get(row, "prior_notice_duration_max") \
                         and get(row, "prior_notice_start_day"):
                     hit["4_start_day"][fid] += 1
 
-            # ── 5. ISO 4217 ondalık basamak ──────────────────────────────────
+            # ── 5. ISO 4217 decimal places ───────────────────────────────────
             for fname, amt, cur in (("fare_products.txt", "amount", "currency"),
                                     ("fare_attributes.txt", "price", "currency_type")):
                 for row in rows(zf, fname):
@@ -117,15 +117,15 @@ def main():
                         continue
                     want = MINOR.get(c, 2)
                     dec = len(a.split(".", 1)[1]) if "." in a else 0
-                    # 'CZK 39' (ondalıksız tam sayı) korpusta evrensel ve okunuşu
-                    # belirsiz değil; ilk ölçüm bunu ihlal sayıp 2 milyon eşleşme verdi.
-                    # Anlamlı ihlal FAZLA basamaktır: 'JPY 100.00' (yen minor unit'i 0).
+                    # 'CZK 39' (whole number without decimals) is universal in the corpus and unambiguous;
+                    # the first measurement treated it as a violation and produced 2 million matches.
+                    # The meaningful violation is TOO MANY decimal places: 'JPY 100.00' (yen minor unit is 0).
                     if dec > want:
                         hit["5_iso4217"][fid] += 1
                         if len(sample["5_iso4217"]) < 25:
                             sample["5_iso4217"].append(f"{fid} {fname} {c} {a} (beklenen {want} basamak)")
 
-            # ── 6. boarding area varken platforma pathway ────────────────────
+            # ── 6. pathway to a platform when a boarding area exists ─────────
             parents_with_ba, ptypes = set(), {}
             for row in rows(zf, "stops.txt"):
                 sid, lt = get(row, "stop_id"), get(row, "location_type")
@@ -138,12 +138,12 @@ def main():
                         if get(row, f) in parents_with_ba:
                             hit["6_platform_pathway"][fid] += 1
 
-            # ── 8. traversal_time tavsiyesi (mode 3/4/5) ─────────────────────
+            # ── 8. traversal_time recommendation (mode 3/4/5) ────────────────
             for row in rows(zf, "pathways.txt"):
                 if get(row, "pathway_mode") in ("3", "4", "5") and not get(row, "traversal_time"):
                     hit["8_traversal_time"][fid] += 1
 
-            # ── 9. platform_code'da "platform"/"track" ───────────────────────
+            # ── 9. "platform"/"track" in platform_code ───────────────────────
             for row in rows(zf, "stops.txt"):
                 pc = get(row, "platform_code").lower()
                 if pc and re.search(r"\b(platform|track|peron|gleis|voie|quai|binario|via|anden)\b", pc):
@@ -151,10 +151,10 @@ def main():
                     if len(sample["9_platform_code"]) < 25:
                         sample["9_platform_code"].append(f"{fid} platform_code={pc[:40]}")
 
-            # ── 10. translations.field_value hedefte gerçekten var mı ────────
+            # ── 10. Does translations.field_value actually exist at the target? ─
             # Spec: "The field must have exactly the value defined in field_value."
-            # `field_value` biçimi yalnız DEĞERE göre eşleşir; eşleşen satır yoksa çeviri
-            # sessizce etkisizdir.
+            # `field_value` matches only by VALUE; when no row matches, the translation
+            # silently has no effect.
             tr_rows = [r for r in rows(zf, "translations.txt")
                        if get(r, "field_value") and not get(r, "record_id")]
             if tr_rows:
@@ -168,12 +168,12 @@ def main():
                     if fname not in cache:
                         cache[fname] = list(rows(zf, fname))
                     if not cache[fname]:
-                        continue          # dosya yok → başka kural (XFL_016) ilgilenir
-                    # `field_name` o dosyada GERÇEKTEN bir sütun mu? Değilse ihlal
-                    # `TRN_002`'nin ("field_name bu tablo için geçersiz") alanıdır ve
-                    # burada sayılırsa aynı olgu iki kez raporlanır. İlk ölçümde
-                    # `routes.long_name` (doğrusu `route_long_name`) bu yüzden 2546
-                    # sahte bulgu üretti.
+                        continue          # no file → another rule (XFL_016) covers it
+                    # Is `field_name` REALLY a column in that file? If not, it is the
+                    # `TRN_002` case ("field_name is invalid for this table"), and counting it
+                    # here reports the same fact twice. The first measurement therefore produced
+                    # 2,546 false findings for `routes.long_name` (correct:
+                    # `route_long_name`).
                     if fld not in cache[fname][0]:
                         continue
                     if not any(get(r, fld) == want for r in cache[fname]):
@@ -181,9 +181,9 @@ def main():
                         if len(sample["10_field_value"]) < 25:
                             sample["10_field_value"].append(f"{fid} {tbl}.{fld}={want[:40]}")
 
-            # ── 11. exact_times=1 iken end_time headway sınırında mı ─────────
-            # Spec: end_time son sefer başlangıcından BÜYÜK ama başlangıç+headway'den
-            # KÜÇÜK olmalı → (end-start) headway'in TAM KATI olmamalı.
+            # ── 11. Is end_time on the headway boundary when exact_times=1? ──
+            # Spec: end_time must be GREATER than the last trip start but LESS than start+headway
+            # → (end-start) must not be an EXACT MULTIPLE of headway.
             def _secs(v):
                 p = v.split(":")
                 return int(p[0]) * 3600 + int(p[1]) * 60 + int(p[2]) if len(p) == 3 else None
@@ -196,36 +196,36 @@ def main():
                 except (ValueError, IndexError):
                     continue
                 if s is None or e is None or h <= 0 or e <= s:
-                    continue              # FRQ_005/FRQ_004'ün alanı
+                    continue              # covered by FRQ_005/FRQ_004
                 if (e - s) % h == 0:
                     hit["11_exact_times"][fid] += 1
                     if len(sample["11_exact_times"]) < 25:
                         sample["11_exact_times"].append(
                             f"{fid} start={get(row,'start_time')} end={get(row,'end_time')} headway={h}")
 
-            # ── 12. pickup_type=2 / drop_off_type=2 iken booking rule önerilir ─
-            # Spec: "Recommended when pickup_type=2" (ve drop_off ikizi). STM_040 bunun
-            # yerine FLEX PENCERESİ varken booking rule arar — farklı popülasyon.
-            # ⚠️ stop_times büyük olabilir; yalnız gerekli sütunlara bakılır.
-            # ⚠️ `booking_rules.txt` YOKSA tavsiye uygulanamaz: `pickup_booking_rule_id`
-            # yazılsa FK kırılır (BKR_017). İlk ölçüm bu kapıyı koymayınca 97.355 satır
-            # verdi ve en yoğun dört feed'in hiçbirinde booking_rules.txt yoktu.
-            # ⚠️ DOSYA VARLIĞI YETMEZ, KAYIT olmalı: iki feed `booking_rules.txt`'i yalnız
-            # BAŞLIK satırıyla taşıyor. Kural `records.booking_rules.is_empty()`'e bakar ve
-            # doğru davranır (bağlanacak kural yoksa tavsiye uygulanamaz); dosya varlığına
-            # bakan ilk ölçüm o feed'leri sayıp kuralla çelişmişti.
+            # ── 12. Recommend a booking rule when pickup_type=2 / drop_off_type=2 ─
+            # Spec: "Recommended when pickup_type=2" (and the drop_off counterpart). STM_040 instead
+            # looks for a booking rule when a FLEX WINDOW exists — a different population.
+            # ⚠️ stop_times can be large; inspect only the required columns.
+            # ⚠️ The recommendation cannot be applied when `booking_rules.txt` is ABSENT:
+            # writing `pickup_booking_rule_id` would break the FK (BKR_017). The first measurement
+            # lacked this gate, returned 97,355 rows, and none of the four largest feeds had booking_rules.txt.
+            # ⚠️ FILE EXISTENCE IS NOT ENOUGH; records must exist: two feeds carry only the
+            # `booking_rules.txt` HEADER. The rule checks `records.booking_rules.is_empty()` and behaves
+            # correctly (a recommendation cannot apply when there is no rule to reference); the first
+            # measurement counted those feeds by file existence and contradicted the rule.
             has_booking = any(True for _ in rows(zf, "booking_rules.txt"))
             for row in (rows(zf, "stop_times.txt") if has_booking else []):
                 if get(row, "pickup_type") == "2" and not get(row, "pickup_booking_rule_id"):
                     hit["12_pickup_type2"][fid] += 1
                 if get(row, "drop_off_type") == "2" and not get(row, "drop_off_booking_rule_id"):
                     hit["12_pickup_type2"][fid] += 1
-                # Aynı satırda Flex penceresi de varsa STM_040 zaten konuşuyor — ayrı say.
+                # When the same row also has a Flex window, STM_040 already covers it — count separately.
                 if (get(row, "pickup_type") == "2" or get(row, "drop_off_type") == "2") and (
                         get(row, "start_pickup_drop_off_window") or get(row, "end_pickup_drop_off_window")):
                     hit["12b_overlaps_stm040"][fid] += 1
 
-            # ── FP-A. agency_phone vanity (spec'te İZİNLİ, biz reddediyoruz) ─
+            # ── FP-A. agency_phone vanity (ALLOWED by spec, rejected by us) ───
             for row in rows(zf, "agency.txt"):
                 ph = get(row, "agency_phone")
                 if ph and any(c.isalpha() for c in ph):

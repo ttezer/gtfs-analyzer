@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Kataloğun KÖR NOKTASINI ölç: modal taşımayan ama bağlayıcı olabilen cümleler.
+"""Measure the catalogue's BLIND SPOT: sentences without a modal that may still be binding.
 
-`extract_provisions.py` modal-tabanlıdır (`must`/`shall`/`Required`/`should`…). Bu betik
-onun ELEDİĞİ cümleleri toplar ve normatif olma ihtimaline göre sınıflar.
+`extract_provisions.py` is modal-based (`must`/`shall`/`Required`/`should`…). This script
+collects the sentences it FILTERS OUT and classifies them by likelihood of being normative.
 
-⚠️ Bu bir ADAY üreticisidir, sayaç değil. Betimleyici cümleyi hükümden ayırmak insan işidir;
-betik yalnız "bakılması gereken kaç cümle var" sorusuna alt sınır verir.
+⚠️ This is a CANDIDATE generator, not a counter. Separating descriptive sentences from provisions
+is human work; the script only gives a lower bound for "how many sentences need review".
 """
 import html, json, pathlib, random, re, sys, collections
 
@@ -13,15 +13,15 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 _args = [a for a in sys.argv[1:] if not a.startswith("--")]
 _flags = {a.split("=")[0]: a.split("=", 1)[-1] for a in sys.argv[1:] if a.startswith("--")}
 SPEC = _args[0] if _args else "spec.html"
-# --sample=N: sinyalsiz kümeden N cümlelik DETERMİNİSTİK örneklem bas (triyaj girdisi).
+# --sample=N: print a DETERMINISTIC sample of N sentences from the unsignalled set (triage input).
 SAMPLE = int(_flags.get("--sample", 0))
 SEED = int(_flags.get("--seed", 764))
 
-# extract_provisions.py ile AYNI mantık — yoksa "elenmiş" küme yanlış olur.
+# SAME logic as extract_provisions.py — otherwise the "filtered" set would be wrong.
 sys.path.insert(0, "spec-audit")
 import extract_provisions as ep
 
-# Normatif OLABİLİR sinyalleri. Modal yok ama kısıt/yasak/koşul bildiriyor olabilir.
+# Signals that MAY be normative. No modal, but they may express a constraint/prohibition/condition.
 SIGNALS = {
     "case-sensitivity": r"\bcase[- ]sensitive\b",
     "kısıt (only/just)": r"\b(only|just)\b",
@@ -34,24 +34,24 @@ SIGNALS = {
     "emir kipi": r"^(Use|Refer|Do not|Avoid|Ensure|Note that|Provide|Set|Include|Omit)\b",
     "koşul (if/when/unless)": r"^(If|When|Unless|Otherwise)\b|\b(if and only if)\b",
 }
-# Betimleyici olduğuna işaret eden kalıplar — normatif sayılma ihtimalini DÜŞÜRÜR.
+# Patterns indicating a descriptive sentence — LOWER the likelihood of treating it as normative.
 DESCRIPTIVE = re.compile(
     r"\b(defines?|indicates?|specifies|describes?|denotes?|identifies|represents?|"
     r"for example|e\.g\.|i\.e\.|see the|refer to https?|available at)\b", re.I)
 
-# Sinyal TAŞIMAYAN cümlelerin YAPISAL kategorileri (2026-08-06 triyajı).
-# Bunlar tek tek okunmaz, kategori olarak adjudike edilir ve TAM sayılır:
-#   • PRIMARY KEY → normatif (benzersizlik ekseni); 32'si de adjudike edildi.
-#   • ENUM / PRESENCE → alan tablosu ekseninin atomları; düzyazı paydasında değiller.
-#   • BAŞLIK / ÖRNEK / JS → çıkarım gürültüsü ve betimleyici.
-# ⚠️ `Primary Key` BÜYÜK K ile de yazılıyor (`fare_leg_join_rules.txt`) — case varsayımı
-# bu betikte bir kez daha ısırmıştı.
+# STRUCTURAL categories of sentences with NO SIGNAL (2026-08-06 triage).
+# These are not read one by one; adjudicate the category and count it in FULL:
+#   • PRIMARY KEY → normative (uniqueness axis); all 32 were adjudicated.
+#   • ENUM / PRESENCE → atoms of the field-table axis; not in the prose denominator.
+#   • HEADING / EXAMPLE / JS → extraction noise and descriptive text.
+# ⚠️ `Primary Key` also appears with an uppercase K (`fare_leg_join_rules.txt`) — the case assumption
+# bit this script once again.
 STRUCTURAL = {
     "PRIMARY KEY (normatif)":        r"^Primary [Kk]ey\s*\(",
     "ENUM değeri (alan tablosu)":    r"^\s*\d+( or empty)?\s*[-–]\s|^Valid options are:",
     "BAŞLIK/TOC (gürültü)":          r"¶$|^[a-z_]+\.txt$|^(Field Definitions|File Requirements|Dataset Files|Term Definitions)",
-    # `^Example[: ]` BÜYÜK E bilinçli (cümle başı etiketi); `for example` ise cümle içinde
-    # de başında da geçer → yalnız O ALTERNATİF case-insensitive (`(?i:...)`).
+    # `^Example[: ]` has an intentional uppercase E (sentence-start label); `for example` can occur
+    # both inside and at the start of a sentence → only THAT ALTERNATIVE is case-insensitive (`(?i:...)`).
     "ÖRNEK (betimleyici)":           r"^Example[: ]|\b(?i:for example)\b",
     "PRESENCE parçası (alan tablosu)": r"^-\s*(Optional|Required|Forbidden|Conditionally)",
     "JS/sayfa çöpü (gürültü)":       r"function\(|__md_get|document\.|window\.__",
@@ -70,12 +70,12 @@ def main() -> int:
         for source, field, sentence in items:
             if ep.FILE_HEADER.match(sentence):
                 continue
-            if ep.classify(sentence):          # modal VAR → katalogda zaten
+            if ep.classify(sentence):          # modal PRESENT → already in the catalogue
                 modal_hits += 1
                 continue
             modalless.append((anchor, field, source, sentence))
 
-    # sinyal eşleştirme
+    # Match signals.
     tagged = collections.defaultdict(list)
     untagged = []
     for anchor, field, source, s in modalless:
@@ -86,9 +86,9 @@ def main() -> int:
             untagged.append((anchor, field, s))
 
     if "--residual" in _flags:
-        # Ne modal, ne normatif sinyal, ne de yapısal kategori taşıyan cümleler.
-        # 2026-08-06'da bu kümenin TAMAMI okundu; çıktı defterle karşılaştırılabilsin diye
-        # sıra DETERMİNİSTİK (belge sırası) ve numaralı.
+        # Sentences with neither a modal, a normative signal, nor a structural category.
+        # This set was read in FULL on 2026-08-06; make the order DETERMINISTIC (document order)
+        # and numbered so the output can be compared with the ledger.
         pats = {k: re.compile(v) for k, v in STRUCTURAL.items()}
         rest = [(a, f, s) for a, f, s in untagged
                 if not any(p.search(s) for p in pats.values())]
@@ -109,7 +109,7 @@ def main() -> int:
 
     total_modalless = len(modalless)
     signalled = sum(len(v) for v in tagged.values())
-    # betimleyici işareti taşıyanları ayır
+    # Separate those carrying a descriptive marker.
     strong_candidates = []
     weak = 0
     for combo, rows in tagged.items():
