@@ -1980,11 +1980,12 @@ pub fn parse_with_limits(
         .param("limit", MAX_ZIP_ENTRIES));
     }
 
-    // ARC_009 yanlış-pozitif guard'ı: calendar_dates.txt boş (veya yalnızca başlık) olsa bile
-    // calendar.txt servisi tanımlıyorsa bu KRİTİK değildir (calendar_dates şartlı zorunludur,
-    // calendar.txt varken opsiyoneldir). Döngü-sırasından bağımsız olsun diye önceden hesaplanır.
-    // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
-    // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
+    // ARC_009 false-positive guard: even if calendar_dates.txt is empty (or header-only), it is
+    // not CRITICAL when calendar.txt defines service (calendar_dates is conditionally required
+    // and optional when calendar.txt is present). Compute this before the loop so it is
+    // independent of entry order. If calendar.txt is ABSENT, empty calendar_dates means "no
+    // service is defined" → ARC_009 remains. A feed wrapped in one top-level folder uses that
+    // folder as its root (see detect_wrapped_root).
     let mut entry_names = Vec::with_capacity(archive.len());
     let mut metadata_bytes = 0usize;
     for (i, name) in archive.file_names().enumerate() {
@@ -2021,9 +2022,9 @@ pub fn parse_with_limits(
             "GTFS .txt dosyaları birden fazla/derin alt dizinde bulundu; kök keşfi güvenli değil",
         );
     }
-    // 🔴 "DOSYA VAR" ile "DOSYA VERİ TAŞIYOR" ayrı sorulardır ve bastırma İKİNCİSİNE
-    // bakmalıdır. Sıfır baytlık bir `calendar.txt`, boş `calendar_dates.txt`'i mazur
-    // GÖSTERMEZ: o durumda feed'in hiç servis tanımı yoktur.
+    // 🔴 "FILE EXISTS" and "FILE CARRIES DATA" are separate questions, and suppression must
+    // inspect the SECOND. A zero-byte `calendar.txt` does not EXCUSE an empty `calendar_dates.txt`:
+    // in that case the feed has no service definition.
     let mut file_has_data = |name: &str| -> bool {
         archive
             .index_for_name(name)
@@ -2036,25 +2037,23 @@ pub fn parse_with_limits(
         .iter()
         .any(|n| n.replace('\\', "/") == calendar_entry)
         && file_has_data(&calendar_entry);
-    // 🔑 AYNI TOLERANS TERS YÖNDE DE GEÇERLİ (#166). Spec: "calendar.txt —
+    // 🔑 THE SAME TOLERANCE ALSO APPLIES IN THE OPPOSITE DIRECTION (#166). Spec: "calendar.txt —
     // Required UNLESS all dates of service are defined in calendar_dates.txt."
-    // Yani veri calendar_dates.txt'te tanımlıyken boş calendar.txt GEÇERLİDİR.
-    // Bastırma yalnız bir yöne yazılmıştı: boş `calendar_dates.txt` tolere
-    // ediliyor, boş `calendar.txt` KRİTİK olarak raporlanıyordu. Tam katalog
-    // koşumunda `ARC_009`'un 104 CRITICAL feed'inin 59'u tam bu vakaydı ve
-    // MobilityData hiçbirinde konuşmuyordu — onların `empty_file`'ı yalnız
-    // ZORUNLU dosyada ateşler, koşullu zorunluda değil.
+    // Therefore an empty calendar.txt is VALID when service data is defined in calendar_dates.txt.
+    // Suppression had been written in only one direction: empty `calendar_dates.txt` was
+    // tolerated, while empty `calendar.txt` was reported as CRITICAL. In the full catalog run,
+    // 59 of `ARC_009`'s 104 CRITICAL feeds were exactly this case, and MobilityData reported none
+    // of them — its `empty_file` fires only for REQUIRED files, not conditionally required ones.
     //
-    // 🔴 "İkisi de boşsa DQ_005 sahiplenir" DİYE YAZILMIŞTI VE ÖLÇÜLMEMİŞTİ. 7. koşumda
-    // `ntd-60089` ve beş kardeşinde her iki dosya da 0 BAYT; `DQ_005` ateşlemiyor ve
-    // hiçbir kural "bu feed'in hiç servisi yok" demiyordu. MobilityData `empty_file`'ı
-    // yedi dosya için basarken biz beş diyorduk — fark tam olarak bu iki dosyaydı.
-    // Bastırma artık diğer dosyanın VERİ TAŞIMASINI şart koşar, yalnız varlığını değil.
+    // 🔴 "If both are empty, DQ_005 owns it" HAD BEEN WRITTEN BUT NOT MEASURED. In run 7,
+    // both files were 0 BYTES in `ntd-60089` and five sibling feeds; `DQ_005` did not fire and
+    // no rule said that the feed had no service. MobilityData emitted `empty_file` for seven
+    // files while we emitted five — these two files were exactly the difference.
+    // Suppression now requires the other file to CARRY DATA, not merely to exist.
     //
-    // ⚠️ SINIR: kontrol sıkıştırılmamış BOYUTA bakar (`size() > 0`), ayrıştırma sonucuna
-    // değil. Sıfır baytlık dosya yakalanır; "yalnız başlık satırı içeren" dosya yakalanmaz,
-    // çünkü bastırma bayrakları dosya döngüsünden ÖNCE hesaplanır ve o noktada henüz hiçbir
-    // dosya ayrıştırılmamıştır. Korpusta ölçülen altı vakanın altısı da 0 bayttır.
+    // ⚠️ LIMIT: the check uses uncompressed SIZE (`size() > 0`), not the parse result. A zero-byte
+    // file is caught; a "header-only" file is not, because suppression flags are computed BEFORE
+    // the file loop and no file has been parsed yet. All six measured corpus cases were 0 bytes.
     let calendar_dates_entry =
         format!("{}calendar_dates.txt", root_prefix.as_deref().unwrap_or(""));
     let has_calendar_dates_txt = entry_names
@@ -2062,9 +2061,9 @@ pub fn parse_with_limits(
         .any(|n| n.replace('\\', "/") == calendar_dates_entry)
         && file_has_data(&calendar_dates_entry);
 
-    // ARC_036: akış görünümü tutarlılığı. Merkez dizin metadata'sı burada toplanır; ham
-    // bayt karşılaştırmasını `count_inconsistent_stream_headers` yapar. `by_index_raw`
-    // seçildi çünkü karar için AÇMA gerekmiyor, yalnız başlık alanları okunuyor.
+    // ARC_036: stream-view consistency. Central-directory metadata is collected here; raw-byte
+    // comparison is performed by `count_inconsistent_stream_headers`. Use `by_index_raw` because
+    // the decision does not require DECOMPRESSION, only reading header fields.
     let stream_entries: Vec<(u64, u64, u64, u32)> = (0..archive.len())
         .filter_map(|i| {
             archive.by_index_raw(i).ok().map(|zf| {
@@ -2091,16 +2090,16 @@ pub fn parse_with_limits(
     let mut present_files: HashSet<String> = HashSet::new();
     let mut custom_file_headers: std::collections::HashMap<String, Vec<String>> =
         std::collections::HashMap::new();
-    // ARC_035: mevcut ama hiç veri satırı taşımayan dosyalar. Bulgu traversal sonunda,
-    // ARC_004'ün yanında üretilir — Flex muafiyeti (`has_valid_locations_geojson`) ancak
-    // orada güvenilirdir, çünkü ZIP girdi sırası locations.geojson'u sonraya atabilir.
+    // ARC_035: files that exist but carry no data rows. Emit the finding at the end of traversal,
+    // next to ARC_004 — the Flex exemption (`has_valid_locations_geojson`) is reliable only
+    // there because ZIP entry order may place locations.geojson later.
     let mut empty_files: HashSet<String> = HashSet::new();
-    // locations.geojson özel işlendiği için present_files'e aşağıdaki dalda eklenir.
+    // locations.geojson is handled specially, so it is added to present_files in the branch below.
     let mut has_valid_locations_geojson = false;
-    // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
+    // Per-file primary-key column index for DQ_016 — the first "*_id" column.
     let _dq016_dummy = ();
 
-    // #46: zip-bomb koruması — tüm girdiler boyunca açılan toplam bayt (traversal geneli).
+    // #46: zip-bomb protection — total bytes decompressed across all entries (the whole traversal).
     let mut total_decompressed: u64 = 0;
     for i in 0..archive.len() {
         k1dbg!("[K1] by_index({i})...");
@@ -2115,8 +2114,8 @@ pub fn parse_with_limits(
         })?;
 
         let entry_name = zf.name().map_err(|e| entry_name_error(i, &e))?.into_owned();
-        // Sarılı feed'de kök öneki düşülür; sonraki tüm mantık dosyayı kökteymiş gibi görür.
-        // Bulgu mesajları yine ZIP'teki GERÇEK yolu gösterir (entry_name).
+        // For a wrapped feed, remove the root prefix; all subsequent logic sees the file as if it
+        // were at the root. Finding messages still show the REAL ZIP path (entry_name).
         let raw_name = match &root_prefix {
             Some(prefix) => entry_name
                 .replace('\\', "/")
@@ -2125,16 +2124,16 @@ pub fn parse_with_limits(
             None => entry_name.clone(),
         };
         if raw_name.is_empty() {
-            continue; // sarılı feed'in klasör girdisinin kendisi
+            continue; // the wrapper folder entry itself
         }
-        // macOS kaynak-çatalı: GTFS içeriği değil, hiçbir kural onu ölçmez (#144).
-        // ARC_024'ten ÖNCE düşer, yoksa `._agency.txt` "alt dizindeki .txt" sayılırdı.
+        // macOS resource fork: not GTFS content; no rule measures it (#144).
+        // Drop it BEFORE ARC_024, otherwise `._agency.txt` would count as a "subdirectory .txt".
         if is_macos_metadata_entry(&entry_name.replace('\\', "/"))
             || is_macos_metadata_entry(&raw_name.replace('\\', "/"))
         {
             continue;
         }
-        // Hoşgörü uygulandı: dosya işlenecek ama alt dizinde olduğu yine de bulgudur.
+        // Tolerance applied: process the file, but still report that it is in a subdirectory.
         if raw_name != entry_name && raw_name.ends_with(".txt") {
             notices.push(make_notice(
                 &mut counter, "ARC_024",
@@ -2160,12 +2159,12 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_023: ZIP içinde nested ZIP dosyası (kök VEYA alt dizin).
-        // 🔴 Eskiden yalnız KÖKTEKİ .zip görülüyordu; alt dizindeki nested ZIP hiçbir bulgu
-        // üretmeden atlanıyordu (ARC_007 de `contains('/')` ile eliyor). Korpusta beş feed
-        // — tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752 — tüm GTFS'ini alt dizindeki
-        // bir nested ZIP'te taşıyor; kullanıcı yalnız "zorunlu dosya eksik" görüp SEBEBİ
-        // öğrenemiyordu. Konum kuralın hükmünü değiştirmez: GTFS nested ZIP'i hiç desteklemez.
+        // ARC_023: nested ZIP file inside the ZIP (root OR subdirectory).
+        // 🔴 Previously only a .zip at the ROOT was seen; a nested ZIP in a subdirectory was
+        // skipped without any finding (ARC_007 also filtered it with `contains('/')`). Five corpus
+        // feeds — tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752 — carry all their GTFS in
+        // a nested ZIP in a subdirectory; users saw only "required file missing" and could not
+        // learn WHY. Location does not change the rule: GTFS does not support nested ZIPs.
         if raw_name.ends_with(".zip") {
             notices.push(make_notice(
                 &mut counter, "ARC_023",
@@ -2178,7 +2177,7 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
+        // locations.geojson: Flex GeoJSON location file (special handling)
         if raw_name == "locations.geojson" {
             present_files.insert(raw_name.clone());
             let declared_size = zf.size();
@@ -2231,7 +2230,7 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // ARC_024: Alt dizinde .txt dosyası — standart parser'lar bu dosyaları atlar
+        // ARC_024: .txt file in a subdirectory — standard parsers skip these files.
         if raw_name.ends_with(".txt") && (raw_name.contains('/') || raw_name.contains('\\')) {
             notices.push(make_notice(
                 &mut counter, "ARC_024",
@@ -2244,16 +2243,16 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // ARC_007: kök dizindeki tanınmayan (.txt olmayan) dosyalar da bilinmeyen dosya olarak
-        // işaretlenir (ör. .pdf/.out/.csv). .zip → ARC_023, locations.geojson, alt-dizin .txt →
-        // ARC_024 yukarıda özel işlendi; bunlar buraya ulaşmadan continue etti.
+        // ARC_007: unrecognised (non-.txt) files at the root are also marked as unknown files
+        // (e.g. .pdf/.out/.csv). .zip → ARC_023, locations.geojson, and subdirectory .txt →
+        // ARC_024 were handled above; they continued before reaching here.
         if !raw_name.ends_with(".txt") {
-            // Alt dizindeki dosyalar normalde sessizdir (bir GitHub repo zip'i onlarca
-            // LICENSE/README/kaynak dosyası taşıyabilir, hepsini raporlamak gürültüdür).
-            // TEK istisna: adı bir GTFS dosyasının gövdesi olup uzantısı `.txt` OLMAYAN
-            // girdi — `agency.csv` gibi. Korpus 13'te iki feed (mdb-3434 · mdb-3135) bütün
-            // GTFS'ini alt dizinde `.csv` uzantısıyla taşıyor ve tek çıktı "zorunlu dosya
-            // eksik" oluyordu; dosyaların ORADA olduğu hiçbir bulguda görünmüyordu.
+            // Subdirectory files are normally silent (a GitHub repository ZIP may carry dozens
+            // of LICENSE/README/source files; reporting all of them is noise).
+            // ONE exception: an entry whose name is a GTFS file stem but whose extension is NOT
+            // `.txt` — such as `agency.csv`. In corpus 13, two feeds (mdb-3434 · mdb-3135) carried
+            // all GTFS in a subdirectory with `.csv` extensions, and the only output was "required
+            // file missing"; no finding showed that the files were THERE.
             if !raw_name.contains('/') && !raw_name.contains('\\')
                 || gtfs_stem_with_wrong_extension(&raw_name)
             {
@@ -2272,7 +2271,7 @@ pub fn parse_with_limits(
             }
             continue;
         }
-        // Yalnızca kök dizindeki .txt dosyaları işlenir (alt-dizin .txt yukarıda ARC_024 aldı)
+        // Process only root-level .txt files (subdirectory .txt already received ARC_024 above).
         if raw_name.contains('/') || raw_name.contains('\\') {
             continue;
         }
@@ -2281,20 +2280,20 @@ pub fn parse_with_limits(
         let is_required = REQUIRED_FILES.contains(&raw_name.as_str());
         let is_known = KNOWN_FILES.contains(&raw_name.as_str());
 
-        // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
+        // Read bytes (before the is_known check for ARC_011).
         k1dbg!(
             "[K1] okuma başladı: {raw_name} (compressed: {} b)",
             zf.compressed_size()
         );
         let uncompressed_hint = zf.size().min(usize::MAX as u64) as usize;
-        // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
-        // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
+        // #38: K2 streams large files from the ZIP; K1 reads only the header row.
+        // 8 KB partial read for stop_times, trips, and calendar_dates; raw_text=None.
         let is_zip_stream = matches!(
             raw_name.as_str(),
             "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt"
         );
         let _is_stop_times = raw_name == "stop_times.txt"; // legacy: sadece ARC_011 bytes için artık is_zip_stream
-                                                           // Alloc'dan ÖNCE log: crash olursa son satır hangi dosyada OOM çıktığını gösterir.
+                                                           // Log BEFORE allocation: if a crash occurs, the last line shows which file OOMed.
         crate::timing::mem_note(&format!(
             "K1::alloc::{} hint={}MB{}",
             raw_name,
@@ -2309,9 +2308,9 @@ pub fn parse_with_limits(
         };
         {
             let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
-            // #46: her girdi, açılan baytları sayan GuardedReader üzerinden okunur.
-            // Bomba tetiklerse read() hata döner; tripped() ile plain ZIP hatasından
-            // ayrılıp ARC_029 (DecompressionLimit) Fatal'ı üretilir.
+            // #46: every entry is read through GuardedReader, which counts decompressed bytes.
+            // If the bomb trips, read() returns an error; distinguish it from a plain ZIP error
+            // with tripped() and produce an ARC_029 (DecompressionLimit) Fatal.
             let comp_size = zf.compressed_size();
             let mut entry_limits = limits;
             if !is_zip_stream {
