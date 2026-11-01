@@ -41,7 +41,7 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             .to_string();
         let entity_id = (!service_id.is_empty()).then_some(service_id.clone());
 
-        // CAL_022: service_id required (sütun yoksa ARC_025 devralır → atla)
+        // CAL_022: service_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "service_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -119,15 +119,15 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
             }
         }
 
-        // CAL_006: haftalık gün alanlarının tümü 0 → haftalık tekrar yok. Bu GEÇERLİ bir
-        // GTFS desenidir (servis yalnız calendar_dates.txt istisnalarıyla aktif olabilir),
-        // bu yüzden BİLGİ. Servis gerçekten hiç aktif gün içermiyorsa (calendar_dates de yok)
-        // bunu OPR_011 (kullanılan) / CAL_011 (kullanılmayan) daha yüksek şiddette yakalar.
+        // CAL_006: all weekly day fields are 0 → no weekly recurrence. This is a VALID
+        // GTFS pattern (service may be active only through calendar_dates.txt exceptions),
+        // so this is Info. If the service truly has no active days at all (and no calendar_dates),
+        // OPR_011 (used) / CAL_011 (unused) catches it at higher severity.
         if all_zero && days.iter().any(|d| d.is_some()) {
             notices.push(make_k2_notice(
                 &mut counter, "CAL_006", EntityType::Service, entity_id.clone(),
                 Some(&row_map), &file.name, Some(line),
-                // Olgu YEDİ gün alanının BİRLİKTE 0 olmasıdır; hepsi adlandırılır.
+                // The rule is that all SEVEN day fields are 0 TOGETHER; all are named.
                 Some("monday|tuesday|wednesday|thursday|friday|saturday|sunday"), None, None,
                 format!("'{}' takviminde haftalık gün alanlarının tümü 0 — haftalık tekrar yok; servis yalnızca calendar_dates.txt istisnalarıyla aktif olabilir.", service_id),
                 "Bilinçli bir dates-only servisse işlem gerekmez; değilse en az bir gün alanını 1 yapın.",
@@ -170,8 +170,8 @@ pub fn validate_calendar(file: &RawFile) -> (Vec<CalendarRecord>, Vec<gtfs_core:
                     err,
                     "start_date alanını YYYYMMDD formatında doldurun.",
                 ));
-                // Hüküm yukarıda ham değerle verildi; kayıt kırpılmış tarihi taşır
-                // (boşluk-yalnız hata ise). Gerekçe `whitespace_trimmed_service_date`.
+                // The decision above used the raw value; the record carries the trimmed date
+                // (when the error is whitespace-only). Rationale: `whitespace_trimmed_service_date`.
                 whitespace_trimmed_service_date(&row_map, "start_date")
             }
         };

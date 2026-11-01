@@ -33,11 +33,11 @@ fn has_field(row: &RowMap, field: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// `opt_int`'in raporlayan hâli: sayı olmayan değer sessizce düşmez, `rule` ile bildirilir.
+/// Reporting variant of `opt_int`: a non-numeric value is not silently dropped; `rule` reports it.
 ///
-/// Spec bu dört alanı `Integer` olarak tipler. Eski `opt_int` "abc"yi sessizce yutuyordu:
-/// koşullu-yasak hükmü (BKR_004/BKR_005) ateşliyor ama DEĞERİN sayı olmadığı hiç
-/// söylenmiyordu — yani kullanıcı bozuk bir rezervasyon penceresini göremiyordu.
+/// The spec types these four fields as `Integer`. The old `opt_int` silently swallowed "abc":
+/// the conditional-forbidden rule (BKR_004/BKR_005) fired, but it never said that the VALUE
+/// was not numeric — so the user could not see the broken booking window.
 #[allow(clippy::too_many_arguments)]
 fn opt_int_checked(
     row: &RowMap,
@@ -76,7 +76,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut ctr = 0u32;
-    // BKR_019: booking_rule_id birincil anahtardır (spec "Primary key (booking_rule_id)").
+    // BKR_019: booking_rule_id is the primary key (spec "Primary key (booking_rule_id)").
     let mut seen_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (row_idx, row) in file.rows.iter().enumerate() {
@@ -88,8 +88,8 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             .to_string();
         let entity_id = (!id.is_empty()).then_some(id.clone());
 
-        // BKR_019: booking_rule_id eksik (boş) veya yineleniyor.
-        // Sütun başlıkta hiç yoksa ARC_025 devralır (RTS_004 deseni) → burada susulur.
+        // BKR_019: booking_rule_id is missing (empty) or duplicated.
+        // If the column is absent from the header, ARC_025 takes over (RTS_004 pattern) → stay silent here.
         if id.is_empty() {
             if get_raw_field(&row_map, "booking_rule_id").map(str::trim) == Some("") {
                 notices.push(make_k2_notice(
@@ -131,10 +131,11 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             .to_string();
         let booking_type: Option<u8> = btype_str.parse::<u8>().ok().filter(|&v| v <= 2);
 
-        // BKR_016: booking_type eksik veya geçersiz (spec: Required, enum 0/1/2).
-        // Sütun başlıkta yoksa ARC_025 devralır → yalnız sütun VARKEN denetlenir (RTS_004 deseni).
-        // ⚠️ booking_type okunamadığında SEKİZ tür-bağımlı kural (BKR_001/004/005/007/008/009/012/014)
-        // sessizce devre dışı kalır — bu yüzden `blocks` listesi o kuralları sayar.
+        // BKR_016: booking_type is missing or invalid (spec: Required, enum 0/1/2).
+        // If the column is absent from the header, ARC_025 takes over → validate only when the
+        // column EXISTS (RTS_004 pattern).
+        // ⚠️ If booking_type cannot be read, EIGHT type-dependent rules
+        // (BKR_001/004/005/007/008/009/012/014) silently become inactive — hence `blocks` lists them.
         if booking_type.is_none() && get_trimmed_field(&row_map, "booking_type").is_some() {
             let (observed, message) = if btype_str.is_empty() {
                 (String::new(), "booking_type zorunludur.".to_string())
@@ -165,17 +166,16 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         let has_start_time = has_field(&row_map, "prior_notice_start_time");
         let has_service_id = has_field(&row_map, "prior_notice_service_id");
 
-        // BKR_025: prior_notice zaman alanı GTFS Time olarak ayrıştırılamıyor.
+        // BKR_025: the prior_notice time field cannot be parsed as GTFS Time.
         //
-        // BKR_023 aynı işi SAYI alanları için yapıyordu; zaman alanlarının tip
-        // kardeşi yoktu. Modül `prior_notice_start_time`/`_last_time` değerlerini
-        // yalnızca String olarak okuyor ve hangi gün alanıyla eşleştiklerini
-        // denetliyordu (BKR_003/010/013) — biçimlerini hiç ayrıştırmıyordu. Bozuk
-        // bir saat bize tamamen görünmezdi (#164, `tdg-80694` ve `tdg-84001`).
+        // BKR_023 did the same for NUMERIC fields; time fields had no type sibling. The module
+        // read `prior_notice_start_time`/`_last_time` values only as Strings and checked which
+        // day fields they matched (BKR_003/010/013) — it never parsed their format. A malformed
+        // time was completely invisible to us (#164, `tdg-80694` and `tdg-84001`).
         //
-        // ⚠️ `Err` YUTULMAZ: `parse_gtfs_time` ayrıştırılamayan değer için `Err`,
-        // alan yoksa `Ok(None)` döner. İkisini birbirine karıştırmak bu depoda
-        // dört kez kural körleştirdi.
+        // ⚠️ Do NOT SWALLOW `Err`: `parse_gtfs_time` returns `Err` for an unparseable value
+        // and `Ok(None)` when the field is absent. Confusing the two has blinded rules
+        // four times in this repository.
         for field in ["prior_notice_start_time", "prior_notice_last_time"] {
             if parse_gtfs_time(&row_map, field).is_err() {
                 let raw = get_raw_field(&row_map, field).unwrap_or("");
@@ -232,7 +232,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
         );
 
         if let Some(btype) = booking_type {
-            // BKR_004: booking_type=0 iken prior_notice alanları yasak
+            // BKR_004: prior_notice fields are forbidden when booking_type=0
             if btype == 0
                 && (has_duration_min
                     || has_duration_max
@@ -250,7 +250,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_005: booking_type=2 iken prior_notice_duration_max yasak
+            // BKR_005: prior_notice_duration_max is forbidden when booking_type=2
             if btype == 2 && has_duration_max {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_005", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -262,10 +262,10 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_012: booking_type=2 iken prior_notice_duration_min yasak.
+            // BKR_012: prior_notice_duration_min is forbidden when booking_type=2.
             // Spec (booking_rules.txt): "Required for booking_type=1. Forbidden otherwise."
-            // type=0 kolu BKR_004'te (tüm prior_notice alanları) — burada tekrar edilmez.
-            // BKR_005'in (duration_max) birebir aynası.
+            // The type=0 branch is in BKR_004 (all prior_notice fields) — not repeated here.
+            // This is the exact mirror of BKR_005 (duration_max).
             if btype == 2 && has_duration_min {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_012", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -277,9 +277,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_014: prior_notice_service_id yalnızca booking_type=2 ile kullanılabilir.
+            // BKR_014: prior_notice_service_id can be used only with booking_type=2.
             // Spec: "Optional if booking_type=2. Forbidden otherwise."
-            // BKR_004 bu alanı KAPSAMAZ (yalnız altı prior_notice_* alanı) → type=0 da buraya dahil.
+            // BKR_004 does not COVER this field (only the six prior_notice_* fields) → type=0 is included here.
             if btype != 2 && has_service_id {
                 notices.push(make_k2_notice(
                     &mut ctr, "BKR_014", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -290,7 +290,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_007: booking_type=1 iken prior_notice_duration_min zorunlu
+            // BKR_007: prior_notice_duration_min is required when booking_type=1
             if btype == 1 && !has_duration_min {
                 notices.push(make_k2_notice(
                     &mut ctr,
@@ -308,7 +308,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_001: prior_notice_last_day yalnız booking_type=2 için tanımlanabilir
+            // BKR_001: prior_notice_last_day can be defined only for booking_type=2
             // (spec booking_rules.txt: "Required for booking_type=2. Forbidden otherwise").
             if btype != 2 && has_last_day {
                 notices.push(make_k2_notice(
@@ -319,11 +319,11 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                     "prior_notice_last_day alanını yalnızca booking_type=2 ile kullanın ya da booking_type değerini düzeltin.",
                 ));
             }
-            // BKR_001: prior_notice_start_day SADECE booking_type=0'da, veya booking_type=1
-            // + prior_notice_duration_max tanımlıyken yasaktır. Spec: "Forbidden for
+            // BKR_001: prior_notice_start_day is forbidden ONLY for booking_type=0, or for booking_type=1
+            // + when prior_notice_duration_max is defined. Spec: "Forbidden for
             // booking_type=0. Forbidden for booking_type=1 if prior_notice_duration_max is
-            // defined. Optional otherwise." → type=1 (duration_max'sız) ve type=2'de MEŞRU.
-            // (Eski koşul btype≠2 tüm type=1+start_day'i yanlışça yasaklıyordu — FP fix.)
+            // defined. Optional otherwise." → LEGITIMATE for type=1 (without duration_max) and type=2.
+            // (The old btype≠2 condition incorrectly forbade every type=1+start_day — FP fix.)
             if has_start_day && (btype == 0 || (btype == 1 && has_duration_max)) {
                 let neden = if btype == 0 {
                     "booking_type=0"
@@ -339,7 +339,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_008: booking_type=2 iken prior_notice_last_day zorunlu
+            // BKR_008: prior_notice_last_day is required when booking_type=2
             if btype == 2 && !has_last_day {
                 notices.push(make_k2_notice(
                     &mut ctr,
@@ -357,7 +357,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
                 ));
             }
 
-            // BKR_009: booking_type=2 iken prior_notice_last_time zorunlu
+            // BKR_009: prior_notice_last_time is required when booking_type=2
             if btype == 2 && !has_last_time {
                 notices.push(make_k2_notice(
                     &mut ctr,
@@ -376,7 +376,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             }
         }
 
-        // BKR_006: prior_notice_duration_min ≤ 0 veya sayısal değil
+        // BKR_006: prior_notice_duration_min ≤ 0 or non-numeric
         if has_duration_min {
             match duration_min {
                 Some(v) if v <= 0 => {
@@ -416,9 +416,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             }
         }
 
-        // BKR_024: aynı gün rezervasyonda (booking_type=1) üst süre sınırı varken başlangıç
-        // günü çelişkilidir — spec: "Forbidden for booking_type=1 if prior_notice_duration_max
-        // is defined." BKR_024 yalnızca bu üç alanlı koşulu ölçer.
+        // BKR_024: in same-day booking (booking_type=1), a start day conflicts with an upper
+        // duration limit — spec: "Forbidden for booking_type=1 if prior_notice_duration_max
+        // is defined." BKR_024 measures only this three-field condition.
         if booking_type == Some(1) && has_duration_max && has_start_day {
             notices.push(make_k2_notice(
                 &mut ctr, "BKR_024", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -430,7 +430,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             ));
         }
 
-        // BKR_003: prior_notice_start_time dolu ama prior_notice_start_day yok
+        // BKR_003: prior_notice_start_time is present but prior_notice_start_day is missing
         if has_start_time && !has_start_day {
             notices.push(make_k2_notice(
                 &mut ctr, "BKR_003", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -441,10 +441,10 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             ));
         }
 
-        // BKR_013: prior_notice_last_time dolu ama prior_notice_last_day yok.
+        // BKR_013: prior_notice_last_time is present but prior_notice_last_day is missing.
         // Spec: "Required if prior_notice_last_day is defined. Forbidden otherwise."
-        // BKR_003'ün (start_time ↔ start_day) birebir aynası; BKR_003 gibi booking_type'tan
-        // BAĞIMSIZ çalışır (booking_type okunamayan satırlarda da geçerli bir spec ihlali).
+        // The exact mirror of BKR_003 (start_time ↔ start_day); like BKR_003, it works
+        // INDEPENDENTLY of booking_type (it also applies when booking_type cannot be read).
         if has_last_time && !has_last_day {
             notices.push(make_k2_notice(
                 &mut ctr, "BKR_013", EntityType::Row, entity_id.clone(), Some(&row_map),
@@ -455,7 +455,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             ));
         }
 
-        // BKR_010: prior_notice_start_day dolu ama prior_notice_start_time yok
+        // BKR_010: prior_notice_start_day is present but prior_notice_start_time is missing
         if has_start_day && !has_start_time {
             notices.push(make_k2_notice(
                 &mut ctr,
@@ -474,7 +474,7 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             ));
         }
 
-        // BKR_011: prior_notice_last_day > prior_notice_start_day (rezervasyon penceresi geçersiz)
+        // BKR_011: prior_notice_last_day > prior_notice_start_day (invalid booking window)
         if let (Some(ld), Some(sd)) = (last_day, start_day) {
             if ld > sd {
                 notices.push(make_k2_notice(
@@ -487,9 +487,9 @@ pub fn validate_booking_rules(file: &RawFile) -> (Vec<BookingRuleRecord>, Vec<gt
             }
         }
 
-        // BKR_020/021/022: üç iletişim alanı `known_columns`'da listeliydi ama hiçbir denetim
-        // aşaması okumuyordu (#60) — değerler sessizce geçiyordu. URL'ler Spec (tip `URL`),
-        // telefon Quality (spec `Phone number` tipi dilbilgisi tanımlamaz → AGN_007 emsali).
+        // BKR_020/021/022: three contact fields were listed in `known_columns`, but no validation
+        // stage read them (#60) — values passed silently. URLs are Spec (type `URL`);
+        // phone is Quality (the `Phone number` type defines no grammar → AGN_007 precedent).
         for (field, rule, msg, fix) in [
             (
                 "booking_url",
@@ -593,7 +593,7 @@ mod tests {
 
     #[test]
     fn bkr_025_accepts_a_time_past_midnight() {
-        // GTFS saatleri 24'ü aşabilir; 25:10:00 GEÇERLİDİR ve kural susmalıdır.
+        // GTFS times may exceed 24; 25:10:00 is VALID and the rule must stay silent.
         let file = make_file(
             vec![
                 "booking_rule_id",
@@ -609,7 +609,7 @@ mod tests {
 
     #[test]
     fn bkr_025_stays_silent_when_the_field_is_absent() {
-        // Alanın YOKLUĞU bir tip hatası değildir; onu BKR_010/013 sahiplenir.
+        // The ABSENCE of the field is not a type error; BKR_010/013 own it.
         let file = make_file(
             vec!["booking_rule_id", "booking_type"],
             vec![vec!["BR1", "1"]],
@@ -692,8 +692,8 @@ mod tests {
 
     #[test]
     fn bkr_001_start_day_allowed_for_type1_without_duration_max() {
-        // Spec: prior_notice_start_day type=1'de yalnız prior_notice_duration_max
-        // tanımlıysa yasak; yoksa Optional → BKR_001 ÇIKMAMALI (FP fix, 2026-07-24).
+        // Spec: prior_notice_start_day is forbidden for type=1 only when prior_notice_duration_max
+        // is defined; otherwise it is Optional → BKR_001 MUST NOT FIRE (FP fix, 2026-07-24).
         let file = make_file(
             vec![
                 "booking_rule_id",
@@ -713,7 +713,7 @@ mod tests {
 
     #[test]
     fn bkr_001_start_day_forbidden_for_type1_with_duration_max() {
-        // duration_max tanımlıyken start_day yasaklanır.
+        // start_day is forbidden when duration_max is defined.
         let file = make_file(
             vec![
                 "booking_rule_id",
@@ -833,7 +833,7 @@ mod tests {
         );
     }
 
-    // ── BKR_016/019 (issue #58: dosya bütünlüğü — zorunlu enum + birincil anahtar) ──
+    // ── BKR_016/019 (issue #58: file integrity — required enum + primary key) ──
     #[test]
     fn bkr_016_invalid_booking_type() {
         let file = make_file(
@@ -863,7 +863,7 @@ mod tests {
 
     #[test]
     fn bkr_016_silent_when_column_absent() {
-        // Sütun başlıkta yoksa ARC_025 devralır (RTS_004 deseni) → satır başına BKR_016 yağmuru olmaz.
+        // If the column is absent from the header, ARC_025 takes over (RTS_004 pattern) → no per-row BKR_016 storm.
         let file = make_file(vec!["booking_rule_id"], vec![vec!["BR1"]]);
         let (_, notices) = validate_booking_rules(&file);
         assert!(
@@ -954,7 +954,7 @@ mod tests {
         );
     }
 
-    // ── BKR_012/013/014 (issue #56: spec presence matrisindeki üç boşluk) ──
+    // ── BKR_012/013/014 (issue #56: three gaps in the spec presence matrix) ──
     #[test]
     fn bkr_012_duration_min_forbidden_for_type2() {
         let file = make_file(
@@ -995,7 +995,7 @@ mod tests {
 
     #[test]
     fn bkr_013_last_time_without_last_day() {
-        // type=1 + last_time: bugüne kadar hiçbir kural yakalamıyordu (issue #56/B).
+        // type=1 + last_time: no rule had caught this until now (issue #56/B).
         let file = make_file(
             vec![
                 "booking_rule_id",
@@ -1053,7 +1053,7 @@ mod tests {
 
     #[test]
     fn bkr_014_silent_for_type2() {
-        // Spec: "Optional if booking_type=2" → geçerli kullanım.
+        // Spec: "Optional if booking_type=2" → valid use.
         let file = make_file(
             vec![
                 "booking_rule_id",
