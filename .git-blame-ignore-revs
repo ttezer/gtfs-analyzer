@@ -204,3 +204,9 @@ b11de19152bbfa489faf6d2511230be9ffc5628e
 
 # Preserve formatting in rules maintenance examples.
 7b826078b8a9aa092f21dd51e45a52cc54dc6758
+
+# Translate rules test comments.
+a490143cb0c0f075cab8e947ad0154e8a08fe96b
+
+# Preserve formatting in rules tests.
+c5d5ea94aa8c748db1b8c0c067a05e9db12a75ce
