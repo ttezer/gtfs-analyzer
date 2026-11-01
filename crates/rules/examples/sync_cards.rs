@@ -255,7 +255,10 @@ fn main() {
                         continue;
                     };
                     let Some(new_n) = resolve_line(&src, rule.id, want_test) else {
-                        unresolved.push(format!("{}: '{}' içinde çözülemedi", rule.id, src_rel));
+                        unresolved.push(format!(
+                            "{}: could not be resolved in '{}'",
+                            rule.id, src_rel
+                        ));
                         continue;
                     };
                     if new_n == old_n {
@@ -308,11 +311,11 @@ fn main() {
         }
     }
 
-    println!("R9 düzeltme: {r9_fix}");
-    println!("Künye (Önem/Sınıf) düzeltme: {meta_fix}");
-    println!("Kod-ref satır düzeltme: {ref_fix}");
+    println!("R9 fixes: {r9_fix}");
+    println!("Metadata (Önem/Sınıf) fixes: {meta_fix}");
+    println!("Code-reference line fixes: {ref_fix}");
     if !unresolved.is_empty() {
-        println!("\nÇÖZÜLEMEYEN atıflar ({}):", unresolved.len());
+        println!("\nUNRESOLVED references ({}):", unresolved.len());
         for u in &unresolved {
             println!("  {u}");
         }

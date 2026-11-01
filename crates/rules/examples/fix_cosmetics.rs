@@ -69,8 +69,8 @@ fn main() {
         }
     }
 
-    println!("Değişen kart: {changed}");
-    println!("  H1 ayıraç (-→—): {h1} kart");
-    println!("  KRITIK→KRİTİK  : {krit} yer");
-    println!("  BILGI→BİLGİ    : {bilgi} yer");
+    println!("Changed cards: {changed}");
+    println!("  H1 separator (-→—): {h1} cards");
+    println!("  KRITIK→KRİTİK  : {krit} places");
+    println!("  BILGI→BİLGİ    : {bilgi} places");
 }

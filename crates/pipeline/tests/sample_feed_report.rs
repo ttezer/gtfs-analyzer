@@ -5,7 +5,7 @@
 #[ignore]
 fn run_and_print_sample_feed_notices() {
     let zip_path = r"D:\gtfs\test\data\MBTA_GTFS.zip";
-    let zip = std::fs::read(zip_path).expect("sample-feed-1.zip okunamadı");
+    let zip = std::fs::read(zip_path).expect("could not read sample-feed-1.zip");
 
     use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
     let today: u32 = 20_260_520; // 2026-05-20
@@ -19,7 +19,7 @@ fn run_and_print_sample_feed_notices() {
         }
     };
 
-    println!("\n=== BİZİM SONUÇLARIMIZ ({} notice) ===\n", notices.len());
+    println!("\n=== OUR RESULTS ({} notices) ===\n", notices.len());
 
     // Group by severity + rule
     let mut by_rule: std::collections::BTreeMap<String, Vec<&gtfs_core::Notice>> =
@@ -36,7 +36,7 @@ fn run_and_print_sample_feed_notices() {
         let (sev, rule) = (parts[0], parts[1]);
         println!("▸ [{sev}] {rule}  ({} adet)", group.len());
         for n in group.iter().take(5) {
-            let satir = n.line.map_or(String::new(), |l| format!(" satır {l}"));
+            let satir = n.line.map_or(String::new(), |l| format!(" line {l}"));
             let dosya = n.file.as_deref().unwrap_or("");
             println!("  {dosya}{satir} — {}", n.message);
         }
@@ -61,8 +61,6 @@ fn run_and_print_sample_feed_notices() {
             gtfs_core::Severity::Bilgi => info += 1,
         }
     }
-    println!("=== ÖZET ===");
-    println!(
-        "Kritik: {crit}  |  Yüksek: {high}  |  Orta: {med}  |  Düşük: {low}  |  Bilgi: {info}"
-    );
+    println!("=== SUMMARY ===");
+    println!("Critical: {crit}  |  High: {high}  |  Medium: {med}  |  Low: {low}  |  Info: {info}");
 }
