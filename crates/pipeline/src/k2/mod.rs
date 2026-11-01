@@ -153,7 +153,7 @@ pub struct EntityRecords {
     // EMPTY in production — K2 no longer builds a Vec (memory savings).
     // Only tests set it directly; the K6 fallback handles this case with from_records.
     pub stop_times: Vec<StopTimeRecord>,
-    pub stop_times_index: StopTimesIndex, // production stop_times kaynağı (streaming K2)
+    pub stop_times_index: StopTimesIndex, // production stop_times source (streaming K2)
     pub timeframes: Vec<TimeframeRecord>,
     pub transfers: Vec<TransferRecord>,
     pub translations: Vec<TranslationRecord>,
@@ -755,7 +755,7 @@ mod tests {
             ("stop_times.txt", 11u64),
             ("trips.txt", 11),
             ("calendar_dates.txt", 11),
-            ("shapes.txt", 10), // eşiğe EŞİT → ihlal değil
+            ("shapes.txt", 10), // EQUAL TO the threshold → not a violation
             ("agency.txt", 3),
         ] {
             counts.insert(name.to_string(), rows);

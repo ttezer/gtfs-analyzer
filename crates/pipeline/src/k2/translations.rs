@@ -378,7 +378,7 @@ mod tests {
             vec![
                 vec!["stop_times", "stop_headsign", "en", "Centre", "T1", ""], // eksik → TRN_017
                 vec!["stop_times", "stop_headsign", "en", "Centre", "T2", "3"], // dolu → sessiz
-                vec!["stops", "stop_name", "en", "Centre", "S1", ""], // başka tablo → sessiz
+                vec!["stops", "stop_name", "en", "Centre", "S1", ""], // different table → silent
             ],
         );
         let (_, notices) = validate_translations(&file);

@@ -707,7 +707,7 @@ pub fn looks_like_bcp47(value: &str) -> bool {
             n += 1;
         }
         if n == 0 {
-            return false; // singleton var, uzantı YOK
+            return false; // singleton present, extension MISSING
         }
     }
     // privateuse
@@ -716,7 +716,7 @@ pub fn looks_like_bcp47(value: &str) -> bool {
         if idx >= parts.len() {
             return false;
         }
-        idx = parts.len(); // x'ten sonrası 1-8 alphanum: baştaki kontrol zaten sağladı
+        idx = parts.len(); // after x: 1-8 alphanum; the initial check already enforced this
     }
     idx == parts.len()
 }
@@ -791,7 +791,7 @@ pub fn looks_like_phone(value: &str) -> bool {
         .enumerate()
         .all(|(k, &i)| i == parts.len() - n + k);
     if !tail_is_contiguous {
-        return false; // harf başta ya da arada → açıklayıcı metin
+        return false; // letters at the start or in the middle → descriptive text
     }
     // One group: old behavior (case-insensitive). Multiple groups: uppercase vanity-writing
     // convention — the only signal separating prose (#95).
@@ -1189,10 +1189,10 @@ mod tests {
     fn looks_like_url_still_accepts_the_neighbours_we_chose_not_to_reject() {
         // Cases proven in #162 but deliberately NOT rejected. AGN_003 is Kritik+Spec,
         // a publication blocker; a false positive here would reject a valid feed.
-        assert!(looks_like_url("https://www.keolis_littoral.com")); // alt çizgili host
+        assert!(looks_like_url("https://www.keolis_littoral.com")); // underscored host
         assert!(looks_like_url("http://localhost")); // tek etiket
-        assert!(looks_like_url("http://167")); // 0.0.0.167'ye ayrışır
-        assert!(looks_like_url("http://www.takethehop.coml/")); // yazım hatası TLD
+        assert!(looks_like_url("http://167")); // parses as 0.0.0.167
+        assert!(looks_like_url("http://www.takethehop.coml/")); // misspelled TLD
     }
 
     #[test]
@@ -1344,21 +1344,21 @@ mod tests {
         }
         // Invalid — each is a SEPARATE defect class.
         for bad in [
-            "a@@b.com",         // bildirilen karşı örnek: iki ayraç
-            "a@b@c.com",        // iki ayraç, ikisi de ayrı yerde
+            "a@@b.com",         // reported counterexample: two separators
+            "a@b@c.com",        // two separators, both in separate positions
             "@example.com",     // local yok
             "a@",               // domain yok
             "a@b",              // tek etiket
-            "a@.example.com",   // boş etiket
-            "a@example..com",   // boş etiket (ortada)
-            "a@-example.com",   // etiket tire ile başlıyor
+            "a@.example.com",   // empty label
+            "a@example..com",   // empty label (in the middle)
+            "a@-example.com",   // label starts with a hyphen
             "a@example-.com",   // etiket tire ile bitiyor
-            "a@example.1",      // sayısal TLD
+            "a@example.1",      // numeric TLD
             "a@example.c",      // tek harfli TLD
-            ".a@example.com",   // baştaki nokta
+            ".a@example.com",   // leading dot
             "a.@example.com",   // sondaki nokta
-            "a..b@example.com", // boş atom
-            "a b@example.com",  // boşluk
+            "a..b@example.com", // empty atom
+            "a b@example.com",  // whitespace
             "a\t@example.com",  // sekme
             "noatsign.example.com",
             "",

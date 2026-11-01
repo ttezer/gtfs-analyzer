@@ -46,7 +46,7 @@ def parse(raw: bytes) -> tuple[str, list[tuple[str, int]]]:
     for entry in root.iter("CcyNtry"):
         code = (entry.findtext("Ccy") or "").strip()
         if not code:
-            continue  # para birimi olmayan ülkeler (ör. ANTARCTICA) — kod taşımaz
+            continue  # countries without a currency (e.g. ANTARCTICA) — carry no code
         minor = (entry.findtext("CcyMnrUnts") or "").strip()
         # `N.A.` → codes with undefined decimal places, such as funds and precious metals.
         units = int(minor) if minor.isdigit() else 255

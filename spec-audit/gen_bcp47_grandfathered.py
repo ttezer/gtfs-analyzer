@@ -14,8 +14,8 @@ geçersizdir** — yani kalıntı değil, hataydı.
 Kaynak: IANA Language Subtag Registry (RFC 5646 §3). `Type: grandfathered` kayıtları.
 
 Çalıştır:
-    python3 spec-audit/gen_bcp47_grandfathered.py            # ağdan üret
-    python3 spec-audit/gen_bcp47_grandfathered.py --check    # denetle (1 = drift, 2 = bakılamadı)
+    python3 spec-audit/gen_bcp47_grandfathered.py            # generate from the network
+    python3 spec-audit/gen_bcp47_grandfathered.py --check    # check (1 = drift, 2 = unavailable)
     python3 spec-audit/gen_bcp47_grandfathered.py lsr.txt
 """
 import hashlib
@@ -47,9 +47,9 @@ def parse(raw: bytes) -> tuple[str, list[str]]:
         if re.search(r"^Type:\s*grandfathered\s*$", record, re.M):
             t = re.search(r"^Tag:\s*(\S+)", record, re.M)
             if t:
-                # ⚠️ Kayıt defteri etiketleri karışık yazımla tutar (`en-GB-oed`,
-                # `zh-min-nan`); karşılaştırma RFC 5646 §2.1.1'e göre BÜYÜK/küçük harfe
-                # DUYARSIZDIR, o yüzden tablo küçük harfe normalize edilir.
+                # ⚠️ The registry stores tags with mixed casing (`en-GB-oed`, `zh-min-nan`);
+                # comparison is case-INSENSITIVE under RFC 5646 §2.1.1, so the table is
+                # normalized to lowercase.
                 tags.append(t.group(1).lower())
     if not tags:
         raise RuntimeError("kayıt defterinde grandfathered kaydı bulunamadı")

@@ -738,7 +738,7 @@ mod tests {
             vec!["P1", "S1", "S2", "1", "0", ""],
             vec!["P2", "S2", "S3", "1", "0", ""],
             vec!["P3", "S3", "S4", "1", "0", ""],
-            vec!["P4", "S4", "S5", "2", "0", ""], // merdiven → PTH_009 sayılmaz
+            vec!["P4", "S4", "S5", "2", "0", ""], // stairs → does not count as PTH_009
         ]);
         let (_, notices) = validate_pathways(&file);
         let pth009: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_009").collect();
@@ -761,7 +761,7 @@ mod tests {
         let file = pathways_file(vec![
             vec!["P1", "S1", "S2", "2", "0", ""],
             vec!["P2", "S2", "S3", "2", "0", ""],
-            vec!["P3", "S3", "S4", "1", "0", ""], // yürüme yolu → PTH_008 sayılmaz
+            vec!["P3", "S3", "S4", "1", "0", ""], // walkway → does not count as PTH_008
         ]);
         let (_, notices) = validate_pathways(&file);
         let pth008: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_008").collect();
@@ -827,12 +827,12 @@ mod tests {
             name: "pathways.txt".into(),
             headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: [
-                ["P1", "S1", "S2", "3", "0", ""], // yürüyen bant → sayılır
-                ["P2", "S2", "S3", "4", "0", ""], // yürüyen merdiven → sayılır
-                ["P3", "S3", "S4", "5", "0", ""], // asansör → sayılır
-                ["P4", "S4", "S5", "1", "0", ""], // yürüme yolu → PTH_029 DEĞİL (PTH_025'in alanı)
+                ["P1", "S1", "S2", "3", "0", ""], // moving walkway → counts
+                ["P2", "S2", "S3", "4", "0", ""], // escalator → counts
+                ["P3", "S3", "S4", "5", "0", ""], // elevator → counts
+                ["P4", "S4", "S5", "1", "0", ""], // walkway → NOT PTH_029 (PTH_025's domain)
                 ["P5", "S5", "S6", "4", "0", "30"],
-            ] // dolu → sayılmaz
+            ] // populated → does not count
             .into_iter()
             .map(|r| r.into_iter().map(SmolStr::from).collect())
             .collect(),

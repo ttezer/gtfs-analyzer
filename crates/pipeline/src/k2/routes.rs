@@ -150,7 +150,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_011: route_long_name is too long (>100 characters)
         if let Some(ref l) = route_long_name {
-            let char_len = l.chars().count(); // bayt değil karakter — bkz. RTS_010/021 notu
+            let char_len = l.chars().count(); // characters, not bytes — see RTS_010/021 note
             if char_len > 100 {
                 notices.push(make_k2_notice(
                     &mut counter,

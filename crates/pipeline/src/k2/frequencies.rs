@@ -423,7 +423,7 @@ mod tests {
             vec!["trip_id", "start_time", "end_time", "headway_secs"],
             vec![
                 vec!["T1", "08:00:00", "12:00:00", "600"],
-                vec!["T1", "11:00:00", "14:00:00", "900"], // 11:00 < 12:00 → çakışma
+                vec!["T1", "11:00:00", "14:00:00", "900"], // 11:00 < 12:00 → overlap
             ],
         );
         let (_, notices) = validate_frequencies(&file);
@@ -440,7 +440,7 @@ mod tests {
             vec!["trip_id", "start_time", "end_time", "headway_secs"],
             vec![
                 vec!["T1", "08:00:00", "12:00:00", "600"],
-                vec!["T1", "12:00:00", "14:00:00", "900"], // bitişik (12:00==12:00) → çakışma değil
+                vec!["T1", "12:00:00", "14:00:00", "900"], // adjacent (12:00==12:00) → no overlap
             ],
         );
         let (_, notices) = validate_frequencies(&file);
@@ -463,9 +463,9 @@ mod tests {
             ],
             vec![
                 vec!["T1", "05:00:00", "06:00:00", "3600", "1"],
-                vec!["T2", "05:00:00", "05:59:00", "3600", "1"], // sınırda değil → sessiz
-                vec!["T3", "05:00:00", "06:00:00", "3600", "0"], // exact_times=0 → kapsam dışı
-                vec!["T4", "05:00:00", "06:00:00", "3600", ""],  // boş → kapsam dışı
+                vec!["T2", "05:00:00", "05:59:00", "3600", "1"], // not at the boundary → silent
+                vec!["T3", "05:00:00", "06:00:00", "3600", "0"], // exact_times=0 → out of scope
+                vec!["T4", "05:00:00", "06:00:00", "3600", ""],  // empty → out of scope
             ],
         );
         let (_, notices) = validate_frequencies(&file);

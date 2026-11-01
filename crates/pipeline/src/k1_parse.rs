@@ -2292,7 +2292,7 @@ pub fn parse_with_limits(
             raw_name.as_str(),
             "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt"
         );
-        let _is_stop_times = raw_name == "stop_times.txt"; // legacy: sadece ARC_011 bytes için artık is_zip_stream
+        let _is_stop_times = raw_name == "stop_times.txt"; // legacy: is_zip_stream now only for ARC_011 bytes
                                                            // Log BEFORE allocation: if a crash occurs, the last line shows which file OOMed.
         crate::timing::mem_note(&format!(
             "K1::alloc::{} hint={}MB{}",
@@ -4443,7 +4443,7 @@ mod tests {
             trips.push('A'); // tam 8190'a hizala
         }
         assert_eq!(trips.len(), 8_190, "test kurgusu: hizalama");
-        trips.push('あ'); // baytlar 8190,8191,8192 → 8192'deki kesim ORTADAN böler
+        trips.push('あ'); // bytes 8190,8191,8192 → the cut at 8192 splits in the MIDDLE
         trips.push('\n');
         let trips_bytes = trips.as_bytes().to_vec();
         assert!(
@@ -4484,7 +4484,7 @@ mod tests {
     #[test]
     fn genuinely_invalid_utf8_in_streamed_file_is_partial_without_typed_records() {
         let mut trips: Vec<u8> = b"route_id,service_id,trip_id\n".to_vec();
-        trips.extend_from_slice(b"R1,SVC1,\xFF\xFE_bozuk\n"); // gövdede geçersiz dizi
+        trips.extend_from_slice(b"R1,SVC1,\xFF\xFE_bozuk\n"); // invalid sequence in the body
         while trips.len() < 9_000 {
             trips.extend_from_slice(b"R1,SVC1,T\n");
         }

@@ -951,11 +951,11 @@ mod tests {
         ];
         let rows = vec![
             vec!["S1", "41.0", "29.0", "1"],
-            vec!["S1", "999.0", "29.0", "2"], // SHP_002 (lat aralık dışı)
-            vec!["S1", "41.0", "29.0", "2"],  // SHP_008 (sequence yineleniyor)
+            vec!["S1", "999.0", "29.0", "2"], // SHP_002 (latitude out of range)
+            vec!["S1", "41.0", "29.0", "2"],  // SHP_008 (duplicate sequence)
         ];
 
-        // rows fallback yolu
+        // rows fallback path
         let (rec_a, _interns, not_a) =
             validate_shapes(&make_file(headers.clone(), rows.clone()), None);
 
