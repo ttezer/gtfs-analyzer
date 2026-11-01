@@ -114,7 +114,8 @@ def main():
     if drifted:
         print("changed feeds (publisher updated them — NOT an error):")
         print("  " + ", ".join(drifted[:20]) + (" …" if len(drifted) > 20 else ""))
-    print("\n⚠️ Counts produced for EXACT-MATCH feeds only are comparable with ours.")
+    print("\n⚠️ Counts produced for EXACT-MATCH feeds only are "
+          "comparable with ours.")
     return 0
 
 
