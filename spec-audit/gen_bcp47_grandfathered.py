@@ -34,7 +34,7 @@ def fetch(argv: list[str]) -> bytes:
         return pathlib.Path(local[0]).read_bytes()
     p = subprocess.run(["curl", "-sSL", "--max-time", "90", SRC], capture_output=True)
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
+        raise RuntimeError(f"curl failed: {p.stderr.decode()[:120]}")
     return p.stdout
 
 
@@ -52,7 +52,7 @@ def parse(raw: bytes) -> tuple[str, list[str]]:
                 # normalized to lowercase.
                 tags.append(t.group(1).lower())
     if not tags:
-        raise RuntimeError("kayıt defterinde grandfathered kaydı bulunamadı")
+        raise RuntimeError("no grandfathered record found in the registry")
     return file_date, sorted(set(tags))
 
 

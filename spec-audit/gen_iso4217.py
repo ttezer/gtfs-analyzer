@@ -35,7 +35,7 @@ def fetch(argv: list[str]) -> bytes:
         return pathlib.Path(local[0]).read_bytes()
     p = subprocess.run(["curl", "-sSL", "--max-time", "90", SRC], capture_output=True)
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
+        raise RuntimeError(f"curl failed: {p.stderr.decode()[:120]}")
     return p.stdout
 
 
@@ -51,7 +51,7 @@ def parse(raw: bytes) -> tuple[str, list[tuple[str, int]]]:
         # `N.A.` → codes with undefined decimal places, such as funds and precious metals.
         units = int(minor) if minor.isdigit() else 255
         if code in seen and seen[code] != units:
-            raise RuntimeError(f"{code}: aynı kod için iki farklı minor unit ({seen[code]} / {units})")
+            raise RuntimeError(f"{code}: two different minor units for the same code ({seen[code]} / {units})")
         seen[code] = units
     return published, sorted(seen.items())
 
