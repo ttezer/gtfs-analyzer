@@ -3726,13 +3726,13 @@ fn check_geo_stop_analytics(
                 }
             }
         }
-        // cell_deg sadece bu bağlamda referans gerekiyor; GEO_014 onu kullanmıyor
+        // cell_deg is referenced only in this context; GEO_014 does not use it.
         let _ = derived.spatial_index.cell_deg;
     }
     drop(_tstp17);
 
-    // GEO_002: stop koordinatları bounding box dışında (feed genelinde istatistiksel anomali)
-    // Feed'deki tüm durakların median koordinatını hesapla; çok uzakta olanları işaretle
+    // GEO_002: stop coordinates are outside the bounding box (feed-wide statistical anomaly).
+    // Calculate the median coordinate of all stops in the feed and flag those far away.
     let _tgeo2 = Timer::start("K6::geo::geo_002_014");
     let coords: Vec<(f64, f64)> = records
         .stops
@@ -3747,16 +3747,16 @@ fn check_geo_stop_analytics(
         let med_lat = lats[lats.len() / 2];
         let med_lon = lons[lons.len() / 2];
 
-        // Eşik: mutlak 200 km DEĞİL, feed'in kendi ölçeğine göreli (2026-07-25).
-        // Ölçüm (VBB mdb-782, 41.949 durak): p50 21,8 km · p99 132,3 km · p99,9 189,2 km ·
-        // max 294 km. Sabit 200 km feed'in KENDİ kuyruğunun içinde kalıyordu → 20 bulgunun
-        // 20'si de gerçek istasyondu (Berlin–Wrocław Kulturzug koridoru, Stralsund/Wismar
-        // Baltık hattı, Zittau sınır hattı). Yani kural "aykırı koordinat" değil "geniş feed"
-        // tespit ediyordu — GEO_014'ün zaten bildirdiği şeyi hata olarak raporlamak.
+        // Threshold: relative to the feed's own scale, NOT an absolute 200 km (2026-07-25).
+        // Measurement (VBB mdb-782, 41,949 stops): p50 21.8 km · p99 132.3 km · p99.9 189.2 km ·
+        // max 294 km. The fixed 200 km sat inside the feed's OWN tail → all 20 findings were
+        // real stations (Berlin–Wrocław Kulturzug corridor, Stralsund/Wismar Baltic route,
+        // Zittau border route). The rule was detecting a "wide feed", not "outlier coordinates",
+        // and reporting as an error what GEO_014 already reports.
         //
-        // Gerçek koordinat hataları bu eşiğin ÇOK ötesinde kalır: lat/lon takası Berlin için
-        // ~4.900 km, işaret hatası ~5.800 km, (0,0) ~5.800 km (o zaten GEO_016).
-        // Küçük örneklemde p99 aykırı değerin KENDİSİ olur → en az 100 durak şartı.
+        // Real coordinate errors are FAR beyond this threshold: lat/lon swap is ~4,900 km for
+        // Berlin, sign error ~5,800 km, and (0,0) ~5,800 km (already GEO_016).
+        // In a small sample, p99 becomes the outlier ITSELF → require at least 100 stops.
         const GEO002_MIN_KM: f64 = 200.0;
         const GEO002_P99_FACTOR: f64 = 3.0;
         const GEO002_MIN_SAMPLE: usize = 100;
@@ -3779,13 +3779,13 @@ fn check_geo_stop_analytics(
             let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
                 continue;
             };
-            // Null Island guard (STP_016/017, GEO_012, GEO_019 ile TUTARLI): (0,0) yakını
-            // koordinat bir placeholder'dır ve median'dan kaçınılmaz olarak >200km uzaktır.
-            // Kök nedeni GEO_016 raporlar; burada tekrar etmek aynı durağı iki kez sayardı.
+            // Null Island guard (CONSISTENT with STP_016/017, GEO_012, GEO_019): coordinates near
+            // (0,0) are placeholders and inevitably more than 200 km from the median.
+            // GEO_016 reports the root cause; repeating it here would count the same stop twice.
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
                 continue;
             }
-            // Eşiğin üstündeki duraklar → potansiyel koordinat hatası
+            // Stops above the threshold → potential coordinate error.
             let d = haversine_km(med_lat, med_lon, lat, lon);
             if d > threshold_km {
                 let mut n = k6_notice(
@@ -3803,9 +3803,9 @@ fn check_geo_stop_analytics(
                         stop.stop_name.as_deref().unwrap_or(stop.stop_id.as_str()), stop.stop_id),
                     "stop_lat ve stop_lon değerlerini doğrulayın.",
                 );
-                // Harita referansı: kural "median'a göre uzaklık" diyor ama median koordinatı
-                // notice'ta taşınmadığı için UI tek bir pin çizip "neye göre uzak" sorusunu
-                // cevapsız bırakıyordu. Median artık details'ta.
+                // Map reference: the rule says "distance from the median", but without the median
+                // coordinate in the notice, the UI drew one pin and left "far from what?" unanswered.
+                // The median is now in details.
                 n.details = Some(
                     [
                         ("med_lat".to_string(), format!("{med_lat:.6}")),
@@ -3820,7 +3820,7 @@ fn check_geo_stop_analytics(
         }
     }
 
-    // GEO_014: feed coğrafi kapsam bilgisi (Bilgi seviyesi — feed bbox'ı hesapla)
+    // GEO_014: feed geographic coverage information (Info level — calculate the feed bbox).
     if !coords.is_empty() {
         let min_lat = coords.iter().map(|c| c.0).fold(f64::INFINITY, f64::min);
         let max_lat = coords.iter().map(|c| c.0).fold(f64::NEG_INFINITY, f64::max);
@@ -3828,7 +3828,7 @@ fn check_geo_stop_analytics(
         let max_lon = coords.iter().map(|c| c.1).fold(f64::NEG_INFINITY, f64::max);
         let span_km = haversine_km(min_lat, min_lon, max_lat, max_lon);
         if span_km > 500.0 {
-            // Çok geniş bir feed → bilgi notu
+            // Very wide feed → informational notice.
             notices.push(k6_notice(
                 ctr,
                 "GEO_014",
@@ -3845,8 +3845,8 @@ fn check_geo_stop_analytics(
             ));
         }
     }
-    // GEO_015: Japonya koordinat sınırı — feed_lang=ja ise durak koordinatları Japonya dışında olmamalı
-    // Japonya coğrafi sınırları: lat 20.25–45.33, lon 122.56–153.59
+    // GEO_015: Japan coordinate bounds — when feed_lang=ja, stop coordinates must be in Japan.
+    // Japan geographic bounds: lat 20.25–45.33, lon 122.56–153.59.
     {
         let is_japanese = records
             .feed_info
@@ -3882,7 +3882,7 @@ fn check_geo_stop_analytics(
         }
     }
 
-    // GEO_016: Stop koordinatları Null Island yakınında (|lat| < 0.1 ve |lon| < 0.1)
+    // GEO_016: stop coordinates are near Null Island (|lat| < 0.1 and |lon| < 0.1).
     for stop in &records.stops {
         if stop.stop_id.is_empty() {
             continue;
@@ -3907,7 +3907,7 @@ fn check_geo_stop_analytics(
         }
     }
 
-    // GEO_022: Stop enlemi kutba aşırı yakın (|lat| > 89) — olası koordinat hatası (point_near_pole)
+    // GEO_022: stop latitude is too close to a pole (|lat| > 89) — possible coordinate error (point_near_pole).
     for stop in &records.stops {
         if stop.stop_id.is_empty() {
             continue;
@@ -3930,7 +3930,7 @@ fn check_geo_stop_analytics(
         }
     }
 
-    // GEO_018: Tüm feed durakları 200m'lik bir alan içinde — test/yer tutucu veri
+    // GEO_018: all feed stops lie within a 200 m area — test/placeholder data.
     {
         let coords: Vec<(f64, f64)> = records
             .stops
@@ -3969,7 +3969,7 @@ fn check_geo_stop_analytics(
         }
     }
 
-    // GEO_019: Tam sayı (ondalık sıfır) koordinata sahip durak
+    // GEO_019: stop with integer (zero-decimal) coordinates.
     for stop in &records.stops {
         if stop.stop_id.is_empty() {
             continue;
@@ -3977,9 +3977,9 @@ fn check_geo_stop_analytics(
         let (Some(lat), Some(lon)) = (stop.stop_lat, stop.stop_lon) else {
             continue;
         };
-        // Null Island (0,0) da tam sayıdır ama GEO_016 daha spesifik yakalıyor → çift
-        // emit olmasın. Diğer tam-sayı koordinatlar (ör. 41.0,29.0 düşük hassasiyet)
-        // GEO_016 kapsamı dışında, GEO_019 olarak raporlanmaya devam eder.
+        // Null Island (0,0) is also an integer, but GEO_016 catches it more specifically →
+        // do not emit twice. Other integer coordinates (e.g. 41.0,29.0, low precision)
+        // remain outside GEO_016 and continue to be reported as GEO_019.
         if lat.abs() < 0.1 && lon.abs() < 0.1 {
             continue;
         }
@@ -4001,7 +4001,7 @@ fn check_geo_stop_analytics(
     }
 }
 
-/// Yalnız `shapes.txt` gerektiren coğrafi kontroller.
+/// Geographic checks requiring only `shapes.txt`.
 fn check_geo_shape_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
@@ -4012,15 +4012,15 @@ fn check_geo_shape_analytics(
 ) {
     let rail_shapes = &rail.shapes;
     use crate::timing::Timer;
-    // GEO_006: shape segmentleri arası büyük atlama (jump)
-    // GEO_007: aynı — GEO_006'dan biraz farklı ciddiyette ama aynı kontrol
+    // GEO_006: large jump between shape segments.
+    // GEO_007: same — slightly different severity from GEO_006, but the same check.
     let _tg6 = Timer::start("K6::geo::geo_006");
-    // GEO_007 aynı segmentleri 3× eşikle tarıyor. Eskiden iki koşul birbirini
-    // dışlamıyordu → 3× üstü bir atlama HEM GEO_006 HEM GEO_007 üretiyor, aynı segment
-    // iki kez raporlanıp R5 skorunda iki kez sayılıyordu. Artık katmanlı: bu aralık
-    // GEO_006'nın, üstü GEO_007'nin.
+    // GEO_007 scans the same segments with a 3× threshold. Previously the conditions were not
+    // mutually exclusive → a jump above 3× produced BOTH GEO_006 and GEO_007, so the same segment
+    // was reported twice and counted twice in the R5 score. Now they are layered: this range is
+    // GEO_006's, above it is GEO_007's.
     for (shape_id, seg) in &derived.shape_geometry.shapes {
-        // Eşik shape başına: raylı güzergahlarda sadeleştirilmiş uzun düz kesimler meşrudur.
+        // Threshold per shape: simplified long straight sections are legitimate on rail routes.
         let max_jump_km = shape_jump_threshold_km(shape_id, rail_shapes, config);
         let severe_km = max_jump_km * 3.0;
         for (i, &dist) in seg.segment_distances_km.iter().enumerate() {
@@ -4049,7 +4049,7 @@ fn check_geo_shape_analytics(
 
     drop(_tg6);
 
-    // GEO_017: Shape noktası Null Island yakınında — her shape için en fazla 1 notice
+    // GEO_017: shape point near Null Island — at most one notice per shape.
     {
         let mut flagged: HashSet<u32> = HashSet::new();
         for pt in &records.shapes {
@@ -4075,7 +4075,7 @@ fn check_geo_shape_analytics(
     }
 }
 
-/// Shape ↔ sefer ↔ durak birlikteliği gerektiren coğrafi kontroller.
+/// Geographic checks requiring the Shape ↔ trip ↔ stop relationship.
 fn check_geo_shape_trip_analytics(
     records: &EntityRecords,
     config: &ValidatorConfig,
@@ -4083,11 +4083,11 @@ fn check_geo_shape_trip_analytics(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // GEO_020: Shape'in tüm noktaları aynı koordinatta (dejenere geometri)
+    // GEO_020: all points of a shape have the same coordinates (degenerate geometry).
     {
-        // Nokta sayısı AYNI geçişte toplanır: eskiden her dejenere shape için
-        // `records.shapes.iter().filter(...).count()` çağrılıyordu → O(dejenere × tüm nokta).
-        // Anahtar intern indeksi: eskiden her nokta için shape_id KLONLANIYORDU (40,9M String).
+        // Count points in the SAME pass: previously `records.shapes.iter().filter(...).count()`
+        // was called for every degenerate shape → O(degenerate × all points).
+        // Key by the intern index: previously shape_id was CLONED for every point (40.9M Strings).
         let mut shape_first: HashMap<u32, (f64, f64)> = HashMap::new();
         let mut shape_counts: HashMap<u32, usize> = HashMap::new();
         let mut shape_varied: HashSet<u32> = HashSet::new();
@@ -4108,14 +4108,14 @@ fn check_geo_shape_trip_analytics(
                 shape_first.insert(sidx, (lat, lon));
             }
         }
-        // Determinizm: HashMap sırası rastgeledir (k7 sıralaması maskeler ama emit sırası
-        // sabit olsun — yeni kural kontrol listesi 4. madde).
+        // Determinism: HashMap order is random (K7 sorting masks it, but emission order must be
+        // stable — item 4 of the new rule checklist).
         let mut degenerate: Vec<(&u32, &(f64, f64))> = shape_first
             .iter()
             .filter(|(sidx, _)| !shape_varied.contains(*sidx))
             .collect();
-        // Sıralama METNE göre yapılır: intern indeksi dosya sırasıdır, alfabetik değil —
-        // indekse göre sıralamak emit sırasını sessizce değiştirirdi.
+        // Sort by TEXT: the intern index is file order, not alphabetical order — sorting by index
+        // would silently change emission order.
         degenerate.sort_by(|a, b| {
             records
                 .shape_interns
@@ -4124,9 +4124,8 @@ fn check_geo_shape_trip_analytics(
         });
         for (shape_idx, (lat, lon)) in degenerate {
             let shape_id = records.shape_interns.id_at(*shape_idx);
-            // Tüm noktaları (0,0) olan shape'in kök nedeni placeholder koordinattır ve
-            // GEO_017 onu daha spesifik olarak raporlar (GEO_016/GEO_019 ikilisiyle aynı
-            // iş bölümü) → burada çift emit edilmez.
+            // A shape whose every point is (0,0) has placeholder coordinates, and GEO_017 reports
+            // it more specifically (same division of responsibility as GEO_016/GEO_019) → no duplicate here.
             if lat.abs() < 0.1 && lon.abs() < 0.1 {
                 continue;
             }
@@ -4135,7 +4134,7 @@ fn check_geo_shape_trip_analytics(
                 notices.push(k6_notice(
                     ctr, "GEO_020", EntityType::Shape,
                     Some(shape_id.to_string()), Some(shape_id.to_string()),
-                    // İhlal koordinat çiftindedir.
+                    // The violation is in the coordinate pair.
                     "shapes.txt", None, Some("shape_pt_lat|shape_pt_lon"),
                     Some(format!("{lat:.6},{lon:.6}")), None,
                     format!("'{shape_id}' şeklinin tüm {count} noktası ({lat:.6},{lon:.6}) koordinatında — dejenere geometri."),
@@ -4145,12 +4144,11 @@ fn check_geo_shape_trip_analytics(
         }
     }
 
-    // GEO_021: Durakların >%30'u koordinatını başka bir durakla paylaşıyor
+    // GEO_021: >30% of stops share coordinates with another stop.
     {
-        // Sadece fiziksel duraklar (location_type=0 veya null). İstasyon (lt=1) ve
-        // child platformu aynı koordinatta olmak NORMALDİR (hiyerarşi); bunları
-        // saymak Tokyo Toei gibi istasyon/platform modelleyen feed'lerde sahte
-        // "sistematik koordinat sorunu" üretir.
+        // Only physical stops (location_type=0 or null). An identical coordinate for a station
+        // (lt=1) and child platform is NORMAL (hierarchy); counting them creates a false
+        // "systematic coordinate problem" in feeds modeling stations/platforms such as Tokyo Toei.
         let mut coord_counts: HashMap<(i64, i64), u32> = HashMap::new();
         for stop in &records.stops {
             if stop.location_type.unwrap_or(0) != 0 {
@@ -4186,7 +4184,7 @@ fn check_geo_shape_trip_analytics(
         }
     }
 
-    // STM_044: Feed stop_times satır sayısı 2 milyonu aşıyor
+    // STM_044: feed stop_times row count exceeds two million.
     {
         let total_st = records.stop_times_index.total_rows;
         if total_st > config.max_total_stop_times as usize {
@@ -4200,16 +4198,16 @@ fn check_geo_shape_trip_analytics(
         }
     }
 
-    // STM_045: Trip kalkış saati servis-günü penceresini aşıyor (olası veri anomalisi).
-    // Servis günü [start, start+24) → start+24 saati aşan departure şüphelidir. Eşik
-    // service_day_start_hour'a bağlıdır (ör. 04:00 başlayan operatörde 28h'e kadar meşru);
-    // sabit 26h yanlış-pozitif üretiyordu. start_hour=0 (normalizasyon kapalı) → eski 26h.
+    // STM_045: trip departure exceeds the service-day window (possible data anomaly).
+    // Service day [start, start+24) → a departure beyond start+24 is suspicious. The threshold
+    // depends on service_day_start_hour (e.g. up to 28h is legitimate for a 04:00 operator start);
+    // fixed 26h produced false positives. start_hour=0 (normalization disabled) → old 26h.
     //
-    // Raylı istisna: uzun mesafe tren tarifelerinde 30:37, 33:56, 38:10 gibi kalkış saatleri
-    // GEÇERLİ GTFS'tir — gece yarısından sonraki saatler servis-günü notasyonunda 24:xx+ yazılır
-    // ve bunları 24 saate çekmek sefer kronolojisini bozar. Raylı seferlerde pencere
-    // `service_day_window_hours_rail` (vars. 48) olur; gerçek yazım hataları (ör. 99:00) yine
-    // yakalanır. Toplam sefer süresini STM_028 ayrıca `max_trip_duration_hours_rail` ile ölçer.
+    // Rail exception: departure times such as 30:37, 33:56, and 38:10 are VALID GTFS in
+    // long-distance train timetables — post-midnight times use 24:xx+ service-day notation,
+    // and reducing them to 24h breaks trip chronology. Rail trips use the
+    // `service_day_window_hours_rail` window (default 48); real typos (e.g. 99:00) are still
+    // caught. STM_028 separately measures total trip duration with `max_trip_duration_hours_rail`.
     {
         let max_dep_h = if config.service_day_start_hour == 0 {
             26
@@ -4236,7 +4234,7 @@ fn check_geo_shape_trip_analytics(
                         format!("'{trip_id}' seferinde {h:02}:{m:02}:{s:02} kalkış saati — servis günü penceresini ({max_dep_h} saat) aşıyor."),
                         "departure_time ve service_day_start_hour ayarını kontrol edin; bu pencereyi aşan değerler genellikle veri hatasıdır.",
                     );
-                    // Planlamacı pencereyi aşan kalkışın hangi durakta olduğunu görsün.
+                    // Let the planner see which stop has the departure beyond the window.
                     let mut d = std::collections::BTreeMap::new();
                     d.insert(
                         "stop_id".to_string(),
@@ -4244,22 +4242,22 @@ fn check_geo_shape_trip_analytics(
                     );
                     n.details = Some(d);
                     notices.push(n);
-                    break; // trip başına bir notice yeterli
+                    break; // one notice per trip is enough
                 }
             }
         }
     }
 
-    // SHP_027 (Shape birden fazla durak desenine atanmış) KALDIRILDI (2026-07-31):
-    // shapes.txt FİZİKSEL güzergahı, stop_times.txt DURUŞ MODELİNİ temsil eder. Aynı ray
-    // koridorunda farklı istasyonlarda duran trenlerin tek shape'i paylaşması normaldir
-    // (Konya-Söğütlüçeşme: kimi Bilecik'te, kimi Pamukova'da, kimi Bostancı'da duruyor).
-    // Desenlerin birbirinin alt kümesi olmaması shape'in yanlış olduğunu göstermez.
-    // Geriye kalan GERÇEK sinyal — durağın shape üzerinde olmaması — GEO_009 ve SHP_012
-    // tarafından DOĞRUDAN ölçülüyor; kartın kendi ölçümü de bunu doğrulamıştı (VBB 14.084
-    // shape: SHP_012'nin %83'ünde SHP_027 yok, yani kural ağırlıkla meşru vakalarda ateşliyordu).
+    // SHP_027 (shape assigned to multiple stop patterns) REMOVED (2026-07-31):
+    // shapes.txt represents the PHYSICAL route, while stop_times.txt represents the STOPPING MODEL.
+    // It is normal for trains stopping at different stations on the same rail corridor to share one
+    // shape (Konya-Söğütlüçeşme: some stop at Bilecik, some at Pamukova, some at Bostancı).
+    // Patterns not being subsets of one another does not show that the shape is wrong.
+    // The remaining REAL signal — a stop not lying on the shape — is measured DIRECTLY by GEO_009
+    // and SHP_012; the card's own measurement confirmed this (VBB 14,084 shapes: SHP_027 absent
+    // from 83% of SHP_012 findings, so the rule mostly fired on legitimate cases).
 
-    // STM_043: Sefer aşırı fazla durağa sahip (>200)
+    // STM_043: trip has too many stops (>200).
     {
         let trip_ids_set: FxHashSet<&str> =
             records.trips.iter().map(|t| t.trip_id.as_str()).collect();
@@ -4284,7 +4282,7 @@ fn check_geo_shape_trip_analytics(
         }
     }
 
-    // SHP_026: Shape aşırı fazla noktaya sahip (>5000)
+    // SHP_026: shape has too many points (>5000).
     {
         let mut shape_counts: FxHashMap<&str, u32> = FxHashMap::default();
         for pt in &records.shapes {
@@ -4306,7 +4304,7 @@ fn check_geo_shape_trip_analytics(
         }
     }
 
-    // (`_tgeo2` artık `check_geo_stop_analytics`'in sonunda düşüyor — #160 bölmesi)
+    // (`_tgeo2` now drops at the end of `check_geo_stop_analytics` — #160 split).
 }
 
 // ── WP-09c: Operasyonel analitik ─────────────────────────────────────────────
@@ -4335,8 +4333,8 @@ fn check_operational_analytics(
         .filter_map(|s| s.stop_name.as_deref().map(|n| (s.stop_id.as_str(), n)))
         .collect();
 
-    // OPR_006: sefer başına durak sayısı çok az (< 2) — sadece stop_times olan trip'ler
-    // (XFL_002 K4'te "trip has no stop_times" yakaladı; burası 1 duraklı trip'ler için)
+    // OPR_006: too few stops per trip (< 2) — only trips with stop_times.
+    // (XFL_002 in K4 catches "trip has no stop_times"; this is for one-stop trips.)
     let _topr6 = Timer::start("K6::opr::opr_006");
     for (&trip_id, stimes) in &idx.by_trip {
         let count = stimes.len();
@@ -4364,7 +4362,7 @@ fn check_operational_analytics(
 
     drop(_topr6);
 
-    // OPR_007: ring terminali ve STM_035'in sahip olduğu ardışık tekrarlar hariç aynı stop_id
+    // OPR_007: same stop_id repeated, excluding ring terminals and consecutive repeats owned by STM_035.
     let _topr7 = Timer::start("K6::opr::opr_007");
     {
         let mut stop_counts: HashMap<&str, u32> = HashMap::new();
@@ -4375,7 +4373,7 @@ fn check_operational_analytics(
                     *stop_counts.entry(idx.stop_id_of(st)).or_default() += 1;
                 }
             }
-            // Ring/döngüsel hat tespiti: ilk ve son durak aynıysa terminal tekrarı suppress et
+            // Detect ring/circular routes: suppress the terminal repeat when the first and last stops match.
             let mut sorted_stops = stimes
                 .iter()
                 .filter(|st| !idx.stop_id_of(st).is_empty())
@@ -4391,10 +4389,10 @@ fn check_operational_analytics(
                 .unwrap_or("");
             let is_ring = !first.is_empty() && first == last;
 
-            // `find` YERİNE `min_by_key`: `stop_counts` bir HashMap ve bir seferde birden çok
-            // tekrarlanan durak olabiliyor — `find` hangisini bulacağını iterasyon sırasına
-            // bırakıyordu, o da her süreçte değiştiği için aynı feed iki farklı durak
-            // raporluyordu (VBB'de 306 sefer). stop_id'ye göre en küçük olan deterministiktir.
+            // `min_by_key` INSTEAD OF `find`: `stop_counts` is a HashMap and one trip can have
+            // multiple repeated stops — `find` left the choice to iteration order, which changes
+            // between processes and caused the same feed to report two different stops (306 trips
+            // in VBB). The smallest stop_id is deterministic.
             if let Some((&dup_stop, &count)) = stop_counts
                 .iter()
                 .filter(|(&sid, &c)| {
@@ -4411,7 +4409,7 @@ fn check_operational_analytics(
             {
                 let route = trip_to_route.get(trip_id).copied().unwrap_or(trip_id);
                 let stop_name = stop_name_map.get(dup_stop).copied().unwrap_or(dup_stop);
-                // Kalkış saati: aynı hattın çok seferi varsa satırları ayırt edilebilir kılar.
+                // Departure time: makes rows distinguishable when a route has many trips.
                 let dep = stimes
                     .first()
                     .and_then(|s| s.departure_time().or(s.arrival_time()))
@@ -4432,7 +4430,7 @@ fn check_operational_analytics(
                         route, dep, stop_name, dup_stop, count),
                     "Bu rota deseni bilinçliyse işlem gerekmez; değilse stop_times.txt durak sırasını doğrulayın.",
                 );
-                // Harita için sıralı durak listesi + tekrarlayan durak
+                // Ordered stop list + repeated stop for the map.
                 let stop_list: Vec<&str> = stimes
                     .iter()
                     .filter(|st| !idx.stop_id_of(st).is_empty())
@@ -4449,9 +4447,9 @@ fn check_operational_analytics(
 
     drop(_topr7);
 
-    // OPR_011: trip'in service_id'si calendar_bitmap'te aktif gün içermiyor
-    // XFL_006 (K4) sadece "yalnızca removal exception" durumunu yakalar;
-    // OPR_011 daha geniş: bitmap'te hiç entry olmayan service_id'leri de kapsar.
+    // OPR_011: the trip's service_id has no active day in calendar_bitmap.
+    // XFL_006 (K4) catches only the "removal exception only" case;
+    // OPR_011 is broader and also covers service_ids with no bitmap entry at all.
     {
         let mut reported_services: HashSet<&str> = HashSet::new();
         for t in &records.trips {
@@ -4485,7 +4483,7 @@ fn check_operational_analytics(
         }
     }
 
-    // OPR_016: feed genelinde hiçbir service_id aktif gün içermiyor (feed-level)
+    // OPR_016: no service_id in the feed has an active day (feed-level).
     {
         if !records.trips.is_empty() {
             let any_active = derived
@@ -4512,7 +4510,7 @@ fn check_operational_analytics(
         }
     }
 
-    // TRP_023: önümüzdeki 7 günde aktif sefer yok
+    // TRP_023: no active trip in the next 7 days.
     if today_yyyymmdd > 0 && !records.trips.is_empty() && !future_only_jp {
         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         let active_in_7days = derived.calendar_bitmap.active_dates.values().any(|dates| {
@@ -4532,12 +4530,12 @@ fn check_operational_analytics(
         }
     }
 
-    // CAL_024 (eski TRP_030): önümüzdeki 7 günde aktif olmayan takvim — service_id başına agregasyon.
-    // (Aynı aktif-olmayan takvim binlerce sefere yayılır; aksiyon birimi service_id'dir,
-    // sefer değil — bu yüzden sefer-başına notice yerine takvim-başına tek özet üretilir.)
+    // CAL_024 (formerly TRP_030): calendar inactive in the next 7 days — aggregate per service_id.
+    // (The same inactive calendar can cover thousands of trips; the action unit is service_id,
+    // not trip — therefore emit one calendar summary instead of one notice per trip.)
     if today_yyyymmdd > 0 && !records.trips.is_empty() && !future_only_jp {
         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
-        // service_id → (etkilenen sefer sayısı, ilk trip satırı)
+        // service_id → (affected trip count, first trip row)
         let mut inactive_by_service: FxHashMap<&str, (u32, u64)> = FxHashMap::default();
         for trip in &records.trips {
             if trip.trip_id.is_empty() {
