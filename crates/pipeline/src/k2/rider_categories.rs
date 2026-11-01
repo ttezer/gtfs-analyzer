@@ -13,9 +13,9 @@ pub struct RiderCategoryRecord {
     pub is_default_fare_category: Option<u32>,
     pub min_age: Option<u32>,
     pub max_age: Option<u32>,
-    /// Spec alan adı `eligibility_url`. (2026-08-01'e kadar parser
-    /// `rider_category_eligibility_url` okuyordu — spec'te böyle bir alan YOK, dolayısıyla
-    /// geçerli her değer sessizce kayboluyordu.)
+    /// The spec field name is `eligibility_url`. (Until 2026-08-01 the parser
+    /// read `rider_category_eligibility_url` — the spec has NO such field, so every
+    /// valid value silently disappeared.)
     pub eligibility_url: Option<String>,
     pub row: RowMap,
     pub line: u64,
@@ -39,7 +39,7 @@ pub fn validate_rider_categories(
         let name = get_trimmed_field(&row_map, "rider_category_name")
             .unwrap_or("")
             .to_string();
-        // sütun başlıkta yoksa ARC_025 devralır → atla
+        // if the column is absent from the header, ARC_025 takes over → skip
         if get_trimmed_field(&row_map, "rider_category_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -159,7 +159,7 @@ pub fn validate_rider_categories(
             }
         }
 
-        // RCT_007: spec tipi `URL` — stop_url→STP_042, route_url→RTS_005 ile aynı desen.
+        // RCT_007: spec type `URL` — same pattern as stop_url→STP_042 and route_url→RTS_005.
         let eligibility_url = get_lexical_field(&row_map, "eligibility_url")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);

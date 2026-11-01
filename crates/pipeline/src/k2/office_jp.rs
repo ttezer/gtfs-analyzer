@@ -1,8 +1,8 @@
 use super::common::{build_row_map, get_raw_field, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
-/// GTFS-JP `office_jp.txt` — işletme ofisi tanımları. `office_id` birincil
-/// anahtardır ve `trips.jp_office_id` ile referanslanır (JPN_002).
+/// GTFS-JP `office_jp.txt` — operator office definitions. `office_id` is the primary
+/// key and is referenced by `trips.jp_office_id` (JPN_002).
 #[derive(Debug, Clone)]
 pub struct OfficeJpRecord {
     pub office_id: String,

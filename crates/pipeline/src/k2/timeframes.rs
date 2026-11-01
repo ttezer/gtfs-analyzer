@@ -92,12 +92,12 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
             }
         };
 
-        // TFR_007: spec her iki alan için simetrik koşullu zorunluluk koyar — start_time
-        // "Required if timeframes.end_time is defined. - Forbidden otherwise", end_time için
-        // aynısı ters yönde. Yani ikisi de boş olabilir (spec'e göre 00:00:00–24:00:00, tüm
-        // gün) ya da ikisi de dolu olabilir; YALNIZCA BİRİ dolu olamaz.
-        // Parse edilmiş değere DEĞİL ham alana bakılır: biçim hatasında parse None döner ve
-        // TFR_003 zaten emit edilmiştir, buradan ikinci bir notice çıkmamalıdır.
+        // TFR_007: the spec imposes symmetric conditional requirements on both fields —
+        // "Required if timeframes.end_time is defined. - Forbidden otherwise" for start_time,
+        // and the reverse for end_time. Both may be empty (00:00:00–24:00:00, all day,
+        // according to the spec), or both may be populated; ONLY ONE may not be populated.
+        // Check the raw field, NOT the parsed value: a format error returns None from parsing
+        // and TFR_003 has already been emitted, so this path must not emit a second notice.
         let start_raw_empty = get_trimmed_field(&row_map, "start_time")
             .unwrap_or("")
             .is_empty();
@@ -119,11 +119,11 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
             ));
         }
 
-        // TFR_006: spec `timeframes.txt` start_time/end_time — "Values greater than 24:00:00
-        // are forbidden". 24:00:00'ın kendisi geçerlidir, üstü değil. parse_gtfs_time saat
-        // bölümüne üst sınır koymaz (25:10:05 bilinçli olarak kabul edilir), bu yüzden sınır
-        // burada ayrıca denetlenir. Saniyeye çevirmeden karşılaştırılır: çok büyük saat
-        // değerlerinde `hour * 3600` u32'de taşar.
+        // TFR_006: the spec says `timeframes.txt` start_time/end_time — "Values greater than 24:00:00
+        // are forbidden". 24:00:00 itself is valid, but anything above it is not. parse_gtfs_time
+        // imposes no upper bound on the hour component (25:10:05 is deliberately accepted), so
+        // the bound is checked separately here. Compare without converting to seconds: `hour * 3600`
+        // overflows u32 for very large hour values.
         for (field, parsed) in [("start_time", start_time), ("end_time", end_time)] {
             let Some((hour, minute, second)) = parsed else {
                 continue;
@@ -147,7 +147,7 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
         }
 
         if let (Some(st), Some(et)) = (start_time, end_time) {
-            // u64: parse_gtfs_time saat bölümüne üst sınır koymaz, `hour * 3600` u32'de taşar.
+            // u64: parse_gtfs_time imposes no upper bound on the hour component; `hour * 3600` overflows u32.
             let st_secs = st.0 as u64 * 3600 + st.1 as u64 * 60 + st.2 as u64;
             let et_secs = et.0 as u64 * 3600 + et.1 as u64 * 60 + et.2 as u64;
             if et_secs <= st_secs {
@@ -178,8 +178,8 @@ pub fn validate_timeframes(file: &RawFile) -> (Vec<TimeframeRecord>, Vec<gtfs_co
         });
     }
 
-    // TFR_005: aynı (timeframe_group_id, service_id) grubunda örtüşen zaman aralıkları
-    // Gruplama: key → Vec<(start_secs, end_secs, line)>
+    // TFR_005: overlapping time intervals in the same (timeframe_group_id, service_id) group.
+    // Grouping: key → Vec<(start_secs, end_secs, line)>
     type TimeframeIntervals<'a> = HashMap<(&'a str, &'a str), Vec<(u64, u64, u64)>>;
     let mut groups: TimeframeIntervals<'_> = HashMap::new();
     for rec in &records {
@@ -246,7 +246,7 @@ mod tests {
 
     #[test]
     fn tfr_006_allows_exactly_twenty_four_hours() {
-        // Spec: "Values greater than 24:00:00 are forbidden" — 24:00:00'ın KENDİSİ geçerli.
+        // Spec: "Values greater than 24:00:00 are forbidden" — 24:00:00 ITSELF is valid.
         assert_eq!(
             tfr_006_count(vec![vec!["TG1", "08:00:00", "24:00:00", "SVC1"]]),
             0
@@ -275,7 +275,7 @@ mod tests {
             tfr_006_count(vec![vec!["TG1", "08:00:00", "12:00:00", "SVC1"]]),
             0
         );
-        // Boş değer spec'te 00:00:00 sayılır; parse None döner, kural konusu değildir.
+        // An empty value counts as 00:00:00 in the spec; parsing returns None, so it is not a rule violation.
         assert_eq!(tfr_006_count(vec![vec!["TG1", "", "", "SVC1"]]), 0);
     }
 
@@ -296,13 +296,13 @@ mod tests {
             tfr_007_count(vec![vec!["TG1", "08:00:00", "12:00:00", "SVC1"]]),
             0
         );
-        // Spec: boş start_time = 00:00:00, boş end_time = 24:00:00 → ikisi birden boşsa tüm gün.
+        // Spec: empty start_time = 00:00:00, empty end_time = 24:00:00 → both empty means all day.
         assert_eq!(tfr_007_count(vec![vec!["TG1", "", "", "SVC1"]]), 0);
     }
 
     #[test]
     fn tfr_007_does_not_double_report_a_format_error() {
-        // Biçim hatasında parse None döner ama alan DOLUDUR; TFR_003 emit edilir, TFR_007 edilmez.
+        // For a format error, parsing returns None but the field IS populated; TFR_003 is emitted, not TFR_007.
         let (_, notices) = validate_timeframes(&make_file(vec![vec![
             "TG1", "notatime", "12:00:00", "SVC1",
         ]]));
@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn tfr_006_does_not_overflow_on_huge_hour() {
-        // hour * 3600 u32'de taşardı; karşılaştırma saniyeye çevirmeden yapılıyor.
+        // hour * 3600 would overflow u32; comparison is performed without converting to seconds.
         assert_eq!(
             tfr_006_count(vec![vec!["TG1", "9999999:00:00", "08:00:00", "SVC1"]]),
             1
