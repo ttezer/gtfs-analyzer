@@ -4591,9 +4591,9 @@ mod tests {
 
     #[test]
     fn unknown_column_in_fares_v2_produces_arc017() {
-        // Regresyon: known_columns Fares v2 dosyalarını içermediği için ARC_017 bu
-        // dosyaları tümüyle atlıyordu. rider_categories.txt'te eligibility_url GEÇERLİ
-        // (spec), zzz_custom BİLİNMEYEN olmalı.
+        // Regression: because known_columns did not include Fares v2 files, ARC_017 skipped
+        // these files entirely. In rider_categories.txt, eligibility_url is VALID (spec), while
+        // zzz_custom must be UNKNOWN.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4626,7 +4626,8 @@ mod tests {
 
     #[test]
     fn unknown_column_in_gtfs_jp_produces_arc017() {
-        // office_jp.txt: office_id/office_name GEÇERLİ; jp_extra jp_ önekiyle ATLANIR; bad_col BİLİNMEYEN.
+        // office_jp.txt: office_id/office_name are VALID; jp_extra is skipped by the jp_ prefix;
+        // bad_col is UNKNOWN.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4656,9 +4657,9 @@ mod tests {
 
     #[test]
     fn every_known_file_has_column_list_for_arc017() {
-        // ARC_017 (k1: `if !known_cols.is_empty()`) known_columns() boş dönen dosyayı
-        // TÜMÜYLE atlar. KNOWN_FILES'taki her dosyanın sütun listesi olmalı; yoksa o
-        // dosyadaki bilinmeyen sütunlar sessizce kaçar (bu bug'ın kök nedeniydi).
+        // ARC_017 (K1: `if !known_cols.is_empty()`) skips a file entirely when
+        // known_columns() returns empty. Every file in KNOWN_FILES must have a column list;
+        // otherwise unknown columns in that file silently escape (the root cause of this bug).
         let missing: Vec<&str> = KNOWN_FILES
             .iter()
             .copied()
@@ -4708,9 +4709,9 @@ mod tests {
 
     #[test]
     fn arc009_tolerates_an_empty_calendar_when_calendar_dates_carries_the_service() {
-        // #166: spec "calendar.txt — Required UNLESS all dates of service are
-        // defined in calendar_dates.txt". Bastırma yalnız ters yönde yazılmıştı;
-        // korpusta ARC_009'un 104 CRITICAL feed'inin 59'u tam bu vakaydı.
+        // #166: spec "calendar.txt — Required UNLESS all dates of service are defined in
+        // calendar_dates.txt". Suppression had been written only in the opposite direction;
+        // 59 of the corpus's 104 CRITICAL ARC_009 feeds were exactly this case.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4734,11 +4735,11 @@ mod tests {
 
     #[test]
     fn arc035_still_reports_an_empty_required_file() {
-        // Tolerans yalnız KOŞULLU ÇİFTE aittir; gerçekten zorunlu bir dosya
-        // boşsa kural susmamalı. 2026-08-31: bu hüküm ARC_009'dan ARC_035'e
-        // (Kritik·Spec) devredildi — sınıf dinamik olamadığı için Quality kalan
-        // ARC_009 R1 kapısından geçemiyor, yani boş zorunlu dosya yayın kapısını
-        // düşürmüyordu. İDDİA AYNI: boş zorunlu dosya SUSMAMALI.
+        // Tolerance applies only to the CONDITIONAL PAIR; the rule must not go silent when a
+        // genuinely required file is empty. On 2026-08-31 this requirement moved from ARC_009
+        // to ARC_035 (Critical·Spec) — because the class could not be dynamic, the remaining
+        // Quality ARC_009 could pass the R1 gate, so an empty required file did not fail
+        // publication. THE CLAIM IS THE SAME: an empty required file must not be silent.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\n"),
@@ -4764,9 +4765,9 @@ mod tests {
 
     #[test]
     fn arc034_reports_a_header_row_repeated_as_data() {
-        // #168: mdb-1003/mdb-1004'te agency.txt'nin ortasında başlık tekrarlanıyor.
-        // Tek yapısal kusur, bugüne kadar AGN_004 + AGN_005 + TRP_006 olarak
-        // dağılıyordu ve hiçbiri kullanıcıya asıl sorunu söylemiyordu.
+        // #168: the header is repeated in the middle of agency.txt in mdb-1003/mdb-1004.
+        // One structural defect used to spread into AGN_004 + AGN_005 + TRP_006, and none of
+        // them told the user the root problem.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\nagency_id,agency_name,agency_url,agency_timezone\n2,Test2,http://y.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4788,7 +4789,7 @@ mod tests {
             k1.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
         );
         assert_eq!(hits[0].file.as_deref(), Some("agency.txt"));
-        // Satır veri olarak KAYDEDİLMEZ: hayalet agency oluşmamalı.
+        // Do NOT STORE the row as data: no phantom agency must be created.
         let agencies = k1
             .files
             .get("agency.txt")
@@ -4799,8 +4800,8 @@ mod tests {
 
     #[test]
     fn arc034_does_not_fire_when_only_one_value_matches_its_column() {
-        // Tek bir alanın kendi sütun adına eşit olması meşrudur; kural yalnız
-        // BÜTÜN alanlar eşleştiğinde konuşur.
+        // One field equalling its own column name is legitimate; the rule speaks only when ALL
+        // fields match.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\nagency_id,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4818,11 +4819,11 @@ mod tests {
 
     #[test]
     fn dq016_declares_whitespace_in_an_identity_column() {
-        // #169: kimlik alanındaki boşluk, açıklama alanındakiyle aynı şey değildir.
-        // `routes.txt` anahtarı boşlukla, `trips.txt` boşluksuz yazarsa dosyalar arası
-        // her arama sessizce ıskalar. Kimlikleri HAM karşılaştırma kararı (#85) korunur;
-        // değişen tek şey bunun BEYAN EDİLMESİ. `mdb-2653`'te `TRP_024`'ün kaçırdığı
-        // 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu.
+        // #169: whitespace in an identity field is not the same as in a description field.
+        // If `routes.txt` writes the key with whitespace and `trips.txt` without it, every
+        // cross-file lookup silently misses. The decision to compare identities RAW (#85) is
+        // preserved; the only change is DECLARING this fact. In `mdb-2653`, the 1,502 block
+        // inconsistencies missed by `TRP_024` appeared nowhere.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4853,8 +4854,8 @@ mod tests {
 
     #[test]
     fn dq016_does_not_call_a_description_column_an_identity() {
-        // Yalnız açıklama alanında boşluk varsa kimlik beyanı YAZILMAZ — aksi hâlde
-        // beyan her feed'de görünür ve anlamını yitirir.
+        // Do NOT declare identity whitespace when only a description field has it — otherwise
+        // the declaration would appear in every feed and lose its meaning.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4878,9 +4879,9 @@ mod tests {
 
     #[test]
     fn dq016_flags_typed_and_text_fields_with_raw_evidence() {
-        // DQ_016 artık parser'ın toleransından bağımsız olarak ham sözlükbilimsel ihlali
-        // bildirir: zaman alanındaki boşluk da kök bulgudur. Tipli parse/FK semptomları
-        // daha sonra K7'de kök bulguya bağlanır.
+        // DQ_016 now reports the raw lexical violation independently of parser tolerance:
+        // whitespace in a time field is also a root finding. Typed-parse/FK symptoms are linked
+        // to the root finding later in K7.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4919,7 +4920,7 @@ mod tests {
 
     #[test]
     fn no_calendar_produces_arc008_notice() {
-        // calendar.txt ve calendar_dates.txt her ikisi de yok
+        // Both calendar.txt and calendar_dates.txt are absent.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4936,8 +4937,8 @@ mod tests {
 
     #[test]
     fn empty_calendar_dates_with_calendar_suppresses_arc009() {
-        // calendar.txt servisi tanımlıyor + calendar_dates.txt yalnızca başlık →
-        // ARC_009 yanlış-pozitif olur, bastırılmalı (calendar_dates şartlı zorunlu).
+        // calendar.txt defines service + calendar_dates.txt is header-only → ARC_009 is a false
+        // positive and must be suppressed (calendar_dates is conditionally required).
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4960,8 +4961,8 @@ mod tests {
 
     #[test]
     fn empty_calendar_dates_without_calendar_produces_arc009() {
-        // calendar.txt YOK + calendar_dates.txt yalnızca başlık → hiç servis tanımı yok →
-        // ARC_009 KALIR (tek sinyal; ARC_008 calendar_dates mevcut olduğu için fire etmez).
+        // calendar.txt ABSENT + calendar_dates.txt header-only → no service is defined → ARC_009
+        // REMAINS (the sole signal; ARC_008 does not fire because calendar_dates exists).
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4987,7 +4988,7 @@ mod tests {
 
     #[test]
     fn empty_optional_file_arc009_is_info_not_critical() {
-        // Boş (yalnız-başlık) transfers.txt (OPSİYONEL) → ARC_009 fire eder ama KRİTİK değil, BİLGİ.
+        // Empty (header-only) optional transfers.txt → ARC_009 fires but is not CRITICAL; it is INFO.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -5020,18 +5021,18 @@ mod tests {
         assert_eq!(records[1][1], "hello\nworld");
     }
 
-    /// Kapanış tırnağından sonraki metin AYNI alanda kalır — alan sayısı korunur.
+    /// Text after a closing quote stays in the SAME field — the field count is preserved.
     ///
-    /// 🔴 Regresyon: eski tokenizer alanı tırnakta kapatıp kalanı YENİ alan yapıyordu,
-    /// yani `tdg-80973/routes.txt`'te bir hücre iki alana bölünüyor ve sonraki sütunlar
-    /// kayıyordu. `route_id` boş görününce `RTS_031` Spec·KRİTİK "route_id zorunludur"
-    /// uyduruyordu — `ARC_033`'ün saydığı 7 satırla birebir aynı satırlarda. İhlalin
-    /// RAPORLANMASI doğruydu; VERİYİ BOZMASI değil.
+    /// 🔴 Regression: the old tokenizer closed the field at the quote and made the remainder a
+    /// NEW field, so a cell in `tdg-80973/routes.txt` split into two fields and later columns
+    /// shifted. When `route_id` looked empty, `RTS_031` invented the Spec·CRITICAL "route_id is
+    /// required" finding — on exactly the 7 rows counted by `ARC_033`. REPORTING the violation
+    /// was correct; CORRUPTING THE DATA was not.
     #[test]
     fn tokenize_csv_keeps_text_after_closing_quote_in_same_field() {
         let text = "a,b,c\n1,\"Thonon Les Arts\" A compter du 01/09,3\n";
         let (records, _, rfc) = tokenize_csv(text, None).unwrap();
-        // Alan sayısı başlıkla aynı kalmalı — kayma YOK.
+        // The field count must match the header — NO drift.
         assert_eq!(
             records[1].len(),
             3,
@@ -5039,7 +5040,7 @@ mod tests {
         );
         assert_eq!(records[1][1], "Thonon Les Arts A compter du 01/09");
         assert_eq!(records[1][2], "3", "sonraki sütun kaymamalı");
-        // İhlal yine de bildirilmeli (ARC_033).
+        // The violation must still be reported (ARC_033).
         assert!(rfc.rows > 0, "RFC 4180 ihlali raporlanmaya devam etmeli");
     }
 
@@ -5058,7 +5059,7 @@ mod tests {
 
     #[test]
     fn tokenize_csv_trailing_comma_no_newline() {
-        // Dosya sondaki virgülle bitip newline olmadığında boş alan eksik sayılmamalı
+        // When a file ends with a trailing comma and no newline, the empty field must not be omitted.
         let text = "a,b,c\n1,2,";
         let (records, _, _) = tokenize_csv(text, None).unwrap();
         assert_eq!(records.len(), 2);
@@ -5094,7 +5095,7 @@ mod tests {
 
     #[test]
     fn arc_021_fires_for_non_ascii_char() {
-        // stops.txt'de stop_id'ye özel kullanım alanı karakteri (U+E000) — sorunlu karakter
+        // Private-use character (U+E000) in stop_id in stops.txt — problematic character.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS\u{E000}1,Durak,41.0,29.0\n".as_bytes()),
@@ -5112,7 +5113,7 @@ mod tests {
 
     #[test]
     fn arc_030_fires_for_newline_inside_quoted_value() {
-        // Tırnak içindeki satır sonu alan değerinin parçası olur; spec bunu yasaklar.
+        // A line ending inside quotes becomes part of the field value; the spec forbids this.
         let zip = zip_with_files(&[
             ("agency.txt",     "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n".as_bytes()),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Durak,41.0,29.0\n"),
@@ -5126,7 +5127,7 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_030"),
             "ARC_030 bekleniyor"
         );
-        // ARC_021 bu karakteri bilerek muaf tutar; iki kural çakışmamalı.
+        // ARC_021 deliberately exempts this character; the two rules must not overlap.
         assert!(
             !k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
             "ARC_021 tetiklenmemeli"
@@ -5135,7 +5136,7 @@ mod tests {
 
     #[test]
     fn arc_032_detects_real_markup() {
-        // Vahşi doğadan: mdb-1924'ün 1176 durak adı bu biçimde.
+        // From the wild: 1,176 stop names in mdb-1924 had this form.
         assert_eq!(
             arc032_markup("[KMB+CTB] HIU TSUI STREET/<BR>HIU TSUI STREET, SIU SAI WAN ROAD"),
             Some("<BR>".to_string())
