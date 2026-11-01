@@ -4505,18 +4505,18 @@ fn arc022_notice_order_is_stable_across_runs() {
     }
 }
 
-// ── LOC_011 · 6.1.11 madde 5'in KALINTISI: temas grafiği çevrimi (issue #74) ───
+// ── LOC_011 · 6.1.11 clause 5 REMAINDER: contact graph cycle (issue #74) ─────
 //
-// 2026-08-07'ye kadar ölçülen ölçüt "iki ring İKİ noktada dokunuyor" idi; bu, temas
-// grafiğinin en kısa çevrimi (iki paralel kenar). Kalıntı: üç ring ikişer ikişer BİRER
-// noktada dokunarak da çevrim kapatabilir ve iç kısmı böler. Ölçüt artık çevrimin
-// kendisidir — özel hâl kendiliğinden kapsanır.
+// Until 2026-08-07 the measured criterion was "two rings touch at TWO points"; that is
+// the shortest cycle in the contact graph (two parallel edges). Remainder: three rings can
+// also close a cycle by touching pairwise at ONE point and split the interior. The criterion
+// is now the cycle itself — the special case is covered automatically.
 
 #[test]
 fn loc011_flags_three_holes_touching_pairwise_in_a_chain() {
-    // A–B, B–C, C–A: her temas TEK nokta (madde 3 tek tek hepsine izin verir) ama üçü
-    // birlikte çevrim kapatır → aralarında kalan alan iç kısmın geri kalanından KOPAR.
-    // Delikler kabuğa DOKUNMAZ; çevrim yalnız delikler arasındadır.
+    // A–B, B–C, C–A: each contact is ONE point (clause 3 allows each individually), but together
+    // they close a cycle → the enclosed area is CUT OFF from the rest of the interior.
+    // The holes do not touch the shell; the cycle is only among the holes.
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4531,9 +4531,9 @@ fn loc011_flags_three_holes_touching_pairwise_in_a_chain() {
 
 #[test]
 fn loc011_silent_on_open_chain_of_single_point_contacts() {
-    // A–B ve B–C birer noktada dokunuyor, C–A DOKUNMUYOR → grafik AĞAÇ, çevrim yok.
-    // Kıstırma noktalarının etrafından dolaşılabildiği için iç kısım BAĞLANTILI kalır.
-    // Bu, çevrim ölçütünün yanlış pozitife dönüşmediğinin kanıtıdır (`PTH_017` dersi).
+    // A–B and B–C touch at one point each, C–A does NOT → the graph is a TREE, with no cycle.
+    // The interior remains CONNECTED because one can go around the pinch points.
+    // This proves that the cycle criterion does not become a false positive (`PTH_017` lesson).
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4548,9 +4548,9 @@ fn loc011_silent_on_open_chain_of_single_point_contacts() {
 
 #[test]
 fn loc011_flags_ring_that_touches_itself() {
-    // Sekiz şeklinde kabuk: (5,5) köşesine İKİ kez uğruyor. `ring_is_simple` bunu
-    // göremez — teğetlik bilinçli olarak "kesişme" sayılmaz — ama iç kısım iki loba
-    // ayrılır, yani madde 5 ihlalidir (temas grafiğinde ÖZ-DÖNGÜ).
+    // Figure-eight shell: it visits corner (5,5) TWICE. `ring_is_simple` cannot see this
+    // — tangency deliberately does not count as an "intersection" — but the interior splits
+    // into two lobes, violating clause 5 (a SELF-LOOP in the contact graph).
     assert!(
         loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4562,9 +4562,9 @@ fn loc011_flags_ring_that_touches_itself() {
 
 #[test]
 fn loc011_silent_on_duplicate_consecutive_vertex() {
-    // ARDIŞIK yinelenen koordinat (sıfır uzunluklu kenar) gerçek veride yaygındır ve
-    // öz-temas DEĞİLDİR. Öz-temas denetimi komşu indeksleri atlamasaydı bu yaygın
-    // özensizlik anında yanlış pozitif olurdu.
+    // A CONSECUTIVE repeated coordinate (zero-length edge) is common in real data and is
+    // NOT a self-contact. If self-contact checking did not skip adjacent indices, this common
+    // imperfection would immediately become a false positive.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4576,8 +4576,8 @@ fn loc011_silent_on_duplicate_consecutive_vertex() {
 
 #[test]
 fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
-    // Düz kenar üzerindeki ara köşe ((0,5)) kendi komşu kenarlarının üstündedir;
-    // öz-temas SAYILMAZ. Aksi hâlde her yoğunlaştırılmış (densified) sınır patlardı.
+    // The intermediate vertex ((0,5)) on a straight edge lies on its neighboring edges;
+    // it does NOT count as self-contact. Otherwise every densified boundary would fail.
     assert!(
         !loc011_fires(
             r#"{"type":"Polygon","coordinates":[
@@ -4587,15 +4587,15 @@ fn loc011_silent_on_collinear_vertex_on_a_straight_edge() {
     );
 }
 
-// ── ARC_033: RFC 4180 tırnak kuralı ────────────────────────────────────────────
+// ── ARC_033: RFC 4180 quote rule ───────────────────────────────────────────────
 //
-// 🔴 İlk gerçek FALSIFIER (2026-08-07, dış okuma). Tokenizer'ın tırnaksız alan dalı yalnız
-// `,`, LF ve CR'de duruyordu; `"` sıradan karakter sayılıyordu. Yani spec'in İKİ sert
-// hükmü (`Pfedb83cf`, `Pa4c60372`) defterde `ARC_013` üzerinden DOLAYLI sayılırken ihlal
-// gerçekte HİÇ görünmüyordu — ölçüldü: bulgu kümesi geçerli feed'le BİREBİR aynıydı.
+// 🔴 First real FALSIFIER (2026-08-07, external reading). The tokenizer's unquoted-field branch
+// stopped only at `,`, LF, and CR; `"` counted as an ordinary character. Thus the Spec's TWO hard
+// provisions (`Pfedb83cf`, `Pa4c60372`) were counted INDIRECTLY through `ARC_013` in the ledger,
+// while the violation was actually NEVER visible — measured: the finding set matched a valid feed EXACTLY.
 //
-// ⚠️ Kuralın ÖLÇÜLEBİLİR olması alan sınırlarını bilmeyi gerektirir: `"12"" Street"`
-// (geçerli) ile `12" Street` (ihlal) AYNI değeri üretir. Bu yüzden karar tokenizer'da.
+// ⚠️ Making the rule MEASURABLE requires knowing field boundaries: `"12"" Street"`
+// (valid) and `12" Street` (violation) produce the SAME value. The decision therefore belongs in the tokenizer.
 
 fn arc033_feed(stops: &str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -4627,8 +4627,8 @@ fn arc033_flags_bare_quote_in_unquoted_field() {
 
 #[test]
 fn arc033_flags_characters_after_a_closing_quote() {
-    // `"Broadway"Ave` — içteki tırnak KAÇIRILMAMIŞ. Tokenizer bugüne dek kaydı sessizce
-    // bölüyordu; ARC_012 çıkıyordu ama sebep hiçbir yerde yazmıyordu.
+    // `"Broadway"Ave` — the inner quote is NOT ESCAPED. Until now the tokenizer silently
+    // split the record; ARC_012 appeared, but the reason was not recorded anywhere.
     assert!(arc033_fires(
         "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Broadway\"Ave,41.0,29.0\nS2,Stop2,41.1,29.1\n"
     ), "kapanış tırnağından sonra karakter RFC 4180 ihlalidir → ARC_033");
@@ -4636,9 +4636,9 @@ fn arc033_flags_characters_after_a_closing_quote() {
 
 #[test]
 fn arc033_silent_on_correctly_escaped_quotes() {
-    // 🔴 YANLIŞ POZİTİF KORUYUCUSU. Bu satır ayrıştırıldığında değer `12" Street` olur —
-    // yani ihlalli hâlle AYNI. Kural değere baksaydı burada da ateşlerdi ve GEÇERLİ veriyi
-    // reddederdi (`PTH_017` hatası).
+    // 🔴 FALSE-POSITIVE GUARD. When parsed, this row produces the value `12" Street` —
+    // the SAME value as the violating form. If the rule inspected the value, it would fire here
+    // too and reject valid data (`PTH_017` mistake).
     assert!(!arc033_fires(
         "stop_id,stop_name,stop_lat,stop_lon\nS1,\"12\"\" Street\",41.0,29.0\nS2,Stop2,41.1,29.1\n"
     ), "doğru kaçırılmış tırnak GEÇERLİDİR, ARC_033 çıkmamalı");
@@ -4646,7 +4646,7 @@ fn arc033_silent_on_correctly_escaped_quotes() {
 
 #[test]
 fn arc033_silent_on_quoted_value_containing_a_comma() {
-    // Virgül içeren değer tırnak içindeyse kural karşılanmıştır.
+    // A value containing a comma satisfies the rule when it is quoted.
     assert!(!arc033_fires(
         "stop_id,stop_name,stop_lat,stop_lon\nS1,\"Main St, North\",41.0,29.0\nS2,Stop2,41.1,29.1\n"
     ), "tırnaklanmış virgül GEÇERLİDİR, ARC_033 çıkmamalı");
@@ -4664,8 +4664,8 @@ fn arc033_silent_on_a_feed_with_no_quotes_at_all() {
 
 #[test]
 fn arc033_reports_one_summary_per_file_not_one_per_row() {
-    // ARC_032/DQ_016 deseni: 1176 durak adı işaretli bir feed'de satır başına emit
-    // tarayıcıyı boğar. Özet, kaç SATIR etkilendiğini söyler.
+    // ARC_032/DQ_016 pattern: per-row emission for a feed with 1,176 marked stop names
+    // overwhelms the scanner. The summary says how many ROWS were affected.
     let mut stops = String::from("stop_id,stop_name,stop_lat,stop_lon\n");
     for i in 1..=5 {
         stops.push_str(&format!("S{i},{i}\" Street,41.{i:03},29.{i:03}\n"));
@@ -4695,9 +4695,9 @@ fn arc033_reports_one_summary_per_file_not_one_per_row() {
 
 #[test]
 fn arc033_covers_streamed_files_too() {
-    // ⚠️ `trips.txt` K1'de STREAM edilir (`rows` boş kalır) — tokenize_csv yalnız başlığı
-    // görür. Gövde taraması `csv_scan`'de; iki tarayıcı ayrışırsa aynı dosya akış modunda
-    // sessiz kalırdı. Bu, ARC_022'de yaşanan kapsam boşluğunun aynısı olurdu.
+    // ⚠️ `trips.txt` is STREAMED in K1 (`rows` stays empty) — tokenize_csv sees only the header.
+    // Body scanning happens in `csv_scan`; if the two scanners diverged, the same file would stay
+    // silent in stream mode. This would repeat the scope gap seen in ARC_022.
     let mut files = base_files();
     let trips: &'static [u8] = Box::leak(
         "route_id,service_id,trip_id,trip_headsign\nR1,SVC1,T1,5\" Line\n"
@@ -4721,16 +4721,16 @@ fn arc033_covers_streamed_files_too() {
     }
 }
 
-// ── P71943a6f: dosya ve alan adları büyük/küçük harfe DUYARLIDIR ───────────────
+// ── P71943a6f: file and field names are CASE-SENSITIVE ────────────────────────
 //
-// Spec (File Requirements): *"All file and field names are case-sensitive."* Bu cümle
-// modal taşımadığı için 2026-08-07'ye kadar KATALOGDA HİÇ YOKTU (issue #81) — yani
-// adjudike de öksüz de sayılamıyordu. Davranış zaten doğruydu ama YAZILI DEĞİLDİ;
+// Spec (File Requirements): *"All file and field names are case-sensitive."* Because this sentence
+// carries no modal, it was absent from the CATALOG until 2026-08-07 (issue #81) — so it could not
+// be adjudicated or counted as orphaned. The behavior was already correct but NOT WRITTEN DOWN;
 // bu testler onu sabitler.
 
 #[test]
 fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
-    // `Stops.txt` ≠ `stops.txt`. Yanlış-case dosya zorunlu dosya SAYILMAZ → PARTIAL.
+    // `Stops.txt` ≠ `stops.txt`. A wrong-case file does NOT count as required → PARTIAL.
     let mut files = base_files();
     for slot in files.iter_mut() {
         if slot.0 == "stops.txt" {
@@ -4748,7 +4748,7 @@ fn case_sensitivity_wrong_case_file_is_not_the_required_file() {
 
 #[test]
 fn case_sensitivity_wrong_case_required_column_is_missing() {
-    // `STOP_ID` ≠ `stop_id` → zorunlu sütun YOK (ARC_025) + bilinmeyen sütun (ARC_017).
+    // `STOP_ID` ≠ `stop_id` → required column MISSING (ARC_025) + unknown column (ARC_017).
     let files =
         arc033_feed("STOP_ID,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
     match run(&files) {
@@ -4768,7 +4768,7 @@ fn case_sensitivity_wrong_case_required_column_is_missing() {
 
 #[test]
 fn case_sensitivity_correct_case_stays_silent() {
-    // Koruyucu: doğru yazım bu iki kuralı ÜRETMEMELİ.
+    // Guard: correct casing must produce neither rule.
     let files =
         arc033_feed("stop_id,stop_name,stop_lat,stop_lon\nS1,A,41.0,29.0\nS2,B,41.1,29.1\n");
     match run(&files) {
@@ -4780,14 +4780,14 @@ fn case_sensitivity_correct_case_stays_silent() {
     }
 }
 
-// ── issue #85: ID alanları PK/FK öncesi SESSİZCE kırpılıyordu ──────────────────
+// ── issue #85: ID fields were silently trimmed before PK/FK checks ─────────────
 //
-// 🔴 5. denetim turu. `get_trimmed_field`/`get_col` her değeri kırpıyor, ID'ler o
-// kırpılmış değerden kuruluyordu. `" A "` ile `A` aynı SÖZLÜKSEL değer değildir; PK/FK
-// sert semantiktir. `main = 44d516d8` üzerinde ölçülen iki hâl:
-//   1) stops `" A "` + stop_times FK `A` → eşleşiyordu (uydurma FK BAŞARISI)
-//   2) stops'ta `A` ve `" A "` → `STP_001` duplicate (uydurma ÇAKIŞMA)
-// Fazladan boşluk ayrı bir kalite sinyalidir ve `DQ_016` onu zaten bildiriyor.
+// 🔴 5th audit round. `get_trimmed_field`/`get_col` trimmed every value, and IDs were built
+// from the trimmed value. `" A "` and `A` are not the same LEXICAL value; PK/FK semantics are
+// strict. Two cases measured on `main = 44d516d8`:
+//   1) stops `" A "` + stop_times FK `A` → matched (fabricated FK SUCCESS)
+//   2) stops has `A` and `" A "` → `STP_001` duplicate (fabricated CLASH)
+// Extra whitespace is a separate quality signal, already reported by `DQ_016`.
 
 fn id_ws_feed(stops: &'static str, stop_times: &'static str) -> Vec<(&'static str, &'static [u8])> {
     let mut files = base_files();
@@ -4803,7 +4803,7 @@ fn id_ws_feed(stops: &'static str, stop_times: &'static str) -> Vec<(&'static st
 
 #[test]
 fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
-    // stops yalnız `" A "` tanımlıyor; stop_times `A`ya atıf yapıyor → FK KARŞILANMAMALI.
+    // stops defines only `" A "`; stop_times refers to `A` → the FK must NOT be satisfied.
     let files = id_ws_feed(
         "stop_id,stop_name,stop_lat,stop_lon\n\" A \",Bosluklu,41.0,29.0\nS2,Iki,41.1,29.1\n",
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -4820,7 +4820,7 @@ fn id85_padded_stop_id_does_not_satisfy_a_reference_to_the_bare_id() {
 
 #[test]
 fn id85_padded_and_bare_ids_are_not_duplicates() {
-    // `A` ve `" A "` FARKLI kimliklerdir; duplicate raporlamak uydurma çakışmadır.
+    // `A` and `" A "` are DIFFERENT IDs; reporting a duplicate is a fabricated clash.
     let files = id_ws_feed(
         "stop_id,stop_name,stop_lat,stop_lon\nA,Bir,41.0,29.0\n\" A \",Iki,41.1,29.1\n",
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -4837,10 +4837,10 @@ fn id85_padded_and_bare_ids_are_not_duplicates() {
 
 #[test]
 fn id85_whitespace_only_id_still_reports_the_required_field() {
-    // ⚠️ SINIR: boşluk teşhisi kırpma KULLANIR ama kimliği değiştirmez. Yalnızca
-    // boşluktan oluşan `stop_id` hâlâ "zorunlu alan boş" (`STP_002`) saymalı — aksi
-    // hâlde bu düzeltme bir bulgu KAYBEDERDİ. Ayrıca fazladan boşluk kalite sinyali
-    // (`DQ_016`) ayrı yoldan bildirilmeye devam eder.
+    // ⚠️ BOUNDARY: whitespace diagnosis USES trimming but does not change the ID. A `stop_id`
+    // made only of whitespace must still count as "required field empty" (`STP_002`) — otherwise
+    // this fix would LOSE a finding. Extra whitespace also remains reported separately as a quality
+    // signal (`DQ_016`).
     let files = id_ws_feed(
         "stop_id,stop_name,stop_lat,stop_lon\n\"   \",Bosluk,41.0,29.0\nS2,Iki,41.1,29.1\n",
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
@@ -4861,23 +4861,23 @@ fn id85_whitespace_only_id_still_reports_the_required_field() {
     }
 }
 
-// ── issue #112: whitespace kökü, strict lexical semantik ve cascade kapısı ────
+// ── issue #112: whitespace root, strict lexical semantics, and cascade gate ───
 
 #[test]
 fn whitespace112_keeps_root_and_independent_errors_but_suppresses_derivatives() {
     let files = vec![
         ("agency.txt", AGENCY),
-        // S1'in 91.0 enlemindeki aralık ihlali whitespace'ten bağımsızdır ve korunur;
-        // S2'nin 41.1 değeri ise yalnızca whitespace köküne indirgenebilir.
+    // The range violation at S1's latitude 91.0 is independent of whitespace and remains;
+    // S2's value 41.1 can be reduced to a whitespace-only root.
         ("stops.txt", b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1, 91.0,181.0\nS2,Stop2, 41.1,29.1\n" as &[u8]),
-        // R1'in 99 değeri semantik olarak da geçersizdir; R2'nin 3 değeri yalnızca
-        // lexical whitespace taşır. İki bağımsız URL hatası ayrıca görünür kalır.
+    // R1's value 99 is also semantically invalid; R2's value 3 carries only lexical
+    // whitespace. The two independent URL errors remain visible as well.
         ("routes.txt", b"route_id,agency_id,route_short_name,route_type,route_url\n\
           R1,1,101, 99,ftp://bad.example\nR2,1,102, 3,ftp://bad.example\n" as &[u8]),
         ("trips.txt", TRIPS),
-        // " S1" ham FK değeridir. Kök bulgu kanıtı bu değeri korur; STM_002 ise
-        // yalnızca aynı kaydın trim edilmiş karşılığı stops.txt'te bulunduğu için türetilmiştir.
-        // Bilinmeyen " UNKNOWN " değeri ise gerçek FK hatası olarak kalmalıdır.
+    // " S1" is the raw FK value. The root finding preserves this value as evidence; STM_002
+    // is derived only because the trimmed counterpart of the same record exists in stops.txt.
+    // The unknown " UNKNOWN " value must remain a real FK error.
         ("stop_times.txt", b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,08:00:00,\" S1\",1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,\" UNKNOWN \",3\n" as &[u8]),
         ("calendar.txt", CALENDAR),
