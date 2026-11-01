@@ -6,10 +6,10 @@ use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, PartialReport, Severity};
 use smol_str::SmolStr;
 
-/// Debug-only K1 izleme. Release WASM derlemesinde (debug_assertions kapalı) ve
-/// native'de tamamen derlenip çıkarılır — sıfır runtime maliyeti, hiçbir Notice
-/// veya akış etkisi yok. (Profilde DevTools açıkken WASM stack sembolizasyonu
-/// her console çağrısını felç edici yavaşlattığı için kapatıldı.)
+/// Debug-only K1 tracing. It is fully compiled out in release WASM builds
+/// (with debug_assertions disabled) and native builds — zero runtime cost and no effect on
+/// Notices or control flow. (It was disabled because WASM stack symbolisation with DevTools
+/// open made every console call cripplingly slow during profiling.)
 macro_rules! k1dbg {
     ($($arg:tt)*) => {{
         #[cfg(all(target_family = "wasm", debug_assertions))]
@@ -17,7 +17,7 @@ macro_rules! k1dbg {
     }};
 }
 
-// ── GTFS dosya listeleri ──────────────────────────────────────────────────────
+// ── GTFS file lists ───────────────────────────────────────────────────────────
 
 const REQUIRED_FILES: &[&str] = &[
     "agency.txt",
@@ -29,8 +29,8 @@ const REQUIRED_FILES: &[&str] = &[
 
 const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
 
-/// `agency.csv` gibi: bir GTFS dosyasının gövdesini taşıyıp uzantısı `.txt` olmayan girdi.
-/// Konumdan bağımsızdır; çağıran taraf kök/alt dizin ayrımını kendi yapar.
+/// An input such as `agency.csv` that carries a GTFS file body but does not have a `.txt`
+/// extension. It is independent of location; the caller handles root/subdirectory layout.
 fn gtfs_stem_with_wrong_extension(path: &str) -> bool {
     let base = path
         .rsplit(['/', '\\'])
@@ -79,39 +79,39 @@ pub(crate) const KNOWN_FILES: &[&str] = &[
     "booking_rules.txt",
     "location_groups.txt",
     "location_group_stops.txt",
-    // GTFS-JP uzantıları (Japonya standardı)
+    // GTFS-JP extensions (Japanese standard)
     "agency_jp.txt",
     "routes_jp.txt",
     "office_jp.txt",
     "pattern_jp.txt",
 ];
 
-// ── Tipler ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-/// Ham CSV verisi: başlıklar + satırlar. Tip/enum kontrolü K2'de yapılır.
+/// Raw CSV data: headers + rows. Type/enum checks run in K2.
 #[derive(Debug, Default)]
 pub struct RawFile {
     pub name: String,
     pub headers: Vec<String>,
-    /// Her satır, başlıklarla aynı indekste hizalanmış ham string değerleri taşır.
-    /// SmolStr: ≤22 bayt alanlar inline saklanır (heap alloc yok); daha uzunlar Arc<str>.
+    /// Each row contains raw string values aligned with the headers by index.
+    /// SmolStr: fields ≤22 bytes are stored inline (no heap allocation); longer ones use Arc<str>.
     ///
-    /// NOT: Çok büyük dosyalarda (stop_times.txt) bellek için bu alan BOŞ bırakılır;
-    /// ham gövde `raw_text`'te tutulur ve K2 tarafından streaming parse edilir (OOM fix Plan A).
+    /// NOTE: for very large files (stop_times.txt), this field is left EMPTY to save memory;
+    /// the raw body is kept in `raw_text` and parsed by K2 as a stream (OOM fix Plan A).
     pub rows: Vec<Vec<SmolStr>>,
-    /// Sıkıştırılmamış dosya boyutu (bayt). Büyük dosyalarda READ_LIMIT ile kırpılabilir.
+    /// Uncompressed file size (bytes). Large files may be truncated by READ_LIMIT.
     pub bytes: u32,
-    /// Streaming parse edilen dosyalar (stop_times.txt) için BOM'suz, UTF-8 doğrulanmış
-    /// ham metin (başlık dahil). `rows` boş kaldığında K2 bunu satır satır işler.
-    /// Diğer tüm dosyalarda `None`.
+    /// BOM-free, UTF-8-validated raw text (including the header) for files parsed as streams
+    /// (stop_times.txt). K2 processes it line by line when `rows` is empty.
+    /// `None` for all other files.
     pub raw_text: Option<String>,
-    /// ZIP içindeki GERÇEK girdi adı — yalnız `name`den farklıysa doludur.
+    /// The REAL entry name inside the ZIP — populated only when it differs from `name`.
     ///
-    /// Sarılı feed'de (`TestFlex1/stop_times.txt`) K1 kök önekini düşer ve dosyayı
-    /// `stop_times.txt` adıyla işler. K2 ise büyük dosyaları ZIP'i YENİDEN AÇARAK stream
-    /// eder; `by_name("stop_times.txt")` sarılı arşivde HİÇBİR ŞEY bulamaz ve dosya
-    /// sessizce boş sayılırdı. 13. korpus koşumunda ölçüldü: ARC_024 ateşleyen **44
-    /// feed'in 44'ünde** tek bir `STM_*` kuralı bile ateşlemiyordu.
+    /// In a wrapped feed (`TestFlex1/stop_times.txt`), K1 drops the root prefix and processes
+    /// the file as `stop_times.txt`. K2 reopens the ZIP to stream large files; `by_name("stop_times.txt")`
+    /// finds NOTHING in a wrapped archive, so the file was silently treated as empty. Measured
+    /// in the 13th corpus run: in **all 44 of the 44** feeds triggering ARC_024, not one `STM_*`
+    /// rule fired.
     pub zip_entry_name: Option<String>,
 }
 
@@ -122,26 +122,26 @@ pub struct K1Result {
     pub files: RawFiles,
     pub notices: Vec<Notice>,
     pub partial: PartialReport,
-    /// K1 tarafından keşfedilen dosyalar; bozuk/eksik optional dosyalar için
-    /// dependency-aware recovery planı bunun üzerinden kurulur.
+    /// Files discovered by K1; the dependency-aware recovery plan for broken/missing optional
+    /// files is built from this set.
     pub present_files: HashSet<String>,
-    /// `stops.txt`'in koşullu yokluğunu yalnızca yapısal olarak geçerli Flex bölgeleri
-    /// karşılıyorsa K1'de geçici olarak kabul ederiz; dosya adının veya yalnızca okunabilen
-    /// bir poligonun varlığı yeterli değildir. Tam pipeline, K2'den sonra bu kümedeki en az
-    /// bir kimliğin `stop_times.location_id` tarafından kullanıldığını da doğrular.
+    /// Temporarily accept the conditional absence of `stops.txt` in K1 only when structurally
+    /// valid Flex locations justify it; the file name or a merely readable polygon is not enough.
+    /// After K2, the full pipeline also verifies that at least one ID in this set is used by
+    /// `stop_times.location_id`.
     pub has_valid_locations_geojson: bool,
-    /// Zorunlu Feature üyeleri ve geometrisi eksiksiz, benzersiz string `id` değerleri.
-    /// `geojson_location_ids` tüm yazılmış kimlikleri XFL_025 için korurken bu dar küme
-    /// yalnız `stops.txt` Flex muafiyetinin kanıtıdır.
+    /// Unique string `id` values whose required Feature members and geometry are complete.
+    /// While `geojson_location_ids` retains every written ID for XFL_025, this narrower set is
+    /// only evidence for the `stops.txt` Flex exemption.
     pub valid_geojson_location_ids: std::collections::HashSet<String>,
-    /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
+    /// Set of locations.geojson feature 'id' values (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
-    /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
+    /// locations.geojson feature 'id' → GEOMETRY (moved to K6 for Pa1fdaa0d).
     ///
-    /// ⚠️ 2026-08-06 dış denetimi: geometri saklanmadığı için "aynı trip'te geojson
-    /// bölgesi + zaman penceresi + pickup/drop_off davranışı EŞZAMANLI örtüşemez" hükmü
-    /// **yanlışlıkla KAPSAM DIŞI** işaretlenmişti. Gerekçe mimari eksikti, doğrulanamazlık
-    /// değil — hükmün her girdisi feed'in içinde. Bu alan o eksiği kapatır.
+    /// ⚠️ 2026-08-06 external audit: because geometry was not retained, the rule that "a geojson
+    /// region + time window + pickup/drop_off behavior cannot overlap in the same trip" was
+    /// **mistakenly marked OUT OF SCOPE**. The architecture was incomplete, not the evidence —
+    /// every input to the rule is inside the feed. This field closes that gap.
     pub geojson_geometries: std::collections::HashMap<String, LocationGeometry>,
     /// Unknown root-level `.txt` files and their parsed headers. K2 cannot retain
     /// unknown files because it only materialises typed GTFS records, but K4 needs
@@ -149,24 +149,24 @@ pub struct K1Result {
     pub custom_file_headers: std::collections::HashMap<String, Vec<String>>,
 }
 
-/// Bir `locations.geojson` feature'ının geometrisi: dış ring'ler + bounding box.
+/// Geometry of a `locations.geojson` feature: outer rings + bounding box.
 ///
-/// Delikler BİLİNÇLİ tutulmaz: örtüşme testi için dış sınır yeterlidir ve deliği hesaba
-/// katmamak yalnız YANLIŞ POZİTİF yönünde değil, "örtüşüyor" derken daha KAPSAYICI
-/// davranmak demektir — hüküm bir YASAK olduğu için bu yön güvenli değildir, bu yüzden
-/// örtüşme kararı ayrıca kesişme/kapsama ile doğrulanır (bkz. `polygons_overlap`).
+/// Holes are deliberately not retained: the outer boundary is enough for the overlap test, and
+/// ignoring holes makes an "overlap" decision more INCLUSIVE, not merely more prone to FALSE
+/// POSITIVES. Because the rule is a PROHIBITION, that direction is unsafe, so the overlap
+/// decision is also verified by intersection/containment (see `polygons_overlap`).
 #[derive(Debug, Clone, Default)]
 pub struct LocationGeometry {
-    /// Her Polygon'un DIŞ ring'i (MultiPolygon'da birden çok olur).
+    /// The OUTER ring of each Polygon (there may be several in a MultiPolygon).
     pub outer_rings: Vec<Vec<(f64, f64)>>,
-    /// (min_lon, min_lat, max_lon, max_lat) — ucuz ön eleme.
+    /// (min_lon, min_lat, max_lon, max_lat) — cheap pre-filter.
     pub bbox: (f64, f64, f64, f64),
 }
 
-// ── Notice yardımcısı ─────────────────────────────────────────────────────────
+// ── Notice helper ──────────────────────────────────────────────────────────────
 
-// Notice alanları canonical emit tablosuyla aynı sırada tutulur; parametre struct'ı
-// bu düşük seviyeli yardımcıda çağrıların okunabilirliğini azaltır.
+// Notice fields stay in the same order as the canonical emit table; the parameter struct keeps
+// calls to this low-level helper readable.
 #[allow(clippy::too_many_arguments)]
 fn make_notice(
     counter: &mut u32,
@@ -180,7 +180,7 @@ fn make_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    // K1 scope_key ve expected_value üretmez — ikisi de sabit None.
+    // K1 does not produce scope_key or expected_value — both are always None.
     crate::notice_factory::build(
         "K1",
         Some("k1"),
@@ -199,64 +199,65 @@ fn make_notice(
     )
 }
 
-// ── UTF-8 BOM ─────────────────────────────────────────────────────────────────
+// ── UTF-8 BOM ──────────────────────────────────────────────────────────────────
 
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
-/// ZIP merkezi-dizininde beyan edilen (saldırgan-kontrollü) açılmış boyuttan
-/// ön-tahsis edilecek en büyük tampon. `zf.size()` güvenilmez olduğundan, bir arşiv
-/// yalnızca devasa bir boyut *beyan ederek* ilk bayt okunmadan büyük bir Vec alloc'una
-/// zorlayabilir. Beyanı bu tavana kapatırız; gerçek baytlar geldikçe Vec büyür, yani
-/// meşru büyük dosyalar için davranış değişmez, yalnızca başlangıç kapasitesi sınırlanır.
+/// Maximum buffer to preallocate from the decompressed size declared in the ZIP central
+/// directory (attacker-controlled). Because `zf.size()` is untrusted, an archive could force
+/// a large Vec allocation before the first byte is read simply by *declaring* an enormous size.
+/// We cap the declaration here; the Vec still grows as real bytes arrive, so legitimate large
+/// files behave the same and only the initial capacity is limited.
 const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
 
-/// Merkezi dizin ve pahalı opsiyonel girdiler için sabit güvenlik bütçeleri.
-/// Bunlar normal GTFS feed'lerinin kapsamını daraltmaz; yalnızca saldırganın
-/// doğrulama sırasında sınırsız metadata/JSON ve geometrik karşılaştırma
-/// üretmesini engeller.
+/// Fixed safety budgets for the central directory and expensive optional entries.
+/// These do not narrow the scope of normal GTFS feeds; they only prevent an attacker from
+/// producing unbounded metadata/JSON and geometric comparisons during validation.
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_GEOJSON_BYTES: u64 = 64 * 1024 * 1024;
 
-/// K1 ham dosya tamponu için başlangıç kapasitesi: beyan edilen boyutu [`MAX_PREALLOC`]
-/// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
+/// Initial capacity for a K1 raw-file buffer: cap the declared size at [`MAX_PREALLOC`] and
+/// return at least 1 (a zero-capacity allocation is pointless).
 #[inline]
 fn prealloc_capacity(uncompressed_hint: usize) -> usize {
     uncompressed_hint.clamp(1, MAX_PREALLOC)
 }
 
-/// Yerel dosya başlığı (local file header) imzası ve sabit uzunluğu.
+/// Local file header signature and fixed length.
 const LFH_SIGNATURE: u32 = 0x0403_4b50;
 const LFH_LEN: usize = 30;
-/// Merkez dizin girdisi (central directory header) imzası ve sabit uzunluğu.
+/// Central directory header signature and fixed length.
 const CDH_SIGNATURE: u32 = 0x0201_4b50;
 const CDH_LEN: usize = 46;
-/// Merkez dizin sonu (end of central directory) imzası ve sabit uzunluğu.
+/// End-of-central-directory signature and fixed length.
 const EOCD_SIGNATURE: u32 = 0x0605_4b50;
 const EOCD_LEN: usize = 22;
-/// EOCD, dosya sonundan en çok comment uzunluğu (64 KB) kadar geride olabilir.
+/// EOCD can be at most the comment length (64 KB) before the end of the file.
 const EOCD_SEARCH_WINDOW: usize = 65_557;
-/// Data descriptor imzası. APPNOTE'a göre bu imza OPSİYONELDİR; iki biçim de okunur.
+/// Data descriptor signature. According to APPNOTE, this signature is OPTIONAL; both forms are read.
 const DATA_DESCRIPTOR_SIGNATURE: u32 = 0x0807_4b50;
-/// Data descriptor bayrağı (general purpose bit flag, bit 3).
+/// Data descriptor flag (general purpose bit flag, bit 3).
 const FLAG_DATA_DESCRIPTOR: u16 = 0x0008;
-/// zip64 kaçış değeri — gerçek boyut extra field'da taşınır, 32-bit alan okunamaz.
+/// zip64 sentinel — the real size is carried in the extra field; the 32-bit field cannot be read.
 const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
 
-/// `ZipArchive::new` başarısız olduğunda BOZUKLUĞUN KATMANINI söyler.
+/// Identifies the layer of corruption when `ZipArchive::new` fails.
 ///
-/// 🔴 Neden gerekli: `zip` crate'i (2.4.2) bozuk bir girdide de "Could not find EOCD" döndürüyor
-/// ve bu mesajı olduğu gibi aktarmak kullanıcıyı YANLIŞ yere bakmaya yönlendiriyordu. Ölçüm
-/// (`tld-5895`, korpusun tek `ZipUnreadable` feed'i): EOCD offset 855.231'de KUSURSUZ, merkez
-/// dizinin 9 girdisi de kusursuz; bozuk olan tek şey `stop_times.txt`'in yerel başlığı
-/// (offset 570.618, imza yerine sıfır baytlar) — önceki girdinin sıkıştırılmış verisi taşmış.
-/// `unzip -t` aynı offseti veriyor, biz "arşivin sonu kesik" diyorduk.
+/// 🔴 Why this is needed: the `zip` crate (2.4.2) also returns "Could not find EOCD" for a
+/// corrupt entry, and passing that message through sent users in the WRONG direction. In the
+/// measurement (`tld-5895`, the corpus's only `ZipUnreadable` feed), the EOCD at offset 855.231
+/// was INTACT and all 9 central-directory entries were intact; only the local header of
+/// `stop_times.txt` was corrupt (offset 570.618, zero bytes instead of the signature) — the
+/// previous entry's compressed data had overrun it. `unzip -t` reports the same offset; we used
+/// to say "the end of the archive was truncated."
 ///
-/// `None` → ham byte'lardan ek bir şey söylenemiyor; çağıran yalnız kütüphane mesajını verir.
-/// zip64 arşivleri ATLANIR: 32-bit EOCD alanları kaçış değeri taşır, gerçek offset zip64
-/// kaydındadır ve buradan okunamaz; okunamayanı "bozuk" saymak yanlış teşhis olurdu.
-/// `diagnose_unreadable_zip` sonucu: Türkçe metin (pipeline mesajı) + çeviri için tür ve
-/// parametreler. Tür, fatal şablonunun varyantını seçer (`archive.local_header` gibi).
+/// `None` → nothing more can be determined from the raw bytes; the caller only returns the
+/// library message. zip64 archives are SKIPPED: 32-bit EOCD fields contain sentinel values, the
+/// real offset is in the zip64 record, and it cannot be read here; calling the unreadable part
+/// "corrupt" would be a false diagnosis. The `diagnose_unreadable_zip` result contains Turkish
+/// text (the pipeline message) plus the type and parameters for translation. The type selects
+/// the fatal-template variant (such as `archive.local_header`).
 #[derive(Debug)]
 struct ZipDiagnosis {
     kind: &'static str,
