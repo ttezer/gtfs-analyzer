@@ -1,200 +1,200 @@
 # Translate release workflow comments to English.
-47a7b820
+47a7b8201927ce2fffd058b06ef2c9be0025c32a
 
 # Translate CI workflow comments to English.
-fa8b3775
+fa8b377506724c5deec6162661f990294a9e8c2b
 
 # Translate config comments and test messages to English.
-d7e4dbfb
+d7e4dbfbcb463a40d7616d481cbc36364be3c040
 
 # Translate core report comments to English.
-48e900d9
+48e900d985f6ee6a0638d719d5ac03f5c7c1425c
 
 # Translate agency attribution comments to English.
-36b0f761
+36b0f761bc1a75fb80b6f91e830bc58216377caa
 
 # Translate core enum comments to English.
-2d10a0f7
+2d10a0f77fbf7970f2a07b259dc01dbefbe02f98
 
 # Translate core metrics and notice comments to English.
-0c322a43
+0c322a4314991260b2475b133b0036f0eb955159
 
 # Translate WASM localization comments to English.
-7923aea3
+7923aea35e6634d4781bde0aac9da341d41b4ce7
 
 # Translate WASM pipeline comments to English.
-4adf932d
+4adf932d9c8262ff2a8afcf243d2cd59e410a1ae
 
 # Translate WASM test guards to English.
-03ced544
+03ced544e2c11036e6284ccc59f95e0dd6bd84aa
 
 # Translate decompression guard comments to English.
-a437b7fe
+a437b7fead18f724b6d1376167d54412da2c4e38
 
 # Translate remaining config test messages to English.
-371387ef
+371387efd3e427e0ede490b78e324740535dfac5
 
 # Translate remaining WASM test messages to English.
-4c1b5492
+4c1b54924616a543013d42446fdf2f85acbd6a20
 
 # Translate K1 type and ZIP comments to English.
-b95e1f4e
+b95e1f4ebb2fea9f0620fc43750cab154da338d0
 
 # Translate K1 ZIP and CSV comments to English.
-92239e0e
+92239e0e03a463547e624e8137299ee5cdccc27f
 
 # Translate K1 tokenizer and schema comments to English.
-12ffc80f
+12ffc80f6c15e8096d3b15a3f4c7dd37e1ac6a29
 
 # Translate K1 whitespace and row checks to English.
-5d06c76e
+5d06c76ec444ecd7f78e6e3b660e7807c989e614
 
 # Translate K1 character and markup comments to English.
-669260a0
+669260a0b55df9a97e673d9aeb4c6ae13abdc544
 
 # Translate K1 ID and column comments to English.
-92a6f718
+92a6f718f955865c16bc7cf1cf5c7e2208f016ee
 
 # Translate K1 schema and wrapped-feed comments to English.
-6272e225
+6272e225a347f3658d6faa3056eb13c6ac2d0897
 
 # Translate K1 archive traversal comments to English.
-2694e3e5
+2694e3e5f50d6b27a957d71e386d27595437dcc4
 
 # Translate K1 streaming and header comments to English.
-d2252d6f
+d2252d6fb5e449f6b0634ce423b8a15f39a24999
 
 # Translate K1 row and file checks to English.
-17fab81f
+17fab81f84c90bfc178455e4b92c301da91c1115
 
 # Translate K1 GeoJSON validation comments to English.
-10e927c6
+10e927c657efb1f1aa7a38ad2ecb285889c7f817
 
 # Translate K1 geometry topology comments to English.
-f21d8ca0
+f21d8ca071b911a21c2d3b75f27975043a0eafa6
 
 # Translate K1 archive and wrapper tests to English.
-0982df76
+0982df76c2bbdd4fdb4bf5a4bc0d9d2dc877636d
 
 # Translate K1 regression test comments to English.
-a8b34147
+a8b3414743a2729f64915c1d4d489b63515d6af3
 
 # Translate K1 HTML entity test comments to English.
-d8a4ccc3
+d8a4ccc35d2e4678726ea06c6b2b6a0ef0d8f9c6
 
 # Translate remaining K1 comments to English.
-07ee649a
+07ee649a540e431eda4077303b77b86251dafd9c
 
 # Translate K2 agency and attribution comments to English.
-5f1384e4
+5f1384e4dd2b0460c622d7f39246a28346ca311d
 
 # Translate K2 booking and calendar comments to English.
-33b1e8de
+33b1e8de5609bedadef77576b52918b6833773ee
 
 # Translate K2 fare and schedule comments to English.
-0bf47c0d
+0bf47c0d201d5859f587cefad6ef153c5a8a3dd5
 
 # Translate remaining small K2 comments to English.
-72f4bfd9
+72f4bfd950926b9e1772979c83e400aa369fbdb5
 
 # Translate generated K2 table comments to English.
-1e786cb0
+1e786cb076e9f4b89a1e1fc8b2624fd3ac0f9976
 
 # Translate K2 orchestration comments to English.
-be59ef73
+be59ef73bab795c05f45f2f3a3beb4029823abca
 
 # Translate K2 pathway comments to English.
-63dd876a
+63dd876ab014566065fd752227ba0afbb39f6f3f
 
 # Translate K2 route comments to English.
-b0a93bf6
+b0a93bf664877908f3c9ec8af04aa807276920c1
 
 # Translate K2 shape comments to English.
-2b42de41
+2b42de4193979b66ccf66be2f56809fb42036089
 
 # Translate K2 stop comments to English.
-24bdcbe3
+24bdcbe373b15010538e78845242e9c292c22cab
 
 # Translate K2 translation comments to English.
-6f4a859d
+6f4a859dbb7baff951992d798669bfa5ed3551eb
 
 # Translate K2 trip comments to English.
-6d8324a4
+6d8324a46a511d9d11bcebbe868683a204b23570
 
 # Translate K2 common comments to English.
-431a0a97
+431a0a9779484489a03519a2a98e3f7115044740
 
 # Translate missed trailing comments.
-f43597ba
+f43597babe29ddaf46a92daeb5c336f7209913e0
 
 # Translate remaining inline Turkish comments.
-365e6da1
+365e6da15610cec6775055707454a70114516085
 
 # Translate remaining tab comment.
-7abbbf5f
+7abbbf5fbc1232facdc4d576ba4356f0b03cf9c7
 
 # Translate K3 comments.
-8a9eed88
+8a9eed8877fbd4fdd710ff6b1b7393749a69043a
 
 # Translate HTML generator headers.
-48d2f3f9
+48d2f3f904c910bd6b402a17d34adcc105833b28
 
 # Translate HTML generator usage comments.
-08efe868
+08efe86850f0d180cc9420c9ccad63f57ce44ab9
 
 # Translate K4 cross-reference comments to English (part 1).
-2c775fb1
+2c775fb177bc7d64bcb127e9a8a33f4429fa4451
 
 # Translate remaining K4 comments and repair corrupted section dividers.
-693ac007
+693ac0076622980dd265aea337d3b45e10161d32
 
 # Translate K5 derived-data comments.
-77a9da7c
+77a9da7c2f862f7c9ec8ae1e8af21d5da28b3b46
 
 # Translate missed K5 inline comments and restore comment indentation.
-db19cd77
+db19cd77f73bee21557012711e1c5fb967180349
 
 # Translate K7 reporting comments.
-6476529f
+6476529f21c58d00d1d215cd4b387095fcfc00df
 
 # Preserve K7 test message data.
-f4440ce0
+f4440ce0ef7d3d60fa9c8ca2c3b5e38a1fffe66a
 
 # Translate agency attribution comments.
-0f6722bc
+0f6722bcd191abe6bad30468edf2ee68528a8519
 
 # Translate pipeline support comments.
-60481054
+6048105414c05288e16ee253a41e457088ed1d7d
 
 # Translate pipeline example comments.
-c8ae246a
+c8ae246a07f5a31d913ebb37ae845e3a618ed587
 
 # Translate pipeline test comments.
-1551d8b0
+1551d8b0469242c71fbc161d7e7e762d0422f57c
 
 # Translate real feed mutation comments.
-a1b0e006
+a1b0e006e5733960cffa9a5d58b144468faf02cf
 
 # Translate emit proof helper comments.
-d7972eba
+d7972eba4a893a23953d7fcdf2354b567c9b5750
 
 # Preserve emit proof code spans.
-57060c7e
+57060c7ea9a96905d2caad4a20602dcfbe7a2322
 
 # Translate missed pipeline inline comments.
-61b9c2a2
+61b9c2a29cce534a9a639f06acb84bb3dbd8c3a6
 
 # Translate emit proof fixture comments.
-73d7d94d
+73d7d94df60c1dd2ce7d4690614d8983755b7321
 
 # Translate emit proof checks.
-dfdb3e77
+dfdb3e775bd48426d6dfd13575d0944c0c26b685
 
 # Translate agency URL messages.
-e6e481c6
+e6e481c62bb65c756db1d3b8b66de65964aa03ae
 
 # Translate spec conformance helper text.
-d08d91e6
+d08d91e6148301406c13399f175fca99a56e1170
 
 # Reverted pipeline library translation (card-overlap file).
-120848b5
+120848b5d04f837a18123d2722783d0aaaeff4b5

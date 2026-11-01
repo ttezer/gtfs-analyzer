@@ -525,6 +525,7 @@ fn k6_notice(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn stm012_details(
     stop_a: &str,
     stop_b: &str,
