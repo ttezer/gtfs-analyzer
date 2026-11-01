@@ -1961,8 +1961,8 @@ fn check_speed_and_duration<'a>(
                 }
                 if lo_lat.is_finite() {
                     let bbox_diag_km = haversine_km(lo_lat, lo_lon, hi_lat, hi_lon);
-                    // 10 km'lik "uzak" tanımı MobilityData ile aynıdır; altındaki çiftler
-                    // komşu kontrolünün alanıdır ve orada zaten ölçülür.
+                    // The 10 km "distant" definition matches MobilityData; pairs below it
+                    // belong to the neighboring-stop check and are measured there already.
                     if bbox_diag_km > FAR_STOP_MIN_KM {
                         let mut worst: Option<(f64, f64, usize, usize)> = None;
                         for i in 0..stimes.len() {
@@ -1980,7 +1980,7 @@ fn check_speed_and_duration<'a>(
                                     continue;
                                 }
                                 let dt_h = (arr - dep) as f64 / 3600.0;
-                                // KESİN SINIR: bundan sonrası ihlal edemez.
+                                // HARD BOUND: no later pair can violate the rule.
                                 if threshold * dt_h >= bbox_diag_km {
                                     break;
                                 }
@@ -1997,9 +1997,8 @@ fn check_speed_and_duration<'a>(
                                 }
                             }
                         }
-                        // Sefer başına en kötü çift seçilir, ama EMIT ERTELENİR: aynı fiziksel
-                        // çift her seferde yeniden raporlanırsa bulgu sayısı tarifenin
-                        // sıklığıyla ölçeklenir, kusurun büyüklüğüyle değil.
+                        // Select the worst pair per trip, but DEFER EMISSION: reporting the same physical
+                        // pair once per trip would scale findings with timetable frequency, not defect size.
                         if let Some((speed, dist_km, i, j)) = worst {
                             let pair = stm061_pairs
                                 .entry((
@@ -2031,11 +2030,11 @@ fn check_speed_and_duration<'a>(
             let mut trip_max_speed: f64 = 0.0;
             let mut trip_max_speed_line: Option<u64> = None;
             let mut trip_bad_seg_count: u32 = 0;
-            // Kırpılmış hattın eşiğiyle de bozuk kalan segment sayısı (OPR_008 karşı-olgusu).
+            // Number of segments still bad under the truncated route's threshold (OPR_008 counterexample).
             let mut trip_ws_bad_count: u32 = 0;
-            // Tüm bozuk segmentlerin durak ID çiftleri — UI haritasında her biri kırmızı çizilir
+            // Stop-ID pairs for all bad segments — each is drawn as a red line on the UI map.
             let mut bad_seg_stops: Vec<(SmolStr, SmolStr)> = Vec::new();
-            // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment
+            // STM_020: the longest zero-travel-time segment per trip.
             let mut worst_zero_seg: Option<(f64, u64, SmolStr, SmolStr, u32, u32)> = None;
 
             for i in 0..stimes.len() - 1 {
@@ -2048,7 +2047,7 @@ fn check_speed_and_duration<'a>(
                 let (Some(dep), Some(arr)) = (dep_a, arr_b) else {
                     continue;
                 };
-                // STM_020: sıfır geçiş süresi — eşik 200m (dakika yuvarlama gürültüsünü filtreler)
+                // STM_020: zero travel time — 200 m threshold (filters minute-rounding noise).
                 if arr == dep {
                     let dep_secs = a.departure_time().map(|(_, _, s)| s).unwrap_or(1);
                     let arr_secs = b.arrival_time().map(|(_, _, s)| s).unwrap_or(1);
@@ -2056,15 +2055,16 @@ fn check_speed_and_duration<'a>(
                         (Some((la1, lo1)), Some((la2, lo2))) => haversine_km(la1, lo1, la2, lo2),
                         _ => 0.0,
                     };
-                    // Her iki zaman tam dakika (saniye=0) → gerçek geçiş süresi bilinmiyor:
-                    // yuvarlama yüzünden 0-59 sn arası herhangi bir şey olabilir. Bu yüzden
-                    // "imkânsız" diyebilmek için mesafe, TAM BİR DAKİKA geçmiş olsa BİLE
-                    // rota tipinin azami hızını aşmalı → eşik = max_speed_kmh / 60.
+                    // Both times are exact minutes (seconds=0) → the true travel time is unknown:
+                    // rounding allows anything from 0 to 59 seconds. Therefore, to call it
+                    // "impossible", the distance must exceed the route type's maximum speed
+                    // even if a FULL MINUTE had elapsed → threshold = max_speed_kmh / 60.
                     //
-                    // Sabit 1.0 km eşiği YANLIŞ POZİTİF üretiyordu: 1.1 km bir otobüs için
-                    // 60 sn'de 66 km/h eder — gayet olağan, "fiziksel olarak imkânsız" değil.
-                    // 250-feed corpus kanıtı (mdb-2155): 42 bulgunun 41'i 1.1-1.5 km = FP;
-                    // gerçek olan tek vaka 29.4 km (1764 km/h) ve MD de YALNIZ onu raporluyor.
+                    // The fixed 1.0 km threshold produced FALSE POSITIVES: 1.1 km for a bus
+                    // is 66 km/h in 60 seconds — quite normal, not "physically impossible".
+                    // Evidence from the 250-feed corpus (mdb-2155): 41 of 42 findings were
+                    // 1.1–1.5 km = FP; the only real case was 29.4 km (1764 km/h), which MD
+                    // also reports as the ONLY case.
                     let impossible_km = threshold / 60.0;
                     if dep_secs == 0 && arr_secs == 0 {
                         if dist_km >= impossible_km {
@@ -2091,8 +2091,8 @@ fn check_speed_and_duration<'a>(
                                 None,
                             ));
                             notices.push(n012);
-                            // Saatsiz ara duraklı sıfır süreli aralıkla aynı: OPR_008 bu
-                            // segmenti de sayar; hız alt sınırı = tam bir dakika geçmiş say.
+                            // As with a zero-time interval containing untimed intermediate stops:
+                            // OPR_008 counts this segment too; the lower speed bound assumes a full minute elapsed.
                             let zero_speed = dist_km * 60.0;
                             if zero_speed > trip_max_speed {
                                 trip_max_speed = zero_speed;
@@ -2130,9 +2130,9 @@ fn check_speed_and_duration<'a>(
                 }
                 let dt_sec = arr - dep;
 
-                // Mesafe: shape polyline projeksiyonu (varsa) ya da Haversine fallback.
-                // Ray (metro/tren) seferleri için projeksiyon atlanır: düz/tünel hatlar
-                // haversine ile yeterince temsil edilir; winding shapes false positive üretebilir.
+                // Distance: shape polyline projection when available, or Haversine fallback.
+                // Skip projection for rail (metro/train) trips: straight/tunnel routes are
+                // represented adequately by Haversine; winding shapes can produce false positives.
                 let (c1, c2) = match (coords_buf[i], coords_buf[i + 1]) {
                     (Some(c1), Some(c2)) => (c1, c2),
                     _ => continue,
@@ -2146,8 +2146,8 @@ fn check_speed_and_duration<'a>(
                         if pts.len() < 2 {
                             return None;
                         }
-                        // (sid, stop_id) → arc cache: aynı shape'i kullanan seferlerde/segmentlerde
-                        // tekrar projeksiyonu önler. stop_id → tek koordinat olduğundan sonuç deterministik.
+                        // (sid, stop_id) → arc cache: avoids repeated projection across trips/segments
+                        // using the same shape. The result is deterministic because stop_id maps to one coordinate.
                         let arc_a = *arc_cache
                             .entry((sid, idx.stop_id_of(a)))
                             .or_insert_with(|| project_arc_km(pts, cum, c1.0, c1.1));
@@ -2161,23 +2161,23 @@ fn check_speed_and_duration<'a>(
                             None
                         }
                     })
-                    // Shape projeksiyon kuş uçuşunun 4 katından büyükse durak büyük olasılıkla
-                    // YANLIŞ shape segmentine eşleşmiştir (shape kendine yaklaşıyor/kesişiyor —
-                    // grid ağlarında, gidiş-dönüş aynı caddede vb.). Bu durumda projeksiyon
-                    // güvenilmez; haversine'e düş. Aksi halde LA Metro gibi feed'lerde sahte
-                    // 1000+ km/h hızlar STM_012/STM_014 yanlış pozitifleri üretir.
-                    // Şekil projeksiyonu da kuş uçuşundan kısa olamaz: self-near/crossing
-                    // shape'lerde iki durak aynı küçük arc bölümüne eşleşebilir ve gerçek
-                    // otobüs hızını yapay olarak düşürerek STM_014 false-negative'i üretir.
-                    // Üst sınırdaki 4× fallback korunur; alt sınırda shape mesafesi Haversine'e
-                    // clamp edilir. Böylece hem gerçek rota detour'u hem fiziksel minimum korunur.
+                    // If shape projection exceeds four times the straight-line distance, the stop likely
+                    // matched the WRONG shape segment (the shape approaches/crosses itself — common in
+                    // grid networks, outbound and return service on the same street, etc.). Projection
+                    // is unreliable then; fall back to Haversine. Otherwise feeds such as LA Metro could
+                    // produce false 1000+ km/h STM_012/STM_014 findings.
+                    // Shape projection also cannot be shorter than straight-line distance: self-near/crossing
+                    // shapes can map two stops to the same small arc section and artificially lower the real
+                    // bus speed, producing an STM_014 false negative.
+                    // Keep the 4× upper fallback; clamp shape distance to Haversine at the lower bound.
+                    // This preserves both real route detours and the physical minimum.
                     .filter(|&d| d <= 4.0 * haver_km.max(0.05))
                     .map(|d| d.max(haver_km))
                     .unwrap_or(haver_km);
 
                 if dist_km < 1e-6 {
                     if idx.stop_id_of(a) == idx.stop_id_of(b) {
-                        // STM_035: aynı durak ardışık iki kez (terminal/döngü hattı)
+                        // STM_035: the same stop appears twice consecutively (terminal/circular route).
                         notices.push(k6_notice(
                         ctr, "STM_035", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
@@ -2189,7 +2189,7 @@ fn check_speed_and_duration<'a>(
                         "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
                     ));
                     } else {
-                        // STM_021: farklı stop_id'ler aynı koordinatta — gerçek veri hatası
+                        // STM_021: different stop_ids at the same coordinates — a real data error.
                         let mut n = k6_notice(
                         ctr, "STM_021", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
@@ -2209,7 +2209,7 @@ fn check_speed_and_duration<'a>(
                     continue;
                 }
 
-                // STM_025: <10s tek başına hata değildir; fiziksel tutarlılığı hız kuralları değerlendirir.
+                // STM_025: <10s is not an error by itself; speed rules assess physical consistency.
                 if dt_sec < 10 {
                     let mut n025 = k6_notice(
                     ctr, "STM_025", EntityType::Trip,
@@ -2227,9 +2227,9 @@ fn check_speed_and_duration<'a>(
                     notices.push(n025);
                 }
 
-                // STM_026: durak arası mesafe çok uzun — shape arc projeksiyon hataları olabileceğinden
-                // straight-line (haversine) mesafesiyle kontrol edilir; gerçek sorun varsa o da büyük olur.
-                // Demiryolu seferleri için daha yüksek eşik (config.rail_stop_distance_km).
+                // STM_026: the distance between stops is too long — because shape arc projection can be wrong,
+                // check straight-line (Haversine) distance; a real problem will be large there too.
+                // Higher threshold for rail trips (config.rail_stop_distance_km).
                 let stm026_threshold = if is_rail_route_type(route_type) {
                     config.rail_stop_distance_km
                 } else {
@@ -2254,11 +2254,11 @@ fn check_speed_and_duration<'a>(
 
                 let speed = dist_km / (dt_sec as f64 / 3600.0);
 
-                // STM_012: fiziksel olarak imkansız hız (mutlak üst sınır 700 km/h).
-                // "İmkânsız" iddiası ALT-SINIR mesafeyle (haversine, kuş uçuşu) kanıtlanır:
-                // gerçek yol ≥ düz çizgi her zaman doğrudur; shape-projeksiyonu ise yanlış
-                // segmente eşleşip şişebilir (4× tavana kadar). Projeksiyonlu hız 700'ü
-                // aşıp haversine aşmıyorsa vaka "imkânsız" değil "aşırı"dır → STM_014'e düşer.
+                // STM_012: physically impossible speed (absolute upper bound 700 km/h).
+                // The "impossible" claim is proven with a LOWER-BOUND distance (Haversine, straight-line):
+                // real road distance ≥ straight-line distance is always true; shape projection can instead
+                // match the wrong segment and inflate the value (up to the 4× ceiling). If projected speed
+                // exceeds 700 but Haversine speed does not, the case is "extreme", not "impossible" → STM_014.
                 let hav_speed = haver_km / (dt_sec as f64 / 3600.0);
                 if hav_speed > 700.0 {
                     let mut n012 = k6_notice(
@@ -2282,8 +2282,8 @@ fn check_speed_and_duration<'a>(
                         None,
                     ));
                     notices.push(n012);
-                    // OPR_008 bu segmenti de sayar; hızı ve durak çiftini de görmeli,
-                    // yoksa yalnız STM_012 segmentli seferde "en yüksek hız 0.0" basılır.
+                    // OPR_008 counts this segment too and must see its speed and stop pair;
+                    // otherwise a trip containing only an STM_012 segment would print "maximum speed 0.0".
                     if hav_speed > trip_max_speed {
                         trip_max_speed = hav_speed;
                         trip_max_speed_line = Some(b.line as u64);
@@ -2298,7 +2298,7 @@ fn check_speed_and_duration<'a>(
                 }
 
                 if speed > threshold {
-                    // Emit ertelenir: aynı (hat, yön, segment) için tek notice üretilecek.
+                    // Emission is deferred: produce one notice for each (route, direction, segment).
                     let seg = stm014_segs
                         .entry((route, dir_sd, idx.stop_id_of(a), idx.stop_id_of(b)))
                         .or_insert_with(|| Stm014Seg {
@@ -2339,11 +2339,11 @@ fn check_speed_and_duration<'a>(
                 }
             }
 
-            // Saatsiz ara durakları aşan aralıklar: yukarıdaki döngü yalnız ARDIŞIK iki durağa
-            // bakar ve saati olmayan durakta `continue` eder; STM_061 de yalnız >10 km çiftleri
-            // ölçer. Böylece 15:15 → 15:15 arasındaki 3,5 km (mdb-2202, 11 saatsiz durak) hiç
-            // görülmüyordu. Burada yalnız ARASINDA saatsiz durak olan saatli→saatli aralıklar
-            // değerlendirilir — ardışık çiftler zaten ölçüldüğü için çift sayım yok.
+            // Intervals spanning untimed intermediate stops: the loop above checks only ADJACENT
+            // stops and `continue`s when a stop has no time; STM_061 measures only pairs >10 km.
+            // Thus the 3.5 km from 15:15 → 15:15 (mdb-2202, 11 untimed stops) was never seen.
+            // Here we evaluate only timed→timed intervals with untimed stops BETWEEN them —
+            // adjacent pairs are already measured, so there is no double counting.
             let mut prev_timed: Option<usize> = None;
             for j in 0..stimes.len() {
                 let b = &stimes[j];
@@ -2359,10 +2359,11 @@ fn check_speed_and_duration<'a>(
                     continue;
                 };
                 if arr < dep {
-                    continue; // kronoloji STM_008'in alanı
+                    continue; // chronology belongs to STM_008
                 }
-                // Yol: ara durakların kuş uçuşu toplamı (doğrudan mesafeden uzun, gerçek
-                // yoldan kısa). "İmkânsız" hükmü yine doğrudan (alt sınır) mesafeyle verilir.
+                // Path: sum of straight-line distances between intermediate stops (longer than direct
+                // distance, shorter than the real route). The "impossible" verdict still uses direct
+                // (lower-bound) distance.
                 let (Some((la1, lo1)), Some((la2, lo2))) = (coords_buf[p], coords_buf[j]) else {
                     continue;
                 };
@@ -2385,12 +2386,12 @@ fn check_speed_and_duration<'a>(
                 let seq_a = a.stop_sequence().unwrap_or(0);
                 let seq_b = b.stop_sequence().unwrap_or(0);
                 let impossible = if dt_sec == 0 {
-                    // Sıfır süre: ardışık çiftteki kuralın aynısı — iki zaman da tam dakikaysa
-                    // gerçek süre 0-59 sn olabilir; tam bir dakikada bile aşılamayan mesafe imkânsızdır.
+                    // Zero time: the same rule as for an adjacent pair — if both times are exact minutes,
+                    // the real duration may be 0–59 seconds; a distance impossible even in one full minute is impossible.
                     let whole = a.departure_time().or(a.arrival_time()).map(|(_, _, s)| s) == Some(0)
                         && b.arrival_time().or(b.departure_time()).map(|(_, _, s)| s) == Some(0);
                     if whole && direct_km >= threshold / 60.0 {
-                        // Hız alt sınırı: tam bir dakika geçmiş say (OPR_008 en yüksek hızı için).
+                        // Lower speed bound: assume that one full minute elapsed (for OPR_008's maximum speed).
                         Some((format!("{direct_km:.1} km / 0 dk"), direct_km * 60.0))
                     } else {
                         if direct_km > 0.2
@@ -2488,8 +2489,8 @@ fn check_speed_and_duration<'a>(
                 }
             }
 
-            // OPR_008: yalnızca birden fazla bozuk segment varsa özet notice üret.
-            // Tek segment bozuksa STM_014 zaten o bilgiyi taşır — OPR_008 tekrar olur.
+            // OPR_008: emit a summary notice only when multiple segments are bad.
+            // If one segment is bad, STM_014 already carries that information — OPR_008 would duplicate it.
             if trip_bad_seg_count > 1 {
                 let mut n = k6_notice(
                 ctr,
@@ -2508,16 +2509,16 @@ fn check_speed_and_duration<'a>(
                 ),
                 "stop_times zaman ve koordinat verilerini kontrol edin.",
             );
-                // Tüm bozuk segment çiftleri → UI'da her biri kırmızı polyline
-                // Ayrıca kalkış saati (varsa) details'e → EN/JA mesaj şablonunda gösterilebilir.
+                // All bad segment pairs → each is a red polyline in the UI.
+                // Also put the departure time (when present) in details → available to the EN/JA message template.
                 {
                     let mut d = std::collections::BTreeMap::new();
                     for (i, (sa, sb)) in bad_seg_stops.iter().enumerate() {
                         d.insert(format!("bad_seg_{i}_a"), sa.to_string());
                         d.insert(format!("bad_seg_{i}_b"), sb.to_string());
                     }
-                    // Kalkış saati → details'e. EN/JA şablonu {dep_suffix} ile gösterir;
-                    // boşken suffix tamamen kaybolur (koşullu boşluk için Rust'ta üretilir).
+                    // Departure time → details. The EN/JA template displays it via {dep_suffix};
+                    // when empty, the suffix disappears completely (Rust creates the conditional space).
                     d.insert("departure".to_string(), dep_str.clone());
                     d.insert(
                         "dep_suffix".to_string(),
@@ -2535,7 +2536,7 @@ fn check_speed_and_duration<'a>(
                 notices.push(n);
             }
 
-            // STM_020: trip başına en büyük mesafeli sıfır-geçiş-süreli segment (tek notice/trip)
+            // STM_020: longest zero-travel-time segment per trip (one notice per trip).
             if let Some((dist_km, line, stop_a, stop_b, seq_a, seq_b)) = worst_zero_seg {
                 let mut n = k6_notice(
                 ctr,
@@ -2579,11 +2580,11 @@ fn check_speed_and_duration<'a>(
             EntityType::Route,
             Some(route.to_string()),
             Some(route.to_string()),
-            // `line` örnek seferin ilk stop_times satırıdır; dosya onunla aynı olmalı.
+            // `line` is the first stop_times row of the example trip; it must refer to that file.
             "stop_times.txt",
             (line > 0).then_some(line),
-            // Ölçülen sütun: arrival_time (yoksa departure_time). route_id yalnız
-            // gruplama anahtarıdır ve stop_times.txt'te sütun değildir.
+            // Measured column: arrival_time (or departure_time). route_id is only a grouping key
+            // and is not a column in stop_times.txt.
             Some("arrival_time|departure_time"),
             Some(format!(
                 "{affected_trips} trips; max {max_same_run} consecutive stops"
@@ -2596,8 +2597,8 @@ fn check_speed_and_duration<'a>(
         ));
     }
 
-    // ── STM_014: biriken segmentleri tek tek emit et ─────────────────────────
-    // FxHashMap iterasyonu sırasız → anahtara göre sırala (golden determinizmi).
+    // ── STM_014: emit accumulated segments individually ─────────────────────
+    // FxHashMap iteration is unordered → sort by key (golden determinism).
     {
         let _t = Timer::start("K6::sd::stm014_emit");
         let mut keys: Vec<(&str, &str, &str, &str)> = stm014_segs.keys().copied().collect();
@@ -2617,8 +2618,8 @@ fn check_speed_and_duration<'a>(
                 ..
             } = *seg;
 
-            // Sefer listesi deterministik + tekilleştirilmiş (aynı sefer segmenti bir kez geçer,
-            // ama loop hatlarda tekrar edebilir).
+            // Deterministic, deduplicated trip list (the same trip segment appears once,
+            // but it may recur on loop routes).
             let mut trips: Vec<&str> = seg.trips.clone();
             trips.sort_unstable();
             trips.dedup();
@@ -2645,10 +2646,10 @@ fn check_speed_and_duration<'a>(
                 ctr,
                 "STM_014",
                 EntityType::Route,
-                // entity_id segmenti BENZERSİZ tanımlamalı: dedup=Entity olduğu için
-                // aynı hattaki farklı segmentler aksi halde birbirini yutar.
+                // entity_id must identify the segment UNIQUELY: because dedup=Entity,
+                // different segments on the same route would otherwise overwrite one another.
                 Some(format!("{route}:{dir}:{stop_a}→{stop_b}")),
-                // scope_key = route_id → UI'da hat bazlı filtre çalışmaya devam eder.
+                // scope_key = route_id → route-level filtering continues to work in the UI.
                 Some(route.to_string()),
                 "stop_times.txt",
                 Some(line),
@@ -2662,8 +2663,8 @@ fn check_speed_and_duration<'a>(
             d.insert("stop_a".to_string(), stop_a.to_string());
             d.insert("stop_b".to_string(), stop_b.to_string());
             d.insert("route_id".to_string(), route.to_string());
-            // route_label = route_short_name (yoksa route_id) — EN/JA şablonları
-            // diğer route-scoped kurallarla aynı biçimde {route_label} kullanır.
+            // route_label = route_short_name (or route_id) — EN/JA templates use {route_label}
+            // in the same form as other route-scoped rules.
             d.insert("route_label".to_string(), route_label.to_string());
             d.insert("direction_id".to_string(), dir.to_string());
             d.insert("trip_count".to_string(), trips.len().to_string());
@@ -2686,9 +2687,9 @@ fn check_speed_and_duration<'a>(
         }
     }
 
-    // ── STM_061: biriken uzak durak çiftlerini tek tek emit et ───────────────
-    // STM_014 ile aynı desen ve aynı gerekçe: FxHashMap iterasyonu sırasız olduğu
-    // için anahtara göre sıralanır, yoksa golden çıktı koşumdan koşuma oynar.
+    // ── STM_061: emit accumulated distant stop pairs individually ───────────
+    // Same pattern and rationale as STM_014: FxHashMap iteration is unordered,
+    // so sort by key or the golden output varies between runs.
     {
         let _t = Timer::start("K6::sd::stm061_emit");
         let mut keys: Vec<(&str, &str, &str, &str)> = stm061_pairs.keys().copied().collect();
@@ -2737,8 +2738,8 @@ fn check_speed_and_duration<'a>(
                 ctr,
                 "STM_061",
                 EntityType::Route,
-                // entity_id çifti BENZERSİZ tanımlamalı: dedup=Entity olduğu için aynı
-                // hattaki farklı çiftler aksi halde birbirini yutar (STM_014 ile aynı).
+                // entity_id must identify the pair UNIQUELY: because dedup=Entity, different
+                // pairs on the same route would otherwise overwrite one another (as in STM_014).
                 Some(format!("{route}:{dir}:{stop_a}→{stop_b}")),
                 Some(route.to_string()),
                 "stop_times.txt",
@@ -2773,9 +2774,9 @@ fn check_speed_and_duration<'a>(
         }
     }
 
-    // STM_007: düşük hacimde satır-başına pinpoint, yüksek hacimde tek feed özeti.
-    // Eşik SHP_010/STP_022 ile aynı tutulur; örnekler HashMap/chunk sırasından
-    // etkilenmesin diye finalize_stm007_pending içinde sıralanır.
+    // STM_007: row-level pinpointing at low volume, one feed summary at high volume.
+    // Keep the threshold equal to SHP_010/STP_022; sort examples in finalize_stm007_pending
+    // so HashMap/chunk order cannot affect them.
     const STM007_AGG_THRESHOLD: usize = 50;
     finalize_stm007_pending(
         &mut stm007_pending,
@@ -2825,7 +2826,7 @@ fn check_frequency_headway(
             ));
         }
 
-        // FRQ_010: çok yüksek frekanslı sefer (bunching eşiği altında) → bilgi
+        // FRQ_010: very high-frequency service (below the bunching threshold) → info
         if hw <= bunching_secs {
             notices.push(k6_notice(
                 ctr,
@@ -2845,10 +2846,10 @@ fn check_frequency_headway(
     }
 }
 
-/// Kalkış aralıkları "düzenli" mi — varyasyon katsayısı (CV = std/ortalama) < 0.25.
-/// Düzenli aralık = kasıtlı seyrek servis (ör. kırsal sabah/akşam seferleri) → OPR_001
-/// bastırılır. Düzensiz (çoğu sık + bir dev boşluk) = gerçek servis boşluğu → OPR_001 üretilir.
-/// Tek aralık (2 sefer) varyans taşımaz → kasıtlı kabul edilir.
+/// Are departure intervals "regular" — coefficient of variation (CV = std/mean) < 0.25.
+/// Regular intervals = intentional sparse service (e.g. rural morning/evening trips) → suppress OPR_001.
+/// Irregular intervals (mostly frequent + one huge gap) = a real service gap → emit OPR_001.
+/// One interval (2 trips) has no variance → treat it as intentional.
 fn is_regular_headway(gaps: &[u32]) -> bool {
     if gaps.len() < 2 {
         return true;
@@ -2862,7 +2863,7 @@ fn is_regular_headway(gaps: &[u32]) -> bool {
     (var.sqrt() / mean) < 0.25
 }
 
-// ── WP-09b: Route headway (düzenli servis) ────────────────────────────────────
+// ── WP-09b: Route headway (regular service) ──────────────────────────────────
 
 fn check_route_headway(
     records: &EntityRecords,
@@ -2885,19 +2886,19 @@ fn check_route_headway(
         })
         .collect();
 
-    // İki ayrı havuz, çünkü iki kural farklı şeyleri ölçer:
-    //  • OPR_001 (seyrek servis / en büyük aralık) hattın TOPLAM frekansına bakar →
-    //    kaba anahtar (route_id, direction_key, service_id).
-    //  • OPR_003 (sıkışma / en küçük aralık) yalnızca AYNI servis desenindeki ardışık
-    //    seferler arasında anlamlıdır → ince anahtar (first_stop_id, pattern) içerir.
-    // Aksi hâlde (a) farklı terminallerden ~aynı saatte kalkan seferler ya da
-    // (b) aynı duraktan farklı HEDEFE giden seferler (örn. B100: "Bedford Av" 3-durak
-    // stub vs "Mill Basin" 29-durak tam run) sahte "1dk sıkışma" üretir. pattern =
-    // shape_id (yoksa son durak); first_stop ANAHTARDA KALIR, çünkü shape yoksa farklı
-    // başlangıçtan aynı varışa giden seferlerin birleşip terminal-FP'sini geri
-    // getirmesini engeller. OPR_001'i ilk-durağa/desene bölmek ise yalnız belirli
-    // saatlerde sefer başlatan kısa-hat varyantlarını yanlışlıkla "seyrek" gösterir.
-    // direction_key: direction_id varsa "0"/"1"/..., yoksa "" (ayrı bucket açmaz).
+    // Two separate pools because the rules measure different things:
+    //  • OPR_001 (sparse service / largest gap) uses the route's TOTAL frequency →
+    //    coarse key (route_id, direction_key, service_id).
+    //  • OPR_003 (bunching / smallest gap) is meaningful only between trips in the SAME
+    //    service pattern → the fine key includes (first_stop_id, pattern).
+    // Otherwise (a) trips leaving different terminals at about the same time or
+    // (b) trips from the same stop to different DESTINATIONS (e.g. B100: "Bedford Av" 3-stop
+    // stub vs "Mill Basin" 29-stop full run) produce a false "1-minute bunching" finding. pattern =
+    // shape_id (or the last stop); keep first_stop IN THE KEY because without a shape, trips
+    // from different origins to the same destination could merge and bring back a terminal FP.
+    // Splitting OPR_001 by first stop/pattern would instead incorrectly mark short-line variants
+    // that start service only at certain times as "sparse".
+    // direction_key: "0"/"1"/... when direction_id exists, otherwise "" (no separate bucket).
     let mut route_departures: HashMap<(&str, &str, &str), Vec<u32>> = HashMap::new();
     let mut route_stop_departures: HashMap<(&str, &str, &str, &str, &str), Vec<u32>> =
         HashMap::new();
@@ -2911,7 +2912,7 @@ fn check_route_headway(
             Some(0) => "0",
             Some(1) => "1",
             Some(d) => {
-                // Beklenmedik değer: boş string ile normalize et (ayrı bucket açma)
+                // Unexpected value: normalize to an empty string (do not create a separate bucket).
                 let _ = d;
                 ""
             }
@@ -2928,7 +2929,7 @@ fn check_route_headway(
             .and_then(|v| v.first())
             .map(|s| idx.stop_id_of(s))
             .unwrap_or("");
-        // Servis deseni: shape_id varsa onu, yoksa son durağı (varış) kullan.
+        // Service pattern: use shape_id when present, otherwise the last stop (destination).
         let pattern: &str = match ti_hw.shape_id(trip).filter(|s| !s.is_empty()) {
             Some(s) => s,
             None => stops
@@ -2950,11 +2951,11 @@ fn check_route_headway(
     let max_secs = config.max_headway_warning_min * 60;
     let bunching_secs = config.bunching_threshold_min * 60;
 
-    // OPR_001 eşiği route_type'a göre ayrılır: şehirlerarası demiryolunda saatte bir tren
-    // beklenmez — Ankara-Sivas YHT'de 580 dk'lık aralık normal işletmedir, kapatılması
-    // gereken bir boşluk değil. OPR_005'e DOKUNULMAZ: o zaten route_type başına medyan+MAD
-    // ile GÖRELİ çalışır, sabit eşiği yoktur. FRQ kuralları da kapsam dışı — frequencies.txt
-    // zaten düzenli sıklık beyanıdır, orada büyük headway ayrı bir olgudur.
+    // Split the OPR_001 threshold by route_type: hourly service is not expected on intercity rail
+    // — a 580-minute gap on Ankara-Sivas YHT is normal operation, not a gap to close. DO NOT TOUCH
+    // OPR_005: it already works RELATIVELY per route_type using median+MAD and has no fixed threshold.
+    // FRQ rules are also out of scope — frequencies.txt already declares regular frequency; a large
+    // headway there is a separate phenomenon.
     let rail_routes_hw: FxHashSet<&str> = records
         .routes
         .iter()
@@ -2962,7 +2963,7 @@ fn check_route_headway(
         .map(|r| r.route_id.as_str())
         .collect();
     let max_secs_rail = config.max_headway_warning_min_rail * 60;
-    // Hattın raylı olduğu yalnız boşluklu kimlik yüzünden görülmüyorsa (`mdb-1065`).
+    // Handle cases where the route is rail but is hidden only by whitespace in its ID (`mdb-1065`).
     let routes_raw_hw: FxHashSet<&str> =
         records.routes.iter().map(|r| r.route_id.as_str()).collect();
     let rail_trimmed_hw: FxHashMap<&str, bool> = records
@@ -2972,9 +2973,9 @@ fn check_route_headway(
         .map(|r| (r.route_id.trim(), r.route_id != r.route_id.trim()))
         .collect();
 
-    // OPR_001: hattın tamamında en büyük ardışık kalkış boşluğu eşiği aşıyor mu?
-    // HashMap iterasyon sırası her süreçte değişir; aynı entity_id'ye düşen bulgulardan
-    // hangisinin dedup temsilcisi olacağı buna bağlı kalmasın diye anahtara göre sırala.
+    // OPR_001: does the largest consecutive departure gap across the route exceed the threshold?
+    // HashMap iteration order changes between processes; sort by key so the dedup representative
+    // among findings with the same entity_id does not depend on it.
     let mut route_departures: Vec<_> = route_departures.into_iter().collect();
     route_departures.sort_unstable_by_key(|(k, _)| *k);
     for ((route_id, direction_key, service_id), mut deps) in route_departures {
@@ -2985,9 +2986,9 @@ fn check_route_headway(
         }
         let gaps: Vec<u32> = deps.windows(2).map(|w| w[1] - w[0]).collect();
         let max_hw = gaps.iter().copied().max().unwrap_or(0);
-        // OPR_001 yalnız (a) boşluk eşiği aşar, (b) hat manuel kırsal listesinde DEĞİL,
-        // (c) kalkış aralıkları düzensiz (gerçek boşluk) ise üretilir. Düzenli-seyrek
-        // (düşük CV) hatlar kasıtlı kırsal servis kabul edilip susturulur.
+        // OPR_001 is emitted only when (a) the gap threshold is exceeded, (b) the route is NOT in
+        // the manual rural list, and (c) departure intervals are irregular (a real gap). Regular-
+        // sparse (low-CV) routes are treated as intentional rural service and silenced.
         let hw_threshold = if rail_routes_hw.contains(route_id) {
             max_secs_rail
         } else {
@@ -3029,9 +3030,9 @@ fn check_route_headway(
         }
     }
 
-    // OPR_003: aynı kalkış durağında ardışık seferler arası en küçük pozitif aralık
-    // sıkışma eşiğinin altında mı?
-    // HashMap iterasyonu → dedup temsilcisi nondeterministik olurdu; anahtara göre sırala.
+    // OPR_003: is the smallest positive interval between consecutive trips at the same first stop
+    // below the bunching threshold?
+    // HashMap iteration would make the dedup representative nondeterministic; sort by key.
     let mut route_stop_departures: Vec<_> = route_stop_departures.into_iter().collect();
     route_stop_departures.sort_unstable_by_key(|(k, _)| *k);
     for ((route_id, direction_key, service_id, _first_stop, _pattern), mut deps) in
@@ -3085,7 +3086,7 @@ fn check_calendar_analytics(
 ) {
     let ti_cal = &records.trip_interns;
     let future_only_jp_date = gtfs_jp_future_only_date(records, derived, today_yyyymmdd);
-    // CAL_021 için: her servisin kaç sefer (trip) tarafından kullanıldığı.
+    // CAL_021: how many trips use each service.
     let mut service_trip_counts: HashMap<&str, u32> = HashMap::new();
     for t in &records.trips {
         if !ti_cal.service_id(t).is_empty() {
@@ -3093,22 +3094,22 @@ fn check_calendar_analytics(
         }
     }
 
-    // CAL_010: toplam aktif gün sayısı çok az (≤ service_gap_days) — per-service.
-    // CAL_007/012: servis dönemindeki boşluklar (gap_start, gap_end) imzasıyla TÜM servisler
-    // arasında toplanır (#30) → gap başına tek notice, etkilenen service_id'ler listelenir.
-    // near_future imzanın (bugüne bağlı) fonksiyonudur, servise değil → her imza tekdüze
-    // CAL_007 ya da CAL_012 üretir. Emit döngü SONRASINDA yapılır.
+    // CAL_010: total active days are too few (≤ service_gap_days) — per service.
+    // CAL_007/012: gaps in a service period are collected across ALL services by the
+    // (gap_start, gap_end) signature (#30) → one notice per gap, listing affected service_ids.
+    // near_future is a function of the signature (relative to today), not the service → each
+    // signature deterministically produces CAL_007 or CAL_012. Emit AFTER the collection loop.
     let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
-    let gap_threshold = config.service_gap_days; // CAL_010: çok-kısa servis eşiği (aktif gün)
-    let big_gap_threshold = config.big_gap_days; // CAL_007/012: büyük-boşluk eşiği (MD ≈ 14)
+    let gap_threshold = config.service_gap_days; // CAL_010: very-short-service threshold (active days)
+    let big_gap_threshold = config.big_gap_days; // CAL_007/012: large-gap threshold (MD ≈ 14)
     let mut gap_services: std::collections::BTreeMap<(u32, u32), Vec<&str>> =
         std::collections::BTreeMap::new();
 
-    // ── Feed'in toplam servis penceresi (CAL_010 için) ───────────────────────
-    // "Yalnızca N aktif gün" iddiası ancak feed yeterince uzun bir dönem yayınlıyorsa
-    // anlamlıdır. 17 günlük bir yayında 4-6 gün çalışan bir tren (Vangölü Ekspresi,
-    // 4 Eylül Mavi) seyrek değil NORMALdir; mutlak 7-gün eşiği orada her servisi işaretler.
-    // Kısa pencerede eşik ORANA döner: aktif gün / pencere < %20.
+    // ── Feed's total service window (for CAL_010) ───────────────────────────
+    // The "only N active days" claim is meaningful only when the feed publishes a sufficiently long period.
+    // On a 17-day feed, a train operating 4–6 days (Vangölü Ekspresi, 4 Eylül Mavi) is not sparse but NORMAL;
+    // an absolute 7-day threshold would flag every service. For a short window, use a RATIO threshold:
+    // active days / window < 20%.
     const SHORT_FEED_WINDOW_DAYS: u32 = 30;
     const SHORT_FEED_ACTIVE_RATIO: f64 = 0.20;
     let feed_window_days: u32 = {
@@ -3140,7 +3141,7 @@ fn check_calendar_analytics(
 
         let total_days = sorted.len() as u32;
 
-        // CAL_010: çok kısa servis — uzun feed'de mutlak gün, kısa feed'de ORAN eşiği.
+        // CAL_010: very short service — absolute days on a long feed, RATIO threshold on a short feed.
         let cal010_hit = if feed_window_days >= SHORT_FEED_WINDOW_DAYS {
             total_days <= gap_threshold
         } else if feed_window_days > 0 {
@@ -3179,9 +3180,9 @@ fn check_calendar_analytics(
             ));
         }
 
-        // CAL_007/012: bu servisin ardışık aktif tarihleri arasında >= big_gap_days boşluk.
-        // MobilityData big_gap_in_service PER-SERVICE'tir (feed-level union DEĞİL). Boşluklar
-        // (gap_start, gap_end) imzasıyla TÜM servisler arasında toplanır (#30) → emit döngü SONRASI.
+        // CAL_007/012: a gap of >= big_gap_days between consecutive active dates for this service.
+        // MobilityData big_gap_in_service is PER-SERVICE (not a feed-level union). Gaps are collected
+        // across ALL services by (gap_start, gap_end) signature (#30) → emit AFTER the loop.
         for pair in sorted.windows(2) {
             let gap_days = yyyymmdd_to_jdn(pair[1])
                 .saturating_sub(yyyymmdd_to_jdn(pair[0]))
@@ -3194,10 +3195,10 @@ fn check_calendar_analytics(
             }
         }
 
-        // CAL_021: servis aktif dönemi bugünü kapsıyor (min ≤ today ≤ max) AMA
-        // önümüzdeki N günde (config.upcoming_service_days) hiç aktif günü yok.
-        // Tamamen geçmiş (CAL_013) / tamamen gelecek (CAL_017) servisleri "spans today"
-        // koşulu dışlar → çakışma yok. Yalnızca sefer kullanan servisler için.
+        // CAL_021: the service's active period spans today (min ≤ today ≤ max) BUT
+        // has no active day in the next N days (config.upcoming_service_days).
+        // Fully past (CAL_013) / fully future (CAL_017) services fail the "spans today"
+        // condition → no overlap. Only for services used by trips.
         if today_yyyymmdd > 0 {
             let min_d = sorted[0];
             let max_d = *sorted.last().unwrap();
@@ -3232,18 +3233,18 @@ fn check_calendar_analytics(
         }
     }
 
-    // CAL_007/012 emit: gap imzası başına TEK notice (#30). Aynı operasyonel boşluğu
-    // paylaşan service_id varyantları details["services"]'te listelenir (VAT_002 deseni).
-    // Özet feed düzeyidir: `entity_id` boşluk imzası (Entity dedup anahtarı), `scope_key` yok —
-    // tarih aralığı bir service_id değildir ve servis kapsamlı kökler onu eşleyemezdi.
-    // #29 mantığı korunur: yakın-gelecek boşluk CAL_012, geçmiş/uzak boşluk CAL_007.
+    // CAL_007/012 emit: ONE notice per gap signature (#30). service_id variants sharing the same
+    // operational gap are listed in details["services"] (VAT_002 pattern).
+    // The summary is feed-level: `entity_id` is the gap signature (Entity dedup key), with no `scope_key` —
+    // a date range is not a service_id and service-scoped roots could not map it.
+    // Preserve #29 semantics: a near-future gap is CAL_012, a past/distant gap is CAL_007.
     for ((gap_from, gap_to), mut svcs) in gap_services {
         svcs.sort_unstable();
         svcs.dedup();
         let a_jdn = yyyymmdd_to_jdn(gap_from);
         let b_jdn = yyyymmdd_to_jdn(gap_to);
         let gap_days = b_jdn.saturating_sub(a_jdn).saturating_sub(1);
-        // Boşluk bugün/yakın gelecekle (bugünden +30 gün) örtüşüyor mu?
+        // Does the gap overlap today/the near future (today +30 days)?
         let near_future = b_jdn.saturating_sub(1) >= today_jdn && (a_jdn + 1) <= today_jdn + 30;
         let svc_suffix = if svcs.len() == 1 {
             format!("'{}' servisinde", svcs[0])
@@ -3290,7 +3291,7 @@ fn check_calendar_analytics(
         notices.push(n);
     }
 
-    // CAL_008 / CAL_009: expiry (bitiş tarihine göre)
+    // CAL_008 / CAL_009: expiry (by end date).
     for cal in &records.calendars {
         let Some((ey, em, ed)) = cal.end_date else {
             continue;
@@ -3298,9 +3299,9 @@ fn check_calendar_analytics(
         let end_yyyymmdd = ey * 10000 + em * 100 + ed;
 
         if today_yyyymmdd > 0 {
-            // CAL_023: end_date bugünden max_calendar_future_years veya daha fazla ileri →
-            // şüpheli/düşük-kaliteli veri (ör. 2050/2099 yer-tutucu tarihler).
-            // `>=` kullanıyoruz: sınır yılına denk gelen tarihler de dahil ("3 yıl veya daha fazla").
+            // CAL_023: end_date is max_calendar_future_years or more years after today →
+            // suspicious/low-quality data (e.g. 2050/2099 placeholder dates).
+            // Use `>=` so dates exactly at the boundary are included ("three years or more").
             let today_year = today_yyyymmdd / 10000;
             if ey >= today_year + config.max_calendar_future_years {
                 notices.push(k6_notice(
@@ -3314,10 +3315,10 @@ fn check_calendar_analytics(
                     "end_date'i gerçek servis bitiş tarihine güncelleyin; uzak-gelecek tarihler genelde yer-tutucu veya hatalıdır.",
                 ));
             }
-            // CAL_008: yakında bitiyor (end_date gelecekte ve uyarı eşiği içinde).
-            // CAL_013 (süresi dolmuş) artık BURADA DEĞİL — calendar.txt end_date yerine
-            // birleşik active_dates'e göre CAL_017 döngüsünde hesaplanır; böylece
-            // calendar_dates ile ileri taşınan servisler yanlış "dolmuş" sayılmaz (FP fix).
+            // CAL_008: expires soon (end_date is in the future and within the warning threshold).
+            // CAL_013 (expired) is no longer HERE — instead of calendar.txt end_date, it is calculated
+            // in the CAL_017 loop from combined active_dates, so services extended by calendar_dates
+            // are not incorrectly marked "expired" (FP fix).
             let warning_days = config.feed_expiry_warning_days;
             let end_jdn = yyyymmdd_to_jdn(end_yyyymmdd);
             let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
@@ -3344,12 +3345,12 @@ fn check_calendar_analytics(
         }
     }
 
-    // CAL_014: servis aktif tarihleri feed_info geçerlilik penceresinin dışında.
-    // MD `service_window_outside_feed_period` ile aynı semantik: seferi olan her servisin ilk/son
-    // aktif günü (ham calendar aralığı değil) feed_start/end_date ile kıyaslanır. Spec pencere
-    // dışı veriyi TAVSİYE ettiği için bu bir kusur değil, yetkili dönem bilgisidir (Bilgi).
-    // ⚠️ Eskiden CLD_007'nin `calendar_dates.exception_count` döngüsündeydi: yalnız istisnası
-    // olan servisler denetleniyordu, calendar.txt'li servisler hiç görülmüyordu.
+    // CAL_014: service active dates fall outside the feed_info validity window.
+    // Same semantics as MD `service_window_outside_feed_period`: compare the first/last active day
+    // of every service with trips (not the raw calendar range) to feed_start/end_date. Because the
+    // spec RECOMMENDS data outside the window, this is not a defect but authoritative period information (Info).
+    // ⚠️ Formerly this lived in the CLD_007 `calendar_dates.exception_count` loop: only services
+    // with exceptions were checked, while services in calendar.txt were never seen.
     if let Some(fi) = records.feed_info.first() {
         if let (Some(fs), Some(fe)) = (fi.feed_start_date, fi.feed_end_date) {
             let fs_yyyymmdd = fs.0 * 10000 + fs.1 * 100 + fs.2;
@@ -3363,9 +3364,9 @@ fn check_calendar_analytics(
                 let (Some(&first), Some(&last)) = (dates.iter().min(), dates.iter().max()) else {
                     continue;
                 };
-                // Tümüyle gelecekteki servis de değerlendirilir: Interop sınıfı MD paritesidir
-                // ve MD `checkServiceWindow` böyle bir istisna yapmaz. Bilgi olduğu için
-                // yayın penceresi önceden ilan edilmiş feed'i cezalandırmaz.
+                // Fully future services are also evaluated: this is an Interop class for MD parity,
+                // and MD `checkServiceWindow` makes no such exception. Because this is Info, it does
+                // not penalize a feed whose publication window was announced in advance.
                 let days_before = if first < fs_yyyymmdd {
                     yyyymmdd_to_jdn(fs_yyyymmdd) - yyyymmdd_to_jdn(first)
                 } else {
@@ -3406,9 +3407,9 @@ fn check_calendar_analytics(
         }
     }
 
-    // CLD_007: aynı service_id için çok sayıda calendar_dates exception (> total aktif gün / 2)
-    // exception_count = ham geçerli satır sayısı (CalendarDateIndex semantiği)
-    // CLD_007 ön koşulu: feed'in calendar.txt'te bir temel programı var mı?
+    // CLD_007: many calendar_dates exceptions for the same service_id (> half of total active days).
+    // exception_count = raw valid row count (CalendarDateIndex semantics).
+    // CLD_007 prerequisite: does the feed have a base schedule in calendar.txt?
     let has_base_calendar = !records.calendars.is_empty();
     for (service_id, &count) in &records.calendar_dates.exception_count {
         let service_id = service_id.as_str();
@@ -3424,17 +3425,17 @@ fn check_calendar_analytics(
             .find(|cal| cal.service_id == service_id)
             .map(|cal| cal.days.contains(&Some(1)))
             .unwrap_or(false);
-        // CAL_013 (süresi dolmuş) buradan kaldırıldı → tüm servisler için birleşik
-        // active_dates üzerinden CAL_017 döngüsünde tek yerde hesaplanır (çift-emit önlenir).
+        // CAL_013 (expired) was removed from here → calculated once for all services in the CAL_017
+        // loop from combined active_dates (prevents double emission).
 
-        // Aktif günlerin yarısından fazlası override ise şüpheli.
+        // Suspicious when more than half of the active days are overrides.
         //
-        // ⚠️ calendar.txt YOKSA kural susar. Bir feed takvimini bilinçli olarak yalnızca
-        // calendar_dates.txt ile tanımlayabilir (GTFS bunu açıkça kabul eder); o zaman HER
-        // aktif gün bir exception'dır, `count > active/2` matematiksel olarak GARANTİDİR ve
-        // notice "temel programdan sapma" diye bir şey ölçmez — yalnız feed'in modelleme
-        // seçimini geri okur. Bu boş dosya guard'ı ARC_009'daki has_calendar_txt emsaliyle
-        // aynı sınıftan. Base schedule'ın varlığını ARC_008/CAL kuralları ayrıca ölçer.
+        // ⚠️ The rule is silent when calendar.txt is ABSENT. A feed may intentionally define its
+        // calendar only through calendar_dates.txt (GTFS explicitly allows this); then EVERY active
+        // day is an exception, `count > active/2` is mathematically GUARANTEED, and the notice does
+        // not measure "deviation from a base schedule" — it only reads back the feed's modeling choice.
+        // This empty-file guard is in the same class as the has_calendar_txt precedent in ARC_009.
+        // The existence of a base schedule is measured separately by ARC_008/CAL rules.
         if has_base_calendar && has_weekly_base && active > 0 && count > active / 2 {
             notices.push(k6_notice(
                 ctr,
@@ -3454,7 +3455,7 @@ fn check_calendar_analytics(
     }
 
     if today_yyyymmdd > 0 && !derived.calendar_bitmap.active_dates.is_empty() {
-        // CAL_015: en erken aktif tarih gelecekte — feed henüz aktif değil
+        // CAL_015: earliest active date is in the future — the feed is not active yet.
         let min_date = derived
             .calendar_bitmap
             .active_dates
@@ -3478,9 +3479,8 @@ fn check_calendar_analytics(
                     notice.remediation =
                         "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın."
                             .to_string();
-                    // `message_variant` olmadan en/ja/fr şablonu genel CAL_015 metnini
-                    // ("takvimi düzeltin") basıyordu; Türkçe dışındaki kullanıcı düzeltmeyi
-                    // görmüyordu.
+                    // Without `message_variant`, the en/ja/fr template printed the generic CAL_015
+                    // text ("fix the calendar"); non-Turkish users could not see the correction.
                     notice.details = Some(
                         [
                             ("first_service_date".to_string(), first.to_string()),
@@ -3494,19 +3494,18 @@ fn check_calendar_analytics(
             }
         }
 
-        // CAL_017: tüm aktif tarihler gelecekte (henüz başlamamış) — per-service.
-        // CAL_013: tüm aktif tarihler geçmişte (süresi dolmuş). Aynı son-aktif-tarihte (expiry)
-        // biten service_id varyantları TEK notice'ta toplanır (#30 deseni), details["services"]'te
-        // listelenir. Kaynak BİRLEŞİK active_dates → calendar_dates ile ileri taşınan servisler
-        // expired sayılmaz (FP fix). min>today ile max<today karşılıklı dışlayıcıdır.
+        // CAL_017: all active dates are in the future (not started yet) — per service.
+        // CAL_013: all active dates are in the past (expired). service_id variants ending on the same
+        // last active date (expiry) are collected into ONE notice (#30 pattern) and listed in details["services"].
+        // Source is combined active_dates → services extended by calendar_dates are not considered expired
+        // (FP fix). min>today and max<today are mutually exclusive.
         let mut expired_services: std::collections::BTreeMap<u32, Vec<&str>> =
             std::collections::BTreeMap::new();
 
-        // CAL_017 artık FEED SEVİYESİ bir koşula bağlı: tek bir servisin ileride başlaması
-        // hata değildir — yakın gelecekte devreye girecek geçerli bir servistir (ör. 2 Ağustos'ta
-        // başlayan bir tren, feed'in geri kalanı bugün çalışırken). Uyarı ancak feed'in TAMAMI
-        // henüz başlamamışsa anlamlıdır. Geçmişte kalmış bir servis de "feed başladı" sayılır;
-        // bayatlığı CAL_013 ölçer.
+        // CAL_017 now depends on a FEED-LEVEL condition: one service starting in the future is not
+        // an error — it is a valid service entering operation soon (e.g. a train starting on August 2
+        // while the rest of the feed runs today). The warning is meaningful only if the ENTIRE feed
+        // has not started. A past service also counts as "feed started"; staleness is measured by CAL_013.
         let feed_has_started = derived.calendar_bitmap.active_dates.values().any(|dates| {
             dates
                 .iter()
@@ -3514,7 +3513,7 @@ fn check_calendar_analytics(
                 .min()
                 .is_some_and(|min_d| min_d <= today_yyyymmdd)
         });
-        // Determinizm: HashMap iterasyonu sırasız → service_id'ye göre topla ve sırala.
+        // Determinism: HashMap iteration is unordered → collect and sort by service_id.
         let mut future_services: Vec<(&str, u32)> = Vec::new();
 
         for (service_id, dates) in &derived.calendar_bitmap.active_dates {
@@ -3534,7 +3533,7 @@ fn check_calendar_analytics(
                     .push(service_id.as_str());
             }
         }
-        // CAL_017 emit: yalnız feed'in tamamı gelecekteyse (feed_has_started false).
+        // CAL_017 emit: only when the entire feed is in the future (feed_has_started is false).
         if future_only_jp_date.is_none() {
             future_services.sort_unstable();
             for (service_id, min_svc) in future_services {
@@ -3549,7 +3548,7 @@ fn check_calendar_analytics(
             }
         }
 
-        // CAL_013 emit: son-aktif-tarih (expiry) imzası başına TEK notice.
+        // CAL_013 emit: ONE notice per last-active-date (expiry) signature.
         for (max_svc, mut svcs) in expired_services {
             svcs.sort_unstable();
             svcs.dedup();
@@ -3580,7 +3579,7 @@ fn check_calendar_analytics(
             notices.push(n);
         }
 
-        // CAL_016: en geç aktif tarih 2 yıldan fazla ileriye uzanıyor
+        // CAL_016: the latest active date extends more than two years into the future.
         let today_jdn = yyyymmdd_to_jdn(today_yyyymmdd);
         let far_future_jdn = today_jdn + 730;
         let max_date = derived
@@ -3604,17 +3603,17 @@ fn check_calendar_analytics(
     }
 }
 
-// ── WP-09c: Coğrafi analitik ─────────────────────────────────────────────────
+// ── WP-09c: Geographic analytics ─────────────────────────────────────────────
 
-// 🔴 `K6::geo_analytics` TEK bir task'tı ve dört dosyaya birden kapılıydı
-// (`stops`, `routes`, `trips`, `stop_times`). Kapı içindeki kontrollerin gerçek
-// ihtiyaçlarının BİRLEŞİMİYDİ, üstelik `routes.txt`'i HİÇBİR blok okumuyordu.
-// Sonuç: bozuk bir `routes.txt` yalnız `stops.txt` isteyen `GEO_016`'yı da
-// öldürüyordu — `tdg-83820`'de MD Null Island raporlarken biz susuyorduk.
-// Yüklem değil BAĞIMLILIK kusuruydu (#160), `recoverable_stop_coord` ile aynı
-// aile: kural doğruydu, girdiyi tesisat düşürüyordu.
+// 🔴 `K6::geo_analytics` was ONE task and depended on four files at once
+// (`stops`, `routes`, `trips`, `stop_times`). It was the UNION of the real needs of the
+// checks inside the gate, even though no block read `routes.txt` at all.
+// Result: a broken `routes.txt` also killed `GEO_016`, which needs only `stops.txt`
+// — we stayed silent while MD reported Null Island in `tdg-83820`.
+// This was a DEPENDENCY defect, not a predicate defect (#160), in the same family as
+// `recoverable_stop_coord`: the rule was correct, but the plumbing dropped its input.
 
-/// Yalnız `stops.txt` gerektiren coğrafi kontroller.
+/// Geographic checks requiring only `stops.txt`.
 fn check_geo_stop_analytics(
     records: &EntityRecords,
     derived: &DerivedData,
@@ -3623,9 +3622,9 @@ fn check_geo_stop_analytics(
     ctr: &mut u32,
 ) {
     use crate::timing::Timer;
-    // STP_017 / STP_016: birbirine çok yakın iki durak
-    // Lat-sıralı sliding window — O(n log n), eski O(n²) spatial-grid yerine.
-    // SPATIAL_CELL_DEG=0.5° ile tüm şehir tek hücreye düşüyordu (~4M çift); bu önler.
+    // STP_017 / STP_016: two stops that are too close to each other.
+    // Latitude-sorted sliding window — O(n log n), instead of the old O(n²) spatial grid.
+    // With SPATIAL_CELL_DEG=0.5°, an entire city fell into one cell (~4M pairs); this prevents that.
     let _tstp17 = Timer::start("K6::geo::stp_017");
     {
         let too_close_km = config.stop_too_close_m / 1000.0;
@@ -3640,10 +3639,10 @@ fn check_geo_stop_analytics(
 
         for i in 0..sorted_stops.len() {
             let (la_i, lo_i, sa) = sorted_stops[i];
-            // Null Island (|lat|<0.1 ∧ |lon|<0.1) atlanır: koordinat placeholder'dır ve kök
-            // neden GEO_016'nın alanıdır (durak başına raporlar). Burada kıyaslamak hem çifte
-            // raporlama hem KUADRATİK patlamadır — VlakEShop: (0,0)'da 983 durak → 482.653
-            // çift-notice üretilip dedup'ta atılıyordu; daha büyük bir küme WASM'ı OOM eder.
+            // Skip Null Island (|lat|<0.1 ∧ |lon|<0.1): the coordinate is a placeholder and the
+            // root cause belongs to GEO_016 (reports per stop). Comparing here causes both duplicate
+            // reporting and a QUADRATIC explosion — VlakEShop: 983 stops at (0,0) produced 482,653
+            // pair notices that were discarded by dedup; a larger cluster would OOM WASM.
             if la_i.abs() < 0.1 && lo_i.abs() < 0.1 {
                 continue;
             }
@@ -3651,20 +3650,20 @@ fn check_geo_stop_analytics(
                 if la_j - la_i > lat_band {
                     break;
                 }
-                // Yalnız BİNİLEBİLİR duraklar (location_type boş/0) kıyaslanır: istasyon
-                // iskeleti (giriş=2, node=3, boarding area=4) durak değildir. Bir girişin
-                // sokak durağıyla aynı koordinata konması modelleme tercihidir, veri hatası
-                // değil (VBB: 3093 giriş↔durak aynı-koordinat FP'si) — "durakları birleştirin"
-                // tavsiyesi bu çiftlerde düpedüz yanlış olurdu.
-                // İSTİSNA: istasyon↔istasyon (1↔1) çifti kıyasta KALIR — iki ayrı istasyonun
-                // aynı/çok yakın noktada olması duplikat-istasyon şüphesidir (review K1b).
+                // Compare only BOARDABLE stops (empty/0 location_type): the station skeleton
+                // (entrance=2, node=3, boarding area=4) is not a stop. Placing an entrance at
+                // the same coordinates as a street stop is a modeling choice, not a data error
+                // (VBB: 3,093 entrance↔stop same-coordinate FPs) — "merge stops" would be plainly
+                // wrong for these pairs.
+                // EXCEPTION: keep station↔station (1↔1) pairs in the comparison — two separate
+                // stations at the same/nearby point suggest a duplicate station (review K1b).
                 let lt_a = sa.location_type.unwrap_or(0);
                 let lt_b = sb.location_type.unwrap_or(0);
                 if !((lt_a == 0 && lt_b == 0) || (lt_a == 1 && lt_b == 1)) {
                     continue;
                 }
-                // parent/child istisnası: çocuk durak, ait olduğu istasyonla aynı/çok
-                // yakın konumda olabilir — bu normal GTFS modellemesidir, FP üretmeyelim.
+                // Parent/child exception: a child stop may be at the same or very near location as
+                // its parent station — this is normal GTFS modeling; do not produce an FP.
                 let pa = sa
                     .row
                     .get("parent_station")
@@ -3678,10 +3677,9 @@ fn check_geo_stop_analytics(
                 if pa == Some(sb.stop_id.as_str()) || pb == Some(sa.stop_id.as_str()) {
                     continue;
                 }
-                // Kardeş muafiyeti: aynı istasyonun iki çocuğu (iki peron) hiyerarşi
-                // modellemesinin tanımı gereği birbirine yakındır — station-hierarchy
-                // kullanan feed'lerde bu çiftler FP'nin ana kaynağıydı (VBB: yakın
-                // çiftlerin %88'i aynı-parent kardeşiydi).
+                // Sibling exemption: two children (platforms) of the same station are close by
+                // definition of the hierarchy model — in feeds using station hierarchy, these pairs
+                // were the main source of FPs (VBB: 88% of close pairs shared a parent).
                 if pa.is_some() && pa == pb {
                     continue;
                 }
