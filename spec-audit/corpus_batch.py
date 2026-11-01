@@ -60,7 +60,7 @@ def cmd_sample(args):
     raw = fetch_bytes(CATALOG_URL, cache=os.path.join(args.dir, "catalog.csv"))
     rows = list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
     pool = [r for r in rows if eligible(r)]
-    print(f"katalog {len(rows)} satır → uygun {len(pool)}")
+    print(f"catalogue {len(rows)} rows → eligible {len(pool)}")
 
 # STRATIFIED sampling: group by country and apply a per-country cap.
 # Blind random selection reproduces the catalogue's own distribution (US/Europe-heavy)
@@ -105,20 +105,20 @@ def cmd_sample(args):
     dist = defaultdict(int)
     for r in picked:
         dist[r.get("location.country_code") or "??"] += 1
-    print(f"seçildi {len(picked)} feed / {len(dist)} ülke → {plan}")
-    print("en çok: " + ", ".join(f"{c}={n}" for c, n in sorted(dist.items(), key=lambda x: -x[1])[:8]))
+    print(f"selected {len(picked)} feeds / {len(dist)} countries → {plan}")
+    print("largest groups: " + ", ".join(f"{c}={n}" for c, n in sorted(dist.items(), key=lambda x: -x[1])[:8]))
 # The requested --n that could not be reached because of the cap used to disappear SILENTLY
 # ("I asked for 500, got 276") → say so clearly and explain what the cap means.
     if len(picked) < args.n:
         reach = sum(min(len(v), args.per_country) for v in by_country.values())
         print(
-            f"\n⚠️  {args.n} istendi, {len(picked)} seçilebildi: --per-country {args.per_country} "
-            f"tavanı üst sınırı {reach} yapıyor.\n"
-            f"    Daha fazlası için --per-country yükseltin — AMA fazladan feed'ler büyük "
-            f"ülkelerden gelir\n    (havuzda US={len(by_country.get('US', []))}/{len(pool)}), "
-            f"yani ÇEŞİTLİLİK değil HACİM eklersiniz."
+            f"\n⚠️  requested {args.n}, selected {len(picked)}: --per-country {args.per_country} "
+            f"sets the upper bound to {reach}.\n"
+            f"    Increase --per-country for more — BUT extra feeds come from large "
+            f"countries\n    (US={len(by_country.get('US', []))}/{len(pool)} in the pool), "
+            f"so you add VOLUME, not DIVERSITY."
         )
-    print(f"\nsonraki: python3 notgit/corpus_batch.py fetch --dir {args.dir}")
+    print(f"\nnext: python3 notgit/corpus_batch.py fetch --dir {args.dir}")
 
 
 # ── Stage 1b: snapshot resolution (MD API) ────────────────────────────────────
@@ -138,8 +138,8 @@ def access_token():
             tok = f.read().strip()
     if not tok:
         sys.exit(
-            f"MD refresh token yok. {TOKEN_FILE} dosyasına yazın ya da MD_REFRESH_TOKEN\n"
-            f"env'ini set edin (mobilitydatabase.org hesabından alınır)."
+            f"MD refresh token not found. Write it to {TOKEN_FILE} or set the MD_REFRESH_TOKEN\n"
+            f"environment variable (obtain it from mobilitydatabase.org)."
         )
     p = subprocess.run(
         ["curl", "-sS", "--fail", "-X", "POST", f"{API}/v1/tokens",
@@ -148,7 +148,7 @@ def access_token():
         input=json.dumps({"refresh_token": tok}).encode(), capture_output=True,
     )
     if p.returncode != 0:
-        sys.exit(f"token takası başarısız: {p.stderr.decode()[:200]}")
+        sys.exit(f"token exchange failed: {p.stderr.decode()[:200]}")
     return json.loads(p.stdout)["access_token"]
 
 
@@ -183,7 +183,7 @@ def cmd_resolve(args):
             try:
                 d = api_get(at, f"/v1/gtfs_feeds/{row['id']}/datasets?latest=true")
                 if not d:
-                    raise ValueError("dataset yok")
+                    raise ValueError("dataset not found")
                 d = d[0] if isinstance(d, list) else d
                 vr = d.get("validation_report") or {}
                 w.writerow([
@@ -194,12 +194,12 @@ def cmd_resolve(args):
                 ])
                 f.flush()
                 print(f"[{i}/{len(plan)}] {row['id']:12} {d['id']:26} "
-                      f"MD:{vr.get('validator_version','?'):5} rapor={'✅' if vr.get('url_json') else '—'}")
+                      f"MD:{vr.get('validator_version','?'):5} report={'✅' if vr.get('url_json') else '—'}")
             except Exception as e:
                 note(args.dir, "resolve_failed.csv", [row["id"], str(e)[:150]])
-                print(f"[{i}/{len(plan)}] {row['id']:12} ÇÖZÜLEMEDİ: {str(e)[:60]}")
+                print(f"[{i}/{len(plan)}] {row['id']:12} COULD NOT RESOLVE: {str(e)[:60]}")
             time.sleep(args.delay)
-    print(f"\n→ {out}\nsonraki: python3 notgit/corpus_batch.py fetch --dir {args.dir}")
+    print(f"\n→ {out}\nnext: python3 notgit/corpus_batch.py fetch --dir {args.dir}")
 
 
 def api_get(at, path):
@@ -223,11 +223,11 @@ def cmd_fetch(args):
         with open(resolved) as f:
             plan = list(csv.DictReader(f))
         os.makedirs(reports, exist_ok=True)
-        print(f"resolved.csv kullanılıyor ({len(plan)} feed) → MD raporları da inecek")
+        print(f"using resolved.csv ({len(plan)} feeds) → MD reports will also be downloaded")
     else:
         plan = read_plan(args.dir)
-        print("⚠️  resolved.csv yok → katalog urls.latest (bayat olabilir, MD raporu YOK).\n"
-              "    Parite istiyorsanız önce: corpus_batch.py resolve")
+        print("⚠️  resolved.csv not found → catalogue urls.latest (may be stale, NO MD report).\n"
+              "    For parity, run this first: corpus_batch.py resolve")
     zips = os.path.join(args.dir, "zips")
     os.makedirs(zips, exist_ok=True)
     skipped = failed = ok = 0
@@ -253,7 +253,7 @@ def cmd_fetch(args):
         if known_mb and known_mb > args.max_mb:
             failed += 1
             note(args.dir, "fetch_skipped.csv", [row["id"], "too_big", f"{known_mb:.0f}MB (API)"])
-            print(f"[{i}/{len(plan)}] {row['id']:12} ATLANDI ({known_mb:.0f}MB > {args.max_mb}MB)")
+            print(f"[{i}/{len(plan)}] {row['id']:12} SKIPPED ({known_mb:.0f}MB > {args.max_mb}MB)")
             continue
         try:
             size = download(row["zip_url"], dest, args.max_mb)
@@ -262,15 +262,15 @@ def cmd_fetch(args):
         except SkipTooBig as e:
             failed += 1
             note(args.dir, "fetch_skipped.csv", [row["id"], "too_big", str(e)])
-            print(f"[{i}/{len(plan)}] {row['id']:12} ATLANDI ({e})")
+            print(f"[{i}/{len(plan)}] {row['id']:12} SKIPPED ({e})")
         except Exception as e:
             failed += 1
             note(args.dir, "fetch_skipped.csv", [row["id"], "error", str(e)[:120]])
-            print(f"[{i}/{len(plan)}] {row['id']:12} HATA: {str(e)[:70]}")
+            print(f"[{i}/{len(plan)}] {row['id']:12} ERROR: {str(e)[:70]}")
         time.sleep(args.delay)  # be gentle: shared infrastructure
 
-    print(f"\nindi={ok} zaten-vardı={skipped} başarısız={failed}")
-    print(f"sonraki: python3 notgit/corpus_batch.py validate --dir {args.dir} --today YYYYMMDD")
+    print(f"\ndownloaded={ok} already-present={skipped} failed={failed}")
+    print(f"next: python3 notgit/corpus_batch.py validate --dir {args.dir} --today YYYYMMDD")
 
 
 # ── Stage 3: our validator ────────────────────────────────────────────────────
@@ -280,7 +280,7 @@ def cmd_validate(args):
     os.makedirs(out, exist_ok=True)
     files = sorted(f for f in os.listdir(zips) if f.endswith(".zip"))
     if not files:
-        sys.exit(f"{zips} boş — önce fetch çalıştırın")
+        sys.exit(f"{zips} is empty — run fetch first")
 # --only: required when adding a NEW feed with a fixed --today. With a fixed date,
 # every feed skipped in `md` mode (those without an MD report) suddenly becomes eligible to run
 # — the corpus grows unintentionally and the rule_stats baseline shifts. The filter isolates the added feed.
@@ -289,9 +289,9 @@ def cmd_validate(args):
         files = [f for f in files if f[:-4] in want]
         missing = want - {f[:-4] for f in files}
         if missing:
-            sys.exit(f"--only: bu zip'ler yok: {sorted(missing)}")
+            sys.exit(f"--only: these ZIPs are missing: {sorted(missing)}")
 
-    print(f"{len(files)} feed · today={args.today} · release binary derleniyor…")
+    print(f"{len(files)} feeds · today={args.today} · building release binary…")
     subprocess.run(["cargo", "build", "--release", "-p", "gtfs-analyzer"], cwd=REPO, check=True)
     binary = os.path.join(REPO, "target", "release", "gtfs-analyzer")
 
@@ -313,8 +313,8 @@ def cmd_validate(args):
             except Exception:
                 pass
         if not md_days:
-            sys.exit("--today md: MD raporu bulunamadı → önce resolve + fetch çalıştırın")
-        print(f"  MD tarihleri çözüldü: {len(md_days)}/{len(files)} feed "
+            sys.exit("--today md: no MD report found → run resolve + fetch first")
+        print(f"  resolved MD dates: {len(md_days)}/{len(files)} feeds "
               f"({min(md_days.values())}–{max(md_days.values())})")
 
     done = fatal = crash = 0
@@ -339,7 +339,7 @@ def cmd_validate(args):
         if p.returncode not in (0, 1, 2) or not p.stdout:
             crash += 1
             note(args.dir, "validate_crashes.csv", [fid, p.returncode, p.stderr.decode()[:200]])
-            print(f"[{i}/{len(files)}] {fid:12} ÇÖKME rc={p.returncode}")
+            print(f"[{i}/{len(files)}] {fid:12} CRASH rc={p.returncode}")
             continue
         try:
             summary = to_golden(json.loads(p.stdout), fid, today, secs)
@@ -355,8 +355,8 @@ def cmd_validate(args):
         tag = f"FATAL {summary['fatal']}" if summary["fatal"] else f"{summary['validation']['notice_total_actual']:>7} notice"
         print(f"[{i}/{len(files)}] {fid:12} {tag}  {secs:5.1f}s")
 
-    print(f"\nkoşuldu={done} fatal={fatal} çökme={crash}")
-    print(f"sonraki: python3 notgit/corpus_batch.py report --dir {args.dir}")
+    print(f"\nrun={done} fatal={fatal} crash={crash}")
+    print(f"next: python3 notgit/corpus_batch.py report --dir {args.dir}")
 
 
 def to_golden(parsed, fid, today, secs):
@@ -415,7 +415,7 @@ def cmd_report(args):
             with open(os.path.join(out, fn)) as f:
                 res.append(json.load(f))
     if not res:
-        sys.exit("sonuç yok — önce validate çalıştırın")
+        sys.exit("no results — run validate first")
 
     ok = [r for r in res if not r["fatal"]]
     fatals = [r for r in res if r["fatal"]]
@@ -522,10 +522,10 @@ def cmd_report(args):
     path = os.path.join(args.dir, "report.md")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"yazıldı: {path}")
+    print(f"written: {path}")
     print(f"        {os.path.join(args.dir, 'rule_stats.csv')}")
     print(f"        {os.path.join(args.dir, 'fatals.csv')}")
-    print(f"\nfeed={len(res)} fatal={len(fatals)} tetiklenen_kural={len(feeds_with)} hiç_çıkmayan={len(never)}")
+    print(f"\nfeeds={len(res)} fatal={len(fatals)} triggered_rules={len(feeds_with)} never_seen={len(never)}")
 
 
 def md_compare(d, ours):
@@ -637,7 +637,7 @@ def parse_float(v):
 def read_plan(d):
     p = os.path.join(d, "plan.csv")
     if not os.path.exists(p):
-        sys.exit(f"{p} yok — önce sample çalıştırın")
+        sys.exit(f"{p} not found — run sample first")
     with open(p) as f:
         return list(csv.DictReader(f))
 
