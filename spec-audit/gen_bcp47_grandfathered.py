@@ -58,22 +58,22 @@ def parse(raw: bytes) -> tuple[str, list[str]]:
 
 def render(file_date: str, digest: str, tags: list[str]) -> str:
     body = "\n".join(f'    "{t}",' for t in tags)
-    return f'''//! ÜRETİLMİŞ DOSYA — elle düzenlemeyin (issue #82).
+    return f'''//! GENERATED FILE — do not edit by hand (issue #82).
 //!
-//! Kaynak    : {SRC}
-//! File-Date : {file_date}   (kayıt defterinin kendi tarihi)
+//! Source    : {SRC}
+//! File-Date : {file_date}   (the registry's own date)
 //! SHA-256   : {digest}
-//! Üretim    : `python3 spec-audit/gen_bcp47_grandfathered.py`
+//! Generation: `python3 spec-audit/gen_bcp47_grandfathered.py`
 //! Drift     : `python3 spec-audit/gen_bcp47_grandfathered.py --check`
 //!
-//! RFC 5646 `grandfathered` etiketleri ({len(tags)} adet). Bunlar normal `langtag`
-//! üretimine uymayan ama GEÇERLİ olan sabit kayıtlardır.
+//! RFC 5646 `grandfathered` tags ({len(tags)} entries). These are fixed records that do not follow
+//! normal `langtag` production but are VALID.
 //!
-//! ⚠️ `i-` bir AD ALANI DEĞİLDİR: yalnız bu listedeki `i-*` etiketleri geçerlidir.
-//! Karşılaştırma küçük harfe normalize edilerek yapılır (RFC 5646 §2.1.1: etiketler
-//! büyük/küçük harfe duyarsızdır).
+//! ⚠️ `i-` is NOT a name space: only the `i-*` tags in this list are valid.
+//! Comparison is performed after normalizing to lowercase (RFC 5646 §2.1.1: tags are
+//! case-insensitive).
 
-/// Alfabetik SIRALI, küçük harf — `binary_search` bunu varsayar.
+/// Alphabetically SORTED, lowercase — `binary_search` relies on this.
 pub(crate) const GRANDFATHERED: &[&str] = &[
 {body}
 ];

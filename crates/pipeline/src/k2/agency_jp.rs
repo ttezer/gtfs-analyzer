@@ -1,8 +1,8 @@
 use super::common::{build_row_map, get_raw_field, RowMap};
 use crate::k1_parse::RawFile;
 
-/// GTFS-JP `agency_jp.txt` — işleticinin resmî/yasal bilgileri. `agency_id`
-/// `agency.txt`'e referans veren yabancı anahtardır (JPN_003).
+/// GTFS-JP `agency_jp.txt` — the operator's official/legal information. `agency_id`
+/// is a foreign key referencing `agency.txt` (JPN_003).
 #[derive(Debug, Clone)]
 pub struct AgencyJpRecord {
     pub agency_id: Option<String>,

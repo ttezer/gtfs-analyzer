@@ -26,13 +26,12 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
-    // ATR_001/ATR_003: DOSYA başına tek özet (FAR_013/DQ_016 deseni). Her iki ihlal de
-    // TEK sistemik nedenden doğar — `attribution_id` sütununun hiç yazılmaması ya da rol
-    // sütunlarının hiç doldurulmaması — ve satır başına emit aynı cümleyi tekrarlar.
-    // Ölçüm (124 feed, `attributions.txt` taşıyanlar): satır başına emit ATR_001'de
-    // 391.871, ATR_003'te 6.472 notice demekti; tek feed 97.261 satır taşıyor.
-    // Özet, sayıyı `observed_value` üzerinden taşır, böylece kaç satırın etkilendiği
-    // kaybolmaz.
+    // ATR_001/ATR_003: one summary per FILE (the FAR_013/DQ_016 pattern). Both violations arise
+    // from ONE systemic cause — `attribution_id` is not written at all, or the role columns
+    // are never populated — and emitting per row repeats the same sentence.
+    // Measurement (124 feeds carrying `attributions.txt`): per-row emission meant 391,871 notices
+    // for ATR_001 and 6,472 for ATR_003; one feed has 97,261 rows.
+    // The summary carries the count in `observed_value`, so the number of affected rows is not lost.
     let mut missing_id_count: u64 = 0;
     let mut missing_id_first: Option<u64> = None;
     let mut no_role_count: u64 = 0;
@@ -45,7 +44,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // ATR_001: attribution_id eksik (tavsiye edilen) — dosya sonunda tek özet
+        // ATR_001: attribution_id is missing (recommended) — one summary at the end of the file
         if attribution_id.is_none() {
             missing_id_count += 1;
             if missing_id_first.is_none() {
@@ -56,7 +55,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
         let organization_name = get_trimmed_field(&row_map, "organization_name")
             .unwrap_or("")
             .to_string();
-        // sütun başlıkta yoksa ARC_025 devralır → atla
+        // if the column is absent from the header, ARC_025 takes over → skip
         if get_trimmed_field(&row_map, "organization_name") == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -213,7 +212,7 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
             None,
             &file.name,
             Some(first),
-            // Hüküm üç rol alanının BİRLİKTE boş olmasıdır; üçü de adlandırılır.
+            // The rule is that all three role fields are empty TOGETHER; all three are named.
             Some("is_producer|is_operator|is_authority"),
             Some(format!("{no_role_count} rows")),
             Some("en az bir rol = 1".to_string()),
@@ -227,8 +226,8 @@ pub fn validate_attributions(file: &RawFile) -> (Vec<AttributionRecord>, Vec<gtf
     (records, notices)
 }
 
-// Alan, satır ve notice bağlamı birlikte parse edilir; tek kullanımlık bir parametre
-// struct'ı burada çağrı yüzeyini sadeleştirmeyecek, yalnızca bağlamı gizleyecektir.
+// The field, row, and notice context are parsed together; a one-use parameter
+// struct would not simplify the call surface here, only hide the context.
 #[allow(clippy::too_many_arguments)]
 fn parse_role_enum(
     row_map: &RowMap,
