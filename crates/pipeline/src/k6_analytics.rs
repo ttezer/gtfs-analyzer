@@ -12,7 +12,7 @@ use crate::k2::EntityRecords;
 use crate::k5_derived::DerivedData;
 use crate::recovery::FileAvailability;
 
-// ── Çıktı tipi ────────────────────────────────────────────────────────────────
+// ── Output type ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Default)]
 pub struct K6Result {
@@ -107,7 +107,7 @@ fn format_normalized_web_url(url: &NormalizedWebUrl) -> String {
 
 // ── Ana fonksiyon ─────────────────────────────────────────────────────────────
 
-/// today_yyyymmdd: çalıştırma anındaki tarih (ör. 20260514). CAL/CLD expiry kuralları için.
+/// today_yyyymmdd: date at execution time (e.g. 20260514), for CAL/CLD expiry rules.
 pub fn analyze(
     records: &EntityRecords,
     derived: &DerivedData,
@@ -148,8 +148,9 @@ pub fn analyze_with_files(
                 .map(|shape_idx| (t.trip_id.as_str(), shape_idx))
         })
         .collect();
-    // OOM fix Plan D (güncellendi): K6 K2 index'ini KLONLAMAZ. Test yolunda (stop_times_index boş
-    // ama records.stop_times dolu) owned K2 index kurulur; üretimde records.stop_times_index ödünç.
+// OOM fix Plan D (updated): K6 does NOT CLONE the K2 index. In tests (stop_times_index empty
+// but records.stop_times populated), an owned K2 index is built; in production,
+// records.stop_times_index is borrowed.
     let fallback_k2_owned: Option<K2StopTimesIndex> =
         if records.stop_times_index.total_rows == 0 && !records.stop_times.is_empty() {
             Some(K2StopTimesIndex::from_records(&records.stop_times))
@@ -163,24 +164,24 @@ pub fn analyze_with_files(
         let _t = Timer::start("K6::idx::build");
         StopTimesIndex::build(records, &trip_shape, k2_for_idx)
     };
-    // shape geometrisi: dört tüketici (speed_and_duration, remaining_analytics, shp012, shp022)
-    // için TEK kurulum. Bkz. ShapeIndex tanımındaki ölçüm notu.
+// Shape geometry: ONE setup for four consumers (speed_and_duration, remaining_analytics, shp012, shp022).
+// See the measurement note in the ShapeIndex definition.
     let shape_idx = {
         let _t = Timer::start("K6::shape_idx::build");
         ShapeIndex::build(records)
     };
-    // Raylı trip/shape kümeleri: geometri eşiklerini gevşeten üç tüketici (geo_analytics,
-    // remaining_analytics, shp012) ve STM_045 için TEK kurulum — shape_idx emsali.
+// Rail trip/shape sets: ONE setup for the three consumers that relax geometry thresholds
+// (geo_analytics, remaining_analytics, shp012) and for STM_045 — the shape_idx precedent.
     let rail = {
         let _t = Timer::start("K6::rail_index::build");
         rail_index(records)
     };
 
-    // Her bağımsız K6 check'i KENDİ (notices, ctr)'sini üretir; sonuçlar KANONİK sırada
-    // (1→13) birleştirilir ve sondaki renumber id'leri tek-iş-parçacıklı global ctr ile
-    // BİREBİR eşler. Paralellik check'ler ARASINDA (her check kendi dedup set'ine sahip,
-    // sadece `records/derived/config/idx`'i OKUR) → say/içerik/sıra emisyon-sırasından
-    // bağımsız. `parallel` feature açıkken rayon::scope ile paralel, kapalıyken seri — AYNI çıktı.
+// Each independent K6 check produces its OWN (notices, ctr); results are merged in CANONICAL
+// order (1→13), and the final renumbered IDs map EXACTLY through a single-threaded global ctr.
+// Parallelism is BETWEEN checks (each check has its own dedup set and only READS
+// `records/derived/config/idx`) → count/content/order are independent of emission order.
+// With the `parallel` feature, checks run in parallel through rayon::scope; otherwise serially — SAME output.
     type K6Task<'a> = Box<dyn Fn() -> Vec<Notice> + Send + Sync + 'a>;
     let mut tasks: Vec<K6Task> = Vec::new();
     let mut skipped_checks = Vec::new();
@@ -194,9 +195,9 @@ pub fn analyze_with_files(
             }
         };
     }
-    // Her görev yalnızca doğrudan ihtiyaç duyduğu okunabilir dosyalar varsa çalışır.
-    // Böylece bozuk shapes.txt shape analytics'i kapatır, fakat stop/route/calendar
-    // analytics'i kaybetmez; feed_info gibi bağımsız bir dosya da tüm K6'yı kesmez.
+// Each task runs only when the readable files it directly needs are present.
+// Thus a broken shapes.txt disables shape analytics but does not lose stop/route/calendar
+// analytics; an independent file such as feed_info does not cut off all of K6.
     add_task!(
         "K6::speed_and_duration",
         availability.all(&["routes.txt", "trips.txt", "stop_times.txt", "stops.txt"]),
@@ -247,9 +248,9 @@ pub fn analyze_with_files(
             v
         }
     );
-    // Üç ayrı kapı: her biri kendi bloklarının GERÇEKTEN okuduğu dosyayı ister.
-    // Tek `all(&[stops, routes, trips, stop_times])` kapısı, yalnız `stops.txt`
-    // isteyen kontrolleri de ilgisiz bir dosya yüzünden öldürüyordu (#160).
+// Three separate gates: each requires the files its own block ACTUALLY reads.
+// A single `all(&[stops, routes, trips, stop_times])` gate killed checks that needed only
+// `stops.txt` because of an unrelated missing file (#160).
     add_task!("K6::geo_stops", availability.available("stops.txt"), || {
         let _t = Timer::start("K6::geo_stops");
         let mut v = Vec::new();
@@ -419,8 +420,8 @@ pub fn analyze_with_files(
             v
         }
     );
-    // SONA eklendi: birleştirme sırası kanonik olduğu için yeni görev en sonda kalınca
-    // mevcut notice id'leri KAYMAZ (renumber konuma göre yapılır).
+// APPENDED at the end: because merge order is canonical, existing notice IDs do NOT SHIFT
+// when a new task stays last (renumbering follows position).
     add_task!(
         "K6::linked_trips",
         availability.all(&["trips.txt", "stop_times.txt"]),
@@ -435,12 +436,11 @@ pub fn analyze_with_files(
 
     #[cfg(feature = "parallel")]
     let parts: Vec<Vec<Notice>> = {
-        // Büyük feed'de (>15M stop_times) K6 görevlerini sınırsız paralel çalıştırmak, her
-        // görevin kendi geçici haritaları nedeniyle peak RAM'i büyütür. Tek görevli batch,
-        // hız ile bellek arasında bounded bir denge sağlar; küçük feed'lerde tam paralellik
-        // korunur. Tek görevli batch yalnız WASM'da (tarayıcı bellek sınırı); native'de
-        // 3'lü batch kalır — native'de batch 1, >15M feed'lerde süreyi +1…+11 % uzattı
-        // (2026-10-30, 5 feed ölçümü).
+// Running K6 tasks with unlimited parallelism on a large feed (>15M stop_times) raises peak RAM
+// because each task has its own temporary maps. A single-task batch provides a bounded balance
+// between speed and memory; small feeds retain full parallelism. The single-task batch applies
+// only to WASM (browser memory limit); native keeps batches of 3 — on native, batch 1 increased
+// runtime by +1…+11% on >15M feeds (2026-10-30, measurement of 5 feeds).
         let large = records.stop_times_index.total_rows > 15_000_000;
         let batch = if !large {
             tasks.len()
@@ -476,8 +476,8 @@ pub fn analyze_with_files(
     for p in parts {
         notices.extend(p);
     }
-    // Renumber → tek-iş-parçacıklı global ctr ile BİREBİR id'ler (k6/{rule}#{N}).
-    // Birleştirme sırası sabit (kanonik) olduğundan paralel/seri ayırt edilemez.
+// Renumber → EXACT IDs (k6/{rule}#{N}) through the single-threaded global ctr.
+// Because merge order is fixed (canonical), parallel and serial runs are indistinguishable.
     for (i, n) in notices.iter_mut().enumerate() {
         n.id = format!("k6/{}#{}", n.rule_id, i + 1);
     }
@@ -488,10 +488,10 @@ pub fn analyze_with_files(
     }
 }
 
-// ── Notice yardımcısı ─────────────────────────────────────────────────────────
+// ── Notice helpers ────────────────────────────────────────────────────────────
 
-// K6 notice'ları canonical emit tablosuyla aynı sırada kurulur; bağımsız metadata
-// alanlarını parametre struct'ında saklamak analyzer çağrılarını gizler.
+// K6 notices are built in the same order as the canonical emit table; keeping independent
+// metadata fields in the parameter struct hides the analyzer calls.
 #[allow(clippy::too_many_arguments)]
 fn k6_notice(
     ctr: &mut u32,
@@ -601,9 +601,9 @@ fn zone_only_trip_ids(records: &EntityRecords) -> HashSet<&str> {
         .collect()
 }
 
-/// STM_007 özetinde planlamacıya açılan örnek satır sayısı (farklı seferlerden).
+/// Number of example rows (from different trips) exposed to the planner in the STM_007 summary.
 const STM007_EXAMPLE_ROWS: usize = 20;
-/// Satır ayrıntısı → özetteki `example_<i>_<ad>` anahtarı.
+/// Row detail → the `example_<i>_<name>` key in the summary.
 const STM007_EXAMPLE_KEYS: &[(&str, &str)] = &[
     ("stop_id", "stop"),
     ("arr", "arrival"),
@@ -616,7 +616,7 @@ const STM007_EXAMPLE_KEYS: &[(&str, &str)] = &[
     ("next_departure", "next_departure"),
 ];
 
-/// "HH:MM:SS" (24+ saat dahil) → saniye; format_hms çıktısını geri okur.
+/// "HH:MM:SS" (including 24+ hours) → seconds; reads back format_hms output.
 fn hms_text_secs(text: &str) -> Option<u32> {
     let mut parts = text.split(':').map(|p| p.parse::<u32>().ok());
     let (h, m, s) = (parts.next()??, parts.next()??, parts.next()??);
@@ -632,7 +632,7 @@ fn finalize_stm007_pending(
 ) {
     let n = pending.len();
     if n > threshold {
-        // HashMap/chunk kaynaklı sıra deterministik değildir: (sefer, satır) sırasına diz.
+// HashMap/chunk order is not deterministic: sort by (trip, row).
         pending.sort_by(|a, b| (&a.entity_id, a.line).cmp(&(&b.entity_id, b.line)));
         let mut trips: Vec<&str> = pending.iter().filter_map(|n| n.entity_id.as_deref()).collect();
         trips.dedup();
@@ -658,9 +658,9 @@ fn finalize_stm007_pending(
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
-        // Planlamacı için STM007_EXAMPLE_ROWS satır, komşu saatleriyle (example_<i>_*): önce her
-        // biri farklı durakta ve farklı seferde olanlar (aynı hattın ardışık seferleri aynı durağı
-        // tekrarlamasın), yer kalırsa farklı seferlerden kalanlar. Özetin sayısı ve metni değişmez.
+// For the planner, STM007_EXAMPLE_ROWS rows with neighboring times (example_<i>_*): first rows
+// at different stops and on different trips (consecutive trips on the same route must not repeat
+// the same stop), then remaining rows from different trips if space remains. Summary count/text unchanged.
         let stop_of = |row: &Notice| row.details.as_ref().and_then(|d| d.get("stop_id")).cloned();
         let mut chosen: Vec<&Notice> = Vec::new();
         let mut used_trips: FxHashSet<&str> = FxHashSet::default();
@@ -700,9 +700,9 @@ fn finalize_stm007_pending(
                 }
             }
         }
-        // Desen: kalkış varıştan en sık kaç saniye önce ve bu farkı taşıyan satır sayısı;
-        // en çok etkilenen beş durak. Aynı fark binlerce satırda tekrarlanıyorsa tek tek
-        // yazım hatası değil üretim kuralıdır.
+// Pattern: how many seconds departure most often precedes arrival and the number of rows carrying
+// that difference; the five most affected stops. If the same difference repeats across thousands
+// of rows, it is a production rule rather than isolated typos.
         let mut gaps: FxHashMap<u32, usize> = FxHashMap::default();
         let mut stops: FxHashMap<&str, usize> = FxHashMap::default();
         for row in pending.iter() {
@@ -735,14 +735,14 @@ fn finalize_stm007_pending(
     }
 }
 
-// ── Yardımcı fonksiyonlar ─────────────────────────────────────────────────────
+// ── Helper functions ──────────────────────────────────────────────────────────
 
-/// stop_id'nin sayısal kök kısmını döndürür: sondaki harf ekini ayıklar.
-/// Rakam içermiyorsa orijinal id döner (kıyas güvenli değil).
-/// Örnek: "2119d" → "2119", "t17d" → "t17", "abc" → "abc"
+/// Returns the numeric root of stop_id: strips a trailing letter suffix.
+/// Returns the original ID when it contains no digit (comparison is unsafe).
+/// Example: "2119d" → "2119", "t17d" → "t17", "abc" → "abc"
 #[allow(dead_code)]
-/// `needle`, `haystack` içinde kelime sınırında (alfanümerik olmayan karakter veya
-/// dize başı/sonu ile çevrili) geçiyor mu? Büyük/küçük harf duyarsız.
+/// Does `needle` occur in `haystack` at a word boundary (surrounded by a non-alphanumeric
+/// character or the start/end of the string)? Case-insensitive.
 fn contains_as_word(haystack: &str, needle: &str) -> bool {
     if needle.is_empty() {
         return false;
@@ -768,27 +768,26 @@ fn contains_as_word(haystack: &str, needle: &str) -> bool {
         if before_ok && after_ok {
             return true;
         }
-        // pos+1 çok-baytlı UTF-8'de (CJK vb.) char sınırında olmayabilir → bir sonraki
-        // char sınırına ilerle; aksi halde h[start..] dilimlemesi panik atar.
+    // pos+1 may not be a char boundary in multibyte UTF-8 (CJK, etc.) → advance to the next
+    // char boundary; otherwise slicing h[start..] panics.
         start = pos + h[pos..].chars().next().map_or(1, |c| c.len_utf8());
     }
     false
 }
 
-/// Metin yalnızca büyük harf alfabetik karakter içeriyor mu? (en az 2 harf, hepsi büyük)
-/// Alloc'suz: ara Vec yok, ilk küçük harfte kısa devre. Eşik + predicate AYNI →
-/// her girdi için orijinalle birebir aynı sonuç.
-/// Kısaltmaların altında kaldığı harf sayısı — bunun altındaki all-caps metin
-/// okunabilirlik sorunu DEĞİLDİR (#182).
+/// Does the text contain only uppercase alphabetic characters? (at least 2 letters, all uppercase)
+/// Allocation-free: no intermediate Vec, short-circuits at the first lowercase letter. Threshold
+/// and predicate are IDENTICAL → exactly the same result as the original for every input.
+/// Letter count below which all-caps text is not a readability issue (#182).
 ///
-/// 🔴 Eşik ölçümle seçildi, sezgiyle değil. run-32311885577'de kuralın ateşlediği
-/// 2.127 feed örneğinin **%33'ü (708) dört harf veya kısaydı** ve içerikleri açıkça
-/// kurum kısaltmasıydı: YMCA, NVBW, DMV, CVS, CATA, AFPA, CCAS. `mdb-2389`'daki
-/// 2.394 bulgunun TAMAMI iki üç-harfli yer koduydu (NAN, VAN). Bir kısaltmanın
-/// küçük harfli biçimi yoktur; "Ymca" öneri olarak yanlıştır.
+/// 🔴 The threshold was selected by measurement, not intuition. In run-32311885577, **33% (708)**
+/// of the 2,127 feeds where the rule fired had four letters or fewer, and their contents were
+/// clearly organization abbreviations: YMCA, NVBW, DMV, CVS, CATA, AFPA, CCAS. ALL 2,394 findings
+/// in `mdb-2389` were two three-letter place codes (NAN, VAN). An abbreviation has no lowercase
+/// form; suggesting "Ymca" is wrong.
 ///
-/// MobilityData da bu feed'lerde susuyor ve ortak feed'lerde BİZDEN FAZLA sayıyor
-/// (1,11x), yani eşik bizi onların gerisine düşürmüyor.
+/// MobilityData is also silent on these feeds and reports MORE than us on shared feeds (1.11x),
+/// so the threshold does not put us behind it.
 const DQ018_MIN_LETTERS: usize = 5;
 
 fn is_all_caps(s: &str) -> bool {
@@ -802,7 +801,7 @@ fn is_all_caps(s: &str) -> bool {
     n >= DQ018_MIN_LETTERS
 }
 
-// Tüm harfler küçük harf — mixed_case_recommended_field (all-lowercase varyantı)
+    // All letters lowercase — mixed_case_recommended_field (all-lowercase variant)
 fn is_all_lower(s: &str) -> bool {
     let mut n = 0usize;
     for c in s.chars().filter(|c| c.is_alphabetic()) {
@@ -814,13 +813,13 @@ fn is_all_lower(s: &str) -> bool {
     n >= 3
 }
 
-// haversine_km / ymd_to_jdn / jdn_to_yyyymmdd → k5_derived (tek kanonik tanım).
-// Buradaki kopyaları k5'inkilerle birebir aynıydı; k5 sürümü test kapsamında.
+// haversine_km / ymd_to_jdn / jdn_to_yyyymmdd → k5_derived (single canonical definition).
+// These copies were identical to the K5 versions; the K5 version is covered by tests.
 use crate::k5_derived::{haversine_km, jdn_to_yyyymmdd, ymd_to_jdn};
 
-/// Bir durağın (slat, slon) bir shape polyline'ına olan minimum mesafesini metre cinsinden döner.
-/// Her segment için dik-mesafe (perpendicular projection) hesaplanır; projeksiyon segment
-/// dışına taşarsa en yakın uç noktaya mesafe kullanılır.
+/// Returns the minimum distance in meters from a stop (slat, slon) to a shape polyline.
+/// For each segment, computes the perpendicular distance; if the projection falls outside
+/// the segment, uses the distance to the nearest endpoint.
 fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
     if pts.is_empty() {
         return f64::MAX;
@@ -830,7 +829,7 @@ fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
     }
     const DEG_TO_M: f64 = 111_320.0;
     let cos_lat = slat.to_radians().cos();
-    // Durağı yerel Kartezyen koordinat merkezi (0,0) olarak al
+    // Treat the stop as the local Cartesian origin (0,0).
     let to_local = |lat: f64, lon: f64| -> (f64, f64) {
         ((lon - slon) * cos_lat * DEG_TO_M, (lat - slat) * DEG_TO_M)
     };
@@ -855,8 +854,8 @@ fn point_to_polyline_dist_m(slat: f64, slon: f64, pts: &[(f64, f64)]) -> f64 {
     min_dist
 }
 
-/// Bir stop_times satırının gösterilecek saati (önce varış, yoksa kalkış), "HH:MM:SS".
-/// Planlamacı kartında komşu durağın saatini yazmak için; ikisi de yoksa None.
+/// The display time for a stop_times row (arrival first, departure otherwise), "HH:MM:SS".
+/// Used to show a neighboring stop's time on the planner card; None when both are absent.
 fn row_time_text(st: &CompactStopTime) -> Option<String> {
     st.arrival_time().or_else(|| st.departure_time()).map(|t| format_hms(hms_to_secs(t)))
 }
@@ -865,18 +864,18 @@ fn hms_to_secs(t: (u32, u32, u32)) -> u32 {
     t.0 * 3600 + t.1 * 60 + t.2
 }
 
-/// Durak (slat, slon) noktasının polyline üzerindeki projeksiyon arc-length'ini döndürür (km).
-/// `pts` sıralı shape noktaları; `cum` her noktanın baştan birikimli mesafesi (cum[0]=0).
-/// SHP_016 için projeksiyon ayrıntısı: en yakın noktanın (yay, mesafe) çifti ve AYRICA
-/// shape'in İLK %10'undaki en yakın adayın mesafesi.
+/// Returns the projected arc length (km) of stop (slat, slon) on the polyline.
+/// `pts` are ordered shape points; `cum` is each point's cumulative distance from the start (cum[0]=0).
+/// Projection details for SHP_016: the nearest point's (arc, distance) pair and ALSO the distance
+/// of the nearest candidate in the first 10% of the shape.
 ///
-/// Neden ayrı: `project_arc_km` yalnız yayı döndürür ve "en yakın nokta" tek başına yön
-/// kanıtı DEĞİLDİR. Kendi üzerinden geçen bir shape'te ilk durak İKİ yere birden düşer;
-/// hangisinin seçildiği metrelerle belirlenir. DART (Des Moines) feed'inde ölçüldü —
-/// shape 58782, trip 751448: ilk durak segment 54'e 6,8 m, shape'in BAŞINA 10,0 m
-/// uzaklıkta. Aradaki 3,1 m yüzünden kural "shape ters çizilmiş" diyordu, oysa uçtan uca
-/// bakıldığında ilk durak shape başına 10 m, son durak shape sonuna 9 m — güzergah DOĞRU.
-/// Dönen üçlü, çağıranın bu belirsizliği görüp susmasını sağlar.
+/// Why separate: `project_arc_km` returns only the arc, and the "nearest point" alone is NOT
+/// directional evidence. On a shape that crosses itself, the first stop can map to TWO places;
+/// meters determine which is selected. Measured in the DART (Des Moines) feed — shape 58782,
+/// trip 751448: the first stop was 6.8 m from segment 54 and 10.0 m from the shape START.
+/// Because of the 3.1 m difference, the rule said "shape drawn backwards", while end-to-end
+/// inspection showed the first stop 10 m from the shape start and the last stop 9 m from its end
+/// — the route is CORRECT. The returned triple lets the caller see the ambiguity and stay silent.
 fn project_arc_detail(
     pts: &[(f64, f64)],
     cum: &[f64],
@@ -954,9 +953,9 @@ fn project_arc_km(pts: &[(f64, f64)], cum: &[f64], slat: f64, slon: f64) -> f64 
     best_arc
 }
 
-/// Durak noktasından shape polyline'ına segment projeksiyonu ile minimum uzaklık (km).
-/// Equirectangular space'te argmin bulunur; son haversine tek kez çağrılır.
-/// `safe_sq`: threshold²×0.98 — bu değerin altındaki segment için 0.0 döner (erken çıkış).
+/// Minimum distance (km) from a stop point to a shape polyline by segment projection.
+/// Finds the argmin in equirectangular space; calls haversine only once at the end.
+/// `safe_sq`: threshold²×0.98 — returns 0.0 for a segment below this value (early exit).
 fn seg_min_dist_km(pts: &[(f64, f64)], slat: f64, slon: f64, scale_lon: f64, safe_sq: f64) -> f64 {
     if pts.len() < 2 {
         return haversine_km(slat, slon, pts[0].0, pts[0].1);
@@ -1006,16 +1005,16 @@ fn seg_min_dist_km(pts: &[(f64, f64)], slat: f64, slon: f64, scale_lon: f64, saf
     }
 }
 
-/// Intercity/uzun mesafe ray route_type'ı mı? (STM_017 shape_dist eksik, STM_026 eşiği için)
-/// GTFS: 2=Rail, 12=Monorail, 100-117 genişletilmiş tren tipleri.
+/// Is this an intercity/long-distance rail route_type? (for STM_017 missing shape_dist and STM_026 threshold)
+/// GTFS: 2=Rail, 12=Monorail, 100-117 extended train types.
 fn is_rail_route_type(route_type: u32) -> bool {
     route_type == 2 || route_type == 12 || (100..=117).contains(&route_type)
 }
 
-/// Genişletilmiş route_type'ı (Google "Extended GTFS Route Types") temel ARAÇ türüne indirger.
-/// `max_speed_kmh`'tan farkı: o hız eşiği için otobüs/troleybüs/taksiyi birleştirir; burada
-/// araç değişimi sorulduğu için troleybüs (11/800) ve monoray (12/405) ayrı kalır.
-/// Otokar (2xx) temel tabloda otobüstür (3). Tanınmayan kod kendisi olarak döner.
+/// Reduces an extended route_type (Google "Extended GTFS Route Types") to its base VEHICLE type.
+/// Unlike `max_speed_kmh`, which combines bus/trolleybus/taxi for one speed threshold, trolleybus
+/// (11/800) and monorail (12/405) remain separate here because the question is vehicle change.
+/// Otokar (2xx) is a bus (3) in the base table. Unknown codes are returned unchanged.
 fn route_type_vehicle_mode(route_type: u32) -> u32 {
     match route_type {
         0 | 900..=906 => 0,
@@ -1031,32 +1030,31 @@ fn route_type_vehicle_mode(route_type: u32) -> u32 {
     }
 }
 
-/// Tipli alanı olmayan ham CSV sütununu oku (ör. `parent_station`, k4'teki `row_field` ikizi).
+/// Read a raw CSV column without a typed field (e.g. `parent_station`, the K4 `row_field` counterpart).
 fn row_field_local<'a>(row: &'a std::collections::HashMap<String, String>, key: &str) -> &'a str {
     row.get(key).map(String::as_str).unwrap_or("").trim()
 }
 
-/// Raylı route'lara bağlı trip ve shape kimlikleri — K6 girişinde TEK kurulum.
+/// Trip and shape IDs linked to rail routes — ONE setup at K6 entry.
 pub(crate) struct RailIndex<'a> {
-    /// Raylı bir route'a bağlı trip_id'ler (STM_045).
+/// trip_ids linked to a rail route (STM_045).
     pub trips: FxHashSet<&'a str>,
-    /// Raylı bir route tarafından kullanılan shape_id'ler (GEO_006/007/009, SHP_012/014/024).
+/// shape_ids used by a rail route (GEO_006/007/009, SHP_012/014/024).
     pub shapes: FxHashSet<&'a str>,
 }
 
-/// Raylı bir route tarafından kullanılan shape_id'ler (GEO_006/007/009, SHP_012/014/024).
+/// shape_ids used by a rail route (GEO_006/007/009, SHP_012/014/024).
 ///
-/// Ray geometrisi iki noktada şehir içi varsayımlarını bozar: (1) istasyonlarda durak
-/// koordinatı peron/bina merkezini gösterirken shape tek bir ray merkez-hattıdır, (2)
-/// şehirlerarası ray uzun düz kesimlerde meşru olarak sadeleştirilir. Bu shape'lerde
-/// `*_rail` eşikleri kullanılır.
+/// Rail geometry breaks urban assumptions in two ways: (1) at stations, stop coordinates represent
+/// the platform/building center while the shape is one track centerline, and (2) intercity rail is
+/// legitimately simplified on long straight sections. These shapes use `*_rail` thresholds.
 ///
-/// **Karışık kullanımda gevşek yön seçilir:** shape'i kullanan HERHANGİ bir route raylıysa
-/// shape raylı sayılır. Bu kuralların yanlış-pozitifi (meşru geometriyi hata sanmak) yanlış
-/// -negatiften pahalıdır; proje genelindeki FP-kaçınma duruşuyla tutarlı.
+/// **Mixed use chooses the lenient direction:** if ANY route using the shape is rail, the shape
+/// counts as rail. A false positive for these rules (calling legitimate geometry an error) costs
+/// more than a false negative; this matches the project's general FP-avoidance stance.
 ///
-/// Perf: rail route yoksa (feed'lerin çoğu) trips üzerinde hiç dolaşılmaz; trip ve shape
-/// kümeleri TEK geçişte kurulur.
+/// Performance: when there is no rail route (most feeds), trips are not traversed at all;
+/// trip and shape sets are built in ONE pass.
 fn rail_index(records: &EntityRecords) -> RailIndex<'_> {
     let rail_routes: FxHashSet<&str> = records
         .routes
@@ -1084,7 +1082,7 @@ fn rail_index(records: &EntityRecords) -> RailIndex<'_> {
     out
 }
 
-/// shape → durak-güzergah mesafe eşiği (m). Raylı shape'lerde `stop_far_from_shape_m_rail`.
+/// shape → stop-to-route distance threshold (m). For rail shapes, `stop_far_from_shape_m_rail`.
 fn stop_shape_threshold_m(
     shape_id: &str,
     rail_shapes: &FxHashSet<&str>,
@@ -1097,13 +1095,12 @@ fn stop_shape_threshold_m(
     }
 }
 
-/// K6 analitiği için stop koordinatını al.
+/// Get stop coordinates for K6 analytics.
 ///
-/// K2'nin lexical doğrulaması ham sayısal değerdeki baş/son boşluğu kasıtlı olarak
-/// geçersiz sayar ve DQ_016/STP türevini kanıtlar. K6 ise bu whitespace kökü dışında
-/// kalan sayısal payload'ı kaybetmemelidir: MobilityData ve GTFS tüketicilerinin çoğu
-/// `" 43.229610"` değerini sayıya çevirerek aynı koordinatı kullanır. K2'nin strict
-/// notice'ı ve ham değer kanıtı değişmez; yalnız analitik girdiyi geri kazanır.
+/// K2's lexical validation deliberately rejects leading/trailing whitespace in a raw numeric value
+/// and proves the DQ_016/STP derivative. K6 must not lose the numeric payload beyond that whitespace
+/// root: MobilityData and most GTFS consumers parse `" 43.229610"` as a number and use the same
+/// coordinate. K2's strict notice and raw-value evidence are unchanged; only the analytics input is recovered.
 fn recoverable_stop_coord(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f64)> {
     if let Some(coords) = stop.stop_lat.zip(stop.stop_lon) {
         return Some(coords);
@@ -1117,7 +1114,7 @@ fn recoverable_stop_coord(stop: &crate::k2::stops::StopRecord) -> Option<(f64, f
     parse("stop_lat").zip(parse("stop_lon"))
 }
 
-/// shape → ardışık nokta sıçrama eşiği (km). Raylı shape'lerde `max_shape_jump_km_rail`.
+/// shape → consecutive-point jump threshold (km). For rail shapes, `max_shape_jump_km_rail`.
 fn shape_jump_threshold_km(
     shape_id: &str,
     rail_shapes: &FxHashSet<&str>,
@@ -1130,12 +1127,12 @@ fn shape_jump_threshold_km(
     }
 }
 
-/// route_type → STM_028 sefer süresi üst eşiği (saniye).
+/// route_type → STM_028 trip-duration upper threshold (seconds).
 ///
-/// Raylı türlerde ayrı (ve yüksek) eşik: uzun mesafe tren tarifeleri 24 saati MEŞRU olarak
-/// aşar. TCDD feed'inde Ankara-Kars 26:26, Ankara-Tatvan 26:37, Kurtalan-Ankara 27:25 —
-/// altısı da gerçek tarife, veri hatası değil (feed sahibinden doğrulandı). Şehir içi
-/// türlerde 24 saat korunur; tramvay/metroda o süre veri hatası işaretidir.
+/// Separate (and higher) threshold for rail types: long-distance train schedules legitimately
+/// exceed 24 hours. In the TCDD feed, Ankara–Kars 26:26, Ankara–Tatvan 26:37, Kurtalan–Ankara 27:25
+/// — all six are real schedules, not data errors (confirmed by the feed owner). Urban types retain
+/// 24 hours; for trams/metros, that duration signals a data error.
 fn max_trip_duration_secs(route_type: u32, cfg: &ValidatorConfig) -> u32 {
     let hours = if is_rail_route_type(route_type) {
         cfg.max_trip_duration_hours_rail
@@ -1145,46 +1142,46 @@ fn max_trip_duration_secs(route_type: u32, cfg: &ValidatorConfig) -> u32 {
     (hours * 3600.0) as u32
 }
 
-/// route_type → config'ten hız eşiği (km/h).
-/// #15/MD-kalibrasyon: STANDART (0-7,11,12) VE GENİŞLETİLMİŞ Avrupa route_type'larını (100-1700)
-/// doğru kategoriye eşler. Eski sürüm yalnız standartları tanıyordu → VBB Berlin gibi tamamı
-/// extended-kod kullanan feed'lerde rail (100-117 = S-Bahn/bölgesel/intercity) `_ => bus`'a
-/// düşüp 120 km/h eşik alıyordu → meşru 120-300 km/h trenler STM_014 FP (4530 vs MD 233).
-/// is_rail_route_type ile artık tutarlı.
-/// "Uzak" durak eşiği — MobilityData ile aynı: 10 km'den fazla ayrık iki durak.
-/// Altındaki çiftler komşu hız kontrolünün (STM_012/STM_014) alanıdır.
+/// route_type → speed threshold from config (km/h).
+/// #15/MD calibration: maps STANDARD (0-7,11,12) and EXTENDED European route_types (100-1700)
+/// to the correct category. The old version recognized only standard types → feeds using only
+/// extended codes, such as VBB Berlin, dropped rail (100-117 = S-Bahn/regional/intercity) to
+/// `_ => bus` and used a 120 km/h threshold → legitimate 120-300 km/h trains became STM_014 FPs
+/// (4530 vs MD 233). Now consistent with is_rail_route_type.
+/// "Distant" stop threshold — same as MobilityData: two stops more than 10 km apart.
+/// Pairs below it belong to neighboring-stop speed checks (STM_012/STM_014).
 const FAR_STOP_MIN_KM: f64 = 10.0;
 
 fn max_speed_kmh(route_type: u32, cfg: &ValidatorConfig) -> f64 {
     match route_type {
-        0 | 900..=906 => cfg.max_speed_tram_kmh, // tram / hafif raylı
+    0 | 900..=906 => cfg.max_speed_tram_kmh, // tram / light rail
         1 | 400..=405 => cfg.max_speed_metro_kmh, // metro / U-Bahn
-        2 | 12 | 100..=117 => cfg.max_speed_rail_kmh, // rail / S-Bahn / bölgesel
-        3 | 11 | 200..=209 | 700..=716 | 800 | 1500..=1507 => cfg.max_speed_bus_kmh, // bus / coach / troleybüs / taksi
+    2 | 12 | 100..=117 => cfg.max_speed_rail_kmh, // rail / S-Bahn / regional
+    3 | 11 | 200..=209 | 700..=716 | 800 | 1500..=1507 => cfg.max_speed_bus_kmh, // bus / coach / trolleybus / taxi
         4 | 1000..=1021 | 1200 => cfg.max_speed_ferry_kmh,                           // su / feribot
-        5 | 6 | 7 | 1300..=1307 | 1400 => cfg.max_speed_cablecar_kmh, // teleferik / füniküler
-        _ => cfg.max_speed_bus_kmh, // bilinmeyen tür → güvenli varsayılan
+    5 | 6 | 7 | 1300..=1307 | 1400 => cfg.max_speed_cablecar_kmh, // cable car / funicular
+    _ => cfg.max_speed_bus_kmh, // unknown type → safe default
     }
 }
 
-// ── Shared shape index (K6 tek geçiş) ───────────────────────────────────────
-// shape_id → seq-sıralı (lat, lon) + bbox. Bu kurulum daha önce check_remaining_analytics
-// (`rem::build_maps`), check_shp012 ve check_shp022 içinde BİREBİR ÜÇ KEZ kopyalanmıştı;
-// check_speed_and_duration (`sd::shape_setup`) de dördüncü bir varyantını kuruyordu.
-// Entur (mdb-1078, 40,9M shape noktası) ölçümü: build_maps 4,0s + shp012 ~3,0s +
-// shp022 ~3,0s — shp022 toplam süresinin %99,96'sı bu kurulumdu (2.993ms'nin body'si 1,26ms).
-// Paralel modda (wasm32-threads) üç kopya AYNI ANDA canlı olabildiği için bu paylaşım
-// tepe belleği de düşürür; seri modda tek kopya K6 boyunca canlı kalır (~16B/nokta).
+// ── Shared shape index (one K6 pass) ──────────────────────────────────────────
+// shape_id → sequence-sorted (lat, lon) + bbox. This setup had previously been copied EXACTLY
+// THREE TIMES into check_remaining_analytics (`rem::build_maps`), check_shp012, and check_shp022;
+// check_speed_and_duration (`sd::shape_setup`) built a fourth variant.
+// Entur (mdb-1078, 40.9M shape points) measurement: build_maps 4.0s + shp012 ~3.0s + shp022 ~3.0s
+// — 99.96% of shp022's total time was this setup (1.26ms of the 2,993ms body).
+// In parallel mode (wasm32-threads), three copies could be live AT ONCE, so sharing also lowers
+// peak memory; in serial mode one copy stays live across K6 (~16B/point).
 struct ShapeIndex<'a> {
     coords: FxHashMap<&'a str, Vec<(f64, f64)>>,
     bbox: FxHashMap<&'a str, [f64; 4]>,
 }
 
 impl<'a> ShapeIndex<'a> {
-    /// #15 (build_maps OOM/312s): shape_coords NOKTA-İNDEKSLERİYLE kurulur. Her noktayı
-    /// (u32,f64,f64)=24B ara tamponda gruplayıp sonra (f64,f64)=16B'ye kopyalamak transient
+/// #15 (build_maps OOM/312s): shape_coords is built with POINT INDICES. Grouping each point
+/// in a (u32,f64,f64)=24B temporary buffer and then copying to (f64,f64)=16B created transient
     /// ~40B/nokta demekti; indeks (4B) + coords (16B) = ~20B/nokta tepe.
-    /// Sıralama STABLE (`sort_by_key`) — eşit `shape_pt_sequence`'ta dosya sırası korunur.
+/// Sorting is STABLE (`sort_by_key`) — file order is preserved for equal `shape_pt_sequence`.
     fn build(records: &'a EntityRecords) -> Self {
         let mut shape_pt_idx: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
         for (i, sp) in records.shapes.iter().enumerate() {
@@ -1236,9 +1233,9 @@ impl<'a> ShapeIndex<'a> {
     }
 }
 
-// ── Shared stop_times index (K6 tek geçiş) ──────────────────────────────────
-// Not: by_trip artık K2 StopTimesIndex'inden &CompactStopTime referansları taşıyor.
-// records.stop_times Vec<StopTimeRecord> taranmaz; sadece index kullanılır.
+// ── Shared stop_times index (one K6 pass) ─────────────────────────────────────
+// Note: by_trip now carries &CompactStopTime references from the K2 StopTimesIndex.
+// The records.stop_times Vec<StopTimeRecord> is not scanned; only the index is used.
 
 struct StopTimesIndex<'a> {
     by_trip: FxHashMap<&'a str, &'a [CompactStopTime]>,
@@ -1247,9 +1244,9 @@ struct StopTimesIndex<'a> {
     // per-association storage versus Vec<&str> and avoids pointer-heavy peaks.
     stop_shapes: FxHashMap<&'a str, Vec<u32>>,
     trips_missing_sdt: FxHashMap<&'a str, u64>,
-    // STM_036: K2'de tespit edilen sırasız stop_sequence bilgisi
+    // STM_036: unsorted stop_sequence information detected in K2
     unsorted_seq_trips: &'a Vec<(SmolStr, u32, u32, u64)>,
-    // K2 intern tablosuna referans: stop_id, headsign, flex erişimi için
+    // Reference to the K2 intern table: for stop_id, headsign, and Flex access.
     k2: &'a K2StopTimesIndex,
 }
 
@@ -1262,7 +1259,7 @@ impl<'a> StopTimesIndex<'a> {
         let n_trips = records.trips.len();
         let n_stops = records.stops.len();
 
-        // K2 index dilimlerini ÖDÜNÇ al (klon yok); test yolunda fallback K2 ref'i gelir.
+        // BORROW K2 index slices (no clone); the test path supplies a fallback K2 reference.
         let mut by_trip: FxHashMap<&'a str, &'a [CompactStopTime]> = FxHashMap::default();
         let mut stop_shapes: FxHashMap<&'a str, Vec<u32>> = FxHashMap::default();
         by_trip.reserve(n_trips);
@@ -1316,67 +1313,65 @@ impl<'a> StopTimesIndex<'a> {
         }
     }
 
-    // Stop_id yardımcısı — K2 intern tablosuna delege eder
+    // Stop_id helper — delegates to the K2 intern table.
     #[inline]
     fn stop_id_of(&self, st: &CompactStopTime) -> &str {
         self.k2.stop_id_of(st)
     }
 }
 
-// ── WP-09a: Hız anomalisi + trip süresi ──────────────────────────────────────
+// ── WP-09a: Speed anomaly + trip duration ────────────────────────────────────
 
-/// STM_014 pattern toplulaması: (hat, yön, segment) başına biriken hız aşımları.
+/// STM_014 pattern aggregation: speed exceedances accumulated per (route, direction, segment).
 ///
-/// Aynı fiziksel segment o segmentten geçen HER seferde ayrı ayrı tetikleniyordu;
-/// TriMet'te 604 notice'ın tamamı tek segmentten (Route 20, durak 241→255) geliyordu
-/// ve hepsi aynı kök nedeni (segmentin schedule/shape tutarsızlığı) gösteriyordu.
-/// Tespit mantığı DEĞİŞMEDİ — yalnız emit pattern düzeyinde toplanır.
-/// (Güvenilirlik Sprint'i Checkpoint 6 kararı: "doğruluk sorunu değil, sunum ve
-/// dedup ergonomisi sorunu; pattern-level gruplama olarak ele alınabilir".)
+/// The same physical segment fired separately for EVERY trip passing it; all 604 TriMet notices
+/// came from one segment (Route 20, stops 241→255) and showed the same root cause (schedule/shape
+/// inconsistency on the segment). Detection logic is UNCHANGED — only emission is aggregated by pattern.
+/// (Reliability Sprint Checkpoint 6 decision: "not a correctness issue, but a presentation and
+/// dedup ergonomics issue; can be handled as pattern-level grouping".)
 struct Stm014Seg<'a> {
     route_label: &'a str,
     seq_a: u32,
     seq_b: u32,
     threshold: f64,
-    /// En küçük stop_times satırı — deterministik çıktı için (map sırası rastgele).
+    /// Smallest stop_times row — for deterministic output (map order is random).
     line: u64,
     speed_min: f64,
     speed_max: f64,
     trips: Vec<&'a str>,
-    /// Katkılardan en az biri, hat türü boşluk yüzünden kaybolmasa da eşiği aşıyor.
+    /// At least one contribution exceeds the threshold even without the route type being lost to whitespace.
     ws_real: bool,
-    /// Katkıların hepsi yalnız kaybolan hat türü yüzünden aşıyorsa boşluğun dosyası.
+    /// If all contributions exceed the threshold only because of the lost route type, this is the whitespace file.
     ws_file: Option<&'static str>,
 }
 
-/// Bulgu yalnız boşlukla kırık bir kimlik birleşimi yüzünden oluştu. K7 onu boşluğu taşıyan
-/// dosyanın `DQ_016` kökünde beyan eder; kök yoksa bulgu kalır ve bu anahtar görünür.
-/// Hesap DEĞİŞMEZ (#85 kimliği ham tutar); yalnız kırpılmış dünyada oluşup oluşmayacağı sınanır.
+/// The finding arose only from an ID join broken by whitespace. K7 declares it under the `DQ_016`
+/// root of the file carrying the whitespace; if there is no root, the finding remains and this key is visible.
+/// The calculation is UNCHANGED (#85 keeps IDs raw); only whether it arises in the trimmed world is tested.
 fn mark_whitespace_join(n: &mut Notice, file: &'static str) {
     n.details
         .get_or_insert_with(Default::default)
         .insert("whitespace_join_file".to_string(), file.to_string());
 }
 
-/// details["trips"] listesinde gösterilecek örnek sefer sayısı (tam sayı trip_count'ta).
+/// Number of example trips to show in the details["trips"] list (the full count is trip_count).
 const STM014_TRIP_SAMPLE: usize = 12;
 
-/// STM_061 toplulaması: (hat, yön, uzak durak çifti) başına biriken imkânsız hızlar.
+/// STM_061 aggregation: impossible speeds accumulated per (route, direction, distant stop pair).
 ///
-/// Kural sefer başına tek bulgu üretiyordu ve bu YETMEDİ: aynı fiziksel durak çifti
-/// o çiftten geçen HER seferde yeniden raporlanıyor. mdb-1003'te 9.533 bulgunun
-/// tamamı TEK çiftten geliyordu (Selva de Mar → Rambla de Sant Just, 11,8 km,
-/// 118 km/h) ve hepsi aynı kök nedeni gösteriyordu — Barcelona'nın birbirine bağlı
-/// olmayan iki tram ağının durakları aynı sefere konmuş. mdb-1004'te aynı desen
-/// 10.390 bulgu. Tespit mantığı DEĞİŞMEZ; yalnız emit çift düzeyinde toplanır,
-/// STM_014'ün segment birikimiyle birebir aynı desen.
+/// The rule produced one finding per trip, which was NOT ENOUGH: the same physical stop pair was
+/// reported again for EVERY trip passing it. In mdb-1003, all 9,533 findings came from ONE pair
+/// (Selva de Mar → Rambla de Sant Just, 11.8 km, 118 km/h) and showed the same root cause — stops
+/// from Barcelona's two unconnected tram networks were placed on the same trip. The same pattern
+/// produced 10,390 findings in mdb-1004. Detection logic is UNCHANGED; only emission is aggregated
+/// at pair level, exactly like STM_014 segment aggregation.
 struct Stm061Pair<'a> {
     route_label: &'a str,
     seq_a: u32,
     seq_b: u32,
     threshold: f64,
     dist_km: f64,
-    /// En küçük stop_times satırı — deterministik çıktı için (map sırası rastgele).
+    /// Smallest stop_times row — for deterministic output (map order is random).
     line: u64,
     speed_min: f64,
     speed_max: f64,
@@ -1416,7 +1411,7 @@ fn check_speed_and_duration<'a>(
             }
         }
 
-        // stop_id → stop_name (gösterim için; boş/yoksa eklenmez, fallback stop_id)
+// stop_id → stop_name (for display; omitted when empty/missing, fallback stop_id)
         let mut stop_name_sd: FxHashMap<&str, &str> = FxHashMap::default();
         stop_name_sd.reserve(records.stops.len());
         for s in &records.stops {
@@ -1448,10 +1443,10 @@ fn check_speed_and_duration<'a>(
             trip_to_route.insert(t.trip_id.as_str(), ti_sd.route_id(t));
         }
 
-        // Hat türü YALNIZ boşluklu kimlik yüzünden kayıp (`mdb-1065`: `routes.route_id`
-        // dolgulu, 243 raylı hat otobüs eşiğine düşüyordu). Eşik ham türle hesaplanmaya devam
-        // eder; bu harita yalnız bulgunun kırpılmış dünyada da oluşup oluşmayacağını sınar.
-        // Iskalama yoksa hiç kurulmaz.
+// Route type is lost ONLY because of a whitespace ID (`mdb-1065`: padded `routes.route_id`
+// made 243 rail routes fall to the bus threshold). The threshold remains calculated from the raw
+// type; this map tests only whether the finding also arises in the trimmed world.
+// It is not built when there is no miss.
         let mut ws_route_type: FxHashMap<&str, (u32, &'static str)> = FxHashMap::default();
         let stop_times_trip_missing = idx.by_trip.keys().any(|t| !trip_to_route.contains_key(t));
         if trip_route_type.len() < records.trips.len() || stop_times_trip_missing {
@@ -1472,7 +1467,7 @@ fn check_speed_and_duration<'a>(
                     ws_route_type.insert(t.trip_id.as_str(), (rt, file));
                 }
             }
-            // stop_times'taki sefer kimliği trips.txt'tekiyle yalnız boşlukla ayrışıyor.
+// The trip ID in stop_times differs from trips.txt only by whitespace.
             if stop_times_trip_missing {
                 let trips_trimmed: FxHashMap<&str, &crate::k2::trips::TripRecord> = records
                     .trips
