@@ -1127,13 +1127,14 @@ pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Opti
 /// one found.
 ///
 /// GTFS spec, Dataset Files: "Field values must not contain tabs, carriage returns or new
-/// lines." ARC_021 bu üçünü BİLEREK kaçırır (`is_whitespace()` muafiyeti, ayrıca `cp != 9`):
-/// o kural bozuk/yazdırılamaz karakterleri hedefler ve geçerli metni muaf tutar. Buradaki üç
-/// karakter ise geçerli metinde de görülebilir, ama spec onları açıkça yasaklar. İki kural
-/// aynı olguyu ölçmez.
+/// lines." ARC_021 deliberately misses these three (`is_whitespace()` exemption, plus `cp != 9`):
+/// that rule targets malformed/unprintable characters and exempts valid text. These three
+/// characters can occur in otherwise valid text, but the spec explicitly prohibits them. The
+/// two rules measure different phenomena.
 ///
-/// Bayt taraması UTF-8 güvenlidir: TAB/LF/CR ASCII'dir, çok baytlı karakterlerin devam
-/// baytları 0x80 ve üzerindedir. `chars()` yerine `bytes()` bilinçli — bu K1 sıcak yolu.
+/// Byte scanning is UTF-8 safe: TAB/LF/CR are ASCII, and continuation bytes of multibyte
+/// characters are 0x80 or above. Using `bytes()` instead of `chars()` is deliberate — this is
+/// a K1 hot path.
 pub(crate) fn arc030_bad_whitespace<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
     for val in values {
         for b in val.bytes() {
@@ -1157,46 +1158,46 @@ pub(crate) fn arc030_message(file_name: &str, cp: u32) -> String {
 pub(crate) const ARC030_REMEDIATION: &str =
     "Alan değerlerindeki sekme ve satır sonu karakterlerini kaldırın; çok satırlı metni tek satıra indirin.";
 
-// ── ARC_032: HTML etiketi / yorum / kaçış dizisi ─────────────────────────────
+// ── ARC_032: HTML tag / comment / escape sequence ─────────────────────────────
 //
 // GTFS spec, File Requirements: "Field values must not contain HTML tags, comments or
-// escape sequences." ARC_021 ve ARC_030 bunu kaçırır — `<` (U+003C) ARC_021'in bozuk-karakter
-// aralıklarının hiçbirine girmez, alfanumerik de değildir ama `is_bad` koşullarını sağlamaz.
+// escape sequences." ARC_021 and ARC_030 miss this — `<` (U+003C) is in none of ARC_021's
+// malformed-character ranges, is not alphanumeric, and still does not satisfy `is_bad`.
 //
-// ⚠️ KAPALI LİSTE, DESEN DEĞİL. Ölçüm sırasında gevşek bir desen (`<\s*/?[a-zA-Z]+...>` +
-// herhangi `&kelime;`) 239 feed'de 1991 eşleşme verdi ve örneklere bakınca çoğu MEŞRU metin
-// çıktı: `K.A.Wheel&Tire;` bir entity değil, `St Sauvant >< St Césaire` bir etiket değil.
-// Kapalı listeye geçince 1955 gerçek eşleşme kaldı (4 feed). Desen genişletilecekse
-// örneklere BAKILARAK genişletilmeli.
-/// HTML eleman adları — **ÜRETİLMİŞ** (issue #79, `k1_html_elements.rs`).
+// ⚠️ CLOSED LIST, NOT A PATTERN. During measurement, a loose pattern (`<\s*/?[a-zA-Z]+...>` +
+// any `&kelime;`) produced 1,991 matches in 239 feeds, and examples showed that most were
+// LEGITIMATE text: `K.A.Wheel&Tire;` is not an entity, and `St Sauvant >< St Césaire` is not a
+// tag. The closed list left 1,955 genuine matches (4 feeds). Expand the pattern only after
+// reviewing examples.
+/// HTML element names — **GENERATED** (issue #79, `k1_html_elements.rs`).
 ///
-/// 🔴 Bu liste ELLE yazılmıştı ve kart "HTML5'in TAMAMI" diyordu. 6. denetim iddiayı
-/// çürüttü: `svg` ve `math` eksikti. Entity tablosunu kaynaktan üretirken etiket listesini
-/// elde tutmak tutarsızlıktı; artık ikisi de üretiliyor.
+/// 🔴 This list used to be handwritten and the card claimed "ALL OF HTML5". Audit 6 disproved
+/// that claim: `svg` and `math` were missing. Keeping the tag list manually while generating the
+/// entity table from the source was inconsistent; both are now generated.
 ///
-/// Küme = WHATWG eleman dizini ∪ yabancı içerik kökleri (`svg`, `math`) ∪ eskimiş
-/// elemanlar (`font`, `center`, …). İki ek kümenin gerekçesi üreticinin docstring'inde:
-/// `svg`/`math` HTML eleman dizininde YOKTUR (onlar SVG/MathML elemanı) ama HTML'de
-/// TANINAN başlangıç etiketleridir; eskimiş elemanlar dizinden düşmüştür ama gerçek
-/// feed'lerde geçer (korpusta `<BR>` ve `<font>` ölçüldü).
+/// Set = WHATWG element index ∪ foreign-content roots (`svg`, `math`) ∪ obsolete elements
+/// (`font`, `center`, …). The rationale for the two additional sets is in the generator's
+/// docstring: `svg`/`math` are NOT in the HTML element index (they are SVG/MathML elements) but
+/// are RECOGNISED starting tags in HTML; obsolete elements were removed from the index but occur
+/// in real feeds (`<BR>` and `<font>` were measured in the corpus).
 ///
-/// ⚠️ Liste KAPALI kalır — açılı ayraç içindeki her kelimeyi etiket saymak `<TBD>`,
-/// `<Bilinmiyor>`, `<未定>` gibi gerçek metni işaretlerdi.
+/// ⚠️ Keep the list CLOSED — treating every word inside angle brackets as a tag would flag real
+/// text such as `<TBD>`, `<Bilinmiyor>`, and `<未定>`.
 use crate::k1_html_elements::HTML_ELEMENTS as HTML_TAGS;
-/// Adlandırılmış karakter referansları — **ÜRETİLMİŞ** (issue #79, `k1_html_entities.rs`).
+/// Named character references — **GENERATED** (issue #79, `k1_html_entities.rs`).
 ///
-/// 🔴 Burada altı ad vardı (`nbsp amp lt gt quot apos`) ve `&copy;`, `&reg;`, `&euro;`,
-/// `&mdash;` kuraldan KAÇIYORDU. Liste artık HTML5'in tamamı (2.125 ad), kaynağı ve
-/// SHA-256'sı üretilen dosyada; sürüklenme CI'da denetleniyor.
+/// 🔴 This used to contain six names (`nbsp amp lt gt quot apos`), while `&copy;`, `&reg;`,
+/// `&euro;`, and `&mdash;` escaped the rule. The list is now all of HTML5 (2,125 names); its
+/// source and SHA-256 are in the generated file, and drift is checked in CI.
 ///
-/// ⚠️ Liste KAPALI kalır — `&` + kelime + `;` desenini serbest bırakmak gerçek metni
-/// yakalar (`K.A.Wheel&Tire;`, korpusta ölçüldü). Fark, listenin standardın ALT KÜMESİ
-/// değil KENDİSİ olmasıdır.
+/// ⚠️ Keep the list CLOSED — allowing the `&` + word + `;` pattern would catch real text
+/// (`K.A.Wheel&Tire;`, measured in the corpus). The distinction is that the list is the
+/// standard itself, not a SUBSET of the standard.
 use crate::k1_html_entities::{HTML5_ENTITIES as HTML_ENTITIES, HTML5_ENTITIES_NO_SEMI};
 
-/// Değerde HTML etiketi, yorum başlangıcı veya karakter kaçışı arar.
+/// Searches a value for an HTML tag, comment start, or character escape.
 ///
-/// Dönen: bulunan işaretin metni (`<BR>`, `&nbsp;` gibi), kullanıcıya gösterilmek üzere.
+/// Returns the text of the marker found (such as `<BR>` or `&nbsp;`) for display to the user.
 fn arc032_markup(value: &str) -> Option<String> {
     let bytes = value.as_bytes();
     for (i, &b) in bytes.iter().enumerate() {
@@ -1204,8 +1205,8 @@ fn arc032_markup(value: &str) -> Option<String> {
             if value[i..].starts_with("<!--") {
                 return Some("<!--".to_string());
             }
-            // `</` kapanış etiketi de sayılır. Eğik çizgi ÇIKTIDA korunur: kullanıcıya
-            // gösterilen örnek, dosyadaki metinle birebir eşleşmeli.
+            // `</` closing tags count too. Preserve the slash in the OUTPUT: the example shown
+            // to the user must match the text in the file exactly.
             let after = &value[i + 1..];
             let (slash, rest) = match after.strip_prefix('/') {
                 Some(r) => ("/", r),
@@ -1218,26 +1219,26 @@ fn arc032_markup(value: &str) -> Option<String> {
                 continue;
             }
             let name = &rest[..name_len];
-            // 🔴 AD SINIRI DENETLENİR (issue #79 testinden çıktı): ad ayıklama ilk
-            // alfanümerik olmayan karakterde duruyor, dolayısıyla `<svg-yok>` "svg" gibi
-            // görünüyordu. HTML'de tireli adlar ÖZEL ELEMANLARDIR (`<my-widget>`) ve
-            // `svg` değildirler. Gerçek etiket adı ancak boşluk, `/` ya da `>` ile biter.
+            // 🔴 CHECK THE NAME BOUNDARY (found by the issue #79 test): name extraction stopped
+            // at the first non-alphanumeric character, so `<svg-yok>` looked like "svg". Hyphenated
+            // names are CUSTOM ELEMENTS in HTML (`<my-widget>`), not `svg`. A real tag name ends
+            // only at whitespace, `/`, or `>`.
             match rest[name_len..].chars().next() {
                 Some(c) if c.is_whitespace() || c == '/' || c == '>' => {}
                 _ => continue,
             }
-            // ⚠️ Etiket adları büyük/küçük harfe DUYARSIZDIR (`<BR>` = `<br>`), entity
-            // adlarının tersine. Tablo küçük harf ve sıralı; küçük harfe çevirip ikili
-            // arama yapılır (130 adlık listede lineer tarama her `<` için dönerdi).
+            // ⚠️ Tag names are CASE-INSENSITIVE (`<BR>` = `<br>`), unlike entity names. The table
+            // is lowercase and sorted; lowercase before binary search (a linear scan of the
+            // 130-name list would run for every `<`).
             let lower = name.to_ascii_lowercase();
             if HTML_TAGS.binary_search(&lower.as_str()).is_err() {
                 continue;
             }
-            // Etiket ancak `>` ile kapanırsa etikettir: "a < b" ya da "3 <br" değil.
+            // A tag is a tag only when it closes with `>`: not "a < b" or "3 <br".
             let Some(close) = rest[name_len..].find('>') else {
                 continue;
             };
-            // `<` ile `>` arasında başka bir `<` varsa bu bir etiket değil, düz metindir.
+            // Another `<` between `<` and `>` means this is plain text, not a tag.
             let inner = &rest[name_len..name_len + close];
             if inner.contains('<') {
                 continue;
@@ -1246,15 +1247,15 @@ fn arc032_markup(value: &str) -> Option<String> {
         }
         if b == b'&' {
             let rest = &value[i + 1..];
-            // Ad = `&`den sonraki alfanümerik dizi (`#` sayısal biçimi ayrı ele alınır).
+            // Name = the alphanumeric sequence after `&` (`#` numeric forms are handled separately).
             let name_len = rest
                 .find(|c: char| !c.is_ascii_alphanumeric())
                 .unwrap_or(rest.len());
             let name = &rest[..name_len];
-            // ⚠️ NOKTALI VİRGÜLSÜZ ESKİ BİÇİM (issue #79): HTML5 bazı adları `;` olmadan da
-            // tanır (`&copy`). Ayrıcalık TÜM adlar için değildir; ayrı tablo kaynaktan gelir.
-            // Ölçüm: 20 feed · 54.076.644 hücre · bu biçimden 0 bulgu → yanlış pozitif
-            // riski ölçülü olarak sıfır.
+            // ⚠️ LEGACY FORM WITHOUT A SEMICOLON (issue #79): HTML5 recognises some names without
+            // `;` (`&copy`). The exception does NOT apply to ALL names; the separate table comes
+            // from the source. Measurement: 20 feeds · 54,076,644 cells · 0 findings in this
+            // form → the false-positive risk is measurably zero.
             if !name.is_empty()
                 && !rest[name_len..].starts_with(';')
                 && HTML5_ENTITIES_NO_SEMI.binary_search(&name).is_ok()
@@ -1266,9 +1267,9 @@ fn arc032_markup(value: &str) -> Option<String> {
                 continue;
             }
             let ent = &rest[..semi];
-            // ⚠️ Entity adları BÜYÜK/küçük harfe DUYARLIDIR ve liste ikisini de ayrı
-            // taşır (`&copy;` ile `&COPY;` farklı girişlerdir). `eq_ignore_ascii_case`
-            // 2.125 adlık listede hem yanlış eşleşme hem O(n) tarama demekti.
+            // ⚠️ Entity names are CASE-SENSITIVE and the list carries both forms separately
+            // (`&copy;` and `&COPY;` are different entries). `eq_ignore_ascii_case` would mean
+            // both false matches and an O(n) scan of the 2,125-name list.
             let known = HTML_ENTITIES.binary_search(&ent).is_ok()
                 || (ent.starts_with('#')
                     && ent.len() >= 2
@@ -1284,8 +1285,8 @@ fn arc032_markup(value: &str) -> Option<String> {
     None
 }
 
-/// ARC_032 birikimi — DOSYA başına TEK notice (`Dq016Acc` ile aynı gerekçe: bir feed'in
-/// 1176 durak adı işaretli ve satır başına emit tarayıcıyı boğar).
+/// ARC_032 accumulator — ONE notice per FILE (same rationale as `Dq016Acc`: one feed had
+/// 1,176 stop names marked, and per-row emission overwhelmed the browser).
 #[derive(Default)]
 pub(crate) struct Arc032Acc {
     pub rows: u64,
@@ -1303,17 +1304,16 @@ impl Arc032Acc {
         headers: &[String],
     ) {
         for (i, s) in values.enumerate() {
-            // Hızlı yol: işaret ancak `<` ya da `&` ile başlar. Akış dosyalarında (stop_times)
-            // değerlerin neredeyse hepsi buradan döner; başlık adı karşılaştırması atlanır.
+            // Fast path: a marker starts only with `<` or `&`. In streaming files (stop_times),
+            // almost all values return here; skip the header-name comparison.
             if !s.bytes().any(|b| b == b'<' || b == b'&') {
                 continue;
             }
             let Some(name) = headers.get(i).map(|h| h.as_str()) else {
                 continue;
             };
-            // `tts_stop_name` STP_023'ün alanı: o kural HERHANGİ bir `<`/`>` işaretini
-            // (SSML dahil) zaten bildiriyor ve daha geniştir. İkisini birden emit etmek
-            // aynı olguyu iki kez raporlamak olur.
+            // `tts_stop_name` is STP_023's field: that rule already reports ANY `<`/`>` marker
+            // (including SSML) and is broader. Emitting both would report the same phenomenon twice.
             if name == "tts_stop_name" {
                 continue;
             }
@@ -1334,7 +1334,7 @@ impl Arc032Acc {
         }
     }
 
-    /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    /// stop_times chunk merge: `self` is the earlier chunk, so preserve its example.
     #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc032Acc) {
         self.rows += other.rows;
@@ -1349,7 +1349,7 @@ impl Arc032Acc {
         self.last_line = self.last_line.max(other.last_line);
     }
 
-    /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.
+    /// Summary: (observed, message, column list). `None` when empty.
     pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
         if self.rows == 0 {
             return None;
@@ -1373,8 +1373,8 @@ impl Arc032Acc {
     }
 }
 
-/// Spec'te tipi `ID` / `Foreign ID` olan sütunlar (GTFS Reference "Field Types").
-/// `direction_id` bir Enum'dur, listede YOK; `jp_*` uzantı sütunları spec dışıdır.
+/// Columns whose type in the spec is `ID` / `Foreign ID` (GTFS Reference "Field Types").
+/// `direction_id` is an Enum and is NOT in the list; `jp_*` extension columns are outside the spec.
 pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
     "agency_id",
     "stop_id",
