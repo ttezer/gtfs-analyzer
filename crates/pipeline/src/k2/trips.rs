@@ -9,11 +9,11 @@ use super::common::{get_col, get_col_raw, make_k2_notice, parse_f64_col, parse_u
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
-// TripRecord boyutunu sabitle — alan ekleme struct'ı şişirirse CI kırar.
+// Keep TripRecord size fixed — CI fails if adding a field bloats the struct.
 const _: () = assert!(std::mem::size_of::<TripRecord>() <= 128);
 
-/// String intern tablosu — TripRecord u32 indekslerinin çözümlendiği yer.
-/// Index 0 = boş string / None sentinel (her tablo None/absent için 0'ı saklar).
+/// String interning table — resolves TripRecord u32 indices.
+/// Index 0 = empty string / None sentinel (every table stores 0 for None/absent).
 #[derive(Debug, Default)]
 pub struct TripInternTable {
     pub route_ids: Vec<SmolStr>,
@@ -142,19 +142,19 @@ pub struct TripRecord {
     pub bikes_allowed: Option<u32>,
     pub cars_allowed: Option<u32>,
     pub safe_duration_factor: Option<f64>,
-    /// Spec tipi **Float** (saniye). 2026-08-02'ye kadar `u32` okunuyordu → `12.5` gibi
-    /// GEÇERLİ bir değer sessizce siliniyordu.
+    /// Spec type **Float** (seconds). Until 2026-08-02 this was read as `u32` → a VALID
+    /// value such as `12.5` was silently discarded.
     pub safe_duration_offset: Option<f64>,
     pub line: u64,
 }
 
-/// String intern yardımcısı — boş string → 0 sentinel, aksi hâlde tabloya ekle/bul.
+/// String interning helper — empty string → 0 sentinel, otherwise insert/find in the table.
 #[inline]
-/// Opsiyonel KİMLİK alanı (#85): değer ham saklanır, ama boşluktan oluşan değer YOKTUR.
+/// Optional IDENTITY field (#85): store the raw value, but a whitespace-only value DOES NOT EXIST.
 ///
-/// `mdb-1309`/`tfs-109`: 340 seferin 340'ında `block_id = " "`. Tek boşluk bir blok kimliği
-/// sayılınca bütün seferler aynı araca düştü ve 286 `TRP_022` "çakışan blok" üretti; aynı
-/// desen `shape_id = " "` için `SHP_019` üretiyordu. Boşluğun kendisi `DQ_016`'nın konusudur.
+/// `mdb-1309`/`tfs-109`: all 340 trips had `block_id = " "`. Treating one space as a block ID
+/// put every trip on the same vehicle and produced 286 `TRP_022` "conflicting block" findings;
+/// the same pattern produced `SHP_019` for `shape_id = " "`. The whitespace itself belongs to `DQ_016`.
 fn optional_id(raw: &str) -> &str {
     if raw.trim().is_empty() {
         ""
@@ -232,8 +232,8 @@ pub fn validate_trips_with_limits(
     max_data_rows: Option<usize>,
     mut stream_budget: Option<&mut super::stop_times::StreamBudget>,
 ) -> (Vec<TripRecord>, TripInternTable, Vec<gtfs_core::Notice>) {
-    // #38: trips.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
-    // Eski rows yolu test/legacy fallback olarak korunur.
+    // #38: only the header of trips.txt is read in K1; K2 streams it from zip_bytes.
+    // The old rows path is retained as a test/legacy fallback.
     let mut notices = Vec::new();
     // ZIP central-directory sizes are attacker-controlled metadata. Grow from
     // observed records rather than trusting the declared size.
@@ -263,7 +263,7 @@ pub fn validate_trips_with_limits(
     let has_route_id_col = file.headers.iter().any(|h| h == "route_id");
     let has_service_id_col = file.headers.iter().any(|h| h == "service_id");
 
-    // Intern tablo + per-field lookup map'leri
+    // Intern table + per-field lookup maps
     let mut interns = TripInternTable::new();
     interns.has_headsign_field = cols.trip_headsign.is_some();
     interns.has_short_name_field = cols.trip_short_name.is_some();
@@ -277,20 +277,20 @@ pub fn validate_trips_with_limits(
     let mut jp_office_map: FxHashMap<String, u32> = FxHashMap::default();
     let mut jp_pattern_map: FxHashMap<String, u32> = FxHashMap::default();
 
-    // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
+        // Row processor — called by both the stream (raw_text) and rows fallback paths.
     let header_count = file.headers.len();
     let mut process = |row: &[Cow<'_, str>], line: u64| {
-        // ARC_012: satırın alan sayısı başlıkla uyuşmuyor.
+        // ARC_012: row field count does not match the header.
         //
-        // 🔴 17. korpus koşumunda bulundu: bu dosya `is_zip_stream` listesinde olduğu için K1'de
-        // YALNIZ başlığı okunur ve K1'in satır döngüsüne HİÇ girmez. `stop_times.rs` ve
-        // `shapes.rs` kontrolü akış yoluna taşımıştı, `trips.rs` ve `calendar_dates.rs`
-        // taşımamıştı — yani bu iki dosyada satır uzunluğu HİÇ denetlenmiyordu.
-        // Aynı dosyadaki `ARC_034` yorumu mekanizmayı zaten anlatıyor (#181); `ARC_012` o turda
-        // atlanmış.
-        // Kanıt `mdb-2013`: dosyanın 15.170 satırının tamamı bozuk, MD `invalid_row_length`
-        // 38.893 diyordu, biz 23.723 — fark tam olarak trips.txt'nin payıydı.
-        // ⚠️ Kural Kritik·Spec, yani R1 yayın kapısını GÖREN bir kural.
+        // 🔴 Found in corpus run 17: because this file is in `is_zip_stream`, K1 reads ONLY the
+        // header and NEVER enters K1's row loop. `stop_times.rs` and `shapes.rs` moved the check
+        // into the stream path, but `trips.rs` and `calendar_dates.rs` did not — row length was
+        // therefore NEVER checked in these two files.
+        // The `ARC_034` comment in this file already described the mechanism (#181); `ARC_012`
+        // was missed in that pass.
+        // Evidence `mdb-2013`: all 15,170 rows were malformed; MD reported 38,893
+        // `invalid_row_length`, while we reported 23,723 — exactly the trips.txt share.
+        // ⚠️ The rule is Kritik·Spec, so it is visible to the R1 publication gate.
         if let Some((msg, tip, observed, is_info)) =
             crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
         {
@@ -314,9 +314,9 @@ pub fn validate_trips_with_limits(
             notices.push(n);
         }
 
-        // ARC_034: başlık satırının tekrarı — notice + satırı KAYDETME (K1'deki continue).
-        // Bu dosya K1'de stream edilir ve orada yalnız başlık okunur, dolayısıyla kontrol
-        // K1'de kalırsa bu dosyada HİÇ çalışmaz (#181).
+        // ARC_034: repeated header row — notice + DO NOT STORE the row (K1's continue).
+        // This file is streamed in K1 but only its header is read there, so the check would
+        // NEVER run for this file if it stayed in K1 (#181).
         if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
             notices.push(make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
@@ -326,9 +326,9 @@ pub fn validate_trips_with_limits(
             ));
             return;
         }
-        // ARC_018: tamamen boş satır → notice + satırı KAYDETME (K1/stop_times emsali).
-        // ARC_018/021/030 #181'de taşınmamıştı: bu dosya K1'de stream edilir ve orada yalnız
-        // başlık okunur, kontrol hiç çalışmıyordu (2026-10-13). Boş satır TRP_001 vb. türetirdi.
+        // ARC_018: completely empty row → notice + DO NOT STORE the row (K1/stop_times precedent).
+        // ARC_018/021/030 were not moved in #181: this file is streamed in K1 but only the
+        // header is read there, so the check never ran (2026-10-13). An empty row would derive TRP_001, etc.
         if row.iter().all(|v| v.trim().is_empty()) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -346,7 +346,7 @@ pub fn validate_trips_with_limits(
             ));
             return;
         }
-        // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
+        // ARC_021: non-printable/problematic character — once per file
         if !arc021_fired {
             if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                 arc021_fired = true;
@@ -366,7 +366,7 @@ pub fn validate_trips_with_limits(
                 ));
             }
         }
-        // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+        // ARC_030: tab/newline in a field value — once per file
         if !arc030_fired {
             if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
             {
@@ -393,7 +393,7 @@ pub fn validate_trips_with_limits(
         let trip_id = SmolStr::new(get_col_raw(row, cols.trip_id));
         let entity_id = (!trip_id.is_empty()).then(|| trip_id.to_string());
 
-        // TRP_001: trip_id zorunlu
+        // TRP_001: trip_id required
         if trip_id.is_empty() && has_trip_id_col {
             let mut n = make_k2_notice(
                 &mut counter,
@@ -409,9 +409,9 @@ pub fn validate_trips_with_limits(
                 "trip_id zorunludur.".to_string(),
                 "Her sefere benzersiz bir trip_id atayın.",
             );
-            // Kimliksiz satır hangi seferin kökü olduğunu söyleyemez: scope_key None
-            // kalırsa `blocks` feed'deki TÜM STM_001/FRQ_001/XFL_002/OPR_006/OPR_007
-            // bulgularını bastırır. Yinelenen trip_id varyantı (K3) kapsamlı kök kalır.
+            // A row without an identity cannot say which trip is its root: if scope_key remains
+            // None, `blocks` suppresses ALL STM_001/FRQ_001/XFL_002/OPR_006/OPR_007 findings in
+            // the feed. A duplicate trip_id variant (K3) remains the broad root.
             n.blocks.clear();
             notices.push(n);
         }
@@ -427,7 +427,7 @@ pub fn validate_trips_with_limits(
             &mut service_map,
         );
 
-        // TRP_031: route_id required — intern_idx 0 döndürdüyse boş demektir
+        // TRP_031: route_id required — intern_idx 0 means it is empty
         if route_idx == 0 && has_route_id_col {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -445,9 +445,9 @@ pub fn validate_trips_with_limits(
             ));
         }
 
-        // TRP_035: service_id zorunludur. TRP_003 ("service_id bulunamadı") yalnız FK
-        // çözümünü ölçer ve boş değeri "referans yok" sayıp geçer — çapa granülerliği
-        // triyajında bulundu (korpusta 24 satır / 5 feed).
+        // TRP_035: service_id is required. TRP_003 ("service_id not found") measures only FK
+        // resolution and treats an empty value as "no reference", letting it pass — found during
+        // anchor-granularity triage (24 rows / 5 feeds in the corpus).
         if service_idx == 0 && has_service_id_col {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -471,13 +471,13 @@ pub fn validate_trips_with_limits(
             &mut shape_map,
         );
 
-        // trip_headsign ve trip_short_name için önce raw string al (TRP_014 kontrolü için)
+        // Get raw strings for trip_headsign and trip_short_name first (for TRP_014).
         let headsign_raw = get_col(row, cols.trip_headsign);
         let short_name_raw = get_col(row, cols.trip_short_name);
 
-        // TRP_014: trip_short_name çok uzun (>20 karakter)
-        // KARAKTER sayısı, BAYT değil: `str::len()` UTF-8 bayt döndürür ve çok baytlı
-        // alfabelerde (Türkçe, Japonca) eşiği erken tetikliyordu.
+        // TRP_014: trip_short_name is too long (>20 characters)
+        // Count CHARACTERS, not BYTES: `str::len()` returns UTF-8 bytes and triggered the
+        // threshold early in multibyte alphabets (Turkish, Japanese).
         let short_name_chars = short_name_raw.chars().count();
         if !short_name_raw.is_empty() && short_name_chars > 20 {
             notices.push(make_k2_notice(
@@ -527,7 +527,7 @@ pub fn validate_trips_with_limits(
                 .insert(trip_id.clone(), SmolStr::new(jp_desc_raw));
         }
 
-        // TRP_005: direction_id 0 veya 1 olmalı
+        // TRP_005: direction_id must be 0 or 1
         let dir_raw = get_col(row, cols.direction_id);
         let direction_id = match parse_u32_col(dir_raw) {
             Ok(v) => {
@@ -570,7 +570,7 @@ pub fn validate_trips_with_limits(
             }
         };
 
-        // TRP_006: wheelchair_accessible 0, 1 veya 2 olmalı
+        // TRP_006: wheelchair_accessible must be 0, 1, or 2
         let wc_raw = get_col(row, cols.wheelchair_accessible);
         let wheelchair_accessible = match parse_u32_col(wc_raw) {
             Ok(v) => {
@@ -588,8 +588,9 @@ pub fn validate_trips_with_limits(
                 v
             }
             Err(()) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_006 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // TRP_006, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter, "TRP_006", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("wheelchair_accessible"),
@@ -601,7 +602,7 @@ pub fn validate_trips_with_limits(
             }
         };
 
-        // TRP_007: bikes_allowed 0, 1 veya 2 olmalı
+        // TRP_007: bikes_allowed must be 0, 1, or 2
         let ba_raw = get_col(row, cols.bikes_allowed);
         let bikes_allowed = match parse_u32_col(ba_raw) {
             Ok(v) => {
@@ -619,8 +620,9 @@ pub fn validate_trips_with_limits(
                 v
             }
             Err(()) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı TRP_007 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // TRP_007, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter, "TRP_007", EntityType::Trip, entity_id.clone(),
                     None, &file.name, Some(line), Some("bikes_allowed"),
@@ -632,8 +634,8 @@ pub fn validate_trips_with_limits(
             }
         };
 
-        // TRP_021: bisiklet bilgisi yok sayacı. Spec: "0 or empty - No bike information";
-        // 0 bilginin yokluğudur, yalnız 1/2 bilgi taşır (korpus mdb-1257, 2026-10-13).
+        // TRP_021: bike-information absence counter. Spec: "0 or empty - No bike information";
+        // 0 means no information; only 1/2 carry information (corpus mdb-1257, 2026-10-13).
         if (bikes_allowed.is_none() && ba_raw.is_empty()) || bikes_allowed == Some(0) {
             trp021_missing_count += 1;
             if trp021_first_line.is_none() {
@@ -646,7 +648,7 @@ pub fn validate_trips_with_limits(
             bikes_allowed_set_count += 1;
         }
 
-        // TRP_032: cars_allowed 0, 1 veya 2 olmalı
+        // TRP_032: cars_allowed must be 0, 1, or 2
         let ca_raw = get_col(row, cols.cars_allowed);
         let cars_allowed = match parse_u32_col(ca_raw) {
             Ok(v) => {
@@ -675,8 +677,8 @@ pub fn validate_trips_with_limits(
             }
         };
 
-        // TRP_034: iki alan da spec'te `Float`. Parse hatası eskiden `.ok().flatten()` ile
-        // yutuluyordu; ayrıca offset `u32` okunuyordu ve ondalık saniye değerleri düşüyordu.
+        // TRP_034: both fields are `Float` in the spec. Parse errors used to be swallowed by
+        // `.ok().flatten()`; offset was also read as `u32`, dropping fractional-second values.
         let mut parse_safe = |raw: &str, field: &'static str| -> Option<f64> {
             match parse_f64_col(raw) {
                 Ok(v) => v,
@@ -728,13 +730,13 @@ pub fn validate_trips_with_limits(
         });
     };
 
-    // ARC_033 birikimi: ihlali OKUYUCULAR görür (alan sınırlarını yalnız onlar bilir),
-    // satır numarasını bu döngü ekler. Emit tek yerde: `arc033_summary`.
+    // ARC_033 accumulation: READERS see the violation (only they know field boundaries),
+    // and this loop adds the line number. Emit in one place: `arc033_summary`.
     let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
     let mut scan = super::stop_times::CsvScanState::default();
     let mut zip_unclosed = false;
 
-    // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
+    // ── Driver: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
     if let Some(zb) = zip_bytes {
         let cursor = Cursor::new(zb);
         match zip::ZipArchive::new(cursor) {
@@ -833,7 +835,7 @@ pub fn validate_trips_with_limits(
             data_idx += 1;
         }
     } else {
-        // Fallback (test/legacy): önceden parse edilmiş rows üzerinden.
+        // Fallback (test/legacy): use pre-parsed rows.
         for (row_idx, row) in file.rows.iter().enumerate() {
             let cow_row: Vec<Cow<'_, str>> =
                 row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
@@ -841,9 +843,9 @@ pub fn validate_trips_with_limits(
         }
     }
 
-    // DQ_016: stream edilen trips.txt için DOSYA başına tek kök özet.
-    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
-    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    // DQ_016: one root summary per FILE for streamed trips.txt.
+    // ARC_032: HTML marker — ONE summary per FILE (same as K1). It did not run for streamed
+    // files until 2026-10-13 (trip_headsign/stop_headsign were not checked).
     if let Some((observed, msg, cols)) = arc032.summary(&file.name) {
         notices.push(make_k2_notice(
             &mut counter,
@@ -861,7 +863,7 @@ pub fn validate_trips_with_limits(
         ));
     }
 
-    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (same as K1).
     if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
         notices.push(make_k2_notice(
             &mut counter,
@@ -897,7 +899,7 @@ pub fn validate_trips_with_limits(
         notices.push(n);
     }
 
-    // TRP_021: loop sonrası tek özet notice
+    // TRP_021: one summary notice after the loop
     if trp021_missing_count > 0 {
         let total = trp021_missing_count + bikes_allowed_set_count as usize;
         if bikes_allowed_set_count == 0 {
@@ -933,7 +935,7 @@ pub fn validate_trips_with_limits(
         }
     }
 
-    // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
+    // ARC_013: unclosed quote in the stream body (issue #84) — one notice per FILE.
     if scan.unclosed || zip_unclosed {
         notices.push(super::common::arc013_unclosed_stream(
             &file.name,
@@ -941,15 +943,15 @@ pub fn validate_trips_with_limits(
         ));
     }
 
-    // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
+    // ARC_033: ONE summary per FILE (lesson from #75: no duplicate validation).
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
         notices.push(n);
     }
 
-    // ARC_035: `trips.txt` ZORUNLU bir dosyadır ve başlık-only hâli 2026-08-31'e kadar
-    // HİÇBİR bulgu üretmiyordu — dosya `is_zip_stream` listesinde olduğu için K1'in
-    // boş-dosya kontrolü ona hiç bakmıyor, K2'de de karşılığı yazılmamıştı. (0 baytlık
-    // hâli K1'in `records.is_empty()` kolundan yakalanıyordu; aradaki fark görünmezdi.)
+    // ARC_035: `trips.txt` is REQUIRED and its header-only form produced NO finding until
+    // 2026-08-31 — because the file is in `is_zip_stream`, K1's empty-file check never sees it,
+    // and K2 had no counterpart. (The 0-byte form was caught by K1's `records.is_empty()` branch;
+    // the distinction was invisible.)
     if (file.raw_text.is_some() || zip_bytes.is_some()) && records.is_empty() {
         notices.push(make_k2_notice(
             &mut counter,
@@ -978,7 +980,7 @@ mod tests {
     use super::*;
     use crate::k1_parse::RawFile;
 
-    // Testler rows fallback yolunu kullanır (raw_text=None).
+    // Tests use the rows fallback path (raw_text=None).
     fn make_file(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         RawFile {
             name: "trips.txt".to_string(),
@@ -993,7 +995,7 @@ mod tests {
         }
     }
 
-    // Streaming yolunu test et — shapes.rs deseni.
+    // Test the streaming path — shapes.rs pattern.
     fn make_file_streaming(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         let header_line = headers.join(",");
         let data_lines: Vec<String> = rows.iter().map(|r| r.join(",")).collect();
@@ -1008,10 +1010,10 @@ mod tests {
         }
     }
 
-    /// Ölçüm, 17. korpus koşumu — kör nokta: `trips.txt` `is_zip_stream` listesindedir,
-    /// K1'de yalnız başlığı okunur ve K1'in satır döngüsüne HİÇ girmez. `ARC_012` oraya
-    /// bırakıldığı için bu dosyada hiç çalışmıyordu. Kanıt `mdb-2013`: 15.170 bozuk satırın
-    /// tamamı sessizdi, MD `invalid_row_length` 38.893 derken biz 23.723 diyorduk.
+    /// Measurement, corpus run 17 — blind spot: `trips.txt` is in `is_zip_stream`, so only its
+    /// header is read in K1 and K1's row loop NEVER enters it. Since `ARC_012` was left there,
+    /// it never ran for this file. Evidence `mdb-2013`: all 15,170 malformed rows were silent;
+    /// MD reported 38,893 `invalid_row_length`, while we reported 23,723.
     #[test]
     fn arc012_fires_on_the_streaming_path_for_trips() {
         let file = make_file_streaming(
@@ -1028,7 +1030,7 @@ mod tests {
         assert_eq!(hit.severity, gtfs_core::Severity::Kritik);
     }
 
-    /// Eksik kuyruk alanı geçerli CSV pratiğidir → Bilgi, Kritik DEĞİL.
+    /// A missing trailing field is valid CSV practice → Info, NOT Critical.
     #[test]
     fn arc012_downgrades_a_short_trips_row_to_info() {
         let file = make_file_streaming(
@@ -1047,7 +1049,7 @@ mod tests {
     fn valid_trip_produces_no_notices() {
         let file = make_file(
             vec!["route_id", "service_id", "trip_id", "bikes_allowed"],
-            // 0 "bilgi yok" demektir ve TRP_021 üretir (spec); bilgi taşıyan değer 1/2.
+            // 0 means "no information" and produces TRP_021 (spec); values 1/2 carry information.
             vec![vec!["R1", "SVC1", "T1", "1"]],
         );
         let (records, _ti, notices) = validate_trips(&file, None);
