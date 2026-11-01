@@ -45,8 +45,8 @@ def sha256(path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--zips", help="zip dizini — hash doğrula")
-    ap.add_argument("--download", help="zip dizini — eksikleri indir")
+    ap.add_argument("--zips", help="ZIP directory — verify hashes")
+    ap.add_argument("--download", help="ZIP directory — download missing files")
     a = ap.parse_args()
     rows = list(csv.DictReader(open(MANIFEST, encoding="utf-8")))
     print(f"manifest: {len(rows)} feed")
@@ -77,21 +77,21 @@ def main():
                 failed.append(r["feed"])
                 if os.path.exists(dst):
                     os.remove(dst)  # do not let a partial/invalid body mislead hash verification
-        print(f"indirilen {got} · URL'siz {miss} · manifeste göre ölü {len(dead)} · "
-              f"indirilemeyen {len(failed)}")
+        print(f"downloaded {got} · without URL {miss} · dead per manifest {len(dead)} · "
+              f"failed downloads {len(failed)}")
         if miss:
             # 2026-08-07 audit: feeds without URLs were skipped SILENTLY → a third party could not
             # download all 242/242 but did not notice. This is now a loud failure.
-            print(f"🔴 {miss} feed'in URL'i YOK — bu manifestle tam korpus kurulamaz.")
+            print(f"🔴 {miss} feeds have NO URL — this manifest cannot recreate the full corpus.")
         if dead:
-            print(f"🔴 {len(dead)} feed'in URL'i {rows[0].get('url_checked', '?')} "
-                  f"itibarıyla 404: {', '.join(dead)}")
-            print("  → Bu feed'ler korpusta VARDI ve ölçüme girdi; sha256'ları manifestte "
-                  "durur. URL'in ölmesi ölçümü geçersiz kılmaz, YENİDEN KURULMASINI engeller.")
+            print(f"🔴 {len(dead)} feed URLs returned 404 as of {rows[0].get('url_checked', '?')}: "
+                  f"{', '.join(dead)}")
+            print("  → These feeds WERE in the corpus and were measured; their SHA-256 values "
+                  "remain in the manifest. A dead URL does not invalidate the measurement, but prevents recreation.")
         if failed:
-            print(f"🔴 manifestte 'ok' işaretli ama İNMEYEN {len(failed)} feed: "
+            print(f"🔴 {len(failed)} feeds marked 'ok' in the manifest but NOT DOWNLOADED: "
                   f"{', '.join(failed)}")
-            print("  → url_status bayat olabilir; yeniden ölçüp manifesti güncelleyin.")
+            print("  → url_status may be stale; measure again and update the manifest.")
         return 1 if (miss or dead or failed) else 0
 
     if not a.zips:
@@ -110,12 +110,12 @@ def main():
         else:
             drift += 1
             drifted.append(r["feed"])
-    print(f"\nBİREBİR AYNI: {ok} · DEĞİŞMİŞ: {drift} · YEREL'DE YOK: {absent}")
+    print(f"\nEXACT MATCH: {ok} · CHANGED: {drift} · MISSING LOCALLY: {absent}")
     if drifted:
-        print("değişenler (yayıncı güncellemiş — hata DEĞİL):")
+        print("changed feeds (publisher updated them — NOT an error):")
         print("  " + ", ".join(drifted[:20]) + (" …" if len(drifted) > 20 else ""))
-    print("\n⚠️ Yalnız BİREBİR AYNI olan feed'ler için üretilen sayılar bizimkiyle "
-          "karşılaştırılabilir.")
+    print("\n⚠️ Counts produced for EXACT-MATCH feeds only are "
+          "comparable with ours.")
     return 0
 
 

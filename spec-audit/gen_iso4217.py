@@ -35,7 +35,7 @@ def fetch(argv: list[str]) -> bytes:
         return pathlib.Path(local[0]).read_bytes()
     p = subprocess.run(["curl", "-sSL", "--max-time", "90", SRC], capture_output=True)
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
+        raise RuntimeError(f"curl failed: {p.stderr.decode()[:120]}")
     return p.stdout
 
 
@@ -51,7 +51,7 @@ def parse(raw: bytes) -> tuple[str, list[tuple[str, int]]]:
         # `N.A.` → codes with undefined decimal places, such as funds and precious metals.
         units = int(minor) if minor.isdigit() else 255
         if code in seen and seen[code] != units:
-            raise RuntimeError(f"{code}: aynı kod için iki farklı minor unit ({seen[code]} / {units})")
+            raise RuntimeError(f"{code}: two different minor units for the same code ({seen[code]} / {units})")
         seen[code] = units
     return published, sorted(seen.items())
 
@@ -85,8 +85,8 @@ def main() -> int:
         raw = fetch(sys.argv)
         published, rows = parse(raw)
     except Exception as e:
-        print(f"ÖLÇÜLEMEDİ: {type(e).__name__}: {e}", file=sys.stderr)
-        print("⚠️ Bu 'drift yok' DEĞİLDİR — kaynağa bakılamadı.", file=sys.stderr)
+        print(f"NOT MEASURED: {type(e).__name__}: {e}", file=sys.stderr)
+        print("⚠️ This does NOT mean 'no drift' — the source could not be read.", file=sys.stderr)
         return 2
     digest = hashlib.sha256(raw).hexdigest()
     text = render(published, digest, rows)
@@ -96,19 +96,19 @@ def main() -> int:
         cur_codes = set(re.findall(r'\("([A-Z]{3})", (\d+)\)', cur))
         new_codes = set(re.findall(r'\("([A-Z]{3})", (\d+)\)', text))
         if cur_codes == new_codes:
-            print(f"iso4217 OK — {len(rows)} kod, kaynak yayını {published}")
+            print(f"iso4217 OK — {len(rows)} codes, source release {published}")
             return 0
         added, gone = sorted(new_codes - cur_codes), sorted(cur_codes - new_codes)
-        print(f"🔴 ISO 4217 DRIFT — kaynak yayını {published}")
+        print(f"🔴 ISO 4217 DRIFT — source release {published}")
         if added:
-            print(f"  eklenen/değişen: {added[:12]}")
+            print(f"  added/changed: {added[:12]}")
         if gone:
-            print(f"  kaybolan/eski  : {gone[:12]}")
-        print("  → python3 spec-audit/gen_iso4217.py ile tabloyu yenileyin.")
+            print(f"  missing/stale  : {gone[:12]}")
+        print("  → run python3 spec-audit/gen_iso4217.py to regenerate the table.")
         return 1
 
     OUT.write_text(text, encoding="utf-8")
-    print(f"yazıldı: {OUT.name} ({len(rows)} kod · yayın {published})")
+    print(f"wrote: {OUT.name} ({len(rows)} codes · release {published})")
     return 0
 
 

@@ -87,10 +87,10 @@ def main() -> int:
                                        "url_status", "url_checked"])
         w.writeheader()
         w.writerows(rows)
-    print(f"{out}: {len(rows)} feed · URL'li {len(rows)-len(missing)} · URL'siz {len(missing)}")
+    print(f"{out}: {len(rows)} feeds · with URLs {len(rows)-len(missing)} · without URLs {len(missing)}")
     if missing:
-        print(f"🔴 URL'si OLMAYAN feed'ler — üçüncü taraf bunları indiremez: {missing}")
-        print("  → EXTRA_URLS'e kaynağıyla birlikte ekleyin, yoksa kanıt zinciri eksiktir.")
+        print(f"🔴 Feeds WITHOUT URLs — third parties cannot download them: {missing}")
+        print("  → Add them to EXTRA_URLS with their source, or the evidence chain is incomplete.")
         return 1
     return 0
 

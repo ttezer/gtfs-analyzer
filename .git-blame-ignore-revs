@@ -351,3 +351,75 @@ dd7d2488139cd23b2cfae3e6e23e7768bc620f8f
 
 # Translate benchmark timing documentation to English.
 cb80fdf8dd449a9ce44d6e3c3189e248cda7481f
+
+# Translate generator developer messages to English.
+a653accf82a534dc140a47f49d1a11e8f295ba5f
+
+# Keep gate-compatible generator diagnostics.
+909b724cb874dab35157ddba0e0c7af37322fa60
+
+# Translate remaining generator diagnostics.
+2bee005905348bf5a9a55f4bedb706e54243e3db
+
+# Translate ignored test reasons.
+0cd90756cc4031daecaf266ad68fd0efc3212cb2
+
+# Retain gate-compatible ignored report labels.
+349f51c7919816634f9e29abbf748ced1e210545
+
+# Translate ignored report labels.
+954b4fe2961c4b95c05dae5c284ffb4c7f54f2a5
+
+# Translate developer script messages.
+339f86f20c1d936c845e4b310cad4b72669d5a9c
+
+# Retain gate-compatible fingerprint label.
+20d84e7ed82d04330d95a0a7a7dd493c3e859006
+
+# Translate fingerprint diagnostic.
+66dbec20fc87632607cd0d36f31d1e54066f0b29
+
+# Translate audit script output.
+9968704b4b12c31d734114e1026845ce5ad25dfa
+
+# Retain gate-compatible report headings.
+c701ed904a0a4691a1669e0cd8a4c78f2c1ea9e3
+
+# Translate parity report headings.
+7ed9deeed6c0b4387026aa6872384616c1d8ee02
+
+# Translate SDK script diagnostics.
+6fb939b14c613397ac783527dce7b4886ac37fb7
+
+# Translate spec audit diagnostics.
+e29e686525ffdabcc1223f49df0fb3dbf2904c41
+
+# Translate audit status diagnostics.
+938de02ff3e4c016f16723c763660a4b3d474b29
+
+# Translate corpus audit diagnostics.
+0a24155b94f10ce95da7799cbcdf64840ba7038e
+
+# Translate corpus batch diagnostics.
+455ba07d6b90f9271cc51c3115b51fc5f246dfe9
+
+# Translate corpus report output.
+cccc0b157ec34edd82b8a9158f47dccd878188a8
+
+# Translate generator diagnostics.
+289164000cbb5d4a17f8870d433f89180036bc62
+
+# Translate field generator error.
+4f6a938cc37439b5db661485d79eb4dafbdb2921
+
+# Translate parity test diagnostics.
+01a2f48357506bc730459f3036472837ae2fba78
+
+# Translate corpus batch help.
+15f6cf5a9021673d4c91689d1eecedefbec69bf8
+
+# Translate remaining developer console messages to English.
+2402371f1f8f77b1d2790973df36d5c75ac4fffa
+
+# Keep original line layout for translated console messages.
+e93b0761dd2fa2b6a6bf59fdd3dc2ac6327f6a28

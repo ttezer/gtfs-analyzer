@@ -68,12 +68,12 @@ def write_provenance(feeds):
 
 def run():
     if not os.path.exists(BINARY):
-        sys.exit("release binary yok: cargo build --release -p gtfs-analyzer")
+        sys.exit("release binary not found: cargo build --release -p gtfs-analyzer")
     feeds = sorted(f for f in os.listdir(ZIPS)
                    if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
     prov = write_provenance(feeds)
-    print(f"künye: commit={prov['binary_commit'][:8]} today={TODAY} "
-          f"feed={len(feeds)} hariç={sorted(EXCLUDED_FEEDS)}", flush=True)
+    print(f"metadata: commit={prov['binary_commit'][:8]} today={TODAY} "
+          f"feeds={len(feeds)} excluded={sorted(EXCLUDED_FEEDS)}", flush=True)
 
     done = set()
     if os.path.exists(RAW):
@@ -131,10 +131,10 @@ def run():
                 }, ensure_ascii=False) + "\n")
             fh.flush()
             sfh.flush()
-            print(f"[{i}/{len(feeds)}] {feed:12} {base['status']:9} {len(ns):>7} bulgu",
+            print(f"[{i}/{len(feeds)}] {feed:12} {base['status']:9} {len(ns):>7} findings",
                   flush=True)
     aggregate()
-    print("\nÇIKTI:", OUTDIR)
+    print("\nOUTPUT:", OUTDIR)
     for f in ("provenance.json", "rule_stats.csv", "per_feed_rules.tsv", "samples.jsonl"):
         p2 = os.path.join(OUTDIR, f)
         if os.path.exists(p2):
@@ -178,21 +178,21 @@ def aggregate():
 
 def report():
     prov = json.load(open(os.path.join(OUTDIR, "provenance.json")))
-    print(f"künye: commit={prov['binary_commit'][:8]} today={prov['today']} "
-          f"feed={prov['feeds_run']} hariç={prov['feeds_excluded']}")
+    print(f"metadata: commit={prov['binary_commit'][:8]} today={prov['today']} "
+          f"feeds={prov['feeds_run']} excluded={prov['feeds_excluded']}")
     if prov.get("binary_dirty"):
-        print("  ⚠️ AĞAÇ KİRLİYDİ — bu koşum bir commit'e karşılık GELMİYOR.")
+        print("  ⚠️ WORKTREE WAS DIRTY — this run does not correspond to a commit.")
     new = {r["rule_id"]: r for r in csv.DictReader(open(os.path.join(OUTDIR, "rule_stats.csv")))}
     old = {r["rule_id"]: r for r in csv.DictReader(open(BASELINE))}
-    print(f"\ntetiklenen {len(new)} (baseline {len(old)})")
-    print(f"YENİ: {sorted(set(new) - set(old))}")
-    print(f"SUSAN: {sorted(set(old) - set(new))}")
+    print(f"\ntriggered {len(new)} (baseline {len(old)})")
+    print(f"NEW: {sorted(set(new) - set(old))}")
+    print(f"SILENT: {sorted(set(old) - set(new))}")
     moved = []
     for rid in set(new) & set(old):
         a, b = int(old[rid]["total_notices"]), int(new[rid]["total_notices"])
         if a and abs(b - a) / a > 0.2:
             moved.append((rid, a, b, new[rid]["max_feed"]))
-    print(f"\n%20'den ÇOK değişen ({len(moved)}) — sürükleyen feed ile:")
+    print(f"\nCHANGED BY MORE THAN 20% ({len(moved)}) — with the driving feed:")
     for rid, a, b, f in sorted(moved, key=lambda x: -abs(x[2] - x[1]))[:20]:
         print(f"  {rid:8} {a:>9,} → {b:<9,} ({(b-a)/a*100:+7.0f}%)  {f}")
 

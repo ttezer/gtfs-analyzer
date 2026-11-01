@@ -19,7 +19,7 @@ use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("Kullanım: regress <feed.zip> [today_yyyymmdd]");
+        eprintln!("Usage: regress <feed.zip> [today_yyyymmdd]");
         std::process::exit(1);
     }
 

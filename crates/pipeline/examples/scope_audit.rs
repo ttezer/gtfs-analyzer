@@ -222,11 +222,11 @@ fn main() {
         return;
     }
     let Some(path) = args.get(1) else {
-        eprintln!("Kullanım: scope_audit <feed.zip> [today_yyyymmdd]");
+        eprintln!("Usage: scope_audit <feed.zip> [today_yyyymmdd]");
         std::process::exit(2);
     };
     let today: u32 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(20_260_930);
-    let zip = std::fs::read(path).expect("feed okunamadı");
+    let zip = std::fs::read(path).expect("could not read the feed");
     let feed = std::path::Path::new(path).file_name().unwrap().to_string_lossy().to_string();
 
     let mut stats: BTreeMap<String, RuleStats> = BTreeMap::new();

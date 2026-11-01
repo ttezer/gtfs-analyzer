@@ -86,7 +86,7 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
       console.info('[WASM] wasm64 serial mode');
       return;
     } catch (err) {
-      console.warn('[WASM] wasm64 init başarısız → wasm32 fallback', err);
+      console.warn('[WASM] wasm64 init failed → wasm32 fallback', err);
     }
   }
 
@@ -108,9 +108,9 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
       mod = t;
       usingThreads = true;
       usingMemory64 = false;
-      console.info(`[WASM] threaded mode (${n} iş parçacığı)`);
+      console.info(`[WASM] threaded mode (${n} threads)`);
     } catch (err) {
-      console.warn('[WASM] threaded init başarısız → seri fallback', err);
+      console.warn('[WASM] threaded init failed → serial fallback', err);
       mod = null;
     }
   }
@@ -121,13 +121,13 @@ export async function initWasm(forceSerial = false, forceMemory64 = false, force
     mod = s;
     usingThreads = false;
     usingMemory64 = false;
-    console.info(canThread ? '[WASM] seri mod (threaded yüklenemedi)' : '[WASM] seri mod (cross-origin isolated değil)');
+    console.info(canThread ? '[WASM] serial mode (threaded build failed to load)' : '[WASM] serial mode (not cross-origin isolated)');
   }
   ready = true;
 }
 
 function loaded(): DeterministicModule {
-  if (!mod) throw new Error('WASM başlatılmadı (önce initWasm çağrılmalı).');
+  if (!mod) throw new Error('WASM is not initialized (call initWasm first).');
   return mod;
 }
 
@@ -146,7 +146,7 @@ export function listZipFiles(zip: Uint8Array): Array<{ name: string; uncompresse
   try {
     return JSON.parse(loaded().list_zip_files(zip)) as Array<{ name: string; uncompressed_size: number }>;
   } catch (err) {
-    console.error('[WASM] listZipFiles başarısız:', err);
+    console.error('[WASM] listZipFiles failed:', err);
     return [];
   }
 }

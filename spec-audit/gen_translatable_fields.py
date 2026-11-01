@@ -45,7 +45,7 @@ def build():
     for table in tables:
         entry = files.get(f"{table}.txt")
         if entry is None:
-            raise SystemExit(f"spec_fields.json içinde {table}.txt yok")
+            raise SystemExit(f"{table}.txt is missing from spec_fields.json")
         for field in entry["fields"]:
             rows.append((table, field["name"], field["type"] in TRANSLATABLE_TYPES))
     rows.sort(key=lambda r: (r[0], r[1]))
@@ -107,25 +107,25 @@ def main():
         cur_tables = set(re.findall(table_row_pattern, cur_table_block.group(1))) if cur_table_block else set()
         new_tables = set(re.findall(table_row_pattern, new_table_block.group(1))) if new_table_block else set()
         if cur_rows == new_rows and cur_tables == new_tables:
-            print(f"translatable_fields OK — {len(rows)} alan, {yes} çevrilebilir")
+            print(f"translatable_fields OK — {len(rows)} fields, {yes} translatable")
             return 0
         added = sorted(new_rows - cur_rows)
         gone = sorted(cur_rows - new_rows)
         print("🔴 TRANSLATABLE FIELDS DRIFT")
         if added:
-            print(f"  eklenen/değişen: {added[:12]}")
+            print(f"  added/changed: {added[:12]}")
         if gone:
-            print(f"  kaybolan/eski  : {gone[:12]}")
+            print(f"  missing/stale  : {gone[:12]}")
         added_tables = sorted(new_tables - cur_tables)
         gone_tables = sorted(cur_tables - new_tables)
         if added_tables:
-            print(f"  eklenen tablolar: {added_tables[:12]}")
+            print(f"  added tables: {added_tables[:12]}")
         if gone_tables:
-            print(f"  kaldırılan tablolar: {gone_tables[:12]}")
-        print("  → python3 spec-audit/gen_translatable_fields.py ile tabloyu yenileyin.")
+            print(f"  removed tables: {gone_tables[:12]}")
+        print("  → run python3 spec-audit/gen_translatable_fields.py to regenerate the table.")
         return 1
     OUT.write_text(text, encoding="utf-8")
-    print(f"yazıldı: {OUT.name} ({len(rows)} alan · {yes} çevrilebilir)")
+    print(f"wrote: {OUT.name} ({len(rows)} fields · {yes} translatable)")
     return 0
 
 

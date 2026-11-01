@@ -39,7 +39,7 @@ def main() -> int:
         {rule_id for pid in active for rule_id in evidence.get(pid, []) if rule_id not in classes}
     )
     if unknown:
-        print(f"Registry'de olmayan kanıt kuralları: {', '.join(unknown)}", file=sys.stderr)
+        print(f"Evidence rules missing from the registry: {', '.join(unknown)}", file=sys.stderr)
         return 1
 
     current = {
@@ -61,13 +61,13 @@ def main() -> int:
     removed = sorted(set(previous) - set(current))
     changed = sorted(pid for pid in set(current) & set(previous) if current[pid] != previous[pid])
     if added:
-        print(f"Yeni fingerprint: {', '.join(added)}")
+        print(f"New fingerprints: {', '.join(added)}")
     if removed:
-        print(f"Kaldırılan fingerprint: {', '.join(removed)}")
+        print(f"Removed fingerprints: {', '.join(removed)}")
     if changed:
-        print(f"Değişen fingerprint: {', '.join(changed)}")
+        print(f"Changed fingerprints: {', '.join(changed)}")
     if not (added or removed or changed):
-        print("Fingerprint değişikliği yok.")
+        print("No fingerprint changes.")
 
     lines = [
         "# provision_id<TAB>sha256(pid + canonical sorted (rule_id, class) pairs)",
@@ -76,7 +76,7 @@ def main() -> int:
     for pid in active:
         lines.append(f"{pid}\t{current[pid]}")
     lock_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Yazıldı: provision_evidence.lock ({len(active)} hüküm)")
+    print(f"Wrote: provision_evidence.lock ({len(active)} provisions)")
     return 0
 
 

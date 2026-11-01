@@ -208,11 +208,11 @@ fn main() {
         }
 
         fs::write(root.join(lang.file), out).unwrap();
-        println!("yazıldı: {} ({n} kural, {g} grup)", lang.file);
+        println!("written: {} ({n} rules, {g} groups)", lang.file);
     }
 
     if missing_titles.is_empty() {
-        println!("Tüm başlıklar locale'den çözüldü.");
+        println!("All titles were resolved from the locales.");
     } else {
         // A missing title falls back to the registry's TURKISH text, and that text is WRITTEN to the file.
         // Because `rules_doc_drift` checks the title column only for RULES.md
@@ -220,13 +220,13 @@ fn main() {
         // break any test. The generator therefore stops here: generating RULES.<lang>.md
         // with a partially translated locale would silently leak Turkish text.
         eprintln!(
-            "HATA: locale'de başlığı bulunamayan (TR'ye düşen) {} kural:",
+            "ERROR: {} rules have no title in the locale (they fall back to TR):",
             missing_titles.len()
         );
         for m in &missing_titles {
             eprintln!("  {m}");
         }
-        eprintln!("Eksik başlıkları ui/src/locales/<lang>.ts içine ekleyip tekrar çalıştırın.");
+        eprintln!("Add the missing titles to ui/src/locales/<lang>.ts and run again.");
         std::process::exit(1);
     }
 }

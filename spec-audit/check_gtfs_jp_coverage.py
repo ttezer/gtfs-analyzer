@@ -82,15 +82,15 @@ def main() -> int:
     provision_ids = [row["provision_id"].strip() for row in rows]
     duplicates = sorted({value for value in provision_ids if provision_ids.count(value) > 1})
     if not all(provision_ids):
-        problems.append("boş provision_id bulundu")
+        problems.append("empty provision_id found")
     if duplicates:
-        problems.append("tekrarlı provision_id: " + ", ".join(duplicates))
+        problems.append("duplicate provision_id: " + ", ".join(duplicates))
 
     registry_ids = set(REGISTRY_ID.findall(REGISTRY.read_text(encoding="utf-8")))
     inventory_rules = set().union(*(rule_ids(row) for row in rows)) if rows else set()
     unknown_rules = sorted(inventory_rules - registry_ids)
     if unknown_rules:
-        problems.append("registry'de olmayan rule id: " + ", ".join(unknown_rules))
+        problems.append("rule ids not in the registry: " + ", ".join(unknown_rules))
 
     for row in rows:
         provision = row["provision_id"]
@@ -99,43 +99,43 @@ def main() -> int:
         mapped = rule_ids(row)
         profiles = {profile.strip() for profile in row["profile"].split(",") if profile.strip()}
         if not profiles or not profiles <= ALLOWED_PROFILES:
-            problems.append(f"{provision}: bilinmeyen profile={row['profile']!r}")
+            problems.append(f"{provision}: unknown profile={row['profile']!r}")
         for provenance_field in ("source_document", "source_version", "audited_on", "page_anchor"):
             if not row[provenance_field].strip():
-                problems.append(f"{provision}: provenance alanı boş: {provenance_field}")
+                problems.append(f"{provision}: provenance field is empty: {provenance_field}")
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", row["audited_on"].strip()):
-            problems.append(f"{provision}: audited_on YYYY-MM-DD olmalı")
+            problems.append(f"{provision}: audited_on must be YYYY-MM-DD")
         if strength not in ALLOWED_STRENGTHS:
-            problems.append(f"{provision}: bilinmeyen strength={strength!r}")
+            problems.append(f"{provision}: unknown strength={strength!r}")
         if automation not in ALLOWED_AUTOMATION:
-            problems.append(f"{provision}: bilinmeyen automation={automation!r}")
+            problems.append(f"{provision}: unknown automation={automation!r}")
         if strength == "manual" and automation != "manual":
-            problems.append(f"{provision}: manual hüküm manual otomasyonuna sahip olmalı")
+            problems.append(f"{provision}: manual provision must use manual automation")
         if automation == "excluded_recommendation" and strength != "soft":
-            problems.append(f"{provision}: excluded_recommendation yalnız soft hükümlerde kullanılabilir")
+            problems.append(f"{provision}: excluded_recommendation is allowed only for soft provisions")
         if strength == "strong" and (automation != "rule" or not mapped):
             problems.append(
-                f"{provision}: strong hüküm rule otomasyonuna ve en az bir rule id'ye sahip olmalı"
+                f"{provision}: strong provision must use rule automation and have at least one rule id"
             )
         if automation == "rule" and not mapped:
-            problems.append(f"{provision}: rule otomasyonu boş rule_ids taşıyor")
+            problems.append(f"{provision}: rule automation has empty rule_ids")
 
     registry_jpn = {value for value in registry_ids if JPN_ID.fullmatch(value)}
     inventory_jpn = {value for value in inventory_rules if JPN_ID.fullmatch(value)}
     if legacy_in_inventory := sorted(inventory_jpn & NON_NORMATIVE_JPN_RULES):
         problems.append(
-            "normatif envanterde legacy JPN kuralı: " + ", ".join(legacy_in_inventory)
+            "legacy JPN rule in normative inventory: " + ", ".join(legacy_in_inventory)
         )
     if missing := sorted(registry_jpn - inventory_jpn - NON_NORMATIVE_JPN_RULES):
-        problems.append("envanterde eksik JPN kuralı: " + ", ".join(missing))
+        problems.append("JPN rules missing from inventory: " + ", ".join(missing))
     if extra := sorted(inventory_jpn - registry_jpn):
-        problems.append("registry dışı JPN kuralı: " + ", ".join(extra))
+        problems.append("JPN rules outside the registry: " + ", ".join(extra))
 
     contract_text = CONTRACT.read_text(encoding="utf-8")
     missing_contract_ids = sorted(set(provision_ids) - set(re.findall(r"`([A-Z][A-Z0-9-]+)`", contract_text)))
     if missing_contract_ids:
         problems.append(
-            "sözleşme belgesinde olmayan provision_id: " + ", ".join(missing_contract_ids)
+            "provision_ids missing from the contract document: " + ", ".join(missing_contract_ids)
         )
     if "Eşleşmemiş makineyle denetlenebilir hüküm: 0" not in contract_text:
         problems.append(
@@ -150,7 +150,7 @@ def main() -> int:
     unmatched_machine = unmatched_machine_provisions(rows)
     if unmatched_machine:
         problems.append(
-            "eşleşmemiş makineyle denetlenebilir hüküm: " + ", ".join(unmatched_machine)
+            "unmatched machine-checkable provisions: " + ", ".join(unmatched_machine)
         )
 
     if problems:

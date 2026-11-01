@@ -18,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 def load_module(name: str, filename: str):
     spec = importlib.util.spec_from_file_location(name, HERE / filename)
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"{filename} yüklenemedi")
+        raise RuntimeError(f"could not load {filename}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -165,7 +165,7 @@ class ContextMappingFixtures(unittest.TestCase):
             self.assertNotIn(
                 consecutive,
                 audit.MAP.get("fast_travel_between_far_stops", []),
-                "uzak çift kontrolü komşu hız kuralına takma ad olamaz",
+                "far-pair checks must not alias a neighboring speed rule",
             )
         # It must have left the gap ledger: the rule now EXISTS.
         self.assertNotIn("fast_travel_between_far_stops", mapping.UNMAPPED_DECISIONS)
@@ -324,12 +324,12 @@ class LedgerDriftGate(unittest.TestCase):
             used = set()
             for code, entry in table.items():
                 with self.subTest(table=name, code=code):
-                    self.assertIsInstance(entry, tuple, "karar (etiket, gerekçe) olmalı")
-                    self.assertIn(entry[0], allowed, f"{code}: tanınmayan etiket {entry[0]!r}")
-                    self.assertGreater(len(entry[1]), 40, f"{code}: gerekçe fazla kısa")
+                    self.assertIsInstance(entry, tuple, "decision must be (label, rationale)")
+                    self.assertIn(entry[0], allowed, f"{code}: unknown label {entry[0]!r}")
+                    self.assertGreater(len(entry[1]), 40, f"{code}: rationale is too short")
                     used.add(entry[0])
             self.assertEqual(used, allowed,
-                             f"{name}: sözlükte artık kullanılmayan etiket var: {allowed - used}")
+                             f"{name}: unused labels remain in the vocabulary: {allowed - used}")
 
     def test_a_mapped_code_is_never_labelled_a_coverage_gap(self):
         """A mapped code cannot be a COVERAGE GAP — the rule exists.
@@ -341,7 +341,7 @@ class LedgerDriftGate(unittest.TestCase):
         for code, entry in mapping.MAPPED_DIVERGENCE_DECISIONS.items():
             with self.subTest(code=code):
                 self.assertNotEqual(entry[0], "genuine-gap",
-                                    f"{code} eşlemeli: boşluk değil, kusur olabilir")
+                                    f"{code} is mapped: it may be a defect, not a gap")
 
     def test_a_code_is_never_both_mapped_and_declared_a_gap(self):
         """A code declared a coverage gap CANNOT have a mapping — the two conflict.
@@ -354,11 +354,11 @@ class LedgerDriftGate(unittest.TestCase):
             with self.subTest(code=code):
                 self.assertNotIn(
                     code, audit.MAP,
-                    f"{code} hem 'genuine-gap' hem eşlemeli: kural varsa boşluk değildir",
+                    f"{code} is both 'genuine-gap' and mapped: a rule means it is not a gap",
                 )
                 self.assertFalse(
                     any(c.md_code == code for c in mapping.CONTEXT_MAPPINGS),
-                    f"{code} hem 'genuine-gap' hem bağlamsal eşlemeli",
+                    f"{code} is both 'genuine-gap' and context-mapped",
                 )
 
     def test_classify_divergence_is_stable_for_known_codes(self):
@@ -380,7 +380,7 @@ class LedgerDriftGate(unittest.TestCase):
         ):
             with self.subTest(code=code):
                 self.assertIn(rule, audit.MAP.get(code, []),
-                              f"{code} → {rule} eşlemesi kayboldu")
+                              f"{code} → {rule} mapping was lost")
 
     def test_the_analyzer_side_ledger_is_actually_consulted(self):
         """#163: `fp_adjudication.tsv` hiçbir tüketici tarafından okunmuyordu.
@@ -388,7 +388,7 @@ class LedgerDriftGate(unittest.TestCase):
         Although all 251 rows had been adjudicated, they appeared fresh on every run —
         an exact repeat of #146 (`BY_DESIGN` lived in a module that was not loaded).
         """
-        self.assertGreater(len(mapping._fp_verdicts()), 50, "defter boş okundu — ÖNCE SORGUYU şüphelen")
+        self.assertGreater(len(mapping._fp_verdicts()), 50, "ledger was read as empty — investigate the query first")
         self.assertEqual(mapping.classify_analyzer_divergence("ARC_030")[0], "adjudicated:TRUE_POSITIVE")
         self.assertEqual(mapping.classify_analyzer_divergence("ZZZ_999")[0], "unreviewed")
 
@@ -401,16 +401,16 @@ class LedgerDriftGate(unittest.TestCase):
         """
         for verdict in mapping.REGRESSION_SENSITIVE_VERDICTS:
             self.assertNotIn(verdict, mapping.SETTLING_VERDICTS,
-                             f"{verdict} bir değişiklik iddia eder, ayrışmayı KAPATAMAZ")
+                             f"{verdict} claims a change and cannot CLOSE the divergence")
         # The example comes from a rule whose watch is STILL ACTIVE. `FIN_002` was this test's
         # example and closed the watch in run 32290410755 (mdb-912 still fires, as it should)
         # — updating the example follows the EXAMPLE of the principle, not the principle itself.
         still_watched = [rid for rid, (v, _, _) in mapping._fp_verdicts().items()
                          if v in mapping.REGRESSION_SENSITIVE_VERDICTS]
-        self.assertTrue(still_watched, "hiç açık nöbet yoksa bu testin örneği kalmamıştır")
+        self.assertTrue(still_watched, "this test has no example if no watch remains open")
         for rid in still_watched:
             self.assertEqual(mapping.classify_analyzer_divergence(rid)[0], "unreviewed",
-                             f"{rid} nöbetteyken kapatılmış görünüyor")
+                             f"{rid} appears closed while still under watch")
 
     def test_aggregation_verdict_implies_agg_rules_membership(self):
         """Bir kuralı AGREGAT diye yargılamak, onu `AGG_RULES`'a yazmayı GEREKTİRİR.
@@ -430,13 +430,13 @@ class LedgerDriftGate(unittest.TestCase):
         with ledger.open(encoding="utf-8", newline="") as fh:
             agg_judged = {r["rule_id"].strip() for r in _csv.DictReader(fh, delimiter="\t")
                           if (r.get("verdict") or "").strip() == "AGGREGATION"}
-        self.assertTrue(agg_judged, "AGGREGATION hükmü yok — test örneksiz kalmış")
+        self.assertTrue(agg_judged, "no AGGREGATION verdict — the test has no example")
         missing = sorted(agg_judged - set(audit.AGG_RULES))
         self.assertFalse(missing,
-                         f"AGGREGATION diye yargılanmış ama AGG_RULES'ta OLMAYAN kurallar: "
-                         f"{', '.join(missing)}. Hüküm yazmak yetmez; `md_parity_audit.py`'deki "
-                         f"AGG_RULES kümesine de eklenmeli, yoksa her koşum bu kuralı sahte "
-                         f"`md_mapped_under` olarak raporlar.")
+                         f"rules judged AGGREGATION but absent from AGG_RULES: "
+                         f"{', '.join(missing)}. A verdict is not enough; add them to the "
+                         f"AGG_RULES set in `md_parity_audit.py`, or every run reports this rule "
+                         f"as a false `md_mapped_under` result.")
 
     def test_fix_confirmed_requires_a_measurement(self):
         """`FIX_CONFIRMED` nöbeti KAPATIR, dolayısıyla ucuz yazılamamalıdır.
@@ -452,16 +452,16 @@ class LedgerDriftGate(unittest.TestCase):
         with ledger.open(encoding="utf-8", newline="") as fh:
             rows = [r for r in _csv.DictReader(fh, delimiter="\t")
                     if (r.get("verdict") or "").strip() == "FIX_CONFIRMED"]
-        self.assertTrue(rows, "FIX_CONFIRMED kaydı yok — test örneksiz kalmış")
+        self.assertTrue(rows, "no FIX_CONFIRMED record — the test has no example")
         for r in rows:
             rid = r["rule_id"]
             self.assertTrue((r.get("sampled_from") or "").strip(),
-                            f"{rid}: FIX_CONFIRMED hangi feed'de ölçüldüğünü söylemiyor")
+                            f"{rid}: FIX_CONFIRMED does not name the measured feed")
             self.assertTrue((r.get("examples_read") or "").strip() not in ("", "0"),
-                            f"{rid}: FIX_CONFIRMED hiç örnek okumadan yazılmış")
+                            f"{rid}: FIX_CONFIRMED was written without reading an example")
             reason = r.get("reasoning") or ""
             self.assertIn("->", reason,
-                          f"{rid}: FIX_CONFIRMED gerekçesi ölçülen geçişi taşımıyor")
+                          f"{rid}: FIX_CONFIRMED rationale does not contain the measured transition")
 
     def test_not_adjudicated_never_overwrites_a_real_verdict(self):
         """`NOT_ADJUDICATED` bir hüküm DEĞİL, hüküm verilmediğinin kaydıdır.
@@ -482,7 +482,7 @@ class LedgerDriftGate(unittest.TestCase):
         known = set(re.findall(r'r(?:_noscore)?!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
         for rule in mapping._fp_verdicts():
             with self.subTest(rule=rule):
-                self.assertIn(rule, known, f"{rule} hakkında hüküm var ama kural registry'de yok")
+                self.assertIn(rule, known, f"verdict exists for {rule}, but the rule is absent from the registry")
 
     def test_the_two_biggest_generic_codes_resolve_by_context(self):
         """#165: `foreign_key_violation` ve `duplicate_key` bağlamı STANDART DIŞI
@@ -529,9 +529,9 @@ class LedgerDriftGate(unittest.TestCase):
         mapped |= {r for e in mapping.CONTEXT_MAPPINGS for r in e.analyzer_rules}
         for rule, reason in mapping.NO_MD_EQUIVALENT.items():
             with self.subTest(rule=rule):
-                self.assertIn(rule, known, f"{rule}: registry'de böyle bir kural yok")
-                self.assertNotIn(rule, mapped, f"{rule}: hem 'MD'de yok' hem eşlenmiş")
-                self.assertGreater(len(reason), 60, f"{rule}: gerekçe fazla kısa")
+                self.assertIn(rule, known, f"{rule}: no such rule in the registry")
+                self.assertNotIn(rule, mapped, f"{rule}: both absent from MD and mapped")
+                self.assertGreater(len(reason), 60, f"{rule}: rationale is too short")
 
     def test_every_mapped_rule_exists_in_the_registry(self):
         """Var olmayan bir kurala eşlenen kod SESSİZ bir MISS üretir.
@@ -542,15 +542,15 @@ class LedgerDriftGate(unittest.TestCase):
         registry = (Path(__file__).resolve().parents[1]
                     / "crates" / "rules" / "src" / "registry.rs").read_text(encoding="utf-8")
         known = set(re.findall(r'r(?:_noscore)?!\("([A-Z]{2,4}_\d{3}[a-z]?)"', registry))
-        self.assertGreater(len(known), 500, "registry ayrıştırması boş döndü — ÖNCE SORGUYU şüphelen")
+        self.assertGreater(len(known), 500, "registry parsing returned empty — investigate the query first")
         for code, rules in audit.MAP.items():
             for rule in rules:
                 with self.subTest(code=code, rule=rule):
-                    self.assertIn(rule, known, f"{code} → {rule}: registry'de böyle bir kural yok")
+                    self.assertIn(rule, known, f"{code} → {rule}: no such rule in the registry")
         for entry in mapping.CONTEXT_MAPPINGS:
             for rule in entry.analyzer_rules:
                 with self.subTest(code=entry.md_code, rule=rule):
-                    self.assertIn(rule, known, f"{entry.md_code} → {rule}: registry'de yok")
+                    self.assertIn(rule, known, f"{entry.md_code} → {rule}: absent from the registry")
 
 
 if __name__ == "__main__":

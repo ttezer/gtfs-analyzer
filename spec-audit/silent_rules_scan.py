@@ -264,7 +264,7 @@ def main():
     fired = {r["rule_id"] for r in csv.DictReader(open(f"{EV}/rule_stats.csv"))}
 
     # ---------- Faz 0 ----------
-    print("=== FAZ 0 · ulaşılabilirlik ===")
+    print("=== PHASE 0 · reachability ===")
     no_quote = sorted(r for r in meta if quoted.get(r, 0) == 0)
     truly_dead, fatal_only, comment_only = [], [], []
     for r in no_quote:
@@ -274,13 +274,13 @@ def main():
             comment_only.append(r)
         else:
             truly_dead.append(r)
-    print(f"  registry {len(meta)} kural · tırnaklı emit noktası yok: {len(no_quote)}")
-    print(f"    fatal yolla üretilen (ölü DEĞİL): {fatal_only}")
-    print(f"    YALNIZ yorum satırında geçen    : {comment_only}")
-    print(f"    hiçbir yerde geçmeyen (ÖLÜ)     : {truly_dead}")
+    print(f"  registry {len(meta)} rules · no quoted emit site: {len(no_quote)}")
+    print(f"    produced by a fatal path (NOT dead): {fatal_only}")
+    print(f"    appearing ONLY in comments       : {comment_only}")
+    print(f"    appearing nowhere (DEAD)         : {truly_dead}")
     bad = [r for r in truly_dead if r in fired]
     if bad:
-        print(f"  🔴 TARAYICI HATASI: {bad} ateşlemiş ama emit bulunamadı")
+        print(f"  🔴 SCANNER ERROR: {bad} fired but no emit was found")
 
     # ---------- Faz 1 ----------
     home = group_home_files(meta, mods)
@@ -337,21 +337,21 @@ def main():
         w.writeheader()
         w.writerows(rows)
 
-    print(f"\n=== FAZ 1 · sessizlik sebebi === ({nfeeds} feed tarandı)")
-    print(f"  korpusta hiç çıkmayan: {len(rows)} / {len(meta)}")
+    print(f"\n=== PHASE 1 · reason for silence === ({nfeeds} feeds scanned)")
+    print(f"  absent from the corpus: {len(rows)} / {len(meta)}")
     gate = [x for x in rows if (x["severity"], x["class"]) == ("Kritik", "Spec")]
-    print(f"  {'etiket':20} {'hepsi':>6} {'Kritik∧Spec':>12}")
+    print(f"  {'label':20} {'all':>6} {'Kritik∧Spec':>12}")
     g = Counter(x["label"] for x in gate)
     for k, v in Counter(x["label"] for x in rows).most_common():
         print(f"  {k:20} {v:>6} {g.get(k,0):>12}")
-    print(f"  {'TOPLAM':20} {len(rows):>6} {len(gate):>12}")
+    print(f"  {'TOTAL':20} {len(rows):>6} {len(gate):>12}")
     ev = [x for x in rows if x["evidence"]]
-    print(f"\n  ✅ MUTASYONLA ÖLÇÜLMÜŞ (etiket artık sezgisel değil): {len(ev)}")
+    print(f"\n  ✅ MEASURED BY MUTATION (label is no longer heuristic): {len(ev)}")
     for x in ev:
         print(f"     {x['rule_id']:8} {x['evidence']}")
     amb = [x for x in rows if x["suppressor_fired"] == "yes"]
-    print(f"\n  ⚠️ sessizliği BELİRSİZ (bastıran kök korpusta ateşledi): {len(amb)}")
-    print("     bunlar 'hiç doğmadı' ile 'doğdu ve bastırıldı' arasında ayrılmamıştır")
+    print(f"\n  ⚠️ SILENCE IS AMBIGUOUS (a suppressing root fired in the corpus): {len(amb)}")
+    print("     these are not distinguished between 'never born' and 'born and suppressed'")
     print(f"\n  → {out}")
     return 0
 

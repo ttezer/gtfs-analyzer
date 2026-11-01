@@ -120,8 +120,8 @@ function assertSameDiff(actual, want, label) {
   assert.equal(actual.score, want.score, `${label}: score`);
   assert.equal(canonical(actual.agency_breakdown), canonical(want.agency_breakdown), `${label}: agency_breakdown`);
   assert.equal(canonical(actual.feed_summary), canonical(want.feed_summary), `${label}: feed_summary`);
-  assert.deepEqual(multiset(actual.added), multiset(want.added), `${label}: eklenen notice'lar`);
-  assert.deepEqual(actual.removed.sort(), multiset(want.removed), `${label}: kaybolan notice'lar`);
+  assert.deepEqual(multiset(actual.added), multiset(want.added), `${label}: added notices`);
+  assert.deepEqual(actual.removed.sort(), multiset(want.removed), `${label}: removed notices`);
 }
 
 // Three SDK paths: full validation, session (cached) validation, and rerun from the cache.
@@ -145,13 +145,13 @@ for (const [path, base] of Object.entries(baseRuns)) {
   assert.equal(base.score, expected.base.score, `base/${path}: score`);
   assert.equal(canonical(base.agency_breakdown), canonical(expected.base.agency_breakdown), `base/${path}: agency_breakdown`);
   assert.equal(canonical(base.feed_summary), canonical(expected.base.feed_summary), `base/${path}: feed_summary`);
-  assert.deepEqual(multiset(base.notices), multiset(expected.base.notices), `base/${path}: notice'lar`);
+  assert.deepEqual(multiset(base.notices), multiset(expected.base.notices), `base/${path}: notices`);
 }
 
 for (const testCase of cases.cases) {
   const runs = await runAllPaths(makeZip({ ...cases.base, ...testCase.files }));
   const want = expected.cases[testCase.name];
-  assert.ok(want, `${testCase.name}: expected.json'da yok`);
+  assert.ok(want, `${testCase.name}: missing from expected.json`);
   for (const [path, projected] of Object.entries(runs)) {
     assertSameDiff(diff(projected, baseRuns[path]), want, `${testCase.name}/${path}`);
   }

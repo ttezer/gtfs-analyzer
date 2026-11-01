@@ -30,7 +30,7 @@ REGISTRY_ID = re.compile(r'r(?:_noscore)?!\("([A-Z]{2,3}_[0-9]{3}[a-z]?)"')
 def load_audit():
     spec = importlib.util.spec_from_file_location("md_parity_audit", AUDIT_PATH)
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"audit modülü yüklenemedi: {AUDIT_PATH}")
+        raise RuntimeError(f"could not load audit module: {AUDIT_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -46,13 +46,13 @@ def main() -> int:
     for code, rules in audit.MAP.items():
         unknown = sorted(set(rules) - registry_ids)
         if unknown:
-            problems.append(f"MAP {code}: registry'de olmayan kural(lar): {', '.join(unknown)}")
+            problems.append(f"MAP {code}: rule(s) not in registry: {', '.join(unknown)}")
 
     for entry in CONTEXT_MAPPINGS:
         unknown = sorted(set(entry.analyzer_rules) - registry_ids)
         if unknown:
             problems.append(
-                f"CONTEXT {entry.md_code} ({entry.label}): registry'de olmayan kural(lar): "
+                f"CONTEXT {entry.md_code} ({entry.label}): rule(s) not in registry: "
                 f"{', '.join(unknown)}"
             )
 
@@ -64,7 +64,7 @@ def main() -> int:
             continue
         match = CARD_ID.search(text)
         if not match:
-            problems.append(f"{card.relative_to(ROOT)}: md-parity kart ID'si bulunamadı")
+            problems.append(f"{card.relative_to(ROOT)}: md-parity card ID not found")
             continue
         rule_id = match.group(1)
         for code in codes:
@@ -78,14 +78,14 @@ def main() -> int:
             )
             if rule_id not in mapped_for_code:
                 problems.append(
-                    f"{card.relative_to(ROOT)}: {rule_id} {code} paritesini belgeliyor, "
-                    "ancak parity mapping'de yok"
+                    f"{card.relative_to(ROOT)}: {rule_id} declares parity for {code}, "
+                    "but it is missing from the parity mapping"
                 )
 
     if "STM_056" not in mapped_ids:
-        problems.append("STM_056 parity mapping'de yok")
+        problems.append("STM_056 is missing from the parity mapping")
     if not declared:
-        problems.append("Hiç md-parity kart bildirimi bulunamadı")
+        problems.append("No md-parity card declarations found")
 
     if problems:
         print("MD parity mapping drift — FAIL")

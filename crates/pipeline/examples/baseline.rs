@@ -13,7 +13,7 @@ use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("Kullanım: baseline <feed.zip> [today_yyyymmdd] [--json]");
+        eprintln!("Usage: baseline <feed.zip> [today_yyyymmdd] [--json]");
         std::process::exit(1);
     }
 
@@ -26,7 +26,7 @@ fn main() {
     let json_mode = args.iter().any(|a| a == "--json");
 
     let zip_bytes = std::fs::read(path).unwrap_or_else(|e| {
-        eprintln!("Dosya okunamadı '{path}': {e}");
+        eprintln!("Could not read file '{path}': {e}");
         std::process::exit(1);
     });
 

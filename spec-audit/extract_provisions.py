@@ -148,12 +148,12 @@ def upstream_commit() -> dict:
         cmd += ["-H", f"Authorization: Bearer {token}"]
     p = subprocess.run(cmd + [UPSTREAM_API], capture_output=True)
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:120]}")
+        raise RuntimeError(f"curl failed: {p.stderr.decode()[:120]}")
     data = json.loads(p.stdout.decode("utf-8"))
     if isinstance(data, dict):  # API error bodies (rate limits, etc.) are JSON too
-        raise RuntimeError(f"API beklenmeyen yanıt: {str(data)[:120]}")
+        raise RuntimeError(f"unexpected API response: {str(data)[:120]}")
     if not data:
-        raise RuntimeError(f"{UPSTREAM_PATH} için commit dönmedi")
+        raise RuntimeError(f"no commit returned for {UPSTREAM_PATH}")
     return {
         "upstream_repo": UPSTREAM_REPO,
         "upstream_path": UPSTREAM_PATH,
@@ -391,9 +391,9 @@ def _selftest() -> int:
     try:
         claim_id(seen, "Pdeadbeef", "a|ikinci FARKLI cumle")
     except ProvisionCollision as e:
-        print(f"selftest OK — çakışma yakalandı:\n  {str(e).splitlines()[0]}")
+        print(f"selftest OK — collision caught:\n  {str(e).splitlines()[0]}")
         return 0
-    print("selftest BAŞARISIZ: çakışma sessizce geçti — katalog fail-open.", file=sys.stderr)
+    print("selftest FAILED: collision passed silently — catalogue failed open.", file=sys.stderr)
     return 1
 
 
@@ -412,13 +412,13 @@ def main() -> int:
                                     "'çözülemedi' ile 'hiç denenmedi' karışmasın diye "
                                     "burada açıkça yazılıdır.",
         }
-        print("UYARI: --no-upstream — katalog kaynak sürümüne PİNLENMEDİ.", file=sys.stderr)
+        print("WARNING: --no-upstream — catalogue is NOT PINNED to a source revision.", file=sys.stderr)
     else:
         try:
             upstream = upstream_commit()
         except Exception as e:  # network/API error
-            print(f"HATA: upstream commit çözülemedi ({type(e).__name__}: {e}). "
-                  f"Ağsız üretmek için: --no-upstream", file=sys.stderr)
+            print(f"ERROR: could not resolve upstream commit ({type(e).__name__}: {e}). "
+                  f"For offline generation, use: --no-upstream", file=sys.stderr)
             return 1
     rows: list[dict] = []
     seen: dict[str, str] = {}  # pid → canonical key (for collision checking)
@@ -459,7 +459,7 @@ def main() -> int:
                 "sentence": sentence,
             })
     if len(rows) < 150:
-        print(f"HATA: yalnız {len(rows)} aday bulundu; spec düzeni değişmiş olabilir.",
+        print(f"ERROR: found only {len(rows)} candidates; the spec layout may have changed.",
               file=sys.stderr)
         return 1
     OUT.write_text(
@@ -485,8 +485,8 @@ def main() -> int:
     )
     strong = sum(1 for r in rows if r["strength"] == "strong")
     prose = sum(1 for r in rows if r["source"] == "prose")
-    print(f"yazıldı: {OUT.name} ({len(rows)} aday · sert {strong} · yumuşak {len(rows) - strong})")
-    print(f"  kaynak: düzyazı {prose} · tablo açıklaması {len(rows) - prose}")
+    print(f"wrote: {OUT.name} ({len(rows)} candidates · strong {strong} · soft {len(rows) - strong})")
+    print(f"  source: prose {prose} · table descriptions {len(rows) - prose}")
     return 0
 
 
@@ -495,5 +495,5 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except ProvisionCollision as exc:
         # Print a DIAGNOSTIC instead of a traceback: the message tells the reader what to do.
-        print(f"HATA: {exc}", file=sys.stderr)
+        print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1) from None

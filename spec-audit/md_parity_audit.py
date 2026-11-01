@@ -402,7 +402,7 @@ def samples_str(notice, n=3):
 
 def main():
     if len(sys.argv) < 2:
-        print("kullanım: python3 md_parity_audit.py <BASE_DIR>")
+        print("usage: python3 md_parity_audit.py <BASE_DIR>")
         sys.exit(1)
     base = sys.argv[1]
     folders = [f for f in sorted(glob.glob(os.path.join(base, "*"))) if os.path.isdir(f)]
@@ -515,34 +515,34 @@ def main():
     by_code = Counter((r[10], r[1]) for r in unexplained)
 
     with open(os.path.join(base, "parity_summary.md"), "w", encoding="utf-8") as f:
-        f.write("# MD-parite agregat\n\n")
-        f.write("## 🎯 Açıklanamayan delta (inceleme kuyruğu)\n\n")
-        f.write(f"- Toplam satır: **{len(rows)}** · MATCH: **{sum(1 for r in rows if r[10]=='MATCH')}** "
+        f.write("# MD parity aggregate\n\n")
+        f.write("## 🎯 Unexplained delta (review queue)\n\n")
+        f.write(f"- Total rows: **{len(rows)}** · MATCH: **{sum(1 for r in rows if r[10]=='MATCH')}** "
                 f"· AGG: **{sum(1 for r in rows if r[10]=='AGG')}** "
                 f"· CONTEXT: **{sum(1 for r in rows if r[10]=='CONTEXT')}** "
-                f"· adjudicate edilmiş (EXPLAINED): **{explained}**\n")
-        f.write(f"- **AÇIKLANAMAYAN: {len(unexplained)}** → `parity_unexplained.csv`\n\n")
-        f.write("EXPLAINED = `BY_DESIGN` tablosunda gerekçesi yazılı, daha önce yargılanmış sapma.\n"
-                "Aşağıdaki liste kanıt DEĞİL, inceleme kuyruğudur.\n\n")
-        f.write("| durum | md_code | satır |\n|---|---|--:|\n")
+                f"· adjudicated (EXPLAINED): **{explained}**\n")
+        f.write(f"- **UNEXPLAINED: {len(unexplained)}** → `parity_unexplained.csv`\n\n")
+        f.write("EXPLAINED = a previously adjudicated divergence with a reason in `BY_DESIGN`.\n"
+                "The list below is a review queue, not evidence.\n\n")
+        f.write("| status | md_code | rows |\n|---|---|--:|\n")
         for (st, code), n in by_code.most_common(25):
             f.write(f"| {st} | {code} | {n} |\n")
-        f.write("\n## Feed durumu\n\n")
-        f.write("| feed | durum | skor | | \n|---|---|---|---|\n")
+        f.write("\n## Feed status\n\n")
+        f.write("| feed | status | score | | \n|---|---|---|---|\n")
         for m in feed_meta:
             f.write(f"| {m[0]} | {m[1]} | {m[2]} | {m[3]} |\n")
-        f.write("\n## Kod agregat (sapma büyüklüğüne göre)\n\n")
-        f.write("| md_code | Σmd | Σour | feed# | sapan# | eşleme |\n|---|--:|--:|--:|--:|---|\n")
+        f.write("\n## Code aggregate (by divergence magnitude)\n\n")
+        f.write("| md_code | Σmd | Σour | feed# | diverging# | mapping |\n|---|--:|--:|--:|--:|---|\n")
         allcodes = set(agg_md) | set(agg_our)
         for code in sorted(allcodes, key=lambda c: -(agg_md[c])):
             ours = MAP.get(code)
             tag = "|".join(ours) if ours else "**MD-ONLY**"
             f.write(f"| {code} | {agg_md[code]} | {agg_our.get(code,'—')} | "
                     f"{agg_feeds[code]} | {agg_diverge[code]} | {tag} |\n")
-    print(f"yazıldı: parity_all.csv ({len(rows)}) · parity_unexplained.csv ({len(unexplained)}) · "
+    print(f"wrote: parity_all.csv ({len(rows)}) · parity_unexplained.csv ({len(unexplained)}) · "
           f"parity_md_only.csv ({len(md_only_rows)}) · parity_summary.md")
     print(f"  MATCH={sum(1 for r in rows if r[10]=='MATCH')} AGG={sum(1 for r in rows if r[10]=='AGG')} "
-          f"EXPLAINED={explained} → AÇIKLANAMAYAN={len(unexplained)}")
+          f"EXPLAINED={explained} → UNEXPLAINED={len(unexplained)}")
 
 
 if __name__ == "__main__":
