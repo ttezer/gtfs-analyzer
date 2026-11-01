@@ -20,7 +20,7 @@ def _curl(url, rng, timeout=90, max_bytes=52428800):
         capture_output=True,
     )
     if p.returncode != 0:
-        raise RuntimeError(f"curl hatası: {p.stderr.decode()[:80]}")
+        raise RuntimeError(f"curl failed: {p.stderr.decode()[:80]}")
     body, _, code = p.stdout.rpartition(b"\n")
     return code.decode().strip(), body
 
@@ -33,13 +33,13 @@ def filenames(url, tail=65536):
     if code not in ("206", "200"):
         raise RuntimeError(f"HTTP {code}")
     if code == "200" and not buf.startswith(b"PK"):
-        raise RuntimeError("zip değil (200, PK imzası yok)")
+        raise RuntimeError("not a ZIP (200 response without a PK signature)")
     i = buf.rfind(b"PK\x05\x06")
     if i < 0:
-        raise RuntimeError("EOCD yok (zip değil ya da kuyruk kısa)")
+        raise RuntimeError("EOCD not found (not a ZIP or tail is too short)")
     cd_size, cd_off = struct.unpack("<II", buf[i + 12:i + 20])
     if cd_off == 0xFFFFFFFF:
-        raise RuntimeError("zip64 — desteklenmiyor")
+        raise RuntimeError("ZIP64 is not supported")
     # The tail's start position in the file is unknown; if the directory fits in the tail,
     # find its signature directly, otherwise make a second request.
     j = buf.find(b"PK\x01\x02")
@@ -48,14 +48,14 @@ def filenames(url, tail=65536):
     else:
         code2, cd = _curl(url, f"{cd_off}-{cd_off + cd_size - 1}")
         if code2 != "206":
-            raise RuntimeError(f"dizin bloğu alınamadı (HTTP {code2})")
+            raise RuntimeError(f"could not fetch central directory block (HTTP {code2})")
     out, p = [], 0
     while p + 46 <= len(cd) and cd[p:p + 4] == b"PK\x01\x02":
         nlen, elen, clen = struct.unpack("<HHH", cd[p + 28:p + 34])
         out.append(cd[p + 46:p + 46 + nlen].decode("utf-8", "replace"))
         p += 46 + nlen + elen + clen
     if not out:
-        raise RuntimeError("dizin ayrıştırılamadı")
+        raise RuntimeError("could not parse central directory")
     return out
 
 

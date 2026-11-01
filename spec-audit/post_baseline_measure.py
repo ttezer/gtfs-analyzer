@@ -79,8 +79,8 @@ def report():
     with open(OUT) as fh:
         rows = list(csv.DictReader(fh))
     ok = [r for r in rows if r["status"] == "ok"]
-    print(f"koşulan feed: {len(rows)} (ok={len(ok)})")
-    print(f"\n{'kural':10} {'feed':>6} {'bulgu':>10}   ilk 3 feed")
+    print(f"feeds processed: {len(rows)} (ok={len(ok)})")
+    print(f"\n{'rule':10} {'feeds':>6} {'findings':>10}   first 3 feeds")
     for rule in WATCH:
         hits = [(r["feed"], int(r[rule])) for r in ok if int(r.get(rule, 0)) > 0]
         total = sum(n for _, n in hits)
@@ -97,11 +97,11 @@ def main():
         return 0
 
     if not os.path.exists(BINARY):
-        sys.exit("release binary yok: cargo build --release -p gtfs-analyzer")
+        sys.exit("release binary not found: cargo build --release -p gtfs-analyzer")
     feeds = sorted(f for f in os.listdir(ZIPS)
                 if f.endswith(".zip") and f[:-4] not in EXCLUDED_FEEDS)
     if EXCLUDED_FEEDS:
-        print(f"atlanan feed (kullanıcı talimatı): {sorted(EXCLUDED_FEEDS)}", flush=True)
+        print(f"skipped feeds (user instruction): {sorted(EXCLUDED_FEEDS)}", flush=True)
     already = done_feeds()
     fields = ["feed", "status", "secs", "notice_total"] + WATCH
     new = not os.path.exists(OUT)
