@@ -26,12 +26,13 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     let mut notices = Vec::new();
     let mut records = Vec::new();
     let mut counter = 0;
-    // PTH_009 (#15 Mode A): pathway başına emit büyük feed'de yüz binlerce notice üretiyordu
-    // (tek tip opsiyonel-alan eksikliği, aksiyon hepsinde aynı). Feed-seviyesi TEK özete indir
-    // (STM_050 deseni): gerçek sayı + ilk örnekler details'te; loop sonunda tek emit.
+    // PTH_009 (#15 Mode A): per-pathway emission produced hundreds of thousands of notices in
+    // large feeds (one kind of optional-field absence, with the same action for all). Reduce it
+    // to ONE feed-level summary (STM_050 pattern): actual count + first examples in details;
+    // one emit at the end of the loop.
     let mut pth009_count: u32 = 0;
     let mut pth009_examples: Vec<String> = Vec::new();
-    // PTH_008 (#15): PTH_009 ikizi (merdiven geçidinde stair_count eksik) — aynı feed-aggregate.
+    // PTH_008 (#15): PTH_009's twin (stair_count missing on a stairway) — same feed aggregate.
     let mut pth008_count: u32 = 0;
     let mut pth008_examples: Vec<String> = Vec::new();
     let mut pth025_count: u32 = 0;
@@ -46,7 +47,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             .unwrap_or("")
             .to_string();
         let entity_id = (!pathway_id.is_empty()).then_some(pathway_id.clone());
-        // PTH_020: pathway_id required (sütun yoksa ARC_025 devralır → atla)
+        // PTH_020: pathway_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "pathway_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -158,9 +159,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             line,
             &file.name,
         );
-        // PTH_029: spec traversal_time'ı yürüyen bant (3), yürüyen merdiven (4) ve asansör (5)
-        // için ÖNERİR. PTH_007 yukarıda değerin geçerliliğini ölçer; bu kural eksikliğini.
-        // PTH_025 (length) ile birebir aynı desen — koşul yalnız pathway_mode kümesinde ayrılır.
+        // PTH_029: the spec RECOMMENDS traversal_time for moving walkway (3), escalator (4),
+        // and elevator (5). PTH_007 above checks the value's validity; this rule checks absence.
+        // The exact same pattern as PTH_025 (length) — only the pathway_mode set differs.
         if matches!(pathway_mode_semantic, Some(3..=5))
             && traversal_time.is_none()
             && get_trimmed_field(&row_map, "traversal_time").is_none_or(str::is_empty)
@@ -226,7 +227,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                // İhlal iki uç noktanın AYNI olmasıdır.
+                // The violation is that the two endpoints are the SAME.
                 Some("from_stop_id|to_stop_id"),
                 Some(from_stop_id.to_string()),
                 None,
@@ -245,8 +246,8 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                // İhlal iki alanın BİRLİKTE aldığı değerdedir; `observed_value` bunu zaten
-                // yazıyordu, `field` yazmıyordu.
+                // The violation is the COMBINATION of the two field values; `observed_value` already
+                // recorded it, but `field` did not.
                 Some("pathway_mode|is_bidirectional"),
                 Some("pathway_mode=7, is_bidirectional=1".to_string()),
                 Some("is_bidirectional=0".to_string()),
@@ -275,9 +276,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
                 None
             }
         };
-        // PTH_028 (PTH_017'den ayrıldı): spec burada "should" der ve Presence sütunu düz
-        // `Optional`'dır — gerçek yasaklarını 14 alanda `Conditionally Forbidden` yazarak
-        // ifade eden bir belge, burada bilinçli olarak yazmamıştır. Tavsiye → Quality.
+        // PTH_028 (split from PTH_017): the spec says "should" here and the Presence column is
+        // plain `Optional` — a document that expresses real prohibitions in 14 fields using
+        // `Conditionally Forbidden` deliberately does not do so here. Recommendation → Quality.
         if max_slope.is_some() && !matches!(pathway_mode_semantic, Some(1 | 3)) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -295,9 +296,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             ));
         }
 
-        // PTH_027: spec tipi `Non-null integer`. İki ihlal de aynı olgudur:
-        //   (a) tam sayı değil — eskiden `Err(_) => None` ile SESSİZCE düşüyordu,
-        //   (b) sıfır — tipin dışladığı tek değer; yön bilgisi taşımaz.
+        // PTH_027: spec type `Non-null integer`. Both violations are the same fact:
+        //   (a) not an integer — previously silently dropped by `Err(_) => None`,
+        //   (b) zero — the only value excluded by the type; it carries no direction information.
         let stair_count = match parse_i32(&row_map, "stair_count") {
             Ok(Some(0)) => {
                 notices.push(make_k2_notice(
@@ -322,7 +323,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             }
         };
 
-        // PTH_008: merdiven geçidinde stair_count belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
+        // PTH_008: stair_count missing on a stairway — summarize at feed level (one emit below)
         if matches!(pathway_mode_semantic, Some(2)) && stair_count.is_none() {
             pth008_count += 1;
             if pth008_examples.len() < 5 {
@@ -332,7 +333,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             }
         }
 
-        // PTH_009: yürüme yolunda max_slope belirtilmemiş — feed-seviyesi özetle (aşağıda tek emit)
+        // PTH_009: max_slope missing on a walkway — summarize at feed level (one emit below)
         if matches!(pathway_mode_semantic, Some(1)) && max_slope.is_none() {
             let raw = get_trimmed_field(&row_map, "max_slope");
             if raw.map(|s| s.is_empty()).unwrap_or(true) {
@@ -345,7 +346,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
             }
         }
 
-        // PTH_018: signposted_as çok uzun (> 255 karakter)
+        // PTH_018: signposted_as is too long (> 255 characters)
         if let Some(sign) = get_trimmed_field(&row_map, "signposted_as") {
             if sign.len() > 255 {
                 notices.push(make_k2_notice(
@@ -384,9 +385,9 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         });
     }
 
-    // PTH_009 feed-seviyesi tek özet. Tek notice → capped_totals etkilenmez; gerçek sayı
-    // details.affected_pathways'te (UI "1 gösterilen, N etkilenen" diyebilir). EntityType::Feed
-    // + scope None (registry Feed dedup). field=max_slope, file=pathways.txt korunur.
+    // PTH_009: one feed-level summary. One notice → capped_totals is unaffected; the actual count
+    // is in details.affected_pathways (the UI can say "1 shown, N affected"). EntityType::Feed
+    // + scope None (registry Feed dedup). field=max_slope and file=pathways.txt are preserved.
     if pth009_count > 0 {
         let mut n = make_k2_notice(
             &mut counter,
@@ -411,7 +412,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         notices.push(n);
     }
 
-    // PTH_008 feed-seviyesi tek özet (PTH_009 ile aynı desen).
+    // PTH_008: one feed-level summary (same pattern as PTH_009).
     if pth008_count > 0 {
         let mut n = make_k2_notice(
             &mut counter,
@@ -475,8 +476,8 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
     (records, notices)
 }
 
-// Pathway alanlarının parse ve notice bağlamı bilinçli olarak ayrı parametrelerdir;
-// ortak bir parametre struct'ı bu dört küçük validator'da gereksiz durum taşır.
+// Pathway field parsing and notice context are deliberately separate parameters;
+// a shared parameter struct would carry unnecessary state in these four small validators.
 #[allow(clippy::too_many_arguments)]
 fn parse_enum_u32(
     row_map: &RowMap,
@@ -537,8 +538,8 @@ fn parse_enum_u32(
     }
 }
 
-// Her numeric helper kendi alan/mesaj kuralını açıkça taşır; parametre struct'ı
-// çağrıları kısaltmak yerine rule bağlamını gizler.
+// Each numeric helper carries its own field/message rule explicitly; a parameter struct would
+// hide the rule context instead of shortening the calls.
 #[allow(clippy::too_many_arguments)]
 fn parse_nonnegative_f64(
     row_map: &RowMap,
@@ -592,8 +593,8 @@ fn parse_nonnegative_f64(
     }
 }
 
-// Her numeric helper kendi alan/mesaj kuralını açıkça taşır; parametre struct'ı
-// çağrıları kısaltmak yerine rule bağlamını gizler.
+// Each numeric helper carries its own field/message rule explicitly; a parameter struct would
+// hide the rule context instead of shortening the calls.
 #[allow(clippy::too_many_arguments)]
 fn parse_positive_f64(
     row_map: &RowMap,
@@ -647,8 +648,8 @@ fn parse_positive_f64(
     }
 }
 
-// Her numeric helper kendi alan/mesaj kuralını açıkça taşır; parametre struct'ı
-// çağrıları kısaltmak yerine rule bağlamını gizler.
+// Each numeric helper carries its own field/message rule explicitly; a parameter struct would
+// hide the rule context instead of shortening the calls.
 #[allow(clippy::too_many_arguments)]
 fn parse_positive_u32(
     row_map: &RowMap,
@@ -731,13 +732,13 @@ mod tests {
 
     #[test]
     fn pth_009_aggregates_to_single_feed_notice_with_count() {
-        // #15: 3 yürüme yolu (mode=1) max_slope boş → TEK PTH_009 (feed-seviyesi),
-        // affected_pathways=3. mode=2 olan pathway sayılmaz.
+        // #15: 3 walkways (mode=1) have empty max_slope → ONE PTH_009 (feed level),
+        // affected_pathways=3. A mode=2 pathway does not count.
         let file = pathways_file(vec![
             vec!["P1", "S1", "S2", "1", "0", ""],
             vec!["P2", "S2", "S3", "1", "0", ""],
             vec!["P3", "S3", "S4", "1", "0", ""],
-            vec!["P4", "S4", "S5", "2", "0", ""], // merdiven → PTH_009 sayılmaz
+            vec!["P4", "S4", "S5", "2", "0", ""], // stairs → does not count as PTH_009
         ]);
         let (_, notices) = validate_pathways(&file);
         let pth009: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_009").collect();
@@ -756,11 +757,11 @@ mod tests {
 
     #[test]
     fn pth_008_aggregates_to_single_feed_notice_with_count() {
-        // #15: 2 merdiven (mode=2) stair_count boş → TEK PTH_008 (feed-seviyesi), affected=2.
+        // #15: 2 stairs (mode=2) have empty stair_count → ONE PTH_008 (feed level), affected=2.
         let file = pathways_file(vec![
             vec!["P1", "S1", "S2", "2", "0", ""],
             vec!["P2", "S2", "S3", "2", "0", ""],
-            vec!["P3", "S3", "S4", "1", "0", ""], // yürüme yolu → PTH_008 sayılmaz
+            vec!["P3", "S3", "S4", "1", "0", ""], // walkway → does not count as PTH_008
         ]);
         let (_, notices) = validate_pathways(&file);
         let pth008: Vec<_> = notices.iter().filter(|n| n.rule_id == "PTH_008").collect();
@@ -826,12 +827,12 @@ mod tests {
             name: "pathways.txt".into(),
             headers: headers.iter().map(|s| s.to_string()).collect(),
             rows: [
-                ["P1", "S1", "S2", "3", "0", ""], // yürüyen bant → sayılır
-                ["P2", "S2", "S3", "4", "0", ""], // yürüyen merdiven → sayılır
-                ["P3", "S3", "S4", "5", "0", ""], // asansör → sayılır
-                ["P4", "S4", "S5", "1", "0", ""], // yürüme yolu → PTH_029 DEĞİL (PTH_025'in alanı)
+                ["P1", "S1", "S2", "3", "0", ""], // moving walkway → counts
+                ["P2", "S2", "S3", "4", "0", ""], // escalator → counts
+                ["P3", "S3", "S4", "5", "0", ""], // elevator → counts
+                ["P4", "S4", "S5", "1", "0", ""], // walkway → NOT PTH_029 (PTH_025's domain)
                 ["P5", "S5", "S6", "4", "0", "30"],
-            ] // dolu → sayılmaz
+            ] // populated → does not count
             .into_iter()
             .map(|r| r.into_iter().map(SmolStr::from).collect())
             .collect(),

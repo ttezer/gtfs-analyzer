@@ -1,18 +1,18 @@
-//! ÜRETİLMİŞ DOSYA — elle düzenlemeyin.
+//! GENERATED FILE — do not edit by hand.
 //!
-//! Kaynak  : `spec-audit/spec_fields.json` (o da üretilmiş: `spec-audit/extract_fields.py`)
-//! Üretim  : `python3 spec-audit/gen_translatable_fields.py`
+//! Source  : `spec-audit/spec_fields.json` (it is also generated: `spec-audit/extract_fields.py`)
+//! Generation: `python3 spec-audit/gen_translatable_fields.py`
 //! Drift   : `python3 spec-audit/gen_translatable_fields.py --check`
 //!
-//! Spec'in `translations.txt::field_name` hakkındaki TEK hükmü tür eksenindedir
+//! The spec's ONLY rule for `translations.txt::field_name` concerns the type axis
 //! (`P7c7134fe`, soft): *"Fields with other types should not be translated."*
-//! Çevrilebilir türler: Email, Phone number, Text, URL.
+//! Translatable types: Email, Phone number, Text, URL.
 //!
-//! ⚠️ Tabloda OLMAYAN bir alan hakkında bu dosya hüküm vermez. Uzantı alanları
-//! (`jp_trip_desc_symbol` gibi) spec kataloğunda yoktur ve türleri bilinmez;
-//! `spec_field_is_translatable` orada `None` döner ve çağıran SUSMALIDIR.
+//! ⚠️ This file makes no ruling about a field NOT IN THE TABLE. Extension fields
+//! (such as `jp_trip_desc_symbol`) are absent from the spec catalog and their types are unknown;
+//! `spec_field_is_translatable` returns `None` there and the caller MUST STAY SILENT.
 
-/// `translations.txt::table_name` için resmi GTFS tablo adları.
+/// Official GTFS table names for `translations.txt::table_name`.
 pub(crate) const SPEC_TRANSLATION_TABLES: &[&str] = &[
     "agency",
     "areas",
@@ -46,8 +46,8 @@ pub(crate) const SPEC_TRANSLATION_TABLES: &[&str] = &[
     "trips",
 ];
 
-/// (tablo, alan, çevrilebilir tür mü) — (tablo, alan)'a göre SIRALI;
-/// `binary_search_by` bunu varsayar.
+/// (table, field, translatable type?) — SORTED by (table, field);
+/// `binary_search_by` relies on this.
 pub(crate) const SPEC_TRANSLATION_FIELDS: &[(&str, &str, bool)] = &[
     ("agency", "agency_email", true),
     ("agency", "agency_fare_url", true),
@@ -262,8 +262,8 @@ pub(crate) const SPEC_TRANSLATION_FIELDS: &[(&str, &str, bool)] = &[
     ("trips", "wheelchair_accessible", false),
 ];
 
-/// `Some(true)` çevrilebilir tür · `Some(false)` bilinen ama çevrilemez tür ·
-/// `None` spec kataloğunda yok (uzantı alanı) → hüküm verilemez.
+/// `Some(true)` translatable type · `Some(false)` known but non-translatable type ·
+/// `None` absent from the spec catalog (extension field) → no ruling is possible.
 pub(crate) fn spec_field_is_translatable(table: &str, field: &str) -> Option<bool> {
     SPEC_TRANSLATION_FIELDS
         .binary_search_by(|(t, f, _)| (*t, *f).cmp(&(table, field)))

@@ -6,10 +6,10 @@ use gtfs_config::ValidatorConfig;
 use gtfs_core::{EntityType, FatalCode, FatalError, Notice, PartialReport, Severity};
 use smol_str::SmolStr;
 
-/// Debug-only K1 izleme. Release WASM derlemesinde (debug_assertions kapalı) ve
-/// native'de tamamen derlenip çıkarılır — sıfır runtime maliyeti, hiçbir Notice
-/// veya akış etkisi yok. (Profilde DevTools açıkken WASM stack sembolizasyonu
-/// her console çağrısını felç edici yavaşlattığı için kapatıldı.)
+/// Debug-only K1 tracing. It is fully compiled out in release WASM builds
+/// (with debug_assertions disabled) and native builds — zero runtime cost and no effect on
+/// Notices or control flow. (It was disabled because WASM stack symbolisation with DevTools
+/// open made every console call cripplingly slow during profiling.)
 macro_rules! k1dbg {
     ($($arg:tt)*) => {{
         #[cfg(all(target_family = "wasm", debug_assertions))]
@@ -17,7 +17,7 @@ macro_rules! k1dbg {
     }};
 }
 
-// ── GTFS dosya listeleri ──────────────────────────────────────────────────────
+// ── GTFS file lists ───────────────────────────────────────────────────────────
 
 const REQUIRED_FILES: &[&str] = &[
     "agency.txt",
@@ -29,8 +29,8 @@ const REQUIRED_FILES: &[&str] = &[
 
 const CALENDAR_FILES: &[&str] = &["calendar.txt", "calendar_dates.txt"];
 
-/// `agency.csv` gibi: bir GTFS dosyasının gövdesini taşıyıp uzantısı `.txt` olmayan girdi.
-/// Konumdan bağımsızdır; çağıran taraf kök/alt dizin ayrımını kendi yapar.
+/// An input such as `agency.csv` that carries a GTFS file body but does not have a `.txt`
+/// extension. It is independent of location; the caller handles root/subdirectory layout.
 fn gtfs_stem_with_wrong_extension(path: &str) -> bool {
     let base = path
         .rsplit(['/', '\\'])
@@ -79,39 +79,39 @@ pub(crate) const KNOWN_FILES: &[&str] = &[
     "booking_rules.txt",
     "location_groups.txt",
     "location_group_stops.txt",
-    // GTFS-JP uzantıları (Japonya standardı)
+    // GTFS-JP extensions (Japanese standard)
     "agency_jp.txt",
     "routes_jp.txt",
     "office_jp.txt",
     "pattern_jp.txt",
 ];
 
-// ── Tipler ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-/// Ham CSV verisi: başlıklar + satırlar. Tip/enum kontrolü K2'de yapılır.
+/// Raw CSV data: headers + rows. Type/enum checks run in K2.
 #[derive(Debug, Default)]
 pub struct RawFile {
     pub name: String,
     pub headers: Vec<String>,
-    /// Her satır, başlıklarla aynı indekste hizalanmış ham string değerleri taşır.
-    /// SmolStr: ≤22 bayt alanlar inline saklanır (heap alloc yok); daha uzunlar Arc<str>.
+    /// Each row contains raw string values aligned with the headers by index.
+    /// SmolStr: fields ≤22 bytes are stored inline (no heap allocation); longer ones use Arc<str>.
     ///
-    /// NOT: Çok büyük dosyalarda (stop_times.txt) bellek için bu alan BOŞ bırakılır;
-    /// ham gövde `raw_text`'te tutulur ve K2 tarafından streaming parse edilir (OOM fix Plan A).
+    /// NOTE: for very large files (stop_times.txt), this field is left EMPTY to save memory;
+    /// the raw body is kept in `raw_text` and parsed by K2 as a stream (OOM fix Plan A).
     pub rows: Vec<Vec<SmolStr>>,
-    /// Sıkıştırılmamış dosya boyutu (bayt). Büyük dosyalarda READ_LIMIT ile kırpılabilir.
+    /// Uncompressed file size (bytes). Large files may be truncated by READ_LIMIT.
     pub bytes: u32,
-    /// Streaming parse edilen dosyalar (stop_times.txt) için BOM'suz, UTF-8 doğrulanmış
-    /// ham metin (başlık dahil). `rows` boş kaldığında K2 bunu satır satır işler.
-    /// Diğer tüm dosyalarda `None`.
+    /// BOM-free, UTF-8-validated raw text (including the header) for files parsed as streams
+    /// (stop_times.txt). K2 processes it line by line when `rows` is empty.
+    /// `None` for all other files.
     pub raw_text: Option<String>,
-    /// ZIP içindeki GERÇEK girdi adı — yalnız `name`den farklıysa doludur.
+    /// The REAL entry name inside the ZIP — populated only when it differs from `name`.
     ///
-    /// Sarılı feed'de (`TestFlex1/stop_times.txt`) K1 kök önekini düşer ve dosyayı
-    /// `stop_times.txt` adıyla işler. K2 ise büyük dosyaları ZIP'i YENİDEN AÇARAK stream
-    /// eder; `by_name("stop_times.txt")` sarılı arşivde HİÇBİR ŞEY bulamaz ve dosya
-    /// sessizce boş sayılırdı. 13. korpus koşumunda ölçüldü: ARC_024 ateşleyen **44
-    /// feed'in 44'ünde** tek bir `STM_*` kuralı bile ateşlemiyordu.
+    /// In a wrapped feed (`TestFlex1/stop_times.txt`), K1 drops the root prefix and processes
+    /// the file as `stop_times.txt`. K2 reopens the ZIP to stream large files; `by_name("stop_times.txt")`
+    /// finds NOTHING in a wrapped archive, so the file was silently treated as empty. Measured
+    /// in the 13th corpus run: in **all 44 of the 44** feeds triggering ARC_024, not one `STM_*`
+    /// rule fired.
     pub zip_entry_name: Option<String>,
 }
 
@@ -122,26 +122,26 @@ pub struct K1Result {
     pub files: RawFiles,
     pub notices: Vec<Notice>,
     pub partial: PartialReport,
-    /// K1 tarafından keşfedilen dosyalar; bozuk/eksik optional dosyalar için
-    /// dependency-aware recovery planı bunun üzerinden kurulur.
+    /// Files discovered by K1; the dependency-aware recovery plan for broken/missing optional
+    /// files is built from this set.
     pub present_files: HashSet<String>,
-    /// `stops.txt`'in koşullu yokluğunu yalnızca yapısal olarak geçerli Flex bölgeleri
-    /// karşılıyorsa K1'de geçici olarak kabul ederiz; dosya adının veya yalnızca okunabilen
-    /// bir poligonun varlığı yeterli değildir. Tam pipeline, K2'den sonra bu kümedeki en az
-    /// bir kimliğin `stop_times.location_id` tarafından kullanıldığını da doğrular.
+    /// Temporarily accept the conditional absence of `stops.txt` in K1 only when structurally
+    /// valid Flex locations justify it; the file name or a merely readable polygon is not enough.
+    /// After K2, the full pipeline also verifies that at least one ID in this set is used by
+    /// `stop_times.location_id`.
     pub has_valid_locations_geojson: bool,
-    /// Zorunlu Feature üyeleri ve geometrisi eksiksiz, benzersiz string `id` değerleri.
-    /// `geojson_location_ids` tüm yazılmış kimlikleri XFL_025 için korurken bu dar küme
-    /// yalnız `stops.txt` Flex muafiyetinin kanıtıdır.
+    /// Unique string `id` values whose required Feature members and geometry are complete.
+    /// While `geojson_location_ids` retains every written ID for XFL_025, this narrower set is
+    /// only evidence for the `stops.txt` Flex exemption.
     pub valid_geojson_location_ids: std::collections::HashSet<String>,
-    /// locations.geojson feature 'id' kümesi (XFL_025: stop_times.location_id cross-ref).
+    /// Set of locations.geojson feature 'id' values (XFL_025: stop_times.location_id cross-ref).
     pub geojson_location_ids: std::collections::HashSet<String>,
-    /// locations.geojson feature 'id' → GEOMETRİ (Pa1fdaa0d için K6'ya taşınır).
+    /// locations.geojson feature 'id' → GEOMETRY (moved to K6 for Pa1fdaa0d).
     ///
-    /// ⚠️ 2026-08-06 dış denetimi: geometri saklanmadığı için "aynı trip'te geojson
-    /// bölgesi + zaman penceresi + pickup/drop_off davranışı EŞZAMANLI örtüşemez" hükmü
-    /// **yanlışlıkla KAPSAM DIŞI** işaretlenmişti. Gerekçe mimari eksikti, doğrulanamazlık
-    /// değil — hükmün her girdisi feed'in içinde. Bu alan o eksiği kapatır.
+    /// ⚠️ 2026-08-06 external audit: because geometry was not retained, the rule that "a geojson
+    /// region + time window + pickup/drop_off behavior cannot overlap in the same trip" was
+    /// **mistakenly marked OUT OF SCOPE**. The architecture was incomplete, not the evidence —
+    /// every input to the rule is inside the feed. This field closes that gap.
     pub geojson_geometries: std::collections::HashMap<String, LocationGeometry>,
     /// Unknown root-level `.txt` files and their parsed headers. K2 cannot retain
     /// unknown files because it only materialises typed GTFS records, but K4 needs
@@ -149,24 +149,24 @@ pub struct K1Result {
     pub custom_file_headers: std::collections::HashMap<String, Vec<String>>,
 }
 
-/// Bir `locations.geojson` feature'ının geometrisi: dış ring'ler + bounding box.
+/// Geometry of a `locations.geojson` feature: outer rings + bounding box.
 ///
-/// Delikler BİLİNÇLİ tutulmaz: örtüşme testi için dış sınır yeterlidir ve deliği hesaba
-/// katmamak yalnız YANLIŞ POZİTİF yönünde değil, "örtüşüyor" derken daha KAPSAYICI
-/// davranmak demektir — hüküm bir YASAK olduğu için bu yön güvenli değildir, bu yüzden
-/// örtüşme kararı ayrıca kesişme/kapsama ile doğrulanır (bkz. `polygons_overlap`).
+/// Holes are deliberately not retained: the outer boundary is enough for the overlap test, and
+/// ignoring holes makes an "overlap" decision more INCLUSIVE, not merely more prone to FALSE
+/// POSITIVES. Because the rule is a PROHIBITION, that direction is unsafe, so the overlap
+/// decision is also verified by intersection/containment (see `polygons_overlap`).
 #[derive(Debug, Clone, Default)]
 pub struct LocationGeometry {
-    /// Her Polygon'un DIŞ ring'i (MultiPolygon'da birden çok olur).
+    /// The OUTER ring of each Polygon (there may be several in a MultiPolygon).
     pub outer_rings: Vec<Vec<(f64, f64)>>,
-    /// (min_lon, min_lat, max_lon, max_lat) — ucuz ön eleme.
+    /// (min_lon, min_lat, max_lon, max_lat) — cheap pre-filter.
     pub bbox: (f64, f64, f64, f64),
 }
 
-// ── Notice yardımcısı ─────────────────────────────────────────────────────────
+// ── Notice helper ──────────────────────────────────────────────────────────────
 
-// Notice alanları canonical emit tablosuyla aynı sırada tutulur; parametre struct'ı
-// bu düşük seviyeli yardımcıda çağrıların okunabilirliğini azaltır.
+// Notice fields stay in the same order as the canonical emit table; the parameter struct keeps
+// calls to this low-level helper readable.
 #[allow(clippy::too_many_arguments)]
 fn make_notice(
     counter: &mut u32,
@@ -180,7 +180,7 @@ fn make_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    // K1 scope_key ve expected_value üretmez — ikisi de sabit None.
+    // K1 does not produce scope_key or expected_value — both are always None.
     crate::notice_factory::build(
         "K1",
         Some("k1"),
@@ -199,64 +199,65 @@ fn make_notice(
     )
 }
 
-// ── UTF-8 BOM ─────────────────────────────────────────────────────────────────
+// ── UTF-8 BOM ──────────────────────────────────────────────────────────────────
 
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
-/// ZIP merkezi-dizininde beyan edilen (saldırgan-kontrollü) açılmış boyuttan
-/// ön-tahsis edilecek en büyük tampon. `zf.size()` güvenilmez olduğundan, bir arşiv
-/// yalnızca devasa bir boyut *beyan ederek* ilk bayt okunmadan büyük bir Vec alloc'una
-/// zorlayabilir. Beyanı bu tavana kapatırız; gerçek baytlar geldikçe Vec büyür, yani
-/// meşru büyük dosyalar için davranış değişmez, yalnızca başlangıç kapasitesi sınırlanır.
+/// Maximum buffer to preallocate from the decompressed size declared in the ZIP central
+/// directory (attacker-controlled). Because `zf.size()` is untrusted, an archive could force
+/// a large Vec allocation before the first byte is read simply by *declaring* an enormous size.
+/// We cap the declaration here; the Vec still grows as real bytes arrive, so legitimate large
+/// files behave the same and only the initial capacity is limited.
 const MAX_PREALLOC: usize = 64 * 1024 * 1024; // 64 MiB
 
-/// Merkezi dizin ve pahalı opsiyonel girdiler için sabit güvenlik bütçeleri.
-/// Bunlar normal GTFS feed'lerinin kapsamını daraltmaz; yalnızca saldırganın
-/// doğrulama sırasında sınırsız metadata/JSON ve geometrik karşılaştırma
-/// üretmesini engeller.
+/// Fixed safety budgets for the central directory and expensive optional entries.
+/// These do not narrow the scope of normal GTFS feeds; they only prevent an attacker from
+/// producing unbounded metadata/JSON and geometric comparisons during validation.
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_GEOJSON_BYTES: u64 = 64 * 1024 * 1024;
 
-/// K1 ham dosya tamponu için başlangıç kapasitesi: beyan edilen boyutu [`MAX_PREALLOC`]
-/// ile sınırlar ve en az 1 döndürür (sıfır-kapasite alloc'u anlamsız).
+/// Initial capacity for a K1 raw-file buffer: cap the declared size at [`MAX_PREALLOC`] and
+/// return at least 1 (a zero-capacity allocation is pointless).
 #[inline]
 fn prealloc_capacity(uncompressed_hint: usize) -> usize {
     uncompressed_hint.clamp(1, MAX_PREALLOC)
 }
 
-/// Yerel dosya başlığı (local file header) imzası ve sabit uzunluğu.
+/// Local file header signature and fixed length.
 const LFH_SIGNATURE: u32 = 0x0403_4b50;
 const LFH_LEN: usize = 30;
-/// Merkez dizin girdisi (central directory header) imzası ve sabit uzunluğu.
+/// Central directory header signature and fixed length.
 const CDH_SIGNATURE: u32 = 0x0201_4b50;
 const CDH_LEN: usize = 46;
-/// Merkez dizin sonu (end of central directory) imzası ve sabit uzunluğu.
+/// End-of-central-directory signature and fixed length.
 const EOCD_SIGNATURE: u32 = 0x0605_4b50;
 const EOCD_LEN: usize = 22;
-/// EOCD, dosya sonundan en çok comment uzunluğu (64 KB) kadar geride olabilir.
+/// EOCD can be at most the comment length (64 KB) before the end of the file.
 const EOCD_SEARCH_WINDOW: usize = 65_557;
-/// Data descriptor imzası. APPNOTE'a göre bu imza OPSİYONELDİR; iki biçim de okunur.
+/// Data descriptor signature. According to APPNOTE, this signature is OPTIONAL; both forms are read.
 const DATA_DESCRIPTOR_SIGNATURE: u32 = 0x0807_4b50;
-/// Data descriptor bayrağı (general purpose bit flag, bit 3).
+/// Data descriptor flag (general purpose bit flag, bit 3).
 const FLAG_DATA_DESCRIPTOR: u16 = 0x0008;
-/// zip64 kaçış değeri — gerçek boyut extra field'da taşınır, 32-bit alan okunamaz.
+/// zip64 sentinel — the real size is carried in the extra field; the 32-bit field cannot be read.
 const ZIP64_SENTINEL: u32 = 0xFFFF_FFFF;
 
-/// `ZipArchive::new` başarısız olduğunda BOZUKLUĞUN KATMANINI söyler.
+/// Identifies the layer of corruption when `ZipArchive::new` fails.
 ///
-/// 🔴 Neden gerekli: `zip` crate'i (2.4.2) bozuk bir girdide de "Could not find EOCD" döndürüyor
-/// ve bu mesajı olduğu gibi aktarmak kullanıcıyı YANLIŞ yere bakmaya yönlendiriyordu. Ölçüm
-/// (`tld-5895`, korpusun tek `ZipUnreadable` feed'i): EOCD offset 855.231'de KUSURSUZ, merkez
-/// dizinin 9 girdisi de kusursuz; bozuk olan tek şey `stop_times.txt`'in yerel başlığı
-/// (offset 570.618, imza yerine sıfır baytlar) — önceki girdinin sıkıştırılmış verisi taşmış.
-/// `unzip -t` aynı offseti veriyor, biz "arşivin sonu kesik" diyorduk.
+/// 🔴 Why this is needed: the `zip` crate (2.4.2) also returns "Could not find EOCD" for a
+/// corrupt entry, and passing that message through sent users in the WRONG direction. In the
+/// measurement (`tld-5895`, the corpus's only `ZipUnreadable` feed), the EOCD at offset 855.231
+/// was INTACT and all 9 central-directory entries were intact; only the local header of
+/// `stop_times.txt` was corrupt (offset 570.618, zero bytes instead of the signature) — the
+/// previous entry's compressed data had overrun it. `unzip -t` reports the same offset; we used
+/// to say "the end of the archive was truncated."
 ///
-/// `None` → ham byte'lardan ek bir şey söylenemiyor; çağıran yalnız kütüphane mesajını verir.
-/// zip64 arşivleri ATLANIR: 32-bit EOCD alanları kaçış değeri taşır, gerçek offset zip64
-/// kaydındadır ve buradan okunamaz; okunamayanı "bozuk" saymak yanlış teşhis olurdu.
-/// `diagnose_unreadable_zip` sonucu: Türkçe metin (pipeline mesajı) + çeviri için tür ve
-/// parametreler. Tür, fatal şablonunun varyantını seçer (`archive.local_header` gibi).
+/// `None` → nothing more can be determined from the raw bytes; the caller only returns the
+/// library message. zip64 archives are SKIPPED: 32-bit EOCD fields contain sentinel values, the
+/// real offset is in the zip64 record, and it cannot be read here; calling the unreadable part
+/// "corrupt" would be a false diagnosis. The `diagnose_unreadable_zip` result contains Turkish
+/// text (the pipeline message) plus the type and parameters for translation. The type selects
+/// the fatal-template variant (such as `archive.local_header`).
 #[derive(Debug)]
 struct ZipDiagnosis {
     kind: &'static str,
@@ -276,7 +277,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
             .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     };
 
-    // 1) EOCD: dosya sonundan geriye doğru, comment penceresi kadar.
+    // 1) EOCD: search backwards from the end of the file through the comment window.
     let start = zip_bytes.len().saturating_sub(EOCD_SEARCH_WINDOW);
     let eocd = (start..zip_bytes.len().saturating_sub(EOCD_LEN - 1))
         .rev()
@@ -285,11 +286,11 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
     let cd_offset = read_u32(eocd + 16)?;
     let entry_count = read_u16(eocd + 10)?;
     if cd_offset == ZIP64_SENTINEL || entry_count == u16::MAX {
-        return None; // zip64 → gerçek değerler başka kayıtta
+        return None; // zip64 → the real values are in another record
     }
     let cd_offset = cd_offset as usize;
 
-    // 2) Merkez dizin, EOCD'nin işaret ettiği yerde mi?
+    // 2) Is the central directory where EOCD points?
     if read_u32(cd_offset) != Some(CDH_SIGNATURE) {
         return Some(ZipDiagnosis {
             kind: "cd_signature",
@@ -300,7 +301,7 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
         });
     }
 
-    // 3) Merkez dizin girdilerini yürü: her girdinin yerel başlığı yerinde mi?
+    // 3) Walk the central-directory entries: is each local header in place?
     let mut cursor = cd_offset;
     for _ in 0..entry_count {
         if read_u32(cursor) != Some(CDH_SIGNATURE) {
@@ -339,7 +340,8 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
         cursor += CDH_LEN + name_len + extra_len + comment_len;
     }
 
-    // EOCD, merkez dizin ve tüm yerel başlıklar yerinde: bozukluk girdi VERİSİNDE.
+    // EOCD, the central directory, and all local headers are in place: the corruption is in
+    // the entry DATA.
     Some(ZipDiagnosis {
         kind: "entry_data",
         params: Vec::new(),
@@ -348,19 +350,21 @@ fn diagnose_unreadable_zip(zip_bytes: &[u8]) -> Option<ZipDiagnosis> {
     })
 }
 
-/// ARC_036: bir girdinin AKIŞ görünümü (yerel başlık + data descriptor) merkez diziniyle
-/// çelişiyor mu?
+/// ARC_036: does an entry's STREAM view (local header + data descriptor) contradict the
+/// central directory?
 ///
 /// `entries`, merkez dizinden okunan `(header_start, compressed_size, uncompressed_size, crc32)`
-/// dörtlüleridir. Yalnız data-descriptor bayrağı set olan girdiler incelenir; descriptor hiç
-/// yoksa ya da içindeki üçlü merkez dizinle tutmuyorsa girdi tutarsız sayılır.
+/// quadruples read from the central directory. Only entries with the data-descriptor flag set
+/// are inspected; an entry is inconsistent if the descriptor is absent or its triple does not
+/// match the central directory.
 ///
-/// 🔑 Bayrağın set olması TEK BAŞINA kusur DEĞİLDİR — korpus örnekleminin %40'ı descriptor'ı
-/// kurallara uygun kullanıyor (yerel boyutlar 0, descriptor yerinde ve doğru). Karşılaştırma
-/// yapılmadan ateşlenirse ~1.700 feed'e yanlış bulgu basılır.
+/// 🔑 Setting the flag is NOT A DEFECT BY ITSELF — 40% of the corpus sample uses descriptors
+/// correctly (local sizes are 0, and the descriptor is present and correct). Firing without a
+/// comparison would produce a false finding on ~1,700 feeds.
 ///
-/// zip64 girdileri ATLANIR: 32-bit alanlar `0xFFFFFFFF` kaçışını taşır, gerçek değer extra
-/// field'dadır ve buradan okunamaz — okunamayan şeyi "çelişkili" saymak FP üretir.
+/// zip64 entries are SKIPPED: 32-bit fields contain the `0xFFFFFFFF` sentinel, the real value
+/// is in the extra field and cannot be read here — treating an unreadable value as
+/// "inconsistent" would produce a false positive.
 fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64, u32)]) -> usize {
     let mut inconsistent = 0usize;
     for &(header_start, csize, usize_declared, crc) in entries {
@@ -388,8 +392,8 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
         {
             continue;
         }
-        // Verinin bittiği yer MERKEZ DİZİNDEKİ boyutla bulunur; yerel alan (kurallara uygun
-        // akış zip'inde) sıfırdır ve buradan konum hesaplanamaz.
+        // The end of the data is found from the central-directory size; the local field is zero
+        // in a compliant streaming ZIP and cannot be used to calculate the position.
         let Ok(csize_usize) = usize::try_from(csize) else {
             continue;
         };
@@ -399,7 +403,7 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
             .saturating_add(extra_len)
             .saturating_add(csize_usize);
         let Some(head) = zip_bytes.get(data_end..data_end.saturating_add(4)) else {
-            inconsistent += 1; // descriptor için yer bile yok
+            inconsistent += 1; // there is not even room for the descriptor
             continue;
         };
         let body_off = if u32::from_le_bytes([head[0], head[1], head[2], head[3]])
@@ -423,8 +427,8 @@ fn count_inconsistent_stream_headers(zip_bytes: &[u8], entries: &[(u64, u64, u64
     inconsistent
 }
 
-/// GuardedReader okuma hatasını Fatal'a çevirir: guard tetiklendiyse ARC_029
-/// (DecompressionLimit), aksi halde ham ZIP okuma hatası (ARC_001 ZipUnreadable).
+/// Converts a GuardedReader read error to a Fatal: ARC_029 (DecompressionLimit) if the guard
+/// tripped, otherwise the raw ZIP read error (ARC_001 ZipUnreadable).
 fn read_fatal<R: Read>(
     guarded: &GuardedReader<'_, R>,
     raw_name: &str,
@@ -456,22 +460,22 @@ fn read_fatal<R: Read>(
     }
 }
 
-/// Kısmi okunan tamponu son TAM UTF-8 karakter sınırına kırpar.
+/// Truncates a partially read buffer to the last COMPLETE UTF-8 character boundary.
 ///
-/// YALNIZ `is_zip_stream` (8 KB başlık okuması) için çağrılır: oradaki eksik kuyruk
-/// BİZİM kesme noktamızın eseridir, dosyanın kusuru değil.
+/// Called ONLY for `is_zip_stream` (the 8 KB header read): the incomplete tail there is caused
+/// by OUR cut-off point, not by a defect in the file.
 ///
-/// **Gerçek bozuk baytları GİZLEMEZ.** `Utf8Error` iki durumu ayırır:
-/// - `error_len() == None`  → "girdi beklenmedik şekilde bitti" = yarım karakter
-///   (yalnızca tamponun EN SONUNDA olabilir) → kırp, sorun yok.
-/// - `error_len() == Some(n)` → gövdede geçersiz bayt dizisi → DOKUNMA; ARC_002 /
-///   Utf8Critical eskisi gibi tetiklenir.
+/// **Does not HIDE genuinely invalid bytes.** `Utf8Error` distinguishes two cases:
+/// - `error_len() == None` → "input ended unexpectedly" = an incomplete character
+///   (it can occur only at the END of the buffer) → truncate; no problem.
+/// - `error_len() == Some(n)` → invalid byte sequence in the body → DO NOT TOUCH; ARC_002 /
+///   Utf8Critical still fires as before.
 ///
-/// `from_utf8` İLK hatayı bildirdiğinden, gövdede gerçek bir hata varsa `Some` döner
-/// ve kırpma yapılmaz — yani gerçek ihlal her zaman kazanır.
+/// Because `from_utf8` reports the FIRST error, a genuine body error returns `Some` and is not
+/// truncated — genuine violations always win.
 ///
-/// Regresyon: mdb-3176 (JP), mdb-1834 (LT), mdb-1831 (TH) — üçü de geçerli UTF-8
-/// trips.txt'e sahipken 8190-8191. bayttaki kesik yüzünden feed'i fatal ediyordu.
+/// Regression: mdb-3176 (JP), mdb-1834 (LT), mdb-1831 (TH) — all had valid UTF-8 in
+/// trips.txt but were made fatal by a cut at bytes 8190–8191.
 fn truncate_to_utf8_boundary(buf: &mut Vec<u8>) {
     if let Err(e) = std::str::from_utf8(buf) {
         if e.error_len().is_none() {
@@ -495,28 +499,28 @@ fn has_malformed_eol(bytes: &[u8]) -> bool {
         .any(|(i, b)| *b == b'\r' && bytes.get(i + 1) != Some(&b'\n'))
 }
 
-// ── CSV tokenizer ─────────────────────────────────────────────────────────────
+// ── CSV tokenizer ──────────────────────────────────────────────────────────────
 
-/// RFC 4180 ihlali birikimi — `ARC_033`. DOSYA başına TEK notice (`Arc032Acc` deseni).
+/// RFC 4180 violation accumulator — `ARC_033`. ONE notice per FILE (`Arc032Acc` pattern).
 ///
-/// 🔴 **Neden burada, ayrıştırılmış değerde DEĞİL:** tespit alan SINIRLARINI bilmeyi
-/// gerektirir. `"12"" Street"` (GEÇERLİ) ile `12" Street` (İHLAL) ayrıştırıldıktan sonra
-/// AYNI değeri üretir: `12" Street`. Değere bakan bir denetim ikisini ayıramaz ve geçerli
-/// veriyi ihlal sayardı. Bu yüzden karar tokenizer'da, alan tırnaklı mı tırnaksız mı
-/// bilindiği yerde verilir.
+/// 🔴 **Why here, NOT in the parsed value:** detection needs to know the field BOUNDARIES.
+/// After parsing, `"12"" Street"` (VALID) and `12" Street` (VIOLATION) produce the SAME value:
+/// `12" Street`. A value-based check cannot distinguish them and would mark valid data as a
+/// violation. Therefore the decision is made in the tokenizer, where it is known whether the
+/// field was quoted or unquoted.
 #[derive(Default, Clone)]
 pub(crate) struct Rfc4180Acc {
     pub rows: u64,
     pub first_line: Option<u64>,
     pub example: Option<String>,
-    /// İhlalin türü — iki ayrı spec cümlesi (bkz. `ARC_033` kartı).
+    /// Violation type — two separate spec sentences (see the `ARC_033` card).
     pub kind: Option<&'static str>,
     last_line: u64,
 }
 
-/// GTFS File Requirements iki ayrı cümle kurar ve ikisi de bu kuralın konusudur:
+/// GTFS File Requirements uses two separate sentences, and both are in scope for this rule:
 /// *"Field values that contain quotation marks or commas must be enclosed within quotation
-/// marks."* ve *"In addition, each quotation mark in the field value must be preceded with
+/// marks."* and *"In addition, each quotation mark in the field value must be preceded with
 /// a quotation mark."*
 const ARC033_REMEDIATION: &str =
     "Tırnak veya virgül içeren alan değerlerini tırnak içine alın; değerin içindeki her \
@@ -567,14 +571,14 @@ impl Rfc4180Acc {
     }
 }
 
-/// RFC 4180 uyumlu CSV tokenizer. Byte-level scanner; büyük dosyalarda hızlı.
-/// `max_data_rows`: başlık hariç maksimum satır sayısı (None = sınırsız).
-/// Limit aşıldığında kalan baytlar işlenmez; dönen vec truncated olur.
+/// RFC 4180-compatible CSV tokenizer. Byte-level scanner; fast on large files.
+/// `max_data_rows`: maximum number of rows excluding the header (None = unlimited).
+/// When the limit is exceeded, remaining bytes are not processed and the returned vec is truncated.
 ///
-/// Üçüncü dönüş değeri RFC 4180 ihlallerinin birikimidir (`ARC_033`); tokenizer HATA
-/// vermez, ayrıştırmaya bugünkü gibi devam eder. Bilinçli: ihlal edilmiş bir tırnak
-/// veriyi okunamaz yapmıyor, `ARC_013`'e (zorunlu dosyada FATAL) bağlamak geçerliye yakın
-/// feed'leri reddetmek olurdu — `PTH_017` asimetrisi.
+/// The third return value accumulates RFC 4180 violations (`ARC_033`); the tokenizer does not
+/// return an ERROR and continues parsing as before. Deliberately: making a malformed quote make
+/// data unreadable and connecting it to `ARC_013` (FATAL for a required file) would reject
+/// near-valid feeds — the `PTH_017` asymmetry.
 fn tokenize_csv(
     text: &str,
     max_data_rows: Option<usize>,
@@ -591,14 +595,14 @@ fn tokenize_csv(
     let mut rfc = Rfc4180Acc::default();
 
     while pos < n {
-        // `records.len()` şu an kurulan kaydın indeksidir; başlık 0 → satır 1, ilk veri
-        // satırı 1 → satır 2. Çağıran döngü de aynı kabulü kullanıyor (`row_idx + 2`).
+        // `records.len()` is the index of the record being built; header 0 → row 1, first data
+        // row 1 → row 2. The caller's loop uses the same convention (`row_idx + 2`).
         let line_no = (records.len() + 1) as u64;
         let mut record: Vec<SmolStr> = Vec::with_capacity(col_hint);
 
         loop {
             if bytes[pos] == b'"' {
-                // Quoted field — SmolStr dönüştürme için geçici String gerekir
+                // Quoted field — converting to SmolStr requires a temporary String.
                 pos += 1;
                 let mut buf = String::new();
                 let mut closed = false;
@@ -625,22 +629,23 @@ fn tokenize_csv(
                 if !closed {
                     return Err("Kapanmamış tırnak işareti (unclosed quote)".to_string());
                 }
-                // RFC 4180: kapanış tırnağından sonra ayraç gelmeli. Gelmiyorsa alan
-                // içindeki bir tırnak KAÇIRILMAMIŞ demektir (`"Broadway"Ave`). Tokenizer
-                // bugüne dek burada sessizce kaydı bölüyordu — veri de kayboluyordu.
+                // RFC 4180: a delimiter must follow a closing quote. If it does not, a quote
+                // inside the field was NOT ESCAPED (`"Broadway"Ave`). Until now the tokenizer
+                // silently split the record here — and data was lost.
                 if pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
                     rfc.observe(line_no, RFC4180_AFTER_CLOSE, &buf);
-                    // 🔴 Kalan metin AYNI alana eklenir, YENİ bir alan açılmaz.
+                    // 🔴 The remaining text is appended to the SAME field; no NEW field is opened.
                     //
-                    // Eski davranış alanı burada kapatıyordu ve `"Thonon Les Arts" A compter
-                    // du 01/09/2026` gibi bir hücre İKİ alana bölünüyordu. Sonuç sütun
-                    // kaymasıdır: `tdg-80973/routes.txt`'te 7 satır böyle yazılmış ve
-                    // `route_id` bir sonraki sütuna kaydığı için `RTS_031` "route_id
-                    // zorunludur" diye Spec·KRİTİK bulgu üretiyordu — ARC_033'ün saydığı
-                    // 7 satırla BİREBİR aynı satırlar.
+                    // The old behavior closed the field here and split a cell such as
+                    // `"Thonon Les Arts" A compter du 01/09/2026` into TWO fields. The result
+                    // was column drift: 7 rows in `tdg-80973/routes.txt` were written this way,
+                    // and `route_id` shifted into the next column, producing a Spec·CRITICAL
+                    // finding that "route_id is required" for `RTS_031` — exactly the 7 rows
+                    // counted by ARC_033.
                     //
-                    // İhlal yine bildirilir (yukarıdaki `observe`); değişen, ihlalin VERİYİ
-                    // BOZMAMASI. Python'un `csv` modülü de aynı toleransı uygular.
+                    // The violation is still reported (by the `observe` above); what changes is
+                    // that the violation does NOT CORRUPT THE DATA. Python's `csv` module uses
+                    // the same tolerance.
                     while pos < n && !matches!(bytes[pos], b',' | b'\n' | b'\r') {
                         let b = bytes[pos];
                         if b < 0x80 {
@@ -655,7 +660,7 @@ fn tokenize_csv(
                 }
                 record.push(SmolStr::new(&buf));
             } else {
-                // Unquoted field — doğrudan slice'tan SmolStr (≤22 byte → inline, heap alloc yok)
+                // Unquoted field — SmolStr directly from the slice (≤22 bytes → inline, no heap allocation).
                 let start = pos;
                 let mut bare_quote = false;
                 while pos < n {
@@ -663,8 +668,8 @@ fn tokenize_csv(
                     if b == b',' || b == b'\n' || b == b'\r' {
                         break;
                     }
-                    // RFC 4180 §2.5: tırnaksız alanda tırnak GEÇEMEZ. Eski tarayıcı bunu
-                    // sıradan bir karakter sayıyordu, yani ihlal HİÇ görünmüyordu.
+                    // RFC 4180 §2.5: a quote MUST NOT occur in an unquoted field. The old scanner
+                    // treated it as an ordinary character, so the violation was NEVER reported.
                     bare_quote |= b == b'"';
                     pos += 1;
                 }
@@ -681,7 +686,7 @@ fn tokenize_csv(
                 b',' => {
                     pos += 1;
                     if pos >= n {
-                        // Sondaki virgül + newline yok: boş alan push et
+                        // Trailing comma with no newline: push an empty field.
                         record.push(SmolStr::new(""));
                         break;
                     }
@@ -706,7 +711,7 @@ fn tokenize_csv(
             col_hint = record.len();
             records.push(record);
             if let Some(max) = max_data_rows {
-                // records[0] başlık; veri satırı sayısı records.len()-1
+                // records[0] is the header; the number of data rows is records.len()-1.
                 if records.len().saturating_sub(1) > max {
                     records.pop();
                     truncated = true;
@@ -719,29 +724,30 @@ fn tokenize_csv(
     Ok((records, truncated, rfc))
 }
 
-// ── Şema yardımcıları ─────────────────────────────────────────────────────────
+// ── Schema helpers ────────────────────────────────────────────────────────────
 
-/// Dosya başına zorunlu sütun seti. Sütun başlıkta yoksa ARC_025; değer boşsa ilgili k2 grup kuralı.
+/// Required column set per file. A missing header produces ARC_025; an empty value is handled by
+/// the relevant K2 group rule.
 ///
-/// ⚠️ **ELLE BAKIMLI ve ARC_025 Kritik·Spec'tir** — buraya KOŞULLU bir alan yazmak geçerli bir
-/// feed'i yayından alıkoyar. 2026-08-02'de `transfers.from_stop_id`/`to_stop_id` tam olarak
-/// böyleydi (spec: "Optional if transfer_type is 4 or 5"). Liste artık spec'e karşı
-/// `required_columns_match_the_specification` testiyle kilitli.
+/// ⚠️ **MANUALLY MAINTAINED and ARC_025 Critical·Spec** — adding a CONDITIONAL field here blocks
+/// a valid feed from publication. That was exactly the case for
+/// `transfers.from_stop_id`/`to_stop_id` on 2026-08-02 (spec: "Optional if transfer_type is 4 or 5").
+/// The list is now locked against the spec by `required_columns_match_the_specification`.
 ///
-/// `pub`: üretimde tek çağıranı bu dosyadır, ama kapsam ölçümü (`emit_proof.rs`) bu listeyi
-/// **beyan edilmiş çapa kaynağı** olarak kullanır — ARC_025 eksik sütunu `field=<sütun>` ile
-/// emit eder ve mekanizma tek bir döngüdür, dolayısıyla listede olmak o alanın
-/// `presence:required` hükmünün denetlendiğinin kanıtıdır. (Fixture'la her sütunu tek tek
-/// tetiklemek ~100 fixture demek olurdu; CAL_002'de yapılan şey burada ölçeklenmiyor.)
+/// `pub`: this file is the only production caller, but scope measurement (`emit_proof.rs`) uses
+/// this list as the **declared anchor source** — ARC_025 emits the missing column as
+/// `field=<sütun>`, and the mechanism is one loop, so membership proves that the field's
+/// `presence:required` requirement is checked. (Triggering every column one by one with fixtures
+/// would require ~100 fixtures; what was done for CAL_002 does not scale here.)
 pub fn required_fields(filename: &str) -> &'static [&'static str] {
     match filename {
         "agency.txt" => &["agency_name", "agency_url", "agency_timezone"],
         "stops.txt" => &["stop_id"],
         "routes.txt" => &["route_id", "route_type"],
         "trips.txt" => &["route_id", "service_id", "trip_id"],
-        // stop_id KOŞULLU zorunlu (spec): "Required if stop_times.location_group_id AND
-        // stop_times.location_id are NOT defined. Forbidden if ... are defined." Koşul
-        // başlıklara bakılarak `required_fields_for` içinde uygulanır.
+        // stop_id is CONDITIONALLY required (spec): "Required if stop_times.location_group_id AND
+        // stop_times.location_id are NOT defined. Forbidden if ... are defined." The condition
+        // is applied in `required_fields_for` based on the headers.
         "stop_times.txt" => &["trip_id", "stop_sequence"],
         "calendar.txt" => &[
             "service_id",
@@ -763,15 +769,16 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
             "shape_pt_sequence",
         ],
         "frequencies.txt" => &["trip_id", "start_time", "end_time", "headway_secs"],
-        // ⚠️ `from_stop_id`/`to_stop_id` BURADA OLMAMALI — spec ikisini de KOŞULLU yapar:
+        // ⚠️ `from_stop_id`/`to_stop_id` MUST NOT BE HERE — the spec makes both conditional:
         // "Required if transfer_type is empty, 0, 1, 2, or 3. Optional if transfer_type is 4 or 5."
-        // 4/5 koltuk-içi aktarmalardır ve `from_trip_id`/`to_trip_id` kullanırlar. Yalnız 4/5
-        // aktarması olan GEÇERLİ bir feed, sütunları taşımadığı için ARC_025 (Kritik·Spec) alıyor
-        // ve R1'de düşüyordu — geçerli feed'i yayından alıkoyan bir yanlış pozitif.
-        // Gerçekten koşulsuz Required olan alan `transfer_type`'tır ve listede YOKTU.
-        // (2026-08-02, ARC_025'in listesi spec'le karşılaştırıldı.)
+        // 4/5 are onboard transfers and use `from_trip_id`/`to_trip_id`. A VALID feed with only
+        // type-4/5 transfers received ARC_025 (Critical·Spec) and failed R1 because it omitted
+        // these columns — a false positive that blocked a valid feed from publication.
+        // The only truly unconditional Required field is `transfer_type`, which was missing.
+        // (2026-08-02, the ARC_025 list was compared with the spec.)
         "transfers.txt" => &["transfer_type"],
-        // transfers boş = sınırsız transfer (geçerli GTFS değeri) — değer-boş kuralı tetiklenmemeli
+        // Empty transfers = unlimited transfers (a valid GTFS value) — the empty-value rule must
+        // not fire.
         "fare_attributes.txt" => &[
             "fare_id",
             "price",
@@ -798,9 +805,9 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
         "fare_media.txt" => &["fare_media_id", "fare_media_type"],
         "fare_products.txt" => &["fare_product_id", "amount", "currency"],
         "fare_leg_rules.txt" => &["fare_product_id"],
-        // Spec: dört alanın da bileşik birincil anahtar parçası; ağ alanları Required,
-        // durak alanları karşılıklı koşullu (FLJ_003/004 ölçer) → required_fields'a yalnız
-        // koşulsuz Required olan ikisi girer.
+        // Spec: all four fields are part of the composite primary key; network fields are
+        // Required, while stop fields are mutually conditional (measured by FLJ_003/004) → only
+        // the two unconditional Required fields belong in required_fields.
         "fare_leg_join_rules.txt" => &["from_network_id", "to_network_id"],
         "fare_transfer_rules.txt" => &["fare_transfer_type"],
         "areas.txt" => &["area_id"],
@@ -810,45 +817,46 @@ pub fn required_fields(filename: &str) -> &'static [&'static str] {
         "booking_rules.txt" => &["booking_rule_id", "booking_type"],
         "location_groups.txt" => &["location_group_id"],
         "location_group_stops.txt" => &["location_group_id", "stop_id"],
-        // organization_name spec'te Required; liste boş bırakılmıştı (2026-08-02'de eklendi).
+        // organization_name is Required in the spec; it was missing from the list (added on 2026-08-02).
         "attributions.txt" => &["organization_name"],
-        // route_networks.txt'in İKİ alanı da spec'te Required (dosya 2026-08-02'de tanıtıldı).
+        // Both fields in route_networks.txt are Required in the spec (the file was introduced on 2026-08-02).
         "route_networks.txt" => &["network_id", "route_id"],
         _ => &[],
     }
 }
 
-/// ARC_009: boş (yalnız-başlık) dosya KRİTİK mi? Zorunlu dosyalar (agency/stops/routes/trips/
-/// stop_times) + servis tanımlayan takvim dosyaları (calendar/calendar_dates) boşsa veri beklenen
-/// yerde yoktur → KRİTİK. Diğer OPSİYONEL dosyaların (transfers, fare_*, shapes, frequencies,
-/// translations, Fares v2/Flex/JP …) boş eklenmesi zararsızdır → BİLGİ'ye düşürülür.
+/// ARC_009: is an empty (header-only) file CRITICAL? If required files (agency/stops/routes/trips/
+/// stop_times) plus service-defining calendar files (calendar/calendar_dates) are empty, data is
+/// absent where it is expected → CRITICAL. Empty optional files (transfers, fare_*, shapes,
+/// frequencies, translations, Fares v2/Flex/JP …) are harmless → downgraded to INFO.
 fn arc009_critical(filename: &str) -> bool {
     REQUIRED_FILES.contains(&filename) || CALENDAR_FILES.contains(&filename)
 }
 
-/// Bu dosyanın OKUNAMAMASI yayın kararını sakatlar mı (issue #133).
+/// Would being unable to READ this file invalidate the publication decision (issue #133)?
 ///
-/// Zorunlu dosyalar + servis tanımlayan takvim dosyaları. Bunlardan biri okunamazsa ona
-/// bağlı kuralların hiçbiri koşmaz ve "bulgu yok" ifadesi "temiz" anlamına gelmez.
-/// İsteğe bağlı dosyalar (`attributions`, `fare_*`, `shapes`, …) BİLEREK dışarıda: onların
-/// kaybı koşumu PARTIAL yapar ama kapıyı düşürmemelidir.
+/// Required files plus service-defining calendar files. If one cannot be read, none of its
+/// dependent rules run, and "no findings" does not mean "clean".
+/// Optional files (`attributions`, `fare_*`, `shapes`, …) are deliberately excluded: losing one
+/// makes the run PARTIAL but must not fail the gate.
 pub fn is_certification_critical(filename: &str) -> bool {
     arc009_critical(filename)
 }
 
-/// DQ_016: baştaki/sondaki boşluk **ham sözlükbilimsel ihlaldir**. Bu, yalnız string/id
-/// alanları için değil, sayısal, enum, tarih ve saat alanları için de geçerlidir: parser'ın
-/// boşluğu tolere etmesi üretici girdisini değiştirmez. Tipli kontroller ham değeri görmeye
-/// devam eder; aşağı akıştaki yalnızca bu kök nedenden doğan bulgular K7'de bastırılır.
-/// DQ_016 dosya-seviyesi toplayıcı: boşluklu satır sayısı + etkilenen sütun kümesi + ham örnek.
+/// DQ_016: leading/trailing whitespace is a **raw lexical violation**. This applies not only to
+/// string/id fields but also to numeric, enum, date, and time fields: the parser tolerating
+/// whitespace does not change the producer's input. Typed checks continue to see the raw value;
+/// K7 suppresses only downstream findings caused by this root cause.
+/// DQ_016 file-level accumulator: count of rows with whitespace + affected column set + raw sample.
 ///
-/// **Neden özet, satır-başına değil:** baş/son boşluk tek bir ÜRETİCİ ALIŞKANLIĞIDIR
-/// (en sık: ayraç olarak `,` yerine `, ` yazmak) → dosyanın HER satırında çıkar.
-/// Satır-başına emit `mdb-992`'de **2.361.873** notice üretiyordu (feed toplamının
-/// %98,6'sı; MobilityData aynı feed'de 12) — tarayıcıyı OOM eden STM_050 vakasının
-/// aynısı. Tespit doğru (RFC 4180'e göre o boşluk alanın parçası), sorun sunum.
+/// **Why aggregate instead of emitting per row:** leading/trailing whitespace is one PRODUCER
+/// HABIT (most often writing `, ` instead of `,`) → it appears on EVERY row in the file.
+/// Per-row emission produced **2,361,873** notices in `mdb-992` (98.6% of the feed total;
+/// MobilityData produced 12 for the same feed) — the same case where STM_050 exhausted the
+/// browser. Detection is correct (under RFC 4180 the whitespace is part of the field); the
+/// problem is presentation.
 ///
-/// Üç emit sitesi de (K1 genel, K2 stop_times, K2 shapes) bunu kullanır.
+/// All three emit sites (general K1, K2 stop_times, K2 shapes) use this.
 #[derive(Default)]
 pub(crate) struct Dq016Acc {
     pub rows: u64,
@@ -859,7 +867,7 @@ pub(crate) struct Dq016Acc {
 }
 
 impl Dq016Acc {
-    /// Bir satırı işler. `values`/`headers` aynı sırada olmalı.
+    /// Processes one row. `values`/`headers` must have the same order.
     pub fn observe<'a>(
         &mut self,
         line: u64,
@@ -887,10 +895,10 @@ impl Dq016Acc {
         }
     }
 
-    /// Özet metni: (observed, mesaj, sütun listesi). Boşsa `None`.
-    /// Başka bir parçadan biriken sayaçları katar (stop_times chunk birleştirmesi).
-    /// `other` dosyada DAHA SONRA gelen parçadır; `first_line` en küçüğü, `last_line`
-    /// en büyüğü tutar, `rows` toplanır, `cols` birleşir.
+    /// Summary text: (observed, message, column list). `None` when empty.
+    /// Merges counters accumulated by another chunk (stop_times chunk merging).
+    /// `other` is the chunk that comes LATER in the file; keep the smallest `first_line`,
+    /// largest `last_line`, sum `rows`, and merge `cols`.
     #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Dq016Acc) {
         self.rows += other.rows;
@@ -925,21 +933,20 @@ impl Dq016Acc {
         ))
     }
 
-    /// DQ_016 kök bulgusuna ham değer kanıtı ekler. JSON'da boşluklar görünür kalır;
-    /// hiçbir değer trim edilmez veya kimlik olarak yeniden kullanılmaz.
+    /// Adds raw-value evidence to the DQ_016 root finding. Whitespace remains visible in JSON;
+    /// no value is trimmed or reused as an identity.
     ///
-    /// `typed_whitespace_fields` (#126): boşluğu kaldırılınca SAYI olarak okunabilen
-    /// alanlar. Bu alanlar, boşluk olmasaydı bir tip/aralık kuralına girecek olan
-    /// hücrelerdir — yani "boşluk yüzünden görünmeyen" olgunun asıl adresi.
+    /// `typed_whitespace_fields` (#126): fields that can be read as NUMBERS after whitespace is
+    /// removed. These are cells that would enter a type/range rule without the whitespace — the
+    /// actual location of the "hidden because of whitespace" phenomenon.
     ///
-    /// ⚠️ NEDEN AYRI BİR ANAHTAR GEREKTİ: K7 kök bulguya `suppressed_derivative_*`
-    /// yazar, ama o sayaç yalnızca türev NOTICE DOĞDUYSA oluşur. `stop_times`, `shapes`,
-    /// `trips` ve `calendar_dates` sütunlarını `get_col` ile okur ve o `.trim()` uygular,
-    /// yani bu dört dosyada türev hiç doğmaz ve anahtar hiç yazılmaz. Anahtarın yokluğu
-    /// "burada gizlenen bir şey yok" gibi okunuyordu; oysa okuyucunun rejimini
-    /// tarif ediyordu. Bu alan her iki rejimde de üretilir, böylece iki sayı
-    /// karşılaştırılabilir: türev doğan dosyada ikisi de dolu, trim eden dosyada
-    /// yalnız bu dolu.
+    /// ⚠️ WHY A SEPARATE KEY WAS NEEDED: K7 writes `suppressed_derivative_*` on the root finding,
+    /// but that counter exists only when a derivative NOTICE is created. `stop_times`, `shapes`,
+    /// `trips`, and `calendar_dates` read columns with `get_col` and apply `.trim()`, so no
+    /// derivative is created in those four files and the key is never written. The missing key
+    /// read as "nothing is hidden here", although it actually described the reader's regime.
+    /// This field is produced in both regimes so the numbers are comparable: both are populated
+    /// in a file that creates derivatives, while only this one is populated in a trimming file.
     pub(crate) fn evidence_details(&self) -> Option<std::collections::BTreeMap<String, String>> {
         if self.samples.is_empty() {
             return None;
@@ -957,9 +964,8 @@ impl Dq016Acc {
         .into_iter()
         .collect();
 
-        // Ham hali okunamayıp trim'li hali okunabiliyorsa, boşluk tek başına tipli bir
-        // değeri gizliyor demektir. Metin alanları (" Durak Adı ") iki halde de sayı
-        // vermez, bu yüzden listeye girmez.
+        // If the raw form cannot be read but the trimmed form can, whitespace alone hides a typed
+        // value. Text fields (" Durak Adı ") are not numbers in either form, so they are omitted.
         let typed: Vec<&str> = self
             .samples
             .iter()
@@ -970,22 +976,20 @@ impl Dq016Acc {
             details.insert("typed_whitespace_fields".to_string(), typed.join(", "));
         }
 
-        // 🔴 KİMLİK ALANINDA BOŞLUK, SIRADAN BİR BOŞLUKTAN BAŞKA BİR ŞEYDİR.
+        // 🔴 WHITESPACE IN AN IDENTITY FIELD IS NOT ORDINARY WHITESPACE.
         //
-        // Bir açıklama alanındaki `" Durak Adı "` yalnız çirkindir. Bir ANAHTAR
-        // alanındaki `"10T0001C1  "` ise dosyalar arası her aramayı sessizce
-        // ıskalatır: `routes.txt` anahtarı boşlukla yazar, `trips.txt` boşluksuz,
-        // ve ikisi ham bayt olarak eşleşmez. Bu, kimlikleri HAM karşılaştırma
-        // kararının (#85) doğrudan sonucudur ve karar KORUNUYOR — üreticinin
-        // düzeltmesi gereken budur.
+        // `" Durak Adı "` in a description field is merely ugly. `"10T0001C1  "` in a KEY
+        // field silently makes every cross-file lookup miss: `routes.txt` writes the key with
+        // whitespace, `trips.txt` without it, and the raw bytes do not match. This follows
+        // directly from the decision to compare identities RAW (#85), and that decision is
+        // PRESERVED — the producer must fix this.
         //
-        // Ama `suppress_whitespace_derivatives` yalnız BULGU ÜRETMİŞ kuralları
-        // beyan edebilir. Bir aramanın ıskalaması yüzünden HİÇ bulgu üretmeyen
-        // analiz izsiz kaybolur — k7_reporting'in kendi #134 değişmezinin
-        // ("bastırılan her bulgu bir yerde beyan edilmeli") tam tersi. `mdb-2653`
-        // bunu gösterdi: `trips.txt` 304.117 bastırılan bulguyu beyan ederken
-        // `TRP_024`'ün kaçırdığı 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu,
-        // çünkü o kural hiç konuşmamıştı (#169).
+        // But `suppress_whitespace_derivatives` can declare only rules that PRODUCED A FINDING.
+        // An analysis that produces no finding because a lookup missed would disappear without
+        // a trace — the exact opposite of k7_reporting's #134 invariant ("every suppressed
+        // finding must be declared somewhere"). `mdb-2653` showed this: `trips.txt` declared
+        // 304,117 suppressed findings, while the 1,502 block inconsistencies missed by
+        // `TRP_024` appeared nowhere because that rule had never spoken (#169).
         let identity: Vec<&str> = self
             .cols
             .iter()
@@ -1006,11 +1010,11 @@ impl Dq016Acc {
     }
 }
 
-/// GTFS'te dosyalar arası aramada ANAHTAR olarak kullanılan sütunlar.
+/// Columns used as KEYS for cross-file lookups in GTFS.
 ///
-/// Liste açık uçlu tutulur: `*_id` ile biten her şey anahtar değildir (`shape_dist_traveled`
-/// gibi), ama GTFS'te anahtar olan her sütun ya `_id` ile biter ya da `parent_station`dır.
-/// Yanlış pozitifin maliyeti burada düşük — bu yalnız bir BEYAN, bir bulgu değil.
+/// The list is intentionally open-ended: not everything ending in `*_id` is a key (such as
+/// `shape_dist_traveled`), but every GTFS key column either ends in `_id` or is `parent_station`.
+/// The cost of a false positive is low here — this is only a DECLARATION, not a finding.
 pub(crate) fn is_identity_column(col: &str) -> bool {
     const EXTRA: &[&str] = &["parent_station"];
     let c = col.trim();
@@ -1020,9 +1024,9 @@ pub(crate) fn is_identity_column(col: &str) -> bool {
 pub(crate) const DQ016_REMEDIATION: &str =
     "Değerlerdeki gereksiz baştaki/sondaki boşlukları kaldırın; ayraç olarak ', ' değil ',' kullanın.";
 
-/// zip 9'da `name()` `Result` döner: UTF-8 olmayan ad cp437 ile çözülür ve bu yalnız
-/// erişilemeyen bir dalda hata verir. Yine de sessizce yutulmaz; komşu `by_index`
-/// hatasıyla aynı biçimde "ZIP okunamadı" olarak raporlanır.
+/// In zip 9, `name()` returns a `Result`: a non-UTF-8 name is decoded as cp437 and errors only
+/// on an inaccessible branch. It is still not swallowed silently; it is reported as "ZIP could
+/// not be read" in the same way as the neighboring `by_index` error.
 fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
     FatalError::new(
         FatalCode::ZipUnreadable,
@@ -1033,18 +1037,18 @@ fn entry_name_error(index: usize, e: &zip::result::ZipError) -> FatalError {
     .param("detail", e)
 }
 
-// ── ARC_012 / ARC_021: K1 ↔ K2-stream ortak mantığı ──────────────────────────
+// ── ARC_012 / ARC_021: shared K1 ↔ K2-stream logic ───────────────────────────
 //
-// stream_mode'da bu kontroller K1'den K2'ye taşındı, ama iki hedefe (stop_times,
-// shapes) ayrı ayrı KOPYALANMIŞTI — üç yerde birebir aynı predicate ve aynı kullanıcı
-// mesajı. Eşik/aralık listesine dokunmak üç dosya düzenlemek demekti; ikisini unutmak
-// sessizce sapma üretirdi. DQ016_ACC ile aynı gerekçe: tek tanım, üç çağıran.
+// In stream_mode these checks moved from K1 to K2, but were COPIED separately for two targets
+// (stop_times, shapes) — the exact same predicate and user message in three places. Changing
+// the threshold/range list meant editing three files; forgetting one would silently diverge.
+// Same rationale as DQ016_ACC: one definition, three callers.
 
-/// ARC_012: satırın sütun sayısı başlıktan farklı mı?
+/// ARC_012: does the row have a different number of columns from the header?
 ///
-/// `None` → sorun yok. `Some((mesaj, öneri, observed, bilgi_mi))`; `bilgi_mi=true`
-/// ise satır KISA (sondaki opsiyonel alanlar atlanmış — geçerli CSV pratiği, severity
-/// Bilgi'ye düşürülür), `false` ise FAZLA alan var (kaçmamış virgül → nominal severity).
+/// `None` → no problem. `Some((message, recommendation, observed, bilgi_mi))`; when `bilgi_mi=true`,
+/// the row is SHORT (trailing optional fields omitted — valid CSV practice, severity is lowered
+/// to Info); `false` means there are EXTRA fields (an unescaped comma → nominal severity).
 pub(crate) fn arc012_check(
     file_name: &str,
     line: u64,
@@ -1075,21 +1079,21 @@ pub(crate) fn arc012_check(
     ))
 }
 
-/// ARC_021: satırda yazdırılamaz/sorunlu karakter arar, ilk bulunanın kod noktasını döner.
+/// ARC_021: searches the row for an unprintable/problematic character and returns the first
+/// code point found.
 ///
-/// Geçerli Unicode harf/rakam/boşluk (Japonca, Türkçe vb.) sorun DEĞİLDİR — yalnızca
-/// kontrol karakterleri, DEL, yedek alanlar (surrogate) ve özel kullanım alanı işaretlenir.
-/// ARC_034: satır başlık satırının birebir tekrarı mı?
+/// Valid Unicode letters/digits/whitespace (Japanese, Turkish, etc.) are NOT a problem — only
+/// control characters, DEL, surrogate code points, and private-use characters are flagged.
+/// ARC_034: is the row an exact repeat of the header row?
 ///
-/// 🔴 K1 ve K2'nin İKİSİ de bunu sormak zorundadır. `stop_times.txt`, `shapes.txt`,
-/// `trips.txt` ve `calendar_dates.txt` K1'de `stream_mode` ile YALNIZ başlığı okur;
-/// veri satırları K2'ye gider. Kontrol yalnız K1'de kaldığı sürece o dört dosyadaki
-/// tekrar eden başlık satırı VERİ olarak işlenir — `mdb-1004/trips.txt` satır 16873
-/// tam bu vakadır ve `TRP_002`'ye literal `"route_id"` değerini FK ihlali diye
-/// raporlatıyordu (#181).
+/// 🔴 BOTH K1 and K2 must perform this check. `stop_times.txt`, `shapes.txt`, `trips.txt`, and
+/// `calendar_dates.txt` read ONLY the header in K1 via `stream_mode`; data rows go to K2. If the
+/// check stays only in K1, a repeated header row in those four files is processed as DATA — row
+/// 16873 of `mdb-1004/trips.txt` is exactly this case, and it reported the literal `"route_id"`
+/// as an FK violation for `TRP_002` (#181).
 ///
-/// ⚠️ Yanlış pozitif kapısı: satırın BÜTÜN alanları kendi sütun adına eşit olmalı.
-/// Tek bir sütunda `route_id` değerinin "route_id" olması meşrudur.
+/// ⚠️ False-positive gate: EVERY field in the row must equal its own column name.
+/// It is legitimate for a single column's `route_id` value to be "route_id".
 pub(crate) fn arc034_is_header_repeat<S: AsRef<str>>(row: &[S], headers: &[String]) -> bool {
     row.len() == headers.len()
         && !headers.is_empty()
@@ -1119,16 +1123,18 @@ pub(crate) fn arc021_bad_char<'a>(values: impl Iterator<Item = &'a str>) -> Opti
     None
 }
 
-/// ARC_030: alan değerinde sekme, satır sonu veya satır başı arar; ilk bulunanı döner.
+/// ARC_030: searches a field value for a tab, line feed, or carriage return and returns the first
+/// one found.
 ///
 /// GTFS spec, Dataset Files: "Field values must not contain tabs, carriage returns or new
-/// lines." ARC_021 bu üçünü BİLEREK kaçırır (`is_whitespace()` muafiyeti, ayrıca `cp != 9`):
-/// o kural bozuk/yazdırılamaz karakterleri hedefler ve geçerli metni muaf tutar. Buradaki üç
-/// karakter ise geçerli metinde de görülebilir, ama spec onları açıkça yasaklar. İki kural
-/// aynı olguyu ölçmez.
+/// lines." ARC_021 deliberately misses these three (`is_whitespace()` exemption, plus `cp != 9`):
+/// that rule targets malformed/unprintable characters and exempts valid text. These three
+/// characters can occur in otherwise valid text, but the spec explicitly prohibits them. The
+/// two rules measure different phenomena.
 ///
-/// Bayt taraması UTF-8 güvenlidir: TAB/LF/CR ASCII'dir, çok baytlı karakterlerin devam
-/// baytları 0x80 ve üzerindedir. `chars()` yerine `bytes()` bilinçli — bu K1 sıcak yolu.
+/// Byte scanning is UTF-8 safe: TAB/LF/CR are ASCII, and continuation bytes of multibyte
+/// characters are 0x80 or above. Using `bytes()` instead of `chars()` is deliberate — this is
+/// a K1 hot path.
 pub(crate) fn arc030_bad_whitespace<'a>(values: impl Iterator<Item = &'a str>) -> Option<u32> {
     for val in values {
         for b in val.bytes() {
@@ -1152,46 +1158,46 @@ pub(crate) fn arc030_message(file_name: &str, cp: u32) -> String {
 pub(crate) const ARC030_REMEDIATION: &str =
     "Alan değerlerindeki sekme ve satır sonu karakterlerini kaldırın; çok satırlı metni tek satıra indirin.";
 
-// ── ARC_032: HTML etiketi / yorum / kaçış dizisi ─────────────────────────────
+// ── ARC_032: HTML tag / comment / escape sequence ─────────────────────────────
 //
 // GTFS spec, File Requirements: "Field values must not contain HTML tags, comments or
-// escape sequences." ARC_021 ve ARC_030 bunu kaçırır — `<` (U+003C) ARC_021'in bozuk-karakter
-// aralıklarının hiçbirine girmez, alfanumerik de değildir ama `is_bad` koşullarını sağlamaz.
+// escape sequences." ARC_021 and ARC_030 miss this — `<` (U+003C) is in none of ARC_021's
+// malformed-character ranges, is not alphanumeric, and still does not satisfy `is_bad`.
 //
-// ⚠️ KAPALI LİSTE, DESEN DEĞİL. Ölçüm sırasında gevşek bir desen (`<\s*/?[a-zA-Z]+...>` +
-// herhangi `&kelime;`) 239 feed'de 1991 eşleşme verdi ve örneklere bakınca çoğu MEŞRU metin
-// çıktı: `K.A.Wheel&Tire;` bir entity değil, `St Sauvant >< St Césaire` bir etiket değil.
-// Kapalı listeye geçince 1955 gerçek eşleşme kaldı (4 feed). Desen genişletilecekse
-// örneklere BAKILARAK genişletilmeli.
-/// HTML eleman adları — **ÜRETİLMİŞ** (issue #79, `k1_html_elements.rs`).
+// ⚠️ CLOSED LIST, NOT A PATTERN. During measurement, a loose pattern (`<\s*/?[a-zA-Z]+...>` +
+// any `&kelime;`) produced 1,991 matches in 239 feeds, and examples showed that most were
+// LEGITIMATE text: `K.A.Wheel&Tire;` is not an entity, and `St Sauvant >< St Césaire` is not a
+// tag. The closed list left 1,955 genuine matches (4 feeds). Expand the pattern only after
+// reviewing examples.
+/// HTML element names — **GENERATED** (issue #79, `k1_html_elements.rs`).
 ///
-/// 🔴 Bu liste ELLE yazılmıştı ve kart "HTML5'in TAMAMI" diyordu. 6. denetim iddiayı
-/// çürüttü: `svg` ve `math` eksikti. Entity tablosunu kaynaktan üretirken etiket listesini
-/// elde tutmak tutarsızlıktı; artık ikisi de üretiliyor.
+/// 🔴 This list used to be handwritten and the card claimed "ALL OF HTML5". Audit 6 disproved
+/// that claim: `svg` and `math` were missing. Keeping the tag list manually while generating the
+/// entity table from the source was inconsistent; both are now generated.
 ///
-/// Küme = WHATWG eleman dizini ∪ yabancı içerik kökleri (`svg`, `math`) ∪ eskimiş
-/// elemanlar (`font`, `center`, …). İki ek kümenin gerekçesi üreticinin docstring'inde:
-/// `svg`/`math` HTML eleman dizininde YOKTUR (onlar SVG/MathML elemanı) ama HTML'de
-/// TANINAN başlangıç etiketleridir; eskimiş elemanlar dizinden düşmüştür ama gerçek
-/// feed'lerde geçer (korpusta `<BR>` ve `<font>` ölçüldü).
+/// Set = WHATWG element index ∪ foreign-content roots (`svg`, `math`) ∪ obsolete elements
+/// (`font`, `center`, …). The rationale for the two additional sets is in the generator's
+/// docstring: `svg`/`math` are NOT in the HTML element index (they are SVG/MathML elements) but
+/// are RECOGNISED starting tags in HTML; obsolete elements were removed from the index but occur
+/// in real feeds (`<BR>` and `<font>` were measured in the corpus).
 ///
-/// ⚠️ Liste KAPALI kalır — açılı ayraç içindeki her kelimeyi etiket saymak `<TBD>`,
-/// `<Bilinmiyor>`, `<未定>` gibi gerçek metni işaretlerdi.
+/// ⚠️ Keep the list CLOSED — treating every word inside angle brackets as a tag would flag real
+/// text such as `<TBD>`, `<Bilinmiyor>`, and `<未定>`.
 use crate::k1_html_elements::HTML_ELEMENTS as HTML_TAGS;
-/// Adlandırılmış karakter referansları — **ÜRETİLMİŞ** (issue #79, `k1_html_entities.rs`).
+/// Named character references — **GENERATED** (issue #79, `k1_html_entities.rs`).
 ///
-/// 🔴 Burada altı ad vardı (`nbsp amp lt gt quot apos`) ve `&copy;`, `&reg;`, `&euro;`,
-/// `&mdash;` kuraldan KAÇIYORDU. Liste artık HTML5'in tamamı (2.125 ad), kaynağı ve
-/// SHA-256'sı üretilen dosyada; sürüklenme CI'da denetleniyor.
+/// 🔴 This used to contain six names (`nbsp amp lt gt quot apos`), while `&copy;`, `&reg;`,
+/// `&euro;`, and `&mdash;` escaped the rule. The list is now all of HTML5 (2,125 names); its
+/// source and SHA-256 are in the generated file, and drift is checked in CI.
 ///
-/// ⚠️ Liste KAPALI kalır — `&` + kelime + `;` desenini serbest bırakmak gerçek metni
-/// yakalar (`K.A.Wheel&Tire;`, korpusta ölçüldü). Fark, listenin standardın ALT KÜMESİ
-/// değil KENDİSİ olmasıdır.
+/// ⚠️ Keep the list CLOSED — allowing the `&` + word + `;` pattern would catch real text
+/// (`K.A.Wheel&Tire;`, measured in the corpus). The distinction is that the list is the
+/// standard itself, not a SUBSET of the standard.
 use crate::k1_html_entities::{HTML5_ENTITIES as HTML_ENTITIES, HTML5_ENTITIES_NO_SEMI};
 
-/// Değerde HTML etiketi, yorum başlangıcı veya karakter kaçışı arar.
+/// Searches a value for an HTML tag, comment start, or character escape.
 ///
-/// Dönen: bulunan işaretin metni (`<BR>`, `&nbsp;` gibi), kullanıcıya gösterilmek üzere.
+/// Returns the text of the marker found (such as `<BR>` or `&nbsp;`) for display to the user.
 fn arc032_markup(value: &str) -> Option<String> {
     let bytes = value.as_bytes();
     for (i, &b) in bytes.iter().enumerate() {
@@ -1199,8 +1205,8 @@ fn arc032_markup(value: &str) -> Option<String> {
             if value[i..].starts_with("<!--") {
                 return Some("<!--".to_string());
             }
-            // `</` kapanış etiketi de sayılır. Eğik çizgi ÇIKTIDA korunur: kullanıcıya
-            // gösterilen örnek, dosyadaki metinle birebir eşleşmeli.
+            // `</` closing tags count too. Preserve the slash in the OUTPUT: the example shown
+            // to the user must match the text in the file exactly.
             let after = &value[i + 1..];
             let (slash, rest) = match after.strip_prefix('/') {
                 Some(r) => ("/", r),
@@ -1213,26 +1219,26 @@ fn arc032_markup(value: &str) -> Option<String> {
                 continue;
             }
             let name = &rest[..name_len];
-            // 🔴 AD SINIRI DENETLENİR (issue #79 testinden çıktı): ad ayıklama ilk
-            // alfanümerik olmayan karakterde duruyor, dolayısıyla `<svg-yok>` "svg" gibi
-            // görünüyordu. HTML'de tireli adlar ÖZEL ELEMANLARDIR (`<my-widget>`) ve
-            // `svg` değildirler. Gerçek etiket adı ancak boşluk, `/` ya da `>` ile biter.
+            // 🔴 CHECK THE NAME BOUNDARY (found by the issue #79 test): name extraction stopped
+            // at the first non-alphanumeric character, so `<svg-yok>` looked like "svg". Hyphenated
+            // names are CUSTOM ELEMENTS in HTML (`<my-widget>`), not `svg`. A real tag name ends
+            // only at whitespace, `/`, or `>`.
             match rest[name_len..].chars().next() {
                 Some(c) if c.is_whitespace() || c == '/' || c == '>' => {}
                 _ => continue,
             }
-            // ⚠️ Etiket adları büyük/küçük harfe DUYARSIZDIR (`<BR>` = `<br>`), entity
-            // adlarının tersine. Tablo küçük harf ve sıralı; küçük harfe çevirip ikili
-            // arama yapılır (130 adlık listede lineer tarama her `<` için dönerdi).
+            // ⚠️ Tag names are CASE-INSENSITIVE (`<BR>` = `<br>`), unlike entity names. The table
+            // is lowercase and sorted; lowercase before binary search (a linear scan of the
+            // 130-name list would run for every `<`).
             let lower = name.to_ascii_lowercase();
             if HTML_TAGS.binary_search(&lower.as_str()).is_err() {
                 continue;
             }
-            // Etiket ancak `>` ile kapanırsa etikettir: "a < b" ya da "3 <br" değil.
+            // A tag is a tag only when it closes with `>`: not "a < b" or "3 <br".
             let Some(close) = rest[name_len..].find('>') else {
                 continue;
             };
-            // `<` ile `>` arasında başka bir `<` varsa bu bir etiket değil, düz metindir.
+            // Another `<` between `<` and `>` means this is plain text, not a tag.
             let inner = &rest[name_len..name_len + close];
             if inner.contains('<') {
                 continue;
@@ -1241,15 +1247,15 @@ fn arc032_markup(value: &str) -> Option<String> {
         }
         if b == b'&' {
             let rest = &value[i + 1..];
-            // Ad = `&`den sonraki alfanümerik dizi (`#` sayısal biçimi ayrı ele alınır).
+            // Name = the alphanumeric sequence after `&` (`#` numeric forms are handled separately).
             let name_len = rest
                 .find(|c: char| !c.is_ascii_alphanumeric())
                 .unwrap_or(rest.len());
             let name = &rest[..name_len];
-            // ⚠️ NOKTALI VİRGÜLSÜZ ESKİ BİÇİM (issue #79): HTML5 bazı adları `;` olmadan da
-            // tanır (`&copy`). Ayrıcalık TÜM adlar için değildir; ayrı tablo kaynaktan gelir.
-            // Ölçüm: 20 feed · 54.076.644 hücre · bu biçimden 0 bulgu → yanlış pozitif
-            // riski ölçülü olarak sıfır.
+            // ⚠️ LEGACY FORM WITHOUT A SEMICOLON (issue #79): HTML5 recognises some names without
+            // `;` (`&copy`). The exception does NOT apply to ALL names; the separate table comes
+            // from the source. Measurement: 20 feeds · 54,076,644 cells · 0 findings in this
+            // form → the false-positive risk is measurably zero.
             if !name.is_empty()
                 && !rest[name_len..].starts_with(';')
                 && HTML5_ENTITIES_NO_SEMI.binary_search(&name).is_ok()
@@ -1261,9 +1267,9 @@ fn arc032_markup(value: &str) -> Option<String> {
                 continue;
             }
             let ent = &rest[..semi];
-            // ⚠️ Entity adları BÜYÜK/küçük harfe DUYARLIDIR ve liste ikisini de ayrı
-            // taşır (`&copy;` ile `&COPY;` farklı girişlerdir). `eq_ignore_ascii_case`
-            // 2.125 adlık listede hem yanlış eşleşme hem O(n) tarama demekti.
+            // ⚠️ Entity names are CASE-SENSITIVE and the list carries both forms separately
+            // (`&copy;` and `&COPY;` are different entries). `eq_ignore_ascii_case` would mean
+            // both false matches and an O(n) scan of the 2,125-name list.
             let known = HTML_ENTITIES.binary_search(&ent).is_ok()
                 || (ent.starts_with('#')
                     && ent.len() >= 2
@@ -1279,8 +1285,8 @@ fn arc032_markup(value: &str) -> Option<String> {
     None
 }
 
-/// ARC_032 birikimi — DOSYA başına TEK notice (`Dq016Acc` ile aynı gerekçe: bir feed'in
-/// 1176 durak adı işaretli ve satır başına emit tarayıcıyı boğar).
+/// ARC_032 accumulator — ONE notice per FILE (same rationale as `Dq016Acc`: one feed had
+/// 1,176 stop names marked, and per-row emission overwhelmed the browser).
 #[derive(Default)]
 pub(crate) struct Arc032Acc {
     pub rows: u64,
@@ -1298,17 +1304,16 @@ impl Arc032Acc {
         headers: &[String],
     ) {
         for (i, s) in values.enumerate() {
-            // Hızlı yol: işaret ancak `<` ya da `&` ile başlar. Akış dosyalarında (stop_times)
-            // değerlerin neredeyse hepsi buradan döner; başlık adı karşılaştırması atlanır.
+            // Fast path: a marker starts only with `<` or `&`. In streaming files (stop_times),
+            // almost all values return here; skip the header-name comparison.
             if !s.bytes().any(|b| b == b'<' || b == b'&') {
                 continue;
             }
             let Some(name) = headers.get(i).map(|h| h.as_str()) else {
                 continue;
             };
-            // `tts_stop_name` STP_023'ün alanı: o kural HERHANGİ bir `<`/`>` işaretini
-            // (SSML dahil) zaten bildiriyor ve daha geniştir. İkisini birden emit etmek
-            // aynı olguyu iki kez raporlamak olur.
+            // `tts_stop_name` is STP_023's field: that rule already reports ANY `<`/`>` marker
+            // (including SSML) and is broader. Emitting both would report the same phenomenon twice.
             if name == "tts_stop_name" {
                 continue;
             }
@@ -1329,7 +1334,7 @@ impl Arc032Acc {
         }
     }
 
-    /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    /// stop_times chunk merge: `self` is the earlier chunk, so preserve its example.
     #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc032Acc) {
         self.rows += other.rows;
@@ -1344,7 +1349,7 @@ impl Arc032Acc {
         self.last_line = self.last_line.max(other.last_line);
     }
 
-    /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.
+    /// Summary: (observed, message, column list). `None` when empty.
     pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
         if self.rows == 0 {
             return None;
@@ -1368,8 +1373,8 @@ impl Arc032Acc {
     }
 }
 
-/// Spec'te tipi `ID` / `Foreign ID` olan sütunlar (GTFS Reference "Field Types").
-/// `direction_id` bir Enum'dur, listede YOK; `jp_*` uzantı sütunları spec dışıdır.
+/// Columns whose type in the spec is `ID` / `Foreign ID` (GTFS Reference "Field Types").
+/// `direction_id` is an Enum and is NOT in the list; `jp_*` extension columns are outside the spec.
 pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
     "agency_id",
     "stop_id",
@@ -1416,10 +1421,11 @@ pub(crate) const GTFS_ID_FIELDS: &[&str] = &[
     "record_sub_id",
 ];
 
-/// ARC_037 birikimi — ID alanında yazdırılabilir ASCII (0x20-0x7E) dışı karakter.
-/// Spec: *"Using only printable ASCII characters is recommended."* Tavsiye olduğu için
-/// DOSYA başına TEK özet (`Arc032Acc` deseni); MD satır başına sayar (bir feed'de 58K).
-/// Yazdırılamayan karakterler ARC_021'in alanıdır; burada yalnız 0x7E'nin üstü sayılır.
+/// ARC_037 accumulator — a character outside printable ASCII (0x20–0x7E) in an ID field.
+/// Spec: *"Using only printable ASCII characters is recommended."* Because this is a
+/// recommendation, produce ONE summary per FILE (`Arc032Acc` pattern); MD counts per row
+/// (58K in one feed). Unprintable characters belong to ARC_021; this rule counts only values
+/// above 0x7E.
 #[derive(Default)]
 pub(crate) struct Arc037Acc {
     pub rows: u64,
@@ -1460,7 +1466,7 @@ impl Arc037Acc {
         }
     }
 
-    /// stop_times chunk birleşimi: `self` daha önceki parçadır, örneği korunur.
+    /// stop_times chunk merge: `self` is the earlier chunk, so preserve its example.
     #[cfg(feature = "parallel")]
     pub(crate) fn merge(&mut self, other: Arc037Acc) {
         self.rows += other.rows;
@@ -1475,7 +1481,7 @@ impl Arc037Acc {
         self.last_line = self.last_line.max(other.last_line);
     }
 
-    /// Özet: (observed, mesaj, sütun listesi). Boşsa `None`.
+    /// Summary: (observed, message, column list). `None` when empty.
     pub fn summary(&self, file_name: &str) -> Option<(String, String, String)> {
         if self.rows == 0 {
             return None;
@@ -1508,23 +1514,23 @@ pub(crate) const ARC032_REMEDIATION: &str =
      GTFS alanları düz metin taşır ve tüketiciler bu işaretleri olduğu gibi gösterir.";
 
 pub(crate) fn arc021_message(file_name: &str, cp: u32) -> String {
-    // "ASCII dışı" DEME: kural geçerli Unicode harfleri (ü, ö, 漢字…) bilerek muaf tutar;
-    // yalnız kontrol/DEL/surrogate/private-use işaretlenir. Mesaj yaptığından fazlasını
-    // iddia etmemeli (VBB Almanca metin tartışması, 2026-07-24).
+    // Do not say "non-ASCII": the rule deliberately exempts valid Unicode letters (ü, ö, 漢字…);
+    // only control/DEL/surrogate/private-use characters are flagged. The message must not claim
+    // more than the rule does (VBB German-text discussion, 2026-07-24).
     format!("'{file_name}' dosyasında yazdırılamaz veya sorunlu karakter içeren değer var (U+{cp:04X}).")
 }
 
 pub(crate) const ARC021_REMEDIATION: &str =
     "Alan değerlerindeki kontrol/yazdırılamaz karakterleri kaldırın; geçerli Unicode harfler (ü, ö, 漢字 vb.) sorun değildir.";
 
-/// GTFS spesifikasyonunda tanımlı sütun adları (ARC_017).
-/// `translations.txt::table_name` uzantısız tablo adı taşır; sütun listesi dosya adına
-/// anahtarlıdır. Kol, `translations.txt` için eski ve profil-özel kolon listelerini
-/// taşır; resmi GTFS tablolarının tamamı için çeviri alan kataloğu ayrıca generated
-/// `spec_fields.json` kaynağından çözülür.
+/// Column names defined in the GTFS specification (ARC_017).
+/// `translations.txt::table_name` carries a table name without its extension; the column list
+/// is keyed by file name. This arm carries the legacy and profile-specific column lists for
+/// `translations.txt`; for all official GTFS tables, the translation-field catalogue is also
+/// resolved from the generated `spec_fields.json` source.
 ///
-/// 🔑 Ad birleştirmek (`format!("{table}.txt")`) satır başına tahsis demektir;
-/// `mdb-2126`'nın `translations.txt`'si 158.531 satır taşıyor.
+/// 🔑 Constructing a name (`format!("{table}.txt")`) allocates once per row;
+/// `mdb-2126`'s `translations.txt` contains 158,531 rows.
 pub(crate) fn known_columns_for_table(table: &str) -> &'static [&'static str] {
     match table {
         "agency" => known_columns("agency.txt"),
@@ -1632,9 +1638,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "continuous_drop_off",
             "shape_dist_traveled",
             "timepoint",
-            // GTFS-Flex (resmî Schedule Reference): talep-duyarlı hizmet alanları.
-            // K2 parser bunları ZATEN okuyordu; burada eksik olmaları geçerli bir Flex
-            // feed'inde ARC_017 "bilinmeyen sütun" yanlış-pozitifi üretiyordu.
+            // GTFS-Flex (official Schedule Reference): demand-responsive service fields.
+            // The K2 parser ALREADY read these; omitting them here produced an ARC_017 "unknown
+            // column" false positive in a valid Flex feed.
             "location_id",
             "location_group_id",
             "start_pickup_drop_off_window",
@@ -1743,7 +1749,7 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "attribution_email",
             "attribution_phone",
         ],
-        // ── Fares v2 ── (sütun adları GTFS spec + repo k2 parser'larıyla doğrulandı)
+        // ── Fares v2 ── (column names verified against the GTFS spec + repository K2 parsers)
         "rider_categories.txt" => &[
             "rider_category_id",
             "rider_category_name",
@@ -1769,9 +1775,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
             "fare_product_id",
             "rule_priority",
         ],
-        // `rule_priority` BURADA YOK: 27 Nisan 2026 Schedule Reference'ta bu alan yalnız
-        // `fare_leg_rules.txt`'te tanımlıdır (FLG_007 orayı ölçer). fare_transfer_rules'un
-        // resmî alan listesi aşağıdaki yedidir.
+        // `rule_priority` is NOT HERE: in the 27 April 2026 Schedule Reference this field is
+        // defined only in `fare_leg_rules.txt` (FLG_007 checks it there). The official field list
+        // for fare_transfer_rules is the seven entries below.
         "fare_transfer_rules.txt" => &[
             "from_leg_group_id",
             "to_leg_group_id",
@@ -1812,8 +1818,9 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
         ],
         "location_groups.txt" => &["location_group_id", "location_group_name"],
         "location_group_stops.txt" => &["location_group_id", "stop_id"],
-        // ── GTFS-JP (Japonya profili) — sütunlar resmî format-reference + Tokyo Toei feed'iyle doğrulandı.
-        // Not: jp_ önekli sütunlar ARC_017'de zaten atlanır (ek güvenlik marjı).
+        // ── GTFS-JP (Japanese profile) — columns verified against the official format reference
+        // and a Tokyo Toei feed. Note: columns prefixed with jp_ are already skipped by ARC_017
+        // (an additional safety margin).
         "agency_jp.txt" => &[
             "agency_id",
             "agency_official_name",
@@ -1841,38 +1848,38 @@ fn known_columns(filename: &str) -> &'static [&'static str] {
     }
 }
 
-/// macOS'un ZIP'e eklediği AppleDouble yan dosyası mı?
+/// Is this an AppleDouble sidecar file added to the ZIP by macOS?
 ///
-/// Finder bir klasörü sıkıştırırken her dosya için `__MACOSX/…/._<ad>` yolunda bir
-/// kaynak-çatal girdisi yazar. `._agency.txt` adı `.txt` ile bittiği için eski kod bunu
-/// "alt dizindeki GTFS dosyası" sanıyordu; oysa GTFS dosyası değil, ikili bir metadata
-/// yan dosyasıdır ve hiçbir parser onu okumaz.
+/// When Finder compresses a folder, it writes a resource-fork entry for every file at
+/// `__MACOSX/…/._<ad>`. Because `._agency.txt` ends in `.txt`, the old code treated it as a
+/// "GTFS file in a subdirectory"; it is actually a binary metadata sidecar, not a GTFS file,
+/// and no parser reads it.
 ///
-/// Tam katalog koşumunda (#144) ARC_024 alan 42 feed'in **42'si** de yalnız bu yüzden
-/// alıyordu. Gürültüden ağır olan sonuç `detect_wrapped_root`'taydı: `__MACOSX/` ikinci
-/// bir üst klasör gibi göründüğü için sarılı feed hoşgörüsü düşüyor, geçerli feed
-/// ARC_004 ile fatal oluyordu — yani sıfır analiz.
+/// In the full-catalog run (#144), **all 42 of 42** feeds receiving ARC_024 did so only for
+/// this reason. The more serious effect was in `detect_wrapped_root`: `__MACOSX/` looked like a
+/// second top-level folder, so wrapped-feed tolerance was dropped and valid feeds became fatal
+/// with ARC_004 — zero analysis.
 fn is_macos_metadata_entry(normalized_name: &str) -> bool {
     normalized_name == "__MACOSX" || normalized_name.starts_with("__MACOSX/")
 }
 
-/// Tek bir üst klasöre sarılmış feed'in kök önekini döndürür (ör. `"TEST GTFS/"`).
+/// Returns the root prefix of a feed wrapped in one top-level folder (e.g. `"TEST GTFS/"`).
 ///
-/// Bazı yayıncılar ZIP'i tek bir klasörle paketliyor: `TEST GTFS/agency.txt`. Spec
-/// dosyaların kökte olmasını ister, dolayısıyla bunlar ARC_024 alır — ama katı davranmak
-/// kullanıcıya ARC_004 fatal'ı ve **sıfır analiz** verir, oysa feed'in kendisi geçerlidir.
+/// Some publishers package the ZIP in one folder: `TEST GTFS/agency.txt`. The spec requires
+/// files at the root, so these receive ARC_024 — but strict behavior gives the user ARC_004
+/// fatal and **zero analysis**, even though the feed itself is valid.
 ///
-/// Hoşgörü KASITLI olarak dar; şu üç koşulun hepsi gerekir:
-/// 1. Kökte hiç `.txt` yok (varsa feed sarılı değildir, dokunma),
-/// 2. tüm `.txt` girdileri TEK ve AYNI üst klasörün DOĞRUDAN altında (iki kat derinlik yok),
-/// 3. o klasör zorunlu GTFS dosyalarının tamamını taşıyor.
+/// Tolerance is deliberately narrow; all three conditions must hold:
+/// 1. no `.txt` exists at the root (if one does, the feed is not wrapped; leave it alone),
+/// 2. all `.txt` entries are directly under ONE AND THE SAME top-level folder (no second level),
+/// 3. that folder contains all required GTFS files.
 ///
-/// Aksi halde `None` → eski davranış. Böylece "GTFS olmayan repo zip'i" (ör. tek klasör
-/// içinde `.csv`'ler) hâlâ fatal olur; hoşgörü yalnız gerçekten geçerli feed'i kurtarır.
+/// Otherwise `None` → the old behavior. A "non-GTFS repository ZIP" (e.g. `.csv` files in one
+/// folder) remains fatal; tolerance rescues only a genuinely valid feed.
 fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
     let normalized: Vec<String> = entry_names.iter().map(|n| n.replace('\\', "/")).collect();
-    // `__MACOSX/…/._x.txt` girdileri kök keşfine KATILMAZ; aksi halde ikinci bir üst
-    // klasör (ya da iki kat derinlik) gibi görünüp hoşgörüyü düşürürlerdi.
+    // `__MACOSX/…/._x.txt` entries do NOT participate in root discovery; otherwise they would
+    // look like a second top-level folder (or a second level) and disable tolerance.
     let txt = || {
         normalized
             .iter()
@@ -1880,19 +1887,19 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
     };
 
     if txt().any(|n| !n.contains('/')) {
-        return None; // kökte .txt var → sarılı değil
+        return None; // `.txt` at root → not wrapped
     }
 
     let mut prefix: Option<&str> = None;
     for name in txt() {
         let (dir, rest) = name.split_once('/')?;
         if rest.contains('/') {
-            return None; // ikinci seviye alt dizin → hoşgörü yok
+            return None; // second-level subdirectory → no tolerance
         }
         match prefix {
             None => prefix = Some(dir),
             Some(p) if p == dir => {}
-            Some(_) => return None, // birden fazla üst klasör
+            Some(_) => return None, // more than one top-level folder
         }
     }
 
@@ -1903,30 +1910,30 @@ fn detect_wrapped_root(entry_names: &[String]) -> Option<String> {
         .then(|| format!("{dir}/"))
 }
 
-// ── Ana parse fonksiyonu ──────────────────────────────────────────────────────
+// ── Main parse function ──────────────────────────────────────────────────────
 
-/// K1 Parse katmanı. ZIP baytlarından ham dosya haritası ve ARC_* notice'ları üretir.
+/// K1 parse layer. Produces a raw file map and ARC_* notices from ZIP bytes.
 ///
-/// Fatal durumlar (pipeline durur):
-/// - ARC_001: ZIP açılamazsa
-/// - ARC_002: Zorunlu dosya UTF-8 ile okunamazsa
-/// - ARC_004: Zorunlu dosyalar eksikse
-/// - ARC_013: Zorunlu dosya CSV tokenization'ı başarısızsa
+/// Fatal conditions (the pipeline stops):
+/// - ARC_001: if the ZIP cannot be opened
+/// - ARC_002: if a required file cannot be read as UTF-8
+/// - ARC_004: if required files are missing
+/// - ARC_013: if CSV tokenization fails for a required file
 ///
-/// ARC_008: Kritik notice üretir, pipeline devam eder (non-Fatal).
+/// ARC_008: produces a Critical notice and lets the pipeline continue (non-Fatal).
 ///
-/// `cfg` yalnız ARC_022 eşiği (`max_file_rows`) için okunur. K1 tarihsel olarak
-/// yapılandırmasızdı; 2026-08-07'de (issue #71) imza değişti çünkü eşik sabit koddayken
-/// kurala fixture yazılamıyordu (1M satırlık zip). Aynı alan K2'nin akış yollarına da
-/// verilir — knob'ın YALNIZ K1'de çalışması, 1M satırı gerçekte aşan iki dosyada
-/// (stop_times/shapes) sessizce etkisiz kalması demek olurdu.
+/// `cfg` is read only for the ARC_022 threshold (`max_file_rows`). K1 was historically
+/// unconfigured; the signature changed on 2026-08-07 (issue #71) because the rule could not be
+/// fixture-tested while the threshold was hard-coded (a 1M-row ZIP). The same field is passed
+/// to K2's streaming paths — making the knob work ONLY in K1 would silently leave it ineffective
+/// for two files that actually exceed 1M rows (stop_times/shapes).
 pub fn parse(zip_bytes: &[u8], cfg: &ValidatorConfig) -> Result<K1Result, FatalError> {
     parse_with_limits(zip_bytes, cfg, DEFAULT_DECOMPRESSION_LIMITS, None)
 }
 
-/// K1'in native ve SDK çağrıları için ortak gövdesi. SDK, WASM belleği daha
-/// küçük olduğu için stream edilmeyen tek dosyalara ayrıca daha düşük bir sınır
-/// verir; native CLI'nin büyük feed davranışı korunur.
+/// Shared body for K1's native and SDK callers. Because the SDK has less WASM memory, it applies
+/// a lower limit to individual files that are not streamed; the native CLI's large-feed behavior
+/// is preserved.
 pub fn parse_with_limits(
     zip_bytes: &[u8],
     cfg: &ValidatorConfig,
@@ -1936,9 +1943,9 @@ pub fn parse_with_limits(
     k1dbg!("[K1] parse başladı, {} bayt", zip_bytes.len());
     let cursor = std::io::Cursor::new(zip_bytes);
     k1dbg!("[K1] ZipArchive::new çağrılıyor...");
-    // Kütüphane mesajı bozukluğun KATMANINI yanlış gösterebiliyor (bkz.
-    // `diagnose_unreadable_zip`), o yüzden ham byte teşhisi ÖNE alınır ve
-    // kütüphane metni arkasına eklenir.
+    // The library message can identify the WRONG layer of corruption (see
+    // `diagnose_unreadable_zip`), so raw-byte diagnosis takes PRIORITY and the library text is
+    // appended afterward.
     let mut archive = zip::ZipArchive::new(cursor).map_err(|e| {
         match diagnose_unreadable_zip(zip_bytes) {
             Some(diagnosis) => diagnosis.params.into_iter().fold(
@@ -1973,11 +1980,12 @@ pub fn parse_with_limits(
         .param("limit", MAX_ZIP_ENTRIES));
     }
 
-    // ARC_009 yanlış-pozitif guard'ı: calendar_dates.txt boş (veya yalnızca başlık) olsa bile
-    // calendar.txt servisi tanımlıyorsa bu KRİTİK değildir (calendar_dates şartlı zorunludur,
-    // calendar.txt varken opsiyoneldir). Döngü-sırasından bağımsız olsun diye önceden hesaplanır.
-    // calendar.txt YOKSA boş calendar_dates "hiç servis tanımı yok" demektir → ARC_009 kalır.
-    // Tek üst klasöre sarılmış feed → o klasörü kök kabul et (detay: detect_wrapped_root).
+    // ARC_009 false-positive guard: even if calendar_dates.txt is empty (or header-only), it is
+    // not CRITICAL when calendar.txt defines service (calendar_dates is conditionally required
+    // and optional when calendar.txt is present). Compute this before the loop so it is
+    // independent of entry order. If calendar.txt is ABSENT, empty calendar_dates means "no
+    // service is defined" → ARC_009 remains. A feed wrapped in one top-level folder uses that
+    // folder as its root (see detect_wrapped_root).
     let mut entry_names = Vec::with_capacity(archive.len());
     let mut metadata_bytes = 0usize;
     for (i, name) in archive.file_names().enumerate() {
@@ -2014,9 +2022,9 @@ pub fn parse_with_limits(
             "GTFS .txt dosyaları birden fazla/derin alt dizinde bulundu; kök keşfi güvenli değil",
         );
     }
-    // 🔴 "DOSYA VAR" ile "DOSYA VERİ TAŞIYOR" ayrı sorulardır ve bastırma İKİNCİSİNE
-    // bakmalıdır. Sıfır baytlık bir `calendar.txt`, boş `calendar_dates.txt`'i mazur
-    // GÖSTERMEZ: o durumda feed'in hiç servis tanımı yoktur.
+    // 🔴 "FILE EXISTS" and "FILE CARRIES DATA" are separate questions, and suppression must
+    // inspect the SECOND. A zero-byte `calendar.txt` does not EXCUSE an empty `calendar_dates.txt`:
+    // in that case the feed has no service definition.
     let mut file_has_data = |name: &str| -> bool {
         archive
             .index_for_name(name)
@@ -2029,25 +2037,23 @@ pub fn parse_with_limits(
         .iter()
         .any(|n| n.replace('\\', "/") == calendar_entry)
         && file_has_data(&calendar_entry);
-    // 🔑 AYNI TOLERANS TERS YÖNDE DE GEÇERLİ (#166). Spec: "calendar.txt —
+    // 🔑 THE SAME TOLERANCE ALSO APPLIES IN THE OPPOSITE DIRECTION (#166). Spec: "calendar.txt —
     // Required UNLESS all dates of service are defined in calendar_dates.txt."
-    // Yani veri calendar_dates.txt'te tanımlıyken boş calendar.txt GEÇERLİDİR.
-    // Bastırma yalnız bir yöne yazılmıştı: boş `calendar_dates.txt` tolere
-    // ediliyor, boş `calendar.txt` KRİTİK olarak raporlanıyordu. Tam katalog
-    // koşumunda `ARC_009`'un 104 CRITICAL feed'inin 59'u tam bu vakaydı ve
-    // MobilityData hiçbirinde konuşmuyordu — onların `empty_file`'ı yalnız
-    // ZORUNLU dosyada ateşler, koşullu zorunluda değil.
+    // Therefore an empty calendar.txt is VALID when service data is defined in calendar_dates.txt.
+    // Suppression had been written in only one direction: empty `calendar_dates.txt` was
+    // tolerated, while empty `calendar.txt` was reported as CRITICAL. In the full catalog run,
+    // 59 of `ARC_009`'s 104 CRITICAL feeds were exactly this case, and MobilityData reported none
+    // of them — its `empty_file` fires only for REQUIRED files, not conditionally required ones.
     //
-    // 🔴 "İkisi de boşsa DQ_005 sahiplenir" DİYE YAZILMIŞTI VE ÖLÇÜLMEMİŞTİ. 7. koşumda
-    // `ntd-60089` ve beş kardeşinde her iki dosya da 0 BAYT; `DQ_005` ateşlemiyor ve
-    // hiçbir kural "bu feed'in hiç servisi yok" demiyordu. MobilityData `empty_file`'ı
-    // yedi dosya için basarken biz beş diyorduk — fark tam olarak bu iki dosyaydı.
-    // Bastırma artık diğer dosyanın VERİ TAŞIMASINI şart koşar, yalnız varlığını değil.
+    // 🔴 "If both are empty, DQ_005 owns it" HAD BEEN WRITTEN BUT NOT MEASURED. In run 7,
+    // both files were 0 BYTES in `ntd-60089` and five sibling feeds; `DQ_005` did not fire and
+    // no rule said that the feed had no service. MobilityData emitted `empty_file` for seven
+    // files while we emitted five — these two files were exactly the difference.
+    // Suppression now requires the other file to CARRY DATA, not merely to exist.
     //
-    // ⚠️ SINIR: kontrol sıkıştırılmamış BOYUTA bakar (`size() > 0`), ayrıştırma sonucuna
-    // değil. Sıfır baytlık dosya yakalanır; "yalnız başlık satırı içeren" dosya yakalanmaz,
-    // çünkü bastırma bayrakları dosya döngüsünden ÖNCE hesaplanır ve o noktada henüz hiçbir
-    // dosya ayrıştırılmamıştır. Korpusta ölçülen altı vakanın altısı da 0 bayttır.
+    // ⚠️ LIMIT: the check uses uncompressed SIZE (`size() > 0`), not the parse result. A zero-byte
+    // file is caught; a "header-only" file is not, because suppression flags are computed BEFORE
+    // the file loop and no file has been parsed yet. All six measured corpus cases were 0 bytes.
     let calendar_dates_entry =
         format!("{}calendar_dates.txt", root_prefix.as_deref().unwrap_or(""));
     let has_calendar_dates_txt = entry_names
@@ -2055,9 +2061,9 @@ pub fn parse_with_limits(
         .any(|n| n.replace('\\', "/") == calendar_dates_entry)
         && file_has_data(&calendar_dates_entry);
 
-    // ARC_036: akış görünümü tutarlılığı. Merkez dizin metadata'sı burada toplanır; ham
-    // bayt karşılaştırmasını `count_inconsistent_stream_headers` yapar. `by_index_raw`
-    // seçildi çünkü karar için AÇMA gerekmiyor, yalnız başlık alanları okunuyor.
+    // ARC_036: stream-view consistency. Central-directory metadata is collected here; raw-byte
+    // comparison is performed by `count_inconsistent_stream_headers`. Use `by_index_raw` because
+    // the decision does not require DECOMPRESSION, only reading header fields.
     let stream_entries: Vec<(u64, u64, u64, u32)> = (0..archive.len())
         .filter_map(|i| {
             archive.by_index_raw(i).ok().map(|zf| {
@@ -2084,16 +2090,16 @@ pub fn parse_with_limits(
     let mut present_files: HashSet<String> = HashSet::new();
     let mut custom_file_headers: std::collections::HashMap<String, Vec<String>> =
         std::collections::HashMap::new();
-    // ARC_035: mevcut ama hiç veri satırı taşımayan dosyalar. Bulgu traversal sonunda,
-    // ARC_004'ün yanında üretilir — Flex muafiyeti (`has_valid_locations_geojson`) ancak
-    // orada güvenilirdir, çünkü ZIP girdi sırası locations.geojson'u sonraya atabilir.
+    // ARC_035: files that exist but carry no data rows. Emit the finding at the end of traversal,
+    // next to ARC_004 — the Flex exemption (`has_valid_locations_geojson`) is reliable only
+    // there because ZIP entry order may place locations.geojson later.
     let mut empty_files: HashSet<String> = HashSet::new();
-    // locations.geojson özel işlendiği için present_files'e aşağıdaki dalda eklenir.
+    // locations.geojson is handled specially, so it is added to present_files in the branch below.
     let mut has_valid_locations_geojson = false;
-    // DQ_016 için dosya başına birincil anahtar sütun indeksi — ilk "*_id" sütunu
+    // Per-file primary-key column index for DQ_016 — the first "*_id" column.
     let _dq016_dummy = ();
 
-    // #46: zip-bomb koruması — tüm girdiler boyunca açılan toplam bayt (traversal geneli).
+    // #46: zip-bomb protection — total bytes decompressed across all entries (the whole traversal).
     let mut total_decompressed: u64 = 0;
     for i in 0..archive.len() {
         k1dbg!("[K1] by_index({i})...");
@@ -2108,8 +2114,8 @@ pub fn parse_with_limits(
         })?;
 
         let entry_name = zf.name().map_err(|e| entry_name_error(i, &e))?.into_owned();
-        // Sarılı feed'de kök öneki düşülür; sonraki tüm mantık dosyayı kökteymiş gibi görür.
-        // Bulgu mesajları yine ZIP'teki GERÇEK yolu gösterir (entry_name).
+        // For a wrapped feed, remove the root prefix; all subsequent logic sees the file as if it
+        // were at the root. Finding messages still show the REAL ZIP path (entry_name).
         let raw_name = match &root_prefix {
             Some(prefix) => entry_name
                 .replace('\\', "/")
@@ -2118,16 +2124,16 @@ pub fn parse_with_limits(
             None => entry_name.clone(),
         };
         if raw_name.is_empty() {
-            continue; // sarılı feed'in klasör girdisinin kendisi
+            continue; // the wrapper folder entry itself
         }
-        // macOS kaynak-çatalı: GTFS içeriği değil, hiçbir kural onu ölçmez (#144).
-        // ARC_024'ten ÖNCE düşer, yoksa `._agency.txt` "alt dizindeki .txt" sayılırdı.
+        // macOS resource fork: not GTFS content; no rule measures it (#144).
+        // Drop it BEFORE ARC_024, otherwise `._agency.txt` would count as a "subdirectory .txt".
         if is_macos_metadata_entry(&entry_name.replace('\\', "/"))
             || is_macos_metadata_entry(&raw_name.replace('\\', "/"))
         {
             continue;
         }
-        // Hoşgörü uygulandı: dosya işlenecek ama alt dizinde olduğu yine de bulgudur.
+        // Tolerance applied: process the file, but still report that it is in a subdirectory.
         if raw_name != entry_name && raw_name.ends_with(".txt") {
             notices.push(make_notice(
                 &mut counter, "ARC_024",
@@ -2153,12 +2159,12 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_023: ZIP içinde nested ZIP dosyası (kök VEYA alt dizin).
-        // 🔴 Eskiden yalnız KÖKTEKİ .zip görülüyordu; alt dizindeki nested ZIP hiçbir bulgu
-        // üretmeden atlanıyordu (ARC_007 de `contains('/')` ile eliyor). Korpusta beş feed
-        // — tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752 — tüm GTFS'ini alt dizindeki
-        // bir nested ZIP'te taşıyor; kullanıcı yalnız "zorunlu dosya eksik" görüp SEBEBİ
-        // öğrenemiyordu. Konum kuralın hükmünü değiştirmez: GTFS nested ZIP'i hiç desteklemez.
+        // ARC_023: nested ZIP file inside the ZIP (root OR subdirectory).
+        // 🔴 Previously only a .zip at the ROOT was seen; a nested ZIP in a subdirectory was
+        // skipped without any finding (ARC_007 also filtered it with `contains('/')`). Five corpus
+        // feeds — tdg-83019 · tld-768_1 · mdb-3340 · mdb-657 · tld-752 — carry all their GTFS in
+        // a nested ZIP in a subdirectory; users saw only "required file missing" and could not
+        // learn WHY. Location does not change the rule: GTFS does not support nested ZIPs.
         if raw_name.ends_with(".zip") {
             notices.push(make_notice(
                 &mut counter, "ARC_023",
@@ -2171,7 +2177,7 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // locations.geojson: Flex GeoJSON lokasyon dosyası (özel işlem)
+        // locations.geojson: Flex GeoJSON location file (special handling)
         if raw_name == "locations.geojson" {
             present_files.insert(raw_name.clone());
             let declared_size = zf.size();
@@ -2224,7 +2230,7 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // ARC_024: Alt dizinde .txt dosyası — standart parser'lar bu dosyaları atlar
+        // ARC_024: .txt file in a subdirectory — standard parsers skip these files.
         if raw_name.ends_with(".txt") && (raw_name.contains('/') || raw_name.contains('\\')) {
             notices.push(make_notice(
                 &mut counter, "ARC_024",
@@ -2237,16 +2243,16 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // ARC_007: kök dizindeki tanınmayan (.txt olmayan) dosyalar da bilinmeyen dosya olarak
-        // işaretlenir (ör. .pdf/.out/.csv). .zip → ARC_023, locations.geojson, alt-dizin .txt →
-        // ARC_024 yukarıda özel işlendi; bunlar buraya ulaşmadan continue etti.
+        // ARC_007: unrecognised (non-.txt) files at the root are also marked as unknown files
+        // (e.g. .pdf/.out/.csv). .zip → ARC_023, locations.geojson, and subdirectory .txt →
+        // ARC_024 were handled above; they continued before reaching here.
         if !raw_name.ends_with(".txt") {
-            // Alt dizindeki dosyalar normalde sessizdir (bir GitHub repo zip'i onlarca
-            // LICENSE/README/kaynak dosyası taşıyabilir, hepsini raporlamak gürültüdür).
-            // TEK istisna: adı bir GTFS dosyasının gövdesi olup uzantısı `.txt` OLMAYAN
-            // girdi — `agency.csv` gibi. Korpus 13'te iki feed (mdb-3434 · mdb-3135) bütün
-            // GTFS'ini alt dizinde `.csv` uzantısıyla taşıyor ve tek çıktı "zorunlu dosya
-            // eksik" oluyordu; dosyaların ORADA olduğu hiçbir bulguda görünmüyordu.
+            // Subdirectory files are normally silent (a GitHub repository ZIP may carry dozens
+            // of LICENSE/README/source files; reporting all of them is noise).
+            // ONE exception: an entry whose name is a GTFS file stem but whose extension is NOT
+            // `.txt` — such as `agency.csv`. In corpus 13, two feeds (mdb-3434 · mdb-3135) carried
+            // all GTFS in a subdirectory with `.csv` extensions, and the only output was "required
+            // file missing"; no finding showed that the files were THERE.
             if !raw_name.contains('/') && !raw_name.contains('\\')
                 || gtfs_stem_with_wrong_extension(&raw_name)
             {
@@ -2265,7 +2271,7 @@ pub fn parse_with_limits(
             }
             continue;
         }
-        // Yalnızca kök dizindeki .txt dosyaları işlenir (alt-dizin .txt yukarıda ARC_024 aldı)
+        // Process only root-level .txt files (subdirectory .txt already received ARC_024 above).
         if raw_name.contains('/') || raw_name.contains('\\') {
             continue;
         }
@@ -2274,20 +2280,20 @@ pub fn parse_with_limits(
         let is_required = REQUIRED_FILES.contains(&raw_name.as_str());
         let is_known = KNOWN_FILES.contains(&raw_name.as_str());
 
-        // Bayt oku (ARC_011 için is_known kontrolünden önce yapılır)
+        // Read bytes (before the is_known check for ARC_011).
         k1dbg!(
             "[K1] okuma başladı: {raw_name} (compressed: {} b)",
             zf.compressed_size()
         );
         let uncompressed_hint = zf.size().min(usize::MAX as u64) as usize;
-        // #38: Büyük dosyalar K2 ZIP stream eder; K1 yalnızca başlık satırını okur.
-        // stop_times, trips, calendar_dates için 8 KB partial read; raw_text=None.
+        // #38: K2 streams large files from the ZIP; K1 reads only the header row.
+        // 8 KB partial read for stop_times, trips, and calendar_dates; raw_text=None.
         let is_zip_stream = matches!(
             raw_name.as_str(),
             "stop_times.txt" | "shapes.txt" | "trips.txt" | "calendar_dates.txt"
         );
-        let _is_stop_times = raw_name == "stop_times.txt"; // legacy: sadece ARC_011 bytes için artık is_zip_stream
-                                                           // Alloc'dan ÖNCE log: crash olursa son satır hangi dosyada OOM çıktığını gösterir.
+        let _is_stop_times = raw_name == "stop_times.txt"; // legacy: is_zip_stream now only for ARC_011 bytes
+                                                           // Log BEFORE allocation: if a crash occurs, the last line shows which file OOMed.
         crate::timing::mem_note(&format!(
             "K1::alloc::{} hint={}MB{}",
             raw_name,
@@ -2302,9 +2308,9 @@ pub fn parse_with_limits(
         };
         {
             let _t = crate::timing::Timer::start(format!("K1::decompress::{raw_name}"));
-            // #46: her girdi, açılan baytları sayan GuardedReader üzerinden okunur.
-            // Bomba tetiklerse read() hata döner; tripped() ile plain ZIP hatasından
-            // ayrılıp ARC_029 (DecompressionLimit) Fatal'ı üretilir.
+            // #46: every entry is read through GuardedReader, which counts decompressed bytes.
+            // If the bomb trips, read() returns an error; distinguish it from a plain ZIP error
+            // with tripped() and produce an ARC_029 (DecompressionLimit) Fatal.
             let comp_size = zf.compressed_size();
             let mut entry_limits = limits;
             if !is_zip_stream {
@@ -2370,9 +2376,9 @@ pub fn parse_with_limits(
                         "Satır sonlarını LF ya da CRLF olarak yeniden yazın.",
                     ));
                 }
-                // 8192'lik kesme çok baytlı bir UTF-8 karakterini ortadan bölebilir.
-                // Kırpılmazsa aşağıdaki from_utf8 GEÇERLİ dosyayı bozuk sanar ve
-                // zorunlu dosyada Utf8Critical → feed tümüyle reddedilirdi.
+                // The 8192-byte cut can split a multibyte UTF-8 character.
+                // Without truncation, the from_utf8 below would treat a VALID file as corrupt
+                // and Utf8Critical on a required file would reject the entire feed.
                 truncate_to_utf8_boundary(&mut raw_vec);
             } else if let Err(e) = guarded.read_to_end(&mut raw_vec) {
                 return Err(read_fatal(&guarded, &raw_name, &e));
@@ -2393,8 +2399,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_011: Dosya boyutu — tüm kök .txt dosyaları için (bilinmeyen dahil).
-        // zip_stream partial_read'de raw_vec yalnızca başlık (~8KB); gerçek boyut ZIP metadata'sından.
+        // ARC_011: file size — for every root-level .txt file (including unknown files).
+        // In zip_stream partial_read, raw_vec contains only the header (~8 KB); the real size
+        // comes from ZIP metadata.
         let file_size_bytes = if is_zip_stream {
             uncompressed_hint
         } else {
@@ -2413,7 +2420,7 @@ pub fn parse_with_limits(
             "Bilgi amaçlı; düzeltme gerekmez.",
         ));
 
-        // ARC_007: Bilinmeyen dosya — boyut kaydedildikten sonra atla
+        // ARC_007: unknown file — skip after recording its size.
         if !is_known {
             // Unknown files are intentionally not retained in `raw_files`; keep only
             // their header names so K4 can enforce GTFS-JP's reserved namespace rule
@@ -2444,7 +2451,7 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // ARC_006: İsteğe bağlı dosya mevcut (BİLGİ)
+        // ARC_006: optional file present (INFO).
         if !is_required {
             notices.push(make_notice(
                 &mut counter,
@@ -2460,11 +2467,11 @@ pub fn parse_with_limits(
             ));
         }
 
-        // BOM kontrolü
+        // BOM check.
         let (bytes, has_bom) = strip_bom(&raw_vec);
         if has_bom {
-            // ARC_010 ve DQ_014 aynı koşul — ikisi ayrı ayrı ateşlenmez;
-            // DQ_014 sadece ARC_002 suppressor listesinde referans, ARC_010 onu kapsar.
+            // ARC_010 and DQ_014 have the same condition — do not fire both separately;
+            // DQ_014 is referenced only in the ARC_002 suppressor list, and ARC_010 covers it.
             notices.push(make_notice(
                 &mut counter, "ARC_010",
                 EntityType::File, Some(raw_name.clone()),
@@ -2476,12 +2483,12 @@ pub fn parse_with_limits(
         }
 
         k1dbg!("[K1] okundu: {raw_name} ({} bayt)", bytes.len());
-        // UTF-8 doğrulama — from_utf8 sıfır maliyetli &str döndürür (kopya yok).
-        // Geçersiz UTF-8 dosya güvenli typed doğrulama için atlanır; lossy kayıt üretilmez.
+        // UTF-8 validation — from_utf8 returns a zero-cost &str (no copy).
+        // Invalid UTF-8 files are skipped for safe typed validation; no lossy record is produced.
         let text: &str = match std::str::from_utf8(bytes) {
             Ok(s) => s,
             Err(_) => {
-                // ARC_002: Kritik UTF-8 ihlali
+                // ARC_002: Critical UTF-8 violation.
                 notices.push(make_notice(
                     &mut counter,
                     "ARC_002",
@@ -2513,28 +2520,28 @@ pub fn parse_with_limits(
             }
         };
 
-        // OOM fix Plan A + #15 W3: stop_times.txt ve shapes.txt çok büyük olabilir; K1'de tam
-        // Vec<Vec<SmolStr>>'e açmak yüzlerce MB tutar (shape-ağır feed'de ~920 MB ölçüldü).
-        // Bu dosyalarda SADECE header tokenize edilir; gövde ham metin (`raw_text`) olarak
-        // K2'ye verilip orada streaming işlenir. Per-satır notice'lar (ARC_012/016/018/021,
-        // DQ_016, ARC_022, veri-yok ARC_009) K2 stream geçişine taşındı.
-        // #38: trips.txt + calendar_dates.txt K1'de stream edilir.
-        // trips: ~3M sefer × 8 alan Vec<Vec<SmolStr>> (~576 MB) TripRecord Vec ile çakışır.
-        // calendar_dates: Swiss feed ~8M+ satır → rows Vec<Vec<SmolStr>> 700MB+ tüketir,
-        // stop_times.txt decompress için yer kalmaz.
+        // OOM fix Plan A + #15 W3: stop_times.txt and shapes.txt can be very large; fully
+        // expanding them into Vec<Vec<SmolStr>> in K1 uses hundreds of MB (~920 MB measured in a
+        // shape-heavy feed). Tokenize ONLY the headers of these files; pass the body to K2 as raw
+        // text (`raw_text`) for streaming. Per-row notices (ARC_012/016/018/021, DQ_016, ARC_022,
+        // empty-data ARC_009) moved to K2's stream pass.
+        // #38: trips.txt + calendar_dates.txt are streamed in K1.
+        // trips: ~3M trips × 8 fields in Vec<Vec<SmolStr>> (~576 MB) overlaps the TripRecord Vec.
+        // calendar_dates: a Swiss feed with 8M+ rows uses 700MB+ in rows Vec<Vec<SmolStr>>, leaving
+        // no room to decompress stop_times.txt.
         let stream_mode = raw_name == "stop_times.txt"
             || raw_name == "shapes.txt"
             || raw_name == "trips.txt"
             || raw_name == "calendar_dates.txt";
 
         k1dbg!("[K1] tokenizing: {raw_name}");
-        // CSV tokenization — stream_mode'da yalnızca başlık (Some(0)), diğer her yerde
-        // SINIRSIZ. #185: SDK yolunda `cfg.max_file_rows` satır bütçesi uygulanıyordu;
-        // 1M satırı aşan dosyalar sessizce kesiliyor ve kesmenin ürettiği boşta
-        // referanslar feed'in kusuru sayılıyordu. Ölçüm sınırın gereksiz olduğunu
-        // gösterdi (VBB tarayıcıda tam hâlde 18,9 sn, kesilmiş hâlde 117 sn sürüyordu:
-        // maliyet satır okumakta değil, uydurma notice üretmekteydi). `max_file_rows`
-        // yalnız ARC_022 eşiğidir; `buffered_entry_limit` bayt sınırı olarak kalır.
+        // CSV tokenization — only the header (Some(0)) in stream_mode, UNLIMITED everywhere else.
+        // #185: the SDK path applied a `cfg.max_file_rows` row budget; files over 1M rows were
+        // silently cut off and the dangling references produced by the cut were blamed on the
+        // feed. Measurement showed the limit was unnecessary (VBB took 18.9 s in the browser
+        // whole and 117 s truncated: the cost was not reading rows but producing spurious
+        // notices). `max_file_rows` is only the ARC_022 threshold; `buffered_entry_limit` remains
+        // the byte limit.
         let _t = crate::timing::Timer::start(format!("K1::tokenize::{raw_name}"));
         let (mut records, _, rfc4180) = match tokenize_csv(
             text,
@@ -2542,7 +2549,7 @@ pub fn parse_with_limits(
         ) {
             Ok(r) => r,
             Err(msg) => {
-                // ARC_013
+                // ARC_013.
                 notices.push(make_notice(
                     &mut counter, "ARC_013",
                     EntityType::File, Some(raw_name.clone()),
@@ -2556,31 +2563,29 @@ pub fn parse_with_limits(
             }
         };
 
-        // stream_mode: K1 yalnızca başlığı tokenize eder; gövdedeki kapanmamış tırnağı
-        // (ARC_013) yine de tespit et — zorunlu dosyada Fatal davranışı korunur (alloc YOK).
-        // zip_stream dosyalarda gövde yoktur; unclosed quote kontrolü yanlış-pozitif üretir.
-        // 🔴 BURADA ÖLÜ BİR DAL VARDI (2026-08-07'de ölçülerek kaldırıldı).
-        // Koşulu `stream_mode && !is_zip_stream` idi; iki liste de AYNI dört dosyayı
-        // sayıyor (`stop_times`/`shapes`/`trips`/`calendar_dates`), yani koşul HİÇBİR
-        // zaman doğru olamazdı. `#38` streaming turunda `is_zip_stream` stop_times'tan
-        // dört dosyaya genişletilince dal sessizce ölmüş. Panic koyup tüm test paketi
-        // koşuldu: bir kez bile çalışmadı.
+        // stream_mode: K1 tokenizes only the header, but still detects an unclosed quote in the
+        // body (ARC_013) — preserve Fatal behavior for required files (NO allocation).
+        // zip_stream files have no body; checking for an unclosed quote would be a false positive.
+        // 🔴 THERE USED TO BE A DEAD BRANCH HERE (measured and removed on 2026-08-07).
+        // Its condition was `stream_mode && !is_zip_stream`; both lists named the SAME four files
+        // (`stop_times`/`shapes`/`trips`/`calendar_dates`), so the condition could NEVER be true.
+        // When `is_zip_stream` expanded from stop_times to four files in the `#38` streaming pass,
+        // the branch silently died. A panic was added and the full test suite was run: it never ran.
         //
-        // ⚠️ SİLİNEN ŞEY BİR DAVRANIŞ DEĞİL, BİR İDDİAYDI: akış dosyalarının gövdesinde
-        // kapanmamış tırnak (`ARC_013`) **hiçbir yerde denetlenmiyor** — K2 okuyucuları
-        // onu "best-effort" tolere ediyor. Bu boşluk ölü kodun ardında görünmez duruyordu;
-        // artık yazılı. RFC 4180'in tırnak kaçırma ihlalleri (`ARC_033`) ise K2'de,
-        // baytların gerçekten okunduğu yerde denetleniyor.
+        // ⚠️ WHAT WAS REMOVED WAS A CLAIM, NOT BEHAVIOR: an unclosed quote in a stream-file body
+        // (`ARC_013`) is **NOT CHECKED ANYWHERE** — K2 readers tolerate it "best-effort". This gap
+        // was hidden behind dead code; it is now documented. RFC 4180 quote-escaping violations
+        // (`ARC_033`), however, are checked in K2 where the bytes are actually read.
 
-        // ARC_009: Boş dosya
+        // ARC_009: empty file.
         if records.is_empty() {
-            // calendar.txt servisi tanımlıyorsa boş calendar_dates.txt yanlış-pozitiftir → bastır.
+            // An empty calendar_dates.txt is a false positive when calendar.txt defines service → suppress.
             let conditional_pair_covers_it = (raw_name == "calendar_dates.txt" && has_calendar_txt)
                 || (raw_name == "calendar.txt" && has_calendar_dates_txt);
             if !conditional_pair_covers_it {
                 empty_files.insert(raw_name.clone());
-                // Zorunlu dosyanın boşluğu ARC_035'in (Kritik·Spec) konusudur; ARC_009
-                // yalnız opsiyonel dosyaları raporlar ve sabit Bilgi'dir.
+                // An empty required file belongs to ARC_035 (Critical·Spec); ARC_009 reports only
+                // optional files and is always Info.
                 if !REQUIRED_FILES.contains(&raw_name.as_str()) {
                     notices.push(make_notice(
                         &mut counter,
@@ -2599,10 +2604,10 @@ pub fn parse_with_limits(
             continue;
         }
 
-        // Başlık satırı (ownership al, clone yok)
+        // Header row (take ownership; no clone).
         let raw_headers = records.remove(0);
 
-        // ARC_014: Başlıkta boşluk
+        // ARC_014: whitespace in header.
         for (col_i, hdr) in raw_headers.iter().enumerate() {
             if hdr != hdr.trim() {
                 notices.push(make_notice(
@@ -2621,10 +2626,10 @@ pub fn parse_with_limits(
             }
         }
 
-        // Temiz başlıklar (trim)
+        // Clean headers (trim).
         let headers: Vec<String> = raw_headers.iter().map(|h| h.trim().to_string()).collect();
 
-        // ARC_019: Başlıkta boş sütun adı
+        // ARC_019: empty column name in header.
         for hdr in &headers {
             if hdr.is_empty() {
                 notices.push(make_notice(
@@ -2639,11 +2644,11 @@ pub fn parse_with_limits(
                     format!("'{raw_name}' başlığında boş sütun adı var."),
                     "Tüm sütun adlarının dolu olduğundan emin olun.",
                 ));
-                break; // Dosya başına bir kez yeter
+                break; // Once per file is enough.
             }
         }
 
-        // ARC_015: Tekrar eden sütun
+        // ARC_015: duplicate column.
         let mut seen_hdrs: HashSet<&str> = HashSet::new();
         for hdr in &headers {
             if !seen_hdrs.insert(hdr.as_str()) {
@@ -2662,7 +2667,7 @@ pub fn parse_with_limits(
             }
         }
 
-        // ARC_017: Bilinmeyen sütun (jp_ prefix = GTFS-JP uzantısı, atla)
+        // ARC_017: unknown column (jp_ prefix = GTFS-JP extension; skip).
         let known_cols = known_columns(&raw_name);
         if !known_cols.is_empty() {
             for hdr in &headers {
@@ -2687,18 +2692,18 @@ pub fn parse_with_limits(
 
         let header_count = headers.len();
         let req_flds = required_fields(&raw_name);
-        // stop_times.stop_id KOŞULLU zorunludur (spec): "Required if stop_times.location_group_id
-        // AND stop_times.location_id are NOT defined." Bu ikisinden biri başlıkta varsa dosya
-        // Flex kullanıyordur ve stop_id sütunu beklenmez → ARC_025 üretilmez.
+        // stop_times.stop_id is conditionally required (spec): "Required if stop_times.location_group_id
+        // AND stop_times.location_id are NOT defined." If either appears in the header, the file
+        // uses Flex and stop_id is not expected → do not produce ARC_025.
         let stop_id_required = raw_name == "stop_times.txt"
             && !headers
                 .iter()
                 .any(|h| h == "location_group_id" || h == "location_id");
         let extra_req: &[&str] = if stop_id_required { &["stop_id"] } else { &[] };
 
-        // ARC_025: req_flds'te olup başlıkta OLMAYAN zorunlu sütun (header-level, dosya başına
-        // bir kez). MD'nin missing_required_column karşılığı. Değer-boşluğu (sütun var) ilgili
-        // k2 grup kuralının konusudur.
+        // ARC_025: required column present in req_flds but ABSENT from the header (header-level,
+        // once per file). Equivalent to MD's missing_required_column. An empty value (column
+        // present) belongs to the relevant K2 group rule.
         for &f in req_flds.iter().chain(extra_req) {
             if !headers.iter().any(|h| h == f) {
                 notices.push(make_notice(
@@ -2716,9 +2721,9 @@ pub fn parse_with_limits(
             }
         }
 
-        // DQ_016: birincil anahtar sütun indeksi döngü-değişmezdir — döngü dışında bir kez hesapla.
+        // DQ_016: the primary-key column index is loop-invariant — compute it once outside the loop.
         let dq016_pk_idx = headers.iter().position(|h| h.ends_with("_id"));
-        let _ = dq016_pk_idx; // özet dosya seviyesinde → satır kimliği gerekmiyor
+        let _ = dq016_pk_idx; // file-level summary → no row identity is needed
         let mut dq016 = Dq016Acc::default();
         let mut arc032 = Arc032Acc::default();
         let mut arc037 = Arc037Acc::default();
@@ -2728,9 +2733,9 @@ pub fn parse_with_limits(
         for (row_idx, row) in records.into_iter().enumerate() {
             let line_num = (row_idx + 2) as u64;
 
-            // ARC_012: Sütun sayısı tutarsız
-            // row < header: sondaki boş isteğe bağlı alanlar atlanmış — geçerli CSV pratiği → BİLGİ
-            // row > header: fazla alan — kaçmamış virgül veya format hatası → KRİTİK
+            // ARC_012: inconsistent column count.
+            // row < header: trailing empty optional fields omitted — valid CSV practice → INFO.
+            // row > header: extra fields — unescaped comma or format error → CRITICAL.
             if let Some((msg, tip, observed, is_info)) =
                 arc012_check(&raw_name, line_num, row.len(), header_count)
             {
@@ -2752,7 +2757,7 @@ pub fn parse_with_limits(
                 notices.push(n);
             }
 
-            // ARC_018: Boş veri satırı (tüm alanlar boş)
+            // ARC_018: empty data row (all fields empty).
             if row.iter().all(|v| v.trim().is_empty()) {
                 notices.push(make_notice(
                     &mut counter,
@@ -2766,25 +2771,24 @@ pub fn parse_with_limits(
                     format!("'{raw_name}' {line_num}. satırı tamamen boş."),
                     "Boş satırları kaldırın.",
                 ));
-                continue; // Boş satırı kaydetme
+                continue; // Do not store the empty row.
             }
 
-            // ARC_034: BAŞLIK SATIRI VERİ SATIRI OLARAK TEKRARLANMIŞ.
+            // ARC_034: HEADER ROW REPEATED AS A DATA ROW.
             //
-            // Dosyanın ortasında başlık yeniden yazılmışsa (iki dosyanın uç uca
-            // eklenmesi tipik sebep), ayrıştırıcı onu veri sanar ve HER ALAN kendi
-            // sütun adını "değer" olarak alır. Sonuç, tek bir yapısal kusurun
-            // onlarca alan hatasına dağılmasıdır: `mdb-1003`/`mdb-1004`'te hayalet
-            // bir agency'nin `agency_timezone`'u literal "agency_timezone" olur ve
-            // `AGN_004` + `AGN_005` üretir; `mdb-1004`'te aynı satır `trips.txt`'te
-            // `TRP_006`'yı tetikler. Hiçbiri kullanıcıya asıl sorunu söylemez.
+            // If the header is written again in the middle of a file (usually because two files
+            // were concatenated), the parser treats it as data and every field takes its own
+            // column name as the "value". One structural defect then spreads into dozens of
+            // field errors: in `mdb-1003`/`mdb-1004`, a phantom agency's `agency_timezone` becomes
+            // the literal "agency_timezone" and produces `AGN_004` + `AGN_005`; in `mdb-1004`,
+            // the same row in `trips.txt` triggers `TRP_006`. None tells the user the root problem.
             //
-            // Bu, `ARC_018`'in (tamamen boş satır = TEK hata, on üç eksik alan değil)
-            // kurduğu emsalin aynısıdır.
+            // This follows the precedent set by `ARC_018` (an entirely empty row = ONE error,
+            // not thirteen missing fields).
             //
-            // ⚠️ YANLIŞ POZİTİF KAPISI: satırın BÜTÜN alanları kendi sütun adına
-            // eşit olmalı. Tek bir sütunda `route_id` değerinin "route_id" olması
-            // meşrudur ve tetiklemez; hepsinin birden eşleşmesi başka türlü oluşamaz.
+            // ⚠️ FALSE-POSITIVE GATE: EVERY field in the row must equal its own column name. It is
+            // legitimate for one column's `route_id` value to be "route_id" and it must not fire;
+            // all fields matching cannot arise in another legitimate case.
             if arc034_is_header_repeat(&row[..], &headers[..]) {
                 notices.push(make_notice(
                     &mut counter, "ARC_034",
@@ -2794,10 +2798,10 @@ pub fn parse_with_limits(
                     format!("'{raw_name}' {line_num}. satırı başlık satırının tekrarı — veri olarak okunuyor."),
                     "Dosyanın ortasındaki tekrar eden başlık satırını kaldırın; genellikle iki dosyanın uç uca eklenmesinden doğar.",
                 ));
-                continue; // Başlık tekrarını veri olarak KAYDETME.
+                continue; // Do not STORE the repeated header as data.
             }
 
-            // ARC_021: yazdırılamaz veya sorunlu karakter — geçerli Unicode metni (Japonca vb.) hariç
+            // ARC_021: unprintable or problematic character — excluding valid Unicode text (Japanese, etc.).
             if !arc021_fired {
                 if let Some(cp) = arc021_bad_char(row.iter().map(|v| v.as_str())) {
                     arc021_fired = true;
@@ -2816,7 +2820,7 @@ pub fn parse_with_limits(
                 }
             }
 
-            // ARC_030: alan değerinde sekme/satır sonu — spec bunları açıkça yasaklar.
+            // ARC_030: tab/line ending in a field value — the spec explicitly forbids these.
             if !arc030_fired {
                 if let Some(cp) = arc030_bad_whitespace(row.iter().map(|v| v.as_str())) {
                     arc030_fired = true;
@@ -2835,18 +2839,18 @@ pub fn parse_with_limits(
                 }
             }
 
-            // DQ_016: değerlerde fazladan boşluk — alan ve satır bazında
-            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet.
+            // DQ_016: extra whitespace in values — field and row level.
+            // DQ_016: file-level accumulation; ONE summary after the emit loop.
             dq016.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
-            // ARC_032: HTML etiketi/kaçış dizisi — aynı birikim deseni.
+            // ARC_032: HTML tag/escape sequence — the same accumulation pattern.
             arc032.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
             arc037.observe(line_num, row.iter().map(|v| v.as_str()), &headers);
 
             rows.push(row);
         }
 
-        // DQ_016: DOSYA başına TEK özet (satır-başına DEĞİL — patlama önlemi, STM_050 deseni).
+        // DQ_016: ONE summary per FILE (NOT per row — burst prevention, STM_050 pattern).
         if let Some((observed, msg, cols)) = dq016.summary(&raw_name) {
             let mut n = make_notice(
                 &mut counter,
@@ -2864,7 +2868,7 @@ pub fn parse_with_limits(
             notices.push(n);
         }
 
-        // ARC_032: DOSYA başına TEK özet (DQ_016 ile aynı patlama önlemi).
+        // ARC_032: ONE summary per FILE (same burst prevention as DQ_016).
         if let Some((observed, msg, cols)) = arc032.summary(&raw_name) {
             notices.push(make_notice(
                 &mut counter,
@@ -2880,7 +2884,7 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (ARC_032 deseni).
+        // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (ARC_032 pattern).
         if let Some((observed, msg, cols)) = arc037.summary(&raw_name) {
             notices.push(make_notice(
                 &mut counter,
@@ -2896,9 +2900,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_033: RFC 4180 tırnak ihlali — DOSYA başına TEK özet (ARC_032 deseni).
-        // Emit K2 tarafında DEĞİL burada: karar tokenizer'da veriliyor, K2'nin gördüğü
-        // ayrıştırılmış değer ihlali GÖSTEREMEZ (bkz. `Rfc4180Acc` doc'u).
+        // ARC_033: RFC 4180 quote violation — ONE summary per FILE (ARC_032 pattern).
+        // Emit here, NOT in K2: the decision is made by the tokenizer, and the parsed value seen
+        // by K2 CANNOT SHOW the violation (see the `Rfc4180Acc` doc).
         if rfc4180.rows > 0 {
             let kind = rfc4180.kind.unwrap_or(RFC4180_BARE_QUOTE);
             let example = rfc4180.example.clone().unwrap_or_default();
@@ -2923,8 +2927,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // ARC_022: Dosya satır sayısı bilgi eşiği (stream_mode'da K2 üretir — rows burada boş).
-        // Akış dışı dosyalar sınırsız tokenize edilir (#185), `rows.len()` gerçek sayıdır.
+        // ARC_022: file row-count information threshold (K2 produces it in stream_mode — rows is
+        // empty here). Non-stream files are tokenized without a limit (#185), and `rows.len()` is
+        // the real count.
         let max_rows = cfg.max_file_rows as usize;
         if !stream_mode && rows.len() > max_rows {
             notices.push(make_notice(
@@ -2945,9 +2950,9 @@ pub fn parse_with_limits(
             ));
         }
 
-        // Başlık satırından oluşan kayıt için ARC_009 kontrolü (yalnızca başlık var, veri yok).
-        // stream_mode'da rows boştur; stop_times/shapes için K2 üretir (total_rows var).
-        // calendar_dates.txt stream_mode'da da burada kontrol edilir (K2'nin total_rows'u yok).
+        // ARC_009 check for a header-only record (header exists, no data).
+        // rows is empty in stream_mode; K2 produces it for stop_times/shapes (total_rows exists).
+        // Check calendar_dates.txt stream_mode here too (K2 has no total_rows).
         let stream_empty = stream_mode
             && raw_name == "calendar_dates.txt"
             && text.lines().filter(|l| !l.trim().is_empty()).count() <= 1;
@@ -2956,7 +2961,7 @@ pub fn parse_with_limits(
             && !(raw_name == "calendar.txt" && has_calendar_dates_txt)
         {
             empty_files.insert(raw_name.clone());
-            // Zorunlu dosya → ARC_035 (traversal sonunda, Flex muafiyetiyle).
+            // Required file → ARC_035 (at traversal end, with the Flex exemption).
             if !REQUIRED_FILES.contains(&raw_name.as_str()) {
                 notices.push(make_notice(
                     &mut counter,
@@ -2973,20 +2978,20 @@ pub fn parse_with_limits(
             }
         }
 
-        // zip_stream partial_read'de bytes = ~8KB snippet; gerçek boyut ZIP metadata'sında.
-        // NLL: bytes ödüncü burada biter (son kullanım), ardından raw_vec taşınabilir.
+        // In zip_stream partial_read, bytes = ~8 KB snippet; the real size is in ZIP metadata.
+        // NLL: the borrow of bytes ends here (last use), so raw_vec can move afterward.
         let bytes_len = if is_zip_stream {
             uncompressed_hint as u32
         } else {
             bytes.len() as u32
         };
-        // zip_stream dosyalarda (stop_times, trips, calendar_dates): raw_text=None.
-        // K2 zip_bytes alır, ZIP'i yeniden açarak gövdeyi stream eder.
-        // shapes.txt: raw_text yoluyla stream (zip_stream değil, raw_text=Some).
+        // For zip_stream files (stop_times, trips, calendar_dates): raw_text=None.
+        // K2 receives zip_bytes, reopens the ZIP, and streams the body.
+        // shapes.txt: stream through raw_text (not zip_stream, raw_text=Some).
         let raw_text = if is_zip_stream {
             None
         } else if stream_mode {
-            // shapes.txt — is_required=false, lossy yol kabul edilebilir.
+            // shapes.txt — is_required=false, so the lossy path is acceptable.
             Some(text.to_string())
         } else {
             None
@@ -3007,17 +3012,17 @@ pub fn parse_with_limits(
         );
     }
 
-    // ── Dosya varlık kontrolleri ──────────────────────────────────────────────
+    // ── File presence checks ──────────────────────────────────────────────────
 
-    // ARC_004: Zorunlu dosya eksik → Fatal
+    // ARC_004: required file missing → Fatal.
     //
-    // `stops.txt` KOŞULLU zorunludur. Spec (Schedule Reference, dosya tablosu):
+    // `stops.txt` is CONDITIONALLY required. Spec (Schedule Reference, file table):
     //   "stops.txt — Conditionally Required — Optional if demand-responsive zones are
     //    defined in locations.geojson. Required otherwise."
-    // Yalnızca-Flex bir feed hizmetini `locations.geojson` bölgeleriyle tanımlar ve hiç
-    // stops.txt taşımayabilir. Koşulsuz listede tutmak, GEÇERLİ bir feed'i ARC_004 ile
-    // tamamen açılamaz yapıyordu — kullanıcı tek bir bulgu bile göremiyordu.
-    // İkisi de yoksa hizmetin nerede verildiği hiç tanımlı değildir → PARTIAL.
+    // A Flex-only feed defines service through `locations.geojson` regions and may carry no
+    // stops.txt. Keeping it in the unconditional list made a VALID feed completely unreadable
+    // with ARC_004 — the user could not see a single finding. If both are absent, service has no
+    // defined location → PARTIAL.
     let missing: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| !present_files.contains(f))
@@ -3031,11 +3036,11 @@ pub fn parse_with_limits(
             notices.push(make_notice(
                 &mut counter,
                 "ARC_004",
-                // Dosya adı elimizde; boş bırakılınca en/ja/fr metni
-                // "Required file '' is missing." oluyordu.
+                // We have the file name; leaving this empty produced the en/ja/fr message
+                // "Required file '' is missing.".
                 EntityType::Feed,
                 Some(f.to_string()),
-                // Eksik dosya başına tek bulgu: registry `File` dedup'ı bu alana göre ayırır.
+                // One finding per missing file: the registry's `File` dedup distinguishes by this field.
                 Some(f),
                 None,
                 None,
@@ -3046,10 +3051,10 @@ pub fn parse_with_limits(
         }
     }
 
-    // ARC_035: zorunlu dosya MEVCUT ama hiç veri satırı yok.
-    // ARC_004 ile aynı eksen ve aynı muafiyet — "dosya var" testi içeriğe bakmazsa
-    // 0 baytlık bir `stop_times.txt` yayın kapısından geçer (13. korpus koşumu: beş feed
-    // boş stop_times ile yayın skoru 100,0 alıyordu).
+    // ARC_035: required file EXISTS but has no data rows.
+    // Same axis and exemption as ARC_004 — if the "file exists" check does not inspect content,
+    // a zero-byte `stop_times.txt` passes the publication gate (in corpus run 13, five feeds with
+    // empty stop_times received a publication score of 100.0).
     let empty_required: Vec<&str> = REQUIRED_FILES
         .iter()
         .filter(|&&f| empty_files.contains(f))
@@ -3071,8 +3076,8 @@ pub fn parse_with_limits(
         ));
     }
 
-    // ARC_036: ZIP akış görünümü merkez diziniyle çelişiyor. Feed düzeyinde TEK bulgu —
-    // girdi başına basmak yayıncının tek hatasını girdi sayısı kadar tekrarlar.
+    // ARC_036: ZIP stream view contradicts the central directory. ONE feed-level finding —
+    // emitting per entry repeats the publisher's one mistake once per entry.
     if inconsistent_stream_entries > 0 {
         notices.push(make_notice(
             &mut counter, "ARC_036",
@@ -3088,7 +3093,7 @@ pub fn parse_with_limits(
         ));
     }
 
-    // ARC_008: calendar.txt VE calendar_dates.txt ikisi de eksik (Kritik, non-Fatal)
+    // ARC_008: both calendar.txt AND calendar_dates.txt are missing (Critical, non-Fatal).
     let has_any_calendar = CALENDAR_FILES.iter().any(|&f| present_files.contains(f));
     if !has_any_calendar {
         notices.push(make_notice(
@@ -3105,8 +3110,8 @@ pub fn parse_with_limits(
         ));
     }
 
-    // ARC_031: spec dosya düzeyi hükmü — feed_info.txt, translations.txt varsa ZORUNLU.
-    // Koşul sağlanmadığında dosya yalnız TAVSİYE edilir; o hâli ARC_020 (Quality) taşır.
+    // ARC_031: spec file-level requirement — feed_info.txt is REQUIRED when translations.txt exists.
+    // When the condition is not met, the file is only RECOMMENDED; that case is ARC_020 (Quality).
     if present_files.contains("translations.txt") && !present_files.contains("feed_info.txt") {
         notices.push(make_notice(
             &mut counter, "ARC_031",
@@ -3131,7 +3136,7 @@ pub fn parse_with_limits(
     })
 }
 
-// ── locations.geojson validasyon ─────────────────────────────────────────────
+// ── locations.geojson validation ─────────────────────────────────────────────
 
 fn validate_locations_geojson(
     bytes: &[u8],
@@ -3211,7 +3216,7 @@ fn validate_locations_geojson(
         return false;
     };
 
-    // LOC_005: FeatureCollection boş
+    // LOC_005: empty FeatureCollection.
     if features.is_empty() {
         notices.push(make_notice(
             counter,
@@ -3228,8 +3233,8 @@ fn validate_locations_geojson(
         return false;
     }
 
-    // LOC_007: Yinelenen feature 'id' değerleri. Sayaç ayrıca Flex muafiyetinin yalnız
-    // gerçekten benzersiz string kimliklere dayanmasını sağlar.
+    // LOC_007: duplicate feature 'id' values. The counter also ensures that the Flex exemption
+    // relies only on genuinely unique string IDs.
     let mut id_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     {
         let mut seen_ids: std::collections::HashMap<String, usize> =
@@ -3237,7 +3242,7 @@ fn validate_locations_geojson(
         for (i, feature) in features.iter().enumerate() {
             if let Some(id_val) = feature.get("id") {
                 let id_str = id_val.to_string();
-                // XFL_025: stop_times.location_id ham CSV değeriyle eşleşmesi için tırnaksız ham id.
+                // XFL_025: unquoted raw ID so it matches the raw CSV value of stop_times.location_id.
                 geojson_ids.insert(
                     id_val
                         .as_str()
@@ -3270,7 +3275,7 @@ fn validate_locations_geojson(
             .and_then(|v| v.as_str())
             .filter(|id| !id.is_empty() && id_counts.get(*id) == Some(&1));
 
-        // LOC_008: her Feature'ın "type" alanı Required ve değeri "Feature" olmalı (spec tablosu).
+        // LOC_008: every Feature's "type" field is Required and must be "Feature" (spec table).
         match feature.get("type").and_then(|v| v.as_str()) {
             Some("Feature") => {}
             other => {
@@ -3291,8 +3296,8 @@ fn validate_locations_geojson(
             }
         }
 
-        // LOC_009: "properties" nesnesi Required (spec tablosu). Boş nesne GEÇERLİDİR —
-        // stop_name/stop_desc opsiyoneldir; eksik ya da nesne-olmayan değer ihlaldir.
+        // LOC_009: the "properties" object is Required (spec table). An empty object is VALID —
+        // stop_name/stop_desc are optional; missing or non-object values are violations.
         if !feature.get("properties").is_some_and(|v| v.is_object()) {
             notices.push(make_notice(
                 counter,
@@ -3308,7 +3313,7 @@ fn validate_locations_geojson(
             ));
         }
 
-        // LOC_003: Feature'da 'id' property eksik
+        // LOC_003: 'id' property missing from Feature.
         if feature.get("id").is_none() {
             notices.push(make_notice(
                 counter, "LOC_003", EntityType::File, Some(fname.to_string()),
@@ -3318,8 +3323,8 @@ fn validate_locations_geojson(
             ));
         }
 
-        // Pa1fdaa0d: geometriyi feature 'id'sine bağlamak için ham id (XFL_025 ile AYNI
-        // normalleştirme — `stop_times.location_id` ham CSV değeriyle eşleşmeli).
+        // Pa1fdaa0d: raw ID used to bind geometry to the feature's 'id' (the SAME normalization
+        // as XFL_025 — it must match the raw CSV value of `stop_times.location_id`).
         let feature_id: Option<String> = feature.get("id").map(|v| {
             v.as_str()
                 .map(str::to_string)
@@ -3331,7 +3336,7 @@ fn validate_locations_geojson(
         };
         let geometry = feature.get("geometry");
 
-        // LOC_002: Feature'da geometry null veya eksik
+        // LOC_002: geometry null or missing from Feature.
         if geometry.is_none_or(|g| g.is_null()) {
             notices.push(make_notice(
                 counter, "LOC_002", EntityType::File, Some(fname.to_string()),
@@ -3346,8 +3351,8 @@ fn validate_locations_geojson(
         let geom_type = geometry.get("type").and_then(|t| t.as_str());
         let valid_geometry = match geom_type {
             Some("Polygon") => {
-                // LOC_010: "coordinates" Required. Eksik/dizi-olmayan değerde eskiden
-                // `if let Some(..)` sessizce atlıyordu → geometri hiç doğrulanmadan geçiyordu.
+                // LOC_010: "coordinates" is Required. A missing/non-array value used to be
+                // silently skipped by `if let Some(..)` → geometry passed without validation.
                 match geometry.get("coordinates").and_then(|c| c.as_array()) {
                     Some(rings) => check_polygon_rings(
                         counter,
@@ -3413,7 +3418,7 @@ fn validate_locations_geojson(
             }
         };
 
-        // Pa1fdaa0d: geometri, feature 'id'siyle eşleşerek K6'ya taşınır.
+        // Pa1fdaa0d: geometry is moved to K6 keyed by the feature's 'id'.
         if let Some(id) = feature_id {
             if !geom.outer_rings.is_empty() {
                 geoms.insert(id.clone(), geom);
@@ -3427,9 +3432,9 @@ fn validate_locations_geojson(
     !valid_geojson_ids.is_empty()
 }
 
-/// Polygon ring'leri için LOC_004 (kapalı değil) ve LOC_006 (alan > 500km²) kontrolü.
-/// LOC_010: geometry.coordinates eksik veya dizi değil. Spec bu alanı Required işaretler;
-/// eksikliğinde bölge geometrisi hiç çözümlenemez, dolayısıyla KRİTİK.
+/// Checks LOC_004 (not closed) and LOC_006 (area > 500 km²) for polygon rings.
+/// LOC_010: geometry.coordinates missing or not an array. The spec marks this field Required;
+/// without it, the region geometry cannot be resolved at all, so the finding is CRITICAL.
 fn missing_coordinates(counter: &mut u32, fname: &str, feat_num: u64, notices: &mut Vec<Notice>) {
     notices.push(make_notice(
         counter,
@@ -3451,14 +3456,14 @@ fn check_polygon_rings(
     feat_num: u64,
     rings: &[serde_json::Value],
     notices: &mut Vec<Notice>,
-    // Pa1fdaa0d: dış ring K6'ya taşınır. `None` verilirse geometri toplanmaz
-    // (yalnız doğrulama yapılır) — testler ve eski çağrı yolları için.
+    // Pa1fdaa0d: move the outer ring to K6. With `None`, do not collect geometry
+    // (validation only) — for tests and legacy call paths.
     collect: Option<&mut LocationGeometry>,
 ) -> bool {
     let mut all_lats = Vec::new();
     let mut all_lons = Vec::new();
     let mut already_reported_closure = false;
-    // LOC_006 için ring başına işaretli alan: ilk ring dış sınır, sonrakiler deliktir.
+    // Signed area per ring for LOC_006: the first ring is the outer boundary; the rest are holes.
     let mut all_rings: Vec<Vec<(f64, f64)>> = Vec::new();
     let mut ring_areas: Vec<f64> = Vec::new();
     let mut structurally_valid = !rings.is_empty();
@@ -3468,13 +3473,13 @@ fn check_polygon_rings(
             structurally_valid = false;
             continue;
         };
-        // RFC 7946 LinearRing: en az dört konum ve ilk/son konum aynı olmalıdır.
+        // RFC 7946 LinearRing: at least four positions, with the first and last equal.
         if pts.len() < 4 {
             structurally_valid = false;
             continue;
         }
 
-        // LOC_004: İlk ve son nokta eşit değilse ring kapalı değil
+        // LOC_004: the ring is open when the first and last points differ.
         if !already_reported_closure {
             let first = &pts[0];
             let last = &pts[pts.len() - 1];
@@ -3500,7 +3505,7 @@ fn check_polygon_rings(
             }
         }
 
-        // Ring koordinatlarını topla: alan hesabı ve enlem ölçeği için.
+        // Collect ring coordinates for area calculation and latitude scaling.
         let mut ring_pts: Vec<(f64, f64)> = Vec::with_capacity(pts.len());
         for pt in pts {
             if let (Some(lon), Some(lat)) = (
@@ -3518,18 +3523,19 @@ fn check_polygon_rings(
         all_rings.push(ring_pts);
     }
 
-    // LOC_011: OpenGIS 6.1.11 — ring BASİT olmalı ve delikler dış ring İÇİNDE kalmalı.
-    // LOC_004 yalnız kapalılığı ölçer; bunlar 6.1.11'in asıl maddeleridir.
+    // LOC_011: OpenGIS 6.1.11 — rings must be SIMPLE and holes must remain INSIDE the outer ring.
+    // LOC_004 checks closure only; these are the actual 6.1.11 requirements.
     if let Some(outer) = all_rings.first() {
-        // ── OpenGIS SFS 6.1.11 poligon geçerlilik iddiaları ──────────────────────
-        // (1) ring'ler basit · (3) hiçbir iki ring KESİŞMEZ (yalnız noktada teğet olabilir)
-        // (4) kesik/diken/delik yok · (5) iç kısım bağlantılı · delikler kabuğun İÇİNDE.
+        // ── OpenGIS SFS 6.1.11 polygon-validity requirements ────────────────────
+        // (1) rings are simple · (3) no two rings CROSS (they may touch at one point)
+        // (4) no cut lines/spikes/punctures · (5) connected interior · holes INSIDE the shell.
         //
-        // ⚠️ RING YÖNÜ BU LİSTEDE YOKTUR. 2026-08-06 dış denetimi `LOC_011`'in ölçmediği
-        // maddeler arasında "ring yönü"nü de saymıştı; **spec'in atıf yaptığı 6.1.11
-        // yönelim şart koşmaz** — saat yönü kuralı GeoJSON RFC 7946 §3.1.6'nın SERİLEŞTİRME
-        // kuralıdır ve RFC ayrıca ayrıştırıcıların uymayan geometriyi reddetmemesini söyler.
-        // Yönü ihlal saymak `PTH_017` tuzağının aynısı olurdu → BİLİNÇLİ ÖLÇÜLMÜYOR.
+        // ⚠️ RING ORIENTATION IS NOT IN THIS LIST. The 2026-08-06 external audit also counted
+        // "ring orientation" among the items `LOC_011` did not measure; **6.1.11, which the
+        // spec cites, does not require orientation** — the clockwise rule belongs to the
+        // SERIALIZATION rule in GeoJSON RFC 7946 §3.1.6, and the RFC also says parsers should
+        // not reject non-conforming geometry. Treating orientation as a violation would repeat
+        // the `PTH_017` trap → IT IS DELIBERATELY NOT MEASURED.
         let mut bad: Option<Loc011Failure> = None;
         if !ring_is_simple(outer) {
             bad = Some(Loc011Failure::new(
@@ -3567,22 +3573,22 @@ fn check_polygon_rings(
                     format!("{i}. delik kendine dokunuyor — iç kısım bölünüyor"),
                 ));
             } else if rings_cross(outer, hole) {
-                // 6.1.11 (3): ring'ler kesişemez. Eskiden hiç ölçülmüyordu.
+                // 6.1.11 (3): rings must not cross. This was not measured before.
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_crosses_outer_ring; ring={i}"),
                     format!("{i}. delik dış ring'i kesiyor"),
                 ));
             } else if hole.iter().any(|&p| !point_in_ring(p, outer)) {
-                // Eskiden yalnız İLK NOKTA örnekleniyordu → kısmen dışarı taşan delik
-                // görünmüyordu. Artık TÜM köşeler denetlenir.
+                // Previously only the FIRST point was sampled → a hole partly outside the ring
+                // went unnoticed. Now ALL vertices are checked.
                 bad = Some(Loc011Failure::new(
                     format!("issue=hole_outside_outer_ring; ring={i}"),
                     format!("hole {i} lies partly or wholly outside the outer ring"),
                 ));
             }
         }
-        // Delik-delik ilişkisi: kesişme yasak (6.1.11/3); iç içe delik de geçersizdir
-        // (içteki "delik" aslında dolu alan olur, iç kısım tanımsızlaşır).
+        // Hole-hole relationship: crossing is forbidden (6.1.11/3); nested holes are also
+        // invalid (the inner "hole" would actually be filled area, making the interior undefined).
         'outer: for i in 1..all_rings.len() {
             if bad.is_some() {
                 break;
@@ -3610,9 +3616,9 @@ fn check_polygon_rings(
                 }
             }
         }
-        // 6.1.11 madde 5 — iç kısmın BAĞLANTILI olması. Ring'ler arası temasların TAMAMI
-        // tek bir çevrim ölçütüyle değerlendirilir; "iki ring iki noktada dokunuyor" bu
-        // ölçütün yalnızca bir özel hâliydi (bkz. `interior_disconnection`).
+        // 6.1.11 item 5 — the interior must be CONNECTED. ALL contacts between rings are
+        // evaluated with a single cycle criterion; "two rings touch at two points" was only
+        // one special case of that criterion (see `interior_disconnection`).
         if bad.is_none() {
             bad = interior_disconnection(&all_rings);
         }
@@ -3627,13 +3633,14 @@ fn check_polygon_rings(
         }
     }
 
-    // LOC_006: GERÇEK poligon alanı > 500km²
+    // LOC_006: TRUE polygon area > 500 km²
     //
-    // 2026-08-01'e kadar burada bounding box alanı ölçülüyordu. Sekiz gerçek GTFS-Flex feed'inde
-    // ölçüldü: bbox gerçek alanı 1,4×–5,6× şişiriyor, ve kuralın 7 ateşlemesinden 3'ü (Columbia
-    // County ×2, Pueblo) SADECE bu şişmeden doğuyordu — gerçek alanları eşiğin altındaydı.
-    // Poligonlar dışbükey değil (hizmet bölgeleri idari sınırları izler), dolayısıyla bbox
-    // sistematik olarak yukarı saparr. Shoelace ile gerçek alan ölçülür; delikler düşülür.
+    // Until 2026-08-01 this measured the bounding-box area. Measurements on eight real
+    // GTFS-Flex feeds showed that the bbox inflates the true area by 1.4×–5.6×, and 3 of
+    // the rule's 7 firings (Columbia County ×2, Pueblo) came ONLY from that inflation — their
+    // true areas were below the threshold. Polygons are not convex (service zones follow
+    // administrative boundaries), so the bbox systematically skews upward. Shoelace measures
+    // the true area; holes are subtracted.
     if all_lats.len() >= 3 && !ring_areas.is_empty() {
         let outer = ring_areas[0].abs();
         let holes: f64 = ring_areas[1..].iter().map(|a| a.abs()).sum();
@@ -3648,10 +3655,10 @@ fn check_polygon_rings(
         }
     }
 
-    // Pa1fdaa0d: DIŞ ring'i biriktir. Delikler tutulmaz — örtüşme kararı için dış sınır
-    // yeterli ve deliği hesaba katmamak yalnız "daha kapsayıcı" davranmak demek olurdu;
-    // bu bir YASAK hükmü olduğu için o yön güvenli DEĞİL, o yüzden K6 tarafında karar
-    // kesişme/kapsama ile ayrıca doğrulanır.
+    // Pa1fdaa0d: accumulate the OUTER ring. Holes are not retained — the outer boundary is
+    // sufficient for the overlap decision, and ignoring holes would make the decision merely
+    // "more inclusive"; because this is a PROHIBITION, that direction is NOT SAFE, so K6 also
+    // verifies the decision by intersection/containment.
     if let (Some(g), Some(outer)) = (collect, all_rings.first()) {
         for &(x, y) in outer {
             g.bbox.0 = g.bbox.0.min(x);
@@ -3664,15 +3671,16 @@ fn check_polygon_rings(
     structurally_valid && all_rings.first().is_some_and(|ring| ring.len() >= 4)
 }
 
-/// İki doğru parçası KESİŞİYOR mu (uç nokta paylaşımı ve teğetlik hariç).
+/// Do two line segments CROSS (excluding shared endpoints and tangency)?
 ///
-/// ⚠️ `robust::orient2d` ZORUNLU. 2026-08-06 ölçümü: naif `f64` determinantıyla aynı 21
-/// poligonda sonuç epsilon seçimine göre 5↔17 arası oynuyor ve monoton bile değil.
+/// ⚠️ `robust::orient2d` is REQUIRED. A 2026-08-06 measurement found that the naive `f64`
+/// determinant varied from 5↔17 on the same 21 polygons depending on epsilon, and was not even
+/// monotonic.
 ///
-/// ⚠️ Dört yönelimin de SIFIR OLMAMASI şart koşulur, yani **doğrusal (collinear) örtüşme
-/// kesişme SAYILMAZ**. Bu bilinçli: OpenGIS 6.1.11 ring'lerin bir NOKTADA teğet olmasına
-/// izin verir. Ama bunun bedeli, doğrusal örtüşmeden doğan "spike/cut line" ihlallerinin
-/// buradan geçmesidir → `has_spike` onları ayrıca yakalar.
+/// ⚠️ All four orientations must be NONZERO, so **collinear overlap does NOT COUNT as a CROSS**.
+/// This is deliberate: OpenGIS 6.1.11 permits rings to be tangent at ONE POINT. The cost is that
+/// "spike/cut line" violations caused by collinear overlap pass here → `has_spike` catches them
+/// separately.
 pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f64, f64)) -> bool {
     let o = |p: (f64, f64), q: (f64, f64), r: (f64, f64)| {
         let v = robust::orient2d(
@@ -3692,8 +3700,8 @@ pub(crate) fn segments_cross(a: (f64, f64), b: (f64, f64), c: (f64, f64), d: (f6
     o1 != o2 && o3 != o4 && o1 != 0 && o2 != 0 && o3 != 0 && o4 != 0
 }
 
-/// Ring'in bounding box'ı — ring çiftlerini karşılaştırmadan önce ucuz eleme.
-/// O(n·m) kesişim taramasını, kutuları ayrık olan çiftlerde hiç başlatmamak için.
+/// Ring bounding box — cheap pre-filter before comparing ring pairs.
+/// Avoid starting the O(n·m) intersection scan for pairs with disjoint boxes.
 fn ring_bbox(pts: &[(f64, f64)]) -> (f64, f64, f64, f64) {
     let mut b = (f64::MAX, f64::MAX, f64::MIN, f64::MIN);
     for &(x, y) in pts {
@@ -3709,9 +3717,9 @@ fn bboxes_disjoint(a: (f64, f64, f64, f64), b: (f64, f64, f64, f64)) -> bool {
     a.2 < b.0 || b.2 < a.0 || a.3 < b.1 || b.3 < a.1
 }
 
-/// İKİ RING BİRBİRİNİ KESİYOR mu (OpenGIS 6.1.11: *"No two Rings in the boundary cross"*).
-/// 2026-08-06 dış denetimi bu maddenin hiç ölçülmediğini gösterdi — `LOC_011` yalnız her
-/// ring'in KENDİ basitliğine ve deliğin İLK NOKTASININ kapsanmasına bakıyordu.
+/// Do TWO RINGS CROSS (OpenGIS 6.1.11: *"No two Rings in the boundary cross"*)?
+/// The 2026-08-06 audit showed this was not measured — `LOC_011` checked only each ring's OWN
+/// simplicity and containment of the hole's FIRST POINT.
 fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
     if r1.len() < 2 || r2.len() < 2 {
         return false;
@@ -3729,25 +3737,25 @@ fn rings_cross(r1: &[(f64, f64)], r2: &[(f64, f64)]) -> bool {
     false
 }
 
-/// İki ring KAÇ NOKTADA dokunuyor (temas noktası sayısı).
+/// At HOW MANY POINTS do two rings touch (number of contact points)?
 ///
-/// OpenGIS SFS 6.1.11 madde 3 ring'lerin **bir noktada** teğet olmasına izin verir; madde 5
-/// ise iç kısmın BAĞLANTILI olmasını ister. Sayı tek başına karar vermez — kararı
-/// [`interior_disconnection`] çevrim ölçütüyle verir.
+/// OpenGIS SFS 6.1.11 item 3 permits rings to be tangent at **one point**; item 5 requires the
+/// interior to be CONNECTED. The count does not decide by itself — [`interior_disconnection`]
+/// applies the cycle criterion.
 fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
     if bboxes_disjoint(ring_bbox(a), ring_bbox(b)) {
         return 0;
     }
-    // Temas iki biçimde olur ve İKİSİ de sayılmalı:
-    //   (1) ortak KÖŞE — iki ring aynı koordinatı yazar
-    //   (2) bir ring'in köşesi diğerinin KENARI üzerinde — köşe paylaşımı yok ama
-    //       geometrik temas var. İlk uygulamam yalnız (1)'i sayıyordu ve kendi testim
-    //       düştü: delik kabuğa (0,3)/(0,7) ile dokunuyordu, ikisi de kabuğun köşesi
-    //       değildi. Yalnız köşe saymak iddia edilenden DAR bir denetim olurdu.
+    // There are two forms of contact and BOTH must count:
+    //   (1) shared VERTEX — both rings write the same coordinate
+    //   (2) a vertex of one ring lies on the EDGE of the other — no shared vertex but there is
+    //       geometric contact. My first implementation counted only (1) and its own test failed:
+    //       the hole touched the shell at (0,3)/(0,7), neither of which was a shell vertex.
+    //       Counting only vertices would be a narrower check than claimed.
     //
-    // ⚠️ Koordinatlar TAM eşitlikle karşılaştırılır; kenar üzerindelik `robust::orient2d`
-    // ile SIFIR yönelim + aralık kontrolüdür. Epsilon toleransı yakın ama ayrı köşeleri
-    // temas sayar ve yanlış pozitif üretirdi.
+    // ⚠️ Compare coordinates by EXACT equality; point-on-edge uses `robust::orient2d` with ZERO
+    // orientation plus a range check. Epsilon tolerance would count nearby but distinct vertices
+    // as touching and produce false positives.
     let touches = |p: (f64, f64), ring: &[(f64, f64)]| -> bool {
         if ring.contains(&p) {
             return true;
@@ -3768,10 +3776,10 @@ fn ring_contact_points(a: &[(f64, f64)], b: &[(f64, f64)]) -> usize {
     seen.len()
 }
 
-/// `p` noktası `s`–`e` doğru parçası ÜZERİNDE mi.
+/// Is point `p` ON segment `s`–`e`?
 ///
-/// ⚠️ Yönelim `robust::orient2d` ile SIFIR aranarak karara bağlanır, epsilon toleransıyla
-/// DEĞİL: tolerans yakın ama AYRI köşeleri temas sayar ve yanlış pozitif üretir.
+/// ⚠️ Decide using ZERO orientation from `robust::orient2d`, NOT epsilon tolerance: tolerance
+/// counts nearby but DISTINCT vertices as touching and produces false positives.
 fn point_on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
     if robust::orient2d(
         robust::Coord { x: s.0, y: s.1 },
@@ -3784,28 +3792,27 @@ fn point_on_segment(p: (f64, f64), s: (f64, f64), e: (f64, f64)) -> bool {
     p.0 >= s.0.min(e.0) && p.0 <= s.0.max(e.0) && p.1 >= s.1.min(e.1) && p.1 <= s.1.max(e.1)
 }
 
-/// Ring KENDİNE dokunuyor mu — temas grafiğinde ÖZ-DÖNGÜ.
+/// Does the ring touch ITSELF — a SELF-LOOP in the contact graph?
 ///
-/// `ring_is_simple` yalnız KESİŞMEYE bakar ve teğetliği bilinçli olarak dışarıda bırakır
-/// (`segments_cross` dört yönelimin de sıfır olmamasını şart koşar). Bu yüzden sekiz
-/// şeklinde bir ring — aynı köşeye iki kez uğrayan ya da bir köşesi kendi uzak kenarının
-/// üstüne düşen ring — oradan geçiyordu. Böyle bir ring'in İÇİ iki loba ayrılır, yani
-/// 6.1.11 madde 5 ihlalidir.
+/// `ring_is_simple` checks only CROSSING and deliberately excludes tangency
+/// (`segments_cross` requires all four orientations to be nonzero). Thus a figure-eight ring —
+/// one that visits the same vertex twice or has a vertex on its own distant edge — passed through.
+/// Such a ring's INTERIOR splits into two lobes, violating item 5 of 6.1.11.
 ///
-/// ⚠️ KOMŞU indeksler bilinçle atlanır: ardışık yinelenen koordinat (sıfır uzunluklu
-/// kenar) ve düz kenar üzerindeki ara köşeler gerçek veride yaygındır ve öz-temas
-/// DEĞİLDİR; onları saymak yanlış pozitif üretirdi. Sıfır alanlı geri dönüş `has_spike`in
-/// işidir.
+/// ⚠️ ADJACENT indices are deliberately skipped: consecutive duplicate coordinates (zero-length
+/// edges) and intermediate vertices on straight edges are common in real data and are NOT
+/// self-contacts; counting them would produce false positives. Zero-area reversals are
+/// `has_spike`'s job.
 ///
-/// 🔴 ÖLÇÜM DERSİ (2026-08-07): ilk sürüm yalnız |i−j| ≤ 1 atlıyordu ve korpustaki
-/// `locations.geojson` taşıyan 6 feed'in ÜÇÜNDE yanlış pozitif verdi — aynı koordinat
-/// ARDIŞIK ÜÇ kez yazılmıştı (mdb-2045'te 84 köşe böyle), 189 ile 191 "komşu değil"
-/// sayılıyordu. Ring artık önce ardışık yinelemelerden ARINDIRILIR; komşuluk kararı
-/// arındırılmış diziye göre verilir. Tahminle yazılan koruyucu gerçek veride düştü.
+/// 🔴 MEASUREMENT LESSON (2026-08-07): the first version skipped only |i−j| ≤ 1 and produced
+/// false positives in THREE of the 6 corpus feeds carrying `locations.geojson` — the same
+/// coordinate was written THREE times consecutively (84 vertices in mdb-2045), so 189 and 191
+/// were considered "not adjacent". The ring is now CLEANED of consecutive repeats first; adjacency
+/// is decided on the cleaned sequence. The protection written by guess failed on real data.
 fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
-    // Ardışık yinelenen köşeleri (çevrimsel olarak, kapanış noktası dahil) at.
+    // Remove consecutive duplicate vertices (cyclically, including the closing point).
     let mut pts: Vec<(f64, f64)> = {
-        let body = &pts[..pts.len().saturating_sub(1)]; // kapanış kopyası
+        let body = &pts[..pts.len().saturating_sub(1)]; // closing copy
         let mut out: Vec<(f64, f64)> = Vec::with_capacity(body.len());
         for &p in body {
             if out.last() != Some(&p) {
@@ -3817,7 +3824,7 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
         }
         out
     };
-    pts.push(*pts.first().unwrap_or(&(0.0, 0.0))); // ring'i yeniden kapat
+    pts.push(*pts.first().unwrap_or(&(0.0, 0.0))); // close the ring again
     let pts = &pts[..];
     let n = pts.len().saturating_sub(1);
     if n < 4 {
@@ -3827,7 +3834,7 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
         let d = (a + n - b) % n;
         d <= 1 || d >= n - 1
     };
-    // (1) aynı koordinat, komşu OLMAYAN iki köşede
+    // (1) the same coordinate at two NON-ADJACENT vertices
     for i in 0..n {
         for j in (i + 1)..n {
             if !adjacent(i, j) && pts[i] == pts[j] {
@@ -3835,7 +3842,7 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
             }
         }
     }
-    // (2) köşe, komşu OLMAYAN bir kenarın üzerinde (T-temas; köşe paylaşımı yok)
+    // (2) a vertex on a NON-ADJACENT edge (T-contact; no shared vertex)
     for i in 0..n {
         for j in 0..n {
             if adjacent(i, j) || adjacent(i, (j + 1) % n) {
@@ -3849,19 +3856,19 @@ fn ring_touches_itself(pts: &[(f64, f64)]) -> bool {
     false
 }
 
-/// OpenGIS SFS 6.1.11 madde 5 — *"the interior of every Polygon is a connected point set"*.
+/// OpenGIS SFS 6.1.11 item 5 — *"the interior of every Polygon is a connected point set"*.
 ///
-/// ÖLÇÜT: ring'leri düğüm, her TEMAS NOKTASINI bir kenar sayan çoklu-grafik ÇEVRİMSİZ
-/// (orman) olmalıdır. Tek bir temas iç kısmı bölmez — kıstırma noktasının etrafından
-/// dolaşılır; temaslar bir çevrim kapatır kapatmaz kapalı bir eğri doğar ve iç kısmı iki
-/// bileşene ayırır. (JTS `ConnectedInteriorTester` aynı ölçütü kullanır.)
+/// CRITERION: the multigraph whose nodes are rings and whose edges are CONTACT POINTS must be
+/// ACYCLIC (a forest). One contact does not split the interior — it can be walked around; as soon
+/// as contacts close a cycle, a closed curve forms and splits the interior into two components.
+/// (JTS `ConnectedInteriorTester` uses the same criterion.)
 ///
-/// 🔴 2026-08-07'ye kadar (issue #74) yalnız ÖZEL HÂL ölçülüyordu: "iki ring iki noktada
-/// dokunuyor" — grafik dilinde iki paralel kenar, yani en kısa çevrim. Üç ring'in ikişer
-/// ikişer birer noktada dokunarak kapattığı ÜÇGEN çevrim kaçıyordu; kart ve defter bunu
-/// kalıntı olarak yazıyordu. Ölçüt çevrime çevrilince özel hâl kendiliğinden kapsandı.
+/// 🔴 Until 2026-08-07 (issue #74), only the SPECIAL CASE was measured: "two rings touch at two
+/// points" — two parallel edges in graph terms, the shortest cycle. The TRIANGLE cycle closed by
+/// three rings touching pairwise at one point escaped; the card and ledger recorded it as a
+/// remnant. Converting the criterion to cycles covered the special case automatically.
 ///
-/// Öz-döngüler (`ring_touches_itself`) çağıran tarafta ring başına ayrıca denetlenir.
+/// Self-loops (`ring_touches_itself`) are checked separately per ring by the caller.
 struct Loc011Failure {
     observed: String,
     explanation: String,
@@ -3930,10 +3937,11 @@ fn interior_disconnection(rings: &[Vec<(f64, f64)>]) -> Option<Loc011Failure> {
     None
 }
 
-/// Ring'de SPIKE / CUT LINE var mı (OpenGIS 6.1.11: *"may not have cut lines, spikes or
-/// punctures"*). Spike = ring bir doğru boyunca gidip AYNI doğru üzerinden geri dönüyor;
-/// sıfır alanlı çıkıntı. `segments_cross` bunu göremez çünkü doğrusal örtüşmede yönelimler
-/// sıfırdır ve kesişme sayılmaz. Burada ardışık üç noktanın 180° dönüşü aranır.
+/// Does the ring contain a SPIKE / CUT LINE (OpenGIS 6.1.11: *"may not have cut lines, spikes or
+/// punctures"*)? A spike means the ring follows a line and returns along the SAME line, forming
+/// a zero-area protrusion. `segments_cross` cannot see this because orientations are zero for
+/// collinear overlap and it does not count as a crossing. Here we look for a 180° turn in three
+/// consecutive points.
 fn has_spike(pts: &[(f64, f64)]) -> bool {
     let n = pts.len().saturating_sub(1);
     if n < 3 {
@@ -3947,35 +3955,36 @@ fn has_spike(pts: &[(f64, f64)]) -> bool {
             robust::Coord { x: c.0, y: c.1 },
         );
         if v != 0.0 {
-            continue; // doğrusal değil → spike olamaz
+            continue; // not collinear → cannot be a spike
         }
-        // Doğrusal: b'den a'ya ve b'den c'ye vektörler TERS yönlüyse geri dönüş var.
+        // Collinear: a reversal exists when the vectors from b to a and b to c point in OPPOSITE
+        // directions.
         let (ux, uy) = (a.0 - b.0, a.1 - b.1);
         let (vx, vy) = (c.0 - b.0, c.1 - b.1);
         if ux * vx + uy * vy > 0.0 {
-            return true; // aynı yöne bakıyorlar → b bir uçtan geri dönmüş
+            return true; // they point in the same direction → b has returned from one end
         }
     }
     false
 }
 
-/// Ring BASİT mi — yani kendisiyle kesişmiyor mu (OpenGIS 6.1.11).
+/// Is the ring SIMPLE — that is, does it not cross itself (OpenGIS 6.1.11)?
 ///
-/// ⚠️ `robust::orient2d` ZORUNLU, naif `f64` determinantı DEĞİL. 2026-08-06 ölçümü: aynı 21
-/// poligon üzerinde epsilon seçimi sonucu 5 ile 17 arasında değiştiriyor ve monoton bile
-/// değil. Adaptive-precision predikat bu kararsızlığı ortadan kaldırır.
+/// ⚠️ `robust::orient2d` is REQUIRED, not the naive `f64` determinant. A 2026-08-06
+/// measurement varied between 5 and 17 on the same 21 polygons depending on epsilon, and was
+/// not even monotonic. The adaptive-precision predicate removes this instability.
 ///
-/// Komşu segmentler ve ring'in kapanış çifti bilinçli atlanır: onlar uç nokta PAYLAŞIR,
-/// kesişme sayılmazlar.
+/// Adjacent segments and the ring's closing pair are deliberately skipped: they SHARE endpoints
+/// and do not count as crossings.
 fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
-    let n = pts.len().saturating_sub(1); // son nokta = ilk nokta
+    let n = pts.len().saturating_sub(1); // last point = first point
     if n < 4 {
         return true;
     }
     for i in 0..n {
         for j in (i + 2)..n {
             if i == 0 && j == n - 1 {
-                continue; // kapanış çifti komşudur
+                continue; // closing pair is adjacent
             }
             if segments_cross(pts[i], pts[i + 1], pts[j], pts[j + 1]) {
                 return false;
@@ -3985,7 +3994,7 @@ fn ring_is_simple(pts: &[(f64, f64)]) -> bool {
     true
 }
 
-/// Nokta ring'in içinde mi (ray casting). Delik kapsama kontrolü için.
+/// Is a point inside the ring (ray casting)? Used for hole-containment checks.
 pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
     let mut inside = false;
     let n = ring.len();
@@ -4004,16 +4013,16 @@ pub(crate) fn point_in_ring(pt: (f64, f64), ring: &[(f64, f64)]) -> bool {
     inside
 }
 
-/// Bir GeoJSON ring'inin işaretli alanı (km²), equirectangular izdüşümde shoelace ile.
-/// Hizmet bölgeleri küçük olduğu için ring'in kendi ortalama enlemi ölçek olarak yeterlidir;
-/// işaret ring yönünü taşır, çağıran mutlak değeri alır.
+/// Signed area (km²) of a GeoJSON ring, using shoelace on an equirectangular projection.
+/// Because service regions are small, the ring's own mean latitude is sufficient for scaling;
+/// the sign carries ring orientation, and the caller takes the absolute value.
 fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
     if pts.len() < 3 {
         return 0.0;
     }
     let lat0 = pts.iter().map(|p| p.1).sum::<f64>() / pts.len() as f64;
-    let kx = 111.320 * lat0.to_radians().cos(); // 1° boylam → km
-    let ky = 110.574; // 1° enlem   → km
+    let kx = 111.320 * lat0.to_radians().cos(); // 1° longitude → km
+    let ky = 110.574; // 1° latitude → km
     let mut sum = 0.0;
     for i in 0..pts.len() {
         let (x1, y1) = (pts[i].0 * kx, pts[i].1 * ky);
@@ -4026,19 +4035,19 @@ fn signed_ring_area_km2(pts: &[(f64, f64)]) -> f64 {
     sum / 2.0
 }
 
-// ── Testler ───────────────────────────────────────────────────────────────────
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    // Notice üretimi notice_factory'ye taşındıktan sonra get_rule yalnız burada
-    // (all_notices_have_valid_rule_ids) kullanılıyor.
+    // After Notice creation moved to notice_factory, get_rule is used only here
+    // (all_notices_have_valid_rule_ids).
     use gtfs_rules::get_rule;
     use std::io::Write;
     use zip::write::SimpleFileOptions;
 
-    /// Testler ARC_022 eşiğiyle ilgilenmez; VARSAYILAN config ile çağırır. Glob import'u
-    /// gölgeler, böylece #71'in imza değişikliği 40+ çağrıyı ellemedi.
+    /// Tests do not concern themselves with the ARC_022 threshold; call with the DEFAULT config.
+    /// This glob import shadows it, so the signature change in #71 did not touch 40+ calls.
     fn parse(zip_bytes: &[u8]) -> Result<K1Result, FatalError> {
         super::parse(zip_bytes, &ValidatorConfig::default())
     }
@@ -4063,11 +4072,11 @@ mod tests {
         zw.finish().unwrap().into_inner()
     }
 
-    /// `zip` crate'i (2.4.2) bozuk bir YEREL BAŞLIK için de "Could not find EOCD" döndürüyor;
-    /// o mesajı olduğu gibi aktarmak kullanıcıyı arşivin SONUNA baktırıyordu. Ölçüm
-    /// (`tld-5895`, korpusun tek `ZipUnreadable` feed'i): EOCD ve merkez dizin kusursuz, bozuk
-    /// olan `stop_times.txt`'in yerel başlığıydı (offset 570.618). Teşhis bozukluğun KATMANINI
-    /// ayırt etmeli.
+    /// The `zip` crate (2.4.2) also returns "Could not find EOCD" for a corrupt LOCAL HEADER;
+    /// passing that message through made users look at the END of the archive. Measurement
+    /// (`tld-5895`, the corpus's only `ZipUnreadable` feed): EOCD and central directory were
+    /// intact, and the corrupt part was the local header of `stop_times.txt` (offset 570.618).
+    /// Diagnosis must distinguish the LAYER of corruption.
     #[test]
     fn zip_diagnosis_points_at_the_broken_local_header() {
         let files: &[(&str, &[u8])] = &[
@@ -4076,7 +4085,7 @@ mod tests {
         ];
         let mut bytes = zip_with_files(files);
 
-        // Sağlam arşivde hiçbir katman suçlanmaz.
+        // No layer is blamed for a sound archive.
         let clean = diagnose_unreadable_zip(&bytes)
             .expect("sağlam arşivde de teşhis dönmeli")
             .text;
@@ -4085,7 +4094,8 @@ mod tests {
             "sağlam arşiv yanlış katmanı suçluyor: {clean}"
         );
 
-        // İkinci girdinin yerel başlık imzasını boz; merkez dizin ve EOCD'ye dokunma.
+        // Corrupt the local-header signature of the second entry; leave the central directory
+        // and EOCD untouched.
         let second = bytes
             .windows(4)
             .enumerate()
@@ -4105,7 +4115,8 @@ mod tests {
         );
     }
 
-    /// EOCD gerçekten yoksa kütüphane mesajı zaten doğrudur; ek teşhis UYDURULMAMALI.
+    /// If EOCD is genuinely absent, the library message is already correct; do not INVENT extra
+    /// diagnosis.
     #[test]
     fn zip_diagnosis_stays_quiet_without_an_eocd() {
         let files: &[(&str, &[u8])] = &[("agency.txt", b"agency_name\nA\n")];
@@ -4150,12 +4161,12 @@ mod tests {
 
     #[test]
     fn prealloc_capacity_caps_declared_size() {
-        // Devasa beyan → MAX_PREALLOC ile sınırlanır (lying-header DoS koruması).
+        // An enormous declaration is capped at MAX_PREALLOC (lying-header DoS protection).
         assert_eq!(prealloc_capacity(usize::MAX), MAX_PREALLOC);
         assert_eq!(prealloc_capacity(MAX_PREALLOC + 1), MAX_PREALLOC);
-        // Sıfır beyan → en az 1 (anlamsız 0-kapasite alloc'unu önle).
+        // A zero declaration → at least 1 (avoid a pointless zero-capacity allocation).
         assert_eq!(prealloc_capacity(0), 1);
-        // Tavanın altındaki gerçek boyutlar aynen geçer (davranış değişmez).
+        // Real sizes below the cap pass unchanged (behavior is unchanged).
         assert_eq!(prealloc_capacity(1000), 1000);
         assert_eq!(prealloc_capacity(MAX_PREALLOC), MAX_PREALLOC);
     }
@@ -4191,10 +4202,10 @@ mod tests {
         )
         .expect("SDK parse başarılı olmalı");
 
-        // #185: `max_file_rows` bir RAPORLAMA eşiğidir (ARC_022), bir kesme sınırı
-        // değil. Her iki yol da dosyanın tamamını okumalı; SDK yolu kesmeye başlarsa
-        // tarayıcı kesilmiş feed'i tam feed gibi doğrulayıp boşta kalan referansları
-        // kullanıcının kusuru olarak raporlar.
+        // #185: `max_file_rows` is a REPORTING threshold (ARC_022), not a truncation limit.
+        // Both paths must read the entire file; if the SDK path starts truncating, the browser
+        // validates the truncated feed as complete and reports dangling references as the user's
+        // fault.
         assert_eq!(native.files["fare_rules.txt"].rows.len(), 12);
         assert_eq!(
             sdk.files["fare_rules.txt"].rows.len(),
@@ -4211,7 +4222,7 @@ mod tests {
 
     #[test]
     fn missing_required_file_returns_partial_with_arc004() {
-        // agency.txt olmadan ZIP
+        // ZIP without agency.txt.
         let zip = zip_with_files(&[
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
             ("routes.txt",     b"route_id,agency_id,route_short_name,route_type\nR1,1,101,3\n"),
@@ -4230,12 +4241,12 @@ mod tests {
         }));
     }
 
-    // ── Tek üst klasöre sarılmış feed (detect_wrapped_root) ───────────────────
-    // Gerçek vaka mdb-1814: `TEST GTFS/agency.txt` … geçerli feed, tek klasöre sarılı.
-    // Katı davranış kullanıcıya sıfır analiz veriyordu. Hoşgörü DAR; aşağıdaki testler
-    // hem kurtarmayı hem de karşıt örneklerin fatal kalmasını sabitler.
+    // ── Feed wrapped in one top-level folder (detect_wrapped_root) ─────────────
+    // Real case mdb-1814: `TEST GTFS/agency.txt` … a valid feed wrapped in one folder.
+    // Strict behavior gave the user zero analysis. Tolerance is NARROW; the tests below lock in
+    // both recovery and fatal behavior for counterexamples.
 
-    /// Minimal ama TAM bir feed; `prefix` verilirse her dosya o klasörün altına konur.
+    /// Minimal but COMPLETE feed; when `prefix` is supplied, every file is placed below that folder.
     fn wrapped_feed_zip(prefix: &str) -> Vec<u8> {
         let p = |name: &str| format!("{prefix}{name}");
         let files: Vec<(String, &[u8])> = vec![
@@ -4259,14 +4270,14 @@ mod tests {
         let k1 =
             parse(&wrapped_feed_zip("TEST GTFS/")).expect("sarılı geçerli feed fatal OLMAMALI");
         assert!(!k1.partial.root_structural_errors.is_empty());
-        // Dosyalar kökteymiş gibi görünür → zorunlu dosya kontrolü geçer.
+        // Files appear to be at the root → required-file checks pass.
         for required in REQUIRED_FILES {
             assert!(
                 k1.files.contains_key(*required),
                 "'{required}' kök adıyla görünmeli"
             );
         }
-        // Alt dizinde olmaları yine de bulgudur ve GERÇEK yolu gösterir.
+        // Their subdirectory location is still a finding and shows the REAL path.
         let arc024: Vec<_> = k1
             .notices
             .iter()
@@ -4284,7 +4295,7 @@ mod tests {
 
     #[test]
     fn wrapped_root_without_gtfs_files_is_partial_and_auditable() {
-        // GitHub repo zip'i (gerçek vaka mdb-3135): tek klasör ama GTFS değil.
+        // GitHub repository ZIP (real case mdb-3135): one folder, but not GTFS.
         let zip = zip_with_files(&[
             ("honduras-transit-main/agency.csv", b"a,b\n1,2\n" as &[u8]),
             ("honduras-transit-main/README.md", b"# repo\n"),
@@ -4298,7 +4309,7 @@ mod tests {
     fn wrapped_root_is_rejected_when_more_than_one_folder_holds_txt() {
         let mut files: Vec<(String, &[u8])> = Vec::new();
         for (i, name) in REQUIRED_FILES.iter().enumerate() {
-            // Zorunlu dosyalar İKİ ayrı klasöre dağıtılmış → hangisi kök belirsiz, hoşgörü yok.
+            // Required files are split across TWO folders → the root is ambiguous, so no tolerance.
             files.push((format!("dir{}/{name}", i % 2), b"x\n" as &[u8]));
         }
         let zip = zip_with_files(
@@ -4316,11 +4327,11 @@ mod tests {
         assert_eq!(result.partial.unavailable_files.len(), REQUIRED_FILES.len());
     }
 
-    // ── macOS AppleDouble artefaktları (`__MACOSX/`) ──────────────────────────
-    // Tam katalog koşumunda ARC_024 alan 42 feed'in 42'si de `__MACOSX/._agency.txt`
-    // yüzünden alıyordu (#144). `._agency.txt` bir GTFS dosyası değil, Finder'ın
-    // ZIP'e eklediği kaynak-çatal yan dosyasıdır; "kök dizine taşıyın" demek yanlış
-    // tavsiyedir. Asıl ağır sonucu ise ikinci testte: sarılı feed hoşgörüsünü düşürür.
+    // ── macOS AppleDouble artifacts (`__MACOSX/`) ─────────────────────────────
+    // In the full catalog run, all 42 feeds receiving ARC_024 did so because of
+    // `__MACOSX/._agency.txt` (#144). `._agency.txt` is not a GTFS file but a Finder resource-fork
+    // sidecar added to the ZIP; "move it to the root" is the wrong recommendation. The more
+    // serious consequence appears in the second test: it disables wrapped-feed tolerance.
 
     #[test]
     fn macosx_resource_fork_entries_do_not_produce_arc_024() {
@@ -4346,12 +4357,11 @@ mod tests {
         );
     }
 
-    /// `__MACOSX` sarılı feed hoşgörüsünü DÜŞÜRMEMELİ.
+    /// `__MACOSX` must not disable wrapped-feed tolerance.
     ///
-    /// `detect_wrapped_root` tüm `.txt` girdilerini gezer. Finder'ın eklediği
-    /// `__MACOSX/…` girdileri ikinci bir üst klasör (ya da iki kat derinlik) gibi
-    /// göründüğü için hoşgörü `None` dönüyordu → ARC_004 fatal → SIFIR analiz.
-    /// Geçerli bir feed'i reddetme sınıfı; ARC_024 gürültüsünden çok daha ağır.
+    /// `detect_wrapped_root` walks every `.txt` entry. Finder's `__MACOSX/…` entries looked like
+    /// a second top-level folder (or a second level), so tolerance returned `None` → ARC_004 fatal
+    /// → ZERO analysis. This is a valid-feed rejection class, much more serious than ARC_024 noise.
     #[test]
     fn macosx_sidecar_does_not_break_the_wrapper_tolerance() {
         let mut files: Vec<(String, &[u8])> = vec![
@@ -4362,7 +4372,7 @@ mod tests {
             ("TEST GTFS/stop_times.txt".into(), b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\n"),
             ("TEST GTFS/calendar.txt".into(),   b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231\n"),
         ];
-        // Finder'ın gerçekte yazdığı iki şekil: kökte düz ve sarılı klasörü yansıtan.
+        // The two forms Finder actually writes: flat at the root and mirroring the wrapped folder.
         files.push(("__MACOSX/._agency.txt".into(), b"\x00\x05\x16\x07" as &[u8]));
         files.push(("__MACOSX/TEST GTFS/._stops.txt".into(), b"\x00\x05\x16\x07"));
 
@@ -4384,7 +4394,7 @@ mod tests {
             k1.notices.iter().all(|n| n.rule_id != "ARC_004"),
             "__MACOSX yüzünden ARC_004 ÜRETİLMEMELİ"
         );
-        // Gerçek sarılı dosyalar yine ARC_024 alır; yalnız __MACOSX girdileri sayılmaz.
+        // Genuine wrapped files still receive ARC_024; only __MACOSX entries are excluded.
         let arc024: Vec<_> = k1
             .notices
             .iter()
@@ -4413,16 +4423,16 @@ mod tests {
         );
     }
 
-    /// 8192. bayta denk gelen çok baytlı karakter, GEÇERLİ bir feed'i fatal etmemeli.
+    /// A multibyte character straddling byte 8192 must not make a VALID feed fatal.
     ///
-    /// Gerçek vaka: 250-feed corpus koşumunda 3 feed (JP/LT/TH) yalnız bu yüzden
-    /// reddediliyordu; MD aynı feed'lerde 0 error raporluyordu. trips.txt #38 ile
-    /// kısmi (8 KB) okunur → kesme noktası karakteri bölünce dosya bozuk sanılıyordu.
-    /// Yalnız ASCII-dışı trips.txt'i olan feed'leri vurur (ASCII corpus asla yakalamaz).
+    /// Real case: in a 250-feed corpus run, 3 feeds (JP/LT/TH) were rejected for this reason
+    /// alone; MD reported 0 errors on the same feeds. `trips.txt` is read partially (8 KB) at
+    /// #38 → when the boundary split a character, the file was considered corrupt.
+    /// It affects only feeds with non-ASCII `trips.txt` (the ASCII corpus never catches it).
     #[test]
     fn multibyte_char_across_partial_read_boundary_is_not_fatal() {
-        // Kesim K1'de tam 8192 baytta. 3 baytlık 'あ' 8190'da başlarsa baytları
-        // 8190/8191/8192'ye düşer → tampon ilk ikisini alır, üçüncüsü kesilir.
+        // K1 cuts at exactly byte 8192. If the three-byte 'あ' starts at 8190, its bytes
+        // land at 8190/8191/8192 → the buffer takes the first two and cuts the third.
         let mut trips = String::from("route_id,service_id,trip_id,trip_headsign\n");
         let mut i = 0;
         while trips.len() + 24 < 8_190 {
@@ -4430,10 +4440,10 @@ mod tests {
             i += 1;
         }
         while trips.len() < 8_190 {
-            trips.push('A'); // tam 8190'a hizala
+            trips.push('A'); // pad exactly to 8190
         }
         assert_eq!(trips.len(), 8_190, "test kurgusu: hizalama");
-        trips.push('あ'); // baytlar 8190,8191,8192 → 8192'deki kesim ORTADAN böler
+        trips.push('あ'); // bytes 8190,8191,8192 → the cut at 8192 splits in the MIDDLE
         trips.push('\n');
         let trips_bytes = trips.as_bytes().to_vec();
         assert!(
@@ -4470,11 +4480,11 @@ mod tests {
         );
     }
 
-    /// Kırpma, GÖVDEDEKİ gerçek bozuk baytları gizlememeli — kısmi okunan dosyada bile.
+    /// Truncation must not hide genuinely invalid bytes in the BODY — even in a partially read file.
     #[test]
     fn genuinely_invalid_utf8_in_streamed_file_is_partial_without_typed_records() {
         let mut trips: Vec<u8> = b"route_id,service_id,trip_id\n".to_vec();
-        trips.extend_from_slice(b"R1,SVC1,\xFF\xFE_bozuk\n"); // gövdede geçersiz dizi
+        trips.extend_from_slice(b"R1,SVC1,\xFF\xFE_bozuk\n"); // invalid sequence in the body
         while trips.len() < 9_000 {
             trips.extend_from_slice(b"R1,SVC1,T\n");
         }
@@ -4497,7 +4507,7 @@ mod tests {
 
     #[test]
     fn utf8_failure_on_required_file_is_partial_without_typed_records() {
-        // stops.txt içinde geçersiz UTF-8 bayt
+        // Invalid UTF-8 bytes in stops.txt
         let bad_bytes: &[u8] = b"stop_id,stop_name\nS1,\xFF\xFE invalid\n";
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -4518,8 +4528,8 @@ mod tests {
 
     #[test]
     fn csv_malformed_on_required_file_is_partial_without_typed_records() {
-        // #38: stop_times/trips/calendar_dates K1'de partial (8KB header) okunur → body K2'de.
-        // Malformed CSV testi için routes.txt kullanılır (K1'de hâlâ tam okunur).
+        // #38: stop_times/trips/calendar_dates are read partially in K1 (8 KB header) → body in K2.
+        // routes.txt is used for the malformed CSV test (it is still read in full in K1).
         let bad_routes = b"route_id,agency_id,route_short_name,route_type\n\"unclosed quote\n";
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -4558,8 +4568,8 @@ mod tests {
 
     #[test]
     fn non_txt_unknown_file_produces_arc007() {
-        // MobilityData unknown_file paritesi: ZIP içindeki .txt olmayan dosyalar
-        // (ör. .pdf/.out) da ARC_007 üretmeli — DELFI feed'inde .pdf + .out vardı.
+        // MobilityData unknown_file parity: non-.txt files in the ZIP
+        // (e.g. .pdf/.out) must also produce ARC_007 — the DELFI feed had .pdf + .out.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4583,9 +4593,9 @@ mod tests {
 
     #[test]
     fn unknown_column_in_fares_v2_produces_arc017() {
-        // Regresyon: known_columns Fares v2 dosyalarını içermediği için ARC_017 bu
-        // dosyaları tümüyle atlıyordu. rider_categories.txt'te eligibility_url GEÇERLİ
-        // (spec), zzz_custom BİLİNMEYEN olmalı.
+        // Regression: because known_columns did not include Fares v2 files, ARC_017 skipped
+        // these files entirely. In rider_categories.txt, eligibility_url is VALID (spec), while
+        // zzz_custom must be UNKNOWN.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4618,7 +4628,8 @@ mod tests {
 
     #[test]
     fn unknown_column_in_gtfs_jp_produces_arc017() {
-        // office_jp.txt: office_id/office_name GEÇERLİ; jp_extra jp_ önekiyle ATLANIR; bad_col BİLİNMEYEN.
+        // office_jp.txt: office_id/office_name are VALID; jp_extra is skipped by the jp_ prefix;
+        // bad_col is UNKNOWN.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4648,9 +4659,9 @@ mod tests {
 
     #[test]
     fn every_known_file_has_column_list_for_arc017() {
-        // ARC_017 (k1: `if !known_cols.is_empty()`) known_columns() boş dönen dosyayı
-        // TÜMÜYLE atlar. KNOWN_FILES'taki her dosyanın sütun listesi olmalı; yoksa o
-        // dosyadaki bilinmeyen sütunlar sessizce kaçar (bu bug'ın kök nedeniydi).
+        // ARC_017 (K1: `if !known_cols.is_empty()`) skips a file entirely when
+        // known_columns() returns empty. Every file in KNOWN_FILES must have a column list;
+        // otherwise unknown columns in that file silently escape (the root cause of this bug).
         let missing: Vec<&str> = KNOWN_FILES
             .iter()
             .copied()
@@ -4700,9 +4711,9 @@ mod tests {
 
     #[test]
     fn arc009_tolerates_an_empty_calendar_when_calendar_dates_carries_the_service() {
-        // #166: spec "calendar.txt — Required UNLESS all dates of service are
-        // defined in calendar_dates.txt". Bastırma yalnız ters yönde yazılmıştı;
-        // korpusta ARC_009'un 104 CRITICAL feed'inin 59'u tam bu vakaydı.
+        // #166: spec "calendar.txt — Required UNLESS all dates of service are defined in
+        // calendar_dates.txt". Suppression had been written only in the opposite direction;
+        // 59 of the corpus's 104 CRITICAL ARC_009 feeds were exactly this case.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4726,11 +4737,11 @@ mod tests {
 
     #[test]
     fn arc035_still_reports_an_empty_required_file() {
-        // Tolerans yalnız KOŞULLU ÇİFTE aittir; gerçekten zorunlu bir dosya
-        // boşsa kural susmamalı. 2026-08-31: bu hüküm ARC_009'dan ARC_035'e
-        // (Kritik·Spec) devredildi — sınıf dinamik olamadığı için Quality kalan
-        // ARC_009 R1 kapısından geçemiyor, yani boş zorunlu dosya yayın kapısını
-        // düşürmüyordu. İDDİA AYNI: boş zorunlu dosya SUSMAMALI.
+        // Tolerance applies only to the CONDITIONAL PAIR; the rule must not go silent when a
+        // genuinely required file is empty. On 2026-08-31 this requirement moved from ARC_009
+        // to ARC_035 (Critical·Spec) — because the class could not be dynamic, the remaining
+        // Quality ARC_009 could pass the R1 gate, so an empty required file did not fail
+        // publication. THE CLAIM IS THE SAME: an empty required file must not be silent.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\n"),
@@ -4756,9 +4767,9 @@ mod tests {
 
     #[test]
     fn arc034_reports_a_header_row_repeated_as_data() {
-        // #168: mdb-1003/mdb-1004'te agency.txt'nin ortasında başlık tekrarlanıyor.
-        // Tek yapısal kusur, bugüne kadar AGN_004 + AGN_005 + TRP_006 olarak
-        // dağılıyordu ve hiçbiri kullanıcıya asıl sorunu söylemiyordu.
+        // #168: the header is repeated in the middle of agency.txt in mdb-1003/mdb-1004.
+        // One structural defect used to spread into AGN_004 + AGN_005 + TRP_006, and none of
+        // them told the user the root problem.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\nagency_id,agency_name,agency_url,agency_timezone\n2,Test2,http://y.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4780,7 +4791,7 @@ mod tests {
             k1.notices.iter().map(|n| &n.rule_id).collect::<Vec<_>>()
         );
         assert_eq!(hits[0].file.as_deref(), Some("agency.txt"));
-        // Satır veri olarak KAYDEDİLMEZ: hayalet agency oluşmamalı.
+        // Do NOT STORE the row as data: no phantom agency must be created.
         let agencies = k1
             .files
             .get("agency.txt")
@@ -4791,8 +4802,8 @@ mod tests {
 
     #[test]
     fn arc034_does_not_fire_when_only_one_value_matches_its_column() {
-        // Tek bir alanın kendi sütun adına eşit olması meşrudur; kural yalnız
-        // BÜTÜN alanlar eşleştiğinde konuşur.
+        // One field equalling its own column name is legitimate; the rule speaks only when ALL
+        // fields match.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\nagency_id,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4810,11 +4821,11 @@ mod tests {
 
     #[test]
     fn dq016_declares_whitespace_in_an_identity_column() {
-        // #169: kimlik alanındaki boşluk, açıklama alanındakiyle aynı şey değildir.
-        // `routes.txt` anahtarı boşlukla, `trips.txt` boşluksuz yazarsa dosyalar arası
-        // her arama sessizce ıskalar. Kimlikleri HAM karşılaştırma kararı (#85) korunur;
-        // değişen tek şey bunun BEYAN EDİLMESİ. `mdb-2653`'te `TRP_024`'ün kaçırdığı
-        // 1.502 blok tutarsızlığı hiçbir yerde yazmıyordu.
+        // #169: whitespace in an identity field is not the same as in a description field.
+        // If `routes.txt` writes the key with whitespace and `trips.txt` without it, every
+        // cross-file lookup silently misses. The decision to compare identities RAW (#85) is
+        // preserved; the only change is DECLARING this fact. In `mdb-2653`, the 1,502 block
+        // inconsistencies missed by `TRP_024` appeared nowhere.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4845,8 +4856,8 @@ mod tests {
 
     #[test]
     fn dq016_does_not_call_a_description_column_an_identity() {
-        // Yalnız açıklama alanında boşluk varsa kimlik beyanı YAZILMAZ — aksi hâlde
-        // beyan her feed'de görünür ve anlamını yitirir.
+        // Do NOT declare identity whitespace when only a description field has it — otherwise
+        // the declaration would appear in every feed and lose its meaning.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4870,9 +4881,9 @@ mod tests {
 
     #[test]
     fn dq016_flags_typed_and_text_fields_with_raw_evidence() {
-        // DQ_016 artık parser'ın toleransından bağımsız olarak ham sözlükbilimsel ihlali
-        // bildirir: zaman alanındaki boşluk da kök bulgudur. Tipli parse/FK semptomları
-        // daha sonra K7'de kök bulguya bağlanır.
+        // DQ_016 now reports the raw lexical violation independently of parser tolerance:
+        // whitespace in a time field is also a root finding. Typed-parse/FK symptoms are linked
+        // to the root finding later in K7.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4911,7 +4922,7 @@ mod tests {
 
     #[test]
     fn no_calendar_produces_arc008_notice() {
-        // calendar.txt ve calendar_dates.txt her ikisi de yok
+        // Both calendar.txt and calendar_dates.txt are absent.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4928,8 +4939,8 @@ mod tests {
 
     #[test]
     fn empty_calendar_dates_with_calendar_suppresses_arc009() {
-        // calendar.txt servisi tanımlıyor + calendar_dates.txt yalnızca başlık →
-        // ARC_009 yanlış-pozitif olur, bastırılmalı (calendar_dates şartlı zorunlu).
+        // calendar.txt defines service + calendar_dates.txt is header-only → ARC_009 is a false
+        // positive and must be suppressed (calendar_dates is conditionally required).
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4952,8 +4963,8 @@ mod tests {
 
     #[test]
     fn empty_calendar_dates_without_calendar_produces_arc009() {
-        // calendar.txt YOK + calendar_dates.txt yalnızca başlık → hiç servis tanımı yok →
-        // ARC_009 KALIR (tek sinyal; ARC_008 calendar_dates mevcut olduğu için fire etmez).
+        // calendar.txt ABSENT + calendar_dates.txt header-only → no service is defined → ARC_009
+        // REMAINS (the sole signal; ARC_008 does not fire because calendar_dates exists).
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -4979,7 +4990,7 @@ mod tests {
 
     #[test]
     fn empty_optional_file_arc009_is_info_not_critical() {
-        // Boş (yalnız-başlık) transfers.txt (OPSİYONEL) → ARC_009 fire eder ama KRİTİK değil, BİLGİ.
+        // Empty (header-only) optional transfers.txt → ARC_009 fires but is not CRITICAL; it is INFO.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\n"),
@@ -5012,18 +5023,18 @@ mod tests {
         assert_eq!(records[1][1], "hello\nworld");
     }
 
-    /// Kapanış tırnağından sonraki metin AYNI alanda kalır — alan sayısı korunur.
+    /// Text after a closing quote stays in the SAME field — the field count is preserved.
     ///
-    /// 🔴 Regresyon: eski tokenizer alanı tırnakta kapatıp kalanı YENİ alan yapıyordu,
-    /// yani `tdg-80973/routes.txt`'te bir hücre iki alana bölünüyor ve sonraki sütunlar
-    /// kayıyordu. `route_id` boş görününce `RTS_031` Spec·KRİTİK "route_id zorunludur"
-    /// uyduruyordu — `ARC_033`'ün saydığı 7 satırla birebir aynı satırlarda. İhlalin
-    /// RAPORLANMASI doğruydu; VERİYİ BOZMASI değil.
+    /// 🔴 Regression: the old tokenizer closed the field at the quote and made the remainder a
+    /// NEW field, so a cell in `tdg-80973/routes.txt` split into two fields and later columns
+    /// shifted. When `route_id` looked empty, `RTS_031` invented the Spec·CRITICAL "route_id is
+    /// required" finding — on exactly the 7 rows counted by `ARC_033`. REPORTING the violation
+    /// was correct; CORRUPTING THE DATA was not.
     #[test]
     fn tokenize_csv_keeps_text_after_closing_quote_in_same_field() {
         let text = "a,b,c\n1,\"Thonon Les Arts\" A compter du 01/09,3\n";
         let (records, _, rfc) = tokenize_csv(text, None).unwrap();
-        // Alan sayısı başlıkla aynı kalmalı — kayma YOK.
+        // The field count must match the header — NO drift.
         assert_eq!(
             records[1].len(),
             3,
@@ -5031,7 +5042,7 @@ mod tests {
         );
         assert_eq!(records[1][1], "Thonon Les Arts A compter du 01/09");
         assert_eq!(records[1][2], "3", "sonraki sütun kaymamalı");
-        // İhlal yine de bildirilmeli (ARC_033).
+        // The violation must still be reported (ARC_033).
         assert!(rfc.rows > 0, "RFC 4180 ihlali raporlanmaya devam etmeli");
     }
 
@@ -5050,7 +5061,7 @@ mod tests {
 
     #[test]
     fn tokenize_csv_trailing_comma_no_newline() {
-        // Dosya sondaki virgülle bitip newline olmadığında boş alan eksik sayılmamalı
+        // When a file ends with a trailing comma and no newline, the empty field must not be omitted.
         let text = "a,b,c\n1,2,";
         let (records, _, _) = tokenize_csv(text, None).unwrap();
         assert_eq!(records.len(), 2);
@@ -5086,7 +5097,7 @@ mod tests {
 
     #[test]
     fn arc_021_fires_for_non_ascii_char() {
-        // stops.txt'de stop_id'ye özel kullanım alanı karakteri (U+E000) — sorunlu karakter
+        // Private-use character (U+E000) in stop_id in stops.txt — problematic character.
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
             ("stops.txt",      "stop_id,stop_name,stop_lat,stop_lon\nS\u{E000}1,Durak,41.0,29.0\n".as_bytes()),
@@ -5104,7 +5115,7 @@ mod tests {
 
     #[test]
     fn arc_030_fires_for_newline_inside_quoted_value() {
-        // Tırnak içindeki satır sonu alan değerinin parçası olur; spec bunu yasaklar.
+        // A line ending inside quotes becomes part of the field value; the spec forbids this.
         let zip = zip_with_files(&[
             ("agency.txt",     "agency_id,agency_name,agency_url,agency_timezone\n1,\"Test\nTransit\",http://x.com,UTC\n".as_bytes()),
             ("stops.txt",      b"stop_id,stop_name,stop_lat,stop_lon\nS1,Durak,41.0,29.0\n"),
@@ -5118,7 +5129,7 @@ mod tests {
             k1.notices.iter().any(|n| n.rule_id == "ARC_030"),
             "ARC_030 bekleniyor"
         );
-        // ARC_021 bu karakteri bilerek muaf tutar; iki kural çakışmamalı.
+        // ARC_021 deliberately exempts this character; the two rules must not overlap.
         assert!(
             !k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
             "ARC_021 tetiklenmemeli"
@@ -5127,7 +5138,7 @@ mod tests {
 
     #[test]
     fn arc_032_detects_real_markup() {
-        // Vahşi doğadan: mdb-1924'ün 1176 durak adı bu biçimde.
+        // From the wild: 1,176 stop names in mdb-1924 had this form.
         assert_eq!(
             arc032_markup("[KMB+CTB] HIU TSUI STREET/<BR>HIU TSUI STREET, SIU SAI WAN ROAD"),
             Some("<BR>".to_string())
@@ -5160,11 +5171,11 @@ mod tests {
         );
     }
 
-    /// issue #79: liste 26 addan HTML5'in TAMAMINA genişledi. Denetçinin istediği beş
-    /// vaka: listede zaten olan bir etiket · eski listede OLMAYAN geçerli bir etiket ·
-    /// HTML yorumu · desteklenen bir kaçış · `<`/`>`/`&` taşıyan düz metin.
-    /// issue #79 — entity/kaçış tarafı: liste altı addan HTML5'in TAMAMINA (2.125) çıktı.
-    /// issue #79 (yeniden açıldı) — `svg` ve `math` yabancı-içerik kök elemanlarıdır.
+    /// issue #79: the list expanded from 26 names to ALL OF HTML5. The auditor requested five
+    /// cases: a tag already in the list · a valid tag NOT in the old list · an HTML comment · a
+    /// supported escape · plain text containing `<`/`>`/`&`.
+    /// issue #79 — entity/escape side: the list expanded from six names to ALL OF HTML5 (2,125).
+    /// issue #79 (reopened) — `svg` and `math` are foreign-content root elements.
     #[test]
     fn arc_032_covers_foreign_content_roots() {
         assert!(arc032_markup("<svg>x</svg>").is_some(), "<svg> yakalanmalı");
@@ -5178,7 +5189,7 @@ mod tests {
 
     #[test]
     fn arc_032_covers_the_html5_named_entities() {
-        // Bildirilen karşı örnekler — hepsi eski listede YOKTU.
+        // Reported counterexamples — all were ABSENT from the old list.
         for v in [
             "© 2026 &copy; Metro",
             "Metro&reg; hattı",
@@ -5187,11 +5198,11 @@ mod tests {
         ] {
             assert!(arc032_markup(v).is_some(), "kaçış dizisi yakalanmalı: {v}");
         }
-        // Sayısal biçimler (zaten destekliydi, regresyon koruması).
+        // Numeric forms (already supported; regression protection).
         assert_eq!(arc032_markup("&#8212; tire"), Some("&#8212;".to_string()));
         assert_eq!(arc032_markup("&#x2014; tire"), Some("&#x2014;".to_string()));
-        // 🔴 YANLIŞ POZİTİF KORUYUCUSU: `&` + kelime + `;` deseni SERBEST BIRAKILAMAZ.
-        // Bu değer korpusta ölçüldü ve `Tire` bir entity adı DEĞİLDİR.
+        // 🔴 FALSE-POSITIVE GUARD: the `&` + word + `;` pattern MUST NOT be allowed freely.
+        // This value was measured in the corpus, and `Tire` is NOT an entity name.
         assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None);
         assert_eq!(arc032_markup("A & B"), None);
         assert_eq!(
@@ -5199,23 +5210,24 @@ mod tests {
             None,
             "ASCII olmayan ad entity değildir"
         );
-        // Büyük/küçük harf DUYARLI: `&COPY;` de listede ayrı bir giriştir, `&Copy;` de.
+        // CASE-SENSITIVE: `&COPY;` and `&Copy;` are separate entries in the list.
         assert!(arc032_markup("x &COPY; y").is_some());
         assert_eq!(
             arc032_markup("x &cOpY; y"),
             None,
             "listede olmayan yazım entity değildir"
         );
-        // Noktalı virgülsüz ESKİ biçim (HTML5 bunları `;` olmadan da tanır).
+        // LEGACY form without a semicolon (HTML5 recognises these without `;`).
         assert_eq!(arc032_markup("2026 &copy Metro"), Some("&copy".to_string()));
         assert!(arc032_markup("A &reg B").is_some());
-        // ⚠️ Ayrıcalık TÜM adlara YAYILMAZ: `&mdash` (noktalı virgülsüz) eski listede YOK.
+        // ⚠️ The exception does NOT APPLY to all names: `&mdash` (without a semicolon) was NOT in
+        // the old list.
         assert_eq!(
             arc032_markup("A &mdash B"),
             None,
             "yalnız kaynağın izin verdiği adlar"
         );
-        // Yanlış pozitif koruyucuları — `&` + kelime deseni serbest DEĞİL.
+        // False-positive guards — the `&` + word pattern is NOT free-form.
         assert_eq!(arc032_markup("Wheel&Tire servisi"), None);
         assert_eq!(arc032_markup("AT&T"), None);
         assert_eq!(arc032_markup("Rock&Roll"), None);
@@ -5223,25 +5235,26 @@ mod tests {
 
     #[test]
     fn arc_032_covers_the_whole_html_element_set() {
-        // Eski listede vardı — regresyon olmamalı.
+        // Was in the old list — must not regress.
         assert_eq!(
             arc032_markup("Merkez <b>Durağı</b>"),
             Some("<b>".to_string())
         );
-        // Eski listede YOKTU: hüküm "HTML etiketi" diyor, bunlar da HTML etiketi.
+        // NOT in the old list: the rule says "HTML tag", and these are HTML tags too.
         for tag in [
             "script", "section", "iframe", "style", "video", "article", "h4",
         ] {
             let v = format!("Durak <{tag}>x</{tag}>");
             assert!(arc032_markup(&v).is_some(), "<{tag}> yakalanmalı");
         }
-        // HTML elemanı OLMAYAN adlar sessiz kalmalı.
+        // Names that are NOT HTML elements must remain silent.
         assert_eq!(arc032_markup("Durak <bilinmeyen>x</bilinmeyen>"), None);
-        // 🔴 ÖZEL ELEMAN (tireli ad) `svg` DEĞİLDİR — bu testin ilk hâli tam bu yanlış
-        // eşleşmeyi yakaladı: ad ayıklama tirede duruyordu ve `<svg-yok>` "svg" sayılıyordu.
+        // 🔴 A CUSTOM ELEMENT (hyphenated name) is NOT `svg` — the first version of this test
+        // caught exactly this false match: name extraction stopped at the hyphen and `<svg-yok>`
+        // counted as "svg".
         assert_eq!(arc032_markup("<svg-yok>"), None, "tireli ad özel elemandır");
         assert_eq!(arc032_markup("<article-list>"), None);
-        // Ama gerçek `svg`/`math` ve öznitelikli biçimleri yakalanır.
+        // Genuine `svg`/`math` and attribute-bearing forms are still caught.
         assert!(arc032_markup("<svg width=\"3\">").is_some());
         assert!(arc032_markup("<math>").is_some());
         assert_eq!(
@@ -5252,7 +5265,7 @@ mod tests {
             arc032_markup("Kadıköy&nbsp;İskele"),
             Some("&nbsp;".to_string())
         );
-        // Düz metin: uydurma ad HTML etiketi DEĞİLDİR — liste bilinçli olarak kapalı.
+        // Plain text: a fabricated name is NOT an HTML tag — the list is deliberately closed.
         assert_eq!(arc032_markup("<Bilinmiyor>"), None);
         assert_eq!(arc032_markup("<TBD> hattı"), None);
         assert_eq!(arc032_markup("A & B < C > D"), None);
@@ -5260,15 +5273,15 @@ mod tests {
 
     #[test]
     fn arc_032_silent_for_legitimate_text() {
-        // Bu üç değer ölçüm sırasında GEVŞEK bir desenle yanlış eşleşmişti (1991 uydurma
-        // bulgunun kaynağı). Kapalı liste onları geçirmeli — regresyon buraya kilitlendi.
-        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None); // bilinmeyen "entity"
-        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None); // etiket değil
+        // These three values falsely matched a LOOSE pattern during measurement (the source of
+        // 1,991 spurious findings). The closed list must allow them — regression is locked here.
+        assert_eq!(arc032_markup("K.A.Wheel&Tire;"), None); // unknown "entity"
+        assert_eq!(arc032_markup("St Sauvant >< St Césaire"), None); // not a tag
         assert_eq!(arc032_markup("La Clisse >< Luchat >< Pisany"), None);
-        // Ayrıca: karşılaştırma işaretleri, bilinmeyen etiket adı, kapanmayan etiket.
+        // Also: comparison signs, an unknown tag name, and an unclosed tag.
         assert_eq!(arc032_markup("a < b ve c > d"), None);
-        assert_eq!(arc032_markup("<durak>"), None); // listede olmayan ad
-        assert_eq!(arc032_markup("3 <br sonra"), None); // `>` yok
+        assert_eq!(arc032_markup("<durak>"), None); // name not in the list
+        assert_eq!(arc032_markup("3 <br sonra"), None); // no `>`
         assert_eq!(arc032_markup("Fiyat < 5 TL > indirim"), None);
         assert_eq!(arc032_markup("Şişli Durağı"), None);
         assert_eq!(arc032_markup("東京駅"), None);
@@ -5290,7 +5303,7 @@ mod tests {
             .iter()
             .filter(|n| n.rule_id == "ARC_032")
             .collect();
-        // İki bozuk satır var ama emit DOSYA başına TEK — DQ_016/STM_050 patlama önlemi.
+        // Two malformed rows, but ONE emit per FILE — DQ_016/STM_050 burst prevention.
         assert_eq!(
             hits.len(),
             1,
@@ -5311,8 +5324,8 @@ mod tests {
 
     #[test]
     fn arc_032_defers_to_stp_023_on_tts_stop_name() {
-        // STP_023 tts_stop_name'de HERHANGİ bir `<`/`>` işaretini bildirir ve daha geniştir;
-        // ikisini birden emit etmek aynı olguyu iki kez raporlamak olur.
+        // STP_023 reports ANY `<`/`>` marker in tts_stop_name and is broader; emitting both would
+        // report the same phenomenon twice.
         let mut acc = Arc032Acc::default();
         let headers = vec!["stop_id".to_string(), "tts_stop_name".to_string()];
         acc.observe(2, ["S1", "Ana <b>Durak</b>"].into_iter(), &headers);
@@ -5324,7 +5337,7 @@ mod tests {
 
     #[test]
     fn arc_030_fires_for_tab_inside_value() {
-        // Spec sekmeyi de yasaklar: "must not contain tabs, carriage returns or new lines".
+        // The spec also forbids tabs: "must not contain tabs, carriage returns or new lines".
         assert_eq!(arc030_bad_whitespace(["ab\tcd"].into_iter()), Some(9));
         assert_eq!(arc030_bad_whitespace(["ab\rcd"].into_iter()), Some(13));
         assert_eq!(arc030_bad_whitespace(["ab\ncd"].into_iter()), Some(10));
@@ -5332,7 +5345,7 @@ mod tests {
 
     #[test]
     fn arc_030_silent_for_normal_and_unicode_values() {
-        // Boşluk, Türkçe/Japonca metin ve noktalama sorun değildir.
+        // Whitespace, Turkish/Japanese text, and punctuation are not problems.
         assert_eq!(
             arc030_bad_whitespace(["Şişli Durağı", "東京駅", "a, b"].into_iter()),
             None
@@ -5346,7 +5359,7 @@ mod tests {
 
     #[test]
     fn arc_021_silent_for_ascii_only() {
-        let zip = minimal_gtfs_zip(); // yalnızca ASCII içerir
+        let zip = minimal_gtfs_zip(); // ASCII only
         let k1 = parse(&zip).unwrap();
         assert!(
             !k1.notices.iter().any(|n| n.rule_id == "ARC_021"),
@@ -5356,7 +5369,7 @@ mod tests {
 
     #[test]
     fn loc_001_fires_for_invalid_geometry_type() {
-        // locations.geojson ile birlikte ZIP
+        // ZIP together with locations.geojson
         let geojson = br#"{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[29.0,41.0]},"properties":{}}]}"#;
         let zip = zip_with_files(&[
             ("agency.txt",     b"agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://x.com,UTC\n"),
@@ -5393,9 +5406,9 @@ mod tests {
         );
     }
 
-    /// Ölçüm, 16. korpus koşumu (`tdg-81648`..`tdg-81652`): dosya HİÇ JSON değil. Eskiden bu
-    /// `LOC_001` üretiyordu ve yerelleştirilmiş şablon "geçersiz geometri tipi" diyordu;
-    /// ayrıştırıcı ilk karakterde düşerken hiçbir geometri okunmamıştı.
+    /// Measurement from corpus run 16 (`tdg-81648`..`tdg-81652`): the file was NOT JSON at all.
+    /// It used to produce `LOC_001`, whose localized template said "invalid geometry type";
+    /// the parser failed on the first character before reading any geometry.
     #[test]
     fn loc_012_fires_for_a_document_that_is_not_json_and_loc_001_stays_silent() {
         let zip = zip_with_files(&[
@@ -5418,7 +5431,7 @@ mod tests {
         );
     }
 
-    /// Kök tip yanlışsa da olgu belge düzeyindedir, geometri düzeyinde değil.
+    /// A wrong root type is still a document-level issue, not a geometry-level issue.
     #[test]
     fn loc_012_fires_when_the_root_type_is_not_a_feature_collection() {
         let zip = zip_with_files(&[
@@ -5440,7 +5453,7 @@ mod tests {
         assert_eq!(n.observed_value.as_deref(), Some("Feature"));
     }
 
-    /// LOC_006 fixture'ı: verilen ring ile bir locations.geojson üretir.
+    /// LOC_006 fixture: creates a locations.geojson with the supplied ring.
     fn zip_with_polygon(ring: &str) -> Vec<u8> {
         let geojson = format!(
             r#"{{"type":"FeatureCollection","features":[{{"type":"Feature","id":"z1","geometry":{{"type":"Polygon","coordinates":[{ring}]}},"properties":{{}}}}]}}"#
@@ -5458,8 +5471,8 @@ mod tests {
 
     #[test]
     fn loc_006_silent_for_thin_diagonal_zone_with_large_bounding_box() {
-        // Çapraz ince şerit: bbox ~4800km² (eski ölçüm ateşlerdi), gerçek alan ~186km².
-        // Hizmet bölgeleri dışbükey değildir; bu ayrım kuralın FP'lerinin kaynağıydı.
+        // Thin diagonal strip: bbox ~4800 km² (the old measurement would fire), actual area ~186 km².
+        // Service zones are not convex; this distinction caused the rule's false positives.
         let ring = "[[29.0,41.0],[30.0,41.5],[30.0,41.52],[29.0,41.02],[29.0,41.0]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
         assert!(
@@ -5470,7 +5483,7 @@ mod tests {
 
     #[test]
     fn loc_006_fires_for_genuinely_large_zone() {
-        // ~1.0° boylam × 0.1° enlem, 41. paralelde ≈ 929km² → eşiğin (500) üstünde.
+        // ~1.0° longitude × 0.1° latitude, ≈929 km² at the 41st parallel → above the (500) threshold.
         let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
         assert!(
@@ -5481,7 +5494,7 @@ mod tests {
 
     #[test]
     fn loc_006_subtracts_holes_from_the_outer_ring() {
-        // Dış ring ~929km², içine ~836km²'lik delik → net ~93km², eşiğin altında.
+        // Outer ring ~929 km², with a ~836 km² hole inside → net ~93 km², below the threshold.
         let ring = "[[29.0,41.0],[30.0,41.0],[30.0,41.1],[29.0,41.1],[29.0,41.0]],\
                     [[29.05,41.005],[29.95,41.005],[29.95,41.095],[29.05,41.095],[29.05,41.005]]";
         let k1 = parse(&zip_with_polygon(ring)).unwrap();
@@ -5491,14 +5504,14 @@ mod tests {
         );
     }
 
-    // ── ARC_036: ZIP akış görünümü tutarlılığı ─────────────────────────────────
+    // ── ARC_036: ZIP stream-view consistency ───────────────────────────────────
     //
-    // Birim testleri SAF fonksiyona kurulur, çünkü asıl risk uçtan uca akışta değil
-    // bayt yorumundadır: kural gevşetilirse korpusun %40'ına (descriptor'ı MEŞRU
-    // kullanan feed'lere) yanlış bulgu basar. `mesru_akis_zipinde_susar` o kapıdır.
+    // Unit tests target the PURE function because the real risk is in byte interpretation,
+    // not the end-to-end flow: if the rule is loosened, it would flag 40% of the corpus
+    // (feeds that use descriptors LEGITIMATELY). `mesru_akis_zipinde_susar` is that gate.
 
-    /// Tek girdilik sentetik yerel başlık + (opsiyonel) data descriptor üretir.
-    /// `descriptor`: `None` → hiç yazılmaz, ardından başka bir yerel başlık gelir.
+    /// Produces a single-entry synthetic local header plus an optional data descriptor.
+    /// `descriptor`: `None` → writes nothing, followed by another local header.
     fn synthetic_entry(
         flag: u16,
         local_csize: u32,
@@ -5515,7 +5528,7 @@ mod tests {
         b.extend_from_slice(&0u16.to_le_bytes()); // method: stored
         b.extend_from_slice(&0u16.to_le_bytes()); // time
         b.extend_from_slice(&0u16.to_le_bytes()); // date
-        b.extend_from_slice(&0u32.to_le_bytes()); // crc (yerel alan)
+        b.extend_from_slice(&0u32.to_le_bytes()); // crc (local field)
         b.extend_from_slice(&local_csize.to_le_bytes());
         b.extend_from_slice(&local_usize.to_le_bytes());
         b.extend_from_slice(&(name.len() as u16).to_le_bytes());
@@ -5531,7 +5544,7 @@ mod tests {
                 b.extend_from_slice(&csize.to_le_bytes());
                 b.extend_from_slice(&usize_.to_le_bytes());
             }
-            // Descriptor yok: `tdg-81618` deseni — hemen sonraki girdinin başlığı gelir.
+            // No descriptor: the `tdg-81618` pattern — the next entry's header follows immediately.
             None => b.extend_from_slice(&LFH_SIGNATURE.to_le_bytes()),
         }
         b
@@ -5539,8 +5552,8 @@ mod tests {
 
     const DATA: &[u8] = b"agency_id,agency_name\n1,Test\n";
 
-    /// Korpusun %40'ının kullandığı KURALLARA UYGUN akış zip'i: yerel boyutlar 0,
-    /// descriptor yerinde ve merkez dizinle birebir. Burada ateşlemek felakettir.
+    /// A RULE-COMPLIANT streaming ZIP used by 40% of the corpus: local sizes are 0,
+    /// the descriptor is present and matches the central directory exactly. Firing here is catastrophic.
     #[test]
     fn arc036_mesru_akis_zipinde_susar() {
         let crc = 0xDEAD_BEEF;
@@ -5563,7 +5576,7 @@ mod tests {
         }
     }
 
-    /// `tdg-81618` deseni: bayrak set, yerel boyutlar DOLU, descriptor kaydı YOK.
+    /// `tdg-81618` pattern: flag set, local sizes populated, no descriptor record.
     #[test]
     fn arc036_descriptor_yoksa_ateslenir() {
         let crc = 0xDEAD_BEEF;
@@ -5573,8 +5586,8 @@ mod tests {
         assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
     }
 
-    /// `mdb-2607` deseni: descriptor VAR, crc/csize doğru, ama `usize` sıfır yazılmış.
-    /// Dar bir "descriptor var mı" kontrolü bunu KAÇIRIRDI.
+    /// `mdb-2607` pattern: descriptor PRESENT, crc/csize correct, but `usize` is written as zero.
+    /// A narrow "is there a descriptor?" check would MISS this.
     #[test]
     fn arc036_descriptor_celisirse_ateslenir() {
         let crc = 0xDEAD_BEEF;
@@ -5584,8 +5597,8 @@ mod tests {
         assert_eq!(count_inconsistent_stream_headers(&bytes, &entries), 1);
     }
 
-    /// Bayrak set değilse girdi hiç incelenmez; zip64 kaçışı taşıyan girdi ATLANIR
-    /// (gerçek boyut extra field'da, buradan okunamaz — okunamayanı suçlamayız).
+    /// If the flag is not set, the entry is not inspected; an entry using the ZIP64 escape is SKIPPED
+    /// (the real size is in the extra field and cannot be read here — we do not blame the unreadable).
     #[test]
     fn arc036_bayraksiz_ve_zip64_girdiler_atlanir() {
         let crc = 0xDEAD_BEEF;
@@ -5609,8 +5622,8 @@ mod tests {
         );
     }
 
-    /// Uçtan uca: normal feed sessiz, aynı feed'in yalnız bayrak bitleri çevrilmiş
-    /// hâli TEK bulgu üretir (feed düzeyi dedup) ve sayıyı `observed_value`da taşır.
+    /// End to end: the normal feed is silent, while the same feed with only its flag bits flipped
+    /// produces ONE finding (feed-level dedup) and carries the count in `observed_value`.
     #[test]
     fn arc036_uctan_uca_yalniz_bayrak_biti_cevrilince_atesler() {
         let clean = minimal_gtfs_zip();
@@ -5632,7 +5645,7 @@ mod tests {
             let flag = u16::from_le_bytes([flipped[off], flipped[off + 1]]);
             flipped[off..off + 2].copy_from_slice(&(flag | FLAG_DATA_DESCRIPTOR).to_le_bytes());
         }
-        // Merkez dizin bozulmadığı için arşiv hâlâ açılabilir olmalı; kural bunu ölçüyor.
+        // The archive should still open because the central directory is intact; the rule measures this.
         let r = parse(&flipped).unwrap();
         let hits: Vec<_> = r
             .notices
@@ -5647,15 +5660,15 @@ mod tests {
         );
     }
 }
-/// `required_fields` (ARC_025'in dayanağı) spec'in `Required` sütunlarıyla BİREBİR olmalı.
+/// `required_fields` (the basis for ARC_025) must match the spec's `Required` columns EXACTLY.
 ///
-/// ARC_025 Kritik·Spec'tir, yani R1'i bloke eder. Listeye KOŞULLU bir alan yazmak geçerli
-/// bir feed'i yayından alıkoyar; gerçekten Required olan bir alanı yazmamak ise hükmü
-/// denetimsiz bırakır. 2026-08-02'de `transfers.txt`'te İKİSİ BİRDEN vardı:
-/// `from_stop_id`/`to_stop_id` koşulluyken listedeydi (yanlış pozitif, gizli),
-/// `transfer_type` koşulsuz Required'ken listede değildi (denetimsiz).
+/// ARC_025 is Critical·Spec, so it blocks R1. Listing a CONDITIONAL field takes a valid
+/// feed out of publication; omitting a truly Required field leaves the rule unenforced.
+/// On 2026-08-02, `transfers.txt` had BOTH:
+/// `from_stop_id`/`to_stop_id` were listed while conditional (a hidden false positive),
+/// while `transfer_type` was not listed even though unconditionally Required (unenforced).
 ///
-/// Kaynak: `spec-audit/spec_fields.json` → `presence == "Required"`.
+/// Source: `spec-audit/spec_fields.json` → `presence == "Required"`.
 #[test]
 fn required_columns_match_the_specification() {
     let path =

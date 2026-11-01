@@ -11,7 +11,7 @@ use url::Url;
 pub type HeaderIndex = HashMap<String, usize>;
 pub type RowMap = HashMap<String, String>;
 
-/// K2 modülleri için ortak doğrulama bağlamı.
+/// Shared validation context for K2 modules.
 #[derive(Debug, Clone)]
 pub struct K2Context<'a> {
     pub file: &'a str,
@@ -29,7 +29,7 @@ impl<'a> K2Context<'a> {
     }
 }
 
-/// Header dizisini O(1) lookup için index haritasına çevirir.
+/// Convert the header array to an index map for O(1) lookup.
 pub fn build_header_index(headers: &[String]) -> HeaderIndex {
     headers
         .iter()
@@ -38,12 +38,12 @@ pub fn build_header_index(headers: &[String]) -> HeaderIndex {
         .collect()
 }
 
-/// Bir satırı header adlarıyla hizalı map'e dönüştürür.
+/// Convert a row to a map aligned with the header names.
 ///
-/// HER başlık map'e girer: satır o sütuna kadar kısaysa değer boş string olur.
-/// Böylece `get_trimmed_field` `None` döndürmesi yalnızca "sütun başlıkta hiç yok"
-/// anlamına gelir (satır-kısa durumu `Some("")`'tır). Bu ayrım, zorunlu-alan
-/// kurallarının sütun-yokken susup ARC_025'e devretmesini sağlar.
+/// EVERY header enters the map: if the row is shorter than that column, its value is empty.
+/// Thus `get_trimmed_field` returning `None` means only "the column is absent from the header"
+/// (a short row is `Some("")`). This distinction lets required-field rules stay silent when
+/// the column is absent and defer to ARC_025.
 pub fn build_row_map(headers: &[String], row: &[SmolStr]) -> RowMap {
     headers
         .iter()
@@ -67,35 +67,35 @@ pub fn has_nonempty_field(row: &RowMap, field: &str) -> bool {
     get_trimmed_field(row, field).is_some_and(|v| !v.is_empty())
 }
 
-// ── Streaming (stream_mode) yol yardımcıları ─────────────────────────────────
+// ── Streaming (stream_mode) path helpers ─────────────────────────────────
 //
-// Yukarıdaki `RowMap` tabanlı okuyucular satırı önce map'e çevirir. Streaming yolda
-// satır ham `Cow` dilimi olarak gelir ve sütuna indeksle erişilir (map kurulmaz —
-// stop_times/shapes ölçeğinde tahsis maliyeti kabul edilemez). İki katman bilinçli
-// olarak ayrı; aşağıdakiler `_col` sonekiyle ayırt edilir.
+// The `RowMap`-based readers above first convert the row to a map. In the streaming path,
+// the row arrives as a raw `Cow` slice and is accessed by column index (no map is built —
+// allocation cost is unacceptable at stop_times/shapes scale). The two layers are deliberately
+// separate; the following helpers are distinguished by the `_col` suffix.
 
-/// Cow dilimden sütun değeri: indeks yoksa veya satır kısaysa boş string.
+/// Column value from a Cow slice: empty string if the index is absent or the row is short.
 ///
-/// `#[inline]` bilinçli: stop_times ölçeğinde (6M+ satır) satır başına birkaç kez
-/// çağrılıyor — crate-içi olsa da çağrı maliyeti ölçülebilir.
+/// `#[inline]` is deliberate: at stop_times scale (6M+ rows), this is called several times
+/// per row — even within the crate, the call cost is measurable.
 #[inline]
-/// KİMLİK alanları için HAM değer — `trim` YAPILMAZ (issue #85).
+/// RAW value for IDENTITY fields — do NOT `trim` (issue #85).
 ///
-/// 🔴 `get_trimmed_field`/`get_col` her değeri kırpıyordu ve ID'ler o kırpılmış değerden
-/// kuruluyordu. Sonuç, kimlik semantiğinin sessizce normalize edilmesiydi:
-///   · `stops.stop_id=" A "` + `stop_times.stop_id=A` → FK EŞLEŞİYORDU (ölçüldü)
-///   · aynı dosyada `A` ve `" A "` → UYDURMA duplicate (`STP_001`, ölçüldü)
-/// `" A "` ile `A` aynı sözlüksel değer DEĞİLDİR; PK/FK sert semantiktir ve normalize
-/// edilemez. Fazladan boşluk ayrı bir KALİTE sinyalidir (`DQ_016` onu zaten bildiriyor).
+/// 🔴 `get_trimmed_field`/`get_col` trimmed every value and IDs were built from the trimmed value.
+/// The result was silent normalization of identity semantics:
+///   · `stops.stop_id=" A "` + `stop_times.stop_id=A` → FK MATCHED (measured)
+///   · `A` and `" A "` in the same file → FABRICATED duplicate (`STP_001`, measured)
+/// `" A "` and `A` are not the same lexical value; PK/FK semantics are strict and cannot be
+/// normalized. Extra whitespace is a separate QUALITY signal (`DQ_016` already reports it).
 ///
-/// ⚠️ BOŞLUK TEŞHİSİ İÇİN yine `trim` kullanılır — ama kimliği DEĞİŞTİRMEDEN:
-/// `get_raw_field(..).filter(|v| !v.trim().is_empty())` deyimi "yalnızca boşluktan oluşan
-/// değer YOKTUR" der, kimliği ise ham bırakır.
+/// ⚠️ `trim` is still used for WHITESPACE DIAGNOSIS — without changing the identity:
+/// `get_raw_field(..).filter(|v| !v.trim().is_empty())` says "a whitespace-only value DOES NOT
+/// EXIST" while leaving the identity raw.
 pub fn get_raw_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
     row.get(field).map(|s| s.as_str())
 }
 
-/// KİMLİK sütunları için ham akış değeri — `get_col`in trim YAPMAYAN eşi (issue #85).
+/// Raw streaming value for IDENTITY columns — the non-trimming counterpart of `get_col` (issue #85).
 pub fn get_col_raw<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
     col.and_then(|i| row.get(i))
         .map(|s| s.as_ref())
@@ -108,9 +108,9 @@ pub fn get_col<'a>(row: &'a [Cow<'_, str>], col: Option<usize>) -> &'a str {
         .unwrap_or("")
 }
 
-/// Ham değerden u32. Boş → `Ok(None)`, geçersiz → `Err(())`.
-/// Hata mesajı ÜRETMEZ — mesaj gerekiyorsa çağıran taraf kurar
-/// (bkz. `parse_u32`, `RowMap` sürümü hata metnini kendi döndürür).
+/// u32 from a raw value. Empty → `Ok(None)`, invalid → `Err(())`.
+/// Does NOT produce an error message — the caller builds one if needed
+/// (see `parse_u32`, whose `RowMap` version returns its own error text).
 #[allow(clippy::result_unit_err)]
 pub fn parse_u32_col(raw: &str) -> Result<Option<u32>, ()> {
     if raw.is_empty() {
@@ -119,12 +119,11 @@ pub fn parse_u32_col(raw: &str) -> Result<Option<u32>, ()> {
     raw.parse::<u32>().map(Some).map_err(|_| ())
 }
 
-/// Ham değerden f64. Boş → `Ok(None)`, geçersiz → `Err(())`.
+/// f64 from a raw value. Empty → `Ok(None)`, invalid → `Err(())`.
 #[allow(clippy::result_unit_err)]
-/// ⚠️ SONLU OLMAYAN DEĞERLER REDDEDİLİR (issue #82). Rust'ın `f64` ayrıştırıcısı
-/// `NaN`, `inf`, `-Infinity` metinlerini KABUL eder; GTFS'in `Float`/`Latitude` tipleri
-/// bunları içermez ve bir `NaN` koordinat aşağıdaki her geometri kuralında sessizce
-/// "karşılaştırma false" davranışına dönüşür (mesafe hesabı, sıralama, eşik).
+/// ⚠️ NON-FINITE VALUES ARE REJECTED (issue #82). Rust's `f64` parser ACCEPTS `NaN`, `inf`,
+/// and `-Infinity`; GTFS `Float`/`Latitude` types do not include them, and a `NaN` coordinate
+/// silently turns every geometry rule below into "comparison false" (distance, ordering, threshold).
 pub fn parse_f64_col(raw: &str) -> Result<Option<f64>, ()> {
     if raw.is_empty() {
         return Ok(None);
@@ -135,17 +134,16 @@ pub fn parse_f64_col(raw: &str) -> Result<Option<f64>, ()> {
     }
 }
 
-/// SERT tip predikatları için alan okuması — **HAM değer** (issue #92).
+/// Field reading for STRICT type predicates — **RAW value** (issue #92).
 ///
-/// 🔴 `get_trimmed_field` her değeri kırpıyordu ve tip predikatı kırpılmışını görüyordu:
-/// `" https://example.com "` ham hâlde kaçırılmamış boşluk taşır, ama sert URL kuralı
-/// susuyordu; geriye yalnız `DQ_016` kalite sinyali kalıyordu. Yani bir Spec iddiası
-/// (`P5f72fb5a` KANITLI) normalize edilmiş bir vekil değer üzerinden kuruluyordu.
-/// `#85`'in kimlik için verdiği kararın tip predikatlarındaki karşılığı budur.
+/// 🔴 `get_trimmed_field` trimmed every value, so the type predicate saw the trimmed value:
+/// `" https://example.com "` has unescaped whitespace raw, but the strict URL rule stayed silent;
+/// only the `DQ_016` quality signal remained. Thus a Spec claim (`P5f72fb5a` PROVEN) was based
+/// on a normalized proxy value. This is the type-predicate counterpart of `#85`'s identity decision.
 ///
-/// ⚠️ **BOŞLUK-YALNIZ değer YOK sayılır** — kırpma yalnız VARLIK teşhisinde kullanılır,
-/// değeri değiştirmeden. Aksi hâlde `"   "` taşıyan opsiyonel bir alan "geçersiz tip"
-/// olurdu ve bu, `#85`'te bilinçle korunan davranışın tersine dönmesi demekti.
+/// ⚠️ A **WHITESPACE-ONLY value counts as ABSENT** — trimming is used only for PRESENCE
+/// diagnosis, without changing the value. Otherwise an optional field containing `"   "` would
+/// become an "invalid type", reversing the behavior deliberately preserved in `#85`.
 pub fn get_lexical_field<'a>(row: &'a RowMap, field: &str) -> Option<&'a str> {
     let raw = get_raw_field(row, field)?;
     if raw.trim().is_empty() {
@@ -189,7 +187,7 @@ pub fn parse_f64(row: &RowMap, field: &str) -> Result<Option<f64>, String> {
     if raw.is_empty() {
         return Ok(None);
     }
-    // Ortak yardımcı: akış ve akış-dışı yollar AYNI kararı vermeli (issue #82).
+    // Shared helper: streaming and non-streaming paths must make the SAME decision (issue #82).
     parse_f64_col(raw)
         .map_err(|_| format!("'{field}' için sonlu bir f64 bekleniyor, alınan: {raw}"))
 }
@@ -218,7 +216,7 @@ pub fn parse_i32(row: &RowMap, field: &str) -> Result<Option<i32>, String> {
         .map_err(|_| format!("'{field}' için i32 bekleniyor, alınan: {raw}"))
 }
 
-/// GTFS Schedule tarih formatı: YYYYMMDD
+/// GTFS Schedule date format: YYYYMMDD
 pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
@@ -240,10 +238,10 @@ pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32,
         .parse::<u32>()
         .map_err(|_| format!("'{field}' gün bölümü geçersiz: {raw}"))?;
 
-    // ⚠️ TAKVİM GEÇERLİLİĞİ (issue #82). Eski kod yalnız BİÇİMİ denetliyordu: `20261340`
-    // ayrıştırılıp `(2026, 13, 40)` olarak DÖNÜYORDU ve aşağıdaki servis-günü hesapları
-    // olmayan bir tarihle çalışıyordu. Akış yolundaki denetim ise `ay ≤ 12, gün ≤ 31`e
-    // kadar gelmişti — `20260231` yine geçiyordu. İkisi de artık AYNI yardımcıyı çağırır.
+    // ⚠️ CALENDAR VALIDITY (issue #82). Old code checked only FORMAT: `20261340` was parsed
+    // and RETURNED as `(2026, 13, 40)`, so the service-day calculations below used a nonexistent
+    // date. The streaming check went only as far as `month ≤ 12, day ≤ 31` — `20260231` still passed.
+    // Both now call the SAME helper.
     if !is_valid_calendar_date(year, month, day) {
         return Err(format!("'{field}' takvimde olmayan tarih: {raw}"));
     }
@@ -251,12 +249,13 @@ pub fn parse_service_date(row: &RowMap, field: &str) -> Result<Option<(u32, u32,
     Ok(Some((year, month, day)))
 }
 
-/// Ham değer yalnız çevre boşluğu yüzünden reddedildiyse kırpılmış tarihi döndürür.
+/// Return the trimmed date if the raw value was rejected only because of surrounding whitespace.
 ///
-/// Hüküm ham değerle verilir (`parse_service_date`, #92) ve bulgu `DQ_016` altında
-/// bastırılır. Bu yardımcı YALNIZ anlamsal kayıt içindir: onsuz `"20271231    "` taşıyan
-/// bir servis "aktif günü yok" sayılır ve her seferi `TRP_026` üretir. Kırpılınca da
-/// geçersiz olan değer `None` döner — gerçek biçim hatası servis aralığına girmez.
+/// The decision uses the raw value (`parse_service_date`, #92) and the finding is suppressed
+/// under `DQ_016`. This helper is for semantic records ONLY: without it, a service containing
+/// `"20271231    "` is treated as having "no active day" and every trip produces `TRP_026`.
+/// An actually invalid value still returns `None` after trimming — a real format error does not
+/// enter the service range.
 pub fn whitespace_trimmed_service_date(row: &RowMap, field: &str) -> Option<(u32, u32, u32)> {
     let raw = get_raw_field(row, field)?;
     let trimmed = raw.trim();
@@ -267,14 +266,14 @@ pub fn whitespace_trimmed_service_date(row: &RowMap, field: &str) -> Option<(u32
     parse_service_date(&row, field).ok().flatten()
 }
 
-/// Gerçek bir takvim günü mü — artık yıl dahil (issue #82).
+/// Is this a real calendar day — including leap years (issue #82).
 pub fn is_valid_calendar_date(year: u32, month: u32, day: u32) -> bool {
     if !(1..=12).contains(&month) || day == 0 {
         return false;
     }
-    // ⚠️ `gtfs_config::is_leap_year` ile AYNI hesap, ayrı crate'te (o, config aralığı
-    // doğrulaması için kullanıyor). İki satırlık evrensel takvim olgusu; bağımlılık
-    // eklemek yerine aynı deyim kullanılıyor ki ikisi okurken eşleşsin.
+    // ⚠️ SAME calculation as `gtfs_config::is_leap_year` in another crate (it uses it for
+    // config range validation). This is a two-line universal calendar fact; use the same
+    // expression instead of adding a dependency so the two implementations match when read.
     let leap = (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
     let max = match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -285,7 +284,7 @@ pub fn is_valid_calendar_date(year: u32, month: u32, day: u32) -> bool {
     day <= max
 }
 
-/// GTFS saat formatı: HH:MM:SS (HH 24'ten büyük olabilir).
+/// GTFS time format: HH:MM:SS (HH may exceed 24).
 pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u32)>, String> {
     let Some(raw) = get_lexical_field(row, field) else {
         return Ok(None);
@@ -298,9 +297,9 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
     if parts.len() != 3 {
         return Err(format!("'{field}' için HH:MM:SS bekleniyor, alınan: {raw}"));
     }
-    // ⚠️ SÖZLÜKSEL GENİŞLİK de tiptir (issue #82): spec `H:MM:SS` veya `HH:MM:SS` der;
-    // dakika ve saniye İKİ BASAMAKLIDIR. Eski kod yalnız sayısal ayrıştırma yapıyordu,
-    // `1:2:3` geçiyordu. Saat 1–2 basamak olabilir (`25:00:00` servis-günü notasyonu).
+    // ⚠️ LEXICAL WIDTH is also part of the type (issue #82): the spec says `H:MM:SS` or
+    // `HH:MM:SS`; minutes and seconds are TWO DIGITS. Old code only parsed numerically and
+    // accepted `1:2:3`. Hours may be 1–2 digits (`25:00:00` service-day notation).
     if !gtfs_time_widths_ok(&parts) {
         return Err(format!(
             "'{field}' için [H]H:MM:SS bekleniyor (dakika/saniye iki basamaklı), alınan: {raw}"
@@ -326,16 +325,15 @@ pub fn parse_gtfs_time(row: &RowMap, field: &str) -> Result<Option<(u32, u32, u3
     Ok(Some((hour, minute, second)))
 }
 
-/// GTFS saat biçiminin SÖZLÜKSEL denetimi — `parse_gtfs_time` ve akış tarafındaki
-/// `parse_gtfs_time_raw` AYNI kararı vermek zorunda (ikisi ayrışırsa aynı feed akış
-/// modunda başka, tam modda başka sonuç verir).
+/// LEXICAL validation of the GTFS time format — `parse_gtfs_time` and streaming-side
+/// `parse_gtfs_time_raw` must make the SAME decision (otherwise the same feed differs in
+/// streaming and full modes).
 pub fn gtfs_time_widths_ok(parts: &[&str]) -> bool {
-    // ⚠️ SAATE BASAMAK SINIRI KONMAZ — bilinçli. İlk taslak `HH`'yi 1–2 basamakla
-    // sınırlıyordu ve `tfr_006_does_not_overflow_on_huge_hour` düştü. Asıl mesele test
-    // değil: servis günü notasyonunda saat 24'ü aşar (raylı feed'lerde 30:37, 38:10
-    // ÖLÇÜLDÜ) ve çok günlü tren seferleri üç basamağa taşabilir. Saati kısıtlamak
-    // GEÇERLİ veriyi reddetmek olurdu; issue #82'nin bildirdiği kusur `1:2:3`, yani
-    // DAKİKA/SANİYE genişliğidir. Taşma koruması `TFR_006`'da ayrıca duruyor.
+    // ⚠️ NO DIGIT LIMIT ON HOURS — deliberate. The first draft limited `HH` to 1–2 digits and
+    // failed `tfr_006_does_not_overflow_on_huge_hour`. The issue is not the test: service-day
+    // notation exceeds 24 (30:37, 38:10 measured in rail feeds), and multi-day train trips can
+    // reach three digits. Limiting hours would reject VALID data; issue #82 reported `1:2:3`,
+    // the minute/second width. Overflow protection remains separately in `TFR_006`.
     parts.len() == 3
         && !parts[0].is_empty()
         && parts[1].len() == 2
@@ -343,13 +341,13 @@ pub fn gtfs_time_widths_ok(parts: &[&str]) -> bool {
         && parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// ISO 4217 ALFABETİK kod mu (issue #82).
+/// Is this an ISO 4217 ALPHABETIC code (issue #82).
 ///
-/// ⚠️ Eskiden yalnız "üç büyük ASCII harf" deniyordu: `ZZZ` geçiyordu ve
-/// `iso4217_minor_unit` bilinmeyen kodu sessizce 2 ondalıklı sayıyordu — yani uydurma bir
-/// para birimi hem geçerli sayılıyor hem de tutar biçimlendirmesi uyduruluyordu.
-/// Liste ISO 4217 AKTİF alfabetik kodlarıdır; tarihe karışmış kodlar (ör. `TRL`, `DEM`)
-/// bilinçli olarak DIŞARIDADIR — feed bugünkü bir para birimi bildirmelidir.
+/// ⚠️ Previously it only said "three uppercase ASCII letters": `ZZZ` passed and
+/// `iso4217_minor_unit` silently assigned 2 decimal places to unknown codes — a fabricated
+/// currency was both accepted and given fabricated amount formatting.
+/// The list contains ACTIVE ISO 4217 alphabetic codes; historical codes (e.g. `TRL`, `DEM`)
+/// are deliberately EXCLUDED — a feed must report a current currency.
 pub fn is_iso4217(code: &str) -> bool {
     ISO4217.binary_search_by_key(&code, |(k, _)| *k).is_ok()
 }
@@ -358,27 +356,25 @@ pub fn validate_enum(value: &str, allowed: &[&str]) -> bool {
     allowed.contains(&value)
 }
 
-/// GTFS `URL` tipi: *"A fully qualified URL that includes http:// or https://."*
+/// GTFS `URL` type: *"A fully qualified URL that includes http:// or https://."*
 ///
-/// `Url::parse` tek başına YETMEZ — o herhangi bir şemayı kabul eder ve `mailto:`,
-/// `ftp://`, `file:///`, `javascript:alert(1)`, hatta `foo:bar` için `Ok` döner. Şema
-/// kontrolü olmadan bu değerler yolcuya görünen alanlarda geçerli sayılıyordu (2026-08-03
-/// ölçümü, T5 boşluk #1).
+/// `Url::parse` alone is NOT ENOUGH — it accepts any scheme and returns `Ok` for `mailto:`,
+/// `ftp://`, `file:///`, `javascript:alert(1)`, and even `foo:bar`. Without scheme validation,
+/// these values were accepted in passenger-visible fields (2026-08-03 measurement, T5 gap #1).
 ///
-/// Şema adı RFC 3986'ya göre büyük/küçük harfe DUYARSIZDIR (`HTTP://` geçerlidir), bu
-/// yüzden karşılaştırma öyle yapılır.
-/// ⚠️ Karşılaştırma BAYT üzerinden yapılır, dilim (`&s[..7]`) üzerinden DEĞİL: `&str`
-/// dilimlemek çok baytlı bir karakterin ortasına denk gelirse **panik** eder. Alanlar
-/// serbest metin taşıyabildiği için `Ünivers…` gibi bir değer bu yolu tetiklerdi.
-/// Aradığımız önek saf ASCII olduğundan bayt karşılaştırması hem güvenli hem doğru.
+/// Scheme names are case-INSENSITIVE under RFC 3986 (`HTTP://` is valid), so comparison is done
+/// that way. ⚠️ Compare BYTES, not a slice (`&s[..7]`): slicing `&str` at the middle of a
+/// multibyte character **panics**. Since fields can contain free text, a value such as `Ünivers…`
+/// would trigger that path. The prefix is pure ASCII, so byte comparison is safe and correct.
 pub fn looks_like_url(value: &str) -> bool {
     fn starts_with_ci(s: &str, prefix: &str) -> bool {
         s.len() >= prefix.len()
             && s.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
     }
-    // ⚠️ İÇ `trim` KALDIRILDI (issue #92): predikat kendisi kırparsa çağıran ham değeri
-    // verse bile ölçü yine normalize edilmiş olurdu. Boşluk zaten `url_strict_ok`un
-    // reddettiği karakterlerden biri — yani baştaki/sondaki boşluk KAÇIRILMAMIŞ demektir.
+    // ⚠️ INNER `trim` REMOVED (issue #92): if the predicate trimmed itself, the measurement
+    // would remain normalized even when the caller supplied the raw value. Whitespace is already
+    // one of the characters rejected by `url_strict_ok` — leading/trailing whitespace is therefore
+    // NOT ESCAPED.
     let trimmed = value;
     let has_web_scheme = starts_with_ci(trimmed, "http://") || starts_with_ci(trimmed, "https://");
     if !(has_web_scheme && url_strict_ok(trimmed)) {
@@ -387,16 +383,15 @@ pub fn looks_like_url(value: &str) -> bool {
     let Ok(parsed) = Url::parse(trimmed) else {
         return false;
     };
-    // ÇİFT ŞEMA: `https://https://example.com/...` ayrıştırılır ve host'u literal
-    // `"https"` olur. Şema adıyla aynı, tek etiketli bir host gerçek bir adres
-    // olamaz; bu desen yalnızca değerin başına şemanın iki kez yazılmasından doğar.
+    // DOUBLE SCHEME: `https://https://example.com/...` parses with the literal host `"https"`.
+    // A single-label host equal to the scheme name cannot be a real address; this pattern only
+    // arises when the scheme is written twice at the start of the value.
     //
-    // ⚠️ Bu, host ŞEKLİNİ denetlemenin GENEL hâli DEĞİLDİR ve bilerek öyle değil.
-    // `AGN_003` Kritik+Spec, yani R1 yayın engelidir: buradaki bir yanlış pozitif
-    // GEÇERLİ BİR FEED'İ REDDEDER. Genel host denetimi IDN'i de riske atardı ve
-    // `url_strict_ok`un `is_ascii()` kapısı tam o yüzden #144'te kaldırılmıştı.
-    // Bu kontrol tek bir kesin desene çapalıdır; alt çizgili host, `localhost` ve
-    // sayısal host gibi komşu vakalar KASITLI olarak dışarıda (#162).
+    // ⚠️ This is NOT a GENERAL host-shape check, deliberately. `AGN_003` is Kritik+Spec, an R1
+    // publication blocker: a false positive here REJECTS A VALID FEED. General host validation
+    // would also risk IDNs, and `url_strict_ok`'s `is_ascii()` gate was removed for exactly that
+    // reason in #144. This check is anchored to one certain pattern; neighboring cases such as
+    // underscored hosts, `localhost`, and numeric hosts are DELIBERATELY excluded (#162).
     if matches!(parsed.host_str(), Some(h) if h.eq_ignore_ascii_case("http") || h.eq_ignore_ascii_case("https"))
     {
         return false;
@@ -404,77 +399,76 @@ pub fn looks_like_url(value: &str) -> bool {
     true
 }
 
-/// GTFS `URL` tipinin SÖZLÜKSEL yarısı — **KATI**, spec'in kendi ölçüsüyle (issue #80).
+/// LEXICAL half of the GTFS `URL` type — **STRICT**, by the spec's own measure (issue #80).
 ///
-/// Hükmün tam metni (pinlenmiş katalogdan, `P5f72fb5a`):
+/// Full wording (from the pinned catalogue, `P5f72fb5a`):
 /// *"A fully qualified URL that includes http:// or https://, and any special characters
-/// in the URL must be correctly escaped."* — ve atıf yaptığı belge W3C'nin URI
-/// önerileridir. Orada (ve RFC 3986'da) **ASCII dışı karakter bir URI'de çıplak geçemez**;
-/// yüzde kodlanmalıdır.
+/// in the URL must be correctly escaped."* — the referenced document is W3C's URI guidance.
+/// There (and in RFC 3986), **a non-ASCII character cannot appear raw in a URI**; it must be
+/// percent-encoded.
 ///
-/// 🔴 **`is_ascii()` KAPISI KALDIRILDI (#144, 2026-08-16).** Kısa tarihçe, çünkü bu karar
-/// iki kez döndü ve üçüncü kez dönmemesi için dayanağın yazılı olması gerekiyor:
+/// 🔴 **`is_ascii()` GATE REMOVED (#144, 2026-08-16).** Short history, because this decision
+/// changed twice and its basis must be written down so it does not change a third time:
 ///
-/// - 2026-08-07 sabahı ham Unicode "IRI kullanımı yaygın" diye kabul edilmişti.
-/// - Aynı gün geri alındı: o bir ÜRÜN toleransıydı, spec ölçüsü değil.
-/// - Şimdi tekrar kaldırılıyor, ama **farklı bir gerekçeyle** — tolerans olduğu için değil,
-///   `is_ascii()`'nin hükmü YANLIŞ okuduğu için.
+/// - On 2026-08-07 morning, raw Unicode was accepted because "IRI use is common".
+/// - Reverted that same day: it was a PRODUCT tolerance, not a spec measure.
+/// - It is now removed again, but for a **different reason** — not because it is a tolerance,
+///   but because `is_ascii()` read the rule WRONG.
 ///
-/// Hüküm *"any **special characters** in the URL must be correctly escaped"* der. `é`, `ü`,
-/// kiril veya tam genişlikli `ｗ` RFC 3986'nın ayraç kümesinde DEĞİLDİR; `url_escaping_ok`'ın
-/// kendi docstring'i bunu zaten yazıyordu. İki fonksiyon çelişiyordu: biri "ASCII dışı
-/// reddedilmez, reddetmek uluslararası feed'leri kırardı" diyor, öteki üstüne `is_ascii()`
-/// koyup tam onu yapıyordu.
+/// The rule says *"any **special characters** in the URL must be correctly escaped"*. `é`, `ü`,
+/// Cyrillic, and full-width `ｗ` are NOT in RFC 3986's delimiter set; `url_escaping_ok`'s own
+/// docstring already said so. The two functions conflicted: one said "non-ASCII is not rejected;
+/// rejecting it would break international feeds", while the other added `is_ascii()` and did exactly that.
 ///
-/// 🔑 **Ayırt edici ölçüt: değerin deterministik kanonik ASCII karşılığı var mı?**
+/// 🔑 **Distinguishing criterion: does the value have a deterministic canonical ASCII equivalent?**
 /// ```text
 ///   "https://ｗｗｗ.city.chikuma.lg.jp" → https://www.city.chikuma.lg.jp/   (NFKC)
 ///   "https://thyon4vallées.ch"        → https://xn--thyon4valles-keb.ch/  (punycode)
-///   "https://a.example/ürün"          → https://a.example/%C3%BCr%C3%BCn  (yüzde kodlama)
+///   "https://a.example/ürün"          → https://a.example/%C3%BCr%C3%BCn  (percent encoding)
 /// ```
-/// Üçünde de üreticinin ne demek istediği TEK ANLAMLIDIR. Buna karşılık gerçek kusurlarda
-/// ayrıştırıcı bir yorum UYDURUR (`a b` → `a%20b`) ya da bozuğu olduğu gibi geçirir
-/// (`a%zzb`); ikisini de `url_escaping_ok` yakalar, şemasızlığı (`wemapp.eu`) çağıran yakalar.
-/// Yani üç gerçek hata modu `is_ascii()` OLMADAN da yakalanıyor — kapı yalnız kanonik
-/// karşılığı olan değerleri reddediyordu.
+/// In all three, the producer's intent is UNAMBIGUOUS. For real defects, the parser invents an
+/// interpretation (`a b` → `a%20b`) or passes the malformed value through (`a%zzb`);
+/// `url_escaping_ok` catches both, and the caller catches a missing scheme (`wemapp.eu`).
+/// Thus all three real error modes are caught WITHOUT `is_ascii()` — the gate only rejected values
+/// that had a canonical equivalent.
 ///
-/// ⚠️ **Eski ölçümün dayanağı ÇÜRÜDÜ.** Kapıyı haklı çıkaran cümle "20 feed · 12.897 URL'de
-/// ASCII dışı **0**, yani katı ölçü hiçbir feed'i etkilemiyor" idi. Tam katalog koşumu
-/// (4.259 feed) gerçek vakalar buldu — 20 feed'lik örneklemde uluslararası URL yokmuş.
-/// Maliyet asimetriktir: geçerli bir IDN adresine KRİTİK·Spec demek geçerli feed'i REDDEDER
-/// (`PTH_017`/`ARC_031` ile aynı sınıf), tersi yalnız eksik uyarır.
+/// ⚠️ **The basis of the old measurement is INVALIDATED.** The sentence justifying the gate was
+/// "20 feeds · **0** non-ASCII in 12,897 URLs, so the strict measure affects no feed". The full
+/// catalogue run (4,259 feeds) found real cases — the 20-feed sample simply had no international URLs.
+/// The cost is asymmetric: calling a valid IDN address KRİTİK·Spec REJECTS a valid feed
+/// (same class as `PTH_017`/`ARC_031`); the reverse only under-warns.
 ///
-/// `P5f72fb5a` KANITLI kalır: hükmün ikinci yarısını `url_escaping_ok` hâlâ KATI ölçüyor
-/// (ayraç kümesi + yüzde kaçışının geçerliliği). Ölçülen şey daralmadı, yalnız hükmün
-/// kapsamadığı bir kısıt kalktı.
+/// `P5f72fb5a` remains PROVEN: `url_escaping_ok` still STRICTLY measures the second half of the
+/// rule (delimiter set + validity of percent escapes). The measured scope did not shrink; only
+/// a constraint outside the wording was removed.
 ///
-/// ⚠️ Ayrı bir "toleranslı" predikat EKLENMEDİ: onu çağıran kimse olmayacaktı ve çağrılmayan
-/// bir gevşetme, ileride kimin hangi ölçüyü kullandığını belirsizleştirirdi.
+/// ⚠️ No separate "tolerant" predicate was added: nobody would call it, and an unused relaxation
+/// would make it unclear later who uses which measure.
 pub fn url_strict_ok(value: &str) -> bool {
     url_escaping_ok(value)
 }
 
-/// GTFS `URL` tipinin İKİNCİ yarısı: *"…any special characters … correctly escaped."*
+/// SECOND half of the GTFS `URL` type: *"…any special characters … correctly escaped."*
 ///
-/// 🔴 `Url::parse` bunu KANITLAMAZ (issue #80). Ayrıştırıcı bilinçli olarak toleranslıdır
-/// ve girdiyi NORMALİZE eder; 2026-08-07'de ölçüldü:
+/// 🔴 `Url::parse` does NOT PROVE this (issue #80). The parser is deliberately tolerant
+/// and NORMALIZES its input; measured on 2026-08-07:
 /// ```text
-///   "https://a.example/a b"    → Ok, a%20b   (kaçırılmamış boşluk sessizce kodlandı)
+///   "https://a.example/a b"    → Ok, a%20b   (unescaped whitespace silently encoded)
 ///   "https://a.example/a"b"   → Ok, a%22b
 ///   "https://a.example/a<b>"   → Ok, a%3Cb%3E
-///   "https://a.example/a%zzb"  → Ok, OLDUĞU GİBİ (BOZUK yüzde kodlaması kabul edildi)
-///   "https://a.example/a\b"   → Ok, a/b      (ters bölü eğik çizgiye çevrildi)
+///   "https://a.example/a%zzb"  → Ok, UNCHANGED (malformed percent escape accepted)
+///   "https://a.example/a\b"   → Ok, a/b      (backslash converted to slash)
 /// ```
-/// Yani "parse ediliyor" ile "üretici doğru kaçırmış" AYNI ŞEY DEĞİLDİ; hükmün ikinci
-/// yarısı kanıtsız sayılıyordu.
+/// Thus "it parses" and "the producer escaped it correctly" were NOT THE SAME; the second half
+/// of the rule was being treated as unproven.
 ///
-/// ⚠️ **ASCII DIŞI karakterler REDDEDİLMEZ** — bilinçli kalıntı. Spec "özel karakter"
-/// der; `ü`, `ş`, kiril vb. RFC 3986'nın ayraç kümesinde değildir ve RFC 3987 (IRI)
-/// kullanımı yaygındır. Reddetmek uluslararası feed'leri kırardı. Ölçüm: 20 feed ·
-/// 12.897 URL'de ASCII dışı karaktere HİÇ rastlanmadı, yani bu yönde kanıt da yok.
+/// ⚠️ **Non-ASCII characters are NOT REJECTED** — deliberate remainder. The spec says "special
+/// character"; `ü`, `ş`, Cyrillic, etc. are not in RFC 3986's delimiter set and RFC 3987 (IRI)
+/// use is common. Rejecting them would break international feeds. Measurement: no non-ASCII
+/// appeared in 12,897 URLs across 20 feeds, so there is no evidence in that direction either.
 pub fn url_escaping_ok(value: &str) -> bool {
-    // RFC 3986'da bir URI'de ÇIPLAK geçemeyecek karakterler (ayrıştırıcının sessizce
-    // kodladıkları) + kontrol karakterleri.
+    // Characters that cannot appear RAW in a URI under RFC 3986 (which the parser silently
+    // encodes) + control characters.
     const MUST_ESCAPE: &[char] = &[' ', '"', '<', '>', '\\', '^', '`', '{', '}', '|'];
     if value
         .chars()
@@ -482,7 +476,7 @@ pub fn url_escaping_ok(value: &str) -> bool {
     {
         return false;
     }
-    // Yüzde kaçışı İKİ onaltılık basamak ister; `%zz` ve satır sonundaki `%` bozuktur.
+    // A percent escape requires TWO hexadecimal digits; `%zz` and a trailing `%` are malformed.
     let b = value.as_bytes();
     let mut i = 0;
     while i < b.len() {
@@ -498,15 +492,15 @@ pub fn url_escaping_ok(value: &str) -> bool {
     true
 }
 
-/// ISO 4217 minor unit — **kod GEÇERLİLİĞİNDEN AYRI kavram** (issue #82).
+/// ISO 4217 minor unit — **SEPARATE from code VALIDITY** (issue #82).
 ///
-/// `None` iki AYRI şey demektir ve çağıran ikisini de aynı biçimde ele alamaz:
-///   · kod tabloda YOK → geçersiz kod; onu `FAR_003`/`FPD_003` bildirir, burada değil
-///   · ondalık TANIMSIZ (`255`, kaynakta `N.A.`) → fonlar/kıymetli madenler (`XAU`, `XDR`)
+/// `None` means two DIFFERENT things, and the caller cannot handle both the same way:
+///   · code NOT IN THE TABLE → invalid code; `FAR_003`/`FPD_003` reports it, not this helper
+///   · decimal UNDEFINED (`255`, `N.A.` in the source) → funds/precious metals (`XAU`, `XDR`)
 ///
-/// 🔴 Eski sürüm "0/2/3 dışında değer yok" VARSAYIYORDU ve bilinmeyen her kodu sessizce
-/// 2 ondalıklı sayıyordu. Ölçüldü: `CLF` ve `UYW` **4** ondalıklıdır, yani varsayım yanlıştı
-/// ve uydurma bir kod (`ZZZ`) da uydurma bir biçimlendirme alıyordu.
+/// 🔴 The old version ASSUMED "no value other than 0/2/3" and silently assigned 2 decimals
+/// to every unknown code. Measured: `CLF` and `UYW` have **4** decimals, so the assumption was
+/// wrong and a fabricated code (`ZZZ`) also received fabricated formatting.
 pub fn iso4217_minor_unit(code: &str) -> Option<u8> {
     let c = code.trim();
     ISO4217
@@ -516,49 +510,49 @@ pub fn iso4217_minor_unit(code: &str) -> Option<u8> {
         .filter(|&u| u != 255)
 }
 
-/// Tutar, para biriminin gerektirdiği ondalık basamak sayısını taşıyor mu?
+/// Does the amount carry the number of decimal places required by its currency?
 ///
-/// Sayı olarak ayrıştırılamayan değerler için `true` döner — o ihlal FPD_002/FAR_002'nin
-/// alanıdır ve burada iki kez raporlanmamalı.
+/// Returns `true` for values that cannot be parsed as numbers — that violation belongs to
+/// FPD_002/FAR_002 and must not be reported twice here.
 pub fn amount_has_iso4217_decimals(amount: &str, currency: &str) -> bool {
     let a = amount.trim();
     if a.is_empty() || currency.trim().len() != 3 || a.parse::<f64>().is_err() {
         return true;
     }
     let dec = a.split_once('.').map(|(_, f)| f.len()).unwrap_or(0);
-    // Kod geçersizse ya da ondalığı tanımsızsa (fon/kıymetli maden) BURADA rapor yok:
-    // geçersiz kodu `FAR_003`/`FPD_003` bildirir, iki kez raporlamak olur.
+    // If the code is invalid or its decimal precision is undefined (fund/precious metal),
+    // report nothing here: `FAR_003`/`FPD_003` reports invalid codes, so reporting twice is wrong.
     match iso4217_minor_unit(currency.trim()) {
         Some(units) => dec as u8 == units,
         None => true,
     }
 }
 
-/// GTFS `Email` tipi — **SÖZDİZİMİ** doğrulaması (issue #86).
+/// GTFS `Email` type — **SYNTAX** validation (issue #86).
 ///
-/// 🔴 Eski predikat `split_once('@')` kullanıyordu ve ilk `@`'dan sonrasını alan adı
-/// sayıyordu: `a@@b.com` için `local="a"`, `domain="@b.com"` çıkıyor ve dört koşulun
-/// dördü de geçiyordu. Yani ikinci bir `@` HİÇ görülmüyordu.
+/// 🔴 The old predicate used `split_once('@')` and treated everything after the first `@` as
+/// the domain: for `a@@b.com`, `local="a"`, `domain="@b.com"`, so all four checks passed.
+/// A second `@` was never seen.
 ///
-/// ## Hangi dilbilgisi seviyesi (kartlar bundan fazlasını iddia ETMEMELİ)
+/// ## Which grammar level (cards MUST NOT claim more than this)
 ///
-/// RFC 5322 `addr-spec`in **dot-atom** biçimi. DESTEKLENEN: `atext` karakterleri
-/// (`A-Za-z0-9` ve ``!#$%&'*+-/=?^_`{|}~``), noktayla ayrılmış atomlar, en az iki etiketli
-/// alan adı. DESTEKLENMEYEN ve bilinçli olarak GEÇERSİZ sayılan: tırnaklı local-part
-/// (`"a b"@x.com`), yorum/`CFWS`, IP-literal alan adı (`a@[192.0.2.1]`), kaynak yönlendirme.
-/// Bunlar RFC'de geçerlidir ama bir GTFS iletişim alanında gerçekçi değildir; kabul etmek
-/// predikatı savunulamaz biçimde genişletirdi.
+/// RFC 5322 `addr-spec` **dot-atom** form. SUPPORTED: `atext` characters
+/// (`A-Za-z0-9` and ``!#$%&'*+-/=?^_`{|}~``), dot-separated atoms, and a domain with at least
+/// two labels. UNSUPPORTED and deliberately INVALID: quoted local-part (`"a b"@x.com`),
+/// comments/`CFWS`, IP-literal domain (`a@[192.0.2.1]`), source routing.
+/// These are valid in RFC but unrealistic in a GTFS contact field; accepting them would expand
+/// the predicate indefensibly.
 ///
-/// ⚠️ **TESLİM EDİLEBİLİRLİK ÖLÇÜLMEZ** — DNS/MX sorgusu yok, olamaz da: doğrulayıcı ağa
-/// çıkmaz. "Sözdizimi geçerli" ile "adres çalışıyor" ayrı şeylerdir.
+/// ⚠️ **DELIVERABILITY IS NOT MEASURED** — there is no DNS/MX lookup and there cannot be one:
+/// the validator does not access the network. "Syntax is valid" and "the address works" differ.
 ///
-/// ⚠️ ASCII DIŞI karakterler kabul edilir (EAI / SMTPUTF8, RFC 6531): `info@şehir.example`
-/// gerçek bir adres olabilir ve reddetmek uluslararası feed'leri kırardı. Ölçüm: 20 korpus
-/// feed'inde ASCII dışı e-postaya rastlanmadı, yani bu yönde karşı kanıt da yok.
+/// ⚠️ Non-ASCII characters are accepted (EAI / SMTPUTF8, RFC 6531): `info@şehir.example` can
+/// be a real address and rejecting it would break international feeds. Measurement: no non-ASCII
+/// email appeared in 20 corpus feeds, so there is no contrary evidence in that direction either.
 pub fn looks_like_email(value: &str) -> bool {
-    // ⚠️ İÇ `trim` yok (issue #92): boşluk zaten aşağıda reddedilir ve ham değer ölçülür.
+    // ⚠️ No inner `trim` (issue #92): whitespace is rejected below and the raw value is measured.
     let trimmed = value;
-    // Ayraç TAM OLARAK BİR tane olmalı. Eski kodun kaçırdığı sınıf tam burasıydı.
+    // There must be EXACTLY ONE separator. This is exactly the class the old code missed.
     let mut parts = trimmed.split('@');
     let (Some(local), Some(domain), None) = (parts.next(), parts.next(), parts.next()) else {
         return false;
@@ -569,7 +563,7 @@ pub fn looks_like_email(value: &str) -> bool {
     if trimmed.chars().any(|c| c.is_whitespace() || c.is_control()) {
         return false;
     }
-    // local-part: nokta ile ayrılmış atomlar; boş atom, baştaki/sondaki nokta yok.
+    // local-part: dot-separated atoms; no empty atom, leading dot, or trailing dot.
     let atext = |c: char| {
         c.is_alphanumeric()
             || "!#$%&'*+-/=?^_`{|}~".contains(c)
@@ -581,7 +575,7 @@ pub fn looks_like_email(value: &str) -> bool {
     {
         return false;
     }
-    // domain: en az iki etiket; her etiket harf/rakam ile başlar ve biter, içinde tire olabilir.
+    // domain: at least two labels; each starts and ends with a letter/digit and may contain hyphens.
     let labels: Vec<&str> = domain.split('.').collect();
     if labels.len() < 2 {
         return false;
@@ -596,34 +590,33 @@ pub fn looks_like_email(value: &str) -> bool {
     if !labels.iter().all(|l| label_ok(l)) {
         return false;
     }
-    // Son etiket (TLD) sayısal olamaz — `a@b.1` adres değildir.
+    // The final label (TLD) cannot be numeric — `a@b.1` is not an address.
     labels
         .last()
         .is_some_and(|tld| tld.chars().all(|c| c.is_alphabetic()) && tld.len() >= 2)
 }
 
-/// GTFS `Language` tipi — **RFC 5646 (BCP 47) well-formed** sözdizimi (issue #82).
+/// GTFS `Language` type — **RFC 5646 (BCP 47) well-formed** syntax (issue #82).
 ///
-/// 🔴 Eski predikat yalnız "alfanümerik, ≤8" diyordu ve şu üçü GEÇİYORDU (ölçüldü):
-/// `en-a` (uzantısı olmayan singleton) · `en-a-b-c` (boş uzantı dizisi) ·
-/// `en-a-bbb-a-ccc` (YİNELENEN singleton). Bunlar RFC 5646'da well-formed DEĞİLDİR.
+/// 🔴 The old predicate only required "alphanumeric, ≤8" and accepted these three (measured):
+/// `en-a` (singleton with no extension) · `en-a-b-c` (empty extension sequence) ·
+/// `en-a-bbb-a-ccc` (REPEATED singleton). These are NOT well-formed in RFC 5646.
 ///
-/// Ölçülen dilbilgisi (`langtag`):
+/// Grammar measured (`langtag`):
 /// ```text
 /// language ["-" script] ["-" region] *("-" variant) *("-" extension) ["-" privateuse]
-///   language   2-3 alpha [3 kez 3-alpha extlang] | 4 alpha (ayrılmış) | 5-8 alpha
+///   language   2-3 alpha [3 times 3-alpha extlang] | 4 alpha (reserved) | 5-8 alpha
 ///   script     4 alpha            region   2 alpha | 3 digit
 ///   variant    5-8 alphanum | digit + 3 alphanum
-///   extension  singleton (x hariç alphanum) + 1..* (2-8 alphanum)   ← singleton BENZERSİZ
+///   extension  singleton (alphanum except x) + 1..* (2-8 alphanum)   ← singleton UNIQUE
 ///   privateuse "x" + 1..* (1-8 alphanum)
 /// ```
-/// ⚠️ **WELL-FORMED ≠ VALID.** IANA kayıt defterine bakılmaz: `zz-ZZ` sözdizimsel olarak
-/// doğrudur ama kayıtlı bir dil değildir. Kayıt denetimi ağ/gömülü defter ister ve kart
-/// bunu iddia ETMEZ.
-/// ⚠️ Tümüyle `x-…` özel kullanım etiketleri ve `i-…` eski (grandfathered) biçimleri
-/// kabul edilir — RFC onları geçerli sayar.
+/// ⚠️ **WELL-FORMED ≠ VALID.** No IANA registry lookup: `zz-ZZ` is syntactically correct
+/// but is not a registered language. Registry validation requires a network/embedded registry,
+/// and the card does NOT claim it.
+/// Entirely private-use `x-…` tags and legacy (grandfathered) `i-…` forms are accepted — RFC accepts them.
 pub fn looks_like_bcp47(value: &str) -> bool {
-    // ⚠️ İÇ `trim` yok (issue #92); boşluk alt etiket karakteri değildir, aşağıda düşer.
+    // ⚠️ No inner `trim` (issue #92); whitespace is not a subtag character and is rejected below.
     let t = value;
     if t.is_empty() || t.len() > 100 {
         return false;
@@ -638,27 +631,26 @@ pub fn looks_like_bcp47(value: &str) -> bool {
     let alpha = |p: &str| p.chars().all(|c| c.is_ascii_alphabetic());
     let digit = |p: &str| p.chars().all(|c| c.is_ascii_digit());
 
-    // Tümü özel kullanım: x-abc
+    // Entirely private use: x-abc
     if parts[0].eq_ignore_ascii_case("x") {
         return parts.len() >= 2;
     }
-    // 🔴 GRANDFATHERED ETİKETLER SABİT BİR KAYIT DEFTERİDİR (issue #82, yeniden açıldı).
-    // Buradaki eski kod `i-` önekini AÇIK bir ad alanı gibi ele alıyordu: `i-` + herhangi
-    // bir harf dizisi geçiyordu, yani `i-foo` ve `i-whatever` well-formed sayılıyordu.
-    // RFC 5646'da bu biçimler IANA kayıt defterinden gelir; uydurma bir `i-foo` ne
-    // grandfathered bir etikettir ne de normal bir `langtag`.
+    // 🔴 GRANDFATHERED TAGS ARE A FIXED REGISTRY (issue #82, reopened). The old code treated
+    // the `i-` prefix as an OPEN namespace: `i-` + any letter sequence passed, so `i-foo` and
+    // `i-whatever` were considered well-formed. In RFC 5646 these forms come from the IANA
+    // registry; a fabricated `i-foo` is neither a grandfathered tag nor a normal `langtag`.
     //
-    // ⚠️ Kartta yazılı `zz-ZZ` KALINTISIYLA karıştırılmamalı: `zz-ZZ` sözdizimsel olarak
-    // well-formed ama kayıtlı değildir (bilinçli kabul). `i-foo` sözdizimsel olarak
-    // GEÇERSİZDİR — yani kalıntı değil, hataydı.
+    // ⚠️ Do not confuse this with the `zz-ZZ` REMAINDER in the card: `zz-ZZ` is syntactically
+    // well-formed but unregistered (deliberately accepted). `i-foo` is syntactically INVALID —
+    // it was an error, not a remainder.
     //
-    // Karşılaştırma küçük harfe normalize edilir (RFC 5646 §2.1.1: etiketler büyük/küçük
-    // harfe duyarsızdır). Tablo üretilmiştir; kaynağı ve tarihi dosyanın başında.
+    // Comparison is normalized to lowercase (RFC 5646 §2.1.1: tags are case-insensitive).
+    // The table is generated; its source and date are at the top of the file.
     let lowered = t.to_ascii_lowercase();
     if GRANDFATHERED.binary_search(&lowered.as_str()).is_ok() {
         return true;
     }
-    // `i-…` yalnız kayıt defterinde varsa geçerlidir; yukarıdaki arama onu zaten yakaladı.
+    // `i-…` is valid only if present in the registry; the lookup above already catches it.
     if parts[0].eq_ignore_ascii_case("i") {
         return false;
     }
@@ -671,10 +663,10 @@ pub fn looks_like_bcp47(value: &str) -> bool {
     }
     idx += 1;
     if (2..=3).contains(&lang.len()) {
-        // en fazla 3 extlang (3 alpha)
+        // at most 3 extlang (3 alpha)
         let mut ext = 0;
         while ext < 3 && idx < parts.len() && parts[idx].len() == 3 && alpha(parts[idx]) {
-            // 3-alpha aynı zamanda script DEĞİL (script 4) ve region DEĞİL (2 alpha/3 digit)
+            // 3-alpha is neither script (script is 4) nor region (2 alpha/3 digit)
             idx += 1;
             ext += 1;
         }
@@ -700,7 +692,7 @@ pub fn looks_like_bcp47(value: &str) -> bool {
         }
         idx += 1;
     }
-    // extension* — her singleton BİR KEZ ve ardından en az bir 2-8 alt etiket
+    // extension* — each singleton ONCE, followed by at least one 2-8 subtag
     let mut seen_singletons: Vec<char> = Vec::new();
     while idx < parts.len() && parts[idx].len() == 1 && !parts[idx].eq_ignore_ascii_case("x") {
         let sing = parts[idx].chars().next().unwrap().to_ascii_lowercase();
@@ -715,7 +707,7 @@ pub fn looks_like_bcp47(value: &str) -> bool {
             n += 1;
         }
         if n == 0 {
-            return false; // singleton var, uzantı YOK
+            return false; // singleton present, extension MISSING
         }
     }
     // privateuse
@@ -724,48 +716,45 @@ pub fn looks_like_bcp47(value: &str) -> bool {
         if idx >= parts.len() {
             return false;
         }
-        idx = parts.len(); // x'ten sonrası 1-8 alphanum: baştaki kontrol zaten sağladı
+        idx = parts.len(); // after x: 1-8 alphanum; the initial check already enforced this
     }
     idx == parts.len()
 }
 
-/// GTFS `Phone number` tipi. Spec (`agency_phone`): *"Dialable text (for example, TriMet's
+/// GTFS `Phone number` type. Spec (`agency_phone`): *"Dialable text (for example, TriMet's
 /// **"503-238-RIDE"**) is permitted, but the field must not contain any other descriptive
-/// text."* Aynı tip `booking_rules.phone_number` için de geçerlidir.
+/// text."* The same type applies to `booking_rules.phone_number`.
 ///
-/// Kontrol 2026-08-03'e kadar harf içeren HER değeri reddediyordu, yani spec'in kendi
-/// örneğini de. Bu `PTH_017` biçimi bir hataydı: açıkça izinli veriyi ihlal saymak.
+/// Until 2026-08-03, the check rejected EVERY value containing letters, including the spec's own
+/// example. This `PTH_017` format was a bug: treating explicitly permitted data as a violation.
 ///
-/// **Vanity ile açıklayıcı metin ayrımı:** harf grupları değerin SONUNDA, bitişik bir kuyruk
-/// oluşturmalıdır — `503-238-RIDE`, `+1 800 FLOWERS`, `1-800-GO-FEDEX` geçerli;
-/// `Call 503-238-1234` ("Call" başta), `555-1234 ext 99` ("ext" ortada) geçersiz. Vanity
-/// numaralarda harfler numaranın son bloklarını oluşturur; açıklayıcı metin numaranın başına
-/// ya da arasına girer.
+/// **Vanity versus descriptive text:** letter groups must form a contiguous TAIL at the END
+/// of the value — `503-238-RIDE`, `+1 800 FLOWERS`, `1-800-GO-FEDEX` are valid;
+/// `Call 503-238-1234` ("Call" at the start), `555-1234 ext 99` ("ext" in the middle) are invalid.
+/// In vanity numbers, letters form the final blocks; descriptive text appears at the start or middle.
 ///
-/// **Birden çok harf grubu ek koşul ister (#95):** hepsi BÜYÜK HARF olmalıdır. Vanity yazımı
-/// tuş takımı harflerini işaret etmek için evrensel olarak büyük harfle yazılır
-/// (`1-800-GO-FEDEX`); `1234 call us now` gibi düzyazı bu koşulu geçemez. Tek harf grubunda
-/// bu koşul ARANMAZ — yani değişiklik kabul kümesini yalnız GENİŞLETİR, hiçbir değeri yeni
-/// baştan reddetmez.
+/// **Multiple letter groups require an additional condition (#95):** all must be UPPERCASE.
+/// Vanity spelling universally uses uppercase to mark keypad letters (`1-800-GO-FEDEX`);
+/// prose such as `1234 call us now` cannot pass. This condition is NOT required for one letter
+/// group — the change only EXPANDS the accepted set and newly rejects no value.
 ///
-/// ⚠️ **Bu bir KALİTE yaklaşımıdır, telefon numarası grameri DEĞİL.** GTFS `Phone number`
-/// tipi tam bir gramer tanımlamaz; burada ölçülen şey "çevrilebilir metin mi yoksa açıklayıcı
-/// metin mi" ayrımıdır ve sezgiseldir. Bilinen sınır: baştan sona büyük harfle yazılmış düzyazı
-/// (`1234 CALL US NOW`) kabul edilir. Kural `AGN_007`/`BKR_022` üzerinden yalnız `Quality`
-/// otoritesiyle raporlanır; sert bir Spec iddiası kurmaz.
+/// ⚠️ **This is a QUALITY heuristic, NOT a phone-number grammar.** GTFS `Phone number` does not
+/// define a full grammar; this measures the intuitive distinction between "translatable text"
+/// and "descriptive text". Known boundary: all-uppercase prose (`1234 CALL US NOW`) is accepted.
+/// The rule is reported only under the `Quality` authority via `AGN_007`/`BKR_022`; it makes no hard Spec claim.
 ///
-/// ⚠️ Sezgiselin ölçülmüş bir faydası YOK: 239 feed'lik korpusta tek bir vanity numara bile
-/// geçmiyor. Yazılma gerekçesi spec uyumu; koruma gerekçesi ise ayrımın korpusta gerçekten var
-/// olan iki değeri (`80000078 (Liepājā); …`) reddetmeye devam etmesidir — o değerler spec'in
-/// yasakladığı açıklayıcı metindir ve kural onlarda DOĞRU.
+/// ⚠️ The heuristic has NO MEASURED BENEFIT: not one vanity number appears in the 239-feed corpus.
+/// It exists for spec alignment; it is preserved because the distinction continues to reject two
+/// values actually present in the corpus (`80000078 (Liepājā); …`) — descriptive text forbidden by
+/// the spec, on which the rule is CORRECT.
 pub fn looks_like_phone(value: &str) -> bool {
     let trimmed = value.trim();
     if trimmed.is_empty() {
         return false;
     }
-    // Eşik ÇEVRİLEBİLİR HANE üzerinden: vanity numaralarda harfler rakamların yerini tutar
-    // (`+1 800 FLOWERS` yalnız dört rakam taşır ama on bir hanelik bir numaradır). Yine de
-    // en az bir rakam aranır, yoksa `FLOWERS` tek başına telefon sayılırdı.
+    // Threshold uses TRANSLATABLE DIGITS: in vanity numbers, letters replace digits
+    // (`+1 800 FLOWERS` has only four digits but is an eleven-digit number). Still require
+    // at least one digit, or `FLOWERS` alone would count as a phone number.
     let digit_count = trimmed.chars().filter(|c| c.is_ascii_digit()).count();
     let dialable_count = trimmed
         .chars()
@@ -781,7 +770,7 @@ pub fn looks_like_phone(value: &str) -> bool {
     }) {
         return false;
     }
-    // Harf grupları: ayırıcılarla bölündüğünde tamamı harften oluşan parçalar.
+    // Letter groups: parts consisting entirely of letters after splitting on separators.
     let parts: Vec<&str> = trimmed
         .split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|p| !p.is_empty())
@@ -795,17 +784,17 @@ pub fn looks_like_phone(value: &str) -> bool {
     if letter_group_indices.is_empty() {
         return true; // saf numara
     }
-    // Harf grupları bitişik bir KUYRUK oluşturmalı: son n parçanın hepsi harf.
+    // Letter groups must form a contiguous TAIL: all of the final n parts are letters.
     let n = letter_group_indices.len();
     let tail_is_contiguous = letter_group_indices
         .iter()
         .enumerate()
         .all(|(k, &i)| i == parts.len() - n + k);
     if !tail_is_contiguous {
-        return false; // harf başta ya da arada → açıklayıcı metin
+        return false; // letters at the start or in the middle → descriptive text
     }
-    // Tek grup: eski davranış (büyük/küçük harf aranmaz). Birden çok grup: vanity yazım
-    // konvansiyonu olan BÜYÜK HARF şartı — düzyazıyı ayıran tek sinyal bu (#95).
+    // One group: old behavior (case-insensitive). Multiple groups: uppercase vanity-writing
+    // convention — the only signal separating prose (#95).
     n == 1
         || letter_group_indices
             .iter()
@@ -850,10 +839,10 @@ pub fn wcag_contrast_ratio(fg_hex: &str, bg_hex: &str) -> Option<f64> {
     Some((lighter + 0.05) / (darker + 0.05))
 }
 
-/// RuleMeta.scope_key_field tanımına göre satırdan scope_key üretir.
+/// Produce scope_key from a row according to the RuleMeta.scope_key_field definition.
 ///
-/// Tek alan için o alanın trimlenmiş değeri döner.
-/// Pipe-separated alanlarda eksik bir bileşen varsa `None` döner.
+/// For a single field, return its trimmed value.
+/// For pipe-separated fields, return `None` if a component is missing.
 pub fn derive_scope_key(row: &RowMap, scope_key_field: Option<&str>) -> Option<String> {
     let spec = scope_key_field?;
     if spec.contains('|') {
@@ -876,15 +865,15 @@ pub fn derive_scope_key(row: &RowMap, scope_key_field: Option<&str>) -> Option<S
     }
 }
 
-/// K2 modülleri için canonical notice üretir.
-/// `presence:required` boşluğu için ortak emit — 12 çağıranı var.
+/// Produce a canonical notice for K2 modules.
+/// Shared emit for the `presence:required` gap — 12 callers.
 ///
-/// Neden ayrı bir yardımcı: çapa granülerliği triyajı (2026-08-05) 12 alanda AYNI boşluğu
-/// buldu — "X yineleniyor" ve "X bulunamadı" başlıklı kurallar boş değeri hiç görmüyordu.
-/// Yinelenme kontrolü boş anahtarları atlar (haklı: boşlar birbirinin kopyası değildir),
-/// FK çözümü boşu "referans yok" sayıp geçer; aradaki "bu alan zorunludur" hükmü düşüyordu.
+/// Why a separate helper: anchor-granularity triage (2026-08-05) found the SAME gap in 12 fields —
+/// rules titled "X duplicates" and "X not found" never saw empty values. Duplicate checks skip
+/// empty keys (correct: empty values are not duplicates), FK resolution treats empty as "no reference"
+/// and passes; the intermediate "this field is required" judgment was missing.
 ///
-/// Alan YOKSA sessiz kalır: sütunun hiç bulunmaması `ARC_025`'in alanıdır, bu kuralların değil.
+/// Stay silent if the field is ABSENT: a missing column belongs to `ARC_025`, not these rules.
 #[allow(clippy::too_many_arguments)]
 pub fn require_nonempty(
     row: &RowMap,
@@ -899,7 +888,7 @@ pub fn require_nonempty(
     notices: &mut Vec<Notice>,
     counter: &mut u32,
 ) {
-    // `None` = sütun başlıkta yok → ARC_025; `Some("")` = sütun var, değer boş → bu kural.
+    // `None` = column absent from header → ARC_025; `Some("")` = column exists, value empty → this rule.
     if get_trimmed_field(row, field).is_some_and(str::is_empty) {
         notices.push(make_k2_notice(
             counter,
@@ -918,8 +907,8 @@ pub fn require_nonempty(
     }
 }
 
-/// `ARC_033` özeti — DOSYA başına TEK notice. Dört akış dosyası da bunu çağırır;
-/// denetimi dört yere kopyalamak `ARC_022`'nin (#75) hatasını tekrarlamak olurdu.
+/// `ARC_033` summary — ONE notice per FILE. All four stream files call this;
+/// copying the check to four places would repeat the `ARC_022` (#75) mistake.
 pub(crate) fn arc033_summary(
     acc: &crate::k1_parse::Rfc4180Acc,
     file: &str,
@@ -954,20 +943,19 @@ tırnağı ikiye katlayarak kaçırın (\"12\"\" Street\").",
     ))
 }
 
-/// `ARC_013` — akış dosyasının GÖVDESİNDE kapanmamış tırnak (issue #84).
+/// `ARC_013` — unclosed quote in the STREAM FILE BODY (issue #84).
 ///
-/// 🔴 Bu bulgu 2026-08-07'ye kadar HİÇBİR YERDE üretilmiyordu. K1 bu dört dosyanın
-/// gövdesini hiç açmıyor (`is_zip_stream`), K1'in gövde tarayıcısına giden dal ise ÖLÜYDÜ
-/// ve kaldırıldı; K2 okuyucuları da kapanmamış tırnağı "best-effort" tolere ediyordu.
-/// Yani `stop_times.txt`'te tek kaçak tırnak dosyanın kalanını yutabilir ve doğrulayıcı
-/// bunu hiç söylemezdi.
+/// 🔴 This finding was produced NOWHERE until 2026-08-07. K1 never opens the bodies of these
+/// four files (`is_zip_stream`), the branch leading to K1's body scanner was DEAD and removed,
+/// and K2 readers tolerated an unclosed quote "best-effort". A single stray quote in
+/// `stop_times.txt` could therefore swallow the rest of the file and the validator said nothing.
 ///
-/// ⚠️ **FATAL DEĞİL — bilinçli ve K1'den FARKLI.** Akış-dışı zorunlu bir dosyada aynı
-/// bozukluk `FatalError`'a çevrilir; K2'nin fatal kanalı YOKTUR (pipeline K1'den sonra
-/// durdurulamaz) ve gövdeyi K1'de yeniden taramak `#38`'in bellek tasarımını geri alırdı.
-/// Bulgu aynı kuraldır ve KRİTİK'tir; farklı olan, boru hattının durabilme yeteneğidir.
-/// Korpus ölçümü (2026-08-07): 20 feed · 75 akış dosyası · kapanmamış tırnak **0** —
-/// yani bu karar bugünkü veride hiçbir feed'i etkilemiyor.
+/// ⚠️ **NOT FATAL — deliberate and DIFFERENT from K1.** In a non-streamed required file the same
+/// defect becomes `FatalError`; K2 has NO fatal channel (the pipeline cannot stop after K1), and
+/// rescanning the body in K1 would undo `#38`'s memory design. The finding is the same rule and
+/// remains CRITICAL; what differs is whether the pipeline can stop.
+/// Corpus measurement (2026-08-07): 20 feeds · 75 stream files · **0** unclosed quotes —
+/// this decision affects no feed in current data.
 pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notice {
     let msg = "Kapanmamış tırnak işareti (unclosed quote)";
     make_k2_notice(
@@ -986,8 +974,8 @@ pub fn arc013_unclosed_stream(file: &str, counter: &mut u32) -> gtfs_core::Notic
     )
 }
 
-// K2 notice'ları canonical emit tablosu olarak çağrılır; bağımsız alanları bir
-// parametre struct'ında toplamak bu hot-path'te mevcut tablo düzenini bozacaktır.
+// K2 notices are called as a canonical emit table; collecting independent fields in a
+// parameter struct would disrupt the existing table layout in this hot path.
 #[allow(clippy::too_many_arguments)]
 pub fn make_k2_notice(
     counter: &mut u32,
@@ -1003,10 +991,10 @@ pub fn make_k2_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    // K2'ye özgü: scope_key satırdan, kuralın kendi scope_key_field tanımına göre türetilir.
-    // `entity_id` geri dönüşü YALNIZ kimlik alanı beyan eden kurallar içindir: beyan yoksa
-    // notice feed düzeyidir. Eskiden ARC_013/ARC_035 dosya adını, FTR/GGL ailesi beyansız
-    // kimliği scope olarak taşıyordu; `blocks` bunları kapsamlı kök sanıyordu.
+    // K2-specific: derive scope_key from the row according to the rule's scope_key_field.
+    // The `entity_id` fallback is ONLY for rules that declare an identity field: without one,
+    // the notice is feed-level. Previously ARC_013/ARC_035 carried the filename, and the FTR/GGL
+    // family carried an undeclared identity as scope; `blocks` treated these as broad roots.
     let meta = get_rule(rule_id).unwrap_or_else(|| panic!("K2: bilinmeyen rule_id {rule_id}"));
     let scope_key = meta.scope_key_field.and_then(|field| {
         row.and_then(|r| derive_scope_key(r, Some(field)))
@@ -1038,9 +1026,9 @@ pub fn make_k2_notice(
     notice
 }
 
-/// Bir K2 tip/enum notice'ının, ham değerin çevresindeki boşluk yüzünden parse edilemediğini
-/// tanır. İçerik hataları ("abc" gibi) bu kapıdan geçmez; böylece aynı satırdaki bağımsız
-/// semantic ihlaller korunur. field bileşik anahtarlarda (a|b) da desteklenir.
+/// Recognizes when a K2 type/enum notice failed to parse only because of whitespace around
+/// the raw value. Content errors (such as "abc") do not pass this gate, preserving independent
+/// semantic violations on the same row. Supports compound field keys (a|b).
 fn whitespace_parser_derivative(
     rule_id: &str,
     row: &RowMap,
@@ -1058,8 +1046,8 @@ fn whitespace_parser_derivative(
     whitespace_only_parser_failure(rule_id, row, field, observed)
 }
 
-/// Çağıran parse hatasını zaten kanıtladıysa, pahalı hata metnini ve `Notice`'ı kurmadan
-/// hatanın yalnız çevre boşluğundan doğup doğmadığını sınar.
+/// Once the caller has proven a parse error, test whether it arose only from surrounding whitespace
+/// without constructing the expensive error message and `Notice`.
 pub(crate) fn whitespace_only_parser_failure(
     rule_id: &str,
     row: &RowMap,
@@ -1078,27 +1066,26 @@ pub(crate) fn whitespace_only_parser_failure(
     })
 }
 
-/// URL / e-posta / dil etiketi gibi BİÇİM doğrulayıcılarının reddi yalnız çevre boşluğundan
-/// mı doğuyor? Kök `DQ_016`'dır; türev bulgu K7'de bastırılır — ama yalnız aynı dosyada
-/// `DQ_016` kökü varsa, yoksa bulgu izsiz kaybolmasın diye korunur (`k7_reporting.rs`).
+/// Did a FORMAT validator such as URL / email / language tag reject only because of surrounding
+/// whitespace? The root is `DQ_016`; K7 suppresses the derivative — but only when a `DQ_016`
+/// root exists in the same file, otherwise preserve the finding so it does not disappear without a trace (`k7_reporting.rs`).
 ///
-/// ⚠️ Sayısal yolun `trimmed_value_is_semantically_valid` tablosu BURADA KULLANILMAZ: o
-/// tablo tanımadığı alanda `true` döner ve biçim kurallarında bu `' bozuk-url '` gibi
-/// gerçek ihlalleri de bastırırdı. Onun yerine çağıran kendi doğrulayıcısını verir ve
-/// trim'li değer o doğrulayıcıdan GEÇMEK ZORUNDADIR.
+/// ⚠️ The numeric path's `trimmed_value_is_semantically_valid` table is NOT USED HERE: it
+/// returns `true` for unknown fields and would suppress real format violations such as
+/// `' bozuk-url '`. Instead, the caller supplies its own validator and the trimmed value
+/// MUST PASS that validator.
 ///
-/// Ölçüm (16. korpus): `AGN_008` 10 feed, `AGN_009` 9 feed, `FIN_004` 1 feed — 20 vakanın
-/// hepsinde tek kusur baştaki boşluktu (`' https://metrarail.com/tickets'`,
-/// `' kotu@city.sakata.lg.jp'`, `' bg'`) ve `DQ_016` 10 feed'in 9'unda aynı satırı zaten
-/// bildiriyordu.
+/// Measurement (corpus 16): `AGN_008` 10 feeds, `AGN_009` 9 feeds, `FIN_004` 1 feed — in all
+/// 20 cases the only defect was leading whitespace (`' https://metrarail.com/tickets'`,
+/// `' kotu@city.sakata.lg.jp'`, `' bg'`), and `DQ_016` already reported the same row in 9 of 10 feeds.
 pub(crate) fn whitespace_only_format_failure(raw: &str, valid: impl Fn(&str) -> bool) -> bool {
     let trimmed = raw.trim();
     !trimmed.is_empty() && raw != trimmed && valid(trimmed)
 }
 
-/// Ham değerin trim edilmiş biçimi de bağımsız bir aralık/enum ihlali taşıyorsa, yalnızca
-/// whitespace köküne indirgenemez. Bu küçük alan tablosu özellikle 91.0 gibi değerleri
-/// korur; tanınmayan alanlar için parse başarısı yeterli kök kanıtıdır.
+/// If the trimmed raw value also carries an independent range/enum violation, it cannot be reduced
+/// to a whitespace root alone. This small field table preserves values such as 91.0; for unknown
+/// fields, parse success is sufficient root evidence.
 fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) -> bool {
     if field.ends_with("_lat") {
         return value
@@ -1166,9 +1153,9 @@ fn trimmed_value_is_semantically_valid(rule_id: &str, field: &str, value: &str) 
     if field == "stop_access" {
         return value.parse::<u32>().is_ok_and(|v| v <= 2);
     }
-    // Tarihler tabloda yoktu ve aşağıdaki `true`ya düşüyordu: `" 2027-12-31 "` kırpılınca da
-    // geçersiz olduğu hâlde boşluk türevi sayılıp bastırılıyor, Kritik·Spec `CAL_004`
-    // görünmüyordu (17 Eylül, `whitespace_padded_calendar_dates_keep_the_service_active`).
+    // Dates were absent from the table and fell through to the `true` below: `" 2027-12-31 "`
+    // was suppressed as a whitespace derivative even though it remained invalid after trimming,
+    // so Kritik·Spec `CAL_004` was hidden (17 September, `whitespace_padded_calendar_dates_keep_the_service_active`).
     if matches!(
         field,
         "start_date" | "end_date" | "date" | "feed_start_date" | "feed_end_date"
@@ -1200,17 +1187,17 @@ mod tests {
 
     #[test]
     fn looks_like_url_still_accepts_the_neighbours_we_chose_not_to_reject() {
-        // #162'de kanıtlanan ama BİLEREK reddedilmeyen vakalar. AGN_003 Kritik+Spec,
-        // yani yayın engeli; buradaki bir yanlış pozitif geçerli feed'i reddeder.
-        assert!(looks_like_url("https://www.keolis_littoral.com")); // alt çizgili host
-        assert!(looks_like_url("http://localhost")); // tek etiket
-        assert!(looks_like_url("http://167")); // 0.0.0.167'ye ayrışır
-        assert!(looks_like_url("http://www.takethehop.coml/")); // yazım hatası TLD
+        // Cases proven in #162 but deliberately NOT rejected. AGN_003 is Kritik+Spec,
+        // a publication blocker; a false positive here would reject a valid feed.
+        assert!(looks_like_url("https://www.keolis_littoral.com")); // underscored host
+        assert!(looks_like_url("http://localhost")); // single label
+        assert!(looks_like_url("http://167")); // parses as 0.0.0.167
+        assert!(looks_like_url("http://www.takethehop.coml/")); // misspelled TLD
     }
 
     #[test]
     fn looks_like_url_accepts_an_idn_host() {
-        // #144'te is_ascii() kapısı kaldırıldı; çift şema kontrolü onu geri getirmemeli.
+        // The is_ascii() gate was removed in #144; the double-scheme check must not bring it back.
         assert!(looks_like_url("https://é.example.com"));
         assert!(looks_like_url("https://www.example.com"));
     }
@@ -1283,7 +1270,7 @@ mod tests {
         assert_eq!(notice.id, "k2/STM_001#1");
     }
 
-    /// issue #82 (yeniden açıldı) — `i-*` KEYFİ bir ad alanı DEĞİLDİR.
+    /// issue #82 (reopened) — `i-*` is NOT an ARBITRARY namespace.
     #[test]
     fn bcp47_rejects_invented_grandfathered_tags() {
         assert!(
@@ -1308,12 +1295,12 @@ mod tests {
             super::looks_like_bcp47("zh-min-nan"),
             "düzenli grandfathered etiket"
         );
-        // ⚠️ `zz-ZZ` ile karıştırma: o well-formed ama kayıtlı değil (bilinçli kalıntı).
+        // ⚠️ Do not confuse with `zz-ZZ`: it is well-formed but unregistered (deliberate remainder).
         assert!(
             super::looks_like_bcp47("zz-ZZ"),
             "kayıt defteri DENETLENMEZ — belgelenmiş kalıntı"
         );
-        // Normal langtag yolu grandfathered listesinden bağımsız çalışmalı.
+        // The normal langtag path must work independently of the grandfathered list.
         assert!(super::looks_like_bcp47("tr") && super::looks_like_bcp47("en-US"));
     }
 
@@ -1337,12 +1324,12 @@ mod tests {
         assert!(!super::has_japanese_kana("Tokyo Station"));
     }
 
-    /// issue #86 — GTFS `Email` tipi SÖZDİZİMİ doğrulaması.
-    /// Karşı örnek `a@@b.com` mevcut `main`de KABUL EDİLİYORDU: eski predikat
-    /// `split_once('@')` ile ilk ayraçtan sonrasını alan adı sayıyordu.
+    /// issue #86 — GTFS `Email` type SYNTAX validation.
+    /// Counterexample `a@@b.com` was ACCEPTED on current `main`: the old predicate
+    /// used `split_once('@')` and treated everything after the first separator as the domain.
     #[test]
     fn email_rejects_invalid_addr_spec_shapes() {
-        // Geçerli — desteklenen dot-atom biçimi.
+        // Valid — supported dot-atom form.
         for ok in [
             "info@example.com",
             "a.b-c@sub.example.co.uk",
@@ -1355,24 +1342,24 @@ mod tests {
                 "geçerli adres reddedildi: {ok}"
             );
         }
-        // Geçersiz — her biri AYRI bir bozukluk sınıfı.
+        // Invalid — each is a SEPARATE defect class.
         for bad in [
-            "a@@b.com",         // bildirilen karşı örnek: iki ayraç
-            "a@b@c.com",        // iki ayraç, ikisi de ayrı yerde
-            "@example.com",     // local yok
-            "a@",               // domain yok
-            "a@b",              // tek etiket
-            "a@.example.com",   // boş etiket
-            "a@example..com",   // boş etiket (ortada)
-            "a@-example.com",   // etiket tire ile başlıyor
-            "a@example-.com",   // etiket tire ile bitiyor
-            "a@example.1",      // sayısal TLD
-            "a@example.c",      // tek harfli TLD
-            ".a@example.com",   // baştaki nokta
-            "a.@example.com",   // sondaki nokta
-            "a..b@example.com", // boş atom
-            "a b@example.com",  // boşluk
-            "a\t@example.com",  // sekme
+            "a@@b.com",         // reported counterexample: two separators
+            "a@b@c.com",        // two separators, both in separate positions
+            "@example.com",     // local part missing
+            "a@",               // domain missing
+            "a@b",              // single label
+            "a@.example.com",   // empty label
+            "a@example..com",   // empty label (in the middle)
+            "a@-example.com",   // label starts with a hyphen
+            "a@example-.com",   // label ends with a hyphen
+            "a@example.1",      // numeric TLD
+            "a@example.c",      // one-letter TLD
+            ".a@example.com",   // leading dot
+            "a.@example.com",   // trailing dot
+            "a..b@example.com", // empty atom
+            "a b@example.com",  // whitespace
+            "a\t@example.com",  // tab
             "noatsign.example.com",
             "",
         ] {
@@ -1383,12 +1370,12 @@ mod tests {
         }
     }
 
-    /// issue #82 — paylaşılan tip yardımcıları, temsil ettikleri standarttan GENİŞTİ.
-    /// Her biri için: bildirilen GEÇERSİZ örnek + geçerli sınır durumu.
+    /// issue #82 — shared type helpers were BROADER than the standards they represent.
+    /// For each: the reported INVALID example + a valid boundary case.
     #[test]
     fn type_helpers_reject_values_outside_the_declared_types() {
-        // 1) BCP 47: birincil alt etiket ALFABETİK olmalı.
-        // GEÇERLİ (RFC 5646 well-formed)
+        // 1) BCP 47: the primary subtag must be ALPHABETIC.
+        // VALID (RFC 5646 well-formed)
         for ok in [
             "tr",
             "en-US",
@@ -1406,7 +1393,7 @@ mod tests {
                 "geçerli dil etiketi reddedildi: {ok}"
             );
         }
-        // GEÇERSİZ — her biri ayrı bir sözdizimi kuralı
+        // INVALID — each is a separate syntax rule
         for bad in [
             "123",
             "1-tr",
@@ -1426,14 +1413,14 @@ mod tests {
             );
         }
 
-        // 5) f64: sonlu olmayan değerler tip dışıdır.
+        // 5) f64: non-finite values are outside the type.
         assert!(super::parse_f64_col("NaN").is_err(), "NaN koordinat olamaz");
         assert!(super::parse_f64_col("inf").is_err());
         assert!(super::parse_f64_col("-Infinity").is_err());
         assert_eq!(super::parse_f64_col("41.5").unwrap(), Some(41.5));
         assert_eq!(super::parse_f64_col("").unwrap(), None);
 
-        // 6) Saat: dakika/saniye İKİ basamak; saatte sınır YOK (servis günü).
+        // 6) Time: minute/second TWO digits; NO limit on hours (service day).
         assert!(
             !super::gtfs_time_widths_ok(&["1", "2", "3"]),
             "1:2:3 tip dışı"
@@ -1449,7 +1436,7 @@ mod tests {
             "çok günlü tren seferi — saat basamağı SINIRLANMAZ"
         );
 
-        // 4) ISO 4217: uydurma kod geçmemeli.
+        // 4) ISO 4217: a fabricated code must not pass.
         assert!(!super::is_iso4217("ZZZ"), "ZZZ ISO 4217 kodu değildir");
         assert!(
             !super::is_iso4217("TRL"),
@@ -1458,7 +1445,7 @@ mod tests {
         assert!(!super::is_iso4217("usd"), "kodlar BÜYÜK harftir");
         assert!(super::is_iso4217("TRY") && super::is_iso4217("EUR") && super::is_iso4217("USD"));
 
-        // 2/3) Takvim: biçim doğru ama GÜN yok.
+        // 2/3) Calendar: format is correct but the DAY does not exist.
         assert!(
             !super::is_valid_calendar_date(2026, 13, 40),
             "13. ay yoktur"
@@ -1484,25 +1471,25 @@ mod tests {
             super::looks_like_url("HTTPS://A.COM"),
             "şema adı büyük/küçük harfe duyarsız"
         );
-        // issue #92: baştaki/sondaki boşluk ARTIK KIRPILMAZ. Bu test eski toleransı
-        // koruyordu; spec "özel karakterler doğru kaçırılmalı" diyor ve boşluk kaçırılmamış
-        // bir karakterdir. VARLIK teşhisi hâlâ kırpar — `"   "` EKSİK alandır, geçersiz
-        // URL değil; o ayrım çağıran tarafta iki ayrı okumayla korunuyor.
+        // issue #92: leading/trailing whitespace is NO LONGER TRIMMED. This test preserved old
+        // tolerance; the spec says "special characters must be correctly escaped", and whitespace
+        // is an unescaped character. PRESENCE diagnosis still trims — `"   "` is a MISSING field,
+        // not an invalid URL; the caller preserves that distinction with two readings.
         assert!(
             !super::looks_like_url("  https://a.com  "),
             "ham değerde çıplak boşluk"
         );
         assert!(super::looks_like_url("https://a.com"));
 
-        // Bunların hepsi `Url::parse` için GEÇERLİ ve şema kontrolü eklenmeden önce
-        // doğrulamadan geçiyordu (T5 boşluk #1, 2026-08-03 ölçümü).
+        // All of these are VALID for `Url::parse` and passed validation before scheme checking
+        // was added (T5 gap #1, 2026-08-03 measurement).
         assert!(!super::looks_like_url("mailto:info@a.com"));
         assert!(!super::looks_like_url("ftp://a.com/x"));
         assert!(!super::looks_like_url("file:///etc/passwd"));
         assert!(!super::looks_like_url("javascript:alert(1)"));
 
-        // issue #80 — hükmün İKİNCİ yarısı: özel karakterler DOĞRU kaçırılmış olmalı.
-        // `Url::parse` bunların hepsine Ok diyordu (normalize ederek).
+        // issue #80 — the SECOND half of the rule: special characters must be escaped CORRECTLY.
+        // `Url::parse` returned Ok for all of these (after normalization).
         assert!(
             super::looks_like_url("https://a.example/a%20b"),
             "doğru yüzde kodlaması"
@@ -1531,10 +1518,10 @@ mod tests {
             !super::looks_like_url("https://a.example/a\\b"),
             "ters bölü çıplak geçemez"
         );
-        // #144: ASCII dışı ARTIK REDDEDİLMİYOR. Hüküm "özel karakterler" der; `ü`, `ş` ve
-        // tam genişlikli `ｗ` RFC 3986'nın ayraç kümesinde değildir. Belirleyici ölçüt
-        // deterministik kanonik ASCII karşılığının bulunması: NFKC, punycode ve yüzde
-        // kodlama üçü de tek anlamlıdır — ayrıştırıcı bir yorum UYDURMAZ.
+        // #144: non-ASCII is NO LONGER REJECTED. The rule says "special characters"; `ü`, `ş`,
+        // and full-width `ｗ` are not in RFC 3986's delimiter set. The distinguishing criterion
+        // is a deterministic canonical ASCII equivalent: NFKC, punycode, and percent encoding
+        // are all unambiguous — the parser does not INVENT an interpretation.
         assert!(
             super::looks_like_url("https://example.com/güzergah"),
             "ASCII dışı yol: kanonik karşılığı var"
@@ -1551,7 +1538,7 @@ mod tests {
             super::looks_like_url("https://xn--ehir-jua.example/yol"),
             "punycode eşdeğeri GEÇERLİ"
         );
-        // Korpustan gelen iki gerçek vaka (#144, tam katalog koşumu).
+        // Two real corpus cases (#144, full catalogue run).
         assert!(
             super::looks_like_url("https://ｗｗｗ.city.chikuma.lg.jp"),
             "jbda-chikumacity: tam genişlikli www, NFKC ile www.city.chikuma.lg.jp"
@@ -1560,8 +1547,8 @@ mod tests {
             super::looks_like_url("https://thyon4vallées.ch"),
             "mdb-2898: punycode ile xn--thyon4valles-keb.ch"
         );
-        // 🔑 Gevşetmenin SINIRI: ASCII dışı serbest kaldı, kaçırılmamış AYRAÇ kalmadı.
-        // Bu üçü ASCII dışı bir değerin içinde de reddedilmeli, yoksa gevşetme hükmü yer.
+        // 🔑 LIMIT OF THE RELAXATION: non-ASCII is free, but no unescaped DELIMITER remains.
+        // These three must be rejected even inside a non-ASCII value, or the relaxation is invalid.
         assert!(
             !super::looks_like_url("https://şehir.example/a b"),
             "ASCII dışı host çıplak boşluğu MEŞRULAŞTIRMAZ"
@@ -1580,15 +1567,15 @@ mod tests {
             "korpusta görülen yer tutucu"
         );
 
-        // Şemasız değerler zaten reddediliyordu; davranış korunur.
+        // Scheme-less values were already rejected; preserve the behavior.
         assert!(!super::looks_like_url("www.example.com"));
         assert!(!super::looks_like_url("a.com"));
         assert!(!super::looks_like_url(""));
-        // `http://` öneki olup URL olarak ayrıştırılamayan değer de reddedilir.
+        // A value with an `http://` prefix that cannot parse as a URL is also rejected.
         assert!(!super::looks_like_url("http://"));
 
-        // Çok baytlı karakterle başlayan değer: dilim (`&s[..7]`) kullanılsaydı bayt
-        // sınırını böler ve PANİK ederdi. Alanlar serbest metin taşıyabiliyor.
+        // Value beginning with a multibyte character: slicing (`&s[..7]`) would split a byte
+        // boundary and PANIC. Fields can contain free text.
         assert!(!super::looks_like_url("Üniversite Kampüsü"));
         assert!(!super::looks_like_url("東京駅"));
         assert!(!super::looks_like_url("ü"));
@@ -1596,11 +1583,11 @@ mod tests {
 
     #[test]
     fn looks_like_phone_accepts_dialable_vanity_text() {
-        // Spec'in KENDİ örneği — 2026-08-03'e kadar reddediliyordu (PTH_017 biçimi hata).
+        // The spec's OWN example — rejected until 2026-08-03 (PTH_017 format bug).
         assert!(super::looks_like_phone("503-238-RIDE"));
         assert!(super::looks_like_phone("+1 800 FLOWERS"));
         assert!(super::looks_like_phone("1-800-COLLECT"));
-        // #95: BİRDEN ÇOK vanity harf grubu — hepsi büyük harf ve kuyrukta.
+        // #95: MULTIPLE vanity letter groups — all uppercase and in the tail.
         assert!(
             super::looks_like_phone("1-800-GO-FEDEX"),
             "iki vanity grubu kabul edilmeli"
@@ -1610,10 +1597,10 @@ mod tests {
             "ayırıcı boşluk da olabilir"
         );
         assert!(super::looks_like_phone("+1-800-NEW-CARS"));
-        // Tek grupta büyük harf ŞARTI YOK — eski davranış aynen korunur (kabul kümesi
-        // yalnız genişledi, hiçbir değer yeni baştan reddedilmedi).
+        // NO uppercase requirement for one group — preserve old behavior exactly (the accepted
+        // set only expanded; no value was newly rejected).
         assert!(super::looks_like_phone("503-238-ride"));
-        // Saf numaralar: davranış korunur.
+        // Numeric-only values: preserve behavior.
         assert!(super::looks_like_phone("+90 212 555 12 34"));
         assert!(super::looks_like_phone("(503) 238-7433"));
         assert!(super::looks_like_phone("555.12.34"));
@@ -1634,7 +1621,7 @@ mod tests {
             !super::looks_like_phone("Call us at 503 238 1234"),
             "birden çok harf grubu"
         );
-        // #95 sınırı: çok gruplu KUYRUK ancak BÜYÜK HARFse vanity sayılır; düzyazı geçemez.
+        // #95 boundary: a multi-group TAIL counts as vanity only when UPPERCASE; prose cannot pass.
         assert!(
             !super::looks_like_phone("1234 call us now"),
             "küçük harf kuyruk düzyazıdır"
@@ -1651,12 +1638,12 @@ mod tests {
             !super::looks_like_phone("1-800-GO-FEDEX-now"),
             "kuyruğun son grubu küçük harf"
         );
-        // Korpusta GERÇEKTEN bulunan iki değer (mdb-2337, mdb-992) — kural bunlarda DOĞRU
-        // ateşliyor ve düzeltmeden sonra da ateşlemeye devam etmeli.
+        // Two values ACTUALLY present in the corpus (mdb-2337, mdb-992) — the rule fires
+        // CORRECTLY on them and must continue to do so after the fix.
         assert!(!super::looks_like_phone(
             "80000078 (Liepājā); 80000079 (Pierīgā)"
         ));
-        // Yetersiz hane / hiç rakam yok / boş: davranış korunur.
+        // Too few digits / no digits / empty: preserve behavior.
         assert!(!super::looks_like_phone("RIDE"), "beş haneden kısa");
         assert!(
             !super::looks_like_phone("FLOWERS"),
@@ -1672,10 +1659,10 @@ mod tests {
         assert_eq!(mu("EUR"), Some(2));
         assert_eq!(mu("JPY"), Some(0));
         assert_eq!(mu("KWD"), Some(3));
-        // issue #82: "0/2/3 dışında değer yok" VARSAYIMI YANLIŞTI — ölçüldü.
+        // issue #82: the assumption "no value other than 0/2/3" was WRONG — measured.
         assert_eq!(mu("CLF"), Some(4), "CLF dört ondalıklıdır");
         assert_eq!(mu("UYW"), Some(4), "UYW dört ondalıklıdır");
-        // Kod geçerliliği ile ondalık AYRI kavram: ikisi de `None` döner ama sebepleri farklı.
+        // Code validity and decimal precision are SEPARATE concepts: both return `None`, but for different reasons.
         assert_eq!(mu("ZZZ"), None, "bilinmeyen kod — 2 VARSAYILMAZ");
         assert_eq!(
             mu("XAU"),
@@ -1683,25 +1670,25 @@ mod tests {
             "kıymetli maden: ondalık TANIMSIZ (kaynakta N.A.)"
         );
         assert!(super::is_iso4217("XAU"), "…ama XAU GEÇERLİ bir koddur");
-        // 🔴 Elle yazılmış liste yanlıştı: BGN 2026-01-01 listesinde AKTİF DEĞİL
-        // (Bulgaristan euro'ya geçti). Üretilmiş tablo bunu kaynaktan alıyor.
+        // 🔴 The hand-written list was wrong: BGN is not ACTIVE in the 2026-01-01 list
+        // (Bulgaria adopted the euro). The generated table takes this from the source.
         assert!(!super::is_iso4217("BGN"), "BGN artık aktif kod değil");
 
         assert!(ok("2.50", "EUR"));
         assert!(ok("150", "JPY"), "yen ondalık taşımaz");
         assert!(ok("1.500", "KWD"));
 
-        // Korpusta ölçülen gerçek ihlaller.
+        // Real violations measured in the corpus.
         assert!(!ok("0.9", "EUR"), "EUR iki basamak ister");
         assert!(!ok("6.7", "HKD"));
         assert!(!ok("8", "EUR"));
         assert!(!ok("100.00", "JPY"), "yen ondalık TAŞIMAMALI");
-        // Geçersiz kodda ondalık denetimi SUSAR — o ihlali FAR_003/FPD_003 bildirir.
+        // Decimal validation stays SILENT for an invalid code — FAR_003/FPD_003 reports it.
         assert!(ok("1.23456", "ZZZ"), "geçersiz kod iki kez raporlanmaz");
         assert!(ok("1.2", "XAU"), "ondalığı tanımsız kodda denetim yapılmaz");
         assert!(!ok("0.0000", "HKD"), "fazla basamak da ihlal");
 
-        // Sayı olmayan / boş değer FPD_002'nin alanı — burada sessiz.
+        // Non-numeric / empty values belong to FPD_002 — silent here.
         assert!(ok("", "EUR"));
         assert!(ok("abc", "EUR"));
         assert!(ok("2.50", ""), "para birimi yoksa karar verilemez");

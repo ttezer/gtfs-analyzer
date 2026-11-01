@@ -27,8 +27,8 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
     let mut records = Vec::new();
     let mut counter = 0u32;
 
-    // agency_id koşullu zorunlu: birden fazla kuruluş varsa her satırda agency_id gerekir
-    // (aksi halde routes/fares hangi kuruluşa ait ayırt edilemez). MD: missing_required_agency_id.
+    // agency_id is conditionally required: when multiple agencies exist, every row needs agency_id
+    // (otherwise routes/fares cannot be assigned to an agency). MD: missing_required_agency_id.
     let multiple_agencies = file.rows.len() > 1;
 
     for (row_idx, row) in file.rows.iter().enumerate() {
@@ -38,7 +38,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
         let agency_id = get_raw_field(&row_map, "agency_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
-        // AGN_014: birden fazla kuruluş varken bu satırda agency_id boş/eksik
+        // AGN_014: agency_id is empty/missing on this row while multiple agencies exist
         if multiple_agencies && agency_id.is_none() {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -55,9 +55,10 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 "Çoklu kuruluş durumunda her agency satırına benzersiz bir agency_id girin.",
             ));
         }
-        // AGN_018: tek kuruluşta agency_id boş. Spec: "Conditionally Required: Required when
+        // AGN_018: agency_id is empty for a single agency. Spec: "Conditionally Required: Required when
         // the dataset contains data for multiple transit agencies. Recommended otherwise."
-        // Zorunluluk değil tavsiye → Bilgi, skor dışı (korpus mdb-2610, MD missing_recommended_field).
+        // This is recommended rather than required → Info, excluded from the score (corpus mdb-2610,
+        // MD missing_recommended_field).
         if !multiple_agencies && agency_id.is_none() {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -75,13 +76,14 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             ));
         }
 
-        // AGN_002: agency_name required (sütun başlıkta yoksa ARC_025 devralır → atla)
+        // AGN_002: agency_name required (if the column is absent from the header, ARC_025 takes over → skip)
         let agency_name = get_trimmed_field(&row_map, "agency_name")
             .unwrap_or("")
             .to_string();
-        // `agency_id` tek işletmecili feed'lerde OPSİYONELDİR ve orada boş kalır; bütün AGN
-        // mesajları `{entity_id}` ile doldurulduğu için metin "Agency ''" çıkıyordu (korpusta
-        // AGN_015 97 feed). Kimlik yoksa okunabilir ada düşülür — DQ_010 ile aynı emsal.
+        // `agency_id` is OPTIONAL in single-agency feeds and remains empty there; because all AGN
+        // messages were populated with `{entity_id}`, the text came out as "Agency ''" (97 feeds
+        // in the corpus had AGN_015). When the ID is absent, fall back to the readable name — the
+        // same precedent as DQ_010.
         let entity_id = agency_id
             .clone()
             .or_else(|| Some(agency_name.clone()).filter(|s| !s.is_empty()));
@@ -102,12 +104,12 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             ));
         }
 
-        // AGN_003: agency_url required + valid URL (sütun yoksa ARC_025 devralır → atla)
+        // AGN_003: agency_url required + valid URL (if the column is absent, ARC_025 takes over → skip)
         //
-        // ⚠️ İKİ AYRI OKUMA (issue #92): VARLIK kırpılmış değerle, GEÇERLİLİK ham değerle.
-        // Tek okumaya indirmek iki yönden de hata verir: hepsi ham olsaydı `"   "` taşıyan
-        // bir alan "geçersiz URL" olurdu (oysa o EKSİK alandır); hepsi kırpılmış olsaydı
-        // `" https://x "` sessizce geçerli sayılırdı — issue #92'nin karşı örneği.
+        // ⚠️ TWO SEPARATE READS (issue #92): EXISTENCE uses the trimmed value, VALIDITY uses the raw value.
+        // Collapsing this into one read fails in both directions: if everything were raw, a field
+        // containing `"   "` would be "invalid URL" (although it is MISSING); if everything were
+        // trimmed, `" https://x "` would silently count as valid — the counterexample from issue #92.
         let agency_url = get_lexical_field(&row_map, "agency_url")
             .unwrap_or("")
             .to_string();
@@ -143,7 +145,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             _ => {}
         }
 
-        // AGN_015: agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.
+        // AGN_015: agency_url uses insecure 'http://' — 'https://' is recommended.
         if agency_url.starts_with("http://") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -156,13 +158,13 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_url"),
                 Some(agency_url.clone()),
                 Some("https://".to_string()),
-                "agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.".to_string(),
-                "agency_url'yi https:// ile güncelleyin.",
+                "agency_url uses insecure 'http://' — 'https://' is recommended.".to_string(),
+                "Update agency_url to use https://.",
             ));
         }
 
-        // AGN_016: agency_phone bilinen bir yer-tutucu/hizmet-dışı numara (veri üreticisinin
-        // kurumsal numarası, tüm feed'lere kopyalanmış vb.) — gerçek iletişim numarası olmayabilir.
+        // AGN_016: agency_phone is a known placeholder/out-of-service number (the producer's
+        // corporate number copied into every feed, etc.) — it may not be a real contact number.
         if let Some(phone) =
             get_trimmed_field(&row_map, "agency_phone").filter(|v| !v.trim().is_empty())
         {
@@ -178,7 +180,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             }
         }
 
-        // AGN_004: agency_timezone required + valid IANA (sütun yoksa ARC_025 devralır → atla)
+        // AGN_004: agency_timezone required + valid IANA (if the column is absent, ARC_025 takes over → skip)
         let agency_timezone = get_trimmed_field(&row_map, "agency_timezone")
             .unwrap_or("")
             .to_string();
@@ -298,7 +300,7 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
             }
         }
 
-        // AGN_012: agency_cemv_support must be 0, 1 or 2 (GTFS: 0/empty=bilinmiyor, 1=destekleniyor, 2=desteklenmiyor)
+        // AGN_012: agency_cemv_support must be 0, 1, or 2 (GTFS: 0/empty=unknown, 1=supported, 2=unsupported)
         let agency_cemv_support = match parse_u32(&row_map, "cemv_support") {
             Ok(v) => {
                 if let Some(val) = v {
@@ -315,8 +317,9 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 v
             }
             Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı AGN_012 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // AGN_012, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter, "AGN_012", EntityType::Agency, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("cemv_support"),
@@ -464,11 +467,11 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "AGN_009"));
     }
 
-    /// Ölçüm, 16. korpus koşumu: `AGN_008` 10 feed, `AGN_009` 9 feed, 19 vakanın hepsinde tek
-    /// kusur BAŞTAKİ BOŞLUKTU (`' https://metrarail.com/tickets'`,
-    /// `' kotu@city.sakata.lg.jp'`) ve `DQ_016` aynı satırı zaten bildiriyordu. Kök tek,
-    /// rapor iki taneydi. Bulgu `whitespace_derived` işaretlenir; K7 onu YALNIZ aynı dosyada
-    /// `DQ_016` kökü varsa bastırır, yoksa izsiz kaybolmasın diye korur.
+    /// Measurement from corpus run 16: `AGN_008` affected 10 feeds, `AGN_009` affected 9 feeds;
+    /// in all 19 cases the only defect was LEADING WHITESPACE (`' https://metrarail.com/tickets'`,
+    /// `' kotu@city.sakata.lg.jp'`), and `DQ_016` already reported the same row. One root,
+    /// two reports. The finding is marked `whitespace_derived`; K7 suppresses it ONLY when the same
+    /// file has a `DQ_016` root, and otherwise preserves it so it does not disappear without a trace.
     #[test]
     fn whitespace_only_url_and_email_failures_are_marked_as_dq_016_derivatives() {
         let file = make_file(
@@ -502,9 +505,9 @@ mod tests {
         }
     }
 
-    /// 🔴 ASIL RİSK: trim edilince DE geçersiz kalan değer bastırılmamalı. Sayısal yolun
-    /// `trimmed_value_is_semantically_valid` tablosu tanımadığı alanda `true` döndüğü için
-    /// burada KULLANILMAZ; onun yerine alanın kendi doğrulayıcısı çalıştırılır.
+    /// 🔴 MAIN RISK: a value that remains invalid after trimming must not be suppressed. The numeric
+    /// path's `trimmed_value_is_semantically_valid` table returns `true` for unknown fields, so it
+    /// is NOT USED here; the field's own validator is run instead.
     #[test]
     fn a_value_that_stays_invalid_after_trimming_is_not_marked_as_a_derivative() {
         let file = make_file(
@@ -560,8 +563,8 @@ mod tests {
         );
     }
 
-    /// Spec agency_id: "Conditionally Required ... Recommended otherwise." Tek kuruluşta boş
-    /// agency_id zorunluluk değil tavsiye ihlalidir → AGN_018 (Bilgi); AGN_014 SUSAR.
+    /// Spec agency_id: "Conditionally Required ... Recommended otherwise." Empty agency_id in a
+    /// single-agency feed violates a recommendation, not a requirement → AGN_018 (Info); AGN_014 stays silent.
     #[test]
     fn single_agency_missing_agency_id_is_agn_018_recommendation() {
         let with_id = |id: &'static str| {

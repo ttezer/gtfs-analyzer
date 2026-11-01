@@ -1,8 +1,8 @@
-//! `AgencyResolver` sözleşmesi (agency attribution P1).
+//! `AgencyResolver` contract (agency attribution P1).
 //!
-//! Resolver gerçek K2 kayıtları üzerinde kurulur: küçük feed'ler `validate_bytes_inspected`
-//! ile ayrıştırılır, resolver gözlemcinin içinde oluşturulur. Böylece ham (kırpılmamış)
-//! kimlikler K2'nin gerçekten sakladığı biçimde sınanır.
+//! The resolver is built on real K2 records: small feeds are parsed with
+//! `validate_bytes_inspected`, and the resolver is created inside the observer. This tests
+//! raw (untrimmed) identities in the form K2 actually stores them.
 
 use std::io::Write as _;
 
@@ -19,8 +19,8 @@ const STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon\nS1,One,41.0,29.0\nS2,T
 const CALENDAR: &str = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,\
 start_date,end_date\nSVC,1,1,1,1,1,0,0,20250101,20271231\n";
 
-/// Feed'i kurar; `probes` = (kural scope türü, scope_key). Sonuç, sorgu sırasıyla
-/// (atıf, atfedilen agency'nin ham kimliği).
+/// Builds a feed; `probes` = (rule scope type, scope_key). Returns (attribution, raw ID
+/// of the attributed agency) in probe order.
 fn attribute(
     agency: &str,
     routes: &str,
@@ -31,7 +31,7 @@ fn attribute(
     attribute_in(agency, routes, trips, &[], &notices)
 }
 
-/// Hazır notice'ları iki agency'li küçük bir feed'de atfeder.
+/// Attributes prepared notices in a small two-agency feed.
 fn attribute_notices(notices: &[Notice]) -> Vec<(AgencyAttribution, Option<String>)> {
     attribute_in(
         AGENCIES_AB,
@@ -86,7 +86,7 @@ fn attribute_in(
     out
 }
 
-/// Registry'de istenen scope alanını beyan eden ilk kural için sahte notice.
+/// Synthetic notice for the first rule in the registry declaring the requested scope field.
 fn probe(scope: Option<&str>, key: Option<&str>) -> Notice {
     let rule = gtfs_rules::RULES
         .iter()
@@ -194,10 +194,10 @@ fn broken_references_are_unattributed_with_their_reason() {
         "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\nR9,Z,9,3\n",
         "route_id,service_id,trip_id\nR1,SVC,T1\nRX,SVC,T2\n",
         &[
-            (Some("trip_id"), Some("T2")),     // trip'in route'u yok
-            (Some("trip_id"), Some("NOPE")),   // trip yok
-            (Some("route_id"), Some("R9")),    // route'un agency'si yok
-            (Some("agency_id"), Some("Z")),    // agency yok
+            (Some("trip_id"), Some("T2")),     // trip has no route
+            (Some("trip_id"), Some("NOPE")),   // trip is missing
+            (Some("route_id"), Some("R9")),    // route has no agency
+            (Some("agency_id"), Some("Z")),    // agency is missing
         ],
     );
     assert_eq!(out[0].0, unattributed(UnattributedReason::UnknownRoute));
@@ -213,10 +213,10 @@ fn padded_ids_use_the_unique_trim_fallback_and_never_guess() {
         "route_id,agency_id,route_short_name,route_type\n R1 ,A,1,3\nR2,B,2,3\n R2,A,3,3\n",
         "route_id,service_id,trip_id\n R1 ,SVC,T1\n",
         &[
-            (Some("route_id"), Some("R1")),   // tek ham karşılık: " R1 "
-            (Some("route_id"), Some(" R1 ")), // birebir
-            (Some("route_id"), Some("R2 ")),  // "R2" ve " R2" → belirsiz
-            (Some("trip_id"), Some("T1")),    // trip birebir, route ham " R1 "
+            (Some("route_id"), Some("R1")),   // one raw counterpart: " R1 "
+            (Some("route_id"), Some(" R1 ")), // exact
+            (Some("route_id"), Some("R2 ")),  // "R2" and " R2" → ambiguous
+            (Some("trip_id"), Some("T1")),    // trip exact, raw route " R1 "
         ],
     );
     assert!(resolved("A", Resolution::UniqueTrimFallback)(&out[0]), "{out:?}");
@@ -232,9 +232,9 @@ fn scope_kinds_outside_p0_are_classified_statically() {
         "route_id,agency_id,route_short_name,route_type\nR1,A,1,3\n",
         "route_id,service_id,trip_id\nR1,SVC,T1\n",
         &[
-            (None, None),                   // feed/dosya düzeyi
-            (Some("pathway_id"), Some("P1")), // desteklenmeyen kapsam
-            (Some("trip_id"), None),        // beyan var, değer yok
+            (None, None),                   // feed/file level
+            (Some("pathway_id"), Some("P1")), // unsupported scope
+            (Some("trip_id"), None),        // declaration exists, value missing
         ],
     );
     assert_eq!(out[0].0, AgencyAttribution::NotApplicable);
@@ -253,8 +253,8 @@ fn feed_level_summaries_of_scoped_rules_are_not_missing_keys() {
     assert_eq!(out[0].0, unattributed(UnattributedReason::FeedLevelSummary));
 }
 
-/// #2201 P2: feed-level özet, altındaki ham notice'ların agency dağılımını kaybetmez.
-/// İki agency'nin birer seferinde direction_id geçersiz → tek TRP_005 özeti, A=1 B=1.
+/// #2201 P2: a feed-level summary preserves the agency distribution of its raw notices.
+/// Each of two agencies has one trip with an invalid direction_id → one TRP_005 summary, A=1 B=1.
 #[test]
 fn aggregated_summary_keeps_the_agency_distribution() {
     let files = [
@@ -294,7 +294,7 @@ T2,09:00:00,09:00:00,S1,1\nT2,09:10:00,09:10:00,S2,2\n",
     assert_eq!(agencies, [(0, 1), (1, 1)], "A (0) ve B (1) birer sefer");
 }
 
-/// `fare_id` scope'lu kurallar: `fare_attributes.agency_id` → agency; boşsa tek agency.
+/// Rules scoped by `fare_id`: `fare_attributes.agency_id` → agency; use the sole agency if empty.
 #[test]
 fn fares_resolve_through_fare_attributes() {
     let fares = |agencies: &str, fare_rows: &str, probes: &[Option<&str>]| {
@@ -328,8 +328,8 @@ F1,1.00,USD,0,0,B\nF2,2.00,USD,0,0,\n",
     assert!(resolved("A", Resolution::Exact)(&single[0]), "{single:?}");
 }
 
-/// FAR_010 scope beyan etmez (feed özeti) ama ham notice'ları tarife başınadır; toplulama
-/// dağılımı tarifenin agency'sinden kurulur (`attribute_member`, `EntityType::Fare`).
+/// FAR_010 declares no scope (feed summary), but its raw notices are per fare; aggregation
+/// builds the distribution from the fare's agency (`attribute_member`, `EntityType::Fare`).
 #[test]
 fn far010_summary_distributes_over_fare_agencies() {
     let files = [
@@ -364,7 +364,7 @@ F1,1.00,USD,0,0,A\nF2,2.00,USD,0,0,B\nF3,3.00,USD,0,0,B\n",
     assert_eq!(summary.len(), 1, "FAR_010 tek feed özeti olmalı");
     assert_eq!(summary[0].observed_value.as_deref(), Some("2"));
     let distribution = summary[0].agency_distribution.as_ref().expect("dağılım yok");
-    // F2 ve F3, F1 ile çakışır; ikisi de B'nin tarifesi.
+    // F2 and F3 overlap F1; both are B's fares.
     let agencies: Vec<(u32, u64)> = distribution
         .iter()
         .map(|(attribution, n)| (attribution.agency().expect("atfedilmeli").0, *n))
@@ -372,8 +372,8 @@ F1,1.00,USD,0,0,A\nF2,2.00,USD,0,0,B\nF3,3.00,USD,0,0,B\n",
     assert_eq!(agencies, [(1, 2)], "{distribution:?}");
 }
 
-/// P6: durak/shape/servis onu kullanan seferlerin agency'lerine çözülür; birden fazla
-/// agency ⇒ paylaşılan küme. İstasyon alt durağının agency'lerini devralır.
+/// P6: stop/shape/service resolves to the agencies of the trips using it; multiple agencies
+/// ⇒ shared set. A station inherits the agencies of its child stops.
 #[test]
 fn stops_shapes_and_services_resolve_to_the_agencies_that_use_them() {
     let files = [
@@ -438,18 +438,18 @@ SH1,41.0,29.0,1\nSH1,41.1,29.1,2\nSH2,41.0,29.0,1\nSH2,41.2,29.2,2\nSH9,41.0,29.
         assert!(matches!(out[i].0, AgencyAttribution::Shared { kind: k, .. } if k == kind), "{i}: {:?}", out[i]);
         assert_eq!(out[i].1, ["A", "B"], "{i}");
     };
-    shared(0, SharedKind::Stop); // S1: iki agency'nin seferleri
-    shared(1, SharedKind::Stop); // ST: S1'in istasyonu
+    shared(0, SharedKind::Stop); // S1: trips from two agencies
+    shared(1, SharedKind::Stop); // ST: S1's station
     assert_eq!(out[2].1, ["A"]);
     assert_eq!(out[3].1, ["B"]);
     assert_eq!(out[4].0, unattributed(UnattributedReason::UnusedEntity));
     assert_eq!(out[5].0, unattributed(UnattributedReason::UnknownStop));
     assert_eq!(out[6].1, ["A"]);
-    assert_eq!(out[7].0, unattributed(UnattributedReason::UnusedEntity)); // shapes.txt'te var, sefer yok
+    assert_eq!(out[7].0, unattributed(UnattributedReason::UnusedEntity)); // in shapes.txt, no trip
     shared(8, SharedKind::Service);
 }
 
-/// Flex: stop_times lokasyon grubunu gösterir; grubun durakları o seferin agency'sine aittir.
+/// Flex: stop_times identifies a location group; the group's stops belong to that trip's agency.
 #[test]
 fn flex_location_group_members_belong_to_the_trips_agency() {
     let files = [

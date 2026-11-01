@@ -1,29 +1,29 @@
-//! `scope_key` denetimi (agency attribution P0) — tek feed, JSON satırları.
+//! `scope_key` audit (agency attribution P0) — one feed, JSON lines.
 //!
-//! Kullanım: `cargo run --release -p gtfs-pipeline --example scope_audit -- <feed.zip> [today]`
+//! Usage: `cargo run --release -p gtfs-pipeline --example scope_audit -- <feed.zip> [today]`
 //!
-//! K1–K6 notice'larını feed-level toplulamadan ÖNCE görür (`validate_bytes_inspected`);
-//! toplulama `scope_key`'i sildiği için final listede denetim yanlış "boş" sayardı.
-//! Her kural için bir JSON satırı basar; korpus toplamı ayrı bir betikle yapılır.
+//! Sees K1–K6 notices BEFORE feed-level aggregation (`validate_bytes_inspected`);
+//! aggregation removes `scope_key`, so an audit on the final list would incorrectly count it
+//! as "empty". Prints one JSON line per rule; corpus totals are computed by a separate script.
 //!
-//! Sınıflar (doldurulmuş, tek alanlı ve desteklenen scope'lar için, birbirini dışlar):
-//! - `exact`: `scope_key` feed'de HAM ID olarak var.
-//! - `trim_unique`: ham ID olarak yok, ama kırpılmış karşılığı TEK bir ham ID'ye düşüyor.
-//! - `ambiguous`: kırpılmış karşılığı birden fazla ham ID'ye düşüyor.
-//! - `missing`: hiçbir ham ID ile eşleşmiyor (kırık FK ya da scope başka bir şey taşıyor).
+//! Classes (for populated, single-field, supported scopes; mutually exclusive):
+//! - `exact`: `scope_key` exists in the feed as a RAW ID.
+//! - `trim_unique`: absent as a raw ID, but its trimmed counterpart maps to ONE raw ID.
+//! - `ambiguous`: the trimmed counterpart maps to multiple raw IDs.
+//! - `missing`: matches no raw ID (broken FK or the scope carries something else).
 //!
-//! `verifiable*`: notice'ın `entity_type`'ı beyan edilen scope türüyle aynıysa
-//! `scope_key == entity_id` kimlik denetimi yapılabilir; `Row` notice'larında yapılamaz.
+//! `verifiable*`: when the notice's `entity_type` matches the declared scope type,
+//! the `scope_key == entity_id` identity check is possible; it is not possible for `Row` notices.
 //!
-//! Sayımlar yalnız K7 boşluk bastırmasından SAĞ ÇIKAN ham notice'lar üzerindendir;
-//! bastırılanlar `ws_suppressed` alanında ayrıca sayılır. (22 toplulanmış kuralda
-//! bastırma üretimde özet üzerinde çalışır; burada ham notice başına uygulanır.)
+//! Counts cover only raw notices that SURVIVE K7 whitespace suppression; suppressed ones are
+//! counted separately in `ws_suppressed`. (For 22 aggregated rules, production suppression
+//! runs on the summary; here it is applied per raw notice.)
 //!
-//! `symptoms` satırları `resolve_symptoms`'u üretimdeki sırayla (toplulama → rapor
-//! kapsamı → boşluk bastırma → dedup) iki kez simüle eder: birebir `scope_key`
-//! eşitliğiyle ve iki taraf kırpılarak. Fark, ham/kırpılmış karışıklığının kaçırdığı
-//! kök→semptom eşleşmeleridir. `cross_scope`: kök ile engellenen kural farklı scope
-//! alanı beyan ediyor; kapsamlı kök o kuralı ancak tesadüfen bastırabilir.
+//! `symptoms` lines simulate `resolve_symptoms` twice in the production order (aggregation →
+//! report scope → whitespace suppression → dedup): once with exact `scope_key` equality and
+//! once with both sides trimmed. The difference is root→symptom matches missed by raw/trimmed
+//! mixing. `cross_scope`: the root and blocked rule declare different scope fields; a scoped
+//! root can suppress that rule only accidentally.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -36,7 +36,7 @@ use gtfs_pipeline::{
 };
 use serde_json::json;
 
-/// Beyan edilen scope alanı → (varlık türü, ID kümesi).
+/// Declared scope field → (entity type, ID set).
 fn id_sets(records: &EntityRecords) -> HashMap<&'static str, (EntityType, HashSet<String>)> {
     let mut services: HashSet<String> =
         records.calendars.iter().map(|c| c.service_id.clone()).collect();
@@ -69,7 +69,7 @@ struct RuleStats {
     verifiable_equal: u64,
     verifiable_trim_only: u64,
     ws_suppressed: u64,
-    /// `AgencyResolver` sonucu (yalnız bastırmadan sağ çıkanlar).
+    /// `AgencyResolver` result (only notices surviving suppression).
     attribution: BTreeMap<String, u64>,
 }
 
@@ -88,7 +88,7 @@ fn attribution_bucket(a: &AgencyAttribution) -> String {
     }
 }
 
-/// K7 boşluk bastırmasından sağ çıkan ham notice indeksleri.
+/// Raw notice indices surviving K7 whitespace suppression.
 fn survivors(
     notices: &[Notice],
     records: &EntityRecords,
@@ -106,8 +106,8 @@ fn survivors(
         .collect()
 }
 
-/// Toplulanmış özetlerin agency dağılımı (#2201 P2): kural → (özet, dağılım toplamı,
-/// özetlerin taşıdığı sayı toplamı, dağılımın atfedilen kısmı).
+/// Agency distribution of aggregated summaries (#2201 P2): rule → (summary count,
+/// total distribution count, total count carried by summaries, attributed part of distribution).
 fn aggregate_distributions(
     raw: &[Notice],
     records: &EntityRecords,
@@ -136,8 +136,8 @@ fn aggregate_distributions(
     out
 }
 
-/// (kök kuralı, engellenen kural) → (birebir semptom, kırpılmış semptom, kapsamlı kök
-/// sayısı, engellenen kuralın feed'deki notice sayısı).
+/// (root rule, blocked rule) → (exact symptoms, trimmed symptoms, scoped root count,
+/// notice count of the blocked rule in the feed).
 fn symptom_pairs(
     raw: &[Notice],
     records: &EntityRecords,
@@ -194,9 +194,9 @@ fn aggregated_rules() -> HashSet<&'static str> {
         .collect()
 }
 
-/// Registry'deki `blocks` ilişkilerini scope türüne göre sınıflar. Kapsamlı bir kök
-/// (`scope_key` dolu) engellediği kuralı YALNIZ aynı `scope_key` ile bastırır; iki kural
-/// farklı scope alanı beyan ediyorsa bu ilişki ancak kök feed-level olduğunda çalışır.
+/// Classifies registry `blocks` relationships by scope type. A scoped root
+/// (non-empty `scope_key`) suppresses its blocked rule ONLY with the same `scope_key`; if
+/// two rules declare different scope fields, this relationship works only for a feed-level root.
 fn registry_report() {
     for meta in gtfs_rules::RULES.iter() {
         for blocked in meta.blocks {
@@ -259,7 +259,7 @@ fn main() {
             symptoms = symptom_pairs(notices, records, derived, suppressions, &config);
             distributions = aggregate_distributions(notices, records, derived);
             let sets = id_sets(records);
-            // kırpılmış → ham ID'ler (trim fallback ve belirsizlik ölçümü için)
+            // trimmed → raw IDs (for measuring trim fallback and ambiguity)
             let trimmed: HashMap<&str, HashMap<&str, Vec<&str>>> = sets
                 .iter()
                 .map(|(field, (_, ids))| {
@@ -294,7 +294,7 @@ fn main() {
                     continue;
                 };
                 let Some((kind, ids)) = sets.get(field) else {
-                    continue; // bileşik ya da P0 dışı scope
+                    continue; // composite or non-P0 scope
                 };
                 if ids.contains(key) {
                     entry.exact += 1;

@@ -10,43 +10,43 @@ on:
 permissions:
   contents: read
 
-# 🔴 HER JOB'DA `timeout-minutes` ZORUNLU. Hiçbirinde yoktu ve 2026-08-19'da bunun
-# bedeli görüldü: `e2e` normalde 72 saniye sürerken üç ardışık koşumda asıldı ve
-# GitHub'ın 6 saatlik varsayılanına kadar runner işgal etti. Hiçbir iş KIRMIZI
-# yanmadı — üç koşum da "in_progress" olarak takılı kaldı, yani sonuç ne yeşil ne
-# kırmızıydı. Sınırsız bir job başarısız OLAMAZ, sadece bekler; bu, bu depoda
-# defalarca yakalanan "sessizce None dönmek" deseninin CI'daki karşılığıdır.
-# Değerler normal süreye göre bol paylı seçildi; darlaştırmak için değil, ASILMAYI
-# ZAMANINDA HATAYA ÇEVİRMEK için varlar.
+# 🔴 Every job MUST have `timeout-minutes`. None did, and we saw the cost on 2026-08-19:
+# `e2e` normally takes 72 seconds, but it hung in three consecutive runs and occupied a
+# runner until GitHub's six-hour default timeout. No job turned RED — all three runs stayed
+# stuck as "in_progress", so the result was neither green nor red. An unlimited job cannot
+# FAIL; it can only wait. This is the CI equivalent of the "silently return None" pattern
+# caught repeatedly in this repository.
+# The values have generous margins over normal duration. They exist to TURN A HANG INTO AN
+# ERROR ON TIME, not to make the limits tighter.
 #
-# Ortak kurulum `.github/actions/` altında: `setup-node-deps` (Node + npm ci) ve
+# Shared setup lives under `.github/actions/`: `setup-node-deps` (Node + npm ci) and
 # `setup-rust-wasm` (stable + wasm32, cargo cache, wasm-pack, nightly). Node, wasm-pack
-# sürümleri ve bu adımların action SHA'ları YALNIZ orada tutulur.
+# versions and the action SHAs for these steps are kept ONLY there.
 jobs:
   rust-test:
     name: Rust Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20   # normal: Rust Tests ~2dk
-    # Artımlı derleme önbelleği (target/debug/incremental) CI'da işe yaramaz: her koşum
-    # temiz runner'da başlar. Ama önbelleğe giriyor ve onu şişiriyordu (2026-09-23:
-    # Linux-cargo 4,7 GB); WASM önbellekleri üçe bölünce depo 10 GB kotasını aştı ve
-    # GitHub bu önbelleği tahliye etti.
+    # The incremental build cache (target/debug/incremental) is useless in CI: every run
+    # starts on a clean runner. It was still cached and bloated the cache (2026-09-23:
+    # Linux-cargo reached 4.7 GB); splitting the WASM caches into three exceeded the
+    # repository's 10 GB quota, so GitHub evicted this cache.
     env:
       CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Rust toolchain kur
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
 
-      # Önbellek her koşuda OKUNUR ama yalnız main'e push'ta ve anahtar yeniyse YAZILIR
-      # (işin sonundaki iki adım). Eskiden PR'lar da kendi kopyasını yazıyordu ve
-      # restore-keys eski target'ı yeni anahtara taşıdığı için her Cargo.lock değişiminde
-      # önceki derlemenin test programları birikiyordu (2026-10-30, Linux-cargo:
-      # 1,07 → 1,45 → 1,87 GB); her koşu bunu indirdi ve hesabın önbellek indirme
-      # kotası doldu. Yazmadan önce kendi paketlerimizin çıktıları silinir; yalnız
-      # bağımlılıkların derlenmiş hali saklanır.
-      - name: Cargo cache (oku)
+      # The cache is READ on every run but WRITTEN only on a push to main with a new key
+      # (the final two steps). PRs used to write their own copies, and restore-keys moved
+      # the old target to the new key, accumulating test programs from previous builds on
+      # every Cargo.lock change (2026-10-30, Linux-cargo: 1.07 → 1.45 → 1.87 GB). Every
+      # run downloaded that data until the account's cache-download quota was exhausted.
+      # Before writing, outputs from our own packages are removed; only compiled
+      # dependencies are kept.
+      - name: Cargo cache (read)
         id: cargo-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -60,58 +60,62 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
-      # SDK çevirisi (`sdk-en`) yalnız bu feature ile derlenir; `--workspace` onu açmaz,
-      # testleri de hiç koşmazdı. CLI çevirmeniyle eşdeğerlik testi burada koşar.
+      # The SDK translator (`sdk-en`) is built only with this feature; `--workspace` does
+      # not enable it and would not run its tests. The equivalence test with the CLI
+      # translator runs here.
       - name: cargo test (gtfs-wasm sdk-en)
         run: cargo test -p gtfs-wasm --features sdk-en
 
-      # issue #91: clippy borcu çözüldüğü için tüm target'lar için warnings blocking.
-      # `--all-targets`, test/example lintlerini de kapsar; tek crate'de erken durup
-      # diğer workspace uyarılarını gizlememesi için workspace kapsamı korunur.
+      # issue #91: clippy debt is resolved, so warnings are blocking for all targets.
+      # `--all-targets` includes test/example lints; keep workspace scope so an early stop
+      # in one crate does not hide warnings in the rest of the workspace.
       - name: cargo clippy (warnings blocking)
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
-      # Spec kapsam raporu (WP-3/B). KAPI DEĞİL: hüküm sayısı ile kural sayısını
-      # doğrudan karşılaştırmak semantik olarak güvenilir değil, o yüzden testin
-      # kendisi `#[ignore]`. Ama ignored kaldığı için unutulmasın diye her koşuda
-      # üretilip artifact olarak saklanır — sürüm öncesi/manuel denetimde okunur.
-      # 🔴 ROZET KAPISI (2026-08-06 dış denetiminde eklendi). Denetçi haklıydı:
-      # `badge_status.py` CI'da HİÇ koşmuyordu ve bu risk teorik değildi — betik bir kez
-      # syntax hatasıyla ana dala gitti, bir sonraki commit'te düzeltildi (`4ff03419`).
-      # Betik adjudike edilmemiş hüküm bulursa exit 1 döner; artık CI'ı da kırar.
-      # issue #83: katalog kimliği çakışırsa üretim DURMALI. Ağ istemez; çakışma yolunu
-      # zorlayıp fail-closed olduğunu kanıtlar. Kapıyı yazmak kurmak değildir.
-      - name: Hüküm kimliği çakışması fail-closed mı (extract_provisions --selftest)
+      # Spec coverage report (WP-3/B). NOT A GATE: comparing provision and rule counts
+      # directly is not semantically reliable, so the test itself is `#[ignore]`. It is
+      # generated and stored as an artifact on every run so that it is not forgotten — it
+      # is read during pre-release or manual review.
+      # 🔴 BADGE GATE (added during the 2026-08-06 external audit). The reviewer was right:
+      # `badge_status.py` was NEVER run in CI, and the risk was not theoretical — the script
+      # reached the main branch once with a syntax error and was fixed in the next commit
+      # (`4ff03419`). The script now returns exit 1 for an unadjudicated provision and breaks
+      # CI as well.
+      # issue #83: production MUST STOP if catalog identities collide. No network is needed;
+      # force the collision path to prove that it fails closed. Writing a gate is not
+      # the same as installing it.
+      - name: Check provision identity collision fails closed (extract_provisions --selftest)
         run: |
           python3 spec-audit/extract_provisions.py --selftest
 
-      # issue #81: modalsiz taramanın normatif saydığı bir kalıp katalogda YOKSA ya da
-      # neden olmadığı yazılı değilse, o boşluk sessizdir. Ağ istemez.
-      # issue #82: ISO 4217 tablosu ÜRETİLMİŞTİR; kaynağa karşı sürüklenme denetimi.
-      # ⚠️ Ağ ister. Kaynağa ulaşılamazsa exit 2 döner ve iş KIRMIZI olur — "drift yok" ile
-      # "bakılamadı" karıştırılmaz (`spec_drift.py` ile aynı ders).
-      - name: ISO 4217 sürüklenme denetimi
+      # issue #81: if a pattern that the modal-free audit treats as normative is missing
+      # from the catalog, or its absence is undocumented, the gap is silent. No network.
+      # issue #82: the ISO 4217 table is GENERATED; check it for drift against its source.
+      # ⚠️ This check needs the network. If the source is unreachable, it returns exit 2 and
+      # the job turns RED — do not confuse "no drift" with "could not inspect" (the same
+      # lesson as `spec_drift.py`).
+      - name: Check ISO 4217 drift
         run: |
           python3 spec-audit/gen_iso4217.py --check
 
-      # issue #79: HTML entity tablosu da üretilmiştir.
-      # issue #79: eleman listesi de üretilmiştir (dizin + gerekçeli iki ek küme).
-      - name: HTML eleman sürüklenme denetimi
+      # issue #79: the HTML entity table is generated too.
+      # issue #79: the element list is also generated (the index plus two justified sets).
+      - name: Check HTML element drift
         run: |
           python3 spec-audit/gen_html_elements.py --check
 
-      - name: HTML entity sürüklenme denetimi
+      - name: Check HTML entity drift
         run: |
           python3 spec-audit/gen_html_entities.py --check
 
-      # issue #82: RFC 5646 grandfathered etiketleri IANA kayıt defterinden üretilir.
-      - name: BCP 47 grandfathered sürüklenme denetimi
+      # issue #82: RFC 5646 grandfathered tags are generated from the IANA registry.
+      - name: Check BCP 47 grandfathered drift
         run: |
           python3 spec-audit/gen_bcp47_grandfathered.py --check
 
-      # Çevrilebilir alan türleri `spec-audit/spec_fields.json`'dan üretilir; TRN_011 o
-      # tabloya sorar. Kaynak yerel bir dosya olduğu için bu adım AĞ İSTEMEZ.
-      - name: Çevrilebilir alan tablosu sürüklenme denetimi
+      # Translatable field types are generated from `spec-audit/spec_fields.json`; TRN_011
+      # queries that table. Because the source is local, this step NEEDS NO NETWORK.
+      - name: Check translatable-field table drift
         run: |
           python3 spec-audit/gen_translatable_fields.py --check
 
@@ -119,41 +123,42 @@ jobs:
         run: |
           python3 spec-audit/signal_parity.py
 
-      # issue #111: MobilityData eşlemeleri generic notice kodlarını alan/dosya
-      # bağlamıyla çözmeli; mapping'de olmayan registry/docs paritesi sessizce
-      # MD-only görünmemeli.
+      # issue #111: MobilityData mappings must resolve generic notice codes with field/file
+      # context; registry/docs parity missing from the mapping must not silently appear as
+      # MD-only.
       - name: MobilityData parity mapping drift
         run: |
           python3 spec-audit/check_md_parity_mapping.py
           python3 spec-audit/test_md_parity_audit.py
 
-      - name: Spec rozeti kapısı (badge_status)
+      - name: Spec badge gate (badge_status)
         run: |
           python3 spec-audit/test_badge_status.py
           python3 spec-audit/badge_status.py
 
-      # GTFS-JP %100 rozetinin paydası MLIT hüküm envanteridir; güçlü ve
-      # makineyle denetlenebilir yumuşak hükümler registry'de bir kurala
-      # bağlanmadıkça kapı kapanır.
-      - name: GTFS-JP otomatik kapsama envanteri
+      # The denominator for the GTFS-JP 100% badge is the MLIT provision inventory; the gate
+      # stays closed until strong, machine-checkable soft provisions are linked to a rule in
+      # the registry.
+      - name: GTFS-JP automatic coverage inventory
         run: |
           python3 spec-audit/check_gtfs_jp_coverage.py
           python3 spec-audit/test_gtfs_jp_coverage.py
 
-      # 🔴 Bu testler 2026-08-18'e kadar HİÇBİR workflow tarafından çağrılmıyordu.
-      # #149'un dersini (boş ölçüm kolonu) kodlayan `test_timing.py` yazıldı ve ölü
-      # kaldı; koşum aracı, ölçtüğü üründen daha az test edilmiş durumdaydı ve üç
-      # koşum üst üste manşet sayı üründen değil ALETTEN geldi (#159).
-      - name: Korpus aracı kapıları (audit_all)
+      # 🔴 No workflow called these tests until 2026-08-18. `test_timing.py`, which encoded
+      # the lesson from #149 (an empty measurement column), was written and left dead; the
+      # runner was less tested than the product it measured, and three consecutive headline
+      # numbers came from the TOOL rather than the product (#159).
+      - name: Corpus-tool gates (audit_all)
         run: |
           python3 -m py_compile benchmark/audit_all/*.py
           python3 benchmark/audit_all/test_timing.py
 
-      # `|| true`: rapor bir kapı DEĞİLDİR, düşmesi CI'ı kırmamalı.
-      # ⚠️ Bu bilinçli: alan-tablosu kapsamı 300/300 "çapa" ölçüsüdür, semantik tamlık
-      # değil (bkz. EVIDENCE_BASE.md §5.4). Zorunlu kapı yapmak ölçmediği bir şeyi
-      # garanti ediyormuş gibi gösterirdi. Rozet kapısı YUKARIDA ve o gerçek kapıdır.
-      - name: Spec kapsam raporu üret
+      # `|| true`: the report is NOT a gate, so its failure must not break CI.
+      # ⚠️ This is deliberate: field-table coverage is a 300/300 "anchor" measurement,
+      # not semantic completeness (see EVIDENCE_BASE.md §5.4). Making it a required gate
+      # would pretend to guarantee something it does not measure. The badge gate ABOVE is
+      # the real gate.
+      - name: Generate spec coverage report
         if: always()
         run: |
           mkdir -p spec-audit-report
@@ -168,7 +173,7 @@ jobs:
           } > spec-audit-report/spec-coverage.txt
           cat spec-audit-report/spec-coverage.txt
 
-      - name: Spec kapsam raporu artifact
+      - name: Upload spec coverage report artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -176,7 +181,7 @@ jobs:
           path: spec-audit-report/
           if-no-files-found: warn
 
-      - name: Cargo cache — kendi paketlerimizin çıktılarını sil
+      - name: Cargo cache — remove our package outputs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
         run: cargo clean -p gtfs-analyzer -p gtfs-analyzer-python -p gtfs-config -p gtfs-core -p gtfs-pipeline -p gtfs-rules -p gtfs-wasm
 
@@ -199,13 +204,13 @@ jobs:
 
       - uses: ./.github/actions/setup-node-deps
 
-      # NOT: tsc burada çalıştırılamaz — src/wasm.ts ../pkg/* (wasm-pack çıktısı, git'te
-      # izlenmez) import eder; bu job wasm build etmez. Tip kontrolü build-wasm job'undaki
-      # `npm run build` adımında yapılır (`tsc --noEmit && vite build`, pkg mevcutken).
+      # NOTE: tsc cannot run here — src/wasm.ts imports ../pkg/* (wasm-pack output, not
+      # tracked in git), and this job does not build WASM. Type checking happens in the
+      # `npm run build` step of build-wasm (`tsc --noEmit && vite build`, with pkg present).
 
-      # `crates/core/locales/*.json` TS locale'lerden TÜRETİLİR; export çalıştırılmazsa
-      # CLI eski metni yayınlar. Üç türetilmiş dosya olduğundan (en/ja/fr) kapı burada.
-      - name: "locale export drift (bayat ise: npm run locales:export)"
+      # `crates/core/locales/*.json` is DERIVED from the TS locales; without the export, the
+      # CLI publishes stale text. There are three derived files (en/ja/fr), so gate it here.
+      - name: "locale export drift (if stale: npm run locales:export)"
         working-directory: ui
         run: npm run locales:export -- --check
 
@@ -213,11 +218,11 @@ jobs:
         working-directory: ui
         run: npm run gtfs-jp:coverage -- --check
 
-      - name: vitest + coverage (eşik altındaysa fail)
+      - name: vitest + coverage (fail below threshold)
         working-directory: ui
         run: npm run test:coverage
 
-      - name: Coverage & JUnit artefaktları
+      - name: Coverage & JUnit artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -227,10 +232,11 @@ jobs:
             ui/test-results/vitest-junit.xml
           if-no-files-found: ignore
 
-  # SDK iki motor paketler. wasm32 (`sdk-test`) ve wasm64 (`sdk-wasm64`) PARALEL
-  # derlenir: tek job'da art arda derlenince SDK job'u 4,3 → 6,0 dk'ya çıkmış ve UI
-  # build/deploy'a giden kritik yolu uzatmıştı (2026-10-30). wasm64 motorunun testleri
-  # ve paket kapısı iki çıktıyı birleştiren `sdk-wasm64-test`te, UI build'iyle aynı anda koşar.
+  # The SDK builds two engines. wasm32 (`sdk-test`) and wasm64 (`sdk-wasm64`) build in
+  # PARALLEL: when built sequentially in one job, the SDK job grew from 4.3 to 6.0 minutes
+  # and lengthened the critical path to the UI build/deploy (2026-10-30). The wasm64 engine
+  # tests and package gate run in `sdk-wasm64-test`, which combines both outputs alongside
+  # the UI build.
   sdk-test:
     name: SDK Build + Smoke (wasm32)
     runs-on: ubuntu-latest
@@ -246,23 +252,23 @@ jobs:
         with:
           directory: sdk
 
-      # SDK release build'i wasm-opt'i doğrudan çağırır. wasm-pack kendi build'inde
-      # bunu sağlasa da SDK smoke job'ı ayrı bir runner'da çalışır; Binaryen'i burada
-      # açıkça kurmak, yerel makinedeki PATH'e bağlı sessiz farkı kaldırır.
-      - name: Binaryen (wasm-opt) kur
+      # The SDK release build calls wasm-opt directly. wasm-pack provides it in its own
+      # build, but the SDK smoke job runs on a separate runner; installing Binaryen here
+      # explicitly removes a silent dependency on the local machine's PATH.
+      - name: Install Binaryen (wasm-opt)
         working-directory: sdk
         run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
 
-      # Yalnız wasm32 derlenir; GTFS_SDK_ENGINE testleri bu motora sabitler.
-      - name: SDK smoke (wasm32 motoru)
+      # Build only wasm32; the GTFS_SDK_ENGINE tests pin this engine.
+      - name: SDK smoke (wasm32 engine)
         working-directory: sdk
         env:
           SDK_WASM_TARGETS: wasm32
           GTFS_SDK_ENGINE: wasm32
         run: npm run test:config-parity && npm run test:smoke
 
-      # UI build'i (build-wasm job'u) bu WASM'ı paketler; ikinci kez derlenmesin.
-      - name: sdk/pkg artifact yükle
+      # The UI build (build-wasm job) packages this WASM; do not build it a second time.
+      - name: Upload sdk/pkg artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sdk-pkg
@@ -277,8 +283,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # Büyük feed'ler için wasm64 motoru: nightly build-std + wasm-bindgen
-      # (ui/pkg64 ile aynı yol, bkz. `wasm64` job'u).
+      # The wasm64 engine for large feeds: nightly build-std + wasm-bindgen
+      # (the same path as ui/pkg64; see the `wasm64` job).
       - uses: ./.github/actions/setup-rust-wasm
         with:
           nightly: 'true'
@@ -287,8 +293,8 @@ jobs:
         with:
           directory: sdk
 
-      # Sürüm Cargo.lock'tan okunur; gerekçe `wasm64` job'undaki aynı adımda.
-      - name: wasm-bindgen sürümünü Cargo.lock'tan oku
+      # Read the version from Cargo.lock; the same step in the `wasm64` job explains why.
+      - name: Read wasm-bindgen version from Cargo.lock
         run: |
           set -uo pipefail
           VER=$(grep -A 1 '^name = "wasm-bindgen"$' Cargo.lock \
@@ -299,7 +305,7 @@ jobs:
           fi
           echo "WBG_VER=$VER" >> "$GITHUB_ENV"
 
-      - name: wasm-bindgen CLI kur (SDK wasm64 — sürüm Cargo.lock'tan)
+      - name: Install wasm-bindgen CLI (SDK wasm64 — version from Cargo.lock)
         uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
         with:
           tool: wasm-bindgen-cli@${{ env.WBG_VER }}
@@ -308,13 +314,13 @@ jobs:
         working-directory: sdk
         run: npm install --no-save --ignore-scripts --package-lock=false binaryen@130.0.0
 
-      - name: SDK wasm64 derle (sdk/pkg64)
+      - name: Build SDK wasm64 (sdk/pkg64)
         working-directory: sdk
         env:
           SDK_WASM_TARGETS: wasm64
         run: npm run wasm:build
 
-      - name: sdk/pkg64 artifact yükle
+      - name: Upload sdk/pkg64 artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sdk-pkg64
@@ -334,29 +340,29 @@ jobs:
         with:
           directory: sdk
 
-      - name: sdk/pkg artifact indir
+      - name: Download sdk/pkg artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: sdk-pkg
           path: sdk/pkg
 
-      - name: sdk/pkg64 artifact indir
+      - name: Download sdk/pkg64 artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: sdk-pkg64
           path: sdk/pkg64
 
-      # Node 24 Memory64 destekler, motor seçimi wasm64'e düşer. dist WASM'sız
-      # derlenir (yalnız tsc); paket kapısı iki motorun dosyalarını birlikte görür.
-      - name: SDK smoke + parite (wasm64 motoru) + paket dry-run
+      # Node 24 supports Memory64, so engine selection falls back to wasm64. Build dist
+      # without WASM (tsc only); the package gate sees the files from both engines.
+      - name: SDK smoke + parity (wasm64 engine) + package dry run
         working-directory: sdk
         run: npx tsc -p tsconfig.json && node scripts/smoke-test.mjs && node scripts/parity-test.mjs && npm run package:check
 
-  # Üç WASM varyantı (seri, threaded, memory64) PARALEL job'larda derlenir; eskiden
-  # tek job'da art arda koşuyorlardı ve CI'ın kritik yolu buydu (2026-09-23 ölçümü:
-  # 2,5 + 3,5 + 3,6 dk seri, job toplamı 12,9 dk). `build-wasm` artık çıktıları toplar,
-  # determinizm eşitliğini ve UI build'ini koşar; ui/dist'i e2e ve deploy'a aktarır.
-  # Kapılar değişmedi, yalnız hangi runner'da koştukları değişti.
+  # Three WASM variants (serial, threaded, memory64) build in PARALLEL jobs; they used to
+  # run sequentially in one job and formed CI's critical path (2026-09-23 measurement:
+  # 2.5 + 3.5 + 3.6 minutes serially, 12.9 minutes total). `build-wasm` now collects the
+  # outputs, runs the determinism parity and UI build, and passes ui/dist to e2e and deploy.
+  # The gates did not change; only the runners on which they run changed.
   wasm-serial:
     name: WASM seri (ui/pkg)
     runs-on: ubuntu-latest
@@ -371,11 +377,11 @@ jobs:
 
       - uses: ./.github/actions/setup-node-deps
 
-      - name: WASM derle (seri — varsayılan, ui/pkg/)
+      - name: Build WASM (serial — default, ui/pkg/)
         working-directory: ui
         run: npm run wasm
 
-      - name: ui/pkg artifact yükle
+      - name: Upload ui/pkg artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wasm-serial
@@ -398,11 +404,11 @@ jobs:
 
       - uses: ./.github/actions/setup-node-deps
 
-      - name: Threaded WASM derle (ui/pkg-threads/ — UI build bunu dinamik import eder)
+      - name: Build threaded WASM (ui/pkg-threads/ — UI build imports this dynamically)
         working-directory: ui
         run: npm run wasm:threads
 
-      - name: ui/pkg-threads artifact yükle
+      - name: Upload ui/pkg-threads artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wasm-threads
@@ -424,23 +430,23 @@ jobs:
 
       - uses: ./.github/actions/setup-node-deps
 
-      # ⚠️ SÜRÜM ELLE YAZILMAZ. wasm-bindgen CLI'ın sürümü, derlenen koddaki wasm-bindgen
-      # crate'iyle EŞLEŞMEK ZORUNDADIR; ayrışırsa Memory64 çıktısı şema uyuşmazlığıyla
-      # reddedilir. Burada sabit bir `--version` yazmak o eşleşmeyi ELLE senkron tutulan
-      # bir kopyaya çevirir ve kapısı yoktur: `cargo update -p wasm-bindgen` yapan biri bu
-      # satırı unuttuğunda CI, kod yüzünden değil bakım borcu yüzünden kırılır. Sürüm artık
-      # tek kaynaktan — Cargo.lock'tan — okunur, böylece ayrışma imkânsızdır.
+      # ⚠️ NEVER WRITE THE VERSION BY HAND. The wasm-bindgen CLI version MUST MATCH the
+      # wasm-bindgen crate in the compiled code; if they diverge, Memory64 output is rejected
+      # with a schema mismatch. A hard-coded `--version` would turn this into a manually
+      # synchronized copy with no gate: if someone runs `cargo update -p wasm-bindgen` and
+      # forgets this line, CI breaks from maintenance debt rather than code. The version is
+      # now read from one source — Cargo.lock — so divergence is impossible.
       #
-      # Kurulum `taiki-e/install-action` ile PREBUILT binary'den yapılır — repo'nun
-      # cargo-audit ve cargo-tarpaulin için zaten kullandığı yol. Öncesinde bu adım
-      # `cargo install` ile KAYNAKTAN derliyordu ve ölçülen maliyeti 86 saniyeydi.
-      # Action kendi indirme retry'ını taşır, yani `wasm-pack`taki elle döngüye burada
-      # gerek kalmaz; binary bulunamazsa kaynaktan derlemeye kendisi düşer.
-      - name: wasm-bindgen sürümünü Cargo.lock'tan oku
+      # Installation uses a PREBUILT binary through `taiki-e/install-action` — the path the
+      # repository already uses for cargo-audit and cargo-tarpaulin. Previously this step
+      # compiled from SOURCE with `cargo install`, at a measured cost of 86 seconds.
+      # The action has its own download retry, so no manual loop like the one in `wasm-pack`
+      # is needed here; it falls back to a source build if the binary is unavailable.
+      - name: Read wasm-bindgen version from Cargo.lock
         run: |
           set -uo pipefail
-          # `^name = "wasm-bindgen"$` TAM eşleşmedir: wasm-bindgen-macro / -rayon /
-          # -shared gibi komşu paketleri kapmaz.
+          # `^name = "wasm-bindgen"$` is an EXACT match: it does not capture neighboring
+          # packages such as wasm-bindgen-macro / -rayon / -shared.
           VER=$(grep -A 1 '^name = "wasm-bindgen"$' Cargo.lock \
                 | grep '^version' | head -1 | cut -d'"' -f2)
           if [ -z "$VER" ]; then
@@ -450,16 +456,16 @@ jobs:
           echo "Cargo.lock'taki wasm-bindgen: $VER"
           echo "WBG_VER=$VER" >> "$GITHUB_ENV"
 
-      - name: wasm-bindgen CLI kur (Memory64 — sürüm Cargo.lock'tan)
+      - name: Install wasm-bindgen CLI (Memory64 — version from Cargo.lock)
         uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
         with:
           tool: wasm-bindgen-cli@${{ env.WBG_VER }}
 
-      - name: wasm-bindgen sürümü Cargo.lock ile aynı mı
+      - name: Does the wasm-bindgen version match Cargo.lock?
         run: |
           set -uo pipefail
-          # Kurulan CLI ile derlenen crate ayrışırsa Memory64 çıktısı şema uyuşmazlığıyla
-          # reddedilir. Kurulum yolu ne olursa olsun eşleşme burada KANITLANIR.
+          # If the installed CLI and compiled crate diverge, Memory64 output is rejected with
+          # a schema mismatch. This proves the match regardless of the installation path.
           got=$(wasm-bindgen --version | awk '{print $2}')
           if [ "$got" != "$WBG_VER" ]; then
             echo "::error::wasm-bindgen CLI $got kuruldu ama Cargo.lock $WBG_VER diyor."
@@ -467,11 +473,11 @@ jobs:
           fi
           echo "wasm-bindgen CLI $got = Cargo.lock $WBG_VER"
 
-      - name: Memory64 WASM derle (ui/pkg64/)
+      - name: Build Memory64 WASM (ui/pkg64/)
         working-directory: ui
         run: npm run wasm:64
 
-      - name: ui/pkg64 artifact yükle
+      - name: Upload ui/pkg64 artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wasm64
@@ -489,53 +495,54 @@ jobs:
 
       - uses: ./.github/actions/setup-node-deps
 
-      - name: ui/pkg artifact indir
+      - name: Download ui/pkg artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: wasm-serial
           path: ui/pkg
 
-      - name: ui/pkg-threads artifact indir
+      - name: Download ui/pkg-threads artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: wasm-threads
           path: ui/pkg-threads
 
-      - name: ui/pkg64 artifact indir
+      - name: Download ui/pkg64 artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: wasm64
           path: ui/pkg64
 
-      # UI, gtfs-sdk'yı kaynaktan (sdk/src) derler ve sdk/pkg'deki WASM'ı paketler.
-      # O WASM'ı `sdk-test` job'u aynı betikle (build-wasm.mjs, wasm-pack 0.15.0,
-      # binaryen 130.0.0) zaten üretiyor; burada yeniden derlenmez, indirilir.
-      - name: sdk/pkg artifact indir
+      # The UI builds gtfs-sdk from source (sdk/src) and packages the WASM in sdk/pkg.
+      # The `sdk-test` job already produces that WASM with the same script (build-wasm.mjs,
+      # wasm-pack 0.15.0, binaryen 130.0.0); download it here instead of rebuilding it.
+      - name: Download sdk/pkg artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: sdk-pkg
           path: sdk/pkg
 
-      - name: sdk/pkg64 artifact indir
+      - name: Download sdk/pkg64 artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: sdk-pkg64
           path: sdk/pkg64
 
-      - name: wasm32 / wasm64 deterministik çıktı eşitliği
+      - name: wasm32 / wasm64 deterministic output parity
         working-directory: ui
         run: npm run wasm:64:parity
 
-      # `--ignore-scripts`: `prebuild` (npm run sdk:build) SDK WASM'ını yeniden derlerdi;
-      # sdk/pkg yukarıda indirildi. Asıl `build` betiği (tsc --noEmit + vite build) koşar.
-      - name: UI derle (taze ui/dist)
+      # `--ignore-scripts`: `prebuild` (npm run sdk:build) would rebuild the SDK WASM;
+      # sdk/pkg was downloaded above. The actual `build` script (tsc --noEmit + vite build)
+      # runs here.
+      - name: Build UI (fresh ui/dist)
         working-directory: ui
         run: npm run build --ignore-scripts
 
-      # JapanBus prototipleri repoda tutuluyor ancak backend bağlantısı tamamlanana kadar
-      # Pages artifact'ına kopyalanmıyor; geçici akış bu nedenle pasif kalıyor.
+      # JapanBus prototypes remain in the repository but are not copied to the Pages artifact
+      # until the backend connection is complete; the temporary flow therefore stays inactive.
 
-      - name: ui/dist artifact yükle (e2e + deploy bunu tüketir)
+      - name: Upload ui/dist artifact (consumed by e2e + deploy)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ui-dist
@@ -553,8 +560,8 @@ jobs:
 
       - uses: ./.github/actions/setup-node-deps
 
-      # wasm yeniden derlenmez: build-wasm'ın ürettiği ui/dist indirilir; vite preview onu sunar.
-      - name: ui/dist artifact indir
+      # WASM is not rebuilt: download the ui/dist produced by build-wasm; vite preview serves it.
+      - name: Download ui/dist artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ui-dist
@@ -567,25 +574,25 @@ jobs:
           key: ${{ runner.os }}-playwright-${{ hashFiles('ui/package-lock.json') }}
           restore-keys: ${{ runner.os }}-playwright-
 
-      # 🔴 `--with-deps` KALDIRILDI (2026-08-19). O bayrak `apt-get update` çalıştırır ve
-      # DÖRT ardışık koşum tam orada asıldı: log `azure.archive.ubuntu.com` için `Ign:`
-      # satırlarını sonsuza kadar tekrarlıyordu — runner'ın apt aynası yanıt vermiyordu.
-      # Bizim kodumuzla ilgisi yok ve testler hiç başlamamıştı.
+      # 🔴 `--with-deps` was REMOVED (2026-08-19). That flag runs `apt-get update`, and
+      # FOUR consecutive runs hung there: the log repeated `Ign:` lines for
+      # `azure.archive.ubuntu.com` forever because the runner's apt mirror did not respond.
+      # This was unrelated to our code, and the tests never started.
       #
-      # GitHub'ın `ubuntu-latest` imajı Chromium'un sistem kütüphanelerini zaten taşır,
-      # dolayısıyla apt adımı gereksizdi. Kütüphane gerçekten eksikse tarayıcı AÇILMAZ
-      # ve test net bir hatayla düşer — asılmaz. Sınır yine de duruyor: bir sonraki
-      # asılma sessizce beklemek yerine 6 dakikada hata olur.
-      - name: Playwright browser kur
+      # GitHub's `ubuntu-latest` image already includes Chromium's system libraries, so the
+      # apt step was unnecessary. If a library is actually missing, the browser WILL NOT
+      # START and the test will fail clearly instead of hanging. The limit remains: a future
+      # hang fails after six minutes instead of waiting silently.
+      - name: Install Playwright browser
         timeout-minutes: 6
         working-directory: ui
         run: npx playwright install chromium
 
-      - name: E2E testleri çalıştır
+      - name: Run E2E tests
         working-directory: ui
         run: npx playwright test
 
-      - name: E2E rapor & sonuç artefaktları
+      - name: E2E report & result artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -602,32 +609,35 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Rust toolchain kur
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
 
-      # Prebuilt binary indir (kaynaktan derleme yerine; ~dakikalar tasarruf).
-      - name: cargo-audit kur
+      # Download a prebuilt binary instead of compiling from source; saves several minutes.
+      - name: Install cargo-audit
         uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
         with:
           tool: cargo-audit
 
-      # Ağ hatasını gerçek bulgudan AYIRIR: cargo-audit geçerli JSON ürettiyse tarama
-      # gerçekten koştu (bulgu varsa fail). JSON üretemediyse advisory-db'ye ulaşılamamıştır
-      # → 3 denemeye kadar tekrar; sonrasında uyarı basılır ama job kırmızı yanmaz
-      # (ağa ulaşamamak zafiyet kanıtı değildir; sonraki push'ta yeniden denenir).
-      - name: cargo audit (Rust bağımlılıkları — RustSec, ağ hatasına dayanıklı)
+      # DISTINGUISHES a network failure from a real finding: if cargo-audit produces valid
+      # JSON, the scan really ran (and fails if it found something). If it cannot produce
+      # JSON, the advisory DB was unreachable → retry up to three times; then warn without
+      # turning the job red (network unavailability is not evidence of a vulnerability;
+      # retry on the next push).
+      - name: cargo audit (Rust dependencies — RustSec, network-resilient)
         run: |
           set -uo pipefail
           for attempt in 1 2 3; do
-            # Adımın kabuğu `bash -e`: sıfır dışı çıkış betiği burada sessizce bitirirdi ve
-            # aşağıdaki bulgu/ağ ayrımı hiç koşmazdı. `|| code=$?` çıkışı yakalar.
+            # The step shell is `bash -e`: a nonzero exit would otherwise end the script
+            # silently here and skip the finding/network distinction below. `|| code=$?`
+            # captures the exit status.
             code=0
             cargo audit --json > cargo-audit.json 2> cargo-audit.err || code=$?
-            # Kriter bilinçli olarak GENİŞ: "stdout geçerli JSON mu?". cargo-audit ağ hatasında
-            # stdout'a JSON basmaz (stderr'e insan-okunur hata yazar), dolayısıyla JSON varsa
-            # tarama koşmuştur. Şema alan adına (`vulnerabilities`) bağlanmıyoruz: alan adı
-            # değişirse temiz koşu yanlışlıkla "ağ hatası" sayılır ve kapı SESSİZCE atlanırdı.
-            # Bu kriterle yanılma yönü güvenli taraftadır (fail eder, sessizce geçmez).
+            # The criterion is deliberately BROAD: "is stdout valid JSON?". On a network
+            # error cargo-audit writes no JSON to stdout (it writes a human-readable error
+            # to stderr), so JSON means the scan ran. We do not depend on the schema field
+            # (`vulnerabilities`): if that field changed, a clean run would be misclassified
+            # as a network error and the gate would be SILENTLY skipped. This criterion errs
+            # on the safe side (it fails rather than passing silently).
             if jq -e . cargo-audit.json > /dev/null 2>&1; then
               if [ "$code" -ne 0 ]; then
                 echo "::error::cargo audit gerçek bulgu raporladı (ağ hatası değil)."
@@ -649,21 +659,21 @@ jobs:
         with:
           install: 'false'
 
-      # Üretim (runtime) bağımlılıkları → BLOCKING. Deploy edilen statik sitenin npm runtime
-      # bağımlılığı olmadığından bu adım bugün temiz geçer; ama ileride eklenecek bir runtime
-      # açığı CI'ı kırar — gerçek güvenlik kapısı budur. (cargo audit shipped Rust deps → blocking.)
-      # Ağ hatasını gerçek bulgudan AYIRIR (2026-07-29'da `advisories/bulk → ECONNRESET`
-      # ana dalı kırmızı yakmıştı): npm audit --json `.metadata.vulnerabilities` ürettiyse
-      # tarama gerçekten koştu → exit code'a güven (high/critical → fail). Üretemediyse
-      # (`.error` döner) registry'ye ulaşılamamıştır → 3 denemeye kadar tekrar; sonrasında
-      # uyarı basılır ama job kırmızı yanmaz. Rerun ihtiyacı böylece ortadan kalkar.
-      - name: npm audit (üretim bağımlılıkları — blocking, ağ hatasına dayanıklı)
+      # Production (runtime) dependencies → BLOCKING. The deployed static site has no npm
+      # runtime dependency, so this is clean today; a future runtime vulnerability will
+      # break CI — this is the real security gate. (cargo audit shipped Rust deps → blocking.)
+      # DISTINGUISHES a network failure from a real finding (on 2026-07-29,
+      # `advisories/bulk → ECONNRESET` made the main branch red): if npm audit --json produces
+      # `.metadata.vulnerabilities`, the scan ran → trust the exit code (high/critical → fail).
+      # If it produces `.error`, the registry was unreachable → retry up to three times; then
+      # warn without turning the job red. This removes the need for a rerun just for network.
+      - name: npm audit (production dependencies — blocking, network-resilient)
         working-directory: ui
         run: |
           set -uo pipefail
           mkdir -p audit
           for attempt in 1 2 3; do
-            # `bash -e` altında çıkış kodunu yakala (cargo audit adımındaki açıklama).
+            # Capture the exit status under `bash -e` (see the cargo audit step above).
             code=0
             npm audit --omit=dev --audit-level=high --json > audit/npm-audit-prod.json 2> audit/npm-audit-prod.err || code=$?
             if jq -e '.metadata.vulnerabilities' audit/npm-audit-prod.json > /dev/null 2>&1; then
@@ -683,11 +693,12 @@ jobs:
           echo "::warning::npm audit 3 denemede de registry advisory endpoint'ine ulaşamadı — AĞ HATASI, zafiyet kanıtı DEĞİL. Tarama yapılamadı, adım atlandı."
           echo "⚠️ **npm audit (üretim) koşamadı**: registry advisory endpoint'ine 3 denemede de ulaşılamadı (ağ). Üretim bağımlılıkları bu koşuda TARANMADI." >> "$GITHUB_STEP_SUMMARY"
 
-      # Dev/build araç zinciri bulguları → NON-BLOCKING. Bunlar yalnızca lokal dev/build'i
-      # etkiler (Vitest/esbuild/vite dev-server); deploy edilen statik artefakt etkilenmez.
-      # Vitest/Vite major upgrade'i ayrı bir iş — takip: https://github.com/ttezer/gtfs-analyzer/issues/2
-      # Rapor JSON+metin olarak artefakta yazılır; loglarda kaybolmaz.
-      - name: npm audit (tüm bağımlılıklar — rapor + artefakt, non-blocking)
+      # Dev/build toolchain findings → NON-BLOCKING. They affect only local dev/build
+      # (Vitest/esbuild/vite dev-server); the deployed static artifact is unaffected.
+      # The Vitest/Vite major upgrade is a separate task — track it at
+      # https://github.com/ttezer/gtfs-analyzer/issues/2
+      # The report is written as JSON and text in an artifact, so it is not lost in logs.
+      - name: npm audit (all dependencies — report + artifact, non-blocking)
         working-directory: ui
         continue-on-error: true
         run: |
@@ -695,7 +706,7 @@ jobs:
           npm audit --audit-level=high | tee audit/npm-audit.txt || true
           npm audit --json > audit/npm-audit.json || true
 
-      - name: Audit raporu artefaktı
+      - name: Upload audit report artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -710,13 +721,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Rust toolchain kur
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
           components: llvm-tools-preview
 
-      # Okuma/budama/yazma ayrımı Rust Tests işindekiyle aynı (gerekçe orada).
-      - name: Cargo cache (oku)
+      # The read/prune/write split is the same as in Rust Tests (the rationale is there).
+      - name: Cargo cache (read)
         id: cargo-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -727,20 +738,22 @@ jobs:
           key: ${{ runner.os }}-tarpaulin-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-tarpaulin-
 
-      # Prebuilt binary indir (kaynaktan derleme yerine; ~dakikalar tasarruf).
-      - name: cargo-tarpaulin kur
+      # Download a prebuilt binary instead of compiling from source; saves several minutes.
+      - name: Install cargo-tarpaulin
         uses: taiki-e/install-action@a2a5f6e99e1a31540baa0468acfa302cff0f359f # v2
         with:
           tool: cargo-tarpaulin
 
-      # wasm crate'i host'ta derlenemediği için hariç tutulur.
-      # Gerçek baseline (ilk CI): %70.14. Eşik mevcut oranın altına (65) konumlandı; ratchet ile yükseltilir.
-      # --engine llvm: varsayılan ptrace motoru bazı testlerde segfault veriyordu (safe Rust kaynaklı
-      # değil; LLVM source-based coverage ptrace kullanmaz ve kararlıdır). llvm-tools-preview gerekir.
-      - name: cargo tarpaulin (eşik altındaysa fail)
+      # Exclude the wasm crate because it cannot be built on the host.
+      # Actual baseline (first CI): 70.14%. The threshold is below the current rate (65) and
+      # is raised with the ratchet.
+      # --engine llvm: the default ptrace engine segfaulted in some tests (not because of
+      # safe Rust; LLVM source-based coverage does not use ptrace and is stable). Requires
+      # llvm-tools-preview.
+      - name: cargo tarpaulin (fail below threshold)
         run: cargo tarpaulin --engine llvm --workspace --exclude gtfs-wasm --out Html --out Lcov --output-dir coverage --fail-under 65 --timeout 300
 
-      - name: Rust coverage artefaktı
+      - name: Upload Rust coverage artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -748,7 +761,7 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
 
-      - name: Cargo cache — kendi paketlerimizin çıktılarını sil
+      - name: Cargo cache — remove our package outputs
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cargo-cache.outputs.cache-hit != 'true'
         run: cargo clean -p gtfs-analyzer -p gtfs-analyzer-python -p gtfs-config -p gtfs-core -p gtfs-pipeline -p gtfs-rules -p gtfs-wasm
 
@@ -785,8 +798,8 @@ jobs:
           python -m pip install dist/*.whl
           python -m unittest discover -s tests -p 'test_python_api.py' -v
 
-  # GitHub Pages deploy — yalnız main'e push'ta. build-wasm'ın ürettiği ui/dist artifact'ını
-  # kaynaktan-taze olarak deploy eder (committed dist yok; drift imkânsız).
+  # GitHub Pages deploy — only on a push to main. Deploy the ui/dist artifact produced by
+  # build-wasm from a fresh checkout (no committed dist; drift is impossible).
   deploy:
     name: Deploy
     needs: [rust-test, ts-test, sdk-test, sdk-wasm64-test, build-wasm, e2e, security-audit, python-package]
@@ -797,7 +810,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
-      actions: write   # mükerrer github-pages artifact'ını silmek için
+      actions: write   # to delete duplicate github-pages artifacts
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -811,10 +824,10 @@ jobs:
           name: ui-dist
           path: ui/dist
 
-      # Re-run'larda upload-pages-artifact yeni bir "github-pages" artifact'ı ekler ama
-      # eskisini silmez → run içinde 2 tane olur → deploy-pages@v5 "Multiple artifacts
-      # named github-pages" ile patlar. Upload'tan önce mevcut olan(lar)ı temizle.
-      - name: Eski github-pages artifact'ını temizle
+      # On re-runs, upload-pages-artifact adds a new "github-pages" artifact without deleting
+      # the old one → two exist in the run → deploy-pages@v5 fails with "Multiple artifacts
+      # named github-pages". Remove existing artifact(s) before uploading.
+      - name: Remove old github-pages artifact
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}

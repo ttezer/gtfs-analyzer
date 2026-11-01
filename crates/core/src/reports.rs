@@ -1,22 +1,22 @@
 use crate::{R9Label, ReportItem};
 use serde::{Deserialize, Serialize};
 
-/// R1: Yayınlanabilirlik kararı — resmi GTFS spec kapısı.
-/// Yalnız `Spec + Kritik` (otorite `GtfsSpec`) yayını engeller; diğer sınıflar (Interop/
-/// Quality/Analytics) R1'i etkilemez. Interop/tüketici hazırlığı ayrı: R8 + interop_score.
+/// R1: Publishability decision — the official GTFS spec gate.
+/// Only `Spec + Kritik` (authority `GtfsSpec`) blocks publication; other classes (Interop/
+/// Quality/Analytics) do not affect R1. Interop/consumer readiness is separate: R8 + interop_score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R1Report {
-    /// Feed yayına uygun mu. **`blockers.is_empty()` İLE AYNI ŞEY DEĞİLDİR** (issue #133):
-    /// doğrulama kapsamı eksikse bulgu olmaması "temiz" demek değil, "BAKAMADIK" demektir.
-    /// Bu yüzden `publishable = blocker YOK ∧ coverage_complete`.
+    /// Is the feed publishable? This is **NOT THE SAME AS `blockers.is_empty()`** (issue #133):
+    /// when validation coverage is incomplete, no findings means "COULD NOT INSPECT", not
+    /// "clean". Therefore `publishable = blocker YOK ∧ coverage_complete`.
     pub publishable: bool,
-    /// Yayın kararı için gereken kanıtın TAMAMI toplanabildi mi.
+    /// Was ALL evidence required for the publication decision collected?
     ///
-    /// `false` olduğunda zorunlu bir dosya (agency/stops/routes/trips/stop_times ya da bir
-    /// takvim dosyası) okunamamıştır ve o dosyaya bağlı kurallar HİÇ koşmamıştır.
-    /// ⚠️ İsteğe bağlı bir dosyanın okunamaması bu bayrağı DÜŞÜRMEZ — bozuk bir
-    /// `attributions.txt` yüzünden geçerli feed'i yayından men etmek, projenin
-    /// `PTH_017` asimetrisinde adı konmuş ağır hatadır.
+    /// When `false`, a required file (agency/stops/routes/trips/stop_times or a calendar
+    /// file) could not be read, and rules depending on that file did not run AT ALL.
+    /// ⚠️ Failure to read an optional file does NOT LOWER this flag — blocking a valid feed
+    /// because of a broken `attributions.txt` is the serious error named in the project's
+    /// `PTH_017` asymmetry.
     #[serde(default = "default_true")]
     pub coverage_complete: bool,
     pub blocker_notice_ids: Vec<String>,
@@ -26,32 +26,33 @@ fn default_true() -> bool {
     true
 }
 
-/// R2: Tüm notice'ların teknik listesi — file/line/field/observed_value ile birlikte.
+/// R2: Technical list of all notices — including file/line/field/observed_value.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R2Report {
     pub items: Vec<ReportItem>,
 }
 
-/// R3: Operasyonel kalite — ANALYTICS sınıfı notice'ları.
+/// R3: Operational quality — ANALYTICS-class notices.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R3Report {
     pub items: Vec<ReportItem>,
 }
 
-/// R4: Coğrafi doğruluk raporu.
-/// SHP_013/014/016 notice'larından üretilir; display_label = "GEO_008/010/011".
-/// GEO_008/010/011 için ayrı Notice üretilmez.
+/// R4: Geographic accuracy report.
+/// Built from SHP_013/014/016 notices; display_label = "GEO_008/010/011".
+/// No separate Notice is produced for GEO_008/010/011.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R4Report {
     pub items: Vec<ReportItem>,
 }
 
-/// R5: Genel Skor kartı — 0–100 ağırlıklı genel skor (Spec×40%+Interop×30%+Quality×20%+Analytics×10%) + sınıf kırılımı (MET_004).
+/// R5: Overall scorecard — weighted score from 0–100
+/// (Spec×40%+Interop×30%+Quality×20%+Analytics×10%) plus class breakdown (MET_004).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R5Report {
     pub score: f64,
-    /// Yayınlanabilirlik skoru: yalnızca blocker-eligible notice'lardan (Kritik SPEC/INTEROP
-    /// + Yüksek INTEROP). 100 = temiz, 0 = ağır blocker yükü.
+    /// Publishability score: only from blocker-eligible notices (Kritik SPEC/INTEROP
+    /// + high INTEROP). 100 = clean, 0 = heavy blocker load.
     pub pub_score: f64,
     pub spec_score: f64,
     pub interop_score: f64,
@@ -59,46 +60,46 @@ pub struct R5Report {
     pub analytics_score: f64,
 }
 
-/// R7: Erişilebilirlik raporu — wheelchair_*, stop_access, PTH_012/013.
+/// R7: Accessibility report — wheelchair_*, stop_access, PTH_012/013.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R7Report {
     pub items: Vec<ReportItem>,
 }
 
-/// R8: Journey planner hazırlık raporu — yalnızca INTEROP sınıfı.
+/// R8: Journey planner readiness report — INTEROP class only.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R8Report {
     pub items: Vec<ReportItem>,
 }
 
-/// R9 kuyruğundaki tek bir düzeltme kalemi.
+/// One remediation item in the R9 queue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R9Item {
     pub rule_id: String,
     pub labels: Vec<R9Label>,
     pub priority_score: f64,
-    /// Bu kuralın notice'ları düzeltilseydi R5 overall skoru kaç puan artardı.
+    /// How many points would the R5 overall score increase if this rule's notices were fixed?
     pub score_delta: f64,
-    /// Bu kuralın notice'ları düzeltilseydi R5 pub_score kaç puan artardı.
-    /// Yalnızca blocker-eligible kurallar için sıfırdan büyük olur.
+    /// How many points would the R5 pub_score increase if this rule's notices were fixed?
+    /// Greater than zero only for blocker-eligible rules.
     pub pub_score_delta: f64,
     pub affected_instance_count: u32,
-    /// Bu feed'de blocks[] içinden gerçekten ateşlenmiş kural sayısı.
+    /// Number of rules in blocks[] that actually fired for this feed.
     pub realized_dependent_count: u32,
     pub base_effort: u8,
     pub fix_effort: f64,
-    /// İlgili canonical Notice id'leri.
+    /// Related canonical Notice IDs.
     pub notice_ids: Vec<String>,
 }
 
-/// R9: Remediation queue — bucket-first + priority_score azalan sıra.
+/// R9: Remediation queue — bucket-first, then descending priority_score.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct R9Report {
     pub items: Vec<R9Item>,
 }
 
-/// Tüm rapor görünümlerinin kapsayıcısı.
-/// R6 export aksiyonudur — veri yapısı UI tarafında yönetilir, burada yer almaz.
+/// Container for all report views.
+/// R6 is an export action — the data structure is managed by the UI and does not appear here.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportSet {
     pub r1: R1Report,

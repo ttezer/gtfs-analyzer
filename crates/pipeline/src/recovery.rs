@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-/// K1'in dosya keşfi ile sonraki aşamalar arasındaki güvenli kurtarma sözleşmesi.
+/// Safe recovery contract between K1 file discovery and later stages.
 ///
-/// Eksik opsiyonel bir dosya boş veri olarak güvenle işlenebilir. Gerçek pipeline K1'in
-/// okunamayan veya zorunlu olup eksik kalan dosyalarını `unavailable` olarak taşır; böylece
-/// yalnızca gerçekten kullanılamayan dosyaya bağlı alt kurallar durdurulur.
+/// A missing optional file can safely be processed as empty data. The real pipeline carries
+/// K1 files that are unreadable or required but missing as `unavailable`; only downstream
+/// rules that truly depend on an unavailable file are stopped.
 #[derive(Debug, Clone, Copy)]
 pub struct FileAvailability<'a> {
     /// `None` is the compatibility mode used by direct K4/K5/K6 callers and tests:
@@ -28,25 +28,24 @@ impl<'a> FileAvailability<'a> {
         }
     }
 
-    /// Dosya okunabilir durumda mı? Dosyanın hiç bulunmaması, opsiyonel bir dosya için
-    /// boş veri olarak işlenebildiğinden bu sonucu false yapmaz.
+    /// Is the file readable? A file being absent does not make this false because an optional
+    /// file can be processed as empty data.
     pub fn available(&self, file: &str) -> bool {
         !self.unavailable.iter().any(|f| f == file)
     }
 
-    /// Dosya envanterde mevcut mu? `complete()` çağrılarında sentetik kayıtların tümü
-    /// mevcut kabul edilir; gerçek K1 akışında ise ZIP'te gerçekten görülen dosyaları
-    /// kullanır.
+    /// Is the file present in the inventory? In `complete()` calls, all synthetic records
+    /// are considered present; in the real K1 flow, it uses the files actually seen in the ZIP.
     pub fn present(&self, file: &str) -> bool {
         self.present.is_none_or(|files| files.contains(file))
     }
 
-    /// Dosya hem gerçekten mevcut hem de okunabilir mi?
+    /// Is the file both actually present and readable?
     pub fn present_and_available(&self, file: &str) -> bool {
         self.present(file) && self.available(file)
     }
 
-    /// Bu nesne gerçek K1 dosya envanterinden mi üretildi?
+    /// Was this object created from the real K1 file inventory?
     pub fn has_inventory(&self) -> bool {
         self.present.is_some()
     }

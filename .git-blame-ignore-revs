@@ -1,0 +1,200 @@
+# Translate release workflow comments to English.
+47a7b820
+
+# Translate CI workflow comments to English.
+fa8b3775
+
+# Translate config comments and test messages to English.
+d7e4dbfb
+
+# Translate core report comments to English.
+48e900d9
+
+# Translate agency attribution comments to English.
+36b0f761
+
+# Translate core enum comments to English.
+2d10a0f7
+
+# Translate core metrics and notice comments to English.
+0c322a43
+
+# Translate WASM localization comments to English.
+7923aea3
+
+# Translate WASM pipeline comments to English.
+4adf932d
+
+# Translate WASM test guards to English.
+03ced544
+
+# Translate decompression guard comments to English.
+a437b7fe
+
+# Translate remaining config test messages to English.
+371387ef
+
+# Translate remaining WASM test messages to English.
+4c1b5492
+
+# Translate K1 type and ZIP comments to English.
+b95e1f4e
+
+# Translate K1 ZIP and CSV comments to English.
+92239e0e
+
+# Translate K1 tokenizer and schema comments to English.
+12ffc80f
+
+# Translate K1 whitespace and row checks to English.
+5d06c76e
+
+# Translate K1 character and markup comments to English.
+669260a0
+
+# Translate K1 ID and column comments to English.
+92a6f718
+
+# Translate K1 schema and wrapped-feed comments to English.
+6272e225
+
+# Translate K1 archive traversal comments to English.
+2694e3e5
+
+# Translate K1 streaming and header comments to English.
+d2252d6f
+
+# Translate K1 row and file checks to English.
+17fab81f
+
+# Translate K1 GeoJSON validation comments to English.
+10e927c6
+
+# Translate K1 geometry topology comments to English.
+f21d8ca0
+
+# Translate K1 archive and wrapper tests to English.
+0982df76
+
+# Translate K1 regression test comments to English.
+a8b34147
+
+# Translate K1 HTML entity test comments to English.
+d8a4ccc3
+
+# Translate remaining K1 comments to English.
+07ee649a
+
+# Translate K2 agency and attribution comments to English.
+5f1384e4
+
+# Translate K2 booking and calendar comments to English.
+33b1e8de
+
+# Translate K2 fare and schedule comments to English.
+0bf47c0d
+
+# Translate remaining small K2 comments to English.
+72f4bfd9
+
+# Translate generated K2 table comments to English.
+1e786cb0
+
+# Translate K2 orchestration comments to English.
+be59ef73
+
+# Translate K2 pathway comments to English.
+63dd876a
+
+# Translate K2 route comments to English.
+b0a93bf6
+
+# Translate K2 shape comments to English.
+2b42de41
+
+# Translate K2 stop comments to English.
+24bdcbe3
+
+# Translate K2 translation comments to English.
+6f4a859d
+
+# Translate K2 trip comments to English.
+6d8324a4
+
+# Translate K2 common comments to English.
+431a0a97
+
+# Translate missed trailing comments.
+f43597ba
+
+# Translate remaining inline Turkish comments.
+365e6da1
+
+# Translate remaining tab comment.
+7abbbf5f
+
+# Translate K3 comments.
+8a9eed88
+
+# Translate HTML generator headers.
+48d2f3f9
+
+# Translate HTML generator usage comments.
+08efe868
+
+# Translate K4 cross-reference comments to English (part 1).
+2c775fb1
+
+# Translate remaining K4 comments and repair corrupted section dividers.
+693ac007
+
+# Translate K5 derived-data comments.
+77a9da7c
+
+# Translate missed K5 inline comments and restore comment indentation.
+db19cd77
+
+# Translate K7 reporting comments.
+6476529f
+
+# Preserve K7 test message data.
+f4440ce0
+
+# Translate agency attribution comments.
+0f6722bc
+
+# Translate pipeline support comments.
+60481054
+
+# Translate pipeline example comments.
+c8ae246a
+
+# Translate pipeline test comments.
+1551d8b0
+
+# Translate real feed mutation comments.
+a1b0e006
+
+# Translate emit proof helper comments.
+d7972eba
+
+# Preserve emit proof code spans.
+57060c7e
+
+# Translate missed pipeline inline comments.
+61b9c2a2
+
+# Translate emit proof fixture comments.
+73d7d94d
+
+# Translate emit proof checks.
+dfdb3e77
+
+# Translate agency URL messages.
+e6e481c6
+
+# Translate spec conformance helper text.
+d08d91e6
+
+# Reverted pipeline library translation (card-overlap file).
+120848b5

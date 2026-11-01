@@ -1,10 +1,11 @@
-//! Agency dökümünün sayım sözleşmesi (MobilityData gtfs-validator #2201, P3).
+//! Counting contract for the agency breakdown (MobilityData gtfs-validator #2201, P3).
 //!
-//! Üç birim birbirine karışmaz: `finding_count` (rapora giren bulgu), `affected_entity_count`
-//! (özetlerin altındaki ham kayıtlar dahil), `displayed_sample_count` (sonuçta taşınan).
-//! Native'de cap yoktur; bu yüzden döküm sonuçtaki notice listesiyle BİREBİR örtüşmelidir.
-//! Boşluk türevlerini bastırılmış saymamak da buradan çıkar: bastırılan notice sonuçta yoksa
-//! dökümde de yoktur.
+//! Three units must not be conflated: `finding_count` (findings entering the report),
+//! `affected_entity_count` (including raw records under summaries), and
+//! `displayed_sample_count` (carried in the result). Native has no cap, so the breakdown
+//! must match the resulting notice list EXACTLY. Whitespace derivatives are not counted as
+//! suppressed here either: if a suppressed notice is absent from the result, it is absent
+//! from the breakdown.
 
 use std::collections::BTreeMap;
 use std::io::Write as _;
@@ -60,7 +61,7 @@ fn assert_contract(name: &str, result: &ValidationResult) {
     }
 }
 
-/// Parite fixture'larının tamamı (taban + her vaka) sözleşmeyi sağlamalı.
+/// Every parity fixture (baseline + each case) must satisfy the contract.
 #[test]
 fn breakdown_matches_the_reported_notices_on_every_parity_fixture() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/wasm-parity");
@@ -78,8 +79,9 @@ fn breakdown_matches_the_reported_notices_on_every_parity_fixture() {
     }
 }
 
-/// İki agency'nin birer seferinde direction_id geçersiz: TRP_005 tek bulgu, iki etkilenen
-/// sefer, A=1 B=1. Route düzeyi bir kural (DQ_003, route_desc yok) route başına sayılır.
+/// Each of two agencies has one trip with an invalid direction_id: one TRP_005 finding,
+/// two affected trips, A=1 B=1. A route-level rule (DQ_003, missing route_desc) is counted
+/// once per route.
 #[test]
 fn breakdown_separates_findings_from_affected_entities_per_agency() {
     let files: serde_json::Map<String, Value> = [
@@ -99,8 +101,8 @@ fn breakdown_separates_findings_from_affected_entities_per_agency() {
     assert_eq!(breakdown.agencies, ["A", "B"]);
     assert_eq!(breakdown.agency_names, ["Alpha", "Beta"]);
     assert_eq!(breakdown.agency_trip_counts, [1, 1]);
-    // Ayrıntı süzgeci: her agency'nin indeksleri gerçekten o agency'nin notice'larını
-    // gösterir; TRP_005 özeti her iki agency'de de listelenir.
+    // Detail filter: each agency's indices really point to that agency's notices;
+    // the TRP_005 summary is listed for both agencies.
     let trp005 = result.notices.iter().position(|n| n.rule_id == "TRP_005").unwrap() as u32;
     assert!(breakdown.agency_notice_indices[0].contains(&trp005));
     assert!(breakdown.agency_notice_indices[1].contains(&trp005));

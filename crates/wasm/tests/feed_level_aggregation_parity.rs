@@ -1,16 +1,16 @@
-//! Native/WASM parite nöbeti: feed-level toplulama.
+//! Native/WASM parity guard: feed-level aggregation.
 //!
-//! 22 kuralın feed-level toplulaması yalnız native `validate_bytes`'a eklenmiş, WASM
-//! orkestratörleri atlamıştı. Registry aynı kuralları `Feed` dedup seviyesine aldığı
-//! için tarayıcı ve npm SDK ham satır notice'larından birini gösteriyor, etkilenen
-//! kayıt sayısını kaybediyordu. Native CLI koşan korpus denetimi bunu GÖREMEZ; kapı
-//! bu yüzden kaynak düzeyinde kurulur: her orkestratör toplulamayı rapor kapsamından
-//! (ve WASM'da cap'ten) ÖNCE çağırmak zorundadır.
+//! Feed-level aggregation for 22 rules existed only in native `validate_bytes`; the WASM
+//! orchestrators had skipped it. Because the registry puts those rules at `Feed` dedup level,
+//! the browser and npm SDK showed one raw-row notice and lost the affected-record count. A
+//! corpus audit running the native CLI CANNOT SEE this; the guard therefore operates at source
+//! level: every orchestrator must call aggregation BEFORE report scoping (and BEFORE the cap
+//! in WASM).
 
 const WASM_SRC: &str = include_str!("../src/lib.rs");
 const NATIVE_SRC: &str = include_str!("../../pipeline/src/lib.rs");
 
-/// Satır başı `//` yorumlarını atar; gerekçe yorumları fonksiyon adlarını içerir.
+/// Removes line-start `//` comments; rationale comments contain function names.
 fn code_only(src: &str) -> String {
     src.lines()
         .filter(|l| !l.trim_start().starts_with("//"))
@@ -18,11 +18,11 @@ fn code_only(src: &str) -> String {
         .join("\n")
 }
 
-/// `fn <name>(` ile başlayan gövdeyi bir sonraki üst düzey `fn` başlangıcına kadar döner.
+/// Returns the body beginning with `fn <name>(` up to the next top-level `fn`.
 fn body_of<'a>(src: &'a str, name: &str) -> &'a str {
     let start = src
         .find(&format!("fn {name}("))
-        .unwrap_or_else(|| panic!("`{name}` bulunamadı"));
+        .unwrap_or_else(|| panic!("`{name}` was not found"));
     let rest = &src[start + 1..];
     let end = ["\nfn ", "\npub fn ", "\n#[wasm_bindgen"]
         .iter()
@@ -35,12 +35,12 @@ fn body_of<'a>(src: &'a str, name: &str) -> &'a str {
 fn assert_aggregates_before(body: &str, name: &str, later: &[&str]) {
     let agg = body
         .find("aggregate_feed_level_notices(")
-        .unwrap_or_else(|| panic!("`{name}` feed-level toplulamayı çağırmıyor"));
+        .unwrap_or_else(|| panic!("`{name}` does not call feed-level aggregation"));
     for call in later {
         let pos = body
             .find(call)
-            .unwrap_or_else(|| panic!("`{name}` içinde `{call}` yok"));
-        assert!(agg < pos, "`{name}`: toplulama `{call}`'dan ÖNCE çağrılmalı");
+            .unwrap_or_else(|| panic!("`{name}` does not contain `{call}`"));
+        assert!(agg < pos, "`{name}`: aggregation must be called BEFORE `{call}`");
     }
 }
 
@@ -67,11 +67,11 @@ fn wasm_cached_rerun_aggregates_before_scope_and_cap() {
 #[test]
 fn native_validate_bytes_aggregates_before_scope() {
     let src = code_only(NATIVE_SRC);
-    // `validate_bytes` denetim gözlemcisi için ince bir sarmalayıcıdır; asıl orkestratör
-    // `validate_bytes_inspected`'tır. Sarmalayıcı başka bir yola saparsa kapı körleşir.
+    // `validate_bytes` is a thin wrapper for the audit observer; the actual orchestrator is
+    // `validate_bytes_inspected`. If the wrapper takes another path, the guard goes blind.
     assert!(
         body_of(&src, "validate_bytes").contains("validate_bytes_inspected("),
-        "`validate_bytes` artık `validate_bytes_inspected`'a devretmiyor"
+        "`validate_bytes` no longer delegates to `validate_bytes_inspected`"
     );
     assert_aggregates_before(
         body_of(&src, "validate_bytes_inspected"),

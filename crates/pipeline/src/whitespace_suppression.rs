@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Üretim yerinde atlanan, yalnız DQ_016 kökünden türemiş bulguların çağrı-yerel özeti.
-/// Tam `Notice` ayırmadan audit sayısını ve kural kümesini K7'ye taşır.
+/// Call-local summary of findings skipped at their production site and derived only from
+/// the DQ_016 root. Carries the audit count and rule set to K7 without allocating a full
+/// `Notice`.
 #[derive(Debug, Default, Clone)]
 pub struct WhitespaceSuppressions {
     by_file: BTreeMap<String, BTreeMap<String, u64>>,

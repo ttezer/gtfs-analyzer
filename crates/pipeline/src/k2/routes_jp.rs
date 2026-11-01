@@ -1,9 +1,9 @@
 use super::common::{build_row_map, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
-/// GTFS-JP `routes_jp.txt` — routes.txt'e bağlı Japonya-özel rota bilgisi.
-/// `origin_stop`, `via_stop` ve `destination_stop` GTFS-JP'de başvuru metnidir;
-/// stop_id foreign key'i olarak yorumlanmaz.
+/// GTFS-JP `routes_jp.txt` — Japan-specific route information linked to routes.txt.
+/// `origin_stop`, `via_stop`, and `destination_stop` are reference text in GTFS-JP;
+/// they are not interpreted as stop_id foreign keys.
 #[derive(Debug, Clone)]
 pub struct RoutesJpRecord {
     pub route_id: String,

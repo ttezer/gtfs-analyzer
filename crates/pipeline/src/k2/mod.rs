@@ -88,7 +88,7 @@ use transfers::{validate_transfers, TransferRecord};
 use translations::TranslationRecord;
 use trips::{validate_trips_with_limits, TripInternTable, TripRecord};
 
-/// GTFS-JP profilini fiziksel dosya varlığıyla tanımlayan bilinen dosyalar.
+/// Known files that identify the GTFS-JP profile by physical presence.
 pub const GTFS_JP_FILES: [&str; 4] = [
     "agency_jp.txt",
     "office_jp.txt",
@@ -96,11 +96,11 @@ pub const GTFS_JP_FILES: [&str; 4] = [
     "pattern_jp.txt",
 ];
 
-/// K2 sonrasında üretilecek typed entity kayıtlarının kapsayıcısı.
+/// Container for the typed entity records produced after K2.
 #[derive(Debug, Default)]
 pub struct EntityRecords {
-    /// K4/K7'nin kullanacağı açık GTFS-JP profil seçimi. Varsayılan Auto'dur;
-    /// `Auto` yalnız geriye dönük uyumluluk modudur ve sürüm iddiası değildir.
+    /// Explicit GTFS-JP profile selection used by K4/K7. The default is Auto;
+    /// `Auto` is only a backward-compatibility mode, not a version claim.
     pub gtfs_jp_profile: GtfsJpProfile,
     pub agencies: Vec<AgencyRecord>,
     pub agency_jp: Vec<AgencyJpRecord>,
@@ -128,17 +128,16 @@ pub struct EntityRecords {
     pub networks: Vec<NetworkRecord>,
     pub office_jp: Vec<OfficeJpRecord>,
     pub pattern_jp: Vec<PatternJpRecord>,
-    /// GTFS-JP dosyalarından birinin ZIP'te fiziksel olarak mevcut olduğunu korur.
+    /// Preserves that one of the GTFS-JP files is physically present in the ZIP.
     pub has_gtfs_jp_file: bool,
     /// File/header inventory used by K4's GTFS-JP reserved namespace rule.
     /// Unknown files are supplied by K1; known files are copied from their raw
     /// headers before K2 drops the untyped input.
     pub gtfs_jp_namespace_headers: std::collections::HashMap<String, Vec<String>>,
-    /// K2'nin tek GTFS-JP sinyali. K4 üretim yolunda bu alanı okur; doğrudan
-    /// sentetik K4 çağrıları için yalnız envantersiz compatibility fallback'i
-    /// kullanılır.
+    /// K2's only GTFS-JP signal. The K4 production path reads this field; direct
+    /// synthetic K4 callers use it only as the inventory-free compatibility fallback.
     pub is_gtfs_jp: Option<bool>,
-    /// `pattern_jp.txt` dosyasının mevcut olup olmadığını, boş olsa bile korur.
+    /// Preserves whether `pattern_jp.txt` exists, even when it is empty.
     pub has_pattern_jp_file: bool,
     pub pathways: Vec<PathwayRecord>,
     pub rider_categories: Vec<RiderCategoryRecord>,
@@ -147,26 +146,26 @@ pub struct EntityRecords {
     pub fare_leg_join_rules: Vec<FareLegJoinRuleRecord>,
     pub route_networks: Vec<RouteNetworkRecord>,
     pub shapes: Vec<ShapePointRecord>,
-    /// shapes.txt shape_id intern tablosu (noktalar 4 baytlık indeks taşır)
+    /// shapes.txt shape_id intern table (points carry a 4-byte index)
     pub shape_interns: ShapeInternTable,
     pub stop_areas: Vec<StopAreaRecord>,
     pub stops: Vec<StopRecord>,
-    // Production'da BOŞ kalır — K2 artık Vec build etmez (bellek tasarrufu).
-    // Sadece testler doğrudan set eder; K6 fallback bu durumu from_records ile karşılar.
+    // EMPTY in production — K2 no longer builds a Vec (memory savings).
+    // Only tests set it directly; the K6 fallback handles this case with from_records.
     pub stop_times: Vec<StopTimeRecord>,
-    pub stop_times_index: StopTimesIndex, // production stop_times kaynağı (streaming K2)
+    pub stop_times_index: StopTimesIndex, // production stop_times source (streaming K2)
     pub timeframes: Vec<TimeframeRecord>,
     pub transfers: Vec<TransferRecord>,
     pub translations: Vec<TranslationRecord>,
     pub trips: Vec<TripRecord>,
     pub trip_interns: TripInternTable,
     pub has_route_networks_file: bool,
-    /// XFL_019: `routes.network_id`, networks.txt VARSA da yasaktır (spec: "Forbidden if the
-    /// route_networks.txt or networks.txt file exists"). İki dosya ayrı izlenir.
+    /// XFL_019: `routes.network_id` is forbidden even when networks.txt EXISTS (spec: "Forbidden if the
+    /// route_networks.txt or networks.txt file exists"). The two files are tracked separately.
     pub has_networks_file: bool,
-    /// Streaming parse edilen dosyaların fiziksel veri satırı sayıları (başlık hariç).
-    /// lib.rs file_stats döngüsünde K1 rows.len()==0 yerine bu sayaçlar kullanılır.
-    /// Yeni bir dosya stream edildiğinde buraya eklemek yeterli; lib.rs dokunmaz.
+    /// Physical data-row counts for streamed files (excluding the header).
+    /// The lib.rs file_stats loop uses these counters instead of K1 rows.len()==0.
+    /// When a new file is streamed, add it here; lib.rs needs no change.
     pub streaming_row_counts: FxHashMap<String, u64>,
 }
 
@@ -210,7 +209,7 @@ pub fn detect_gtfs_jp(records: &EntityRecords, physical_jp_file: bool) -> bool {
         })
 }
 
-/// K2 schema/field validation çıktısı.
+/// K2 schema/field validation output.
 #[derive(Debug, Default)]
 pub struct K2Result {
     pub records: EntityRecords,
@@ -218,16 +217,16 @@ pub struct K2Result {
     pub whitespace_suppressions: WhitespaceSuppressions,
 }
 
-/// Eşiği aşan AKIŞ dosyaları — ARC_022'nin karar kaynağı (issue #75).
+/// STREAMED files above the threshold — the decision source for ARC_022 (issue #75).
 ///
-/// ⚠️ **Sıralama ÇIKTI SIRASINI belirlemez** — 2026-08-07'de ölçüldü. Nihai sırayı K7
-/// verir: `notice_order_key` ARC_022'yi `entity_id`'ye (yani dosya adına) göre sıralar ve
-/// id'leri o sıraya göre yeniden atar. Determinizm de buradan gelir, buradaki `sort`tan
-/// değil (`FxHashMap` zaten sabit tohumlu; sıralamayı kaldırınca çıktı birebir aynı kaldı).
+/// ⚠️ **Sorting does not determine OUTPUT ORDER** — measured on 2026-08-07. K7 provides the
+/// final order: `notice_order_key` sorts ARC_022 by `entity_id` (the file name) and
+/// reassigns IDs in that order. Determinism comes from there, not from the `sort` here
+/// (`FxHashMap` already has a fixed seed; removing the sort produced identical output).
 ///
-/// O hâlde neden duruyor: bu fonksiyonun SÖZLEŞMESİ hash iç yapısına ve ekleme sırasına
-/// bağlı kalmasın diye. K7'nin sıralamasına dayanmak, iki uzak dosya arasında yazısız bir
-/// bağımlılık olurdu; maliyeti üç dosyalık bir `sort`.
+/// Why keep it, then: so this function's CONTRACT does not depend on hash internals or insertion
+/// order. Depending on K7's sorting would create an undocumented dependency between two distant
+/// files; the cost is a three-file `sort`.
 fn files_over_row_limit(counts: &FxHashMap<String, u64>, max_rows: u64) -> Vec<(&str, u64)> {
     let mut over: Vec<(&str, u64)> = counts
         .iter()
@@ -238,16 +237,16 @@ fn files_over_row_limit(counts: &FxHashMap<String, u64>, max_rows: u64) -> Vec<(
     over
 }
 
-/// `cfg` K2'de YALNIZ ARC_022 eşiği (`max_file_rows`) için okunur — K2 şema/alan katmanı
-/// tarihsel olarak yapılandırmasızdır. 2026-08-07'de (issue #71) eklendi: eşik K1 ve K2'de
-/// ayrı ayrı sabit kodluydu ve kurala fixture yazılamıyordu. Denetimin kendisi artık bu
-/// fonksiyonun sonundaki TEK geçişte (issue #75); alt modüllerde kopyası YOKTUR.
+/// `cfg` is read in K2 ONLY for the ARC_022 threshold (`max_file_rows`) — the K2 schema/field
+/// layer was historically unconfigured. Added on 2026-08-07 (issue #71): the threshold was
+/// hard-coded separately in K1 and K2, so the rule could not be fixture-tested. The check itself
+/// now lives in the SINGLE pass at the end of this function (issue #75); there is NO copy in submodules.
 pub fn validate(files: RawFiles, zip_bytes: Option<&[u8]>, cfg: &ValidatorConfig) -> K2Result {
     validate_with_stream_limit(files, zip_bytes, cfg, None)
 }
 
-/// SDK/WASM çağrısında stream edilen dört dosyaya config satır bütçesini de
-/// geçirir. Native uyumluluk için mevcut `validate` API'si sınırsız bırakılır.
+/// Passes the config row budget to the four files streamed in SDK/WASM calls.
+/// The existing `validate` API remains unlimited for native compatibility.
 pub fn validate_with_stream_limit(
     files: RawFiles,
     zip_bytes: Option<&[u8]>,
@@ -278,8 +277,8 @@ pub fn validate_with_stream_limit_and_jp_signal(
     )
 }
 
-/// Tam pipeline, yalnız K1'in gerçekten DQ_016 kökü ürettiği dosyalarda türevleri üretim
-/// yerinde sayaca çevirebilir. Doğrudan K2 çağrıları üstteki API ile eski çıktıyı korur.
+/// The full pipeline can materialize derivatives only for files where K1 actually produced a
+/// DQ_016 root. Direct K2 callers preserve the old output through the API above.
 pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
     mut files: RawFiles,
     zip_bytes: Option<&[u8]>,
@@ -332,9 +331,9 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         rows_inner_cap as f64 * std::mem::size_of::<smol_str::SmolStr>() as f64
             / 1_048_576.0,
     ));
-    // #15 W2: stop_times EN SONA ertelenir — diğer tüm dosyalar parse edilip k1.files'in
-    // kalanı (özellikle dev shapes ham satırları) drop edildikten SONRA işlenir. Böylece
-    // stop_times index'i kurulurken K1 raw ile AYNI ANDA canlı olmaz (~K1-raw kadar düşük peak).
+    // #15 W2: stop_times is deferred to the very END — it runs AFTER all other files are parsed
+    // and the rest of k1.files (especially large shapes raw rows) is dropped. Thus K1 raw is not
+    // live at the SAME TIME while the stop_times index is built (~K1-raw peak).
     let stop_times_file = files.remove("stop_times.txt");
 
     if let Some(file) = files.get("agency.txt") {
@@ -652,8 +651,8 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         records.route_networks = parse_route_networks(file);
     }
 
-    // #15 W2: diğer tüm ham dosyalar parse edildi; stop_times index'ini kurmadan ÖNCE
-    // k1.files'in kalanını (büyük shapes raw dahil) bırak → K2 peak'i ~K1-raw kadar düşer.
+    // #15 W2: all other raw files have been parsed; before building the stop_times index,
+    // drop the rest of k1.files (including large shapes raw rows) → K2 peak falls by ~K1-raw.
     mem_log("K2 before stop_times (dropping raw files)");
     let build_trip_stop_set = stop_times_file.is_some()
         && [
@@ -690,18 +689,18 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         mem_log("K2 after stop_times index");
     }
 
-    // ARC_022: satır sayısı limiti — AKIŞ dosyalarının HEPSİ için TEK geçiş (issue #75).
+    // ARC_022: row-count limit — ONE pass for ALL STREAMED files (issue #75).
     //
-    // 🔴 Eskiden bu denetim `shapes.rs` ve `stop_times.rs` içinde AYRI AYRI kopyalanmıştı;
-    // K1'de stream edilen diğer iki dosya (`trips.txt`, `calendar_dates.txt`) hiçbir yerde
-    // denetlenmiyordu — `rows` K1'de boş kalıyor, K2'de de emit noktaları yoktu. Yani kural
-    // 1M satırı gerçekte en çok aşan dosyalarda SUSUYORDU. Kopyayı çoğaltmak yerine karar
-    // buraya toplandı: `streaming_row_counts`'a bir dosya eklendiği anda kapsama da girer.
+    // 🔴 This check used to be copied SEPARATELY into `shapes.rs` and `stop_times.rs`;
+    // the other two files streamed in K1 (`trips.txt`, `calendar_dates.txt`) were checked nowhere —
+    // `rows` stayed empty in K1 and K2 had no emit points. Thus the rule was SILENT for the
+    // files that actually exceeded 1M rows most often. The decision is centralized here instead:
+    // adding a file to `streaming_row_counts` brings it into coverage immediately.
     //
-    // ⚠️ Sıralamanın gerekçesi `files_over_row_limit`'in doc yorumunda — determinizm DEĞİL.
+    // ⚠️ The reason for sorting is in `files_over_row_limit`'s doc comment — NOT determinism.
     //
-    // ⚠️ Sayılan şey PARSE EDİLEN kayıt sayısıdır (K1'in ham satır sayısı değil); `file_stats`
-    // de aynı kaynaktan gösterir, iki yer tutarlı kalsın diye böyle.
+    // ⚠️ The count is PARSED records (not K1's raw row count); `file_stats` reports the same
+    // source so the two places remain consistent.
     {
         let mut ctr = 0u32;
         for (name, rows) in
@@ -727,10 +726,10 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
         }
     }
 
-    // AGN_013 burada ÜRETİLMEZ: K4 `check_agencies` her acenteyi karşılaştırır. Buradaki
-    // kopya yalnız ilk acenteye bakıyor ve boş `feed_lang` ile de ateşliyordu (kart:
-    // "`feed_lang` boşsa AGN_013 çalışmaz"). Registry `Feed` dedup'ı ikisini tek notice'a
-    // katladığı için görünmüyordu; dedup `Entity`'e alınınca çift bulgu oldu.
+    // AGN_013 is NOT EMITTED here: K4 `check_agencies` compares every agency. The copy here
+    // looked only at the first agency and also fired with empty `feed_lang` (card:
+    // "`feed_lang` is empty, AGN_013 does not run"). Registry `Feed` dedup folded both into
+    // one notice, so it was hidden; moving dedup to `Entity` exposed the duplicate finding.
 
     K2Result {
         records,
@@ -750,13 +749,13 @@ mod tests {
 
     #[test]
     fn files_over_row_limit_is_alphabetical_and_strict() {
-        // Ekleme sırası bilinçle ters: sıralama YOKSA çıktı bu sıradan etkilenir.
+        // The insertion order is deliberately reversed: without sorting, output would depend on it.
         let mut counts: FxHashMap<String, u64> = FxHashMap::default();
         for (name, rows) in [
             ("stop_times.txt", 11u64),
             ("trips.txt", 11),
             ("calendar_dates.txt", 11),
-            ("shapes.txt", 10), // eşiğe EŞİT → ihlal değil
+            ("shapes.txt", 10), // EQUAL TO the threshold → not a violation
             ("agency.txt", 3),
         ] {
             counts.insert(name.to_string(), rows);

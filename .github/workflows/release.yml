@@ -1,13 +1,13 @@
 name: Release
 
-# Sürüm tag'i push edildiğinde CLI binary'lerini derleyip GitHub Release'e yükler.
-# Amaç: entegre eden projelerin Rust toolchain kurmadan gtfs-analyzer'ı çalıştırabilmesi.
+# Builds the CLI binaries and uploads them to a GitHub Release when a release tag is pushed.
+# This lets integrating projects run gtfs-analyzer without installing the Rust toolchain.
 #
-# Akış: önce TASLAK release açılır → matris her platformun asset'ini oraya yükler →
-# hepsi başarılıysa taslak yayına alınır. Böylece bir platform derlenemezse yarım
-# bir release yayınlanmaz.
+# Flow: create a DRAFT release first → the matrix uploads each platform's asset there →
+# publish the draft only if everything succeeds. This prevents a partial release when one
+# platform fails to build.
 #
-# Web arayüzü bu workflow'dan etkilenmez; onu ci.yml'deki deploy job'ı yayınlar.
+# The web UI is not affected by this workflow; the deploy job in ci.yml publishes it.
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Taslak release oluştur
+      - name: Create draft release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Rust toolchain kur
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
           targets: ${{ matrix.target }}
@@ -76,24 +76,24 @@ jobs:
           key: ${{ runner.os }}-release-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-release-${{ matrix.target }}-
 
-      # Release profili lto="fat" + codegen-units=1 kullanır (Cargo.toml).
-      - name: CLI derle
+      # The release profile uses lto="fat" + codegen-units=1 (Cargo.toml).
+      - name: Build CLI
         run: cargo build --release -p gtfs-analyzer --target ${{ matrix.target }}
 
-      # Yüklenen binary'nin gerçekten çalıştığını ve sürümünün tag ile eşleştiğini
-      # doğrula — yanlış sürüm yayınlamak sessiz ve pahalı bir hatadır.
-      - name: Binary'yi doğrula ve arşivi hazırla
+      # Verify that the uploaded binary actually runs and that its version matches the tag;
+      # publishing the wrong version is a silent and costly mistake.
+      - name: Verify binary and prepare archive
         shell: bash
         run: |
           NAME=gtfs-analyzer
           if [ "${{ runner.os }}" = "Windows" ]; then NAME=gtfs-analyzer.exe; fi
           BIN="target/${{ matrix.target }}/release/$NAME"
 
-          # Duman testi: binary çalışıyor mu, kural kaydı okunabiliyor mu.
+          # Smoke test: does the binary run, and can it read the rule registry?
           "$BIN" --version --verbose
           "$BIN" rules --class spec --severity critical | tail -1
 
-          # Tag ile Cargo.toml sürümü ayrışmışsa yanlış sürüm yayınlamaktansa kır.
+          # Fail rather than publish the wrong version if the tag and Cargo.toml diverge.
           EXPECTED="${GITHUB_REF_NAME#v}"
           ACTUAL="$("$BIN" --version | awk '{print $2}')"
           if [ "$EXPECTED" != "$ACTUAL" ]; then
@@ -104,19 +104,19 @@ jobs:
           mkdir stage
           cp "$BIN" LICENSE README*.md stage/
 
-      - name: Arşivle (tar.gz)
+      - name: Archive (tar.gz)
         if: runner.os != 'Windows'
         run: tar -czf "${{ matrix.asset }}" -C stage .
 
-      - name: Arşivle (zip)
+      - name: Archive (zip)
         if: runner.os == 'Windows'
         shell: bash
         run: (cd stage && 7z a "../${{ matrix.asset }}" .)
 
-      - name: Taslak release'e yükle
-        # Bu adım Windows runner'da da koşuyor ve `shell` belirtilmezse pwsh
-        # kullanılır; orada `$RELEASE_TAG` tanımsız bir PowerShell değişkenidir,
-        # boş string olarak geçer ve `gh` "release not found" der.
+      - name: Upload to draft release
+        # This step also runs on the Windows runner. Without an explicit `shell`, it uses
+        # pwsh; there `$RELEASE_TAG` is an undefined PowerShell variable, becomes an empty
+        # string, and makes `gh` report "release not found".
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -132,16 +132,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Taslağı yayınla
+      - name: Publish draft
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: gh release edit "$RELEASE_TAG" --draft=false
 
-  # PyPI paketi aynı tag'den çıksın diye `publish-python.yml` burada tetiklenir.
-  # `release: published` olayına güvenilemez: release'i yukarıda GITHUB_TOKEN yayınlıyor
-  # ve GITHUB_TOKEN olayları başka workflow başlatmaz; `workflow_dispatch` istisnadır.
-  # PyPI trusted publisher `publish-python.yml`'ye bağlı olduğundan yayın orada kalır.
+  # Trigger `publish-python.yml` here so the PyPI package comes from the same tag.
+  # The `release: published` event cannot be used: GITHUB_TOKEN publishes the release above,
+  # and events created by GITHUB_TOKEN do not start another workflow; `workflow_dispatch` is
+  # the exception. The PyPI trusted publisher is attached to `publish-python.yml`, so
+  # publishing remains there.
   trigger-pypi:
     name: PyPI yayınını tetikle
     needs: publish
@@ -149,7 +150,7 @@ jobs:
     permissions:
       actions: write
     steps:
-      - name: publish-python.yml'yi tag ref'iyle başlat
+      - name: Trigger publish-python.yml with the tag ref
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}

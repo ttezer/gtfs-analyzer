@@ -9,40 +9,40 @@ use super::common::{get_col, get_col_raw, make_k2_notice};
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
-// ── Çıktı tipi ────────────────────────────────────────────────────────────────
+// ── Output type ────────────────────────────────────────────────────────────────
 
-/// calendar_dates.txt'in bellek-verimli indeksi.
+/// Memory-efficient index for calendar_dates.txt.
 ///
-/// `added`/`removed` Map semantiği:
-///   - Anahtar: service_id → en az bir type=1 (added) / type=2 (removed) kaydı VAR anlamına gelir
-///     (tarih geçerliliğinden bağımsız; K4 XFL_006 ve CAL_018 bu varlığa bakır).
-///   - Değer Vec<u32>: yalnızca GEÇERLİ YYYYMMDD tarihler (parse hatası olanlara yer yok).
-///     Vec'ler parse sonunda `sort_unstable()` ile sıralanır; binary_search ile O(log n) üyelik.
+/// `added`/`removed` Map semantics:
+///   - Key: service_id → at least one type=1 (added) / type=2 (removed) record EXISTS
+///     (independent of date validity; K4 XFL_006 and CAL_018 inspect this presence).
+///   - Vec<u32> value: only VALID YYYYMMDD dates (parse failures are excluded).
+///     Vecs are sorted with `sort_unstable()` after parsing; membership is O(log n) via binary_search.
 ///
-/// `exception_count`: boş olmayan service_id'ye sahip tüm geçerli satırları sayar
-///   (geçersiz tarih / exception_type dahil). CLD_006 ve K6 CLD_007 bu sayıya bakar.
+/// `exception_count`: counts all valid rows with a non-empty service_id
+///   (including invalid dates / exception_type). CLD_006 and K6 CLD_007 use this count.
 ///
-/// K5 bitmap davranışı: tüm `added` tarihleri önce işlenir, ardından `removed`.
-///   ⚠️ Çakışma notu: aynı (service_id, date) için hem type=1 hem type=2 varsa
-///   `removed` kazanır (CSV satır sırasından bağımsız). Geçerli GTFS'te bu durum olmaz;
-///   bozuk feed'ler için tanımlanmış davranış budur.
+/// K5 bitmap behavior: all `added` dates are processed first, then `removed`.
+///   ⚠️ Conflict note: if both type=1 and type=2 exist for the same (service_id, date),
+///   `removed` wins (independent of CSV row order). This does not occur in valid GTFS;
+///   this is the defined behavior for broken feeds.
 #[derive(Debug, Default)]
 pub struct CalendarDateIndex {
-    /// exception_type=1 olan service_id'ler → sıralı YYYYMMDD tarihleri (geçerli tarihler).
+    /// service_ids with exception_type=1 → sorted YYYYMMDD dates (valid dates).
     pub added: FxHashMap<SmolStr, Vec<u32>>,
-    /// exception_type=2 olan service_id'ler → sıralı YYYYMMDD tarihleri (geçerli tarihler).
+    /// service_ids with exception_type=2 → sorted YYYYMMDD dates (valid dates).
     pub removed: FxHashMap<SmolStr, Vec<u32>>,
-    /// service_id → ilk görülen satır numarası (K4 CLD_004 notice için).
+    /// service_id → first-seen row number (for the K4 CLD_004 notice).
     pub first_line: FxHashMap<SmolStr, u64>,
-    /// service_id → toplam exception satırı (CLD_006 / K6 CLD_007 için ham sayı).
-    /// Geçersiz tarih veya exception_type içeren satırlar da dahil; boş service_id hariç.
+    /// service_id → total exception rows (raw count for CLD_006 / K6 CLD_007).
+    /// Includes rows with invalid dates or exception_type; excludes empty service_id.
     pub exception_count: FxHashMap<SmolStr, u32>,
-    /// Başlık hariç toplam veri satırı sayısı (boş service_id dahil).
-    /// Dosya özeti (RAOR sayfası) için — stop_times_index.total_rows ile aynı semantik.
+    /// Total data rows excluding the header (including empty service_id).
+    /// For the file summary (RAOR page) — same semantics as stop_times_index.total_rows.
     pub raw_row_count: u64,
 }
 
-// ── Parse ──────────────────────────────────────────────────────────────────────
+// ── Parsing ─────────────────────────────────────────────────────────────────────
 
 struct Cols {
     service_id: Option<usize>,
@@ -77,8 +77,8 @@ fn parse_date_raw(raw: &str) -> Result<Option<(u32, u32, u32)>, String> {
     let day = raw[6..8]
         .parse::<u32>()
         .map_err(|_| format!("'{raw}' geçersiz gün."))?;
-    // ⚠️ ORTAK yardımcı (issue #82): burada `ay ≤ 12, gün ≤ 31` deniyordu ve `20260231`
-    // geçiyordu. Akış ile akış-dışı yol AYNI kararı vermek zorunda.
+    // ⚠️ SHARED helper (issue #82): this used to check `month ≤ 12, day ≤ 31` and let `20260231`
+    // through. The streaming and non-streaming paths must make the SAME decision.
     if !super::common::is_valid_calendar_date(year, month, day) {
         return Err(format!("'{raw}' takvimde olmayan tarih."));
     }
@@ -98,13 +98,13 @@ pub fn validate_calendar_dates_with_limits(
     max_data_rows: Option<usize>,
     mut stream_budget: Option<&mut super::stop_times::StreamBudget>,
 ) -> (CalendarDateIndex, Vec<gtfs_core::Notice>) {
-    // #38: calendar_dates.txt K1'de yalnızca başlık okunur; K2 zip_bytes'tan stream eder.
+    // #38: K1 reads only the header of calendar_dates.txt; K2 streams it from zip_bytes.
     let mut notices = Vec::new();
     let mut counter = 0u32;
 
     let mut index = CalendarDateIndex::default();
 
-    // service_id: çok az benzersiz değer, milyonlarca satırda tekrar eder → intern.
+    // service_id: few unique values repeated across millions of rows → intern.
     let mut service_id_cache: FxHashMap<String, SmolStr> = FxHashMap::default();
 
     let cols = Cols::from_headers(&file.headers);
@@ -118,12 +118,12 @@ pub fn validate_calendar_dates_with_limits(
 
     let header_count = file.headers.len();
     let mut process = |row: &[Cow<'_, str>], line: u64| {
-        // ARC_012: satırın alan sayısı başlıkla uyuşmuyor. Alt satırdaki `ARC_034` yorumunun
-        // anlattığı mekanizmanın aynısı — dosya K1'de stream edildiği için K1'in satır döngüsüne
-        // hiç girmez ve kontrol oraya bırakılırsa burada HİÇ çalışmaz. `stop_times.rs` ve
-        // `shapes.rs` taşımıştı, bu dosya ile `trips.rs` taşımamıştı (17. korpus koşumunda
-        // bulundu; kanıt `mdb-2013`'ün trips.txt'si, 15.170 bozuk satırın tamamı sessizdi).
-        // ⚠️ Kural Kritik·Spec, yani R1 yayın kapısını GÖREN bir kural.
+        // ARC_012: the row's field count does not match the header. This is the same mechanism
+        // described by the `ARC_034` comment below — because the file is streamed in K1, it never
+        // enters K1's row loop, and the check would NEVER run here if left there. `stop_times.rs` and
+        // `shapes.rs` had moved it, but `trips.rs` had not (found in corpus run 17; evidence:
+        // `mdb-2013`'s trips.txt, where all 15,170 malformed rows were silent).
+        // ⚠️ The rule is Critical·Spec, so it is visible to the R1 publication gate.
         if let Some((msg, tip, observed, is_info)) =
             crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
         {
@@ -147,8 +147,8 @@ pub fn validate_calendar_dates_with_limits(
             notices.push(n);
         }
 
-        // ARC_034: başlık tekrarı → notice + satırı KAYDETME. Bu dosya K1'de stream edilir
-        // ve orada yalnız başlık okunur; kontrol K1'de kalırsa burada hiç çalışmaz (#181).
+        // ARC_034: repeated header → notice + DO NOT STORE the row. This file is streamed in K1
+        // and only its header is read there; if the check stays in K1, it never runs here (#181).
         if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
             notices.push(make_k2_notice(
                 &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
@@ -158,9 +158,9 @@ pub fn validate_calendar_dates_with_limits(
             ));
             return;
         }
-        // ARC_018: tamamen boş satır → notice + satırı KAYDETME (K1/stop_times emsali).
-        // ARC_018/021/030 #181'de taşınmamıştı: bu dosya K1'de stream edilir ve orada yalnız
-        // başlık okunur, kontrol hiç çalışmıyordu (2026-10-13). Boş satır TRP_001 vb. türetirdi.
+        // ARC_018: completely empty row → notice + DO NOT STORE the row (K1/stop_times precedent).
+        // ARC_018/021/030 had not been moved in #181: this file is streamed in K1, where only the
+        // header is read, so the check never ran (2026-10-13). An empty row would derive TRP_001, etc.
         if row.iter().all(|v| v.trim().is_empty()) {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -178,7 +178,7 @@ pub fn validate_calendar_dates_with_limits(
             ));
             return;
         }
-        // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
+        // ARC_021: unprintable/problematic character — once per file
         if !arc021_fired {
             if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                 arc021_fired = true;
@@ -198,7 +198,7 @@ pub fn validate_calendar_dates_with_limits(
                 ));
             }
         }
-        // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+        // ARC_030: tab/newline in a field value — once per file
         if !arc030_fired {
             if let Some(cp) = crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
             {
@@ -274,7 +274,7 @@ pub fn validate_calendar_dates_with_limits(
                         "YYYYMMDD formatında tarihi girin.",
                     ));
                 }
-                // CLD_005: tarih 2000–2099 dışında
+                // CLD_005: date outside 2000–2099
                 if let Some((year, month, day)) = v {
                     if !(2000..=2099).contains(&year) {
                         notices.push(make_k2_notice(
@@ -367,15 +367,15 @@ pub fn validate_calendar_dates_with_limits(
                 }
             };
 
-        // ── İndeks güncelleme ─────────────────────────────────────────────────
+        // ── Update the index ───────────────────────────────────────────────────
         if service_id.is_empty() {
             return;
         }
         *index.exception_count.entry(service_id.clone()).or_insert(0) += 1;
         index.first_line.entry(service_id.clone()).or_insert(line);
 
-        // Tarih geçerliyse added/removed Vec'e ekle; sadece geçersiz exception_type kayıtları
-        // (None veya ∉{1,2}) added/removed'a girmez; exception_count'a yine de girer.
+        // Add valid dates to the added/removed Vec; only invalid exception_type records
+        // (None or ∉{1,2}) stay out of added/removed; they still count toward exception_count.
         let date_u32 = date.map(|(y, m, d)| y * 10000 + m * 100 + d);
         match exception_type {
             Some(1) => {
@@ -391,20 +391,20 @@ pub fn validate_calendar_dates_with_limits(
                 }
             }
             _ => {
-                // exception_type yok veya geçersiz: exception_count'a dahil, added/removed'a DEĞİL.
-                // NOT: added/removed anahtarına dokunmuyoruz; bu service'in type=1/2 kaydı
-                // olmadığını korumak için (XFL_006 / CAL_018 anahtar varlığına bakar).
+                // exception_type is missing or invalid: included in exception_count, NOT added/removed.
+                // NOTE: do not touch the added/removed key; this preserves that the service has no
+                // type=1/2 record (XFL_006 / CAL_018 inspect key presence).
             }
         }
     };
 
-    // ARC_033 birikimi: ihlali OKUYUCULAR görür (alan sınırlarını yalnız onlar bilir),
-    // satır numarasını bu döngü ekler. Emit tek yerde: `arc033_summary`.
+    // ARC_033 accumulation: READERS see the violation (only they know field boundaries),
+    // and this loop adds the row number. Emit in one place: `arc033_summary`.
     let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
     let mut scan = super::stop_times::CsvScanState::default();
     let mut zip_unclosed = false;
 
-    // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
+    // ── Driver: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
     if let Some(zb) = zip_bytes {
         let cursor = Cursor::new(zb);
         match zip::ZipArchive::new(cursor) {
@@ -517,7 +517,7 @@ pub fn validate_calendar_dates_with_limits(
         }
     }
 
-    // CLD_006: bir service_id için çok fazla istisna günü (> 60)
+    // CLD_006: too many exception days for one service_id (> 60)
     for (sid, &count) in &index.exception_count {
         if count > 60 {
             notices.push(make_k2_notice(
@@ -537,8 +537,8 @@ pub fn validate_calendar_dates_with_limits(
         }
     }
 
-    // Parse bitti: tarih listelerini sırala. Dedup YOK — exception_count ham satır sayısını
-    // yansıtmalı. Aynı (service_id, date) duplicate'leri binary_search'ü bozmaz.
+    // Parsing is complete: sort the date lists. NO deduplication — exception_count must reflect
+    // the raw row count. Duplicate (service_id, date) pairs do not break binary_search.
     for v in index.added.values_mut() {
         v.sort_unstable();
     }
@@ -546,9 +546,9 @@ pub fn validate_calendar_dates_with_limits(
         v.sort_unstable();
     }
 
-    // DQ_016: stream edilen calendar_dates.txt için DOSYA başına tek kök özet.
-    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
-    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    // DQ_016: one root summary per FILE for streamed calendar_dates.txt.
+    // ARC_032: HTML marker — ONE summary per FILE (same as K1). It did not run on streamed files
+    // until 2026-10-13 (trip_headsign/stop_headsign were not checked).
     if let Some((observed, msg, cols)) = arc032.summary(&file.name) {
         notices.push(make_k2_notice(
             &mut counter,
@@ -566,7 +566,7 @@ pub fn validate_calendar_dates_with_limits(
         ));
     }
 
-    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (same as K1).
     if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
         notices.push(make_k2_notice(
             &mut counter,
@@ -602,7 +602,7 @@ pub fn validate_calendar_dates_with_limits(
         notices.push(n);
     }
 
-    // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
+    // ARC_013: unclosed quote in the streamed body (issue #84) — one notice per FILE.
     if scan.unclosed || zip_unclosed {
         notices.push(super::common::arc013_unclosed_stream(
             &file.name,
@@ -610,7 +610,7 @@ pub fn validate_calendar_dates_with_limits(
         ));
     }
 
-    // ARC_033: DOSYA başına TEK özet (kopya denetim yok — #75 dersi).
+    // ARC_033: ONE summary per FILE (no duplicate check — lesson from #75).
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
         notices.push(n);
     }
@@ -618,7 +618,7 @@ pub fn validate_calendar_dates_with_limits(
     (index, notices)
 }
 
-// ── Testler ────────────────────────────────────────────────────────────────────
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -639,7 +639,7 @@ mod tests {
         }
     }
 
-    /// Akış yolu fixture'ı — `raw_text` dolu, `rows` boş.
+    /// Streaming-path fixture — `raw_text` populated, `rows` empty.
     fn make_file_streaming(headers: Vec<&str>, rows: Vec<Vec<&str>>) -> RawFile {
         let text = format!(
             "{}\n{}\n",
@@ -659,9 +659,9 @@ mod tests {
         }
     }
 
-    /// `trips.txt` ile aynı kör nokta: dosya K1'de stream edilir, `ARC_012` oraya bırakılırsa
-    /// burada hiç çalışmaz. Korpusta bu dosya için bozuk satır KANITI YOK; boşluk kod
-    /// okumasıyla bulundu ve bu test onu sabitler.
+    /// Same blind spot as `trips.txt`: the file is streamed in K1, so if `ARC_012` is left there,
+    /// it never runs here. There was no EVIDENCE of malformed rows for this file in the corpus;
+    /// it was found by reading the whitespace code and this test locks it in.
     #[test]
     fn arc012_fires_on_the_streaming_path_for_calendar_dates() {
         let file = make_file_streaming(
@@ -680,7 +680,7 @@ mod tests {
         assert_eq!(hit.severity, gtfs_core::Severity::Kritik);
     }
 
-    // ── Mevcut testler (davranış değişmemeli) ────────────────────────────────
+    // ── Existing tests (behavior must not change) ─────────────────────────────
 
     #[test]
     fn valid_calendar_date_produces_no_notices() {
@@ -717,7 +717,7 @@ mod tests {
         );
         let (idx, notices) = validate_calendar_dates(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "CLD_002"));
-        // exception_count artar ama added'a tarih girmez (date = None)
+        // exception_count increases but no date enters added (date = None)
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap_or(&0), 1);
         assert!(
             idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()),
@@ -733,7 +733,7 @@ mod tests {
         );
         let (idx, notices) = validate_calendar_dates(&file, None);
         assert!(notices.iter().any(|n| n.rule_id == "CLD_003"));
-        // exception_count artar ama added/removed'a girmez
+        // exception_count increases but it enters neither added nor removed
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap_or(&0), 1);
         assert!(
             !idx.added.contains_key("SVC1" as &str),
@@ -755,10 +755,10 @@ mod tests {
         assert!(notices.iter().any(|n| n.rule_id == "CLD_005"));
     }
 
-    // ── Yeni regresyon testleri ───────────────────────────────────────────────
+    // ── New regression tests ───────────────────────────────────────────────────
 
-    /// Aynı (service_id, date) çifti için iki type=1 kaydı: exception_count=2,
-    /// added Vec'inde iki kez aynı tarih (dedup YOK — ham sayı korunur).
+    /// Two type=1 records for the same (service_id, date): exception_count=2,
+    /// the same date appears twice in the added Vec (NO deduplication — raw count is preserved).
     #[test]
     fn duplicate_service_date_type1_keeps_raw_count() {
         let file = make_file(
@@ -776,8 +776,8 @@ mod tests {
         assert!(dates.windows(2).all(|w| w[0] <= w[1]), "Sıralı olmalı");
     }
 
-    /// type=1 ardından type=2 (aynı gün): exception_count=2, added'da tarih var,
-    /// removed'da da tarih var. K5'te "all added then removed" → removed kazanır.
+    /// type=1 followed by type=2 (same day): exception_count=2, the date is in added,
+    /// and it is also in removed. In K5, "all added then removed" → removed wins.
     #[test]
     fn type1_then_type2_same_date_both_in_index() {
         let file = make_file(
@@ -796,11 +796,11 @@ mod tests {
             removed.binary_search(&20260601u32).is_ok(),
             "removed'da tarih olmalı"
         );
-        // K5 semantiği belgelendi: removed kazanır (mevcut koddan farklı ancak tanımlı davranış)
+        // K5 semantics documented: removed wins (different from the old code, but defined behavior)
     }
 
-    /// type=2 ardından type=1 (aynı gün): mevcut CSV-sıralı kodda type=1 kazanırdı.
-    /// Yeni kodda removed kazanır — bu semantik fark bozuk feed'lerde kabul edilir.
+    /// type=2 followed by type=1 (same day): the old CSV-ordered code let type=1 win.
+    /// The new code lets removed win — this semantic difference is accepted for broken feeds.
     #[test]
     fn type2_then_type1_same_date_documents_new_behavior() {
         let file = make_file(
@@ -809,13 +809,13 @@ mod tests {
         );
         let (idx, _) = validate_calendar_dates(&file, None);
         assert_eq!(*idx.exception_count.get("SVC1" as &str).unwrap(), 2);
-        // Her ikisi de indekste; K5 removed-wins davranışı belgelendi
+        // Both are in the index; K5 removed-wins behavior is documented.
         assert!(idx.added.contains_key("SVC1" as &str));
         assert!(idx.removed.contains_key("SVC1" as &str));
     }
 
-    /// Yalnızca type=2 kayıtlı service: removed'da anahtar var, added'da YOK.
-    /// K4 XFL_006 bu servisi "ghost" olarak yakalar.
+    /// Service with only a type=2 record: key exists in removed, NOT in added.
+    /// K4 XFL_006 catches this service as a "ghost".
     #[test]
     fn only_removed_service_key_in_removed_only() {
         let file = make_file(
@@ -834,8 +834,8 @@ mod tests {
         assert_eq!(*idx.exception_count.get("GHOST" as &str).unwrap(), 1);
     }
 
-    /// type=2 kaydı + date=None: anahtar removed'da var ama Vec boş.
-    /// XFL_006 kontrolü anahtar varlığına bakır, tarih geçerliliğine değil.
+    /// type=2 record + date=None: key exists in removed but the Vec is empty.
+    /// XFL_006 checks key presence, not date validity.
     #[test]
     fn type2_with_invalid_date_key_present_vec_empty() {
         let file = make_file(
@@ -858,7 +858,7 @@ mod tests {
         assert_eq!(*idx.exception_count.get("GHOST" as &str).unwrap(), 1);
     }
 
-    /// Bozuk tarih: exception_count artar, first_line kaydedilir, notice üretilir.
+    /// Invalid date: exception_count increases, first_line is recorded, and a notice is emitted.
     #[test]
     fn invalid_date_counted_but_not_indexed() {
         let file = make_file(
@@ -873,11 +873,11 @@ mod tests {
             2,
             "İlk satır numarası 2 olmalı"
         );
-        // Tarih geçersiz, added Vec'te yer yok
+        // Date is invalid; it has no place in the added Vec.
         assert!(idx.added.get("SVC1" as &str).is_none_or(|v| v.is_empty()));
     }
 
-    /// first_line daima ilk görülen satırı gösterir.
+    /// first_line always shows the first row seen.
     #[test]
     fn first_line_tracks_first_occurrence() {
         let file = make_file(

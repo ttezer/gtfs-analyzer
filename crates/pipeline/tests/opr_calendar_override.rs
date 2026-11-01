@@ -5,7 +5,7 @@ use gtfs_pipeline::{validate_bytes, CalendarOverrideRule, ValidateResult, Valida
 
 const TODAY: u32 = 20_260_515;
 
-// ── Yardımcılar ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn make_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
     let cur = std::io::Cursor::new(Vec::new());
@@ -39,10 +39,10 @@ fn has_rule(result: &ValidateResult, rule_id: &str) -> bool {
     }
 }
 
-// Tarih notları:
-//   20260101 = Perşembe (Ocak 1, 2026)
-//   20260105 = Pazartesi
-//   WKD = Pazartesi-Cuma aktif
+// Date notes:
+//   20260101 = Thursday (January 1, 2026)
+//   20260105 = Monday
+//   WKD = active Monday–Friday
 
 static CALENDAR_WKD: &[u8] =
     b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
@@ -71,7 +71,7 @@ fn override_config_r1(start: u32, end: u32) -> ValidatorConfig {
     }
 }
 
-// ── Test OPR-1: Normal gün, tek servis → hiç OPR notice üretilmemeli ─────────
+// ── Test OPR-1: Normal day, one service → no OPR notice should be emitted ─────
 
 #[test]
 fn opr_single_service_no_conflict_no_notice() {
@@ -113,8 +113,8 @@ fn opr_single_service_no_conflict_no_notice() {
     );
 }
 
-// ── Test OPR-2: Doğru override — base kaldırılmış, override eklenmiş → CRITICAL yok ──
-// 20260101 (Perşembe): WKD exception_type=2, HOL exception_type=1 → doğru
+// ── Test OPR-2: Correct override — base removed, override added → no CRITICAL ──
+// 20260101 (Thursday): WKD exception_type=2, HOL exception_type=1 → correct
 
 #[test]
 fn opr_021_absent_when_correct_override() {
@@ -145,8 +145,8 @@ fn opr_021_absent_when_correct_override() {
     );
 }
 
-// ── Test OPR-3: Base kaldırılmamış + override eklenmiş → OPR_021 ──────────────
-// 20260101 (Perşembe): WKD aktif (kaldırılmadı), HOL de exception_type=1 ile eklendi
+// ── Test OPR-3: Base not removed + override added → OPR_021 ───────────────────
+// 20260101 (Thursday): WKD active (not removed), HOL also added with exception_type=1
 
 #[test]
 fn opr_021_fires_when_base_not_removed() {
@@ -169,12 +169,12 @@ fn opr_021_fires_when_base_not_removed() {
     );
 }
 
-// ── Test OPR-4: Override bekleniyor ama aktif değil → OPR_022 ─────────────────
-// 20260101 (Perşembe): WKD aktif, HOL için hiç tanım yok
+// ── Test OPR-4: Override expected but not active → OPR_022 ────────────────────
+// 20260101 (Thursday): WKD active, no definition for HOL
 
 #[test]
 fn opr_022_fires_when_override_not_added() {
-    // HOL için hiç calendar tanımı yok
+    // HOL has no calendar definition
     let files = vec![
         ("agency.txt", AGENCY),
         ("stops.txt", STOPS),
@@ -192,8 +192,8 @@ fn opr_022_fires_when_override_not_added() {
     assert!(!has_rule(&result, "OPR_021"), "OPR_021 olmamalı");
 }
 
-// ── Test OPR-5: Override penceresi — ne base ne override aktif → OPR_023 ───────
-// 20260101 (Perşembe): WKD exception_type=2 ile kaldırıldı, HOL hiç yok
+// ── Test OPR-5: Override window — neither base nor override active → OPR_023 ──
+// 20260101 (Thursday): WKD removed with exception_type=2, HOL absent
 
 #[test]
 fn opr_023_fires_when_no_service_in_window() {
@@ -218,14 +218,14 @@ fn opr_023_fires_when_no_service_in_window() {
     assert!(!has_rule(&result, "OPR_022"), "OPR_022 olmamalı");
 }
 
-// ── Test OPR-6: Çoklu servis, config yok → en fazla HIGH, CRITICAL yok ─────────
-// SVC_A: Paz-Cum. SVC_B: 20260105 (Pazartesi) exception_type=1 ile eklenmiş.
-// Config olmadığı için OPR_021/022/023 üretilmemeli; OPR_020 (HIGH) beklenir.
+// ── Test OPR-6: Multiple services, no config → at most HIGH, no CRITICAL ──────
+// SVC_A: Sun–Fri. SVC_B: 20260105 (Monday) added with exception_type=1.
+// Without config, OPR_021/022/023 must not be emitted; OPR_020 (HIGH) is expected.
 //
-// T_A ve T_B AYNI operasyonel sefer (aynı kalkış saati, aynı durak dizisi) olmak
-// ZORUNDA: OPR_020 artık "aynı gün ≥2 servis aktif" demiyor, "AYNI sefer iki servisten
-// birden aktif" diyor. Farklı kalkış saatleri iki ayrı tren demektir ve meşrudur —
-// bu testin pozitif kontrolü gerçek bir override çakışması olmalı.
+// T_A and T_B MUST be the SAME operational trip (same departure time, same stop sequence):
+// OPR_020 no longer means "≥2 services active on the same day"; it means "THE SAME trip
+// active from two services". Different departure times mean two separate trains and are valid —
+// the positive control in this test must be a real override collision.
 
 #[test]
 fn opr_no_critical_without_config() {
@@ -236,7 +236,7 @@ fn opr_no_critical_without_config() {
     let calendar: &[u8] =
         b"service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n\
           SVC_A,1,1,1,1,1,0,0,20250101,20271231\n";
-    // SVC_B yalnızca 20260105 Pazartesi → exception günü çakışması
+    // SVC_B only on Monday 20260105 → exception-day overlap
     let cal_dates: &[u8] = b"service_id,date,exception_type\nSVC_B,20260105,1\n";
 
     let files = vec![

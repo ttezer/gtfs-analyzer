@@ -7,14 +7,14 @@ use super::common::{get_col, get_col_raw, make_k2_notice, parse_f64_col, parse_u
 use super::stop_times::{next_csv_record, ZipCsvReader};
 use crate::k1_parse::RawFile;
 
-/// shape_id intern tablosu — `TripInternTable` ile aynı desen.
+/// shape_id interning table — same pattern as `TripInternTable`.
 ///
-/// shapes.txt'te her nokta kendi `shape_id`'sini taşıyordu: Entur'da 40,9M `String`,
-/// ama yalnız 28.604 farklı değer (ortalama ~48 karakter, SmolStr'ın 23 baytlık inline
-/// sınırına sığmıyor → hepsi ayrı heap tahsisi ≈ 2,4 GB). Artık her nokta 4 baytlık
-/// indeks tutuyor, metin bir kez bu tabloda duruyor.
+/// In shapes.txt every point used to carry its own `shape_id`: 40.9M `String` values in Entur,
+/// but only 28,604 distinct values (average ~48 characters, too large for SmolStr's 23-byte
+/// inline limit → a separate heap allocation for each, ≈2.4 GB). Each point now stores a
+/// 4-byte index and the text is kept once in this table.
 ///
-/// 0. indeks boş/eksik shape_id demek (trips desenindeki gibi).
+/// Index 0 means an empty/missing shape_id (as in the trips pattern).
 #[derive(Debug, Clone)]
 pub struct ShapeInternTable {
     ids: Vec<smol_str::SmolStr>,
@@ -32,7 +32,7 @@ impl ShapeInternTable {
             ids: vec![smol_str::SmolStr::default()],
         }
     }
-    /// Noktanın shape_id metni; bilinmeyen indeks veya boş değer için "".
+    /// The point's shape_id text; "" for an unknown index or empty value.
     #[inline]
     pub fn id<'a>(&'a self, sp: &ShapePointRecord) -> &'a str {
         self.ids
@@ -40,7 +40,7 @@ impl ShapeInternTable {
             .map(smol_str::SmolStr::as_str)
             .unwrap_or("")
     }
-    /// İndeksten metin (nokta elde değilken).
+    /// Text from an index (when the point is not available).
     #[inline]
     pub fn id_at(&self, idx: u32) -> &str {
         self.ids
@@ -55,9 +55,9 @@ impl ShapeInternTable {
         self.ids.len() <= 1
     }
 
-    /// Metni intern eder ve indeksini döndürür. Boş metin → 0.
-    /// Parse yolu kendi hash haritasını kullanır (40,9M satırda lineer arama olmaz);
-    /// bu metot küçük tablolar ve test kurulumu içindir.
+    /// Interns text and returns its index. Empty text → 0.
+    /// The parse path uses its own hash map (no linear search over 40.9M rows);
+    /// this method is for small tables and test setup.
     pub fn intern(&mut self, id: &str) -> u32 {
         if id.is_empty() {
             return 0;
@@ -70,28 +70,28 @@ impl ShapeInternTable {
     }
 }
 
-/// Tek bir shapes.txt noktası.
+/// One shapes.txt point.
 ///
-/// Bellek: Entur (mdb-1078) gibi feed'lerde 40,9M kayıt tutulur, yani her bayt ×40,9M.
-/// `Option<f64>`/`Option<u32>` sarmalayıcıları niche taşımadığı için alan başına 8 bayt
-/// israf ediyordu; alanlar `CompactStopTime` desenindeki gibi sentinel'e çevrildi ve
-/// `Option` API'si accessor'larda korunuyor. `shape_id` ise [`ShapeInternTable`] indeksi.
+/// Memory: feeds such as Entur (mdb-1078) hold 40.9M records, so every byte costs ×40.9M.
+/// `Option<f64>`/`Option<u32>` wrappers do not carry a niche and wasted 8 bytes per field;
+/// fields were converted to sentinels as in the `CompactStopTime` pattern, while the
+/// `Option` API is preserved in accessors. `shape_id` is a `ShapeInternTable` index.
 ///
-/// `shape_dist_traveled` BİLİNÇLİ olarak f64 kaldı (`CompactStopTime` orada f32 kullanır):
-/// SHP_005 monotonluğa TAM karşılaştırmayla bakıyor (#94) ve K4::stm_shape_dist bu değeri
-/// stop_times'ınkiyle karşılaştırıyor — 40,9M yoğun noktada f32 yuvarlaması komşu değerleri
-/// birbirine çökertip gerçek artışları/azalmaları yutabilirdi.
+/// `shape_dist_traveled` deliberately remains f64 (`CompactStopTime` uses f32 there):
+/// SHP_005 checks monotonicity with an EXACT comparison (#94), and K4::stm_shape_dist
+/// compares this value with stop_times' — at 40.9M dense points, f32 rounding could
+/// collapse adjacent values and hide real increases/decreases.
 #[derive(Debug, Clone)]
 pub struct ShapePointRecord {
-    /// `ShapeInternTable` indeksi; 0 = boş/eksik shape_id
+    /// `ShapeInternTable` index; 0 = empty/missing shape_id
     shape_idx: u32,
-    /// NaN = alan yok/parse edilemedi
+    /// NaN = field missing/unparseable
     lat: f64,
-    /// NaN = alan yok/parse edilemedi
+    /// NaN = field missing/unparseable
     lon: f64,
-    /// u32::MAX = alan yok/parse edilemedi
+    /// u32::MAX = field missing/unparseable
     seq: u32,
-    /// NaN = alan yok/parse edilemedi
+    /// NaN = field missing/unparseable
     dist: f64,
     pub line: u32,
 }
@@ -153,16 +153,16 @@ impl ShapePointRecord {
             Some(self.dist)
         }
     }
-    /// Notice API'si u64 bekler.
+    /// The Notice API expects u64.
     #[inline]
     pub fn line_u64(&self) -> u64 {
         self.line as u64
     }
 }
 
-// Boyut guard: 40B'ı aşarsa derleme kırılır.
-// 88B (Option'lı) → 56B (sentinel) → 40B (shape_id intern). ×40,9M nokta ≈ 1,9 GB struct,
-// artı ortadan kalkan 40,9M ayrı shape_id tahsisi ≈ 2,4 GB.
+// Size guard: compilation fails if this exceeds 40 B.
+// 88 B (with Option) → 56 B (sentinel) → 40 B (shape_id interning). ×40.9M points ≈ 1.9 GB
+// for the structs, plus ≈2.4 GB from the eliminated 40.9M separate shape_id allocations.
 const _: () = assert!(std::mem::size_of::<ShapePointRecord>() <= 40);
 
 struct Cols {
@@ -207,21 +207,21 @@ pub fn validate_shapes_with_limits(
     ShapeInternTable,
     Vec<gtfs_core::Notice>,
 ) {
-    // #15 W3: shapes.txt K1'de stream edilir (RawFile.rows boş, gövde raw_text'te). Burada
-    // streaming parse edilir; K1'in per-satır generic notice'ları (ARC_012/018/021, DQ_016)
-    // bu geçişe taşındı (stop_times deseni — aynı line/severity/rule davranışı). Eski rows
-    // yolu test/legacy fallback olarak korunur.
+        // #15 W3: shapes.txt is streamed in K1 (RawFile.rows is empty, body in raw_text). Here
+        // it is parsed as a stream; K1's per-row generic notices (ARC_012/018/021, DQ_016)
+        // were moved into this pass (stop_times pattern — same line/severity/rule behavior).
+        // The old rows path is retained as a test/legacy fallback.
     let mut notices = Vec::new();
-    // #15: records Vec'ini önceden boyutlandır — doubling realloc'un geçici 2× peak'i
-    // shape-ağır feed'lerde ~500 MB tepe yaratıyordu (K1 stream'i düşünce açığa çıktı).
+    // #15: pre-size the records Vec — the temporary 2× peak from doubling reallocations
+    // reached ~500 MB in shape-heavy feeds (exposed after K1 began streaming).
     //
-    // Eski tahmin SABİT "satır ~30 bayt" varsayıyordu. Entur'da (mdb-1078) gerçek ortalama
-    // 67,9 bayt çıktı — uzun NeTEx shape_id'leri yüzünden — ve tahmin 2,26× şişti:
-    // 92,7M slot ayrıldı, 40,9M kullanıldı, ~2,7 GB hiç dokunulmadan duruyordu.
-    // Böleni büyütmek çözüm DEĞİL: kısa shape_id'li feed'lerde bu kez tahmin düşük kalır,
-    // Vec doubling'e girer ve kopyalama anında eski+yeni tampon birlikte canlı olur (tepe artar).
-    // Bunun yerine ilk SAMPLE_ROWS satırın GERÇEK uzunluğundan ortalama ölçülüp kapasite
-    // bir kez ondan türetilir; feed'e uyarlanır. Yalnız KAPASİTE — eleman değeri/sırası etkilenmez.
+    // The old estimate assumed a FIXED "row ~30 bytes". In Entur (mdb-1078) the real average
+    // was 67.9 bytes — due to long NeTEx shape_ids — and the estimate inflated by 2.26×:
+    // 92.7M slots were allocated, 40.9M used, and ~2.7 GB remained untouched.
+    // Increasing the divisor is NOT a solution: feeds with short shape_ids would then be
+    // underestimated, triggering Vec doubling and keeping old+new buffers alive during copying.
+    // Instead, measure the REAL average from the first SAMPLE_ROWS rows and derive capacity
+    // once from it; adapt to the feed. CAPACITY only — element values/order are unaffected.
     const SAMPLE_ROWS: usize = 4096;
     let stream_bytes: Option<usize> = zip_bytes
         // ZIP central-directory sizes are untrusted; disable metadata-based
@@ -231,13 +231,13 @@ pub fn validate_shapes_with_limits(
     let mut sampled_bytes: usize = 0;
     let mut capacity_set = false;
     let mut records: Vec<ShapePointRecord> = match stream_bytes {
-        // Stream yolu: örnekleme bitince tek seferde reserve edilir.
+        // Stream path: reserve once after sampling completes.
         Some(_) => Vec::new(),
-        // rows fallback: satır sayısı zaten kesin.
+        // rows fallback: the row count is already exact.
         None => Vec::with_capacity(file.rows.len()),
     };
     let mut counter = 0u32;
-    // ARC_033: ihlali okuyucular görür, satır numarasını döngü ekler (bkz. trips.rs).
+    // ARC_033: readers observe the violation; this loop adds the line number (see trips.rs).
     let mut rfc_acc = crate::k1_parse::Rfc4180Acc::default();
     let mut scan = super::stop_times::CsvScanState::default();
     let mut zip_unclosed = false;
@@ -246,11 +246,11 @@ pub fn validate_shapes_with_limits(
     let header_count = file.headers.len();
     let mut arc021_fired = false;
     let mut arc030_fired = false;
-    // SHP_008 anahtarı artık intern indeksi: eskiden her satırda shape_id KLONLANIYORDU
-    // (40,9M String tahsisi yalnız bu map için).
+    // SHP_008's key is now an intern index: shape_id used to be CLONED on every row
+    // (40.9M String allocations for this map alone).
     let mut seen_seq_by_shape: HashMap<u32, HashSet<u32>> = HashMap::new();
-    // shape_id intern durumu. Noktalar aynı shape için ardışık geldiğinden son id
-    // hatırlanır ve satırların ~%99,9'unda hash araması tamamen atlanır.
+    // shape_id interning state. Since points for the same shape arrive consecutively, remember
+    // the last id and skip hash lookup entirely on ~99.9% of rows.
     let mut intern = ShapeInternTable::new();
     let mut intern_map: rustc_hash::FxHashMap<smol_str::SmolStr, u32> = Default::default();
     let mut last_shape: Option<(smol_str::SmolStr, u32)> = None;
@@ -261,10 +261,10 @@ pub fn validate_shapes_with_limits(
     let mut arc032 = crate::k1_parse::Arc032Acc::default();
 
     {
-        // Satır işleyici — hem stream (raw_text) hem rows fallback yolundan çağrılır.
+        // Row processor — called by both the stream (raw_text) and rows fallback paths.
         let mut process = |row: &[Cow<'_, str>], line: u64| {
-            // ── Taşınan generic dosya/satır-seviye notice'lar (K1'den) ──
-            // ARC_012: sütun sayısı tutarsız
+            // ── Moved generic file/row-level notices (from K1) ──
+            // ARC_012: inconsistent column count
             if let Some((msg, tip, observed, is_info)) =
                 crate::k1_parse::arc012_check(&file.name, line, row.len(), header_count)
             {
@@ -288,7 +288,7 @@ pub fn validate_shapes_with_limits(
                 notices.push(n);
             }
 
-            // ARC_034: başlık tekrarı → notice + kayıt YAPMA (#181, K1 stream eder).
+            // ARC_034: repeated header → notice + DO NOT RECORD (#181, K1 streams this file).
             if crate::k1_parse::arc034_is_header_repeat(row, &file.headers) {
                 notices.push(make_k2_notice(
                     &mut counter, "ARC_034", EntityType::File, Some(file.name.clone()),
@@ -299,7 +299,7 @@ pub fn validate_shapes_with_limits(
                 return;
             }
 
-            // ARC_018: tamamen boş satır → notice + kayıt YAPMA
+            // ARC_018: completely empty row → notice + DO NOT RECORD
             if row.iter().all(|v| v.trim().is_empty()) {
                 notices.push(make_k2_notice(
                     &mut counter,
@@ -319,13 +319,13 @@ pub fn validate_shapes_with_limits(
             }
             total_rows += 1;
 
-            // Kapasite örneklemesi (yalnız stream yolu): ilk SAMPLE_ROWS satırın gerçek
-            // uzunluğundan ortalama çıkarılır, kalan kapasite TEK seferde ayrılır. Böylece
-            // ne sabit-varsayım şişmesi ne de doubling'in geçici 2× tepesi oluşur.
-            // %5 pay bırakılır: tahmin biraz düşük kalırsa realloc'a düşmeyelim.
+            // Capacity sampling (stream path only): derive the average from the first SAMPLE_ROWS
+            // rows' actual lengths and reserve the remaining capacity ONCE. This avoids both
+            // fixed-assumption inflation and doubling's temporary 2× peak.
+            // Leave 5% headroom so a slightly low estimate does not trigger realloc.
             if !capacity_set {
                 if let Some(total) = stream_bytes {
-                    // alan uzunlukları + ayraç/satır sonu ≈ ham satır baytı
+                    // field lengths + separators/line ending ≈ raw row bytes
                     sampled_bytes += row.iter().map(|v| v.len()).sum::<usize>() + row.len();
                     if total_rows >= SAMPLE_ROWS {
                         let avg = (sampled_bytes / total_rows).max(1);
@@ -336,7 +336,7 @@ pub fn validate_shapes_with_limits(
                 }
             }
 
-            // ARC_021: yazdırılamaz/sorunlu karakter — dosya başına bir kez
+            // ARC_021: non-printable/problematic character — once per file
             if !arc021_fired {
                 if let Some(cp) = crate::k1_parse::arc021_bad_char(row.iter().map(|v| v.as_ref())) {
                     arc021_fired = true;
@@ -357,7 +357,7 @@ pub fn validate_shapes_with_limits(
                 }
             }
 
-            // ARC_030: alan değerinde sekme/satır sonu — dosya başına bir kez
+            // ARC_030: tab/newline in a field value — once per file
             if !arc030_fired {
                 if let Some(cp) =
                     crate::k1_parse::arc030_bad_whitespace(row.iter().map(|v| v.as_ref()))
@@ -380,16 +380,16 @@ pub fn validate_shapes_with_limits(
                 }
             }
 
-            // DQ_016: değerlerde baştaki/sondaki boşluk
-            // DQ_016: dosya-seviyesi birikim; emit döngü sonrası TEK özet (patlama önlemi).
+            // DQ_016: leading/trailing whitespace in values
+            // DQ_016: file-level accumulation; ONE summary after the emit loop (burst prevention).
             dq016.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
             arc037.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
             arc032.observe(line, row.iter().map(|v| v.as_ref()), &file.headers);
 
-            // ── Shape-özel kurallar ──
+            // ── Shape-specific rules ──
             let shape_id = get_col_raw(row, cols.shape_id);
-            // Intern: metin bir kez saklanır, nokta 4 baytlık indeks taşır. Ardışık aynı
-            // shape_id'de (normal durum) hash araması da tahsis de yapılmaz.
+            // Interning: text is stored once and the point carries a 4-byte index. For consecutive
+            // identical shape_ids (the normal case), there is no hash lookup or allocation.
             let shape_idx: u32 = if shape_id.is_empty() {
                 0
             } else {
@@ -411,10 +411,10 @@ pub fn validate_shapes_with_limits(
                     }
                 }
             };
-            // entity_id yalnız notice üretilirken gerekir; eskiden HER satırda klonlanıyordu.
+            // entity_id is needed only when producing a notice; it used to be cloned on EVERY row.
             let entity_id = || (!shape_id.is_empty()).then(|| shape_id.to_string());
 
-            // SHP_001: shape_id required (sütun yoksa ARC_025 devralır → atla)
+            // SHP_001: shape_id required (if the column is absent, ARC_025 takes over → skip)
             if shape_id.is_empty() && file.headers.iter().any(|h| h == "shape_id") {
                 notices.push(make_k2_notice(
                     &mut counter,
@@ -631,8 +631,9 @@ pub fn validate_shapes_with_limits(
                     v
                 }
                 Err(()) => {
-                    // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı SHP_021 üretirken
-                    // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                    // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                    // SHP_021, while "abc" produced no finding. Two branches of the same fact → one rule
+                    // (the PTH_027 precedent).
                     notices.push(make_k2_notice(
                         &mut counter,
                         "SHP_021",
@@ -651,9 +652,9 @@ pub fn validate_shapes_with_limits(
                 }
             };
 
-            // SHP_005 (shape_dist_traveled monotonluğu) K5'e taşındı: dosya satır sırası DEĞİL,
-            // shape_pt_sequence-sıralı noktalar üzerinde kontrol edilir. Dosya sırası ≠ sequence
-            // olan geçerli feed'lerde eski dosya-sırası kontrolü sahte "azalma" (FP) üretiyordu.
+            // SHP_005 (shape_dist_traveled monotonicity) moved to K5: it is checked on points
+            // ordered by shape_pt_sequence, NOT file row order. For valid feeds where file order
+            // differs from sequence, the old file-order check produced false "decrease" findings.
 
             records.push(ShapePointRecord::new(
                 shape_idx,
@@ -665,10 +666,10 @@ pub fn validate_shapes_with_limits(
             ));
         };
 
-        // ── Sürücü: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
-        // ZIP yolu #15/#38 deseni: gövde K1'de belleğe ALINMAZ, burada satır satır okunur.
-        // shapes.txt bazı feed'lerde tek başına GB'larca (mdb-1078: 2,65 GB) — K1'de
-        // raw_text olarak tutulması tepe belleği ikiye katlıyordu.
+        // ── Driver: zip_bytes → ZIP stream; raw_text → string stream; rows → fallback ──
+        // ZIP path follows the #15/#38 pattern: the body is NOT loaded into memory in K1 and
+        // is read row by row here. shapes.txt alone can be multiple GB in some feeds
+        // (mdb-1078: 2.65 GB); retaining it as raw_text in K1 doubled peak memory.
         if let Some(zb) = zip_bytes {
             let cursor = std::io::Cursor::new(zb);
             match zip::ZipArchive::new(cursor) {
@@ -734,7 +735,7 @@ pub fn validate_shapes_with_limits(
                 data_idx += 1;
             }
         } else {
-            // Fallback (test/legacy): önceden parse edilmiş rows üzerinden.
+            // Fallback (test/legacy): use pre-parsed rows.
             for (row_idx, row) in file.rows.iter().enumerate() {
                 let cow_row: Vec<Cow<'_, str>> =
                     row.iter().map(|s| Cow::Borrowed(s.as_str())).collect();
@@ -749,7 +750,7 @@ pub fn validate_shapes_with_limits(
         }
     }
 
-    // ARC_013: akış gövdesinde kapanmamış tırnak (issue #84) — DOSYA başına tek notice.
+    // ARC_013: unclosed quote in the stream body (issue #84) — one notice per FILE.
     if scan.unclosed || zip_unclosed {
         notices.push(super::common::arc013_unclosed_stream(
             &file.name,
@@ -757,21 +758,21 @@ pub fn validate_shapes_with_limits(
         ));
     }
 
-    // ARC_033: DOSYA başına TEK özet.
+    // ARC_033: ONE summary per FILE.
     if let Some(n) = super::common::arc033_summary(&rfc_acc, &file.name, &mut counter) {
         notices.push(n);
     }
 
-    // ⚠️ ARC_022 (satır sayısı limiti) BURADA DEĞİL: issue #75'te `k2/mod.rs`'teki tek
-    // geçişe toplandı. Kopya denetim, kapsamın sessizce eksik kalmasına yol açmıştı —
-    // `trips.txt` ve `calendar_dates.txt` hiçbir kopyaya sahip değildi.
+    // ⚠️ ARC_022 (row-count limit) is NOT HERE: issue #75 consolidated it into the single
+    // pass in `k2/mod.rs`. Duplicate validation had silently left coverage incomplete —
+    // `trips.txt` and `calendar_dates.txt` had no duplicate checks.
 
-    // ARC_009: başlık var ama veri satırı yok (stream_mode'da K1'den taşındı). shapes
-    // OPSİYONEL → Bilgi.
-    // 🔴 Bu kol 2026-08-31'e kadar ÖLÜ KODDU: `shapes.txt` `is_zip_stream` listesinde
-    // olduğu için K1 `raw_text`'i HER ZAMAN None bırakır; K1'in kendi boş-dosya kontrolü
-    // de `!stream_mode` istediği için shapes'e hiç bakmaz. Sonuç: başlık-only bir
-    // `shapes.txt` hiçbir bulgu üretmiyordu. Koşul `stop_times.rs`'tekiyle hizalandı.
+    // ARC_009: header exists but there is no data row (moved from K1 in stream_mode). shapes
+    // is OPTIONAL → Info.
+    // 🔴 This branch was DEAD CODE until 2026-08-31: because `shapes.txt` was in the
+    // `is_zip_stream` list, K1 always left `raw_text` as None; K1's own empty-file check
+    // also required `!stream_mode` and never inspected shapes. As a result, a header-only
+    // `shapes.txt` produced no finding. The condition was aligned with `stop_times.rs`.
     if (file.raw_text.is_some() || zip_bytes.is_some()) && total_rows == 0 {
         let mut n = make_k2_notice(
             &mut counter,
@@ -794,7 +795,7 @@ pub fn validate_shapes_with_limits(
         notices.push(n);
     }
 
-    // DQ_016: DOSYA başına TEK özet (satır-başına değil — patlama önlemi).
+    // DQ_016: ONE summary per FILE (not per row — burst prevention).
     if let Some((observed, msg, cols)) = dq016.summary(&file.name) {
         let mut n = make_k2_notice(
             &mut counter,
@@ -814,8 +815,8 @@ pub fn validate_shapes_with_limits(
         notices.push(n);
     }
 
-    // ARC_032: HTML işareti — DOSYA başına TEK özet (K1 ile aynı). Akış dosyalarında
-    // 2026-10-13'e kadar hiç çalışmıyordu (trip_headsign/stop_headsign denetlenmiyordu).
+    // ARC_032: HTML marker — ONE summary per FILE (same as K1). It did not run for streamed
+    // files until 2026-10-13 (trip_headsign/stop_headsign were not checked).
     if let Some((observed, msg, cols)) = arc032.summary(&file.name) {
         notices.push(make_k2_notice(
             &mut counter,
@@ -833,7 +834,7 @@ pub fn validate_shapes_with_limits(
         ));
     }
 
-    // ARC_037: ID alanında ASCII dışı karakter — DOSYA başına TEK özet (K1 ile aynı).
+    // ARC_037: non-ASCII character in an ID field — ONE summary per FILE (same as K1).
     if let Some((observed, msg, cols)) = arc037.summary(&file.name) {
         notices.push(make_k2_notice(
             &mut counter,
@@ -940,8 +941,8 @@ mod tests {
 
     #[test]
     fn streaming_raw_text_matches_rows_path() {
-        // #15 W3: production'da shapes raw_text üzerinden stream edilir. Aynı veri için
-        // raw_text yolu ile rows fallback yolu BİREBİR aynı record/line/notice üretmeli.
+        // #15 W3: in production, shapes is streamed through raw_text. For the same data,
+        // the raw_text and rows fallback paths must produce exactly the same records/lines/notices.
         let headers = vec![
             "shape_id",
             "shape_pt_lat",
@@ -950,15 +951,15 @@ mod tests {
         ];
         let rows = vec![
             vec!["S1", "41.0", "29.0", "1"],
-            vec!["S1", "999.0", "29.0", "2"], // SHP_002 (lat aralık dışı)
-            vec!["S1", "41.0", "29.0", "2"],  // SHP_008 (sequence yineleniyor)
+            vec!["S1", "999.0", "29.0", "2"], // SHP_002 (latitude out of range)
+            vec!["S1", "41.0", "29.0", "2"],  // SHP_008 (duplicate sequence)
         ];
 
-        // rows fallback yolu
+        // rows fallback path
         let (rec_a, _interns, not_a) =
             validate_shapes(&make_file(headers.clone(), rows.clone()), None);
 
-        // raw_text streaming yolu (K1 stream_mode'un ürettiği biçim)
+        // raw_text streaming path (the form produced by K1 stream_mode)
         let mut text = headers.join(",");
         text.push('\n');
         for r in &rows {
@@ -975,21 +976,21 @@ mod tests {
         };
         let (rec_b, _interns, not_b) = validate_shapes(&file_stream, None);
 
-        assert_eq!(rec_a.len(), rec_b.len(), "record sayısı iki yolda aynı");
+        assert_eq!(rec_a.len(), rec_b.len(), "record count must match on both paths");
         let lines_a: Vec<u64> = rec_a.iter().map(|r| r.line_u64()).collect();
         let lines_b: Vec<u64> = rec_b.iter().map(|r| r.line_u64()).collect();
-        assert_eq!(lines_a, lines_b, "line numaraları iki yolda aynı (2,3,4)");
+        assert_eq!(lines_a, lines_b, "line numbers must match on both paths (2,3,4)");
         let mut rules_a: Vec<&str> = not_a.iter().map(|n| n.rule_id.as_str()).collect();
         let mut rules_b: Vec<&str> = not_b.iter().map(|n| n.rule_id.as_str()).collect();
         rules_a.sort();
         rules_b.sort();
-        assert_eq!(rules_a, rules_b, "iki yol aynı notice kümesi");
+        assert_eq!(rules_a, rules_b, "both paths must produce the same notice set");
         assert!(rules_b.contains(&"SHP_002") && rules_b.contains(&"SHP_008"));
     }
 
-    /// Kapasite tahmini feed'in GERÇEK satır uzunluğuna uymalı.
-    /// Regresyon: sabit "satır ~30 bayt" varsayımı Entur'da (uzun NeTEx shape_id'leri,
-    /// gerçek ortalama 67,9 B) 2,26× fazla ayırıyor ve ~2,7 GB'ı hiç kullanmadan tutuyordu.
+    /// Capacity estimation must follow the feed's REAL row length.
+    /// Regression: the fixed "row ~30 bytes" assumption over-allocated 2.26× in Entur
+    /// (long NeTEx shape_ids, real average 67.9 B) and held ~2.7 GB unused.
     fn stream_file(text: String) -> RawFile {
         RawFile {
             name: "shapes.txt".to_string(),
@@ -1014,16 +1015,16 @@ mod tests {
         let n = 20_000;
         let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
         for i in 0..n {
-            // ~70 bayt/satır — eski sabit varsayımın (30 B) iki katından fazlası
+            // ~70 bytes/row — more than twice the old fixed assumption (30 B)
             text.push_str(&format!(
                 "RUT:JourneyPattern:{i:08}:long-netex-id,59.91,10.75,{i}\n"
             ));
         }
         let (records, _interns, _) = validate_shapes(&stream_file(text), None);
-        assert_eq!(records.len(), n, "tüm satırlar okunmalı");
+        assert_eq!(records.len(), n, "all rows must be read");
         assert!(
             records.capacity() < records.len() * 3 / 2,
-            "kapasite {} / satır {} — sabit-varsayım şişmesi geri gelmiş",
+            "capacity {} / rows {} — fixed-assumption inflation has returned",
             records.capacity(),
             records.len()
         );
@@ -1031,8 +1032,8 @@ mod tests {
 
     #[test]
     fn capacity_does_not_starve_for_short_shape_ids() {
-        // Karşıt uç: kısa id'de tahmin DÜŞÜK kalmamalı, yoksa Vec doubling'e girip
-        // kopyalama anında eski+yeni tamponu birlikte canlı tutar (tepe artar).
+        // Opposite extreme: the estimate must not be LOW for short IDs, or Vec doubling
+        // keeps old and new buffers alive during copying (increasing the peak).
         let n = 20_000;
         let mut text = String::from("shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n");
         for i in 0..n {
@@ -1042,7 +1043,7 @@ mod tests {
         assert_eq!(records.len(), n);
         assert!(
             records.capacity() >= records.len(),
-            "kapasite {} satır {} altına düşmüş",
+            "capacity {} fell below {} rows",
             records.capacity(),
             records.len()
         );

@@ -1,9 +1,9 @@
 use super::common::{build_row_map, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
-/// GTFS-JP `pattern_jp.txt` — opsiyonel duruş paterni bilgisi.
-/// Dosya mevcutsa jp_pattern_id satırın zorunlu kimliğidir; diğer alanlar
-/// GTFS-JP rehberinde opsiyonel metin/tarih alanlarıdır.
+/// GTFS-JP `pattern_jp.txt` — optional stopping-pattern information.
+/// If the file exists, jp_pattern_id is the required row identifier; the other fields
+/// are optional text/date fields in the GTFS-JP guide.
 #[derive(Debug, Clone)]
 pub struct PatternJpRecord {
     pub jp_pattern_id: String,

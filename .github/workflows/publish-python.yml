@@ -1,14 +1,15 @@
 name: Publish Python package
 
-# Yayın YALNIZ bir sürüm tag'inden yapılır; böylece PyPI paketi CLI binary'leriyle aynı
-# commit'ten çıkar. 0.14.0 `main`'den elle yayınlandı ve `v0.14.0` tag'inden 138 commit
-# ileride kaldı — aynı sürüm numarası kanala göre farklı motor demekti.
+# Publishing is allowed only from a release tag, so the PyPI package comes from the same
+# commit as the CLI binaries. 0.14.0 was published manually from `main` and ended up 138
+# commits ahead of the `v0.14.0` tag — the same version number then meant different engines
+# depending on the distribution channel.
 #
-# Normal yol: `release.yml` release'i yayına aldıktan sonra bu workflow'u tag ref'iyle
-# tetikler. `release: published` tetikleyicisi burada İŞE YARAMAZ: release'i
-# `release.yml` GITHUB_TOKEN ile yayınlar ve GITHUB_TOKEN olayları başka workflow
-# başlatmaz (`workflow_dispatch` bu kuralın istisnasıdır).
-# Elle yeniden deneme: Actions → "Use workflow from" menüsünde tag'i seç.
+# Normal path: `release.yml` triggers this workflow with the tag ref after publishing the
+# release. The `release: published` trigger does NOT work here: `release.yml` publishes the
+# release with GITHUB_TOKEN, and events created by GITHUB_TOKEN do not start another workflow
+# (`workflow_dispatch` is the exception).
+# To retry manually, select the tag from Actions → "Use workflow from".
 on:
   workflow_dispatch:
 
@@ -16,14 +17,14 @@ permissions:
   contents: read
 
 jobs:
-  # `if:` ile job atlamak koşuyu YEŞİL bırakır ve hiçbir şey yayınlanmadığı fark edilmez.
-  # Tag dışı ref'te bu job kırmızı yanar, diğerleri ona bağlı olduğu için hiç başlamaz.
+  # Skipping the job with `if:` leaves the run GREEN and hides the fact that nothing was
+  # published. On a non-tag ref this job fails, so the dependent jobs never start.
   require-tag:
     name: Require release tag
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Ref bir sürüm tag'i mi
+      - name: Is the ref a release tag?
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
@@ -52,9 +53,10 @@ jobs:
           import re
           import sys
 
-          # Paket sürümü kök Cargo.toml [workspace.package] version'dan gelir:
-          # crates/python onu miras alır, pyproject.toml `dynamic = ["version"]` ile
-          # maturin'e bırakır. İkisinden biri kendi sürümünü yazarsa tek kaynak bozulur.
+          # The package version comes from [workspace.package] version in the root
+          # Cargo.toml: crates/python inherits it, and pyproject.toml delegates the version
+          # to maturin with `dynamic = ["version"]`. Defining either version independently
+          # would break the single source of truth.
           expected = os.environ["RELEASE_VERSION"].removeprefix("v")
           root = pathlib.Path("Cargo.toml").read_text()
           crate = pathlib.Path("crates/python/Cargo.toml").read_text()

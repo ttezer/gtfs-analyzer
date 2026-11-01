@@ -58,19 +58,19 @@ pub fn wasm_init() {
     wasm_warn!("[GTFS WASM] binary v6 yüklendi");
 }
 
-// `threads` feature açıkken JS'e `init_thread_pool(n)` verir; UI doğrulamadan önce
-// `await init_thread_pool(navigator.hardwareConcurrency)` çağırıp rayon havuzunu kurar.
-// Bu çağrı yapılana kadar (veya feature kapalıysa) rayon::scope tek thread'de çalışır.
+// With the `threads` feature enabled, exposes `init_thread_pool(n)` to JS; the UI calls
+// `await init_thread_pool(navigator.hardwareConcurrency)` before validation to create the
+// rayon pool. Until that call (or when the feature is disabled), rayon::scope runs on one thread.
 #[cfg(feature = "threads")]
 pub use wasm_bindgen_rayon::init_thread_pool;
 
-// ── Sabitler ─────────────────────────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const PER_RULE_CAP: usize = 500;
-// Aşamalar arası global notice bütçesi (1M) 2026-10-30'da kaldırıldı: notice'lar
-// aşamada zaten üretilmiş olduğu için belleği korumuyor, yalnız sessizce kesiyordu
-// (DELFI: 69 kural kayıp, skor 62,5 yerine 74,1). Gösterim kural başına PER_RULE_CAP
-// ile sınırlanır; gerçek toplamlar `capped_totals`ta, native ile aynı.
+// The global 1M notice budget between stages was removed on 2026-10-30: because notices
+// had already been produced in the stage, it did not save memory and only truncated silently
+// (DELFI: 69 rules lost, score 74,1 instead of 62,5). Display is limited by PER_RULE_CAP per
+// rule; real totals are in `capped_totals`, matching native.
 const MAX_ZIP_ENTRIES: usize = 100_000;
 const MAX_ZIP_METADATA_BYTES: usize = 16 * 1024 * 1024;
 const MAX_SHAPE_COORDS: usize = 100_000;
@@ -93,10 +93,10 @@ pub struct CachedState {
     present_files: HashSet<String>,
 }
 
-// ── Yardımcı: aşama callback çağrısı ─────────────────────────────────────────
+// ── Helper: invoke the stage callback ────────────────────────────────────────
 
-/// issue #133 — yayın kararı ve skor kapsam kaybını görmeli. Native `validate_bytes` ile
-/// AYNI ölçüt; WASM kendi orkestrasyonunu koştuğu için burada da hesaplanmak zorunda.
+/// issue #133 — the publication decision and score must see coverage loss. The SAME criterion
+/// as native `validate_bytes`; WASM runs its own orchestration, so it must be calculated here too.
 fn coverage_complete_of(partial: &PartialReport) -> bool {
     !partial
         .unavailable_files
@@ -115,8 +115,8 @@ fn call_stage(f: &js_sys::Function, name: &str, elapsed_ms: u32) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/// ZIP içindeki kök .txt dosyalarını listeler (ayrıştırma yapmadan, sadece metadata).
-/// Dönen değer: JSON dizisi — [{name, uncompressed_size}]
+/// Lists root .txt files inside a ZIP (metadata only, without parsing).
+/// Return value: JSON array — [{name, uncompressed_size}]
 #[wasm_bindgen]
 pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
     use std::io::Cursor;
@@ -140,9 +140,9 @@ pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
     }
 
     let mut entries: Vec<Entry> = Vec::new();
-    // #46 kalibrasyon: tüm girdilerin merkezi-dizin (açılmış, sıkıştırılmış) boyutlarını
-    // DECOMPRESS ETMEDEN topla — decompression guard sınırlarını gerçek feed'e göre
-    // ayarlamak için. Rapor konsola basılır (aşağıda).
+// #46 calibration: collect the central-directory (uncompressed, compressed) sizes of all
+// entries WITHOUT DECOMPRESSING them — to tune decompression-guard limits to a real feed.
+// The report is printed to the console below.
     let mut calib: Vec<(String, u64, u64)> = Vec::new();
     let mut metadata_bytes = 0usize;
     for i in 0..archive.len() {
@@ -166,11 +166,11 @@ pub fn list_zip_files(zip_bytes: Vec<u8>) -> JsValue {
     JsValue::from_str(&serde_json::to_string(&entries).unwrap_or_else(|_| "[]".into()))
 }
 
-/// #46 decompression-guard kalibrasyon raporu — per-entry açılmış/sıkıştırılmış oranı,
-/// toplamlar ve `DecompressionLimits` için önerilen üst-sınırlar. Yalnız merkezi-dizin
-/// metadata'sından; hiç decompress edilmez, milisaniye sürer. Bu değerler GÜVENİLİR bir
-/// gerçek feed'i kalibre etmek içindir — runtime guard hâlâ gerçek açılan baytı sayar,
-/// beyan edilen boyuta güvenmez.
+/// #46 decompression-guard calibration report — per-entry uncompressed/compressed ratio,
+/// totals, and recommended upper bounds for `DecompressionLimits`. Uses only central-directory
+/// metadata; nothing is decompressed and it takes milliseconds. These values calibrate a
+/// TRUSTED real feed — the runtime guard still counts actual decompressed bytes and does not
+/// trust the declared size.
 #[cfg_attr(feature = "quiet", allow(unused_variables))]
 fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     if entries.is_empty() {
@@ -178,7 +178,7 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     }
     let mib = |b: u64| b as f64 / 1_048_576.0;
     let mut sorted: Vec<&(String, u64, u64)> = entries.iter().collect();
-    sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1)); // açılmış boyuta göre azalan
+    sorted.sort_by_key(|entry| std::cmp::Reverse(entry.1)); // descending by uncompressed size
     let (mut total_u, mut total_c) = (0u64, 0u64);
     let (mut max_ratio, mut max_ratio_name) = (0.0f64, String::new());
     let (mut max_u, mut max_u_name) = (0u64, String::new());
@@ -228,9 +228,9 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     );
     wasm_log!(report);
 
-    // Erken uyarı (issue #46, @Whatsonyourmind önerisi): ölçülen worst-ratio aktif
-    // `max_ratio` cap'inin yarısına ulaştıysa, false-trip'ten ÖNCE yeniden ölçmenin
-    // işaretidir. Eşik cap'e bağlı (sabit değişince otomatik izler).
+    // Early warning (issue #46, suggested by @Whatsonyourmind): if the measured worst ratio
+    // reaches half the active `max_ratio` cap, measure again BEFORE a false trip. The threshold
+    // follows the cap (and therefore tracks a constant change automatically).
     let cap = gtfs_pipeline::decompress_guard::DEFAULT_DECOMPRESSION_LIMITS.max_ratio as f64;
     if max_ratio >= cap / 2.0 {
         let warn = format!(
@@ -242,17 +242,17 @@ fn log_zip_ratio_report(entries: &[(String, u64, u64)]) {
     }
 }
 
-/// CachedState içindeki dosya istatistiklerini JSON olarak döner.
+/// Returns the file statistics in CachedState as JSON.
 /// [{name, rows, bytes}]
 #[wasm_bindgen]
 pub fn get_cached_file_stats(cache: &CachedState) -> JsValue {
     JsValue::from_str(&serde_json::to_string(&cache.file_stats).unwrap_or_else(|_| "[]".into()))
 }
 
-/// Tek bir shape'in sıralı `[[lat, lon], ...]` nokta listesini JSON döner.
-/// Büyük feed modunda name_index.shape_coords peşinen serialize edilmez; UI harita
-/// ikonuna tıklayınca yalnız ilgili shape'i BURADAN çeker (records bellekte canlı).
-/// Bulunamazsa/geometri yoksa `[]`.
+/// Returns one shape's ordered `[[lat, lon], ...]` point list as JSON.
+/// In large-feed mode, name_index.shape_coords is not serialized up front; when the UI
+/// clicks a map icon, it fetches only the relevant shape HERE (records remain live in memory).
+/// Returns `[]` when it is absent or has no geometry.
 #[wasm_bindgen]
 pub fn shape_coords_of(cache: &CachedState, shape_id: String) -> JsValue {
     let mut pts: Vec<(u32, f64, f64)> = cache
@@ -279,22 +279,21 @@ pub fn shape_coords_of(cache: &CachedState, shape_id: String) -> JsValue {
     JsValue::from_str(&serde_json::to_string(&coords).unwrap_or_else(|_| "[]".into()))
 }
 
-/// Tam pipeline: K1–K7 tek seferde (config panel kullanmayan akış için).
-/// `today` = tarayıcının yerel tarihi; deterministik çıktı için
-/// [`validate_with_today`] kullanın.
+/// Full pipeline: K1–K7 in one call (for flows without a config panel).
+/// `today` = the browser's local date; use [`validate_with_today`] for deterministic output.
 #[wasm_bindgen]
 pub fn validate(zip_bytes: Vec<u8>, config_delta_json: String) -> JsValue {
     validate_with_today(zip_bytes, config_delta_json, today_yyyymmdd())
 }
 
-/// [`validate`] ile AYNI pipeline; farkı yalnız `today`'in dışarıdan verilmesi.
+/// The SAME pipeline as [`validate`]; the only difference is that `today` is supplied externally.
 ///
-/// Takvim/servis kuralları (CAL_*, OPR_*) "bugün"e görelidir; `validate` bunu
-/// `js_sys::Date`'ten okur, dolayısıyla çıktı koşulduğu güne bağlıdır. Golden
-/// baseline üretimi ve testler için tarihi sabitleyip deterministik sonuç almak
-/// gerekir (native CLI'daki `--today` bayrağının karşılığı).
+/// Calendar/service rules (CAL_*, OPR_*) are relative to "today"; `validate` reads it from
+/// `js_sys::Date`, so output depends on the day it runs. For golden baseline generation and
+/// tests, fix the date to obtain deterministic results (the equivalent of the native CLI's
+/// `--today` flag).
 ///
-/// `today` formatı `YYYYMMDD` (ör. 20260716). Geçersiz değer Fatal döner.
+/// `today` format is `YYYYMMDD` (e.g. 20260716). An invalid value returns Fatal.
 #[wasm_bindgen]
 pub fn validate_with_today(zip_bytes: Vec<u8>, config_delta_json: String, today: u32) -> JsValue {
     if zip_bytes.len() > MAX_INPUT_BYTES {
@@ -326,15 +325,15 @@ pub fn validate_with_today(zip_bytes: Vec<u8>, config_delta_json: String, today:
     }
 }
 
-/// Kaba YYYYMMDD sağlaması: pipeline'a anlamsız tarih girip sessizce saçma
-/// takvim sonucu üretmesindense erken Fatal ver.
+/// Coarse YYYYMMDD validation: return Fatal early instead of passing a meaningless date to the
+/// pipeline and silently producing a nonsensical calendar result.
 fn is_valid_yyyymmdd(v: u32) -> bool {
     let (y, m, d) = (v / 10000, (v / 100) % 100, v % 100);
     (1970..=9999).contains(&y) && (1..=12).contains(&m) && (1..=31).contains(&d)
 }
 
-/// K1–K5'i çalıştırır.
-/// `on_stage(name, elapsed_ms)`: K1/K2/K3/K4/K5 her biri bittikten sonra çağrılır.
+/// Runs K1–K5.
+/// `on_stage(name, elapsed_ms)` is called after each of K1/K2/K3/K4/K5 finishes.
 #[wasm_bindgen]
 pub fn prepare(
     zip_bytes: Vec<u8>,
@@ -344,7 +343,7 @@ pub fn prepare(
     prepare_with_today(zip_bytes, config_delta_json, on_stage, today_yyyymmdd())
 }
 
-/// Deterministik K1–K5 hazırlığı; `today` K4 cross-reference tarihli kontrollerinde kullanılır.
+/// Deterministic K1–K5 preparation; `today` is used by K4 cross-reference date checks.
 #[wasm_bindgen]
 pub fn prepare_with_today(
     zip_bytes: Vec<u8>,
@@ -371,8 +370,8 @@ pub fn prepare_with_today(
             .param("today", today),
         ));
     }
-    // Servis-günü normalizasyonu K2'de (run_k1_k5) yapıldığından config burada gerekir.
-    // service_day_start_hour değişimi cache'lenmiş records'a yansımaz → dosya yeniden yüklenir.
+    // Service-day normalization happens in K2 (run_k1_k5), so config is required here.
+    // A service_day_start_hour change does not affect cached records → reload the files.
     let config = parse_config(&config_delta_json).map_err(fatal_js)?;
     wasm_log!(format!(
         "[mem] K0 input Vec: len={} cap={} bytes ({:.1} MB)",
@@ -383,8 +382,8 @@ pub fn prepare_with_today(
     run_k1_k5(&zip_bytes, &config, on_stage, today).map_err(fatal_js)
 }
 
-/// Önbellekten K6+K7'yi çalıştırır.
-/// `on_stage(name, elapsed_ms)`: K6 ve K7 bittikten sonra çağrılır.
+/// Runs K6+K7 from the cache.
+/// `on_stage(name, elapsed_ms)` is called after K6 and K7 finish.
 #[wasm_bindgen]
 pub fn rerun_k6_k7(
     cache: &CachedState,
@@ -394,7 +393,7 @@ pub fn rerun_k6_k7(
     rerun_k6_k7_with_today(cache, config_delta_json, on_stage, today_yyyymmdd())
 }
 
-/// Deterministik K6+K7 yeniden çalıştırması; `today` takvim ve servis kontrollerinde kullanılır.
+/// Deterministic K6+K7 rerun; `today` is used by calendar and service checks.
 #[wasm_bindgen]
 pub fn rerun_k6_k7_with_today(
     cache: &CachedState,
@@ -446,11 +445,11 @@ fn rerun_k6_k7_inner(
 
     let mut all_notices = cache.k1_k5_notices.clone();
     all_notices.extend(k6.notices);
-    // K2 ve K6 alt-vakaları aynı özete girdiği için toplulama önbellekteki ham K1–K5
-    // notice'larına K6 eklendikten SONRA yapılır (önbellek ham kalır).
+    // Because K2 and K6 subcases enter the same summary, aggregate AFTER adding K6 to the
+    // cached raw K1–K5 notices (the cache remains raw).
     aggregate_feed_level_notices(&mut all_notices, &cache.records, &cache.derived);
-    // Native `validate_bytes` ile AYNI rapor kapsamı (STP_033 uniform ücret istisnası +
-    // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
+    // The SAME report scope as native `validate_bytes` (STP_033 uniform-fare exception +
+    // `disabled_rule_ids`); must be applied before cap and scoring.
     apply_report_scope(&mut all_notices, &cache.records, &config);
     wasm_log!(format!(
         "[mem] after-K6 (pre-cap): {} notices, {:.1} MB",
@@ -487,7 +486,7 @@ fn rerun_k6_k7_inner(
 
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
-    // Harita verisi notice'lara göre filtrelenir (büyük feed modu) → önce name_index.
+    // Filter map data by notices (large-feed mode) → build name_index first.
     let name_index = build_name_index(&cache.records, &k7.notices);
     let result = ValidateResult::Ok(ValidationResult {
         status: if partial.is_empty() {
@@ -504,8 +503,8 @@ fn rerun_k6_k7_inner(
         agency_breakdown,
         feed_summary: build_feed_summary(&cache.records),
     });
-    // #15: sonucu JS'e serialize etmek (to_js) büyük feed'de belleğin son sıçraması;
-    // bu satır basılıp sonrası gelmiyorsa OOM serialize'da demektir.
+    // #15: serializing the result to JS (to_js) is the final memory spike on a large feed;
+    // if this line is printed but nothing after it, serialization ran out of memory.
     wasm_log!(format!(
         "[mem] before to_js (serialize): {:.1} MB",
         mem_mb()
@@ -515,7 +514,7 @@ fn rerun_k6_k7_inner(
     js
 }
 
-// ── İç pipeline yardımcıları ──────────────────────────────────────────────────
+// ── Internal pipeline helpers ────────────────────────────────────────────────
 
 fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> ValidateResult {
     t_start!("K1-parse");
@@ -548,11 +547,11 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     let mut file_stats = collect_file_stats(&k1.files);
 
     t_start!("K2-validate");
-    // #185: satır bütçesi GEÇİLMEZ. `Some(max_file_rows)` verildiğinde K2 stream'lenen
-    // dosyaları 1.000.000 satırda sessizce kesiyor, ardından kesmenin yarattığı boşta
-    // referanslar feed'in kusuru olarak raporlanıyordu (VBB: 250.407 TRP_004 + 220.752
-    // XFL_002 uydurma HIGH bulgu). v0.9.7 hiçbir satır sınırı uygulamıyordu; davranış
-    // oraya döndürüldü. `max_file_rows` yine yalnız ARC_022 eşiğidir.
+    // #185: DO NOT ENFORCE a row budget. With `Some(max_file_rows)`, K2 silently truncated
+    // streamed files at 1,000,000 rows; references left by the truncation were then reported
+    // as feed defects (VBB: 250,407 TRP_004 + 220,752 fabricated HIGH XFL_002 findings).
+    // v0.9.7 applied no row limit; restore that behavior. `max_file_rows` remains only the
+    // ARC_022 threshold.
     let mut k2 = validate_k2_with_whitespace_roots(
         k1.files,
         Some(zip_bytes),
@@ -582,14 +581,14 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
             .map(|(name, headers)| (name.clone(), headers.clone())),
     );
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
-    // Gece yarısını aşan seferleri (00:xx) servis-günü notasyonuna (24:xx) normalize et
-    // (K3–K6 öncesi). pipeline::validate_bytes ile aynı adım; WASM kendi orkestrasyonunu
-    // kullandığı için burada da çağrılmalı.
+    // Normalize trips crossing midnight (00:xx) to service-day notation (24:xx) before
+    // K3–K6. This is the same step as pipeline::validate_bytes; WASM must call it here
+    // because it runs its own orchestration.
     k2.records
         .stop_times_index
         .normalize_service_day(config.service_day_start_hour);
-    // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
-    // Yeni bir dosya stream edildiğinde k2/mod.rs streaming_row_counts'a eklenmesi yeterli.
+    // K1 rows remain empty for streamed files; overwrite them when K2 has counters.
+    // When a new file is streamed, adding it to streaming_row_counts in k2/mod.rs is enough.
     for fi in file_stats.iter_mut() {
         if let Some(&count) = k2.records.streaming_row_counts.get(fi.name.as_str()) {
             fi.rows = count as u32;
@@ -610,7 +609,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     );
     t_end!("K4-cross-ref");
 
-    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır → serbest bırak.
+    // #15: trip_stop_set (~226 MB on a large feed) is used only by K4 → release it.
     k2.records.stop_times_index.trip_stop_set = Default::default();
 
     t_start!("K5-derived");
@@ -632,15 +631,15 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     all_notices.extend(k4.notices);
     all_notices.extend(k5.notices);
     all_notices.extend(k6.notices);
-    // Native `validate_bytes` ile AYNI feed-level toplulama; registry bu kuralları
-    // `Feed` dedup seviyesinde tanımladığı için cap'ten önce yapılmazsa sayı kaybolur.
+    // The SAME feed-level aggregation as native `validate_bytes`; the registry defines these
+    // rules at `Feed` dedup level, so counts are lost if aggregation happens after the cap.
     aggregate_feed_level_notices(&mut all_notices, &k2.records, &k5.derived);
-    // Native `validate_bytes` ile AYNI rapor kapsamı (STP_033 uniform ücret istisnası +
-    // `disabled_rule_ids`); cap ve skor öncesinde uygulanmalı.
+    // The SAME report scope as native `validate_bytes` (STP_033 uniform-fare exception +
+    // `disabled_rule_ids`); it must be applied before cap and scoring.
     apply_report_scope(&mut all_notices, &k2.records, config);
 
-    // 1) Boşluk türevlerini bastır, dedup sonrası gerçek totalleri ve agency dökümünü say,
-    // ardından kural başına gösterim cap'ini uygula (native ile aynı sayım noktası).
+    // 1) Suppress whitespace derivatives, count real totals and the agency breakdown after dedup,
+    // then apply the per-rule display cap (the same counting point as native).
     let mut whitespace_suppressions = k2.whitespace_suppressions;
     whitespace_suppressions.merge(k4.whitespace_suppressions);
     let (mut all_notices, real_totals, mut agency_breakdown) = prepare_count_cap(
@@ -662,7 +661,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
         coverage_complete,
     );
     index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
-    // 4) Cap'e çarpan kurallarda score delta'yı gerçek toplam oranıyla ölçekle
+    // 4) Scale score delta by the real-total ratio for rules that hit the cap.
     scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
     let name_index = build_name_index(&k2.records, &k7.notices);
@@ -726,11 +725,11 @@ fn run_k1_k5(
 
     t = js_sys::Date::now();
     t_start!("K2-validate");
-    // #185: satır bütçesi GEÇİLMEZ. `Some(max_file_rows)` verildiğinde K2 stream'lenen
-    // dosyaları 1.000.000 satırda sessizce kesiyor, ardından kesmenin yarattığı boşta
-    // referanslar feed'in kusuru olarak raporlanıyordu (VBB: 250.407 TRP_004 + 220.752
-    // XFL_002 uydurma HIGH bulgu). v0.9.7 hiçbir satır sınırı uygulamıyordu; davranış
-    // oraya döndürüldü. `max_file_rows` yine yalnız ARC_022 eşiğidir.
+    // #185: DO NOT ENFORCE a row budget. With `Some(max_file_rows)`, K2 silently truncated
+    // streamed files at 1,000,000 rows; references left by the truncation were then reported
+    // as feed defects (VBB: 250,407 TRP_004 + 220,752 fabricated HIGH XFL_002 findings).
+    // v0.9.7 applied no row limit; restore that behavior. `max_file_rows` remains only the
+    // ARC_022 threshold.
     let mut k2 = validate_k2_with_whitespace_roots(
         k1.files,
         Some(zip_bytes),
@@ -759,14 +758,14 @@ fn run_k1_k5(
             .map(|(name, headers)| (name.clone(), headers.clone())),
     );
     k2.records.has_pattern_jp_file |= has_pattern_jp_file;
-    // Gece yarısı (00:xx) → servis-günü (24:xx) normalizasyonu — K3–K6 öncesi (bkz. ilk yol).
+    // Midnight (00:xx) → service-day (24:xx) normalization — before K3–K6 (see the first path).
     k2.records
         .stop_times_index
         .normalize_service_day(config.service_day_start_hour);
     call_stage(on_stage, "K2", (js_sys::Date::now() - t) as u32);
     log_mem("after-K2-validate");
-    // Stream edilen dosyalarda K1 rows boş kalır; K2 sayaçları varsa üzerine yaz.
-    // Yeni bir dosya stream edildiğinde k2/mod.rs streaming_row_counts'a eklenmesi yeterli.
+    // K1 rows remain empty for streamed files; overwrite them when K2 has counters.
+    // When a new file is streamed, adding it to streaming_row_counts in k2/mod.rs is enough.
     for fi in file_stats.iter_mut() {
         if let Some(&count) = k2.records.streaming_row_counts.get(fi.name.as_str()) {
             fi.rows = count as u32;
@@ -791,8 +790,8 @@ fn run_k1_k5(
     );
     t_end!("K4-cross-ref");
     call_stage(on_stage, "K4", (js_sys::Date::now() - t) as u32);
-    // #15: trip_stop_set (büyük feed'de ~226 MB) yalnızca K4'te kullanılır; cache'lenen records'tan
-    // K6 continuation öncesi serbest bırak (K6 peak'ini ~226 MB düşürme potansiyeli).
+    // #15: trip_stop_set (~226 MB on a large feed) is used only by K4; release it from cached
+    // records before K6 continuation (potentially reducing the K6 peak by ~226 MB).
     k2.records.stop_times_index.trip_stop_set = Default::default();
     log_mem("after-K4-cross-ref");
 
@@ -852,17 +851,17 @@ fn parse_config(delta_json: &str) -> Result<ValidatorConfig, FatalError> {
             .variant("config_parse")
             .param("detail", &e)
     })?;
-    // Native `validate_bytes` ile aynı kapı: bilinmeyen/Spec kural kapatılamaz.
+    // The same gate as native `validate_bytes`: unknown/Spec rules cannot be disabled.
     check_rule_scope(&config)?;
     Ok(config)
 }
 
-// Kural başına notice sınırı (cap):
-// Aynı kural çok sayıda satırda tetiklenebilir (örn. her stop_time satırı için STM_017).
-// Sınırsız bırakılırsa WASM bellek kullanımı patlar ve UI render süresi uzar.
-// Varsayılan cap PER_RULE_CAP (500); gerçek feed'lerde doğal olarak yüksek çıkan
-// kurallar HIGH_CAP_RULES listesinde 2000'e yükseltilmiştir.
-// Dönüş değeri: cap'e çarpan kuralların {rule_id → gerçek_toplam} haritası.
+// Per-rule notice cap:
+// A rule can fire on many rows (e.g. STM_017 for every stop_time row).
+// Without a limit, WASM memory use explodes and UI rendering takes longer.
+// The default cap is PER_RULE_CAP (500); rules naturally high on real feeds are raised
+// to 2,000 in HIGH_CAP_RULES.
+// Return value: {rule_id → real_total} for rules that hit the cap.
 fn cap_for_rule(rule_id: &str) -> usize {
     if HIGH_CAP_RULES.contains(&rule_id) {
         HIGH_CAP
@@ -880,7 +879,7 @@ fn count_totals(notices: &[gtfs_core::Notice]) -> std::collections::HashMap<Stri
     m
 }
 
-// #15 Mode A teşhisi: en çok notice üreten ilk 10 kuralı "RULE=count" olarak döner.
+// #15 Mode A diagnosis: returns the first 10 rules producing the most notices as "RULE=count".
 #[cfg_attr(feature = "quiet", allow(dead_code))]
 fn top_rules_str(notices: &[gtfs_core::Notice]) -> String {
     let m = count_totals(notices);
@@ -908,8 +907,8 @@ fn build_capped_totals(
         .collect()
 }
 
-/// Cap'e çarpan kurallarda R9 score delta'larını gerçek notice sayısıyla orantılı ölçekler.
-/// Büyük sayılarda hiperbolik model lineerleşir; ölçekleme iyi bir yaklaşım sağlar.
+/// Scales R9 score deltas for capped rules in proportion to the real notice count.
+/// The hyperbolic model becomes linear at large counts; scaling provides a good approximation.
 fn scale_r9_deltas(
     reports: &mut gtfs_core::ReportSet,
     real_totals: &std::collections::HashMap<String, u32>,
@@ -927,9 +926,9 @@ fn scale_r9_deltas(
     }
 }
 
-/// K7 hazırlığı (boşluk türevlerini bastırma) → tek geçişte dedup + agency sayımı + cap.
-/// Native ile AYNI sayım noktası (#2201): bastırılan türevler sayılmaz, cap sayımdan SONRA
-/// gelir. Dedup ayrı bir tam boy `Vec` ayırmaz.
+/// K7 preparation (suppress whitespace derivatives) → dedup + agency counting + cap in one pass.
+/// The SAME counting point as native (#2201): suppressed derivatives are not counted, and the
+/// cap comes AFTER counting. Dedup does not allocate a second full-size `Vec`.
 fn prepare_count_cap(
     notices: Vec<gtfs_core::Notice>,
     records: &EntityRecords,
@@ -954,31 +953,31 @@ fn prepare_count_cap(
 
 #[cfg(test)]
 fn cap_per_rule(notices: &mut Vec<gtfs_core::Notice>) -> std::collections::HashMap<String, u32> {
-    // Determinizm + tam temsil: önce dedup (kararlı sıralı, distinct entity), sonra cap.
-    // Cap ham notice'lara değil distinct entity'lere uygulanır → gösterilen temsilciler
-    // thread-bağımsız ve kümelenme olmaz (ör. OPR_005 cap'e çarpsa bile distinct route
-    // sayısı korunur). dedup içinde notice_order_key ile kararlı sıralama yapılır.
-    // Dedup + cap tek geçişte yapılır: dedup edilmiş milyonlarca Notice için ikinci
-    // bir tam boy Vec ayırmadan gerçek distinct toplamları korur.
+    // Determinism + full representation: dedup first (stable order, distinct entities), then cap.
+    // The cap applies to distinct entities, not raw notices → displayed representatives are
+    // thread-independent and do not cluster (e.g. distinct route count is preserved even when
+    // OPR_005 hits the cap). Dedup uses notice_order_key for stable ordering.
+    // Dedup + cap happen in one pass: preserve real distinct totals without allocating a second
+    // full-size Vec for millions of deduplicated Notices.
     let (kept, real_totals) =
         gtfs_pipeline::k7_reporting::dedup_and_cap_by_rule(std::mem::take(notices), cap_for_rule);
     *notices = kept;
     real_totals
 }
 
-// #15 Adım-1 enstrümantasyon: WASM linear memory high-water (MB).
-// WASM belleği yalnızca BÜYÜR (sayfa iade edilmez) → her aşamadan sonra okunan değer
-// o ana dek erişilen tepe kullanımdır; aşamalar arası delta = o aşamanın eklediği kalıcı
-// tahsisat. OOM'da feed taşıran aşamada ölür → son log hangi aşamaya kadar geldiğini verir.
+// #15 Step-1 instrumentation: WASM linear-memory high water (MB).
+// WASM memory only GROWS (pages are not returned) → the value read after each stage is the
+// peak usage reached so far; the delta between stages is that stage's persistent allocation.
+// On OOM, the feed dies at the stage that overflows it → the last log shows how far it got.
 #[cfg_attr(feature = "quiet", allow(dead_code))]
 fn mem_mb() -> f64 {
     use wasm_bindgen::JsCast;
     let buf = wasm_bindgen::memory()
         .unchecked_into::<js_sys::WebAssembly::Memory>()
         .buffer();
-    // js_sys::ArrayBuffer::byte_length() dönüş tipi u32 olduğu için Memory64'te
-    // 4 GiB üzerinde sarar (örn. 5313 MB → 1217 MB). WebIDL Number değerini
-    // Reflect ile doğrudan f64 oku; web tarafındaki 16 GiB sınırı tam temsil edilir.
+    // js_sys::ArrayBuffer::byte_length() returns u32 and wraps above 4 GiB in Memory64
+    // (e.g. 5313 MB → 1217 MB). Read the WebIDL Number value directly as f64 with Reflect;
+    // the 16 GiB web-side limit is then represented exactly.
     let bytes = js_sys::Reflect::get(buf.as_ref(), &JsValue::from_str("byteLength"))
         .ok()
         .and_then(|v| v.as_f64())
@@ -999,8 +998,9 @@ fn today_yyyymmdd() -> u32 {
     y * 10000 + m * 100 + d
 }
 
-/// Fatal sonucu JS'e çevirir. SDK derlemesinde (`sdk-en`) mesaj, bildirimlerle aynı
-/// modelle İngilizce şablondan yazılır; şablonu olmayan fatal pipeline metnini korur.
+/// Converts a Fatal result to JS. In the SDK build (`sdk-en`), the message is written from
+/// the English template using the same model as notices; a fatal without a template preserves
+/// the pipeline text.
 fn fatal_js(err: FatalError) -> JsValue {
     #[cfg(feature = "sdk-en")]
     let err = i18n::translate_fatal(err);
@@ -1024,17 +1024,17 @@ mod tests {
         assert!(is_valid_yyyymmdd(20260716));
         assert!(is_valid_yyyymmdd(19700101));
         assert!(is_valid_yyyymmdd(20261231));
-        // Ay/gün alanı sınır dışı
-        assert!(!is_valid_yyyymmdd(20261301), "ay 13 reddedilmeli");
-        assert!(!is_valid_yyyymmdd(20260732), "gün 32 reddedilmeli");
-        assert!(!is_valid_yyyymmdd(20260700), "gün 0 reddedilmeli");
-        assert!(!is_valid_yyyymmdd(20260016), "ay 0 reddedilmeli");
-        // Yıl alanı: Unix epoch öncesi ve 4 hanenin altı
-        assert!(!is_valid_yyyymmdd(19691231), "1970 öncesi reddedilmeli");
-        assert!(!is_valid_yyyymmdd(0), "sıfır reddedilmeli");
+        // Month/day fields out of range.
+        assert!(!is_valid_yyyymmdd(20261301), "month 13 should be rejected");
+        assert!(!is_valid_yyyymmdd(20260732), "day 32 should be rejected");
+        assert!(!is_valid_yyyymmdd(20260700), "day 0 should be rejected");
+        assert!(!is_valid_yyyymmdd(20260016), "month 0 should be rejected");
+        // Year field: before the Unix epoch and fewer than four digits.
+        assert!(!is_valid_yyyymmdd(19691231), "dates before 1970 should be rejected");
+        assert!(!is_valid_yyyymmdd(0), "zero should be rejected");
         assert!(
             !is_valid_yyyymmdd(20260716 / 10),
-            "kısa/bozuk sayı reddedilmeli"
+            "a short/malformed number should be rejected"
         );
     }
 
@@ -1067,9 +1067,9 @@ mod tests {
 
     #[test]
     fn feed_level_aggregation_runs_before_dedup_cap() {
-        // Registry TRP_005'i `Feed` dedup seviyesinde tanımlar. Toplulama atlanırsa
-        // dedup ham satır notice'larından birini seçer: sayı 1'e düşer ve
-        // `observed_value` ("2") UI'da "2 trips…" diye yanlış okunur.
+        // The registry defines TRP_005 at the `Feed` dedup level. If aggregation is skipped,
+        // dedup selects one raw-row notice: the count falls to 1 and `observed_value` ("2")
+        // is incorrectly read as "2 trips…" in the UI.
         let raw = |trip: &str| {
             let mut n = trip_notice(trip);
             n.rule_id = "TRP_005".to_string();

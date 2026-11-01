@@ -5,20 +5,20 @@ use super::common::{
 };
 use crate::k1_parse::RawFile;
 
-/// `translations.txt::field_name` o tablonun bir alanı mı?
+/// Is `translations.txt::field_name` a field of the table?
 ///
-/// 🔴 BU FONKSİYON BİR EL YAPIMI İZİNLİ LİSTEYDİ ve spec'i temsil etmiyordu. Spec'in
-/// `field_name` hakkındaki TEK hükmü tür eksenindedir (`P7c7134fe`, soft): *"Fields with
-/// other types should not be translated."* Tabloya göre ad listesi YOKTUR.
-/// Ölçüm (18. koşum, `TRN_002` ateşleyen 18 feed'in `translations.txt`'lerinin TAMAMI
-/// arşivden okundu): 1.958 bulgunun 1.900'ü o tabloda HİÇ OLMAYAN bir alanı çeviriyor —
-/// gerçek. Kalan 58'i var olan ve çevrilebilir türde alanlardı: `stops::stop_code` (Text,
-/// 50 bulgu) ve `feed_info::feed_contact_url` (URL, 8 bulgu). İkisi de yanlış pozitifti
-/// ve üç feed'i `Kritik·Spec` ekseninde yayın kapısında tutuyordu.
+/// 🔴 THIS FUNCTION WAS A HAND-WRITTEN ALLOWLIST and did not represent the spec. The spec's
+/// ONLY rule about `field_name` is type-based (`P7c7134fe`, soft): *"Fields with
+/// other types should not be translated."* There is NO table-based name list.
+/// Measurement (run 18, ALL `translations.txt` files from the 18 feeds triggering `TRN_002`
+/// were read from the archive): 1,900 of 1,958 findings translated a field that does NOT
+/// EXIST in that table — genuine. The remaining 58 were existing, translatable fields:
+/// `stops::stop_code` (Text, 50 findings) and `feed_info::feed_contact_url` (URL, 8 findings).
+/// Both were false positives and held three feeds at the publication gate on `Kritik·Spec`.
 ///
-/// Artık soru şudur: alan resmi şema kataloğunda veya bilinen bir profil uzantısında
-/// o tablonun sütunu mu. Resmi alanlar generated spec kataloğundan, uzantılar ise
-/// `known_columns` listesinden çözülür; tür ekseni `TRN_011`'e aittir.
+/// The question is now: is the field a column of that table in the official schema catalogue
+/// or a known profile extension? Official fields come from the generated spec catalogue,
+/// extensions from `known_columns`; the type axis belongs to `TRN_011`.
 pub(crate) fn table_has_field(table: &str, field: &str) -> bool {
     crate::k1_parse::known_columns_for_table(table).contains(&field)
         || super::translatable_fields_generated::spec_field_is_translatable(table, field).is_some()
@@ -28,9 +28,9 @@ pub(crate) fn is_known_translation_table(table: &str) -> bool {
     super::translatable_fields_generated::spec_translation_table_is_known(table)
 }
 
-/// GTFS-JP v3 örneklerinde `record_sub_id` değeri, alt kimlik gerekmeyen
-/// tablolarda boş yerine `NONE` olarak yazılabilir. Bu değer bir gerçek alt
-/// kimlik değildir; `stop_times` için ise geçerli bir stop_sequence sayılmaz.
+/// In GTFS-JP v3 examples, `record_sub_id` may be written as `NONE` instead of empty
+/// in tables that do not require a sub-identifier. This is not a real sub-identifier;
+/// for `stop_times`, it is not a valid stop_sequence number.
 pub(crate) fn is_none_record_sub_id(value: &str) -> bool {
     value.trim().eq_ignore_ascii_case("NONE")
 }
@@ -104,14 +104,14 @@ pub fn validate_translations_with_profile(
             .to_string();
         // field_name cannot be validated without either required header or its
         // table_name context. ARC_025 already reports the missing prerequisite.
-        // 🔴 TABLO BİLİNMİYORSA BU SORU CEVAPSIZDIR (Faz 3.1 adjudikasyonu).
-        // `valid_fields_for_table` bilinmeyen tabloda BOŞ liste döner, dolayısıyla HER
-        // alan adı "geçersiz" sayılırdı. Kartında zaten yazıyordu — "table_name zaten
-        // geçersizse izinli alan listesi boş döner; TRN_002 de tetiklenebilir" — ama
-        // ilişki `blocks`'a bağlanmamıştı, yani belgelenmiş ama makineye söylenmemişti.
-        // Ölçüm: `mdb-2933` `table_name` sütununa `stops.txt` (uzantılı) yazıyor; spec
-        // uzantısız ad ister, TRN_001 DOĞRU ateşliyor — ama peşinden 23.049 TRN_002
-        // türev bulgusu geliyordu. Kök zaten raporlandığı için türev susar.
+        // 🔴 IF THE TABLE IS UNKNOWN, THIS QUESTION HAS NO ANSWER (Phase 3.1 adjudication).
+        // `valid_fields_for_table` returns an EMPTY list for an unknown table, so EVERY
+        // field name used to be considered "invalid". The card already said — "if table_name
+        // is invalid, the allowed-field list is empty; TRN_002 may also trigger" — but the
+        // relation was not connected to `blocks`: documented, but not told to the machine.
+        // Measurement: `mdb-2933` writes `stops.txt` (with extension) in the `table_name` column;
+        // the spec requires the extensionless name, so TRN_001 fires CORRECTLY — but 23,049
+        // derivative TRN_002 findings followed. The root is already reported, so the derivative stays silent.
         if has_table_name
             && has_field_name
             && table_known
@@ -183,16 +183,16 @@ pub fn validate_translations_with_profile(
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // TRN_015: spec `field_value` için "Required if record_id is empty" der. İkisi de
-        // boşsa satır hangi kaydı çevirdiğini söylemez — çeviri hiçbir zaman uygulanamaz.
+        // TRN_015: the spec says `field_value` is "Required if record_id is empty". If both
+        // are empty, the row does not say which record it translates — translation can never apply.
         //
-        // İKİ DARALTMA:
-        //  • `feed_info` hariç — orada üç alanın üçü de yasaktır (TRN_013).
-        //  • table_name GEÇERSİZ ise hariç — o satırı TRN_001 zaten "desteklenen tablo değil"
-        //    diye reddeder ve "hangi kaydı çeviriyor" sorusu anlamını yitirir. Ölçüldü
-        //    (korpus, mdb-2519): eski Google `trans_id,lang,translation` biçimini kullanan bir
-        //    feed'de bu daraltma olmadan TRN_015 101.872 bulgu üretiyordu — aynı satırlara
-        //    zaten TRN_001/002/003/006/011 ateşliyor, yani ALTINCI kez aynı şeyi söylemek olurdu.
+        // TWO NARROWINGS:
+        //  • Exclude `feed_info` — all three fields are forbidden there (TRN_013).
+        //  • Exclude an INVALID table_name — TRN_001 already rejects that row as "unsupported
+        //    table", making "which record does it translate" meaningless. Measured in corpus
+        //    `mdb-2519`: without this narrowing, a feed using the old Google
+        //    `trans_id,lang,translation` form produced 101,872 TRN_015 findings — those rows
+        //    already trigger TRN_001/002/003/006/011, so this would say the same thing SIX times.
         let table_known = is_known_translation_table(&table_name);
         if table_known && table_name != "feed_info" && record_id.is_none() && field_value.is_none()
         {
@@ -222,7 +222,7 @@ pub fn validate_translations_with_profile(
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                // İhlal iki alanın BİRLİKTE dolu olmasıdır.
+                // The violation is that both fields are populated TOGETHER.
                 Some("record_id|field_value"),
                 None,
                 None,
@@ -231,24 +231,23 @@ pub fn validate_translations_with_profile(
             ));
         }
 
-        // 🔴 `table_known` KOŞULU ŞART. Bu sezgi, alan adının GTFS'te çevrilebilir bir
-        // içerik türüne benzediğini varsayar — ama tablo tanınmıyorsa o şemadan hiçbir şey
-        // bilinmez ve alanın çevrilebilir olup olmadığı hakkında hüküm verilemez.
-        // mdb-2126 tam bu vakadır: `table_name = "directions"` (GTFS tablosu değil, TRN_001
-        // zaten 421 bulguyla bunu söylüyor) ve `field_name = "direction"`, çevirileri
-        // 'East'/'West'/'North'/'South'. Alan apaçık çevrilebilir; kural aynı 421 satırda
-        // ikinci ve YANLIŞ bir Spec iddiası üretiyordu.
-        // TRN_002 aynı türev kusurunu taşıyordu ve tablo bilinmediğinde susmaya çevrildi;
-        // bu, o düzeltmenin atlanmış ikinci yarısıdır.
-        // 🔴 BURADA AD SEZGİSİ VARDI: alan adında "name"/"desc"/"url"/"email"/"phone"/
-        // "headsign"/"signposted_as" parçası aranıyordu. Spec ADA değil TÜRE bakar ve
-        // sezgi ikisini birden yanlış yapıyordu: `stops::stop_code` Text türündedir, yani
-        // çevrilebilir, ama hiçbir parçayı içermediği için kural ateşliyordu —
-        // `odpt-NipponChuoBus-Maebashi_Area`'da 50 satırda hem bu hem TRN_002 konuşuyordu.
-        // Artık tür üretilmiş spec kataloğundan sorulur.
+        // 🔴 `table_known` IS REQUIRED. This heuristic assumes the field name resembles a
+        // translatable content type in GTFS — but if the table is unknown, nothing is known
+        // about its schema and no claim can be made about whether the field is translatable.
+        // mdb-2126 is exactly this case: `table_name = "directions"` (not a GTFS table; TRN_001
+        // already says so with 421 findings) and `field_name = "direction"`, translated as
+        // 'East'/'West'/'North'/'South'. The field is clearly translatable; the rule produced
+        // a second and WRONG Spec claim on the same 421 rows.
+        // TRN_002 carried the same derivative defect and now stays silent for unknown tables;
+        // this is the omitted second half of that fix.
+        // 🔴 THERE WAS A NAME HEURISTIC HERE: it searched the field name for "name"/"desc"/"url"/
+        // "email"/"phone"/"headsign"/"signposted_as". The spec cares about TYPE, not NAME,
+        // and the heuristic got both wrong: `stops::stop_code` has Text type and is translatable,
+        // but matched none of those fragments, so the rule fired — both this and TRN_002 spoke
+        // on 50 rows in `odpt-NipponChuoBus-Maebashi_Area`. The type now comes from the generated spec catalogue.
         //
-        // ⚠️ Uzantı alanının türü BİLİNMEZ (`None`) ve orada hüküm verilmez — aynı
-        // sözleşme `table_known` koşulunda da geçerlidir: bilmediğimiz şeyi iddia etmeyiz.
+        // ⚠️ The extension field's type is UNKNOWN (`None`), so no judgment is made — the same
+        // contract applies to the `table_known` condition: we do not claim what we do not know.
         let type_is_translatable = super::translatable_fields_generated::spec_field_is_translatable(
             &table_name,
             &field_name,
@@ -281,7 +280,7 @@ pub fn validate_translations_with_profile(
                 Some(&row_map),
                 &file.name,
                 Some(line),
-                // feed_info satırında üç kimlik alanının ÜÇÜ de yasaktır.
+                // All THREE identity fields are forbidden on a feed_info row.
                 Some("record_id|record_sub_id|field_value"),
                 None,
                 None,
@@ -290,10 +289,10 @@ pub fn validate_translations_with_profile(
             ));
         }
 
-        // TRN_017: `stop_times.txt`'in birincil anahtarı bileşiktir
-        // (`trip_id` + `stop_sequence`); `record_id` yalnız ilkini taşır, `record_sub_id`
-        // ikincisini. İkincisi olmadan çeviri hangi SATIRA ait olduğunu söyleyemez —
-        // referans dangling değil BELİRSİZdir, bu yüzden `XFL_014` de görmez.
+        // TRN_017: `stop_times.txt` has a composite primary key
+        // (`trip_id` + `stop_sequence`); `record_id` carries only the first, `record_sub_id`
+        // the second. Without the second, translation cannot identify the ROW — the reference
+        // is AMBIGUOUS, not dangling, so `XFL_014` does not see it either.
         if table_name == "stop_times"
             && record_id.as_deref().is_some_and(|r| !r.is_empty())
             && record_sub_id.as_deref().is_none_or(str::is_empty)
@@ -365,8 +364,8 @@ mod tests {
 
     #[test]
     fn trn_017_requires_record_sub_id_for_stop_times() {
-        // stop_times PK bileşiktir (trip_id + stop_sequence); record_id yalnız ilkini taşır.
-        // İkincisi olmadan çeviri hangi SATIRA ait olduğunu söyleyemez.
+        // stop_times PK is composite (trip_id + stop_sequence); record_id carries only the first.
+        // Without the second, translation cannot identify the ROW.
         let file = make_file(
             vec![
                 "table_name",
@@ -377,9 +376,9 @@ mod tests {
                 "record_sub_id",
             ],
             vec![
-                vec!["stop_times", "stop_headsign", "en", "Centre", "T1", ""], // eksik → TRN_017
-                vec!["stop_times", "stop_headsign", "en", "Centre", "T2", "3"], // dolu → sessiz
-                vec!["stops", "stop_name", "en", "Centre", "S1", ""], // başka tablo → sessiz
+                vec!["stop_times", "stop_headsign", "en", "Centre", "T1", ""], // missing → TRN_017
+                vec!["stop_times", "stop_headsign", "en", "Centre", "T2", "3"], // populated → silent
+                vec!["stops", "stop_name", "en", "Centre", "S1", ""], // different table → silent
             ],
         );
         let (_, notices) = validate_translations(&file);
@@ -390,7 +389,7 @@ mod tests {
             !notices.iter().any(|n| n.rule_id == "TRN_010"),
             "eksik sub-id K2'de TRN_010 üretmemeli: {notices:?}"
         );
-        // TRN_014 ters koldur ve bu satırlarda konuşmamalı.
+        // TRN_014 is the inverse branch and must stay silent on these rows.
         assert!(
             !notices.iter().any(|n| n.rule_id == "TRN_014"),
             "{notices:?}"
@@ -488,12 +487,12 @@ mod tests {
         );
     }
 
-    /// 🔴 ÖLÇÜLMÜŞ YANLIŞ POZİTİF (`odpt-NipponChuoBus-Maebashi_Area`, 50 satır).
-    /// `stop_code` `stops.txt`'in gerçek bir sütunudur ve spec türü **Text**, yani
-    /// çevrilebilir. Eski hâlde İKİ kural birden konuşuyordu: `TRN_002` el yapımı izinli
-    /// listede olmadığı için, `TRN_011` de alan adı "name"/"desc"/"url" parçalarından
-    /// hiçbirini içermediği için. İkisi de haksızdı ve `TRN_002` `Kritik·Spec` olduğu için
-    /// feed'i yayın kapısında tutuyordu.
+    /// 🔴 MEASURED FALSE POSITIVE (`odpt-NipponChuoBus-Maebashi_Area`, 50 rows).
+    /// `stop_code` is a real `stops.txt` column and its spec type is **Text**, so it is
+    /// translatable. Previously TWO rules spoke: `TRN_002` because it was absent from the
+    /// hand-written allowlist, and `TRN_011` because the field name contained none of
+    /// "name"/"desc"/"url". Both were unjustified, and `TRN_002` held the feed at the
+    /// publication gate because it was `Kritik·Spec`.
     #[test]
     fn translatable_text_field_outside_the_old_whitelist_is_silent() {
         let file = make_file(
@@ -515,8 +514,8 @@ mod tests {
         );
     }
 
-    /// `feed_contact_url` `feed_info.txt`'in URL türünde gerçek bir alanıdır. İki İspanyol
-    /// feed'inde (`tfs-655`, `mdb-2715`) dörder bulgu üretiyordu ve tek engel oydu.
+    /// `feed_contact_url` is a real URL-type field in `feed_info.txt`. It produced four findings
+    /// in each of two Spanish feeds (`tfs-655`, `mdb-2715`) and was their only blocker.
     #[test]
     fn translatable_url_field_outside_the_old_whitelist_is_silent() {
         let file = make_file(
@@ -535,9 +534,9 @@ mod tests {
         );
     }
 
-    /// Kuralın ASIL değeri burada: korpustaki 1.900 bulgunun tamamı bu şekildedir —
-    /// `routes.txt`'te `long_name` diye bir sütun YOK (`route_long_name` var). Böyle bir
-    /// çeviri satırı uygulanamaz, dolayısıyla `TRN_002` konuşmaya devam eder.
+    /// The rule's CORE value is here: all 1,900 corpus findings have this shape —
+    /// `routes.txt` has NO `long_name` column (`route_long_name` exists). Such a translation
+    /// row cannot apply, so `TRN_002` continues to speak.
     #[test]
     fn field_absent_from_the_table_still_raises_trn_002() {
         let file = make_file(
@@ -557,8 +556,8 @@ mod tests {
         );
     }
 
-    /// Tür ekseni `TRN_011`'de kalır: alan VAR ama türü Latitude, yani çevrilemez.
-    /// `TRN_002` burada SUSAR — iki kural artık iki ayrı olguyu ölçüyor.
+    /// The type axis remains in `TRN_011`: the field EXISTS but its type is Latitude, so it is
+    /// not translatable. `TRN_002` stays SILENT here — the two rules now measure separate facts.
     #[test]
     fn existing_field_with_untranslatable_type_is_trn_011_only() {
         let file = make_file(
@@ -582,9 +581,9 @@ mod tests {
         );
     }
 
-    /// Uzantı alanı: `jp_trip_desc` `known_columns` içindedir, dolayısıyla `TRN_002` susar.
-    /// Türü spec kataloğunda YOKTUR, dolayısıyla `TRN_011` de susar — bilmediğimiz şey
-    /// hakkında iddia üretmeyiz.
+    /// Extension field: `jp_trip_desc` is in `known_columns`, so `TRN_002` stays silent.
+    /// Its type is NOT in the spec catalogue, so `TRN_011` also stays silent — we make no
+    /// claim about what we do not know.
     #[test]
     fn extension_field_is_silent_in_both_rules() {
         let file = make_file(

@@ -1,15 +1,15 @@
-//! WP-1 — Spec uygunluk kapısı: **emit_proof'un aynası**.
+//! WP-1 — Spec conformance gate: the **mirror of emit_proof**.
 //!
-//! emit_proof.rs "her kural ateşleyebiliyor mu" der (yanlış NEGATİF avı).
-//! Bu test tersini der: **spec'e uygun bir feed hiçbir `Spec` sınıfı notice
-//! üretmemeli** (yanlış POZİTİF avı). 2026-08-01 spec uygunluk turundaki
-//! FPD_002 / STM_006 / ARC_004 düzeltmelerinin ÜÇÜ de bu kapıya takılırdı.
+//! emit_proof.rs asks "can every rule fire?" (searching for false NEGATIVES).
+//! This test does the reverse: **a spec-conformant feed must produce no `Spec`-class notices
+//! (searching for false POSITIVES). The 2026-08-01 spec conformance pass
+//! would have caught all THREE fixes: FPD_002 / STM_006 / ARC_004.
 //!
-//! İkinci (bedava) kapı: aynı korpusta `Kritik` severity de olmamalı —
-//! ölçülmeden push edilen XFL_031 + LOC_010'u sınar.
+//! Second (free) gate: the same corpus must also have no `Kritik` severity —
+//! it catches XFL_031 + LOC_010 being pushed without measurement.
 //!
-//! KAPSAM DIŞI: "sıfır notice" hedefi. Base feed bugün 23 notice üretiyor ve
-//! bunların çoğu meşru Quality/Analytics bulgusu (feed_info yok, shapes yok…).
+//! OUT OF SCOPE: the "zero notices" target. The base feed currently produces 23 notices,
+//! mostly legitimate Quality/Analytics findings (missing feed_info, missing shapes…).
 
 use std::collections::BTreeSet;
 use std::io::Write as _;
@@ -20,7 +20,7 @@ use gtfs_pipeline::{validate_bytes, ValidateResult, ValidatorConfig};
 
 const TODAY: u32 = 20_260_515;
 
-// ── Geçerli temel feed (emit_proof.rs ile aynı gövde) ──────────────────────────
+// ── Valid baseline feed (same body as emit_proof.rs) ──────────────────────────
 const AGENCY: &str =
     "agency_id,agency_name,agency_url,agency_timezone\n1,Test,http://test.example,UTC\n";
 const STOPS: &str = "stop_id,stop_name,stop_lat,stop_lon\nS1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\n";
@@ -67,7 +67,7 @@ fn make_zip(files: &[(String, Vec<u8>)]) -> Vec<u8> {
     zw.finish().unwrap().into_inner()
 }
 
-/// Feed'i doğrular; Fatal dönerse testi düşürür (geçerli feed Fatal almamalı).
+/// Validates the feed; fails the test on Fatal (a valid feed must not be Fatal).
 fn notices_of(feed: &ValidFeed) -> Vec<Notice> {
     let files = with_opts(&feed.overrides, &feed.removes);
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
@@ -78,7 +78,7 @@ fn notices_of(feed: &ValidFeed) -> Vec<Notice> {
     }
 }
 
-/// Kanaryanın (kasıtlı ihlal eklenmiş varyant) ürettiği kural kimlikleri.
+/// Rule IDs produced by the canary (a variant with an intentional violation).
 fn canary_rules(feed: &ValidFeed) -> BTreeSet<String> {
     let mut ov = feed.overrides.clone();
     for (name, content) in &feed.canary_overrides {
@@ -91,24 +91,24 @@ fn canary_rules(feed: &ValidFeed) -> BTreeSet<String> {
     let files = with_opts(&ov, &feed.removes);
     match validate_bytes(&make_zip(&files), &ValidatorConfig::default(), TODAY) {
         ValidateResult::Ok(vr) => vr.notices.iter().map(|n| n.rule_id.clone()).collect(),
-        // Kanarya Fatal dönebilir (ör. ARC_004) — o durumda rule_id yok, boş set.
+        // The canary may be Fatal (e.g. ARC_004) — then there is no rule_id, so the set is empty.
         ValidateResult::Fatal(_) => BTreeSet::new(),
     }
 }
 
-/// Spec'e UYGUN bir feed + onu "boş geçmediğini" kanıtlayan kanarya.
+/// A spec-CONFORMANT feed + a canary proving it does not silently pass.
 struct ValidFeed {
     name: &'static str,
     overrides: Vec<(&'static str, &'static str)>,
     removes: Vec<&'static str>,
-    /// Fixture'ın ayırt edici dosyasına kasıtlı ihlal ekleyen override'lar.
-    /// `canary_rule` bunun sonucunda ÇIKMALI — çıkmıyorsa dosya sessizce
-    /// atlanıyordur ve asıl fixture yeşil geçmesi bir şey kanıtlamaz.
+    /// Overrides that add an intentional violation to the fixture's distinguishing file.
+    /// `canary_rule` MUST APPEAR as a result — if it does not, the file is silently skipped
+    /// and the original fixture passing proves nothing.
     canary_overrides: Vec<(&'static str, &'static str)>,
     canary_rule: &'static str,
 }
 
-// ── Flex yardımcıları ─────────────────────────────────────────────────────────
+// ── Flex helpers ──────────────────────────────────────────────────────────────
 const GEOJSON_L1_L2: &str = r#"{"type":"FeatureCollection","features":[
 {"type":"Feature","id":"L1","properties":{},"geometry":{"type":"Polygon","coordinates":[[[29.00,41.00],[29.00,41.01],[29.01,41.01],[29.00,41.00]]]}},
 {"type":"Feature","id":"L2","properties":{},"geometry":{"type":"Polygon","coordinates":[[[29.10,41.10],[29.10,41.11],[29.11,41.11],[29.10,41.10]]]}}]}"#;
@@ -121,7 +121,7 @@ const LOCATION_GROUP_STOPS: &str = "location_group_id,stop_id\nLG1,S1\nLG2,S2\n"
 
 fn valid_feeds() -> Vec<ValidFeed> {
     vec![
-        // 1. Klasik feed: stop_times yalnızca stop_id kullanıyor.
+        // 1. Classic feed: stop_times uses only stop_id.
         ValidFeed {
             name: "stop_id_only",
             overrides: vec![],
@@ -129,7 +129,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,,1\nT1,08:10:00,08:10:00,S2,2\n")],
             canary_rule: "STM_006",
         },
-        // 2. Flex: yalnız location_id (stop_id YOK) — bb2c1fc1 düzeltmesi.
+        // 2. Flex: location_id only (NO stop_id) — bb2c1fc1 fix.
         ValidFeed {
             name: "location_id_only",
             overrides: vec![("stop_times.txt", ST_LOCATION_ID), ("locations.geojson", GEOJSON_L1_L2)],
@@ -137,7 +137,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("stop_times.txt", "trip_id,stop_sequence,location_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\nT1,1,NOPE,09:00:00,10:00:00,2,2\nT1,2,L2,10:00:00,11:00:00,2,2\n")],
             canary_rule: "XFL_025",
         },
-        // 3. Flex: yalnız location_group_id.
+        // 3. Flex: location_group_id only.
         ValidFeed {
             name: "location_group_id_only",
             overrides: vec![
@@ -149,7 +149,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("stop_times.txt", "trip_id,stop_sequence,location_group_id,start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_type,drop_off_type\nT1,1,NOPE,09:00:00,10:00:00,2,2\nT1,2,LG2,10:00:00,11:00:00,2,2\n")],
             canary_rule: "XFL_024",
         },
-        // 4. Yalnızca-Flex feed: locations.geojson var, stops.txt YOK — ARC_004 (83f83d83).
+        // 4. Flex-only feed: locations.geojson present, stops.txt ABSENT — ARC_004 (83f83d83).
         ValidFeed {
             name: "flex_without_stops_txt",
             overrides: vec![("stop_times.txt", ST_LOCATION_ID), ("locations.geojson", GEOJSON_L1_L2)],
@@ -157,7 +157,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("locations.geojson", "{\"type\":\"FeatureCollection\",\"features\":[]}")],
             canary_rule: "LOC_005",
         },
-        // 5. Negatif fare tutarı = aktarma indirimi, geçerli — FPD_002 (195ecac3).
+        // 5. Negative fare amount = transfer discount, valid — FPD_002 (195ecac3).
         ValidFeed {
             name: "negative_fare_amount",
             overrides: vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,-1.50,USD\n")],
@@ -165,7 +165,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("fare_products.txt", "fare_product_id,amount,currency\nP1,abc,USD\n")],
             canary_rule: "FPD_002",
         },
-        // 6. routes.network_id tek başına (networks/route_networks YOK) — XFL_019 (2f674946).
+        // 6. routes.network_id alone (NO networks/route_networks) — XFL_019 (2f674946).
         ValidFeed {
             name: "routes_network_id_alone",
             overrides: vec![("routes.txt", "route_id,agency_id,route_short_name,route_type,network_id\nR1,1,101,3,N1\n")],
@@ -173,7 +173,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("route_networks.txt", "network_id,route_id\nN1,R1\n")],
             canary_rule: "XFL_019",
         },
-        // 7. calendar.txt yok, servis yalnız calendar_dates.txt ile tanımlı (spec'te geçerli).
+        // 7. No calendar.txt; service defined only through calendar_dates.txt (valid in the spec).
         ValidFeed {
             name: "calendar_dates_only",
             overrides: vec![("calendar_dates.txt", CALENDAR_DATES_ONLY)],
@@ -181,7 +181,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
             canary_overrides: vec![("calendar_dates.txt", "service_id,date,exception_type\nSVC1,20260501,5\n")],
             canary_rule: "CLD_003",
         },
-        // 8. Raylı feed, gece yarısı sonrası kalkış (38:10) — GTFS'te geçerli.
+        // 8. Rail feed, departure after midnight (38:10) — valid in GTFS.
         ValidFeed {
             name: "rail_after_midnight",
             overrides: vec![
@@ -195,7 +195,7 @@ fn valid_feeds() -> Vec<ValidFeed> {
     ]
 }
 
-// Servis günü penceresi TODAY (20260515) çevresinde yeterince geniş olsun.
+// Make the service-day window wide enough around TODAY (20260515).
 const CALENDAR_DATES_ONLY: &str = "service_id,date,exception_type\n\
 SVC1,20260501,1\nSVC1,20260504,1\nSVC1,20260505,1\nSVC1,20260506,1\nSVC1,20260507,1\n\
 SVC1,20260508,1\nSVC1,20260511,1\nSVC1,20260512,1\nSVC1,20260513,1\nSVC1,20260514,1\n\
@@ -204,7 +204,7 @@ SVC1,20260522,1\nSVC1,20260525,1\nSVC1,20260526,1\nSVC1,20260527,1\nSVC1,2026052
 SVC1,20260529,1\nSVC1,20260601,1\nSVC1,20260602,1\nSVC1,20260603,1\nSVC1,20260604,1\n";
 
 #[test]
-#[ignore = "geliştirme yardımcısı: cargo test --test spec_conformance dump -- --ignored --nocapture"]
+#[ignore = "development helper: cargo test --test spec_conformance dump -- --ignored --nocapture"]
 fn dump() {
     for feed in valid_feeds() {
         let ns = notices_of(&feed);
@@ -239,7 +239,7 @@ fn dump() {
     }
 }
 
-/// WP-1 ANA KAPI: spec'e uygun feed hiçbir `Spec` sınıfı notice üretmemeli.
+/// WP-1 MAIN GATE: a spec-conformant feed must produce no `Spec`-class notices.
 #[test]
 fn valid_feeds_emit_no_spec_notice() {
     let mut failures = Vec::new();
@@ -269,7 +269,7 @@ fn valid_feeds_emit_no_spec_notice() {
     );
 }
 
-/// İkinci kapı: aynı korpusta `Kritik` severity de olmamalı.
+/// Second gate: the same corpus must also have no `Kritik` severity.
 #[test]
 fn valid_feeds_emit_no_critical_notice() {
     let mut failures = Vec::new();
@@ -292,9 +292,9 @@ fn valid_feeds_emit_no_critical_notice() {
     );
 }
 
-/// Fixture'lar "boş geçmiyor": her feed'in ayırt edici dosyası gerçekten okunuyor.
-/// Kanarya = aynı feed'e kasıtlı ihlal; beklenen kural çıkmazsa dosya sessizce
-/// atlanıyor demektir ve asıl kapı hiçbir şey kanıtlamıyor.
+/// Fixtures are not "passing empty": each feed's distinguishing file is actually read.
+/// A canary is an intentional violation in the same feed; if the expected rule is absent,
+/// the file is being silently skipped and the main gate proves nothing.
 #[test]
 fn every_valid_feed_is_actually_exercised() {
     let mut failures = Vec::new();

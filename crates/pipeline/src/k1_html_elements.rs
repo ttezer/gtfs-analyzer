@@ -1,18 +1,18 @@
-//! ÜRETİLMİŞ DOSYA — elle düzenlemeyin (issue #79).
+//! GENERATED FILE — do not edit by hand (issue #79).
 //!
-//! Kaynak : https://html.spec.whatwg.org/multipage/indices.html
-//! SHA-256: 96f70aa6a8461b19c8ae25e80370cce01523255a447dec1d583967a442237b87
-//! Üretim : `python3 spec-audit/gen_html_elements.py`
-//! Drift  : `python3 spec-audit/gen_html_elements.py --check`
+//! Source : https://html.spec.whatwg.org/multipage/indices.html
+//! SHA-256: 0a865ea90576d2976db607d324b1e27de14a7d5f53f96da3f63c209ea288181d
+//! Generate: `python3 spec-audit/gen_html_elements.py`
+//! Drift   : `python3 spec-audit/gen_html_elements.py --check`
 //!
-//! Küme = WHATWG eleman dizini (113) ∪ yabancı içerik kökleri
-//! (2: math, svg) ∪ eskimiş elemanlar (15).
-//! Toplam 130 ad. İki ek kümenin GEREKÇESİ üreticinin docstring'indedir:
-//! `svg`/`math` dizinde yoktur ama HTML'de tanınan başlangıç etiketleridir; eskimiş
-//! elemanlar yaşayan standarttan düşmüştür ama gerçek feed'lerde geçer.
+//! Set = WHATWG element index (113) ∪ foreign-content roots
+//! (2: math, svg) ∪ obsolete elements (15).
+//! 130 names total. The generator docstring gives the REASON for both extra sets:
+//! `svg`/`math` are absent from the index but are recognized start tags in HTML; obsolete
+//! elements were removed from the living standard but occur in real feeds.
 //!
-//! ⚠️ Liste KAPALI olmak zorunda: açılı ayraç içindeki her kelimeyi etiket saymak
-//! `<TBD>`, `<Bilinmiyor>`, `<未定>` gibi gerçek metni işaretlerdi.
+//! ⚠️ The list MUST remain closed: treating every word inside angle brackets as a tag would
+//! flag real text such as `<TBD>`, `<Bilinmiyor>`, and `<未定>`.
 
 /// Alfabetik SIRALI — `binary_search` bunu varsayar.
 pub(crate) const HTML_ELEMENTS: &[&str] = &[

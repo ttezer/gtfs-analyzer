@@ -12,7 +12,7 @@ use crate::k2::{detect_gtfs_jp, EntityRecords, GTFS_JP_FILES};
 use crate::k5_derived::DerivedData;
 use crate::WhitespaceSuppressions;
 
-// ── Çıktı tipi ────────────────────────────────────────────────────────────────
+// ── Output type ───────────────────────────────────────────────────────────────
 
 pub struct K7Result {
     pub notices: Vec<Notice>,
@@ -20,7 +20,7 @@ pub struct K7Result {
     pub metrics: FeedMetrics,
 }
 
-// ── Ana fonksiyon ─────────────────────────────────────────────────────────────
+// ── Main function ─────────────────────────────────────────────────────────────
 
 pub fn report(
     all_notices: Vec<Notice>,
@@ -55,10 +55,10 @@ pub fn report_with_whitespace_suppressions(
     report_prepared(notices, records, derived, file_stats, coverage_complete)
 }
 
-/// K7'nin ilk yarısı: boşluk türevlerini bastırır, `service_id`'yi doldurur ve dedup
-/// eder. Dönen küme rapora GİRECEK bulgulardır; sayımlar (agency dağılımı, WASM'da gerçek
-/// kural toplamları) bu noktada yapılmalıdır: bastırılan türevler sayılmaz, cap henüz
-/// uygulanmamıştır.
+/// First half of K7: suppresses whitespace derivatives, fills `service_id`, and deduplicates.
+/// The returned set contains findings that ENTER the report; counts (agency distribution and
+/// actual rule totals in WASM) must be taken here: suppressed derivatives are not counted and
+/// the cap has not yet been applied.
 pub fn prepare_notices(
     all_notices: Vec<Notice>,
     records: &EntityRecords,
@@ -85,8 +85,8 @@ pub fn prepare_notices(
     notices
 }
 
-/// K7'nin ikinci yarısı: [`prepare_notices`] çıktısından (WASM'da cap'lenmiş haliyle)
-/// kimlikleri, kök-semptom çözümünü, raporları ve metrikleri kurar.
+/// Second half of K7: builds identities, root-symptom resolution, reports, and metrics from
+/// the output of [`prepare_notices`] (in its capped WASM form).
 pub fn report_prepared(
     mut notices: Vec<Notice>,
     records: &EntityRecords,
@@ -95,11 +95,11 @@ pub fn report_prepared(
     coverage_complete: bool,
 ) -> K7Result {
     use crate::timing::Timer;
-    // Determinizm: id'ler katmanların EMİSYON sırasından geliyordu ve o sıra HashMap
-    // iterasyonlarına bağlı olduğu için koşudan koşuya kayıyordu (içerik aynı, id farklı).
-    // Dedup çıktısı `notice_order_key` ile kararlı sıralı olduğundan, id'ler burada yeniden
-    // atanınca deterministik olur. Katman öneki (k1/k2/…) korunur; raporlar bu listeden
-    // sonra kurulduğu için referanslar tutarlı kalır.
+    // Determinism: IDs used to come from layer EMISSION order, which depended on HashMap
+    // iteration and therefore varied between runs (same content, different IDs).
+    // Dedup output is stably ordered by `notice_order_key`, so assigning IDs again here
+    // makes them deterministic. The layer prefix (k1/k2/…) is preserved; reports are built
+    // from this list afterward, so references remain consistent.
     for (i, n) in notices.iter_mut().enumerate() {
         let prefix = n.id.split('/').next().unwrap_or("k").to_string();
         n.id = format!("{prefix}/{}#{}", n.rule_id, i + 1);
@@ -124,12 +124,12 @@ pub fn report_prepared(
     }
 }
 
-/// DQ_016 kök bulgusunu koruyup, yalnızca ham değerin çevresindeki boşluk nedeniyle oluşan
-/// tip/FK semptomlarını rapor dışına alır. K2 hâlâ ham değeri parse eder; hiçbir PK/FK değeri
-/// burada veya daha erken normalleştirilmez. Kök bulguya sayısal ve kural bazlı audit özeti
-/// yazılır; böylece varsayılan rapor küçük kalırken strict/audit tüketicisi neyin bastırıldığını
-/// görebilir.
-/// `pub` yalnız denetim araçları için (`examples/scope_audit.rs`).
+/// Preserves the DQ_016 root finding while removing from the report only type/FK symptoms
+/// caused by whitespace around the raw value. K2 still parses the raw value; no PK/FK value
+/// is normalized here or earlier. A numeric and rule-based audit summary is written to the
+/// root finding, keeping the default report small while strict/audit consumers can see what
+/// was suppressed.
+/// `pub` is only for audit tools (`examples/scope_audit.rs`).
 #[doc(hidden)]
 pub fn suppress_whitespace_derivatives(
     mut notices: Vec<Notice>,
@@ -139,13 +139,14 @@ pub fn suppress_whitespace_derivatives(
 ) -> Vec<Notice> {
     let references = WhitespaceReferences::from_records(records);
 
-    // 🔴 DEĞİŞMEZ (#134): bastırılan her bulgu BİR YERDE BEYAN EDİLMELİ. Beyan, bulgunun
-    // KENDİ dosyasının `DQ_016` köküne yazılır; o dosyada kök yoksa beyan yazacak yer
-    // olmaz ve bulgu İZSİZ kaybolur — bastırmaktan beterdir.
+    // 🔴 IMMUTABLE (#134): every suppressed finding MUST BE DECLARED SOMEWHERE. The declaration
+    // is written to the finding's OWN file's `DQ_016` root; if that file has no root, there
+    // is nowhere to write the declaration and the finding disappears WITHOUT A TRACE — worse
+    // than suppressing it.
     //
-    // Ayna yön bunu görünür kıldı: `trips.txt`'e boşluk konup `stop_times.txt` temiz
-    // bırakıldığında `STM_001` (dosyası stop_times) bastırılıyor ama stop_times'ın kökü
-    // olmadığı için sayı hiçbir yere yazılmıyordu. Testte yakalandı.
+    // The mirror direction exposed this: when whitespace is added to `trips.txt` while
+    // `stop_times.txt` remains clean, `STM_001` (whose file is stop_times) is suppressed,
+    // but no count was written anywhere because stop_times had no root. The test caught it.
     let files_with_root: BTreeSet<String> = notices
         .iter()
         .filter(|n| n.rule_id == "DQ_016")
@@ -160,16 +161,16 @@ pub fn suppress_whitespace_derivatives(
                 .map(|audit| (file.clone(), audit))
         })
         .collect();
-    // Kimlik birleşimi yalnız boşlukla kırık olduğunda ateşleyen SONUÇ kuralları (2b).
-    // Yapı pahalı değil ama boşluksuz feed'lerde hiç kurulmaz.
+    // RESULT rules (2b) that fire when an identity join is broken only by whitespace.
+    // Building this is cheap, but it is skipped entirely for feeds without whitespace.
     let joins = (!files_with_root.is_empty()
         && notices
             .iter()
             .any(|n| JOIN_DERIVATIVE_RULES.contains(&n.rule_id.as_str())))
     .then(|| JoinWhitespace::from_records(records, derived));
     notices.retain(|notice| {
-        // K6 hesabın içinde işaretledi: bulgu, hat türü yalnız boşluk yüzünden kaybolduğu
-        // için oluştu (hız ve sefer aralığı eşikleri; `mark_whitespace_join`).
+        // K6 marked this internally: the finding exists because the route type disappeared
+        // only due to whitespace (speed and headway thresholds; `mark_whitespace_join`).
         if let Some(file) = notice
             .details
             .as_ref()
@@ -182,9 +183,10 @@ pub fn suppress_whitespace_derivatives(
                 return false;
             }
         }
-        // Beyan, bulgunun kendi dosyasına değil BOŞLUĞU TAŞIYAN dosyanın köküne yazılır:
-        // `routes.route_id = "R1  "` ise `TRP_011` (trips.txt) `routes.txt` kökünde beyan
-        // edilir. #134'ün asıl şartı korunur — o kök yoksa bulgu izsiz kaybolmaz, KALIR.
+        // The declaration is written to the root of the file CARRYING THE WHITESPACE, not the
+        // finding's own file: if `routes.route_id = "R1  "`, `TRP_011` (trips.txt) is
+        // declared under the `routes.txt` root. #134's core requirement remains: if that
+        // root is absent, the finding does not disappear without a trace; it REMAINS.
         if let Some(file) = joins
             .as_ref()
             .and_then(|joins| joins.declaration_file(notice))
@@ -199,7 +201,7 @@ pub fn suppress_whitespace_derivatives(
         if !is_whitespace_derivative(notice, &references) {
             return true;
         }
-        // Kökü olmayan dosyada bastırma YOK.
+        // Do not suppress when the file has no root.
         if !notice
             .file
             .as_deref()
@@ -231,22 +233,24 @@ pub fn suppress_whitespace_derivatives(
     notices
 }
 
-/// Kimlik birleşimi yalnız boşluk yüzünden kırıldığı için ateşleyen SONUÇ kuralları.
+/// RESULT rules that fire because an identity join is broken only by whitespace.
 ///
-/// Liste ölçümden geldi (18 Eylül, 25 feed; her kimlik adı tek başına kırpıldı). Genel bir
-/// ağ bilerek kurulmadı: bir seferin birleşimi kırık diye O SEFERİN bağımsız kusurları da
-/// gizlenmemeli. `CAL_024` ("7 gün içinde aktif değil") bilerek YOK — yükleminin ihtiyaç
-/// duyduğu "bugün" K7'de yok ve servis kırpılınca da 7 gün içinde pasif olabilir.
+/// The list came from measurement (18 September, 25 feeds; each identity name was trimmed
+/// independently). No general graph was built deliberately: an independent defect of THAT
+/// TRIP must not be hidden merely because its join is broken. `CAL_024` ("not active within
+/// 7 days") is deliberately ABSENT — K7 has no "today", and trimming the service can also
+/// make it inactive within 7 days.
 ///
-/// `OPR_009` bilerek YOK (18 Eylül tam doğrulamasında aşırı bastırma çıktı): hattı bulunamayan
-/// seferin gece servisi özeti hat yerine SEFER kimliğiyle basılır, ama bilgi GERÇEKTİR —
-/// bastırınca hattın gece servisi rapordan tamamen kayboluyordu (`mdb-1187` ham 0, kırpılmış 9).
-/// Doğru anahtarlamak kimliği kırpmayı, yani #85'i delmeyi gerektirir. `STM_014`'ün sefer
-/// başına anahtarlanan hız bulguları da aynı gerekçeyle bastırılmaz.
+/// `OPR_009` is deliberately ABSENT (the 18 September full validation showed over-suppression):
+/// a shapeless trip's night-service summary is emitted with the TRIP ID instead of the route,
+/// but the information is REAL — suppressing it made the route's night service disappear from
+/// the report entirely (`mdb-1187`: raw 0, trimmed 9). Correct keying requires trimming the
+/// identity, which would violate #85. `STM_014` speed findings keyed per trip are likewise
+/// not suppressed for the same reason.
 ///
-/// ⚠️ Bu liste yalnız yapının KURULUP kurulmayacağını belirler; kural seçimi
-/// `declaration_file`'daki `match` kollarındadır. İkisi birlikte güncellenir — listede
-/// olmayan bir kol, yalnız o kuralın bulgusunu taşıyan feed'de hiç çalışmaz.
+/// ⚠️ This list only determines whether the structure is BUILT; rule selection is in the
+/// `match` arms of `declaration_file`. Update both together — an arm missing from the list
+/// never runs on a feed carrying only that rule's finding.
 const JOIN_DERIVATIVE_RULES: &[&str] = &[
     "TRP_011", "TRP_026", "TRP_003", "OPR_011", "CAL_011", "STP_020", "SHP_018", "SHP_019",
     "XFL_002", "XFL_012", "RTS_016", "OPR_004",
@@ -275,18 +279,18 @@ pub fn annotate_whitespace_join_provenance(
     }
 }
 
-/// #85 kimliği HAM karşılaştırır ve bu korunur: `"R1  "` ile `R1` aynı hat DEĞİLDİR.
-/// Bu yapı kimliği değiştirmez; yalnız bir sonuç bulgusunun, ham birleşim kırık ama
-/// kırpılmış birleşim sağlam olduğu için mi ateşlediğini ve boşluğun HANGİ DOSYADA
-/// durduğunu söyler. Bulgu o dosyanın `DQ_016` kökünde beyan edilir.
+/// #85 compares identities RAW and this is preserved: `"R1  "` and `R1` are NOT the same
+/// route. This structure does not change identities; it only records whether a result finding
+/// fired because the raw join was broken while the trimmed join was sound, and WHICH FILE
+/// carried the whitespace. The finding is declared under that file's `DQ_016` root.
 struct JoinWhitespace<'a> {
     interns: &'a crate::k2::trips::TripInternTable,
     trips: FxHashMap<&'a str, &'a crate::k2::trips::TripRecord>,
     route_raw: FxHashSet<&'a str>,
-    /// kırpılmış route_id → hattın adı var mı (K6 `TRP_011` ile aynı ölçüt: ham ad dolu)
+    /// trimmed route_id → whether the route name exists (same criterion as K6 `TRP_011`: raw name non-empty)
     route_named: FxHashMap<&'a str, bool>,
     service_raw: FxHashSet<&'a str>,
-    /// kırpılmış service_id → (aktif tarihi var mı, BOŞLUKLU tanımın dosyası; yoksa calendar)
+    /// trimmed service_id → (has an active date, file of the whitespace-padded definition; otherwise calendar)
     service_trimmed: FxHashMap<&'a str, (bool, &'static str)>,
     service_active_raw: FxHashSet<&'a str>,
     service_used_raw: FxHashSet<&'a str>,
@@ -295,11 +299,11 @@ struct JoinWhitespace<'a> {
     stop_used_trimmed: FxHashSet<&'a str>,
     shape_used_raw: FxHashSet<&'a str>,
     shape_used_trimmed: FxHashSet<&'a str>,
-    /// ham shape_id → onu kullanan seferler
+    /// raw shape_id → trips that use it
     shape_trips: FxHashMap<&'a str, Vec<&'a str>>,
     st_trip_raw: FxHashSet<&'a str>,
     st_trip_trimmed: FxHashSet<&'a str>,
-    /// ham route_id (trips'teki yazımıyla) → o hattın seferleri; hat düzeyi kurallar (2c)
+    /// raw route_id (as written in trips) → trips of that route; route-level rules (2c)
     route_trips: FxHashMap<&'a str, Vec<&'a crate::k2::trips::TripRecord>>,
     service_weekend_raw: FxHashSet<&'a str>,
     service_weekend_trimmed: FxHashSet<&'a str>,
@@ -363,7 +367,7 @@ impl<'a> JoinWhitespace<'a> {
             .filter(|(_, dates)| !dates.is_empty())
             .map(|(k, _)| k.as_str())
             .collect();
-        // `OPR_004` ile AYNI hafta sonu ölçütü (JDN mod 7: Cumartesi=5, Pazar=6).
+        // SAME weekend criterion as `OPR_004` (JDN mod 7: Saturday=5, Sunday=6).
         let service_weekend_raw: FxHashSet<&'a str> = active
             .iter()
             .filter(|(_, dates)| {
@@ -383,8 +387,9 @@ impl<'a> JoinWhitespace<'a> {
             };
             let entry = service_trimmed.entry(id.trim()).or_insert((false, file));
             entry.0 |= service_active_raw.contains(id);
-            // Beyan boşluğun DURDUĞU dosyaya yazılır. `mdb-488`: temiz `6` calendar.txt'te
-            // tarihsiz, tarihi calendar_dates.txt'teki `" 6"` veriyor — kök oradadır.
+            // The declaration is written to the file WHERE THE WHITESPACE STOPS. `mdb-488`:
+            // clean `6` is undated in calendar.txt, while dated `" 6"` comes from
+            // calendar_dates.txt — the root is there.
             if id != id.trim() {
                 entry.1 = file;
             }
@@ -428,12 +433,12 @@ impl<'a> JoinWhitespace<'a> {
         }
     }
 
-    /// Bulgu bir boşluk-kırık birleşimin sonucuysa, boşluğu taşıyan dosya.
+    /// The file carrying the whitespace when the finding results from a whitespace-broken join.
     fn declaration_file(&self, notice: &Notice) -> Option<&'static str> {
         let id = notice.entity_id.as_deref()?;
         let padded = id != id.trim();
         match notice.rule_id.as_str() {
-            // Seferin hattı ham eşleşmiyor ama kırpınca ADLI bir hatta eşleşiyor.
+            // The trip's route does not match raw, but matches a NAMED route after trimming.
             "TRP_011" => {
                 let route = self.trip_route(id)?;
                 if self.route_raw.contains(route) || !*self.route_named.get(route.trim())? {
@@ -445,7 +450,7 @@ impl<'a> JoinWhitespace<'a> {
                     "routes.txt"
                 })
             }
-            // Seferin takvimi ham hâliyle tarihsiz/tanımsız, kırpınca tarihli/tanımlı.
+            // The trip's calendar is undated/undefined raw, but dated/defined after trimming.
             "TRP_026" | "TRP_003" => {
                 let service = self.trips.get(id).map(|t| self.service_of(t))?;
                 let (active, file) = *self.service_trimmed.get(service.trim())?;
@@ -460,8 +465,8 @@ impl<'a> JoinWhitespace<'a> {
                     file
                 })
             }
-            // Kullanılan takvim ham hâliyle tarihsiz (tanımsız ya da tanımlı-ama-boş), kırpınca
-            // tarihli. `mdb-488`: `6` calendar.txt'te tarihsiz, tarihi `" 6"` veriyor.
+            // The used calendar is undated raw (undefined or defined-but-empty), but dated
+            // after trimming. `mdb-488`: `6` is undated in calendar.txt; `" 6"` supplies the date.
             "OPR_011" => {
                 if self.service_active_raw.contains(id) {
                     return None;
@@ -473,7 +478,7 @@ impl<'a> JoinWhitespace<'a> {
                     file
                 })
             }
-            // Tanımlı ama kullanılmıyor görünüyor; kırpınca kullanılıyor.
+            // It appears defined but unused; after trimming, it is used.
             "CAL_011" => (!self.service_used_raw.contains(id)
                 && self.service_used_trimmed.contains(id.trim()))
             .then_some(if !padded {
@@ -493,8 +498,8 @@ impl<'a> JoinWhitespace<'a> {
             "SHP_018" => (!self.shape_used_raw.contains(id)
                 && self.shape_used_trimmed.contains(id.trim()))
             .then_some(if padded { "shapes.txt" } else { "trips.txt" }),
-            // Şekli kullanan seferlerin HİÇBİRİNİN ham stop_times kaydı yok, HEPSİNİN
-            // kırpılmış kaydı var. Biri gerçekten kayıtsızsa bulgu gerçektir.
+            // NONE of the trips using the shape has a raw stop_times record; ALL have one
+            // after trimming. If one is genuinely unrecorded, the finding is real.
             "SHP_019" => {
                 let trips = self.shape_trips.get(id)?;
                 let all_broken = trips.iter().all(|t| {
@@ -508,8 +513,8 @@ impl<'a> JoinWhitespace<'a> {
                     },
                 )
             }
-            // ── Hat düzeyi (2c). Kurallar VAROLUŞSAL ("hattın hiçbir seferinde X yok"):
-            // tek bir seferin birleşimi kırpınca düzelirse kırpılmış dünyada kural susar.
+            // ── Route level (2c). These rules are EXISTENTIAL ("no trip of the route has X"):
+            // if one trip's join is repaired by trimming, the rule is silent in the trimmed world.
             "XFL_012" => {
                 let trip = self.route_trips.get(id)?.iter().find(|t| {
                     !self.st_trip_raw.contains(t.trip_id.as_str())
@@ -542,8 +547,8 @@ impl<'a> JoinWhitespace<'a> {
         }
     }
 
-    /// Hattın seferlerinden birinin takvimi kırpınca `repaired` koşulunu sağlıyorsa, o
-    /// takvimdeki boşluğun dosyası.
+    /// The file carrying whitespace when one of the route's trips satisfies `repaired`
+    /// after trimming its calendar.
     fn route_service_repair(
         &self,
         route: &str,
@@ -577,39 +582,39 @@ fn is_whitespace_derivative(notice: &Notice, references: &WhitespaceReferences<'
         return true;
     }
 
-    // ⚠️ BURADA BİR "streaming K2 parse reddi" DALI VARDI — KALDIRILDI (#125, 2026-08-12).
-    // Dal, gözlenen değerin çevresinde boşluk olmasını şart koşuyordu; ama stop_times ve
-    // shapes'in akış yolundaki emit'lerin hepsi değeri `get_col` ile okur ve o `.trim()`
-    // uygular (`k2/common.rs`). `parse_u32_raw`/`parse_f64_raw`/`parse_gtfs_time_raw`
-    // adlarındaki "raw" RowMap yerine dilim üzerinden okuma anlamına gelir, HAM DEĞER
-    // anlamına gelmez. Yani `observed_value` hiçbir zaman boşluk taşımıyordu, şart asla
-    // sağlanmıyordu ve dal erişilemezdi. İki ölçüm: (1) boşluklu shape_pt_lat/
-    // shape_dist_traveled içeren feed yalnızca DQ_016 üretti, bastırılacak türev yoktu;
-    // (2) dal kapatılıp tam takım koşuldu, 921/921 geçti. Mesaj kalıbı listesinin K2'ninkiyle
-    // ayrışmış olması da bu yüzden sonuçsuzdu — erişilemeyen dala kalıp eklenecekti.
-    // Akış yolu ile RowMap yolunun FARKLI SERTLİKTE okuması ayrı bir konudur ve durur.
+    // ⚠️ A "streaming K2 parse rejection" branch used to be here — REMOVED (#125, 2026-08-12).
+    // It required whitespace around the observed value, but all stop_times and shapes stream
+    // emits read through `get_col`, which applies `.trim()` (`k2/common.rs`). "raw" in
+    // `parse_u32_raw`/`parse_f64_raw`/`parse_gtfs_time_raw` means reading from a slice
+    // rather than RowMap; it does not mean RAW VALUE. Thus `observed_value` never carried
+    // whitespace, the condition was never satisfied, and the branch was unreachable. Two
+    // measurements: (1) a feed with padded shape_pt_lat/shape_dist_traveled produced only
+    // DQ_016, with no derivative to suppress; (2) after removing the branch, the full suite
+    // passed 921/921. The message-pattern list diverging from K2 was also pointless — a pattern
+    // would have been added to an unreachable branch. Different strictness between stream and
+    // RowMap reads is a separate issue and remains.
 
-    // K4 yalnızca hedefte bulunmayan ham ID'yi raporlar. Aynı ID'nin trim edilmiş biçimi
-    // hedef kümede varsa, bu tam olarak whitespace kaynaklı bir FK semptomudur; gerçekten
-    // bilinmeyen "  UNKNOWN " değerleri görünür kalır.
+    // K4 reports only a raw ID missing from the target. If its trimmed form exists in the target
+    // set, this is exactly a whitespace-derived FK symptom; genuinely unknown "  UNKNOWN "
+    // values remain visible.
     if notice.whitespace_candidate && normalized_reference_exists(notice, references) {
         return true;
     }
 
-    // AYNA YÖN (#134): gözlenen değer TEMİZ ama referans tarafı boşluk taşıyor.
-    // `whitespace_candidate` bu vakada set EDİLMEZ (K4 yalnız gözlenen değere bakar), bu
-    // yüzden üstteki dal `mdb-992`'yi hiç görmüyordu.
+    // MIRROR DIRECTION (#134): the observed value is CLEAN but the reference side carries whitespace.
+    // `whitespace_candidate` is NOT set in this case (K4 looks only at the observed value), so
+    // the branch above never saw `mdb-992`.
     //
-    // İki koruma birlikte dar tutuyor:
-    //   1. `set_for` yalnız KİMLİK alanlarını tanır → aralık/enum bulguları giremez.
-    //   2. Ham değer kümede BULUNMAMALI. Bulunuyorsa bu bir "hedef yok" semptomu değildir
-    //      (ör. yinelenen anahtar bulgusu) ve bastırılmamalıdır.
-    // Gerçekten bilinmeyen bir id'nin trim'li karşılığı da yoktur → görünür kalır.
+    // Two guards keep this narrow:
+    //   1. `set_for` recognizes only ID fields → range/enum findings cannot enter.
+    //   2. The raw value MUST NOT be in the set. If it is, this is not a "target missing"
+    //      symptom (for example, a duplicate-key finding) and must not be suppressed.
+    // A genuinely unknown ID has no trimmed counterpart either → it remains visible.
     mirror_whitespace_symptom(notice, references)
 }
 
-/// İç işaretler K7 kararına kadar allocation-free tutulur. Kökü bulunmadığı veya trim edilmiş
-/// karşılığı gerçekten mevcut olmadığı için korunan bulguda eski JSON sözleşmesini geri kurar.
+/// Internal flags remain allocation-free until the K7 decision. Recreates the old JSON contract
+/// in a retained finding when no root exists or its trimmed counterpart is not truly present.
 fn materialize_retained_whitespace_flags(notices: &mut [Notice]) {
     for notice in notices {
         if notice.whitespace_derived {
@@ -627,38 +632,39 @@ fn materialize_retained_whitespace_flags(notices: &mut [Notice]) {
     }
 }
 
-/// Ham id bulunamıyor ama boşluk yok sayılınca bulunuyor → whitespace kaynaklı FK semptomu.
-/// `IdSets` içinde `stop_times` kolunu adlandıran iç anahtar. GTFS'te böyle bir ALAN yok;
-/// yalnız `reference_field_for` üzerinden erişilir, bu yüzden gerçek bir alan adıyla çakışmaz.
+/// Raw ID is missing but appears when whitespace is ignored → whitespace-derived FK symptom.
+/// Internal key naming the `stop_times` branch in `IdSets`. GTFS has no such FIELD; it is
+/// accessed only through `reference_field_for`, so it cannot collide with a real field name.
 const STOP_TIMES_TRIP_ID: &str = "\0stop_times::trip_id";
-/// `IdSets` içinde yalnız `fare_attributes.txt`'te TANIMLI tarifeleri adlandıran iç anahtar.
+/// Internal key naming fares DEFINED only in `fare_attributes.txt` within `IdSets`.
 const FARE_ATTRIBUTES_FARE_ID: &str = "\0fare_attributes::fare_id";
 
-/// Bastırmanın hangi kimlik kümesine bakacağını kural bazında düzeltir.
+/// Selects, per rule, which ID set suppression should inspect.
 ///
-/// 🔴 KÖK KUSUR (17. koşum, `mdb-2653`): kümeler "bu alanı TANIMLAYAN tablo" varsayımıyla
-/// kuruluyor — `trip_id` → `trips.txt`. `XFL_002` ise TERS yönü sorar: "bu seferin
-/// `stop_times`'ta kaydı var mı?" Gözlenen değer seferin KENDİ kimliği olduğu için
-/// `contains_trimmed("trip_id", …)` **her zaman** doğru döner ve bulgu boşluk artığı sanılıp
-/// düşürülür. Sonuç garantili yanlış negatif: `trip_id`'sinde boşluk olan hiçbir feed'de
-/// `XFL_002` görünmez.
+/// 🔴 ROOT BUG (run 17, `mdb-2653`): sets were built under the assumption "the table
+/// DEFINING this field" — `trip_id` → `trips.txt`. `XFL_002` asks the REVERSE direction:
+/// "does this trip have a record in `stop_times`?" Because the observed value is the trip's
+/// OWN ID, `contains_trimmed("trip_id", …)` **always** returned true and the finding was
+/// discarded as whitespace residue. Guaranteed false negative: `XFL_002` was invisible on
+/// every feed with whitespace in `trip_id`.
 ///
-/// Ölçüm (`mdb-2653`, 138.962 sefer): `stop_times` kaydı OLMAYAN 421 seferin **108'inin**
-/// kimliğinde boşluk var ve 108'i de bastırılıyordu; biz 313 rapor ediyorduk, MD 732.
-/// O 108 seferin kimliği `stop_times.txt`'te HİÇBİR yazımla geçmiyor (doğrulandı) —
-/// yani bulgular gerçekti.
+/// Measurement (`mdb-2653`, 138,962 trips): **108** of 421 trips WITHOUT a `stop_times`
+/// record had whitespace in their ID, and all 108 were suppressed; we reported 313, MD reported
+/// 732. The IDs of those 108 trips do not occur in `stop_times.txt` in ANY spelling (verified) —
+/// the findings were real.
 ///
-/// Doğru küme `stop_times`'ta geçen kimlikler. Böylece ayrım da doğru kurulur:
-/// · kimlik orada YOK → bulgu gerçek, GÖRÜNÜR kalır;
-/// · kimlik orada trim'li hâliyle VAR → sefer gerçekten kayıtlı, fark yalnız boşluk →
-///   bastırılır ve `DQ_016` kökünde beyan edilir.
+/// The correct set is IDs occurring in `stop_times`. The distinction is then correct:
+/// · ID NOT THERE → finding is real and remains VISIBLE;
+/// · trimmed ID IS THERE → trip is genuinely recorded, difference is only whitespace →
+///   suppress it and declare it under the `DQ_016` root.
 fn reference_field_for<'f>(rule_id: &str, field: &'f str) -> &'f str {
     match (rule_id, field) {
         ("XFL_002", "trip_id") => STOP_TIMES_TRIP_ID,
-        // Aynı kusurun ücret kolu: genel `fare_id` kümesi `fare_rules.txt`'in KENDİ
-        // kimliklerini de taşır. `FRL_001` "fare_rules'taki kimlik fare_attributes'ta yok"
-        // der; genel kümede gözlenen değer kendisini bulur ve `'FNOPE '` gibi gerçekten
-        // tanımsız bir tarife boşluk artığı sanılıp bastırılır.
+        // The fare-side version of the same defect: the general `fare_id` set also contains
+        // the IDs defined by `fare_rules.txt` itself. `FRL_001` says that an ID from
+        // fare_rules is missing in fare_attributes; the observed value finds itself in the
+        // general set, so a truly undefined fare such as `'FNOPE '` is mistaken for whitespace
+        // residue and suppressed.
         ("FRL_001", "fare_id") => FARE_ATTRIBUTES_FARE_ID,
         _ => field,
     }
@@ -714,10 +720,10 @@ struct IdSets<'a> {
     network_id: FxHashSet<&'a str>,
     shape_id: FxHashSet<&'a str>,
     zone_id: FxHashSet<&'a str>,
-    /// 🔴 `stop_times.txt`'te GEÇEN sefer kimlikleri — `trips.txt`'te TANIMLI olanlar değil.
-    /// `XFL_002` gibi TERS YÖNLÜ kurallar için gerekli; gerekçe `reference_field_for`da.
+    /// 🔴 Trip IDs OCCURRING in `stop_times.txt` — not those DEFINED in `trips.txt`.
+    /// Required for REVERSE-DIRECTION rules such as `XFL_002`; see `reference_field_for`.
     stop_times_trip_id: FxHashSet<&'a str>,
-    /// Yalnız `fare_attributes.txt`'te tanımlı tarifeler; gerekçe `reference_field_for`da.
+    /// Fares defined only in `fare_attributes.txt`; see `reference_field_for`.
     fare_attributes_fare_id: FxHashSet<&'a str>,
 }
 
@@ -752,8 +758,8 @@ impl<'a> IdSets<'a> {
             .extend(records.routes.iter().map(|r| r.route_id.as_str()));
         refs.trip_id
             .extend(records.trips.iter().map(|r| r.trip_id.as_str()));
-        // `stop_times`'ta GEÇEN sefer kimlikleri. `StopTimesIndex::trip_id_set` zaten
-        // `XFL_002` için tutuluyor; tamponlanan kol için typed kayıtlardan da toplanır.
+        // Trip IDs OCCURRING in `stop_times`. `StopTimesIndex::trip_id_set` is already
+        // retained for `XFL_002`; collect them from typed records for the buffered branch too.
         refs.stop_times_trip_id.extend(
             records
                 .stop_times_index
@@ -808,8 +814,8 @@ impl<'a> IdSets<'a> {
         refs
     }
 
-    /// Alan adı → o alanın kimlik kümesi. Bilinmeyen alan `None` döner; aralık/enum
-    /// bulguları bu yüzden whitespace atfına hiç giremez.
+    /// Field name → that field's ID set. Unknown fields return `None`; range/enum findings
+    /// therefore cannot enter whitespace attribution.
     fn get(&self, field: &str) -> Option<&FxHashSet<&'a str>> {
         Some(match field {
             "agency_id" => &self.agency_id,
@@ -831,8 +837,8 @@ impl<'a> IdSets<'a> {
         })
     }
 
-    /// Aynı kümelerin trim'lenmiş kopyası. `str::trim` alt-dilim döndürdüğü için
-    /// ömür aynıdır ve kopya TAHSİSSİZDİR.
+    /// Trimmed copies of the same sets. Because `str::trim` returns subslices, the lifetime
+    /// is the same and the copy is ALLOCATION-FREE.
     fn trimmed(&self) -> Self {
         Self {
             agency_id: self.agency_id.iter().map(|v| v.trim()).collect(),
@@ -858,13 +864,13 @@ impl<'a> IdSets<'a> {
     }
 }
 
-/// Ham ve trim'lenmiş kimlik kümeleri.
+/// Raw and trimmed ID sets.
 ///
-/// 🔴 **İKİSİ DE ÖNCEDEN İNDEKSLENİR.** İlk uygulamam trim'li aramayı
-/// `set.iter().any(|k| k.trim() == value)` ile yapıyordu — her bulgu için kümenin
-/// TAMAMINI tarıyordu. `is_whitespace_derivative` HER notice'ta çalıştığı için bu
-/// kareselleşti: `mdb-2904` (85 MB, tek başına 3.763.204 `STM_056` bulgusu) 30 dakikada
-/// bitmedi, oysa yamadan önce tamamlanıyordu. Korpus koşumu yakaladı.
+/// 🔴 **BOTH ARE INDEXED UP FRONT.** The first implementation searched trimmed values with
+/// `set.iter().any(|k| k.trim() == value)` — scanning the ENTIRE set for every finding.
+/// Because `is_whitespace_derivative` runs on EVERY notice, this became quadratic:
+/// `mdb-2904` (85 MB, 3,763,204 `STM_056` findings alone) did not finish in 30 minutes,
+/// although it completed before the patch. The corpus run caught it.
 struct WhitespaceReferences<'a> {
     raw: IdSets<'a>,
     trimmed: IdSets<'a>,
@@ -881,12 +887,12 @@ impl<'a> WhitespaceReferences<'a> {
         self.raw.get(field).is_some_and(|set| set.contains(value))
     }
 
-    /// Kimlik kümesinde BOŞLUK YOK SAYILARAK var mı (issue #134).
+    /// Is it present in the ID set when WHITESPACE IS IGNORED (issue #134)?
     ///
-    /// Kaskad yalnız TEK YÖNÜ kapsıyordu — gözlenen değerde boşluk varsa. `mdb-992`
-    /// AYNA VAKA: `stop_times.trip_id` tertemiz (`10242975`), boşluk REFERANS tarafında
-    /// (`trips.trip_id` = `' 10242975'`, 6523 satırın 6523'ü). Ham kesişim 0, trim'li
-    /// kesişim 6523 — tek bir üretici alışkanlığı 103.649 bulguya dönüşüyordu.
+    /// The cascade covered only ONE DIRECTION — whitespace in the observed value. `mdb-992`
+    /// is the MIRROR CASE: `stop_times.trip_id` is clean (`10242975`), whitespace is on
+    /// the REFERENCE side (`trips.trip_id` = `' 10242975'`, all 6,523 rows). Raw
+    /// intersection 0, trimmed intersection 6,523 — one producer habit created 103,649 findings.
     fn contains_trimmed(&self, field: &str, value: &str) -> bool {
         self.trimmed
             .get(field)
@@ -894,11 +900,12 @@ impl<'a> WhitespaceReferences<'a> {
     }
 }
 
-// ── Çalışma takvimi (service_id) doldurma ─────────────────────────────────────
+// ── Fill service calendar (service_id) ─────────────────────────────────────────
 
-/// Sefer-bazlı (entity_type=Trip) notice'lara, entity_id'deki trip_id'den service_id
-/// ekler — R2'deki "Çalışma Takvimi" sütunu için. Zaten dolu olanlar (OPR_003/005 gibi
-/// emit'te set edilenler) korunur. Trip dışı entity'ler (Route/Feed/Stop…) atlanır.
+/// Adds service_id to trip-based (entity_type=Trip) notices from the trip_id in
+/// entity_id, for the "Service Calendar" column in R2. Existing values (such as those
+/// set during emission for OPR_003/005) are preserved. Non-trip entities (Route/Feed/Stop…)
+/// are skipped.
 fn fill_service_ids(mut notices: Vec<Notice>, records: &EntityRecords) -> Vec<Notice> {
     let ti = &records.trip_interns;
     let trip_service: std::collections::HashMap<&str, &str> = records
@@ -921,10 +928,10 @@ fn fill_service_ids(mut notices: Vec<Notice>, records: &EntityRecords) -> Vec<No
 
 // ── WP-10a: Dedup ─────────────────────────────────────────────────────────────
 
-/// Notice'lar için thread-bağımsız, kararlı toplam sıralama anahtarı.
-/// Threaded K2/K6 notice'ları nondeterministik sırada üretebilir; dedup keep-first
-/// ve (wasm tarafında) dedup-sonrası cap bu sıraya duyarlı olduğundan, sıralamadan
-/// önce kararlı düzen "aynı feed → aynı temsilciler/aynı sayı" sağlar.
+/// A thread-independent, stable total ordering key for notices.
+/// Threaded K2/K6 notices may be produced in nondeterministic order; because dedup
+/// keep-first and the post-dedup cap (on the WASM side) depend on this order, sorting
+/// first ensures "same feed → same representatives/same count".
 pub fn notice_order_key(n: &Notice) -> (&str, &str, &str, u64, &str, &str, &str) {
     (
         n.rule_id.as_str(),
@@ -938,15 +945,15 @@ pub fn notice_order_key(n: &Notice) -> (&str, &str, &str, u64, &str, &str, &str)
 }
 
 pub fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
-    // Determinizm: keep-first temsilcisi thread-bağımsız olsun diye önce kararlı sırala.
+    // Determinism: sort first so the keep-first representative is thread-independent.
     let mut notices = notices;
-    // STABLE olmak ZORUNDA: eşit anahtarlı iki bulgudan hangisinin keep-first temsilcisi
-    // olacağı aksi halde girdi permütasyonuna, o da HashMap iterasyonuna kalır (nondeterminizm).
+    // MUST BE STABLE: otherwise which of two equal-key findings becomes the keep-first
+    // representative depends on input permutation and therefore on HashMap iteration.
     notices.sort_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
     let mut seen: FxHashSet<String> = FxHashSet::default();
     seen.reserve(notices.len());
     let mut out: Vec<Notice> = Vec::with_capacity(notices.len());
-    // Reusable buffer: format!() yerine push_str/write! — per-notice String alloc kaldırıldı
+    // Reusable buffer: push_str/write! instead of format!() — removes the per-notice String alloc
     let mut key_buf = String::with_capacity(128);
     for n in notices {
         let level = get_rule(&n.rule_id)
@@ -962,9 +969,9 @@ pub fn dedup(notices: Vec<Notice>) -> Vec<Notice> {
     out
 }
 
-/// Notice'ları kararlı biçimde dedup ederken kural başına yalnızca gösterilecek
-/// temsilcileri saklar. Böylece milyonlarca dedup edilmiş Notice için ikinci bir
-/// büyük Vec ayrılmaz; `totals` yine cap öncesindeki gerçek distinct sayıları taşır.
+/// While stably deduplicating notices, stores only the representatives to display for each
+/// rule. This avoids allocating a second large Vec for millions of deduplicated notices;
+/// `totals` still contains the actual distinct counts before the cap.
 pub fn dedup_and_cap_by_rule<F>(
     notices: Vec<Notice>,
     cap_for_rule: F,
@@ -975,9 +982,9 @@ where
     dedup_and_cap_by_rule_visit(notices, cap_for_rule, |_| {})
 }
 
-/// [`dedup_and_cap_by_rule`] ile aynı; `visit` her AYRIK notice'ı cap onu atmadan ÖNCE
-/// görür. WASM'da gerçek sayımlar (agency dökümü) ikinci bir tam boy `Vec` ayırmadan
-/// bu geçişte yapılır.
+/// Same as [`dedup_and_cap_by_rule`]; `visit` sees every DISTINCT notice BEFORE the cap
+/// discards it. On WASM, actual counts (the agency breakdown) are collected during this
+/// pass without allocating a second full-size `Vec`.
 pub fn dedup_and_cap_by_rule_visit<F, V>(
     mut notices: Vec<Notice>,
     cap_for_rule: F,
@@ -987,8 +994,8 @@ where
     F: Fn(&str) -> usize,
     V: FnMut(&Notice),
 {
-    // STABLE olmak ZORUNDA: eşit anahtarlı iki bulgudan hangisinin keep-first temsilcisi
-    // olacağı aksi halde girdi permütasyonuna, o da HashMap iterasyonuna kalır (nondeterminizm).
+    // MUST BE STABLE: otherwise which of two equal-key findings becomes the keep-first
+    // representative depends on input permutation and therefore on HashMap iteration.
     notices.sort_by(|a, b| notice_order_key(a).cmp(&notice_order_key(b)));
 
     let mut seen: FxHashSet<String> = FxHashSet::default();
@@ -1018,9 +1025,8 @@ where
     (kept, totals)
 }
 
-// Separator olarak \x00 kullanılır — GTFS ID'leri, dosya adları ve alan adları
-// null byte içeremez; bu sayede entity_id/file/field değerlerindeki '|' gibi
-// karakterlerden kaynaklanan çakışmalar önlenir.
+// \x00 is used as the separator — GTFS IDs, file names, and field names cannot contain
+// a null byte, preventing collisions caused by characters such as '|' in entity_id/file/field.
 fn write_dedup_key(buf: &mut String, n: &Notice, level: DedupLevel) {
     const SEP: char = '\x00';
     match level {
@@ -1076,31 +1082,32 @@ fn write_dedup_key(buf: &mut String, n: &Notice, level: DedupLevel) {
     }
 }
 
-// ── WP-10b: Root Cause / Semptom Çözümü ──────────────────────────────────────
+// ── WP-10b: Root Cause / Symptom Resolution ──────────────────────────────────
 
 struct SymptomResolution {
-    /// notices[i] bir semptom mu?
+    /// Is notices[i] a symptom?
     is_symptom: Vec<bool>,
-    /// rule_id → scope_key → [notice_idx]. "Bu kuralın şu scope'unda notice var mı?"
-    /// sorusu tarama yerine arama olur. Üç tüketici paylaşır: `resolve_symptoms`,
-    /// `realized_dep_for_group` ve `closure_notice_indices_for_group` — üçü de aynı
-    /// O(kök × aday) tuzağındaydı (#155).
+    /// rule_id → scope_key → [notice_idx]. The question "does this rule have a notice in
+    /// this scope?" becomes a lookup instead of a scan. Three consumers share it:
+    /// `resolve_symptoms`, `realized_dep_for_group`, and
+    /// `closure_notice_indices_for_group` — all three previously fell into the same
+    /// O(root × candidate) trap (#155).
     ///
-    /// ⚠️ Düz `rule_id → [(idx, scope)]` görünümü KALDIRILDI: son tüketicisi de buraya
-    /// geçince ölü alana dönüştü ve clippy `-D warnings` altında build'i kırdı.
+    /// ⚠️ The flat `rule_id → [(idx, scope)]` view was REMOVED: once its last consumer
+    /// moved here, it became dead data and broke the build under clippy `-D warnings`.
     rule_scope_buckets: HashMap<String, HashMap<Option<String>, Vec<usize>>>,
 }
 
 fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
-    // Bastırma fazı için AYRI, scope'a göre indekslenmiş görünüm.
+    // A SEPARATE view indexed by scope for the suppression phase.
     //
-    // 🔴 Eski hâl her kök için o kuralın TÜM adaylarını tarayıp scope'u tek tek
-    // karşılaştırıyordu: O(kök × aday). `mdb-2727`'de (3,3 MB, 101.621 sefer) tek başına
-    // 61 saniye harcıyordu ve tam katalog koşumunda o feed'i 300 sn zaman aşımına
-    // düşüren şey buydu — doğrulamanın kendisi 390 ms sürüyor (#155).
-    // Daha kötüsü: `blocks` ilişkisi EKLEMEK maliyeti çarpıyordu. STM_003 → STM_015
-    // bağlanacak olsa 203.242 kök × 101.621 aday = 20,6 milyar iterasyon olurdu, yani
-    // kaskad düzeltmesi performans sorununu felakete çevirirdi. Bu yüzden indeks ÖNCE.
+    // 🔴 The old version scanned ALL candidates for that rule for every root and compared
+    // scopes one by one: O(root × candidate). On `mdb-2727` (3.3 MB, 101,621 trips) this
+    // alone took 61 seconds and caused the feed to time out after 300 seconds in the full
+    // catalog run — validation itself takes 390 ms (#155).
+    // Worse, ADDING the `blocks` relationship multiplied the cost. If STM_003 → STM_015
+    // were connected, this would be 203,242 roots × 101,621 candidates = 20.6 billion
+    // iterations, turning the cascade fix into a performance disaster. Hence, index FIRST.
     let mut by_rule_scope: HashMap<String, HashMap<Option<String>, Vec<usize>>> = HashMap::new();
     for (i, n) in notices.iter().enumerate() {
         by_rule_scope
@@ -1121,7 +1128,7 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
                 continue;
             };
             match root.scope_key.as_deref() {
-                // Kapsamsız kök → tüm feed'i etkiler, o kuralın her scope'unu bastırır.
+                // An unscoped root affects the entire feed and suppresses every scope of that rule.
                 None => {
                     for idxs in by_scope.values() {
                         for ci in idxs {
@@ -1129,9 +1136,9 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
                         }
                     }
                 }
-                // Kapsamlı kök → YALNIZ aynı scope. Eskiden bu da tam tarama ile
-                // bulunuyordu; artık doğrudan arama. Davranış birebir aynı: `None`
-                // scope'lu adaylar kapsamlı bir kök tarafından bastırılMAZ.
+                // A scoped root → ONLY the same scope. This also used to be found by a full
+                // scan; now it is a direct lookup. Behavior is identical: candidates with
+                // a `None` scope are NOT suppressed by a scoped root.
                 Some(scope) => {
                     if let Some(idxs) = by_scope.get(&Some(scope.to_string())) {
                         for ci in idxs {
@@ -1149,13 +1156,13 @@ fn resolve_symptoms(notices: &[Notice]) -> SymptomResolution {
     }
 }
 
-/// Blocker-eligible notice'ların rule başına gruplanmış yayın penaltısı ve
-/// rule → katkı haritasını döndürür.
+/// Returns the grouped publication penalty per rule for blocker-eligible notices and
+/// the rule → contribution map.
 ///
-/// Tram gibi sabit raylı hatlarda aynı shape_id'den gelen tüm sefer/durak
-/// hataları aynı fiziksel sorundan kaynaklanır; her instance'ı bağımsız
-/// saymak pub_penalty'yi yapay şişirir.  instance_multiplier (max 2×) ile
-/// kapsama alınır — fix_effort hesabıyla tutarlı.
+/// On fixed-rail lines such as trams, all trip/stop errors from the same shape_id arise
+/// from the same physical problem; counting every instance independently artificially
+/// inflates pub_penalty. instance_multiplier (max 2×) accounts for this consistently
+/// with the fix_effort calculation.
 fn build_pub_penalty_map(notices: &[Notice]) -> (f64, HashMap<String, f64>) {
     let mut rule_data: HashMap<&str, (f64, u32)> = HashMap::new();
     for n in notices.iter().filter(|n| is_pub_relevant(n)) {
@@ -1174,8 +1181,8 @@ fn build_pub_penalty_map(notices: &[Notice]) -> (f64, HashMap<String, f64>) {
     (total, per_rule)
 }
 
-/// Bir notice grubunun realized_dependent_count'u: grup içindeki herhangi bir
-/// notice'ın scope_key'iyle eşleşen en az 1 notice üretmiş blocks[] kural sayısı.
+/// The realized_dependent_count of a notice group: the number of blocks[] rules that
+/// produced at least one notice whose scope_key matches any notice in the group.
 fn realized_dep_for_group(
     group_indices: &[usize],
     notices: &[Notice],
@@ -1186,8 +1193,8 @@ fn realized_dep_for_group(
         .flat_map(|&i| notices[i].blocks.iter().map(String::as_str))
         .collect();
 
-    // Grubun scope kümesi BİR KEZ toplanır; eskiden her aday taramasında yeniden
-    // geziliyordu. `None` scope'lu tek bir üye varsa grup tüm feed'i etkiler.
+    // Collect the group's scope set ONCE; it used to be rebuilt during every candidate scan.
+    // If even one member has a `None` scope, the group affects the entire feed.
     let mut group_scopes: FxHashSet<&str> = FxHashSet::default();
     let mut group_has_unscoped = false;
     for &gi in group_indices {
@@ -1205,11 +1212,11 @@ fn realized_dep_for_group(
             let Some(by_scope) = rule_scope_buckets.get(blocked_rule) else {
                 return false;
             };
-            // Kapsamsız üye → o kuralın HERHANGİ bir notice'ı yeter.
+            // An unscoped member → ANY notice for that rule is sufficient.
             if group_has_unscoped {
                 return by_scope.values().any(|v| !v.is_empty());
             }
-            // Aksi hâlde yalnız grubun scope'ları aranır — tarama yerine arama.
+            // Otherwise, search only the group's scopes — a lookup instead of a scan.
             group_scopes.iter().any(|s| {
                 by_scope
                     .get(&Some((*s).to_string()))
@@ -1219,18 +1226,17 @@ fn realized_dep_for_group(
         .count() as u32
 }
 
-/// R9 item'ı seçildiğinde kapanacak tüm notice index'lerini getirir (transitif closure).
+/// Returns all notice indices that will close when an R9 item is selected (transitive closure).
 ///
-/// Başlangıç kümesi `group_indices` (root cause notice'ları).  Her notice'ın
-/// `blocks[]` listesindeki kurallar `rule_scope_buckets` üzerinden aranır; scope
-/// eşleşmesi sağlayan blocked notice'lar kümeye eklenir ve bu işlem sabit noktaya
-/// ulaşana dek (BFS ile) tekrar edilir.
+/// The initial set is `group_indices` (root-cause notices). Rules in each notice's
+/// `blocks[]` list are looked up through `rule_scope_buckets`; blocked notices with
+/// a matching scope are added to the set, and this repeats (via BFS) until a fixed point.
 ///
-/// Scope kuralı (resolve_symptoms ile aynı):
-/// - root.scope_key == None → tüm feed'i etkiler; her scope_key eşleşir.
-/// - root.scope_key == Some(x) → yalnızca aynı Some(x)'e sahip candidate eşleşir.
+/// Scope rule (same as resolve_symptoms):
+/// - root.scope_key == None → affects the entire feed; every scope_key matches.
+/// - root.scope_key == Some(x) → only a candidate with the same Some(x) matches.
 ///
-/// Döndürülen set hem root notice'ları hem de kapanan downstream notice'ları içerir.
+/// The returned set contains both root notices and downstream notices that are closed.
 fn closure_notice_indices_for_group(
     group_indices: &[usize],
     notices: &[Notice],
@@ -1239,14 +1245,14 @@ fn closure_notice_indices_for_group(
     let mut closure: FxHashSet<usize> = FxHashSet::default();
     let mut queue: Vec<usize> = Vec::new();
 
-    // Başlangıç kümesi: root cause notice'lar
+    // Initial set: root-cause notices
     for &i in group_indices {
         if closure.insert(i) {
             queue.push(i);
         }
     }
 
-    // BFS: her notice'ın blocks[] zincirini scope-aware olarak genişlet
+    // BFS: expand each notice's blocks[] chain in a scope-aware manner
     let mut head = 0;
     while head < queue.len() {
         let idx = queue[head];
@@ -1255,12 +1261,11 @@ fn closure_notice_indices_for_group(
         let root_scope = root_notice.scope_key.as_deref();
 
         for blocked_rule in &root_notice.blocks {
-            // Scope'a göre indekslenmiş görünüm — düz listede tam tarama
-            // yapan ÜÇÜNCÜ yer burasıydı (#155). BFS her kuyruk üyesi için o kuralın tüm
-            // adaylarını geziyordu; grup 203.242 notice olabildiği için maliyet
-            // O(grup × aday)'a çıkıyordu.
+            // Scope-indexed view — this was the THIRD place doing a full scan of the flat
+            // list (#155). BFS visited every candidate for that rule for every queue member;
+            // because a group could contain 203,242 notices, the cost reached O(group × candidate).
             if let Some(by_scope) = resolution.rule_scope_buckets.get(blocked_rule) {
-                // Kapsamsız kök tüm scope'ları, kapsamlı kök yalnız kendi scope'unu genişletir.
+                // An unscoped root expands all scopes; a scoped root expands only its own scope.
                 let selected: Vec<&Vec<usize>> = match root_scope {
                     None => by_scope.values().collect(),
                     Some(sc) => by_scope.get(&Some(sc.to_string())).into_iter().collect(),
@@ -1279,12 +1284,12 @@ fn closure_notice_indices_for_group(
     closure
 }
 
-/// Closure set içindeki notice'ların gruplandırılmış yayın penaltısını hesaplar.
+/// Calculates the grouped publication penalty of notices in the closure set.
 ///
-/// `build_pub_penalty_map` ile aynı hiperbolik-decay + instance_multiplier mantığını
-/// kullanır; tek fark tüm notice yerine yalnızca `closure_indices` kümesindekiler
-/// işlenir.  Closure set'indeki her rule_id için instance sayısı ayrı toplanır;
-/// bu sayede birden fazla closure notice'ı olan rule'lar da doğru gruplandırılır.
+/// Uses the same hyperbolic-decay + instance_multiplier logic as `build_pub_penalty_map`;
+/// the only difference is that it processes only notices in `closure_indices`, not all
+/// notices. Instance counts are collected separately for each rule_id in the closure set,
+/// so rules with multiple closure notices are grouped correctly.
 fn build_closure_pub_penalty(closure_indices: &FxHashSet<usize>, notices: &[Notice]) -> f64 {
     let mut rule_data: HashMap<&str, (f64, u32)> = HashMap::new();
     for &i in closure_indices {
@@ -1304,7 +1309,7 @@ fn build_closure_pub_penalty(closure_indices: &FxHashSet<usize>, notices: &[Noti
     total
 }
 
-// ── WP-10c: R9 Priority Score + Bucket Sıralaması ────────────────────────────
+// ── WP-10c: R9 Priority Score + Bucket Ordering ──────────────────────────────
 
 fn instance_multiplier(count: u32) -> f64 {
     if count <= 5 {
@@ -1336,8 +1341,8 @@ fn r9_labels(
 ) -> Vec<R9Label> {
     let mut labels = vec![];
 
-    // R1 ile hizalı: yalnız Spec+Kritik gerçek yayın-engeli (Blocker). Interop her
-    // severity'de tüketici uyumluluk sinyali (Interop), yayın-engeli değil.
+    // Aligned with R1: only Spec+Kritik is a real publication blocker. Interop at every
+    // severity is a consumer-compatibility signal (Interop), not a publication blocker.
     match (severity, rule_class) {
         (Severity::Kritik, RuleClass::Spec) => {
             labels.push(R9Label::Blocker);
@@ -1353,11 +1358,11 @@ fn r9_labels(
     if realized_dep > 2 {
         labels.push(R9Label::Propagation);
     }
-    // Kolay Düzeltme: düşük çaba, Bilgi hariç her önem
+    // Quick Win: low effort, any severity except Bilgi
     if fix_effort <= 1.5 && !matches!(severity, Severity::Bilgi) {
         labels.push(R9Label::QuickWin);
     }
-    // Kalite Öncelikli: Quality sınıfı, Orta veya üzeri
+    // Quality Priority: Quality class, Orta or higher
     if matches!(rule_class, RuleClass::Quality)
         && matches!(
             severity,
@@ -1366,15 +1371,15 @@ fn r9_labels(
     {
         labels.push(R9Label::Quality);
     }
-    // Yaygın: 20'den fazla etkilenen instance
+    // Widespread: more than 20 affected instances
     if affected > 20 {
         labels.push(R9Label::Widespread);
     }
-    // Tek Örnek: tam olarak 1 instance — kolay bulunur
+    // Single: exactly 1 instance — easy to locate
     if affected == 1 {
         labels.push(R9Label::Single);
     }
-    // Zor: yüksek çaba gerektiren düzeltme
+    // Hard: high-effort fix
     if fix_effort >= 4.0 {
         labels.push(R9Label::Hard);
     }
@@ -1402,7 +1407,7 @@ fn bucket_rank(labels: &[R9Label]) -> u8 {
 fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
     let has_opr011 = notices.iter().any(|n| n.rule_id == "OPR_011");
     let has_stm033 = notices.iter().any(|n| n.rule_id == "STM_033");
-    // Sınıf başına toplam penaltı (R5 score_delta hesabı için)
+    // Total penalty per class (for the R5 score_delta calculation)
     let mut class_penalty: HashMap<RuleClass, f64> = HashMap::new();
     for n in notices {
         *class_penalty.entry(n.rule_class).or_default() +=
@@ -1413,10 +1418,10 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             );
     }
 
-    // Toplam yayın penaltısı (pub_score_delta için referans baz değer)
+    // Total publication penalty (reference baseline for pub_score_delta)
     let (total_pub_penalty, _) = build_pub_penalty_map(notices);
 
-    // Sadece kök neden notice'lar R9'a girer; semptomlar gizlenir
+    // Only root-cause notices enter R9; symptoms are hidden
     let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
     for (i, n) in notices.iter().enumerate() {
         // GTFS-JP future-only feeds use CAL_015 as a zero-penalty publication
@@ -1449,16 +1454,16 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             let priority_score =
                 compute_priority_score(severity, realized_dep, affected, fix_effort);
 
-            // Closure set: bu R9 item seçilince kapanacak tüm notice'lar (root + downstream)
+            // Closure set: all notices that close when this R9 item is selected (root + downstream)
             let closure = closure_notice_indices_for_group(&indices, notices, resolution);
 
-            // R5 genel skor iyileştirmesi — closure set üzerinden sınıf başına penaltı düşümü.
-            // Closure set içindeki notice'lar sınıfa göre gruplanır; her sınıf için toplam
-            // closure penaltısı bir kerede çıkarılarak delta hesaplanır. Bu yöntem aynı sınıftan
-            // birden fazla closure notice olduğunda da doğru sonuç verir.
+            // R5 overall score improvement — remove the penalty per class through the closure set.
+            // Notices in the closure set are grouped by class; the total closure penalty for each
+            // class is removed once to calculate the delta. This also works when multiple
+            // closure notices belong to the same class.
             let k = 50.0_f64;
             let score_delta = {
-                // Sınıf → closure penaltısı toplamı
+                // Class → total closure penalty
                 let mut closure_class_penalty: HashMap<RuleClass, f64> = HashMap::new();
                 for &ci in &closure {
                     let cn = &notices[ci];
@@ -1485,14 +1490,14 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
                 round1(delta_sum)
             };
 
-            // R5 yayın skoru iyileştirmesi — closure set'indeki pub-relevant notice'ların
-            // gruplandırılmış hiperbolik-decay penaltısı kullanılır (build_pub_penalty_map ile tutarlı).
+            // R5 publication score improvement — use the grouped hyperbolic-decay penalty of
+            // pub-relevant notices in the closure set (consistent with build_pub_penalty_map).
             let closure_pub_penalty = build_closure_pub_penalty(&closure, notices);
             let cur_pub = k * 100.0 / (k + total_pub_penalty);
             let new_pub = k * 100.0 / (k + (total_pub_penalty - closure_pub_penalty).max(0.0));
             let pub_score_delta = round1(new_pub - cur_pub);
 
-            // Yüksek Etki: skor katkısı belirgin eşiğin üzerinde
+            // High Impact: score contribution is above a significant threshold
             if score_delta >= 5.0 || pub_score_delta >= 3.0 {
                 labels.push(R9Label::HighImpact);
             }
@@ -1512,9 +1517,9 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
         })
         .collect();
 
-    // Birincil: bucket rank; ikincil: priority_score azalan;
-    // üçüncül: rule_id (R9'da benzersiz) — eşit skorlarda HashMap iterasyon
-    // sırasından bağımsız, deterministik sıra garanti eder.
+    // Primary: bucket rank; secondary: descending priority_score;
+    // tertiary: rule_id (unique in R9) — guarantees a deterministic order for equal scores,
+    // independent of HashMap iteration order.
     items.sort_by(|a, b| {
         bucket_rank(&a.labels)
             .cmp(&bucket_rank(&b.labels))
@@ -1529,16 +1534,16 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
     R9Report { items }
 }
 
-// ── WP-10d: Rapor Projeksiyonları (R1–R8) ────────────────────────────────────
+// ── WP-10d: Report Projections (R1–R8) ───────────────────────────────────────
 
 fn build_report_set(
     notices: &[Notice],
     resolution: &SymptomResolution,
     coverage_complete: bool,
 ) -> ReportSet {
-    // Rapor başına zamanlayıcı: "K7 yavaş" tek başına eyleme dönüşmez, hangi raporun
-    // yavaş olduğu dönüşür. mdb-2727'de toplam 78 sn'nin nereye gittiğini bulmak için
-    // eklendi (#155) ve kalıcı — bir sonraki patolojik feed'de aynı soru sorulacak.
+    // Per-report timer: "K7 is slow" is not actionable by itself; which report is slow is.
+    // Added to locate where the total 78 seconds went in mdb-2727 (#155), and permanent —
+    // the same question will matter on the next pathological feed.
     ReportSet {
         r1: {
             let _t = crate::timing::Timer::start("K7::r1");
@@ -1575,16 +1580,17 @@ fn build_report_set(
     }
 }
 
-/// R1 yayın kapısı.
+/// R1 publication gate.
 ///
-/// 🔴 **`publishable` ARTIK `blockers.is_empty()` DEĞİL** (issue #133). Eski hâli, zorunlu
-/// bir dosya okunamadığı için o dosyanın kuralları HİÇ koşmamışken bile `true` diyordu:
-/// ölçüldü (`mdb-1903`), `stops.txt` çözülemez hâle getirilince 29 kontrol atlandı ve feed
-/// yine `publishable=true` kaldı. Bulgu yokluğu, kanıt yokluğuyla aynı şey değildir.
+/// 🔴 **`publishable` is NO LONGER `blockers.is_empty()`** (issue #133). The old version
+/// returned `true` even when a required file could not be read and its rules never ran:
+/// measured in `mdb-1903`, making `stops.txt` unreadable skipped 29 checks while the feed
+/// remained `publishable=true`. Absence of findings is not the same as absence of evidence.
 ///
-/// ⚠️ `coverage_complete` YALNIZ zorunlu dosya kaybında düşer. Bozuk bir `attributions.txt`
-/// da koşumu PARTIAL yapar (ölçüldü) ama kapıyı düşürmez — geçerli feed'i yayından men
-/// etmek, normu tavsiye saymaktan çok daha ağır bir hatadır (`PTH_017` asimetrisi).
+/// ⚠️ `coverage_complete` falls only when a required file is missing. A malformed
+/// `attributions.txt` also makes the run PARTIAL (measured), but does not lower the gate —
+/// blocking a valid feed from publication is much worse than treating a norm as advice
+/// (`PTH_017` asymmetry).
 fn build_r1(notices: &[Notice], coverage_complete: bool) -> R1Report {
     let blockers: Vec<String> = notices
         .iter()
@@ -1642,12 +1648,12 @@ fn build_r4(notices: &[Notice]) -> R4Report {
     }
 }
 
-/// Yayın-engeli notice: yalnız `Spec + Kritik` (resmi GTFS spec kapısı).
-/// R1 yayın kararını ve pub_score/pub_score_delta'yı bu belirler.
-/// `rule_class==Spec` ⟺ `authority==GtfsSpec` registry gate'iyle
-/// (`spec_class_requires_gtfs_spec_authority`) garanti olduğundan runtime otorite kontrolü
-/// gereksiz. Interop/Quality/Analytics ASLA yayın-engeli değil — tüketici/interop hazırlığı
-/// R8 + interop_score'da raporlanır.
+/// Publication-blocking notice: only `Spec + Kritik` (the official GTFS spec gate).
+/// This determines the R1 publication decision and pub_score/pub_score_delta.
+/// Because `rule_class==Spec` ⟺ `authority==GtfsSpec` is guaranteed by the registry gate
+/// (`spec_class_requires_gtfs_spec_authority`), a runtime authority check is unnecessary.
+/// Interop/Quality/Analytics are NEVER publication blockers — consumer/interop readiness is
+/// reported in R8 + interop_score.
 fn is_pub_relevant(n: &Notice) -> bool {
     matches!(n.severity, Severity::Kritik) && n.rule_class == RuleClass::Spec
 }
@@ -1657,10 +1663,10 @@ fn build_r5(notices: &[Notice]) -> R5Report {
     let interop_score = class_score(notices, RuleClass::Interop);
     let quality_score = class_score(notices, RuleClass::Quality);
     let analytics_score = class_score(notices, RuleClass::Analytics);
-    // Ağırlıklı ortalama: SPEC %40, INTEROP %30, QUALITY %20, ANALYTICS %10
+    // Weighted average: SPEC 40%, INTEROP 30%, QUALITY 20%, ANALYTICS 10%
     let overall =
         0.4 * spec_score + 0.3 * interop_score + 0.2 * quality_score + 0.1 * analytics_score;
-    // Yayın skoru: rule başına gruplandırılmış penaltı (build_pub_penalty_map ile tutarlı)
+    // Publication score: penalty grouped per rule (consistent with build_pub_penalty_map)
     let (pub_penalty, _) = build_pub_penalty_map(notices);
     let pub_score = 100.0 * 50.0 / (50.0 + pub_penalty);
     R5Report {
@@ -1685,9 +1691,9 @@ fn notice_score_weight(notice: &Notice, has_opr011: bool, has_stm033: bool) -> f
         .unwrap_or(1.0)
 }
 
-/// Hiperbolik azalma: score = 100 × K / (K + penalty), K=50.
-/// Her kural başına instance_multiplier (maks 2×) uygulanır — tek yüksek
-/// sayımlı kural tüm skoru çökertmez. build_pub_penalty_map ile tutarlı.
+/// Hyperbolic decay: score = 100 × K / (K + penalty), K=50.
+/// instance_multiplier (max 2×) is applied per rule — one high-count rule cannot collapse
+/// the entire score. Consistent with build_pub_penalty_map.
 fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
     let mut per_rule: HashMap<&str, (f64, u32)> = HashMap::new();
     let has_opr011 = notices.iter().any(|n| n.rule_id == "OPR_011");
@@ -1755,7 +1761,7 @@ fn r4_display_label(rule_id: &str) -> String {
     }
 }
 
-// ── Metrikler ─────────────────────────────────────────────────────────────────
+// ── Metrics ───────────────────────────────────────────────────────────────────
 
 fn build_metrics(
     notices: &[Notice],
@@ -1779,17 +1785,17 @@ fn build_metrics(
         .collect();
     let active_service_days = all_dates.len() as u32;
 
-    // Gerçek servis kapsama aralığı (YYYYMMDD min/max). all_dates değerleri zaten YYYYMMDD.
+    // Actual service coverage range (YYYYMMDD min/max). all_dates values are already YYYYMMDD.
     let service_start_date = all_dates.iter().min().copied();
     let service_end_date = all_dates.iter().max().copied();
 
-    // Feed geçerlilik penceresi (feed_info.txt) — (y,m,d) tuple → YYYYMMDD u32.
+    // Feed validity window (feed_info.txt) — (y,m,d) tuple → YYYYMMDD u32.
     let yyyymmdd = |(y, m, d): (u32, u32, u32)| y * 10000 + m * 100 + d;
     let feed_info = records.feed_info.first();
     let feed_start_date = feed_info.and_then(|fi| fi.feed_start_date).map(yyyymmdd);
     let feed_end_date = feed_info.and_then(|fi| fi.feed_end_date).map(yyyymmdd);
 
-    // Benzersiz, boş olmayan trip_id → service_id; duplicate/empty satırlar metriğe yansımasın.
+    // Unique, non-empty trip_id → service_id; duplicate/empty rows must not affect the metric.
     let ti_k7 = &records.trip_interns;
     let mut unique_trips: HashMap<&str, &str> = HashMap::with_capacity(records.trips.len());
     for t in &records.trips {
@@ -1800,7 +1806,7 @@ fn build_metrics(
         }
     }
 
-    // Frekans bazlı trip'lerin günlük run sayısını hesapla (floor((end-start)/headway))
+    // Calculate daily runs for frequency-based trips (floor((end-start)/headway))
     let mut freq_runs: HashMap<&str, u32> = HashMap::new();
     for freq in &records.frequencies {
         if freq.trip_id.is_empty() {
@@ -1822,13 +1828,13 @@ fn build_metrics(
         *freq_runs.entry(freq.trip_id.as_str()).or_insert(0) += (end_s - start_s) / hw;
     }
 
-    // trip_count: frekans trip'leri günlük run sayısıyla genişletilir
+    // trip_count: frequency trips are expanded by their daily run count
     let trip_count: u32 = unique_trips
         .keys()
         .map(|&tid| freq_runs.get(tid).copied().unwrap_or(1).max(1))
         .sum();
 
-    // Her benzersiz trip'in service_id'si kaç gün aktifse, frekans çarpanıyla birlikte sayılır.
+    // Count each unique trip for its active service days, including the frequency multiplier.
     let total_trip_days: usize = unique_trips
         .iter()
         .map(|(&tid, &svc)| {
@@ -1895,14 +1901,14 @@ fn build_metrics(
             .iter()
             .filter(|n| n.rule_class == RuleClass::Analytics)
             .count() as u32,
-        overall_score: 0.0, // report() fonksiyonunda r5.score ile güncellenir
+        overall_score: 0.0, // updated with r5.score in the report() function
         file_stats,
         is_gtfs_jp,
         gtfs_jp_profile,
     }
 }
 
-// ── WP-10e: Testler ───────────────────────────────────────────────────────────
+// ── WP-10e: Tests ─────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -1961,7 +1967,7 @@ mod tests {
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
     }
 
-    // ARC_002 → File dedup: farklı dosya → iki notice
+    // ARC_002 → File dedup: different files → two notices
     #[test]
     fn dedup_file_level_different_files() {
         let mut n1 = notice("n1", "ARC_002", Severity::Kritik, RuleClass::Spec);
@@ -1971,7 +1977,7 @@ mod tests {
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
     }
 
-    // ARC_002 → File dedup: aynı dosya → tek notice
+    // ARC_002 → File dedup: same file → one notice
     #[test]
     fn dedup_file_level_same_file() {
         let mut n1 = notice("n1", "ARC_002", Severity::Kritik, RuleClass::Spec);
@@ -2088,17 +2094,17 @@ mod tests {
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
     }
 
-    // Feed dedup: entity_id dolu olsa bile yalnızca rule_id önemli
+    // Feed dedup: only rule_id matters even when entity_id is populated
     #[test]
     fn dedup_feed_ignores_entity_id() {
         let mut n1 = notice("n1", "ARC_001", Severity::Kritik, RuleClass::Spec);
         let mut n2 = notice("n2", "ARC_001", Severity::Kritik, RuleClass::Spec);
         n1.entity_id = Some("A1".into());
-        n2.entity_id = Some("A2".into()); // farklı entity_id ama Feed dedup → tek notice
+        n2.entity_id = Some("A2".into()); // different entity_id, but Feed dedup → one notice
         assert_eq!(dedup(vec![n1, n2]).len(), 1);
     }
 
-    // Entity dedup: aynı entity_id ama farklı entity_type → iki ayrı notice
+    // Entity dedup: same entity_id but different entity_type → two separate notices
     #[test]
     fn dedup_entity_different_types_not_merged() {
         let mut n1 = notice("n1", "AGN_002", Severity::Kritik, RuleClass::Spec);
@@ -2106,16 +2112,16 @@ mod tests {
         n1.entity_type = EntityType::Agency;
         n1.entity_id = Some("X".into());
         n2.entity_type = EntityType::Stop;
-        n2.entity_id = Some("X".into()); // aynı id, farklı tip
+        n2.entity_id = Some("X".into()); // same ID, different type
         assert_eq!(dedup(vec![n1, n2]).len(), 2);
     }
 
-    // Row dedup: file=None → dedup yapılmamalı, her notice tekil kalmalı
+    // Row dedup: file=None → must not deduplicate; each notice remains distinct
     #[test]
     fn dedup_row_none_file_not_merged() {
         let n1 = notice("n1", "ARC_018", Severity::Yuksek, RuleClass::Spec);
         let n2 = notice("n2", "ARC_018", Severity::Yuksek, RuleClass::Spec);
-        // file=None, line=None → tekil key
+        // file=None, line=None → unique key
         assert_eq!(
             dedup(vec![n1, n2]).len(),
             2,
@@ -2123,7 +2129,7 @@ mod tests {
         );
     }
 
-    // ── Semptom çözümü ────────────────────────────────────────────────────────
+    // ── Symptom resolution ────────────────────────────────────────────────────
 
     #[test]
     fn symptom_resolution_marks_blocked_rule_with_same_scope() {
@@ -2149,7 +2155,7 @@ mod tests {
         root.blocks = vec!["GEO_002".to_string()];
 
         let mut other = notice("other", "GEO_002", Severity::Orta, RuleClass::Analytics);
-        other.scope_key = Some("S2".into()); // farklı scope
+        other.scope_key = Some("S2".into()); // different scope
 
         let resolution = resolve_symptoms(&[root, other]);
         assert!(
@@ -2166,7 +2172,7 @@ mod tests {
         assert!(resolution.is_symptom.iter().all(|&s| !s));
     }
 
-    // None scope'lu root, None scope'lu semptomu işaretlemeli
+    // An unscoped root must mark an unscoped symptom
     #[test]
     fn symptom_resolution_none_scope_root_marks_none_scope_symptom() {
         let mut root = notice("root", "ARC_004", Severity::Kritik, RuleClass::Spec);
@@ -2180,7 +2186,7 @@ mod tests {
         assert!(resolution.is_symptom[1]);
     }
 
-    // None scope'lu root, Some(x) scope'lu semptomu da işaretlemeli (feed-level etki)
+    // An unscoped root must also mark a Some(x)-scoped symptom (feed-level effect)
     #[test]
     fn symptom_resolution_none_scope_root_marks_entity_scope_symptom() {
         let mut root = notice("root", "ARC_004", Severity::Kritik, RuleClass::Spec);
@@ -2197,7 +2203,7 @@ mod tests {
         );
     }
 
-    // Zincir A→B→C: hem B hem C semptom olmalı
+    // Chain A→B→C: both B and C must be symptoms
     #[test]
     fn symptom_resolution_chain_a_blocks_b_blocks_c() {
         let mut a = notice("a", "STP_001", Severity::Kritik, RuleClass::Spec);
@@ -2218,7 +2224,7 @@ mod tests {
         assert!(resolution.is_symptom[2], "C semptom olmalı");
     }
 
-    // realized_dep_for_group: sayısal değer doğrulaması
+    // realized_dep_for_group: numeric value validation
     #[test]
     fn realized_dep_for_group_counts_fired_blocked_rules() {
         let mut root = notice("r", "ARC_001", Severity::Kritik, RuleClass::Spec);
@@ -2226,7 +2232,7 @@ mod tests {
 
         let b1 = notice("b1", "B1", Severity::Orta, RuleClass::Quality);
         let b2 = notice("b2", "B2", Severity::Orta, RuleClass::Quality);
-        // B3 için notice yok → realized_dep = 2
+        // No notice for B3 → realized_dep = 2
 
         let all = vec![root, b1, b2];
         let resolution = resolve_symptoms(&all);
@@ -2246,7 +2252,7 @@ mod tests {
 
     #[test]
     fn r1_high_interop_is_publishable() {
-        // Faz 4: Interop artık yayın-engeli değil (yalnız Spec+Kritik).
+        // Phase 4: Interop is no longer a publication blocker (only Spec+Kritik).
         let n = notice("n1", "X", Severity::Yuksek, RuleClass::Interop);
         let r = build_r1(&[n], true);
         assert!(r.publishable);
@@ -2262,7 +2268,7 @@ mod tests {
 
     #[test]
     fn r1_kritik_interop_is_publishable() {
-        // Faz 4: Kritik Interop bile yayını engellemez (spec kapısı değil).
+        // Phase 4: even Kritik Interop does not block publication (not a spec gate).
         let n = notice("n1", "X", Severity::Kritik, RuleClass::Interop);
         let r = build_r1(&[n], true);
         assert!(r.publishable);
@@ -2282,7 +2288,7 @@ mod tests {
         let all = vec![root, sym];
         let resolution = resolve_symptoms(&all);
         let r9 = build_r9(&all, &resolution);
-        // Semptom (GEO_002) R9'da görünmemeli
+        // Symptom (GEO_002) must not appear in R9
         assert!(
             r9.items.iter().all(|i| i.rule_id != "GEO_002"),
             "semptom R9'da görünmemeli"
@@ -2291,8 +2297,8 @@ mod tests {
 
     #[test]
     fn r9_bucket_order_blocker_before_interop() {
-        // Faz 4: yalnız Spec+Kritik → Blocker. Interop (Kritik dahil) → Interop bucket;
-        // bucket içinde priority_score'a göre (yüksek severity önce) sıralanır.
+        // Phase 4: only Spec+Kritik → Blocker. Interop (including Kritik) → Interop bucket;
+        // sorted within the bucket by priority_score (higher severity first).
         let interop_low = notice("i1", "INTEROP_LOW", Severity::Orta, RuleClass::Interop);
         let interop_high = notice("ih", "INTEROP_HIGH", Severity::Yuksek, RuleClass::Interop);
         let blocker = notice("bl", "BLOCKER", Severity::Kritik, RuleClass::Spec);
@@ -2322,7 +2328,7 @@ mod tests {
 
     #[test]
     fn r9_propagation_label_when_realized_dep_gt_2() {
-        // 3 farklı blocked rule'un hepsinin notice'ı var → realized_dep = 3 → Propagation
+        // All three different blocked rules have notices → realized_dep = 3 → Propagation
         let mut root = notice("root", "ARC_001", Severity::Kritik, RuleClass::Spec);
         root.blocks = vec!["B1".to_string(), "B2".to_string(), "B3".to_string()];
 
@@ -2357,10 +2363,10 @@ mod tests {
         assert_eq!(r4_display_label("SHP_014"), "GEO_010");
         assert_eq!(r4_display_label("SHP_016"), "GEO_011");
         assert_eq!(r4_display_label("GEO_002"), "GEO_002");
-        assert_eq!(r4_display_label("SHP_013"), "SHP_013"); // artık alias yok
+        assert_eq!(r4_display_label("SHP_013"), "SHP_013"); // no alias anymore
     }
 
-    // ── R5 skor ───────────────────────────────────────────────────────────────
+    // ── R5 score ──────────────────────────────────────────────────────────────
 
     #[test]
     fn r5_empty_feed_scores_100() {
@@ -2378,7 +2384,7 @@ mod tests {
         assert_eq!(r5.interop_score, 100.0, "INTEROP hatası yok → 100");
     }
 
-    // ── R9 skor formülü ───────────────────────────────────────────────────────
+    // ── R9 score formula ──────────────────────────────────────────────────────
 
     #[test]
     fn priority_score_formula() {
@@ -2397,41 +2403,41 @@ mod tests {
         assert_eq!(instance_multiplier(51), 2.0);
     }
 
-    // ── Closure: yardımcı fonksiyon testleri ─────────────────────────────────
+    // ── Closure: helper function tests ───────────────────────────────────────
 
-    /// Senaryo 1: Root notice bir semptom kapatıyor.
-    /// score_delta, yalnızca root'un kendi cezasını değil closure setini (root + symptom)
-    /// kapsadığından daha büyük olmalı.
+    /// Scenario 1: A root notice closes a symptom.
+    /// score_delta must be larger because it covers the closure set (root + symptom),
+    /// not only the root's own penalty.
     #[test]
     fn closure_score_delta_larger_than_root_only_penalty() {
         // Root: SPEC/KRİTİK — blocks SYMPTOM_RULE
         let mut root = notice("root", "ROOT_001", Severity::Kritik, RuleClass::Spec);
         root.blocks = vec!["SYMPTOM_RULE".to_string()];
 
-        // Symptom: SPEC/YÜKSEK — root ile aynı kök sebebin semptomu
+        // Symptom: SPEC/YÜKSEK — symptom of the same root cause as the root
         let sym = notice("sym", "SYMPTOM_RULE", Severity::Yuksek, RuleClass::Spec);
 
         let all = vec![root, sym];
         let resolution = resolve_symptoms(&all);
         let r9 = build_r9(&all, &resolution);
 
-        // R9'da yalnızca ROOT_001 görünmeli (SYMPTOM_RULE semptom olarak gizlendi)
+        // Only ROOT_001 should appear in R9 (SYMPTOM_RULE is hidden as a symptom)
         let root_item = r9
             .items
             .iter()
             .find(|i| i.rule_id == "ROOT_001")
             .expect("ROOT_001 R9'da olmalı");
 
-        // Yalnızca root'un cezasıyla hesaplanan delta: Spec sınıfı, k=50, ceza=4.0
-        // cur_cs = 50*100/(50+7) ≈ 87.72; new_cs(sadece root) = 50*100/(50+3) ≈ 94.34
-        // Ancak closure delta root+symptom cezasını kaldırır (4+3=7)
+        // Delta calculated with only the root penalty: Spec class, k=50, penalty=4.0
+        // cur_cs = 50*100/(50+7) ≈ 87.72; new_cs(root only) = 50*100/(50+3) ≈ 94.34
+        // However, the closure delta removes the root+symptom penalty (4+3=7)
         // new_cs(closure) = 50*100/(50+0) = 100
-        // Bu yüzden closure delta > sadece-root delta
+        // Therefore closure delta > root-only delta
         let root_only_delta = {
             let k = 50.0_f64;
             let cur_cp = 7.0_f64; // root(4) + sym(3)
             let cur_cs = k * 100.0 / (k + cur_cp);
-            let new_cs = k * 100.0 / (k + (cur_cp - 4.0).max(0.0)); // yalnızca root cezası çıkar
+            let new_cs = k * 100.0 / (k + (cur_cp - 4.0).max(0.0)); // remove only the root penalty
             round1(0.4 * (new_cs - cur_cs))
         };
 
@@ -2443,18 +2449,18 @@ mod tests {
         );
     }
 
-    /// Senaryo 2: Scope mismatch — farklı scope_key'deki blocked notice closure'a girmemeli.
+    /// Scenario 2: Scope mismatch — a blocked notice with a different scope_key must not enter the closure.
     #[test]
     fn closure_scope_mismatch_excluded() {
         let mut root = notice("root", "ROOT_001", Severity::Kritik, RuleClass::Spec);
         root.scope_key = Some("scope_A".into());
         root.blocks = vec!["DOWNSTREAM".to_string()];
 
-        // Farklı scope: closure'a girmemeli
+        // Different scope: must not enter the closure
         let mut ds_mismatch = notice("ds_mm", "DOWNSTREAM", Severity::Yuksek, RuleClass::Spec);
         ds_mismatch.scope_key = Some("scope_B".into());
 
-        // Aynı scope: closure'a girmeli
+        // Same scope: must enter the closure
         let mut ds_match = notice("ds_ok", "DOWNSTREAM", Severity::Yuksek, RuleClass::Spec);
         ds_match.scope_key = Some("scope_A".into());
 
@@ -2469,7 +2475,7 @@ mod tests {
         assert!(!closure.contains(&1), "farklı scope → closure'da olmamalı");
     }
 
-    /// Senaryo 3: scope_key=None root, farklı scope'lardaki blocked notice'ları closure'a almalı.
+    /// Scenario 3: a scope_key=None root must include blocked notices from different scopes in the closure.
     #[test]
     fn closure_none_scope_root_captures_all_scopes() {
         let mut root = notice("root", "FEED_ERR", Severity::Kritik, RuleClass::Spec);
@@ -2500,7 +2506,7 @@ mod tests {
         assert_eq!(closure.len(), 4);
     }
 
-    /// Senaryo 4: Transitif zincir A blocks B, B blocks C → A'nın closure'ı hem B hem C içermeli.
+    /// Scenario 4: Transitive chain A blocks B, B blocks C → A's closure must contain both B and C.
     #[test]
     fn closure_transitive_chain_a_blocks_b_blocks_c() {
         let mut a = notice("a", "RULE_A", Severity::Kritik, RuleClass::Spec);
@@ -2525,41 +2531,41 @@ mod tests {
         assert_eq!(closure.len(), 3);
     }
 
-    /// Senaryo 4b: Transitif closure sonsuz döngüye girmemeli (döngüsel blocks).
+    /// Scenario 4b: Transitive closure must not loop forever (cyclic blocks).
     #[test]
     fn closure_no_infinite_loop_on_cycle() {
-        // A→B→A döngüsü
+        // A→B→A cycle
         let mut a = notice("a", "RULE_A", Severity::Kritik, RuleClass::Spec);
         a.blocks = vec!["RULE_B".to_string()];
 
         let mut b = notice("b", "RULE_B", Severity::Yuksek, RuleClass::Interop);
-        b.blocks = vec!["RULE_A".to_string()]; // döngü
+        b.blocks = vec!["RULE_A".to_string()]; // cycle
 
         let all = vec![a, b];
         let resolution = resolve_symptoms(&all);
 
-        // Sonsuz döngüye girmemeli
+        // Must not loop forever
         let closure = closure_notice_indices_for_group(&[0], &all, &resolution);
         assert!(closure.contains(&0));
         assert!(closure.contains(&1));
         assert_eq!(
             closure.len(),
             2,
-            "döngüde bile her notice bir kez sayılmalı"
+            "each notice must be counted once even in a cycle"
         );
     }
 
-    /// Senaryo 5: pub_score_delta yalnızca pub-relevant notice'lar üzerinden,
-    /// gruplu hiperbolik hesapla artmalı.
+    /// Scenario 5: pub_score_delta must increase using only pub-relevant notices
+    /// and the grouped hyperbolic calculation.
     ///
-    /// Kurulum:
+    /// Setup:
     /// - Root: Kritik/Spec (pub-relevant) — blocks DOWNSTREAM
-    /// - Downstream 1: Kritik/Spec (pub-relevant) — CLOSURE'A GİRER
-    /// - Downstream 2: Orta/Quality (pub-relevant DEĞİL) — closure'a girse de pub'a etki etmez
+    /// - Downstream 1: Kritik/Spec (pub-relevant) — ENTERS THE CLOSURE
+    /// - Downstream 2: Orta/Quality (NOT pub-relevant) — it does not affect pub even if closed
     ///
-    /// Beklenti:
-    /// - pub_score_delta > 0 (en az root+downstream1 pub cezası kalktı)
-    /// - Ancak quality notice pub_score_delta'ya katkı vermez
+    /// Expectation:
+    /// - pub_score_delta > 0 (at least the root+downstream1 publication penalty was removed)
+    /// - However, the quality notice does not contribute to pub_score_delta
     #[test]
     fn closure_pub_score_delta_only_pub_relevant_notices() {
         let mut root = notice("root", "PUB_ROOT", Severity::Kritik, RuleClass::Spec);
@@ -2567,7 +2573,7 @@ mod tests {
 
         // pub-relevant downstream
         let ds_pub = notice("ds_pub", "PUB_DS", Severity::Kritik, RuleClass::Spec);
-        // pub-relevant olmayan downstream
+        // non-pub-relevant downstream
         let ds_qual = notice("ds_qual", "QUAL_DS", Severity::Orta, RuleClass::Quality);
 
         let all = vec![root, ds_pub, ds_qual];
@@ -2580,16 +2586,16 @@ mod tests {
             .find(|i| i.rule_id == "PUB_ROOT")
             .expect("PUB_ROOT R9'da olmalı");
 
-        // pub_score_delta > 0: en az pub-relevant root cezası kalktı
+        // pub_score_delta > 0: at least the pub-relevant root penalty was removed
         assert!(
             root_item.pub_score_delta > 0.0,
             "pub-relevant root → pub_score_delta sıfırdan büyük olmalı; değer: {}",
             root_item.pub_score_delta
         );
 
-        // pub_score_delta hesabını manuel doğrula:
+        // Verify the pub_score_delta calculation manually:
         // total_pub_penalty: PUB_ROOT(4, cnt=1)×1.0 + PUB_DS(4, cnt=1)×1.0 = 8.0
-        // closure pub penalty: aynı = 8.0
+        // closure pub penalty: same = 8.0
         // new_pub = 50*100/(50+0) = 100; cur_pub = 50*100/(50+8) ≈ 86.2
         // pub_score_delta ≈ 13.8
         let k = 50.0_f64;
@@ -2604,15 +2610,15 @@ mod tests {
         );
     }
 
-    /// Senaryo 5b: Aynı rule_id altında birden fazla closure notice'ı varsa
-    /// gruplu hiperbolik hesap (instance_multiplier) doğru uygulanmalı.
+    /// Scenario 5b: when multiple closure notices share a rule_id, the grouped hyperbolic
+    /// calculation (instance_multiplier) must be applied correctly.
     #[test]
     fn closure_pub_score_delta_grouped_hyperbolic() {
-        // Root: pub-relevant, blocks DS_RULE (birden fazla instance)
+        // Root: pub-relevant, blocks DS_RULE (multiple instances)
         let mut root = notice("root", "ROOT_PUB", Severity::Kritik, RuleClass::Spec);
         root.blocks = vec!["DS_RULE".to_string()];
 
-        // Aynı rule_id'den 10 closure downstream (cnt=10 → multiplier=1.5)
+        // 10 closure downstream notices with the same rule_id (cnt=10 → multiplier=1.5)
         let mut downstream: Vec<Notice> = (0..10)
             .map(|i| {
                 notice(
@@ -2623,7 +2629,7 @@ mod tests {
                 )
             })
             .collect();
-        // Hepsi None scope → root ile eşleşir
+        // All have a None scope → they match the root
 
         let mut all = vec![root];
         all.append(&mut downstream);
@@ -2640,7 +2646,7 @@ mod tests {
         // Closure pub penalty:
         // ROOT_PUB: cnt=1 → 4×1.0 = 4
         // DS_RULE:  cnt=10 → 4×1.5 = 6  (10 > 5, cnt in 6..=50 → 1.5)
-        // total = 10; closure_pub_penalty = 10; tüm pub penalty = 10
+        // total = 10; closure_pub_penalty = 10; total publication penalty = 10
         // pub_score_delta = 50*100/(50+0) - 50*100/(50+10) = 100 - 83.3 = 16.7
         let k = 50.0_f64;
         let total_pp = 4.0 * 1.0 + 4.0 * 1.5; // root(1 instance) + ds(10 instances → ×1.5)
@@ -2655,12 +2661,12 @@ mod tests {
         );
     }
 
-    // R9 sıralaması eşit skorlarda deterministik mi? (rule_id tie-break)
+    // Is R9 ordering deterministic for equal scores? (rule_id tie-break)
     #[test]
     fn r9_order_deterministic_on_score_ties() {
-        // Aynı severity/class, farklı rule_id → eşit bucket_rank ve priority_score.
-        // Registry'de olmayan ID'ler → metadata fallback ile skorlar birebir eşit.
-        // scope_key None, blocks yok → hepsi kök neden, hepsi R9 item olur.
+        // Same severity/class, different rule_id → equal bucket_rank and priority_score.
+        // IDs absent from the registry → metadata fallback makes scores exactly equal.
+        // scope_key None, no blocks → all are root causes and all become R9 items.
         let scrambled = ["ZZ_003", "ZZ_001", "ZZ_002"];
         let notices: Vec<Notice> = scrambled
             .iter()
@@ -2668,8 +2674,8 @@ mod tests {
             .map(|(i, rid)| notice(&format!("n{i}"), rid, Severity::Orta, RuleClass::Quality))
             .collect();
 
-        // build_r9 her çağrıda yeni HashMap (yeni random seed) kurar; çıktı sırası
-        // tie-break sayesinde her çağrıda aynı VE rule_id'ye göre artan olmalı.
+        // build_r9 creates a new HashMap (new random seed) on each call; the output order
+        // must be the same on every call and ascending by rule_id due to the tie-break.
         let mut seen: Option<Vec<String>> = None;
         for _ in 0..16 {
             let resolution = resolve_symptoms(&notices);

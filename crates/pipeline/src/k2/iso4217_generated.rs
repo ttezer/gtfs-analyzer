@@ -1,18 +1,18 @@
-//! ÜRETİLMİŞ DOSYA — elle düzenlemeyin (issue #82).
+//! GENERATED FILE — do not edit by hand (issue #82).
 //!
-//! Kaynak : https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml
-//! Yayın   : 2026-01-01   (kaynağın kendi `Pblshd` alanı)
+//! Source : https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml
+//! Published: 2026-01-01   (the source's own `Pblshd` field)
 //! SHA-256 : 838dfb991648cf36df939edd5fe3811737962b75a32252847d239cedd1e291c9
-//! Üretim  : `python3 spec-audit/gen_iso4217.py`
+//! Generation: `python3 spec-audit/gen_iso4217.py`
 //! Drift   : `python3 spec-audit/gen_iso4217.py --check`
 //!
-//! Tablo ISO 4217'nin **aktif** kodlarıdır (Table A.1). Tarihe karışmış kodlar burada
-//! YOKTUR: bir feed bugünkü bir para birimi bildirmelidir.
+//! The table contains ISO 4217 **active** codes (Table A.1). Historical codes are NOT
+//! HERE: a feed must report a currency that exists today.
 //!
-//! ⚠️ `255` = ondalık basamak TANIMSIZ (kaynakta `N.A.`) — fonlar ve kıymetli madenler
-//! (`XAU`, `XDR`, …). Bunlar geçerli KODDUR ama tutar ondalığı denetlenemez.
+//! ⚠️ `255` = decimal places UNDEFINED (the source says `N.A.`) — funds and precious metals
+//! (`XAU`, `XDR`, …). These are valid CODES, but amount decimals cannot be checked.
 
-/// (kod, minor unit) — koda göre SIRALI; `binary_search_by_key` bunu varsayar.
+/// (code, minor unit) — SORTED by code; `binary_search_by_key` relies on this.
 pub(crate) const ISO4217: &[(&str, u8)] = &[
     ("AED", 2),
     ("AFN", 2),

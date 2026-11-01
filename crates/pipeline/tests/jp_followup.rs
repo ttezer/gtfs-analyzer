@@ -200,8 +200,8 @@ fn jpn_032_is_strict_v3_only_and_does_not_recheck_blank_ids() {
 
 #[test]
 fn v3_route_type_constraint_is_explicit_and_skips_unparseable_values() {
-    // Açık V3, sayısal route_type için yalnızca 3'ü kabul eder; route türlerinin dağılımı
-    // kuralın kapsamını değiştirmemelidir.
+    // Open V3 accepts only 3 for numeric route_type; the distribution of route types
+    // must not change the rule's scope.
     for (value, fires) in [
         ("2", true),
         ("999", true),
@@ -239,7 +239,7 @@ fn v3_route_type_constraint_reports_every_numeric_non_three_type() {
     );
 }
 
-/// Açık V3, otobüs olmayan hatlar çoğunlukta veya azınlıkta olsa da aynı sabiti uygular.
+/// Open V3 applies the same constant whether non-bus routes are a majority or minority.
 #[test]
 fn v3_route_type_constraint_reports_non_bus_when_bus_is_a_minority() {
     let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
@@ -260,7 +260,7 @@ fn v3_route_type_constraint_reports_non_bus_when_bus_is_a_minority() {
     );
 }
 
-/// HVT değerleri genel sınıflandırmada otobüs olsa bile V3'ün sabit `3` değerine uymaz.
+/// HVT values do not satisfy V3's fixed `3` even if the general classification calls them buses.
 #[test]
 fn extended_route_types_are_v3_violations() {
     let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
@@ -283,7 +283,7 @@ fn extended_route_types_are_v3_violations() {
         .any(|n| n.observed_value.as_deref() == Some("900")));
 }
 
-/// Emisyon TİP başına toplanır: aynı `route_type`'ı paylaşan hatlar tek bulguda birleşir.
+/// Emission is aggregated per TYPE: routes sharing the same `route_type` merge into one finding.
 #[test]
 fn v3_route_type_findings_aggregate_per_type() {
     let mut routes = String::from("route_id,agency_id,route_short_name,route_type\n");
@@ -308,8 +308,8 @@ fn v3_route_type_findings_aggregate_per_type() {
     );
 }
 
-/// 🔴 ÖLÇÜLMÜŞ HACİM (`mdb-53`, BART): 2.500 `fare_attributes` satırı, HEPSİ `USD` → eski
-/// emisyon tek olguyu 2.500 kez raporluyordu. Künyede tekilleştirme `Field`.
+/// 🔴 MEASURED VOLUME (`mdb-53`, BART): 2,500 `fare_attributes` rows, ALL `USD` → the old
+/// emission reported one fact 2,500 times. Deduplication is `Field` in the metadata.
 #[test]
 fn jpn_026_aggregates_per_currency() {
     let fares = "fare_id,price,currency_type,payment_method,transfers\n        F1,1.00,USD,0,0\nF2,2.00,USD,0,0\nF3,3.00,USD,0,0\nF4,4.00,EUR,0,0\n";

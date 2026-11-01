@@ -37,7 +37,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
         let entity_id = (!from_stop_id.is_empty() && !to_stop_id.is_empty())
             .then_some(format!("{from_stop_id}|{to_stop_id}"));
 
-        // TRF_004: transfer_type geçersiz (TRF_001/002 koşulu buna bağlı olduğundan önce parse edilir)
+        // TRF_004: transfer_type is invalid (parsed first because TRF_001/002 depend on it)
         let transfer_type = match parse_u32(&row_map, "transfer_type") {
             Ok(value) => {
                 if let Some(v) = value {
@@ -79,13 +79,13 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             }
         };
 
-        // from_stop_id/to_stop_id koşullu zorunlu: transfer_type 0/1/2/3 için zorunlu,
-        // 4/5 (in-seat / scheduled connection) için opsiyonel — bunlar from_trip_id/to_trip_id
-        // kullanır. Sütun yoksa ARC_025 devralır → atla (get_trimmed_field == Some("") sütun var
-        // ama değer boş demek). transfer_type geçersiz/yoksa varsayılan 0 → zorunlu kabul edilir.
+        // from_stop_id/to_stop_id are conditionally required: required for transfer_type 0/1/2/3,
+        // optional for 4/5 (in-seat / scheduled connection) — those use from_trip_id/to_trip_id.
+        // If the column is absent, ARC_025 takes over → skip (get_trimmed_field == Some("") means
+        // the column exists but its value is empty). Missing/invalid transfer_type defaults to 0 → required.
         let stop_ids_required = !matches!(transfer_type, Some(4) | Some(5));
 
-        // TRF_001: from_stop_id zorunlu
+        // TRF_001: from_stop_id is required
         if stop_ids_required && get_raw_field(&row_map, "from_stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -103,7 +103,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             ));
         }
 
-        // TRF_002: to_stop_id zorunlu
+        // TRF_002: to_stop_id is required
         if stop_ids_required && get_raw_field(&row_map, "to_stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -121,7 +121,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             ));
         }
 
-        // TRF_005: transfer_type=2 için min_transfer_time zorunlu
+        // TRF_005: min_transfer_time is required for transfer_type=2
         let min_transfer_time = match parse_u32(&row_map, "min_transfer_time") {
             Ok(value) => value,
             Err(err) => {
@@ -160,7 +160,7 @@ pub fn validate_transfers(file: &RawFile) -> (Vec<TransferRecord>, Vec<gtfs_core
             ));
         }
 
-        // GGL_001: transfer_type=4/5 Google Transit tarafından desteklenmiyor
+        // GGL_001: transfer_type=4/5 is not supported by Google Transit
         if matches!(transfer_type, Some(4) | Some(5)) {
             let ttype = transfer_type.unwrap();
             notices.push(make_k2_notice(
@@ -253,7 +253,7 @@ mod tests {
 
     #[test]
     fn trf_001_002_skipped_for_transfer_type_4() {
-        // transfer_type=4 (in-seat) için from/to_stop_id opsiyonel → boş olsa da TRF_001/002 yok
+        // from/to_stop_id is optional for transfer_type=4 (in-seat) → no TRF_001/002 even when empty
         let file = make_file(vec![vec!["", "", "4"]]);
         let (_, notices) = validate_transfers(&file);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
@@ -271,7 +271,7 @@ mod tests {
 
     #[test]
     fn trf_001_fires_for_transfer_type_1_missing_stop() {
-        // transfer_type=1 için from/to_stop_id zorunlu → boşsa TRF_001/002
+        // from/to_stop_id is required for transfer_type=1 → TRF_001/002 when empty
         let file = make_file(vec![vec!["", "", "1"]]);
         let (_, notices) = validate_transfers(&file);
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
@@ -287,12 +287,12 @@ mod tests {
         );
     }
 
-    /// `transfer_type=2` + `min_transfer_time` YOK — hükmün KOŞULLU ZORUNLU yarısı.
+    /// `transfer_type=2` + `min_transfer_time` MISSING — the conditionally-required half of the rule.
     ///
-    /// Google Transit PR #640 bu alanı `transfer_type=2` için açıkça
-    /// **Conditionally Required** yaptı. Predikat zaten bunu ölçüyordu ama bu dalın
-    /// testi YOKTU; yalnız parse/negatif dalı sabitlenmişti. Yani spec'in yeni normatif
-    /// dayanağını taşıyan kol, regresyon koruması olmadan duruyordu.
+    /// Google Transit PR #640 explicitly made this field **Conditionally Required** for
+    /// `transfer_type=2`. The predicate already measured it, but this branch had NO test;
+    /// only the parse/negative branch was pinned down. The branch carrying the spec's new
+    /// normative basis therefore had no regression protection.
     #[test]
     fn transfer_type_2_without_min_transfer_time_produces_trf_005() {
         let file = make_file(vec![vec!["S1", "S2", "2"]]);
@@ -303,8 +303,8 @@ mod tests {
         );
     }
 
-    /// Karşıt taraf: değer VARSA kural susmalı — yoksa hüküm yerine getirilmiş bir feed
-    /// reddedilir ve bu asimetrinin AĞIR yakasıdır.
+    /// The converse: when the value IS present, the rule must stay silent — otherwise a feed
+    /// satisfying the requirement would be rejected, the COSTLY side of this asymmetry.
     #[test]
     fn transfer_type_2_with_min_transfer_time_is_silent() {
         let mut file = make_file(vec![vec!["S1", "S2", "2"]]);
@@ -317,8 +317,8 @@ mod tests {
         );
     }
 
-    /// Hüküm YALNIZ `transfer_type=2` içindir. Diğer tiplerde alanın yokluğu
-    /// bu kuralın konusu değildir; genişletmek geçerli feed'leri reddederdi.
+    /// The rule applies ONLY to `transfer_type=2`. For other types, the field's absence
+    /// is outside this rule; expanding it would reject valid feeds.
     #[test]
     fn other_transfer_types_do_not_require_min_transfer_time() {
         for ttype in ["0", "1", "3"] {

@@ -1,18 +1,18 @@
-//! Agency atfı tipleri (MobilityData gtfs-validator #2201 karşılığı).
+//! Agency attribution types (MobilityData gtfs-validator #2201 equivalent).
 //!
-//! Çözümleyici `gtfs_pipeline::agency_attribution::AgencyResolver`'dır; tipler burada
-//! durur çünkü feed-level özet notice'ları altlarındaki ham notice'ların dağılımını
-//! [`Notice::agency_distribution`](crate::Notice::agency_distribution) içinde taşır.
+//! The resolver is `gtfs_pipeline::agency_attribution::AgencyResolver`; the types live
+//! here because feed-level summary notices carry the distribution of their raw notices
+//! in [`Notice::agency_distribution`](crate::Notice::agency_distribution).
 
 use std::collections::BTreeMap;
 
-/// Agency kaydının resolver içindeki sırası. `agency_id`'si olmayan tek agency'nin
-/// kimliği boş string'dir.
+/// The agency record's position in the resolver. The ID of the only agency without an
+/// `agency_id` is an empty string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AgencyRef(pub u32);
 
-/// Kimliğin nasıl eşleştiği. Zincirdeki (trip → route → agency) HERHANGİ bir adım
-/// kırpma yedeğiyle çözüldüyse sonuç yedektir.
+/// How the ID was matched. If ANY step in the chain (trip → route → agency) was resolved
+/// with a trimmed fallback, the result is a fallback.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Resolution {
     Exact,
@@ -29,39 +29,40 @@ impl Resolution {
     }
 }
 
-/// Atıf beklenebilirken yapılamamasının nedeni.
+/// Why attribution could not be made when it was expected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum UnattributedReason {
-    /// Kural scope beyan ediyor ama notice `scope_key` taşımıyor.
+    /// The rule declares a scope but the notice does not carry `scope_key`.
     MissingScopeKey,
-    /// Scope beyanlı kuralın feed düzeyi özeti (`EntityType::Feed`, `scope_key` yok):
-    /// feed-level toplulamalar ve emitter içi özetler (STM_017, STM_032/056 eşik üstü).
-    /// Tek bir varlığa ait değildir; dağılım özetten ÖNCE, ham notice'larda korunmalıdır.
+    /// Feed-level summary of a scoped rule (`EntityType::Feed`, no `scope_key`): feed-level
+    /// aggregations and emitter-internal summaries (STM_017, above-threshold STM_032/056).
+    /// It does not belong to one entity; preserve the distribution in raw notices BEFORE
+    /// summarizing.
     FeedLevelSummary,
-    /// `agency_id` feed'de yok (kırık FK dahil).
+    /// `agency_id` is absent from the feed (including a broken FK).
     UnknownAgency,
-    /// `route_id` feed'de yok (kırık FK dahil).
+    /// `route_id` is absent from the feed (including a broken FK).
     UnknownRoute,
-    /// `trip_id` feed'de yok (kırık FK dahil).
+    /// `trip_id` is absent from the feed (including a broken FK).
     UnknownTrip,
-    /// Birden fazla agency varken route'un `agency_id`'si boş.
+    /// The route's `agency_id` is empty while multiple agencies exist.
     RouteWithoutAgency,
-    /// `fare_id` feed'de (`fare_attributes.txt`) yok (kırık FK dahil).
+    /// `fare_id` is absent from the feed (`fare_attributes.txt`) (including a broken FK).
     UnknownFare,
-    /// `stop_id` / `shape_id` / `service_id` feed'de yok (kırık FK dahil).
+    /// `stop_id` / `shape_id` / `service_id` is absent from the feed (including a broken FK).
     UnknownStop,
     UnknownShape,
     UnknownService,
-    /// Varlık feed'de var ama hiçbir (atfedilebilir) sefer onu kullanmıyor; birden fazla
-    /// agency'li feed'de sahibi belirlenemez.
+    /// The entity exists in the feed, but no (attributable) trip uses it; its owner cannot
+    /// be determined in a feed with multiple agencies.
     UnusedEntity,
-    /// Birden fazla agency varken tarifenin `agency_id`'si boş.
+    /// The fare's `agency_id` is empty while multiple agencies exist.
     FareWithoutAgency,
-    /// Kırpılmış kimlik birden fazla ham kimliğe düşüyor.
+    /// A trimmed ID maps to multiple raw IDs.
     AmbiguousPaddedId,
 }
 
-/// Birden fazla agency'nin kullanabildiği varlık türleri.
+/// Entity types that can be used by multiple agencies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SharedKind {
     Stop,
@@ -71,18 +72,18 @@ pub enum SharedKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum AgencyAttribution {
-    /// Notice doğrudan bir agency kaydına ait.
+    /// The notice belongs directly to an agency record.
     Direct { agency: AgencyRef, resolution: Resolution },
-    /// Route/trip ilişkisinden tek agency bulundu.
+    /// A single agency was found through the route/trip relationship.
     Resolved { agency: AgencyRef, resolution: Resolution },
-    /// Durak/shape/servis birden fazla agency'nin seferlerince kullanılıyor. `set`, o tür
-    /// için agency kümeleri tablosunda deterministik bir indekstir (aynı kayıtlarla kurulan
-    /// her resolver aynı numarayı verir); üyeler [`AgencyBreakdown::shared_sets`]'tedir.
+    /// A stop/shape/service is used by trips from multiple agencies. `set` is a deterministic
+    /// index in the agency-set table for that type (every resolver built from the same records
+    /// returns the same number); members are in [`AgencyBreakdown::shared_sets`].
     Shared { kind: SharedKind, set: u32 },
     Unattributed(UnattributedReason),
-    /// Kuralın scope türü henüz çözülmüyor (stop, shape, service… — P6).
+    /// The rule's scope type is not resolved yet (stop, shape, service… — P6).
     Unsupported,
-    /// Kural scope beyan etmiyor: feed/dosya düzeyi bulgu, agency kavramıyla ilişkisi yok.
+    /// The rule declares no scope: a feed/file-level finding unrelated to agencies.
     NotApplicable,
 }
 
@@ -95,21 +96,21 @@ impl AgencyAttribution {
     }
 }
 
-/// Bir özet notice'ın altındaki ham notice'ların atıf dağılımı: atıf → ham notice sayısı.
-/// Toplamı özetin taşıdığı etkilenen kayıt sayısına eşittir.
+/// Attribution distribution of the raw notices under a summary notice: attribution → raw
+/// notice count. Its total equals the number of affected records carried by the summary.
 pub type AgencyDistribution = BTreeMap<AgencyAttribution, u64>;
 
-/// Bir kuralın sayımları. Üç birim birbirine karıştırılmaz:
-/// - `finding_count`: rapora giren bulgu sayısı — boşluk türevleri bastırılmış, dedup
-///   edilmiş, kural başına cap UYGULANMAMIŞ.
-/// - `affected_entity_count`: bulguların temsil ettiği ham kayıt sayısı; toplulanmış bir
-///   özet, altındaki bütün ham notice'lar kadar sayılır (özet başına 1 değil). Emitter
-///   içinde özetlenmiş bulgular (üyeleri görülmez) 1 sayılır ve `FeedLevelSummary`
-///   kovasına düşer.
-/// - `displayed_sample_count`: sonuçta taşınan notice sayısı (WASM cap'i; native'de
-///   `finding_count`'a eşit).
+/// Counts for one rule. The three units must not be conflated:
+/// - `finding_count`: findings included in the report — gap derivatives suppressed and
+///   deduplicated, with no per-rule cap applied.
+/// - `affected_entity_count`: raw records represented by the findings; an aggregated summary
+///   counts all raw notices beneath it (not one per summary). Findings summarized inside the
+///   emitter (with invisible members) count as 1 and fall into the `FeedLevelSummary` bucket.
+/// - `displayed_sample_count`: notices carried in the result (WASM cap; equal to
+///   `finding_count` in native).
 ///
-/// `by_attribution`, `affected_entity_count`'un atıf dağılımıdır; toplamı ona eşittir.
+/// `by_attribution` is the attribution distribution of `affected_entity_count`; its total
+/// equals that count.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RuleAgencyCounts {
     pub finding_count: u64,
@@ -118,31 +119,31 @@ pub struct RuleAgencyCounts {
     pub by_attribution: AgencyDistribution,
 }
 
-/// Feed'in kural × agency dökümü (MobilityData gtfs-validator #2201). Raporlama katmanıdır:
-/// severity ve skor bundan etkilenmez.
+/// Rule × agency breakdown for the feed (MobilityData gtfs-validator #2201). This is a
+/// reporting layer; severity and score are not affected.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AgencyBreakdown {
-    /// `false`: ham notice'ların bir kısmı işlenmedi, sayımlar alt sınırdır. WASM yolundaki
-    /// 1M notice bütçesi 2026-10-30'da kaldırıldığından bugün her yolda `true`; alan JSON
-    /// şemasında ve UI uyarısında geriye dönük uyumluluk için kalır.
+    /// `false`: some raw notices were not processed, so counts are lower bounds. Because the
+    /// 1M-notice budget on the WASM path was removed on 2026-10-30, this is `true` on every
+    /// path today; the field remains in the JSON schema and UI warning for compatibility.
     pub complete: bool,
-    /// [`AgencyRef`] sırasıyla agency kimlikleri (tek agency'de boş olabilir).
+    /// Agency IDs in [`AgencyRef`] order (may be empty for a single agency).
     pub agencies: Vec<String>,
-    /// `agencies` ile aynı sırada `agency_name` değerleri (gösterim için).
+    /// `agency_name` values in the same order as `agencies` (for display).
     pub agency_names: Vec<String>,
-    /// `agencies` ile aynı sırada, route'u üzerinden o agency'ye çözülen sefer sayısı.
+    /// Trip counts resolved to each agency through its route, in the same order as `agencies`.
     pub agency_trip_counts: Vec<u64>,
-    /// `agencies` ile aynı sırada: sonuçtaki `notices` dizisinde o agency'ye düşen
-    /// notice'ların indeksleri (artan). Özetler dağılımındaki her agency'de listelenir.
-    /// Arayüz bu listeyle ayrıntıları agency'ye göre süzer; WASM'da yalnız cap sonrası
-    /// gösterilen notice'lar listededir.
+    /// In the same order as `agencies`: ascending indices of notices assigned to each agency
+    /// in the result's `notices` array. Each agency in a summary's distribution is listed.
+    /// The UI filters details by agency with this list; on WASM it contains only notices
+    /// displayed after the cap.
     pub agency_notice_indices: Vec<Vec<u32>>,
-    /// Dağılımlarda geçen [`AgencyAttribution::Shared`] kümelerinin üyeleri (agency sırası).
+    /// Members of [`AgencyAttribution::Shared`] sets used in distributions (agency order).
     pub shared_sets: BTreeMap<(SharedKind, u32), Vec<u32>>,
     pub rules: BTreeMap<String, RuleAgencyCounts>,
 }
 
-// ── JSON sözleşmesi ─────────────────────────────────────────────────────────
+// ── JSON contract ───────────────────────────────────────────────────────────
 //
 // {
 //   "complete": true,
@@ -159,10 +160,10 @@ pub struct AgencyBreakdown {
 //   }
 // }
 //
-// `agency_sets` yapısaldır (agency_id `|` içerebilir). Birden fazla agency'nin kullandığı
-// durak/shape/servis bulguları çok üyeli bir kümeye düşer; agency başına toplamlar bu yüzden
-// kural toplamını aşabilir (paylaşılan bulgu her üyede sayılır).
-// Sıralar deterministiktir: kurallar ve nedenler BTreeMap, kümeler agency sırasıyla.
+// `agency_sets` is structural (agency_id may contain `|`). Stop/shape/service findings used
+// by multiple agencies fall into a multi-member set; per-agency totals may therefore exceed
+// the rule total (a shared finding is counted for every member).
+// Ordering is deterministic: rules and reasons use BTreeMap, sets use agency order.
 
 #[derive(serde::Serialize)]
 struct AgencyJson<'a> {
@@ -197,8 +198,8 @@ impl serde::Serialize for AgencyBreakdown {
             .rules
             .iter()
             .map(|(rule, counts)| {
-                // Küme anahtarı üye listesidir: tek agency [a], paylaşılan [a, b, …]. Aynı üyeli
-                // durak/shape/servis kümeleri tek girdide birleşir.
+                // The set key is the member list: one agency [a], shared [a, b, …].
+                // Stop/shape/service sets with the same membership merge into one entry.
                 let mut sets: BTreeMap<Vec<u32>, (u64, u64)> = BTreeMap::new();
                 let mut unattributed = BTreeMap::new();
                 let (mut unsupported, mut not_applicable) = (0, 0);

@@ -1,13 +1,13 @@
-/// Granüler zamanlama yardımcısı.
+/// Fine-grained timing helper.
 ///
-/// Native: Drop anında stderr'e "[timing] label: Xms" basar.
-/// WASM:   web_sys::console::time_with_label / time_end_with_label kullanır
-///         → Chrome DevTools Performance sekmesinde görünür.
+/// Native: prints "[timing] label: Xms" to stderr when dropped.
+/// WASM:   uses web_sys::console::time_with_label / time_end_with_label
+///         → visible in the Chrome DevTools Performance tab.
 ///
-/// Kullanım:
+/// Usage:
 ///   let _t = Timer::start("K6::speed_and_duration");
-///   // ... iş ...
-///   // _t drop olduğunda otomatik ölçüm basılır
+///   // ... work ...
+///   // timing is printed automatically when _t is dropped
 #[cfg(not(target_family = "wasm"))]
 pub(crate) struct Timer {
     label: String,
@@ -37,17 +37,17 @@ impl Drop for Timer {
     }
 }
 
-/// #15 Adım-2: K2-içi peak attribution. WASM linear memory high-water (MB) konsola basar.
-/// Native'de de process high-water RSS'i yazılır; böylece toplam `/usr/bin/time` değerinin
-/// hangi pipeline aşamasında oluştuğu görülebilir.
+/// #15 Step 2: peak attribution inside K2. Prints the WASM linear-memory high-water mark (MB)
+/// to the console. Native also writes the process high-water RSS, showing which pipeline
+/// stage produced the total `/usr/bin/time` value.
 #[cfg(all(target_arch = "wasm32", not(feature = "quiet")))]
 pub(crate) fn mem_log(label: &str) {
     let pages = core::arch::wasm32::memory_size(0);
     let mb = (pages as f64) * 65536.0 / 1_048_576.0;
     web_sys::console::log_1(&format!("[mem] {label}: {mb:.1} MB").into());
 }
-// Rust core henüz wasm64 için wasm32::memory_size eşdeğeri sunmuyor. Memory64
-// smoke testinde teşhisi no-op yap.
+// Rust core does not yet expose a wasm32::memory_size equivalent for wasm64. Make the
+// diagnostic a no-op in the Memory64 smoke test.
 #[cfg(any(target_arch = "wasm64", all(target_family = "wasm", feature = "quiet")))]
 pub(crate) fn mem_log(_label: &str) {}
 
@@ -80,8 +80,8 @@ pub(crate) fn mem_log(label: &str) {
 #[cfg(all(not(target_family = "wasm"), not(unix)))]
 pub(crate) fn mem_log(_label: &str) {}
 
-/// #15: serbest teşhis satırı (yapı-boyutu kırılımı vb.). high-water DEĞİL — çağıran
-/// gerçek `len × size_of` canlı boyutu hesaplar. Native'de no-op.
+/// #15: free-form diagnostic line (size breakdown, etc.). NOT high-water — the caller
+/// calculates the actual live `len × size_of` size. No-op on native.
 #[cfg(all(target_family = "wasm", not(feature = "quiet")))]
 pub(crate) fn mem_note(msg: &str) {
     web_sys::console::log_1(&format!("[mem] {msg}").into());

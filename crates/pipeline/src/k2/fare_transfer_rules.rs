@@ -172,7 +172,7 @@ pub fn validate_fare_transfer_rules(
             }
         };
 
-        // FTR_007: duration_limit_type, duration_limit olmadan anlamsız
+        // FTR_007: duration_limit_type is meaningless without duration_limit
         if duration_limit_type.is_some() && duration_limit.is_none() {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -191,7 +191,7 @@ pub fn validate_fare_transfer_rules(
             ));
         }
 
-        // transfer_count: -1 veya pozitif tam sayı
+        // transfer_count: -1 or a positive integer
         let transfer_count_raw = get_trimmed_field(&row_map, "transfer_count")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
@@ -241,13 +241,13 @@ pub fn validate_fare_transfer_rules(
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // FTR_009/010: transfer_count, leg grupları AYNIYKEN zorunlu, FARKLIYKEN yasaktır
-        // (GTFS spec + MD: from_leg_group_id == to_leg_group_id → gerekli; != → yasak).
-        // Biri boş biri doluysa değerler eşit değildir: spec ve MD ikisi de yasak der (2026-10-13;
-        // eskiden atlanıyordu). İKİSİ DE boşsa atlanır: spec'in düz okuması "" = "" (zorunlu),
-        // MD'ninki yasak (`hasFromLegGroupId` şartı) — hüküm belirsiz, geçerli global transfer
-        // satırını reddetmemek için iki yön de susar (mdb-3115).
-        // Varlık kontrolü ham alan üzerinden (transfer_count_raw); geçersiz değer FTR_008'e bırakılır.
+        // FTR_009/010: transfer_count is required when leg groups are the SAME and forbidden when
+        // they DIFFER (GTFS spec + MD: from_leg_group_id == to_leg_group_id → required; != → forbidden).
+        // If one is empty and the other is populated, they are not equal: both spec and MD say forbidden
+        // (2026-10-13; previously skipped). If BOTH are empty, skip it: the spec's literal reading
+        // is "" = "" (required), while MD forbids it (`hasFromLegGroupId` condition) — ambiguous;
+        // both sides stay silent to avoid rejecting a valid global transfer row (mdb-3115).
+        // Presence is checked on the raw field (transfer_count_raw); invalid values go to FTR_008.
         if from_leg.is_some() || to_leg.is_some() {
             let (f, t) = (from_leg.as_deref(), to_leg.as_deref());
             if f == t && transfer_count_raw.is_none() {
@@ -268,7 +268,7 @@ pub fn validate_fare_transfer_rules(
             }
         }
 
-        // FTR_011: duration_limit tanımlıyken duration_limit_type zorunludur (FTR_007'nin ters yönü).
+        // FTR_011: duration_limit_type is required when duration_limit is defined (the reverse of FTR_007).
         if duration_limit.is_some() && duration_limit_type.is_none() {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -377,8 +377,8 @@ mod tests {
         assert!(!has(&n2, "FTR_009") && !has(&n2, "FTR_010"));
     }
 
-    /// Boş leg grubu dolu olana eşit değildir: spec ve MD ikisi de yasak der. İki grup da
-    /// boşken hüküm belirsiz (spec "" = "", MD yasak), iki kural da susar (mdb-3115).
+    /// An empty leg group is not equal to a populated one: both spec and MD forbid it. When both
+    /// groups are empty the rule is ambiguous (spec "" = "", MD forbids it), so both rules stay silent (mdb-3115).
     #[test]
     fn transfer_count_with_one_empty_leg_group_is_ftr_010() {
         let header = vec!["from_leg_group_id", "to_leg_group_id", "transfer_count"];

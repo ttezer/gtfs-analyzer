@@ -1,12 +1,12 @@
 use super::common::{build_row_map, get_trimmed_field, RowMap};
 use crate::k1_parse::RawFile;
 
-/// GTFS Fares v2 `fare_leg_join_rules.txt` — aktarmayla birleşen iki bacağı tek etkin
-/// ücret bacağı sayan eşleşme kuralları.
+/// GTFS Fares v2 `fare_leg_join_rules.txt` — matching rules that treat two legs joined by
+/// a transfer as one effective fare leg.
 ///
-/// Dört alanın DÖRDÜ de bileşik birincil anahtarın parçasıdır; bu yüzden hepsi ham dize
-/// olarak saklanır (boş değer anahtarın anlamlı bir parçasıdır — spec boş alanı
-/// "eşleşmede yok sayılır" diye tanımlar, "yok" diye değil).
+/// All four fields are part of the composite primary key, so all are stored as raw
+/// strings (an empty value is a meaningful part of the key — the spec defines an empty field as
+/// "ignored in matching", not as "absent").
 #[derive(Debug, Clone)]
 pub struct FareLegJoinRuleRecord {
     pub from_network_id: String,

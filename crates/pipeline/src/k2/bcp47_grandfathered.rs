@@ -1,19 +1,19 @@
-//! ÜRETİLMİŞ DOSYA — elle düzenlemeyin (issue #82).
+//! GENERATED FILE — do not edit by hand (issue #82).
 //!
-//! Kaynak    : https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
-//! File-Date : 2026-06-14   (kayıt defterinin kendi tarihi)
+//! Source    : https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
+//! File-Date : 2026-06-14   (the registry's own date)
 //! SHA-256   : be1fad86a99e3a932d07b80c9b3c271ec2381a5909ce22420144e5077ab0a43a
-//! Üretim    : `python3 spec-audit/gen_bcp47_grandfathered.py`
+//! Generation: `python3 spec-audit/gen_bcp47_grandfathered.py`
 //! Drift     : `python3 spec-audit/gen_bcp47_grandfathered.py --check`
 //!
-//! RFC 5646 `grandfathered` etiketleri (26 adet). Bunlar normal `langtag`
-//! üretimine uymayan ama GEÇERLİ olan sabit kayıtlardır.
+//! RFC 5646 `grandfathered` tags (26 entries). These are fixed records that do not follow
+//! normal `langtag` production but are VALID.
 //!
-//! ⚠️ `i-` bir AD ALANI DEĞİLDİR: yalnız bu listedeki `i-*` etiketleri geçerlidir.
-//! Karşılaştırma küçük harfe normalize edilerek yapılır (RFC 5646 §2.1.1: etiketler
-//! büyük/küçük harfe duyarsızdır).
+//! ⚠️ `i-` is NOT a name space: only the `i-*` tags in this list are valid.
+//! Comparison is performed after normalizing to lowercase (RFC 5646 §2.1.1: tags are
+//! case-insensitive).
 
-/// Alfabetik SIRALI, küçük harf — `binary_search` bunu varsayar.
+/// Alphabetically SORTED, lowercase — `binary_search` relies on this.
 pub(crate) const GRANDFATHERED: &[&str] = &[
     "art-lojban",
     "cel-gaulish",

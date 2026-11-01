@@ -25,7 +25,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
         let level_id = get_raw_field(&row_map, "level_id")
             .unwrap_or("")
             .to_string();
-        // LVL_008: level_id required (sütun yoksa ARC_025 devralır → atla)
+        // LVL_008: level_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "level_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -46,7 +46,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
 
         let level_index = match parse_f64(&row_map, "level_index") {
             Ok(v) => {
-                // LVL_007: level_index required (sütun yoksa ARC_025 devralır → atla)
+                // LVL_007: level_index required (if the column is absent, ARC_025 takes over → skip)
                 if v.is_none() && get_trimmed_field(&row_map, "level_index") == Some("") {
                     notices.push(make_k2_notice(
                         &mut counter,
@@ -104,7 +104,7 @@ pub fn validate_levels(file: &RawFile) -> (Vec<LevelRecord>, Vec<gtfs_core::Noti
             ));
         }
 
-        // LVL_005: level_name çok uzun (> 255 karakter)
+        // LVL_005: level_name is too long (> 255 characters)
         if let Some(ref name) = level_name {
             if name.len() > 255 {
                 notices.push(make_k2_notice(

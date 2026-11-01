@@ -30,18 +30,18 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
     let mut records = Vec::new();
     let mut counter = 0u32;
 
-    // STP_022 agregasyonu: stop_code feed genelinde hiç kullanılmamışsa (tek üretici
-    // kararı), durak-başına on binlerce özdeş notice yerine tek özet üretilir (STM_017
-    // emsali). Kısmen doluysa per-durak korunur. Karar döngü sonunda verilir.
+    // STP_022 aggregation: if stop_code is unused across the feed (single-producer
+    // decision), emit one summary instead of tens of thousands of identical per-stop notices
+    // (STM_017 precedent). If partially populated, preserve per-stop notices. Decide at loop end.
     let mut stp022_pending: Vec<gtfs_core::Notice> = Vec::new();
     let mut any_stop_code_present = false;
     let mut stop_code_owner: HashMap<String, String> = HashMap::new();
 
-    // STP_033 agregasyonu (#48): zone_id eksik duraklar büyük feed'de neredeyse-evrensel
-    // (DELFI: 548K durağın %91'i) — durak-başına on binlerce Bilgi notice yerine eşik
-    // aşılırsa tek feed-özet üretilir. STP_022 emsali; karar döngü sonunda verilir.
+    // STP_033 aggregation (#48): missing zone_id is nearly universal in large feeds
+    // (DELFI: 91% of 548K stops) — emit one feed summary above the threshold instead of
+    // tens of thousands of per-stop Info notices. STP_022 precedent; decide at loop end.
     let mut stp033_pending: Vec<gtfs_core::Notice> = Vec::new();
-    // STP_045: platform_code dolu, parent_station boş — feed başına tek özet.
+    // STP_045: platform_code populated, parent_station empty — one summary per feed.
     let mut stp045_count: usize = 0;
     let mut stp045_examples: Vec<String> = Vec::new();
 
@@ -52,7 +52,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let stop_id = get_raw_field(&row_map, "stop_id").unwrap_or("").to_string();
         let entity_id = (!stop_id.is_empty()).then_some(stop_id.clone());
 
-        // STP_002: stop_id required (sütun yoksa ARC_025 devralır → atla)
+        // STP_002: stop_id required (if the column is absent, ARC_025 takes over → skip)
         if get_raw_field(&row_map, "stop_id").map(str::trim) == Some("") {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -88,7 +88,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         }
 
-        // STP_028: stop_code çok uzun (>50 karakter)
+        // STP_028: stop_code is too long (>50 characters)
         if let Some(ref code) = stop_code {
             if code.len() > 50 {
                 notices.push(make_k2_notice(
@@ -136,8 +136,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 v
             }
             Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_008 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // STP_008, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter,
                     "STP_008",
@@ -156,14 +157,14 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         };
 
-        // For location_type 0 (or empty — regular stop) and 1 (station), stop_code önerilir.
+        // For location_type 0 (or empty — regular stop) and 1 (station), stop_code is recommended.
         let is_stop_or_station = matches!(location_type, None | Some(0) | Some(1));
-        // stop_name/stop_lat/stop_lon: spec'e göre stop (0), station (1) VE entrance/exit (2)
-        // için zorunlu; generic node (3) ve boarding area (4) için opsiyonel.
+        // stop_name/stop_lat/stop_lon: required by the spec for stop (0), station (1), AND
+        // entrance/exit (2); optional for generic node (3) and boarding area (4).
         let requires_name_and_coords = matches!(location_type, None | Some(0) | Some(1) | Some(2));
 
-        // STP_022: stop_code eksik (duraklar ve istasyonlar için) — döngü sonunda
-        // agregasyon kararı için bekletilir.
+        // STP_022: stop_code missing (for stops and stations) — held until the end of the loop
+        // for the aggregation decision.
         if stop_code.is_none() && is_stop_or_station {
             let mut notice = make_k2_notice(
                 &mut counter,
@@ -179,16 +180,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 format!("'{}' durağında stop_code eksik.", stop_id),
                 "Yolcuların tanıyabileceği kısa bir stop_code değeri girin.",
             );
-            // Kural iki ölçekte emit edilir (durak başına / feed özeti) ama tek mesaj
-            // şablonu vardır. Tekil dalda da sayaç+örnek yazılır ki en/ja/fr metni
-            // her iki dalda dolsun (k4'teki `affected_records` emsali).
+            // The rule is emitted at two scales (per stop / feed summary) but has one message
+            // template. Populate count+example even on the individual branch so en/ja/fr text
+            // is populated on both paths (the `affected_records` precedent in k4).
             let details = notice.details.get_or_insert_with(Default::default);
             details.insert("affected_stops".to_string(), "1".to_string());
             details.insert("example_stops".to_string(), stop_id.to_string());
             stp022_pending.push(notice);
         }
 
-        // stop_name: required for stops/stations/entrances (location_type 0, 1, 2 veya boş)
+        // stop_name: required for stops/stations/entrances (location_type 0, 1, 2 or empty)
         let stop_name = get_trimmed_field(&row_map, "stop_name")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
@@ -212,7 +213,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             ));
         }
 
-        // STP_019: stop_name çok uzun (>100 karakter)
+        // STP_019: stop_name is too long (>100 characters)
         if let Some(ref name) = stop_name {
             if name.len() > 100 {
                 notices.push(make_k2_notice(
@@ -241,15 +242,15 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
         if let (Some(ref name), Some(ref desc)) = (&stop_name, &stop_desc) {
-            // 🔴 `eq_ignore_ascii_case` DEĞİL: o yalnız a-z/A-Z aralığını eşitler ve iki
-            // KULLANICI METNİNİ karşılaştırdığımız için diyakritikli alfabelerde kör kalır.
-            // 14. korpus koşumunda ölçüldü — `mdb-1000` (Polonya): normalize edilince 6 durak
-            // eşleşiyor, MD de 6 diyor, biz 4 buluyorduk. Kaçan ikisi tam da ASCII dışı çifti
-            // taşıyordu: `Stanisławczyk`/`STANISŁAWCZYK` (ł↔Ł) ve `Witoszyńce`/`WITOSZYŃCE`
-            // (ń↔Ń). Aynı körlük Türkçe (ş↔Ş, ğ↔Ğ), Çekçe, Yunanca ve Kiril feed'lerinde de
-            // geçerliydi. `tdg-83513` 158↔160 ve `mdb-784` 73.944↔73.946 aynı sabit farkı
-            // gösteriyordu — üç feed'de de eksik olan tam olarak ASCII dışı çiftlerdi.
-            // Alloc'suz: iki tarafı da tembel şekilde küçük harfe çevirip karakter karşılaştır.
+            // 🔴 NOT `eq_ignore_ascii_case`: it equates only the a-z/A-Z range and is blind to
+            // diacritic alphabets because we compare two USER TEXT values.
+            // Measured in corpus run 14 — `mdb-1000` (Poland): normalization finds 6 stops,
+            // MD also reports 6, while we found 4. The two missed pairs were exactly non-ASCII:
+            // `Stanisławczyk`/`STANISŁAWCZYK` (ł↔Ł) and `Witoszyńce`/`WITOSZYŃCE` (ń↔Ń).
+            // The same blindness affected Turkish (ş↔Ş, ğ↔Ğ), Czech, Greek, and Cyrillic feeds.
+            // `tdg-83513` 158↔160 and `mdb-784` 73,944↔73,946 showed the same fixed gap —
+            // in all three feeds, the missing items were exactly the non-ASCII pairs.
+            // Allocation-free: lazily lowercase both sides and compare characters.
             if name
                 .chars()
                 .flat_map(char::to_lowercase)
@@ -437,8 +438,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                 v
             }
             Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_013 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // STP_013, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter, "STP_013", EntityType::Stop, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("wheelchair_boarding"),
@@ -469,8 +471,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
                     v
                 }
                 Err(err) => {
-                    // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı STP_024 üretirken
-                    // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                    // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                    // STP_024, while "abc" produced no finding. Two branches of the same fact → one rule
+                    // (the PTH_027 precedent).
                     notices.push(make_k2_notice(
                         &mut counter,
                         "STP_024",
@@ -496,15 +499,16 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // STP_044: platform_code yalnız platform TANIMLAYICISI olmalı ("2b", "A", "5");
-        // spec "platform"/"track" sözcüğünü ve feed dilindeki karşılığını açıkça dışlar.
+        // STP_044: platform_code must contain only a platform IDENTIFIER ("2b", "A", "5");
+        // the spec explicitly excludes the words "platform"/"track" and their feed-language equivalent.
         //
-        // ⚠️ Liste ÇOK DİLLİ ve bilinçli olarak DAR. İtalyanca `via` ("cadde") gibi belirsiz
-        // sözcükler DIŞARIDA: platform kodunda geçme olasılığı, meşru bir sokak adının
-        // parçası olma olasılığından düşük değil. Genişletirken korpus örneğine bakın.
+        // ⚠️ The list is MULTILINGUAL and deliberately NARROW. Ambiguous words such as Italian
+        // `via` ("street") are EXCLUDED: their chance of appearing in a platform code is not
+        // lower than their chance of being part of a legitimate street name. Check corpus examples
+        // before expanding it.
         //
-        // STP_040 aynı şekli `stop_name` için uygular ama OPT-IN'dir, çünkü "Union Station"
-        // meşru bir addır. Burada spec doğrudan yasakladığı için opt-in değil.
+        // STP_040 applies the same pattern to `stop_name` but is OPT-IN because "Union Station"
+        // is a legitimate name. Here it is not opt-in because the spec directly forbids it.
         if let Some(pc) =
             get_trimmed_field(&row_map, "platform_code").filter(|v| !v.trim().is_empty())
         {
@@ -537,10 +541,10 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         }
 
-        // STP_045: spec platform_code'u "a platform stop (a stop belonging to a station)" diye
-        // tanımlar; peron kodu taşıyıp bir istasyona bağlanmayan durak bu tanımla çelişir.
-        // MD `platform_without_parent_station` (INFO) aynı ekseni ölçer. STP_032 yalnız
-        // pathway uç noktalarına bakar; bu kural pathway'den bağımsızdır.
+        // STP_045: the spec defines platform_code as "a platform stop (a stop belonging to a
+        // station)"; a stop with a platform code but no station parent contradicts this definition.
+        // MD `platform_without_parent_station` (INFO) measures the same axis. STP_032 only checks
+        // pathway endpoints; this rule is independent of pathways.
         if matches!(location_type, None | Some(0))
             && get_trimmed_field(&row_map, "platform_code").is_some_and(|v| !v.trim().is_empty())
             && get_trimmed_field(&row_map, "parent_station").is_none_or(|v| v.trim().is_empty())
@@ -553,7 +557,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         }
 
-        // STP_023: tts_stop_name işaret karakteri içeriyor (SSML/HTML markup)
+        // STP_023: tts_stop_name contains markup characters (SSML/HTML markup)
         if let Some(ref tts) = tts_stop_name {
             if tts.contains('<') || tts.contains('>') {
                 notices.push(make_k2_notice(
@@ -576,7 +580,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
             }
         }
 
-        // STP_033: zone_id eksik (stop_without_zone_id) — yalnızca regular stop (location_type=0 veya boş)
+        // STP_033: zone_id missing (stop_without_zone_id) — regular stops only (location_type=0 or empty)
         let zone_id = get_raw_field(&row_map, "zone_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
@@ -608,9 +612,9 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         let stop_url = get_lexical_field(&row_map, "stop_url")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
-        // STP_042: spec tipi `URL`. Kardeş alanların hepsinde biçim kuralı var
-        // (route_url→RTS_005 ile birebir aynı desen); stop_url'de yalnız STP_034/035
-        // (başka URL ile aynı) vardı, biçim hiç ölçülmüyordu.
+        // STP_042: spec type `URL`. All sibling fields have a format rule
+        // (exactly the same pattern as route_url→RTS_005); stop_url only had STP_034/035
+        // (same as another URL), so format was never measured.
         if let Some(ref url) = stop_url {
             if !looks_like_url(url) {
                 notices.push(make_k2_notice(
@@ -648,11 +652,11 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         });
     }
 
-    // STP_022 karar (#15): üç durum —
-    //  (a) stop_code feed genelinde HİÇ yok ve >1 durak → tek özet ("hiç kullanılmamış");
-    //  (b) stop_code KISMEN var ama eksik durak sayısı YÜKSEK (>eşik) → tek özet ("kısmen") —
-    //      büyük feed'de durak-başına emit headroom/gürültü sorunu (eski aggregation açığı);
-    //  (c) aksi halde (düşük hacim) durak-başına notice KORUNUR (pinpoint detay değerli).
+    // STP_022 decision (#15): three cases —
+    //  (a) no stop_code anywhere in the feed and >1 stop → one summary ("unused");
+    //  (b) stop_code is PARTIAL but missing-stop count is HIGH (>threshold) → one summary
+    //      ("partial") — per-stop emit headroom/noise issue in large feeds (old aggregation gap);
+    //  (c) otherwise (low volume), preserve per-stop notices (pinpoint detail is valuable).
     const STP022_AGG_THRESHOLD: usize = 50;
     let n = stp022_pending.len();
     if n > 1 && (!any_stop_code_present || n > STP022_AGG_THRESHOLD) {
@@ -684,8 +688,8 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         notices.append(&mut stp022_pending);
     }
 
-    // STP_033 karar (#48): zone_id eksik durak sayısı eşiği aşarsa tek feed-özet;
-    // aksi halde durak-başına notice korunur (düşük hacimde pinpoint değerli).
+    // STP_033 decision (#48): one feed summary when the missing-zone_id count exceeds the
+    // threshold; otherwise preserve per-stop notices (pinpoint detail is valuable at low volume).
     const STP033_AGG_THRESHOLD: usize = 50;
     let n33 = stp033_pending.len();
     if n33 > STP033_AGG_THRESHOLD {
@@ -721,7 +725,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         notices.append(&mut stp033_pending);
     }
 
-    // STP_045: feed başına TEK özet (STP_033 deseni, eşik yok — bilgi notu).
+    // STP_045: ONE summary per feed (STP_033 pattern, no threshold — informational note).
     if stp045_count > 0 {
         let mut notice = make_k2_notice(
             &mut counter,
@@ -748,7 +752,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         notices.push(notice);
     }
 
-    // STP_018: stops.txt'te hiç durak yok
+    // STP_018: no stops in stops.txt
     if records.is_empty() {
         notices.push(make_k2_notice(
             &mut counter,
@@ -812,17 +816,17 @@ mod tests {
 
     #[test]
     fn stp_031_compares_case_beyond_ascii() {
-        // 14. korpus kosumu: kural `eq_ignore_ascii_case` kullaniyordu ve o YALNIZ a-z/A-Z
-        // araligini esitler. Iki KULLANICI METNI karsilastirildigi icin diyakritikli
-        // alfabelerde kordu. `mdb-1000` (Polonya) ile olculdu: normalize edilince 6 durak
-        // eslesiyor, MD de 6 diyor, biz 4 buluyorduk. Kacan ikisi tam da ASCII disi cifti
-        // tasiyordu. Ayni korluk Turkce (s-cedilla, g-breve), Cekce, Yunanca, Kiril'de de vardi.
+        // Corpus run 14: the rule used `eq_ignore_ascii_case`, which equates ONLY a-z/A-Z.
+        // It was blind in diacritic alphabets because it compares two USER TEXT values.
+        // Measured with `mdb-1000` (Poland): normalization finds 6 stops, MD also says 6,
+        // while we found 4. The two missed values were exactly the non-ASCII pair.
+        // The same blindness affected Turkish (s-cedilla, g-breve), Czech, Greek, and Cyrillic.
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_desc"],
             vec![
-                // ASCII cift — eskiden de yakalaniyordu, REGRESYON kapisi
+                // ASCII pair — was already caught, REGRESSION guard
                 vec!["S1", "Buszkowiczki", "41.0", "29.0", "BUSZKOWICZKI"],
-                // ASCII disi cift (l-stroke) — eskiden KACIYORDU
+                // Non-ASCII pair (l-stroke) — was previously MISSED
                 vec![
                     "S2",
                     "Stanis\u{142}awczyk",
@@ -830,12 +834,12 @@ mod tests {
                     "29.1",
                     "STANIS\u{141}AWCZYK",
                 ],
-                // Turkce cift (c-cedilla, o-umlaut, s-cedilla) — ayni sinif.
-                // NOT: `i` ve dotless-i BILEREK kullanilmadi. Unicode'un locale-bagimsiz
-                // casing'inde bu cift ASIMETRIKTIR: dotless-i buyuyunce `I` olur ama
-                // `I` kucuiltunce `i` olur, dotless-i degil. Yani "BAGCILAR" ile "Bagcilar"
-                // (dotless) Unicode'a gore ESIT DEGILDIR ve kural haklı olarak susar;
-                // Turkce'ye ozel casing yapmak locale bilgisi ister, bu kuralin isi degil.
+                // Turkish pair (c-cedilla, o-umlaut, s-cedilla) — same class.
+                // NOTE: `i` and dotless-i are deliberately not used. In Unicode's locale-neutral
+                // casing this pair is ASYMMETRIC: dotless-i uppercases to `I`, but `I` lowercases
+                // to `i`, not dotless-i. Thus "BAGCILAR" and "Bagcilar" (dotless) are NOT EQUAL
+                // under Unicode, and the rule correctly stays silent; Turkish-specific casing
+                // requires locale information and is outside this rule's scope.
                 vec![
                     "S3",
                     "\u{e7}orlu g\u{f6}l \u{15f}ube",
@@ -843,7 +847,7 @@ mod tests {
                     "29.2",
                     "\u{c7}ORLU G\u{d6}L \u{15e}UBE",
                 ],
-                // GERCEKTEN farkli aciklama — susmali
+                // GENUINELY different description — must stay silent
                 vec!["S4", "Merkez", "41.3", "29.3", "Otogar karsisi"],
             ],
         );
@@ -855,16 +859,16 @@ mod tests {
             .collect();
         assert!(
             hits.contains(&"S1"),
-            "ASCII cift yakalanmali (regresyon): {hits:?}"
+            "ASCII pair should be caught (regression): {hits:?}"
         );
         assert!(
             hits.contains(&"S2"),
-            "ASCII disi cift (l-stroke) yakalanmali: {hits:?}"
+            "non-ASCII pair (l-stroke) should be caught: {hits:?}"
         );
-        assert!(hits.contains(&"S3"), "Turkce cift yakalanmali: {hits:?}");
+        assert!(hits.contains(&"S3"), "Turkish pair should be caught: {hits:?}");
         assert!(
             !hits.contains(&"S4"),
-            "gercekten farkli aciklama SUSMALI: {hits:?}"
+            "genuinely different description must stay SILENT: {hits:?}"
         );
         assert_eq!(
             hits.len(),
@@ -875,7 +879,7 @@ mod tests {
 
     #[test]
     fn stp_022_feed_wide_missing_aggregates_to_single_feed_notice() {
-        // Hiçbir durakta stop_code yok, >1 durak → tek feed-seviyesi STP_022.
+        // No stop has stop_code, >1 stop → one feed-level STP_022.
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon"],
             vec![
@@ -897,7 +901,7 @@ mod tests {
 
     #[test]
     fn stp_022_partial_missing_stays_per_stop() {
-        // Bazı duraklarda stop_code dolu → eksik olanlar durak-başına işaretlenir.
+        // Some stops have stop_code → missing ones are flagged per stop.
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
             vec![
@@ -911,18 +915,18 @@ mod tests {
         assert_eq!(
             stp022.len(),
             2,
-            "kısmi doluluk durak-başına STP_022 vermeli"
+            "partial population should produce per-stop STP_022"
         );
         assert!(stp022.iter().all(|n| n.entity_type == EntityType::Stop));
     }
 
     #[test]
     fn stp_022_partial_but_high_volume_aggregates() {
-        // #15: stop_code KISMEN var ama eksik durak sayısı yüksek (>50) → tek feed özet.
+        // #15: stop_code is PARTIAL but the missing-stop count is high (>50) → one feed summary.
         let ids: Vec<String> = (0..=51).map(|i| format!("S{i}")).collect();
         let mut rows: Vec<Vec<&str>> = vec![vec![ids[0].as_str(), "Has", "41.0", "29.0", "C0"]];
         for id in &ids[1..] {
-            rows.push(vec![id.as_str(), "X", "41.0", "29.0", ""]); // stop_code eksik
+            rows.push(vec![id.as_str(), "X", "41.0", "29.0", ""]); // stop_code missing
         }
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
@@ -933,7 +937,7 @@ mod tests {
         assert_eq!(
             stp022.len(),
             1,
-            "yüksek hacimde kısmi eksiklik tek feed-özeti vermeli"
+            "partial absence at high volume should produce one feed summary"
         );
         assert_eq!(stp022[0].entity_type, EntityType::Feed);
         assert_eq!(
@@ -948,8 +952,8 @@ mod tests {
 
     #[test]
     fn stp_033_low_volume_stays_per_stop() {
-        // #48: zone_id eksik durak sayısı düşük (≤50) → durak-başına STP_033 korunur.
-        // stop_code dolu tutulur ki STP_022 gürültüsü karışmasın.
+        // #48: missing zone_id count is low (≤50) → preserve per-stop STP_033.
+        // Keep stop_code populated so STP_022 noise does not interfere.
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
             vec![
@@ -963,18 +967,18 @@ mod tests {
         assert_eq!(
             stp033.len(),
             3,
-            "düşük hacimde durak-başına STP_033 beklenir"
+            "per-stop STP_033 expected at low volume"
         );
         assert!(stp033.iter().all(|n| n.entity_type == EntityType::Stop));
     }
 
     #[test]
     fn stp_033_high_volume_aggregates_to_single_feed_notice() {
-        // #48: zone_id eksik durak sayısı yüksek (>50) → tek feed-özet.
+        // #48: missing zone_id count is high (>50) → one feed summary.
         let ids: Vec<String> = (0..=51).map(|i| format!("S{i}")).collect();
         let mut rows: Vec<Vec<&str>> = Vec::new();
         for id in &ids {
-            rows.push(vec![id.as_str(), "X", "41.0", "29.0", id.as_str()]); // stop_code dolu, zone_id yok
+            rows.push(vec![id.as_str(), "X", "41.0", "29.0", id.as_str()]); // stop_code populated, zone_id missing
         }
         let file = make_file(
             vec!["stop_id", "stop_name", "stop_lat", "stop_lon", "stop_code"],
@@ -982,7 +986,7 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         let stp033: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_033").collect();
-        assert_eq!(stp033.len(), 1, "yüksek hacimde tek feed-özeti beklenir");
+        assert_eq!(stp033.len(), 1, "one feed summary expected at high volume");
         assert_eq!(stp033[0].entity_type, EntityType::Feed);
         assert_eq!(stp033[0].observed_value.as_deref(), Some("52"));
         assert_eq!(
@@ -1021,7 +1025,7 @@ mod tests {
 
     #[test]
     fn entrance_missing_name_and_coords_produces_notices() {
-        // location_type=2 (giriş/çıkış) için stop_name/stop_lat/stop_lon zorunlu
+        // stop_name/stop_lat/stop_lon are required for location_type=2 (entrance/exit)
         let file = make_file(
             vec![
                 "stop_id",
@@ -1036,24 +1040,24 @@ mod tests {
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(
             ids.contains(&"STP_003"),
-            "stop_name eksik → STP_003 bekleniyor: {:?}",
+            "missing stop_name → STP_003 expected: {:?}",
             ids
         );
         assert!(
             ids.contains(&"STP_006"),
-            "stop_lat eksik → STP_006 bekleniyor: {:?}",
+            "missing stop_lat → STP_006 expected: {:?}",
             ids
         );
         assert!(
             ids.contains(&"STP_007"),
-            "stop_lon eksik → STP_007 bekleniyor: {:?}",
+            "missing stop_lon → STP_007 expected: {:?}",
             ids
         );
     }
 
     #[test]
     fn generic_node_missing_name_and_coords_silent() {
-        // location_type=3 (generic node) için stop_name/stop_lat/stop_lon opsiyonel
+        // stop_name/stop_lat/stop_lon are optional for location_type=3 (generic node)
         let file = make_file(
             vec![
                 "stop_id",
@@ -1068,17 +1072,17 @@ mod tests {
         let ids: Vec<&str> = notices.iter().map(|n| n.rule_id.as_str()).collect();
         assert!(
             !ids.contains(&"STP_003"),
-            "generic node'da stop_name zorunlu olmamalı: {:?}",
+            "stop_name must not be required for a generic node: {:?}",
             ids
         );
         assert!(
             !ids.contains(&"STP_006"),
-            "generic node'da stop_lat zorunlu olmamalı: {:?}",
+            "stop_lat must not be required for a generic node: {:?}",
             ids
         );
         assert!(
             !ids.contains(&"STP_007"),
-            "generic node'da stop_lon zorunlu olmamalı: {:?}",
+            "stop_lon must not be required for a generic node: {:?}",
             ids
         );
     }
@@ -1129,8 +1133,8 @@ mod tests {
     #[test]
     fn stp_045_flags_platform_code_without_parent_station_once_per_feed() {
         // Spec: platform_code "Platform identifier for a platform stop (a stop belonging to a
-        // station)". Korpus jbda-akishimacity: 114 parent'sız duraktan yalnız platform_code
-        // taşıyan 2'si MD platform_without_parent_station alıyor.
+        // station)". Corpus jbda-akishimacity: 2 of 114 stops without a parent that carry
+        // platform_code receive MD platform_without_parent_station.
         let file = make_file(
             vec![
                 "stop_id",
@@ -1151,7 +1155,7 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_045").collect();
-        assert_eq!(hits.len(), 1, "feed başına tek özet: {hits:?}");
+        assert_eq!(hits.len(), 1, "one summary per feed: {hits:?}");
         assert_eq!(hits[0].observed_value.as_deref(), Some("2"));
         let ex = hits[0]
             .details
@@ -1179,13 +1183,13 @@ mod tests {
         );
         let (_, notices) = validate_stops(&file);
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_044").collect();
-        assert_eq!(hits.len(), 3, "üç dilde de yakalanmalı: {hits:?}");
+        assert_eq!(hits.len(), 3, "must be caught in all three languages: {hits:?}");
         assert_eq!(hits[0].field.as_deref(), Some("platform_code"));
     }
 
     #[test]
     fn stp_044_silent_for_plain_identifiers() {
-        // platform_code'un doğru kullanımı: yalnız tanımlayıcı.
+        // Correct use of platform_code: identifier only.
         let file = make_file(
             vec![
                 "stop_id",
@@ -1199,14 +1203,14 @@ mod tests {
                 vec!["S2", "B", "41.1", "29.1", "2b"],
                 vec!["S3", "C", "41.2", "29.2", "A"],
                 vec!["S4", "D", "41.3", "29.3", ""],
-                // `via` bilinçli olarak listede YOK — İtalyanca "cadde", belirsiz.
+                // `via` is deliberately NOT in the list — Italian for "street", ambiguous.
                 vec!["S5", "E", "41.4", "29.4", "Via 4"],
-                // Sözcüğün PARÇASI olan değer eşleşmemeli (kelime sınırı).
+                // A value containing the word as a PART must not match (word boundary).
                 vec!["S6", "F", "41.5", "29.5", "trackside"],
             ],
         );
         let (_, notices) = validate_stops(&file);
         let hits: Vec<_> = notices.iter().filter(|n| n.rule_id == "STP_044").collect();
-        assert!(hits.is_empty(), "yanlış pozitif: {hits:?}");
+        assert!(hits.is_empty(), "false positive: {hits:?}");
     }
 }

@@ -1,20 +1,21 @@
-//! Notice üretiminin tek gövdesi.
+//! The single implementation of notice construction.
 //!
-//! Altı katman (K1-K6) neredeyse birebir aynı fabrikayı taşıyordu.
-//! Aynı `get_rule` + panic ve aynı 19 alan sırayla dolduruluyordu. Farklar yalnızca hangi alanın
-//! sabitlendiğiydi (K1 `scope_key`/`expected_value` üretmez, K3 `expected_value`'yu
-//! "unique" sabitler). Altı kopyadan biri zaten sapmıştı — K5 id önekini atlamış.
+//! Six layers (K1-K6) carried nearly identical copies of the same factory.
+//! The same `get_rule` + panic and the same 19 fields were filled in order. The only
+//! differences were which fields were fixed (K1 does not produce `scope_key`/`expected_value`;
+//! K3 fixes `expected_value` to "unique"). One of the six copies had already drifted —
+//! K5 omitted the ID prefix.
 //!
-//! Katman wrapper'ları (`make_notice`, `k5_notice`, …) **imzalarını koruyor**; yalnız
-//! gövdeleri buraya delege ediyor. Böylece `Notice`'a alan eklemek altı yer yerine
-//! tek yer değiştirmek oluyor, çağrı siteleri ise hiç etkilenmiyor.
+//! Layer wrappers (`make_notice`, `k5_notice`, …) **keep their signatures**; only their
+//! bodies delegate here. Adding a field to `Notice` therefore changes one place instead
+//! of six, while call sites remain untouched.
 
 use gtfs_core::{EntityType, Notice};
 use gtfs_rules::get_rule;
 
-/// `id_prefix = None` → id `{rule}#{n}` biçiminde üretilir (artık kullanan yok;
-/// altı katman da kendi `kN/` önekini basıyor). Parametre, önek basmayan bir çağıran
-/// eklenirse diye korunuyor.
+/// `id_prefix = None` → ID is generated as `{rule}#{n}` (no callers use this anymore;
+/// all six layers emit their own `kN/` prefix). The parameter is retained in case a caller
+/// that emits no prefix is added.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build(
     layer: &str,

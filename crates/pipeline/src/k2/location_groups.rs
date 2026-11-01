@@ -1,7 +1,7 @@
 use super::common::{build_row_map, get_raw_field};
 use crate::k1_parse::RawFile;
 
-/// GTFS-Flex `location_groups.txt` — adlandırılmış durak grubu tanımı.
+/// GTFS-Flex `location_groups.txt` — named stop-group definition.
 #[derive(Debug, Clone)]
 pub struct LocationGroupRecord {
     pub location_group_id: String,
@@ -24,7 +24,7 @@ pub fn parse_location_groups(file: &RawFile) -> Vec<LocationGroupRecord> {
         .collect()
 }
 
-/// GTFS-Flex `location_group_stops.txt` — grup ↔ durak eşleştirme (junction).
+/// GTFS-Flex `location_group_stops.txt` — group ↔ stop mapping (junction).
 #[derive(Debug, Clone)]
 pub struct LocationGroupStopRecord {
     pub location_group_id: String,
