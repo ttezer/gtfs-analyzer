@@ -23,17 +23,17 @@ if (!sdkVersion || !engineVersion || !workspaceVersion) {
 
 const errors = [];
 if (packageJson.version !== sdkVersion) {
-  errors.push(`SDK package sürümü ${packageJson.version}, getVersion SDK sürümü ${sdkVersion}.`);
+  errors.push(`SDK package version ${packageJson.version}, getVersion SDK version ${sdkVersion}.`);
 }
 if (engineVersion !== workspaceVersion) {
-  errors.push(`getVersion engine sürümü ${engineVersion}, Cargo workspace sürümü ${workspaceVersion}.`);
+  errors.push(`getVersion engine version ${engineVersion}, Cargo workspace version ${workspaceVersion}.`);
 }
 
 // Every crate must take its version from the workspace; a local version would break the single source.
 for (const crate of ['core', 'config', 'rules', 'pipeline', 'cli', 'wasm', 'python']) {
   const manifest = await read(`crates/${crate}/Cargo.toml`);
   if (!/^version\.workspace\s*=\s*true\s*$/m.test(manifest)) {
-    errors.push(`crates/${crate}/Cargo.toml sürümü workspace'ten almıyor (version.workspace = true bekleniyor).`);
+    errors.push(`crates/${crate}/Cargo.toml does not use the workspace version (version.workspace = true expected).`);
   }
 }
 
@@ -41,16 +41,16 @@ for (const crate of ['core', 'config', 'rules', 'pipeline', 'cli', 'wasm', 'pyth
 // the published crate links to an older internal crate.
 const pins = [...rootCargo.matchAll(/^(gtfs-[a-z]+)\s*=\s*\{\s*version\s*=\s*"([^"]+)"/gm)];
 if (pins.length !== 4) {
-  errors.push(`Kök Cargo.toml'da 4 iç crate pini bekleniyordu, ${pins.length} bulundu.`);
+  errors.push(`Root Cargo.toml expected 4 internal crate pins, found ${pins.length}.`);
 }
 for (const [, name, version] of pins) {
   if (version !== workspaceVersion) {
-    errors.push(`İç pin ${name} = ${version}, workspace sürümü ${workspaceVersion}.`);
+    errors.push(`Internal pin ${name} = ${version}, workspace version ${workspaceVersion}.`);
   }
 }
 
 if (!/^dynamic\s*=\s*\[\s*"version"\s*\]/m.test(pyproject) || /^version\s*=/m.test(pyproject)) {
-  errors.push('pyproject.toml sürümü Cargo\'dan almalı (dynamic = ["version"], sabit version yok).');
+  errors.push('pyproject.toml must get its version from Cargo (dynamic = ["version"], no fixed version).');
 }
 
 for (const [label, version] of [
@@ -59,7 +59,7 @@ for (const [label, version] of [
   ['ui/package-lock.json packages[""]', uiLock.packages?.['']?.version],
 ]) {
   if (version !== workspaceVersion) {
-    errors.push(`${label} sürümü ${version}, Cargo workspace sürümü ${workspaceVersion}.`);
+    errors.push(`${label} version ${version}, Cargo workspace version ${workspaceVersion}.`);
   }
 }
 
