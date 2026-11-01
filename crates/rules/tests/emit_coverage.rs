@@ -18,12 +18,12 @@ use std::path::{Path, PathBuf};
 /// Rules that are emitted in reality but are invisible to static string-literal scanning.
 /// These are produced through dynamic/fatal paths; the rule_id does not occur as a source literal.
 const DYNAMIC_EMIT_ALLOWLIST: &[&str] = &[
-// Fatal path: returned as FatalCode::ZipUnreadable (not a Notice); no rule_id literal exists.
-        "ARC_001", // "ZIP archive could not be opened"
-    // Fatal yol: FatalCode::DecompressionLimit (k1_parse.rs, GuardedReader).
-// This was NOT in the list until 2026-08-15 and passed the gate only because of
-// "ARC_029" occurrences in comments; tightening collect_rule_ids exposed it.
-        "ARC_029", // "Compression limit exceeded (zip-bomb protection)"
+    // Fatal path: returned as FatalCode::ZipUnreadable (not a Notice); no rule_id literal exists.
+    "ARC_001", // "ZIP archive could not be opened"
+    // Fatal path: FatalCode::DecompressionLimit (k1_parse.rs, GuardedReader).
+    // This was NOT in the list until 2026-08-15 and passed the gate only because of
+    // "ARC_029" occurrences in comments; tightening collect_rule_ids exposed it.
+    "ARC_029", // "Compression limit exceeded (zip-bomb protection)"
 ];
 
 fn repo_root() -> PathBuf {
@@ -42,7 +42,7 @@ fn strip_test_mods(src: &str) -> String {
     while let Some(pos) = rest.find(marker) {
         out.push_str(&rest[..pos]);
         let after = &rest[pos..];
-            // Find the module body's first '{' and skip through its matching '}'.
+        // Find the module body's first '{' and skip through its matching '}'.
         if let Some(brace) = after.find('{') {
             let bytes = after.as_bytes();
             let mut depth = 0i32;
@@ -101,7 +101,7 @@ fn collect_rule_ids(text: &str, into: &mut std::collections::HashSet<String>) {
     let is_word = |c: u8| c.is_ascii_alphanumeric() || c == b'_';
     let mut i = 0;
     while i < bytes.len() {
-            // Comment: skip to end of line (the `//` inside strings is preserved below).
+        // Comment: skip to end of line (the `//` inside strings is preserved below).
         if bytes[i] == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
             i = text[i..].find('\n').map_or(bytes.len(), |n| i + n);
             continue;

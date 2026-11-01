@@ -26,7 +26,7 @@ fn repo_root() -> PathBuf {
         .expect("repo kökü bulunamadı")
 }
 
-/// Table row: `| ARC_001 | Title | KRİTİK | Spec |`
+/// Table row: `| ARC_001 | Başlık | KRİTİK | Spec |`
 #[derive(Debug, PartialEq)]
 struct Row {
     title: String,
@@ -69,7 +69,7 @@ fn split_cells(line: &str) -> Vec<String> {
 }
 
 /// Parses all rule rows in a RULES file as ID → Row.
-/// Skip the header (`| Rule | ...`) and separator (`|---|`) rows; because rule IDs use
+/// Skip the header (`| Kural | ...`) and separator (`|---|`) rows; because rule IDs use
 /// the `GRP_NNN` form, other tables are not accidentally captured.
 fn parse_rows(md: &str) -> BTreeMap<String, Row> {
     let mut out = BTreeMap::new();
@@ -95,7 +95,7 @@ fn parse_rows(md: &str) -> BTreeMap<String, Row> {
         out.insert(
             id.to_string(),
             Row {
-            title: cells[1].clone(), // Escapes were resolved in split_cells.
+                title: cells[1].clone(), // Escapes were resolved in split_cells.
                 severity: cells[2].clone(),
                 class: cells[3].clone(),
             },
