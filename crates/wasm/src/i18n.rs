@@ -18,7 +18,7 @@ struct Dictionary {
     messages: HashMap<String, String>,
     remediations: HashMap<String, String>,
     titles: HashMap<String, String>,
-    /// `{FatalCode}.{variant}` → şablon; CLI ile aynı sözlük (`crates/core/locales/en.json`).
+    /// `{FatalCode}.{variant}` → template; the same dictionary as the CLI (`crates/core/locales/en.json`).
     #[serde(default)]
     fatal_messages: HashMap<String, String>,
 }
@@ -42,8 +42,8 @@ pub fn translate_notices(notices: &mut [Notice]) {
             .as_ref()
             .and_then(|d| d.get("jp_profile"))
             .map(|p| format!("{}.{}", notice.rule_id, p.to_lowercase()));
-        // `gtfs_core::i18n::Translator::translate` ile AYNI seçim sırası (CLI/Python):
-        // varyant profilsiz de geçerlidir (`CAL_015.future_only_jp`, `STM_047.missing_*`).
+        // The SAME selection order as `gtfs_core::i18n::Translator::translate` (CLI/Python):
+        // a variant also works without a profile (`CAL_015.future_only_jp`, `STM_047.missing_*`).
         let specific = notice
             .details
             .as_ref()
@@ -144,16 +144,16 @@ mod tests {
     use super::*;
     use gtfs_core::{EntityType, RuleClass, Severity};
 
-    /// SDK çevirisi CLI/Python çevirisiyle (`gtfs_core::i18n`) AYNI metni üretmeli. İki
-    /// kopya bilinçli (WASM paketine ~500 KB sözlük taşımamak için) ama anahtar seçimi
-    /// 2026-09-30'a kadar ayrışıktı: profilsiz `message_variant` WASM'da yok sayılıyordu.
-    /// Sözlükteki HER anahtar biçimi (kural, kural.profil, kural.varyant,
-    /// kural.profil.varyant) için iki çevirmen karşılaştırılır.
+    /// SDK translation must produce the SAME text as the CLI/Python translator
+    /// (`gtfs_core::i18n`). The two copies are deliberate (to avoid putting a ~500 KB
+    /// dictionary in the WASM package), but key selection diverged until 2026-09-30:
+    /// profile-less `message_variant` was ignored in WASM. The two translators are compared
+    /// for EVERY dictionary key shape (rule, rule.profile, rule.variant, rule.profile.variant).
     #[test]
     fn sdk_translation_matches_the_cli_translator() {
         let core = gtfs_core::i18n::Translator::new(gtfs_core::i18n::Lang::En)
-            .expect("core sözlüğü okunamadı")
-            .expect("İngilizce çevirmen yok");
+            .expect("core dictionary could not be read")
+            .expect("English translator is missing");
         let dictionary = dictionary();
         let keys = dictionary
             .messages
@@ -165,7 +165,7 @@ mod tests {
         for key in keys {
             let parts: Vec<&str> = key.split('.').collect();
             let rule = parts[0];
-            // İki parçalı anahtar profil de varyant da olabilir: ikisi de denenir.
+            // A two-part key may be either a profile or a variant: try both.
             let shapes: Vec<(Option<&str>, Option<&str>)> = match parts.as_slice() {
                 [_] => vec![(None, None)],
                 [_, x] => vec![(Some(*x), None), (None, Some(*x))],
@@ -190,12 +190,12 @@ mod tests {
                 assert_eq!(
                     (&notice.title, &notice.message, &notice.remediation),
                     (&expected.title, &expected.message, &expected.remediation),
-                    "SDK ile CLI çevirisi ayrıştı: {key} (profil {profile:?}, varyant {kind:?})"
+                    "SDK and CLI translations differ: {key} (profile {profile:?}, variant {kind:?})"
                 );
                 checked += 1;
             }
         }
-        assert!(checked > 1000, "sözlük beklenenden küçük: {checked}");
+        assert!(checked > 1000, "dictionary is smaller than expected: {checked}");
     }
 
     fn parity_notice(rule: &str, details: std::collections::BTreeMap<String, String>) -> Notice {
@@ -225,8 +225,8 @@ mod tests {
         }
     }
 
-    /// SDK fatal mesajı da İngilizce şablondan yazılır; şablonu olmayan varyant
-    /// pipeline metnini korur.
+    /// The SDK also writes fatal messages from the English template; a variant without a
+    /// template preserves the pipeline text.
     #[test]
     fn english_dictionary_translates_fatal_errors() {
         let err = translate_fatal(
