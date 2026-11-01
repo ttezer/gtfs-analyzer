@@ -29,14 +29,14 @@ pub struct RouteRecord {
     pub line: u64,
 }
 
-/// ÇEKİRDEK GTFS Schedule Reference enum'u — `routes.txt::route_type` alan tanımı birebir
-/// bunları sayar: 0-7, 11, 12. "Extended"/HVT sözcüğü resmi alan tanımında GEÇMEZ.
+/// CORE GTFS Schedule Reference enum — the `routes.txt::route_type` field definition counts
+/// exactly these: 0-7, 11, 12. The words "Extended"/HVT do NOT appear in the official field definition.
 fn is_core_route_type(v: u32) -> bool {
     matches!(v, 0..=7 | 11 | 12)
 }
 
-/// Genişletilmiş (HVT) hat tipi aralığı — Google Transit ve türevlerinin konvansiyonu,
-/// çekirdek Schedule Reference'ın PARÇASI DEĞİL.
+/// Extended (HVT) route-type range — a convention of Google Transit and its derivatives,
+/// NOT part of the core Schedule Reference.
 fn is_extended_route_type(v: u32) -> bool {
     matches!(v, 100..=1799)
 }
@@ -66,10 +66,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .to_string();
         let entity_id = (!route_id.is_empty()).then_some(route_id.clone());
 
-        // RTS_031: `route_id` boş — birincil anahtar yok. Bu satır KİMLİKSİZDİR ve
-        // `entity_id` yukarıda `None` olur; eskiden hiçbir kural bunu görmüyordu.
-        // `RTS_001` YİNELENMEYİ ölçer ve olmayan bir kimlik yinelenemez, dolayısıyla
-        // boş değer iki kuralın arasından düşüyordu (#153, korpusta 4 feed).
+        // RTS_031: `route_id` is empty — no primary key. This row is IDENTITY-LESS and
+        // `entity_id` becomes `None` above; no rule used to see it.
+        // `RTS_001` measures DUPLICATION, and a missing identity cannot be duplicated,
+        // so the empty value fell between the two rules (#153, 4 feeds in the corpus).
         if route_id.trim().is_empty() {
             notices.push(make_k2_notice(
                 &mut counter,
@@ -100,10 +100,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
 
         // RTS_003: both route_short_name and route_long_name are empty
         //
-        // `field` iki alanı BİRLİKTE adlandırır (repoda yerleşik boru konvansiyonu:
-        // `from_stop_id|to_stop_id`, `start_date|end_date`, `stop_lat|stop_lon`). Eskiden `None`
-        // idi: R2'nin "Alan" sütunu, feed'i yayından ALIKOYAN bir bulguda boş kalıyordu.
-        // Tek alan adı yazmak yanlış olurdu — hüküm ikisinin BİRLİKTE boş olmasıdır.
+        // `field` names both fields TOGETHER (the repository's established pipe convention:
+        // `from_stop_id|to_stop_id`, `start_date|end_date`, `stop_lat|stop_lon`). It used to be `None`:
+        // R2's "Field" column was empty for a finding that BLOCKS publication.
+        // Naming only one field would be wrong — the rule is that both are empty TOGETHER.
         if route_short_name.is_none() && route_long_name.is_none() {
             notices.push(make_k2_notice(
                 &mut counter, "RTS_003", EntityType::Route, entity_id.clone(), Some(&row_map),
@@ -113,17 +113,17 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             ));
         }
 
-        // RTS_009 (short == long) KALDIRILDI (2026-07-23): RTS_022'nin (K6,
-        // route_long_name_contains_short_name) saf alt kümesiydi — eşitlik de bir
-        // "içerme" vakasıdır. RTS_022 MD paritesi taşır ve eşitliği zaten yakalar;
-        // RTS_009 kaldırılınca parite korunur (RTS_022'ye dokunulmadı).
+        // RTS_009 (short == long) was REMOVED (2026-07-23): it was a strict subset of RTS_022
+        // (K6, route_long_name_contains_short_name) — equality is also a containment case.
+        // RTS_022 carries MD parity and already catches equality; removing RTS_009 preserves
+        // parity (RTS_022 was untouched).
 
-        // RTS_010: route_short_name çok uzun (>12 karakter)
+        // RTS_010: route_short_name is too long (>12 characters)
         if let Some(ref s) = route_short_name {
-            // KARAKTER sayısı, BAYT değil. `str::len()` UTF-8 bayt döndürür: "Kızılay"
-            // 7 karakter ama 8 bayt, Japonca üç karakterlik bir kısa ad 9 bayttır. Eşik
-            // ve mesaj "karakter" dediği için Türkçe/Japonca feed'lerde bayt sayımı
-            // yanlış pozitif üretiyordu.
+            // Count CHARACTERS, not BYTES. `str::len()` returns UTF-8 bytes: "Kızılay"
+            // is 7 characters but 8 bytes, and a three-character Japanese short name is 9 bytes.
+            // Because the threshold and message say "characters", byte counting produced false
+            // positives in Turkish/Japanese feeds.
             let char_len = s.chars().count();
             if char_len > 12 {
                 notices.push(make_k2_notice(
@@ -134,10 +134,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                     "route_short_name'i 12 karakterin altında tutun.",
                 ));
             } else if char_len > 6 && route_long_name.as_ref().is_none_or(|l| l.trim().is_empty()) {
-                // RTS_021: 6 karakterden uzun (Google Transit eşiği).
-                // Google'ın kendi muafiyeti: `route_long_name` doluysa uyarı göz ardı
-                // edilebilir — uzun ad zaten okunabilir gösterimi taşır. Guard olmadan
-                // "Green Line" gibi meşru adlandırmalarda gereksiz gürültü üretiyordu.
+                // RTS_021: longer than 6 characters (Google Transit threshold).
+                // Google's own exemption: if `route_long_name` is populated, the warning may be
+                // ignored — the long name already provides a readable display. Without the guard,
+                // legitimate names such as "Green Line" produced unnecessary noise.
                 notices.push(make_k2_notice(
                     &mut counter, "RTS_021", EntityType::Route, entity_id.clone(), Some(&row_map),
                     &file.name, Some(line), Some("route_short_name"),
@@ -148,7 +148,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             }
         }
 
-        // RTS_011: route_long_name çok uzun (>100 karakter)
+        // RTS_011: route_long_name is too long (>100 characters)
         if let Some(ref l) = route_long_name {
             let char_len = l.chars().count(); // bayt değil karakter — bkz. RTS_010/021 notu
             if char_len > 100 {
@@ -177,7 +177,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             Ok(v) => {
                 match v {
                     None => {
-                        // RTS_004: route_type missing (sütun yoksa ARC_025 devralır → atla)
+                        // RTS_004: route_type missing (if the column is absent, ARC_025 takes over → skip)
                         if get_trimmed_field(&row_map, "route_type") == Some("") {
                             notices.push(make_k2_notice(
                                 &mut counter,
@@ -197,15 +197,15 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                         None
                     }
                     Some(val) => {
-                        // İki OTORİTE, iki kural (#93). RTS_004 `Spec`/KRİTİK ve R1 yayın
-                        // kapısındadır; çekirdek Schedule Reference enum'u yalnız 0-7,11,12
-                        // sayar. Genişletilmiş 100-1799 aralığını RTS_004'ün kabul kümesine
-                        // koymak, bir eklenti konvansiyonunu çekirdek spec uyumu gibi
-                        // göstermekti. Ters yön de yanlış olurdu: 1501'i RTS_004 ile
-                        // bildirmek korpusun %8,4'ünü (225 feed'in 19'u) meşru bir eklenti
-                        // kullandığı için yayına engel yapardı. Ayrım RTS_030'a taşındı.
+                        // Two AUTHORITIES, two rules (#93). RTS_004 is `Spec`/KRİTİK and in the R1
+                        // publication gate; the core Schedule Reference enum counts only 0-7,11,12.
+                        // Adding the extended 100-1799 range to RTS_004's accepted set would present
+                        // an extension convention as core-spec compliance. The reverse would also be
+                        // wrong: reporting 1501 through RTS_004 would block publication for 19 of
+                        // 225 feeds (8.4% of the corpus) that legitimately use an extension.
+                        // The distinction moved to RTS_030.
                         if is_extended_route_type(val) {
-                            // RTS_030: genişletilmiş (HVT) tip — çekirdek enum dışı, Interop
+                            // RTS_030: extended (HVT) type — outside the core enum, Interop
                             notices.push(make_k2_notice(
                                 &mut counter, "RTS_030", EntityType::Route, entity_id.clone(), Some(&row_map),
                                 &file.name, Some(line), Some("route_type"),
@@ -322,9 +322,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             }
         }
 
-        // RTS_008: WCAG contrast ratio check. Biçim hükmü (RTS_006/007) ham değerle verildi;
-        // kontrast kırpılmış renkle ölçülür — `'FFFFFF    '` sarı zemin üzerinde yine okunmaz
-        // (korpus mdb-1065/2653/465, 2026-10-13; `whitespace_trimmed_service_date` emsali).
+        // RTS_008: WCAG contrast ratio check. The format rule (RTS_006/007) uses the raw value;
+        // contrast is measured with the trimmed color — `'FFFFFF    '` is still unreadable on a
+        // yellow background (corpus mdb-1065/2653/465, 2026-10-13; `whitespace_trimmed_service_date` precedent).
         if let (Some(fg), Some(bg)) = (route_text_color.as_deref(), route_color.as_deref()) {
             let (fg, bg) = (fg.trim(), bg.trim());
             if is_hex_color_6(fg) && is_hex_color_6(bg) {
@@ -366,8 +366,8 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             &file.name,
         );
 
-        // RTS_029: spec tipi `Non-negative integer`. Negatif ya da sayı olmayan değer eskiden
-        // sessizce düşüyordu — hattın sıralaması kayboluyor, kullanıcı hiçbir şey görmüyordu.
+        // RTS_029: spec type `Non-negative integer`. Negative or non-numeric values used to be
+        // silently dropped — the route's ordering disappeared and the user saw nothing.
         let route_sort_order = match parse_u32(&row_map, "route_sort_order") {
             Ok(v) => v,
             Err(err) => {
@@ -393,17 +393,17 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // RTS_023: route_desc, route_long_name VEYA route_short_name ile aynı
-        // (MD `same_name_and_description_for_route`; MD örnekleri `specifiedField` ile
-        // hangi alanın eşleştiğini söyler ve her İKİ alanı da denetler).
+        // RTS_023: route_desc equals route_long_name OR route_short_name
+        // (MD `same_name_and_description_for_route`; MD examples use `specifiedField` to say
+        // which field matched, and check BOTH fields).
         //
-        // route_short_name kolu 2026-07-17'de eklendi: yalnız long_name'e bakmak gerçek
-        // bir KAPSAM BOŞLUĞUYDU — 250-feed corpus'ta mdb-2898'de MD 436 bulgu verirken biz
-        // 0 veriyorduk ve 436'sının da `specifiedField` değeri route_short_name'di
-        // (route_desc="EXT" ↔ route_short_name="EXT" gibi).
+        // The route_short_name branch was added on 2026-07-17: checking only long_name was a real
+        // COVERAGE GAP — in the 250-feed corpus, MD reported 436 findings for mdb-2898 while we
+        // reported 0, and all 436 had `specifiedField` = route_short_name
+        // (for example, route_desc="EXT" ↔ route_short_name="EXT").
         //
-        // Her iki alan da eşleşse bile hat başına TEK notice (aynı kök neden: açıklama
-        // bir adın kopyası); hangi alan(lar) eşleşti mesajda yazar.
+        // Even if both fields match, emit ONE notice per route (same root cause: the description
+        // copies a name); the message states which field(s) matched.
         {
             let dl = route_desc.as_ref().map(|d| d.to_lowercase());
             let matches_long =
@@ -411,9 +411,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             let matches_short =
                 matches!((&route_short_name, &dl), (Some(s), Some(d)) if &s.to_lowercase() == d);
             if let (Some(d), true) = (&route_desc, matches_long || matches_short) {
-                // Eşleşen alan adı `details.matched_field`'e yazılır: mesaj şablonları
-                // (tr/en/ja) hangi alanın kopyalandığını buradan okur — locale'de sabit
-                // "route_long_name" yazmak short_name vakalarında YANLIŞ BİLGİ olurdu.
+                // The matched field name is written to `details.matched_field`: message templates
+                // (tr/en/ja) read which field was copied from here — hard-coding "route_long_name"
+                // in the locale would be WRONG INFORMATION for short_name cases.
                 let matched_field = match (matches_long, matches_short) {
                     (true, true) => "route_long_name, route_short_name",
                     (true, false) => "route_long_name",
@@ -437,12 +437,12 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // GTFS-JP: jp_office_id (resmî spec routes.txt'te tanımlar; JPN_002 office_jp FK denetimi)
+        // GTFS-JP: jp_office_id (defined in the official routes.txt spec; JPN_002 office_jp FK check)
         let jp_office_id = get_raw_field(&row_map, "jp_office_id")
             .filter(|v| !v.trim().is_empty())
             .map(str::to_string);
 
-        // RTS_024: route_cemv_support 0, 1 veya 2 olmalı (AGN_012 route ikizi)
+        // RTS_024: route_cemv_support must be 0, 1, or 2 (AGN_012 route twin)
         let route_cemv_support = match parse_u32(&row_map, "cemv_support") {
             Ok(v) => {
                 if let Some(val) = v {
@@ -459,8 +459,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 v
             }
             Err(err) => {
-                // Sayı OLMAYAN değer eskiden sessizce düşüyordu: aralık dışı sayı RTS_024 üretirken
-                // "abc" hiçbir bulgu vermiyordu. Aynı olgunun iki dalı → aynı kural (PTH_027 emsali).
+                // A NON-NUMERIC value used to be silently dropped: an out-of-range number produced
+                // RTS_024, while "abc" produced no finding. Two branches of the same fact → one rule
+                // (the PTH_027 precedent).
                 notices.push(make_k2_notice(
                     &mut counter, "RTS_024", EntityType::Route, entity_id.clone(),
                     Some(&row_map), &file.name, Some(line), Some("cemv_support"),
@@ -493,32 +494,32 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         });
     }
 
-    // Aşağıdaki yinelenen-ad kontrolleri her grubun anchor route kaydına tekrar erişir.
-    // `records.iter().find(...)` kullanmak, çok sayıda route ve yinelenen grup içeren
-    // feed'lerde O(grup × route) davranışı üretir (VlakEShopAll: 64.711 grup × 321.962
-    // route). İlk kaydı koruyan bu indeks mevcut semantiği değiştirmeden lookup'u O(1)
-    // yapar; yinelenen route_id varsa önceki doğrusal `find` gibi ilk satır kazanır.
+    // The duplicate-name checks below repeatedly access each group's anchor route record.
+    // Using `records.iter().find(...)` produces O(group × route) behavior in feeds with many
+    // routes and duplicate groups (VlakEShopAll: 64,711 groups × 321,962 routes). This index
+    // preserves the first record and makes lookup O(1) without changing semantics; if route_id
+    // is duplicated, the first row wins just as with the old linear `find`.
     let mut route_by_id: HashMap<&str, &RouteRecord> = HashMap::with_capacity(records.len());
     for rec in &records {
         route_by_id.entry(rec.route_id.as_str()).or_insert(rec);
     }
 
-    // RTS_019: Yinelenen hat adı — bir hat başka biriyle HEM route_short_name HEM route_long_name
-    // bakımından aynıysa (gerçek kopya hat). Yalnız kısa VEYA yalnız uzun adı paylaşmak NORMALDİR
-    // (aynı hat numarası varyant/yön için tekrar kullanılır; farklı hatlar aynı uzun adı taşıyabilir)
-    // → MobilityData `duplicate_route_name` ile hizalı; (kısa|uzun) tek-başına eşleşme FP üretiyordu.
-    // Çakışan (kısa,uzun) çift başına TEK notice; adı paylaşan tüm hatları (route_id) listeler.
+    // RTS_019: duplicate route name — a route matches another in BOTH route_short_name AND
+    // route_long_name (a true duplicate route). Sharing only the short OR only the long name is
+    // NORMAL (the same route number is reused for variants/directions; different routes may share
+    // a long name) → aligned with MobilityData `duplicate_route_name`; matching only one caused false positives.
+    // ONE notice per conflicting (short,long) pair; list all routes (route_id) sharing the name.
     {
-        // Anahtar (kısa, uzun, TÜR, AJANS): "ayırt edilemez kopya" iddiası ancak aynı
-        // taşıma türü VE aynı işletmeci içinde kurulabilir. İki ayrı ajansın "10" numaralı
-        // hattı olması olağandır (yolcu ajansa göre ayırt eder); bir otobüs "10" ile bir
-        // tramvay "10" da moda göre ayrılır. GTFS/MobilityData da bunu böyle tanımlar:
+        // Key (short, long, TYPE, AGENCY): an "indistinguishable duplicate" claim is valid only
+        // within the same mode AND the same operator. Two agencies having a route "10" is normal
+        // (passengers distinguish them by agency); a bus "10" and a tram "10" are distinguished
+        // by mode. GTFS/MobilityData defines it this way:
         // "All routes of the same route_type with the same agency_id should have unique
         // combinations of route_short_name and route_long_name."
         //
-        // Tür/ajans anahtarda YOKKEN yanlış pozitif üretiyordu — 250-feed corpus, mdb-1091
-        // (Lüksemburg): 32 gruptan 29'u farklı route_type/agency_id taşıyordu (ör. "10" →
-        // LU::Authority:16:: ve LU::Authority:26::). Anahtar tamamlanınca 32 → 3 = MD ile birebir.
+        // Without type/agency in the key it produced false positives — 250-feed corpus, mdb-1091
+        // (Luxembourg): 29 of 32 groups had different route_type/agency_id values (e.g. "10" →
+        // LU::Authority:16:: and LU::Authority:26::). Completing the key changed 32 → 3, exactly matching MD.
         type NameKey = (String, String, Option<u32>, String);
         let mut name_groups: HashMap<NameKey, Vec<(String, u64)>> = HashMap::new();
         for rec in &records {
@@ -543,7 +544,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 .or_default()
                 .push((rec.route_id.clone(), rec.line));
         }
-        // Deterministik çıktı için anahtara göre sırala.
+        // Sort by key for deterministic output.
         let mut groups: Vec<_> = name_groups
             .into_iter()
             .filter(|(_, e)| e.len() >= 2)
@@ -585,10 +586,10 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
     }
 
-    // RTS_026: Yinelenen kısa hat adı — ≥2 hat aynı route_short_name'i paylaşıyor AMA aralarında
-    // ≥2 farklı route_long_name var (aynı numara, farklı adlar). İkisi de aynı olsaydı RTS_019
-    // (ORTA) olurdu → o durum burada dışlanır. Sıkça bilinçlidir (varyant/yön) → BİLGİ. Kısa ad
-    // başına TEK notice; paylaşan tüm hatları listeler.
+    // RTS_026: duplicate short route name — ≥2 routes share route_short_name BUT have
+    // ≥2 different route_long_name values (same number, different names). If both matched,
+    // it would be RTS_019 (MEDIUM) → excluded here. Often intentional (variant/direction) → INFO.
+    // ONE notice per short name; list all routes sharing it.
     {
         let mut short_groups: HashMap<String, Vec<(String, String, u64)>> = HashMap::new();
         for rec in &records {
@@ -653,9 +654,9 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
         }
     }
 
-    // RTS_027: Yinelenen uzun hat adı — ≥2 hat aynı route_long_name'i paylaşıyor AMA aralarında
-    // ≥2 farklı route_short_name var (farklı numaralar, aynı açıklama). İkisi de aynı olsaydı
-    // RTS_019 (ORTA) olurdu → dışlanır. BİLGİ. Uzun ad başına TEK notice; paylaşan hatları listeler.
+    // RTS_027: duplicate long route name — ≥2 routes share route_long_name BUT have
+    // ≥2 different route_short_name values (different numbers, same description). If both matched,
+    // it would be RTS_019 (MEDIUM) → excluded. INFO. ONE notice per long name; list sharing routes.
     {
         let mut long_groups: HashMap<String, Vec<(String, String, u64)>> = HashMap::new();
         for rec in &records {
@@ -723,8 +724,8 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
     (records, notices)
 }
 
-// Parse edilen alan ile notice metadata'sı aynı küçük validator'ın girdileridir;
-// burada bir parametre struct'ı eklemek tek kullanımlık bir soyutlama olur.
+// The parsed field and notice metadata are inputs to the same small validator;
+// adding a parameter struct here would be a one-use abstraction.
 #[allow(clippy::too_many_arguments)]
 fn parse_continuous_field(
     row_map: &RowMap,
@@ -822,8 +823,9 @@ mod tests {
 
     #[test]
     fn length_rules_count_characters_not_bytes() {
-        // "Kızılay" 7 karakter / 8 bayt; bayt sayımıyla 6'lık Google eşiği yanlış aşılırdı.
-        // route_long_name BOŞ bırakıldı ki RTS_021 muafiyeti devreye girmesin.
+        // "Kızılay" is 7 characters / 8 bytes; byte counting would incorrectly exceed
+        // Google's threshold of 6.
+        // Leave `route_long_name` empty so the RTS_021 exemption does not apply.
         let f = make_file(
             vec![
                 "route_id",
@@ -831,7 +833,7 @@ mod tests {
                 "route_long_name",
                 "route_type",
             ],
-            vec![vec!["R1", "Kızıla", "", "3"]], // 6 karakter / 7 bayt → eşik altı
+            vec![vec!["R1", "Kızıla", "", "3"]], // 6 characters / 7 bytes → below the threshold
         );
         assert!(
             !ids(&f).contains(&"RTS_021".to_string()),
@@ -839,7 +841,7 @@ mod tests {
             ids(&f)
         );
 
-        // 12 karakterlik Japonca ad = 36 bayt; bayt sayımıyla RTS_010 yanlış tetiklenirdi.
+        // A 12-character Japanese name = 36 bytes; byte counting would incorrectly trigger RTS_010.
         let f = make_file(
             vec![
                 "route_id",
@@ -852,17 +854,17 @@ mod tests {
         let got = ids(&f);
         assert!(
             !got.contains(&"RTS_010".to_string()),
-            "12 karakter >12 değildir: {got:?}"
+            "12 characters is not >12: {got:?}"
         );
         assert!(
             got.contains(&"RTS_021".to_string()),
-            "12 karakter Google eşiğini aşar: {got:?}"
+            "12 characters exceed Google's threshold: {got:?}"
         );
     }
 
     #[test]
     fn rts_021_is_waived_when_long_name_is_present() {
-        // Google'ın muafiyeti: route_long_name doluysa kısa ad uyarısı göz ardı edilebilir.
+        // Google's exemption: when `route_long_name` is populated, the short-name warning may be ignored.
         let with_long = make_file(
             vec![
                 "route_id",
@@ -874,11 +876,11 @@ mod tests {
         );
         assert!(
             !ids(&with_long).contains(&"RTS_021".to_string()),
-            "long_name doluyken RTS_021 üretilmemeli: {:?}",
+            "RTS_021 should not be produced when long_name is populated: {:?}",
             ids(&with_long)
         );
 
-        // Boşluk-dolu long_name muafiyet saymaz.
+        // A whitespace-only long_name does not count for the exemption.
         let blank_long = make_file(
             vec![
                 "route_id",
@@ -890,7 +892,7 @@ mod tests {
         );
         assert!(
             ids(&blank_long).contains(&"RTS_021".to_string()),
-            "boş long_name muafiyet saymamalı: {:?}",
+            "a blank long_name should not count for the exemption: {:?}",
             ids(&blank_long)
         );
     }
@@ -957,12 +959,12 @@ mod tests {
         );
     }
 
-    /// Aynı ad FARKLI AJANSTA kopya değildir — iki işletmecinin "10" hattı olması olağan.
-    /// Corpus kanıtı (mdb-1091, Lüksemburg): 32 gruptan 29'u farklı ajans/tür; anahtar
-    /// tamamlanınca 32 → 3 = MobilityData ile birebir.
-    /// route_desc == route_short_name de RTS_023'tür (MD `same_name_and_description_for_route`
-    /// her iki adı da denetler). Yalnız long_name'e bakmak kapsam boşluğuydu: mdb-2898'de
-    /// MD 436 bulgu verirken biz 0 veriyorduk, 436'sı da short_name eşleşmesiydi.
+    /// The same name under DIFFERENT AGENCIES is not a duplicate — two operators having a
+    /// route "10" is normal. Corpus evidence (mdb-1091, Luxembourg): 29 of 32 groups have
+    /// different agency/type; once the key is complete, 32 → 3, matching MobilityData exactly.
+    /// route_desc == route_short_name is also RTS_023 (MD `same_name_and_description_for_route`
+    /// checks both names). Looking only at long_name was a coverage gap: in mdb-2898, MD
+    /// reported 436 findings while we reported 0; all 436 were short_name matches.
     #[test]
     fn route_desc_equal_to_short_name_produces_rts_023() {
         let file = make_file(
@@ -979,11 +981,11 @@ mod tests {
         assert_eq!(
             notices.iter().filter(|n| n.rule_id == "RTS_023").count(),
             1,
-            "route_desc == route_short_name → RTS_023 olmalı"
+            "route_desc == route_short_name should produce RTS_023"
         );
     }
 
-    /// Her iki ad da eşleşse bile hat başına TEK notice (aynı kök neden).
+    /// Even when both names match, produce ONE notice per route (same root cause).
     #[test]
     fn route_desc_equal_to_both_names_produces_single_rts_023() {
         let file = make_file(
@@ -1000,11 +1002,11 @@ mod tests {
         assert_eq!(
             notices.iter().filter(|n| n.rule_id == "RTS_023").count(),
             1,
-            "iki alan da eşleşse bile tek notice"
+            "only one notice even when both fields match"
         );
     }
 
-    /// route_desc farklıysa tetiklememeli (fix aşırı-tetiklememeli).
+    /// A different route_desc must not trigger it (the fix must not over-trigger).
     #[test]
     fn route_desc_different_from_names_is_not_rts_023() {
         let file = make_file(
@@ -1026,7 +1028,7 @@ mod tests {
         let (_, notices) = validate_routes(&file);
         assert!(
             !notices.iter().any(|n| n.rule_id == "RTS_023"),
-            "gerçekten açıklayıcı route_desc tetiklememeli"
+            "a genuinely descriptive route_desc must not trigger it"
         );
     }
 
@@ -1042,17 +1044,18 @@ mod tests {
             ],
             vec![
                 vec!["R1", "A1", "10", "", "3"],
-                vec!["R2", "A2", "10", "", "3"], // farklı ajans → kopya DEĞİL
+                vec!["R2", "A2", "10", "", "3"], // different agency → NOT a duplicate
             ],
         );
         let (_, notices) = validate_routes(&file);
         assert!(
             !notices.iter().any(|n| n.rule_id == "RTS_019"),
-            "farklı ajansın aynı hat numarası kopya sayılmamalı"
+            "the same route number under a different agency must not count as a duplicate"
         );
     }
 
-    /// Aynı ad FARKLI TÜRDE de kopya değildir — otobüs "10" ile tramvay "10" moda göre ayrılır.
+    /// The same name under a DIFFERENT TYPE is also not a duplicate — bus "10" and tram "10"
+    /// are distinct by mode.
     #[test]
     fn same_name_different_route_type_is_not_rts_019() {
         let file = make_file(
@@ -1064,18 +1067,18 @@ mod tests {
                 "route_type",
             ],
             vec![
-                vec!["R1", "A1", "10", "Merkez", "3"], // otobüs
-                vec!["R2", "A1", "10", "Merkez", "0"], // tramvay
+                vec!["R1", "A1", "10", "Merkez", "3"], // bus
+                vec!["R2", "A1", "10", "Merkez", "0"], // tram
             ],
         );
         let (_, notices) = validate_routes(&file);
         assert!(
             !notices.iter().any(|n| n.rule_id == "RTS_019"),
-            "farklı taşıma türünün aynı adı kopya sayılmamalı"
+            "the same name under a different transport type must not count as a duplicate"
         );
     }
 
-    /// AYNI ajans + AYNI tür + aynı ad → gerçek kopya, tetiklemeli (fix bunu bozmamalı).
+    /// SAME agency + SAME type + same name → a real duplicate, must trigger (the fix must preserve this).
     #[test]
     fn same_name_same_agency_and_type_is_rts_019() {
         let file = make_file(
@@ -1095,13 +1098,14 @@ mod tests {
         assert_eq!(
             notices.iter().filter(|n| n.rule_id == "RTS_019").count(),
             1,
-            "aynı ajans+tür+ad gerçek kopya → RTS_019 üretmeli"
+            "same agency+type+name is a real duplicate → should produce RTS_019"
         );
     }
 
     #[test]
     fn shared_route_name_produces_single_rts_019_per_group() {
-        // 3 hat HEM aynı short HEM aynı long → gerçek kopya → çakışan grup başına TEK RTS_019
+        // 3 routes with BOTH the same short and long names → real duplicates →
+        // ONE RTS_019 per overlapping group.
         let file = make_file(
             vec![
                 "route_id",
@@ -1124,27 +1128,29 @@ mod tests {
             rts019.len(),
             rts019.iter().map(|n| &n.message).collect::<Vec<_>>()
         );
-        // Mesaj grubun TÜM üyelerini (route_id) listelemeli
+        // The message must list ALL members (route_id) of the group.
         let msg = &rts019[0].message;
         assert!(
             msg.contains("R1") && msg.contains("R2") && msg.contains("R3"),
-            "Mesaj tüm grubu listelemeli: {}",
+            "Message must list the entire group: {}",
             msg
         );
-        // Hepsi HEM kısa HEM uzun aynı → yalnız RTS_019; RTS_026/027 (tek-alan) tetiklenmemeli.
+        // ALL short and long names match → only RTS_019; the single-field RTS_026/027
+        // rules must not trigger.
         assert!(
             !notices
                 .iter()
                 .any(|n| n.rule_id == "RTS_026" || n.rule_id == "RTS_027"),
-            "both-same grup RTS_026/027 üretmemeli (RTS_019 dışında)"
+            "both-same group must not produce RTS_026/027 (only RTS_019)"
         );
     }
 
     #[test]
     fn shared_short_name_different_long_produces_rts_026_not_rts_019() {
-        // Aynı route_short_name ama FARKLI route_long_name (varyant/yön) → gerçek kopya DEĞİL →
-        // RTS_019 (ORTA) YOK; ama aynı numara farklı adlar → RTS_026 (Bilgi). Athens mdb-3220
-        // FP'sinin köku buydu (109 grup); artık ORTA değil BİLGİ.
+        // Same route_short_name but DIFFERENT route_long_name (variant/direction) → NOT real
+        // duplicates → no RTS_019 (MEDIUM), but same number with different names → RTS_026
+        // (Info). This was the root of the Athens mdb-3220 FP (109 groups); it is now INFO,
+        // not MEDIUM.
         let file = make_file(
             vec![
                 "route_id",
@@ -1160,28 +1166,28 @@ mod tests {
         let (_, notices) = validate_routes(&file);
         assert!(
             !notices.iter().any(|n| n.rule_id == "RTS_019"),
-            "aynı short + farklı long RTS_019 üretmemeli"
+            "same short + different long must not produce RTS_019"
         );
         let rts026: Vec<_> = notices.iter().filter(|n| n.rule_id == "RTS_026").collect();
         assert_eq!(
             rts026.len(),
             1,
-            "aynı short farklı long → tek RTS_026 beklenir"
+            "same short with different long → one RTS_026 expected"
         );
         assert!(
             rts026[0].message.contains("R1") && rts026[0].message.contains("R2"),
-            "RTS_026 mesajı tüm grubu listelemeli: {}",
+            "RTS_026 message must list the entire group: {}",
             rts026[0].message
         );
         assert!(
             !notices.iter().any(|n| n.rule_id == "RTS_027"),
-            "farklı long → RTS_027 üretmemeli"
+            "different long must not produce RTS_027"
         );
     }
 
     #[test]
     fn shared_long_name_different_short_produces_rts_027() {
-        // Aynı route_long_name ama FARKLI route_short_name → RTS_027 (Bilgi); RTS_019/026 YOK.
+        // Same route_long_name but DIFFERENT route_short_name → RTS_027 (Info); no RTS_019/026.
         let file = make_file(
             vec![
                 "route_id",
@@ -1230,10 +1236,10 @@ mod tests {
 
     #[test]
     fn many_duplicate_route_groups_do_not_rescan_all_records() {
-        // 20 bin ayrı yinelenen grup, toplam 40 bin route. Anchor kaydı her grup için
-        // `records.iter().find` ile aranırsa ~800 milyon karşılaştırmaya çıkar; indeksli
-        // uygulama route sayısıyla doğrusal büyür. Geniş süre payı yavaş CI makinelerini
-        // tolere ederken karesel regresyonu yakalar.
+        // 20,000 separate duplicate groups, 40,000 routes total. If each group's anchor
+        // record is found with `records.iter().find`, this grows to ~800 million comparisons;
+        // the indexed implementation grows linearly with the route count. The generous time
+        // allowance accommodates slow CI machines while still catching quadratic regressions.
         const GROUPS: usize = 20_000;
         let mut rows = Vec::with_capacity(GROUPS * 2);
         for group in 0..GROUPS {
@@ -1278,8 +1284,8 @@ mod tests {
         );
     }
 
-    /// #93 otorite matrisi: çekirdek enum RTS_004'ün (Spec·KRİTİK) alanı, genişletilmiş
-    /// aralık RTS_030'un (Interop·DÜŞÜK) alanı, ikisine de girmeyen değer yine RTS_004.
+    /// #93 authority matrix: the core enum range belongs to RTS_004 (Spec·KRİTİK), the
+    /// extended range belongs to RTS_030 (Interop·DÜŞÜK), and a value in neither remains RTS_004.
     fn route_type_rule_ids(value: &str) -> Vec<String> {
         let file = make_file(
             vec!["route_id", "route_short_name", "route_type"],
@@ -1306,24 +1312,24 @@ mod tests {
 
     #[test]
     fn extended_route_type_is_interop_not_core_spec() {
-        // 401 (eski test), 100 (aralık başı), 1501 (issue #93 karşı-örneği), 1799 (aralık sonu).
+        // 401 (old test), 100 (range start), 1501 (issue #93 counterexample), 1799 (range end).
         for v in ["100", "401", "715", "1501", "1799"] {
             assert_eq!(
                 route_type_rule_ids(v),
                 vec!["RTS_030".to_string()],
-                "genişletilmiş route_type {v} yalnız RTS_030 üretmeli (RTS_004 DEĞİL)"
+                "extended route_type {v} should produce only RTS_030 (NOT RTS_004)"
             );
         }
     }
 
     #[test]
     fn non_core_non_extended_route_type_stays_rts_004() {
-        // Ne çekirdek ne genişletilmiş: davranış değişmedi, KRİTİK Spec ihlali.
+        // Neither core nor extended: behavior is unchanged, a KRİTİK Spec violation.
         for v in ["8", "13", "99", "1800", "9999"] {
             assert_eq!(
                 route_type_rule_ids(v),
                 vec!["RTS_004".to_string()],
-                "route_type {v} çekirdek Spec ihlali olarak RTS_004 üretmeli"
+                "route_type {v} should produce RTS_004 as a core Spec violation"
             );
         }
     }
