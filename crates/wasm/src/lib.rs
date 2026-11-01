@@ -1025,10 +1025,10 @@ mod tests {
         assert!(is_valid_yyyymmdd(19700101));
         assert!(is_valid_yyyymmdd(20261231));
         // Month/day fields out of range.
-        assert!(!is_valid_yyyymmdd(20261301), "ay 13 reddedilmeli");
+        assert!(!is_valid_yyyymmdd(20261301), "month 13 should be rejected");
         assert!(!is_valid_yyyymmdd(20260732), "day 32 should be rejected");
         assert!(!is_valid_yyyymmdd(20260700), "day 0 should be rejected");
-        assert!(!is_valid_yyyymmdd(20260016), "ay 0 reddedilmeli");
+        assert!(!is_valid_yyyymmdd(20260016), "month 0 should be rejected");
         // Year field: before the Unix epoch and fewer than four digits.
         assert!(!is_valid_yyyymmdd(19691231), "dates before 1970 should be rejected");
         assert!(!is_valid_yyyymmdd(0), "zero should be rejected");
