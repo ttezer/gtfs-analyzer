@@ -826,7 +826,7 @@ mod tests {
         // One known key plus one unknown key → cancel the entire override.
         let base = ValidatorConfig::default();
         let err = merge_delta(&base, r#"{"max_speed_bus_kmh": 50.0, "nonexistent": true}"#)
-            .expect_err("bilinmeyen anahtar olunca Err bekleniyor");
+            .expect_err("an unknown key should produce Err");
         assert!(err.contains("nonexistent"));
     }
 
@@ -973,7 +973,7 @@ mod tests {
                 }
             ]
         }"#;
-        let cfg = merge_delta(&base, delta).expect("override rules parse edilmeli");
+        let cfg = merge_delta(&base, delta).expect("override rules should parse");
         assert_eq!(cfg.calendar_override_rules.len(), 1);
         let rule = &cfg.calendar_override_rules[0];
         assert_eq!(rule.route_id, "200");
@@ -1240,7 +1240,7 @@ mod tests {
             &base,
             r#"{"disabled_rule_ids":[" DQ_004 ","DQ_003","DQ_004"]}"#,
         )
-        .expect("disabled_rule_ids kabul edilmeli");
+        .expect("disabled_rule_ids should be accepted");
         assert_eq!(cfg.disabled_rule_ids, ["DQ_003", "DQ_004"]);
     }
 
