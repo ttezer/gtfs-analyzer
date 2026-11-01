@@ -1,5 +1,5 @@
 import type { ValidationResult } from '../types';
-import { buildGoldenSnapshot, compareGolden, parseGolden, type ChangeKind, type GoldenRun, type RuleChange } from '../golden';
+import { buildGoldenSnapshot, compareGolden, parseGolden, UnsupportedGoldenSchemaError, type ChangeKind, type GoldenRun, type RuleChange } from '../golden';
 import { t } from '../i18n';
 import { getLastEngineMode } from '../validator-client';
 import { feedMismatch, dateRangeChanged, configChanged, noticeDensity } from './compare-helpers';
@@ -47,7 +47,10 @@ export function renderCompare(root: HTMLElement, result: ValidationResult, fileN
       renderReport(root.querySelector<HTMLElement>('#compare-content')!, before, now);
       error.className = 'upload-status hidden';
     } catch (err) {
-      error.className = 'upload-status error'; error.textContent = err instanceof Error ? err.message : String(err);
+      error.className = 'upload-status error';
+      error.textContent = err instanceof UnsupportedGoldenSchemaError
+        ? t('compare.unsupported_schema')
+        : err instanceof Error ? err.message : String(err);
     } finally {
       // Make the change event fire again for every new selection, including the same file.
       input.value = '';

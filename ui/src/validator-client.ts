@@ -49,7 +49,11 @@ let   worker  = createWorker();
 // caught cleanly in JS; at least show which stage had completed without requiring devtools.
 let lastStage = '';
 function stageHint(): string {
-  return lastStage ? ` (son tamamlanan aşama: ${lastStage})` : '';
+  return lastStage ? ` (last completed stage: ${lastStage})` : '';
+}
+/** Variant + params for a ResourceLimit error; the `_at_stage` variant carries the last stage. */
+function withStage(variant: string, params: Record<string, string>): Record<string, string> {
+  return lastStage ? { ...params, variant: `${variant}_at_stage`, stage: lastStage } : { ...params, variant };
 }
 
 function createWorker(): Worker {
@@ -97,9 +101,11 @@ function onWorkerMessage(event: MessageEvent<WorkerMsg>): void {
 }
 
 function onWorkerError(event: ErrorEvent): void {
+  const detail = event.message || '';
   const error: FatalError = {
     code: 'ResourceLimit',
-    message: (event.message || 'Arka plan doğrulama işçisi beklenmedik şekilde durdu.') + stageHint(),
+    message: `The background validation worker stopped unexpectedly. ${detail}`.trimEnd() + stageHint(),
+    params: withStage('worker_crash', { detail }),
   };
   for (const [, e] of pending) e.reject(error);
   pending.clear();
@@ -111,14 +117,18 @@ function onWorkerError(event: ErrorEvent): void {
 
 // #15: memory no longer exceeds the cap (W1-W3 + Mode A fix); the only remaining
 // limit for very large feeds is wall-clock TIME. K2/K6 can take minutes on large feeds, so 5→15 min.
-const VALIDATE_TIMEOUT_MS = 15 * 60 * 1000; // 15 dakika
+const VALIDATE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const VALIDATE_TIMEOUT_MIN = VALIDATE_TIMEOUT_MS / 60000;
 
 function withTimeout(id: number, reject: (e: FatalError) => void): ReturnType<typeof setTimeout> {
   return setTimeout(() => {
     if (!pending.has(id)) return;
     pending.delete(id);
-    reject({ code: 'ResourceLimit', message: `Doğrulama ${VALIDATE_TIMEOUT_MIN} dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.${stageHint()}` });
+    reject({
+      code: 'ResourceLimit',
+      message: `Validation did not finish within ${VALIDATE_TIMEOUT_MIN} minutes. Try a smaller feed.${stageHint()}`,
+      params: withStage('timeout', { minutes: String(VALIDATE_TIMEOUT_MIN) }),
+    });
   }, VALIDATE_TIMEOUT_MS);
 }
 

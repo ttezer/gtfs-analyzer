@@ -1852,6 +1852,11 @@
     "ResourceLimit.config_size": "設定JSONが4 MiBの安全上限を超えています。",
     "InvalidInput.today": "'today'の値が無効です：{today}（形式はYYYYMMDD、例：20260716）",
     "InvalidInput.config_parse": "設定の解析エラー：{detail}",
+    "ResourceLimit.browser_memory": "フィードがブラウザーで処理するには大きすぎます：WASM のメモリが不足しました。より小さなフィードでお試しください。（{detail}）",
+    "ResourceLimit.timeout": "検証が {minutes} 分以内に完了しませんでした。より小さなフィードでお試しください。",
+    "ResourceLimit.timeout_at_stage": "検証が {minutes} 分以内に完了しませんでした。より小さなフィードでお試しください。（最後に完了した段階：{stage}）",
+    "ResourceLimit.worker_crash": "バックグラウンドの検証ワーカーが予期せず停止しました。{detail}",
+    "ResourceLimit.worker_crash_at_stage": "バックグラウンドの検証ワーカーが予期せず停止しました。{detail}（最後に完了した段階：{stage}）",
     "InvalidInput.disabled_rule_unknown": "disabled_rule_ids のルール「{rule_id}」は既知のルールIDではありません。",
     "InvalidInput.disabled_rule_spec": "ルール「{rule_id}」はSpecルールのため無効化できません。公開可否の判定はSpecルールに基づきます。"
   }

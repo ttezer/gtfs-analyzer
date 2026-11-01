@@ -37,4 +37,27 @@ describe('tFatal', () => {
     expect(tFatal(config, 'ja')).toBe('設定の解析エラー：Unexpected end of JSON input');
     expect(tFatal(config, 'tr')).toBe('Config ayrıştırma hatası: Unexpected end of JSON input');
   });
+
+  it('translates browser-side resource limits, with and without the last stage', () => {
+    const memory: FatalError = {
+      code: 'ResourceLimit',
+      message: 'The feed is too large for the browser: WASM ran out of memory. Try a smaller feed. (unreachable)',
+      params: { variant: 'browser_memory', detail: 'unreachable' },
+    };
+    expect(tFatal(memory, 'en')).toBe('The feed is too large for the browser: WASM ran out of memory. Try a smaller feed. (unreachable)');
+    expect(tFatal(memory, 'tr')).toBe('Feed tarayıcı için çok büyük: WASM belleği yetersiz kaldı. Daha küçük bir feed deneyin. (unreachable)');
+
+    const timeout: FatalError = { code: 'ResourceLimit', message: 'x', params: { variant: 'timeout', minutes: '15' } };
+    expect(tFatal(timeout, 'en')).toBe('Validation did not finish within 15 minutes. Try a smaller feed.');
+    const timeoutAt: FatalError = {
+      code: 'ResourceLimit', message: 'x', params: { variant: 'timeout_at_stage', minutes: '15', stage: 'K6' },
+    };
+    expect(tFatal(timeoutAt, 'ja')).toBe('検証が 15 分以内に完了しませんでした。より小さなフィードでお試しください。（最後に完了した段階：K6）');
+    expect(tFatal(timeoutAt, 'fr')).toBe('La validation ne s’est pas terminée en 15 minutes. Essayez un jeu de données plus petit. (dernière étape terminée : K6)');
+
+    const crash: FatalError = {
+      code: 'ResourceLimit', message: 'x', params: { variant: 'worker_crash_at_stage', detail: 'RuntimeError', stage: 'K2' },
+    };
+    expect(tFatal(crash, 'tr')).toBe('Arka plan doğrulama işçisi beklenmedik şekilde durdu. RuntimeError (son tamamlanan aşama: K2)');
+  });
 });

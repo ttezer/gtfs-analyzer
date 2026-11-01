@@ -129,7 +129,7 @@ function summaryMarkdown(d: SummaryData): string {
   const head = `| ${t('export.summary.metric')} | ${t('export.summary.capped')} | ${t('export.summary.real')} |\n|---|--:|--:|`;
   const body = summaryRows(d).map(([k, disp, real]) => `| ${k} | ${fmtInt(disp)} | ${fmtInt(real)} |`).join('\n');
   const ruleJson = JSON.stringify({ file: d.file, ts: d.ts, scores: { pub: d.pubScore, overall: d.overallScore }, rule_counts: Object.fromEntries(d.ruleCounts) });
-  return `${meta}\n\n${head}\n${body}\n\n<!-- rule_counts gerçek sayılar (#21 diff) -->\n\`\`\`json\n${ruleJson}\n\`\`\`\n`;
+  return `${meta}\n\n${head}\n${body}\n\n<!-- rule_counts: actual totals (#21 diff) -->\n\`\`\`json\n${ruleJson}\n\`\`\`\n`;
 }
 
 // PNG rendering of the summary (the user reads it in the card). Capped / Actual two columns.

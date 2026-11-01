@@ -178,11 +178,14 @@ export function runPrepare(zip: Uint8Array, configDelta: string, onStage: (name:
     const parsed = tryParseJson<ValidateResult>(raw);
     if (parsed && 'Fatal' in parsed) throw parsed.Fatal;
     // WASM crash (OOM / unreachable / RuntimeError) → user-friendly message
-    const isWasmCrash = /unreachable|RuntimeError|out of memory|memory access/i.test(raw);
-    const message = isWasmCrash
-      ? `Feed tarayıcı için çok büyük — WASM bellek yetersiz. Daha küçük bir feed deneyin. (${raw})`
-      : raw;
-    throw { code: 'ZipUnreadable', message } satisfies FatalError;
+    if (/unreachable|RuntimeError|out of memory|memory access/i.test(raw)) {
+      throw {
+        code: 'ResourceLimit',
+        message: `The feed is too large for the browser: WASM ran out of memory. Try a smaller feed. (${raw})`,
+        params: { variant: 'browser_memory', detail: raw },
+      } satisfies FatalError;
+    }
+    throw { code: 'ZipUnreadable', message: raw } satisfies FatalError;
   }
 }
 
@@ -200,11 +203,14 @@ export function runPrepareWithToday(
     const raw = typeof thrown === 'string' ? thrown : String(thrown);
     const parsed = tryParseJson<ValidateResult>(raw);
     if (parsed && 'Fatal' in parsed) throw parsed.Fatal;
-    const isWasmCrash = /unreachable|RuntimeError|out of memory|memory access/i.test(raw);
-    const message = isWasmCrash
-      ? `Feed tarayıcı için çok büyük — WASM bellek yetersiz. Daha küçük bir feed deneyin. (${raw})`
-      : raw;
-    throw { code: 'ZipUnreadable', message } satisfies FatalError;
+    if (/unreachable|RuntimeError|out of memory|memory access/i.test(raw)) {
+      throw {
+        code: 'ResourceLimit',
+        message: `The feed is too large for the browser: WASM ran out of memory. Try a smaller feed. (${raw})`,
+        params: { variant: 'browser_memory', detail: raw },
+      } satisfies FatalError;
+    }
+    throw { code: 'ZipUnreadable', message: raw } satisfies FatalError;
   }
 }
 

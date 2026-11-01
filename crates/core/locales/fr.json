@@ -1916,6 +1916,11 @@
     "ResourceLimit.config_size": "Le JSON de configuration dépasse la limite de sécurité de 4 Mio.",
     "InvalidInput.today": "Valeur « today » invalide : {today} (format attendu AAAAMMJJ, p. ex. 20260716)",
     "InvalidInput.config_parse": "Erreur d’analyse de la configuration : {detail}",
+    "ResourceLimit.browser_memory": "Le jeu de données est trop volumineux pour le navigateur : la mémoire WASM est épuisée. Essayez un jeu plus petit. ({detail})",
+    "ResourceLimit.timeout": "La validation ne s’est pas terminée en {minutes} minutes. Essayez un jeu de données plus petit.",
+    "ResourceLimit.timeout_at_stage": "La validation ne s’est pas terminée en {minutes} minutes. Essayez un jeu de données plus petit. (dernière étape terminée : {stage})",
+    "ResourceLimit.worker_crash": "Le worker de validation en arrière-plan s’est arrêté de façon inattendue. {detail}",
+    "ResourceLimit.worker_crash_at_stage": "Le worker de validation en arrière-plan s’est arrêté de façon inattendue. {detail} (dernière étape terminée : {stage})",
     "InvalidInput.disabled_rule_unknown": "La règle « {rule_id} » de disabled_rule_ids n’est pas un identifiant de règle connu.",
     "InvalidInput.disabled_rule_spec": "La règle « {rule_id} » est une règle Spec et ne peut pas être désactivée : le verdict de publiabilité repose sur les règles Spec."
   }

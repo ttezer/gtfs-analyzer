@@ -2019,6 +2019,7 @@ const tr = {
     'compare.search': 'Kural, kod veya açıklama ara…', 'compare.status': 'Durum', 'compare.rule': 'Kural',
     'compare.description': 'Açıklama', 'compare.delta': 'Fark', 'compare.change': 'Değişim',
     'compare.no_metadata': 'Eski Golden dosyada kural açıklaması yok', 'compare.no_rows': 'Bu filtrede değişiklik yok.',
+    'compare.unsupported_schema': "Desteklenmeyen Golden JSON şeması.",
     'compare.feed_structure': 'Feed Yapısındaki Değişim',
     'compare.feed_range': 'Feed geçerlilik aralığı', 'compare.service_range': 'Gerçek servis aralığı',
     'compare.per_1000_trips': '1.000 trip başına notice', 'compare.per_100k_stop_times': '100.000 stop_time başına notice',
@@ -2612,6 +2613,11 @@ const tr = {
 
   fatalMessages: {
     'InvalidInput.config_parse': "Config ayrıştırma hatası: {detail}",
+    'ResourceLimit.browser_memory': "Feed tarayıcı için çok büyük: WASM belleği yetersiz kaldı. Daha küçük bir feed deneyin. ({detail})",
+    'ResourceLimit.timeout': "Doğrulama {minutes} dakika içinde tamamlanamadı. Daha küçük bir feed deneyin.",
+    'ResourceLimit.timeout_at_stage': "Doğrulama {minutes} dakika içinde tamamlanamadı. Daha küçük bir feed deneyin. (son tamamlanan aşama: {stage})",
+    'ResourceLimit.worker_crash': "Arka plan doğrulama işçisi beklenmedik şekilde durdu. {detail}",
+    'ResourceLimit.worker_crash_at_stage': "Arka plan doğrulama işçisi beklenmedik şekilde durdu. {detail} (son tamamlanan aşama: {stage})",
   } as Record<string, string>,
 
   ruleMessages: {} as Record<string, string>,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGoldenSnapshot, compareGolden, parseGolden, type GoldenRun } from '../golden';
+import { buildGoldenSnapshot, compareGolden, parseGolden, UnsupportedGoldenSchemaError, type GoldenRun } from '../golden';
 import type { ValidationResult } from '../types';
 
 function run(rules: Record<string, number>): GoldenRun {
@@ -111,5 +111,11 @@ describe('Golden comparison', () => {
     }));
     expect(parsed.legacy).toBe(false);
     expect(parsed.engineMode).toBe('unknown');
+  });
+});
+
+describe('parseGolden', () => {
+  it('rejects an unknown schema with a typed error the UI can localize', () => {
+    expect(() => parseGolden('{"schema": "something-else/1"}')).toThrow(UnsupportedGoldenSchemaError);
   });
 });

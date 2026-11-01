@@ -90,6 +90,14 @@ export function buildGoldenSnapshot(
 function num(v: unknown, fallback = 0): number { return typeof v === 'number' && Number.isFinite(v) ? v : fallback; }
 function obj(v: unknown): Record<string, unknown> { return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}; }
 
+/** Thrown for a JSON file that is not any known Golden schema; the UI shows a localized message. */
+export class UnsupportedGoldenSchemaError extends Error {
+  constructor() {
+    super('Unsupported Golden JSON schema.');
+    this.name = 'UnsupportedGoldenSchemaError';
+  }
+}
+
 export function parseGolden(text: string): GoldenRun {
   const root = obj(JSON.parse(text));
   const schema = String(root.schema ?? '');
@@ -124,7 +132,7 @@ export function parseGolden(text: string): GoldenRun {
       classCounts: {}, rules, noticeTotal: num(root.notice_total_actual), configDelta: '', legacy: true,
     };
   }
-  throw new Error('Desteklenmeyen Golden JSON şeması.');
+  throw new UnsupportedGoldenSchemaError();
 }
 
 export function compareGolden(before: GoldenRun, now: GoldenRun): RuleChange[] {
