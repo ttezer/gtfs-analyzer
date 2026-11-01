@@ -158,8 +158,8 @@ pub fn validate_agency(file: &RawFile) -> (Vec<AgencyRecord>, Vec<gtfs_core::Not
                 Some("agency_url"),
                 Some(agency_url.clone()),
                 Some("https://".to_string()),
-                "agency_url güvensiz 'http://' kullanıyor — 'https://' önerilir.".to_string(),
-                "agency_url'yi https:// ile güncelleyin.",
+                "agency_url uses insecure 'http://' — 'https://' is recommended.".to_string(),
+                "Update agency_url to use https://.",
             ));
         }
 
