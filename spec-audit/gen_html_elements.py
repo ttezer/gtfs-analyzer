@@ -19,8 +19,8 @@ The extra sets live here, not in `k1_parse.rs`, so the "complete set" claim and 
 justification are visible in one place.
 
 Run:
-    python3 spec-audit/gen_html_elements.py             # ağdan üret
-    python3 spec-audit/gen_html_elements.py --check     # denetle (1 = drift, 2 = bakılamadı)
+    python3 spec-audit/gen_html_elements.py             # generate from the network
+    python3 spec-audit/gen_html_elements.py --check     # check (1 = drift, 2 = unavailable)
     python3 spec-audit/gen_html_elements.py indices.html
 """
 import hashlib

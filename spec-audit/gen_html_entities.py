@@ -14,8 +14,8 @@ Source: WHATWG HTML Standard `entities.json` (the normative list of named charac
 references).
 
 Run:
-    python3 spec-audit/gen_html_entities.py            # ağdan üret
-    python3 spec-audit/gen_html_entities.py --check    # denetle (exit 1 = drift, 2 = bakılamadı)
+    python3 spec-audit/gen_html_entities.py            # generate from the network
+    python3 spec-audit/gen_html_entities.py --check    # check (exit 1 = drift, 2 = unavailable)
     python3 spec-audit/gen_html_entities.py entities.json
 """
 import hashlib
@@ -97,9 +97,9 @@ def main() -> int:
     text = render(hashlib.sha256(raw).hexdigest(), ns, legacy)
     if check:
         cur = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
-        # ⚠️ Dosya İKİ tablo taşır; karşılaştırma ikisinin BİRLEŞİMİNE yapılır. İlk
-        # sürüm yalnız `ns` ile karşılaştırıyordu ve eski-ad tablosu eklenince kapı
-        # uydurma bir "drift" bildirirdi.
+        # ⚠️ The file contains TWO tables; compare against their UNION. The first
+        # version compared only `ns`, so adding the legacy-name table caused the gate
+        # to report a spurious "drift".
         cur_names = set(re.findall(r'^    "([A-Za-z0-9]+)",$', cur, re.M))
         want = set(ns) | set(legacy)
         if cur_names == want:
