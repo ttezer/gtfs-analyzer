@@ -132,7 +132,7 @@ export function renderUpload(root: HTMLElement): void {
   attachUploadListeners(root);
 }
 
-// ── Dosya satırları ──────────────────────────────────────────────────────────
+// ── File rows ─────────────────────────────────────────────────────────────────
 
 function renderFileStatRows(files: FileInfo[]): string {
   return files.map(f => {
@@ -148,7 +148,7 @@ function renderFileStatRows(files: FileInfo[]): string {
   }).join('');
 }
 
-// ── Skor kompakt panel ───────────────────────────────────────────────────────
+// ── Compact score panel ───────────────────────────────────────────────────────
 
 function renderScoreCompact(result: ValidationResult): string {
   const { r5 } = result.reports;
@@ -186,7 +186,7 @@ function renderScoreCompact(result: ValidationResult): string {
     <div class="sc-chips">${chips}</div>`;
 }
 
-// ── Ayarlar alanları ─────────────────────────────────────────────────────────
+// ── Settings fields ───────────────────────────────────────────────────────────
 
 function renderSettingsFields(overrides: ConfigOverrides): string {
   const selectedProfile = typeof overrides.gtfs_jp_profile === 'string'
@@ -211,8 +211,8 @@ function renderSettingsFields(overrides: ConfigOverrides): string {
       </div>`;
   const disabled = Array.isArray(overrides.disabled_rule_ids) ? overrides.disabled_rule_ids : [];
   const disabledOverridden = disabled.length > 0;
-  // Nishizawa geri bildirimi (2): yerel yayın profilinde gereksiz kontroller kapatılabilsin.
-  // Spec kuralları ve bilinmeyen kimlikler motor tarafında reddedilir (check_rule_scope).
+  // Nishizawa feedback (2): allow unnecessary checks to be disabled for a local publication profile.
+  // Spec rules and unknown IDs are rejected by the engine (check_rule_scope).
   const disabledRow = `
       <div class="sf-row${disabledOverridden ? ' sf-overridden' : ''}">
         <label class="sf-label" title="${escHtml(t('cfg.disabled_rule_ids.desc'))}">${escHtml(t('cfg.disabled_rule_ids.label'))}</label>
@@ -291,7 +291,7 @@ function attachUploadListeners(root: HTMLElement): void {
       fileInput.click();
   });
 
-  // #45: URL'den yükleme (client-side fetch).
+  // #45: load from a URL (client-side fetch).
   const urlInput = root.querySelector<HTMLInputElement>('#url-input');
   const urlBtn   = root.querySelector<HTMLButtonElement>('#url-btn');
   const loadUrl = () => {
@@ -390,10 +390,10 @@ function resetSettings(root: HTMLElement): void {
   setTimeout(() => { statusEl.className = 'settings-status hidden'; }, 3000);
 }
 
-// ── Dosya işleme ─────────────────────────────────────────────────────────────
+// ── File processing ────────────────────────────────────────────────────────────
 
-// wasm.ts MAX_INPUT_BYTES ve crates/wasm MAX_INPUT_BYTES ile AYNI olmalı;
-// hata mesajındaki sayı buradan türetilir (elle yazılmaz).
+// Must match wasm.ts MAX_INPUT_BYTES and crates/wasm MAX_INPUT_BYTES;
+// the number in the error message is derived from here (not hard-coded).
 const MAX_FILE_BYTES = MAX_INPUT_BYTES;
 const MAX_FILE_MB = MAX_FILE_BYTES / 1_048_576;
 
@@ -415,13 +415,13 @@ async function handleFile(file: File, root: HTMLElement, errorEl: HTMLElement): 
   await handleBuffer(buffer, file.name, file.size, root, errorEl);
 }
 
-// #45: feed'i bir URL'den CLIENT-SIDE indirir. CORS-açık host'larda (ör. Mobility Database)
-// çalışır; CORS'suz host'ta tarayıcı fetch'i engeller → net mesaj + indir-sürükle fallback.
-// Çekirdek/WASM internet isteği YAPMAZ; indirme yalnız bu UI katmanındadır.
+// #45: download a feed CLIENT-SIDE from a URL. Works on CORS-enabled hosts (for example, Mobility Database);
+// on a host without CORS, the browser blocks fetch → clear message + download-and-drop fallback.
+// The core/WASM makes NO internet requests; downloading happens only in this UI layer.
 async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement): Promise<void> {
   if (!rawUrl.trim()) return;
 
-  // 1) Ucuz client-side doğrulama (ağ yok): https zorunlu, gömülü kimlik bilgisi reddedilir.
+  // 1) Cheap client-side validation (no network): https required, embedded credentials rejected.
   const check = validateFeedUrl(rawUrl);
   if (!check.ok) {
     const key = check.reason === 'https' ? 'upload.url_https'
@@ -432,12 +432,12 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
   const url = check.url;
   const name = urlFileName(url);
   errorEl.className = 'upload-status hidden';
-  // İNDİRME aşaması: K1–K7 satırlarına, dosya listesine ve skor paneline DOKUNMA.
-  // Gerçek setLoading() ZIP indirilip imzası doğrulandıktan sonra handleBuffer'da çağrılır.
-  // İndirme hata verirse clearLoading bu hafif durumu geri alır → önceki sonuç korunur.
+  // DOWNLOAD stage: do not touch the K1–K7 rows, file list, or score panel.
+  // The real setLoading() runs in handleBuffer after the ZIP is downloaded and its signature is verified.
+  // If downloading fails, clearLoading rolls back this lightweight state → the previous result is preserved.
   setUrlDownloading(root, name);
 
-  // 2) Header fetch — CORS/DNS/TLS/offline burada ayırt edilemez TypeError olur.
+  // 2) Header fetch — CORS/DNS/TLS/offline cannot be distinguished here; all become TypeError.
   let resp: Response;
   try {
     resp = await fetch(url.href, {
@@ -449,24 +449,24 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
     if (err instanceof DOMException && err.name === 'TimeoutError') {
       showError(errorEl, { code: 'InvalidInput', message: t('upload.url_timeout') });
     } else {
-      showUrlBlocked(errorEl, url); // CORS/ağ ortak mesajı + gerçek tıklanır link fallback
+      showUrlBlocked(errorEl, url); // shared CORS/network message + real clickable-link fallback
     }
     return;
   }
-  // 3) CORS izinliyse HTTP hataları okunur.
+  // 3) Read HTTP errors when CORS allows the response.
   if (!resp.ok) {
     clearLoading(root);
     showError(errorEl, { code: 'InvalidInput', message: t('upload.url_http', { status: String(resp.status) }) });
     return;
   }
-  // 4) Content-Length erken-ret (opsiyonel, yanlış olabilir → asıl sınır stream'de).
+  // 4) Early Content-Length rejection (optional, may be wrong → the real limit is enforced on the stream).
   const declared = Number(resp.headers.get('content-length'));
   if (declared && declared > MAX_FILE_BYTES) {
     clearLoading(root);
     showError(errorEl, { code: 'InvalidInput', message: t('upload.error_size', { mb: (declared / 1_048_576).toFixed(1), max: MAX_FILE_MB }) });
     return;
   }
-  // 5) Sınırlı stream indirme (Content-Length yalanlarına karşı gerçek bayt sayımı) + body-hata aşaması.
+  // 5) Capped stream download (actual byte count against Content-Length lies) + body-error stage.
   let buffer: ArrayBuffer;
   try { buffer = await readCapped(resp, MAX_FILE_BYTES); }
   catch (err) {
@@ -477,7 +477,7 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
     showError(errorEl, { code: 'InvalidInput', message: msg });
     return;
   }
-  // 6) ZIP imzası (PK\x03\x04) — uzantı yerine otoriter içerik kontrolü.
+  // 6) ZIP signature (PK\x03\x04) — authoritative content check instead of the extension.
   if (!isZipSignature(new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength)))) {
     clearLoading(root);
     showError(errorEl, { code: 'InvalidInput', message: t('upload.url_not_zip') });
@@ -487,7 +487,7 @@ async function handleUrl(rawUrl: string, root: HTMLElement, errorEl: HTMLElement
   await handleBuffer(buffer, name, buffer.byteLength, root, errorEl);
 }
 
-// Response gövdesini bayt sınırıyla akış-okur; sınır aşılırsa RangeError, indirme kesilir.
+// Read the response body as a stream with a byte limit; throw RangeError and stop downloading when exceeded.
 async function readCapped(resp: Response, maxBytes: number): Promise<ArrayBuffer> {
   if (!resp.body) {
     const buf = await resp.arrayBuffer();
@@ -510,8 +510,8 @@ async function readCapped(resp: Response, maxBytes: number): Promise<ArrayBuffer
   return out.buffer;
 }
 
-// CORS/ağ hatası: tarayıcı sebebi gizler → dürüst ortak mesaj + gerçek tıklanır link.
-// Cross-origin `download` attribute'una GÜVENİLMEZ; sade bir link kullanıcının indirmesini sağlar.
+// CORS/network error: the browser hides the reason → honest common message + real clickable link.
+// Do NOT TRUST the cross-origin `download` attribute; a plain link lets the user download it.
 function showUrlBlocked(el: HTMLElement, url: URL): void {
   el.className = 'upload-status error';
   el.innerHTML = `${escHtml(t('upload.url_blocked'))} `
@@ -597,10 +597,10 @@ async function handleBuffer(buffer: ArrayBuffer, fileName: string, fileSize: num
   }
 }
 
-// #45: URL indirme aşaması göstergesi. setLoading'in AKSİNE aşama satırlarını (K1–K7),
-// dosya listesini ve skor panelini YENİDEN KURMAZ → indirme başarısız olursa clearLoading
-// ile temizlenir ve varsa önceki başarılı sonuç ekranda korunur. Yalnız drop alanını kilitler
-// ve "<dosya> indiriliyor…" metnini gösterir. Eşzamanlılık koruması dropZone.loading sınıfıdır.
+// #45: URL download-stage indicator. Unlike setLoading, it does NOT REBUILD the stage rows (K1–K7),
+// file list, or score panel → if downloading fails, clearLoading removes it and preserves any
+// previous successful result on screen. It only locks the drop area and shows the
+// "<file> downloading…" text. The dropZone.loading class guards against concurrency.
 function setUrlDownloading(root: HTMLElement, fileName: string): void {
   const dropZone  = root.querySelector<HTMLElement>('#drop-zone')!;
   const fileInput = root.querySelector<HTMLInputElement>('#file-input')!;
@@ -660,14 +660,14 @@ function clearLoading(root: HTMLElement): void {
   btnLabel.style.opacity = '';
   btnLabel.style.pointerEvents = '';
 
-  // Yükleme bitti — drop alanındaki "<dosya> çalışıyor…" metnini sıfırla.
+  // Loading finished — reset the "<file> running…" text in the drop area.
   const dropPrimary = dropZone.querySelector('.drop-primary');
   if (dropPrimary) dropPrimary.textContent = t('upload.drag');
 }
 
-// Fatal hatadan sonra dosya + aşama satırlarını boştaki haline döndürür.
-// Hata yolunda onFileDone / onStageDone tetiklenmediği için bu satırlar
-// aksi halde "çalışıyor…" göstergesinde takılı kalır.
+// Reset the file and stage rows to their empty state after a fatal error.
+// Because onFileDone / onStageDone are not triggered on the error path, these rows
+// would otherwise remain stuck showing "running…".
 function resetProgressRows(root: HTMLElement): void {
   const fileRows = root.querySelector<HTMLElement>('#file-rows');
   if (fileRows) {
@@ -733,18 +733,18 @@ function formatReportDuration(ms: number): string {
 }
 
 
-// Tam sayıyı app diline göre binlik ayraçla biçimler.
+// Format an integer with the thousands separator for the app locale.
 function formatCount(n: number): string {
   return n.toLocaleString(intlLocale());
 }
 
-// Dosya birimi locale'de tekil tutulur; en/fr sayıya göre çoğullanır (stop → stops,
-// arrêt → arrêts). tr/ja adı sayıya göre çekmez → değişmez.
+// The file unit stays singular in the locale; en/fr pluralize by number (stop → stops,
+// arrêt → arrêts). tr/ja do not inflect the name by number → it stays unchanged.
 //
-// Düzensiz çoğullar `<anahtar>.plural` ile locale'den gelir: Fransızca'da
-// `level` = niveau → niveaux, düzenli `+s` kuralını bozan tek birim (15 birim
-// ölçüldü). Anahtar yoksa `+s`'e düşülür — ikisi de düzenli olan İngilizce ve
-// Fransızca için doğru sonuç.
+// Irregular plurals come from the locale via `<key>.plural`: in French,
+// `level` = niveau → niveaux is the only unit that breaks the regular `+s` rule
+// (15 units measured). Fall back to `+s` when the key is missing — correct for
+// English and French when both are regular.
 function pluralUnit(label: string, count: number, key?: string): string {
   const locale = getLocale();
   if (locale !== 'en' && locale !== 'fr') return label;
