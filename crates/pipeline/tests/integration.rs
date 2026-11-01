@@ -1710,7 +1710,7 @@ fn pathway_recommendations_respect_mode_boundaries() {
     }
 }
 
-// ── Test 7: PTH_014 — farklı istasyonları bağlayan pathway → ateşlenir ────────
+// ── Test 7: PTH_014 — pathway connecting different stations → fires ───────────
 // PLT_A parent=STA1, PLT_B parent=STA2; PW1 PLT_A→PLT_B → cross-station ihlali.
 
 #[test]
@@ -1746,8 +1746,8 @@ fn pth_014_fires_for_cross_station_pathway() {
     }
 }
 
-// ── Test 8: PTH_014 — aynı istasyon içi pathway → sessiz ─────────────────────
-// PLT_A ve PLT_B aynı istasyona (STA1) ait → PTH_014 üretilmez.
+// ── Test 8: PTH_014 — pathway within one station → silent ─────────────────────
+// PLT_A and PLT_B belong to the same station (STA1) → no PTH_014.
 
 #[test]
 fn pth_014_silent_for_same_station_pathway() {
@@ -1781,12 +1781,12 @@ fn pth_014_silent_for_same_station_pathway() {
     }
 }
 
-// ── Test 9: STP_016 — aynı koordinatlı iki durak → uyarı ─────────────────────
+// ── Test 9: STP_016 — two stops at the same coordinates → warning ─────────────
 
 #[test]
 fn stp_016_fires_for_stops_at_identical_coordinates() {
     const STOPS_SAME_COORD: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
-          S1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n"; // S1 ve S2 aynı koordinat
+          S1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\n"; // S1 and S2 have the same coordinates
 
     let mut files = base_files();
     files[1] = ("stops.txt", STOPS_SAME_COORD);
@@ -1806,7 +1806,7 @@ fn stp_016_fires_for_stops_at_identical_coordinates() {
     }
 }
 
-// ── Test 10: STP_016 — farklı koordinatlı duraklar sessiz ────────────────────
+// ── Test 10: STP_016 — stops at different coordinates are silent ──────────────
 
 #[test]
 fn stp_016_silent_for_stops_at_different_coordinates() {
@@ -1821,9 +1821,9 @@ fn stp_016_silent_for_stops_at_different_coordinates() {
     }
 }
 
-// ── Test 10b: STP_016 — parent/child aynı koordinat sessiz ───────────────────
-// Çocuk durak, ait olduğu istasyonla aynı koordinatta olabilir (normal GTFS).
-// STP_016 bu çifti FP olarak işaretlememeli.
+// ── Test 10b: STP_016 — parent/child at the same coordinates is silent ─────────
+// A child stop may share coordinates with its station (normal GTFS).
+// STP_016 must not flag this pair as an FP.
 
 #[test]
 fn stp_016_silent_for_parent_child_at_identical_coordinates() {
@@ -1845,9 +1845,9 @@ fn stp_016_silent_for_parent_child_at_identical_coordinates() {
 }
 
 // ── Test 10c: TRN_017 — field_value modunda record_sub_id muaf ───────────────
-// stop_times çevirisi field_value ile eşleştirilirse record_id/record_sub_id boş
-// olmalıdır (spec). Bu modda TRN_010/TRN_017 ateşlenmemeli; record_id modunda
-// eksik record_sub_id için yalnız TRN_017 ateşlenmelidir.
+// If the stop_times translation is matched by field_value, record_id/record_sub_id
+// must be empty (Spec). TRN_010/TRN_017 must not fire in this mode; in record_id mode,
+// only TRN_017 should fire for a missing record_sub_id.
 
 #[test]
 fn trn_017_silent_in_field_value_mode_but_fires_in_record_id_mode() {
@@ -1880,13 +1880,13 @@ fn trn_017_silent_in_field_value_mode_but_fires_in_record_id_mode() {
     }
 }
 
-// ── Test 10d: TRN_007 — feed_lang ile aynı dildeki çeviriler tek özette toplanır ──
+// ── Test 10d: TRN_007 — translations in feed_lang are grouped into one summary ─
 
 #[test]
 fn trn_007_same_language_translations_aggregate_to_feed_summary() {
     const FEED_INFO: &[u8] =
         b"feed_publisher_name,feed_publisher_url,feed_lang\nP,http://x.example,ja\n";
-    // İki ja çeviri (feed_lang=ja) → satır-başına 2 yerine tek feed-seviyesi TRN_007.
+    // Two ja translations (feed_lang=ja) → one feed-level TRN_007 instead of two per row.
     const TR_JA: &[u8] =
         b"table_name,field_name,language,translation,record_id,record_sub_id,field_value\n\
           stops,stop_name,ja,S1 Stop,S1,,\n\
@@ -1916,10 +1916,10 @@ fn trn_007_same_language_translations_aggregate_to_feed_summary() {
     }
 }
 
-// ── Test 11: PTH_012 + PTH_013 — erişilemeyen platform → uyarı ───────────────
-// İstasyon: STA → ENT (loc=2), MID (loc=3), PLT (loc=0).
-// Pathway: ENT↔MID — PLT hiçbir entrance'tan erişilemiyor → PTH_012.
-// Accessible BFS'te de PLT erişilemez → PTH_013 (wheelchair path yok).
+// ── Test 11: PTH_012 + PTH_013 — inaccessible platform → warning ──────────────
+// Station: STA → ENT (loc=2), MID (loc=3), PLT (loc=0).
+// Pathway: ENT↔MID — PLT is unreachable from every entrance → PTH_012.
+// PLT is also unreachable in accessible BFS → PTH_013 (no wheelchair path).
 
 #[test]
 fn pth_012_fires_when_entrance_cannot_reach_platform() {
@@ -1931,7 +1931,7 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
           ENT,Entrance,41.05,29.05,2,STA\n\
           MID,Middle,41.05,29.05,3,STA\n\
           PLT,Platform,41.05,29.05,0,STA\n";
-    // PW1: ENT↔MID — PLT pathway bağlantısı yok
+    // PW1: ENT↔MID — no pathway connection to PLT
     const PATHWAYS: &[u8] =
         b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,traversal_time\n\
           PW1,ENT,MID,1,1,30\n";
@@ -1950,7 +1950,7 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
                     .map(|n| n.rule_id.as_str())
                     .collect::<Vec<_>>(),
             );
-            // PTH_013 kapsama bilgisi de üretilmeli
+            // Coverage information for PTH_013 must also be produced.
             assert!(
                 vr.notices.iter().any(|n| n.rule_id == "PTH_013"),
                 "PTH_013 bilgi notu olmalı",
@@ -1960,9 +1960,9 @@ fn pth_012_fires_when_entrance_cannot_reach_platform() {
     }
 }
 
-// ── Test 12: PTH_013 negatif — erişilebilir rota varsa sessiz ────────────────
-// ENT→PLT: max_slope=0.05 (≤0.08) VE min_width=1.0 (≥0.9) → accessible path var.
-// PTH_013 üretilmemeli; PTH_012 de üretilmemeli.
+// ── Test 12: PTH_013 negative — silent when an accessible route exists ─────────
+// ENT→PLT: max_slope=0.05 (≤0.08) AND min_width=1.0 (≥0.9) → accessible path exists.
+// PTH_013 must not be produced; neither should PTH_012.
 
 #[test]
 fn pth_013_silent_when_accessible_path_exists() {
@@ -2005,8 +2005,8 @@ fn pth_013_silent_when_accessible_path_exists() {
     }
 }
 
-// ── Test 13: PTH_015 — hız > 3.0 m/s → ateşlenir ───────────────────────────
-// length=300m, traversal_time=50s → hız=6.0 m/s > eşik(3.0) → PTH_015.
+// ── Test 13: PTH_015 — speed > 3.0 m/s → fires ────────────────────────────────
+// length=300m, traversal_time=50s → speed=6.0 m/s > threshold (3.0) → PTH_015.
 
 #[test]
 fn pth_015_fires_when_speed_exceeds_3ms() {
@@ -2032,8 +2032,8 @@ fn pth_015_fires_when_speed_exceeds_3ms() {
     }
 }
 
-// ── Test 14: PTH_015 — hız ≤ 3.0 m/s → sessiz ──────────────────────────────
-// length=100m, traversal_time=60s → hız≈1.67 m/s ≤ eşik → PTH_015 üretilmez.
+// ── Test 14: PTH_015 — speed ≤ 3.0 m/s → silent ───────────────────────────────
+// length=100m, traversal_time=60s → speed≈1.67 m/s ≤ threshold → no PTH_015.
 
 #[test]
 fn pth_015_silent_when_speed_within_limit() {
@@ -2059,8 +2059,8 @@ fn pth_015_silent_when_speed_within_limit() {
     }
 }
 
-// ── Test 16: R9 skor hesabı — kritik notice priority_score > 0 üretir ────────
-// STP_003 (Kritik, base_effort=2) → R9'da görünür ve priority_score hesaplanır.
+// ── Test 16: R9 score calculation — critical notice produces priority_score > 0 ─
+// STP_003 (Critical, base_effort=2) → visible in R9 and included in priority_score.
 
 #[test]
 fn r9_priority_score_positive_for_critical_notice() {
@@ -2091,10 +2091,10 @@ fn r9_priority_score_positive_for_critical_notice() {
     }
 }
 
-// ── Test 16b: PTH_019 — çift yönü iki SATIRLA yazan feed'de de ateşlemeli ────
-// #158: kural pathway SATIRI sayıyordu. Aynı iki durak arasına her yön için bir
-// satır yazan feed'lerde sayı 2 çıkıyor ve node çıkmaz olduğu hâlde kural
-// susuyordu. MobilityData "only one incident LOCATION" der; ölçü komşu sayısıdır.
+// ── Test 16b: PTH_019 — must fire when both directions use two ROWS ────────────
+// #158: the rule counted pathway ROWS. In feeds with one row per direction between
+// the same two stops, the count is 2 and the rule stayed silent even for a dead-end node.
+// MobilityData says "only one incident LOCATION"; the measure is the neighbor count.
 
 #[test]
 fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
@@ -2104,7 +2104,7 @@ fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
           STA1,Station1,41.2,29.2,1,\n\
           PLT_A,PlatformA,41.2,29.2,0,STA1\n\
           GN1,GenericNode1,41.2,29.21,3,STA1\n";
-    // Tek komşu (PLT_A), iki satır — biri gidiş biri dönüş.
+    // One neighbor (PLT_A), two rows — one outbound and one return.
     const PATHWAYS: &[u8] = b"pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional\n\
           PW1,PLT_A,GN1,1,0\n\
           PW2,GN1,PLT_A,1,0\n";
@@ -2128,7 +2128,7 @@ fn pth_019_fires_when_one_neighbour_is_written_as_two_rows() {
     }
 }
 
-// ── Test 16c: PTH_019 — iki FARKLI komşusu olan node susmalı ─────────────────
+// ── Test 16c: PTH_019 — a node with two DIFFERENT neighbors must be silent ─────
 
 #[test]
 fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
@@ -2162,8 +2162,8 @@ fn pth_019_silent_for_a_generic_node_with_two_neighbours() {
     }
 }
 
-// ── Test 16: PTH_019 — generic node tek pathway'e bağlı → ateşlenir ──────────
-// GN1 (location_type=3) yalnızca 1 pathway'de geçiyor → dead-end → PTH_019.
+// ── Test 16: PTH_019 — generic node with one pathway → fires ──────────────────
+// GN1 (location_type=3) occurs in only 1 pathway → dead end → PTH_019.
 
 #[test]
 fn pth_019_fires_for_dangling_generic_node() {
@@ -2195,8 +2195,8 @@ fn pth_019_fires_for_dangling_generic_node() {
     }
 }
 
-// ── Test 17: PTH_019 — generic node iki pathway'e bağlı → sessiz ──────────────
-// GN1 hem PLT_A→GN1 hem GN1→PLT_B bağlantısında → köprü → PTH_019 üretilmez.
+// ── Test 17: PTH_019 — generic node with two pathways → silent ────────────────
+// GN1 is connected by both PLT_A→GN1 and GN1→PLT_B → bridge → no PTH_019.
 
 #[test]
 fn pth_019_silent_for_connected_generic_node() {
@@ -2230,8 +2230,8 @@ fn pth_019_silent_for_connected_generic_node() {
     }
 }
 
-// ── Test 18: LVL_006 — asansör pathway'inde level_id eksik → ateşlenir ────────
-// ELV_STOP asansöre bağlı ama level_id yok → LVL_006.
+// ── Test 18: LVL_006 — elevator pathway lacks level_id → fires ─────────────────
+// ELV_STOP is connected to an elevator but has no level_id → LVL_006.
 
 #[test]
 fn lvl_006_fires_when_elevator_stop_missing_level_id() {
@@ -2264,8 +2264,8 @@ fn lvl_006_fires_when_elevator_stop_missing_level_id() {
     }
 }
 
-// ── Test 19: LVL_006 — asansör pathway'inde level_id dolu → sessiz ────────────
-// PLT_A ve PLT_B her ikisinde de level_id var → LVL_006 üretilmez.
+// ── Test 19: LVL_006 — elevator pathway has level_id → silent ──────────────────
+// Both PLT_A and PLT_B have level_id → no LVL_006.
 
 #[test]
 fn lvl_006_silent_when_elevator_stops_have_level_id() {
@@ -2298,8 +2298,8 @@ fn lvl_006_silent_when_elevator_stops_have_level_id() {
     }
 }
 
-// ── Test 20: XFL_019 — routes.network_id + route_networks.txt ikisi birden → ateşlenir
-// routes.txt'te network_id dolu VE route_networks.txt mevcut → XFL_019.
+// ── Test 20: XFL_019 — both routes.network_id and route_networks.txt → fires ──
+// routes.txt has network_id AND route_networks.txt exists → XFL_019.
 
 #[test]
 fn xfl_019_fires_when_network_defined_in_both_files() {
@@ -2328,8 +2328,8 @@ fn xfl_019_fires_when_network_defined_in_both_files() {
     }
 }
 
-// ── Test 21: XFL_019 — yalnızca route_networks.txt var → sessiz ───────────────
-// routes.txt'te network_id yok, route_networks.txt var → XFL_019 üretilmez.
+// ── Test 21: XFL_019 — only route_networks.txt exists → silent ─────────────────
+// routes.txt has no network_id, while route_networks.txt exists → no XFL_019.
 
 #[test]
 fn xfl_019_silent_when_only_route_networks_file() {
