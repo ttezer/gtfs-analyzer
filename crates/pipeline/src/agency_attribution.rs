@@ -461,7 +461,7 @@ impl<'a> AgencyCounter<'a> {
         }
     }
 
-    /// `displayed_sample_count` burada `finding_count`'tur; WASM cap'ten sonra
+    /// Here `displayed_sample_count` equals `finding_count`; after the WASM cap,
     /// [`set_displayed`] corrects it.
     pub fn finish(self, complete: bool) -> AgencyBreakdown {
         AgencyBreakdown {

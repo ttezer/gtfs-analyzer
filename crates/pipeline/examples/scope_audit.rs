@@ -294,7 +294,7 @@ fn main() {
                     continue;
                 };
                 let Some((kind, ids)) = sets.get(field) else {
-                    continue; // bileşik ya da P0 dışı scope
+                    continue; // composite or non-P0 scope
                 };
                 if ids.contains(key) {
                     entry.exact += 1;

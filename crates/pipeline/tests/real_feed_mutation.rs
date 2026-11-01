@@ -915,7 +915,7 @@ fn mutate_first_populated(
 // ⚠️ The baseline ALREADY produces `ATR_009` (mutual exclusion) — in all 18 rows.
 // It is invisible in the delta because it predates the mutation; this avoids cascade noise.
 const ATR_FEED: &str = "mdb-2931";
-const FRQ_FEED: &str = "mdb-1914"; // 3909 frequencies satırı
+const FRQ_FEED: &str = "mdb-1914"; // 3909 frequencies rows
 /// Smallest feed carrying platform-ended pathways (232 endpoints).
 ///
 /// 🔴 **NO corpus feed has a `stops.stop_access` column** (all 6 pathway feeds were scanned).
