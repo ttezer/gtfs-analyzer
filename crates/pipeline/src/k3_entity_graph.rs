@@ -4,10 +4,10 @@ use gtfs_core::{EntityType, Notice};
 
 use crate::k2::EntityRecords;
 
-// ── Yardımcı ──────────────────────────────────────────────────────────────────
+// ── Helper ────────────────────────────────────────────────────────────────────
 
-// K3 notice'ı canonical emit tablosuyla aynı sırada kurulur; parametre struct'ı
-// benzersizlik kontrolünün kaynak alanlarını çağrı noktasında gizler.
+// Build K3 notices in the same order as the canonical emit table; the parameter
+// struct keeps the uniqueness-check source fields explicit at the call site.
 #[allow(clippy::too_many_arguments)]
 fn make_notice(
     counter: &mut u32,
@@ -22,7 +22,7 @@ fn make_notice(
     message: String,
     remediation: &str,
 ) -> Notice {
-    // K3 yalnız benzersizlik (PK tekrarı) ihlali üretir → expected_value sabit "unique".
+    // K3 emits only uniqueness (duplicate-PK) violations → expected_value is always "unique".
     crate::notice_factory::build(
         "K3",
         Some("k3"),
@@ -41,12 +41,12 @@ fn make_notice(
     )
 }
 
-// ── Tip tanımları ──────────────────────────────────────────────────────────────
+// ── Type definitions ──────────────────────────────────────────────────────────
 
-/// K2 kayıtlarından türetilen entity lookup indeksleri.
+/// Entity lookup indexes derived from K2 records.
 ///
-/// Her harita: canonical entity ID → K2 records Vec'indeki indeks (ilk görünüm).
-/// Tekrarlı PK ise notice üretilir; EntityMap'e yalnızca ilk kayıt eklenir.
+/// Each map is canonical entity ID → index in the K2 records Vec (first occurrence).
+/// A duplicate PK emits a notice; only the first record is added to EntityMap.
 #[derive(Debug, Default)]
 pub struct EntityMap {
     /// agency_id → agencies indeksi
@@ -57,9 +57,9 @@ pub struct EntityMap {
     pub routes: HashMap<String, usize>,
     /// trip_id → trips indeksi
     pub trips: HashMap<String, usize>,
-    /// Geçerli service_id kümesi (calendar + calendar_dates birleşimi)
+    /// Valid service_id set (the union of calendar and calendar_dates).
     pub services: HashSet<String>,
-    /// shape_id → shape noktalarının sıralı indeks listesi (shape_pt_sequence artan)
+    /// shape_id → ordered index list for shape points (ascending shape_pt_sequence).
     pub shape_points: HashMap<String, Vec<usize>>,
     /// pathway_id → pathways indeksi
     pub pathways: HashMap<String, usize>,
@@ -67,41 +67,41 @@ pub struct EntityMap {
     pub levels: HashMap<String, usize>,
     /// fare_id → fare_attributes indeksi
     pub fare_attrs: HashMap<String, usize>,
-    /// stops.txt'te tanımlı zone_id kümesi (fare_rules cross-ref için)
+    /// zone_id set defined in stops.txt (for fare_rules cross-reference).
     pub zone_ids: HashSet<String>,
     // ── Fares v2 ──────────────────────────────────────────────────────────────
-    /// area_id → areas indeksi
+    /// area_id → index in areas.
     pub areas: HashMap<String, usize>,
-    /// network_id kümesi
+    /// network_id set.
     pub network_ids: HashSet<String>,
-    /// rider_category_id kümesi
+    /// rider_category_id set.
     pub rider_category_ids: HashSet<String>,
-    /// fare_media_id → fare_media indeksi
+    /// fare_media_id → index in fare_media.
     pub fare_media_ids: HashMap<String, usize>,
-    /// fare_product_id → fare_products indeksi
+    /// fare_product_id → index in fare_products.
     pub fare_product_ids: HashMap<String, usize>,
-    /// fare_leg_rules'tan toplanan leg_group_id kümesi
+    /// leg_group_id set collected from fare_leg_rules.
     pub leg_group_ids: HashSet<String>,
-    /// timeframes'ten toplanan timeframe_group_id kümesi
+    /// timeframe_group_id set collected from timeframes.
     pub timeframe_group_ids: HashSet<String>,
-    /// location_groups'tan toplanan location_group_id kümesi (GTFS-Flex)
+    /// location_group_id set collected from location_groups (GTFS-Flex).
     pub location_group_ids: HashSet<String>,
-    /// locations.geojson feature id kümesi (XFL_025; k1'den lib.rs'te enjekte edilir)
+    /// locations.geojson feature ID set (XFL_025; injected by lib.rs from K1).
     pub geojson_location_ids: HashSet<String>,
-    /// locations.geojson id → geometri (Pa1fdaa0d, K6'da örtüşme denetimi).
+    /// locations.geojson ID → geometry (Pa1fdaa0d, used by K6 overlap checks).
     pub geojson_geometries: HashMap<String, crate::k1_parse::LocationGeometry>,
 }
 
-/// K3 çıktısı.
+/// K3 output.
 #[derive(Debug, Default)]
 pub struct K3Result {
     pub entity_map: EntityMap,
     pub notices: Vec<Notice>,
 }
 
-// ── Ana fonksiyon ─────────────────────────────────────────────────────────────
+// ── Main function ──────────────────────────────────────────────────────────────
 
-/// K2 entity kayıtlarından lookup indeksleri inşa eder; duplicate PK notice üretir.
+/// Builds lookup indexes from K2 entity records and emits notices for duplicate PKs.
 pub fn build(records: &EntityRecords) -> K3Result {
     let mut map = EntityMap::default();
     let mut notices = Vec::new();
@@ -125,7 +125,7 @@ pub fn build(records: &EntityRecords) -> K3Result {
     }
 }
 
-/// location_groups.txt'ten geçerli location_group_id kümesini toplar (XFL_022/024 için).
+/// Collects valid location_group_id values from location_groups.txt (for XFL_022/024).
 fn build_location_groups(records: &EntityRecords, map: &mut EntityMap) {
     for rec in &records.location_groups {
         if !rec.location_group_id.is_empty() {
@@ -134,7 +134,7 @@ fn build_location_groups(records: &EntityRecords, map: &mut EntityMap) {
     }
 }
 
-// ── AGN_010: agency_id tekil ──────────────────────────────────────────────────
+// ── AGN_010: agency_id uniqueness ─────────────────────────────────────────────
 
 fn build_agencies(
     records: &EntityRecords,
@@ -144,7 +144,7 @@ fn build_agencies(
 ) {
     for (idx, rec) in records.agencies.iter().enumerate() {
         let Some(ref aid) = rec.agency_id else {
-            // agency_id yok → duplicate (AGN_010) indeksine eklenmez (tekillik anahtarı yok).
+            // Missing agency_id → do not add to the duplicate (AGN_010) index (no uniqueness key).
             continue;
         };
         if let Some(&prev_idx) = map.agencies.get(aid.as_str()) {
@@ -168,7 +168,7 @@ fn build_agencies(
     }
 }
 
-// ── STP_001: stop_id tekil ────────────────────────────────────────────────────
+// ── STP_001: stop_id uniqueness ───────────────────────────────────────────────
 
 fn build_stops(
     records: &EntityRecords,
@@ -216,7 +216,7 @@ fn build_stops(
     }
 }
 
-// ── RTS_001: route_id tekil ───────────────────────────────────────────────────
+// ── RTS_001: route_id uniqueness ──────────────────────────────────────────────
 
 fn build_routes(
     records: &EntityRecords,
@@ -253,7 +253,7 @@ fn build_routes(
     }
 }
 
-// ── TRP_001: trip_id tekil ────────────────────────────────────────────────────
+// ── TRP_001: trip_id uniqueness ───────────────────────────────────────────────
 
 fn build_trips(
     records: &EntityRecords,
@@ -291,7 +291,7 @@ fn build_trips(
     }
 }
 
-// ── Servis ID kümesi (calendar + calendar_dates) ──────────────────────────────
+// ── Service ID set (calendar + calendar_dates) ────────────────────────────────
 
 fn build_services(
     records: &EntityRecords,
@@ -299,7 +299,7 @@ fn build_services(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // CAL_001: service_id tekil (calendar.txt)
+    // CAL_001: service_id uniqueness (calendar.txt).
     let mut seen_cal: HashMap<String, u64> = HashMap::new();
     for rec in &records.calendars {
         let sid = &rec.service_id;
@@ -329,17 +329,17 @@ fn build_services(
         }
     }
 
-    // calendar_dates'ten service_id ekle (CLD_001 zaten K2'de kontrol edildi).
-    // exception_count tüm non-empty service_id'leri kapsar (geçersiz tarih/type dahil).
+    // Add service_id values from calendar_dates (CLD_001 is already checked in K2).
+    // exception_count covers every non-empty service_id, including invalid date/type values.
     for svc in records.calendar_dates.exception_count.keys() {
         map.services.insert(svc.to_string());
     }
 }
 
-// ── Shape noktaları indeksi (sequence sıralı) ─────────────────────────────────
+// ── Shape point index (ordered by sequence) ───────────────────────────────────
 
 fn build_shapes(records: &EntityRecords, map: &mut EntityMap) {
-    // Önce her shape_id için ham indeksleri topla
+    // First collect raw indexes for each shape_id.
     let mut raw: HashMap<&str, Vec<usize>> = HashMap::new();
     for (idx, rec) in records.shapes.iter().enumerate() {
         if rec.shape_idx() == 0 {
@@ -350,14 +350,14 @@ fn build_shapes(records: &EntityRecords, map: &mut EntityMap) {
             .push(idx);
     }
 
-    // Her shape'i shape_pt_sequence'e göre sırala
+    // Sort each shape by shape_pt_sequence.
     for (shape_id, mut indices) in raw {
         indices.sort_by_key(|&i| records.shapes[i].shape_pt_sequence().unwrap_or(u32::MAX));
         map.shape_points.insert(shape_id.to_string(), indices);
     }
 }
 
-// ── PTH_001: pathway_id tekil ────────────────────────────────────────────────
+// ── PTH_001: pathway_id uniqueness ────────────────────────────────────────────
 
 fn build_pathways(
     records: &EntityRecords,
@@ -391,7 +391,7 @@ fn build_pathways(
     }
 }
 
-// ── LVL_001: level_id tekil ───────────────────────────────────────────────────
+// ── LVL_001: level_id uniqueness ──────────────────────────────────────────────
 
 fn build_levels(
     records: &EntityRecords,
@@ -425,7 +425,7 @@ fn build_levels(
     }
 }
 
-// ── FAR_001: fare_id tekil ────────────────────────────────────────────────────
+// ── FAR_001: fare_id uniqueness ───────────────────────────────────────────────
 
 fn build_fare_attrs(
     records: &EntityRecords,
@@ -470,7 +470,7 @@ fn build_fares_v2(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // ARS_001: area_id tekil
+    // ARS_001: area_id uniqueness.
     for (idx, rec) in records.areas.iter().enumerate() {
         if rec.area_id.is_empty() {
             continue;
@@ -498,7 +498,7 @@ fn build_fares_v2(
         }
     }
 
-    // NET_001: network_id tekil
+    // NET_001: network_id uniqueness.
     for rec in &records.networks {
         if rec.network_id.is_empty() {
             continue;
@@ -522,10 +522,10 @@ fn build_fares_v2(
         }
     }
 
-    // network_id yalnız networks.txt'te değil, routes.txt'teki network_id sütunuyla ve
-    // route_networks.txt satırlarıyla da tanımlanabilir (GTFS Fares v2). NET_001 döngüsünden
-    // SONRA eklenir; böylece NET_001 tekillik kontrolü yalnız networks.txt satırlarını görür,
-    // FLG_002 ise tam kümeye bakar.
+    // network_id can be defined not only in networks.txt, but also by the network_id column
+    // in routes.txt and by route_networks.txt rows (GTFS Fares v2). Add them AFTER the NET_001
+    // loop so that NET_001 checks uniqueness only among networks.txt rows, while FLG_002 sees
+    // the complete set.
     for rec in &records.routes {
         if let Some(nid) = rec.network_id.as_deref().filter(|s| !s.is_empty()) {
             map.network_ids.insert(nid.to_string());
@@ -537,7 +537,7 @@ fn build_fares_v2(
         }
     }
 
-    // RCT_001: rider_category_id tekil
+    // RCT_001: rider_category_id uniqueness.
     for rec in &records.rider_categories {
         if rec.rider_category_id.is_empty() {
             continue;
@@ -567,7 +567,7 @@ fn build_fares_v2(
         }
     }
 
-    // FMD_001: fare_media_id tekil
+    // FMD_001: fare_media_id uniqueness.
     for (idx, rec) in records.fare_media.iter().enumerate() {
         if rec.fare_media_id.is_empty() {
             continue;
@@ -595,12 +595,12 @@ fn build_fares_v2(
         }
     }
 
-    // FPD_001: fare_products PK = (fare_product_id, rider_category_id, fare_media_id) BİLEŞİK.
-    // Aynı fare_product_id farklı rider_category_id/fare_media_id ile MEŞRU tekrar eder (GTFS spec:
+    // FPD_001: fare_products PK = (fare_product_id, rider_category_id, fare_media_id) is COMPOSITE.
+    // The same fare_product_id may LEGITIMATELY repeat with different rider_category_id/fare_media_id (GTFS spec:
     // "Multiple records sharing the same fare_product_id are permitted as long as they contain
-    // different fare_media_ids or rider_category_ids"). Yalnız TAM bileşik anahtar tekrarı hatadır.
-    // FK varlık haritası (map.fare_product_ids) AYRI: id→ilk idx; FLG_001/FTR_004 "bulunamadı"
-    // lookup'ı id bazında olduğundan id ile tutulur (bozulmaz).
+    // different fare_media_ids or rider_category_ids"). Only a duplicate of the FULL composite key is an error.
+    // The FK entity map (map.fare_product_ids) is SEPARATE: id→first index; FLG_001/FTR_004
+    // look up by ID, so it remains keyed by ID.
     let mut seen_pk: HashMap<(&str, &str, &str), u64> = HashMap::new();
     for (idx, rec) in records.fare_products.iter().enumerate() {
         if rec.fare_product_id.is_empty() {
@@ -628,7 +628,7 @@ fn build_fares_v2(
         }
     }
 
-    // leg_group_id ve timeframe_group_id kümelerini topla (K4 cross-ref için)
+    // Collect leg_group_id and timeframe_group_id sets (for K4 cross-reference).
     for rec in &records.fare_leg_rules {
         if let Some(ref lgid) = rec.leg_group_id {
             if !lgid.is_empty() {
@@ -701,7 +701,7 @@ mod tests {
         ];
         let result = build(&records);
         assert!(result.notices.iter().any(|n| n.rule_id == "AGN_010"));
-        // Canonical: ilk kayıt indekste olmalı
+        // Canonical: the first record must be in the index.
         assert_eq!(*result.entity_map.agencies.get("A1").unwrap(), 0);
     }
 
@@ -718,7 +718,7 @@ mod tests {
             row: Default::default(),
             line,
         };
-        // Aynı fare_product_id, FARKLI rider_category → bileşik PK farklı → MEŞRU, FPD_001 YOK.
+        // Same fare_product_id, DIFFERENT rider_category → different composite PK → LEGITIMATE, no FPD_001.
         let mut records = empty_records();
         records.fare_products = vec![
             mk("P1", Some("adult"), None, 2),
@@ -734,7 +734,7 @@ mod tests {
             "FK varlık haritası id'yi içermeli (FLG/FTR lookup)"
         );
 
-        // TAM bileşik anahtar tekrarı (id+rider+media aynı) → FPD_001.
+        // FULL composite-key duplicate (same id+rider+media) → FPD_001.
         let mut records2 = empty_records();
         records2.fare_products = vec![
             mk("P1", Some("adult"), Some("card"), 2),
@@ -898,8 +898,8 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // "HOL": exception_type=None → yalnızca exception_count'ta (added/removed'da değil)
-        // Boş service_id: exception_count'a GİRMEZ → services kümesine eklenmemeli
+        // "HOL": exception_type=None → only in exception_count (not added/removed).
+        // Empty service_id: not included in exception_count → must not enter the services set.
         let mut idx = CalendarDateIndex::default();
         idx.exception_count.insert("HOL".into(), 1);
         records.calendar_dates = idx;
@@ -1004,7 +1004,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "FAR_001"));
     }
 
-    // ── Boş kayıt seti ────────────────────────────────────────────────────────
+    // ── Empty record set ──────────────────────────────────────────────────────
 
     #[test]
     fn empty_records_produces_empty_result() {
@@ -1015,7 +1015,7 @@ mod tests {
         assert!(result.entity_map.services.is_empty());
     }
 
-    // ── zone_id kümesi ────────────────────────────────────────────────────────
+    // ── zone_id set ────────────────────────────────────────────────────────────
 
     #[test]
     fn zone_ids_collected_from_stops() {
