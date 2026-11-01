@@ -11,7 +11,7 @@ use crate::recovery::FileAvailability;
 use crate::timing::Timer;
 use crate::WhitespaceSuppressions;
 
-// �"?�"? �?ıktı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── K4 output ─────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Default)]
 pub struct K4Result {
@@ -36,7 +36,7 @@ pub fn check_with_files(
 }
 
 /// Pipeline, erken bastırmayı yalnız K1'de DQ_016 kökü kanıtlanmış dosyalarda açar.
-/// Doğrudan K4 çağrıları üstteki API üzerinden eski notice akışını korur.
+/// Direct K4 calls preserve the legacy notice flow through the API above.
 pub fn check_with_files_and_whitespace_roots(
     records: &EntityRecords,
     entity_map: &EntityMap,
@@ -60,7 +60,7 @@ pub fn check_with_files_and_whitespace_roots(
         };
     }
 
-    // stop_times geçişi → StopTimesIndex üzerinden (Vec<StopTimeRecord> taranmaz)
+        // stop_times pass → through StopTimesIndex (Vec<StopTimeRecord> is not scanned)
     let (
         stm_used_stop_ids,
         stm_trip_continuous,
@@ -71,7 +71,7 @@ pub fn check_with_files_and_whitespace_roots(
         let _t = Timer::start("K4::stop_times");
         let idx = &records.stop_times_index;
 
-        // STM_001: trip_id stop_times'ta var ama trips.txt'te yok
+        // STM_001: trip_id exists in stop_times but not in trips.txt.
         if availability.available("trips.txt") {
             for trip_id in &idx.trip_id_set {
                 if !map.trips.contains_key(trip_id.as_str()) {
@@ -96,9 +96,9 @@ pub fn check_with_files_and_whitespace_roots(
             skipped_checks.push("K4::stop_times::trip_cross_reference".to_string());
         }
 
-        // STM_002: stop_id stop_times'ta var ama stops.txt'te yok.
-        // Distinct stop_id başına tek notice — aynı eksik durak binlerce satırda geçse de
-        // tek kayıt (bkz. FRL_001'deki aynı desen).
+        // STM_002: stop_id exists in stop_times but not in stops.txt.
+        // One notice per distinct stop_id — even if the same missing stop appears in thousands
+        // of rows, emit one record (see the same pattern in FRL_001).
         if availability.available("stops.txt") {
             for stop_id in &idx.stop_id_set {
                 if !map.stops.contains_key(stop_id.as_str()) {
@@ -124,7 +124,7 @@ pub fn check_with_files_and_whitespace_roots(
         }
 
         // XFL_024: stop_times.location_group_id → location_groups (GTFS-Flex)
-        // idx.rows hem test hem production'da dolu; flex None satırlar ucuzca atlanır.
+        // idx.rows is populated in both tests and production; rows without flex are cheap to skip.
         let mut xfl024_seen: HashSet<&str> = HashSet::new();
         let mut xfl025_seen: HashSet<&str> = HashSet::new();
         for st in &idx.rows {
@@ -172,7 +172,7 @@ pub fn check_with_files_and_whitespace_roots(
             }
         }
 
-        // index'ten &str görünümlü geçici koleksiyonlar (fonksiyon imzaları değişmeden)
+        // Temporary &str-view collections from the index (without changing function signatures).
         let used_stop_ids: HashSet<&str> = idx.stop_id_set.iter().map(|s| s.as_str()).collect();
         let trip_continuous: HashSet<&str> =
             idx.continuous_trips.iter().map(|s| s.as_str()).collect();
@@ -182,9 +182,9 @@ pub fn check_with_files_and_whitespace_roots(
             .map(|(k, v)| (k.as_str(), v.len() as u32))
             .collect();
 
-        // RTS_028: Flex pencereli (start/end_pickup_drop_off_window dolu) sefer kümesi.
-        // flex_map feed'lerin ~%99'unda boştur → gate sayesinde milyonlarca satırlık
-        // tarama tümüyle atlanır (VBB 6,1M stop_times'ta sıfır maliyet).
+        // RTS_028: trips with a Flex window (start/end_pickup_drop_off_window populated).
+        // flex_map is empty in ~99% of feeds → the gate skips scanning millions of rows
+        // entirely (zero cost on VBB's 6.1M stop_times).
         let flex_window_trips: HashSet<&str> = if idx.flex_map.is_empty() {
             HashSet::new()
         } else {
@@ -392,7 +392,7 @@ pub fn check_with_files_and_whitespace_roots(
         }
     );
 
-    // XFL_027-030: cemv_support ↔ Fares v2 contactless media tutarlılığı (feed-level)
+    // XFL_027-030: cemv_support ↔ Fares v2 contactless media consistency (feed-level).
     {
         let _t = Timer::start("K4::cemv_fares");
         let has_agency_cemv1 = records
@@ -417,7 +417,7 @@ pub fn check_with_files_and_whitespace_roots(
             .collect();
         let has_type3 = !type3_media.is_empty();
 
-        // Feed-level (XFL_028/029/030): cemv ↔ contactless media VARLIK tutarlılığı
+        // Feed-level (XFL_028/029/030): cemv ↔ contactless media ENTITY consistency.
         {
             let mut feed_cemv = |rule: &str, msg: String, rem: &str| {
                 notices.push(notice(
@@ -452,7 +452,7 @@ pub fn check_with_files_and_whitespace_roots(
             }
         }
 
-        // Route-bazlı (XFL_027): route'a UYGULANABİLİR contactless fare product var mı?
+        // Route-level (XFL_027): is there a contactless fare product APPLICABLE to the route?
         // Yol: fare_media(type=3) → fare_products → fare_leg_rules → (network_id | from/to_area_id | global)
         if has_type3 && has_route_cemv2 {
             let type3_products: HashSet<&str> = records
@@ -465,7 +465,7 @@ pub fn check_with_files_and_whitespace_roots(
                 })
                 .map(|p| p.fare_product_id.as_str())
                 .collect();
-            // type3 leg rule'ların kapsamı: global / network / area
+            // Scope of type3 leg rules: global / network / area.
             let mut global_type3 = false;
             let mut type3_networks: HashSet<&str> = HashSet::new();
             let mut type3_areas: HashSet<&str> = HashSet::new();
@@ -489,7 +489,7 @@ pub fn check_with_files_and_whitespace_roots(
                     type3_areas.insert(a);
                 }
             }
-            // route → area kümesi (yalnız area-based type3 leg rule varsa hesapla — maliyet guard)
+            // route → area set (compute only when an area-based type3 leg rule exists — cost guard).
             let route_areas: HashMap<&str, HashSet<&str>> = if !type3_areas.is_empty() {
                 let mut stop_to_areas: HashMap<&str, Vec<&str>> = HashMap::new();
                 for sa in &records.stop_areas {
@@ -536,7 +536,7 @@ pub fn check_with_files_and_whitespace_roots(
                 let area_match =
                     rareas.is_some_and(|set| set.iter().any(|a| type3_areas.contains(a)));
                 let covered = global_type3 || network_match || area_match;
-                // FP guard: route'un kapsamı çözülebilir mi? (global / network bilgisi / area bilgisi var)
+                // FP guard: can the route's scope be resolved? (global / network info / area info)
                 if cemv == Some(2) && covered {
                     notices.push(notice(
                         &mut ctr, "XFL_027", EntityType::Route,
@@ -557,7 +557,7 @@ pub fn check_with_files_and_whitespace_roots(
     }
 }
 
-// �"?�"? Notice yardımcısı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── Notice helper ─────────────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_arguments)]
 fn notice(
@@ -657,7 +657,7 @@ fn append_jpn022_missing_records(notices: &mut Vec<Notice>, pending: Vec<Notice>
     }
 }
 
-// �"?�"? Yardımcı: ham row alanı �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
+// ── Helper: raw row field ─────────────────────────────────────────────────────
 
 fn row_field<'a>(row: &'a HashMap<String, String>, key: &str) -> &'a str {
     row.get(key).map(String::as_str).unwrap_or("").trim()
@@ -709,8 +709,9 @@ fn check_agencies(
         return;
     }
 
-    // AGN_017: agency'ler-arası agency_lang tutarsızlığı (inconsistent_agency_lang).
-    // 2+ agency garantili (yukarıdaki return). Farklı (büyük/küçük harf duyarsız) dil sayısı > 1 ise uyar.
+    // AGN_017: inconsistency between agencies' agency_lang values (inconsistent_agency_lang).
+    // At least two agencies are guaranteed (see the return above). Warn when more than one
+    // case-insensitive language value exists.
     {
         let mut langs: Vec<String> = records
             .agencies
@@ -731,17 +732,17 @@ fn check_agencies(
             ));
         }
     }
-    // AGN_005 yalnız GERÇEK bir çoklu-saat-dilimi anlaşmazlığını raporlamalıdır.
-    // Eskiden ham dizeleri `agencies[0]`'a karşı kıyaslıyordu; boş ya da bozuk bir
-    // değer tek başına "tutarsızlık" üretiyordu. Korpusta kuralın ateşlediği dört
-    // feed'in DÖRDÜ de böyleydi ve hiçbirinde gerçek bir dilim farkı yoktu:
-    //   · mdb-1003 / mdb-1004 — agency.txt'nin ORTASINDA başlık satırı tekrarlanıyor,
-    //     hayalet bir agency'nin dilimi "agency_timezone" oluyor (gerçekte hepsi
-    //     Europe/Madrid). Aynı kusur mdb-1004'te TRP_006'yı da tetikliyor.
-    //   · mdb-2946 — 10 agency Europe/Kyiv, birinin dilimi BOŞ.
-    //   · mdb-2119 — tek agency; agency_name'deki dengesiz tırnak sütunları kaydırıyor.
-    // Boş ve geçersiz değerler zaten AGN_004'ün alanıdır ve dördünde de ateşliyor.
-    // Hemen yukarıdaki AGN_017 (agency_lang) boşları BAŞINDAN BERİ eliyordu.
+    // AGN_005 must report only a REAL multi-time-zone disagreement.
+    // It used to compare raw strings with `agencies[0]`; an empty or malformed value alone
+    // produced an "inconsistency". All FOUR corpus feeds that triggered the rule had this
+    // shape, with no real time-zone difference:
+    //   · mdb-1003 / mdb-1004 — a header row is repeated in the MIDDLE of agency.txt,
+    //     making a phantom agency's zone "agency_timezone" (all real agencies use Europe/Madrid).
+    //     The same defect also triggers TRP_006 in mdb-1004.
+    //   · mdb-2946 — 10 agencies use Europe/Kyiv; one zone is EMPTY.
+    //   · mdb-2119 — one agency; unbalanced quotes in agency_name shift the columns.
+    // Empty and invalid values already belong to AGN_004, which fires in all four feeds.
+    // The AGN_017 (agency_lang) check immediately above has always filtered empty values.
     let mut zones: Vec<&str> = records
         .agencies
         .iter()
@@ -767,7 +768,7 @@ fn check_agencies(
         ));
     }
 
-    // AGN_011: birden fazla işletici varsa routes.txt'deki her hatta agency_id zorunlu
+    // AGN_011: when multiple agencies exist, every route in routes.txt requires agency_id.
     let routes_without_agency = records
         .routes
         .iter()
@@ -793,10 +794,10 @@ fn check_agencies(
         ));
     }
 
-    // AGN_011 aynı hükmü fare_attributes.txt için de taşır: spec her iki alanı da
+    // AGN_011 applies the same provision to fare_attributes.txt: the spec defines both fields
     // "Conditionally Required: Required if multiple agencies are defined in agency.txt" diye
-    // tanımlar. 2026-08-02'ye kadar YALNIZ routes.txt denetleniyordu; ücret tarafındaki aynı
-    // hüküm denetimsizdi. Tek kural, iki dosya (DQ_021 emsali) — olgu birebir aynı.
+    // as conditionally required. Until 2026-08-02, only routes.txt was checked; the same
+    // provision on the fare side was unchecked. One rule, two files (the DQ_021 precedent).
     let fares_without_agency = records
         .fare_attributes
         .iter()
@@ -836,7 +837,7 @@ fn check_stops(
     ctr: &mut u32,
     used_in_stm: &HashSet<&str>,
 ) {
-    // Pathway uç noktalarını bul (STP_032 için)
+    // Find pathway endpoints (for STP_032).
     let station_has_pathway: HashSet<String> = {
         let mut s = HashSet::new();
         for pw in &records.pathways {
@@ -851,20 +852,20 @@ fn check_stops(
             continue;
         }
         let eid = Some(rec.stop_id.clone());
-        // 🔴 İKİ AYRI SORU, İKİ AYRI OKUMA:
-        //   • "alan DOLU mu"  → DAİMA `parent.trim()` (yalnız boşluktan ibaret alan BOŞTUR)
-        //   • "hangi kaydı gösteriyor" → DAİMA HAM `parent` (PK/FK ham sözlüksel değerdir)
-        // Bu ayrımın yarısını yapıp diğerini atlamak regresyon üretir: `row_field` trim'i
-        // kaldırıldığında aşağıdaki üç `is_empty()` ham değere bakmaya başladı ve tek
-        // boşluk taşıyan `parent_station` "dolu" sayıldı — `tfs-535`'te STP_036 0 -> 14.
+        // 🔴 TWO DISTINCT QUESTIONS, TWO DISTINCT READS:
+        //   • "is the field populated?" → ALWAYS `parent.trim()` (whitespace-only is EMPTY)
+        //   • "which record does it reference?" → ALWAYS RAW `parent` (PK/FK values are lexical)
+        // Skipping half of this distinction causes regressions: after `row_field` stopped
+        // trimming, the three `is_empty()` checks below began seeing raw values and a
+        // whitespace-only `parent_station` was treated as populated — STP_036 went 0 -> 14 in `tfs-535`.
         //
-        // 🔴 FK karşılaştırması HAM değerle yapılır, `row_field` ile DEĞİL.
-        // `row_field` trim eder; `map.stops` anahtarları ise ham `stop_id`'dir. İki taraf
-        // farklı okununca sondaki boşluk taşıyan bir kimlik eşleşmez: mdb-2003'te
-        // `stop_id = "Station Charles Schaumann "` gerçekten TANIMLI, ama trim edilmiş
-        // `parent_station` onu bulamıyor ve kural Spec·KRİTİK bir FK ihlali uyduruyordu.
-        // #85'in kararı: PK/FK ham sözlüksel değerdir. Doluluk kontrolü trim'li kalır —
-        // yalnız boşluktan ibaret bir alan "dolu" sayılmamalı.
+        // 🔴 Compare the FK using the RAW value, not `row_field`.
+        // `row_field` trims; `map.stops` keys use raw `stop_id`. If the two sides are read
+        // differently, an ID with trailing whitespace does not match: in mdb-2003,
+        // `stop_id = "Station Charles Schaumann "` was genuinely DEFINED, but the trimmed
+        // `parent_station` could not find it and fabricated a Spec·KRİTİK FK violation.
+        // Decision #85: PK/FK values are raw lexical values. Keep the populated check trimmed;
+        // a whitespace-only field must not count as populated.
         let parent = rec
             .row
             .get("parent_station")
@@ -872,7 +873,7 @@ fn check_stops(
             .unwrap_or("");
         let loc_type = rec.location_type;
 
-        // STP_009: parent_station geçerli stop_id'ye referans
+        // STP_009: parent_station references a valid stop_id.
         if !parent.trim().is_empty() && !map.stops.contains_key(parent) {
             notices.push(notice(
                 ctr,
@@ -889,9 +890,9 @@ fn check_stops(
                 "Geçerli bir stop_id'yi parent_station olarak kullanın.",
             ));
         } else if !parent.trim().is_empty() {
-            // STP_010: parent_station'ın location_type = 1 (station) olması.
-            // İstisna: location_type=4 (Boarding Area) parent'ı PLATFORM (location_type=0)
-            // olmalıdır; onu STP_021 denetler, STP_010 kapsamı dışında bırakılır.
+            // STP_010: parent_station must have location_type = 1 (station).
+            // Exception: a location_type=4 (Boarding Area) parent must be a PLATFORM
+            // (location_type=0); STP_021 checks that and excludes it from STP_010.
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
                 if ptype != Some(1) && loc_type != Some(4) {
@@ -913,7 +914,7 @@ fn check_stops(
             }
         }
 
-        // STP_011: location_type 2,3,4 için parent_station zorunlu
+        // STP_011: parent_station is required for location_type 2, 3, and 4.
         if matches!(loc_type, Some(2) | Some(3) | Some(4)) && parent.trim().is_empty() {
             notices.push(notice(
                 ctr,
@@ -934,7 +935,7 @@ fn check_stops(
             ));
         }
 
-        // STP_036: location_type=1 (station) parent_station içermemeli
+        // STP_036: location_type=1 (station) must not have parent_station.
         if loc_type == Some(1) && !parent.trim().is_empty() {
             notices.push(notice(
                 ctr,
@@ -952,7 +953,7 @@ fn check_stops(
             ));
         }
 
-        // STP_012: stop_times'ta kullanılan durakların location_type = 0 veya bo�Y olması
+        // STP_012: stops used in stop_times must have location_type = 0 or empty.
         if used_in_stm.contains(rec.stop_id.as_str()) && !matches!(loc_type, None | Some(0)) {
             notices.push(notice(
                 ctr,
@@ -974,9 +975,9 @@ fn check_stops(
             ));
         }
 
-        // STP_021: boarding area (location_type=4) parent_station'ı platform (location_type=0) olmalı.
-        // GTFS: location_type=2 (Entrance/Exit) parent'ı ISTASYON (location_type=1) olmalıdır (STP_010);
-        // platform-parent zorunluluğu yalnız location_type=4 (Boarding Area) içindir.
+        // STP_021: a boarding area (location_type=4) must have a platform parent (location_type=0).
+        // GTFS: a location_type=2 (Entrance/Exit) parent must be a STATION (location_type=1)
+        // (STP_010); the platform-parent requirement applies only to location_type=4 (Boarding Area).
         if matches!(loc_type, Some(4)) && !parent.is_empty() {
             if let Some(&pidx) = map.stops.get(parent) {
                 let ptype = records.stops[pidx].location_type;
@@ -1002,7 +1003,7 @@ fn check_stops(
             }
         }
 
-        // STP_015: level_id bulunamadı
+        // STP_015: level_id not found.
         if let Some(ref lid) = rec.level_id {
             if !map.levels.contains_key(lid.as_str()) {
                 notices.push(notice(
@@ -1025,9 +1026,9 @@ fn check_stops(
             }
         }
 
-        // STP_026: stop_access geçerli enum.
-        // ⚠️ Spec YALNIZ 0 ve 1 tanımlar; kod 2026-08-03'e kadar `2`yi de kabul ediyordu ve
-        // geçersiz değer sessizce geçiyordu (gerekçesi kodda yoktu).
+        // STP_026: stop_access must be a valid enum.
+        // ⚠️ The spec defines ONLY 0 and 1; until 2026-08-03 the code also accepted `2`,
+        // allowing an invalid value to pass silently (with no rationale in the code).
         let stop_access_raw = row_field(&rec.row, "stop_access");
         if !stop_access_raw.is_empty() && !matches!(stop_access_raw, "0" | "1") {
             notices.push(notice(
@@ -1046,10 +1047,10 @@ fn check_stops(
             ));
         }
 
-        // STP_043: spec'in koşullu-YASAK hükmü — "Forbidden for locations which are stations
+        // STP_043: the spec's conditional-FORBIDDEN provision — "Forbidden for locations which are stations
         // (location_type=1), entrances (2), generic nodes (3) or boarding areas (4). Forbidden
-        // if parent_station is empty." STP_026 enum GEÇERLİLİĞİNİ ölçer, bu BAĞLAMI ölçer;
-        // ikisini aynı kimliğe koymak ATR_006'daki yanlış etiketleme olurdu.
+        // if parent_station is empty." STP_026 measures enum VALIDITY; this measures the CONTEXT,
+        // and giving both the same identity would repeat ATR_006's mislabeling.
         if !stop_access_raw.is_empty() {
             let bad_type = matches!(loc_type, Some(1) | Some(2) | Some(3) | Some(4));
             let no_parent = parent.is_empty();
@@ -1076,7 +1077,7 @@ fn check_stops(
             }
         }
 
-        // STP_032: pathway bağlantılı platform (location_type=0) için parent_station eksik
+        // STP_032: parent_station is missing for a pathway-linked platform (location_type=0).
         if station_has_pathway.contains(&rec.stop_id)
             && matches!(loc_type, None | Some(0))
             && parent.is_empty()
@@ -1111,7 +1112,7 @@ fn check_routes(
     ctr: &mut u32,
     flex_window_trips: &HashSet<&str>,
 ) {
-    // RTS_002: agency_id referansı
+    // RTS_002: agency_id reference.
     for rec in &records.routes {
         if rec.route_id.is_empty() {
             continue;
@@ -1137,7 +1138,7 @@ fn check_routes(
         }
     }
 
-    // RTS_012: hiçbir trip'te kullanılmayan rota (orphan)
+    // RTS_012: route unused by any trip (orphan).
     let ti_rts012 = &records.trip_interns;
     let used_routes: HashSet<&str> = records
         .trips
@@ -1173,16 +1174,16 @@ fn check_routes(
         }
     }
 
-    // RTS_028: rotanın HERHANGİ bir seferinde Flex penceresi varsa routes.continuous_pickup /
-    // continuous_drop_off 1 (veya boş) dışında olamaz. GTFS spec [Kesin]: "Any value other than 1
+    // RTS_028: if ANY trip on the route has a Flex window, routes.continuous_pickup /
+    // continuous_drop_off may be only 1 (or empty). GTFS spec [Definitive]: "Any value other than 1
     // or empty is Forbidden if stop_times.start/end_pickup_drop_off_window are defined for any
-    // trip of this route." MD `forbidden_continuous_pickup_drop_off` (ERROR) paritesi: MD de İKİ
-    // alanı TEK notice'ta ele alır → burada da alan başına ayrı kural YOK (parite bozulmasın).
-    // stop_times.continuous_* için koşul satır kapsamlıdır ve STM_054/055'in (K2) işidir.
+    // trip of this route." MobilityData's `forbidden_continuous_pickup_drop_off` (ERROR) parity:
+    // MD handles both fields in ONE notice → do not split them into field-level rules here.
+    // The condition for stop_times.continuous_* is row-scoped and belongs to STM_054/055 (K2).
     if !flex_window_trips.is_empty() {
         let ti = &records.trip_interns;
-        // route_id → o rotanın Flex pencereli ilk seferi (mesajda örnek olarak gösterilir).
-        // trips Vec sırası deterministik → çıktı deterministik.
+        // route_id → the first Flex-window trip on that route (shown as the message example).
+        // The trips Vec order is deterministic → the output is deterministic.
         let mut flex_routes: HashMap<&str, &str> = HashMap::new();
         for t in &records.trips {
             if flex_window_trips.contains(t.trip_id.as_str()) {
@@ -1198,7 +1199,7 @@ fn check_routes(
             let Some(&sample_trip) = flex_routes.get(rec.route_id.as_str()) else {
                 continue;
             };
-            // Enum dışı değerler (>3) RTS_013/018'in işi; burada çift emit edilmez.
+            // Values outside the enum (>3) belong to RTS_013/018; do not emit them twice here.
             let bad = if matches!(rec.continuous_pickup, Some(0) | Some(2) | Some(3)) {
                 Some(("continuous_pickup", rec.continuous_pickup.unwrap()))
             } else if matches!(rec.continuous_drop_off, Some(0) | Some(2) | Some(3)) {
@@ -1233,12 +1234,11 @@ fn check_routes(
 
 /// BKR_015: `prior_notice_service_id`, `calendar.service_id`'ye foreign key'dir
 /// (spec booking_rules.txt: "Foreign ID referencing `calendar.service_id`").
-/// Tanımsız bir referans, bildirim gününün hangi servis takvimine göre sayılacağını
-/// belirsiz bırakır.
+/// An undefined reference leaves it unclear which service calendar applies to the notice date.
 ///
-/// `booking_type` 0 veya 1 iken alan zaten YASAKTIR ve BKR_014 üretilir; aynı alan için
-/// ikinci bir notice çıkmasın diye BKR_015 o satırlarda susar (type=2 ve türü okunamayan
-/// satırlar denetlenir).
+/// When `booking_type` is 0 or 1, the field is already FORBIDDEN and BKR_014 is emitted;
+/// BKR_015 stays silent on those rows to avoid a second notice for the same field
+/// (type=2 and rows with an unreadable type are checked).
 fn check_booking_rules(
     records: &EntityRecords,
     map: &EntityMap,
@@ -1247,8 +1247,8 @@ fn check_booking_rules(
 ) {
     // BKR_017/018: stop_times.pickup/drop_off_booking_rule_id → booking_rules.booking_rule_id.
     // Spec (stop_times.txt): iki alan da "Foreign ID referencing booking_rules.booking_rule_id".
-    // XFL_024/025 ile aynı desen: alan başına ayrı kural, id başına tek notice (dedup).
-    // flex_map feed'lerin ~%99'unda boş → gate ile satır taraması tümüyle atlanır.
+    // Same pattern as XFL_024/025: one rule per field, one notice per ID (deduplicated).
+    // flex_map is empty in ~99% of feeds → the gate skips the row scan entirely.
     let idx = &records.stop_times_index;
     if !idx.flex_map.is_empty() {
         let known: HashSet<&str> = records
@@ -1310,7 +1310,7 @@ fn check_booking_rules(
             continue;
         };
         if matches!(rec.booking_type, Some(0) | Some(1)) {
-            continue; // alan bu türlerde yasak → BKR_014
+            continue; // field forbidden for these types → BKR_014
         }
         if map.services.contains(svc) {
             continue;
@@ -1344,12 +1344,12 @@ fn check_trips(
     shapes_available: bool,
 ) {
     let ti = &records.trip_interns;
-    // TRP_004: sarkan `shape_id` SEFER başına değil, GÜZERGAH başına raporlanır.
-    // Kuralın kendi `scope_key_field`'i zaten `shape_id`; sefer başına emit o beyanla
-    // çelişiyordu. 16. korpus ölçümü: 29 feed'de 70.135 bulgu ve bunun %93,5'i tek bir
-    // kök kimlik uyuşmazlığından gelen iki feed (`mdb-3412`/`mdb-2027`, her biri 32.797).
-    // Kusurlu olan referans EDİLEN güzergahtır, onu kullanan her sefer değil.
-    // Değer: (etkilenen sefer sayısı, ilk seferin id'si, ilk seferin satırı).
+    // TRP_004: report a dangling `shape_id` once per ROUTE, not once per TRIP.
+    // The rule's `scope_key_field` is already `shape_id`; emitting once per trip contradicted
+    // that declaration. Corpus run 16: 70,135 findings across 29 feeds, with 93.5% coming
+    // from one root identity mismatch in two feeds (`mdb-3412`/`mdb-2027`, 32,797 each).
+    // The defective object is the REFERENCED route, not every trip that uses it.
+    // Value: (affected trip count, first trip ID, first trip line).
     let mut dangling_shapes: BTreeMap<&str, (u64, String, u64)> = BTreeMap::new();
     for rec in &records.trips {
         if rec.trip_id.is_empty() {
@@ -1359,7 +1359,7 @@ fn check_trips(
         let rec_route_id = ti.route_id(rec);
         let rec_service_id = ti.service_id(rec);
 
-        // TRP_002: route_id referansı
+        // TRP_002: route_id reference
         if !rec_route_id.is_empty() && !map.routes.contains_key(rec_route_id) {
             notices.push(notice(
                 ctr,
@@ -1377,7 +1377,7 @@ fn check_trips(
             ));
         }
 
-        // TRP_003: service_id referansı
+        // TRP_003: service_id reference
         if !rec_service_id.is_empty() && !map.services.contains(rec_service_id) {
             notices.push(notice(
                 ctr,
@@ -1398,13 +1398,13 @@ fn check_trips(
             ));
         }
 
-        // TRP_004: shape_id referansı (varsa). Emit döngüden SONRA, güzergah başına.
+        // TRP_004: shape_id reference (when present). Emit after the loop, once per route.
         //
-        // ⚠️ Trim edilince boşalan `shape_id` SARKAN REFERANS DEĞİL, boş alandır — alan
-        // opsiyoneldir ve boş bırakılabilir. `mdb-992` ölçümü: `shape_id ' '` değeri
-        // "' ' güzergahı tanımlı değil" bulgusu üretiyordu. Çevre boşluğu `DQ_016`'nın
-        // konusudur; K7'nin whitespace bastırması bu vakayı GÖREMEZ çünkü trim'li karşılık
-        // (boş dize) hedef kümede zaten yoktur.
+        // ⚠️ A `shape_id` that becomes empty after trimming is NOT a dangling reference; it is
+        // an empty field. The field is optional and may be left empty. In `mdb-992`, `shape_id ' '` 
+        // produced a "' ' route not defined" finding. Surrounding whitespace belongs to `DQ_016`;
+        // K7's whitespace suppression cannot see this case because the trimmed counterpart
+        // (the empty string) is not in the target set.
         if shapes_available {
             if let Some(sid) = ti.shape_id(rec).filter(|s| !s.trim().is_empty()) {
                 if !map.shape_points.contains_key(sid) {
@@ -1423,20 +1423,21 @@ fn check_trips(
                 .get(rec_route_id)
                 .and_then(|&idx| records.routes.get(idx))
                 .map(|r| {
-                    // 🔴 DEĞER KÜMESİ {0, 2, 3}'TÜR — 1 DEĞİLDİR (#170).
+                    // 🔴 The value set is {0, 2, 3}, NOT 1 (#170).
                     //
-                    // Spec, `trips.shape_id` için: "Required if the trip has a continuous
+                    // Spec for `trips.shape_id`: "Required if the trip has a continuous
                     // pickup or drop-off behavior defined either in routes.txt or in
-                    // stop_times.txt." Enum ise şöyle tanımlı:
-                    //   0        → sürekli biniş VAR
-                    //   1 / boş  → sürekli biniş YOK        ← şart TETİKLEMEZ
-                    //   2        → telefonla ayarlanan sürekli biniş  → VAR
-                    //   3        → sürücüyle ayarlanan sürekli biniş  → VAR
+                    // stop_times.txt." The enum is defined as follows:
+                    //   0        → continuous pickup/drop-off YES
+                    //   1 / empty → continuous pickup/drop-off NO ← does not trigger the condition
+                    //   2        → phone-arranged continuous pickup/drop-off → YES
+                    //   3        → driver-arranged continuous pickup/drop-off → YES
                     //
-                    // Yüklem `Some(0) | Some(1)` idi: hem 1'i (sürekli servis YOK) dahil edip
-                    // geçerli feed'den shape_id talep ediyor, hem 2/3'ü (sürekli servis VAR)
-                    // atlayarak gerçek ihlali kaçırıyordu. Korpusta 100 feed / 215.288 bulgu;
-                    // örneklenen üç feed'in ikisinde değer 1'di (`tdg-83921`, `tdg-81645`).
+                    // The predicate was `Some(0) | Some(1)`: it demanded shape_id from valid
+                    // feeds by including 1 (continuous service NO), while skipping 2/3
+                    // (continuous service YES) and missing real violations. Corpus: 215,288
+                    // findings across 100 feeds; two of three sampled feeds used value 1
+                    // (`tdg-83921`, `tdg-81645`).
                     matches!(r.continuous_pickup, Some(0) | Some(2) | Some(3))
                         || matches!(r.continuous_drop_off, Some(0) | Some(2) | Some(3))
                 })
@@ -1464,9 +1465,9 @@ fn check_trips(
         }
     }
 
-    // TRP_004 emisyonu: güzergah başına TEK bulgu. `BTreeMap` sırası determinizmi verir.
-    // Varlık `Shape`'tir (kusurlu olan referans edilen güzergah), örnek sefer ve etkilenen
-    // sefer sayısı `details`'te taşınır ki tüketici hâlâ satıra inebilsin.
+    // TRP_004 emission: ONE finding per route. `BTreeMap` provides deterministic order.
+    // The entity is `Shape` (the defective referenced route); the example trip and affected
+    // trip count are carried in `details` so consumers can still navigate to a row.
     for (sid, (trips, first_trip, first_line)) in dangling_shapes {
         let message = if trips == 1 {
             format!(
@@ -1503,26 +1504,25 @@ fn check_trips(
 
 // �"?�"? PTH_014: pathway_id referans bütünlü�Yü �?" aynı istasyon cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?
 
-/// PTH_014: bu mesafenin altındaki cross-station pathway'ler komşu durakların
-/// gerçekçi yürüme bağlantısı sayılır ve bastırılır (VBB Potsdam "Platz der
-/// Einheit" alt-durakları ~150 m). Bu mesafenin üstü olası yanlış stop_id
-/// referansıdır ve tetiklenir.
+/// PTH_014: cross-station pathways below this distance are realistic walking connections
+/// between neighboring stops and are suppressed (VBB Potsdam "Platz der Einheit" child stops,
+/// ~150 m). Above this distance, treat the pathway as a possible wrong stop_id reference and fire.
 const PTH014_WALK_MAX_M: f64 = 300.0;
 
-/// PTH_014 yürüme mesafesi kanıtı (m). Guard'ın sorduğu soru "uçlar arasındaki
-/// YÜRÜYÜŞ kısa mı", dolayısıyla kaynak sırası şudur (#187):
+/// PTH_014 walking-distance evidence (m). The guard asks "is the WALK short between the
+/// endpoints?", so the source order is (#187):
 ///
-/// 1. **Beyan edilen `pathways.txt.length`.** Geçidin gerçek yürüme uzunluğunu
-///    ölçen tek alan budur; üretici onu bilerek yazar.
-/// 2. **Uç koordinatları** (`length` yoksa). Geodezik mesafe kuş uçuşudur, gerçek
-///    yürüme mesafesi değildir — yalnız daha iyi bir kaynak yokken kullanılır.
-/// 3. **İkisi de yoksa `None`** → guard uygulanmaz, kural normal yoluna devam eder.
+/// 1. **Declared `pathways.txt.length`.** The only field measuring the pathway's actual walking
+///    length; the producer writes it deliberately.
+/// 2. **Endpoint coordinates** (when `length` is absent). Geodesic distance is straight-line,
+///    not walking distance — use it only when no better source exists.
+/// 3. **`None` when both are absent** → do not apply the guard; continue the normal rule path.
 ///
 /// #187 · MBTA Winter Street Concourse (`dwnxg-385`/`386`): `node-dwnxg-concourse`
-/// koordinatsız (generic node'da koordinat OPSİYONELDİR), `length=142,3416` m.
+/// without coordinates (generic-node coordinates are OPTIONAL), `length=142,3416` m.
 ///
-/// `length` yalnız sonlu ve `>= 0` ise kanıt sayılır: `PTH_006` negatif değeri
-/// raporlar ama değeri yine de kayda geçirir, geçersiz beyan burada elenir.
+/// `length` is evidence only when finite and `>= 0`: `PTH_006` reports negative values but
+/// still records them; this rule rejects the invalid declaration here.
 fn pth014_distance_m(
     rec: &crate::k2::pathways::PathwayRecord,
     stop_coord: &HashMap<&str, (f64, f64)>,
@@ -1570,7 +1570,7 @@ fn check_pathways(
         .map(|s| (s.stop_id.as_str(), s.location_type))
         .collect();
 
-    // stop_id → (lat, lon) — kısa mesafe guard'ı için (yalnız ikisi de dolu olanlar)
+    // stop_id → (lat, lon) — for the short-distance guard (only when both are present)
     let stop_coord: HashMap<&str, (f64, f64)> = records
         .stops
         .iter()
@@ -1580,17 +1580,17 @@ fn check_pathways(
         })
         .collect();
 
-    // PTH_014: from_stop_id ve to_stop_id farklı istasyonlara ait �?' referans bütünlü�Yü ihlali
+    // PTH_014: from_stop_id and to_stop_id resolve to different stations — reference integrity violation
     for rec in &records.pathways {
         if rec.pathway_id.is_empty() {
             continue;
         }
-        // A-daraltma (2026-07-24, VBB mdb-782): location_type=2 (giriş/çıkış)
-        // istasyonun dış-dünya sınırıdır. Bir ucu girişse pathway sokak üzerinden
-        // komşu istasyona geçebilir — bu meşru bir aktarma yürüyüşüdür (VBB rail
-        // istasyonları Alexanderplatz/Spandau vb. bu deseni yaygın kullanır), hata
-        // değil. İstasyon sınırını aşmak yalnız iki uç da İÇ konumken (peron=0 /
-        // generic node=3 / boarding area=4) topoloji sorunu sayılır.
+        // A-narrowing (2026-07-24, VBB mdb-782): location_type=2 (entrance/exit) is the
+        // station's boundary with the outside world. If one endpoint is an entrance, a pathway
+        // may cross the street to a neighboring station — a legitimate transfer walk (VBB rail
+        // stations such as Alexanderplatz/Spandau use this pattern), not an error. Crossing the
+        // station boundary is a topology issue only when both endpoints are INTERNAL locations
+        // (platform=0 / generic node=3 / boarding area=4).
         let from_lt = stop_loc.get(rec.from_stop_id.as_str()).and_then(|l| *l);
         let to_lt = stop_loc.get(rec.to_stop_id.as_str()).and_then(|l| *l);
         if from_lt == Some(2) || to_lt == Some(2) {
@@ -1600,12 +1600,11 @@ fn check_pathways(
         let to_station = station_context(rec.to_stop_id.as_str(), &stop_parent, &stop_loc);
         if let (Some(fs), Some(ts)) = (from_station, to_station) {
             if fs != ts {
-                // Kısa mesafeli cross-station pathway: komşu durakların gerçekçi
-                // yürüme bağlantısıdır (VBB Potsdam "Platz der Einheit/West" ↔
-                // ".../Bildungsforum" ~150 m), topoloji hatası değil → atla. Yalnız
-                // uçlar birbirinden uzaksa (olası yanlış stop_id referansı) tetiklenir.
-                // Mesafe kaynağı için bkz. `pth014_distance_m`: önce beyan edilen
-                // `length`, o yoksa uç koordinatları (#187).
+                // Short cross-station pathway: a realistic walking connection between neighboring
+                // stops (VBB Potsdam "Platz der Einheit/West" ↔ ".../Bildungsforum" ~150 m),
+                // not a topology error → skip. Fire only when endpoints are far apart (possible
+                // wrong stop_id reference). See `pth014_distance_m` for distance source:
+                // declared `length` first, endpoint coordinates otherwise (#187).
                 if pth014_distance_m(rec, &stop_coord)
                     .is_some_and(|meters| meters <= PTH014_WALK_MAX_M)
                 {
@@ -1741,7 +1740,7 @@ fn check_calendar(
     ctr: &mut u32,
     today: u32,
 ) {
-    // CAL_009: feed yayın aralı�Yı tamamen sona ermi�Yse (hiçbir servis aktif)
+    // CAL_009: the feed's publication window has completely ended (no service is active).
     if !records.calendars.is_empty() {
         let all_expired = records
             .calendars
@@ -1772,7 +1771,7 @@ fn check_calendar(
         }
     }
 
-    // CAL_011: servis hiçbir trip tarafından kullanılmıyor (orphan)
+    // CAL_011: service is unused by any trip (orphan).
     let ti_cal = &records.trip_interns;
     let used_services: HashSet<&str> = records.trips.iter().map(|t| ti_cal.service_id(t)).collect();
     for rec in &records.calendars {
@@ -1800,7 +1799,7 @@ fn check_calendar(
         }
     }
 
-    // CAL_018: haftalık bazda tüm günler pasif VE calendar_dates'te exception_type=1 override yok
+    // CAL_018: all weekly days are inactive AND calendar_dates has no exception_type=1 override.
     {
         let services_with_added: HashSet<&str> = records
             .calendar_dates
@@ -1822,7 +1821,7 @@ fn check_calendar(
                     Some(rec.service_id.clone()),
                     "calendar.txt",
                     Some(rec.line),
-                    // Olgu YEDİ gün alanının birlikte 0 olmasıdır (CAL_006 ile aynı alan kümesi).
+                    // The condition is all SEVEN day fields being 0 (the same field set as CAL_006).
                     Some("monday|tuesday|wednesday|thursday|friday|saturday|sunday"),
                     None,
                     None,
@@ -1845,9 +1844,9 @@ fn check_calendar_dates(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // CLD_004: calendar.txt yokken calendar_dates tüm tarihleri kapsıyor mu?
-    // Bu kontrol: calendar_dates'te exception_type=1 (eklenen gün) olan
-    // servis_id'lerinin en az 1 tarihi olup olmadı�Yını kontrol eder.
+    // CLD_004: when calendar.txt is absent, does calendar_dates cover every date?
+    // This check verifies that service_ids with exception_type=1 (added day) in
+    // calendar_dates have at least one date.
     if records.calendars.is_empty() && !records.calendar_dates.exception_count.is_empty() {
         // added.keys() = service_ids with at least one exception_type=1 record (even invalid date)
         let has_added: HashSet<&str> = records
@@ -1856,14 +1855,14 @@ fn check_calendar_dates(
             .keys()
             .map(|s| s.as_str())
             .collect();
-        // trips'teki her service_id en az bir exception_type=1 kaydına sahip olmalı
+        // Every service_id in trips must have at least one exception_type=1 record.
         let ti_cld = &records.trip_interns;
         let trip_services: HashSet<&str> =
             records.trips.iter().map(|t| ti_cld.service_id(t)).collect();
         for sid in &trip_services {
             if !has_added.contains(*sid) {
-                // Bu service_id için exception_type=1 kaydı yok
-                // �?' calendar.txt olmadan bu servis hiç çalı�Ymaz
+                // No exception_type=1 record exists for this service_id.
+                // Without calendar.txt, this service never runs.
                 let line = records.calendar_dates.first_line.get(*sid).copied();
                 notices.push(notice(
                     ctr,
@@ -1900,7 +1899,7 @@ fn check_frequencies(
             continue;
         }
 
-        // FRQ_001: trip_id trips.txt'te tanımlı değil
+        // FRQ_001: trip_id is not defined in trips.txt.
         if !map.trips.contains_key(rec.trip_id.as_str()) {
             notices.push(notice(
                 ctr,
@@ -1918,8 +1917,8 @@ fn check_frequencies(
             ));
         }
 
-        // TRP_017: frekans tabanlı, trips.txt'te GEÇERLİ sefer stop_times'ta eksik.
-        // trips.txt'te olmayan trip için FRQ_001 kök FK hatasıdır; türev notice üretme.
+        // TRP_017: a VALID frequency-based trip in trips.txt is missing from stop_times.
+        // A trip absent from trips.txt is the root FK error FRQ_001; do not emit a derivative notice.
         if map.trips.contains_key(rec.trip_id.as_str())
             && !trips_in_stm.contains(rec.trip_id.as_str())
         {
@@ -1952,7 +1951,7 @@ fn check_transfers(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
     trips_in_stm: &HashSet<&str>,
-    // #15/#38: trip_stop_set iç tipi u32 (intern indeks); stop_id_to_idx ile dönüştür.
+    // #15/#38: trip_stop_set uses u32 internally (an intern index); convert with stop_id_to_idx.
     trip_stops: &FxHashMap<SmolStr, Vec<u32>>,
     stop_id_to_idx: &FxHashMap<smol_str::SmolStr, u32>,
 ) {
@@ -1960,12 +1959,12 @@ fn check_transfers(
     for rec in &records.transfers {
         let ttype = rec.transfer_type;
 
-        // Aktarma satırının kimliği: TRF_004/TRF_011 ile aynı `from_stop_id|to_stop_id`
-        // (K2 `derive_scope_key` gibi kırpılmış). Taraflardan biri boş olsa da DOLU kalır:
-        // `None` kök feed'in bütün aktarma bulgularını bastırırdı.
+        // Transfer-row identity: the same `from_stop_id|to_stop_id` key as TRF_004/TRF_011
+        // (trimmed like K2's `derive_scope_key`). It remains populated if either side is empty:
+        // a `None` root would suppress every transfer finding in the feed.
         let row_scope = format!("{}|{}", rec.from_stop_id.trim(), rec.to_stop_id.trim());
 
-        // TRF_003: from_stop_id veya to_stop_id stops.txt'te bulunamıyor
+        // TRF_003: from_stop_id or to_stop_id is not found in stops.txt.
         for (field, stop_id) in [
             ("from_stop_id", rec.from_stop_id.as_str()),
             ("to_stop_id", rec.to_stop_id.as_str()),
@@ -1988,7 +1987,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_010: min_transfer_time çok uzun (> 3600 s)
+        // TRF_010: min_transfer_time is too long (> 3600 s).
         const MAX_TRANSFER_SEC: u32 = 3600;
         if let Some(mtt) = rec.min_transfer_time {
             if mtt > MAX_TRANSFER_SEC {
@@ -2035,12 +2034,12 @@ fn check_transfers(
             }
         }
 
-        // TRF_018: aynı seferde aktarma (from_trip_id == to_trip_id)
+        // TRF_018: transfer within the same trip (from_trip_id == to_trip_id).
         if let (Some(ref fti), Some(ref tti)) = (&rec.from_trip_id, &rec.to_trip_id) {
             if fti == tti {
                 notices.push(notice(
                     ctr, "TRF_018", EntityType::Transfer,
-                    // Sefer kimliği elimizde; boş bırakılınca mesaj "the same trip ('')" oluyordu.
+                    // We have the trip ID; leaving it empty would produce "the same trip ('')".
                     Some(fti.clone()), None, "transfers.txt", Some(rec.line), Some("from_trip_id"),
                     Some(fti.clone()), None,
                     format!("from_trip_id ve to_trip_id aynı sefer ('{fti}'); aktarmanın bir anlamı yok."),
@@ -2049,7 +2048,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_006: from_trip_id referansı
+        // TRF_006: from_trip_id reference.
         if let Some(ref fti) = rec.from_trip_id {
             if !map.trips.contains_key(fti.as_str()) {
                 notices.push(notice(
@@ -2069,7 +2068,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_007: to_trip_id referansı
+        // TRF_007: to_trip_id reference.
         if let Some(ref tti) = rec.to_trip_id {
             if !map.trips.contains_key(tti.as_str()) {
                 notices.push(notice(
@@ -2089,7 +2088,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_008: from_route_id referansı
+        // TRF_008: from_route_id reference.
         if let Some(ref fri) = rec.from_route_id {
             if !map.routes.contains_key(fri.as_str()) {
                 notices.push(notice(
@@ -2109,7 +2108,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_009: to_route_id referansı
+        // TRF_009: to_route_id reference.
         if let Some(ref tri) = rec.to_route_id {
             if !map.routes.contains_key(tri.as_str()) {
                 notices.push(notice(
@@ -2129,7 +2128,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_013: transfer_type=4/5 için from_trip_id ve to_trip_id zorunlu
+        // TRF_013: from_trip_id and to_trip_id are required for transfer_type=4/5.
         if matches!(ttype, Some(4) | Some(5))
             && (rec.from_trip_id.is_none() || rec.to_trip_id.is_none())
         {
@@ -2152,7 +2151,7 @@ fn check_transfers(
             ));
         }
 
-        // TRF_014: in-seat aktarma için seferde stop_times kaydı yok
+        // TRF_014: an in-seat transfer has no stop_times record for the trip.
         if matches!(ttype, Some(4) | Some(5)) {
             for (field, trip_id_opt) in [
                 ("from_trip_id", &rec.from_trip_id),
@@ -2173,7 +2172,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_019: in-seat aktarmada farklı route_type (InconsistentRouteTypeForInSeatTransfer)
+        // TRF_019: different route_type in an in-seat transfer (InconsistentRouteTypeForInSeatTransfer).
         if matches!(ttype, Some(4) | Some(5)) {
             if let (Some(ref fti), Some(ref tti)) = (&rec.from_trip_id, &rec.to_trip_id) {
                 let from_rtype = map.trips.get(fti.as_str()).and_then(|&tidx| {
@@ -2204,7 +2203,7 @@ fn check_transfers(
             }
         }
 
-        // TRF_017: sefer aktarmasında route uyumsuzluğu
+        // TRF_017: route mismatch in a trip transfer.
         if let (Some(ref fti), Some(ref fri)) = (&rec.from_trip_id, &rec.from_route_id) {
             if let Some(&tidx) = map.trips.get(fti.as_str()) {
                 if ti_trf.route_id(&records.trips[tidx]) != fri.as_str() {
@@ -2240,7 +2239,7 @@ fn check_transfers(
             }
         }
 
-        // XFL_021: from_stop_id, from_trip_id'nin stop_times kayıtlarında bulunmuyor
+        // XFL_021: from_stop_id is not present in the trip's stop_times records.
         if let Some(ref fti) = rec.from_trip_id {
             let fsid = rec.from_stop_id.as_str();
             if !fsid.is_empty() && map.trips.contains_key(fti.as_str()) {
@@ -2286,7 +2285,7 @@ fn check_transfers(
             }
         }
 
-        // XFL_020: transfer kaydındaki (trip_id, route_id) çifti geçersiz — sefer belirtilen hatta ait değil
+        // XFL_020: invalid (trip_id, route_id) pair in the transfer — the trip is not on the specified route.
         for (trip_opt, route_opt, trip_field, route_field) in [
             (
                 &rec.from_trip_id,
@@ -2320,11 +2319,11 @@ fn check_transfers(
             }
         }
 
-        // TRF_021: transfers uç noktası yalnızca durak (0) veya istasyon (1) olabilir. Spec:
+        // TRF_021: a transfers endpoint may only be a stop (0) or station (1). Spec:
         // "Identifies a stop (location_type=0) or a station (location_type=1) where a
-        // connection between routes begins." Giriş/çıkış (2), ara düğüm (3) ve biniş alanı (4)
-        // aktarma referansı olamaz. Boş location_type spec'te 0 sayılır, geçerlidir.
-        // TRF_015 ile örtüşmez: o, type=4/5'te location_type=1'i yasaklar — farklı değer kümesi.
+        // connection between routes begins." An entrance/exit (2), generic node (3), or boarding
+        // area (4) cannot be a transfer reference. Empty location_type counts as 0 in the spec.
+        // This does not overlap TRF_015, which forbids location_type=1 for type=4/5 — a different set.
         for (field, stop_id) in [
             ("from_stop_id", rec.from_stop_id.as_str()),
             ("to_stop_id", rec.to_stop_id.as_str()),
@@ -2379,17 +2378,17 @@ fn check_transfers(
         }
     }
 
-    // TRF_016: E�Yit specificity'de çakışan transfer kayıtları
+    // TRF_016: conflicting transfer records at exact specificity.
     {
         let mut seen_keys: HashMap<String, u64> = HashMap::new();
         for rec in &records.transfers {
-            // 🔴 BAĞLAMSIZ SATIRLAR TRF_012'NİN ALANI (Faz 3.1 adjudikasyonu).
-            // İki kuralın kartları temiz bir ayrım İDDİA EDİYORDU — TRF_012 "yalnızca
-            // from/to_trip_id ve from/to_route_id alanlarının TAMAMI boş olan satırlar",
-            // TRF_016 "tam altı-alanlı anahtar" — ama kodda filtre YOKTU: bağlamsız bir
-            // yineleme her iki kuralı da tetikliyordu. Ölçüm: `mdb-1859`'da ikisi de
-            // 5.204 bulgu, aynı satırlarda, `observed` değeri `...|||| ` (bağlam boş).
-            // Belgelenmiş karar kodda uygulanmamıştı; aynı olgu iki kez raporlanıyordu.
+            // 🔴 CONTEXT-FREE ROWS BELONG TO TRF_012 (Phase 3.1 adjudication).
+            // The two rule cards CLAIMED a clean split — TRF_012 "only rows where all
+            // from/to_trip_id and from/to_route_id fields are empty", TRF_016 "the full
+            // six-field key" — but the code had NO filter: a context-free duplicate triggered
+            // both rules. Measurement: both produced 5,204 findings on the same rows in
+            // `mdb-1859`, with `observed` equal to `...|||| ` (empty context).
+            // The documented decision had not been implemented, so the same fact was reported twice.
             let has_context = rec.from_trip_id.as_deref().is_some_and(|v| !v.is_empty())
                 || rec.to_trip_id.as_deref().is_some_and(|v| !v.is_empty())
                 || rec.from_route_id.as_deref().is_some_and(|v| !v.is_empty())
@@ -2415,7 +2414,7 @@ fn check_transfers(
                     None,
                     "transfers.txt",
                     Some(rec.line),
-                    // Çakışmayı oluşturan altı alanın tamamı (DQ_021 bileşik anahtar deseni).
+                    // All six fields forming the conflict (the DQ_021 composite-key pattern).
                     Some("from_stop_id|to_stop_id|from_trip_id|to_trip_id|from_route_id|to_route_id"),
                     Some(key.clone()),
                     None,
@@ -2430,11 +2429,11 @@ fn check_transfers(
         }
     }
 
-    // TRF_012: yinelenen from_stop_id + to_stop_id çifti (trip/route gözetmeksizin basit tekrar)
+    // TRF_012: duplicate from_stop_id + to_stop_id pair (simple duplicate regardless of trip/route).
     {
         let mut seen_stops: HashMap<(&str, &str), u64> = HashMap::new();
         for rec in &records.transfers {
-            // Sadece trip ve route bağlamı olmayan satırlar için kontrol et
+            // Check only rows without trip and route context.
             if rec.from_trip_id.is_some()
                 || rec.to_trip_id.is_some()
                 || rec.from_route_id.is_some()
@@ -2503,7 +2502,7 @@ fn check_fare_attributes(
                 }
             }
         } else {
-            // FIN_013: aynı sütun politikasını her fare için tekrarlama; feed başına tek özet.
+            // FIN_013: do not repeat the same column policy for every fare; one summary per feed.
             if !multi_agency
                 && records
                     .fare_attributes
@@ -2544,7 +2543,7 @@ fn check_fare_rules(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // FRL_006: fare_attributes tanımlı ama hiç fare_rules kaydı yok
+    // FRL_006: fare_attributes is defined but has no fare_rules records.
     if records.fare_rules.is_empty() && !records.fare_attributes.is_empty() {
         notices.push(notice(
             ctr,
@@ -2565,8 +2564,8 @@ fn check_fare_rules(
         ));
     }
 
-    // FK ihlali toplayıcıları: (kimlik) → (ilk satır, kaç satırda tekrarladı).
-    // BTreeMap → deterministik emit sırası.
+    // FK violation collectors: (ID) → (first line, number of repetitions).
+    // BTreeMap → deterministic emission order.
     let mut frl001_bad: std::collections::BTreeMap<&str, (u64, u64)> = Default::default();
     let mut frl_zone_bad: std::collections::BTreeMap<(&str, &str, &str), (String, u64, u64)> =
         Default::default();
@@ -2574,11 +2573,11 @@ fn check_fare_rules(
     for rec in &records.fare_rules {
         let eid = Some(rec.fare_id.clone());
 
-        // FRL_001: fare_id referansı — DISTINCT kimlik başına tek notice (aşağıda emit).
-        // Bir tanımsız fare_id feed'de binlerce satırda tekrar eder: mdb-2837'de
-        // fare_attributes.txt HİÇ YOK ve fare_rules 1.128.840 satır → satır-başına emit
-        // 1,1M notice üretiyordu (tek kök neden). STM_002 aynı FK ihlalini zaten
-        // distinct stop_id başına toplar; FRL ailesi de öyle.
+        // FRL_001: fare_id reference — one notice per DISTINCT ID (emitted below).
+        // An undefined fare_id can repeat across thousands of feed rows: in mdb-2837,
+        // fare_attributes.txt was ABSENT and fare_rules had 1,128,840 rows → row-level
+        // emission produced 1.1M notices for one root cause. STM_002 already aggregates
+        // the same FK violation per distinct stop_id; the FRL family does the same.
         if !rec.fare_id.is_empty() && !map.fare_attrs.contains_key(rec.fare_id.as_str()) {
             frl001_bad
                 .entry(rec.fare_id.as_str())
@@ -2586,7 +2585,7 @@ fn check_fare_rules(
                 .1 += 1;
         }
 
-        // FRL_002: route_id referansı (varsa)
+        // FRL_002: route_id reference (when present).
         if let Some(ref rid) = rec.route_id {
             if !map.routes.contains_key(rid.as_str()) {
                 notices.push(notice(
@@ -2606,7 +2605,7 @@ fn check_fare_rules(
             }
         }
 
-        // FRL_003-005: zone_id referansları — DISTINCT (kural, zone_id) başına tek notice.
+        // FRL_003-005: zone_id references — one notice per DISTINCT (rule, zone_id).
         for (rule, field, opt_id) in [
             ("FRL_003", "origin_id", &rec.origin_id),
             ("FRL_004", "destination_id", &rec.destination_id),
@@ -2622,7 +2621,7 @@ fn check_fare_rules(
             }
         }
 
-        // FRL_007: hiç ayrıştırıcı kriter yok (route/zone/contains) — tüm seyahatlere uygulanır
+        // FRL_007: no discriminator (route/zone/contains) — applies to all trips.
         if rec.route_id.is_none()
             && rec.origin_id.is_none()
             && rec.destination_id.is_none()
@@ -2636,7 +2635,7 @@ fn check_fare_rules(
                 eid.clone(),
                 "fare_rules.txt",
                 Some(rec.line),
-                // Olgu DÖRT ayrıştırıcı alanın birlikte boş olmasıdır.
+                // The condition is all FOUR discriminator fields being empty.
                 Some("route_id|origin_id|destination_id|contains_id"),
                 None,
                 None,
@@ -2649,12 +2648,12 @@ fn check_fare_rules(
         }
     }
 
-    // ── FRL_001/003/004/005: biriken FK ihlallerini DISTINCT kimlik başına emit et ──
-    // observed = HAM kimlik; tekrar sayısı `details.affected_rows`; satır = ilk görüldüğü yer.
+    // ── FRL_001/003/004/005: emit accumulated FK violations per DISTINCT ID ──
+    // observed = RAW ID; repetition count = `details.affected_rows`; line = first occurrence.
     //
-    // 🔴 observed'a sayı EKLENMEZ. K7 boşluk bastırması observed'ı kimlik olarak okur;
-    // `"ADR  (14 rows)"` hiçbir kümede bulunmadığı için FRL türevleri hiç bastırılmıyordu
-    // (17 Eylül karşı-olgu ölçümü: 7 feed, 20.452 Kritik·Spec bulgu, 7 yayın kararı).
+    // 🔴 Do NOT append a count to observed. K7 whitespace suppression treats observed as an ID;
+    // FRL derivatives were never suppressed because `"ADR  (14 rows)"` was in no set
+    // (17 September counterexample: 7 feeds, 20,452 Critical·Spec findings, 7 publication decisions).
     let with_rows = |mut n: Notice, rows: u64| {
         n.details
             .get_or_insert_with(Default::default)
@@ -2681,7 +2680,7 @@ fn check_fare_rules(
         ), *rows));
     }
 
-    // FRL_008: ücret sistemi route tabanlı ama bazı hatlar kapsam dışı
+    // FRL_008: the fare system is route-based, but some routes are out of scope.
     if !records.fare_attributes.is_empty() && !records.fare_rules.is_empty() {
         let routes_in_rules: HashSet<&str> = records
             .fare_rules
@@ -2727,7 +2726,7 @@ fn check_fare_rules(
     // to prove a missing pair without guessing.
     check_fare_origin_destination_coverage(records, map, notices, ctr);
 
-    // FAR_010: aynı (route_id, origin_id, destination_id, contains_id) kombinasyonu için birden fazla fare_id
+    // FAR_010: multiple fare_id values for the same (route_id, origin_id, destination_id, contains_id) combination.
     {
         type FareRuleKey<'a> = (
             Option<&'a str>,
@@ -3020,10 +3019,9 @@ fn check_fares_v2(
         }
     }
 
-    // RCT_006: bir fare_product için birden fazla uygun rider_category varsa tam olarak
-    // birinin is_default_fare_category=1 olması gerekir. Boş rider_category_id, ürünün
-    // tüm tanımlı kategorilere uygun olduğu anlamına gelir; FPD_005'in sahip olduğu
-    // bilinmeyen açık ID'leri uygunluk kümesine katmayız.
+    // RCT_006: if a fare_product has multiple eligible rider_category values, exactly one
+    // must have is_default_fare_category=1. An empty rider_category_id means the product is
+    // eligible for every defined category; do not add FPD_005's unknown explicit IDs to the set.
     {
         let rider_category_ids: HashSet<&str> = records
             .rider_categories
@@ -3058,7 +3056,7 @@ fn check_fares_v2(
             }
         }
 
-        // Sıra HashMap'ten gelmemeli: hem determinizm hem de örnek listesi buna bağlı.
+        // Do not rely on HashMap order: both determinism and the example list depend on it.
         let mut violations: Vec<(&str, HashSet<&str>, usize)> = Vec::new();
         for (fpid, eligible) in fp_eligible {
             if eligible.len() <= 1 {
@@ -3072,16 +3070,15 @@ fn check_fares_v2(
         }
         violations.sort_unstable_by(|a, b| a.0.cmp(b.0));
 
-        // Feed'de HİÇ varsayılan kategori yoksa kök kusur TEKTİR (rider_categories.txt'te
-        // hiçbir satırda is_default_fare_category=1 yok) ve ürün başına emit aynı cümleyi
-        // N kez tekrarlar — mdb-13'te 9 kez. "Varsayılan VAR ama bu ürünün uygunluk
-        // kümesinde yok" durumu ise ürüne özgüdür ve toplulanmaz.
+        // If the feed has NO default category, the root defect is UNIQUE (no row in
+        // rider_categories.txt has is_default_fare_category=1), and per-product emission
+        // repeats the same sentence N times — 9 times in mdb-13. "A default EXISTS but is
+        // not in this product's eligible set" is product-specific and is not aggregated.
         if default_rcids.is_empty() && violations.len() > 1 {
-            // Tek bir kategoriyi varsayılan yapmak ancak o kategori HER ihlalli ürünün
-            // uygunluk kümesindeyse yeter; yani çözücü adaylar kümelerin KESİŞİMİdir.
-            // mdb-13 ölçümü: sezgisel görünen `adult` 4 bulguyu açık bırakıyor, çözenler
-            // yalnız {disabled, medicare, senior}. Bunu söylemezsek üretici yanlış
-            // kategoriyi seçip geri dönüyor.
+            // Making one category the default is sufficient only if that category is in EVERY
+            // affected product's eligible set; resolver candidates are the INTERSECTION of sets.
+            // mdb-13: the intuitive `adult` leaves 4 findings unresolved; only {disabled, medicare,
+            // senior} resolves them. Without this, the producer picks the wrong category and returns.
             let mut resolving: Option<HashSet<&str>> = None;
             for (_, eligible, _) in &violations {
                 resolving = Some(match resolving {
@@ -3159,10 +3156,10 @@ fn check_fares_v2(
 
     // FLG_001-006: fare_leg_rules cross-ref
     for rec in &records.fare_leg_rules {
-        // FLG_008: `fare_product_id` BOŞ. Aşağıdaki FK kontrolü `!is_empty()` koruması
-        // taşır — doğru, çünkü boş bir değer "bulunamadı" değildir. Ama o koruma boş
-        // vakayı kimseye devretmiyordu: yedi FLG kuralının hepsi FK ya da enum, hiçbiri
-        // varlık ölçmüyor. Spec'te alan Required (#153, korpusta 16 feed).
+        // FLG_008: `fare_product_id` is EMPTY. The FK check below guards with `!is_empty()`
+        // — correctly, because an empty value is not "not found". But that guard left the
+        // empty case unowned: all seven FLG rules are FK or enum checks, and none measures
+        // entity presence. The field is Required in the spec (#153, 16 corpus feeds).
         if rec.fare_product_id.trim().is_empty() {
             let eid = rec.leg_group_id.clone();
             notices.push(notice(
@@ -3484,14 +3481,14 @@ fn check_levels(
 
 // �"?�"? TRN_005-006: çeviri cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
-/// `EntityMap`'in taşımadığı, tek alanlı birincil anahtarlı çeviri tabloları → kimlik kümesi.
+/// Translation tables with single-field primary keys not carried by `EntityMap` → ID set.
 ///
-/// `attributions` her zaman girer (2026-08-29 davranışı). Sonradan eklenen tablolar
+/// `attributions` is always included (behavior as of 2026-08-29). Tables added later
 /// (`location_groups`, `booking_rules`, `areas`, `networks`, `fare_media`,
-/// `rider_categories`) yalnız en az bir kimlik okunmuşsa girer: kolonu eksik ya da
-/// okunamamış bir dosyada boş küme her çeviriyi "kayıt yok" (TRN_004) yapardı.
-/// `translations.txt::table_name` 2026-09-19'dan beri resmi şema kataloğunu kabul
-/// ettiği için bu tablolar artık çevrilebilir; kimlikleri denetlenmezse sessiz kalırdı.
+/// `rider_categories`) are included only when at least one ID was read: an empty set for
+/// a file with a missing or unreadable column would turn every translation into "record
+/// not found" (TRN_004). Since 2026-09-19, `translations.txt::table_name` accepts the
+/// official schema catalog, so these tables are translatable; without their IDs they would be silent.
 fn translation_extra_record_ids(records: &EntityRecords) -> HashMap<&'static str, HashSet<&str>> {
     fn ids<'a>(it: impl Iterator<Item = &'a str>) -> HashSet<&'a str> {
         it.filter(|id| !id.is_empty()).collect()
@@ -3516,13 +3513,13 @@ fn translation_extra_record_ids(records: &EntityRecords) -> HashMap<&'static str
     by_table
 }
 
-/// Bir çeviri satırının `record_id`'si kaynak tabloda var mı?
+/// Does a translation row's `record_id` exist in the source table?
 ///
-/// `None` = tablonun kimliği bu aşamada çözülemez → hiçbir kural iddia üretmemelidir.
-/// TRN_004 ve XFL_014 bu eşlemenin iki ayrı kopyasını taşıyordu; `attributions` ikisinde
-/// de "lookup not feasible" sayılıyor, yani `attribution_id` elimizdeyken denetlenmiyordu
-/// (2026-08-29, Katori feed'i). Kopyayı tekilleştirmek aynı sapmanın tekrarını önler.
-/// JPN_019 ayrı bir eşleme kullanır: o blok `EntityMap` yerine ham K2 kayıtlarını okur.
+/// `None` = the table's identity cannot be resolved at this stage → no rule may claim a finding.
+/// TRN_004 and XFL_014 had separate copies of this mapping; `attributions` was considered
+/// "lookup not feasible" in both, so it was not checked even when `attribution_id` was available
+/// (Katori feed, 2026-08-29). Consolidating the copy prevents the same drift from recurring.
+/// JPN_019 uses a separate mapping: that block reads raw K2 records instead of `EntityMap`.
 fn translation_record_exists(
     map: &EntityMap,
     extra_ids: &HashMap<&'static str, HashSet<&str>>,
@@ -3539,15 +3536,14 @@ fn translation_record_exists(
         "pathways" => map.pathways.contains_key(record_id),
         "fare_attributes" => map.fare_attrs.contains_key(record_id),
         // feed_info/stop_times/shapes/frequencies/transfers/fare_rules/translations:
-        // kimlik ya yasaktır (feed_info → TRN_013) ya da tek alanla çözülemez.
+        // identity is either forbidden (feed_info → TRN_013) or cannot be resolved by one field.
         _ => return extra_ids.get(table).map(|ids| ids.contains(record_id)),
     })
 }
 
-/// `record_sub_id`, `record_id` ile gösterilen trip içindeki gerçek
-/// `stop_sequence` değerlerinden biri olmalıdır. `None`, ilgili trip'in
-/// `stop_times` indeksinde bulunamadığı ve bu aşamada TRN_010 adına hüküm
-/// verilemeyeceği anlamına gelir; kaynağın kimlik çözümünü bu kural üstlenmez.
+/// `record_sub_id` must be one of the actual `stop_sequence` values in the trip identified by
+/// `record_id`. `None` means the trip could not be found in the `stop_times` index, so TRN_010
+/// cannot make a determination at this stage; this rule does not resolve the source identity.
 fn stop_times_translation_sub_id_valid(
     records: &EntityRecords,
     translation: &crate::k2::translations::TranslationRecord,
@@ -3580,20 +3576,21 @@ fn check_translations(
         .first()
         .map(|fi| fi.feed_lang.as_str())
         .unwrap_or("");
-    // key → ilk görülen translation değeri. Aynı key tekrar görülürse:
-    //   değer aynı  → TRN_005 (birebir yinelenen çeviri)
-    //   değer farklı → TRN_006 (çelişkili çeviri; hangisi geçerli belirsiz)
+    // key → first translation value seen. If the same key appears again:
+    //   same value    → TRN_005 (exact duplicate translation)
+    //   different value → TRN_006 (conflicting translation; precedence is unclear)
     let mut seen: HashMap<String, String> = HashMap::new();
     let extra_ids = translation_extra_record_ids(records);
-    // TRN_007 agregasyonu: feed_lang ile aynı dildeki çeviriler (yaygın GTFS-JP araç pratiği —
-    // her alanı ja/ja-Hrkt/en'e çevirir, ja kaynağı birebir tekrarlar) satır-başına on binlerce
-    // notice yerine tek feed-seviyesi özette toplanır (STM_017/STP_022 emsali).
+    // TRN_007 aggregation: translations in the same language as feed_lang (common GTFS-JP
+    // tool behavior — translate every field to ja/ja-Hrkt/en and repeat the ja source exactly)
+    // are aggregated into one feed-level summary instead of tens of thousands of row notices
+    // (the STM_017/STP_022 precedent).
     let mut trn007_pending: Vec<Notice> = Vec::new();
 
     for rec in &records.translations {
-        // TRN_010: `record_sub_id` doluysa, record_id ile gösterilen trip'in
-        // gerçek stop_sequence değerine bağlanmalıdır. Eksik sub-id K2'de
-        // TRN_017 tarafından raporlanır; field_value modu bu dala girmez.
+        // TRN_010: when `record_sub_id` is populated, it must refer to an actual stop_sequence
+        // in the trip identified by record_id. A missing sub-ID is reported by TRN_017 in K2;
+        // field_value mode does not enter this branch.
         if rec.table_name == "stop_times"
             && stop_times_translation_sub_id_valid(records, rec) == Some(false)
         {
@@ -3624,11 +3621,11 @@ fn check_translations(
                     ctr,
                     "TRN_004",
                     EntityType::Translation,
-                    // `entity_id` boş bırakılıyordu, oysa en/ja/fr mesaj şablonları
-                    // `{entity_id}` ile doldurulur → İngilizce metin "record_id '' not
-                    // found." çıkıyordu. Türkçe metin koddaki `format!`ten geldiği için
-                    // kusur yalnız diğer dillerde görünüyordu. `scope_key` bilinçli olarak
-                    // boş kalıyor: kapsam birimi satırdır, record_id değil.
+                    // `entity_id` was left empty even though en/ja/fr message templates are
+                    // filled with `{entity_id}` → the English text became "record_id '' not
+                    // found.". The Turkish text came from the code's `format!`, so the defect
+                    // appeared only in other languages. `scope_key` intentionally stays empty:
+                    // the scope unit is the row, not record_id.
                     Some(rid.clone()),
                     None,
                     "translations.txt",
@@ -3645,7 +3642,7 @@ fn check_translations(
             }
         }
 
-        // TRN_007: çeviri dili feed_lang ile aynı — gereksiz çeviri (döngü sonunda agregasyon)
+        // TRN_007: translation language equals feed_lang — unnecessary translation (aggregated at the end).
         if !feed_lang.is_empty() && rec.language == feed_lang {
             trn007_pending.push(notice(
                 ctr,
@@ -3681,11 +3678,11 @@ fn check_translations(
             continue;
         }
 
-        // TRN_006: table+field+language+record kombinasyonu tekil.
-        // GTFS spec'i bir çeviri satırını (record_id, record_sub_id) VEYA field_value
-        // ile tanımlar; field_value anahtara dahil EDİLMELİ. Aksi hâlde field_value
-        // bazlı çevirilerde (örn. her stop_headsign değeri için ayrı satır) record_id
-        // boş kalıp anahtar çakışır ve her farklı değer sahte TRN_006 üretir.
+        // TRN_006: the table+field+language+record combination is unique.
+        // The GTFS spec identifies a translation row by (record_id, record_sub_id) OR field_value;
+        // field_value MUST be part of the key. Otherwise field_value-based translations (for
+        // example, one row per stop_headsign value) leave record_id empty, collide on the key,
+        // and produce a false TRN_006 for every different value.
         let key = format!(
             "{}|{}|{}|{}|{}|{}",
             rec.table_name,
@@ -3700,7 +3697,7 @@ fn check_translations(
                 seen.insert(key, rec.translation.clone());
             }
             Some(prev) if *prev == rec.translation => {
-                // TRN_005: aynı anahtar + aynı çeviri değeri → birebir yinelenen satır
+                // TRN_005: same key + same translation value → exact duplicate row.
                 notices.push(notice(
                     ctr,
                     "TRN_005",
@@ -3709,7 +3706,7 @@ fn check_translations(
                     None,
                     "translations.txt",
                     Some(rec.line),
-                    // Yinelemeyi tanımlayan bileşik anahtarın tamamı.
+                    // The complete composite key identifying the duplicate.
                     Some("table_name|field_name|language|record_id|record_sub_id|field_value"),
                     Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
                     None,
@@ -3721,7 +3718,7 @@ fn check_translations(
                 ));
             }
             Some(_) => {
-                // TRN_006: aynı anahtar + farklı çeviri değeri → çelişki
+                // TRN_006: same key + different translation value → conflict.
                 notices.push(notice(
                     ctr,
                     "TRN_006",
@@ -3730,7 +3727,7 @@ fn check_translations(
                     None,
                     "translations.txt",
                     Some(rec.line),
-                    // Çelişkiyi tanımlayan bileşik anahtarın tamamı (TRN_005 ile aynı).
+                    // The complete composite key identifying the conflict (same as TRN_005).
                     Some("table_name|field_name|language|record_id|record_sub_id|field_value"),
                     Some(format!("{}/{}/{}", rec.table_name, rec.field_name, rec.language)),
                     None,
@@ -3744,8 +3741,8 @@ fn check_translations(
         }
     }
 
-    // TRN_007 karar: birden çok satır aynı dildeyse (sistemik) tek feed-seviyesi özet;
-    // tek satır ise satır-başına korunur.
+    // TRN_007 decision: multiple rows in the same language (systemic) become one feed-level
+    // summary; a single row remains row-scoped.
     if trn007_pending.len() > 1 {
         let n = trn007_pending.len();
         notices.push(notice(
@@ -3769,10 +3766,10 @@ fn check_translations(
 
 // �"?�"? ATR_009-012: attribution cross-ref �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
-/// translations.txt'ten belirli (table, field) için ja-Hrkt (かな) çevirisi olan
-/// record_id ve field_value kümeleri. JPN_001/008/009/010 kana kontrollerinde paylaşılır.
-/// String Japonca karakter (Hiragana/Katakana/Kanji) içeriyor mu — char/scalar bazlı (byte DEĞİL).
-/// JPN_008'in route_short_name'e düşmesinde sayısal kodları (ör. "42") elemek için.
+/// record_id and field_value sets with a ja-Hrkt (かな) translation for a given (table, field)
+/// in translations.txt. Shared by the JPN_001/008/009/010 kana checks.
+/// Does a string contain Japanese characters (Hiragana/Katakana/Kanji) — char/scalar based (NOT bytes).
+/// Used to exclude numeric codes (for example, "42") when JPN_008 falls back to route_short_name.
 fn has_japanese(s: &str) -> bool {
     s.chars().any(|c| {
         matches!(c,
@@ -4402,13 +4399,12 @@ fn check_gtfs_jp_namespace(records: &EntityRecords, notices: &mut Vec<Notice>, c
     }
 }
 
-// ── JPN_001: GTFS-JP feed'inde durak adının kana (ja-Hrkt) okuması eksik ──────
-// GTFS-JP, stop_name için かな okumasını (translations, language=ja-Hrkt) ZORUNLU kılar
-// (sesli anons + arama için). Yalnız ortak GTFS-JP tespiti taşıyan feed'lerde çalışır:
-// geçerli dil/çeviri sinyalleri, agency_lang=ja + Asia/Tokyo, kana metni veya *_jp dosyası.
-// Bir durağın kanası var sayılır ⇔ translations'ta
-// (table=stops, field=stop_name, language=ja-Hrkt) record_id=stop_id VEYA
-// field_value=stop_name ile eşleşen satır bulunur.
+// ── JPN_001: GTFS-JP stop name is missing a kana (ja-Hrkt) reading ─────────────
+// GTFS-JP REQUIRES a かな reading for stop_name (translations, language=ja-Hrkt)
+// for announcements and search. Run only on feeds carrying a shared GTFS-JP signal:
+// valid language/translation signals, agency_lang=ja + Asia/Tokyo, kana text, or a *_jp file.
+// A stop is considered to have kana iff translations contains a matching row with
+// (table=stops, field=stop_name, language=ja-Hrkt) and record_id=stop_id OR field_value=stop_name.
 fn check_gtfs_jp(
     records: &EntityRecords,
     map: &EntityMap,
@@ -4418,9 +4414,9 @@ fn check_gtfs_jp(
 ) {
     let first_jp_notice = notices.len();
     let ti_jpn = &records.trip_interns;
-    // Gerçek pipeline'da K1 envanteri boş/bozuk dosyaları da fiziksel varlık olarak taşır.
-    // Doğrudan K4 çağrılarında ise complete() sentetik kayıtları desteklemek için mevcut
-    // typed kayıtlar ve pattern işareti geri dönüş ölçütüdür.
+    // In the real pipeline, K1 inventory carries empty/malformed files as physical presence.
+    // For direct K4 calls, existing typed records and the pattern marker provide the fallback
+    // needed to support synthetic records created by complete().
     let has_jp_file = records.has_gtfs_jp_file
         || if availability.has_inventory() {
             GTFS_JP_FILES.iter().any(|name| availability.present(name))
@@ -4506,11 +4502,11 @@ fn check_gtfs_jp(
                 EntityType::Stop,
                 Some(stop.stop_id.clone()),
                 Some(stop.stop_id.clone()),
-                // Dosya/satır ÇİFTİ tek kaynağı göstermelidir: `line` eksikliğin sahibi
-                // kaydın satırıdır (burada stops.txt), `translations.txt` değil. İkisi
-                // karışınca bulguyu doğrulamak isteyen kişi yanlış dosyanın o satırına
-                // bakar (2026-08-29, Katori feed'inde JPN_008 için yaşandı). Çevirinin
-                // nereye ekleneceğini çözüm önerisi zaten söylüyor.
+                // The file/line PAIR must identify the source: `line` is the line of the
+                // record that owns the missing value (stops.txt here), not `translations.txt`.
+                // If they are mixed up, anyone verifying the finding looks at the wrong file
+                // and line (observed for JPN_008 in the Katori feed, 2026-08-29). The remedy
+                // already says where to add the translation.
                 "stops.txt",
                 Some(stop.line),
                 Some("stop_name"),
@@ -4522,7 +4518,7 @@ fn check_gtfs_jp(
             ));
         }
 
-        // ── JPN_008: route adı kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
+        // ── JPN_008: route name kana (ja-Hrkt) — GTFS-JP _name fields are required ──
         // Both Japanese names are independently translatable fields.
         let (krl_rec, krl_val) = collect_kana(&records.translations, "routes", "route_long_name");
         let (krs_rec, krs_val) = collect_kana(&records.translations, "routes", "route_short_name");
@@ -4558,7 +4554,7 @@ fn check_gtfs_jp(
             }
         }
 
-        // ── JPN_009: trip_headsign kana (ja-Hrkt) — GTFS-JP _headsign alanları zorunlu ──
+        // ── JPN_009: trip_headsign kana (ja-Hrkt) — GTFS-JP _headsign fields are required ──
         let (kt_rec, kt_val) = collect_kana(&records.translations, "trips", "trip_headsign");
         for trip in &records.trips {
             let hs = match ti_jpn.headsign(trip) {
@@ -4578,7 +4574,7 @@ fn check_gtfs_jp(
             ));
         }
 
-        // ── JPN_010: agency_name kana (ja-Hrkt) — GTFS-JP _name alanları zorunlu ──
+        // ── JPN_010: agency_name kana (ja-Hrkt) — GTFS-JP _name fields are required ──
         let (ka_rec, ka_val) = collect_kana(&records.translations, "agency", "agency_name");
         for ag in &records.agencies {
             if !has_japanese(&ag.agency_name) {
@@ -4607,8 +4603,8 @@ fn check_gtfs_jp(
 
     if legacy_v3_extensions {
         // ── JPN_002: trips.jp_office_id → office_jp.office_id ──
-        // Kapı: office_jp.txt mevcut (GTFS-JP yapısal sinyali). Boş/eksik jp_office_id atlanır;
-        // sadece dolu ama office_jp'de tanımsız referanslar işaretlenir.
+        // Gate: office_jp.txt exists (a GTFS-JP structural signal). Skip empty/missing jp_office_id;
+        // report only populated references that are undefined in office_jp.
         if !records.office_jp.is_empty() {
             let office_ids: HashSet<&str> = records
                 .office_jp
@@ -4639,9 +4635,9 @@ fn check_gtfs_jp(
                 ));
                 }
             }
-            // JPN_002 (genişletme): routes.jp_office_id → office_jp.office_id.
-            // Resmî GTFS-JP spec jp_office_id'yi routes.txt'te tanımlar (Tokyo trips.txt'te koymuş);
-            // sürüm-toleranslı olmak için her iki konumu da denetleriz.
+            // JPN_002 (extension): routes.jp_office_id → office_jp.office_id.
+            // The official GTFS-JP spec defines jp_office_id in routes.txt (Tokyo put it in
+            // trips.txt); check both locations for version tolerance.
             for route in &records.routes {
                 let oid = match route.jp_office_id.as_deref() {
                     Some(o) if !o.is_empty() => o,
@@ -4668,7 +4664,7 @@ fn check_gtfs_jp(
         }
 
         // ── JPN_003: agency_jp.agency_id → agency.agency_id ──
-        // Kapı: agency_jp.txt mevcut. Boş agency_id (ayrı zorunluluk ihlali) atlanır.
+        // Gate: agency_jp.txt exists. Skip empty agency_id (a separate required-field violation).
         if !records.agency_jp.is_empty() {
             let agency_ids: HashSet<&str> = records
                 .agencies
@@ -4701,10 +4697,10 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_004: GTFS-JP feed'inde translations.txt zorunlu ──
-    // GTFS-JP profili translations.txt'i (özellikle stop_name kana/ja-Hrkt okumaları için)
-    // zorunlu kılar. Kapı: detect_gtfs_jp() ile hesaplanan GTFS-JP sinyali AMA
-    // translations hiç yok. has_kana zaten translations dolu demek → bu kuralla çelişmez.
+    // ── JPN_004: translations.txt is required in a GTFS-JP feed ──
+    // The GTFS-JP profile requires translations.txt (especially for stop_name kana/ja-Hrkt
+    // readings). Gate: detect_gtfs_jp() found a GTFS-JP signal BUT translations is absent.
+    // has_kana already means translations is populated → it cannot conflict with this rule.
     if jp_validation_enabled && records.translations.is_empty() {
         notices.push(notice(
             ctr,
@@ -4722,9 +4718,9 @@ fn check_gtfs_jp(
         ));
     }
 
-    // ── JPN_011: GTFS-JP'de agency_id her zaman zorunlu (tek işletici olsa bile) ──
-    // Standart GTFS tek-agency'de agency_id'yi opsiyonel sayar; AGN_011 yalnız ÇOKLU-agency'de
-    // (route-level) fire eder → tek-işletici JP feed'inde agency_id eksikliği boşlukta kalıyordu.
+    // ── JPN_011: agency_id is always required in GTFS-JP (even with one agency) ──
+    // Standard GTFS treats agency_id as optional for a single agency; AGN_011 fires only for
+    // MULTIPLE agencies (at route level), leaving a missing ID in a single-agency JP feed unseen.
     if jp_validation_enabled {
         let missing = records
             .agencies
@@ -4812,10 +4808,10 @@ fn check_gtfs_jp(
         }
     }
 
-    // ── JPN_022: GTFS-JP v4 ana alan zorunluluğu ─────────────────────────────
-    // V4, v3'te sabit/opsiyonel olan bazı alanları açıkça zorunlu kılar. Dolu
-    // değerlerin biçim ve anlam denetimi genel GTFS kurallarında kalır; bu kural
-    // yalnız eksik/boş değerleri, profil seçimi V4 iken görünür kılar.
+    // ── JPN_022: GTFS-JP v4 core-field requirement ───────────────────────────
+    // V4 explicitly requires some fields that were fixed/optional in v3. Format and semantic
+    // checks for populated values remain with the general GTFS rules; this rule exposes only
+    // missing/empty values when the selected profile is V4.
     if jp_validation_enabled && matches!(records.gtfs_jp_profile, GtfsJpProfile::V4) {
         let mut jpn022_pending = Vec::new();
         for agency in &records.agencies {
@@ -4966,10 +4962,10 @@ fn check_gtfs_jp(
                 ));
             }
         }
-        // 🔑 PARA BİRİMİ başına toplanır, satır başına DEĞİL. Künyede tekilleştirme `Field`
-        // yazıyor; emisyon satır başınaydı ve tek olguyu yüzlerce kez tekrarlıyordu —
-        // BART (`mdb-53`) 2.500 `fare_attributes` satırı taşıyor ve **hepsi `USD`**, yani
-        // 2.500 bulgu tek bir gerçeği söylüyordu. `JPN_028`/`JPN_029`/`JPN_030` ile aynı şekil.
+        // 🔑 Aggregate per CURRENCY, not per row. The card says deduplication is `Field`;
+        // row-level emission repeated one fact hundreds of times — BART (`mdb-53`) has 2,500
+        // `fare_attributes` rows and **all are `USD`**, so 2,500 findings said one thing.
+        // Same shape as `JPN_028`/`JPN_029`/`JPN_030`.
         let mut currencies: BTreeMap<&str, (u64, Vec<String>, u64)> = BTreeMap::new();
         for fare in &records.fare_attributes {
             let currency = fare.currency_type.as_str();
@@ -5016,14 +5012,14 @@ fn check_gtfs_jp(
     }
 
     // ── JPN_027: V3 route_type sabiti ─────────────────────────────────────────
-    // V3 statik otobüs formatıdır ve açık V3 profilinde route_type tam olarak 3 olmalıdır.
-    // Bu kontrolün JP tespit kapısı yukarıda uygulanır; Auto ve çok modlu V4 kapsam dışıdır.
-    // HVT değerleri (700..716, 800) genel GTFS sınıflandırmasında otobüs olabilir, ancak V3
-    // sabitini karşılamaz ve bu nedenle burada ihlal sayılır. Eksik veya parse edilemeyen
-    // değerler genel route_type kurallarına bırakılır.
+    // V3 is a static bus format, and route_type must be exactly 3 under an explicit V3 profile.
+    // The JP detection gate is applied above; Auto and multimodal V4 are out of scope.
+    // HVT values (700..716, 800) may classify as buses under general GTFS, but do not satisfy
+    // the V3 constant and are violations here. Missing or unparseable values stay with the
+    // general route_type rules.
     //
-    // Emisyon tip başına toplanır. Künyede tekilleştirme `Field` yazıyor, yani kimlik
-    // "alan"; hat başına basmak aynı olguyu yüzlerce kez tekrarlardı.
+    // Emission is aggregated per type. The card says deduplication is `Field`, so the identity
+    // is the "field"; emitting per route would repeat the same fact hundreds of times.
     if records.gtfs_jp_profile == GtfsJpProfile::V3 {
         let typed: Vec<(u32, &crate::k2::routes::RouteRecord)> = records
             .routes
@@ -5250,8 +5246,8 @@ fn check_gtfs_jp(
     }
 
     if legacy_v3_extensions {
-        // ── JPN_005: office_jp.office_name zorunlu (boş olamaz) ──
-        // Kapı: office_jp.txt mevcut. office_id'si dolu ama office_name'i boş/eksik satırlar işaretlenir.
+        // ── JPN_005: office_jp.office_name required (must not be empty) ──
+        // Gate: office_jp.txt exists. Report rows with a populated office_id but empty/missing office_name.
         for oj in &records.office_jp {
             if oj.office_id.is_empty() {
                 continue;
@@ -5281,11 +5277,10 @@ fn check_gtfs_jp(
     }
 
     // ── JPN_006: GTFS-JP ücret kapsamı ───────────────────────────────────────
-    // v3'te fare_attributes.txt zorunludur; fare_rules.txt ise tüm hatlar aynı
-    // tek tip ücreti kullanmıyorsa koşullu zorunludur. Tek başına eksik
-    // fare_rules.txt, uniform ücret ile route/zone bazlı ücret ayrımını
-    // gözlemlenebilir kılmaz; bu yüzden yalnızca birden fazla farklı ücret
-    // profili kanıtı varsa koşullu eksiklik raporlanır.
+    // fare_attributes.txt is required in v3; fare_rules.txt is conditionally required when
+    // not all routes use the same single fare. A missing fare_rules.txt alone does not make
+    // the distinction between a uniform fare and route/zone-based fares observable, so report
+    // the conditional absence only when evidence shows multiple fare profiles.
     let fare_profiles: HashSet<(String, String, String, String, String)> = records
         .fare_attributes
         .iter()
@@ -5538,10 +5533,9 @@ fn check_gtfs_jp(
         }
 
         // ── JPN_016: route_update_date YYYYMMDD ─────────────────────────────────
-        // GTFS-JP v3'te tarih pattern_jp.txt içindedir. routes_jp.txt v3 dosyası
-        // değildir; ancak eski feed uyumluluğu için aynı tarih alanını doğrulamaya
-        // devam ederiz. Böylece legacy feed'lerde gerçek üretici hataları sessizce
-        // kaybolmaz.
+        // In GTFS-JP v3 the date is in pattern_jp.txt. routes_jp.txt is not a v3 file;
+        // however, keep validating the same date field for legacy-feed compatibility.
+        // This keeps real producer errors in legacy feeds from disappearing silently.
         for pattern in &records.pattern_jp {
             if let Some(date) = pattern.route_update_date.as_deref() {
                 if !valid_gtfs_jp_date(date) {
@@ -5629,9 +5623,9 @@ fn check_gtfs_jp(
         }
 
         // ── JPN_018: trips.jp_pattern_id → pattern_jp.jp_pattern_id ──────────────
-        // `pattern_jp.txt` ve trips.jp_pattern_id ayrı ayrı opsiyoneldir. jp_pattern_id
-        // pattern_jp.txt yokken kurum içi kod olarak kullanılabilir; yalnızca pattern
-        // master dosyası mevcutsa burada foreign-key bütünlüğü aranır.
+        // `pattern_jp.txt` and trips.jp_pattern_id are independently optional. jp_pattern_id
+        // may be used as an internal code when pattern_jp.txt is absent; check foreign-key
+        // integrity here only when the pattern master file exists.
         if has_pattern_jp_file {
             let pattern_ids: HashSet<&str> = records
                 .pattern_jp
@@ -5700,16 +5694,16 @@ fn check_gtfs_jp(
             .iter()
             .filter(|t| t.language.eq_ignore_ascii_case("ja-Hrkt"))
         {
-            // TRN_001/TRN_002 bilinmeyen table_name/field_name kök bulgularını
-            // üretir. JPN_019 yalnız bilinen tabloların GTFS-JP referansını
-            // denetler; aksi hâlde aynı satırda türev bulgu çığı oluşur.
+            // TRN_001/TRN_002 emit root findings for unknown table_name/field_name.
+            // JPN_019 checks the GTFS-JP reference only for known tables; otherwise the
+            // same row would produce a flood of derivative findings.
             let table_known =
                 crate::k2::translations::is_known_translation_table(&translation.table_name);
             if !table_known {
                 continue;
             }
-            // TRN_002 ile AYNI yüklem: alan o tablonun bir sütunu mu. İkisi ayrışırsa
-            // JPN_019 ya kendi kapsamadığı satırı denetler ya da denetlemesi gerekeni atlar.
+            // The SAME predicate as TRN_002: is the field a column in that table? If the two
+            // diverge, JPN_019 either checks a row outside its scope or skips one it should check.
             let valid_field = crate::k2::translations::table_has_field(
                 &translation.table_name,
                 &translation.field_name,
@@ -5726,12 +5720,12 @@ fn check_gtfs_jp(
                 ("attributions", Some(id)) => attribution_ids.contains(id),
                 ("pathways", Some(id)) => pathway_ids.contains(id),
                 ("levels", Some(id)) => level_ids.contains(id),
-                // TRN_013 ile aynı hüküm: feed_info tek satırlıdır, kimlik alanı taşıyamaz.
+                // Same provision as TRN_013: feed_info is a single-row table and has no identity field.
                 ("feed_info", Some(_)) => false,
-                // Kimliği çözemediğimiz tablo hakkında İDDİA YOKTUR. `_ => false` bilinen
-                // ama kolu yazılmamış her tabloyu sessizce yanlış pozitife çeviriyordu
-                // (attributions: Katori feed'inde 8 bulgu; pathways/levels: ölçülen 2).
-                // Emsal: TRN_004 aynı sözleşmeyi kullanır ("lookup not feasible" → true).
+                // Make NO CLAIM about a table whose identity we cannot resolve. `_ => false`
+                // silently turned every known-but-unhandled table into a false positive
+                // (8 findings for attributions in Katori; 2 measured for pathways/levels).
+                // Precedent: TRN_004 uses the same contract ("lookup not feasible" → true).
                 _ => true,
             };
             let valid_sub_id = if translation.table_name == "stop_times" {
@@ -5951,15 +5945,15 @@ fn check_gtfs_jp(
     }
 }
 
-/// FLJ_001..004 — `fare_leg_join_rules.txt`'in dört Foreign ID alanı (Fares v2, issue #59).
+/// FLJ_001..004 — the four Foreign ID fields in `fare_leg_join_rules.txt` (Fares v2, issue #59).
 ///
-/// Ağ alanları için hedef `EntityMap::network_ids`'tir — NET_002'nin aksine burada BİRLEŞİK
-/// küme DOĞRUDUR, çünkü spec bu alanları *"referencing routes.network_id **or**
-/// networks.network_id"* diye tanımlar. FLG_002 ile aynı hedef.
+/// The target for network fields is `EntityMap::network_ids` — unlike NET_002, the UNION
+/// is CORRECT here because the spec defines these fields as *"referencing routes.network_id **or**
+/// networks.network_id"*. Same target as FLG_002.
 ///
-/// Durak alanları karşılıklı koşulludur: biri doluysa diğeri zorunludur. Spec ayrıca hedefin
-/// durak (`location_type` 0/boş) veya istasyon (`location_type=1`) olmasını ister; giriş,
-/// düğüm ve biniş alanı geçersizdir.
+/// Stop fields are mutually conditional: if one is populated, the other is required. The spec
+/// also requires the target to be a stop (`location_type` 0/empty) or station (`location_type=1`);
+/// entrances, nodes, and boarding areas are invalid.
 fn check_fare_leg_join_rules(
     records: &EntityRecords,
     map: &EntityMap,
@@ -6092,10 +6086,10 @@ fn check_fare_leg_join_rules(
 
 /// NET_002/NET_003 — `route_networks.txt`'in iki Required Foreign ID alanı.
 ///
-/// ⚠️ `network_id` **yalnız `networks.txt`'e** karşı çözülür, `EntityMap::network_ids`'e karşı
-/// DEĞİL: o küme `routes.network_id` ve `route_networks.txt`'in KENDİ satırlarını da içerir
-/// (FLG_002 tam kümeye bakar), dolayısıyla ona karşı kontrol dairesel olur ve hiçbir zaman
-/// ateşlemez. Spec bu alanı "Foreign ID referencing networks.network_id" olarak tanımlar.
+/// ⚠️ Resolve `network_id` against **only `networks.txt`**, not `EntityMap::network_ids`:
+/// that set also contains `routes.network_id` and the rows of `route_networks.txt` itself
+/// (FLG_002 checks the union), so checking against it would be circular and never fire.
+/// The spec defines this field as "Foreign ID referencing networks.network_id".
 fn check_route_networks(
     records: &EntityRecords,
     map: &EntityMap,
@@ -6192,19 +6186,18 @@ fn check_attributions(
     notices: &mut Vec<Notice>,
     ctr: &mut u32,
 ) {
-    // ATR_009: DOSYA başına tek özet (ATR_001/ATR_003 ile aynı gerekçe). Ölçümde ihlal
-    // sayısı her feed'de SATIR sayısına eşitti (`tdg-82555` 12.240/12.240, `tld-4477`
-    // 3.379/3.379, `mdb-2374` 72/72) — yani üretici her satırda aynı iki referans alanını
-    // birlikte yazıyor, ihlal tek sistemik tercihten doğuyor. `Entity` dedup kimlik başına
-    // tekilleştirdiği için 5 feed'de 93 notice çıkıyordu ve hiçbiri kaç satırın
-    // etkilendiğini söylemiyordu.
+    // ATR_009: one summary per FILE (same rationale as ATR_001/ATR_003). In measurement, the
+    // finding count equaled the row count in every feed (`tdg-82555` 12,240/12,240, `tld-4477`
+    // 3,379/3,379, `mdb-2374` 72/72): the producer writes the same two reference fields together
+    // on every row, so one systemic choice causes the violation. `Entity` dedup produced 93
+    // notices across 5 feeds and none said how many rows were affected.
     let mut both_refs_count: u64 = 0;
     let mut both_refs_first: Option<u64> = None;
 
     for rec in &records.attributions {
         let eid = rec.attribution_id.clone();
 
-        // ATR_010: agency_id cross-ref — attribution'daki agency_id agency.txt'te bulunamadı
+        // ATR_010: agency_id cross-reference — attribution's agency_id was not found in agency.txt.
         if let Some(ref aid) = rec.agency_id {
             if !map.agencies.contains_key(aid.as_str()) {
                 notices.push(notice(
@@ -6224,7 +6217,7 @@ fn check_attributions(
             }
         }
 
-        // ATR_011: route_id referansı
+        // ATR_011: route_id reference.
         if let Some(ref rid) = rec.route_id {
             if !map.routes.contains_key(rid.as_str()) {
                 notices.push(notice(
@@ -6244,7 +6237,7 @@ fn check_attributions(
             }
         }
 
-        // ATR_012: trip_id referansı
+        // ATR_012: trip_id reference.
         if let Some(ref tid) = rec.trip_id {
             if !map.trips.contains_key(tid.as_str()) {
                 notices.push(notice(
@@ -6286,7 +6279,7 @@ fn check_attributions(
             None,
             "attributions.txt",
             Some(first),
-            // Olgu ÜÇ hedef alanının birlikte kullanılmasıdır.
+            // The condition is all THREE target fields being used together.
             Some("agency_id|route_id|trip_id"),
             Some(format!("{both_refs_count} rows")),
             Some("at most one may be set (agency_id/route_id/trip_id)".to_string()),
@@ -6311,7 +6304,7 @@ fn check_xfl(
 ) {
     let ti_xfl = &records.trip_interns;
 
-    // XFL_002: her trip'in stop_times'ta kaydı var
+    // XFL_002: every trip has a stop_times record.
     {
         for rec in &records.trips {
             if rec.trip_id.is_empty() {
@@ -6342,8 +6335,8 @@ fn check_xfl(
         }
     }
 
-    // STM_033: tek duraklı sefer — stop_times girişi var ama yalnızca 1 tane
-    // (sefer hiçbir yere gidemez → "unusable trip")
+    // STM_033: single-stop trip — a stop_times entry exists, but only one
+    // (the trip cannot go anywhere → "unusable trip").
     {
         for rec in &records.trips {
             if rec.trip_id.is_empty() {
@@ -6376,13 +6369,13 @@ fn check_xfl(
         }
     }
 
-    // XFL_005 KALDIRILDI (0.8.0): stop_times→stops FK ihlalini STM_002 ile birebir aynı
-    // kümeden (`bad_stop_ids`) raporluyordu. İkisi de Kritik+Spec olduğu için tek eksik
-    // durak iki R1 blocker'ı ve iki pub_score cezası üretiyordu; R9 kuyruğunda da iki ayrı
-    // iş gibi görünüyordu. STM_002 satır numarası taşıdığı ve distinct stop_id başına
-    // toplandığı için korunan taraf o oldu; XFL_005'in blocks'u STM_002'ye devredildi.
+    // XFL_005 REMOVED (0.8.0): it reported the stop_times→stops FK violation from the exact
+    // same set (`bad_stop_ids`) as STM_002. Since both were Critical+Spec, one missing stop
+    // produced two R1 blockers and two pub_score penalties, and appeared as two jobs in R9.
+    // STM_002 was retained because it carries line numbers and aggregates per distinct stop_id;
+    // XFL_005's blocks were transferred to STM_002.
 
-    // PTH_002 / PTH_003: pathway'deki from/to stop_id stops.txt'te mevcut
+    // PTH_002 / PTH_003: pathway from/to stop_id values exist in stops.txt.
     {
         for rec in &records.pathways {
             for (rule_id, field, stop_id) in [
@@ -6409,20 +6402,20 @@ fn check_xfl(
         }
     }
 
-    // PTH_026: pathway uç noktası istasyon olamaz. Spec, from_stop_id/to_stop_id için:
+    // PTH_026: a pathway endpoint cannot be a station. Spec, for from_stop_id/to_stop_id:
     // "Must contain a stop_id that identifies a platform (location_type=0 or empty),
     // entrance/exit (2), generic node (3) or boarding area (4). Values for stop_id that
     // identify stations (location_type=1) ... are forbidden."
-    // ── presence:required boşlukları (çapa granülerliği triyajı, 2026-08-05) ─────
+    // ── presence:required gaps (anchor-granularity triage, 2026-08-05) ─────────
     //
-    // "X yineleniyor" ve "X bulunamadı" başlıklı kurallar BOŞ DEĞERİ HİÇ GÖRMÜYORDU:
-    // yinelenme kontrolü boş anahtarları atlar (haklı — boşlar birbirinin kopyası değildir),
-    // FK çözümü boşu "referans yok" sayıp geçer. Aradaki "bu alan zorunludur" hükmü
-    // ikisinin arasından düşüyordu. Her biri `presence_probe.py` ile boş değerde sınandı.
+    // Rules titled "X is duplicated" and "X not found" did not see EMPTY VALUES at all:
+    // the duplicate check skips empty keys (correctly — empty values are not copies of one another),
+    // and FK resolution treats empty as "no reference" and moves on. The provision "this field
+    // is required" fell between the two. Each case was tested at an empty value with `presence_probe.py`.
     //
-    // Emit K4'te toplandı çünkü bu kayıtların bir kısmı `parse_*` ile üretiliyor ve notice
-    // döndürmüyor; `row` ve `line` ise burada erişilebilir. `trips.service_id` istisnadır
-    // (TripRecord bellek için `row` tutmaz) → `TRP_035` K2'de.
+    // Emission is centralized in K4 because some records are produced by `parse_*` and do not
+    // return notices; `row` and `line` are available here. `trips.service_id` is the exception
+    // (TripRecord does not retain `row` in memory) → `TRP_035` is in K2.
     {
         use crate::k2::common::require_nonempty;
         for r in &records.areas {
@@ -6626,12 +6619,12 @@ fn check_xfl(
         }
     }
 
-    // PTH_030: bir platformun boarding area'ları modellenmişse pathway'ler BOARDING AREA'lara
-    // bağlanır; spec ekler: "In such cases, the platform must not have pathways assigned."
+    // PTH_030: when a platform's boarding areas are modeled, pathways connect to the BOARDING
+    // AREAS; the spec adds: "In such cases, the platform must not have pathways assigned."
     //
-    // Grafik kodu iç içe modellemeyi TOLERE eder (`k6_analytics.rs` PTH_012, çocuk düğümden
-    // erişilebilirlik) ama yasağı ÖLÇMEZ. Korpusta örnek yok — endişe edilen gürültü
-    // gerçekleşmiyor, kural sentetik fixture ile kanıtlanır.
+    // The graph code TOLERATES nested modeling (`k6_analytics.rs` PTH_012, accessibility from
+    // a child node) but does not MEASURE the prohibition. No corpus example exists — the feared
+    // noise is not occurring, so the rule is proven with a synthetic fixture.
     {
         let mut has_boarding_area: HashSet<&str> = HashSet::new();
         for rec in &records.stops {
@@ -6669,11 +6662,11 @@ fn check_xfl(
         }
     }
 
-    // PTH_031: aynı spec cümlesinin İKİNCİ KOLU — `stop_access=1` olan durak da pathway uç
-    // noktası OLAMAZ. `stop_access=1` "bu durağa sokaktan doğrudan erişilir, istasyonun
-    // giriş/pathway'lerinden bağımsız yol tarifi üret" demektir; ona pathway bağlamak
-    // kendi kendisiyle çelişir. 2026-08-06'ya kadar burada "kapsam dışıdır" yazıyordu ama
-    // hükmü ölçen PTH_031, pathway uç noktasına doğrudan erişim çelişkisini ölçer.
+    // PTH_031: the SECOND BRANCH of the same spec sentence — a stop with `stop_access=1` also
+    // CANNOT be a pathway endpoint. `stop_access=1` means "the stop is directly accessible
+    // from the street; produce directions independent of the station's entrances/pathways";
+    // connecting a pathway contradicts itself. Until 2026-08-06 this was marked "out of scope",
+    // but PTH_031 measures the direct-access contradiction at the pathway endpoint.
     {
         for rec in &records.pathways {
             for (field, stop_id) in [
@@ -6684,9 +6677,9 @@ fn check_xfl(
                     continue;
                 };
                 let stop = &records.stops[sidx];
-                // `stop_access` yalnız peron/durakta anlamlıdır (spec: istasyon, giriş,
-                // ara düğüm ve biniş alanında Conditionally Forbidden) → location_type
-                // 0/boş dışında bakmıyoruz; oradaki hata STP_026'nın alanı.
+                // `stop_access` is meaningful only on platforms/stops (the spec makes it
+                // Conditionally Forbidden on stations, entrances, generic nodes, and boarding
+                // areas) → do not inspect it outside location_type 0/empty; STP_026 owns that error.
                 if matches!(stop.location_type, None | Some(0)) && stop.stop_access == Some(1) {
                     notices.push(notice(
                         ctr,
@@ -6727,9 +6720,9 @@ fn check_xfl(
         }
     }
 
-    // SHP_019: shape trip(ler) tarafından referanslanmış ama o trip'lerin hiçbirinin stop_times'ı yok
+    // SHP_019: shape is referenced by trip(s), but none of those trips has stop_times.
     {
-        // shape_id → referans eden trip_id listesi
+        // shape_id → list of referencing trip_id values.
         let mut shape_to_trips: HashMap<&str, Vec<&str>> = HashMap::new();
         for trip in &records.trips {
             if let Some(sid) = ti_xfl.shape_id(trip) {
@@ -6747,9 +6740,9 @@ fn check_xfl(
             .filter(|(_, trip_ids)| trip_ids.iter().all(|tid| !trips_in_stm.contains(*tid)))
             .map(|(shape_id, trip_ids)| (*shape_id, trip_ids.len()))
             .collect();
-        // Her shape için ayrı `records.shapes.iter().find(..)` taraması shape noktası ×
-        // yetim shape sayısı kadar sürüyordu (mdb-992: K4'ün 7,8 s'inin ~3,3 s'i). İlk
-        // satırları tek geçişte topla; `find` gibi ilk eşleşen nokta korunur.
+        // A separate `records.shapes.iter().find(..)` scan for each shape cost shape-point ×
+        // orphan-shape count (mdb-992: ~3.3 s of K4's 7.8 s). Collect first lines in one pass;
+        // like `find`, preserve the first matching point.
         let mut first_line: HashMap<&str, u64> = HashMap::new();
         if !orphan_shapes.is_empty() {
             let wanted: HashSet<&str> = orphan_shapes.iter().map(|(sid, _)| *sid).collect();
@@ -6783,7 +6776,7 @@ fn check_xfl(
         }
     }
 
-    // XFL_006: calendar_dates'te yalnızca exception_type=2 olan ve calendar.txt'te de bulunmayan service_id'ler
+    // XFL_006: service_ids with only exception_type=2 in calendar_dates and absent from calendar.txt.
     {
         let cal_services: HashSet<&str> = records
             .calendars
@@ -6805,11 +6798,11 @@ fn check_xfl(
             .filter(|sid| !cal_services.contains(*sid) && !added_services.contains(*sid))
             .collect();
         if !bad.is_empty() {
-            // 🔴 `bad` bir HashSet: sırası process'e göre değişir. Sıralama olmadan aynı feed
-            // aynı binary'de her koşumda BAŞKA bir mesaj/observed_value üretiyordu — ölçüldü
-            // (`mdb-2280`, üç koşum üç farklı sıra). Korpus karşılaştırması, golden çıktı ve
-            // kullanıcıya verilen rapor bundan etkileniyordu. Komşu kurallar zaten sıralıyor
-            // (FRL zone listesi `sort_unstable`, AGN_017 `langs.sort()`, `join_capped` BTreeSet).
+            // 🔴 `bad` is a HashSet: its order varies by process. Without sorting, the same feed
+            // produced a DIFFERENT message/observed_value on every run in the same binary — measured
+            // (`mdb-2280`, three runs, three orders). Corpus comparisons, golden output, and the
+            // user-facing report were affected. Neighboring rules already sort (FRL zone list
+            // `sort_unstable`, AGN_017 `langs.sort()`, `join_capped` BTreeSet).
             let mut bad_list: Vec<&str> = bad.into_iter().collect();
             bad_list.sort_unstable();
             notices.push(notice(
@@ -6832,7 +6825,7 @@ fn check_xfl(
         }
     }
 
-    // XFL_012: trips'i olan ama hiçbir trip'inin stop_times'ta kaydı olmayan rota
+    // XFL_012: route has trips, but none of its trips has a stop_times record.
     {
         let mut route_trip_ids: HashMap<&str, Vec<&str>> = HashMap::new();
         for t in &records.trips {
@@ -6871,9 +6864,10 @@ fn check_xfl(
         }
     }
 
-    // XFL_013: shape_id hem gidiş hem dönüş yönünde kullanılıyor.
-    // Mesaja her yönün hat (route_id), çalışma takvimi (service_id) ve ilk kalkış saatini ekle;
-    // farklı hat/takvim/sefer varsa hepsini listele (kalkışlar 6 ile sınırlı, dil-nötr "(+N)").
+    // XFL_013: shape_id is used in both outbound and inbound directions.
+    // Add each direction's route (route_id), service calendar (service_id), and first departure
+    // time to the message; list all distinct route/calendar/trip combinations (cap departures at
+    // 6, language-neutral "(+N)").
     {
         #[derive(Default)]
         struct DirInfo {
@@ -6881,7 +6875,7 @@ fn check_xfl(
             services: BTreeSet<String>,
             deps: BTreeSet<String>,
         }
-        // dil-nötr birleştirme: "a, b, c (+N)" — sone dilden bağımsız (en/ja details için güvenli)
+        // Language-neutral join: "a, b, c (+N)" — the suffix is language-independent (safe for en/ja details).
         fn join_capped(set: &BTreeSet<String>, cap: usize) -> String {
             if set.is_empty() {
                 return "—".to_string();
@@ -6895,7 +6889,7 @@ fn check_xfl(
             }
         }
 
-        // shape_id → (gidiş, dönüş) detayları
+        // shape_id → (outbound, inbound) details.
         let mut shapes: HashMap<&str, (DirInfo, DirInfo)> = HashMap::new();
         for t in &records.trips {
             let shape_id = match ti_xfl.shape_id(t).filter(|s| !s.is_empty()) {
@@ -6974,30 +6968,30 @@ fn check_xfl(
             notices.push(n);
         }
     }
-    // TRN_016: `field_value` biçimli çeviri hiçbir kayıtla eşleşmiyor.
+    // TRN_016: a `field_value`-form translation matches no record.
     //
-    // Spec: "The field must have exactly the value defined in field_value." Bu biçim
-    // `record_id` yerine DEĞERE göre eşleşir; eşleşen satır yoksa çeviri sessizce etkisizdir
-    // (üretici çevirdiğini sanır). `XFL_014` yalnız `record_id` kolunu kapsar.
+    // Spec: "The field must have exactly the value defined in field_value." This form matches
+    // by VALUE instead of `record_id`; without a matching row the translation silently has no
+    // effect (the producer thinks it translated something). `XFL_014` covers only the `record_id` branch.
     //
-    // Kapsam: ham `row` taşıyan tabloların yanında trips ve stop_times da typed/indexed
-    // değerlerinden denetlenir. Ham satır kopyası tutulmaz: trips için intern tabloları,
-    // stop_times için stop_headsign side-map'i ve CompactStopTime index'i kullanılır.
+    // Scope: in addition to tables carrying raw `row`, check trips and stop_times from their
+    // typed/indexed values. No raw-row copy is kept: use intern tables for trips, and the
+    // stop_headsign side map plus CompactStopTime index for stop_times.
     //
-    // ⚠️ `field_name` hedef dosyada SÜTUN DEĞİLSE burada sayılmaz — o ihlal `TRN_002`'nin
-    // ("field_name bu tablo için geçersiz") alanıdır. Ölçüm sırasında bu ayrım yapılmadığında
-    // tek feed'de 2546 sahte bulgu çıkmıştı.
+    // ⚠️ If `field_name` is NOT A COLUMN in the target file, do not count it here — that is
+    // `TRN_002`'s violation ("field_name is invalid for this table"). Without this distinction,
+    // measurement produced 2,546 false findings in one feed.
     {
         let mut unmatched: Vec<String> = Vec::new();
-        // (tablo, alan) → değer kümesi. Aynı çift birden çok çeviri satırında geçer;
-        // küme bir kez kurulur, sonraki satırlar O(1) sorgular.
+        // (table, field) → value set. The same pair occurs in multiple translation rows;
+        // build the set once, then answer subsequent queries in O(1).
         let mut value_cache: HashMap<(&str, &str), Option<HashSet<&str>>> = HashMap::new();
         for rec in &records.translations {
             let Some(want) = rec.field_value.as_deref().filter(|v| !v.is_empty()) else {
                 continue;
             };
             if rec.record_id.as_deref().is_some_and(|r| !r.is_empty()) {
-                continue; // `record_id` biçimi → XFL_014'ün alanı
+                continue; // `record_id` form → XFL_014's scope.
             }
             let field = rec.field_name.as_str();
             if field.is_empty() {
@@ -7008,7 +7002,7 @@ fn check_xfl(
                 .entry((table, field))
                 .or_insert_with(|| translation_target_values(records, table, field));
             let Some(values) = entry.as_ref() else {
-                continue; // dosya yok, sütun yok ya da desteklenmeyen tablo
+                continue; // file absent, column absent, or unsupported table.
             };
             if !values.contains(want) {
                 unmatched.push(format!("{table}.{field}={want}"));
@@ -7038,13 +7032,12 @@ fn check_xfl(
                 "field_value değerlerini hedef alanın gerçek içeriğiyle birebir eşleştirin \
                  (baştaki/sondaki boşluk ve büyük/küçük harf dahil).",
             );
-            // 🔴 ÖRNEKLER `details`'E DE YAZILIR (17. koşum incelemesi, 2026-09-12).
-            // Yerelleştirme kural başına TEK şablon tutar ve en/fr/ja şablonları yalnız SAYIYI
-            // basıyordu: 3.013 ölü çevirisi olan bir Japon üreticisi kendi dilinde nereden
-            // başlayacağını göremiyordu. Türkçe mesajdaki "Örnek: …" listesi başka hiçbir yerde
-            // durmuyordu — `details` dolmadığı için kaybın izi de yoktu.
-            // `i18n.rs::resolve` önce `details`e bakar, bu yüzden şablonlar `{examples}` ile
-            // aynı listeyi çözebiliyor.
+            // 🔴 EXAMPLES ALSO GO INTO `details` (run-17 review, 2026-09-12).
+            // Localization keeps ONE template per rule and en/fr/ja templates printed only the
+            // COUNT: a Japanese producer with 3,013 dead translations could not see where to
+            // start in its own language. The Turkish message's "Example: …" list existed nowhere
+            // else — without `details`, its trail was lost. `i18n.rs::resolve` checks `details`
+            // first, so templates can resolve the same list through `{examples}`.
             let mut details: BTreeMap<String, String> = BTreeMap::new();
             details.insert("examples".to_string(), examples);
             details.insert("unmatched_values".to_string(), total.to_string());
@@ -7053,7 +7046,7 @@ fn check_xfl(
         }
     }
 
-    // XFL_014:�?eviri yapılan kayıt silinmiş veya tanımsız (dangling translation feed özeti)
+    // XFL_014: translated record was deleted or is undefined (dangling translation feed summary).
     {
         let mut bad_keys: HashSet<String> = HashSet::new();
         let extra_ids = translation_extra_record_ids(records);
@@ -7093,7 +7086,7 @@ fn check_xfl(
         }
     }
 
-    // XFL_015: Attribution referans hataları feed-level özet
+    // XFL_015: attribution reference errors, feed-level summary.
     {
         let mut bad_refs: HashSet<String> = HashSet::new();
         for rec in &records.attributions {
@@ -7136,7 +7129,7 @@ fn check_xfl(
         }
     }
 
-    // XFL_016: translations table_name=feed_info varsa feed_info.txt zorunlu
+    // XFL_016: translations with table_name=feed_info require feed_info.txt.
     {
         let has_feed_info_trn = records
             .translations
@@ -7160,12 +7153,12 @@ fn check_xfl(
         }
     }
 
-    // XFL_031: ortak kimlik isim alanı çakışması (GTFS-Flex).
+    // XFL_031: shared identity namespace collision (GTFS-Flex).
     // Spec (location_groups.location_group_id): "ID must be unique across all stops.stop_id,
-    // locations.geojson id, and location_groups.location_group_id values." Üç dosya TEK bir
-    // isim alanı paylaşır. Çakışan bir kimlik `stop_times.location_id` /
-    // `stop_times.location_group_id` referansını belirsiz bırakır: tüketici hangi varlığa
-    // bakacağını bilemez. Her çakışan kimlik için TEK notice (kaynak çiftleri mesajda).
+    // locations.geojson id, and location_groups.location_group_id values." The three files share
+    // ONE namespace. A colliding ID makes the `stop_times.location_id` /
+    // `stop_times.location_group_id` reference ambiguous: consumers cannot know which entity
+    // to inspect. Emit ONE notice per colliding ID (source pairs are in the message).
     {
         let stop_ids: std::collections::HashSet<&str> = records
             .stops
@@ -7173,7 +7166,7 @@ fn check_xfl(
             .map(|s| s.stop_id.as_str())
             .filter(|s| !s.is_empty())
             .collect();
-        // Determinizm: kümeler sırasız → çakışanları sıralı topla.
+        // Determinism: sets are unordered → collect collisions in sorted order.
         let mut clashes: Vec<(String, &'static str)> = Vec::new();
         for lg in &records.location_groups {
             let id = lg.location_group_id.as_str();
@@ -7205,10 +7198,10 @@ fn check_xfl(
         }
     }
 
-    // XFL_019: routes.network_id ile ayrı ağ dosyası birlikte kullanılmış → çakışma.
+    // XFL_019: routes.network_id is used together with a separate network file → conflict.
     // Spec (routes.network_id): "Conditionally Forbidden: Forbidden if the route_networks.txt
     // OR networks.txt file exists." Eskiden yalnız route_networks.txt kolu denetleniyordu;
-    // networks.txt ile birlikte kullanım aynı derecede yasak olduğu hâlde kaçıyordu.
+    // using networks.txt was equally forbidden but went undetected.
     if records.has_route_networks_file || records.has_networks_file {
         let has_route_network_id = records
             .routes
@@ -7220,11 +7213,11 @@ fn check_xfl(
             } else {
                 "networks.txt"
             };
-            // ÇAPA `routes.txt`'tir, ayrı ağ dosyası DEĞİL (2026-08-01, WP-3): yasaklanan şey
-            // `routes.network_id` sütunudur; networks.txt/route_networks.txt'in VARLIĞI
-            // meşrudur. Notice'ı o dosyaya bağlamak kullanıcıyı düzeltilecek yerden başka
-            // yere yolluyordu ve spec kapsam defterinde `routes.txt:network_id` hükmü
-            // "ölçülmüyor" görünüyordu. Çakışan dosyanın adı mesajda zaten geçiyor.
+            // The ANCHOR is `routes.txt`, not the separate network file (2026-08-01, WP-3):
+            // the forbidden item is the `routes.network_id` column; the PRESENCE of
+            // networks.txt/route_networks.txt is legitimate. Attaching the notice to that file
+            // sent users somewhere other than the fix and made the spec ledger show
+            // `routes.txt:network_id` as "not measured". The conflicting file name is already in the message.
             notices.push(notice(
                 ctr,
                 "XFL_019",
@@ -7244,14 +7237,14 @@ fn check_xfl(
 
 }
 
-/// TRN_016'nın hedef tablosundaki alan değer kümesi. `None` = dosya yok ya da `field` o
-/// dosyada sütun DEĞİL (o ihlal `TRN_002`'nin alanıdır).
+/// Field-value set in TRN_016's target table. `None` = file absent or `field` is NOT A COLUMN
+/// in that file (that violation belongs to `TRN_002`).
 ///
-/// ⚠️ Küme çeviri başına DEĞİL, `(tablo, alan)` çifti başına BİR KEZ kurulur. Eskiden her
-/// çeviri kaydı hedef tabloyu baştan sona tarıyordu ve `has_field` kontrolü ikinci bir tam
-/// tarama daha yapıyordu. Ölçüm (`mdb-865`: 776.265 çeviri satırı, 907 MB `stop_times.txt`):
-/// K4 98.420 ms harcıyordu ve bunun 97.237 ms'si yalnız `stop_times` koluydu; kol kapatılınca
-/// K4 1.183 ms'ye iniyordu. Değer kümesi tarama sayısını `çeviri × satır`dan `satır`a indirir.
+/// ⚠️ Build the set ONCE per `(table, field)` pair, not once per translation. Previously every
+/// translation scanned the target table end to end and the `has_field` check performed a second
+/// full scan. Measurement (`mdb-865`: 776,265 translation rows, 907 MB `stop_times.txt`):
+/// K4 took 98,420 ms, of which 97,237 ms was only the `stop_times` branch; disabling it reduced
+/// K4 to 1,183 ms. The set reduces scans from `translations × rows` to `rows`.
 fn translation_target_values<'a>(
     records: &'a EntityRecords,
     table: &str,
@@ -7262,7 +7255,7 @@ fn translation_target_values<'a>(
         row_of: impl Fn(&'b T) -> &'b crate::k2::common::RowMap,
         field: &str,
     ) -> Option<HashSet<&'b str>> {
-        // Sütun varlığı ilk satırdan okunur; başlık satır başına değişmez.
+        // Column presence is read from the first row; headers do not change per row.
         if !row_of(items.first()?).contains_key(field) {
             return None;
         }
@@ -7281,7 +7274,7 @@ fn translation_target_values<'a>(
         "levels" => from_rows(&records.levels, |r| &r.row, field),
         "pathways" => from_rows(&records.pathways, |r| &r.row, field),
         "calendar" => from_rows(&records.calendars, |r| &r.row, field),
-        // Ham satır yerine sütun listesi + değerler tutulur; anlam `from_rows` ile aynı.
+        // Keep a column list plus values instead of raw rows; semantics match `from_rows`.
         "fare_attributes" => {
             records.fare_attributes.first()?.raw_field(field)?;
             Some(
@@ -7293,7 +7286,7 @@ fn translation_target_values<'a>(
             )
         }
         "feed_info" => from_rows(&records.feed_info, |r| &r.row, field),
-        // trips ham satır tutmaz; değerler intern tablosundan okunur.
+        // trips does not retain raw rows; read values from the intern tables.
         "trips" => {
             let interns = &records.trip_interns;
             let has_field = match field {
@@ -7320,9 +7313,9 @@ fn translation_target_values<'a>(
                     .collect(),
             )
         }
-        // stop_times de ham satır tutmaz; `stop_headsign` side-map'ten ve typed kayıtlardan
-        // toplanır. İki yol birlikte taranır çünkü akış (CompactStopTime) ve bellek
-        // (StopTimeRecord) kolları aynı feed'de farklı doluluk gösterebilir.
+        // stop_times also does not retain raw rows; collect from the `stop_headsign` side map
+        // and typed records. Scan both paths because streaming (CompactStopTime) and in-memory
+        // (StopTimeRecord) branches can expose different populated values in the same feed.
         "stop_times" => {
             if field != "stop_headsign" {
                 return None;
@@ -7353,7 +7346,7 @@ fn translation_target_values<'a>(
             }
             Some(values)
         }
-        _ => None, // desteklenmeyen tablo → sessiz
+        _ => None, // unsupported table → silent
     }
 }
 
@@ -7361,7 +7354,7 @@ fn translation_target_values<'a>(
 
 fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr: &mut u32) {
     let ti_stm = &records.trip_interns;
-    // shape_id → o shape'teki max shape_dist_traveled
+    // shape_id → maximum shape_dist_traveled for that shape.
     let mut shape_max_dist: HashMap<&str, f64> = HashMap::new();
     for sp in &records.shapes {
         if let Some(d) = sp.shape_dist_traveled() {
@@ -7411,7 +7404,7 @@ fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr:
         }
 
         let ratio = stm_max / shape_max;
-        // Olası birim çakışmaları: ayak/metre ≈ 3.28×, metre/km ≈ 1000×, km/metre ≈ 0.001×
+        // Possible unit mismatches: feet/meters ≈ 3.28×, meters/km ≈ 1,000×, km/meters ≈ 0.001×.
         if !(0.4..=2.5).contains(&ratio) {
             flagged_shapes.insert(shape_id);
             notices.push(notice(
@@ -7440,48 +7433,48 @@ fn station_context<'a>(
     stop_parent: &HashMap<&str, &'a str>,
     stop_loc: &HashMap<&str, Option<u32>>,
 ) -> Option<&'a str> {
-    // parent_station zincirini TEPE istasyona kadar çöz. İç içe modellemede
-    // (boarding area → platform → station) direkt parent ara-seviyedir; PTH_014
-    // istasyon-sınırı kıyası tepe istasyonu kullanmalı, yoksa aynı istasyon
-    // içindeki geçitler sahte KRİTİK üretir (#49, mdb-3127 Santiago Metro 966 FP).
+    // Resolve the parent_station chain to the TOP station. In nested modeling
+    // (boarding area → platform → station), the direct parent is an intermediate level;
+    // PTH_014's station-boundary comparison must use the top station, or pathways within
+    // one station produce false KRİTİK findings (#49, mdb-3127 Santiago Metro 966 FP).
     let mut cur = stop_id;
     for _ in 0..8 {
         match stop_parent.get(cur) {
-            Some(&parent) => cur = parent, // bir seviye yukarı çık
+            Some(&parent) => cur = parent, // move up one level
             None => {
                 if cur == stop_id {
-                    // hiç parent yok: yalnızca istasyonun kendisi (lt=1) context üretir
+                    // No parent: only the station itself (lt=1) provides context.
                     return if stop_loc.get(cur).is_some_and(|t| *t == Some(1)) {
                         Some(cur)
                     } else {
                         None
                     };
                 }
-                return Some(cur); // zincirin tepesi (parent'ı olmayan en üst ata)
+                return Some(cur); // top of the chain (highest ancestor without a parent)
             }
         }
     }
-    Some(cur) // döngü guard (bozuk/dairesel parent zinciri)
+    Some(cur) // cycle guard (broken/circular parent chain)
 }
 
-// ── STM_060: aynı seferde geojson bölgesi + pencere + davranış EŞZAMANLI örtüşmesi ──
+// ── STM_060: simultaneous geojson region + window + behavior overlap in one trip ──
 //
 // Spec (`stop_times.txt` düzyazısı): *"Simultaneous overlap of locations.geojson id
 // geometry, start/end_pickup_drop_off_window time, and pickup_type or drop_off_type
 // between two or more stop_times.txt records with the same trip_id is forbidden."*
 //
-// ÜÇ koşulun HEPSİ birden sağlanmalı — biri bile tutmazsa ihlal YOKTUR:
-//   1. iki kaydın geojson bölgeleri UZAYDA kesişiyor
-//   2. `[start, end)` pencereleri ZAMANDA kesişiyor
-//   3. ikisi de biniş VEYA ikisi de iniş sunuyor (davranış örtüşmesi)
+// ALL THREE conditions must hold — if any one fails, there is NO violation:
+//   1. the two records' geojson regions intersect IN SPACE
+//   2. the `[start, end)` windows intersect IN TIME
+//   3. both offer pickup OR both offer drop-off (behavior overlap)
 //
-// ⚠️ Yalnız DIŞ ring'ler karşılaştırılır (delikler K1'de saklanmıyor). Delik yok saymak
-// "örtüşüyor" kararını DAHA KAPSAYICI yapar, yani yanlış pozitif yönüne iter. Bu bir YASAK
-// hükmü olduğu için o yön güvenli değil → örtüşme kararı bbox ön elemesinden sonra GERÇEK
-// kesişme/kapsama ile verilir, sadece bbox'a bakılmaz. Delikli bir bölgede iki kaydın
-// yalnız delik üzerinden "örtüşmesi" teorik bir yanlış pozitif olarak KAYITLIDIR.
+// ⚠️ Compare only OUTER rings (holes are not retained in K1). Ignoring holes makes the
+// "overlap" decision MORE INCLUSIVE, biasing toward false positives. Because this is a
+// FORBIDDEN provision, that direction is unsafe → after bbox prefiltering, decide overlap
+// using ACTUAL intersection/containment, not bbox alone. Two records that "overlap" only
+// through a hole in a holed region are a documented theoretical false positive.
 
-/// İki dış ring UZAYDA örtüşüyor mu: kenarları kesişiyor ya da biri diğerini kapsıyor.
+/// Do two outer rings overlap IN SPACE: do their edges intersect, or does one contain the other?
 fn rings_overlap(a: &[(f64, f64)], b: &[(f64, f64)]) -> bool {
     if a.len() < 3 || b.len() < 3 {
         return false;
@@ -7493,7 +7486,7 @@ fn rings_overlap(a: &[(f64, f64)], b: &[(f64, f64)]) -> bool {
             }
         }
     }
-    // Kesişme yoksa biri tamamen diğerinin içinde olabilir.
+    // If there is no intersection, one may be entirely inside the other.
     crate::k1_parse::point_in_ring(a[0], b) || crate::k1_parse::point_in_ring(b[0], a)
 }
 
@@ -7501,7 +7494,7 @@ fn geoms_overlap(
     g1: &crate::k1_parse::LocationGeometry,
     g2: &crate::k1_parse::LocationGeometry,
 ) -> bool {
-    // bbox ön elemesi — ayrık kutularda O(n·m) taramayı hiç başlatma.
+    // bbox prefilter — never start the O(n·m) scan for disjoint boxes.
     let (a, b) = (g1.bbox, g2.bbox);
     if a.2 < b.0 || b.2 < a.0 || a.3 < b.1 || b.3 < a.1 {
         return false;
@@ -7524,11 +7517,11 @@ fn check_flex_zone_overlap(
     if map.geojson_geometries.is_empty() {
         return;
     }
-    // ⚠️ `records.stop_times` DEĞİL, `stop_times_index` — #38 streaming'inden sonra Vec
-    // ÜRETİMDE BOŞTUR (k4'ün başındaki yorum da bunu söylüyor). İlk uygulamam Vec'i
-    // tarıyordu ve gerçek feed'de sessizce hiç ateşlemiyordu; testi yazınca çıktı.
+    // ⚠️ NOT `records.stop_times`, but `stop_times_index` — after #38 streaming, the Vec is
+    // EMPTY in PRODUCTION (as the comment at the start of K4 says). The first implementation
+    // scanned the Vec and silently never fired on real feeds; the test exposed it.
     //
-    // `flex_map` feed'lerin ~%99'unda boştur → o feed'lerde tarama hiç başlamaz.
+    // `flex_map` is empty in ~99% of feeds → scanning never starts for those feeds.
     let idx = &records.stop_times_index;
     if idx.flex_map.is_empty() {
         return;
@@ -7547,9 +7540,9 @@ fn check_flex_zone_overlap(
                 continue;
             };
             if !map.geojson_geometries.contains_key(loc) {
-                continue; // tanımsız id → XFL_025'in alanı
+                continue; // undefined ID → XFL_025's scope
             }
-            // pickup_type/drop_off_type: 1 = "yok". Boş bırakılan alan hizmet SUNAR demektir.
+            // pickup_type/drop_off_type: 1 = "none". An empty field means the service IS offered.
             by_trip.entry(trip_id.as_str()).or_default().push((
                 loc,
                 secs(s),
@@ -7561,7 +7554,7 @@ fn check_flex_zone_overlap(
         }
     }
 
-    // HashMap gezilirken sıra nondeterministiktir → anahtarları sırala.
+    // HashMap iteration is nondeterministic → sort the keys.
     let mut trips: Vec<&str> = by_trip.keys().copied().collect();
     trips.sort_unstable();
     for trip in trips {
@@ -7575,25 +7568,25 @@ fn check_flex_zone_overlap(
                 let (l1, s1, e1, p1, d1, _) = rows[i];
                 let (l2, s2, e2, p2, d2, line2) = rows[j];
                 if s1 >= e2 || s2 >= e1 {
-                    continue; // zaman penceresi kesişmiyor
+                    continue; // time windows do not overlap
                 }
                 if !((p1 && p2) || (d1 && d2)) {
-                    continue; // davranış örtüşmesi yok
+                    continue; // no behavior overlap
                 }
-                // 🔴 AYNI BÖLGE İHLAL DEĞİLDİR — spec'in KENDİSİ zorunlu kılıyor:
+                // 🔴 THE SAME REGION IS NOT A VIOLATION — the spec ITSELF requires it:
                 // *"Travel within the same location group or GeoJSON location requires two
                 // records in stop_times.txt with the same location_group_id or location_id."*
-                // Aynı `location_id`'li iki kayıt bölge-İÇİ seyahatin TEK ifade biçimidir ve
-                // onları ayırt edecek başka alan yoktur. İlk uygulamam bunu ihlal sayıyordu:
-                // `ch-odv-flex`/`mdb-2053`'te 21 bulgu üretti, MD ise AYNI kuralı
-                // (`overlapping_zone_and_pickup_drop_off_window`) uyguladığı hâlde SUSUYOR.
-                // Spec'in bir yerde ZORUNLU kıldığını başka yerde yasak saymak `PTH_017`
-                // hatasının aynısıdır → yalnız FARKLI bölgeler karşılaştırılır.
+                // Two records with the same `location_id` are the ONLY representation of travel
+                // within one region, and there is no other field to distinguish them. The first
+                // implementation treated this as a violation: it produced 21 findings in
+                // `ch-odv-flex`/`mdb-2053`, while MD stayed SILENT despite applying the SAME rule
+                // (`overlapping_zone_and_pickup_drop_off_window`). Treating a spec requirement
+                // as a prohibition elsewhere repeats the `PTH_017` mistake → compare only DIFFERENT regions.
                 if l1 == l2 {
                     continue;
                 }
                 if !geoms_overlap(&map.geojson_geometries[l1], &map.geojson_geometries[l2]) {
-                    continue; // bölgeler uzayda ayrık
+                    continue; // regions are disjoint in space
                 }
                 found = Some((l1, l2, line2));
                 break 'pairs;
@@ -7644,10 +7637,10 @@ mod tests {
     use crate::k2::trips::{TripInternTable, TripRecord};
 
     fn empty() -> (EntityRecords, EntityMap) {
-        // Bu yardımcı, aşağıdaki eski JPN_* fixture'larının V3 uzantı kurallarını
-        // sınadığı sentetik feed'i temsil eder. Üretim varsayılanı V4 olduğu için
-        // legacy testlerinin profil niyeti burada açıkça belirtilmelidir; V4 davranışı
-        // ayrıca `v4_profile_treats_v3_extension_files_as_reference_only` ile sınanır.
+        // This helper represents the synthetic feed used by the legacy JPN_* fixtures to test
+        // V3 extension rules. Because the production default is V4, legacy tests must state
+        // their profile intent explicitly; V4 behavior is also tested by
+        // `v4_profile_treats_v3_extension_files_as_reference_only`.
         let records = EntityRecords {
             gtfs_jp_profile: GtfsJpProfile::V3,
             ..EntityRecords::default()
@@ -7677,7 +7670,7 @@ mod tests {
         }
     }
 
-    /// Temel sefer kaydı oluşturur; rid/sid intern tablosuna eklenir (index 0 sentinel).
+    /// Creates a basic trip record; adds rid/sid to the intern tables (index 0 is the sentinel).
     fn trip(ti: &mut TripInternTable, id: &str, rid: &str, sid: &str) -> TripRecord {
         let ri = ti.route_ids.len() as u32;
         ti.route_ids.push(SmolStr::new(rid));
@@ -7703,7 +7696,7 @@ mod tests {
         }
     }
 
-    /// Shape ve yön içeren sefer kaydı oluşturur; intern tablosuna eklenir.
+    /// Creates a trip record with shape and direction; adds values to the intern tables.
     fn trip_s(
         ti: &mut TripInternTable,
         id: &str,
@@ -7743,14 +7736,14 @@ mod tests {
 
     // �"?�"? RTS_002 �"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?�"?
 
-    /// Yalnız boşluktan ibaret `parent_station` BOŞTUR — üç kural da bunu böyle okumalı.
+    /// A whitespace-only `parent_station` is EMPTY — all three rules must read it this way.
     ///
-    /// 🔴 Regresyon (7. koşumda ölçüldü): `STP_009`'un FK karşılaştırması ham değere
-    /// çevrilirken aynı bloktaki üç `is_empty()` kontrolü atlandı. Ham okuyunca `" "`
-    /// "dolu" sayıldı ve `tfs-535`'te `STP_036` 0 -> 14 oldu — arşivi bayt bayt aynı
-    /// bir feed'de, yani katalog kaymasıyla açıklanamaz.
+    /// 🔴 Regression (measured in run 7): while `STP_009`'s FK comparison was changed to raw
+    /// values, three `is_empty()` checks in the same block were skipped. Reading raw values
+    /// treated `" "` as populated and changed `STP_036` from 0 -> 14 in `tfs-535` — in a feed
+    /// with a byte-for-byte identical archive, so catalog drift cannot explain it.
     ///
-    /// İki ayrı soru, iki ayrı okuma: DOLULUK daima `trim()`, KİMLİK daima ham.
+    /// Two separate questions, two separate reads: POPULATED always uses `trim()`, ID always uses raw.
     #[test]
     fn whitespace_only_parent_station_counts_as_absent() {
         let (mut recs, mut map) = empty();
@@ -7777,7 +7770,7 @@ mod tests {
         );
     }
 
-    /// Gerçekten dolu bir parent_station'da STP_036 hâlâ ateşlemeli — kapı fazla geniş olmasın.
+    /// STP_036 must still fire for a genuinely populated parent_station — keep the gate narrow.
     #[test]
     fn station_with_real_parent_still_produces_stp_036() {
         let (mut recs, mut map) = empty();
@@ -7790,7 +7783,7 @@ mod tests {
             .insert("parent_station".to_string(), "PARENT".to_string());
         let mut parent = stop("PARENT");
         parent.location_type = Some(1);
-        // İki kayıt da `recs.stops`'ta olmalı: `map.stops` indeksleri bu vektöre bakar.
+        // Both records must be in `recs.stops`: `map.stops` indexes this vector.
         recs.stops = vec![station, parent];
         let result = check(&recs, &map, 20260515);
         assert!(
@@ -7879,7 +7872,7 @@ mod tests {
         }
     }
 
-    /// stop_times index'i tek Flex satırdan kurar (pickup/drop_off booking_rule_id ile).
+    /// Builds the stop_times index from one Flex row (with pickup/drop_off booking_rule_id).
     fn stm_index_with_booking_rules(
         pickup: Option<&str>,
         drop_off: Option<&str>,
@@ -7969,7 +7962,7 @@ mod tests {
 
     #[test]
     fn bkr_015_defers_to_bkr_014_when_field_is_forbidden() {
-        // booking_type=1'de alan zaten yasak (BKR_014, K2) → aynı alan için ikinci notice yok.
+        // For booking_type=1 the field is already forbidden (BKR_014, K2) → no second notice for the same field.
         let (mut recs, map) = empty();
         recs.booking_rules = vec![booking_rule("BR1", Some(1), Some("MISSING_SVC"))];
         let result = check(&recs, &map, 20260515);
@@ -7981,7 +7974,7 @@ mod tests {
 
     #[test]
     fn bkr_015_checks_rows_with_unreadable_booking_type() {
-        // booking_type okunamıyorsa BKR_014 de susar → referans denetimsiz kalmasın.
+        // If booking_type is unreadable, BKR_014 is also silent → do not leave the reference unchecked.
         let (mut recs, map) = empty();
         recs.booking_rules = vec![booking_rule("BR1", None, Some("MISSING_SVC"))];
         let result = check(&recs, &map, 20260515);
@@ -8046,9 +8039,9 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_004"));
     }
 
-    /// Ölçüm, 16. korpus koşumu: sefer başına emit `mdb-3412`'de 32.797 bulgu üretiyordu.
-    /// Kusurlu olan referans EDİLEN güzergahtır. Aynı sarkan `shape_id`'yi kullanan N sefer
-    /// TEK bulgu vermeli ve sayı `details.affected_trips` içinde durmalı.
+        /// Measurement, corpus run 16: per-trip emission produced 32,797 findings in `mdb-3412`.
+        /// The defective object is the REFERENCED route. N trips using the same dangling `shape_id`
+        /// must produce ONE finding, with the count in `details.affected_trips`.
     #[test]
     fn trp_004_collapses_many_trips_of_one_dangling_shape_into_a_single_notice() {
         let (mut recs, mut map) = empty();
@@ -8074,7 +8067,7 @@ mod tests {
         assert_eq!(details.get("example_trip").map(String::as_str), Some("T1"));
     }
 
-    /// İki farklı sarkan güzergah iki bulgu verir ve sıra `shape_id`'ye göre determinist.
+        /// Two different dangling routes produce two findings, ordered deterministically by `shape_id`.
     #[test]
     fn trp_004_emits_one_notice_per_distinct_shape_in_sorted_order() {
         let (mut recs, mut map) = empty();
@@ -8096,10 +8089,10 @@ mod tests {
         assert_eq!(ids, vec!["AA_SHAPE", "ZZ_SHAPE"]);
     }
 
-    /// `mdb-992`: `shape_id` değeri yalnız boşluk taşıyordu ve kural "' ' güzergahı tanımlı
-    /// değil" diyordu. Alan opsiyoneldir; trim edilince boşalan değer BOŞ ALANDIR. Çevre
-    /// boşluğunu `DQ_016` bildirir, K7'nin bastırması bunu göremez (trim'li karşılık olan
-    /// boş dize hedef kümede zaten yoktur), o yüzden koruma emit noktasında durur.
+        /// `mdb-992`: `shape_id` contained only whitespace and the rule said "' ' route not
+        /// defined". The field is optional; a value empty after trimming is an EMPTY FIELD.
+        /// `DQ_016` reports surrounding whitespace, and K7 suppression cannot see this (the
+        /// trimmed counterpart, the empty string, is not in the target set), so protection stops at emission.
     #[test]
     fn trp_004_treats_a_whitespace_only_shape_id_as_an_empty_field() {
         let (mut recs, mut map) = empty();
@@ -8324,9 +8317,9 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "FRL_001"));
     }
 
-    /// Aynı tanımsız fare_id yüzlerce satırda geçse de DISTINCT kimlik başına TEK notice.
-    /// Gerçek vaka (mdb-2837): fare_attributes.txt hiç yok + 1.128.840 fare_rules satırı →
-    /// satır-başına emit 1,1M notice ve 178 sn üretiyordu; distinct'e çevrilince 486 ve 2,8 sn.
+    /// ONE notice per DISTINCT ID even when the same undefined fare_id appears hundreds of times.
+    /// Real case (mdb-2837): fare_attributes.txt absent + 1,128,840 fare_rules rows → row-level
+    /// emission produced 1.1M notices and took 178 s; distinct aggregation reduced it to 486 and 2.8 s.
     #[test]
     fn repeated_invalid_fare_ref_produces_one_frl_001_per_distinct_id() {
         let (mut recs, map) = empty();
@@ -8356,7 +8349,7 @@ mod tests {
             "2 distinct fare_id → 2 notice, alınan: {}",
             hits.len()
         );
-        // Satır sayısı bilgisi korunmalı (25'er kez tekrar ediyor)
+        // Preserve the row-count information (repeated 25 times).
         assert!(
             hits.iter().all(|n| n.message.contains("25 fare_rules")),
             "mesaj kaç satırda tekrarladığını taşımalı: {:?}",
@@ -8364,7 +8357,7 @@ mod tests {
         );
     }
 
-    /// Tanımsız zone_id de distinct başına tek notice (FRL_003/004).
+    /// Undefined zone_id also gets one notice per distinct ID (FRL_003/004).
     #[test]
     fn repeated_invalid_zone_ref_produces_one_notice_per_distinct_zone() {
         let (mut recs, mut map) = empty();
@@ -8410,7 +8403,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // stops bo�Y �?' level kullanılmıyor
+        // stop is empty → level is unused
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "LVL_004"));
     }
@@ -8427,7 +8420,7 @@ mod tests {
             is_operator: None,
             is_authority: None,
             agency_id: Some("A1".into()),
-            route_id: Some("R1".into()), // hem agency hem route → hata
+            route_id: Some("R1".into()), // both agency and route → error
             trip_id: None,
             attribution_url: None,
             attribution_email: None,
@@ -8447,7 +8440,7 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip(&mut ti, "T1", "R1", "SVC1")];
         recs.trip_interns = ti;
-        // stop_times bo�Y �?' T1 için kayıt yok
+        // stop_times is empty → no record for T1
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_002"));
     }
@@ -8487,15 +8480,15 @@ mod tests {
 
     #[test]
     fn pth_014_nested_station_no_false_positive() {
-        // İç içe modelleme (#49): station ST → platform PL(parent=ST) →
-        // boarding BA(parent=PL); concourse CN(parent=ST). CN→BA geçidi AYNI
-        // istasyon içindedir; station_context tepe istasyona (ST) çözmeli → PTH_014 ÇIKMAMALI.
+        // Nested modeling (#49): station ST → platform PL(parent=ST) →
+        // boarding BA(parent=PL); concourse CN(parent=ST). The CN→BA pathway is within the
+        // SAME station; station_context must resolve to the top station (ST) → PTH_014 MUST NOT fire.
         let (mut recs, map) = empty();
         recs.stops = vec![
-            stop_ctx("ST", Some(1), ""),   // istasyon
-            stop_ctx("PL", Some(0), "ST"), // peron (parent=istasyon)
-            stop_ctx("BA", Some(4), "PL"), // boarding area (parent=peron) — 2 seviye
-            stop_ctx("CN", Some(3), "ST"), // generic node (parent=istasyon)
+            stop_ctx("ST", Some(1), ""),   // station
+            stop_ctx("PL", Some(0), "ST"), // platform (parent=station)
+            stop_ctx("BA", Some(4), "PL"), // boarding area (parent=platform) — 2 levels
+            stop_ctx("CN", Some(3), "ST"), // generic node (parent=station)
         ];
         recs.pathways = vec![PathwayRecord {
             pathway_id: "P1".into(),
@@ -8520,7 +8513,7 @@ mod tests {
 
     #[test]
     fn pth_014_genuine_cross_station_fires() {
-        // Gerçek sınır ihlali: PA(parent=A) ↔ PB(parent=B), A≠B → PTH_014 ÇIKMALI.
+        // Real boundary violation: PA(parent=A) ↔ PB(parent=B), A≠B → PTH_014 MUST fire.
         let (mut recs, map) = empty();
         recs.stops = vec![
             stop_ctx("A", Some(1), ""),
@@ -8550,9 +8543,9 @@ mod tests {
     }
 
     /// #187 · MBTA `dwnxg-385/386` (Winter Street Concourse, Park St ↔ Downtown
-    /// Crossing): iki uç da generic node (lt=3), biri KOORDİNATSIZ — GTFS'te
-    /// generic node koordinatı opsiyoneldir. Beyan edilen `length` 142,34 m,
-    /// 300 m guard'ının çok altında → PTH_014 ÇIKMAMALI.
+    /// Crossing): both endpoints are generic nodes (lt=3), one WITHOUT COORDINATES — generic
+    /// node coordinates are optional in GTFS. Declared `length` is 142.34 m, far below the
+    /// 300 m guard → PTH_014 MUST NOT fire.
     #[test]
     fn pth_014_short_declared_length_without_coordinate_is_suppressed() {
         let (mut recs, map) = empty();
@@ -8563,7 +8556,7 @@ mod tests {
             stop_ctx("A", Some(1), ""),
             stop_ctx("B", Some(1), ""),
             with_coord,
-            stop_ctx("N_B", Some(3), "B"), // koordinatsız generic node
+            stop_ctx("N_B", Some(3), "B"), // generic node without coordinates
         ];
         recs.pathways = vec![PathwayRecord {
             pathway_id: "dwnxg-385".into(),
@@ -8591,8 +8584,8 @@ mod tests {
         );
     }
 
-    /// Guard, `length` VARLIĞINA değil DEĞERİNE bakar: koordinat yokken uzun bir
-    /// beyan hâlâ tetiklemeli, yoksa length yazmak kuralı kapatan bir anahtar olurdu.
+    /// The guard checks the VALUE of `length`, not its PRESENCE: a long declaration must still
+    /// fire when coordinates are absent, or writing length would disable the rule.
     #[test]
     fn pth_014_long_declared_length_without_coordinate_fires() {
         let (mut recs, map) = empty();
@@ -8623,9 +8616,9 @@ mod tests {
         );
     }
 
-    /// Öncelik kararı (#187): guard YÜRÜME mesafesini sorar. Koordinat farkı kuş
-    /// uçuşudur, yürüme mesafesi değildir; geçidin kendi `length` beyanı varsa
-    /// ölçtüğü şey doğrudan odur ve koordinatların önüne geçer.
+    /// Priority decision (#187): the guard asks for WALKING distance. Coordinate distance is
+    /// straight-line, not walking distance; if the pathway declares its own `length`, use that
+    /// direct measurement before coordinates.
     #[test]
     fn pth_014_declared_length_outranks_coordinates() {
         let (mut recs, map) = empty();
@@ -8701,15 +8694,15 @@ mod tests {
 
     #[test]
     fn pth_014_entrance_cross_station_suppressed() {
-        // A-daraltma (VBB mdb-782): iki farklı istasyonun GİRİŞLERİ (lt=2) arası
-        // pathway, sokak seviyesinde meşru bir aktarma yürüyüşüdür (Alexanderplatz
-        // ↔ Memhardstr., Spandau ↔ Rathaus Spandau gibi) → PTH_014 ÇIKMAMALI.
+        // A-narrowing (VBB mdb-782): a pathway between the ENTRANCES (lt=2) of two different
+        // stations is a legitimate street-level transfer walk (Alexanderplatz ↔ Memhardstr.,
+        // Spandau ↔ Rathaus Spandau) → PTH_014 MUST NOT fire.
         let (mut recs, map) = empty();
         recs.stops = vec![
             stop_ctx("A", Some(1), ""),
             stop_ctx("B", Some(1), ""),
-            stop_ctx("EA", Some(2), "A"), // A istasyonunun girişi
-            stop_ctx("EB", Some(2), "B"), // B istasyonunun girişi
+            stop_ctx("EA", Some(2), "A"), // entrance to station A
+            stop_ctx("EB", Some(2), "B"), // entrance to station B
         ];
         recs.pathways = vec![PathwayRecord {
             pathway_id: "P1".into(),
@@ -8734,9 +8727,9 @@ mod tests {
 
     #[test]
     fn pth_014_short_distance_cross_station_suppressed() {
-        // İç konum (peron) ↔ iç konum, farklı istasyon AMA uçlar ~110 m yakın
-        // (VBB Potsdam "Platz der Einheit" alt-durakları deseni) → meşru yürüyüş,
-        // PTH_014 ÇIKMAMALI (mesafe guard'ı).
+        // Internal location (platform) ↔ internal location, different stations BUT endpoints ~110 m apart
+        // (VBB Potsdam "Platz der Einheit" child-stop pattern) → legitimate walk,
+        // PTH_014 MUST NOT fire (distance guard).
         let (mut recs, map) = empty();
         let mut pa = stop_ctx("PA", Some(0), "A");
         pa.stop_lat = Some(52.4000);
@@ -8773,8 +8766,8 @@ mod tests {
 
     #[test]
     fn pth_014_far_distance_cross_station_fires() {
-        // İç↔iç, farklı istasyon VE uçlar uzak (~5.5 km) → olası yanlış stop_id
-        // referansı, PTH_014 ÇIKMALI (mesafe guard'ı bastırmamalı).
+        // Internal↔internal, different stations AND distant endpoints (~5.5 km) → possible wrong
+        // stop_id reference; PTH_014 MUST fire (distance guard must not suppress it).
         let (mut recs, map) = empty();
         let mut pa = stop_ctx("PA", Some(0), "A");
         pa.stop_lat = Some(52.4000);
@@ -8842,8 +8835,8 @@ mod tests {
 
     #[test]
     fn agn_005_ignores_an_empty_timezone() {
-        // mdb-2946: 10 agency Europe/Kyiv, birinin dilimi boş. Bu bir dilim
-        // ANLAŞMAZLIĞI değil eksik alandır ve AGN_004 zaten raporlar.
+        // mdb-2946: 10 agencies use Europe/Kyiv; one zone is empty. This is a missing field,
+        // not a time-zone DISAGREEMENT, and AGN_004 already reports it.
         let (mut recs, _map) = empty();
         recs.agencies = vec![
             agency_tz("A1", "Europe/Kyiv"),
@@ -8856,9 +8849,8 @@ mod tests {
 
     #[test]
     fn agn_005_ignores_a_repeated_header_row() {
-        // mdb-1003/mdb-1004: agency.txt'nin ortasında başlık satırı tekrarlanıyor,
-        // hayalet agency'nin dilimi literal "agency_timezone" oluyor. Gerçekte
-        // bütün agency'ler Europe/Madrid.
+        // mdb-1003/mdb-1004: a header row is repeated in the middle of agency.txt, making the
+        // phantom agency's zone the literal "agency_timezone". All real agencies use Europe/Madrid.
         let (mut recs, _map) = empty();
         recs.agencies = vec![
             agency_tz("A1", "Europe/Madrid"),
@@ -8921,7 +8913,7 @@ mod tests {
     fn entrance_without_parent_produces_stp_011() {
         let (mut recs, _map) = empty();
         recs.stops = vec![StopRecord {
-            location_type: Some(2), // entrance → parent_station zorunlu
+            location_type: Some(2), // entrance → parent_station required
             ..stop("E1")
         }];
         let result = check(&recs, &EntityMap::default(), 20260515);
@@ -8945,7 +8937,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         };
-        // Aynı anahtar + aynı değer → birebir kopya → TRN_005
+        // Same key + same value → exact copy → TRN_005.
         recs.translations = vec![base.clone(), TranslationRecord { line: 3, ..base }];
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "TRN_005"));
@@ -8967,7 +8959,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         };
-        // Aynı anahtar + farklı değer → çelişki → TRN_006
+        // Same key + different value → conflict → TRN_006.
         recs.translations = vec![
             base.clone(),
             TranslationRecord {
@@ -9012,7 +9004,7 @@ mod tests {
         let valid = check(&recs, &EntityMap::default(), 20260824);
         assert!(!valid.notices.iter().any(|n| n.rule_id == "TRN_010"));
 
-        // 7 başka bir trip'te bulunsa da T1'in stop_sequence kümesine ait değildir.
+        // 7 may occur in another trip but is not part of T1's stop_sequence set.
         recs.translations = vec![translation("7")];
         let invalid = check(&recs, &EntityMap::default(), 20260824);
         let hit = invalid
@@ -9080,7 +9072,7 @@ mod tests {
         let mut s2 = stop("S2");
         s2.stop_name = Some("赤坂".into());
         recs.stops = vec![s1, s2];
-        // S1 için kana var, S2 için yok. ja-Hrkt varlığı GTFS-JP kapısını açar.
+        // S1 has kana; S2 does not. The presence of ja-Hrkt opens the GTFS-JP gate.
         recs.translations = vec![TranslationRecord {
             table_name: "stops".into(),
             field_name: "stop_name".into(),
@@ -9111,7 +9103,7 @@ mod tests {
         let mut r2 = route("R2");
         r2.route_long_name = Some("渋谷行".into());
         recs.routes = vec![r1, r2];
-        // R1 için kana var, R2 için yok. ja-Hrkt varlığı GTFS-JP kapısını açar.
+        // R1 has kana; R2 does not. The presence of ja-Hrkt opens the GTFS-JP gate.
         recs.translations = vec![TranslationRecord {
             table_name: "routes".into(),
             field_name: "route_long_name".into(),
@@ -9141,12 +9133,12 @@ mod tests {
     fn japanese_route_short_name_without_kana_produces_jpn_008() {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
-        // Tokyo deseni: route_long_name BOŞ, ad route_short_name'de (Japonca)
+        // Tokyo pattern: route_long_name EMPTY, name in route_short_name (Japanese).
         let mut r1 = route("R1");
         r1.route_long_name = None;
         r1.route_short_name = Some("波０１".into());
         recs.routes = vec![r1];
-        // Kapı: başka alanda ja-Hrkt çeviri; route_short_name kana yok → JPN_008
+        // Gate: ja-Hrkt translation exists in another field; route_short_name has no kana → JPN_008.
         recs.translations = vec![TranslationRecord {
             table_name: "stops".into(),
             field_name: "stop_name".into(),
@@ -9167,9 +9159,9 @@ mod tests {
 
     #[test]
     fn kana_rules_point_at_the_file_their_line_belongs_to() {
-        // `line` eksikliğin sahibi kaydın satırıdır; `file` da onu göstermelidir.
-        // Eskiden dosya "translations.txt" yazılıyordu ve satır routes.txt'in satırı
-        // oluyordu — bulguyu doğrulamak isteyen kişi yanlış dosyanın o satırına bakıyordu.
+        // `line` is the line of the record that owns the missing value; `file` must identify it too.
+        // Previously the file was "translations.txt" and the line was from routes.txt — anyone
+        // verifying the finding was sent to that line in the wrong file.
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
         let mut r1 = route("R1");
@@ -9201,7 +9193,7 @@ mod tests {
     fn numeric_route_short_name_no_jpn_008() {
         use crate::k2::translations::TranslationRecord;
         let (mut recs, _map) = empty();
-        // route_long_name boş, route_short_name sayısal kod → Japonca değil → JPN_008 yok
+        // route_long_name empty, route_short_name numeric code → not Japanese → no JPN_008.
         let mut r1 = route("R1");
         r1.route_long_name = None;
         r1.route_short_name = Some("42".into());
@@ -9235,7 +9227,7 @@ mod tests {
         t1.headsign_idx = hi;
         recs.trips = vec![t1];
         recs.trip_interns = ti;
-        // Kapı: başka alanda ja-Hrkt çeviri var; trip_headsign kana yok → JPN_009.
+        // Gate: ja-Hrkt translation exists in another field; trip_headsign has no kana → JPN_009.
         recs.translations = vec![TranslationRecord {
             table_name: "stops".into(),
             field_name: "stop_name".into(),
@@ -9272,7 +9264,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // Kapı: başka alanda ja-Hrkt çeviri var; agency_name kana yok → JPN_010.
+        // Gate: ja-Hrkt translation exists in another field; agency_name has no kana → JPN_010.
         recs.translations = vec![TranslationRecord {
             table_name: "stops".into(),
             field_name: "stop_name".into(),
@@ -9329,7 +9321,7 @@ mod tests {
             line: 2,
         };
 
-        // is_gtfs_jp kapısı: office_jp mevcut. Tek agency, agency_id YOK → JPN_011.
+        // is_gtfs_jp gate: office_jp exists. One agency, agency_id MISSING → JPN_011.
         let (mut recs, _m) = empty();
         recs.office_jp = vec![mk_office()];
         recs.agencies = vec![mk_agency(None)];
@@ -9339,7 +9331,7 @@ mod tests {
             "JP + agency_id yok → JPN_011"
         );
 
-        // agency_id dolu → JPN_011 yok.
+        // agency_id populated → no JPN_011.
         let (mut recs2, _m2) = empty();
         recs2.office_jp = vec![mk_office()];
         recs2.agencies = vec![mk_agency(Some("A1"))];
@@ -9349,7 +9341,7 @@ mod tests {
             "agency_id dolu → JPN_011 yok"
         );
 
-        // JP sinyali yok + agency_id yok → JPN_011 yok (standart feed'de opsiyonel).
+        // No JP signal + no agency_id → no JPN_011 (optional in a standard feed).
         let (mut recs3, _m3) = empty();
         recs3.gtfs_jp_profile = GtfsJpProfile::Auto;
         recs3.is_gtfs_jp = Some(false);
@@ -9417,7 +9409,7 @@ mod tests {
         let mut s1 = stop("S1");
         s1.stop_name = Some("Main St".into());
         recs.stops = vec![s1];
-        // JP sinyali yok (feed_lang yok, ja-Hrkt yok) → kapı kapalı → JPN_001 yok.
+        // No JP signal (no feed_lang, no ja-Hrkt) → gate closed → no JPN_001.
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_001"));
     }
@@ -9434,7 +9426,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // T1 geçerli ofise işaret eder, T2 tanımsız ofise → yalnız T2 işaretlenmeli.
+        // T1 points to a valid office, T2 to an undefined office → only T2 should be flagged.
         let mut ti = TripInternTable::new();
         let jpo1 = ti.jp_offices.len() as u32;
         ti.jp_offices.push(SmolStr::new("OF1"));
@@ -9470,7 +9462,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // routes.jp_office_id (resmî spec konumu): R1 geçerli, R2 tanımsız ofise → yalnız R2.
+        // routes.jp_office_id (official spec location): R1 valid, R2 undefined office → only R2.
         recs.routes = vec![
             RouteRecord {
                 jp_office_id: Some("OF1".into()),
@@ -9576,7 +9568,7 @@ mod tests {
     fn missing_translations_in_jp_feed_produces_jpn_004() {
         use crate::k2::office_jp::OfficeJpRecord;
         let (mut recs, _map) = empty();
-        // *_jp dosyası = GTFS-JP sinyali; translations boş → JPN_004
+        // *_jp file = GTFS-JP signal; translations empty → JPN_004.
         recs.office_jp = vec![OfficeJpRecord {
             office_id: "OF1".into(),
             office_name: Some("本社".into()),
@@ -9621,7 +9613,7 @@ mod tests {
 
     #[test]
     fn non_jp_feed_no_jpn_004() {
-        // JP sinyali yok (feed_lang yok, *_jp dosyası yok) + translations yok → JPN_004 yok
+        // No JP signal (no feed_lang, no *_jp file) + no translations → no JPN_004.
         let (mut recs, _map) = empty();
         recs.gtfs_jp_profile = GtfsJpProfile::Auto;
         recs.is_gtfs_jp = Some(false);
@@ -9667,7 +9659,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // fare_attributes/fare_rules boş → JPN_006
+        // fare_attributes/fare_rules empty → JPN_006.
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "JPN_006"),
@@ -9747,7 +9739,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // feed_info boş → JPN_007
+        // feed_info empty → JPN_007.
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "JPN_007"),
@@ -9757,7 +9749,7 @@ mod tests {
 
     #[test]
     fn non_jp_feed_no_jpn_005_006_007() {
-        // GTFS-JP sinyali yok → office/fare/feed_info kuralları susar
+        // No GTFS-JP signal → office/fare/feed_info rules stay silent.
         let (mut recs, _map) = empty();
         recs.gtfs_jp_profile = GtfsJpProfile::Auto;
         recs.is_gtfs_jp = Some(false);
@@ -9780,7 +9772,7 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "TRP_004"));
     }
 
-    // ── SHP_019: shape trip tarafından referanslanmış ama trip'lerin stop_times'ı yok ────────
+    // ── SHP_019: shape is referenced by a trip, but the trips have no stop_times ────────
 
     #[test]
     fn shape_with_trip_no_stm_produces_shp_019() {
@@ -9802,7 +9794,7 @@ mod tests {
             2,
         )];
         recs.shape_interns = shape_ti.clone();
-        // stop_times yok → SHP_019 ateşlenmeli
+        // no stop_times → SHP_019 should fire
         let result = check(&recs, &map, 20260515);
         assert!(
             result.notices.iter().any(|n| n.rule_id == "SHP_019"),
@@ -9840,7 +9832,7 @@ mod tests {
             ..Default::default()
         }];
         recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
-        // stop_times var → SHP_019 ateşlenmemeli
+        // stop_times exists → SHP_019 should not fire
         let result = check(&recs, &map, 20260515);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "SHP_019"),
@@ -9862,7 +9854,7 @@ mod tests {
             2,
         )];
         recs.shape_interns = shape_ti.clone();
-        // Hiç trip yok → SHP_018 ateşler, SHP_019 ateşlemez
+        // No trips → SHP_018 fires, SHP_019 does not.
         let result = check(&recs, &map, 20260515);
         assert!(
             !result.notices.iter().any(|n| n.rule_id == "SHP_019"),
@@ -9894,8 +9886,8 @@ mod tests {
     fn removal_only_service_produces_xfl_006() {
         use crate::k2::calendar_dates::CalendarDateIndex;
         let (mut recs, _map) = empty();
-        // Servis yalnızca exception_type=2 (kaldırma) kaydı var, calendar.txt'te veya type=1'de yok.
-        // removed'da anahtar var ama Vec boş (date=None): XFL_006 anahtar varlığına bakar.
+        // Service has only an exception_type=2 (removed) record, absent from calendar.txt and type=1.
+        // The key exists in removed but the Vec is empty (date=None): XFL_006 checks key presence.
         let mut idx = CalendarDateIndex::default();
         idx.removed.insert("GHOST_SVC".into(), vec![]);
         idx.exception_count.insert("GHOST_SVC".into(), 1);
@@ -9904,10 +9896,9 @@ mod tests {
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_006"));
     }
 
-    /// XFL_006'nın listesi `HashSet`'ten geliyor; sıralanmazsa aynı feed aynı binary'de her
-    /// koşumda BAŞKA bir `observed_value` üretir. Ölçüldü (`mdb-2280`, korpusta 63 feed):
-    /// üç koşum üç farklı sıra verdi ve bu, korpus karşılaştırmasını, golden çıktıyı ve
-    /// kullanıcıya giden raporu etkiliyordu.
+    /// XFL_006's list comes from a `HashSet`; without sorting, the same feed produces a DIFFERENT
+    /// `observed_value` on every run in the same binary. Measured (`mdb-2280`, 63 corpus feeds):
+    /// three runs produced three orders, affecting corpus comparison, golden output, and the report.
     #[test]
     fn xfl_006_lists_service_ids_in_a_stable_order() {
         use crate::k2::calendar_dates::CalendarDateIndex;
@@ -9951,7 +9942,7 @@ mod tests {
         let mut ti = TripInternTable::new();
         recs.trips = vec![trip(&mut ti, "T1", "R1", "SVC1")];
         recs.trip_interns = ti;
-        // stop_times bo�Y �?' T1'in kaydı yok
+        // stop_times empty → no record for T1
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_012"));
     }
@@ -10018,7 +10009,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         }];
-        // feed_info bo�Y �?' XFL_016
+        // feed_info empty → XFL_016
         let result = check(&recs, &EntityMap::default(), 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_016"));
     }
@@ -10029,11 +10020,11 @@ mod tests {
 
     #[test]
     fn duplicate_transfer_key_produces_trf_016() {
-        // ⚠️ Bu test eskiden BAĞLAMSIZ bir yineleme kuruyordu ve TRF_016 bekliyordu.
-        // İki kartın da yazdığı ayrım bunun tersini söylüyor: bağlamsız çift TRF_012'nin,
-        // trip/route bağlamlı çakışma TRF_016'nın alanıdır. Ayrımın YARISI kodda vardı
-        // (TRF_012 bağlam taşıyanları eliyordu), TRF_016 tarafı eksikti — bu yüzden
-        // `mdb-1859`'da ikisi de aynı 5.204 satırda ateşliyordu. Test artık bağlam taşıyor.
+        // ⚠️ This test used to create a CONTEXT-FREE duplicate and expect TRF_016.
+        // Both cards say the opposite: a context-free pair belongs to TRF_012, while a
+        // trip/route-context conflict belongs to TRF_016. HALF of the split existed in code
+        // (TRF_012 filtered contextual rows), but TRF_016 lacked its half — so both fired on
+        // the same 5,204 rows in `mdb-1859`. The test now carries context.
         let (mut recs, _map) = empty();
         let base = TransferRecord {
             from_stop_id: "S1".into(),
@@ -10054,8 +10045,8 @@ mod tests {
 
     #[test]
     fn context_free_duplicate_transfer_belongs_to_trf_012_alone() {
-        // Ayrımın ÖTEKİ YÖNÜ. Bağlamsız yineleme TRF_012 üretir ve TRF_016 ÜRETMEZ;
-        // aksi hâlde aynı olgu iki kez raporlanır.
+        // The OTHER SIDE of the split. A context-free duplicate produces TRF_012 and NOT TRF_016;
+        // otherwise the same fact is reported twice.
         let (mut recs, _map) = empty();
         let base = TransferRecord {
             from_stop_id: "S1".into(),
@@ -10101,7 +10092,7 @@ mod tests {
             .collect()
     }
 
-    /// `None` rider_category_id = ürün TÜM tanımlı kategorilere uygun (spec okuması).
+    /// `None` rider_category_id = product is eligible for ALL defined categories (spec reading).
     fn fare_prods(
         specs: &[(&str, Option<&str>)],
     ) -> Vec<crate::k2::fare_products::FareProductRecord> {
@@ -10351,17 +10342,17 @@ mod tests {
         assert!(!result.notices.iter().any(|n| n.rule_id == "RCT_006"));
     }
 
-    /// mdb-13 minyatürü: hiç varsayılan kategori yok, birden çok ürün etkileniyor.
-    /// Tek feed notice çıkmalı ve çözücü kategorileri ADIYLA saymalı — o feed'de
-    /// sezgisel görünen kategoriyi seçmek bulguların yarısını açık bırakıyordu.
+    /// mdb-13 miniature: no default category, multiple products affected.
+    /// Emit one feed notice and list resolver categories BY NAME — choosing the intuitive category
+    /// left half the findings unresolved in that feed.
     #[test]
     fn zero_default_rider_categories_aggregate_to_one_feed_notice_naming_the_fix() {
         let (mut recs, _map) = empty();
         recs.rider_categories = rider_cats(&[("adult", 0), ("senior", 0), ("disabled", 0)]);
         recs.fare_products = fare_prods(&[
-            // Tüm kategorilere uygun (boş rider_category_id).
+            // Eligible for all categories (empty rider_category_id).
             ("single_ride", None),
-            // Yalnız senior+disabled — kesişimi bu ürün daraltır.
+            // Only senior+disabled — this product narrows the intersection.
             ("day_pass_discount", Some("senior")),
             ("day_pass_discount", Some("disabled")),
         ]);
@@ -10393,8 +10384,8 @@ mod tests {
         );
     }
 
-    /// Varsayılan VAR ama ürünün uygunluk kümesinde yok — bu ürüne özgüdür, kök kusur
-    /// tek değildir, toplulanmaz.
+    /// A default EXISTS but is absent from the product's eligible set — product-specific, not a
+    /// single root defect, so do not aggregate it.
     #[test]
     fn default_outside_eligible_set_stays_per_product() {
         let (mut recs, _map) = empty();
@@ -10415,8 +10406,8 @@ mod tests {
         assert!(hits.iter().all(|n| n.entity_type == EntityType::Row));
     }
 
-    /// Uygunluk kümeleri ayrıksa tek kategori yetmez; özet bunu SÖYLEMELİ, yoksa
-    /// üretici olmayan bir çözümü arar.
+    /// If eligible sets are disjoint, one category is insufficient; the summary must SAY SO,
+    /// or the producer will search for an impossible solution.
     #[test]
     fn disjoint_eligible_sets_report_that_one_default_is_not_enough() {
         let (mut recs, _map) = empty();
@@ -10510,8 +10501,8 @@ mod tests {
 
     #[test]
     fn trn_004_resolves_attributions_record_id() {
-        // `attributions` eskiden "lookup not feasible" sayılıyordu; kimliği çözülebilir
-        // olduğu için artık dil bağımsız eksende de denetlenir. Mevcut kimlik susmalı.
+        // `attributions` used to be considered "lookup not feasible"; because its identity is
+        // resolvable, it is now checked on the language-independent axis too. Existing identity stays silent.
         let recs = attributions_translation_fixture("A1", "A1", "en");
         let result = check(&recs, &EntityMap::default(), 20260824);
         assert!(!result.notices.iter().any(|n| n.rule_id == "TRN_004"));
@@ -10519,8 +10510,8 @@ mod tests {
 
     #[test]
     fn trn_004_reports_missing_attributions_record_id_in_any_language() {
-        // JPN_019 yalnız `ja-Hrkt` satırlarına bakar; aynı kusur `en` satırında da
-        // görünür olmalıdır, yoksa referans bütünlüğü dil eksenine bağlı kalır.
+        // JPN_019 checks only `ja-Hrkt` rows; the same defect must also be visible in an `en` row,
+        // or referential integrity becomes dependent on the language axis.
         let recs = attributions_translation_fixture("A1", "A2", "en");
         let result = check(&recs, &EntityMap::default(), 20260824);
         let trn004 = result
@@ -10528,11 +10519,11 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "TRN_004" && n.line == Some(6));
         let trn004 = trn004.expect("TRN_004 bulunmalı");
-        // en/ja/fr şablonları `{entity_id}` ile doldurulur; boş bırakılırsa mesaj
-        // "record_id '' not found." olur.
+        // en/ja/fr templates are filled with `{entity_id}`; leaving it empty produces
+        // "record_id '' not found.".
         assert_eq!(trn004.entity_id.as_deref(), Some("A2"));
         assert!(!result.notices.iter().any(|n| n.rule_id == "JPN_019"));
-        // XFL_014 aynı eşlemeyi kullanır; feed özeti de artık bu satırı görmelidir.
+        // XFL_014 uses the same mapping; the feed summary must now see this row too.
         assert!(result.notices.iter().any(|n| n.rule_id == "XFL_014"));
     }
 
@@ -10565,7 +10556,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         };
-        // Eşleşen çeviri → sessiz.
+        // Matching translation → silent.
         recs.translations = vec![base.clone()];
         let ok = check(&recs, &EntityMap::default(), 20260515);
         assert!(
@@ -10574,7 +10565,7 @@ mod tests {
             ok.notices
         );
 
-        // Eşleşmeyen değer → TRN_016.
+        // Unmatched value → TRN_016.
         recs.translations = vec![TranslationRecord {
             field_value: Some("Yokistan".into()),
             ..base.clone()
@@ -10615,7 +10606,7 @@ mod tests {
             row: Default::default(),
             line: 2,
         };
-        // (a) `record_id` biçimi → XFL_014'ün alanı, TRN_016 susar.
+        // (a) `record_id` form → XFL_014's scope, TRN_016 stays silent.
         recs.translations = vec![TranslationRecord {
             record_id: Some("S1".into()),
             field_value: None,
@@ -10626,7 +10617,7 @@ mod tests {
             .iter()
             .any(|n| n.rule_id == "TRN_016"));
 
-        // (b) `field_name` o dosyada sütun DEĞİL → TRN_002'nin alanı, TRN_016 susar.
+        // (b) `field_name` is NOT a column in that file → TRN_002's scope, TRN_016 stays silent.
         recs.translations = vec![TranslationRecord {
             field_name: "long_name".into(),
             ..base.clone()
@@ -10636,7 +10627,7 @@ mod tests {
             .iter()
             .any(|n| n.rule_id == "TRN_016"));
 
-        // (c) trips dosyasında hedef kayıt yoksa typed lookup da değerlendirme yapmaz.
+        // (c) if the target record is absent from trips, typed lookup also does not evaluate it.
         recs.translations = vec![TranslationRecord {
             table_name: "trips".into(),
             field_name: "trip_headsign".into(),
@@ -10721,7 +10712,7 @@ mod tests {
                 ..Default::default()
             }
         };
-        // P1 platformunun boarding area'sı var; P2'nin yok.
+        // P1 has boarding areas; P2 does not.
         recs.stops = vec![
             stop("P1", Some(0), "ST1"),
             stop("BA1", Some(4), "P1"),
@@ -11040,9 +11031,9 @@ mod tests {
 
     #[test]
     fn jpn_019_still_reports_missing_attributions_record_id() {
-        // Fail-open sözleşmesi yalnız kimliği ÇÖZÜLEMEYEN tablo içindir. attributions.txt
-        // yüklüyken bulunmayan bir record_id hâlâ bulgudur; aksi hâlde kolu tümden
-        // kabule çeviren bir "düzeltme" de testlerden geçerdi.
+        // The fail-open contract applies only to tables whose identity CANNOT BE RESOLVED.
+        // A missing record_id is still a finding when attributions.txt is loaded; otherwise a
+        // "fix" that turns the whole branch into acceptance would also pass the tests.
         let (mut recs, _map) = empty();
         recs.attributions = vec![AttributionRecord {
             attribution_id: Some("A1".into()),
