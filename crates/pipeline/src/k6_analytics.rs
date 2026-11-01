@@ -1498,7 +1498,7 @@ fn check_speed_and_duration<'a>(
             }
         }
 
-        // route_id → gösterim adı
+        // route_id → display name
         let route_short_sd: FxHashMap<&str, &str> = records
             .routes
             .iter()
@@ -1512,7 +1512,7 @@ fn check_speed_and_duration<'a>(
             })
             .collect();
 
-        // trip_id → direction_id (gösterim için)
+        // trip_id → direction_id (for display)
         let mut trip_direction: FxHashMap<&str, &'static str> = FxHashMap::default();
         trip_direction.reserve(records.trips.len());
         for t in &records.trips {
@@ -1531,7 +1531,7 @@ fn check_speed_and_duration<'a>(
             trip_service.insert(t.trip_id.as_str(), ti_sd.service_id(t));
         }
 
-        // trip_id → trip_headsign (gösterim için; boş/yoksa eklenmez)
+        // trip_id → trip_headsign (for display; omitted when empty/missing)
         let mut trip_headsign_sd: FxHashMap<&str, &str> = FxHashMap::default();
         trip_headsign_sd.reserve(records.trips.len());
         for t in &records.trips {
@@ -1553,12 +1553,12 @@ fn check_speed_and_duration<'a>(
         )
     };
 
-    // Shape-based segment distance altyapısı (hız hesabı için)
-    // Öncelik: shape polyline projeksiyonu > haversine fallback
-    // shape noktaları K6 girişindeki paylaşılan ShapeIndex'ten ödünç alınır; burada yalnız
-    // kümülatif mesafe (haversine) hesaplanır. Eski yol 4. bir kopya kuruyor ve `sort_unstable`
-    // kullanıyordu → eşit `shape_pt_sequence`'ta sıra belirsizdi; paylaşılan index STABLE
-    // sıralı (dosya sırası korunur), dolayısıyla bu yol artık deterministik.
+    // Shape-based segment distance infrastructure (for speed calculation).
+    // Priority: shape polyline projection > haversine fallback.
+    // Shape points are borrowed from the shared ShapeIndex created at K6 entry; only cumulative
+    // distance (haversine) is calculated here. The old path built a fourth copy and used `sort_unstable`
+    // → order was ambiguous for equal `shape_pt_sequence`; the shared index is STABLE-sorted (file
+    // order preserved), so this path is now deterministic.
     let shape_pts_speed = &shape_idx.coords;
     let (shape_cum_speed, trip_shape_speed) = {
         let _t = Timer::start("K6::sd::shape_setup");
@@ -1586,20 +1586,20 @@ fn check_speed_and_duration<'a>(
         (shape_cum, trip_shape)
     };
 
-    // STM_036: stop_times trip_id + stop_sequence'a göre sıralı/gruplu değil (MD unsorted_stop_times,
-    // INFO — benign: pipeline zaten sequence'e göre yeniden sıralar). İki alt-vaka:
-    //   (a) sequence AZALIYOR — K2'de tespit VE emit edilir (k2/stop_times.rs). Emit orada
-    //       çünkü prev_stop/curr_stop yalnız satır okuma anında elde; buraya taşımak
-    //       unsorted_seq_trips tuple'ına iki SmolStr eklemeyi gerektirirdi (~+%120 bellek).
-    //       Burada o trip'ler yalnızca (b)'den ELENMEK için okunur, ikinci notice üretilmez.
-    //   (b) satırlar DAĞINIK (araya başka trip girmiş; sequence artsa bile gruplu değil)
+    // STM_036: stop_times is not ordered/grouped by trip_id + stop_sequence (MD unsorted_stop_times,
+    // INFO — benign: the pipeline already reorders by sequence). Two subcases:
+    //   (a) sequence DECREASES — detected AND emitted in K2 (k2/stop_times.rs). Emission stays there
+    //       because prev_stop/curr_stop are available only while reading a row; moving it here would
+    //       require adding two SmolStr values to unsorted_seq_trips (~+120% memory).
+    //       Here those trips are read only to be EXCLUDED from (b); no second notice is produced.
+    //   (b) rows are NON-CONTIGUOUS (another trip intervened; not grouped even if sequence increases)
     let stm036_seen: std::collections::HashSet<&str> = idx
         .unsorted_seq_trips
         .iter()
         .map(|(trip_id, ..)| trip_id.as_str())
         .collect();
-    // (b) non-contiguous: finalize edilmiş index'te trip satırlarının CSV line'ları ardışık mı
-    // (max-min+1 == satır sayısı) — değilse araya başka trip girmiş. Deterministik olsun diye ilk-satıra göre sıralanır.
+    // (b) non-contiguous: are a trip's CSV lines consecutive in the finalized index
+    // (max-min+1 == row count) — if not, another trip intervened. Sorted by first row for determinism.
     let mut noncontig: Vec<(&str, u32, u32)> = Vec::new();
     for (trip_id, stops) in idx.by_trip.iter() {
         if stm036_seen.contains(*trip_id) {
@@ -1629,23 +1629,23 @@ fn check_speed_and_duration<'a>(
         ));
     }
 
-    // Reusable per-trip coord buffer: 1 lookup/stop (windows(2) ile 2 lookup/pair olurdu)
+    // Reusable per-trip coordinate buffer: 1 lookup/stop (windows(2) would mean 2 lookups/pair).
     let mut coords_buf: Vec<Option<(f64, f64)>> = Vec::new();
 
-    // Perf: (shape_id, stop_id) → shape üzerine arc-uzunluğu projeksiyonu MEMOIZE edilir.
-    // project_arc_km tüm shape noktalarını gezer; aynı (shape,durak) seferler/segmentler
-    // arası tekrar projekte ediliyordu. dist_km çıktısı BİREBİR aynı — sadece tekrar eleniyor.
+    // Performance: memoize shape arc-length projection for (shape_id, stop_id).
+    // project_arc_km walks all shape points; the same (shape, stop) was projected repeatedly across
+    // trips/segments. dist_km output is EXACTLY the same — only repetition is removed.
     let mut arc_cache: FxHashMap<(&str, &str), f64> = FxHashMap::default();
-    // STM_014 birikimi: (route_id, direction, stop_a, stop_b) → segment özeti.
-    // Döngü içinde emit YOK; döngü bitince sıralı olarak tek tek üretilir.
+    // STM_014 aggregation: (route_id, direction, stop_a, stop_b) → segment summary.
+    // NO emission inside the loop; emit one by one in sorted order after the loop.
     let mut stm014_segs: FxHashMap<(&str, &str, &str, &str), Stm014Seg<'_>> = FxHashMap::default();
-    // STM_061 birikimi: (route_id, direction, stop_a, stop_b) → uzak çift özeti.
-    // Anahtar STM_014 ile AYNI biçimdedir; iki kural aynı fiziksel segmenti farklı
-    // ölçülerle görür ve ikisi de sefer sayısıyla ölçeklenmemelidir.
+    // STM_061 aggregation: (route_id, direction, stop_a, stop_b) → distant-pair summary.
+    // The key has the SAME form as STM_014; both rules see the same physical segment with different
+    // measures, and neither should scale with trip count.
     let mut stm061_pairs: FxHashMap<(&str, &str, &str, &str), Stm061Pair<'_>> =
         FxHashMap::default();
-    // STM_053: aynı route içindeki etkilenen seferleri tek route-level notice'ta topla.
-    // Tespit ve eşik değişmez; yalnızca trip başına Quality gürültüsü Analytics özetine iner.
+    // STM_053: collect affected trips within one route into one route-level notice.
+    // Detection and threshold are unchanged; only per-trip Quality noise moves into the Analytics summary.
     let mut stm053_routes: FxHashMap<&str, (usize, usize, &str, u64)> = FxHashMap::default();
 
     {
@@ -1668,17 +1668,17 @@ fn check_speed_and_duration<'a>(
                 .and_then(|s| s.departure_time())
                 .map(|(h, m, _)| format!("{h:02}:{m:02}"))
                 .unwrap_or_default();
-            // trip_id zenginleştirme: insan-tanır kalkış saati eki (" 08:15 kalkışlı"); bilinmiyorsa boş.
-            // (STM_026 mesajındaki mevcut desenle aynı biçim.)
+            // trip_id enrichment: human-readable departure-time suffix (" 08:15 departure"); empty when unknown.
+            // (Same form as the existing pattern in the STM_026 message.)
             let dep_suffix = if dep_str.is_empty() {
                 String::new()
             } else {
                 format!(" {dep_str} kalkışlı")
             };
 
-            // ── STM_007: aynı durakta departure < arrival (K2'den taşındı) ───────────
-            // Gece yarısını aşan son durak (00:xx kalkış, 24:xx yazılmalıydı) yanlış-pozitifi
-            // service_day_start ile elenir; gerçek satır-içi hatalar zenginleştirilmiş mesajla verilir.
+            // ── STM_007: departure < arrival at the same stop (moved from K2) ─────────────
+            // A final stop crossing midnight (00:xx departure, should have been written as 24:xx) is
+            // filtered with service_day_start; real within-row errors use the enriched message.
             {
                 let sds_secs = config.service_day_start_hour * 3600;
                 for (row_index, st) in stimes.iter().enumerate() {
@@ -1690,7 +1690,7 @@ fn check_speed_and_duration<'a>(
                     if dep_s >= arr_s {
                         continue;
                     }
-                    // departure'ı +24sa alınca arrival'a yakınsa → gece-yarısı geçişi (kasıtsız) → atla
+                    // If adding +24h to departure makes it close to arrival → unintended midnight crossing → skip.
                     if sds_secs > 0 && (dep_s + 86400).saturating_sub(arr_s) <= sds_secs {
                         continue;
                     }
@@ -1716,7 +1716,7 @@ fn check_speed_and_duration<'a>(
                     d.insert("dir".to_string(), dir_sd.to_string());
                     d.insert("dep".to_string(), format_hms(dep_s));
                     d.insert("arr".to_string(), format_hms(arr_s));
-                    // Planlamacı hatalı satırı komşularıyla görsün: durak ve bir önceki/sonraki satırın saatleri.
+                    // Let the planner show the bad row with neighbors: the stop and the previous/next row's times.
                     d.insert("stop_id".to_string(), idx.stop_id_of(st).to_string());
                     let neighbours = [("prev", row_index.checked_sub(1)), ("next", Some(row_index + 1))];
                     for (side, other) in neighbours {
@@ -1731,9 +1731,9 @@ fn check_speed_and_duration<'a>(
                             d.insert(format!("{side}_departure"), format_hms(hms_to_secs(t)));
                         }
                     }
-                    // Feed özeti dalı (`finalize_stm007_pending`) affected_rows/example_trips yazar;
-                    // tek şablon iki dala da hizmet ettiği için tekil dal da taşımalı, yoksa özet
-                    // notice'ın en/ja/fr metni boş placeholder'la çıkar (korpusta ölçüldü).
+                    // The feed-summary branch (`finalize_stm007_pending`) writes affected_rows/example_trips;
+                    // because one template serves both branches, the single-item branch must carry them too, or
+                    // the summary notice's en/ja/fr text is emitted with an empty placeholder (measured in the corpus).
                     d.insert("affected_rows".to_string(), "1".to_string());
                     d.insert("example_trips".to_string(), trip_id.to_string());
                     n.details = Some(d);
@@ -1742,7 +1742,7 @@ fn check_speed_and_duration<'a>(
                 }
             }
 
-            // ── STM_028 / STM_029: trip süresi ───────────────────────────────────
+            // ── STM_028 / STM_029: trip duration ──────────────────────────────────────────
             let first_dep = stimes
                 .first()
                 .and_then(|s| s.departure_time())
@@ -1755,8 +1755,8 @@ fn check_speed_and_duration<'a>(
             if let (Some(dep), Some(arr)) = (first_dep, last_arr) {
                 if arr >= dep {
                     let duration_sec = arr - dep;
-                    // Raylı türlerde ayrı eşik + Bilgi severity: 24 saati aşan tren seferi
-                    // meşrudur, sinyal "bak ama panikleme" düzeyindedir.
+                    // Separate threshold + Info severity for rail types: a train trip exceeding 24 hours
+                    // is legitimate; the signal means "inspect, but do not panic".
                     let rt = trip_route_type.get(trip_id).copied().unwrap_or(u32::MAX);
                     let is_rail = is_rail_route_type(rt);
                     let max_sec = max_trip_duration_secs(rt, config);
@@ -1777,8 +1777,8 @@ fn check_speed_and_duration<'a>(
                             route,
                             if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
                             format_hms(duration_sec), format_hms(max_sec)),
-                        // Tek metin: locale sözlüğünde kural başına TEK remediation anahtarı var,
-                        // koşullu varyant --lang en/ja'da temsil edilemez (bkz. i18n mimarisi).
+                        // One message: the locale dictionary has ONE remediation key per rule; a conditional variant
+                        // cannot be represented with --lang en/ja (see the i18n architecture).
                         "İlk kalkış ve son varış saatlerini doğrulayın; uzun mesafe tarifelerinde bu süre olağandır, şehir içi hatlarda veri hatası işaretidir.",
                     );
                         if is_rail {
@@ -1837,9 +1837,9 @@ fn check_speed_and_duration<'a>(
                 let entry = stm053_routes.entry(route).or_insert((0, 0, trip_id, first_line));
                 entry.0 = entry.0.max(max_same_run);
                 entry.1 += 1;
-                // Temsilci = en küçük satırlı sefer. `by_trip` FxHashMap'tir ve FxHash
-                // `usize` genişliğine bağlıdır: "ilk görülen" sefer 64-bit native ile
-                // 32-bit WASM'da farklı çıkıyordu (aynı feed, farklı line/example_trip).
+                // Representative = trip with the fewest rows. `by_trip` is an FxHashMap and FxHash
+                // depends on `usize` width: the "first seen" trip differed between 64-bit native and
+                // 32-bit WASM (same feed, different line/example_trip).
                 if (first_line == 0, first_line, trip_id) < (entry.3 == 0, entry.3, entry.2) {
                     entry.2 = trip_id;
                     entry.3 = first_line;
@@ -1900,8 +1900,8 @@ fn check_speed_and_duration<'a>(
                         d.insert("dir".to_string(), dir_sd.to_string());
                         d.insert("dep".to_string(), dep_hms.clone());
                         d.insert("arr".to_string(), arr_hms.clone());
-                        // Planlamacı hatalı saati bağlamıyla görsün: kalkış durağından önceki ve
-                        // varış durağından sonraki durak, saatleriyle.
+                        // Let the planner show the bad time in context: the stop before departure and
+                        // the stop after arrival, with their times.
                         if let Some(prev) = departure_index.checked_sub(1).and_then(|i| stimes.get(i)) {
                             d.insert("prev_stop_id".to_string(), idx.stop_id_of(prev).to_string());
                             if let Some(time) = row_time_text(prev) {
@@ -1923,8 +1923,8 @@ fn check_speed_and_duration<'a>(
                 }
             }
 
-            // ── STM_014 / OPR_008: hız anomalisi ─────────────────────────────────
-            // Per-trip coord buffer: her stop bir kez sorgulanır
+            // ── STM_014 / OPR_008: speed anomaly ─────────────────────────────────
+            // Per-trip coordinate buffer: query each stop once.
             coords_buf.clear();
             coords_buf.extend(
                 stimes
@@ -1932,24 +1932,22 @@ fn check_speed_and_duration<'a>(
                     .map(|s| stop_coords.get(idx.stop_id_of(s)).copied()),
             );
 
-            // ── STM_061: ARDIŞIK OLMAYAN uzak durak çifti arasında imkânsız hız ──
+            // ── STM_061: impossible speed between a NON-CONSECUTIVE distant stop pair ────
             //
-            // STM_012/STM_014 yalnız KOMŞU durakları kıyaslar. Adım adım makul görünen
-            // ama uçtan uca imkânsız olan bir sefer aradan geçer: her segment eşiğin
-            // altında kalırken toplam yol fiziksel olarak kapatılamaz.
+            // STM_012/STM_014 compare only NEIGHBORING stops. A trip can look reasonable step by step
+            // but be impossible end to end: every segment stays below the threshold while the total route
+            // cannot be physically covered.
             //
-            // 🔴 "Ardışıklar temizse uzak çift de temizdir" DİYE DÜŞÜNDÜM, KORPUS ÇÜRÜTTÜ.
-            // Argüman şuydu: her segment ≤ T ise yol_mesafesi ≤ T·toplam_süre, kuş uçuşu
-            // ≤ yol mesafesi, dolayısıyla uzak çift de ≤ T. Ama iki kontrol AYNI mesafe
-            // ölçüsünü kullanmıyor — komşu mesafe shape üzerinden (uzun) ölçülünce hız
-            // düşük çıkıyor. run-32197267205'te **20 feed** uzak-çift bulgusu veriyor ve
-            // ardışık bulgusu HİÇ vermiyor (#168).
+            // 🔴 I THOUGHT "if neighbors are clean, the distant pair is clean too"; THE CORPUS DISPROVED IT.
+            // The argument was: if every segment ≤ T, then route_distance ≤ T·total_time, bird's-eye distance
+            // ≤ route distance, so the distant pair is also ≤ T. But the two checks do NOT use the same distance
+            // measure — when neighboring distance is measured along the (long) shape, speed comes out low.
+            // In run-32197267205, **20 feeds** produce distant-pair findings and NO neighboring findings (#168).
             //
-            // ⚡ PERF: naif hâli trip başına O(n²)'dir; VBB'de 282k sefer × ~22 durak
-            // ~68M çift eder. Buradaki sınır YAKLAŞIK DEĞİL, KESİN: `bbox_diag_km` bu
-            // seferdeki iki durak arasındaki AZAMİ olası kuş uçuşu mesafedir, dolayısıyla
-            // `threshold * Δt >= bbox_diag_km` olduğu anda daha ileri hiçbir `j` ihlal
-            // EDEMEZ ve döngü kırılır. Hiçbir bulgu kaybedilmez.
+            // ⚡ PERF: the naive form is O(n²) per trip; in VBB, 282k trips × ~22 stops is ~68M pairs.
+            // The bound here is NOT APPROXIMATE, but EXACT: `bbox_diag_km` is the MAXIMUM possible bird's-eye
+            // distance between two stops in the trip, so once `threshold * Δt >= bbox_diag_km`, no later `j`
+            // CAN violate the rule and the loop breaks. No finding is lost.
             {
                 let mut lo_lat = f64::INFINITY;
                 let mut hi_lat = f64::NEG_INFINITY;
