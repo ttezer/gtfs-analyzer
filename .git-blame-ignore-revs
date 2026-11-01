@@ -216,3 +216,6 @@ c5d5ea94aa8c748db1b8c0c067a05e9db12a75ce
 
 # Preserve registry code spans.
 cee272f4b0282c6e7bf55f492071e789d7f067c7
+
+# Translate pipeline library comments.
+4bceebf5963dd2875f8b2fdb7042117acc83a2df
