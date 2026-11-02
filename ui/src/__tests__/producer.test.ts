@@ -157,10 +157,19 @@ describe('Üretici kartı görünümü', () => {
       ...emptyNameIndex,
       routes: { R1: 'Dial-a-Ride' },
       trip_routes: { T1: 'R1', T2: 'R1' },
+      trips: { T1: 'Talep üzerine ulaşım' },
+      service_days: { SVC1: ['1111100', '20220101', '20230101', '0'] },
       trip_stops: { T1: ['area_803'], T2: ['area_803'] },
     };
     const r = result(
-      [notice('a', 'STM_002', 'CRITICAL', { entity_type: 'Stop', entity_id: 'area_803' })],
+      [notice('a', 'STM_002', 'CRITICAL', {
+        entity_type: 'Stop', entity_id: 'area_803', details: {
+          trip_count: '1', example_1_trip_id: 'T1', example_1_route_id: 'R1',
+          example_1_service_id: 'SVC1', example_1_service_name: 'Year round (Weekday)',
+          example_1_window_start: '06:00:00', example_1_window_end: '21:00:00',
+          geojson_location: 'true',
+        },
+      })],
       ['a'],
       [['STM_002', 4, 1]],
       true,
@@ -169,7 +178,17 @@ describe('Üretici kartı görünümü', () => {
     const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(root, r);
     expect(root.innerHTML).toContain('Seferde kullanılan durak bulunamadı');
-    expect(root.innerHTML).toContain('Dial-a-Ride · 2 sefer');
+    expect(root.innerHTML).not.toContain('Bu kodu kullanan hatlar');
+    expect(root.innerHTML).toContain('Hat kodu R1');
+    expect(root.innerHTML).toContain('Year round (Weekday)');
+    expect(root.innerHTML).toContain('planner-route-code">R1</span>');
+    expect(root.innerHTML).toContain('Hafta içi');
+    expect(root.innerHTML).toContain('alış-bırakış aralığı 06:00–21:00');
+    expect(root.innerHTML).toContain('talebe bağlı hizmetin yolcu alma ve bırakma bölgesi; sefer bu bölgeyi 06:00–21:00 boyunca kullanıyor');
+    expect(root.innerHTML).toContain('güncel GTFS-Flex biçimine');
+    expect(root.innerHTML).not.toContain('takvim kodu');
+    expect(root.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th><th>Çalışma günleri</th>');
+    expect(root.innerHTML).toContain('Talep üzerine ulaşım');
     expect(root.innerHTML).not.toContain('stop_id bulunamadı');
   });
 

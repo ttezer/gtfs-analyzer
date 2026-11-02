@@ -3044,24 +3044,6 @@
         },
         {
           "details": null,
-          "entity_id": "S2",
-          "entity_type": "Stop",
-          "expected_value": null,
-          "field": "stop_id",
-          "file": "stop_times.txt",
-          "line": 3,
-          "message": "stop_id 'S2' not found in stops.txt.",
-          "observed_value": "S2",
-          "remediation": "Use a valid stop_id.",
-          "rule_class": "SPEC",
-          "rule_id": "STM_002",
-          "scope_key": "S2",
-          "service_id": null,
-          "severity": "CRITICAL",
-          "title": "stop_id not found"
-        },
-        {
-          "details": null,
           "entity_id": "attributions.txt",
           "entity_type": "File",
           "expected_value": null,
@@ -3194,6 +3176,30 @@
           "service_id": null,
           "severity": "MEDIUM",
           "title": "stop_code missing"
+        },
+        {
+          "details": {
+            "example_1_departure": "08:10:00",
+            "example_1_route_id": "R1",
+            "example_1_service_id": "SVC1",
+            "example_1_trip_id": "T1",
+            "trip_count": "1"
+          },
+          "entity_id": "S2",
+          "entity_type": "Stop",
+          "expected_value": null,
+          "field": "stop_id",
+          "file": "stop_times.txt",
+          "line": 3,
+          "message": "stop_id 'S2' not found in stops.txt.",
+          "observed_value": "S2",
+          "remediation": "Use a valid stop_id.",
+          "rule_class": "SPEC",
+          "rule_id": "STM_002",
+          "scope_key": "S2",
+          "service_id": null,
+          "severity": "CRITICAL",
+          "title": "stop_id not found"
         }
       ],
       "agency_breakdown": {

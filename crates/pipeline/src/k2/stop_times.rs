@@ -160,6 +160,9 @@ const _: () = assert!(std::mem::size_of::<CompactStopTime>() <= 24);
 pub struct StopTimeFlex {
     pub start_pickup_drop_off_window: Option<(u32, u32, u32)>,
     pub end_pickup_drop_off_window: Option<(u32, u32, u32)>,
+    /// Window values from feeds using the alternate `dropoff` header spelling; display context only.
+    pub context_window_start: Option<(u32, u32, u32)>,
+    pub context_window_end: Option<(u32, u32, u32)>,
     pub location_id: Option<SmolStr>,
     pub location_group_id: Option<SmolStr>,
     pub pickup_booking_rule_id: Option<SmolStr>,
@@ -198,6 +201,8 @@ pub fn build_flex(
         Some(Box::new(StopTimeFlex {
             start_pickup_drop_off_window: start_window,
             end_pickup_drop_off_window: end_window,
+            context_window_start: None,
+            context_window_end: None,
             location_id,
             location_group_id,
             pickup_booking_rule_id,
@@ -762,6 +767,8 @@ struct Cols {
     // Flex
     start_pickup_drop_off_window: Option<usize>,
     end_pickup_drop_off_window: Option<usize>,
+    context_window_start: Option<usize>,
+    context_window_end: Option<usize>,
     location_id: Option<usize>,
     location_group_id: Option<usize>,
     pickup_booking_rule_id: Option<usize>,
@@ -786,6 +793,8 @@ impl Cols {
             stop_sequence: pos("stop_sequence"),
             start_pickup_drop_off_window: pos("start_pickup_drop_off_window"),
             end_pickup_drop_off_window: pos("end_pickup_drop_off_window"),
+            context_window_start: pos("start_pickup_dropoff_window"),
+            context_window_end: pos("end_pickup_dropoff_window"),
             location_id: pos("location_id"),
             location_group_id: pos("location_group_id"),
             pickup_booking_rule_id: pos("pickup_booking_rule_id"),
@@ -2929,7 +2938,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 if restriction != 0 {
                     st.boarding_restrictions.insert(line as u32, restriction);
                 }
-                if let Some(flex) = build_flex(
+                if let Some(mut flex) = build_flex(
                     start_window,
                     end_window,
                     location_id.clone(),
@@ -2939,6 +2948,22 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     pickup_type,
                     drop_off_type,
                 ) {
+                    if start_window.is_none() {
+                        flex.context_window_start = parse_gtfs_time_raw(
+                            get_col(row, cols.context_window_start),
+                            "start_pickup_dropoff_window",
+                        )
+                        .ok()
+                        .flatten();
+                    }
+                    if end_window.is_none() {
+                        flex.context_window_end = parse_gtfs_time_raw(
+                            get_col(row, cols.context_window_end),
+                            "end_pickup_dropoff_window",
+                        )
+                        .ok()
+                        .flatten();
+                    }
                     st.flex_map.insert(line as u32, flex);
                 }
                 st.all_rows.push(CompactStopTime {

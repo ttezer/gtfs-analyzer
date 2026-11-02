@@ -102,10 +102,17 @@ pub fn check_with_files_and_whitespace_roots(
         // One notice per distinct stop_id — even if the same missing stop appears in thousands
         // of rows, emit one record (see the same pattern in FRL_001).
         if availability.available("stops.txt") {
+            let missing_stops: HashSet<&str> = idx
+                .stop_id_set
+                .iter()
+                .filter(|stop_id| !map.stops.contains_key(stop_id.as_str()))
+                .map(|stop_id| stop_id.as_str())
+                .collect();
+            let trip_contexts = stm002_trip_contexts(records, &missing_stops);
             for stop_id in &idx.stop_id_set {
                 if !map.stops.contains_key(stop_id.as_str()) {
                     let line = idx.stop_first_line.get(stop_id).copied();
-                    notices.push(notice(
+                    let mut finding = notice(
                         &mut ctr,
                         "STM_002",
                         EntityType::Stop,
@@ -118,7 +125,15 @@ pub fn check_with_files_and_whitespace_roots(
                         None,
                         format!("'{}' durağı stops.txt'te tanımlı değil.", stop_id),
                         "Geçerli bir stop_id kullanın.",
-                    ));
+                    );
+                    finding.details = trip_contexts.get(stop_id.as_str()).cloned();
+                    if map.geojson_location_ids.contains(stop_id.as_str()) {
+                        finding
+                            .details
+                            .get_or_insert_with(BTreeMap::new)
+                            .insert("geojson_location".to_string(), "true".to_string());
+                    }
+                    notices.push(finding);
                 }
             }
         } else {
@@ -557,6 +572,95 @@ pub fn check_with_files_and_whitespace_roots(
         skipped_checks,
         whitespace_suppressions,
     }
+}
+
+fn stm002_trip_contexts(
+    records: &EntityRecords,
+    missing_stops: &HashSet<&str>,
+) -> BTreeMap<String, BTreeMap<String, String>> {
+    const MAX_EXAMPLES: usize = 5;
+    let idx = &records.stop_times_index;
+    let mut contexts = BTreeMap::<String, BTreeMap<String, String>>::new();
+    let calendar_names: HashMap<&str, &str> = records
+        .calendars
+        .iter()
+        .filter_map(|calendar| {
+            let name = calendar.row.get("service_name")?.trim();
+            (!name.is_empty()).then_some((calendar.service_id.as_str(), name))
+        })
+        .collect();
+    for trip in &records.trips {
+        let trip_id = trip.trip_id.as_str();
+        let Some(rows) = idx.sorted_stops(trip_id) else {
+            continue;
+        };
+        let mut seen_missing_stops = HashSet::new();
+        let route_id = records.trip_interns.route_id(trip);
+        let service_id = records.trip_interns.service_id(trip);
+        for row in rows {
+            let stop_id = idx.stop_id_of(row);
+            if !missing_stops.contains(stop_id) || !seen_missing_stops.insert(stop_id) {
+                continue;
+            }
+            let details = contexts.entry(stop_id.to_string()).or_default();
+            let count = details
+                .entry("trip_count".to_string())
+                .or_insert_with(|| "0".to_string());
+            *count = count
+                .parse::<u32>()
+                .unwrap_or(0)
+                .saturating_add(1)
+                .to_string();
+            let example_index = details
+                .keys()
+                .filter_map(|key| {
+                    key.strip_prefix("example_")?
+                        .split('_')
+                        .next()?
+                        .parse::<u32>()
+                        .ok()
+                })
+                .max()
+                .unwrap_or(0);
+            if example_index as usize >= MAX_EXAMPLES {
+                continue;
+            }
+            let next = example_index + 1;
+            let insert = |key: &str, value: &str, target: &mut BTreeMap<String, String>| {
+                if !value.is_empty() {
+                    target.insert(format!("example_{next}_{key}"), value.to_string());
+                }
+            };
+            insert("trip_id", trip_id, details);
+            insert("route_id", route_id, details);
+            insert("service_id", service_id, details);
+            if let Some(name) = calendar_names.get(service_id) {
+                insert("service_name", name, details);
+            }
+            if let Some(direction) = trip.direction_id {
+                insert("direction_id", &direction.to_string(), details);
+            }
+            if let Some(departure) = row.departure_time() {
+                insert("departure", &format_stm002_time(departure), details);
+            }
+            if let Some(flex) = idx.flex_of(row) {
+                if let Some(start) = flex
+                    .start_pickup_drop_off_window
+                    .or(flex.context_window_start)
+                {
+                    insert("window_start", &format_stm002_time(start), details);
+                }
+                if let Some(end) = flex.end_pickup_drop_off_window.or(flex.context_window_end) {
+                    insert("window_end", &format_stm002_time(end), details);
+                }
+            }
+        }
+    }
+    contexts
+}
+
+fn format_stm002_time((hours, minutes, seconds): (u32, u32, u32)) -> String {
+    format!("{hours:02}:{minutes:02}:{seconds:02}")
 }
 
 /// Evidence available from the complete stop-time sequence, even when the trip
@@ -8184,6 +8288,85 @@ mod tests {
         recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
         let result = check(&recs, &map, 20260515);
         assert!(result.notices.iter().any(|n| n.rule_id == "STM_002"));
+    }
+
+    #[test]
+    fn stm002_includes_using_trip_route_service_and_flex_window() {
+        let (mut recs, mut map) = empty();
+        map.routes.insert("R1".into(), 0);
+        map.services.insert("SVC1".into());
+        map.trips.insert("T1".into(), 0);
+        map.geojson_location_ids.insert("MISSING_STOP".into());
+        recs.calendars = vec![CalendarRecord {
+            service_id: "SVC1".into(),
+            days: [
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(1),
+                Some(0),
+                Some(0),
+            ],
+            start_date: None,
+            end_date: None,
+            row: HashMap::from([("service_name".into(), "Weekday service".into())]),
+            line: 2,
+        }];
+        let mut ti = TripInternTable::new();
+        recs.trips = vec![trip(&mut ti, "T1", "R1", "SVC1")];
+        recs.trip_interns = ti;
+        recs.stop_times = vec![StopTimeRecord {
+            trip_id: "T1".into(),
+            stop_id: "MISSING_STOP".into(),
+            stop_sequence: Some(1),
+            pickup_booking_rule_id: Some("booking_route_R1".into()),
+            drop_off_booking_rule_id: Some("booking_route_R1".into()),
+            line: 2,
+            ..Default::default()
+        }];
+        recs.stop_times_index = StopTimesIndex::from_records(&recs.stop_times);
+        for flex in recs.stop_times_index.flex_map.values_mut() {
+            flex.context_window_start = Some((6, 0, 0));
+            flex.context_window_end = Some((21, 0, 0));
+        }
+        let result = check(&recs, &map, 20260515);
+        let finding = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_002")
+            .unwrap();
+        let details = finding.details.as_ref().expect("trip context");
+        assert_eq!(details.get("trip_count").map(String::as_str), Some("1"));
+        assert_eq!(
+            details.get("example_1_trip_id").map(String::as_str),
+            Some("T1")
+        );
+        assert_eq!(
+            details.get("example_1_route_id").map(String::as_str),
+            Some("R1")
+        );
+        assert_eq!(
+            details.get("example_1_service_id").map(String::as_str),
+            Some("SVC1")
+        );
+        assert_eq!(
+            details.get("example_1_service_name").map(String::as_str),
+            Some("Weekday service")
+        );
+        assert_eq!(
+            details.get("example_1_window_start").map(String::as_str),
+            Some("06:00:00")
+        );
+        assert_eq!(
+            details.get("example_1_window_end").map(String::as_str),
+            Some("21:00:00")
+        );
+        assert_eq!(
+            details.get("geojson_location").map(String::as_str),
+            Some("true")
+        );
+        assert_eq!(details.get("example_1_departure"), None);
     }
 
     // ── RTS_012 ───────────────────────────────────────────────────────────────

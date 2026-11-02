@@ -54,10 +54,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The browser and `gtfs-sdk` now see `locations.geojson` areas.** The WASM path did not
+  pass GeoJSON location ids and geometries to the cross-reference stage, unlike the CLI.
+  In the browser and the SDK, `XFL_025` reported every Flex `location_id` as undefined,
+  `XFL_031` could not fire and `STM_060` never ran. They now match the CLI.
+
 - **`STM_001` gives planners a usable trip description.** Missing-trip notices now
   include the first and last stops, their departure/arrival times, and the stop count;
   the planner card and affected-record table use that evidence, and the trip's stop
   sequence is shown on the map instead of exposing feed-file terminology.
+- **`STM_002` identifies the trip that uses a missing stop.** Notices now include
+  route, service name/code and time or flexible pickup-window context so planners can locate
+  the right record and distinguish a physical stop from a service area. When the
+  missing stop is a `locations.geojson` area, the notice says so (`geojson_location`).
+  The planner-only context can read feeds using the alternate `dropoff` window-header
+  spelling; rule behavior does not change.
 
 - **The browser and `gtfs-sdk` no longer drop findings past one million.** The
   WASM path stopped collecting notices at a global budget of 1,000,000 and

@@ -6,7 +6,7 @@ import { SEVERITY_ORDER } from '../severity-order';
 import { escHtml } from '../escape';
 import type { MapOptions, MapPin } from '../map-modal';
 import {
-  buildProducerModel, entityLabel, stopUsage, plannerArea, routeBadge,
+  buildProducerModel, entityLabel, plannerArea, routeBadge,
   routeIdOfNotice,
   type RuleGroup, type PlannerArea,
 } from './producer-helpers';
@@ -329,18 +329,32 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         observed: visibleValue(n.observed_value),
       };
     case 'STM_002': {
-      const stop = n.details?.stop_id || n.entity_id || n.observed_value || '';
-      const usage = stop
-        ? stopUsage(stop, result.name_index)
-          .map(u => t('producer.card.route_usage', { route: u.route, trips: u.trips }))
-          .join(', ')
-        : '';
+      const details = n.details ?? {};
+      const routeId = details.example_1_route_id;
+      const route = routeId ? result.name_index.routes?.[routeId] || routeId : '—';
+      const serviceId = details.example_1_service_id;
+      const service = serviceText(serviceId, result);
+      const serviceName = details.example_1_service_name;
+      const serviceContext = serviceName
+        ? t('producer.card.STM_002.service_context', { name: serviceName, days: service })
+        : service;
+      const time = details.example_1_departure
+        || (details.example_1_window_start && details.example_1_window_end
+          ? t('producer.card.pickup_window', { start: plannerTime(details.example_1_window_start) ?? '', end: plannerTime(details.example_1_window_end) ?? '' })
+          : t('producer.card.no_scheduled_time'));
+      const timeRange = details.example_1_window_start && details.example_1_window_end
+        ? t('producer.card.time_range', { start: plannerTime(details.example_1_window_start) ?? '', end: plannerTime(details.example_1_window_end) ?? '' })
+        : time;
+      const geojsonLocation = details.geojson_location === 'true';
       return {
         title: t('producer.card.STM_002.title'),
-        context: t('producer.card.STM_002.context', { stop }),
-        what: t('producer.card.STM_002.what'),
-        action: t('producer.card.STM_002.action'),
-        usage,
+        context: t('producer.card.STM_002.context', {
+          route,
+          route_code: routeId || '—',
+          service: serviceContext,
+        }),
+        what: t(geojsonLocation ? 'producer.card.STM_002.geojson_what' : 'producer.card.STM_002.what', { route_code: routeId || '—', service: serviceContext, time, time_range: timeRange }),
+        action: t(geojsonLocation ? 'producer.card.STM_002.geojson_action' : 'producer.card.STM_002.action'),
       };
     }
     case 'STM_007': {
@@ -834,6 +848,28 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       );
     }
     case 'Stop':
+      if (g.ruleId === 'STM_002') {
+        return {
+          head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.service')],
+          row: n => {
+            const details = n.details ?? {};
+            const routeId = details.example_1_route_id;
+            const serviceName = details.example_1_service_name;
+            const time = details.example_1_departure
+              || (details.example_1_window_start && details.example_1_window_end
+                ? t('producer.card.pickup_window', { start: plannerTime(details.example_1_window_start) ?? '', end: plannerTime(details.example_1_window_end) ?? '' })
+                : null);
+            return [
+              routeId ? { html: `${routeBadgeHtml(routeId, result)} <span class="planner-route-code">${escHtml(routeId)}</span>` } : '—',
+              dash(details.example_1_trip_id ? ni.trips?.[details.example_1_trip_id] : null),
+              dash(time),
+              {
+                html: `${escHtml(serviceName || '')}${serviceName ? ' · ' : ''}${escHtml(serviceText(details.example_1_service_id, result))}`,
+              },
+            ];
+          },
+        };
+      }
       return {
         head: [t('producer.col.stop'), t('producer.col.stop_code')],
         row: n => [dash(n.entity_id ? ni.stops?.[n.entity_id] : null), dash(n.entity_id)],

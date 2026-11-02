@@ -596,7 +596,9 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     }
 
     t_start!("K3-entity-map");
-    let k3 = build_entity_map(&k2.records);
+    let mut k3 = build_entity_map(&k2.records);
+    k3.entity_map.geojson_location_ids = k1.geojson_location_ids.clone();
+    k3.entity_map.geojson_geometries = k1.geojson_geometries.clone();
     t_end!("K3-entity-map");
 
     t_start!("K4-cross-ref");
@@ -774,7 +776,9 @@ fn run_k1_k5(
 
     t = js_sys::Date::now();
     t_start!("K3-entity-map");
-    let k3 = build_entity_map(&k2.records);
+    let mut k3 = build_entity_map(&k2.records);
+    k3.entity_map.geojson_location_ids = k1.geojson_location_ids.clone();
+    k3.entity_map.geojson_geometries = k1.geojson_geometries.clone();
     t_end!("K3-entity-map");
     call_stage(on_stage, "K3", (js_sys::Date::now() - t) as u32);
     log_mem("after-K3-entity-map");
