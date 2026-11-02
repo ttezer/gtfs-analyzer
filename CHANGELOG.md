@@ -67,6 +67,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **R9 `score_delta` now uses the R5 scoring model.** It was computed with a
+  per-notice linear penalty while R5 caps each rule's penalty at 2×, so the
+  reported gain was not what R5 would actually gain. It is now R5 recomputed
+  without the item's closure set. Values change (on mdb-3401 `STM_003`
+  1.2 → 3.1, `STM_049` 0.0 → 1.6); R5 scores are unchanged.
+- **Web R9 gains were inflated on capped rules.** The browser multiplied
+  `score_delta` and `pub_score_delta` by real/shown notice counts
+  (`STM_003`: 827.6 / 7153.1 on a 0–100 scale). The scaling is removed; both
+  deltas saturate with the R5 model, so web and CLI report the same values.
+
 - **`validate --rule/--severity/--class` left `agency_breakdown` pointing at
   the wrong notices.** `notice_indices` are positions in `notices` and were not
   renumbered after filtering, so they could point past the end of the array.

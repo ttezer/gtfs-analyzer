@@ -484,7 +484,6 @@ fn rerun_k6_k7_inner(
     call_stage(on_stage, "K7", (js_sys::Date::now() - t) as u32);
     index_notices(&mut agency_breakdown, &k7.notices, &cache.records);
 
-    scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
     // Filter map data by notices (large-feed mode) → build name_index first.
     let name_index = build_name_index(&cache.records, &k7.notices);
@@ -664,7 +663,6 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     );
     index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
     // 4) Scale score delta by the real-total ratio for rules that hit the cap.
-    scale_r9_deltas(&mut k7.reports, &real_totals);
     let capped_totals = build_capped_totals(&real_totals);
     let name_index = build_name_index(&k2.records, &k7.notices);
     ValidateResult::Ok(ValidationResult {
@@ -909,25 +907,6 @@ fn build_capped_totals(
             }
         })
         .collect()
-}
-
-/// Scales R9 score deltas for capped rules in proportion to the real notice count.
-/// The hyperbolic model becomes linear at large counts; scaling provides a good approximation.
-fn scale_r9_deltas(
-    reports: &mut gtfs_core::ReportSet,
-    real_totals: &std::collections::HashMap<String, u32>,
-) {
-    for item in &mut reports.r9.items {
-        if let Some(&real) = real_totals.get(&item.rule_id) {
-            let cap = cap_for_rule(&item.rule_id) as u32;
-            let shown = real.min(cap);
-            if shown > 0 && real > shown {
-                let scale = real as f64 / shown as f64;
-                item.score_delta *= scale;
-                item.pub_score_delta *= scale;
-            }
-        }
-    }
 }
 
 /// K7 preparation (suppress whitespace derivatives) → dedup + agency counting + cap in one pass.

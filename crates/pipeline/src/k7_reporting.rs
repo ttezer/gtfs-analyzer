@@ -1405,18 +1405,9 @@ fn bucket_rank(labels: &[R9Label]) -> u8 {
 }
 
 fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
-    let has_opr011 = notices.iter().any(|n| n.rule_id == "OPR_011");
-    let has_stm033 = notices.iter().any(|n| n.rule_id == "STM_033");
-    // Total penalty per class (for the R5 score_delta calculation)
-    let mut class_penalty: HashMap<RuleClass, f64> = HashMap::new();
-    for n in notices {
-        *class_penalty.entry(n.rule_class).or_default() +=
-            n.severity.weight() * notice_score_weight(
-                n,
-                has_opr011,
-                has_stm033,
-            );
-    }
+    // Per-rule penalty inputs of the R5 overall score (same model as class_score)
+    let r5_rules = r5_rule_penalties(notices);
+    let cur_overall = r5_overall(&r5_rules, &HashMap::new());
 
     // Total publication penalty (reference baseline for pub_score_delta)
     let (total_pub_penalty, _) = build_pub_penalty_map(notices);
@@ -1457,37 +1448,16 @@ fn build_r9(notices: &[Notice], resolution: &SymptomResolution) -> R9Report {
             // Closure set: all notices that close when this R9 item is selected (root + downstream)
             let closure = closure_notice_indices_for_group(&indices, notices, resolution);
 
-            // R5 overall score improvement — remove the penalty per class through the closure set.
-            // Notices in the closure set are grouped by class; the total closure penalty for each
-            // class is removed once to calculate the delta. This also works when multiple
-            // closure notices belong to the same class.
+            // R5 overall score improvement: R5 recomputed without the closure set, with the
+            // same per-rule saturating penalty as class_score. Because instance_multiplier
+            // saturates, the result does not depend on how many samples a capped run kept.
             let k = 50.0_f64;
             let score_delta = {
-                // Class → total closure penalty
-                let mut closure_class_penalty: HashMap<RuleClass, f64> = HashMap::new();
+                let mut removed: HashMap<&str, u32> = HashMap::new();
                 for &ci in &closure {
-                    let cn = &notices[ci];
-                        *closure_class_penalty.entry(cn.rule_class).or_default() +=
-                            cn.severity.weight() * notice_score_weight(
-                                cn,
-                            has_opr011,
-                            has_stm033,
-                        );
+                    *removed.entry(notices[ci].rule_id.as_str()).or_default() += 1;
                 }
-                let mut delta_sum = 0.0_f64;
-                for (cn_class, cp_removed) in &closure_class_penalty {
-                    let cn_weight = match cn_class {
-                        RuleClass::Spec => 0.4,
-                        RuleClass::Interop => 0.3,
-                        RuleClass::Quality => 0.2,
-                        RuleClass::Analytics => 0.1,
-                    };
-                    let cur_cp = class_penalty.get(cn_class).copied().unwrap_or(0.0);
-                    let cur_cs = k * 100.0 / (k + cur_cp);
-                    let new_cs = k * 100.0 / (k + (cur_cp - cp_removed).max(0.0));
-                    delta_sum += cn_weight * (new_cs - cur_cs);
-                }
-                round1(delta_sum)
+                round1(r5_overall(&r5_rules, &removed) - cur_overall)
             };
 
             // R5 publication score improvement — use the grouped hyperbolic-decay penalty of
@@ -1689,6 +1659,59 @@ fn notice_score_weight(notice: &Notice, has_opr011: bool, has_stm033: bool) -> f
     get_rule(&notice.rule_id)
         .map(|meta| meta.score_weight)
         .unwrap_or(1.0)
+}
+
+/// Per-rule input of the R5 class score: class, `severity × score_weight` of the first
+/// notice (as in class_score) and notice count.
+struct R5RulePenalty {
+    class: RuleClass,
+    weight: f64,
+    count: u32,
+}
+
+fn r5_rule_penalties(notices: &[Notice]) -> HashMap<&str, R5RulePenalty> {
+    let mut rules: HashMap<&str, R5RulePenalty> = HashMap::new();
+    for n in notices {
+        rules
+            .entry(n.rule_id.as_str())
+            .or_insert_with(|| R5RulePenalty {
+                class: n.rule_class,
+                weight: n.severity.weight()
+                    * get_rule(&n.rule_id).map(|meta| meta.score_weight).unwrap_or(1.0),
+                count: 0,
+            })
+            .count += 1;
+    }
+    rules
+}
+
+/// R5 overall score after `removed` notices per rule are gone. Equals build_r5's
+/// unrounded `score` when nothing is removed; the TRP_026/OPR_006 zero weights follow
+/// whether OPR_011/STM_033 remain.
+fn r5_overall(rules: &HashMap<&str, R5RulePenalty>, removed: &HashMap<&str, u32>) -> f64 {
+    let remaining = |id: &str| {
+        rules
+            .get(id)
+            .map(|r| r.count.saturating_sub(removed.get(id).copied().unwrap_or(0)))
+            .unwrap_or(0)
+    };
+    let has_opr011 = remaining("OPR_011") > 0;
+    let has_stm033 = remaining("STM_033") > 0;
+    let mut penalty: HashMap<RuleClass, f64> = HashMap::new();
+    for (&id, rule) in rules {
+        let count = remaining(id);
+        if count == 0 {
+            continue;
+        }
+        let zeroed = (id == "TRP_026" && has_opr011) || (id == "OPR_006" && has_stm033);
+        let weight = if zeroed { 0.0 } else { rule.weight };
+        *penalty.entry(rule.class).or_default() += weight * instance_multiplier(count);
+    }
+    let score = |class| 100.0 * 50.0 / (50.0 + penalty.get(&class).copied().unwrap_or(0.0));
+    0.4 * score(RuleClass::Spec)
+        + 0.3 * score(RuleClass::Interop)
+        + 0.2 * score(RuleClass::Quality)
+        + 0.1 * score(RuleClass::Analytics)
 }
 
 /// Hyperbolic decay: score = 100 × K / (K + penalty), K=50.
@@ -2447,6 +2470,47 @@ mod tests {
             root_item.score_delta,
             root_only_delta
         );
+    }
+
+    /// R9 score_delta is the R5 overall gain from removing the closure set, computed
+    /// with R5's own per-rule saturating penalty.
+    #[test]
+    fn score_delta_matches_r5_without_the_rule() {
+        let mut all: Vec<Notice> = (0..60)
+            .map(|i| notice(&format!("a{i}"), "RULE_A", Severity::Yuksek, RuleClass::Spec))
+            .collect();
+        all.push(notice("b0", "RULE_B", Severity::Orta, RuleClass::Quality));
+        let r9 = build_r9(&all, &resolve_symptoms(&all));
+        let item = r9.items.iter().find(|i| i.rule_id == "RULE_A").unwrap();
+
+        let without: Vec<Notice> = all.iter().filter(|n| n.rule_id != "RULE_A").cloned().collect();
+        let expected = r5_overall(&r5_rule_penalties(&without), &HashMap::new())
+            - r5_overall(&r5_rule_penalties(&all), &HashMap::new());
+        assert_eq!(item.score_delta, round1(expected));
+        assert!(
+            (r5_overall(&r5_rule_penalties(&all), &HashMap::new()) - build_r5_unrounded(&all)).abs()
+                < 1e-9
+        );
+    }
+
+    /// A capped run (web: 500 samples per rule) must report the same score_delta as the
+    /// full list once the rule is past the instance_multiplier saturation point.
+    #[test]
+    fn score_delta_does_not_depend_on_sample_count_past_saturation() {
+        let delta = |n: usize| {
+            let all: Vec<Notice> = (0..n)
+                .map(|i| notice(&format!("a{i}"), "RULE_A", Severity::Yuksek, RuleClass::Spec))
+                .collect();
+            build_r9(&all, &resolve_symptoms(&all)).items[0].score_delta
+        };
+        assert_eq!(delta(500), delta(5000));
+    }
+
+    fn build_r5_unrounded(notices: &[Notice]) -> f64 {
+        0.4 * class_score(notices, RuleClass::Spec)
+            + 0.3 * class_score(notices, RuleClass::Interop)
+            + 0.2 * class_score(notices, RuleClass::Quality)
+            + 0.1 * class_score(notices, RuleClass::Analytics)
     }
 
     /// Scenario 2: Scope mismatch — a blocked notice with a different scope_key must not enter the closure.
