@@ -75,6 +75,6 @@ Varsa MobilityData tarafında yer alan tarih damgalı, doğrulanmış eşleşme 
 Varsa ilgili GTFS spec maddesi ve kaynak linki
 
 ### Kod referansı
-- Emit: [dosya:line](../../...)
-- Test: [dosya:line](../../...)
+- Emit: [`dosya.rs`](../../../crates/...) — satır numarası (`#L…`) YAZILMAZ; kural kimliği dosyada aranır.
+- Test: [`dosya.rs`](../../../crates/...)
 

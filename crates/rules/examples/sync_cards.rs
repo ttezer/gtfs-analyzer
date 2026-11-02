@@ -2,8 +2,9 @@
 //!
 //! - Makes the R9 "Rule message:" line equal to the registry `title`.
 //! - Makes the metadata `Önem`/`Sınıf` values equal to the registry severity/rule_class.
-//! - Resolves `crates/...rs#Lnnn` references in "Code reference" to the rule's
-//!   actual emit/test line in the referenced file (fixing line drift).
+//!
+//! Code references in cards link files without line numbers (since 2026-11-02), so there is
+//! no line drift to fix; `card_consistency` checks that the linked files exist and emit the rule.
 //!
 //! Run: cargo run -p gtfs-rules --example sync_cards
 //! The card_consistency test should then move closer to green.
@@ -101,38 +102,9 @@ fn severity_display(dbg: &str) -> &str {
     }
 }
 
-/// Resolve the rule's line in a source file: want_test=false → emit (before the test block),
-/// true → inside the test block. Search for quoted "ID".
-fn resolve_line(src: &str, id: &str, want_test: bool) -> Option<usize> {
-    let lines: Vec<&str> = src.lines().collect();
-    let test_start = lines
-        .iter()
-        .position(|l| l.contains("mod tests"))
-        .unwrap_or(lines.len());
-    let needle = format!("\"{id}\"");
-    let range = if want_test {
-        test_start..lines.len()
-    } else {
-        0..test_start
-    };
-    for i in range {
-        if lines[i].contains(&needle) {
-            return Some(i + 1);
-        }
-    }
-    // Fallback: anywhere in the file.
-    lines
-        .iter()
-        .position(|l| l.contains(&needle))
-        .map(|i| i + 1)
-}
-
 fn main() {
-    let root = repo_root();
     let mut r9_fix = 0usize;
     let mut meta_fix = 0usize;
-    let mut ref_fix = 0usize;
-    let mut unresolved: Vec<String> = Vec::new();
 
     for rule in RULES {
         let path = card_path(rule.id);
@@ -224,78 +196,6 @@ fn main() {
                     meta_fix += 1;
                 }
             }
-            // 3) Code-reference lines (.rs#L).
-            else if line.contains(".rs#L") {
-                let want_test = line.contains("Test:") || line.to_lowercase().contains("test");
-                // Scan every reference on the line; collect edits (start, end, replacement)
-                // as byte ranges and apply them from right to left. Unlike replace-all,
-                // position-based editing does not corrupt another number on the same line
-                // (for example, #L42 versus #L420) and avoids offset drift/UTF-8 panic risk.
-                let mut edits: Vec<(usize, usize, String)> = Vec::new();
-                let mut search_from = 0usize;
-                while let Some(rel) = line[search_from..].find(".rs#L") {
-                    let pos = search_from + rel;
-                    let num_start = pos + 5; // First digit after ".rs#L".
-                    let num: String = line[num_start..]
-                        .chars()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect();
-                    let num_end = num_start + num.len();
-                    search_from = num_end.max(pos + 5);
-
-                    let head = &line[..pos + 3]; // Include ".rs".
-                    let Some(cstart) = head.rfind("crates/") else {
-                        continue;
-                    };
-                    let src_rel = head[cstart..].to_string();
-                    let Ok(old_n) = num.parse::<usize>() else {
-                        continue;
-                    };
-                    let Ok(src) = fs::read_to_string(root.join(&src_rel)) else {
-                        continue;
-                    };
-                    let Some(new_n) = resolve_line(&src, rule.id, want_test) else {
-                        unresolved.push(format!("{}: unresolved in '{}'", rule.id, src_rel));
-                        continue;
-                    };
-                    if new_n == old_n {
-                        continue;
-                    }
-                    // URL side: ...rs#L<old_n>.
-                    edits.push((num_start, num_end, new_n.to_string()));
-                    // Link-label side: the anchor number may already have changed
-                    // while the label number is still old. Therefore, instead of
-                    // searching the label for `old_n`, locate the `[...rs:<digits>]`
-                    // range immediately before the link structurally.
-                    if let Some(label_end) = line[..pos].rfind(']') {
-                        if let Some(label_start) = line[..label_end].rfind('[') {
-                            let label = &line[label_start + 1..label_end];
-                            if let Some(colon) = label.rfind(':') {
-                                let label_path = &label[..colon];
-                                let label_digits = &label[colon + 1..];
-                                if label_path.ends_with(".rs")
-                                    && !label_digits.is_empty()
-                                    && label_digits.chars().all(|c| c.is_ascii_digit())
-                                {
-                                    let ds = label_start + 1 + colon + 1;
-                                    let de = ds + label_digits.len();
-                                    edits.push((ds, de, new_n.to_string()));
-                                }
-                            }
-                        }
-                    }
-                    ref_fix += 1;
-                }
-                if !edits.is_empty() {
-                    edits.sort_by_key(|edit| std::cmp::Reverse(edit.0)); // Right to left: offsets remain valid.
-                    let mut s = line.to_string();
-                    for (st, en, rep) in edits {
-                        s.replace_range(st..en, &rep);
-                    }
-                    new_line = s;
-                }
-            }
-
             out.push(new_line);
         }
 
@@ -310,11 +210,4 @@ fn main() {
 
     println!("R9 fixes: {r9_fix}");
     println!("Metadata (Önem/Sınıf) fixes: {meta_fix}");
-    println!("Code-reference line fixes: {ref_fix}");
-    if !unresolved.is_empty() {
-        println!("\nUNRESOLVED references ({}):", unresolved.len());
-        for u in &unresolved {
-            println!("  {u}");
-        }
-    }
 }

@@ -58,9 +58,11 @@ standalone with `npm run typecheck` (requires the wasm packages to be built firs
 
 - **Commits:** Conventional Commits style — `feat(...)`, `fix(...)`, `ci(...)`,
   `docs(...)`, `test(...)`, `build(...)`.
-- **Tests location:** Prefer integration tests in `crates/<crate>/tests/`. When adding a
-  test to `crates/<crate>/tests/integration.rs`, append it to the **end** of the file —
-  rule cards reference test line numbers and an insertion in the middle can shift them.
+- **Tests location:** Prefer integration tests in `crates/<crate>/tests/`.
+- **Rule card code links:** link the source file without a line number
+  (`[k4_cross_ref.rs](../../../crates/pipeline/src/k4_cross_ref.rs)`, never `…rs#L81`).
+  `card_consistency` checks that every linked file exists and that at least one of them
+  contains the rule ID.
 - **Artifact drift check:** CI warns (non-blocking) when `crates/` or `ui/src` change
   without a corresponding `ui/dist` / `ui/pkg` rebuild. Production is always built from
   source by the deploy workflow, so this is only a reminder. Add `[skip-drift]` to a
