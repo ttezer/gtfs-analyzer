@@ -2854,7 +2854,7 @@ const ja: LocaleShape = {
     'LOC_003': "locations.geojsonのフィーチャー{observed_value}に必須の'id'プロパティがありません。",
     'LOC_004': "locations.geojsonのフィーチャー{observed_value}のPolygonリングが閉じていません。",
     'LOC_005': "locations.geojsonのFeatureCollectionが空です — フィーチャーがありません。",
-    'LOC_006': "locations.geojsonのフィーチャー{observed_value}のポリゴンの面積が非常に大きいです（約{observed_value}km²）。",
+    'LOC_006': "locations.geojsonのフィーチャー{line}のポリゴンの面積が非常に大きいです（約{observed_value}）。",
     'LOC_007': "locations.geojsonに重複したフィーチャー'id'値があります：'{observed_value}'。",
     'LOC_010': "'{entity_id}'内のfeatureのgeometryに'coordinates'配列がありません。",
     'LOC_009': "'{entity_id}'内のfeatureに'properties'オブジェクトがありません。",

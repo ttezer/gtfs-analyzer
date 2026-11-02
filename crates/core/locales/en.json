@@ -224,7 +224,7 @@
     "LOC_003": "Feature {observed_value} in locations.geojson is missing the required 'id' property.",
     "LOC_004": "Feature {observed_value} in locations.geojson has an unclosed Polygon ring.",
     "LOC_005": "locations.geojson FeatureCollection has no features.",
-    "LOC_006": "Feature {observed_value} in locations.geojson covers a very large area (~{observed_value} km²).",
+    "LOC_006": "Feature {line} in locations.geojson covers a very large area (~{observed_value}).",
     "LOC_007": "locations.geojson contains duplicate feature 'id' values: '{observed_value}'.",
     "LOC_010": "A feature in '{entity_id}' has no geometry 'coordinates' array.",
     "LOC_009": "A feature in '{entity_id}' has no 'properties' object.",

@@ -224,7 +224,7 @@
     "LOC_003": "L’objet Feature {observed_value} de locations.geojson n’a pas la propriété obligatoire « id ».",
     "LOC_004": "L’objet Feature {observed_value} de locations.geojson comporte un anneau de polygone non fermé.",
     "LOC_005": "La FeatureCollection de locations.geojson ne contient aucun objet Feature.",
-    "LOC_006": "L’objet Feature {observed_value} de locations.geojson couvre une très grande superficie (~{observed_value} km²).",
+    "LOC_006": "L’objet Feature {line} de locations.geojson couvre une très grande superficie (~{observed_value}).",
     "LOC_007": "locations.geojson contient des valeurs « id » d’objet Feature en double : « {observed_value} ».",
     "LOC_010": "Un objet Feature de « {entity_id} » n’a pas de tableau « coordinates » de géométrie.",
     "LOC_009": "Un objet Feature de « {entity_id} » n’a pas d’objet « properties ».",
