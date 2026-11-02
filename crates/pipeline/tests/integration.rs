@@ -3102,7 +3102,7 @@ fn trip_level_time_rules_carry_the_stops_to_fix() {
     // The planner card identifies the bad location by stop name: STM_028/029 use the trip's
     // endpoint stops, STM_045 uses the stop whose departure exceeds the window, and STM_021
     // uses the two stops at the same location.
-    fn details_of(files: &[(&str, &[u8])], rule: &str) -> std::collections::BTreeMap<String, String> {
+    fn details_of(files: &[(&str, &[u8])], rule: &str) -> gtfs_core::NoticeDetails {
         match run(files) {
             ValidateResult::Ok(vr) => vr
                 .notices
@@ -3113,7 +3113,7 @@ fn trip_level_time_rules_carry_the_stops_to_fix() {
             other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
         }
     }
-    let get = |d: &std::collections::BTreeMap<String, String>, k: &str| d.get(k).cloned();
+    let get = |d: &gtfs_core::NoticeDetails, k: &str| d.get(k).cloned();
 
     static SHORT: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
           T1,08:00:00,08:00:00,S1,1\nT1,08:00:30,08:00:30,S2,2\n";

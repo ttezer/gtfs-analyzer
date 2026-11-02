@@ -12,7 +12,7 @@ pub use enums::{
     AuthoritySource, DedupLevel, EntityType, FatalCode, R9Label, ReportId, RuleClass, Severity,
 };
 pub use metrics::{FeedMetrics, FileInfo};
-pub use notice::{Notice, ReportItem};
+pub use notice::{Notice, NoticeDetails, ReportItem};
 pub use reports::{
     R1Report, R2Report, R3Report, R4Report, R5Report, R7Report, R8Report, R9Item, R9Report,
     ReportSet,

@@ -682,7 +682,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if !examples.is_empty() {
             d.insert("example_stops".to_string(), examples.join(", "));
         }
-        notice.details = Some(d);
+        notice.details = Some(d.into());
         notices.push(notice);
     } else {
         notices.append(&mut stp022_pending);
@@ -719,7 +719,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if !examples.is_empty() {
             d.insert("example_stops".to_string(), examples.join(", "));
         }
-        notice.details = Some(d);
+        notice.details = Some(d.into());
         notices.push(notice);
     } else {
         notices.append(&mut stp033_pending);
@@ -748,7 +748,7 @@ pub fn validate_stops(file: &RawFile) -> (Vec<StopRecord>, Vec<gtfs_core::Notice
         if !stp045_examples.is_empty() {
             d.insert("example_stops".to_string(), stp045_examples.join(", "));
         }
-        notice.details = Some(d);
+        notice.details = Some(d.into());
         notices.push(notice);
     }
 

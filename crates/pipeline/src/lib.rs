@@ -324,7 +324,7 @@ fn aggregate_stm036(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -393,7 +393,7 @@ fn aggregate_dq021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolv
             if !examples.is_empty() {
                 details.insert("example_keys".to_string(), examples.join(" | "));
             }
-            details
+            details.into()
         });
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
@@ -485,7 +485,7 @@ fn aggregate_arc012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
                     lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
                 );
             }
-            details
+            details.into()
         });
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
@@ -567,7 +567,7 @@ fn aggregate_cld003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
                     lines.iter().map(u64::to_string).collect::<Vec<_>>().join(", "),
                 );
             }
-            details
+            details.into()
         });
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
@@ -630,7 +630,7 @@ fn aggregate_shp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_shapes".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -679,7 +679,7 @@ fn aggregate_stm008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.message = format!(
             "{affected_segments} zaman geriye gidişi bu seferin kronolojisini bozuyor."
         );
-        aggregate.details.get_or_insert_with(BTreeMap::new).insert(
+        aggregate.details.get_or_insert_with(gtfs_core::NoticeDetails::new).insert(
             "affected_segments".to_string(),
             affected_segments.to_string(),
         );
@@ -746,7 +746,7 @@ fn aggregate_stm047(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.details = Some({
             let mut details = BTreeMap::new();
             details.insert("affected_rows".to_string(), affected_rows.to_string());
-            details
+            details.into()
         });
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
@@ -805,7 +805,7 @@ fn aggregate_pth007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         aggregate.details = Some({
             let mut details = BTreeMap::new();
             details.insert("affected_rows".to_string(), affected_rows.to_string());
-            details
+            details.into()
         });
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
@@ -911,7 +911,7 @@ fn aggregate_trp003(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !missing_services.is_empty() {
             details.insert("example_service_ids".to_string(), missing_services.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -967,7 +967,7 @@ fn aggregate_trn001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_table_names".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1032,7 +1032,7 @@ fn aggregate_stp004(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_stop_ids".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1087,7 +1087,7 @@ fn aggregate_stp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_stop_ids".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1142,7 +1142,7 @@ fn aggregate_trf005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_transfers".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1197,7 +1197,7 @@ fn aggregate_pth012(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_platforms".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1249,7 +1249,7 @@ fn aggregate_stp042(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_stop_ids".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1300,7 +1300,7 @@ fn aggregate_stp032(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_platforms".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1360,7 +1360,7 @@ fn aggregate_far010(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_fares".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1409,7 +1409,7 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1458,7 +1458,7 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1508,7 +1508,7 @@ fn aggregate_frq007(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1558,7 +1558,7 @@ fn aggregate_trf019(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_route_types".to_string(), examples.join(", "));
         }
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1613,7 +1613,7 @@ fn aggregate_cal008(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
             if !examples.is_empty() {
                 details.insert("example_services".to_string(), examples.join(", "));
             }
-            details
+            details.into()
         });
         aggregate.service_id = None;
         aggregate.whitespace_derived = matches.iter().all(|n| n.whitespace_derived)
@@ -1669,7 +1669,7 @@ fn aggregate_ggl001(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_transfers".to_string(), affected_transfers.to_string());
         details.insert("transfer_types".to_string(), types.join(", "));
-        details
+        details.into()
     });
     aggregate.service_id = None;
     aggregate.whitespace_derived = matched.iter().all(|n| n.whitespace_derived)
@@ -1871,6 +1871,7 @@ pub fn validate_bytes_inspected(
     all.extend(k4.notices);
     all.extend(k5.notices);
     all.extend(k6.notices);
+    crate::timing::log_notice_memory("K1-K6 notices before K7", &all);
 
     let mut whitespace_suppressions = k2.whitespace_suppressions;
     whitespace_suppressions.merge(k4.whitespace_suppressions);
@@ -1903,6 +1904,8 @@ pub fn validate_bytes_inspected(
         agency_attribution::index_notices(&mut agency_breakdown, &k7.notices, &k2.records);
         (k7, agency_breakdown)
     };
+    crate::timing::log_notice_memory("K7 canonical notices", &k7.notices);
+    crate::timing::log_report_memory("K7 reports", &k7.reports);
     crate::timing::mem_log("after K7-reporting");
 
     // name_index filters map data by notices (large-feed mode) → notices must not carry borrowed data.

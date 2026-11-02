@@ -2864,7 +2864,7 @@ pub fn parse_with_limits(
                 msg,
                 DQ016_REMEDIATION,
             );
-            n.details = dq016.evidence_details();
+            n.details = dq016.evidence_details().map(Into::into);
             notices.push(n);
         }
 

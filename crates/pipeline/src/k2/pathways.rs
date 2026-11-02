@@ -408,7 +408,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         if !pth009_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth009_examples.join(", "));
         }
-        n.details = Some(d);
+        n.details = Some(d.into());
         notices.push(n);
     }
 
@@ -433,7 +433,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         if !pth008_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth008_examples.join(", "));
         }
-        n.details = Some(d);
+        n.details = Some(d.into());
         notices.push(n);
     }
     if pth029_count > 0 {
@@ -446,7 +446,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         if !pth029_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth029_examples.join(", "));
         }
-        n.details = Some(d);
+        n.details = Some(d.into());
         notices.push(n);
     }
     if pth025_count > 0 {
@@ -469,7 +469,7 @@ pub fn validate_pathways(file: &RawFile) -> (Vec<PathwayRecord>, Vec<gtfs_core::
         if !pth025_examples.is_empty() {
             d.insert("example_pathways".to_string(), pth025_examples.join(", "));
         }
-        n.details = Some(d);
+        n.details = Some(d.into());
         notices.push(n);
     }
 

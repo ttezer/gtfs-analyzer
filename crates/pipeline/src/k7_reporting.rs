@@ -71,17 +71,21 @@ pub fn prepare_notices(
         let _t = Timer::start("K7::suppress_whitespace_derivatives");
         suppress_whitespace_derivatives(all_notices, records, derived, early_suppressions)
     };
+    crate::timing::mem_log("K7 after suppress_whitespace_derivatives");
     let all_notices = {
         let _t = Timer::start("K7::fill_service_ids");
         fill_service_ids(all_notices, records)
     };
+    crate::timing::mem_log("K7 after fill_service_ids");
     let mut notices = if already_deduped {
         all_notices
     } else {
         let _t = Timer::start("K7::dedup");
         dedup(all_notices)
     };
+    crate::timing::mem_log("K7 after dedup");
     materialize_retained_whitespace_flags(&mut notices);
+    crate::timing::mem_log("K7 after materialize_whitespace_flags");
     notices
 }
 
@@ -104,18 +108,22 @@ pub fn report_prepared(
         let prefix = n.id.split('/').next().unwrap_or("k").to_string();
         n.id = format!("{prefix}/{}#{}", n.rule_id, i + 1);
     }
+    crate::timing::mem_log("K7 after deterministic notice IDs");
     let resolution = {
         let _t = crate::timing::Timer::start("K7::resolve_symptoms");
         resolve_symptoms(&notices)
     };
+    crate::timing::mem_log("K7 after resolve_symptoms");
     let reports = {
         let _t = Timer::start("K7::build_reports");
         build_report_set(&notices, &resolution, coverage_complete)
     };
+    crate::timing::mem_log("K7 after build_reports");
     let mut metrics = {
         let _t = Timer::start("K7::build_metrics");
         build_metrics(&notices, records, derived, file_stats, coverage_complete)
     };
+    crate::timing::mem_log("K7 after build_metrics");
     metrics.overall_score = reports.r5.score;
     K7Result {
         notices,
@@ -223,7 +231,7 @@ pub fn suppress_whitespace_derivatives(
         let Some((count, rules)) = suppressed.get(file) else {
             continue;
         };
-        let details = root.details.get_or_insert_with(BTreeMap::new);
+        let details = root.details.get_or_insert_with(gtfs_core::NoticeDetails::new);
         details.insert("suppressed_derivative_count".to_string(), count.to_string());
         details.insert(
             "suppressed_derivative_rules".to_string(),
@@ -274,7 +282,7 @@ pub fn annotate_whitespace_join_provenance(
         };
         notice
             .details
-            .get_or_insert_with(BTreeMap::new)
+            .get_or_insert_with(gtfs_core::NoticeDetails::new)
             .insert("whitespace_join_file".to_string(), file.to_string());
     }
 }
@@ -620,13 +628,13 @@ fn materialize_retained_whitespace_flags(notices: &mut [Notice]) {
         if notice.whitespace_derived {
             notice
                 .details
-                .get_or_insert_with(BTreeMap::new)
+                .get_or_insert_with(gtfs_core::NoticeDetails::new)
                 .insert("whitespace_derived".to_string(), "true".to_string());
         }
         if notice.whitespace_candidate {
             notice
                 .details
-                .get_or_insert_with(BTreeMap::new)
+                .get_or_insert_with(gtfs_core::NoticeDetails::new)
                 .insert("whitespace_candidate".to_string(), "true".to_string());
         }
     }

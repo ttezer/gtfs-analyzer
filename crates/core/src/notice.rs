@@ -2,8 +2,109 @@
 // varies between processes → the same input would produce different BYTES in two runs
 // (same content, only key order differs). See the same rationale in NameIndex.
 use crate::{EntityType, RuleClass, Severity};
-use serde::{Deserialize, Serialize};
+use serde::de::Deserializer;
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize, Serializer};
 use std::collections::BTreeMap;
+use std::ops::Index;
+
+/// Compact, deterministic replacement for the per-notice `BTreeMap` used by
+/// `Notice.details`.
+///
+/// Detail sets are small, so a sorted vector avoids one tree-node allocation per
+/// key while preserving the same lookup and JSON-object semantics. The public JSON
+/// shape remains an object with sorted string keys.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct NoticeDetails(Vec<(String, String)>);
+
+impl NoticeDetails {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert<K: Into<String>, V: Into<String>>(&mut self, key: K, value: V) -> Option<String> {
+        let key = key.into();
+        let value = value.into();
+        match self.0.binary_search_by(|(existing, _)| existing.as_str().cmp(&key)) {
+            Ok(index) => Some(std::mem::replace(&mut self.0[index].1, value)),
+            Err(index) => {
+                self.0.insert(index, (key, value));
+                None
+            }
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<&String> {
+        self.0
+            .binary_search_by(|(existing, _)| existing.as_str().cmp(key))
+            .ok()
+            .map(|index| &self.0[index].1)
+    }
+
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.get(key).is_some()
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, (String, String)> {
+        self.0.iter()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &String> {
+        self.0.iter().map(|(_, value)| value)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.0.capacity()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl From<BTreeMap<String, String>> for NoticeDetails {
+    fn from(details: BTreeMap<String, String>) -> Self {
+        Self(details.into_iter().collect())
+    }
+}
+
+impl FromIterator<(String, String)> for NoticeDetails {
+    fn from_iter<T: IntoIterator<Item = (String, String)>>(iter: T) -> Self {
+        let mut details = Self::new();
+        for (key, value) in iter {
+            details.insert(key, value);
+        }
+        details
+    }
+}
+
+impl Index<&str> for NoticeDetails {
+    type Output = String;
+
+    fn index(&self, key: &str) -> &Self::Output {
+        self.get(key).unwrap_or_else(|| panic!("no entry found for key: {key}"))
+    }
+}
+
+impl Serialize for NoticeDetails {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (key, value) in &self.0 {
+            map.serialize_entry(key, value)?;
+        }
+        map.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for NoticeDetails {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        BTreeMap::<String, String>::deserialize(deserializer).map(Into::into)
+    }
+}
 
 /// Canonical data structure representing one validation finding.
 ///
@@ -32,7 +133,7 @@ pub struct Notice {
     /// Threshold or expected value (e.g. "120 km/h") — for dynamic context.
     pub expected_value: Option<String>,
     /// Additional context: second entity ID, calculated value, unit, etc.
-    pub details: Option<BTreeMap<String, String>>,
+    pub details: Option<NoticeDetails>,
     /// Type/enum symptom produced by K2 only because of surrounding whitespace.
     /// An internal pipeline marker; K7 creates the old `details` shape for retained findings.
     #[serde(skip)]
@@ -73,4 +174,24 @@ pub struct ReportItem {
     /// For example, SHP_013 → "GEO_008" in R4.
     pub display_label: String,
     pub is_primary: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NoticeDetails;
+
+    #[test]
+    fn details_keep_sorted_json_and_replace_existing_keys() {
+        let mut details = NoticeDetails::new();
+        assert_eq!(details.insert("z", "last"), None);
+        assert_eq!(details.insert("a", "first"), None);
+        assert_eq!(details.insert("z", "updated"), Some("last".to_string()));
+        assert_eq!(details.get("z").map(String::as_str), Some("updated"));
+        assert_eq!(details["a"], "first");
+
+        let json = serde_json::to_string(&details).expect("details serialize");
+        assert_eq!(json, r#"{"a":"first","z":"updated"}"#);
+        let decoded: NoticeDetails = serde_json::from_str(&json).expect("details deserialize");
+        assert_eq!(decoded, details);
+    }
 }

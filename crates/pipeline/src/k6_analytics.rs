@@ -770,7 +770,7 @@ fn finalize_stm007_pending(
                 top.iter().take(5).map(|(s, _)| *s).collect::<Vec<_>>().join(","),
             );
         }
-        notice.details = Some(details);
+        notice.details = Some(details.into());
         notices.push(notice);
     } else {
         notices.append(pending);
@@ -1780,7 +1780,7 @@ fn check_speed_and_duration<'a>(
                     // the summary notice's en/ja/fr text is emitted with an empty placeholder (measured in the corpus).
                     d.insert("affected_rows".to_string(), "1".to_string());
                     d.insert("example_trips".to_string(), trip_id.to_string());
-                    n.details = Some(d);
+                    n.details = Some(d.into());
                     n.service_id = Some(svc_sd.to_string());
                     stm007_pending.push(n);
                 }
@@ -1958,7 +1958,7 @@ fn check_speed_and_duration<'a>(
                                 d.insert("next_time".to_string(), time);
                             }
                         }
-                        n.details = Some(d);
+                        n.details = Some(d.into());
                         notices.push(n);
                     }
                 }
@@ -2135,7 +2135,7 @@ fn check_speed_and_duration<'a>(
                                 None,
                             );
                             add_stm012_stop_context(&mut details, idx, stimes, i, i + 1);
-                            n012.details = Some(details);
+                            n012.details = Some(details.into());
                             notices.push(n012);
                             // As with a zero-time interval containing untimed intermediate stops:
                             // OPR_008 counts this segment too; the lower speed bound assumes a full minute elapsed.
@@ -2249,7 +2249,7 @@ fn check_speed_and_duration<'a>(
                         let mut d = std::collections::BTreeMap::new();
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                         d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                        n.details = Some(d);
+                        n.details = Some(d.into());
                         notices.push(n);
                     }
                     continue;
@@ -2269,7 +2269,7 @@ fn check_speed_and_duration<'a>(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                     d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    n025.details = Some(d);
+                    n025.details = Some(d.into());
                     notices.push(n025);
                 }
 
@@ -2294,7 +2294,7 @@ fn check_speed_and_duration<'a>(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                     d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                    n026.details = Some(d);
+                    n026.details = Some(d.into());
                     notices.push(n026);
                 }
 
@@ -2328,7 +2328,7 @@ fn check_speed_and_duration<'a>(
                         None,
                     );
                     add_stm012_stop_context(&mut details, idx, stimes, i, i + 1);
-                    n012.details = Some(details);
+                    n012.details = Some(details.into());
                     notices.push(n012);
                     // OPR_008 counts this segment too and must see its speed and stop pair;
                     // otherwise a trip containing only an STM_012 segment would print "maximum speed 0.0".
@@ -2485,7 +2485,7 @@ fn check_speed_and_duration<'a>(
                         Some(j - p - 1),
                     );
                     add_stm012_stop_context(&mut details, idx, stimes, p, j);
-                    n012.details = Some(details);
+                    n012.details = Some(details.into());
                     notices.push(n012);
                     if impossible_speed > trip_max_speed {
                         trip_max_speed = impossible_speed;
@@ -2586,7 +2586,7 @@ fn check_speed_and_duration<'a>(
                             format!(" ({dep_str})")
                         },
                     );
-                    n.details = Some(d);
+                n.details = Some(d.into());
                 }
                 if let Some((_, file)) = ws_join.filter(|_| trip_ws_bad_count <= 1) {
                     mark_whitespace_join(&mut n, file);
@@ -2782,7 +2782,7 @@ fn check_speed_and_duration<'a>(
                     .collect::<Vec<_>>()
                     .join(","),
             );
-            n.details = Some(d);
+            n.details = Some(d.into());
             if let Some(file) = seg.ws_file.filter(|_| !seg.ws_real) {
                 mark_whitespace_join(&mut n, file);
             }
@@ -2872,7 +2872,7 @@ fn check_speed_and_duration<'a>(
                     .collect::<Vec<_>>()
                     .join(","),
             );
-            n.details = Some(d);
+            n.details = Some(d.into());
             notices.push(n);
         }
     }
@@ -3389,7 +3389,7 @@ fn check_calendar_analytics(
         n.details = Some({
             let mut d = std::collections::BTreeMap::new();
             d.insert("services".to_string(), svcs.join(","));
-            d
+            d.into()
         });
         notices.push(n);
     }
@@ -3504,7 +3504,7 @@ fn check_calendar_analytics(
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("days_before".to_string(), days_before.to_string());
                 d.insert("days_after".to_string(), days_after.to_string());
-                n014.details = Some(d);
+                n014.details = Some(d.into());
                 notices.push(n014);
             }
         }
@@ -3677,7 +3677,7 @@ fn check_calendar_analytics(
             n.details = Some({
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("services".to_string(), svcs.join(","));
-                d
+                d.into()
             });
             notices.push(n);
         }
@@ -4343,7 +4343,7 @@ fn check_geo_shape_trip_analytics(
                         "stop_id".to_string(),
                         records.stop_times_index.stop_id_of(st).to_string(),
                     );
-                    n.details = Some(d);
+                    n.details = Some(d.into());
                     notices.push(n);
                     break; // one notice per trip is enough
                 }
@@ -4542,7 +4542,7 @@ fn check_operational_analytics(
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("stops".to_string(), stop_list.join(","));
                 det.insert("dup_stop".to_string(), dup_stop.to_string());
-                n.details = Some(det);
+                n.details = Some(det.into());
                 notices.push(n);
             }
         }
@@ -4885,7 +4885,7 @@ fn check_operational_analytics(
                     .collect::<Vec<_>>()
                     .join(","),
             );
-            notice.details = Some(d);
+                notice.details = Some(d.into());
             notices.push(notice);
         }
     }
@@ -5017,8 +5017,8 @@ fn trip_span_details(
     idx: &StopTimesIndex<'_>,
     first: &CompactStopTime,
     last: &CompactStopTime,
-) -> std::collections::BTreeMap<String, String> {
-    let mut d = std::collections::BTreeMap::new();
+) -> gtfs_core::NoticeDetails {
+    let mut d = gtfs_core::NoticeDetails::new();
     d.insert("first_stop_id".to_string(), idx.stop_id_of(first).to_string());
     if let Some(dep) = first.departure_time() {
         d.insert("first_departure".to_string(), format_hms(hms_to_secs(dep)));
@@ -5035,8 +5035,8 @@ fn edge_time_details(
     stimes: &[CompactStopTime],
     edge: &CompactStopTime,
     side: &str,
-) -> std::collections::BTreeMap<String, String> {
-    let mut d = std::collections::BTreeMap::new();
+) -> gtfs_core::NoticeDetails {
+    let mut d = gtfs_core::NoticeDetails::new();
     d.insert("stop_id".to_string(), idx.stop_id_of(edge).to_string());
     if let Some(dep) = edge.departure_time() {
         d.insert("departure".to_string(), format_hms(hms_to_secs(dep)));
@@ -5667,7 +5667,7 @@ fn check_route_trip_quality(
                     format!("'{}' durağının stop_url değeri bir {message_name} URL'siyle aynı; {count} durak aynı URL'yi kullanıyor: '{raw_url}'.", representative.stop_id, count = stop_indices.len()),
                     "stop_url'yi bu durağa özgü bir sayfaya yönlendirin ya da boş bırakın.",
                 );
-                notice.details = Some(details);
+                notice.details = Some(details.into());
                 notices.push(notice);
             }
         };
@@ -7491,7 +7491,7 @@ fn check_remaining_analytics<'a>(
                 if let Some(dep) = &example_dep {
                     det.insert("example_dep".to_string(), dep.clone());
                 }
-                notice.details = Some(det);
+                notice.details = Some(det.into());
                 notices.push(notice);
                 // SHP_013 removed — it reported the same physical condition as GEO_009 (double count).
             }
@@ -8475,7 +8475,7 @@ fn check_remaining_analytics<'a>(
             let mut d = std::collections::BTreeMap::new();
             d.insert("first_stop".to_string(), first_stop.clone());
             d.insert("trip_id".to_string(), trip_id.clone());
-            n016.details = Some(d);
+                n016.details = Some(d.into());
             notices.push(n016);
         }
     }
@@ -8680,7 +8680,7 @@ fn check_remaining_analytics<'a>(
                 det.insert("seq_a".to_string(), seq_a.join(","));
                 det.insert("shape_id".to_string(), shape_id.to_string());
                 det.insert("bad_stop".to_string(), idx.stop_id_of(st).to_string());
-                notice.details = Some(det);
+                notice.details = Some(det.into());
                 notices.push(notice);
             }
         }
@@ -8774,7 +8774,7 @@ fn check_remaining_analytics<'a>(
             d.insert("problem_stop".to_string(), stop_id.clone());
             d.insert("endpoint".to_string(), "start".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
-            n.details = Some(d);
+                n.details = Some(d.into());
             notices.push(n);
         }
 
@@ -8813,7 +8813,7 @@ fn check_remaining_analytics<'a>(
             d.insert("problem_stop".to_string(), stop_id.clone());
             d.insert("endpoint".to_string(), "end".to_string());
             d.insert("trip_id".to_string(), trip_id.clone());
-            n.details = Some(d);
+                n.details = Some(d.into());
             notices.push(n);
         }
     }
@@ -8871,7 +8871,7 @@ fn check_remaining_analytics<'a>(
                 );
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("parent_id".to_string(), parent_id.to_string());
-                notice.details = Some(det);
+                notice.details = Some(det.into());
                 notices.push(notice);
             }
         }
@@ -9525,7 +9525,7 @@ fn check_remaining_analytics<'a>(
             if rows > 1 {
                 let mut details: BTreeMap<String, String> = BTreeMap::new();
                 details.insert("transfer_rows".to_string(), rows.to_string());
-                n.details = Some(details);
+                n.details = Some(details.into());
             }
             notices.push(n);
         }
@@ -9676,7 +9676,7 @@ fn check_remaining_analytics<'a>(
             if !examples.is_empty() {
                 d.insert("example_shapes".to_string(), examples.join(", "));
             }
-            notice.details = Some(d);
+            notice.details = Some(d.into());
             notices.push(notice);
         } else {
             notices.append(&mut shp020_pending);
@@ -9821,7 +9821,7 @@ fn check_remaining_analytics<'a>(
             if !examples.is_empty() {
                 d.insert("example_shapes".to_string(), examples.join(", "));
             }
-            notice.details = Some(d);
+            notice.details = Some(d.into());
             notices.push(notice);
         } else {
             notices.append(&mut shp009_pending);
@@ -10161,7 +10161,7 @@ fn check_shp022<'a>(
                 );
                 let mut det = std::collections::BTreeMap::new();
                 det.insert("shape_id".to_string(), shape_id.to_string());
-                notice.details = Some(det);
+                notice.details = Some(det.into());
                 shp022_best.insert(stop_id, (best_key, notice));
             }
         }
@@ -10579,7 +10579,7 @@ fn check_calendar_override_analytics(
                         .join(","),
                 );
                 d.insert("active_service_patterns".to_string(), patterns_str);
-                d
+                d.into()
             });
             notices.push(n);
         }
@@ -10638,7 +10638,7 @@ fn check_calendar_override_analytics(
                 );
                 d.insert("sample_dates_detail".to_string(), sample_detail);
                 d.insert("active_service_patterns".to_string(), patterns_str);
-                d
+                d.into()
             });
             notices.push(n);
         }
@@ -10944,7 +10944,7 @@ fn check_calendar_override_analytics(
                         .unwrap_or(*route_id)
                         .to_string(),
                 );
-                n015.details = Some(d);
+                n015.details = Some(d.into());
                 notices.push(n015);
             }
         }
@@ -10970,8 +10970,8 @@ fn build_override_details(
     dates: &[u32],
     base_str: &str,
     override_str: &str,
-) -> std::collections::BTreeMap<String, String> {
-    let mut d = std::collections::BTreeMap::new();
+) -> gtfs_core::NoticeDetails {
+    let mut d = gtfs_core::NoticeDetails::new();
     d.insert("conflict_day_count".to_string(), count.to_string());
     d.insert(
         "sample_dates".to_string(),
@@ -11443,7 +11443,7 @@ fn check_vat_analytics(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("routes".to_string(), format!("{rid_a},{rid_b}"));
                     d.insert("route_b".to_string(), rid_b.to_string());
-                    n.details = Some(d);
+                    n.details = Some(d.into());
                     notices.push(n);
                 }
             }
@@ -11563,7 +11563,7 @@ fn check_vat_analytics(
             n002.details = Some({
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("routes".to_string(), route_ids.join(","));
-                d
+                d.into()
             });
             notices.push(n002);
         }
@@ -11777,7 +11777,7 @@ fn check_vat_analytics(
                 if repeats > 1 {
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("duplicate_trips".to_string(), repeats.to_string());
-                    n.details = Some(d);
+                    n.details = Some(d.into());
                 }
                 notices.push(n);
             }
@@ -11937,7 +11937,7 @@ fn check_vat_analytics(
                 );
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("isolated_stops".to_string(), isolated_all.join(","));
-                n005.details = Some(d);
+                n005.details = Some(d.into());
                 notices.push(n005);
             }
         }
@@ -12043,7 +12043,7 @@ fn check_vat_analytics(
             );
             let mut d = std::collections::BTreeMap::new();
             d.insert("routes".to_string(), route_ids.join(","));
-            n007.details = Some(d);
+            n007.details = Some(d.into());
             notices.push(n007);
         }
     }

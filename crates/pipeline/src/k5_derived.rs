@@ -481,7 +481,7 @@ fn build_shape_geometry(
         if !examples.is_empty() {
             d.insert("example_shapes".to_string(), examples.join(", "));
         }
-        notice.details = Some(d);
+        notice.details = Some(d.into());
         notices.push(notice);
     } else {
         notices.append(&mut shp010_pending);

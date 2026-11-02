@@ -90,7 +90,7 @@ pub fn check_with_files_and_whitespace_roots(
                         format!("'{}' sefer kodu trips.txt'te tanımlı değil.", trip_id),
                         "Geçerli bir trip_id kullanın.",
                     );
-                    finding.details = Some(stm001_details(idx, trip_id));
+                    finding.details = Some(stm001_details(idx, trip_id).into());
                     notices.push(finding);
                 }
             }
@@ -126,11 +126,14 @@ pub fn check_with_files_and_whitespace_roots(
                         format!("'{}' durağı stops.txt'te tanımlı değil.", stop_id),
                         "Geçerli bir stop_id kullanın.",
                     );
-                    finding.details = trip_contexts.get(stop_id.as_str()).cloned();
+                    finding.details = trip_contexts
+                        .get(stop_id.as_str())
+                        .cloned()
+                        .map(Into::into);
                     if map.geojson_location_ids.contains(stop_id.as_str()) {
                         finding
                             .details
-                            .get_or_insert_with(BTreeMap::new)
+                            .get_or_insert_with(gtfs_core::NoticeDetails::new)
                             .insert("geojson_location".to_string(), "true".to_string());
                     }
                     notices.push(finding);
@@ -799,7 +802,7 @@ fn append_jpn022_missing_records(notices: &mut Vec<Notice>, pending: Vec<Notice>
         if !examples.is_empty() {
             details.insert("example_record_ids".to_string(), examples.join(", "));
         }
-        summary.details = Some(details);
+        summary.details = Some(details.into());
         notices.push(summary);
     }
 }
@@ -1642,7 +1645,7 @@ fn check_trips(
         let mut details: BTreeMap<String, String> = BTreeMap::new();
         details.insert("affected_trips".to_string(), trips.to_string());
         details.insert("example_trip".to_string(), first_trip);
-        n.details = Some(details);
+        n.details = Some(details.into());
         notices.push(n);
     }
 }
@@ -1777,7 +1780,7 @@ fn check_pathways(
                 let mut d = std::collections::BTreeMap::new();
                 d.insert("from_station".to_string(), fs.to_string());
                 d.insert("to_station".to_string(), ts.to_string());
-                n.details = Some(d);
+                n.details = Some(d.into());
                 notices.push(n);
             }
         }
@@ -3111,7 +3114,7 @@ fn check_fare_origin_destination_coverage(
     finding.details = Some(BTreeMap::from([
         ("missing_pairs".to_string(), missing_pairs.len().to_string()),
         ("example_pairs".to_string(), examples),
-    ]));
+    ]).into());
     notices.push(finding);
 }
 
@@ -3271,7 +3274,7 @@ fn check_fares_v2(
             if !resolving.is_empty() {
                 details.insert("resolving_categories".to_string(), resolving.join(", "));
             }
-            agg.details = Some(details);
+            agg.details = Some(details.into());
             notices.push(agg);
         } else {
             for (fpid, eligible, default_count) in violations {
@@ -4161,7 +4164,7 @@ impl<'a> JpMissingReadings<'a> {
                 ("source_value".to_string(), source.to_string()),
                 ("affected_records".to_string(), group.count.to_string()),
                 ("example_record_ids".to_string(), examples),
-            ]));
+            ]).into());
             notices.push(finding);
         }
     }
@@ -4221,7 +4224,7 @@ impl<'a> JpMissingReadings<'a> {
                     "missing_languages".to_string(),
                     missing_languages.to_string(),
                 ),
-            ]));
+            ]).into());
             notices.push(finding);
         }
     }
@@ -4394,7 +4397,7 @@ fn check_jp_fare_zones(
         finding.details = Some(BTreeMap::from([(
             "example_route_ids".to_string(),
             route_examples,
-        )]));
+        )]).into());
         notices.push(finding);
     }
 }
@@ -5153,7 +5156,7 @@ fn check_gtfs_jp(
                 ),
                 ("affected_records".to_string(), count.to_string()),
                 ("example_record_ids".to_string(), examples.join(", ")),
-            ]));
+            ]).into());
             notices.push(finding);
         }
     }
@@ -5210,7 +5213,7 @@ fn check_gtfs_jp(
                 ("jp_profile".to_string(), "v3".to_string()),
                 ("affected_records".to_string(), count.to_string()),
                 ("example_record_ids".to_string(), examples.join(", ")),
-            ]));
+            ]).into());
             notices.push(finding);
         }
     }
@@ -5513,7 +5516,7 @@ fn check_gtfs_jp(
                 .to_string(),
             ),
             ("review_required".to_string(), missing_review.to_string()),
-        ]));
+        ]).into());
         notices.push(finding);
     }
 
@@ -7111,7 +7114,7 @@ fn check_xfl(
                 ),
                 "Gidiş ve dönüş yönleri için ayrı shape_id tanımlayın.",
             );
-            n.details = Some(details);
+            n.details = Some(details.into());
             notices.push(n);
         }
     }
@@ -7188,7 +7191,7 @@ fn check_xfl(
             let mut details: BTreeMap<String, String> = BTreeMap::new();
             details.insert("examples".to_string(), examples);
             details.insert("unmatched_values".to_string(), total.to_string());
-            n.details = Some(details);
+            n.details = Some(details.into());
             notices.push(n);
         }
     }

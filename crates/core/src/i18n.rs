@@ -176,6 +176,17 @@ impl Translator {
     pub fn rule_title<'a>(&'a self, rule_id: &str, fallback: &'a str) -> &'a str {
         self.lookup(|d| &d.titles, rule_id).unwrap_or(fallback)
     }
+
+    /// Rule-level message template for registry/catalog consumers that do not have
+    /// a concrete notice from which to fill placeholders.
+    pub fn rule_message(&self, rule_id: &str) -> Option<&str> {
+        self.lookup(|d| &d.messages, rule_id)
+    }
+
+    /// Rule-level remediation text for registry/catalog consumers.
+    pub fn rule_remediation(&self, rule_id: &str) -> Option<&str> {
+        self.lookup(|d| &d.remediations, rule_id)
+    }
 }
 
 /// Substitutes `{field}` placeholders from the notice, like the UI's
@@ -395,7 +406,7 @@ mod tests {
         n.details = Some(std::collections::BTreeMap::from([(
             "entity_id".to_string(),
             "override".to_string(),
-        )]));
+        )]).into());
         assert_eq!(fill("{entity_id}", &n), "override");
     }
 
@@ -407,7 +418,7 @@ mod tests {
         n.details = Some(std::collections::BTreeMap::from([(
             "jp_profile".to_string(),
             "V4".to_string(),
-        )]));
+        )]).into());
         translator.translate(&mut n);
 
         assert!(n.message.contains("GTFS-JP v4"), "{}", n.message);
@@ -424,7 +435,7 @@ mod tests {
             n.details = Some(std::collections::BTreeMap::from([(
                 "message_variant".to_string(),
                 "missing_departure".to_string(),
-            )]));
+            )]).into());
             translator.translate(&mut n);
 
             let key = "STM_047.missing_departure";
@@ -451,7 +462,7 @@ mod tests {
             n.details = Some(std::collections::BTreeMap::from([
                 ("jp_profile".into(), "V4".into()),
                 ("message_variant".into(), "missing_review".into()),
-            ]));
+            ]).into());
             translator.translate(&mut n);
             let specific = translator
                 .lookup(|d| &d.messages, "JPN_006.v4.missing_review")
@@ -475,7 +486,7 @@ mod tests {
                     "example_record_ids".into(),
                     "trip_id=T1,stop_sequence=2".into(),
                 ),
-            ]));
+            ]).into());
             translator.translate(&mut n);
             for part in [
                 "18426",

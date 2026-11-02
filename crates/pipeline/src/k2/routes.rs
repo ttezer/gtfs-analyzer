@@ -428,7 +428,7 @@ pub fn validate_routes(file: &RawFile) -> (Vec<RouteRecord>, Vec<gtfs_core::Noti
                 n.details = Some(std::collections::BTreeMap::from([(
                     "matched_field".to_string(),
                     matched_field.to_string(),
-                )]));
+                )]).into());
                 notices.push(n);
             }
         }

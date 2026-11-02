@@ -390,8 +390,8 @@ impl StopTimesIndex {
             };
             let row = &rows[i];
             let d = n.details.get_or_insert_with(Default::default);
-            d.insert("arrival".into(), row_time_label(row.arrival_secs, None));
-            d.insert("departure".into(), row_time_label(row.departure_secs, None));
+            d.insert("arrival", row_time_label(row.arrival_secs, None));
+            d.insert("departure", row_time_label(row.departure_secs, None));
             for (side, other) in [("prev", i.checked_sub(1)), ("next", Some(i + 1))] {
                 let Some(other) = other.and_then(|j| rows.get(j)) else {
                     continue;
@@ -2272,7 +2272,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             d.insert("prev_stop".to_string(), prev_stop.to_string());
                             d.insert("curr_seq".to_string(), seq.to_string());
                             d.insert("prev_seq".to_string(), last.to_string());
-                            n.details = Some(d);
+                            n.details = Some(d.into());
                             st.notices.push(n);
                             agg.unsorted_fired = true;
                             st.unsorted_seq_trips
@@ -2430,7 +2430,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 if notice.rule_id == "STM_009" {
                     let details = stop_time_details();
                     if !details.is_empty() {
-                        notice.details = Some(details);
+                        notice.details = Some(details.into());
                     }
                 }
             }
@@ -2451,7 +2451,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 if notice.rule_id == "STM_010" {
                     let details = stop_time_details();
                     if !details.is_empty() {
-                        notice.details = Some(details);
+                        notice.details = Some(details.into());
                     }
                 }
             }
@@ -2627,7 +2627,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     notice.details = Some(std::collections::BTreeMap::from([(
                         "message_variant".to_string(),
                         message_variant.to_string(),
-                    )]));
+                    )]).into());
                     st.notices.push(notice);
                 }
             }
@@ -3437,7 +3437,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             msg,
             crate::k1_parse::DQ016_REMEDIATION,
         );
-        n.details = st.dq016.evidence_details();
+        n.details = st.dq016.evidence_details().map(Into::into);
         st.notices.push(n);
     }
 
@@ -3900,7 +3900,7 @@ fn finalize_stm_pending(
         if !examples.is_empty() {
             d.insert("example_trips".to_string(), examples.join(", "));
         }
-        notice.details = Some(d);
+        notice.details = Some(d.into());
         notices.push(notice);
     } else {
         notices.append(pending);

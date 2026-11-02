@@ -811,7 +811,7 @@ pub fn validate_shapes_with_limits(
             msg,
             crate::k1_parse::DQ016_REMEDIATION,
         );
-        n.details = dq016.evidence_details();
+        n.details = dq016.evidence_details().map(Into::into);
         notices.push(n);
     }
 
