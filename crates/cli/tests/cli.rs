@@ -433,6 +433,47 @@ fn compact_json_projects_canonical_summary_without_notice_payload() {
 }
 
 #[test]
+fn compact_json_adds_r9_rule_metadata_and_optional_samples() {
+    let json = json_of(&validate(
+        &feed_with_critical(),
+        &["--compact-json", "--lang", "en", "--samples", "1"],
+    ));
+    let item = json["reports"]["r9"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|item| item["rule_id"] == "TRP_002")
+        .expect("fixture must produce a TRP_002 R9 item");
+
+    assert_eq!(item["severity"], "CRITICAL");
+    assert_eq!(item["rule_class"], "SPEC");
+    assert!(!item["message"].as_str().unwrap().is_empty());
+    assert!(!item["remediation"].as_str().unwrap().is_empty());
+    let sample = &item["samples"][0];
+    for field in [
+        "entity_type",
+        "entity_id",
+        "file",
+        "line",
+        "field",
+        "observed_value",
+        "expected_value",
+    ] {
+        assert!(sample.get(field).is_some(), "missing sample field {field}");
+    }
+    assert_eq!(sample["entity_type"], "Trip");
+    assert_eq!(sample["entity_id"], "T1");
+    assert_eq!(sample["file"], "trips.txt");
+}
+
+#[test]
+fn compact_json_omits_samples_without_the_samples_flag() {
+    let json = json_of(&validate(&feed_with_critical(), &["--compact-json"]));
+    let item = &json["reports"]["r9"]["items"][0];
+    assert!(item.get("samples").is_none());
+}
+
+#[test]
 fn compact_json_marks_source_url_as_url_input() {
     let feed = feed_ok();
     let config_path = std::env::temp_dir().join("gtfs-cli-test-url-config.json");
@@ -718,6 +759,15 @@ fn rules_lists_the_whole_registry() {
     assert_eq!(code(&out), 0);
     let rows = json_of(&out);
     assert_eq!(rows.as_array().unwrap().len(), gtfs_rules::RULES.len());
+}
+
+#[test]
+fn rules_json_includes_rule_message_and_remediation() {
+    let out = run(&["rules", "--json", "--rule", "TRP_002"]);
+    let row = &json_of(&out)[0];
+    assert_eq!(row["id"], "TRP_002");
+    assert!(!row["message"].as_str().unwrap().is_empty());
+    assert!(!row["remediation"].as_str().unwrap().is_empty());
 }
 
 #[test]

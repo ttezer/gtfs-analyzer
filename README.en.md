@@ -422,6 +422,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | Indent the JSON output (requires `--json`) |
 | `--include-name-index` | Include `name_index` (stop/route/shape lookup tables) in the JSON |
 | `--max-notices-per-rule 20` | Keep at most N notices per rule in the JSON; real counts of truncated rules go to `capped_totals`, R1/R5/R9 are still computed over every notice (requires `--json`) |
+| `--samples N` | With `--compact-json`, add the first N root-cause findings per R9 rule (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) |
 | `-o report.json` | Write the output to a file instead of stdout |
 | `--lang en` | Language of the finding texts: `en` (default) / `tr` / `ja` / `fr` |
 | `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
@@ -470,9 +471,9 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
+Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`.
 The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same as in `validate`.
-`--lang` applies here too (rule titles).
+`--lang` applies here too (rule titles, messages and remediations).
 
 ### Output language
 
@@ -705,7 +706,7 @@ In large feeds the same rule can fire thousands of times. Unlimited notice lists
 |---|---|---|
 | Per rule (default) | 500 | All rules |
 | Per rule (high) | 2,000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (all rules) | 100,000 | Feed-wide — validation stops if exceeded |
+| Total (all rules) | — | v0.17.0 has no feed-wide 100,000 stop limit |
 
 Rules in the high-cap list naturally produce large counts in real feeds (e.g., one headway record per trip). When a rule hits its cap, the actual violation count appears in the **Total** column of the Fix Queue; on the All Findings tab, selecting that rule filter shows a yellow warning banner.
 

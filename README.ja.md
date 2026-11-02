@@ -419,6 +419,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | JSON をインデント出力（`--json` が必要） |
 | `--include-name-index` | `name_index`（停留所/路線/shape の参照表）を JSON に含める |
 | `--max-notices-per-rule 20` | JSON に残す通知をルールごとに最大 N 件にする。切り詰めたルールの実件数は `capped_totals` に入り、R1/R5/R9 は全通知から計算される（`--json` が必要） |
+| `--samples N` | `--compact-json` と併用すると、R9 の各ルールに最初の N 件の根本原因指摘（`entity_type`、`entity_id`、`file`、`line`、`field`、`observed_value`、`expected_value`）を追加 |
 | `-o report.json` | stdout ではなくファイルに出力 |
 | `--lang en` | 指摘テキストの言語：`en`（デフォルト）/ `tr` / `ja` / `fr` |
 | `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
@@ -467,9 +468,9 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`。
+フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`、`message`、`remediation`。
 `--class` / `--severity` / `--min-severity` / `--rule` フィルタの意味は `validate` と同じです。
-`--lang` はここでも有効です（ルールのタイトル）。
+`--lang` はここでも有効です（ルールのタイトル、メッセージ、修正方法）。
 
 ### 出力言語
 
@@ -702,7 +703,7 @@ GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GT
 |---|---|---|
 | ルールごと（デフォルト） | 500 | すべてのルール |
 | ルールごと（高上限） | 2,000 | `TRP_020`、`OPR_007`、`STP_016`、`STP_017` |
-| 合計（全ルール） | 100,000 | フィード全体 — 超過した場合は検証を停止 |
+| 合計（全ルール） | — | v0.17.0 にはフィード全体で 100,000 件を超えると停止する制限はありません |
 
 高上限リストのルールは、実際のフィードで大量の件数が自然に発生します（例：便ごとに 1 件の運行間隔レコード）。ルールが上限に達した場合、実際の違反件数は修正キューの**合計**列に表示されます。全検出結果タブでそのルールフィルターを選択すると、黄色の警告バナーが表示されます。
 

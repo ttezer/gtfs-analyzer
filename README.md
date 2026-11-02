@@ -424,6 +424,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |
 | `--include-name-index` | `name_index`'i (durak/hat/shape arama tabloları) JSON'a dahil eder |
 | `--max-notices-per-rule 20` | JSON'da kural başına en fazla N bulgu tutar; kesilen kuralların gerçek sayısı `capped_totals`'ta, R1/R5/R9 tüm bulgulardan hesaplanır (`--json` gerektirir) |
+| `--samples N` | `--compact-json` ile her R9 kuralına K7 sırasındaki ilk N kök neden bulgusunu (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) ekler |
 | `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
 | `--lang en` | Bulgu metinlerinin dili: `en` (varsayılan) / `tr` / `ja` / `fr` |
 | `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
@@ -473,9 +474,18 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
+Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`.
 `--class` / `--severity` / `--min-severity` / `--rule` filtreleri `validate` ile aynı anlamdadır.
-`--lang` burada da geçerlidir (kural başlıkları).
+`--lang` burada da geçerlidir (kural başlıkları, mesajları ve düzeltme metinleri).
+
+`--compact-json` içindeki her R9 öğesi de kural başına `severity`, `rule_class`, `message` ve
+`remediation` alanlarını taşır. Büyük feed'lerde isteğe bağlı `--samples N` ile aynı öğeye ilk N
+kök neden bulgusu eklenebilir; mesaj ve çözüm metinleri kural şablonudur, örnek kaydın bağlamı
+`samples` içindedir.
+
+`triggered_rule_count`, R2'de görünen tüm kural kimliklerini sayar; `r9_total_count` ise yalnızca
+kök neden aksiyonlarını sayar. R9 semptomları tekilleştirme için gizler ve gelecekte başlayan
+feed'lerdeki sıfır puanlı `CAL_015` bilgi bildirimi bilinçli olarak aksiyon kuyruğuna alınmaz.
 
 ### Çıktı dili
 
@@ -708,9 +718,12 @@ Büyük feed'lerde aynı kural binlerce satırda tetiklenebilir. Sınırsız bul
 |---|---|---|
 | Kural başına (varsayılan) | 500 | Tüm kurallar |
 | Kural başına (yüksek) | 2.000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Toplam (tüm kurallar) | 100.000 | Feed geneli — aşılırsa doğrulama durur |
+| Toplam (tüm kurallar) | — | v0.17.0'da feed-geneli 100.000 durdurma sınırı yok |
 
-Yüksek cap listesindeki kurallar gerçek feed'lerde doğal olarak yüksek sayılara ulaşır (örn. her sefer için bir headway kaydı). Sınıra çarpan kurallarda gerçek ihlal sayısı Düzeltme Kuyruğu'nun **Toplam** sütununda görünür; Tüm Bulgular sayfasında kural filtresi seçildiğinde ise sarı bir uyarı satırı gösterilir.
+Bu 500/2.000 sınırları yalnızca tarayıcı/WASM görünümündeki performans örnekleridir; feed-geneli
+100.000'e ulaşınca doğrulamayı durduran bir v0.17.0 kod yolu yoktur. CLI varsayılan olarak sınırsız
+notice üretir; `--json --max-notices-per-rule N` yalnız JSON çıktısında görünür bulguları sınırlar,
+R1/R5/R9 hesaplarını sınırlamaz.
 
 ---
 

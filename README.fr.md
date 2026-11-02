@@ -426,6 +426,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--pretty` | Indente la sortie JSON (nécessite `--json`) |
 | `--include-name-index` | Inclut `name_index` (tables de correspondance arrêts/lignes/tracés) dans le JSON |
 | `--max-notices-per-rule 20` | Conserve au plus N signalements par règle dans le JSON ; le nombre réel des règles tronquées figure dans `capped_totals`, R1/R5/R9 restent calculés sur tous les signalements (nécessite `--json`) |
+| `--samples N` | Avec `--compact-json`, ajoute les N premiers signalements de cause racine par règle R9 (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) |
 | `-o report.json` | Écrit la sortie dans un fichier au lieu de stdout |
 | `--lang en` | Langue des textes de signalement : `en` (par défaut) / `tr` / `ja` / `fr` |
 | `--config config.json` | Applique un delta de configuration JSON (par-dessus `ValidatorConfig::default()`) |
@@ -474,9 +475,9 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-Champs : `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`.
+Champs : `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`.
 Les filtres `--class` / `--severity` / `--min-severity` / `--rule` ont le même sens que dans `validate`.
-`--lang` s’applique ici aussi (titres des règles).
+`--lang` s’applique ici aussi (titres, messages et corrections des règles).
 
 ### Langue de sortie
 
@@ -709,7 +710,7 @@ Dans les gros jeux de données, une même règle peut se déclencher des millier
 |---|---|---|
 | Par règle (défaut) | 500 | Toutes les règles |
 | Par règle (élevé) | 2 000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (toutes règles) | 100 000 | À l’échelle du jeu de données — la validation s’arrête si ce total est dépassé |
+| Total (toutes règles) | — | v0.17.0 n’a pas de limite d’arrêt de 100 000 signalements à l’échelle du jeu de données |
 
 Les règles du plafond élevé produisent naturellement de grands décomptes sur des jeux de données réels (par exemple un enregistrement d’intervalle par course). Lorsqu’une règle atteint son plafond, le nombre réel de violations apparaît dans la colonne **Total** de la file de correction ; dans l’onglet Tous les signalements, la sélection de ce filtre de règle affiche une bannière d’avertissement jaune.
 

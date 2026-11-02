@@ -127,6 +127,10 @@ struct ValidateArgs {
     #[arg(long, requires = "json", value_parser = clap::value_parser!(u32).range(1..))]
     max_notices_per_rule: Option<u32>,
 
+    /// Include the first N root-cause findings for every R9 item in compact JSON.
+    #[arg(long, requires = "compact_json", value_parser = clap::value_parser!(u32).range(1..))]
+    samples: Option<u32>,
+
     /// Write the output to this file instead of stdout.
     #[arg(long, short = 'o')]
     output: Option<PathBuf>,
@@ -414,7 +418,7 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
     }
 
     let rendered = if args.compact_json {
-        match render_compact_json(&result, &config, today, args.lang, args.pretty) {
+        match render_compact_json(&result, &config, today, args.lang, args.pretty, args.samples) {
             Ok(json) => json,
             Err(err) => return cli_error(err),
         }
@@ -668,6 +672,10 @@ struct CompactR9 {
 struct CompactR9Item {
     rule_id: String,
     title: String,
+    severity: &'static str,
+    rule_class: &'static str,
+    message: String,
+    remediation: String,
     labels: Vec<gtfs_core::R9Label>,
     priority_score: f64,
     score_delta: f64,
@@ -676,6 +684,19 @@ struct CompactR9Item {
     realized_dependent_count: u32,
     base_effort: u8,
     fix_effort: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    samples: Option<Vec<CompactR9Sample>>,
+}
+
+#[derive(Serialize)]
+struct CompactR9Sample {
+    entity_type: gtfs_core::EntityType,
+    entity_id: Option<String>,
+    file: Option<String>,
+    line: Option<u64>,
+    field: Option<String>,
+    observed_value: Option<String>,
+    expected_value: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -748,6 +769,7 @@ fn render_compact_json(
     today: u32,
     lang: LangArg,
     pretty: bool,
+    samples: Option<u32>,
 ) -> Result<String, String> {
     match result {
         ValidateResult::Fatal(err) => {
@@ -760,7 +782,7 @@ fn render_compact_json(
             serialize(&payload, pretty).map_err(|err| format!("failed to serialize compact result as JSON: {err}"))
         }
         ValidateResult::Ok(vr) => {
-            let reports = compact_reports(vr, lang.into())?;
+            let reports = compact_reports(vr, lang.into(), samples)?;
             let mut effective_config = serde_json::to_value(config)
                 .map_err(|err| format!("failed to serialize effective config: {err}"))?;
             if let Some(object) = effective_config.as_object_mut() {
@@ -802,7 +824,11 @@ fn render_compact_json(
     }
 }
 
-fn compact_reports(vr: &ValidationResult, lang: gtfs_core::i18n::Lang) -> Result<CompactReports, String> {
+fn compact_reports(
+    vr: &ValidationResult,
+    lang: gtfs_core::i18n::Lang,
+    samples: Option<u32>,
+) -> Result<CompactReports, String> {
     let notice_by_id: BTreeMap<&str, &Notice> = vr
         .notices
         .iter()
@@ -821,23 +847,71 @@ fn compact_reports(vr: &ValidationResult, lang: gtfs_core::i18n::Lang) -> Result
 
     let translator = Translator::new(lang)
         .map_err(|err| format!("failed to load compact result translator: {err}"))?;
+    // Turkish is emitted natively for concrete notices, but the registry has no
+    // Turkish message/remediation dictionary because it has no context-free
+    // templates. Keep the compact rule-level contract populated by using the
+    // canonical English catalog for that one case.
+    let english_catalog = if translator.is_none() {
+        Translator::new(gtfs_core::i18n::Lang::En)
+            .map_err(|err| format!("failed to load compact English catalog: {err}"))?
+    } else {
+        None
+    };
+    let catalog = translator.as_ref().or(english_catalog.as_ref());
     let items = vr
         .reports
         .r9
         .items
         .iter()
         .map(|item| {
-            let title = RULES
+            let rule = RULES
                 .iter()
                 .find(|rule| rule.id == item.rule_id)
-                .map(|rule| match &translator {
-                    Some(translator) => translator.rule_title(rule.id, rule.title),
-                    None => rule.title,
-                })
                 .ok_or_else(|| format!("compact R9 projection failed: unknown rule id '{}'", item.rule_id))?;
+            let title = translator
+                .as_ref()
+                .map(|translator| translator.rule_title(rule.id, rule.title))
+                .unwrap_or(rule.title)
+                .to_owned();
+            let message = catalog
+                .and_then(|catalog| catalog.rule_message(rule.id))
+                .unwrap_or("")
+                .to_owned();
+            let remediation = catalog
+                .and_then(|catalog| catalog.rule_remediation(rule.id))
+                .unwrap_or("")
+                .to_owned();
+            let samples = samples
+                .map(|limit| {
+                    item.notice_ids
+                        .iter()
+                        .take(limit as usize)
+                        .map(|notice_id| {
+                            let notice = notice_by_id.get(notice_id.as_str()).ok_or_else(|| {
+                                format!(
+                                    "compact R9 projection failed: unresolved sample notice id '{notice_id}'"
+                                )
+                            })?;
+                            Ok(CompactR9Sample {
+                                entity_type: notice.entity_type,
+                                entity_id: notice.entity_id.clone(),
+                                file: notice.file.clone(),
+                                line: notice.line,
+                                field: notice.field.clone(),
+                                observed_value: notice.observed_value.clone(),
+                                expected_value: notice.expected_value.clone(),
+                            })
+                        })
+                        .collect::<Result<Vec<_>, String>>()
+                })
+                .transpose()?;
             Ok(CompactR9Item {
                 rule_id: item.rule_id.clone(),
-                title: title.to_string(),
+                title,
+                severity: severity_str(rule.severity),
+                rule_class: class_str(rule.rule_class),
+                message,
+                remediation,
                 labels: item.labels.clone(),
                 priority_score: item.priority_score,
                 score_delta: item.score_delta,
@@ -846,6 +920,7 @@ fn compact_reports(vr: &ValidationResult, lang: gtfs_core::i18n::Lang) -> Result
                 realized_dependent_count: item.realized_dependent_count,
                 base_effort: item.base_effort,
                 fix_effort: item.fix_effort,
+                samples,
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -1022,6 +1097,8 @@ struct RuleRow<'a> {
     base_effort: u8,
     blocks: &'static [&'static str],
     title: &'a str,
+    message: String,
+    remediation: String,
 }
 
 fn run_rules(args: RulesArgs) -> ExitCode {
@@ -1033,6 +1110,15 @@ fn run_rules(args: RulesArgs) -> ExitCode {
         Ok(translator) => translator,
         Err(err) => return cli_error(err),
     };
+    let english_catalog = if translator.is_none() {
+        match Translator::new(gtfs_core::i18n::Lang::En) {
+            Ok(catalog) => catalog,
+            Err(err) => return cli_error(err),
+        }
+    } else {
+        None
+    };
+    let catalog = translator.as_ref().or(english_catalog.as_ref());
 
     let rows: Vec<RuleRow> = RULES
         .iter()
@@ -1053,6 +1139,14 @@ fn run_rules(args: RulesArgs) -> ExitCode {
                 Some(translator) => translator.rule_title(meta.id, meta.title),
                 None => meta.title,
             },
+            message: catalog
+                .and_then(|catalog| catalog.rule_message(meta.id))
+                .unwrap_or("")
+                .to_owned(),
+            remediation: catalog
+                .and_then(|catalog| catalog.rule_remediation(meta.id))
+                .unwrap_or("")
+                .to_owned(),
         })
         .collect();
 

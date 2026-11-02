@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Richer compact/catalog JSON.** R9 items now carry rule severity, class, message and
+  remediation metadata; `validate --compact-json --samples N` can add the first N root-cause
+  records per R9 rule, and `rules --json` exposes the same message/remediation templates.
+
 - **`validate --max-notices-per-rule N`.** Keeps at most N notices per rule in
   the `--json` output, like the web UI does with 500, and reports the real
   count of each truncated rule in `capped_totals`. Scores, the publish verdict
