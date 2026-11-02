@@ -2759,11 +2759,15 @@ fn check_speed_and_duration<'a>(
                         d.insert("direction_to_stop_id".to_string(), last_stop.to_string());
                     }
                 }
-                let a_index = stops.iter().position(|stop| {
-                    idx.stop_id_of(stop) == stop_a && stop.stop_sequence() == Some(seq_a)
-                });
-                let b_index = stops.iter().position(|stop| {
-                    idx.stop_id_of(stop) == stop_b && stop.stop_sequence() == Some(seq_b)
+                // Match by stop ids only: seq_a/seq_b come from whichever trip was inserted first,
+                // and FxHashMap order differs between 32- and 64-bit builds, so a sequence match
+                // would make this context appear on one platform and vanish on the other.
+                let a_index = stops.iter().position(|stop| idx.stop_id_of(stop) == stop_a);
+                let b_index = a_index.and_then(|a| {
+                    stops[a + 1..]
+                        .iter()
+                        .position(|stop| idx.stop_id_of(stop) == stop_b)
+                        .map(|offset| a + 1 + offset)
                 });
                 if let (Some(a_index), Some(b_index)) = (a_index, b_index) {
                     add_stm012_stop_context(&mut d, idx, stops, a_index, b_index);
@@ -12630,6 +12634,56 @@ mod tests {
         assert!(lo < hi, "hız aralığı olmalı, alınan {lo}-{hi}");
         // scope_key must remain route_id for route-level filtering.
         assert_eq!(hits[0].scope_key.as_deref(), Some("R1"));
+    }
+
+    #[test]
+    fn stm_014_sample_context_does_not_depend_on_stop_sequence() {
+        // The sample trip (T1, smallest id) passes A→B at sequence 1→2; every other trip at 5→6.
+        // The segment's seq_a/seq_b come from whichever trip FxHashMap yields first, which differs
+        // between 32- and 64-bit builds. The sample context must not depend on that order.
+        let records = records_with(
+            vec![
+                stop("P", 41.0, 29.0),
+                stop("A", 41.0, 29.0),
+                stop("B", 39.9, 32.9),
+                stop("C", 39.9, 32.9),
+            ],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1"), trip("T2", "R1"), trip("T3", "R1"), trip("T4", "R1"), trip("T5", "R1"), trip("T6", "R1"), trip("T7", "R1"), trip("T8", "R1"), trip("T9", "R1")],
+            vec![
+                stoptime("T1", 0, "P", (7, 45, 0), (7, 45, 0), 1),
+                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
+                stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3),
+                stoptime("T1", 3, "C", (10, 15, 0), (10, 15, 0), 4),
+                stoptime("T2", 5, "A", (8, 0, 0), (8, 0, 0), 20),
+                stoptime("T2", 6, "B", (10, 0, 0), (10, 0, 0), 21),
+                stoptime("T3", 5, "A", (9, 0, 0), (9, 0, 0), 30),
+                stoptime("T3", 6, "B", (11, 0, 0), (11, 0, 0), 31),
+                stoptime("T4", 5, "A", (10, 0, 0), (10, 0, 0), 40),
+                stoptime("T4", 6, "B", (12, 0, 0), (12, 0, 0), 41),
+                stoptime("T5", 5, "A", (11, 0, 0), (11, 0, 0), 50),
+                stoptime("T5", 6, "B", (13, 0, 0), (13, 0, 0), 51),
+                stoptime("T6", 5, "A", (12, 0, 0), (12, 0, 0), 60),
+                stoptime("T6", 6, "B", (14, 0, 0), (14, 0, 0), 61),
+                stoptime("T7", 5, "A", (13, 0, 0), (13, 0, 0), 70),
+                stoptime("T7", 6, "B", (15, 0, 0), (15, 0, 0), 71),
+                stoptime("T8", 5, "A", (14, 0, 0), (14, 0, 0), 80),
+                stoptime("T8", 6, "B", (16, 0, 0), (16, 0, 0), 81),
+                stoptime("T9", 5, "A", (15, 0, 0), (15, 0, 0), 90),
+                stoptime("T9", 6, "B", (17, 0, 0), (17, 0, 0), 91),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let notice = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_014")
+            .expect("STM_014 olmalı");
+        let d = notice.details.as_ref().expect("details olmalı");
+        assert_eq!(d.get("prev_stop_id").map(String::as_str), Some("P"));
+        assert_eq!(d.get("stop_a_departure").map(String::as_str), Some("08:00:00"));
+        assert_eq!(d.get("stop_b_arrival").map(String::as_str), Some("10:00:00"));
+        assert_eq!(d.get("next_stop_id").map(String::as_str), Some("C"));
     }
 
     #[test]

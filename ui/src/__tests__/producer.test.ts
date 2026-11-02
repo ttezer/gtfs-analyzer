@@ -460,9 +460,9 @@ describe('Planlamacılar İçin sayfası', () => {
   it('STM_006 identifies the route, service days, and exact stop-time row', () => {
     const r = result([
       notice('a', 'STM_006', 'CRITICAL', {
-        entity_type: 'Stop', entity_id: 'trip-technical',
+        entity_type: 'Trip', entity_id: 'trip-technical', service_id: 'calendar-technical',
         details: {
-          arrival: '05:45:00', departure: '05:45:00', service_id: 'calendar-technical',
+          arrival: '05:45:00', departure: '05:45:00',
           prev_stop_id: 'S1', prev_arrival: '05:40:00', prev_departure: '05:40:00',
           next_stop_id: 'S3', next_arrival: '05:50:00', next_departure: '05:50:00',
         },

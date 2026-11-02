@@ -2304,7 +2304,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 st.notices.push(make_k2_notice(
                     &mut st.counter,
                     "STM_006",
-                    EntityType::Stop,
+                    EntityType::Trip,
                     eid(),
                     None,
                     &file.name,
@@ -4149,7 +4149,7 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let notice = notices.iter().find(|n| n.rule_id == "STM_006").unwrap();
-        assert_eq!(notice.entity_type, EntityType::Stop);
+        assert_eq!(notice.entity_type, EntityType::Trip);
         assert_eq!(
             notice.details.as_ref().unwrap().get("arrival").unwrap(),
             "08:00:00"

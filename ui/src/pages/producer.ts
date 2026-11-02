@@ -189,7 +189,7 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const routeId = n.entity_id ? result.name_index.trip_routes?.[n.entity_id] : undefined;
       const route = routeId ? result.name_index.routes?.[routeId] || '—' : '—';
       const direction = n.entity_id ? result.name_index.trips?.[n.entity_id] : undefined;
-      const service = plannerServiceText(n.details?.service_id ?? n.service_id, result);
+      const service = plannerServiceText(n.service_id, result);
       const departure = n.entity_id ? result.name_index.trip_first_dep?.[n.entity_id] || '—' : '—';
       return {
         title: t('producer.card.STM_006.title'),
@@ -473,7 +473,7 @@ function routeIdsOf(g: RuleGroup, result: ValidationResult, limit = 8): string[]
   for (const n of g.notices) {
     const routeId = n.entity_type === 'Route'
       ? routeIdOfNotice(n)
-      : (n.entity_type === 'Trip' || n.rule_id === 'STM_006') && n.entity_id ? ni.trip_routes?.[n.entity_id] : n.details?.route_id;
+      : n.entity_type === 'Trip' && n.entity_id ? ni.trip_routes?.[n.entity_id] : n.details?.route_id;
     if (routeId) routes.add(routeId);
     if (routes.size >= limit) break;
   }
@@ -869,7 +869,7 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     : '';
   const focusCaption = () => [zeroCaption(), shown, t('producer.map.caption_focus')].filter(Boolean).join(' · ');
 
-  if ((n.entity_type === 'Trip' || n.rule_id === 'STM_006') && n.entity_id) {
+  if (n.entity_type === 'Trip' && n.entity_id) {
     const tripStops = ni.trip_stops?.[n.entity_id] ?? [];
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     const directShape = ni.trip_shapes?.[n.entity_id];
@@ -988,13 +988,12 @@ function technicalDetails(n: Notice): string {
     Trip: 'producer.col.trip_code', Stop: 'producer.col.stop_code', Route: 'producer.col.route_code',
     Service: 'producer.col.service_code', Shape: 'producer.col.shape_code',
   };
-  const codeType = n.rule_id === 'STM_006' ? 'Trip' : n.entity_type;
   const entityId = n.entity_type === 'Route' ? routeIdOfNotice(n) : n.entity_id;
   const stopId = n.entity_type === 'Stop' ? null : n.details?.stop_id;
   const fields = [
     [t('producer.card.rule'), n.rule_id],
     [t('producer.card.location'), where(n)],
-    [t(codeLabel[codeType] ?? 'producer.col.record'), entityId],
+    [t(codeLabel[n.entity_type] ?? 'producer.col.record'), entityId],
     [t('producer.col.stop_code'), stopId],
     ...technicalValues(n),
   ] as Array<[string, string | null | undefined]>;
@@ -1043,7 +1042,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         dash(tripId ? ni.trips?.[tripId] : null),
         dash(tripId ? ni.trip_first_dep?.[tripId] : null),
         dash(timeSpot(n, result)),
-        plannerServiceText(n.details?.service_id ?? n.service_id, result),
+        plannerServiceText(n.service_id, result),
         dash(plannerTime(n.details?.arrival)),
         dash(plannerTime(n.details?.departure)),
       ];
@@ -1070,7 +1069,6 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       );
     }
     case 'Stop':
-      if (g.ruleId === 'STM_006') return stm006Columns();
       if (g.ruleId === 'STM_002') {
         return {
           head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.service')],
@@ -1269,10 +1267,10 @@ type NoticeKeys = Record<EntityDim, string[]>;
 function noticeKeys(n: Notice, result: ValidationResult): NoticeKeys {
   const ni = result.name_index;
   const d = n.details ?? {};
-  const trip = n.entity_type === 'Trip' || n.rule_id === 'STM_006' ? n.entity_id : null;
+  const trip = n.entity_type === 'Trip' ? n.entity_id : null;
   const route = n.entity_type === 'Route' ? routeIdOfNotice(n) : trip ? ni.trip_routes?.[trip] : d.route_id;
   const shape = n.entity_type === 'Shape' ? n.entity_id : trip ? ni.trip_shapes?.[trip] : d.shape_id;
-  const service = n.entity_type === 'Service' ? n.entity_id : n.rule_id === 'STM_006' ? d.service_id : n.service_id;
+  const service = n.entity_type === 'Service' ? n.entity_id : n.service_id;
   const services = listOf(d.services);
   const stops = [n.entity_type === 'Stop' ? n.entity_id : null, d.stop_id, d.stop_a, d.stop_b, d.prev_stop_id, d.next_stop_id];
   const ids = (values: Array<string | null | undefined>) => [...new Set(values.filter((v): v is string => Boolean(v)))];
@@ -1530,7 +1528,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     if (actionEl) actionEl.innerHTML = stepsHtml(rowCopy?.action || tRemediation(notice));
     const seenEl = card.querySelector<HTMLElement>('.planner-seen-host');
     if (seenEl) {
-      const serviceId = notice.entity_type === 'Service' ? notice.entity_id : notice.rule_id === 'STM_006' ? notice.details?.service_id : notice.service_id;
+      const serviceId = notice.entity_type === 'Service' ? notice.entity_id : notice.service_id;
       seenEl.innerHTML = searchView(notice, result) + serviceBlock(serviceId, result, notice.rule_id !== 'STM_006');
     }
     const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
