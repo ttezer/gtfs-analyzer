@@ -403,6 +403,33 @@ describe('Planlamacılar İçin sayfası', () => {
     expect(el.innerHTML).toContain('<td>Üniversite</td>');
     expect(el.innerHTML).not.toContain('<th>Dosya</th>');
   });
+
+  it('STM_001 describes the missing trip from its stop-time evidence', () => {
+    const tripId = '1323072442';
+    const r = result([
+      notice('a', 'STM_001', 'CRITICAL', {
+        entity_type: 'Trip', entity_id: tripId, observed_value: tripId,
+        file: 'stop_times.txt', field: 'trip_id', line: 42,
+        details: {
+          first_stop_id: 'S1', last_stop_id: 'S2', first_departure: '06:15:00',
+          last_arrival: '07:02:00', stop_count: '23',
+        },
+      }),
+    ], ['a'], [['STM_001', 4, 1]], true, {
+      ...emptyNameIndex,
+      stops: { S1: 'Otogar', S2: 'Şehir Merkezi' },
+      trip_stops: { [tripId]: ['S1', 'S3', 'S2'] },
+    });
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Otogar (kalkış 06:15) ile Şehir Merkezi (varış 07:02) arasında 23 duraklı bir seferin saatleri var');
+    expect(el.innerHTML).toContain('Planlama yazılımında bu durak ve saatlerle çalışan seferi bulun');
+    expect(el.innerHTML).not.toContain('Sefer kodu</th>');
+    expect(el.innerHTML).not.toContain('Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th>');
+    expect(el.innerHTML).toContain('<td>—</td><td>—</td><td>06:15</td>');
+    expect(el.innerHTML).not.toContain(`<td>${tripId}</td>`);
+  });
 });
 
 describe('Saat kuralları ve kayıt sayıları', () => {

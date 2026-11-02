@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`STM_001` gives planners a usable trip description.** Missing-trip notices now
+  include the first and last stops, their departure/arrival times, and the stop count;
+  the planner card and affected-record table use that evidence, and the trip's stop
+  sequence is shown on the map instead of exposing feed-file terminology.
+
 - **The browser and `gtfs-sdk` no longer drop findings past one million.** The
   WASM path stopped collecting notices at a global budget of 1,000,000 and
   silently dropped the rest, then counted totals and scores on what was left.

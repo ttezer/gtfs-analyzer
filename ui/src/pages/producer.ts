@@ -59,6 +59,10 @@ function tripContextText(context: ReturnType<typeof tripContext>, includeHeadsig
   return parts.join(t('producer.card.context_separator'));
 }
 
+function plannerTime(value?: string | null): string | null {
+  return value ? (value.endsWith(':00') ? value.slice(0, -3) : value) : null;
+}
+
 function speedStopPair(n: Notice, result: ValidationResult): string {
   const stopA = n.details?.stop_a ? result.name_index.stops?.[n.details.stop_a] : undefined;
   const stopB = n.details?.stop_b ? result.name_index.stops?.[n.details.stop_b] : undefined;
@@ -181,6 +185,21 @@ function evidenceFacts(copy: PlannerCardCopy | null, n: Notice): Pick<PlannerCar
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'STM_001': {
+      const detail = n.details ?? {};
+      const stopName = (id?: string) => id ? result.name_index.stops?.[id] || id : t('producer.card.unknown_stop');
+      return {
+        title: t('producer.card.STM_001.title'),
+        what: t('producer.card.STM_001.what', {
+          first_stop: stopName(detail.first_stop_id),
+          first_departure: plannerTime(detail.first_departure) || '—',
+          last_stop: stopName(detail.last_stop_id),
+          last_arrival: plannerTime(detail.last_arrival) || '—',
+          stop_count: detail.stop_count || '—',
+        }),
+        action: t('producer.card.STM_001.action'),
+      };
+    }
     case 'STM_012': {
       const context = tripContext(n, result);
     // If one stop is at 0,0, the speed spikes for that reason; the location is what needs fixing.
@@ -804,9 +823,11 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
         n => {
           const routeId = n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined;
           return [
-            badge(routeId, n.entity_id),
+            badge(routeId),
             dash(n.entity_id ? ni.trips?.[n.entity_id] : null),
-            dash(n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null),
+            dash(n.rule_id === 'STM_001'
+              ? plannerTime(n.details?.first_departure)
+              : n.entity_id ? ni.trip_first_dep?.[n.entity_id] : null),
             ...(withSpot ? [dash(timeSpot(n, result))] : []),
           ];
         },
