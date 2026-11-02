@@ -883,3 +883,115 @@ fn unknown_lang_is_rejected() {
     let out = validate(&feed_ok(), &["--lang", "de"]);
     assert_eq!(code(&out), 2);
 }
+
+// ── --max-notices-per-rule ────────────────────────────────────────────────────
+
+/// Notice ids each agency points at through `agency_breakdown.notice_indices`.
+fn agency_notice_ids(json: &serde_json::Value) -> Vec<(String, Vec<String>)> {
+    let notices = json["notices"].as_array().unwrap();
+    json["agency_breakdown"]["agencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|agency| {
+            let ids = agency["notice_indices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|i| notices[i.as_u64().unwrap() as usize]["id"].as_str().unwrap().to_owned())
+                .collect();
+            (agency["agency_id"].as_str().unwrap().to_owned(), ids)
+        })
+        .collect()
+}
+
+#[test]
+fn max_notices_per_rule_caps_output_but_keeps_full_verdicts() {
+    let feed = feed_with_critical();
+    let full = json_of(&validate(&feed, &["--json"]));
+    let capped = json_of(&validate(&feed, &["--json", "--max-notices-per-rule", "1"]));
+
+    let count = |json: &serde_json::Value, rule: &str| {
+        json["notices"].as_array().unwrap().iter().filter(|n| n["rule_id"] == rule).count()
+    };
+    assert_eq!(count(&full, "ARC_011"), 6, "fixture must fire ARC_011 more than once");
+    assert_eq!(count(&capped, "ARC_011"), 1);
+    assert_eq!(capped["capped_totals"]["ARC_011"], 6);
+
+    // Verdicts are computed before the cap.
+    assert_eq!(capped["reports"]["r5"], full["reports"]["r5"]);
+    assert_eq!(capped["reports"]["r1"]["publishable"], false);
+    assert_eq!(capped["reports"]["r9"]["items"].as_array().unwrap().len(),
+               full["reports"]["r9"]["items"].as_array().unwrap().len());
+    for (a, b) in capped["reports"]["r9"]["items"].as_array().unwrap().iter()
+        .zip(full["reports"]["r9"]["items"].as_array().unwrap())
+    {
+        assert_eq!(a["rule_id"], b["rule_id"]);
+        assert_eq!(a["score_delta"], b["score_delta"]);
+        assert_eq!(a["affected_instance_count"], b["affected_instance_count"]);
+    }
+
+    // Every id the output refers to resolves to a carried notice.
+    let ids: std::collections::HashSet<&str> = capped["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["id"].as_str().unwrap())
+        .collect();
+    for id in capped["reports"]["r1"]["blocker_notice_ids"].as_array().unwrap() {
+        assert!(ids.contains(id.as_str().unwrap()));
+    }
+    for report in ["r2", "r3", "r4", "r7", "r8"] {
+        for item in capped["reports"][report]["items"].as_array().unwrap() {
+            assert!(ids.contains(item["notice_id"].as_str().unwrap()), "{report} dangling id");
+        }
+    }
+
+    // Agency indices point at the same notices as in the full output.
+    let full_by_agency = agency_notice_ids(&full);
+    for (agency, kept) in agency_notice_ids(&capped) {
+        let expected: Vec<String> = full_by_agency
+            .iter()
+            .find(|(a, _)| *a == agency)
+            .unwrap()
+            .1
+            .iter()
+            .filter(|id| ids.contains(id.as_str()))
+            .cloned()
+            .collect();
+        assert_eq!(kept, expected, "agency {agency}");
+    }
+}
+
+#[test]
+fn max_notices_per_rule_requires_json_and_a_positive_value() {
+    let feed = feed_ok();
+    assert_eq!(code(&validate(&feed, &["--max-notices-per-rule", "5"])), 2);
+    assert_eq!(code(&validate(&feed, &["--json", "--max-notices-per-rule", "0"])), 2);
+}
+
+#[test]
+fn rule_filter_renumbers_agency_notice_indices() {
+    let feed = feed_with_critical();
+    let full = json_of(&validate(&feed, &["--json"]));
+    let filtered = json_of(&validate(&feed, &["--json", "--rule", "ARC_011"]));
+    let ids: std::collections::HashSet<String> = filtered["notices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n["id"].as_str().unwrap().to_owned())
+        .collect();
+    let full_by_agency = agency_notice_ids(&full);
+    for (agency, kept) in agency_notice_ids(&filtered) {
+        let expected: Vec<String> = full_by_agency
+            .iter()
+            .find(|(a, _)| *a == agency)
+            .unwrap()
+            .1
+            .iter()
+            .filter(|id| ids.contains(*id))
+            .cloned()
+            .collect();
+        assert_eq!(kept, expected, "agency {agency}");
+    }
+}

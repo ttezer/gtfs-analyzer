@@ -418,6 +418,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--fail-on-class spec` | 指定クラスの通知が存在する場合のみ exit 1 |
 | `--pretty` | JSON をインデント出力（`--json` が必要） |
 | `--include-name-index` | `name_index`（停留所/路線/shape の参照表）を JSON に含める |
+| `--max-notices-per-rule 20` | JSON に残す通知をルールごとに最大 N 件にする。切り詰めたルールの実件数は `capped_totals` に入り、R1/R5/R9 は全通知から計算される（`--json` が必要） |
 | `-o report.json` | stdout ではなくファイルに出力 |
 | `--lang en` | 指摘テキストの言語：`en`（デフォルト）/ `tr` / `ja` / `fr` |
 | `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |

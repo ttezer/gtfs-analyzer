@@ -423,6 +423,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--fail-on-class spec` | Exit 1 yalnızca bu sınıflarda notice varsa |
 | `--pretty` | JSON'ı girintili yazar (`--json` gerektirir) |
 | `--include-name-index` | `name_index`'i (durak/hat/shape arama tabloları) JSON'a dahil eder |
+| `--max-notices-per-rule 20` | JSON'da kural başına en fazla N bulgu tutar; kesilen kuralların gerçek sayısı `capped_totals`'ta, R1/R5/R9 tüm bulgulardan hesaplanır (`--json` gerektirir) |
 | `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
 | `--lang en` | Bulgu metinlerinin dili: `en` (varsayılan) / `tr` / `ja` / `fr` |
 | `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |

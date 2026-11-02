@@ -425,6 +425,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--fail-on-class spec` | Sortie 1 uniquement si un signalement de ces classes est présent |
 | `--pretty` | Indente la sortie JSON (nécessite `--json`) |
 | `--include-name-index` | Inclut `name_index` (tables de correspondance arrêts/lignes/tracés) dans le JSON |
+| `--max-notices-per-rule 20` | Conserve au plus N signalements par règle dans le JSON ; le nombre réel des règles tronquées figure dans `capped_totals`, R1/R5/R9 restent calculés sur tous les signalements (nécessite `--json`) |
 | `-o report.json` | Écrit la sortie dans un fichier au lieu de stdout |
 | `--lang en` | Langue des textes de signalement : `en` (par défaut) / `tr` / `ja` / `fr` |
 | `--config config.json` | Applique un delta de configuration JSON (par-dessus `ValidatorConfig::default()`) |

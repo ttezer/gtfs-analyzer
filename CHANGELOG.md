@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`validate --max-notices-per-rule N`.** Keeps at most N notices per rule in
+  the `--json` output, like the web UI does with 500, and reports the real
+  count of each truncated rule in `capped_totals`. Scores, the publish verdict
+  and the R9 queue are computed before truncation, so they match the full
+  output. On a 13 MB feed with 840,578 notices the JSON drops from 848 MB to
+  0.8 MB with N=20. Peak memory is unchanged.
+
 - **`gtfs-sdk` validates large feeds.** The package now ships a wasm64 engine
   next to the wasm32 one and picks it where the runtime supports Memory64
   (Node.js 24+, current Chrome/Firefox). Feeds that failed with
@@ -59,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   services). Empty maps are omitted from JSON.
 
 ### Fixed
+
+- **`validate --rule/--severity/--class` left `agency_breakdown` pointing at
+  the wrong notices.** `notice_indices` are positions in `notices` and were not
+  renumbered after filtering, so they could point past the end of the array.
 
 - **The browser and `gtfs-sdk` now see `locations.geojson` areas.** The WASM path did not
   pass GeoJSON location ids and geometries to the cross-reference stage, unlike the CLI.

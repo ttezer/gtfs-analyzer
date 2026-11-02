@@ -121,6 +121,12 @@ struct ValidateArgs {
     #[arg(long, requires = "json")]
     include_name_index: bool,
 
+    /// Keep at most this many notices per rule in the JSON output (the web UI uses 500).
+    /// Scores and the publishability verdict are still computed over every notice;
+    /// real counts of truncated rules are reported in capped_totals.
+    #[arg(long, requires = "json", value_parser = clap::value_parser!(u32).range(1..))]
+    max_notices_per_rule: Option<u32>,
+
     /// Write the output to this file instead of stdout.
     #[arg(long, short = 'o')]
     output: Option<PathBuf>,
@@ -387,6 +393,9 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         classes: args.class.iter().copied().map(Into::into).collect(),
     };
     apply_filters(&mut result, &filters);
+    if let (Some(cap), ValidateResult::Ok(vr)) = (args.max_notices_per_rule, &mut result) {
+        cap_notices_per_rule(vr, cap);
+    }
 
     // After filtering: no point translating notices that were dropped.
     if let (Some(translator), ValidateResult::Fatal(err)) = (&translator, &mut result) {
@@ -469,7 +478,7 @@ fn apply_filters(result: &mut ValidateResult, filters: &Filters) {
         return;
     }
 
-    vr.notices.retain(|notice| filters.matches(notice));
+    retain_notices(vr, |notice| filters.matches(notice));
     prune_reports(vr);
 }
 
@@ -513,6 +522,76 @@ fn prune_reports(vr: &mut ValidationResult) {
         .r9
         .items
         .retain(|item| !item.notice_ids.is_empty());
+}
+
+/// Drops notices and keeps `agency_breakdown` consistent with the shorter array:
+/// `agency_notice_indices` are positions in `notices`, so they are renumbered, and
+/// `displayed_sample_count` is recounted over the notices actually carried.
+fn retain_notices(vr: &mut ValidationResult, mut keep: impl FnMut(&Notice) -> bool) {
+    let mut new_index: Vec<Option<u32>> = Vec::with_capacity(vr.notices.len());
+    let mut next = 0u32;
+    for notice in &vr.notices {
+        if keep(notice) {
+            new_index.push(Some(next));
+            next += 1;
+        } else {
+            new_index.push(None);
+        }
+    }
+    let mut position = 0;
+    vr.notices.retain(|_| {
+        position += 1;
+        new_index[position - 1].is_some()
+    });
+
+    let breakdown = &mut vr.agency_breakdown;
+    for indices in &mut breakdown.agency_notice_indices {
+        *indices = indices
+            .iter()
+            .filter_map(|&old| new_index.get(old as usize).copied().flatten())
+            .collect();
+    }
+    for counts in breakdown.rules.values_mut() {
+        counts.displayed_sample_count = 0;
+    }
+    for notice in &vr.notices {
+        if let Some(counts) = breakdown.rules.get_mut(&notice.rule_id) {
+            counts.displayed_sample_count += 1;
+        }
+    }
+}
+
+/// Keeps the first `cap` notices of each rule (canonical K7 order) and records the
+/// real count of every truncated rule in `capped_totals`, as the web UI does.
+///
+/// Unlike the WASM path, the cap runs after K7: R1/R5/R9 verdicts and deltas stay
+/// those of the full notice list. Report rows and id lists are trimmed to the kept
+/// notices; R9 `affected_instance_count` keeps the real figure.
+fn cap_notices_per_rule(vr: &mut ValidationResult, cap: u32) {
+    let mut seen: BTreeMap<String, u32> = BTreeMap::new();
+    retain_notices(vr, |notice| {
+        let count = seen.entry(notice.rule_id.clone()).or_insert(0);
+        *count += 1;
+        *count <= cap
+    });
+    for (rule_id, total) in seen {
+        if total > cap {
+            let entry = vr.capped_totals.entry(rule_id).or_insert(0);
+            *entry = (*entry).max(total);
+        }
+    }
+
+    let kept: HashSet<&str> = vr.notices.iter().map(|notice| notice.id.as_str()).collect();
+    let reports = &mut vr.reports;
+    reports.r1.blocker_notice_ids.retain(|id| kept.contains(id.as_str()));
+    reports.r2.items.retain(|item| kept.contains(item.notice_id.as_str()));
+    reports.r3.items.retain(|item| kept.contains(item.notice_id.as_str()));
+    reports.r4.items.retain(|item| kept.contains(item.notice_id.as_str()));
+    reports.r7.items.retain(|item| kept.contains(item.notice_id.as_str()));
+    reports.r8.items.retain(|item| kept.contains(item.notice_id.as_str()));
+    for item in &mut reports.r9.items {
+        item.notice_ids.retain(|id| kept.contains(id.as_str()));
+    }
 }
 
 // ── output ────────────────────────────────────────────────────────────────────
