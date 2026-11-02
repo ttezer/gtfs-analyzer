@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -417,15 +418,26 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
         }
     }
 
+    if args.json && !args.compact_json {
+        if let Err(err) = write_json_result(&result, &filters, args.pretty, args.output.as_deref()) {
+            return cli_error(err);
+        }
+        return exit_code(
+            &result,
+            args.fail_on.map(Into::into),
+            &args
+                .fail_on_class
+                .iter()
+                .copied()
+                .map(Into::into)
+                .collect::<Vec<RuleClass>>(),
+        );
+    }
+
     let rendered = if args.compact_json {
         match render_compact_json(&result, &config, today, args.lang, args.pretty, args.samples) {
             Ok(json) => json,
             Err(err) => return cli_error(err),
-        }
-    } else if args.json {
-        match render_json(&result, &filters, args.pretty) {
-            Ok(json) => json,
-            Err(err) => return cli_error(format!("failed to serialize result as JSON: {err}")),
         }
     } else {
         render_summary(&result, &filters)
@@ -733,32 +745,69 @@ fn filter_meta(filters: &Filters) -> Option<FilterMeta> {
     })
 }
 
-fn render_json(
+fn write_json_result(
     result: &ValidateResult,
     filters: &Filters,
     pretty: bool,
-) -> Result<String, serde_json::Error> {
-    match result {
-        ValidateResult::Fatal(err) => {
-            let payload = JsonFatal {
-                status: "fatal",
-                code: &err.code,
-                message: &err.message,
-                params: &err.params,
-            };
-            serialize(&payload, pretty)
-        }
-        ValidateResult::Ok(vr) => {
-            let payload = JsonOk {
-                status: if vr.status == ValidationStatus::Partial {
-                    "partial"
+    path: Option<&Path>,
+) -> Result<(), String> {
+    fn write_payload<W: Write>(
+        writer: &mut W,
+        result: &ValidateResult,
+        filters: &Filters,
+        pretty: bool,
+    ) -> Result<(), String> {
+        match result {
+            ValidateResult::Fatal(err) => {
+                let payload = JsonFatal {
+                    status: "fatal",
+                    code: &err.code,
+                    message: &err.message,
+                    params: &err.params,
+                };
+                if pretty {
+                    serde_json::to_writer_pretty(writer, &payload)
                 } else {
-                    "ok"
-                },
-                filtered: filter_meta(filters),
-                result: vr,
-            };
-            serialize(&payload, pretty)
+                    serde_json::to_writer(writer, &payload)
+                }
+            }
+            ValidateResult::Ok(vr) => {
+                let payload = JsonOk {
+                    status: if vr.status == ValidationStatus::Partial {
+                        "partial"
+                    } else {
+                        "ok"
+                    },
+                    filtered: filter_meta(filters),
+                    result: vr,
+                };
+                if pretty {
+                    serde_json::to_writer_pretty(writer, &payload)
+                } else {
+                    serde_json::to_writer(writer, &payload)
+                }
+            }
+        }
+        .map_err(|err| format!("failed to serialize result as JSON: {err}"))
+    }
+
+    match path {
+        Some(path) => {
+            let file = std::fs::File::create(path)
+                .map_err(|err| format!("failed to write '{}': {err}", path.display()))?;
+            let mut writer = std::io::BufWriter::new(file);
+            write_payload(&mut writer, result, filters, pretty)?;
+            writer
+                .flush()
+                .map_err(|err| format!("failed to write '{}': {err}", path.display()))
+        }
+        None => {
+            let stdout = std::io::stdout();
+            let mut writer = std::io::BufWriter::new(stdout.lock());
+            write_payload(&mut writer, result, filters, pretty)?;
+            writer
+                .flush()
+                .map_err(|err| format!("failed to write JSON to stdout: {err}"))
         }
     }
 }

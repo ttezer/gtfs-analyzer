@@ -775,8 +775,6 @@ impl<'a> IdSets<'a> {
                 .iter()
                 .map(smol_str::SmolStr::as_str),
         );
-        refs.stop_times_trip_id
-            .extend(records.stop_times.iter().map(|r| r.trip_id.as_str()));
         refs.service_id
             .extend(records.calendars.iter().map(|r| r.service_id.as_str()));
         refs.service_id
