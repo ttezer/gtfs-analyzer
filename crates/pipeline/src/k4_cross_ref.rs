@@ -796,7 +796,7 @@ fn append_jpn022_missing_records(notices: &mut Vec<Notice>, pending: Vec<Notice>
             "GTFS-JP v4'te {file} içindeki {field} alanı {affected} kayıtta eksik veya boş."
         );
         summary.remediation =
-            format!("{file} içindeki ilgili zorunlu alanı tüm kayıtlar için doldurun.");
+            format!("{file} içindeki ilgili zorunlu alanı tüm kayıtlar için doldurun.").into();
         let mut details = std::collections::BTreeMap::new();
         details.insert("affected_records".to_string(), affected.to_string());
         if !examples.is_empty() {
@@ -5501,7 +5501,7 @@ fn check_gtfs_jp(
         );
         if missing_review {
             finding.severity = gtfs_core::Severity::Bilgi;
-            finding.remediation = "Ücret tarifesinin MLIT karmaşık ücret istisnasına uyduğunu elle doğrulayın; uymuyorsa fare_attributes.txt ekleyin.".to_string();
+            finding.remediation = "Ücret tarifesinin MLIT karmaşık ücret istisnasına uyduğunu elle doğrulayın; uymuyorsa fare_attributes.txt ekleyin.".to_string().into();
         }
         finding.details = Some(BTreeMap::from([
             (

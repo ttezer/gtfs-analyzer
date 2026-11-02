@@ -146,9 +146,9 @@ pub(crate) fn log_notice_memory(label: &str, notices: &[gtfs_core::Notice]) {
     let flat = notices.len() * std::mem::size_of::<gtfs_core::Notice>();
     let (
         heap,
-        title_heap,
+        _title_heap,
         message_heap,
-        remediation_heap,
+        _remediation_heap,
         id_heap,
         rule_heap,
         entity_heap,
@@ -194,15 +194,13 @@ pub(crate) fn log_notice_memory(label: &str, notices: &[gtfs_core::Notice]) {
                     .iter()
                     .map(string_bytes)
                     .sum::<usize>();
-            let title = notice.title.capacity();
             let message = notice.message.capacity();
-            let remediation = notice.remediation.capacity();
             let other = id + rule + entity + observed + details + blocks;
             (
-                heap + other + title + message + remediation,
-                title_heap + title,
+                heap + other + message,
+                title_heap,
                 message_heap + message,
-                remediation_heap + remediation,
+                remediation_heap,
                 id_heap + id,
                 rule_heap + rule,
                 entity_heap + entity,
@@ -215,6 +213,21 @@ pub(crate) fn log_notice_memory(label: &str, notices: &[gtfs_core::Notice]) {
             )
         },
     );
+    let title_heap = notices
+        .iter()
+        .map(|notice| notice.title.as_ref())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .map(str::len)
+        .sum::<usize>();
+    let remediation_heap = notices
+        .iter()
+        .map(|notice| notice.remediation.as_ref())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .map(str::len)
+        .sum::<usize>();
+    let heap = heap + title_heap + remediation_heap;
     let estimate = flat + heap;
     mem_note(&format!(
         "{label}: notices len={}; flat={:.1}MB; heap={:.1}MB (id={:.1} rule={:.1} entity/file/field={:.1} observed/expected={:.1} details={:.1} [slots={:.1} keys={:.1} values={:.1}] blocks={:.1} title={:.1} message={:.1} remediation={:.1}); allocation estimate={:.1}MB; avg={:.0}B/notice",

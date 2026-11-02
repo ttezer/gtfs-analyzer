@@ -13,6 +13,19 @@ type InternedDetailKey = Arc<str>;
 
 static DETAIL_KEYS: OnceLock<Mutex<HashMap<String, InternedDetailKey>>> = OnceLock::new();
 
+static NOTICE_TEXTS: OnceLock<Mutex<HashMap<String, Arc<str>>>> = OnceLock::new();
+
+pub fn intern_notice_text(value: &str) -> Arc<str> {
+    let texts = NOTICE_TEXTS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut texts = texts.lock().expect("notice text interner poisoned");
+    if let Some(existing) = texts.get(value) {
+        return existing.clone();
+    }
+    let interned: Arc<str> = Arc::from(value);
+    texts.insert(value.to_owned(), interned.clone());
+    interned
+}
+
 fn intern_detail_key(key: String) -> InternedDetailKey {
     let keys = DETAIL_KEYS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut keys = keys.lock().expect("detail key interner poisoned");
@@ -167,11 +180,11 @@ pub struct Notice {
     #[serde(skip)]
     pub whitespace_candidate: bool,
     /// Short general Turkish title for the rule — displayed in the UI.
-    pub title: String,
+    pub title: Arc<str>,
     /// Fixed text from the rule definition — not generated at runtime.
     pub message: String,
     /// Fixed remediation instruction for the rule.
-    pub remediation: String,
+    pub remediation: Arc<str>,
     /// Downstream canonical rule IDs that will be closed if this notice is fixed.
     pub blocks: Vec<String>,
     /// 1=easy, 3=hard. fix_effort = base_effort × instance_multiplier.

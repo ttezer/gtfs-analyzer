@@ -10,7 +10,7 @@
 //! bodies delegate here. Adding a field to `Notice` therefore changes one place instead
 //! of six, while call sites remain untouched.
 
-use gtfs_core::{EntityType, Notice};
+use gtfs_core::{intern_notice_text, EntityType, Notice};
 use gtfs_rules::get_rule;
 
 /// `id_prefix = None` → ID is generated as `{rule}#{n}` (no callers use this anymore;
@@ -55,9 +55,9 @@ pub(crate) fn build(
         details: None,
         whitespace_derived: false,
         whitespace_candidate: false,
-        title: meta.title.to_string(),
+        title: intern_notice_text(meta.title),
         message,
-        remediation: remediation.to_string(),
+        remediation: intern_notice_text(remediation),
         blocks: meta.blocks.iter().map(|s| s.to_string()).collect(),
         base_effort: meta.base_effort,
         service_id: None,

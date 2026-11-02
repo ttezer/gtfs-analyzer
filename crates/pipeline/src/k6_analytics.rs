@@ -3581,7 +3581,7 @@ fn check_calendar_analytics(
                     );
                     notice.remediation =
                         "İşlem gerekmez; servis başlangıç tarihinden önce bu GTFS-JP veri kümesini yayınlayın."
-                            .to_string();
+                            .to_string().into();
                     // Without `message_variant`, the en/ja/fr template printed the generic CAL_015
                     // text ("fix the calendar"); non-Turkish users could not see the correction.
                     notice.details = Some(

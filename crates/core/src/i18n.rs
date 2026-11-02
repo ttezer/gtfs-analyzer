@@ -104,7 +104,7 @@ impl Translator {
     /// from the dictionaries keep the pipeline's Turkish text.
     pub fn translate(&self, notice: &mut Notice) {
         if let Some(title) = self.lookup(|d| &d.titles, &notice.rule_id) {
-            notice.title = title.to_string();
+            notice.title = crate::intern_notice_text(title);
         }
         let profile_variant = notice
             .details
@@ -143,7 +143,7 @@ impl Translator {
             })
             .or_else(|| self.lookup(|d| &d.remediations, &notice.rule_id))
         {
-            notice.remediation = remediation.to_string();
+            notice.remediation = crate::intern_notice_text(remediation);
         }
     }
 
@@ -317,9 +317,9 @@ mod tests {
             details: None,
             whitespace_derived: false,
             whitespace_candidate: false,
-            title: "departure_time geçersiz format".to_string(),
+            title: "departure_time geçersiz format".to_string().into(),
             message: "Türkçe mesaj".to_string(),
-            remediation: "Türkçe çözüm".to_string(),
+            remediation: "Türkçe çözüm".to_string().into(),
             blocks: Vec::new(),
             base_effort: 1,
             service_id: None,
@@ -356,8 +356,8 @@ mod tests {
             "expected English text, got: {}",
             n.message
         );
-        assert_ne!(n.title, "departure_time geçersiz format");
-        assert_ne!(n.remediation, "Türkçe çözüm");
+        assert_ne!(n.title.as_ref(), "departure_time geçersiz format");
+        assert_ne!(n.remediation.as_ref(), "Türkçe çözüm");
     }
 
     #[test]
@@ -368,7 +368,7 @@ mod tests {
         translator.translate(&mut n);
 
         assert_eq!(n.message, "Türkçe mesaj");
-        assert_eq!(n.title, "departure_time geçersiz format");
+        assert_eq!(n.title.as_ref(), "departure_time geçersiz format");
     }
 
     #[test]
@@ -447,7 +447,7 @@ mod tests {
                     .replace("{entity_id}", "T1",)
             );
             assert_eq!(
-                n.remediation,
+                n.remediation.as_ref(),
                 translator.lookup(|d| &d.remediations, key).unwrap()
             );
         }
@@ -469,7 +469,7 @@ mod tests {
                 .unwrap();
             assert_eq!(n.message, specific);
             assert_eq!(
-                n.remediation,
+                n.remediation.as_ref(),
                 translator
                     .lookup(|d| &d.remediations, "JPN_006.v4.missing_review")
                     .unwrap()

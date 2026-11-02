@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use gtfs_core::{FatalError, Notice};
+use gtfs_core::{intern_notice_text, FatalError, Notice};
 use serde::Deserialize;
 
 const EN_JSON: &str = include_str!(concat!(env!("OUT_DIR"), "/en_locale.json"));
@@ -35,7 +35,7 @@ pub fn translate_notices(notices: &mut [Notice]) {
     let dictionary = dictionary();
     for notice in notices {
         if let Some(title) = dictionary.titles.get(&notice.rule_id) {
-            notice.title = title.clone();
+            notice.title = intern_notice_text(title);
         }
         let profile = notice
             .details
@@ -72,7 +72,7 @@ pub fn translate_notices(notices: &mut [Notice]) {
             })
             .or_else(|| dictionary.remediations.get(&notice.rule_id))
         {
-            notice.remediation = remediation.clone();
+            notice.remediation = intern_notice_text(remediation);
         }
     }
 }
@@ -215,9 +215,9 @@ mod tests {
             details: Some(details),
             whitespace_derived: false,
             whitespace_candidate: false,
-            title: "Türkçe başlık".to_string(),
+            title: "Türkçe başlık".to_string().into(),
             message: "Türkçe mesaj".to_string(),
-            remediation: "Türkçe çözüm".to_string(),
+            remediation: "Türkçe çözüm".to_string().into(),
             blocks: Vec::new(),
             base_effort: 1,
             service_id: None,
@@ -264,9 +264,9 @@ mod tests {
             details: None,
             whitespace_derived: false,
             whitespace_candidate: false,
-            title: "Türkçe başlık".to_string(),
+            title: "Türkçe başlık".to_string().into(),
             message: "Türkçe mesaj".to_string(),
-            remediation: "Türkçe çözüm".to_string(),
+            remediation: "Türkçe çözüm".to_string().into(),
             blocks: Vec::new(),
             base_effort: 1,
             service_id: None,
