@@ -137,9 +137,9 @@ pub(crate) fn log_notice_memory(label: &str, notices: &[gtfs_core::Notice]) {
             .iter()
             .map(|(_, value)| value.capacity())
             .sum::<usize>();
-        let slots = details.capacity() * std::mem::size_of::<(std::sync::Arc<str>, String)>();
+        let slots = details.capacity() * std::mem::size_of::<(u32, String)>();
         // Detail keys are process-wide interned; only the value allocations and
-        // per-notice vector slots belong to the live notice heap estimate.
+        // compact per-notice key IDs belong to the live notice heap estimate.
         (slots + values, slots, 0, values)
     }
 

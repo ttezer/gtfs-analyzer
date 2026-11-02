@@ -9,9 +9,12 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::Index;
 use std::sync::{Arc, Mutex, OnceLock};
 
-type InternedDetailKey = Arc<str>;
+struct DetailKeyInterner {
+    ids: HashMap<&'static str, u32>,
+    values: Vec<&'static str>,
+}
 
-static DETAIL_KEYS: OnceLock<Mutex<HashMap<String, InternedDetailKey>>> = OnceLock::new();
+static DETAIL_KEYS: OnceLock<Mutex<DetailKeyInterner>> = OnceLock::new();
 
 static NOTICE_TEXTS: OnceLock<Mutex<HashMap<String, Arc<str>>>> = OnceLock::new();
 
@@ -26,15 +29,28 @@ pub fn intern_notice_text(value: &str) -> Arc<str> {
     interned
 }
 
-fn intern_detail_key(key: String) -> InternedDetailKey {
-    let keys = DETAIL_KEYS.get_or_init(|| Mutex::new(HashMap::new()));
+fn intern_detail_key(key: String) -> u32 {
+    let keys = DETAIL_KEYS.get_or_init(|| {
+        Mutex::new(DetailKeyInterner {
+            ids: HashMap::new(),
+            values: Vec::new(),
+        })
+    });
     let mut keys = keys.lock().expect("detail key interner poisoned");
-    if let Some(existing) = keys.get(&key) {
-        return existing.clone();
+    if let Some(existing) = keys.ids.get(key.as_str()) {
+        return *existing;
     }
-    let interned: InternedDetailKey = Arc::from(key.as_str());
-    keys.insert(key, interned.clone());
-    interned
+    let interned: &'static str = Box::leak(key.into_boxed_str());
+    let id = keys.values.len() as u32;
+    keys.ids.insert(interned, id);
+    keys.values.push(interned);
+    id
+}
+
+fn detail_key(id: u32) -> &'static str {
+    let keys = DETAIL_KEYS.get().expect("detail key interner not initialized");
+    let keys = keys.lock().expect("detail key interner poisoned");
+    keys.values[id as usize]
 }
 
 /// Compact, deterministic replacement for the per-notice `BTreeMap` used by
@@ -44,7 +60,7 @@ fn intern_detail_key(key: String) -> InternedDetailKey {
 /// key while preserving the same lookup and JSON-object semantics. The public JSON
 /// shape remains an object with sorted string keys.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct NoticeDetails(Vec<(InternedDetailKey, String)>);
+pub struct NoticeDetails(Vec<(u32, String)>);
 
 impl NoticeDetails {
     pub fn new() -> Self {
@@ -55,9 +71,10 @@ impl NoticeDetails {
         let key = key.into();
         let value = value.into();
         let key = intern_detail_key(key);
+        let key_text = detail_key(key);
         match self
             .0
-            .binary_search_by(|(existing, _)| existing.as_ref().cmp(key.as_ref()))
+            .binary_search_by(|(existing, _)| detail_key(*existing).cmp(key_text))
         {
             Ok(index) => Some(std::mem::replace(&mut self.0[index].1, value)),
             Err(index) => {
@@ -69,7 +86,7 @@ impl NoticeDetails {
 
     pub fn get(&self, key: &str) -> Option<&String> {
         self.0
-            .binary_search_by(|(existing, _)| existing.as_ref().cmp(key))
+            .binary_search_by(|(existing, _)| detail_key(*existing).cmp(key))
             .ok()
             .map(|index| &self.0[index].1)
     }
@@ -78,8 +95,8 @@ impl NoticeDetails {
         self.get(key).is_some()
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, (InternedDetailKey, String)> {
-        self.0.iter()
+    pub fn iter(&self) -> impl Iterator<Item = (&'static str, &String)> + '_ {
+        self.0.iter().map(|(key, value)| (detail_key(*key), value))
     }
 
     pub fn values(&self) -> impl Iterator<Item = &String> {
@@ -131,7 +148,7 @@ impl Serialize for NoticeDetails {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(self.0.len()))?;
         for (key, value) in &self.0 {
-            map.serialize_entry(key.as_ref(), value)?;
+            map.serialize_entry(detail_key(*key), value)?;
         }
         map.end()
     }
