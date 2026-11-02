@@ -5,7 +5,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.18.0] - 2026-11-03
 
 - Add the missing stop's adjacent stops, arrival/departure times, and trip service context to STM_006 planner cards.
 - Add the affected stop and pickup-type definitions to STM_009 planner cards.
@@ -117,6 +117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Memory representation of notices changed for native peak-memory reduction.**
+  `Notice.title` and `Notice.remediation` are now `Arc<str>`, and the
+  `NoticeDetails::iter()` signature changed with the compact internal detail
+  representation. The serialized JSON output and TypeScript types are unchanged.
 - **Config and partial-root error text is now English.** Config validation errors and
   `PartialReport.root_structural_errors` keep their existing fields and `String`/`Vec<String>`
   shapes; only the user-facing text changed.
@@ -149,6 +153,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- **Native peak memory decreased on the full corpus.** On paired same-SHA feeds,
+  median peak RSS decreased 6.9%, p95 decreased 20.5%, and the maximum decreased
+  8.1%; median runtime was unchanged. The JSON contract remained byte-for-byte
+  identical on the measured local feeds.
 - Large fare and shape files: `fare_rules.txt` no longer builds a per-row map,
   `SHP_019` finds shape lines in one pass and the fare network stops copying
   existing keys. On mdb-992 the browser engine went from 48 s to 18 s (wasm32)
@@ -2805,7 +2813,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
-[Unreleased]: https://github.com/ttezer/gtfs-analyzer/compare/v0.17.0...HEAD
+[0.18.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.14.0...v0.15.0

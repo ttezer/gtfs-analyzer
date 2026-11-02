@@ -297,9 +297,9 @@ Doğrulamayı kendi Rust servisinize gömmek için `gtfs-pipeline`'ı doğrudan 
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.17.0"
-gtfs-config   = "0.17.0"
-gtfs-core     = "0.17.0"
+gtfs-pipeline = "0.18.0"
+gtfs-config   = "0.18.0"
+gtfs-core     = "0.18.0"
 ```
 
 ```rust
@@ -325,7 +325,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ### `gtfs-sdk` npm paketi
 
-`gtfs-sdk`, v0.17.0 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
+`gtfs-sdk`, v0.18.0 doğrulama motorunu typed JavaScript/TypeScript API olarak sunar. Feed uygulamadan çıkmadan yerel WASM ile doğrulanır:
 
 ```js
 import { validateGtfs } from "gtfs-sdk";
@@ -412,6 +412,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | Bayrak | Açıklama |
 |---|---|
 | `--json` | Sonucun tamamını JSON olarak yazar |
+| `--compact-json` | Makine tüketicileri için kanonik kısa JSON görünümü üretir; `--samples N` ile R9 kök neden örnekleri eklenebilir |
 | `--summary` | Kısa özet: durum, notice sayısı, skorlar (varsayılan; `--json` ile birlikte kullanılamaz) |
 | `--rule SHP_010` | Yalnızca verilen kural için notice'lar |
 | `--severity critical` | Tam olarak bu öneme sahip notice'lar (critical/high/medium/low/info) |
@@ -438,6 +439,21 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 Feed yolu yerine `-` verilirse ZIP **stdin'den** okunur: `curl -sL <url> | gtfs-analyzer validate - --json`. (ZIP merkezi dizini dosyanın sonunda olduğundan arşiv belleğe alınır, akış hâlinde işlenmez.)
 
 > **Arayüzle sayı farkı:** Tarayıcı, kural başına bulgu örneklerini performans için sınırlar (gerçek toplamlar `capped_totals`'ta bildirilir). CLI bu sınırı **uygulamaz** — aynı feed'de daha çok notice ve sınırlanmamış R9 etki değerleri döner. Fark beklenen davranıştır; iki çıktıyı doğrudan sayı sayı karşılaştırmayın.
+
+### Compact JSON ve web sınırı
+
+`--compact-json`, tam `--json` raporundaki her notice'ı ve `name_index` tablolarını
+taşımayan, makine tüketicileri için kanonik bir projeksiyondur. Üst düzeyde `status`,
+`engine`, `engine_version`, `engine_commit`, `validation_date`, `partial`,
+`analysis`, `reports.r1`, `reports.r5`, `reports.r9`, `metrics`,
+`notice_counts` ve `triggered_rule_count` alanlarını içerir. `reports.r9.items`
+her kuralın başlık, önem, sınıf, mesaj, düzeltme, öncelik, etki ve skor değişimi
+alanlarını taşır; `--samples N` verilirse her öğeye en fazla N kök neden örneği eklenir.
+
+`--compact-json` web arayüzünün payload'ı değildir ve kendi başına kural başına örnek
+sınırı uygulamaz. Web görünümündeki notice listesini CLI full JSON ile yaklaşık eşlemek
+isterseniz `--json --max-notices-per-rule 500` kullanın; gerçek R1/R5/R9 hesapları
+tam notice listesinden yapılır ve kesilen kurallar `capped_totals` içinde bildirilir.
 
 **Exit kodları:** `0` eksiksiz ve notice'sız doğrulama · `1` notice veya `PARTIAL` (kısmi kapsam) raporu · `2` fatal ya da config/dosya hatası. `PARTIAL` rapor, bozuk/eksik bir dosyayı güvenle atlayıp bağımsız kontrolleri sürdürür; JSON'da `status: "partial"`, `validation_status: "PARTIAL"` ve `partial` kapsamı görünür. `partial.skipped_checks`, önkoşul eksikliği nedeniyle çalıştırılmayan K4/K5/K6 kontrol ailelerini ve kurallarını ayrıntılı olarak listeler; `partial.skipped_stages` kaba aşama metadatası için korunur. `--fail-on*` kullanılsa da `PARTIAL` koşusu `1` döner. JSON modunda stdout yalnızca JSON'dur; hatalar stderr'e yazılır.
 
@@ -718,10 +734,10 @@ Büyük feed'lerde aynı kural binlerce satırda tetiklenebilir. Sınırsız bul
 |---|---|---|
 | Kural başına (varsayılan) | 500 | Tüm kurallar |
 | Kural başına (yüksek) | 2.000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Toplam (tüm kurallar) | — | v0.17.0'da feed-geneli 100.000 durdurma sınırı yok |
+| Toplam (tüm kurallar) | — | v0.18.0'da feed-geneli 100.000 durdurma sınırı yok |
 
 Bu 500/2.000 sınırları yalnızca tarayıcı/WASM görünümündeki performans örnekleridir; feed-geneli
-100.000'e ulaşınca doğrulamayı durduran bir v0.17.0 kod yolu yoktur. CLI varsayılan olarak sınırsız
+100.000'e ulaşınca doğrulamayı durduran bir v0.18.0 kod yolu yoktur. CLI varsayılan olarak sınırsız
 notice üretir; `--json --max-notices-per-rule N` yalnız JSON çıktısında görünür bulguları sınırlar,
 R1/R5/R9 hesaplarını sınırlamaz.
 
