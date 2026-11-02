@@ -5,8 +5,24 @@ use crate::{EntityType, RuleClass, Severity};
 use serde::de::Deserializer;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize, Serializer};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Index;
+use std::sync::{Arc, Mutex, OnceLock};
+
+type InternedDetailKey = Arc<str>;
+
+static DETAIL_KEYS: OnceLock<Mutex<HashMap<String, InternedDetailKey>>> = OnceLock::new();
+
+fn intern_detail_key(key: String) -> InternedDetailKey {
+    let keys = DETAIL_KEYS.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut keys = keys.lock().expect("detail key interner poisoned");
+    if let Some(existing) = keys.get(&key) {
+        return existing.clone();
+    }
+    let interned: InternedDetailKey = Arc::from(key.as_str());
+    keys.insert(key, interned.clone());
+    interned
+}
 
 /// Compact, deterministic replacement for the per-notice `BTreeMap` used by
 /// `Notice.details`.
@@ -15,7 +31,7 @@ use std::ops::Index;
 /// key while preserving the same lookup and JSON-object semantics. The public JSON
 /// shape remains an object with sorted string keys.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct NoticeDetails(Vec<(String, String)>);
+pub struct NoticeDetails(Vec<(InternedDetailKey, String)>);
 
 impl NoticeDetails {
     pub fn new() -> Self {
@@ -25,7 +41,11 @@ impl NoticeDetails {
     pub fn insert<K: Into<String>, V: Into<String>>(&mut self, key: K, value: V) -> Option<String> {
         let key = key.into();
         let value = value.into();
-        match self.0.binary_search_by(|(existing, _)| existing.as_str().cmp(&key)) {
+        let key = intern_detail_key(key);
+        match self
+            .0
+            .binary_search_by(|(existing, _)| existing.as_ref().cmp(key.as_ref()))
+        {
             Ok(index) => Some(std::mem::replace(&mut self.0[index].1, value)),
             Err(index) => {
                 self.0.insert(index, (key, value));
@@ -36,7 +56,7 @@ impl NoticeDetails {
 
     pub fn get(&self, key: &str) -> Option<&String> {
         self.0
-            .binary_search_by(|(existing, _)| existing.as_str().cmp(key))
+            .binary_search_by(|(existing, _)| existing.as_ref().cmp(key))
             .ok()
             .map(|index| &self.0[index].1)
     }
@@ -45,7 +65,7 @@ impl NoticeDetails {
         self.get(key).is_some()
     }
 
-    pub fn iter(&self) -> std::slice::Iter<'_, (String, String)> {
+    pub fn iter(&self) -> std::slice::Iter<'_, (InternedDetailKey, String)> {
         self.0.iter()
     }
 
@@ -68,7 +88,11 @@ impl NoticeDetails {
 
 impl From<BTreeMap<String, String>> for NoticeDetails {
     fn from(details: BTreeMap<String, String>) -> Self {
-        Self(details.into_iter().collect())
+        let mut entries = Vec::with_capacity(details.len());
+        for (key, value) in details {
+            entries.push((intern_detail_key(key), value));
+        }
+        Self(entries)
     }
 }
 
@@ -94,7 +118,7 @@ impl Serialize for NoticeDetails {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut map = serializer.serialize_map(Some(self.0.len()))?;
         for (key, value) in &self.0 {
-            map.serialize_entry(key, value)?;
+            map.serialize_entry(key.as_ref(), value)?;
         }
         map.end()
     }

@@ -133,11 +133,14 @@ pub(crate) fn log_notice_memory(label: &str, notices: &[gtfs_core::Notice]) {
         value: &Option<gtfs_core::NoticeDetails>,
     ) -> (usize, usize, usize, usize) {
         let Some(details) = value else { return (0, 0, 0, 0) };
-        let (keys, values) = details.iter().fold((0, 0), |(keys, values), (key, value)| {
-            (keys + key.capacity(), values + value.capacity())
-        });
-        let slots = details.capacity() * std::mem::size_of::<(String, String)>();
-        (slots + keys + values, slots, keys, values)
+        let values = details
+            .iter()
+            .map(|(_, value)| value.capacity())
+            .sum::<usize>();
+        let slots = details.capacity() * std::mem::size_of::<(std::sync::Arc<str>, String)>();
+        // Detail keys are process-wide interned; only the value allocations and
+        // per-notice vector slots belong to the live notice heap estimate.
+        (slots + values, slots, 0, values)
     }
 
     let flat = notices.len() * std::mem::size_of::<gtfs_core::Notice>();
