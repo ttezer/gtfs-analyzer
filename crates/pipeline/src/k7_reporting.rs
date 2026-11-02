@@ -737,22 +737,32 @@ struct IdSets<'a> {
 
 impl<'a> IdSets<'a> {
     fn from_records(records: &'a EntityRecords) -> Self {
+        fn id_set<'a>(capacity: usize) -> FxHashSet<&'a str> {
+            FxHashSet::with_capacity_and_hasher(capacity, Default::default())
+        }
+
         let mut refs = Self {
-            agency_id: FxHashSet::default(),
-            stop_id: FxHashSet::default(),
-            route_id: FxHashSet::default(),
-            trip_id: FxHashSet::default(),
-            service_id: FxHashSet::default(),
-            fare_id: FxHashSet::default(),
-            area_id: FxHashSet::default(),
-            fare_product_id: FxHashSet::default(),
-            fare_media_id: FxHashSet::default(),
-            rider_category_id: FxHashSet::default(),
-            network_id: FxHashSet::default(),
-            shape_id: FxHashSet::default(),
-            zone_id: FxHashSet::default(),
-            stop_times_trip_id: FxHashSet::default(),
-            fare_attributes_fare_id: FxHashSet::default(),
+            agency_id: id_set(records.agencies.len()),
+            stop_id: id_set(records.stops.len()),
+            route_id: id_set(records.routes.len()),
+            trip_id: id_set(records.trips.len()),
+            service_id: id_set(
+                records.calendars.len() + records.trip_interns.service_ids.len(),
+            ),
+            fare_id: id_set(
+                records.fare_attributes.len() + records.fare_rules.len(),
+            ),
+            area_id: id_set(records.areas.len()),
+            fare_product_id: id_set(records.fare_products.len()),
+            fare_media_id: id_set(records.fare_media.len()),
+            rider_category_id: id_set(records.rider_categories.len()),
+            network_id: id_set(records.networks.len()),
+            shape_id: id_set(records.trips.len() + records.shapes.len()),
+            zone_id: id_set(records.stops.len()),
+            stop_times_trip_id: id_set(
+                records.stop_times_index.trip_id_set.len(),
+            ),
+            fare_attributes_fare_id: id_set(records.fare_attributes.len()),
         };
         refs.agency_id.extend(
             records
