@@ -544,6 +544,10 @@ fn stm012_details(
     details.insert("stop_sequence_b".to_string(), seq_b.to_string());
     details.insert("distance_km".to_string(), format!("{distance_km:.1}"));
     details.insert(
+        "distance_meters".to_string(),
+        format!("{:.0}", distance_km * 1000.0),
+    );
+    details.insert(
         "scheduled_gap_seconds".to_string(),
         scheduled_gap_seconds.to_string(),
     );
@@ -558,6 +562,44 @@ fn stm012_details(
         details.insert("intermediate_stop_count".to_string(), count.to_string());
     }
     details
+}
+
+fn add_stm012_stop_context(
+    details: &mut BTreeMap<String, String>,
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+    a_index: usize,
+    b_index: usize,
+) {
+    let add_times =
+        |details: &mut BTreeMap<String, String>, prefix: &str, row: &CompactStopTime| {
+            if let Some(time) = row.arrival_time() {
+                details.insert(format!("{prefix}_arrival"), format_hms(hms_to_secs(time)));
+            }
+            if let Some(time) = row.departure_time() {
+                details.insert(format!("{prefix}_departure"), format_hms(hms_to_secs(time)));
+            }
+        };
+    if let Some(row) = stimes.get(a_index) {
+        add_times(details, "stop_a", row);
+    }
+    if let Some(row) = stimes.get(b_index) {
+        add_times(details, "stop_b", row);
+    }
+    if let Some(row) = a_index.checked_sub(1).and_then(|i| stimes.get(i)) {
+        let stop_id = idx.stop_id_of(row);
+        if !stop_id.is_empty() {
+            details.insert("prev_stop_id".to_string(), stop_id.to_string());
+            add_times(details, "prev", row);
+        }
+    }
+    if let Some(row) = stimes.get(b_index + 1) {
+        let stop_id = idx.stop_id_of(row);
+        if !stop_id.is_empty() {
+            details.insert("next_stop_id".to_string(), stop_id.to_string());
+            add_times(details, "next", row);
+        }
+    }
 }
 
 /// Returns the first active service date when a detected GTFS-JP feed contains
@@ -1338,6 +1380,8 @@ struct Stm014Seg<'a> {
     line: u64,
     speed_min: f64,
     speed_max: f64,
+    distance_min_km: f64,
+    distance_max_km: f64,
     trips: Vec<&'a str>,
     /// At least one contribution exceeds the threshold even without the route type being lost to whitespace.
     ws_real: bool,
@@ -2079,7 +2123,7 @@ fn check_speed_and_duration<'a>(
                                 dist_km * 60.0),
                             "stop_times.txt zaman değerlerini doğrulayın; iki durak aynı dakikaya yazılmış ama aralarındaki mesafe bir dakikada alınamaz.",
                         );
-                            n012.details = Some(stm012_details(
+                            let mut details = stm012_details(
                                 idx.stop_id_of(a),
                                 idx.stop_id_of(b),
                                 a.stop_sequence().unwrap_or(0),
@@ -2089,7 +2133,9 @@ fn check_speed_and_duration<'a>(
                                 None,
                                 Some(dist_km * 60.0),
                                 None,
-                            ));
+                            );
+                            add_stm012_stop_context(&mut details, idx, stimes, i, i + 1);
+                            n012.details = Some(details);
                             notices.push(n012);
                             // As with a zero-time interval containing untimed intermediate stops:
                             // OPR_008 counts this segment too; the lower speed bound assumes a full minute elapsed.
@@ -2270,7 +2316,7 @@ fn check_speed_and_duration<'a>(
                         a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0)),
                     "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                 );
-                    n012.details = Some(stm012_details(
+                    let mut details = stm012_details(
                         idx.stop_id_of(a),
                         idx.stop_id_of(b),
                         a.stop_sequence().unwrap_or(0),
@@ -2280,7 +2326,9 @@ fn check_speed_and_duration<'a>(
                         Some(hav_speed),
                         None,
                         None,
-                    ));
+                    );
+                    add_stm012_stop_context(&mut details, idx, stimes, i, i + 1);
+                    n012.details = Some(details);
                     notices.push(n012);
                     // OPR_008 counts this segment too and must see its speed and stop pair;
                     // otherwise a trip containing only an STM_012 segment would print "maximum speed 0.0".
@@ -2309,12 +2357,16 @@ fn check_speed_and_duration<'a>(
                             line: b.line as u64,
                             speed_min: speed,
                             speed_max: speed,
+                            distance_min_km: haver_km,
+                            distance_max_km: haver_km,
                             trips: Vec::new(),
                             ws_real: false,
                             ws_file: None,
                         });
                     seg.speed_min = seg.speed_min.min(speed);
                     seg.speed_max = seg.speed_max.max(speed);
+                    seg.distance_min_km = seg.distance_min_km.min(haver_km);
+                    seg.distance_max_km = seg.distance_max_km.max(haver_km);
                     seg.line = seg.line.min(b.line as u64);
                     seg.trips.push(trip_id);
                     match ws_join {
@@ -2421,7 +2473,7 @@ fn check_speed_and_duration<'a>(
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {seq_a}-{seq_b} arası (aradaki duraklar saatsiz) {observed} — fiziksel olarak imkansız."),
                         "stop_times.txt zaman ve stops.txt koordinat verilerini doğrulayın.",
                     );
-                    n012.details = Some(stm012_details(
+                    let mut details = stm012_details(
                         idx.stop_id_of(a),
                         idx.stop_id_of(b),
                         seq_a,
@@ -2431,7 +2483,9 @@ fn check_speed_and_duration<'a>(
                         (dt_sec > 0).then_some(impossible_speed),
                         (dt_sec == 0).then_some(impossible_speed),
                         Some(j - p - 1),
-                    ));
+                    );
+                    add_stm012_stop_context(&mut details, idx, stimes, p, j);
+                    n012.details = Some(details);
                     notices.push(n012);
                     if impossible_speed > trip_max_speed {
                         trip_max_speed = impossible_speed;
@@ -2460,12 +2514,16 @@ fn check_speed_and_duration<'a>(
                             line: b.line as u64,
                             speed_min: speed,
                             speed_max: speed,
+                            distance_min_km: path_km,
+                            distance_max_km: path_km,
                             trips: Vec::new(),
                             ws_real: false,
                             ws_file: None,
                         });
                     seg.speed_min = seg.speed_min.min(speed);
                     seg.speed_max = seg.speed_max.max(speed);
+                    seg.distance_min_km = seg.distance_min_km.min(path_km);
+                    seg.distance_max_km = seg.distance_max_km.max(path_km);
                     seg.line = seg.line.min(b.line as u64);
                     seg.trips.push(trip_id);
                     match ws_join {
@@ -2615,6 +2673,8 @@ fn check_speed_and_duration<'a>(
                 line,
                 speed_min,
                 speed_max,
+                distance_min_km,
+                distance_max_km,
                 ..
             } = *seg;
 
@@ -2670,6 +2730,45 @@ fn check_speed_and_duration<'a>(
             d.insert("trip_count".to_string(), trips.len().to_string());
             d.insert("speed_min".to_string(), format!("{speed_min:.1}"));
             d.insert("speed_max".to_string(), format!("{speed_max:.1}"));
+            d.insert("threshold_kmh".to_string(), format!("{threshold:.0}"));
+            d.insert(
+                "distance_min_meters".to_string(),
+                format!("{:.0}", distance_min_km * 1000.0),
+            );
+            d.insert(
+                "distance_max_meters".to_string(),
+                format!("{:.0}", distance_max_km * 1000.0),
+            );
+            let sample_trip = trips
+                .iter()
+                .find_map(|trip_id| idx.by_trip.get(trip_id).map(|stops| (*trip_id, *stops)));
+            if let Some((sample_trip_id, stops)) = sample_trip {
+                if let Some(service_id) = trip_service.get(sample_trip_id).filter(|id| !id.is_empty()) {
+                    d.insert("sample_service_id".to_string(), (*service_id).to_string());
+                }
+                if let Some(departure) = idx.trip_first_dep.get(sample_trip_id) {
+                    d.insert("sample_departure".to_string(), format_hms(*departure));
+                }
+                if let Some(first_stop) = stops.first().map(|stop| idx.stop_id_of(stop)) {
+                    if !first_stop.is_empty() {
+                        d.insert("direction_from_stop_id".to_string(), first_stop.to_string());
+                    }
+                }
+                if let Some(last_stop) = stops.last().map(|stop| idx.stop_id_of(stop)) {
+                    if !last_stop.is_empty() {
+                        d.insert("direction_to_stop_id".to_string(), last_stop.to_string());
+                    }
+                }
+                let a_index = stops.iter().position(|stop| {
+                    idx.stop_id_of(stop) == stop_a && stop.stop_sequence() == Some(seq_a)
+                });
+                let b_index = stops.iter().position(|stop| {
+                    idx.stop_id_of(stop) == stop_b && stop.stop_sequence() == Some(seq_b)
+                });
+                if let (Some(a_index), Some(b_index)) = (a_index, b_index) {
+                    add_stm012_stop_context(&mut d, idx, stops, a_index, b_index);
+                }
+            }
             d.insert(
                 "trips".to_string(),
                 trips
@@ -12468,12 +12567,19 @@ mod tests {
     fn stm_014_aggregates_same_segment_across_trips() {
         // Same route/direction, SAME A→B segment, 3 trips → 1 notice, not 3.
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 39.9, 32.9)],
+            vec![
+                stop("P", 41.0, 29.0),
+                stop("A", 41.0, 29.0),
+                stop("B", 39.9, 32.9),
+                stop("C", 39.9, 32.9),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1"), trip("T2", "R1"), trip("T3", "R1")],
             vec![
+                stoptime("T1", 0, "P", (7, 45, 0), (7, 45, 0), 1),
                 stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
                 stoptime("T1", 2, "B", (10, 0, 0), (10, 0, 0), 3), // ~175 km/h
+                stoptime("T1", 3, "C", (10, 15, 0), (10, 15, 0), 4),
                 stoptime("T2", 1, "A", (9, 0, 0), (9, 0, 0), 4),
                 stoptime("T2", 2, "B", (11, 30, 0), (11, 30, 0), 5), // ~140 km/h (slower)
                 stoptime("T3", 1, "A", (12, 0, 0), (12, 0, 0), 6),
@@ -12501,6 +12607,19 @@ mod tests {
         );
         assert_eq!(d.get("stop_a").map(String::as_str), Some("A"));
         assert_eq!(d.get("stop_b").map(String::as_str), Some("B"));
+        assert_eq!(d.get("prev_stop_id").map(String::as_str), Some("P"));
+        assert_eq!(d.get("prev_departure").map(String::as_str), Some("07:45:00"));
+        assert_eq!(d.get("stop_a_departure").map(String::as_str), Some("08:00:00"));
+        assert_eq!(d.get("stop_b_arrival").map(String::as_str), Some("10:00:00"));
+        assert_eq!(d.get("next_stop_id").map(String::as_str), Some("C"));
+        assert_eq!(d.get("next_arrival").map(String::as_str), Some("10:15:00"));
+        assert_eq!(d.get("direction_from_stop_id").map(String::as_str), Some("P"));
+        assert_eq!(d.get("direction_to_stop_id").map(String::as_str), Some("C"));
+        assert_eq!(d.get("sample_service_id").map(String::as_str), Some("SVC"));
+        assert_eq!(d.get("sample_departure").map(String::as_str), Some("07:45:00"));
+        assert!(d.contains_key("distance_min_meters"));
+        assert!(d.contains_key("distance_max_meters"));
+        assert_eq!(d.get("threshold_kmh").map(String::as_str), Some("120"));
         // Example trip list is deterministic and sorted.
         assert_eq!(d.get("trips").map(String::as_str), Some("T1,T2,T3"));
         // Speed range must include the slowest/fastest trip (must not collapse to one value).
@@ -12818,12 +12937,19 @@ mod tests {
         // ~29 km / bus: even a full minute requires ~1740 km/h → REAL error, must fire.
         // (This was the only case of this class also found by MD in mdb-2155.)
         let records = records_with(
-            vec![stop("A", 41.0, 29.0), stop("B", 41.26, 29.0)],
+            vec![
+                stop("P", 41.0, 29.0),
+                stop("A", 41.001, 29.0),
+                stop("B", 41.26, 29.0),
+                stop("N", 41.261, 29.0),
+            ],
             vec![route("R1", 3)],
             vec![trip("T1", "R1")],
             vec![
-                stoptime("T1", 1, "A", (8, 0, 0), (8, 0, 0), 2),
-                stoptime("T1", 2, "B", (8, 0, 0), (8, 0, 0), 3),
+                stoptime("T1", 1, "P", (7, 50, 0), (7, 50, 0), 2),
+                stoptime("T1", 2, "A", (8, 0, 0), (8, 0, 0), 3),
+                stoptime("T1", 3, "B", (8, 0, 0), (8, 0, 0), 4),
+                stoptime("T1", 4, "N", (8, 10, 0), (8, 10, 0), 5),
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
@@ -12832,16 +12958,47 @@ mod tests {
             .iter()
             .find(|n| n.rule_id == "STM_012")
             .expect("bir dakikada alınamayacak mesafe STM_012 üretmeli");
-        let details = notice.details.as_ref().expect("STM_012 yapılandırılmış kanıt taşımalı");
-        assert_eq!(details.get("stop_sequence_a").map(String::as_str), Some("1"));
-        assert_eq!(details.get("stop_sequence_b").map(String::as_str), Some("2"));
+        let details = notice
+            .details
+            .as_ref()
+            .expect("STM_012 yapılandırılmış kanıt taşımalı");
+        assert_eq!(
+            details.get("stop_sequence_a").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("stop_sequence_b").map(String::as_str),
+            Some("3")
+        );
         assert_eq!(
             details.get("scheduled_gap_seconds").map(String::as_str),
             Some("0")
         );
-        assert_eq!(details.get("distance_method").map(String::as_str), Some("haversine"));
+        assert_eq!(
+            details.get("distance_method").map(String::as_str),
+            Some("haversine")
+        );
         assert!(details.contains_key("distance_km"));
+        assert!(details.contains_key("distance_meters"));
         assert!(details.contains_key("speed_lower_bound_kmh"));
+        assert_eq!(details.get("prev_stop_id").map(String::as_str), Some("P"));
+        assert_eq!(
+            details.get("prev_arrival").map(String::as_str),
+            Some("07:50:00")
+        );
+        assert_eq!(
+            details.get("stop_a_departure").map(String::as_str),
+            Some("08:00:00")
+        );
+        assert_eq!(
+            details.get("stop_b_arrival").map(String::as_str),
+            Some("08:00:00")
+        );
+        assert_eq!(details.get("next_stop_id").map(String::as_str), Some("N"));
+        assert_eq!(
+            details.get("next_departure").map(String::as_str),
+            Some("08:10:00")
+        );
     }
 
     #[test]

@@ -185,6 +185,22 @@ function evidenceFacts(copy: PlannerCardCopy | null, n: Notice): Pick<PlannerCar
 function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCopy | null {
   const n = g.notices[0];
   switch (g.ruleId) {
+    case 'STM_006': {
+      const routeId = n.entity_id ? result.name_index.trip_routes?.[n.entity_id] : undefined;
+      const route = routeId ? result.name_index.routes?.[routeId] || '—' : '—';
+      const direction = n.entity_id ? result.name_index.trips?.[n.entity_id] : undefined;
+      const service = plannerServiceText(n.details?.service_id ?? n.service_id, result);
+      const departure = n.entity_id ? result.name_index.trip_first_dep?.[n.entity_id] || '—' : '—';
+      return {
+        title: t('producer.card.STM_006.title'),
+        context: t('producer.card.STM_006.context', { route, direction: direction || '—', departure, service }),
+        what: t('producer.card.STM_006.what', {
+          arrival: plannerTime(n.details?.arrival) || '—',
+          departure: plannerTime(n.details?.departure) || '—',
+        }),
+        action: t('producer.card.STM_006.action'),
+      };
+    }
     case 'STM_001': {
       const detail = n.details ?? {};
       const stopName = (id?: string) => id ? result.name_index.stops?.[id] || id : t('producer.card.unknown_stop');
@@ -221,6 +237,24 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         }),
         action: t('producer.card.STM_012.action'),
         observed: stm012Observed(n),
+      };
+    }
+    case 'STM_014': {
+      const d = n.details ?? {};
+      const name = (id?: string) => id ? result.name_index.stops?.[id] || id : '—';
+      const speedMin = d.speed_min ? localizedNumber(d.speed_min) : '—';
+      const speedMax = d.speed_max ? localizedNumber(d.speed_max) : speedMin;
+      const distanceMin = d.distance_min_meters ? localizedNumber(d.distance_min_meters) : '—';
+      const distanceMax = d.distance_max_meters ? localizedNumber(d.distance_max_meters) : distanceMin;
+      return {
+        title: t('producer.card.STM_014.title'),
+        what: t('producer.card.STM_014.what', {
+          from: name(d.stop_a), to: name(d.stop_b),
+          speed: speedMin === speedMax ? speedMax : `${speedMin}–${speedMax}`,
+          distance: distanceMin === distanceMax ? distanceMax : `${distanceMin}–${distanceMax}`,
+          threshold: d.threshold_kmh ? localizedNumber(d.threshold_kmh) : '—',
+        }),
+        action: t('producer.card.STM_014.action'),
       };
     }
     case 'STP_001': {
@@ -439,7 +473,7 @@ function routeIdsOf(g: RuleGroup, result: ValidationResult, limit = 8): string[]
   for (const n of g.notices) {
     const routeId = n.entity_type === 'Route'
       ? routeIdOfNotice(n)
-      : n.entity_type === 'Trip' && n.entity_id ? ni.trip_routes?.[n.entity_id] : n.details?.route_id;
+      : (n.entity_type === 'Trip' || n.rule_id === 'STM_006') && n.entity_id ? ni.trip_routes?.[n.entity_id] : n.details?.route_id;
     if (routeId) routes.add(routeId);
     if (routes.size >= limit) break;
   }
@@ -476,11 +510,53 @@ function serviceText(serviceId: string | null | undefined, result: ValidationRes
   return Number(exceptions) > 0 ? `${text} ${t('producer.days.exceptions', { n: exceptions })}` : text;
 }
 
+function plannerServiceText(serviceId: string | null | undefined, result: ValidationResult): string {
+  const text = serviceText(serviceId, result);
+  return serviceId && text === serviceId ? t('producer.days.check') : text;
+}
+
 /** Saat kurallarında seçili seferin ilgili durakları sırayla, saatleriyle; hatalı satır işaretli. */
 function timeStrip(n: Notice, result: ValidationResult): string {
   const d = n.details;
   if (!d) return '';
   const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
+  if (n.rule_id === 'STM_012') {
+    type SegmentRow = [string, string, string, string, string, boolean];
+    const rows: SegmentRow[] = [];
+    if (d.prev_stop_id) rows.push([name(d.prev_stop_id), plannerTime(d.prev_arrival) || '—', plannerTime(d.prev_departure) || '—', '', '', false]);
+    rows.push([name(d.stop_a), plannerTime(d.stop_a_arrival) || '—', plannerTime(d.stop_a_departure) || '—', '', '', false]);
+    const distance = d.distance_meters
+      ? localizedNumber(d.distance_meters)
+      : d.distance_km ? localizedNumber(String(Number(d.distance_km) * 1000)) : '—';
+    const rawSpeed = d.speed_kmh || d.speed_lower_bound_kmh;
+    const speed = rawSpeed
+      ? d.speed_lower_bound_kmh
+        ? t('producer.times.speed_at_least', { speed: localizedNumber(rawSpeed) })
+        : localizedNumber(rawSpeed)
+      : '—';
+    rows.push([name(d.stop_b), plannerTime(d.stop_b_arrival) || '—', plannerTime(d.stop_b_departure) || '—', distance, speed, true]);
+    if (d.next_stop_id) rows.push([name(d.next_stop_id), plannerTime(d.next_arrival) || '—', plannerTime(d.next_departure) || '—', '', '', false]);
+    return `<table class="planner-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.distance_m')}</th><th>${t('producer.times.speed_kmh')}</th></tr></thead><tbody>${
+      rows.map(([stop, arr, dep, meters, speedValue, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(arr)}</td><td>${escHtml(dep)}</td><td>${escHtml(meters)}</td><td>${escHtml(speedValue)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
+  if (n.rule_id === 'STM_014') {
+    type SegmentRow = [string, string, string, string, string, boolean];
+    const rows: SegmentRow[] = [];
+    if (d.prev_stop_id) rows.push([name(d.prev_stop_id), plannerTime(d.prev_arrival) || '—', plannerTime(d.prev_departure) || '—', '', '', false]);
+    rows.push([name(d.stop_a), plannerTime(d.stop_a_arrival) || '—', plannerTime(d.stop_a_departure) || '—', '', '', false]);
+    const range = (min?: string, max?: string) => {
+      if (!min) return '—';
+      const low = localizedNumber(min);
+      const high = max ? localizedNumber(max) : low;
+      return low === high ? low : `${low}–${high}`;
+    };
+    rows.push([name(d.stop_b), plannerTime(d.stop_b_arrival) || '—', plannerTime(d.stop_b_departure) || '—', range(d.distance_min_meters, d.distance_max_meters), range(d.speed_min, d.speed_max), true]);
+    if (d.next_stop_id) rows.push([name(d.next_stop_id), plannerTime(d.next_arrival) || '—', plannerTime(d.next_departure) || '—', '', '', false]);
+    return `<table class="planner-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.stm014_distance_m')}</th><th>${t('producer.times.stm014_speed_kmh')}</th></tr></thead><tbody>${
+      rows.map(([stop, arr, dep, meters, speedValue, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(arr)}</td><td>${escHtml(dep)}</td><td>${escHtml(meters)}</td><td>${escHtml(speedValue)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   const missing = t('producer.times.missing');
   type Row = [string, string, string, boolean];
   let rows: Row[] = [];
@@ -508,6 +584,22 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       [name(d.stop_id), d.arr ?? '—', d.dep ?? '—', true],
       ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_arrival ?? '—', d.next_departure ?? '—', false] as Row] : []),
     ];
+  } else if ((n.rule_id === 'STM_009' || n.rule_id === 'STM_010') && d.stop_id) {
+    const stop = result.name_index.stops?.[d.stop_id] || t('producer.card.unknown_stop');
+    rows = [[stop, plannerTime(d.arrival) || '—', plannerTime(d.departure) || '—', true]];
+  } else if (n.rule_id === 'STM_006') {
+    const missingStop = t('producer.times.missing_stop');
+    const stopName = (id?: string) => id ? name(id) : missingStop;
+    const time = (value?: string) => value || '—';
+    rows = [
+      ...(d.prev_arrival !== undefined || d.prev_departure !== undefined
+        ? [[stopName(d.prev_stop_id), time(d.prev_arrival), time(d.prev_departure), false] as Row]
+        : []),
+      [missingStop, time(d.arrival), time(d.departure), true],
+      ...(d.next_arrival !== undefined || d.next_departure !== undefined
+        ? [[stopName(d.next_stop_id), time(d.next_arrival), time(d.next_departure), false] as Row]
+        : []),
+    ];
   } else if ((n.rule_id === 'STM_003' || n.rule_id === 'STM_004') && d.stop_id) {
   // The engine represents a malformed time as "?" and an empty field as ""; the faulty row's own value is observed.
     const time = (v?: string) => v === '?' ? t('producer.times.invalid') : v || '—';
@@ -529,6 +621,17 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   const d = n.details;
   if (!d) return null;
   const name = (id?: string, fallback?: string) => (id ? result.name_index.stops?.[id] : undefined) || fallback || id || '—';
+  if (n.rule_id === 'STM_009' || n.rule_id === 'STM_010') {
+    const stop = d.stop_id ? result.name_index.stops?.[d.stop_id] || t('producer.card.unknown_stop') : t('producer.card.unknown_stop');
+    return t(n.rule_id === 'STM_009' ? 'producer.times.spot_pickup' : 'producer.times.spot_dropoff', {
+      stop, sequence: d.stop_sequence || '—',
+    });
+  }
+  if (n.rule_id === 'STM_006') {
+    return t('producer.times.spot_missing_stop', {
+      arrival: plannerTime(d.arrival) || '—', departure: plannerTime(d.departure) || '—',
+    });
+  }
   if ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016') && d.timed_stops === '0') {
     return t('producer.times.spot_untimed', { n: d.stop_count ?? '?' });
   }
@@ -539,8 +642,26 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   if (n.rule_id === 'STM_016') return t('producer.times.spot_last', { stop: name(d.stop_id), time: d.prev_time ?? '—' });
   if (n.rule_id === 'STM_008') return `${name(d.stop_a, d.stop_a_name)} ${d.dep ?? '—'} → ${name(d.stop_b, d.stop_b_name)} ${d.arr ?? '—'}`;
   if (n.rule_id === 'STM_012' && (d.stop_a || d.stop_b)) {
-    const speed = stm012Observed(n);
-    return `${name(d.stop_a)} → ${name(d.stop_b)}${speed ? ` · ${speed}` : ''}`;
+    const distanceMeters = d.distance_meters
+      ? localizedNumber(d.distance_meters)
+      : d.distance_km ? localizedNumber(String(Number(d.distance_km) * 1000)) : null;
+    const speed = d.speed_kmh
+      ? localizedNumber(d.speed_kmh)
+      : d.speed_lower_bound_kmh
+        ? t('producer.times.speed_at_least', { speed: localizedNumber(d.speed_lower_bound_kmh) })
+        : null;
+    return `${name(d.stop_a)} → ${name(d.stop_b)}${distanceMeters ? ` · ${distanceMeters} m` : ''}${speed ? ` · ${speed} km/h` : ''}`;
+  }
+  if (n.rule_id === 'STM_014' && (d.stop_a || d.stop_b)) {
+    const range = (min?: string, max?: string) => {
+      if (!min) return null;
+      const low = localizedNumber(min);
+      const high = max ? localizedNumber(max) : low;
+      return low === high ? low : `${low}–${high}`;
+    };
+    const distance = range(d.distance_min_meters, d.distance_max_meters);
+    const speed = range(d.speed_min, d.speed_max);
+    return `${name(d.stop_a)} → ${name(d.stop_b)}${distance ? ` · ${distance} m` : ''}${speed ? ` · ${speed} km/h` : ''}`;
   }
   // Midnight: the stop where time moves backward and the previous time (STM_048), or the arrival at the same stop (STM_049).
   if (n.rule_id === 'STM_048' && d.stop_id) return t('producer.times.spot_wrap', { stop: name(d.stop_id), prev: d.previous_time ?? '—' });
@@ -583,7 +704,7 @@ function badSegments(d: Record<string, string>): Array<[string, string]> {
 }
 
 /** Takvim görünümü: haftanın hangi günleri çalıştığı ve geçerlilik aralığı. */
-function serviceBlock(serviceId: string | null | undefined, result: ValidationResult): string {
+function serviceBlock(serviceId: string | null | undefined, result: ValidationResult, includeCode = true): string {
   if (!serviceId) return '';
   const entry = result.name_index.service_days?.[serviceId];
   if (!entry) return '';
@@ -598,7 +719,10 @@ function serviceBlock(serviceId: string | null | undefined, result: ValidationRe
     : `<span class="planner-day-note">${escHtml(t('producer.days.dates'))}</span>`;
   const range = start || end ? `${ymd(start)} – ${ymd(end)}` : '';
   const extra = Number(exceptions) > 0 ? ` · ${t('producer.days.exceptions', { n: exceptions })}` : '';
-  return `<div class="planner-calendar"><span class="producer-card-label">${t('producer.calendar.title', { id: serviceId })}</span>
+  const title = includeCode
+    ? t('producer.calendar.title', { id: serviceId })
+    : t('producer.calendar.generic_title');
+  return `<div class="planner-calendar"><span class="producer-card-label">${title}</span>
     <div class="planner-days">${days}</div><p class="planner-calendar-range">${escHtml(range + extra)}</p></div>`;
 }
 
@@ -629,6 +753,7 @@ function stepsHtml(action: string): string {
 /** Kartın sağ üstündeki sayının birimi: sefer, durak, hat... */
 function unitOf(g: RuleGroup): string {
   const n = g.notices[0];
+  if (n.rule_id === 'STM_006') return t('producer.unit.stop_time');
   // If the summary carries a row count (affected_rows), or the same trip occurs multiple times, the count is
   // rows rather than trips (STM_003: every malformed stop time in a trip; STM_007 summary: 60,010 stop times).
   if (n.details?.affected_rows && n.file === 'stop_times.txt') return t('producer.unit.stop_time');
@@ -641,6 +766,60 @@ function unitOf(g: RuleGroup): string {
 }
 
 interface PlannerMap { opts: MapOptions; caption: string; }
+
+interface MissingStopPathIndex {
+  byDirection: Map<string, string>;
+  byRoute: Map<string, string[]>;
+}
+const missingStopPathCache = new WeakMap<object, MissingStopPathIndex>();
+
+/** Find route-trip geometry; prefer the same passenger-facing direction when it is available. */
+function representativeTripsForDirection(ni: ValidationResult['name_index'], tripId: string): string[] {
+  const routeId = ni.trip_routes?.[tripId];
+  if (!routeId) return [];
+  const direction = ni.trips?.[tripId] || ni.trip_directions?.[tripId] || '';
+  const departure = ni.trip_first_dep?.[tripId] || '';
+  let index = missingStopPathCache.get(ni);
+  if (!index) {
+    const byDirection = new Map<string, string>();
+    const byRoute = new Map<string, string[]>();
+    const routePatterns = new Map<string, Set<string>>();
+    for (const [candidateId, candidateRoute] of Object.entries(ni.trip_routes ?? {})) {
+      const candidateDirection = ni.trips?.[candidateId] || ni.trip_directions?.[candidateId] || '';
+      const hasShape = Boolean(ni.trip_shapes?.[candidateId] && ni.shape_coords?.[ni.trip_shapes[candidateId]]?.length);
+      const stops = ni.trip_stops?.[candidateId] ?? [];
+      const pathStops = stops.filter(stopId => Boolean(ni.stop_coords?.[stopId]));
+      const hasPath = pathStops.length > 1;
+      if (!hasShape && !hasPath) continue;
+      const directionKey = `${candidateRoute}\u0000${candidateDirection}`;
+      if (candidateDirection && !byDirection.has(directionKey)) byDirection.set(directionKey, candidateId);
+      const patternKey = ni.trip_shapes?.[candidateId] || pathStops.join('|');
+      const seen = routePatterns.get(candidateRoute) ?? new Set<string>();
+      if (!seen.has(patternKey) && seen.size < 4) {
+        seen.add(patternKey);
+        routePatterns.set(candidateRoute, seen);
+        const candidates = byRoute.get(candidateRoute) ?? [];
+        candidates.push(candidateId);
+        byRoute.set(candidateRoute, candidates);
+      }
+    }
+    index = { byDirection, byRoute };
+    missingStopPathCache.set(ni, index);
+  }
+  const exact = direction ? index.byDirection.get(`${routeId}\u0000${direction}`) : undefined;
+  if (exact) return [exact];
+  const candidates = index.byRoute.get(routeId) ?? [];
+  if (candidates.length < 2 || !departure) return candidates.slice(0, 1);
+  const toSeconds = (time: string) => {
+    const parts = time.split(':').map(Number);
+    return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+  };
+  const targetTime = toSeconds(departure);
+  const nearest = candidates
+    .map(id => ({ id, difference: Math.abs(toSeconds(ni.trip_first_dep?.[id] || '00:00:00') - targetTime) }))
+    .sort((a, b) => a.difference - b.difference)[0]?.id;
+  return nearest ? [nearest] : [];
+}
 
 /** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
  *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
@@ -679,39 +858,56 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     if (primary && !focus) focus = p;
   };
 
-  const label = entityLabel(n, ni) || n.entity_id || '';
+  const routeIdForNotice = n.rule_id === 'STM_006' && n.entity_id ? ni.trip_routes?.[n.entity_id] : undefined;
+  const tripLabel = n.rule_id === 'STM_006' && n.entity_id
+    ? [routeIdForNotice ? ni.routes?.[routeIdForNotice] : '', ni.trips?.[n.entity_id], ni.trip_first_dep?.[n.entity_id]].filter(Boolean).join(' · ')
+    : '';
+  const label = tripLabel || entityLabel(n, ni) || n.entity_id || '';
   const shown = label ? t('producer.map.shown', { record: label }) : '';
   const zeroCaption = () => zeroStops.size
     ? t('producer.map.null_island', { stops: [...zeroStops].slice(0, 3).map(id => ni.stops?.[id] || id).join(', ') })
     : '';
   const focusCaption = () => [zeroCaption(), shown, t('producer.map.caption_focus')].filter(Boolean).join(' · ');
 
-  if (n.entity_type === 'Trip' && n.entity_id) {
+  if ((n.entity_type === 'Trip' || n.rule_id === 'STM_006') && n.entity_id) {
     const tripStops = ni.trip_stops?.[n.entity_id] ?? [];
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
-    if (!addShape(ni.trip_shapes?.[n.entity_id], color)) {
-      const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
-      if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
+    const directShape = ni.trip_shapes?.[n.entity_id];
+    const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
+    const pathTripIds = n.rule_id === 'STM_006' && !directShape && !directPath
+      ? representativeTripsForDirection(ni, n.entity_id)
+      : [n.entity_id];
+    for (const pathTripId of pathTripIds) {
+      if (!addShape(ni.trip_shapes?.[pathTripId], color)) {
+        const pathStops = ni.trip_stops?.[pathTripId] ?? [];
+        const coords = pathStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+        if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
+      }
     }
     stopRing = color;
+    if (n.rule_id === 'STM_006') {
+      addStop(n.details?.prev_stop_id, false);
+      addStop(n.details?.next_stop_id, false);
+    } else {
   // Stop indicated by the rule: the endpoint when its time is missing, otherwise the notice's stops.
-    if (n.rule_id === 'STM_015') addStop(tripStops[0], true);
-    if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
-    addStop(n.details?.stop_id, true);
-    addStop(n.details?.bad_stop, true);
-    addStop(n.details?.first_stop_id, true);
-    addStop(n.details?.last_stop_id, true);
-    addStop(n.details?.dup_stop, true);
-    const pairs: Array<[string | undefined, string | undefined]> = [[n.details?.stop_a, n.details?.stop_b], ...(n.details ? badSegments(n.details) : [])];
-    for (const [idA, idB] of pairs) {
-      const a = coord(idA);
-      const b = coord(idB);
-      if (!a || !b) continue;
-      segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
-      addStop(idA, true);
-      addStop(idB, true);
+      if (n.rule_id === 'STM_015') addStop(tripStops[0], true);
+      if (n.rule_id === 'STM_016') addStop(tripStops[tripStops.length - 1], true);
+      addStop(n.details?.stop_id, true);
+      addStop(n.details?.bad_stop, true);
+      addStop(n.details?.first_stop_id, true);
+      addStop(n.details?.last_stop_id, true);
+      addStop(n.details?.dup_stop, true);
+      const pairs: Array<[string | undefined, string | undefined]> = [[n.details?.stop_a, n.details?.stop_b], ...(n.details ? badSegments(n.details) : [])];
+      for (const [idA, idB] of pairs) {
+        const a = coord(idA);
+        const b = coord(idB);
+        if (!a || !b) continue;
+        segments.push({ coords: [a, b], color: MAP_RED, weight: 7 });
+        addStop(idA, true);
+        addStop(idB, true);
+      }
+      for (const stopId of tripStops) addStop(stopId, false);
     }
-    for (const stopId of tripStops) addStop(stopId, false);
   } else if (n.entity_type === 'Stop' && n.entity_id) {
     addStop(n.entity_id, true);
     const here = coord(n.entity_id);
@@ -741,6 +937,10 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       addStop(n.details?.stop_a, true);
       addStop(n.details?.stop_b, true);
     }
+    if (n.rule_id === 'STM_014') {
+      addStop(n.details?.prev_stop_id, false);
+      addStop(n.details?.next_stop_id, false);
+    }
   } else if (n.entity_type === 'Shape' && n.entity_id) {
     addShape(n.entity_id, routeColor(ni.shape_routes?.[n.entity_id]?.[0]?.[0]));
   }
@@ -748,6 +948,10 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
 
   if (lines.length || segments.length || pins.length) {
     return { opts: { pins, extraPolylines: [...lines, ...segments], focus }, caption: focusCaption() };
+  }
+
+  if (n.rule_id === 'STM_006') {
+    return { opts: { pins: [] }, caption: t('producer.map.no_evidence') };
   }
 
   // Location-independent record: the whole network.
@@ -784,12 +988,13 @@ function technicalDetails(n: Notice): string {
     Trip: 'producer.col.trip_code', Stop: 'producer.col.stop_code', Route: 'producer.col.route_code',
     Service: 'producer.col.service_code', Shape: 'producer.col.shape_code',
   };
+  const codeType = n.rule_id === 'STM_006' ? 'Trip' : n.entity_type;
   const entityId = n.entity_type === 'Route' ? routeIdOfNotice(n) : n.entity_id;
   const stopId = n.entity_type === 'Stop' ? null : n.details?.stop_id;
   const fields = [
     [t('producer.card.rule'), n.rule_id],
     [t('producer.card.location'), where(n)],
-    [t(codeLabel[n.entity_type] ?? 'producer.col.record'), entityId],
+    [t(codeLabel[codeType] ?? 'producer.col.record'), entityId],
     [t('producer.col.stop_code'), stopId],
     ...technicalValues(n),
   ] as Array<[string, string | null | undefined]>;
@@ -828,9 +1033,26 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
     ? { head: [...cols, t('producer.col.service')], row: (n: Notice) => [...row(n), serviceText(n.service_id, result)] }
     : { head: cols, row };
   const badge = (routeId?: string | null, fallback?: string | null): Cell => routeId ? { html: routeBadgeHtml(routeId, result) } : dash(fallback);
+  const stm006Columns = () => ({
+    head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.spot'), t('producer.col.service'), t('producer.col.stop_arrival'), t('producer.col.stop_departure')],
+    row: (n: Notice): Cell[] => {
+      const tripId = n.entity_id;
+      const routeId = tripId ? ni.trip_routes?.[tripId] : undefined;
+      return [
+        routeId ? { html: routeBadgeHtml(routeId, result) } : '—',
+        dash(tripId ? ni.trips?.[tripId] : null),
+        dash(tripId ? ni.trip_first_dep?.[tripId] : null),
+        dash(timeSpot(n, result)),
+        plannerServiceText(n.details?.service_id ?? n.service_id, result),
+        dash(plannerTime(n.details?.arrival)),
+        dash(plannerTime(n.details?.departure)),
+      ];
+    },
+  });
   // An identity-less notice (feed-level summary) does not fill entity columns; it falls into the general columns.
   switch (first.entity_id ? first.entity_type : 'Feed') {
     case 'Trip': {
+      if (g.ruleId === 'STM_006') return stm006Columns();
       const withSpot = timeSpot(first, result) !== null;
       return days(
         [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), ...(withSpot ? [t('producer.col.spot')] : [])],
@@ -848,6 +1070,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       );
     }
     case 'Stop':
+      if (g.ruleId === 'STM_006') return stm006Columns();
       if (g.ruleId === 'STM_002') {
         return {
           head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.service')],
@@ -876,6 +1099,28 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
       };
     case 'Route': {
       const withSpot = timeSpot(first, result) !== null;
+      if (g.ruleId === 'STM_014') {
+        return {
+          head: [t('producer.col.route'), t('producer.col.direction'), t('producer.col.departure'), t('producer.col.spot'), t('producer.col.service')],
+          row: n => {
+            const routeId = routeIdOfNotice(n);
+            const d = n.details ?? {};
+            const tripId = listOf(d.trips)[0];
+            const direction = (tripId ? ni.trips?.[tripId] : null)
+              || [d.direction_from_stop_id || d.stop_a, d.direction_to_stop_id || d.stop_b]
+                .map(id => id ? ni.stops?.[id] || id : null)
+                .filter((name): name is string => Boolean(name))
+                .join(' → ');
+            return [
+              badge(routeId),
+              dash(direction),
+              dash(plannerTime(d.sample_departure) || (tripId ? ni.trip_first_dep?.[tripId] : null)),
+              dash(timeSpot(n, result)),
+              plannerServiceText(d.sample_service_id ?? n.service_id, result),
+            ];
+          },
+        };
+      }
       return {
         head: [t('producer.col.route'), t('producer.col.route_name'), t('producer.col.route_code'), ...(withSpot ? [t('producer.col.spot')] : [])],
         row: n => {
@@ -1024,10 +1269,10 @@ type NoticeKeys = Record<EntityDim, string[]>;
 function noticeKeys(n: Notice, result: ValidationResult): NoticeKeys {
   const ni = result.name_index;
   const d = n.details ?? {};
-  const trip = n.entity_type === 'Trip' ? n.entity_id : null;
+  const trip = n.entity_type === 'Trip' || n.rule_id === 'STM_006' ? n.entity_id : null;
   const route = n.entity_type === 'Route' ? routeIdOfNotice(n) : trip ? ni.trip_routes?.[trip] : d.route_id;
   const shape = n.entity_type === 'Shape' ? n.entity_id : trip ? ni.trip_shapes?.[trip] : d.shape_id;
-  const service = n.entity_type === 'Service' ? n.entity_id : n.service_id;
+  const service = n.entity_type === 'Service' ? n.entity_id : n.rule_id === 'STM_006' ? d.service_id : n.service_id;
   const services = listOf(d.services);
   const stops = [n.entity_type === 'Stop' ? n.entity_id : null, d.stop_id, d.stop_a, d.stop_b, d.prev_stop_id, d.next_stop_id];
   const ids = (values: Array<string | null | undefined>) => [...new Set(values.filter((v): v is string => Boolean(v)))];
@@ -1285,8 +1530,8 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     if (actionEl) actionEl.innerHTML = stepsHtml(rowCopy?.action || tRemediation(notice));
     const seenEl = card.querySelector<HTMLElement>('.planner-seen-host');
     if (seenEl) {
-      const serviceId = notice.entity_type === 'Service' ? notice.entity_id : notice.service_id;
-      seenEl.innerHTML = searchView(notice, result) + serviceBlock(serviceId, result);
+      const serviceId = notice.entity_type === 'Service' ? notice.entity_id : notice.rule_id === 'STM_006' ? notice.details?.service_id : notice.service_id;
+      seenEl.innerHTML = searchView(notice, result) + serviceBlock(serviceId, result, notice.rule_id !== 'STM_006');
     }
     const factsEl = card.querySelector<HTMLElement>('.producer-card-facts');
     if (factsEl) { const facts = factsHtml(evidenceFacts(rowCopy, notice)); factsEl.innerHTML = facts; factsEl.hidden = !facts; }

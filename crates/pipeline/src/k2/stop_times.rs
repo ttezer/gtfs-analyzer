@@ -376,6 +376,42 @@ impl StopTimesIndex {
         }
     }
 
+    /// Add the two time fields for each missing-stop row so planners can locate it.
+    fn add_missing_stop_time_context(&self, notices: &mut [Notice]) {
+        for n in notices.iter_mut().filter(|n| n.rule_id == "STM_006") {
+            let (Some(trip_id), Some(line)) = (n.entity_id.as_deref(), n.line) else {
+                continue;
+            };
+            let Some(rows) = self.sorted_stops(trip_id) else {
+                continue;
+            };
+            let Some(i) = rows.iter().position(|r| r.line_u64() == line) else {
+                continue;
+            };
+            let row = &rows[i];
+            let d = n.details.get_or_insert_with(Default::default);
+            d.insert("arrival".into(), row_time_label(row.arrival_secs, None));
+            d.insert("departure".into(), row_time_label(row.departure_secs, None));
+            for (side, other) in [("prev", i.checked_sub(1)), ("next", Some(i + 1))] {
+                let Some(other) = other.and_then(|j| rows.get(j)) else {
+                    continue;
+                };
+                d.insert(
+                    format!("{side}_stop_id"),
+                    self.stop_id_of(other).to_string(),
+                );
+                d.insert(
+                    format!("{side}_arrival"),
+                    row_time_label(other.arrival_secs, None),
+                );
+                d.insert(
+                    format!("{side}_departure"),
+                    row_time_label(other.departure_secs, None),
+                );
+            }
+        }
+    }
+
     /// Ordered (ascending stop_sequence) stop slice per trip. Use THIS instead of `idx.trips.get(...)`.
     pub fn sorted_stops(&self, trip_id: &str) -> Option<&[CompactStopTime]> {
         let &(s, e) = self.trip_ranges.get(trip_id)?;
@@ -2361,6 +2397,25 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             // STM_009: pickup_type 0-3
             let pickup_type_raw = get_col(row, cols.pickup_type);
             let drop_off_type_raw = get_col(row, cols.drop_off_type);
+            let stop_time_details = || {
+                let mut details = std::collections::BTreeMap::new();
+                if !raw_stop.is_empty() {
+                    details.insert("stop_id".to_string(), raw_stop.to_string());
+                }
+                if let Some(sequence) = stop_sequence {
+                    details.insert("stop_sequence".to_string(), sequence.to_string());
+                }
+                for (key, value) in [
+                    ("arrival", get_col(row, cols.arrival_time)),
+                    ("departure", get_col(row, cols.departure_time)),
+                ] {
+                    if !value.is_empty() {
+                        details.insert(key.to_string(), value.to_string());
+                    }
+                }
+                details
+            };
+            let pickup_notice_start = st.notices.len();
             let pickup_type = parse_pickup_dropoff_col(
                 pickup_type_raw,
                 &mut st.notices,
@@ -2371,8 +2426,17 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 line,
                 &file.name,
             );
+            for notice in &mut st.notices[pickup_notice_start..] {
+                if notice.rule_id == "STM_009" {
+                    let details = stop_time_details();
+                    if !details.is_empty() {
+                        notice.details = Some(details);
+                    }
+                }
+            }
 
             // STM_010: drop_off_type 0-3
+            let dropoff_notice_start = st.notices.len();
             let drop_off_type = parse_pickup_dropoff_col(
                 drop_off_type_raw,
                 &mut st.notices,
@@ -2383,6 +2447,14 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 line,
                 &file.name,
             );
+            for notice in &mut st.notices[dropoff_notice_start..] {
+                if notice.rule_id == "STM_010" {
+                    let details = stop_time_details();
+                    if !details.is_empty() {
+                        notice.details = Some(details);
+                    }
+                }
+            }
 
             // STM_018: continuous_pickup 0-3
             let continuous_pickup = parse_pickup_dropoff_col(
@@ -3751,6 +3823,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     }
 
     index.add_malformed_time_context(&mut st.notices);
+    index.add_missing_stop_time_context(&mut st.notices);
 
     // ── trip_stop_set post-finalize construction (#38 peak-2) ──────────────────
     // TripAggs were dropped (stop_idx_set heaps freed); rebuild per-trip unique stop_idx sets
@@ -4068,10 +4141,59 @@ mod tests {
                 "stop_id",
                 "stop_sequence",
             ],
-            vec![vec!["T1", "08:00:00", "08:00:00", "", "1"]],
+            vec![
+                vec!["T1", "07:55:00", "07:55:00", "S1", "1"],
+                vec!["T1", "08:00:00", "08:00:00", "", "2"],
+                vec!["T1", "08:05:00", "08:05:00", "S3", "3"],
+            ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_006"));
+        let notice = notices.iter().find(|n| n.rule_id == "STM_006").unwrap();
+        assert_eq!(notice.entity_type, EntityType::Stop);
+        assert_eq!(
+            notice.details.as_ref().unwrap().get("arrival").unwrap(),
+            "08:00:00"
+        );
+        assert_eq!(
+            notice.details.as_ref().unwrap().get("departure").unwrap(),
+            "08:00:00"
+        );
+        assert_eq!(
+            notice
+                .details
+                .as_ref()
+                .unwrap()
+                .get("prev_stop_id")
+                .unwrap(),
+            "S1"
+        );
+        assert_eq!(
+            notice
+                .details
+                .as_ref()
+                .unwrap()
+                .get("prev_arrival")
+                .unwrap(),
+            "07:55:00"
+        );
+        assert_eq!(
+            notice
+                .details
+                .as_ref()
+                .unwrap()
+                .get("next_stop_id")
+                .unwrap(),
+            "S3"
+        );
+        assert_eq!(
+            notice
+                .details
+                .as_ref()
+                .unwrap()
+                .get("next_arrival")
+                .unwrap(),
+            "08:05:00"
+        );
     }
 
     // STM_007 test moved to K6 (k6_analytics.rs: departure_before_arrival_*).
@@ -4090,7 +4212,40 @@ mod tests {
             vec![vec!["T1", "08:00:00", "08:00:00", "S1", "1", "9"]],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
-        assert!(notices.iter().any(|n| n.rule_id == "STM_009"));
+        let notice = notices.iter().find(|n| n.rule_id == "STM_009").unwrap();
+        let details = notice.details.as_ref().unwrap();
+        assert_eq!(details.get("stop_id").map(String::as_str), Some("S1"));
+        assert_eq!(details.get("stop_sequence").map(String::as_str), Some("1"));
+        assert_eq!(details.get("arrival").map(String::as_str), Some("08:00:00"));
+        assert_eq!(
+            details.get("departure").map(String::as_str),
+            Some("08:00:00")
+        );
+    }
+
+    #[test]
+    fn invalid_drop_off_type_produces_stm_010_with_stop_context() {
+        let file = make_file(
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "drop_off_type",
+            ],
+            vec![vec!["T1", "08:00:00", "08:00:00", "S2", "7", "invalid"]],
+        );
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let notice = notices.iter().find(|n| n.rule_id == "STM_010").unwrap();
+        let details = notice.details.as_ref().unwrap();
+        assert_eq!(details.get("stop_id").map(String::as_str), Some("S2"));
+        assert_eq!(details.get("stop_sequence").map(String::as_str), Some("7"));
+        assert_eq!(details.get("arrival").map(String::as_str), Some("08:00:00"));
+        assert_eq!(
+            details.get("departure").map(String::as_str),
+            Some("08:00:00")
+        );
     }
 
     #[test]

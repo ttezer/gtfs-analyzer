@@ -672,7 +672,7 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
     if let Some(file) = &stop_times_file {
         let _t = Timer::start("K2::stop_times");
         let has_booking_rules = !records.booking_rules.is_empty();
-        let (stm_index, stop_time_notices) = validate_stop_times_with_limits_and_trip_stop_set(
+        let (stm_index, mut stop_time_notices) = validate_stop_times_with_limits_and_trip_stop_set(
             file,
             zip_bytes,
             has_booking_rules,
@@ -681,6 +681,39 @@ pub fn validate_with_stream_limit_and_jp_signal_and_whitespace_roots(
             build_trip_stop_set,
         );
         records.stop_times_index = stm_index;
+        let missing_stop_trips: std::collections::HashSet<String> = stop_time_notices
+            .iter()
+            .filter(|notice| notice.rule_id == "STM_006")
+            .filter_map(|notice| notice.entity_id.clone())
+            .collect();
+        if !missing_stop_trips.is_empty() {
+            let service_by_trip: std::collections::HashMap<String, String> = records
+                .trips
+                .iter()
+                .filter(|trip| missing_stop_trips.contains(trip.trip_id.as_str()))
+                .map(|trip| {
+                    (
+                        trip.trip_id.to_string(),
+                        records.trip_interns.service_id(trip).to_string(),
+                    )
+                })
+                .collect();
+            for notice in stop_time_notices
+                .iter_mut()
+                .filter(|notice| notice.rule_id == "STM_006")
+            {
+                if let Some(service_id) = notice
+                    .entity_id
+                    .as_deref()
+                    .and_then(|trip_id| service_by_trip.get(trip_id))
+                {
+                    notice
+                        .details
+                        .get_or_insert_with(Default::default)
+                        .insert("service_id".into(), service_id.clone());
+                }
+            }
+        }
         notices.extend(stop_time_notices);
         records.streaming_row_counts.insert(
             "stop_times.txt".to_string(),

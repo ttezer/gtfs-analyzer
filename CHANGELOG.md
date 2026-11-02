@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add the missing stop's adjacent stops, arrival/departure times, and trip service context to STM_006 planner cards.
+- Add the affected stop and pickup-type definitions to STM_009 planner cards.
+- Add the affected stop and drop-off-type definitions to STM_010 planner cards.
+- Add neighboring stop times, segment distance in meters, and speed to STM_012 planner cards.
+- Add the direction, sample departure and service days, neighboring stop times, segment distance, and speed to STM_014 planner cards; remove the duplicate route-code column.
+
 ### Added
 
 - **`gtfs-sdk` validates large feeds.** The package now ships a wasm64 engine

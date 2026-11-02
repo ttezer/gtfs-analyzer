@@ -262,12 +262,18 @@ describe('Üretici kartı görünümü', () => {
       trips: { T1: 'Hastane' },
       trip_routes: { T1: 'R6' },
       trip_first_dep: { T1: '08:45' },
-      stops: { S1: 'Merkez', S2: 'Hastane' },
+      stops: { S0: 'Önceki', S1: 'Merkez', S2: 'Hastane', S3: 'Sonraki' },
     };
     const r = result(
       [notice('a', 'STM_012', 'HIGH', {
         entity_type: 'Trip', entity_id: 'T1', observed_value: '768 km/h',
-        details: { stop_a: 'S1', stop_b: 'S2', distance_km: '29.4', scheduled_gap_seconds: '140', speed_kmh: '768.0' },
+        details: {
+          prev_stop_id: 'S0', prev_arrival: '08:40:00', prev_departure: '08:41:00',
+          stop_a: 'S1', stop_a_arrival: '08:42:00', stop_a_departure: '08:43:00',
+          stop_b: 'S2', stop_b_arrival: '08:45:20', stop_b_departure: '08:46:00',
+          next_stop_id: 'S3', next_arrival: '08:50:00', next_departure: '08:51:00',
+          distance_km: '29.4', distance_meters: '29400', scheduled_gap_seconds: '140', speed_kmh: '768.0',
+        },
       })],
       [],
       [['STM_012', 3, 500]],
@@ -280,6 +286,7 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).toContain('6 hattı · Hastane yönü · sefer başlangıcı 08:45');
     expect(root.innerHTML).toContain('Görülen değer:</span> <code>768 km/h</code>');
     expect(root.innerHTML).toContain('Merkez ile Hastane arasında hesaplanan hız gerçekçi görünmüyor');
+    expect(root.innerHTML).toContain('Merkez → Hastane · 29.400 m · 768 km/h');
     expect(root.innerHTML).not.toContain('768 km/h hız hesaplanmış');
     expect(root.innerHTML).toContain('Önce bu seferin iki durak arasındaki varış ve kalkış saatlerini kontrol edin');
     expect(root.innerHTML).not.toContain('trip_id');
@@ -448,6 +455,71 @@ describe('Planlamacılar İçin sayfası', () => {
     expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th>');
     expect(el.innerHTML).toContain('<td>—</td><td>—</td><td>06:15</td>');
     expect(el.innerHTML).not.toContain(`<td>${tripId}</td>`);
+  });
+
+  it('STM_006 identifies the route, service days, and exact stop-time row', () => {
+    const r = result([
+      notice('a', 'STM_006', 'CRITICAL', {
+        entity_type: 'Stop', entity_id: 'trip-technical',
+        details: {
+          arrival: '05:45:00', departure: '05:45:00', service_id: 'calendar-technical',
+          prev_stop_id: 'S1', prev_arrival: '05:40:00', prev_departure: '05:40:00',
+          next_stop_id: 'S3', next_arrival: '05:50:00', next_departure: '05:50:00',
+        },
+      }),
+    ], ['a'], [['STM_006', 4, 1]], true, {
+      ...emptyNameIndex,
+      routes: { R1: 'SFS' }, stops: { S1: 'Önceki durak', S3: 'Sonraki durak' }, trip_routes: { 'trip-technical': 'R1' },
+      trips: { 'trip-technical': 'Descendante' }, trip_first_dep: { 'trip-technical': '05:45' },
+      service_days: { 'calendar-technical': ['', '20250915', '20250915', '1'] },
+    });
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('SFS hattı · Descendante yönü · Sefer başlangıç saati: 05:45 · Belirli tarihler (+1 istisna)');
+    expect(el.innerHTML).toContain('Bu durak saatinde varış 05:45, kalkış 05:45; durak seçilmemiş.');
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th><th>Hatalı yer</th><th>Çalışma günleri</th><th>Durak varış saati</th><th>Durak kalkış saati</th>');
+    expect(el.innerHTML).toContain('Durak seçilmemiş · varış 05:45 · kalkış 05:45');
+    expect(el.innerHTML).toContain('<td>05:45</td><td>Durak seçilmemiş · varış 05:45 · kalkış 05:45</td><td>Belirli tarihler (+1 istisna)</td><td>05:45</td><td>05:45</td>');
+    expect(el.innerHTML).toContain('<strong>1</strong><span>durak saati</span>');
+    expect(el.innerHTML).toContain('<span>Sefer kodu</span><code>trip-technical</code>');
+    expect(el.innerHTML).not.toContain('<td>trip-technical</td>');
+  });
+
+  it('STM_009 identifies the affected stop and explains pickup values 0–3', () => {
+    const r = result([
+      notice('a', 'STM_009', 'HIGH', {
+        entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt', field: 'pickup_type', line: 42,
+        observed_value: 'invalid', expected_value: '0-3',
+        details: { stop_id: 'S1', stop_sequence: '25', arrival: '06:40:00', departure: '06:40:00' },
+      }),
+    ], ['a'], [['STM_009', 3, 1]], true, {
+      ...emptyNameIndex,
+      stops: { S1: 'Central Library' }, routes: { R1: 'SFS' },
+      trips: { T1: 'Downtown' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+    });
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Central Library · durak sırası 25 · biniş kuralı');
+    expect(el.innerHTML).toContain('0 — normal biniş; 1 — biniş yok; 2 — biniş için işletmeyi telefonla arayın; 3 — biniş için sürücüyle önceden anlaşın.');
+    expect(el.innerHTML).not.toContain('<td>S1</td>');
+  });
+
+  it('STM_010 identifies the affected stop and explains drop-off values 0–3', () => {
+    const r = result([
+      notice('a', 'STM_010', 'HIGH', {
+        entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt', field: 'drop_off_type', line: 42,
+        observed_value: 'invalid', expected_value: '0-3',
+        details: { stop_id: 'S2', stop_sequence: '7', arrival: '08:00:00', departure: '08:00:00' },
+      }),
+    ], ['a'], [['STM_010', 3, 1]], true, {
+      ...emptyNameIndex,
+      stops: { S2: 'City Hall' }, routes: { R1: 'SFS' },
+      trips: { T1: 'Downtown' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '06:00' },
+    });
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('City Hall · durak sırası 7 · iniş kuralı');
+    expect(el.innerHTML).toContain('0 — normal iniş; 1 — iniş yok; 2 — iniş için işletmeyi telefonla arayın; 3 — iniş için sürücüyle önceden anlaşın.');
   });
 });
 
@@ -725,17 +797,30 @@ describe('Hatalı yer sütunu', () => {
     expect(html).toContain('<td>Çarşı → Liman</td>');
   });
 
-  it('STM_014 segment kimliğini değil details.route_id değerini hat olarak gösterir', () => {
-    const local: NameIndex = { ...ni, routes: { R1: '34' }, route_long_names: { R1: 'Merkez – Liman' } };
+  it('STM_014 tablosu hat, yön, sefer başlangıcı, hatalı yer ve çalışma günlerini yazar', () => {
+    const local: NameIndex = {
+      ...ni, routes: { R1: '34' }, trips: { T1: 'Otogar' }, trip_first_dep: { T1: '06:00' },
+      service_days: { SVC: ['1111100', '20260101', '20261231', '0'] },
+    };
     const r = result([notice('a', 'STM_014', 'HIGH', {
       entity_type: 'Route', entity_id: 'R1:0:S2→S3',
-      details: { route_id: 'R1', stop_a: 'S2', stop_b: 'S3' },
+      details: {
+        route_id: 'R1', stop_a: 'S2', stop_b: 'S3', prev_stop_id: 'S1', next_stop_id: 'S4',
+        direction_from_stop_id: 'S1', direction_to_stop_id: 'S4',
+        trips: 'T1', sample_departure: '06:00:00', sample_service_id: 'SVC',
+        speed_min: '468.0', speed_max: '468.0', distance_min_meters: '1200', distance_max_meters: '1200', threshold_kmh: '120',
+      },
     })], [], [['STM_014', 4, 1]], true, local);
     const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
     renderProducer(el, r);
     expect(el.innerHTML).toContain('<span class="planner-route-badge">34</span>');
-    expect(el.innerHTML).toContain('<td>Merkez – Liman</td>');
-    expect(el.innerHTML).toContain('<td>R1</td>');
+    expect(el.innerHTML).toContain('<th>Hat</th><th>Yön</th><th>Sefer başlangıç saati</th><th>Hatalı yer</th><th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Otogar</td><td>06:00</td>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).not.toContain('<th>Hat kodu</th>');
+    expect(el.innerHTML).not.toContain('<td>R1</td>');
+    expect(el.innerHTML).toContain('Çarşı → Liman · 1.200 m · 468 km/h');
+    expect(el.innerHTML).toContain('bu hat türü için belirlenen 120 km/h sınırını aşıyor');
   });
 
   it('aynı adlı iki durağı durak koduyla ayırır', () => {
