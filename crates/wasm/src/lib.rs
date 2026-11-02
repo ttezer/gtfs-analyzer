@@ -474,7 +474,7 @@ fn rerun_k6_k7_inner(
 
     let t = js_sys::Date::now();
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7_prepared(
+    let k7 = report_k7_prepared(
         all_notices,
         &cache.records,
         &cache.derived,
@@ -654,7 +654,7 @@ fn run_full_pipeline(zip_bytes: &[u8], config: &ValidatorConfig, today: u32) -> 
     all_notices.shrink_to_fit();
 
     let coverage_complete = coverage_complete_of(&partial);
-    let mut k7 = report_k7_prepared(
+    let k7 = report_k7_prepared(
         all_notices,
         &k2.records,
         &k5.derived,

@@ -212,7 +212,7 @@ mod tests {
             field: Some("direction_id".to_string()),
             observed_value: Some("9".to_string()),
             expected_value: Some("0 or 1".to_string()),
-            details: Some(details),
+            details: Some(details.into()),
             whitespace_derived: false,
             whitespace_candidate: false,
             title: "Türkçe başlık".to_string().into(),
@@ -288,7 +288,7 @@ mod tests {
         notice.details = Some(std::collections::BTreeMap::from([
             ("jp_profile".into(), "V4".into()),
             ("message_variant".into(), "missing_review".into()),
-        ]));
+        ]).into());
         translate_notices(std::slice::from_mut(&mut notice));
         assert!(notice.message.contains("no score penalty"));
         assert!(notice.remediation.contains("Manually verify"));
@@ -305,7 +305,7 @@ mod tests {
                 "example_record_ids".into(),
                 "trip_id=T1,stop_sequence=2".into(),
             ),
-        ]));
+        ]).into());
         translate_notices(std::slice::from_mut(&mut notice));
         assert!(notice.message.contains("stop_times.stop_headsign = 渋谷"));
         assert!(notice.message.contains("18426 rows"));

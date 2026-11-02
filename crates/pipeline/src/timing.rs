@@ -143,7 +143,7 @@ pub(crate) fn log_notice_memory(label: &str, notices: &[gtfs_core::Notice]) {
         (slots + values, slots, 0, values)
     }
 
-    let flat = notices.len() * std::mem::size_of::<gtfs_core::Notice>();
+    let flat = std::mem::size_of_val(notices);
     let (
         heap,
         _title_heap,

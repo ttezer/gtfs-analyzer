@@ -736,7 +736,7 @@ fn finalize_stm007_pending(
             }
             if let Some(d) = row.details.as_ref() {
                 for (from, to) in STM007_EXAMPLE_KEYS {
-                    if let Some(v) = d.get(*from) {
+                    if let Some(v) = d.get(from) {
                         details.insert(format!("example_{i}_{to}"), v.clone());
                     }
                 }
