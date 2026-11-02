@@ -7,10 +7,10 @@ use chrono::{Datelike, Local};
 use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use gtfs_config::{merge_delta, GtfsJpProfile, ValidatorConfig};
 use gtfs_core::{
-    AuthoritySource, NameIndex, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
+    AuthoritySource, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
     ValidationStatus,
 };
-use gtfs_pipeline::validate_bytes;
+use gtfs_pipeline::{validate_bytes, validate_bytes_without_name_index};
 use gtfs_rules::RULES;
 use serde::Serialize;
 
@@ -389,7 +389,11 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
     suppress_pipeline_timing_by_default();
 
     let today = args.today.unwrap_or_else(today_yyyymmdd);
-    let mut result = validate_bytes(&zip_bytes, &config, today);
+    let mut result = if args.include_name_index {
+        validate_bytes(&zip_bytes, &config, today)
+    } else {
+        validate_bytes_without_name_index(&zip_bytes, &config, today)
+    };
 
     let filters = Filters {
         rule: args.rule.clone(),
@@ -409,12 +413,6 @@ fn run_validate(args: ValidateArgs) -> ExitCode {
     if let (Some(translator), ValidateResult::Ok(vr)) = (&translator, &mut result) {
         for notice in &mut vr.notices {
             translator.translate(notice);
-        }
-    }
-
-    if !args.include_name_index {
-        if let ValidateResult::Ok(vr) = &mut result {
-            vr.name_index = NameIndex::default();
         }
     }
 

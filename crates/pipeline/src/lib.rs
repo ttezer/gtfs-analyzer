@@ -1716,6 +1716,19 @@ pub fn validate_bytes(zip: &[u8], config: &ValidatorConfig, today: u32) -> Valid
     validate_bytes_inspected(zip, config, today, &mut |_, _, _, _| {})
 }
 
+/// Native CLI variant that skips the optional name lookup index.
+///
+/// The ordinary [`validate_bytes`] path keeps building the index for SDK/WASM and existing
+/// callers. The CLI uses this variant unless `--include-name-index` is requested, avoiding a
+/// large allocation that would otherwise be discarded immediately after validation.
+pub fn validate_bytes_without_name_index(
+    zip: &[u8],
+    config: &ValidatorConfig,
+    today: u32,
+) -> ValidateResult {
+    validate_bytes_inspected_with_name_index(zip, config, today, false, &mut |_, _, _, _| {})
+}
+
 /// Observer supplied to [`validate_bytes_inspected`]: raw K1–K6 notices and the records,
 /// derived data, and whitespace-suppression lists needed to interpret them.
 #[doc(hidden)]
@@ -1730,6 +1743,16 @@ pub fn validate_bytes_inspected(
     zip: &[u8],
     config: &ValidatorConfig,
     today: u32,
+    inspect: &mut NoticeInspector<'_>,
+) -> ValidateResult {
+    validate_bytes_inspected_with_name_index(zip, config, today, true, inspect)
+}
+
+fn validate_bytes_inspected_with_name_index(
+    zip: &[u8],
+    config: &ValidatorConfig,
+    today: u32,
+    include_name_index: bool,
     inspect: &mut NoticeInspector<'_>,
 ) -> ValidateResult {
     use crate::timing::Timer;
@@ -1909,7 +1932,11 @@ pub fn validate_bytes_inspected(
     crate::timing::mem_log("after K7-reporting");
 
     // name_index filters map data by notices (large-feed mode) → notices must not carry borrowed data.
-    let name_index = build_name_index(&k2.records, &k7.notices);
+    let name_index = if include_name_index {
+        build_name_index(&k2.records, &k7.notices)
+    } else {
+        Default::default()
+    };
     crate::timing::mem_log("after name-index");
     ValidateResult::Ok(ValidationResult {
         status: if partial.is_empty() {

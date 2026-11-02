@@ -68,14 +68,15 @@ fn wasm_cached_rerun_aggregates_before_scope_and_cap() {
 fn native_validate_bytes_aggregates_before_scope() {
     let src = code_only(NATIVE_SRC);
     // `validate_bytes` is a thin wrapper for the audit observer; the actual orchestrator is
-    // `validate_bytes_inspected`. If the wrapper takes another path, the guard goes blind.
+    // `validate_bytes_inspected_with_name_index`. If the wrapper takes another path, the guard
+    // goes blind.
     assert!(
         body_of(&src, "validate_bytes").contains("validate_bytes_inspected("),
         "`validate_bytes` no longer delegates to `validate_bytes_inspected`"
     );
     assert_aggregates_before(
-        body_of(&src, "validate_bytes_inspected"),
-        "validate_bytes_inspected",
+        body_of(&src, "validate_bytes_inspected_with_name_index"),
+        "validate_bytes_inspected_with_name_index",
         &["apply_report_scope("],
     );
 }
