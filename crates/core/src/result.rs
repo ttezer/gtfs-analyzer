@@ -125,6 +125,10 @@ pub struct NameIndex {
     pub shape_coords: BTreeMap<String, Vec<[f64; 2]>>, // shape_id → [[lat, lon], ...] ordered point list
     pub trip_shapes: BTreeMap<String, String>,         // trip_id  → shape_id
     pub trip_stops: BTreeMap<String, Vec<String>>, // trip_id  → [stop_id, ...] ordered by stop_sequence
+    /// trip_id → stop_sequence values aligned with trip_stops (first occurrence for repeated IDs).
+    /// Additive field used by the planner to label map pins without exposing internal field names.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub trip_stop_sequences: BTreeMap<String, Vec<u32>>,
     pub shape_trips: BTreeMap<String, String>,     // shape_id → first trip_id (for shape stops)
     pub route_shapes: BTreeMap<String, Vec<String>>, // route_id → [shape_id, ...] (for the terminus map)
     /// route_id → [route_color, route_text_color] (6-digit hex, no `#`; empty if text color is absent).

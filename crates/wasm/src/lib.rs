@@ -78,7 +78,7 @@ const MAX_SHAPE_COORDS: usize = 100_000;
 // Memory64 large-feed path can inspect them. The UI mirrors this value.
 const MAX_INPUT_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const HIGH_CAP: usize = 2_000;
-const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017"];
+const HIGH_CAP_RULES: &[&str] = &["TRP_020", "OPR_007", "STP_016", "STP_017", "STM_056"];
 
 // ── CachedState ───────────────────────────────────────────────────────────────
 

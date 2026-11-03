@@ -3648,8 +3648,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 offsets[agg.idx as usize] as usize,
                 offsets[agg.idx as usize + 1] as usize,
             );
-            for w in rows[s..e].windows(2) {
-                let (a, b) = (&w[0], &w[1]);
+            let trip_rows = &rows[s..e];
+            for i in 0..trip_rows.len().saturating_sub(1) {
+                let a = &trip_rows[i];
+                let b = &trip_rows[i + 1];
                 if a.sequence != u32::MAX && a.sequence == b.sequence {
                     let mut n032 = make_k2_notice(
                         &mut st.counter,
@@ -3681,20 +3683,99 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 // shape_dist_traveled MUST INCREASE. Compare only when both rows have a value; a missing
                 // value is STM_017's concern. NaN comparison returns false, so the guard is required.
                 if a.dist_f32.is_finite() && b.dist_f32.is_finite() && b.dist_f32 <= a.dist_f32 {
+                    let stop_id = |row: &CompactStopTime| {
+                        st.stop_intern
+                            .get(row.stop_idx as usize)
+                            .map(|id| id.to_string())
+                    };
+                    let previous_stop_id = stop_id(a);
+                    let current_stop_id = stop_id(b);
                     let mut n056 = make_k2_notice(
                         &mut st.counter, "STM_056", EntityType::Trip, Some(tid.to_string()),
                         None, &file.name, Some(b.line as u64), Some("shape_dist_traveled"),
                         Some(format!("{}", b.dist_f32)), Some(format!("> {}", a.dist_f32)),
                         format!(
-                            "'{}' seferinde shape_dist_traveled artmıyor: stop_sequence {} değeri {}, önceki durakta {}. Değerler stop_sequence boyunca artmalıdır.",
-                            tid, b.sequence, b.dist_f32, a.dist_f32
+                            "'{}' seferinde {}. durakta güzergâh mesafesi artmıyor: önceki {}. durakta {}, bu durakta {}. Güzergâh başlangıcından itibaren kümülatif mesafe artmalıdır.",
+                            tid, b.sequence, a.sequence, a.dist_f32, b.dist_f32
                         ),
                         "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
                     );
+                    let d = n056.details.get_or_insert_with(Default::default);
+                    if let Some(id) = previous_stop_id {
+                        d.insert("prev_stop_id".to_string(), id);
+                    }
+                    if let Some(id) = current_stop_id {
+                        d.insert("stop_id".to_string(), id);
+                    }
+                    if let Some(previous2) = i.checked_sub(1).and_then(|j| trip_rows.get(j)) {
+                        if let Some(id) = stop_id(previous2) {
+                            d.insert("prev2_stop_id".to_string(), id);
+                        }
+                        d.insert("prev2_line".to_string(), previous2.line.to_string());
+                        d.insert("prev2_stop_sequence".to_string(), previous2.sequence.to_string());
+                        if previous2.dist_f32.is_finite() {
+                            d.insert(
+                                "prev2_shape_dist_traveled".to_string(),
+                                previous2.dist_f32.to_string(),
+                            );
+                        }
+                    }
+                    d.insert("prev_line".to_string(), a.line.to_string());
+                    d.insert("line".to_string(), b.line.to_string());
+                    if let Some(next) = trip_rows.get(i + 2) {
+                        if let Some(id) = stop_id(next) {
+                            d.insert("next_stop_id".to_string(), id);
+                        }
+                        d.insert("next_line".to_string(), next.line.to_string());
+                        d.insert("next_stop_sequence".to_string(), next.sequence.to_string());
+                        if next.dist_f32.is_finite() {
+                            d.insert(
+                                "next_shape_dist_traveled".to_string(),
+                                next.dist_f32.to_string(),
+                            );
+                        }
+                    }
+                    if let Some(next2) = trip_rows.get(i + 3) {
+                        if let Some(id) = stop_id(next2) {
+                            d.insert("next2_stop_id".to_string(), id);
+                        }
+                        d.insert("next2_line".to_string(), next2.line.to_string());
+                        d.insert("next2_stop_sequence".to_string(), next2.sequence.to_string());
+                        if next2.dist_f32.is_finite() {
+                            d.insert(
+                                "next2_shape_dist_traveled".to_string(),
+                                next2.dist_f32.to_string(),
+                            );
+                        }
+                    }
+                    for (prefix, row) in [
+                        ("prev2", i.checked_sub(1).and_then(|j| trip_rows.get(j))),
+                        ("prev", Some(a)),
+                        ("current", Some(b)),
+                        ("next", trip_rows.get(i + 2)),
+                        ("next2", trip_rows.get(i + 3)),
+                    ] {
+                        let Some(row) = row else { continue };
+                        let arrival_key = if prefix == "current" {
+                            "arrival".to_string()
+                        } else {
+                            format!("{prefix}_arrival")
+                        };
+                        let departure_key = if prefix == "current" {
+                            "departure".to_string()
+                        } else {
+                            format!("{prefix}_departure")
+                        };
+                        d.insert(arrival_key, row_time_label(row.arrival_secs, None));
+                        d.insert(departure_key, row_time_label(row.departure_secs, None));
+                    }
+                    d.insert("prev_stop_sequence".to_string(), a.sequence.to_string());
+                    d.insert("stop_sequence".to_string(), b.sequence.to_string());
+                    d.insert("prev_shape_dist_traveled".to_string(), a.dist_f32.to_string());
+                    d.insert("shape_dist_traveled".to_string(), b.dist_f32.to_string());
                     // The feed-summary branch (`finalize_stm_pending`) writes affected_rows/example_trips;
                     // the pinpoint branch carries the same keys so the one template is populated in both branches.
                     {
-                        let d = n056.details.get_or_insert_with(Default::default);
                         d.insert("affected_rows".to_string(), "1".to_string());
                         d.insert("example_trips".to_string(), tid.to_string());
                     }
@@ -3714,18 +3795,9 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             "stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor.",
             STM032_AGG_THRESHOLD,
         );
-        const STM056_AGG_THRESHOLD: usize = 50;
-        finalize_stm_pending(
-            &mut stm056_pending,
-            &mut st.notices,
-            &mut st.counter,
-            &file.name,
-            "STM_056",
-            "shape_dist_traveled",
-            "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
-            "shape_dist_traveled stop_sequence boyunca artmıyor — aynı mesafe sırası ihlali yüksek hacimde tekrarlanıyor.",
-            STM056_AGG_THRESHOLD,
-        );
+        // STM_056 is a critical, row-level finding. Do not collapse it into a feed summary:
+        // each failing stop_times row must remain selectable in R2 and Planner Beta.
+        st.notices.append(&mut stm056_pending);
     }
 
     // stop_id_set = stop_first_line keys (same guards → exactly the same set).
@@ -5195,12 +5267,15 @@ mod tests {
     }
 
     #[test]
-    fn stm056_above_threshold_aggregates_with_sorted_examples() {
+    fn stm056_above_threshold_keeps_every_pinpoint_notice() {
         let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
-        let mut rows = Vec::with_capacity(102);
+        let mut rows = Vec::with_capacity(255);
         for id in &ids {
-            rows.push(vec![id.as_str(), "08:00:00", "08:00:00", "S1", "1", "100"]);
+            rows.push(vec![id.as_str(), "08:00:00", "08:00:00", "S0", "0", "90"]);
+            rows.push(vec![id.as_str(), "08:05:00", "08:05:00", "S1", "1", "100"]);
             rows.push(vec![id.as_str(), "08:10:00", "08:10:00", "S2", "2", "100"]);
+            rows.push(vec![id.as_str(), "08:15:00", "08:15:00", "S3", "3", "120"]);
+            rows.push(vec![id.as_str(), "08:20:00", "08:20:00", "S4", "4", "130"]);
         }
         let file = make_file(
             vec![
@@ -5215,31 +5290,38 @@ mod tests {
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
-        assert_eq!(
-            stm056.len(),
-            1,
-            "51 ihlal tek feed-özeti olmalı: {stm056:?}"
-        );
-        assert_eq!(stm056[0].entity_type, EntityType::Feed);
-        assert_eq!(stm056[0].observed_value.as_deref(), Some("51"));
-        assert!(stm056[0].message.contains("aynı trip içinde"));
-        assert!(stm056[0].message.contains("T00 (satır"));
-        assert!(stm056[0].message.contains("beklenen > 100"));
-        assert_eq!(
-            stm056[0]
-                .details
+        assert_eq!(stm056.len(), 51, "51 ihlal ayrı satır olarak korunmalı");
+        assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
+        assert!(stm056
+            .iter()
+            .all(|n| n.message.contains("güzergâh mesafesi artmıyor")));
+        assert!(stm056.iter().all(|n| {
+            n.details
                 .as_ref()
                 .and_then(|d| d.get("affected_rows"))
-                .map(String::as_str),
-            Some("51"),
+                .is_some_and(|v| v == "1")
+        }));
+        let first = stm056
+            .iter()
+            .find(|n| n.entity_id.as_deref() == Some("T00"))
+            .expect("T00 STM_056 örneği");
+        let details = first.details.as_ref().expect("STM_056 ayrıntısı");
+        assert_eq!(
+            details.get("prev_stop_id").map(String::as_str),
+            Some("S1")
+        );
+        assert_eq!(details.get("stop_id").map(String::as_str), Some("S2"));
+        assert_eq!(details.get("prev2_stop_id").map(String::as_str), Some("S0"));
+        assert_eq!(details.get("next2_stop_id").map(String::as_str), Some("S4"));
+        assert_eq!(
+            details.get("stop_sequence").map(String::as_str),
+            Some("2")
         );
         assert_eq!(
-            stm056[0]
-                .details
-                .as_ref()
-                .and_then(|d| d.get("example_trips"))
+            details
+                .get("prev_shape_dist_traveled")
                 .map(String::as_str),
-            Some("T00, T01, T02, T03, T04"),
+            Some("100")
         );
     }
 
@@ -5269,9 +5351,7 @@ mod tests {
             "düşük hacimde iki pinpoint notice korunmalı"
         );
         assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
-        // The pinpoint branch now carries `details`: because one message template serves both branches
-        // (feed summary / per row), count+sample are written here too, or the en/ja/fr text has empty
-        // placeholders. The distinguishing count is 1 for pinpoint.
+        // Each critical STM_056 finding is a pinpoint notice and carries its own row context.
         assert!(
             stm056.iter().all(|n| n
                 .details

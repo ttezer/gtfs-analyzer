@@ -145,6 +145,7 @@ export interface NameIndex {
   shape_coords: Record<string, [number, number][]>; // shape_id → [[lat, lon], ...] in order
   trip_shapes: Record<string, string>;              // trip_id → shape_id
   trip_stops: Record<string, string[]>;             // trip_id → [stop_id, ...] in order
+  trip_stop_sequences?: Record<string, number[]>;   // trip_id → sequence aligned with trip_stops
   shape_trips: Record<string, string>;              // shape_id → first trip_id
   route_shapes: Record<string, string[]>;           // route_id → [shape_id, ...]
   route_colors?: Record<string, [string, string]>; // route_id → [route_color, route_text_color] (hex, no #; text color may be empty)

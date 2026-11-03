@@ -220,6 +220,50 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).toContain('07:15, 07:45, 08:15…');
   });
 
+  it('STM_056 kartında hatalı durağın komşularını, yönü ve takvimini gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S0: 'Daha önceki', S1: 'Önceki', S2: 'Hatalı', S3: 'Sonraki', S4: 'Daha sonraki' },
+      routes: { R1: '10' },
+      trips: { T1: 'Merkez yönü' },
+      trip_routes: { T1: 'R1' },
+      trip_first_dep: { T1: '07:15' },
+      trip_stops: { T1: ['S0', 'S1', 'S2', 'S3', 'S4'] },
+      service_days: { WKD: ['1111100', '20260101', '20261231', '0'] },
+      stop_coords: { S1: [41, 29], S2: [41.001, 29.001], S3: [41.002, 29.002] },
+    };
+    const r = result(
+      [notice('a', 'STM_056', 'CRITICAL', {
+        entity_type: 'Feed', file: 'stop_times.txt', field: 'shape_dist_traveled',
+        observed_value: '51', details: {
+          affected_rows: '51', example_trips: 'T1',
+          example_0_trip: 'T1', example_0_line: '42',
+          example_0_service_id: 'WKD',
+          example_0_prev2_stop_id: 'S0', example_0_prev_stop_id: 'S1', example_0_stop_id: 'S2', example_0_next_stop_id: 'S3', example_0_next2_stop_id: 'S4',
+          example_0_prev2_stop_sequence: '0', example_0_prev2_shape_dist_traveled: '90',
+          example_0_prev_stop_sequence: '1', example_0_stop_sequence: '2', example_0_next_stop_sequence: '3',
+          example_0_next2_stop_sequence: '4', example_0_prev_shape_dist_traveled: '100', example_0_shape_dist_traveled: '100', example_0_next_shape_dist_traveled: '120', example_0_next2_shape_dist_traveled: '130',
+        },
+      })],
+      ['a'], [['STM_056', 5, 51]], true, ni,
+    );
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, r);
+    expect(root.innerHTML).toContain('Sefer duraklarında güzergâh mesafesi artmıyor');
+    expect(root.innerHTML).toContain('Önceki');
+    expect(root.innerHTML).toContain('Hatalı');
+    expect(root.innerHTML).toContain('Sonraki');
+    expect(root.innerHTML).toContain('Daha önceki');
+    expect(root.innerHTML).toContain('Daha sonraki');
+    expect(root.innerHTML).toContain('Durak gerçekten yanlışsa durak sırasını düzeltin');
+    expect(root.innerHTML).toContain('<th>Varış</th>');
+    expect(root.innerHTML).toContain('<th>Kalkış</th>');
+    expect(root.innerHTML).not.toContain('Kaynak satırı');
+    expect(root.innerHTML).not.toContain('<th>Durum</th>');
+    expect(root.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(root.innerHTML).toContain('Hafta içi');
+  });
+
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {
     const r = result(
       [notice('a', 'AGN_003', 'CRITICAL', {

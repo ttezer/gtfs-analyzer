@@ -125,6 +125,7 @@ export interface NameIndex {
   shape_coords: Record<string, [number, number][]>;
   trip_shapes: Record<string, string>;
   trip_stops: Record<string, string[]>;
+  trip_stop_sequences?: Record<string, number[]>;
   shape_trips: Record<string, string>;
   route_shapes: Record<string, string[]>;
   map_data_deferred: boolean;

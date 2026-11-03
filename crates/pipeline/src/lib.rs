@@ -2299,6 +2299,28 @@ pub(crate) fn build_name_index_impl(
         })
         .collect();
 
+    // The map uses one pin per physical stop, but retains the source stop_sequence
+    // alongside it so planner popups can identify the exact position in the trip.
+    let trip_stop_sequences: BTreeMap<String, Vec<u32>> = records
+        .stop_times_index
+        .iter_trips()
+        .filter(|(trip_id, _)| keep_trip(trip_id.as_str()))
+        .map(|(trip_id, stops)| {
+            let stm_idx = &records.stop_times_index;
+            let mut ids: Vec<String> = Vec::new();
+            let mut sequences: Vec<u32> = Vec::new();
+            for stop in stops.iter().filter(|s| s.stop_idx != u32::MAX) {
+                let id = stm_idx.stop_id_of(stop).to_string();
+                if ids.last().map(String::as_str) == Some(id.as_str()) {
+                    continue;
+                }
+                ids.push(id);
+                sequences.push(stop.sequence);
+            }
+            (trip_id.to_string(), sequences)
+        })
+        .collect();
+
     // shape_id → first trip_id (map; skipped in large-feed mode).
     let shape_trips: BTreeMap<String, String> = {
         let mut map: BTreeMap<String, String> = BTreeMap::new();
@@ -2404,6 +2426,7 @@ pub(crate) fn build_name_index_impl(
         shape_coords,
         trip_shapes,
         trip_stops,
+        trip_stop_sequences,
         shape_trips,
         route_shapes,
         route_colors,
@@ -2539,6 +2562,7 @@ mod name_index_tests {
             "trip with a notice must be drawable on the map"
         );
         assert_eq!(idx.trip_stops.get("T1").map(|v| v.len()), Some(2));
+        assert_eq!(idx.trip_stop_sequences.get("T1").map(|v| v.as_slice()), Some([1, 2].as_slice()));
         assert!(
             !idx.trip_stops.contains_key("T2"),
             "trip without a notice must be excluded to save memory"
