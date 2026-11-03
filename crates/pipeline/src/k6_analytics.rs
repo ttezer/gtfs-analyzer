@@ -3514,6 +3514,16 @@ fn check_calendar_analytics(
     // exception_count = raw valid row count (CalendarDateIndex semantics).
     // CLD_007 prerequisite: does the feed have a base schedule in calendar.txt?
     let has_base_calendar = !records.calendars.is_empty();
+    // The old lookup scanned all calendar rows for every calendar_dates service. Large feeds
+    // such as mdb-2904 can have hundreds of thousands of both, turning this into an effectively
+    // quadratic pass. Preserve `.find(...)`'s first-match semantics while making the lookup O(1).
+    let mut weekly_base_by_service: HashMap<&str, bool> =
+        HashMap::with_capacity(records.calendars.len());
+    for cal in &records.calendars {
+        weekly_base_by_service
+            .entry(cal.service_id.as_str())
+            .or_insert(cal.days.contains(&Some(1)));
+    }
     for (service_id, &count) in &records.calendar_dates.exception_count {
         let service_id = service_id.as_str();
         let active = derived
@@ -3522,11 +3532,9 @@ fn check_calendar_analytics(
             .get(service_id)
             .map(|s| s.len() as u32)
             .unwrap_or(0);
-        let has_weekly_base = records
-            .calendars
-            .iter()
-            .find(|cal| cal.service_id == service_id)
-            .map(|cal| cal.days.contains(&Some(1)))
+        let has_weekly_base = weekly_base_by_service
+            .get(service_id)
+            .copied()
             .unwrap_or(false);
         // CAL_013 (expired) was removed from here → calculated once for all services in the CAL_017
         // loop from combined active_dates (prevents double emission).
@@ -14573,6 +14581,41 @@ mod tests {
     }
 
     // ── WP-R: CLD_007 only when a base schedule exists ───────────────────────
+
+    #[test]
+    fn cld_007_preserves_first_calendar_match_for_duplicate_service_id() {
+        use crate::k2::calendar_dates::CalendarDateIndex;
+        use crate::k5_derived::CalendarBitmap;
+
+        // The current implementation uses the first matching calendar row. Keep that
+        // behavior explicit: a later duplicate with Monday enabled must not change the
+        // result selected by `.find(...)`.
+        let no_monday = [Some(0); 7];
+        let mut calendar_dates = CalendarDateIndex::default();
+        calendar_dates.exception_count.insert("SVC".into(), 4);
+        let records = crate::k2::EntityRecords {
+            calendars: vec![
+                cal_rec("SVC", no_monday, (2026, 5, 1), (2026, 5, 31)),
+                cal_rec("SVC", all_days(), (2026, 5, 1), (2026, 5, 31)),
+            ],
+            calendar_dates,
+            ..Default::default()
+        };
+        let active_dates: std::collections::HashSet<u32> =
+            [20260518, 20260519, 20260520, 20260521].into_iter().collect();
+        let derived = DerivedData {
+            calendar_bitmap: CalendarBitmap {
+                active_dates: [("SVC".to_string(), active_dates)].into_iter().collect(),
+            },
+            ..Default::default()
+        };
+
+        let result = analyze(&records, &derived, &default_config(), 20260519);
+        assert!(
+            !result.notices.iter().any(|n| n.rule_id == "CLD_007"),
+            "ilk duplicate calendar kaydı pazartesi kapalıysa sonraki kayıt CLD_007'yi etkinleştirmemeli"
+        );
+    }
 
     /// In a feed intentionally defined only through `calendar_dates.txt`, EVERY active day is
     /// an exception; `count > active/2` is mathematically guaranteed, and the notice measures
