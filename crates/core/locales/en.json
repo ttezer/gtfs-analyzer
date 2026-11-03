@@ -4091,14 +4091,14 @@
       "action": "Enter consistent progress distances from the start of the route for the affected trips."
     },
     "STM_018": {
-      "title": "Continuous pickup rule at a stop invalid",
-      "what": "For this stop time, the value saying whether boarding along the road (between stops) is allowed is not one of the defined options.",
-      "action": "Set continuous pickup in your scheduling software, or leave it empty if you do not use it."
+      "title": "Continuous pickup setting invalid on a route section",
+      "what": "The continuous pickup setting after {stop} is written as “{value}”. This is not one of the defined options.",
+      "action": "Choose the correct pickup option for this route section: 0 — boarding between stops is allowed; 1 — no boarding between stops; 2 — arrange by phone; 3 — arrange with the driver. Leave this field empty to inherit the route-wide setting."
     },
     "STM_019": {
-      "title": "Continuous drop-off rule at a stop invalid",
-      "what": "For this stop time, the value saying whether alighting along the road (between stops) is allowed is not one of the defined options.",
-      "action": "Set continuous drop-off in your scheduling software, or leave it empty if you do not use it."
+      "title": "Continuous drop-off setting invalid on a route section",
+      "what": "The continuous drop-off setting after {stop} is written as “{value}”. This is not one of the defined options.",
+      "action": "Choose the correct drop-off option for this route section: 0 — alighting between stops is allowed; 1 — no alighting between stops; 2 — arrange by phone; 3 — arrange with the driver. Leave this field empty to inherit the route-wide setting."
     },
     "STM_020": {
       "title": "Zero travel time between distant stops",

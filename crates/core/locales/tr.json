@@ -2166,14 +2166,14 @@
       "action": "Etkilenen seferlerde durakların güzergâh başlangıcından itibaren ilerleme mesafesini tutarlı biçimde girin."
     },
     "STM_018": {
-      "title": "Durakta hat boyunca biniş kuralı geçersiz",
-      "what": "Bu durak saatinde, hat boyunca (durak dışında) binişe izin verilip verilmediğini belirten değer tanımlı seçeneklerden biri değil.",
-      "action": "Hat boyunca binişe izin durumunu planlama yazılımında seçin veya bu ayarı kullanmıyorsanız boş bırakın."
+      "title": "Hat bölümünde biniş ayarı geçersiz",
+      "what": "{stop} durağından sonraki hat bölümünde yolcu alma ayarı “{value}” olarak yazılmış. Bu değer tanımlı seçeneklerden biri değil.",
+      "action": "Bu hat bölümü için doğru yolcu alma seçeneğini belirleyin: 0 — duraklar arasında biniş serbest; 1 — duraklar arasında biniş yok; 2 — telefonla ayarlanır; 3 — sürücüyle ayarlanır. Hat genelindeki ayarı kullanacaksanız bu alanı boş bırakın."
     },
     "STM_019": {
-      "title": "Durakta hat boyunca iniş kuralı geçersiz",
-      "what": "Bu durak saatinde, hat boyunca (durak dışında) inişe izin verilip verilmediğini belirten değer tanımlı seçeneklerden biri değil.",
-      "action": "Hat boyunca inişe izin durumunu planlama yazılımında seçin veya bu ayarı kullanmıyorsanız boş bırakın."
+      "title": "Hat bölümünde iniş ayarı geçersiz",
+      "what": "{stop} durağından sonraki hat bölümünde yolcu indirme ayarı “{value}” olarak yazılmış. Bu değer tanımlı seçeneklerden biri değil.",
+      "action": "Bu hat bölümü için doğru yolcu indirme seçeneğini belirleyin: 0 — duraklar arasında iniş serbest; 1 — duraklar arasında iniş yok; 2 — telefonla ayarlanır; 3 — sürücüyle ayarlanır. Hat genelindeki ayarı kullanacaksanız bu alanı boş bırakın."
     },
     "STM_020": {
       "title": "Uzak iki durak arasında süre sıfır",

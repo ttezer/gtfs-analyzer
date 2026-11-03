@@ -50,8 +50,13 @@ pub fn report_with_whitespace_suppressions(
     coverage_complete: bool,
     early_suppressions: WhitespaceSuppressions,
 ) -> K7Result {
-    let notices =
-        prepare_notices(all_notices, records, derived, already_deduped, early_suppressions);
+    let notices = prepare_notices(
+        all_notices,
+        records,
+        derived,
+        already_deduped,
+        early_suppressions,
+    );
     report_prepared(notices, records, derived, file_stats, coverage_complete)
 }
 
@@ -231,7 +236,9 @@ pub fn suppress_whitespace_derivatives(
         let Some((count, rules)) = suppressed.get(file) else {
             continue;
         };
-        let details = root.details.get_or_insert_with(gtfs_core::NoticeDetails::new);
+        let details = root
+            .details
+            .get_or_insert_with(gtfs_core::NoticeDetails::new);
         details.insert("suppressed_derivative_count".to_string(), count.to_string());
         details.insert(
             "suppressed_derivative_rules".to_string(),
@@ -746,12 +753,8 @@ impl<'a> IdSets<'a> {
             stop_id: id_set(records.stops.len()),
             route_id: id_set(records.routes.len()),
             trip_id: id_set(records.trips.len()),
-            service_id: id_set(
-                records.calendars.len() + records.trip_interns.service_ids.len(),
-            ),
-            fare_id: id_set(
-                records.fare_attributes.len() + records.fare_rules.len(),
-            ),
+            service_id: id_set(records.calendars.len() + records.trip_interns.service_ids.len()),
+            fare_id: id_set(records.fare_attributes.len() + records.fare_rules.len()),
             area_id: id_set(records.areas.len()),
             fare_product_id: id_set(records.fare_products.len()),
             fare_media_id: id_set(records.fare_media.len()),
@@ -759,9 +762,7 @@ impl<'a> IdSets<'a> {
             network_id: id_set(records.networks.len()),
             shape_id: id_set(records.trips.len() + records.shapes.len()),
             zone_id: id_set(records.stops.len()),
-            stop_times_trip_id: id_set(
-                records.stop_times_index.trip_id_set.len(),
-            ),
+            stop_times_trip_id: id_set(records.stop_times_index.trip_id_set.len()),
             fare_attributes_fare_id: id_set(records.fare_attributes.len()),
         };
         refs.agency_id.extend(
@@ -935,6 +936,21 @@ fn fill_service_ids(mut notices: Vec<Notice>, records: &EntityRecords) -> Vec<No
             if let Some(eid) = n.entity_id.as_deref() {
                 if let Some(&svc) = trip_service.get(eid) {
                     n.service_id = Some(svc.to_string());
+                }
+            }
+        }
+        if let Some(details) = n.details.as_mut() {
+            for i in 0.. {
+                let trip_key = format!("example_{i}_trip");
+                let Some(trip_id) = details.get(&trip_key).cloned() else {
+                    break;
+                };
+                let service_key = format!("example_{i}_service_id");
+                if details.contains_key(&service_key) {
+                    continue;
+                }
+                if let Some(&service_id) = trip_service.get(trip_id.as_str()) {
+                    details.insert(service_key, service_id.to_string());
                 }
             }
         }
@@ -1693,7 +1709,9 @@ fn r5_rule_penalties(notices: &[Notice]) -> HashMap<&str, R5RulePenalty> {
             .or_insert_with(|| R5RulePenalty {
                 class: n.rule_class,
                 weight: n.severity.weight()
-                    * get_rule(&n.rule_id).map(|meta| meta.score_weight).unwrap_or(1.0),
+                    * get_rule(&n.rule_id)
+                        .map(|meta| meta.score_weight)
+                        .unwrap_or(1.0),
                 count: 0,
             })
             .count += 1;
@@ -1708,7 +1726,10 @@ fn r5_overall(rules: &HashMap<&str, R5RulePenalty>, removed: &HashMap<&str, u32>
     let remaining = |id: &str| {
         rules
             .get(id)
-            .map(|r| r.count.saturating_sub(removed.get(id).copied().unwrap_or(0)))
+            .map(|r| {
+                r.count
+                    .saturating_sub(removed.get(id).copied().unwrap_or(0))
+            })
             .unwrap_or(0)
     };
     let has_opr011 = remaining("OPR_011") > 0;
@@ -1738,11 +1759,12 @@ fn class_score(notices: &[Notice], class: RuleClass) -> f64 {
     let has_opr011 = notices.iter().any(|n| n.rule_id == "OPR_011");
     let has_stm033 = notices.iter().any(|n| n.rule_id == "STM_033");
     for n in notices.iter().filter(|n| n.rule_class == class) {
-        let e = per_rule.entry(n.rule_id.as_str()).or_insert_with(|| (
-                n.severity.weight()
-                    * notice_score_weight(n, has_opr011, has_stm033),
+        let e = per_rule.entry(n.rule_id.as_str()).or_insert_with(|| {
+            (
+                n.severity.weight() * notice_score_weight(n, has_opr011, has_stm033),
                 0,
-            ));
+            )
+        });
         e.1 += 1;
     }
     let penalty: f64 = per_rule
@@ -2493,18 +2515,30 @@ mod tests {
     #[test]
     fn score_delta_matches_r5_without_the_rule() {
         let mut all: Vec<Notice> = (0..60)
-            .map(|i| notice(&format!("a{i}"), "RULE_A", Severity::Yuksek, RuleClass::Spec))
+            .map(|i| {
+                notice(
+                    &format!("a{i}"),
+                    "RULE_A",
+                    Severity::Yuksek,
+                    RuleClass::Spec,
+                )
+            })
             .collect();
         all.push(notice("b0", "RULE_B", Severity::Orta, RuleClass::Quality));
         let r9 = build_r9(&all, &resolve_symptoms(&all));
         let item = r9.items.iter().find(|i| i.rule_id == "RULE_A").unwrap();
 
-        let without: Vec<Notice> = all.iter().filter(|n| n.rule_id != "RULE_A").cloned().collect();
+        let without: Vec<Notice> = all
+            .iter()
+            .filter(|n| n.rule_id != "RULE_A")
+            .cloned()
+            .collect();
         let expected = r5_overall(&r5_rule_penalties(&without), &HashMap::new())
             - r5_overall(&r5_rule_penalties(&all), &HashMap::new());
         assert_eq!(item.score_delta, round1(expected));
         assert!(
-            (r5_overall(&r5_rule_penalties(&all), &HashMap::new()) - build_r5_unrounded(&all)).abs()
+            (r5_overall(&r5_rule_penalties(&all), &HashMap::new()) - build_r5_unrounded(&all))
+                .abs()
                 < 1e-9
         );
     }
@@ -2515,7 +2549,14 @@ mod tests {
     fn score_delta_does_not_depend_on_sample_count_past_saturation() {
         let delta = |n: usize| {
             let all: Vec<Notice> = (0..n)
-                .map(|i| notice(&format!("a{i}"), "RULE_A", Severity::Yuksek, RuleClass::Spec))
+                .map(|i| {
+                    notice(
+                        &format!("a{i}"),
+                        "RULE_A",
+                        Severity::Yuksek,
+                        RuleClass::Spec,
+                    )
+                })
                 .collect();
             build_r9(&all, &resolve_symptoms(&all)).items[0].score_delta
         };

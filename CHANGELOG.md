@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add the affected route section, stop times, service context, and focused real geometry to the `STM_018` planner card.
+- Match the `STM_019` planner card to `STM_018` with route-section evidence, stop times, service context, and focused real geometry.
 - Split the `STM_017` planner card into feed-summary and trip evidence, with affected trip examples, missing-stop tables, service context, and focused maps.
 - Add the first stop's next two actual stops and their times to the `STM_015` planner card.
 - Add the last stop's previous two actual stops and their times to the `STM_016` planner card.

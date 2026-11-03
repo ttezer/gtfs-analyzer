@@ -645,6 +645,135 @@ describe('Saat kuralları ve kayıt sayıları', () => {
     expect(map.opts.focusZoom).toBe(14);
   });
 
+  it('STM_018 çalışma takvimini, gerçek hat bölümünü ve geçersiz ayarı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar' },
+      routes: { R1: 'S08' }, trips: { T1: 'Otogar' }, trip_routes: { T1: 'R1' },
+      trip_directions: { T1: '0' }, trip_first_dep: { T1: '06:15' },
+      trip_shapes: { T1: 'SH1' }, route_shapes: { R1: ['SH1'] }, shape_routes: { SH1: [['R1', '0']] },
+      shape_coords: { SH1: [[37.00, 37.30], [37.005, 37.305], [37.01, 37.31], [37.02, 37.32]] },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [37.00, 37.30], S2: [37.01, 37.31], S3: [37.02, 37.32] },
+      service_days: { HI: ['1111100', '20260101', '20261231', '0'] },
+    };
+    const n = notice('a', 'STM_018', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', service_id: 'HI', observed_value: '9', expected_value: '0-3',
+      details: {
+        stop_id: 'S1', stop_sequence: '1', arrival: '06:15:00', departure: '06:15:00',
+        next_stop_id: 'S2', next_stop_sequence: '2', next_arrival: '06:18:00', next_departure: '06:18:00',
+      },
+    });
+    const r = result([n], [], [['STM_018', 2, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Hat bölümünde biniş ayarı geçersiz');
+    expect(el.innerHTML).toContain('S08 hattı · Otogar yönü · sefer başlangıcı 06:15');
+    expect(el.innerHTML).toContain('Onkoloji ile Binevler arasındaki hat bölümünde yolcu alma ayarı “9” olarak yazılmış.');
+    expect(el.innerHTML).toContain('Hat genelindeki ayarı kullanacaksanız bu alanı boş bırakın.');
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).toContain('<tr class="bad"><td>Onkoloji</td><td>1</td><td>06:15</td><td>06:15</td><td>9</td>');
+    expect(el.innerHTML).toContain('<td>Binevler</td><td>2</td><td>06:18</td><td>06:18</td><td>Bölümün sonu</td>');
+    const map = plannerMap(n, r);
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(ni.shape_coords.SH1);
+    expect(map.opts.extraPolylines?.[1].coords).toEqual(ni.shape_coords.SH1.slice(0, 3));
+    expect(map.opts.extraPolylines?.[1].zoomTo).toBe(true);
+    expect(map.opts.pins).toHaveLength(3);
+    expect(map.opts.pins.find(pin => pin.primary)?.label).toContain('Onkoloji');
+    expect(map.opts.focus).toBeUndefined();
+  });
+
+  it('STM_018 feed özetini gerçek sefer örneklerine açıp çalışma günlerini gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hospital', S2: 'Roosevelt' }, routes: { R1: 'Purple' },
+      trips: { T1: 'Hospital' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '05:35' },
+      service_days: { WEEKDAY: ['1111100', '20210601', '20240701', '0'] },
+    };
+    const summary = notice('a', 'STM_018', 'MEDIUM', {
+      entity_type: 'Feed', file: 'stop_times.txt', observed_value: '1664',
+      details: {
+        affected_rows: '1664', example_0_trip: 'T1', example_0_line: '2',
+        example_0_service_id: 'WEEKDAY', example_0_observed: '-999', example_0_expected: '0-3',
+        example_0_stop_id: 'S1', example_0_stop_sequence: '1', example_0_arrival: '05:35:00', example_0_departure: '05:35:00',
+        example_0_next_stop_id: 'S2', example_0_next_stop_sequence: '2', example_0_next_arrival: '05:42:00', example_0_next_departure: '05:42:00',
+      },
+    });
+    const el = root();
+    renderProducer(el, result([summary], [], [['STM_018', 2, 1664]], true, ni));
+    expect(el.innerHTML).toContain('<strong>1.664</strong><span>durak saati</span>');
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).toContain('<td>Hospital → Roosevelt</td><td>-999</td>');
+    expect(el.innerHTML).toContain('Hospital ile Roosevelt arasındaki hat bölümünde yolcu alma ayarı “-999” olarak yazılmış.');
+  });
+
+  it('STM_019 çalışma takvimini, gerçek hat bölümünü ve geçersiz ayarı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar' },
+      routes: { R1: 'S08' }, trips: { T1: 'Otogar' }, trip_routes: { T1: 'R1' },
+      trip_directions: { T1: '0' }, trip_first_dep: { T1: '06:15' },
+      trip_shapes: { T1: 'SH1' }, route_shapes: { R1: ['SH1'] }, shape_routes: { SH1: [['R1', '0']] },
+      shape_coords: { SH1: [[37.00, 37.30], [37.005, 37.305], [37.01, 37.31], [37.02, 37.32]] },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [37.00, 37.30], S2: [37.01, 37.31], S3: [37.02, 37.32] },
+      service_days: { HI: ['1111100', '20260101', '20261231', '0'] },
+    };
+    const n = notice('a', 'STM_019', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', service_id: 'HI', observed_value: '9', expected_value: '0-3',
+      details: {
+        stop_id: 'S1', stop_sequence: '1', arrival: '06:15:00', departure: '06:15:00',
+        next_stop_id: 'S2', next_stop_sequence: '2', next_arrival: '06:18:00', next_departure: '06:18:00',
+      },
+    });
+    const r = result([n], [], [['STM_019', 2, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Hat bölümünde iniş ayarı geçersiz');
+    expect(el.innerHTML).toContain('S08 hattı · Otogar yönü · sefer başlangıcı 06:15');
+    expect(el.innerHTML).toContain('Onkoloji ile Binevler arasındaki hat bölümünde yolcu indirme ayarı “9” olarak yazılmış.');
+    expect(el.innerHTML).toContain('Hat genelindeki ayarı kullanacaksanız bu alanı boş bırakın.');
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).toContain('<th>Hat boyunca iniş ayarı</th>');
+    expect(el.innerHTML).toContain('<tr class="bad"><td>Onkoloji</td><td>1</td><td>06:15</td><td>06:15</td><td>9</td>');
+    expect(el.innerHTML).toContain('<td>Binevler</td><td>2</td><td>06:18</td><td>06:18</td><td>Bölümün sonu</td>');
+    const map = plannerMap(n, r);
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(ni.shape_coords.SH1);
+    expect(map.opts.extraPolylines?.[1].coords).toEqual(ni.shape_coords.SH1.slice(0, 3));
+    expect(map.opts.extraPolylines?.[1].zoomTo).toBe(true);
+    expect(map.opts.pins).toHaveLength(3);
+    expect(map.opts.pins.find(pin => pin.primary)?.label).toContain('Onkoloji');
+    expect(map.opts.focus).toBeUndefined();
+  });
+
+  it('STM_019 feed özetini gerçek sefer örneklerine açıp çalışma günlerini gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hospital', S2: 'Roosevelt' }, routes: { R1: 'Purple' },
+      trips: { T1: 'Hospital' }, trip_routes: { T1: 'R1' }, trip_first_dep: { T1: '05:35' },
+      service_days: { WEEKDAY: ['1111100', '20210601', '20240701', '0'] },
+    };
+    const summary = notice('a', 'STM_019', 'MEDIUM', {
+      entity_type: 'Feed', file: 'stop_times.txt', observed_value: '1664',
+      details: {
+        affected_rows: '1664', example_0_trip: 'T1', example_0_line: '2',
+        example_0_service_id: 'WEEKDAY', example_0_observed: '-999', example_0_expected: '0-3',
+        example_0_stop_id: 'S1', example_0_stop_sequence: '1', example_0_arrival: '05:35:00', example_0_departure: '05:35:00',
+        example_0_next_stop_id: 'S2', example_0_next_stop_sequence: '2', example_0_next_arrival: '05:42:00', example_0_next_departure: '05:42:00',
+      },
+    });
+    const el = root();
+    renderProducer(el, result([summary], [], [['STM_019', 2, 1664]], true, ni));
+    expect(el.innerHTML).toContain('<strong>1.664</strong><span>durak saati</span>');
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).toContain('<td>Hospital → Roosevelt</td><td>-999</td>');
+    expect(el.innerHTML).toContain('Hospital ile Roosevelt arasındaki hat bölümünde yolcu indirme ayarı “-999” olarak yazılmış.');
+  });
+
   it('tek duraklı STM_015 seferinde aynı hat ve yönün gerçek güzergâhını ve durağı gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

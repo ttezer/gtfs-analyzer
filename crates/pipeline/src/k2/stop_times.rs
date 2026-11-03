@@ -369,9 +369,83 @@ impl StopTimesIndex {
                 let Some(other) = other.and_then(|j| rows.get(j)) else {
                     continue;
                 };
-                d.insert(format!("{side}_stop_id"), self.stop_id_of(other).to_string());
+                d.insert(
+                    format!("{side}_stop_id"),
+                    self.stop_id_of(other).to_string(),
+                );
                 d.insert(format!("{side}_arrival"), label(other, true));
                 d.insert(format!("{side}_departure"), label(other, false));
+            }
+        }
+    }
+
+    /// STM_018/019: identify the stop-time row carrying the invalid continuous-service value
+    /// and the next stop, because the setting applies from this row to the next row in stop_sequence.
+    fn add_continuous_service_context(&self, notices: &mut [Notice]) {
+        for n in notices
+            .iter_mut()
+            .filter(|n| matches!(n.rule_id.as_str(), "STM_018" | "STM_019"))
+        {
+            let examples: Vec<(String, String, u64)> =
+                if let (Some(trip_id), Some(line)) = (n.entity_id.as_deref(), n.line) {
+                    vec![(String::new(), trip_id.to_string(), line)]
+                } else {
+                    let Some(details) = n.details.as_ref() else {
+                        continue;
+                    };
+                    (0..)
+                        .map_while(|i| {
+                            let trip = details.get(&format!("example_{i}_trip"))?.clone();
+                            let line = details
+                                .get(&format!("example_{i}_line"))?
+                                .parse::<u64>()
+                                .ok()?;
+                            Some((format!("example_{i}_"), trip, line))
+                        })
+                        .collect()
+                };
+            let d = n.details.get_or_insert_with(Default::default);
+            for (prefix, trip_id, line) in examples {
+                let Some(rows) = self.sorted_stops(&trip_id) else {
+                    continue;
+                };
+                let Some(i) = rows.iter().position(|r| r.line_u64() == line) else {
+                    continue;
+                };
+                let row = &rows[i];
+                d.insert(format!("{prefix}stop_id"), self.stop_id_of(row).to_string());
+                if row.sequence != u32::MAX {
+                    d.insert(format!("{prefix}stop_sequence"), row.sequence.to_string());
+                }
+                d.insert(
+                    format!("{prefix}arrival"),
+                    row_time_label(row.arrival_secs, None),
+                );
+                d.insert(
+                    format!("{prefix}departure"),
+                    row_time_label(row.departure_secs, None),
+                );
+                let Some(next) = rows.get(i + 1) else {
+                    continue;
+                };
+                d.insert(
+                    format!("{prefix}next_stop_id"),
+                    self.stop_id_of(next).to_string(),
+                );
+                if next.sequence != u32::MAX {
+                    d.insert(
+                        format!("{prefix}next_stop_sequence"),
+                        next.sequence.to_string(),
+                    );
+                }
+                d.insert(
+                    format!("{prefix}next_arrival"),
+                    row_time_label(next.arrival_secs, None),
+                );
+                d.insert(
+                    format!("{prefix}next_departure"),
+                    row_time_label(next.departure_secs, None),
+                );
             }
         }
     }
@@ -2624,10 +2698,13 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         ),
                         remediation,
                     );
-                    notice.details = Some(std::collections::BTreeMap::from([(
-                        "message_variant".to_string(),
-                        message_variant.to_string(),
-                    )]).into());
+                    notice.details = Some(
+                        std::collections::BTreeMap::from([(
+                            "message_variant".to_string(),
+                            message_variant.to_string(),
+                        )])
+                        .into(),
+                    );
                     st.notices.push(notice);
                 }
             }
@@ -3712,7 +3789,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             d.insert("prev2_stop_id".to_string(), id);
                         }
                         d.insert("prev2_line".to_string(), previous2.line.to_string());
-                        d.insert("prev2_stop_sequence".to_string(), previous2.sequence.to_string());
+                        d.insert(
+                            "prev2_stop_sequence".to_string(),
+                            previous2.sequence.to_string(),
+                        );
                         if previous2.dist_f32.is_finite() {
                             d.insert(
                                 "prev2_shape_dist_traveled".to_string(),
@@ -3740,7 +3820,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                             d.insert("next2_stop_id".to_string(), id);
                         }
                         d.insert("next2_line".to_string(), next2.line.to_string());
-                        d.insert("next2_stop_sequence".to_string(), next2.sequence.to_string());
+                        d.insert(
+                            "next2_stop_sequence".to_string(),
+                            next2.sequence.to_string(),
+                        );
                         if next2.dist_f32.is_finite() {
                             d.insert(
                                 "next2_shape_dist_traveled".to_string(),
@@ -3771,7 +3854,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     }
                     d.insert("prev_stop_sequence".to_string(), a.sequence.to_string());
                     d.insert("stop_sequence".to_string(), b.sequence.to_string());
-                    d.insert("prev_shape_dist_traveled".to_string(), a.dist_f32.to_string());
+                    d.insert(
+                        "prev_shape_dist_traveled".to_string(),
+                        a.dist_f32.to_string(),
+                    );
                     d.insert("shape_dist_traveled".to_string(), b.dist_f32.to_string());
                     // The feed-summary branch (`finalize_stm_pending`) writes affected_rows/example_trips;
                     // the pinpoint branch carries the same keys so the one template is populated in both branches.
@@ -3896,6 +3982,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
     index.add_malformed_time_context(&mut st.notices);
     index.add_missing_stop_time_context(&mut st.notices);
+    index.add_continuous_service_context(&mut st.notices);
 
     // ── trip_stop_set post-finalize construction (#38 peak-2) ──────────────────
     // TripAggs were dropped (stop_idx_set heaps freed); rebuild per-trip unique stop_idx sets
@@ -4000,6 +4087,41 @@ fn finalize_stm_pending(
         d.insert("affected_rows".to_string(), n.to_string());
         if !examples.is_empty() {
             d.insert("example_trips".to_string(), examples.join(", "));
+        }
+        if matches!(rule_id, "STM_018" | "STM_019") {
+            let mut rows: Vec<&Notice> = pending
+                .iter()
+                .filter(|notice| notice.entity_id.is_some() && notice.line.is_some())
+                .collect();
+            rows.sort_by(|a, b| {
+                a.entity_id
+                    .cmp(&b.entity_id)
+                    .then_with(|| a.line.cmp(&b.line))
+            });
+            let mut last_trip: Option<&str> = None;
+            let mut index = 0;
+            for row in rows {
+                let trip = row.entity_id.as_deref().unwrap_or_default();
+                if last_trip == Some(trip) {
+                    continue;
+                }
+                last_trip = Some(trip);
+                d.insert(format!("example_{index}_trip"), trip.to_string());
+                d.insert(
+                    format!("example_{index}_line"),
+                    row.line.unwrap_or_default().to_string(),
+                );
+                if let Some(value) = row.observed_value.as_ref() {
+                    d.insert(format!("example_{index}_observed"), value.clone());
+                }
+                if let Some(value) = row.expected_value.as_ref() {
+                    d.insert(format!("example_{index}_expected"), value.clone());
+                }
+                index += 1;
+                if index == 10 {
+                    break;
+                }
+            }
         }
         notice.details = Some(d.into());
         notices.push(notice);
@@ -4951,13 +5073,48 @@ mod tests {
                 .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
         );
+        assert_eq!(
+            stm018[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_0_trip"))
+                .map(String::as_str),
+            Some("T00"),
+        );
+        assert_eq!(
+            stm018[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_0_observed"))
+                .map(String::as_str),
+            Some("9"),
+        );
+        assert_eq!(
+            stm018[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_0_stop_id"))
+                .map(String::as_str),
+            Some("T00"),
+        );
     }
 
     #[test]
     fn stm018_at_or_below_threshold_keeps_pinpoint_notices() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "continuous_pickup"],
-            vec![vec!["T2", "S2", "9"], vec!["T1", "S1", "9"]],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "continuous_pickup",
+            ],
+            vec![
+                vec!["T2", "09:00:00", "09:00:00", "S2", "1", "9"],
+                vec!["T2", "09:05:00", "09:05:00", "S3", "2", "1"],
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", "9"],
+            ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm018: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_018").collect();
@@ -4967,7 +5124,22 @@ mod tests {
             "düşük hacimde iki pinpoint notice korunmalı"
         );
         assert!(stm018.iter().all(|n| n.entity_type == EntityType::Trip));
-        assert!(stm018.iter().all(|n| n.details.is_none()));
+        let t2 = stm018
+            .iter()
+            .find(|n| n.entity_id.as_deref() == Some("T2"))
+            .expect("T2 STM_018 notice");
+        let details = t2.details.as_ref().expect("pinpoint stop context");
+        assert_eq!(details.get("stop_id").map(String::as_str), Some("S2"));
+        assert_eq!(details.get("stop_sequence").map(String::as_str), Some("1"));
+        assert_eq!(details.get("next_stop_id").map(String::as_str), Some("S3"));
+        assert_eq!(
+            details.get("next_stop_sequence").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("next_arrival").map(String::as_str),
+            Some("09:05:00")
+        );
     }
 
     #[test]
@@ -5002,6 +5174,30 @@ mod tests {
                 .and_then(|d| d.get("example_trips"))
                 .map(String::as_str),
             Some("T00, T01, T02, T03, T04"),
+        );
+        assert_eq!(
+            stm019[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_0_trip"))
+                .map(String::as_str),
+            Some("T00"),
+        );
+        assert_eq!(
+            stm019[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_0_observed"))
+                .map(String::as_str),
+            Some("9"),
+        );
+        assert_eq!(
+            stm019[0]
+                .details
+                .as_ref()
+                .and_then(|d| d.get("example_0_stop_id"))
+                .map(String::as_str),
+            Some("T00"),
         );
     }
 
@@ -5042,8 +5238,19 @@ mod tests {
     #[test]
     fn stm019_at_or_below_threshold_keeps_pinpoint_notices() {
         let file = make_file(
-            vec!["trip_id", "stop_id", "continuous_drop_off"],
-            vec![vec!["T2", "S2", "9"], vec!["T1", "S1", "9"]],
+            vec![
+                "trip_id",
+                "arrival_time",
+                "departure_time",
+                "stop_id",
+                "stop_sequence",
+                "continuous_drop_off",
+            ],
+            vec![
+                vec!["T2", "09:00:00", "09:00:00", "S2", "1", "9"],
+                vec!["T2", "09:05:00", "09:05:00", "S3", "2", "1"],
+                vec!["T1", "08:00:00", "08:00:00", "S1", "1", "9"],
+            ],
         );
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm019: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_019").collect();
@@ -5053,7 +5260,22 @@ mod tests {
             "düşük hacimde iki pinpoint notice korunmalı"
         );
         assert!(stm019.iter().all(|n| n.entity_type == EntityType::Trip));
-        assert!(stm019.iter().all(|n| n.details.is_none()));
+        let t2 = stm019
+            .iter()
+            .find(|n| n.entity_id.as_deref() == Some("T2"))
+            .expect("T2 STM_019 notice");
+        let details = t2.details.as_ref().expect("pinpoint stop context");
+        assert_eq!(details.get("stop_id").map(String::as_str), Some("S2"));
+        assert_eq!(details.get("stop_sequence").map(String::as_str), Some("1"));
+        assert_eq!(details.get("next_stop_id").map(String::as_str), Some("S3"));
+        assert_eq!(
+            details.get("next_stop_sequence").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("next_arrival").map(String::as_str),
+            Some("09:05:00")
+        );
     }
 
     // ── STM_036/032 + finalize output fields (K2 hashmap-merge refactor safety net) ──
@@ -5306,21 +5528,13 @@ mod tests {
             .find(|n| n.entity_id.as_deref() == Some("T00"))
             .expect("T00 STM_056 örneği");
         let details = first.details.as_ref().expect("STM_056 ayrıntısı");
-        assert_eq!(
-            details.get("prev_stop_id").map(String::as_str),
-            Some("S1")
-        );
+        assert_eq!(details.get("prev_stop_id").map(String::as_str), Some("S1"));
         assert_eq!(details.get("stop_id").map(String::as_str), Some("S2"));
         assert_eq!(details.get("prev2_stop_id").map(String::as_str), Some("S0"));
         assert_eq!(details.get("next2_stop_id").map(String::as_str), Some("S4"));
+        assert_eq!(details.get("stop_sequence").map(String::as_str), Some("2"));
         assert_eq!(
-            details.get("stop_sequence").map(String::as_str),
-            Some("2")
-        );
-        assert_eq!(
-            details
-                .get("prev_shape_dist_traveled")
-                .map(String::as_str),
+            details.get("prev_shape_dist_traveled").map(String::as_str),
             Some("100")
         );
     }

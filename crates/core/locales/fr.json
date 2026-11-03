@@ -4091,14 +4091,14 @@
       "action": "Saisissez des distances progressives cohérentes depuis le début du parcours pour les courses concernées."
     },
     "STM_018": {
-      "title": "Règle de montée en continu invalide",
-      "what": "Pour cet horaire, la valeur indiquant si l’on peut monter le long de la route ne fait pas partie des options.",
-      "action": "Réglez la montée en continu dans votre logiciel, ou laissez vide."
+      "title": "Paramètre de montée continue invalide sur une section",
+      "what": "Le paramètre de montée continue après l’arrêt {stop} est « {value} ». Cette valeur ne fait pas partie des options définies.",
+      "action": "Choisissez l’option correcte pour cette section : 0 — montée autorisée entre les arrêts ; 1 — aucune montée entre les arrêts ; 2 — réservation par téléphone ; 3 — accord avec le conducteur. Laissez ce champ vide pour reprendre le réglage de la ligne."
     },
     "STM_019": {
-      "title": "Règle de descente en continu invalide",
-      "what": "Pour cet horaire, la valeur indiquant si l’on peut descendre le long de la route ne fait pas partie des options.",
-      "action": "Réglez la descente en continu dans votre logiciel, ou laissez vide."
+      "title": "Paramètre de descente continue invalide sur une section",
+      "what": "Le paramètre de descente continue après l’arrêt {stop} est « {value} ». Cette valeur ne fait pas partie des options définies.",
+      "action": "Choisissez l’option correcte pour cette section : 0 — descente autorisée entre les arrêts ; 1 — aucune descente entre les arrêts ; 2 — réservation par téléphone ; 3 — accord avec le conducteur. Laissez ce champ vide pour reprendre le réglage de la ligne."
     },
     "STM_020": {
       "title": "Temps nul entre arrêts éloignés",
