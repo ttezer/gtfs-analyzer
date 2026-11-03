@@ -1338,6 +1338,8 @@ const ja: LocaleShape = {
     'producer.card.STM_020.title': "離れた停留所間の所要時間が0",
     'producer.card.STM_020.what': "200m以上離れた連続する2停留所に同じ分が入力され、車両が時間をかけずに移動しているように見えます。",
     'producer.card.STM_020.action': "2停留所の時刻を実際の所要時間に合わせて修正してください。",
+    'producer.card.STM_020.what_detail': "{from} の時刻は {from_time}、{to} の時刻も {to_time} です。停留所位置は約 {distance} メートル離れていますが、この区間の所要時間が0秒になっています。",
+    'producer.card.STM_020.action_detail': "最初の停留所の出発時刻と次の時刻設定済み停留所の到着時刻を確認し、到着を出発より後にしてください。時刻が正しい場合は、両停留所の位置を確認してください。",
     'producer.card.STM_021.title': "連続する2停留所が同じ場所",
     'producer.card.STM_021.what': "便で連続する異なる2停留所が地図上の同じ点にあります。",
     'producer.card.STM_021.action': "2停留所の位置を確認し、違う場所なら正しい位置を入力し、重複なら統合してください。",

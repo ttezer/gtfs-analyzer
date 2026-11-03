@@ -774,6 +774,51 @@ describe('Saat kuralları ve kayıt sayıları', () => {
     expect(el.innerHTML).toContain('Hospital ile Roosevelt arasındaki hat bölümünde yolcu indirme ayarı “-999” olarak yazılmış.');
   });
 
+  it('STM_020 sıfır süreli bölümün saatini, mesafesini, takvimini ve gerçek güzergâhını gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar' },
+      routes: { R1: 'S08' }, trips: { T1: 'Otogar' }, trip_routes: { T1: 'R1' },
+      trip_directions: { T1: '0' }, trip_first_dep: { T1: '08:00' },
+      trip_shapes: { T1: 'SH1' }, route_shapes: { R1: ['SH1'] }, shape_routes: { SH1: [['R1', '0']] },
+      shape_coords: { SH1: [[37.00, 37.30], [37.005, 37.305], [37.01, 37.31], [37.02, 37.32]] },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [37.00, 37.30], S2: [37.01, 37.31], S3: [37.02, 37.32] },
+      service_days: { HI: ['1111100', '20260101', '20261231', '0'] },
+    };
+    const n = notice('a', 'STM_020', 'HIGH', {
+      entity_type: 'Trip', entity_id: 'T1', service_id: 'HI',
+      observed_value: 'duration=0s; distance=640m', expected_value: '> 0s',
+      details: {
+        stop_a: 'S1', stop_b: 'S2', stop_a_sequence: '1', stop_b_sequence: '2',
+        section_start_time: '08:00:30', section_end_time: '08:00:30', distance_meters: '640',
+        intermediate_stop_count: '0',
+        stop_a_arrival: '08:00:30', stop_a_departure: '08:00:30',
+        stop_b_arrival: '08:00:30', stop_b_departure: '08:00:30',
+      },
+    });
+    const r = result([n], [], [['STM_020', 3, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Uzak iki durak arasında süre sıfır');
+    expect(el.innerHTML).toContain('S08 hattı · Otogar yönü · sefer başlangıcı 08:00');
+    expect(el.innerHTML).toContain('Onkoloji durağındaki 08:00:30 ile Binevler durağındaki 08:00:30 aynı.');
+    expect(el.innerHTML).toContain('yaklaşık 640 metre');
+    expect(el.innerHTML).toContain('Saatler doğruysa iki durağın konumlarını kontrol edin.');
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    expect(el.innerHTML).toContain('<td>Onkoloji → Binevler · 640 m</td>');
+    expect(el.innerHTML).toContain('<td>Onkoloji</td><td>1</td><td>08:00:30</td><td>08:00:30</td><td>—</td>');
+    expect(el.innerHTML).toContain('<tr class="bad"><td>Binevler</td><td>2</td><td>08:00:30</td><td>08:00:30</td><td>640</td>');
+    const map = plannerMap(n, r);
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(ni.shape_coords.SH1);
+    expect(map.opts.extraPolylines?.[1].coords).toEqual(ni.shape_coords.SH1.slice(0, 3));
+    expect(map.opts.extraPolylines?.[1].zoomTo).toBe(true);
+    expect(map.opts.pins).toHaveLength(3);
+    expect(map.opts.pins.filter(pin => pin.primary)).toHaveLength(2);
+    expect(map.opts.focus).toBeUndefined();
+  });
+
   it('tek duraklı STM_015 seferinde aynı hat ve yönün gerçek güzergâhını ve durağı gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

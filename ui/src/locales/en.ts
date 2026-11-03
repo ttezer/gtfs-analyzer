@@ -1339,6 +1339,8 @@ const en: LocaleShape = {
     'producer.card.STM_020.title': "Zero travel time between distant stops",
     'producer.card.STM_020.what': "Two consecutive stops more than 200 metres apart have the same minute; the vehicle appears to travel without taking any time.",
     'producer.card.STM_020.action': "Correct the two stops’ times to the real travel time.",
+    'producer.card.STM_020.what_detail': "The time at {from} is {from_time}, and the time at {to} is also {to_time}. Although the stop locations are approximately {distance} metres apart, this section appears to take 0 seconds.",
+    'producer.card.STM_020.action_detail': "Check the departure time at the first stop and the arrival time at the next timed stop; arrival must be later than departure. If the times are correct, check both stop locations.",
     'producer.card.STM_021.title': "Two consecutive stops at the same place",
     'producer.card.STM_021.what': "Two different consecutive stops in the trip appear at the same point on the map.",
     'producer.card.STM_021.action': "Check both stop locations; enter the right location if they differ, merge them if they are copies.",

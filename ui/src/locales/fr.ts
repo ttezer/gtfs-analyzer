@@ -1339,6 +1339,8 @@ const fr: LocaleShape = {
     'producer.card.STM_020.title': "Temps nul entre arrêts éloignés",
     'producer.card.STM_020.what': "Deux arrêts consécutifs à plus de 200 mètres ont la même minute ; le véhicule semble se déplacer instantanément.",
     'producer.card.STM_020.action': "Corrigez les horaires selon le temps de parcours réel.",
+    'producer.card.STM_020.what_detail': "L’heure à {from} est {from_time}, et celle à {to} est également {to_time}. Bien que les arrêts soient distants d’environ {distance} mètres, cette section semble prendre 0 seconde.",
+    'producer.card.STM_020.action_detail': "Vérifiez l’heure de départ au premier arrêt et l’heure d’arrivée au prochain arrêt horaire ; l’arrivée doit être postérieure au départ. Si les heures sont correctes, vérifiez la position des deux arrêts.",
     'producer.card.STM_021.title': "Deux arrêts consécutifs au même endroit",
     'producer.card.STM_021.what': "Deux arrêts différents qui se suivent apparaissent au même point sur la carte.",
     'producer.card.STM_021.action': "Vérifiez leur position ; corrigez-la s’ils sont différents, fusionnez-les s’il s’agit de copies.",

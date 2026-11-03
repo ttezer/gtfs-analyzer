@@ -1337,6 +1337,8 @@ const tr = {
     'producer.card.STM_020.title': "Uzak iki durak arasında süre sıfır",
     'producer.card.STM_020.what': "Aralarında 200 metreden fazla mesafe olan iki ardışık durağa aynı dakika yazılmış; araç bu yolu hiç zaman harcamadan gidiyor görünüyor.",
     'producer.card.STM_020.action': "Bu iki durağın saatlerini gerçek yolculuk süresine göre düzeltin.",
+    'producer.card.STM_020.what_detail': "{from} durağındaki {from_time} ile {to} durağındaki {to_time} aynı. Durak konumları arasında yaklaşık {distance} metre olmasına rağmen bu bölümün yolculuk süresi 0 saniye görünüyor.",
+    'producer.card.STM_020.action_detail': "İlk duraktaki kalkış ile sonraki zamanlı duraktaki varış saatini kontrol edin; varış kalkıştan sonra olmalıdır. Saatler doğruysa iki durağın konumlarını kontrol edin.",
     'producer.card.STM_021.title': "Ardışık iki durak aynı yerde",
     'producer.card.STM_021.what': "Seferde arka arkaya gelen iki farklı durak haritada aynı noktada görünüyor.",
     'producer.card.STM_021.action': "İki durağın konumunu kontrol edin; farklı yerlerdeyse doğru konumu girin, aynı durağın kopyasıysa birleştirin.",

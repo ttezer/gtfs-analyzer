@@ -20,6 +20,23 @@ pub struct K6Result {
     pub skipped_checks: Vec<String>,
 }
 
+#[derive(Debug)]
+struct ZeroTravelSegment {
+    distance_km: f64,
+    line: u64,
+    stop_a: SmolStr,
+    stop_b: SmolStr,
+    sequence_a: u32,
+    sequence_b: u32,
+    section_start_secs: u32,
+    section_end_secs: u32,
+    stop_a_arrival_secs: Option<u32>,
+    stop_a_departure_secs: Option<u32>,
+    stop_b_arrival_secs: Option<u32>,
+    stop_b_departure_secs: Option<u32>,
+    intermediate_stop_count: usize,
+}
+
 /// A conservative identity for the URL comparison rules STP_034/035.
 ///
 /// URL normalization here is intentionally limited to syntax that cannot change
@@ -2079,7 +2096,34 @@ fn check_speed_and_duration<'a>(
             // Stop-ID pairs for all bad segments — each is drawn as a red line on the UI map.
             let mut bad_seg_stops: Vec<(SmolStr, SmolStr)> = Vec::new();
             // STM_020: the longest zero-travel-time segment per trip.
-            let mut worst_zero_seg: Option<(f64, u64, SmolStr, SmolStr, u32, u32)> = None;
+            let mut worst_zero_seg: Option<ZeroTravelSegment> = None;
+            let zero_travel_segment = |a_index: usize, b_index: usize, distance_km: f64| {
+                let a = &stimes[a_index];
+                let b = &stimes[b_index];
+                ZeroTravelSegment {
+                    distance_km,
+                    line: b.line as u64,
+                    stop_a: SmolStr::from(idx.stop_id_of(a)),
+                    stop_b: SmolStr::from(idx.stop_id_of(b)),
+                    sequence_a: a.stop_sequence().unwrap_or(0),
+                    sequence_b: b.stop_sequence().unwrap_or(0),
+                    section_start_secs: a
+                        .departure_time()
+                        .or(a.arrival_time())
+                        .map(hms_to_secs)
+                        .unwrap_or(0),
+                    section_end_secs: b
+                        .arrival_time()
+                        .or(b.departure_time())
+                        .map(hms_to_secs)
+                        .unwrap_or(0),
+                    stop_a_arrival_secs: a.arrival_time().map(hms_to_secs),
+                    stop_a_departure_secs: a.departure_time().map(hms_to_secs),
+                    stop_b_arrival_secs: b.arrival_time().map(hms_to_secs),
+                    stop_b_departure_secs: b.departure_time().map(hms_to_secs),
+                    intermediate_stop_count: b_index.saturating_sub(a_index + 1),
+                }
+            };
 
             for i in 0..stimes.len() - 1 {
                 let a = &stimes[i];
@@ -2154,16 +2198,11 @@ fn check_speed_and_duration<'a>(
                         continue;
                     }
                     if dist_km > 0.2 {
-                        let is_worse = worst_zero_seg.as_ref().is_none_or(|&(d, ..)| dist_km > d);
+                        let is_worse = worst_zero_seg
+                            .as_ref()
+                            .is_none_or(|segment| dist_km > segment.distance_km);
                         if is_worse {
-                            worst_zero_seg = Some((
-                                dist_km,
-                                b.line as u64,
-                                SmolStr::from(idx.stop_id_of(a)),
-                                SmolStr::from(idx.stop_id_of(b)),
-                                a.stop_sequence().unwrap_or(0),
-                                b.stop_sequence().unwrap_or(0),
-                            ));
+                            worst_zero_seg = Some(zero_travel_segment(i, i + 1, dist_km));
                         }
                     }
                     continue;
@@ -2447,16 +2486,11 @@ fn check_speed_and_duration<'a>(
                         Some((format!("{direct_km:.1} km / 0 dk"), direct_km * 60.0))
                     } else {
                         if direct_km > 0.2
-                            && worst_zero_seg.as_ref().is_none_or(|&(d, ..)| direct_km > d)
+                            && worst_zero_seg
+                                .as_ref()
+                                .is_none_or(|segment| direct_km > segment.distance_km)
                         {
-                            worst_zero_seg = Some((
-                                direct_km,
-                                b.line as u64,
-                                SmolStr::from(idx.stop_id_of(a)),
-                                SmolStr::from(idx.stop_id_of(b)),
-                                seq_a,
-                                seq_b,
-                            ));
+                            worst_zero_seg = Some(zero_travel_segment(p, j, direct_km));
                         }
                         None
                     }
@@ -2595,7 +2629,7 @@ fn check_speed_and_duration<'a>(
             }
 
             // STM_020: longest zero-travel-time segment per trip (one notice per trip).
-            if let Some((dist_km, line, stop_a, stop_b, seq_a, seq_b)) = worst_zero_seg {
+            if let Some(segment) = worst_zero_seg {
                 let mut n = k6_notice(
                 ctr,
                 "STM_020",
@@ -2603,26 +2637,60 @@ fn check_speed_and_duration<'a>(
                 Some(trip_id.to_string()),
                 Some(trip_id.to_string()),
                 "stop_times.txt",
-                Some(line),
+                Some(segment.line),
                 Some("arrival_time"),
-                Some(format!("duration=0s; distance={:.0}m", dist_km * 1000.0)),
+                Some(format!(
+                    "duration=0s; distance={:.0}m",
+                    segment.distance_km * 1000.0
+                )),
                 Some("> 0s".to_string()),
                 format!(
                     "'{}' hattının{} seferinde {}. ve {}. duraklar arası {:.0}m mesafe var ama geçiş süresi 0 girilmiş.",
                     route,
                     if dep_str.is_empty() { String::new() } else { format!(" {dep_str}") },
-                    seq_a, seq_b, dist_km * 1000.0,
+                    segment.sequence_a, segment.sequence_b, segment.distance_km * 1000.0,
                 ),
                 "Kalkış/varış zamanlarını doğrulayın; ardışık duraklar arasında geçiş süresi sıfır olamaz.",
             );
-                n.details = Some(
-                    [
-                        ("stop_a".to_string(), stop_a.to_string()),
-                        ("stop_b".to_string(), stop_b.to_string()),
-                    ]
-                    .into_iter()
-                    .collect(),
-                );
+                let mut details = BTreeMap::from([
+                    ("stop_a".to_string(), segment.stop_a.to_string()),
+                    ("stop_b".to_string(), segment.stop_b.to_string()),
+                    (
+                        "stop_a_sequence".to_string(),
+                        segment.sequence_a.to_string(),
+                    ),
+                    (
+                        "stop_b_sequence".to_string(),
+                        segment.sequence_b.to_string(),
+                    ),
+                    (
+                        "section_start_time".to_string(),
+                        format_hms(segment.section_start_secs),
+                    ),
+                    (
+                        "section_end_time".to_string(),
+                        format_hms(segment.section_end_secs),
+                    ),
+                    (
+                        "distance_meters".to_string(),
+                        format!("{:.0}", segment.distance_km * 1000.0),
+                    ),
+                    (
+                        "intermediate_stop_count".to_string(),
+                        segment.intermediate_stop_count.to_string(),
+                    ),
+                ]);
+                for (key, value) in [
+                    ("stop_a_arrival", segment.stop_a_arrival_secs),
+                    ("stop_a_departure", segment.stop_a_departure_secs),
+                    ("stop_b_arrival", segment.stop_b_arrival_secs),
+                    ("stop_b_departure", segment.stop_b_departure_secs),
+                ] {
+                    if let Some(value) = value {
+                        details.insert(key.to_string(), format_hms(value));
+                    }
+                }
+                n.details = Some(details.into());
                 notices.push(n);
             }
         }
@@ -13756,9 +13824,83 @@ mod tests {
             ],
         );
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let notice = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_020")
+            .expect("STM_020 olmalı");
+        let details = notice.details.as_ref().expect("segment context");
+        assert_eq!(details.get("stop_a").map(String::as_str), Some("A"));
+        assert_eq!(details.get("stop_b").map(String::as_str), Some("B"));
+        assert_eq!(
+            details.get("stop_a_sequence").map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(
+            details.get("stop_b_sequence").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("section_start_time").map(String::as_str),
+            Some("08:00:30")
+        );
+        assert_eq!(
+            details.get("section_end_time").map(String::as_str),
+            Some("08:00:30")
+        );
+        assert_eq!(
+            details.get("stop_a_departure").map(String::as_str),
+            Some("08:00:30")
+        );
+        assert_eq!(
+            details.get("stop_b_arrival").map(String::as_str),
+            Some("08:00:30")
+        );
+        assert_eq!(
+            details.get("intermediate_stop_count").map(String::as_str),
+            Some("0")
+        );
         assert!(
-            result.notices.iter().any(|n| n.rule_id == "STM_020"),
-            "STM_020 olmalı"
+            details
+                .get("distance_meters")
+                .and_then(|value| value.parse::<u32>().ok())
+                .is_some_and(|distance| distance > 200),
+            "distance must be planner-visible"
+        );
+    }
+
+    #[test]
+    fn zero_travel_time_keeps_the_longest_segment_context() {
+        let records = records_with(
+            vec![
+                stop("A", 41.0, 29.0),
+                stop("B", 41.003, 29.003),
+                stop("C", 41.05, 29.05),
+            ],
+            vec![route("R1", 3)],
+            vec![trip("T1", "R1")],
+            vec![
+                stoptime("T1", 1, "A", (8, 0, 30), (8, 0, 30), 2),
+                stoptime("T1", 2, "B", (8, 0, 30), (8, 0, 30), 3),
+                stoptime("T1", 3, "C", (8, 0, 30), (8, 0, 30), 4),
+            ],
+        );
+        let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
+        let notice = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_020")
+            .expect("longest zero-time segment");
+        let details = notice.details.as_ref().expect("segment context");
+        assert_eq!(details.get("stop_a").map(String::as_str), Some("B"));
+        assert_eq!(details.get("stop_b").map(String::as_str), Some("C"));
+        assert_eq!(
+            details.get("stop_a_sequence").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("stop_b_sequence").map(String::as_str),
+            Some("3")
         );
     }
 
