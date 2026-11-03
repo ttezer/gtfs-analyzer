@@ -42,7 +42,7 @@ for notice in result["notices"]:
 | `today` | Reference date for calendar checks: `YYYYMMDD` int or `"YYYY-MM-DD"` / `"YYYYMMDD"` string. Defaults to the local date. Pin it for reproducible results. |
 | `config` | Optional mapping of engine settings, e.g. `{"disabled_rule_ids": ["TRP_020"]}`. Unknown keys are rejected. |
 | `include_name_index` | Include the stop/route name lookup table (large; omitted by default) |
-| `lang` | Language of `title`, `message`, and `remediation`: `"en"` (default), `"fr"`, `"ja"`, or `"tr"`, as the CLI's `--lang`. Missing entries fall back to English. |
+| `lang` | Language of `title`, `message`, and `remediation`: `"en"` (default), `"fr"`, `"ja"`, `"tr"`, or `"es"` (Spanish has planner cards only, so these texts stay English), as the CLI's `--lang`. Missing entries fall back to English. |
 
 The returned `dict` is the engine's result object:
 

@@ -1923,5 +1923,3102 @@
     "ResourceLimit.worker_crash_at_stage": "The background validation worker stopped unexpectedly. {detail} (last completed stage: {stage})",
     "InvalidInput.disabled_rule_unknown": "Rule '{rule_id}' in disabled_rule_ids is not a known rule id.",
     "InvalidInput.disabled_rule_spec": "Rule '{rule_id}' is a Spec rule and cannot be disabled: the publishability verdict depends on Spec rules."
+  },
+  "cards": {
+    "AGN_002": {
+      "title": "The operator has no name",
+      "what": "An operator in the operator list has no name; riders cannot see who runs the service.",
+      "action": "Enter the operator name riders know."
+    },
+    "AGN_003": {
+      "title": "The agency's website address is invalid",
+      "what": "The website address provided for {agency} is not a valid URL.",
+      "action": "Enter a valid website address for the agency."
+    },
+    "AGN_004": {
+      "title": "Operator time zone missing or invalid",
+      "what": "The operator has no time zone or an unrecognised one; apps may shift trip times to the wrong hour.",
+      "action": "Enter the time zone with its standard name, such as \"Europe/Istanbul\"."
+    },
+    "AGN_005": {
+      "title": "Operators use different time zones",
+      "what": "Operators in the dataset use different time zones; in one dataset they must all be the same.",
+      "action": "Give all operators the same time zone."
+    },
+    "AGN_006": {
+      "title": "Operator language invalid",
+      "what": "The language code entered for the operator is not recognised.",
+      "action": "Enter the language with a standard code such as \"tr\" or \"en\"."
+    },
+    "AGN_007": {
+      "title": "Operator phone invalid",
+      "what": "The phone number entered for the operator does not look like a number.",
+      "action": "Enter the full number with area code, or leave it empty."
+    },
+    "AGN_008": {
+      "title": "Fare page address invalid",
+      "what": "The address of the operator’s fare information page is not a valid web address.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "AGN_009": {
+      "title": "Operator e-mail invalid",
+      "what": "The e-mail address entered for the operator is not valid.",
+      "action": "Enter the e-mail as name@domain.com, or leave it empty."
+    },
+    "AGN_010": {
+      "title": "Same operator code used twice",
+      "what": "Two operators carry the same code; it becomes unclear which operator a route belongs to.",
+      "action": "Give each operator a unique code, or merge the duplicate records."
+    },
+    "AGN_011": {
+      "title": "Route or fare not linked to an operator",
+      "what": "There are several operators, but some routes or fares do not say which operator they belong to.",
+      "action": "Link every route and fare to its operator."
+    },
+    "AGN_012": {
+      "title": "Contactless payment value invalid",
+      "what": "The value saying whether the operator accepts contactless cards is not one of the defined options.",
+      "action": "Choose \"no information\", \"supported\" or \"not supported\"."
+    },
+    "AGN_013": {
+      "title": "Dataset language and operator language differ",
+      "what": "The language of the dataset does not match the language entered for the operator.",
+      "action": "Make the two languages the same; if the operator really uses a different language, this is fine."
+    },
+    "AGN_014": {
+      "title": "Operator code missing with several operators",
+      "what": "There is more than one operator but some have no code; routes cannot be linked to them.",
+      "action": "Give each operator a unique code."
+    },
+    "AGN_015": {
+      "title": "Operator address is not secure (http)",
+      "what": "The operator’s web address starts with \"http://\"; browsers may show a not-secure warning.",
+      "action": "If the site supports it, change the address to \"https://\"."
+    },
+    "AGN_016": {
+      "title": "Operator phone looks like a placeholder",
+      "what": "The operator phone is a known test or placeholder number; riders may not reach anyone.",
+      "action": "Enter the real customer service number."
+    },
+    "AGN_017": {
+      "title": "Operators declare different languages",
+      "what": "Operators in the dataset declare different languages. This is for information.",
+      "action": "If the network is multilingual this is fine; otherwise use the same language."
+    },
+    "AGN_018": {
+      "title": "The only operator has no code",
+      "what": "There is a single operator and its code is empty. This is harmless now but becomes a problem when a second operator is added.",
+      "action": "Give the operator a code."
+    },
+    "ARC_001": {
+      "title": "The dataset file cannot be opened",
+      "what": "The uploaded ZIP file could not be opened; nothing inside it could be read.",
+      "action": "Export the dataset again from your scheduling software. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_002": {
+      "title": "Characters in a file cannot be read",
+      "what": "A file is not in UTF-8 encoding; letters such as ğ, ş, ı in stop and route names may look broken and the file could not be fully checked.",
+      "action": "Choose UTF-8 as the character encoding when exporting. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_003": {
+      "title": "Encoding error in an optional file",
+      "what": "An optional file is not in UTF-8 encoding; the names in it may look broken.",
+      "action": "Choose UTF-8 as the character encoding when exporting. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_004": {
+      "title": "Required file is missing",
+      "what": "A required GTFS file is missing.",
+      "action": "Add the missing file to the dataset."
+    },
+    "ARC_006": {
+      "title": "An optional GTFS file is present",
+      "what": "The dataset contains an optional file defined by the standard. This is for information.",
+      "action": "No action needed."
+    },
+    "ARC_007": {
+      "title": "Unrecognised file",
+      "what": "The dataset contains a file that is not part of the GTFS standard; some apps may ignore it.",
+      "action": "Check whether the file is needed; if not, leave it out of the export."
+    },
+    "ARC_008": {
+      "title": "Service calendar files are missing",
+      "what": "A file that defines the service calendar is missing.",
+      "action": "Add the service calendar files to the dataset."
+    },
+    "ARC_009": {
+      "title": "Optional file is empty",
+      "what": "An optional file contains only the header row and no records.",
+      "action": "If there is nothing to put in it, leave the file out of the export."
+    },
+    "ARC_010": {
+      "title": "Invisible mark at the start of the file",
+      "what": "The file starts with an invisible encoding mark (BOM); most apps read it, some may misname the first column.",
+      "action": "Use the \"UTF-8 without BOM\" option when exporting. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_011": {
+      "title": "File size",
+      "what": "The size of the files in the dataset is shown for information.",
+      "action": "No action needed."
+    },
+    "ARC_012": {
+      "title": "File row structure is invalid",
+      "what": "A row in {file} has a different number of fields than its header.",
+      "action": "Correct the row and export the file again."
+    },
+    "ARC_013": {
+      "title": "File rows cannot be read",
+      "what": "Quotes, commas or line endings in a file are broken, so rows cannot be split correctly.",
+      "action": "Export the dataset again. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_014": {
+      "title": "Spaces in column names",
+      "what": "Column names in a file’s header row have spaces at the start or end; some apps may not recognise the column.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_015": {
+      "title": "The same column appears twice",
+      "what": "The same column name appears twice in a file; apps cannot tell which one to read.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_017": {
+      "title": "Non-standard column",
+      "what": "A file has a column not defined in the GTFS standard; some apps may ignore it.",
+      "action": "If the column is a deliberate addition this is fine; otherwise leave it out of the export."
+    },
+    "ARC_018": {
+      "title": "Empty row",
+      "what": "A file contains a completely empty row.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_019": {
+      "title": "Column name is empty",
+      "what": "A file’s header row has a column without a name, usually caused by an extra comma.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_020": {
+      "title": "Recommended file missing",
+      "what": "The dataset has no route shapes file or no dataset information file (publisher, validity dates).",
+      "action": "Add the route shapes and the dataset information to the export."
+    },
+    "ARC_021": {
+      "title": "Invisible characters in text",
+      "what": "Some fields contain special characters that are invisible or look broken; stop or route names may look odd in apps.",
+      "action": "Retype the affected names and texts in your scheduling software."
+    },
+    "ARC_022": {
+      "title": "Very large file",
+      "what": "A file has more than one million rows. This is not an error; some apps may take longer to process it.",
+      "action": "No action needed."
+    },
+    "ARC_023": {
+      "title": "A ZIP inside the ZIP",
+      "what": "The dataset file contains a second ZIP file; most apps do not read the inner file.",
+      "action": "Put the GTFS files directly into a single ZIP. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_024": {
+      "title": "GTFS files are not at the top of the archive",
+      "what": "The GTFS files sit in a subfolder of the ZIP, so some apps may not be able to read them.",
+      "action": "Move the GTFS files to the top level of the ZIP."
+    },
+    "ARC_025": {
+      "title": "A required field is missing from the file",
+      "what": "The header of {file} does not contain the {field} field.",
+      "action": "Add the missing required field to the file."
+    },
+    "ARC_026": {
+      "title": "Broken line endings in a file",
+      "what": "Line endings in a file are not standard; some apps may merge rows.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_027": {
+      "title": "File read permission is off",
+      "what": "A file inside the ZIP has its read permission turned off; some systems may not open it.",
+      "action": "Package the dataset again. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_028": {
+      "title": "Publication address does not end in .zip",
+      "what": "The web address where the dataset is published does not end in a .zip file name; some apps may not recognise it as a dataset.",
+      "action": "Publish the dataset at a permanent address ending in \".zip\"."
+    },
+    "ARC_029": {
+      "title": "File exceeded the safety limit",
+      "what": "The ZIP file grew abnormally while being opened; processing was stopped for safety.",
+      "action": "Export the dataset again and retry. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_030": {
+      "title": "Tab or line break inside text",
+      "what": "A field value contains a tab or line break; the text may appear split in apps.",
+      "action": "Retype the name or description on a single line."
+    },
+    "ARC_031": {
+      "title": "Feed information is missing while translations are used",
+      "what": "A translations file is present, but the dataset language is not specified.",
+      "action": "Add the dataset information and specify the feed language."
+    },
+    "ARC_032": {
+      "title": "HTML code inside text",
+      "what": "A name or description contains an HTML tag or escape code (e.g. &amp;); riders see it as code.",
+      "action": "Enter the text again as plain text."
+    },
+    "ARC_033": {
+      "title": "Unescaped quote in text",
+      "what": "A field value contains a quote or comma that is not properly quoted; the row may be split wrongly.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_034": {
+      "title": "Header row repeated in the middle of the file",
+      "what": "The header row appears again as a data row; this usually happens when two files are merged.",
+      "action": "Export in one go. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_035": {
+      "title": "Required file is empty",
+      "what": "{file} exists but contains no usable data.",
+      "action": "Add the required records to the file."
+    },
+    "ARC_036": {
+      "title": "Inconsistent ZIP structure",
+      "what": "The ZIP file opens in some tools and may not open in others.",
+      "action": "Package the dataset again with a standard ZIP tool. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "ARC_037": {
+      "title": "Accented or special characters in a code",
+      "what": "A code (stop, route or trip identifier) contains accented letters or special characters; some apps cannot match these codes.",
+      "action": "Use only English letters, digits and simple symbols in codes."
+    },
+    "ARS_001": {
+      "title": "Same fare area code used twice",
+      "what": "Two fare areas carry the same code.",
+      "action": "Give each fare area a unique code."
+    },
+    "ARS_002": {
+      "title": "Fare area code is empty",
+      "what": "A fare area has an empty code.",
+      "action": "Give each fare area a unique code."
+    },
+    "ATR_001": {
+      "title": "Attribution record has no code",
+      "what": "An attribution record, which credits contributors to the data, has an empty code.",
+      "action": "Give each attribution record a unique code."
+    },
+    "ATR_002": {
+      "title": "Attributed organisation has no name",
+      "what": "An attribution record has no organisation name.",
+      "action": "Enter the name of the organisation being credited."
+    },
+    "ATR_003": {
+      "title": "Attribution record has no role",
+      "what": "An attribution record does not say whether the organisation is the data producer, the operator or the authority.",
+      "action": "Set at least one role for the organisation."
+    },
+    "ATR_004": {
+      "title": "Data producer role invalid",
+      "what": "The \"data producer\" value in an attribution record is not yes or no.",
+      "action": "Set the value to yes or no."
+    },
+    "ATR_005": {
+      "title": "Operator role invalid",
+      "what": "The \"operator\" value in an attribution record is not yes or no.",
+      "action": "Set the value to yes or no."
+    },
+    "ATR_006": {
+      "title": "Authority role invalid",
+      "what": "The \"authority\" value in an attribution record is not yes or no.",
+      "action": "Set the value to yes or no."
+    },
+    "ATR_007": {
+      "title": "Attribution web address invalid",
+      "what": "The web address in an attribution record is not valid.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "ATR_008": {
+      "title": "Attribution e-mail invalid",
+      "what": "The e-mail in an attribution record is not valid.",
+      "action": "Enter the e-mail as name@domain.com, or leave it empty."
+    },
+    "ATR_009": {
+      "title": "Attribution linked to more than one target",
+      "what": "An attribution record is linked to an operator, a route and a trip at the same time; only one is allowed.",
+      "action": "Link the attribution to just one operator, route or trip."
+    },
+    "ATR_010": {
+      "title": "Attribution operator not found",
+      "what": "An attribution record is linked to an operator that is not in the list.",
+      "action": "Link the attribution to an existing operator."
+    },
+    "ATR_011": {
+      "title": "Attribution route not found",
+      "what": "An attribution record is linked to a route that is not in the list.",
+      "action": "Link the attribution to an existing route."
+    },
+    "ATR_012": {
+      "title": "Attribution trip not found",
+      "what": "An attribution record is linked to a trip that is not in the list.",
+      "action": "Link the attribution to an existing trip."
+    },
+    "BKR_001": {
+      "title": "Previous-day booking setting in the wrong place",
+      "what": "The last booking day and time for previous-day booking are set on a rule whose booking type is not \"previous day\".",
+      "action": "Use these settings only on \"previous day\" booking rules."
+    },
+    "BKR_003": {
+      "title": "Booking start time set without a day",
+      "what": "The time the booking window opens is set, but not how many days before it opens.",
+      "action": "Enter how many days before the booking opens, or remove the time."
+    },
+    "BKR_004": {
+      "title": "Advance notice set on an immediate booking rule",
+      "what": "A rule defined as immediate (real-time) booking has advance notice durations set.",
+      "action": "Remove the advance notice durations or correct the booking type."
+    },
+    "BKR_005": {
+      "title": "Maximum notice in the wrong place",
+      "what": "The maximum advance notice can only be used for same-day booking; here it is set on a previous-day rule.",
+      "action": "Remove this duration or change the booking type to \"same day\"."
+    },
+    "BKR_006": {
+      "title": "Minimum notice invalid",
+      "what": "The minimum advance notice is not a number, or is zero or negative.",
+      "action": "Enter the duration in minutes as a positive whole number."
+    },
+    "BKR_007": {
+      "title": "Same-day booking has no notice time",
+      "what": "A same-day booking rule does not say how many minutes before the trip a booking must be made.",
+      "action": "Enter the minimum advance notice in minutes."
+    },
+    "BKR_008": {
+      "title": "Previous-day booking has no last day",
+      "what": "A previous-day booking rule does not say how many days before the trip booking closes.",
+      "action": "Enter how many days before the trip booking closes."
+    },
+    "BKR_009": {
+      "title": "Previous-day booking has no last time",
+      "what": "A previous-day booking rule does not say until what time on the last day bookings are accepted.",
+      "action": "Enter the last booking time (e.g. 17:00:00)."
+    },
+    "BKR_010": {
+      "title": "Booking start day set without a time",
+      "what": "How many days before the booking opens is set, but not at what time.",
+      "action": "Enter the time the booking opens."
+    },
+    "BKR_011": {
+      "title": "Booking window is reversed",
+      "what": "The day booking closes is earlier than the day it opens; the window never opens.",
+      "action": "Check that the opening day is the same as or earlier than the closing day."
+    },
+    "BKR_012": {
+      "title": "Minute notice on a previous-day rule",
+      "what": "A previous-day booking rule has a notice duration in minutes; this is only used on same-day rules.",
+      "action": "Remove this duration or correct the booking type."
+    },
+    "BKR_013": {
+      "title": "Last booking time set without a day",
+      "what": "The last booking time is set, but not how many days before.",
+      "action": "Enter the last booking day, or remove the time."
+    },
+    "BKR_014": {
+      "title": "Booking calendar in the wrong place",
+      "what": "The service calendar used to count booking days can only be used on previous-day rules; here it is set on another type.",
+      "action": "Remove the calendar or change the booking type to \"previous day\"."
+    },
+    "BKR_015": {
+      "title": "Booking calendar not found",
+      "what": "A booking rule is linked to a service calendar that is not defined.",
+      "action": "Link the rule to an existing calendar, or leave the calendar empty."
+    },
+    "BKR_016": {
+      "title": "Booking type missing or invalid",
+      "what": "The booking rule type (immediate, same day, previous day) is missing or invalid.",
+      "action": "Choose the booking type."
+    },
+    "BKR_017": {
+      "title": "Pickup booking rule not found",
+      "what": "A demand-responsive stop is linked to a pickup booking rule that is not defined.",
+      "action": "Link the stop to an existing booking rule, or define the rule."
+    },
+    "BKR_018": {
+      "title": "Drop-off booking rule not found",
+      "what": "A demand-responsive stop is linked to a drop-off booking rule that is not defined.",
+      "action": "Link the stop to an existing booking rule, or define the rule."
+    },
+    "BKR_019": {
+      "title": "Booking rule code empty or repeated",
+      "what": "A booking rule has an empty code or the same code as another rule.",
+      "action": "Give each booking rule a unique code."
+    },
+    "BKR_020": {
+      "title": "Booking web address invalid",
+      "what": "The web address for making bookings is not valid.",
+      "action": "Enter a full address starting with \"https://\"."
+    },
+    "BKR_021": {
+      "title": "Booking information page invalid",
+      "what": "The address of the booking information page is not valid.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "BKR_022": {
+      "title": "Booking phone invalid",
+      "what": "The booking phone number does not look like a callable number.",
+      "action": "Enter only the phone number; put any explanation in another field."
+    },
+    "BKR_023": {
+      "title": "Booking duration is not a whole number",
+      "what": "One of the booking day or minute values is not a whole number.",
+      "action": "Enter these values as whole numbers."
+    },
+    "BKR_024": {
+      "title": "Conflicting day setting on same-day booking",
+      "what": "A same-day booking rule has a maximum notice and also says how many days before booking opens.",
+      "action": "Remove one of the two settings."
+    },
+    "BKR_025": {
+      "title": "Booking time invalid",
+      "what": "The booking opening or closing time is not a valid time.",
+      "action": "Enter the time as HH:MM:SS (e.g. 17:00:00)."
+    },
+    "CAL_001": {
+      "title": "Same calendar code used twice",
+      "what": "Two service calendars carry the same code; which days trips run becomes unclear.",
+      "action": "Give each service calendar a unique code."
+    },
+    "CAL_002": {
+      "title": "Invalid day value in calendar",
+      "what": "Whether a day runs is written with a value other than yes/no.",
+      "action": "Set each day to running or not running."
+    },
+    "CAL_003": {
+      "title": "Calendar start date missing or invalid",
+      "what": "The calendar start date is missing or cannot be read.",
+      "action": "Enter the start date (YYYYMMDD in the export, e.g. 20260101)."
+    },
+    "CAL_004": {
+      "title": "Calendar end date missing or invalid",
+      "what": "The calendar end date is missing or cannot be read.",
+      "action": "Enter the end date (YYYYMMDD in the export, e.g. 20261231)."
+    },
+    "CAL_005": {
+      "title": "Calendar ends before it starts",
+      "what": "The calendar end date is before its start date; the calendar never runs.",
+      "action": "Check and correct the start and end dates."
+    },
+    "CAL_006": {
+      "title": "No weekday ticked in the calendar",
+      "what": "All days of the week are set to \"not running\". The calendar may run only on specific dates.",
+      "action": "If it runs only on specific dates this is fine; otherwise tick the days it runs."
+    },
+    "CAL_007": {
+      "title": "Long gap in the service period",
+      "what": "A service calendar has a period of more than two weeks without any running day.",
+      "action": "If the gap is planned (e.g. summer break) this is fine; otherwise add the missing days."
+    },
+    "CAL_008": {
+      "title": "Calendar ends soon",
+      "what": "A service calendar’s last day is approaching; after that date its trips will not be shown to riders.",
+      "action": "Plan to prepare and publish the next timetable."
+    },
+    "CAL_009": {
+      "title": "All service calendars have ended",
+      "what": "All service periods in the dataset are in the past.",
+      "action": "Add a calendar with current dates or update the existing one."
+    },
+    "CAL_010": {
+      "title": "Calendar has very few running days",
+      "what": "A service calendar runs on only a few days.",
+      "action": "If it is a short-term service (e.g. an event) this is fine; otherwise check the calendar dates."
+    },
+    "CAL_011": {
+      "title": "Unused service calendar",
+      "what": "No trip uses this service calendar.",
+      "action": "Link the calendar to trips, or delete it if unused."
+    },
+    "CAL_012": {
+      "title": "Service gap in the near future",
+      "what": "Within the next 30 days a calendar enters a period of more than two weeks without running days.",
+      "action": "If the gap is planned this is fine; otherwise check the calendar."
+    },
+    "CAL_013": {
+      "title": "All days of a service calendar are in the past",
+      "what": "All running days of a service calendar are in the past; trips using it are no longer shown.",
+      "action": "Update the calendar with new dates, or remove it if no longer used."
+    },
+    "CAL_014": {
+      "title": "Calendar outside the dataset validity period",
+      "what": "A calendar’s dates extend beyond the validity period declared for the dataset; apps may not trust those days.",
+      "action": "Align the dataset validity period and the calendar dates."
+    },
+    "CAL_015": {
+      "title": "All calendars start in the future",
+      "what": "No calendar runs today; all start at a later date. No trips may be shown in rider apps today.",
+      "action": "If you are publishing the new timetable early this is fine; otherwise check the start dates."
+    },
+    "CAL_016": {
+      "title": "Service extends very far into the future",
+      "what": "Calendars appear to run more than two years ahead; the real timetable period is probably shorter.",
+      "action": "Set the calendar end to the last date the timetable is actually valid."
+    },
+    "CAL_017": {
+      "title": "Calendar has not started yet",
+      "what": "A service calendar starts at a later date. This is for information.",
+      "action": "If prepared for the next period this is fine; otherwise check the start date."
+    },
+    "CAL_018": {
+      "title": "Calendar has no running days at all",
+      "what": "No weekday is ticked in a calendar and no special running dates are added.",
+      "action": "Tick the days the calendar runs or add its special running dates."
+    },
+    "CAL_020": {
+      "title": "Dataset validity exceeds 5 years",
+      "what": "The validity period in the dataset information is longer than 5 years.",
+      "action": "Limit the validity period to the dates the timetable is really valid."
+    },
+    "CAL_021": {
+      "title": "No trips in the coming days",
+      "what": "The calendar covers today, but has no running day in the next few days.",
+      "action": "If it is a planned break this is fine; otherwise add the near dates."
+    },
+    "CAL_022": {
+      "title": "Calendar code is empty",
+      "what": "A service calendar has an empty code; trips cannot be linked to it.",
+      "action": "Give the calendar a unique code."
+    },
+    "CAL_023": {
+      "title": "Calendar end date suspiciously far away",
+      "what": "A calendar ends years from now (e.g. 2099); this is usually a placeholder rather than a real end date.",
+      "action": "Enter the real last valid date of the timetable as the calendar end."
+    },
+    "CAL_024": {
+      "title": "Calendar not running in the next 7 days",
+      "what": "A service calendar has no running day in the next 7 days. This is for information.",
+      "action": "If planned (e.g. a holiday-only calendar) this is fine; otherwise update the calendar."
+    },
+    "CAL_025": {
+      "title": "A day value is empty in the calendar",
+      "what": "Whether a weekday runs is left empty in a service calendar.",
+      "action": "Set each day to running or not running."
+    },
+    "CLD_001": {
+      "title": "Calendar code empty in a calendar change",
+      "what": "A special date (added or removed) does not say which calendar it belongs to.",
+      "action": "Link the special date to its calendar."
+    },
+    "CLD_002": {
+      "title": "Calendar change date invalid",
+      "what": "A special date record has no date or it cannot be read.",
+      "action": "Enter the date as YYYYMMDD (e.g. 20270101)."
+    },
+    "CLD_003": {
+      "title": "Calendar change type invalid",
+      "what": "A special date record does not say whether service is added or removed that day, or the value is invalid.",
+      "action": "Mark the date as \"service added\" or \"service removed\"."
+    },
+    "CLD_004": {
+      "title": "Calendar has no running days",
+      "what": "The weekly calendar is not used and some calendars have no \"service added\" date; their trips never run.",
+      "action": "Add running dates to these calendars."
+    },
+    "CLD_005": {
+      "title": "Calendar change date is unreasonable",
+      "what": "A special date is not between 2000 and 2099; it was probably entered wrongly.",
+      "action": "Check and correct the date."
+    },
+    "CLD_006": {
+      "title": "Too many special dates in a calendar",
+      "what": "A calendar has more than 60 special date records. This is for information.",
+      "action": "Consider defining regular days with the weekly calendar and using special dates only for exceptions."
+    },
+    "CLD_007": {
+      "title": "Calendar built almost entirely from exceptions",
+      "what": "Most running days of a calendar are entered one by one as special dates. This is for information.",
+      "action": "Consider defining regular days with the weekly calendar."
+    },
+    "DQ_003": {
+      "title": "Route description missing",
+      "what": "The description field that gives riders extra information is empty for routes.",
+      "action": "If you wish, add a short description such as operating hours or a route note."
+    },
+    "DQ_004": {
+      "title": "Route web page missing",
+      "what": "No web page is given where riders can see route details. This is for information.",
+      "action": "If the route has an information page, enter its address."
+    },
+    "DQ_005": {
+      "title": "No valid service period",
+      "what": "No calendar in the dataset runs from today onward; no trips will be shown in rider apps.",
+      "action": "Add the current period’s calendars and publish the dataset again."
+    },
+    "DQ_005b": {
+      "title": "No trip has stop times",
+      "what": "Trips are defined but none has stop times; no trips may be shown in rider apps.",
+      "action": "Add trip stop times to the export."
+    },
+    "DQ_005c": {
+      "title": "Most stops have no location",
+      "what": "Most stops have no location; they cannot be shown on a map and journeys cannot be planned.",
+      "action": "Mark the stop locations in your scheduling software and export again."
+    },
+    "DQ_006": {
+      "title": "Most trips have no route shape",
+      "what": "Most trips are not linked to a route shape; apps draw routes as straight lines.",
+      "action": "Add the route shapes to the export."
+    },
+    "DQ_009": {
+      "title": "Trips have no stop times",
+      "what": "Trips are defined but there are no stop times at all; no timetable can be built.",
+      "action": "Add trip stop times to the export."
+    },
+    "DQ_010": {
+      "title": "Unused operator",
+      "what": "No route is linked to an operator in the operator list.",
+      "action": "Link the operator’s routes, or remove it if unused."
+    },
+    "DQ_011": {
+      "title": "Only one stop in the dataset",
+      "what": "The dataset contains only one stop; no journey can be planned.",
+      "action": "Add all stops to the export."
+    },
+    "DQ_012": {
+      "title": "Routes have no operator",
+      "what": "There are several operators but routes do not say which one runs them.",
+      "action": "Link each route to the operator that runs it."
+    },
+    "DQ_013": {
+      "title": "Very few trips",
+      "what": "The dataset contains only one or two trips. This is for information.",
+      "action": "Check that all trips were exported."
+    },
+    "DQ_016": {
+      "title": "Extra spaces in values",
+      "what": "Some names, codes or values have unnecessary spaces at the start or end; this can break matching and search.",
+      "action": "Remove the extra spaces from the affected records."
+    },
+    "DQ_017": {
+      "title": "Suspicious coordinates",
+      "what": "Many stops appear at 0,0 (Gulf of Guinea); locations were not entered or placeholders were left.",
+      "action": "Enter the real locations of these stops."
+    },
+    "DQ_018": {
+      "title": "Name written entirely in CAPITALS",
+      "what": "A name shown to riders (stop, route or headsign) is written entirely in capitals; it is harder to read in apps.",
+      "action": "Write names in normal case (e.g. \"Main Station\" rather than \"MAIN STATION\"). Abbreviations and brand names are exempt."
+    },
+    "DQ_019": {
+      "title": "Name written entirely in lowercase",
+      "what": "A name shown to riders is written entirely in lowercase.",
+      "action": "Write names in normal case (e.g. \"Main Station\" rather than \"main station\"). Deliberately lowercase brand names are exempt."
+    },
+    "DQ_020": {
+      "title": "Trip headsigns are empty",
+      "what": "Most trips have no headsign shown to riders.",
+      "action": "Enter where each trip is going as its headsign."
+    },
+    "DQ_021": {
+      "title": "The same code is repeated",
+      "what": "In a list (stops, routes, trips, etc.) the same code is used by more than one record; links may point to the wrong record.",
+      "action": "Give every record a unique code."
+    },
+    "DQ_022": {
+      "title": "Most stops share the same name",
+      "what": "More than 80% of stops are recorded with the same name; placeholders may have been used instead of real names.",
+      "action": "Enter the real stop names."
+    },
+    "FAR_001": {
+      "title": "Same fare code used twice",
+      "what": "Two fares carry the same code.",
+      "action": "Give each fare a unique code."
+    },
+    "FAR_002": {
+      "title": "Fare amount missing or invalid",
+      "what": "A fare has no price, a non-numeric price or a negative one.",
+      "action": "Enter the fare as zero or a positive amount."
+    },
+    "FAR_003": {
+      "title": "Currency missing or invalid",
+      "what": "A fare has no currency or it is not a three-letter standard code.",
+      "action": "Enter the currency as a three-letter code such as \"EUR\" or \"TRY\"."
+    },
+    "FAR_004": {
+      "title": "Payment time invalid",
+      "what": "The value saying whether the fare is paid on board or before boarding is invalid.",
+      "action": "Choose \"on board\" or \"before boarding\"."
+    },
+    "FAR_005": {
+      "title": "Transfer allowance invalid",
+      "what": "The value saying how many transfers the fare allows is invalid.",
+      "action": "Enter the transfer allowance as 0, 1, 2 or unlimited (empty)."
+    },
+    "FAR_006": {
+      "title": "Transfer duration invalid",
+      "what": "The transfer validity duration of the fare is not a number.",
+      "action": "Enter the duration in seconds, or leave it empty."
+    },
+    "FAR_008": {
+      "title": "Fare operator not found",
+      "what": "A fare is linked to an operator that is not in the operator list.",
+      "action": "Link the fare to an existing operator."
+    },
+    "FAR_010": {
+      "title": "Two different fares for the same journey",
+      "what": "Several different fares are defined for the same route and zones; it is unclear which one applies.",
+      "action": "Keep a single fare for each route and zone combination."
+    },
+    "FAR_011": {
+      "title": "Payment time is empty",
+      "what": "A fare does not say when payment is made.",
+      "action": "Choose \"on board\" or \"before boarding\"."
+    },
+    "FAR_012": {
+      "title": "Fare code is empty",
+      "what": "A fare has an empty code.",
+      "action": "Give each fare a unique code."
+    },
+    "FAR_013": {
+      "title": "Fare amount has the wrong number of decimals",
+      "what": "The fare amount is not written with the currency’s number of decimals (e.g. 2 for EUR). This is for information.",
+      "action": "Write the amount with the currency’s decimals (e.g. 17.50)."
+    },
+    "FIN_001": {
+      "title": "Dataset publisher has no name",
+      "what": "The dataset information does not give the publishing organisation’s name.",
+      "action": "Enter the name of the organisation publishing the dataset."
+    },
+    "FIN_002": {
+      "title": "Publisher web address missing or invalid",
+      "what": "The dataset information has no valid web address for the publisher.",
+      "action": "Enter the organisation’s full web address starting with \"https://\"."
+    },
+    "FIN_003": {
+      "title": "Dataset language missing",
+      "what": "The dataset information does not say which language names and texts are in, or the code is not recognised.",
+      "action": "Enter the language with a standard code such as \"en\"."
+    },
+    "FIN_004": {
+      "title": "Default language invalid",
+      "what": "The default language code in the dataset information is not recognised.",
+      "action": "Enter a standard code such as \"en\", or leave it empty."
+    },
+    "FIN_005": {
+      "title": "Dataset start date invalid",
+      "what": "The dataset validity start date cannot be read.",
+      "action": "Enter the date as YYYYMMDD (e.g. 20260101)."
+    },
+    "FIN_006": {
+      "title": "Dataset end date invalid",
+      "what": "The dataset validity end date cannot be read.",
+      "action": "Enter the date as YYYYMMDD (e.g. 20261231)."
+    },
+    "FIN_007": {
+      "title": "Dataset version missing",
+      "what": "The dataset information has no version; it is impossible to tell which version is published.",
+      "action": "Enter a version that increases with each release (e.g. a date or number)."
+    },
+    "FIN_008": {
+      "title": "Contact e-mail invalid",
+      "what": "The contact e-mail given for the dataset is not valid.",
+      "action": "Enter the e-mail as name@domain.com, or leave it empty."
+    },
+    "FIN_009": {
+      "title": "Contact address invalid",
+      "what": "The contact web address given for the dataset is not valid.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "FIN_010": {
+      "title": "Dataset validity date has passed",
+      "what": "The validity end date in the dataset information is in the past; apps may not treat the dataset as current.",
+      "action": "Publish the dataset again with current validity dates."
+    },
+    "FIN_012": {
+      "title": "Dataset starts after it ends",
+      "what": "The dataset validity start date is after its end date.",
+      "action": "Correct the start and end dates."
+    },
+    "FIN_013": {
+      "title": "Fare operator not given",
+      "what": "Some fares do not say which operator they belong to. This is for information.",
+      "action": "Link the fares to their operator."
+    },
+    "FIN_014": {
+      "title": "Dataset validity dates missing",
+      "what": "The dataset information has no validity start and end dates.",
+      "action": "Enter the first and last day the timetable is valid."
+    },
+    "FIN_015": {
+      "title": "More than one dataset information record",
+      "what": "The dataset information file has more than one record; there must be only one.",
+      "action": "Keep a single record."
+    },
+    "FIN_016": {
+      "title": "Dataset is not valid yet",
+      "what": "The dataset validity starts in the future; trips may not be shown to riders today.",
+      "action": "If you are publishing the new timetable early this is fine; otherwise correct the start date."
+    },
+    "FIN_017": {
+      "title": "Dataset valid until far in the future",
+      "what": "The dataset validity ends more than two years from now.",
+      "action": "Enter the real last valid day of the timetable as the end date."
+    },
+    "FIN_018": {
+      "title": "No contact details for the dataset",
+      "what": "The dataset information has neither an e-mail nor a contact page; people cannot report data problems to you.",
+      "action": "Add a contact e-mail or page."
+    },
+    "FIN_019": {
+      "title": "Dataset validity ends soon",
+      "what": "The dataset validity end date is approaching.",
+      "action": "Plan to prepare and publish the next timetable."
+    },
+    "FIN_020": {
+      "title": "Dataset valid for less than 7 days",
+      "what": "The dataset validity period is shorter than a week.",
+      "action": "Enter validity dates that match the real timetable period."
+    },
+    "FLG_001": {
+      "title": "Fare leg rule product not found",
+      "what": "A fare leg rule is linked to a fare product that is not defined.",
+      "action": "Link the rule to an existing fare product."
+    },
+    "FLG_002": {
+      "title": "Fare leg rule network not found",
+      "what": "A fare leg rule is linked to a route network that is not defined.",
+      "action": "Link the rule to an existing network."
+    },
+    "FLG_003": {
+      "title": "Fare rule start area not found",
+      "what": "A fare leg rule is linked to an origin area that is not defined.",
+      "action": "Link the rule to an existing fare area."
+    },
+    "FLG_004": {
+      "title": "Fare rule end area not found",
+      "what": "A fare leg rule is linked to a destination area that is not defined.",
+      "action": "Link the rule to an existing fare area."
+    },
+    "FLG_005": {
+      "title": "Fare rule start time period not found",
+      "what": "A fare leg rule is linked to a time period (e.g. peak hours) that is not defined.",
+      "action": "Link the rule to an existing time period."
+    },
+    "FLG_006": {
+      "title": "Fare rule end time period not found",
+      "what": "A fare leg rule is linked to a time period that is not defined.",
+      "action": "Link the rule to an existing time period."
+    },
+    "FLG_007": {
+      "title": "Fare rule priority invalid",
+      "what": "The priority value that decides which rule applies when several match is invalid.",
+      "action": "Enter the priority as 0 or a positive whole number."
+    },
+    "FLG_008": {
+      "title": "Fare leg rule product is empty",
+      "what": "A fare leg rule does not say which fare product applies.",
+      "action": "Choose the fare product for the rule."
+    },
+    "FLJ_001": {
+      "title": "First network missing in a leg join rule",
+      "what": "In the rule that counts two legs as one journey, the first route network is empty or not defined.",
+      "action": "Choose an existing route network for the rule."
+    },
+    "FLJ_002": {
+      "title": "Second network missing in a leg join rule",
+      "what": "In the rule that counts two legs as one journey, the second route network is empty or not defined.",
+      "action": "Choose an existing route network for the rule."
+    },
+    "FLJ_003": {
+      "title": "First stop missing in a leg join rule",
+      "what": "In the leg join rule the first stop is missing, not found, or not a stop/station.",
+      "action": "Enter both stops together, or leave both empty."
+    },
+    "FLJ_004": {
+      "title": "Second stop missing in a leg join rule",
+      "what": "In the leg join rule the second stop is missing, not found, or not a stop/station.",
+      "action": "Enter both stops together, or leave both empty."
+    },
+    "FMD_001": {
+      "title": "Same fare media code used twice",
+      "what": "Two fare media (card, app, etc.) carry the same code.",
+      "action": "Give each fare medium a unique code."
+    },
+    "FMD_002": {
+      "title": "Fare media type invalid",
+      "what": "The fare medium type (paper ticket, card, contactless card, app) is missing or invalid.",
+      "action": "Choose the fare medium type."
+    },
+    "FMD_003": {
+      "title": "Card or app has no name",
+      "what": "A transit card or mobile app fare medium has no name; riders cannot tell which card is accepted.",
+      "action": "Enter the name of the card or app."
+    },
+    "FMD_004": {
+      "title": "Fare media code is empty",
+      "what": "A fare medium has an empty code.",
+      "action": "Give each fare medium a unique code."
+    },
+    "FPD_001": {
+      "title": "The same fare product is defined twice",
+      "what": "The same product is defined twice with the same rider category and fare medium.",
+      "action": "Delete the duplicate product record."
+    },
+    "FPD_002": {
+      "title": "Product price missing or invalid",
+      "what": "A fare product has no price or a non-numeric price.",
+      "action": "Enter the price as a number (0 if free)."
+    },
+    "FPD_003": {
+      "title": "Product currency invalid",
+      "what": "A fare product’s currency is not a three-letter standard code.",
+      "action": "Enter the currency with a code such as \"EUR\" or \"TRY\"."
+    },
+    "FPD_004": {
+      "title": "Product fare medium not found",
+      "what": "A fare product is linked to a fare medium (card, app, etc.) that is not defined.",
+      "action": "Link the product to an existing fare medium."
+    },
+    "FPD_005": {
+      "title": "Product rider category not found",
+      "what": "A fare product is linked to a rider category that is not defined.",
+      "action": "Link the product to an existing rider category."
+    },
+    "FPD_007": {
+      "title": "Product price has the wrong number of decimals",
+      "what": "The product price is not written with the currency’s number of decimals (e.g. 2 for EUR).",
+      "action": "Write the price with the currency’s decimals (e.g. 17.50)."
+    },
+    "FRL_001": {
+      "title": "Fare rule’s fare not found",
+      "what": "A fare rule is linked to a fare that is not defined.",
+      "action": "Link the rule to an existing fare."
+    },
+    "FRL_002": {
+      "title": "Fare rule’s route not found",
+      "what": "A fare rule is linked to a route that is not in the route list.",
+      "action": "Link the rule to an existing route."
+    },
+    "FRL_003": {
+      "title": "Fare rule origin zone not found",
+      "what": "A fare rule points to an origin zone that no stop uses.",
+      "action": "Link the rule to a fare zone used by stops."
+    },
+    "FRL_004": {
+      "title": "Fare rule destination zone not found",
+      "what": "A fare rule points to a destination zone that no stop uses.",
+      "action": "Link the rule to a fare zone used by stops."
+    },
+    "FRL_005": {
+      "title": "Fare rule pass-through zone not found",
+      "what": "A fare rule points to a pass-through zone that no stop uses.",
+      "action": "Link the rule to a fare zone used by stops."
+    },
+    "FRL_006": {
+      "title": "Fares are not linked to any route",
+      "what": "Fares are defined but no rule says on which routes or zones they apply. This is normal for flat-fare systems.",
+      "action": "With a single flat fare this is fine; if fares depend on route or zone, add fare rules."
+    },
+    "FRL_007": {
+      "title": "Fare rule is not linked to anything",
+      "what": "A fare rule specifies neither a route nor a zone; it applies to every journey.",
+      "action": "Add the route or zone to the rule."
+    },
+    "FRL_008": {
+      "title": "Some routes have no fare",
+      "what": "Fare rules are defined for some routes but not others; riders cannot see the fare on those routes.",
+      "action": "Add fare rules for routes without a fare."
+    },
+    "FRL_009": {
+      "title": "Some zone pairs have no fare",
+      "what": "On zone-based routes, no fare is defined for some origin–destination zone pairs.",
+      "action": "Add fare rules for the missing zone pairs, or define a single fare per route."
+    },
+    "FRQ_001": {
+      "title": "Frequency definition’s trip not found",
+      "what": "A frequency definition (every X minutes) is linked to a trip that is not in the trip list.",
+      "action": "Link the frequency definition to an existing trip."
+    },
+    "FRQ_002": {
+      "title": "Frequency start time invalid",
+      "what": "The start time of the frequency period is missing or cannot be read.",
+      "action": "Enter the start time as HH:MM:SS."
+    },
+    "FRQ_003": {
+      "title": "Frequency end time invalid",
+      "what": "The end time of the frequency period is missing or cannot be read.",
+      "action": "Enter the end time as HH:MM:SS."
+    },
+    "FRQ_004": {
+      "title": "Headway missing",
+      "what": "The frequency period does not say how often trips run, or the value is invalid.",
+      "action": "Enter the headway in seconds (e.g. 600 for 10 minutes)."
+    },
+    "FRQ_005": {
+      "title": "Frequency period is reversed",
+      "what": "The frequency period ends before or at the same time it starts.",
+      "action": "Correct the start and end times."
+    },
+    "FRQ_006": {
+      "title": "Headway very long",
+      "what": "The headway in the frequency period is unusually long.",
+      "action": "If the headway is correct this is fine; otherwise check it."
+    },
+    "FRQ_007": {
+      "title": "Exact times setting invalid",
+      "what": "The value saying whether trips leave at exact times or approximately is invalid.",
+      "action": "Choose \"approximate (headway-based)\" or \"exact times\"."
+    },
+    "FRQ_008": {
+      "title": "Headway is zero",
+      "what": "The headway is zero; trips appear to leave back to back.",
+      "action": "Enter the headway in seconds as a positive value."
+    },
+    "FRQ_009": {
+      "title": "Headway very short",
+      "what": "The headway is shorter than one minute.",
+      "action": "Check the headway; seconds may have been entered instead of minutes."
+    },
+    "FRQ_010": {
+      "title": "Very frequent service",
+      "what": "Trips in the frequency period leave at very short intervals. This is for information.",
+      "action": "If deliberate this is fine; otherwise check the headway."
+    },
+    "FRQ_011": {
+      "title": "Frequency periods overlap",
+      "what": "Two frequency periods of the same trip overlap; it is unclear which headway applies at that time.",
+      "action": "Arrange the periods so they do not overlap."
+    },
+    "FRQ_012": {
+      "title": "Frequency end coincides with a departure",
+      "what": "The end time of an exact-times frequency period falls on a departure time; it is unclear whether the last trip runs.",
+      "action": "Set the end time after the last trip and before the next possible one."
+    },
+    "FTR_001": {
+      "title": "Transfer fare type invalid",
+      "what": "The type saying how the transfer fare is calculated is missing or invalid.",
+      "action": "Choose the transfer fare type."
+    },
+    "FTR_002": {
+      "title": "Transfer fare first leg group not found",
+      "what": "A transfer fare rule starts from a leg group that is not defined.",
+      "action": "Link the rule to an existing leg group."
+    },
+    "FTR_003": {
+      "title": "Transfer fare second leg group not found",
+      "what": "A transfer fare rule leads to a leg group that is not defined.",
+      "action": "Link the rule to an existing leg group."
+    },
+    "FTR_004": {
+      "title": "Transfer fare product not found",
+      "what": "A transfer fare rule is linked to a fare product that is not defined.",
+      "action": "Link the rule to an existing fare product."
+    },
+    "FTR_005": {
+      "title": "Transfer time reference invalid",
+      "what": "The point from which the transfer time is counted (boarding, alighting, etc.) is invalid.",
+      "action": "Choose the reference from the defined options."
+    },
+    "FTR_006": {
+      "title": "Transfer duration invalid",
+      "what": "The duration for which the transfer fare is valid is not a number, or is zero.",
+      "action": "Enter the duration in seconds as a positive value."
+    },
+    "FTR_007": {
+      "title": "Transfer time reference without a duration",
+      "what": "The reference for counting the transfer time is set, but the duration itself is not.",
+      "action": "Enter the duration or remove the reference."
+    },
+    "FTR_008": {
+      "title": "Transfer count invalid",
+      "what": "The allowed number of transfers is neither unlimited (-1) nor a positive whole number.",
+      "action": "Enter -1 (unlimited) or a positive whole number."
+    },
+    "FTR_009": {
+      "title": "No transfer count within the same group",
+      "what": "A transfer within the same leg group does not say how many transfers are allowed.",
+      "action": "Enter the transfer count (-1 for unlimited)."
+    },
+    "FTR_010": {
+      "title": "Transfer count between different groups",
+      "what": "A transfer between different leg groups has a transfer count; this is only used within the same group.",
+      "action": "Remove the transfer count."
+    },
+    "FTR_011": {
+      "title": "Transfer duration without a reference",
+      "what": "A transfer fare duration is set, but not the point from which it is counted.",
+      "action": "Choose the time reference or remove the duration."
+    },
+    "GEO_002": {
+      "title": "Stop far from the rest of the network",
+      "what": "A stop appears hundreds of kilometres away from the rest of the network; its location is probably wrong.",
+      "action": "Check and correct the stop location."
+    },
+    "GEO_006": {
+      "title": "Large jump in a shape",
+      "what": "There is an unusually long gap between two consecutive points of a route shape; the line does not follow the road.",
+      "action": "Redraw this part of the shape along the road."
+    },
+    "GEO_007": {
+      "title": "Very large jump in a shape",
+      "what": "There is a very long gap between two consecutive points of a route shape; a point may be in the wrong place.",
+      "action": "Check and redraw this part of the shape."
+    },
+    "GEO_009": {
+      "title": "Stop far from the shape",
+      "what": "A stop is unusually far from the shape of its trips; on the map it appears off the road.",
+      "action": "Correct the location of the stop or of the shape."
+    },
+    "GEO_012": {
+      "title": "Several stops on top of each other",
+      "what": "At least three stops are very close together in the same small area; they may be copies of the same stop.",
+      "action": "Merge records that represent the same physical stop."
+    },
+    "GEO_013": {
+      "title": "Geographic coverage of the network",
+      "what": "A summary of the area covered by the stops. This is for information.",
+      "action": "No action needed."
+    },
+    "GEO_014": {
+      "title": "Network spreads over a very large area",
+      "what": "Stops are spread over an area wider than 500 km.",
+      "action": "For an intercity network this is fine; otherwise check the locations of the distant stops."
+    },
+    "GEO_015": {
+      "title": "Stop outside Japan",
+      "what": "In a dataset whose language is Japanese, some stops appear outside Japan.",
+      "action": "If these stops are deliberately outside Japan this is fine; otherwise check their coordinates."
+    },
+    "GEO_016": {
+      "title": "Stop at location 0,0",
+      "what": "A stop’s location is entered as 0,0 (Gulf of Guinea); in reality it has no location.",
+      "action": "Enter the real location of the stop."
+    },
+    "GEO_017": {
+      "title": "Shape point at location 0,0",
+      "what": "A route shape has a point at 0,0; the line stretches into the ocean.",
+      "action": "Correct this shape point or export the shape again."
+    },
+    "GEO_018": {
+      "title": "All stops in the same small area",
+      "what": "All stops lie within 200 metres; the locations may be placeholders.",
+      "action": "If the service really runs in one small area (e.g. a campus) this is fine; otherwise enter the real stop locations."
+    },
+    "GEO_019": {
+      "title": "Stop location is rounded",
+      "what": "A stop’s latitude and longitude are entered as whole numbers; the stop appears kilometres off.",
+      "action": "Enter the location with at least 5 decimal places."
+    },
+    "GEO_020": {
+      "title": "All points of a shape at the same place",
+      "what": "All points of a route shape are at the same location; the map shows a single dot instead of a line.",
+      "action": "Redraw the shape along the road."
+    },
+    "GEO_021": {
+      "title": "Most stops share locations",
+      "what": "More than 30% of stops share their location with another stop.",
+      "action": "Enter the real stop locations and merge copies of the same stop."
+    },
+    "GEO_022": {
+      "title": "Stop very close to a pole",
+      "what": "A stop’s latitude exceeds 89 degrees; the location is probably wrong (latitude and longitude may be swapped).",
+      "action": "Check and correct the stop location."
+    },
+    "GGL_001": {
+      "title": "In-seat transfer not supported by Google",
+      "what": "The transfer type where riders stay on board is not supported by Google Maps. If you do not publish to Google, this is not a problem.",
+      "action": "If Google compatibility is needed, model this connection as a vehicle block (same vehicle)."
+    },
+    "GGL_002": {
+      "title": "Google card price invalid",
+      "what": "The Google-specific card payment price is not a valid value.",
+      "action": "If you use this field, enter zero or a positive price; otherwise leave it empty."
+    },
+    "JPN_001": {
+      "title": "Kana reading of stop name missing",
+      "what": "A stop with a Japanese name has no kana (ja-Hrkt) reading.",
+      "action": "Add the kana reading of the stop name to the translations."
+    },
+    "JPN_002": {
+      "title": "Office code not defined",
+      "what": "A route or trip is linked to an office not in the office list (office_jp).",
+      "action": "Link it to an existing office, or define the office."
+    },
+    "JPN_003": {
+      "title": "Japanese operator information does not match",
+      "what": "The GTFS-JP additional operator information is linked to an operator not in the operator list.",
+      "action": "Match the additional information to an existing operator."
+    },
+    "JPN_004": {
+      "title": "Translations file missing",
+      "what": "The GTFS-JP dataset has no translations file carrying kana readings of stop names.",
+      "action": "Add the translations file with kana readings of stop names."
+    },
+    "JPN_005": {
+      "title": "Office has no name",
+      "what": "An office in the office list (office_jp) has no name.",
+      "action": "Enter the office name."
+    },
+    "JPN_006": {
+      "title": "Fare information missing",
+      "what": "The GTFS-JP dataset has no fare information, or different fares are not linked to routes.",
+      "action": "Add the fares and the routes they apply to."
+    },
+    "JPN_007": {
+      "title": "Dataset information file missing",
+      "what": "The GTFS-JP dataset has no dataset information file with the publisher and language.",
+      "action": "Add the dataset information (publisher, language \"ja\", version)."
+    },
+    "JPN_008": {
+      "title": "Kana reading of route name missing",
+      "what": "A route with a Japanese name has no kana reading.",
+      "action": "Add the kana reading of the route name to the translations."
+    },
+    "JPN_009": {
+      "title": "Kana reading of headsign missing",
+      "what": "A headsign written in Japanese has no kana reading.",
+      "action": "Add the kana reading of the headsign to the translations."
+    },
+    "JPN_010": {
+      "title": "Kana reading of operator name missing",
+      "what": "An operator with a Japanese name has no kana reading.",
+      "action": "Add the kana reading of the operator name to the translations."
+    },
+    "JPN_011": {
+      "title": "Operator code missing",
+      "what": "In GTFS-JP the operator code, and the operator link on routes, are required even with a single operator; they are missing.",
+      "action": "Give the operator a code and link all routes to it."
+    },
+    "JPN_012": {
+      "title": "Code missing in Japanese operator information",
+      "what": "The operator code is empty in the GTFS-JP additional operator information.",
+      "action": "Link the additional information using the operator’s code."
+    },
+    "JPN_013": {
+      "title": "Postal code format wrong",
+      "what": "The operator’s postal code is not seven digits.",
+      "action": "Enter the postal code as seven digits without a hyphen."
+    },
+    "JPN_014": {
+      "title": "Office code empty or repeated",
+      "what": "The office list has a record whose code is empty or the same as another office.",
+      "action": "Give each office a unique code."
+    },
+    "JPN_015": {
+      "title": "Legacy route information does not match",
+      "what": "In the legacy route information (routes_jp) the route code is empty, repeated or not in the route list.",
+      "action": "Link the route information uniquely to existing routes."
+    },
+    "JPN_016": {
+      "title": "Route update date invalid",
+      "what": "The update date in the route pattern or route information is not a valid date.",
+      "action": "Enter the date as YYYYMMDD."
+    },
+    "JPN_017": {
+      "title": "Trip pattern code empty or repeated",
+      "what": "The trip pattern list (pattern_jp) has a record whose code is empty or repeated.",
+      "action": "Give each pattern a unique code."
+    },
+    "JPN_018": {
+      "title": "Trip pattern not found",
+      "what": "A trip is linked to a trip pattern that is not in the pattern list.",
+      "action": "Link the trip to an existing pattern."
+    },
+    "JPN_019": {
+      "title": "Kana translation linked to the wrong record",
+      "what": "A kana reading is linked to a missing or wrong record.",
+      "action": "Match the kana reading to the correct stop, route or trip record."
+    },
+    "JPN_020": {
+      "title": "Office web address or phone looks wrong",
+      "what": "The office web address or phone does not look valid.",
+      "action": "Enter a valid web address and a callable phone number."
+    },
+    "JPN_021": {
+      "title": "Kana translation empty or conflicting",
+      "what": "A kana reading is empty, there are two different readings for the same record, or the reading contains no kana.",
+      "action": "Keep one reading per record, written in kana."
+    },
+    "JPN_022": {
+      "title": "Required GTFS-JP v4 information missing",
+      "what": "One of the items required in GTFS-JP v4 (operator language, dataset dates, version or stop type) is missing.",
+      "action": "Fill in the missing information."
+    },
+    "JPN_023": {
+      "title": "Dataset language is not Japanese",
+      "what": "In the GTFS-JP profile the dataset language must be \"ja\", but something else is entered.",
+      "action": "Set the dataset language to \"ja\"."
+    },
+    "JPN_024": {
+      "title": "Operator language is not Japanese",
+      "what": "In the GTFS-JP profile the operator language must be \"ja\", but something else is entered.",
+      "action": "Set the operator language to \"ja\"."
+    },
+    "JPN_025": {
+      "title": "Operator time zone is not Tokyo",
+      "what": "In the GTFS-JP profile the operator time zone must be Asia/Tokyo, but something else is entered.",
+      "action": "Set the time zone to Asia/Tokyo."
+    },
+    "JPN_026": {
+      "title": "Fare currency is not yen",
+      "what": "In the GTFS-JP profile fares must be in JPY, but another currency is entered.",
+      "action": "Set the currency to JPY."
+    },
+    "JPN_027": {
+      "title": "Route type is not bus",
+      "what": "In the GTFS-JP v3 bus profile a route type other than bus is entered.",
+      "action": "Choose \"bus\" for bus routes; use the appropriate profile for multimodal data."
+    },
+    "JPN_028": {
+      "title": "Required kana reading missing",
+      "what": "In GTFS-JP v3 kana readings are required for Japanese names, descriptions and headsigns; some are missing.",
+      "action": "Add the missing kana readings to the translations."
+    },
+    "JPN_029": {
+      "title": "Recommended kana reading missing",
+      "what": "In GTFS-JP v4 kana readings are recommended for stop headsign text and attribution organisation names; some are missing.",
+      "action": "Add kana readings for these texts to the translations."
+    },
+    "JPN_030": {
+      "title": "Required Japanese translation row missing",
+      "what": "In GTFS-JP v3 a translation row in \"ja\" is also required next to the kana reading; some are missing.",
+      "action": "Add the missing \"ja\" translation rows."
+    },
+    "JPN_031": {
+      "title": "No fare zone at a zone-fare stop",
+      "what": "A stop on a route with zone-based fares has no fare zone.",
+      "action": "Match the stop’s fare zone to the zones in the route’s fare rules."
+    },
+    "JPN_032": {
+      "title": "Operator code is not a corporate number",
+      "what": "In GTFS-JP v3 the operator code must be the 13-digit corporate number (法人番号).",
+      "action": "Enter the operator code as the 13-digit corporate number."
+    },
+    "JPN_033": {
+      "title": "Custom name uses the \"jp\" namespace",
+      "what": "A custom file or field name uses the \"jp\" prefix or suffix reserved for GTFS-JP.",
+      "action": "Rename the custom file or field without \"jp\"."
+    },
+    "LOC_001": {
+      "title": "Service area shape invalid",
+      "what": "One of the demand-responsive service areas is not drawn as an area (polygon).",
+      "action": "Redraw the service area as a closed area."
+    },
+    "LOC_002": {
+      "title": "Service area has no shape",
+      "what": "One of the demand-responsive service areas has no drawing.",
+      "action": "Draw the service area on the map."
+    },
+    "LOC_003": {
+      "title": "Service area has no code",
+      "what": "A demand-responsive service area has no code; trips cannot be linked to it.",
+      "action": "Give each service area a unique code."
+    },
+    "LOC_004": {
+      "title": "Service area is not closed",
+      "what": "A service area’s boundary does not end where it starts; the area is not closed.",
+      "action": "Close the boundary at its starting point."
+    },
+    "LOC_005": {
+      "title": "Service area file is empty",
+      "what": "The service areas file exists but contains no area.",
+      "action": "If you use demand-responsive service, add the areas; otherwise remove the file."
+    },
+    "LOC_006": {
+      "title": "Service area is very large",
+      "what": "A service area is larger than 500 km²; the real service area is probably smaller.",
+      "action": "Shrink the area to the real service area or split it into several areas."
+    },
+    "LOC_007": {
+      "title": "Same service area code used twice",
+      "what": "Two service areas carry the same code.",
+      "action": "Give each area a unique code."
+    },
+    "LOC_008": {
+      "title": "Service area record format wrong",
+      "what": "A record in the service areas file has a missing or wrong type.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "LOC_009": {
+      "title": "Service area record has no properties",
+      "what": "A record in the service areas file is missing its properties section.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "LOC_010": {
+      "title": "Service area has no coordinates",
+      "what": "A service area has a shape but its corner coordinates are missing; it cannot be drawn.",
+      "action": "Redraw the service area on the map."
+    },
+    "LOC_011": {
+      "title": "Service area crosses itself",
+      "what": "A service area’s boundary crosses itself, or a hole extends outside the area.",
+      "action": "Redraw the boundary so it does not cross itself."
+    },
+    "LOC_012": {
+      "title": "Service area file cannot be read",
+      "what": "The service areas file is not a valid map file (GeoJSON).",
+      "action": "Export the service areas again. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "LVL_001": {
+      "title": "Same level code used twice",
+      "what": "Two level records carry the same code.",
+      "action": "Give each level a unique code, or merge the duplicates."
+    },
+    "LVL_002": {
+      "title": "Level order invalid",
+      "what": "The number giving the level’s position relative to ground cannot be read.",
+      "action": "Enter the level order as a number (ground 0, upper levels positive, lower levels negative)."
+    },
+    "LVL_003": {
+      "title": "Level has no name",
+      "what": "A level has no name to show riders.",
+      "action": "Enter the level name (e.g. \"Platform level\", \"-1\")."
+    },
+    "LVL_004": {
+      "title": "Unused level",
+      "what": "A level is defined but no stop or platform is on it.",
+      "action": "Link the level to the relevant stops, or delete it."
+    },
+    "LVL_005": {
+      "title": "Level name too long",
+      "what": "A level name is longer than 255 characters.",
+      "action": "Shorten the level name."
+    },
+    "LVL_006": {
+      "title": "Level missing at an elevator connection",
+      "what": "One of the points an elevator connects does not say which level it is on.",
+      "action": "Assign levels to the points at both ends of the elevator."
+    },
+    "LVL_007": {
+      "title": "Level order is empty",
+      "what": "A level has no order value.",
+      "action": "Enter the level order as a number."
+    },
+    "LVL_008": {
+      "title": "Level code is empty",
+      "what": "A level has an empty code.",
+      "action": "Give each level a unique code."
+    },
+    "NET_001": {
+      "title": "Same network code used twice",
+      "what": "Two route networks carry the same code.",
+      "action": "Give each network a unique code, or merge the duplicates."
+    },
+    "NET_002": {
+      "title": "Network not found in route–network link",
+      "what": "A route is assigned to an empty or undefined network.",
+      "action": "Assign the route to an existing network."
+    },
+    "NET_003": {
+      "title": "Route not found in route–network link",
+      "what": "A network is assigned a route that is empty or not in the route list.",
+      "action": "Assign an existing route to the network."
+    },
+    "NET_004": {
+      "title": "Network code is empty",
+      "what": "A route network has an empty code.",
+      "action": "Give each network a unique code."
+    },
+    "OPR_001": {
+      "title": "Long gap between trips on a route",
+      "what": "On a route, the time between two trips in the same direction and day is unusually long.",
+      "action": "If the gap is planned this is fine; otherwise add the missing trips."
+    },
+    "OPR_003": {
+      "title": "Trips bunched very closely",
+      "what": "Two trips on the same route, direction and day leave very close together; the same trip may have been entered twice.",
+      "action": "Check the times of these two trips; delete one if it is a duplicate."
+    },
+    "OPR_004": {
+      "title": "No weekend trips",
+      "what": "This route has no trips at the weekend. This is for information.",
+      "action": "If the route does not run at weekends this is fine; otherwise check the weekend calendar."
+    },
+    "OPR_005": {
+      "title": "Unusual service frequency",
+      "what": "A route’s headways are unusual compared with similar routes. This is for information.",
+      "action": "No action needed; if unexpected, review the timetable."
+    },
+    "OPR_006": {
+      "title": "Trip has too few stops",
+      "what": "This trip has fewer than two stops; riders cannot travel anywhere with it.",
+      "action": "Add the missing stops to the trip, or delete the unused trip."
+    },
+    "OPR_007": {
+      "title": "Stop pattern repeats within a trip",
+      "what": "The same sequence of stops repeats within a trip. This is normal on loop routes.",
+      "action": "If it is a loop route this is fine; otherwise check the trip’s stop order."
+    },
+    "OPR_008": {
+      "title": "Excessive speed in several parts of a trip",
+      "what": "The speed in more than one part of a trip is far above what is expected.",
+      "action": "Check the trip’s stop times and the stop locations together."
+    },
+    "OPR_009": {
+      "title": "Night trip starts very late",
+      "what": "Some trips leave after 23:00. This is for information.",
+      "action": "If night service is planned this is fine; otherwise check the departure times and calendar."
+    },
+    "OPR_010": {
+      "title": "Conflicting accessibility on a route",
+      "what": "Some trips on the same route are marked accessible or bike-friendly and others are not.",
+      "action": "If different vehicles are used this is fine; otherwise mark the route’s trips consistently."
+    },
+    "OPR_011": {
+      "title": "Calendar never runs",
+      "what": "A calendar used by trips has no running day; these trips may not be shown in rider apps.",
+      "action": "Add running days to the calendar."
+    },
+    "OPR_012": {
+      "title": "Service gap in a calendar",
+      "what": "A calendar used by trips has a long gap between running days.",
+      "action": "If the gap is planned this is fine; otherwise add the missing running days."
+    },
+    "OPR_013": {
+      "title": "Route runs in one direction only",
+      "what": "This route only has trips in one direction. This is for information.",
+      "action": "If the route is one-way or a loop this is fine; otherwise add the opposite-direction trips."
+    },
+    "OPR_014": {
+      "title": "Long transfer times",
+      "what": "The average minimum transfer time of defined transfers exceeds 10 minutes.",
+      "action": "Check the transfer times against real walking and waiting times."
+    },
+    "OPR_015": {
+      "title": "Route uses the same shape in both directions",
+      "what": "Outbound and return trips share a single route shape. This is for information.",
+      "action": "If the two directions use different roads, use a separate shape for each direction."
+    },
+    "OPR_016": {
+      "title": "No running day in the whole dataset",
+      "what": "There are trips but no calendar has a single running day; no trips will be shown to riders.",
+      "action": "Add running days to the calendars."
+    },
+    "OPR_017": {
+      "title": "Trip distance very short",
+      "what": "A trip’s total distance is unusually short.",
+      "action": "Check the trip’s shape and stop locations; if it really is a short service this is fine."
+    },
+    "OPR_019": {
+      "title": "Two calendars running on the same day on a route",
+      "what": "More than one service calendar is active on the same day on a route; trips may appear twice.",
+      "action": "For example, switch off the normal calendar and switch on the holiday calendar on a holiday; if both are meant to run together this is fine."
+    },
+    "OPR_020": {
+      "title": "Two calendars overlap on a special day",
+      "what": "On a special day both the normal and the special calendar run on a route.",
+      "action": "Switch off the normal calendar on that day (remove it as an exception)."
+    },
+    "OPR_021": {
+      "title": "Normal calendar also runs on a special day",
+      "what": "The special-day calendar is active but the normal calendar was not switched off that day; trips appear twice.",
+      "action": "Switch off the normal calendar on that day as an exception."
+    },
+    "OPR_022": {
+      "title": "Special-day calendar not activated",
+      "what": "On the defined special day the normal calendar runs but the special calendar is not switched on.",
+      "action": "Add the special-day calendar on that day as an exception."
+    },
+    "OPR_023": {
+      "title": "No calendar runs during the special period",
+      "what": "During the defined special period neither the normal nor the special calendar runs; there are no trips on those days.",
+      "action": "Switch on either the normal or the special calendar for those days."
+    },
+    "OPR_024": {
+      "title": "More than 500 trips on a route",
+      "what": "More than 500 trips are defined on a route for one calendar; several routes may have been merged.",
+      "action": "Check that trips are linked to the right route."
+    },
+    "OPR_025": {
+      "title": "Trips last less than a minute on average",
+      "what": "The average trip duration in the dataset is under 60 seconds; times were probably exported wrongly.",
+      "action": "Check that trip stop times were exported correctly."
+    },
+    "PDW_006": {
+      "title": "Demand-responsive windows overlap",
+      "what": "Two pickup/drop-off windows overlap for the same area on the same trip.",
+      "action": "Arrange the windows so they do not overlap."
+    },
+    "PTH_001": {
+      "title": "Same walking connection code used twice",
+      "what": "Two in-station walking connections carry the same code.",
+      "action": "Give each walking connection a unique code."
+    },
+    "PTH_002": {
+      "title": "Walking connection start point not found",
+      "what": "An in-station walking connection starts at a point not in the stop list.",
+      "action": "Link its start to an existing platform, entrance or generic node."
+    },
+    "PTH_003": {
+      "title": "Walking connection end point not found",
+      "what": "An in-station walking connection ends at a point not in the stop list.",
+      "action": "Link its end to an existing platform, entrance or generic node."
+    },
+    "PTH_004": {
+      "title": "Walking connection type invalid",
+      "what": "The type of walking connection (walkway, stairs, moving sidewalk, escalator, elevator, fare gate, exit gate) is not a defined value.",
+      "action": "Choose the walking connection type."
+    },
+    "PTH_005": {
+      "title": "Walking connection direction invalid",
+      "what": "Whether the walking connection is one-way or two-way is missing or invalid.",
+      "action": "Mark the walking connection as one-way or two-way."
+    },
+    "PTH_006": {
+      "title": "Walking connection length invalid",
+      "what": "The length of the walking connection is not a number or is negative.",
+      "action": "Enter the length in metres as a positive number, or leave it empty."
+    },
+    "PTH_007": {
+      "title": "Traversal time invalid",
+      "what": "The time to pass through the walking connection is not a number or is zero.",
+      "action": "Enter the traversal time in seconds as a positive whole number, or leave it empty."
+    },
+    "PTH_008": {
+      "title": "Number of stairs missing",
+      "what": "A walking connection defined as stairs has no step count; this matters for riders with reduced mobility.",
+      "action": "Enter the number of steps."
+    },
+    "PTH_009": {
+      "title": "Walkway slope missing",
+      "what": "A walkway has no slope information; this matters for wheelchair users.",
+      "action": "Enter the slope (0 if level)."
+    },
+    "PTH_010": {
+      "title": "Walking connection width invalid",
+      "what": "The minimum width of the walking connection is not a number, or is zero or negative.",
+      "action": "Enter the width in metres as a positive number, or leave it empty."
+    },
+    "PTH_011": {
+      "title": "Walking connection returns to the same point",
+      "what": "A walking connection ends where it starts; it leads nowhere.",
+      "action": "Link its start and end to two different points."
+    },
+    "PTH_012": {
+      "title": "Connection missing between station entrance and platform",
+      "what": "There is no continuous walking connection from the station entrance to the platform; riders cannot see how to reach it.",
+      "action": "Add the missing walking connections from entrances to platforms."
+    },
+    "PTH_013": {
+      "title": "Accessible route analysis",
+      "what": "Checks whether the station has a route from entrance to platform suitable for wheelchairs in slope and width. This is for information.",
+      "action": "If there is an accessible route, enter its slope and width information."
+    },
+    "PTH_014": {
+      "title": "Walking connection joins two different stations",
+      "what": "An in-station walking connection links points belonging to two different stations.",
+      "action": "First check that both ends are attached to the right station. If there really is a walkway between the two stations, this may be deliberate."
+    },
+    "PTH_015": {
+      "title": "Walking connection time too short for its distance",
+      "what": "The length and traversal time of a walking connection mean walking faster than 3 metres per second.",
+      "action": "Correct the length and traversal time to real values."
+    },
+    "PTH_016": {
+      "title": "Exit gate is two-way",
+      "what": "A fare gate meant only for exiting is defined as two-way.",
+      "action": "Make the exit gate one-way."
+    },
+    "PTH_017": {
+      "title": "Slope value invalid",
+      "what": "The slope is not a number, or it is entered on a walking connection where slope makes no sense (stairs, elevator, etc.).",
+      "action": "Enter the slope as a number only on walkways and moving sidewalks."
+    },
+    "PTH_018": {
+      "title": "Walking connection sign text too long",
+      "what": "The sign text riders see on a walking connection is longer than 255 characters.",
+      "action": "Enter the short text shown on the sign."
+    },
+    "PTH_019": {
+      "title": "Dead-end node",
+      "what": "A node inside the station is connected to only one walking connection; it is impossible to continue from there.",
+      "action": "Connect the node to at least two walking connections, or remove it."
+    },
+    "PTH_020": {
+      "title": "Walking connection code is empty",
+      "what": "An in-station walking connection has an empty code.",
+      "action": "Give each walking connection a unique code."
+    },
+    "PTH_021": {
+      "title": "Walking connection start is empty",
+      "what": "A walking connection does not say where it starts.",
+      "action": "Choose the start point of the walking connection."
+    },
+    "PTH_022": {
+      "title": "Walking connection end is empty",
+      "what": "A walking connection does not say where it ends.",
+      "action": "Choose the end point of the walking connection."
+    },
+    "PTH_023": {
+      "title": "Walking connection type is empty",
+      "what": "A walking connection has no type.",
+      "action": "Choose the walking connection type (walkway, stairs, elevator, etc.)."
+    },
+    "PTH_024": {
+      "title": "Walking connection direction is empty",
+      "what": "A walking connection does not say whether it is one-way or two-way.",
+      "action": "Mark the walking connection as one-way or two-way."
+    },
+    "PTH_025": {
+      "title": "Walking connection length missing",
+      "what": "Walkways, fare gates and exit gates have no length; walking time cannot be calculated.",
+      "action": "Enter the length of these walking connections in metres."
+    },
+    "PTH_026": {
+      "title": "Walking connection attached to the station itself",
+      "what": "A walking connection is attached to the station itself; walking connections must attach to platforms, entrances or nodes.",
+      "action": "Attach the walking connection to the relevant platform, entrance or node."
+    },
+    "PTH_027": {
+      "title": "Step count invalid",
+      "what": "The stair step count is zero or not a whole number.",
+      "action": "Enter the step count as a whole number (positive going up, negative going down), or leave it empty."
+    },
+    "PTH_028": {
+      "title": "Slope on the wrong connection type",
+      "what": "Slope information is entered on a walking connection other than a walkway or moving sidewalk.",
+      "action": "Use slope only on walkways and moving sidewalks."
+    },
+    "PTH_029": {
+      "title": "Traversal time missing",
+      "what": "A moving sidewalk, escalator or elevator has no traversal time.",
+      "action": "Enter the traversal time of these walking connections in seconds."
+    },
+    "PTH_030": {
+      "title": "Walking connection on a platform that has boarding areas",
+      "what": "Boarding areas are defined for the platform, but the walking connection is attached directly to the platform.",
+      "action": "Attach the walking connection to the relevant boarding area."
+    },
+    "PTH_031": {
+      "title": "Walking connection to a street-access stop",
+      "what": "A walking connection is attached to a stop that is reached directly from the street rather than through the station.",
+      "action": "Set the stop’s access to \"through the station\", or remove this walking connection."
+    },
+    "RCT_001": {
+      "title": "Same rider category code used twice",
+      "what": "Two rider categories (e.g. student, senior) carry the same code.",
+      "action": "Give each rider category a unique code."
+    },
+    "RCT_002": {
+      "title": "Rider category has no name",
+      "what": "A rider category has no name.",
+      "action": "Enter the category name (e.g. \"Student\")."
+    },
+    "RCT_003": {
+      "title": "Default category value invalid",
+      "what": "The value saying whether the rider category is the default is invalid.",
+      "action": "Set the value to yes or no."
+    },
+    "RCT_004": {
+      "title": "Age limit invalid",
+      "what": "The minimum or maximum age of a rider category is not a whole number.",
+      "action": "Enter age limits as whole numbers, or leave them empty."
+    },
+    "RCT_005": {
+      "title": "Age range is reversed",
+      "what": "A rider category’s maximum age is lower than its minimum age.",
+      "action": "Correct the age limits."
+    },
+    "RCT_006": {
+      "title": "Not exactly one default category per product",
+      "what": "A fare product has no default rider category, or more than one.",
+      "action": "Make exactly one rider category the default for each product."
+    },
+    "RCT_007": {
+      "title": "Category eligibility page invalid",
+      "what": "The address of the page explaining the rider category conditions is not valid.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "RCT_008": {
+      "title": "Rider category code is empty",
+      "what": "A rider category has an empty code.",
+      "action": "Give each category a unique code."
+    },
+    "RTS_001": {
+      "title": "Same route code used twice",
+      "what": "Two different routes carry the same code; it becomes unclear which route trips belong to.",
+      "action": "Give each route a unique code."
+    },
+    "RTS_002": {
+      "title": "Route operator not found",
+      "what": "A route is linked to an operator that is not in the operator list.",
+      "action": "Link the route to an existing operator, or add the operator to the list."
+    },
+    "RTS_003": {
+      "title": "Route has no name",
+      "what": "A route has neither a short name (number) nor a long name; riders cannot recognise it.",
+      "action": "Enter the route number or name."
+    },
+    "RTS_004": {
+      "title": "Route vehicle type missing or invalid",
+      "what": "The route type (bus, tram, metro, etc.) is missing or not a defined value.",
+      "action": "Choose the route’s vehicle type."
+    },
+    "RTS_005": {
+      "title": "Route web address invalid",
+      "what": "The web address given for the route is not valid.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "RTS_006": {
+      "title": "Route colour invalid",
+      "what": "The route colour is not a 6-digit colour code (e.g. FF0000).",
+      "action": "Enter the route colour as a 6-digit colour code."
+    },
+    "RTS_007": {
+      "title": "Route text colour invalid",
+      "what": "The text colour on the route badge is not a 6-digit colour code (e.g. FFFFFF).",
+      "action": "Enter the text colour as a 6-digit colour code."
+    },
+    "RTS_008": {
+      "title": "Route badge hard to read",
+      "what": "The contrast between the route colour and its text colour is low; the route number on the badge is hard to read.",
+      "action": "Choose a text colour dark or light enough for the route colour (e.g. white text on a dark background)."
+    },
+    "RTS_010": {
+      "title": "Route number too long",
+      "what": "The route short name is longer than 12 characters; it does not fit on badges and signs.",
+      "action": "Put only the route number in the short name; move the description to the long name."
+    },
+    "RTS_011": {
+      "title": "Route name too long",
+      "what": "The route long name is longer than 100 characters; apps cut it off.",
+      "action": "Shorten the route name; put details in the route description."
+    },
+    "RTS_012": {
+      "title": "Route without trips",
+      "what": "This route has no trips; it may appear as an empty route in rider apps.",
+      "action": "If the route is not in service, remove it; if it is, add its trips."
+    },
+    "RTS_013": {
+      "title": "Route continuous pickup value invalid",
+      "what": "The value saying whether riders may board along the road between stops is not one of the defined options.",
+      "action": "Choose the continuous pickup setting, or leave it empty if you do not use it."
+    },
+    "RTS_016": {
+      "title": "Route has no running days",
+      "what": "None of the calendars used by this route’s trips has a running day; the route may not be shown in rider apps.",
+      "action": "Check the service calendars used by the route’s trips."
+    },
+    "RTS_017": {
+      "title": "Route has no shape",
+      "what": "None of this route’s trips has a route shape; apps draw it as straight lines between stops.",
+      "action": "Add the route’s on-road shape to the export."
+    },
+    "RTS_018": {
+      "title": "Route continuous drop-off value invalid",
+      "what": "The value saying whether riders may alight along the road between stops is not one of the defined options.",
+      "action": "Choose the continuous drop-off setting, or leave it empty if you do not use it."
+    },
+    "RTS_019": {
+      "title": "Two routes have the same name",
+      "what": "Several routes carry exactly the same number and name; riders cannot tell them apart in search.",
+      "action": "If they are different services, give them distinctive names; if they are the same service, merge them."
+    },
+    "RTS_020": {
+      "title": "Route page same as operator page",
+      "what": "The web address given for the route is the operator’s general page.",
+      "action": "If there is a route-specific page, enter it; otherwise leave the address empty."
+    },
+    "RTS_021": {
+      "title": "Route number exceeds the Google Transit limit (6 characters)",
+      "what": "The route short name is longer than 6 characters; Google Maps may cut it to fit the badge. If you do not publish to Google, this is not a problem.",
+      "action": "If you publish to Google, put only the route number in the short name."
+    },
+    "RTS_022": {
+      "title": "Route name repeats the number",
+      "what": "The route long name also contains its number; apps show repetitions like \"34 34 Centre\".",
+      "action": "Write only the itinerary in the long name, without the number (e.g. \"Centre – University\")."
+    },
+    "RTS_023": {
+      "title": "Route description same as its name",
+      "what": "The route description repeats its long name; it gives riders no extra information.",
+      "action": "Write extra information such as operating hours or a route note, or leave it empty."
+    },
+    "RTS_024": {
+      "title": "Contactless payment value invalid",
+      "what": "The value saying whether contactless payment is accepted on the route is not one of the defined options.",
+      "action": "Choose \"no information\", \"supported\" or \"not supported\"."
+    },
+    "RTS_025": {
+      "title": "Route operator not given",
+      "what": "Some routes have no operator; with a single operator this is still recommended.",
+      "action": "Assign the operator to the routes."
+    },
+    "RTS_026": {
+      "title": "Same route number on different routes",
+      "what": "The same short name (number) is used on routes with different names; riders may be confused in search.",
+      "action": "If the number is deliberately shared by variants this is fine; otherwise give the routes separate numbers."
+    },
+    "RTS_027": {
+      "title": "Same route name on different routes",
+      "what": "The same long name is used on routes with different numbers; riders cannot tell them apart in search.",
+      "action": "If the name is deliberately shared this is fine; otherwise give each route a distinctive name."
+    },
+    "RTS_028": {
+      "title": "Continuous boarding open on a demand-responsive route",
+      "what": "A route with demand-responsive trips has boarding or alighting along the road switched on; the two cannot be combined.",
+      "action": "Switch off continuous boarding and alighting on this route, or leave the setting empty."
+    },
+    "RTS_029": {
+      "title": "Route sort order invalid",
+      "what": "The value deciding the order routes appear in lists is negative or not a number.",
+      "action": "Enter the sort order as 0 or a positive whole number, or leave it empty."
+    },
+    "RTS_030": {
+      "title": "Route type uses an extended code",
+      "what": "The route vehicle type uses a non-standard extended code; some apps may not recognise it.",
+      "action": "If possible, choose the nearest basic vehicle type (bus, tram, metro, etc.)."
+    },
+    "RTS_031": {
+      "title": "Route code is empty",
+      "what": "A route in the route list has an empty code; trips cannot be linked to it.",
+      "action": "Give each route a unique code."
+    },
+    "SAR_001": {
+      "title": "Area not found in a stop–area link",
+      "what": "A stop is assigned to a fare area that is not defined.",
+      "action": "Assign the stop to an existing fare area."
+    },
+    "SAR_002": {
+      "title": "Stop not found in a stop–area link",
+      "what": "A fare area is assigned a stop that is not in the stop list.",
+      "action": "Assign an existing stop to the area."
+    },
+    "SAR_003": {
+      "title": "Area empty in a stop–area link",
+      "what": "A stop–area link has no area.",
+      "action": "Enter the fare area for the link."
+    },
+    "SAR_004": {
+      "title": "Stop empty in a stop–area link",
+      "what": "A stop–area link has no stop.",
+      "action": "Enter the stop for the link."
+    },
+    "SHP_001": {
+      "title": "Shape code is empty",
+      "what": "A shape point does not say which shape it belongs to.",
+      "action": "Export the route shape again from your scheduling software."
+    },
+    "SHP_002": {
+      "title": "Shape point latitude invalid",
+      "what": "A point in a route shape has no latitude or it is out of range.",
+      "action": "Check the shape on the map and redraw or export it again."
+    },
+    "SHP_003": {
+      "title": "Shape point longitude invalid",
+      "what": "A point in a route shape has no longitude or it is out of range.",
+      "action": "Check the shape on the map and redraw or export it again."
+    },
+    "SHP_004": {
+      "title": "Shape point order invalid",
+      "what": "A shape point has no sequence number or it is not a number; the line may be joined wrongly.",
+      "action": "Export the route shape again."
+    },
+    "SHP_005": {
+      "title": "Shape distance goes backwards",
+      "what": "Along a route shape, a point’s distance is smaller than the previous point’s.",
+      "action": "Have the shape distances recalculated so they increase from start to end."
+    },
+    "SHP_006": {
+      "title": "Shape is a single point",
+      "what": "A route shape consists of a single point; it cannot be drawn as a line.",
+      "action": "Redraw the shape along the road."
+    },
+    "SHP_008": {
+      "title": "Same order used twice in a shape",
+      "what": "Two points of a route shape share the same sequence number; the line’s direction is unclear.",
+      "action": "Export the route shape again."
+    },
+    "SHP_009": {
+      "title": "Shape crosses itself",
+      "what": "A route shape passes over itself. This is normal at loops and turning points.",
+      "action": "If the route really uses the same road this is fine; otherwise check the shape on the map."
+    },
+    "SHP_010": {
+      "title": "Same point repeated in a shape",
+      "what": "The same location is entered twice in a row in a route shape.",
+      "action": "Simplify the shape and export it again; riders are not affected."
+    },
+    "SHP_012": {
+      "title": "Shape far from the trip’s stops",
+      "what": "A route shape passes more than 100 metres from some stops of the trips that use it; stops appear off the road on the map.",
+      "action": "Correct the shape or the stop locations; the trip may have the wrong shape."
+    },
+    "SHP_014": {
+      "title": "First or last stop far from the shape end",
+      "what": "The trip’s first or last stop is far from the start or end of the route shape.",
+      "action": "If it is a deliberate extension (e.g. depot exit) this is fine; otherwise adjust the shape ends to the terminal stops."
+    },
+    "SHP_015": {
+      "title": "Shape drawn with too few points",
+      "what": "A long route shape is drawn with very few points; on the map it does not follow the road and cuts through buildings.",
+      "action": "Redraw the shape along the road with more points."
+    },
+    "SHP_016": {
+      "title": "Shape runs against the trip direction",
+      "what": "A route shape is drawn in the opposite direction to the trips that use it; apps show the direction reversed.",
+      "action": "Reverse the shape for this direction or define a separate shape."
+    },
+    "SHP_017": {
+      "title": "Stop order conflicts with the shape",
+      "what": "The trip’s stop order seems to go backwards along the route shape. This can happen on loop routes.",
+      "action": "Check on the map; if it is a deliberate turn this is fine, otherwise correct the stop order or the shape."
+    },
+    "SHP_018": {
+      "title": "Unused route shape",
+      "what": "No trip uses this route shape.",
+      "action": "Link the shape to the relevant trips, or delete it if unused."
+    },
+    "SHP_019": {
+      "title": "Shape’s trips have no stop times",
+      "what": "None of the trips using a route shape has stop times.",
+      "action": "Add the trips’ stop times, or remove the unused trips and shape."
+    },
+    "SHP_020": {
+      "title": "Point repeats in a shape",
+      "what": "The same point recurs shortly within a route shape. This is for information.",
+      "action": "You may simplify the shape and export it again; riders are not affected."
+    },
+    "SHP_021": {
+      "title": "Shape distance negative",
+      "what": "A route shape point has a distance below zero.",
+      "action": "Have the shape distances recalculated."
+    },
+    "SHP_022": {
+      "title": "Stop position on the shape is ambiguous",
+      "what": "Because the shape passes the same place more than once, it is unclear where on the line a stop is.",
+      "action": "Export each stop’s distance along the shape in the trip stop times."
+    },
+    "SHP_023": {
+      "title": "Same point twice in a shape",
+      "what": "The same location and distance are entered twice in a row in a route shape.",
+      "action": "Remove the duplicate point and export again."
+    },
+    "SHP_024": {
+      "title": "Stop distances along the shape are inconsistent",
+      "what": "Stops’ distances along the shape do not match the stop locations.",
+      "action": "Check the stop locations, the shape and the distances."
+    },
+    "SHP_025": {
+      "title": "Trip distance longer than the shape",
+      "what": "The distance in trip stop times exceeds the total length of the route shape; different units were probably used.",
+      "action": "Export the distance in the same unit (metres or kilometres) in both places."
+    },
+    "SHP_026": {
+      "title": "Shape has very many points",
+      "what": "A route shape has more than 5000 points; the file grows unnecessarily. This is for information.",
+      "action": "You can use the shape simplification option when exporting."
+    },
+    "SHP_028": {
+      "title": "Position changes without distance increasing",
+      "what": "Two consecutive shape points are at different places but have the same distance.",
+      "action": "Have the shape distances recalculated."
+    },
+    "SHP_029": {
+      "title": "Two almost identical shape points",
+      "what": "Two consecutive shape points are very close and have the same distance; this may be rounding. This is for information.",
+      "action": "Have the shape distances recalculated, or remove the duplicate point."
+    },
+    "SHP_030": {
+      "title": "Stop distance present, shape distance missing",
+      "what": "Trip stop times use shape distances but the route shape has none; the two cannot be matched.",
+      "action": "Add distances in the same unit to the shape, or remove the distances from the stop times."
+    },
+    "STM_001": {
+      "title": "Stop times are not linked to a route",
+      "what": "There are times for a {stop_count}-stop trip starting at {first_stop} at {first_departure} and ending at {last_stop} at {last_arrival}, but no route or service calendar is defined for this trip.",
+      "action": "In the planning software, find the trip that uses these stops and times, assign its correct service calendar, and link it to a route."
+    },
+    "STM_002": {
+      "title": "A stop used by a trip was not found",
+      "what": "A trip on route code {route_code} under the {service} calendar uses this stop during {time}, but the stop is missing from the stop list.",
+      "action": "Check the trip's location in the planning software. If it is a physical stop, match it to an existing stop or create a stop record. If it represents a service area, do not add it as a stop; use the correct location type and record in the trip."
+    },
+    "STM_003": {
+      "title": "Arrival time invalid",
+      "what": "An arrival time at a stop cannot be read or is not in a valid format.",
+      "action": "Correct the trip’s arrival time at the stop."
+    },
+    "STM_004": {
+      "title": "Departure time invalid",
+      "what": "A departure time at a stop cannot be read or is not in a valid format.",
+      "action": "Correct the trip’s departure time from the stop."
+    },
+    "STM_005": {
+      "title": "Stop sequence of the trip invalid",
+      "what": "The trip’s stop sequence is missing or invalid.",
+      "action": "Correct the missing or invalid stop sequence values."
+    },
+    "STM_006": {
+      "title": "No stop given in the trip",
+      "what": "No stop is selected for the stop time with arrival {arrival} and departure {departure}.",
+      "action": "In your scheduling software, add the stop planned for these times."
+    },
+    "STM_007": {
+      "title": "Departure appears before arrival",
+      "what": "At the same stop the departure time is earlier than the arrival time.",
+      "action": "Check the arrival and departure times at the stop."
+    },
+    "STM_008": {
+      "title": "Time goes backwards between stops",
+      "what": "After departing {from} at {dep}, the trip arrives at {to} at {arr}, which is before the departure.",
+      "action": "Check the times of these two stops in your scheduling software; times must move forward along the trip. After midnight, times continue past 24:00 (e.g. 24:10, not 00:10)."
+    },
+    "STM_009": {
+      "title": "Pickup rule at a stop invalid",
+      "what": "The value saying whether riders can board at a trip’s stop is not one of the defined options.",
+      "action": "In your scheduling software, set the pickup method for this stop: 0 — regularly scheduled pickup; 1 — no pickup; 2 — phone the agency to arrange pickup; 3 — coordinate with the driver to arrange pickup."
+    },
+    "STM_010": {
+      "title": "Drop-off rule at a stop invalid",
+      "what": "The value saying whether riders can alight at a trip’s stop is not one of the defined options.",
+      "action": "In your scheduling software, set the drop-off method for this stop: 0 — regularly scheduled drop-off; 1 — no drop-off; 2 — phone the agency to arrange drop-off; 3 — coordinate with the driver to arrange drop-off."
+    },
+    "STM_012": {
+      "title": "Unrealistic speed between stops",
+      "what": "The calculated speed between {stops} does not appear realistic.",
+      "action": "First check the arrival and departure times between these two stops. If the times are correct, check the stop locations."
+    },
+    "STM_014": {
+      "title": "Excessive speed on a route segment",
+      "what": "Between {from} and {to}, the calculated speed over {distance} m is {speed} km/h, above the {threshold} km/h limit set for this route type.",
+      "action": "Check these two stops’ times. If the times are right, look at the stops’ locations on the map."
+    },
+    "STM_015": {
+      "title": "The first stop is missing an arrival time",
+      "what": "The arrival time for the first stop of this trip is missing.",
+      "action": "Enter the arrival time at the first stop of this trip. At the first stop it is usually the same as the departure time."
+    },
+    "STM_016": {
+      "title": "The last stop is missing an arrival time",
+      "what": "The arrival time for the last stop of this trip is missing.",
+      "action": "Enter the arrival time at the last stop of this trip; it must come after the previous stop."
+    },
+    "STM_017": {
+      "title": "Stop distances along the shape missing",
+      "what": "The distance along the shape is missing for the trip’s stops.",
+      "action": "Complete this information on the affected trips, or remove the distance values if you do not use them."
+    },
+    "STM_018": {
+      "title": "Continuous pickup rule at a stop invalid",
+      "what": "For this stop time, the value saying whether boarding along the road (between stops) is allowed is not one of the defined options.",
+      "action": "Set continuous pickup in your scheduling software, or leave it empty if you do not use it."
+    },
+    "STM_019": {
+      "title": "Continuous drop-off rule at a stop invalid",
+      "what": "For this stop time, the value saying whether alighting along the road (between stops) is allowed is not one of the defined options.",
+      "action": "Set continuous drop-off in your scheduling software, or leave it empty if you do not use it."
+    },
+    "STM_020": {
+      "title": "Zero travel time between distant stops",
+      "what": "Two consecutive stops more than 200 metres apart have the same minute; the vehicle appears to travel without taking any time.",
+      "action": "Correct the two stops’ times to the real travel time."
+    },
+    "STM_021": {
+      "title": "Two consecutive stops at the same place",
+      "what": "Two different consecutive stops in the trip appear at the same point on the map.",
+      "action": "Check both stop locations; enter the right location if they differ, merge them if they are copies."
+    },
+    "STM_022": {
+      "title": "Timepoint flag invalid",
+      "what": "The flag saying whether a stop time is exact or approximate is not a defined value.",
+      "action": "Mark exact times as \"exact\" and estimates as \"approximate\"."
+    },
+    "STM_024": {
+      "title": "Distance units do not match",
+      "what": "Distances in trip stop times and in route shapes appear to use different units (e.g. metres and kilometres).",
+      "action": "Use the same unit in both places when exporting distances."
+    },
+    "STM_025": {
+      "title": "Very short time between two stops",
+      "what": "The scheduled time between two consecutive stops is under 10 seconds. This alone is not an error, just a signal to check.",
+      "action": "If the stops really are very close, no action is needed; otherwise review the times."
+    },
+    "STM_026": {
+      "title": "Very long distance between two stops",
+      "what": "There is an unusually long distance between two consecutive stops of the trip; the stop order or location may be wrong.",
+      "action": "Check the trip’s stop order and these two stops’ locations."
+    },
+    "STM_028": {
+      "title": "Trip duration very long",
+      "what": "The time between the trip start time and the arrival at the last stop exceeds the expected upper limit.",
+      "action": "Check the first and last stop times; if the trip really is this long, consider splitting it into several trips."
+    },
+    "STM_029": {
+      "title": "Trip duration very short",
+      "what": "The time between the trip start time and the arrival at the last stop is much shorter than expected.",
+      "action": "Check the trip’s first and last stop times and whether its stop list is complete."
+    },
+    "STM_030": {
+      "title": "Distance along the shape negative",
+      "what": "The shape distance entered for a stop is below zero.",
+      "action": "Enter the distance as zero or a positive value, or leave it empty if you do not use distances."
+    },
+    "STM_032": {
+      "title": "Same stop sequence used twice in a trip",
+      "what": "Two stops of the same trip share a sequence number; the order the stops are served is unclear.",
+      "action": "Fix the trip’s stop order so each stop has a distinct, increasing number."
+    },
+    "STM_033": {
+      "title": "Trip has a single stop",
+      "what": "This trip has only one stop; riders cannot travel anywhere with it.",
+      "action": "Add at least the first and last stops to the trip, or delete this unused trip."
+    },
+    "STM_034": {
+      "title": "Only arrival or only departure at a stop",
+      "what": "Only one of the arrival and departure times is entered at a stop.",
+      "action": "Enter both times; if the vehicle does not wait they can be the same. If the time is unknown, leave both empty."
+    },
+    "STM_035": {
+      "title": "Same stop twice in a row",
+      "what": "The same stop appears in two consecutive rows of the trip.",
+      "action": "If this is a terminal or loop turn this is fine; otherwise remove the extra row."
+    },
+    "STM_036": {
+      "title": "Trip stop times not sorted in the file",
+      "what": "Trip stop times are not ordered by trip and stop sequence in the file. Analyzer sorts them itself; this is for information.",
+      "action": "Sorting records by trip and stop order when exporting lets some apps read the file faster."
+    },
+    "STM_037": {
+      "title": "Fixed times at a demand-responsive stop",
+      "what": "A stop working with a time window (demand-responsive) also has fixed arrival and departure times; the two cannot be combined.",
+      "action": "If this stop is demand-responsive, delete the fixed times and keep only the time window."
+    },
+    "STM_038": {
+      "title": "Demand-responsive window reversed",
+      "what": "The end of the demand-responsive service window is not after its start; the window never opens.",
+      "action": "Correct the window so it starts before it ends."
+    },
+    "STM_039": {
+      "title": "Demand-responsive window missing",
+      "what": "In a demand-responsive service area, the start or end time of service (or both) is missing.",
+      "action": "Enter both the start and end times of the service window."
+    },
+    "STM_040": {
+      "title": "No booking rule at a demand-responsive stop",
+      "what": "A stop working with a time window does not define how riders book.",
+      "action": "Choose the pickup or drop-off booking rule for this stop."
+    },
+    "STM_041": {
+      "title": "Stop and service area chosen together",
+      "what": "The same trip row has both a regular stop and a demand-responsive service area; only one is allowed.",
+      "action": "If the row is a regular stop, remove the service area; if it is demand-responsive, remove the stop."
+    },
+    "STM_042": {
+      "title": "Stop headsign has characters Google Transit does not support",
+      "what": "The headsign shown at the stop contains special characters that Google Maps does not display. If you do not publish to Google, this is not a problem.",
+      "action": "Replace the special characters in the headsign with plain letters and digits."
+    },
+    "STM_043": {
+      "title": "Trip has more than 200 stops",
+      "what": "This trip has an unusual number of stops; several trips may have been merged.",
+      "action": "Check the trip’s stop list; split merged trips if any."
+    },
+    "STM_044": {
+      "title": "Trip stop times very large",
+      "what": "The dataset has more than 2 million stop time records; some browser-based tools may slow down at this size.",
+      "action": "This is not an error. If needed, consider splitting the dataset by area or period."
+    },
+    "STM_045": {
+      "title": "Trip leaves outside the service day",
+      "what": "The trip’s departure time exceeds the usual end of the service day (27:00 by default).",
+      "action": "Check the departure time; if it is a trip of the next day, move it to the right day and calendar."
+    },
+    "STM_046": {
+      "title": "Stop time not linked to a trip",
+      "what": "A stop time record does not say which trip it belongs to.",
+      "action": "Match the stop time to its trip."
+    },
+    "STM_047": {
+      "title": "Some trips are missing exact stop times",
+      "what": "Some stops on these trips do not have an exact arrival or departure time.",
+      "action": "Complete the stop times or correct the missing exact times."
+    },
+    "STM_048": {
+      "title": "Stop times after midnight written as 00:xx",
+      "what": "The trip runs past midnight, but from one stop onward the times are written as 00:xx instead of 24:xx, so the clock drops back from the previous stop. The trip's start time is correct; the problem is in the stop times within the trip.",
+      "action": "Starting at the stop shown in the table, continue this trip's stop times past 24:00 (24:10 instead of 00:10)."
+    },
+    "STM_049": {
+      "title": "Departure after midnight at a stop written as 00:xx",
+      "what": "Midnight passes while the vehicle waits at the stop; arrival is written as 23:xx and departure as 00:xx, so the departure appears before the arrival.",
+      "action": "Write this stop's departure time past 24:00 (24:02 instead of 00:02)."
+    },
+    "STM_050": {
+      "title": "Timepoint flag empty on some rows",
+      "what": "Whether stop times are exact or approximate is left empty on some rows; an empty value counts as \"exact\".",
+      "action": "Explicitly mark estimated times as \"approximate\" and real times as \"exact\"."
+    },
+    "STM_051": {
+      "title": "Regular pickup at a demand-responsive stop",
+      "what": "At a stop working with a time window, boarding is set to \"regular\" or \"arrange with driver\"; this conflicts with demand-responsive service.",
+      "action": "Set boarding at this stop to \"none\" or \"phone booking\"."
+    },
+    "STM_052": {
+      "title": "Regular drop-off at a demand-responsive stop",
+      "what": "At a stop working with a time window, alighting is set to \"regular\"; this conflicts with demand-responsive service.",
+      "action": "Set alighting at this stop to \"none\" or \"phone booking\"."
+    },
+    "STM_053": {
+      "title": "Same time at many consecutive stops",
+      "what": "Many consecutive stops of a trip have the same time; the vehicle seems to pass them without any time passing.",
+      "action": "Spread the intermediate times by real travel time; if unknown, mark intermediate stops as \"approximate\"."
+    },
+    "STM_054": {
+      "title": "Continuous pickup at a demand-responsive stop",
+      "what": "At a stop working with a time window, boarding along the road is left open; the two cannot be combined.",
+      "action": "Switch off continuous pickup at this stop, or leave the setting empty."
+    },
+    "STM_055": {
+      "title": "Continuous drop-off at a demand-responsive stop",
+      "what": "At a stop working with a time window, alighting along the road is left open; the two cannot be combined.",
+      "action": "Switch off continuous drop-off at this stop, or leave the setting empty."
+    },
+    "STM_056": {
+      "title": "Shape distance does not increase along the trip stops",
+      "what": "The distance along the shape does not increase along the trip’s stops.",
+      "action": "Check the trip’s stop and shape distance information."
+    },
+    "STM_058": {
+      "title": "Demand-responsive window time cannot be read",
+      "what": "The start or end of the service window is not a valid time.",
+      "action": "Enter window times as HH:MM:SS (e.g. 08:00:00)."
+    },
+    "STM_059": {
+      "title": "No rule for phone booking",
+      "what": "Boarding or alighting at a stop is set to \"phone booking\" but how riders book is not defined.",
+      "action": "Choose the relevant booking rule for this stop."
+    },
+    "STM_060": {
+      "title": "Two demand-responsive records overlap",
+      "what": "Two demand-responsive records on the same trip overlap in area, time and boarding/alighting rule; it is unclear which applies.",
+      "action": "Separate the time windows or adjust the areas so they do not overlap."
+    },
+    "STM_061": {
+      "title": "Impossible speed between distant stops",
+      "what": "The time between two distant stops of a trip is impossibly short for that distance.",
+      "action": "Check the times between these two stops; if they are right, look at the stop locations."
+    },
+    "STP_001": {
+      "title": "The same stop ID is used by more than one record",
+      "what": "The same internal stop ID appears more than once in the stop list.",
+      "action": "Merge duplicate records for the same stop or give different stops unique codes."
+    },
+    "STP_002": {
+      "title": "Stop code is empty",
+      "what": "A record in the stop list has an empty code; trips cannot be linked to this stop.",
+      "action": "Give each stop a unique code."
+    },
+    "STP_003": {
+      "title": "Stop has no name or invalid latitude",
+      "what": "A stop or station has no name, or its latitude is outside the valid range (-90 to 90).",
+      "action": "Give the stop the name riders know and check its location."
+    },
+    "STP_004": {
+      "title": "Stop latitude is not a number",
+      "what": "A stop’s latitude cannot be read as a number.",
+      "action": "Enter the latitude as a decimal number with a point (e.g. 37.0662)."
+    },
+    "STP_005": {
+      "title": "Stop longitude invalid",
+      "what": "A stop’s longitude is not a number or is outside -180 to 180.",
+      "action": "Enter the longitude as a decimal number with a point (e.g. 37.3833)."
+    },
+    "STP_006": {
+      "title": "Stop latitude missing",
+      "what": "A stop, station or entrance has no latitude; it cannot be shown on the map.",
+      "action": "Mark the stop location in your scheduling software."
+    },
+    "STP_007": {
+      "title": "Stop longitude missing",
+      "what": "A stop, station or entrance has no longitude; it cannot be shown on the map.",
+      "action": "Mark the stop location in your scheduling software."
+    },
+    "STP_008": {
+      "title": "Stop type invalid",
+      "what": "The type saying whether the record is a stop, station or entrance is not a defined value.",
+      "action": "Choose the right type: stop/platform, station, entrance/exit, generic node or boarding area."
+    },
+    "STP_009": {
+      "title": "The station this stop belongs to is missing",
+      "what": "This stop is linked to a station, but that station is not in the stop list.",
+      "action": "Add the station to the stop list or link the stop to an existing station. If the stop does not belong to a station, remove the link."
+    },
+    "STP_010": {
+      "title": "Linked record is not a station",
+      "what": "A stop is shown as belonging to a station, but the record it points to is not defined as a station.",
+      "action": "Link the stop to a real station record, or make the linked record a station."
+    },
+    "STP_011": {
+      "title": "Entrance or boarding area not linked to a station",
+      "what": "A station entrance, generic node or boarding area is not linked to any station.",
+      "action": "Link this record to its station."
+    },
+    "STP_012": {
+      "title": "A station or entrance record is used by a trip",
+      "what": "This record is defined as a station or entrance but is used in trip stop times.",
+      "action": "Use a regular stop record in trip stop times or correct the stop type."
+    },
+    "STP_013": {
+      "title": "Stop accessibility value invalid",
+      "what": "The value saying whether the stop is usable by wheelchair is not one of the defined options.",
+      "action": "Choose \"unknown\", \"accessible\" or \"not accessible\"."
+    },
+    "STP_014": {
+      "title": "Stop time zone invalid",
+      "what": "The time zone entered for the stop is not a recognised name.",
+      "action": "Enter the time zone with its standard name, such as \"Europe/Istanbul\", or leave it empty."
+    },
+    "STP_015": {
+      "title": "Stop level not found",
+      "what": "The stop is linked to a level that is not in the level list.",
+      "action": "Add the level to the list, or link the stop to an existing level."
+    },
+    "STP_016": {
+      "title": "Two stops at exactly the same place",
+      "what": "Two different stops sit at exactly the same point on the map.",
+      "action": "If they are two records of the same stop, merge them; if they are different stops, enter their correct locations."
+    },
+    "STP_017": {
+      "title": "Two stops very close together",
+      "what": "The distance between two different stops is unusually short.",
+      "action": "If one is a copy of the other, merge them; otherwise check their locations."
+    },
+    "STP_018": {
+      "title": "No valid stop record",
+      "what": "The stop list contains no usable stop record.",
+      "action": "For services with regular stops, add the stop records. If the dataset uses only demand-responsive service areas this may be valid; the exact rule will be written once the Flex decision is settled."
+    },
+    "STP_019": {
+      "title": "Stop name too long",
+      "what": "The stop name is too long to fit on rider screens.",
+      "action": "Use the short name shown on the stop sign."
+    },
+    "STP_020": {
+      "title": "Stop served by no trip",
+      "what": "No trip uses this stop; it may appear as an empty stop in rider apps.",
+      "action": "If the stop is not in service, remove it from the list; if it is, add it to the relevant trips."
+    },
+    "STP_021": {
+      "title": "Boarding area not linked to a platform",
+      "what": "A boarding area is linked to a record of another type instead of a platform.",
+      "action": "Link the boarding area to its platform."
+    },
+    "STP_022": {
+      "title": "Stop code missing",
+      "what": "One or more stops have no rider-facing stop code.",
+      "action": "Fill in the required stop codes."
+    },
+    "STP_023": {
+      "title": "Invalid character in spoken stop name",
+      "what": "The stop name written for audio announcements contains characters such as \"<\" or \">\".",
+      "action": "Write the spoken stop name as plain text to be read aloud."
+    },
+    "STP_024": {
+      "title": "Stop access value undefined",
+      "what": "The value saying whether the stop can be entered directly from the street is not one of the defined options.",
+      "action": "Choose \"only through the station\" or \"directly from the street\"."
+    },
+    "STP_026": {
+      "title": "Stop access value invalid",
+      "what": "The stop access value can only be one of two options; another value is entered.",
+      "action": "Choose \"only through the station\" or \"directly from the street\"."
+    },
+    "STP_028": {
+      "title": "Stop code too long",
+      "what": "The rider-facing stop code is too long to be a short code.",
+      "action": "Enter the short stop code used on signs and in apps."
+    },
+    "STP_029": {
+      "title": "Stop far from its station",
+      "what": "A platform belongs to a station but appears unusually far from it on the map.",
+      "action": "Correct the platform location or which station it belongs to."
+    },
+    "STP_030": {
+      "title": "Empty station",
+      "what": "A station is defined but no stop or platform belongs to it.",
+      "action": "Link the station’s platforms to it, or remove the unused station."
+    },
+    "STP_031": {
+      "title": "Stop description same as its name",
+      "what": "The stop description repeats its name; it gives riders no extra information.",
+      "action": "Add extra information such as direction, street or platform, or leave it empty."
+    },
+    "STP_032": {
+      "title": "Platform with walking connections not linked to a station",
+      "what": "A platform that in-station walking connections attach to is not linked to any station.",
+      "action": "Link the platform to its station."
+    },
+    "STP_033": {
+      "title": "Stop fare zone missing",
+      "what": "In a dataset with zone-based fares, some stops have no fare zone.",
+      "action": "If you use zone fares, choose a fare zone for every stop."
+    },
+    "STP_034": {
+      "title": "Stop page same as operator page",
+      "what": "The web address given for the stop is the operator’s general page.",
+      "action": "If there is a stop-specific page, enter it; otherwise leave the address empty."
+    },
+    "STP_035": {
+      "title": "Stop page same as route page",
+      "what": "The web address given for the stop is a route’s general page.",
+      "action": "If there is a stop-specific page, enter it; otherwise leave the address empty."
+    },
+    "STP_036": {
+      "title": "Station linked to another station",
+      "what": "A station is shown as belonging to another record; stations are top-level records.",
+      "action": "Remove the parent record from the station."
+    },
+    "STP_037": {
+      "title": "Accessibility of some stops unknown",
+      "what": "Some stops do not say whether they can be used by wheelchair.",
+      "action": "Set accessibility to \"accessible\" or \"not accessible\" on the missing stops."
+    },
+    "STP_038": {
+      "title": "Accessibility of no stop known",
+      "what": "No stop has wheelchair accessibility information; riders looking for accessible trips get no information.",
+      "action": "Set stop accessibility to \"accessible\" or \"not accessible\"."
+    },
+    "STP_039": {
+      "title": "Same stop code on several stops",
+      "what": "The same rider-facing stop code is used on more than one stop.",
+      "action": "If codes must be unique per stop, give each stop its own code; if the shared code is deliberate this is fine."
+    },
+    "STP_040": {
+      "title": "Unnecessary \"stop/station\" word in the stop name",
+      "what": "A generic word such as \"stop\" or \"station\" is added to the stop name.",
+      "action": "Write the stop name without the word, as on the stop sign."
+    },
+    "STP_041": {
+      "title": "Platform name does not include the station name",
+      "what": "The name of a platform or stop belonging to a station does not include the station name; riders may not match them.",
+      "action": "Use the station name in the platform name (e.g. \"Central Station Platform 2\")."
+    },
+    "STP_042": {
+      "title": "Stop web address invalid",
+      "what": "The web address given for the stop is not valid.",
+      "action": "Enter a full address starting with \"https://\", or leave it empty."
+    },
+    "STP_043": {
+      "title": "Stop access value in the wrong place",
+      "what": "Stop access can only be used on platforms belonging to a station; here it is set on a station, entrance or standalone stop.",
+      "action": "Keep the access value only on platforms belonging to a station and remove it elsewhere."
+    },
+    "STP_044": {
+      "title": "Unnecessary word in the platform code",
+      "what": "The platform code contains words such as \"Platform\"; it should be only the platform number.",
+      "action": "Write the platform code as just a number or letter (e.g. \"2\", \"B\")."
+    },
+    "STP_045": {
+      "title": "Platform number without a station",
+      "what": "A stop has a platform number but does not say which station it is a platform of.",
+      "action": "Link the platform to its station."
+    },
+    "TFR_001": {
+      "title": "Time period group is empty",
+      "what": "A fare time period (e.g. peak hours) record has an empty group code.",
+      "action": "Enter the group code for the time period."
+    },
+    "TFR_002": {
+      "title": "Time period calendar not found",
+      "what": "A fare time period is linked to a service calendar that is not defined.",
+      "action": "Link the time period to an existing calendar."
+    },
+    "TFR_003": {
+      "title": "Time period time invalid",
+      "what": "The start or end time of a fare time period cannot be read.",
+      "action": "Enter the times as HH:MM:SS."
+    },
+    "TFR_004": {
+      "title": "Time period reversed",
+      "what": "The fare time period ends before or at the same time it starts.",
+      "action": "Correct the start and end times."
+    },
+    "TFR_005": {
+      "title": "Time periods overlap",
+      "what": "Two fare time periods overlap in the same group and calendar; it is unclear which fare applies at that time.",
+      "action": "Arrange the time periods so they do not overlap."
+    },
+    "TFR_006": {
+      "title": "Time period exceeds 24:00",
+      "what": "A fare time period time is entered beyond 24:00; time periods must stay within one day.",
+      "action": "Enter times up to 24:00; define the period after midnight separately for the next day."
+    },
+    "TFR_007": {
+      "title": "Only one time in a time period",
+      "what": "Only the start or only the end time of a fare time period is entered.",
+      "action": "Enter both times, or leave both empty (whole day)."
+    },
+    "TFR_008": {
+      "title": "Time period calendar is empty",
+      "what": "A fare time period does not say which calendar it applies to.",
+      "action": "Choose the calendar for the time period."
+    },
+    "TRF_001": {
+      "title": "Transfer from-stop is empty",
+      "what": "A transfer record has no stop where riders get off.",
+      "action": "Choose the first stop of the transfer."
+    },
+    "TRF_002": {
+      "title": "Transfer to-stop is empty",
+      "what": "A transfer record has no stop where riders board.",
+      "action": "Choose the second stop of the transfer."
+    },
+    "TRF_003": {
+      "title": "Transfer stop not found",
+      "what": "A transfer is linked to a stop that is not in the stop list.",
+      "action": "Link the transfer to an existing stop, or add the stop."
+    },
+    "TRF_004": {
+      "title": "Transfer type invalid",
+      "what": "The transfer type (recommended, timed, minimum time, not possible, in-seat) is not a defined value.",
+      "action": "Choose the transfer type."
+    },
+    "TRF_005": {
+      "title": "Minimum-time transfer has no time",
+      "what": "A \"minimum time required\" transfer has no time or an invalid one.",
+      "action": "Enter the minimum transfer time in seconds."
+    },
+    "TRF_006": {
+      "title": "Transfer first trip not found",
+      "what": "A transfer starts from a trip that is not in the trip list.",
+      "action": "Link the transfer to an existing trip."
+    },
+    "TRF_007": {
+      "title": "Transfer second trip not found",
+      "what": "A transfer leads to a trip that is not in the trip list.",
+      "action": "Link the transfer to an existing trip."
+    },
+    "TRF_008": {
+      "title": "Transfer first route not found",
+      "what": "A transfer starts from a route that is not in the route list.",
+      "action": "Link the transfer to an existing route."
+    },
+    "TRF_009": {
+      "title": "Transfer second route not found",
+      "what": "A transfer leads to a route that is not in the route list.",
+      "action": "Link the transfer to an existing route."
+    },
+    "TRF_010": {
+      "title": "Transfer time very long",
+      "what": "A transfer’s minimum time is entered as more than one hour.",
+      "action": "Check the time against the real walking and waiting time."
+    },
+    "TRF_011": {
+      "title": "Transfer stops far apart",
+      "what": "The two stops of a transfer are unusually far apart. This is for information.",
+      "action": "Check that the stops and the transfer are correct."
+    },
+    "TRF_012": {
+      "title": "Same transfer twice",
+      "what": "The transfer between the same two stops is entered twice.",
+      "action": "Delete the extra transfer."
+    },
+    "TRF_013": {
+      "title": "Trip missing in an in-seat transfer",
+      "what": "In a transfer where riders stay on board, one of the two trips is not given.",
+      "action": "Choose both the first and second trip for the in-seat transfer."
+    },
+    "TRF_014": {
+      "title": "In-seat transfer trip has no times",
+      "what": "A trip linked by an in-seat transfer has no stop times.",
+      "action": "Add the stop times of the trip."
+    },
+    "TRF_015": {
+      "title": "In-seat transfer attached to a station",
+      "what": "The in-seat transfer is defined from a station rather than a stop.",
+      "action": "Attach the in-seat transfer to the relevant stop or platform."
+    },
+    "TRF_016": {
+      "title": "Conflicting transfer records",
+      "what": "Several different transfer rules are entered for the same stop, trip and route.",
+      "action": "Delete one of the conflicting records."
+    },
+    "TRF_017": {
+      "title": "Trip and route do not match in a transfer",
+      "what": "The trip chosen in a transfer does not belong to the route chosen with it.",
+      "action": "Match the route in the transfer to the trip’s real route."
+    },
+    "TRF_018": {
+      "title": "Transfer linked to the same trip",
+      "what": "A transfer’s first and second trips are the same.",
+      "action": "Define the transfer between two different trips."
+    },
+    "TRF_019": {
+      "title": "Different vehicle types in an in-seat transfer",
+      "what": "The two trips joined by an in-seat transfer belong to routes of different vehicle types.",
+      "action": "Define in-seat transfers between trips of the same vehicle type."
+    },
+    "TRF_020": {
+      "title": "Transfer requires running",
+      "what": "The distance between the two stops can only be covered in the given transfer time by walking very fast.",
+      "action": "Increase the transfer time to suit the distance."
+    },
+    "TRF_021": {
+      "title": "Transfer attached to an entrance or node",
+      "what": "A transfer is attached to an entrance, generic node or boarding area instead of a stop or station.",
+      "action": "Attach the transfer to the relevant stop or station."
+    },
+    "TRF_022": {
+      "title": "Calendars of continuing trips conflict",
+      "what": "A trip continues into several trips, but the continuing trips run on the same days; it is unclear which one is taken.",
+      "action": "Arrange the continuing trips’ calendars so they exclude each other."
+    },
+    "TRF_023": {
+      "title": "Calendars of incoming trips conflict",
+      "what": "Several trips continue into the same trip and the incoming trips run on the same days.",
+      "action": "Arrange the incoming trips’ calendars so they exclude each other."
+    },
+    "TRN_001": {
+      "title": "Invalid table name in a translation",
+      "what": "A translation points to a file that is not part of GTFS; it is not applied.",
+      "action": "Export the translations again. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRN_002": {
+      "title": "Invalid field in a translation",
+      "what": "A translation points to a field that does not exist in that file; it is not applied.",
+      "action": "Export the translations again. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRN_003": {
+      "title": "Translation language invalid",
+      "what": "A translation’s language code is not recognised.",
+      "action": "Enter the language with a standard code such as \"en\" or \"de\"."
+    },
+    "TRN_004": {
+      "title": "Translated record not found",
+      "what": "A translation points to a stop, route or record that no longer exists.",
+      "action": "Link the translation to an existing record, or delete it."
+    },
+    "TRN_005": {
+      "title": "Same translation twice",
+      "what": "The translation of the same text into the same language is entered twice.",
+      "action": "Delete the extra translation."
+    },
+    "TRN_006": {
+      "title": "Two different translations of the same text",
+      "what": "The same text is translated into the same language in two different ways; apps cannot tell which to show.",
+      "action": "Keep the right translation and delete the other."
+    },
+    "TRN_007": {
+      "title": "Translation in the dataset’s own language",
+      "what": "Some translations are into the language the dataset already uses; they are unnecessary.",
+      "action": "Add translations only for other languages."
+    },
+    "TRN_008": {
+      "title": "Translation text is empty",
+      "what": "A translation row has no translated text.",
+      "action": "Enter the translation, or delete the row."
+    },
+    "TRN_009": {
+      "title": "Translation linked to both a record and a text",
+      "what": "A translation is linked both to a specific record and to a specific text; only one is allowed.",
+      "action": "Link the translation either by record code or by the text to translate. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRN_010": {
+      "title": "Wrong stop order in a stop time translation",
+      "what": "A translation of a trip stop time points to a stop sequence that is not in the trip.",
+      "action": "Link the translation to the correct stop sequence. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRN_011": {
+      "title": "Non-translatable field translated",
+      "what": "A translation is entered for a field that cannot be translated, such as a code or a number.",
+      "action": "Translate only text fields such as names, descriptions and web addresses."
+    },
+    "TRN_013": {
+      "title": "Extra fields in a dataset information translation",
+      "what": "Record link fields that must not be used are filled in a dataset information translation.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRN_014": {
+      "title": "Sub-record link in the wrong place",
+      "what": "The sub-record link, usable only for trip stop times, is used in a translation of another file.",
+      "action": "This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRN_015": {
+      "title": "Translation not linked to anything",
+      "what": "A translation is linked neither to a record nor to a text; it is unknown what it translates.",
+      "action": "Link the translation to the relevant record or text."
+    },
+    "TRN_016": {
+      "title": "Translation matches no text",
+      "what": "A translation is written for a text that does not exist in the dataset; it is not applied. Usually the text was changed later.",
+      "action": "Write the text to translate exactly as the current name."
+    },
+    "TRN_017": {
+      "title": "Stop order missing in a stop time translation",
+      "what": "A translation of a trip stop time does not say which stop it is.",
+      "action": "Add the stop’s sequence to the translation. This is a file format issue; tell the export software vendor or your IT team."
+    },
+    "TRP_001": {
+      "title": "Trip code empty or repeated",
+      "what": "A trip’s code is empty, or the same code is used on two trips; stop times may attach to the wrong trip.",
+      "action": "Give each trip a unique code."
+    },
+    "TRP_002": {
+      "title": "Trip route not found",
+      "what": "A trip is linked to a route that is not in the route list.",
+      "action": "Link the trip to an existing route, or add the route to the list."
+    },
+    "TRP_003": {
+      "title": "Trip service calendar not found",
+      "what": "A trip is linked to an undefined service calendar; its running days are unknown.",
+      "action": "Link the trip to an existing service calendar, or define the calendar."
+    },
+    "TRP_004": {
+      "title": "Trip shape not found",
+      "what": "A trip is linked to a shape that is not among the route shapes.",
+      "action": "Link the trip to an existing shape, or remove the link."
+    },
+    "TRP_005": {
+      "title": "Trip direction invalid",
+      "what": "The value saying whether a trip is outbound or inbound can only be one of two options; another value is entered.",
+      "action": "Set the trip direction to \"outbound\" or \"inbound\"."
+    },
+    "TRP_006": {
+      "title": "Trip accessibility value invalid",
+      "what": "The value saying whether the trip is usable by wheelchair is not one of the defined options.",
+      "action": "Choose \"no information\", \"accessible\" or \"not accessible\"."
+    },
+    "TRP_007": {
+      "title": "Bicycle permission value invalid",
+      "what": "The value saying whether bicycles are allowed on the trip is not one of the defined options.",
+      "action": "Choose \"no information\", \"allowed\" or \"not allowed\"."
+    },
+    "TRP_011": {
+      "title": "Trip direction not shown to riders",
+      "what": "The trip has neither a headsign nor a trip name; riders cannot see where the vehicle is going.",
+      "action": "Enter the trip’s headsign (last stop or destination)."
+    },
+    "TRP_012": {
+      "title": "Direction missing on some trips",
+      "what": "On a route with outbound and inbound trips, some trips have no direction.",
+      "action": "Set whether these trips are outbound or inbound."
+    },
+    "TRP_013": {
+      "title": "Route has a single trip",
+      "what": "Only one trip is defined on this route. This is for information.",
+      "action": "If the route really runs once a day this is fine; otherwise add the missing trips."
+    },
+    "TRP_014": {
+      "title": "Trip name too long",
+      "what": "The trip name (trip number) is longer than 20 characters; it is cut off on rider screens.",
+      "action": "Put only the short trip number riders see in the trip name."
+    },
+    "TRP_015": {
+      "title": "Vehicle block information is not useful",
+      "what": "Trips have a block code, but no block groups more than one trip; it gives riders no transfer benefit.",
+      "action": "Give consecutive trips of the same vehicle the same block code, or leave the field empty."
+    },
+    "TRP_017": {
+      "title": "Frequency-based trip has no stop times",
+      "what": "A trip defined by frequency (every X minutes) has no stop times; its stop order and running times are unknown.",
+      "action": "Enter the stop list and the times between stops for this trip."
+    },
+    "TRP_019": {
+      "title": "Continuous boarding without a shape",
+      "what": "A trip that allows boarding or alighting along the road has no shape; riders cannot see where they can board.",
+      "action": "Add the trip’s on-road shape."
+    },
+    "TRP_020": {
+      "title": "Headsign is an intermediate stop name",
+      "what": "The headsign shown to riders is the name of an intermediate stop rather than the last stop. This may be deliberate.",
+      "action": "If the headsign shows an important intermediate point this is fine; otherwise use the last stop."
+    },
+    "TRP_021": {
+      "title": "Bicycle permission not given",
+      "what": "No trip says whether bicycles are allowed.",
+      "action": "Set bicycle permission to \"allowed\" or \"not allowed\" on trips."
+    },
+    "TRP_022": {
+      "title": "Trips of the same vehicle overlap",
+      "what": "The times of two trips in the same vehicle block overlap; one vehicle cannot run two trips at once.",
+      "action": "Correct the vehicle block or the trip times."
+    },
+    "TRP_023": {
+      "title": "No active trips in the next 7 days",
+      "what": "No trip in this dataset runs in the next 7 days.",
+      "action": "Check the service calendar and trip dates."
+    },
+    "TRP_024": {
+      "title": "Different vehicle types in the same block",
+      "what": "Trips in the same vehicle block belong to routes of different vehicle types (e.g. bus and tram).",
+      "action": "Limit vehicle blocks to trips of the same vehicle type."
+    },
+    "TRP_025": {
+      "title": "Accessibility unknown for most trips",
+      "what": "More than 80% of trips have no wheelchair accessibility information.",
+      "action": "Set trip accessibility to \"accessible\" or \"not accessible\"."
+    },
+    "TRP_026": {
+      "title": "Trip runs on no day",
+      "what": "The trip’s service calendar has no running day; the trip may not be shown in rider apps.",
+      "action": "Add running days to the calendar, or link the trip to the right calendar."
+    },
+    "TRP_028": {
+      "title": "Accessibility unknown for some trips",
+      "what": "Some trips have no wheelchair accessibility information.",
+      "action": "Set accessibility to \"accessible\" or \"not accessible\" on the missing trips."
+    },
+    "TRP_029": {
+      "title": "Accessibility unknown for all trips",
+      "what": "No trip has wheelchair accessibility information; riders looking for accessible trips get no information.",
+      "action": "Set trip accessibility to \"accessible\" or \"not accessible\"."
+    },
+    "TRP_031": {
+      "title": "Trip not linked to a route",
+      "what": "A trip does not say which route it belongs to.",
+      "action": "Match the trip to the correct route."
+    },
+    "TRP_032": {
+      "title": "Car carriage value invalid",
+      "what": "The value saying whether cars can be carried on the trip (e.g. ferry) is not one of the defined options.",
+      "action": "Choose \"no information\", \"allowed\" or \"not allowed\"."
+    },
+    "TRP_034": {
+      "title": "Demand-responsive duration factor not a number",
+      "what": "The factor or offset used to calculate travel time on demand-responsive trips cannot be read as a number.",
+      "action": "Enter the factor and offset as decimal numbers."
+    },
+    "TRP_035": {
+      "title": "Trip service calendar not given",
+      "what": "A trip does not say on which days it runs.",
+      "action": "Choose or create a service calendar for the trip."
+    },
+    "VAT_001": {
+      "title": "Two routes on almost the same path",
+      "what": "Two routes of the same type serve largely the same stops; they may be two copies of the same route.",
+      "action": "If they really are separate routes this is fine; if they are copies, merge them."
+    },
+    "VAT_002": {
+      "title": "No transfer defined at a multi-route stop",
+      "what": "Four or more routes serve this stop but no transfer is defined. This is for information.",
+      "action": "If a specific transfer time or rule is needed, add transfer information; otherwise no action is needed."
+    },
+    "VAT_003": {
+      "title": "Trip duration very different from similar trips",
+      "what": "Compared with trips on the same path, this trip is unusually long or short. This is for information.",
+      "action": "If there is a reason such as peak traffic or a different vehicle this is fine; otherwise check the trip times."
+    },
+    "VAT_005": {
+      "title": "Group of stops cut off from the network",
+      "what": "Some stops are not connected by trips to the rest of the network; they form an island.",
+      "action": "Check the trips and stop times that use these stops."
+    },
+    "VAT_006": {
+      "title": "Most trips on one route",
+      "what": "Most trips in the dataset are on a single route. This is for information.",
+      "action": "If the route really is that busy this is fine; otherwise check that the other routes’ trips were exported."
+    },
+    "VAT_007": {
+      "title": "No transfer at a terminal stop",
+      "what": "Another route also reaches a route’s terminal stop, but no transfer is defined. This is for information.",
+      "action": "If a specific transfer rule is needed, add transfer information."
+    },
+    "VAT_008": {
+      "title": "Same shape used on many routes",
+      "what": "One route shape is used on more than 30% of routes; routes may have been given the wrong shape.",
+      "action": "Define its own shape for each route and direction."
+    },
+    "XFL_002": {
+      "title": "Trip has no stop times",
+      "what": "This trip has no stop times at all; it may not be shown in rider apps.",
+      "action": "Add the trip’s stop times, or delete the unused trip."
+    },
+    "XFL_006": {
+      "title": "Calendar contains only cancellations",
+      "what": "A service calendar consists only of dates added as \"not running\"; it has no running day.",
+      "action": "Add running days to the calendar."
+    },
+    "XFL_012": {
+      "title": "Route has no operating trips",
+      "what": "This route has trips but none has stop times; the route may not be shown in rider apps.",
+      "action": "Add stop times to the route’s trips, or remove the route."
+    },
+    "XFL_013": {
+      "title": "Shape used in both directions",
+      "what": "The same route shape is used by outbound and inbound trips; the line appears reversed in one direction.",
+      "action": "Use separate shapes for outbound and inbound."
+    },
+    "XFL_014": {
+      "title": "Translated record not found",
+      "what": "A translation points to a record that no longer exists.",
+      "action": "Delete the translation or restore the record."
+    },
+    "XFL_015": {
+      "title": "Attribution linked to a missing record",
+      "what": "An attribution record is linked to an operator, route or trip that does not exist.",
+      "action": "Link the attribution to an existing record."
+    },
+    "XFL_016": {
+      "title": "Dataset information translated but file missing",
+      "what": "A translation is entered for dataset information, but there is no dataset information file.",
+      "action": "Add the dataset information, or delete the related translation."
+    },
+    "XFL_019": {
+      "title": "Route network defined in two places",
+      "what": "Which network routes belong to is entered both in the route list and in a separate network file.",
+      "action": "Keep the network information in one place."
+    },
+    "XFL_020": {
+      "title": "Trip and route do not match in a transfer",
+      "what": "The trip chosen in a transfer does not belong to the route chosen with it.",
+      "action": "Match the route in the transfer to the trip’s real route."
+    },
+    "XFL_021": {
+      "title": "Trip does not pass the transfer stop",
+      "what": "The trip chosen in a transfer does not pass the stop where the transfer is defined.",
+      "action": "Attach the transfer to a stop the trip passes."
+    },
+    "XFL_022": {
+      "title": "Stop group not found",
+      "what": "A group–stop link points to a stop group that is not defined.",
+      "action": "Define the stop group, or delete the link."
+    },
+    "XFL_023": {
+      "title": "Stop in the group not found",
+      "what": "A stop group contains a stop that is not in the stop list.",
+      "action": "Add an existing stop to the group."
+    },
+    "XFL_024": {
+      "title": "Trip stop group not found",
+      "what": "A demand-responsive trip is linked to a stop group that is not defined.",
+      "action": "Link the trip to an existing stop group."
+    },
+    "XFL_025": {
+      "title": "Trip service area not found",
+      "what": "A demand-responsive trip is linked to a service area that is not defined.",
+      "action": "Link the trip to an existing service area, or add the area."
+    },
+    "XFL_027": {
+      "title": "Contactless payment information differs",
+      "what": "The route’s contactless payment information differs from that in the fare definitions; the fare definitions take precedence. This is for information.",
+      "action": "Make the two consistent."
+    },
+    "XFL_028": {
+      "title": "Operator says contactless, fares do not",
+      "what": "The operator is marked as supporting contactless payment, but the fare definitions have no contactless medium.",
+      "action": "Add the contactless medium to the fare definitions."
+    },
+    "XFL_029": {
+      "title": "Route says contactless, fares do not",
+      "what": "A route is marked as supporting contactless payment, but the fare definitions have no contactless medium.",
+      "action": "Add the contactless medium to the fare definitions."
+    },
+    "XFL_030": {
+      "title": "Contactless payment exists but is not marked",
+      "what": "The fare definitions have a contactless medium, but no operator or route says it supports it.",
+      "action": "Mark the operators or routes where contactless payment applies."
+    },
+    "XFL_031": {
+      "title": "Same code for a stop and an area",
+      "what": "A stop, service area or stop group share the same code; trips may be linked to the wrong place.",
+      "action": "Change one of the conflicting codes."
+    },
+    "XFL_032": {
+      "title": "Stop group code is empty",
+      "what": "A stop group has an empty code.",
+      "action": "Give each stop group a unique code."
+    },
+    "XFL_033": {
+      "title": "Group code empty in a group–stop link",
+      "what": "A group–stop link does not say which group it belongs to.",
+      "action": "Enter the group code for the link."
+    },
+    "XFL_034": {
+      "title": "Stop empty in a group–stop link",
+      "what": "A group–stop link does not say which stop it is.",
+      "action": "Enter the stop for the link."
+    }
   }
 }

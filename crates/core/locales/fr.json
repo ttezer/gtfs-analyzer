@@ -1923,5 +1923,3102 @@
     "ResourceLimit.worker_crash_at_stage": "Le worker de validation en arrière-plan s’est arrêté de façon inattendue. {detail} (dernière étape terminée : {stage})",
     "InvalidInput.disabled_rule_unknown": "La règle « {rule_id} » de disabled_rule_ids n’est pas un identifiant de règle connu.",
     "InvalidInput.disabled_rule_spec": "La règle « {rule_id} » est une règle Spec et ne peut pas être désactivée : le verdict de publiabilité repose sur les règles Spec."
+  },
+  "cards": {
+    "AGN_002": {
+      "title": "L’exploitant n’a pas de nom",
+      "what": "Un exploitant de la liste n’a pas de nom ; les voyageurs ne voient pas qui assure le service.",
+      "action": "Saisissez le nom de l’exploitant connu des voyageurs."
+    },
+    "AGN_003": {
+      "title": "Adresse web de l'opérateur invalide",
+      "what": "L'adresse web fournie pour {agency} n'est pas une URL valide.",
+      "action": "Saisissez une adresse web valide pour l'opérateur."
+    },
+    "AGN_004": {
+      "title": "Fuseau horaire de l’exploitant manquant ou invalide",
+      "what": "L’exploitant n’a pas de fuseau horaire ou un nom non reconnu ; les applis peuvent décaler les horaires.",
+      "action": "Saisissez le fuseau avec son nom standard, par exemple « Europe/Paris »."
+    },
+    "AGN_005": {
+      "title": "Fuseaux horaires différents entre exploitants",
+      "what": "Les exploitants du jeu de données utilisent des fuseaux différents ; ils doivent tous être identiques.",
+      "action": "Donnez le même fuseau horaire à tous les exploitants."
+    },
+    "AGN_006": {
+      "title": "Langue de l’exploitant invalide",
+      "what": "Le code de langue saisi pour l’exploitant n’est pas reconnu.",
+      "action": "Saisissez la langue avec un code standard comme « fr » ou « en »."
+    },
+    "AGN_007": {
+      "title": "Téléphone de l’exploitant invalide",
+      "what": "Le numéro saisi pour l’exploitant ne ressemble pas à un numéro.",
+      "action": "Saisissez le numéro complet avec indicatif, ou laissez vide."
+    },
+    "AGN_008": {
+      "title": "Adresse de la page tarifaire invalide",
+      "what": "L’adresse de la page tarifaire de l’exploitant n’est pas une adresse web valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "AGN_009": {
+      "title": "E-mail de l’exploitant invalide",
+      "what": "L’adresse e-mail saisie pour l’exploitant n’est pas valide.",
+      "action": "Saisissez l’adresse sous la forme nom@domaine.com, ou laissez vide."
+    },
+    "AGN_010": {
+      "title": "Même code d’exploitant utilisé deux fois",
+      "what": "Deux exploitants portent le même code ; on ne sait plus à qui appartient une ligne.",
+      "action": "Donnez un code unique à chaque exploitant ou fusionnez les doublons."
+    },
+    "AGN_011": {
+      "title": "Ligne ou tarif non rattaché à un exploitant",
+      "what": "Il y a plusieurs exploitants, mais certaines lignes ou certains tarifs n’indiquent pas leur exploitant.",
+      "action": "Rattachez chaque ligne et chaque tarif à son exploitant."
+    },
+    "AGN_012": {
+      "title": "Valeur de paiement sans contact invalide",
+      "what": "La valeur indiquant si l’exploitant accepte les cartes sans contact ne fait pas partie des options.",
+      "action": "Choisissez « pas d’information », « pris en charge » ou « non pris en charge »."
+    },
+    "AGN_013": {
+      "title": "Langue du jeu de données et de l’exploitant différentes",
+      "what": "La langue du jeu de données ne correspond pas à celle de l’exploitant.",
+      "action": "Harmonisez les deux langues ; si l’exploitant utilise vraiment une autre langue, ce n’est pas un problème."
+    },
+    "AGN_014": {
+      "title": "Code d’exploitant manquant avec plusieurs exploitants",
+      "what": "Il y a plusieurs exploitants mais certains n’ont pas de code ; les lignes ne peuvent pas leur être rattachées.",
+      "action": "Donnez un code unique à chaque exploitant."
+    },
+    "AGN_015": {
+      "title": "Adresse de l’exploitant non sécurisée (http)",
+      "what": "L’adresse web de l’exploitant commence par « http:// » ; les navigateurs peuvent afficher un avertissement.",
+      "action": "Si le site le permet, passez l’adresse en « https:// »."
+    },
+    "AGN_016": {
+      "title": "Téléphone de l’exploitant fictif",
+      "what": "Le téléphone de l’exploitant est un numéro de test ou fictif connu ; les voyageurs risquent de ne joindre personne.",
+      "action": "Saisissez le vrai numéro du service clients."
+    },
+    "AGN_017": {
+      "title": "Langues différentes entre exploitants",
+      "what": "Les exploitants déclarent des langues différentes. Information seulement.",
+      "action": "Si le réseau est multilingue, c’est normal ; sinon harmonisez les langues."
+    },
+    "AGN_018": {
+      "title": "L’unique exploitant n’a pas de code",
+      "what": "Il n’y a qu’un exploitant et son code est vide. Sans effet aujourd’hui, mais gênant dès qu’un second exploitant sera ajouté.",
+      "action": "Donnez un code à l’exploitant."
+    },
+    "ARC_001": {
+      "title": "Le fichier du jeu de données ne s’ouvre pas",
+      "what": "Le fichier ZIP n’a pas pu être ouvert ; rien n’a pu être lu.",
+      "action": "Exportez de nouveau le jeu de données depuis votre logiciel de planification. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_002": {
+      "title": "Caractères illisibles dans un fichier",
+      "what": "Un fichier n’est pas encodé en UTF-8 ; les lettres accentuées des noms d’arrêts et de lignes peuvent apparaître abîmées et le fichier n’a pas pu être entièrement contrôlé.",
+      "action": "Choisissez l’encodage UTF-8 lors de l’export. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_003": {
+      "title": "Erreur d’encodage dans un fichier facultatif",
+      "what": "Un fichier facultatif n’est pas en UTF-8 ; les noms qu’il contient peuvent apparaître abîmés.",
+      "action": "Choisissez l’encodage UTF-8 lors de l’export. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_004": {
+      "title": "Fichier obligatoire absent",
+      "what": "Un fichier GTFS obligatoire est absent.",
+      "action": "Ajoutez le fichier absent au jeu de données."
+    },
+    "ARC_006": {
+      "title": "Un fichier GTFS facultatif est présent",
+      "what": "Le jeu de données contient un fichier facultatif défini par le standard. Information seulement.",
+      "action": "Aucune action n’est nécessaire."
+    },
+    "ARC_007": {
+      "title": "Fichier non reconnu",
+      "what": "Le jeu de données contient un fichier hors du standard GTFS ; certaines applis peuvent l’ignorer.",
+      "action": "Vérifiez si ce fichier est utile ; sinon retirez-le de l’export."
+    },
+    "ARC_008": {
+      "title": "Fichiers du calendrier de service absents",
+      "what": "Un fichier qui définit le calendrier de service est absent.",
+      "action": "Ajoutez les fichiers du calendrier de service au jeu de données."
+    },
+    "ARC_009": {
+      "title": "Fichier facultatif vide",
+      "what": "Un fichier facultatif ne contient que la ligne d’en-tête, sans enregistrement.",
+      "action": "S’il n’y a rien à y mettre, retirez le fichier de l’export."
+    },
+    "ARC_010": {
+      "title": "Marque invisible en début de fichier",
+      "what": "Le fichier commence par une marque d’encodage invisible (BOM) ; la plupart des applis la lisent, certaines peuvent mal nommer la première colonne.",
+      "action": "Utilisez l’option « UTF-8 sans BOM » à l’export. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_011": {
+      "title": "Taille des fichiers",
+      "what": "La taille des fichiers du jeu de données est indiquée pour information.",
+      "action": "Aucune action n’est nécessaire."
+    },
+    "ARC_012": {
+      "title": "Structure de ligne du fichier invalide",
+      "what": "Une ligne de {file} contient un nombre de champs différent de son en-tête.",
+      "action": "Corrigez la ligne et exportez à nouveau le fichier."
+    },
+    "ARC_013": {
+      "title": "Lignes du fichier illisibles",
+      "what": "Des guillemets, virgules ou fins de ligne sont abîmés ; les lignes ne peuvent pas être découpées correctement.",
+      "action": "Exportez de nouveau le jeu de données. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_014": {
+      "title": "Espaces dans les noms de colonnes",
+      "what": "Des noms de colonnes de l’en-tête commencent ou finissent par un espace ; certaines applis peuvent ne pas reconnaître la colonne.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_015": {
+      "title": "La même colonne apparaît deux fois",
+      "what": "Le même nom de colonne figure deux fois dans un fichier ; les applis ne savent pas laquelle lire.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_017": {
+      "title": "Colonne non standard",
+      "what": "Un fichier contient une colonne non définie par le standard GTFS ; certaines applis peuvent l’ignorer.",
+      "action": "Si la colonne est un ajout volontaire, ce n’est pas un problème ; sinon retirez-la de l’export."
+    },
+    "ARC_018": {
+      "title": "Ligne vide",
+      "what": "Un fichier contient une ligne entièrement vide.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_019": {
+      "title": "Nom de colonne vide",
+      "what": "L’en-tête d’un fichier contient une colonne sans nom, souvent due à une virgule de trop.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_020": {
+      "title": "Fichier recommandé manquant",
+      "what": "Le jeu de données n’a pas de tracés de lignes ou pas d’informations sur le jeu de données (éditeur, dates de validité).",
+      "action": "Ajoutez les tracés et les informations du jeu de données à l’export."
+    },
+    "ARC_021": {
+      "title": "Caractères invisibles dans le texte",
+      "what": "Certains champs contiennent des caractères spéciaux invisibles ou abîmés ; les noms d’arrêts ou de lignes peuvent sembler étranges dans les applis.",
+      "action": "Ressaisissez les noms et textes concernés dans votre logiciel de planification."
+    },
+    "ARC_022": {
+      "title": "Fichier très volumineux",
+      "what": "Un fichier dépasse un million de lignes. Ce n’est pas une erreur ; certaines applis peuvent mettre plus de temps à le traiter.",
+      "action": "Aucune action n’est nécessaire."
+    },
+    "ARC_023": {
+      "title": "Un ZIP dans le ZIP",
+      "what": "Le fichier du jeu de données contient un second ZIP ; la plupart des applis ne lisent pas le fichier intérieur.",
+      "action": "Placez les fichiers GTFS directement dans un seul ZIP. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_024": {
+      "title": "Fichiers GTFS hors de la racine de l’archive",
+      "what": "Les fichiers GTFS sont dans un sous-dossier du ZIP ; certaines applis peuvent ne pas les lire.",
+      "action": "Placez les fichiers GTFS à la racine du ZIP."
+    },
+    "ARC_025": {
+      "title": "Champ obligatoire absent du fichier",
+      "what": "L'en-tête de {file} ne contient pas le champ {field}.",
+      "action": "Ajoutez le champ obligatoire absent au fichier."
+    },
+    "ARC_026": {
+      "title": "Fins de ligne abîmées",
+      "what": "Les fins de ligne d’un fichier ne sont pas standard ; certaines applis peuvent fusionner des lignes.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_027": {
+      "title": "Droit de lecture désactivé",
+      "what": "Un fichier du ZIP n’a pas le droit de lecture ; certains systèmes peuvent ne pas l’ouvrir.",
+      "action": "Recréez l’archive. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_028": {
+      "title": "L’adresse de publication ne finit pas par .zip",
+      "what": "L’adresse web de publication ne se termine pas par un nom de fichier .zip ; certaines applis peuvent ne pas la reconnaître comme jeu de données.",
+      "action": "Publiez le jeu de données à une adresse permanente se terminant par « .zip »."
+    },
+    "ARC_029": {
+      "title": "Le fichier a dépassé la limite de sécurité",
+      "what": "Le fichier ZIP a grossi anormalement à l’ouverture ; le traitement a été arrêté par sécurité.",
+      "action": "Exportez de nouveau le jeu de données et réessayez. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_030": {
+      "title": "Tabulation ou saut de ligne dans un texte",
+      "what": "Une valeur contient une tabulation ou un saut de ligne ; le texte peut apparaître coupé dans les applis.",
+      "action": "Ressaisissez le nom ou la description sur une seule ligne."
+    },
+    "ARC_031": {
+      "title": "Informations du jeu de données absentes avec des traductions",
+      "what": "Un fichier de traductions est présent, mais la langue du jeu de données n'est pas indiquée.",
+      "action": "Ajoutez les informations du jeu de données et indiquez la langue du flux."
+    },
+    "ARC_032": {
+      "title": "Code HTML dans un texte",
+      "what": "Un nom ou une description contient une balise HTML ou un code d’échappement (ex. &amp;) ; les voyageurs le voient comme du code.",
+      "action": "Saisissez de nouveau le texte en texte brut."
+    },
+    "ARC_033": {
+      "title": "Guillemet non échappé dans un texte",
+      "what": "Une valeur contient un guillemet ou une virgule mal encadrés ; la ligne peut être découpée à tort.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_034": {
+      "title": "Ligne d’en-tête répétée au milieu du fichier",
+      "what": "La ligne d’en-tête réapparaît comme une ligne de données ; cela arrive souvent quand deux fichiers sont fusionnés.",
+      "action": "Faites l’export en une seule fois. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_035": {
+      "title": "Fichier obligatoire vide",
+      "what": "{file} existe mais ne contient aucune donnée exploitable.",
+      "action": "Ajoutez les enregistrements requis au fichier."
+    },
+    "ARC_036": {
+      "title": "Structure ZIP incohérente",
+      "what": "Le fichier ZIP s’ouvre dans certains outils et peut échouer dans d’autres.",
+      "action": "Recréez l’archive avec un outil ZIP standard. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "ARC_037": {
+      "title": "Caractères accentués ou spéciaux dans un code",
+      "what": "Un code (identifiant d’arrêt, de ligne ou de course) contient des lettres accentuées ou des caractères spéciaux ; certaines applis ne peuvent pas l’apparier.",
+      "action": "Utilisez uniquement des lettres non accentuées, des chiffres et des signes simples dans les codes."
+    },
+    "ARS_001": {
+      "title": "Même code de zone tarifaire utilisé deux fois",
+      "what": "Deux zones tarifaires portent le même code.",
+      "action": "Donnez un code unique à chaque zone tarifaire."
+    },
+    "ARS_002": {
+      "title": "Code de zone tarifaire vide",
+      "what": "Une zone tarifaire a un code vide.",
+      "action": "Donnez un code unique à chaque zone tarifaire."
+    },
+    "ATR_001": {
+      "title": "L’attribution n’a pas de code",
+      "what": "Un enregistrement d’attribution, qui crédite les contributeurs des données, a un code vide.",
+      "action": "Donnez un code unique à chaque attribution."
+    },
+    "ATR_002": {
+      "title": "L’organisme crédité n’a pas de nom",
+      "what": "Une attribution n’indique pas le nom de l’organisme.",
+      "action": "Saisissez le nom de l’organisme crédité."
+    },
+    "ATR_003": {
+      "title": "L’attribution n’a pas de rôle",
+      "what": "Une attribution n’indique pas si l’organisme est producteur des données, exploitant ou autorité.",
+      "action": "Indiquez au moins un rôle pour l’organisme."
+    },
+    "ATR_004": {
+      "title": "Rôle de producteur invalide",
+      "what": "La valeur « producteur des données » d’une attribution n’est ni oui ni non.",
+      "action": "Choisissez oui ou non."
+    },
+    "ATR_005": {
+      "title": "Rôle d’exploitant invalide",
+      "what": "La valeur « exploitant » d’une attribution n’est ni oui ni non.",
+      "action": "Choisissez oui ou non."
+    },
+    "ATR_006": {
+      "title": "Rôle d’autorité invalide",
+      "what": "La valeur « autorité » d’une attribution n’est ni oui ni non.",
+      "action": "Choisissez oui ou non."
+    },
+    "ATR_007": {
+      "title": "Adresse web de l’attribution invalide",
+      "what": "L’adresse web d’une attribution n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "ATR_008": {
+      "title": "E-mail de l’attribution invalide",
+      "what": "L’e-mail d’une attribution n’est pas valide.",
+      "action": "Saisissez l’adresse sous la forme nom@domaine.com, ou laissez vide."
+    },
+    "ATR_009": {
+      "title": "Attribution liée à plusieurs cibles",
+      "what": "Une attribution est liée à la fois à un exploitant, une ligne et une course ; une seule cible est permise.",
+      "action": "Liez l’attribution à un seul exploitant, une seule ligne ou une seule course."
+    },
+    "ATR_010": {
+      "title": "Exploitant de l’attribution introuvable",
+      "what": "Une attribution est liée à un exploitant absent de la liste.",
+      "action": "Liez l’attribution à un exploitant existant."
+    },
+    "ATR_011": {
+      "title": "Ligne de l’attribution introuvable",
+      "what": "Une attribution est liée à une ligne absente de la liste.",
+      "action": "Liez l’attribution à une ligne existante."
+    },
+    "ATR_012": {
+      "title": "Course de l’attribution introuvable",
+      "what": "Une attribution est liée à une course absente de la liste.",
+      "action": "Liez l’attribution à une course existante."
+    },
+    "BKR_001": {
+      "title": "Réglage de réservation la veille mal placé",
+      "what": "Le dernier jour et l’heure de réservation la veille sont renseignés sur une règle dont le type n’est pas « la veille ».",
+      "action": "N’utilisez ces réglages que sur les règles de réservation « la veille »."
+    },
+    "BKR_003": {
+      "title": "Heure d’ouverture sans jour",
+      "what": "L’heure d’ouverture de la réservation est renseignée, mais pas combien de jours avant.",
+      "action": "Indiquez combien de jours avant la réservation ouvre, ou supprimez l’heure."
+    },
+    "BKR_004": {
+      "title": "Préavis sur une réservation immédiate",
+      "what": "Une règle de réservation immédiate (en temps réel) contient des durées de préavis.",
+      "action": "Supprimez les durées de préavis ou corrigez le type de réservation."
+    },
+    "BKR_005": {
+      "title": "Préavis maximal mal placé",
+      "what": "Le préavis maximal n’est utilisable que pour la réservation le jour même ; ici il figure sur une règle « la veille ».",
+      "action": "Supprimez cette durée ou passez le type en « le jour même »."
+    },
+    "BKR_006": {
+      "title": "Préavis minimal invalide",
+      "what": "Le préavis minimal n’est pas un nombre, ou il est nul ou négatif.",
+      "action": "Saisissez la durée en minutes, en nombre entier positif."
+    },
+    "BKR_007": {
+      "title": "Réservation le jour même sans préavis",
+      "what": "Une règle « le jour même » n’indique pas combien de minutes avant le trajet réserver.",
+      "action": "Saisissez le préavis minimal en minutes."
+    },
+    "BKR_008": {
+      "title": "Réservation la veille sans dernier jour",
+      "what": "Une règle « la veille » n’indique pas combien de jours avant la réservation ferme.",
+      "action": "Indiquez combien de jours avant la réservation ferme."
+    },
+    "BKR_009": {
+      "title": "Réservation la veille sans heure limite",
+      "what": "Une règle « la veille » n’indique pas jusqu’à quelle heure du dernier jour réserver.",
+      "action": "Saisissez l’heure limite (ex. 17:00:00)."
+    },
+    "BKR_010": {
+      "title": "Jour d’ouverture sans heure",
+      "what": "Le nombre de jours avant l’ouverture est indiqué, mais pas l’heure.",
+      "action": "Saisissez l’heure d’ouverture de la réservation."
+    },
+    "BKR_011": {
+      "title": "Fenêtre de réservation inversée",
+      "what": "Le jour de fermeture précède le jour d’ouverture ; la fenêtre ne s’ouvre jamais.",
+      "action": "Vérifiez que le jour d’ouverture est égal ou antérieur au jour de fermeture."
+    },
+    "BKR_012": {
+      "title": "Préavis en minutes sur une règle « la veille »",
+      "what": "Une règle « la veille » contient un préavis en minutes, réservé aux règles « le jour même ».",
+      "action": "Supprimez cette durée ou corrigez le type de réservation."
+    },
+    "BKR_013": {
+      "title": "Heure limite sans jour",
+      "what": "L’heure limite de réservation est renseignée, mais pas le nombre de jours avant.",
+      "action": "Indiquez le dernier jour de réservation, ou supprimez l’heure."
+    },
+    "BKR_014": {
+      "title": "Calendrier de réservation mal placé",
+      "what": "Le calendrier servant à compter les jours de réservation n’est utilisable que sur les règles « la veille » ; ici il figure sur un autre type.",
+      "action": "Supprimez le calendrier ou passez le type en « la veille »."
+    },
+    "BKR_015": {
+      "title": "Calendrier de réservation introuvable",
+      "what": "Une règle de réservation est liée à un calendrier non défini.",
+      "action": "Liez la règle à un calendrier existant, ou laissez le calendrier vide."
+    },
+    "BKR_016": {
+      "title": "Type de réservation manquant ou invalide",
+      "what": "Le type de règle (immédiate, le jour même, la veille) est manquant ou invalide.",
+      "action": "Choisissez le type de réservation."
+    },
+    "BKR_017": {
+      "title": "Règle de réservation de montée introuvable",
+      "what": "Un arrêt à la demande est lié à une règle de réservation de montée non définie.",
+      "action": "Liez l’arrêt à une règle existante, ou définissez la règle."
+    },
+    "BKR_018": {
+      "title": "Règle de réservation de descente introuvable",
+      "what": "Un arrêt à la demande est lié à une règle de réservation de descente non définie.",
+      "action": "Liez l’arrêt à une règle existante, ou définissez la règle."
+    },
+    "BKR_019": {
+      "title": "Code de règle de réservation vide ou répété",
+      "what": "Une règle de réservation a un code vide ou identique à une autre règle.",
+      "action": "Donnez un code unique à chaque règle de réservation."
+    },
+    "BKR_020": {
+      "title": "Adresse de réservation invalide",
+      "what": "L’adresse web pour réserver n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// »."
+    },
+    "BKR_021": {
+      "title": "Page d’information de réservation invalide",
+      "what": "L’adresse de la page d’information sur la réservation n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "BKR_022": {
+      "title": "Téléphone de réservation invalide",
+      "what": "Le numéro de réservation ne ressemble pas à un numéro joignable.",
+      "action": "Saisissez uniquement le numéro ; mettez les explications dans un autre champ."
+    },
+    "BKR_023": {
+      "title": "Durée de réservation non entière",
+      "what": "Une des valeurs en jours ou minutes n’est pas un nombre entier.",
+      "action": "Saisissez ces valeurs en nombres entiers."
+    },
+    "BKR_024": {
+      "title": "Réglage de jours contradictoire",
+      "what": "Une règle « le jour même » a un préavis maximal et indique aussi combien de jours avant la réservation ouvre.",
+      "action": "Supprimez l’un des deux réglages."
+    },
+    "BKR_025": {
+      "title": "Heure de réservation invalide",
+      "what": "L’heure d’ouverture ou de fermeture de la réservation n’est pas valide.",
+      "action": "Saisissez l’heure au format HH:MM:SS (ex. 17:00:00)."
+    },
+    "CAL_001": {
+      "title": "Même code de calendrier utilisé deux fois",
+      "what": "Deux calendriers portent le même code ; les jours de circulation deviennent ambigus.",
+      "action": "Donnez un code unique à chaque calendrier."
+    },
+    "CAL_002": {
+      "title": "Valeur de jour invalide",
+      "what": "La circulation d’un jour est indiquée par une valeur autre que oui/non.",
+      "action": "Indiquez pour chaque jour s’il circule ou non."
+    },
+    "CAL_003": {
+      "title": "Date de début du calendrier manquante ou invalide",
+      "what": "La date de début du calendrier est absente ou illisible.",
+      "action": "Saisissez la date de début (YYYYMMDD à l’export, ex. 20260101)."
+    },
+    "CAL_004": {
+      "title": "Date de fin du calendrier manquante ou invalide",
+      "what": "La date de fin du calendrier est absente ou illisible.",
+      "action": "Saisissez la date de fin (YYYYMMDD à l’export, ex. 20261231)."
+    },
+    "CAL_005": {
+      "title": "Le calendrier finit avant de commencer",
+      "what": "La date de fin précède la date de début ; le calendrier ne circule jamais.",
+      "action": "Vérifiez et corrigez les dates de début et de fin."
+    },
+    "CAL_006": {
+      "title": "Aucun jour coché dans le calendrier",
+      "what": "Tous les jours de la semaine sont « ne circule pas ». Le calendrier peut ne circuler qu’à des dates précises.",
+      "action": "S’il ne circule qu’à des dates précises, c’est normal ; sinon cochez les jours de circulation."
+    },
+    "CAL_007": {
+      "title": "Longue interruption dans la période",
+      "what": "Un calendrier comporte plus de deux semaines sans aucun jour de circulation.",
+      "action": "Si l’interruption est prévue (ex. vacances d’été), c’est normal ; sinon ajoutez les jours manquants."
+    },
+    "CAL_008": {
+      "title": "Le calendrier se termine bientôt",
+      "what": "Le dernier jour d’un calendrier approche ; après cette date ses courses ne seront plus affichées.",
+      "action": "Préparez et publiez le prochain horaire."
+    },
+    "CAL_009": {
+      "title": "Tous les calendriers sont terminés",
+      "what": "Toutes les périodes de service du jeu de données sont passées.",
+      "action": "Ajoutez un calendrier aux dates actuelles ou mettez à jour l’existant."
+    },
+    "CAL_010": {
+      "title": "Très peu de jours de circulation",
+      "what": "Un calendrier ne circule que quelques jours.",
+      "action": "S’il s’agit d’un service court (ex. événement), c’est normal ; sinon vérifiez les dates."
+    },
+    "CAL_011": {
+      "title": "Calendrier inutilisé",
+      "what": "Aucune course n’utilise ce calendrier.",
+      "action": "Liez le calendrier à des courses, ou supprimez-le."
+    },
+    "CAL_012": {
+      "title": "Interruption de service prochaine",
+      "what": "Dans les 30 prochains jours, un calendrier entre dans une période de plus de deux semaines sans circulation.",
+      "action": "Si l’interruption est prévue, c’est normal ; sinon vérifiez le calendrier."
+    },
+    "CAL_013": {
+      "title": "Tous les jours d’un calendrier sont passés",
+      "what": "Tous les jours de circulation d’un calendrier sont passés ; ses courses ne sont plus affichées.",
+      "action": "Mettez à jour le calendrier avec de nouvelles dates, ou supprimez-le s’il n’est plus utilisé."
+    },
+    "CAL_014": {
+      "title": "Calendrier hors de la période de validité",
+      "what": "Les dates d’un calendrier dépassent la période de validité déclarée du jeu de données ; les applis peuvent ne pas s’y fier.",
+      "action": "Harmonisez la période de validité et les dates des calendriers."
+    },
+    "CAL_015": {
+      "title": "Tous les calendriers commencent plus tard",
+      "what": "Aucun calendrier ne circule aujourd’hui ; tous commencent plus tard. Aucune course risque d’être affichée aujourd’hui.",
+      "action": "Si vous publiez l’horaire à l’avance, c’est normal ; sinon vérifiez les dates de début."
+    },
+    "CAL_016": {
+      "title": "Service très loin dans le futur",
+      "what": "Les calendriers semblent circuler plus de deux ans à l’avance ; la vraie période est sans doute plus courte.",
+      "action": "Fixez la fin du calendrier à la dernière date réellement valide."
+    },
+    "CAL_017": {
+      "title": "Calendrier pas encore commencé",
+      "what": "Un calendrier commence à une date future. Information seulement.",
+      "action": "S’il est prévu pour la prochaine période, c’est normal ; sinon vérifiez la date de début."
+    },
+    "CAL_018": {
+      "title": "Calendrier sans aucun jour de circulation",
+      "what": "Aucun jour de la semaine n’est coché et aucune date spéciale n’est ajoutée.",
+      "action": "Cochez les jours de circulation ou ajoutez les dates spéciales."
+    },
+    "CAL_020": {
+      "title": "Validité du jeu de données supérieure à 5 ans",
+      "what": "La période de validité déclarée dépasse 5 ans.",
+      "action": "Limitez la période de validité aux dates réellement valides."
+    },
+    "CAL_021": {
+      "title": "Aucune course dans les prochains jours",
+      "what": "Le calendrier couvre aujourd’hui mais n’a aucun jour de circulation dans les prochains jours.",
+      "action": "Si c’est une pause prévue, c’est normal ; sinon ajoutez les dates proches."
+    },
+    "CAL_022": {
+      "title": "Code de calendrier vide",
+      "what": "Un calendrier a un code vide ; aucune course ne peut y être liée.",
+      "action": "Donnez un code unique au calendrier."
+    },
+    "CAL_023": {
+      "title": "Date de fin suspecte",
+      "what": "Un calendrier se termine dans de nombreuses années (ex. 2099) ; c’est généralement une valeur fictive.",
+      "action": "Indiquez la vraie dernière date de validité de l’horaire."
+    },
+    "CAL_024": {
+      "title": "Calendrier sans circulation dans les 7 jours",
+      "what": "Un calendrier n’a aucun jour de circulation dans les 7 prochains jours. Information seulement.",
+      "action": "Si c’est prévu (ex. calendrier des jours fériés), c’est normal ; sinon mettez-le à jour."
+    },
+    "CAL_025": {
+      "title": "Valeur de jour vide",
+      "what": "La circulation d’un jour de la semaine n’est pas renseignée.",
+      "action": "Indiquez pour chaque jour s’il circule ou non."
+    },
+    "CLD_001": {
+      "title": "Code de calendrier vide dans une exception",
+      "what": "Une date spéciale (ajout ou retrait) n’indique pas son calendrier.",
+      "action": "Rattachez la date spéciale à son calendrier."
+    },
+    "CLD_002": {
+      "title": "Date d’exception invalide",
+      "what": "Une date spéciale n’a pas de date ou elle est illisible.",
+      "action": "Saisissez la date au format YYYYMMDD (ex. 20270101)."
+    },
+    "CLD_003": {
+      "title": "Type d’exception invalide",
+      "what": "Une date spéciale n’indique pas si le service est ajouté ou retiré, ou la valeur est invalide.",
+      "action": "Indiquez « service ajouté » ou « service retiré »."
+    },
+    "CLD_004": {
+      "title": "Calendrier sans jour de circulation",
+      "what": "Le calendrier hebdomadaire n’est pas utilisé et certains calendriers n’ont aucune date « service ajouté » ; leurs courses ne circulent jamais.",
+      "action": "Ajoutez des dates de circulation à ces calendriers."
+    },
+    "CLD_005": {
+      "title": "Date d’exception improbable",
+      "what": "Une date spéciale n’est pas comprise entre 2000 et 2099 ; elle est probablement erronée.",
+      "action": "Vérifiez et corrigez la date."
+    },
+    "CLD_006": {
+      "title": "Trop de dates spéciales",
+      "what": "Un calendrier compte plus de 60 dates spéciales. Information seulement.",
+      "action": "Envisagez de définir les jours réguliers par le calendrier hebdomadaire et de réserver les dates spéciales aux exceptions."
+    },
+    "CLD_007": {
+      "title": "Calendrier presque entièrement fait d’exceptions",
+      "what": "La plupart des jours de circulation d’un calendrier sont saisis un par un. Information seulement.",
+      "action": "Envisagez de définir les jours réguliers par le calendrier hebdomadaire."
+    },
+    "DQ_003": {
+      "title": "Description de ligne manquante",
+      "what": "Le champ de description qui informe les voyageurs est vide pour les lignes.",
+      "action": "Si vous le souhaitez, ajoutez une courte description (horaires, remarque sur l’itinéraire)."
+    },
+    "DQ_004": {
+      "title": "Page web de ligne manquante",
+      "what": "Aucune page web détaillant la ligne n’est indiquée. Information seulement.",
+      "action": "Si la ligne a une page d’information, saisissez son adresse."
+    },
+    "DQ_005": {
+      "title": "Aucune période de service valide",
+      "what": "Aucun calendrier ne circule à partir d’aujourd’hui ; aucune course ne sera affichée.",
+      "action": "Ajoutez les calendriers de la période actuelle et republiez le jeu de données."
+    },
+    "DQ_005b": {
+      "title": "Aucune course n’a d’horaires",
+      "what": "Des courses existent mais aucune n’a d’horaires aux arrêts ; aucune course risque d’être affichée.",
+      "action": "Ajoutez les horaires aux arrêts à l’export."
+    },
+    "DQ_005c": {
+      "title": "La plupart des arrêts n’ont pas de position",
+      "what": "La plupart des arrêts n’ont pas de position ; ils ne peuvent pas être affichés ni servir au calcul d’itinéraire.",
+      "action": "Positionnez les arrêts dans votre logiciel de planification et exportez de nouveau."
+    },
+    "DQ_006": {
+      "title": "La plupart des courses n’ont pas de tracé",
+      "what": "La plupart des courses ne sont liées à aucun tracé ; les applis dessinent les lignes en traits droits.",
+      "action": "Ajoutez les tracés des lignes à l’export."
+    },
+    "DQ_009": {
+      "title": "Les courses n’ont pas d’horaires",
+      "what": "Des courses existent mais il n’y a aucun horaire aux arrêts ; aucun horaire ne peut être construit.",
+      "action": "Ajoutez les horaires aux arrêts à l’export."
+    },
+    "DQ_010": {
+      "title": "Exploitant inutilisé",
+      "what": "Aucune ligne n’est rattachée à un exploitant de la liste.",
+      "action": "Rattachez ses lignes, ou supprimez-le s’il est inutilisé."
+    },
+    "DQ_011": {
+      "title": "Un seul arrêt dans le jeu de données",
+      "what": "Le jeu de données ne contient qu’un arrêt ; aucun itinéraire n’est possible.",
+      "action": "Ajoutez tous les arrêts à l’export."
+    },
+    "DQ_012": {
+      "title": "Lignes sans exploitant",
+      "what": "Il y a plusieurs exploitants mais les lignes n’indiquent pas lequel les exploite.",
+      "action": "Rattachez chaque ligne à son exploitant."
+    },
+    "DQ_013": {
+      "title": "Très peu de courses",
+      "what": "Le jeu de données ne contient qu’une ou deux courses. Information seulement.",
+      "action": "Vérifiez que toutes les courses ont été exportées."
+    },
+    "DQ_016": {
+      "title": "Espaces superflus dans les valeurs",
+      "what": "Certains noms, codes ou valeurs commencent ou finissent par un espace ; cela peut gêner l’appariement et la recherche.",
+      "action": "Supprimez les espaces superflus des enregistrements concernés."
+    },
+    "DQ_017": {
+      "title": "Coordonnées suspectes",
+      "what": "De nombreux arrêts apparaissent en 0,0 (golfe de Guinée) ; les positions n’ont pas été saisies ou sont fictives.",
+      "action": "Saisissez la vraie position de ces arrêts."
+    },
+    "DQ_018": {
+      "title": "Nom entièrement en MAJUSCULES",
+      "what": "Un nom affiché aux voyageurs (arrêt, ligne ou direction) est entièrement en majuscules ; il est plus difficile à lire.",
+      "action": "Écrivez les noms normalement (ex. « Gare Centrale » plutôt que « GARE CENTRALE »). Les sigles et noms de marque sont exclus."
+    },
+    "DQ_019": {
+      "title": "Nom entièrement en minuscules",
+      "what": "Un nom affiché aux voyageurs est entièrement en minuscules.",
+      "action": "Écrivez les noms normalement (ex. « Gare Centrale » plutôt que « gare centrale »). Les noms de marque volontairement en minuscules sont exclus."
+    },
+    "DQ_020": {
+      "title": "Directions des courses vides",
+      "what": "La plupart des courses n’ont pas de direction affichée aux voyageurs.",
+      "action": "Indiquez la destination de chaque course comme direction."
+    },
+    "DQ_021": {
+      "title": "Le même code est répété",
+      "what": "Dans une liste (arrêts, lignes, courses…), le même code est utilisé par plusieurs enregistrements ; les liens peuvent pointer vers le mauvais.",
+      "action": "Donnez un code unique à chaque enregistrement."
+    },
+    "DQ_022": {
+      "title": "La plupart des arrêts portent le même nom",
+      "what": "Plus de 80 % des arrêts ont le même nom ; des valeurs fictives ont pu remplacer les vrais noms.",
+      "action": "Saisissez les vrais noms d’arrêts."
+    },
+    "FAR_001": {
+      "title": "Même code tarifaire utilisé deux fois",
+      "what": "Deux tarifs portent le même code.",
+      "action": "Donnez un code unique à chaque tarif."
+    },
+    "FAR_002": {
+      "title": "Montant manquant ou invalide",
+      "what": "Un tarif n’a pas de prix, ou un prix non numérique ou négatif.",
+      "action": "Saisissez un montant nul ou positif."
+    },
+    "FAR_003": {
+      "title": "Devise manquante ou invalide",
+      "what": "Un tarif n’a pas de devise ou ce n’est pas un code standard à trois lettres.",
+      "action": "Saisissez la devise avec un code à trois lettres comme « EUR »."
+    },
+    "FAR_004": {
+      "title": "Moment de paiement invalide",
+      "what": "La valeur indiquant si le tarif se paie à bord ou avant la montée est invalide.",
+      "action": "Choisissez « à bord » ou « avant la montée »."
+    },
+    "FAR_005": {
+      "title": "Droit de correspondance invalide",
+      "what": "La valeur indiquant combien de correspondances le tarif permet est invalide.",
+      "action": "Indiquez 0, 1, 2 ou illimité (vide)."
+    },
+    "FAR_006": {
+      "title": "Durée de correspondance invalide",
+      "what": "La durée de validité pour les correspondances n’est pas un nombre.",
+      "action": "Saisissez la durée en secondes, ou laissez vide."
+    },
+    "FAR_008": {
+      "title": "Exploitant du tarif introuvable",
+      "what": "Un tarif est rattaché à un exploitant absent de la liste.",
+      "action": "Rattachez le tarif à un exploitant existant."
+    },
+    "FAR_010": {
+      "title": "Deux tarifs différents pour le même trajet",
+      "what": "Plusieurs tarifs sont définis pour la même ligne et les mêmes zones ; on ne sait pas lequel s’applique.",
+      "action": "Gardez un seul tarif par combinaison ligne et zones."
+    },
+    "FAR_011": {
+      "title": "Moment de paiement vide",
+      "what": "Un tarif n’indique pas quand le paiement a lieu.",
+      "action": "Choisissez « à bord » ou « avant la montée »."
+    },
+    "FAR_012": {
+      "title": "Code tarifaire vide",
+      "what": "Un tarif a un code vide.",
+      "action": "Donnez un code unique à chaque tarif."
+    },
+    "FAR_013": {
+      "title": "Nombre de décimales du montant incorrect",
+      "what": "Le montant n’est pas écrit avec le nombre de décimales de la devise (ex. 2 pour EUR). Information seulement.",
+      "action": "Écrivez le montant avec les décimales de la devise (ex. 17.50)."
+    },
+    "FIN_001": {
+      "title": "L’éditeur du jeu de données n’a pas de nom",
+      "what": "Les informations du jeu de données n’indiquent pas le nom de l’organisme éditeur.",
+      "action": "Saisissez le nom de l’organisme qui publie le jeu de données."
+    },
+    "FIN_002": {
+      "title": "Adresse web de l’éditeur manquante ou invalide",
+      "what": "Les informations du jeu de données n’ont pas d’adresse web valide pour l’éditeur.",
+      "action": "Saisissez l’adresse complète de l’organisme, commençant par « https:// »."
+    },
+    "FIN_003": {
+      "title": "Langue du jeu de données manquante",
+      "what": "Les informations n’indiquent pas la langue des noms et textes, ou le code n’est pas reconnu.",
+      "action": "Saisissez la langue avec un code standard comme « fr »."
+    },
+    "FIN_004": {
+      "title": "Langue par défaut invalide",
+      "what": "Le code de langue par défaut n’est pas reconnu.",
+      "action": "Saisissez un code standard comme « fr », ou laissez vide."
+    },
+    "FIN_005": {
+      "title": "Date de début du jeu de données invalide",
+      "what": "La date de début de validité est illisible.",
+      "action": "Saisissez la date au format YYYYMMDD (ex. 20260101)."
+    },
+    "FIN_006": {
+      "title": "Date de fin du jeu de données invalide",
+      "what": "La date de fin de validité est illisible.",
+      "action": "Saisissez la date au format YYYYMMDD (ex. 20261231)."
+    },
+    "FIN_007": {
+      "title": "Version du jeu de données manquante",
+      "what": "Aucune version n’est indiquée ; impossible de savoir laquelle est publiée.",
+      "action": "Indiquez une version qui augmente à chaque publication (ex. date ou numéro)."
+    },
+    "FIN_008": {
+      "title": "E-mail de contact invalide",
+      "what": "L’e-mail de contact du jeu de données n’est pas valide.",
+      "action": "Saisissez l’adresse sous la forme nom@domaine.com, ou laissez vide."
+    },
+    "FIN_009": {
+      "title": "Adresse de contact invalide",
+      "what": "L’adresse web de contact du jeu de données n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "FIN_010": {
+      "title": "Date de validité du jeu de données dépassée",
+      "what": "La date de fin de validité est passée ; les applis peuvent ne pas considérer le jeu de données comme à jour.",
+      "action": "Republiez le jeu de données avec des dates de validité actuelles."
+    },
+    "FIN_012": {
+      "title": "Début après la fin",
+      "what": "La date de début de validité est postérieure à la date de fin.",
+      "action": "Corrigez les dates de début et de fin."
+    },
+    "FIN_013": {
+      "title": "Exploitant du tarif non indiqué",
+      "what": "Certains tarifs n’indiquent pas leur exploitant. Information seulement.",
+      "action": "Rattachez les tarifs à leur exploitant."
+    },
+    "FIN_014": {
+      "title": "Dates de validité manquantes",
+      "what": "Les informations du jeu de données n’ont pas de dates de début et de fin.",
+      "action": "Saisissez le premier et le dernier jour de validité de l’horaire."
+    },
+    "FIN_015": {
+      "title": "Plusieurs informations de jeu de données",
+      "what": "Le fichier d’informations contient plusieurs enregistrements ; il n’en faut qu’un.",
+      "action": "Gardez un seul enregistrement."
+    },
+    "FIN_016": {
+      "title": "Le jeu de données n’est pas encore valide",
+      "what": "La validité commence dans le futur ; les courses risquent de ne pas être affichées aujourd’hui.",
+      "action": "Si vous publiez l’horaire à l’avance, c’est normal ; sinon corrigez la date de début."
+    },
+    "FIN_017": {
+      "title": "Validité très lointaine",
+      "what": "La validité se termine dans plus de deux ans.",
+      "action": "Indiquez comme date de fin le vrai dernier jour de validité."
+    },
+    "FIN_018": {
+      "title": "Aucun contact pour le jeu de données",
+      "what": "Il n’y a ni e-mail ni page de contact ; personne ne peut vous signaler un problème de données.",
+      "action": "Ajoutez un e-mail ou une page de contact."
+    },
+    "FIN_019": {
+      "title": "La validité se termine bientôt",
+      "what": "La date de fin de validité approche.",
+      "action": "Préparez et publiez le prochain horaire."
+    },
+    "FIN_020": {
+      "title": "Validité inférieure à 7 jours",
+      "what": "La période de validité est inférieure à une semaine.",
+      "action": "Saisissez des dates de validité correspondant à la vraie période."
+    },
+    "FLG_001": {
+      "title": "Produit de la règle de trajet introuvable",
+      "what": "Une règle tarifaire de trajet est liée à un produit non défini.",
+      "action": "Liez la règle à un produit existant."
+    },
+    "FLG_002": {
+      "title": "Réseau de la règle de trajet introuvable",
+      "what": "Une règle tarifaire de trajet est liée à un réseau non défini.",
+      "action": "Liez la règle à un réseau existant."
+    },
+    "FLG_003": {
+      "title": "Zone de départ introuvable",
+      "what": "Une règle tarifaire de trajet est liée à une zone de départ non définie.",
+      "action": "Liez la règle à une zone tarifaire existante."
+    },
+    "FLG_004": {
+      "title": "Zone d’arrivée introuvable",
+      "what": "Une règle tarifaire de trajet est liée à une zone d’arrivée non définie.",
+      "action": "Liez la règle à une zone tarifaire existante."
+    },
+    "FLG_005": {
+      "title": "Période horaire de départ introuvable",
+      "what": "Une règle tarifaire est liée à une période horaire (ex. heures de pointe) non définie.",
+      "action": "Liez la règle à une période existante."
+    },
+    "FLG_006": {
+      "title": "Période horaire d’arrivée introuvable",
+      "what": "Une règle tarifaire est liée à une période horaire non définie.",
+      "action": "Liez la règle à une période existante."
+    },
+    "FLG_007": {
+      "title": "Priorité de règle invalide",
+      "what": "La priorité qui départage plusieurs règles applicables est invalide.",
+      "action": "Saisissez la priorité en 0 ou entier positif."
+    },
+    "FLG_008": {
+      "title": "Produit de la règle de trajet vide",
+      "what": "Une règle tarifaire de trajet n’indique pas le produit applicable.",
+      "action": "Choisissez le produit de la règle."
+    },
+    "FLJ_001": {
+      "title": "Premier réseau manquant",
+      "what": "Dans la règle qui compte deux trajets comme un seul, le premier réseau est vide ou non défini.",
+      "action": "Choisissez un réseau existant."
+    },
+    "FLJ_002": {
+      "title": "Second réseau manquant",
+      "what": "Dans la règle qui compte deux trajets comme un seul, le second réseau est vide ou non défini.",
+      "action": "Choisissez un réseau existant."
+    },
+    "FLJ_003": {
+      "title": "Premier arrêt manquant",
+      "what": "Dans la règle de jonction, le premier arrêt est manquant, introuvable ou n’est pas un arrêt/une gare.",
+      "action": "Saisissez les deux arrêts ensemble, ou laissez-les vides."
+    },
+    "FLJ_004": {
+      "title": "Second arrêt manquant",
+      "what": "Dans la règle de jonction, le second arrêt est manquant, introuvable ou n’est pas un arrêt/une gare.",
+      "action": "Saisissez les deux arrêts ensemble, ou laissez-les vides."
+    },
+    "FMD_001": {
+      "title": "Même code de support utilisé deux fois",
+      "what": "Deux supports de titre (carte, appli…) portent le même code.",
+      "action": "Donnez un code unique à chaque support."
+    },
+    "FMD_002": {
+      "title": "Type de support invalide",
+      "what": "Le type de support (ticket papier, carte, carte sans contact, appli) est manquant ou invalide.",
+      "action": "Choisissez le type de support."
+    },
+    "FMD_003": {
+      "title": "La carte ou l’appli n’a pas de nom",
+      "what": "Une carte de transport ou une appli n’a pas de nom ; les voyageurs ne savent pas quelle carte est acceptée.",
+      "action": "Saisissez le nom de la carte ou de l’appli."
+    },
+    "FMD_004": {
+      "title": "Code de support vide",
+      "what": "Un support de titre a un code vide.",
+      "action": "Donnez un code unique à chaque support."
+    },
+    "FPD_001": {
+      "title": "Produit défini deux fois",
+      "what": "Le même produit est défini deux fois avec la même catégorie de voyageur et le même support.",
+      "action": "Supprimez le doublon."
+    },
+    "FPD_002": {
+      "title": "Prix du produit manquant ou invalide",
+      "what": "Un produit tarifaire n’a pas de prix ou un prix non numérique.",
+      "action": "Saisissez le prix en nombre (0 si gratuit)."
+    },
+    "FPD_003": {
+      "title": "Devise du produit invalide",
+      "what": "La devise d’un produit n’est pas un code standard à trois lettres.",
+      "action": "Saisissez la devise avec un code comme « EUR »."
+    },
+    "FPD_004": {
+      "title": "Support du produit introuvable",
+      "what": "Un produit est lié à un support (carte, appli…) non défini.",
+      "action": "Liez le produit à un support existant."
+    },
+    "FPD_005": {
+      "title": "Catégorie de voyageur introuvable",
+      "what": "Un produit est lié à une catégorie de voyageur non définie.",
+      "action": "Liez le produit à une catégorie existante."
+    },
+    "FPD_007": {
+      "title": "Nombre de décimales du prix incorrect",
+      "what": "Le prix n’est pas écrit avec le nombre de décimales de la devise (ex. 2 pour EUR).",
+      "action": "Écrivez le prix avec les décimales de la devise (ex. 17.50)."
+    },
+    "FRL_001": {
+      "title": "Tarif de la règle introuvable",
+      "what": "Une règle tarifaire est liée à un tarif non défini.",
+      "action": "Liez la règle à un tarif existant."
+    },
+    "FRL_002": {
+      "title": "Ligne de la règle introuvable",
+      "what": "Une règle tarifaire est liée à une ligne absente de la liste.",
+      "action": "Liez la règle à une ligne existante."
+    },
+    "FRL_003": {
+      "title": "Zone d’origine introuvable",
+      "what": "Une règle tarifaire désigne une zone d’origine utilisée par aucun arrêt.",
+      "action": "Liez la règle à une zone utilisée par des arrêts."
+    },
+    "FRL_004": {
+      "title": "Zone de destination introuvable",
+      "what": "Une règle tarifaire désigne une zone de destination utilisée par aucun arrêt.",
+      "action": "Liez la règle à une zone utilisée par des arrêts."
+    },
+    "FRL_005": {
+      "title": "Zone traversée introuvable",
+      "what": "Une règle tarifaire désigne une zone traversée utilisée par aucun arrêt.",
+      "action": "Liez la règle à une zone utilisée par des arrêts."
+    },
+    "FRL_006": {
+      "title": "Tarifs rattachés à aucune ligne",
+      "what": "Des tarifs existent mais aucune règle n’indique sur quelles lignes ou zones ils s’appliquent. Normal pour un tarif unique.",
+      "action": "Avec un tarif unique, c’est normal ; si le tarif dépend de la ligne ou de la zone, ajoutez des règles."
+    },
+    "FRL_007": {
+      "title": "Règle tarifaire sans critère",
+      "what": "Une règle n’indique ni ligne ni zone ; elle s’applique à tous les trajets.",
+      "action": "Ajoutez la ligne ou la zone à la règle."
+    },
+    "FRL_008": {
+      "title": "Certaines lignes n’ont pas de tarif",
+      "what": "Des règles existent pour certaines lignes mais pas pour d’autres ; les voyageurs ne voient pas le tarif sur ces lignes.",
+      "action": "Ajoutez des règles pour les lignes sans tarif."
+    },
+    "FRL_009": {
+      "title": "Certaines paires de zones n’ont pas de tarif",
+      "what": "Sur les lignes à tarif zonal, certaines paires origine–destination n’ont pas de tarif.",
+      "action": "Ajoutez des règles pour les paires manquantes, ou définissez un tarif unique par ligne."
+    },
+    "FRQ_001": {
+      "title": "Course de la fréquence introuvable",
+      "what": "Une définition de fréquence (toutes les X minutes) est liée à une course absente.",
+      "action": "Liez la fréquence à une course existante."
+    },
+    "FRQ_002": {
+      "title": "Heure de début de fréquence invalide",
+      "what": "L’heure de début de la période de fréquence est absente ou illisible.",
+      "action": "Saisissez l’heure au format HH:MM:SS."
+    },
+    "FRQ_003": {
+      "title": "Heure de fin de fréquence invalide",
+      "what": "L’heure de fin de la période de fréquence est absente ou illisible.",
+      "action": "Saisissez l’heure au format HH:MM:SS."
+    },
+    "FRQ_004": {
+      "title": "Intervalle manquant",
+      "what": "La période de fréquence n’indique pas l’intervalle entre courses, ou la valeur est invalide.",
+      "action": "Saisissez l’intervalle en secondes (ex. 600 pour 10 minutes)."
+    },
+    "FRQ_005": {
+      "title": "Période de fréquence inversée",
+      "what": "La période de fréquence finit avant ou au moment où elle commence.",
+      "action": "Corrigez les heures de début et de fin."
+    },
+    "FRQ_006": {
+      "title": "Intervalle très long",
+      "what": "L’intervalle de la période de fréquence est anormalement long.",
+      "action": "Si l’intervalle est correct, c’est normal ; sinon vérifiez-le."
+    },
+    "FRQ_007": {
+      "title": "Réglage d’horaires exacts invalide",
+      "what": "La valeur indiquant si les courses partent à heure exacte ou approximative est invalide.",
+      "action": "Choisissez « approximatif (par intervalle) » ou « horaires exacts »."
+    },
+    "FRQ_008": {
+      "title": "Intervalle nul",
+      "what": "L’intervalle est nul ; les courses semblent partir sans interruption.",
+      "action": "Saisissez l’intervalle en secondes, valeur positive."
+    },
+    "FRQ_009": {
+      "title": "Intervalle très court",
+      "what": "L’intervalle est inférieur à une minute.",
+      "action": "Vérifiez l’intervalle ; des secondes ont peut-être été saisies au lieu de minutes."
+    },
+    "FRQ_010": {
+      "title": "Service très fréquent",
+      "what": "Les courses de la période partent à intervalles très courts. Information seulement.",
+      "action": "Si c’est voulu, c’est normal ; sinon vérifiez l’intervalle."
+    },
+    "FRQ_011": {
+      "title": "Périodes de fréquence qui se chevauchent",
+      "what": "Deux périodes de fréquence d’une même course se chevauchent ; on ne sait pas quel intervalle s’applique.",
+      "action": "Organisez les périodes sans chevauchement."
+    },
+    "FRQ_012": {
+      "title": "Fin de période sur un horaire de départ",
+      "what": "La fin d’une période à horaires exacts tombe sur un départ ; on ne sait pas si la dernière course circule.",
+      "action": "Placez l’heure de fin après la dernière course et avant la suivante possible."
+    },
+    "FTR_001": {
+      "title": "Type de tarif de correspondance invalide",
+      "what": "Le type indiquant le calcul du tarif de correspondance est manquant ou invalide.",
+      "action": "Choisissez le type de tarif de correspondance."
+    },
+    "FTR_002": {
+      "title": "Premier groupe de trajets introuvable",
+      "what": "Une règle de correspondance part d’un groupe de trajets non défini.",
+      "action": "Liez la règle à un groupe existant."
+    },
+    "FTR_003": {
+      "title": "Second groupe de trajets introuvable",
+      "what": "Une règle de correspondance mène à un groupe de trajets non défini.",
+      "action": "Liez la règle à un groupe existant."
+    },
+    "FTR_004": {
+      "title": "Produit de correspondance introuvable",
+      "what": "Une règle de correspondance est liée à un produit tarifaire non défini.",
+      "action": "Liez la règle à un produit existant."
+    },
+    "FTR_005": {
+      "title": "Référence de durée invalide",
+      "what": "Le point de départ du décompte (montée, descente…) est invalide.",
+      "action": "Choisissez la référence parmi les options définies."
+    },
+    "FTR_006": {
+      "title": "Durée de correspondance invalide",
+      "what": "La durée de validité de la correspondance n’est pas un nombre, ou elle est nulle.",
+      "action": "Saisissez la durée en secondes, valeur positive."
+    },
+    "FTR_007": {
+      "title": "Référence sans durée",
+      "what": "La référence du décompte est indiquée, mais pas la durée.",
+      "action": "Saisissez la durée ou supprimez la référence."
+    },
+    "FTR_008": {
+      "title": "Nombre de correspondances invalide",
+      "what": "Le nombre de correspondances n’est ni illimité (-1) ni un entier positif.",
+      "action": "Saisissez -1 (illimité) ou un entier positif."
+    },
+    "FTR_009": {
+      "title": "Pas de nombre dans un même groupe",
+      "what": "Une correspondance au sein d’un même groupe n’indique pas le nombre autorisé.",
+      "action": "Saisissez le nombre de correspondances (-1 illimité)."
+    },
+    "FTR_010": {
+      "title": "Nombre entre groupes différents",
+      "what": "Une correspondance entre groupes différents a un nombre de correspondances ; il ne s’utilise qu’au sein d’un même groupe.",
+      "action": "Supprimez le nombre de correspondances."
+    },
+    "FTR_011": {
+      "title": "Durée sans référence",
+      "what": "La durée de correspondance est indiquée, mais pas son point de départ.",
+      "action": "Choisissez la référence ou supprimez la durée."
+    },
+    "GEO_002": {
+      "title": "Arrêt très loin du réseau",
+      "what": "Un arrêt apparaît à des centaines de kilomètres du reste du réseau ; sa position est probablement erronée.",
+      "action": "Vérifiez et corrigez la position de l’arrêt."
+    },
+    "GEO_006": {
+      "title": "Grand saut dans un tracé",
+      "what": "Deux points consécutifs d’un tracé sont anormalement éloignés ; la ligne ne suit pas la route.",
+      "action": "Redessinez cette partie du tracé le long de la route."
+    },
+    "GEO_007": {
+      "title": "Très grand saut dans un tracé",
+      "what": "Deux points consécutifs d’un tracé sont très éloignés ; un point est peut-être mal placé.",
+      "action": "Vérifiez et redessinez cette partie du tracé."
+    },
+    "GEO_009": {
+      "title": "Arrêt loin du tracé",
+      "what": "Un arrêt est anormalement loin du tracé de ses courses ; sur la carte il apparaît hors de la route.",
+      "action": "Corrigez la position de l’arrêt ou du tracé."
+    },
+    "GEO_012": {
+      "title": "Plusieurs arrêts superposés",
+      "what": "Au moins trois arrêts sont très proches dans une petite zone ; ce sont peut-être des copies du même arrêt.",
+      "action": "Fusionnez les enregistrements du même arrêt physique."
+    },
+    "GEO_013": {
+      "title": "Couverture géographique du réseau",
+      "what": "Résumé de la zone couverte par les arrêts. Information seulement.",
+      "action": "Aucune action n’est nécessaire."
+    },
+    "GEO_014": {
+      "title": "Réseau très étendu",
+      "what": "Les arrêts couvrent une zone de plus de 500 km.",
+      "action": "Pour un réseau interurbain, c’est normal ; sinon vérifiez les arrêts éloignés."
+    },
+    "GEO_015": {
+      "title": "Arrêt hors du Japon",
+      "what": "Dans un jeu de données en japonais, certains arrêts apparaissent hors du Japon.",
+      "action": "Si c’est voulu, c’est normal ; sinon vérifiez leurs coordonnées."
+    },
+    "GEO_016": {
+      "title": "Arrêt en position 0,0",
+      "what": "La position d’un arrêt est saisie à 0,0 (golfe de Guinée) ; il n’a en fait pas de position.",
+      "action": "Saisissez la vraie position de l’arrêt."
+    },
+    "GEO_017": {
+      "title": "Point de tracé en 0,0",
+      "what": "Un tracé a un point en 0,0 ; la ligne part vers l’océan.",
+      "action": "Corrigez ce point ou exportez de nouveau le tracé."
+    },
+    "GEO_018": {
+      "title": "Tous les arrêts dans une petite zone",
+      "what": "Tous les arrêts tiennent dans 200 mètres ; les positions sont peut-être fictives.",
+      "action": "Si le service couvre vraiment une petite zone (ex. un campus), c’est normal ; sinon saisissez les vraies positions."
+    },
+    "GEO_019": {
+      "title": "Position d’arrêt arrondie",
+      "what": "La latitude et la longitude d’un arrêt sont des nombres entiers ; l’arrêt apparaît décalé de plusieurs kilomètres.",
+      "action": "Saisissez la position avec au moins 5 décimales."
+    },
+    "GEO_020": {
+      "title": "Tous les points du tracé au même endroit",
+      "what": "Tous les points d’un tracé sont au même endroit ; la carte affiche un point au lieu d’une ligne.",
+      "action": "Redessinez le tracé le long de la route."
+    },
+    "GEO_021": {
+      "title": "La plupart des arrêts partagent une position",
+      "what": "Plus de 30 % des arrêts ont la même position qu’un autre arrêt.",
+      "action": "Saisissez les vraies positions et fusionnez les doublons."
+    },
+    "GEO_022": {
+      "title": "Arrêt très proche d’un pôle",
+      "what": "La latitude d’un arrêt dépasse 89 degrés ; la position est sans doute erronée (latitude et longitude inversées ?).",
+      "action": "Vérifiez et corrigez la position de l’arrêt."
+    },
+    "GGL_001": {
+      "title": "Correspondance sans descente non prise en charge par Google",
+      "what": "Le type de correspondance où le voyageur reste à bord n’est pas pris en charge par Google Maps. Sans publication sur Google, ce n’est pas un problème.",
+      "action": "Si la compatibilité Google est nécessaire, modélisez cette liaison par un service véhicule (même véhicule)."
+    },
+    "GGL_002": {
+      "title": "Prix carte Google invalide",
+      "what": "Le prix de paiement par carte propre à Google n’est pas valide.",
+      "action": "Si vous utilisez ce champ, saisissez un prix nul ou positif ; sinon laissez vide."
+    },
+    "JPN_001": {
+      "title": "Lecture kana du nom d’arrêt manquante",
+      "what": "Un arrêt au nom japonais n’a pas de lecture kana (ja-Hrkt).",
+      "action": "Ajoutez la lecture kana du nom aux traductions."
+    },
+    "JPN_002": {
+      "title": "Code de bureau non défini",
+      "what": "Une ligne ou une course est liée à un bureau absent de la liste (office_jp).",
+      "action": "Liez-la à un bureau existant ou définissez le bureau."
+    },
+    "JPN_003": {
+      "title": "Informations exploitant japonaises non concordantes",
+      "what": "Les informations complémentaires GTFS-JP sont liées à un exploitant absent de la liste.",
+      "action": "Associez-les à un exploitant existant."
+    },
+    "JPN_004": {
+      "title": "Fichier de traductions manquant",
+      "what": "Le jeu GTFS-JP n’a pas de fichier de traductions avec les lectures kana des arrêts.",
+      "action": "Ajoutez le fichier de traductions avec les lectures kana."
+    },
+    "JPN_005": {
+      "title": "Bureau sans nom",
+      "what": "Un bureau de la liste (office_jp) n’a pas de nom.",
+      "action": "Saisissez le nom du bureau."
+    },
+    "JPN_006": {
+      "title": "Informations tarifaires manquantes",
+      "what": "Le jeu GTFS-JP n’a pas de tarifs, ou les tarifs ne sont pas liés aux lignes.",
+      "action": "Ajoutez les tarifs et les lignes concernées."
+    },
+    "JPN_007": {
+      "title": "Fichier d’informations manquant",
+      "what": "Le jeu GTFS-JP n’a pas de fichier d’informations (éditeur, langue).",
+      "action": "Ajoutez les informations du jeu de données (éditeur, langue « ja », version)."
+    },
+    "JPN_008": {
+      "title": "Lecture kana du nom de ligne manquante",
+      "what": "Une ligne au nom japonais n’a pas de lecture kana.",
+      "action": "Ajoutez la lecture kana du nom de ligne aux traductions."
+    },
+    "JPN_009": {
+      "title": "Lecture kana de la direction manquante",
+      "what": "Une direction écrite en japonais n’a pas de lecture kana.",
+      "action": "Ajoutez la lecture kana de la direction aux traductions."
+    },
+    "JPN_010": {
+      "title": "Lecture kana du nom d’exploitant manquante",
+      "what": "Un exploitant au nom japonais n’a pas de lecture kana.",
+      "action": "Ajoutez la lecture kana du nom aux traductions."
+    },
+    "JPN_011": {
+      "title": "Code d’exploitant manquant",
+      "what": "En GTFS-JP, le code d’exploitant et son lien sur les lignes sont obligatoires même avec un seul exploitant ; ils manquent.",
+      "action": "Donnez un code à l’exploitant et liez-y toutes les lignes."
+    },
+    "JPN_012": {
+      "title": "Code manquant dans les informations exploitant",
+      "what": "Le code d’exploitant est vide dans les informations complémentaires GTFS-JP.",
+      "action": "Liez les informations au code de l’exploitant."
+    },
+    "JPN_013": {
+      "title": "Format de code postal incorrect",
+      "what": "Le code postal de l’exploitant ne compte pas sept chiffres.",
+      "action": "Saisissez sept chiffres sans tiret."
+    },
+    "JPN_014": {
+      "title": "Code de bureau vide ou répété",
+      "what": "Un bureau a un code vide ou identique à un autre.",
+      "action": "Donnez un code unique à chaque bureau."
+    },
+    "JPN_015": {
+      "title": "Informations de ligne anciennes non concordantes",
+      "what": "Dans l’ancien format (routes_jp), le code de ligne est vide, répété ou absent de la liste.",
+      "action": "Liez ces informations de façon unique aux lignes existantes."
+    },
+    "JPN_016": {
+      "title": "Date de mise à jour de ligne invalide",
+      "what": "La date de mise à jour du modèle ou de la ligne n’est pas valide.",
+      "action": "Saisissez la date au format YYYYMMDD."
+    },
+    "JPN_017": {
+      "title": "Code de modèle de course vide ou répété",
+      "what": "La liste des modèles (pattern_jp) contient un code vide ou répété.",
+      "action": "Donnez un code unique à chaque modèle."
+    },
+    "JPN_018": {
+      "title": "Modèle de course introuvable",
+      "what": "Une course est liée à un modèle absent de la liste.",
+      "action": "Liez la course à un modèle existant."
+    },
+    "JPN_019": {
+      "title": "Traduction kana liée au mauvais enregistrement",
+      "what": "Une lecture kana est liée à un enregistrement inexistant ou erroné.",
+      "action": "Associez la lecture au bon arrêt, à la bonne ligne ou course."
+    },
+    "JPN_020": {
+      "title": "Adresse web ou téléphone du bureau douteux",
+      "what": "L’adresse web ou le téléphone du bureau ne semble pas valide.",
+      "action": "Saisissez une adresse web valide et un numéro joignable."
+    },
+    "JPN_021": {
+      "title": "Traduction kana vide ou contradictoire",
+      "what": "Une lecture kana est vide, un enregistrement a deux lectures différentes, ou la lecture ne contient pas de kana.",
+      "action": "Gardez une seule lecture en kana par enregistrement."
+    },
+    "JPN_022": {
+      "title": "Information obligatoire GTFS-JP v4 manquante",
+      "what": "Une information obligatoire en GTFS-JP v4 (langue de l’exploitant, dates, version ou type d’arrêt) manque.",
+      "action": "Complétez les informations manquantes."
+    },
+    "JPN_023": {
+      "title": "Langue du jeu de données autre que le japonais",
+      "what": "En profil GTFS-JP la langue doit être « ja ».",
+      "action": "Indiquez « ja » comme langue du jeu de données."
+    },
+    "JPN_024": {
+      "title": "Langue de l’exploitant autre que le japonais",
+      "what": "En profil GTFS-JP la langue de l’exploitant doit être « ja ».",
+      "action": "Indiquez « ja » comme langue de l’exploitant."
+    },
+    "JPN_025": {
+      "title": "Fuseau horaire autre que Tokyo",
+      "what": "En profil GTFS-JP le fuseau de l’exploitant doit être Asia/Tokyo.",
+      "action": "Indiquez Asia/Tokyo."
+    },
+    "JPN_026": {
+      "title": "Devise autre que le yen",
+      "what": "En profil GTFS-JP les tarifs doivent être en JPY.",
+      "action": "Indiquez la devise JPY."
+    },
+    "JPN_027": {
+      "title": "Type de ligne autre que bus",
+      "what": "Dans le profil bus GTFS-JP v3, un type de ligne autre que bus est saisi.",
+      "action": "Choisissez « bus » pour les lignes de bus ; utilisez le profil adapté pour des données multimodales."
+    },
+    "JPN_028": {
+      "title": "Lecture kana obligatoire manquante",
+      "what": "En GTFS-JP v3, les lectures kana sont obligatoires pour les noms, descriptions et directions en japonais ; certaines manquent.",
+      "action": "Ajoutez les lectures kana manquantes."
+    },
+    "JPN_029": {
+      "title": "Lecture kana recommandée manquante",
+      "what": "En GTFS-JP v4, des lectures kana sont recommandées pour les textes de direction aux arrêts et les noms d’organismes ; certaines manquent.",
+      "action": "Ajoutez ces lectures kana aux traductions."
+    },
+    "JPN_030": {
+      "title": "Ligne de traduction « ja » obligatoire manquante",
+      "what": "En GTFS-JP v3, une ligne de traduction en « ja » est aussi requise à côté de la lecture kana ; certaines manquent.",
+      "action": "Ajoutez les lignes de traduction « ja » manquantes."
+    },
+    "JPN_031": {
+      "title": "Pas de zone tarifaire à un arrêt zonal",
+      "what": "Un arrêt d’une ligne à tarif zonal n’a pas de zone tarifaire.",
+      "action": "Associez la zone de l’arrêt aux zones des règles tarifaires de la ligne."
+    },
+    "JPN_032": {
+      "title": "Code d’exploitant non conforme au numéro d’entreprise",
+      "what": "En GTFS-JP v3, le code d’exploitant doit être le numéro d’entreprise à 13 chiffres (法人番号).",
+      "action": "Saisissez le numéro d’entreprise à 13 chiffres."
+    },
+    "JPN_033": {
+      "title": "Nom personnalisé utilisant l’espace « jp »",
+      "what": "Un fichier ou champ personnalisé utilise le préfixe ou suffixe « jp » réservé à GTFS-JP.",
+      "action": "Renommez-le sans « jp »."
+    },
+    "LOC_001": {
+      "title": "Forme de zone de service invalide",
+      "what": "Une zone de service à la demande n’est pas dessinée comme une surface (polygone).",
+      "action": "Redessinez la zone comme une surface fermée."
+    },
+    "LOC_002": {
+      "title": "Zone de service sans forme",
+      "what": "Une zone de service à la demande n’a pas de dessin.",
+      "action": "Dessinez la zone sur la carte."
+    },
+    "LOC_003": {
+      "title": "Zone de service sans code",
+      "what": "Une zone de service à la demande n’a pas de code ; aucune course ne peut y être liée.",
+      "action": "Donnez un code unique à chaque zone."
+    },
+    "LOC_004": {
+      "title": "Zone de service non fermée",
+      "what": "La limite d’une zone ne se referme pas sur son point de départ.",
+      "action": "Fermez la limite à son point de départ."
+    },
+    "LOC_005": {
+      "title": "Fichier des zones vide",
+      "what": "Le fichier des zones de service existe mais ne contient aucune zone.",
+      "action": "Si vous proposez du transport à la demande, ajoutez les zones ; sinon retirez le fichier."
+    },
+    "LOC_006": {
+      "title": "Zone de service très grande",
+      "what": "Une zone dépasse 500 km² ; la vraie zone de service est sans doute plus petite.",
+      "action": "Réduisez la zone ou découpez-la en plusieurs zones."
+    },
+    "LOC_007": {
+      "title": "Même code de zone utilisé deux fois",
+      "what": "Deux zones de service portent le même code.",
+      "action": "Donnez un code unique à chaque zone."
+    },
+    "LOC_008": {
+      "title": "Format d’enregistrement de zone incorrect",
+      "what": "Un enregistrement du fichier des zones a un type manquant ou incorrect.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "LOC_009": {
+      "title": "Propriétés manquantes",
+      "what": "Un enregistrement du fichier des zones n’a pas de section de propriétés.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "LOC_010": {
+      "title": "Zone sans coordonnées",
+      "what": "Une zone a une forme mais ses coordonnées manquent ; elle ne peut pas être dessinée.",
+      "action": "Redessinez la zone sur la carte."
+    },
+    "LOC_011": {
+      "title": "Zone qui se recoupe",
+      "what": "La limite d’une zone se croise elle-même ou un trou déborde de la zone.",
+      "action": "Redessinez la limite sans croisement."
+    },
+    "LOC_012": {
+      "title": "Fichier des zones illisible",
+      "what": "Le fichier des zones de service n’est pas un fichier cartographique valide (GeoJSON).",
+      "action": "Exportez de nouveau les zones. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "LVL_001": {
+      "title": "Même code de niveau utilisé deux fois",
+      "what": "Deux niveaux portent le même code.",
+      "action": "Donnez un code unique à chaque niveau, ou fusionnez les doublons."
+    },
+    "LVL_002": {
+      "title": "Ordre du niveau invalide",
+      "what": "Le nombre indiquant la position du niveau par rapport au sol est illisible.",
+      "action": "Saisissez l’ordre en nombre (rez-de-chaussée 0, étages positifs, sous-sols négatifs)."
+    },
+    "LVL_003": {
+      "title": "Niveau sans nom",
+      "what": "Un niveau n’a pas de nom à afficher aux voyageurs.",
+      "action": "Saisissez le nom du niveau (ex. « Niveau quais », « -1 »)."
+    },
+    "LVL_004": {
+      "title": "Niveau inutilisé",
+      "what": "Un niveau est défini mais aucun arrêt ni quai n’y est rattaché.",
+      "action": "Rattachez le niveau aux arrêts concernés, ou supprimez-le."
+    },
+    "LVL_005": {
+      "title": "Nom de niveau trop long",
+      "what": "Un nom de niveau dépasse 255 caractères.",
+      "action": "Raccourcissez le nom du niveau."
+    },
+    "LVL_006": {
+      "title": "Niveau manquant sur une liaison ascenseur",
+      "what": "Un des points reliés par un ascenseur n’indique pas son niveau.",
+      "action": "Attribuez un niveau aux deux extrémités de l’ascenseur."
+    },
+    "LVL_007": {
+      "title": "Ordre du niveau vide",
+      "what": "Un niveau n’a pas de valeur d’ordre.",
+      "action": "Saisissez l’ordre du niveau en nombre."
+    },
+    "LVL_008": {
+      "title": "Code de niveau vide",
+      "what": "Un niveau a un code vide.",
+      "action": "Donnez un code unique à chaque niveau."
+    },
+    "NET_001": {
+      "title": "Même code de réseau utilisé deux fois",
+      "what": "Deux réseaux portent le même code.",
+      "action": "Donnez un code unique à chaque réseau, ou fusionnez les doublons."
+    },
+    "NET_002": {
+      "title": "Réseau introuvable dans le lien ligne–réseau",
+      "what": "Une ligne est affectée à un réseau vide ou non défini.",
+      "action": "Affectez la ligne à un réseau existant."
+    },
+    "NET_003": {
+      "title": "Ligne introuvable dans le lien ligne–réseau",
+      "what": "Un réseau reçoit une ligne vide ou absente de la liste.",
+      "action": "Affectez une ligne existante au réseau."
+    },
+    "NET_004": {
+      "title": "Code de réseau vide",
+      "what": "Un réseau a un code vide.",
+      "action": "Donnez un code unique à chaque réseau."
+    },
+    "OPR_001": {
+      "title": "Long intervalle entre courses",
+      "what": "Sur une ligne, l’écart entre deux courses de même sens et même jour est anormalement long.",
+      "action": "Si l’écart est prévu, c’est normal ; sinon ajoutez les courses manquantes."
+    },
+    "OPR_003": {
+      "title": "Courses très rapprochées",
+      "what": "Deux courses de même ligne, sens et jour partent presque en même temps ; la même course a peut-être été saisie deux fois.",
+      "action": "Vérifiez leurs horaires ; supprimez le doublon le cas échéant."
+    },
+    "OPR_004": {
+      "title": "Pas de courses le week-end",
+      "what": "Cette ligne n’a aucune course le week-end. Information seulement.",
+      "action": "Si la ligne ne circule pas le week-end, c’est normal ; sinon vérifiez le calendrier du week-end."
+    },
+    "OPR_005": {
+      "title": "Fréquence inhabituelle",
+      "what": "Les intervalles d’une ligne sont inhabituels par rapport à des lignes similaires. Information seulement.",
+      "action": "Aucune action n’est nécessaire ; si c’est inattendu, revoyez l’horaire."
+    },
+    "OPR_006": {
+      "title": "Course avec trop peu d’arrêts",
+      "what": "Cette course a moins de deux arrêts ; on ne peut aller nulle part avec elle.",
+      "action": "Ajoutez les arrêts manquants ou supprimez la course inutilisée."
+    },
+    "OPR_007": {
+      "title": "Séquence d’arrêts répétée",
+      "what": "La même suite d’arrêts se répète dans une course. Normal sur une ligne circulaire.",
+      "action": "Si la ligne est circulaire, c’est normal ; sinon vérifiez l’ordre des arrêts."
+    },
+    "OPR_008": {
+      "title": "Vitesse excessive sur plusieurs tronçons",
+      "what": "La vitesse dépasse largement l’attendu sur plusieurs tronçons d’une course.",
+      "action": "Vérifiez ensemble les horaires et la position des arrêts."
+    },
+    "OPR_009": {
+      "title": "Course de nuit très tardive",
+      "what": "Certaines courses partent après 23:00. Information seulement.",
+      "action": "Si un service de nuit est prévu, c’est normal ; sinon vérifiez horaires et calendrier."
+    },
+    "OPR_010": {
+      "title": "Accessibilité contradictoire sur une ligne",
+      "what": "Certaines courses d’une ligne sont marquées accessibles ou vélos acceptés, d’autres non.",
+      "action": "Si des véhicules différents sont utilisés, c’est normal ; sinon harmonisez le marquage."
+    },
+    "OPR_011": {
+      "title": "Le calendrier ne circule jamais",
+      "what": "Un calendrier utilisé par des courses n’a aucun jour de circulation ; ces courses risquent de ne pas être affichées.",
+      "action": "Ajoutez des jours de circulation au calendrier."
+    },
+    "OPR_012": {
+      "title": "Interruption dans un calendrier",
+      "what": "Un calendrier utilisé par des courses présente un long écart entre jours de circulation.",
+      "action": "Si c’est prévu, c’est normal ; sinon ajoutez les jours manquants."
+    },
+    "OPR_013": {
+      "title": "Ligne dans un seul sens",
+      "what": "Cette ligne n’a de courses que dans un sens. Information seulement.",
+      "action": "Si la ligne est à sens unique ou circulaire, c’est normal ; sinon ajoutez le sens retour."
+    },
+    "OPR_014": {
+      "title": "Temps de correspondance longs",
+      "what": "Le temps minimal moyen des correspondances définies dépasse 10 minutes.",
+      "action": "Vérifiez ces temps par rapport aux temps réels de marche et d’attente."
+    },
+    "OPR_015": {
+      "title": "Même tracé dans les deux sens",
+      "what": "Les courses aller et retour partagent un seul tracé. Information seulement.",
+      "action": "Si les deux sens empruntent des voies différentes, utilisez un tracé par sens."
+    },
+    "OPR_016": {
+      "title": "Aucun jour de circulation dans le jeu de données",
+      "what": "Il y a des courses mais aucun calendrier n’a de jour de circulation ; aucune course ne sera affichée.",
+      "action": "Ajoutez des jours de circulation aux calendriers."
+    },
+    "OPR_017": {
+      "title": "Distance de course très courte",
+      "what": "La distance totale d’une course est anormalement courte.",
+      "action": "Vérifiez le tracé et la position des arrêts ; s’il s’agit vraiment d’un service court, c’est normal."
+    },
+    "OPR_019": {
+      "title": "Deux calendriers le même jour sur une ligne",
+      "what": "Plusieurs calendriers sont actifs le même jour sur une ligne ; les courses peuvent apparaître en double.",
+      "action": "Par exemple, un jour férié, désactivez le calendrier normal et activez le calendrier férié ; si les deux doivent coexister, c’est normal."
+    },
+    "OPR_020": {
+      "title": "Deux calendriers un jour spécial",
+      "what": "Un jour spécial, le calendrier normal et le calendrier spécial circulent tous deux sur une ligne.",
+      "action": "Désactivez le calendrier normal ce jour-là (exception de retrait)."
+    },
+    "OPR_021": {
+      "title": "Calendrier normal actif un jour spécial",
+      "what": "Le calendrier spécial est actif mais le calendrier normal n’a pas été désactivé ; les courses apparaissent en double.",
+      "action": "Désactivez le calendrier normal ce jour-là par une exception."
+    },
+    "OPR_022": {
+      "title": "Calendrier spécial non activé",
+      "what": "Le jour spécial défini, le calendrier normal circule mais le calendrier spécial n’est pas activé.",
+      "action": "Ajoutez le calendrier spécial ce jour-là par une exception."
+    },
+    "OPR_023": {
+      "title": "Aucun calendrier pendant la période spéciale",
+      "what": "Pendant la période spéciale, ni le calendrier normal ni le spécial ne circulent ; il n’y a aucune course.",
+      "action": "Activez l’un des deux calendriers pour ces jours."
+    },
+    "OPR_024": {
+      "title": "Plus de 500 courses sur une ligne",
+      "what": "Plus de 500 courses sont définies sur une ligne pour un calendrier ; plusieurs lignes ont peut-être été fusionnées.",
+      "action": "Vérifiez que les courses sont rattachées à la bonne ligne."
+    },
+    "OPR_025": {
+      "title": "Courses de moins d’une minute en moyenne",
+      "what": "La durée moyenne des courses est inférieure à 60 secondes ; les horaires ont sans doute été mal exportés.",
+      "action": "Vérifiez l’export des horaires aux arrêts."
+    },
+    "PDW_006": {
+      "title": "Fenêtres à la demande qui se chevauchent",
+      "what": "Deux fenêtres de montée/descente se chevauchent pour la même zone sur la même course.",
+      "action": "Organisez les fenêtres sans chevauchement."
+    },
+    "PTH_001": {
+      "title": "Même code de cheminement utilisé deux fois",
+      "what": "Deux cheminements piétons en gare portent le même code.",
+      "action": "Donnez un code unique à chaque cheminement."
+    },
+    "PTH_002": {
+      "title": "Point de départ du cheminement introuvable",
+      "what": "Un cheminement en gare part d’un point absent de la liste des arrêts.",
+      "action": "Rattachez son départ à un quai, une entrée ou un nœud existant."
+    },
+    "PTH_003": {
+      "title": "Point d’arrivée du cheminement introuvable",
+      "what": "Un cheminement en gare aboutit à un point absent de la liste des arrêts.",
+      "action": "Rattachez son arrivée à un quai, une entrée ou un nœud existant."
+    },
+    "PTH_004": {
+      "title": "Type de cheminement invalide",
+      "what": "Le type (couloir, escalier, trottoir roulant, escalier mécanique, ascenseur, portique, sortie) n’est pas une valeur définie.",
+      "action": "Choisissez le type de cheminement."
+    },
+    "PTH_005": {
+      "title": "Sens du cheminement invalide",
+      "what": "Le fait que le cheminement soit à sens unique ou double est absent ou invalide.",
+      "action": "Indiquez sens unique ou double sens."
+    },
+    "PTH_006": {
+      "title": "Longueur du cheminement invalide",
+      "what": "La longueur n’est pas un nombre ou est négative.",
+      "action": "Saisissez la longueur en mètres, valeur positive, ou laissez vide."
+    },
+    "PTH_007": {
+      "title": "Temps de parcours invalide",
+      "what": "Le temps de parcours n’est pas un nombre ou est nul.",
+      "action": "Saisissez le temps en secondes, entier positif, ou laissez vide."
+    },
+    "PTH_008": {
+      "title": "Nombre de marches manquant",
+      "what": "Un cheminement de type escalier n’indique pas le nombre de marches ; important pour les personnes à mobilité réduite.",
+      "action": "Saisissez le nombre de marches."
+    },
+    "PTH_009": {
+      "title": "Pente du couloir manquante",
+      "what": "Un couloir n’a pas d’information de pente ; important pour les usagers en fauteuil.",
+      "action": "Saisissez la pente (0 si plat)."
+    },
+    "PTH_010": {
+      "title": "Largeur du cheminement invalide",
+      "what": "La largeur minimale n’est pas un nombre, ou elle est nulle ou négative.",
+      "action": "Saisissez la largeur en mètres, valeur positive, ou laissez vide."
+    },
+    "PTH_011": {
+      "title": "Cheminement qui revient au même point",
+      "what": "Un cheminement finit là où il commence ; il ne mène nulle part.",
+      "action": "Reliez son départ et son arrivée à deux points différents."
+    },
+    "PTH_012": {
+      "title": "Liaison manquante entre entrée et quai",
+      "what": "Aucun cheminement continu ne relie l’entrée de la gare au quai ; les voyageurs ne voient pas comment y accéder.",
+      "action": "Ajoutez les cheminements manquants des entrées aux quais."
+    },
+    "PTH_013": {
+      "title": "Analyse du cheminement accessible",
+      "what": "Vérifie s’il existe un itinéraire entrée–quai adapté aux fauteuils (pente, largeur). Information seulement.",
+      "action": "S’il existe, saisissez sa pente et sa largeur."
+    },
+    "PTH_014": {
+      "title": "Cheminement reliant deux gares différentes",
+      "what": "Un cheminement en gare relie des points appartenant à deux gares différentes.",
+      "action": "Vérifiez d’abord que les deux extrémités sont rattachées à la bonne gare. S’il existe vraiment un passage entre deux gares, cela peut être voulu."
+    },
+    "PTH_015": {
+      "title": "Temps de cheminement trop court pour la distance",
+      "what": "La longueur et le temps de parcours impliquent une marche à plus de 3 mètres par seconde.",
+      "action": "Corrigez la longueur et le temps avec les valeurs réelles."
+    },
+    "PTH_016": {
+      "title": "Portique de sortie à double sens",
+      "what": "Un portique réservé à la sortie est défini à double sens.",
+      "action": "Passez le portique de sortie en sens unique."
+    },
+    "PTH_017": {
+      "title": "Valeur de pente invalide",
+      "what": "La pente n’est pas un nombre, ou elle est saisie sur un cheminement où elle n’a pas de sens (escalier, ascenseur…).",
+      "action": "Saisissez la pente en nombre, uniquement sur couloirs et trottoirs roulants."
+    },
+    "PTH_018": {
+      "title": "Texte de signalétique trop long",
+      "what": "Le texte de signalétique d’un cheminement dépasse 255 caractères.",
+      "action": "Saisissez le texte court affiché sur le panneau."
+    },
+    "PTH_019": {
+      "title": "Nœud en impasse",
+      "what": "Un nœud en gare n’est relié qu’à un seul cheminement ; on ne peut pas continuer.",
+      "action": "Reliez le nœud à au moins deux cheminements, ou supprimez-le."
+    },
+    "PTH_020": {
+      "title": "Code de cheminement vide",
+      "what": "Un cheminement en gare a un code vide.",
+      "action": "Donnez un code unique à chaque cheminement."
+    },
+    "PTH_021": {
+      "title": "Départ du cheminement vide",
+      "what": "Un cheminement n’indique pas son point de départ.",
+      "action": "Choisissez le point de départ."
+    },
+    "PTH_022": {
+      "title": "Arrivée du cheminement vide",
+      "what": "Un cheminement n’indique pas son point d’arrivée.",
+      "action": "Choisissez le point d’arrivée."
+    },
+    "PTH_023": {
+      "title": "Type de cheminement vide",
+      "what": "Un cheminement n’a pas de type.",
+      "action": "Choisissez le type (couloir, escalier, ascenseur…)."
+    },
+    "PTH_024": {
+      "title": "Sens du cheminement vide",
+      "what": "Un cheminement n’indique pas s’il est à sens unique ou double.",
+      "action": "Indiquez sens unique ou double sens."
+    },
+    "PTH_025": {
+      "title": "Longueur de cheminement manquante",
+      "what": "Couloirs, portiques et sorties n’ont pas de longueur ; le temps de marche ne peut pas être calculé.",
+      "action": "Saisissez la longueur de ces cheminements en mètres."
+    },
+    "PTH_026": {
+      "title": "Cheminement rattaché à la gare elle-même",
+      "what": "Un cheminement est rattaché à la gare elle-même ; il doit l’être à un quai, une entrée ou un nœud.",
+      "action": "Rattachez-le au quai, à l’entrée ou au nœud concerné."
+    },
+    "PTH_027": {
+      "title": "Nombre de marches invalide",
+      "what": "Le nombre de marches est nul ou non entier.",
+      "action": "Saisissez un entier (positif en montée, négatif en descente), ou laissez vide."
+    },
+    "PTH_028": {
+      "title": "Pente sur un mauvais type de cheminement",
+      "what": "Une pente est saisie sur un cheminement autre qu’un couloir ou un trottoir roulant.",
+      "action": "N’utilisez la pente que sur couloirs et trottoirs roulants."
+    },
+    "PTH_029": {
+      "title": "Temps de parcours manquant",
+      "what": "Un trottoir roulant, escalier mécanique ou ascenseur n’a pas de temps de parcours.",
+      "action": "Saisissez le temps de parcours de ces cheminements en secondes."
+    },
+    "PTH_030": {
+      "title": "Cheminement sur un quai ayant des zones d’embarquement",
+      "what": "Le quai a des zones d’embarquement, mais le cheminement est rattaché directement au quai.",
+      "action": "Rattachez le cheminement à la zone d’embarquement concernée."
+    },
+    "PTH_031": {
+      "title": "Cheminement vers un arrêt accessible depuis la rue",
+      "what": "Un cheminement est rattaché à un arrêt accessible directement depuis la rue, et non par la gare.",
+      "action": "Indiquez un accès « par la gare » pour l’arrêt, ou supprimez ce cheminement."
+    },
+    "RCT_001": {
+      "title": "Même code de catégorie utilisé deux fois",
+      "what": "Deux catégories de voyageurs (ex. étudiant, senior) portent le même code.",
+      "action": "Donnez un code unique à chaque catégorie."
+    },
+    "RCT_002": {
+      "title": "Catégorie sans nom",
+      "what": "Une catégorie de voyageurs n’a pas de nom.",
+      "action": "Saisissez le nom (ex. « Étudiant »)."
+    },
+    "RCT_003": {
+      "title": "Valeur de catégorie par défaut invalide",
+      "what": "La valeur indiquant si la catégorie est celle par défaut est invalide.",
+      "action": "Choisissez oui ou non."
+    },
+    "RCT_004": {
+      "title": "Limite d’âge invalide",
+      "what": "L’âge minimal ou maximal d’une catégorie n’est pas un entier.",
+      "action": "Saisissez les âges en entiers, ou laissez vide."
+    },
+    "RCT_005": {
+      "title": "Tranche d’âge inversée",
+      "what": "L’âge maximal d’une catégorie est inférieur à son âge minimal.",
+      "action": "Corrigez les limites d’âge."
+    },
+    "RCT_006": {
+      "title": "Pas exactement une catégorie par défaut",
+      "what": "Un produit n’a aucune ou plusieurs catégories de voyageur par défaut.",
+      "action": "Définissez exactement une catégorie par défaut pour chaque produit."
+    },
+    "RCT_007": {
+      "title": "Page des conditions de catégorie invalide",
+      "what": "L’adresse de la page décrivant les conditions de la catégorie n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "RCT_008": {
+      "title": "Code de catégorie vide",
+      "what": "Une catégorie de voyageurs a un code vide.",
+      "action": "Donnez un code unique à chaque catégorie."
+    },
+    "RTS_001": {
+      "title": "Même code de ligne utilisé deux fois",
+      "what": "Deux lignes différentes portent le même code ; on ne sait plus à quelle ligne appartiennent les courses.",
+      "action": "Donnez un code unique à chaque ligne."
+    },
+    "RTS_002": {
+      "title": "Exploitant de la ligne introuvable",
+      "what": "Une ligne est rattachée à un exploitant absent de la liste.",
+      "action": "Rattachez la ligne à un exploitant existant, ou ajoutez l’exploitant."
+    },
+    "RTS_003": {
+      "title": "Ligne sans nom",
+      "what": "Une ligne n’a ni nom court (numéro) ni nom long ; les voyageurs ne peuvent pas la reconnaître.",
+      "action": "Saisissez le numéro ou le nom de la ligne."
+    },
+    "RTS_004": {
+      "title": "Mode de la ligne manquant ou invalide",
+      "what": "Le mode de la ligne (bus, tram, métro…) est manquant ou n’est pas une valeur définie.",
+      "action": "Choisissez le mode de la ligne."
+    },
+    "RTS_005": {
+      "title": "Adresse web de ligne invalide",
+      "what": "L’adresse web de la ligne n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "RTS_006": {
+      "title": "Couleur de ligne invalide",
+      "what": "La couleur de ligne n’est pas un code couleur à 6 caractères (ex. FF0000).",
+      "action": "Saisissez la couleur avec un code à 6 caractères."
+    },
+    "RTS_007": {
+      "title": "Couleur du texte invalide",
+      "what": "La couleur du texte de la pastille n’est pas un code couleur à 6 caractères (ex. FFFFFF).",
+      "action": "Saisissez la couleur du texte avec un code à 6 caractères."
+    },
+    "RTS_008": {
+      "title": "Pastille de ligne peu lisible",
+      "what": "Le contraste entre la couleur de ligne et celle du texte est faible ; le numéro sur la pastille est difficile à lire.",
+      "action": "Choisissez un texte assez foncé ou clair pour la couleur de ligne (ex. texte blanc sur fond foncé)."
+    },
+    "RTS_010": {
+      "title": "Numéro de ligne trop long",
+      "what": "Le nom court dépasse 12 caractères ; il ne tient ni sur les pastilles ni sur les panneaux.",
+      "action": "Mettez seulement le numéro dans le nom court ; déplacez la description dans le nom long."
+    },
+    "RTS_011": {
+      "title": "Nom de ligne trop long",
+      "what": "Le nom long dépasse 100 caractères ; les applis le coupent.",
+      "action": "Raccourcissez le nom ; mettez les détails dans la description."
+    },
+    "RTS_012": {
+      "title": "Ligne sans courses",
+      "what": "Cette ligne n’a aucune course ; elle peut apparaître vide dans les applis.",
+      "action": "Si la ligne n’est pas en service, supprimez-la ; sinon ajoutez ses courses."
+    },
+    "RTS_013": {
+      "title": "Valeur de montée en continu invalide",
+      "what": "La valeur indiquant si l’on peut monter le long de la route entre arrêts ne fait pas partie des options.",
+      "action": "Choisissez le réglage, ou laissez vide si vous ne l’utilisez pas."
+    },
+    "RTS_016": {
+      "title": "Ligne sans jour de circulation",
+      "what": "Aucun calendrier des courses de cette ligne n’a de jour de circulation ; la ligne risque de ne pas être affichée.",
+      "action": "Vérifiez les calendriers des courses de la ligne."
+    },
+    "RTS_017": {
+      "title": "Ligne sans tracé",
+      "what": "Aucune course de cette ligne n’a de tracé ; les applis la dessinent en traits droits entre arrêts.",
+      "action": "Ajoutez le tracé routier de la ligne à l’export."
+    },
+    "RTS_018": {
+      "title": "Valeur de descente en continu invalide",
+      "what": "La valeur indiquant si l’on peut descendre le long de la route entre arrêts ne fait pas partie des options.",
+      "action": "Choisissez le réglage, ou laissez vide si vous ne l’utilisez pas."
+    },
+    "RTS_019": {
+      "title": "Deux lignes au même nom",
+      "what": "Plusieurs lignes ont exactement le même numéro et le même nom ; les voyageurs ne peuvent pas les distinguer.",
+      "action": "S’il s’agit de services différents, donnez-leur des noms distincts ; sinon fusionnez-les."
+    },
+    "RTS_020": {
+      "title": "Page de ligne identique à celle de l’exploitant",
+      "what": "L’adresse web de la ligne est la page générale de l’exploitant.",
+      "action": "S’il existe une page propre à la ligne, saisissez-la ; sinon laissez vide."
+    },
+    "RTS_021": {
+      "title": "Numéro de ligne au-delà de la limite Google Transit (6 caractères)",
+      "what": "Le nom court dépasse 6 caractères ; Google Maps peut le couper. Sans publication sur Google, ce n’est pas un problème.",
+      "action": "Si vous publiez sur Google, mettez seulement le numéro dans le nom court."
+    },
+    "RTS_022": {
+      "title": "Le nom répète le numéro",
+      "what": "Le nom long contient aussi le numéro ; les applis affichent « 34 34 Centre ».",
+      "action": "Écrivez seulement l’itinéraire dans le nom long (ex. « Centre – Université »)."
+    },
+    "RTS_023": {
+      "title": "Description identique au nom",
+      "what": "La description répète le nom long ; elle n’apporte rien aux voyageurs.",
+      "action": "Indiquez une information utile (horaires, remarque) ou laissez vide."
+    },
+    "RTS_024": {
+      "title": "Valeur de paiement sans contact invalide",
+      "what": "La valeur indiquant si le paiement sans contact est accepté sur la ligne ne fait pas partie des options.",
+      "action": "Choisissez « pas d’information », « pris en charge » ou « non pris en charge »."
+    },
+    "RTS_025": {
+      "title": "Exploitant de la ligne non indiqué",
+      "what": "Certaines lignes n’indiquent pas d’exploitant ; recommandé même avec un seul exploitant.",
+      "action": "Attribuez l’exploitant aux lignes."
+    },
+    "RTS_026": {
+      "title": "Même numéro sur des lignes différentes",
+      "what": "Le même nom court est utilisé sur des lignes aux noms différents ; risque de confusion en recherche.",
+      "action": "Si le numéro est volontairement partagé par des variantes, c’est normal ; sinon donnez des numéros distincts."
+    },
+    "RTS_027": {
+      "title": "Même nom sur des lignes différentes",
+      "what": "Le même nom long est utilisé sur des lignes de numéros différents ; les voyageurs ne peuvent pas les distinguer.",
+      "action": "Si le nom est volontairement partagé, c’est normal ; sinon donnez à chaque ligne un nom distinct."
+    },
+    "RTS_028": {
+      "title": "Montée/descente en continu sur une ligne à la demande",
+      "what": "Une ligne avec des courses à la demande autorise la montée ou la descente le long de la route ; les deux sont incompatibles.",
+      "action": "Désactivez la montée et la descente en continu, ou laissez le réglage vide."
+    },
+    "RTS_029": {
+      "title": "Ordre de tri invalide",
+      "what": "La valeur fixant l’ordre des lignes dans les listes est négative ou non numérique.",
+      "action": "Saisissez 0 ou un entier positif, ou laissez vide."
+    },
+    "RTS_030": {
+      "title": "Mode de ligne en code étendu",
+      "what": "Le mode est saisi avec un code étendu non standard ; certaines applis peuvent ne pas le reconnaître.",
+      "action": "Si possible, choisissez le mode de base le plus proche (bus, tram, métro…)."
+    },
+    "RTS_031": {
+      "title": "Code de ligne vide",
+      "what": "Une ligne a un code vide ; aucune course ne peut y être rattachée.",
+      "action": "Donnez un code unique à chaque ligne."
+    },
+    "SAR_001": {
+      "title": "Zone introuvable dans un lien arrêt–zone",
+      "what": "Un arrêt est affecté à une zone tarifaire non définie.",
+      "action": "Affectez l’arrêt à une zone existante."
+    },
+    "SAR_002": {
+      "title": "Arrêt introuvable dans un lien arrêt–zone",
+      "what": "Une zone reçoit un arrêt absent de la liste.",
+      "action": "Affectez un arrêt existant à la zone."
+    },
+    "SAR_003": {
+      "title": "Zone vide dans un lien arrêt–zone",
+      "what": "Un lien arrêt–zone n’a pas de zone.",
+      "action": "Saisissez la zone tarifaire du lien."
+    },
+    "SAR_004": {
+      "title": "Arrêt vide dans un lien arrêt–zone",
+      "what": "Un lien arrêt–zone n’a pas d’arrêt.",
+      "action": "Saisissez l’arrêt du lien."
+    },
+    "SHP_001": {
+      "title": "Code de tracé vide",
+      "what": "Un point de tracé n’indique pas à quel tracé il appartient.",
+      "action": "Exportez de nouveau le tracé depuis votre logiciel de planification."
+    },
+    "SHP_002": {
+      "title": "Latitude de point de tracé invalide",
+      "what": "Un point de tracé n’a pas de latitude ou elle est hors plage.",
+      "action": "Vérifiez le tracé sur la carte et redessinez-le ou réexportez-le."
+    },
+    "SHP_003": {
+      "title": "Longitude de point de tracé invalide",
+      "what": "Un point de tracé n’a pas de longitude ou elle est hors plage.",
+      "action": "Vérifiez le tracé sur la carte et redessinez-le ou réexportez-le."
+    },
+    "SHP_004": {
+      "title": "Ordre des points invalide",
+      "what": "Un point de tracé n’a pas de numéro d’ordre ou il n’est pas numérique ; la ligne peut être mal reliée.",
+      "action": "Exportez de nouveau le tracé."
+    },
+    "SHP_005": {
+      "title": "Distance de tracé qui recule",
+      "what": "Le long d’un tracé, la distance d’un point est inférieure à celle du point précédent.",
+      "action": "Faites recalculer les distances pour qu’elles croissent du début à la fin."
+    },
+    "SHP_006": {
+      "title": "Tracé d’un seul point",
+      "what": "Un tracé ne compte qu’un point ; il ne peut pas être dessiné comme une ligne.",
+      "action": "Redessinez le tracé le long de la route."
+    },
+    "SHP_008": {
+      "title": "Même ordre utilisé deux fois",
+      "what": "Deux points d’un tracé ont le même numéro d’ordre ; le sens de la ligne est ambigu.",
+      "action": "Exportez de nouveau le tracé."
+    },
+    "SHP_009": {
+      "title": "Tracé qui se recoupe",
+      "what": "Un tracé passe sur lui-même. Normal aux boucles et points de retournement.",
+      "action": "Si la ligne emprunte vraiment la même voie, c’est normal ; sinon vérifiez le tracé."
+    },
+    "SHP_010": {
+      "title": "Point répété dans un tracé",
+      "what": "La même position est saisie deux fois de suite dans un tracé.",
+      "action": "Simplifiez le tracé et réexportez-le ; aucun effet pour les voyageurs."
+    },
+    "SHP_012": {
+      "title": "Tracé loin des arrêts de la course",
+      "what": "Un tracé passe à plus de 100 mètres de certains arrêts des courses qui l’utilisent ; les arrêts apparaissent hors de la route.",
+      "action": "Corrigez le tracé ou la position des arrêts ; la course a peut-être un mauvais tracé."
+    },
+    "SHP_014": {
+      "title": "Premier ou dernier arrêt loin de l’extrémité du tracé",
+      "what": "Le premier ou le dernier arrêt est loin du début ou de la fin du tracé.",
+      "action": "S’il s’agit d’un prolongement voulu (ex. sortie de dépôt), c’est normal ; sinon ajustez les extrémités aux terminus."
+    },
+    "SHP_015": {
+      "title": "Tracé avec trop peu de points",
+      "what": "Un long tracé est dessiné avec très peu de points ; il ne suit pas la route et traverse des bâtiments.",
+      "action": "Redessinez le tracé le long de la route avec plus de points."
+    },
+    "SHP_016": {
+      "title": "Tracé à contresens",
+      "what": "Un tracé est dessiné dans le sens opposé aux courses qui l’utilisent ; les applis inversent le sens.",
+      "action": "Inversez le tracé pour ce sens ou définissez un tracé distinct."
+    },
+    "SHP_017": {
+      "title": "Ordre des arrêts en conflit avec le tracé",
+      "what": "L’ordre des arrêts semble reculer le long du tracé. Possible sur une ligne circulaire.",
+      "action": "Vérifiez sur la carte ; si c’est un retournement voulu, c’est normal, sinon corrigez l’ordre ou le tracé."
+    },
+    "SHP_018": {
+      "title": "Tracé inutilisé",
+      "what": "Aucune course n’utilise ce tracé.",
+      "action": "Liez le tracé aux courses concernées, ou supprimez-le."
+    },
+    "SHP_019": {
+      "title": "Courses du tracé sans horaires",
+      "what": "Aucune des courses utilisant un tracé n’a d’horaires aux arrêts.",
+      "action": "Ajoutez les horaires, ou supprimez les courses et le tracé inutilisés."
+    },
+    "SHP_020": {
+      "title": "Point répété dans un tracé",
+      "what": "Le même point revient peu après dans un tracé. Information seulement.",
+      "action": "Vous pouvez simplifier le tracé et le réexporter ; aucun effet pour les voyageurs."
+    },
+    "SHP_021": {
+      "title": "Distance de tracé négative",
+      "what": "Un point de tracé a une distance négative.",
+      "action": "Faites recalculer les distances du tracé."
+    },
+    "SHP_022": {
+      "title": "Position de l’arrêt sur le tracé ambiguë",
+      "what": "Le tracé passe plusieurs fois au même endroit ; on ne sait pas où se situe l’arrêt sur la ligne.",
+      "action": "Exportez la distance de chaque arrêt le long du tracé dans les horaires."
+    },
+    "SHP_023": {
+      "title": "Même point deux fois",
+      "what": "La même position et la même distance sont saisies deux fois de suite.",
+      "action": "Supprimez le point en double et réexportez."
+    },
+    "SHP_024": {
+      "title": "Distances des arrêts incohérentes",
+      "what": "Les distances des arrêts le long du tracé ne correspondent pas à leur position.",
+      "action": "Vérifiez la position des arrêts, le tracé et les distances."
+    },
+    "SHP_025": {
+      "title": "Distance de la course supérieure au tracé",
+      "what": "La distance dans les horaires dépasse la longueur totale du tracé ; des unités différentes ont sans doute été utilisées.",
+      "action": "Exportez la distance dans la même unité (mètres ou kilomètres) aux deux endroits."
+    },
+    "SHP_026": {
+      "title": "Tracé très détaillé",
+      "what": "Un tracé compte plus de 5000 points ; le fichier grossit inutilement. Information seulement.",
+      "action": "Vous pouvez utiliser l’option de simplification à l’export."
+    },
+    "SHP_028": {
+      "title": "Position qui change sans distance",
+      "what": "Deux points consécutifs sont à des endroits différents mais avec la même distance.",
+      "action": "Faites recalculer les distances du tracé."
+    },
+    "SHP_029": {
+      "title": "Deux points presque identiques",
+      "what": "Deux points consécutifs sont très proches avec la même distance ; arrondi possible. Information seulement.",
+      "action": "Faites recalculer les distances ou supprimez le point en double."
+    },
+    "SHP_030": {
+      "title": "Distances aux arrêts sans distances de tracé",
+      "what": "Les horaires utilisent des distances de tracé mais le tracé n’en a pas ; impossible de les apparier.",
+      "action": "Ajoutez des distances au tracé dans la même unité, ou retirez-les des horaires."
+    },
+    "STM_001": {
+      "title": "Horaires non rattachés à une ligne",
+      "what": "Les horaires d’une course de {stop_count} arrêts existent : elle part de {first_stop} à {first_departure} et arrive à {last_stop} à {last_arrival}, mais aucune ligne ni aucun calendrier n’est défini pour cette course.",
+      "action": "Dans le logiciel de planification, trouvez la course qui utilise ces arrêts et ces horaires, attribuez-lui le bon calendrier, puis rattachez-la à une ligne."
+    },
+    "STM_002": {
+      "title": "Arrêt utilisé par un trajet introuvable",
+      "what": "Un trajet de la ligne {route_code} selon le calendrier {service} utilise cet arrêt pendant {time}, mais l'arrêt manque dans la liste.",
+      "action": "Vérifiez l'emplacement du trajet dans le logiciel de planification. S'il s'agit d'un arrêt physique, associez-le à un arrêt existant ou créez un arrêt. S'il s'agit d'une zone de service, ne l'ajoutez pas comme arrêt : utilisez le type et l'enregistrement de lieu appropriés dans le trajet."
+    },
+    "STM_003": {
+      "title": "Heure d’arrivée invalide",
+      "what": "Une heure d’arrivée à un arrêt est illisible ou au mauvais format.",
+      "action": "Corrigez l’heure d’arrivée de la course à cet arrêt."
+    },
+    "STM_004": {
+      "title": "Heure de départ invalide",
+      "what": "Une heure de départ d’un arrêt est illisible ou au mauvais format.",
+      "action": "Corrigez l’heure de départ de la course à cet arrêt."
+    },
+    "STM_005": {
+      "title": "Ordre des arrêts invalide",
+      "what": "L’ordre des arrêts de la course est manquant ou invalide.",
+      "action": "Corrigez les valeurs d’ordre manquantes ou invalides."
+    },
+    "STM_006": {
+      "title": "Aucun arrêt indiqué",
+      "what": "Aucun arrêt n’est sélectionné pour l’horaire avec arrivée à {arrival} et départ à {departure}.",
+      "action": "Dans votre logiciel de planification, ajoutez l’arrêt prévu à ces horaires."
+    },
+    "STM_007": {
+      "title": "Départ avant l’arrivée",
+      "what": "Au même arrêt, l’heure de départ précède l’heure d’arrivée.",
+      "action": "Vérifiez les heures d’arrivée et de départ à l’arrêt."
+    },
+    "STM_008": {
+      "title": "Le temps recule entre deux arrêts",
+      "what": "Après un départ de {from} à {dep}, l’arrivée à {to} est indiquée à {arr}, avant le départ.",
+      "action": "Vérifiez les heures de ces deux arrêts dans votre logiciel de planification ; les heures doivent avancer le long de la course. Après minuit, elles continuent au-delà de 24:00 (ex. 24:10 et non 00:10)."
+    },
+    "STM_009": {
+      "title": "Règle de montée invalide",
+      "what": "La valeur indiquant si l’on peut monter à un arrêt ne fait pas partie des options.",
+      "action": "Dans votre logiciel de planification, choisissez le mode de montée à cet arrêt : 0 — montée selon l'horaire ; 1 — aucune montée ; 2 — appeler l'agence pour organiser la montée ; 3 — convenir de la montée avec le conducteur."
+    },
+    "STM_010": {
+      "title": "Règle de descente invalide",
+      "what": "La valeur indiquant si l’on peut descendre à un arrêt ne fait pas partie des options.",
+      "action": "Dans votre logiciel de planification, choisissez le mode de descente à cet arrêt : 0 — descente selon l'horaire ; 1 — aucune descente ; 2 — appeler l'agence pour organiser la descente ; 3 — convenir de la descente avec le conducteur."
+    },
+    "STM_012": {
+      "title": "Vitesse irréaliste entre les arrêts",
+      "what": "La vitesse calculée entre {stops} ne semble pas réaliste.",
+      "action": "Vérifiez d'abord les heures d'arrivée et de départ entre ces deux arrêts. Si les horaires sont corrects, vérifiez la position des arrêts."
+    },
+    "STM_014": {
+      "title": "Vitesse excessive sur un tronçon",
+      "what": "Entre {from} et {to}, la vitesse calculée sur {distance} m est de {speed} km/h, au-dessus de la limite de {threshold} km/h définie pour ce type de ligne.",
+      "action": "Vérifiez les horaires de ces deux arrêts. S’ils sont justes, regardez la position des arrêts sur la carte."
+    },
+    "STM_015": {
+      "title": "L'heure d'arrivée du premier arrêt est absente",
+      "what": "L'heure d'arrivée du premier arrêt de ce trajet est absente.",
+      "action": "Saisissez l’heure d’arrivée au premier arrêt de cette course. Au premier arrêt, elle est généralement égale à l’heure de départ."
+    },
+    "STM_016": {
+      "title": "L'heure d'arrivée du dernier arrêt est absente",
+      "what": "L'heure d'arrivée du dernier arrêt de ce trajet est absente.",
+      "action": "Saisissez l’heure d’arrivée au dernier arrêt de cette course ; elle doit suivre celle de l’arrêt précédent."
+    },
+    "STM_017": {
+      "title": "Distances des arrêts le long du tracé manquantes",
+      "what": "La distance le long du tracé manque pour les arrêts de la course.",
+      "action": "Complétez-la sur les courses concernées, ou supprimez les distances si vous ne les utilisez pas."
+    },
+    "STM_018": {
+      "title": "Règle de montée en continu invalide",
+      "what": "Pour cet horaire, la valeur indiquant si l’on peut monter le long de la route ne fait pas partie des options.",
+      "action": "Réglez la montée en continu dans votre logiciel, ou laissez vide."
+    },
+    "STM_019": {
+      "title": "Règle de descente en continu invalide",
+      "what": "Pour cet horaire, la valeur indiquant si l’on peut descendre le long de la route ne fait pas partie des options.",
+      "action": "Réglez la descente en continu dans votre logiciel, ou laissez vide."
+    },
+    "STM_020": {
+      "title": "Temps nul entre arrêts éloignés",
+      "what": "Deux arrêts consécutifs à plus de 200 mètres ont la même minute ; le véhicule semble se déplacer instantanément.",
+      "action": "Corrigez les horaires selon le temps de parcours réel."
+    },
+    "STM_021": {
+      "title": "Deux arrêts consécutifs au même endroit",
+      "what": "Deux arrêts différents qui se suivent apparaissent au même point sur la carte.",
+      "action": "Vérifiez leur position ; corrigez-la s’ils sont différents, fusionnez-les s’il s’agit de copies."
+    },
+    "STM_022": {
+      "title": "Indicateur d’horaire exact invalide",
+      "what": "L’indicateur précisant si l’horaire est exact ou approximatif n’est pas une valeur définie.",
+      "action": "Marquez les horaires exacts « exact » et les estimations « approximatif »."
+    },
+    "STM_024": {
+      "title": "Unités de distance différentes",
+      "what": "Les distances des horaires et des tracés semblent dans des unités différentes (ex. mètres et kilomètres).",
+      "action": "Utilisez la même unité aux deux endroits à l’export."
+    },
+    "STM_025": {
+      "title": "Temps très court entre deux arrêts",
+      "what": "Le temps prévu entre deux arrêts consécutifs est inférieur à 10 secondes. Ce n’est pas une erreur en soi, juste un signal.",
+      "action": "Si les arrêts sont vraiment très proches, rien à faire ; sinon revoyez les horaires."
+    },
+    "STM_026": {
+      "title": "Distance très longue entre deux arrêts",
+      "what": "Deux arrêts consécutifs sont anormalement éloignés ; l’ordre ou la position est peut-être erroné.",
+      "action": "Vérifiez l’ordre des arrêts et la position de ces deux arrêts."
+    },
+    "STM_028": {
+      "title": "Course très longue",
+      "what": "La durée entre l'heure de début de course et l'arrivée au dernier arrêt dépasse la limite attendue.",
+      "action": "Vérifiez les horaires de début et de fin ; si la course est vraiment aussi longue, envisagez de la scinder."
+    },
+    "STM_029": {
+      "title": "Course très courte",
+      "what": "La durée entre l'heure de début de course et l'arrivée au dernier arrêt est bien plus courte que prévu.",
+      "action": "Vérifiez les horaires de début et de fin et la complétude de la liste d’arrêts."
+    },
+    "STM_030": {
+      "title": "Distance le long du tracé négative",
+      "what": "La distance de tracé saisie pour un arrêt est négative.",
+      "action": "Saisissez une distance nulle ou positive, ou laissez vide si vous ne l’utilisez pas."
+    },
+    "STM_032": {
+      "title": "Même ordre d’arrêt utilisé deux fois",
+      "what": "Deux arrêts d’une même course ont le même numéro d’ordre ; l’ordre de desserte est ambigu.",
+      "action": "Corrigez l’ordre pour que chaque arrêt ait un numéro distinct et croissant."
+    },
+    "STM_033": {
+      "title": "Course à un seul arrêt",
+      "what": "Cette course n’a qu’un arrêt ; on ne peut aller nulle part avec elle.",
+      "action": "Ajoutez au moins les arrêts de début et de fin, ou supprimez la course."
+    },
+    "STM_034": {
+      "title": "Seulement l’arrivée ou le départ",
+      "what": "À un arrêt, seule l’heure d’arrivée ou de départ est saisie.",
+      "action": "Saisissez les deux heures ; sans attente elles peuvent être identiques. Si l’heure est inconnue, laissez les deux vides."
+    },
+    "STM_035": {
+      "title": "Même arrêt deux fois de suite",
+      "what": "Le même arrêt figure sur deux lignes consécutives de la course.",
+      "action": "S’il s’agit d’un terminus ou d’un retournement de boucle, c’est normal ; sinon supprimez la ligne en trop."
+    },
+    "STM_036": {
+      "title": "Horaires non triés dans le fichier",
+      "what": "Les horaires ne sont pas triés par course et par ordre d’arrêt. Analyzer les trie lui-même ; information seulement.",
+      "action": "Trier par course et ordre d’arrêt à l’export permet à certaines applis de lire le fichier plus vite."
+    },
+    "STM_037": {
+      "title": "Horaires fixes sur un arrêt à la demande",
+      "what": "Un arrêt fonctionnant par fenêtre horaire (à la demande) a aussi des heures fixes ; les deux sont incompatibles.",
+      "action": "Si l’arrêt est à la demande, supprimez les heures fixes et gardez la fenêtre."
+    },
+    "STM_038": {
+      "title": "Fenêtre à la demande inversée",
+      "what": "La fin de la fenêtre n’est pas après son début ; elle ne s’ouvre jamais.",
+      "action": "Corrigez la fenêtre pour qu’elle commence avant de finir."
+    },
+    "STM_039": {
+      "title": "Fenêtre à la demande manquante",
+      "what": "Dans une zone à la demande, l’heure de début ou de fin du service (ou les deux) manque.",
+      "action": "Saisissez ensemble le début et la fin de la fenêtre."
+    },
+    "STM_040": {
+      "title": "Pas de règle de réservation",
+      "what": "Un arrêt fonctionnant par fenêtre horaire ne définit pas comment réserver.",
+      "action": "Choisissez la règle de réservation de montée ou de descente."
+    },
+    "STM_041": {
+      "title": "Arrêt et zone choisis ensemble",
+      "what": "Une même ligne d’horaire indique un arrêt normal et une zone à la demande ; un seul est permis.",
+      "action": "Pour un arrêt normal, retirez la zone ; pour du transport à la demande, retirez l’arrêt."
+    },
+    "STM_042": {
+      "title": "Direction avec caractères non pris en charge par Google Transit",
+      "what": "Le texte de direction à l’arrêt contient des caractères spéciaux que Google Maps n’affiche pas. Sans publication sur Google, ce n’est pas un problème.",
+      "action": "Remplacez ces caractères par des lettres et chiffres simples."
+    },
+    "STM_043": {
+      "title": "Course de plus de 200 arrêts",
+      "what": "Cette course a un nombre inhabituel d’arrêts ; plusieurs courses ont peut-être été fusionnées.",
+      "action": "Vérifiez la liste d’arrêts ; séparez les courses fusionnées."
+    },
+    "STM_044": {
+      "title": "Horaires très volumineux",
+      "what": "Le jeu de données dépasse 2 millions d’horaires ; certains outils en navigateur peuvent ralentir.",
+      "action": "Ce n’est pas une erreur. Si besoin, envisagez de découper par zone ou période."
+    },
+    "STM_045": {
+      "title": "Départ hors de la journée de service",
+      "what": "L’heure de départ dépasse la fin habituelle de la journée de service (27:00 par défaut).",
+      "action": "Vérifiez l’heure ; si c’est une course du lendemain, placez-la sur le bon jour et calendrier."
+    },
+    "STM_046": {
+      "title": "Horaire non rattaché à une course",
+      "what": "Un horaire n’indique pas à quelle course il appartient.",
+      "action": "Rattachez l’horaire à sa course."
+    },
+    "STM_047": {
+      "title": "Certains trajets n’ont pas tous leurs horaires d’arrêt exacts",
+      "what": "Certains arrêts de ces trajets n'ont pas d'heure d'arrivée ou de départ exacte.",
+      "action": "Complétez les horaires d'arrêt ou corrigez les heures exactes manquantes."
+    },
+    "STM_048": {
+      "title": "Horaires de passage après minuit écrits 00:xx",
+      "what": "La course dépasse minuit, mais à partir d'un arrêt les horaires sont écrits 00:xx au lieu de 24:xx ; l'heure recule par rapport à l'arrêt précédent. L'heure de départ de la course est correcte ; le problème est dans les horaires de passage aux arrêts.",
+      "action": "À partir de l'arrêt indiqué dans le tableau, poursuivez les horaires de cette course au-delà de 24:00 (24:10 au lieu de 00:10)."
+    },
+    "STM_049": {
+      "title": "Départ après minuit à un arrêt écrit 00:xx",
+      "what": "Minuit passe pendant que le véhicule attend à l'arrêt ; l'arrivée est écrite 23:xx et le départ 00:xx, si bien que le départ semble précéder l'arrivée.",
+      "action": "Écrivez l'heure de départ à cet arrêt au-delà de 24:00 (24:02 au lieu de 00:02)."
+    },
+    "STM_050": {
+      "title": "Indicateur d’horaire exact vide",
+      "what": "L’indicateur exact/approximatif est vide sur certaines lignes ; une valeur vide compte comme « exact ».",
+      "action": "Marquez explicitement les horaires estimés « approximatif » et les réels « exact »."
+    },
+    "STM_051": {
+      "title": "Montée normale sur un arrêt à la demande",
+      "what": "Sur un arrêt à fenêtre horaire, la montée est « normale » ou « avec le conducteur », ce qui contredit le service à la demande.",
+      "action": "Réglez la montée sur « aucune » ou « réservation téléphonique »."
+    },
+    "STM_052": {
+      "title": "Descente normale sur un arrêt à la demande",
+      "what": "Sur un arrêt à fenêtre horaire, la descente est « normale », ce qui contredit le service à la demande.",
+      "action": "Réglez la descente sur « aucune » ou « réservation téléphonique »."
+    },
+    "STM_053": {
+      "title": "Même heure à de nombreux arrêts consécutifs",
+      "what": "De nombreux arrêts consécutifs ont la même heure ; le véhicule semble les passer sans que le temps s’écoule.",
+      "action": "Répartissez les heures intermédiaires selon les temps réels ; à défaut, marquez-les « approximatif »."
+    },
+    "STM_054": {
+      "title": "Montée en continu sur un arrêt à la demande",
+      "what": "Sur un arrêt à fenêtre horaire, la montée le long de la route reste ouverte ; c’est incompatible.",
+      "action": "Désactivez la montée en continu ou laissez vide."
+    },
+    "STM_055": {
+      "title": "Descente en continu sur un arrêt à la demande",
+      "what": "Sur un arrêt à fenêtre horaire, la descente le long de la route reste ouverte ; c’est incompatible.",
+      "action": "Désactivez la descente en continu ou laissez vide."
+    },
+    "STM_056": {
+      "title": "Distance de tracé qui n’augmente pas",
+      "what": "La distance le long du tracé n’augmente pas au fil des arrêts de la course.",
+      "action": "Vérifiez les distances des arrêts et du tracé de la course."
+    },
+    "STM_058": {
+      "title": "Heure de fenêtre illisible",
+      "what": "Le début ou la fin de la fenêtre n’est pas une heure valide.",
+      "action": "Saisissez les heures au format HH:MM:SS (ex. 08:00:00)."
+    },
+    "STM_059": {
+      "title": "Pas de règle pour la réservation téléphonique",
+      "what": "La montée ou la descente est « réservation téléphonique » mais la façon de réserver n’est pas définie.",
+      "action": "Choisissez la règle de réservation de cet arrêt."
+    },
+    "STM_060": {
+      "title": "Deux enregistrements à la demande se chevauchent",
+      "what": "Deux enregistrements à la demande d’une même course se chevauchent en zone, horaire et règle ; on ne sait lequel s’applique.",
+      "action": "Séparez les fenêtres ou ajustez les zones."
+    },
+    "STM_061": {
+      "title": "Vitesse impossible entre arrêts éloignés",
+      "what": "Le temps entre deux arrêts éloignés est impossiblement court pour cette distance.",
+      "action": "Vérifiez les horaires ; s’ils sont justes, regardez la position des arrêts."
+    },
+    "STP_001": {
+      "title": "Le même identifiant d’arrêt est utilisé plusieurs fois",
+      "what": "Le même identifiant interne d’arrêt apparaît plusieurs fois dans la liste des arrêts.",
+      "action": "Fusionnez les doublons du même arrêt ou attribuez des codes uniques aux différents arrêts."
+    },
+    "STP_002": {
+      "title": "Code d’arrêt vide",
+      "what": "Un enregistrement de la liste d’arrêts a un code vide ; aucune course ne peut y être rattachée.",
+      "action": "Donnez un code unique à chaque arrêt."
+    },
+    "STP_003": {
+      "title": "Arrêt sans nom ou latitude invalide",
+      "what": "Un arrêt ou une gare n’a pas de nom, ou sa latitude est hors plage (-90 à 90).",
+      "action": "Donnez à l’arrêt le nom connu des voyageurs et vérifiez sa position."
+    },
+    "STP_004": {
+      "title": "Latitude non numérique",
+      "what": "La latitude d’un arrêt n’est pas un nombre.",
+      "action": "Saisissez la latitude en nombre décimal avec un point (ex. 48.8566)."
+    },
+    "STP_005": {
+      "title": "Longitude invalide",
+      "what": "La longitude d’un arrêt n’est pas un nombre ou sort de -180 à 180.",
+      "action": "Saisissez la longitude en nombre décimal avec un point (ex. 2.3522)."
+    },
+    "STP_006": {
+      "title": "Latitude manquante",
+      "what": "Un arrêt, une gare ou une entrée n’a pas de latitude ; il ne peut pas être affiché.",
+      "action": "Positionnez l’arrêt dans votre logiciel de planification."
+    },
+    "STP_007": {
+      "title": "Longitude manquante",
+      "what": "Un arrêt, une gare ou une entrée n’a pas de longitude ; il ne peut pas être affiché.",
+      "action": "Positionnez l’arrêt dans votre logiciel de planification."
+    },
+    "STP_008": {
+      "title": "Type d’arrêt invalide",
+      "what": "Le type (arrêt, gare, entrée…) n’est pas une valeur définie.",
+      "action": "Choisissez le bon type : arrêt/quai, gare, entrée/sortie, nœud ou zone d’embarquement."
+    },
+    "STP_009": {
+      "title": "La gare de rattachement de cet arrêt est introuvable",
+      "what": "Cet arrêt est rattaché à une gare, mais cette gare ne figure pas dans la liste des arrêts.",
+      "action": "Ajoutez la gare à la liste des arrêts ou rattachez l’arrêt à une gare existante. Si l’arrêt n’appartient à aucune gare, supprimez ce rattachement."
+    },
+    "STP_010": {
+      "title": "L’enregistrement lié n’est pas une gare",
+      "what": "Un arrêt est rattaché à une gare, mais l’enregistrement visé n’est pas défini comme gare.",
+      "action": "Rattachez l’arrêt à une vraie gare, ou passez l’enregistrement en gare."
+    },
+    "STP_011": {
+      "title": "Entrée ou zone non rattachée à une gare",
+      "what": "Une entrée, un nœud ou une zone d’embarquement n’est rattaché à aucune gare.",
+      "action": "Rattachez cet enregistrement à sa gare."
+    },
+    "STP_012": {
+      "title": "Un enregistrement de station ou d’entrée est utilisé par un trajet",
+      "what": "Cet enregistrement est défini comme station ou entrée, mais il est utilisé dans les horaires des trajets.",
+      "action": "Utilisez un enregistrement d'arrêt normal dans les horaires ou corrigez le type d'arrêt."
+    },
+    "STP_013": {
+      "title": "Valeur d’accessibilité invalide",
+      "what": "La valeur indiquant l’accessibilité en fauteuil ne fait pas partie des options.",
+      "action": "Choisissez « inconnu », « accessible » ou « non accessible »."
+    },
+    "STP_014": {
+      "title": "Fuseau horaire de l’arrêt invalide",
+      "what": "Le fuseau saisi pour l’arrêt n’est pas un nom reconnu.",
+      "action": "Saisissez un nom standard comme « Europe/Paris », ou laissez vide."
+    },
+    "STP_015": {
+      "title": "Niveau de l’arrêt introuvable",
+      "what": "L’arrêt est rattaché à un niveau absent de la liste.",
+      "action": "Ajoutez le niveau ou rattachez l’arrêt à un niveau existant."
+    },
+    "STP_016": {
+      "title": "Deux arrêts exactement au même endroit",
+      "what": "Deux arrêts différents sont exactement au même point.",
+      "action": "S’il s’agit du même arrêt, fusionnez ; sinon saisissez leurs bonnes positions."
+    },
+    "STP_017": {
+      "title": "Deux arrêts très proches",
+      "what": "Deux arrêts différents sont anormalement proches.",
+      "action": "Si l’un est une copie, fusionnez ; sinon vérifiez leurs positions."
+    },
+    "STP_018": {
+      "title": "Aucun arrêt valide",
+      "what": "La liste d’arrêts ne contient aucun arrêt utilisable.",
+      "action": "Pour un service à arrêts, ajoutez les arrêts. Si le jeu de données n’utilise que des zones à la demande, cela peut être valide ; la règle précise sera écrite une fois la décision Flex arrêtée."
+    },
+    "STP_019": {
+      "title": "Nom d’arrêt trop long",
+      "what": "Le nom est trop long pour les écrans voyageurs.",
+      "action": "Utilisez le nom court affiché sur le poteau d’arrêt."
+    },
+    "STP_020": {
+      "title": "Arrêt desservi par aucune course",
+      "what": "Aucune course n’utilise cet arrêt ; il peut apparaître vide dans les applis.",
+      "action": "S’il n’est pas en service, retirez-le ; sinon ajoutez-le aux courses concernées."
+    },
+    "STP_021": {
+      "title": "Zone d’embarquement non rattachée à un quai",
+      "what": "Une zone d’embarquement est rattachée à un enregistrement d’un autre type qu’un quai.",
+      "action": "Rattachez-la à son quai."
+    },
+    "STP_022": {
+      "title": "Code d’arrêt manquant",
+      "what": "Un ou plusieurs arrêts n’ont pas de code d’arrêt affiché aux voyageurs.",
+      "action": "Complétez les codes d’arrêt nécessaires."
+    },
+    "STP_023": {
+      "title": "Caractère invalide dans le nom vocal",
+      "what": "Le nom pour les annonces vocales contient des caractères comme « < » ou « > ».",
+      "action": "Écrivez le nom vocal comme simple texte à lire."
+    },
+    "STP_024": {
+      "title": "Valeur d’accès non définie",
+      "what": "La valeur indiquant si l’arrêt est accessible directement depuis la rue ne fait pas partie des options.",
+      "action": "Choisissez « uniquement par la gare » ou « directement depuis la rue »."
+    },
+    "STP_026": {
+      "title": "Valeur d’accès invalide",
+      "what": "La valeur d’accès ne peut prendre que deux valeurs ; une autre est saisie.",
+      "action": "Choisissez « uniquement par la gare » ou « directement depuis la rue »."
+    },
+    "STP_028": {
+      "title": "Code d’arrêt trop long",
+      "what": "Le code affiché aux voyageurs est trop long pour un code court.",
+      "action": "Saisissez le code court utilisé sur les poteaux et dans les applis."
+    },
+    "STP_029": {
+      "title": "Arrêt loin de sa gare",
+      "what": "Un quai rattaché à une gare apparaît anormalement loin d’elle.",
+      "action": "Corrigez la position du quai ou sa gare de rattachement."
+    },
+    "STP_030": {
+      "title": "Gare vide",
+      "what": "Une gare est définie mais aucun arrêt ni quai n’y est rattaché.",
+      "action": "Rattachez-y ses quais, ou supprimez la gare inutilisée."
+    },
+    "STP_031": {
+      "title": "Description identique au nom",
+      "what": "La description de l’arrêt répète son nom.",
+      "action": "Ajoutez une information utile (direction, rue, quai) ou laissez vide."
+    },
+    "STP_032": {
+      "title": "Quai relié à des cheminements sans gare",
+      "what": "Un quai auquel aboutissent des cheminements n’est rattaché à aucune gare.",
+      "action": "Rattachez le quai à sa gare."
+    },
+    "STP_033": {
+      "title": "Zone tarifaire d’arrêt manquante",
+      "what": "Avec une tarification zonale, certains arrêts n’ont pas de zone.",
+      "action": "Si vous utilisez des zones, choisissez la zone de chaque arrêt."
+    },
+    "STP_034": {
+      "title": "Page d’arrêt identique à celle de l’exploitant",
+      "what": "L’adresse web de l’arrêt est la page générale de l’exploitant.",
+      "action": "S’il existe une page propre à l’arrêt, saisissez-la ; sinon laissez vide."
+    },
+    "STP_035": {
+      "title": "Page d’arrêt identique à celle d’une ligne",
+      "what": "L’adresse web de l’arrêt est la page générale d’une ligne.",
+      "action": "S’il existe une page propre à l’arrêt, saisissez-la ; sinon laissez vide."
+    },
+    "STP_036": {
+      "title": "Gare rattachée à une autre gare",
+      "what": "Une gare est rattachée à un autre enregistrement ; les gares sont au niveau supérieur.",
+      "action": "Supprimez le rattachement de la gare."
+    },
+    "STP_037": {
+      "title": "Accessibilité inconnue pour certains arrêts",
+      "what": "Certains arrêts n’indiquent pas leur accessibilité en fauteuil.",
+      "action": "Indiquez « accessible » ou « non accessible » sur ces arrêts."
+    },
+    "STP_038": {
+      "title": "Accessibilité inconnue pour tous les arrêts",
+      "what": "Aucun arrêt n’indique son accessibilité ; les voyageurs cherchant un trajet accessible n’ont aucune information.",
+      "action": "Indiquez « accessible » ou « non accessible » pour les arrêts."
+    },
+    "STP_039": {
+      "title": "Même code d’arrêt sur plusieurs arrêts",
+      "what": "Le même code affiché aux voyageurs est utilisé sur plusieurs arrêts.",
+      "action": "Si les codes doivent être uniques, donnez-en un à chaque arrêt ; si le partage est voulu, c’est normal."
+    },
+    "STP_040": {
+      "title": "Mot « arrêt/gare » superflu dans le nom",
+      "what": "Un mot générique comme « stop » ou « station » est ajouté au nom.",
+      "action": "Écrivez le nom sans ce mot, comme sur le poteau."
+    },
+    "STP_041": {
+      "title": "Le nom du quai ne contient pas le nom de la gare",
+      "what": "Le nom d’un quai rattaché à une gare ne contient pas le nom de la gare ; les voyageurs peuvent ne pas les associer.",
+      "action": "Utilisez le nom de la gare dans celui du quai (ex. « Gare Centrale Quai 2 »)."
+    },
+    "STP_042": {
+      "title": "Adresse web d’arrêt invalide",
+      "what": "L’adresse web de l’arrêt n’est pas valide.",
+      "action": "Saisissez une adresse complète commençant par « https:// », ou laissez vide."
+    },
+    "STP_043": {
+      "title": "Valeur d’accès mal placée",
+      "what": "L’accès ne s’utilise que sur les quais rattachés à une gare ; il est saisi ici sur une gare, une entrée ou un arrêt isolé.",
+      "action": "Gardez la valeur seulement sur les quais rattachés à une gare."
+    },
+    "STP_044": {
+      "title": "Mot superflu dans le code de quai",
+      "what": "Le code de quai contient des mots comme « Quai » ; il ne doit contenir que le numéro.",
+      "action": "Écrivez seulement un numéro ou une lettre (ex. « 2 », « B »)."
+    },
+    "STP_045": {
+      "title": "Numéro de quai sans gare",
+      "what": "Un arrêt a un numéro de quai mais n’indique pas sa gare.",
+      "action": "Rattachez le quai à sa gare."
+    },
+    "TFR_001": {
+      "title": "Groupe de période vide",
+      "what": "Une période tarifaire (ex. heures de pointe) a un code de groupe vide.",
+      "action": "Saisissez le code de groupe."
+    },
+    "TFR_002": {
+      "title": "Calendrier de la période introuvable",
+      "what": "Une période tarifaire est liée à un calendrier non défini.",
+      "action": "Liez-la à un calendrier existant."
+    },
+    "TFR_003": {
+      "title": "Heure de période invalide",
+      "what": "L’heure de début ou de fin d’une période tarifaire est illisible.",
+      "action": "Saisissez les heures au format HH:MM:SS."
+    },
+    "TFR_004": {
+      "title": "Période inversée",
+      "what": "La période se termine avant ou au moment où elle commence.",
+      "action": "Corrigez les heures de début et de fin."
+    },
+    "TFR_005": {
+      "title": "Périodes qui se chevauchent",
+      "what": "Deux périodes d’un même groupe et calendrier se chevauchent ; on ne sait quel tarif s’applique.",
+      "action": "Organisez les périodes sans chevauchement."
+    },
+    "TFR_006": {
+      "title": "Période au-delà de 24:00",
+      "what": "Une heure de période dépasse 24:00 ; les périodes doivent rester dans une journée.",
+      "action": "Saisissez jusqu’à 24:00 ; définissez la suite après minuit séparément pour le lendemain."
+    },
+    "TFR_007": {
+      "title": "Une seule heure dans la période",
+      "what": "Seule l’heure de début ou de fin est saisie.",
+      "action": "Saisissez les deux heures, ou laissez-les vides (toute la journée)."
+    },
+    "TFR_008": {
+      "title": "Calendrier de la période vide",
+      "what": "Une période tarifaire n’indique pas son calendrier.",
+      "action": "Choisissez le calendrier de la période."
+    },
+    "TRF_001": {
+      "title": "Arrêt de départ de correspondance vide",
+      "what": "Une correspondance n’indique pas l’arrêt de descente.",
+      "action": "Choisissez le premier arrêt de la correspondance."
+    },
+    "TRF_002": {
+      "title": "Arrêt d’arrivée de correspondance vide",
+      "what": "Une correspondance n’indique pas l’arrêt de montée.",
+      "action": "Choisissez le second arrêt de la correspondance."
+    },
+    "TRF_003": {
+      "title": "Arrêt de correspondance introuvable",
+      "what": "Une correspondance est liée à un arrêt absent de la liste.",
+      "action": "Liez-la à un arrêt existant ou ajoutez l’arrêt."
+    },
+    "TRF_004": {
+      "title": "Type de correspondance invalide",
+      "what": "Le type (recommandée, garantie, temps minimum, impossible, sans descente) n’est pas une valeur définie.",
+      "action": "Choisissez le type de correspondance."
+    },
+    "TRF_005": {
+      "title": "Correspondance à temps minimum sans temps",
+      "what": "Une correspondance « temps minimum requis » n’a pas de temps ou un temps invalide.",
+      "action": "Saisissez le temps minimum en secondes."
+    },
+    "TRF_006": {
+      "title": "Première course de correspondance introuvable",
+      "what": "Une correspondance part d’une course absente de la liste.",
+      "action": "Liez-la à une course existante."
+    },
+    "TRF_007": {
+      "title": "Seconde course de correspondance introuvable",
+      "what": "Une correspondance mène à une course absente de la liste.",
+      "action": "Liez-la à une course existante."
+    },
+    "TRF_008": {
+      "title": "Première ligne de correspondance introuvable",
+      "what": "Une correspondance part d’une ligne absente de la liste.",
+      "action": "Liez-la à une ligne existante."
+    },
+    "TRF_009": {
+      "title": "Seconde ligne de correspondance introuvable",
+      "what": "Une correspondance mène à une ligne absente de la liste.",
+      "action": "Liez-la à une ligne existante."
+    },
+    "TRF_010": {
+      "title": "Temps de correspondance très long",
+      "what": "Le temps minimum d’une correspondance dépasse une heure.",
+      "action": "Vérifiez-le par rapport au temps réel de marche et d’attente."
+    },
+    "TRF_011": {
+      "title": "Arrêts de correspondance éloignés",
+      "what": "Les deux arrêts d’une correspondance sont anormalement éloignés. Information seulement.",
+      "action": "Vérifiez que les arrêts et la correspondance sont corrects."
+    },
+    "TRF_012": {
+      "title": "Même correspondance deux fois",
+      "what": "La correspondance entre les deux mêmes arrêts est saisie deux fois.",
+      "action": "Supprimez le doublon."
+    },
+    "TRF_013": {
+      "title": "Course manquante dans une correspondance sans descente",
+      "what": "Dans une correspondance où le voyageur reste à bord, une des deux courses n’est pas indiquée.",
+      "action": "Choisissez la première et la seconde course."
+    },
+    "TRF_014": {
+      "title": "Course de la correspondance sans horaires",
+      "what": "Une course liée par une correspondance sans descente n’a pas d’horaires.",
+      "action": "Ajoutez les horaires de la course."
+    },
+    "TRF_015": {
+      "title": "Correspondance sans descente rattachée à une gare",
+      "what": "La correspondance sans descente est définie depuis une gare plutôt qu’un arrêt.",
+      "action": "Rattachez-la à l’arrêt ou au quai concerné."
+    },
+    "TRF_016": {
+      "title": "Correspondances contradictoires",
+      "what": "Plusieurs règles de correspondance différentes sont saisies pour le même arrêt, la même course et la même ligne.",
+      "action": "Supprimez l’un des enregistrements en conflit."
+    },
+    "TRF_017": {
+      "title": "Course et ligne incohérentes",
+      "what": "La course choisie n’appartient pas à la ligne indiquée à côté.",
+      "action": "Faites correspondre la ligne à la vraie ligne de la course."
+    },
+    "TRF_018": {
+      "title": "Correspondance vers la même course",
+      "what": "La première et la seconde course de la correspondance sont identiques.",
+      "action": "Définissez la correspondance entre deux courses différentes."
+    },
+    "TRF_019": {
+      "title": "Modes différents dans une correspondance sans descente",
+      "what": "Les deux courses reliées appartiennent à des lignes de modes différents.",
+      "action": "Définissez ces correspondances entre courses du même mode."
+    },
+    "TRF_020": {
+      "title": "Correspondance qui oblige à courir",
+      "what": "La distance entre les deux arrêts ne peut être parcourue dans le temps indiqué qu’en marchant très vite.",
+      "action": "Augmentez le temps de correspondance selon la distance."
+    },
+    "TRF_021": {
+      "title": "Correspondance rattachée à une entrée ou un nœud",
+      "what": "Une correspondance est rattachée à une entrée, un nœud ou une zone d’embarquement au lieu d’un arrêt ou d’une gare.",
+      "action": "Rattachez-la à l’arrêt ou à la gare concerné."
+    },
+    "TRF_022": {
+      "title": "Calendriers des courses suivantes en conflit",
+      "what": "Une course se prolonge en plusieurs courses qui circulent les mêmes jours ; on ne sait laquelle prendre.",
+      "action": "Faites en sorte que leurs calendriers s’excluent."
+    },
+    "TRF_023": {
+      "title": "Calendriers des courses entrantes en conflit",
+      "what": "Plusieurs courses se prolongent dans la même course et circulent les mêmes jours.",
+      "action": "Faites en sorte que leurs calendriers s’excluent."
+    },
+    "TRN_001": {
+      "title": "Nom de table invalide dans une traduction",
+      "what": "Une traduction vise un fichier hors GTFS ; elle n’est pas appliquée.",
+      "action": "Exportez de nouveau les traductions. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRN_002": {
+      "title": "Champ invalide dans une traduction",
+      "what": "Une traduction vise un champ inexistant dans ce fichier ; elle n’est pas appliquée.",
+      "action": "Exportez de nouveau les traductions. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRN_003": {
+      "title": "Langue de traduction invalide",
+      "what": "Le code de langue d’une traduction n’est pas reconnu.",
+      "action": "Saisissez un code standard comme « en » ou « de »."
+    },
+    "TRN_004": {
+      "title": "Enregistrement traduit introuvable",
+      "what": "Une traduction vise un arrêt, une ligne ou un enregistrement qui n’existe plus.",
+      "action": "Liez-la à un enregistrement existant, ou supprimez-la."
+    },
+    "TRN_005": {
+      "title": "Même traduction deux fois",
+      "what": "La traduction du même texte dans la même langue est saisie deux fois.",
+      "action": "Supprimez le doublon."
+    },
+    "TRN_006": {
+      "title": "Deux traductions différentes du même texte",
+      "what": "Le même texte est traduit de deux façons dans la même langue ; les applis ne savent laquelle afficher.",
+      "action": "Gardez la bonne traduction et supprimez l’autre."
+    },
+    "TRN_007": {
+      "title": "Traduction dans la langue du jeu de données",
+      "what": "Certaines traductions sont dans la langue déjà utilisée ; elles sont inutiles.",
+      "action": "N’ajoutez des traductions que pour d’autres langues."
+    },
+    "TRN_008": {
+      "title": "Texte de traduction vide",
+      "what": "Une ligne de traduction n’a pas de texte traduit.",
+      "action": "Saisissez la traduction, ou supprimez la ligne."
+    },
+    "TRN_009": {
+      "title": "Traduction liée à un enregistrement et à un texte",
+      "what": "Une traduction est liée à la fois à un enregistrement et à un texte ; un seul est permis.",
+      "action": "Liez-la soit par code d’enregistrement, soit par texte. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRN_010": {
+      "title": "Ordre d’arrêt erroné dans une traduction d’horaire",
+      "what": "Une traduction d’horaire vise un ordre d’arrêt absent de la course.",
+      "action": "Liez-la au bon ordre d’arrêt. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRN_011": {
+      "title": "Champ non traduisible traduit",
+      "what": "Une traduction est saisie pour un champ non traduisible (code, nombre).",
+      "action": "Traduisez seulement les champs texte (noms, descriptions, adresses web)."
+    },
+    "TRN_013": {
+      "title": "Champs superflus dans une traduction d’informations",
+      "what": "Des champs de lien qui ne doivent pas être utilisés sont remplis dans une traduction des informations du jeu de données.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRN_014": {
+      "title": "Lien de sous-enregistrement mal placé",
+      "what": "Le lien de sous-enregistrement, réservé aux horaires, est utilisé dans la traduction d’un autre fichier.",
+      "action": "Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRN_015": {
+      "title": "Traduction liée à rien",
+      "what": "Une traduction n’est liée ni à un enregistrement ni à un texte ; on ignore ce qu’elle traduit.",
+      "action": "Liez-la à l’enregistrement ou au texte concerné."
+    },
+    "TRN_016": {
+      "title": "Traduction sans texte correspondant",
+      "what": "Une traduction vise un texte absent du jeu de données ; elle n’est pas appliquée. Le texte a souvent été modifié depuis.",
+      "action": "Écrivez le texte à traduire exactement comme le nom actuel."
+    },
+    "TRN_017": {
+      "title": "Ordre d’arrêt manquant dans une traduction d’horaire",
+      "what": "Une traduction d’horaire n’indique pas de quel arrêt il s’agit.",
+      "action": "Ajoutez l’ordre de l’arrêt à la traduction. Il s’agit d’un problème de format de fichier ; signalez-le à l’éditeur du logiciel d’export ou à votre service informatique."
+    },
+    "TRP_001": {
+      "title": "Code de course vide ou répété",
+      "what": "Le code d’une course est vide ou utilisé par deux courses ; les horaires peuvent s’attacher à la mauvaise.",
+      "action": "Donnez un code unique à chaque course."
+    },
+    "TRP_002": {
+      "title": "Ligne de la course introuvable",
+      "what": "Une course est rattachée à une ligne absente de la liste.",
+      "action": "Rattachez-la à une ligne existante, ou ajoutez la ligne."
+    },
+    "TRP_003": {
+      "title": "Calendrier de la course introuvable",
+      "what": "Une course est liée à un calendrier non défini ; ses jours de circulation sont inconnus.",
+      "action": "Liez-la à un calendrier existant, ou définissez-le."
+    },
+    "TRP_004": {
+      "title": "Tracé de la course introuvable",
+      "what": "Une course est liée à un tracé absent des tracés.",
+      "action": "Liez-la à un tracé existant, ou supprimez le lien."
+    },
+    "TRP_005": {
+      "title": "Sens de la course invalide",
+      "what": "Le sens aller/retour ne peut prendre que deux valeurs ; une autre est saisie.",
+      "action": "Choisissez « aller » ou « retour »."
+    },
+    "TRP_006": {
+      "title": "Valeur d’accessibilité de la course invalide",
+      "what": "La valeur indiquant l’accessibilité en fauteuil ne fait pas partie des options.",
+      "action": "Choisissez « pas d’information », « accessible » ou « non accessible »."
+    },
+    "TRP_007": {
+      "title": "Valeur vélo invalide",
+      "what": "La valeur indiquant si les vélos sont acceptés ne fait pas partie des options.",
+      "action": "Choisissez « pas d’information », « autorisés » ou « non autorisés »."
+    },
+    "TRP_011": {
+      "title": "Direction non affichée aux voyageurs",
+      "what": "La course n’a ni direction ni nom ; les voyageurs ne voient pas où va le véhicule.",
+      "action": "Saisissez la direction (terminus ou destination)."
+    },
+    "TRP_012": {
+      "title": "Sens manquant sur certaines courses",
+      "what": "Sur une ligne aller-retour, certaines courses n’ont pas de sens.",
+      "action": "Indiquez si ces courses sont aller ou retour."
+    },
+    "TRP_013": {
+      "title": "Ligne à une seule course",
+      "what": "Une seule course est définie sur cette ligne. Information seulement.",
+      "action": "Si la ligne ne circule vraiment qu’une fois, c’est normal ; sinon ajoutez les courses."
+    },
+    "TRP_014": {
+      "title": "Nom de course trop long",
+      "what": "Le nom (numéro) de course dépasse 20 caractères ; il est coupé sur les écrans.",
+      "action": "Mettez seulement le numéro court vu par les voyageurs."
+    },
+    "TRP_015": {
+      "title": "Service véhicule inutile",
+      "what": "Les courses ont un code de service véhicule, mais aucun service ne regroupe plusieurs courses ; aucun bénéfice pour les correspondances.",
+      "action": "Donnez le même code aux courses successives d’un même véhicule, ou laissez vide."
+    },
+    "TRP_017": {
+      "title": "Course à fréquence sans horaires",
+      "what": "Une course définie par fréquence (toutes les X minutes) n’a pas d’horaires ; ordre et temps de parcours inconnus.",
+      "action": "Saisissez la liste d’arrêts et les temps entre arrêts."
+    },
+    "TRP_019": {
+      "title": "Montée en continu sans tracé",
+      "what": "Une course permettant de monter ou descendre le long de la route n’a pas de tracé ; les voyageurs ne voient pas où monter.",
+      "action": "Ajoutez le tracé routier de la course."
+    },
+    "TRP_020": {
+      "title": "Direction égale à un arrêt intermédiaire",
+      "what": "La direction affichée est le nom d’un arrêt intermédiaire et non du terminus. Cela peut être voulu.",
+      "action": "Si elle indique un point intermédiaire important, c’est normal ; sinon utilisez le terminus."
+    },
+    "TRP_021": {
+      "title": "Accès vélo non indiqué",
+      "what": "Aucune course n’indique si les vélos sont acceptés.",
+      "action": "Indiquez « autorisés » ou « non autorisés » sur les courses."
+    },
+    "TRP_022": {
+      "title": "Courses d’un même véhicule qui se chevauchent",
+      "what": "Deux courses du même service véhicule se chevauchent ; un véhicule ne peut pas faire deux courses à la fois.",
+      "action": "Corrigez le service véhicule ou les horaires."
+    },
+    "TRP_023": {
+      "title": "Aucune course dans les 7 prochains jours",
+      "what": "Aucune course ne circule dans les 7 prochains jours.",
+      "action": "Vérifiez le calendrier et les dates des courses."
+    },
+    "TRP_024": {
+      "title": "Modes différents dans un même service",
+      "what": "Les courses d’un même service véhicule appartiennent à des lignes de modes différents (ex. bus et tram).",
+      "action": "Limitez chaque service aux courses d’un même mode."
+    },
+    "TRP_025": {
+      "title": "Accessibilité inconnue pour la plupart des courses",
+      "what": "Plus de 80 % des courses n’indiquent pas leur accessibilité.",
+      "action": "Indiquez « accessible » ou « non accessible » sur les courses."
+    },
+    "TRP_026": {
+      "title": "Course qui ne circule jamais",
+      "what": "Le calendrier de la course n’a aucun jour de circulation ; elle risque de ne pas être affichée.",
+      "action": "Ajoutez des jours au calendrier ou liez la course au bon calendrier."
+    },
+    "TRP_028": {
+      "title": "Accessibilité inconnue pour certaines courses",
+      "what": "Certaines courses n’indiquent pas leur accessibilité.",
+      "action": "Indiquez « accessible » ou « non accessible » sur ces courses."
+    },
+    "TRP_029": {
+      "title": "Accessibilité inconnue pour toutes les courses",
+      "what": "Aucune course n’indique son accessibilité ; les voyageurs cherchant un trajet accessible n’ont aucune information.",
+      "action": "Indiquez « accessible » ou « non accessible » sur les courses."
+    },
+    "TRP_031": {
+      "title": "Course non rattachée à une ligne",
+      "what": "Une course n’indique pas sa ligne.",
+      "action": "Rattachez-la à la bonne ligne."
+    },
+    "TRP_032": {
+      "title": "Valeur de transport de voitures invalide",
+      "what": "La valeur indiquant si les voitures sont acceptées (ex. ferry) ne fait pas partie des options.",
+      "action": "Choisissez « pas d’information », « autorisées » ou « non autorisées »."
+    },
+    "TRP_034": {
+      "title": "Coefficient de durée à la demande non numérique",
+      "what": "Le coefficient ou le décalage servant à calculer le temps de trajet à la demande n’est pas un nombre.",
+      "action": "Saisissez-les en nombres décimaux."
+    },
+    "TRP_035": {
+      "title": "Calendrier de la course non indiqué",
+      "what": "Une course n’indique pas ses jours de circulation.",
+      "action": "Choisissez ou créez un calendrier pour la course."
+    },
+    "VAT_001": {
+      "title": "Deux lignes presque identiques",
+      "what": "Deux lignes du même mode desservent en grande partie les mêmes arrêts ; il peut s’agir de copies.",
+      "action": "Si ce sont vraiment des lignes distinctes, c’est normal ; sinon fusionnez-les."
+    },
+    "VAT_002": {
+      "title": "Pas de correspondance à un arrêt multi-lignes",
+      "what": "Au moins quatre lignes desservent cet arrêt sans correspondance définie. Information seulement.",
+      "action": "Si un temps ou une règle de correspondance est nécessaire, ajoutez-la ; sinon aucune action."
+    },
+    "VAT_003": {
+      "title": "Durée très différente des courses similaires",
+      "what": "Par rapport aux courses du même trajet, celle-ci est anormalement longue ou courte. Information seulement.",
+      "action": "S’il y a une raison (pointe, autre véhicule), c’est normal ; sinon vérifiez les horaires."
+    },
+    "VAT_005": {
+      "title": "Groupe d’arrêts isolé du réseau",
+      "what": "Certains arrêts ne sont reliés au reste du réseau par aucune course ; ils forment un îlot.",
+      "action": "Vérifiez les courses et horaires qui utilisent ces arrêts."
+    },
+    "VAT_006": {
+      "title": "La plupart des courses sur une ligne",
+      "what": "La plupart des courses sont sur une seule ligne. Information seulement.",
+      "action": "Si la ligne est vraiment aussi chargée, c’est normal ; sinon vérifiez l’export des autres lignes."
+    },
+    "VAT_007": {
+      "title": "Pas de correspondance au terminus",
+      "what": "Une autre ligne atteint aussi le terminus d’une ligne, sans correspondance définie. Information seulement.",
+      "action": "Si une règle de correspondance est nécessaire, ajoutez-la."
+    },
+    "VAT_008": {
+      "title": "Même tracé sur de nombreuses lignes",
+      "what": "Un tracé est utilisé par plus de 30 % des lignes ; des tracés ont peut-être été mal attribués.",
+      "action": "Définissez un tracé propre à chaque ligne et sens."
+    },
+    "XFL_002": {
+      "title": "Course sans horaires",
+      "what": "Cette course n’a aucun horaire ; elle risque de ne pas être affichée.",
+      "action": "Ajoutez ses horaires, ou supprimez la course."
+    },
+    "XFL_006": {
+      "title": "Calendrier fait uniquement de retraits",
+      "what": "Un calendrier ne contient que des dates « ne circule pas » ; aucun jour de circulation.",
+      "action": "Ajoutez des jours de circulation."
+    },
+    "XFL_012": {
+      "title": "Ligne sans course exploitable",
+      "what": "Cette ligne a des courses mais aucune n’a d’horaires ; elle risque de ne pas être affichée.",
+      "action": "Ajoutez les horaires des courses ou supprimez la ligne."
+    },
+    "XFL_013": {
+      "title": "Tracé utilisé dans les deux sens",
+      "what": "Le même tracé sert à l’aller et au retour ; la ligne apparaît inversée dans un sens.",
+      "action": "Utilisez un tracé par sens."
+    },
+    "XFL_014": {
+      "title": "Enregistrement traduit introuvable",
+      "what": "Une traduction vise un enregistrement qui n’existe plus.",
+      "action": "Supprimez la traduction ou rétablissez l’enregistrement."
+    },
+    "XFL_015": {
+      "title": "Attribution liée à un enregistrement absent",
+      "what": "Une attribution est liée à un exploitant, une ligne ou une course inexistant.",
+      "action": "Liez-la à un enregistrement existant."
+    },
+    "XFL_016": {
+      "title": "Informations traduites mais fichier absent",
+      "what": "Une traduction existe pour les informations du jeu de données, mais le fichier d’informations manque.",
+      "action": "Ajoutez les informations, ou supprimez la traduction."
+    },
+    "XFL_019": {
+      "title": "Réseau défini à deux endroits",
+      "what": "Le réseau des lignes est indiqué à la fois dans la liste des lignes et dans un fichier réseau séparé.",
+      "action": "Gardez l’information réseau à un seul endroit."
+    },
+    "XFL_020": {
+      "title": "Course et ligne incohérentes",
+      "what": "La course choisie dans une correspondance n’appartient pas à la ligne indiquée.",
+      "action": "Faites correspondre la ligne à la vraie ligne de la course."
+    },
+    "XFL_021": {
+      "title": "La course ne dessert pas l’arrêt de correspondance",
+      "what": "La course choisie ne passe pas par l’arrêt où la correspondance est définie.",
+      "action": "Rattachez la correspondance à un arrêt desservi par la course."
+    },
+    "XFL_022": {
+      "title": "Groupe d’arrêts introuvable",
+      "what": "Un lien groupe–arrêt vise un groupe non défini.",
+      "action": "Définissez le groupe, ou supprimez le lien."
+    },
+    "XFL_023": {
+      "title": "Arrêt du groupe introuvable",
+      "what": "Un groupe d’arrêts contient un arrêt absent de la liste.",
+      "action": "Ajoutez au groupe un arrêt existant."
+    },
+    "XFL_024": {
+      "title": "Groupe d’arrêts de la course introuvable",
+      "what": "Une course à la demande est liée à un groupe d’arrêts non défini.",
+      "action": "Liez-la à un groupe existant."
+    },
+    "XFL_025": {
+      "title": "Zone de service de la course introuvable",
+      "what": "Une course à la demande est liée à une zone non définie.",
+      "action": "Liez-la à une zone existante, ou ajoutez la zone."
+    },
+    "XFL_027": {
+      "title": "Informations sans contact différentes",
+      "what": "L’information sans contact de la ligne diffère de celle des tarifs ; les tarifs font foi. Information seulement.",
+      "action": "Harmonisez les deux informations."
+    },
+    "XFL_028": {
+      "title": "L’exploitant indique le sans contact, pas les tarifs",
+      "what": "L’exploitant est marqué sans contact, mais aucun support sans contact n’existe dans les tarifs.",
+      "action": "Ajoutez le support sans contact aux tarifs."
+    },
+    "XFL_029": {
+      "title": "La ligne indique le sans contact, pas les tarifs",
+      "what": "Une ligne est marquée sans contact, mais aucun support sans contact n’existe dans les tarifs.",
+      "action": "Ajoutez le support sans contact aux tarifs."
+    },
+    "XFL_030": {
+      "title": "Sans contact présent mais non signalé",
+      "what": "Les tarifs ont un support sans contact, mais aucun exploitant ni ligne ne l’indique.",
+      "action": "Marquez les exploitants ou lignes où le sans contact s’applique."
+    },
+    "XFL_031": {
+      "title": "Même code pour un arrêt et une zone",
+      "what": "Un arrêt, une zone ou un groupe partagent le même code ; les courses peuvent être liées au mauvais endroit.",
+      "action": "Changez l’un des codes en conflit."
+    },
+    "XFL_032": {
+      "title": "Code de groupe d’arrêts vide",
+      "what": "Un groupe d’arrêts a un code vide.",
+      "action": "Donnez un code unique à chaque groupe."
+    },
+    "XFL_033": {
+      "title": "Code de groupe vide dans un lien",
+      "what": "Un lien groupe–arrêt n’indique pas son groupe.",
+      "action": "Saisissez le code de groupe."
+    },
+    "XFL_034": {
+      "title": "Arrêt vide dans un lien",
+      "what": "Un lien groupe–arrêt n’indique pas son arrêt.",
+      "action": "Saisissez l’arrêt."
+    }
   }
 }

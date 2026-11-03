@@ -7,6 +7,10 @@
 //! notice's own fields exactly like the UI does. Fallback chain, also mirrored
 //! from the UI: requested locale → English → the pipeline's Turkish text.
 //!
+//! Planner cards (`RuleCards`) are plain-language `title`/`what`/`action` texts
+//! per rule, read from the UI's `producer.card.<RULE>.*` keys. They exist in
+//! every language, Turkish included, and `es` is a cards-only locale.
+//!
 //! The dictionaries are derived from the TypeScript locales by
 //! `ui/scripts/export-locales.mjs` (`npm run locales:export`) into
 //! `crates/core/locales/`; the TypeScript locales stay
@@ -22,6 +26,8 @@ use crate::{FatalError, Notice};
 const EN_JSON: &str = include_str!("../locales/en.json");
 const JA_JSON: &str = include_str!("../locales/ja.json");
 const FR_JSON: &str = include_str!("../locales/fr.json");
+const TR_JSON: &str = include_str!("../locales/tr.json");
+const ES_JSON: &str = include_str!("../locales/es.json");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Lang {
@@ -30,6 +36,8 @@ pub enum Lang {
     En,
     Ja,
     Fr,
+    /// Spanish — cards only; every other text falls back to English.
+    Es,
 }
 
 impl FromStr for Lang {
@@ -41,19 +49,27 @@ impl FromStr for Lang {
             "en" => Ok(Lang::En),
             "ja" => Ok(Lang::Ja),
             "fr" => Ok(Lang::Fr),
-            other => Err(format!("unknown language '{other}'; expected tr, en, ja or fr")),
+            "es" => Ok(Lang::Es),
+            other => Err(format!(
+                "unknown language '{other}'; expected tr, en, ja, fr or es"
+            )),
         }
     }
 }
 
 #[derive(Debug, Deserialize)]
 struct Dictionary {
+    #[serde(default)]
     messages: HashMap<String, String>,
+    #[serde(default)]
     remediations: HashMap<String, String>,
+    #[serde(default)]
     titles: HashMap<String, String>,
     /// `{FatalCode}.{variant}` → template; parameters are filled from `FatalError::params`.
     #[serde(default)]
     fatal_messages: HashMap<String, String>,
+    #[serde(default)]
+    cards: HashMap<String, RuleCard>,
 }
 
 impl Dictionary {
@@ -84,6 +100,10 @@ impl Translator {
             })),
             Lang::Fr => Ok(Some(Self {
                 primary: Dictionary::parse(FR_JSON, "fr")?,
+                fallback: Some(Dictionary::parse(EN_JSON, "en")?),
+            })),
+            Lang::Es => Ok(Some(Self {
+                primary: Dictionary::parse(ES_JSON, "es")?,
                 fallback: Some(Dictionary::parse(EN_JSON, "en")?),
             })),
         }
@@ -187,6 +207,69 @@ impl Translator {
     pub fn rule_remediation(&self, rule_id: &str) -> Option<&str> {
         self.lookup(|d| &d.remediations, rule_id)
     }
+}
+
+/// Plain-language planner text for one rule, as the UI's planner view shows it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
+pub struct RuleCard {
+    pub title: String,
+    /// `None` when the text needs per-notice placeholders (`{stop_count}` …),
+    /// which a rule-level consumer cannot fill.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub what: Option<String>,
+    pub action: String,
+}
+
+/// Planner cards in one language, with English as the fallback. Unlike
+/// `Translator`, Turkish has a dictionary here: the pipeline has no native card text.
+pub struct RuleCards {
+    primary: HashMap<String, RuleCard>,
+    fallback: Option<HashMap<String, RuleCard>>,
+}
+
+impl RuleCards {
+    pub fn new(lang: Lang) -> Result<Self, String> {
+        let (raw, name) = match lang {
+            Lang::Tr => (TR_JSON, "tr"),
+            Lang::En => (EN_JSON, "en"),
+            Lang::Ja => (JA_JSON, "ja"),
+            Lang::Fr => (FR_JSON, "fr"),
+            Lang::Es => (ES_JSON, "es"),
+        };
+        let fallback = match lang {
+            Lang::En => None,
+            _ => Some(Dictionary::parse(EN_JSON, "en")?.cards),
+        };
+        Ok(Self {
+            primary: Dictionary::parse(raw, name)?.cards,
+            fallback,
+        })
+    }
+
+    /// The rule's card, or `None` when no language has one.
+    pub fn get(&self, rule_id: &str) -> Option<RuleCard> {
+        let mut card = self
+            .primary
+            .get(rule_id)
+            .or_else(|| self.fallback.as_ref().and_then(|cards| cards.get(rule_id)))?
+            .clone();
+        card.what = card.what.filter(|what| !has_placeholder(what));
+        Some(card)
+    }
+
+    /// Whether the PRIMARY language has its own card for `rule_id`, ignoring the fallback.
+    pub fn has_own(&self, rule_id: &str) -> bool {
+        self.primary.contains_key(rule_id)
+    }
+}
+
+/// Whether `text` holds a `{key}` placeholder in the sense of `fill_with`.
+fn has_placeholder(text: &str) -> bool {
+    text.split('{').skip(1).any(|part| {
+        part.split_once('}').is_some_and(|(key, _)| {
+            !key.is_empty() && key.chars().all(|c| c.is_alphanumeric() || c == '_')
+        })
+    })
 }
 
 /// Substitutes `{field}` placeholders from the notice, like the UI's
@@ -333,6 +416,53 @@ mod tests {
         assert_eq!("tr".parse::<Lang>(), Ok(Lang::Tr));
         assert!("EN".parse::<Lang>().is_err());
         assert!("de".parse::<Lang>().is_err());
+    }
+
+    #[test]
+    fn spanish_parses_and_falls_back_to_english_for_rule_texts() {
+        assert_eq!("es".parse::<Lang>(), Ok(Lang::Es));
+        let es = Translator::new(Lang::Es).unwrap().unwrap();
+        let en = Translator::new(Lang::En).unwrap().unwrap();
+        assert_eq!(
+            es.rule_remediation("STM_056"),
+            en.rule_remediation("STM_056")
+        );
+    }
+
+    #[test]
+    fn cards_exist_in_every_language_and_differ_from_english() {
+        let en = RuleCards::new(Lang::En).unwrap().get("STM_056").unwrap();
+        for lang in [Lang::Tr, Lang::Ja, Lang::Fr, Lang::Es] {
+            let cards = RuleCards::new(lang).unwrap();
+            assert!(cards.has_own("STM_056"), "{lang:?} has no own STM_056 card");
+            let card = cards.get("STM_056").unwrap();
+            assert_ne!(card.title, en.title, "{lang:?} card title is English");
+            assert_ne!(card.action, en.action, "{lang:?} card action is English");
+            assert!(card.what.is_some(), "{lang:?} card has no what");
+        }
+    }
+
+    #[test]
+    fn cards_drop_what_that_needs_notice_placeholders() {
+        let card = RuleCards::new(Lang::En).unwrap().get("STM_001").unwrap();
+        assert!(
+            card.what.is_none(),
+            "STM_001 what has per-notice placeholders"
+        );
+        assert!(!card.title.is_empty() && !card.action.is_empty());
+    }
+
+    #[test]
+    fn unknown_rule_has_no_card() {
+        assert!(RuleCards::new(Lang::Es).unwrap().get("NOPE_999").is_none());
+    }
+
+    #[test]
+    fn placeholder_detection_matches_fill() {
+        assert!(has_placeholder("from {from} to {to}"));
+        assert!(!has_placeholder("no braces"));
+        assert!(!has_placeholder("{not a key}"));
+        assert!(!has_placeholder("unclosed {brace"));
     }
 
     #[test]

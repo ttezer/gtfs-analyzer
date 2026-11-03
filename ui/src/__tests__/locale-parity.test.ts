@@ -3,9 +3,12 @@ import tr from '../locales/tr';
 import en from '../locales/en';
 import ja from '../locales/ja';
 import fr from '../locales/fr';
+import es from '../locales/es';
 import enExport from '../../../crates/core/locales/en.json';
 import jaExport from '../../../crates/core/locales/ja.json';
 import frExport from '../../../crates/core/locales/fr.json';
+import trExport from '../../../crates/core/locales/tr.json';
+import esExport from '../../../crates/core/locales/es.json';
 
 const keys = (o: Record<string, string>): Set<string> => new Set(Object.keys(o));
 const minus = (a: Set<string>, b: Set<string>): string[] => [...a].filter((x) => !b.has(x));
@@ -59,6 +62,65 @@ describe('CLI locale export (crates/core/locales)', () => {
     expect(exported.messages).toEqual(locale.ruleMessages);
     expect(exported.remediations).toEqual(locale.ruleRemediations);
     expect(exported.titles).toEqual(locale.ruleTitles);
+  });
+
+  it.each([
+    ['tr', tr.ui, trExport],
+    ['en', en.ui, enExport],
+    ['ja', ja.ui, jaExport],
+    ['fr', fr.ui, frExport],
+    ['es', es.ui, esExport],
+  ] as const)('%s.json kartları locale ile aynı (bayat ise: npm run locales:export)', (_lang, ui, exported) => {
+    expect(exported.cards).toEqual(cardsOf(ui));
+  });
+});
+
+// ── planner cards (producer.card.<RULE>.{title,what,action}) ────────────────
+// The CLI publishes these per rule (`card` in --compact-json and `rules --json`), so every
+// language must carry the same rules and fields; `es` is a cards-only locale.
+
+const CARD_KEY = /^producer\.card\.([A-Z]+_\d+[a-z]*)\.(title|what|action)$/;
+
+function cardsOf(ui: Record<string, string>): Record<string, Record<string, string>> {
+  const cards: Record<string, Record<string, string>> = {};
+  for (const [key, text] of Object.entries(ui)) {
+    const match = key.match(CARD_KEY);
+    if (!match) continue;
+    (cards[match[1]] ??= {})[match[2]] = text;
+  }
+  return cards;
+}
+
+const cardKeys = (ui: Record<string, string>): Set<string> =>
+  new Set(Object.keys(ui).filter((key) => CARD_KEY.test(key)));
+
+describe('planner card parity', () => {
+  it.each([
+    ['tr', tr.ui],
+    ['ja', ja.ui],
+    ['fr', fr.ui],
+    ['es', es.ui],
+  ] as const)('%s kart anahtarları en ile birebir aynı', (_lang, ui) => {
+    const e = cardKeys(en.ui);
+    const other = cardKeys(ui);
+    expect(minus(e, other)).toEqual([]);
+    expect(minus(other, e)).toEqual([]);
+  });
+
+  it('es yalnız kart anahtarı taşır', () => {
+    expect(Object.keys(es.ui).filter((key) => !CARD_KEY.test(key))).toEqual([]);
+  });
+
+  it("es kartlarında Türkçe'ye özgü harf yok ve yer tutucular en ile aynı", () => {
+    const problems: string[] = [];
+    for (const [key, text] of Object.entries(es.ui)) {
+      if (TR_ONLY.test(text)) problems.push(`${key}: Türkçe harf`);
+      const enText = en.ui[key as keyof typeof en.ui] as string | undefined;
+      if (enText !== undefined && holders(text).join() !== holders(enText).join()) {
+        problems.push(`${key}: es=${holders(text).join()} en=${holders(enText).join()}`);
+      }
+    }
+    expect(problems).toEqual([]);
   });
 });
 
