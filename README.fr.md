@@ -429,7 +429,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--max-notices-per-rule 20` | Conserve au plus N signalements par règle dans le JSON ; le nombre réel des règles tronquées figure dans `capped_totals`, R1/R5/R9 restent calculés sur tous les signalements (nécessite `--json`) |
 | `--samples N` | Avec `--compact-json`, ajoute les N premiers signalements de cause racine par règle R9 (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) |
 | `-o report.json` | Écrit la sortie dans un fichier au lieu de stdout |
-| `--lang en` | Langue des textes de signalement : `en` (par défaut) / `tr` / `ja` / `fr` |
+| `--lang en` | Langue des textes de signalement : `en` (par défaut) / `tr` / `ja` / `fr` / `es` (`es` : fiches planificateur uniquement) |
 | `--config config.json` | Applique un delta de configuration JSON (par-dessus `ValidatorConfig::default()`) |
 | `--today 20260710` | Fixe la date « aujourd’hui » de l’analyse (pour les règles de calendrier) |
 
@@ -450,7 +450,8 @@ omet la liste détaillée `notices` et les tables `name_index` du rapport comple
 `reports.r1`, `reports.r5`, `reports.r9`, `metrics`, `notice_counts` et
 `triggered_rule_count`. Chaque élément de `reports.r9.items` contient le titre, la
 gravité, la classe, le message, la correction, la priorité, l’impact et les variations
-de score ; `--samples N` ajoute jusqu’à N exemples de cause racine à chaque élément.
+de score, ainsi qu’une fiche en langage simple `card` (`title`, `what`, `action`) dans la
+langue de `--lang` ; `--samples N` ajoute jusqu’à N exemples de cause racine à chaque élément.
 
 `--compact-json` n’est pas le payload de l’interface web et n’applique pas de plafond
 par règle. Pour approximer dans le JSON complet de la CLI la liste visible dans l’interface,
@@ -492,7 +493,7 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-Champs : `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`.
+Champs : `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`, `card`.
 Les filtres `--class` / `--severity` / `--min-severity` / `--rule` ont le même sens que dans `validate`.
 `--lang` s’applique ici aussi (titres, messages et corrections des règles).
 
@@ -501,6 +502,8 @@ Les filtres `--class` / `--severity` / `--min-severity` / `--rule` ont le même 
 Le cœur de validation produit ses textes de signalement en turc ; `--lang en` / `--lang ja` / `--lang fr` les remplacent à l’aide des **mêmes dictionnaires de traduction que l’interface web**. Les identifiants de règles, les gravités et les classes (`CRITICAL`, `SPEC`) restent lisibles par machine dans toutes les langues — seuls `title`, `message` et `remediation` sont traduits.
 
 Lorsqu’une règle n’a pas de traduction, la chaîne est : langue demandée → anglais → turc (le texte propre au cœur), de sorte que la sortie n’est jamais vide.
+
+Les sorties au niveau des règles (éléments R9 de `--compact-json` et `rules --json`) portent aussi `card` : le titre en langage simple, ce qui s’est passé (`what`) et que faire (`action`) de la vue planificateur de l’interface web, en `tr`, `en`, `ja`, `fr` et `es`. `es` ne contient que les fiches : ses autres textes se replient sur l’anglais. `what` est omis lorsque le texte de la fiche a besoin de valeurs propres à un signalement.
 
 Les dictionnaires sont dérivés de `ui/src/locales/{en,ja,fr}.ts` vers `crates/core/locales/*.json` par `npm run locales:export`, puis intégrés au binaire de la CLI et au paquet Python. Si un fichier de locale est modifié sans relancer l’export, `locale-parity.test.ts` échoue en CI — les fichiers de locale restent l’unique source de vérité.
 

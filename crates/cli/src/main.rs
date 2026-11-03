@@ -6,6 +6,7 @@ use std::process::ExitCode;
 use chrono::{Datelike, Local};
 use clap::{ArgAction, Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use gtfs_config::{merge_delta, GtfsJpProfile, ValidatorConfig};
+use gtfs_core::i18n::{RuleCard, RuleCards};
 use gtfs_core::{
     AuthoritySource, Notice, RuleClass, Severity, ValidateResult, ValidationResult,
     ValidationStatus,
@@ -686,6 +687,8 @@ struct CompactR9Item {
     rule_class: &'static str,
     message: String,
     remediation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card: Option<RuleCard>,
     labels: Vec<gtfs_core::R9Label>,
     priority_score: f64,
     score_delta: f64,
@@ -905,6 +908,8 @@ fn compact_reports(
         None
     };
     let catalog = translator.as_ref().or(english_catalog.as_ref());
+    let cards = RuleCards::new(lang)
+        .map_err(|err| format!("failed to load compact planner cards: {err}"))?;
     let items = vr
         .reports
         .r9
@@ -959,6 +964,7 @@ fn compact_reports(
                 rule_class: class_str(rule.rule_class),
                 message,
                 remediation,
+                card: cards.get(rule.id),
                 labels: item.labels.clone(),
                 priority_score: item.priority_score,
                 score_delta: item.score_delta,
@@ -1016,6 +1022,7 @@ fn lang_name(lang: LangArg) -> &'static str {
         LangArg::En => "en",
         LangArg::Ja => "ja",
         LangArg::Fr => "fr",
+        LangArg::Es => "es",
     }
 }
 
@@ -1146,6 +1153,8 @@ struct RuleRow<'a> {
     title: &'a str,
     message: String,
     remediation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    card: Option<RuleCard>,
 }
 
 fn run_rules(args: RulesArgs) -> ExitCode {
@@ -1166,6 +1175,10 @@ fn run_rules(args: RulesArgs) -> ExitCode {
         None
     };
     let catalog = translator.as_ref().or(english_catalog.as_ref());
+    let cards = match RuleCards::new(args.lang.into()) {
+        Ok(cards) => cards,
+        Err(err) => return cli_error(err),
+    };
 
     let rows: Vec<RuleRow> = RULES
         .iter()
@@ -1194,6 +1207,7 @@ fn run_rules(args: RulesArgs) -> ExitCode {
                 .and_then(|catalog| catalog.rule_remediation(meta.id))
                 .unwrap_or("")
                 .to_owned(),
+            card: cards.get(meta.id),
         })
         .collect();
 

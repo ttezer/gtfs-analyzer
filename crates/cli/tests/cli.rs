@@ -466,6 +466,42 @@ fn compact_json_adds_r9_rule_metadata_and_optional_samples() {
     assert_eq!(sample["file"], "trips.txt");
 }
 
+/// The planner card follows `--lang`, Turkish included, while `message`/`remediation`
+/// keep their own fallback rules.
+#[test]
+fn compact_json_adds_the_planner_card_in_the_requested_language() {
+    let card_of = |lang: &str| {
+        let json = json_of(&validate(
+            &feed_with_critical(),
+            &["--compact-json", "--lang", lang],
+        ));
+        json["reports"]["r9"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["rule_id"] == "TRP_002")
+            .expect("fixture must produce a TRP_002 R9 item")["card"]
+            .clone()
+    };
+
+    let en = card_of("en");
+    for field in ["title", "what", "action"] {
+        assert!(
+            !en[field].as_str().unwrap().is_empty(),
+            "en card has no {field}"
+        );
+    }
+    for lang in ["tr", "fr", "es"] {
+        let card = card_of(lang);
+        assert!(!card["title"].as_str().unwrap().is_empty(), "{lang}");
+        assert_ne!(card["title"], en["title"], "{lang} card title is English");
+        assert_ne!(
+            card["action"], en["action"],
+            "{lang} card action is English"
+        );
+    }
+}
+
 #[test]
 fn compact_json_omits_samples_without_the_samples_flag() {
     let json = json_of(&validate(&feed_with_critical(), &["--compact-json"]));
@@ -768,6 +804,23 @@ fn rules_json_includes_rule_message_and_remediation() {
     assert_eq!(row["id"], "TRP_002");
     assert!(!row["message"].as_str().unwrap().is_empty());
     assert!(!row["remediation"].as_str().unwrap().is_empty());
+}
+
+#[test]
+fn rules_json_includes_the_planner_card() {
+    let es = &json_of(&run(&[
+        "rules", "--json", "--rule", "STM_056", "--lang", "es",
+    ]))[0];
+    let en = &json_of(&run(&[
+        "rules", "--json", "--rule", "STM_056", "--lang", "en",
+    ]))[0];
+    assert_ne!(es["card"]["title"], en["card"]["title"]);
+    assert!(!es["card"]["what"].as_str().unwrap().is_empty());
+
+    // STM_001's card text needs per-finding values, so a rule-level card has no `what`.
+    let row = &json_of(&run(&["rules", "--json", "--rule", "STM_001"]))[0];
+    assert!(row["card"].get("what").is_none());
+    assert!(!row["card"]["action"].as_str().unwrap().is_empty());
 }
 
 #[test]

@@ -13,6 +13,8 @@ pub enum LangArg {
     En,
     Ja,
     Fr,
+    /// Spanish — planner cards only; other texts fall back to English.
+    Es,
 }
 
 impl From<LangArg> for Lang {
@@ -22,6 +24,7 @@ impl From<LangArg> for Lang {
             LangArg::En => Lang::En,
             LangArg::Ja => Lang::Ja,
             LangArg::Fr => Lang::Fr,
+            LangArg::Es => Lang::Es,
         }
     }
 }
@@ -32,7 +35,7 @@ mod tests {
 
     #[test]
     fn registry_titles_cover_every_rule() {
-        for lang in [Lang::En, Lang::Ja, Lang::Fr] {
+        for lang in [Lang::En, Lang::Ja, Lang::Fr, Lang::Es] {
             let translator = Translator::new(lang).unwrap().unwrap();
             for meta in gtfs_rules::RULES {
                 assert_ne!(
@@ -80,6 +83,32 @@ mod tests {
                 "'{name}' locale is missing {} entries: {missing:?}\n\
                  Add them to ui/src/locales/{name}.ts, then run `npm run locales:export`.",
                 missing.len()
+            );
+        }
+    }
+
+    /// Every registered rule has its own planner card in every language. A gap would
+    /// fall back to English silently, so a new rule must come with all five cards.
+    #[test]
+    fn every_registered_rule_has_a_card_in_every_language() {
+        for (name, lang) in [
+            ("tr", Lang::Tr),
+            ("en", Lang::En),
+            ("ja", Lang::Ja),
+            ("fr", Lang::Fr),
+            ("es", Lang::Es),
+        ] {
+            let cards = gtfs_core::i18n::RuleCards::new(lang).unwrap();
+            let missing: Vec<&str> = gtfs_rules::RULES
+                .iter()
+                .map(|rule| rule.id)
+                .filter(|id| !cards.has_own(id))
+                .collect();
+            assert!(
+                missing.is_empty(),
+                "'{name}' locale has no planner card for {missing:?}\n\
+                 Add producer.card.<RULE>.{{title,what,action}} to ui/src/locales/{name}.ts, \
+                 then run `npm run locales:export`."
             );
         }
     }

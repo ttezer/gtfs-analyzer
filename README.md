@@ -427,7 +427,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--max-notices-per-rule 20` | JSON'da kural başına en fazla N bulgu tutar; kesilen kuralların gerçek sayısı `capped_totals`'ta, R1/R5/R9 tüm bulgulardan hesaplanır (`--json` gerektirir) |
 | `--samples N` | `--compact-json` ile her R9 kuralına K7 sırasındaki ilk N kök neden bulgusunu (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) ekler |
 | `-o rapor.json` | Çıktıyı stdout yerine dosyaya yazar |
-| `--lang en` | Bulgu metinlerinin dili: `en` (varsayılan) / `tr` / `ja` / `fr` |
+| `--lang en` | Bulgu metinlerinin dili: `en` (varsayılan) / `tr` / `ja` / `fr` / `es` (`es`: yalnız planlamacı kartları) |
 | `--config config.json` | JSON config delta uygular (`ValidatorConfig::default()` üzerine) |
 | `--gtfs-jp-profile auto\|v3\|v4` | GTFS-JP kural profilini açıkça seçer; config değerini geçersiz kılar |
 | `--today 20260710` | Analiz "bugün"ünü sabitler (takvim kuralları için) |
@@ -448,7 +448,8 @@ taşımayan, makine tüketicileri için kanonik bir projeksiyondur. Üst düzeyd
 `analysis`, `reports.r1`, `reports.r5`, `reports.r9`, `metrics`,
 `notice_counts` ve `triggered_rule_count` alanlarını içerir. `reports.r9.items`
 her kuralın başlık, önem, sınıf, mesaj, düzeltme, öncelik, etki ve skor değişimi
-alanlarını taşır; `--samples N` verilirse her öğeye en fazla N kök neden örneği eklenir.
+alanlarını ve `--lang` dilinde sade dilli bir `card` (`title`, `what`, `action`) taşır;
+`--samples N` verilirse her öğeye en fazla N kök neden örneği eklenir.
 
 `--compact-json` web arayüzünün payload'ı değildir ve kendi başına kural başına örnek
 sınırı uygulamaz. Web görünümündeki notice listesini CLI full JSON ile yaklaşık eşlemek
@@ -490,7 +491,7 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`.
+Alanlar: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`, `card`.
 `--class` / `--severity` / `--min-severity` / `--rule` filtreleri `validate` ile aynı anlamdadır.
 `--lang` burada da geçerlidir (kural başlıkları, mesajları ve düzeltme metinleri).
 
@@ -508,6 +509,8 @@ feed'lerdeki sıfır puanlı `CAL_015` bilgi bildirimi bilinçli olarak aksiyon 
 Doğrulama çekirdeği bulgu metinlerini Türkçe üretir; `--lang en` / `--lang ja` / `--lang fr` bunları arayüzün kullandığı **aynı çeviri sözlükleriyle** değiştirir. Kural ID'leri, önem ve sınıf değerleri (`CRITICAL`, `SPEC`) her dilde makine-okunur sabit kalır; yalnızca `title`, `message` ve `remediation` çevrilir.
 
 Bir kuralın çevirisi yoksa sıra şudur: istenen dil → İngilizce → Türkçe (çekirdeğin ürettiği metin). Böylece çıktı hiçbir zaman boş kalmaz.
+
+Kural düzeyindeki çıktılar (`--compact-json` R9 öğeleri ve `rules --json`) ayrıca `card` taşır: web arayüzünün planlamacı görünümündeki sade başlık, ne olduğu (`what`) ve ne yapılacağı (`action`); `tr`, `en`, `ja`, `fr` ve `es` dillerinde. `es` yalnız kartları olan bir dildir, diğer metinleri İngilizceye düşer. Kart metni bulguya özgü değerler gerektiriyorsa `what` verilmez.
 
 Sözlükler `ui/src/locales/{en,ja}.ts` dosyalarından `npm run locales:export` ile `crates/core/locales/*.json` içine türetilir; CLI binary'sine ve Python paketine gömülür. Locale güncellenip export çalıştırılmazsa `locale-parity.test.ts` CI'da kırmızı yanar — tek kaynak locale dosyalarıdır.
 
