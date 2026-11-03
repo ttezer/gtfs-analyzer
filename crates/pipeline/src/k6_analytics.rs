@@ -6971,6 +6971,42 @@ fn feed_is_demand_responsive_only(records: &EntityRecords) -> bool {
 // ── Remaining K6 rules (STM_017, GEO_007/009/012/013, SHP_013, DQ_005b/005c/010,
 //    RTS_017, TRP_012/015, OPR_005/013) ──────────────────────────────────────
 
+const STM017_TRIP_SAMPLE: usize = 12;
+const STM017_STOP_SAMPLE: usize = 10;
+
+fn add_stm017_trip_details(
+    details: &mut gtfs_core::NoticeDetails,
+    idx: &StopTimesIndex<'_>,
+    trip_id: &str,
+    prefix: &str,
+) {
+    let Some(stops) = idx.by_trip.get(trip_id) else {
+        return;
+    };
+    let missing: Vec<&CompactStopTime> = stops
+        .iter()
+        .filter(|stop| stop.shape_dist_traveled().is_none())
+        .collect();
+    details.insert(format!("{prefix}stop_count"), stops.len().to_string());
+    details.insert(
+        format!("{prefix}affected_stop_count"),
+        missing.len().to_string(),
+    );
+    for (i, stop) in missing.into_iter().take(STM017_STOP_SAMPLE).enumerate() {
+        let key = |name: &str| format!("{prefix}missing_{i}_{name}");
+        details.insert(key("stop_id"), idx.stop_id_of(stop).to_string());
+        if let Some(sequence) = stop.stop_sequence() {
+            details.insert(key("stop_sequence"), sequence.to_string());
+        }
+        if let Some(arrival) = stop.arrival_time() {
+            details.insert(key("arrival"), format_hms(hms_to_secs(arrival)));
+        }
+        if let Some(departure) = stop.departure_time() {
+            details.insert(key("departure"), format_hms(hms_to_secs(departure)));
+        }
+    }
+}
+
 // This analysis stage takes shared indexes as separate borrows; a parameter struct is
 // deliberately avoided because it would obscure lifetimes and data ownership.
 #[allow(clippy::too_many_arguments)]
@@ -7013,6 +7049,16 @@ fn check_remaining_analytics<'a>(
         .trips
         .iter()
         .map(|t| (t.trip_id.as_str(), ti_rem.route_id(t)))
+        .collect();
+    let trip_to_service_rem: FxHashMap<&str, &str> = records
+        .trips
+        .iter()
+        .map(|t| (t.trip_id.as_str(), ti_rem.service_id(t)))
+        .collect();
+    let trip_to_shape_rem: FxHashMap<&str, &str> = records
+        .trips
+        .iter()
+        .filter_map(|t| ti_rem.shape_id(t).map(|shape| (t.trip_id.as_str(), shape)))
         .collect();
     let route_type_rem: FxHashMap<&str, u32> = records
         .routes
@@ -7258,17 +7304,12 @@ fn check_remaining_analytics<'a>(
         if !any_sdt_present && flagged.len() > 1 {
             // Completely absent feed-wide → one summary notice (noise ~54k → 1).
             let n = flagged.len();
-            let trip_to_shape: FxHashMap<&str, &str> = records
-                .trips
-                .iter()
-                .filter_map(|t| ti_rem.shape_id(t).map(|s| (t.trip_id.as_str(), s)))
-                .collect();
             let n_shapes = flagged
                 .iter()
-                .filter_map(|(tid, _)| trip_to_shape.get(*tid).copied())
+                .filter_map(|(tid, _)| trip_to_shape_rem.get(*tid).copied())
                 .collect::<FxHashSet<&str>>()
                 .len();
-            notices.push(k6_notice(
+            let mut notice = k6_notice(
                 ctr,
                 "STM_017",
                 EntityType::Feed,
@@ -7281,7 +7322,26 @@ fn check_remaining_analytics<'a>(
                 None,
                 format!("Feed genelinde shape_dist_traveled hiç kullanılmamış: {n_shapes} güzergaha ait {n} sefer etkileniyor — durak konumları güzergah üzerinde doğrulanamıyor."),
                 "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da güzergah bazlı mesafe verisi sağlayın.",
-            ));
+            );
+            let mut details = gtfs_core::NoticeDetails::new();
+            details.insert("summary_mode".to_string(), "feed".to_string());
+            details.insert("affected_trip_count".to_string(), n.to_string());
+            details.insert("affected_shape_count".to_string(), n_shapes.to_string());
+            let mut examples = flagged.clone();
+            examples.sort_unstable_by_key(|(trip_id, _)| *trip_id);
+            for (i, (trip_id, line)) in examples.into_iter().take(STM017_TRIP_SAMPLE).enumerate() {
+                let prefix = format!("example_{i}_");
+                details.insert(format!("{prefix}trip"), trip_id.to_string());
+                details.insert(format!("{prefix}line"), line.to_string());
+                if let Some(service_id) =
+                    trip_to_service_rem.get(trip_id).filter(|id| !id.is_empty())
+                {
+                    details.insert(format!("{prefix}service_id"), (*service_id).to_string());
+                }
+                add_stm017_trip_details(&mut details, idx, trip_id, &prefix);
+            }
+            notice.details = Some(details);
+            notices.push(notice);
         } else {
             for (trip_id, line) in flagged {
                 let route = trip_to_route_rem.get(trip_id).copied().unwrap_or(trip_id);
@@ -7294,7 +7354,7 @@ fn check_remaining_analytics<'a>(
                 } else {
                     format!(" {dep}")
                 };
-                notices.push(k6_notice(
+                let mut notice = k6_notice(
                     ctr,
                     "STM_017",
                     EntityType::Trip,
@@ -7307,7 +7367,20 @@ fn check_remaining_analytics<'a>(
                     None,
                     format!("'{}' hattının{dep_infix} seferinde güzergah mesafe bilgisi (shape_dist_traveled) eksik — durak konumları doğrulanamıyor.", route),
                     "Tüm stop_times satırlarına shape_dist_traveled ekleyin ya da tümünden kaldırın.",
-                ));
+                );
+                if let Some(service_id) =
+                    trip_to_service_rem.get(trip_id).filter(|id| !id.is_empty())
+                {
+                    notice.service_id = Some((*service_id).to_string());
+                }
+                let mut details = gtfs_core::NoticeDetails::new();
+                details.insert("route_id".to_string(), route.to_string());
+                if let Some(shape_id) = trip_to_shape_rem.get(trip_id) {
+                    details.insert("shape_id".to_string(), (*shape_id).to_string());
+                }
+                add_stm017_trip_details(&mut details, idx, trip_id, "");
+                notice.details = Some(details);
+                notices.push(notice);
             }
         }
     }
@@ -16207,9 +16280,24 @@ mod tests {
         ];
         records.shape_interns = shape_ti.clone();
         let result = analyze(&records, &empty_derived(), &default_config(), 20260514);
-        assert!(
-            result.notices.iter().any(|n| n.rule_id == "STM_017"),
-            "STM_017 olmalı"
+        let notice = result
+            .notices
+            .iter()
+            .find(|n| n.rule_id == "STM_017")
+            .expect("STM_017 olmalı");
+        let details = notice.details.as_ref().expect("STM_017 details olmalı");
+        assert_eq!(details.get("stop_count").map(String::as_str), Some("2"));
+        assert_eq!(
+            details.get("affected_stop_count").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("missing_0_stop_id").map(String::as_str),
+            Some("A")
+        );
+        assert_eq!(
+            details.get("missing_1_stop_id").map(String::as_str),
+            Some("B")
         );
     }
 
@@ -16270,6 +16358,29 @@ mod tests {
             stm017[0].observed_value.as_deref(),
             Some("2"),
             "etkilenen sefer sayısı 2 olmalı"
+        );
+        let details = stm017[0].details.as_ref().expect("özet details olmalı");
+        assert_eq!(
+            details.get("affected_trip_count").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            details.get("affected_shape_count").map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(
+            details.get("example_0_trip").map(String::as_str),
+            Some("T1")
+        );
+        assert_eq!(
+            details.get("example_1_trip").map(String::as_str),
+            Some("T2")
+        );
+        assert_eq!(
+            details
+                .get("example_0_affected_stop_count")
+                .map(String::as_str),
+            Some("2")
         );
     }
 

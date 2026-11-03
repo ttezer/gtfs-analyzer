@@ -305,6 +305,25 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: untimed ? t('producer.card.trip_untimed_action') : t(`producer.card.${g.ruleId}.action`),
       };
     }
+    case 'STM_017': {
+      const d = n.details ?? {};
+      const context = n.entity_type === 'Trip' ? tripContextText(tripContext(n, result)) : undefined;
+      const summary = d.summary_mode === 'feed';
+      return {
+        title: t('producer.card.STM_017.title'),
+        context,
+        what: summary
+          ? t('producer.card.STM_017.what_feed', {
+            trips: d.affected_trip_count || g.count,
+            shapes: d.affected_shape_count || '—',
+          })
+          : t('producer.card.STM_017.what_trip', {
+            affected: d.affected_stop_count || '—',
+            total: d.stop_count || '—',
+          }),
+        action: t(summary ? 'producer.card.STM_017.action_feed' : 'producer.card.STM_017.action_trip'),
+      };
+    }
     case 'STM_008': {
       const context = tripContext(n, result);
       const d = n.details ?? {};
@@ -660,6 +679,22 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       rows.map(([stop, sequence, arrival, departure, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`).join('')
     }</tbody></table>`;
   }
+  if (n.rule_id === 'STM_017') {
+    type DistanceRow = [string, string, string, string];
+    const rows: DistanceRow[] = [];
+    for (let i = 0; d[`missing_${i}_stop_id`]; i++) {
+      rows.push([
+        name(d[`missing_${i}_stop_id`]),
+        d[`missing_${i}_stop_sequence`] || '—',
+        d[`missing_${i}_arrival`] || '—',
+        d[`missing_${i}_departure`] || '—',
+      ]);
+    }
+    if (!rows.length) return '';
+    return `<table class="planner-times planner-stm017-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.shape_distance')}</th></tr></thead><tbody>${
+      rows.map(([stop, sequence, arrival, departure]) => `<tr class="bad"><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td><td>${t('producer.times.missing')}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   type Row = [string, string, string, boolean];
   let rows: Row[] = [];
   if (n.rule_id === 'STM_008') {
@@ -728,6 +763,12 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
       return t('producer.times.spot_untimed_at', { stop: name(d.stop_id) });
     }
     return t('producer.times.spot_untimed', { n: d.stop_count ?? '?' });
+  }
+  if (n.rule_id === 'STM_017' && d.missing_0_stop_id) {
+    const count = Number(d.affected_stop_count || 1);
+    return t(count > 1 ? 'producer.times.spot_stm017_many' : 'producer.times.spot_stm017_one', {
+      stop: name(d.missing_0_stop_id), n: Number.isFinite(count) ? count : 1,
+    });
   }
   if (n.rule_id === 'STM_015') return t('producer.times.spot_first', { stop: name(d.stop_id), time: d.departure ?? d.next_time ?? '—' });
   if (n.rule_id === 'STM_003' && d.stop_id) return t('producer.times.spot_arrival', { stop: name(d.stop_id), time: n.observed_value ?? '?' });
@@ -1062,6 +1103,18 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         addStop(n.details?.stop_id || tripStops[lastIndex], true, n.details?.stop_sequence || stopSequences[lastIndex]);
         addStop(n.details?.preceding_stop_id, false, n.details?.preceding_stop_sequence);
         addStop(n.details?.preceding2_stop_id, false, n.details?.preceding2_stop_sequence);
+      }
+    } else if (n.rule_id === 'STM_017') {
+      const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
+      const allMissing = Number(n.details?.affected_stop_count) === Number(n.details?.stop_count)
+        && Number(n.details?.stop_count) > 0;
+      if (allMissing) {
+        for (const [index, stopId] of tripStops.entries()) addStop(stopId, true, stopSequences[index]);
+      } else {
+        for (let i = 0; n.details?.[`missing_${i}_stop_id`]; i++) {
+          addStop(n.details[`missing_${i}_stop_id`], true, n.details[`missing_${i}_stop_sequence`]);
+        }
       }
     } else if (n.rule_id === 'STM_056') {
       // STM_056 is a directional trip finding: keep the route path and mark the
@@ -1615,6 +1668,16 @@ function exampleRows(n: Notice): Notice[] | null {
       const value = at(from) ?? at(to);
       if (value) details[to] = value;
     }
+    for (let j = 0; at(`missing_${j}_stop_id`); j++) {
+      for (const key of ['stop_id', 'stop_sequence', 'arrival', 'departure']) {
+        const value = at(`missing_${j}_${key}`);
+        if (value) details[`missing_${j}_${key}`] = value;
+      }
+    }
+    for (const key of ['stop_count', 'affected_stop_count']) {
+      const value = at(key);
+      if (value) details[key] = value;
+    }
     const line = Number(at('line'));
     rows.push({
       ...n, entity_type: 'Trip', entity_id: at('trip'), line: Number.isFinite(line) && at('line') ? line : null,
@@ -1629,6 +1692,9 @@ function exampleRows(n: Notice): Notice[] | null {
 
 /** Özetin bildirdiği toplam kayıt sayısı (affected_*); yoksa örnek sayısı. */
 function exampleTotal(n: Notice, examples: number): number {
+  const preferred = n.rule_id === 'STM_017' ? n.details?.affected_trip_count : undefined;
+  const preferredValue = Number(preferred);
+  if (Number.isFinite(preferredValue) && preferredValue > examples) return preferredValue;
   const total = Object.entries(n.details ?? {}).find(([key]) => key.startsWith('affected_'))?.[1];
   const value = Number(total);
   return Number.isFinite(value) && value > examples ? value : examples;

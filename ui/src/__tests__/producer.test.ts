@@ -716,6 +716,68 @@ describe('Saatsiz sefer', () => {
   });
 });
 
+describe('STM_017 planlamacı kanıtı', () => {
+  const nameIndex: NameIndex = {
+    ...emptyNameIndex,
+    stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar' },
+    routes: { R1: 'S08' }, trips: { T1: 'Otogar', T2: 'Onkoloji' },
+    trip_routes: { T1: 'R1', T2: 'R1' }, trip_directions: { T1: '0', T2: '1' },
+    trip_first_dep: { T1: '06:15', T2: '07:15' }, trip_shapes: { T1: 'SH1', T2: 'SH1' },
+    trip_stops: { T1: ['S1', 'S2', 'S3'], T2: ['S3', 'S2', 'S1'] },
+    trip_stop_sequences: { T1: [1, 2, 3], T2: [1, 2, 3] },
+    stop_coords: { S1: [37.01, 37.31], S2: [37.02, 37.32], S3: [37.03, 37.33] },
+    shape_coords: { SH1: [[37.01, 37.31], [37.02, 37.32], [37.03, 37.33]] },
+    service_days: { WKD: ['1111100', '20260101', '20261231', '0'] },
+  };
+
+  it('sefer bulgusunda eksik durakları tablo ve haritada kırmızı gösterir', () => {
+    const n = notice('a', 'STM_017', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', service_id: 'WKD',
+      details: {
+        route_id: 'R1', shape_id: 'SH1', stop_count: '3', affected_stop_count: '2',
+        missing_0_stop_id: 'S1', missing_0_stop_sequence: '1', missing_0_arrival: '06:15:00', missing_0_departure: '06:15:00',
+        missing_1_stop_id: 'S3', missing_1_stop_sequence: '3', missing_1_arrival: '06:22:00', missing_1_departure: '06:22:00',
+      },
+    });
+    const r = result([n], [], [['STM_017', 2, 1]], true, nameIndex);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Bu seferin 3 durağından 2 tanesinde');
+    expect(el.innerHTML).toContain('<td>Onkoloji</td><td>1</td><td>06:15:00</td><td>06:15:00</td><td>eksik</td>');
+    expect(el.innerHTML).toContain('Onkoloji ile birlikte 2 durakta güzergâh mesafesi eksik');
+    expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
+    expect(el.innerHTML).toContain('<td>Hafta içi</td>');
+    const map = plannerMap(n, r);
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(nameIndex.shape_coords.SH1);
+    expect(map.opts.pins).toHaveLength(3);
+    expect(map.opts.pins.filter(pin => pin.primary).map(pin => pin.label)).toEqual(expect.arrayContaining([
+      expect.stringContaining('Onkoloji'), expect.stringContaining('Otogar'),
+    ]));
+    expect(map.opts.focus).toEqual(nameIndex.stop_coords.S1);
+  });
+
+  it('feed özetini gerçek sefer örneklerine açıp etkilenen sefer sayısını gösterir', () => {
+    const n = notice('a', 'STM_017', 'MEDIUM', {
+      entity_type: 'Feed', entity_id: null, observed_value: '3',
+      details: {
+        summary_mode: 'feed', affected_shape_count: '1', affected_trip_count: '3',
+        example_0_trip: 'T1', example_0_service_id: 'WKD', example_0_stop_count: '3', example_0_affected_stop_count: '3',
+        example_0_missing_0_stop_id: 'S1', example_0_missing_0_stop_sequence: '1',
+        example_1_trip: 'T2', example_1_service_id: 'WKD', example_1_stop_count: '3', example_1_affected_stop_count: '3',
+        example_1_missing_0_stop_id: 'S3', example_1_missing_0_stop_sequence: '1',
+      },
+    });
+    const r = result([n], [], [['STM_017', 2, 1]], true, nameIndex);
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('1 güzergâha ait 3 seferde');
+    expect(el.innerHTML).toContain('<strong>3</strong><span>sefer</span>');
+    expect(el.innerHTML).toContain('<td>Otogar</td><td>06:15</td>');
+    expect(el.innerHTML).toContain('<td>Onkoloji</td><td>07:15</td>');
+    expect(el.innerHTML).not.toContain('<strong>1</strong><span>kayıt</span>');
+  });
+});
+
 describe('Hat, durak, güzergâh ve takvim seçmeli süzgeci', () => {
   it('her boyut için seçmeli liste kurar ve seçenek adlarını planlamacının tanıdığı biçimde yazar', () => {
     const ni: NameIndex = {

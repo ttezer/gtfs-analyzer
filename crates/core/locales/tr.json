@@ -2161,9 +2161,9 @@
       "action": "Bu seferin son durağına varış saatini girin; bir önceki duraktan sonra gelen saat olmalı."
     },
     "STM_017": {
-      "title": "Durakların güzergâh üzerindeki mesafesi eksik",
-      "what": "Seferin durakları için güzergâh üzerindeki mesafe bilgisi eksik.",
-      "action": "Bu bilgiyi ilgili seferlerde tamamlayın veya kullanılmıyorsa mesafe değerlerini kaldırın."
+      "title": "Durakların güzergâh üzerindeki konumu tanımlanmamış",
+      "what": "Seferin durakları için güzergâh üzerindeki konum bilgisi eksik.",
+      "action": "Etkilenen seferlerde durakların güzergâh başlangıcından itibaren ilerleme mesafesini tutarlı biçimde girin."
     },
     "STM_018": {
       "title": "Durakta hat boyunca biniş kuralı geçersiz",

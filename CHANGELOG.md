@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Split the `STM_017` planner card into feed-summary and trip evidence, with affected trip examples, missing-stop tables, service context, and focused maps.
 - Add the first stop's next two actual stops and their times to the `STM_015` planner card.
 - Add the last stop's previous two actual stops and their times to the `STM_016` planner card.
 - Show the selected real trip geometry and all of its stops on `STM_014`, and keep a route-direction shape visible for one-stop `STM_015` trips.

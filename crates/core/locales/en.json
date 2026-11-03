@@ -4086,9 +4086,9 @@
       "action": "Enter the arrival time at the last stop of this trip; it must come after the previous stop."
     },
     "STM_017": {
-      "title": "Stop distances along the shape missing",
-      "what": "The distance along the shape is missing for the trip’s stops.",
-      "action": "Complete this information on the affected trips, or remove the distance values if you do not use them."
+      "title": "Stop positions along the route are not defined",
+      "what": "Position information along the route is missing for the trip’s stops.",
+      "action": "Enter consistent progress distances from the start of the route for the affected trips."
     },
     "STM_018": {
       "title": "Continuous pickup rule at a stop invalid",
