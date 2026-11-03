@@ -3881,6 +3881,35 @@ fn finalize_stm_pending(
         examples.sort_unstable();
         examples.dedup();
         examples.truncate(5);
+        let summary_message = if rule_id == "STM_056" {
+            let mut violation_examples: Vec<String> = pending
+                .iter()
+                .filter_map(|notice| {
+                    let trip_id = notice.entity_id.as_deref()?;
+                    let line = notice.line?;
+                    let observed = notice.observed_value.as_deref()?;
+                    let expected = notice.expected_value.as_deref()?;
+                    Some(format!(
+                        "{trip_id} (satır {line}: {observed}, beklenen {expected})"
+                    ))
+                })
+                .collect();
+            violation_examples.sort_unstable();
+            violation_examples.dedup();
+            violation_examples.truncate(3);
+            let examples = if violation_examples.is_empty() {
+                String::new()
+            } else {
+                format!(" İlk örnekler: {}.", violation_examples.join("; "))
+            };
+            format!(
+                "{n} stop_times satırında aynı trip içinde sonraki stop_sequence'ın \
+                 shape_dist_traveled değeri önceki duraktan küçük veya eşit. \
+                 Bu değer stop_sequence boyunca artmalıdır.{examples}"
+            )
+        } else {
+            format!("{n} stop_times satırında {summary}")
+        };
         let mut notice = make_k2_notice(
             counter,
             rule_id,
@@ -3892,7 +3921,7 @@ fn finalize_stm_pending(
             Some(field),
             Some(n.to_string()),
             None,
-            format!("{n} stop_times satırında {summary}"),
+            summary_message,
             remediation,
         );
         let mut d = std::collections::BTreeMap::new();
@@ -5193,6 +5222,9 @@ mod tests {
         );
         assert_eq!(stm056[0].entity_type, EntityType::Feed);
         assert_eq!(stm056[0].observed_value.as_deref(), Some("51"));
+        assert!(stm056[0].message.contains("aynı trip içinde"));
+        assert!(stm056[0].message.contains("T00 (satır"));
+        assert!(stm056[0].message.contains("beklenen > 100"));
         assert_eq!(
             stm056[0]
                 .details
