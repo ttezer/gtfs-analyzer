@@ -730,7 +730,7 @@ Dans les gros jeux de données, une même règle peut se déclencher des millier
 |---|---|---|
 | Par règle (défaut) | 500 | Toutes les règles |
 | Par règle (élevé) | 2 000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (toutes règles) | — | v0.18.0 n’a pas de limite d’arrêt de 100 000 signalements à l’échelle du jeu de données |
+| Total (toutes règles) | — | Pas de limite d’arrêt de 100 000 signalements à l’échelle du jeu de données |
 
 Les règles du plafond élevé produisent naturellement de grands décomptes sur des jeux de données réels (par exemple un enregistrement d’intervalle par course). Lorsqu’une règle atteint son plafond, le nombre réel de violations apparaît dans la colonne **Total** de la file de correction ; dans l’onglet Tous les signalements, la sélection de ce filtre de règle affiche une bannière d’avertissement jaune.
 

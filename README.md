@@ -737,10 +737,10 @@ Büyük feed'lerde aynı kural binlerce satırda tetiklenebilir. Sınırsız bul
 |---|---|---|
 | Kural başına (varsayılan) | 500 | Tüm kurallar |
 | Kural başına (yüksek) | 2.000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Toplam (tüm kurallar) | — | v0.18.0'da feed-geneli 100.000 durdurma sınırı yok |
+| Toplam (tüm kurallar) | — | Feed-geneli 100.000 durdurma sınırı yok |
 
 Bu 500/2.000 sınırları yalnızca tarayıcı/WASM görünümündeki performans örnekleridir; feed-geneli
-100.000'e ulaşınca doğrulamayı durduran bir v0.18.0 kod yolu yoktur. CLI varsayılan olarak sınırsız
+100.000'e ulaşınca doğrulamayı durduran bir kod yolu yoktur. CLI varsayılan olarak sınırsız
 notice üretir; `--json --max-notices-per-rule N` yalnız JSON çıktısında görünür bulguları sınırlar,
 R1/R5/R9 hesaplarını sınırlamaz.
 

@@ -726,7 +726,7 @@ In large feeds the same rule can fire thousands of times. Unlimited notice lists
 |---|---|---|
 | Per rule (default) | 500 | All rules |
 | Per rule (high) | 2,000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (all rules) | — | v0.18.0 has no feed-wide 100,000 stop limit |
+| Total (all rules) | — | No feed-wide 100,000 stop limit |
 
 Rules in the high-cap list naturally produce large counts in real feeds (e.g., one headway record per trip). When a rule hits its cap, the actual violation count appears in the **Total** column of the Fix Queue; on the All Findings tab, selecting that rule filter shows a yellow warning banner.
 
