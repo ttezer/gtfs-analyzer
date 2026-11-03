@@ -294,9 +294,9 @@ ChatGPT は例外で、解析リクエストの処理中にフィードを MCP �
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.18.0"
-gtfs-config   = "0.18.0"
-gtfs-core     = "0.18.0"
+gtfs-pipeline = "0.19.0"
+gtfs-config   = "0.19.0"
+gtfs-core     = "0.19.0"
 ```
 
 ```rust
@@ -322,7 +322,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ### `gtfs-sdk` npm パッケージ
 
-`gtfs-sdk` は v0.18.0 の検証エンジンを型付き JavaScript/TypeScript API として提供します。フィードはローカル WASM で検証され、アプリケーションの外に出ません。
+`gtfs-sdk` は v0.19.0 の検証エンジンを型付き JavaScript/TypeScript API として提供します。フィードはローカル WASM で検証され、アプリケーションの外に出ません。
 
 ```js
 import { validateGtfs } from "gtfs-sdk";
@@ -422,7 +422,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--max-notices-per-rule 20` | JSON に残す通知をルールごとに最大 N 件にする。切り詰めたルールの実件数は `capped_totals` に入り、R1/R5/R9 は全通知から計算される（`--json` が必要） |
 | `--samples N` | `--compact-json` と併用すると、R9 の各ルールに最初の N 件の根本原因指摘（`entity_type`、`entity_id`、`file`、`line`、`field`、`observed_value`、`expected_value`）を追加 |
 | `-o report.json` | stdout ではなくファイルに出力 |
-| `--lang en` | 指摘テキストの言語：`en`（デフォルト）/ `tr` / `ja` / `fr` |
+| `--lang en` | 指摘テキストの言語：`en`（デフォルト）/ `tr` / `ja` / `fr` / `es`（`es` はプランナーカードのみ） |
 | `--config config.json` | JSON config デルタを適用（`ValidatorConfig::default()` の上に） |
 | `--today 20260710` | 解析の「今日」を固定（カレンダールール用） |
 
@@ -442,8 +442,8 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 `validation_date`、`partial`、`analysis`、`reports.r1`、`reports.r5`、
 `reports.r9`、`metrics`、`notice_counts`、`triggered_rule_count` が含まれます。
 `reports.r9.items` の各要素にはルール名、重大度、クラス、メッセージ、修正方法、
-優先度、影響度、スコア差分が含まれ、`--samples N` で各要素に最大 N 件の根本原因
-例を追加できます。
+優先度、影響度、スコア差分に加え、`--lang` の言語による平易な `card`（`title`、`what`、
+`action`）が含まれ、`--samples N` で各要素に最大 N 件の根本原因例を追加できます。
 
 `--compact-json` は Web UI の payload ではなく、それ自体はルールごとの上限を
 適用しません。Web UI の表示 notice 件数を完全 JSON で近似する場合は
@@ -485,7 +485,7 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`、`message`、`remediation`。
+フィールド：`id`、`severity`、`class`、`authority_source`、`base_effort`、`blocks`、`title`、`message`、`remediation`、`card`。
 `--class` / `--severity` / `--min-severity` / `--rule` フィルタの意味は `validate` と同じです。
 `--lang` はここでも有効です（ルールのタイトル、メッセージ、修正方法）。
 
@@ -494,6 +494,8 @@ gtfs-analyzer rules --rule STM_004 --json --pretty
 検証コアは指摘テキストをトルコ語で生成します。`--lang en` / `--lang ja` / `--lang fr` は、**Web UI と同じ翻訳辞書**を使ってそれらを置き換えます。ルール ID、重大度、クラス（`CRITICAL`、`SPEC`）はどの言語でも機械可読な値のままで、翻訳されるのは `title`、`message`、`remediation` のみです。
 
 ルールの翻訳がない場合の順序は、指定言語 → 英語 → トルコ語（コアが生成したテキスト）です。出力が空になることはありません。
+
+ルール単位の出力（`--compact-json` の R9 要素と `rules --json`）には `card` も含まれます。Web UI のプランナービューと同じ平易なタイトル、何が起きたか（`what`）、何をすべきか（`action`）で、`tr`、`en`、`ja`、`fr`、`es` で提供されます。`es` はカードのみの言語で、その他のテキストは英語にフォールバックします。カードの文が指摘ごとの値を必要とする場合、`what` は省略されます。
 
 辞書は `npm run locales:export` により `ui/src/locales/{en,ja}.ts` から `crates/core/locales/*.json` へ生成され、CLI バイナリと Python パッケージに埋め込まれます。locale を更新して export を実行しなかった場合は `locale-parity.test.ts` が CI で失敗します — 単一の情報源は locale ファイルです。
 
@@ -720,7 +722,7 @@ GTFS-JP フィードの場合、**JPN** グループのルールは公式の [GT
 |---|---|---|
 | ルールごと（デフォルト） | 500 | すべてのルール |
 | ルールごと（高上限） | 2,000 | `TRP_020`、`OPR_007`、`STP_016`、`STP_017` |
-| 合計（全ルール） | — | v0.18.0 にはフィード全体で 100,000 件を超えると停止する制限はありません |
+| 合計（全ルール） | — | フィード全体で 100,000 件を超えると停止する制限はありません |
 
 高上限リストのルールは、実際のフィードで大量の件数が自然に発生します（例：便ごとに 1 件の運行間隔レコード）。ルールが上限に達した場合、実際の違反件数は修正キューの**合計**列に表示されます。全検出結果タブでそのルールフィルターを選択すると、黄色の警告バナーが表示されます。
 

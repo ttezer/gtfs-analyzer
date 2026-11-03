@@ -296,9 +296,9 @@ To embed validation in your own Rust service, use `gtfs-pipeline` directly — n
 
 ```toml
 [dependencies]
-gtfs-pipeline = "0.18.0"
-gtfs-config   = "0.18.0"
-gtfs-core     = "0.18.0"
+gtfs-pipeline = "0.19.0"
+gtfs-config   = "0.19.0"
+gtfs-core     = "0.19.0"
 ```
 
 ```rust
@@ -324,7 +324,7 @@ match validate_bytes(&zip, &config, 20_260_820) {
 
 ### `gtfs-sdk` npm package
 
-`gtfs-sdk` exposes the v0.18.0 validation engine as a typed JavaScript/TypeScript API. The feed is validated with local WASM and never leaves the application:
+`gtfs-sdk` exposes the v0.19.0 validation engine as a typed JavaScript/TypeScript API. The feed is validated with local WASM and never leaves the application:
 
 ```js
 import { validateGtfs } from "gtfs-sdk";
@@ -425,7 +425,7 @@ cargo run -p gtfs-analyzer -- validate feed.zip --json
 | `--max-notices-per-rule 20` | Keep at most N notices per rule in the JSON; real counts of truncated rules go to `capped_totals`, R1/R5/R9 are still computed over every notice (requires `--json`) |
 | `--samples N` | With `--compact-json`, add the first N root-cause findings per R9 rule (`entity_type`, `entity_id`, `file`, `line`, `field`, `observed_value`, `expected_value`) |
 | `-o report.json` | Write the output to a file instead of stdout |
-| `--lang en` | Language of the finding texts: `en` (default) / `tr` / `ja` / `fr` |
+| `--lang en` | Language of the finding texts: `en` (default) / `tr` / `ja` / `fr` / `es` (`es`: planner cards only) |
 | `--config config.json` | Apply a JSON config delta (on top of `ValidatorConfig::default()`) |
 | `--today 20260710` | Pin the analysis "today" (for calendar rules) |
 
@@ -445,7 +445,8 @@ contains `status`, `engine`, `engine_version`, `engine_commit`,
 `validation_date`, `partial`, `analysis`, `reports.r1`, `reports.r5`,
 `reports.r9`, `metrics`, `notice_counts`, and `triggered_rule_count`.
 Each `reports.r9.items` entry contains rule title, severity, class, message, remediation,
-priority, impact, and score-delta fields; `--samples N` adds up to N root-cause
+priority, impact, and score-delta fields, plus a plain-language `card` (`title`, `what`,
+`action`) in the `--lang` language; `--samples N` adds up to N root-cause
 examples to each item.
 
 `--compact-json` is not the web UI payload and does not apply a per-rule sample cap by
@@ -488,7 +489,7 @@ gtfs-analyzer rules --class spec --severity critical
 gtfs-analyzer rules --rule STM_004 --json --pretty
 ```
 
-Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`.
+Fields: `id`, `severity`, `class`, `authority_source`, `base_effort`, `blocks`, `title`, `message`, `remediation`, `card`.
 The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same as in `validate`.
 `--lang` applies here too (rule titles, messages and remediations).
 
@@ -497,6 +498,8 @@ The `--class` / `--severity` / `--min-severity` / `--rule` filters mean the same
 The validation core emits its finding texts in Turkish; `--lang en` / `--lang ja` / `--lang fr` replace them using the **same translation dictionaries the web UI uses**. Rule ids, severities and classes (`CRITICAL`, `SPEC`) stay machine-readable in every language — only `title`, `message` and `remediation` are translated.
 
 When a rule has no translation the chain is: requested language → English → Turkish (the core's own text), so the output is never blank.
+
+Rule-level outputs (`--compact-json` R9 items and `rules --json`) also carry `card`: the plain-language title, what happened (`what`) and what to do (`action`) of the web UI's planner view, in `tr`, `en`, `ja`, `fr` and `es`. `es` is a cards-only language: its other texts fall back to English. `what` is left out when the card text needs per-finding values.
 
 The dictionaries are derived from `ui/src/locales/{en,ja}.ts` into `crates/core/locales/*.json` by `npm run locales:export` and embedded in the CLI binary and the Python package. If a locale is edited without re-running the export, `locale-parity.test.ts` fails in CI — the locale files remain the single source of truth.
 
@@ -723,7 +726,7 @@ In large feeds the same rule can fire thousands of times. Unlimited notice lists
 |---|---|---|
 | Per rule (default) | 500 | All rules |
 | Per rule (high) | 2,000 | `TRP_020`, `OPR_007`, `STP_016`, `STP_017` |
-| Total (all rules) | — | v0.18.0 has no feed-wide 100,000 stop limit |
+| Total (all rules) | — | No feed-wide 100,000 stop limit |
 
 Rules in the high-cap list naturally produce large counts in real feeds (e.g., one headway record per trip). When a rule hits its cap, the actual violation count appears in the **Total** column of the Fix Queue; on the All Findings tab, selecting that rule filter shows a yellow warning banner.
 

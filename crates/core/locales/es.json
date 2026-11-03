@@ -1,0 +1,3099 @@
+{
+  "cards": {
+    "AGN_002": {
+      "title": "El operador no tiene nombre",
+      "what": "Un operador de la lista de operadores no tiene nombre; los pasajeros no pueden ver quién presta el servicio.",
+      "action": "Indique el nombre del operador que conocen los pasajeros."
+    },
+    "AGN_003": {
+      "title": "La dirección web del operador no es válida",
+      "what": "La dirección web indicada para {agency} no es una URL válida.",
+      "action": "Indique una dirección web válida para el operador."
+    },
+    "AGN_004": {
+      "title": "Zona horaria del operador ausente o no válida",
+      "what": "El operador no tiene zona horaria o tiene una no reconocida; las aplicaciones pueden mostrar los horarios de los viajes en una hora equivocada.",
+      "action": "Indique la zona horaria con su nombre estándar, por ejemplo \"Europe/Istanbul\"."
+    },
+    "AGN_005": {
+      "title": "Los operadores usan zonas horarias distintas",
+      "what": "Los operadores del conjunto de datos usan zonas horarias distintas; en un mismo conjunto de datos todas deben ser iguales.",
+      "action": "Asigne la misma zona horaria a todos los operadores."
+    },
+    "AGN_006": {
+      "title": "Idioma del operador no válido",
+      "what": "El código de idioma indicado para el operador no se reconoce.",
+      "action": "Indique el idioma con un código estándar como \"tr\" o \"en\"."
+    },
+    "AGN_007": {
+      "title": "Teléfono del operador no válido",
+      "what": "El número de teléfono indicado para el operador no parece un número.",
+      "action": "Indique el número completo con el prefijo, o déjelo vacío."
+    },
+    "AGN_008": {
+      "title": "Dirección de la página de tarifas no válida",
+      "what": "La dirección de la página de información de tarifas del operador no es una dirección web válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\", o déjela vacía."
+    },
+    "AGN_009": {
+      "title": "Correo electrónico del operador no válido",
+      "what": "El correo electrónico indicado para el operador no es válido.",
+      "action": "Indique el correo como nombre@dominio.com, o déjelo vacío."
+    },
+    "AGN_010": {
+      "title": "El mismo código de operador se usa dos veces",
+      "what": "Dos operadores tienen el mismo código; no queda claro a qué operador pertenece una línea.",
+      "action": "Asigne un código único a cada operador, o combine los registros duplicados."
+    },
+    "AGN_011": {
+      "title": "Línea o tarifa sin operador asignado",
+      "what": "Hay varios operadores, pero algunas líneas o tarifas no indican a qué operador pertenecen.",
+      "action": "Vincule cada línea y cada tarifa con su operador."
+    },
+    "AGN_012": {
+      "title": "Valor de pago sin contacto no válido",
+      "what": "El valor que indica si el operador acepta tarjetas sin contacto no es una de las opciones definidas.",
+      "action": "Elija \"sin información\", \"admitido\" o \"no admitido\"."
+    },
+    "AGN_013": {
+      "title": "El idioma del conjunto de datos y el del operador no coinciden",
+      "what": "El idioma del conjunto de datos no coincide con el idioma indicado para el operador.",
+      "action": "Haga que los dos idiomas coincidan; si el operador realmente usa otro idioma, no hay problema."
+    },
+    "AGN_014": {
+      "title": "Falta el código de operador habiendo varios operadores",
+      "what": "Hay más de un operador, pero algunos no tienen código; no se pueden vincular líneas con ellos.",
+      "action": "Asigne un código único a cada operador."
+    },
+    "AGN_015": {
+      "title": "La dirección del operador no es segura (http)",
+      "what": "La dirección web del operador empieza por \"http://\"; los navegadores pueden mostrar un aviso de sitio no seguro.",
+      "action": "Si el sitio lo admite, cambie la dirección a \"https://\"."
+    },
+    "AGN_016": {
+      "title": "El teléfono del operador parece de prueba",
+      "what": "El teléfono del operador es un número de prueba o de relleno conocido; es posible que los pasajeros no puedan contactar con nadie.",
+      "action": "Indique el número real de atención al cliente."
+    },
+    "AGN_017": {
+      "title": "Los operadores declaran idiomas distintos",
+      "what": "Los operadores del conjunto de datos declaran idiomas distintos. Es solo informativo.",
+      "action": "Si la red es multilingüe, no hay problema; si no, use el mismo idioma."
+    },
+    "AGN_018": {
+      "title": "El único operador no tiene código",
+      "what": "Hay un solo operador y su código está vacío. Ahora no causa problemas, pero los causará cuando se añada un segundo operador.",
+      "action": "Asigne un código al operador."
+    },
+    "ARC_001": {
+      "title": "No se puede abrir el archivo del conjunto de datos",
+      "what": "No se pudo abrir el archivo ZIP subido; no se pudo leer nada de su contenido.",
+      "action": "Exporte de nuevo el conjunto de datos desde su software de planificación. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_002": {
+      "title": "No se pueden leer los caracteres de un archivo",
+      "what": "Un archivo no está en codificación UTF-8; letras como ñ, á, é en los nombres de paradas y líneas pueden verse mal y el archivo no se pudo revisar por completo.",
+      "action": "Elija UTF-8 como codificación de caracteres al exportar. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_003": {
+      "title": "Error de codificación en un archivo opcional",
+      "what": "Un archivo opcional no está en codificación UTF-8; sus nombres pueden verse mal.",
+      "action": "Elija UTF-8 como codificación de caracteres al exportar. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_004": {
+      "title": "Falta un archivo obligatorio",
+      "what": "Falta un archivo GTFS obligatorio.",
+      "action": "Añada el archivo que falta al conjunto de datos."
+    },
+    "ARC_006": {
+      "title": "Hay un archivo GTFS opcional",
+      "what": "El conjunto de datos contiene un archivo opcional definido por el estándar. Es solo informativo.",
+      "action": "No es necesario hacer nada."
+    },
+    "ARC_007": {
+      "title": "Archivo no reconocido",
+      "what": "El conjunto de datos contiene un archivo que no forma parte del estándar GTFS; algunas aplicaciones pueden ignorarlo.",
+      "action": "Revise si el archivo es necesario; si no lo es, exclúyalo de la exportación."
+    },
+    "ARC_008": {
+      "title": "Faltan los archivos del calendario de servicio",
+      "what": "Falta un archivo que define el calendario de servicio.",
+      "action": "Añada los archivos del calendario de servicio al conjunto de datos."
+    },
+    "ARC_009": {
+      "title": "Archivo opcional vacío",
+      "what": "Un archivo opcional solo contiene la fila de encabezado y ningún registro.",
+      "action": "Si no hay nada que incluir, excluya el archivo de la exportación."
+    },
+    "ARC_010": {
+      "title": "Marca invisible al inicio del archivo",
+      "what": "El archivo empieza con una marca de codificación invisible (BOM); la mayoría de las aplicaciones la leen, pero algunas pueden leer mal el nombre de la primera columna.",
+      "action": "Use la opción \"UTF-8 sin BOM\" al exportar. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_011": {
+      "title": "Tamaño del archivo",
+      "what": "Se muestra el tamaño de los archivos del conjunto de datos a título informativo.",
+      "action": "No es necesario hacer nada."
+    },
+    "ARC_012": {
+      "title": "Estructura de fila del archivo no válida",
+      "what": "Una fila de {file} tiene un número de campos distinto al de su encabezado.",
+      "action": "Corrija la fila y exporte de nuevo el archivo."
+    },
+    "ARC_013": {
+      "title": "No se pueden leer las filas del archivo",
+      "what": "Las comillas, comas o saltos de línea de un archivo están dañados, por lo que las filas no se pueden separar correctamente.",
+      "action": "Exporte de nuevo el conjunto de datos. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_014": {
+      "title": "Espacios en los nombres de columna",
+      "what": "Los nombres de columna de la fila de encabezado de un archivo tienen espacios al principio o al final; algunas aplicaciones pueden no reconocer la columna.",
+      "action": "Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_015": {
+      "title": "La misma columna aparece dos veces",
+      "what": "El mismo nombre de columna aparece dos veces en un archivo; las aplicaciones no saben cuál leer.",
+      "action": "Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_017": {
+      "title": "Columna no estándar",
+      "what": "Un archivo tiene una columna que no está definida en el estándar GTFS; algunas aplicaciones pueden ignorarla.",
+      "action": "Si la columna se añadió a propósito, no hay problema; si no, exclúyala de la exportación."
+    },
+    "ARC_018": {
+      "title": "Fila vacía",
+      "what": "Un archivo contiene una fila completamente vacía.",
+      "action": "Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_019": {
+      "title": "Nombre de columna vacío",
+      "what": "La fila de encabezado de un archivo tiene una columna sin nombre, normalmente por una coma de más.",
+      "action": "Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_020": {
+      "title": "Falta un archivo recomendado",
+      "what": "El conjunto de datos no tiene el archivo de trazados de las líneas o el archivo de información del conjunto de datos (editor, fechas de validez).",
+      "action": "Añada los trazados de las líneas y la información del conjunto de datos a la exportación."
+    },
+    "ARC_021": {
+      "title": "Caracteres invisibles en el texto",
+      "what": "Algunos campos contienen caracteres especiales invisibles o que se ven mal; los nombres de paradas o líneas pueden verse extraños en las aplicaciones.",
+      "action": "Vuelva a escribir los nombres y textos afectados en su software de planificación."
+    },
+    "ARC_022": {
+      "title": "Archivo muy grande",
+      "what": "Un archivo tiene más de un millón de filas. No es un error; algunas aplicaciones pueden tardar más en procesarlo.",
+      "action": "No es necesario hacer nada."
+    },
+    "ARC_023": {
+      "title": "Un ZIP dentro del ZIP",
+      "what": "El archivo del conjunto de datos contiene un segundo archivo ZIP; la mayoría de las aplicaciones no leen el archivo interior.",
+      "action": "Coloque los archivos GTFS directamente en un único ZIP. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_024": {
+      "title": "Los archivos GTFS no están en el nivel superior del archivo comprimido",
+      "what": "Los archivos GTFS están en una subcarpeta del ZIP, por lo que algunas aplicaciones pueden no leerlos.",
+      "action": "Mueva los archivos GTFS al nivel superior del ZIP."
+    },
+    "ARC_025": {
+      "title": "Falta un campo obligatorio en el archivo",
+      "what": "El encabezado de {file} no contiene el campo {field}.",
+      "action": "Añada al archivo el campo obligatorio que falta."
+    },
+    "ARC_026": {
+      "title": "Saltos de línea dañados en un archivo",
+      "what": "Los saltos de línea de un archivo no son estándar; algunas aplicaciones pueden unir filas.",
+      "action": "Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_027": {
+      "title": "El permiso de lectura del archivo está desactivado",
+      "what": "Un archivo dentro del ZIP tiene el permiso de lectura desactivado; algunos sistemas pueden no abrirlo.",
+      "action": "Vuelva a empaquetar el conjunto de datos. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_028": {
+      "title": "La dirección de publicación no termina en .zip",
+      "what": "La dirección web donde se publica el conjunto de datos no termina en un nombre de archivo .zip; algunas aplicaciones pueden no reconocerlo como conjunto de datos.",
+      "action": "Publique el conjunto de datos en una dirección permanente que termine en \".zip\"."
+    },
+    "ARC_029": {
+      "title": "El archivo superó el límite de seguridad",
+      "what": "El archivo ZIP creció de forma anormal al abrirse; el procesamiento se detuvo por seguridad.",
+      "action": "Exporte de nuevo el conjunto de datos e inténtelo otra vez. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_030": {
+      "title": "Tabulación o salto de línea dentro del texto",
+      "what": "El valor de un campo contiene una tabulación o un salto de línea; el texto puede aparecer cortado en las aplicaciones.",
+      "action": "Vuelva a escribir el nombre o la descripción en una sola línea."
+    },
+    "ARC_031": {
+      "title": "Falta la información del conjunto de datos aunque se usan traducciones",
+      "what": "Hay un archivo de traducciones, pero no se indica el idioma del conjunto de datos.",
+      "action": "Añada la información del conjunto de datos e indique el idioma del conjunto de datos."
+    },
+    "ARC_032": {
+      "title": "Código HTML dentro del texto",
+      "what": "Un nombre o una descripción contiene una etiqueta HTML o un código de escape (p. ej., &amp;); los pasajeros lo ven como código.",
+      "action": "Vuelva a escribir el texto como texto sin formato."
+    },
+    "ARC_033": {
+      "title": "Comillas sin escapar en el texto",
+      "what": "El valor de un campo contiene comillas o una coma que no está correctamente entre comillas; la fila puede separarse mal.",
+      "action": "Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_034": {
+      "title": "Fila de encabezado repetida en medio del archivo",
+      "what": "La fila de encabezado vuelve a aparecer como fila de datos; esto suele ocurrir al unir dos archivos.",
+      "action": "Exporte todo de una sola vez. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_035": {
+      "title": "Archivo obligatorio vacío",
+      "what": "{file} existe, pero no contiene datos utilizables.",
+      "action": "Añada los registros necesarios al archivo."
+    },
+    "ARC_036": {
+      "title": "Estructura ZIP incoherente",
+      "what": "El archivo ZIP se abre en algunas herramientas y puede no abrirse en otras.",
+      "action": "Vuelva a empaquetar el conjunto de datos con una herramienta ZIP estándar. Es un problema de formato de archivo; comuníqueselo al proveedor del software de exportación o a su equipo de TI."
+    },
+    "ARC_037": {
+      "title": "Caracteres acentuados o especiales en un código",
+      "what": "Un código (identificador de parada, línea o viaje) contiene letras acentuadas o caracteres especiales; algunas aplicaciones no pueden relacionar estos códigos.",
+      "action": "Use solo letras sin acentos, números y símbolos simples en los códigos."
+    },
+    "ARS_001": {
+      "title": "El mismo código de área tarifaria se usa dos veces",
+      "what": "Dos áreas tarifarias tienen el mismo código.",
+      "action": "Asigne un código único a cada área tarifaria."
+    },
+    "ARS_002": {
+      "title": "El código del área tarifaria está vacío",
+      "what": "Un área tarifaria tiene el código vacío.",
+      "action": "Asigne un código único a cada área tarifaria."
+    },
+    "ATR_001": {
+      "title": "El registro de atribución no tiene código",
+      "what": "Un registro de atribución, que reconoce a quienes aportan los datos, tiene el código vacío.",
+      "action": "Asigne un código único a cada registro de atribución."
+    },
+    "ATR_002": {
+      "title": "La organización atribuida no tiene nombre",
+      "what": "Un registro de atribución no tiene nombre de organización.",
+      "action": "Indique el nombre de la organización a la que se reconoce."
+    },
+    "ATR_003": {
+      "title": "El registro de atribución no tiene función",
+      "what": "Un registro de atribución no indica si la organización es el productor de datos, el operador o la autoridad.",
+      "action": "Indique al menos una función para la organización."
+    },
+    "ATR_004": {
+      "title": "Función de productor de datos no válida",
+      "what": "El valor \"productor de datos\" de un registro de atribución no es sí ni no.",
+      "action": "Establezca el valor en sí o no."
+    },
+    "ATR_005": {
+      "title": "Función de operador no válida",
+      "what": "El valor \"operador\" de un registro de atribución no es sí ni no.",
+      "action": "Establezca el valor en sí o no."
+    },
+    "ATR_006": {
+      "title": "Función de autoridad no válida",
+      "what": "El valor \"autoridad\" de un registro de atribución no es sí ni no.",
+      "action": "Establezca el valor en sí o no."
+    },
+    "ATR_007": {
+      "title": "Dirección web de la atribución no válida",
+      "what": "La dirección web de un registro de atribución no es válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\", o déjela vacía."
+    },
+    "ATR_008": {
+      "title": "Correo electrónico de la atribución no válido",
+      "what": "El correo electrónico de un registro de atribución no es válido.",
+      "action": "Indique el correo como nombre@dominio.com, o déjelo vacío."
+    },
+    "ATR_009": {
+      "title": "Atribución vinculada a más de un destino",
+      "what": "Un registro de atribución está vinculado a la vez a un operador, una línea y un viaje; solo se permite uno.",
+      "action": "Vincule la atribución a un solo operador, línea o viaje."
+    },
+    "ATR_010": {
+      "title": "No se encuentra el operador de la atribución",
+      "what": "Un registro de atribución está vinculado a un operador que no está en la lista.",
+      "action": "Vincule la atribución a un operador existente."
+    },
+    "ATR_011": {
+      "title": "No se encuentra la línea de la atribución",
+      "what": "Un registro de atribución está vinculado a una línea que no está en la lista.",
+      "action": "Vincule la atribución a una línea existente."
+    },
+    "ATR_012": {
+      "title": "No se encuentra el viaje de la atribución",
+      "what": "Un registro de atribución está vinculado a un viaje que no está en la lista.",
+      "action": "Vincule la atribución a un viaje existente."
+    },
+    "BKR_001": {
+      "title": "Ajuste de reserva del día anterior en el lugar equivocado",
+      "what": "El último día y la última hora de reserva para la reserva del día anterior están en una regla cuyo tipo de reserva no es \"día anterior\".",
+      "action": "Use estos ajustes solo en reglas de reserva de \"día anterior\"."
+    },
+    "BKR_003": {
+      "title": "Hora de inicio de reserva sin día",
+      "what": "Se indica la hora en que se abre el periodo de reserva, pero no cuántos días antes se abre.",
+      "action": "Indique cuántos días antes se abre la reserva, o elimine la hora."
+    },
+    "BKR_004": {
+      "title": "Antelación indicada en una regla de reserva inmediata",
+      "what": "Una regla definida como reserva inmediata (en tiempo real) tiene indicados plazos de antelación.",
+      "action": "Elimine los plazos de antelación o corrija el tipo de reserva."
+    },
+    "BKR_005": {
+      "title": "Antelación máxima en el lugar equivocado",
+      "what": "La antelación máxima solo se puede usar en reservas del mismo día; aquí está en una regla de día anterior.",
+      "action": "Elimine este plazo o cambie el tipo de reserva a \"mismo día\"."
+    },
+    "BKR_006": {
+      "title": "Antelación mínima no válida",
+      "what": "La antelación mínima no es un número, o es cero o negativa.",
+      "action": "Indique el plazo en minutos como un número entero positivo."
+    },
+    "BKR_007": {
+      "title": "La reserva del mismo día no tiene antelación",
+      "what": "Una regla de reserva del mismo día no indica con cuántos minutos de antelación al viaje se debe reservar.",
+      "action": "Indique la antelación mínima en minutos."
+    },
+    "BKR_008": {
+      "title": "La reserva del día anterior no tiene último día",
+      "what": "Una regla de reserva del día anterior no indica cuántos días antes del viaje se cierra la reserva.",
+      "action": "Indique cuántos días antes del viaje se cierra la reserva."
+    },
+    "BKR_009": {
+      "title": "La reserva del día anterior no tiene hora límite",
+      "what": "Una regla de reserva del día anterior no indica hasta qué hora del último día se aceptan reservas.",
+      "action": "Indique la hora límite de reserva (p. ej., 17:00:00)."
+    },
+    "BKR_010": {
+      "title": "Día de inicio de reserva sin hora",
+      "what": "Se indica cuántos días antes se abre la reserva, pero no a qué hora.",
+      "action": "Indique la hora en que se abre la reserva."
+    },
+    "BKR_011": {
+      "title": "El periodo de reserva está invertido",
+      "what": "El día en que se cierra la reserva es anterior al día en que se abre; el periodo nunca se abre.",
+      "action": "Compruebe que el día de apertura sea el mismo o anterior al día de cierre."
+    },
+    "BKR_012": {
+      "title": "Antelación en minutos en una regla de día anterior",
+      "what": "Una regla de reserva del día anterior tiene un plazo de antelación en minutos; solo se usa en reglas del mismo día.",
+      "action": "Elimine este plazo o corrija el tipo de reserva."
+    },
+    "BKR_013": {
+      "title": "Hora límite de reserva sin día",
+      "what": "Se indica la hora límite de reserva, pero no cuántos días antes.",
+      "action": "Indique el último día de reserva, o elimine la hora."
+    },
+    "BKR_014": {
+      "title": "Calendario de reserva en el lugar equivocado",
+      "what": "El calendario de servicio que se usa para contar los días de reserva solo se puede usar en reglas de día anterior; aquí está en otro tipo.",
+      "action": "Elimine el calendario o cambie el tipo de reserva a \"día anterior\"."
+    },
+    "BKR_015": {
+      "title": "No se encuentra el calendario de reserva",
+      "what": "Una regla de reserva está vinculada a un calendario de servicio que no está definido.",
+      "action": "Vincule la regla a un calendario existente, o deje el calendario vacío."
+    },
+    "BKR_016": {
+      "title": "Tipo de reserva ausente o no válido",
+      "what": "El tipo de regla de reserva (inmediata, mismo día, día anterior) falta o no es válido.",
+      "action": "Elija el tipo de reserva."
+    },
+    "BKR_017": {
+      "title": "No se encuentra la regla de reserva de recogida",
+      "what": "Una parada a demanda está vinculada a una regla de reserva de recogida que no está definida.",
+      "action": "Vincule la parada a una regla de reserva existente, o defina la regla."
+    },
+    "BKR_018": {
+      "title": "No se encuentra la regla de reserva de bajada",
+      "what": "Una parada a demanda está vinculada a una regla de reserva de bajada que no está definida.",
+      "action": "Vincule la parada a una regla de reserva existente, o defina la regla."
+    },
+    "BKR_019": {
+      "title": "Código de regla de reserva vacío o repetido",
+      "what": "Una regla de reserva tiene el código vacío o el mismo código que otra regla.",
+      "action": "Asigne un código único a cada regla de reserva."
+    },
+    "BKR_020": {
+      "title": "Dirección web de reserva no válida",
+      "what": "La dirección web para hacer reservas no es válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\"."
+    },
+    "BKR_021": {
+      "title": "Página de información de reservas no válida",
+      "what": "La dirección de la página de información de reservas no es válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\", o déjela vacía."
+    },
+    "BKR_022": {
+      "title": "Teléfono de reserva no válido",
+      "what": "El número de teléfono de reserva no parece un número al que se pueda llamar.",
+      "action": "Indique solo el número de teléfono; ponga cualquier explicación en otro campo."
+    },
+    "BKR_023": {
+      "title": "El plazo de reserva no es un número entero",
+      "what": "Uno de los valores de días o minutos de reserva no es un número entero.",
+      "action": "Indique estos valores como números enteros."
+    },
+    "BKR_024": {
+      "title": "Ajuste de días contradictorio en la reserva del mismo día",
+      "what": "Una regla de reserva del mismo día tiene una antelación máxima y además indica cuántos días antes se abre la reserva.",
+      "action": "Elimine uno de los dos ajustes."
+    },
+    "BKR_025": {
+      "title": "Hora de reserva no válida",
+      "what": "La hora de apertura o cierre de la reserva no es una hora válida.",
+      "action": "Indique la hora como HH:MM:SS (p. ej., 17:00:00)."
+    },
+    "CAL_001": {
+      "title": "El mismo código de calendario se usa dos veces",
+      "what": "Dos calendarios de servicio tienen el mismo código; no queda claro qué días circulan los viajes.",
+      "action": "Asigne un código único a cada calendario de servicio."
+    },
+    "CAL_002": {
+      "title": "Valor de día no válido en el calendario",
+      "what": "Si un día hay servicio se indica con un valor distinto de sí/no.",
+      "action": "Marque cada día como con servicio o sin servicio."
+    },
+    "CAL_003": {
+      "title": "Fecha de inicio del calendario ausente o no válida",
+      "what": "Falta la fecha de inicio del calendario o no se puede leer.",
+      "action": "Indique la fecha de inicio (YYYYMMDD en la exportación, p. ej., 20260101)."
+    },
+    "CAL_004": {
+      "title": "Fecha de fin del calendario ausente o no válida",
+      "what": "Falta la fecha de fin del calendario o no se puede leer.",
+      "action": "Indique la fecha de fin (YYYYMMDD en la exportación, p. ej., 20261231)."
+    },
+    "CAL_005": {
+      "title": "El calendario termina antes de empezar",
+      "what": "La fecha de fin del calendario es anterior a su fecha de inicio; el calendario nunca tiene servicio.",
+      "action": "Revise y corrija las fechas de inicio y fin."
+    },
+    "CAL_006": {
+      "title": "Ningún día de la semana marcado en el calendario",
+      "what": "Todos los días de la semana están como \"sin servicio\". Puede que el calendario solo tenga servicio en fechas concretas.",
+      "action": "Si solo tiene servicio en fechas concretas, no hay problema; si no, marque los días con servicio."
+    },
+    "CAL_007": {
+      "title": "Interrupción larga en el periodo de servicio",
+      "what": "Un calendario de servicio tiene un periodo de más de dos semanas sin ningún día de servicio.",
+      "action": "Si la interrupción está prevista (p. ej., vacaciones de verano), no hay problema; si no, añada los días que faltan."
+    },
+    "CAL_008": {
+      "title": "El calendario termina pronto",
+      "what": "Se acerca el último día de un calendario de servicio; después de esa fecha sus viajes no se mostrarán a los pasajeros.",
+      "action": "Prepare y publique a tiempo el próximo horario."
+    },
+    "CAL_009": {
+      "title": "Todos los calendarios de servicio han terminado",
+      "what": "Todos los periodos de servicio del conjunto de datos están en el pasado.",
+      "action": "Añada un calendario con fechas actuales o actualice el existente."
+    },
+    "CAL_010": {
+      "title": "El calendario tiene muy pocos días de servicio",
+      "what": "Un calendario de servicio solo tiene servicio unos pocos días.",
+      "action": "Si es un servicio de corta duración (p. ej., un evento), no hay problema; si no, revise las fechas del calendario."
+    },
+    "CAL_011": {
+      "title": "Calendario de servicio sin usar",
+      "what": "Ningún viaje usa este calendario de servicio.",
+      "action": "Vincule el calendario a viajes, o elimínelo si no se usa."
+    },
+    "CAL_012": {
+      "title": "Interrupción del servicio próximamente",
+      "what": "En los próximos 30 días un calendario entra en un periodo de más de dos semanas sin días de servicio.",
+      "action": "Si la interrupción está prevista, no hay problema; si no, revise el calendario."
+    },
+    "CAL_013": {
+      "title": "Todos los días de un calendario de servicio están en el pasado",
+      "what": "Todos los días de servicio de un calendario están en el pasado; los viajes que lo usan ya no se muestran.",
+      "action": "Actualice el calendario con nuevas fechas, o elimínelo si ya no se usa."
+    },
+    "CAL_014": {
+      "title": "Calendario fuera del periodo de validez del conjunto de datos",
+      "what": "Las fechas de un calendario van más allá del periodo de validez declarado para el conjunto de datos; las aplicaciones pueden no fiarse de esos días.",
+      "action": "Haga coincidir el periodo de validez del conjunto de datos con las fechas del calendario."
+    },
+    "CAL_015": {
+      "title": "Todos los calendarios empiezan en el futuro",
+      "what": "Ningún calendario tiene servicio hoy; todos empiezan en una fecha posterior. Es posible que hoy no se muestren viajes en las aplicaciones de pasajeros.",
+      "action": "Si está publicando el nuevo horario con antelación, no hay problema; si no, revise las fechas de inicio."
+    },
+    "CAL_016": {
+      "title": "El servicio llega muy lejos en el futuro",
+      "what": "Los calendarios parecen tener servicio más de dos años por delante; el periodo real del horario probablemente es más corto.",
+      "action": "Ponga como fin del calendario la última fecha en que el horario es realmente válido."
+    },
+    "CAL_017": {
+      "title": "El calendario aún no ha empezado",
+      "what": "Un calendario de servicio empieza en una fecha posterior. Es solo informativo.",
+      "action": "Si está preparado para el próximo periodo, no hay problema; si no, revise la fecha de inicio."
+    },
+    "CAL_018": {
+      "title": "El calendario no tiene ningún día de servicio",
+      "what": "En un calendario no hay ningún día de la semana marcado ni se han añadido fechas especiales con servicio.",
+      "action": "Marque los días con servicio del calendario o añada sus fechas especiales con servicio."
+    },
+    "CAL_020": {
+      "title": "La validez del conjunto de datos supera los 5 años",
+      "what": "El periodo de validez de la información del conjunto de datos supera los 5 años.",
+      "action": "Limite el periodo de validez a las fechas en que el horario es realmente válido."
+    },
+    "CAL_021": {
+      "title": "No hay viajes en los próximos días",
+      "what": "El calendario cubre el día de hoy, pero no tiene ningún día de servicio en los próximos días.",
+      "action": "Si es una interrupción prevista, no hay problema; si no, añada las fechas cercanas."
+    },
+    "CAL_022": {
+      "title": "Código de calendario vacío",
+      "what": "Un calendario de servicio tiene el código vacío; no se le pueden vincular viajes.",
+      "action": "Asigne al calendario un código único."
+    },
+    "CAL_023": {
+      "title": "Fecha de fin del calendario sospechosamente lejana",
+      "what": "Un calendario de servicio termina dentro de muchos años (p. ej., 2099); suele ser un valor provisional y no una fecha de fin real.",
+      "action": "Indique como fin del calendario la última fecha real de validez del horario."
+    },
+    "CAL_024": {
+      "title": "Calendario sin servicio en los próximos 7 días",
+      "what": "Un calendario de servicio no tiene ningún día de servicio en los próximos 7 días. Es solo informativo.",
+      "action": "Si es lo previsto (p. ej., un calendario solo para festivos), no hay problema; de lo contrario, actualice el calendario."
+    },
+    "CAL_025": {
+      "title": "Un valor de día está vacío en el calendario",
+      "what": "En un calendario de servicio no se indica si hay servicio un día de la semana.",
+      "action": "Indique para cada día si hay servicio o no."
+    },
+    "CLD_001": {
+      "title": "Código de calendario vacío en un cambio de calendario",
+      "what": "Una fecha especial (añadida o eliminada) no indica a qué calendario de servicio pertenece.",
+      "action": "Vincule la fecha especial a su calendario."
+    },
+    "CLD_002": {
+      "title": "Fecha de cambio de calendario no válida",
+      "what": "Un registro de fecha especial no tiene fecha o no se puede leer.",
+      "action": "Indique la fecha con el formato YYYYMMDD (p. ej., 20270101)."
+    },
+    "CLD_003": {
+      "title": "Tipo de cambio de calendario no válido",
+      "what": "Un registro de fecha especial no indica si ese día se añade o se elimina el servicio, o el valor no es válido.",
+      "action": "Marque la fecha como \"servicio añadido\" o \"servicio eliminado\"."
+    },
+    "CLD_004": {
+      "title": "Calendario sin días de servicio",
+      "what": "No se usa el calendario semanal y algunos calendarios no tienen ninguna fecha de \"servicio añadido\"; sus viajes nunca circulan.",
+      "action": "Añada fechas de servicio a estos calendarios."
+    },
+    "CLD_005": {
+      "title": "Fecha de cambio de calendario poco razonable",
+      "what": "Una fecha especial no está entre 2000 y 2099; probablemente se introdujo mal.",
+      "action": "Revise y corrija la fecha."
+    },
+    "CLD_006": {
+      "title": "Demasiadas fechas especiales en un calendario",
+      "what": "Un calendario de servicio tiene más de 60 registros de fechas especiales. Es solo informativo.",
+      "action": "Considere definir los días habituales con el calendario semanal y usar fechas especiales solo para las excepciones."
+    },
+    "CLD_007": {
+      "title": "Calendario formado casi solo por excepciones",
+      "what": "La mayoría de los días de servicio de un calendario se introducen uno a uno como fechas especiales. Es solo informativo.",
+      "action": "Considere definir los días habituales con el calendario semanal."
+    },
+    "DQ_003": {
+      "title": "Falta la descripción de la línea",
+      "what": "El campo de descripción, que da información adicional a los pasajeros, está vacío en las líneas.",
+      "action": "Si lo desea, añada una breve descripción, como el horario de funcionamiento o una nota sobre la línea."
+    },
+    "DQ_004": {
+      "title": "Falta la página web de la línea",
+      "what": "No se indica ninguna página web donde los pasajeros puedan ver los detalles de la línea. Es solo informativo.",
+      "action": "Si la línea tiene una página de información, indique su dirección."
+    },
+    "DQ_005": {
+      "title": "Ningún periodo de servicio vigente",
+      "what": "Ningún calendario de servicio del conjunto de datos tiene servicio de hoy en adelante; las aplicaciones de pasajeros no mostrarán ningún viaje.",
+      "action": "Añada los calendarios del periodo actual y vuelva a publicar el conjunto de datos."
+    },
+    "DQ_005b": {
+      "title": "Ningún viaje tiene horarios de parada",
+      "what": "Hay viajes definidos, pero ninguno tiene horarios de parada; es posible que las aplicaciones para pasajeros no muestren ningún viaje.",
+      "action": "Añada los horarios de parada de los viajes a la exportación."
+    },
+    "DQ_005c": {
+      "title": "La mayoría de las paradas no tiene ubicación",
+      "what": "La mayoría de las paradas no tiene ubicación; no se pueden mostrar en un mapa ni planificar viajes.",
+      "action": "Marque la ubicación de las paradas en su software de planificación y vuelva a exportar."
+    },
+    "DQ_006": {
+      "title": "La mayoría de los viajes no tienen trazado",
+      "what": "La mayoría de los viajes no están vinculados a un trazado; las aplicaciones dibujan las líneas como rectas.",
+      "action": "Añada los trazados a la exportación."
+    },
+    "DQ_009": {
+      "title": "Los viajes no tienen horarios de parada",
+      "what": "Hay viajes definidos, pero ningún horario de parada; no se puede crear ningún horario.",
+      "action": "Añada los horarios de parada de los viajes a la exportación."
+    },
+    "DQ_010": {
+      "title": "Operador sin usar",
+      "what": "Ninguna línea está vinculada a un operador de la lista de operadores.",
+      "action": "Vincule las líneas del operador o elimínelo si no se usa."
+    },
+    "DQ_011": {
+      "title": "Solo una parada en el conjunto de datos",
+      "what": "El conjunto de datos contiene una sola parada; no se puede planificar ningún trayecto.",
+      "action": "Añada todas las paradas a la exportación."
+    },
+    "DQ_012": {
+      "title": "Las líneas no tienen operador",
+      "what": "Hay varios operadores, pero las líneas no indican cuál las opera.",
+      "action": "Vincule cada línea al operador que la opera."
+    },
+    "DQ_013": {
+      "title": "Muy pocos viajes",
+      "what": "El conjunto de datos contiene solo uno o dos viajes. Es solo informativo.",
+      "action": "Compruebe que se exportaron todos los viajes."
+    },
+    "DQ_016": {
+      "title": "Espacios sobrantes en los valores",
+      "what": "Algunos nombres, códigos o valores tienen espacios innecesarios al principio o al final; esto puede afectar a la búsqueda y la correspondencia de datos.",
+      "action": "Elimine los espacios sobrantes de los registros afectados."
+    },
+    "DQ_017": {
+      "title": "Coordenadas sospechosas",
+      "what": "Muchas paradas aparecen en 0,0 (golfo de Guinea); no se introdujeron las ubicaciones o quedaron valores provisionales.",
+      "action": "Indique la ubicación real de estas paradas."
+    },
+    "DQ_018": {
+      "title": "Nombre escrito totalmente en MAYÚSCULAS",
+      "what": "Un nombre que ven los pasajeros (parada, línea o letrero de destino) está escrito totalmente en mayúsculas; es más difícil de leer en las aplicaciones.",
+      "action": "Escriba los nombres con mayúsculas y minúsculas normales (p. ej., \"Estación Central\" en lugar de \"ESTACIÓN CENTRAL\"). Las abreviaturas y los nombres de marca son una excepción."
+    },
+    "DQ_019": {
+      "title": "Nombre escrito totalmente en minúsculas",
+      "what": "Un nombre que ven los pasajeros está escrito totalmente en minúsculas.",
+      "action": "Escriba los nombres con mayúsculas y minúsculas normales (p. ej., \"Estación Central\" en lugar de \"estación central\"). Los nombres de marca escritos en minúsculas a propósito son una excepción."
+    },
+    "DQ_020": {
+      "title": "Letreros de destino de los viajes vacíos",
+      "what": "La mayoría de los viajes no tienen letrero de destino visible para los pasajeros.",
+      "action": "Indique como letrero de destino adónde va cada viaje."
+    },
+    "DQ_021": {
+      "title": "El mismo código se repite",
+      "what": "En una lista (paradas, líneas, viajes, etc.) más de un registro usa el mismo código; los vínculos pueden apuntar al registro equivocado.",
+      "action": "Asigne a cada registro un código único."
+    },
+    "DQ_022": {
+      "title": "La mayoría de las paradas tienen el mismo nombre",
+      "what": "Más del 80 % de las paradas están registradas con el mismo nombre; puede que se usaran valores provisionales en lugar de los nombres reales.",
+      "action": "Indique los nombres reales de las paradas."
+    },
+    "FAR_001": {
+      "title": "Mismo código de tarifa usado dos veces",
+      "what": "Dos tarifas tienen el mismo código.",
+      "action": "Asigne a cada tarifa un código único."
+    },
+    "FAR_002": {
+      "title": "Importe de la tarifa ausente o no válido",
+      "what": "Una tarifa no tiene precio, o su precio no es numérico o es negativo.",
+      "action": "Indique la tarifa como cero o un importe positivo."
+    },
+    "FAR_003": {
+      "title": "Moneda ausente o no válida",
+      "what": "Una tarifa no tiene moneda o no es un código estándar de tres letras.",
+      "action": "Indique la moneda con un código de tres letras, como \"EUR\" o \"TRY\"."
+    },
+    "FAR_004": {
+      "title": "Momento de pago no válido",
+      "what": "El valor que indica si la tarifa se paga a bordo o antes de subir no es válido.",
+      "action": "Elija \"a bordo\" o \"antes de subir\"."
+    },
+    "FAR_005": {
+      "title": "Número de transbordos permitidos no válido",
+      "what": "El valor que indica cuántos transbordos permite la tarifa no es válido.",
+      "action": "Indique los transbordos permitidos como 0, 1, 2 o ilimitados (vacío)."
+    },
+    "FAR_006": {
+      "title": "Duración del transbordo no válida",
+      "what": "La duración de validez del transbordo de la tarifa no es un número.",
+      "action": "Indique la duración en segundos o déjela vacía."
+    },
+    "FAR_008": {
+      "title": "No se encuentra el operador de la tarifa",
+      "what": "Una tarifa está vinculada a un operador que no figura en la lista de operadores.",
+      "action": "Vincule la tarifa a un operador existente."
+    },
+    "FAR_010": {
+      "title": "Dos tarifas distintas para el mismo trayecto",
+      "what": "Hay varias tarifas distintas definidas para la misma línea y las mismas zonas; no está claro cuál se aplica.",
+      "action": "Mantenga una sola tarifa para cada combinación de línea y zona."
+    },
+    "FAR_011": {
+      "title": "Momento de pago vacío",
+      "what": "Una tarifa no indica cuándo se realiza el pago.",
+      "action": "Elija \"a bordo\" o \"antes de subir\"."
+    },
+    "FAR_012": {
+      "title": "Código de tarifa vacío",
+      "what": "Una tarifa tiene el código vacío.",
+      "action": "Asigne a cada tarifa un código único."
+    },
+    "FAR_013": {
+      "title": "El importe de la tarifa tiene un número incorrecto de decimales",
+      "what": "El importe de la tarifa no está escrito con el número de decimales de la moneda (p. ej., 2 para EUR). Es solo informativo.",
+      "action": "Escriba el importe con los decimales de la moneda (p. ej., 17.50)."
+    },
+    "FIN_001": {
+      "title": "El editor del conjunto de datos no tiene nombre",
+      "what": "La información del conjunto de datos no indica el nombre de la organización que lo publica.",
+      "action": "Indique el nombre de la organización que publica el conjunto de datos."
+    },
+    "FIN_002": {
+      "title": "Dirección web del editor ausente o no válida",
+      "what": "La información del conjunto de datos no tiene una dirección web válida del editor.",
+      "action": "Indique la dirección web completa de la organización, que empiece por \"https://\"."
+    },
+    "FIN_003": {
+      "title": "Falta el idioma del conjunto de datos",
+      "what": "La información del conjunto de datos no indica en qué idioma están los nombres y textos, o el código no se reconoce.",
+      "action": "Indique el idioma con un código estándar, como \"en\"."
+    },
+    "FIN_004": {
+      "title": "Idioma predeterminado no válido",
+      "what": "No se reconoce el código de idioma predeterminado de la información del conjunto de datos.",
+      "action": "Indique un código estándar, como \"en\", o déjelo vacío."
+    },
+    "FIN_005": {
+      "title": "Fecha de inicio del conjunto de datos no válida",
+      "what": "No se puede leer la fecha de inicio de validez del conjunto de datos.",
+      "action": "Indique la fecha con el formato YYYYMMDD (p. ej., 20260101)."
+    },
+    "FIN_006": {
+      "title": "Fecha de fin del conjunto de datos no válida",
+      "what": "No se puede leer la fecha de fin de validez del conjunto de datos.",
+      "action": "Indique la fecha con el formato YYYYMMDD (p. ej., 20261231)."
+    },
+    "FIN_007": {
+      "title": "Falta la versión del conjunto de datos",
+      "what": "La información del conjunto de datos no tiene versión; no se puede saber qué versión está publicada.",
+      "action": "Indique una versión que aumente con cada publicación (p. ej., una fecha o un número)."
+    },
+    "FIN_008": {
+      "title": "Correo electrónico de contacto no válido",
+      "what": "El correo electrónico de contacto indicado para el conjunto de datos no es válido.",
+      "action": "Indique el correo con el formato nombre@dominio.com o déjelo vacío."
+    },
+    "FIN_009": {
+      "title": "Dirección de contacto no válida",
+      "what": "La dirección web de contacto indicada para el conjunto de datos no es válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\" o déjela vacía."
+    },
+    "FIN_010": {
+      "title": "La fecha de validez del conjunto de datos ya pasó",
+      "what": "La fecha de fin de validez de la información del conjunto de datos ya pasó; puede que las aplicaciones no lo consideren vigente.",
+      "action": "Vuelva a publicar el conjunto de datos con fechas de validez actuales."
+    },
+    "FIN_012": {
+      "title": "El conjunto de datos empieza después de terminar",
+      "what": "La fecha de inicio de validez del conjunto de datos es posterior a su fecha de fin.",
+      "action": "Corrija las fechas de inicio y fin."
+    },
+    "FIN_013": {
+      "title": "No se indica el operador de la tarifa",
+      "what": "Algunas tarifas no indican a qué operador pertenecen. Es solo informativo.",
+      "action": "Vincule las tarifas a su operador."
+    },
+    "FIN_014": {
+      "title": "Faltan las fechas de validez del conjunto de datos",
+      "what": "La información del conjunto de datos no tiene fechas de inicio y fin de validez.",
+      "action": "Indique el primer y el último día de validez del horario."
+    },
+    "FIN_015": {
+      "title": "Más de un registro de información del conjunto de datos",
+      "what": "El archivo de información del conjunto de datos tiene más de un registro; solo debe haber uno.",
+      "action": "Mantenga un solo registro."
+    },
+    "FIN_016": {
+      "title": "El conjunto de datos aún no es válido",
+      "what": "La validez del conjunto de datos empieza en el futuro; puede que hoy no se muestren viajes a los pasajeros.",
+      "action": "Si está publicando el nuevo horario por adelantado, no hay problema; de lo contrario, corrija la fecha de inicio."
+    },
+    "FIN_017": {
+      "title": "Conjunto de datos válido hasta una fecha muy lejana",
+      "what": "La validez del conjunto de datos termina dentro de más de dos años.",
+      "action": "Indique como fecha de fin el último día real de validez del horario."
+    },
+    "FIN_018": {
+      "title": "Sin datos de contacto para el conjunto de datos",
+      "what": "La información del conjunto de datos no tiene correo electrónico ni página de contacto; nadie puede informarle de problemas en los datos.",
+      "action": "Añada un correo electrónico o una página de contacto."
+    },
+    "FIN_019": {
+      "title": "La validez del conjunto de datos termina pronto",
+      "what": "Se acerca la fecha de fin de validez del conjunto de datos.",
+      "action": "Planifique la preparación y publicación del próximo horario."
+    },
+    "FIN_020": {
+      "title": "Conjunto de datos válido menos de 7 días",
+      "what": "El periodo de validez del conjunto de datos es inferior a una semana.",
+      "action": "Indique fechas de validez que coincidan con el periodo real del horario."
+    },
+    "FLG_001": {
+      "title": "No se encuentra el producto de la regla de tramo tarifario",
+      "what": "Una regla de tramo tarifario está vinculada a un producto tarifario que no está definido.",
+      "action": "Vincule la regla a un producto tarifario existente."
+    },
+    "FLG_002": {
+      "title": "No se encuentra la red de la regla de tramo tarifario",
+      "what": "Una regla de tramo tarifario está vinculada a una red de líneas que no está definida.",
+      "action": "Vincule la regla a una red existente."
+    },
+    "FLG_003": {
+      "title": "No se encuentra el área de inicio de la regla tarifaria",
+      "what": "Una regla de tramo tarifario está vinculada a un área de origen que no está definida.",
+      "action": "Vincule la regla a un área tarifaria existente."
+    },
+    "FLG_004": {
+      "title": "No se encuentra el área de fin de la regla tarifaria",
+      "what": "Una regla de tramo tarifario está vinculada a un área de destino que no está definida.",
+      "action": "Vincule la regla a un área tarifaria existente."
+    },
+    "FLG_005": {
+      "title": "No se encuentra la franja horaria de inicio de la regla tarifaria",
+      "what": "Una regla de tramo tarifario está vinculada a una franja horaria (p. ej., horas punta) que no está definida.",
+      "action": "Vincule la regla a una franja horaria existente."
+    },
+    "FLG_006": {
+      "title": "No se encuentra la franja horaria de fin de la regla tarifaria",
+      "what": "Una regla de tramo tarifario está vinculada a una franja horaria que no está definida.",
+      "action": "Vincule la regla a una franja horaria existente."
+    },
+    "FLG_007": {
+      "title": "Prioridad de la regla tarifaria no válida",
+      "what": "El valor de prioridad, que decide qué regla se aplica cuando coinciden varias, no es válido.",
+      "action": "Indique la prioridad como 0 o un número entero positivo."
+    },
+    "FLG_008": {
+      "title": "Producto de la regla de tramo tarifario vacío",
+      "what": "Una regla de tramo tarifario no indica qué producto tarifario se aplica.",
+      "action": "Elija el producto tarifario de la regla."
+    },
+    "FLJ_001": {
+      "title": "Falta la primera red en una regla de unión de tramos",
+      "what": "En la regla que cuenta dos tramos como un solo trayecto, la primera red de líneas está vacía o no está definida.",
+      "action": "Elija una red de líneas existente para la regla."
+    },
+    "FLJ_002": {
+      "title": "Falta la segunda red en una regla de unión de tramos",
+      "what": "En la regla que cuenta dos tramos como un solo trayecto, la segunda red de líneas está vacía o no está definida.",
+      "action": "Elija una red de líneas existente para la regla."
+    },
+    "FLJ_003": {
+      "title": "Falta la primera parada en una regla de unión de tramos",
+      "what": "En la regla de unión de tramos, la primera parada falta, no se encuentra o no es una parada ni una estación.",
+      "action": "Indique ambas paradas a la vez o deje ambas vacías."
+    },
+    "FLJ_004": {
+      "title": "Falta la segunda parada en una regla de unión de tramos",
+      "what": "En la regla de unión de tramos, la segunda parada falta, no se encuentra o no es una parada ni una estación.",
+      "action": "Indique ambas paradas a la vez o deje ambas vacías."
+    },
+    "FMD_001": {
+      "title": "Mismo código de medio de pago usado dos veces",
+      "what": "Dos medios de pago (tarjeta, aplicación, etc.) tienen el mismo código.",
+      "action": "Asigne a cada medio de pago un código único."
+    },
+    "FMD_002": {
+      "title": "Tipo de medio de pago no válido",
+      "what": "El tipo de medio de pago (billete de papel, tarjeta, tarjeta sin contacto, aplicación) falta o no es válido.",
+      "action": "Elija el tipo de medio de pago."
+    },
+    "FMD_003": {
+      "title": "La tarjeta o la aplicación no tiene nombre",
+      "what": "Un medio de pago de tipo tarjeta de transporte o aplicación móvil no tiene nombre; los pasajeros no saben qué tarjeta se acepta.",
+      "action": "Indique el nombre de la tarjeta o la aplicación."
+    },
+    "FMD_004": {
+      "title": "Código de medio de pago vacío",
+      "what": "Un medio de pago tiene el código vacío.",
+      "action": "Asigne a cada medio de pago un código único."
+    },
+    "FPD_001": {
+      "title": "El mismo producto tarifario está definido dos veces",
+      "what": "El mismo producto está definido dos veces con la misma categoría de pasajero y el mismo medio de pago.",
+      "action": "Elimine el registro de producto duplicado."
+    },
+    "FPD_002": {
+      "title": "Precio del producto ausente o no válido",
+      "what": "Un producto tarifario no tiene precio o su precio no es numérico.",
+      "action": "Indique el precio como número (0 si es gratuito)."
+    },
+    "FPD_003": {
+      "title": "Moneda del producto no válida",
+      "what": "La moneda de un producto tarifario no es un código estándar de tres letras.",
+      "action": "Indique la moneda con un código como \"EUR\" o \"TRY\"."
+    },
+    "FPD_004": {
+      "title": "No se encuentra el medio de pago del producto",
+      "what": "Un producto tarifario está vinculado a un medio de pago (tarjeta, aplicación, etc.) que no está definido.",
+      "action": "Vincule el producto a un medio de pago existente."
+    },
+    "FPD_005": {
+      "title": "No se encuentra la categoría de pasajero del producto",
+      "what": "Un producto tarifario está vinculado a una categoría de pasajero que no está definida.",
+      "action": "Vincule el producto a una categoría de pasajero existente."
+    },
+    "FPD_007": {
+      "title": "El precio del producto tiene un número incorrecto de decimales",
+      "what": "El precio del producto no está escrito con el número de decimales de la moneda (p. ej., 2 para EUR).",
+      "action": "Escriba el precio con los decimales de la moneda (p. ej., 17.50)."
+    },
+    "FRL_001": {
+      "title": "No se encuentra la tarifa de la regla tarifaria",
+      "what": "Una regla tarifaria está vinculada a una tarifa que no está definida.",
+      "action": "Vincule la regla a una tarifa existente."
+    },
+    "FRL_002": {
+      "title": "No se encuentra la línea de la regla tarifaria",
+      "what": "Una regla tarifaria está vinculada a una línea que no figura en la lista de líneas.",
+      "action": "Vincule la regla a una línea existente."
+    },
+    "FRL_003": {
+      "title": "No se encuentra la zona de origen de la regla tarifaria",
+      "what": "Una regla tarifaria apunta a una zona de origen que no usa ninguna parada.",
+      "action": "Vincule la regla a una zona tarifaria que usen las paradas."
+    },
+    "FRL_004": {
+      "title": "No se encuentra la zona de destino de la regla tarifaria",
+      "what": "Una regla tarifaria apunta a una zona de destino que no usa ninguna parada.",
+      "action": "Vincule la regla a una zona tarifaria que usen las paradas."
+    },
+    "FRL_005": {
+      "title": "No se encuentra la zona de paso de la regla tarifaria",
+      "what": "Una regla tarifaria apunta a una zona de paso que no usa ninguna parada.",
+      "action": "Vincule la regla a una zona tarifaria que usen las paradas."
+    },
+    "FRL_006": {
+      "title": "Las tarifas no están vinculadas a ninguna línea",
+      "what": "Hay tarifas definidas, pero ninguna regla indica en qué líneas o zonas se aplican. Es normal en sistemas de tarifa única.",
+      "action": "Con una sola tarifa única no hay problema; si las tarifas dependen de la línea o la zona, añada reglas tarifarias."
+    },
+    "FRL_007": {
+      "title": "La regla tarifaria no está vinculada a nada",
+      "what": "Una regla tarifaria no indica ni línea ni zona; se aplica a todos los trayectos.",
+      "action": "Añada la línea o la zona a la regla."
+    },
+    "FRL_008": {
+      "title": "Algunas líneas no tienen tarifa",
+      "what": "Hay reglas tarifarias definidas para algunas líneas, pero no para otras; los pasajeros no pueden ver la tarifa en esas líneas.",
+      "action": "Añada reglas tarifarias para las líneas sin tarifa."
+    },
+    "FRL_009": {
+      "title": "Algunos pares de zonas no tienen tarifa",
+      "what": "En las líneas por zonas, no hay tarifa definida para algunos pares de zonas de origen y destino.",
+      "action": "Añada reglas tarifarias para los pares de zonas que faltan o defina una sola tarifa por línea."
+    },
+    "FRQ_001": {
+      "title": "No se encuentra el viaje de la definición de frecuencia",
+      "what": "Una definición de frecuencia (cada X minutos) está vinculada a un viaje que no figura en la lista de viajes.",
+      "action": "Vincule la definición de frecuencia a un viaje existente."
+    },
+    "FRQ_002": {
+      "title": "Hora de inicio de la frecuencia no válida",
+      "what": "La hora de inicio del periodo de frecuencia falta o no se puede leer.",
+      "action": "Indique la hora de inicio con el formato HH:MM:SS."
+    },
+    "FRQ_003": {
+      "title": "Hora de fin de la frecuencia no válida",
+      "what": "La hora de fin del periodo de frecuencia falta o no se puede leer.",
+      "action": "Indique la hora de fin con el formato HH:MM:SS."
+    },
+    "FRQ_004": {
+      "title": "Falta el intervalo",
+      "what": "El periodo de frecuencia no indica cada cuánto salen los viajes, o el valor no es válido.",
+      "action": "Indique el intervalo en segundos (p. ej., 600 para 10 minutos)."
+    },
+    "FRQ_005": {
+      "title": "Periodo de frecuencia invertido",
+      "what": "El periodo de frecuencia termina antes de empezar o a la misma hora.",
+      "action": "Corrija las horas de inicio y fin."
+    },
+    "FRQ_006": {
+      "title": "Intervalo muy largo",
+      "what": "El intervalo del periodo de frecuencia es inusualmente largo.",
+      "action": "Si el intervalo es correcto, no hay problema; de lo contrario, revíselo."
+    },
+    "FRQ_007": {
+      "title": "Ajuste de horas exactas no válido",
+      "what": "El valor que indica si los viajes salen a horas exactas o aproximadas no es válido.",
+      "action": "Elija \"aproximado (por intervalo)\" o \"horas exactas\"."
+    },
+    "FRQ_008": {
+      "title": "El intervalo es cero",
+      "what": "El intervalo es cero; parece que los viajes salen uno tras otro sin pausa.",
+      "action": "Indique el intervalo en segundos como valor positivo."
+    },
+    "FRQ_009": {
+      "title": "Intervalo muy corto",
+      "what": "El intervalo es inferior a un minuto.",
+      "action": "Revise el intervalo; puede que se hayan introducido segundos en lugar de minutos."
+    },
+    "FRQ_010": {
+      "title": "Servicio muy frecuente",
+      "what": "Los viajes del periodo de frecuencia salen con intervalos muy cortos. Es solo informativo.",
+      "action": "Si es intencionado, no hay problema; de lo contrario, revise el intervalo."
+    },
+    "FRQ_011": {
+      "title": "Periodos de frecuencia superpuestos",
+      "what": "Dos periodos de frecuencia del mismo viaje se superponen; no está claro qué intervalo se aplica en ese momento.",
+      "action": "Organice los periodos para que no se superpongan."
+    },
+    "FRQ_012": {
+      "title": "El fin de la frecuencia coincide con una salida",
+      "what": "La hora de fin de un periodo de frecuencia con horas exactas coincide con una hora de salida; no está claro si circula el último viaje.",
+      "action": "Fije la hora de fin después del último viaje y antes del siguiente posible."
+    },
+    "FTR_001": {
+      "title": "Tipo de tarifa de transbordo no válido",
+      "what": "El tipo que indica cómo se calcula la tarifa de transbordo falta o no es válido.",
+      "action": "Elija el tipo de tarifa de transbordo."
+    },
+    "FTR_002": {
+      "title": "No se encuentra el primer grupo de tramos de la tarifa de transbordo",
+      "what": "Una regla de tarifa de transbordo parte de un grupo de tramos que no está definido.",
+      "action": "Vincule la regla a un grupo de tramos existente."
+    },
+    "FTR_003": {
+      "title": "No se encuentra el segundo grupo de tramos de la tarifa de transbordo",
+      "what": "Una regla de tarifa de transbordo lleva a un grupo de tramos que no está definido.",
+      "action": "Vincule la regla a un grupo de tramos existente."
+    },
+    "FTR_004": {
+      "title": "Producto tarifario del transbordo no encontrado",
+      "what": "Una regla de tarifa de transbordo está vinculada a un producto tarifario que no está definido.",
+      "action": "Vincule la regla a un producto tarifario existente."
+    },
+    "FTR_005": {
+      "title": "Referencia de tiempo del transbordo no válida",
+      "what": "El punto desde el que se cuenta el tiempo de transbordo (subida, bajada, etc.) no es válido.",
+      "action": "Elija la referencia entre las opciones definidas."
+    },
+    "FTR_006": {
+      "title": "Duración del transbordo no válida",
+      "what": "La duración durante la que es válida la tarifa de transbordo no es un número o es cero.",
+      "action": "Indique la duración en segundos como un valor positivo."
+    },
+    "FTR_007": {
+      "title": "Referencia de tiempo del transbordo sin duración",
+      "what": "La referencia para contar el tiempo de transbordo está definida, pero la duración no.",
+      "action": "Indique la duración o elimine la referencia."
+    },
+    "FTR_008": {
+      "title": "Número de transbordos no válido",
+      "what": "El número de transbordos permitidos no es ilimitado (-1) ni un número entero positivo.",
+      "action": "Indique -1 (ilimitado) o un número entero positivo."
+    },
+    "FTR_009": {
+      "title": "Sin número de transbordos dentro del mismo grupo",
+      "what": "Un transbordo dentro del mismo grupo de tramos no indica cuántos transbordos se permiten.",
+      "action": "Indique el número de transbordos (-1 para ilimitado)."
+    },
+    "FTR_010": {
+      "title": "Número de transbordos entre grupos distintos",
+      "what": "Un transbordo entre grupos de tramos distintos tiene un número de transbordos; esto solo se usa dentro del mismo grupo.",
+      "action": "Elimine el número de transbordos."
+    },
+    "FTR_011": {
+      "title": "Duración del transbordo sin referencia",
+      "what": "Está definida una duración de la tarifa de transbordo, pero no el punto desde el que se cuenta.",
+      "action": "Elija la referencia de tiempo o elimine la duración."
+    },
+    "GEO_002": {
+      "title": "Parada lejos del resto de la red",
+      "what": "Una parada aparece a cientos de kilómetros del resto de la red; probablemente su ubicación es incorrecta.",
+      "action": "Revise y corrija la ubicación de la parada."
+    },
+    "GEO_006": {
+      "title": "Salto grande en un trazado",
+      "what": "Hay una distancia inusualmente larga entre dos puntos consecutivos del trazado de una línea; la línea no sigue la calle.",
+      "action": "Vuelva a dibujar esta parte del trazado siguiendo la calle."
+    },
+    "GEO_007": {
+      "title": "Salto muy grande en un trazado",
+      "what": "Hay una distancia muy larga entre dos puntos consecutivos del trazado de una línea; puede que un punto esté en el lugar equivocado.",
+      "action": "Revise y vuelva a dibujar esta parte del trazado."
+    },
+    "GEO_009": {
+      "title": "Parada lejos del trazado",
+      "what": "Una parada está inusualmente lejos del trazado de sus viajes; en el mapa aparece fuera de la calle.",
+      "action": "Corrija la ubicación de la parada o del trazado."
+    },
+    "GEO_012": {
+      "title": "Varias paradas superpuestas",
+      "what": "Al menos tres paradas están muy juntas en la misma zona pequeña; pueden ser copias de la misma parada.",
+      "action": "Combine los registros que representan la misma parada física."
+    },
+    "GEO_013": {
+      "title": "Cobertura geográfica de la red",
+      "what": "Un resumen del área que cubren las paradas. Es solo informativo.",
+      "action": "No es necesario hacer nada."
+    },
+    "GEO_014": {
+      "title": "La red ocupa un área muy grande",
+      "what": "Las paradas se reparten en un área de más de 500 km de ancho.",
+      "action": "En una red interurbana esto es correcto; si no, revise la ubicación de las paradas lejanas."
+    },
+    "GEO_015": {
+      "title": "Parada fuera de Japón",
+      "what": "En un conjunto de datos en japonés, algunas paradas aparecen fuera de Japón.",
+      "action": "Si estas paradas están fuera de Japón a propósito, esto es correcto; si no, revise sus coordenadas."
+    },
+    "GEO_016": {
+      "title": "Parada en la ubicación 0,0",
+      "what": "La ubicación de una parada está indicada como 0,0 (golfo de Guinea); en realidad no tiene ubicación.",
+      "action": "Indique la ubicación real de la parada."
+    },
+    "GEO_017": {
+      "title": "Punto del trazado en la ubicación 0,0",
+      "what": "El trazado de una línea tiene un punto en 0,0; la línea se extiende hasta el océano.",
+      "action": "Corrija este punto del trazado o vuelva a exportar el trazado."
+    },
+    "GEO_018": {
+      "title": "Todas las paradas en la misma zona pequeña",
+      "what": "Todas las paradas están dentro de 200 metros; las ubicaciones pueden ser provisionales.",
+      "action": "Si el servicio realmente funciona en una zona pequeña (p. ej., un campus), esto es correcto; si no, indique las ubicaciones reales de las paradas."
+    },
+    "GEO_019": {
+      "title": "Ubicación de la parada redondeada",
+      "what": "La latitud y la longitud de una parada están indicadas como números enteros; la parada aparece a kilómetros de distancia.",
+      "action": "Indique la ubicación con al menos 5 decimales."
+    },
+    "GEO_020": {
+      "title": "Todos los puntos de un trazado en el mismo lugar",
+      "what": "Todos los puntos del trazado de una línea están en la misma ubicación; el mapa muestra un solo punto en lugar de una línea.",
+      "action": "Vuelva a dibujar el trazado siguiendo la calle."
+    },
+    "GEO_021": {
+      "title": "La mayoría de las paradas comparten ubicación",
+      "what": "Más del 30% de las paradas comparten su ubicación con otra parada.",
+      "action": "Indique las ubicaciones reales de las paradas y combine las copias de la misma parada."
+    },
+    "GEO_022": {
+      "title": "Parada muy cerca de un polo",
+      "what": "La latitud de una parada supera los 89 grados; probablemente la ubicación es incorrecta (puede que la latitud y la longitud estén invertidas).",
+      "action": "Revise y corrija la ubicación de la parada."
+    },
+    "GGL_001": {
+      "title": "Transbordo sin bajar del vehículo no admitido por Google",
+      "what": "Google Maps no admite el tipo de transbordo en el que los pasajeros permanecen a bordo. Si no publica en Google, esto no es un problema.",
+      "action": "Si necesita compatibilidad con Google, modele esta conexión como un bloque de vehículo (mismo vehículo)."
+    },
+    "GGL_002": {
+      "title": "Precio con tarjeta de Google no válido",
+      "what": "El precio de pago con tarjeta específico de Google no es un valor válido.",
+      "action": "Si usa este campo, indique cero o un precio positivo; si no, déjelo vacío."
+    },
+    "JPN_001": {
+      "title": "Falta la lectura kana del nombre de la parada",
+      "what": "Una parada con nombre en japonés no tiene lectura kana (ja-Hrkt).",
+      "action": "Añada la lectura kana del nombre de la parada a las traducciones."
+    },
+    "JPN_002": {
+      "title": "Código de oficina no definido",
+      "what": "Una línea o un viaje está vinculado a una oficina que no está en la lista de oficinas (office_jp).",
+      "action": "Vincúlelo a una oficina existente o defina la oficina."
+    },
+    "JPN_003": {
+      "title": "La información japonesa del operador no coincide",
+      "what": "La información adicional del operador de GTFS-JP está vinculada a un operador que no está en la lista de operadores.",
+      "action": "Haga coincidir la información adicional con un operador existente."
+    },
+    "JPN_004": {
+      "title": "Falta el archivo de traducciones",
+      "what": "El conjunto de datos GTFS-JP no tiene un archivo de traducciones con las lecturas kana de los nombres de parada.",
+      "action": "Añada el archivo de traducciones con las lecturas kana de los nombres de parada."
+    },
+    "JPN_005": {
+      "title": "Oficina sin nombre",
+      "what": "Una oficina de la lista de oficinas (office_jp) no tiene nombre.",
+      "action": "Indique el nombre de la oficina."
+    },
+    "JPN_006": {
+      "title": "Falta la información de tarifas",
+      "what": "El conjunto de datos GTFS-JP no tiene información de tarifas, o las distintas tarifas no están vinculadas a líneas.",
+      "action": "Añada las tarifas y las líneas a las que se aplican."
+    },
+    "JPN_007": {
+      "title": "Falta el archivo de información del conjunto de datos",
+      "what": "El conjunto de datos GTFS-JP no tiene un archivo de información del conjunto de datos con el editor y el idioma.",
+      "action": "Añada la información del conjunto de datos (editor, idioma \"ja\", versión)."
+    },
+    "JPN_008": {
+      "title": "Falta la lectura kana del nombre de la línea",
+      "what": "Una línea con nombre en japonés no tiene lectura kana.",
+      "action": "Añada la lectura kana del nombre de la línea a las traducciones."
+    },
+    "JPN_009": {
+      "title": "Falta la lectura kana del letrero de destino",
+      "what": "Un letrero de destino escrito en japonés no tiene lectura kana.",
+      "action": "Añada la lectura kana del letrero de destino a las traducciones."
+    },
+    "JPN_010": {
+      "title": "Falta la lectura kana del nombre del operador",
+      "what": "Un operador con nombre en japonés no tiene lectura kana.",
+      "action": "Añada la lectura kana del nombre del operador a las traducciones."
+    },
+    "JPN_011": {
+      "title": "Falta el código del operador",
+      "what": "En GTFS-JP, el código del operador y el vínculo al operador en las líneas son obligatorios incluso con un solo operador; faltan.",
+      "action": "Asigne un código al operador y vincule todas las líneas a él."
+    },
+    "JPN_012": {
+      "title": "Falta el código en la información japonesa del operador",
+      "what": "El código del operador está vacío en la información adicional del operador de GTFS-JP.",
+      "action": "Vincule la información adicional usando el código del operador."
+    },
+    "JPN_013": {
+      "title": "Formato del código postal incorrecto",
+      "what": "El código postal del operador no tiene siete dígitos.",
+      "action": "Indique el código postal con siete dígitos, sin guion."
+    },
+    "JPN_014": {
+      "title": "Código de oficina vacío o repetido",
+      "what": "La lista de oficinas tiene un registro cuyo código está vacío o es igual al de otra oficina.",
+      "action": "Asigne a cada oficina un código único."
+    },
+    "JPN_015": {
+      "title": "La información de línea antigua no coincide",
+      "what": "En la información de línea antigua (routes_jp), el código de línea está vacío, repetido o no está en la lista de líneas.",
+      "action": "Vincule la información de línea de forma única a líneas existentes."
+    },
+    "JPN_016": {
+      "title": "Fecha de actualización de la línea no válida",
+      "what": "La fecha de actualización en el patrón de línea o en la información de línea no es una fecha válida.",
+      "action": "Indique la fecha con el formato YYYYMMDD."
+    },
+    "JPN_017": {
+      "title": "Código de patrón de viaje vacío o repetido",
+      "what": "La lista de patrones de viaje (pattern_jp) tiene un registro cuyo código está vacío o repetido.",
+      "action": "Asigne a cada patrón un código único."
+    },
+    "JPN_018": {
+      "title": "Patrón de viaje no encontrado",
+      "what": "Un viaje está vinculado a un patrón de viaje que no está en la lista de patrones.",
+      "action": "Vincule el viaje a un patrón existente."
+    },
+    "JPN_019": {
+      "title": "Traducción kana vinculada al registro equivocado",
+      "what": "Una lectura kana está vinculada a un registro inexistente o equivocado.",
+      "action": "Haga coincidir la lectura kana con el registro de parada, línea o viaje correcto."
+    },
+    "JPN_020": {
+      "title": "La dirección web o el teléfono de la oficina parecen incorrectos",
+      "what": "La dirección web o el teléfono de la oficina no parecen válidos.",
+      "action": "Indique una dirección web válida y un número de teléfono al que se pueda llamar."
+    },
+    "JPN_021": {
+      "title": "Traducción kana vacía o contradictoria",
+      "what": "Una lectura kana está vacía, hay dos lecturas distintas para el mismo registro o la lectura no contiene kana.",
+      "action": "Mantenga una sola lectura por registro, escrita en kana."
+    },
+    "JPN_022": {
+      "title": "Falta información obligatoria de GTFS-JP v4",
+      "what": "Falta uno de los elementos obligatorios en GTFS-JP v4 (idioma del operador, fechas del conjunto de datos, versión o tipo de parada).",
+      "action": "Complete la información que falta."
+    },
+    "JPN_023": {
+      "title": "El idioma del conjunto de datos no es japonés",
+      "what": "En el perfil GTFS-JP, el idioma del conjunto de datos debe ser \"ja\", pero se ha indicado otro.",
+      "action": "Establezca el idioma del conjunto de datos en \"ja\"."
+    },
+    "JPN_024": {
+      "title": "El idioma del operador no es japonés",
+      "what": "En el perfil GTFS-JP, el idioma del operador debe ser \"ja\", pero se ha indicado otro.",
+      "action": "Establezca el idioma del operador en \"ja\"."
+    },
+    "JPN_025": {
+      "title": "La zona horaria del operador no es Tokio",
+      "what": "En el perfil GTFS-JP, la zona horaria del operador debe ser Asia/Tokyo, pero se ha indicado otra.",
+      "action": "Establezca la zona horaria en Asia/Tokyo."
+    },
+    "JPN_026": {
+      "title": "La moneda de la tarifa no es el yen",
+      "what": "En el perfil GTFS-JP, las tarifas deben estar en JPY, pero se ha indicado otra moneda.",
+      "action": "Establezca la moneda en JPY."
+    },
+    "JPN_027": {
+      "title": "El tipo de línea no es autobús",
+      "what": "En el perfil de autobús de GTFS-JP v3 se ha indicado un tipo de línea distinto de autobús.",
+      "action": "Elija \"bus\" para las líneas de autobús; use el perfil adecuado para datos multimodales."
+    },
+    "JPN_028": {
+      "title": "Falta una lectura kana obligatoria",
+      "what": "En GTFS-JP v3, las lecturas kana son obligatorias para nombres, descripciones y letreros de destino en japonés; faltan algunas.",
+      "action": "Añada las lecturas kana que faltan a las traducciones."
+    },
+    "JPN_029": {
+      "title": "Falta una lectura kana recomendada",
+      "what": "En GTFS-JP v4 se recomiendan lecturas kana para el texto del letrero de destino de parada y los nombres de organizaciones de atribución; faltan algunas.",
+      "action": "Añada las lecturas kana de estos textos a las traducciones."
+    },
+    "JPN_030": {
+      "title": "Falta una fila de traducción japonesa obligatoria",
+      "what": "En GTFS-JP v3 también se requiere una fila de traducción en \"ja\" junto a la lectura kana; faltan algunas.",
+      "action": "Añada las filas de traducción \"ja\" que faltan."
+    },
+    "JPN_031": {
+      "title": "Sin zona tarifaria en una parada con tarifa por zonas",
+      "what": "Una parada de una línea con tarifas por zonas no tiene zona tarifaria.",
+      "action": "Haga coincidir la zona tarifaria de la parada con las zonas de las reglas tarifarias de la línea."
+    },
+    "JPN_032": {
+      "title": "El código del operador no es un número corporativo",
+      "what": "En GTFS-JP v3, el código del operador debe ser el número corporativo de 13 dígitos (法人番号).",
+      "action": "Indique como código del operador el número corporativo de 13 dígitos."
+    },
+    "JPN_033": {
+      "title": "Un nombre personalizado usa el espacio de nombres \"jp\"",
+      "what": "Un nombre de archivo o campo personalizado usa el prefijo o sufijo \"jp\" reservado para GTFS-JP.",
+      "action": "Cambie el nombre del archivo o campo personalizado para que no incluya \"jp\"."
+    },
+    "LOC_001": {
+      "title": "Forma del área de servicio no válida",
+      "what": "Una de las áreas de servicio a demanda no está dibujada como un área (polígono).",
+      "action": "Vuelva a dibujar el área de servicio como un área cerrada."
+    },
+    "LOC_002": {
+      "title": "El área de servicio no tiene forma",
+      "what": "Una de las áreas de servicio a demanda no tiene dibujo.",
+      "action": "Dibuje el área de servicio en el mapa."
+    },
+    "LOC_003": {
+      "title": "El área de servicio no tiene código",
+      "what": "Un área de servicio a demanda no tiene código; no se le pueden vincular viajes.",
+      "action": "Asigne a cada área de servicio un código único."
+    },
+    "LOC_004": {
+      "title": "El área de servicio no está cerrada",
+      "what": "El límite de un área de servicio no termina donde empieza; el área no está cerrada.",
+      "action": "Cierre el límite en su punto de inicio."
+    },
+    "LOC_005": {
+      "title": "El archivo de áreas de servicio está vacío",
+      "what": "El archivo de áreas de servicio existe, pero no contiene ningún área.",
+      "action": "Si usa servicio a demanda, añada las áreas; si no, elimine el archivo."
+    },
+    "LOC_006": {
+      "title": "El área de servicio es muy grande",
+      "what": "Un área de servicio supera los 500 km²; probablemente el área de servicio real es más pequeña.",
+      "action": "Reduzca el área al área de servicio real o divídala en varias áreas."
+    },
+    "LOC_007": {
+      "title": "Mismo código de área de servicio usado dos veces",
+      "what": "Dos áreas de servicio tienen el mismo código.",
+      "action": "Asigne a cada área un código único."
+    },
+    "LOC_008": {
+      "title": "Formato del registro de área de servicio incorrecto",
+      "what": "Un registro del archivo de áreas de servicio tiene un tipo que falta o es incorrecto.",
+      "action": "Es un problema de formato del archivo; informe al proveedor del software de exportación o a su equipo de TI."
+    },
+    "LOC_009": {
+      "title": "El registro de área de servicio no tiene propiedades",
+      "what": "A un registro del archivo de áreas de servicio le falta la sección de propiedades.",
+      "action": "Es un problema de formato del archivo; informe al proveedor del software de exportación o a su equipo de TI."
+    },
+    "LOC_010": {
+      "title": "El área de servicio no tiene coordenadas",
+      "what": "Un área de servicio tiene forma, pero faltan las coordenadas de sus vértices; no se puede dibujar.",
+      "action": "Vuelva a dibujar el área de servicio en el mapa."
+    },
+    "LOC_011": {
+      "title": "El área de servicio se cruza consigo misma",
+      "what": "El límite de un área de servicio se cruza consigo mismo, o un hueco se extiende fuera del área.",
+      "action": "Vuelva a dibujar el límite para que no se cruce consigo mismo."
+    },
+    "LOC_012": {
+      "title": "No se puede leer el archivo de áreas de servicio",
+      "what": "El archivo de áreas de servicio no es un archivo de mapa válido (GeoJSON).",
+      "action": "Vuelva a exportar las áreas de servicio. Es un problema de formato del archivo; informe al proveedor del software de exportación o a su equipo de TI."
+    },
+    "LVL_001": {
+      "title": "Mismo código de nivel usado dos veces",
+      "what": "Dos registros de nivel tienen el mismo código.",
+      "action": "Asigne a cada nivel un código único o combine los duplicados."
+    },
+    "LVL_002": {
+      "title": "Orden de nivel no válido",
+      "what": "No se puede leer el número que indica la posición del nivel respecto al suelo.",
+      "action": "Indique el orden del nivel como un número (planta baja 0, niveles superiores positivos, niveles inferiores negativos)."
+    },
+    "LVL_003": {
+      "title": "Nivel sin nombre",
+      "what": "Un nivel no tiene un nombre que mostrar a los pasajeros.",
+      "action": "Indique el nombre del nivel (p. ej., \"Nivel de andenes\", \"-1\")."
+    },
+    "LVL_004": {
+      "title": "Nivel sin usar",
+      "what": "Hay un nivel definido, pero no tiene ninguna parada ni andén.",
+      "action": "Vincule el nivel a las paradas correspondientes o elimínelo."
+    },
+    "LVL_005": {
+      "title": "Nombre de nivel demasiado largo",
+      "what": "El nombre de un nivel tiene más de 255 caracteres.",
+      "action": "Acorte el nombre del nivel."
+    },
+    "LVL_006": {
+      "title": "Falta el nivel en una conexión de ascensor",
+      "what": "Uno de los puntos que conecta un ascensor no indica en qué nivel está.",
+      "action": "Asigne niveles a los puntos de ambos extremos del ascensor."
+    },
+    "LVL_007": {
+      "title": "Orden de nivel vacío",
+      "what": "Un nivel no tiene valor de orden.",
+      "action": "Indique el orden del nivel como un número."
+    },
+    "LVL_008": {
+      "title": "Código de nivel vacío",
+      "what": "Un nivel tiene el código vacío.",
+      "action": "Asigne a cada nivel un código único."
+    },
+    "NET_001": {
+      "title": "Mismo código de red usado dos veces",
+      "what": "Dos redes de líneas tienen el mismo código.",
+      "action": "Asigne a cada red un código único o combine los duplicados."
+    },
+    "NET_002": {
+      "title": "Red no encontrada en el vínculo línea–red",
+      "what": "Una línea está asignada a una red vacía o no definida.",
+      "action": "Asigne la línea a una red existente."
+    },
+    "NET_003": {
+      "title": "Línea no encontrada en el vínculo línea–red",
+      "what": "A una red se le ha asignado una línea vacía o que no está en la lista de líneas.",
+      "action": "Asigne una línea existente a la red."
+    },
+    "NET_004": {
+      "title": "Código de red vacío",
+      "what": "Una red de líneas tiene el código vacío.",
+      "action": "Asigne a cada red un código único."
+    },
+    "OPR_001": {
+      "title": "Intervalo largo entre viajes de una línea",
+      "what": "En una línea, el tiempo entre dos viajes del mismo sentido y día es inusualmente largo.",
+      "action": "Si el intervalo está previsto, esto es correcto; si no, añada los viajes que faltan."
+    },
+    "OPR_003": {
+      "title": "Viajes muy juntos",
+      "what": "Dos viajes de la misma línea, sentido y día salen muy seguidos; puede que el mismo viaje se haya introducido dos veces.",
+      "action": "Revise los horarios de estos dos viajes; elimine uno si es un duplicado."
+    },
+    "OPR_004": {
+      "title": "Sin viajes en fin de semana",
+      "what": "Esta línea no tiene viajes el fin de semana. Es solo informativo.",
+      "action": "Si la línea no funciona los fines de semana, esto es correcto; si no, revise el calendario de servicio del fin de semana."
+    },
+    "OPR_005": {
+      "title": "Frecuencia de servicio inusual",
+      "what": "Los intervalos de paso de una línea son inusuales en comparación con líneas similares. Es solo informativo.",
+      "action": "No es necesario hacer nada; si no lo esperaba, revise el horario."
+    },
+    "OPR_006": {
+      "title": "El viaje tiene muy pocas paradas",
+      "what": "Este viaje tiene menos de dos paradas; los pasajeros no pueden ir a ningún sitio con él.",
+      "action": "Añada las paradas que faltan al viaje o elimine el viaje sin uso."
+    },
+    "OPR_007": {
+      "title": "Secuencia de paradas repetida dentro de un viaje",
+      "what": "La misma secuencia de paradas se repite dentro de un viaje. Esto es normal en líneas circulares.",
+      "action": "Si es una línea circular, esto es correcto; si no, revise el orden de paradas del viaje."
+    },
+    "OPR_008": {
+      "title": "Velocidad excesiva en varias partes de un viaje",
+      "what": "La velocidad en más de una parte de un viaje es muy superior a la esperada.",
+      "action": "Revise a la vez los horarios de parada del viaje y la ubicación de las paradas."
+    },
+    "OPR_009": {
+      "title": "Viaje nocturno que empieza muy tarde",
+      "what": "Algunos viajes salen después de las 23:00. Es solo informativo.",
+      "action": "Si el servicio nocturno está previsto, esto es correcto; si no, revise las horas de salida y el calendario de servicio."
+    },
+    "OPR_010": {
+      "title": "Accesibilidad contradictoria en una línea",
+      "what": "Algunos viajes de la misma línea están marcados como accesibles o aptos para bicicletas y otros no.",
+      "action": "Si se usan vehículos distintos, esto es correcto; si no, marque los viajes de la línea de forma coherente."
+    },
+    "OPR_011": {
+      "title": "El calendario de servicio nunca funciona",
+      "what": "Un calendario de servicio usado por viajes no tiene ningún día de servicio; puede que estos viajes no se muestren en las aplicaciones para pasajeros.",
+      "action": "Añada días de servicio al calendario de servicio."
+    },
+    "OPR_012": {
+      "title": "Interrupción del servicio en un calendario",
+      "what": "Un calendario de servicio usado por viajes tiene un intervalo largo entre días de servicio.",
+      "action": "Si la interrupción está prevista, esto es correcto; si no, añada los días de servicio que faltan."
+    },
+    "OPR_013": {
+      "title": "La línea funciona en un solo sentido",
+      "what": "Esta línea solo tiene viajes en un sentido. Es solo informativo.",
+      "action": "Si la línea es de sentido único o circular, esto es correcto; si no, añada los viajes del sentido contrario."
+    },
+    "OPR_014": {
+      "title": "Tiempos de transbordo largos",
+      "what": "El tiempo mínimo de transbordo medio de los transbordos definidos supera los 10 minutos.",
+      "action": "Compare los tiempos de transbordo con los tiempos reales a pie y de espera."
+    },
+    "OPR_015": {
+      "title": "La línea usa el mismo trazado en ambos sentidos",
+      "what": "Los viajes de ida y de vuelta comparten un solo trazado de línea. Es solo informativo.",
+      "action": "Si los dos sentidos usan calles distintas, use un trazado distinto para cada sentido."
+    },
+    "OPR_016": {
+      "title": "Ningún día de servicio en todo el conjunto de datos",
+      "what": "Hay viajes, pero ningún calendario de servicio tiene un solo día de servicio; no se mostrará ningún viaje a los pasajeros.",
+      "action": "Añada días de servicio a los calendarios de servicio."
+    },
+    "OPR_017": {
+      "title": "Distancia del viaje muy corta",
+      "what": "La distancia total de un viaje es inusualmente corta.",
+      "action": "Revise el trazado del viaje y la ubicación de las paradas; si realmente es un servicio corto, esto es correcto."
+    },
+    "OPR_019": {
+      "title": "Dos calendarios de servicio activos el mismo día en una línea",
+      "what": "Hay más de un calendario de servicio activo el mismo día en una línea; los viajes pueden aparecer dos veces.",
+      "action": "Por ejemplo, en un día festivo desactive el calendario normal y active el calendario de festivos; si ambos deben funcionar a la vez, esto es correcto."
+    },
+    "OPR_020": {
+      "title": "Dos calendarios de servicio se solapan en un día especial",
+      "what": "En un día especial funcionan en una línea tanto el calendario normal como el especial.",
+      "action": "Desactive el calendario normal ese día (elimínelo como excepción)."
+    },
+    "OPR_021": {
+      "title": "El calendario normal también funciona en un día especial",
+      "what": "El calendario de día especial está activo, pero el calendario normal no se desactivó ese día; los viajes aparecen dos veces.",
+      "action": "Desactive el calendario normal ese día como excepción."
+    },
+    "OPR_022": {
+      "title": "Calendario de día especial no activado",
+      "what": "En el día especial definido funciona el calendario normal, pero el calendario especial no está activado.",
+      "action": "Añada el calendario de día especial ese día como excepción."
+    },
+    "OPR_023": {
+      "title": "Ningún calendario de servicio funciona durante el periodo especial",
+      "what": "Durante el periodo especial definido no funciona ni el calendario normal ni el especial; no hay viajes esos días.",
+      "action": "Active el calendario normal o el especial para esos días."
+    },
+    "OPR_024": {
+      "title": "Más de 500 viajes en una línea",
+      "what": "Hay más de 500 viajes definidos en una línea para un mismo calendario; es posible que se hayan fusionado varias líneas.",
+      "action": "Compruebe que los viajes estén vinculados a la línea correcta."
+    },
+    "OPR_025": {
+      "title": "Los viajes duran menos de un minuto de media",
+      "what": "La duración media de los viajes en el conjunto de datos es inferior a 60 segundos; probablemente los horarios se exportaron mal.",
+      "action": "Compruebe que los horarios de parada de los viajes se exportaron correctamente."
+    },
+    "PDW_006": {
+      "title": "Las ventanas de servicio a demanda se solapan",
+      "what": "Dos ventanas de recogida/bajada se solapan para la misma zona en el mismo viaje.",
+      "action": "Ajuste las ventanas para que no se solapen."
+    },
+    "PTH_001": {
+      "title": "Mismo código de recorrido peatonal usado dos veces",
+      "what": "Dos recorridos peatonales dentro de la estación tienen el mismo código.",
+      "action": "Asigne un código único a cada recorrido peatonal."
+    },
+    "PTH_002": {
+      "title": "Punto de inicio del recorrido peatonal no encontrado",
+      "what": "Un recorrido peatonal dentro de la estación empieza en un punto que no está en la lista de paradas.",
+      "action": "Vincule su inicio a un andén, acceso o nodo genérico existente."
+    },
+    "PTH_003": {
+      "title": "Punto final del recorrido peatonal no encontrado",
+      "what": "Un recorrido peatonal dentro de la estación termina en un punto que no está en la lista de paradas.",
+      "action": "Vincule su final a un andén, acceso o nodo genérico existente."
+    },
+    "PTH_004": {
+      "title": "Tipo de recorrido peatonal no válido",
+      "what": "El tipo de recorrido peatonal (pasillo, escaleras, pasillo rodante, escalera mecánica, ascensor, torniquete de validación, torniquete de salida) no es un valor definido.",
+      "action": "Elija el tipo de recorrido peatonal."
+    },
+    "PTH_005": {
+      "title": "Sentido del recorrido peatonal no válido",
+      "what": "Falta o no es válida la indicación de si el recorrido peatonal es de un sentido o de doble sentido.",
+      "action": "Marque el recorrido peatonal como de un sentido o de doble sentido."
+    },
+    "PTH_006": {
+      "title": "Longitud del recorrido peatonal no válida",
+      "what": "La longitud del recorrido peatonal no es un número o es negativa.",
+      "action": "Indique la longitud en metros como número positivo, o déjela vacía."
+    },
+    "PTH_007": {
+      "title": "Tiempo de recorrido no válido",
+      "what": "El tiempo para atravesar el recorrido peatonal no es un número o es cero.",
+      "action": "Indique el tiempo de recorrido en segundos como número entero positivo, o déjelo vacío."
+    },
+    "PTH_008": {
+      "title": "Falta el número de escalones",
+      "what": "Un recorrido peatonal definido como escaleras no tiene número de escalones; esto es importante para pasajeros con movilidad reducida.",
+      "action": "Indique el número de escalones."
+    },
+    "PTH_009": {
+      "title": "Falta la pendiente del pasillo",
+      "what": "Un pasillo no tiene información de pendiente; esto es importante para usuarios de silla de ruedas.",
+      "action": "Indique la pendiente (0 si es plano)."
+    },
+    "PTH_010": {
+      "title": "Anchura del recorrido peatonal no válida",
+      "what": "La anchura mínima del recorrido peatonal no es un número, o es cero o negativa.",
+      "action": "Indique la anchura en metros como número positivo, o déjela vacía."
+    },
+    "PTH_011": {
+      "title": "El recorrido peatonal vuelve al mismo punto",
+      "what": "Un recorrido peatonal termina donde empieza; no lleva a ninguna parte.",
+      "action": "Vincule su inicio y su final a dos puntos distintos."
+    },
+    "PTH_012": {
+      "title": "Falta conexión entre el acceso de la estación y el andén",
+      "what": "No hay un recorrido peatonal continuo desde el acceso de la estación hasta el andén; los pasajeros no pueden ver cómo llegar.",
+      "action": "Añada los recorridos peatonales que faltan desde los accesos hasta los andenes."
+    },
+    "PTH_013": {
+      "title": "Análisis de itinerario accesible",
+      "what": "Comprueba si la estación tiene un itinerario desde el acceso hasta el andén apto para sillas de ruedas en pendiente y anchura. Es solo informativo.",
+      "action": "Si hay un itinerario accesible, indique su pendiente y su anchura."
+    },
+    "PTH_014": {
+      "title": "El recorrido peatonal une dos estaciones distintas",
+      "what": "Un recorrido peatonal dentro de la estación une puntos que pertenecen a dos estaciones distintas.",
+      "action": "Compruebe primero que ambos extremos estén asociados a la estación correcta. Si realmente hay un pasillo entre las dos estaciones, puede ser intencionado."
+    },
+    "PTH_015": {
+      "title": "Tiempo del recorrido peatonal demasiado corto para su distancia",
+      "what": "La longitud y el tiempo de recorrido de un recorrido peatonal implican caminar a más de 3 metros por segundo.",
+      "action": "Corrija la longitud y el tiempo de recorrido con valores reales."
+    },
+    "PTH_016": {
+      "title": "El torniquete de salida es de doble sentido",
+      "what": "Un torniquete pensado solo para salir está definido como de doble sentido.",
+      "action": "Defina el torniquete de salida como de un solo sentido."
+    },
+    "PTH_017": {
+      "title": "Valor de pendiente no válido",
+      "what": "La pendiente no es un número, o está indicada en un recorrido peatonal donde la pendiente no tiene sentido (escaleras, ascensor, etc.).",
+      "action": "Indique la pendiente como número solo en pasillos y pasillos rodantes."
+    },
+    "PTH_018": {
+      "title": "Texto del letrero del recorrido peatonal demasiado largo",
+      "what": "El texto del letrero que ven los pasajeros en un recorrido peatonal supera los 255 caracteres.",
+      "action": "Indique el texto breve que aparece en el letrero."
+    },
+    "PTH_019": {
+      "title": "Nodo sin salida",
+      "what": "Un nodo dentro de la estación está conectado a un solo recorrido peatonal; desde ahí no se puede continuar.",
+      "action": "Conecte el nodo a al menos dos recorridos peatonales, o elimínelo."
+    },
+    "PTH_020": {
+      "title": "El código del recorrido peatonal está vacío",
+      "what": "Un recorrido peatonal dentro de la estación tiene el código vacío.",
+      "action": "Asigne un código único a cada recorrido peatonal."
+    },
+    "PTH_021": {
+      "title": "El inicio del recorrido peatonal está vacío",
+      "what": "Un recorrido peatonal no indica dónde empieza.",
+      "action": "Elija el punto de inicio del recorrido peatonal."
+    },
+    "PTH_022": {
+      "title": "El final del recorrido peatonal está vacío",
+      "what": "Un recorrido peatonal no indica dónde termina.",
+      "action": "Elija el punto final del recorrido peatonal."
+    },
+    "PTH_023": {
+      "title": "El tipo de recorrido peatonal está vacío",
+      "what": "Un recorrido peatonal no tiene tipo.",
+      "action": "Elija el tipo de recorrido peatonal (pasillo, escaleras, ascensor, etc.)."
+    },
+    "PTH_024": {
+      "title": "El sentido del recorrido peatonal está vacío",
+      "what": "Un recorrido peatonal no indica si es de un sentido o de doble sentido.",
+      "action": "Marque el recorrido peatonal como de un sentido o de doble sentido."
+    },
+    "PTH_025": {
+      "title": "Falta la longitud del recorrido peatonal",
+      "what": "Los pasillos, torniquetes de validación y torniquetes de salida no tienen longitud; no se puede calcular el tiempo a pie.",
+      "action": "Indique la longitud de estos recorridos peatonales en metros."
+    },
+    "PTH_026": {
+      "title": "Recorrido peatonal asociado a la propia estación",
+      "what": "Un recorrido peatonal está asociado a la propia estación; los recorridos peatonales deben asociarse a andenes, accesos o nodos.",
+      "action": "Asocie el recorrido peatonal al andén, acceso o nodo correspondiente."
+    },
+    "PTH_027": {
+      "title": "Número de escalones no válido",
+      "what": "El número de escalones es cero o no es un número entero.",
+      "action": "Indique el número de escalones como número entero (positivo al subir, negativo al bajar), o déjelo vacío."
+    },
+    "PTH_028": {
+      "title": "Pendiente en un tipo de recorrido incorrecto",
+      "what": "Se ha indicado una pendiente en un recorrido peatonal que no es un pasillo ni un pasillo rodante.",
+      "action": "Use la pendiente solo en pasillos y pasillos rodantes."
+    },
+    "PTH_029": {
+      "title": "Falta el tiempo de recorrido",
+      "what": "Un pasillo rodante, una escalera mecánica o un ascensor no tiene tiempo de recorrido.",
+      "action": "Indique el tiempo de recorrido de estos recorridos peatonales en segundos."
+    },
+    "PTH_030": {
+      "title": "Recorrido peatonal en un andén con zonas de embarque",
+      "what": "El andén tiene zonas de embarque definidas, pero el recorrido peatonal está asociado directamente al andén.",
+      "action": "Asocie el recorrido peatonal a la zona de embarque correspondiente."
+    },
+    "PTH_031": {
+      "title": "Recorrido peatonal hacia una parada con acceso desde la calle",
+      "what": "Un recorrido peatonal está asociado a una parada a la que se llega directamente desde la calle y no a través de la estación.",
+      "action": "Configure el acceso de la parada como \"a través de la estación\", o elimine este recorrido peatonal."
+    },
+    "RCT_001": {
+      "title": "Mismo código de categoría de pasajero usado dos veces",
+      "what": "Dos categorías de pasajero (p. ej., estudiante, mayor) tienen el mismo código.",
+      "action": "Asigne un código único a cada categoría de pasajero."
+    },
+    "RCT_002": {
+      "title": "Categoría de pasajero sin nombre",
+      "what": "Una categoría de pasajero no tiene nombre.",
+      "action": "Indique el nombre de la categoría (p. ej., \"Estudiante\")."
+    },
+    "RCT_003": {
+      "title": "Valor de categoría predeterminada no válido",
+      "what": "El valor que indica si la categoría de pasajero es la predeterminada no es válido.",
+      "action": "Defina el valor como sí o no."
+    },
+    "RCT_004": {
+      "title": "Límite de edad no válido",
+      "what": "La edad mínima o máxima de una categoría de pasajero no es un número entero.",
+      "action": "Indique los límites de edad como números enteros, o déjelos vacíos."
+    },
+    "RCT_005": {
+      "title": "Rango de edad invertido",
+      "what": "La edad máxima de una categoría de pasajero es inferior a su edad mínima.",
+      "action": "Corrija los límites de edad."
+    },
+    "RCT_006": {
+      "title": "No hay exactamente una categoría predeterminada por producto",
+      "what": "Un producto tarifario no tiene categoría de pasajero predeterminada, o tiene más de una.",
+      "action": "Defina exactamente una categoría de pasajero como predeterminada para cada producto."
+    },
+    "RCT_007": {
+      "title": "Página de requisitos de la categoría no válida",
+      "what": "La dirección de la página que explica las condiciones de la categoría de pasajero no es válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\", o déjela vacía."
+    },
+    "RCT_008": {
+      "title": "El código de categoría de pasajero está vacío",
+      "what": "Una categoría de pasajero tiene el código vacío.",
+      "action": "Asigne un código único a cada categoría."
+    },
+    "RTS_001": {
+      "title": "Mismo código de línea usado dos veces",
+      "what": "Dos líneas distintas tienen el mismo código; no queda claro a qué línea pertenecen los viajes.",
+      "action": "Asigne un código único a cada línea."
+    },
+    "RTS_002": {
+      "title": "Operador de la línea no encontrado",
+      "what": "Una línea está vinculada a un operador que no está en la lista de operadores.",
+      "action": "Vincule la línea a un operador existente, o añada el operador a la lista."
+    },
+    "RTS_003": {
+      "title": "Línea sin nombre",
+      "what": "Una línea no tiene nombre corto (número) ni nombre largo; los pasajeros no pueden reconocerla.",
+      "action": "Indique el número o el nombre de la línea."
+    },
+    "RTS_004": {
+      "title": "Tipo de vehículo de la línea ausente o no válido",
+      "what": "El tipo de línea (autobús, tranvía, metro, etc.) falta o no es un valor definido.",
+      "action": "Elija el tipo de vehículo de la línea."
+    },
+    "RTS_005": {
+      "title": "Dirección web de la línea no válida",
+      "what": "La dirección web indicada para la línea no es válida.",
+      "action": "Indique una dirección completa que empiece por \"https://\", o déjela vacía."
+    },
+    "RTS_006": {
+      "title": "Color de la línea no válido",
+      "what": "El color de la línea no es un código de color de 6 dígitos (p. ej., FF0000).",
+      "action": "Indique el color de la línea como código de color de 6 dígitos."
+    },
+    "RTS_007": {
+      "title": "Color del texto de la línea no válido",
+      "what": "El color del texto en la insignia de la línea no es un código de color de 6 dígitos (p. ej., FFFFFF).",
+      "action": "Indique el color del texto como código de color de 6 dígitos."
+    },
+    "RTS_008": {
+      "title": "Insignia de la línea difícil de leer",
+      "what": "El contraste entre el color de la línea y el color de su texto es bajo; el número de línea en la insignia es difícil de leer.",
+      "action": "Elija un color de texto lo bastante oscuro o claro para el color de la línea (p. ej., texto blanco sobre fondo oscuro)."
+    },
+    "RTS_010": {
+      "title": "Número de línea demasiado largo",
+      "what": "El nombre corto de la línea supera los 12 caracteres; no cabe en insignias ni letreros.",
+      "action": "Ponga solo el número de línea en el nombre corto; pase la descripción al nombre largo."
+    },
+    "RTS_011": {
+      "title": "Nombre de línea demasiado largo",
+      "what": "El nombre largo de la línea supera los 100 caracteres; las aplicaciones lo recortan.",
+      "action": "Acorte el nombre de la línea; ponga los detalles en la descripción de la línea."
+    },
+    "RTS_012": {
+      "title": "Línea sin viajes",
+      "what": "Esta línea no tiene viajes; puede aparecer como línea vacía en las aplicaciones para pasajeros.",
+      "action": "Si la línea no está en servicio, elimínela; si lo está, añada sus viajes."
+    },
+    "RTS_013": {
+      "title": "Valor de subida continua de la línea no válido",
+      "what": "El valor que indica si los pasajeros pueden subir a lo largo de la vía entre paradas no es una de las opciones definidas.",
+      "action": "Elija la configuración de subida continua, o déjela vacía si no la usa."
+    },
+    "RTS_016": {
+      "title": "La línea no tiene días de servicio",
+      "what": "Ninguno de los calendarios usados por los viajes de esta línea tiene un día de servicio; es posible que la línea no se muestre en las aplicaciones para pasajeros.",
+      "action": "Revise los calendarios de servicio usados por los viajes de la línea."
+    },
+    "RTS_017": {
+      "title": "La línea no tiene trazado",
+      "what": "Ninguno de los viajes de esta línea tiene trazado; las aplicaciones la dibujan con líneas rectas entre paradas.",
+      "action": "Añada a la exportación el trazado de la línea sobre la vía."
+    },
+    "RTS_018": {
+      "title": "Valor de bajada continua de la línea no válido",
+      "what": "El valor que indica si los pasajeros pueden bajar a lo largo de la vía entre paradas no es una de las opciones definidas.",
+      "action": "Elija la configuración de bajada continua, o déjela vacía si no la usa."
+    },
+    "RTS_019": {
+      "title": "Dos líneas tienen el mismo nombre",
+      "what": "Varias líneas tienen exactamente el mismo número y nombre; los pasajeros no pueden distinguirlas en la búsqueda.",
+      "action": "Si son servicios distintos, asígneles nombres distintivos; si son el mismo servicio, fusiónelas."
+    },
+    "RTS_020": {
+      "title": "Página de la línea igual a la del operador",
+      "what": "La dirección web indicada para la línea es la página general del operador.",
+      "action": "Si hay una página específica de la línea, indíquela; si no, deje la dirección vacía."
+    },
+    "RTS_021": {
+      "title": "El número de línea supera el límite de Google Transit (6 caracteres)",
+      "what": "El nombre corto de la línea supera los 6 caracteres; Google Maps puede recortarlo para que quepa en la insignia. Si no publica en Google, no es un problema.",
+      "action": "Si publica en Google, ponga solo el número de línea en el nombre corto."
+    },
+    "RTS_022": {
+      "title": "El nombre de la línea repite el número",
+      "what": "El nombre largo de la línea también contiene su número; las aplicaciones muestran repeticiones como \"34 34 Centro\".",
+      "action": "Escriba solo el itinerario en el nombre largo, sin el número (p. ej., \"Centro – Universidad\")."
+    },
+    "RTS_023": {
+      "title": "Descripción de la línea igual a su nombre",
+      "what": "La descripción de la línea repite su nombre largo; no aporta información adicional a los pasajeros.",
+      "action": "Escriba información adicional, como el horario de funcionamiento o una nota sobre la línea, o déjela vacía."
+    },
+    "RTS_024": {
+      "title": "Valor de pago sin contacto no válido",
+      "what": "El valor que indica si se acepta el pago sin contacto en la línea no es una de las opciones definidas.",
+      "action": "Elija \"sin información\", \"admitido\" o \"no admitido\"."
+    },
+    "RTS_025": {
+      "title": "Operador de la línea no indicado",
+      "what": "Algunas líneas no tienen operador; aunque haya un solo operador, se recomienda indicarlo.",
+      "action": "Asigne el operador a las líneas."
+    },
+    "RTS_026": {
+      "title": "Mismo número de línea en líneas distintas",
+      "what": "El mismo nombre corto (número) se usa en líneas con nombres distintos; los pasajeros pueden confundirse al buscar.",
+      "action": "Si las variantes comparten el número a propósito, no hay problema; si no, asigne números distintos a las líneas."
+    },
+    "RTS_027": {
+      "title": "Mismo nombre de línea en líneas distintas",
+      "what": "El mismo nombre largo se usa en líneas con números distintos; los pasajeros no pueden distinguirlas en la búsqueda.",
+      "action": "Si el nombre se comparte a propósito, no hay problema; si no, asigne a cada línea un nombre distintivo."
+    },
+    "RTS_028": {
+      "title": "Subida continua activada en una línea a demanda",
+      "what": "Una línea con viajes a demanda tiene activada la subida o bajada a lo largo de la vía; ambas cosas no se pueden combinar.",
+      "action": "Desactive la subida y bajada continuas en esta línea, o deje la configuración vacía."
+    },
+    "RTS_029": {
+      "title": "Orden de la línea en las listas no válido",
+      "what": "El valor que decide el orden en que aparecen las líneas en las listas es negativo o no es un número.",
+      "action": "Indique el orden como 0 o un número entero positivo, o déjelo vacío."
+    },
+    "RTS_030": {
+      "title": "El tipo de línea usa un código extendido",
+      "what": "El tipo de vehículo de la línea usa un código extendido no estándar; algunas aplicaciones pueden no reconocerlo.",
+      "action": "Si es posible, elija el tipo de vehículo básico más cercano (autobús, tranvía, metro, etc.)."
+    },
+    "RTS_031": {
+      "title": "El código de línea está vacío",
+      "what": "Una línea de la lista de líneas tiene el código vacío; no se pueden vincular viajes a ella.",
+      "action": "Asigne un código único a cada línea."
+    },
+    "SAR_001": {
+      "title": "Zona no encontrada en un vínculo parada–zona",
+      "what": "Una parada está asignada a una zona tarifaria que no está definida.",
+      "action": "Asigne la parada a una zona tarifaria existente."
+    },
+    "SAR_002": {
+      "title": "Parada no encontrada en un vínculo parada–zona",
+      "what": "A una zona tarifaria se le ha asignado una parada que no está en la lista de paradas.",
+      "action": "Asigne una parada existente a la zona."
+    },
+    "SAR_003": {
+      "title": "Zona vacía en un vínculo parada–zona",
+      "what": "Un vínculo parada–zona no tiene zona.",
+      "action": "Indique la zona tarifaria del vínculo."
+    },
+    "SAR_004": {
+      "title": "Parada vacía en un vínculo parada–zona",
+      "what": "Un vínculo parada–zona no tiene parada.",
+      "action": "Indique la parada del vínculo."
+    },
+    "SHP_001": {
+      "title": "El código del trazado está vacío",
+      "what": "Un punto de trazado no indica a qué trazado pertenece.",
+      "action": "Vuelva a exportar el trazado de la línea desde su software de planificación."
+    },
+    "SHP_002": {
+      "title": "Latitud de un punto del trazado no válida",
+      "what": "Un punto de un trazado no tiene latitud o está fuera de rango.",
+      "action": "Revise el trazado en el mapa y vuelva a dibujarlo o exportarlo."
+    },
+    "SHP_003": {
+      "title": "Longitud de un punto del trazado no válida",
+      "what": "Un punto de un trazado no tiene longitud o está fuera de rango.",
+      "action": "Revise el trazado en el mapa y vuelva a dibujarlo o exportarlo."
+    },
+    "SHP_004": {
+      "title": "Orden de un punto del trazado no válido",
+      "what": "Un punto del trazado no tiene número de secuencia o no es un número; el trazado puede unirse mal.",
+      "action": "Vuelva a exportar el trazado de la línea."
+    },
+    "SHP_005": {
+      "title": "La distancia del trazado retrocede",
+      "what": "A lo largo de un trazado, la distancia de un punto es menor que la del punto anterior.",
+      "action": "Haga recalcular las distancias del trazado para que aumenten del inicio al final."
+    },
+    "SHP_006": {
+      "title": "El trazado es un solo punto",
+      "what": "Un trazado consta de un solo punto; no se puede dibujar como una línea.",
+      "action": "Vuelva a dibujar el trazado siguiendo la vía."
+    },
+    "SHP_008": {
+      "title": "Mismo orden usado dos veces en un trazado",
+      "what": "Dos puntos de un trazado comparten el mismo número de secuencia; el sentido del trazado no está claro.",
+      "action": "Vuelva a exportar el trazado de la línea."
+    },
+    "SHP_009": {
+      "title": "El trazado se cruza consigo mismo",
+      "what": "Un trazado pasa por encima de sí mismo. Es normal en bucles y puntos de giro.",
+      "action": "Si la línea realmente usa la misma vía, no hay problema; si no, revise el trazado en el mapa."
+    },
+    "SHP_010": {
+      "title": "Mismo punto repetido en un trazado",
+      "what": "La misma ubicación aparece dos veces seguidas en un trazado.",
+      "action": "Simplifique el trazado y vuelva a exportarlo; no afecta a los pasajeros."
+    },
+    "SHP_012": {
+      "title": "Trazado alejado de las paradas del viaje",
+      "what": "Un trazado pasa a más de 100 metros de algunas paradas de los viajes que lo usan; las paradas aparecen fuera de la vía en el mapa.",
+      "action": "Corrija el trazado o la ubicación de las paradas; es posible que el viaje tenga un trazado incorrecto."
+    },
+    "SHP_014": {
+      "title": "Primera o última parada lejos del extremo del trazado",
+      "what": "La primera o la última parada del viaje está lejos del inicio o del final del trazado.",
+      "action": "Si es una prolongación intencionada (p. ej., salida de cochera), no hay problema; si no, ajuste los extremos del trazado a las paradas terminales."
+    },
+    "SHP_015": {
+      "title": "Trazado dibujado con muy pocos puntos",
+      "what": "Un trazado largo está dibujado con muy pocos puntos; en el mapa no sigue la vía y atraviesa edificios.",
+      "action": "Vuelva a dibujar el trazado siguiendo la vía con más puntos."
+    },
+    "SHP_016": {
+      "title": "El trazado va en sentido contrario al viaje",
+      "what": "Un trazado está dibujado en sentido contrario a los viajes que lo usan; las aplicaciones muestran el sentido invertido.",
+      "action": "Invierta el trazado para este sentido o defina un trazado aparte."
+    },
+    "SHP_017": {
+      "title": "El orden de paradas no coincide con el trazado",
+      "what": "El orden de paradas del viaje parece retroceder a lo largo del trazado. Puede ocurrir en líneas circulares.",
+      "action": "Revíselo en el mapa; si es un giro intencionado, no hay problema; si no, corrija el orden de paradas o el trazado."
+    },
+    "SHP_018": {
+      "title": "Trazado sin usar",
+      "what": "Ningún viaje usa este trazado.",
+      "action": "Vincule el trazado a los viajes correspondientes, o elimínelo si no se usa."
+    },
+    "SHP_019": {
+      "title": "Los viajes del trazado no tienen horarios de parada",
+      "what": "Ninguno de los viajes que usan un trazado tiene horarios de parada.",
+      "action": "Añada los horarios de parada de los viajes, o elimine los viajes y el trazado sin usar."
+    },
+    "SHP_020": {
+      "title": "Punto repetido en un trazado",
+      "what": "El mismo punto vuelve a aparecer poco después dentro de un trazado. Es solo informativo.",
+      "action": "Puede simplificar el trazado y volver a exportarlo; no afecta a los pasajeros."
+    },
+    "SHP_021": {
+      "title": "Distancia del trazado negativa",
+      "what": "Un punto del trazado tiene una distancia menor que cero.",
+      "action": "Haga recalcular las distancias del trazado."
+    },
+    "SHP_022": {
+      "title": "Posición ambigua de la parada en el trazado",
+      "what": "Como el trazado pasa más de una vez por el mismo lugar, no está claro en qué punto del trazado se encuentra una parada.",
+      "action": "Exporte la distancia de cada parada a lo largo del trazado en los horarios de parada del viaje."
+    },
+    "SHP_023": {
+      "title": "Mismo punto dos veces en un trazado",
+      "what": "La misma ubicación y distancia aparecen dos veces seguidas en un trazado.",
+      "action": "Elimine el punto duplicado y vuelva a exportar."
+    },
+    "SHP_024": {
+      "title": "Distancias de las paradas en el trazado incoherentes",
+      "what": "Las distancias de las paradas a lo largo del trazado no coinciden con la ubicación de las paradas.",
+      "action": "Revise la ubicación de las paradas, el trazado y las distancias."
+    },
+    "SHP_025": {
+      "title": "Distancia del viaje mayor que el trazado",
+      "what": "La distancia en los horarios de parada del viaje supera la longitud total del trazado; probablemente se usaron unidades distintas.",
+      "action": "Exporte la distancia en la misma unidad (metros o kilómetros) en ambos lugares."
+    },
+    "SHP_026": {
+      "title": "Trazado con muchísimos puntos",
+      "what": "Un trazado tiene más de 5000 puntos; el archivo crece innecesariamente. Es solo informativo.",
+      "action": "Puede usar la opción de simplificación de trazados al exportar."
+    },
+    "SHP_028": {
+      "title": "La posición cambia sin que aumente la distancia",
+      "what": "Dos puntos consecutivos del trazado están en lugares distintos pero tienen la misma distancia.",
+      "action": "Haga recalcular las distancias del trazado."
+    },
+    "SHP_029": {
+      "title": "Dos puntos del trazado casi idénticos",
+      "what": "Dos puntos consecutivos del trazado están muy cerca y tienen la misma distancia; puede deberse al redondeo. Es solo informativo.",
+      "action": "Haga recalcular las distancias del trazado, o elimine el punto duplicado."
+    },
+    "SHP_030": {
+      "title": "Hay distancia en las paradas pero no en el trazado",
+      "what": "Los horarios de parada del viaje usan distancias del trazado, pero el trazado no tiene ninguna; no se pueden emparejar.",
+      "action": "Añada al trazado distancias en la misma unidad, o elimine las distancias de los horarios de parada."
+    },
+    "STM_001": {
+      "title": "Horarios de parada no vinculados a una línea",
+      "what": "Hay horarios para un viaje de {stop_count} paradas que empieza en {first_stop} a las {first_departure} y termina en {last_stop} a las {last_arrival}, pero no hay línea ni calendario de servicio definidos para este viaje.",
+      "action": "En el software de planificación, busque el viaje que usa estas paradas y horarios, asígnele el calendario de servicio correcto y vincúlelo a una línea."
+    },
+    "STM_002": {
+      "title": "No se encontró una parada usada por un viaje",
+      "what": "Un viaje de la línea con código {route_code} del calendario {service} usa esta parada durante {time}, pero la parada no está en la lista de paradas.",
+      "action": "Revise la ubicación del viaje en el software de planificación. Si es una parada física, asígnela a una parada existente o cree un registro de parada. Si representa una zona de servicio, no la añada como parada; use el tipo de ubicación y el registro correctos en el viaje."
+    },
+    "STM_003": {
+      "title": "Hora de llegada no válida",
+      "what": "Una hora de llegada a una parada no se puede leer o no tiene un formato válido.",
+      "action": "Corrija la hora de llegada del viaje a la parada."
+    },
+    "STM_004": {
+      "title": "Hora de salida no válida",
+      "what": "Una hora de salida de una parada no se puede leer o no tiene un formato válido.",
+      "action": "Corrija la hora de salida del viaje desde la parada."
+    },
+    "STM_005": {
+      "title": "Secuencia de paradas del viaje no válida",
+      "what": "La secuencia de paradas del viaje falta o no es válida.",
+      "action": "Corrija los valores de secuencia de paradas que faltan o no son válidos."
+    },
+    "STM_006": {
+      "title": "No se indica ninguna parada en el viaje",
+      "what": "No se ha seleccionado ninguna parada para el horario de parada con llegada {arrival} y salida {departure}.",
+      "action": "En su software de planificación, añada la parada prevista para estos horarios."
+    },
+    "STM_007": {
+      "title": "La salida es anterior a la llegada",
+      "what": "En la misma parada, la hora de salida es anterior a la hora de llegada.",
+      "action": "Revise las horas de llegada y salida en la parada."
+    },
+    "STM_008": {
+      "title": "La hora retrocede entre paradas",
+      "what": "Tras salir de {from} a las {dep}, el viaje llega a {to} a las {arr}, antes de la salida.",
+      "action": "Revise las horas de estas dos paradas en su software de planificación; las horas deben avanzar a lo largo del viaje. Después de medianoche, las horas siguen más allá de 24:00 (p. ej., 24:10, no 00:10)."
+    },
+    "STM_009": {
+      "title": "Regla de subida en una parada no válida",
+      "what": "El valor que indica si los pasajeros pueden subir en una parada del viaje no es una de las opciones definidas.",
+      "action": "En su software de planificación, indique el modo de subida en esta parada: 0 — subida programada regular; 1 — sin subida; 2 — llamar al operador para concertar la subida; 3 — coordinar con el conductor para concertar la subida."
+    },
+    "STM_010": {
+      "title": "Regla de bajada en una parada no válida",
+      "what": "El valor que indica si los pasajeros pueden bajar en una parada del viaje no es una de las opciones definidas.",
+      "action": "En su software de planificación, indique el modo de bajada en esta parada: 0 — bajada programada regular; 1 — sin bajada; 2 — llamar al operador para concertar la bajada; 3 — coordinar con el conductor para concertar la bajada."
+    },
+    "STM_012": {
+      "title": "Velocidad poco realista entre paradas",
+      "what": "La velocidad calculada entre {stops} no parece realista.",
+      "action": "Revise primero las horas de llegada y salida entre estas dos paradas. Si las horas son correctas, revise la ubicación de las paradas."
+    },
+    "STM_014": {
+      "title": "Velocidad excesiva en un tramo de la línea",
+      "what": "Entre {from} y {to}, la velocidad calculada en {distance} m es de {speed} km/h, por encima del límite de {threshold} km/h fijado para este tipo de línea.",
+      "action": "Revise los horarios de estas dos paradas. Si los horarios son correctos, revise la ubicación de las paradas en el mapa."
+    },
+    "STM_015": {
+      "title": "Falta la hora de llegada en la primera parada",
+      "what": "Falta la hora de llegada a la primera parada de este viaje.",
+      "action": "Indique la hora de llegada a la primera parada de este viaje. En la primera parada suele ser igual a la hora de salida."
+    },
+    "STM_016": {
+      "title": "Falta la hora de llegada en la última parada",
+      "what": "Falta la hora de llegada a la última parada de este viaje.",
+      "action": "Indique la hora de llegada a la última parada de este viaje; debe ser posterior a la de la parada anterior."
+    },
+    "STM_017": {
+      "title": "Faltan las distancias de las paradas a lo largo del trazado",
+      "what": "Falta la distancia a lo largo del trazado para las paradas del viaje.",
+      "action": "Complete esta información en los viajes afectados, o elimine los valores de distancia si no los usa."
+    },
+    "STM_018": {
+      "title": "Regla de subida continua en una parada no válida",
+      "what": "En este horario de parada, el valor que indica si se permite subir a lo largo de la vía (entre paradas) no es una de las opciones definidas.",
+      "action": "Configure la subida continua en su software de planificación, o déjela vacía si no la usa."
+    },
+    "STM_019": {
+      "title": "Regla de bajada continua en una parada no válida",
+      "what": "En este horario de parada, el valor que indica si se permite bajar a lo largo de la vía (entre paradas) no es una de las opciones definidas.",
+      "action": "Configure la bajada continua en su software de planificación, o déjela vacía si no la usa."
+    },
+    "STM_020": {
+      "title": "Tiempo de recorrido cero entre paradas distantes",
+      "what": "Dos paradas consecutivas separadas más de 200 metros tienen el mismo minuto; el vehículo parece recorrer la distancia sin tardar nada.",
+      "action": "Corrija los horarios de las dos paradas según el tiempo de recorrido real."
+    },
+    "STM_021": {
+      "title": "Dos paradas consecutivas en el mismo lugar",
+      "what": "Dos paradas consecutivas distintas del viaje aparecen en el mismo punto del mapa.",
+      "action": "Revise la ubicación de ambas paradas; indique la ubicación correcta si son distintas, o fusiónelas si son copias."
+    },
+    "STM_022": {
+      "title": "Indicador de punto de control horario no válido",
+      "what": "El indicador que dice si un horario de parada es exacto o aproximado no tiene un valor definido.",
+      "action": "Marque los horarios exactos como \"exacto\" y las estimaciones como \"aproximado\"."
+    },
+    "STM_024": {
+      "title": "Las unidades de distancia no coinciden",
+      "what": "Las distancias de los horarios de parada y las de los trazados parecen usar unidades distintas (p. ej., metros y kilómetros).",
+      "action": "Use la misma unidad en ambos lugares al exportar las distancias."
+    },
+    "STM_025": {
+      "title": "Tiempo muy corto entre dos paradas",
+      "what": "El tiempo programado entre dos paradas consecutivas es inferior a 10 segundos. Esto por sí solo no es un error, solo una señal para revisar.",
+      "action": "Si las paradas están realmente muy cerca, no hace falta hacer nada; de lo contrario, revise los horarios."
+    },
+    "STM_026": {
+      "title": "Distancia muy larga entre dos paradas",
+      "what": "Hay una distancia inusualmente larga entre dos paradas consecutivas del viaje; el orden o la ubicación de las paradas puede ser incorrecto.",
+      "action": "Revise el orden de paradas del viaje y la ubicación de estas dos paradas."
+    },
+    "STM_028": {
+      "title": "Duración del viaje muy larga",
+      "what": "El tiempo entre la hora de inicio del viaje y la llegada a la última parada supera el límite superior esperado.",
+      "action": "Revise los horarios de la primera y la última parada; si el viaje es realmente tan largo, considere dividirlo en varios viajes."
+    },
+    "STM_029": {
+      "title": "Duración del viaje muy corta",
+      "what": "El tiempo entre la hora de inicio del viaje y la llegada a la última parada es mucho más corto de lo esperado.",
+      "action": "Revise los horarios de la primera y la última parada del viaje y si su lista de paradas está completa."
+    },
+    "STM_030": {
+      "title": "Distancia a lo largo del trazado negativa",
+      "what": "La distancia en el trazado indicada para una parada es inferior a cero.",
+      "action": "Indique la distancia como cero o un valor positivo, o déjela vacía si no usa distancias."
+    },
+    "STM_032": {
+      "title": "Misma secuencia de parada usada dos veces en un viaje",
+      "what": "Dos paradas del mismo viaje comparten número de secuencia; no está claro en qué orden se atienden las paradas.",
+      "action": "Corrija el orden de paradas del viaje para que cada parada tenga un número distinto y creciente."
+    },
+    "STM_033": {
+      "title": "El viaje tiene una sola parada",
+      "what": "Este viaje tiene solo una parada; los pasajeros no pueden ir a ningún sitio con él.",
+      "action": "Añada al menos la primera y la última parada al viaje, o elimine este viaje sin uso."
+    },
+    "STM_034": {
+      "title": "Solo llegada o solo salida en una parada",
+      "what": "En una parada solo se ha introducido una de las horas, la de llegada o la de salida.",
+      "action": "Introduzca ambas horas; si el vehículo no espera, pueden ser iguales. Si se desconoce la hora, deje ambas vacías."
+    },
+    "STM_035": {
+      "title": "La misma parada dos veces seguidas",
+      "what": "La misma parada aparece en dos filas consecutivas del viaje.",
+      "action": "Si se trata de una terminal o un giro de bucle, es correcto; de lo contrario, elimine la fila sobrante."
+    },
+    "STM_036": {
+      "title": "Horarios de parada no ordenados en el archivo",
+      "what": "Los horarios de parada no están ordenados por viaje y secuencia de parada en el archivo. Analyzer los ordena por sí mismo; esto es informativo.",
+      "action": "Ordenar los registros por viaje y orden de paradas al exportar permite que algunas aplicaciones lean el archivo más rápido."
+    },
+    "STM_037": {
+      "title": "Horarios fijos en una parada bajo demanda",
+      "what": "Una parada que funciona con una franja horaria (bajo demanda) también tiene horas fijas de llegada y salida; ambas cosas no pueden combinarse.",
+      "action": "Si esta parada es bajo demanda, elimine los horarios fijos y deje solo la franja horaria."
+    },
+    "STM_038": {
+      "title": "Franja bajo demanda invertida",
+      "what": "El fin de la franja del servicio bajo demanda no es posterior a su inicio; la franja nunca se abre.",
+      "action": "Corrija la franja para que empiece antes de terminar."
+    },
+    "STM_039": {
+      "title": "Falta la franja bajo demanda",
+      "what": "En una zona de servicio bajo demanda falta la hora de inicio o de fin del servicio (o ambas).",
+      "action": "Introduzca la hora de inicio y la de fin de la franja de servicio."
+    },
+    "STM_040": {
+      "title": "Sin regla de reserva en una parada bajo demanda",
+      "what": "Una parada que funciona con una franja horaria no define cómo reservan los pasajeros.",
+      "action": "Elija la regla de reserva de subida o de bajada para esta parada."
+    },
+    "STM_041": {
+      "title": "Parada y zona de servicio elegidas a la vez",
+      "what": "La misma fila del viaje tiene una parada regular y una zona de servicio bajo demanda; solo se permite una.",
+      "action": "Si la fila es una parada regular, elimine la zona de servicio; si es bajo demanda, elimine la parada."
+    },
+    "STM_042": {
+      "title": "El letrero de destino de la parada tiene caracteres que Google Transit no admite",
+      "what": "El letrero de destino mostrado en la parada contiene caracteres especiales que Google Maps no muestra. Si no publica en Google, esto no es un problema.",
+      "action": "Sustituya los caracteres especiales del letrero de destino por letras y dígitos simples."
+    },
+    "STM_043": {
+      "title": "El viaje tiene más de 200 paradas",
+      "what": "Este viaje tiene un número inusual de paradas; puede que se hayan fusionado varios viajes.",
+      "action": "Revise la lista de paradas del viaje; divida los viajes fusionados, si los hay."
+    },
+    "STM_044": {
+      "title": "Horarios de parada muy numerosos",
+      "what": "El conjunto de datos tiene más de 2 millones de registros de horarios de parada; algunas herramientas web pueden ralentizarse con este tamaño.",
+      "action": "Esto no es un error. Si es necesario, considere dividir el conjunto de datos por zona o periodo."
+    },
+    "STM_045": {
+      "title": "El viaje sale fuera del día de servicio",
+      "what": "La hora de salida del viaje supera el fin habitual del día de servicio (27:00 por defecto).",
+      "action": "Revise la hora de salida; si es un viaje del día siguiente, páselo al día y calendario de servicio correctos."
+    },
+    "STM_046": {
+      "title": "Horario de parada no vinculado a un viaje",
+      "what": "Un registro de horario de parada no indica a qué viaje pertenece.",
+      "action": "Asocie el horario de parada a su viaje."
+    },
+    "STM_047": {
+      "title": "A algunos viajes les faltan horarios exactos de parada",
+      "what": "Algunas paradas de estos viajes no tienen hora exacta de llegada o salida.",
+      "action": "Complete los horarios de parada o corrija las horas exactas que faltan."
+    },
+    "STM_048": {
+      "title": "Horarios de parada después de medianoche escritos como 00:xx",
+      "what": "El viaje pasa de medianoche, pero a partir de una parada los horarios se escriben como 00:xx en lugar de 24:xx, por lo que la hora retrocede respecto a la parada anterior. La hora de inicio del viaje es correcta; el problema está en los horarios de parada dentro del viaje.",
+      "action": "A partir de la parada mostrada en la tabla, continúe los horarios de parada de este viaje más allá de las 24:00 (24:10 en lugar de 00:10)."
+    },
+    "STM_049": {
+      "title": "Salida después de medianoche en una parada escrita como 00:xx",
+      "what": "La medianoche pasa mientras el vehículo espera en la parada; la llegada se escribe como 23:xx y la salida como 00:xx, por lo que la salida parece anterior a la llegada.",
+      "action": "Escriba la hora de salida de esta parada más allá de las 24:00 (24:02 en lugar de 00:02)."
+    },
+    "STM_050": {
+      "title": "Indicador de punto de control horario vacío en algunas filas",
+      "what": "En algunas filas no se indica si los horarios de parada son exactos o aproximados; un valor vacío cuenta como \"exacto\".",
+      "action": "Marque explícitamente los horarios estimados como \"aproximado\" y los reales como \"exacto\"."
+    },
+    "STM_051": {
+      "title": "Subida regular en una parada bajo demanda",
+      "what": "En una parada que funciona con una franja horaria, la subida está configurada como \"regular\" o \"concertar con el conductor\"; esto entra en conflicto con el servicio bajo demanda.",
+      "action": "Configure la subida en esta parada como \"ninguna\" o \"reserva telefónica\"."
+    },
+    "STM_052": {
+      "title": "Bajada regular en una parada bajo demanda",
+      "what": "En una parada que funciona con una franja horaria, la bajada está configurada como \"regular\"; esto entra en conflicto con el servicio bajo demanda.",
+      "action": "Configure la bajada en esta parada como \"ninguna\" o \"reserva telefónica\"."
+    },
+    "STM_053": {
+      "title": "Misma hora en muchas paradas consecutivas",
+      "what": "Muchas paradas consecutivas de un viaje tienen la misma hora; el vehículo parece pasar por ellas sin que transcurra el tiempo.",
+      "action": "Distribuya las horas intermedias según el tiempo de recorrido real; si se desconoce, marque las paradas intermedias como \"aproximado\"."
+    },
+    "STM_054": {
+      "title": "Subida continua en una parada bajo demanda",
+      "what": "En una parada que funciona con una franja horaria, la subida a lo largo de la vía está permitida; ambas cosas no pueden combinarse.",
+      "action": "Desactive la subida continua en esta parada, o deje el ajuste vacío."
+    },
+    "STM_055": {
+      "title": "Bajada continua en una parada bajo demanda",
+      "what": "En una parada que funciona con una franja horaria, la bajada a lo largo de la vía está permitida; ambas cosas no pueden combinarse.",
+      "action": "Desactive la bajada continua en esta parada, o deje el ajuste vacío."
+    },
+    "STM_056": {
+      "title": "La distancia en el trazado no aumenta a lo largo de las paradas del viaje",
+      "what": "La distancia recorrida sobre el trazado no aumenta entre las paradas del viaje.",
+      "action": "Revise la información de paradas y de distancias en el trazado del viaje."
+    },
+    "STM_058": {
+      "title": "No se puede leer la hora de la franja bajo demanda",
+      "what": "El inicio o el fin de la franja de servicio no es una hora válida.",
+      "action": "Introduzca las horas de la franja como HH:MM:SS (p. ej., 08:00:00)."
+    },
+    "STM_059": {
+      "title": "Sin regla para la reserva telefónica",
+      "what": "La subida o bajada en una parada está configurada como \"reserva telefónica\", pero no se define cómo reservan los pasajeros.",
+      "action": "Elija la regla de reserva correspondiente para esta parada."
+    },
+    "STM_060": {
+      "title": "Dos registros bajo demanda se solapan",
+      "what": "Dos registros bajo demanda del mismo viaje se solapan en zona, horario y regla de subida/bajada; no está claro cuál se aplica.",
+      "action": "Separe las franjas horarias o ajuste las zonas para que no se solapen."
+    },
+    "STM_061": {
+      "title": "Velocidad imposible entre paradas distantes",
+      "what": "El tiempo entre dos paradas distantes de un viaje es imposiblemente corto para esa distancia.",
+      "action": "Revise los horarios entre estas dos paradas; si son correctos, revise la ubicación de las paradas."
+    },
+    "STP_001": {
+      "title": "El mismo ID de parada se usa en más de un registro",
+      "what": "El mismo ID interno de parada aparece más de una vez en la lista de paradas.",
+      "action": "Fusione los registros duplicados de la misma parada o asigne códigos únicos a paradas distintas."
+    },
+    "STP_002": {
+      "title": "El código de parada está vacío",
+      "what": "Un registro de la lista de paradas tiene el código vacío; no se pueden vincular viajes a esta parada.",
+      "action": "Dé a cada parada un código único."
+    },
+    "STP_003": {
+      "title": "Parada sin nombre o con latitud no válida",
+      "what": "Una parada o estación no tiene nombre, o su latitud está fuera del rango válido (-90 a 90).",
+      "action": "Dé a la parada el nombre que conocen los pasajeros y revise su ubicación."
+    },
+    "STP_004": {
+      "title": "La latitud de la parada no es un número",
+      "what": "La latitud de una parada no se puede leer como número.",
+      "action": "Introduzca la latitud como número decimal con punto (p. ej., 37.0662)."
+    },
+    "STP_005": {
+      "title": "Longitud de la parada no válida",
+      "what": "La longitud de una parada no es un número o está fuera del rango -180 a 180.",
+      "action": "Introduzca la longitud como número decimal con punto (p. ej., 37.3833)."
+    },
+    "STP_006": {
+      "title": "Falta la latitud de la parada",
+      "what": "Una parada, estación o acceso no tiene latitud; no se puede mostrar en el mapa.",
+      "action": "Marque la ubicación de la parada en su software de planificación."
+    },
+    "STP_007": {
+      "title": "Falta la longitud de la parada",
+      "what": "Una parada, estación o acceso no tiene longitud; no se puede mostrar en el mapa.",
+      "action": "Marque la ubicación de la parada en su software de planificación."
+    },
+    "STP_008": {
+      "title": "Tipo de parada no válido",
+      "what": "El tipo que indica si el registro es una parada, una estación o un acceso no tiene un valor definido.",
+      "action": "Elija el tipo correcto: parada/andén, estación, acceso/salida, nodo genérico o zona de embarque."
+    },
+    "STP_009": {
+      "title": "Falta la estación a la que pertenece esta parada",
+      "what": "Esta parada está vinculada a una estación, pero esa estación no está en la lista de paradas.",
+      "action": "Añada la estación a la lista de paradas o vincule la parada a una estación existente. Si la parada no pertenece a ninguna estación, elimine el vínculo."
+    },
+    "STP_010": {
+      "title": "El registro vinculado no es una estación",
+      "what": "Una parada figura como perteneciente a una estación, pero el registro al que apunta no está definido como estación.",
+      "action": "Vincule la parada a un registro de estación real, o convierta el registro vinculado en estación."
+    },
+    "STP_011": {
+      "title": "Acceso o zona de embarque no vinculados a una estación",
+      "what": "Un acceso de estación, un nodo genérico o una zona de embarque no está vinculado a ninguna estación.",
+      "action": "Vincule este registro a su estación."
+    },
+    "STP_012": {
+      "title": "Un viaje usa un registro de estación o acceso",
+      "what": "Este registro está definido como estación o acceso, pero se usa en los horarios de parada de los viajes.",
+      "action": "Use un registro de parada normal en los horarios de parada o corrija el tipo de parada."
+    },
+    "STP_013": {
+      "title": "Valor de accesibilidad de la parada no válido",
+      "what": "El valor que indica si la parada se puede usar en silla de ruedas no es una de las opciones definidas.",
+      "action": "Elija \"desconocido\", \"accesible\" o \"no accesible\"."
+    },
+    "STP_014": {
+      "title": "Zona horaria de la parada no válida",
+      "what": "La zona horaria indicada para la parada no es un nombre reconocido.",
+      "action": "Introduzca la zona horaria con su nombre estándar, como \"Europe/Istanbul\", o déjela vacía."
+    },
+    "STP_015": {
+      "title": "No se encuentra el nivel de la parada",
+      "what": "La parada está vinculada a un nivel que no está en la lista de niveles.",
+      "action": "Añada el nivel a la lista, o vincule la parada a un nivel existente."
+    },
+    "STP_016": {
+      "title": "Dos paradas exactamente en el mismo lugar",
+      "what": "Dos paradas distintas están exactamente en el mismo punto del mapa.",
+      "action": "Si son dos registros de la misma parada, fusiónelos; si son paradas distintas, indique sus ubicaciones correctas."
+    },
+    "STP_017": {
+      "title": "Dos paradas muy próximas",
+      "what": "La distancia entre dos paradas distintas es inusualmente corta.",
+      "action": "Si una es copia de la otra, fusiónelas; de lo contrario, revise sus ubicaciones."
+    },
+    "STP_018": {
+      "title": "Ningún registro de parada válido",
+      "what": "La lista de paradas no contiene ningún registro de parada utilizable.",
+      "action": "Para servicios con paradas regulares, añada los registros de paradas. Si el conjunto de datos usa solo zonas de servicio bajo demanda, puede ser válido; la regla exacta se redactará cuando se tome la decisión sobre Flex."
+    },
+    "STP_019": {
+      "title": "Nombre de parada demasiado largo",
+      "what": "El nombre de la parada es demasiado largo para caber en las pantallas de los pasajeros.",
+      "action": "Use el nombre corto que aparece en el poste de la parada."
+    },
+    "STP_020": {
+      "title": "Parada sin ningún viaje",
+      "what": "Ningún viaje usa esta parada; puede aparecer como parada vacía en las aplicaciones para pasajeros.",
+      "action": "Si la parada no está en servicio, elimínela de la lista; si lo está, añádala a los viajes correspondientes."
+    },
+    "STP_021": {
+      "title": "Zona de embarque no vinculada a un andén",
+      "what": "Una zona de embarque está vinculada a un registro de otro tipo en lugar de a un andén.",
+      "action": "Vincule la zona de embarque a su andén."
+    },
+    "STP_022": {
+      "title": "Falta el código de parada",
+      "what": "Una o más paradas no tienen código de parada visible para los pasajeros.",
+      "action": "Complete los códigos de parada obligatorios."
+    },
+    "STP_023": {
+      "title": "Carácter no válido en el nombre hablado de la parada",
+      "what": "El nombre de la parada escrito para los anuncios de audio contiene caracteres como \"<\" o \">\".",
+      "action": "Escriba el nombre hablado de la parada como texto simple para leerse en voz alta."
+    },
+    "STP_024": {
+      "title": "Valor de acceso a la parada no definido",
+      "what": "El valor que indica si se puede entrar a la parada directamente desde la calle no es una de las opciones definidas.",
+      "action": "Elija \"solo a través de la estación\" o \"directamente desde la calle\"."
+    },
+    "STP_026": {
+      "title": "Valor de acceso a la parada no válido",
+      "what": "El valor de acceso a la parada solo puede ser una de dos opciones; se ha introducido otro valor.",
+      "action": "Elija \"solo a través de la estación\" o \"directamente desde la calle\"."
+    },
+    "STP_028": {
+      "title": "Código de parada demasiado largo",
+      "what": "El código de parada visible para los pasajeros es demasiado largo para ser un código corto.",
+      "action": "Introduzca el código corto de la parada que se usa en los postes y en las aplicaciones."
+    },
+    "STP_029": {
+      "title": "Parada lejos de su estación",
+      "what": "Un andén pertenece a una estación, pero aparece inusualmente lejos de ella en el mapa.",
+      "action": "Corrija la ubicación del andén o la estación a la que pertenece."
+    },
+    "STP_030": {
+      "title": "Estación vacía",
+      "what": "Hay una estación definida, pero ninguna parada ni andén pertenece a ella.",
+      "action": "Vincule los andenes de la estación a ella, o elimine la estación sin uso."
+    },
+    "STP_031": {
+      "title": "Descripción de la parada igual a su nombre",
+      "what": "La descripción de la parada repite su nombre; no da información adicional a los pasajeros.",
+      "action": "Añada información adicional, como sentido, calle o andén, o déjela vacía."
+    },
+    "STP_032": {
+      "title": "Andén con recorridos peatonales no vinculado a una estación",
+      "what": "Un andén al que se conectan recorridos peatonales dentro de la estación no está vinculado a ninguna estación.",
+      "action": "Vincule el andén a su estación."
+    },
+    "STP_033": {
+      "title": "Falta la zona tarifaria de la parada",
+      "what": "En un conjunto de datos con tarifas por zonas, algunas paradas no tienen zona tarifaria.",
+      "action": "Si usa tarifas por zonas, elija una zona tarifaria para cada parada."
+    },
+    "STP_034": {
+      "title": "Página de la parada igual a la del operador",
+      "what": "La dirección web indicada para la parada es la página general del operador.",
+      "action": "Si existe una página específica de la parada, indíquela; de lo contrario, deje la dirección vacía."
+    },
+    "STP_035": {
+      "title": "Página de la parada igual a la de la línea",
+      "what": "La dirección web indicada para la parada es la página general de una línea.",
+      "action": "Si existe una página específica de la parada, indíquela; de lo contrario, deje la dirección vacía."
+    },
+    "STP_036": {
+      "title": "Estación vinculada a otra estación",
+      "what": "Una estación figura como perteneciente a otro registro; las estaciones son registros de nivel superior.",
+      "action": "Elimine el registro padre de la estación."
+    },
+    "STP_037": {
+      "title": "Accesibilidad desconocida en algunas paradas",
+      "what": "Algunas paradas no indican si se pueden usar en silla de ruedas.",
+      "action": "Indique la accesibilidad como \"accesible\" o \"no accesible\" en las paradas que falten."
+    },
+    "STP_038": {
+      "title": "Ninguna parada tiene accesibilidad conocida",
+      "what": "Ninguna parada tiene información de accesibilidad en silla de ruedas; los pasajeros que buscan viajes accesibles no obtienen información.",
+      "action": "Indique la accesibilidad de las paradas como \"accesible\" o \"no accesible\"."
+    },
+    "STP_039": {
+      "title": "Mismo código de parada en varias paradas",
+      "what": "El mismo código de parada visible para los pasajeros se usa en más de una parada.",
+      "action": "Si los códigos deben ser únicos por parada, dé a cada parada su propio código; si el código compartido es intencionado, es correcto."
+    },
+    "STP_040": {
+      "title": "Palabra \"parada/estación\" innecesaria en el nombre de la parada",
+      "what": "Se ha añadido una palabra genérica como \"parada\" o \"estación\" al nombre de la parada.",
+      "action": "Escriba el nombre de la parada sin esa palabra, como en el poste de la parada."
+    },
+    "STP_041": {
+      "title": "El nombre del andén no incluye el nombre de la estación",
+      "what": "El nombre de un andén o parada que pertenece a una estación no incluye el nombre de la estación; puede que los pasajeros no los relacionen.",
+      "action": "Use el nombre de la estación en el nombre del andén (p. ej., \"Estación Central Andén 2\")."
+    },
+    "STP_042": {
+      "title": "Dirección web de la parada no válida",
+      "what": "La dirección web indicada para la parada no es válida.",
+      "action": "Introduzca una dirección completa que empiece por \"https://\", o déjela vacía."
+    },
+    "STP_043": {
+      "title": "Valor de acceso a la parada en el lugar equivocado",
+      "what": "El acceso a la parada solo se puede usar en andenes que pertenecen a una estación; aquí está configurado en una estación, un acceso o una parada independiente.",
+      "action": "Mantenga el valor de acceso solo en los andenes que pertenecen a una estación y elimínelo en los demás casos."
+    },
+    "STP_044": {
+      "title": "Palabra innecesaria en el código de andén",
+      "what": "El código de andén contiene palabras como \"Andén\"; debería ser solo el número del andén.",
+      "action": "Escriba el código de andén solo como un número o una letra (p. ej., \"2\", \"B\")."
+    },
+    "STP_045": {
+      "title": "Número de andén sin estación",
+      "what": "Una parada tiene número de andén, pero no indica de qué estación es andén.",
+      "action": "Vincule el andén a su estación."
+    },
+    "TFR_001": {
+      "title": "El grupo de franja horaria está vacío",
+      "what": "Un registro de franja horaria tarifaria (p. ej., horas punta) tiene el código de grupo vacío.",
+      "action": "Introduzca el código de grupo de la franja horaria."
+    },
+    "TFR_002": {
+      "title": "No se encuentra el calendario de la franja horaria",
+      "what": "Una franja horaria tarifaria está vinculada a un calendario de servicio que no está definido.",
+      "action": "Vincule la franja horaria a un calendario existente."
+    },
+    "TFR_003": {
+      "title": "Hora de la franja horaria no válida",
+      "what": "No se puede leer la hora de inicio o de fin de una franja horaria tarifaria.",
+      "action": "Introduzca las horas como HH:MM:SS."
+    },
+    "TFR_004": {
+      "title": "Franja horaria invertida",
+      "what": "La franja horaria tarifaria termina antes de empezar o a la misma hora.",
+      "action": "Corrija las horas de inicio y de fin."
+    },
+    "TFR_005": {
+      "title": "Las franjas horarias se solapan",
+      "what": "Dos franjas horarias tarifarias se solapan en el mismo grupo y calendario; no está claro qué tarifa se aplica a esa hora.",
+      "action": "Organice las franjas horarias para que no se solapen."
+    },
+    "TFR_006": {
+      "title": "La franja horaria supera las 24:00",
+      "what": "Una hora de franja horaria tarifaria se ha introducido más allá de las 24:00; las franjas horarias deben quedar dentro de un mismo día.",
+      "action": "Introduzca horas hasta las 24:00; defina por separado la franja posterior a medianoche para el día siguiente."
+    },
+    "TFR_007": {
+      "title": "Solo una hora en una franja horaria",
+      "what": "Solo se ha introducido la hora de inicio o solo la de fin de una franja horaria tarifaria.",
+      "action": "Introduzca ambas horas, o deje ambas vacías (todo el día)."
+    },
+    "TFR_008": {
+      "title": "El calendario de la franja horaria está vacío",
+      "what": "Una franja horaria tarifaria no indica a qué calendario se aplica.",
+      "action": "Elija el calendario de la franja horaria."
+    },
+    "TRF_001": {
+      "title": "La parada de origen del transbordo está vacía",
+      "what": "Un registro de transbordo no tiene la parada donde bajan los pasajeros.",
+      "action": "Elija la primera parada del transbordo."
+    },
+    "TRF_002": {
+      "title": "La parada de destino del transbordo está vacía",
+      "what": "Un registro de transbordo no tiene la parada donde suben los pasajeros.",
+      "action": "Elija la segunda parada del transbordo."
+    },
+    "TRF_003": {
+      "title": "No se encuentra la parada del transbordo",
+      "what": "Un transbordo está vinculado a una parada que no está en la lista de paradas.",
+      "action": "Vincule el transbordo a una parada existente, o añada la parada."
+    },
+    "TRF_004": {
+      "title": "Tipo de transbordo no válido",
+      "what": "El tipo de transbordo (recomendado, sincronizado, tiempo mínimo, no posible, sin bajar del vehículo) no tiene un valor definido.",
+      "action": "Elija el tipo de transbordo."
+    },
+    "TRF_005": {
+      "title": "Transbordo de tiempo mínimo sin tiempo",
+      "what": "Un transbordo de \"tiempo mínimo requerido\" no tiene tiempo o tiene uno no válido.",
+      "action": "Introduzca el tiempo mínimo de transbordo en segundos."
+    },
+    "TRF_006": {
+      "title": "No se encuentra el primer viaje del transbordo",
+      "what": "Un transbordo parte de un viaje que no está en la lista de viajes.",
+      "action": "Vincule el transbordo a un viaje existente."
+    },
+    "TRF_007": {
+      "title": "No se encuentra el segundo viaje del transbordo",
+      "what": "Un transbordo lleva a un viaje que no está en la lista de viajes.",
+      "action": "Vincule el transbordo a un viaje existente."
+    },
+    "TRF_008": {
+      "title": "No se encuentra la primera línea del transbordo",
+      "what": "Un transbordo parte de una línea que no está en la lista de líneas.",
+      "action": "Vincule el transbordo a una línea existente."
+    },
+    "TRF_009": {
+      "title": "No se encuentra la segunda línea del transbordo",
+      "what": "Un transbordo lleva a una línea que no está en la lista de líneas.",
+      "action": "Vincule el transbordo a una línea existente."
+    },
+    "TRF_010": {
+      "title": "Tiempo de transbordo muy largo",
+      "what": "El tiempo mínimo de un transbordo es de más de una hora.",
+      "action": "Compare el tiempo con el tiempo real de caminata y espera."
+    },
+    "TRF_011": {
+      "title": "Paradas de transbordo muy alejadas",
+      "what": "Las dos paradas de un transbordo están inusualmente lejos. Es solo informativo.",
+      "action": "Revise que las paradas y el transbordo sean correctos."
+    },
+    "TRF_012": {
+      "title": "Mismo transbordo dos veces",
+      "what": "El transbordo entre las mismas dos paradas está registrado dos veces.",
+      "action": "Elimine el transbordo sobrante."
+    },
+    "TRF_013": {
+      "title": "Falta un viaje en un transbordo sin bajarse",
+      "what": "En un transbordo en el que los pasajeros siguen a bordo, falta uno de los dos viajes.",
+      "action": "Indique el primer y el segundo viaje del transbordo sin bajarse."
+    },
+    "TRF_014": {
+      "title": "El viaje de un transbordo sin bajarse no tiene horarios",
+      "what": "Un viaje vinculado por un transbordo sin bajarse no tiene horarios de parada.",
+      "action": "Añada los horarios de parada del viaje."
+    },
+    "TRF_015": {
+      "title": "Transbordo sin bajarse asociado a una estación",
+      "what": "El transbordo sin bajarse se define desde una estación en lugar de una parada.",
+      "action": "Asocie el transbordo sin bajarse a la parada o andén correspondiente."
+    },
+    "TRF_016": {
+      "title": "Registros de transbordo contradictorios",
+      "what": "Hay varias reglas de transbordo distintas para la misma parada, viaje y línea.",
+      "action": "Elimine uno de los registros contradictorios."
+    },
+    "TRF_017": {
+      "title": "El viaje y la línea no coinciden en un transbordo",
+      "what": "El viaje elegido en un transbordo no pertenece a la línea elegida con él.",
+      "action": "Haga coincidir la línea del transbordo con la línea real del viaje."
+    },
+    "TRF_018": {
+      "title": "Transbordo vinculado al mismo viaje",
+      "what": "El primer y el segundo viaje de un transbordo son el mismo.",
+      "action": "Defina el transbordo entre dos viajes distintos."
+    },
+    "TRF_019": {
+      "title": "Tipos de vehículo distintos en un transbordo sin bajarse",
+      "what": "Los dos viajes unidos por un transbordo sin bajarse pertenecen a líneas con tipos de vehículo distintos.",
+      "action": "Defina los transbordos sin bajarse entre viajes del mismo tipo de vehículo."
+    },
+    "TRF_020": {
+      "title": "El transbordo obliga a correr",
+      "what": "La distancia entre las dos paradas solo se puede recorrer en el tiempo de transbordo indicado caminando muy rápido.",
+      "action": "Aumente el tiempo de transbordo según la distancia."
+    },
+    "TRF_021": {
+      "title": "Transbordo asociado a un acceso o nodo",
+      "what": "Un transbordo está asociado a un acceso, un nodo genérico o una zona de embarque en lugar de una parada o estación.",
+      "action": "Asocie el transbordo a la parada o estación correspondiente."
+    },
+    "TRF_022": {
+      "title": "Conflicto entre calendarios de viajes de continuación",
+      "what": "Un viaje continúa en varios viajes, pero estos circulan los mismos días; no está claro cuál se toma.",
+      "action": "Ajuste los calendarios de los viajes de continuación para que se excluyan entre sí."
+    },
+    "TRF_023": {
+      "title": "Conflicto entre calendarios de viajes entrantes",
+      "what": "Varios viajes continúan en el mismo viaje y los viajes entrantes circulan los mismos días.",
+      "action": "Ajuste los calendarios de los viajes entrantes para que se excluyan entre sí."
+    },
+    "TRN_001": {
+      "title": "Nombre de tabla no válido en una traducción",
+      "what": "Una traducción apunta a un archivo que no forma parte de GTFS; no se aplica.",
+      "action": "Exporte de nuevo las traducciones. Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRN_002": {
+      "title": "Campo no válido en una traducción",
+      "what": "Una traducción apunta a un campo que no existe en ese archivo; no se aplica.",
+      "action": "Exporte de nuevo las traducciones. Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRN_003": {
+      "title": "Idioma de traducción no válido",
+      "what": "No se reconoce el código de idioma de una traducción.",
+      "action": "Indique el idioma con un código estándar como \"en\" o \"de\"."
+    },
+    "TRN_004": {
+      "title": "Registro traducido no encontrado",
+      "what": "Una traducción apunta a una parada, línea o registro que ya no existe.",
+      "action": "Vincule la traducción a un registro existente o elimínela."
+    },
+    "TRN_005": {
+      "title": "Misma traducción dos veces",
+      "what": "La traducción del mismo texto al mismo idioma está registrada dos veces.",
+      "action": "Elimine la traducción sobrante."
+    },
+    "TRN_006": {
+      "title": "Dos traducciones distintas del mismo texto",
+      "what": "El mismo texto está traducido al mismo idioma de dos formas distintas; las aplicaciones no saben cuál mostrar.",
+      "action": "Conserve la traducción correcta y elimine la otra."
+    },
+    "TRN_007": {
+      "title": "Traducción al idioma propio del conjunto de datos",
+      "what": "Algunas traducciones son al idioma que ya usa el conjunto de datos; no son necesarias.",
+      "action": "Añada traducciones solo para otros idiomas."
+    },
+    "TRN_008": {
+      "title": "Texto de traducción vacío",
+      "what": "Una fila de traducción no tiene texto traducido.",
+      "action": "Indique la traducción o elimine la fila."
+    },
+    "TRN_009": {
+      "title": "Traducción vinculada a un registro y a un texto",
+      "what": "Una traducción está vinculada a la vez a un registro concreto y a un texto concreto; solo se permite uno.",
+      "action": "Vincule la traducción por código de registro o por el texto a traducir. Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRN_010": {
+      "title": "Orden de parada incorrecto en la traducción de un horario de parada",
+      "what": "Una traducción de un horario de parada de un viaje apunta a una secuencia de parada que no está en el viaje.",
+      "action": "Vincule la traducción a la secuencia de parada correcta. Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRN_011": {
+      "title": "Campo no traducible traducido",
+      "what": "Hay una traducción para un campo que no se puede traducir, como un código o un número.",
+      "action": "Traduzca solo campos de texto, como nombres, descripciones y direcciones web."
+    },
+    "TRN_013": {
+      "title": "Campos sobrantes en la traducción de la información del conjunto de datos",
+      "what": "En una traducción de la información del conjunto de datos hay campos de vínculo a registro rellenados que no se deben usar.",
+      "action": "Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRN_014": {
+      "title": "Vínculo de subregistro en el lugar equivocado",
+      "what": "El vínculo de subregistro, válido solo para horarios de parada de viajes, se usa en una traducción de otro archivo.",
+      "action": "Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRN_015": {
+      "title": "Traducción sin vincular",
+      "what": "Una traducción no está vinculada ni a un registro ni a un texto; no se sabe qué traduce.",
+      "action": "Vincule la traducción al registro o texto correspondiente."
+    },
+    "TRN_016": {
+      "title": "La traducción no coincide con ningún texto",
+      "what": "Una traducción está escrita para un texto que no existe en el conjunto de datos; no se aplica. Normalmente el texto se cambió después.",
+      "action": "Escriba el texto a traducir exactamente igual que el nombre actual."
+    },
+    "TRN_017": {
+      "title": "Falta el orden de parada en la traducción de un horario de parada",
+      "what": "Una traducción de un horario de parada de un viaje no indica de qué parada se trata.",
+      "action": "Añada la secuencia de la parada a la traducción. Es un problema de formato de archivo; avise al proveedor del software de exportación o a su equipo de TI."
+    },
+    "TRP_001": {
+      "title": "Código de viaje vacío o repetido",
+      "what": "El código de un viaje está vacío, o el mismo código se usa en dos viajes; los horarios de parada pueden asociarse al viaje equivocado.",
+      "action": "Asigne a cada viaje un código único."
+    },
+    "TRP_002": {
+      "title": "Línea del viaje no encontrada",
+      "what": "Un viaje está vinculado a una línea que no está en la lista de líneas.",
+      "action": "Vincule el viaje a una línea existente o añada la línea a la lista."
+    },
+    "TRP_003": {
+      "title": "Calendario de servicio del viaje no encontrado",
+      "what": "Un viaje está vinculado a un calendario de servicio no definido; no se conocen sus días de servicio.",
+      "action": "Vincule el viaje a un calendario de servicio existente o defina el calendario."
+    },
+    "TRP_004": {
+      "title": "Trazado del viaje no encontrado",
+      "what": "Un viaje está vinculado a un trazado que no está entre los trazados de las líneas.",
+      "action": "Vincule el viaje a un trazado existente o elimine el vínculo."
+    },
+    "TRP_005": {
+      "title": "Sentido del viaje no válido",
+      "what": "El valor que indica si un viaje es de ida o de vuelta solo admite dos opciones; se ha indicado otro valor.",
+      "action": "Indique el sentido del viaje como \"ida\" o \"vuelta\"."
+    },
+    "TRP_006": {
+      "title": "Valor de accesibilidad del viaje no válido",
+      "what": "El valor que indica si el viaje es accesible en silla de ruedas no es ninguna de las opciones definidas.",
+      "action": "Elija \"sin información\", \"accesible\" o \"no accesible\"."
+    },
+    "TRP_007": {
+      "title": "Valor de bicicletas permitidas no válido",
+      "what": "El valor que indica si se permiten bicicletas en el viaje no es ninguna de las opciones definidas.",
+      "action": "Elija \"sin información\", \"permitidas\" o \"no permitidas\"."
+    },
+    "TRP_011": {
+      "title": "Destino del viaje no visible para los pasajeros",
+      "what": "El viaje no tiene letrero de destino ni nombre de viaje; los pasajeros no ven adónde va el vehículo.",
+      "action": "Indique el letrero de destino del viaje (última parada o destino)."
+    },
+    "TRP_012": {
+      "title": "Falta el sentido en algunos viajes",
+      "what": "En una línea con viajes de ida y de vuelta, algunos viajes no tienen sentido.",
+      "action": "Indique si estos viajes son de ida o de vuelta."
+    },
+    "TRP_013": {
+      "title": "Línea con un solo viaje",
+      "what": "En esta línea solo hay un viaje definido. Es solo informativo.",
+      "action": "Si la línea realmente circula una vez al día, está bien; si no, añada los viajes que faltan."
+    },
+    "TRP_014": {
+      "title": "Nombre de viaje demasiado largo",
+      "what": "El nombre del viaje (número de viaje) tiene más de 20 caracteres; se corta en las pantallas de los pasajeros.",
+      "action": "Ponga en el nombre del viaje solo el número corto que ven los pasajeros."
+    },
+    "TRP_015": {
+      "title": "La información de bloque no es útil",
+      "what": "Los viajes tienen código de bloque, pero ningún bloque agrupa más de un viaje; no aporta ventajas de transbordo a los pasajeros.",
+      "action": "Asigne el mismo código de bloque a los viajes consecutivos del mismo vehículo, o deje el campo vacío."
+    },
+    "TRP_017": {
+      "title": "Viaje por frecuencia sin horarios de parada",
+      "what": "Un viaje definido por frecuencia (cada X minutos) no tiene horarios de parada; no se conocen su orden de paradas ni sus tiempos de recorrido.",
+      "action": "Indique la lista de paradas y los tiempos entre paradas de este viaje."
+    },
+    "TRP_019": {
+      "title": "Subida continua sin trazado",
+      "what": "Un viaje que permite subir o bajar a lo largo del recorrido no tiene trazado; los pasajeros no ven dónde pueden subir.",
+      "action": "Añada el trazado del viaje sobre la vía."
+    },
+    "TRP_020": {
+      "title": "El letrero de destino es una parada intermedia",
+      "what": "El letrero de destino que ven los pasajeros es el nombre de una parada intermedia y no de la última parada. Puede ser intencionado.",
+      "action": "Si el letrero muestra un punto intermedio importante, está bien; si no, use la última parada."
+    },
+    "TRP_021": {
+      "title": "No se indica si se permiten bicicletas",
+      "what": "Ningún viaje indica si se permiten bicicletas.",
+      "action": "Indique en los viajes si las bicicletas están \"permitidas\" o \"no permitidas\"."
+    },
+    "TRP_022": {
+      "title": "Viajes del mismo vehículo superpuestos",
+      "what": "Los horarios de dos viajes del mismo bloque se superponen; un vehículo no puede hacer dos viajes a la vez.",
+      "action": "Corrija el bloque o los horarios de los viajes."
+    },
+    "TRP_023": {
+      "title": "Sin viajes activos en los próximos 7 días",
+      "what": "Ningún viaje de este conjunto de datos circula en los próximos 7 días.",
+      "action": "Revise el calendario de servicio y las fechas de los viajes."
+    },
+    "TRP_024": {
+      "title": "Tipos de vehículo distintos en el mismo bloque",
+      "what": "Los viajes de un mismo bloque pertenecen a líneas con tipos de vehículo distintos (p. ej., autobús y tranvía).",
+      "action": "Limite cada bloque a viajes del mismo tipo de vehículo."
+    },
+    "TRP_025": {
+      "title": "Accesibilidad desconocida en la mayoría de los viajes",
+      "what": "Más del 80% de los viajes no tienen información de accesibilidad en silla de ruedas.",
+      "action": "Indique la accesibilidad de los viajes como \"accesible\" o \"no accesible\"."
+    },
+    "TRP_026": {
+      "title": "El viaje no circula ningún día",
+      "what": "El calendario de servicio del viaje no tiene ningún día de servicio; puede que el viaje no aparezca en las aplicaciones para pasajeros.",
+      "action": "Añada días de servicio al calendario o vincule el viaje al calendario correcto."
+    },
+    "TRP_028": {
+      "title": "Accesibilidad desconocida en algunos viajes",
+      "what": "Algunos viajes no tienen información de accesibilidad en silla de ruedas.",
+      "action": "Indique la accesibilidad como \"accesible\" o \"no accesible\" en los viajes que no la tienen."
+    },
+    "TRP_029": {
+      "title": "Accesibilidad desconocida en todos los viajes",
+      "what": "Ningún viaje tiene información de accesibilidad en silla de ruedas; los pasajeros que buscan viajes accesibles no reciben información.",
+      "action": "Indique la accesibilidad de los viajes como \"accesible\" o \"no accesible\"."
+    },
+    "TRP_031": {
+      "title": "Viaje no vinculado a una línea",
+      "what": "Un viaje no indica a qué línea pertenece.",
+      "action": "Asigne el viaje a la línea correcta."
+    },
+    "TRP_032": {
+      "title": "Valor de transporte de coches no válido",
+      "what": "El valor que indica si se pueden llevar coches en el viaje (p. ej., ferri) no es ninguna de las opciones definidas.",
+      "action": "Elija \"sin información\", \"permitido\" o \"no permitido\"."
+    },
+    "TRP_034": {
+      "title": "El factor de duración del servicio a demanda no es un número",
+      "what": "El factor o el desfase usado para calcular el tiempo de viaje en los viajes a demanda no se puede leer como número.",
+      "action": "Indique el factor y el desfase como números decimales."
+    },
+    "TRP_035": {
+      "title": "No se indica el calendario de servicio del viaje",
+      "what": "Un viaje no indica qué días circula.",
+      "action": "Elija o cree un calendario de servicio para el viaje."
+    },
+    "VAT_001": {
+      "title": "Dos líneas con casi el mismo recorrido",
+      "what": "Dos líneas del mismo tipo sirven en gran parte las mismas paradas; pueden ser dos copias de la misma línea.",
+      "action": "Si realmente son líneas distintas, está bien; si son copias, fusiónelas."
+    },
+    "VAT_002": {
+      "title": "Sin transbordo definido en una parada con varias líneas",
+      "what": "Cuatro o más líneas sirven esta parada, pero no hay ningún transbordo definido. Es solo informativo.",
+      "action": "Si se necesita un tiempo o una regla de transbordo concretos, añada información de transbordo; si no, no hace falta hacer nada."
+    },
+    "VAT_003": {
+      "title": "Duración del viaje muy distinta a la de viajes similares",
+      "what": "En comparación con los viajes del mismo recorrido, este viaje es inusualmente largo o corto. Es solo informativo.",
+      "action": "Si hay un motivo, como el tráfico en hora punta o un vehículo distinto, está bien; si no, revise los horarios del viaje."
+    },
+    "VAT_005": {
+      "title": "Grupo de paradas aislado de la red",
+      "what": "Algunas paradas no están conectadas por viajes con el resto de la red; forman una isla.",
+      "action": "Revise los viajes y los horarios de parada que usan estas paradas."
+    },
+    "VAT_006": {
+      "title": "La mayoría de los viajes en una sola línea",
+      "what": "La mayoría de los viajes del conjunto de datos están en una sola línea. Es solo informativo.",
+      "action": "Si la línea realmente tiene tanto servicio, está bien; si no, revise que se exportaron los viajes de las demás líneas."
+    },
+    "VAT_007": {
+      "title": "Sin transbordo en una parada terminal",
+      "what": "Otra línea también llega a la parada terminal de una línea, pero no hay ningún transbordo definido. Es solo informativo.",
+      "action": "Si se necesita una regla de transbordo concreta, añada información de transbordo."
+    },
+    "VAT_008": {
+      "title": "Mismo trazado usado en muchas líneas",
+      "what": "Un mismo trazado se usa en más del 30% de las líneas; puede que se haya asignado un trazado incorrecto a algunas líneas.",
+      "action": "Defina un trazado propio para cada línea y sentido."
+    },
+    "XFL_002": {
+      "title": "Viaje sin horarios de parada",
+      "what": "Este viaje no tiene ningún horario de parada; puede que no aparezca en las aplicaciones para pasajeros.",
+      "action": "Añada los horarios de parada del viaje o elimine el viaje si no se usa."
+    },
+    "XFL_006": {
+      "title": "Calendario solo con cancelaciones",
+      "what": "Un calendario de servicio consta solo de fechas añadidas como \"sin servicio\"; no tiene ningún día de servicio.",
+      "action": "Añada días de servicio al calendario."
+    },
+    "XFL_012": {
+      "title": "Línea sin viajes operativos",
+      "what": "Esta línea tiene viajes, pero ninguno tiene horarios de parada; puede que la línea no aparezca en las aplicaciones para pasajeros.",
+      "action": "Añada horarios de parada a los viajes de la línea o elimine la línea."
+    },
+    "XFL_013": {
+      "title": "Trazado usado en ambos sentidos",
+      "what": "Los viajes de ida y de vuelta usan el mismo trazado; en uno de los sentidos la línea aparece invertida.",
+      "action": "Use trazados distintos para la ida y la vuelta."
+    },
+    "XFL_014": {
+      "title": "Registro traducido no encontrado",
+      "what": "Una traducción apunta a un registro que ya no existe.",
+      "action": "Elimine la traducción o restaure el registro."
+    },
+    "XFL_015": {
+      "title": "Atribución vinculada a un registro inexistente",
+      "what": "Un registro de atribución está vinculado a un operador, línea o viaje que no existe.",
+      "action": "Vincule la atribución a un registro existente."
+    },
+    "XFL_016": {
+      "title": "Información del conjunto de datos traducida, pero falta el archivo",
+      "what": "Hay una traducción para la información del conjunto de datos, pero no existe el archivo de información del conjunto de datos.",
+      "action": "Añada la información del conjunto de datos o elimine la traducción relacionada."
+    },
+    "XFL_019": {
+      "title": "Red de líneas definida en dos lugares",
+      "what": "La red a la que pertenecen las líneas se indica tanto en la lista de líneas como en un archivo de redes aparte.",
+      "action": "Mantenga la información de la red en un solo lugar."
+    },
+    "XFL_020": {
+      "title": "El viaje y la línea no coinciden en un transbordo",
+      "what": "El viaje elegido en un transbordo no pertenece a la línea elegida con él.",
+      "action": "Haga coincidir la línea del transbordo con la línea real del viaje."
+    },
+    "XFL_021": {
+      "title": "El viaje no pasa por la parada de transbordo",
+      "what": "El viaje elegido en un transbordo no pasa por la parada donde está definido el transbordo.",
+      "action": "Asocie el transbordo a una parada por la que pase el viaje."
+    },
+    "XFL_022": {
+      "title": "Grupo de paradas no encontrado",
+      "what": "Un vínculo grupo–parada apunta a un grupo de paradas no definido.",
+      "action": "Defina el grupo de paradas o elimine el vínculo."
+    },
+    "XFL_023": {
+      "title": "Parada del grupo no encontrada",
+      "what": "Un grupo de paradas contiene una parada que no está en la lista de paradas.",
+      "action": "Añada al grupo una parada existente."
+    },
+    "XFL_024": {
+      "title": "Grupo de paradas del viaje no encontrado",
+      "what": "Un viaje a demanda está vinculado a un grupo de paradas no definido.",
+      "action": "Vincule el viaje a un grupo de paradas existente."
+    },
+    "XFL_025": {
+      "title": "Zona de servicio del viaje no encontrada",
+      "what": "Un viaje a demanda está vinculado a una zona de servicio no definida.",
+      "action": "Vincule el viaje a una zona de servicio existente o añada la zona."
+    },
+    "XFL_027": {
+      "title": "La información de pago sin contacto no coincide",
+      "what": "La información de pago sin contacto de la línea difiere de la de las definiciones de tarifas; prevalecen las definiciones de tarifas. Es solo informativo.",
+      "action": "Haga que ambas coincidan."
+    },
+    "XFL_028": {
+      "title": "El operador indica pago sin contacto, las tarifas no",
+      "what": "El operador figura como compatible con el pago sin contacto, pero las definiciones de tarifas no tienen ningún medio de pago sin contacto.",
+      "action": "Añada el medio de pago sin contacto a las definiciones de tarifas."
+    },
+    "XFL_029": {
+      "title": "La línea indica pago sin contacto, las tarifas no",
+      "what": "Una línea figura como compatible con el pago sin contacto, pero las definiciones de tarifas no tienen ningún medio de pago sin contacto.",
+      "action": "Añada el medio de pago sin contacto a las definiciones de tarifas."
+    },
+    "XFL_030": {
+      "title": "Hay pago sin contacto, pero no está indicado",
+      "what": "Las definiciones de tarifas tienen un medio de pago sin contacto, pero ningún operador ni línea indica que lo admita.",
+      "action": "Indique los operadores o líneas donde se aplica el pago sin contacto."
+    },
+    "XFL_031": {
+      "title": "Mismo código para una parada y una zona",
+      "what": "Una parada, una zona de servicio o un grupo de paradas comparten el mismo código; los viajes pueden vincularse al lugar equivocado.",
+      "action": "Cambie uno de los códigos en conflicto."
+    },
+    "XFL_032": {
+      "title": "Código de grupo de paradas vacío",
+      "what": "Un grupo de paradas tiene el código vacío.",
+      "action": "Asigne a cada grupo de paradas un código único."
+    },
+    "XFL_033": {
+      "title": "Código de grupo vacío en un vínculo grupo–parada",
+      "what": "Un vínculo grupo–parada no indica a qué grupo pertenece.",
+      "action": "Indique el código de grupo del vínculo."
+    },
+    "XFL_034": {
+      "title": "Parada vacía en un vínculo grupo–parada",
+      "what": "Un vínculo grupo–parada no indica de qué parada se trata.",
+      "action": "Indique la parada del vínculo."
+    }
+  }
+}

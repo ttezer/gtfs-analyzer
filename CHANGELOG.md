@@ -5,6 +5,11 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-11-03
+
+- Add a plain-language planner `card` (`title`, `what`, `action`) to every `--compact-json` R9 item and `rules --json` row, in the `--lang` language. Cards are exported from the UI's `producer.card.<RULE>.*` keys into `crates/core/locales/*.json`, Turkish included. `what` is left out when the card text needs per-finding values.
+- Add Spanish (`--lang es`) as a cards-only language: 619 planner cards; titles, messages and remediations fall back to English. The web UI does not offer it.
+
 ## [0.18.0] - 2026-11-03
 
 - Add the missing stop's adjacent stops, arrival/departure times, and trip service context to STM_006 planner cards.
@@ -2813,6 +2818,7 @@ filters (R2).
   audit (`cargo audit` blocking; `npm audit` reported, non-blocking).
 - GitHub Pages deploy builds from source to guarantee the live site matches `HEAD`.
 
+[0.19.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/ttezer/gtfs-analyzer/compare/v0.15.0...v0.16.0

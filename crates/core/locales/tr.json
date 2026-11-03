@@ -1,0 +1,3099 @@
+{
+  "cards": {
+    "AGN_002": {
+      "title": "İşletmecinin adı yok",
+      "what": "İşletmeci listesinde adı girilmemiş bir işletmeci var; yolcu kimin işlettiğini göremez.",
+      "action": "İşletmecinin yolcunun tanıdığı adını girin."
+    },
+    "AGN_003": {
+      "title": "İşletmecinin web adresi geçersiz",
+      "what": "{agency} için verilen web adresi geçerli bir URL olarak okunamıyor.",
+      "action": "İşletmecinin geçerli web adresini girin."
+    },
+    "AGN_004": {
+      "title": "İşletmecinin saat dilimi eksik veya geçersiz",
+      "what": "İşletmeci için saat dilimi girilmemiş ya da tanınan bir ad değil; uygulamalar sefer saatlerini yanlış saate kaydırabilir.",
+      "action": "Saat dilimini \"Europe/Istanbul\" gibi standart adla girin."
+    },
+    "AGN_005": {
+      "title": "İşletmecilerin saat dilimleri farklı",
+      "what": "Veri setindeki işletmeciler farklı saat dilimleri kullanıyor; tek veri setinde hepsi aynı olmalı.",
+      "action": "Tüm işletmecilere aynı saat dilimini girin."
+    },
+    "AGN_006": {
+      "title": "İşletmeci dili geçersiz",
+      "what": "İşletmeci için girilen dil kodu tanınmıyor.",
+      "action": "Dili \"tr\", \"en\" gibi standart kodla girin."
+    },
+    "AGN_007": {
+      "title": "İşletmeci telefonu geçersiz",
+      "what": "İşletmeci için girilen telefon numarası numaraya benzemiyor.",
+      "action": "Telefonu alan koduyla tam numara olarak girin ya da boş bırakın."
+    },
+    "AGN_008": {
+      "title": "Ücret sayfası adresi geçersiz",
+      "what": "İşletmecinin ücret bilgisi sayfası için girilen adres geçerli bir web adresi değil.",
+      "action": "Adresi \"https://\" ile başlayan tam adres olarak girin ya da boş bırakın."
+    },
+    "AGN_009": {
+      "title": "İşletmeci e-postası geçersiz",
+      "what": "İşletmeci için girilen e-posta adresi geçerli değil.",
+      "action": "E-postayı ad@alanadi.com biçiminde girin ya da boş bırakın."
+    },
+    "AGN_010": {
+      "title": "Aynı işletmeci kodu iki kez",
+      "what": "İki işletmeci aynı kodu taşıyor; hatların hangi işletmeciye ait olduğu karışır.",
+      "action": "Her işletmeciye benzersiz bir kod verin ya da kopya kayıtları birleştirin."
+    },
+    "AGN_011": {
+      "title": "Hat veya ücret işletmeciye bağlı değil",
+      "what": "Birden çok işletmeci var ama bazı hatlarda ya da ücretlerde hangi işletmeciye ait oldukları girilmemiş.",
+      "action": "Her hattı ve ücreti ait olduğu işletmeciye bağlayın."
+    },
+    "AGN_012": {
+      "title": "Temassız ödeme bilgisi geçersiz",
+      "what": "İşletmecinin temassız kartla ödemeyi destekleyip desteklemediğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Değeri \"bilgi yok\", \"destekleniyor\" veya \"desteklenmiyor\" olarak seçin."
+    },
+    "AGN_013": {
+      "title": "Veri seti dili ile işletmeci dili farklı",
+      "what": "Veri setinin dili ile işletmeci için yazılan dil uyuşmuyor.",
+      "action": "İki dili aynı yapın; işletmeci gerçekten farklı dil kullanıyorsa sorun yok."
+    },
+    "AGN_014": {
+      "title": "Birden çok işletmecide kod eksik",
+      "what": "Birden fazla işletmeci var ama bazılarının kodu girilmemiş; hatlar bunlara bağlanamaz.",
+      "action": "Her işletmeciye benzersiz bir kod verin."
+    },
+    "AGN_015": {
+      "title": "İşletmeci adresi güvensiz (http)",
+      "what": "İşletmecinin web adresi \"http://\" ile başlıyor; tarayıcılar güvensiz uyarısı gösterebilir.",
+      "action": "Site destekliyorsa adresi \"https://\" ile güncelleyin."
+    },
+    "AGN_016": {
+      "title": "İşletmeci telefonu yer tutucu görünüyor",
+      "what": "İşletmeci telefonu bilinen bir deneme ya da yer tutucu numara; yolcu ulaşamayabilir.",
+      "action": "Gerçek müşteri hizmetleri numarasını girin."
+    },
+    "AGN_017": {
+      "title": "İşletmecilerin dilleri farklı",
+      "what": "Veri setindeki işletmeciler farklı diller beyan ediyor. Bilgi amaçlıdır.",
+      "action": "Çok dilli bir ağsa sorun yok; değilse dilleri aynı yapın."
+    },
+    "AGN_018": {
+      "title": "Tek işletmecinin kodu boş",
+      "what": "Tek işletmeci var ve kodu boş. Şu an sorun yaratmaz, ikinci işletmeci eklenince sorun olur.",
+      "action": "İşletmeciye bir kod verin."
+    },
+    "ARC_001": {
+      "title": "Veri seti dosyası açılamıyor",
+      "what": "Yüklenen ZIP dosyası açılamadı; içindeki hiçbir bilgi okunamadı.",
+      "action": "Veri setini planlama yazılımından yeniden dışa aktarın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_002": {
+      "title": "Dosyada Türkçe karakterler okunamıyor",
+      "what": "Bir dosya UTF-8 karakter kodlamasında değil; durak ve hat adlarındaki ğ, ş, ı gibi harfler bozuk görünebilir ve dosya tam kontrol edilemedi.",
+      "action": "Dışa aktarımda karakter kodlaması olarak UTF-8 seçin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_003": {
+      "title": "Ek dosyada karakter kodlaması hatalı",
+      "what": "Zorunlu olmayan bir dosya UTF-8 karakter kodlamasında değil; içindeki adlar bozuk görünebilir.",
+      "action": "Dışa aktarımda karakter kodlaması olarak UTF-8 seçin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_004": {
+      "title": "Zorunlu dosya eksik",
+      "what": "Gerekli GTFS dosyalarından biri bulunmuyor.",
+      "action": "Eksik dosyayı veri setine ekleyin."
+    },
+    "ARC_006": {
+      "title": "Ek bir GTFS dosyası var",
+      "what": "Veri setinde zorunlu olmayan ama standartta tanımlı bir dosya bulunuyor. Bilgi amaçlıdır.",
+      "action": "Bir şey yapmanız gerekmez."
+    },
+    "ARC_007": {
+      "title": "Tanınmayan dosya",
+      "what": "Veri setinde GTFS standardında olmayan bir dosya var; bazı uygulamalar bu dosyayı yok sayabilir.",
+      "action": "Dosyanın gerekli olup olmadığını kontrol edin; gereksizse dışa aktarımdan çıkarın."
+    },
+    "ARC_008": {
+      "title": "Çalışma takvimi dosyaları eksik",
+      "what": "Çalışma takvimini tanımlayan dosyalardan biri bulunmuyor.",
+      "action": "Çalışma takvimi dosyalarını veri setine ekleyin."
+    },
+    "ARC_009": {
+      "title": "Ek dosya boş",
+      "what": "Zorunlu olmayan bir dosyada yalnızca başlık satırı var, kayıt yok.",
+      "action": "Dosyayı dolduracak bilgi yoksa dışa aktarımdan çıkarın."
+    },
+    "ARC_010": {
+      "title": "Dosyanın başında görünmez işaret var",
+      "what": "Dosya başında görünmez bir kodlama işareti (BOM) var; çoğu uygulama okur, bazıları ilk sütunu yanlış adlandırabilir.",
+      "action": "Dışa aktarımda \"BOM olmadan UTF-8\" seçeneğini kullanın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_011": {
+      "title": "Dosya boyutu",
+      "what": "Veri setindeki dosyaların boyutu bilgi amaçlı gösteriliyor.",
+      "action": "Bir şey yapmanız gerekmez."
+    },
+    "ARC_012": {
+      "title": "Dosya satır yapısı bozuk",
+      "what": "{file} dosyasındaki bir satırın alan sayısı başlıkla uyuşmuyor.",
+      "action": "İlgili satırı düzeltin ve dosyayı yeniden dışa aktarın."
+    },
+    "ARC_013": {
+      "title": "Dosya satırları okunamıyor",
+      "what": "Bir dosyada tırnak, virgül ya da satır sonları bozuk olduğu için satırlar doğru ayrılamıyor.",
+      "action": "Veri setini yeniden dışa aktarın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_014": {
+      "title": "Sütun adlarında boşluk var",
+      "what": "Bir dosyanın başlık satırında sütun adlarının başında ya da sonunda boşluk var; bazı uygulamalar sütunu tanımayabilir.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_015": {
+      "title": "Aynı sütun iki kez var",
+      "what": "Bir dosyada aynı sütun adı iki kez geçiyor; uygulamalar hangisini okuyacağını bilemez.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_017": {
+      "title": "Standart dışı sütun",
+      "what": "Bir dosyada GTFS standardında tanımlı olmayan bir sütun var; bazı uygulamalar bu sütunu yok sayabilir.",
+      "action": "Bu sütun bilinçli bir ekse sorun yok; değilse dışa aktarımdan çıkarın."
+    },
+    "ARC_018": {
+      "title": "Boş satır var",
+      "what": "Bir dosyada tamamen boş bir satır var.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_019": {
+      "title": "Sütun adı boş",
+      "what": "Bir dosyanın başlık satırında adı olmayan bir sütun var; genellikle fazladan bir virgülden kaynaklanır.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_020": {
+      "title": "Önerilen dosya eksik",
+      "what": "Veri setinde güzergâh çizimleri ya da veri seti bilgileri (yayıncı, geçerlilik tarihleri) dosyası yok.",
+      "action": "Güzergâh çizimlerini ve veri seti bilgilerini dışa aktarıma ekleyin."
+    },
+    "ARC_021": {
+      "title": "Metinde görünmez karakter var",
+      "what": "Bazı alanlarda ekranda görünmeyen ya da bozuk görünen özel karakterler var; durak veya hat adı uygulamada tuhaf görünebilir.",
+      "action": "İlgili ad ve metinleri planlama yazılımında yeniden yazın."
+    },
+    "ARC_022": {
+      "title": "Çok büyük dosya",
+      "what": "Bir dosyada bir milyondan fazla satır var. Bu bir hata değil; bazı uygulamalarda işlem süresi uzayabilir.",
+      "action": "Bir şey yapmanız gerekmez."
+    },
+    "ARC_023": {
+      "title": "ZIP içinde başka bir ZIP var",
+      "what": "Veri seti dosyasının içinde ikinci bir ZIP dosyası bulunuyor; çoğu uygulama içteki dosyayı okumaz.",
+      "action": "GTFS dosyalarını tek bir ZIP'in içine doğrudan koyun. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_024": {
+      "title": "GTFS dosyaları arşivin ana dizininde değil",
+      "what": "GTFS dosyaları ZIP arşivinin alt klasöründe bulunduğu için bazı uygulamalar bunları okuyamayabilir.",
+      "action": "GTFS dosyalarını ZIP arşivinin en üst seviyesine taşıyın."
+    },
+    "ARC_025": {
+      "title": "Dosyada zorunlu alan eksik",
+      "what": "{file} dosyasının başlığında {field} alanı bulunmuyor.",
+      "action": "İlgili dosyada eksik zorunlu alanı tamamlayın."
+    },
+    "ARC_026": {
+      "title": "Dosyada bozuk satır sonu",
+      "what": "Bir dosyada satır sonları standart biçimde değil; bazı uygulamalar satırları birleştirebilir.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_027": {
+      "title": "Dosya okuma izni kapalı",
+      "what": "ZIP içindeki bir dosyanın okuma izni kapalı; bazı sistemler dosyayı açamayabilir.",
+      "action": "Veri setini yeniden paketleyin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_028": {
+      "title": "Yayın adresi .zip ile bitmiyor",
+      "what": "Veri setinin yayımlandığı web adresi bir .zip dosya adıyla bitmiyor; bazı uygulamalar adresi veri seti olarak tanımayabilir.",
+      "action": "Veri setini kalıcı ve \".zip\" ile biten bir adreste yayımlayın."
+    },
+    "ARC_029": {
+      "title": "Dosya güvenlik sınırını aştı",
+      "what": "ZIP dosyası açılırken olağandışı büyüdü; güvenlik için işlem durduruldu.",
+      "action": "Veri setini yeniden dışa aktarıp tekrar deneyin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_030": {
+      "title": "Metinde sekme veya satır sonu var",
+      "what": "Bir alan değerinin içinde sekme ya da satır sonu var; uygulamada metin bölünmüş görünebilir.",
+      "action": "İlgili ad veya açıklamayı tek satır olarak yeniden yazın."
+    },
+    "ARC_031": {
+      "title": "Çeviri dosyası varken veri seti bilgisi eksik",
+      "what": "Çeviri dosyası kullanılıyor ancak veri setinin dili belirtilmemiş.",
+      "action": "Veri seti bilgilerini ekleyin ve feed dilini belirtin."
+    },
+    "ARC_032": {
+      "title": "Metinde HTML kodu var",
+      "what": "Bir ad ya da açıklamada HTML etiketi veya kaçış kodu (ör. &amp;) var; yolcu bunu kod olarak görür.",
+      "action": "Metni düz yazı olarak yeniden girin."
+    },
+    "ARC_033": {
+      "title": "Metinde kaçırılmamış tırnak",
+      "what": "Bir alan değerinde tırnak ya da virgül var ama doğru biçimde tırnak içine alınmamış; satır yanlış bölünebilir.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_034": {
+      "title": "Başlık satırı dosyanın ortasında tekrar ediyor",
+      "what": "Bir dosyada başlık satırı veri satırı gibi bir kez daha yazılmış; genellikle iki dosya birleştirilirken olur.",
+      "action": "Dışa aktarımı tek seferde yapın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_035": {
+      "title": "Zorunlu dosya boş",
+      "what": "{file} dosyası var ancak kullanılabilir veri içermiyor.",
+      "action": "Dosyaya gerekli kayıtları ekleyin."
+    },
+    "ARC_036": {
+      "title": "ZIP iç yapısı tutarsız",
+      "what": "ZIP dosyası bazı araçlarda açılıyor, bazılarında açılmayabilir.",
+      "action": "Veri setini standart bir ZIP aracıyla yeniden paketleyin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "ARC_037": {
+      "title": "Kodda Türkçe veya özel karakter",
+      "what": "Bir kodda (durak, hat, sefer kimliği gibi) Türkçe harf ya da özel karakter kullanılmış; bazı uygulamalar bu kodları eşleştiremez.",
+      "action": "Kodlarda yalnızca İngilizce harf, rakam ve basit işaretler kullanın."
+    },
+    "ARS_001": {
+      "title": "Aynı ücret alanı kodu iki kez",
+      "what": "İki ücret alanı aynı kodu taşıyor.",
+      "action": "Her ücret alanına benzersiz bir kod verin."
+    },
+    "ARS_002": {
+      "title": "Ücret alanı kodu boş",
+      "what": "Bir ücret alanının kodu boş bırakılmış.",
+      "action": "Her ücret alanına benzersiz bir kod verin."
+    },
+    "ATR_001": {
+      "title": "Atıf kaydının kodu yok",
+      "what": "Veri katkı sahiplerini gösteren bir atıf kaydının kodu boş.",
+      "action": "Her atıf kaydına benzersiz bir kod verin."
+    },
+    "ATR_002": {
+      "title": "Atıf yapılan kurumun adı yok",
+      "what": "Bir atıf kaydında kurum adı girilmemiş.",
+      "action": "Atıf yapılacak kurumun adını girin."
+    },
+    "ATR_003": {
+      "title": "Atıf kaydının rolü yok",
+      "what": "Bir atıf kaydında kurumun veri üreticisi mi, işletmeci mi, yetkili kurum mu olduğu belirtilmemiş.",
+      "action": "Kurumun rolünü en az birini seçerek belirtin."
+    },
+    "ATR_004": {
+      "title": "Veri üreticisi rolü geçersiz",
+      "what": "Atıf kaydındaki \"veri üreticisi\" değeri evet/hayır dışında bir değer.",
+      "action": "Değeri evet ya da hayır olarak seçin."
+    },
+    "ATR_005": {
+      "title": "İşletmeci rolü geçersiz",
+      "what": "Atıf kaydındaki \"işletmeci\" değeri evet/hayır dışında bir değer.",
+      "action": "Değeri evet ya da hayır olarak seçin."
+    },
+    "ATR_006": {
+      "title": "Yetkili kurum rolü geçersiz",
+      "what": "Atıf kaydındaki \"yetkili kurum\" değeri evet/hayır dışında bir değer.",
+      "action": "Değeri evet ya da hayır olarak seçin."
+    },
+    "ATR_007": {
+      "title": "Atıf web adresi geçersiz",
+      "what": "Atıf kaydındaki web adresi geçerli değil.",
+      "action": "Adresi \"https://\" ile başlayan tam adres olarak girin ya da boş bırakın."
+    },
+    "ATR_008": {
+      "title": "Atıf e-postası geçersiz",
+      "what": "Atıf kaydındaki e-posta geçerli değil.",
+      "action": "E-postayı ad@alanadi.com biçiminde girin ya da boş bırakın."
+    },
+    "ATR_009": {
+      "title": "Atıf birden fazla hedefe bağlı",
+      "what": "Bir atıf kaydı aynı anda işletmeciye, hatta ve sefere bağlanmış; yalnızca biri olmalı.",
+      "action": "Atfı yalnızca bir işletmeciye, hatta ya da sefere bağlayın."
+    },
+    "ATR_010": {
+      "title": "Atfın işletmecisi bulunamadı",
+      "what": "Bir atıf kaydı, listede olmayan bir işletmeciye bağlanmış.",
+      "action": "Atfı mevcut bir işletmeciye bağlayın."
+    },
+    "ATR_011": {
+      "title": "Atfın hattı bulunamadı",
+      "what": "Bir atıf kaydı, listede olmayan bir hatta bağlanmış.",
+      "action": "Atfı mevcut bir hatta bağlayın."
+    },
+    "ATR_012": {
+      "title": "Atfın seferi bulunamadı",
+      "what": "Bir atıf kaydı, listede olmayan bir sefere bağlanmış.",
+      "action": "Atfı mevcut bir sefere bağlayın."
+    },
+    "BKR_001": {
+      "title": "Önceki gün rezervasyon ayarı yanlış yerde",
+      "what": "Önceki gün rezervasyonuna ait son gün ve saat, rezervasyon türü \"önceki gün\" olmayan bir kuralda girilmiş.",
+      "action": "Bu alanları yalnızca \"önceki gün\" rezervasyon kurallarında kullanın."
+    },
+    "BKR_003": {
+      "title": "Rezervasyon başlangıç saati var, günü yok",
+      "what": "Rezervasyonun açılacağı saat girilmiş ama kaç gün önce açılacağı girilmemiş.",
+      "action": "Rezervasyonun kaç gün önce açılacağını girin ya da saati silin."
+    },
+    "BKR_004": {
+      "title": "Anlık rezervasyonda önceden bildirim ayarı var",
+      "what": "Anlık rezervasyon (aynı anda) olarak tanımlı bir kuralda önceden bildirim süreleri girilmiş.",
+      "action": "Önceden bildirim sürelerini silin ya da rezervasyon türünü düzeltin."
+    },
+    "BKR_005": {
+      "title": "En uzun bildirim süresi yanlış yerde",
+      "what": "En uzun önceden bildirim süresi, yalnızca \"aynı gün\" rezervasyonunda kullanılabilir; burada \"önceki gün\" kuralında girilmiş.",
+      "action": "Bu süreyi silin ya da rezervasyon türünü \"aynı gün\" yapın."
+    },
+    "BKR_006": {
+      "title": "En kısa bildirim süresi geçersiz",
+      "what": "Önceden bildirim için en kısa süre sayı değil ya da sıfır veya negatif.",
+      "action": "Süreyi dakika olarak pozitif tam sayıyla girin."
+    },
+    "BKR_007": {
+      "title": "Aynı gün rezervasyonda bildirim süresi yok",
+      "what": "\"Aynı gün\" rezervasyon kuralında, yolculuktan en az kaç dakika önce rezervasyon yapılması gerektiği girilmemiş.",
+      "action": "En kısa önceden bildirim süresini dakika olarak girin."
+    },
+    "BKR_008": {
+      "title": "Önceki gün rezervasyonda son gün yok",
+      "what": "\"Önceki gün\" rezervasyon kuralında rezervasyonun en geç kaç gün önce yapılacağı girilmemiş.",
+      "action": "Rezervasyonun en geç kaç gün önce yapılacağını girin."
+    },
+    "BKR_009": {
+      "title": "Önceki gün rezervasyonda son saat yok",
+      "what": "\"Önceki gün\" rezervasyon kuralında son günün hangi saatine kadar rezervasyon yapılabileceği girilmemiş.",
+      "action": "Son rezervasyon saatini girin (ör. 17:00:00)."
+    },
+    "BKR_010": {
+      "title": "Rezervasyon başlangıç günü var, saati yok",
+      "what": "Rezervasyonun kaç gün önce açılacağı girilmiş ama hangi saatte açılacağı girilmemiş.",
+      "action": "Rezervasyonun açılacağı saati girin."
+    },
+    "BKR_011": {
+      "title": "Rezervasyon penceresi ters",
+      "what": "Rezervasyonun kapandığı gün, açıldığı günden daha önce; pencere hiç açılmıyor.",
+      "action": "Açılış gününün kapanış gününe eşit ya da ondan önce olduğunu kontrol edin."
+    },
+    "BKR_012": {
+      "title": "Önceki gün rezervasyonda dakika süresi var",
+      "what": "\"Önceki gün\" rezervasyon kuralında dakika cinsinden bildirim süresi girilmiş; bu yalnızca \"aynı gün\" kuralında kullanılır.",
+      "action": "Bu süreyi silin ya da rezervasyon türünü düzeltin."
+    },
+    "BKR_013": {
+      "title": "Son rezervasyon saati var, günü yok",
+      "what": "Son rezervasyon saati girilmiş ama kaç gün önce olduğu girilmemiş.",
+      "action": "Son rezervasyon gününü girin ya da saati silin."
+    },
+    "BKR_014": {
+      "title": "Rezervasyon takvimi yanlış yerde",
+      "what": "Rezervasyon günlerini sayan çalışma takvimi, yalnızca \"önceki gün\" kurallarında kullanılabilir; burada başka türde bir kuralda girilmiş.",
+      "action": "Takvimi silin ya da rezervasyon türünü \"önceki gün\" yapın."
+    },
+    "BKR_015": {
+      "title": "Rezervasyon takvimi bulunamadı",
+      "what": "Bir rezervasyon kuralı, tanımlı olmayan bir çalışma takvimine bağlanmış.",
+      "action": "Kuralı mevcut bir takvime bağlayın ya da takvimi boş bırakın."
+    },
+    "BKR_016": {
+      "title": "Rezervasyon türü eksik veya geçersiz",
+      "what": "Rezervasyon kuralının türü (anlık, aynı gün, önceki gün) girilmemiş ya da geçersiz.",
+      "action": "Rezervasyon türünü seçin."
+    },
+    "BKR_017": {
+      "title": "Binişin rezervasyon kuralı bulunamadı",
+      "what": "Bir talebe bağlı durak, tanımlı olmayan bir biniş rezervasyon kuralına bağlanmış.",
+      "action": "Durağı mevcut bir rezervasyon kuralına bağlayın ya da kuralı tanımlayın."
+    },
+    "BKR_018": {
+      "title": "İnişin rezervasyon kuralı bulunamadı",
+      "what": "Bir talebe bağlı durak, tanımlı olmayan bir iniş rezervasyon kuralına bağlanmış.",
+      "action": "Durağı mevcut bir rezervasyon kuralına bağlayın ya da kuralı tanımlayın."
+    },
+    "BKR_019": {
+      "title": "Rezervasyon kuralı kodu boş ya da tekrarlı",
+      "what": "Bir rezervasyon kuralının kodu boş ya da başka bir kuralla aynı.",
+      "action": "Her rezervasyon kuralına benzersiz bir kod verin."
+    },
+    "BKR_020": {
+      "title": "Rezervasyon web adresi geçersiz",
+      "what": "Rezervasyon yapılacak web adresi geçerli değil.",
+      "action": "Adresi \"https://\" ile başlayan tam adres olarak girin."
+    },
+    "BKR_021": {
+      "title": "Rezervasyon bilgi sayfası geçersiz",
+      "what": "Rezervasyon bilgi sayfasının adresi geçerli değil.",
+      "action": "Adresi \"https://\" ile başlayan tam adres olarak girin ya da boş bırakın."
+    },
+    "BKR_022": {
+      "title": "Rezervasyon telefonu geçersiz",
+      "what": "Rezervasyon için verilen telefon numarası aranabilir bir numaraya benzemiyor.",
+      "action": "Yalnızca telefon numarasını girin; açıklamayı başka alana yazın."
+    },
+    "BKR_023": {
+      "title": "Rezervasyon süresi tam sayı değil",
+      "what": "Rezervasyonla ilgili gün ya da dakika değerlerinden biri tam sayı değil.",
+      "action": "Bu değerleri tam sayı olarak girin."
+    },
+    "BKR_024": {
+      "title": "Aynı gün rezervasyonda gün ayarı çelişiyor",
+      "what": "\"Aynı gün\" rezervasyon kuralında en uzun bildirim süresi varken, rezervasyonun kaç gün önce açılacağı da girilmiş.",
+      "action": "İki ayardan birini kaldırın."
+    },
+    "BKR_025": {
+      "title": "Rezervasyon saati geçersiz",
+      "what": "Rezervasyonun açılış ya da kapanış saati geçerli bir saat değil.",
+      "action": "Saati HH:MM:SS biçiminde girin (ör. 17:00:00)."
+    },
+    "CAL_001": {
+      "title": "Aynı takvim kodu iki kez",
+      "what": "İki çalışma takvimi aynı kodu taşıyor; seferlerin hangi günler çalıştığı karışır.",
+      "action": "Her çalışma takvimine benzersiz bir kod verin."
+    },
+    "CAL_002": {
+      "title": "Takvimde gün değeri geçersiz",
+      "what": "Çalışma takviminde bir günün çalışıp çalışmadığı \"evet/hayır\" dışında bir değerle yazılmış.",
+      "action": "Her gün için çalışıyor ya da çalışmıyor seçin."
+    },
+    "CAL_003": {
+      "title": "Takvimin başlangıç tarihi yok ya da hatalı",
+      "what": "Çalışma takviminin başlangıç tarihi girilmemiş ya da okunamıyor.",
+      "action": "Başlangıç tarihini girin (dışa aktarımda YYYYMMDD biçimi, ör. 20260101)."
+    },
+    "CAL_004": {
+      "title": "Takvimin bitiş tarihi yok ya da hatalı",
+      "what": "Çalışma takviminin bitiş tarihi girilmemiş ya da okunamıyor.",
+      "action": "Bitiş tarihini girin (dışa aktarımda YYYYMMDD biçimi, ör. 20261231)."
+    },
+    "CAL_005": {
+      "title": "Takvim bitişi başlangıçtan önce",
+      "what": "Çalışma takviminin bitiş tarihi başlangıç tarihinden önce; takvim hiç çalışmaz.",
+      "action": "Başlangıç ve bitiş tarihlerini kontrol edip düzeltin."
+    },
+    "CAL_006": {
+      "title": "Takvimde hiçbir gün işaretli değil",
+      "what": "Bir çalışma takviminde haftanın tüm günleri \"çalışmıyor\" işaretli. Bu takvim yalnızca özel günlerle çalışıyor olabilir.",
+      "action": "Takvim yalnızca belirli tarihlerde çalışıyorsa sorun yok; değilse çalıştığı günleri işaretleyin."
+    },
+    "CAL_007": {
+      "title": "Hizmet döneminde uzun boşluk",
+      "what": "Bir çalışma takviminde iki haftadan uzun bir dönem hiç çalışma günü yok.",
+      "action": "Boşluk planlıysa (ör. yaz tatili) sorun yok; değilse eksik günleri ekleyin."
+    },
+    "CAL_008": {
+      "title": "Takvim yakında bitiyor",
+      "what": "Bir çalışma takviminin son günü yaklaşıyor; bu tarihten sonra seferler yolcuya görünmeyecek.",
+      "action": "Yeni dönemin tarifesini hazırlayıp yayımlamayı planlayın."
+    },
+    "CAL_009": {
+      "title": "Çalışma takvimlerinin tamamı sona ermiş",
+      "what": "Veri setindeki tüm çalışma dönemleri geçmişte kalmış.",
+      "action": "Güncel çalışma tarihlerini içeren bir takvim ekleyin veya mevcut takvimi güncelleyin."
+    },
+    "CAL_010": {
+      "title": "Takvimde çok az çalışma günü var",
+      "what": "Bir çalışma takvimi yalnızca birkaç gün çalışıyor.",
+      "action": "Kısa süreli bir hizmetse (ör. etkinlik seferi) sorun yok; değilse takvimin tarihlerini kontrol edin."
+    },
+    "CAL_011": {
+      "title": "Kullanılmayan çalışma takvimi",
+      "what": "Bir çalışma takvimine hiçbir sefer bağlı değil.",
+      "action": "Takvimi seferlere bağlayın ya da kullanılmıyorsa silin."
+    },
+    "CAL_012": {
+      "title": "Yakın gelecekte hizmet boşluğu",
+      "what": "Önümüzdeki 30 gün içinde, bir takvimde iki haftadan uzun süre hiç çalışma günü olmayan bir dönem başlıyor.",
+      "action": "Boşluk planlıysa sorun yok; değilse takvimi kontrol edin."
+    },
+    "CAL_013": {
+      "title": "Çalışma takviminin bütün günleri geçmişte",
+      "what": "Bir çalışma takviminin bütün çalışma günleri geçmişte kalmış; bu takvime bağlı seferler artık görünmez.",
+      "action": "Takvimi yeni dönem tarihleriyle güncelleyin ya da artık kullanılmıyorsa kaldırın."
+    },
+    "CAL_014": {
+      "title": "Takvim veri setinin geçerlilik dönemi dışında",
+      "what": "Bir çalışma takviminin tarihleri, veri seti için belirtilen geçerlilik döneminin dışına taşıyor; uygulamalar bu günleri güvenilir saymayabilir.",
+      "action": "Veri setinin geçerlilik dönemini ya da takvim tarihlerini birbiriyle uyumlu hale getirin."
+    },
+    "CAL_015": {
+      "title": "Tüm takvimler gelecekte başlıyor",
+      "what": "Veri setindeki hiçbir takvim bugün çalışmıyor; hepsi ileri bir tarihte başlıyor. Bugün yolcu uygulamalarında sefer görünmeyebilir.",
+      "action": "Yeni tarifeyi erken yayımlıyorsanız sorun yok; değilse takvim başlangıç tarihlerini kontrol edin."
+    },
+    "CAL_016": {
+      "title": "Hizmet çok uzak bir tarihe kadar uzanıyor",
+      "what": "Takvimler iki yıldan daha ileri bir tarihe kadar çalışıyor görünüyor; gerçek tarife dönemi bu kadar uzun olmayabilir.",
+      "action": "Takvim bitişini tarifenin gerçekten geçerli olduğu son tarih olarak girin."
+    },
+    "CAL_017": {
+      "title": "Takvim henüz başlamamış",
+      "what": "Bir çalışma takvimi ileri bir tarihte başlıyor. Bilgi amaçlıdır.",
+      "action": "Yeni dönem için hazırladıysanız sorun yok; değilse başlangıç tarihini kontrol edin."
+    },
+    "CAL_018": {
+      "title": "Takvimin hiç çalışma günü yok",
+      "what": "Bir takvimde haftanın hiçbir günü işaretli değil ve özel çalışma günü de eklenmemiş.",
+      "action": "Takvimin çalıştığı günleri işaretleyin ya da özel çalışma günlerini ekleyin."
+    },
+    "CAL_020": {
+      "title": "Veri seti geçerliliği 5 yılı aşıyor",
+      "what": "Veri seti bilgilerinde yazan geçerlilik dönemi 5 yıldan uzun.",
+      "action": "Geçerlilik dönemini tarifenin gerçekten geçerli olduğu tarihlerle sınırlayın."
+    },
+    "CAL_021": {
+      "title": "Önümüzdeki günlerde sefer yok",
+      "what": "Takvim bugünü kapsıyor ama önümüzdeki birkaç gün içinde çalışma günü yok.",
+      "action": "Planlı bir ara ise sorun yok; değilse takvime yakın tarihleri ekleyin."
+    },
+    "CAL_022": {
+      "title": "Takvim kodu boş",
+      "what": "Bir çalışma takviminin kodu boş bırakılmış; seferler bu takvime bağlanamaz.",
+      "action": "Takvime benzersiz bir kod verin."
+    },
+    "CAL_023": {
+      "title": "Takvim bitişi şüpheli derecede ileri",
+      "what": "Bir takvimin bitiş tarihi bugünden yıllarca ileride (ör. 2099); bu genellikle gerçek bitiş tarihi değil, yer tutucu bir tarihtir.",
+      "action": "Takvim bitişine tarifenin gerçek son geçerli tarihini yazın."
+    },
+    "CAL_024": {
+      "title": "Takvim önümüzdeki 7 günde çalışmıyor",
+      "what": "Bir çalışma takviminin önümüzdeki 7 günde hiç çalışma günü yok. Bilgi amaçlıdır.",
+      "action": "Planlıysa (ör. yalnız tatilde çalışan takvim) sorun yok; değilse takvimi güncelleyin."
+    },
+    "CAL_025": {
+      "title": "Takvimde bir günün değeri boş",
+      "what": "Çalışma takviminde haftanın bir günü için çalışıp çalışmadığı boş bırakılmış.",
+      "action": "Her gün için çalışıyor ya da çalışmıyor seçin."
+    },
+    "CLD_001": {
+      "title": "Takvim değişikliğinde takvim kodu boş",
+      "what": "Bir özel gün (ekleme/çıkarma) kaydında hangi takvime ait olduğu girilmemiş.",
+      "action": "Özel günü ilgili takvime bağlayın."
+    },
+    "CLD_002": {
+      "title": "Takvim değişikliğinin tarihi geçersiz",
+      "what": "Bir özel gün kaydının tarihi yok ya da okunamıyor.",
+      "action": "Tarihi YYYYMMDD biçiminde girin (ör. 20270101)."
+    },
+    "CLD_003": {
+      "title": "Takvim değişikliğinin türü geçersiz",
+      "what": "Bir özel gün kaydında o günün eklendiği mi kaldırıldığı mı belirtilmemiş ya da geçersiz.",
+      "action": "Günü \"hizmet eklendi\" ya da \"hizmet kaldırıldı\" olarak işaretleyin."
+    },
+    "CLD_004": {
+      "title": "Takvimin hiç çalışma günü yok",
+      "what": "Haftalık takvim kullanılmıyor ve bazı takvimlere hiç \"hizmet eklendi\" günü girilmemiş; bu takvimlerin seferleri hiç çalışmaz.",
+      "action": "Bu takvimlere çalışma günlerini ekleyin."
+    },
+    "CLD_005": {
+      "title": "Takvim değişikliği tarihi makul değil",
+      "what": "Bir özel günün tarihi 2000 ile 2099 arasında değil; büyük olasılıkla yanlış girilmiş.",
+      "action": "Tarihi kontrol edip düzeltin."
+    },
+    "CLD_006": {
+      "title": "Takvimde çok fazla özel gün",
+      "what": "Bir takvimde 60'tan fazla özel gün kaydı var. Bilgi amaçlıdır.",
+      "action": "Düzenli çalışma günlerini haftalık takvimle tanımlayıp özel günleri yalnızca istisnalar için kullanmayı değerlendirin."
+    },
+    "CLD_007": {
+      "title": "Takvim neredeyse tamamen istisnalarla kurulmuş",
+      "what": "Bir takvimin çalışma günlerinin çoğu tek tek özel gün olarak girilmiş. Bilgi amaçlıdır.",
+      "action": "Düzenli günleri haftalık takvimle tanımlamayı değerlendirin."
+    },
+    "DQ_003": {
+      "title": "Hat açıklaması eksik",
+      "what": "Hatlarda yolcuya ek bilgi veren açıklama alanı boş.",
+      "action": "İsterseniz hatlara çalışma saati, güzergâh notu gibi kısa bir açıklama ekleyin."
+    },
+    "DQ_004": {
+      "title": "Hat web sayfası eksik",
+      "what": "Hatlar için yolcunun ayrıntı görebileceği bir web sayfası girilmemiş. Bilgi amaçlıdır.",
+      "action": "Hat için bir bilgi sayfası varsa adresini girin."
+    },
+    "DQ_005": {
+      "title": "Geçerli hizmet dönemi yok",
+      "what": "Veri setinde bugünden ileriye çalışan hiçbir takvim yok; yolcu uygulamalarında hiç sefer görünmez.",
+      "action": "Güncel dönemin takvimlerini ekleyip veri setini yeniden yayımlayın."
+    },
+    "DQ_005b": {
+      "title": "Hiçbir seferin durak saati yok",
+      "what": "Seferler tanımlı ama hiçbirine durak saati girilmemiş; yolcu uygulamalarında sefer görünmeyebilir.",
+      "action": "Sefer durak saatlerini dışa aktarıma ekleyin."
+    },
+    "DQ_005c": {
+      "title": "Durakların çoğunun konumu yok",
+      "what": "Durakların büyük bölümünde konum girilmemiş; haritada gösterilemez ve yolculuk planlanamaz.",
+      "action": "Durakların konumlarını planlama yazılımında işaretleyip yeniden dışa aktarın."
+    },
+    "DQ_006": {
+      "title": "Seferlerin çoğunun güzergâh çizimi yok",
+      "what": "Seferlerin büyük çoğunluğu bir güzergâh çizimine bağlı değil; uygulamalar hatları düz çizgilerle gösterir.",
+      "action": "Hatların güzergâh çizimlerini dışa aktarıma ekleyin."
+    },
+    "DQ_009": {
+      "title": "Seferlerin durak saatleri yok",
+      "what": "Seferler tanımlı ama hiçbir durak saati yok; tarife oluşmaz.",
+      "action": "Sefer durak saatlerini dışa aktarıma ekleyin."
+    },
+    "DQ_010": {
+      "title": "Kullanılmayan işletmeci",
+      "what": "İşletmeci listesindeki bir işletmeciye hiçbir hat bağlı değil.",
+      "action": "İşletmecinin hatlarını bağlayın ya da kullanılmıyorsa kaldırın."
+    },
+    "DQ_011": {
+      "title": "Veri setinde tek durak var",
+      "what": "Veri setinde yalnızca bir durak bulunuyor; yolculuk planlanamaz.",
+      "action": "Tüm durakları dışa aktarıma ekleyin."
+    },
+    "DQ_012": {
+      "title": "Hatların işletmecisi belirtilmemiş",
+      "what": "Birden çok işletmeci var ama hatların hangi işletmeciye ait olduğu girilmemiş.",
+      "action": "Her hattı işleten işletmeciye bağlayın."
+    },
+    "DQ_013": {
+      "title": "Çok az sefer var",
+      "what": "Veri setinde yalnızca bir ya da iki sefer var. Bilgi amaçlıdır.",
+      "action": "Tüm seferlerin dışa aktarıldığını kontrol edin."
+    },
+    "DQ_016": {
+      "title": "Değerlerde fazladan boşluk",
+      "what": "Bazı ad, kod veya değerlerin başında ya da sonunda gereksiz boşluk var; eşleştirme ve aramada sorun çıkarabilir.",
+      "action": "İlgili kayıtlardaki fazladan boşlukları silin."
+    },
+    "DQ_017": {
+      "title": "Şüpheli koordinatlar",
+      "what": "Birçok durak 0,0 konumunda (Gine Körfezi) görünüyor; konumlar girilmemiş ya da yer tutucu bırakılmış.",
+      "action": "Bu durakların gerçek konumlarını girin."
+    },
+    "DQ_018": {
+      "title": "Ad tamamen BÜYÜK HARFLE yazılmış",
+      "what": "Yolcuya gösterilen bir ad (durak, hat veya yön) tamamen büyük harfle yazılmış; uygulamalarda okunması zorlaşır.",
+      "action": "Adları normal yazımla girin (ör. \"MERKEZ İSTASYON\" yerine \"Merkez İstasyon\"). Kısaltmalar ve marka adları (ör. \"AVM\", \"İETT\") bu kuralın dışındadır."
+    },
+    "DQ_019": {
+      "title": "Ad tamamen küçük harfle yazılmış",
+      "what": "Yolcuya gösterilen bir ad tamamen küçük harfle yazılmış.",
+      "action": "Adları normal yazımla girin (ör. \"merkez istasyon\" yerine \"Merkez İstasyon\"). Bilinçli küçük harfli marka adları bu kuralın dışındadır."
+    },
+    "DQ_020": {
+      "title": "Seferlerin yönü boş",
+      "what": "Seferlerin büyük bölümünde yolcuya gösterilen yön adı girilmemiş.",
+      "action": "Seferlerin gideceği yeri yön adı olarak girin."
+    },
+    "DQ_021": {
+      "title": "Aynı kod tekrar ediyor",
+      "what": "Bir listede (durak, hat, sefer gibi) aynı kod birden fazla kayıtta kullanılmış; bağlantılar yanlış kayda gidebilir.",
+      "action": "Her kayda benzersiz bir kod verin."
+    },
+    "DQ_022": {
+      "title": "Durakların çoğu aynı adı taşıyor",
+      "what": "Durakların yüzde 80'inden fazlası aynı adla kayıtlı; gerçek adlar yerine yer tutucu kullanılmış olabilir.",
+      "action": "Durakların gerçek adlarını girin."
+    },
+    "FAR_001": {
+      "title": "Aynı ücret kodu iki kez",
+      "what": "İki ücret tarifesi aynı kodu taşıyor.",
+      "action": "Her ücret tarifesine benzersiz bir kod verin."
+    },
+    "FAR_002": {
+      "title": "Ücret tutarı eksik veya geçersiz",
+      "what": "Bir ücret tarifesinin fiyatı girilmemiş, sayı değil ya da negatif.",
+      "action": "Ücreti sıfır veya pozitif bir tutar olarak girin."
+    },
+    "FAR_003": {
+      "title": "Para birimi eksik veya geçersiz",
+      "what": "Bir ücretin para birimi girilmemiş ya da üç harfli standart kod değil.",
+      "action": "Para birimini \"TRY\", \"EUR\" gibi üç harfli kodla girin."
+    },
+    "FAR_004": {
+      "title": "Ödeme zamanı geçersiz",
+      "what": "Ücretin araçta mı yoksa binmeden önce mi ödendiğini belirten değer geçersiz.",
+      "action": "Ödeme zamanını \"araçta\" ya da \"binmeden önce\" olarak seçin."
+    },
+    "FAR_005": {
+      "title": "Aktarma hakkı geçersiz",
+      "what": "Ücretin kaç aktarmaya izin verdiğini belirten değer geçersiz.",
+      "action": "Aktarma hakkını 0, 1, 2 ya da sınırsız (boş) olarak girin."
+    },
+    "FAR_006": {
+      "title": "Aktarma süresi geçersiz",
+      "what": "Ücretin geçerli olduğu aktarma süresi sayı değil.",
+      "action": "Süreyi saniye olarak girin ya da boş bırakın."
+    },
+    "FAR_008": {
+      "title": "Ücretin işletmecisi bulunamadı",
+      "what": "Bir ücret tarifesi, işletmeci listesinde olmayan bir işletmeciye bağlanmış.",
+      "action": "Ücreti mevcut bir işletmeciye bağlayın."
+    },
+    "FAR_010": {
+      "title": "Aynı yolculuğa iki farklı ücret",
+      "what": "Aynı hat ve bölge için birden fazla farklı ücret tanımlanmış; hangi ücretin alınacağı belirsiz.",
+      "action": "Her hat ve bölge eşleşmesi için tek bir ücret bırakın."
+    },
+    "FAR_011": {
+      "title": "Ödeme zamanı boş",
+      "what": "Bir ücret tarifesinde ödemenin ne zaman yapıldığı girilmemiş.",
+      "action": "Ödeme zamanını \"araçta\" ya da \"binmeden önce\" olarak seçin."
+    },
+    "FAR_012": {
+      "title": "Ücret kodu boş",
+      "what": "Bir ücret tarifesinin kodu boş bırakılmış.",
+      "action": "Her ücret tarifesine benzersiz bir kod verin."
+    },
+    "FAR_013": {
+      "title": "Ücret tutarının kuruş hanesi uyumsuz",
+      "what": "Ücret tutarı, para biriminin kuruş basamak sayısıyla yazılmamış (ör. TRY için 2 basamak). Bilgi amaçlıdır.",
+      "action": "Tutarı para birimine uygun basamakla yazın (ör. 17.50)."
+    },
+    "FIN_001": {
+      "title": "Veri setini yayımlayanın adı yok",
+      "what": "Veri seti bilgilerinde yayımlayan kurumun adı girilmemiş.",
+      "action": "Veri setini yayımlayan kurumun adını girin."
+    },
+    "FIN_002": {
+      "title": "Yayımlayanın web adresi eksik veya geçersiz",
+      "what": "Veri seti bilgilerinde yayımlayan kurumun web adresi yok ya da geçerli değil.",
+      "action": "Kurumun web adresini \"https://\" ile başlayan tam adres olarak girin."
+    },
+    "FIN_003": {
+      "title": "Veri setinin dili eksik",
+      "what": "Veri seti bilgilerinde ad ve metinlerin hangi dilde olduğu girilmemiş ya da tanınmıyor.",
+      "action": "Dili \"tr\" gibi standart kodla girin."
+    },
+    "FIN_004": {
+      "title": "Varsayılan dil geçersiz",
+      "what": "Veri seti bilgilerinde yazan varsayılan dil kodu tanınmıyor.",
+      "action": "Dili \"tr\", \"en\" gibi standart kodla girin ya da boş bırakın."
+    },
+    "FIN_005": {
+      "title": "Veri seti başlangıç tarihi geçersiz",
+      "what": "Veri setinin geçerlilik başlangıç tarihi okunamıyor.",
+      "action": "Tarihi YYYYMMDD biçiminde girin (ör. 20260101)."
+    },
+    "FIN_006": {
+      "title": "Veri seti bitiş tarihi geçersiz",
+      "what": "Veri setinin geçerlilik bitiş tarihi okunamıyor.",
+      "action": "Tarihi YYYYMMDD biçiminde girin (ör. 20261231)."
+    },
+    "FIN_007": {
+      "title": "Veri seti sürümü yok",
+      "what": "Veri seti bilgilerinde sürüm numarası girilmemiş; hangi sürümün yayında olduğu takip edilemez.",
+      "action": "Her yayında artan bir sürüm (ör. tarih veya numara) girin."
+    },
+    "FIN_008": {
+      "title": "İletişim e-postası geçersiz",
+      "what": "Veri seti için verilen iletişim e-postası geçerli değil.",
+      "action": "E-postayı ad@alanadi.com biçiminde girin ya da boş bırakın."
+    },
+    "FIN_009": {
+      "title": "İletişim adresi geçersiz",
+      "what": "Veri seti için verilen iletişim web adresi geçerli değil.",
+      "action": "Adresi \"https://\" ile başlayan tam adres olarak girin ya da boş bırakın."
+    },
+    "FIN_010": {
+      "title": "Veri setinin geçerlilik tarihi geçmiş",
+      "what": "Veri seti bilgilerinde yazan geçerlilik bitiş tarihi geçmişte kalmış; uygulamalar veri setini güncel saymayabilir.",
+      "action": "Veri setini güncel geçerlilik tarihleriyle yeniden yayımlayın."
+    },
+    "FIN_012": {
+      "title": "Veri seti başlangıcı bitişten sonra",
+      "what": "Veri setinin geçerlilik başlangıç tarihi bitiş tarihinden sonra.",
+      "action": "Başlangıç ve bitiş tarihlerini düzeltin."
+    },
+    "FIN_013": {
+      "title": "Ücretin işletmecisi belirtilmemiş",
+      "what": "Bazı ücret tarifelerinde hangi işletmeciye ait oldukları girilmemiş. Bilgi amaçlıdır.",
+      "action": "Ücret tarifelerini ilgili işletmeciye bağlayın."
+    },
+    "FIN_014": {
+      "title": "Veri seti geçerlilik tarihleri yok",
+      "what": "Veri seti bilgilerinde geçerlilik başlangıç ve bitiş tarihleri girilmemiş.",
+      "action": "Tarifenin geçerli olduğu ilk ve son günü girin."
+    },
+    "FIN_015": {
+      "title": "Veri seti bilgisi birden fazla",
+      "what": "Veri seti bilgileri dosyasında birden fazla kayıt var; yalnızca bir tane olmalı.",
+      "action": "Tek kayıt bırakın."
+    },
+    "FIN_016": {
+      "title": "Veri seti henüz geçerli değil",
+      "what": "Veri setinin geçerlilik başlangıcı gelecekte; bugün yolcuya sefer görünmeyebilir.",
+      "action": "Yeni tarifeyi erken yayımlıyorsanız sorun yok; değilse başlangıç tarihini düzeltin."
+    },
+    "FIN_017": {
+      "title": "Veri seti çok uzak bir tarihe kadar geçerli",
+      "what": "Veri setinin geçerlilik bitişi iki yıldan daha ileride.",
+      "action": "Bitiş tarihini tarifenin gerçek son geçerli günü olarak girin."
+    },
+    "FIN_018": {
+      "title": "Veri seti için iletişim bilgisi yok",
+      "what": "Veri seti bilgilerinde ne e-posta ne de iletişim sayfası var; hatalı veri bildirmek isteyenler size ulaşamaz.",
+      "action": "Bir iletişim e-postası veya sayfası ekleyin."
+    },
+    "FIN_019": {
+      "title": "Veri setinin süresi yakında doluyor",
+      "what": "Veri setinin geçerlilik bitiş tarihi yaklaşıyor.",
+      "action": "Yeni dönemin tarifesini hazırlayıp yayımlamayı planlayın."
+    },
+    "FIN_020": {
+      "title": "Veri seti 7 günden kısa geçerli",
+      "what": "Veri setinin geçerlilik dönemi bir haftadan kısa.",
+      "action": "Geçerlilik tarihlerini tarifenin gerçek dönemine göre girin."
+    },
+    "FLG_001": {
+      "title": "Yolculuk ücret kuralının bileti bulunamadı",
+      "what": "Bir yolculuk ücret kuralı, tanımlı olmayan bir bilet ürününe bağlanmış.",
+      "action": "Kuralı mevcut bir bilet ürününe bağlayın."
+    },
+    "FLG_002": {
+      "title": "Yolculuk ücret kuralının ağı bulunamadı",
+      "what": "Bir yolculuk ücret kuralı, tanımlı olmayan bir hat ağına bağlanmış.",
+      "action": "Kuralı mevcut bir ağa bağlayın."
+    },
+    "FLG_003": {
+      "title": "Ücret kuralının başlangıç alanı bulunamadı",
+      "what": "Bir yolculuk ücret kuralı, tanımlı olmayan bir başlangıç alanına bağlanmış.",
+      "action": "Kuralı mevcut bir ücret alanına bağlayın."
+    },
+    "FLG_004": {
+      "title": "Ücret kuralının varış alanı bulunamadı",
+      "what": "Bir yolculuk ücret kuralı, tanımlı olmayan bir varış alanına bağlanmış.",
+      "action": "Kuralı mevcut bir ücret alanına bağlayın."
+    },
+    "FLG_005": {
+      "title": "Ücret kuralının başlangıç zaman dilimi bulunamadı",
+      "what": "Bir yolculuk ücret kuralı, tanımlı olmayan bir zaman dilimine (ör. zirve saat) bağlanmış.",
+      "action": "Kuralı mevcut bir zaman dilimine bağlayın."
+    },
+    "FLG_006": {
+      "title": "Ücret kuralının bitiş zaman dilimi bulunamadı",
+      "what": "Bir yolculuk ücret kuralı, tanımlı olmayan bir zaman dilimine bağlanmış.",
+      "action": "Kuralı mevcut bir zaman dilimine bağlayın."
+    },
+    "FLG_007": {
+      "title": "Ücret kuralı önceliği geçersiz",
+      "what": "Birden çok ücret kuralı uyduğunda hangisinin seçileceğini belirleyen öncelik değeri geçersiz.",
+      "action": "Önceliği 0 veya pozitif tam sayı olarak girin."
+    },
+    "FLG_008": {
+      "title": "Yolculuk ücret kuralının bileti boş",
+      "what": "Bir yolculuk ücret kuralında hangi biletin geçerli olduğu girilmemiş.",
+      "action": "Kurala bilet ürününü seçin."
+    },
+    "FLJ_001": {
+      "title": "Birleşik yolculuk kuralında ilk ağ eksik",
+      "what": "İki yolculuğu tek yolculuk sayan kuralda ilk hat ağı boş ya da tanımlı değil.",
+      "action": "Kurala mevcut bir hat ağı seçin."
+    },
+    "FLJ_002": {
+      "title": "Birleşik yolculuk kuralında ikinci ağ eksik",
+      "what": "İki yolculuğu tek yolculuk sayan kuralda ikinci hat ağı boş ya da tanımlı değil.",
+      "action": "Kurala mevcut bir hat ağı seçin."
+    },
+    "FLJ_003": {
+      "title": "Birleşik yolculuk kuralında ilk durak eksik",
+      "what": "Birleşik yolculuk kuralında ilk durak eksik, bulunamıyor ya da durak/istasyon değil.",
+      "action": "İki durağı birlikte girin ya da ikisini de boş bırakın."
+    },
+    "FLJ_004": {
+      "title": "Birleşik yolculuk kuralında ikinci durak eksik",
+      "what": "Birleşik yolculuk kuralında ikinci durak eksik, bulunamıyor ya da durak/istasyon değil.",
+      "action": "İki durağı birlikte girin ya da ikisini de boş bırakın."
+    },
+    "FMD_001": {
+      "title": "Aynı ödeme aracı kodu iki kez",
+      "what": "İki ödeme aracı (kart, uygulama gibi) aynı kodu taşıyor.",
+      "action": "Her ödeme aracına benzersiz bir kod verin."
+    },
+    "FMD_002": {
+      "title": "Ödeme aracı türü geçersiz",
+      "what": "Ödeme aracının türü (kâğıt bilet, kart, temassız kart, uygulama) girilmemiş ya da geçersiz.",
+      "action": "Ödeme aracının türünü seçin."
+    },
+    "FMD_003": {
+      "title": "Kart veya uygulamanın adı yok",
+      "what": "Bir ulaşım kartı ya da mobil uygulama ödeme aracının adı girilmemiş; yolcu hangi kartın geçerli olduğunu bilemez.",
+      "action": "Kartın ya da uygulamanın adını girin."
+    },
+    "FMD_004": {
+      "title": "Ödeme aracı kodu boş",
+      "what": "Bir ödeme aracının kodu boş bırakılmış.",
+      "action": "Her ödeme aracına benzersiz bir kod verin."
+    },
+    "FPD_001": {
+      "title": "Aynı bilet iki kez tanımlanmış",
+      "what": "Aynı bilet, aynı yolcu kategorisi ve aynı ödeme aracıyla iki kez tanımlanmış.",
+      "action": "Kopya bilet kaydını silin."
+    },
+    "FPD_002": {
+      "title": "Bilet fiyatı eksik veya geçersiz",
+      "what": "Bir bilet ürününün fiyatı girilmemiş ya da sayı değil.",
+      "action": "Bilet fiyatını sayı olarak girin (ücretsizse 0)."
+    },
+    "FPD_003": {
+      "title": "Bilet para birimi geçersiz",
+      "what": "Bir biletin para birimi üç harfli standart kod değil.",
+      "action": "Para birimini \"TRY\", \"EUR\" gibi kodla girin."
+    },
+    "FPD_004": {
+      "title": "Biletin ödeme aracı bulunamadı",
+      "what": "Bir bilet, tanımlı olmayan bir ödeme aracına (kart, uygulama gibi) bağlanmış.",
+      "action": "Bileti mevcut bir ödeme aracına bağlayın."
+    },
+    "FPD_005": {
+      "title": "Biletin yolcu kategorisi bulunamadı",
+      "what": "Bir bilet, tanımlı olmayan bir yolcu kategorisine bağlanmış.",
+      "action": "Bileti mevcut bir yolcu kategorisine bağlayın."
+    },
+    "FPD_007": {
+      "title": "Bilet fiyatının kuruş hanesi uyumsuz",
+      "what": "Bilet fiyatı, para biriminin kuruş basamak sayısıyla yazılmamış (ör. TRY için 2 basamak).",
+      "action": "Fiyatı para birimine uygun basamakla yazın (ör. 17.50)."
+    },
+    "FRL_001": {
+      "title": "Ücret kuralının tarifesi bulunamadı",
+      "what": "Bir ücret kuralı, tanımlı olmayan bir ücret tarifesine bağlanmış.",
+      "action": "Kuralı mevcut bir ücret tarifesine bağlayın."
+    },
+    "FRL_002": {
+      "title": "Ücret kuralının hattı bulunamadı",
+      "what": "Bir ücret kuralı, hat listesinde olmayan bir hatta bağlanmış.",
+      "action": "Kuralı mevcut bir hatta bağlayın."
+    },
+    "FRL_003": {
+      "title": "Ücret kuralının başlangıç bölgesi bulunamadı",
+      "what": "Bir ücret kuralı, hiçbir durağa atanmamış bir başlangıç bölgesine işaret ediyor.",
+      "action": "Kuralı durakların kullandığı bir ücret bölgesine bağlayın."
+    },
+    "FRL_004": {
+      "title": "Ücret kuralının varış bölgesi bulunamadı",
+      "what": "Bir ücret kuralı, hiçbir durağa atanmamış bir varış bölgesine işaret ediyor.",
+      "action": "Kuralı durakların kullandığı bir ücret bölgesine bağlayın."
+    },
+    "FRL_005": {
+      "title": "Ücret kuralının geçiş bölgesi bulunamadı",
+      "what": "Bir ücret kuralı, hiçbir durağa atanmamış bir geçiş bölgesine işaret ediyor.",
+      "action": "Kuralı durakların kullandığı bir ücret bölgesine bağlayın."
+    },
+    "FRL_006": {
+      "title": "Ücretler hiçbir hatta bağlı değil",
+      "what": "Ücret tarifeleri tanımlı ama hangi hat ya da bölgede geçerli olduklarını söyleyen kural yok. Tek fiyatlı sistemde olağandır.",
+      "action": "Tek ücret uyguluyorsanız sorun yok; hat veya bölgeye göre ücret varsa ücret kurallarını ekleyin."
+    },
+    "FRL_007": {
+      "title": "Ücret kuralı hiçbir şeye bağlı değil",
+      "what": "Bir ücret kuralında ne hat ne de bölge belirtilmiş; her yolculuğa uygulanır.",
+      "action": "Kurala hattı ya da bölgeyi ekleyin."
+    },
+    "FRL_008": {
+      "title": "Bazı hatların ücreti yok",
+      "what": "Ücret kuralları bazı hatlar için tanımlı, bazıları için değil; yolcu bu hatlarda ücreti göremez.",
+      "action": "Ücreti tanımlanmamış hatlar için ücret kuralı ekleyin."
+    },
+    "FRL_009": {
+      "title": "Bazı bölge çiftlerinin ücreti yok",
+      "what": "Bölgeye göre ücret alınan hatlarda bazı başlangıç-varış bölgesi çiftleri için ücret tanımlı değil.",
+      "action": "Eksik bölge çiftleri için ücret kuralı ekleyin ya da hat bazlı tek ücret tanımlayın."
+    },
+    "FRQ_001": {
+      "title": "Sıklık tanımının seferi bulunamadı",
+      "what": "Bir sıklık tanımı (her X dakikada bir), sefer listesinde olmayan bir sefere bağlanmış.",
+      "action": "Sıklık tanımını mevcut bir sefere bağlayın."
+    },
+    "FRQ_002": {
+      "title": "Sıklık başlangıç saati geçersiz",
+      "what": "Sıklıkla çalışan dönemin başlangıç saati yok ya da okunamıyor.",
+      "action": "Başlangıç saatini HH:MM:SS biçiminde girin."
+    },
+    "FRQ_003": {
+      "title": "Sıklık bitiş saati geçersiz",
+      "what": "Sıklıkla çalışan dönemin bitiş saati yok ya da okunamıyor.",
+      "action": "Bitiş saatini HH:MM:SS biçiminde girin."
+    },
+    "FRQ_004": {
+      "title": "Sefer aralığı eksik",
+      "what": "Sıklıkla çalışan dönemde kaç dakikada bir sefer olduğu girilmemiş ya da geçersiz.",
+      "action": "Sefer aralığını saniye olarak girin (ör. 10 dakika için 600)."
+    },
+    "FRQ_005": {
+      "title": "Sıklık dönemi ters",
+      "what": "Sıklıkla çalışan dönemin bitiş saati başlangıçtan önce ya da aynı.",
+      "action": "Başlangıç ve bitiş saatlerini düzeltin."
+    },
+    "FRQ_006": {
+      "title": "Sefer aralığı çok uzun",
+      "what": "Sıklıkla çalışan dönemde sefer aralığı olağandışı uzun.",
+      "action": "Aralık doğruysa sorun yok; değilse aralığı kontrol edin."
+    },
+    "FRQ_007": {
+      "title": "Kesin saat ayarı geçersiz",
+      "what": "Sıklık tanımında seferlerin kesin saatlerde mi yaklaşık mı kalktığını belirten değer geçersiz.",
+      "action": "Değeri \"yaklaşık (aralıkla)\" ya da \"kesin saatli\" olarak seçin."
+    },
+    "FRQ_008": {
+      "title": "Sefer aralığı sıfır",
+      "what": "Sıklık tanımında sefer aralığı sıfır girilmiş; seferler aralıksız kalkıyor görünür.",
+      "action": "Sefer aralığını saniye olarak pozitif bir değerle girin."
+    },
+    "FRQ_009": {
+      "title": "Sefer aralığı çok kısa",
+      "what": "Sıklık tanımında sefer aralığı bir dakikadan kısa.",
+      "action": "Aralığı kontrol edin; dakika yerine saniye girilmiş olabilir."
+    },
+    "FRQ_010": {
+      "title": "Sefer aralığı çok sık",
+      "what": "Sıklık tanımında seferler çok kısa aralıklarla kalkıyor. Bilgi amaçlıdır.",
+      "action": "Bilinçliyse sorun yok; değilse aralığı kontrol edin."
+    },
+    "FRQ_011": {
+      "title": "Sıklık dönemleri çakışıyor",
+      "what": "Aynı seferin iki sıklık dönemi zaman olarak üst üste biniyor; o saatte hangi aralığın geçerli olduğu belirsiz.",
+      "action": "Dönemleri çakışmayacak şekilde düzenleyin."
+    },
+    "FRQ_012": {
+      "title": "Sıklık bitişi sefer saatiyle çakışıyor",
+      "what": "Kesin saatli sıklık döneminin bitiş saati, bir seferin kalkış saatine denk geliyor; son seferin olup olmadığı belirsiz.",
+      "action": "Bitiş saatini son seferden sonra, bir sonraki olası seferden önce olacak şekilde ayarlayın."
+    },
+    "FTR_001": {
+      "title": "Aktarma ücret türü geçersiz",
+      "what": "Aktarma ücretinin nasıl hesaplanacağını belirten tür girilmemiş ya da geçersiz.",
+      "action": "Aktarma ücret türünü seçin."
+    },
+    "FTR_002": {
+      "title": "Aktarma ücretinin ilk yolculuk grubu bulunamadı",
+      "what": "Bir aktarma ücret kuralı, tanımlı olmayan bir yolculuk grubundan başlıyor.",
+      "action": "Kuralı mevcut bir yolculuk grubuna bağlayın."
+    },
+    "FTR_003": {
+      "title": "Aktarma ücretinin ikinci yolculuk grubu bulunamadı",
+      "what": "Bir aktarma ücret kuralı, tanımlı olmayan bir yolculuk grubuna bağlanıyor.",
+      "action": "Kuralı mevcut bir yolculuk grubuna bağlayın."
+    },
+    "FTR_004": {
+      "title": "Aktarma ücretinin bileti bulunamadı",
+      "what": "Bir aktarma ücret kuralı, tanımlı olmayan bir bilet ürününe bağlanmış.",
+      "action": "Kuralı mevcut bir bilet ürününe bağlayın."
+    },
+    "FTR_005": {
+      "title": "Aktarma süre başlangıcı geçersiz",
+      "what": "Aktarma süresinin neyden itibaren sayılacağı (biniş, iniş gibi) geçersiz.",
+      "action": "Süre başlangıcını tanımlı seçeneklerden seçin."
+    },
+    "FTR_006": {
+      "title": "Aktarma süresi geçersiz",
+      "what": "Aktarma ücretinin geçerli olduğu süre sayı değil ya da sıfır.",
+      "action": "Süreyi saniye olarak pozitif bir değerle girin."
+    },
+    "FTR_007": {
+      "title": "Aktarma süre başlangıcı var, süre yok",
+      "what": "Sürenin neyden itibaren sayılacağı girilmiş ama sürenin kendisi girilmemiş.",
+      "action": "Süreyi girin ya da süre başlangıcını silin."
+    },
+    "FTR_008": {
+      "title": "Aktarma sayısı geçersiz",
+      "what": "İzin verilen aktarma sayısı sınırsız (-1) ya da pozitif tam sayı değil.",
+      "action": "Aktarma sayısını -1 (sınırsız) ya da pozitif tam sayı olarak girin."
+    },
+    "FTR_009": {
+      "title": "Aynı grup içi aktarmada sayı yok",
+      "what": "Aynı yolculuk grubu içindeki aktarmada kaç aktarmaya izin verildiği girilmemiş.",
+      "action": "Aktarma sayısını girin (-1 sınırsız)."
+    },
+    "FTR_010": {
+      "title": "Farklı gruplar arası aktarmada sayı var",
+      "what": "Farklı yolculuk grupları arasındaki aktarmada aktarma sayısı girilmiş; bu yalnızca aynı grup içinde kullanılır.",
+      "action": "Aktarma sayısını silin."
+    },
+    "FTR_011": {
+      "title": "Aktarma süresi var, başlangıcı yok",
+      "what": "Aktarma ücretinin süresi girilmiş ama sürenin neyden itibaren sayılacağı girilmemiş.",
+      "action": "Süre başlangıcını seçin ya da süreyi silin."
+    },
+    "GEO_002": {
+      "title": "Durak ağın çok uzağında",
+      "what": "Bir durak, ağın geri kalanından yüzlerce kilometre uzakta görünüyor; konum büyük olasılıkla yanlış.",
+      "action": "Durağın konumunu kontrol edip düzeltin."
+    },
+    "GEO_006": {
+      "title": "Güzergâhta büyük sıçrama",
+      "what": "Güzergâh çiziminde art arda iki nokta arasında olağandışı uzun bir boşluk var; çizgi yolu takip etmez.",
+      "action": "Güzergâhın bu bölümünü yol boyunca yeniden çizin."
+    },
+    "GEO_007": {
+      "title": "Güzergâhta çok büyük sıçrama",
+      "what": "Güzergâh çiziminde art arda iki nokta arasında çok uzun bir boşluk var; bir nokta yanlış yere düşmüş olabilir.",
+      "action": "Güzergâhın bu bölümünü kontrol edip yeniden çizin."
+    },
+    "GEO_009": {
+      "title": "Durak güzergâhtan uzakta",
+      "what": "Bir durak, seferlerinin güzergâh çiziminden olağandışı uzakta; haritada yolun dışında görünür.",
+      "action": "Durağın ya da güzergâhın konumunu düzeltin."
+    },
+    "GEO_012": {
+      "title": "Birçok durak üst üste",
+      "what": "Aynı küçük alanda en az üç durak birbirine çok yakın; aynı durağın kopyaları olabilir.",
+      "action": "Aynı fiziksel durağı gösteren kayıtları birleştirin."
+    },
+    "GEO_013": {
+      "title": "Ağın coğrafi kapsamı",
+      "what": "Durakların kapsadığı alanın özeti. Bilgi amaçlıdır.",
+      "action": "Bir şey yapmanız gerekmez."
+    },
+    "GEO_014": {
+      "title": "Ağ çok geniş bir alana yayılıyor",
+      "what": "Duraklar 500 kilometreden geniş bir alana dağılmış.",
+      "action": "Şehirlerarası bir ağsa sorun yok; değilse uzak düşen durakların konumunu kontrol edin."
+    },
+    "GEO_015": {
+      "title": "Durak Japonya dışında",
+      "what": "Dili Japonca olan bir veri setinde bazı duraklar Japonya sınırlarının dışında görünüyor.",
+      "action": "Bu durakların Japonya dışında olması bilinçliyse sorun yok; değilse koordinatlarını kontrol edin."
+    },
+    "GEO_016": {
+      "title": "Durak 0,0 konumunda",
+      "what": "Bir durağın konumu 0,0 (Gine Körfezi) girilmiş; gerçekte konumu yok.",
+      "action": "Durağın gerçek konumunu girin."
+    },
+    "GEO_017": {
+      "title": "Güzergâh noktası 0,0 konumunda",
+      "what": "Güzergâh çiziminde 0,0 konumunda bir nokta var; çizgi okyanusa uzanır.",
+      "action": "Güzergâhın bu noktasını düzeltin ya da güzergâhı yeniden dışa aktarın."
+    },
+    "GEO_018": {
+      "title": "Tüm duraklar aynı küçük alanda",
+      "what": "Bütün duraklar 200 metrelik bir alanın içinde; konumlar yer tutucu olabilir.",
+      "action": "Gerçekten tek bir alanda (ör. kampüs) çalışan bir hizmetse sorun yok; değilse durakların gerçek konumlarını girin."
+    },
+    "GEO_019": {
+      "title": "Durak konumu yuvarlanmış",
+      "what": "Bir durağın enlem ve boylamı tam sayı olarak girilmiş; durak kilometrelerce kayık görünür.",
+      "action": "Konumu en az 5 ondalık basamakla girin."
+    },
+    "GEO_020": {
+      "title": "Güzergâhın tüm noktaları aynı yerde",
+      "what": "Bir güzergâh çiziminin bütün noktaları aynı konumda; haritada çizgi değil tek nokta görünür.",
+      "action": "Güzergâhı yol boyunca yeniden çizin."
+    },
+    "GEO_021": {
+      "title": "Durakların çoğu konum paylaşıyor",
+      "what": "Durakların yüzde 30'undan fazlası başka bir durakla aynı konumda.",
+      "action": "Durakların gerçek konumlarını girin; aynı durağın kopyalarını birleştirin."
+    },
+    "GEO_022": {
+      "title": "Durak kutba çok yakın",
+      "what": "Bir durağın enlemi 89 dereceyi aşıyor; konum büyük olasılıkla hatalı (enlem ve boylam yer değiştirmiş olabilir).",
+      "action": "Durağın konumunu kontrol edip düzeltin."
+    },
+    "GGL_001": {
+      "title": "Araç içi aktarma Google'da desteklenmiyor",
+      "what": "Yolcunun araçta kalarak devam ettiği aktarma türü Google Haritalar tarafından desteklenmiyor. Google'a yayın yapmıyorsanız bu bir sorun değildir.",
+      "action": "Google uyumu gerekiyorsa bu bağlantıyı araç görevi (aynı araç) ile tanımlayın."
+    },
+    "GGL_002": {
+      "title": "Google kart fiyatı geçersiz",
+      "what": "Google'a özel kartlı ödeme fiyatı geçerli bir değer değil.",
+      "action": "Bu alanı kullanıyorsanız sıfır veya pozitif bir fiyat girin; kullanmıyorsanız boş bırakın."
+    },
+    "JPN_001": {
+      "title": "Durak adının kana okuması eksik",
+      "what": "Japonca adlı bir durağın kana (ja-Hrkt) okuması girilmemiş.",
+      "action": "Bu durağın adının kana okumasını çevirilere ekleyin."
+    },
+    "JPN_002": {
+      "title": "Ofis kodu tanımlı değil",
+      "what": "Bir hat ya da sefer, ofis listesinde (office_jp) olmayan bir ofise bağlanmış.",
+      "action": "Hattı ya da seferi mevcut bir ofise bağlayın ya da ofisi tanımlayın."
+    },
+    "JPN_003": {
+      "title": "Japonca işletmeci bilgisi eşleşmiyor",
+      "what": "GTFS-JP işletmeci ek bilgileri, işletmeci listesinde olmayan bir işletmeciye bağlanmış.",
+      "action": "Ek bilgileri mevcut bir işletmeciyle eşleştirin."
+    },
+    "JPN_004": {
+      "title": "Çeviri dosyası yok",
+      "what": "GTFS-JP veri setinde durak adlarının kana okumalarını taşıyan çeviri dosyası yok.",
+      "action": "Durak adlarının kana okumalarıyla birlikte çeviri dosyasını ekleyin."
+    },
+    "JPN_005": {
+      "title": "Ofisin adı yok",
+      "what": "Ofis listesinde (office_jp) adı girilmemiş bir ofis var.",
+      "action": "Ofisin adını girin."
+    },
+    "JPN_006": {
+      "title": "Ücret bilgisi eksik",
+      "what": "GTFS-JP veri setinde ücret bilgisi yok ya da farklı ücretler hatlara bağlanmamış.",
+      "action": "Ücretleri ve hangi hatlara uygulandıklarını ekleyin."
+    },
+    "JPN_007": {
+      "title": "Veri seti bilgisi dosyası yok",
+      "what": "GTFS-JP veri setinde yayımlayan ve dil bilgisini taşıyan veri seti bilgisi dosyası yok.",
+      "action": "Veri seti bilgilerini (yayımlayan, dil \"ja\", sürüm) ekleyin."
+    },
+    "JPN_008": {
+      "title": "Hat adının kana okuması eksik",
+      "what": "Japonca adlı bir hattın kana okuması girilmemiş.",
+      "action": "Bu hattın adının kana okumasını çevirilere ekleyin."
+    },
+    "JPN_009": {
+      "title": "Sefer yönünün kana okuması eksik",
+      "what": "Japonca yazılmış bir sefer yönünün kana okuması girilmemiş.",
+      "action": "Bu sefer yönünün kana okumasını çevirilere ekleyin."
+    },
+    "JPN_010": {
+      "title": "İşletmeci adının kana okuması eksik",
+      "what": "Japonca adlı bir işletmecinin kana okuması girilmemiş.",
+      "action": "İşletmeci adının kana okumasını çevirilere ekleyin."
+    },
+    "JPN_011": {
+      "title": "İşletmeci kodu eksik",
+      "what": "GTFS-JP'de tek işletmeci olsa bile işletmecinin ve hatlarda işletmeci bağlantısının kodu zorunlu; eksik.",
+      "action": "İşletmeciye bir kod verin ve tüm hatları bu işletmeciye bağlayın."
+    },
+    "JPN_012": {
+      "title": "Japonca işletmeci bilgisinde kod eksik",
+      "what": "GTFS-JP işletmeci ek bilgilerinde işletmeci kodu boş.",
+      "action": "Ek bilgileri ilgili işletmecinin koduyla bağlayın."
+    },
+    "JPN_013": {
+      "title": "Posta kodu biçimi hatalı",
+      "what": "İşletmecinin posta kodu yedi rakamdan oluşmuyor.",
+      "action": "Posta kodunu tire olmadan yedi rakam olarak girin."
+    },
+    "JPN_014": {
+      "title": "Ofis kodu boş ya da tekrarlı",
+      "what": "Ofis listesinde kodu boş ya da başka bir ofisle aynı olan bir kayıt var.",
+      "action": "Her ofise benzersiz bir kod verin."
+    },
+    "JPN_015": {
+      "title": "Eski hat ek bilgisi eşleşmiyor",
+      "what": "Eski biçimdeki hat ek bilgilerinde (routes_jp) hat kodu boş, tekrarlı ya da hat listesinde yok.",
+      "action": "Hat ek bilgilerini mevcut hatlara benzersiz şekilde bağlayın."
+    },
+    "JPN_016": {
+      "title": "Hat güncelleme tarihi geçersiz",
+      "what": "Hat deseni ya da hat ek bilgisindeki güncelleme tarihi geçerli bir tarih değil.",
+      "action": "Tarihi YYYYMMDD biçiminde girin."
+    },
+    "JPN_017": {
+      "title": "Sefer deseni kodu boş ya da tekrarlı",
+      "what": "Sefer desenleri listesinde (pattern_jp) kodu boş ya da tekrarlı bir kayıt var.",
+      "action": "Her desene benzersiz bir kod verin."
+    },
+    "JPN_018": {
+      "title": "Seferin deseni bulunamadı",
+      "what": "Bir sefer, desen listesinde olmayan bir sefer desenine bağlanmış.",
+      "action": "Seferi mevcut bir desene bağlayın."
+    },
+    "JPN_019": {
+      "title": "Kana çevirisi yanlış kayda bağlı",
+      "what": "Bir kana okuması, bulunmayan ya da yanlış bir kayda bağlanmış.",
+      "action": "Kana okumasını ilgili durak, hat ya da sefer kaydıyla doğru eşleştirin."
+    },
+    "JPN_020": {
+      "title": "Ofis web adresi veya telefonu şüpheli",
+      "what": "Ofisin web adresi ya da telefonu geçerli biçimde görünmüyor.",
+      "action": "Geçerli bir web adresi ve aranabilir bir telefon numarası girin."
+    },
+    "JPN_021": {
+      "title": "Kana çevirisi boş ya da çelişkili",
+      "what": "Bir kana okuması boş, aynı kayıt için iki farklı okuma var ya da okuma kana içermiyor.",
+      "action": "Her kayıt için tek ve kana ile yazılmış bir okuma bırakın."
+    },
+    "JPN_022": {
+      "title": "GTFS-JP v4 zorunlu bilgi eksik",
+      "what": "GTFS-JP v4'te zorunlu olan işletmeci dili, veri seti tarihleri, sürüm ya da durak türü bilgilerinden biri eksik.",
+      "action": "Eksik bilgileri tamamlayın."
+    },
+    "JPN_023": {
+      "title": "Veri seti dili Japonca değil",
+      "what": "GTFS-JP profilinde veri setinin dili \"ja\" olmalı, farklı girilmiş.",
+      "action": "Veri setinin dilini \"ja\" olarak girin."
+    },
+    "JPN_024": {
+      "title": "İşletmeci dili Japonca değil",
+      "what": "GTFS-JP profilinde işletmecinin dili \"ja\" olmalı, farklı girilmiş.",
+      "action": "İşletmecinin dilini \"ja\" olarak girin."
+    },
+    "JPN_025": {
+      "title": "İşletmeci saat dilimi Tokyo değil",
+      "what": "GTFS-JP profilinde işletmecinin saat dilimi Asia/Tokyo olmalı, farklı girilmiş.",
+      "action": "Saat dilimini Asia/Tokyo olarak girin."
+    },
+    "JPN_026": {
+      "title": "Ücret para birimi yen değil",
+      "what": "GTFS-JP profilinde ücretlerin para birimi JPY olmalı, farklı girilmiş.",
+      "action": "Para birimini JPY olarak girin."
+    },
+    "JPN_027": {
+      "title": "Hat türü otobüs değil",
+      "what": "GTFS-JP v3 otobüs profilinde hat türü otobüs dışında bir değerle girilmiş.",
+      "action": "Otobüs hatlarında türü \"otobüs\" seçin; çok modlu veri için uygun profili kullanın."
+    },
+    "JPN_028": {
+      "title": "Zorunlu kana okuması eksik",
+      "what": "GTFS-JP v3'te Japonca adlar, açıklamalar ve yönler için kana okuması zorunlu; bazıları eksik.",
+      "action": "Eksik kana okumalarını çevirilere ekleyin."
+    },
+    "JPN_029": {
+      "title": "Önerilen kana okuması eksik",
+      "what": "GTFS-JP v4'te durak tabelası metni ve atıf kurumu adı için kana okuması önerilir; bazıları eksik.",
+      "action": "Bu metinlerin kana okumalarını çevirilere ekleyin."
+    },
+    "JPN_030": {
+      "title": "Zorunlu Japonca çeviri satırı eksik",
+      "what": "GTFS-JP v3'te kana okumasının yanında \"ja\" dilinde çeviri satırı da gerekli; bazıları eksik.",
+      "action": "Eksik \"ja\" çeviri satırlarını ekleyin."
+    },
+    "JPN_031": {
+      "title": "Bölge ücretli durakta ücret bölgesi yok",
+      "what": "Bölgeye göre ücret alınan bir hattın durağında ücret bölgesi girilmemiş.",
+      "action": "Durağın ücret bölgesini, hattın ücret kurallarındaki bölgelerle eşleştirin."
+    },
+    "JPN_032": {
+      "title": "İşletmeci kodu kurum numarası biçiminde değil",
+      "what": "GTFS-JP v3'te işletmeci kodu 13 haneli kurum numarası (法人番号) olmalı.",
+      "action": "İşletmeci kodunu 13 haneli kurum numarası olarak girin."
+    },
+    "JPN_033": {
+      "title": "Özel ad \"jp\" ad alanını kullanıyor",
+      "what": "Özel bir dosya ya da alan adı, GTFS-JP'ye ayrılmış \"jp\" önekini ya da sonekini kullanıyor.",
+      "action": "Özel dosya veya alanı \"jp\" kullanmayan bir adla yeniden adlandırın."
+    },
+    "LOC_001": {
+      "title": "Hizmet bölgesinin şekli geçersiz",
+      "what": "Talebe bağlı hizmet bölgelerinden biri alan (çokgen) olarak değil başka bir şekilde çizilmiş.",
+      "action": "Hizmet bölgesini kapalı bir alan olarak yeniden çizin."
+    },
+    "LOC_002": {
+      "title": "Hizmet bölgesinin şekli yok",
+      "what": "Talebe bağlı hizmet bölgelerinden birinin çizimi eksik.",
+      "action": "Hizmet bölgesini haritada çizin."
+    },
+    "LOC_003": {
+      "title": "Hizmet bölgesinin kodu yok",
+      "what": "Talebe bağlı bir hizmet bölgesinin kodu yok; seferler bu bölgeye bağlanamaz.",
+      "action": "Her hizmet bölgesine benzersiz bir kod verin."
+    },
+    "LOC_004": {
+      "title": "Hizmet bölgesi kapanmıyor",
+      "what": "Bir hizmet bölgesinin sınır çizgisi başladığı noktada bitmiyor; alan kapalı değil.",
+      "action": "Bölge sınırını başlangıç noktasında kapatın."
+    },
+    "LOC_005": {
+      "title": "Hizmet bölgesi dosyası boş",
+      "what": "Hizmet bölgeleri dosyası var ama içinde hiç bölge yok.",
+      "action": "Talebe bağlı hizmet kullanıyorsanız bölgeleri ekleyin; kullanmıyorsanız dosyayı çıkarın."
+    },
+    "LOC_006": {
+      "title": "Hizmet bölgesi çok büyük",
+      "what": "Bir hizmet bölgesi 500 km² den geniş; gerçek hizmet alanı bu kadar büyük olmayabilir.",
+      "action": "Bölgeyi gerçek hizmet alanına göre küçültün ya da birkaç bölgeye ayırın."
+    },
+    "LOC_007": {
+      "title": "Aynı hizmet bölgesi kodu iki kez",
+      "what": "İki hizmet bölgesi aynı kodu taşıyor.",
+      "action": "Her bölgeye benzersiz bir kod verin."
+    },
+    "LOC_008": {
+      "title": "Hizmet bölgesi kaydı biçimi hatalı",
+      "what": "Hizmet bölgeleri dosyasında bir kaydın türü eksik ya da hatalı.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "LOC_009": {
+      "title": "Hizmet bölgesi kaydında özellikler eksik",
+      "what": "Hizmet bölgeleri dosyasında bir kaydın özellik bölümü eksik.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "LOC_010": {
+      "title": "Hizmet bölgesinin koordinatları yok",
+      "what": "Bir hizmet bölgesinin şekli var ama köşe koordinatları eksik; bölge çizilemez.",
+      "action": "Hizmet bölgesini haritada yeniden çizin."
+    },
+    "LOC_011": {
+      "title": "Hizmet bölgesi kendini kesiyor",
+      "what": "Bir hizmet bölgesinin sınırı kendi üzerinden geçiyor ya da içindeki boşluk dışarı taşıyor.",
+      "action": "Bölge sınırını kendini kesmeyecek şekilde yeniden çizin."
+    },
+    "LOC_012": {
+      "title": "Hizmet bölgesi dosyası okunamıyor",
+      "what": "Hizmet bölgeleri dosyası geçerli bir harita dosyası (GeoJSON) değil.",
+      "action": "Hizmet bölgelerini yeniden dışa aktarın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "LVL_001": {
+      "title": "Aynı kat kodu iki kez",
+      "what": "İki kat kaydı aynı kodu taşıyor.",
+      "action": "Her kata benzersiz bir kod verin ya da kopyaları birleştirin."
+    },
+    "LVL_002": {
+      "title": "Kat sırası geçersiz",
+      "what": "Katın yer seviyesine göre konumunu belirten sayı okunamıyor.",
+      "action": "Kat sırasını sayı olarak girin (zemin 0, üst katlar pozitif, alt katlar negatif)."
+    },
+    "LVL_003": {
+      "title": "Katın adı yok",
+      "what": "Bir katın yolcuya gösterilecek adı girilmemiş.",
+      "action": "Katın adını girin (ör. \"Peron katı\", \"-1\")."
+    },
+    "LVL_004": {
+      "title": "Kullanılmayan kat",
+      "what": "Bir kat tanımlı ama hiçbir durak ya da peron bu kata bağlı değil.",
+      "action": "Katı ilgili duraklara bağlayın ya da silin."
+    },
+    "LVL_005": {
+      "title": "Kat adı çok uzun",
+      "what": "Bir katın adı 255 karakterden uzun.",
+      "action": "Kat adını kısaltın."
+    },
+    "LVL_006": {
+      "title": "Asansör bağlantısında kat eksik",
+      "what": "Bir asansörün bağladığı noktalardan birinin hangi katta olduğu girilmemiş.",
+      "action": "Asansörün iki ucundaki noktalara katlarını atayın."
+    },
+    "LVL_007": {
+      "title": "Kat sırası boş",
+      "what": "Bir katın sıra değeri girilmemiş.",
+      "action": "Kat sırasını sayı olarak girin."
+    },
+    "LVL_008": {
+      "title": "Kat kodu boş",
+      "what": "Bir katın kodu boş bırakılmış.",
+      "action": "Her kata benzersiz bir kod verin."
+    },
+    "NET_001": {
+      "title": "Aynı ağ kodu iki kez",
+      "what": "İki hat ağı aynı kodu taşıyor.",
+      "action": "Her ağa benzersiz bir kod verin ya da kopyaları birleştirin."
+    },
+    "NET_002": {
+      "title": "Hat-ağ eşleşmesinde ağ bulunamadı",
+      "what": "Bir hat, boş ya da tanımlı olmayan bir ağa atanmış.",
+      "action": "Hattı mevcut bir ağa atayın."
+    },
+    "NET_003": {
+      "title": "Hat-ağ eşleşmesinde hat bulunamadı",
+      "what": "Bir ağa, boş ya da hat listesinde olmayan bir hat atanmış.",
+      "action": "Ağa mevcut bir hattı atayın."
+    },
+    "NET_004": {
+      "title": "Ağ kodu boş",
+      "what": "Bir hat ağının kodu boş bırakılmış.",
+      "action": "Her ağa benzersiz bir kod verin."
+    },
+    "OPR_001": {
+      "title": "Hatta seferler arasında uzun boşluk",
+      "what": "Bir hatta, aynı yön ve günde iki sefer arasındaki süre olağandışı uzun.",
+      "action": "Boşluk planlıysa sorun yok; değilse eksik seferleri ekleyin."
+    },
+    "OPR_003": {
+      "title": "Seferler çok sık, üst üste biniyor",
+      "what": "Aynı hat, yön ve günde iki sefer çok kısa aralıkla kalkıyor; aynı seferin iki kez girilmiş olması da mümkün.",
+      "action": "Bu iki seferin saatlerini kontrol edin; kopya sefer varsa birini silin."
+    },
+    "OPR_004": {
+      "title": "Hafta sonu sefer yok",
+      "what": "Bu hatta hafta sonu hiç sefer yok. Bilgi amaçlıdır.",
+      "action": "Hat hafta sonu çalışmıyorsa sorun yok; çalışması gerekiyorsa hafta sonu takvimini kontrol edin."
+    },
+    "OPR_005": {
+      "title": "Olağandışı sefer sıklığı",
+      "what": "Bir hattın sefer aralıkları benzer hatlara göre olağandışı. Bilgi amaçlıdır.",
+      "action": "Bir şey yapmanız gerekmez; beklenmedikse tarifeyi gözden geçirin."
+    },
+    "OPR_006": {
+      "title": "Seferde yeterli durak yok",
+      "what": "Bu seferde ikiden az durak var; yolcu bu seferle bir yerden bir yere gidemez.",
+      "action": "Sefere eksik durakları ekleyin ya da kullanılmayan seferi silin."
+    },
+    "OPR_007": {
+      "title": "Seferde durak deseni tekrar ediyor",
+      "what": "Bir seferde aynı durak sırası tekrar ediyor. Ring hatlarında olağandır.",
+      "action": "Hat bir ring hattıysa sorun yok; değilse seferin durak sırasını kontrol edin."
+    },
+    "OPR_008": {
+      "title": "Seferin birçok bölümünde aşırı hız",
+      "what": "Bir seferin birden fazla bölümünde hız beklenenin çok üstünde.",
+      "action": "Seferin durak saatlerini ve durakların konumlarını birlikte kontrol edin."
+    },
+    "OPR_009": {
+      "title": "Gece seferi çok geç başlıyor",
+      "what": "Bazı seferler gece 23:00'ten sonra kalkıyor. Bilgi amaçlıdır.",
+      "action": "Gece hizmeti planlıysa sorun yok; değilse kalkış saatlerini ve takvimi kontrol edin."
+    },
+    "OPR_010": {
+      "title": "Hatta erişilebilirlik bilgisi çelişiyor",
+      "what": "Aynı hattın bazı seferleri erişilebilir ya da bisikletli, bazıları değil olarak işaretlenmiş.",
+      "action": "Farklı araçlar kullanılıyorsa sorun yok; değilse hattın seferlerini aynı şekilde işaretleyin."
+    },
+    "OPR_011": {
+      "title": "Takvim hiç çalışmıyor",
+      "what": "Seferlere bağlı bir takvimde tek bir çalışma günü yok; bu seferler yolcu uygulamalarında görünmeyebilir.",
+      "action": "Takvime çalışma günlerini ekleyin."
+    },
+    "OPR_012": {
+      "title": "Takvimde hizmet boşluğu",
+      "what": "Seferlerin kullandığı bir takvimde, çalışma günleri arasında uzun bir boşluk var.",
+      "action": "Boşluk planlıysa sorun yok; değilse eksik çalışma günlerini ekleyin."
+    },
+    "OPR_013": {
+      "title": "Hat yalnızca tek yönde",
+      "what": "Bu hatta yalnızca bir yönün seferleri var. Bilgi amaçlıdır.",
+      "action": "Hat tek yönlü ya da ringse sorun yok; değilse karşı yön seferlerini ekleyin."
+    },
+    "OPR_014": {
+      "title": "Aktarma süreleri uzun",
+      "what": "Tanımlı aktarmalarda ortalama en kısa aktarma süresi 10 dakikayı aşıyor.",
+      "action": "Aktarma sürelerini gerçek yürüme ve bekleme sürelerine göre kontrol edin."
+    },
+    "OPR_015": {
+      "title": "Hat iki yönde aynı güzergâh çizimini kullanıyor",
+      "what": "Gidiş ve dönüş seferleri tek bir güzergâh çizimini paylaşıyor. Bilgi amaçlıdır.",
+      "action": "İki yön farklı yollardan gidiyorsa her yön için ayrı güzergâh çizimi kullanın."
+    },
+    "OPR_016": {
+      "title": "Veri setinde hiç çalışan gün yok",
+      "what": "Seferler var ama hiçbir takvimde tek bir çalışma günü yok; yolcuya hiç sefer görünmez.",
+      "action": "Takvimlere çalışma günlerini ekleyin."
+    },
+    "OPR_017": {
+      "title": "Sefer mesafesi çok kısa",
+      "what": "Bir seferin toplam mesafesi olağandışı kısa.",
+      "action": "Seferin güzergâhını ve durak konumlarını kontrol edin; gerçekten kısa bir servisse sorun yok."
+    },
+    "OPR_019": {
+      "title": "Hatta aynı gün iki takvim birlikte çalışıyor",
+      "what": "Bir hatta aynı gün birden fazla çalışma takvimi aktif; seferler iki kez görünebilir.",
+      "action": "Örneğin bayram günü normal takvimi kapatıp bayram takvimini açın; ikisi bilinçli olarak birlikte çalışıyorsa sorun yok."
+    },
+    "OPR_020": {
+      "title": "Özel günde iki takvim çakışıyor",
+      "what": "Bir hatta özel bir günde hem normal hem özel takvim çalışıyor.",
+      "action": "O gün normal takvimi kapatın (istisna olarak çıkarın)."
+    },
+    "OPR_021": {
+      "title": "Özel günde normal takvim de çalışıyor",
+      "what": "Tanımlanan özel gün takvimi devreye girmiş ama normal takvim o gün kapatılmamış; seferler iki kez görünür.",
+      "action": "O gün normal takvimi istisna olarak kapatın."
+    },
+    "OPR_022": {
+      "title": "Özel gün takvimi devreye girmemiş",
+      "what": "Tanımlanan özel günde normal takvim çalışıyor ama özel gün takvimi açılmamış.",
+      "action": "O gün özel gün takvimini istisna olarak ekleyin."
+    },
+    "OPR_023": {
+      "title": "Özel gün döneminde hiç takvim çalışmıyor",
+      "what": "Tanımlanan özel gün döneminde ne normal ne özel takvim çalışıyor; o günlerde hiç sefer yok.",
+      "action": "O günler için normal ya da özel takvimden birini açın."
+    },
+    "OPR_024": {
+      "title": "Hatta 500'den fazla sefer var",
+      "what": "Bir hatta bir takvim için 500'den fazla sefer tanımlı; birkaç hat birleşmiş olabilir.",
+      "action": "Seferlerin doğru hatta bağlı olduğunu kontrol edin."
+    },
+    "OPR_025": {
+      "title": "Seferler ortalamada 1 dakikadan kısa",
+      "what": "Veri setindeki seferlerin ortalama süresi 60 saniyenin altında; saatler büyük olasılıkla yanlış dışa aktarılmış.",
+      "action": "Sefer durak saatlerinin doğru aktarıldığını kontrol edin."
+    },
+    "PDW_006": {
+      "title": "Talebe bağlı hizmet pencereleri çakışıyor",
+      "what": "Aynı seferde aynı bölge için iki biniş/iniş penceresi üst üste biniyor.",
+      "action": "Pencereleri çakışmayacak şekilde düzenleyin."
+    },
+    "PTH_001": {
+      "title": "Aynı yürüme bağlantısı kodu iki kez",
+      "what": "İstasyon içi iki yürüme bağlantısı aynı kodu taşıyor.",
+      "action": "Her yürüme bağlantısına benzersiz bir kod verin."
+    },
+    "PTH_002": {
+      "title": "Yürüme bağlantısının başlangıç noktası bulunamadı",
+      "what": "İstasyon içi bir yürüme bağlantısı, durak listesinde olmayan bir noktadan başlıyor.",
+      "action": "Yürüme bağlantısının başlangıcını mevcut bir peron, giriş ya da ara noktaya bağlayın."
+    },
+    "PTH_003": {
+      "title": "Yürüme bağlantısının bitiş noktası bulunamadı",
+      "what": "İstasyon içi bir yürüme bağlantısı, durak listesinde olmayan bir noktada bitiyor.",
+      "action": "Yürüme bağlantısının bitişini mevcut bir peron, giriş ya da ara noktaya bağlayın."
+    },
+    "PTH_004": {
+      "title": "Yürüme bağlantısı türü geçersiz",
+      "what": "Yürüme yolunun türü (yürüme yolu, merdiven, yürüyen bant, yürüyen merdiven, asansör, turnike, çıkış) tanımlı değerlerden biri değil.",
+      "action": "Yürüme bağlantısının türünü seçin."
+    },
+    "PTH_005": {
+      "title": "Yürüme bağlantısının yönü geçersiz",
+      "what": "Yürüme bağlantısının tek yönlü mü çift yönlü mü olduğu belirtilmemiş ya da geçersiz.",
+      "action": "Yürüme bağlantısını tek yönlü ya da çift yönlü olarak işaretleyin."
+    },
+    "PTH_006": {
+      "title": "Yürüme bağlantısı uzunluğu geçersiz",
+      "what": "Yürüme bağlantısının uzunluğu sayı değil ya da negatif.",
+      "action": "Uzunluğu metre olarak pozitif bir sayıyla girin ya da boş bırakın."
+    },
+    "PTH_007": {
+      "title": "Geçiş süresi geçersiz",
+      "what": "Yürüme bağlantısından geçiş süresi sayı değil ya da sıfır.",
+      "action": "Geçiş süresini saniye olarak pozitif tam sayıyla girin ya da boş bırakın."
+    },
+    "PTH_008": {
+      "title": "Merdiven basamak sayısı eksik",
+      "what": "Merdiven olarak tanımlı bir yürüme bağlantısında basamak sayısı girilmemiş; engelli yolcular için önemlidir.",
+      "action": "Merdivenin basamak sayısını girin."
+    },
+    "PTH_009": {
+      "title": "Yürüme yolunun eğimi eksik",
+      "what": "Bir yürüme yolunda eğim bilgisi girilmemiş; tekerlekli sandalye kullanıcıları için önemlidir.",
+      "action": "Yolun eğimini girin (düzse 0)."
+    },
+    "PTH_010": {
+      "title": "Yürüme bağlantısı genişliği geçersiz",
+      "what": "Yürüme bağlantısının en dar genişliği sayı değil ya da sıfır veya negatif.",
+      "action": "Genişliği metre olarak pozitif bir sayıyla girin ya da boş bırakın."
+    },
+    "PTH_011": {
+      "title": "Yürüme bağlantısı aynı noktaya dönüyor",
+      "what": "Bir yürüme bağlantısı başladığı noktada bitiyor; hiçbir yere götürmüyor.",
+      "action": "Yürüme bağlantısının başlangıç ve bitişini iki farklı noktaya bağlayın."
+    },
+    "PTH_012": {
+      "title": "İstasyon girişi ile peron arasında bağlantı eksik",
+      "what": "İstasyonun girişinden perona ulaşan kesintisiz bir yürüme bağlantısı yok; yolcu perona nasıl gideceğini göremez.",
+      "action": "Girişlerden peronlara giden eksik yürüme bağlantılarını ekleyin."
+    },
+    "PTH_013": {
+      "title": "Erişilebilir yol analizi",
+      "what": "İstasyonda girişten perona eğim ve genişlik açısından tekerlekli sandalyeye uygun bir yol olup olmadığı inceleniyor. Bilgi amaçlıdır.",
+      "action": "Erişilebilir bir güzergâh varsa eğim ve genişlik bilgilerini girin."
+    },
+    "PTH_014": {
+      "title": "Yürüme bağlantısı iki ayrı istasyonu birleştiriyor",
+      "what": "İstasyon içi bir yürüme bağlantısı farklı istasyonlara ait iki noktayı birbirine bağlıyor.",
+      "action": "Önce bağlantının uçlarının doğru istasyona bağlı olduğunu kontrol edin. Gerçekten iki istasyon arasında bir yürüme yolu varsa bu bilinçli olabilir."
+    },
+    "PTH_015": {
+      "title": "Yürüme bağlantısının süresi mesafeye göre çok kısa",
+      "what": "Bir yürüme bağlantısının uzunluğu ve geçiş süresi, saniyede 3 metreden hızlı yürümek anlamına geliyor.",
+      "action": "Uzunluk ve geçiş süresini gerçek değerlere göre düzeltin."
+    },
+    "PTH_016": {
+      "title": "Çıkış turnikesi çift yönlü",
+      "what": "Yalnızca çıkış için olan bir turnike çift yönlü tanımlanmış.",
+      "action": "Çıkış turnikesini tek yönlü yapın."
+    },
+    "PTH_017": {
+      "title": "Eğim değeri geçersiz",
+      "what": "Eğim bilgisi sayı değil ya da eğimin anlamlı olmadığı bir yürüme bağlantısında (merdiven, asansör gibi) girilmiş.",
+      "action": "Eğimi yalnızca yürüme yolu ve yürüyen bantta, sayı olarak girin."
+    },
+    "PTH_018": {
+      "title": "Yürüme bağlantısı tabela metni çok uzun",
+      "what": "Yürüme bağlantısında yolcunun gördüğü tabela metni 255 karakterden uzun.",
+      "action": "Tabelada yazan kısa metni girin."
+    },
+    "PTH_019": {
+      "title": "Ara nokta çıkmaz",
+      "what": "İstasyon içindeki bir ara nokta yalnızca bir yürüme bağlantısına bağlı; oradan devam edilemiyor.",
+      "action": "Ara noktayı en az iki yürüme bağlantısına bağlayın ya da kaldırın."
+    },
+    "PTH_020": {
+      "title": "Yürüme bağlantısı kodu boş",
+      "what": "İstasyon içi bir yürüme bağlantısının kodu boş bırakılmış.",
+      "action": "Her yürüme bağlantısına benzersiz bir kod verin."
+    },
+    "PTH_021": {
+      "title": "Yürüme bağlantısının başlangıcı boş",
+      "what": "Bir yürüme bağlantısının nereden başladığı girilmemiş.",
+      "action": "Yürüme bağlantısının başlangıç noktasını seçin."
+    },
+    "PTH_022": {
+      "title": "Yürüme bağlantısının bitişi boş",
+      "what": "Bir yürüme bağlantısının nerede bittiği girilmemiş.",
+      "action": "Yürüme bağlantısının bitiş noktasını seçin."
+    },
+    "PTH_023": {
+      "title": "Yürüme bağlantısı türü boş",
+      "what": "Bir yürüme bağlantısının türü girilmemiş.",
+      "action": "Yürüme bağlantısının türünü seçin (yürüme yolu, merdiven, asansör gibi)."
+    },
+    "PTH_024": {
+      "title": "Yürüme bağlantısının yönü boş",
+      "what": "Bir yürüme bağlantısının tek mi çift yönlü mü olduğu girilmemiş.",
+      "action": "Yürüme bağlantısını tek yönlü ya da çift yönlü olarak işaretleyin."
+    },
+    "PTH_025": {
+      "title": "Yürüme bağlantısı uzunluğu eksik",
+      "what": "Yürüme yolu, turnike ya da çıkış gibi yürüme bağlantılarında uzunluk girilmemiş; yürüme süresi hesaplanamaz.",
+      "action": "Bu yürüme bağlantılarının uzunluğunu metre olarak girin."
+    },
+    "PTH_026": {
+      "title": "Yürüme bağlantısı istasyonun kendisine bağlanmış",
+      "what": "Bir yürüme bağlantısı istasyonun kendisine bağlanmış; yürüme bağlantıları peron, giriş ya da ara noktalara bağlanmalı.",
+      "action": "Yürüme bağlantısını ilgili perona, girişe ya da ara noktaya bağlayın."
+    },
+    "PTH_027": {
+      "title": "Basamak sayısı geçersiz",
+      "what": "Merdivenin basamak sayısı sıfır ya da tam sayı değil.",
+      "action": "Basamak sayısını tam sayı olarak girin (çıkış yönünde pozitif, iniş yönünde negatif) ya da boş bırakın."
+    },
+    "PTH_028": {
+      "title": "Eğim yanlış yürüme bağlantısı türünde",
+      "what": "Eğim bilgisi, yürüme yolu ya da yürüyen bant dışındaki bir yürüme bağlantısında girilmiş.",
+      "action": "Eğimi yalnızca yürüme yolu ve yürüyen bantta kullanın."
+    },
+    "PTH_029": {
+      "title": "Geçiş süresi eksik",
+      "what": "Yürüyen bant, yürüyen merdiven ya da asansörde geçiş süresi girilmemiş.",
+      "action": "Bu yürüme bağlantılarının geçiş süresini saniye olarak girin."
+    },
+    "PTH_030": {
+      "title": "Yürüme bağlantısı perona bağlı ama biniş alanları var",
+      "what": "Perona biniş alanları tanımlanmış ama yürüme bağlantısı doğrudan perona bağlanmış.",
+      "action": "Yürüme bağlantısını ilgili biniş alanına bağlayın."
+    },
+    "PTH_031": {
+      "title": "Yürüme bağlantısı sokaktan erişilen durağa bağlı",
+      "what": "Bir yürüme bağlantısı, istasyon içinden değil doğrudan sokaktan erişilen bir durağa bağlanmış.",
+      "action": "Durağın erişim değerini \"istasyon üzerinden\" yapın ya da bu yürüme bağlantısını kaldırın."
+    },
+    "RCT_001": {
+      "title": "Aynı yolcu kategorisi kodu iki kez",
+      "what": "İki yolcu kategorisi (ör. öğrenci, yaşlı) aynı kodu taşıyor.",
+      "action": "Her yolcu kategorisine benzersiz bir kod verin."
+    },
+    "RCT_002": {
+      "title": "Yolcu kategorisinin adı yok",
+      "what": "Bir yolcu kategorisinin adı girilmemiş.",
+      "action": "Kategorinin adını girin (ör. \"Öğrenci\")."
+    },
+    "RCT_003": {
+      "title": "Varsayılan kategori değeri geçersiz",
+      "what": "Yolcu kategorisinin varsayılan olup olmadığını belirten değer geçersiz.",
+      "action": "Değeri evet ya da hayır olarak seçin."
+    },
+    "RCT_004": {
+      "title": "Yaş sınırı geçersiz",
+      "what": "Yolcu kategorisinin en küçük ya da en büyük yaşı tam sayı değil.",
+      "action": "Yaş sınırlarını tam sayı olarak girin ya da boş bırakın."
+    },
+    "RCT_005": {
+      "title": "Yaş aralığı ters",
+      "what": "Yolcu kategorisinin en büyük yaşı, en küçük yaşından küçük.",
+      "action": "Yaş sınırlarını düzeltin."
+    },
+    "RCT_006": {
+      "title": "Bilette varsayılan kategori bir değil",
+      "what": "Bir bilet ürünü için ya hiç ya da birden fazla varsayılan yolcu kategorisi işaretlenmiş.",
+      "action": "Her bilet için tam olarak bir yolcu kategorisini varsayılan yapın."
+    },
+    "RCT_007": {
+      "title": "Kategori koşul sayfası geçersiz",
+      "what": "Yolcu kategorisinin koşullarını anlatan sayfanın adresi geçerli değil.",
+      "action": "Adresi \"https://\" ile başlayan tam adres olarak girin ya da boş bırakın."
+    },
+    "RCT_008": {
+      "title": "Yolcu kategorisi kodu boş",
+      "what": "Bir yolcu kategorisinin kodu boş bırakılmış.",
+      "action": "Her kategoriye benzersiz bir kod verin."
+    },
+    "RTS_001": {
+      "title": "Aynı hat kodu iki kez kullanılmış",
+      "what": "İki farklı hat aynı kodu taşıyor; seferlerin hangi hatta ait olduğu karışır.",
+      "action": "Her hatta benzersiz bir kod verin."
+    },
+    "RTS_002": {
+      "title": "Hattın işletmecisi bulunamadı",
+      "what": "Bir hat, işletmeci listesinde olmayan bir işletmeciye bağlanmış.",
+      "action": "Hattı mevcut bir işletmeciye bağlayın ya da işletmeciyi listeye ekleyin."
+    },
+    "RTS_003": {
+      "title": "Hattın adı yok",
+      "what": "Bir hattın ne kısa adı (numarası) ne de uzun adı girilmiş; yolcu hattı tanıyamaz.",
+      "action": "Hattın numarasını veya adını girin."
+    },
+    "RTS_004": {
+      "title": "Hattın araç türü eksik veya geçersiz",
+      "what": "Hattın otobüs, tramvay, metro gibi türü girilmemiş ya da tanımlı değerlerden biri değil.",
+      "action": "Hattın araç türünü seçin."
+    },
+    "RTS_005": {
+      "title": "Hat web adresi geçersiz",
+      "what": "Hat için verilen web adresi geçerli bir adres değil.",
+      "action": "Adresi \"https://\" ile başlayan tam bir adres olarak girin ya da boş bırakın."
+    },
+    "RTS_006": {
+      "title": "Hat rengi geçersiz",
+      "what": "Hat rengi 6 haneli bir renk kodu değil (ör. FF0000).",
+      "action": "Hat rengini 6 haneli renk kodu olarak girin."
+    },
+    "RTS_007": {
+      "title": "Hat yazı rengi geçersiz",
+      "what": "Hat rozetindeki yazı rengi 6 haneli bir renk kodu değil (ör. FFFFFF).",
+      "action": "Yazı rengini 6 haneli renk kodu olarak girin."
+    },
+    "RTS_008": {
+      "title": "Hat rozeti zor okunuyor",
+      "what": "Hat rengi ile üstündeki yazı rengi arasındaki kontrast düşük; rozetteki hat numarası zor okunur.",
+      "action": "Yazı rengini hat rengine göre koyu ya da açık seçin (ör. koyu zemine beyaz yazı)."
+    },
+    "RTS_010": {
+      "title": "Hat numarası çok uzun",
+      "what": "Hattın kısa adı 12 karakterden uzun; rozete ve tabelaya sığmaz.",
+      "action": "Kısa ada yalnızca hat numarasını yazın; açıklamayı uzun ada taşıyın."
+    },
+    "RTS_011": {
+      "title": "Hat adı çok uzun",
+      "what": "Hattın uzun adı 100 karakterden uzun; uygulamalarda kesilir.",
+      "action": "Hat adını kısaltın; ayrıntıyı hat açıklamasına yazın."
+    },
+    "RTS_012": {
+      "title": "Seferi olmayan hat",
+      "what": "Bu hatta hiç sefer yok; yolcu uygulamasında boş bir hat olarak görünebilir.",
+      "action": "Hat hizmette değilse kaldırın; hizmetteyse seferlerini ekleyin."
+    },
+    "RTS_013": {
+      "title": "Hat boyunca biniş kuralı geçersiz",
+      "what": "Hatta durak dışında, yol boyunca binişe izin verilip verilmediğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Hat boyunca binişe izin durumunu seçin veya bu ayarı kullanmıyorsanız boş bırakın."
+    },
+    "RTS_016": {
+      "title": "Hattın hiç çalıştığı gün yok",
+      "what": "Bu hattın seferlerinin bağlı olduğu takvimlerin hiçbirinde çalışma günü yok; hat yolcu uygulamalarında görünmeyebilir.",
+      "action": "Hattın seferlerinin bağlı olduğu çalışma takvimlerini kontrol edin."
+    },
+    "RTS_017": {
+      "title": "Hattın güzergâh çizimi yok",
+      "what": "Bu hattın hiçbir seferinin güzergâh çizimi yok; uygulamalar hattı duraklar arası düz çizgilerle gösterir.",
+      "action": "Hattın yol üzerindeki güzergâh çizimini dışa aktarıma ekleyin."
+    },
+    "RTS_018": {
+      "title": "Hat boyunca iniş kuralı geçersiz",
+      "what": "Hatta durak dışında, yol boyunca inişe izin verilip verilmediğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Hat boyunca inişe izin durumunu seçin veya bu ayarı kullanmıyorsanız boş bırakın."
+    },
+    "RTS_019": {
+      "title": "İki hat aynı adı taşıyor",
+      "what": "Birden fazla hat birebir aynı numara ve adı taşıyor; yolcu aramada aynı görünen hatları ayırt edemez.",
+      "action": "Farklı hizmetlerse ayırt edici ad verin; aynı hizmetse hatları birleştirin."
+    },
+    "RTS_020": {
+      "title": "Hat sayfası işletmeci sayfasıyla aynı",
+      "what": "Hat için verilen web adresi işletmecinin genel sayfası.",
+      "action": "Hatta özel bir sayfa varsa onu girin; yoksa adresi boş bırakın."
+    },
+    "RTS_021": {
+      "title": "Hat numarası Google Transit sınırını (6 karakter) aşıyor",
+      "what": "Hattın kısa adı 6 karakteri aşıyor; Google Haritalar rozete sığdırmak için kesebilir. Google'a yayın yapmıyorsanız bu bir sorun değildir.",
+      "action": "Google'a yayın yapıyorsanız kısa ada yalnızca hat numarasını yazın."
+    },
+    "RTS_022": {
+      "title": "Hat adı numarayı tekrar ediyor",
+      "what": "Hattın uzun adı, numarasını da içeriyor; uygulamada \"34 34 Merkez\" gibi tekrar görünür.",
+      "action": "Uzun ada numarayı yazmadan yalnızca güzergâhı yazın (ör. \"Merkez – Üniversite\")."
+    },
+    "RTS_023": {
+      "title": "Hat açıklaması adıyla aynı",
+      "what": "Hattın açıklaması uzun adını tekrar ediyor; yolcuya ek bilgi vermiyor.",
+      "action": "Açıklamaya çalışma saati, güzergâh notu gibi ek bilgi yazın ya da boş bırakın."
+    },
+    "RTS_024": {
+      "title": "Temassız ödeme bilgisi geçersiz",
+      "what": "Hatta temassız kartla ödeme yapılıp yapılamayacağını belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Değeri \"bilgi yok\", \"destekleniyor\" veya \"desteklenmiyor\" olarak seçin."
+    },
+    "RTS_025": {
+      "title": "Hattın işletmecisi belirtilmemiş",
+      "what": "Bazı hatlarda işletmeci boş bırakılmış; tek işletmeci varsa bu bilgi önerilir.",
+      "action": "Hatlara işletmecilerini atayın."
+    },
+    "RTS_026": {
+      "title": "Aynı hat numarası farklı hatlarda",
+      "what": "Aynı kısa ad (numara) farklı adlı hatlarda kullanılmış; yolcu aramada karışabilir.",
+      "action": "Numara bilinçli olarak varyantlarda kullanılıyorsa sorun yok; değilse hatlara ayrı numaralar verin."
+    },
+    "RTS_027": {
+      "title": "Aynı hat adı farklı hatlarda",
+      "what": "Aynı uzun ad farklı numaralı hatlarda kullanılmış; yolcu aramada aynı görünen hatları ayırt edemez.",
+      "action": "Ad bilinçli paylaşılıyorsa sorun yok; değilse her hatta ayırt edici bir ad verin."
+    },
+    "RTS_028": {
+      "title": "Talebe bağlı hatta yol boyunca biniş/iniş açık",
+      "what": "Talebe bağlı seferleri olan bir hatta yol boyunca biniş ya da iniş açık bırakılmış; bu ikisi birlikte kullanılamaz.",
+      "action": "Bu hatta yol boyunca biniş ve inişi kapatın veya ayarı boş bırakın."
+    },
+    "RTS_029": {
+      "title": "Hat sıralama değeri geçersiz",
+      "what": "Hatların listede hangi sırayla görüneceğini belirleyen değer negatif ya da sayı değil.",
+      "action": "Sıralama değerini 0 veya pozitif tam sayı olarak girin ya da boş bırakın."
+    },
+    "RTS_030": {
+      "title": "Hat türü genişletilmiş kodla yazılmış",
+      "what": "Hattın araç türü standart dışı genişletilmiş bir kodla yazılmış; bazı uygulamalar türü tanımayabilir.",
+      "action": "Mümkünse en yakın temel araç türünü seçin (otobüs, tramvay, metro gibi)."
+    },
+    "RTS_031": {
+      "title": "Hat kodu boş",
+      "what": "Hat listesinde kodu boş bırakılmış bir hat var; seferler bu hatta bağlanamaz.",
+      "action": "Her hatta benzersiz bir kod verin."
+    },
+    "SAR_001": {
+      "title": "Durak-alan eşleşmesinde alan bulunamadı",
+      "what": "Bir durak, tanımlı olmayan bir ücret alanına atanmış.",
+      "action": "Durağı mevcut bir ücret alanına atayın."
+    },
+    "SAR_002": {
+      "title": "Durak-alan eşleşmesinde durak bulunamadı",
+      "what": "Bir ücret alanına, durak listesinde olmayan bir durak atanmış.",
+      "action": "Alana mevcut bir durağı atayın."
+    },
+    "SAR_003": {
+      "title": "Durak-alan eşleşmesinde alan boş",
+      "what": "Bir durak-alan eşleşmesinde alan girilmemiş.",
+      "action": "Eşleşmeye ücret alanını girin."
+    },
+    "SAR_004": {
+      "title": "Durak-alan eşleşmesinde durak boş",
+      "what": "Bir durak-alan eşleşmesinde durak girilmemiş.",
+      "action": "Eşleşmeye durağı girin."
+    },
+    "SHP_001": {
+      "title": "Güzergâh çizimi kodu boş",
+      "what": "Güzergâh çizimi noktalarından birinin hangi çizime ait olduğu boş bırakılmış.",
+      "action": "Güzergâh çizimini planlama yazılımından yeniden dışa aktarın."
+    },
+    "SHP_002": {
+      "title": "Güzergâh noktasının enlemi geçersiz",
+      "what": "Güzergâh çizimindeki bir noktanın enlemi yok ya da geçerli aralığın dışında.",
+      "action": "Güzergâhı haritada kontrol edip yeniden çizin veya dışa aktarın."
+    },
+    "SHP_003": {
+      "title": "Güzergâh noktasının boylamı geçersiz",
+      "what": "Güzergâh çizimindeki bir noktanın boylamı yok ya da geçerli aralığın dışında.",
+      "action": "Güzergâhı haritada kontrol edip yeniden çizin veya dışa aktarın."
+    },
+    "SHP_004": {
+      "title": "Güzergâh noktalarının sırası geçersiz",
+      "what": "Güzergâh çizimindeki bir noktanın sıra numarası yok ya da sayı değil; çizgi yanlış birleşebilir.",
+      "action": "Güzergâh çizimini yeniden dışa aktarın."
+    },
+    "SHP_005": {
+      "title": "Güzergâh mesafesi geriye gidiyor",
+      "what": "Güzergâh çizimi boyunca bir noktanın mesafesi önceki noktadan küçük.",
+      "action": "Güzergâh mesafelerini baştan sona artacak şekilde yeniden hesaplatın."
+    },
+    "SHP_006": {
+      "title": "Güzergâh çizimi tek nokta",
+      "what": "Bir güzergâh çizimi yalnızca bir noktadan oluşuyor; haritada çizgi olarak gösterilemez.",
+      "action": "Güzergâhı yol boyunca yeniden çizin."
+    },
+    "SHP_008": {
+      "title": "Güzergâhta aynı sıra iki kez",
+      "what": "Güzergâh çiziminde iki nokta aynı sıra numarasını taşıyor; çizginin yönü belirsiz.",
+      "action": "Güzergâh çizimini yeniden dışa aktarın."
+    },
+    "SHP_009": {
+      "title": "Güzergâh kendini kesiyor",
+      "what": "Bir güzergâh çizimi kendi üzerinden geçiyor. Ring ve dönüş noktalarında olağandır.",
+      "action": "Hat gerçekten aynı yoldan geçiyorsa sorun yok; değilse güzergâhı haritada kontrol edin."
+    },
+    "SHP_010": {
+      "title": "Güzergâhta aynı nokta art arda",
+      "what": "Güzergâh çiziminde aynı konum art arda iki kez girilmiş.",
+      "action": "Güzergâhı sadeleştirip yeniden dışa aktarın; yolcuya etkisi yoktur."
+    },
+    "SHP_012": {
+      "title": "Güzergâh seferin duraklarından uzak",
+      "what": "Bir güzergâh çizimi, onu kullanan seferlerin bazı duraklarından 100 metreden fazla uzakta geçiyor; haritada duraklar yolun dışında görünür.",
+      "action": "Güzergâhı ya da durak konumlarını düzeltin; sefere yanlış güzergâh atanmış olabilir."
+    },
+    "SHP_014": {
+      "title": "İlk veya son durak güzergâh ucundan uzak",
+      "what": "Seferin ilk ya da son durağı, güzergâh çiziminin başından veya sonundan uzakta.",
+      "action": "Garaj çıkışı gibi bilinçli bir uzantıysa sorun yok; değilse güzergâhın uçlarını son duraklara göre düzeltin."
+    },
+    "SHP_015": {
+      "title": "Güzergâh çok az noktayla çizilmiş",
+      "what": "Uzun bir güzergâh çok az noktayla çizilmiş; haritada yolu takip etmez, binaların içinden geçiyor görünür.",
+      "action": "Güzergâhı yol boyunca daha sık noktayla çizin."
+    },
+    "SHP_016": {
+      "title": "Güzergâh seferin yönüne ters",
+      "what": "Bir güzergâh çizimi, onu kullanan seferlerin gittiği yöne ters çizilmiş; uygulamalar yönü ters gösterir.",
+      "action": "Bu yön için güzergâhı ters çevirin ya da ayrı bir güzergâh çizimi tanımlayın."
+    },
+    "SHP_017": {
+      "title": "Durak sırası güzergâhla çelişiyor",
+      "what": "Seferin durak sırası, güzergâh çizimi boyunca geriye gidiyor gibi görünüyor. Ring hatlarında olabilir.",
+      "action": "Haritada kontrol edin; bilinçli bir dönüşse sorun yok, değilse durak sırasını veya güzergâhı düzeltin."
+    },
+    "SHP_018": {
+      "title": "Kullanılmayan güzergâh çizimi",
+      "what": "Bir güzergâh çizimini hiçbir sefer kullanmıyor.",
+      "action": "Çizimi ilgili seferlere bağlayın ya da kullanılmıyorsa silin."
+    },
+    "SHP_019": {
+      "title": "Güzergâhın seferlerinin durak saati yok",
+      "what": "Bir güzergâh çizimini kullanan seferlerin hiçbirinin durak saatleri girilmemiş.",
+      "action": "Seferlerin durak saatlerini ekleyin ya da kullanılmayan seferleri ve güzergâhı kaldırın."
+    },
+    "SHP_020": {
+      "title": "Güzergâhta nokta tekrar ediyor",
+      "what": "Güzergâh çiziminde aynı nokta kısa aralıkla tekrar geçiyor. Bilgi amaçlıdır.",
+      "action": "Güzergâhı sadeleştirip yeniden dışa aktarabilirsiniz; yolcuya etkisi yoktur."
+    },
+    "SHP_021": {
+      "title": "Güzergâh mesafesi negatif",
+      "what": "Güzergâh çizimindeki bir noktanın mesafesi sıfırdan küçük.",
+      "action": "Güzergâh mesafelerini yeniden hesaplatın."
+    },
+    "SHP_022": {
+      "title": "Durağın güzergâh üzerindeki yeri belirsiz",
+      "what": "Güzergâh aynı yerden birden fazla kez geçtiği için bir durağın çizginin hangi noktasında olduğu anlaşılamıyor.",
+      "action": "Sefer durak saatlerinde her durağın güzergâh üzerindeki mesafesini dışa aktarın."
+    },
+    "SHP_023": {
+      "title": "Güzergâhta aynı nokta iki kez",
+      "what": "Güzergâh çiziminde aynı konum ve aynı mesafe art arda iki kez girilmiş.",
+      "action": "Yinelenen noktayı kaldırıp yeniden dışa aktarın."
+    },
+    "SHP_024": {
+      "title": "Durakların güzergâh üzerindeki mesafesi tutarsız",
+      "what": "Durakların güzergâh üzerindeki mesafe bilgisi, durak konumlarıyla uyuşmuyor.",
+      "action": "Durak konumlarını, güzergâhı ve mesafe bilgilerini kontrol edin."
+    },
+    "SHP_025": {
+      "title": "Seferin mesafesi güzergâhtan uzun",
+      "what": "Sefer durak saatlerindeki mesafe, güzergâh çiziminin toplam uzunluğunu aşıyor; muhtemelen farklı birimler kullanılmış.",
+      "action": "İki yerdeki mesafeyi aynı birimle (metre ya da kilometre) dışa aktarın."
+    },
+    "SHP_026": {
+      "title": "Güzergâh çizimi çok fazla nokta içeriyor",
+      "what": "Bir güzergâh çiziminde 5000'den fazla nokta var; dosya gereksiz büyüyor. Bilgi amaçlıdır.",
+      "action": "Dışa aktarımda güzergâhı sadeleştirme seçeneğini kullanabilirsiniz."
+    },
+    "SHP_028": {
+      "title": "Güzergâhta mesafe artmadan konum değişiyor",
+      "what": "Güzergâh çiziminde art arda iki nokta farklı yerlerde ama mesafeleri aynı.",
+      "action": "Güzergâh mesafelerini yeniden hesaplatın."
+    },
+    "SHP_029": {
+      "title": "Güzergâhta neredeyse aynı iki nokta",
+      "what": "Güzergâh çiziminde art arda iki nokta çok yakın ve mesafeleri aynı; yuvarlama farkı olabilir. Bilgi amaçlıdır.",
+      "action": "Güzergâh mesafelerini yeniden hesaplatın ya da yinelenen noktayı kaldırın."
+    },
+    "SHP_030": {
+      "title": "Durak mesafesi var, güzergâh mesafesi yok",
+      "what": "Sefer durak saatlerinde güzergâh mesafesi kullanılmış ama güzergâh çiziminde mesafeler eksik; ikisi eşleştirilemez.",
+      "action": "Güzergâh çizimine de aynı birimle mesafe ekleyin ya da durak saatlerindeki mesafeleri kaldırın."
+    },
+    "STM_001": {
+      "title": "Durak saatleri bir hatta bağlanmamış",
+      "what": "{first_stop} (kalkış {first_departure}) ile {last_stop} (varış {last_arrival}) arasında {stop_count} duraklı bir seferin saatleri var, ama bu sefer hiçbir hatta ve çalışma takvimine bağlı değil.",
+      "action": "Planlama yazılımında bu durak ve saatlerle çalışan seferi bulun, doğru çalışma takvimini atayın ve bir hatta bağlayın."
+    },
+    "STM_002": {
+      "title": "Seferde kullanılan durak bulunamadı",
+      "what": "{service} takvimindeki, hat kodu {route_code} olan seferde bu durak {time} aralığında kullanılıyor; durak listesinde bu durak bulunmuyor.",
+      "action": "Planlama yazılımında bu seferin konumunu kontrol edin. Fiziksel bir duraksa mevcut durakla eşleştirin veya durak kaydı oluşturun. Bu bilgi bir hizmet alanını gösteriyorsa alanı durak olarak eklemeyin; seferde doğru konum türünü ve kaydını kullanın."
+    },
+    "STM_003": {
+      "title": "Durağa varış saati geçersiz",
+      "what": "Bir durağa ait varış saati okunamıyor veya geçerli biçimde değil.",
+      "action": "İlgili seferin durağa varış saatini düzeltin."
+    },
+    "STM_004": {
+      "title": "Duraktan kalkış saati geçersiz",
+      "what": "Bir durağa ait kalkış saati okunamıyor veya geçerli biçimde değil.",
+      "action": "İlgili seferin duraktan kalkış saatini düzeltin."
+    },
+    "STM_005": {
+      "title": "Seferin durak sırası bilgisi geçersiz",
+      "what": "Seferdeki durak sırası eksik ya da geçerli değil.",
+      "action": "Eksik veya geçersiz durak sırası bilgilerini düzeltin."
+    },
+    "STM_006": {
+      "title": "Seferde durak belirtilmemiş",
+      "what": "Bu durak saatinde varış {arrival}, kalkış {departure}; durak seçilmemiş.",
+      "action": "Planlama yazılımında bu saatler için planlanan durağı ekleyin."
+    },
+    "STM_007": {
+      "title": "Duraktan kalkış, varıştan önce görünüyor",
+      "what": "Aynı durakta kalkış saati varış saatinden daha erken.",
+      "action": "Durağa varış ve duraktan kalkış saatlerini kontrol edin."
+    },
+    "STM_008": {
+      "title": "Duraklar arasında zaman geriye gidiyor",
+      "what": "{from} durağından {dep} kalkışından sonra {to} durağına {arr} varışı yazılmış; varış kalkıştan önce.",
+      "action": "Planlama yazılımında bu iki durağın saatlerini kontrol edin; sefer boyunca saatler ileri gitmeli. Gece yarısını geçen seferde saat 24:00 üzerinden devam eder (ör. 24:10, 00:10 değil)."
+    },
+    "STM_009": {
+      "title": "Durakta biniş kuralı geçersiz",
+      "what": "Bir sefer durağında yolcunun binip binemeyeceğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Planlama yazılımında bu durak için biniş türünü seçin: 0 — normal biniş; 1 — biniş yok; 2 — biniş için işletmeyi telefonla arayın; 3 — biniş için sürücüyle önceden anlaşın."
+    },
+    "STM_010": {
+      "title": "Durakta iniş kuralı geçersiz",
+      "what": "Bir sefer durağında yolcunun inip inemeyeceğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Planlama yazılımında bu durak için iniş türünü seçin: 0 — normal iniş; 1 — iniş yok; 2 — iniş için işletmeyi telefonla arayın; 3 — iniş için sürücüyle önceden anlaşın."
+    },
+    "STM_012": {
+      "title": "Duraklar arasında gerçekçi olmayan hız",
+      "what": "{stops} arasında hesaplanan hız gerçekçi görünmüyor.",
+      "action": "Önce bu seferin iki durak arasındaki varış ve kalkış saatlerini kontrol edin. Saatler doğruysa durakların konumlarını kontrol edin."
+    },
+    "STM_014": {
+      "title": "Hat bölümünde aşırı hız",
+      "what": "{from} ile {to} arasındaki {distance} m mesafe için hesaplanan {speed} km/h hız, bu hat türü için belirlenen {threshold} km/h sınırını aşıyor.",
+      "action": "Bu iki durağın saatlerini kontrol edin. Saatler doğruysa durakların haritadaki konumuna bakın."
+    },
+    "STM_015": {
+      "title": "İlk durakta varış saati eksik",
+      "what": "Bu seferin ilk durağına varış saati girilmemiş.",
+      "action": "Bu seferin ilk durağına varış saatini girin. İlk durakta varış genellikle kalkış saatiyle aynıdır."
+    },
+    "STM_016": {
+      "title": "Son durakta varış saati eksik",
+      "what": "Bu seferin son durağına varış saati girilmemiş.",
+      "action": "Bu seferin son durağına varış saatini girin; bir önceki duraktan sonra gelen saat olmalı."
+    },
+    "STM_017": {
+      "title": "Durakların güzergâh üzerindeki mesafesi eksik",
+      "what": "Seferin durakları için güzergâh üzerindeki mesafe bilgisi eksik.",
+      "action": "Bu bilgiyi ilgili seferlerde tamamlayın veya kullanılmıyorsa mesafe değerlerini kaldırın."
+    },
+    "STM_018": {
+      "title": "Durakta hat boyunca biniş kuralı geçersiz",
+      "what": "Bu durak saatinde, hat boyunca (durak dışında) binişe izin verilip verilmediğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Hat boyunca binişe izin durumunu planlama yazılımında seçin veya bu ayarı kullanmıyorsanız boş bırakın."
+    },
+    "STM_019": {
+      "title": "Durakta hat boyunca iniş kuralı geçersiz",
+      "what": "Bu durak saatinde, hat boyunca (durak dışında) inişe izin verilip verilmediğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Hat boyunca inişe izin durumunu planlama yazılımında seçin veya bu ayarı kullanmıyorsanız boş bırakın."
+    },
+    "STM_020": {
+      "title": "Uzak iki durak arasında süre sıfır",
+      "what": "Aralarında 200 metreden fazla mesafe olan iki ardışık durağa aynı dakika yazılmış; araç bu yolu hiç zaman harcamadan gidiyor görünüyor.",
+      "action": "Bu iki durağın saatlerini gerçek yolculuk süresine göre düzeltin."
+    },
+    "STM_021": {
+      "title": "Ardışık iki durak aynı yerde",
+      "what": "Seferde arka arkaya gelen iki farklı durak haritada aynı noktada görünüyor.",
+      "action": "İki durağın konumunu kontrol edin; farklı yerlerdeyse doğru konumu girin, aynı durağın kopyasıysa birleştirin."
+    },
+    "STM_022": {
+      "title": "Kesin saat işareti geçersiz",
+      "what": "Bir durak saatinin kesin mi yaklaşık mı olduğunu belirten işaret tanımlı değerlerden biri değil.",
+      "action": "Saat kesinse \"kesin\", tahminiyse \"yaklaşık\" olarak işaretleyin."
+    },
+    "STM_024": {
+      "title": "Mesafe birimleri uyuşmuyor",
+      "what": "Sefer durak saatlerindeki mesafe ile güzergâh çizimindeki mesafe farklı birimlerle (ör. metre ve kilometre) yazılmış görünüyor.",
+      "action": "Mesafeleri dışa aktarırken her iki yerde de aynı birimi kullanın."
+    },
+    "STM_025": {
+      "title": "İki durak arası süre çok kısa",
+      "what": "Ardışık iki durak arasındaki planlı süre 10 saniyenin altında. Bu tek başına hata değil, kontrol için bir işarettir.",
+      "action": "Duraklar gerçekten çok yakınsa bir şey yapmanıza gerek yok; değilse saatleri gözden geçirin."
+    },
+    "STM_026": {
+      "title": "İki durak arası mesafe çok uzun",
+      "what": "Seferde arka arkaya gelen iki durak arasında olağandışı uzun bir mesafe var; durak sırası ya da konumu yanlış olabilir.",
+      "action": "Seferin durak sırasını ve bu iki durağın konumunu kontrol edin."
+    },
+    "STM_028": {
+      "title": "Sefer süresi çok uzun",
+      "what": "Sefer başlangıç saati ile son durağa varış saati arasındaki süre beklenen üst sınırı aşıyor.",
+      "action": "İlk ve son durak saatlerini kontrol edin; sefer gerçekten bu kadar uzunsa birden fazla sefere bölmeyi değerlendirin."
+    },
+    "STM_029": {
+      "title": "Sefer süresi çok kısa",
+      "what": "Sefer başlangıç saati ile son durağa varış saati arasındaki süre beklenenden çok kısa.",
+      "action": "Seferin ilk ve son durak saatlerini ve durak listesinin tam olup olmadığını kontrol edin."
+    },
+    "STM_030": {
+      "title": "Güzergâh üzerindeki mesafe negatif",
+      "what": "Bir durak için yazılan güzergâh mesafesi sıfırdan küçük.",
+      "action": "Mesafeyi sıfır veya pozitif bir değer olarak girin ya da mesafe kullanmıyorsanız boş bırakın."
+    },
+    "STM_032": {
+      "title": "Seferde aynı durak sırası iki kez kullanılmış",
+      "what": "Aynı seferde iki durak aynı sıra numarasını taşıyor; durakların hangi sırayla geçildiği belirsiz.",
+      "action": "Seferin durak sırasını her durağa farklı ve artan bir numara verecek şekilde düzeltin."
+    },
+    "STM_033": {
+      "title": "Seferde tek durak var",
+      "what": "Bu seferin yalnızca bir durağı var; yolcu bu seferle bir yerden bir yere gidemez.",
+      "action": "Sefere en az ilk ve son durağı ekleyin ya da kullanılmayan bu seferi silin."
+    },
+    "STM_034": {
+      "title": "Durakta yalnızca varış ya da yalnızca kalkış var",
+      "what": "Bir durakta varış ve kalkış saatlerinden yalnızca biri girilmiş.",
+      "action": "İki saati birlikte girin; araç durakta beklemiyorsa ikisi aynı olabilir. Saat bilinmiyorsa ikisini de boş bırakın."
+    },
+    "STM_035": {
+      "title": "Aynı durak arka arkaya iki kez",
+      "what": "Seferde aynı durak art arda iki satırda geçiyor.",
+      "action": "Bu bir son durak veya ring dönüşüyse sorun yok; değilse fazladan girilmiş satırı kaldırın."
+    },
+    "STM_036": {
+      "title": "Sefer durak saatleri dosyada sıralı değil",
+      "what": "Sefer durak saatleri dosyada sefer ve durak sırasına göre dizilmemiş. Analyzer bunu kendisi sıralıyor; bilgi amaçlıdır.",
+      "action": "Dışa aktarımda kayıtları sefer ve durak sırasına göre sıralamak bazı uygulamaların dosyayı daha hızlı okumasını sağlar."
+    },
+    "STM_037": {
+      "title": "Talebe bağlı durakta sabit saat de girilmiş",
+      "what": "Zaman penceresiyle çalışan (talebe bağlı) bir durakta ayrıca sabit varış ve kalkış saati girilmiş; ikisi birlikte kullanılamaz.",
+      "action": "Bu durak talebe bağlıysa sabit saatleri silin ve yalnız zaman penceresini bırakın."
+    },
+    "STM_038": {
+      "title": "Talebe bağlı hizmet penceresi ters",
+      "what": "Talebe bağlı hizmetin bitiş saati başlangıç saatinden sonra değil; pencere hiç açılmıyor.",
+      "action": "Pencerenin başlangıç saatini bitiş saatinden önce olacak şekilde düzeltin."
+    },
+    "STM_039": {
+      "title": "Talebe bağlı hizmet penceresi eksik",
+      "what": "Talebe bağlı bir hizmet bölgesinde, hizmetin başladığı ve bittiği saatlerden biri ya da ikisi girilmemiş.",
+      "action": "Hizmet penceresinin başlangıç ve bitiş saatlerini birlikte girin."
+    },
+    "STM_040": {
+      "title": "Talebe bağlı durakta rezervasyon kuralı yok",
+      "what": "Zaman penceresiyle çalışan durakta yolcunun nasıl rezervasyon yapacağı tanımlanmamış.",
+      "action": "Bu durak için biniş ya da iniş rezervasyon kuralını seçin."
+    },
+    "STM_041": {
+      "title": "Durak ve hizmet bölgesi birlikte seçilmiş",
+      "what": "Aynı sefer satırında hem normal durak hem talebe bağlı hizmet bölgesi seçilmiş; yalnızca biri olabilir.",
+      "action": "Satır normal duraksa hizmet bölgesini, talebe bağlıysa durağı kaldırın."
+    },
+    "STM_042": {
+      "title": "Durak tabelası metninde Google Transit'in desteklemediği karakter",
+      "what": "Durakta gösterilen yön metni, Google Haritalar'ın göstermediği bazı özel karakterler içeriyor. Google'a yayın yapmıyorsanız bu bir sorun değildir.",
+      "action": "Yön metnindeki özel karakterleri sade harf ve rakamlarla değiştirin."
+    },
+    "STM_043": {
+      "title": "Seferde 200'den fazla durak var",
+      "what": "Bu sefer olağandışı sayıda durağa sahip; birkaç sefer birleşmiş olabilir.",
+      "action": "Seferin durak listesini kontrol edin; birleşmiş seferler varsa ayırın."
+    },
+    "STM_044": {
+      "title": "Sefer durak saatleri çok büyük",
+      "what": "Veri setindeki durak saati kaydı 2 milyonu aşıyor; bazı tarayıcı tabanlı araçlar bu boyutta yavaşlayabilir.",
+      "action": "Bu bir hata değildir. Gerekirse veri setini bölge veya dönem bazında ayırmayı değerlendirin."
+    },
+    "STM_045": {
+      "title": "Sefer servis gününün dışında kalkıyor",
+      "what": "Seferin kalkış saati, servis gününün olağan sonunu (varsayılan 27:00) aşıyor.",
+      "action": "Kalkış saatini kontrol edin; sefer ertesi günün seferiyse doğru güne ve takvime taşıyın."
+    },
+    "STM_046": {
+      "title": "Durak saati bir sefere bağlı değil",
+      "what": "Bir durak saati kaydında hangi sefere ait olduğu boş bırakılmış.",
+      "action": "Durak saatini ait olduğu seferle eşleştirin."
+    },
+    "STM_047": {
+      "title": "Bazı seferlerde kesin durak saatleri eksik",
+      "what": "Bu seferlerin bazı duraklarında kesin varış veya kalkış saati bulunmuyor.",
+      "action": "İlgili seferlerin durak saatlerini tamamlayın veya eksik kesin saatleri düzeltin."
+    },
+    "STM_048": {
+      "title": "Gece yarısından sonraki durak geçiş saatleri 00:xx yazılmış",
+      "what": "Sefer gece yarısını geçiyor ama bir duraktan itibaren saatler 24:xx yerine 00:xx yazılmış; saat bir önceki duraktan geriye düşüyor. Seferin başlangıç saati doğru, sorun sefer içindeki durak saatlerinde.",
+      "action": "Tabloda gösterilen duraktan başlayarak bu seferin durak saatlerini 24:00 üzerinden devam ettirin (00:10 yerine 24:10)."
+    },
+    "STM_049": {
+      "title": "Gece yarısında durakta kalkış saati 00:xx yazılmış",
+      "what": "Araç durakta beklerken gece yarısı geçiyor; varış 23:xx, kalkış 00:xx yazıldığı için kalkış varıştan önce görünüyor.",
+      "action": "Bu duraktaki kalkış saatini 24:00 üzerinden yazın (00:02 yerine 24:02)."
+    },
+    "STM_050": {
+      "title": "Kesin saat işareti bazı satırlarda boş",
+      "what": "Durak saatlerinin kesin mi yaklaşık mı olduğu bazı satırlarda boş bırakılmış; boş değer \"kesin\" kabul edilir.",
+      "action": "Tahmini saatleri \"yaklaşık\", gerçek saatleri \"kesin\" olarak açıkça işaretleyin."
+    },
+    "STM_051": {
+      "title": "Talebe bağlı durakta normal biniş seçilmiş",
+      "what": "Zaman penceresiyle çalışan durakta biniş \"normal\" ya da \"sürücüyle\" seçilmiş; talebe bağlı hizmetle çelişiyor.",
+      "action": "Bu durakta binişi \"yok\" ya da \"telefonla rezervasyon\" olarak ayarlayın."
+    },
+    "STM_052": {
+      "title": "Talebe bağlı durakta normal iniş seçilmiş",
+      "what": "Zaman penceresiyle çalışan durakta iniş \"normal\" seçilmiş; talebe bağlı hizmetle çelişiyor.",
+      "action": "Bu durakta inişi \"yok\" ya da \"telefonla rezervasyon\" olarak ayarlayın."
+    },
+    "STM_053": {
+      "title": "Çok sayıda ardışık durakta aynı saat",
+      "what": "Bir seferde arka arkaya birçok durağa aynı saat yazılmış; araç bu durakları hiç zaman geçmeden geçiyor görünüyor.",
+      "action": "Ara durak saatlerini gerçek geçiş sürelerine göre dağıtın; bilinmiyorsa ara durakları \"yaklaşık\" işaretleyin."
+    },
+    "STM_054": {
+      "title": "Talebe bağlı durakta hat boyunca biniş seçilmiş",
+      "what": "Zaman penceresiyle çalışan durakta hat boyunca biniş açık bırakılmış; bu ikisi birlikte kullanılamaz.",
+      "action": "Bu durakta hat boyunca binişi kapatın veya ayarı boş bırakın."
+    },
+    "STM_055": {
+      "title": "Talebe bağlı durakta hat boyunca iniş seçilmiş",
+      "what": "Zaman penceresiyle çalışan durakta hat boyunca iniş açık bırakılmış; bu ikisi birlikte kullanılamaz.",
+      "action": "Bu durakta hat boyunca inişi kapatın veya ayarı boş bırakın."
+    },
+    "STM_056": {
+      "title": "Sefer duraklarında güzergâh mesafesi artmıyor",
+      "what": "Seferin durakları boyunca güzergâh üzerindeki mesafe değeri artmıyor.",
+      "action": "İlgili seferin durak ve güzergâh mesafesi bilgilerini kontrol edin."
+    },
+    "STM_058": {
+      "title": "Talebe bağlı hizmet penceresi saati okunamıyor",
+      "what": "Hizmet penceresinin başlangıç ya da bitiş saati geçerli bir saat biçiminde değil.",
+      "action": "Pencere saatlerini HH:MM:SS biçiminde girin (ör. 08:00:00)."
+    },
+    "STM_059": {
+      "title": "Telefonla rezervasyonda kural seçilmemiş",
+      "what": "Durakta biniş ya da iniş \"telefonla rezervasyon\" seçilmiş ama yolcunun nasıl rezervasyon yapacağı tanımlanmamış.",
+      "action": "Bu durak için ilgili rezervasyon kuralını seçin."
+    },
+    "STM_060": {
+      "title": "Talebe bağlı iki kayıt çakışıyor",
+      "what": "Aynı seferde iki talebe bağlı kayıt aynı bölgede, aynı saatlerde ve aynı biniş/iniş kuralıyla örtüşüyor; hangisinin geçerli olduğu belirsiz.",
+      "action": "Zaman pencerelerini ayırın ya da bölgeleri çakışmayacak şekilde düzenleyin."
+    },
+    "STM_061": {
+      "title": "Uzak duraklar arasında imkânsız hız",
+      "what": "Seferde birbirinden uzak iki durak arasındaki süre, bu mesafeyi gitmek için imkânsız derecede kısa.",
+      "action": "Bu iki durak arasındaki saatleri kontrol edin; saatler doğruysa durak konumlarına bakın."
+    },
+    "STP_001": {
+      "title": "Aynı durak kodu birden fazla kayıtta kullanılmış",
+      "what": "Aynı durak kodu durak listesinde birden fazla kez kullanılmış.",
+      "action": "Aynı durağın tekrar kayıtlarını birleştirin veya farklı duraklara benzersiz kodlar verin."
+    },
+    "STP_002": {
+      "title": "Durak kodu boş",
+      "what": "Durak listesinde kodu boş bırakılmış bir kayıt var; seferler bu durağa bağlanamaz.",
+      "action": "Her durağa benzersiz bir kod verin."
+    },
+    "STP_003": {
+      "title": "Durağın adı yok ya da enlemi geçersiz",
+      "what": "Bir durak veya istasyonun adı girilmemiş ya da enlemi geçerli aralığın (-90 ile 90) dışında.",
+      "action": "Durağa yolcunun tanıdığı adı verin ve konumunu kontrol edin."
+    },
+    "STP_004": {
+      "title": "Durak enlemi sayı değil",
+      "what": "Bir durağın enlemi sayı olarak okunamıyor.",
+      "action": "Enlemi noktalı ondalık sayı olarak girin (ör. 37.0662)."
+    },
+    "STP_005": {
+      "title": "Durak boylamı geçersiz",
+      "what": "Bir durağın boylamı sayı değil ya da -180 ile 180 aralığının dışında.",
+      "action": "Boylamı noktalı ondalık sayı olarak girin (ör. 37.3833)."
+    },
+    "STP_006": {
+      "title": "Durağın enlemi eksik",
+      "what": "Bir durak, istasyon ya da girişin enlemi girilmemiş; haritada gösterilemez.",
+      "action": "Durağın konumunu planlama yazılımında işaretleyin."
+    },
+    "STP_007": {
+      "title": "Durağın boylamı eksik",
+      "what": "Bir durak, istasyon ya da girişin boylamı girilmemiş; haritada gösterilemez.",
+      "action": "Durağın konumunu planlama yazılımında işaretleyin."
+    },
+    "STP_008": {
+      "title": "Durak türü geçersiz",
+      "what": "Kaydın durak mı, istasyon mu, giriş mi olduğunu belirten tür tanımlı değerlerden biri değil.",
+      "action": "Kaydın türünü doğru seçin: durak/peron, istasyon, giriş-çıkış, ara nokta veya biniş alanı."
+    },
+    "STP_009": {
+      "title": "Durağın bağlı olduğu istasyon bulunamadı",
+      "what": "Bu durak bir istasyona bağlı gösterilmiş, ancak o istasyon durak listesinde yok.",
+      "action": "İstasyonu durak listesine ekleyin ya da durağı mevcut bir istasyona bağlayın. Durak bir istasyona ait değilse bu bağı kaldırın."
+    },
+    "STP_010": {
+      "title": "Bağlı gösterilen kayıt istasyon değil",
+      "what": "Bir durak bir istasyona bağlı gösterilmiş, ama bağlandığı kayıt istasyon olarak tanımlı değil.",
+      "action": "Durağı gerçek bir istasyon kaydına bağlayın ya da bağlandığı kaydın türünü istasyon yapın."
+    },
+    "STP_011": {
+      "title": "Giriş veya biniş alanı istasyona bağlı değil",
+      "what": "Bir istasyon girişi, ara nokta ya da biniş alanı hiçbir istasyona bağlanmamış.",
+      "action": "Bu kaydı ait olduğu istasyona bağlayın."
+    },
+    "STP_012": {
+      "title": "İstasyon veya giriş kaydı seferde kullanılmış",
+      "what": "Bu kayıt istasyon veya giriş olarak tanımlanmış, ancak sefer duraklarında kullanılıyor.",
+      "action": "Sefer duraklarında normal durak kaydını kullanın veya durak türünü düzeltin."
+    },
+    "STP_013": {
+      "title": "Durak erişilebilirlik değeri geçersiz",
+      "what": "Durağın tekerlekli sandalyeyle kullanılabilirliğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Erişilebilirliği \"bilinmiyor\", \"erişilebilir\" veya \"erişilemez\" olarak seçin."
+    },
+    "STP_014": {
+      "title": "Durak saat dilimi geçersiz",
+      "what": "Durak için yazılan saat dilimi tanınan bir ad değil.",
+      "action": "Saat dilimini \"Europe/Istanbul\" gibi standart adla girin ya da boş bırakın."
+    },
+    "STP_015": {
+      "title": "Durağın katı bulunamadı",
+      "what": "Durak bir kata bağlanmış, ama o kat kat listesinde tanımlı değil.",
+      "action": "Katı kat listesine ekleyin ya da durağı mevcut bir kata bağlayın."
+    },
+    "STP_016": {
+      "title": "İki durak tam aynı konumda",
+      "what": "İki farklı durak haritada birebir aynı noktada duruyor.",
+      "action": "Aynı durağın iki kaydıysa birleştirin; farklı duraklarsa doğru konumlarını girin."
+    },
+    "STP_017": {
+      "title": "İki durak birbirine çok yakın",
+      "what": "İki farklı durak arasındaki mesafe olağandışı derecede kısa.",
+      "action": "Aynı durağın kopyasıysa birleştirin; değilse konumlarını kontrol edin."
+    },
+    "STP_018": {
+      "title": "Geçerli durak kaydı yok",
+      "what": "Durak listesinde kullanılabilir bir durak kaydı bulunmuyor.",
+      "action": "Normal duraklı hizmette durak kayıtlarını ekleyin. Veri seti yalnızca talebe bağlı hizmet bölgeleri kullanıyorsa bu durum geçerli olabilir; kesin hüküm Flex kararı netleşince yazılacak."
+    },
+    "STP_019": {
+      "title": "Durak adı çok uzun",
+      "what": "Durak adı yolcu ekranlarında sığmayacak kadar uzun.",
+      "action": "Durak tabelasındaki kısa adı kullanın."
+    },
+    "STP_020": {
+      "title": "Hiç sefer geçmeyen durak",
+      "what": "Bu durağı hiçbir sefer kullanmıyor; yolcu uygulamasında boş bir durak olarak görünebilir.",
+      "action": "Durak hizmette değilse durak listesinden çıkarın; hizmetteyse ilgili seferlere ekleyin."
+    },
+    "STP_021": {
+      "title": "Biniş alanı bir perona bağlı değil",
+      "what": "Bir biniş alanı doğrudan bir perona değil başka türde bir kayda bağlanmış.",
+      "action": "Biniş alanını ait olduğu perona bağlayın."
+    },
+    "STP_022": {
+      "title": "Durak kodu eksik",
+      "what": "Bir veya daha fazla durakta kullanıcıya açık durak kodu bulunmuyor.",
+      "action": "Gerekli durak kodlarını tamamlayın."
+    },
+    "STP_023": {
+      "title": "Sesli durak adında geçersiz karakter",
+      "what": "Sesli anons için yazılan durak adında \"<\" veya \">\" gibi işaret karakterleri var.",
+      "action": "Sesli durak adını yalnızca okunacak metin olarak yazın."
+    },
+    "STP_024": {
+      "title": "Durak erişim değeri tanımsız",
+      "what": "Durağa sokaktan doğrudan girilip girilemeyeceğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Erişim değerini \"yalnız istasyon üzerinden\" veya \"doğrudan sokaktan\" olarak seçin."
+    },
+    "STP_026": {
+      "title": "Durak erişim değeri geçersiz",
+      "what": "Durağa erişim şeklini belirten değer yalnızca iki seçenekten biri olabilir, başka bir değer yazılmış.",
+      "action": "Erişim değerini \"yalnız istasyon üzerinden\" veya \"doğrudan sokaktan\" olarak seçin."
+    },
+    "STP_028": {
+      "title": "Durak kodu çok uzun",
+      "what": "Yolcuya gösterilen durak kodu kısa bir kod olmaktan çıkmış, çok uzun.",
+      "action": "Tabelada ve uygulamada kullanılan kısa durak kodunu girin."
+    },
+    "STP_029": {
+      "title": "Durak bağlı olduğu istasyondan çok uzakta",
+      "what": "Bir peron istasyona bağlı görünüyor ama haritada istasyondan olağandışı uzakta.",
+      "action": "Peronun konumunu ya da hangi istasyona bağlı olduğunu düzeltin."
+    },
+    "STP_030": {
+      "title": "Boş istasyon",
+      "what": "Bir istasyon tanımlı ama ona bağlı hiçbir durak ya da peron yok.",
+      "action": "İstasyonun peronlarını bu istasyona bağlayın ya da kullanılmayan istasyonu kaldırın."
+    },
+    "STP_031": {
+      "title": "Durak açıklaması adıyla aynı",
+      "what": "Durağın açıklaması adını tekrar ediyor; yolcuya ek bilgi vermiyor.",
+      "action": "Açıklamaya yön, sokak veya peron gibi ek bilgi yazın ya da açıklamayı boş bırakın."
+    },
+    "STP_032": {
+      "title": "Yürüme yoluna bağlı peron istasyona bağlı değil",
+      "what": "İstasyon içi yürüme yollarının bağlandığı bir peron hiçbir istasyona bağlanmamış.",
+      "action": "Peronu ait olduğu istasyona bağlayın."
+    },
+    "STP_033": {
+      "title": "Durağın ücret bölgesi eksik",
+      "what": "Bölgeye göre ücret hesaplanan bir veri setinde bazı durakların ücret bölgesi girilmemiş.",
+      "action": "Bölge bazlı ücret kullanıyorsanız her durağın ücret bölgesini seçin."
+    },
+    "STP_034": {
+      "title": "Durak sayfası işletmeci sayfasıyla aynı",
+      "what": "Durak için verilen web adresi işletmecinin genel sayfası.",
+      "action": "Durağa özel bir sayfa varsa onu girin; yoksa adresi boş bırakın."
+    },
+    "STP_035": {
+      "title": "Durak sayfası hat sayfasıyla aynı",
+      "what": "Durak için verilen web adresi bir hattın genel sayfası.",
+      "action": "Durağa özel bir sayfa varsa onu girin; yoksa adresi boş bırakın."
+    },
+    "STP_036": {
+      "title": "İstasyon başka bir istasyona bağlanmış",
+      "what": "Bir istasyon başka bir kayda bağlı gösterilmiş; istasyonlar en üst kayıttır.",
+      "action": "İstasyonun bağlı olduğu üst kaydı kaldırın."
+    },
+    "STP_037": {
+      "title": "Bazı durakların erişilebilirliği bilinmiyor",
+      "what": "Bazı duraklarda tekerlekli sandalyeyle kullanılıp kullanılamayacağı girilmemiş.",
+      "action": "Eksik duraklarda erişilebilirliği \"erişilebilir\" veya \"erişilemez\" olarak girin."
+    },
+    "STP_038": {
+      "title": "Hiçbir durağın erişilebilirliği bilinmiyor",
+      "what": "Durakların hiçbirinde tekerlekli sandalyeyle kullanılabilirlik bilgisi yok; erişilebilir yolculuk arayan yolcu bilgi alamaz.",
+      "action": "Durakların erişilebilirliğini \"erişilebilir\" veya \"erişilemez\" olarak girin."
+    },
+    "STP_039": {
+      "title": "Aynı durak kodu birden fazla durakta",
+      "what": "Yolcuya gösterilen aynı durak kodu birden fazla durakta kullanılmış.",
+      "action": "Kodun durağa özel olması gerekiyorsa her durağa ayrı kod verin; aynı kod bilinçliyse sorun yok."
+    },
+    "STP_040": {
+      "title": "Durak adında gereksiz \"durak/istasyon\" sözcüğü",
+      "what": "Durak adına \"stop\" ya da \"station\" gibi genel bir sözcük eklenmiş.",
+      "action": "Durak adını sözcük olmadan, tabeladaki adıyla yazın."
+    },
+    "STP_041": {
+      "title": "Peron adı istasyon adını içermiyor",
+      "what": "İstasyona bağlı bir peron ya da durağın adında istasyonun adı geçmiyor; yolcu ikisini eşleştiremeyebilir.",
+      "action": "Peron adında istasyonun adını kullanın (ör. \"Merkez İstasyonu Peron 2\")."
+    },
+    "STP_042": {
+      "title": "Durak web adresi geçersiz",
+      "what": "Durak için verilen web adresi geçerli bir adres değil.",
+      "action": "Adresi \"https://\" ile başlayan tam bir adres olarak girin ya da boş bırakın."
+    },
+    "STP_043": {
+      "title": "Durak erişim değeri yanlış yerde",
+      "what": "Durağa erişim şekli, yalnızca istasyona bağlı peronlarda kullanılabilir; burada istasyon, giriş ya da bağımsız bir durakta girilmiş.",
+      "action": "Erişim değerini yalnız istasyona bağlı peronlarda bırakın, diğerlerinden silin."
+    },
+    "STP_044": {
+      "title": "Peron kodunda gereksiz sözcük",
+      "what": "Peron kodunda \"Peron\" ya da \"Platform\" gibi sözcükler var; yalnızca peron numarası olmalı.",
+      "action": "Peron kodunu yalnız numara veya harf olarak yazın (ör. \"2\", \"B\")."
+    },
+    "STP_045": {
+      "title": "Peron numarası var ama istasyona bağlı değil",
+      "what": "Bir durağa peron numarası verilmiş ama hangi istasyonun peronu olduğu belirtilmemiş.",
+      "action": "Peronu ait olduğu istasyona bağlayın."
+    },
+    "TFR_001": {
+      "title": "Zaman dilimi grubu boş",
+      "what": "Bir ücret zaman dilimi (ör. zirve saat) kaydında grup kodu boş.",
+      "action": "Zaman dilimine grup kodunu girin."
+    },
+    "TFR_002": {
+      "title": "Zaman diliminin takvimi bulunamadı",
+      "what": "Bir ücret zaman dilimi, tanımlı olmayan bir çalışma takvimine bağlanmış.",
+      "action": "Zaman dilimini mevcut bir takvime bağlayın."
+    },
+    "TFR_003": {
+      "title": "Zaman dilimi saati geçersiz",
+      "what": "Ücret zaman diliminin başlangıç ya da bitiş saati okunamıyor.",
+      "action": "Saatleri HH:MM:SS biçiminde girin."
+    },
+    "TFR_004": {
+      "title": "Zaman dilimi ters",
+      "what": "Ücret zaman diliminin bitiş saati başlangıçtan önce ya da aynı.",
+      "action": "Başlangıç ve bitiş saatlerini düzeltin."
+    },
+    "TFR_005": {
+      "title": "Zaman dilimleri çakışıyor",
+      "what": "Aynı grup ve takvimde iki ücret zaman dilimi üst üste biniyor; o saatte hangi ücretin geçerli olduğu belirsiz.",
+      "action": "Zaman dilimlerini çakışmayacak şekilde düzenleyin."
+    },
+    "TFR_006": {
+      "title": "Zaman dilimi 24:00'ü aşıyor",
+      "what": "Ücret zaman diliminin saati 24:00'ten büyük girilmiş; zaman dilimleri bir gün içinde kalmalı.",
+      "action": "Saati 24:00 ve altında girin; gece yarısını geçen dönemi ertesi gün için ayrı tanımlayın."
+    },
+    "TFR_007": {
+      "title": "Zaman diliminde tek saat girilmiş",
+      "what": "Ücret zaman diliminin yalnızca başlangıç ya da yalnızca bitiş saati girilmiş.",
+      "action": "İki saati birlikte girin ya da ikisini de boş bırakın (tüm gün)."
+    },
+    "TFR_008": {
+      "title": "Zaman diliminin takvimi boş",
+      "what": "Bir ücret zaman diliminde hangi takvimde geçerli olduğu girilmemiş.",
+      "action": "Zaman dilimine takvimi seçin."
+    },
+    "TRF_001": {
+      "title": "Aktarmanın kalkış durağı boş",
+      "what": "Bir aktarma kaydında yolcunun indiği durak girilmemiş.",
+      "action": "Aktarmanın yapıldığı ilk durağı seçin."
+    },
+    "TRF_002": {
+      "title": "Aktarmanın varış durağı boş",
+      "what": "Bir aktarma kaydında yolcunun bineceği durak girilmemiş.",
+      "action": "Aktarmanın yapıldığı ikinci durağı seçin."
+    },
+    "TRF_003": {
+      "title": "Aktarma durağı bulunamadı",
+      "what": "Bir aktarma, durak listesinde olmayan bir durağa bağlanmış.",
+      "action": "Aktarmayı mevcut bir durağa bağlayın ya da durağı ekleyin."
+    },
+    "TRF_004": {
+      "title": "Aktarma türü geçersiz",
+      "what": "Aktarmanın türü (önerilen, bekleyen, süreli, mümkün değil, araç içi) tanımlı değerlerden biri değil.",
+      "action": "Aktarma türünü seçin."
+    },
+    "TRF_005": {
+      "title": "Süreli aktarmada süre yok",
+      "what": "\"En az süre gerekir\" türündeki bir aktarmada süre girilmemiş ya da geçersiz.",
+      "action": "En kısa aktarma süresini saniye olarak girin."
+    },
+    "TRF_006": {
+      "title": "Aktarmanın ilk seferi bulunamadı",
+      "what": "Bir aktarma, sefer listesinde olmayan bir seferden başlıyor.",
+      "action": "Aktarmayı mevcut bir sefere bağlayın."
+    },
+    "TRF_007": {
+      "title": "Aktarmanın ikinci seferi bulunamadı",
+      "what": "Bir aktarma, sefer listesinde olmayan bir sefere bağlanıyor.",
+      "action": "Aktarmayı mevcut bir sefere bağlayın."
+    },
+    "TRF_008": {
+      "title": "Aktarmanın ilk hattı bulunamadı",
+      "what": "Bir aktarma, hat listesinde olmayan bir hattan başlıyor.",
+      "action": "Aktarmayı mevcut bir hatta bağlayın."
+    },
+    "TRF_009": {
+      "title": "Aktarmanın ikinci hattı bulunamadı",
+      "what": "Bir aktarma, hat listesinde olmayan bir hatta bağlanıyor.",
+      "action": "Aktarmayı mevcut bir hatta bağlayın."
+    },
+    "TRF_010": {
+      "title": "Aktarma süresi çok uzun",
+      "what": "Bir aktarmanın en kısa süresi bir saatten uzun girilmiş.",
+      "action": "Süreyi gerçek yürüme ve bekleme süresine göre kontrol edin."
+    },
+    "TRF_011": {
+      "title": "Aktarma durakları birbirinden uzak",
+      "what": "Aktarma tanımlanan iki durak birbirinden olağandışı uzakta. Bilgi amaçlıdır.",
+      "action": "Durakların ve aktarmanın doğru olduğunu kontrol edin."
+    },
+    "TRF_012": {
+      "title": "Aynı aktarma iki kez",
+      "what": "Aynı iki durak arasındaki aktarma iki kez girilmiş.",
+      "action": "Fazladan girilmiş aktarmayı silin."
+    },
+    "TRF_013": {
+      "title": "Araç içi aktarmada sefer eksik",
+      "what": "Yolcunun araçta kalarak devam ettiği aktarmada iki seferden biri belirtilmemiş.",
+      "action": "Araç içi aktarmada ilk ve ikinci seferi birlikte seçin."
+    },
+    "TRF_014": {
+      "title": "Araç içi aktarmanın seferinin saatleri yok",
+      "what": "Araç içi aktarmaya bağlı bir seferin durak saatleri girilmemiş.",
+      "action": "İlgili seferin durak saatlerini ekleyin."
+    },
+    "TRF_015": {
+      "title": "Araç içi aktarma istasyona bağlanmış",
+      "what": "Araç içi aktarma bir duraktan değil bir istasyondan tanımlanmış.",
+      "action": "Araç içi aktarmayı ilgili durağa ya da perona bağlayın."
+    },
+    "TRF_016": {
+      "title": "Çelişen aktarma kayıtları",
+      "what": "Aynı durak, sefer ve hat için birden fazla farklı aktarma kuralı girilmiş.",
+      "action": "Çakışan kayıtlardan birini silin."
+    },
+    "TRF_017": {
+      "title": "Aktarmada sefer ile hat uyuşmuyor",
+      "what": "Bir aktarmada seçilen sefer, yanında seçilen hatta ait değil.",
+      "action": "Aktarmadaki hattı seferin gerçek hattıyla eşleştirin."
+    },
+    "TRF_018": {
+      "title": "Aktarma aynı sefere bağlanmış",
+      "what": "Bir aktarmanın ilk ve ikinci seferi aynı.",
+      "action": "Aktarmayı iki farklı sefer arasında tanımlayın."
+    },
+    "TRF_019": {
+      "title": "Araç içi aktarmada farklı araç türleri",
+      "what": "Araç içi aktarmayla bağlanan iki sefer farklı araç türündeki hatlara ait.",
+      "action": "Araç içi aktarmayı aynı araç türündeki seferler arasında tanımlayın."
+    },
+    "TRF_020": {
+      "title": "Aktarma için koşmak gerekiyor",
+      "what": "İki durak arasındaki mesafe, girilen aktarma süresinde ancak çok hızlı yürüyerek gidilebilir.",
+      "action": "Aktarma süresini mesafeye uygun şekilde artırın."
+    },
+    "TRF_021": {
+      "title": "Aktarma giriş veya ara noktaya bağlanmış",
+      "what": "Bir aktarma durak ya da istasyon yerine giriş, ara nokta veya biniş alanına bağlanmış.",
+      "action": "Aktarmayı ilgili durağa ya da istasyona bağlayın."
+    },
+    "TRF_022": {
+      "title": "Devam seferlerinin takvimleri çelişiyor",
+      "what": "Bir sefer birden fazla devam seferine bağlanmış ama devam seferleri aynı günlerde çalışıyor; hangisine devam edileceği belirsiz.",
+      "action": "Devam seferlerinin takvimlerini birbirini dışlayacak şekilde düzenleyin."
+    },
+    "TRF_023": {
+      "title": "Gelen seferlerin takvimleri çelişiyor",
+      "what": "Birden fazla sefer aynı devam seferine bağlanmış ve gelen seferler aynı günlerde çalışıyor.",
+      "action": "Gelen seferlerin takvimlerini birbirini dışlayacak şekilde düzenleyin."
+    },
+    "TRN_001": {
+      "title": "Çeviride geçersiz tablo adı",
+      "what": "Bir çeviri, GTFS'te olmayan bir dosyaya işaret ediyor; uygulanmaz.",
+      "action": "Çevirileri yeniden dışa aktarın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRN_002": {
+      "title": "Çeviride geçersiz alan",
+      "what": "Bir çeviri, ilgili dosyada olmayan bir alana işaret ediyor; uygulanmaz.",
+      "action": "Çevirileri yeniden dışa aktarın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRN_003": {
+      "title": "Çeviri dili geçersiz",
+      "what": "Bir çevirinin dil kodu tanınmıyor.",
+      "action": "Dili \"en\", \"de\" gibi standart kodla girin."
+    },
+    "TRN_004": {
+      "title": "Çevrilen kayıt bulunamadı",
+      "what": "Bir çeviri, artık bulunmayan bir duraka, hatta ya da kayda işaret ediyor.",
+      "action": "Çeviriyi mevcut bir kayda bağlayın ya da silin."
+    },
+    "TRN_005": {
+      "title": "Aynı çeviri iki kez",
+      "what": "Aynı metnin aynı dile çevirisi iki kez girilmiş.",
+      "action": "Fazladan girilmiş çeviriyi silin."
+    },
+    "TRN_006": {
+      "title": "Aynı metne iki farklı çeviri",
+      "what": "Aynı metin, aynı dile iki farklı şekilde çevrilmiş; uygulama hangisini göstereceğini bilemez.",
+      "action": "Doğru çeviriyi bırakıp diğerini silin."
+    },
+    "TRN_007": {
+      "title": "Çeviri veri setiyle aynı dilde",
+      "what": "Bazı çeviriler, veri setinin zaten kullandığı dile yapılmış; gereksiz.",
+      "action": "Çevirileri yalnızca farklı diller için ekleyin."
+    },
+    "TRN_008": {
+      "title": "Çeviri metni boş",
+      "what": "Bir çeviri satırında çevrilmiş metin yazılmamış.",
+      "action": "Çeviri metnini girin ya da satırı silin."
+    },
+    "TRN_009": {
+      "title": "Çeviri hem kayda hem metne bağlanmış",
+      "what": "Bir çeviri hem belirli bir kayda hem de belirli bir metne bağlanmış; yalnızca biri olmalı.",
+      "action": "Çeviriyi ya kayıt koduyla ya da çevrilecek metinle bağlayın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRN_010": {
+      "title": "Durak saati çevirisinde sıra hatalı",
+      "what": "Sefer durak saatine ait bir çeviri, seferde olmayan bir durak sırasına işaret ediyor.",
+      "action": "Çeviriyi doğru durak sırasına bağlayın. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRN_011": {
+      "title": "Çevrilemeyen alan çevrilmiş",
+      "what": "Kod veya sayı gibi çevrilemeyen bir alana çeviri girilmiş.",
+      "action": "Yalnızca ad, açıklama, web adresi gibi metin alanlarını çevirin."
+    },
+    "TRN_013": {
+      "title": "Veri seti bilgisi çevirisinde fazla alan",
+      "what": "Veri seti bilgisi çevirisinde kullanılmaması gereken kayıt bağlantısı alanları doldurulmuş.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRN_014": {
+      "title": "Alt kayıt bağlantısı yanlış yerde",
+      "what": "Yalnızca sefer durak saatleri için kullanılabilen alt kayıt bağlantısı başka bir dosyanın çevirisinde kullanılmış.",
+      "action": "Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRN_015": {
+      "title": "Çeviri hiçbir şeye bağlı değil",
+      "what": "Bir çeviri ne bir kayda ne de bir metne bağlanmış; hangi metnin çevirisi olduğu bilinmiyor.",
+      "action": "Çeviriyi ilgili kayda ya da metne bağlayın."
+    },
+    "TRN_016": {
+      "title": "Çeviri hiçbir metinle eşleşmiyor",
+      "what": "Bir çeviri, veri setinde bulunmayan bir metin için yazılmış; uygulanmaz. Genelde metin sonradan değiştirilmiştir.",
+      "action": "Çevrilecek metni güncel adla birebir aynı yazın."
+    },
+    "TRN_017": {
+      "title": "Durak saati çevirisinde durak sırası eksik",
+      "what": "Sefer durak saatine ait bir çeviride hangi durak olduğu belirtilmemiş.",
+      "action": "Çeviriye ilgili durağın sırasını ekleyin. Bu bir dosya biçimi sorunudur; dışa aktarımı yapan yazılımı ya da bilgi işlem ekibini bilgilendirin."
+    },
+    "TRP_001": {
+      "title": "Sefer kodu boş ya da tekrarlanmış",
+      "what": "Bir seferin kodu boş bırakılmış ya da aynı kod iki seferde kullanılmış; durak saatleri yanlış sefere bağlanabilir.",
+      "action": "Her sefere benzersiz bir kod verin."
+    },
+    "TRP_002": {
+      "title": "Seferin hattı bulunamadı",
+      "what": "Bir sefer, hat listesinde olmayan bir hatta bağlanmış.",
+      "action": "Seferi mevcut bir hatta bağlayın ya da hattı listeye ekleyin."
+    },
+    "TRP_003": {
+      "title": "Seferin çalışma takvimi bulunamadı",
+      "what": "Bir sefer, tanımlı olmayan bir çalışma takvimine bağlanmış; hangi günlerde çalıştığı bilinmiyor.",
+      "action": "Seferi mevcut bir çalışma takvimine bağlayın ya da takvimi tanımlayın."
+    },
+    "TRP_004": {
+      "title": "Seferin güzergâh çizimi bulunamadı",
+      "what": "Bir sefer, güzergâh çizimleri arasında olmayan bir çizime bağlanmış.",
+      "action": "Seferi mevcut bir güzergâh çizimine bağlayın ya da bağlantıyı kaldırın."
+    },
+    "TRP_005": {
+      "title": "Sefer yönü geçersiz",
+      "what": "Seferlerin gidiş mi dönüş mü olduğunu belirten değer yalnızca iki seçenekten biri olabilir, başka bir değer yazılmış.",
+      "action": "Sefer yönünü \"gidiş\" ya da \"dönüş\" olarak seçin."
+    },
+    "TRP_006": {
+      "title": "Sefer erişilebilirlik değeri geçersiz",
+      "what": "Seferin tekerlekli sandalyeyle kullanılabilirliğini belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Değeri \"bilgi yok\", \"erişilebilir\" veya \"erişilemez\" olarak seçin."
+    },
+    "TRP_007": {
+      "title": "Bisiklet izni değeri geçersiz",
+      "what": "Seferde bisiklet taşınıp taşınamayacağını belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Değeri \"bilgi yok\", \"izinli\" veya \"izinsiz\" olarak seçin."
+    },
+    "TRP_011": {
+      "title": "Seferin yönü yolcuya gösterilmiyor",
+      "what": "Seferin ne yolcuya gösterilen yön adı ne de sefer adı girilmiş; yolcu aracın nereye gittiğini göremez.",
+      "action": "Seferin yönünü (son durağı veya gideceği yer) girin."
+    },
+    "TRP_012": {
+      "title": "Bazı seferlerin yönü eksik",
+      "what": "Gidiş ve dönüşü olan bir hatta bazı seferlerin yönü belirtilmemiş.",
+      "action": "Bu seferlerin gidiş mi dönüş mü olduğunu seçin."
+    },
+    "TRP_013": {
+      "title": "Hatta tek sefer var",
+      "what": "Bu hatta yalnızca bir sefer tanımlı. Bilgi amaçlıdır.",
+      "action": "Hat gerçekten günde bir sefer yapıyorsa sorun yok; değilse eksik seferleri ekleyin."
+    },
+    "TRP_014": {
+      "title": "Sefer adı çok uzun",
+      "what": "Seferin adı (sefer numarası) 20 karakterden uzun; yolcu ekranlarında kesilir.",
+      "action": "Sefer adına yalnızca yolcunun gördüğü kısa sefer numarasını yazın."
+    },
+    "TRP_015": {
+      "title": "Araç görevi bilgisi işe yaramıyor",
+      "what": "Seferlere araç görevi kodu verilmiş ama hiçbir görev birden fazla seferi bir araya getirmiyor; bilgi yolcuya aktarma kolaylığı sağlamıyor.",
+      "action": "Aynı aracın art arda yaptığı seferlere aynı araç görevi kodunu verin ya da alanı boş bırakın."
+    },
+    "TRP_017": {
+      "title": "Sıklıkla tanımlı seferin durak saatleri yok",
+      "what": "Sıklık (her X dakikada bir) ile tanımlanmış bir seferin durak saatleri girilmemiş; durak sırası ve süreler bilinmiyor.",
+      "action": "Bu sefer için durak listesini ve duraklar arası süreleri girin."
+    },
+    "TRP_019": {
+      "title": "Yol boyunca biniş var ama güzergâh çizimi yok",
+      "what": "Yol boyunca (durak dışında) biniş veya iniş yapılan bir seferin güzergâh çizimi yok; yolcu nerede binebileceğini göremez.",
+      "action": "Bu seferin yol üzerindeki güzergâh çizimini ekleyin."
+    },
+    "TRP_020": {
+      "title": "Sefer yönü bir ara durağın adı",
+      "what": "Seferin yolcuya gösterilen yönü, son durak değil bir ara durağın adı. Bu bilinçli olabilir.",
+      "action": "Yön, önemli bir ara noktayı gösteriyorsa sorun yok; değilse son durağı yazın."
+    },
+    "TRP_021": {
+      "title": "Bisiklet izni belirtilmemiş",
+      "what": "Hiçbir seferde bisiklet taşınıp taşınamayacağı bilgisi yok.",
+      "action": "Seferlerde bisiklet iznini \"izinli\" ya da \"izinsiz\" olarak girin."
+    },
+    "TRP_022": {
+      "title": "Aynı aracın seferleri çakışıyor",
+      "what": "Aynı araç görevine verilmiş iki seferin saatleri örtüşüyor; tek araç aynı anda iki sefer yapamaz.",
+      "action": "Araç görevini ya da sefer saatlerini düzeltin."
+    },
+    "TRP_023": {
+      "title": "Önümüzdeki 7 gün içinde aktif sefer yok",
+      "what": "Bu veri setinde önümüzdeki 7 gün içinde çalışacak sefer bulunmuyor.",
+      "action": "Çalışma takvimini ve sefer tarihlerini kontrol edin."
+    },
+    "TRP_024": {
+      "title": "Aynı araç görevinde farklı araç türleri",
+      "what": "Aynı araç görevindeki seferler farklı araç türündeki hatlara ait (ör. otobüs ve tramvay).",
+      "action": "Araç görevlerini aynı araç türünün seferleriyle sınırlayın."
+    },
+    "TRP_025": {
+      "title": "Seferlerin çoğunun erişilebilirliği bilinmiyor",
+      "what": "Seferlerin yüzde 80'inden fazlasında tekerlekli sandalye erişilebilirliği girilmemiş.",
+      "action": "Seferlerde erişilebilirliği \"erişilebilir\" veya \"erişilemez\" olarak girin."
+    },
+    "TRP_026": {
+      "title": "Sefer hiçbir gün çalışmıyor",
+      "what": "Seferin bağlı olduğu çalışma takviminde tek bir çalışma günü yok; sefer yolcu uygulamalarında görünmeyebilir.",
+      "action": "Takvime çalışma günlerini ekleyin ya da seferi doğru takvime bağlayın."
+    },
+    "TRP_028": {
+      "title": "Bazı seferlerin erişilebilirliği bilinmiyor",
+      "what": "Bazı seferlerde tekerlekli sandalye erişilebilirliği girilmemiş.",
+      "action": "Eksik seferlerde erişilebilirliği \"erişilebilir\" veya \"erişilemez\" olarak girin."
+    },
+    "TRP_029": {
+      "title": "Hiçbir seferin erişilebilirliği bilinmiyor",
+      "what": "Hiçbir seferde tekerlekli sandalye erişilebilirliği girilmemiş; erişilebilir yolculuk arayan yolcu bilgi alamaz.",
+      "action": "Seferlerde erişilebilirliği \"erişilebilir\" veya \"erişilemez\" olarak girin."
+    },
+    "TRP_031": {
+      "title": "Sefer bir hatta bağlanmamış",
+      "what": "Bir sefer için bağlı olduğu hat belirtilmemiş.",
+      "action": "Seferi doğru hatla eşleştirin."
+    },
+    "TRP_032": {
+      "title": "Araç taşıma izni değeri geçersiz",
+      "what": "Seferde (ör. feribotta) araç taşınıp taşınamayacağını belirten değer tanımlı seçeneklerden biri değil.",
+      "action": "Değeri \"bilgi yok\", \"izinli\" veya \"izinsiz\" olarak seçin."
+    },
+    "TRP_034": {
+      "title": "Talebe bağlı süre katsayısı sayı değil",
+      "what": "Talebe bağlı seferlerde yolculuk süresini hesaplamak için kullanılan katsayı ya da ek süre sayı olarak okunamıyor.",
+      "action": "Katsayıyı ve ek süreyi ondalık sayı olarak girin."
+    },
+    "TRP_035": {
+      "title": "Seferin çalışma takvimi belirtilmemiş",
+      "what": "Bir sefer için hangi günlerde çalışacağı belirtilmemiş.",
+      "action": "Sefer için çalışma takvimini seçin veya oluşturun."
+    },
+    "VAT_001": {
+      "title": "İki hat neredeyse aynı güzergâhta",
+      "what": "Aynı türdeki iki hat büyük ölçüde aynı duraklardan geçiyor; aynı hattın iki kopyası olabilir.",
+      "action": "Gerçekten ayrı hatlarsa sorun yok; kopyaysa birleştirin."
+    },
+    "VAT_002": {
+      "title": "Çok hatlı durakta aktarma tanımı yok",
+      "what": "Bu durağa dört ya da daha fazla hat uğruyor ama aktarma bilgisi tanımlı değil. Bilgi amaçlıdır.",
+      "action": "Aktarma için özel bir süre ya da kural gerekiyorsa aktarma bilgisi ekleyin; gerekmiyorsa bir şey yapmanız gerekmez."
+    },
+    "VAT_003": {
+      "title": "Seferin süresi benzerlerinden çok farklı",
+      "what": "Aynı güzergâhtaki seferlere göre bu seferin süresi olağandışı uzun ya da kısa. Bilgi amaçlıdır.",
+      "action": "Yoğun saat veya farklı araç gibi bir nedeni varsa sorun yok; yoksa sefer saatlerini kontrol edin."
+    },
+    "VAT_005": {
+      "title": "Ağdan kopuk durak grubu",
+      "what": "Bazı duraklar seferlerle ağın geri kalanına bağlanmıyor; ayrı bir ada gibi duruyor.",
+      "action": "Bu durakları kullanan seferleri ve durak saatlerini kontrol edin."
+    },
+    "VAT_006": {
+      "title": "Seferlerin çoğu tek hatta",
+      "what": "Veri setindeki seferlerin büyük bölümü tek bir hatta. Bilgi amaçlıdır.",
+      "action": "Hattın yoğunluğu gerçekse sorun yok; değilse diğer hatların seferlerinin aktarıldığını kontrol edin."
+    },
+    "VAT_007": {
+      "title": "Son durakta aktarma tanımı yok",
+      "what": "Bir hattın son durağına başka bir hat da geliyor ama aktarma bilgisi tanımlı değil. Bilgi amaçlıdır.",
+      "action": "Aktarma için özel bir kural gerekiyorsa aktarma bilgisi ekleyin."
+    },
+    "VAT_008": {
+      "title": "Aynı güzergâh çok sayıda hatta",
+      "what": "Bir güzergâh çizimi hatların yüzde 30'undan fazlasında kullanılıyor; hatlara yanlış çizim atanmış olabilir.",
+      "action": "Her hat ve yön için kendi güzergâh çizimini tanımlayın."
+    },
+    "XFL_002": {
+      "title": "Seferin durak saatleri yok",
+      "what": "Bu seferin hiç durak saati girilmemiş; yolcu uygulamalarında görünmeyebilir.",
+      "action": "Seferin durak saatlerini ekleyin ya da kullanılmayan seferi silin."
+    },
+    "XFL_006": {
+      "title": "Takvim yalnızca iptal günü içeriyor",
+      "what": "Bir çalışma takvimi yalnızca \"çalışmıyor\" olarak eklenmiş günlerden oluşuyor; hiç çalışma günü yok.",
+      "action": "Takvime çalışma günlerini ekleyin."
+    },
+    "XFL_012": {
+      "title": "Hattın çalışan seferi yok",
+      "what": "Bu hattın seferleri var ama hiçbirinin durak saati yok; hat yolcu uygulamalarında görünmeyebilir.",
+      "action": "Hattın seferlerine durak saatlerini ekleyin ya da hattı kaldırın."
+    },
+    "XFL_013": {
+      "title": "Güzergâh çizimi iki yönde kullanılıyor",
+      "what": "Aynı güzergâh çizimi hem gidiş hem dönüş seferlerinde kullanılmış; bir yönde çizgi ters görünür.",
+      "action": "Gidiş ve dönüş için ayrı güzergâh çizimleri kullanın."
+    },
+    "XFL_014": {
+      "title": "Çevrilen kayıt bulunamadı",
+      "what": "Bir çeviri, artık bulunmayan bir kayda işaret ediyor.",
+      "action": "Çeviriyi silin ya da kaydı geri ekleyin."
+    },
+    "XFL_015": {
+      "title": "Atıf bulunmayan kayda bağlı",
+      "what": "Bir atıf kaydı, bulunmayan bir işletmeciye, hatta ya da sefere bağlanmış.",
+      "action": "Atfı mevcut bir kayda bağlayın."
+    },
+    "XFL_016": {
+      "title": "Veri seti bilgisi çevrilmiş ama dosyası yok",
+      "what": "Veri seti bilgisi için çeviri girilmiş ama veri seti bilgisi dosyası yok.",
+      "action": "Veri seti bilgilerini ekleyin ya da ilgili çeviriyi silin."
+    },
+    "XFL_019": {
+      "title": "Hat ağı iki farklı yerde tanımlı",
+      "what": "Hatların hangi ağa ait olduğu hem hat listesinde hem ayrı ağ dosyasında girilmiş.",
+      "action": "Ağ bilgisini tek bir yerde tutun."
+    },
+    "XFL_020": {
+      "title": "Aktarmada sefer ile hat uyuşmuyor",
+      "what": "Bir aktarmada seçilen sefer, yanında seçilen hatta ait değil.",
+      "action": "Aktarmadaki hattı seferin gerçek hattıyla eşleştirin."
+    },
+    "XFL_021": {
+      "title": "Aktarmada sefer o duraktan geçmiyor",
+      "what": "Bir aktarmada seçilen sefer, aktarmanın tanımlandığı duraktan geçmiyor.",
+      "action": "Aktarmayı seferin geçtiği bir durağa bağlayın."
+    },
+    "XFL_022": {
+      "title": "Durak grubu bulunamadı",
+      "what": "Bir grup-durak eşleşmesi, tanımlı olmayan bir durak grubuna işaret ediyor.",
+      "action": "Durak grubunu tanımlayın ya da eşleşmeyi silin."
+    },
+    "XFL_023": {
+      "title": "Gruptaki durak bulunamadı",
+      "what": "Bir durak grubuna, durak listesinde olmayan bir durak eklenmiş.",
+      "action": "Gruba mevcut bir durak ekleyin."
+    },
+    "XFL_024": {
+      "title": "Seferin durak grubu bulunamadı",
+      "what": "Talebe bağlı bir sefer, tanımlı olmayan bir durak grubuna bağlanmış.",
+      "action": "Seferi mevcut bir durak grubuna bağlayın."
+    },
+    "XFL_025": {
+      "title": "Seferin hizmet bölgesi bulunamadı",
+      "what": "Talebe bağlı bir sefer, tanımlı olmayan bir hizmet bölgesine bağlanmış.",
+      "action": "Seferi mevcut bir hizmet bölgesine bağlayın ya da bölgeyi ekleyin."
+    },
+    "XFL_027": {
+      "title": "Temassız ödeme bilgileri farklı",
+      "what": "Hattın temassız ödeme bilgisi ile ücret tanımlarındaki bilgi farklı; ücret tanımları geçerli kabul edilir. Bilgi amaçlıdır.",
+      "action": "İki bilgiyi birbiriyle uyumlu hale getirin."
+    },
+    "XFL_028": {
+      "title": "İşletmeci temassız diyor, ücretlerde yok",
+      "what": "İşletmeci temassız ödemeyi destekliyor olarak işaretli ama ücret tanımlarında temassız ödeme aracı yok.",
+      "action": "Ücret tanımlarına temassız ödeme aracını ekleyin."
+    },
+    "XFL_029": {
+      "title": "Hat temassız diyor, ücretlerde yok",
+      "what": "Bir hat temassız ödemeyi destekliyor olarak işaretli ama ücret tanımlarında temassız ödeme aracı yok.",
+      "action": "Ücret tanımlarına temassız ödeme aracını ekleyin."
+    },
+    "XFL_030": {
+      "title": "Temassız ödeme var ama işaretlenmemiş",
+      "what": "Ücret tanımlarında temassız ödeme aracı var ama hiçbir işletmeci ya da hat bunu desteklediğini belirtmemiş.",
+      "action": "Temassız ödemenin geçerli olduğu işletmeci ya da hatları işaretleyin."
+    },
+    "XFL_031": {
+      "title": "Aynı kod hem durakta hem bölgede",
+      "what": "Bir durak, hizmet bölgesi ya da durak grubu aynı kodu paylaşıyor; seferler yanlış yere bağlanabilir.",
+      "action": "Çakışan kodlardan birini değiştirin."
+    },
+    "XFL_032": {
+      "title": "Durak grubu kodu boş",
+      "what": "Bir durak grubunun kodu boş bırakılmış.",
+      "action": "Her durak grubuna benzersiz bir kod verin."
+    },
+    "XFL_033": {
+      "title": "Grup-durak eşleşmesinde grup kodu boş",
+      "what": "Bir grup-durak eşleşmesinde hangi gruba ait olduğu boş bırakılmış.",
+      "action": "Eşleşmeye grup kodunu girin."
+    },
+    "XFL_034": {
+      "title": "Grup-durak eşleşmesinde durak boş",
+      "what": "Bir grup-durak eşleşmesinde hangi durak olduğu boş bırakılmış.",
+      "action": "Eşleşmeye durağı girin."
+    }
+  }
+}
