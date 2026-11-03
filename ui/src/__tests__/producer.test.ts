@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } from '../pages/producer-helpers';
-import { renderProducer } from '../pages/producer';
+import { plannerMap, renderProducer } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
 
 vi.mock('../state', () => ({ setPage: vi.fn(), getState: () => ({ agencyFilter: [] }), setAgencyFilter: vi.fn() }));
@@ -570,19 +570,101 @@ describe('Planlamacılar İçin sayfası', () => {
 describe('Saat kuralları ve kayıt sayıları', () => {
   const root = () => ({ innerHTML: '', querySelectorAll: () => [], querySelector: () => null }) as unknown as HTMLElement;
 
-  it('STM_015 için hatalı yeri durak adı ve kalkış saatiyle, STM_008 için iki durağın saatiyle yazar', () => {
-    const ni: NameIndex = { ...emptyNameIndex, stops: { S1: 'Onkoloji', S2: 'Binevler', A: 'Çarşı', B: 'Liman' }, trip_routes: { T1: 'R1', T2: 'R1' }, routes: { R1: 'S08' } };
+  it('STM_015 için ilk durağı ve sonraki iki gerçek durağı, STM_008 için iki durağın saatini yazar', () => {
+    const ni: NameIndex = { ...emptyNameIndex, stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar', A: 'Çarşı', B: 'Liman' }, trip_routes: { T1: 'R1', T2: 'R1' }, routes: { R1: 'S08' } };
     const r = result([
-      notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', details: { stop_id: 'S1', departure: '06:15:00', next_stop_id: 'S2', next_time: '06:18:00' } }),
+      notice('a', 'STM_015', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T1', details: {
+        stop_id: 'S1', stop_sequence: '1', departure: '06:15:00', next_stop_id: 'S2', next_time: '06:18:00',
+        following_stop_id: 'S2', following_stop_sequence: '2', following_arrival: '06:18:00', following_departure: '06:18:00',
+        following2_stop_id: 'S3', following2_stop_sequence: '3', following2_arrival: '06:22:00', following2_departure: '06:22:00',
+      } }),
       notice('b', 'STM_008', 'CRITICAL', { entity_type: 'Trip', entity_id: 'T2', details: { stop_a: 'A', stop_b: 'B', dep: '08:00:00', arr: '07:55:00' } }),
     ], ['a', 'b'], [['STM_015', 4, 1], ['STM_008', 4, 1]], true, ni);
     const el = root();
     renderProducer(el, r);
     expect(el.innerHTML).toContain('Seferin ilk durağı olan Onkoloji için varış saati girilmemiş.');
     expect(el.innerHTML).toContain('<td>Onkoloji · kalkış 06:15:00</td>');
+    expect(el.innerHTML).toContain('<td>Binevler</td><td>2</td><td>06:18:00</td><td>06:18:00</td>');
+    expect(el.innerHTML).toContain('<td>Otogar</td><td>3</td><td>06:22:00</td><td>06:22:00</td>');
     expect(el.innerHTML).toContain('<td>Çarşı 08:00:00 → Liman 07:55:00</td>');
     expect(el.innerHTML).toContain('Çarşı durağından 08:00:00 kalkışından sonra Liman durağına 07:55:00 varışı yazılmış');
     expect(el.innerHTML).not.toContain('stop_times.txt zaman değerlerini');
+  });
+
+  it('STM_015 haritasında gerçek sefer çizgisini ve bütün durakları gösterip ilk durağa odaklanır', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar' },
+      routes: { R1: 'S08' }, trip_routes: { T1: 'R1' },
+      trip_shapes: { T1: 'SH1' },
+      shape_coords: { SH1: [[37.01, 37.31], [37.02, 37.32], [37.03, 37.33]] },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] },
+      trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [37.01, 37.31], S2: [37.02, 37.32], S3: [37.03, 37.33] },
+    };
+    const n = notice('a', 'STM_015', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1',
+      details: { stop_id: 'S1', stop_sequence: '1', following_stop_id: 'S2', following_stop_sequence: '2' },
+    });
+    const map = plannerMap(n, result([n], ['a'], [['STM_015', 4, 1]], true, ni));
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(ni.shape_coords.SH1);
+    expect(map.opts.pins).toHaveLength(3);
+    expect(map.opts.pins.find(pin => pin.primary)?.label).toContain('Onkoloji');
+    expect(map.opts.focus).toEqual(ni.stop_coords.S1);
+    expect(map.opts.focusZoom).toBe(14);
+  });
+
+  it('STM_016 için önceki iki gerçek durağı gösterir ve haritada son durağa odaklanır', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Onkoloji', S2: 'Binevler', S3: 'Otogar' },
+      routes: { R1: 'S08' }, trip_routes: { T1: 'R1' },
+      trip_shapes: { T1: 'SH1' },
+      shape_coords: { SH1: [[37.01, 37.31], [37.02, 37.32], [37.03, 37.33]] },
+      trip_stops: { T1: ['S1', 'S2', 'S3'] }, trip_stop_sequences: { T1: [1, 2, 3] },
+      stop_coords: { S1: [37.01, 37.31], S2: [37.02, 37.32], S3: [37.03, 37.33] },
+    };
+    const n = notice('a', 'STM_016', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1', details: {
+        stop_id: 'S3', stop_sequence: '3', departure: '06:22:00',
+        preceding2_stop_id: 'S1', preceding2_stop_sequence: '1', preceding2_departure: '06:15:00',
+        preceding_stop_id: 'S2', preceding_stop_sequence: '2', preceding_arrival: '06:18:00', preceding_departure: '06:18:00',
+      },
+    });
+    const r = result([n], ['a'], [['STM_016', 4, 1]], true, ni);
+    const el = root();
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('<td>Onkoloji</td><td>1</td><td>—</td><td>06:15:00</td>');
+    expect(el.innerHTML).toContain('<td>Binevler</td><td>2</td><td>06:18:00</td><td>06:18:00</td>');
+    expect(el.innerHTML).toContain('<tr class="bad"><td>Otogar</td><td>3</td><td>eksik</td><td>06:22:00</td>');
+    const map = plannerMap(n, r);
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(ni.shape_coords.SH1);
+    expect(map.opts.pins).toHaveLength(3);
+    expect(map.opts.pins.find(pin => pin.primary)?.label).toContain('Otogar');
+    expect(map.opts.focus).toEqual(ni.stop_coords.S3);
+    expect(map.opts.focusZoom).toBe(14);
+  });
+
+  it('tek duraklı STM_015 seferinde aynı hat ve yönün gerçek güzergâhını ve durağı gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Onkoloji' }, routes: { R1: 'S08' },
+      trip_routes: { T1: 'R1' }, trip_directions: { T1: '0' },
+      trip_stops: { T1: ['S1'] }, trip_stop_sequences: { T1: [1] },
+      stop_coords: { S1: [37.01, 37.31] },
+      route_shapes: { R1: ['SH1'] }, shape_routes: { SH1: [['R1', '0']] },
+      shape_coords: { SH1: [[37.00, 37.30], [37.01, 37.31], [37.02, 37.32]] },
+    };
+    const n = notice('a', 'STM_015', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1',
+      details: { stop_id: 'S1', stop_sequence: '1', stop_count: '1', timed_stops: '0' },
+    });
+    const map = plannerMap(n, result([n], ['a'], [['STM_015', 4, 1]], true, ni));
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(ni.shape_coords.SH1);
+    expect(map.opts.pins).toHaveLength(1);
+    expect(map.opts.pins[0].primary).toBe(true);
+    expect(map.opts.pins[0].label).toContain('Onkoloji');
+    expect(map.opts.focus).toEqual(ni.stop_coords.S1);
   });
 
   it('sol menü konu değil kayıt sayısını gösterir', () => {
@@ -602,6 +684,35 @@ describe('Saatsiz sefer', () => {
     renderProducer(el, r);
     expect(el.innerHTML).toContain('Bu seferin 85 durağının hiçbirinde varış ya da kalkış saati yok');
     expect(el.innerHTML).toContain('<td>Seferde hiç saat yok (85 durak)</td>');
+  });
+
+  it('tek duraklı saatsiz seferde durak sayısı yerine durak adını yazar', () => {
+    const n = notice('a', 'STM_015', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1',
+      details: { stop_id: 'S1', stop_count: '1', timed_stops: '0' },
+    });
+    const r = result([n], ['a'], [['STM_015', 4, 1]], true, {
+      ...emptyNameIndex, stops: { S1: 'Onkoloji' }, trip_stops: { T1: ['S1'] },
+    });
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Bu seferin Onkoloji durağının varış ya da kalkış saati yok');
+    expect(el.innerHTML).toContain('<td>Onkoloji durağında saat yok</td>');
+    expect(el.innerHTML).not.toContain('Bu seferin 1 durağının');
+  });
+
+  it('tek duraklı STM_016 kartında da durak adını yazar', () => {
+    const n = notice('a', 'STM_016', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1',
+      details: { stop_id: 'S1', stop_sequence: '1', stop_count: '1', timed_stops: '0' },
+    });
+    const r = result([n], ['a'], [['STM_016', 4, 1]], true, {
+      ...emptyNameIndex, stops: { S1: 'Onkoloji' }, trip_stops: { T1: ['S1'] },
+    });
+    const el = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(el, r);
+    expect(el.innerHTML).toContain('Bu seferin Onkoloji durağının varış ya da kalkış saati yok');
+    expect(el.innerHTML).toContain('<td>Onkoloji durağında saat yok</td>');
   });
 });
 
@@ -865,6 +976,28 @@ describe('Hatalı yer sütunu', () => {
     expect(el.innerHTML).not.toContain('<td>R1</td>');
     expect(el.innerHTML).toContain('Çarşı → Liman · 1.200 m · 468 km/h');
     expect(el.innerHTML).toContain('bu hat türü için belirlenen 120 km/h sınırını aşıyor');
+  });
+
+  it('STM_014 haritasında örnek gerçek seferin güzergâhını ve bütün duraklarını gösterir', () => {
+    const local: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Başlangıç', S2: 'Çarşı', S3: 'Liman', S4: 'Otogar' },
+      routes: { R1: '34' }, trip_routes: { T1: 'R1' }, trip_shapes: { T1: 'SH1' },
+      trip_stops: { T1: ['S1', 'S2', 'S3', 'S4'] }, trip_stop_sequences: { T1: [1, 2, 3, 4] },
+      stop_coords: { S1: [41.00, 29.00], S2: [41.01, 29.01], S3: [41.02, 29.02], S4: [41.03, 29.03] },
+      shape_coords: { SH1: [[41.00, 29.00], [41.015, 29.015], [41.03, 29.03]] },
+    };
+    const n = notice('a', 'STM_014', 'HIGH', {
+      entity_type: 'Route', entity_id: 'R1:0:S2→S3',
+      details: { route_id: 'R1', trips: 'T1', stop_a: 'S2', stop_b: 'S3', prev_stop_id: 'S1', next_stop_id: 'S4' },
+    });
+    const map = plannerMap(n, result([n], [], [['STM_014', 4, 1]], true, local));
+    expect(map.opts.extraPolylines?.[0].coords).toEqual(local.shape_coords.SH1);
+    expect(map.opts.pins).toHaveLength(4);
+    expect(map.opts.pins.filter(pin => pin.primary).map(pin => pin.label)).toEqual(expect.arrayContaining([
+      expect.stringContaining('Çarşı'), expect.stringContaining('Liman'),
+    ]));
+    expect(map.opts.focus).toEqual(local.stop_coords.S2);
   });
 
   it('aynı adlı iki durağı durak koduyla ayırır', () => {

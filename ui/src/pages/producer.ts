@@ -291,11 +291,14 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const stop = stopId ? result.name_index.stops?.[stopId] || stopId : '';
     // If no stop in the trip has a time, the problem is not one endpoint but a trip imported without times.
       const untimed = n.details?.timed_stops === '0';
+      const singleUntimedStop = untimed && n.details?.stop_count === '1' && stop;
       return {
         title: t(`producer.card.${g.ruleId}.title`),
         context: tripContextText(context),
         what: untimed
-          ? t('producer.card.trip_untimed', { n: n.details?.stop_count ?? '?' })
+          ? singleUntimedStop
+            ? t('producer.card.trip_untimed_at', { stop })
+            : t('producer.card.trip_untimed', { n: n.details?.stop_count ?? '?' })
           : stop
             ? t(`producer.card.${g.ruleId}.what_at`, { stop })
             : t(`producer.card.${g.ruleId}.what`),
@@ -614,20 +617,52 @@ function timeStrip(n: Notice, result: ValidationResult): string {
     }</tbody></table>`;
   }
   const missing = t('producer.times.missing');
+  if (n.rule_id === 'STM_015') {
+    type EdgeRow = [string, string, string, string, boolean];
+    const rows: EdgeRow[] = [[
+      name(d.stop_id), d.stop_sequence || '—', missing, d.departure ?? '—', true,
+    ]];
+    if (d.following_stop_id) rows.push([
+      name(d.following_stop_id), d.following_stop_sequence || '—',
+      d.following_arrival || '—', d.following_departure || '—', false,
+    ]);
+    if (d.following2_stop_id) rows.push([
+      name(d.following2_stop_id), d.following2_stop_sequence || '—',
+      d.following2_arrival || '—', d.following2_departure || '—', false,
+    ]);
+    // Older reports only carry the nearest timed following stop.
+    if (rows.length === 1 && d.next_stop_id) rows.push([
+      name(d.next_stop_id), '—', d.next_time ?? '—', '—', false,
+    ]);
+    return `<table class="planner-times planner-stm015-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+      rows.map(([stop, sequence, arrival, departure, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
+  if (n.rule_id === 'STM_016') {
+    type EdgeRow = [string, string, string, string, boolean];
+    const rows: EdgeRow[] = [];
+    if (d.preceding2_stop_id) rows.push([
+      name(d.preceding2_stop_id), d.preceding2_stop_sequence || '—',
+      d.preceding2_arrival || '—', d.preceding2_departure || '—', false,
+    ]);
+    if (d.preceding_stop_id) rows.push([
+      name(d.preceding_stop_id), d.preceding_stop_sequence || '—',
+      d.preceding_arrival || '—', d.preceding_departure || '—', false,
+    ]);
+    // Older reports only carry the nearest timed preceding stop.
+    if (!rows.length && d.prev_stop_id) rows.push([
+      name(d.prev_stop_id), '—', d.prev_time ?? '—', '—', false,
+    ]);
+    rows.push([
+      name(d.stop_id), d.stop_sequence || '—', missing, d.departure ?? '—', true,
+    ]);
+    return `<table class="planner-times planner-stm016-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+      rows.map(([stop, sequence, arrival, departure, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   type Row = [string, string, string, boolean];
   let rows: Row[] = [];
-  if ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016') && d.timed_stops === '0') return '';
-  if (n.rule_id === 'STM_015') {
-    rows = [
-      [name(d.stop_id), missing, d.departure ?? '—', true],
-      ...(d.next_stop_id ? [[name(d.next_stop_id), d.next_time ?? '—', '', false] as Row] : []),
-    ];
-  } else if (n.rule_id === 'STM_016') {
-    rows = [
-      ...(d.prev_stop_id ? [[name(d.prev_stop_id), '', d.prev_time ?? '—', false] as Row] : []),
-      [name(d.stop_id), missing, d.departure ?? '—', true],
-    ];
-  } else if (n.rule_id === 'STM_008') {
+  if (n.rule_id === 'STM_008') {
     rows = [
       ...(d.prev_stop_id ? [[name(d.prev_stop_id), '', d.prev_time ?? '—', false] as Row] : []),
       [name(d.stop_a, d.stop_a_name), '', d.dep ?? '—', false],
@@ -689,6 +724,9 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
     });
   }
   if ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016') && d.timed_stops === '0') {
+    if (d.stop_count === '1' && d.stop_id) {
+      return t('producer.times.spot_untimed_at', { stop: name(d.stop_id) });
+    }
     return t('producer.times.spot_untimed', { n: d.stop_count ?? '?' });
   }
   if (n.rule_id === 'STM_015') return t('producer.times.spot_first', { stop: name(d.stop_id), time: d.departure ?? d.next_time ?? '—' });
@@ -877,10 +915,38 @@ function representativeTripsForDirection(ni: ValidationResult['name_index'], tri
   return nearest ? [nearest] : [];
 }
 
+function routeDirectionShapeId(ni: ValidationResult['name_index'], routeId?: string, direction?: string): string | undefined {
+  if (!routeId) return undefined;
+  return (ni.route_shapes?.[routeId] ?? []).find(shapeId =>
+    (ni.shape_routes?.[shapeId] ?? []).some(([shapeRoute, shapeDirection]) =>
+      shapeRoute === routeId && (direction == null || direction === '' || shapeDirection === direction)));
+}
+
+function stm014SampleTripId(n: Notice, result: ValidationResult): string | undefined {
+  return (n.details?.trips ?? '').split(',').map(id => id.trim()).find(id =>
+    Boolean(id && (result.name_index.trip_shapes?.[id] || result.name_index.trip_stops?.[id]?.length)));
+}
+
+function plannerShapeId(n: Notice, result: ValidationResult): string | undefined {
+  const ni = result.name_index;
+  if (n.entity_type === 'Trip' && n.entity_id) {
+    return ni.trip_shapes?.[n.entity_id]
+      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016')
+        ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
+        : undefined);
+  }
+  if (n.rule_id === 'STM_014') {
+    const tripId = stm014SampleTripId(n, result);
+    return (tripId ? ni.trip_shapes?.[tripId] : undefined)
+      || routeDirectionShapeId(ni, routeIdOfNotice(n) ?? undefined, n.details?.direction_id);
+  }
+  return undefined;
+}
+
 /** Haritayı seçili kayda göre kurar: sefer → kendi güzergâhı ve durakları, işaretli durak
  *  veya bölüm kırmızı ve ona yakınlaşılmış; durak → durağın kendisi; hat → hattın çizimleri.
  *  Konuma bağlı olmayan kayıtta ağın tamamı. */
-function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
+export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const ni = result.name_index;
   const zeroStops = new Set<string>();
   const coord = (stopId?: string | null): [number, number] | null => {
@@ -964,12 +1030,17 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const tripStops = ni.trip_stops?.[n.entity_id] ?? [];
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     const directShape = ni.trip_shapes?.[n.entity_id];
+    const selectedShape = directShape
+      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016')
+        ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
+        : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
     const pathTripIds = n.rule_id === 'STM_006' && !directShape && !directPath
       ? representativeTripsForDirection(ni, n.entity_id)
       : [n.entity_id];
     for (const pathTripId of pathTripIds) {
-      if (!addShape(ni.trip_shapes?.[pathTripId], color)) {
+      const shapeId = pathTripId === n.entity_id ? selectedShape : ni.trip_shapes?.[pathTripId];
+      if (!addShape(shapeId, color)) {
         const pathStops = ni.trip_stops?.[pathTripId] ?? [];
         const coords = pathStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
         if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
@@ -979,6 +1050,19 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     if (n.rule_id === 'STM_006') {
       addStop(n.details?.prev_stop_id, false);
       addStop(n.details?.next_stop_id, false);
+    } else if (n.rule_id === 'STM_015' || n.rule_id === 'STM_016') {
+      const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
+      if (n.rule_id === 'STM_015') {
+        addStop(n.details?.stop_id || tripStops[0], true, n.details?.stop_sequence || stopSequences[0]);
+        addStop(n.details?.following_stop_id, false, n.details?.following_stop_sequence);
+        addStop(n.details?.following2_stop_id, false, n.details?.following2_stop_sequence);
+      } else {
+        const lastIndex = Math.max(0, tripStops.length - 1);
+        addStop(n.details?.stop_id || tripStops[lastIndex], true, n.details?.stop_sequence || stopSequences[lastIndex]);
+        addStop(n.details?.preceding_stop_id, false, n.details?.preceding_stop_sequence);
+        addStop(n.details?.preceding2_stop_id, false, n.details?.preceding2_stop_sequence);
+      }
     } else if (n.rule_id === 'STM_056') {
       // STM_056 is a directional trip finding: keep the route path and mark the
       // previous → faulty stop segment, with the next stop as context.
@@ -1038,7 +1122,22 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     }
   } else if (n.entity_type === 'Route' && routeIdOfNotice(n)) {
     const routeId = routeIdOfNotice(n)!;
-    for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 4)) addShape(shapeId, routeColor(routeId));
+    const color = routeColor(routeId);
+    stopRing = color;
+    if (n.rule_id === 'STM_014') {
+      const sampleTripId = stm014SampleTripId(n, result);
+      const tripStops = sampleTripId ? ni.trip_stops?.[sampleTripId] ?? [] : [];
+      const stopSequences = sampleTripId ? ni.trip_stop_sequences?.[sampleTripId] ?? [] : [];
+      const sampleShape = (sampleTripId ? ni.trip_shapes?.[sampleTripId] : undefined)
+        || routeDirectionShapeId(ni, routeId, n.details?.direction_id);
+      if (!addShape(sampleShape, color)) {
+        const coords = tripStops.map(id => coord(id)).filter((p): p is [number, number] => p !== null);
+        if (coords.length > 1) lines.push({ coords, color, weight: 4, arrows: true });
+      }
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
+    } else {
+      for (const shapeId of (ni.route_shapes?.[routeId] ?? []).slice(0, 4)) addShape(shapeId, color);
+    }
   // Route-level speed findings (STM_014, STM_061) carry the faulty stop pair.
     const a = coord(n.details?.stop_a);
     const b = coord(n.details?.stop_b);
@@ -1057,7 +1156,15 @@ function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   addStop(n.details?.stop_id, true);
 
   if (lines.length || segments.length || pins.length) {
-    return { opts: { pins, extraPolylines: [...lines, ...segments], focus }, caption: focusCaption() };
+    return {
+      opts: {
+        pins,
+        extraPolylines: [...lines, ...segments],
+        focus,
+        focusZoom: n.rule_id === 'STM_015' || n.rule_id === 'STM_016' ? 14 : undefined,
+      },
+      caption: focusCaption(),
+    };
   }
 
   if (n.rule_id === 'STM_006') {
@@ -1673,8 +1780,8 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     let map = plannerMap(notice, result);
     // Large-feed results deliberately omit shape geometry. Fetch the selected
     // trip's existing shape instead of drawing a synthetic stop-to-stop route.
-    if (result.name_index.map_data_deferred && notice.entity_type === 'Trip' && notice.entity_id) {
-      const shapeId = result.name_index.trip_shapes?.[notice.entity_id];
+    if (result.name_index.map_data_deferred) {
+      const shapeId = plannerShapeId(notice, result);
       if (shapeId && !(shapeId in (result.name_index.shape_coords ?? {}))) {
       const { requestShapeCoords } = await import('../validator-client');
       const coords = await requestShapeCoords(shapeId);

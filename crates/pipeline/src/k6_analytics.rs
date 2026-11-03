@@ -5067,6 +5067,72 @@ fn edge_time_details(
     d
 }
 
+/// Add the two rows immediately following the first stop. These keys are separate from
+/// `next_*`, which keeps its existing meaning: the nearest following row that has a time.
+fn add_stm015_following_rows(
+    details: &mut gtfs_core::NoticeDetails,
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+) {
+    for (prefix, row) in [("following", stimes.get(1)), ("following2", stimes.get(2))] {
+        let Some(row) = row else { continue };
+        details.insert(format!("{prefix}_stop_id"), idx.stop_id_of(row).to_string());
+        if let Some(sequence) = row.stop_sequence() {
+            details.insert(format!("{prefix}_stop_sequence"), sequence.to_string());
+        }
+        if let Some(arrival) = row.arrival_time() {
+            details.insert(
+                format!("{prefix}_arrival"),
+                format_hms(hms_to_secs(arrival)),
+            );
+        }
+        if let Some(departure) = row.departure_time() {
+            details.insert(
+                format!("{prefix}_departure"),
+                format_hms(hms_to_secs(departure)),
+            );
+        }
+    }
+}
+
+/// Add the two rows immediately preceding the last stop. These keys are separate from
+/// `prev_*`, which keeps its existing meaning: the nearest preceding row that has a time.
+fn add_stm016_preceding_rows(
+    details: &mut gtfs_core::NoticeDetails,
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+) {
+    let rows = [
+        (
+            "preceding",
+            stimes.len().checked_sub(2).and_then(|i| stimes.get(i)),
+        ),
+        (
+            "preceding2",
+            stimes.len().checked_sub(3).and_then(|i| stimes.get(i)),
+        ),
+    ];
+    for (prefix, row) in rows {
+        let Some(row) = row else { continue };
+        details.insert(format!("{prefix}_stop_id"), idx.stop_id_of(row).to_string());
+        if let Some(sequence) = row.stop_sequence() {
+            details.insert(format!("{prefix}_stop_sequence"), sequence.to_string());
+        }
+        if let Some(arrival) = row.arrival_time() {
+            details.insert(
+                format!("{prefix}_arrival"),
+                format_hms(hms_to_secs(arrival)),
+            );
+        }
+        if let Some(departure) = row.departure_time() {
+            details.insert(
+                format!("{prefix}_departure"),
+                format_hms(hms_to_secs(departure)),
+            );
+        }
+    }
+}
+
 fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, ctr: &mut u32) {
     // STM_015 / STM_016: required time fields for the first/last stop.
     for (&trip_id, stimes) in &idx.by_trip {
@@ -5116,7 +5182,12 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
                     format!("trip_id '{trip_id}' seferinin ilk durağında arrival_time eksik."),
                     "İlk stop_times satırına arrival_time girin.",
                 );
-                n.details = Some(edge_time_details(idx, stimes, first, "next"));
+                let mut details = edge_time_details(idx, stimes, first, "next");
+                if let Some(sequence) = first.stop_sequence() {
+                    details.insert("stop_sequence".to_string(), sequence.to_string());
+                }
+                add_stm015_following_rows(&mut details, idx, stimes);
+                n.details = Some(details);
                 notices.push(n);
             }
         }
@@ -5138,7 +5209,12 @@ fn check_stoptimes_derived(idx: &StopTimesIndex<'_>, notices: &mut Vec<Notice>, 
                     format!("trip_id '{trip_id}'{dep_suffix} seferinin son durağında arrival_time eksik."),
                     "Son stop_times satırına arrival_time girin.",
                 );
-                n.details = Some(edge_time_details(idx, stimes, last, "prev"));
+                let mut details = edge_time_details(idx, stimes, last, "prev");
+                if let Some(sequence) = last.stop_sequence() {
+                    details.insert("stop_sequence".to_string(), sequence.to_string());
+                }
+                add_stm016_preceding_rows(&mut details, idx, stimes);
+                n.details = Some(details);
                 notices.push(n);
             }
         }

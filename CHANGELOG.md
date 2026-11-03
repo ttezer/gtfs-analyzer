@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Add the first stop's next two actual stops and their times to the `STM_015` planner card.
+- Add the last stop's previous two actual stops and their times to the `STM_016` planner card.
+- Show the selected real trip geometry and all of its stops on `STM_014`, and keep a route-direction shape visible for one-stop `STM_015` trips.
+
 ## [0.19.0] - 2026-11-03
 
 - Add a plain-language planner `card` (`title`, `what`, `action`) to every `--compact-json` R9 item and `rules --json` row, in the `--lang` language. Cards are exported from the UI's `producer.card.<RULE>.*` keys into `crates/core/locales/*.json`, Turkish included. `what` is left out when the card text needs per-finding values.

@@ -7472,10 +7472,15 @@
         },
         {
           "details": {
+            "following_arrival": "08:10:00",
+            "following_departure": "08:10:00",
+            "following_stop_id": "S2",
+            "following_stop_sequence": "2",
             "next_stop_id": "S2",
             "next_time": "08:10:00",
             "stop_count": "2",
             "stop_id": "S1",
+            "stop_sequence": "1",
             "timed_stops": "1"
           },
           "entity_id": "T1",

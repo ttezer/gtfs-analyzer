@@ -3042,15 +3042,25 @@ fn stm015_016_cover_arrival_only_departure_left_to_stm034() {
 
 #[test]
 fn stm015_016_carry_edge_stop_and_neighbour_time() {
-    // The planner card shows a missing time using the neighboring stop's time: the second
-    // stop for the first stop, and the penultimate stop for the last stop.
+    // The planner cards show each edge stop and its two adjacent actual rows. The existing
+    // nearest-timed-neighbor keys remain unchanged for compatibility.
     static EDGE_STOP_TIMES: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
-          T1,,08:00:00,S1,1\nT1,,08:10:00,S2,2\n";
+          T1,,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,,08:20:00,S3,3\n";
     let mut files = base_files();
     files[4] = ("stop_times.txt", EDGE_STOP_TIMES);
 
     match run(&files) {
         ValidateResult::Ok(vr) => {
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "STM_015").count(),
+                1,
+                "details enrichment must not change the STM_015 notice count"
+            );
+            assert_eq!(
+                vr.notices.iter().filter(|n| n.rule_id == "STM_016").count(),
+                1,
+                "details enrichment must not change the STM_016 notice count"
+            );
             let detail = |rule: &str, key: &str| {
                 vr.notices
                     .iter()
@@ -3062,11 +3072,69 @@ fn stm015_016_carry_edge_stop_and_neighbour_time() {
             assert_eq!(detail("STM_015", "departure").as_deref(), Some("08:00:00"));
             assert_eq!(detail("STM_015", "next_stop_id").as_deref(), Some("S2"));
             assert_eq!(detail("STM_015", "next_time").as_deref(), Some("08:10:00"));
-            assert_eq!(detail("STM_016", "stop_id").as_deref(), Some("S2"));
-            assert_eq!(detail("STM_016", "prev_stop_id").as_deref(), Some("S1"));
-            assert_eq!(detail("STM_016", "prev_time").as_deref(), Some("08:00:00"));
-            assert_eq!(detail("STM_015", "stop_count").as_deref(), Some("2"));
-            assert_eq!(detail("STM_015", "timed_stops").as_deref(), Some("2"));
+            assert_eq!(detail("STM_015", "stop_sequence").as_deref(), Some("1"));
+            assert_eq!(
+                detail("STM_015", "following_stop_id").as_deref(),
+                Some("S2")
+            );
+            assert_eq!(
+                detail("STM_015", "following_stop_sequence").as_deref(),
+                Some("2")
+            );
+            assert_eq!(
+                detail("STM_015", "following_arrival").as_deref(),
+                Some("08:10:00")
+            );
+            assert_eq!(
+                detail("STM_015", "following_departure").as_deref(),
+                Some("08:10:00")
+            );
+            assert_eq!(
+                detail("STM_015", "following2_stop_id").as_deref(),
+                Some("S3")
+            );
+            assert_eq!(
+                detail("STM_015", "following2_stop_sequence").as_deref(),
+                Some("3")
+            );
+            assert_eq!(
+                detail("STM_015", "following2_departure").as_deref(),
+                Some("08:20:00")
+            );
+            assert_eq!(detail("STM_016", "stop_id").as_deref(), Some("S3"));
+            assert_eq!(detail("STM_016", "prev_stop_id").as_deref(), Some("S2"));
+            assert_eq!(detail("STM_016", "prev_time").as_deref(), Some("08:10:00"));
+            assert_eq!(detail("STM_016", "stop_sequence").as_deref(), Some("3"));
+            assert_eq!(
+                detail("STM_016", "preceding_stop_id").as_deref(),
+                Some("S2")
+            );
+            assert_eq!(
+                detail("STM_016", "preceding_stop_sequence").as_deref(),
+                Some("2")
+            );
+            assert_eq!(
+                detail("STM_016", "preceding_arrival").as_deref(),
+                Some("08:10:00")
+            );
+            assert_eq!(
+                detail("STM_016", "preceding_departure").as_deref(),
+                Some("08:10:00")
+            );
+            assert_eq!(
+                detail("STM_016", "preceding2_stop_id").as_deref(),
+                Some("S1")
+            );
+            assert_eq!(
+                detail("STM_016", "preceding2_stop_sequence").as_deref(),
+                Some("1")
+            );
+            assert_eq!(
+                detail("STM_016", "preceding2_departure").as_deref(),
+                Some("08:00:00")
+            );
+            assert_eq!(detail("STM_015", "stop_count").as_deref(), Some("3"));
+            assert_eq!(detail("STM_015", "timed_stops").as_deref(), Some("3"));
         }
         other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
     }

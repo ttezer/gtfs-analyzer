@@ -37,6 +37,7 @@ export interface MapOptions {
   legendItems?: Array<{ color: string; label: string }>;
   showArrows?: boolean;           // direction arrows over the polyline (every ~250 m)
   focus?: [number, number];       // inline map: focus this point (such as the first/last stop)
+  focusZoom?: number;             // inline map: rule-specific scale around the focused point
 }
 
 /**
@@ -118,7 +119,7 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
 
   const target = zoomTarget;
   const applyView = () => {
-    if (opts.focus) map.setView(opts.focus, 15);
+    if (opts.focus) map.setView(opts.focus, opts.focusZoom ?? 15);
     else if (target && target.length > 1) map.fitBounds(target, { padding: [24, 24], maxZoom: 16 });
     else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
     else if (bounds.length === 1) map.setView(bounds[0], 14);
