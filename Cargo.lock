@@ -318,7 +318,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-analyzer"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "chrono",
  "clap",
@@ -333,7 +333,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-analyzer-python"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "gtfs-config",
  "gtfs-core",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-config"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -352,7 +352,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-core"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -360,7 +360,7 @@ dependencies = [
 
 [[package]]
 name = "gtfs-pipeline"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "chrono-tz",
  "flate2",
@@ -381,14 +381,14 @@ dependencies = [
 
 [[package]]
 name = "gtfs-rules"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "gtfs-core",
 ]
 
 [[package]]
 name = "gtfs-wasm"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "getrandom",
  "gtfs-config",
