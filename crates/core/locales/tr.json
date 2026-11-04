@@ -2161,9 +2161,9 @@
       "action": "Bu seferin son durağına varış saatini girin; bir önceki duraktan sonra gelen saat olmalı."
     },
     "STM_017": {
-      "title": "Durakların güzergâh üzerindeki konumu tanımlanmamış",
-      "what": "Seferin durakları için güzergâh üzerindeki konum bilgisi eksik.",
-      "action": "Etkilenen seferlerde durakların güzergâh başlangıcından itibaren ilerleme mesafesini tutarlı biçimde girin."
+      "title": "Durakların güzergâh üzerindeki kümülatif mesafesi eksik",
+      "what": "Seferin duraklarında güzergâh başından itibaren kümülatif mesafe eksik.",
+      "action": "Etkilenen seferlerin duraklarına güzergâh başından itibaren tutarlı kümülatif mesafeyi girin."
     },
     "STM_018": {
       "title": "Hat bölümünde biniş ayarı geçersiz",

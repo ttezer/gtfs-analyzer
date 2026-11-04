@@ -2161,9 +2161,9 @@
       "action": "Indique la hora de llegada a la última parada de este viaje; debe ser posterior a la de la parada anterior."
     },
     "STM_017": {
-      "title": "No están definidas las posiciones de las paradas a lo largo del recorrido",
-      "what": "Falta la información de posición a lo largo del recorrido para las paradas del viaje.",
-      "action": "Indique distancias de avance coherentes desde el inicio del recorrido en los viajes afectados."
+      "title": "Falta la distancia acumulada de las paradas a lo largo del recorrido",
+      "what": "Falta la distancia acumulada desde el inicio del recorrido en las paradas del viaje.",
+      "action": "Indique una distancia acumulada coherente desde el inicio del recorrido en las paradas de los viajes afectados."
     },
     "STM_018": {
       "title": "Ajuste de subida continua no válido en un tramo del recorrido",

@@ -4086,9 +4086,9 @@
       "action": "Enter the arrival time at the last stop of this trip; it must come after the previous stop."
     },
     "STM_017": {
-      "title": "Stop positions along the route are not defined",
-      "what": "Position information along the route is missing for the trip’s stops.",
-      "action": "Enter consistent progress distances from the start of the route for the affected trips."
+      "title": "Cumulative distance of stops along the route is missing",
+      "what": "The cumulative distance from the start of the route is missing at the trip’s stops.",
+      "action": "Enter a consistent cumulative distance from the start of the route at the stops of the affected trips."
     },
     "STM_018": {
       "title": "Continuous pickup setting invalid on a route section",

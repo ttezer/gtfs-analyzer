@@ -923,7 +923,7 @@ describe('STM_017 planlamacı kanıtı', () => {
     renderProducer(el, r);
     expect(el.innerHTML).toContain('Bu seferin 3 durağından 2 tanesinde');
     expect(el.innerHTML).toContain('<td>Onkoloji</td><td>1</td><td>06:15:00</td><td>06:15:00</td><td>eksik</td>');
-    expect(el.innerHTML).toContain('Onkoloji ile birlikte 2 durakta güzergâh mesafesi eksik');
+    expect(el.innerHTML).toContain('Onkoloji ile birlikte 2 durakta kümülatif mesafe eksik');
     expect(el.innerHTML).toContain('<th>Çalışma günleri</th>');
     expect(el.innerHTML).toContain('<td>Hafta içi</td>');
     const map = plannerMap(n, r);

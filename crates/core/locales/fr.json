@@ -4086,9 +4086,9 @@
       "action": "Saisissez l’heure d’arrivée au dernier arrêt de cette course ; elle doit suivre celle de l’arrêt précédent."
     },
     "STM_017": {
-      "title": "La position des arrêts le long du parcours n’est pas définie",
-      "what": "La position le long du parcours manque pour les arrêts de la course.",
-      "action": "Saisissez des distances progressives cohérentes depuis le début du parcours pour les courses concernées."
+      "title": "La distance cumulée des arrêts le long du parcours manque",
+      "what": "La distance cumulée depuis le début du parcours manque aux arrêts de la course.",
+      "action": "Saisissez une distance cumulée cohérente depuis le début du parcours aux arrêts des courses concernées."
     },
     "STM_018": {
       "title": "Paramètre de montée continue invalide sur une section",
