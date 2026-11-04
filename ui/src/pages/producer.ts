@@ -540,11 +540,6 @@ const MAP_GREY = '#64748b';
 const ROWS_FIRST = 10;
 const ROWS_STEP = 50;
 const ROWS_CAP = 500;
-const STM056_ROWS_CAP = 2_000;
-
-function rowsCapFor(g: RuleGroup): number {
-  return g.ruleId === 'STM_056' ? STM056_ROWS_CAP : ROWS_CAP;
-}
 
 function groupArea(g: RuleGroup): PlannerArea {
   return plannerArea(g.ruleId, g.notices[0]);
@@ -1585,7 +1580,7 @@ function entityColumns(g: RuleGroup, result: ValidationResult): { head: string[]
 
 function affectedRows(g: RuleGroup, result: ValidationResult): string {
   const cols = affectedColumns(g, result);
-  const rowCap = rowsCapFor(g);
+  const rowCap = ROWS_CAP;
   const visibleRows = g.notices.slice(0, rowCap);
   const rows = visibleRows.map((n, index) => `<tr class="planner-affected-row${index === 0 ? ' selected' : ''}" data-row="${index}" tabindex="0"${index >= ROWS_FIRST ? ' hidden' : ''}>
     ${cols.row(n).map(v => typeof v === 'string' ? `<td>${escHtml(v)}</td>` : `<td>${v.html}</td>`).join('')}
@@ -1788,6 +1783,16 @@ function exampleRows(n: Notice): Notice[] | null {
   for (let i = 0; d[`example_${i}_trip`]; i++) {
     const at = (key: string) => d[`example_${i}_${key}`];
     const details: Record<string, string> = { ...summary };
+    if (n.rule_id === 'STM_056') {
+      // STM_056 examples carry the pinpoint row's details verbatim (prev2…next2 stops, times,
+      // distances); copy them as-is so the card, time table and map read the same keys.
+      const prefix = `example_${i}_`;
+      for (const [key, value] of Object.entries(d)) {
+        if (!key.startsWith(prefix)) continue;
+        const name = key.slice(prefix.length);
+        if (!['trip', 'line', 'observed', 'expected'].includes(name)) details[name] = value;
+      }
+    }
     const pairs: Array<[string, string]> = [
       ['stop_id', 'stop'], ['arr', 'arrival'], ['dep', 'departure'],
       ['prev2_stop_id', 'prev2_stop'], ['prev2_stop_sequence', 'prev2_stop_sequence'],
@@ -1888,7 +1893,7 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   const technical = ordered.filter(g => !primary.includes(g));
   const groups = [...primary, ...technical];
 
-  const keys = groups.map(g => g.notices.slice(0, rowsCapFor(g)).map(n => noticeKeys(n, result)));
+  const keys = groups.map(g => g.notices.slice(0, ROWS_CAP).map(n => noticeKeys(n, result)));
   const labels = Object.fromEntries(ENTITY_DIMS.map(dim => [dim, new Map<string, string>()])) as Record<EntityDim, Map<string, string>>;
   // Options are only records defined in the dataset; details for some rules, such as route_id,
   // carry a pattern identity rather than a route ("00020:0:11223→11224").

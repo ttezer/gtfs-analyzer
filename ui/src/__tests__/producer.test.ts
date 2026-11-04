@@ -243,6 +243,7 @@ describe('Üretici kartı görünümü', () => {
           example_0_prev2_stop_sequence: '0', example_0_prev2_shape_dist_traveled: '90',
           example_0_prev_stop_sequence: '1', example_0_stop_sequence: '2', example_0_next_stop_sequence: '3',
           example_0_next2_stop_sequence: '4', example_0_prev_shape_dist_traveled: '100', example_0_shape_dist_traveled: '100', example_0_next_shape_dist_traveled: '120', example_0_next2_shape_dist_traveled: '130',
+          example_0_prev2_departure: '07:58:30', example_0_arrival: '08:04:30', example_0_next2_arrival: '08:09:30',
         },
       })],
       ['a'], [['STM_056', 5, 51]], true, ni,
@@ -262,6 +263,10 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).not.toContain('<th>Durum</th>');
     expect(root.innerHTML).toContain('<th>Çalışma günleri</th>');
     expect(root.innerHTML).toContain('Hafta içi');
+    // Example rows keep every neighbour time, not only the keys of the generic example mapping.
+    expect(root.innerHTML).toContain('07:58:30');
+    expect(root.innerHTML).toContain('08:04:30');
+    expect(root.innerHTML).toContain('08:09:30');
   });
 
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {

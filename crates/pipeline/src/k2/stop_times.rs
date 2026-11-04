@@ -3881,9 +3881,21 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
             "stop_sequence tekrar ediyor — aynı (trip_id, stop_sequence) ihlali yüksek hacimde tekrarlanıyor.",
             STM032_AGG_THRESHOLD,
         );
-        // STM_056 is a critical, row-level finding. Do not collapse it into a feed summary:
-        // each failing stop_times row must remain selectable in R2 and Planner Beta.
-        st.notices.append(&mut stm056_pending);
+        // Above the threshold STM_056 becomes one feed summary again (a broken distance column can
+        // fail millions of rows). The summary carries STM056_EXAMPLE_CAP row examples with their full
+        // row context, so the planner page can still list and map real failing rows.
+        const STM056_AGG_THRESHOLD: usize = 50;
+        finalize_stm_pending(
+            &mut stm056_pending,
+            &mut st.notices,
+            &mut st.counter,
+            &file.name,
+            "STM_056",
+            "shape_dist_traveled",
+            "stop_times.txt'te shape_dist_traveled değerlerini stop_sequence sırasına göre artan biçimde düzeltin.",
+            "shape_dist_traveled stop_sequence boyunca artmıyor — aynı mesafe sırası ihlali yüksek hacimde tekrarlanıyor.",
+            STM056_AGG_THRESHOLD,
+        );
     }
 
     // stop_id_set = stop_first_line keys (same guards → exactly the same set).
@@ -4123,10 +4135,81 @@ fn finalize_stm_pending(
                 }
             }
         }
+        if rule_id == "STM_056" {
+            add_stm056_examples(pending, &mut d);
+        }
         notice.details = Some(d.into());
         notices.push(notice);
     } else {
         notices.append(pending);
+    }
+}
+
+/// Maximum number of row examples in an STM_056 feed summary.
+const STM056_EXAMPLE_CAP: usize = 50;
+
+/// Writes up to [`STM056_EXAMPLE_CAP`] row examples into an STM_056 feed summary as
+/// `example_<i>_*` keys. Rows are taken round-robin over trips (trip_id order, then line), so
+/// every trip contributes its first failing row before any trip contributes a second one.
+/// Each example copies the pinpoint row's details except the per-summary counters.
+fn add_stm056_examples(pending: &[Notice], d: &mut std::collections::BTreeMap<String, String>) {
+    let mut rows: Vec<&Notice> = pending
+        .iter()
+        .filter(|notice| notice.entity_id.is_some() && notice.line.is_some())
+        .collect();
+    rows.sort_by(|a, b| {
+        a.entity_id
+            .cmp(&b.entity_id)
+            .then_with(|| a.line.cmp(&b.line))
+    });
+    let mut by_trip: Vec<Vec<&Notice>> = Vec::new();
+    for row in rows {
+        match by_trip.last_mut() {
+            Some(group) if group[0].entity_id == row.entity_id => group.push(row),
+            _ => by_trip.push(vec![row]),
+        }
+    }
+    let mut index = 0;
+    let mut round = 0;
+    while index < STM056_EXAMPLE_CAP {
+        let mut took_any = false;
+        for group in &by_trip {
+            let Some(row) = group.get(round) else {
+                continue;
+            };
+            took_any = true;
+            let prefix = format!("example_{index}_");
+            d.insert(
+                format!("{prefix}trip"),
+                row.entity_id.clone().unwrap_or_default(),
+            );
+            d.insert(
+                format!("{prefix}line"),
+                row.line.unwrap_or_default().to_string(),
+            );
+            if let Some(value) = row.observed_value.as_ref() {
+                d.insert(format!("{prefix}observed"), value.clone());
+            }
+            if let Some(value) = row.expected_value.as_ref() {
+                d.insert(format!("{prefix}expected"), value.clone());
+            }
+            if let Some(details) = row.details.as_ref() {
+                for (key, value) in details.iter() {
+                    if matches!(key, "affected_rows" | "example_trips" | "line") {
+                        continue;
+                    }
+                    d.insert(format!("{prefix}{key}"), value.to_string());
+                }
+            }
+            index += 1;
+            if index == STM056_EXAMPLE_CAP {
+                break;
+            }
+        }
+        if !took_any {
+            break;
+        }
+        round += 1;
     }
 }
 
@@ -5488,8 +5571,19 @@ mod tests {
         );
     }
 
+    fn stm056_columns() -> Vec<&'static str> {
+        vec![
+            "trip_id",
+            "arrival_time",
+            "departure_time",
+            "stop_id",
+            "stop_sequence",
+            "shape_dist_traveled",
+        ]
+    }
+
     #[test]
-    fn stm056_above_threshold_keeps_every_pinpoint_notice() {
+    fn stm056_above_threshold_aggregates_with_row_examples() {
         let ids: Vec<String> = (0..51).rev().map(|i| format!("T{i:02}")).collect();
         let mut rows = Vec::with_capacity(255);
         for id in &ids {
@@ -5499,44 +5593,92 @@ mod tests {
             rows.push(vec![id.as_str(), "08:15:00", "08:15:00", "S3", "3", "120"]);
             rows.push(vec![id.as_str(), "08:20:00", "08:20:00", "S4", "4", "130"]);
         }
-        let file = make_file(
-            vec![
-                "trip_id",
-                "arrival_time",
-                "departure_time",
-                "stop_id",
-                "stop_sequence",
-                "shape_dist_traveled",
-            ],
-            rows,
-        );
+        let file = make_file(stm056_columns(), rows);
         let (_, notices) = validate_stop_times(&file, None, false);
         let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
-        assert_eq!(stm056.len(), 51, "51 ihlal ayrı satır olarak korunmalı");
-        assert!(stm056.iter().all(|n| n.entity_type == EntityType::Trip));
-        assert!(stm056
-            .iter()
-            .all(|n| n.message.contains("güzergâh mesafesi artmıyor")));
-        assert!(stm056.iter().all(|n| {
-            n.details
-                .as_ref()
-                .and_then(|d| d.get("affected_rows"))
-                .is_some_and(|v| v == "1")
-        }));
-        let first = stm056
-            .iter()
-            .find(|n| n.entity_id.as_deref() == Some("T00"))
-            .expect("T00 STM_056 örneği");
-        let details = first.details.as_ref().expect("STM_056 ayrıntısı");
-        assert_eq!(details.get("prev_stop_id").map(String::as_str), Some("S1"));
-        assert_eq!(details.get("stop_id").map(String::as_str), Some("S2"));
-        assert_eq!(details.get("prev2_stop_id").map(String::as_str), Some("S0"));
-        assert_eq!(details.get("next2_stop_id").map(String::as_str), Some("S4"));
-        assert_eq!(details.get("stop_sequence").map(String::as_str), Some("2"));
         assert_eq!(
-            details.get("prev_shape_dist_traveled").map(String::as_str),
-            Some("100")
+            stm056.len(),
+            1,
+            "51 ihlal tek feed özeti olmalı: {stm056:?}"
         );
+        let summary = stm056[0];
+        assert_eq!(summary.entity_type, EntityType::Feed);
+        assert_eq!(summary.observed_value.as_deref(), Some("51"));
+        assert!(summary.message.contains("aynı trip içinde"));
+        let d = summary.details.as_ref().expect("STM_056 özeti ayrıntısı");
+        assert_eq!(d.get("affected_rows").map(String::as_str), Some("51"));
+        assert_eq!(
+            d.get("example_trips").map(String::as_str),
+            Some("T00, T01, T02, T03, T04")
+        );
+        // One example per trip, capped at 50: T00..T49, T50 is left out.
+        assert_eq!(d.get("example_0_trip").map(String::as_str), Some("T00"));
+        assert_eq!(d.get("example_49_trip").map(String::as_str), Some("T49"));
+        assert!(d.get("example_50_trip").is_none(), "en fazla 50 örnek");
+        // Each example keeps the pinpoint row context the planner card needs.
+        for (key, value) in [
+            ("example_0_line", "254"),
+            ("example_0_observed", "100"),
+            ("example_0_expected", "> 100"),
+            ("example_0_prev2_stop_id", "S0"),
+            ("example_0_prev_stop_id", "S1"),
+            ("example_0_stop_id", "S2"),
+            ("example_0_next_stop_id", "S3"),
+            ("example_0_next2_stop_id", "S4"),
+            ("example_0_stop_sequence", "2"),
+            ("example_0_prev_shape_dist_traveled", "100"),
+            ("example_0_shape_dist_traveled", "100"),
+            ("example_0_arrival", "08:10:00"),
+            ("example_0_prev2_departure", "08:00:00"),
+        ] {
+            assert_eq!(d.get(key).map(String::as_str), Some(value), "{key}");
+        }
+        assert!(d.get("example_0_affected_rows").is_none());
+        assert!(d.get("example_0_example_trips").is_none());
+    }
+
+    #[test]
+    fn stm056_examples_take_one_row_per_trip_before_a_second() {
+        // Two trips, 30 failing rows each (60 > threshold): the first round takes one row from
+        // each trip, later rounds fill up to the 50-example cap.
+        let mut rows: Vec<Vec<String>> = Vec::new();
+        for trip in ["TA", "TB"] {
+            for seq in 0..31u32 {
+                rows.push(vec![
+                    trip.to_string(),
+                    "08:00:00".to_string(),
+                    "08:00:00".to_string(),
+                    format!("S{seq}"),
+                    seq.to_string(),
+                    "100".to_string(),
+                ]);
+            }
+        }
+        let rows: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(String::as_str).collect())
+            .collect();
+        let file = make_file(stm056_columns(), rows);
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
+        assert_eq!(stm056.len(), 1);
+        let d = stm056[0].details.as_ref().expect("özet ayrıntısı");
+        assert_eq!(d.get("affected_rows").map(String::as_str), Some("60"));
+        let trip = |i: usize| d.get(&format!("example_{i}_trip")).cloned();
+        assert_eq!(trip(0).as_deref(), Some("TA"));
+        assert_eq!(trip(1).as_deref(), Some("TB"));
+        assert_eq!(trip(2).as_deref(), Some("TA"));
+        assert_eq!(trip(3).as_deref(), Some("TB"));
+        assert_eq!(
+            d.get("example_0_stop_sequence").map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(
+            d.get("example_2_stop_sequence").map(String::as_str),
+            Some("2")
+        );
+        assert!(trip(49).is_some());
+        assert!(trip(50).is_none(), "en fazla 50 örnek");
     }
 
     #[test]
