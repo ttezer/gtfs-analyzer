@@ -8295,8 +8295,16 @@
         },
         {
           "details": {
+            "distance_meters": "10839965",
             "stop_a": "S1",
-            "stop_b": "S2"
+            "stop_a_arrival": "08:00:00",
+            "stop_a_departure": "08:00:00",
+            "stop_a_sequence": "1",
+            "stop_b": "S2",
+            "stop_b_arrival": "08:10:00",
+            "stop_b_departure": "08:10:00",
+            "stop_b_sequence": "2",
+            "threshold_km": "50"
           },
           "entity_id": "T1",
           "entity_type": "Trip",

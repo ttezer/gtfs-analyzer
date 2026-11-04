@@ -6760,3 +6760,42 @@ fn same_place_stop_pair_is_one_finding_across_trips_and_directions() {
         Some("1")
     );
 }
+
+#[test]
+fn short_time_and_long_distance_segments_carry_their_stops_and_measures() {
+    // STM_025 (under 10 s) and STM_026 (over 50 km straight line) carry the segment context the
+    // planner card lists: both stops' sequences and times, the neighbours, and the measured
+    // duration or distance. One finding per trip segment, as before.
+    static STOPS_FAR: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Near1,41.0,29.0\nS2,Near2,41.0005,29.0\nS3,Far,42.0,29.0\n";
+    static TIMES_FAR: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:00:05,08:00:05,S2,2\nT1,09:30:00,09:30:00,S3,3\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS_FAR);
+    files[4] = ("stop_times.txt", TIMES_FAR);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let details = |rule: &str| {
+        vr.notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor"))
+    };
+    let d = details("STM_025");
+    let get = |k: &str| d.get(k).cloned();
+    assert_eq!(get("duration_seconds").as_deref(), Some("5"));
+    assert_eq!(get("distance_meters").as_deref(), Some("56"));
+    assert_eq!(get("stop_a_sequence").as_deref(), Some("1"));
+    assert_eq!(get("stop_b_arrival").as_deref(), Some("08:00:05"));
+    assert_eq!(get("next_stop_id").as_deref(), Some("S3"));
+
+    let d = details("STM_026");
+    let get = |k: &str| d.get(k).cloned();
+    assert_eq!(get("threshold_km").as_deref(), Some("50"));
+    assert_eq!(get("stop_a_sequence").as_deref(), Some("2"));
+    assert_eq!(get("prev_stop_id").as_deref(), Some("S1"));
+    let meters: f64 = get("distance_meters").expect("mesafe").parse().unwrap();
+    assert!((100_000.0..120_000.0).contains(&meters), "{meters}");
+}

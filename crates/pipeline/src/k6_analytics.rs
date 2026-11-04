@@ -37,6 +37,48 @@ struct ZeroTravelSegment {
     intermediate_stop_count: usize,
 }
 
+/// Planner context for a finding on the segment `stimes[i]` → `stimes[i + 1]` (STM_021/025/026):
+/// the pair's positions in the trip and times (`stop_a_sequence`, `stop_a_arrival` … — the STM_020
+/// key names) and the neighbouring rows (`prev_*` / `next_*`), so the card can list the stops.
+fn add_segment_context(
+    d: &mut BTreeMap<String, String>,
+    idx: &StopTimesIndex<'_>,
+    stimes: &[CompactStopTime],
+    i: usize,
+) {
+    let mut add_row = |prefix: &str, row: &CompactStopTime, with_id: bool| {
+        if with_id {
+            d.insert(format!("{prefix}_stop_id"), idx.stop_id_of(row).to_string());
+        }
+        let sequence_key = if with_id {
+            format!("{prefix}_stop_sequence")
+        } else {
+            format!("{prefix}_sequence")
+        };
+        if let Some(seq) = row.stop_sequence() {
+            d.insert(sequence_key, seq.to_string());
+        }
+        if let Some(t) = row.arrival_time() {
+            d.insert(format!("{prefix}_arrival"), format_hms(hms_to_secs(t)));
+        }
+        if let Some(t) = row.departure_time() {
+            d.insert(format!("{prefix}_departure"), format_hms(hms_to_secs(t)));
+        }
+    };
+    if let Some(a) = stimes.get(i) {
+        add_row("stop_a", a, false);
+    }
+    if let Some(b) = stimes.get(i + 1) {
+        add_row("stop_b", b, false);
+    }
+    if let Some(prev) = i.checked_sub(1).and_then(|j| stimes.get(j)) {
+        add_row("prev", prev, true);
+    }
+    if let Some(next) = stimes.get(i + 2) {
+        add_row("next", next, true);
+    }
+}
+
 /// A conservative identity for the URL comparison rules STP_034/035.
 ///
 /// URL normalization here is intentionally limited to syntax that cannot change
@@ -2288,40 +2330,7 @@ fn check_speed_and_duration<'a>(
                         let mut d = std::collections::BTreeMap::new();
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                         d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
-                        // Planner context: the two stops' positions in the trip and their
-                        // neighbours, so the card can list the stops with their coordinates.
-                        // Same key names as STM_020 (`stop_a_sequence`, `stop_a_arrival` …) for the
-                        // pair, `prev_*` / `next_*` for the neighbours.
-                        let mut add_row = |prefix: &str, row: &CompactStopTime, with_id: bool| {
-                            if with_id {
-                                d.insert(
-                                    format!("{prefix}_stop_id"),
-                                    idx.stop_id_of(row).to_string(),
-                                );
-                            }
-                            let sequence_key = if with_id {
-                                format!("{prefix}_stop_sequence")
-                            } else {
-                                format!("{prefix}_sequence")
-                            };
-                            if let Some(seq) = row.stop_sequence() {
-                                d.insert(sequence_key, seq.to_string());
-                            }
-                            if let Some(t) = row.arrival_time() {
-                                d.insert(format!("{prefix}_arrival"), format_hms(hms_to_secs(t)));
-                            }
-                            if let Some(t) = row.departure_time() {
-                                d.insert(format!("{prefix}_departure"), format_hms(hms_to_secs(t)));
-                            }
-                        };
-                        add_row("stop_a", a, false);
-                        add_row("stop_b", b, false);
-                        if let Some(prev) = i.checked_sub(1).and_then(|j| stimes.get(j)) {
-                            add_row("prev", prev, true);
-                        }
-                        if let Some(next) = stimes.get(i + 2) {
-                            add_row("next", next, true);
-                        }
+                        add_segment_context(&mut d, idx, stimes, i);
                         n.details = Some(d.into());
                         notices.push(n);
                     }
@@ -2342,6 +2351,12 @@ fn check_speed_and_duration<'a>(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                     d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                    d.insert("duration_seconds".to_string(), dt_sec.to_string());
+                    d.insert(
+                        "distance_meters".to_string(),
+                        format!("{:.0}", haver_km * 1000.0),
+                    );
+                    add_segment_context(&mut d, idx, stimes, i);
                     n025.details = Some(d.into());
                     notices.push(n025);
                 }
@@ -2367,6 +2382,14 @@ fn check_speed_and_duration<'a>(
                     let mut d = std::collections::BTreeMap::new();
                     d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                     d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                    // The decision uses the straight-line distance; carry it (observed_value
+                    // keeps the projected distance it always had).
+                    d.insert(
+                        "distance_meters".to_string(),
+                        format!("{:.0}", haver_km * 1000.0),
+                    );
+                    d.insert("threshold_km".to_string(), format!("{stm026_threshold:.0}"));
+                    add_segment_context(&mut d, idx, stimes, i);
                     n026.details = Some(d.into());
                     notices.push(n026);
                 }

@@ -373,6 +373,29 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${key}.action`),
       };
     }
+    case 'STM_025':
+    case 'STM_026': {
+      const d = n.details ?? {};
+      if (!d.stop_a || !d.stop_b || !d.distance_meters) return null;
+      const name = (id: string) => result.name_index.stops?.[id] || id;
+      const common = {
+        from: name(d.stop_a), to: name(d.stop_b),
+        from_sequence: d.stop_a_sequence || '—', to_sequence: d.stop_b_sequence || '—',
+      };
+      const what = g.ruleId === 'STM_025'
+        ? t('producer.card.STM_025.what_detail', { ...common, duration: d.duration_seconds ?? '—', distance: localizedNumber(d.distance_meters) })
+        : t('producer.card.STM_026.what_detail', {
+          ...common,
+          distance: localizedNumber(String(Number(d.distance_meters) / 1000)),
+          threshold: d.threshold_km ?? '—',
+        });
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        context: tripContextText(tripContext(n, result)),
+        what,
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
     case 'STM_024': {
       const d = n.details ?? {};
       if (!d.stop_times_max || !d.shape_max) return null;
@@ -699,6 +722,34 @@ function plannerServiceText(serviceId: string | null | undefined, result: Valida
   return serviceId && text === serviceId ? t('producer.days.check') : text;
 }
 
+/** The segment rules (STM_021/025/026): previous stop, the two stops of the segment (marked) and
+ *  the next stop, with sequence, times, coordinates and straight-line distance from the row above. */
+type SegmentStopRow = { stop: string; sequence: string; arrival?: string; departure?: string; lat: string; lon: string; distance: string; bad: boolean };
+function segmentStopRows(d: Record<string, string>, result: ValidationResult): SegmentStopRow[] {
+  const coords = result.name_index.stop_coords ?? {};
+  const name = (id: string) => result.name_index.stops?.[id] || id;
+  const entries: Array<[string | undefined, string | undefined, string | undefined, string | undefined, boolean]> = [
+    [d.prev_stop_id, d.prev_stop_sequence, d.prev_arrival, d.prev_departure, false],
+    [d.stop_a, d.stop_a_sequence, d.stop_a_arrival, d.stop_a_departure, true],
+    [d.stop_b, d.stop_b_sequence, d.stop_b_arrival, d.stop_b_departure, true],
+    [d.next_stop_id, d.next_stop_sequence, d.next_arrival, d.next_departure, false],
+  ];
+  let previous: [number, number] | undefined;
+  return entries.filter(([id]) => id).map(([id, sequence, arrival, departure, bad]) => {
+    const p = coords[id!];
+    const here: [number, number] | undefined = p ? [p[0], p[1]] : undefined;
+    const distance = here && previous ? localizedNumber(String(Math.round(metersBetween(previous, here)))) : '—';
+    previous = here;
+    return { stop: name(id!), sequence: sequence || '—', arrival, departure, lat: coordText(here?.[0]), lon: coordText(here?.[1]), distance, bad };
+  });
+}
+
+function segmentCoordTable(rows: SegmentStopRow[], cls: string): string {
+  return `<table class="planner-times ${cls}"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.latitude')}</th><th>${t('producer.times.longitude')}</th><th>${t('producer.times.distance_from_previous')}</th></tr></thead><tbody>${
+    rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}><td>${escHtml(r.stop)}</td><td>${escHtml(r.sequence)}</td><td>${escHtml(r.lat)}</td><td>${escHtml(r.lon)}</td><td>${escHtml(r.distance)}</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
 /** Saat kurallarında seçili seferin ilgili durakları sırayla, saatleriyle; hatalı satır işaretli. */
 function timeStrip(n: Notice, result: ValidationResult): string {
   const d = n.details;
@@ -874,25 +925,17 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')
     }</tr></tbody></table>`;
   }
+  if ((n.rule_id === 'STM_025' || n.rule_id === 'STM_026') && d.stop_a && d.stop_b) {
+    const rows = segmentStopRows(d, result);
+    if (n.rule_id === 'STM_025') {
+      return `<table class="planner-times planner-stm025-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.distance_from_previous')}</th></tr></thead><tbody>${
+        rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}><td>${escHtml(r.stop)}</td><td>${escHtml(r.sequence)}</td><td>${escHtml(plannerTime(r.arrival) || '—')}</td><td>${escHtml(plannerTime(r.departure) || '—')}</td><td>${escHtml(r.distance)}</td></tr>`).join('')
+      }</tbody></table>`;
+    }
+    return segmentCoordTable(rows, 'planner-stm026-times');
+  }
   if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) {
-    const coords = result.name_index.stop_coords ?? {};
-    const entries: Array<[string | undefined, string | undefined, boolean]> = [
-      [d.prev_stop_id, d.prev_stop_sequence, false],
-      [d.stop_a, d.stop_a_sequence, true],
-      [d.stop_b, d.stop_b_sequence, true],
-      [d.next_stop_id, d.next_stop_sequence, false],
-    ];
-    let previous: [number, number] | undefined;
-    const rows = entries.filter(([id]) => id).map(([id, sequence, bad]) => {
-      const p = coords[id!];
-      const here: [number, number] | undefined = p ? [p[0], p[1]] : undefined;
-      const distance = here && previous ? localizedNumber(String(Math.round(metersBetween(previous, here)))) : '—';
-      previous = here;
-      return [name(id), sequence || '—', coordText(here?.[0]), coordText(here?.[1]), distance, bad] as const;
-    });
-    const stopTable = `<table class="planner-times planner-stm021-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.latitude')}</th><th>${t('producer.times.longitude')}</th><th>${t('producer.times.distance_from_previous')}</th></tr></thead><tbody>${
-      rows.map(([stop, sequence, lat, lon, distance, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(lat)}</td><td>${escHtml(lon)}</td><td>${escHtml(distance)}</td></tr>`).join('')
-    }</tbody></table>`;
+    const stopTable = segmentCoordTable(segmentStopRows(d, result), 'planner-stm021-times');
     // Every trip that runs between the two stops. They often differ only in their calendar's
     // validity range (one trip copy per month), so the range is a column of its own.
     const ni = result.name_index;
@@ -1006,6 +1049,12 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   }
   if (n.rule_id === 'STM_022' && d.stop_id) {
     return t('producer.times.spot_timepoint', { stop: name(d.stop_id), sequence: d.stop_sequence || '—', value: n.observed_value ?? '—' });
+  }
+  if (n.rule_id === 'STM_025' && d.stop_a && d.stop_b && d.duration_seconds) {
+    return `${stopPair(d.stop_a, d.stop_b, result)} · ${t('producer.times.seconds', { n: d.duration_seconds })}`;
+  }
+  if (n.rule_id === 'STM_026' && d.stop_a && d.stop_b && d.distance_meters) {
+    return `${stopPair(d.stop_a, d.stop_b, result)} · ${localizedNumber(String(Number(d.distance_meters) / 1000))} km`;
   }
   if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) return `${stopPair(d.stop_a, d.stop_b, result)} · 0 m`;
   if (n.rule_id === 'STM_020' && d.stop_a && d.stop_b) {

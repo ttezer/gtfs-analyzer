@@ -362,6 +362,52 @@ describe('Üretici kartı görünümü', () => {
     expect(html).toContain('29.03.2026 – 31.03.2026');
   });
 
+  it('STM_025 ve STM_026 kartları bölümün duraklarını sıra, saat, koordinat ve ölçülen değerle gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S0: 'Başlangıç', S1: 'Çarşı', S2: 'Çarşı Karşı', S3: 'Uzak Kent' },
+      routes: { R1: '10' },
+      trips: { T1: 'Kent yönü' },
+      trip_routes: { T1: 'R1' },
+      trip_first_dep: { T1: '07:55' },
+      trip_stops: { T1: ['S0', 'S1', 'S2', 'S3'] },
+      stop_coords: { S0: [40.99, 29.0], S1: [41.0, 29.0], S2: [41.0005, 29.0], S3: [42.0, 29.0] },
+    };
+    const short = notice('a', 'STM_025', 'INFO', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '5s', expected_value: 'inceleyin',
+      details: {
+        stop_a: 'S1', stop_b: 'S2', duration_seconds: '5', distance_meters: '56',
+        stop_a_sequence: '2', stop_a_arrival: '08:00:00', stop_a_departure: '08:00:00',
+        stop_b_sequence: '3', stop_b_arrival: '08:00:05', stop_b_departure: '08:00:05',
+        prev_stop_id: 'S0', prev_stop_sequence: '1', next_stop_id: 'S3', next_stop_sequence: '4',
+      },
+    });
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, result([short], [], [['STM_025', 1, 1]], true, ni));
+    let html = root.innerHTML;
+    expect(html).toContain('Çarşı (durak sırası 2) → Çarşı Karşı (durak sırası 3) arası planlı süre 5 sn; iki durak kuş uçuşu 56 m arayla');
+    // Seconds stay visible: a 5-second gap is the finding.
+    expect(html).toContain('<tr class="bad"><td>Çarşı Karşı</td><td>3</td><td>08:00:05</td><td>08:00:05</td><td>56</td></tr>');
+    expect(html).toContain('<td>Başlangıç</td><td>1</td>');
+    expect(html).toContain('Çarşı → Çarşı Karşı · 5 sn');
+
+    const long = notice('b', 'STM_026', 'INFO', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '111.4 km', expected_value: '<= 50 km',
+      details: {
+        stop_a: 'S2', stop_b: 'S3', distance_meters: '111139', threshold_km: '50',
+        stop_a_sequence: '3', stop_b_sequence: '4', prev_stop_id: 'S1', prev_stop_sequence: '2',
+      },
+    });
+    renderProducer(root, result([long], [], [['STM_026', 1, 1]], true, ni));
+    html = root.innerHTML;
+    expect(html).toContain('Çarşı Karşı (durak sırası 3) ile hemen ardından gelen Uzak Kent (durak sırası 4) arası kuş uçuşu 111,1 km; bu hat türü için eşik 50 km');
+    expect(html).toContain('<th>Enlem</th>');
+    expect(html).toContain('<tr class="bad"><td>Uzak Kent</td><td>4</td><td>42</td><td>29</td>');
+    expect(html).toContain('Çarşı Karşı → Uzak Kent · 111,1 km');
+    const red = plannerMap(long, result([long], [], [['STM_026', 1, 1]], true, ni)).opts?.pins.filter(pin => pin.primary) ?? [];
+    expect(red).toHaveLength(2);
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,
