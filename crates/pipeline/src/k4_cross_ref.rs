@@ -7520,7 +7520,18 @@ fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr:
         return;
     }
 
+    // One entry per shape whose stop_times / shapes.txt distance ratio is abnormal; the first trip
+    // seen on that shape represents it.
+    struct Flag<'a> {
+        trip_id: &'a str,
+        shape_id: &'a str,
+        stm_max: f64,
+        shape_max: f64,
+        last_stop_id: String,
+        last_stop_sequence: Option<u32>,
+    }
     let mut flagged_shapes: HashSet<&str> = HashSet::new();
+    let mut flags: Vec<Flag> = Vec::new();
 
     for rec in &records.trips {
         if rec.trip_id.is_empty() {
@@ -7538,17 +7549,16 @@ fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr:
             continue;
         }
 
-        let stm_max = records
-            .stop_times_index
-            .sorted_stops(&rec.trip_id)
-            .map(|stops| {
-                stops
-                    .iter()
-                    .filter_map(|s| s.shape_dist_traveled())
-                    .fold(f64::NEG_INFINITY, f64::max)
-            })
-            .unwrap_or(f64::NEG_INFINITY);
-
+        let stops = records.stop_times_index.sorted_stops(&rec.trip_id);
+        let last = stops.and_then(|stops| {
+            stops
+                .iter()
+                .filter_map(|s| s.shape_dist_traveled().map(|d| (d, s)))
+                .max_by(|a, b| a.0.total_cmp(&b.0))
+        });
+        let Some((stm_max, last_stop)) = last else {
+            continue;
+        };
         if stm_max <= 0.0 || stm_max.is_infinite() {
             continue;
         }
@@ -7557,25 +7567,138 @@ fn check_stm_shape_dist(records: &EntityRecords, notices: &mut Vec<Notice>, ctr:
         // Possible unit mismatches: feet/meters ≈ 3.28×, meters/km ≈ 1,000×, km/meters ≈ 0.001×.
         if !(0.4..=2.5).contains(&ratio) {
             flagged_shapes.insert(shape_id);
-            notices.push(notice(
-                ctr,
-                "STM_024",
-                EntityType::Trip,
-                Some(rec.trip_id.to_string()),
-                Some(rec.trip_id.to_string()),
-                "stop_times.txt",
-                None,
-                Some("shape_dist_traveled"),
-                Some(format!("{stm_max:.2}")),
-                Some(format!("{shape_max:.2}")),
-                format!(
-                    "'{}' seferinin stop_times.txt'teki shape_dist_traveled (max {stm_max:.2}) ile shape '{shape_id}' toplam mesafesi ({shape_max:.2}) arasındaki oran {ratio:.2}× — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.",
-                    rec.trip_id
-                ),
-                "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.",
-            ));
+            flags.push(Flag {
+                trip_id: rec.trip_id.as_str(),
+                shape_id,
+                stm_max,
+                shape_max,
+                last_stop_id: records.stop_times_index.stop_id_of(last_stop).to_string(),
+                last_stop_sequence: last_stop.stop_sequence(),
+            });
         }
     }
+    if flags.is_empty() {
+        return;
+    }
+
+    // The referee: the drawn length of each flagged shape in metres. Whichever distance column is
+    // close to it (or to it in km / feet / miles) shows which file uses the other unit.
+    let mut points: HashMap<&str, Vec<(u32, f64, f64)>> = HashMap::new();
+    for sp in &records.shapes {
+        let id = records.shape_interns.id(sp);
+        if !flagged_shapes.contains(id) {
+            continue;
+        }
+        if let (Some(seq), Some(lat), Some(lon)) =
+            (sp.shape_pt_sequence(), sp.shape_pt_lat(), sp.shape_pt_lon())
+        {
+            points.entry(id).or_default().push((seq, lat, lon));
+        }
+    }
+    let shape_length_m = |shape_id: &str| -> Option<f64> {
+        let mut pts = points.get(shape_id)?.clone();
+        pts.sort_by_key(|p| p.0);
+        let km: f64 = pts
+            .windows(2)
+            .map(|w| crate::k5_derived::haversine_km(w[0].1, w[0].2, w[1].1, w[1].2))
+            .sum();
+        (km > 0.0).then_some(km * 1000.0)
+    };
+    let affected_trips = records
+        .trips
+        .iter()
+        .filter(|t| {
+            ti_stm
+                .shape_id(t)
+                .is_some_and(|s| flagged_shapes.contains(s))
+        })
+        .count();
+    let flag_details = |flag: &Flag, prefix: &str, d: &mut BTreeMap<String, String>| {
+        d.insert(format!("{prefix}shape_id"), flag.shape_id.to_string());
+        d.insert(
+            format!("{prefix}stop_times_max"),
+            format!("{:.2}", flag.stm_max),
+        );
+        d.insert(
+            format!("{prefix}shape_max"),
+            format!("{:.2}", flag.shape_max),
+        );
+        d.insert(
+            format!("{prefix}ratio"),
+            format!("{}", flag.stm_max / flag.shape_max),
+        );
+        if let Some(length) = shape_length_m(flag.shape_id) {
+            d.insert(format!("{prefix}shape_length_m"), format!("{length:.0}"));
+        }
+        if !flag.last_stop_id.is_empty() {
+            d.insert(format!("{prefix}stop_id"), flag.last_stop_id.clone());
+        }
+        if let Some(sequence) = flag.last_stop_sequence {
+            d.insert(format!("{prefix}stop_sequence"), sequence.to_string());
+        }
+    };
+
+    // One flagged shape: a trip finding, as before. Several: a unit mismatch is usually one export
+    // setting, so one feed summary with up to STM024_EXAMPLE_CAP shape examples (STM_017 pattern).
+    // Without the summary, Row-level dedup (file + line, and there is no line here) kept only one
+    // of several trip findings anyway.
+    const STM024_EXAMPLE_CAP: usize = 50;
+    if let [flag] = flags.as_slice() {
+        let ratio = flag.stm_max / flag.shape_max;
+        let mut n = notice(
+            ctr,
+            "STM_024",
+            EntityType::Trip,
+            Some(flag.trip_id.to_string()),
+            Some(flag.trip_id.to_string()),
+            "stop_times.txt",
+            None,
+            Some("shape_dist_traveled"),
+            Some(format!("{:.2}", flag.stm_max)),
+            Some(format!("{:.2}", flag.shape_max)),
+            format!(
+                "'{}' seferinin stop_times.txt'teki shape_dist_traveled (max {:.2}) ile shape '{}' toplam mesafesi ({:.2}) arasındaki oran {ratio:.2}× — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.",
+                flag.trip_id, flag.stm_max, flag.shape_id, flag.shape_max
+            ),
+            "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.",
+        );
+        let mut d = BTreeMap::new();
+        flag_details(flag, "", &mut d);
+        d.insert("affected_trips".to_string(), affected_trips.to_string());
+        n.details = Some(d.into());
+        notices.push(n);
+        return;
+    }
+    flags.sort_by(|a, b| a.shape_id.cmp(b.shape_id));
+    let mut n = notice(
+        ctr,
+        "STM_024",
+        EntityType::Feed,
+        None,
+        None,
+        "stop_times.txt",
+        None,
+        Some("shape_dist_traveled"),
+        Some(flags.len().to_string()),
+        None,
+        format!(
+            "{} shape'te stop_times.txt ile shapes.txt'teki shape_dist_traveled oranı anormal ({} sefer) — birim uyumsuzluğu (metre/ayak/km karışımı) olabilir.",
+            flags.len(),
+            affected_trips
+        ),
+        "stop_times.txt ve shapes.txt'teki shape_dist_traveled değerlerinin aynı birimi (metre, ayak veya kilometre) kullandığını doğrulayın.",
+    );
+    let mut d = BTreeMap::new();
+    d.insert("message_variant".to_string(), "feed_summary".to_string());
+    d.insert("affected_shapes".to_string(), flags.len().to_string());
+    d.insert("affected_trips".to_string(), affected_trips.to_string());
+    for (i, flag) in flags.iter().take(STM024_EXAMPLE_CAP).enumerate() {
+        let prefix = format!("example_{i}_");
+        d.insert(format!("{prefix}trip"), flag.trip_id.to_string());
+        flag_details(flag, &prefix, &mut d);
+    }
+    n.details = Some(d.into());
+    notices.push(n);
 }
 
 fn station_context<'a>(

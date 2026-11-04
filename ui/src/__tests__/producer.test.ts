@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } from '../pages/producer-helpers';
 import { plannerMap, renderProducer } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
+import { tMsgForLocale } from '../i18n';
 
 vi.mock('../state', () => ({ setPage: vi.fn(), getState: () => ({ agencyFilter: [] }), setAgencyFilter: vi.fn() }));
 vi.mock('../hidden-rules', () => ({
@@ -267,6 +268,58 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).toContain('07:58:30');
     expect(root.innerHTML).toContain('08:04:30');
     expect(root.innerHTML).toContain('08:09:30');
+  });
+
+  it('STM_024 kartı iki mesafeyi haritadaki uzunlukla karşılaştırıp birimi farklı olan tarafı işaretler', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Garaj', S2: 'Terminal' },
+      routes: { R1: '10' },
+      trips: { T1: 'Terminal yönü', T2: 'Garaj yönü' },
+      trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_first_dep: { T1: '08:00', T2: '09:00' },
+      trip_stops: { T1: ['S1', 'S2'], T2: ['S2', 'S1'] },
+      stop_coords: { S1: [41.0, 29.0], S2: [41.1, 29.1] },
+    };
+    const trip = notice('a', 'STM_024', 'INFO', {
+      entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt', field: 'shape_dist_traveled',
+      observed_value: '13.90', expected_value: '13900.00',
+      details: {
+        shape_id: 'SH1', stop_times_max: '13.90', shape_max: '13900.00', ratio: '0.001',
+        shape_length_m: '13950', stop_id: 'S2', stop_sequence: '2', affected_trips: '1',
+      },
+    });
+    const r = result([trip], [], [['STM_024', 1, 1]], true, ni);
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, r);
+    const html = root.innerHTML;
+    expect(html).toContain('Bu seferin güzergâh çizgisi haritada yaklaşık 14 km');
+    expect(html).toContain('(metreyle uyumlu)');
+    expect(html).toContain('(kilometreyle uyumlu)');
+    expect(html).toContain('<th>Haritadaki uzunluğa oranı</th>');
+    // The stop-times row is the odd one out: it matches kilometres while the map length is metres.
+    expect(html).toContain('<tr class="bad"><td>Durak saatleri</td><td>13,9</td><td>0,000996</td><td>kilometreyle uyumlu</td></tr>');
+    expect(html).toContain('<tr><td>Güzergâh çizgisi</td>');
+    expect(html).toContain('Terminal · durak saatlerinde 13,9, çizgide 13.900');
+    const red = plannerMap(trip, r).opts?.pins.filter(pin => pin.primary) ?? [];
+    expect(red.map(pin => pin.label)).toEqual([expect.stringContaining('Terminal')]);
+
+    const summary = notice('b', 'STM_024', 'INFO', {
+      entity_type: 'Feed', file: 'stop_times.txt', field: 'shape_dist_traveled', observed_value: '2',
+      details: {
+        message_variant: 'feed_summary', affected_shapes: '2', affected_trips: '3',
+        example_0_trip: 'T1', example_0_shape_id: 'SH1', example_0_stop_times_max: '13.90', example_0_shape_max: '13900.00', example_0_shape_length_m: '13950', example_0_stop_id: 'S2', example_0_stop_sequence: '2',
+        example_1_trip: 'T2', example_1_shape_id: 'SH2', example_1_stop_times_max: '13.90', example_1_shape_max: '13900.00', example_1_shape_length_m: '13950', example_1_stop_id: 'S1', example_1_stop_sequence: '2',
+      },
+    });
+    expect(tMsgForLocale('en', summary)).toContain('2 shapes have an abnormal shape_dist_traveled ratio');
+    expect(tMsgForLocale('en', summary)).toContain('(3 trips)');
+    const rs = result([summary], [], [['STM_024', 1, 2]], true, ni);
+    const root2 = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root2, rs);
+    expect(root2.innerHTML).toContain('Aynı fark 2 güzergâh çizgisinde (3 sefer) var');
+    expect(root2.innerHTML).toContain('Garaj · durak saatlerinde 13,9, çizgide 13.900');
+    expect(root2.innerHTML).toContain('Terminal · durak saatlerinde 13,9, çizgide 13.900');
   });
 
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {

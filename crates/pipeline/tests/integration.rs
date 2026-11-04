@@ -6606,3 +6606,92 @@ fn invalid_timepoint_summary_caps_examples_at_fifty() {
     assert!(d.get("example_49_trip").is_some());
     assert!(d.get("example_50_trip").is_none(), "en fazla 50 örnek");
 }
+
+#[test]
+fn unit_mismatch_on_one_shape_is_a_trip_finding_with_the_drawn_length() {
+    // shapes.txt in metres, stop_times in kilometres: ratio 0.001. The finding carries the drawn
+    // shape length in metres so the planner card can show which side uses the other unit.
+    static TRIPS1: &[u8] = b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\n";
+    static SHAPES1: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+          SH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,13900\n";
+    static TIMES1: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+          T1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,13.9\n";
+    let mut files = base_files();
+    files[3] = ("trips.txt", TRIPS1);
+    files[4] = ("stop_times.txt", TIMES1);
+    files.push(("shapes.txt", SHAPES1));
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_024")
+        .collect();
+    assert_eq!(found.len(), 1);
+    let n = found[0];
+    assert_eq!(n.entity_type, gtfs_core::EntityType::Trip);
+    assert_eq!(n.entity_id.as_deref(), Some("T1"));
+    assert_eq!(n.observed_value.as_deref(), Some("13.90"));
+    assert_eq!(n.expected_value.as_deref(), Some("13900.00"));
+    let d = n.details.as_ref().expect("STM_024 ayrıntısı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("shape_id"), Some("SH1"));
+    assert_eq!(get("stop_times_max"), Some("13.90"));
+    assert_eq!(get("shape_max"), Some("13900.00"));
+    assert_eq!(get("stop_id"), Some("S2"));
+    assert_eq!(get("stop_sequence"), Some("2"));
+    assert_eq!(get("affected_trips"), Some("1"));
+    let length: f64 = get("shape_length_m")
+        .expect("çizim uzunluğu")
+        .parse()
+        .unwrap();
+    assert!((13_000.0..15_000.0).contains(&length), "{length}");
+}
+
+#[test]
+fn unit_mismatch_on_several_shapes_is_one_feed_summary_with_shape_examples() {
+    // Two flagged shapes used by three trips. Before, Row-level dedup (no line) silently kept one
+    // trip finding; now the feed gets one summary that names every shape.
+    static TRIPS3: &[u8] =
+        b"route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH1\nR1,SVC1,T2,SH2\nR1,SVC1,T3,SH1\n";
+    static SHAPES2: &[u8] =
+        b"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n\
+          SH1,41.0,29.0,1,0\nSH1,41.1,29.1,2,13900\n\
+          SH2,41.1,29.1,1,0\nSH2,41.0,29.0,2,13900\n";
+    static TIMES3: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+          T1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,13.9\n\
+          T2,09:00:00,09:00:00,S2,1,0\nT2,09:10:00,09:10:00,S1,2,13.9\n\
+          T3,10:00:00,10:00:00,S1,1,0\nT3,10:10:00,10:10:00,S2,2,13.9\n";
+    let mut files = base_files();
+    files[3] = ("trips.txt", TRIPS3);
+    files[4] = ("stop_times.txt", TIMES3);
+    files.push(("shapes.txt", SHAPES2));
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_024")
+        .collect();
+    assert_eq!(found.len(), 1, "birden çok shape tek feed özeti olmalı");
+    let n = found[0];
+    assert_eq!(n.entity_type, gtfs_core::EntityType::Feed);
+    assert_eq!(n.observed_value.as_deref(), Some("2"));
+    let d = n.details.as_ref().expect("özet ayrıntısı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("message_variant"), Some("feed_summary"));
+    assert_eq!(get("affected_shapes"), Some("2"));
+    assert_eq!(get("affected_trips"), Some("3"));
+    assert_eq!(get("example_0_shape_id"), Some("SH1"));
+    assert_eq!(get("example_0_trip"), Some("T1"));
+    assert_eq!(get("example_1_shape_id"), Some("SH2"));
+    assert_eq!(get("example_1_trip"), Some("T2"));
+    assert_eq!(get("example_1_stop_id"), Some("S1"));
+    assert!(get("example_1_shape_length_m").is_some());
+    assert_eq!(get("example_2_trip"), None);
+}

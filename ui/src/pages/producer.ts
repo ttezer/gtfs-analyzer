@@ -92,6 +92,23 @@ function coordText(value: number | undefined): string {
   return value === undefined || !Number.isFinite(value) ? '—' : String(Number(value.toFixed(6)));
 }
 
+/** STM_024: the distance unit a cumulative value matches when compared with the drawn shape
+ *  length in metres. Only a value within ×1.25 of one unit counts (stops may end a little before
+ *  the shape does); km and miles are 1.6× apart, so the bands never overlap. */
+const DISTANCE_UNITS: ReadonlyArray<[string, number]> = [['m', 1], ['km', 0.001], ['ft', 3.28084], ['mi', 0.000621371]];
+function distanceUnit(value: string | undefined, lengthMeters: string | undefined): string | null {
+  const v = Number(value);
+  const length = Number(lengthMeters);
+  if (!(v > 0) || !(length > 0)) return null;
+  const ratio = v / length;
+  let best: [string, number] | null = null;
+  for (const [unit, factor] of DISTANCE_UNITS) {
+    const gap = Math.abs(Math.log(ratio / factor));
+    if (!best || gap < best[1]) best = [unit, gap];
+  }
+  return best && best[1] <= Math.log(1.25) ? best[0] : null;
+}
+
 function stm012Observed(n: Notice): string | undefined {
   const details = n.details;
   const distance = details?.distance_km;
@@ -354,6 +371,33 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
             stop: name(d.stop_id), value: visibleValue(n.observed_value),
           }),
         action: t(`producer.card.${key}.action`),
+      };
+    }
+    case 'STM_024': {
+      const d = n.details ?? {};
+      if (!d.stop_times_max || !d.shape_max) return null;
+      const unitText = (value?: string) => {
+        const unit = distanceUnit(value, d.shape_length_m);
+        return unit ? t(`producer.card.STM_024.unit_${unit}`) : t('producer.card.STM_024.unit_unknown');
+      };
+      const what = d.shape_length_m
+        ? t('producer.card.STM_024.what_detail', {
+          length: localizedNumber(String(Number(d.shape_length_m) / 1000)),
+          shape_max: localizedNumber(d.shape_max), shape_unit: unitText(d.shape_max),
+          stop_max: localizedNumber(d.stop_times_max), stop_unit: unitText(d.stop_times_max),
+        })
+        : t('producer.card.STM_024.what_no_length', {
+          shape_max: localizedNumber(d.shape_max), stop_max: localizedNumber(d.stop_times_max),
+        });
+      const shapes = Number(d.affected_shapes);
+      const feed = shapes > 1
+        ? ` ${t('producer.card.STM_024.what_feed', { shapes: localizedNumber(String(shapes)), trips: localizedNumber(d.affected_trips ?? '—') })}`
+        : '';
+      return {
+        title: t('producer.card.STM_024.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: what + feed,
+        action: t('producer.card.STM_024.action_detail'),
       };
     }
     case 'STM_022': {
@@ -786,6 +830,27 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       rows.map(([stop, sequence, arrival, departure, setting, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td><td>${escHtml(setting)}</td></tr>`).join('')
     }</tbody></table>`;
   }
+  if (n.rule_id === 'STM_024' && d.stop_times_max && d.shape_max) {
+    const length = d.shape_length_m;
+    const unitCell = (value?: string) => {
+      const unit = distanceUnit(value, length);
+      return unit ? t(`producer.card.STM_024.unit_${unit}`) : '—';
+    };
+    // Three significant digits: a km/m mismatch is a ratio like 0.000996, which one decimal hides.
+    const ratioCell = (value?: string) => (length && Number(length) > 0 && value
+      ? new Intl.NumberFormat(getLocale(), { maximumSignificantDigits: 3 }).format(Number(value) / Number(length))
+      : '—');
+    const rows: Array<[string, string, string, string, boolean]> = [
+      [t('producer.times.stm024_shape'), localizedNumber(d.shape_max), ratioCell(d.shape_max), unitCell(d.shape_max), false],
+      [t('producer.times.stm024_stop_times'), localizedNumber(d.stop_times_max), ratioCell(d.stop_times_max), unitCell(d.stop_times_max), false],
+      ...(length ? [[t('producer.times.stm024_drawn'), localizedNumber(length), '1', t('producer.card.STM_024.unit_m'), false] as [string, string, string, string, boolean]] : []),
+    ];
+    const odd = rows.slice(0, 2).filter(([, , , unit]) => unit !== t('producer.card.STM_024.unit_m'));
+    if (odd.length === 1) odd[0][4] = true;
+    return `<table class="planner-times planner-stm024-times"><thead><tr><th>${t('producer.times.stm024_source')}</th><th>${t('producer.times.stm024_last')}</th><th>${t('producer.times.stm024_ratio')}</th><th>${t('producer.times.stm024_unit')}</th></tr></thead><tbody>${
+      rows.map(([source, value, ratio, unit, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(source)}</td><td>${escHtml(value)}</td><td>${escHtml(ratio)}</td><td>${escHtml(unit)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   if (n.rule_id === 'STM_022' && d.stop_id) {
     const cells = [
       name(d.stop_id), d.stop_sequence || '—',
@@ -903,6 +968,11 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   }
   if ((n.rule_id === 'STM_018' || n.rule_id === 'STM_019') && d.stop_id) {
     return d.next_stop_id ? `${name(d.stop_id)} → ${name(d.next_stop_id)}` : name(d.stop_id);
+  }
+  if (n.rule_id === 'STM_024' && d.stop_times_max && d.shape_max) {
+    return t('producer.times.spot_stm024', {
+      stop: name(d.stop_id), stop_max: localizedNumber(d.stop_times_max), shape_max: localizedNumber(d.shape_max),
+    });
   }
   if (n.rule_id === 'STM_022' && d.stop_id) {
     return t('producer.times.spot_timepoint', { stop: name(d.stop_id), sequence: d.stop_sequence || '—', value: n.observed_value ?? '—' });
@@ -1887,8 +1957,8 @@ function exampleRows(n: Notice): Notice[] | null {
   for (let i = 0; d[`example_${i}_trip`]; i++) {
     const at = (key: string) => d[`example_${i}_${key}`];
     const details: Record<string, string> = { ...summary };
-    if (n.rule_id === 'STM_056') {
-      // STM_056 examples carry the pinpoint row's details verbatim (prev2…next2 stops, times,
+    if (n.rule_id === 'STM_056' || n.rule_id === 'STM_024') {
+      // STM_056 / STM_024 examples carry the pinpoint row's details verbatim (prev2…next2 stops, times,
       // distances); copy them as-is so the card, time table and map read the same keys.
       const prefix = `example_${i}_`;
       for (const [key, value] of Object.entries(d)) {
