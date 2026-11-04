@@ -107,6 +107,21 @@ describe('planner card parity', () => {
     expect(minus(other, e)).toEqual([]);
   });
 
+  // The planner page falls back to English when a key is missing, so a fr/ja planner would
+  // silently see English text. Every `producer.*` key must exist in all four page languages.
+  it.each([
+    ['tr', tr.ui],
+    ['ja', ja.ui],
+    ['fr', fr.ui],
+  ] as const)('%s planlamacı sayfası anahtarları (producer.*) en ile birebir aynı', (_lang, ui) => {
+    const producerKeys = (o: Record<string, string>): Set<string> =>
+      new Set(Object.keys(o).filter((key) => key.startsWith('producer.')));
+    const e = producerKeys(en.ui);
+    const other = producerKeys(ui);
+    expect(minus(e, other)).toEqual([]);
+    expect(minus(other, e)).toEqual([]);
+  });
+
   it('es yalnız kart anahtarı taşır', () => {
     expect(Object.keys(es.ui).filter((key) => !CARD_KEY.test(key))).toEqual([]);
   });

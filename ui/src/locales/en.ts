@@ -1438,7 +1438,7 @@ const en: LocaleShape = {
     'producer.card.STM_056.what': "The distance along the shape does not increase along the trip’s stops.",
     'producer.card.STM_056.action': "Check the trip’s stop and shape distance information.",
     'producer.card.STM_056.what_detail': "Stop order: {previous2} → {previous} → {current} → {next} → {next2}. The cumulative distance along the shape does not increase from {previous} to {current} ({previous_distance} → {current_distance}). This is not straight-line distance to the first stop.",
-    'producer.card.STM_056.action_detail': "Check the previous → faulty → next stop order and their shape distance (shape_dist_traveled) values. If the stop itself is wrong, replace it with the correct stop_id; if the stop is correct, fix shape_dist_traveled. Do not swap stops blindly.",
+    'producer.card.STM_056.action_detail': "Check the previous → faulty → next stop order and their cumulative distances along the shape. If the stop itself is wrong, correct the stop order; if the stop is correct, correct the distance along the shape. Do not swap stops blindly.",
     'producer.card.STM_058.title': "Demand-responsive window time cannot be read",
     'producer.card.STM_058.what': "The start or end of the service window is not a valid time.",
     'producer.card.STM_058.action': "Enter window times as HH:MM:SS (e.g. 08:00:00).",
