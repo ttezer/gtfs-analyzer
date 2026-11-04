@@ -269,6 +269,46 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).toContain('08:09:30');
   });
 
+  it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Hastane', S2: 'Okul' },
+      routes: { R1: '10' },
+      trips: { T1: 'Merkez yönü', T2: 'Merkez yönü' },
+      trip_routes: { T1: 'R1', T2: 'R1' },
+      trip_first_dep: { T1: '08:00', T2: '09:00' },
+      trip_stops: { T1: ['S1', 'S2'], T2: ['S1', 'S2'] },
+      stop_coords: { S1: [41.0, 29.0], S2: [41.01, 29.01] },
+    };
+    const summary = notice('a', 'STM_022', 'MEDIUM', {
+      entity_type: 'Feed', file: 'stop_times.txt', field: 'timepoint', observed_value: '3', expected_value: 'timepoint 0 or 1',
+      details: {
+        affected_rows: '3', example_trips: 'T1, T2', value_0: '2', value_0_count: '2', value_1: 'abc', value_1_count: '1',
+        example_0_trip: 'T1', example_0_line: '2', example_0_observed: '2', example_0_stop_id: 'S1', example_0_stop_sequence: '1', example_0_arrival: '08:00:00', example_0_departure: '08:00:00',
+        example_1_trip: 'T2', example_1_line: '4', example_1_observed: 'abc', example_1_stop_id: 'S1', example_1_stop_sequence: '1', example_1_arrival: '09:00:00', example_1_departure: '09:00:00',
+        example_2_trip: 'T1', example_2_line: '3', example_2_observed: '2', example_2_stop_id: 'S2', example_2_stop_sequence: '2', example_2_arrival: '08:10:00', example_2_departure: '08:10:00',
+      },
+    });
+    const r = result([summary], [], [['STM_022', 2, 3]], true, ni);
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, r);
+    const html = root.innerHTML;
+    expect(html).toContain('Kesin saat işareti geçersiz');
+    expect(html).toContain('Hastane durağında (durak sırası 1) saatin kesin mi yaklaşık mı olduğunu belirten işaret “2” yazılmış');
+    expect(html).toContain('Hatalı 3 durak saatinin 2 tanesinde aynı değer (“2”) var');
+    expect(html).toContain('<th>Kesinlik işareti</th>');
+    expect(html).toContain('<tr class="bad"><td>Hastane</td><td>1</td><td>08:00</td><td>08:00</td><td>2</td></tr>');
+    expect(html).toContain('Okul · durak sırası 2 · işaret “2”');
+    expect(html).toContain('Hastane · durak sırası 1 · işaret “abc”');
+    // One summary expands to its three example rows.
+    expect((html.match(/data-row="/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    const row = notice('b', 'STM_022', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '2', details: { stop_id: 'S1', stop_sequence: '1' },
+    });
+    const red = plannerMap(row, r).opts?.pins.filter(pin => pin.primary) ?? [];
+    expect(red.map(pin => pin.label)).toEqual([expect.stringContaining('Hastane')]);
+  });
+
   it('STM_021 kartı aynı noktadaki iki durağı sırası ve koordinatıyla tabloda, haritada tek işaretle gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

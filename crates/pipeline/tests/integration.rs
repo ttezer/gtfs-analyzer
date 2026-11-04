@@ -6533,3 +6533,76 @@ fn cal_014_reports_future_only_service_like_mobilitydata() {
     assert_eq!(d.get("days_before").map(String::as_str), Some("0"));
     assert_eq!(d.get("days_after").map(String::as_str), Some("91"));
 }
+
+#[test]
+fn invalid_timepoint_summary_carries_row_examples_and_values() {
+    // STM_022 stays one feed summary; it now carries up to 50 row examples (one per trip
+    // before a second row from the same trip) with the stop and its times, plus the
+    // distribution of the invalid values that were written.
+    static TRIPS2: &[u8] = b"route_id,service_id,trip_id\nR1,SVC1,T1\nR1,SVC1,T2\n";
+    static TIMEPOINTS: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\n\
+          T1,08:00:00,08:00:00,S1,1,2\nT1,08:10:00,08:10:00,S2,2,2\n\
+          T2,09:00:00,09:00:00,S1,1,abc\nT2,09:10:00,09:10:00,S2,2,1\n";
+    let mut files = base_files();
+    files[3] = ("trips.txt", TRIPS2);
+    files[4] = ("stop_times.txt", TIMEPOINTS);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let stm022: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_022")
+        .collect();
+    assert_eq!(stm022.len(), 1, "STM_022 tek feed özeti olmalı");
+    assert_eq!(stm022[0].observed_value.as_deref(), Some("3"));
+    let d = stm022[0].details.as_ref().expect("STM_022 özet ayrıntısı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("affected_rows"), Some("3"));
+    // Round robin: T1's first row, T2's row, then T1's second row.
+    assert_eq!(get("example_0_trip"), Some("T1"));
+    assert_eq!(get("example_0_stop_id"), Some("S1"));
+    assert_eq!(get("example_0_stop_sequence"), Some("1"));
+    assert_eq!(get("example_0_arrival"), Some("08:00:00"));
+    assert_eq!(get("example_0_observed"), Some("2"));
+    assert_eq!(get("example_1_trip"), Some("T2"));
+    assert_eq!(get("example_1_observed"), Some("abc"));
+    assert_eq!(get("example_2_trip"), Some("T1"));
+    assert_eq!(get("example_2_stop_id"), Some("S2"));
+    assert_eq!(get("example_3_trip"), None);
+    assert_eq!(get("value_0"), Some("2"));
+    assert_eq!(get("value_0_count"), Some("2"));
+    assert_eq!(get("value_1"), Some("abc"));
+    assert_eq!(get("value_1_count"), Some("1"));
+}
+
+#[test]
+fn invalid_timepoint_summary_caps_examples_at_fifty() {
+    let mut trips = String::from("route_id,service_id,trip_id\n");
+    let mut times =
+        String::from("trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\n");
+    for i in 0..60 {
+        trips.push_str(&format!("R1,SVC1,T{i:02}\n"));
+        times.push_str(&format!(
+            "T{i:02},08:00:00,08:00:00,S1,1,7\nT{i:02},08:10:00,08:10:00,S2,2,1\n"
+        ));
+    }
+    let trips: &'static [u8] = Box::leak(trips.into_bytes().into_boxed_slice());
+    let times: &'static [u8] = Box::leak(times.into_bytes().into_boxed_slice());
+    let mut files = base_files();
+    files[3] = ("trips.txt", trips);
+    files[4] = ("stop_times.txt", times);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let n = vr
+        .notices
+        .iter()
+        .find(|n| n.rule_id == "STM_022")
+        .expect("STM_022");
+    let d = n.details.as_ref().expect("ayrıntı");
+    assert_eq!(d.get("affected_rows").map(String::as_str), Some("60"));
+    assert!(d.get("example_49_trip").is_some());
+    assert!(d.get("example_50_trip").is_none(), "en fazla 50 örnek");
+}

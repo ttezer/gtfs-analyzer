@@ -1420,6 +1420,93 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     *notices = retained;
 }
 
+/// Maximum number of row examples in the STM_022 feed summary.
+const STM022_EXAMPLE_CAP: usize = 50;
+/// Maximum number of distinct invalid values listed in the STM_022 feed summary.
+const STM022_VALUE_CAP: usize = 10;
+
+/// Row examples and the invalid-value distribution for the STM_022 feed summary.
+///
+/// Examples (`example_<i>_*`) are taken round-robin over trips in trip_id/line order: each trip
+/// gives its first invalid row before any trip gives a second, up to [`STM022_EXAMPLE_CAP`].
+/// Each carries the trip, line, written value and the row's stop context (`stop_id`,
+/// `stop_sequence`, `arrival`, `departure`). `value_<i>` / `value_<i>_count` list the distinct
+/// written values by frequency, so a planner sees whether one setting causes every row.
+fn stm022_row_examples(
+    representative: &gtfs_core::Notice,
+    rest: &[gtfs_core::Notice],
+) -> std::collections::BTreeMap<String, String> {
+    let mut out = std::collections::BTreeMap::new();
+    let all: Vec<&gtfs_core::Notice> = std::iter::once(representative).chain(rest.iter()).collect();
+
+    let mut values: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for notice in &all {
+        *values
+            .entry(notice.observed_value.as_deref().unwrap_or(""))
+            .or_default() += 1;
+    }
+    let mut values: Vec<(&str, usize)> = values.into_iter().collect();
+    values.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
+    for (i, (value, count)) in values.into_iter().take(STM022_VALUE_CAP).enumerate() {
+        out.insert(format!("value_{i}"), value.to_string());
+        out.insert(format!("value_{i}_count"), count.to_string());
+    }
+
+    let mut rows: Vec<&gtfs_core::Notice> = all
+        .into_iter()
+        .filter(|notice| notice.entity_id.is_some() && notice.line.is_some())
+        .collect();
+    rows.sort_by(|a, b| {
+        a.entity_id
+            .cmp(&b.entity_id)
+            .then_with(|| a.line.cmp(&b.line))
+    });
+    let mut by_trip: Vec<Vec<&gtfs_core::Notice>> = Vec::new();
+    for row in rows {
+        match by_trip.last_mut() {
+            Some(group) if group[0].entity_id == row.entity_id => group.push(row),
+            _ => by_trip.push(vec![row]),
+        }
+    }
+    let mut index = 0;
+    let mut round = 0;
+    'rounds: loop {
+        let mut took_any = false;
+        for group in &by_trip {
+            let Some(row) = group.get(round) else {
+                continue;
+            };
+            took_any = true;
+            let prefix = format!("example_{index}_");
+            out.insert(
+                format!("{prefix}trip"),
+                row.entity_id.clone().unwrap_or_default(),
+            );
+            out.insert(
+                format!("{prefix}line"),
+                row.line.unwrap_or_default().to_string(),
+            );
+            if let Some(value) = row.observed_value.as_ref() {
+                out.insert(format!("{prefix}observed"), value.clone());
+            }
+            if let Some(details) = row.details.as_ref() {
+                for (key, value) in details.iter() {
+                    out.insert(format!("{prefix}{key}"), value.to_string());
+                }
+            }
+            index += 1;
+            if index == STM022_EXAMPLE_CAP {
+                break 'rounds;
+            }
+        }
+        if !took_any {
+            break;
+        }
+        round += 1;
+    }
+    out
+}
+
 fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
     let mut first_position = None;
     let mut matched = Vec::new();
@@ -1437,6 +1524,8 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         return;
     }
     let mut aggregate = take_representative(&mut matched, resolver);
+    // Before the representative loses its trip and line below.
+    let row_examples = stm022_row_examples(&aggregate, &matched);
     let affected_rows = matched.len() + 1;
     let mut examples: Vec<String> = aggregate.entity_id.clone().into_iter()
         .chain(matched.iter().filter_map(|notice| notice.entity_id.clone()))
@@ -1458,6 +1547,7 @@ fn aggregate_stm022(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
         if !examples.is_empty() {
             details.insert("example_trips".to_string(), examples.join(", "));
         }
+        details.extend(row_examples);
         details.into()
     });
     aggregate.service_id = None;

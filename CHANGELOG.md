@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add up to 50 row examples (one per trip before a second row from the same trip) with the stop, stop sequence, and times, and the distribution of the written invalid values, to the `STM_022` feed summary; the planner card lists the rows, names the stop and the written value, and marks the stop on the map. The number of `STM_022` findings is unchanged.
 - Show the two `STM_021` stops at the same place in a planner stop table with stop sequence, coordinates, and distance from the previous stop, together with the previous and next stops; the map draws one red pin naming both stops. The engine adds the stop sequences, times, and neighbouring stops to the finding.
 - Add row context to `STM_056` findings (the failing stop with the two stops before and after it: stop sequence, times, and distance along the shape). Above 50 findings `STM_056` stays one feed summary, which now carries up to 50 row examples (`example_<i>_*`, one per trip before a second from the same trip); the planner card lists them as rows.
 - Add stop-time, distance, service, and focused route-section evidence to the `STM_020` planner card.

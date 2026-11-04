@@ -2556,6 +2556,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
             // STM_022: timepoint 0 or 1
             let tp_raw = get_col(row, cols.timepoint);
+            let timepoint_notice_start = st.notices.len();
             // STM_050: timepoint column exists in the feed but is empty on this row (MD missing_timepoint_value).
             // Empty timepoint implicitly counts as 1 (exact) → approximate times appear falsely exact;
             // an explicit value is recommended. Count it NOT per row; emit one feed-level summary at
@@ -2599,6 +2600,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         None
                     }
                 };
+            // Planner context for STM_022, as for STM_009: the stop and its times on this row.
+            for notice in &mut st.notices[timepoint_notice_start..] {
+                if notice.rule_id == "STM_022" {
+                    let details = stop_time_details();
+                    if !details.is_empty() {
+                        notice.details = Some(details.into());
+                    }
+                }
+            }
 
             // STM_034: exactly one of arrival or departure time is defined.
             //

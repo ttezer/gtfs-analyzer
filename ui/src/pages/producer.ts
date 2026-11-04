@@ -356,6 +356,25 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${key}.action`),
       };
     }
+    case 'STM_022': {
+      const d = n.details ?? {};
+      if (!d.stop_id) return null;
+      const stop = result.name_index.stops?.[d.stop_id] || d.stop_id;
+      const value = n.observed_value ?? '—';
+      // Name the pattern only when it is measured: one written value covers at least half of
+      // the invalid rows, so a single export setting may be behind every row.
+      const top = Number(d.value_0_count);
+      const total = Number(d.affected_rows);
+      const pattern = d.value_0 !== undefined && total > 1 && top / total >= 0.5
+        ? ` ${t('producer.card.STM_022.what_pattern', { value: d.value_0, count: localizedNumber(String(top)), total: localizedNumber(String(total)) })}`
+        : '';
+      return {
+        title: t('producer.card.STM_022.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: t('producer.card.STM_022.what_detail', { stop, sequence: d.stop_sequence || '—', value }) + pattern,
+        action: t('producer.card.STM_022.action_detail'),
+      };
+    }
     case 'STM_021': {
       const d = n.details ?? {};
       const name = (id?: string) => id ? result.name_index.stops?.[id] || id : t('producer.card.unknown_stop');
@@ -767,6 +786,16 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       rows.map(([stop, sequence, arrival, departure, setting, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td><td>${escHtml(setting)}</td></tr>`).join('')
     }</tbody></table>`;
   }
+  if (n.rule_id === 'STM_022' && d.stop_id) {
+    const cells = [
+      name(d.stop_id), d.stop_sequence || '—',
+      plannerTime(d.arr ?? d.arrival) || '—', plannerTime(d.dep ?? d.departure) || '—',
+      n.observed_value ?? '—',
+    ];
+    return `<table class="planner-times planner-stm022-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.timepoint')}</th></tr></thead><tbody><tr class="bad">${
+      cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')
+    }</tr></tbody></table>`;
+  }
   if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) {
     const coords = result.name_index.stop_coords ?? {};
     const entries: Array<[string | undefined, string | undefined, boolean]> = [
@@ -874,6 +903,9 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   }
   if ((n.rule_id === 'STM_018' || n.rule_id === 'STM_019') && d.stop_id) {
     return d.next_stop_id ? `${name(d.stop_id)} → ${name(d.next_stop_id)}` : name(d.stop_id);
+  }
+  if (n.rule_id === 'STM_022' && d.stop_id) {
+    return t('producer.times.spot_timepoint', { stop: name(d.stop_id), sequence: d.stop_sequence || '—', value: n.observed_value ?? '—' });
   }
   if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) return `${stopPair(d.stop_a, d.stop_b, result)} · 0 m`;
   if (n.rule_id === 'STM_020' && d.stop_a && d.stop_b) {
