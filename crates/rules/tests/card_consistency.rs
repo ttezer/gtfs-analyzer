@@ -402,6 +402,44 @@ fn no_orphan_cards() {
     );
 }
 
+/// The "Karışan komşular" table names neighbouring rules in its first column. A removed rule
+/// left there (STM_027 survived in four cards after 2026-07-28) sends the reader to a rule
+/// that no longer exists, so every rule named in that column must be in the registry.
+#[test]
+fn neighbour_tables_name_registered_rules() {
+    let valid: HashSet<&str> = RULES.iter().map(|r| r.id).collect();
+    let mut stale: Vec<String> = Vec::new();
+    for rule in RULES {
+        let path = card_path(rule.id);
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let Some(start) = text.find("## Karışan komşular") else {
+            continue;
+        };
+        let section = &text[start..];
+        let end = section[2..].find("\n## ").map_or(section.len(), |i| i + 2);
+        for line in section[..end].lines() {
+            let Some(rest) = line.strip_prefix("| **") else {
+                continue;
+            };
+            let Some(cell) = rest.split("**").next() else {
+                continue;
+            };
+            for id in rule_id_tokens(cell) {
+                if !valid.contains(id.as_str()) {
+                    stale.push(format!("{}: {id}", path.display()));
+                }
+            }
+        }
+    }
+    assert!(
+        stale.is_empty(),
+        "\nKarışan komşular tablosunda registry'de olmayan kural:\n{}\n",
+        stale.join("\n")
+    );
+}
+
 #[test]
 fn code_references_point_to_rule() {
     let root = repo_root();
