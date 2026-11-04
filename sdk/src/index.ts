@@ -72,7 +72,7 @@ export type {
   ZipFileInfo,
 } from './types.js';
 
-const SDK_VERSION = '0.9.0';
+const SDK_VERSION = '0.9.1';
 const ENGINE_VERSION = '0.19.0';
 // Input limits follow the engine's address space. wasm32 tops out at 4 GiB, and
 // measured large feeds already fail above ~320 MB there; wasm64 completed a
