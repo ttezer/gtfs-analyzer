@@ -41,6 +41,7 @@
 //! | DQ_018 · DQ_019 | ✅ One fact (all-caps / control character), measured across seven text fields |
 //! | OPR_010 | ✅ The title names both: *"accessibility OR bicycle policy conflicts"* |
 //! | SHP_009 · SHP_020 | ✅ **Heuristic noise:** the detected literals are not fields but `details` map keys (`affected_shapes`, `repeated_shapes`) |
+//! | STM_021 | ✅ **Heuristic noise (2026-11-04):** the `lib.rs` row is `aggregate_stm021`, which groups the K6 findings by the `details` keys `stop_a` / `stop_b` (one finding per stop pair); it emits no new fact |
 //! | TRF_017 | ✅ One fact, the two ends of a transfer: `from_route_id` / `to_route_id` |
 //! | XFL_021 | ✅ The title already names the pair: *"(from_trip_id/to_trip_id, stop_id) pair"* |
 

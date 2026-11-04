@@ -1,4 +1,4 @@
-# Bir rule_id'nin BİRBİRİYLE HİÇ ORTAK ALANI OLMAYAN emit noktaları. 13 kural.
+# Bir rule_id'nin BİRBİRİYLE HİÇ ORTAK ALANI OLMAYAN emit noktaları. 14 kural.
 # Biçim: RULE_ID  dosya:alan+alan  dosya:alan
 #
 # Ayrık küme = kural muhtemelen İKİ FARKLI OLGU için kullanılıyor. Bazıları
@@ -16,6 +16,7 @@ JPN_020  k4_cross_ref.rs:office_phone  k4_cross_ref.rs:office_url
 JPN_022  k4_cross_ref.rs:agency_lang  k4_cross_ref.rs:location_type
 OPR_010  k6_analytics.rs:bikes_allowed  k6_analytics.rs:wheelchair_accessible
 RCT_004  rider_categories.rs:max_age  rider_categories.rs:min_age
+STM_021  k6_analytics.rs:stop_id  lib.rs:stop_a+stop_b
 STM_034  stop_times.rs:arrival_time  stop_times.rs:departure_time
 STP_003  stops.rs:stop_lat  stops.rs:stop_name
 TFR_003  timeframes.rs:end_time  timeframes.rs:start_time
