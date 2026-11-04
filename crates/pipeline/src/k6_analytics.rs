@@ -2288,6 +2288,40 @@ fn check_speed_and_duration<'a>(
                         let mut d = std::collections::BTreeMap::new();
                         d.insert("stop_a".to_string(), idx.stop_id_of(a).to_string());
                         d.insert("stop_b".to_string(), idx.stop_id_of(b).to_string());
+                        // Planner context: the two stops' positions in the trip and their
+                        // neighbours, so the card can list the stops with their coordinates.
+                        // Same key names as STM_020 (`stop_a_sequence`, `stop_a_arrival` …) for the
+                        // pair, `prev_*` / `next_*` for the neighbours.
+                        let mut add_row = |prefix: &str, row: &CompactStopTime, with_id: bool| {
+                            if with_id {
+                                d.insert(
+                                    format!("{prefix}_stop_id"),
+                                    idx.stop_id_of(row).to_string(),
+                                );
+                            }
+                            let sequence_key = if with_id {
+                                format!("{prefix}_stop_sequence")
+                            } else {
+                                format!("{prefix}_sequence")
+                            };
+                            if let Some(seq) = row.stop_sequence() {
+                                d.insert(sequence_key, seq.to_string());
+                            }
+                            if let Some(t) = row.arrival_time() {
+                                d.insert(format!("{prefix}_arrival"), format_hms(hms_to_secs(t)));
+                            }
+                            if let Some(t) = row.departure_time() {
+                                d.insert(format!("{prefix}_departure"), format_hms(hms_to_secs(t)));
+                            }
+                        };
+                        add_row("stop_a", a, false);
+                        add_row("stop_b", b, false);
+                        if let Some(prev) = i.checked_sub(1).and_then(|j| stimes.get(j)) {
+                            add_row("prev", prev, true);
+                        }
+                        if let Some(next) = stimes.get(i + 2) {
+                            add_row("next", next, true);
+                        }
                         n.details = Some(d.into());
                         notices.push(n);
                     }

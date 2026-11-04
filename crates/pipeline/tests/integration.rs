@@ -3212,6 +3212,36 @@ fn trip_level_time_rules_carry_the_stops_to_fix() {
     let d = details_of(&files, "STM_021");
     assert_eq!(get(&d, "stop_a").as_deref(), Some("S1"));
     assert_eq!(get(&d, "stop_b").as_deref(), Some("S2"));
+
+    // With neighbours: the card lists the previous stop, the two stops at the same place and
+    // the next stop, each with its position in the trip.
+    static SAME_PLACE4: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S0,Stop0,40.99,28.99\nS1,Stop1,41.0,29.0\nS2,Stop2,41.0,29.0\nS3,Stop3,41.01,29.01\n";
+    static FOUR_STOPS: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,07:55:00,07:55:00,S0,4\nT1,08:00:00,08:00:00,S1,5\n\
+          T1,08:01:00,08:01:00,S2,6\nT1,08:05:00,08:05:00,S3,7\n";
+    files[1] = ("stops.txt", SAME_PLACE4);
+    files[4] = ("stop_times.txt", FOUR_STOPS);
+    let d = details_of(&files, "STM_021");
+    for (key, value) in [
+        ("stop_a", "S1"),
+        ("stop_b", "S2"),
+        ("stop_a_sequence", "5"),
+        ("stop_a_departure", "08:00:00"),
+        ("stop_b_sequence", "6"),
+        ("stop_b_arrival", "08:01:00"),
+        ("prev_stop_id", "S0"),
+        ("prev_stop_sequence", "4"),
+        ("next_stop_id", "S3"),
+        ("next_stop_sequence", "7"),
+    ] {
+        assert_eq!(get(&d, key).as_deref(), Some(value), "{key}");
+    }
+    assert_eq!(
+        get(&d, "stop_a_stop_sequence"),
+        None,
+        "pair uses the STM_020 key names"
+    );
 }
 
 #[test]

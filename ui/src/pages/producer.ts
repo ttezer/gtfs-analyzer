@@ -78,6 +78,20 @@ function localizedNumber(value: string): string {
     : value;
 }
 
+/** Great-circle distance in metres between two [lat, lon] points. */
+function metersBetween(a: [number, number], b: [number, number]): number {
+  const rad = Math.PI / 180;
+  const dLat = (b[0] - a[0]) * rad;
+  const dLon = (b[1] - a[1]) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * rad) * Math.cos(b[0] * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** A coordinate as the feed would write it: dot decimal, at most six decimals. */
+function coordText(value: number | undefined): string {
+  return value === undefined || !Number.isFinite(value) ? '—' : String(Number(value.toFixed(6)));
+}
+
 function stm012Observed(n: Notice): string | undefined {
   const details = n.details;
   const distance = details?.distance_km;
@@ -340,6 +354,21 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
             stop: name(d.stop_id), value: visibleValue(n.observed_value),
           }),
         action: t(`producer.card.${key}.action`),
+      };
+    }
+    case 'STM_021': {
+      const d = n.details ?? {};
+      const name = (id?: string) => id ? result.name_index.stops?.[id] || id : t('producer.card.unknown_stop');
+      const place = d.stop_a ? result.name_index.stop_coords?.[d.stop_a] : undefined;
+      return {
+        title: t('producer.card.STM_021.title'),
+        context: tripContextText(tripContext(n, result)),
+        what: t('producer.card.STM_021.what_detail', {
+          from: name(d.stop_a), to: name(d.stop_b),
+          from_sequence: d.stop_a_sequence || '—', to_sequence: d.stop_b_sequence || '—',
+          lat: coordText(place?.[0]), lon: coordText(place?.[1]),
+        }),
+        action: t('producer.card.STM_021.action'),
       };
     }
     case 'STM_020': {
@@ -738,6 +767,26 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       rows.map(([stop, sequence, arrival, departure, setting, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td><td>${escHtml(setting)}</td></tr>`).join('')
     }</tbody></table>`;
   }
+  if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) {
+    const coords = result.name_index.stop_coords ?? {};
+    const entries: Array<[string | undefined, string | undefined, boolean]> = [
+      [d.prev_stop_id, d.prev_stop_sequence, false],
+      [d.stop_a, d.stop_a_sequence, true],
+      [d.stop_b, d.stop_b_sequence, true],
+      [d.next_stop_id, d.next_stop_sequence, false],
+    ];
+    let previous: [number, number] | undefined;
+    const rows = entries.filter(([id]) => id).map(([id, sequence, bad]) => {
+      const p = coords[id!];
+      const here: [number, number] | undefined = p ? [p[0], p[1]] : undefined;
+      const distance = here && previous ? localizedNumber(String(Math.round(metersBetween(previous, here)))) : '—';
+      previous = here;
+      return [name(id), sequence || '—', coordText(here?.[0]), coordText(here?.[1]), distance, bad] as const;
+    });
+    return `<table class="planner-times planner-stm021-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.latitude')}</th><th>${t('producer.times.longitude')}</th><th>${t('producer.times.distance_from_previous')}</th></tr></thead><tbody>${
+      rows.map(([stop, sequence, lat, lon, distance, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(lat)}</td><td>${escHtml(lon)}</td><td>${escHtml(distance)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
   if (n.rule_id === 'STM_020' && d.stop_a && d.stop_b) {
     type ZeroTravelRow = [string, string, string, string, string, boolean];
     const rows: ZeroTravelRow[] = [
@@ -826,6 +875,7 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   if ((n.rule_id === 'STM_018' || n.rule_id === 'STM_019') && d.stop_id) {
     return d.next_stop_id ? `${name(d.stop_id)} → ${name(d.next_stop_id)}` : name(d.stop_id);
   }
+  if (n.rule_id === 'STM_021' && d.stop_a && d.stop_b) return `${stopPair(d.stop_a, d.stop_b, result)} · 0 m`;
   if (n.rule_id === 'STM_020' && d.stop_a && d.stop_b) {
     const pair = stopPair(d.stop_a, d.stop_b, result);
     return d.distance_meters ? `${pair} · ${localizedNumber(d.distance_meters)} m` : pair;
@@ -1158,7 +1208,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     const color = routeColor(ni.trip_routes?.[n.entity_id]);
     const directShape = ni.trip_shapes?.[n.entity_id];
     const selectedShape = directShape
-      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020')
+      || ((n.rule_id === 'STM_015' || n.rule_id === 'STM_016' || n.rule_id === 'STM_018' || n.rule_id === 'STM_019' || n.rule_id === 'STM_020' || n.rule_id === 'STM_021')
         ? routeDirectionShapeId(ni, ni.trip_routes?.[n.entity_id], ni.trip_directions?.[n.entity_id])
         : undefined);
     const directPath = tripStops.map(id => ni.stop_coords?.[id]).filter(Boolean).length > 1;
@@ -1218,6 +1268,25 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         }
         focus = undefined;
       }
+    } else if (n.rule_id === 'STM_021') {
+      // Both stops sit on the same point: draw one red pin that names both, with the trip
+      // and its neighbouring stops as context.
+      const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
+      const d = n.details ?? {};
+      addStop(d.stop_a, true, d.stop_a_sequence);
+      const pin = d.stop_a ? pinByStop.get(d.stop_a) : undefined;
+      if (pin && d.stop_b) {
+        pin.label = t('producer.map.stm021_same_place', {
+          from: ni.stops?.[d.stop_a!] || d.stop_a!, to: ni.stops?.[d.stop_b] || d.stop_b,
+          from_sequence: d.stop_a_sequence || '—', to_sequence: d.stop_b_sequence || '—',
+        });
+        stops.add(d.stop_b);
+      } else {
+        addStop(d.stop_b, true, d.stop_b_sequence);
+      }
+      addStop(d.prev_stop_id, false, d.prev_stop_sequence);
+      addStop(d.next_stop_id, false, d.next_stop_sequence);
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
     } else if (n.rule_id === 'STM_020') {
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
       for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
@@ -1331,7 +1400,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         pins,
         extraPolylines: [...lines, ...segments],
         focus,
-        focusZoom: n.rule_id === 'STM_015' || n.rule_id === 'STM_016' ? 14 : undefined,
+        focusZoom: n.rule_id === 'STM_015' || n.rule_id === 'STM_016' ? 14 : n.rule_id === 'STM_021' ? 17 : undefined,
       },
       caption: focusCaption(),
     };
@@ -1362,6 +1431,9 @@ function technicalValues(n: Notice): Array<[string, string | null | undefined]> 
   if (n.details?.affected_segments && n.details.affected_segments === n.observed_value) {
     return [[t('producer.card.affected_segments'), n.observed_value]];
   }
+  // STM_021's observed value is the stop-code pair, the expected one a distance; show the
+  // measured distance so both sides compare the same thing (the codes are listed above).
+  if (n.rule_id === 'STM_021') return [[t('producer.card.observed'), '0 m'], [t('producer.card.expected'), shownExpected]];
   return [
     [t('producer.card.observed'), plainValue(n.observed_value, n.field)],
     [t('producer.card.expected'), shownExpected],

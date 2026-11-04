@@ -269,6 +269,46 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).toContain('08:09:30');
   });
 
+  it('STM_021 kartı aynı noktadaki iki durağı sırası ve koordinatıyla tabloda, haritada tek işaretle gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S0: 'Çarşı', S1: 'Hastane', S2: 'Hastane Karşı', S3: 'Okul' },
+      routes: { R1: '10' },
+      trips: { T1: 'Merkez yönü' },
+      trip_routes: { T1: 'R1' },
+      trip_first_dep: { T1: '07:15' },
+      trip_stops: { T1: ['S0', 'S1', 'S2', 'S3'] },
+      trip_stop_sequences: { T1: [4, 5, 6, 7] },
+      stop_coords: { S0: [41.0, 29.0], S1: [41.0072, 29.0153], S2: [41.0072, 29.0153], S3: [41.01, 29.02] },
+    };
+    const n = notice('a', 'STM_021', 'LOW', {
+      entity_type: 'Trip', entity_id: 'T1', file: 'stop_times.txt', field: 'stop_id', line: 12,
+      observed_value: 'S1 → S2', expected_value: '> 0 m',
+      details: {
+        stop_a: 'S1', stop_b: 'S2', stop_a_sequence: '5', stop_b_sequence: '6',
+        prev_stop_id: 'S0', prev_stop_sequence: '4', next_stop_id: 'S3', next_stop_sequence: '7',
+      },
+    });
+    const r = result([n], [], [['STM_021', 1, 1]], true, ni);
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, r);
+    const html = root.innerHTML;
+    expect(html).toContain('Ardışık iki durak aynı yerde');
+    expect(html).toContain('Hastane (durak sırası 5) ile hemen ardından gelen Hastane Karşı (durak sırası 6) aynı koordinatta (41.0072, 29.0153)');
+    expect(html).toContain('<th>Enlem</th>');
+    expect(html).toContain('<th>Boylam</th>');
+    expect(html).toContain('<th>Önceki duraktan mesafe (m)</th>');
+    expect(html).toContain('<tr class="bad"><td>Hastane Karşı</td><td>6</td><td>41.0072</td><td>29.0153</td><td>0</td></tr>');
+    expect(html).toContain('<td>Çarşı</td><td>4</td>');
+    expect(html).toContain('<td>Okul</td><td>7</td>');
+    expect(html).toContain('Hastane → Hastane Karşı · 0 m');
+    const map = plannerMap(n, r);
+    const red = map.opts?.pins.filter(pin => pin.primary) ?? [];
+    expect(red).toHaveLength(1);
+    expect(red[0].label).toContain('Hastane (sıra 5) ve Hastane Karşı (sıra 6) aynı noktada');
+    expect(map.opts?.focusZoom).toBe(17);
+  });
+
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {
     const r = result(
       [notice('a', 'AGN_003', 'CRITICAL', {
@@ -1043,7 +1083,10 @@ describe('Genel kalıpta görülen değer', () => {
     const glued = render([notice('a', 'VAT_003', 'LOW', { entity_type: 'Trip', entity_id: 'T1', field: 'trip_id', observed_value: '1469min (hour-based expected 29min)' })], 'VAT_003');
     expect(glued).not.toContain('<td>1469min');
     const ids = render([notice('a', 'STM_021', 'LOW', { entity_type: 'Trip', entity_id: 'T1', field: 'stop_id', observed_value: '43GX03 → 44GX02' })], 'STM_021');
-    expect(ids).toContain('<td>43GX03 → 44GX02</td>');
+    // STM_021 has its own card with a stop table, so the rows carry no separate observed/expected
+    // column: neither the stop-code pair nor the inline "expected > 0 m" is shown there.
+    expect(ids).not.toContain('<td>43GX03 → 44GX02</td>');
+    expect(ids).not.toContain('planner-expected');
     expect(engine).toContain('class="producer-card-facts" hidden');
   });
 
