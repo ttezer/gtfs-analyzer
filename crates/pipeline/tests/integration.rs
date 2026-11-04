@@ -6799,3 +6799,61 @@ fn short_time_and_long_distance_segments_carry_their_stops_and_measures() {
     let meters: f64 = get("distance_meters").expect("mesafe").parse().unwrap();
     assert!((100_000.0..120_000.0).contains(&meters), "{meters}");
 }
+
+#[test]
+fn trip_duration_and_invalid_distance_findings_carry_planner_context() {
+    // STM_028 names the longest step between timed stops (a day rolled over by mistake),
+    // STM_029 the stop count and the straight-line distance between the end stops, and STM_030
+    // the stop with the invalid cumulative distance between its neighbours' values.
+    static STOPS3: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S1,Stop1,41.0,29.0\nS2,Stop2,41.1,29.1\nS3,Stop3,41.2,29.2\n";
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS3);
+
+    static LONG: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:30:00,08:30:00,S2,2\nT1,33:00:00,33:00:00,S3,3\n";
+    files[4] = ("stop_times.txt", LONG);
+    let d = details(&files, "STM_028");
+    let get = |k: &str| d.get(k).cloned();
+    assert_eq!(get("gap_stop_a").as_deref(), Some("S2"));
+    assert_eq!(get("gap_stop_b").as_deref(), Some("S3"));
+    assert_eq!(get("gap_from").as_deref(), Some("08:30:00"));
+    assert_eq!(get("gap_to").as_deref(), Some("33:00:00"));
+    assert_eq!(get("gap_seconds").as_deref(), Some("88200"));
+    assert_eq!(get("first_stop_sequence").as_deref(), Some("1"));
+    assert_eq!(get("stop_count").as_deref(), Some("3"));
+
+    static SHORT: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:00:00,08:00:00,S2,2\nT1,08:00:30,08:00:30,S3,3\n";
+    files[4] = ("stop_times.txt", SHORT);
+    let d = details(&files, "STM_029");
+    let get = |k: &str| d.get(k).cloned();
+    assert_eq!(get("stop_count").as_deref(), Some("3"));
+    assert_eq!(get("duration_seconds").as_deref(), Some("30"));
+    assert_eq!(get("last_stop_sequence").as_deref(), Some("3"));
+    let meters: f64 = get("distance_meters").expect("mesafe").parse().unwrap();
+    assert!((25_000.0..30_000.0).contains(&meters), "{meters}");
+
+    static NEGATIVE: &[u8] =
+        b"trip_id,arrival_time,departure_time,stop_id,stop_sequence,shape_dist_traveled\n\
+          T1,08:00:00,08:00:00,S1,1,0\nT1,08:10:00,08:10:00,S2,2,-5\nT1,08:20:00,08:20:00,S3,3,10\n";
+    files[4] = ("stop_times.txt", NEGATIVE);
+    let d = details(&files, "STM_030");
+    let get = |k: &str| d.get(k).cloned();
+    assert_eq!(get("stop_id").as_deref(), Some("S2"));
+    assert_eq!(get("stop_sequence").as_deref(), Some("2"));
+    assert_eq!(get("arrival").as_deref(), Some("08:10:00"));
+    assert_eq!(get("prev_stop_id").as_deref(), Some("S1"));
+    assert_eq!(get("prev_shape_dist_traveled").as_deref(), Some("0"));
+    assert_eq!(get("next_stop_id").as_deref(), Some("S3"));
+    assert_eq!(get("next_shape_dist_traveled").as_deref(), Some("10"));
+}

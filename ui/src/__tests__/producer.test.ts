@@ -408,6 +408,71 @@ describe('Üretici kartı görünümü', () => {
     expect(red).toHaveLength(2);
   });
 
+  it('STM_028, STM_029 ve STM_030 kartları yeri, ölçüyü ve seferi hat yönüyle gösterir', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Ankara', S2: 'Sivas', S3: 'Erzincan', S4: 'Kars' },
+      routes: { R1: 'Doğu' },
+      trips: { T1: 'Kars yönü' },
+      trip_routes: { T1: 'R1' },
+      trip_first_dep: { T1: '08:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3', 'S4'] },
+      trip_stop_sequences: { T1: [1, 2, 3, 4] },
+      stop_coords: { S1: [39.9, 32.8], S2: [39.7, 37.0], S3: [39.7, 39.5], S4: [40.6, 43.1] },
+    };
+    const render = (n: Notice) => {
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      const r = result([n], [], [[n.rule_id, 1, 1]], true, ni);
+      renderProducer(root, r);
+      return { html: root.innerHTML, map: plannerMap(n, r) };
+    };
+    const long = notice('a', 'STM_028', 'HIGH', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '26:26:00', expected_value: '24:00:00',
+      details: {
+        first_stop_id: 'S1', first_stop_sequence: '1', first_departure: '08:00:00',
+        last_stop_id: 'S4', last_stop_sequence: '4', last_arrival: '34:26:00', stop_count: '4',
+        gap_stop_a: 'S2', gap_stop_b: 'S3', gap_a_sequence: '2', gap_b_sequence: '3',
+        gap_from: '14:10:00', gap_to: '38:05:00', gap_seconds: '86100',
+      },
+    });
+    let out = render(long);
+    expect(out.html).toContain('Ankara 08:00 → Kars 34:26: 4 duraklı sefer 26 sa 26 dk sürüyor; bu hat türü için üst sınır 24 sa 0 dk');
+    expect(out.html).toContain('En uzun ara Sivas 14:10 → Erzincan 38:05 (23 sa 55 dk)');
+    expect(out.html).toContain('<tr class="bad"><td>Sivas</td><td>2</td><td>—</td><td>14:10</td></tr>');
+    expect(out.html).toContain('Sivas 14:10 → Erzincan 38:05 · 23 sa 55 dk');
+    // Route and direction: the trip path with arrows, the long step in red.
+    expect(out.map.opts?.extraPolylines?.some(line => line.arrows)).toBe(true);
+    expect(out.map.opts?.pins.filter(pin => pin.primary).map(pin => pin.label)).toEqual([
+      expect.stringContaining('Sivas'), expect.stringContaining('Erzincan'),
+    ]);
+
+    const short = notice('b', 'STM_029', 'MEDIUM', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '0s', expected_value: '≥ 60s',
+      details: {
+        first_stop_id: 'S1', first_stop_sequence: '1', first_departure: '08:00:00',
+        last_stop_id: 'S4', last_stop_sequence: '4', last_arrival: '08:00:00',
+        stop_count: '4', duration_seconds: '0', distance_meters: '8400',
+      },
+    });
+    out = render(short);
+    expect(out.html).toContain('Ankara 08:00 → Kars 08:00: 4 duraklı sefer 0 sn sürüyor; ilk ve son durak kuş uçuşu 8,4 km uzakta');
+    expect(out.map.opts?.pins.filter(pin => pin.primary)).toHaveLength(2);
+
+    const negative = notice('c', 'STM_030', 'LOW', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '-12.5', expected_value: '>= 0',
+      details: {
+        stop_id: 'S2', stop_sequence: '2', prev_stop_id: 'S1', prev_stop_sequence: '1', prev_shape_dist_traveled: '0',
+        next_stop_id: 'S3', next_stop_sequence: '3', next_shape_dist_traveled: '410',
+      },
+    });
+    out = render(negative);
+    expect(out.html).toContain('Kümülatif mesafe geçersiz');
+    expect(out.html).toContain('Sivas durağında (durak sırası 2) güzergâh başından itibaren kümülatif mesafe “-12.5” yazılmış');
+    expect(out.html).toContain('<tr class="bad"><td>Sivas</td><td>2</td><td>-12.5</td></tr>');
+    expect(out.html).toContain('<td>Erzincan</td><td>3</td><td>410</td>');
+    expect(out.map.opts?.pins.filter(pin => pin.primary).map(pin => pin.label)).toEqual([expect.stringContaining('Sivas')]);
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

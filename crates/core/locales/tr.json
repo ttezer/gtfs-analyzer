@@ -2216,9 +2216,9 @@
       "action": "Seferin ilk ve son durak saatlerini ve durak listesinin tam olup olmadığını kontrol edin."
     },
     "STM_030": {
-      "title": "Güzergâh üzerindeki mesafe negatif",
-      "what": "Bir durak için yazılan güzergâh mesafesi sıfırdan küçük.",
-      "action": "Mesafeyi sıfır veya pozitif bir değer olarak girin ya da mesafe kullanmıyorsanız boş bırakın."
+      "title": "Kümülatif mesafe geçersiz",
+      "what": "Bir durak için yazılan güzergâh başından itibaren kümülatif mesafe sayı değil ya da sıfırdan küçük.",
+      "action": "Doğru kümülatif mesafeyi girin; mesafe kullanmıyorsanız boş bırakın."
     },
     "STM_032": {
       "title": "Seferde aynı durak sırası iki kez kullanılmış",

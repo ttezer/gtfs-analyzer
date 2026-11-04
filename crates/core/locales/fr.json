@@ -4143,9 +4143,9 @@
       "action": "Vérifiez les horaires de début et de fin et la complétude de la liste d’arrêts."
     },
     "STM_030": {
-      "title": "Distance le long du tracé négative",
-      "what": "La distance de tracé saisie pour un arrêt est négative.",
-      "action": "Saisissez une distance nulle ou positive, ou laissez vide si vous ne l’utilisez pas."
+      "title": "Distance cumulée invalide",
+      "what": "La distance cumulée depuis le début du parcours indiquée pour un arrêt n’est pas un nombre ou est inférieure à zéro.",
+      "action": "Saisissez la bonne distance cumulée ; laissez-la vide si vous n’utilisez pas les distances."
     },
     "STM_032": {
       "title": "Même ordre d’arrêt utilisé deux fois",

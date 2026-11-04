@@ -4143,9 +4143,9 @@
       "action": "Check the trip’s first and last stop times and whether its stop list is complete."
     },
     "STM_030": {
-      "title": "Distance along the shape negative",
-      "what": "The shape distance entered for a stop is below zero.",
-      "action": "Enter the distance as zero or a positive value, or leave it empty if you do not use distances."
+      "title": "Cumulative distance invalid",
+      "what": "The cumulative distance from the start of the route written for a stop is not a number or is below zero.",
+      "action": "Enter the correct cumulative distance; leave it empty if you do not use distances."
     },
     "STM_032": {
       "title": "Same stop sequence used twice in a trip",

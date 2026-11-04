@@ -2216,9 +2216,9 @@
       "action": "Revise los horarios de la primera y la última parada del viaje y si su lista de paradas está completa."
     },
     "STM_030": {
-      "title": "Distancia a lo largo del trazado negativa",
-      "what": "La distancia en el trazado indicada para una parada es inferior a cero.",
-      "action": "Indique la distancia como cero o un valor positivo, o déjela vacía si no usa distancias."
+      "title": "Distancia acumulada no válida",
+      "what": "La distancia acumulada desde el inicio del recorrido indicada para una parada no es un número o es menor que cero.",
+      "action": "Indique la distancia acumulada correcta; déjela vacía si no usa distancias."
     },
     "STM_032": {
       "title": "Misma secuencia de parada usada dos veces en un viaje",

@@ -1888,7 +1888,31 @@ fn check_speed_and_duration<'a>(
                             n.severity = gtfs_core::Severity::Bilgi;
                         }
                         if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
-                            n.details = Some(trip_span_details(idx, first, last));
+                            let mut d = trip_span_details(idx, first, last);
+                            d.insert("stop_count".to_string(), stimes.len().to_string());
+                            if is_rail {
+                                d.insert("rail".to_string(), "1".to_string());
+                            }
+                            // Where the time goes: the longest step between consecutive timed stops.
+                            // A day rolled over by mistake (23:55 → 47:10) shows up here.
+                            if let Some((a, b, gap)) = longest_timed_gap(stimes) {
+                                d.insert("gap_stop_a".to_string(), idx.stop_id_of(a).to_string());
+                                d.insert("gap_stop_b".to_string(), idx.stop_id_of(b).to_string());
+                                if let Some(seq) = a.stop_sequence() {
+                                    d.insert("gap_a_sequence".to_string(), seq.to_string());
+                                }
+                                if let Some(seq) = b.stop_sequence() {
+                                    d.insert("gap_b_sequence".to_string(), seq.to_string());
+                                }
+                                if let Some(t) = a.departure_time().or(a.arrival_time()) {
+                                    d.insert("gap_from".to_string(), format_hms(hms_to_secs(t)));
+                                }
+                                if let Some(t) = b.arrival_time().or(b.departure_time()) {
+                                    d.insert("gap_to".to_string(), format_hms(hms_to_secs(t)));
+                                }
+                                d.insert("gap_seconds".to_string(), gap.to_string());
+                            }
+                            n.details = Some(d);
                         }
                         notices.push(n);
                     }
@@ -1912,7 +1936,21 @@ fn check_speed_and_duration<'a>(
                         "stop_times zaman değerlerini kontrol edin; sefer gerçekten bu kadar kısa olmamalı.",
                     );
                         if let (Some(first), Some(last)) = (stimes.first(), stimes.last()) {
-                            n.details = Some(trip_span_details(idx, first, last));
+                            let mut d = trip_span_details(idx, first, last);
+                            d.insert("stop_count".to_string(), stimes.len().to_string());
+                            d.insert("duration_seconds".to_string(), duration_sec.to_string());
+                            // Tells a real short shuttle (stops a few hundred metres apart) from
+                            // copied times (stops kilometres apart, all at one minute).
+                            if let (Some(&(la, lo)), Some(&(lb, lob))) = (
+                                stop_coords.get(idx.stop_id_of(first)),
+                                stop_coords.get(idx.stop_id_of(last)),
+                            ) {
+                                d.insert(
+                                    "distance_meters".to_string(),
+                                    format!("{:.0}", haversine_km(la, lo, lb, lob) * 1000.0),
+                                );
+                            }
+                            n.details = Some(d);
                         }
                         notices.push(n);
                     }
@@ -5146,6 +5184,34 @@ fn check_operational_analytics(
 /// time, or that the trip has no times at all.
 /// STM_028/029: total duration is measured from the trip edges; show the first departure and last
 /// arrival stops with their times to the planner.
+/// STM_028: the longest step between consecutive timed stops of a trip (departure of the earlier
+/// stop, or its arrival, to arrival of the later one, or its departure); `None` with fewer than
+/// two timed stops.
+fn longest_timed_gap(
+    stimes: &[CompactStopTime],
+) -> Option<(&CompactStopTime, &CompactStopTime, u32)> {
+    let mut best: Option<(&CompactStopTime, &CompactStopTime, u32)> = None;
+    let mut previous: Option<(&CompactStopTime, u32)> = None;
+    for row in stimes {
+        let Some(arrival) = row.arrival_time().or(row.departure_time()).map(hms_to_secs) else {
+            continue;
+        };
+        if let Some((before, from)) = previous {
+            let gap = arrival.saturating_sub(from);
+            if best.is_none_or(|(_, _, g)| gap > g) {
+                best = Some((before, row, gap));
+            }
+        }
+        let leave = row
+            .departure_time()
+            .or(row.arrival_time())
+            .map(hms_to_secs)
+            .unwrap_or(arrival);
+        previous = Some((row, leave));
+    }
+    best
+}
+
 fn trip_span_details(
     idx: &StopTimesIndex<'_>,
     first: &CompactStopTime,
@@ -5153,10 +5219,16 @@ fn trip_span_details(
 ) -> gtfs_core::NoticeDetails {
     let mut d = gtfs_core::NoticeDetails::new();
     d.insert("first_stop_id".to_string(), idx.stop_id_of(first).to_string());
+    if let Some(seq) = first.stop_sequence() {
+        d.insert("first_stop_sequence".to_string(), seq.to_string());
+    }
     if let Some(dep) = first.departure_time() {
         d.insert("first_departure".to_string(), format_hms(hms_to_secs(dep)));
     }
     d.insert("last_stop_id".to_string(), idx.stop_id_of(last).to_string());
+    if let Some(seq) = last.stop_sequence() {
+        d.insert("last_stop_sequence".to_string(), seq.to_string());
+    }
     if let Some(arr) = last.arrival_time() {
         d.insert("last_arrival".to_string(), format_hms(hms_to_secs(arr)));
     }

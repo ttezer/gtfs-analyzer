@@ -381,6 +381,41 @@ impl StopTimesIndex {
 
     /// STM_018/019: identify the stop-time row carrying the invalid continuous-service value
     /// and the next stop, because the setting applies from this row to the next row in stop_sequence.
+    /// STM_030: the previous and next stop of the row with the invalid distance and their
+    /// cumulative distances, so the card can show the value between its neighbours.
+    fn add_invalid_distance_context(&self, notices: &mut [Notice]) {
+        for n in notices.iter_mut().filter(|n| n.rule_id == "STM_030") {
+            let (Some(trip_id), Some(line)) = (n.entity_id.clone(), n.line) else {
+                continue;
+            };
+            let Some(rows) = self.sorted_stops(&trip_id) else {
+                continue;
+            };
+            let Some(i) = rows.iter().position(|r| r.line_u64() == line) else {
+                continue;
+            };
+            let d = n.details.get_or_insert_with(Default::default);
+            for (side, other) in [("prev", i.checked_sub(1)), ("next", Some(i + 1))] {
+                let Some(other) = other.and_then(|j| rows.get(j)) else {
+                    continue;
+                };
+                d.insert(
+                    format!("{side}_stop_id"),
+                    self.stop_id_of(other).to_string(),
+                );
+                if other.sequence != u32::MAX {
+                    d.insert(format!("{side}_stop_sequence"), other.sequence.to_string());
+                }
+                if other.dist_f32.is_finite() {
+                    d.insert(
+                        format!("{side}_shape_dist_traveled"),
+                        other.dist_f32.to_string(),
+                    );
+                }
+            }
+        }
+    }
+
     fn add_continuous_service_context(&self, notices: &mut [Notice]) {
         for n in notices
             .iter_mut()
@@ -2721,6 +2756,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
 
             // shape_dist_traveled: non-negative
             let sdt_raw = get_col(row, cols.shape_dist_traveled);
+            let distance_notice_start = st.notices.len();
             let shape_dist_traveled = match parse_f64_raw(sdt_raw, "shape_dist_traveled") {
                 Ok(v) => {
                     if let Some(d) = v {
@@ -2756,6 +2792,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                     None
                 }
             };
+            // Planner context for STM_030, as for STM_009: the stop and its times on this row.
+            for notice in &mut st.notices[distance_notice_start..] {
+                if notice.rule_id == "STM_030" {
+                    let details = stop_time_details();
+                    if !details.is_empty() {
+                        notice.details = Some(details.into());
+                    }
+                }
+            }
 
             let stop_headsign_raw = get_col(row, cols.stop_headsign);
             let stop_headsign = if stop_headsign_raw.is_empty() {
@@ -4005,6 +4050,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
     index.add_malformed_time_context(&mut st.notices);
     index.add_missing_stop_time_context(&mut st.notices);
     index.add_continuous_service_context(&mut st.notices);
+    index.add_invalid_distance_context(&mut st.notices);
 
     // ── trip_stop_set post-finalize construction (#38 peak-2) ──────────────────
     // TripAggs were dropped (stop_idx_set heaps freed); rebuild per-trip unique stop_idx sets
