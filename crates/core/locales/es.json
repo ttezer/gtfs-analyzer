@@ -2161,19 +2161,19 @@
       "action": "Indique la hora de llegada a la última parada de este viaje; debe ser posterior a la de la parada anterior."
     },
     "STM_017": {
-      "title": "Faltan las distancias de las paradas a lo largo del trazado",
-      "what": "Falta la distancia a lo largo del trazado para las paradas del viaje.",
-      "action": "Complete esta información en los viajes afectados, o elimine los valores de distancia si no los usa."
+      "title": "No están definidas las posiciones de las paradas a lo largo del recorrido",
+      "what": "Falta la información de posición a lo largo del recorrido para las paradas del viaje.",
+      "action": "Indique distancias de avance coherentes desde el inicio del recorrido en los viajes afectados."
     },
     "STM_018": {
-      "title": "Regla de subida continua en una parada no válida",
-      "what": "En este horario de parada, el valor que indica si se permite subir a lo largo de la vía (entre paradas) no es una de las opciones definidas.",
-      "action": "Configure la subida continua en su software de planificación, o déjela vacía si no la usa."
+      "title": "Ajuste de subida continua no válido en un tramo del recorrido",
+      "what": "El ajuste de subida continua después de {stop} figura como «{value}». No es una de las opciones definidas.",
+      "action": "Elija la opción de subida correcta para este tramo: 0 — se permite subir entre paradas; 1 — no se permite subir entre paradas; 2 — acordar por teléfono; 3 — acordar con el conductor. Deje este campo vacío para heredar el ajuste de toda la línea."
     },
     "STM_019": {
-      "title": "Regla de bajada continua en una parada no válida",
-      "what": "En este horario de parada, el valor que indica si se permite bajar a lo largo de la vía (entre paradas) no es una de las opciones definidas.",
-      "action": "Configure la bajada continua en su software de planificación, o déjela vacía si no la usa."
+      "title": "Ajuste de bajada continua no válido en un tramo del recorrido",
+      "what": "El ajuste de bajada continua después de {stop} figura como «{value}». No es una de las opciones definidas.",
+      "action": "Elija la opción de bajada correcta para este tramo: 0 — se permite bajar entre paradas; 1 — no se permite bajar entre paradas; 2 — acordar por teléfono; 3 — acordar con el conductor. Deje este campo vacío para heredar el ajuste de toda la línea."
     },
     "STM_020": {
       "title": "Tiempo de recorrido cero entre paradas distantes",
