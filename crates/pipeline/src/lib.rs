@@ -1420,6 +1420,98 @@ fn aggregate_trp005(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResol
     *notices = retained;
 }
 
+/// Maximum number of trip examples in an STM_021 stop-pair finding.
+const STM021_EXAMPLE_CAP: usize = 50;
+
+/// STM_021 is a stops.txt problem: two different stops share one coordinate. K6 finds it on every
+/// trip that runs between them, so one bad pair used to appear once per trip (one FlixBus pair:
+/// 18 identical-looking rows that differed only in their monthly calendar). Reduce the findings to
+/// one per unordered stop pair (A→B and B→A are the same record to fix). The representative is the
+/// first trip in trip_id/line order and keeps its own row context; `affected_trips` and up to
+/// [`STM021_EXAMPLE_CAP`] `example_<i>_*` trips list where the pair is used.
+fn aggregate_stm021(notices: &mut Vec<gtfs_core::Notice>, resolver: &AgencyResolver) {
+    let mut first_position = None;
+    let mut groups: std::collections::BTreeMap<(String, String), Vec<gtfs_core::Notice>> =
+        std::collections::BTreeMap::new();
+    let mut retained = Vec::with_capacity(notices.len());
+    for (index, notice) in notices.drain(..).enumerate() {
+        let pair = (notice.rule_id == "STM_021")
+            .then(|| {
+                let d = notice.details.as_ref()?;
+                let a = d.get("stop_a")?.clone();
+                let b = d.get("stop_b")?.clone();
+                Some(if a <= b { (a, b) } else { (b, a) })
+            })
+            .flatten();
+        match pair {
+            Some(key) => {
+                first_position.get_or_insert(index);
+                groups.entry(key).or_default().push(notice);
+            }
+            None => retained.push(notice),
+        }
+    }
+    if groups.is_empty() {
+        *notices = retained;
+        return;
+    }
+    let mut summaries = Vec::with_capacity(groups.len());
+    for (_, mut group) in groups {
+        group.sort_by(|a, b| {
+            a.entity_id
+                .cmp(&b.entity_id)
+                .then_with(|| a.line.cmp(&b.line))
+        });
+        let mut trips: Vec<&str> = group
+            .iter()
+            .filter_map(|n| n.entity_id.as_deref())
+            .collect();
+        trips.dedup();
+        let affected_trips = trips.len();
+        let mut examples = std::collections::BTreeMap::new();
+        for (i, row) in group.iter().take(STM021_EXAMPLE_CAP).enumerate() {
+            let prefix = format!("example_{i}_");
+            let Some(d) = row.details.as_ref() else {
+                continue;
+            };
+            examples.insert(
+                format!("{prefix}trip"),
+                row.entity_id.clone().unwrap_or_default(),
+            );
+            examples.insert(
+                format!("{prefix}line"),
+                row.line.unwrap_or_default().to_string(),
+            );
+            for key in ["stop_a", "stop_b", "stop_a_sequence", "stop_b_sequence"] {
+                if let Some(value) = d.get(key) {
+                    examples.insert(format!("{prefix}{key}"), value.clone());
+                }
+            }
+        }
+        let rows = group.len();
+        let mut summary = take_representative(&mut group, resolver);
+        if affected_trips > 1 {
+            summary.message = format!(
+                "{} Aynı durak çifti {affected_trips} seferde ardışık kullanılıyor.",
+                summary.message
+            );
+        }
+        let mut details: std::collections::BTreeMap<String, String> = summary
+            .details
+            .as_ref()
+            .map(|d| d.iter().map(|(k, v)| (k.to_string(), v.clone())).collect())
+            .unwrap_or_default();
+        details.insert("affected_trips".to_string(), affected_trips.to_string());
+        details.insert("affected_rows".to_string(), rows.to_string());
+        details.extend(examples);
+        summary.details = Some(details.into());
+        summaries.push(summary);
+    }
+    let at = first_position.unwrap_or(retained.len()).min(retained.len());
+    retained.splice(at..at, summaries);
+    *notices = retained;
+}
+
 /// Maximum number of row examples in the STM_022 feed summary.
 const STM022_EXAMPLE_CAP: usize = 50;
 /// Maximum number of distinct invalid values listed in the STM_022 feed summary.
@@ -2101,6 +2193,7 @@ pub fn aggregate_feed_level_notices(
     timed_aggregate!("STP_032", aggregate_stp032);
     timed_aggregate!("TRP_005", aggregate_trp005);
     timed_aggregate!("STM_022", aggregate_stm022);
+    timed_aggregate!("STM_021", aggregate_stm021);
     timed_aggregate!("FRQ_007", aggregate_frq007);
     timed_aggregate!("TRF_019", aggregate_trf019);
     timed_aggregate!("CAL_008", aggregate_cal008);

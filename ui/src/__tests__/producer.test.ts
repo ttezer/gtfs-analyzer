@@ -322,6 +322,46 @@ describe('Üretici kartı görünümü', () => {
     expect(root2.innerHTML).toContain('Terminal · durak saatlerinde 13,9, çizgide 13.900');
   });
 
+  it('STM_021 aynı durak çiftini kullanan seferleri tek satırda toplar ve geçerlilik tarihiyle listeler', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Ferry Waypoint', S2: 'Ferry terminal' },
+      routes: { R1: 'N1376' },
+      trips: {},
+      trip_routes: { T1: 'R1', T2: 'R1', T3: 'R1' },
+      trip_first_dep: { T1: '18:00', T2: '18:00', T3: '17:45' },
+      trip_stops: { T1: ['S1', 'S2'], T2: ['S1', 'S2'], T3: ['S2', 'S1'] },
+      stop_coords: { S1: [54.655054, 11.354309], S2: [54.655054, 11.354309] },
+      service_days: {
+        APR: ['1111111', '20260401', '20260430', '0'],
+        MAY: ['1111111', '20260501', '20260531', '0'],
+        MAR: ['1100001', '20260329', '20260331', '0'],
+      },
+    };
+    const n = notice('a', 'STM_021', 'LOW', {
+      entity_type: 'Trip', entity_id: 'T1', field: 'stop_id', observed_value: 'S1 → S2', expected_value: '> 0 m', service_id: 'APR',
+      details: {
+        stop_a: 'S1', stop_b: 'S2', stop_a_sequence: '7', stop_b_sequence: '8', affected_trips: '3', affected_rows: '3',
+        example_0_trip: 'T1', example_0_stop_a: 'S1', example_0_stop_b: 'S2', example_0_stop_a_sequence: '7', example_0_stop_b_sequence: '8', example_0_service_id: 'APR',
+        example_1_trip: 'T2', example_1_stop_a: 'S1', example_1_stop_b: 'S2', example_1_stop_a_sequence: '7', example_1_stop_b_sequence: '8', example_1_service_id: 'MAY',
+        example_2_trip: 'T3', example_2_stop_a: 'S2', example_2_stop_b: 'S1', example_2_stop_a_sequence: '6', example_2_stop_b_sequence: '7', example_2_service_id: 'MAR',
+      },
+    });
+    const r = result([n], [], [['STM_021', 1, 1]], true, ni);
+    const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+    renderProducer(root, r);
+    const html = root.innerHTML;
+    // One finding, one row: the summary is not expanded back into its trips.
+    expect((html.match(/<tr[^>]*data-row="/g) ?? []).length).toBe(1);
+    expect(html).toContain('Bu iki durak 3 seferde ardışık kullanılıyor');
+    expect(html).toContain('Bu durak çiftini kullanan seferler (3)');
+    expect(html).toContain('<th>Geçerlilik</th>');
+    expect(html).toContain('<td>18:00</td><td>Ferry Waypoint (7) → Ferry terminal (8)</td><td>Her gün</td><td>01.04.2026 – 30.04.2026</td>');
+    expect(html).toContain('<td>18:00</td><td>Ferry Waypoint (7) → Ferry terminal (8)</td><td>Her gün</td><td>01.05.2026 – 31.05.2026</td>');
+    expect(html).toContain('<td>17:45</td><td>Ferry terminal (6) → Ferry Waypoint (7)</td>');
+    expect(html).toContain('29.03.2026 – 31.03.2026');
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

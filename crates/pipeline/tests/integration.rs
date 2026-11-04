@@ -6695,3 +6695,68 @@ fn unit_mismatch_on_several_shapes_is_one_feed_summary_with_shape_examples() {
     assert!(get("example_1_shape_length_m").is_some());
     assert_eq!(get("example_2_trip"), None);
 }
+
+#[test]
+fn same_place_stop_pair_is_one_finding_across_trips_and_directions() {
+    // mdb-853 (FlixBus): one stop pair at one coordinate gave 18 findings, one per monthly trip
+    // copy and direction. The record to fix is the pair, so A→B and B→A on any number of trips
+    // give one finding that lists the trips.
+    static STOPS5: &[u8] = b"stop_id,stop_name,stop_lat,stop_lon\n\
+          S0,Start,40.9,28.9\nS1,Ferry,41.0,29.0\nS2,Terminal,41.0,29.0\nS3,End,41.1,29.1\n\
+          S4,Other1,42.0,30.0\nS5,Other2,42.0,30.0\n";
+    static TRIPS4: &[u8] = b"route_id,service_id,trip_id\n\
+          R1,SVC1,T1\nR1,SVC1,T2\nR1,SVC1,T3\nR1,SVC1,T4\n";
+    static TIMES4: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S0,1\nT1,08:10:00,08:10:00,S1,2\nT1,08:11:00,08:11:00,S2,3\nT1,08:20:00,08:20:00,S3,4\n\
+          T2,09:00:00,09:00:00,S0,1\nT2,09:10:00,09:10:00,S1,2\nT2,09:11:00,09:11:00,S2,3\nT2,09:20:00,09:20:00,S3,4\n\
+          T3,10:00:00,10:00:00,S3,1\nT3,10:10:00,10:10:00,S2,2\nT3,10:11:00,10:11:00,S1,3\nT3,10:20:00,10:20:00,S0,4\n\
+          T4,11:00:00,11:00:00,S4,1\nT4,11:10:00,11:10:00,S5,2\n";
+    let mut files = base_files();
+    files[1] = ("stops.txt", STOPS5);
+    files[3] = ("trips.txt", TRIPS4);
+    files[4] = ("stop_times.txt", TIMES4);
+    let ValidateResult::Ok(vr) = run(&files) else {
+        panic!("ValidateResult::Ok beklendi");
+    };
+    let found: Vec<_> = vr
+        .notices
+        .iter()
+        .filter(|n| n.rule_id == "STM_021")
+        .collect();
+    assert_eq!(found.len(), 2, "iki farklı durak çifti, iki bulgu");
+    let ferry = found
+        .iter()
+        .find(|n| n.entity_id.as_deref() == Some("T1"))
+        .expect("Ferry/Terminal çifti T1 ile temsil edilmeli");
+    let d = ferry.details.as_ref().expect("ayrıntı");
+    let get = |k: &str| d.get(k).map(String::as_str);
+    assert_eq!(get("affected_trips"), Some("3"));
+    assert_eq!(
+        get("prev_stop_id"),
+        Some("S0"),
+        "temsilci kendi satır bağlamını korur"
+    );
+    assert_eq!(get("example_0_trip"), Some("T1"));
+    assert_eq!(get("example_1_trip"), Some("T2"));
+    assert_eq!(get("example_2_trip"), Some("T3"));
+    assert_eq!(
+        get("example_2_stop_a"),
+        Some("S2"),
+        "ters yön kendi sırasıyla listelenir"
+    );
+    assert_eq!(get("example_2_stop_a_sequence"), Some("2"));
+    assert_eq!(get("example_3_trip"), None);
+    assert!(ferry.message.contains("3 seferde"));
+    let other = found
+        .iter()
+        .find(|n| n.entity_id.as_deref() == Some("T4"))
+        .expect("ikinci çift");
+    assert_eq!(
+        other
+            .details
+            .as_ref()
+            .and_then(|d| d.get("affected_trips"))
+            .map(String::as_str),
+        Some("1")
+    );
+}

@@ -430,7 +430,9 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
           from: name(d.stop_a), to: name(d.stop_b),
           from_sequence: d.stop_a_sequence || '—', to_sequence: d.stop_b_sequence || '—',
           lat: coordText(place?.[0]), lon: coordText(place?.[1]),
-        }),
+        }) + (Number(d.affected_trips) > 1
+          ? ` ${t('producer.card.STM_021.what_trips', { n: localizedNumber(d.affected_trips) })}`
+          : ''),
         action: t('producer.card.STM_021.action'),
       };
     }
@@ -681,6 +683,17 @@ function serviceText(serviceId: string | null | undefined, result: ValidationRes
   return Number(exceptions) > 0 ? `${text} ${t('producer.days.exceptions', { n: exceptions })}` : text;
 }
 
+/** The calendar's validity range ("29.03.2026 – 31.03.2026"), or '—' when unknown. */
+function serviceRangeText(serviceId: string | null | undefined, result: ValidationResult): string {
+  const entry = serviceId ? result.name_index.service_days?.[serviceId] : undefined;
+  if (!entry || (!entry[1] && !entry[2])) return '—';
+  const ymd = (v: string) => (/^\d{8}$/.test(v)
+    ? new Intl.DateTimeFormat(intlLocale(), { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(Number(v.slice(0, 4)), Number(v.slice(4, 6)) - 1, Number(v.slice(6, 8)))))
+    : v);
+  return `${ymd(entry[1])} – ${ymd(entry[2])}`;
+}
+
 function plannerServiceText(serviceId: string | null | undefined, result: ValidationResult): string {
   const text = serviceText(serviceId, result);
   return serviceId && text === serviceId ? t('producer.days.check') : text;
@@ -877,9 +890,26 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       previous = here;
       return [name(id), sequence || '—', coordText(here?.[0]), coordText(here?.[1]), distance, bad] as const;
     });
-    return `<table class="planner-times planner-stm021-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.latitude')}</th><th>${t('producer.times.longitude')}</th><th>${t('producer.times.distance_from_previous')}</th></tr></thead><tbody>${
+    const stopTable = `<table class="planner-times planner-stm021-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.latitude')}</th><th>${t('producer.times.longitude')}</th><th>${t('producer.times.distance_from_previous')}</th></tr></thead><tbody>${
       rows.map(([stop, sequence, lat, lon, distance, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(lat)}</td><td>${escHtml(lon)}</td><td>${escHtml(distance)}</td></tr>`).join('')
     }</tbody></table>`;
+    // Every trip that runs between the two stops. They often differ only in their calendar's
+    // validity range (one trip copy per month), so the range is a column of its own.
+    const ni = result.name_index;
+    const trips: string[] = [];
+    for (let i = 0; d[`example_${i}_trip`]; i++) {
+      const at = (key: string) => d[`example_${i}_${key}`];
+      const tripId = at('trip')!;
+      const routeId = ni.trip_routes?.[tripId];
+      const service = at('service_id');
+      trips.push(`<tr><td>${routeId ? routeBadgeHtml(routeId, result) : '—'}</td><td>${escHtml(ni.trip_first_dep?.[tripId] || '—')}</td><td>${escHtml(`${name(at('stop_a'))} (${at('stop_a_sequence') || '—'}) → ${name(at('stop_b'))} (${at('stop_b_sequence') || '—'})`)}</td><td>${escHtml(plannerServiceText(service, result))}</td><td>${escHtml(serviceRangeText(service, result))}</td></tr>`);
+    }
+    if (trips.length < 2) return stopTable;
+    const total = Number(d.affected_trips) || trips.length;
+    const caption = total > trips.length
+      ? t('producer.times.stm021_trips_some', { n: localizedNumber(String(total)), shown: trips.length })
+      : t('producer.times.stm021_trips', { n: localizedNumber(String(total)) });
+    return `${stopTable}<p class="producer-card-label">${escHtml(caption)}</p><table class="planner-times planner-stm021-trips"><thead><tr><th>${t('producer.col.route')}</th><th>${t('producer.col.departure')}</th><th>${t('producer.times.stm021_order')}</th><th>${t('producer.col.service')}</th><th>${t('producer.times.validity')}</th></tr></thead><tbody>${trips.join('')}</tbody></table>`;
   }
   if (n.rule_id === 'STM_020' && d.stop_a && d.stop_b) {
     type ZeroTravelRow = [string, string, string, string, string, boolean];
