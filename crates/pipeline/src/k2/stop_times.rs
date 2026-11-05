@@ -3781,6 +3781,20 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 offsets[agg.idx as usize + 1] as usize,
             );
             let trip_rows = &rows[s..e];
+            // STM_056 planner context: every stop of the trip carries the same distance (an export
+            // that wrote one value into the whole column). Then the trip, not a stop pair, is the
+            // thing to fix.
+            let trip_constant_distance = match trip_rows.first() {
+                Some(first)
+                    if trip_rows.len() > 1
+                        && trip_rows
+                            .iter()
+                            .all(|r| r.dist_f32.is_finite() && r.dist_f32 == first.dist_f32) =>
+                {
+                    Some(first.dist_f32)
+                }
+                _ => None,
+            };
             for i in 0..trip_rows.len().saturating_sub(1) {
                 let a = &trip_rows[i];
                 let b = &trip_rows[i + 1];
@@ -3914,6 +3928,10 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         a.dist_f32.to_string(),
                     );
                     d.insert("shape_dist_traveled".to_string(), b.dist_f32.to_string());
+                    if let Some(value) = trip_constant_distance {
+                        d.insert("trip_constant_value".to_string(), value.to_string());
+                        d.insert("trip_stop_count".to_string(), trip_rows.len().to_string());
+                    }
                     // The feed-summary branch (`finalize_stm_pending`) writes affected_rows/example_trips;
                     // the pinpoint branch carries the same keys so the one template is populated in both branches.
                     {
@@ -4209,6 +4227,22 @@ const STM056_EXAMPLE_CAP: usize = 50;
 /// every trip contributes its first failing row before any trip contributes a second one.
 /// Each example copies the pinpoint row's details except the per-summary counters.
 fn add_stm056_examples(pending: &[Notice], d: &mut std::collections::BTreeMap<String, String>) {
+    // Trips whose every stop carries one and the same distance, across the whole feed.
+    let constant_trips: std::collections::HashSet<&str> = pending
+        .iter()
+        .filter(|n| {
+            n.details
+                .as_ref()
+                .is_some_and(|d| d.get("trip_constant_value").is_some())
+        })
+        .filter_map(|n| n.entity_id.as_deref())
+        .collect();
+    if !constant_trips.is_empty() {
+        d.insert(
+            "constant_trips".to_string(),
+            constant_trips.len().to_string(),
+        );
+    }
     let mut rows: Vec<&Notice> = pending
         .iter()
         .filter(|notice| notice.entity_id.is_some() && notice.line.is_some())
@@ -5691,6 +5725,62 @@ mod tests {
         }
         assert!(d.get("example_0_affected_rows").is_none());
         assert!(d.get("example_0_example_trips").is_none());
+    }
+
+    #[test]
+    fn stm056_marks_a_trip_whose_every_stop_has_the_same_distance() {
+        // ptp export: 2,010 trips wrote one value (25.644928) into every stop. The finding says
+        // the whole trip is constant; a trip with only one bad step is not marked.
+        let mut rows: Vec<Vec<String>> = Vec::new();
+        for i in 0..30 {
+            let trip = format!("C{i:02}");
+            for seq in 1..=4u32 {
+                rows.push(vec![
+                    trip.clone(),
+                    "08:00:00".into(),
+                    "08:00:00".into(),
+                    format!("S{seq}"),
+                    seq.to_string(),
+                    "25.644928".into(),
+                ]);
+            }
+        }
+        for i in 0..30 {
+            let trip = format!("P{i:02}");
+            for (seq, dist) in [(1u32, "0"), (2, "10"), (3, "10"), (4, "30")] {
+                rows.push(vec![
+                    trip.clone(),
+                    "08:00:00".into(),
+                    "08:00:00".into(),
+                    format!("S{seq}"),
+                    seq.to_string(),
+                    dist.into(),
+                ]);
+            }
+        }
+        let rows: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(String::as_str).collect())
+            .collect();
+        let file = make_file(stm056_columns(), rows);
+        let (_, notices) = validate_stop_times(&file, None, false);
+        let stm056: Vec<_> = notices.iter().filter(|n| n.rule_id == "STM_056").collect();
+        assert_eq!(stm056.len(), 1, "120 ihlal tek feed özeti");
+        let d = stm056[0].details.as_ref().expect("özet ayrıntısı");
+        assert_eq!(d.get("affected_rows").map(String::as_str), Some("120"));
+        assert_eq!(d.get("constant_trips").map(String::as_str), Some("30"));
+        // Examples are in trip order: C00.. first (constant), then P00.. (one bad step).
+        assert_eq!(d.get("example_0_trip").map(String::as_str), Some("C00"));
+        assert_eq!(
+            d.get("example_0_trip_constant_value").map(String::as_str),
+            Some("25.644928")
+        );
+        assert_eq!(
+            d.get("example_0_trip_stop_count").map(String::as_str),
+            Some("4")
+        );
+        assert_eq!(d.get("example_30_trip").map(String::as_str), Some("P00"));
+        assert!(d.get("example_30_trip_constant_value").is_none());
     }
 
     #[test]

@@ -553,6 +553,39 @@ describe('Üretici kartı görünümü', () => {
     expect(map.opts?.focusZoom).toBe(17);
   });
 
+  it('STM_056 kartı eksik komşuyu tireyle yazmaz, bütün durakları aynı değerdeki seferi sefer olarak anlatır', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S1: 'Natürel Park Sitesi', S2: 'Tivoli Park Sitesi', S3: 'Doğa Park Villaları', S4: 'Gökkuşağı Villaları' },
+      routes: { R1: '131' },
+      trips: { T1: 'Merkez' },
+      trip_routes: { T1: 'R1' },
+      trip_first_dep: { T1: '07:00' },
+      trip_stops: { T1: ['S1', 'S2', 'S3', 'S4'] },
+    };
+    const render = (details: Record<string, string>) => {
+      const n = notice('a', 'STM_056', 'CRITICAL', {
+        entity_type: 'Trip', entity_id: 'T1', field: 'shape_dist_traveled', observed_value: '25.644928', expected_value: '> 25.644928', details,
+      });
+      const root = { innerHTML: '', querySelectorAll: () => [], querySelector: () => null } as unknown as HTMLElement;
+      renderProducer(root, result([n], ['a'], [['STM_056', 5, 1]], true, ni));
+      return root.innerHTML;
+    };
+    const pair = {
+      prev_stop_id: 'S1', stop_id: 'S2', next_stop_id: 'S3', next2_stop_id: 'S4',
+      prev_stop_sequence: '1', stop_sequence: '2', prev_shape_dist_traveled: '10', shape_dist_traveled: '10',
+    };
+    let html = render(pair);
+    expect(html).toContain('Durak sırası: Natürel Park Sitesi → Tivoli Park Sitesi → Doğa Park Villaları → Gökkuşağı Villaları.');
+    expect(html).not.toContain('— →');
+    expect(html).not.toContain('kuş uçuşu');
+
+    html = render({ ...pair, trip_constant_value: '25.644928', trip_stop_count: '46', constant_trips: '2010' });
+    expect(html).toContain('Bu seferin 46 durağının hepsinde güzergâh başından itibaren kümülatif mesafe aynı (25.644928)');
+    expect(html).toContain('aynı durumdaki sefer sayısı 2.010.');
+    expect(html).toContain('Dışa aktarma ayarını kontrol edin');
+  });
+
   it('AGN_003 kartında yalnız motorun bildirdiği geçersiz URL ve gözlenen değer gösterilir', () => {
     const r = result(
       [notice('a', 'AGN_003', 'CRITICAL', {

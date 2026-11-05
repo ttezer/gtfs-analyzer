@@ -693,22 +693,36 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
     }
     case 'STM_056': {
       const d = n.details ?? {};
-      const stopName = (id?: string) => id ? result.name_index.stops?.[id] || id : '—';
+      const stopName = (id?: string) => id ? result.name_index.stops?.[id] || id : '';
       const context = tripContext(n, result);
-      const previous2 = stopName(d.prev2_stop_id);
-      const previous = stopName(d.prev_stop_id);
-      const current = stopName(d.stop_id);
-      const next = stopName(d.next_stop_id);
-      const next2 = stopName(d.next2_stop_id);
+      const constantTrips = Number(d.constant_trips);
+      const feed = constantTrips > 1
+        ? ` ${t('producer.card.STM_056.what_constant_feed', { n: localizedNumber(String(constantTrips)) })}`
+        : '';
+      // Every stop of the trip has one value: the trip, not a stop pair, is what to fix.
+      if (d.trip_constant_value) {
+        return {
+          title: t('producer.card.STM_056.title'),
+          context: tripContextText(context),
+          what: t('producer.card.STM_056.what_constant', {
+            stops: d.trip_stop_count ?? '—',
+            value: d.trip_constant_value,
+          }) + feed,
+          action: t('producer.card.STM_056.action_constant'),
+        };
+      }
+      // Only the neighbours that exist: the first stop has no stop before it.
+      const order = [d.prev2_stop_id, d.prev_stop_id, d.stop_id, d.next_stop_id, d.next2_stop_id]
+        .map(stopName)
+        .filter(Boolean)
+        .join(' → ');
       return {
         title: t('producer.card.STM_056.title'),
         context: tripContextText(context),
         what: t('producer.card.STM_056.what_detail', {
-          previous2,
-          previous,
-          current,
-          next,
-          next2,
+          stops: order || '—',
+          previous: stopName(d.prev_stop_id) || '—',
+          current: stopName(d.stop_id) || '—',
           previous_distance: d.prev_shape_dist_traveled || '—',
           current_distance: d.shape_dist_traveled || n.observed_value || '—',
         }),
