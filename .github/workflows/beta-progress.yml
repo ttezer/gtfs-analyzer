@@ -1,0 +1,45 @@
+name: Beta progress
+
+# Keeps the review progress of the Planner Beta issue (#199) current: one overall line
+# ("Progress: 38 / 619 rules (6.1%)") and a done/total count on every rule group. Ticking a
+# task box edits the issue body, which triggers this workflow; `scripts/issue_progress.py`
+# recomputes the counts and the body is written back only when it changed.
+#
+# No loop: the write-back uses GITHUB_TOKEN, and events caused by GITHUB_TOKEN do not start
+# new workflow runs. Runs are queued (not cancelled) so two quick ticks both end up counted:
+# each run reads the body as it is when the run starts.
+
+on:
+  issues:
+    types: [edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: beta-progress
+  cancel-in-progress: false
+
+jobs:
+  progress:
+    if: github.event_name == 'workflow_dispatch' || github.event.issue.number == 199
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          sparse-checkout: scripts/issue_progress.py
+          sparse-checkout-cone-mode: false
+      - name: Recompute and write back the progress
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue view 199 --repo "$GITHUB_REPOSITORY" --json body --jq .body > body.md
+          python3 scripts/issue_progress.py < body.md > new_body.md
+          if cmp -s body.md new_body.md; then
+            echo "Progress already current."
+          else
+            gh issue edit 199 --repo "$GITHUB_REPOSITORY" --body-file new_body.md
+            grep -m1 '<!-- progress -->' new_body.md
+          fi
