@@ -2047,7 +2047,7 @@ const tr = {
     'producer.col.row': "Satır",
     'producer.map.caption_focus': "Kırmızı: bu konunun işaret ettiği durak veya bölüm. Renkli çizgiler: etkilenen hatlar, kendi renkleriyle.",
     'producer.map.stm021_same_place': "{from} (sıra {from_sequence}) ve {to} (sıra {to_sequence}) aynı noktada",
-    'producer.map.stm056_focus': "Kırmızı işaret: hatalı durak (durak sırası {sequence}). Renkli çizgi: mevcut güzergâh ve hatalı komşu bölümü.",
+    'producer.map.stm056_focus': "Kırmızı: kümülatif mesafenin artmadığı geçişin iki durağı (durak sırası {from_sequence} → {sequence}) ve aradaki bölüm. Gri: seferin diğer durakları.",
     'producer.map.caption_network': "Bu konu belirli bir yere bağlı değil; haritada ağın tamamı görünüyor.",
     'producer.technical.title': "Teknik dille kalan konular ({n})",
     'producer.technical.hint': "Bu konular için henüz planlamacı açıklaması yazılmadı; analiz motorunun teknik metni gösteriliyor.",

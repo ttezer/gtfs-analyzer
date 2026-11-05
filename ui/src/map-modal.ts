@@ -34,6 +34,9 @@ export interface MapOptions {
     zoomTo?: boolean;             // zoom to this segment
     arrows?: boolean;             // inline map: route-direction arrows
   }>;
+  /** Dashed circles around a place the finding is about (radius in metres), e.g. two stops at one
+   *  point whose faulty step is too short to see as a line. The inline map zooms to them. */
+  highlights?: Array<{ center: [number, number]; radiusMeters: number; color: string }>;
   legendItems?: Array<{ color: string; label: string }>;
   showArrows?: boolean;           // direction arrows over the polyline (every ~250 m)
   focus?: [number, number];       // inline map: focus this point (such as the first/last stop)
@@ -97,6 +100,15 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
     }
   }
 
+  let highlightBounds: L.LatLngBounds | null = null;
+  for (const h of opts.highlights?.slice(0, 5) ?? []) {
+    const circle = L.circle(h.center, {
+      radius: h.radiusMeters, color: h.color, weight: 3, dashArray: '6 5', fillColor: h.color, fillOpacity: 0.08, interactive: false,
+    }).addTo(map);
+    highlightBounds = highlightBounds ? highlightBounds.extend(circle.getBounds()) : circle.getBounds();
+    bounds.push(h.center);
+  }
+
   let primaryLabels = 0;
   const ordered = [...opts.pins.slice(0, MAX_MAP_PINS)].sort((a, b) => Number(a.primary) - Number(b.primary));
   for (const pin of ordered) {
@@ -120,6 +132,7 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
   const target = zoomTarget;
   const applyView = () => {
     if (opts.focus) map.setView(opts.focus, opts.focusZoom ?? 15);
+    else if (highlightBounds) map.fitBounds(highlightBounds.pad(1.5), { maxZoom: 17 });
     else if (target && target.length > 1) map.fitBounds(target, { padding: [24, 24], maxZoom: 16 });
     else if (bounds.length > 1) map.fitBounds(bounds, { padding: [24, 24] });
     else if (bounds.length === 1) map.setView(bounds[0], 14);

@@ -2048,7 +2048,7 @@ const ja: LocaleShape = {
     'producer.map.caption_focus': "赤: この項目が指す停留所または区間。色付きの線: 影響を受ける路線(路線色)。",
     'producer.map.stm021_same_place': "{from}(順序 {from_sequence})と {to}(順序 {to_sequence})が同じ地点",
     'producer.map.stop_sequence': "停留所順序 {sequence}",
-    'producer.map.stm056_focus': "赤い印: 誤りのある停留所(停留所順序 {sequence})。色付きの線: 現在の経路と影響を受ける隣接区間。",
+    'producer.map.stm056_focus': "赤: 累積距離が増えない区間の 2 停留所(停留所順序 {from_sequence} → {sequence})とその間の区間。灰色: 便のその他の停留所。",
     'producer.map.caption_network': "この項目は特定の場所に結び付いていません。地図には路線網全体を表示しています。",
     'producer.technical.title': "技術用語のままの項目 ({n})",
     'producer.technical.hint': "これらの項目にはまだダイヤ担当者向けの説明がありません。解析エンジンの技術的な文を表示しています。",

@@ -604,6 +604,30 @@ describe('Üretici kartı görünümü', () => {
     expect(root.innerHTML).not.toContain('diğer mesafe değerlerini de kaldırın');
   });
 
+  it('STM_056 haritası hatalı geçişin iki durağını kırmızı işaretler ve daire içine alır', () => {
+    const ni: NameIndex = {
+      ...emptyNameIndex,
+      stops: { S40: '8849 PAZ', S41: 'GENERAL PAZ 7597', S42: '9061 PAZ', S43: 'GENERAL PAZ 7745' },
+      routes: { R1: '28F' }, trips: { T1: 'Liniers' }, trip_routes: { T1: 'R1' },
+      trip_stops: { T1: ['S40', 'S41', 'S42', 'S43'] }, trip_stop_sequences: { T1: [40, 41, 42, 43] },
+      // 41 and 42 almost on one point: the red step alone would be invisible.
+      stop_coords: { S40: [-34.6, -58.5], S41: [-34.61, -58.5], S42: [-34.61001, -58.50001], S43: [-34.62, -58.5] },
+    };
+    const n = notice('a', 'STM_056', 'CRITICAL', {
+      entity_type: 'Trip', entity_id: 'T1', observed_value: '17550', details: {
+        prev_stop_id: 'S41', prev_stop_sequence: '41', stop_id: 'S42', stop_sequence: '42',
+        next_stop_id: 'S43', next_stop_sequence: '43', prev_shape_dist_traveled: '17550', shape_dist_traveled: '17550',
+      },
+    });
+    const map = plannerMap(n, result([n], ['a'], [['STM_056', 5, 1]], true, ni));
+    const red = map.opts?.pins.filter(p => p.primary).map(p => p.label) ?? [];
+    expect(red).toEqual([expect.stringContaining('durak sırası 41'), expect.stringContaining('durak sırası 42')]);
+    expect(map.opts?.extraPolylines?.some(line => line.color === '#f59e0b')).toBe(false);
+    expect(map.opts?.highlights).toHaveLength(1);
+    expect(map.opts?.highlights?.[0].radiusMeters).toBe(60);
+    expect(map.caption).toContain('durak sırası 41 → 42');
+  });
+
   it('STM_022 özeti örnek satırlara açılır; kart durağı, yazılan değeri ve ölçülen deseni gösterir', () => {
     const ni: NameIndex = {
       ...emptyNameIndex,

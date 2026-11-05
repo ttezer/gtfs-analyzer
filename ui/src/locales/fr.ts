@@ -2049,7 +2049,7 @@ const fr: LocaleShape = {
     'producer.map.caption_focus': "Rouge : l’arrêt ou le tronçon concerné. Lignes colorées : lignes touchées, dans leur propre couleur.",
     'producer.map.stm021_same_place': "{from} (ordre {from_sequence}) et {to} (ordre {to_sequence}) au même point",
     'producer.map.stop_sequence': "ordre de l’arrêt {sequence}",
-    'producer.map.stm056_focus': "Repère rouge : arrêt en erreur (ordre de l’arrêt {sequence}). Ligne colorée : le tracé existant et le tronçon voisin concerné.",
+    'producer.map.stm056_focus': "Rouge : les deux arrêts de l’étape où la distance cumulée n’augmente pas (ordre {from_sequence} → {sequence}) et le tronçon entre eux. Gris : les autres arrêts de la course.",
     'producer.map.caption_network': "Ce sujet n’est pas lié à un lieu précis ; la carte montre tout le réseau.",
     'producer.technical.title': "Sujets encore en langage technique ({n})",
     'producer.technical.hint': "Aucune explication pour les planificateurs n’a encore été rédigée ; le texte du moteur d’analyse est affiché.",

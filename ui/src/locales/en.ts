@@ -2049,7 +2049,7 @@ const en: LocaleShape = {
     'producer.col.row': "Row",
     'producer.map.caption_focus': "Red: the stop or segment this topic points to. Coloured lines: affected routes in their own colours.",
     'producer.map.stm021_same_place': "{from} (sequence {from_sequence}) and {to} (sequence {to_sequence}) at the same point",
-    'producer.map.stm056_focus': "Red marker: faulty stop (stop sequence {sequence}). Coloured line: the existing route and the affected neighbour segment.",
+    'producer.map.stm056_focus': "Red: the two stops of the step where the cumulative distance does not increase (stop sequence {from_sequence} → {sequence}) and the section between them. Grey: the trip's other stops.",
     'producer.map.caption_network': "This topic is not tied to one place; the map shows the whole network.",
     'producer.technical.title': "Topics still in technical language ({n})",
     'producer.technical.hint': "No planner explanation has been written for these topics yet; the analysis engine text is shown.",

@@ -822,7 +822,9 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
       const order = [d.prev2_stop_id, d.prev_stop_id, d.stop_id, d.next_stop_id, d.next2_stop_id]
         .map(stopName)
         .filter(Boolean)
-        .join(' → ');
+        .join(' → ')
+        // The template ends the list with its own full stop; a name ending in "." doubled it.
+        .replace(/\.+$/, '');
       return {
         title: t('producer.card.STM_056.title'),
         context: tripContextText(context),
@@ -1606,6 +1608,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
   const lines: NonNullable<MapOptions['extraPolylines']> = [];
   const segments: NonNullable<MapOptions['extraPolylines']> = [];
   const pins: MapPin[] = [];
+  const highlights: NonNullable<MapOptions['highlights']> = [];
   const stops = new Set<string>();
   const pinByStop = new Map<string, MapPin>();
   let focus: [number, number] | undefined;
@@ -1671,6 +1674,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
     shown,
     n.rule_id === 'STM_056'
       ? t('producer.map.stm056_focus', {
+        from_sequence: n.details?.prev_stop_sequence || '—',
         sequence: n.details?.stop_sequence || '—',
       })
       : t('producer.map.caption_focus'),
@@ -1815,23 +1819,30 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
         }
       }
     } else if (n.rule_id === 'STM_056') {
-      // STM_056 is a directional trip finding: keep the route path and mark the
-      // previous → faulty stop segment, with the next stop as context.
+      // STM_056 is a directional trip finding: the distance fails to grow on the step from the
+      // previous stop to the faulty one, so both ends of that step are red and the step is drawn
+      // along the route line. Two stops at (almost) one point leave a zero-length line, which is
+      // why both pins carry the mark; the next stops stay grey context.
       const stopSequences = ni.trip_stop_sequences?.[n.entity_id] ?? [];
-      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
-      addStop(n.details?.prev2_stop_id, false, n.details?.prev2_stop_sequence);
-      addStop(n.details?.prev_stop_id, false, n.details?.prev_stop_sequence);
+      addStop(n.details?.prev_stop_id, true, n.details?.prev_stop_sequence);
       addStop(n.details?.stop_id, true, n.details?.stop_sequence);
+      addStop(n.details?.prev2_stop_id, false, n.details?.prev2_stop_sequence);
       addStop(n.details?.next_stop_id, false, n.details?.next_stop_sequence);
       addStop(n.details?.next2_stop_id, false, n.details?.next2_stop_sequence);
+      for (const [index, stopId] of tripStops.entries()) addStop(stopId, false, stopSequences[index]);
       const previous = coord(n.details?.prev_stop_id);
       const current = coord(n.details?.stop_id);
-      const next = coord(n.details?.next_stop_id);
       if (previous && current) {
-        segments.push({ coords: [previous, current], color: MAP_RED, weight: 8, zoomTo: true });
-      }
-      if (current && next) {
-        segments.push({ coords: [current, next], color: '#f59e0b', weight: 6 });
+        const shape = selectedShape ? ni.shape_coords?.[selectedShape] ?? [] : [];
+        const onShape = segmentOnShape(shape, previous, current);
+        segments.push({ coords: onShape.length > 1 ? onShape : [previous, current], color: MAP_RED, weight: 8, zoomTo: true });
+        // Circle the step: two stops at (almost) one point make the red line invisible.
+        const half = metersBetween(previous, current) / 2;
+        highlights.push({
+          center: [(previous[0] + current[0]) / 2, (previous[1] + current[1]) / 2],
+          radiusMeters: Math.max(60, half + 40),
+          color: MAP_RED,
+        });
       }
     } else {
   // Stop indicated by the rule: the endpoint when its time is missing, otherwise the notice's stops.
@@ -1912,6 +1923,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       opts: {
         pins,
         extraPolylines: [...lines, ...segments],
+        ...(highlights.length ? { highlights } : {}),
         focus,
         focusZoom: n.rule_id === 'STM_015' || n.rule_id === 'STM_016' ? 14 : n.rule_id === 'STM_021' ? 17 : undefined,
       },
