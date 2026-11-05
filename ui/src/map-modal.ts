@@ -102,10 +102,15 @@ export function mountInlineMap(container: HTMLElement, opts: MapOptions): () => 
 
   let highlightBounds: L.LatLngBounds | null = null;
   for (const h of opts.highlights?.slice(0, 5) ?? []) {
-    const circle = L.circle(h.center, {
+    L.circle(h.center, {
       radius: h.radiusMeters, color: h.color, weight: 3, dashArray: '6 5', fillColor: h.color, fillOpacity: 0.08, interactive: false,
     }).addTo(map);
-    highlightBounds = highlightBounds ? highlightBounds.extend(circle.getBounds()) : circle.getBounds();
+    // Geographic bounds computed here: Circle.getBounds() needs a projected map view, which does
+    // not exist yet at this point (it threw and stopped the whole map from drawing).
+    const dLat = h.radiusMeters / 111_320;
+    const dLon = h.radiusMeters / (111_320 * Math.max(0.01, Math.cos((h.center[0] * Math.PI) / 180)));
+    const box = L.latLngBounds([h.center[0] - dLat, h.center[1] - dLon], [h.center[0] + dLat, h.center[1] + dLon]);
+    highlightBounds = highlightBounds ? highlightBounds.extend(box) : box;
     bounds.push(h.center);
   }
 
