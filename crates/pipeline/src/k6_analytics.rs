@@ -2343,7 +2343,7 @@ fn check_speed_and_duration<'a>(
                 if dist_km < 1e-6 {
                     if idx.stop_id_of(a) == idx.stop_id_of(b) {
                         // STM_035: the same stop appears twice consecutively (terminal/circular route).
-                        notices.push(k6_notice(
+                        let mut n035 = k6_notice(
                         ctr, "STM_035", EntityType::Trip,
                         Some(trip_id.to_string()), Some(trip_id.to_string()),
                         "stop_times.txt", Some(b.line as u64), Some("stop_id"),
@@ -2352,7 +2352,14 @@ fn check_speed_and_duration<'a>(
                         format!("trip_id '{trip_id}'{dep_suffix} stop_sequence {}-{} arasında aynı durak ({}) ardışık iki kez ziyaret ediliyor.",
                             a.stop_sequence().unwrap_or(0), b.stop_sequence().unwrap_or(0), idx.stop_id_of(a)),
                         "Terminal veya döngü hattıysa beklenen bir durumdur. Değilse stop_times.txt'teki yinelenen satırı kaldırın.",
-                    ));
+                    );
+                        // Planner context: the two rows of the repeated stop with their sequence and
+                        // times, and the stops before and after them.
+                        let mut d = BTreeMap::new();
+                        d.insert("stop_id".to_string(), idx.stop_id_of(a).to_string());
+                        add_segment_context(&mut d, idx, stimes, i);
+                        n035.details = Some(d.into());
+                        notices.push(n035);
                     } else {
                         // STM_021: different stop_ids at the same coordinates — a real data error.
                         let mut n = k6_notice(

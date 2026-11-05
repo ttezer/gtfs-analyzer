@@ -6857,3 +6857,103 @@ fn trip_duration_and_invalid_distance_findings_carry_planner_context() {
     assert_eq!(get("next_stop_id").as_deref(), Some("S3"));
     assert_eq!(get("next_shape_dist_traveled").as_deref(), Some("10"));
 }
+
+#[test]
+fn stop_time_findings_032_to_040_carry_planner_context() {
+    // STM_032 names the two rows sharing a sequence, STM_033 the trip's only stop, STM_034 the
+    // row's stop and times, STM_035 the repeated stop's segment, STM_037–040 the Flex zone, its
+    // window and booking rules. Counts are unchanged; only details are added.
+    let details = |files: &[(&str, &[u8])], rule: &str| match run(files) {
+        ValidateResult::Ok(vr) => vr
+            .notices
+            .iter()
+            .find(|n| n.rule_id == rule)
+            .and_then(|n| n.details.clone())
+            .unwrap_or_else(|| panic!("{rule} ayrıntısı bekleniyor")),
+        other => panic!("ValidateResult::Ok beklendi, gelen: {other:?}"),
+    };
+    let mut files = base_files();
+
+    static DUP_SEQ: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,1\n";
+    files[4] = ("stop_times.txt", DUP_SEQ);
+    let d = details(&files, "STM_032");
+    assert_eq!(d.get("first_stop_id").map(String::as_str), Some("S1"));
+    assert_eq!(d.get("second_stop_id").map(String::as_str), Some("S2"));
+    assert_eq!(
+        d.get("second_arrival").map(String::as_str),
+        Some("08:10:00")
+    );
+
+    static ONE_STOP: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S2,7\n";
+    files[4] = ("stop_times.txt", ONE_STOP);
+    let d = details(&files, "STM_033");
+    assert_eq!(d.get("stop_id").map(String::as_str), Some("S2"));
+    assert_eq!(d.get("stop_sequence").map(String::as_str), Some("7"));
+    assert_eq!(d.get("departure").map(String::as_str), Some("08:00:00"));
+
+    static HALF_TIME: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,,S2,2\nT1,08:20:00,08:20:00,S1,3\n";
+    files[4] = ("stop_times.txt", HALF_TIME);
+    let d = details(&files, "STM_034");
+    assert_eq!(d.get("stop_id").map(String::as_str), Some("S2"));
+    assert_eq!(d.get("stop_sequence").map(String::as_str), Some("2"));
+    assert_eq!(d.get("arrival").map(String::as_str), Some("08:10:00"));
+
+    static REPEAT: &[u8] = b"trip_id,arrival_time,departure_time,stop_id,stop_sequence\n\
+          T1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:15:00,08:15:00,S2,3\n";
+    files[4] = ("stop_times.txt", REPEAT);
+    let d = details(&files, "STM_035");
+    assert_eq!(d.get("stop_id").map(String::as_str), Some("S2"));
+    assert_eq!(d.get("stop_a_sequence").map(String::as_str), Some("2"));
+    assert_eq!(d.get("stop_b_sequence").map(String::as_str), Some("3"));
+    assert_eq!(
+        d.get("stop_b_arrival").map(String::as_str),
+        Some("08:15:00")
+    );
+    assert_eq!(d.get("prev_stop_id").map(String::as_str), Some("S1"));
+
+    static FLEX: &[u8] = b"trip_id,stop_id,location_id,stop_sequence,arrival_time,departure_time,\
+start_pickup_drop_off_window,end_pickup_drop_off_window,pickup_booking_rule_id,drop_off_booking_rule_id\n\
+          T1,,Z1,1,08:00:00,08:00:00,10:00:00,09:00:00,,\n\
+          T1,,Z2,2,,,11:00:00,,BR1,\n";
+    files[4] = ("stop_times.txt", FLEX);
+    for rule in ["STM_037", "STM_038", "STM_040"] {
+        let d = details(&files, rule);
+        assert_eq!(
+            d.get("location_id").map(String::as_str),
+            Some("Z1"),
+            "{rule}"
+        );
+        assert_eq!(
+            d.get("window_start").map(String::as_str),
+            Some("10:00:00"),
+            "{rule}"
+        );
+        assert_eq!(
+            d.get("window_end").map(String::as_str),
+            Some("09:00:00"),
+            "{rule}"
+        );
+        assert_eq!(
+            d.get("stop_sequence").map(String::as_str),
+            Some("1"),
+            "{rule}"
+        );
+    }
+    assert_eq!(
+        details(&files, "STM_037")
+            .get("arrival")
+            .map(String::as_str),
+        Some("08:00:00")
+    );
+    let d = details(&files, "STM_039");
+    assert_eq!(d.get("location_id").map(String::as_str), Some("Z2"));
+    assert_eq!(d.get("window_start").map(String::as_str), Some("11:00:00"));
+    assert_eq!(d.get("window_end"), None);
+    assert_eq!(
+        d.get("pickup_booking_rule_id").map(String::as_str),
+        Some("BR1")
+    );
+}

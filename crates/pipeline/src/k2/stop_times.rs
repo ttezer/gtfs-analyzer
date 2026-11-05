@@ -2645,6 +2645,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 }
             }
 
+            let stm034_start = st.notices.len();
             // STM_034: exactly one of arrival or departure time is defined.
             //
             // `None` can mean two things: the field is genuinely empty, or it is present but malformed.
@@ -2695,6 +2696,15 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         ));
                     }
                     _ => {}
+                }
+            }
+            // Planner context for STM_034, as for STM_009: the stop and its times on this row.
+            for notice in &mut st.notices[stm034_start..] {
+                if notice.rule_id == "STM_034" {
+                    let details = stop_time_details();
+                    if !details.is_empty() {
+                        notice.details = Some(details.into());
+                    }
                 }
             }
 
@@ -2872,6 +2882,7 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 pickup_booking_rule_id,
                 drop_off_booking_rule_id,
             ): ParsedFlexColumns = if has_flex_cols {
+                let flex_notice_start = st.notices.len();
                 let start_window_raw = get_col(row, cols.start_pickup_drop_off_window);
                 let end_window_raw = get_col(row, cols.end_pickup_drop_off_window);
                 let loc_id_raw = location_id_raw;
@@ -3085,6 +3096,32 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                 format!("trip_id '{}' stop_id ve location_id/group_id aynı anda tanımlı olamaz.", trip_id),
                 "Standart stop için yalnızca stop_id, Flex stop için yalnızca location_id veya location_group_id kullanın.",
             ));
+                }
+                // Planner context for the Flex row findings (STM_037–040): the stop row, the zone
+                // and its window, the booking rules and the fixed times written next to the window.
+                for notice in &mut st.notices[flex_notice_start..] {
+                    if !matches!(
+                        notice.rule_id.as_str(),
+                        "STM_037" | "STM_038" | "STM_039" | "STM_040"
+                    ) {
+                        continue;
+                    }
+                    let mut details = stop_time_details();
+                    for (key, value) in [
+                        ("location_id", loc_id_raw),
+                        ("location_group_id", loc_grp_raw),
+                        ("window_start", start_window_raw),
+                        ("window_end", end_window_raw),
+                        ("pickup_booking_rule_id", pbr_raw),
+                        ("drop_off_booking_rule_id", dobr_raw),
+                    ] {
+                        if !value.is_empty() {
+                            details.insert(key.to_string(), value.to_string());
+                        }
+                    }
+                    if !details.is_empty() {
+                        notice.details = Some(details.into());
+                    }
                 }
 
                 let smol_opt = |s: &str| {
@@ -3822,6 +3859,22 @@ pub fn validate_stop_times_with_limits_and_trip_stop_set(
                         let d = n032.details.get_or_insert_with(Default::default);
                         d.insert("affected_rows".to_string(), "1".to_string());
                         d.insert("example_trips".to_string(), tid.to_string());
+                        // Planner context: the two rows sharing the sequence, with their stops
+                        // and times, so the card can show which stops collide.
+                        for (prefix, row) in [("first", a), ("second", b)] {
+                            if let Some(id) = st.stop_intern.get(row.stop_idx as usize) {
+                                d.insert(format!("{prefix}_stop_id"), id.to_string());
+                            }
+                            d.insert(format!("{prefix}_line"), row.line.to_string());
+                            d.insert(
+                                format!("{prefix}_arrival"),
+                                row_time_label(row.arrival_secs, None),
+                            );
+                            d.insert(
+                                format!("{prefix}_departure"),
+                                row_time_label(row.departure_secs, None),
+                            );
+                        }
                     }
                     stm032_pending.push(n032);
                 }

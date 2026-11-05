@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add planner evidence to `STM_032`–`STM_035` and the on-demand rules `STM_037`–`STM_040`: the two rows sharing a stop sequence, a trip's only stop, the stop with only one time, the repeated stop's segment, and for on-demand rows the zone, its window, the booking rules and the fixed time written next to the window. The cards name them and list them in a table; the counts of findings are unchanged.
 - Make the "Details and Fix" filters behave like the planner page: the rule and file lists show how many findings each option would show under the other filters, and a chosen option whose findings are all filtered out stays selected with (0) instead of silently falling back to "All".
 - Link the planner page filters: every option list (rule, file, route, stop, shape, service) now offers only what is still reachable under the other active filters, with the number of records it would show, and keeps a chosen option even when its count drops to zero. Picking a route narrows the stop list to that route's stops, and so on. Route/stop/shape/service filters now search every row of a card, not only the first 500 shown.
 - Name a reversed route line as the cause on the `STM_056` planner card: when the engine reports `SHP_016` for the trip's shape, the card says the line is drawn backwards and asks to fix its direction first. In one measured export every trip with a constant distance had a reversed line.

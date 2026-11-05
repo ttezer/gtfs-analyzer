@@ -406,6 +406,67 @@ function plannerCardCopy(g: RuleGroup, result: ValidationResult): PlannerCardCop
         action: t(`producer.card.${key}.action`),
       };
     }
+    case 'STM_032':
+    case 'STM_033':
+    case 'STM_034':
+    case 'STM_035': {
+      const d = n.details ?? {};
+      const name = (id?: string) => (id ? result.name_index.stops?.[id] || id : '—');
+      const time = (arr?: string, dep?: string) => plannerTime(dep) || plannerTime(arr) || '—';
+      let what: string | null = null;
+      if (g.ruleId === 'STM_032' && d.first_stop_id && d.second_stop_id) {
+        what = t('producer.card.STM_032.what_detail', {
+          sequence: n.observed_value ?? '—',
+          first: name(d.first_stop_id), first_time: time(d.first_arrival, d.first_departure),
+          second: name(d.second_stop_id), second_time: time(d.second_arrival, d.second_departure),
+        });
+      } else if (g.ruleId === 'STM_033' && d.stop_id) {
+        what = t('producer.card.STM_033.what_detail', {
+          stop: name(d.stop_id), sequence: d.stop_sequence || '—', time: time(d.arrival, d.departure),
+        });
+      } else if (g.ruleId === 'STM_034' && d.stop_id) {
+        // `field` is the side that is missing.
+        const missingDeparture = n.field === 'departure_time';
+        what = t(missingDeparture ? 'producer.card.STM_034.what_no_departure' : 'producer.card.STM_034.what_no_arrival', {
+          stop: name(d.stop_id), sequence: d.stop_sequence || '—',
+          time: plannerTime(missingDeparture ? d.arrival : d.departure) || '—',
+        });
+      } else if (g.ruleId === 'STM_035' && d.stop_id) {
+        what = t('producer.card.STM_035.what_detail', {
+          stop: name(d.stop_id),
+          first_sequence: d.stop_a_sequence || '—', second_sequence: d.stop_b_sequence || '—',
+          first_time: time(d.stop_a_arrival, d.stop_a_departure), second_time: time(d.stop_b_arrival, d.stop_b_departure),
+        });
+      }
+      if (!what) return null;
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        context: tripContextText(tripContext(n, result)),
+        what,
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
+    case 'STM_037':
+    case 'STM_038':
+    case 'STM_039':
+    case 'STM_040': {
+      const d = n.details ?? {};
+      const zone = d.location_id || d.location_group_id;
+      if (!zone) return null;
+      const missing = n.field === 'end_pickup_drop_off_window' ? 'end' : 'start';
+      return {
+        title: t(`producer.card.${g.ruleId}.title`),
+        context: tripContextText(tripContext(n, result)),
+        what: t(`producer.card.${g.ruleId}.what_detail`, {
+          zone,
+          start: plannerTime(d.window_start) || d.window_start || '—',
+          end: plannerTime(d.window_end) || d.window_end || '—',
+          time: plannerTime(d.arrival) || plannerTime(d.departure) || '—',
+          missing: t(`producer.card.STM_039.missing_${missing}`),
+        }),
+        action: t(`producer.card.${g.ruleId}.action`),
+      };
+    }
     case 'STM_028':
     case 'STM_029': {
       const d = n.details ?? {};
@@ -1032,6 +1093,36 @@ function timeStrip(n: Notice, result: ValidationResult): string {
       cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')
     }</tr></tbody></table>`;
   }
+  if ((n.rule_id === 'STM_032' && d.first_stop_id) || ((n.rule_id === 'STM_033' || n.rule_id === 'STM_034') && d.stop_id)) {
+    type StopRow = [string, string, string, string, boolean];
+    const rows: StopRow[] = n.rule_id === 'STM_032'
+      ? [
+        [name(d.first_stop_id), n.observed_value ?? '—', plannerTime(d.first_arrival) || '—', plannerTime(d.first_departure) || '—', true],
+        [name(d.second_stop_id), n.observed_value ?? '—', plannerTime(d.second_arrival) || '—', plannerTime(d.second_departure) || '—', true],
+      ]
+      : [[name(d.stop_id), d.stop_sequence || '—', plannerTime(d.arrival) || '—', plannerTime(d.departure) || '—', true]];
+    return `<table class="planner-times planner-stop-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+      rows.map(([stop, sequence, arrival, departure, bad]) => `<tr${bad ? ' class="bad"' : ''}><td>${escHtml(stop)}</td><td>${escHtml(sequence)}</td><td>${escHtml(arrival)}</td><td>${escHtml(departure)}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
+  if (n.rule_id === 'STM_035' && d.stop_id) {
+    // Both rows are the same stop.
+    const rows = segmentStopRows({ ...d, stop_a: d.stop_id, stop_b: d.stop_id }, result);
+    return `<table class="planner-times planner-stm035-times"><thead><tr><th>${t('producer.col.stop')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th></tr></thead><tbody>${
+      rows.map(r => `<tr${r.bad ? ' class="bad"' : ''}><td>${escHtml(r.stop)}</td><td>${escHtml(r.sequence)}</td><td>${escHtml(plannerTime(r.arrival) || '—')}</td><td>${escHtml(plannerTime(r.departure) || '—')}</td></tr>`).join('')
+    }</tbody></table>`;
+  }
+  if (['STM_037', 'STM_038', 'STM_039', 'STM_040'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
+    const cells = [
+      d.location_id || d.location_group_id || '—', d.stop_sequence || '—',
+      plannerTime(d.window_start) || '—', plannerTime(d.window_end) || '—',
+      plannerTime(d.arrival) || '—', plannerTime(d.departure) || '—',
+      d.pickup_booking_rule_id || d.drop_off_booking_rule_id || '—',
+    ];
+    return `<table class="planner-times planner-flex-times"><thead><tr><th>${t('producer.times.flex_zone')}</th><th>${t('producer.times.sequence')}</th><th>${t('producer.times.window_start')}</th><th>${t('producer.times.window_end')}</th><th>${t('producer.times.arrival')}</th><th>${t('producer.times.departure')}</th><th>${t('producer.times.booking_rule')}</th></tr></thead><tbody><tr class="bad">${
+      cells.map(cell => `<td>${escHtml(cell)}</td>`).join('')
+    }</tr></tbody></table>`;
+  }
   if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
     type SpanRow = [string, string, string, string, boolean];
     const rows: SpanRow[] = [[name(d.first_stop_id), d.first_stop_sequence || '—', '—', plannerTime(d.first_departure) || '—', n.rule_id === 'STM_029']];
@@ -1240,6 +1331,18 @@ function timeSpot(n: Notice, result: ValidationResult): string | null {
   }
   if ((n.rule_id === 'STM_028' || n.rule_id === 'STM_029') && d.first_stop_id && d.last_stop_id) {
     return `${name(d.first_stop_id)} ${d.first_departure ?? '—'} → ${name(d.last_stop_id)} ${d.last_arrival ?? '—'}`;
+  }
+  if (n.rule_id === 'STM_032' && d.first_stop_id && d.second_stop_id) {
+    return `${name(d.first_stop_id)} / ${name(d.second_stop_id)} · ${t('producer.times.sequence')} ${n.observed_value ?? '—'}`;
+  }
+  if ((n.rule_id === 'STM_033' || n.rule_id === 'STM_034') && d.stop_id) {
+    return `${name(d.stop_id)} · ${t('producer.times.sequence')} ${d.stop_sequence || '—'}`;
+  }
+  if (n.rule_id === 'STM_035' && d.stop_id) {
+    return `${name(d.stop_id)} · ${t('producer.times.sequence')} ${d.stop_a_sequence || '—'}–${d.stop_b_sequence || '—'}`;
+  }
+  if (['STM_037', 'STM_038', 'STM_039', 'STM_040'].includes(n.rule_id) && (d.location_id || d.location_group_id)) {
+    return `${t('producer.times.flex_zone')} ${d.location_id || d.location_group_id} · ${plannerTime(d.window_start) || '—'}–${plannerTime(d.window_end) || '—'}`;
   }
   if (n.rule_id === 'STM_030' && d.stop_id) {
     return t('producer.times.spot_stm030', { stop: name(d.stop_id), sequence: d.stop_sequence || '—', value: n.observed_value ?? '—' });
@@ -1670,6 +1773,7 @@ export function plannerMap(n: Notice, result: ValidationResult): PlannerMap {
       addStop(n.details?.stop_id, true);
       addStop(n.details?.bad_stop, true);
       addStop(n.details?.first_stop_id, true);
+      addStop(n.details?.second_stop_id, true);
       addStop(n.details?.last_stop_id, true);
       addStop(n.details?.dup_stop, true);
       const pairs: Array<[string | undefined, string | undefined]> = [[n.details?.stop_a, n.details?.stop_b], ...(n.details ? badSegments(n.details) : [])];

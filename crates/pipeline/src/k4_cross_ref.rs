@@ -6498,7 +6498,7 @@ fn check_xfl(
                 .unwrap_or(0)
                 == 1
             {
-                notices.push(notice(
+                let mut n033 = notice(
                     ctr,
                     "STM_033",
                     EntityType::Trip,
@@ -6514,7 +6514,31 @@ fn check_xfl(
                         rec.trip_id
                     ),
                     "Sefere en az iki durak durağı ekleyin.",
-                ));
+                );
+                // Planner context: the trip's only stop and its time.
+                if let Some(row) = records
+                    .stop_times_index
+                    .sorted_stops(&rec.trip_id)
+                    .and_then(|rows| rows.first())
+                {
+                    let mut d = BTreeMap::new();
+                    d.insert(
+                        "stop_id".to_string(),
+                        records.stop_times_index.stop_id_of(row).to_string(),
+                    );
+                    if let Some(seq) = row.stop_sequence() {
+                        d.insert("stop_sequence".to_string(), seq.to_string());
+                    }
+                    let hms = |(h, m, s): (u32, u32, u32)| format!("{h:02}:{m:02}:{s:02}");
+                    if let Some(t) = row.arrival_time() {
+                        d.insert("arrival".to_string(), hms(t));
+                    }
+                    if let Some(t) = row.departure_time() {
+                        d.insert("departure".to_string(), hms(t));
+                    }
+                    n033.details = Some(d.into());
+                }
+                notices.push(n033);
             }
         }
     }
