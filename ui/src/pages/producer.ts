@@ -2088,6 +2088,68 @@ type EntityDim = 'route' | 'stop' | 'shape' | 'service';
 const ENTITY_DIMS: EntityDim[] = ['route', 'stop', 'shape', 'service'];
 type NoticeKeys = Record<EntityDim, string[]>;
 
+/** One card as the planner filters see it. */
+export interface FacetCard { area: string; sev: string; cls: string; rule: string; file: string; count: number; keys: NoticeKeys[] }
+/** The planner page's filter state. Entity picks: OR within a dimension, AND across dimensions. */
+export interface FacetFilter {
+  area: string; sev: Set<string>; cls: Set<string>; rule: string; file: string;
+  entity: Map<EntityDim, Set<string>>;
+}
+export interface Facets {
+  /** Per card: shown or not, and the matching rows (null = every row, no entity pick). */
+  visible: boolean[];
+  matches: Array<Set<number> | null>;
+  /** Options per filter, each counted under every OTHER active filter (faceted search): a rule
+   *  is offered with the records it would show given the area, severity, class, file and entity
+   *  picks, and so on. Counts are affected records (rows when entities are picked). */
+  rules: Map<string, number>;
+  files: Map<string, number>;
+  entity: Record<EntityDim, Map<string, number>>;
+}
+
+/** The planner filters, computed once for visibility and for every option list so they agree. */
+export function plannerFacets(cards: FacetCard[], f: FacetFilter): Facets {
+  const cardPasses = (c: FacetCard, skip?: 'rule' | 'file') =>
+    (f.area === 'all' || c.area === f.area)
+    && (f.sev.size === 0 || f.sev.has(c.sev))
+    && (f.cls.size === 0 || f.cls.has(c.cls))
+    && (skip === 'rule' || !f.rule || c.rule === f.rule)
+    && (skip === 'file' || !f.file || c.file === f.file);
+  const picks = [...f.entity].filter(([, ids]) => ids.size > 0);
+  const rowsOf = (c: FacetCard, skip?: EntityDim): Set<number> | null => {
+    const active = picks.filter(([dim]) => dim !== skip);
+    if (!active.length) return null;
+    const rows = new Set<number>();
+    c.keys.forEach((k, row) => {
+      if (active.every(([dim, ids]) => k[dim].some(id => ids.has(id)))) rows.add(row);
+    });
+    return rows;
+  };
+  const countOf = (c: FacetCard, rows: Set<number> | null) => (rows ? rows.size : c.count);
+  const add = (map: Map<string, number>, key: string, n: number) => map.set(key, (map.get(key) ?? 0) + n);
+  const out: Facets = {
+    visible: [], matches: [], rules: new Map(), files: new Map(),
+    entity: Object.fromEntries(ENTITY_DIMS.map(dim => [dim, new Map<string, number>()])) as Record<EntityDim, Map<string, number>>,
+  };
+  for (const c of cards) {
+    const rows = rowsOf(c);
+    out.matches.push(rows);
+    out.visible.push(cardPasses(c) && (!rows || rows.size > 0));
+    const n = countOf(c, rows);
+    if (n > 0 && cardPasses(c, 'rule')) add(out.rules, c.rule, n);
+    if (n > 0 && c.file && cardPasses(c, 'file')) add(out.files, c.file, n);
+    if (!cardPasses(c)) continue;
+    for (const dim of ENTITY_DIMS) {
+      const dimRows = rowsOf(c, dim);
+      c.keys.forEach((k, row) => {
+        if (dimRows && !dimRows.has(row)) return;
+        for (const id of new Set(k[dim])) add(out.entity[dim], id, 1);
+      });
+    }
+  }
+  return out;
+}
+
 /** Bir kaydın dokunduğu hat, durak, güzergâh ve takvim kimlikleri (arama süzgeci için). */
 function noticeKeys(n: Notice, result: ValidationResult): NoticeKeys {
   const ni = result.name_index;
@@ -2307,7 +2369,8 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   const technical = ordered.filter(g => !primary.includes(g));
   const groups = [...primary, ...technical];
 
-  const keys = groups.map(g => g.notices.slice(0, ROWS_CAP).map(n => noticeKeys(n, result)));
+  // Every row, not only the first ROWS_CAP shown: a filter must find a record past the shown rows.
+  const keys = groups.map(g => g.notices.map(n => noticeKeys(n, result)));
   const labels = Object.fromEntries(ENTITY_DIMS.map(dim => [dim, new Map<string, string>()])) as Record<EntityDim, Map<string, string>>;
   // Options are only records defined in the dataset; details for some rules, such as route_id,
   // carry a pattern identity rather than a route ("00020:0:11223→11224").
@@ -2465,6 +2528,25 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
   const fileSelect = root.querySelector<HTMLSelectElement>('#planner-file-filter');
   const limits = new Map<number, number>();
   const matchesByCard = new Map<number, Set<number> | null>();
+  const facetCards: FacetCard[] = groups.map((g, index) => ({
+    area: groupArea(g), sev: g.severity, cls: g.notices[0].rule_class, rule: g.ruleId,
+    file: g.notices[0].file || '', count: g.count, keys: keys[index],
+  }));
+  // Option labels as first rendered; counts are appended on every filter change.
+  const optionLabels = (select: HTMLSelectElement | null) => new Map(
+    Array.from(select?.options ?? []).filter(o => o.value).map(o => [o.value, o.textContent ?? o.value]));
+  const ruleLabels = optionLabels(ruleSelect);
+  const fileLabels = optionLabels(fileSelect);
+  let facets: Facets | null = null;
+  const fillSelect = (select: HTMLSelectElement | null, labelsOf: Map<string, string>, counts: Map<string, number>) => {
+    if (!select) return;
+    const current = select.value;
+    // An option with no record left disappears, except the one already chosen.
+    const options = [...labelsOf].filter(([value]) => (counts.get(value) ?? 0) > 0 || value === current)
+      .map(([value, label]) => `<option value="${escHtml(value)}">${escHtml(label)} (${localizedNumber(String(counts.get(value) ?? 0))})</option>`);
+    select.innerHTML = `<option value="">${t('fix.filter.all')}</option>${options.join('')}`;
+    select.value = current;
+  };
   // Affected-record table: all matching rows when filtered, paginated otherwise (10, +50).
   const refreshRows = (card: HTMLElement, index: number) => {
     const matches = matchesByCard.get(index) ?? null;
@@ -2494,13 +2576,15 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     const dim = box.dataset['dim'] as EntityDim;
     const ids = picked.get(dim)!;
     const search = box.querySelector<HTMLInputElement>('.planner-pick-search')?.value.trim().toLocaleLowerCase(getLocale()) ?? '';
-    const options = sortedOptions.get(dim)!;
+    const counts = facets?.entity[dim];
+    // Only records still reachable under the other filters; a chosen one always stays.
+    const options = sortedOptions.get(dim)!.filter(([id]) => ids.has(id) || !counts || (counts.get(id) ?? 0) > 0);
     const hits = options.filter(([id, label]) => ids.has(id) || !search || label.toLocaleLowerCase(getLocale()).includes(search));
     hits.sort((a, b) => Number(ids.has(b[0])) - Number(ids.has(a[0])));
     const list = box.querySelector<HTMLElement>('.planner-pick-list');
     if (list) {
       list.innerHTML = hits.slice(0, PICK_LIMIT).map(([id, label]) =>
-        `<label class="planner-pick-option"><input type="checkbox" value="${escHtml(id)}"${ids.has(id) ? ' checked' : ''}><span>${escHtml(label)}</span></label>`).join('')
+        `<label class="planner-pick-option"><input type="checkbox" value="${escHtml(id)}"${ids.has(id) ? ' checked' : ''}><span>${escHtml(label)}${counts ? ` (${localizedNumber(String(counts.get(id) ?? 0))})` : ''}</span></label>`).join('')
         || `<p class="planner-pick-empty">${t('producer.filter.no_match')}</p>`;
     }
     const more = box.querySelector<HTMLElement>('.planner-pick-more');
@@ -2522,21 +2606,13 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
     const rule = ruleSelect?.value ?? '';
     const file = fileSelect?.value ?? '';
     const entity = entityQuery();
+    facets = plannerFacets(facetCards, { area, sev: sevActive, cls: clsActive, rule, file, entity });
     let visible = 0;
     root.querySelectorAll<HTMLElement>('.producer-card').forEach(card => {
       const index = Number(card.dataset['cardIndex']);
-      let matches: Set<number> | null = null;
-      if (entity.size) {
-        matches = new Set(keys[index].flatMap((k, row) =>
-          [...entity].every(([dim, ids]) => k[dim].some(id => ids.has(id))) ? [row] : []));
-      }
+      const matches = facets!.matches[index] ?? null;
       matchesByCard.set(index, matches);
-      const show = (area === 'all' || card.dataset['area'] === area)
-        && (sevActive.size === 0 || sevActive.has(card.dataset['sev'] ?? ''))
-        && (clsActive.size === 0 || clsActive.has(card.dataset['cls'] ?? ''))
-        && (!rule || card.dataset['rule'] === rule)
-        && (!file || card.dataset['file'] === file)
-        && (!matches || matches.size > 0);
+      const show = facets!.visible[index] ?? false;
       card.hidden = !show;
       if (show) visible++;
       refreshRows(card, index);
@@ -2546,6 +2622,9 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
         if (!matches.has(selected)) showMap(card, index, Math.min(...matches));
       }
     });
+    fillSelect(ruleSelect, ruleLabels, facets.rules);
+    fillSelect(fileSelect, fileLabels, facets.files);
+    pickBoxes.forEach(renderPick);
     const technicalBox = root.querySelector<HTMLDetailsElement>('.planner-technical');
     if (technicalBox) {
       technicalBox.hidden = !technicalBox.querySelector('.producer-card:not([hidden])');
@@ -2603,6 +2682,8 @@ export function renderProducer(root: HTMLElement, fullResult: ValidationResult):
       applyFilters();
     });
   });
+  // Counts and narrowed option lists from the first paint, not only after the first change.
+  applyFilters();
   if (pickBoxes.length && typeof document !== 'undefined') {
     document.addEventListener('click', e => {
       if (!root.isConnected) return;

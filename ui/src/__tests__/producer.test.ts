@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { buildProducerModel, stopUsage, entityLabel, plannerArea, routeBadge } from '../pages/producer-helpers';
-import { plannerMap, renderProducer } from '../pages/producer';
+import { plannerFacets, plannerMap, renderProducer } from '../pages/producer';
+import type { FacetCard, FacetFilter } from '../pages/producer';
 import type { ValidationResult, Notice, NameIndex } from '../types';
 import { tMsgForLocale } from '../i18n';
 
@@ -1616,5 +1617,57 @@ describe('Feed düzeyi özetin örnek kayıtları', () => {
     })], 'CAL_007');
     expect(html).toContain('<th>Takvim kodu</th>');
     expect(html).toContain('<td>287.328.1, 287.65.1</td>');
+  });
+});
+
+describe('plannerFacets (bağlı filtreler)', () => {
+  const k = (route: string[], stop: string[]) => ({ route, stop, shape: [], service: [] });
+  const cards: FacetCard[] = [
+    { area: 'stops', sev: 'LOW', cls: 'ANALYTICS', rule: 'STM_021', file: 'stop_times.txt', count: 2, keys: [k(['R1'], ['S1']), k(['R2'], ['S2'])] },
+    { area: 'times', sev: 'MEDIUM', cls: 'SPEC', rule: 'STM_022', file: 'stop_times.txt', count: 1, keys: [k(['R1'], ['S3'])] },
+    { area: 'agency', sev: 'HIGH', cls: 'SPEC', rule: 'AGN_003', file: 'agency.txt', count: 1, keys: [k([], [])] },
+  ];
+  const none = (): FacetFilter => ({ area: 'all', sev: new Set(), cls: new Set(), rule: '', file: '', entity: new Map() });
+
+  it('filtre yokken her seçenek bütün kayıtlarla sayılır', () => {
+    const f = plannerFacets(cards, none());
+    expect(f.visible).toEqual([true, true, true]);
+    expect([...f.rules]).toEqual([['STM_021', 2], ['STM_022', 1], ['AGN_003', 1]]);
+    expect(f.entity.route.get('R1')).toBe(2);
+    expect(f.entity.stop.get('S2')).toBe(1);
+  });
+
+  it('hat seçilince durak, kural ve dosya listeleri o hatta daralır', () => {
+    const f = plannerFacets(cards, { ...none(), entity: new Map([['route', new Set(['R1'])]]) });
+    expect(f.visible).toEqual([true, true, false]);
+    expect([...f.matches[0]!]).toEqual([0]);
+    expect([...f.entity.stop.keys()].sort()).toEqual(['S1', 'S3']);
+    expect([...f.rules]).toEqual([['STM_021', 1], ['STM_022', 1]]);
+    expect([...f.files]).toEqual([['stop_times.txt', 2]]);
+    // The route list itself is not narrowed by its own pick, so another route can be added.
+    expect(f.entity.route.get('R2')).toBe(1);
+  });
+
+  it('kural seçimi kendi listesini daraltmaz, diğerlerini daraltır', () => {
+    const f = plannerFacets(cards, { ...none(), rule: 'STM_022' });
+    expect(f.visible).toEqual([false, true, false]);
+    expect([...f.rules.keys()]).toEqual(['STM_021', 'STM_022', 'AGN_003']);
+    expect([...f.entity.route.keys()]).toEqual(['R1']);
+    expect([...f.entity.stop.keys()]).toEqual(['S3']);
+  });
+
+  it('alan ve önem seçimi kural listesini daraltır', () => {
+    const f = plannerFacets(cards, { ...none(), area: 'stops' });
+    expect([...f.rules.keys()]).toEqual(['STM_021']);
+    const g = plannerFacets(cards, { ...none(), sev: new Set(['MEDIUM', 'HIGH']) });
+    expect([...g.rules.keys()]).toEqual(['STM_022', 'AGN_003']);
+  });
+
+  it('gösterilen 500 satırın ötesindeki kayıt da bulunur', () => {
+    const rows = Array.from({ length: 600 }, (_, i) => k([i === 550 ? 'R9' : 'R1'], []));
+    const big: FacetCard[] = [{ area: 'trips', sev: 'LOW', cls: 'QUALITY', rule: 'TRP_020', file: 'trips.txt', count: 600, keys: rows }];
+    const f = plannerFacets(big, { ...none(), entity: new Map([['route', new Set(['R9'])]]) });
+    expect(f.visible).toEqual([true]);
+    expect([...f.matches[0]!]).toEqual([550]);
   });
 });
